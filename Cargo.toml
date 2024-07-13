@@ -1,0 +1,46 @@
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+description = "Integration of the Kakarot Ethereum execution layer in the Reth client."
+homepage = "https://github.com/kkrt-labs"
+repository = "https://github.com/kkrt-labs/keth"
+readme = "./README.md"
+license = "MIT"
+rust-version = "1.79"
+exclude = [".github/"]
+
+[workspace]
+members = [
+    "crates/node/",
+    "crates/pool/",
+    "crates/primitives/",
+]
+
+# Explicitly set the resolver to version 2, which is the default for packages with edition >= 2021
+# https://doc.rust-lang.org/edition-guide/rust-2021/default-cargo-resolver.html
+resolver = "2"
+
+[workspace.lints]
+rust.missing_debug_implementations = "warn"
+rust.unreachable_pub = "warn"
+rustdoc.all = "warn"
+rust.unused_must_use = "deny"
+rust.rust_2018_idioms = { level = "deny", priority = -1 }
+
+[workspace.lints.clippy]
+# all lints that are on by default (correctness, suspicious, style, complexity, perf)
+all = "warn"
+
+[workspace.dependencies]
+kakarot-node = { path = "crates/node" }
+kakarot-pool = { path = "crates/pool" }
+
+reth-transaction-pool = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.0.0", default-features = false }
+reth-primitives = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.0.0", default-features = false }
+reth-chainspec = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.0.0", default-features = false }
+reth-node-ethereum = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.0.0", default-features = false }
+reth-node-builder = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.0.0", default-features = false }
+reth-node-api = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.0.0", default-features = false }
+reth-ethereum-engine-primitives = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.0.0", default-features = false }
+
+serde = { version = "1.0", default-features = false }

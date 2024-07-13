@@ -1,0 +1,17 @@
+---
+name: Workflow - Pull Request
+
+on: [pull_request]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  spell_check:
+    name: Spell check
+    uses: ./.github/workflows/spell_check.yml
+
+  rust-tests:
+    name: Rust tests
+    uses: ./.github/workflows/rust_test.yml
