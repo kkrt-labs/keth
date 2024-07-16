@@ -11,14 +11,16 @@
 
 pub mod validate;
 
+use crate::validate::KakarotEthTransactionValidator;
 use reth_node_ethereum::node::EthereumPoolBuilder;
 use reth_transaction_pool::{
-    CoinbaseTipOrdering, EthPooledTransaction, EthTransactionValidator, Pool, TransactionValidationTaskExecutor,
+    CoinbaseTipOrdering, EthPooledTransaction, Pool, TransactionValidationTaskExecutor,
 };
 
 /// A type alias for the Kakarot Transaction Validator.
 /// Uses the Reth implementation [`TransactionValidationTaskExecutor`].
-pub type Validator<Client> = TransactionValidationTaskExecutor<EthTransactionValidator<Client, EthPooledTransaction>>;
+pub type Validator<Client> =
+    TransactionValidationTaskExecutor<KakarotEthTransactionValidator<Client, EthPooledTransaction>>;
 
 /// A type alias for the Kakarot Transaction Ordering.
 /// Uses the Reth implementation [`CoinbaseTipOrdering`].
@@ -29,8 +31,8 @@ pub type KakarotPool<Client, S> = Pool<Validator<Client>, TransactionOrdering, S
 
 /// Type alias for the Kakarot mempool builder.
 ///
-/// This type alias represents the configuration builder for the mempool used in the Kakarot implementation,
-/// utilizing components from the Ethereum node framework provided by Reth.
+/// This type alias represents the configuration builder for the mempool used in the Kakarot
+/// implementation, utilizing components from the Ethereum node framework provided by Reth.
 ///
 /// It configures the transaction pool specific to Kakarot's requirements.
 pub type KakarotPoolBuilder = EthereumPoolBuilder;

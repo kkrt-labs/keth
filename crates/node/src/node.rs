@@ -1,7 +1,11 @@
 use crate::execution::KakarotExecutorBuilder;
 use kakarot_pool::KakarotPoolBuilder;
-use reth_ethereum_engine_primitives::{EthBuiltPayload, EthPayloadAttributes, EthPayloadBuilderAttributes};
-use reth_node_builder::{components::ComponentsBuilder, FullNodeTypes, Node, NodeTypes, PayloadTypes};
+use reth_ethereum_engine_primitives::{
+    EthBuiltPayload, EthPayloadAttributes, EthPayloadBuilderAttributes,
+};
+use reth_node_builder::{
+    components::ComponentsBuilder, FullNodeTypes, Node, NodeTypes, PayloadTypes,
+};
 use reth_node_ethereum::{
     node::{EthereumConsensusBuilder, EthereumNetworkBuilder, EthereumPayloadBuilder},
     EthEngineTypes,

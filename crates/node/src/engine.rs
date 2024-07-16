@@ -6,8 +6,8 @@ use reth_ethereum_engine_primitives::{
     ExecutionPayloadEnvelopeV3, ExecutionPayloadEnvelopeV4, ExecutionPayloadV1,
 };
 use reth_node_api::{
-    validate_parent_beacon_block_root_presence, EngineApiMessageVersion, EngineObjectValidationError,
-    PayloadOrAttributes,
+    validate_parent_beacon_block_root_presence, EngineApiMessageVersion,
+    EngineObjectValidationError, PayloadOrAttributes,
 };
 use reth_node_builder::{EngineTypes, PayloadTypes};
 use serde::{Deserialize, Serialize};

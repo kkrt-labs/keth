@@ -7,7 +7,7 @@ use reth_transaction_pool::{
 };
 use std::sync::Arc;
 
-/// A wrapper around the Reth [`EthTransactionValidatorBuilder`].
+/// A wrapper around the Reth [`EthTransactionValidator`].
 /// The produced Validator will reject EIP4844 transactions not supported by Kakarot at the moment.
 #[derive(Debug)]
 pub struct KakarotTransactionValidatorBuilder(EthTransactionValidatorBuilder);
@@ -19,10 +19,21 @@ impl KakarotTransactionValidatorBuilder {
     }
 
     /// Build the [`EthTransactionValidator`]. Force `no_eip4844`.
-    pub fn build<Client, S>(self, client: Client, store: S) -> EthTransactionValidator<Client, S>
+    pub fn build<Client, S>(
+        self,
+        client: Client,
+        store: S,
+    ) -> KakarotEthTransactionValidator<Client, S>
     where
         S: BlobStore,
     {
-        self.0.no_eip4844().build(client, store)
+        let validator = self.0.no_eip4844().build(client, store);
+        KakarotEthTransactionValidator { inner: validator }
     }
+}
+
+/// A wrapper around the Reth [`EthTransactionValidator`].
+#[derive(Debug)]
+pub struct KakarotEthTransactionValidator<Client, S> {
+    pub inner: EthTransactionValidator<Client, S>,
 }

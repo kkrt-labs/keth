@@ -13,7 +13,6 @@ exclude = [".github/"]
 members = [
     "crates/node/",
     "crates/pool/",
-    "crates/primitives/",
 ]
 
 # Explicitly set the resolver to version 2, which is the default for packages with edition >= 2021
