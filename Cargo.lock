@@ -3502,6 +3502,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "keth"
+version = "0.1.0"
+dependencies = [
+ "alloy-genesis",
+ "clap",
+ "kakarot-node",
+ "reth-chainspec",
+ "reth-cli-runner",
+ "reth-db",
+ "reth-node-builder",
+ "reth-node-core",
+ "reth-primitives",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "lazy_static"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3529,7 +3546,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4979f22fdb869068da03c9f7528f8297c6fd2606bc3a4affe42e6a823fdb8da4"
 dependencies = [
  "cfg-if",
- "windows-targets 0.48.5",
+ "windows-targets 0.52.6",
 ]
 
 [[package]]
@@ -5124,6 +5141,16 @@ dependencies = [
  "reth-primitives-traits",
  "reth-trie-common",
  "serde_json",
+]
+
+[[package]]
+name = "reth-cli-runner"
+version = "1.0.0"
+source = "git+https://github.com/paradigmxyz/reth.git?tag=v1.0.0#83d412da70af678a46f368533b6df45a287a1ce6"
+dependencies = [
+ "reth-tasks",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

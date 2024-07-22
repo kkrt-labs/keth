@@ -15,9 +15,11 @@ use reth_node_ethereum::{
 pub type KakarotPayloadBuilder = EthereumPayloadBuilder;
 
 /// Type alias for the Kakarot network builder.
+/// TODO: we don't need a network for now, so just implement a type that does nothing.
 pub type KakarotNetworkBuilder = EthereumNetworkBuilder;
 
 /// Type alias for the Kakarot consensus builder.
+/// TODO: we don't need a consensus for now, so just implement a type that does nothing.
 pub type KakarotConsensusBuilder = EthereumConsensusBuilder;
 
 /// Type configuration for a regular Kakarot node.
