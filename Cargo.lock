@@ -3502,15 +3502,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "keth"
-version = "0.1.0"
-dependencies = [
- "clap",
- "reth-cli-runner",
- "reth-node-builder",
-]
-
-[[package]]
 name = "lazy_static"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5133,16 +5124,6 @@ dependencies = [
  "reth-primitives-traits",
  "reth-trie-common",
  "serde_json",
-]
-
-[[package]]
-name = "reth-cli-runner"
-version = "1.0.0"
-source = "git+https://github.com/paradigmxyz/reth.git?tag=v1.0.0#83d412da70af678a46f368533b6df45a287a1ce6"
-dependencies = [
- "reth-tasks",
- "tokio",
- "tracing",
 ]
 
 [[package]]
