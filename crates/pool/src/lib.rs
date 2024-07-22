@@ -35,4 +35,5 @@ pub type KakarotPool<Client, S> = Pool<Validator<Client>, TransactionOrdering, S
 /// implementation, utilizing components from the Ethereum node framework provided by Reth.
 ///
 /// It configures the transaction pool specific to Kakarot's requirements.
+/// TODO: incorrect, this needs to use the custom Validator<Client>.
 pub type KakarotPoolBuilder = EthereumPoolBuilder;
