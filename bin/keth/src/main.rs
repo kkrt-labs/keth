@@ -8,8 +8,7 @@ use reth_db::init_db;
 use reth_node_builder::{NodeBuilder, NodeConfig};
 use reth_node_core::args::RpcServerArgs;
 use reth_primitives::Address;
-use std::str::FromStr;
-use std::sync::Arc;
+use std::{str::FromStr, sync::Arc};
 
 fn main() {
     let args = Cli::parse();
