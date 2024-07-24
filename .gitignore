@@ -14,3 +14,6 @@ target/
 # Added by cargo
 
 /target
+
+# Ignore database files
+**/*.db

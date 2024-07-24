@@ -1,4 +1,3 @@
-use alloy_genesis::Genesis;
 use clap::Parser;
 use kakarot_node::node::KakarotNode;
 use keth::cli::Cli;
@@ -7,7 +6,7 @@ use reth_cli_runner::CliRunner;
 use reth_db::init_db;
 use reth_node_builder::{NodeBuilder, NodeConfig};
 use reth_node_core::args::RpcServerArgs;
-use reth_primitives::Address;
+use reth_primitives::{Address, Genesis};
 use std::{str::FromStr, sync::Arc};
 
 fn main() {
