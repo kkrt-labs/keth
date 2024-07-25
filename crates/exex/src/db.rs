@@ -1,22 +1,15 @@
 use reth_primitives::{
     revm_primitives::{AccountInfo, Bytecode},
-    Address, Bytes, SealedBlockWithSenders, StorageEntry, B256, U256,
+    Address, SealedBlockWithSenders, B256, U256,
 };
 use reth_provider::OriginalValuesKnown;
 use reth_revm::db::BundleState;
 use rusqlite::Connection;
 use std::{
-    collections::HashMap,
     ops::{Deref, DerefMut},
     str::FromStr,
     sync::{Arc, Mutex, MutexGuard},
 };
-
-/// Types used inside RevertsInit to initialize revms reverts.
-pub type AccountRevertInit = (Option<Option<AccountInfo>>, Vec<StorageEntry>);
-
-/// Type used to initialize revms reverts.
-pub type RevertsInit = HashMap<Address, AccountRevertInit>;
 
 /// A struct representing the database, encapsulating a connection to the SQLite database.
 ///
@@ -174,17 +167,8 @@ impl reth_revm::Database for Database {
         self.get_account(address)
     }
 
-    fn code_by_hash(&mut self, code_hash: B256) -> Result<Bytecode, Self::Error> {
-        let bytecode = self.connection().query_row::<String, _, _>(
-            "SELECT data FROM bytecode WHERE hash = ?",
-            (code_hash.to_string(),),
-            |row| row.get(0),
-        );
-        match bytecode {
-            Ok(data) => Ok(Bytecode::new_raw(Bytes::from_str(&data).unwrap())),
-            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(Bytecode::default()),
-            Err(err) => Err(err.into()),
-        }
+    fn code_by_hash(&mut self, _code_hash: B256) -> Result<Bytecode, Self::Error> {
+        Ok(Default::default())
     }
 
     fn storage(&mut self, _address: Address, _index: U256) -> Result<U256, Self::Error> {
