@@ -50,14 +50,6 @@ impl<Node: FullNodeComponents> KakarotRollup<Node> {
     pub async fn start(mut self) -> eyre::Result<()> {
         // Process all new chain state notifications
         while let Some(notification) = self.ctx.notifications.recv().await {
-            // Check if the notification contains a reverted chain.
-            if let Some(reverted_chain) = notification.reverted_chain() {
-                info!("Received chain reverted: {:?}", reverted_chain);
-                // Uncomment the following line to handle the reverted chain with db.
-                // Commented out for now to simplify the example.
-                // self.revert(&reverted_chain)?;
-            }
-
             // Check if the notification contains a committed chain.
             if let Some(committed_chain) = notification.committed_chain() {
                 // Commit the new chain state.
