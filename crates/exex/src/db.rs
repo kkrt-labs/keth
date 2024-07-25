@@ -1,9 +1,3 @@
-use std::{
-    collections::HashMap,
-    str::FromStr,
-    sync::{Arc, Mutex, MutexGuard},
-};
-
 use reth_primitives::{
     revm_primitives::{AccountInfo, Bytecode},
     Address, Bytes, SealedBlockWithSenders, StorageEntry, B256, U256,
@@ -14,6 +8,12 @@ use reth_revm::db::{
     BundleState,
 };
 use rusqlite::Connection;
+use std::{
+    collections::HashMap,
+    ops::{Deref, DerefMut},
+    str::FromStr,
+    sync::{Arc, Mutex, MutexGuard},
+};
 
 /// Types used inside RevertsInit to initialize revms reverts.
 pub type AccountRevertInit = (Option<Option<AccountInfo>>, Vec<StorageEntry>);
@@ -22,27 +22,38 @@ pub type AccountRevertInit = (Option<Option<AccountInfo>>, Vec<StorageEntry>);
 pub type RevertsInit = HashMap<Address, AccountRevertInit>;
 
 /// A struct representing the database, encapsulating a connection to the SQLite database.
+///
+/// The connection is protected by a `Mutex` for thread-safe access and is shared across
+/// instances using `Arc`.
 #[derive(Debug)]
-pub struct Database {
-    /// Connection to the SQLite database.
-    ///
-    /// The connection is protected by a `Mutex` for thread-safe access and is shared across
-    /// instances using `Arc`.
-    connection: Arc<Mutex<Connection>>,
+pub struct Database(Arc<Mutex<Connection>>);
+
+impl Deref for Database {
+    type Target = Arc<Mutex<Connection>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for Database {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
 }
 
 impl Database {
     /// Creates a new `Database` instance with the provided SQLite `Connection`.
     pub fn new(connection: Connection) -> eyre::Result<Self> {
         // Create the database instance and create the required tables.
-        let database = Self { connection: Arc::new(Mutex::new(connection)) };
+        let database = Self(Arc::new(Mutex::new(connection)));
         database.create_tables()?;
         Ok(database)
     }
 
     /// Acquires a lock on the database connection and returns a `MutexGuard` for access.
     fn connection(&self) -> MutexGuard<'_, Connection> {
-        self.connection.lock().expect("failed to acquire database lock")
+        self.lock().expect("failed to acquire database lock")
     }
 
     /// Creates the necessary tables in the SQLite database if they do not already exist.
