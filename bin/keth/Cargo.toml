@@ -11,9 +11,6 @@ rust-version.workspace = true
 exclude.workspace = true
 
 [dependencies]
-#Alloy
-alloy-genesis = { version = "0.1.2", default-features = false }
-
 # Kakarot
 kakarot-node.workspace = true
 
