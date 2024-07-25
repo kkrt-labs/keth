@@ -1,31 +1,26 @@
-use alloy_genesis::Genesis;
 use clap::Parser;
 use kakarot_node::node::KakarotNode;
 use keth::cli::Cli;
-use reth_chainspec::{Chain, ChainSpec};
+use reth_chainspec::ChainSpec;
 use reth_cli_runner::CliRunner;
 use reth_db::init_db;
 use reth_node_builder::{NodeBuilder, NodeConfig};
 use reth_node_core::args::RpcServerArgs;
-use reth_primitives::Address;
-use std::{str::FromStr, sync::Arc};
+use std::sync::Arc;
 
 fn main() {
     let args = Cli::parse();
     args.log.init_tracing();
 
-    let chain_id = args.chain.id;
-    let chain = ChainSpec::builder()
-        .cancun_activated()
-        .chain(Chain::from_id(chain_id))
-        .genesis(Genesis::clique_genesis(
-            chain_id,
-            Address::from_str("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266").unwrap(),
-        ))
-        .build();
+    let chain_args = args.chain;
 
-    let config =
-        NodeConfig::default().with_chain(chain).with_rpc(RpcServerArgs::default().with_http());
+    let chain_spec: ChainSpec = (&chain_args).into();
+    let dev_args = (&chain_args).into();
+
+    let config = NodeConfig::default()
+        .with_chain(chain_spec)
+        .with_rpc(RpcServerArgs::default().with_http())
+        .with_dev(dev_args);
 
     let data_dir = config.datadir();
     let db_path = data_dir.db();
