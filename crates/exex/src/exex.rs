@@ -152,7 +152,7 @@ mod tests {
         // Deposit some ETH to the sender and insert it into database
         db.set_account(
             sender_address,
-            Some(AccountInfo { balance: U256::from(ETH_TO_WEI), nonce: 0, ..Default::default() }),
+            AccountInfo { balance: U256::from(ETH_TO_WEI), nonce: 0, ..Default::default() },
         )?;
 
         // Create the Kakarot Rollup chain instance and start processing chain state notifications.

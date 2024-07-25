@@ -132,14 +132,10 @@ impl Database {
     }
 
     /// Inserts a new account if it doesn't exist or updates it if it does.
-    pub fn set_account(
-        &self,
-        address: Address,
-        account_info: Option<AccountInfo>,
-    ) -> eyre::Result<()> {
+    pub fn set_account(&self, address: Address, account_info: AccountInfo) -> eyre::Result<()> {
         self.connection().execute(
             "INSERT INTO account (address, data) VALUES (?, ?) ON CONFLICT(address) DO UPDATE SET data = excluded.data",
-            (address.to_string(), serde_json::to_string(&account_info.unwrap_or_default())?),
+            (address.to_string(), serde_json::to_string(&account_info)?),
         )?;
 
         Ok(())
