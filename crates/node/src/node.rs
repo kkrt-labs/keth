@@ -7,7 +7,9 @@ use reth_node_builder::{
     components::ComponentsBuilder, FullNodeTypes, Node, NodeTypes, PayloadTypes,
 };
 use reth_node_ethereum::{
-    node::{EthereumConsensusBuilder, EthereumNetworkBuilder, EthereumPayloadBuilder},
+    node::{
+        EthereumAddOns, EthereumConsensusBuilder, EthereumNetworkBuilder, EthereumPayloadBuilder,
+    },
     EthEngineTypes,
 };
 
@@ -21,6 +23,9 @@ pub type KakarotNetworkBuilder = EthereumNetworkBuilder;
 /// Type alias for the Kakarot consensus builder.
 /// TODO: we don't need a consensus for now, so just implement a type that does nothing.
 pub type KakarotConsensusBuilder = EthereumConsensusBuilder;
+
+/// Type alias for the Kakarot add-ons.
+pub type KakarotAddsOns = EthereumAddOns;
 
 /// Type configuration for a regular Kakarot node.
 #[derive(Debug, Default, Clone, Copy)]
@@ -73,7 +78,9 @@ where
         KakarotConsensusBuilder,
     >;
 
-    fn components_builder(self) -> Self::ComponentsBuilder {
+    type AddOns = KakarotAddsOns;
+
+    fn components_builder(&self) -> Self::ComponentsBuilder {
         Self::components()
     }
 }

@@ -1,0 +1,39 @@
+[package]
+name = "kakarot-exex"
+version = "0.1.0"
+edition = "2021"
+
+[lints]
+workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+kakarot-pool = { workspace = true }
+
+reth = { workspace = true }
+reth-node-ethereum = { workspace = true }
+reth-node-builder = { workspace = true }
+reth-ethereum-engine-primitives = { workspace = true }
+reth-chainspec = { workspace = true }
+reth-node-api = { workspace = true }
+reth-exex = { workspace = true }
+reth-execution-types = { workspace = true }
+reth-tracing = { workspace = true }
+reth-primitives = { workspace = true }
+reth-revm = { workspace = true }
+reth-execution-errors = { workspace = true }
+reth-provider = { workspace = true }
+
+# SQLite for debugging, should be removed in the future
+rusqlite = { version = "0.31.0", features = ["bundled"] }
+
+serde = { workspace = true }
+serde_json = { workspace = true }
+eyre = { workspace = true }
+once_cell = { workspace = true }
+tokio = { workspace = true }
+
+[dev-dependencies]
+reth-exex-test-utils = { workspace = true }
+reth-testing-utils = { workspace = true }
