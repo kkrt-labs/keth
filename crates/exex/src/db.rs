@@ -135,12 +135,11 @@ impl Database {
     pub fn set_account(
         &self,
         address: Address,
-        f: impl FnOnce(Option<AccountInfo>) -> eyre::Result<AccountInfo>,
+        account_info: Option<AccountInfo>,
     ) -> eyre::Result<()> {
-        let account = f(self.account(address)?)?;
         self.connection().execute(
             "INSERT INTO account (address, data) VALUES (?, ?) ON CONFLICT(address) DO UPDATE SET data = excluded.data",
-            (address.to_string(), serde_json::to_string(&account)?),
+            (address.to_string(), serde_json::to_string(&account_info.unwrap_or_default())?),
         )?;
 
         Ok(())

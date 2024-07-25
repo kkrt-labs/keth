@@ -150,9 +150,10 @@ mod tests {
         let sender_address = address!("6a3cA5811d2c185E6e441cEFa771824fb355f9Ec");
 
         // Deposit some ETH to the sender and insert it into database
-        db.set_account(sender_address, |_| {
-            Ok(AccountInfo { balance: U256::from(ETH_TO_WEI), nonce: 0, ..Default::default() })
-        })?;
+        db.set_account(
+            sender_address,
+            Some(AccountInfo { balance: U256::from(ETH_TO_WEI), nonce: 0, ..Default::default() }),
+        )?;
 
         // Create the Kakarot Rollup chain instance and start processing chain state notifications.
         Ok(KakarotRollup { ctx, db }.start())
