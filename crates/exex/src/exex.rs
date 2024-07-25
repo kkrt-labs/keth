@@ -125,7 +125,7 @@ mod tests {
     use reth_exex_test_utils::{test_exex_context, PollOnce};
     use reth_primitives::{
         address, constants::ETH_TO_WEI, hex, Bytes, Header, Receipt, Receipts, SealedBlock,
-        SealedBlockWithSenders, TransactionSigned, TxEip1559, TxType, B256, U256,
+        SealedBlockWithSenders, TransactionSigned, TxEip1559, B256, U256,
     };
     use reth_revm::primitives::AccountInfo;
     use std::{future::Future, pin::pin, str::FromStr};
@@ -234,14 +234,7 @@ mod tests {
         };
 
         // Create a Receipts object with a vector of receipt vectors
-        let receipts = Receipts {
-            receipt_vec: vec![vec![Some(Receipt {
-                tx_type: TxType::Legacy,
-                cumulative_gas_used: 46913,
-                logs: vec![],
-                success: true,
-            })]],
-        };
+        let receipts = Receipts { receipt_vec: vec![vec![Some(Receipt::default())]] };
 
         // Send a notification to the Execution Extension that the chain has been committed
         handle
