@@ -150,7 +150,7 @@ mod tests {
         let sender_address = address!("6a3cA5811d2c185E6e441cEFa771824fb355f9Ec");
 
         // Deposit some ETH to the sender and insert it into database
-        db.upsert_account(sender_address, |_| {
+        db.set_account(sender_address, |_| {
             Ok(AccountInfo { balance: U256::from(ETH_TO_WEI), nonce: 0, ..Default::default() })
         })?;
 
@@ -266,7 +266,7 @@ mod tests {
 
         // Check that the recipient account has the correct balance after the transaction
         let recipient_account_info =
-            db.get_account(address!("f3de3c0d654fda23dad170f0f320a92172509127"))?;
+            db.account(address!("f3de3c0d654fda23dad170f0f320a92172509127"))?;
         assert_eq!(
             recipient_account_info.unwrap().balance,
             U256::from_str("0xb1a2bc2ec50000").unwrap()
@@ -274,7 +274,7 @@ mod tests {
 
         // Check that the sender account has the correct balance after the transaction
         let sender_account_info =
-            db.get_account(address!("6a3cA5811d2c185E6e441cEFa771824fb355f9Ec"))?;
+            db.account(address!("6a3cA5811d2c185E6e441cEFa771824fb355f9Ec"))?;
         assert_eq!(
             sender_account_info.unwrap().balance,
             // Initial balance - value - gas used

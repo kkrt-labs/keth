@@ -132,12 +132,12 @@ impl Database {
     }
 
     /// Inserts a new account if it doesn't exist or updates it if it does.
-    pub fn upsert_account(
+    pub fn set_account(
         &self,
         address: Address,
         f: impl FnOnce(Option<AccountInfo>) -> eyre::Result<AccountInfo>,
     ) -> eyre::Result<()> {
-        let account = f(self.get_account(address)?)?;
+        let account = f(self.account(address)?)?;
         self.connection().execute(
             "INSERT INTO account (address, data) VALUES (?, ?) ON CONFLICT(address) DO UPDATE SET data = excluded.data",
             (address.to_string(), serde_json::to_string(&account)?),
@@ -147,7 +147,7 @@ impl Database {
     }
 
     /// Retrieves an account from the database using its address.
-    pub fn get_account(&self, address: Address) -> eyre::Result<Option<AccountInfo>> {
+    pub fn account(&self, address: Address) -> eyre::Result<Option<AccountInfo>> {
         match self.connection().query_row::<String, _, _>(
             "SELECT data FROM account WHERE address = ?",
             (address.to_string(),),
@@ -164,7 +164,7 @@ impl reth_revm::Database for Database {
     type Error = eyre::Report;
 
     fn basic(&mut self, address: Address) -> Result<Option<AccountInfo>, Self::Error> {
-        self.get_account(address)
+        self.account(address)
     }
 
     fn code_by_hash(&mut self, _code_hash: B256) -> Result<Bytecode, Self::Error> {
