@@ -162,6 +162,7 @@ impl Database {
         Ok(())
     }
 
+    /// Retrieves the execution trace and memory state for a specific block from the database.
     pub fn execution_trace(
         &self,
         number: u64,

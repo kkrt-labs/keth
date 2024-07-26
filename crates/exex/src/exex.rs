@@ -195,7 +195,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_exex_block_execution() -> eyre::Result<()> {
+    async fn test_exex() -> eyre::Result<()> {
         // Initialize the tracing subscriber for testing
         reth_tracing::init_test_tracing();
 
@@ -322,45 +322,8 @@ mod tests {
         // Check that the block has been inserted into the database
         assert_eq!(db.block(U256::from(0xf21d20))?.unwrap(), block);
 
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_exex_cairo_traces() -> eyre::Result<()> {
-        // Initialize the tracing subscriber for testing
-        reth_tracing::init_test_tracing();
-
-        // Remove the database file if it exists so we start with a clean db
-        std::fs::remove_file(DATABASE_PATH).ok();
-
-        // Initialize a test Execution Extension context with all dependencies
-        let (ctx, handle) = test_exex_context().await?;
-
-        // Send a notification to the Execution Extension that the chain has been committed
-        handle
-            .send_notification_chain_committed(Chain::from_block(
-                SealedBlockWithSenders::default(),
-                ExecutionOutcome::default(),
-                None,
-            ))
-            .await?;
-
-        // Initialize the Execution Extension
-        let mut exex = pin!(exex_init(ctx).await?);
-
-        // Check that the Execution Extension did not emit any events until we polled it
-        handle.assert_events_empty();
-
-        // Poll the Execution Extension once to process incoming notifications
-        exex.poll_once().await?;
-
-        // Open the SQLite database connection.
-        let connection = Connection::open(DATABASE_PATH)?;
-
-        // Initialize the database with the connection.
-        let db = Database::new(connection)?;
-
-        assert!(db.execution_trace(0x0)?.is_some());
+        // Check that the execution trace has been inserted into the database
+        assert!(db.execution_trace(0xf21d20)?.is_some());
 
         Ok(())
     }
