@@ -9,6 +9,9 @@ workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+# Cairo-VM deps
+cairo-vm = { git = "https://github.com/lambdaclass/cairo-vm.git", tag = "v1.0.0-rc6" }
+
 kakarot-pool = { workspace = true }
 
 reth = { workspace = true }
