@@ -1,3 +1,4 @@
+use cairo_vm::{vm::trace::trace_entry::RelocatedTraceEntry, Felt252};
 use reth_primitives::{
     revm_primitives::{AccountInfo, Bytecode},
     Address, SealedBlockWithSenders, B256, U256,
@@ -63,7 +64,14 @@ impl Database {
                 id      INTEGER PRIMARY KEY,
                 address TEXT UNIQUE,
                 data    TEXT
-            );",
+            );
+            CREATE TABLE IF NOT EXISTS trace (
+                id           INTEGER PRIMARY KEY,
+                number       TEXT UNIQUE,
+                execution    TEXT,
+                memory       TEXT
+            );
+            ",
         )?;
         Ok(())
     }
@@ -111,7 +119,7 @@ impl Database {
     /// This function queries the database for a block with the specified block number.
     /// If the block is found, it is deserialized from its JSON representation into a
     /// `SealedBlockWithSenders` struct. If the block is not found, `None` is returned.
-    pub fn get_block(&self, number: U256) -> eyre::Result<Option<SealedBlockWithSenders>> {
+    pub fn block(&self, number: U256) -> eyre::Result<Option<SealedBlockWithSenders>> {
         // Executes a SQL query to select the block data as a JSON string based on the block number.
         let block = self.connection().query_row::<String, _, _>(
             "SELECT data FROM block WHERE number = ?",
@@ -125,6 +133,57 @@ impl Database {
             Ok(data) => Ok(Some(serde_json::from_str(&data)?)),
             // If no rows are returned by the query, it means the block does not exist in the
             // database.
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            // If any other error occurs, convert it into an eyre error and return.
+            Err(e) => Err(e.into()),
+        }
+    }
+
+    /// Inserts an execution trace into the database.
+    pub fn insert_execution_trace(
+        &self,
+        number: u64,
+        trace: Vec<RelocatedTraceEntry>,
+        memory: Vec<Felt252>,
+    ) -> eyre::Result<()> {
+        // Acquire a database connection and begin a transaction.
+        let mut connection = self.connection();
+        let tx = connection.transaction()?;
+
+        // Insert the trace into the `trace` table.
+        tx.execute(
+            "INSERT INTO trace (number, execution, memory) VALUES (?, ?, ?)",
+            (number, serde_json::to_string(&trace)?, serde_json::to_string(&memory)?),
+        )?;
+
+        // Commit the transaction to persist all changes.
+        tx.commit()?;
+
+        Ok(())
+    }
+
+    /// Retrieves the execution trace and memory state for a specific block from the database.
+    pub fn execution_trace(
+        &self,
+        number: u64,
+    ) -> eyre::Result<Option<(Vec<RelocatedTraceEntry>, Vec<Felt252>)>> {
+        // Executes a SQL query to select the trace data as a JSON string based on the block number.
+        let connection = self.connection();
+        let mut statement =
+            connection.prepare("SELECT execution, memory FROM trace WHERE number = ?")?;
+        let res: Result<(String, String), _> = statement
+            .query_map([number.to_string()], |row| Ok((row.get(0)?, row.get(1)?)))?
+            .next()
+            .ok_or(eyre::eyre!("No trace found for block"))?;
+
+        match res {
+            // If the trace is found, deserialize the JSON strings into `(Vec<RelocatedTraceEntry>,
+            // Vec<Felt252>)`.
+            Ok((trace, memory)) => {
+                Ok(Some((serde_json::from_str(&trace)?, serde_json::from_str(&memory)?)))
+            }
+            // If no rows are returned by the query, it means the trace does not exist for the given
+            // block in the database.
             Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
             // If any other error occurs, convert it into an eyre error and return.
             Err(e) => Err(e.into()),

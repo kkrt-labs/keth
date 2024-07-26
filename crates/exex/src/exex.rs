@@ -1,4 +1,11 @@
 use crate::{db::Database, execution::execute_block};
+use cairo_vm::{
+    cairo_run::{cairo_run, CairoRunConfig},
+    hint_processor::builtin_hint_processor::builtin_hint_processor_definition::BuiltinHintProcessor,
+    types::layout_name::LayoutName,
+    vm::trace::trace_entry::RelocatedTraceEntry,
+    Felt252,
+};
 use once_cell::sync::Lazy;
 use reth_chainspec::{ChainSpec, ChainSpecBuilder};
 use reth_execution_types::Chain;
@@ -7,7 +14,7 @@ use reth_node_api::FullNodeComponents;
 use reth_primitives::{Address, Genesis};
 use reth_tracing::tracing::{error, info};
 use rusqlite::Connection;
-use std::sync::Arc;
+use std::{path::PathBuf, sync::Arc};
 
 /// The path to the SQLite database file.
 pub const DATABASE_PATH: &str = "rollup.db";
@@ -47,19 +54,37 @@ impl<Node: FullNodeComponents> KakarotRollup<Node> {
     }
 
     /// Starts processing chain state notifications.
-    pub async fn start(mut self) -> eyre::Result<()> {
+    pub async fn start(mut self, path: PathBuf) -> eyre::Result<()> {
+        // Load the cairo program from the file
+        let program = std::fs::read(path)?;
+        let config = CairoRunConfig {
+            layout: LayoutName::all_cairo,
+            trace_enabled: true,
+            relocate_mem: true,
+            ..Default::default()
+        };
+
         // Process all new chain state notifications
         while let Some(notification) = self.ctx.notifications.recv().await {
             // Check if the notification contains a committed chain.
             if let Some(committed_chain) = notification.committed_chain() {
                 // Commit the new chain state.
-                self.commit(&committed_chain).await?;
+                self.commit_block(&committed_chain).await?;
                 // Send a notification that the chain processing is finished.
                 //
                 // Finished height is the tip of the committed chain.
                 //
                 // The ExEx will not require all earlier blocks which can be pruned.
                 self.ctx.events.send(ExExEvent::FinishedHeight(committed_chain.tip().number))?;
+
+                // Run the cairo program
+                let mut hint_processor = BuiltinHintProcessor::new_empty();
+                let res = cairo_run(&program, &config, &mut hint_processor)?;
+                // Commit the execution traces to the database
+                let trace = res.relocated_trace.unwrap_or_default();
+                let memory =
+                    res.relocated_memory.into_iter().map(|x| x.unwrap_or_default()).collect();
+                self.commit_cairo_execution_traces(committed_chain.tip().number, trace, memory)?;
             }
         }
 
@@ -70,7 +95,7 @@ impl<Node: FullNodeComponents> KakarotRollup<Node> {
     ///
     /// This function processes the blocks and transactions in the committed chain,
     /// executes the transactions, and updates the database.
-    pub async fn commit(&mut self, chain: &Chain) -> eyre::Result<()> {
+    pub async fn commit_block(&mut self, chain: &Chain) -> eyre::Result<()> {
         // Extract blocks and receipts from the chain and pair each transaction with its sender.
         let blocks = chain
             .blocks_and_receipts()
@@ -116,6 +141,16 @@ impl<Node: FullNodeComponents> KakarotRollup<Node> {
 
         Ok(())
     }
+
+    /// Commits the execution traces to the database.
+    fn commit_cairo_execution_traces(
+        &mut self,
+        number: u64,
+        trace: Vec<RelocatedTraceEntry>,
+        memory: Vec<Felt252>,
+    ) -> eyre::Result<()> {
+        self.db.insert_execution_trace(number, trace, memory)
+    }
 }
 
 #[cfg(test)]
@@ -156,7 +191,7 @@ mod tests {
         )?;
 
         // Create the Kakarot Rollup chain instance and start processing chain state notifications.
-        Ok(KakarotRollup { ctx, db }.start())
+        Ok(KakarotRollup { ctx, db }.start(PathBuf::from("./cairo-programs/fibonacci.json")))
     }
 
     #[tokio::test]
@@ -285,7 +320,10 @@ mod tests {
         );
 
         // Check that the block has been inserted into the database
-        assert_eq!(db.get_block(U256::from(0xf21d20))?.unwrap(), block);
+        assert_eq!(db.block(U256::from(0xf21d20))?.unwrap(), block);
+
+        // Check that the execution trace has been inserted into the database
+        assert!(db.execution_trace(0xf21d20)?.is_some());
 
         Ok(())
     }
