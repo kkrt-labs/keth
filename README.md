@@ -6,10 +6,10 @@ Similar to [zeth](https://github.com/kkrt-labs/keth/edit/main/README.md), keth m
 - verify transactions validity (signature, sufficient balance & nonce);
 - execute transactions in the block;
 - verify storage reads and writes;
-- paying block rewards
-- update state root
-- compute transactions and receipts tries
-- compute the block hash
+- paying block rewards;
+- update state root;
+- compute transactions and receipts tries;
+- compute the block hash;
 - etc.
 
 By running this process in the context of the Cairo VM, we can generate a STARK proof that the new block is valid. For Optimism and Arbitrum, keth will draw inspiration from zeth and its ability to ensure that the block was correctly derived from the available data posted to Ethereum.
