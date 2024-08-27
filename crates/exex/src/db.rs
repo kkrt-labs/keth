@@ -139,34 +139,6 @@ impl Database {
         }
     }
 
-    /// Retrieves all blocks from the database.
-    ///
-    /// This function queries the database for all blocks and returns them as a vector of
-    /// [`SealedBlockWithSenders`] structs. If an error occurs during the retrieval or
-    /// deserialization of any block, the function will return an `eyre::Result` containing the
-    /// error.
-    pub fn all_blocks(&self) -> eyre::Result<Vec<SealedBlockWithSenders>> {
-        // Prepare a SQL query to select all block data as JSON strings.
-        let connection = self.connection();
-        let mut stmt = connection.prepare("SELECT data FROM block")?;
-
-        // Execute the query and map each row to a [`SealedBlockWithSenders`].
-        let block_iter = stmt.query_map([], |row| {
-            let data: String = row.get(0)?;
-            // Deserialize the JSON string into `SealedBlockWithSenders`.
-            serde_json::from_str(&data)
-                .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))
-        })?;
-
-        // Collect all the blocks into a vector.
-        let mut blocks = Vec::new();
-        for block in block_iter {
-            blocks.push(block?);
-        }
-
-        Ok(blocks)
-    }
-
     /// Retrieves the latest block from the database.
     ///
     /// This function queries the database for the block with the highest block number (interpreted
