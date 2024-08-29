@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "cairo_programs"
+version = "0.1.0"
+description = "Integration of the Kakarot Ethereum execution layer in the Reth client."
+authors = []
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+cairo-lang = "^0.13.2"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

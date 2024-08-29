@@ -10,12 +10,7 @@ rust-version = "1.79"
 exclude = [".github/"]
 
 [workspace]
-members = [
-    "bin/keth",
-    "crates/node",
-    "crates/pool",
-    "crates/exex",
-]
+members = ["bin/keth", "crates/node", "crates/pool", "crates/exex"]
 
 # Explicitly set the resolver to version 2, which is the default for packages with edition >= 2021
 # https://doc.rust-lang.org/edition-guide/rust-2021/default-cargo-resolver.html
@@ -45,7 +40,9 @@ reth-node-ethereum = { git = "https://github.com/paradigmxyz/reth.git", tag = "v
 reth-node-builder = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.0.6" }
 reth-node-api = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.0.6" }
 reth-ethereum-engine-primitives = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.0.6" }
-reth-exex = { git = "https://github.com/paradigmxyz/reth", tag = "v1.0.6", features = ["serde"] }
+reth-exex = { git = "https://github.com/paradigmxyz/reth", tag = "v1.0.6", features = [
+  "serde",
+] }
 reth-execution-types = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.0.6" }
 reth-tracing = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.0.6" }
 reth-revm = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.0.6" }
