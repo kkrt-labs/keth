@@ -1,5 +1,6 @@
 use crate::execution::KakarotExecutorBuilder;
 use kakarot_pool::KakarotPoolBuilder;
+use reth_chainspec::ChainSpec;
 use reth_ethereum_engine_primitives::{
     EthBuiltPayload, EthPayloadAttributes, EthPayloadBuilderAttributes,
 };
@@ -63,6 +64,7 @@ impl KakarotNode {
 impl NodeTypes for KakarotNode {
     type Primitives = ();
     type Engine = EthEngineTypes;
+    type ChainSpec = ChainSpec;
 }
 
 impl<N> Node<N> for KakarotNode
