@@ -54,9 +54,8 @@ impl<Node: FullNodeComponents> KakarotRollup<Node> {
     }
 
     /// Starts processing chain state notifications.
-    pub async fn start_with_fibonacci(mut self, path: PathBuf) -> eyre::Result<()> {
-        // Load the cairo program from the file
-        let program = std::fs::read(path)?;
+    pub async fn start(mut self, paths: Vec<PathBuf>) -> eyre::Result<()> {
+        // Initialize the Cairo run configuration
         let config = CairoRunConfig {
             layout: LayoutName::all_cairo,
             trace_enabled: true,
@@ -79,53 +78,24 @@ impl<Node: FullNodeComponents> KakarotRollup<Node> {
 
                 // Run the cairo program
                 let mut hint_processor = BuiltinHintProcessor::new_empty();
-                let res = cairo_run(&program, &config, &mut hint_processor)?;
-                // Commit the execution traces to the database
-                let trace = res.relocated_trace.unwrap_or_default();
-                let memory =
-                    res.relocated_memory.into_iter().map(|x| x.unwrap_or_default()).collect();
-                self.commit_cairo_execution_traces(committed_chain.tip().number, trace, memory)?;
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Starts processing chain state notifications with the print transaction hint.
-    pub async fn start_with_transaction_logging(mut self, path: PathBuf) -> eyre::Result<()> {
-        // Load the cairo program from the file
-        let program = std::fs::read(path)?;
-        let config = CairoRunConfig {
-            layout: LayoutName::all_cairo,
-            trace_enabled: true,
-            relocate_mem: true,
-            ..Default::default()
-        };
-
-        // Process all new chain state notifications
-        while let Some(notification) = self.ctx.notifications.recv().await {
-            // Check if the notification contains a committed chain.
-            if let Some(committed_chain) = notification.committed_chain() {
-                // Commit the new chain state.
-                self.commit_block(&committed_chain).await?;
-                // Send a notification that the chain processing is finished.
-                //
-                // Finished height is the tip of the committed chain.
-                //
-                // The ExEx will not require all earlier blocks which can be pruned.
-                self.ctx.events.send(ExExEvent::FinishedHeight(committed_chain.tip().number))?;
-
-                // Run a cairo program to print the transaction hashes of the latest block
-                let mut hint_processor = BuiltinHintProcessor::new_empty();
                 print_tx_hint().register(&mut hint_processor);
 
-                let res = cairo_run(&program, &config, &mut hint_processor)?;
+                for (index, path) in paths.iter().enumerate() {
+                    // Load the cairo program from the file
+                    let program = std::fs::read(path)?;
 
-                // Commit the execution traces to the database
-                let trace = res.relocated_trace.unwrap_or_default();
-                let memory =
-                    res.relocated_memory.into_iter().map(|x| x.unwrap_or_default()).collect();
-                self.commit_cairo_execution_traces(committed_chain.tip().number, trace, memory)?;
+                    let res = cairo_run(&program, &config, &mut hint_processor)?;
+                    // Commit the execution traces to the database
+                    let trace = res.relocated_trace.unwrap_or_default();
+                    let memory =
+                        res.relocated_memory.into_iter().map(|x| x.unwrap_or_default()).collect();
+                    self.commit_cairo_execution_traces(
+                        committed_chain.tip().number,
+                        index,
+                        trace,
+                        memory,
+                    )?;
+                }
             }
         }
 
@@ -187,10 +157,11 @@ impl<Node: FullNodeComponents> KakarotRollup<Node> {
     fn commit_cairo_execution_traces(
         &mut self,
         number: u64,
+        program_index: usize,
         trace: Vec<RelocatedTraceEntry>,
         memory: Vec<Felt252>,
     ) -> eyre::Result<()> {
-        self.db.insert_execution_trace(number, trace, memory)
+        self.db.insert_execution_trace(number, program_index, trace, memory)
     }
 }
 
@@ -232,9 +203,10 @@ mod tests {
         )?;
 
         // Create the Kakarot Rollup chain instance and start processing chain state notifications.
-        Ok(KakarotRollup { ctx, db }.start_with_transaction_logging(PathBuf::from(
-            "./cairo-programs/transaction_hash.json",
-        )))
+        Ok(KakarotRollup { ctx, db }.start(vec![
+            PathBuf::from("./cairo-programs/transaction_hash.json"),
+            PathBuf::from("./cairo-programs/fibonacci.json"),
+        ]))
     }
 
     #[tokio::test]
