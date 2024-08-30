@@ -66,10 +66,10 @@ impl Database {
                 data    TEXT
             );
             CREATE TABLE IF NOT EXISTS trace (
-                id           INTEGER PRIMARY KEY,
-                number       TEXT UNIQUE,
-                execution    TEXT,
-                memory       TEXT
+                id              INTEGER PRIMARY KEY,
+                number          TEXT,
+                execution       TEXT,
+                memory          TEXT
             );
             ",
         )?;
@@ -118,7 +118,7 @@ impl Database {
     ///
     /// This function queries the database for a block with the specified block number.
     /// If the block is found, it is deserialized from its JSON representation into a
-    /// `SealedBlockWithSenders` struct. If the block is not found, `None` is returned.
+    /// [`SealedBlockWithSenders`] struct. If the block is not found, `None` is returned.
     pub fn block(&self, number: U256) -> eyre::Result<Option<SealedBlockWithSenders>> {
         // Executes a SQL query to select the block data as a JSON string based on the block number.
         let block = self.connection().query_row::<String, _, _>(
@@ -129,10 +129,35 @@ impl Database {
         );
 
         match block {
-            // If the block is found, deserialize the JSON string into `SealedBlockWithSenders`.
+            // If the block is found, deserialize the JSON string into [`SealedBlockWithSenders`].
             Ok(data) => Ok(Some(serde_json::from_str(&data)?)),
             // If no rows are returned by the query, it means the block does not exist in the
             // database.
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            // If any other error occurs, convert it into an eyre error and return.
+            Err(e) => Err(e.into()),
+        }
+    }
+
+    /// Retrieves the latest block from the database.
+    ///
+    /// This function queries the database for the block with the highest block number (interpreted
+    /// as an integer) and returns it as a [`SealedBlockWithSenders`] struct. If an error occurs
+    /// during the retrieval or deserialization of the block, the function will return an
+    /// `eyre::Result` containing the error.
+    pub fn latest_block(&self) -> eyre::Result<Option<SealedBlockWithSenders>> {
+        // Prepare a SQL query to select the block data as a JSON string with the highest block
+        // number.
+        let block = self.connection().query_row::<String, _, _>(
+            "SELECT data FROM block ORDER BY CAST(number AS INTEGER) DESC LIMIT 1",
+            [],
+            |row| row.get(0),
+        );
+
+        match block {
+            // If the block is found, deserialize the JSON string into `SealedBlockWithSenders`.
+            Ok(data) => Ok(Some(serde_json::from_str(&data)?)),
+            // If no rows are returned by the query, it means the table is empty.
             Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
             // If any other error occurs, convert it into an eyre error and return.
             Err(e) => Err(e.into()),

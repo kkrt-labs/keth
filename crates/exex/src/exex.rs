@@ -1,7 +1,6 @@
-use crate::{db::Database, execution::execute_block};
+use crate::{db::Database, execution::execute_block, hints::KakarotHintProcessor};
 use cairo_vm::{
     cairo_run::{cairo_run, CairoRunConfig},
-    hint_processor::builtin_hint_processor::builtin_hint_processor_definition::BuiltinHintProcessor,
     types::layout_name::LayoutName,
     vm::trace::trace_entry::RelocatedTraceEntry,
     Felt252,
@@ -54,9 +53,8 @@ impl<Node: FullNodeComponents> KakarotRollup<Node> {
     }
 
     /// Starts processing chain state notifications.
-    pub async fn start(mut self, path: PathBuf) -> eyre::Result<()> {
-        // Load the cairo program from the file
-        let program = std::fs::read(path)?;
+    pub async fn start(mut self, paths: Vec<PathBuf>) -> eyre::Result<()> {
+        // Initialize the Cairo run configuration
         let config = CairoRunConfig {
             layout: LayoutName::all_cairo,
             trace_enabled: true,
@@ -77,14 +75,25 @@ impl<Node: FullNodeComponents> KakarotRollup<Node> {
                 // The ExEx will not require all earlier blocks which can be pruned.
                 self.ctx.events.send(ExExEvent::FinishedHeight(committed_chain.tip().number))?;
 
-                // Run the cairo program
-                let mut hint_processor = BuiltinHintProcessor::new_empty();
-                let res = cairo_run(&program, &config, &mut hint_processor)?;
-                // Commit the execution traces to the database
-                let trace = res.relocated_trace.unwrap_or_default();
-                let memory =
-                    res.relocated_memory.into_iter().map(|x| x.unwrap_or_default()).collect();
-                self.commit_cairo_execution_traces(committed_chain.tip().number, trace, memory)?;
+                // Build the Kakarot hint processor with the print transaction hint.
+                let mut hint_processor = KakarotHintProcessor::default().build();
+
+                // Run the cairo programs corresponding to the paths
+                for path in &paths {
+                    // Load the cairo program from the file
+                    let program = std::fs::read(path)?;
+
+                    let res = cairo_run(&program, &config, &mut hint_processor)?;
+                    // Commit the execution traces to the database
+                    let trace = res.relocated_trace.unwrap_or_default();
+                    let memory =
+                        res.relocated_memory.into_iter().map(|x| x.unwrap_or_default()).collect();
+                    self.commit_cairo_execution_traces(
+                        committed_chain.tip().number,
+                        trace,
+                        memory,
+                    )?;
+                }
             }
         }
 
@@ -191,7 +200,10 @@ mod tests {
         )?;
 
         // Create the Kakarot Rollup chain instance and start processing chain state notifications.
-        Ok(KakarotRollup { ctx, db }.start(PathBuf::from("./cairo-programs/fibonacci.json")))
+        Ok(KakarotRollup { ctx, db }.start(vec![
+            PathBuf::from("./cairo-programs/transaction_hash.json"),
+            PathBuf::from("./cairo-programs/fibonacci.json"),
+        ]))
     }
 
     #[tokio::test]
