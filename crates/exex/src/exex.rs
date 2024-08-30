@@ -116,15 +116,8 @@ impl<Node: FullNodeComponents> KakarotRollup<Node> {
                 self.ctx.events.send(ExExEvent::FinishedHeight(committed_chain.tip().number))?;
 
                 // Run a cairo program to print the transaction hashes of the latest block
-                // let mut hint_processor = BuiltinHintProcessor::new_empty();
-                // hint_processor.add_hint(
-                //     String::from(KETH_PRINT_TX_HASHES),
-                //     Rc::new(HintFunc(Box::new(print_latest_block_transactions))),
-                // );
-
                 let mut hint_processor = BuiltinHintProcessor::new_empty();
-                let print_hint = print_tx_hint();
-                print_hint.register(&mut hint_processor);
+                print_tx_hint().register(&mut hint_processor);
 
                 let res = cairo_run(&program, &config, &mut hint_processor)?;
 
