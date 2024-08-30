@@ -46,7 +46,8 @@ impl KakarotBuiltinHintProcessor {
     ///
     /// This method allows you to register a hint by providing a [`Hint`] instance.
     pub fn with_hint(mut self, hint: Hint) -> Self {
-        hint.register(&mut self.processor);
+        self.processor.add_hint(hint.name.clone(), hint.func.clone());
+        self
         self
     }
 
