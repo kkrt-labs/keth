@@ -15,39 +15,38 @@ use rusqlite::Connection;
 use std::{collections::HashMap, fmt, rc::Rc};
 
 /// A wrapper around [`BuiltinHintProcessor`] to manage hint registration.
-pub struct KakarotBuiltinHintProcessor {
+pub struct KakarotHintProcessor {
     /// The underlying [`BuiltinHintProcessor`].
     processor: BuiltinHintProcessor,
 }
 
-/// Implementation of `Debug` for `KakarotBuiltinHintProcessor`.
-impl fmt::Debug for KakarotBuiltinHintProcessor {
+/// Implementation of `Debug` for `KakarotHintProcessor`.
+impl fmt::Debug for KakarotHintProcessor {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("KakarotBuiltinHintProcessor")
+        f.debug_struct("KakarotHintProcessor")
             .field("extra_hints", &self.processor.extra_hints.keys())
             .field("run_resources", &"...")
             .finish()
     }
 }
 
-impl Default for KakarotBuiltinHintProcessor {
+impl Default for KakarotHintProcessor {
     fn default() -> Self {
         Self::new_empty().with_hint(print_tx_hint())
     }
 }
 
-impl KakarotBuiltinHintProcessor {
-    /// Creates a new, empty [`KakarotBuiltinHintProcessor`].
+impl KakarotHintProcessor {
+    /// Creates a new, empty [`KakarotHintProcessor`].
     pub fn new_empty() -> Self {
         Self { processor: BuiltinHintProcessor::new_empty() }
     }
 
-    /// Adds a hint to the [`KakarotBuiltinHintProcessor`].
+    /// Adds a hint to the [`KakarotHintProcessor`].
     ///
     /// This method allows you to register a hint by providing a [`Hint`] instance.
     pub fn with_hint(mut self, hint: Hint) -> Self {
         self.processor.add_hint(hint.name.clone(), hint.func.clone());
-        self
         self
     }
 
@@ -90,13 +89,6 @@ impl Hint {
             + Sync,
     {
         Self { name, func: Rc::new(HintFunc(Box::new(logic))) }
-    }
-
-    /// Registers the hint in the hint processor.
-    ///
-    /// This method allows the hint to be recognized and executed by the hint processor.
-    pub fn register(&self, hint_processor: &mut BuiltinHintProcessor) {
-        hint_processor.add_hint(self.name.clone(), self.func.clone());
     }
 }
 
