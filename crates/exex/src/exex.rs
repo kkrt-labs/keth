@@ -1,13 +1,7 @@
-use crate::{
-    db::Database,
-    execution::execute_block,
-    hints::{print_latest_block_transactions, KETH_PRINT_TX_HASHES},
-};
+use crate::{db::Database, execution::execute_block, hints::print_tx_hint};
 use cairo_vm::{
     cairo_run::{cairo_run, CairoRunConfig},
-    hint_processor::builtin_hint_processor::builtin_hint_processor_definition::{
-        BuiltinHintProcessor, HintFunc,
-    },
+    hint_processor::builtin_hint_processor::builtin_hint_processor_definition::BuiltinHintProcessor,
     types::layout_name::LayoutName,
     vm::trace::trace_entry::RelocatedTraceEntry,
     Felt252,
@@ -20,7 +14,7 @@ use reth_node_api::FullNodeComponents;
 use reth_primitives::{Address, Genesis};
 use reth_tracing::tracing::{error, info};
 use rusqlite::Connection;
-use std::{path::PathBuf, rc::Rc, sync::Arc};
+use std::{path::PathBuf, sync::Arc};
 
 /// The path to the SQLite database file.
 pub const DATABASE_PATH: &str = "rollup.db";
@@ -122,11 +116,15 @@ impl<Node: FullNodeComponents> KakarotRollup<Node> {
                 self.ctx.events.send(ExExEvent::FinishedHeight(committed_chain.tip().number))?;
 
                 // Run a cairo program to print the transaction hashes of the latest block
+                // let mut hint_processor = BuiltinHintProcessor::new_empty();
+                // hint_processor.add_hint(
+                //     String::from(KETH_PRINT_TX_HASHES),
+                //     Rc::new(HintFunc(Box::new(print_latest_block_transactions))),
+                // );
+
                 let mut hint_processor = BuiltinHintProcessor::new_empty();
-                hint_processor.add_hint(
-                    String::from(KETH_PRINT_TX_HASHES),
-                    Rc::new(HintFunc(Box::new(print_latest_block_transactions))),
-                );
+                let print_hint = print_tx_hint();
+                print_hint.register(&mut hint_processor);
 
                 let res = cairo_run(&program, &config, &mut hint_processor)?;
 
