@@ -1,7 +1,10 @@
-use crate::{db::Database, execution::execute_block, hints::print_tx_hint};
+use crate::{
+    db::Database,
+    execution::execute_block,
+    hints::{print_tx_hint, KakarotBuiltinHintProcessor},
+};
 use cairo_vm::{
     cairo_run::{cairo_run, CairoRunConfig},
-    hint_processor::builtin_hint_processor::builtin_hint_processor_definition::BuiltinHintProcessor,
     types::layout_name::LayoutName,
     vm::trace::trace_entry::RelocatedTraceEntry,
     Felt252,
@@ -76,10 +79,11 @@ impl<Node: FullNodeComponents> KakarotRollup<Node> {
                 // The ExEx will not require all earlier blocks which can be pruned.
                 self.ctx.events.send(ExExEvent::FinishedHeight(committed_chain.tip().number))?;
 
-                // Run the cairo program
-                let mut hint_processor = BuiltinHintProcessor::new_empty();
-                print_tx_hint().register(&mut hint_processor);
+                // Build the Kakarot hint processor with the print transaction hint.
+                let mut hint_processor =
+                    KakarotBuiltinHintProcessor::new_empty().with_hint(print_tx_hint()).build();
 
+                // Run the cairo programs corresponding to the paths
                 for path in &paths {
                     // Load the cairo program from the file
                     let program = std::fs::read(path)?;

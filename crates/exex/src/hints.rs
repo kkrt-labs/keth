@@ -14,6 +14,44 @@ use cairo_vm::{
 use rusqlite::Connection;
 use std::{collections::HashMap, fmt, rc::Rc};
 
+/// A wrapper around [`BuiltinHintProcessor`] to manage hint registration.
+pub struct KakarotBuiltinHintProcessor {
+    /// The underlying [`BuiltinHintProcessor`].
+    processor: BuiltinHintProcessor,
+}
+
+/// Implementation of `Debug` for `KakarotBuiltinHintProcessor`.
+impl fmt::Debug for KakarotBuiltinHintProcessor {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("KakarotBuiltinHintProcessor")
+            .field("extra_hints", &self.processor.extra_hints.keys())
+            .field("run_resources", &"...")
+            .finish()
+    }
+}
+
+impl KakarotBuiltinHintProcessor {
+    /// Creates a new, empty [`KakarotBuiltinHintProcessor`].
+    pub fn new_empty() -> Self {
+        Self { processor: BuiltinHintProcessor::new_empty() }
+    }
+
+    /// Adds a hint to the [`KakarotBuiltinHintProcessor`].
+    ///
+    /// This method allows you to register a hint by providing a [`Hint`] instance.
+    pub fn with_hint(mut self, hint: Hint) -> Self {
+        hint.register(&mut self.processor);
+        self
+    }
+
+    /// Returns the underlying [`BuiltinHintProcessor`].
+    ///
+    /// This allows the processor to be used elsewhere.
+    pub fn build(self) -> BuiltinHintProcessor {
+        self.processor
+    }
+}
+
 /// A generic structure to encapsulate a hint with a closure that contains the specific logic.
 pub struct Hint {
     /// The name of the hint.
