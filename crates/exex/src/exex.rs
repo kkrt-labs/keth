@@ -1,8 +1,4 @@
-use crate::{
-    db::Database,
-    execution::execute_block,
-    hints::{print_tx_hint, KakarotBuiltinHintProcessor},
-};
+use crate::{db::Database, execution::execute_block, hints::KakarotBuiltinHintProcessor};
 use cairo_vm::{
     cairo_run::{cairo_run, CairoRunConfig},
     types::layout_name::LayoutName,
@@ -80,8 +76,7 @@ impl<Node: FullNodeComponents> KakarotRollup<Node> {
                 self.ctx.events.send(ExExEvent::FinishedHeight(committed_chain.tip().number))?;
 
                 // Build the Kakarot hint processor with the print transaction hint.
-                let mut hint_processor =
-                    KakarotBuiltinHintProcessor::new_empty().with_hint(print_tx_hint()).build();
+                let mut hint_processor = KakarotBuiltinHintProcessor::default().build();
 
                 // Run the cairo programs corresponding to the paths
                 for path in &paths {

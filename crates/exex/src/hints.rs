@@ -30,6 +30,12 @@ impl fmt::Debug for KakarotBuiltinHintProcessor {
     }
 }
 
+impl Default for KakarotBuiltinHintProcessor {
+    fn default() -> Self {
+        Self::new_empty().with_hint(print_tx_hint())
+    }
+}
+
 impl KakarotBuiltinHintProcessor {
     /// Creates a new, empty [`KakarotBuiltinHintProcessor`].
     pub fn new_empty() -> Self {
