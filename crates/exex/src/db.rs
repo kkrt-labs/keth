@@ -68,7 +68,6 @@ impl Database {
             CREATE TABLE IF NOT EXISTS trace (
                 id              INTEGER PRIMARY KEY,
                 number          TEXT,
-                program_index   TEXT,
                 execution       TEXT,
                 memory          TEXT
             );
@@ -169,7 +168,6 @@ impl Database {
     pub fn insert_execution_trace(
         &self,
         number: u64,
-        program_index: usize,
         trace: Vec<RelocatedTraceEntry>,
         memory: Vec<Felt252>,
     ) -> eyre::Result<()> {
@@ -179,13 +177,8 @@ impl Database {
 
         // Insert the trace into the `trace` table.
         tx.execute(
-            "INSERT INTO trace (number, program_index, execution, memory) VALUES (?, ?, ?, ?)",
-            (
-                number,
-                program_index,
-                serde_json::to_string(&trace)?,
-                serde_json::to_string(&memory)?,
-            ),
+            "INSERT INTO trace (number, execution, memory) VALUES (?, ?, ?)",
+            (number, serde_json::to_string(&trace)?, serde_json::to_string(&memory)?),
         )?;
 
         // Commit the transaction to persist all changes.

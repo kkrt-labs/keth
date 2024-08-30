@@ -80,7 +80,7 @@ impl<Node: FullNodeComponents> KakarotRollup<Node> {
                 let mut hint_processor = BuiltinHintProcessor::new_empty();
                 print_tx_hint().register(&mut hint_processor);
 
-                for (index, path) in paths.iter().enumerate() {
+                for path in &paths {
                     // Load the cairo program from the file
                     let program = std::fs::read(path)?;
 
@@ -91,7 +91,6 @@ impl<Node: FullNodeComponents> KakarotRollup<Node> {
                         res.relocated_memory.into_iter().map(|x| x.unwrap_or_default()).collect();
                     self.commit_cairo_execution_traces(
                         committed_chain.tip().number,
-                        index,
                         trace,
                         memory,
                     )?;
@@ -157,11 +156,10 @@ impl<Node: FullNodeComponents> KakarotRollup<Node> {
     fn commit_cairo_execution_traces(
         &mut self,
         number: u64,
-        program_index: usize,
         trace: Vec<RelocatedTraceEntry>,
         memory: Vec<Felt252>,
     ) -> eyre::Result<()> {
-        self.db.insert_execution_trace(number, program_index, trace, memory)
+        self.db.insert_execution_trace(number, trace, memory)
     }
 }
 
