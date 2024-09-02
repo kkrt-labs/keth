@@ -201,8 +201,8 @@ mod tests {
 
         // Create the Kakarot Rollup chain instance and start processing chain state notifications.
         Ok(KakarotRollup { ctx, db }.start(vec![
-            PathBuf::from("./cairo-programs/transaction_hash.json"),
-            PathBuf::from("./cairo-programs/fibonacci.json"),
+            PathBuf::from("../../cairo_programs/transaction_hash.json"),
+            PathBuf::from("../../cairo_programs/fibonacci.json"),
         ]))
     }
 

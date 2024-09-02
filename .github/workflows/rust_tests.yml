@@ -1,0 +1,23 @@
+name: Rust CI
+
+on:
+  workflow_call:
+
+permissions: read-all
+
+jobs:
+  test:
+    name: Rust
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - run: rustup update
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: "true"
+
+      - name: Run tests
+        run: cargo test --all-features
