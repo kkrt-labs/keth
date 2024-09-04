@@ -124,7 +124,7 @@ impl Database {
         let block = self.connection().query_row::<String, _, _>(
             "SELECT data FROM block WHERE number = ?",
             (number.to_string(),),
-            // Retrieves the first column of the result row as a string.
+            // Retrieves the first column of the result row as a string
             |row| row.get(0),
         );
 
