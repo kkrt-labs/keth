@@ -1,4 +1,7 @@
-use cairo_vm::{vm::trace::trace_entry::RelocatedTraceEntry, Felt252};
+use cairo_vm::{
+    air_private_input::AirPrivateInput, air_public_input::PublicInput,
+    vm::trace::trace_entry::RelocatedTraceEntry, Felt252,
+};
 use reth_primitives::{
     revm_primitives::{AccountInfo, Bytecode},
     Address, SealedBlockWithSenders, B256, U256,
@@ -66,10 +69,12 @@ impl Database {
                 data    TEXT
             );
             CREATE TABLE IF NOT EXISTS trace (
-                id              INTEGER PRIMARY KEY,
-                number          TEXT,
-                execution       TEXT,
-                memory          TEXT
+                id                  INTEGER PRIMARY KEY,
+                number              TEXT,
+                execution           TEXT,
+                memory              TEXT,
+                air_public_input    TEXT,
+                air_private_input   TEXT
             );
             ",
         )?;
@@ -170,6 +175,8 @@ impl Database {
         number: u64,
         trace: Vec<RelocatedTraceEntry>,
         memory: Vec<Felt252>,
+        air_public_input: PublicInput<'_>,
+        air_private_input: AirPrivateInput,
     ) -> eyre::Result<()> {
         // Acquire a database connection and begin a transaction.
         let mut connection = self.connection();
@@ -177,8 +184,8 @@ impl Database {
 
         // Insert the trace into the `trace` table.
         tx.execute(
-            "INSERT INTO trace (number, execution, memory) VALUES (?, ?, ?)",
-            (number, serde_json::to_string(&trace)?, serde_json::to_string(&memory)?),
+            "INSERT INTO trace (number, execution, memory, air_public_input, air_private_input) VALUES (?, ?, ?, ?, ?)",
+            (number, serde_json::to_string(&trace)?, serde_json::to_string(&memory)?, serde_json::to_string(&air_public_input)?, serde_json::to_string(&air_private_input.0)?),
         )?;
 
         // Commit the transaction to persist all changes.

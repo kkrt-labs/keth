@@ -20,6 +20,7 @@ def compile_cairo(file_name):
         str(input_path),
         "--output",
         str(output_path),
+        "--proof_mode",
         "--no_debug_info",
         "--cairo_path",
         "cairo_programs",
