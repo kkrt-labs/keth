@@ -1,5 +1,7 @@
 use crate::{db::Database, execution::execute_block, hints::KakarotHintProcessor};
 use cairo_vm::{
+    air_private_input::AirPrivateInput,
+    air_public_input::PublicInput,
     cairo_run::{cairo_run, CairoRunConfig},
     types::layout_name::LayoutName,
     vm::trace::trace_entry::RelocatedTraceEntry,
@@ -59,6 +61,7 @@ impl<Node: FullNodeComponents> KakarotRollup<Node> {
             layout: LayoutName::all_cairo,
             trace_enabled: true,
             relocate_mem: true,
+            proof_mode: true,
             ..Default::default()
         };
 
@@ -83,15 +86,35 @@ impl<Node: FullNodeComponents> KakarotRollup<Node> {
                     // Load the cairo program from the file
                     let program = std::fs::read(path)?;
 
+                    // Execute the Cairo program with the specified configuration and hint
+                    // processor.
                     let res = cairo_run(&program, &config, &mut hint_processor)?;
-                    // Commit the execution traces to the database
-                    let trace = res.relocated_trace.unwrap_or_default();
-                    let memory =
-                        res.relocated_memory.into_iter().map(|x| x.unwrap_or_default()).collect();
+
+                    // Extract the execution trace
+                    let trace = res.relocated_trace.clone().unwrap_or_default();
+
+                    // Extract the relocated memory
+                    let memory = res
+                        .relocated_memory
+                        .clone()
+                        .into_iter()
+                        .map(|x| x.unwrap_or_default())
+                        .collect();
+
+                    // Extract the public and private inputs
+                    //
+                    // We want to store the public input in the database in order to use them to run
+                    // the prover
+                    let public_input = res.get_air_public_input()?;
+                    let private_input = res.get_air_private_input();
+
+                    // Commit the execution trace to the database
                     self.commit_cairo_execution_traces(
                         committed_chain.tip().number,
                         trace,
                         memory,
+                        public_input,
+                        private_input,
                     )?;
                 }
             }
@@ -157,8 +180,10 @@ impl<Node: FullNodeComponents> KakarotRollup<Node> {
         number: u64,
         trace: Vec<RelocatedTraceEntry>,
         memory: Vec<Felt252>,
+        air_public_input: PublicInput<'_>,
+        air_private_input: AirPrivateInput,
     ) -> eyre::Result<()> {
-        self.db.insert_execution_trace(number, trace, memory)
+        self.db.insert_execution_trace(number, trace, memory, air_public_input, air_private_input)
     }
 }
 

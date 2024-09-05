@@ -1,8 +1,14 @@
 {
   "attributes": [],
   "builtins": [],
-  "compiler_version": "0.13.2",
+  "compiler_version": "0.12.0",
   "data": [
+    "0x40780017fff7fff",
+    "0x0",
+    "0x1104800180018000",
+    "0x4",
+    "0x10780017fff7fff",
+    "0x0",
     "0x480680017fff8000",
     "0x1",
     "0x480680017fff8000",
@@ -31,9 +37,17 @@
   "debug_info": null,
   "hints": {},
   "identifiers": {
+    "__main__.__end__": {
+      "pc": 4,
+      "type": "label"
+    },
+    "__main__.__start__": {
+      "pc": 0,
+      "type": "label"
+    },
     "__main__.fib": {
       "decorators": [],
-      "pc": 11,
+      "pc": 17,
       "type": "function"
     },
     "__main__.fib.Args": {
@@ -70,7 +84,7 @@
       "value": 0
     },
     "__main__.fib.fib_body": {
-      "pc": 16,
+      "pc": 22,
       "type": "label"
     },
     "__main__.fib.first_element": {
@@ -79,10 +93,10 @@
       "references": [
         {
           "ap_tracking_data": {
-            "group": 2,
+            "group": 4,
             "offset": 0
           },
-          "pc": 11,
+          "pc": 17,
           "value": "[cast(fp + (-5), felt*)]"
         }
       ],
@@ -94,10 +108,10 @@
       "references": [
         {
           "ap_tracking_data": {
-            "group": 2,
+            "group": 4,
             "offset": 0
           },
-          "pc": 11,
+          "pc": 17,
           "value": "[cast(fp + (-3), felt*)]"
         }
       ],
@@ -109,10 +123,10 @@
       "references": [
         {
           "ap_tracking_data": {
-            "group": 2,
+            "group": 4,
             "offset": 1
           },
-          "pc": 14,
+          "pc": 20,
           "value": "[cast(ap + (-1), felt*)]"
         }
       ],
@@ -124,10 +138,10 @@
       "references": [
         {
           "ap_tracking_data": {
-            "group": 2,
+            "group": 4,
             "offset": 0
           },
-          "pc": 11,
+          "pc": 17,
           "value": "[cast(fp + (-4), felt*)]"
         }
       ],
@@ -139,10 +153,10 @@
       "references": [
         {
           "ap_tracking_data": {
-            "group": 2,
+            "group": 4,
             "offset": 1
           },
-          "pc": 17,
+          "pc": 23,
           "value": "[cast(ap + (-1), felt*)]"
         }
       ],
@@ -150,7 +164,7 @@
     },
     "__main__.main": {
       "decorators": [],
-      "pc": 0,
+      "pc": 6,
       "type": "function"
     },
     "__main__.main.Args": {
@@ -179,10 +193,10 @@
       "references": [
         {
           "ap_tracking_data": {
-            "group": 1,
+            "group": 3,
             "offset": 0
           },
-          "pc": 8,
+          "pc": 14,
           "value": "[cast(ap + (-1), felt*)]"
         }
       ],
@@ -195,50 +209,50 @@
     "references": [
       {
         "ap_tracking_data": {
-          "group": 1,
+          "group": 3,
           "offset": 0
-        },
-        "pc": 8,
-        "value": "[cast(ap + (-1), felt*)]"
-      },
-      {
-        "ap_tracking_data": {
-          "group": 2,
-          "offset": 0
-        },
-        "pc": 11,
-        "value": "[cast(fp + (-5), felt*)]"
-      },
-      {
-        "ap_tracking_data": {
-          "group": 2,
-          "offset": 0
-        },
-        "pc": 11,
-        "value": "[cast(fp + (-4), felt*)]"
-      },
-      {
-        "ap_tracking_data": {
-          "group": 2,
-          "offset": 0
-        },
-        "pc": 11,
-        "value": "[cast(fp + (-3), felt*)]"
-      },
-      {
-        "ap_tracking_data": {
-          "group": 2,
-          "offset": 1
         },
         "pc": 14,
         "value": "[cast(ap + (-1), felt*)]"
       },
       {
         "ap_tracking_data": {
-          "group": 2,
-          "offset": 1
+          "group": 4,
+          "offset": 0
         },
         "pc": 17,
+        "value": "[cast(fp + (-5), felt*)]"
+      },
+      {
+        "ap_tracking_data": {
+          "group": 4,
+          "offset": 0
+        },
+        "pc": 17,
+        "value": "[cast(fp + (-4), felt*)]"
+      },
+      {
+        "ap_tracking_data": {
+          "group": 4,
+          "offset": 0
+        },
+        "pc": 17,
+        "value": "[cast(fp + (-3), felt*)]"
+      },
+      {
+        "ap_tracking_data": {
+          "group": 4,
+          "offset": 1
+        },
+        "pc": 20,
+        "value": "[cast(ap + (-1), felt*)]"
+      },
+      {
+        "ap_tracking_data": {
+          "group": 4,
+          "offset": 1
+        },
+        "pc": 23,
         "value": "[cast(ap + (-1), felt*)]"
       }
     ]
