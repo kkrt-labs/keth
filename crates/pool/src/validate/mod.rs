@@ -18,7 +18,7 @@ impl KakarotTransactionValidatorBuilder {
         Self(EthTransactionValidatorBuilder::new(chain_spec))
     }
 
-    /// Build the [`EthTransactionValidator`]. Force `no_eip4844`.
+    /// Build the [`EthTransactionValidator`].
     pub fn build<Client, S>(
         self,
         client: Client,
@@ -27,7 +27,7 @@ impl KakarotTransactionValidatorBuilder {
     where
         S: BlobStore,
     {
-        let validator = self.0.no_eip4844().build(client, store);
+        let validator = self.0.build(client, store);
         KakarotEthTransactionValidator { inner: validator }
     }
 }
