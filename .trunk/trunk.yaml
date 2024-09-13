@@ -2,7 +2,7 @@
 # To learn more about the format of this file, see https://docs.trunk.io/reference/trunk-yaml
 version: 0.1
 cli:
-  version: 1.22.3
+  version: 1.22.5
 # Trunk provides extensibility via plugins. (https://docs.trunk.io/plugins)
 plugins:
   sources:
@@ -12,6 +12,7 @@ plugins:
 # Many linters and tools depend on runtimes - configure them here. (https://docs.trunk.io/runtimes)
 runtimes:
   enabled:
+    - go@1.21.0
     - node@18.12.1
     - python@3.10.8
   definitions:
@@ -19,6 +20,13 @@ runtimes:
       system_version: allowed
 # This is the section where you manage your linters. (https://docs.trunk.io/check/configuration)
 lint:
+  files:
+    - name: cairo
+      extensions:
+        - cairo
+    - name: solidity
+      extensions:
+        - sol
   definitions:
     - name: clippy
       commands:
@@ -26,18 +34,49 @@ lint:
           run:
             cargo clippy --message-format json --locked --all-targets
             --all-features -- --cap-lints=warn --no-deps
+    - name: cairo
+      files: [cairo]
+      commands:
+        - output: rewrite
+          success_codes: [0]
+          formatter: true
+          run: cairo-format ${target}
+          read_output_from: stdout
+          run_linter_from: workspace
+    - name: solidity
+      files: [solidity]
+      commands:
+        - output: rewrite
+          success_codes: [0, 1]
+          formatter: true
+          run: forge fmt ${target} --check -r
+          read_output_from: stdout
+          run_linter_from: workspace
   enabled:
+    - dotenv-linter@3.3.0
     - actionlint@1.7.1
-    - checkov@3.2.238
+    - black@24.8.0
+    - cairo@SYSTEM
+    - checkov@3.2.253
     - clippy@SYSTEM
-    - rustfmt@SYSTEM
+    - codespell@2.3.0
     - git-diff-check
+    - hadolint@2.12.0
+    - isort@5.13.2
     - markdownlint@0.41.0
-    - osv-scanner@1.8.4
+    - osv-scanner@1.8.5
+    - oxipng@9.1.2
     - prettier@3.3.3
+    - ruff@0.6.4
+    - rustfmt@SYSTEM
+    - shellcheck@0.10.0
+    - shfmt@3.6.0
+    - solidity@SYSTEM
     - taplo@0.9.3
-    - trufflehog@3.81.9
+    - trivy@0.55.1
+    - trufflehog@3.82.1
     - yamllint@1.35.1
+
 actions:
   disabled:
     - trunk-announce
