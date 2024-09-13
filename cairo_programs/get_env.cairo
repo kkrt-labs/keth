@@ -1,3 +1,5 @@
+%builtins output
+
 // Represents an integer in the range [0, 2^256).
 struct Uint256 {
     // The low 128 bits of the value.
@@ -33,24 +35,36 @@ func get_env() -> Environment* {
     tempvar env = cast(nondet %{ segments.add() %}, Environment*);
 
     // The hint should populate env.
-    %{ get_env %}
+    %{
+        ids.env.origin=1
+        ids.env.gas_price=2
+        ids.env.chain_id=3
+        ids.env.prev_randao.low=4
+        ids.env.prev_randao.high=4
+        ids.env.block_number=5
+        ids.env.block_gas_limit=6
+        ids.env.block_timestamp=7
+        ids.env.coinbase=8
+        ids.env.base_fee=9
+    %}
 
     return env;
 }
 
-func main() {
+func main{output_ptr: felt*}() {
     let env = get_env();
-    %{
-        print(f"{ids.origin=}")
-        print(f"{ids.gas_price=}")
-        print(f"{ids.chain_id=}")
-        print(f"{ids.prev_randao=}")
-        print(f"{ids.block_number=}")
-        print(f"{ids.block_gas_limit=}")
-        print(f"{ids.block_timestamp=}")
-        print(f"{ids.coinbase=}")
-        print(f"{ids.base_fee=}")
-    %}
+
+    assert [output_ptr] = env.origin;
+    assert [output_ptr + 1] = env.gas_price;
+    assert [output_ptr + 2] = env.chain_id;
+    assert [output_ptr + 3] = env.prev_randao.low;
+    assert [output_ptr + 4] = env.prev_randao.high;
+    assert [output_ptr + 5] = env.block_number;
+    assert [output_ptr + 6] = env.block_gas_limit;
+    assert [output_ptr + 7] = env.block_timestamp;
+    assert [output_ptr + 8] = env.coinbase;
+    assert [output_ptr + 9] = env.base_fee;
+    let output_ptr = output_ptr + 10;
 
     return ();
 }
