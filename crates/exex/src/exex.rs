@@ -12,7 +12,7 @@ use reth_chainspec::{ChainSpec, ChainSpecBuilder};
 use reth_execution_types::Chain;
 use reth_exex::{ExExContext, ExExEvent};
 use reth_node_api::FullNodeComponents;
-use reth_primitives::{Address, Genesis};
+use reth_primitives::{Address, Genesis, SealedBlock, TransactionSignedEcRecovered};
 use reth_tracing::tracing::{error, info};
 use rusqlite::Connection;
 use std::{path::PathBuf, sync::Arc};
@@ -137,7 +137,12 @@ impl<Node: FullNodeComponents> KakarotRollup<Node> {
                     .iter()
                     .map(|tx| {
                         tx.recover_signer()
-                            .map(|sender| (tx.clone(), sender))
+                            .map(|sender| {
+                                TransactionSignedEcRecovered::from_signed_transaction(
+                                    tx.clone(),
+                                    sender,
+                                )
+                            })
                             .ok_or_else(|| eyre::eyre!("failed to recover signer"))
                     })
                     .collect::<eyre::Result<Vec<_>>>()
@@ -148,10 +153,16 @@ impl<Node: FullNodeComponents> KakarotRollup<Node> {
         // Process each block and its transactions.
         for (block, txs, _) in blocks {
             // Execute the block and handle the result.
-            match execute_block(&mut self.db, block, txs).await {
+            match execute_block(&mut self.db, block, txs.clone()).await {
                 Ok((block, bundle, _, _)) => {
-                    // Seal the block and insert it into the database.
+                    // Seal the block.
                     let block = block.seal_slow();
+                    // After the block is executed, we want to run the get_env program
+                    //
+                    // The goal is to store in a Cairo program, via hint, all the information about
+                    // the block
+                    self.execute_get_env(block.block.clone(), txs, chain.tip().number)?;
+                    // Insert the block into the database.
                     self.db.insert_block_with_bundle(&block, bundle)?;
                     info!(
                         block_hash = %block.hash(),
@@ -184,6 +195,73 @@ impl<Node: FullNodeComponents> KakarotRollup<Node> {
         air_private_input: AirPrivateInput,
     ) -> eyre::Result<()> {
         self.db.insert_execution_trace(number, trace, memory, air_public_input, air_private_input)
+    }
+
+    /// Executes the Cairo program to retrieve and process the environment (block and transaction)
+    /// data.
+    ///
+    /// This function takes a sealed block and a list of signed transactions, executes a Cairo
+    /// program to retrieve environment data via a hint.
+    fn execute_get_env(
+        &mut self,
+        block: SealedBlock,
+        txs: Vec<TransactionSignedEcRecovered>,
+        chain_tip: u64,
+    ) -> eyre::Result<()> {
+        // Initialize the Cairo runtime configuration with various settings.
+        let config = CairoRunConfig {
+            layout: LayoutName::all_cairo,
+            trace_enabled: true,
+            relocate_mem: true,
+            proof_mode: true,
+            allow_missing_builtins: Some(false), // Ensures no missing built-in hints are allowed.
+            ..Default::default()
+        };
+
+        // Loop through each transaction in the block to run the Cairo program.
+        for tx in &txs {
+            // Create the Kakarot hint processor with the block and transaction context.
+            let mut hint_processor = KakarotHintProcessor::default()
+                .with_block_and_transaction(block.clone(), tx.clone())
+                .build();
+
+            // Load the toy Cairo program from the file.
+            let program = std::fs::read(PathBuf::from("../../cairo_programs/get_env.json"))?;
+
+            // Execute the Cairo program with the specified configuration and hint processor.
+            //
+            // This runs the Cairo VM to test our hint processor and the associated Cairo program.
+            let mut res = cairo_run(&program, &config, &mut hint_processor)?;
+
+            // As we use the output builtin, we can print the block information to the console.
+            let mut output_buffer = String::new();
+            res.vm.write_output(&mut output_buffer).unwrap();
+            println!("Block information: \n{}", output_buffer);
+
+            // Extract the execution trace from the result.
+            let trace = res.relocated_trace.clone().unwrap_or_default();
+
+            // Extract the relocated memory from the VM execution result.
+            let memory =
+                res.relocated_memory.clone().into_iter().map(|x| x.unwrap_or_default()).collect();
+
+            // Retrieve the public and private inputs from the program execution.
+            let public_input = res.get_air_public_input()?;
+            let private_input = res.get_air_private_input();
+
+            // Store the execution trace, relocated memory, and inputs in the database.
+            //
+            // These will be used later to verify the execution and generate proofs.
+            self.commit_cairo_execution_traces(
+                chain_tip,     // The current chain tip.
+                trace,         // The extracted execution trace.
+                memory,        // The relocated memory.
+                public_input,  // The public input for proving.
+                private_input, // The private input for proving.
+            )?;
+        }
+
+        Ok(())
     }
 }
 

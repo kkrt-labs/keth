@@ -1,8 +1,10 @@
 use crate::{db::Database, exex::DATABASE_PATH};
 use cairo_vm::{
     hint_processor::{
-        builtin_hint_processor::builtin_hint_processor_definition::{
-            BuiltinHintProcessor, HintFunc,
+        builtin_hint_processor::{
+            builtin_hint_processor_definition::{BuiltinHintProcessor, HintFunc},
+            hint_utils::get_ptr_from_var_name,
+            memcpy_hint_utils::add_segment,
         },
         hint_processor_definition::HintReference,
     },
@@ -11,6 +13,7 @@ use cairo_vm::{
     vm::{errors::hint_errors::HintError, vm_core::VirtualMachine},
     Felt252,
 };
+use reth_primitives::{SealedBlock, TransactionSignedEcRecovered};
 use rusqlite::Connection;
 use std::{collections::HashMap, fmt, rc::Rc};
 
@@ -18,6 +21,16 @@ use std::{collections::HashMap, fmt, rc::Rc};
 pub struct KakarotHintProcessor {
     /// The underlying [`BuiltinHintProcessor`].
     processor: BuiltinHintProcessor,
+    /// The latest sealed block with senders to be used in the hint processor.
+    ///
+    /// This is an optional field, as the block may not be available at the time of hint
+    /// processing. Or we can choose to not use the block in the hint processor.
+    block: Option<SealedBlock>,
+    /// The transactions to be used in the hint processor.
+    ///
+    /// These are the transactions that are part of the block that is being processed.
+    /// It contains for each transaction the signed transaction and the sender address.
+    transactions: Vec<TransactionSignedEcRecovered>,
 }
 
 /// Implementation of `Debug` for `KakarotHintProcessor`.
@@ -32,14 +45,14 @@ impl fmt::Debug for KakarotHintProcessor {
 
 impl Default for KakarotHintProcessor {
     fn default() -> Self {
-        Self::new_empty().with_hint(print_tx_hint())
+        Self::new_empty().with_hint(print_tx_hint()).with_hint(add_segment_hint())
     }
 }
 
 impl KakarotHintProcessor {
     /// Creates a new, empty [`KakarotHintProcessor`].
     pub fn new_empty() -> Self {
-        Self { processor: BuiltinHintProcessor::new_empty() }
+        Self { processor: BuiltinHintProcessor::new_empty(), block: None, transactions: Vec::new() }
     }
 
     /// Adds a hint to the [`KakarotHintProcessor`].
@@ -47,6 +60,21 @@ impl KakarotHintProcessor {
     /// This method allows you to register a hint by providing a [`Hint`] instance.
     pub fn with_hint(mut self, hint: Hint) -> Self {
         self.processor.add_hint(hint.name.clone(), hint.func.clone());
+        self
+    }
+
+    /// Adds a block to the [`KakarotHintProcessor`].
+    ///
+    /// This method allows you to register a block by providing a [`SealedBlockWithSenders`]
+    /// instance.
+    pub fn with_block_and_transaction(
+        mut self,
+        block: SealedBlock,
+        transaction: TransactionSignedEcRecovered,
+    ) -> Self {
+        self = self.with_hint(block_info_hint(block.clone(), transaction.clone()));
+        self.block = Some(block.clone());
+        self.transactions.push(transaction);
         self
     }
 
@@ -125,6 +153,122 @@ pub fn print_tx_hint() -> Hint {
             }
 
             Ok(())
+        },
+    )
+}
+
+/// Generates a hint to store block information in the `Environment` model.
+pub fn block_info_hint(block: SealedBlock, transaction: TransactionSignedEcRecovered) -> Hint {
+    Hint::new(
+        String::from("block_info"),
+        move |vm: &mut VirtualMachine,
+              _exec_scopes: &mut ExecutionScopes,
+              ids_data: &HashMap<String, HintReference>,
+              ap_tracking: &ApTracking,
+              _constants: &HashMap<String, Felt252>|
+              -> Result<(), HintError> {
+            // We retrieve the `env` pointer from the `ids_data` hashmap.
+            // This pointer is used to store the block-related values in the VM.
+            let env_ptr = get_ptr_from_var_name("env", vm, ids_data, ap_tracking)?;
+
+            // Define memory addresses for each block-related value by incrementing the `env_ptr`.
+            // The first first field of the Cairo struct is stored at the lowest memory address.
+            // Then, the next field is stored at the next memory address, and so on.
+            let origin_addr = (env_ptr + 0_i32)?;
+            let gas_price_addr = (env_ptr + 1_i32)?;
+            let chain_id_addr = (env_ptr + 2_i32)?;
+            let prev_randao_low_addr = (env_ptr + 3_i32)?;
+            let prev_randao_high_addr = (env_ptr + 4_i32)?;
+            let block_number_addr = (env_ptr + 5_i32)?;
+            let block_gas_limit_addr = (env_ptr + 6_i32)?;
+            let block_timestamp_addr = (env_ptr + 7_i32)?;
+            let coinbase_addr = (env_ptr + 8_i32)?;
+            let base_fee_addr = (env_ptr + 9_i32)?;
+
+            // Insert the transaction origin (signer) into the VM memory.
+            let _ = vm
+                .insert_value(origin_addr, Felt252::from_bytes_be_slice(&transaction.signer().0 .0))
+                .map_err(HintError::Memory);
+
+            // Insert the gas price of the transaction into the VM memory.
+            let _ = vm
+                .insert_value(
+                    gas_price_addr,
+                    Felt252::from(transaction.effective_gas_price(block.base_fee_per_gas)),
+                )
+                .map_err(HintError::Memory);
+
+            // Insert the chain ID of the transaction, defaulting to 0 if not available.
+            let _ = vm
+                .insert_value(
+                    chain_id_addr,
+                    Felt252::from(transaction.chain_id().unwrap_or_default()),
+                )
+                .map_err(HintError::Memory);
+
+            // Insert the low and high 16 bytes of the previous block's RANDAO (mix hash) into the
+            // VM.
+            let _ = vm
+                .insert_value(
+                    prev_randao_low_addr,
+                    Felt252::from_bytes_be_slice(&block.mix_hash.0[16..]),
+                )
+                .map_err(HintError::Memory);
+            let _ = vm
+                .insert_value(
+                    prev_randao_high_addr,
+                    Felt252::from_bytes_be_slice(&block.mix_hash.0[0..16]),
+                )
+                .map_err(HintError::Memory);
+
+            // Insert the block number into the VM.
+            let _ = vm
+                .insert_value(block_number_addr, Felt252::from(block.number))
+                .map_err(HintError::Memory);
+
+            // Insert the block gas limit into the VM.
+            let _ = vm
+                .insert_value(block_gas_limit_addr, Felt252::from(block.gas_limit))
+                .map_err(HintError::Memory);
+
+            // Insert the block timestamp into the VM.
+            let _ = vm
+                .insert_value(block_timestamp_addr, Felt252::from(block.timestamp))
+                .map_err(HintError::Memory);
+
+            // Insert the coinbase (beneficiary) address into the VM.
+            let _ = vm
+                .insert_value(coinbase_addr, Felt252::from_bytes_be_slice(&block.beneficiary.0 .0))
+                .map_err(HintError::Memory);
+
+            // Insert the base fee of the block into the VM, defaulting to 0 if not set.
+            let _ = vm
+                .insert_value(
+                    base_fee_addr,
+                    Felt252::from(block.base_fee_per_gas.unwrap_or_default()),
+                )
+                .map_err(HintError::Memory);
+
+            Ok(())
+        },
+    )
+}
+
+/// Generates a hint to add a new memory segment.
+///
+/// This function adds a hint to the `HintProcessor` that creates a new memory segment in the
+/// virtual machine. It maps the current memory pointer (`ap`) to the newly added segment.
+pub fn add_segment_hint() -> Hint {
+    Hint::new(
+        String::from("memory[ap] = to_felt_or_relocatable(segments.add())"),
+        |vm: &mut VirtualMachine,
+         _exec_scopes: &mut ExecutionScopes,
+         _ids_data: &HashMap<String, HintReference>,
+         _ap_tracking: &ApTracking,
+         _constants: &HashMap<String, Felt252>|
+         -> Result<(), HintError> {
+            // Calls the function to add a new memory segment to the VM.
+            add_segment(vm)
         },
     )
 }

@@ -4,8 +4,8 @@ use reth_node_api::{ConfigureEvm, ConfigureEvmEnv};
 use reth_node_ethereum::EthEvmConfig;
 use reth_primitives::{
     revm_primitives::{CfgEnvWithHandlerCfg, EVMError, ExecutionResult, ResultAndState},
-    Address, Block, BlockWithSenders, EthereumHardfork, Header, Receipt, SealedBlockWithSenders,
-    TransactionSigned, U256,
+    Block, BlockWithSenders, EthereumHardfork, Header, Receipt, SealedBlockWithSenders,
+    TransactionSigned, TransactionSignedEcRecovered, U256,
 };
 use reth_revm::{
     db::{states::bundle_state::BundleRetention, BundleState},
@@ -18,7 +18,7 @@ use reth_tracing::tracing::debug;
 pub async fn execute_block(
     db: &mut Database,
     block: &SealedBlockWithSenders,
-    txs: Vec<(TransactionSigned, Address)>,
+    txs: Vec<TransactionSignedEcRecovered>,
 ) -> eyre::Result<(BlockWithSenders, BundleState, Vec<Receipt>, Vec<ExecutionResult>)> {
     // Extract the header from the provided block.
     let header = block.header();
@@ -81,7 +81,7 @@ pub fn configure_evm<'a>(
 pub fn execute_transactions(
     evm: &mut Evm<'_, (), StateDBBox<'_, eyre::Report>>,
     header: &Header,
-    transactions: Vec<(TransactionSigned, Address)>,
+    transactions: Vec<TransactionSignedEcRecovered>,
 ) -> eyre::Result<(Vec<TransactionSigned>, Vec<Receipt>, Vec<ExecutionResult>)> {
     // Initializationof vectors and variables
     let mut receipts = Vec::with_capacity(transactions.len());
@@ -90,7 +90,8 @@ pub fn execute_transactions(
     let mut cumulative_gas_used = 0;
 
     // Iterates through each transaction and sender in the list.
-    for (transaction, sender) in transactions {
+    for transaction in transactions {
+        let (transaction, sender) = transaction.to_components();
         // Calculates the available gas in the block after previous transactions.
         let block_available_gas = header.gas_limit - cumulative_gas_used;
         // Ensures that the current transaction does not exceed the block's available gas.
