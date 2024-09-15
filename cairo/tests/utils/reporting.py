@@ -1,9 +1,7 @@
 import json
 import logging
-from functools import wraps
 from pathlib import Path
-from time import perf_counter
-from typing import Any, Callable, List, TypeVar, Union, cast
+from typing import Any, Callable, List, TypeVar, Union
 
 from starkware.cairo.lang.compiler.identifier_definition import LabelDefinition
 from starkware.cairo.lang.tracer.profile import ProfileBuilder
@@ -12,7 +10,6 @@ from tests.utils.coverage import CoverageFile
 logging.basicConfig(format="%(levelname)-8s %(message)s")
 logger = logging.getLogger("timer")
 
-_time_report: List[dict] = []
 # A mapping to fix the mismatch between the debug_info and the identifiers.
 _label_scope = {
     "kakarot.constants.opcodes_label": "kakarot.constants",
