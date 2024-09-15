@@ -220,4 +220,16 @@ namespace model {
         access_list: felt*,
         chain_id: Option,
     }
+
+    // @notice A struct representing the constants of an Eth block.
+    struct BlockInfo {
+        coinbase: felt,
+        timestamp: felt,
+        number: felt,
+        prev_randao: Uint256,
+        gas_limit: felt,
+        chain_id: felt,
+        base_fee: felt,
+        block_hashes: Uint256*,
+    }
 }
