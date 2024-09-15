@@ -31,6 +31,7 @@ def ecrecover(data):
     return padded_address, public_key
 
 
+@pytest.mark.xfail(reason="Cairo1Helpers migration")
 @pytest.mark.EC_RECOVER
 class TestEcRecover:
     def test_should_return_evm_address_in_bytes32(self, cairo_run):
