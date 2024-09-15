@@ -9,7 +9,7 @@ use cairo_vm::{
         hint_processor_definition::HintReference,
     },
     serde::deserialize_program::ApTracking,
-    types::exec_scope::ExecutionScopes,
+    types::{exec_scope::ExecutionScopes, relocatable::MaybeRelocatable},
     vm::{errors::hint_errors::HintError, vm_core::VirtualMachine},
     Felt252,
 };
@@ -171,83 +171,41 @@ pub fn block_info_hint(block: SealedBlock, transaction: TransactionSignedEcRecov
             // This pointer is used to store the block-related values in the VM.
             let env_ptr = get_ptr_from_var_name("env", vm, ids_data, ap_tracking)?;
 
-            // Define memory addresses for each block-related value by incrementing the `env_ptr`.
-            // The first first field of the Cairo struct is stored at the lowest memory address.
-            // Then, the next field is stored at the next memory address, and so on.
-            let origin_addr = (env_ptr + 0_i32)?;
-            let gas_price_addr = (env_ptr + 1_i32)?;
-            let chain_id_addr = (env_ptr + 2_i32)?;
-            let prev_randao_low_addr = (env_ptr + 3_i32)?;
-            let prev_randao_high_addr = (env_ptr + 4_i32)?;
-            let block_number_addr = (env_ptr + 5_i32)?;
-            let block_gas_limit_addr = (env_ptr + 6_i32)?;
-            let block_timestamp_addr = (env_ptr + 7_i32)?;
-            let coinbase_addr = (env_ptr + 8_i32)?;
-            let base_fee_addr = (env_ptr + 9_i32)?;
-
-            // Insert the transaction origin (signer) into the VM memory.
+            // We load the block-related values into the VM.
+            //
+            // The values are loaded in the order they are defined in the `Environment` model.
+            // We start at the `env` pointer.
             let _ = vm
-                .insert_value(origin_addr, Felt252::from_bytes_be_slice(&transaction.signer().0 .0))
-                .map_err(HintError::Memory);
-
-            // Insert the gas price of the transaction into the VM memory.
-            let _ = vm
-                .insert_value(
-                    gas_price_addr,
-                    Felt252::from(transaction.effective_gas_price(block.base_fee_per_gas)),
+                .load_data(
+                    env_ptr,
+                    &[
+                        MaybeRelocatable::from(Felt252::from_bytes_be_slice(
+                            &transaction.signer().0 .0,
+                        )),
+                        MaybeRelocatable::from(Felt252::from(
+                            transaction.effective_gas_price(block.base_fee_per_gas),
+                        )),
+                        MaybeRelocatable::from(Felt252::from(
+                            transaction.chain_id().unwrap_or_default(),
+                        )),
+                        MaybeRelocatable::from(Felt252::from_bytes_be_slice(
+                            &block.mix_hash.0[16..],
+                        )),
+                        MaybeRelocatable::from(Felt252::from_bytes_be_slice(
+                            &block.mix_hash.0[0..16],
+                        )),
+                        MaybeRelocatable::from(Felt252::from(block.number)),
+                        MaybeRelocatable::from(Felt252::from(block.gas_limit)),
+                        MaybeRelocatable::from(Felt252::from(block.timestamp)),
+                        MaybeRelocatable::from(Felt252::from_bytes_be_slice(
+                            &block.beneficiary.0 .0,
+                        )),
+                        MaybeRelocatable::from(Felt252::from(
+                            block.base_fee_per_gas.unwrap_or_default(),
+                        )),
+                    ],
                 )
-                .map_err(HintError::Memory);
-
-            // Insert the chain ID of the transaction, defaulting to 0 if not available.
-            let _ = vm
-                .insert_value(
-                    chain_id_addr,
-                    Felt252::from(transaction.chain_id().unwrap_or_default()),
-                )
-                .map_err(HintError::Memory);
-
-            // Insert the low and high 16 bytes of the previous block's RANDAO (mix hash) into the
-            // VM.
-            let _ = vm
-                .insert_value(
-                    prev_randao_low_addr,
-                    Felt252::from_bytes_be_slice(&block.mix_hash.0[16..]),
-                )
-                .map_err(HintError::Memory);
-            let _ = vm
-                .insert_value(
-                    prev_randao_high_addr,
-                    Felt252::from_bytes_be_slice(&block.mix_hash.0[0..16]),
-                )
-                .map_err(HintError::Memory);
-
-            // Insert the block number into the VM.
-            let _ = vm
-                .insert_value(block_number_addr, Felt252::from(block.number))
-                .map_err(HintError::Memory);
-
-            // Insert the block gas limit into the VM.
-            let _ = vm
-                .insert_value(block_gas_limit_addr, Felt252::from(block.gas_limit))
-                .map_err(HintError::Memory);
-
-            // Insert the block timestamp into the VM.
-            let _ = vm
-                .insert_value(block_timestamp_addr, Felt252::from(block.timestamp))
-                .map_err(HintError::Memory);
-
-            // Insert the coinbase (beneficiary) address into the VM.
-            let _ = vm
-                .insert_value(coinbase_addr, Felt252::from_bytes_be_slice(&block.beneficiary.0 .0))
-                .map_err(HintError::Memory);
-
-            // Insert the base fee of the block into the VM, defaulting to 0 if not set.
-            let _ = vm
-                .insert_value(
-                    base_fee_addr,
-                    Felt252::from(block.base_fee_per_gas.unwrap_or_default()),
-                )
-                .map_err(HintError::Memory);
+                .map_err(HintError::Memory)?;
 
             Ok(())
         },
