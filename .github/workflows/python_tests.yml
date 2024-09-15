@@ -9,6 +9,8 @@ jobs:
   test:
     name: Python
     runs-on: ubuntu-latest
+    env:
+      HYPOTHESIS_PROFILE: ci
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
