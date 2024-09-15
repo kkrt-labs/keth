@@ -16,6 +16,7 @@ filterwarnings = [
   "ignore:abi:DeprecationWarning",                                                        # from web3
   "ignore::marshmallow.warnings.RemovedInMarshmallow4Warning",                            # from marshmallow
 ]
+asyncio_default_fixture_loop_scope = 'session'
 markers = [
   "ArithmeticOperations",
   "ADD:            Opcode Value 0x01 - Addition operation",
