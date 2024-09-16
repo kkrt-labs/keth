@@ -12,6 +12,9 @@ concurrency:
 permissions: read-all
 
 jobs:
-  spell_check:
-    name: Spell check
-    uses: ./.github/workflows/spell_check.yml
+  lint:
+    name: Lint
+    permissions:
+      checks: write
+      contents: read
+    uses: ./.github/workflows/trunk_check.yml

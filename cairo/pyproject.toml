@@ -1,0 +1,24 @@
+[project]
+name = "cairo"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10"
+
+dependencies = ["cairo-lang>=0.13.2", "ethereum", "python-dotenv>=1.0.1"]
+
+[tool.uv]
+dev-dependencies = [
+  "eth-abi>=5.1.0",
+  "eth-account>=0.13.3",
+  "eth-keys>=0.5.1",
+  "eth-utils>=5.0.0",
+  "hypothesis>=6.112.1",
+  "ipykernel>=6.29.5",
+  "protobuf>=5.28.1",
+  "pytest-xdist>=3.6.1",
+  "pytest>=8.3.3",
+]
+
+[tool.uv.sources]
+ethereum = { git = "https://github.com/ethereum/execution-specs.git" }
