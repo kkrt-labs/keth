@@ -156,7 +156,7 @@ pub fn block_info_hint(block: SealedBlock, transaction: TransactionSignedEcRecov
               -> Result<(), HintError> {
             // We retrieve the `env` pointer from the `ids_data` hashmap.
             // This pointer is used to store the block-related values in the VM.
-            let env_ptr = get_ptr_from_var_name("env", vm, ids_data, ap_tracking)?;
+            let env_ptr = get_ptr_from_var_name("block_info", vm, ids_data, ap_tracking)?;
 
             // We load the block-related values into the VM.
             //
@@ -167,25 +167,19 @@ pub fn block_info_hint(block: SealedBlock, transaction: TransactionSignedEcRecov
                     env_ptr,
                     &[
                         MaybeRelocatable::from(Felt252::from_bytes_be_slice(
-                            &transaction.signer().0 .0,
+                            &block.beneficiary.0 .0,
                         )),
-                        MaybeRelocatable::from(Felt252::from(
-                            transaction.effective_gas_price(block.base_fee_per_gas),
-                        )),
-                        MaybeRelocatable::from(Felt252::from(
-                            transaction.chain_id().unwrap_or_default(),
-                        )),
+                        MaybeRelocatable::from(Felt252::from(block.timestamp)),
+                        MaybeRelocatable::from(Felt252::from(block.number)),
                         MaybeRelocatable::from(Felt252::from_bytes_be_slice(
                             &block.mix_hash.0[16..],
                         )),
                         MaybeRelocatable::from(Felt252::from_bytes_be_slice(
                             &block.mix_hash.0[0..16],
                         )),
-                        MaybeRelocatable::from(Felt252::from(block.number)),
                         MaybeRelocatable::from(Felt252::from(block.gas_limit)),
-                        MaybeRelocatable::from(Felt252::from(block.timestamp)),
-                        MaybeRelocatable::from(Felt252::from_bytes_be_slice(
-                            &block.beneficiary.0 .0,
+                        MaybeRelocatable::from(Felt252::from(
+                            transaction.chain_id().unwrap_or_default(),
                         )),
                         MaybeRelocatable::from(Felt252::from(
                             block.base_fee_per_gas.unwrap_or_default(),

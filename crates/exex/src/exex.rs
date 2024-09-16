@@ -226,7 +226,7 @@ impl<Node: FullNodeComponents> KakarotRollup<Node> {
                 .build();
 
             // Load the toy Cairo program from the file.
-            let program = std::fs::read(PathBuf::from("../../cairo_programs/get_env.json"))?;
+            let program = std::fs::read(PathBuf::from("../../cairo/programs/os.json"))?;
 
             // Execute the Cairo program with the specified configuration and hint processor.
             //
