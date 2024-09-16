@@ -21,16 +21,6 @@ use std::{collections::HashMap, fmt, rc::Rc};
 pub struct KakarotHintProcessor {
     /// The underlying [`BuiltinHintProcessor`].
     processor: BuiltinHintProcessor,
-    /// The latest sealed block with senders to be used in the hint processor.
-    ///
-    /// This is an optional field, as the block may not be available at the time of hint
-    /// processing. Or we can choose to not use the block in the hint processor.
-    block: Option<SealedBlock>,
-    /// The transactions to be used in the hint processor.
-    ///
-    /// These are the transactions that are part of the block that is being processed.
-    /// It contains for each transaction the signed transaction and the sender address.
-    transactions: Vec<TransactionSignedEcRecovered>,
 }
 
 /// Implementation of `Debug` for `KakarotHintProcessor`.
@@ -52,7 +42,7 @@ impl Default for KakarotHintProcessor {
 impl KakarotHintProcessor {
     /// Creates a new, empty [`KakarotHintProcessor`].
     pub fn new_empty() -> Self {
-        Self { processor: BuiltinHintProcessor::new_empty(), block: None, transactions: Vec::new() }
+        Self { processor: BuiltinHintProcessor::new_empty() }
     }
 
     /// Adds a hint to the [`KakarotHintProcessor`].
@@ -68,14 +58,11 @@ impl KakarotHintProcessor {
     /// This method allows you to register a block by providing a [`SealedBlockWithSenders`]
     /// instance.
     pub fn with_block_and_transaction(
-        mut self,
+        self,
         block: SealedBlock,
         transaction: TransactionSignedEcRecovered,
     ) -> Self {
-        self = self.with_hint(block_info_hint(block.clone(), transaction.clone()));
-        self.block = Some(block.clone());
-        self.transactions.push(transaction);
-        self
+        self.with_hint(block_info_hint(block, transaction))
     }
 
     /// Returns the underlying [`BuiltinHintProcessor`].
