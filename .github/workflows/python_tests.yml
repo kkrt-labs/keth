@@ -27,6 +27,5 @@ jobs:
         with:
           path: .venv
           key: venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
-      - if: steps.cache-venv.outputs.cache-hit != 'true'
-        run: cd cairo && uv sync --locked
+      - run: cd cairo && uv sync --locked
       - run: uv run pytest -n logical
