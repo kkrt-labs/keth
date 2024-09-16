@@ -10,10 +10,6 @@ concurrency:
 permissions: read-all
 
 jobs:
-  spell_check:
-    name: Spell Check
-    uses: ./.github/workflows/spell_check.yml
-
   rust_tests:
     name: Tests
     uses: ./.github/workflows/rust_tests.yml
