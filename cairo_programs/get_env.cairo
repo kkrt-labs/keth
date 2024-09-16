@@ -35,18 +35,7 @@ func get_env() -> Environment* {
     tempvar env = cast(nondet %{ segments.add() %}, Environment*);
 
     // The hint should populate env.
-    %{
-        ids.env.origin=1
-        ids.env.gas_price=2
-        ids.env.chain_id=3
-        ids.env.prev_randao.low=4
-        ids.env.prev_randao.high=4
-        ids.env.block_number=5
-        ids.env.block_gas_limit=6
-        ids.env.block_timestamp=7
-        ids.env.coinbase=8
-        ids.env.base_fee=9
-    %}
+    %{ block_info %}
 
     return env;
 }

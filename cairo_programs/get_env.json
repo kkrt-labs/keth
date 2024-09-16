@@ -1,7 +1,7 @@
 {
   "attributes": [],
   "builtins": ["output"],
-  "compiler_version": "0.13.1",
+  "compiler_version": "0.13.2",
   "data": [
     "0x40780017fff7fff",
     "0x1",
@@ -56,7 +56,7 @@
     "8": [
       {
         "accessible_scopes": ["__main__", "__main__.get_env"],
-        "code": "ids.env.origin=1\nids.env.gas_price=2\nids.env.chain_id=3\nids.env.prev_randao.low=4\nids.env.prev_randao.high=4\nids.env.block_number=5\nids.env.block_gas_limit=6\nids.env.block_timestamp=7\nids.env.coinbase=8\nids.env.base_fee=9",
+        "code": "block_info",
         "flow_tracking_data": {
           "ap_tracking": {
             "group": 2,

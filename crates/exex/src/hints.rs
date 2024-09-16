@@ -1,16 +1,19 @@
 use crate::{db::Database, exex::DATABASE_PATH};
 use cairo_vm::{
     hint_processor::{
-        builtin_hint_processor::builtin_hint_processor_definition::{
-            BuiltinHintProcessor, HintFunc,
+        builtin_hint_processor::{
+            builtin_hint_processor_definition::{BuiltinHintProcessor, HintFunc},
+            hint_utils::get_ptr_from_var_name,
+            memcpy_hint_utils::add_segment,
         },
         hint_processor_definition::HintReference,
     },
     serde::deserialize_program::ApTracking,
-    types::exec_scope::ExecutionScopes,
+    types::{exec_scope::ExecutionScopes, relocatable::MaybeRelocatable},
     vm::{errors::hint_errors::HintError, vm_core::VirtualMachine},
     Felt252,
 };
+use reth_primitives::{SealedBlock, TransactionSignedEcRecovered};
 use rusqlite::Connection;
 use std::{collections::HashMap, fmt, rc::Rc};
 
@@ -32,7 +35,7 @@ impl fmt::Debug for KakarotHintProcessor {
 
 impl Default for KakarotHintProcessor {
     fn default() -> Self {
-        Self::new_empty().with_hint(print_tx_hint())
+        Self::new_empty().with_hint(print_tx_hint()).with_hint(add_segment_hint())
     }
 }
 
@@ -48,6 +51,18 @@ impl KakarotHintProcessor {
     pub fn with_hint(mut self, hint: Hint) -> Self {
         self.processor.add_hint(hint.name.clone(), hint.func.clone());
         self
+    }
+
+    /// Adds a block to the [`KakarotHintProcessor`].
+    ///
+    /// This method allows you to register a block by providing a [`SealedBlockWithSenders`]
+    /// instance.
+    pub fn with_block_and_transaction(
+        self,
+        block: SealedBlock,
+        transaction: TransactionSignedEcRecovered,
+    ) -> Self {
+        self.with_hint(block_info_hint(block, transaction))
     }
 
     /// Returns the underlying [`BuiltinHintProcessor`].
@@ -125,6 +140,80 @@ pub fn print_tx_hint() -> Hint {
             }
 
             Ok(())
+        },
+    )
+}
+
+/// Generates a hint to store block information in the `Environment` model.
+pub fn block_info_hint(block: SealedBlock, transaction: TransactionSignedEcRecovered) -> Hint {
+    Hint::new(
+        String::from("block_info"),
+        move |vm: &mut VirtualMachine,
+              _exec_scopes: &mut ExecutionScopes,
+              ids_data: &HashMap<String, HintReference>,
+              ap_tracking: &ApTracking,
+              _constants: &HashMap<String, Felt252>|
+              -> Result<(), HintError> {
+            // We retrieve the `env` pointer from the `ids_data` hashmap.
+            // This pointer is used to store the block-related values in the VM.
+            let env_ptr = get_ptr_from_var_name("env", vm, ids_data, ap_tracking)?;
+
+            // We load the block-related values into the VM.
+            //
+            // The values are loaded in the order they are defined in the `Environment` model.
+            // We start at the `env` pointer.
+            let _ = vm
+                .load_data(
+                    env_ptr,
+                    &[
+                        MaybeRelocatable::from(Felt252::from_bytes_be_slice(
+                            &transaction.signer().0 .0,
+                        )),
+                        MaybeRelocatable::from(Felt252::from(
+                            transaction.effective_gas_price(block.base_fee_per_gas),
+                        )),
+                        MaybeRelocatable::from(Felt252::from(
+                            transaction.chain_id().unwrap_or_default(),
+                        )),
+                        MaybeRelocatable::from(Felt252::from_bytes_be_slice(
+                            &block.mix_hash.0[16..],
+                        )),
+                        MaybeRelocatable::from(Felt252::from_bytes_be_slice(
+                            &block.mix_hash.0[0..16],
+                        )),
+                        MaybeRelocatable::from(Felt252::from(block.number)),
+                        MaybeRelocatable::from(Felt252::from(block.gas_limit)),
+                        MaybeRelocatable::from(Felt252::from(block.timestamp)),
+                        MaybeRelocatable::from(Felt252::from_bytes_be_slice(
+                            &block.beneficiary.0 .0,
+                        )),
+                        MaybeRelocatable::from(Felt252::from(
+                            block.base_fee_per_gas.unwrap_or_default(),
+                        )),
+                    ],
+                )
+                .map_err(HintError::Memory)?;
+
+            Ok(())
+        },
+    )
+}
+
+/// Generates a hint to add a new memory segment.
+///
+/// This function adds a hint to the `HintProcessor` that creates a new memory segment in the
+/// virtual machine. It maps the current memory pointer (`ap`) to the newly added segment.
+pub fn add_segment_hint() -> Hint {
+    Hint::new(
+        String::from("memory[ap] = to_felt_or_relocatable(segments.add())"),
+        |vm: &mut VirtualMachine,
+         _exec_scopes: &mut ExecutionScopes,
+         _ids_data: &HashMap<String, HintReference>,
+         _ap_tracking: &ApTracking,
+         _constants: &HashMap<String, Felt252>|
+         -> Result<(), HintError> {
+            // Calls the function to add a new memory segment to the VM.
+            add_segment(vm)
         },
     )
 }
