@@ -167,26 +167,20 @@ pub fn block_info_hint(block: SealedBlock, transaction: TransactionSignedEcRecov
             // We start at the `env` pointer.
             vm.load_data(
                 env_ptr,
-                 &[
-                        MaybeRelocatable::from(Felt252::from_bytes_be_slice(
-                            &block.beneficiary.0 .0,
-                        )),
-                        MaybeRelocatable::from(Felt252::from(block.timestamp)),
-                        MaybeRelocatable::from(Felt252::from(block.number)),
-                        MaybeRelocatable::from(Felt252::from_bytes_be_slice(
-                            &block.mix_hash.0[16..],
-                        )),
-                        MaybeRelocatable::from(Felt252::from_bytes_be_slice(
-                            &block.mix_hash.0[0..16],
-                        )),
-                        MaybeRelocatable::from(Felt252::from(block.gas_limit)),
-                        MaybeRelocatable::from(Felt252::from(
-                            transaction.chain_id().unwrap_or_default(),
-                        )),
-                        MaybeRelocatable::from(Felt252::from(
-                            block.base_fee_per_gas.unwrap_or_default(),
-                        )),
-                    ],
+                &[
+                    MaybeRelocatable::from(Felt252::from_bytes_be_slice(&block.beneficiary.0 .0)),
+                    MaybeRelocatable::from(Felt252::from(block.timestamp)),
+                    MaybeRelocatable::from(Felt252::from(block.number)),
+                    MaybeRelocatable::from(Felt252::from_bytes_be_slice(&block.mix_hash.0[16..])),
+                    MaybeRelocatable::from(Felt252::from_bytes_be_slice(&block.mix_hash.0[0..16])),
+                    MaybeRelocatable::from(Felt252::from(block.gas_limit)),
+                    MaybeRelocatable::from(Felt252::from(
+                        transaction.chain_id().unwrap_or_default(),
+                    )),
+                    MaybeRelocatable::from(Felt252::from(
+                        block.base_fee_per_gas.unwrap_or_default(),
+                    )),
+                ],
             )
             .map_err(HintError::Memory)?;
 
