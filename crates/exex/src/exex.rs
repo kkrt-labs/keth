@@ -226,7 +226,7 @@ impl<Node: FullNodeComponents> KakarotRollup<Node> {
                 .build();
 
             // Load the toy Cairo program from the file.
-            let program = std::fs::read(PathBuf::from("../../cairo_programs/get_env.json"))?;
+            let program = std::fs::read(PathBuf::from("../../cairo/programs/os.json"))?;
 
             // Execute the Cairo program with the specified configuration and hint processor.
             //
@@ -304,8 +304,8 @@ mod tests {
 
         // Create the Kakarot Rollup chain instance and start processing chain state notifications.
         Ok(KakarotRollup { ctx, db }.start(vec![
-            PathBuf::from("../../cairo_programs/transaction_hash.json"),
-            PathBuf::from("../../cairo_programs/fibonacci.json"),
+            PathBuf::from("../../cairo/programs/transaction_hash.json"),
+            PathBuf::from("../../cairo/programs/fibonacci.json"),
         ]))
     }
 

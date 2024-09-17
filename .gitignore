@@ -17,3 +17,11 @@ target/
 
 # Ignore database files
 **/*.db
+
+# Cairo project files
+*.pyc
+*.pb.gz
+.env
+build
+coverage
+.hypothesis
