@@ -17,6 +17,9 @@ use reth_primitives::{SealedBlock, TransactionSignedEcRecovered};
 use rusqlite::Connection;
 use std::{collections::HashMap, fmt, rc::Rc};
 
+/// The type of a hint execution result.
+pub type HintExecutionResult = Result<(), HintError>;
+
 /// A wrapper around [`BuiltinHintProcessor`] to manage hint registration.
 pub struct KakarotHintProcessor {
     /// The underlying [`BuiltinHintProcessor`].
@@ -99,7 +102,7 @@ impl Hint {
                 &HashMap<String, HintReference>,
                 &ApTracking,
                 &HashMap<String, Felt252>,
-            ) -> Result<(), HintError>
+            ) -> HintExecutionResult
             + 'static
             + Sync,
     {
@@ -118,7 +121,7 @@ pub fn print_tx_hint() -> Hint {
          _ids_data: &HashMap<String, HintReference>,
          _ap_tracking: &ApTracking,
          _constants: &HashMap<String, Felt252>|
-         -> Result<(), HintError> {
+         -> HintExecutionResult {
             // Open the SQLite database connection.
             let connection = Connection::open(DATABASE_PATH)
                 .map_err(|e| HintError::CustomHint(e.to_string().into_boxed_str()))?;
@@ -153,7 +156,7 @@ pub fn block_info_hint(block: SealedBlock, transaction: TransactionSignedEcRecov
               ids_data: &HashMap<String, HintReference>,
               ap_tracking: &ApTracking,
               _constants: &HashMap<String, Felt252>|
-              -> Result<(), HintError> {
+              -> HintExecutionResult {
             // We retrieve the `env` pointer from the `ids_data` hashmap.
             // This pointer is used to store the block-related values in the VM.
             let env_ptr = get_ptr_from_var_name("block_info", vm, ids_data, ap_tracking)?;
@@ -162,31 +165,24 @@ pub fn block_info_hint(block: SealedBlock, transaction: TransactionSignedEcRecov
             //
             // The values are loaded in the order they are defined in the `Environment` model.
             // We start at the `env` pointer.
-            let _ = vm
-                .load_data(
-                    env_ptr,
-                    &[
-                        MaybeRelocatable::from(Felt252::from_bytes_be_slice(
-                            &block.beneficiary.0 .0,
-                        )),
-                        MaybeRelocatable::from(Felt252::from(block.timestamp)),
-                        MaybeRelocatable::from(Felt252::from(block.number)),
-                        MaybeRelocatable::from(Felt252::from_bytes_be_slice(
-                            &block.mix_hash.0[16..],
-                        )),
-                        MaybeRelocatable::from(Felt252::from_bytes_be_slice(
-                            &block.mix_hash.0[0..16],
-                        )),
-                        MaybeRelocatable::from(Felt252::from(block.gas_limit)),
-                        MaybeRelocatable::from(Felt252::from(
-                            transaction.chain_id().unwrap_or_default(),
-                        )),
-                        MaybeRelocatable::from(Felt252::from(
-                            block.base_fee_per_gas.unwrap_or_default(),
-                        )),
-                    ],
-                )
-                .map_err(HintError::Memory)?;
+            vm.load_data(
+                env_ptr,
+                &[
+                    MaybeRelocatable::from(Felt252::from_bytes_be_slice(&block.beneficiary.0 .0)),
+                    MaybeRelocatable::from(Felt252::from(block.timestamp)),
+                    MaybeRelocatable::from(Felt252::from(block.number)),
+                    MaybeRelocatable::from(Felt252::from_bytes_be_slice(&block.mix_hash.0[16..])),
+                    MaybeRelocatable::from(Felt252::from_bytes_be_slice(&block.mix_hash.0[0..16])),
+                    MaybeRelocatable::from(Felt252::from(block.gas_limit)),
+                    MaybeRelocatable::from(Felt252::from(
+                        transaction.chain_id().unwrap_or_default(),
+                    )),
+                    MaybeRelocatable::from(Felt252::from(
+                        block.base_fee_per_gas.unwrap_or_default(),
+                    )),
+                ],
+            )
+            .map_err(HintError::Memory)?;
 
             Ok(())
         },
@@ -205,7 +201,7 @@ pub fn add_segment_hint() -> Hint {
          _ids_data: &HashMap<String, HintReference>,
          _ap_tracking: &ApTracking,
          _constants: &HashMap<String, Felt252>|
-         -> Result<(), HintError> {
+         -> HintExecutionResult {
             // Calls the function to add a new memory segment to the VM.
             add_segment(vm)
         },
