@@ -167,6 +167,7 @@ def cairo_run(request, cairo_program) -> list:
         for builtin_runner in runner.builtin_runners.values():
             builtin_runner.initialize_segments(runner)
 
+        add_output = False
         stack = []
         for arg in implicit_args:
             builtin_runner = runner.builtin_runners.get(arg.replace("_ptr", "_builtin"))
