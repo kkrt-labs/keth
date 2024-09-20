@@ -24,7 +24,7 @@ pub async fn execute_block(
     let header = block.header();
 
     // Configure the EVM with default settings and associate it with the database and block header.
-    let evm_config = EthEvmConfig::default();
+    let evm_config = EthEvmConfig::new(CHAIN_SPEC.clone());
     let mut evm = configure_evm(&evm_config, db, header);
 
     // Execute the transactions in the block and retrieve the executed transactions, receipts, and
@@ -67,7 +67,7 @@ pub fn configure_evm<'a>(
     let mut cfg = CfgEnvWithHandlerCfg::new_with_spec_id(evm.cfg().clone(), evm.spec_id());
 
     // Populate the configuration and block environment with additional details.
-    config.fill_cfg_and_block_env(&mut cfg, evm.block_mut(), &CHAIN_SPEC, header, U256::ZERO);
+    config.fill_cfg_and_block_env(&mut cfg, evm.block_mut(), header, U256::ZERO);
 
     // Update the EVM's configuration environment with the newly populated configuration.
     *evm.cfg_mut() = cfg.cfg_env;
@@ -104,7 +104,7 @@ pub fn execute_transactions(
         }
 
         // Configures the EVM environment for the current transaction and sender.
-        EthEvmConfig::default().fill_tx_env(evm.tx_mut(), &transaction, sender);
+        EthEvmConfig::new(CHAIN_SPEC.clone()).fill_tx_env(evm.tx_mut(), &transaction, sender);
 
         // Executes the transaction using the EVM.
         let ResultAndState { result, state } = match evm.transact() {
