@@ -10,7 +10,7 @@ workspace = true
 
 [dependencies]
 # Cairo-VM deps
-cairo-vm = { git = "https://github.com/lambdaclass/cairo-vm.git", tag = "v1.0.0-rc6" }
+cairo-vm = { git = "https://github.com/lambdaclass/cairo-vm.git", tag = "v1.0.1" }
 
 kakarot-pool = { workspace = true }
 
