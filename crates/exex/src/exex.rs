@@ -7,6 +7,7 @@ use cairo_vm::{
     vm::trace::trace_entry::RelocatedTraceEntry,
     Felt252,
 };
+use futures::StreamExt;
 use once_cell::sync::Lazy;
 use reth_chainspec::{ChainSpec, ChainSpecBuilder};
 use reth_execution_types::Chain;
@@ -40,7 +41,7 @@ pub(crate) static CHAIN_SPEC: Lazy<Arc<ChainSpec>> = Lazy::new(|| {
 });
 
 /// The Execution Extension for the Kakarot Rollup chain.
-#[derive(Debug)]
+#[allow(missing_debug_implementations)]
 pub struct KakarotRollup<Node: FullNodeComponents> {
     /// Capture the Execution Extension context.
     ctx: ExExContext<Node>,
@@ -66,7 +67,7 @@ impl<Node: FullNodeComponents> KakarotRollup<Node> {
         };
 
         // Process all new chain state notifications
-        while let Some(notification) = self.ctx.notifications.recv().await {
+        while let Some(notification) = self.ctx.notifications.next().await {
             // Check if the notification contains a committed chain.
             if let Some(committed_chain) = notification.committed_chain() {
                 // Commit the new chain state.

@@ -5,7 +5,8 @@ use reth_ethereum_engine_primitives::{
     EthBuiltPayload, EthPayloadAttributes, EthPayloadBuilderAttributes,
 };
 use reth_node_builder::{
-    components::ComponentsBuilder, FullNodeTypes, Node, NodeTypes, PayloadTypes,
+    components::ComponentsBuilder, FullNodeTypes, Node, NodeTypes, NodeTypesWithEngine,
+    PayloadTypes,
 };
 use reth_node_ethereum::{
     node::{
@@ -44,8 +45,8 @@ impl KakarotNode {
         KakarotConsensusBuilder,
     >
     where
-        Node: FullNodeTypes,
-        <Node as NodeTypes>::Engine: PayloadTypes<
+        Node: FullNodeTypes<Types: NodeTypes<ChainSpec = ChainSpec>>,
+        <Node::Types as NodeTypesWithEngine>::Engine: PayloadTypes<
             BuiltPayload = EthBuiltPayload,
             PayloadAttributes = EthPayloadAttributes,
             PayloadBuilderAttributes = EthPayloadBuilderAttributes,
@@ -63,13 +64,17 @@ impl KakarotNode {
 
 impl NodeTypes for KakarotNode {
     type Primitives = ();
-    type Engine = EthEngineTypes;
     type ChainSpec = ChainSpec;
 }
 
-impl<N> Node<N> for KakarotNode
+impl NodeTypesWithEngine for KakarotNode {
+    type Engine = EthEngineTypes;
+}
+
+impl<Types, N> Node<N> for KakarotNode
 where
-    N: FullNodeTypes<Engine = EthEngineTypes>,
+    Types: NodeTypesWithEngine<Engine = EthEngineTypes, ChainSpec = ChainSpec>,
+    N: FullNodeTypes<Types = Types>,
 {
     type ComponentsBuilder = ComponentsBuilder<
         N,
