@@ -6,10 +6,10 @@ readme = "README.md"
 requires-python = ">=3.10"
 
 dependencies = [
-    "cairo-lang>=0.13.2",
-    "ethereum",
-    "marshmallow-dataclass>=8.6.1",
-    "python-dotenv>=1.0.1",
+  "cairo-lang>=0.13.2",
+  "ethereum",
+  "marshmallow-dataclass>=8.6.1",
+  "python-dotenv>=1.0.1",
 ]
 
 [tool.uv]
