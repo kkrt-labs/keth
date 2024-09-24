@@ -5,6 +5,7 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
+
 from tests.utils.errors import cairo_error
 from tests.utils.helpers import pack_calldata
 from tests.utils.hints import patch_hint

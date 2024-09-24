@@ -1,4 +1,5 @@
 import pytest
+
 from tests.utils.constants import (
     FIRST_KAKAROT_PRECOMPILE_ADDRESS,
     FIRST_ROLLUP_PRECOMPILE_ADDRESS,

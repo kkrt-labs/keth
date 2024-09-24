@@ -5,6 +5,7 @@ from ethereum.shanghai.vm.gas import (
 )
 from hypothesis import given
 from hypothesis.strategies import integers
+
 from src.utils.uint256 import int_to_uint256
 
 int_to_uint256(0)  # (0, 0)

@@ -6,6 +6,7 @@ from eth_account.typed_transactions.dynamic_fee_transaction import DynamicFeeTra
 from hypothesis import given
 from hypothesis import strategies as st
 from rlp import encode
+
 from tests.utils.constants import INVALID_TRANSACTIONS, TRANSACTIONS
 from tests.utils.errors import cairo_error
 from tests.utils.helpers import flatten_tx_access_list, rlp_encode_signed_data

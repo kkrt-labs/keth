@@ -30,6 +30,7 @@ from starkware.cairo.lang.vm.cairo_runner import CairoRunner
 from starkware.cairo.lang.vm.memory_dict import MemoryDict
 from starkware.cairo.lang.vm.memory_segments import FIRST_MEMORY_ADDR as PROGRAM_BASE
 from starkware.cairo.lang.vm.utils import RunResources
+
 from tests.utils.constants import Opcodes
 from tests.utils.coverage import VmWithCoverage, report_runs
 from tests.utils.hints import debug_info, implement_hints

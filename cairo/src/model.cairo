@@ -230,6 +230,5 @@ namespace model {
         gas_limit: felt,
         chain_id: felt,
         base_fee: felt,
-        block_hashes: Uint256*,
     }
 }

@@ -2,6 +2,7 @@ import pytest
 from eth_utils import keccak
 from hypothesis import given
 from hypothesis.strategies import binary
+
 from src.utils.uint256 import int_to_uint256
 
 

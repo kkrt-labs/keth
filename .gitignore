@@ -25,3 +25,5 @@ target/
 build
 coverage
 .hypothesis
+cairo/tests/ef_tests/test_data
+!cairo/tests/ef_tests/test_data/.gitkeep

@@ -5,6 +5,7 @@ from typing import Any, Callable, List, TypeVar, Union
 
 from starkware.cairo.lang.compiler.identifier_definition import LabelDefinition
 from starkware.cairo.lang.tracer.profile import ProfileBuilder
+
 from tests.utils.coverage import CoverageFile
 
 logging.basicConfig(format="%(levelname)-8s %(message)s")

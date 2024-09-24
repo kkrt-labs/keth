@@ -17,9 +17,6 @@ func main{output_ptr: felt*}() {
     assert [output_ptr + 6] = block_info.chain_id;
     assert [output_ptr + 7] = block_info.base_fee;
 
-    // memcpy(output_ptr + 8, cast(block_info.block_hashes, felt*), 32 * 2);
-
-    // let output_ptr = output_ptr + 8 + 32 * 2;
     let output_ptr = output_ptr + 8;
 
     return ();

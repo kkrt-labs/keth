@@ -120,6 +120,7 @@ markers = [
   "NoCI",
   "slow",
 ]
+norecursedirs = "tests/ef_tests/test_data"
 
 [tool.isort]
 profile = "black"
