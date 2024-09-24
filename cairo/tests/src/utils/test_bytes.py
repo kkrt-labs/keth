@@ -1,8 +1,9 @@
 import pytest
 from hypothesis import given
 from hypothesis.strategies import binary, integers
-from src.utils.uint256 import int_to_uint256
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
+
+from src.utils.uint256 import int_to_uint256
 from tests.utils.errors import cairo_error
 from tests.utils.hints import patch_hint
 

@@ -1,4 +1,5 @@
 import pytest
+
 from src.utils.uint256 import int_to_uint256
 from tests.utils.constants import Opcodes
 

@@ -174,33 +174,4 @@ namespace TestHelpers {
         assert [array_0] = [array_1];
         return assert_array_equal(array_0_len - 1, array_0 + 1, array_1_len - 1, array_1 + 1);
     }
-
-    func assert_message_equal(evm_0: model.Message*, evm_1: model.Message*) {
-        assert evm_0.value = evm_1.value;
-        assert_array_equal(evm_0.bytecode_len, evm_0.bytecode, evm_1.bytecode_len, evm_1.bytecode);
-        assert_array_equal(evm_0.calldata_len, evm_0.calldata, evm_1.calldata_len, evm_1.calldata);
-
-        assert evm_0.address.starknet = evm_1.address.starknet;
-        assert evm_0.gas_price = evm_1.gas_price;
-        assert evm_0.address.evm = evm_1.address.evm;
-        assert_execution_context_equal(evm_0.parent, evm_1.parent);
-        return ();
-    }
-
-    func assert_execution_context_equal(evm_0: model.EVM*, evm_1: model.EVM*) {
-        assert evm_0.message.depth = evm_1.message.depth;
-
-        assert_message_equal(evm_0.message, evm_1.message);
-        assert evm_0.program_counter = evm_1.program_counter;
-        assert evm_0.stopped = evm_1.stopped;
-
-        assert_array_equal(
-            evm_0.return_data_len, evm_0.return_data, evm_1.return_data_len, evm_1.return_data
-        );
-
-        // TODO: Implement assert_dict_access_equal and finalize this helper once Stack and Memory are stabilized
-        // assert evm_0.stack = evm_1.stack;
-        // assert evm_0.memory = evm_1.memory;
-        return ();
-    }
 }

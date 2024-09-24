@@ -5,7 +5,12 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.10"
 
-dependencies = ["cairo-lang>=0.13.2", "ethereum", "python-dotenv>=1.0.1"]
+dependencies = [
+  "cairo-lang>=0.13.2",
+  "ethereum",
+  "marshmallow-dataclass>=8.6.1",
+  "python-dotenv>=1.0.1",
+]
 
 [tool.uv]
 dev-dependencies = [
@@ -19,6 +24,10 @@ dev-dependencies = [
   "pytest-xdist>=3.6.1",
   "pytest>=8.3.3",
 ]
+
+[tool.isort]
+profile = "black"
+src_paths = ["src", "tests"]
 
 [tool.uv.sources]
 ethereum = { git = "https://github.com/ethereum/execution-specs.git" }

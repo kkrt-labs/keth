@@ -8,8 +8,9 @@ from eth_account._utils.transaction_utils import transaction_rpc_to_rlp_structur
 from eth_account.typed_transactions import TypedTransaction
 from eth_keys import keys
 from eth_utils import decode_hex, keccak, to_checksum_address
-from src.utils.uint256 import int_to_uint256
 from starkware.cairo.lang.vm.crypto import pedersen_hash
+
+from src.utils.uint256 import int_to_uint256
 
 
 def rlp_encode_signed_data(tx: dict) -> bytes:

@@ -10,5 +10,6 @@
   ],
   "python.testing.pytestArgs": ["cairo"],
   "python.testing.unittestEnabled": false,
-  "python.testing.pytestEnabled": true
+  "python.testing.pytestEnabled": true,
+  "jupyter.notebookFileRoot": "${workspaceFolder}/cairo"
 }

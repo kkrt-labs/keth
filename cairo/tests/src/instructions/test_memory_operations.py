@@ -1,8 +1,9 @@
 import pytest
 from hypothesis import example, given
 from hypothesis.strategies import binary, integers
-from src.utils.uint256 import int_to_uint256
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
+
+from src.utils.uint256 import int_to_uint256
 
 
 class TestMemoryOperations:
