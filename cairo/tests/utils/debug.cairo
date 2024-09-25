@@ -1,6 +1,7 @@
 from starkware.cairo.common.uint256 import Uint256
 from starkware.cairo.common.dict_access import DictAccess
-from model import model
+
+from src.model import model
 
 namespace Debug {
     func print_felt(x: felt) {

@@ -7,3 +7,9 @@ func test_os{output_ptr: felt*}() {
 
     return ();
 }
+
+func test_block_header() -> model.BlockHeader* {
+    tempvar block_header: model.BlockHeader*;
+    %{ block_header %}
+    return block_header;
+}

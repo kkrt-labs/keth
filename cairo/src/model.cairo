@@ -221,14 +221,30 @@ namespace model {
         chain_id: Option,
     }
 
-    // @notice A struct representing the constants of an Eth block.
-    struct BlockInfo {
+    // @notice A struct representing the header of an Eth block.
+    struct BlockHeader {
+        base_fee_per_gas: felt,
+        blob_gas_used: felt,
+        bloom_len: felt,
+        bloom: felt*,
         coinbase: felt,
-        timestamp: felt,
-        number: felt,
-        prev_randao: Uint256,
+        difficulty: felt,
+        excess_blob_gas: felt,
+        extra_data_len: felt,
+        extra_data: felt*,
         gas_limit: felt,
-        chain_id: felt,
-        base_fee: felt,
+        gas_used: felt,
+        hash: Uint256,
+        mix_hash: Uint256,
+        nonce: felt,
+        number: felt,
+        parent_beacon_block_root: Uint256,
+        parent_hash: Uint256,
+        receipt_trie: Uint256,
+        state_root: Uint256,
+        timestamp: felt,
+        transactions_trie: Uint256,
+        uncle_hash: Uint256,
+        withdrawals_root: Uint256,
     }
 }

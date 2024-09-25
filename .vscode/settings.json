@@ -11,5 +11,6 @@
   "python.testing.pytestArgs": ["cairo"],
   "python.testing.unittestEnabled": false,
   "python.testing.pytestEnabled": true,
-  "jupyter.notebookFileRoot": "${workspaceFolder}/cairo"
+  "jupyter.notebookFileRoot": "${workspaceFolder}/cairo",
+  "githubPullRequests.remotes": ["kakarot", "upstream"]
 }

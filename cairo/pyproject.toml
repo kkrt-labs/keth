@@ -23,6 +23,7 @@ dev-dependencies = [
   "protobuf>=5.28.1",
   "pytest-xdist>=3.6.1",
   "pytest>=8.3.3",
+  "pydantic>=2.9.1",
 ]
 
 [tool.isort]

@@ -32,22 +32,16 @@ def new_default_dict(
     return base
 
 
-block_info = """
-ids.block_info.coinbase = 1
-ids.block_info.timestamp = 2
-ids.block_info.number = 3
-ids.block_info.prev_randao.low = 4
-ids.block_info.prev_randao.high = 5
-ids.block_info.gas_limit = 6
-ids.block_info.chain_id = 7
-ids.block_info.base_fee = 8
+block_header = """
+ptr = segments.add()
+segments.write_arg(ptr, program_input["block_header"].model_dump().values())
+ids.block_header = ptr
 """
 
 
-transaction_hash = """
-"""
-
-hints = {"block_info": block_info, "transaction_hash": transaction_hash}
+hints = {
+    "block_header": block_header,
+}
 
 
 def implement_hints(program):
