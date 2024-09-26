@@ -13,10 +13,10 @@ from src.utils.utils import Helpers
 from src.utils.bytes import keccak
 from src.utils.signature import Signature
 
-// @title EthTransaction utils
+// @title Transaction utils
 // @notice This file contains utils for decoding eth transactions
-// @custom:namespace EthTransaction
-namespace EthTransaction {
+// @custom:namespace Transaction
+namespace Transaction {
     // @notice Decode a legacy Ethereum transaction
     // @dev This function decodes a legacy Ethereum transaction in accordance with EIP-155.
     // It returns transaction details including nonce, gas price, gas limit, destination address, amount, payload,
@@ -26,7 +26,7 @@ namespace EthTransaction {
     // @param tx_data The raw transaction data
     func decode_legacy_tx{bitwise_ptr: BitwiseBuiltin*, range_check_ptr}(
         tx_data_len: felt, tx_data: felt*
-    ) -> model.EthTransaction* {
+    ) -> model.Transaction* {
         // see https://github.com/ethereum/EIPs/blob/master/EIPS/eip-155.md
         alloc_locals;
         let (tx_items: RLP.Item*) = alloc();
@@ -76,7 +76,7 @@ namespace EthTransaction {
         let is_some = [ap - 2];
         let chain_id = [ap - 1];
 
-        tempvar tx = new model.EthTransaction(
+        tempvar tx = new model.Transaction(
             signer_nonce=nonce,
             gas_limit=gas_limit,
             max_priority_fee_per_gas=gas_price,
@@ -98,7 +98,7 @@ namespace EthTransaction {
     // @param tx_data The raw transaction data
     func decode_2930{bitwise_ptr: BitwiseBuiltin*, range_check_ptr}(
         tx_data_len: felt, tx_data: felt*
-    ) -> model.EthTransaction* {
+    ) -> model.Transaction* {
         alloc_locals;
 
         let (tx_items: RLP.Item*) = alloc();
@@ -138,7 +138,7 @@ namespace EthTransaction {
         let access_list_len = parse_access_list(
             access_list, items[7].data_len, cast(items[7].data, RLP.Item*)
         );
-        tempvar tx = new model.EthTransaction(
+        tempvar tx = new model.Transaction(
             signer_nonce=nonce,
             gas_limit=gas_limit,
             max_priority_fee_per_gas=gas_price,
@@ -160,7 +160,7 @@ namespace EthTransaction {
     // @param tx_data The raw transaction data
     func decode_1559{bitwise_ptr: BitwiseBuiltin*, range_check_ptr}(
         tx_data_len: felt, tx_data: felt*
-    ) -> model.EthTransaction* {
+    ) -> model.Transaction* {
         alloc_locals;
 
         let (tx_items: RLP.Item*) = alloc();
@@ -202,7 +202,7 @@ namespace EthTransaction {
         let access_list_len = parse_access_list(
             access_list, items[8].data_len, cast(items[8].data, RLP.Item*)
         );
-        tempvar tx = new model.EthTransaction(
+        tempvar tx = new model.Transaction(
             signer_nonce=nonce,
             gas_limit=gas_limit,
             max_priority_fee_per_gas=max_priority_fee_per_gas,
@@ -242,7 +242,7 @@ namespace EthTransaction {
     // @param tx_data The raw transaction data
     func decode{bitwise_ptr: BitwiseBuiltin*, range_check_ptr}(
         tx_data_len: felt, tx_data: felt*
-    ) -> model.EthTransaction* {
+    ) -> model.Transaction* {
         let tx_type = get_tx_type(tx_data_len, tx_data);
         let is_supported = is_nn(2 - tx_type);
         with_attr error_message("Kakarot: transaction type not supported") {
@@ -358,7 +358,7 @@ namespace EthTransaction {
         let s = Uint256(signature[2], signature[3]);
         let v = signature[4];
 
-        let tx_type = EthTransaction.get_tx_type(tx_data_len, tx_data);
+        let tx_type = Transaction.get_tx_type(tx_data_len, tx_data);
         local y_parity: felt;
         local pre_eip155_tx: felt;
         if (tx_type == 0) {

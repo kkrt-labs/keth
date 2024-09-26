@@ -146,7 +146,7 @@ class Serde:
         }
 
     def serialize_eth_transaction(self, ptr):
-        raw = self.serialize_struct("model.EthTransaction", ptr)
+        raw = self.serialize_struct("model.Transaction", ptr)
         return {
             "signer_nonce": raw["signer_nonce"],
             "gas_limit": raw["gas_limit"],
@@ -233,6 +233,19 @@ class Serde:
                 items += [self.serialize_rlp_item(data_ptr)]
         return items
 
+    def serialize_block(self, ptr):
+        raw = self.serialize_pointers("model.Block", ptr)
+        return {
+            "block_header": self.serialize_struct(
+                "model.BlockHeader", raw["block_header"]
+            ),
+            "transactions": self.serialize_list(
+                raw["transactions"],
+                "model.TransactionEncoded",
+                list_len=raw["transactions_len"],
+            ),
+        }
+
     def serialize_scope(self, scope, scope_ptr):
         if scope.path[-1] == "State":
             return self.serialize_state(scope_ptr)
@@ -240,7 +253,7 @@ class Serde:
             return self.serialize_account(scope_ptr)
         if scope.path[-1] == "Address":
             return self.serialize_address(scope_ptr)
-        if scope.path[-1] == "EthTransaction":
+        if scope.path[-1] == "Transaction":
             return self.serialize_eth_transaction(scope_ptr)
         if scope.path[-1] == "Stack":
             return self.serialize_stack(scope_ptr)
@@ -254,6 +267,8 @@ class Serde:
             return self.serialize_evm(scope_ptr)
         if scope.path[-2:] == ("RLP", "Item"):
             return self.serialize_rlp_item(scope_ptr)
+        if scope.path[-1] == ("Block"):
+            return self.serialize_block(scope_ptr)
         try:
             return self.serialize_struct(str(scope), scope_ptr)
         except MissingIdentifierError:

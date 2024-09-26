@@ -207,7 +207,7 @@ namespace model {
 
     // @notice A normalized Ethereum transaction
     // @dev See https://github.com/ethereum/EIPs/blob/master/EIPS/eip-1559.md
-    struct EthTransaction {
+    struct Transaction {
         signer_nonce: felt,
         gas_limit: felt,
         max_priority_fee_per_gas: felt,
@@ -246,5 +246,27 @@ namespace model {
         transactions_trie: Uint256,
         uncle_hash: Uint256,
         withdrawals_root: Uint256,
+    }
+
+    // @notice A struct representing an encoded Ethereum transaction.
+    // @dev The RLP is the Ethereum unsigned transaction, followed by the signature.
+    // @param rlp_len The length of the RLP encoded transaction.
+    // @param rlp The RLP encoded transaction.
+    // @param signature_len The length of the signature.
+    // @param signature The signature.
+    struct TransactionEncoded {
+        rlp_len: felt,
+        rlp: felt*,
+        signature_len: felt,
+        signature: felt*,
+    }
+
+    // @notice A struct representing an Ethereum block.
+    // @param header The header of the block.
+    // @param transactions The transactions in the block.
+    struct Block {
+        block_header: BlockHeader*,
+        transactions_len: felt,
+        transactions: TransactionEncoded*,
     }
 }

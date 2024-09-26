@@ -32,15 +32,14 @@ def new_default_dict(
     return base
 
 
-block_header = """
+block = """
 ptr = segments.add()
-segments.write_arg(ptr, program_input["block_header"].model_dump().values())
-ids.block_header = ptr
+segments.write_arg(ptr, program_input["block"])
+ids.block = ptr
 """
 
-
 hints = {
-    "block_header": block_header,
+    "block": block,
 }
 
 

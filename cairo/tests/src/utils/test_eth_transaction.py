@@ -12,7 +12,7 @@ from tests.utils.errors import cairo_error
 from tests.utils.helpers import flatten_tx_access_list, rlp_encode_signed_data
 
 
-class TestEthTransaction:
+class TestTransaction:
 
     class TestDecodeTransaction:
 

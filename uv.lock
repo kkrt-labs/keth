@@ -245,7 +245,7 @@ wheels = [
 [[package]]
 name = "cairo"
 version = "0.1.0"
-source = { virtual = "cairo" }
+source = { editable = "cairo" }
 dependencies = [
     { name = "cairo-lang" },
     { name = "ethereum" },

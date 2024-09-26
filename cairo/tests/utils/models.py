@@ -11,6 +11,7 @@ from pydantic import (
 from pydantic.alias_generators import to_camel
 
 from src.utils.uint256 import int_to_uint256
+from tests.utils.helpers import flatten, rlp_encode_signed_data
 
 
 def to_int(v: Union[str, int]) -> int:
@@ -32,7 +33,7 @@ def to_bytes(v: Union[str, bytes, list[int]]) -> bytes:
         return bytes(v)
 
 
-class BlockHeader(BaseModel):
+class BaseModelIterValuesOnly(BaseModel):
     model_config = ConfigDict(
         populate_by_name=True,
         alias_generator=AliasGenerator(
@@ -45,6 +46,12 @@ class BlockHeader(BaseModel):
         ),
     )
 
+    def __iter__(self):
+        for value in self.__dict__.values():
+            yield value
+
+
+class BlockHeader(BaseModelIterValuesOnly):
     @field_validator(
         "base_fee_per_gas",
         "blob_gas_used",
@@ -67,6 +74,7 @@ class BlockHeader(BaseModel):
 
     @model_validator(mode="before")
     def split_uint256(cls, values):
+        values = values.copy()
         for key in [
             "hash",
             "mix_hash",
@@ -90,6 +98,7 @@ class BlockHeader(BaseModel):
 
     @model_validator(mode="before")
     def add_len_to_bytes(cls, values):
+        values = values.copy()
         for key in ["bloom", "extra_data"]:
             if key not in values:
                 key = to_camel(key)
@@ -133,3 +142,46 @@ class BlockHeader(BaseModel):
     uncle_hash_high: int
     withdrawals_root_low: int
     withdrawals_root_high: int
+
+
+class TransactionEncoded(BaseModelIterValuesOnly):
+    @model_validator(mode="before")
+    def encode_rlp_and_signature(cls, values):
+        values = values.copy()
+        if set(values.keys()) == {"rlp_len", "rlp", "signature_len", "signature"}:
+            return values
+
+        signature = [
+            *int_to_uint256(to_int(values["r"])),
+            *int_to_uint256(to_int(values["s"])),
+            to_int(values["v"]),
+        ]
+        del values["r"]
+        del values["s"]
+        del values["v"]
+        rlp = rlp_encode_signed_data(values)
+
+        values["rlp"] = rlp
+        values["rlp_len"] = len(rlp)
+        values["signature"] = signature
+        values["signature_len"] = len(signature)
+        return values
+
+    @field_validator("rlp", mode="before")
+    def parse_hex_to_bytes(cls, v):
+        return to_bytes(v)
+
+    rlp_len: int
+    rlp: bytes
+    signature_len: int
+    signature: list[int]
+
+
+class Block(BaseModelIterValuesOnly):
+    block_header: BlockHeader
+    transactions: list[TransactionEncoded]
+
+    def __iter__(self):
+        yield self.block_header
+        yield len(self.transactions)
+        yield flatten(self.transactions)
