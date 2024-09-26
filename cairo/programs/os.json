@@ -28,6 +28,8 @@
         "0x208b7fff7fff7ffe",
         "0x40780017fff7fff",
         "0x1",
+        "0x40780017fff7fff",
+        "0x1",
         "0x480a7ffd7fff8000",
         "0x208b7fff7fff7ffe"
     ],
@@ -101,20 +103,21 @@
                 }
             }
         ],
-        "23": [
+        "25": [
             {
                 "accessible_scopes": [
                     "__main__",
                     "__main__.main"
                 ],
-                "code": "block_header",
+                "code": "block",
                 "flow_tracking_data": {
                     "ap_tracking": {
                         "group": 3,
-                        "offset": 1
+                        "offset": 2
                     },
                     "reference_ids": {
-                        "__main__.main.block_header": 9,
+                        "__main__.main.block": 9,
+                        "__main__.main.initial_state": 10,
                         "__main__.main.output_ptr": 8
                     }
                 }
@@ -160,9 +163,9 @@
             "type": "const",
             "value": 0
         },
-        "__main__.main.block_header": {
-            "cairo_type": "src.model.model.BlockHeader*",
-            "full_name": "__main__.main.block_header",
+        "__main__.main.block": {
+            "cairo_type": "src.model.model.Block*",
+            "full_name": "__main__.main.block",
             "references": [
                 {
                     "ap_tracking_data": {
@@ -170,7 +173,22 @@
                         "offset": 1
                     },
                     "pc": 23,
-                    "value": "[cast(ap + (-1), src.model.model.BlockHeader**)]"
+                    "value": "[cast(ap + (-1), src.model.model.Block**)]"
+                }
+            ],
+            "type": "reference"
+        },
+        "__main__.main.initial_state": {
+            "cairo_type": "src.model.model.State*",
+            "full_name": "__main__.main.initial_state",
+            "references": [
+                {
+                    "ap_tracking_data": {
+                        "group": 3,
+                        "offset": 2
+                    },
+                    "pc": 25,
+                    "value": "[cast(ap + (-1), src.model.model.State**)]"
                 }
             ],
             "type": "reference"
@@ -1515,7 +1533,15 @@
                     "offset": 1
                 },
                 "pc": 23,
-                "value": "[cast(ap + (-1), src.model.model.BlockHeader**)]"
+                "value": "[cast(ap + (-1), src.model.model.Block**)]"
+            },
+            {
+                "ap_tracking_data": {
+                    "group": 3,
+                    "offset": 2
+                },
+                "pc": 25,
+                "value": "[cast(ap + (-1), src.model.model.State**)]"
             }
         ]
     }
