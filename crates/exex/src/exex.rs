@@ -140,11 +140,11 @@ mod tests {
     use reth_execution_types::{Chain, ExecutionOutcome};
     use reth_exex_test_utils::{test_exex_context, PollOnce};
     use reth_primitives::{
-        address, constants::ETH_TO_WEI, hex, Header, Receipt, Receipts, SealedBlock,
-        SealedBlockWithSenders, U256,
+        address, constants::ETH_TO_WEI, hex, Bytes, Header, Receipt, Receipts, SealedBlock,
+        SealedBlockWithSenders, TransactionSigned, TxEip1559, B256, U256,
     };
     use reth_revm::primitives::AccountInfo;
-    use std::{future::Future, pin::pin};
+    use std::{future::Future, pin::pin, str::FromStr};
 
     /// The initialization logic of the ExEx is just an async function.
     ///
@@ -187,6 +187,38 @@ mod tests {
         // Initialize a test Execution Extension context with all dependencies
         let (ctx, mut handle) = test_exex_context().await?;
 
+        // Random mainnet tx <https://etherscan.io/tx/0xc3099e296bc0eaa6d3a5e0f46fcc4a9bb2f42fb4668a17dd926d75ca651509f0>
+        let tx = TransactionSigned {
+            hash: B256::from_str(
+                "0xc3099e296bc0eaa6d3a5e0f46fcc4a9bb2f42fb4668a17dd926d75ca651509f0",
+            )
+            .unwrap(),
+            signature: reth_primitives::Signature {
+                r: U256::from_str(
+                    "0xe74ec6b1365234a0ebe63f8e238d2318b28d1d2c58ada3a153ad364497dac715",
+                )
+                .unwrap(),
+                s: U256::from_str(
+                    "0x7306a7cab3679ead15daee428d2481b1b92a5dc2303adfe4b3bbbb4713be74af",
+                )
+                .unwrap(),
+                odd_y_parity: false,
+            },
+            transaction: reth_primitives::Transaction::Eip1559(TxEip1559 {
+                chain_id: 1,
+                nonce: 0,
+                gas_limit: 0x3173e,
+                max_fee_per_gas: 0x2a9860004,
+                max_priority_fee_per_gas: 0x4903a597,
+                to: reth_primitives::TxKind::Call(
+                    Address::from_str("0xf3de3c0d654fda23dad170f0f320a92172509127").unwrap(),
+                ),
+                value: U256::from_str("0xb1a2bc2ec50000").unwrap(),
+                access_list: Default::default(),
+                input: Bytes::from_str("0x9871efa4000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000b1a2bc2ec50000000000000000000000000000000000000000000000000009f7051a01fa559ee400000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000001b0000000000000003b6d0340cab7ab9f1a9add91380a0e8fae700b65f320e667").unwrap(),
+            }),
+        };
+
         // https://etherscan.io/block/15867168 where transaction root and receipts root are cleared
         // empty merkle tree: 0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421
         let header = Header {
@@ -215,7 +247,7 @@ mod tests {
 
         // Create a sealed block with a single transaction
         let block = SealedBlockWithSenders {
-            block: SealedBlock { header: header.seal_slow(), body: vec![], ..Default::default() },
+            block: SealedBlock { header: header.seal_slow(), body: vec![tx], ..Default::default() },
             senders: vec![address!("6a3cA5811d2c185E6e441cEFa771824fb355f9Ec")],
         };
 
