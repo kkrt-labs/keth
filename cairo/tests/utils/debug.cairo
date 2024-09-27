@@ -1,6 +1,7 @@
 from starkware.cairo.common.uint256 import Uint256
 from starkware.cairo.common.dict_access import DictAccess
-from model import model
+
+from src.model import model
 
 namespace Debug {
     func print_felt(x: felt) {
@@ -42,7 +43,7 @@ namespace Debug {
         print_array('bytecode', message.bytecode_len, message.bytecode);
         print_felt(message.env.gas_price);
         print_felt(message.env.origin);
-        print_felt(message.address.evm);
+        print_felt(message.address);
         print_felt(message.address.starknet);
         print_felt(message.read_only);
         print_felt(message.is_create);

@@ -20,6 +20,8 @@ runtimes:
       system_version: allowed
 # This is the section where you manage your linters. (https://docs.trunk.io/check/configuration)
 lint:
+  disabled:
+    - codespell
   files:
     - name: cairo
       extensions:
@@ -53,13 +55,13 @@ lint:
           read_output_from: stdout
           run_linter_from: workspace
   enabled:
+    - cspell@8.14.4
     - dotenv-linter@3.3.0
     - actionlint@1.7.1
     - black@24.8.0
     - cairo@SYSTEM
     - checkov@3.2.253
     - clippy@SYSTEM
-    - codespell@2.3.0
     - git-diff-check
     - hadolint@2.12.0
     - isort@5.13.2

@@ -39,15 +39,15 @@ func test__copy__should_return_new_state_with_same_attributes{
     let state = State.init();
 
     // 2. Put two accounts with some storage
-    tempvar address_0 = new model.Address(1, 2);
-    tempvar address_1 = new model.Address(3, 4);
+    tempvar address_0 = 2;
+    tempvar address_1 = 4;
     tempvar key_0 = new Uint256(1, 2);
     tempvar key_1 = new Uint256(3, 4);
     tempvar value = new Uint256(3, 4);
     with state {
-        State.write_storage(address_0.evm, key_0, value);
-        State.write_storage(address_1.evm, key_0, value);
-        State.write_storage(address_1.evm, key_1, value);
+        State.write_storage(address_0, key_0, value);
+        State.write_storage(address_1, key_0, value);
+        State.write_storage(address_1, key_1, value);
 
         // 3. Put some events
         let (local topics: felt*) = alloc();
@@ -76,11 +76,11 @@ func test__copy__should_return_new_state_with_same_attributes{
     // Then
 
     // Storage
-    let value_copy = State.read_storage{state=state_copy}(address_0.evm, key_0);
+    let value_copy = State.read_storage{state=state_copy}(address_0, key_0);
     assert_uint256_eq([value], [value_copy]);
-    let value_copy = State.read_storage{state=state_copy}(address_1.evm, key_0);
+    let value_copy = State.read_storage{state=state_copy}(address_1, key_0);
     assert_uint256_eq([value], [value_copy]);
-    let value_copy = State.read_storage{state=state_copy}(address_1.evm, key_1);
+    let value_copy = State.read_storage{state=state_copy}(address_1, key_1);
     assert_uint256_eq([value], [value_copy]);
 
     // Events
@@ -89,10 +89,8 @@ func test__copy__should_return_new_state_with_same_attributes{
     // Transfers
     assert state_copy.transfers_len = state.transfers_len;
     let transfer_copy = state_copy.transfers;
-    assert transfer.sender.starknet = transfer_copy.sender.starknet;
-    assert transfer.sender.evm = transfer_copy.sender.evm;
-    assert transfer.recipient.starknet = transfer_copy.recipient.starknet;
-    assert transfer.recipient.evm = transfer_copy.recipient.evm;
+    assert transfer.sender = transfer_copy.sender;
+    assert transfer.recipient = transfer_copy.recipient;
     assert_uint256_eq(transfer.amount, transfer_copy.amount);
 
     return ();
@@ -128,24 +126,22 @@ func test___copy_accounts__should_handle_null_pointers{range_check_ptr}() {
     alloc_locals;
     let (accounts) = default_dict_new(0);
     tempvar accounts_start = accounts;
-    tempvar address = new model.Address(1, 2);
+    tempvar address = 2;
     tempvar balance = new Uint256(1, 0);
     let (code) = alloc();
     tempvar code_hash = new Uint256(
         304396909071904405792975023732328604784, 262949717399590921288928019264691438528
     );
-    let account = Account.init(address, 0, code, code_hash, 1, balance);
-    dict_write{dict_ptr=accounts}(address.evm, cast(account, felt));
+    let account = Account.init(0, code, code_hash, 1, balance);
+    dict_write{dict_ptr=accounts}(address, cast(account, felt));
     let empty_address = 'empty address';
     dict_read{dict_ptr=accounts}(empty_address);
     let (local accounts_copy: DictAccess*) = default_dict_new(0);
     Internals._copy_accounts{accounts=accounts_copy}(accounts_start, accounts);
 
-    let (pointer) = dict_read{dict_ptr=accounts_copy}(address.evm);
+    let (pointer) = dict_read{dict_ptr=accounts_copy}(address);
     tempvar existing_account = cast(pointer, model.Account*);
 
-    assert existing_account.address.starknet = address.starknet;
-    assert existing_account.address.evm = address.evm;
     assert existing_account.balance.low = 1;
     assert existing_account.balance.high = 0;
     assert existing_account.code_len = 0;
@@ -155,17 +151,17 @@ func test___copy_accounts__should_handle_null_pointers{range_check_ptr}() {
 
 func test__is_account_warm__account_in_state{pedersen_ptr: HashBuiltin*, range_check_ptr}() {
     let evm_address = 'alive';
-    tempvar address = new model.Address(0xdead, evm_address);
+    tempvar address = evm_address;
     tempvar balance = new Uint256(1, 0);
     let (code) = alloc();
     tempvar code_hash = new Uint256(
         304396909071904405792975023732328604784, 262949717399590921288928019264691438528
     );
-    let account = Account.init(address, 0, code, code_hash, 1, balance);
+    let account = Account.init(0, code, code_hash, 1, balance);
     tempvar state = State.init();
 
     with state {
-        State.update_account(account);
+        State.update_account(evm_address, account);
         let is_warm = State.is_account_warm(evm_address);
     }
 
@@ -235,9 +231,9 @@ func test__is_storage_warm__should_return_true_when_already_read{
     tempvar key = new Uint256(1, 2);
     tempvar address = 'evm_address';
     with state {
-        let account = State.get_account('evm_address');
+        let account = State.get_account(address);
         let (account, value) = Account.read_storage(account, key);
-        State.update_account(account);
+        State.update_account(address, account);
 
         // When
         let result = State.is_storage_warm(address, key);
@@ -257,9 +253,9 @@ func test__is_storage_warm__should_return_true_when_already_written{
     tempvar address = 'evm_address';
     tempvar value = new Uint256(2, 3);
     with state {
-        let account = State.get_account('evm_address');
+        let account = State.get_account(address);
         let account = Account.write_storage(account, key, value);
-        State.update_account(account);
+        State.update_account(address, account);
 
         // When
         let result = State.is_storage_warm(address, key);

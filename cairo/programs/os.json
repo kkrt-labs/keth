@@ -1,10 +1,10 @@
 {
   "attributes": [],
-  "builtins": ["output"],
+  "builtins": ["pedersen", "output"],
   "compiler_version": "0.13.2",
   "data": [
     "0x40780017fff7fff",
-    "0x1",
+    "0x2",
     "0x1104800180018000",
     "0x13",
     "0x10780017fff7fff",
@@ -26,24 +26,10 @@
     "0x208b7fff7fff7ffe",
     "0x40780017fff7fff",
     "0x1",
-    "0x480080007fff8000",
-    "0x400280007ffd7fff",
-    "0x480080017ffe8000",
-    "0x400280017ffd7fff",
-    "0x480080027ffd8000",
-    "0x400280027ffd7fff",
-    "0x480080037ffc8000",
-    "0x400280037ffd7fff",
-    "0x480080047ffb8000",
-    "0x400280047ffd7fff",
-    "0x480080057ffa8000",
-    "0x400280057ffd7fff",
-    "0x480080067ff98000",
-    "0x400280067ffd7fff",
-    "0x480080077ff88000",
-    "0x400280077ffd7fff",
-    "0x482680017ffd8000",
-    "0x8",
+    "0x40780017fff7fff",
+    "0x1",
+    "0x480a7ffc7fff8000",
+    "0x480a7ffd7fff8000",
     "0x208b7fff7fff7ffe"
   ],
   "debug_info": null,
@@ -119,37 +105,59 @@
     "21": [
       {
         "accessible_scopes": ["__main__", "__main__.main"],
-        "code": "memory[ap] = to_felt_or_relocatable(segments.add())",
+        "code": "dict_manager",
         "flow_tracking_data": {
           "ap_tracking": {
             "group": 3,
             "offset": 0
           },
           "reference_ids": {
-            "__main__.main.output_ptr": 8
+            "__main__.main.output_ptr": 9,
+            "__main__.main.pedersen_ptr": 8
           }
         }
       }
     ],
-    "23": [
+    "25": [
       {
         "accessible_scopes": ["__main__", "__main__.main"],
-        "code": "block_info",
+        "code": "block",
         "flow_tracking_data": {
           "ap_tracking": {
             "group": 3,
-            "offset": 1
+            "offset": 2
           },
           "reference_ids": {
-            "__main__.main.__temp1": 9,
-            "__main__.main.block_info": 10,
-            "__main__.main.output_ptr": 8
+            "__main__.main.block": 10,
+            "__main__.main.output_ptr": 9,
+            "__main__.main.pedersen_ptr": 8,
+            "__main__.main.state": 11
+          }
+        }
+      },
+      {
+        "accessible_scopes": ["__main__", "__main__.main"],
+        "code": "state",
+        "flow_tracking_data": {
+          "ap_tracking": {
+            "group": 3,
+            "offset": 2
+          },
+          "reference_ids": {
+            "__main__.main.block": 10,
+            "__main__.main.output_ptr": 9,
+            "__main__.main.pedersen_ptr": 8,
+            "__main__.main.state": 11
           }
         }
       }
     ]
   },
   "identifiers": {
+    "__main__.HashBuiltin": {
+      "destination": "starkware.cairo.common.cairo_builtins.HashBuiltin",
+      "type": "alias"
+    },
     "__main__.__end__": {
       "pc": 4,
       "type": "label"
@@ -174,10 +182,14 @@
       "members": {
         "output_ptr": {
           "cairo_type": "felt*",
+          "offset": 1
+        },
+        "pedersen_ptr": {
+          "cairo_type": "starkware.cairo.common.cairo_builtins.HashBuiltin*",
           "offset": 0
         }
       },
-      "size": 1,
+      "size": 2,
       "type": "struct"
     },
     "__main__.main.Return": {
@@ -188,9 +200,9 @@
       "type": "const",
       "value": 0
     },
-    "__main__.main.__temp1": {
-      "cairo_type": "felt",
-      "full_name": "__main__.main.__temp1",
+    "__main__.main.block": {
+      "cairo_type": "src.model.model.Block*",
+      "full_name": "__main__.main.block",
       "references": [
         {
           "ap_tracking_data": {
@@ -198,142 +210,7 @@
             "offset": 1
           },
           "pc": 23,
-          "value": "[cast(ap + (-1), felt*)]"
-        }
-      ],
-      "type": "reference"
-    },
-    "__main__.main.__temp2": {
-      "cairo_type": "felt",
-      "full_name": "__main__.main.__temp2",
-      "references": [
-        {
-          "ap_tracking_data": {
-            "group": 3,
-            "offset": 2
-          },
-          "pc": 24,
-          "value": "[cast(ap + (-1), felt*)]"
-        }
-      ],
-      "type": "reference"
-    },
-    "__main__.main.__temp3": {
-      "cairo_type": "felt",
-      "full_name": "__main__.main.__temp3",
-      "references": [
-        {
-          "ap_tracking_data": {
-            "group": 3,
-            "offset": 3
-          },
-          "pc": 26,
-          "value": "[cast(ap + (-1), felt*)]"
-        }
-      ],
-      "type": "reference"
-    },
-    "__main__.main.__temp4": {
-      "cairo_type": "felt",
-      "full_name": "__main__.main.__temp4",
-      "references": [
-        {
-          "ap_tracking_data": {
-            "group": 3,
-            "offset": 4
-          },
-          "pc": 28,
-          "value": "[cast(ap + (-1), felt*)]"
-        }
-      ],
-      "type": "reference"
-    },
-    "__main__.main.__temp5": {
-      "cairo_type": "felt",
-      "full_name": "__main__.main.__temp5",
-      "references": [
-        {
-          "ap_tracking_data": {
-            "group": 3,
-            "offset": 5
-          },
-          "pc": 30,
-          "value": "[cast(ap + (-1), felt*)]"
-        }
-      ],
-      "type": "reference"
-    },
-    "__main__.main.__temp6": {
-      "cairo_type": "felt",
-      "full_name": "__main__.main.__temp6",
-      "references": [
-        {
-          "ap_tracking_data": {
-            "group": 3,
-            "offset": 6
-          },
-          "pc": 32,
-          "value": "[cast(ap + (-1), felt*)]"
-        }
-      ],
-      "type": "reference"
-    },
-    "__main__.main.__temp7": {
-      "cairo_type": "felt",
-      "full_name": "__main__.main.__temp7",
-      "references": [
-        {
-          "ap_tracking_data": {
-            "group": 3,
-            "offset": 7
-          },
-          "pc": 34,
-          "value": "[cast(ap + (-1), felt*)]"
-        }
-      ],
-      "type": "reference"
-    },
-    "__main__.main.__temp8": {
-      "cairo_type": "felt",
-      "full_name": "__main__.main.__temp8",
-      "references": [
-        {
-          "ap_tracking_data": {
-            "group": 3,
-            "offset": 8
-          },
-          "pc": 36,
-          "value": "[cast(ap + (-1), felt*)]"
-        }
-      ],
-      "type": "reference"
-    },
-    "__main__.main.__temp9": {
-      "cairo_type": "felt",
-      "full_name": "__main__.main.__temp9",
-      "references": [
-        {
-          "ap_tracking_data": {
-            "group": 3,
-            "offset": 9
-          },
-          "pc": 38,
-          "value": "[cast(ap + (-1), felt*)]"
-        }
-      ],
-      "type": "reference"
-    },
-    "__main__.main.block_info": {
-      "cairo_type": "src.model.model.BlockInfo*",
-      "full_name": "__main__.main.block_info",
-      "references": [
-        {
-          "ap_tracking_data": {
-            "group": 3,
-            "offset": 1
-          },
-          "pc": 23,
-          "value": "[cast(ap + (-1), src.model.model.BlockInfo**)]"
+          "value": "[cast(ap + (-1), src.model.model.Block**)]"
         }
       ],
       "type": "reference"
@@ -349,14 +226,36 @@
           },
           "pc": 21,
           "value": "[cast(fp + (-3), felt**)]"
-        },
+        }
+      ],
+      "type": "reference"
+    },
+    "__main__.main.pedersen_ptr": {
+      "cairo_type": "starkware.cairo.common.cairo_builtins.HashBuiltin*",
+      "full_name": "__main__.main.pedersen_ptr",
+      "references": [
         {
           "ap_tracking_data": {
             "group": 3,
-            "offset": 9
+            "offset": 0
           },
-          "pc": 39,
-          "value": "cast([fp + (-3)] + 8, felt*)"
+          "pc": 21,
+          "value": "[cast(fp + (-4), starkware.cairo.common.cairo_builtins.HashBuiltin**)]"
+        }
+      ],
+      "type": "reference"
+    },
+    "__main__.main.state": {
+      "cairo_type": "src.model.model.State*",
+      "full_name": "__main__.main.state",
+      "references": [
+        {
+          "ap_tracking_data": {
+            "group": 3,
+            "offset": 2
+          },
+          "pc": 25,
+          "value": "[cast(ap + (-1), src.model.model.State**)]"
         }
       ],
       "type": "reference"
@@ -383,79 +282,60 @@
     "src.model.model.Account": {
       "full_name": "src.model.model.Account",
       "members": {
-        "address": {
-          "cairo_type": "src.model.model.Address*",
-          "offset": 0
-        },
         "balance": {
           "cairo_type": "starkware.cairo.common.uint256.Uint256*",
-          "offset": 11
+          "offset": 10
         },
         "code": {
           "cairo_type": "felt*",
-          "offset": 2
+          "offset": 1
         },
         "code_hash": {
           "cairo_type": "starkware.cairo.common.uint256.Uint256*",
-          "offset": 3
+          "offset": 2
         },
         "code_len": {
           "cairo_type": "felt",
-          "offset": 1
+          "offset": 0
         },
         "created": {
           "cairo_type": "felt",
-          "offset": 13
+          "offset": 12
         },
         "nonce": {
           "cairo_type": "felt",
-          "offset": 10
+          "offset": 9
         },
         "selfdestruct": {
           "cairo_type": "felt",
-          "offset": 12
+          "offset": 11
         },
         "storage": {
           "cairo_type": "starkware.cairo.common.dict_access.DictAccess*",
-          "offset": 5
+          "offset": 4
         },
         "storage_start": {
           "cairo_type": "starkware.cairo.common.dict_access.DictAccess*",
-          "offset": 4
+          "offset": 3
         },
         "transient_storage": {
           "cairo_type": "starkware.cairo.common.dict_access.DictAccess*",
-          "offset": 7
+          "offset": 6
         },
         "transient_storage_start": {
           "cairo_type": "starkware.cairo.common.dict_access.DictAccess*",
-          "offset": 6
+          "offset": 5
         },
         "valid_jumpdests": {
           "cairo_type": "starkware.cairo.common.dict_access.DictAccess*",
-          "offset": 9
+          "offset": 8
         },
         "valid_jumpdests_start": {
           "cairo_type": "starkware.cairo.common.dict_access.DictAccess*",
-          "offset": 8
+          "offset": 7
         }
       },
-      "size": 14,
-      "type": "struct"
-    },
-    "src.model.model.Address": {
-      "full_name": "src.model.model.Address",
-      "members": {
-        "evm": {
-          "cairo_type": "felt",
-          "offset": 1
-        },
-        "starknet": {
-          "cairo_type": "felt",
-          "offset": 0
-        }
-      },
-      "size": 2,
+      "size": 13,
       "type": "struct"
     },
     "src.model.model.Args": {
@@ -464,43 +344,122 @@
       "size": 0,
       "type": "struct"
     },
-    "src.model.model.BlockInfo": {
-      "full_name": "src.model.model.BlockInfo",
+    "src.model.model.Block": {
+      "full_name": "src.model.model.Block",
       "members": {
-        "base_fee": {
-          "cairo_type": "felt",
-          "offset": 7
-        },
-        "block_hashes": {
-          "cairo_type": "starkware.cairo.common.uint256.Uint256*",
-          "offset": 8
-        },
-        "chain_id": {
-          "cairo_type": "felt",
-          "offset": 6
-        },
-        "coinbase": {
-          "cairo_type": "felt",
+        "block_header": {
+          "cairo_type": "src.model.model.BlockHeader*",
           "offset": 0
         },
-        "gas_limit": {
-          "cairo_type": "felt",
-          "offset": 5
-        },
-        "number": {
-          "cairo_type": "felt",
+        "transactions": {
+          "cairo_type": "src.model.model.TransactionEncoded*",
           "offset": 2
         },
-        "prev_randao": {
-          "cairo_type": "starkware.cairo.common.uint256.Uint256",
-          "offset": 3
-        },
-        "timestamp": {
+        "transactions_len": {
           "cairo_type": "felt",
           "offset": 1
         }
       },
-      "size": 9,
+      "size": 3,
+      "type": "struct"
+    },
+    "src.model.model.BlockHeader": {
+      "full_name": "src.model.model.BlockHeader",
+      "members": {
+        "base_fee_per_gas": {
+          "cairo_type": "felt",
+          "offset": 0
+        },
+        "blob_gas_used": {
+          "cairo_type": "felt",
+          "offset": 1
+        },
+        "bloom": {
+          "cairo_type": "felt*",
+          "offset": 3
+        },
+        "bloom_len": {
+          "cairo_type": "felt",
+          "offset": 2
+        },
+        "coinbase": {
+          "cairo_type": "felt",
+          "offset": 4
+        },
+        "difficulty": {
+          "cairo_type": "felt",
+          "offset": 5
+        },
+        "excess_blob_gas": {
+          "cairo_type": "felt",
+          "offset": 6
+        },
+        "extra_data": {
+          "cairo_type": "felt*",
+          "offset": 8
+        },
+        "extra_data_len": {
+          "cairo_type": "felt",
+          "offset": 7
+        },
+        "gas_limit": {
+          "cairo_type": "felt",
+          "offset": 9
+        },
+        "gas_used": {
+          "cairo_type": "felt",
+          "offset": 10
+        },
+        "hash": {
+          "cairo_type": "starkware.cairo.common.uint256.Uint256",
+          "offset": 11
+        },
+        "mix_hash": {
+          "cairo_type": "starkware.cairo.common.uint256.Uint256",
+          "offset": 13
+        },
+        "nonce": {
+          "cairo_type": "felt",
+          "offset": 15
+        },
+        "number": {
+          "cairo_type": "felt",
+          "offset": 16
+        },
+        "parent_beacon_block_root": {
+          "cairo_type": "starkware.cairo.common.uint256.Uint256",
+          "offset": 17
+        },
+        "parent_hash": {
+          "cairo_type": "starkware.cairo.common.uint256.Uint256",
+          "offset": 19
+        },
+        "receipt_trie": {
+          "cairo_type": "starkware.cairo.common.uint256.Uint256",
+          "offset": 21
+        },
+        "state_root": {
+          "cairo_type": "starkware.cairo.common.uint256.Uint256",
+          "offset": 23
+        },
+        "timestamp": {
+          "cairo_type": "felt",
+          "offset": 25
+        },
+        "transactions_trie": {
+          "cairo_type": "starkware.cairo.common.uint256.Uint256",
+          "offset": 26
+        },
+        "uncle_hash": {
+          "cairo_type": "starkware.cairo.common.uint256.Uint256",
+          "offset": 28
+        },
+        "withdrawals_root": {
+          "cairo_type": "starkware.cairo.common.uint256.Uint256",
+          "offset": 30
+        }
+      },
+      "size": 32,
       "type": "struct"
     },
     "src.model.model.EVM": {
@@ -585,57 +544,6 @@
       "size": 10,
       "type": "struct"
     },
-    "src.model.model.EthTransaction": {
-      "full_name": "src.model.model.EthTransaction",
-      "members": {
-        "access_list": {
-          "cairo_type": "felt*",
-          "offset": 11
-        },
-        "access_list_len": {
-          "cairo_type": "felt",
-          "offset": 10
-        },
-        "amount": {
-          "cairo_type": "starkware.cairo.common.uint256.Uint256",
-          "offset": 6
-        },
-        "chain_id": {
-          "cairo_type": "src.model.model.Option",
-          "offset": 12
-        },
-        "destination": {
-          "cairo_type": "src.model.model.Option",
-          "offset": 4
-        },
-        "gas_limit": {
-          "cairo_type": "felt",
-          "offset": 1
-        },
-        "max_fee_per_gas": {
-          "cairo_type": "felt",
-          "offset": 3
-        },
-        "max_priority_fee_per_gas": {
-          "cairo_type": "felt",
-          "offset": 2
-        },
-        "payload": {
-          "cairo_type": "felt*",
-          "offset": 9
-        },
-        "payload_len": {
-          "cairo_type": "felt",
-          "offset": 8
-        },
-        "signer_nonce": {
-          "cairo_type": "felt",
-          "offset": 0
-        }
-      },
-      "size": 14,
-      "type": "struct"
-    },
     "src.model.model.Event": {
       "full_name": "src.model.model.Event",
       "members": {
@@ -703,7 +611,7 @@
       "full_name": "src.model.model.Message",
       "members": {
         "address": {
-          "cairo_type": "src.model.model.Address*",
+          "cairo_type": "felt",
           "offset": 9
         },
         "bytecode": {
@@ -731,7 +639,7 @@
           "offset": 7
         },
         "code_address": {
-          "cairo_type": "src.model.model.Address*",
+          "cairo_type": "felt",
           "offset": 10
         },
         "depth": {
@@ -893,6 +801,80 @@
       "size": 6,
       "type": "struct"
     },
+    "src.model.model.Transaction": {
+      "full_name": "src.model.model.Transaction",
+      "members": {
+        "access_list": {
+          "cairo_type": "felt*",
+          "offset": 11
+        },
+        "access_list_len": {
+          "cairo_type": "felt",
+          "offset": 10
+        },
+        "amount": {
+          "cairo_type": "starkware.cairo.common.uint256.Uint256",
+          "offset": 6
+        },
+        "chain_id": {
+          "cairo_type": "src.model.model.Option",
+          "offset": 12
+        },
+        "destination": {
+          "cairo_type": "src.model.model.Option",
+          "offset": 4
+        },
+        "gas_limit": {
+          "cairo_type": "felt",
+          "offset": 1
+        },
+        "max_fee_per_gas": {
+          "cairo_type": "felt",
+          "offset": 3
+        },
+        "max_priority_fee_per_gas": {
+          "cairo_type": "felt",
+          "offset": 2
+        },
+        "payload": {
+          "cairo_type": "felt*",
+          "offset": 9
+        },
+        "payload_len": {
+          "cairo_type": "felt",
+          "offset": 8
+        },
+        "signer_nonce": {
+          "cairo_type": "felt",
+          "offset": 0
+        }
+      },
+      "size": 14,
+      "type": "struct"
+    },
+    "src.model.model.TransactionEncoded": {
+      "full_name": "src.model.model.TransactionEncoded",
+      "members": {
+        "rlp": {
+          "cairo_type": "felt*",
+          "offset": 1
+        },
+        "rlp_len": {
+          "cairo_type": "felt",
+          "offset": 0
+        },
+        "signature": {
+          "cairo_type": "felt*",
+          "offset": 3
+        },
+        "signature_len": {
+          "cairo_type": "felt",
+          "offset": 2
+        }
+      },
+      "size": 4,
+      "type": "struct"
+    },
     "src.model.model.Transfer": {
       "full_name": "src.model.model.Transfer",
       "members": {
@@ -901,11 +883,11 @@
           "offset": 2
         },
         "recipient": {
-          "cairo_type": "src.model.model.Address*",
+          "cairo_type": "felt",
           "offset": 1
         },
         "sender": {
-          "cairo_type": "src.model.model.Address*",
+          "cairo_type": "felt",
           "offset": 0
         }
       },
@@ -1576,6 +1558,14 @@
           "offset": 0
         },
         "pc": 21,
+        "value": "[cast(fp + (-4), starkware.cairo.common.cairo_builtins.HashBuiltin**)]"
+      },
+      {
+        "ap_tracking_data": {
+          "group": 3,
+          "offset": 0
+        },
+        "pc": 21,
         "value": "[cast(fp + (-3), felt**)]"
       },
       {
@@ -1584,87 +1574,15 @@
           "offset": 1
         },
         "pc": 23,
-        "value": "[cast(ap + (-1), felt*)]"
-      },
-      {
-        "ap_tracking_data": {
-          "group": 3,
-          "offset": 1
-        },
-        "pc": 23,
-        "value": "[cast(ap + (-1), src.model.model.BlockInfo**)]"
+        "value": "[cast(ap + (-1), src.model.model.Block**)]"
       },
       {
         "ap_tracking_data": {
           "group": 3,
           "offset": 2
         },
-        "pc": 24,
-        "value": "[cast(ap + (-1), felt*)]"
-      },
-      {
-        "ap_tracking_data": {
-          "group": 3,
-          "offset": 3
-        },
-        "pc": 26,
-        "value": "[cast(ap + (-1), felt*)]"
-      },
-      {
-        "ap_tracking_data": {
-          "group": 3,
-          "offset": 4
-        },
-        "pc": 28,
-        "value": "[cast(ap + (-1), felt*)]"
-      },
-      {
-        "ap_tracking_data": {
-          "group": 3,
-          "offset": 5
-        },
-        "pc": 30,
-        "value": "[cast(ap + (-1), felt*)]"
-      },
-      {
-        "ap_tracking_data": {
-          "group": 3,
-          "offset": 6
-        },
-        "pc": 32,
-        "value": "[cast(ap + (-1), felt*)]"
-      },
-      {
-        "ap_tracking_data": {
-          "group": 3,
-          "offset": 7
-        },
-        "pc": 34,
-        "value": "[cast(ap + (-1), felt*)]"
-      },
-      {
-        "ap_tracking_data": {
-          "group": 3,
-          "offset": 8
-        },
-        "pc": 36,
-        "value": "[cast(ap + (-1), felt*)]"
-      },
-      {
-        "ap_tracking_data": {
-          "group": 3,
-          "offset": 9
-        },
-        "pc": 38,
-        "value": "[cast(ap + (-1), felt*)]"
-      },
-      {
-        "ap_tracking_data": {
-          "group": 3,
-          "offset": 9
-        },
-        "pc": 39,
-        "value": "cast([fp + (-3)] + 8, felt*)"
+        "pc": 25,
+        "value": "[cast(ap + (-1), src.model.model.State**)]"
       }
     ]
   }

@@ -169,7 +169,7 @@ namespace Internals {
     func selfbalance{
         pedersen_ptr: HashBuiltin*, range_check_ptr, stack: model.Stack*, state: model.State*
     }(evm: model.EVM*) {
-        let account = State.get_account(evm.message.address.evm);
+        let account = State.get_account(evm.message.address);
         Stack.push(account.balance);
         return ();
     }

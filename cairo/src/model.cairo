@@ -66,7 +66,6 @@ namespace model {
     // @dev The address is a tuple (starknet, evm) for step-optimization purposes:
     // we can compute the starknet only once.
     struct Account {
-        address: model.Address*,
         code_len: felt,
         code: felt*,
         code_hash: Uint256*,
@@ -79,9 +78,6 @@ namespace model {
         nonce: felt,
         balance: Uint256*,
         selfdestruct: felt,
-        // @dev: another way of knowing if an account was just created or not is to get it's registered starknet address.
-        // 1. It's zero -> it was created in the same tx
-        // 2. It's non-zero -> We fetch it's nonce from storage, if 0 -> it was created in the same tx, otherwise it was created in a previous tx.
         created: felt,
     }
 
@@ -96,15 +92,9 @@ namespace model {
 
     // @dev A struct to save Starknet native ETH transfers to be made when finalizing a tx
     struct Transfer {
-        sender: Address*,
-        recipient: Address*,
+        sender: felt,
+        recipient: felt,
         amount: Uint256,
-    }
-
-    // @dev Though one of the two address is enough, we store both to save on steps and simplify the usage.
-    struct Address {
-        starknet: felt,
-        evm: felt,
     }
 
     // @notice info: https://www.evm.codes/about#calldata
@@ -132,8 +122,8 @@ namespace model {
         value: Uint256*,
         caller: felt,
         parent: Parent*,
-        address: Address*,
-        code_address: Address*,
+        address: felt,
+        code_address: felt,
         read_only: felt,
         is_create: felt,
         depth: felt,
@@ -207,7 +197,7 @@ namespace model {
 
     // @notice A normalized Ethereum transaction
     // @dev See https://github.com/ethereum/EIPs/blob/master/EIPS/eip-1559.md
-    struct EthTransaction {
+    struct Transaction {
         signer_nonce: felt,
         gas_limit: felt,
         max_priority_fee_per_gas: felt,
@@ -221,14 +211,52 @@ namespace model {
         chain_id: Option,
     }
 
-    // @notice A struct representing the constants of an Eth block.
-    struct BlockInfo {
+    // @notice A struct representing the header of an Eth block.
+    struct BlockHeader {
+        base_fee_per_gas: felt,
+        blob_gas_used: felt,
+        bloom_len: felt,
+        bloom: felt*,
         coinbase: felt,
-        timestamp: felt,
-        number: felt,
-        prev_randao: Uint256,
+        difficulty: felt,
+        excess_blob_gas: felt,
+        extra_data_len: felt,
+        extra_data: felt*,
         gas_limit: felt,
-        chain_id: felt,
-        base_fee: felt,
+        gas_used: felt,
+        hash: Uint256,
+        mix_hash: Uint256,
+        nonce: felt,
+        number: felt,
+        parent_beacon_block_root: Uint256,
+        parent_hash: Uint256,
+        receipt_trie: Uint256,
+        state_root: Uint256,
+        timestamp: felt,
+        transactions_trie: Uint256,
+        uncle_hash: Uint256,
+        withdrawals_root: Uint256,
+    }
+
+    // @notice A struct representing an encoded Ethereum transaction.
+    // @dev The RLP is the Ethereum unsigned transaction, followed by the signature.
+    // @param rlp_len The length of the RLP encoded transaction.
+    // @param rlp The RLP encoded transaction.
+    // @param signature_len The length of the signature.
+    // @param signature The signature.
+    struct TransactionEncoded {
+        rlp_len: felt,
+        rlp: felt*,
+        signature_len: felt,
+        signature: felt*,
+    }
+
+    // @notice A struct representing an Ethereum block.
+    // @param header The header of the block.
+    // @param transactions The transactions in the block.
+    struct Block {
+        block_header: BlockHeader*,
+        transactions_len: felt,
+        transactions: TransactionEncoded*,
     }
 }

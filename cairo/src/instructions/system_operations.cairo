@@ -90,7 +90,7 @@ namespace SystemOperations {
         );
 
         let target_address = CreateHelper.get_evm_address(
-            evm.message.address.evm, popped_len, popped, size.low, bytecode
+            evm.message.address, popped_len, popped, size.low, bytecode
         );
 
         // @dev: performed before eventual subsequent early-returns of this function
@@ -109,7 +109,7 @@ namespace SystemOperations {
         }
 
         // Check sender balance and nonce
-        let sender = State.get_account(evm.message.address.evm);
+        let sender = State.get_account(evm.message.address);
         let is_nonce_overflow = Helpers.is_zero(Constants.MAX_NONCE - sender.nonce);
         let (is_balance_overflow) = uint256_lt([sender.balance], [value]);
         let stack_depth_limit = Helpers.is_zero(Constants.STACK_MAX_DEPTH - evm.message.depth);
@@ -125,7 +125,7 @@ namespace SystemOperations {
         let is_collision = Account.has_code_or_nonce(target_account);
         if (is_collision != 0) {
             let sender = Account.set_nonce(sender, sender.nonce + 1);
-            State.update_account(sender);
+            State.update_account(evm.message.address, sender);
             Stack.push_uint128(0);
             return evm;
         }
@@ -139,7 +139,7 @@ namespace SystemOperations {
 
         // Increment nonce
         let sender = Account.set_nonce(sender, sender.nonce + 1);
-        State.update_account(sender);
+        State.update_account(evm.message.address, sender);
 
         // Final update of calling context
         tempvar parent = new model.Parent(evm, stack, memory, state);
@@ -152,7 +152,7 @@ namespace SystemOperations {
         let (valid_jumpdests_start, valid_jumpdests) = Helpers.initialize_jumpdests(
             bytecode_len=size.low, bytecode=bytecode
         );
-        tempvar address_zero = new model.Address(starknet=0, evm=0);
+        tempvar address_zero = 0;
         tempvar message = new model.Message(
             bytecode=bytecode,
             bytecode_len=size.low,
@@ -161,7 +161,7 @@ namespace SystemOperations {
             calldata=calldata,
             calldata_len=0,
             value=value,
-            caller=evm.message.address.evm,
+            caller=evm.message.address,
             parent=parent,
             address=target_account.address,
             code_address=address_zero,
@@ -177,9 +177,9 @@ namespace SystemOperations {
         let target_account = State.get_account(target_address);
         let target_account = Account.set_nonce(target_account, 1);
         let target_account = Account.set_created(target_account, 1);
-        State.update_account(target_account);
+        State.update_account(target_address, target_account);
 
-        let transfer = model.Transfer(evm.message.address, target_account.address, [value]);
+        let transfer = model.Transfer(evm.message.address, target_address, [value]);
         let success = State.add_transfer(transfer);
         if (success == 0) {
             Stack.push_uint128(0);
@@ -343,7 +343,7 @@ namespace SystemOperations {
         let (ret_offset) = Stack.peek(0);
         let (ret_size) = Stack.peek(1);
 
-        local call_sender = evm.message.address.evm;
+        local call_sender = evm.message.address;
 
         // 2. Gas
         // Memory expansion cost
@@ -476,7 +476,7 @@ namespace SystemOperations {
         let (ret_offset) = Stack.peek(0);
         let (ret_size) = Stack.peek(1);
 
-        local call_sender = evm.message.address.evm;
+        local call_sender = evm.message.address;
 
         // Gas
         // Memory expansion cost
@@ -579,7 +579,7 @@ namespace SystemOperations {
         let (ret_offset) = Stack.peek(0);
         let (ret_size) = Stack.peek(1);
 
-        local call_sender = evm.message.address.evm;
+        local call_sender = evm.message.address;
 
         // Gas
         let memory_expansion = Gas.max_memory_expansion_cost(
@@ -686,7 +686,7 @@ namespace SystemOperations {
         let (ret_size) = Stack.peek(1);
 
         let call_sender = evm.message.caller;
-        let to = evm.message.address.evm;
+        let to = evm.message.address;
 
         // Gas
         // Memory expansion cost
@@ -786,7 +786,7 @@ namespace SystemOperations {
         tempvar access_gas_cost = (1 - is_recipient_warm) * Gas.COLD_ACCOUNT_ACCESS;
 
         let is_recipient_alive = State.is_account_alive(recipient);
-        let self_account = State.get_account(evm.message.address.evm);
+        let self_account = State.get_account(evm.message.address);
         tempvar is_self_balance_zero = Helpers.is_zero(self_account.balance.low) * Helpers.is_zero(
             self_account.balance.high
         );
@@ -807,7 +807,7 @@ namespace SystemOperations {
         }
 
         // If the account was created in the same transaction and recipient is self, the native token is burnt
-        tempvar is_recipient_not_self = is_not_zero(recipient - evm.message.address.evm);
+        tempvar is_recipient_not_self = is_not_zero(recipient - evm.message.address);
 
         if (self_account.created != FALSE) {
             tempvar recipient = is_recipient_not_self * recipient;
@@ -825,9 +825,9 @@ namespace SystemOperations {
 
         // Marked as SELFDESTRUCT for commitment
         // @dev: get_account again because add_transfer updated it
-        let account = State.get_account(evm.message.address.evm);
+        let account = State.get_account(evm.message.address);
         let account = Account.selfdestruct(account);
-        State.update_account(account);
+        State.update_account(evm.message.address, account);
 
         // Halt context
         let (return_data: felt*) = alloc();
@@ -884,7 +884,7 @@ namespace CallHelper {
         local code_len: felt = code_account.code_len;
         local code: felt* = code_account.code;
 
-        tempvar to_address = new model.Address(starknet=0xdead, evm=to);
+        tempvar to_address = to;
 
         tempvar parent = new model.Parent(evm, stack, memory, state);
         let stack = Stack.init();
@@ -1211,7 +1211,7 @@ namespace CreateHelper {
         let success = enough_gas * code_size_limit * is_prefix_not_0xef;
 
         // Stack output: the address of the deployed contract, 0 if the deployment failed.
-        let (address_high, address_low) = split_felt(evm.message.address.evm * success);
+        let (address_high, address_low) = split_felt(evm.message.address * success);
         tempvar address = new Uint256(low=address_low, high=address_high);
         Stack.push(address);
 
@@ -1236,11 +1236,11 @@ namespace CreateHelper {
         }
 
         // Write bytecode and valid jumpdests to Account
-        let account = State.get_account(evm.message.address.evm);
+        let account = State.get_account(evm.message.address);
         let account = Account.set_code(account, evm.return_data_len, evm.return_data);
 
         // Update local state with the updated account inner pointers.
-        State.update_account(account);
+        State.update_account(evm.message.address, account);
 
         tempvar evm = new model.EVM(
             message=message,

@@ -4,10 +4,10 @@ from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.memcpy import memcpy
 
 from src.model import model
-from src.utils.eth_transaction import EthTransaction
+from src.utils.eth_transaction import Transaction
 from src.utils.rlp import RLP
 
-func test__decode{bitwise_ptr: BitwiseBuiltin*, range_check_ptr}() -> model.EthTransaction* {
+func test__decode{bitwise_ptr: BitwiseBuiltin*, range_check_ptr}() -> model.Transaction* {
     alloc_locals;
     // Given
     tempvar data_len: felt;
@@ -17,7 +17,7 @@ func test__decode{bitwise_ptr: BitwiseBuiltin*, range_check_ptr}() -> model.EthT
         segments.write_arg(ids.data, program_input["data"])
     %}
 
-    let tx = EthTransaction.decode(data_len, data);
+    let tx = Transaction.decode(data_len, data);
     return tx;
 }
 
@@ -40,7 +40,7 @@ func test__parse_access_list{range_check_ptr}(output_ptr: felt*) {
     // is a single item of type list.
     let (local access_list: felt*) = alloc();
     // When
-    let access_list_len = EthTransaction.parse_access_list(
+    let access_list_len = Transaction.parse_access_list(
         access_list, items.data_len, cast(items.data, RLP.Item*)
     );
 
@@ -59,7 +59,7 @@ func test__get_tx_type{range_check_ptr}() -> felt {
     %}
 
     // When
-    let tx_type = EthTransaction.get_tx_type(data_len, data);
+    let tx_type = Transaction.get_tx_type(data_len, data);
 
     return tx_type;
 }

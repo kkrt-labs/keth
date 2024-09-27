@@ -106,13 +106,6 @@ class Serde:
             for name, member in members.items()
         }
 
-    def serialize_address(self, ptr):
-        raw = self.serialize_pointers("model.Address", ptr)
-        return {
-            "starknet": f'0x{raw["starknet"]:064x}',
-            "evm": to_checksum_address(f'{raw["evm"]:040x}'),
-        }
-
     def serialize_uint256(self, ptr):
         raw = self.serialize_pointers("Uint256", ptr)
         return hex(raw["low"] + raw["high"] * 2**128)
@@ -120,12 +113,17 @@ class Serde:
     def serialize_account(self, ptr):
         raw = self.serialize_pointers("model.Account", ptr)
         return {
-            "address": self.serialize_address(raw["address"]),
-            "code": self.serialize_list(raw["code"], list_len=raw["code_len"]),
+            "code": bytes(self.serialize_list(raw["code"], list_len=raw["code_len"])),
+            "code_hash": self.serialize_uint256(raw["code_hash"]),
             "storage": self.serialize_dict(raw["storage_start"], "Uint256"),
+            "transient_storage": self.serialize_dict(
+                raw["transient_storage_start"], "Uint256"
+            ),
+            "valid_jumpdests": self.serialize_dict(raw["valid_jumpdests_start"]),
             "nonce": raw["nonce"],
             "balance": self.serialize_uint256(raw["balance"]),
             "selfdestruct": raw["selfdestruct"],
+            "created": raw["created"],
         }
 
     def serialize_state(self, ptr):
@@ -146,7 +144,7 @@ class Serde:
         }
 
     def serialize_eth_transaction(self, ptr):
-        raw = self.serialize_struct("model.EthTransaction", ptr)
+        raw = self.serialize_struct("model.Transaction", ptr)
         return {
             "signer_nonce": raw["signer_nonce"],
             "gas_limit": raw["gas_limit"],
@@ -184,8 +182,8 @@ class Serde:
             "caller": to_checksum_address(f'{raw["caller"]:040x}'),
             "value": self.serialize_uint256(raw["value"]),
             "parent": self.serialize_struct("model.Parent", raw["parent"]),
-            "address": self.serialize_address(raw["address"]),
-            "code_address": raw["code_address"],
+            "address": to_checksum_address(f'{raw["address"]:040x}'),
+            "code_address": to_checksum_address(f'{raw["code_address"]:040x}'),
             "read_only": bool(raw["read_only"]),
             "is_create": bool(raw["is_create"]),
             "depth": raw["depth"],
@@ -233,14 +231,25 @@ class Serde:
                 items += [self.serialize_rlp_item(data_ptr)]
         return items
 
+    def serialize_block(self, ptr):
+        raw = self.serialize_pointers("model.Block", ptr)
+        return {
+            "block_header": self.serialize_struct(
+                "model.BlockHeader", raw["block_header"]
+            ),
+            "transactions": self.serialize_list(
+                raw["transactions"],
+                "model.TransactionEncoded",
+                list_len=raw["transactions_len"],
+            ),
+        }
+
     def serialize_scope(self, scope, scope_ptr):
         if scope.path[-1] == "State":
             return self.serialize_state(scope_ptr)
         if scope.path[-1] == "Account":
             return self.serialize_account(scope_ptr)
-        if scope.path[-1] == "Address":
-            return self.serialize_address(scope_ptr)
-        if scope.path[-1] == "EthTransaction":
+        if scope.path[-1] == "Transaction":
             return self.serialize_eth_transaction(scope_ptr)
         if scope.path[-1] == "Stack":
             return self.serialize_stack(scope_ptr)
@@ -254,6 +263,8 @@ class Serde:
             return self.serialize_evm(scope_ptr)
         if scope.path[-2:] == ("RLP", "Item"):
             return self.serialize_rlp_item(scope_ptr)
+        if scope.path[-1] == ("Block"):
+            return self.serialize_block(scope_ptr)
         try:
             return self.serialize_struct(str(scope), scope_ptr)
         except MissingIdentifierError:

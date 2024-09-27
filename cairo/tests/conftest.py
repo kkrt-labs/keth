@@ -33,7 +33,7 @@ from starkware.cairo.lang.vm.utils import RunResources
 
 from tests.utils.constants import Opcodes
 from tests.utils.coverage import VmWithCoverage, report_runs
-from tests.utils.hints import debug_info, implement_hints
+from tests.utils.hints import implement_hints
 from tests.utils.reporting import dump_coverage, profile_from_tracer_data
 from tests.utils.serde import Serde
 
@@ -205,7 +205,6 @@ def cairo_run(request, cairo_program) -> list:
         runner.initialize_vm(
             hint_locals={"program_input": kwargs},
             static_locals={
-                "debug_info": debug_info(cairo_program),
                 "serde": serde,
                 "Opcodes": Opcodes,
             },

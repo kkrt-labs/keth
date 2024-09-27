@@ -1,53 +1,87 @@
 from collections import defaultdict
 from contextlib import contextmanager
+from typing import Dict, Iterable, Tuple, Union
 from unittest.mock import patch
 
 from starkware.cairo.common.dict import DictTracker
 from starkware.cairo.lang.compiler.program import CairoHint
+from starkware.cairo.lang.vm.relocatable import MaybeRelocatable
+
+from tests.utils.helpers import flatten
 
 
-def debug_info(program):
-    def _debug_info(pc):
-        print(
-            program.debug_info.instruction_locations.get(
-                pc.offset
-            ).inst.to_string_with_content("")
+def gen_arg(
+    dict_manager, segments, arg, apply_modulo_to_args=True
+) -> Union[MaybeRelocatable, Tuple[MaybeRelocatable, MaybeRelocatable]]:
+    """
+    Updated from starkware.cairo.lang.vm.memory_segments.py to handle dicts.
+    """
+    if isinstance(arg, Dict):
+        base = segments.add()
+        assert base.segment_index not in dict_manager.trackers
+
+        data = {
+            k: gen_arg(dict_manager, segments, v, apply_modulo_to_args)
+            for k, v in arg.items()
+        }
+        if isinstance(arg, defaultdict):
+            data = defaultdict(arg.default_factory, data)
+
+        dict_manager.trackers[base.segment_index] = DictTracker(
+            data=data, current_ptr=base
         )
 
-    return _debug_info
+        # In case of a dict, it's assumed that the struct **always** have consecutive dict_start, dict_ptr
+        # fields.
+        return base, base
+
+    if isinstance(arg, Iterable):
+        base = segments.add()
+        arg = flatten(
+            [gen_arg(dict_manager, segments, x, apply_modulo_to_args) for x in arg]
+        )
+        segments.load_data(base, arg)
+        return base
+
+    if apply_modulo_to_args and isinstance(arg, int):
+        return arg % segments.prime
+
+    return arg
 
 
-def new_default_dict(
-    dict_manager, segments, default_value, initial_dict, temp_segment: bool = False
-):
-    """
-    Create a new Cairo default dictionary.
-    """
-    base = segments.add_temp_segment() if temp_segment else segments.add()
-    assert base.segment_index not in dict_manager.trackers
-    dict_manager.trackers[base.segment_index] = DictTracker(
-        data=defaultdict(lambda: default_value, initial_dict),
-        current_ptr=base,
-    )
-    return base
-
-
-block_info = """
-ids.block_info.coinbase = 1
-ids.block_info.timestamp = 2
-ids.block_info.number = 3
-ids.block_info.prev_randao.low = 4
-ids.block_info.prev_randao.high = 5
-ids.block_info.gas_limit = 6
-ids.block_info.chain_id = 7
-ids.block_info.base_fee = 8
+dict_manager = """
+if '__dict_manager' not in globals():
+    from starkware.cairo.common.dict import DictManager
+    __dict_manager = DictManager()
 """
 
+block = f"""
+{dict_manager}
+from tests.utils.hints import gen_arg
 
-transaction_hash = """
+ids.block = gen_arg(__dict_manager, segments, program_input["block"])
 """
 
-hints = {"block_info": block_info, "transaction_hash": transaction_hash}
+account = f"""
+{dict_manager}
+from tests.utils.hints import gen_arg
+
+ids.account = gen_arg(__dict_manager, segments, program_input["account"])
+"""
+
+state = f"""
+{dict_manager}
+from tests.utils.hints import gen_arg
+
+ids.state = gen_arg(__dict_manager, segments, program_input["state"])
+"""
+
+hints = {
+    "dict_manager": dict_manager,
+    "block": block,
+    "account": account,
+    "state": state,
+}
 
 
 def implement_hints(program):

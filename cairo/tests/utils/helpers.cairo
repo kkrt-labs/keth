@@ -36,9 +36,7 @@ namespace TestHelpers {
             coinbase=0,
             base_fee=0,
         );
-        tempvar address = new model.Address(
-            starknet=starknet_contract_address, evm=evm_contract_address
-        );
+        tempvar address = evm_contract_address;
         let (valid_jumpdests_start, valid_jumpdests) = Helpers.initialize_jumpdests(
             bytecode_len=bytecode_len, bytecode=bytecode
         );

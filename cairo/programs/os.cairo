@@ -1,23 +1,19 @@
-%builtins output
+%builtins pedersen output
 
 from starkware.cairo.common.memcpy import memcpy
+from starkware.cairo.common.cairo_builtins import HashBuiltin
 
 from src.model import model
 
-func main{output_ptr: felt*}() {
-    tempvar block_info: model.BlockInfo* = cast(nondet %{ segments.add() %}, model.BlockInfo*);
-    %{ block_info %}
-
-    assert [output_ptr] = block_info.coinbase;
-    assert [output_ptr + 1] = block_info.timestamp;
-    assert [output_ptr + 2] = block_info.number;
-    assert [output_ptr + 3] = block_info.prev_randao.low;
-    assert [output_ptr + 4] = block_info.prev_randao.high;
-    assert [output_ptr + 5] = block_info.gas_limit;
-    assert [output_ptr + 6] = block_info.chain_id;
-    assert [output_ptr + 7] = block_info.base_fee;
-
-    let output_ptr = output_ptr + 8;
-
+func main{pedersen_ptr: HashBuiltin*, output_ptr: felt*}() {
+    %{ dict_manager %}
+    tempvar block: model.Block*;
+    tempvar state: model.State*;
+    %{ block %}
+    %{ state %}
+    // TODO: Compute initial state root hash and compare with block.parent_hash
+    // TODO: Loop through transactions and apply them to the initial state
+    // TODO: Compute the state root hash after applying all transactions
+    // TODO: Compare the final state root hash with block.state_root
     return ();
 }
