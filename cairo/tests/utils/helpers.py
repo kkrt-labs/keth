@@ -1,7 +1,7 @@
 import random
 from collections import defaultdict
 from textwrap import wrap
-from typing import List, Tuple, Union
+from typing import Iterable, List, Tuple, Union
 
 import rlp
 from eth_account._utils.transaction_utils import transaction_rpc_to_rlp_structure
@@ -100,11 +100,11 @@ def flatten(data):
     result = []
 
     def _flatten(item):
-        if isinstance(item, list):
+        if isinstance(item, Iterable):
             for sub_item in item:
                 _flatten(sub_item)
         else:
-            result.extend(item)
+            result.append(item)
 
     _flatten(data)
     return result

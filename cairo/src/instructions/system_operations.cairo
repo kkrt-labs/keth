@@ -125,7 +125,7 @@ namespace SystemOperations {
         let is_collision = Account.has_code_or_nonce(target_account);
         if (is_collision != 0) {
             let sender = Account.set_nonce(sender, sender.nonce + 1);
-            State.update_account(sender);
+            State.update_account(evm.message.address, sender);
             Stack.push_uint128(0);
             return evm;
         }
@@ -139,7 +139,7 @@ namespace SystemOperations {
 
         // Increment nonce
         let sender = Account.set_nonce(sender, sender.nonce + 1);
-        State.update_account(sender);
+        State.update_account(evm.message.address, sender);
 
         // Final update of calling context
         tempvar parent = new model.Parent(evm, stack, memory, state);
@@ -177,9 +177,9 @@ namespace SystemOperations {
         let target_account = State.get_account(target_address);
         let target_account = Account.set_nonce(target_account, 1);
         let target_account = Account.set_created(target_account, 1);
-        State.update_account(target_account);
+        State.update_account(target_address, target_account);
 
-        let transfer = model.Transfer(evm.message.address, target_account.address, [value]);
+        let transfer = model.Transfer(evm.message.address, target_address, [value]);
         let success = State.add_transfer(transfer);
         if (success == 0) {
             Stack.push_uint128(0);
@@ -827,7 +827,7 @@ namespace SystemOperations {
         // @dev: get_account again because add_transfer updated it
         let account = State.get_account(evm.message.address);
         let account = Account.selfdestruct(account);
-        State.update_account(account);
+        State.update_account(evm.message.address, account);
 
         // Halt context
         let (return_data: felt*) = alloc();
@@ -1240,7 +1240,7 @@ namespace CreateHelper {
         let account = Account.set_code(account, evm.return_data_len, evm.return_data);
 
         // Update local state with the updated account inner pointers.
-        State.update_account(account);
+        State.update_account(evm.message.address, account);
 
         tempvar evm = new model.EVM(
             message=message,

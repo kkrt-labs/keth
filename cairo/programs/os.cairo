@@ -1,10 +1,12 @@
-%builtins output
+%builtins pedersen output
 
 from starkware.cairo.common.memcpy import memcpy
+from starkware.cairo.common.cairo_builtins import HashBuiltin
 
 from src.model import model
 
-func main{output_ptr: felt*}() {
+func main{pedersen_ptr: HashBuiltin*, output_ptr: felt*}() {
+    %{ dict_manager %}
     tempvar block: model.Block*;
     tempvar initial_state: model.State*;
     %{ block %}

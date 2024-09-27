@@ -36,12 +36,9 @@ func test__init__should_return_account_with_default_dict_as_storage{}() {
     tempvar balance = new Uint256(balance_low, 0);
 
     // When
-    let account = Account.init(
-        address, code_len, code, cast(code_hash_ptr, Uint256*), nonce, balance
-    );
+    let account = Account.init(code_len, code, cast(code_hash_ptr, Uint256*), nonce, balance);
 
     // Then
-    assert account.address = address;
     assert account.code_len = code_len;
     assert account.nonce = nonce;
     assert account.balance.low = balance_low;
@@ -77,9 +74,7 @@ func test__copy__should_return_new_account_with_same_attributes{
 
     tempvar address = evm_address;
     tempvar balance = new Uint256(balance_low, 0);
-    let account = Account.init(
-        address, code_len, code, cast(code_hash_ptr, Uint256*), nonce, balance
-    );
+    let account = Account.init(code_len, code, cast(code_hash_ptr, Uint256*), nonce, balance);
     tempvar key = new Uint256(1, 2);
     tempvar value = new Uint256(3, 4);
     let account = Account.write_storage(account, key, value);
@@ -90,7 +85,6 @@ func test__copy__should_return_new_account_with_same_attributes{
     // Then
 
     // Same immutable attributes
-    assert account.address = account_copy.address;
     assert account.code_len = account_copy.code_len;
     assert account.nonce = account_copy.nonce;
     assert account.balance.low = balance_low;
@@ -131,7 +125,7 @@ func test__write_storage__should_store_value_at_key{pedersen_ptr: HashBuiltin*, 
     let (local code: felt*) = alloc();
     tempvar code_hash = new Uint256(0, 0);
     tempvar balance = new Uint256(0, 0);
-    let account = Account.init(address, 0, code, code_hash, 0, balance);
+    let account = Account.init(0, code, code_hash, 0, balance);
 
     // When
     let account = Account.write_storage(account, key, value);
@@ -163,9 +157,7 @@ func test__has_code_or_nonce() -> felt {
 
     tempvar address = 0;
     tempvar balance = new Uint256(0, 0);
-    let account = Account.init(
-        address, code_len, code, cast(code_hash_ptr, Uint256*), nonce, balance
-    );
+    let account = Account.init(code_len, code, cast(code_hash_ptr, Uint256*), nonce, balance);
 
     // When
     let result = Account.has_code_or_nonce(account);

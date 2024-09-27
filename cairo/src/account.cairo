@@ -34,18 +34,12 @@ namespace Account {
     // @return The updated state
     // @return The account
     func init(
-        address: felt,
-        code_len: felt,
-        code: felt*,
-        code_hash: Uint256*,
-        nonce: felt,
-        balance: Uint256*,
+        code_len: felt, code: felt*, code_hash: Uint256*, nonce: felt, balance: Uint256*
     ) -> model.Account* {
         let (storage_start) = default_dict_new(0);
         let (transient_storage_start) = default_dict_new(0);
         let (valid_jumpdests_start) = default_dict_new(0);
         return new model.Account(
-            address=address,
             code_len=code_len,
             code=code,
             code_hash=code_hash,
@@ -75,7 +69,6 @@ namespace Account {
             self.valid_jumpdests_start, self.valid_jumpdests
         );
         return new model.Account(
-            address=self.address,
             code_len=self.code_len,
             code=self.code,
             code_hash=self.code_hash,
@@ -113,7 +106,6 @@ namespace Account {
         }
 
         tempvar self = new model.Account(
-            address=self.address,
             code_len=self.code_len,
             code=self.code,
             code_hash=self.code_hash,
@@ -162,7 +154,6 @@ namespace Account {
         let (storage_addr) = Internals._storage_addr(key);
         dict_write{dict_ptr=storage}(key=storage_addr, new_value=cast(value, felt));
         tempvar self = new model.Account(
-            address=self.address,
             code_len=self.code_len,
             code=self.code,
             code_hash=self.code_hash,
@@ -201,7 +192,6 @@ namespace Account {
             assert value_ptr = new Uint256(0, 0);
         }
         tempvar self = new model.Account(
-            address=self.address,
             code_len=self.code_len,
             code=self.code,
             code_hash=self.code_hash,
@@ -231,7 +221,6 @@ namespace Account {
         let (storage_addr) = Internals._storage_addr(key);
         dict_write{dict_ptr=transient_storage}(key=storage_addr, new_value=cast(value, felt));
         tempvar self = new model.Account(
-            address=self.address,
             code_len=self.code_len,
             code=self.code,
             code_hash=self.code_hash,
@@ -267,7 +256,6 @@ namespace Account {
         let code_hash = cast(ap_val - 2, Uint256*);
         let (valid_jumpdests_start, valid_jumpdests) = Helpers.initialize_jumpdests(code_len, code);
         return new model.Account(
-            address=self.address,
             code_len=code_len,
             code=code,
             code_hash=code_hash,
@@ -289,7 +277,6 @@ namespace Account {
     // @param nonce The new nonce
     func set_nonce(self: model.Account*, nonce: felt) -> model.Account* {
         return new model.Account(
-            address=self.address,
             code_len=self.code_len,
             code=self.code,
             code_hash=self.code_hash,
@@ -309,7 +296,6 @@ namespace Account {
     // @notice Sets an account as created
     func set_created(self: model.Account*, is_created: felt) -> model.Account* {
         return new model.Account(
-            address=self.address,
             code_len=self.code_len,
             code=self.code,
             code_hash=self.code_hash,
@@ -331,7 +317,6 @@ namespace Account {
     // @param balance The new balance
     func set_balance(self: model.Account*, balance: Uint256*) -> model.Account* {
         return new model.Account(
-            address=self.address,
             code_len=self.code_len,
             code=self.code,
             code_hash=self.code_hash,
@@ -353,7 +338,6 @@ namespace Account {
     // @return The pointer to the updated Account
     func selfdestruct(self: model.Account*) -> model.Account* {
         return new model.Account(
-            address=self.address,
             code_len=self.code_len,
             code=self.code,
             code_hash=self.code_hash,
@@ -390,7 +374,6 @@ namespace Account {
         let (pointer) = dict_read{dict_ptr=storage}(key=storage_addr);
 
         tempvar account = new model.Account(
-            address=self.address,
             code_len=self.code_len,
             code=self.code,
             code_hash=self.code_hash,
@@ -422,10 +405,9 @@ namespace Account {
         alloc_locals;
         let storage_ptr = self.storage;
         with storage_ptr {
-            Internals._cache_storage_keys(self.address, storage_keys_len, storage_keys);
+            Internals._cache_storage_keys(storage_keys_len, storage_keys);
         }
         tempvar self = new model.Account(
-            address=self.address,
             code_len=self.code_len,
             code=self.code,
             code_hash=self.code_hash,
@@ -462,14 +444,14 @@ namespace Account {
 namespace Internals {
     // @notice Compute the storage address of the given key
     // @dev    Just the hash of low and high to get a unique random felt key
-    func _storage_addr{pedersen_ptr: HashBuiltin*, range_check_ptr}(key: Uint256*) -> (res: felt) {
+    func _storage_addr{pedersen_ptr: HashBuiltin*}(key: Uint256*) -> (res: felt) {
         let (res) = hash2{hash_ptr=pedersen_ptr}(key.low, key.high);
         return (res=res);
     }
 
     // TODO: fixme value shouldn't be always 0
     func _cache_storage_keys{pedersen_ptr: HashBuiltin*, range_check_ptr, storage_ptr: DictAccess*}(
-        evm_address: felt, storage_keys_len: felt, storage_keys: Uint256*
+        storage_keys_len: felt, storage_keys: Uint256*
     ) {
         alloc_locals;
         if (storage_keys_len == 0) {
@@ -481,6 +463,6 @@ namespace Internals {
         tempvar value_ptr = new Uint256(0, 0);
         dict_write{dict_ptr=storage_ptr}(key=storage_addr, new_value=cast(value_ptr, felt));
 
-        return _cache_storage_keys(evm_address, storage_keys_len - 1, storage_keys + Uint256.SIZE);
+        return _cache_storage_keys(storage_keys_len - 1, storage_keys + Uint256.SIZE);
     }
 }

@@ -113,12 +113,17 @@ class Serde:
     def serialize_account(self, ptr):
         raw = self.serialize_pointers("model.Account", ptr)
         return {
-            "address": to_checksum_address(f'{raw["address"]:040x}'),
-            "code": self.serialize_list(raw["code"], list_len=raw["code_len"]),
+            "code": bytes(self.serialize_list(raw["code"], list_len=raw["code_len"])),
+            "code_hash": self.serialize_uint256(raw["code_hash"]),
             "storage": self.serialize_dict(raw["storage_start"], "Uint256"),
+            "transient_storage": self.serialize_dict(
+                raw["transient_storage_start"], "Uint256"
+            ),
+            "valid_jumpdests": self.serialize_dict(raw["valid_jumpdests_start"]),
             "nonce": raw["nonce"],
             "balance": self.serialize_uint256(raw["balance"]),
             "selfdestruct": raw["selfdestruct"],
+            "created": raw["created"],
         }
 
     def serialize_state(self, ptr):

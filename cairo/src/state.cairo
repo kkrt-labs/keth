@@ -212,7 +212,7 @@ namespace State {
         }
 
         let (account, res) = Account.is_storage_warm(cast(pointer, model.Account*), key);
-        dict_write{dict_ptr=accounts}(key=account.address, new_value=cast(account, felt));
+        dict_write{dict_ptr=accounts}(key=address, new_value=cast(account, felt));
 
         tempvar state = new model.State(
             accounts_start=state.accounts_start,
@@ -227,9 +227,9 @@ namespace State {
 
     // @notice Updates the given account in the state.
     // @param account The new account
-    func update_account{state: model.State*}(account: model.Account*) {
+    func update_account{state: model.State*}(address: felt, account: model.Account*) {
         let accounts = state.accounts;
-        dict_write{dict_ptr=accounts}(key=account.address, new_value=cast(account, felt));
+        dict_write{dict_ptr=accounts}(key=address, new_value=cast(account, felt));
         tempvar state = new model.State(
             accounts_start=state.accounts_start,
             accounts=accounts,
@@ -252,7 +252,7 @@ namespace State {
         alloc_locals;
         let account = get_account(evm_address);
         let (account, value) = Account.read_storage(account, key);
-        update_account(account);
+        update_account(evm_address, account);
         return value;
     }
 
@@ -266,7 +266,7 @@ namespace State {
         alloc_locals;
         let account = get_account(evm_address);
         let account = Account.write_storage(account, key, value);
-        update_account(account);
+        update_account(evm_address, account);
         return ();
     }
 
@@ -280,7 +280,7 @@ namespace State {
         alloc_locals;
         let account = get_account(evm_address);
         let (account, value) = Account.read_transient_storage(account, key);
-        update_account(account);
+        update_account(evm_address, account);
         return value;
     }
 
@@ -294,7 +294,7 @@ namespace State {
         alloc_locals;
         let account = get_account(evm_address);
         let account = Account.write_transient_storage(account, key, value);
-        update_account(account);
+        update_account(evm_address, account);
         return ();
     }
 
@@ -432,12 +432,7 @@ namespace Internals {
             304396909071904405792975023732328604784, 262949717399590921288928019264691438528
         );
         let account = Account.init(
-            address=address,
-            code_len=0,
-            code=bytecode,
-            code_hash=code_hash_ptr,
-            nonce=0,
-            balance=balance_ptr,
+            code_len=0, code=bytecode, code_hash=code_hash_ptr, nonce=0, balance=balance_ptr
         );
         dict_write{dict_ptr=accounts_ptr}(key=address, new_value=cast(account, felt));
         return ();

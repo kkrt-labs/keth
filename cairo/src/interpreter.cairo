@@ -939,7 +939,7 @@ namespace Interpreter {
             let (local new_balance) = uint256_sub([sender.balance], max_fee_u256);
             let sender = Account.set_balance(sender, &new_balance);
             let sender = Account.set_nonce(sender, sender.nonce + 1);
-            State.update_account(sender);
+            State.update_account(env.origin, sender);
 
             let transfer = model.Transfer(sender.address, address, [value]);
             let success = State.add_transfer(transfer);
@@ -952,7 +952,7 @@ namespace Interpreter {
             let nonce = account.nonce * (1 - is_deploy_tx) + is_deploy_tx;
             let account = Account.set_nonce(account, nonce);
             let account = Account.set_created(account, is_deploy_tx);
-            State.update_account(account);
+            State.update_account(address, account);
         }
 
         if (is_collision != 0) {
@@ -1004,7 +1004,7 @@ namespace Interpreter {
             let (ap_val) = get_ap();
             let sender = Account.set_balance(sender, cast(ap_val - 3, Uint256*));
             let sender = Account.set_nonce(sender, sender.nonce + is_reverted);
-            State.update_account(sender);
+            State.update_account(env.origin, sender);
         }
 
         // So as to not burn the base_fee_per gas, we send it to the coinbase.
@@ -1067,7 +1067,7 @@ namespace Internals {
         let account = State.get_account(evm.message.address);
         let account = Account.set_code(account, evm.return_data_len, evm.return_data);
 
-        State.update_account(account);
+        State.update_account(evm.message.address, account);
         State.finalize();
 
         // Update gas and return data - we know gas_left > code_deposit_cost

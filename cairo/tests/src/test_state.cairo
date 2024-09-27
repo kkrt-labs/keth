@@ -132,7 +132,7 @@ func test___copy_accounts__should_handle_null_pointers{range_check_ptr}() {
     tempvar code_hash = new Uint256(
         304396909071904405792975023732328604784, 262949717399590921288928019264691438528
     );
-    let account = Account.init(address, 0, code, code_hash, 1, balance);
+    let account = Account.init(0, code, code_hash, 1, balance);
     dict_write{dict_ptr=accounts}(address, cast(account, felt));
     let empty_address = 'empty address';
     dict_read{dict_ptr=accounts}(empty_address);
@@ -142,7 +142,6 @@ func test___copy_accounts__should_handle_null_pointers{range_check_ptr}() {
     let (pointer) = dict_read{dict_ptr=accounts_copy}(address);
     tempvar existing_account = cast(pointer, model.Account*);
 
-    assert existing_account.address = address;
     assert existing_account.balance.low = 1;
     assert existing_account.balance.high = 0;
     assert existing_account.code_len = 0;
@@ -158,11 +157,11 @@ func test__is_account_warm__account_in_state{pedersen_ptr: HashBuiltin*, range_c
     tempvar code_hash = new Uint256(
         304396909071904405792975023732328604784, 262949717399590921288928019264691438528
     );
-    let account = Account.init(address, 0, code, code_hash, 1, balance);
+    let account = Account.init(0, code, code_hash, 1, balance);
     tempvar state = State.init();
 
     with state {
-        State.update_account(account);
+        State.update_account(evm_address, account);
         let is_warm = State.is_account_warm(evm_address);
     }
 
@@ -232,9 +231,9 @@ func test__is_storage_warm__should_return_true_when_already_read{
     tempvar key = new Uint256(1, 2);
     tempvar address = 'evm_address';
     with state {
-        let account = State.get_account('evm_address');
+        let account = State.get_account(address);
         let (account, value) = Account.read_storage(account, key);
-        State.update_account(account);
+        State.update_account(address, account);
 
         // When
         let result = State.is_storage_warm(address, key);
@@ -254,9 +253,9 @@ func test__is_storage_warm__should_return_true_when_already_written{
     tempvar address = 'evm_address';
     tempvar value = new Uint256(2, 3);
     with state {
-        let account = State.get_account('evm_address');
+        let account = State.get_account(address);
         let account = Account.write_storage(account, key, value);
-        State.update_account(account);
+        State.update_account(address, account);
 
         // When
         let result = State.is_storage_warm(address, key);

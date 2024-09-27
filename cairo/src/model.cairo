@@ -66,7 +66,6 @@ namespace model {
     // @dev The address is a tuple (starknet, evm) for step-optimization purposes:
     // we can compute the starknet only once.
     struct Account {
-        address: felt,
         code_len: felt,
         code: felt*,
         code_hash: Uint256*,
