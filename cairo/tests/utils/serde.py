@@ -106,13 +106,6 @@ class Serde:
             for name, member in members.items()
         }
 
-    def serialize_address(self, ptr):
-        raw = self.serialize_pointers("model.Address", ptr)
-        return {
-            "starknet": f'0x{raw["starknet"]:064x}',
-            "evm": to_checksum_address(f'{raw["evm"]:040x}'),
-        }
-
     def serialize_uint256(self, ptr):
         raw = self.serialize_pointers("Uint256", ptr)
         return hex(raw["low"] + raw["high"] * 2**128)
@@ -120,7 +113,7 @@ class Serde:
     def serialize_account(self, ptr):
         raw = self.serialize_pointers("model.Account", ptr)
         return {
-            "address": self.serialize_address(raw["address"]),
+            "address": to_checksum_address(f'{raw["address"]:040x}'),
             "code": self.serialize_list(raw["code"], list_len=raw["code_len"]),
             "storage": self.serialize_dict(raw["storage_start"], "Uint256"),
             "nonce": raw["nonce"],
@@ -184,8 +177,8 @@ class Serde:
             "caller": to_checksum_address(f'{raw["caller"]:040x}'),
             "value": self.serialize_uint256(raw["value"]),
             "parent": self.serialize_struct("model.Parent", raw["parent"]),
-            "address": self.serialize_address(raw["address"]),
-            "code_address": raw["code_address"],
+            "address": to_checksum_address(f'{raw["address"]:040x}'),
+            "code_address": to_checksum_address(f'{raw["code_address"]:040x}'),
             "read_only": bool(raw["read_only"]),
             "is_create": bool(raw["is_create"]),
             "depth": raw["depth"],
@@ -251,8 +244,6 @@ class Serde:
             return self.serialize_state(scope_ptr)
         if scope.path[-1] == "Account":
             return self.serialize_account(scope_ptr)
-        if scope.path[-1] == "Address":
-            return self.serialize_address(scope_ptr)
         if scope.path[-1] == "Transaction":
             return self.serialize_eth_transaction(scope_ptr)
         if scope.path[-1] == "Stack":

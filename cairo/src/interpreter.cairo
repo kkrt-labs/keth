@@ -57,7 +57,7 @@ namespace Interpreter {
         let pc = evm.program_counter;
         let is_pc_ge_code_len = is_nn(pc - evm.message.bytecode_len);
         if (is_pc_ge_code_len != FALSE) {
-            let is_precompile = PrecompilesHelpers.is_precompile(evm.message.code_address.evm);
+            let is_precompile = PrecompilesHelpers.is_precompile(evm.message.code_address);
             if (is_precompile != FALSE) {
                 let parent_context = evm.message.parent;
                 let is_parent_zero = Helpers.is_zero(cast(parent_context, felt));
@@ -66,13 +66,13 @@ namespace Interpreter {
                     tempvar caller_code_address = evm.message.caller;
                 } else {
                     // Case B: The precompile is called from a contract
-                    tempvar caller_code_address = parent_context.evm.message.code_address.evm;
+                    tempvar caller_code_address = parent_context.evm.message.code_address;
                 }
                 tempvar caller_address = evm.message.caller;
                 let (
                     output_len, output, gas_used, precompile_reverted
                 ) = Precompiles.exec_precompile(
-                    evm.message.code_address.evm,
+                    evm.message.code_address,
                     evm.message.calldata_len,
                     evm.message.calldata,
                     caller_code_address,
@@ -83,7 +83,7 @@ namespace Interpreter {
                 let success = (1 - precompile_reverted) * (1 - evm_reverted);
                 let evm = EVM.stop(evm, output_len, output, 1 - success);
                 let is_cairo_precompile_called = PrecompilesHelpers.is_kakarot_precompile(
-                    evm.message.code_address.evm
+                    evm.message.code_address
                 );
                 tempvar message = new model.Message(
                     bytecode=evm.message.bytecode,
@@ -813,7 +813,7 @@ namespace Interpreter {
     // from the gas used by the transaction as it doesn't take into account any refunds.
     func execute{pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
         env: model.Environment*,
-        address: model.Address*,
+        address: felt,
         is_deploy_tx: felt,
         bytecode_len: felt,
         bytecode: felt*,
@@ -847,7 +847,7 @@ namespace Interpreter {
         local bytecode: felt*;
         local calldata: felt*;
         local intrinsic_gas: felt;
-        local code_address: model.Address*;
+        local code_address: felt;
         if (is_deploy_tx != FALSE) {
             let (empty: felt*) = alloc();
             let (init_code_words, _) = unsigned_div_rem(bytecode_len + 31, 32);
@@ -855,7 +855,7 @@ namespace Interpreter {
             assert bytecode = tmp_calldata;
             assert calldata = empty;
             assert intrinsic_gas = tmp_intrinsic_gas + Gas.CREATE + init_code_gas;
-            assert code_address = new model.Address(starknet=0, evm=0);
+            assert code_address = 0;
             let (valid_jumpdests_start, valid_jumpdests) = Helpers.initialize_jumpdests(
                 bytecode_len=bytecode_len, bytecode=bytecode
             );
@@ -904,7 +904,7 @@ namespace Interpreter {
         with state {
             let coinbase = State.get_account(env.coinbase);
             State.cache_precompiles();
-            State.get_account(address.evm);
+            State.get_account(address);
             let access_list_cost = State.cache_access_list(access_list_len, access_list);
         }
 
@@ -945,7 +945,7 @@ namespace Interpreter {
             let success = State.add_transfer(transfer);
 
             // Check collision
-            let account = State.get_account(address.evm);
+            let account = State.get_account(address);
             let code_or_nonce = Account.has_code_or_nonce(account);
             let is_collision = code_or_nonce * is_deploy_tx;
             // Nonce is set to 1 in case of deploy_tx and account is marked as created
@@ -1064,7 +1064,7 @@ namespace Internals {
         }
 
         // Write bytecode and cache the final code valid jumpdests to Account
-        let account = State.get_account(evm.message.address.evm);
+        let account = State.get_account(evm.message.address);
         let account = Account.set_code(account, evm.return_data_len, evm.return_data);
 
         State.update_account(account);

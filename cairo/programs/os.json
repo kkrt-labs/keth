@@ -231,7 +231,7 @@
             "full_name": "src.model.model.Account",
             "members": {
                 "address": {
-                    "cairo_type": "src.model.model.Address*",
+                    "cairo_type": "felt",
                     "offset": 0
                 },
                 "balance": {
@@ -288,21 +288,6 @@
                 }
             },
             "size": 14,
-            "type": "struct"
-        },
-        "src.model.model.Address": {
-            "full_name": "src.model.model.Address",
-            "members": {
-                "evm": {
-                    "cairo_type": "felt",
-                    "offset": 1
-                },
-                "starknet": {
-                    "cairo_type": "felt",
-                    "offset": 0
-                }
-            },
-            "size": 2,
             "type": "struct"
         },
         "src.model.model.Args": {
@@ -578,7 +563,7 @@
             "full_name": "src.model.model.Message",
             "members": {
                 "address": {
-                    "cairo_type": "src.model.model.Address*",
+                    "cairo_type": "felt",
                     "offset": 9
                 },
                 "bytecode": {
@@ -606,7 +591,7 @@
                     "offset": 7
                 },
                 "code_address": {
-                    "cairo_type": "src.model.model.Address*",
+                    "cairo_type": "felt",
                     "offset": 10
                 },
                 "depth": {
@@ -850,11 +835,11 @@
                     "offset": 2
                 },
                 "recipient": {
-                    "cairo_type": "src.model.model.Address*",
+                    "cairo_type": "felt",
                     "offset": 1
                 },
                 "sender": {
-                    "cairo_type": "src.model.model.Address*",
+                    "cairo_type": "felt",
                     "offset": 0
                 }
             },

@@ -27,14 +27,14 @@ from src.utils.bytes import keccak
 namespace Account {
     // @notice Create a new account
     // @dev New contract accounts start at nonce=1.
-    // @param address The address (starknet,evm) of the account
+    // @param address The address of the account
     // @param code_len The length of the code
     // @param code The pointer to the code
     // @param nonce The initial nonce
     // @return The updated state
     // @return The account
     func init(
-        address: model.Address*,
+        address: felt,
         code_len: felt,
         code: felt*,
         code_hash: Uint256*,
@@ -422,7 +422,7 @@ namespace Account {
         alloc_locals;
         let storage_ptr = self.storage;
         with storage_ptr {
-            Internals._cache_storage_keys(self.address.evm, storage_keys_len, storage_keys);
+            Internals._cache_storage_keys(self.address, storage_keys_len, storage_keys);
         }
         tempvar self = new model.Account(
             address=self.address,

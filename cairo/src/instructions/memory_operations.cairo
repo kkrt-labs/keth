@@ -315,7 +315,7 @@ namespace MemoryOperations {
 
         // Has to be done BEFORE fetching the current value from the state,
         // otherwise it would warm up the storage slot.
-        let is_storage_warm = State.is_storage_warm(evm.message.address.evm, key);
+        let is_storage_warm = State.is_storage_warm(evm.message.address, key);
         local gas_cost: felt;
         if (is_storage_warm == FALSE) {
             assert gas_cost = Gas.COLD_SLOAD;
@@ -323,9 +323,9 @@ namespace MemoryOperations {
             assert gas_cost = 0;
         }
 
-        let account = State.get_account(evm.message.address.evm);
+        let account = State.get_account(evm.message.address);
         let original_value = Account.fetch_original_storage(account, key);
-        let current_value = State.read_storage(evm.message.address.evm, key);
+        let current_value = State.read_storage(evm.message.address, key);
 
         let (is_current_original) = uint256_eq(original_value, [current_value]);
         let (is_current_new) = uint256_eq([new_value], [current_value]);
@@ -376,7 +376,7 @@ namespace MemoryOperations {
             );
         }
 
-        State.write_storage(evm.message.address.evm, key, new_value);
+        State.write_storage(evm.message.address, key, new_value);
         // Return with the updated gas refund
         return new model.EVM(
             message=evm.message,
@@ -404,7 +404,7 @@ namespace MemoryOperations {
 
         // Has to be done BEFORE fetching the current value from the state,
         // otherwise it would warm up the storage slot.
-        let is_storage_warm = State.is_storage_warm(evm.message.address.evm, key);
+        let is_storage_warm = State.is_storage_warm(evm.message.address, key);
         tempvar gas_cost = is_storage_warm * Gas.WARM_ACCESS + (1 - is_storage_warm) *
             Gas.COLD_SLOAD;
         let evm = EVM.charge_gas(evm, gas_cost);
@@ -412,7 +412,7 @@ namespace MemoryOperations {
             return evm;
         }
 
-        let value = State.read_storage(evm.message.address.evm, key);
+        let value = State.read_storage(evm.message.address, key);
         Stack.push(value);
         return evm;
     }
@@ -451,7 +451,7 @@ namespace MemoryOperations {
             );
         }
 
-        State.write_transient_storage(evm.message.address.evm, key, new_value);
+        State.write_transient_storage(evm.message.address, key, new_value);
         return new model.EVM(
             message=evm.message,
             return_data_len=evm.return_data_len,
@@ -483,7 +483,7 @@ namespace MemoryOperations {
         }
 
         // Operation
-        let value = State.read_transient_storage(evm.message.address.evm, key);
+        let value = State.read_transient_storage(evm.message.address, key);
         Stack.push(value);
         return evm;
     }

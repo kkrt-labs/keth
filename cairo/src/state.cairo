@@ -212,7 +212,7 @@ namespace State {
         }
 
         let (account, res) = Account.is_storage_warm(cast(pointer, model.Account*), key);
-        dict_write{dict_ptr=accounts}(key=account.address.evm, new_value=cast(account, felt));
+        dict_write{dict_ptr=accounts}(key=account.address, new_value=cast(account, felt));
 
         tempvar state = new model.State(
             accounts_start=state.accounts_start,
@@ -229,7 +229,7 @@ namespace State {
     // @param account The new account
     func update_account{state: model.State*}(account: model.Account*) {
         let accounts = state.accounts;
-        dict_write{dict_ptr=accounts}(key=account.address.evm, new_value=cast(account, felt));
+        dict_write{dict_ptr=accounts}(key=account.address, new_value=cast(account, felt));
         tempvar state = new model.State(
             accounts_start=state.accounts_start,
             accounts=accounts,
@@ -423,7 +423,7 @@ namespace Internals {
         evm_address: felt
     ) {
         alloc_locals;
-        tempvar address = new model.Address(starknet=0xdead, evm=evm_address);
+        tempvar address = evm_address;
         // TODO: precompiles can have balance
         tempvar balance_ptr = new Uint256(0, 0);
         let (bytecode) = alloc();
@@ -439,7 +439,7 @@ namespace Internals {
             nonce=0,
             balance=balance_ptr,
         );
-        dict_write{dict_ptr=accounts_ptr}(key=address.evm, new_value=cast(account, felt));
+        dict_write{dict_ptr=accounts_ptr}(key=address, new_value=cast(account, felt));
         return ();
     }
 

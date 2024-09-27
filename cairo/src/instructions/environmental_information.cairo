@@ -30,7 +30,7 @@ namespace EnvironmentalInformation {
         memory: model.Memory*,
         state: model.State*,
     }(evm: model.EVM*) -> model.EVM* {
-        let address = Helpers.to_uint256(evm.message.address.evm);
+        let address = Helpers.to_uint256(evm.message.address);
         Stack.push(address);
         return evm;
     }

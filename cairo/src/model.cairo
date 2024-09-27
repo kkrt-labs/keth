@@ -66,7 +66,7 @@ namespace model {
     // @dev The address is a tuple (starknet, evm) for step-optimization purposes:
     // we can compute the starknet only once.
     struct Account {
-        address: model.Address*,
+        address: felt,
         code_len: felt,
         code: felt*,
         code_hash: Uint256*,
@@ -79,9 +79,6 @@ namespace model {
         nonce: felt,
         balance: Uint256*,
         selfdestruct: felt,
-        // @dev: another way of knowing if an account was just created or not is to get it's registered starknet address.
-        // 1. It's zero -> it was created in the same tx
-        // 2. It's non-zero -> We fetch it's nonce from storage, if 0 -> it was created in the same tx, otherwise it was created in a previous tx.
         created: felt,
     }
 
@@ -96,15 +93,9 @@ namespace model {
 
     // @dev A struct to save Starknet native ETH transfers to be made when finalizing a tx
     struct Transfer {
-        sender: Address*,
-        recipient: Address*,
+        sender: felt,
+        recipient: felt,
         amount: Uint256,
-    }
-
-    // @dev Though one of the two address is enough, we store both to save on steps and simplify the usage.
-    struct Address {
-        starknet: felt,
-        evm: felt,
     }
 
     // @notice info: https://www.evm.codes/about#calldata
@@ -132,8 +123,8 @@ namespace model {
         value: Uint256*,
         caller: felt,
         parent: Parent*,
-        address: Address*,
-        code_address: Address*,
+        address: felt,
+        code_address: felt,
         read_only: felt,
         is_create: felt,
         depth: felt,

@@ -32,7 +32,7 @@ func test__init__should_return_account_with_default_dict_as_storage{}() {
         ids.balance_low = program_input["balance_low"]
     %}
 
-    tempvar address = new model.Address(starknet=0xdead, evm=evm_address);
+    tempvar address = evm_address;
     tempvar balance = new Uint256(balance_low, 0);
 
     // When
@@ -75,7 +75,7 @@ func test__copy__should_return_new_account_with_same_attributes{
         ids.balance_low = program_input["balance_low"]
     %}
 
-    tempvar address = new model.Address(starknet=0xdead, evm=evm_address);
+    tempvar address = evm_address;
     tempvar balance = new Uint256(balance_low, 0);
     let account = Account.init(
         address, code_len, code, cast(code_hash_ptr, Uint256*), nonce, balance
@@ -127,7 +127,7 @@ func test__write_storage__should_store_value_at_key{pedersen_ptr: HashBuiltin*, 
     let key = cast(key_ptr, Uint256*);
     let value = cast(value_ptr, Uint256*);
 
-    tempvar address = new model.Address(0xdead, 0);
+    tempvar address = 0;
     let (local code: felt*) = alloc();
     tempvar code_hash = new Uint256(0, 0);
     tempvar balance = new Uint256(0, 0);
@@ -161,7 +161,7 @@ func test__has_code_or_nonce() -> felt {
         ids.nonce = program_input["nonce"]
     %}
 
-    tempvar address = new model.Address(0xdead, 0);
+    tempvar address = 0;
     tempvar balance = new Uint256(0, 0);
     let account = Account.init(
         address, code_len, code, cast(code_hash_ptr, Uint256*), nonce, balance

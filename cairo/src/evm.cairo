@@ -238,7 +238,7 @@ namespace EVM {
         // and map it to the corresponding EVM contract via this convention
         // this looks a bit odd and may need to be reviewed
         let (local topics_with_address: felt*) = alloc();
-        assert [topics_with_address] = self.message.address.evm;
+        assert [topics_with_address] = self.message.address;
         memcpy(dst=topics_with_address + 1, src=cast(topics, felt*), len=topics_len * Uint256.SIZE);
         let event = model.Event(
             topics_len=1 + topics_len * Uint256.SIZE,
@@ -268,11 +268,7 @@ namespace EVM {
         }
 
         let valid_jumpdests = self.message.valid_jumpdests;
-        with valid_jumpdests {
-            let is_valid_jumpdest = Internals.is_valid_jumpdest(
-                self.message.code_address, new_pc_offset
-            );
-        }
+        let (is_valid_jumpdest) = dict_read{dict_ptr=valid_jumpdests}(new_pc_offset);
 
         tempvar message = new model.Message(
             bytecode=self.message.bytecode,
@@ -319,19 +315,5 @@ namespace EVM {
             gas_refund=self.gas_refund,
             reverted=self.reverted,
         );
-    }
-}
-
-namespace Internals {
-    func is_valid_jumpdest{
-        pedersen_ptr: HashBuiltin*,
-        range_check_ptr,
-        valid_jumpdests: DictAccess*,
-        state: model.State*,
-    }(code_address: model.Address*, index: felt) -> felt {
-        alloc_locals;
-        let (is_cached) = dict_read{dict_ptr=valid_jumpdests}(index);
-        // TODO: fix where valid_jumpdest should be stored
-        return is_cached;
     }
 }
