@@ -129,9 +129,25 @@
           },
           "reference_ids": {
             "__main__.main.block": 10,
-            "__main__.main.initial_state": 11,
             "__main__.main.output_ptr": 9,
-            "__main__.main.pedersen_ptr": 8
+            "__main__.main.pedersen_ptr": 8,
+            "__main__.main.state": 11
+          }
+        }
+      },
+      {
+        "accessible_scopes": ["__main__", "__main__.main"],
+        "code": "state",
+        "flow_tracking_data": {
+          "ap_tracking": {
+            "group": 3,
+            "offset": 2
+          },
+          "reference_ids": {
+            "__main__.main.block": 10,
+            "__main__.main.output_ptr": 9,
+            "__main__.main.pedersen_ptr": 8,
+            "__main__.main.state": 11
           }
         }
       }
@@ -199,21 +215,6 @@
       ],
       "type": "reference"
     },
-    "__main__.main.initial_state": {
-      "cairo_type": "src.model.model.State*",
-      "full_name": "__main__.main.initial_state",
-      "references": [
-        {
-          "ap_tracking_data": {
-            "group": 3,
-            "offset": 2
-          },
-          "pc": 25,
-          "value": "[cast(ap + (-1), src.model.model.State**)]"
-        }
-      ],
-      "type": "reference"
-    },
     "__main__.main.output_ptr": {
       "cairo_type": "felt*",
       "full_name": "__main__.main.output_ptr",
@@ -240,6 +241,21 @@
           },
           "pc": 21,
           "value": "[cast(fp + (-4), starkware.cairo.common.cairo_builtins.HashBuiltin**)]"
+        }
+      ],
+      "type": "reference"
+    },
+    "__main__.main.state": {
+      "cairo_type": "src.model.model.State*",
+      "full_name": "__main__.main.state",
+      "references": [
+        {
+          "ap_tracking_data": {
+            "group": 3,
+            "offset": 2
+          },
+          "pc": 25,
+          "value": "[cast(ap + (-1), src.model.model.State**)]"
         }
       ],
       "type": "reference"

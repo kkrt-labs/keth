@@ -1,7 +1,7 @@
 import pytest
 
 from src.utils.uint256 import int_to_uint256
-from tests.utils.models import Account, Block, to_int
+from tests.utils.models import Account, Block, State, to_int
 
 
 @pytest.fixture
@@ -76,10 +76,40 @@ def account():
     )
 
 
+@pytest.fixture
+def state():
+    return State.model_validate(
+        {
+            "0x000000000000000000000000000000000000c0de": {
+                "balance": "0x00",
+                "code": "0x7fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebf5f527fc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedf6020527fe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff60405260786040356020355f35608a565b5f515f55602051600155604051600255005b5e56",
+                "nonce": "0x01",
+                "storage": {
+                    "0x00": "0xa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebf",
+                    "0x01": "0xc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedf",
+                    "0x02": "0xe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff",
+                },
+            },
+            "0x000f3df6d732807ef1319fb7b8bb8522d0beac02": {
+                "balance": "0x00",
+                "code": "0x3373fffffffffffffffffffffffffffffffffffffffe14604d57602036146024575f5ffd5b5f35801560495762001fff810690815414603c575f5ffd5b62001fff01545f5260205ff35b5f5ffd5b62001fff42064281555f359062001fff015500",
+                "nonce": "0x01",
+                "storage": {"0xf2": "0x64903c57"},
+            },
+            "0xa94f5374fce5edbc8e2a8697c15331677e6ebf0b": {
+                "balance": "0x3b8d6450",
+                "code": "0x",
+                "nonce": "0x01",
+                "storage": {},
+            },
+        }
+    )
+
+
 class TestOs:
 
-    def test_os(self, cairo_run, block):
-        cairo_run("test_os", block=block)
+    def test_os(self, cairo_run, block, state):
+        cairo_run("test_os", block=block, state=state)
 
     def test_block(self, cairo_run, block):
         result = cairo_run("test_block", block=block)
@@ -95,3 +125,6 @@ class TestOs:
         account.storage = {}
 
         assert Account.model_validate(result) == account
+
+    def test_state(self, cairo_run, state):
+        cairo_run("test_state", state=state)

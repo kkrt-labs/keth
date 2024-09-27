@@ -1,5 +1,6 @@
+from collections import defaultdict
 from itertools import chain
-from typing import Union
+from typing import Annotated, DefaultDict, Tuple, Union
 
 from eth_utils import keccak
 from ethereum.cancun.vm.runtime import get_valid_jump_destinations
@@ -8,6 +9,7 @@ from pydantic import (
     AliasGenerator,
     BaseModel,
     ConfigDict,
+    Field,
     field_validator,
     model_validator,
 )
@@ -195,9 +197,15 @@ class Account(BaseModelIterValuesOnly):
     code_len: int
     code: bytes
     code_hash: tuple[int, int]
-    storage: dict[int, tuple[int, int]]
-    transient_storage: dict[int, tuple[int, int]] = {}
-    valid_jumpdests: dict[int, bool]
+    storage: DefaultDict[
+        int, Annotated[Union[int, Tuple[int, int]], Field(default_factory=int)]
+    ] = defaultdict(int)
+    transient_storage: DefaultDict[
+        int, Annotated[Union[int, Tuple[int, int]], Field(default_factory=int)]
+    ] = defaultdict(int)
+    valid_jumpdests: DefaultDict[int, Annotated[bool, Field(default_factory=bool)]] = (
+        defaultdict(bool)
+    )
     nonce: int
     balance: tuple[int, int]
     selfdestruct: int = 0
@@ -222,15 +230,34 @@ class Account(BaseModelIterValuesOnly):
         values["code_hash"] = int.from_bytes(
             keccak(to_bytes(values["code"])), byteorder="big"
         )
-        values["storage"] = {
-            pedersen_hash(*int_to_uint256(to_int(k))): int_to_uint256(to_int(v))
-            for k, v in values["storage"].items()
-        }
-        values["valid_jumpdests"] = {
-            key: True for key in get_valid_jump_destinations(to_bytes(values["code"]))
-        }
+        values["storage"] = defaultdict(
+            int,
+            {
+                pedersen_hash(*int_to_uint256(to_int(k))): int_to_uint256(to_int(v))
+                for k, v in values["storage"].items()
+            },
+        )
+        values["valid_jumpdests"] = defaultdict(
+            int,
+            {
+                key: True
+                for key in get_valid_jump_destinations(to_bytes(values["code"]))
+            },
+        )
         return values
 
 
 class State(BaseModelIterValuesOnly):
-    accounts: dict[int, Account]
+    accounts: DefaultDict[
+        int, Annotated[Union[int, Account], Field(default_factory=int)]
+    ] = defaultdict(int)
+    events_len: int = 0
+    events: list = []
+    transfers_len: int = 0
+    transfers: list = []
+
+    @model_validator(mode="before")
+    def parse_addresses(cls, values):
+        values = values.copy()
+        values["accounts"] = defaultdict(int, {to_int(k): v for k, v in values.items()})
+        return values

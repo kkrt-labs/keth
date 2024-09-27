@@ -85,9 +85,7 @@ namespace State {
     // @param evm_address The evm address of the Account
     // @return The updated state
     // @return The account
-    func get_account{pedersen_ptr: HashBuiltin*, range_check_ptr, state: model.State*}(
-        evm_address: felt
-    ) -> model.Account* {
+    func get_account{state: model.State*}(evm_address: felt) -> model.Account* {
         alloc_locals;
         local accounts: DictAccess* = state.accounts;
         let (pointer) = dict_read{dict_ptr=accounts}(key=evm_address);

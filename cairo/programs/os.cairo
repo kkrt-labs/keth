@@ -8,8 +8,9 @@ from src.model import model
 func main{pedersen_ptr: HashBuiltin*, output_ptr: felt*}() {
     %{ dict_manager %}
     tempvar block: model.Block*;
-    tempvar initial_state: model.State*;
+    tempvar state: model.State*;
     %{ block %}
+    %{ state %}
     // TODO: Compute initial state root hash and compare with block.parent_hash
     // TODO: Loop through transactions and apply them to the initial state
     // TODO: Compute the state root hash after applying all transactions

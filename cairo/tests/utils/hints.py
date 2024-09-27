@@ -69,10 +69,18 @@ from tests.utils.hints import gen_arg
 ids.account = gen_arg(__dict_manager, segments, program_input["account"])
 """
 
+state = f"""
+{dict_manager}
+from tests.utils.hints import gen_arg
+
+ids.state = gen_arg(__dict_manager, segments, program_input["state"])
+"""
+
 hints = {
     "dict_manager": dict_manager,
     "block": block,
     "account": account,
+    "state": state,
 }
 
 

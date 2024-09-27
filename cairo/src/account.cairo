@@ -91,9 +91,9 @@ namespace Account {
     // @param key The pointer to the storage key
     // @return The updated Account
     // @return The read value
-    func read_storage{pedersen_ptr: HashBuiltin*, range_check_ptr}(
-        self: model.Account*, key: Uint256*
-    ) -> (model.Account*, Uint256*) {
+    func read_storage{pedersen_ptr: HashBuiltin*}(self: model.Account*, key: Uint256*) -> (
+        model.Account*, Uint256*
+    ) {
         alloc_locals;
         let storage = self.storage;
         let (local storage_addr) = Internals._storage_addr(key);
@@ -126,7 +126,7 @@ namespace Account {
     // @notive Read the first value of a given storage slot
     // @dev The storage needs to exists already, to this should be used only
     //      after a storage_read or storage_write has been done
-    func fetch_original_storage{pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    func fetch_original_storage{pedersen_ptr: HashBuiltin*}(
         self: model.Account*, key: Uint256*
     ) -> Uint256 {
         alloc_locals;
