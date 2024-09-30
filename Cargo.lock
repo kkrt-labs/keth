@@ -2153,27 +2153,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ef-tests"
-version = "1.0.7"
-source = "git+https://github.com/paradigmxyz/reth.git?tag=v1.0.7#75b7172cf77eb4fd65fe1a6924f75066fb09fcd1"
-dependencies = [
- "alloy-primitives",
- "alloy-rlp",
- "rayon",
- "reth-chainspec",
- "reth-db",
- "reth-db-api",
- "reth-evm-ethereum",
- "reth-primitives",
- "reth-provider",
- "reth-stages",
- "serde",
- "serde_json",
- "thiserror",
- "walkdir",
-]
-
-[[package]]
 name = "either"
 version = "1.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3383,7 +3362,6 @@ name = "kakarot-exex"
 version = "0.1.0"
 dependencies = [
  "cairo-vm",
- "ef-tests",
  "eyre",
  "futures",
  "kakarot-pool",

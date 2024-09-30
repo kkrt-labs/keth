@@ -27,7 +27,6 @@ reth-primitives = { workspace = true }
 reth-revm = { workspace = true }
 reth-execution-errors = { workspace = true }
 reth-provider = { workspace = true }
-ef-tests = { workspace = true }
 
 # SQLite for debugging, should be removed in the future
 rusqlite = { version = "0.31.0", features = ["bundled"] }
