@@ -51,6 +51,7 @@ reth-provider = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.0.7
 reth = { git = "https://github.com/paradigmxyz/reth", tag = "v1.0.7" }
 reth-exex-test-utils = { git = "https://github.com/paradigmxyz/reth", tag = "v1.0.7" }
 reth-testing-utils = { git = "https://github.com/paradigmxyz/reth", tag = "v1.0.7" }
+ef-tests = { git = "https://github.com/paradigmxyz/reth", tag = "v1.0.7" }
 
 serde = { version = "1.0", default-features = false }
 eyre = "0.6"
