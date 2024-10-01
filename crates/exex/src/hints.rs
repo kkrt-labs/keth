@@ -2,7 +2,6 @@ use cairo_vm::{
     hint_processor::{
         builtin_hint_processor::{
             builtin_hint_processor_definition::{BuiltinHintProcessor, HintFunc},
-            hint_utils::get_ptr_from_var_name,
             memcpy_hint_utils::add_segment,
         },
         hint_processor_definition::HintReference,
@@ -239,15 +238,13 @@ pub fn block_hint(block: SealedBlock) -> Hint {
         String::from("block"),
         move |vm: &mut VirtualMachine,
               _exec_scopes: &mut ExecutionScopes,
-              ids_data: &HashMap<String, HintReference>,
-              ap_tracking: &ApTracking,
+              _ids_data: &HashMap<String, HintReference>,
+              _ap_tracking: &ApTracking,
               _constants: &HashMap<String, Felt252>|
               -> HintExecutionResult {
-            // We retrieve the `model.Block*` pointer from the `ids_data` hashmap.
-            // This pointer is used to store the block-related values in the VM.
-            let block_ptr = get_ptr_from_var_name("block", vm, ids_data, ap_tracking)?;
-
-            vm.load_data(block_ptr, &block.to_cairo_vm_block()).map_err(HintError::Memory)?;
+            // This call will first add a new memory segment to the VM (the base)
+            // Then we load the block into the VM starting from the base
+            vm.gen_arg(&block.to_cairo_vm_block())?;
 
             Ok(())
         },
@@ -291,8 +288,7 @@ mod test {
             let config = CairoRunConfig { layout: LayoutName::all_cairo, ..Default::default() };
 
             // Create a new hint processor with the block hint
-            let mut hint_processor =
-                KakarotHintProcessor::default().with_block(block.clone()).build();
+            let mut hint_processor = KakarotHintProcessor::default().with_block(block).build();
 
             // Load the cairo program from the file
             let program = std::fs::read(PathBuf::from("../../cairo/programs/block.json")).unwrap();

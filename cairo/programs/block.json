@@ -103,19 +103,6 @@
         }
       }
     ],
-    "21": [
-      {
-        "accessible_scopes": ["__main__", "__main__.get_block"],
-        "code": "memory[ap] = to_felt_or_relocatable(segments.add())",
-        "flow_tracking_data": {
-          "ap_tracking": {
-            "group": 3,
-            "offset": 0
-          },
-          "reference_ids": {}
-        }
-      }
-    ],
     "23": [
       {
         "accessible_scopes": ["__main__", "__main__.get_block"],
@@ -126,8 +113,7 @@
             "offset": 1
           },
           "reference_ids": {
-            "__main__.get_block.__temp1": 8,
-            "__main__.get_block.block": 9
+            "__main__.get_block.block": 8
           }
         }
       }
@@ -170,21 +156,6 @@
     "__main__.get_block.SIZEOF_LOCALS": {
       "type": "const",
       "value": 0
-    },
-    "__main__.get_block.__temp1": {
-      "cairo_type": "felt",
-      "full_name": "__main__.get_block.__temp1",
-      "references": [
-        {
-          "ap_tracking_data": {
-            "group": 3,
-            "offset": 1
-          },
-          "pc": 23,
-          "value": "[cast(ap + (-1), felt*)]"
-        }
-      ],
-      "type": "reference"
     },
     "__main__.get_block.block": {
       "cairo_type": "src.model.model.Block*",
@@ -1571,14 +1542,6 @@
         },
         "pc": 13,
         "value": "cast(ap + 1, starkware.cairo.common.memcpy.memcpy.LoopFrame*)"
-      },
-      {
-        "ap_tracking_data": {
-          "group": 3,
-          "offset": 1
-        },
-        "pc": 23,
-        "value": "[cast(ap + (-1), felt*)]"
       },
       {
         "ap_tracking_data": {
