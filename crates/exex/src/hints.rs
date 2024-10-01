@@ -11,8 +11,13 @@ use cairo_vm::{
     vm::{errors::hint_errors::HintError, vm_core::VirtualMachine},
     Felt252,
 };
-use reth_primitives::{SealedBlock, U256};
-use std::{collections::HashMap, fmt, rc::Rc};
+use reth_primitives::{Address, Bloom, Bytes, SealedBlock, Signature, B256, U256};
+use std::{
+    collections::HashMap,
+    fmt,
+    ops::{Deref, DerefMut},
+    rc::Rc,
+};
 
 /// The type of a hint execution result.
 pub type HintExecutionResult = Result<(), HintError>;
@@ -120,116 +125,225 @@ pub fn add_segment_hint() -> Hint {
 }
 
 /// Trait representing a block that can be serialized into a format compatible with Cairo VM.
-pub trait KethBlock {
-    /// Converts the block header to a vector of `MaybeRelocatable` elements.
+pub trait CairoSerializableBlock {
+    /// Converts the block header to a vector of [`MaybeRelocatable`] elements.
     ///
     /// This method serializes the block header into a format that can be used within the Cairo VM.
-    /// The output is a `Vec<MaybeRelocatable>` that represents the fields of the block header.
+    /// The output is a `KethPayload` that represents the fields of the block header.
     ///
     /// # Returns
-    /// A `Vec<MaybeRelocatable>` containing the serialized block header data.
-    fn to_cairo_vm_block_header(&self) -> Vec<MaybeRelocatable>;
+    /// A `KethPayload` containing the serialized block header data.
+    fn to_cairo_vm_block_header(&self) -> KethPayload;
 
-    /// Converts the block body to a vector of `MaybeRelocatable` elements.
+    /// Converts the block body to a vector of [`MaybeRelocatable`] elements.
     ///
     /// This method serializes the block body, including transactions, into a format compatible with
-    /// the Cairo VM. Each transaction is encoded and transformed into `MaybeRelocatable` elements.
+    /// the Cairo VM. Each transaction is encoded and transformed into [`MaybeRelocatable`]
+    /// elements.
     ///
     /// # Returns
-    /// A `Vec<MaybeRelocatable>` containing the serialized block body data, including transactions.
-    fn to_cairo_vm_block_body(&self) -> Vec<MaybeRelocatable>;
+    /// A `KethPayload` containing the serialized block body data, including transactions.
+    fn to_cairo_vm_block_body(&self) -> KethPayload;
 
-    /// Converts the entire block (header and body) into a single vector of `MaybeRelocatable`
+    /// Converts the entire block (header and body) into a single vector of [`MaybeRelocatable`]
     /// elements.
     ///
     /// This method combines the serialized block header and block body into one
-    /// `Vec<MaybeRelocatable>` to represent the full block in a format usable by the Cairo VM.
+    /// `KethPayload` to represent the full block in a format usable by the Cairo VM.
     ///
     /// # Returns
-    /// A `Vec<MaybeRelocatable>` containing the serialized block header and body data.
-    fn to_cairo_vm_block(&self) -> Vec<MaybeRelocatable> {
-        [self.to_cairo_vm_block_header(), self.to_cairo_vm_block_body()].concat()
+    /// A `KethPayload` containing the serialized block header and body data.
+    fn to_cairo_vm_block(&self) -> KethPayload {
+        let mut block = self.to_cairo_vm_block_header();
+        block.0.extend(self.to_cairo_vm_block_body().0);
+        block
     }
 }
 
-impl KethBlock for SealedBlock {
-    fn to_cairo_vm_block_header(&self) -> Vec<MaybeRelocatable> {
+/// A wrapper around a vector of [`MaybeRelocatable`] elements to represent a serialized block.
+#[derive(Debug)]
+pub struct KethPayload(Vec<MaybeRelocatable>);
+
+impl KethPayload {
+    fn from_iter<I>(iter: I) -> Self
+    where
+        I: IntoIterator<Item = MaybeRelocatable>,
+    {
+        Self(iter.into_iter().collect())
+    }
+}
+
+impl Deref for KethPayload {
+    type Target = Vec<MaybeRelocatable>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for KethPayload {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl From<Vec<MaybeRelocatable>> for KethPayload {
+    fn from(value: Vec<MaybeRelocatable>) -> Self {
+        Self(value)
+    }
+}
+
+impl From<MaybeRelocatable> for KethPayload {
+    fn from(value: MaybeRelocatable) -> Self {
+        vec![value].into()
+    }
+}
+
+impl From<u64> for KethPayload {
+    fn from(value: u64) -> Self {
+        MaybeRelocatable::from(Felt252::from(value)).into()
+    }
+}
+
+impl From<Option<u64>> for KethPayload {
+    fn from(value: Option<u64>) -> Self {
+        MaybeRelocatable::from(Felt252::from(value.unwrap_or_default())).into()
+    }
+}
+
+impl From<usize> for KethPayload {
+    fn from(value: usize) -> Self {
+        MaybeRelocatable::from(Felt252::from(value)).into()
+    }
+}
+
+impl From<Bloom> for KethPayload {
+    fn from(value: Bloom) -> Self {
+        vec![
+            MaybeRelocatable::from(Felt252::from(value.len())),
+            MaybeRelocatable::from(Felt252::from_bytes_be_slice(&value.0 .0)),
+        ]
+        .into()
+    }
+}
+
+impl From<Address> for KethPayload {
+    fn from(value: Address) -> Self {
+        MaybeRelocatable::from(Felt252::from_bytes_be_slice(&value.0 .0)).into()
+    }
+}
+
+impl From<U256> for KethPayload {
+    fn from(value: U256) -> Self {
+        MaybeRelocatable::from(Felt252::from_bytes_be_slice(
+            &value.to_be_bytes::<{ U256::BYTES }>(),
+        ))
+        .into()
+    }
+}
+
+impl From<Bytes> for KethPayload {
+    fn from(value: Bytes) -> Self {
+        vec![
+            MaybeRelocatable::from(Felt252::from(value.len())),
+            MaybeRelocatable::from(Felt252::from_bytes_be_slice(&value.0)),
+        ]
+        .into()
+    }
+}
+
+impl From<Vec<u8>> for KethPayload {
+    fn from(value: Vec<u8>) -> Self {
+        vec![
+            MaybeRelocatable::from(Felt252::from(value.len())),
+            MaybeRelocatable::from(Felt252::from_bytes_be_slice(&value)),
+        ]
+        .into()
+    }
+}
+
+impl From<B256> for KethPayload {
+    fn from(value: B256) -> Self {
+        vec![
+            MaybeRelocatable::from(Felt252::from_bytes_be_slice(&value.0[16..])),
+            MaybeRelocatable::from(Felt252::from_bytes_be_slice(&value.0[0..16])),
+        ]
+        .into()
+    }
+}
+
+impl From<Option<B256>> for KethPayload {
+    fn from(value: Option<B256>) -> Self {
+        value.unwrap_or_default().into()
+    }
+}
+
+impl From<Signature> for KethPayload {
+    fn from(value: Signature) -> Self {
+        vec![
+            // The length of the signature payload
+            MaybeRelocatable::from(Felt252::from(value.payload_len())),
+            // The signature payload
+            MaybeRelocatable::from(Felt252::from_bytes_be_slice(&value.to_bytes())),
+        ]
+        .into()
+    }
+}
+
+impl CairoSerializableBlock for SealedBlock {
+    fn to_cairo_vm_block_header(&self) -> KethPayload {
         // Get the header from the block
         let header = &self.header;
 
-        // Serialize the header fields into `MaybeRelocatable` elements
-        vec![
-            MaybeRelocatable::from(Felt252::from(header.base_fee_per_gas.unwrap_or_default())),
-            MaybeRelocatable::from(Felt252::from(header.blob_gas_used.unwrap_or_default())),
-            MaybeRelocatable::from(Felt252::from(header.logs_bloom.len())),
-            MaybeRelocatable::from(Felt252::from_bytes_be_slice(&header.logs_bloom.0 .0)),
-            MaybeRelocatable::from(Felt252::from_bytes_be_slice(&header.beneficiary.0 .0)),
-            MaybeRelocatable::from(Felt252::from_bytes_be_slice(
-                &header.difficulty.to_be_bytes::<{ U256::BYTES }>(),
-            )),
-            MaybeRelocatable::from(Felt252::from(header.excess_blob_gas.unwrap_or_default())),
-            MaybeRelocatable::from(Felt252::from(header.extra_data.len())),
-            MaybeRelocatable::from(Felt252::from_bytes_be_slice(&header.extra_data.0)),
-            MaybeRelocatable::from(Felt252::from(header.gas_limit)),
-            MaybeRelocatable::from(Felt252::from(header.gas_used)),
-            MaybeRelocatable::from(Felt252::from_bytes_be_slice(&header.hash().0[16..])),
-            MaybeRelocatable::from(Felt252::from_bytes_be_slice(&header.hash().0[0..16])),
-            MaybeRelocatable::from(Felt252::from_bytes_be_slice(&header.mix_hash.0[16..])),
-            MaybeRelocatable::from(Felt252::from_bytes_be_slice(&header.mix_hash.0[0..16])),
-            MaybeRelocatable::from(Felt252::from(header.nonce)),
-            MaybeRelocatable::from(Felt252::from(header.number)),
-            MaybeRelocatable::from(Felt252::from_bytes_be_slice(
-                &header.parent_beacon_block_root.unwrap_or_default().0[16..],
-            )),
-            MaybeRelocatable::from(Felt252::from_bytes_be_slice(
-                &header.parent_beacon_block_root.unwrap_or_default().0[0..16],
-            )),
-            MaybeRelocatable::from(Felt252::from_bytes_be_slice(&header.parent_hash.0[16..])),
-            MaybeRelocatable::from(Felt252::from_bytes_be_slice(&header.parent_hash.0[0..16])),
-            MaybeRelocatable::from(Felt252::from_bytes_be_slice(&header.receipts_root.0[16..])),
-            MaybeRelocatable::from(Felt252::from_bytes_be_slice(&header.receipts_root.0[0..16])),
-            MaybeRelocatable::from(Felt252::from_bytes_be_slice(&header.state_root.0[16..])),
-            MaybeRelocatable::from(Felt252::from_bytes_be_slice(&header.state_root.0[0..16])),
-            MaybeRelocatable::from(Felt252::from(header.timestamp)),
-            MaybeRelocatable::from(Felt252::from_bytes_be_slice(&header.transactions_root.0[16..])),
-            MaybeRelocatable::from(Felt252::from_bytes_be_slice(
-                &header.transactions_root.0[0..16],
-            )),
-            MaybeRelocatable::from(Felt252::from_bytes_be_slice(&header.ommers_hash.0[16..])),
-            MaybeRelocatable::from(Felt252::from_bytes_be_slice(&header.ommers_hash.0[0..16])),
-            MaybeRelocatable::from(Felt252::from_bytes_be_slice(
-                &header.withdrawals_root.unwrap_or_default().0[16..],
-            )),
-            MaybeRelocatable::from(Felt252::from_bytes_be_slice(
-                &header.withdrawals_root.unwrap_or_default().0[0..16],
-            )),
-        ]
+        // Serialize the header fields into [`MaybeRelocatable`] elements
+        let serialized_header: Vec<KethPayload> = vec![
+            header.base_fee_per_gas.into(),
+            header.blob_gas_used.into(),
+            header.logs_bloom.into(),
+            header.beneficiary.into(),
+            header.difficulty.into(),
+            header.excess_blob_gas.into(),
+            header.extra_data.clone().into(),
+            header.gas_limit.into(),
+            header.gas_used.into(),
+            header.hash().into(),
+            header.mix_hash.into(),
+            header.nonce.into(),
+            header.number.into(),
+            header.parent_beacon_block_root.into(),
+            header.parent_hash.into(),
+            header.receipts_root.into(),
+            header.state_root.into(),
+            header.timestamp.into(),
+            header.transactions_root.into(),
+            header.ommers_hash.into(),
+            header.withdrawals_root.into(),
+        ];
+
+        // Flatten the serialized header into a single vector
+        KethPayload::from_iter(serialized_header.into_iter().flat_map(|field| field.0))
     }
 
-    fn to_cairo_vm_block_body(&self) -> Vec<MaybeRelocatable> {
+    fn to_cairo_vm_block_body(&self) -> KethPayload {
         // The first element is the length of the body (number of transactions)
-        let mut block_body = vec![MaybeRelocatable::from(Felt252::from(self.body.len()))];
+        let mut block_body: Vec<KethPayload> = vec![self.body.len().into()];
 
         self.body.iter().for_each(|transaction| {
             // RLP encode the transaction
             let mut buf = Vec::new();
             transaction.encode_without_signature(&mut buf);
-
-            block_body.extend([
-                // The length of the RLP encoded transaction
-                MaybeRelocatable::from(Felt252::from(buf.len())),
-                // The RLP encoded transaction
-                MaybeRelocatable::from(Felt252::from_bytes_be_slice(&buf)),
-                // The length of the signature payload
-                MaybeRelocatable::from(Felt252::from(transaction.signature.payload_len())),
-                // The signature payload
-                MaybeRelocatable::from(Felt252::from_bytes_be_slice(
-                    &transaction.signature.to_bytes(),
-                )),
-            ]);
+            // Add the transaction and its signature to the block body
+            block_body.extend([buf.into(), transaction.signature.into()]);
         });
 
-        block_body
+        // Flatten the serialized block body into a single vector
+        KethPayload::from_iter(block_body.into_iter().flat_map(|field| field.0))
+    }
+}
+
+impl From<SealedBlock> for KethPayload {
+    fn from(block: SealedBlock) -> Self {
+        block.to_cairo_vm_block()
     }
 }
 
@@ -244,7 +358,7 @@ pub fn block_hint(block: SealedBlock) -> Hint {
               -> HintExecutionResult {
             // This call will first add a new memory segment to the VM (the base)
             // Then we load the block into the VM starting from the base
-            vm.gen_arg(&block.to_cairo_vm_block())?;
+            vm.gen_arg(&Into::<KethPayload>::into(block.clone()).0)?;
 
             Ok(())
         },
