@@ -6,7 +6,7 @@ from starkware.cairo.common.cairo_builtins import HashBuiltin
 from src.model import model
 
 func get_block() -> model.Block* {
-    tempvar block = cast(nondet %{ segments.add() %}, model.Block*);
+    tempvar block: model.Block*;
     %{ block %}
     return block;
 }
