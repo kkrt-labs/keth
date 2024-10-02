@@ -30,6 +30,8 @@ impl KethMaybeRelocatable {
     /// # Examples
     ///
     /// ```
+    /// use kakarot_exex::model::KethMaybeRelocatable;
+    ///
     /// let zero_value = KethMaybeRelocatable::zero();
     /// ```
     pub fn zero() -> Self {
@@ -44,6 +46,8 @@ impl KethMaybeRelocatable {
     /// # Examples
     ///
     /// ```
+    /// use kakarot_exex::model::KethMaybeRelocatable;
+    ///
     /// let one_value = KethMaybeRelocatable::one();
     /// ```
     pub fn one() -> Self {
