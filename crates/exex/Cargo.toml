@@ -41,3 +41,4 @@ futures = { workspace = true }
 [dev-dependencies]
 reth-exex-test-utils = { workspace = true }
 reth-testing-utils = { workspace = true }
+proptest = { workspace = true }
