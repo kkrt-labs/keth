@@ -67,8 +67,9 @@ impl From<u64> for KethMaybeRelocatable {
     }
 }
 
-/// [`KethOption`] is a custom representation of a Rust [`Option<u64>`] type, specifically tailored
-/// for use within the Keth model inside our OS.
+/// [`KethOption`] is a custom representation of a Rust [`Option<T>`] type where `T` can be
+/// converted into [`KethMaybeRelocatable`], specifically tailored for use within the Keth model
+/// inside our OS.
 ///
 /// This struct encapsulates two fields:
 /// - `is_some`: A flag that indicates whether the option contains a value (`is_some = 1`) or is
@@ -97,8 +98,11 @@ impl Default for KethOption {
     }
 }
 
-impl From<Option<u64>> for KethOption {
-    fn from(value: Option<u64>) -> Self {
+impl<T> From<Option<T>> for KethOption
+where
+    T: Into<KethMaybeRelocatable>,
+{
+    fn from(value: Option<T>) -> Self {
         match value {
             Some(value) => KethOption { is_some: Felt252::ONE.into(), value: value.into() },
             None => KethOption::default(),
@@ -175,7 +179,8 @@ mod tests {
 
     #[test]
     fn test_keth_option_none() {
-        let keth_option = KethOption::from(None);
+        let value: Option<u64> = None;
+        let keth_option = KethOption::from(value);
         assert_eq!(keth_option.is_some.0, MaybeRelocatable::from(Felt252::ZERO));
         assert_eq!(keth_option.value.0, MaybeRelocatable::from(Felt252::ZERO));
         assert_eq!(keth_option.to_option_u64(), None);
