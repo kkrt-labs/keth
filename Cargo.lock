@@ -3366,6 +3366,7 @@ dependencies = [
  "futures",
  "kakarot-pool",
  "once_cell",
+ "proptest",
  "reth",
  "reth-chainspec",
  "reth-ethereum-engine-primitives",

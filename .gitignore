@@ -27,3 +27,6 @@ coverage
 .hypothesis
 cairo/tests/ef_tests/test_data
 !cairo/tests/ef_tests/test_data/.gitkeep
+
+# Ignore proptest regression files
+**/proptest-regressions/*
