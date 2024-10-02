@@ -1,4 +1,5 @@
 use cairo_vm::{types::relocatable::MaybeRelocatable, Felt252};
+use reth_primitives::B256;
 use serde::{Deserialize, Serialize};
 
 /// A custom wrapper around [`MaybeRelocatable`] for the Keth execution environment.
@@ -53,6 +54,31 @@ impl KethMaybeRelocatable {
     pub fn one() -> Self {
         Self(Felt252::ONE.into())
     }
+
+    /// Creates a [`KethMaybeRelocatable`] instance from a byte slice in big-endian order.
+    ///
+    /// This method takes a byte slice and converts it into a [`KethMaybeRelocatable`]
+    /// by interpreting the bytes as a [`Felt252`] value in big-endian format.
+    ///
+    /// # Parameters
+    ///
+    /// - `bytes`: A slice of bytes that represents a big-endian encoded value.
+    ///
+    /// # Returns
+    ///
+    /// Returns an instance of [`KethMaybeRelocatable`] that corresponds to the given byte slice.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use kakarot_exex::model::KethMaybeRelocatable;
+    ///
+    /// let bytes: &[u8] = &[0x00, 0x01, 0x02, 0x03]; // Example big-endian byte array
+    /// let keth_value = KethMaybeRelocatable::from_bytes_be_slice(bytes);
+    /// ```
+    pub fn from_bytes_be_slice(bytes: &[u8]) -> Self {
+        Felt252::from_bytes_be_slice(bytes).into()
+    }
 }
 
 impl From<Felt252> for KethMaybeRelocatable {
@@ -68,37 +94,43 @@ impl From<u64> for KethMaybeRelocatable {
 }
 
 /// [`KethOption`] is a custom representation of a Rust [`Option<T>`] type where `T` can be
-/// converted into [`KethMaybeRelocatable`], specifically tailored for use within the Keth model
-/// inside our OS.
+/// any type, such as [`KethMaybeRelocatable`] or [`KethU256`], specifically tailored for use
+/// within the Keth model inside our OS.
 ///
 /// This struct encapsulates two fields:
 /// - `is_some`: A flag that indicates whether the option contains a value (`is_some = 1`) or is
 ///   empty (`is_some = 0`).
-/// - `value`: The actual value of the option, represented as a [`KethMaybeRelocatable`].
+/// - `value`: The actual value of the option, which can be of any type `T`.
 ///
-/// When the option is [`None`], the `value` field is assigned a default zero value. This struct
+/// When the option is [`None`], the `value` field is assigned a default value. This struct
 /// provides a way to handle optional values in a manner consistent with the Keth model's memory
 /// representation.
 #[derive(Debug, Eq, Ord, Hash, PartialEq, PartialOrd, Clone, Serialize, Deserialize)]
-pub struct KethOption {
+pub struct KethOption<T> {
     /// Indicates whether the option contains a value ([`Some`]) or is empty ([`None`]).
     /// - When set to `1`, it indicates the presence of a value.
     /// - When set to `0`, it represents a [`None`] value.
     is_some: KethMaybeRelocatable,
 
-    /// The value stored in the option, wrapped inside [`KethMaybeRelocatable`].
+    /// The value stored in the option, which can be of type `T`.
     ///
-    /// If the option is [`None`], this field holds a zero value.
-    value: KethMaybeRelocatable,
+    /// If the option is [`None`], this field holds a default value.
+    value: T,
 }
 
-impl Default for KethOption {
+impl Default for KethOption<KethMaybeRelocatable> {
     fn default() -> Self {
         Self { is_some: KethMaybeRelocatable::zero(), value: KethMaybeRelocatable::zero() }
     }
 }
 
-impl<T> From<Option<T>> for KethOption
+impl Default for KethOption<KethU256> {
+    fn default() -> Self {
+        Self { is_some: KethMaybeRelocatable::zero(), value: KethU256::zero() }
+    }
+}
+
+impl<T> From<Option<T>> for KethOption<KethMaybeRelocatable>
 where
     T: Into<KethMaybeRelocatable>,
 {
@@ -110,11 +142,58 @@ where
     }
 }
 
-// TODO: uncomment this in follow-up PRs
-// pub struct KethU256 {
-//     low: KethMaybeRelocatable,
-//     high: KethMaybeRelocatable,
-// }
+impl<T> From<Option<T>> for KethOption<KethU256>
+where
+    T: Into<KethU256>,
+{
+    fn from(value: Option<T>) -> Self {
+        match value {
+            Some(value) => KethOption { is_some: Felt252::ONE.into(), value: value.into() },
+            None => KethOption::default(),
+        }
+    }
+}
+
+/// [`KethU256`] represents a 256-bit unsigned integer used within the Keth model.
+///
+/// This struct is designed to encapsulate two components of a 256-bit number:
+/// - `low`: Represents the lower 128 bits of the 256-bit integer, stored as a
+///   [`KethMaybeRelocatable`] type.
+/// - `high`: Represents the upper 128 bits of the 256-bit integer, also stored as a
+///   [`KethMaybeRelocatable`].
+#[derive(Debug, Eq, Ord, Hash, PartialEq, PartialOrd, Clone, Serialize, Deserialize)]
+pub struct KethU256 {
+    /// The lower 128 bits of the 256-bit unsigned integer.
+    ///
+    /// This field is represented as a [`KethMaybeRelocatable`] type.
+    low: KethMaybeRelocatable,
+
+    /// The upper 128 bits of the 256-bit unsigned integer.
+    ///
+    /// Like the `low` field, this is stored as a [`KethMaybeRelocatable`].
+    high: KethMaybeRelocatable,
+}
+
+impl Default for KethU256 {
+    fn default() -> Self {
+        Self::zero()
+    }
+}
+
+impl KethU256 {
+    pub fn zero() -> Self {
+        Self { low: KethMaybeRelocatable::zero(), high: KethMaybeRelocatable::zero() }
+    }
+}
+
+impl From<B256> for KethU256 {
+    fn from(value: B256) -> Self {
+        Self {
+            low: KethMaybeRelocatable::from_bytes_be_slice(&value.0[16..]),
+            high: KethMaybeRelocatable::from_bytes_be_slice(&value.0[0..16]),
+        }
+    }
+}
 
 // TODO: uncomment this in follow-up PRs
 // pub struct KethBlockHeader {
@@ -148,7 +227,7 @@ mod tests {
     use super::*;
     use proptest::prelude::*;
 
-    impl KethOption {
+    impl KethOption<KethMaybeRelocatable> {
         /// Helper function to convert KethOption to Option<u64>
         fn to_option_u64(&self) -> Option<u64> {
             if self.is_some.0 == MaybeRelocatable::from(Felt252::ONE) {
@@ -163,6 +242,32 @@ mod tests {
         }
     }
 
+    impl KethOption<KethU256> {
+        /// Helper function to convert KethOption to Option<B256>
+        fn to_option_b256(&self) -> Option<B256> {
+            if self.is_some.0 == MaybeRelocatable::from(Felt252::ONE) {
+                // Convert value back to B256 if present
+                Some(self.value.to_b256())
+            } else {
+                None
+            }
+        }
+    }
+
+    impl KethU256 {
+        /// Convert KethU256 back to B256.
+        fn to_b256(&self) -> B256 {
+            let high_bytes = self.high.0.get_int().unwrap().to_bytes_be();
+            let low_bytes = self.low.0.get_int().unwrap().to_bytes_be();
+            let bytes = [
+                &high_bytes[16..], // Get the high 16 bytes
+                &low_bytes[16..],  // Get the low 16 bytes
+            ]
+            .concat();
+            B256::from_slice(&bytes)
+        }
+    }
+
     proptest! {
         #[test]
         fn test_option_u64_to_keth_option_roundtrip(opt_value in proptest::option::of(any::<u64>())) {
@@ -171,6 +276,30 @@ mod tests {
 
             // Convert back to Option<u64>
             let roundtrip_value = keth_option.to_option_u64();
+
+            // Assert roundtrip conversion is equal to original value
+            prop_assert_eq!(roundtrip_value, opt_value);
+        }
+
+        #[test]
+        fn test_b256_to_keth_u256_roundtrip(b256_value in any::<B256>()) {
+            // Convert B256 to KethU256
+            let keth_u256 = KethU256::from(b256_value);
+
+            // Convert back to B256
+            let roundtrip_value = keth_u256.to_b256();
+
+            // Assert roundtrip conversion is equal to original value
+            prop_assert_eq!(roundtrip_value, b256_value);
+        }
+
+        #[test]
+        fn test_option_b256_to_keth_option_roundtrip(opt_value in proptest::option::of(any::<B256>())) {
+            // Convert Option<B256> to KethOption
+            let keth_option = KethOption::from(opt_value);
+
+            // Convert back to Option<B256>
+            let roundtrip_value = keth_option.to_option_b256();
 
             // Assert roundtrip conversion is equal to original value
             prop_assert_eq!(roundtrip_value, opt_value);
@@ -193,5 +322,23 @@ mod tests {
         assert_eq!(keth_option.is_some.0, MaybeRelocatable::from(Felt252::ONE));
         assert_eq!(keth_option.value.0, MaybeRelocatable::from(Felt252::from(value)));
         assert_eq!(keth_option.to_option_u64(), Some(value));
+    }
+
+    #[test]
+    fn test_keth_u256_low_high() {
+        let b256_value = B256::from([1u8; 32]); // Sample value
+        let keth_u256 = KethU256::from(b256_value);
+
+        // Verify that converting back to B256 gives the original B256
+        assert_eq!(keth_u256.to_b256(), b256_value);
+    }
+
+    #[test]
+    fn test_keth_u256_zero() {
+        let b256_value = B256::ZERO; // All bytes are zero
+        let keth_u256 = KethU256::from(b256_value);
+
+        // Verify that converting back to B256 gives the original B256
+        assert_eq!(keth_u256.to_b256(), b256_value);
     }
 }
