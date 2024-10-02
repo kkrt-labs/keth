@@ -11,7 +11,6 @@ from starkware.cairo.common.memcpy import memcpy
 from src.model import model
 from src.state import State, Internals
 from src.account import Account
-from src.utils.dict import dict_keys
 
 func test__init__should_return_state_with_default_dicts() {
     // When

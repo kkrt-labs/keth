@@ -4,7 +4,7 @@ from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.memcpy import memcpy
 
 from src.model import model
-from src.utils.eth_transaction import Transaction
+from src.utils.transaction import Transaction
 from src.utils.rlp import RLP
 
 func test__decode{bitwise_ptr: BitwiseBuiltin*, range_check_ptr}() -> model.Transaction* {
