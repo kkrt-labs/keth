@@ -1,5 +1,5 @@
 use cairo_vm::{types::relocatable::MaybeRelocatable, Felt252};
-use reth_primitives::B256;
+use reth_primitives::{Address, B256};
 use serde::{Deserialize, Serialize};
 
 /// A custom wrapper around [`MaybeRelocatable`] for the Keth execution environment.
@@ -90,6 +90,12 @@ impl From<Felt252> for KethMaybeRelocatable {
 impl From<u64> for KethMaybeRelocatable {
     fn from(value: u64) -> Self {
         Self(Felt252::from(value).into())
+    }
+}
+
+impl From<Address> for KethMaybeRelocatable {
+    fn from(value: Address) -> Self {
+        Self::from_bytes_be_slice(&value.0 .0)
     }
 }
 
@@ -268,6 +274,15 @@ mod tests {
         }
     }
 
+    impl KethMaybeRelocatable {
+        fn to_address(&self) -> Address {
+            // Get the bytes in big-endian order
+            let bytes = self.0.get_int().unwrap().to_bytes_be();
+            // Extract the last 20 bytes to get the address
+            Address::from_slice(&bytes[bytes.len() - Address::len_bytes()..])
+        }
+    }
+
     proptest! {
         #[test]
         fn test_option_u64_to_keth_option_roundtrip(opt_value in proptest::option::of(any::<u64>())) {
@@ -304,6 +319,21 @@ mod tests {
             // Assert roundtrip conversion is equal to original value
             prop_assert_eq!(roundtrip_value, opt_value);
         }
+
+        #[test]
+    fn test_address_to_keth_maybe_relocatable_roundtrip(address_bytes in any::<[u8; 20]>()) {
+        // Create a random address
+        let address = Address::new(address_bytes);
+
+        // Convert to KethMaybeRelocatable
+        let keth_maybe_relocatable = KethMaybeRelocatable::from(address);
+
+        // Convert back to Address
+        let roundtrip_address = keth_maybe_relocatable.to_address();
+
+        // Assert roundtrip conversion is equal to original value
+        prop_assert_eq!(roundtrip_address, address);
+    }
     }
 
     #[test]
@@ -340,5 +370,26 @@ mod tests {
 
         // Verify that converting back to B256 gives the original B256
         assert_eq!(keth_u256.to_b256(), b256_value);
+    }
+
+    #[test]
+    fn test_address_to_keth_maybe_relocatable_conversion() {
+        let address = Address::new([1u8; 20]); // Example address with value [1u8; 20]
+        let keth_maybe_relocatable = KethMaybeRelocatable::from(address);
+        assert_eq!(keth_maybe_relocatable.to_address(), address);
+    }
+
+    #[test]
+    fn test_address_to_keth_maybe_relocatable_zero_address() {
+        let address = Address::new([0u8; 20]); // Address with all bytes set to zero
+        let keth_maybe_relocatable = KethMaybeRelocatable::from(address);
+        assert_eq!(keth_maybe_relocatable.to_address(), address);
+    }
+
+    #[test]
+    fn test_address_to_keth_maybe_relocatable_max_address() {
+        let address = Address::new([255u8; 20]); // Max possible value for each byte
+        let keth_maybe_relocatable = KethMaybeRelocatable::from(address);
+        assert_eq!(keth_maybe_relocatable.to_address(), address);
     }
 }
