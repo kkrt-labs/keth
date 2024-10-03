@@ -1,6 +1,6 @@
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bool import TRUE, FALSE
-from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin
+from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin, KeccakBuiltin
 from starkware.cairo.common.math import split_felt
 from starkware.cairo.common.math_cmp import is_nn, is_not_zero
 from starkware.cairo.common.uint256 import Uint256, uint256_lt, uint256_le
@@ -1034,7 +1034,7 @@ namespace CreateHelper {
     // @param nonce The nonce given to the create opcode.
     // @return EVM The pointer to the updated calling context.
     func get_create_address{
-        pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*
+        range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*
     }(sender_address: felt, nonce: felt) -> (evm_contract_address: felt) {
         alloc_locals;
         local message_len;

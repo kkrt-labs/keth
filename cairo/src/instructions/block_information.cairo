@@ -160,7 +160,7 @@ namespace Internals {
             return ();
         }
 
-        let (blockhash) = ICairo1Helpers.get_block_hash(implementation, block_number.low);
+        let (blockhash) = ICairo1Helpers.get_block_hash(block_number.low);
         let (blockhash_high, blockhash_low) = split_felt(blockhash);
         Stack.push_uint256(Uint256(low=blockhash_low, high=blockhash_high));
         return ();
