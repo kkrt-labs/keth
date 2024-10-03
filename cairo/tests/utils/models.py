@@ -1,5 +1,6 @@
 from collections import defaultdict
 from itertools import chain
+from textwrap import wrap
 from typing import Annotated, DefaultDict, Tuple, Union
 
 from eth_utils import keccak
@@ -13,7 +14,7 @@ from pydantic import (
     field_validator,
     model_validator,
 )
-from pydantic.alias_generators import to_camel
+from pydantic.alias_generators import to_camel, to_snake
 from starkware.cairo.lang.vm.crypto import pedersen_hash
 
 from src.utils.uint256 import int_to_uint256
@@ -41,38 +42,29 @@ class BaseModelIterValuesOnly(BaseModel):
 
 class BlockHeader(BaseModelIterValuesOnly):
     @field_validator(
-        "base_fee_per_gas",
-        "blob_gas_used",
         "coinbase",
-        "difficulty",
-        "excess_blob_gas",
+        "number",
         "gas_limit",
         "gas_used",
-        "nonce",
-        "number",
         "timestamp",
+        "nonce",
         mode="before",
     )
     def parse_hex_to_int(cls, v):
         return to_int(v)
 
-    @field_validator("extra_data", "bloom", mode="before")
-    def parse_hex_to_bytes(cls, v):
-        return to_bytes(v)
-
     @model_validator(mode="before")
     def split_uint256(cls, values):
         values = values.copy()
         for key in [
-            "hash",
-            "mix_hash",
-            "parent_beacon_block_root",
             "parent_hash",
-            "receipt_trie",
+            "uncle_hash",
             "state_root",
             "transactions_trie",
-            "uncle_hash",
+            "receipt_trie",
             "withdrawals_root",
+            "difficulty",
+            "mix_hash",
         ]:
             if key not in values:
                 key = to_camel(key)
@@ -85,51 +77,86 @@ class BlockHeader(BaseModelIterValuesOnly):
         return values
 
     @model_validator(mode="before")
-    def add_len_to_bytes(cls, values):
+    def split_option(cls, values):
         values = values.copy()
-        for key in ["bloom", "extra_data"]:
+        for key in [
+            "base_fee_per_gas",
+            "blob_gas_used",
+            "excess_blob_gas",
+            "parent_beacon_block_root",
+            "requests_root",
+        ]:
+            if key not in values:
+                key = to_camel(key)
+            is_some = key in values
+            value = to_int(values.get(key, 0))
+            values[to_camel(key) + "IsSome"] = is_some
+            value_type = cls.model_fields[to_snake(key) + "_value"].annotation
+            values[to_camel(key) + "Value"] = (
+                int_to_uint256(value) if value_type == Tuple[int, int] else value
+            )
+        return values
+
+    @model_validator(mode="before")
+    def add_len_to_extra_data(cls, values):
+        values = values.copy()
+        for key in ["extra_data"]:
             if key not in values:
                 key = to_camel(key)
             if key not in values:
                 continue
 
             value = to_bytes(values[key])
+            if value is None:
+                continue
             values[key] = value
             values[to_camel(key) + "Len"] = len(value)
         return values
 
-    base_fee_per_gas: int
-    blob_gas_used: int
-    bloom_len: int
-    bloom: bytes
+    @field_validator("bloom", mode="before")
+    def parse_bloom(cls, v):
+        bloom = to_bytes(v)
+        if bloom is None:
+            raise ValueError("Bloom cannot be empty")
+        if len(bloom) != 256:
+            raise ValueError("Bloom must be 256 bytes")
+        return tuple(int(chunk) for chunk in wrap(bloom.hex(), 32))
+
+    parent_hash_low: int
+    parent_hash_high: int
+    uncle_hash_low: int
+    uncle_hash_high: int
     coinbase: int
-    difficulty: int
-    excess_blob_gas: int
-    extra_data_len: int
-    extra_data: bytes
+    state_root_low: int
+    state_root_high: int
+    transactions_trie_low: int
+    transactions_trie_high: int
+    receipt_trie_low: int
+    receipt_trie_high: int
+    withdrawals_root_low: int
+    withdrawals_root_high: int
+    bloom: Tuple[int, ...]
+    difficulty_low: int
+    difficulty_high: int
+    number: int
     gas_limit: int
     gas_used: int
-    hash_low: int
-    hash_high: int
+    timestamp: int
     mix_hash_low: int
     mix_hash_high: int
     nonce: int
-    number: int
-    parent_beacon_block_root_low: int
-    parent_beacon_block_root_high: int
-    parent_hash_low: int
-    parent_hash_high: int
-    receipt_trie_low: int
-    receipt_trie_high: int
-    state_root_low: int
-    state_root_high: int
-    timestamp: int
-    transactions_trie_low: int
-    transactions_trie_high: int
-    uncle_hash_low: int
-    uncle_hash_high: int
-    withdrawals_root_low: int
-    withdrawals_root_high: int
+    base_fee_per_gas_is_some: bool
+    base_fee_per_gas_value: int
+    blob_gas_used_is_some: bool
+    blob_gas_used_value: int
+    excess_blob_gas_is_some: bool
+    excess_blob_gas_value: int
+    parent_beacon_block_root_is_some: bool
+    parent_beacon_block_root_value: Tuple[int, int]
+    requests_root_is_some: bool
+    requests_root_value: Tuple[int, int]
+    extra_data_len: int
+    extra_data: bytes
 
 
 class TransactionEncoded(BaseModelIterValuesOnly):

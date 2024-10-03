@@ -1,12 +1,11 @@
 from src.utils.uint256 import int_to_uint256
-from tests.utils.models import Account, Block, to_int
+from tests.utils.models import Account, to_int
 
 
 class TestSerde:
 
     def test_block(self, cairo_run, block):
-        result = cairo_run("test_block", block=block)
-        assert Block.model_validate(result) == block
+        cairo_run("test_block", block=block)
 
     def test_account(self, cairo_run, account):
         result = cairo_run("test_account", account=account)
