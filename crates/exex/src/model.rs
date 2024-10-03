@@ -223,12 +223,15 @@ impl From<U256> for KethU256 {
 /// It efficiently stores 256-bit values and provides an interface for converting data structures
 /// into a compatible format.
 #[derive(Debug, Default, Eq, Ord, Hash, PartialEq, PartialOrd, Clone, Serialize, Deserialize)]
-pub struct KethData {
+pub struct KethPointer {
     /// The length of the data to be stored.
     len: KethMaybeRelocatable,
 
     /// A vector holding the main data, represented as [`KethU256`] values.
-    data: Vec<KethU256>,
+    data: Vec<KethMaybeRelocatable>,
+    
+    /// The size of the underlying Cairo struct (see `.SIZE`)
+    type_size: usize
 }
 
 impl From<Bloom> for KethData {
