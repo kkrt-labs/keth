@@ -263,11 +263,7 @@ impl From<Bloom> for KethPointer {
             // The length of the Bloom filter.
             len: value.len().into(),
             // Chunk the 256-byte array into groups of 16 bytes and convert.
-            data: value
-                .0
-                .chunks(16)
-                .map(|bytes| KethMaybeRelocatable::from_bytes_be_slice(bytes))
-                .collect(),
+            data: value.0.chunks(16).map(KethMaybeRelocatable::from_bytes_be_slice).collect(),
             // In Cairo, Bloom is a pointer to a segment of felts.
             type_size: 1,
         }
