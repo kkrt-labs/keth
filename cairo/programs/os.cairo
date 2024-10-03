@@ -40,6 +40,11 @@ func main{
     // TODO: Loop through transactions and apply them to the initial state
 
     let header = block.block_header;
+    assert [range_check_ptr] = header.gas_limit;
+    assert [range_check_ptr + 1] = header.gas_used;
+    assert [range_check_ptr + 2] = header.base_fee_per_gas;
+    let range_check_ptr = range_check_ptr + 3;
+
     with header, chain_id, state {
         apply_transactions(block.transactions_len, block.transactions);
     }
