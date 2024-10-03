@@ -429,6 +429,10 @@ mod tests {
 
             // Assert roundtrip conversion is equal to original value
             prop_assert_eq!(roundtrip_bloom, bloom);
+            prop_assert_eq!(
+                bloom.len(),
+                keth_maybe_relocatables.0[0].0.get_int().unwrap().to_string().parse::<usize>().unwrap()
+            );
         }
     }
 
@@ -528,6 +532,10 @@ mod tests {
 
         // Verify that converting back gives the original Bloom filter
         assert_eq!(KethMaybeRelocatables::to_bloom(&keth_maybe_relocatables), bloom);
+        assert_eq!(
+            bloom.len(),
+            keth_maybe_relocatables.0[0].0.get_int().unwrap().to_string().parse::<usize>().unwrap()
+        );
     }
 
     #[test]
@@ -539,5 +547,9 @@ mod tests {
 
         // Verify that converting back gives the original Bloom filter
         assert_eq!(KethMaybeRelocatables::to_bloom(&keth_maybe_relocatables), bloom);
+        assert_eq!(
+            bloom.len(),
+            keth_maybe_relocatables.0[0].0.get_int().unwrap().to_string().parse::<usize>().unwrap()
+        );
     }
 }
