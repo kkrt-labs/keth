@@ -528,7 +528,7 @@ mod tests {
         let bloom = Bloom::from_slice(&bloom_bytes);
 
         // Convert to KethMaybeRelocatables
-        let keth_maybe_relocatables = KethMaybeRelocatables::from(bloom.clone());
+        let keth_maybe_relocatables = KethMaybeRelocatables::from(bloom);
 
         // Verify that converting back gives the original Bloom filter
         assert_eq!(KethMaybeRelocatables::to_bloom(&keth_maybe_relocatables), bloom);
