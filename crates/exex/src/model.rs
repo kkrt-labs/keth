@@ -1,5 +1,5 @@
 use cairo_vm::{types::relocatable::MaybeRelocatable, Felt252};
-use reth_primitives::{Address, B256, U256};
+use reth_primitives::{Address, Bloom, B256, U256};
 use serde::{Deserialize, Serialize};
 
 /// A custom wrapper around [`MaybeRelocatable`] for the Keth execution environment.
@@ -87,8 +87,20 @@ impl From<Felt252> for KethMaybeRelocatable {
     }
 }
 
+impl From<u8> for KethMaybeRelocatable {
+    fn from(value: u8) -> Self {
+        Self(Felt252::from(value).into())
+    }
+}
+
 impl From<u64> for KethMaybeRelocatable {
     fn from(value: u64) -> Self {
+        Self(Felt252::from(value).into())
+    }
+}
+
+impl From<usize> for KethMaybeRelocatable {
+    fn from(value: usize) -> Self {
         Self(Felt252::from(value).into())
     }
 }
@@ -203,6 +215,61 @@ impl From<U256> for KethU256 {
     }
 }
 
+/// [`KethPointer`] holds a length field and a vector of [`KethU256`] values to represent complex
+/// data.
+///
+/// This struct is used to represent complex data structures such as Bloom filters or Bytes data in
+/// a format that can be stored and processed by the CairoVM.
+///
+/// It efficiently stores 256-bit values and provides an interface for converting data structures
+/// into a compatible format.
+#[derive(Debug, Eq, Ord, Hash, PartialEq, PartialOrd, Clone, Serialize, Deserialize)]
+pub struct KethPointer {
+    /// The length of the data to be stored.
+    len: KethMaybeRelocatable,
+
+    /// A vector holding the main data, represented as [`KethU256`] values.
+    data: Vec<KethMaybeRelocatable>,
+
+    /// The size of the underlying Cairo struct (see `.SIZE`)
+    ///
+    /// By default, this is set to 1, which is the size of a single felt in Cairo.
+    type_size: usize,
+}
+
+impl Default for KethPointer {
+    fn default() -> Self {
+        Self { len: KethMaybeRelocatable::zero(), data: Vec::new(), type_size: 1 }
+    }
+}
+
+impl From<Bloom> for KethPointer {
+    /// Converts a [`Bloom`] filter into a [`KethPointer`] structure.
+    ///
+    /// The [`Bloom`] filter is represented as a 256-byte array in big-endian order. Since
+    /// CairoVM's [`Felt252`] can only handle values up to 252 bits, we need to break the
+    /// 256-byte array into smaller chunks that fit within this limit.
+    ///
+    /// The conversion process works as follows:
+    /// - The first field (`len`) holds the length of the original data, represented as a
+    ///   [`KethMaybeRelocatable`].
+    /// - The `data` field stores the remaining elements as chunks of 16 bytes each from the Bloom
+    ///   filter, with each chunk converted into a [`KethMaybeRelocatable`].
+    ///
+    /// This process allows the 256-byte Bloom filter to be stored and processed efficiently in the
+    /// `KethPointer` structure, making it compatible with CairoVM's constraints.
+    fn from(value: Bloom) -> Self {
+        Self {
+            // The length of the Bloom filter.
+            len: value.len().into(),
+            // Chunk the 256-byte array into groups of 16 bytes and convert.
+            data: value.0.chunks(16).map(KethMaybeRelocatable::from_bytes_be_slice).collect(),
+            // In Cairo, Bloom is a pointer to a segment of felts.
+            type_size: 1,
+        }
+    }
+}
+
 // TODO: uncomment this in follow-up PRs
 // pub struct KethBlockHeader {
 //     base_fee_per_gas: KethMaybeRelocatable,
@@ -294,6 +361,18 @@ mod tests {
             let bytes = self.0.get_int().unwrap().to_bytes_be();
             // Extract the last 20 bytes to get the address
             Address::from_slice(&bytes[bytes.len() - Address::len_bytes()..])
+        }
+    }
+
+    impl KethPointer {
+        fn to_bloom(keth_maybe_relocatables: &KethPointer) -> Bloom {
+            Bloom::from_slice(
+                &keth_maybe_relocatables
+                    .data
+                    .iter()
+                    .flat_map(|item| item.0.get_int().unwrap().to_bytes_be()[16..].to_vec())
+                    .collect::<Vec<_>>(),
+            )
         }
     }
 
@@ -435,5 +514,56 @@ mod tests {
 
         // Convert back to U256
         assert_eq!(keth_u256.to_u256(), u256_value);
+    }
+
+    #[test]
+    fn test_bloom_to_keth_maybe_relocatable_zero() {
+        let bloom = Bloom::ZERO;
+
+        // Convert to KethPointer
+        let keth_maybe_relocatables = KethPointer::from(bloom);
+
+        // Verify that converting back gives the original Bloom filter
+        assert_eq!(KethPointer::to_bloom(&keth_maybe_relocatables), bloom);
+    }
+
+    #[test]
+    fn test_bloom_to_keth_maybe_relocatable_max() {
+        let bloom_bytes = [255u8; 256]; // Max possible value for each byte
+        let bloom = Bloom::from_slice(&bloom_bytes);
+
+        // Convert to KethPointer
+        let keth_maybe_relocatables = KethPointer::from(bloom);
+
+        // Verify that converting back gives the original Bloom filter
+        assert_eq!(KethPointer::to_bloom(&keth_maybe_relocatables), bloom);
+        assert_eq!(
+            bloom.len(),
+            keth_maybe_relocatables.len.0.get_int().unwrap().to_string().parse::<usize>().unwrap()
+        );
+    }
+
+    #[test]
+    fn test_bloom_to_keth_maybe_relocatable() {
+        for _ in 0..100 {
+            let bloom = Bloom::random();
+
+            // Convert to KethPointer
+            let keth_maybe_relocatables = KethPointer::from(bloom);
+
+            // Verify that converting back gives the original Bloom filter
+            assert_eq!(KethPointer::to_bloom(&keth_maybe_relocatables), bloom);
+            assert_eq!(
+                bloom.len(),
+                keth_maybe_relocatables
+                    .len
+                    .0
+                    .get_int()
+                    .unwrap()
+                    .to_string()
+                    .parse::<usize>()
+                    .unwrap()
+            );
+        }
     }
 }
