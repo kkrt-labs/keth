@@ -1,5 +1,5 @@
 use cairo_vm::{types::relocatable::MaybeRelocatable, Felt252};
-use reth_primitives::{Address, B256};
+use reth_primitives::{Address, B256, U256};
 use serde::{Deserialize, Serialize};
 
 /// A custom wrapper around [`MaybeRelocatable`] for the Keth execution environment.
@@ -136,25 +136,14 @@ impl Default for KethOption<KethU256> {
     }
 }
 
-impl<T> From<Option<T>> for KethOption<KethMaybeRelocatable>
+impl<U, T> From<Option<T>> for KethOption<U>
 where
-    T: Into<KethMaybeRelocatable>,
+    T: Into<U>,
+    KethOption<U>: Default,
 {
     fn from(value: Option<T>) -> Self {
         match value {
-            Some(value) => KethOption { is_some: Felt252::ONE.into(), value: value.into() },
-            None => KethOption::default(),
-        }
-    }
-}
-
-impl<T> From<Option<T>> for KethOption<KethU256>
-where
-    T: Into<KethU256>,
-{
-    fn from(value: Option<T>) -> Self {
-        match value {
-            Some(value) => KethOption { is_some: Felt252::ONE.into(), value: value.into() },
+            Some(value) => KethOption { is_some: KethMaybeRelocatable::one(), value: value.into() },
             None => KethOption::default(),
         }
     }
@@ -197,6 +186,19 @@ impl From<B256> for KethU256 {
         Self {
             low: KethMaybeRelocatable::from_bytes_be_slice(&value.0[16..]),
             high: KethMaybeRelocatable::from_bytes_be_slice(&value.0[0..16]),
+        }
+    }
+}
+
+impl From<U256> for KethU256 {
+    fn from(value: U256) -> Self {
+        Self {
+            low: KethMaybeRelocatable::from_bytes_be_slice(
+                &value.to_be_bytes::<{ U256::BYTES }>()[16..],
+            ),
+            high: KethMaybeRelocatable::from_bytes_be_slice(
+                &value.to_be_bytes::<{ U256::BYTES }>()[0..16],
+            ),
         }
     }
 }
@@ -272,6 +274,18 @@ mod tests {
             .concat();
             B256::from_slice(&bytes)
         }
+
+        /// Convert KethU256 back to U256.
+        fn to_u256(&self) -> U256 {
+            let high_bytes = self.high.0.get_int().unwrap().to_bytes_be();
+            let low_bytes = self.low.0.get_int().unwrap().to_bytes_be();
+            let bytes = [
+                &high_bytes[16..], // Get the high 16 bytes
+                &low_bytes[16..],  // Get the low 16 bytes
+            ]
+            .concat();
+            U256::from_be_slice(&bytes)
+        }
     }
 
     impl KethMaybeRelocatable {
@@ -321,25 +335,37 @@ mod tests {
         }
 
         #[test]
-    fn test_address_to_keth_maybe_relocatable_roundtrip(address_bytes in any::<[u8; 20]>()) {
-        // Create a random address
-        let address = Address::new(address_bytes);
+        fn test_u256_to_keth_u256_roundtrip(u256_value in any::<U256>()) {
+            // Convert U256 to KethU256
+            let keth_u256 = KethU256::from(u256_value);
 
-        // Convert to KethMaybeRelocatable
-        let keth_maybe_relocatable = KethMaybeRelocatable::from(address);
+            // Convert back to U256
+            let roundtrip_value = keth_u256.to_u256();
 
-        // Convert back to Address
-        let roundtrip_address = keth_maybe_relocatable.to_address();
+            // Assert roundtrip conversion is equal to original value
+            prop_assert_eq!(roundtrip_value, u256_value);
+        }
 
-        // Assert roundtrip conversion is equal to original value
-        prop_assert_eq!(roundtrip_address, address);
-    }
+        #[test]
+        fn test_address_to_keth_maybe_relocatable_roundtrip(address_bytes in any::<[u8; 20]>()) {
+            // Create a random address
+            let address = Address::new(address_bytes);
+
+            // Convert to KethMaybeRelocatable
+            let keth_maybe_relocatable = KethMaybeRelocatable::from(address);
+
+            // Convert back to Address
+            let roundtrip_address = keth_maybe_relocatable.to_address();
+
+            // Assert roundtrip conversion is equal to original value
+            prop_assert_eq!(roundtrip_address, address);
+        }
     }
 
     #[test]
     fn test_keth_option_none() {
         let value: Option<u64> = None;
-        let keth_option = KethOption::from(value);
+        let keth_option: KethOption<KethMaybeRelocatable> = value.into();
         assert_eq!(keth_option.is_some.0, MaybeRelocatable::from(Felt252::ZERO));
         assert_eq!(keth_option.value.0, MaybeRelocatable::from(Felt252::ZERO));
         assert_eq!(keth_option.to_option_u64(), None);
@@ -348,7 +374,7 @@ mod tests {
     #[test]
     fn test_keth_option_some() {
         let value = 42u64;
-        let keth_option = KethOption::from(Some(value));
+        let keth_option: KethOption<KethMaybeRelocatable> = Some(value).into();
         assert_eq!(keth_option.is_some.0, MaybeRelocatable::from(Felt252::ONE));
         assert_eq!(keth_option.value.0, MaybeRelocatable::from(Felt252::from(value)));
         assert_eq!(keth_option.to_option_u64(), Some(value));
@@ -391,5 +417,23 @@ mod tests {
         let address = Address::new([255u8; 20]); // Max possible value for each byte
         let keth_maybe_relocatable = KethMaybeRelocatable::from(address);
         assert_eq!(keth_maybe_relocatable.to_address(), address);
+    }
+
+    #[test]
+    fn test_keth_u256_from_u256_zero() {
+        let u256_value = U256::ZERO; // U256 with value 0
+        let keth_u256 = KethU256::from(u256_value);
+
+        // Convert back to U256
+        assert_eq!(keth_u256.to_u256(), u256_value);
+    }
+
+    #[test]
+    fn test_keth_u256_from_u256_max() {
+        let u256_value = U256::MAX; // U256 with max possible value (2^256 - 1)
+        let keth_u256 = KethU256::from(u256_value);
+
+        // Convert back to U256
+        assert_eq!(keth_u256.to_u256(), u256_value);
     }
 }
