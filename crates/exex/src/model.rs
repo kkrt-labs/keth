@@ -245,8 +245,7 @@ impl From<Bloom> for KethData {
     /// - The first field (`len`) holds the length of the original data, represented as a
     ///   [`KethMaybeRelocatable`].
     /// - The `data` field stores the remaining elements as chunks of 16 bytes each from the Bloom
-    ///   filter, with each chunk converted into a [`KethU256`]. The chunks are reversed to align
-    ///   with CairoVM's expected little-endian order.
+    ///   filter, with each chunk converted into a [`KethMaybeRelocatable`].
     ///
     /// This process allows the 256-byte Bloom filter to be stored and processed efficiently in the
     /// `KethData` structure, making it compatible with CairoVM's constraints.
