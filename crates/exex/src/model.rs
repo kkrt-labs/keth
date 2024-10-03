@@ -1,5 +1,5 @@
 use cairo_vm::{types::relocatable::MaybeRelocatable, Felt252};
-use reth_primitives::{Address, B256, U256};
+use reth_primitives::{Address, Bloom, B256, U256};
 use serde::{Deserialize, Serialize};
 
 /// A custom wrapper around [`MaybeRelocatable`] for the Keth execution environment.
@@ -87,8 +87,20 @@ impl From<Felt252> for KethMaybeRelocatable {
     }
 }
 
+impl From<u8> for KethMaybeRelocatable {
+    fn from(value: u8) -> Self {
+        Self(Felt252::from(value).into())
+    }
+}
+
 impl From<u64> for KethMaybeRelocatable {
     fn from(value: u64) -> Self {
+        Self(Felt252::from(value).into())
+    }
+}
+
+impl From<usize> for KethMaybeRelocatable {
+    fn from(value: usize) -> Self {
         Self(Felt252::from(value).into())
     }
 }
@@ -96,6 +108,40 @@ impl From<u64> for KethMaybeRelocatable {
 impl From<Address> for KethMaybeRelocatable {
     fn from(value: Address) -> Self {
         Self::from_bytes_be_slice(&value.0 .0)
+    }
+}
+
+/// [`KethMaybeRelocatables`] is a container that holds a vector of [`KethMaybeRelocatable`] values.
+///
+/// This struct is used to represent complex data structures such as Bloom filters or Bytes data in
+/// a format that can be stored and processed by the CairoVM.
+#[derive(Debug, Eq, Ord, Hash, PartialEq, PartialOrd, Clone, Serialize, Deserialize)]
+pub struct KethMaybeRelocatables(Vec<KethMaybeRelocatable>);
+
+impl From<Vec<KethMaybeRelocatable>> for KethMaybeRelocatables {
+    fn from(value: Vec<KethMaybeRelocatable>) -> Self {
+        Self(value)
+    }
+}
+
+impl From<Bloom> for KethMaybeRelocatables {
+    /// Converts a [`Bloom`] filter into a [[`KethMaybeRelocatables`]] structure.
+    ///
+    /// The [`Bloom`] filter is represented as a 256-byte array in big-endian order. However,
+    /// CairoVM's [`Felt252`] type can only handle values up to 252 bits. As a result, we need to
+    /// convert the 256-byte array into smaller pieces that fit within this limit.
+    ///
+    /// Here's how the conversion works:
+    /// - The first element of the `Vec<KethMaybeRelocatable>` is the length of the Bloom filter.
+    /// - The subsequent elements are the bytes of the Bloom filter, reversed to represent the data
+    ///   in little-endian order, which is compatible with how [`Felt252`] expects to interpret
+    ///   multi-byte values.
+    fn from(value: Bloom) -> Self {
+        let bloom: Vec<KethMaybeRelocatable> = std::iter::once(value.len().into())
+            .chain(value.0.iter().rev().map(|&v| v.into()))
+            .collect();
+
+        bloom.into()
     }
 }
 
@@ -297,6 +343,18 @@ mod tests {
         }
     }
 
+    impl KethMaybeRelocatables {
+        fn to_bloom(keth_maybe_relocatables: &KethMaybeRelocatables) -> Bloom {
+            Bloom::from_slice(
+                &keth_maybe_relocatables.0[1..]
+                    .iter()
+                    .map(|item| item.0.get_int().unwrap().to_string().parse::<u8>().unwrap())
+                    .rev()
+                    .collect::<Vec<_>>(),
+            )
+        }
+    }
+
     proptest! {
         #[test]
         fn test_option_u64_to_keth_option_roundtrip(opt_value in proptest::option::of(any::<u64>())) {
@@ -359,6 +417,18 @@ mod tests {
 
             // Assert roundtrip conversion is equal to original value
             prop_assert_eq!(roundtrip_address, address);
+        }
+
+        #[test]
+        fn test_bloom_to_keth_maybe_relocatable_roundtrip(bloom in any::<Bloom>()) {
+            // Convert Bloom to KethMaybeRelocatables
+            let keth_maybe_relocatables = KethMaybeRelocatables::from(bloom);
+
+            // Convert back to Bloom
+            let roundtrip_bloom = KethMaybeRelocatables::to_bloom(&keth_maybe_relocatables);
+
+            // Assert roundtrip conversion is equal to original value
+            prop_assert_eq!(roundtrip_bloom, bloom);
         }
     }
 
@@ -435,5 +505,39 @@ mod tests {
 
         // Convert back to U256
         assert_eq!(keth_u256.to_u256(), u256_value);
+    }
+
+    #[test]
+    fn test_bloom_to_keth_maybe_relocatable_zero() {
+        let bloom = Bloom::ZERO;
+
+        // Convert to KethMaybeRelocatables
+        let keth_maybe_relocatables = KethMaybeRelocatables::from(bloom);
+
+        // Verify that converting back gives the original Bloom filter
+        assert_eq!(KethMaybeRelocatables::to_bloom(&keth_maybe_relocatables), bloom);
+    }
+
+    #[test]
+    fn test_bloom_to_keth_maybe_relocatable_max() {
+        let bloom_bytes = [255u8; 256]; // Max possible value for each byte
+        let bloom = Bloom::from_slice(&bloom_bytes);
+
+        // Convert to KethMaybeRelocatables
+        let keth_maybe_relocatables = KethMaybeRelocatables::from(bloom.clone());
+
+        // Verify that converting back gives the original Bloom filter
+        assert_eq!(KethMaybeRelocatables::to_bloom(&keth_maybe_relocatables), bloom);
+    }
+
+    #[test]
+    fn test_bloom_to_keth_maybe_relocatable() {
+        let bloom = Bloom::random();
+
+        // Convert to KethMaybeRelocatables
+        let keth_maybe_relocatables = KethMaybeRelocatables::from(bloom);
+
+        // Verify that converting back gives the original Bloom filter
+        assert_eq!(KethMaybeRelocatables::to_bloom(&keth_maybe_relocatables), bloom);
     }
 }
