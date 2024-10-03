@@ -136,21 +136,10 @@ impl Default for KethOption<KethU256> {
     }
 }
 
-impl<T> From<Option<T>> for KethOption<KethMaybeRelocatable>
+impl<U, T> From<Option<T>> for KethOption<U>
 where
-    T: Into<KethMaybeRelocatable>,
-{
-    fn from(value: Option<T>) -> Self {
-        match value {
-            Some(value) => KethOption { is_some: KethMaybeRelocatable::one(), value: value.into() },
-            None => KethOption::default(),
-        }
-    }
-}
-
-impl<T> From<Option<T>> for KethOption<KethU256>
-where
-    T: Into<KethU256>,
+    T: Into<U>,
+    KethOption<U>: Default,
 {
     fn from(value: Option<T>) -> Self {
         match value {
@@ -376,7 +365,7 @@ mod tests {
     #[test]
     fn test_keth_option_none() {
         let value: Option<u64> = None;
-        let keth_option = KethOption::from(value);
+        let keth_option: KethOption<KethMaybeRelocatable> = value.into();
         assert_eq!(keth_option.is_some.0, MaybeRelocatable::from(Felt252::ZERO));
         assert_eq!(keth_option.value.0, MaybeRelocatable::from(Felt252::ZERO));
         assert_eq!(keth_option.to_option_u64(), None);
@@ -385,7 +374,7 @@ mod tests {
     #[test]
     fn test_keth_option_some() {
         let value = 42u64;
-        let keth_option = KethOption::from(Some(value));
+        let keth_option: KethOption<KethMaybeRelocatable> = Some(value).into();
         assert_eq!(keth_option.is_some.0, MaybeRelocatable::from(Felt252::ONE));
         assert_eq!(keth_option.value.0, MaybeRelocatable::from(Felt252::from(value)));
         assert_eq!(keth_option.to_option_u64(), Some(value));
