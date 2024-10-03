@@ -11,6 +11,7 @@ from eth_utils import decode_hex, keccak, to_checksum_address
 from starkware.cairo.lang.vm.crypto import pedersen_hash
 
 from src.utils.uint256 import int_to_uint256
+from tests.utils.parsers import to_bytes, to_int
 
 
 def rlp_encode_signed_data(tx: dict):
@@ -31,13 +32,13 @@ def rlp_encode_signed_data(tx: dict):
         ]
     else:
         legacy_tx = [
-            tx["nonce"],
-            tx["gasPrice"],
-            tx["gas"] if "gas" in tx else tx["gasLimit"],
-            int(tx["to"], 16),
-            tx["value"],
-            tx["data"],
-        ] + ([tx["chainId"], 0, 0] if "chainId" in tx else [])
+            to_int(tx["nonce"]),
+            to_int(tx["gasPrice"]),
+            to_int(tx["gas"] if "gas" in tx else tx["gasLimit"]),
+            bytes.fromhex(f"{to_int(tx['to']):040x}"),
+            to_int(tx["value"]),
+            to_bytes(tx["data"]),
+        ] + ([to_int(tx["chainId"]), 0, 0] if "chainId" in tx else [])
 
         return rlp.encode(legacy_tx)
 

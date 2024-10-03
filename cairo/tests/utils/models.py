@@ -18,25 +18,7 @@ from starkware.cairo.lang.vm.crypto import pedersen_hash
 
 from src.utils.uint256 import int_to_uint256
 from tests.utils.helpers import rlp_encode_signed_data
-
-
-def to_int(v: Union[str, int]) -> int:
-    if isinstance(v, str):
-        if v.startswith("0x"):
-            return int(v, 16)
-        return int(v)
-    return v
-
-
-def to_bytes(v: Union[str, bytes, list[int]]) -> bytes:
-    if isinstance(v, bytes):
-        return v
-    elif isinstance(v, str):
-        if v.startswith("0x"):
-            return bytes.fromhex(v[2:])
-        return v.encode()
-    else:
-        return bytes(v)
+from tests.utils.parsers import to_bytes, to_int
 
 
 class BaseModelIterValuesOnly(BaseModel):
@@ -154,7 +136,13 @@ class TransactionEncoded(BaseModelIterValuesOnly):
     @model_validator(mode="before")
     def encode_rlp_and_signature(cls, values):
         values = values.copy()
-        if set(values.keys()) == {"rlp_len", "rlp", "signature_len", "signature"}:
+        if set(values.keys()) == {
+            "rlp_len",
+            "rlp",
+            "signature_len",
+            "signature",
+            "sender",
+        }:
             return values
 
         signature = [
@@ -177,10 +165,15 @@ class TransactionEncoded(BaseModelIterValuesOnly):
     def parse_hex_to_bytes(cls, v):
         return to_bytes(v)
 
+    @field_validator("sender", mode="before")
+    def parse_hex_to_int(cls, v):
+        return to_int(v)
+
     rlp_len: int
     rlp: bytes
     signature_len: int
     signature: list[int]
+    sender: int
 
 
 class Block(BaseModelIterValuesOnly):

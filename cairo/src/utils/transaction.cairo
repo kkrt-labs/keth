@@ -331,34 +331,32 @@ namespace Transaction {
     // @param signature_len The length of tx signature.
     // @param signature The tx signature.
     // @param chain_id The expected chain id of the tx
-    func validate{pedersen_ptr: HashBuiltin*, bitwise_ptr: BitwiseBuiltin*, range_check_ptr}(
-        tx_data_len: felt,
-        tx_data: felt*,
-        signature_len: felt,
-        signature: felt*,
-        chain_id: felt,
-        address: felt,
-    ) {
+    func validate{
+        pedersen_ptr: HashBuiltin*,
+        bitwise_ptr: BitwiseBuiltin*,
+        range_check_ptr,
+        keccak_ptr: KeccakBuiltin*,
+    }(tx: model.TransactionEncoded*, chain_id: felt) {
         alloc_locals;
 
         with_attr error_message("Incorrect signature length") {
-            assert signature_len = 5;
+            assert tx.signature_len = 5;
         }
 
         with_attr error_message("Signatures values not in range") {
-            assert [range_check_ptr] = signature[0];
-            assert [range_check_ptr + 1] = signature[1];
-            assert [range_check_ptr + 2] = signature[2];
-            assert [range_check_ptr + 3] = signature[3];
-            assert [range_check_ptr + 4] = signature[4];
+            assert [range_check_ptr] = tx.signature[0];
+            assert [range_check_ptr + 1] = tx.signature[1];
+            assert [range_check_ptr + 2] = tx.signature[2];
+            assert [range_check_ptr + 3] = tx.signature[3];
+            assert [range_check_ptr + 4] = tx.signature[4];
             let range_check_ptr = range_check_ptr + 5;
         }
 
-        let r = Uint256(signature[0], signature[1]);
-        let s = Uint256(signature[2], signature[3]);
-        let v = signature[4];
+        let r = Uint256(tx.signature[0], tx.signature[1]);
+        let s = Uint256(tx.signature[2], tx.signature[3]);
+        let v = tx.signature[4];
 
-        let tx_type = Transaction.get_tx_type(tx_data_len, tx_data);
+        let tx_type = get_tx_type(tx.rlp_len, tx.rlp);
         local y_parity: felt;
         local pre_eip155_tx: felt;
         if (tx_type == 0) {
@@ -377,10 +375,12 @@ namespace Transaction {
         }
         let range_check_ptr = [ap - 1];
 
-        let msg_hash = keccak(tx_data_len, tx_data);
+        let msg_hash = keccak(tx.rlp_len, tx.rlp);
 
         Signature.verify_eth_signature_uint256(
-            msg_hash=msg_hash, r=r, s=s, v=y_parity, eth_address=address
+            msg_hash=msg_hash, r=r, s=s, v=y_parity, eth_address=tx.sender
         );
+
+        return ();
     }
 }

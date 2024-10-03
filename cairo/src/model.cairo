@@ -241,14 +241,16 @@ namespace model {
     // @notice A struct representing an encoded Ethereum transaction.
     // @dev The RLP is the Ethereum unsigned transaction, followed by the signature.
     // @param rlp_len The length of the RLP encoded transaction.
-    // @param rlp The RLP encoded transaction.
+    // @param rlp The RLP-encoded unsigned data of the transaction.
     // @param signature_len The length of the signature.
     // @param signature The signature.
+    // @param sender The sender of the transaction.
     struct TransactionEncoded {
         rlp_len: felt,
         rlp: felt*,
         signature_len: felt,
         signature: felt*,
+        sender: felt,
     }
 
     // @notice A struct representing an Ethereum block.

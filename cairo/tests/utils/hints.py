@@ -76,11 +76,16 @@ from tests.utils.hints import gen_arg
 ids.state = gen_arg(__dict_manager, segments, program_input["state"])
 """
 
+chain_id = """
+ids.chain_id = 1
+"""
+
 hints = {
     "dict_manager": dict_manager,
     "block": block,
     "account": account,
     "state": state,
+    "chain_id": chain_id,
 }
 
 
