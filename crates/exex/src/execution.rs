@@ -38,7 +38,6 @@ pub async fn execute_block(
     let block = Block {
         header: header.clone(),
         body: BlockBody { transactions: executed_txs, ..Default::default() },
-        ..Default::default()
     }
     .with_recovered_senders()
     .ok_or_else(|| eyre::eyre!("Failed to recover senders for transactions"))?;

@@ -3706,6 +3706,7 @@ dependencies = [
 name = "kakarot-exex"
 version = "0.1.0"
 dependencies = [
+ "alloy-consensus",
  "alloy-genesis",
  "alloy-primitives",
  "cairo-vm",
