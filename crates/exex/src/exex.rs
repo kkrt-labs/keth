@@ -1,4 +1,6 @@
 use crate::{db::Database, hints::KakarotHintProcessor};
+use alloy_genesis::Genesis;
+use alloy_primitives::Address;
 use cairo_vm::{
     air_private_input::AirPrivateInput,
     air_public_input::PublicInput,
@@ -12,7 +14,7 @@ use once_cell::sync::Lazy;
 use reth_chainspec::{ChainSpec, ChainSpecBuilder};
 use reth_exex::{ExExContext, ExExEvent};
 use reth_node_api::FullNodeComponents;
-use reth_primitives::{Address, Genesis};
+use reth_primitives::BlockNumHash;
 use rusqlite::Connection;
 use std::{path::PathBuf, sync::Arc};
 
@@ -68,12 +70,17 @@ impl<Node: FullNodeComponents> KakarotRollup<Node> {
         while let Some(notification) = self.ctx.notifications.next().await {
             // Check if the notification contains a committed chain.
             if let Some(committed_chain) = notification.committed_chain() {
+                // Get the tip of the committed chain.
+                let tip = committed_chain.tip();
+
                 // Send a notification that the chain processing is finished.
                 //
                 // Finished height is the tip of the committed chain.
                 //
                 // The ExEx will not require all earlier blocks which can be pruned.
-                self.ctx.events.send(ExExEvent::FinishedHeight(committed_chain.tip().number))?;
+                self.ctx
+                    .events
+                    .send(ExExEvent::FinishedHeight(BlockNumHash::new(tip.number, tip.hash())))?;
 
                 // Build the Kakarot hint processor.
                 let mut hint_processor = KakarotHintProcessor::default().build();

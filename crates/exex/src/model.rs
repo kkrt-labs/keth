@@ -1,5 +1,5 @@
+use alloy_primitives::{Address, Bloom, B256, U256};
 use cairo_vm::{types::relocatable::MaybeRelocatable, Felt252};
-use reth_primitives::{Address, Bloom, B256, U256};
 use serde::{Deserialize, Serialize};
 
 /// A custom wrapper around [`MaybeRelocatable`] for the Keth execution environment.

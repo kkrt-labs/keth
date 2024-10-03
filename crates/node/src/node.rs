@@ -10,7 +10,8 @@ use reth_node_builder::{
 };
 use reth_node_ethereum::{
     node::{
-        EthereumAddOns, EthereumConsensusBuilder, EthereumNetworkBuilder, EthereumPayloadBuilder,
+        EthereumAddOns, EthereumConsensusBuilder, EthereumEngineValidatorBuilder,
+        EthereumNetworkBuilder, EthereumPayloadBuilder,
     },
     EthEngineTypes,
 };
@@ -25,6 +26,9 @@ pub type KakarotNetworkBuilder = EthereumNetworkBuilder;
 /// Type alias for the Kakarot consensus builder.
 /// TODO: we don't need a consensus for now, so just implement a type that does nothing.
 pub type KakarotConsensusBuilder = EthereumConsensusBuilder;
+
+/// Type alias for the Kakarot engine validator builder.
+pub type KakarotEngineValidatorBuilder = EthereumEngineValidatorBuilder;
 
 /// Type alias for the Kakarot add-ons.
 pub type KakarotAddsOns = EthereumAddOns;
@@ -43,6 +47,7 @@ impl KakarotNode {
         KakarotNetworkBuilder,
         KakarotExecutorBuilder,
         KakarotConsensusBuilder,
+        KakarotEngineValidatorBuilder,
     >
     where
         Node: FullNodeTypes<Types: NodeTypes<ChainSpec = ChainSpec>>,
@@ -59,6 +64,7 @@ impl KakarotNode {
             .network(KakarotNetworkBuilder::default())
             .executor(KakarotExecutorBuilder::default())
             .consensus(KakarotConsensusBuilder::default())
+            .engine_validator(KakarotEngineValidatorBuilder::default())
     }
 }
 
@@ -83,6 +89,7 @@ where
         KakarotNetworkBuilder,
         KakarotExecutorBuilder,
         KakarotConsensusBuilder,
+        KakarotEngineValidatorBuilder,
     >;
 
     type AddOns = KakarotAddsOns;

@@ -1,11 +1,13 @@
 use crate::{db::Database, exex::CHAIN_SPEC};
+use alloy_primitives::U256;
+use reth::primitives::BlockBody;
 use reth_execution_errors::BlockValidationError;
 use reth_node_api::{ConfigureEvm, ConfigureEvmEnv};
 use reth_node_ethereum::EthEvmConfig;
 use reth_primitives::{
     revm_primitives::{CfgEnvWithHandlerCfg, EVMError, ExecutionResult, ResultAndState},
     Block, BlockWithSenders, EthereumHardfork, Header, Receipt, SealedBlockWithSenders,
-    TransactionSigned, TransactionSignedEcRecovered, U256,
+    TransactionSigned, TransactionSignedEcRecovered,
 };
 use reth_revm::{
     db::{states::bundle_state::BundleRetention, BundleState},
@@ -33,9 +35,13 @@ pub async fn execute_block(
 
     // Construct a new block using the executed transactions and header, and attempt to recover
     // senders.
-    let block = Block { header: header.clone(), body: executed_txs, ..Default::default() }
-        .with_recovered_senders()
-        .ok_or_else(|| eyre::eyre!("Failed to recover senders for transactions"))?;
+    let block = Block {
+        header: header.clone(),
+        body: BlockBody { transactions: executed_txs, ..Default::default() },
+        ..Default::default()
+    }
+    .with_recovered_senders()
+    .ok_or_else(|| eyre::eyre!("Failed to recover senders for transactions"))?;
 
     // Extract the current bundle state from the EVM's database.
     let bundle = evm.db_mut().take_bundle();
