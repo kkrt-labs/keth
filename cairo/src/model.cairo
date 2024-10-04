@@ -219,7 +219,7 @@ namespace model {
         state_root: Uint256,
         transactions_root: Uint256,
         receipt_root: Uint256,
-        withdrawals_root: Uint256,
+        withdrawals_root: Option,
         bloom: felt*,
         difficulty: Uint256,
         number: felt,

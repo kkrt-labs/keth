@@ -1,3 +1,5 @@
+from typing import Optional
+
 from eth_utils.address import to_checksum_address
 from starkware.cairo.lang.compiler.ast.cairo_types import (
     TypeFelt,
@@ -94,7 +96,7 @@ class Serde:
             output[name] = member_ptr
         return output
 
-    def serialize_struct(self, name, ptr):
+    def serialize_struct(self, name, ptr) -> Optional[dict]:
         """
         Serialize a struct, e.g. Uint256.
         """
@@ -151,8 +153,8 @@ class Serde:
             "max_priority_fee_per_gas": raw["max_priority_fee_per_gas"],
             "max_fee_per_gas": raw["max_fee_per_gas"],
             "destination": (
-                to_checksum_address(f'0x{raw["destination"]["value"]:040x}')
-                if raw["destination"]["is_some"] == 1
+                to_checksum_address(f'0x{raw["destination"]:040x}')
+                if raw["destination"]
                 else None
             ),
             "amount": raw["amount"],
@@ -162,9 +164,7 @@ class Serde:
                 if raw["access_list"] is not None
                 else []
             ),
-            "chain_id": (
-                raw["chain_id"]["value"] if raw["chain_id"]["is_some"] == 1 else None
-            ),
+            "chain_id": raw["chain_id"],
         }
 
     def serialize_message(self, ptr):
@@ -233,16 +233,44 @@ class Serde:
 
     def serialize_block(self, ptr):
         raw = self.serialize_pointers("model.Block", ptr)
-        return {
-            "block_header": self.serialize_struct(
-                "model.BlockHeader", raw["block_header"]
+        header = self.serialize_struct("model.BlockHeader", raw["block_header"])
+        if header is None:
+            raise ValueError("Block header is None")
+        header = {
+            **header,
+            "withdrawals_root": (
+                self.serialize_uint256(header["withdrawals_root"])
+                if header["withdrawals_root"] is not None
+                else None
             ),
+            "parent_beacon_block_root": (
+                self.serialize_uint256(header["parent_beacon_block_root"])
+                if header["parent_beacon_block_root"] is not None
+                else None
+            ),
+            "requests_root": (
+                self.serialize_uint256(header["requests_root"])
+                if header["requests_root"] is not None
+                else None
+            ),
+            "extra_data": bytes(header["extra_data"][: header["extra_data_len"]]),
+            "bloom": bytes.fromhex("".join(f"{b:032x}" for b in header["bloom"])),
+        }
+        del header["extra_data_len"]
+        return {
+            "block_header": header,
             "transactions": self.serialize_list(
                 raw["transactions"],
                 "model.TransactionEncoded",
                 list_len=raw["transactions_len"],
             ),
         }
+
+    def serialize_option(self, ptr):
+        raw = self.serialize_pointers("model.Option", ptr)
+        if raw["is_some"] == 0:
+            return None
+        return raw["value"]
 
     def serialize_scope(self, scope, scope_ptr):
         if scope.path[-1] == "State":
@@ -265,6 +293,8 @@ class Serde:
             return self.serialize_rlp_item(scope_ptr)
         if scope.path[-1] == ("Block"):
             return self.serialize_block(scope_ptr)
+        if scope.path[-1] == ("Option"):
+            return self.serialize_option(scope_ptr)
         try:
             return self.serialize_struct(str(scope), scope_ptr)
         except MissingIdentifierError:

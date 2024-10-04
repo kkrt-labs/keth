@@ -59,9 +59,12 @@ class BlockHeader(BaseModelIterValuesOnly):
         for key in [
             "parent_hash",
             "uncle_hash",
+            "ommers_hash",
             "state_root",
             "transactions_trie",
+            "transactions_root",
             "receipt_trie",
+            "receipt_root",
             "withdrawals_root",
             "difficulty",
             "mix_hash",
@@ -80,6 +83,7 @@ class BlockHeader(BaseModelIterValuesOnly):
     def split_option(cls, values):
         values = values.copy()
         for key in [
+            "withdrawals_root",
             "base_fee_per_gas",
             "blob_gas_used",
             "excess_blob_gas",
@@ -88,8 +92,9 @@ class BlockHeader(BaseModelIterValuesOnly):
         ]:
             if key not in values:
                 key = to_camel(key)
-            is_some = key in values
-            value = to_int(values.get(key, 0))
+            is_some = key in values and values[key] is not None
+            # it's possible that values[key] exists and is None, that why we can't use get default value
+            value = to_int(values.get(key) or 0)
             values[to_camel(key) + "IsSome"] = is_some
             value_type = cls.model_fields[to_snake(key) + "_value"].annotation
             values[to_camel(key) + "Value"] = (
@@ -124,17 +129,49 @@ class BlockHeader(BaseModelIterValuesOnly):
 
     parent_hash_low: int
     parent_hash_high: int
-    uncle_hash_low: int
-    uncle_hash_high: int
+    uncle_hash_low: int = Field(
+        validation_alias=AliasChoices(
+            "ommersHash", "uncleHash", "ommers_hash", "uncle_hash", "ommers_hash_low"
+        )
+    )
+    uncle_hash_high: int = Field(
+        validation_alias=AliasChoices(
+            "ommersHashHigh", "uncleHashHigh", "ommers_hash_high"
+        )
+    )
     coinbase: int
     state_root_low: int
     state_root_high: int
-    transactions_trie_low: int
-    transactions_trie_high: int
-    receipt_trie_low: int
-    receipt_trie_high: int
-    withdrawals_root_low: int
-    withdrawals_root_high: int
+    transactions_trie_low: int = Field(
+        validation_alias=AliasChoices(
+            "transactionsTrie",
+            "transactionsRoot",
+            "transactions_trie",
+            "transactions_root",
+            "transactions_root_low",
+        )
+    )
+    transactions_trie_high: int = Field(
+        validation_alias=AliasChoices(
+            "transactionsTrieHigh", "transactionsRootHigh", "transactions_root_high"
+        )
+    )
+    receipt_trie_low: int = Field(
+        validation_alias=AliasChoices(
+            "transactionsTrie",
+            "transactionsRoot",
+            "transactions_trie",
+            "transactions_root",
+            "transactions_root_low",
+        )
+    )
+    receipt_trie_high: int = Field(
+        validation_alias=AliasChoices(
+            "receiptTrieHigh", "receiptRootHigh", "receipt_root_high"
+        )
+    )
+    withdrawals_root_is_some: bool
+    withdrawals_root_value: Tuple[int, int]
     bloom: Tuple[int, ...]
     difficulty_low: int
     difficulty_high: int
