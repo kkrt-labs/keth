@@ -28,6 +28,10 @@ reth-revm = { workspace = true }
 reth-execution-errors = { workspace = true }
 reth-provider = { workspace = true }
 
+alloy-primitives = { workspace = true }
+alloy-genesis = { workspace = true }
+alloy-consensus = { workspace = true }
+
 # SQLite for debugging, should be removed in the future
 rusqlite = { version = "0.31.0", features = ["bundled"] }
 

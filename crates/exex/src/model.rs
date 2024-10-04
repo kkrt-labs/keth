@@ -1,5 +1,5 @@
+use alloy_primitives::{Address, Bloom, B256, U256};
 use cairo_vm::{types::relocatable::MaybeRelocatable, Felt252};
-use reth_primitives::{Address, Bloom, B256, U256};
 use serde::{Deserialize, Serialize};
 
 /// A custom wrapper around [`MaybeRelocatable`] for the Keth execution environment.
@@ -112,8 +112,9 @@ impl From<Address> for KethMaybeRelocatable {
 }
 
 /// [`KethOption`] is a custom representation of a Rust [`Option<T>`] type where `T` can be
-/// any type, such as [`KethMaybeRelocatable`] or [`KethU256`], specifically tailored for use
-/// within the Keth model inside our OS.
+/// any type, such as [`KethMaybeRelocatable`] or [`KethU256`].
+///
+/// This is specifically tailored for use within the Keth model inside our OS.
 ///
 /// This struct encapsulates two fields:
 /// - `is_some`: A flag that indicates whether the option contains a value (`is_some = 1`) or is

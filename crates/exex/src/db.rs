@@ -1,10 +1,11 @@
+use alloy_primitives::{Address, B256, U256};
 use cairo_vm::{
     air_private_input::AirPrivateInput, air_public_input::PublicInput,
     vm::trace::trace_entry::RelocatedTraceEntry, Felt252,
 };
 use reth_primitives::{
     revm_primitives::{AccountInfo, Bytecode},
-    Address, SealedBlockWithSenders, B256, U256,
+    SealedBlockWithSenders,
 };
 use reth_provider::OriginalValuesKnown;
 use reth_revm::db::BundleState;
