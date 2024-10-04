@@ -13,19 +13,14 @@ jobs:
       HYPOTHESIS_PROFILE: ci
     steps:
       - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v2
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
       - uses: actions/setup-python@v5
         with:
-          python-version: 3.10.14
-      - run: rustup update
-      - name: Rust cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          cache-on-failure: "true"
-      - run: curl -LsSf https://astral.sh/uv/install.sh | sh
-      - id: cache-venv
-        uses: actions/cache@v4
-        with:
-          path: .venv
-          key: venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
-      - run: cd cairo && uv sync --locked
-      - run: uv run pytest -n logical
+          python-version-file: .python-version
+      - run: |
+          cd cairo
+          uv run compile
+          uv run pytest -n logical
