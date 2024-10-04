@@ -15,16 +15,19 @@ exclude.workspace = true
 kakarot-node.workspace = true
 
 # Reth
-reth-db = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.0.7" }
-reth-chainspec = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.0.7" }
-reth-cli-runner = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.0.7" }
+reth-db = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.0.8" }
+reth-chainspec = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.0.8" }
+reth-cli-runner = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.0.8" }
 reth-node-builder.workspace = true
-reth-node-core = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.0.7" }
+reth-node-core = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.0.8" }
 reth-primitives.workspace = true
 
+alloy-primitives.workspace = true
+alloy-genesis.workspace = true
+
 # Tracing
-tracing = { version = "0.1.40", default-features = false }
-tracing-subscriber = { version = "0.3.18", default-features = false }
+tracing = { version = "0.1", default-features = false }
+tracing-subscriber = { version = "0.3", default-features = false }
 
 # Other
 clap = { version = "4.5.9", features = ["derive"] }

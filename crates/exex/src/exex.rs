@@ -1,4 +1,6 @@
 use crate::{db::Database, hints::KakarotHintProcessor};
+use alloy_genesis::Genesis;
+use alloy_primitives::Address;
 use cairo_vm::{
     air_private_input::AirPrivateInput,
     air_public_input::PublicInput,
@@ -12,7 +14,7 @@ use once_cell::sync::Lazy;
 use reth_chainspec::{ChainSpec, ChainSpecBuilder};
 use reth_exex::{ExExContext, ExExEvent};
 use reth_node_api::FullNodeComponents;
-use reth_primitives::{Address, Genesis};
+use reth_primitives::BlockNumHash;
 use rusqlite::Connection;
 use std::{path::PathBuf, sync::Arc};
 
@@ -68,12 +70,17 @@ impl<Node: FullNodeComponents> KakarotRollup<Node> {
         while let Some(notification) = self.ctx.notifications.next().await {
             // Check if the notification contains a committed chain.
             if let Some(committed_chain) = notification.committed_chain() {
+                // Get the tip of the committed chain.
+                let tip = committed_chain.tip();
+
                 // Send a notification that the chain processing is finished.
                 //
                 // Finished height is the tip of the committed chain.
                 //
                 // The ExEx will not require all earlier blocks which can be pruned.
-                self.ctx.events.send(ExExEvent::FinishedHeight(committed_chain.tip().number))?;
+                self.ctx
+                    .events
+                    .send(ExExEvent::FinishedHeight(BlockNumHash::new(tip.number, tip.hash())))?;
 
                 // Build the Kakarot hint processor.
                 let mut hint_processor = KakarotHintProcessor::default().build();
@@ -137,11 +144,13 @@ impl<Node: FullNodeComponents> KakarotRollup<Node> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use alloy_consensus::TxEip1559;
+    use alloy_primitives::{address, hex, Bytes, Sealable, B256, U256};
     use reth_execution_types::{Chain, ExecutionOutcome};
     use reth_exex_test_utils::{test_exex_context, PollOnce};
     use reth_primitives::{
-        address, constants::ETH_TO_WEI, hex, Bytes, Header, Receipt, Receipts, SealedBlock,
-        SealedBlockWithSenders, TransactionSigned, TxEip1559, B256, U256,
+        constants::ETH_TO_WEI, BlockBody, Header, Receipt, Receipts, SealedBlock,
+        SealedBlockWithSenders, SealedHeader, TransactionSigned,
     };
     use reth_revm::primitives::AccountInfo;
     use std::{future::Future, pin::pin, str::FromStr};
@@ -193,24 +202,21 @@ mod tests {
                 "0xc3099e296bc0eaa6d3a5e0f46fcc4a9bb2f42fb4668a17dd926d75ca651509f0",
             )
             .unwrap(),
-            signature: reth_primitives::Signature {
-                r: U256::from_str(
-                    "0xe74ec6b1365234a0ebe63f8e238d2318b28d1d2c58ada3a153ad364497dac715",
-                )
-                .unwrap(),
-                s: U256::from_str(
-                    "0x7306a7cab3679ead15daee428d2481b1b92a5dc2303adfe4b3bbbb4713be74af",
-                )
-                .unwrap(),
-                odd_y_parity: false,
-            },
+            signature:
+            reth_primitives::Signature::from_rs_and_parity(U256::from_str(
+                "0xe74ec6b1365234a0ebe63f8e238d2318b28d1d2c58ada3a153ad364497dac715",
+            )
+            .unwrap(), U256::from_str(
+                "0x7306a7cab3679ead15daee428d2481b1b92a5dc2303adfe4b3bbbb4713be74af",
+            )
+            .unwrap(), false).unwrap(),
             transaction: reth_primitives::Transaction::Eip1559(TxEip1559 {
                 chain_id: 1,
                 nonce: 0,
                 gas_limit: 0x3173e,
                 max_fee_per_gas: 0x2a9860004,
                 max_priority_fee_per_gas: 0x4903a597,
-                to: reth_primitives::TxKind::Call(
+                to: alloy_primitives::TxKind::Call(
                     Address::from_str("0xf3de3c0d654fda23dad170f0f320a92172509127").unwrap(),
                 ),
                 value: U256::from_str("0xb1a2bc2ec50000").unwrap(),
@@ -236,7 +242,7 @@ mod tests {
             timestamp: 0x635f9657,
             extra_data: hex!("")[..].into(),
             mix_hash: hex!("0000000000000000000000000000000000000000000000000000000000000000").into(),
-            nonce: 0x0000000000000000,
+            nonce: 0x0000000000000000u64.into(),
             base_fee_per_gas: 0x28f0001df.into(),
             withdrawals_root: None,
             blob_gas_used: None,
@@ -245,9 +251,15 @@ mod tests {
             requests_root: None
         };
 
+        let sealed_header = header.seal_slow();
+        let (header, seal) = sealed_header.into_parts();
+
         // Create a sealed block with a single transaction
         let block = SealedBlockWithSenders {
-            block: SealedBlock { header: header.seal_slow(), body: vec![tx], ..Default::default() },
+            block: SealedBlock {
+                header: SealedHeader::new(header, seal),
+                body: BlockBody { transactions: vec![tx], ..Default::default() },
+            },
             senders: vec![address!("6a3cA5811d2c185E6e441cEFa771824fb355f9Ec")],
         };
 
@@ -274,7 +286,7 @@ mod tests {
 
         // Check that the Execution Extension emitted a `FinishedHeight` event with the correct
         // height
-        handle.assert_event_finished_height(0xf21d20)?;
+        handle.assert_event_finished_height(BlockNumHash::new(0xf21d20, seal))?;
 
         // Open the SQLite database connection.
         let connection = Connection::open(DATABASE_PATH)?;

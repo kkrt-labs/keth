@@ -1,7 +1,8 @@
+use alloy_genesis::Genesis;
+use alloy_primitives::Address;
 use clap::Parser;
 use reth_chainspec::{Chain, ChainSpec};
 use reth_node_core::args::DevArgs;
-use reth_primitives::{Address, Genesis};
 use std::{str::FromStr, time::Duration};
 use tracing_subscriber::EnvFilter;
 
