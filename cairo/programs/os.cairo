@@ -42,7 +42,7 @@ func main{
     let header = block.block_header;
     assert [range_check_ptr] = header.gas_limit;
     assert [range_check_ptr + 1] = header.gas_used;
-    assert [range_check_ptr + 2] = header.base_fee_per_gas;
+    assert [range_check_ptr + 2] = header.base_fee_per_gas.value;
     let range_check_ptr = range_check_ptr + 3;
 
     with header, chain_id, state {
@@ -105,7 +105,7 @@ func apply_transactions{
     }
 
     with_attr error_message("Max fee per gas too low") {
-        assert_nn(tx.max_fee_per_gas - header.base_fee_per_gas);
+        assert_nn(tx.max_fee_per_gas - header.base_fee_per_gas.value);
     }
 
     with_attr error_message("Max priority fee greater than max fee per gas") {
