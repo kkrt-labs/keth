@@ -1,6 +1,9 @@
-use alloy_primitives::{Address, Bloom, B256, U256};
+use alloy_primitives::{Address, Bloom, Bytes, B256, U256};
 use cairo_vm::{types::relocatable::MaybeRelocatable, Felt252};
 use serde::{Deserialize, Serialize};
+
+/// The size in bytes of the `u128` type.
+pub const U128_BYTES_SIZE: usize = std::mem::size_of::<u128>();
 
 /// A custom wrapper around [`MaybeRelocatable`] for the Keth execution environment.
 ///
@@ -197,8 +200,8 @@ impl KethU256 {
 impl From<B256> for KethU256 {
     fn from(value: B256) -> Self {
         Self {
-            low: KethMaybeRelocatable::from_bytes_be_slice(&value.0[16..]),
-            high: KethMaybeRelocatable::from_bytes_be_slice(&value.0[0..16]),
+            low: KethMaybeRelocatable::from_bytes_be_slice(&value.0[U128_BYTES_SIZE..]),
+            high: KethMaybeRelocatable::from_bytes_be_slice(&value.0[0..U128_BYTES_SIZE]),
         }
     }
 }
@@ -207,10 +210,10 @@ impl From<U256> for KethU256 {
     fn from(value: U256) -> Self {
         Self {
             low: KethMaybeRelocatable::from_bytes_be_slice(
-                &value.to_be_bytes::<{ U256::BYTES }>()[16..],
+                &value.to_be_bytes::<{ U256::BYTES }>()[U128_BYTES_SIZE..],
             ),
             high: KethMaybeRelocatable::from_bytes_be_slice(
-                &value.to_be_bytes::<{ U256::BYTES }>()[0..16],
+                &value.to_be_bytes::<{ U256::BYTES }>()[0..U128_BYTES_SIZE],
             ),
         }
     }
@@ -254,8 +257,8 @@ impl From<Bloom> for KethPointer {
     /// The conversion process works as follows:
     /// - The first field (`len`) holds the length of the original data, represented as a
     ///   [`KethMaybeRelocatable`].
-    /// - The `data` field stores the remaining elements as chunks of 16 bytes each from the Bloom
-    ///   filter, with each chunk converted into a [`KethMaybeRelocatable`].
+    /// - The `data` field stores the remaining elements as chunks of [`U128_BYTES_SIZE`] bytes each
+    ///   from the Bloom filter, with each chunk converted into a [`KethMaybeRelocatable`].
     ///
     /// This process allows the 256-byte Bloom filter to be stored and processed efficiently in the
     /// `KethPointer` structure, making it compatible with CairoVM's constraints.
@@ -264,8 +267,50 @@ impl From<Bloom> for KethPointer {
             // The length of the Bloom filter.
             len: value.len().into(),
             // Chunk the 256-byte array into groups of 16 bytes and convert.
-            data: value.0.chunks(16).map(KethMaybeRelocatable::from_bytes_be_slice).collect(),
+            data: value
+                .0
+                .chunks(U128_BYTES_SIZE)
+                .map(KethMaybeRelocatable::from_bytes_be_slice)
+                .collect(),
             // In Cairo, Bloom is a pointer to a segment of felts.
+            type_size: 1,
+        }
+    }
+}
+
+impl From<Bytes> for KethPointer {
+    /// Converts a [`Bytes`] object into a [`KethPointer`] structure.
+    ///
+    /// This method takes a [`Bytes`] object (which represents a sequence of bytes) and
+    /// converts it into the [`KethPointer`] format, making it compatible with CairoVM's
+    /// 252-bit limitation for [`Felt252`] values.
+    ///
+    /// The conversion process:
+    /// - The `len` field represents the total length of the input bytes, converted into a
+    ///   [`KethMaybeRelocatable`] value.
+    /// - The `data` field maps each byte of the input to a [`KethMaybeRelocatable`] value
+    ///   (represented as a [`Felt252`] in CairoVM). This approach ensures that each byte is
+    ///   individually processed and stored as a relocatable field.
+    ///
+    /// In the Cairo VM a Byte is represented by a felt pointer, this means one byte is one felt.
+    /// This is the reason why we convert each byte to a felt without any chunk.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use alloy_primitives::Bytes;
+    /// use kakarot_exex::model::KethPointer;
+    ///
+    /// let bytes = Bytes::from(vec![0x01, 0x02, 0x03]);
+    /// let keth_pointer = KethPointer::from(bytes);
+    /// ```
+    fn from(value: Bytes) -> Self {
+        Self {
+            // The length of the input data.
+            len: value.len().into(),
+            // Convert each byte to a Felt.
+            data: value.0.iter().map(|byte| (*byte).into()).collect(),
+            // In Cairo, Bytes is a pointer to a segment of felts.
             type_size: 1,
         }
     }
@@ -336,8 +381,8 @@ mod tests {
             let high_bytes = self.high.0.get_int().unwrap().to_bytes_be();
             let low_bytes = self.low.0.get_int().unwrap().to_bytes_be();
             let bytes = [
-                &high_bytes[16..], // Get the high 16 bytes
-                &low_bytes[16..],  // Get the low 16 bytes
+                &high_bytes[U128_BYTES_SIZE..], // Get the high 16 bytes
+                &low_bytes[U128_BYTES_SIZE..],  // Get the low 16 bytes
             ]
             .concat();
             B256::from_slice(&bytes)
@@ -348,8 +393,8 @@ mod tests {
             let high_bytes = self.high.0.get_int().unwrap().to_bytes_be();
             let low_bytes = self.low.0.get_int().unwrap().to_bytes_be();
             let bytes = [
-                &high_bytes[16..], // Get the high 16 bytes
-                &low_bytes[16..],  // Get the low 16 bytes
+                &high_bytes[U128_BYTES_SIZE..], // Get the high 16 bytes
+                &low_bytes[U128_BYTES_SIZE..],  // Get the low 16 bytes
             ]
             .concat();
             U256::from_be_slice(&bytes)
@@ -366,12 +411,47 @@ mod tests {
     }
 
     impl KethPointer {
-        fn to_bloom(keth_maybe_relocatables: &KethPointer) -> Bloom {
-            Bloom::from_slice(
-                &keth_maybe_relocatables
-                    .data
+        /// Converts the [`KethPointer`] data into a [`Bytes`] object.
+        ///
+        /// This function iterates over the `data` field and retrieves the last byte of each.
+        ///
+        /// # Returns
+        /// A [`Bytes`] object containing the last byte of each integer in the `data` field.
+        fn to_bytes(&self) -> Bytes {
+            Bytes::from(
+                self.data
+                    // Iterate through the items in the `data` field.
                     .iter()
-                    .flat_map(|item| item.0.get_int().unwrap().to_bytes_be()[16..].to_vec())
+                    // For each item, retrieve its integer value and convert to big-endian bytes.
+                    .flat_map(|item| {
+                        // Take only the last byte from the big-endian byte array.
+                        //
+                        // In Cairo, a byte is represented as a single felt (1 byte = 1 felt).
+                        item.0.get_int().unwrap().to_bytes_be().last().copied()
+                    })
+                    .collect::<Vec<_>>(),
+            )
+        }
+
+        /// Converts the [`KethPointer`] data into a [`Bloom`] object.
+        ///
+        /// This function iterates over the `data` field and retrieves the last 16 bytes of each to
+        /// form a Bloom filter.
+        ///
+        /// # Returns
+        /// A [`Bloom`] object created from the sliced bytes of the `data` field.
+        fn to_bloom(&self) -> Bloom {
+            Bloom::from_slice(
+                &self
+                    .data
+                    // Iterate through the items in the `data` field.
+                    .iter()
+                    // For each item, retrieve its integer value and convert to big-endian bytes.
+                    .flat_map(|item| {
+                        // Slice the big-endian byte array, taking all bytes after the first 16
+                        // (u128 byte size in memory).
+                        item.0.get_int().unwrap().to_bytes_be()[U128_BYTES_SIZE..].to_vec()
+                    })
                     .collect::<Vec<_>>(),
             )
         }
@@ -439,6 +519,24 @@ mod tests {
 
             // Assert roundtrip conversion is equal to original value
             prop_assert_eq!(roundtrip_address, address);
+        }
+
+        #[test]
+        fn test_bytes_to_keth_pointer_roundtrip(bytes in any::<Bytes>()) {
+            // Convert to KethPointer
+            let keth_pointer = KethPointer::from(bytes.clone());
+
+            // Convert back to Bytes
+            let roundtrip_bytes = keth_pointer.to_bytes();
+
+            // Assert roundtrip conversion is equal to original value
+            prop_assert_eq!(roundtrip_bytes, bytes.clone());
+            prop_assert_eq!(
+                keth_pointer.len.0.get_int().unwrap().to_string().parse::<usize>().unwrap(),
+                bytes.len()
+            );
+            prop_assert_eq!(keth_pointer.type_size, 1);
+            prop_assert_eq!(keth_pointer.data.len(), bytes.len());
         }
     }
 
@@ -566,5 +664,33 @@ mod tests {
                     .unwrap()
             );
         }
+    }
+
+    #[test]
+    fn test_empty_bytes_conversion() {
+        let bytes = Bytes::new();
+        let keth_pointer = KethPointer::from(bytes.clone());
+        let roundtrip_bytes = keth_pointer.to_bytes();
+        assert_eq!(roundtrip_bytes, bytes);
+        assert_eq!(
+            keth_pointer.len.0.get_int().unwrap().to_string().parse::<usize>().unwrap(),
+            bytes.len()
+        );
+        assert_eq!(keth_pointer.type_size, 1);
+        assert_eq!(keth_pointer.data.len(), 0);
+    }
+
+    #[test]
+    fn test_byte_simple_conversion() {
+        let bytes = Bytes::from(vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+        let keth_pointer = KethPointer::from(bytes.clone());
+        let roundtrip_bytes = keth_pointer.to_bytes();
+        assert_eq!(roundtrip_bytes, bytes);
+        assert_eq!(
+            keth_pointer.len.0.get_int().unwrap().to_string().parse::<usize>().unwrap(),
+            bytes.len()
+        );
+        assert_eq!(keth_pointer.type_size, 1);
+        assert_eq!(keth_pointer.data.len(), 16);
     }
 }
