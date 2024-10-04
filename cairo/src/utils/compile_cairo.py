@@ -26,12 +26,17 @@ def compile_cairo(file_name):
     ]
 
     result = subprocess.run(command, capture_output=True, text=True)
+    fmt = subprocess.run(["trunk", "fmt", str(output_path)])
 
-    if result.returncode == 0:
+    if result.returncode and fmt.returncode == 0:
         logger.info("Compilation successful.")
     else:
-        logger.error("Compilation failed.")
-        logger.error(result.stderr)
+        if result.returncode:
+            logger.error("Compilation failed.")
+            logger.error(result.stderr)
+        if fmt.returncode:
+            logger.error("Formatting failed.")
+            logger.error(fmt.stderr)
 
 
 def compile_os():
