@@ -28,7 +28,7 @@ def compile_cairo(file_name):
     result = subprocess.run(command, capture_output=True, text=True)
     fmt = subprocess.run(["trunk", "fmt", str(output_path)])
 
-    if result.returncode and fmt.returncode == 0:
+    if result.returncode == 0 and fmt.returncode == 0:
         logger.info("Compilation successful.")
     else:
         if result.returncode:
