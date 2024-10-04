@@ -298,8 +298,8 @@ impl From<Bytes> for KethPointer {
     /// # Example
     ///
     /// ```rust
+    /// use alloy_primitives::Bytes;
     /// use kakarot_exex::model::KethPointer;
-    /// use reth::primitives::Bytes;
     ///
     /// let bytes = Bytes::from(vec![0x01, 0x02, 0x03]);
     /// let keth_pointer = KethPointer::from(bytes);
