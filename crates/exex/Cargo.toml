@@ -46,3 +46,5 @@ futures = { workspace = true }
 reth-exex-test-utils = { workspace = true }
 reth-testing-utils = { workspace = true }
 proptest = { workspace = true }
+arbitrary = { workspace = true }
+rand = { workspace = true }
