@@ -1,4 +1,5 @@
-use alloy_primitives::{Address, Bloom, Bytes, B256, U256};
+use alloy_consensus::Header;
+use alloy_primitives::{Address, Bloom, Bytes, B256, B64, U256};
 use cairo_vm::{types::relocatable::MaybeRelocatable, Felt252};
 use serde::{Deserialize, Serialize};
 
@@ -99,6 +100,12 @@ impl From<u8> for KethMaybeRelocatable {
 impl From<u64> for KethMaybeRelocatable {
     fn from(value: u64) -> Self {
         Self(Felt252::from(value).into())
+    }
+}
+
+impl From<B64> for KethMaybeRelocatable {
+    fn from(value: B64) -> Self {
+        Into::<u64>::into(value).into()
     }
 }
 
@@ -316,36 +323,87 @@ impl From<Bytes> for KethPointer {
     }
 }
 
-// TODO: uncomment this in follow-up PRs
-// pub struct KethBlockHeader {
-//     base_fee_per_gas: KethMaybeRelocatable,
-//     blob_gas_used: KethMaybeRelocatable,
-//     bloom_len: KethMaybeRelocatable,
-//     bloom: Vec<KethMaybeRelocatable>,
-//     coinbase: KethMaybeRelocatable,
-//     difficulty: KethMaybeRelocatable,
-//     excess_blob_gas: KethMaybeRelocatable,
-//     extra_data_len: KethMaybeRelocatable,
-//     extra_data: Vec<KethMaybeRelocatable>,
-//     gas_limit: KethMaybeRelocatable,
-//     gas_used: KethMaybeRelocatable,
-//     hash: KethU256,
-//     mix_hash: KethU256,
-//     nonce: KethMaybeRelocatable,
-//     number: KethMaybeRelocatable,
-//     parent_beacon_block_root: KethU256,
-//     parent_hash: KethU256,
-//     receipt_trie: KethU256,
-//     state_root: KethU256,
-//     timestamp: KethMaybeRelocatable,
-//     transactions_trie: KethU256,
-//     uncle_hash: KethU256,
-//     withdrawals_root: KethU256,
-// }
+/// Represents a Keth block header, which contains essential metadata about a block.
+///
+/// These data are converted into a Keth-specific format for use with the CairoVM.
+#[derive(Debug, Eq, Ord, Hash, PartialEq, PartialOrd, Clone, Serialize, Deserialize)]
+pub struct KethBlockHeader {
+    /// Hash of the parent block.
+    parent_hash: KethU256,
+    /// Hash of the ommers (uncle blocks) of the block.
+    ommers_hash: KethU256,
+    /// Address of the beneficiary or coinbase address (the miner or validator).
+    coinbase: KethMaybeRelocatable,
+    /// State root, which represents the root hash of the state trie after transactions.
+    state_root: KethU256,
+    /// Root of the trie that contains the block's transactions.
+    transactions_root: KethU256,
+    /// Root of the trie that contains the block's transaction receipts.
+    receipt_root: KethU256,
+    /// Root of the trie that contains withdrawals in the block.
+    withdrawals_root: KethOption<KethU256>,
+    /// Logs bloom filter for efficient log search.
+    bloom: KethPointer,
+    /// Block difficulty value, which defines how difficult it is to mine the block.
+    difficulty: KethU256,
+    /// Block number, i.e., the height of the block in the chain.
+    number: KethMaybeRelocatable,
+    /// Gas limit for the block, specifying the maximum gas that can be used by transactions.
+    gas_limit: KethMaybeRelocatable,
+    /// Total amount of gas used by transactions in this block.
+    gas_used: KethMaybeRelocatable,
+    /// Timestamp of when the block was mined or validated.
+    timestamp: KethMaybeRelocatable,
+    /// Mix hash used for proof-of-work verification.
+    mix_hash: KethU256,
+    /// Nonce value used for proof-of-work.
+    nonce: KethMaybeRelocatable,
+    /// Base fee per gas (EIP-1559), which represents the minimum gas fee per transaction.
+    base_fee_per_gas: KethOption<KethMaybeRelocatable>,
+    /// Blob gas used in the block.
+    blob_gas_used: KethOption<KethMaybeRelocatable>,
+    /// Excess blob gas for rollups.
+    excess_blob_gas: KethOption<KethMaybeRelocatable>,
+    /// Root of the parent beacon block in the proof-of-stake chain.
+    parent_beacon_block_root: KethOption<KethU256>,
+    /// Root of the trie containing request receipts.
+    requests_root: KethOption<KethU256>,
+    /// Extra data provided within the block, usually for protocol-specific purposes.
+    extra_data: KethPointer,
+}
+impl From<Header> for KethBlockHeader {
+    /// Implements the conversion from a [`Header`] to a [`KethBlockHeader`].
+    fn from(value: Header) -> Self {
+        Self {
+            parent_hash: value.parent_hash.into(),
+            ommers_hash: value.ommers_hash.into(),
+            coinbase: value.beneficiary.into(),
+            state_root: value.state_root.into(),
+            transactions_root: value.transactions_root.into(),
+            receipt_root: value.receipts_root.into(),
+            withdrawals_root: value.withdrawals_root.into(),
+            bloom: value.logs_bloom.into(),
+            difficulty: value.difficulty.into(),
+            number: value.number.into(),
+            gas_limit: value.gas_limit.into(),
+            gas_used: value.gas_used.into(),
+            timestamp: value.timestamp.into(),
+            mix_hash: value.mix_hash.into(),
+            nonce: value.nonce.into(),
+            base_fee_per_gas: value.base_fee_per_gas.into(),
+            blob_gas_used: value.blob_gas_used.into(),
+            excess_blob_gas: value.excess_blob_gas.into(),
+            parent_beacon_block_root: value.parent_beacon_block_root.into(),
+            requests_root: value.requests_root.into(),
+            extra_data: value.extra_data.into(),
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use arbitrary::{Arbitrary, Unstructured};
     use proptest::prelude::*;
 
     impl KethOption<KethMaybeRelocatable> {
@@ -402,6 +460,10 @@ mod tests {
     }
 
     impl KethMaybeRelocatable {
+        fn to_u64(&self) -> u64 {
+            self.0.get_int().unwrap().to_string().parse::<u64>().unwrap()
+        }
+
         fn to_address(&self) -> Address {
             // Get the bytes in big-endian order
             let bytes = self.0.get_int().unwrap().to_bytes_be();
@@ -454,6 +516,36 @@ mod tests {
                     })
                     .collect::<Vec<_>>(),
             )
+        }
+    }
+
+    impl KethBlockHeader {
+        /// Function used to convert the [`KethBlockHeader`] to a Header in order to build roundtrip
+        /// tests.
+        fn to_reth_header(&self) -> Header {
+            Header {
+                parent_hash: self.parent_hash.to_b256(),
+                ommers_hash: self.ommers_hash.to_b256(),
+                beneficiary: self.coinbase.to_address(),
+                state_root: self.state_root.to_b256(),
+                transactions_root: self.transactions_root.to_b256(),
+                receipts_root: self.receipt_root.to_b256(),
+                withdrawals_root: self.withdrawals_root.to_option_b256(),
+                logs_bloom: self.bloom.to_bloom(),
+                difficulty: self.difficulty.to_u256(),
+                number: self.number.to_u64(),
+                gas_limit: self.gas_limit.to_u64(),
+                gas_used: self.gas_used.to_u64(),
+                timestamp: self.timestamp.to_u64(),
+                mix_hash: self.mix_hash.to_b256(),
+                nonce: self.nonce.to_u64().into(),
+                base_fee_per_gas: self.base_fee_per_gas.to_option_u64(),
+                blob_gas_used: self.blob_gas_used.to_option_u64(),
+                excess_blob_gas: self.excess_blob_gas.to_option_u64(),
+                parent_beacon_block_root: self.parent_beacon_block_root.to_option_b256(),
+                requests_root: self.requests_root.to_option_b256(),
+                extra_data: self.extra_data.to_bytes(),
+            }
         }
     }
 
@@ -692,5 +784,27 @@ mod tests {
         );
         assert_eq!(keth_pointer.type_size, 1);
         assert_eq!(keth_pointer.data.len(), 16);
+    }
+
+    #[test]
+    fn test_header_arbitrary_roundtrip_conversion() {
+        for _ in 0..30 {
+            // Generate arbitrary raw bytes to use for constructing an unstructured input
+            let raw_bytes: Vec<u8> = (0..1000).map(|_| rand::random::<u8>()).collect();
+            let mut unstructured = Unstructured::new(&raw_bytes);
+
+            // Generate an arbitrary Header using Arbitrary
+            let original_header =
+                Header::arbitrary(&mut unstructured).expect("Failed to generate arbitrary Header");
+
+            // Convert the arbitrary Header into KethBlockHeader
+            let keth_header: KethBlockHeader = original_header.clone().into();
+
+            // Convert it back to a Header
+            let final_header: Header = keth_header.to_reth_header();
+
+            // Assert that the original Header and the final one after roundtrip are equal
+            assert_eq!(final_header, original_header, "Roundtrip conversion failed");
+        }
     }
 }
