@@ -1,6 +1,8 @@
 use alloy_consensus::Header;
 use alloy_primitives::{Address, Bloom, Bytes, B256, B64, U256};
+use alloy_rlp::Encodable;
 use cairo_vm::{types::relocatable::MaybeRelocatable, Felt252};
+use reth_primitives::Signature;
 use serde::{Deserialize, Serialize};
 
 /// The size in bytes of the `u128` type.
@@ -323,6 +325,44 @@ impl From<Bytes> for KethPointer {
     }
 }
 
+impl From<Signature> for KethPointer {
+    /// Converts a [`Signature`] into a [`KethPointer`].
+    ///
+    /// This implementation encodes an Ethereum-like [`Signature`] into its RLP representation and
+    /// stores it as a [`KethPointer`], which is compatible with the Cairo virtual machine.
+    ///
+    /// Cairo's VM assumes that a [`Signature`] is a pointer to a segment of felt values, and this
+    /// implementation adapts the Ethereum [`Signature`] to that format. The signature is
+    /// serialized using RLP, and the resulting byte array is mapped into a list of felts (field
+    /// elements).
+    ///
+    /// # Fields:
+    ///
+    /// - `len`: Represents the total length of the encoded R, S, and V fields in the signature.
+    ///   This is important for reconstructing or verifying the signature in future operations.
+    ///
+    /// - `data`: A vector of `felts` representing the RLP-encoded byte array of the signature. Each
+    ///   byte of the encoded signature is individually converted to a felt for use in Cairo.
+    ///
+    /// - `type_size`: The type size is set to `1`, meaning that this represents a single segment of
+    ///   felts in the Cairo VM.
+    fn from(value: Signature) -> Self {
+        // Encode the signature via RLP.
+        let mut buf = Vec::new();
+        value.encode(&mut buf);
+
+        Self {
+            // Store the length of the RLP-encoded R, S, and V components.
+            len: value.rlp_vrs_len().into(),
+            // Convert each byte of the RLP-encoded signature into a felt.
+            data: buf.into_iter().map(Into::into).collect(),
+            // Set the type size to 1, as Cairo expects a signature to be a pointer to a segment of
+            // felts.
+            type_size: 1,
+        }
+    }
+}
+
 /// Represents a Keth block header, which contains essential metadata about a block.
 ///
 /// These data are converted into a Keth-specific format for use with the CairoVM.
@@ -403,6 +443,7 @@ impl From<Header> for KethBlockHeader {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use alloy_rlp::Decodable;
     use arbitrary::{Arbitrary, Unstructured};
     use proptest::prelude::*;
 
@@ -517,6 +558,20 @@ mod tests {
                     .collect::<Vec<_>>(),
             )
         }
+
+        fn to_signature(&self) -> Signature {
+            // Extract the bytes from the data field
+            let bytes = self
+                .data
+                .iter()
+                .map(|item| item.0.get_int().unwrap().to_string().parse::<u8>().unwrap())
+                .collect::<Vec<_>>();
+
+            let mut bytes = bytes.as_slice();
+
+            // Decode the signature from the bytes
+            Signature::decode(&mut bytes).unwrap()
+        }
     }
 
     impl KethBlockHeader {
@@ -629,6 +684,21 @@ mod tests {
             );
             prop_assert_eq!(keth_pointer.type_size, 1);
             prop_assert_eq!(keth_pointer.data.len(), bytes.len());
+        }
+
+        #[test]
+        fn test_signature_to_keth_pointer_roundtrip(signature in any::<Signature>()) {
+            // Convert to KethPointer
+            let keth_pointer = KethPointer::from(signature);
+            let keth_pointer_len: usize = keth_pointer.len.to_u64() as usize;
+
+            // Convert back to Signature
+            let roundtrip_signature = keth_pointer.to_signature();
+
+            // Assert roundtrip conversion is equal to original value
+            prop_assert_eq!(roundtrip_signature, signature);
+            prop_assert_eq!(keth_pointer.type_size, 1);
+            prop_assert_eq!(keth_pointer_len, signature.rlp_vrs_len());
         }
     }
 
