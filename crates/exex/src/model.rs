@@ -1,7 +1,8 @@
 use alloy_consensus::Header;
 use alloy_primitives::{Address, Bloom, Bytes, B256, B64, U256};
+use alloy_rlp::Encodable;
 use cairo_vm::{types::relocatable::MaybeRelocatable, Felt252};
-use reth_primitives::Signature;
+use reth_primitives::{Signature, Transaction};
 use serde::{Deserialize, Serialize};
 
 /// The size in bytes of the `u128` type.
@@ -372,6 +373,45 @@ impl From<Signature> for KethPointer {
     }
 }
 
+impl From<Transaction> for KethPointer {
+    /// Converts a [`Transaction`] into a [`KethPointer`].
+    ///
+    /// This implementation encodes a given Ethereum [`Transaction`] into RLP format and stores it
+    /// as a [`KethPointer`], which is designed for compatibility with the Cairo virtual machine.
+    ///
+    /// The Cairo VM assumes that a [`Transaction`] is a pointer to a segment of felts, and this
+    /// conversion translates the RLP-encoded byte array of the transaction into a list of felts,
+    /// which can be used in Cairo.
+    ///
+    /// # Fields:
+    ///
+    /// - `len`: Represents the total number of bytes in the RLP-encoded transaction. This is
+    ///   important for Cairo to know how many felts to expect when interpreting the transaction.
+    ///
+    /// - `data`: A vector of felts representing the RLP-encoded byte array of the transaction. Each
+    ///   byte of the RLP-encoded transaction is converted into a felt for use in Cairo.
+    ///
+    /// - `type_size`: Set to `1`, indicating that this represents a single segment of felts in the
+    ///   Cairo VM.
+    fn from(value: Transaction) -> Self {
+        // Initialize an empty buffer to hold the RLP-encoded transaction.
+        let mut buffer = Vec::new();
+        // Encode the transaction into the buffer using RLP encoding.
+        value.encode(&mut buffer);
+
+        Self {
+            // Set the `len` field to the length of the encoded byte array.
+            // This indicates the size of the transaction in bytes.
+            len: buffer.len().into(),
+            // Convert the byte array into a vector of felts (one felt per byte).
+            // Each byte is mapped into a felt to be used in the Cairo VM.
+            data: buffer.into_iter().map(|byte| byte.into()).collect(),
+            // Set the type size to `1`, meaning this is a single segment in Cairo.
+            type_size: 1,
+        }
+    }
+}
+
 /// Represents a Keth block header, which contains essential metadata about a block.
 ///
 /// These data are converted into a Keth-specific format for use with the CairoVM.
@@ -567,12 +607,22 @@ mod tests {
             )
         }
 
+        /// Converts the [`KethPointer`] data into a [`Signature`] object.
         fn to_signature(&self) -> Signature {
             let r = KethU256 { low: self.data[0].clone(), high: self.data[1].clone() }.to_u256();
             let s = KethU256 { low: self.data[2].clone(), high: self.data[3].clone() }.to_u256();
             let v = self.data[4].clone().to_u64();
 
             Signature::from_rs_and_parity(r, s, v).expect("Failed to create signature")
+        }
+
+        /// Util to convert the KethPointer to RLP encoded transaction bytes.
+        fn to_transaction_rlp(&self) -> Vec<u8> {
+            // Extract the bytes from the data field
+            self.data
+                .iter()
+                .map(|item| item.0.get_int().unwrap().to_string().parse::<u8>().unwrap())
+                .collect::<Vec<_>>()
         }
     }
 
@@ -877,6 +927,35 @@ mod tests {
 
             // Assert that the original Header and the final one after roundtrip are equal
             assert_eq!(final_header, original_header, "Roundtrip conversion failed");
+        }
+    }
+
+    #[test]
+    fn test_blob_tx() {
+        for _ in 0..50 {
+            // Generate arbitrary raw bytes to use for constructing an unstructured input
+            let raw_bytes: Vec<u8> = (0..1000).map(|_| rand::random::<u8>()).collect();
+            let mut unstructured = Unstructured::new(&raw_bytes);
+
+            // Generate an arbitrary signed transaction
+            let tx = Transaction::arbitrary(&mut unstructured)
+                .expect("Failed to generate arbitrary transaction");
+
+            // Convert the arbitrary Transaction into a Keth pointer
+            let keth_rlp = KethPointer::from(tx.clone());
+
+            // Get the encoded bytes from the Keth pointer
+            let encoded_bytes = keth_rlp.to_transaction_rlp();
+
+            // Encode the original transaction via RLP to compare with the Keth pointer
+            let mut buffer = Vec::new();
+            tx.encode(&mut buffer);
+
+            // Assert that the encoded bytes from the Keth pointer match the original transaction
+            assert_eq!(encoded_bytes, buffer);
+            assert_eq!(encoded_bytes.len(), buffer.len());
+            assert_eq!(buffer.len(), keth_rlp.len.to_u64() as usize);
+            assert_eq!(keth_rlp.type_size, 1);
         }
     }
 }
