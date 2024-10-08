@@ -1,6 +1,7 @@
 use alloy_consensus::Header;
 use alloy_primitives::{Address, Bloom, Bytes, B256, B64, U256};
 use cairo_vm::{types::relocatable::MaybeRelocatable, Felt252};
+use reth_primitives::Signature;
 use serde::{Deserialize, Serialize};
 
 /// The size in bytes of the `u128` type.
@@ -323,6 +324,54 @@ impl From<Bytes> for KethPointer {
     }
 }
 
+impl From<Signature> for KethPointer {
+    /// Converts a [`Signature`] into a [`KethPointer`].
+    ///
+    /// This implementation encodes an Ethereum-like [`Signature`] into a format compatible with the
+    /// Cairo virtual machine by converting the signature's components (R, S, V) into felts.
+    ///
+    /// Cairo's VM assumes that a [`Signature`] is a pointer to a segment of felts. This
+    /// implementation adapts the Ethereum [`Signature`] by splitting its components (R, S, and V)
+    /// into parts, each of which is mapped to felts. Specifically:
+    ///
+    /// - R and S, which are 256-bit integers, are split into their low and high 128-bit parts.
+    /// - V, which is typically a single byte, is converted directly into a felt.
+    ///
+    /// # Fields:
+    ///
+    /// - `len`: Represents the total length of the signature's components in felts. Here, the
+    ///   signature is stored as 5 felts:
+    ///   - R: low and high parts (2 felts)
+    ///   - S: low and high parts (2 felts)
+    ///   - V: single felt
+    ///
+    /// - `data`: A vector of felts representing the signature. The R and S components are split
+    ///   into two 128-bit values (low and high parts), and V is converted directly into a felt.
+    ///   This vector is used by the Cairo VM to reference the signature.
+    ///
+    /// - `type_size`: This is set to `1`, indicating that the pointer refers to a single segment of
+    ///   felts within Cairo.
+    fn from(value: Signature) -> Self {
+        // Convert the signature into multiple felts.
+        let r: KethU256 = value.r().into();
+        let s: KethU256 = value.s().into();
+        let v: KethMaybeRelocatable = value.v().to_u64().into();
+
+        Self {
+            // We store the signature as a vector of 5 Felts:
+            // - R: low and high parts
+            // - S: low and high parts
+            // - V: single felt
+            len: 5usize.into(),
+            // Convert each part of the signature to a felt.
+            data: vec![r.low, r.high, s.low, s.high, v],
+            // Set the type size to 1, as Cairo expects a signature to be a pointer to a segment of
+            // felts.
+            type_size: 1,
+        }
+    }
+}
+
 /// Represents a Keth block header, which contains essential metadata about a block.
 ///
 /// These data are converted into a Keth-specific format for use with the CairoVM.
@@ -517,6 +566,14 @@ mod tests {
                     .collect::<Vec<_>>(),
             )
         }
+
+        fn to_signature(&self) -> Signature {
+            let r = KethU256 { low: self.data[0].clone(), high: self.data[1].clone() }.to_u256();
+            let s = KethU256 { low: self.data[2].clone(), high: self.data[3].clone() }.to_u256();
+            let v = self.data[4].clone().to_u64();
+
+            Signature::from_rs_and_parity(r, s, v).expect("Failed to create signature")
+        }
     }
 
     impl KethBlockHeader {
@@ -629,6 +686,21 @@ mod tests {
             );
             prop_assert_eq!(keth_pointer.type_size, 1);
             prop_assert_eq!(keth_pointer.data.len(), bytes.len());
+        }
+
+        #[test]
+        fn test_signature_to_keth_pointer_roundtrip(signature in any::<Signature>()) {
+            // Convert to KethPointer
+            let keth_pointer = KethPointer::from(signature);
+            let keth_pointer_len: usize = keth_pointer.len.to_u64() as usize;
+
+            // Convert back to Signature
+            let roundtrip_signature = keth_pointer.to_signature();
+
+            // Assert roundtrip conversion is equal to original value
+            prop_assert_eq!(roundtrip_signature, signature);
+            prop_assert_eq!(keth_pointer.type_size, 1);
+            prop_assert_eq!(keth_pointer_len, 5);
         }
     }
 
