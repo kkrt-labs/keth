@@ -55,7 +55,6 @@ reth-testing-utils = { git = "https://github.com/paradigmxyz/reth", tag = "v1.0.
 alloy-primitives = { version = "0.8.4", default-features = false }
 alloy-genesis = { version = "0.4.2", default-features = false }
 alloy-consensus = { version = "0.4.2", default-features = false }
-alloy-rlp = { version = "0.3.4", default-features = false }
 
 serde = { version = "1.0", default-features = false }
 eyre = "0.6"

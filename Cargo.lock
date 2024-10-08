@@ -3709,7 +3709,6 @@ dependencies = [
  "alloy-consensus",
  "alloy-genesis",
  "alloy-primitives",
- "alloy-rlp",
  "arbitrary",
  "cairo-vm",
  "eyre",
