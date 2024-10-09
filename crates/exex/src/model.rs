@@ -2,11 +2,21 @@ use alloy_consensus::Header;
 use alloy_primitives::{Address, Bloom, Bytes, B256, B64, U256};
 use alloy_rlp::Encodable;
 use cairo_vm::{types::relocatable::MaybeRelocatable, Felt252};
-use reth_primitives::{Signature, Transaction};
+use reth_primitives::{Signature, Transaction, TransactionSigned, TransactionSignedEcRecovered};
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
 /// The size in bytes of the `u128` type.
 pub const U128_BYTES_SIZE: usize = std::mem::size_of::<u128>();
+
+/// This represents the possible errors that can occur during conversions from Ethereum format to
+/// CairoVM compatible formats.
+#[derive(Error, Debug)]
+pub enum ConversionError {
+    /// Error indicating the failure to recover the signer from the transaction.
+    #[error("Failed to recover signer from transaction")]
+    TransactionSigner,
+}
 
 /// A custom wrapper around [`MaybeRelocatable`] for the Keth execution environment.
 ///
@@ -460,6 +470,7 @@ pub struct KethBlockHeader {
     /// Extra data provided within the block, usually for protocol-specific purposes.
     extra_data: KethPointer,
 }
+
 impl From<Header> for KethBlockHeader {
     /// Implements the conversion from a [`Header`] to a [`KethBlockHeader`].
     fn from(value: Header) -> Self {
@@ -485,6 +496,61 @@ impl From<Header> for KethBlockHeader {
             parent_beacon_block_root: value.parent_beacon_block_root.into(),
             requests_root: value.requests_root.into(),
             extra_data: value.extra_data.into(),
+        }
+    }
+}
+
+/// [`KethTransactionEncoded`] represents an encoded Ethereum transaction.
+///
+/// This struct holds three components of a transaction:
+/// - The RLP (Recursive Length Prefix) encoding of the transaction.
+/// - The signature of the transaction.
+/// - The address of the sender.
+#[derive(Debug, Eq, Ord, Hash, PartialEq, PartialOrd, Clone, Serialize, Deserialize)]
+pub struct KethTransactionEncoded {
+    /// The RLP encoding of the transaction.
+    rlp: KethPointer,
+
+    /// The signature associated with the transaction.
+    signature: KethPointer,
+
+    /// The address of the sender.
+    sender: KethMaybeRelocatable,
+}
+
+impl TryFrom<TransactionSigned> for KethTransactionEncoded {
+    type Error = ConversionError;
+
+    /// Attempts to convert a [`TransactionSigned`] into a [`KethTransactionEncoded`].
+    fn try_from(value: TransactionSigned) -> Result<Self, Self::Error> {
+        // Recover the signer (sender) from the signed transaction.
+        // This can fail for some early ethereum mainnet transactions pre EIP-2
+        // If it fails, return a `ConversionError` error.
+        let sender = value.recover_signer().ok_or(ConversionError::TransactionSigner)?.into();
+
+        // Convert the transaction and its signature to the corresponding types,
+        // and return a new `KethTransactionEncoded` instance.
+        Ok(Self {
+            // The transaction is converted into a `KethPointer` via RLP encoding.
+            rlp: value.transaction.into(),
+            // The signature is converted into a `KethPointer`.
+            signature: value.signature.into(),
+            // The sender address is stored as a `KethMaybeRelocatable`.
+            sender,
+        })
+    }
+}
+
+impl From<TransactionSignedEcRecovered> for KethTransactionEncoded {
+    /// Converts a [`TransactionSignedEcRecovered`] into a [`KethTransactionEncoded`].
+    fn from(value: TransactionSignedEcRecovered) -> Self {
+        Self {
+            // The transaction is converted into a `KethPointer` via RLP encoding.
+            rlp: value.transaction.clone().into(),
+            // The signature is converted into a `KethPointer`.
+            signature: value.signature.into(),
+            // The signer is part of the transaction so that we are sure it is correct.
+            sender: value.signer().into(),
         }
     }
 }
@@ -752,6 +818,108 @@ mod tests {
             prop_assert_eq!(keth_pointer.type_size, 1);
             prop_assert_eq!(keth_pointer_len, 5);
         }
+
+        #[test]
+        fn test_header_arbitrary_roundtrip_conversion(raw_bytes in any::<[u8; 1000]>()) {
+            let mut unstructured = Unstructured::new(&raw_bytes);
+
+            // Generate an arbitrary Header using Arbitrary
+            let original_header = Header::arbitrary(&mut unstructured).expect("Failed to generate arbitrary Header");
+
+            // Convert the arbitrary Header into KethBlockHeader
+            let keth_header: KethBlockHeader = original_header.clone().into();
+
+            // Convert it back to a Header
+            let final_header: Header = keth_header.to_reth_header();
+
+            // Assert that the original Header and the final one after roundtrip are equal
+            prop_assert_eq!(final_header, original_header);
+        }
+
+        #[test]
+        fn test_transaction_to_rlp_encoded(raw_bytes in any::<[u8; 1000]>()) {
+            let mut unstructured = Unstructured::new(&raw_bytes);
+
+            // Generate an arbitrary transaction
+            let tx = Transaction::arbitrary(&mut unstructured)
+                .expect("Failed to generate arbitrary transaction");
+
+            // Convert the arbitrary Transaction into a Keth pointer
+            let keth_rlp = KethPointer::from(tx.clone());
+
+            // Get the encoded bytes from the Keth pointer
+            let encoded_bytes = keth_rlp.to_transaction_rlp();
+
+            // Encode the original transaction via RLP to compare with the Keth pointer
+            let mut buffer = Vec::new();
+            tx.encode(&mut buffer);
+
+            // Assert that the encoded bytes from the Keth pointer match the original transaction
+            prop_assert_eq!(encoded_bytes, buffer.clone());
+            prop_assert_eq!(buffer.len(), keth_rlp.len.to_u64() as usize);
+            prop_assert_eq!(keth_rlp.type_size, 1);
+        }
+
+        #[test]
+        fn test_signed_transaction_to_transaction_encoded(raw_bytes in any::<[u8; 1000]>()) {
+            let mut unstructured = Unstructured::new(&raw_bytes);
+
+            // Generate an arbitrary signed transaction
+            let tx = TransactionSigned::arbitrary(&mut unstructured)
+                .expect("Failed to generate arbitrary transaction");
+
+            // Convert the signed transaction to a keth encoded transaction
+            let keth_transaction_encoded = KethTransactionEncoded::try_from(tx.clone()).unwrap();
+
+            // Get the encoded bytes from the Keth pointer
+            let encoded_bytes = keth_transaction_encoded.rlp.to_transaction_rlp();
+
+            // Encode the original transaction via RLP to compare with the Keth pointer
+            let mut buffer = Vec::new();
+            tx.transaction.encode(&mut buffer);
+
+            prop_assert_eq!(encoded_bytes, buffer.clone());
+            prop_assert_eq!(buffer.len(), keth_transaction_encoded.rlp.len.to_u64() as usize);
+            prop_assert_eq!(keth_transaction_encoded.rlp.type_size, 1);
+
+            // Verify signature
+            prop_assert_eq!(keth_transaction_encoded.signature.to_signature(), tx.signature);
+
+            // Verify sender
+            prop_assert_eq!(keth_transaction_encoded.sender.to_address(), tx.recover_signer().unwrap());
+        }
+
+        #[test]
+        fn test_transaction_signed_ec_recovered_to_transaction_encoded(raw_bytes in any::<[u8; 1000]>()) {
+            let mut unstructured = Unstructured::new(&raw_bytes);
+
+            // Generate an arbitrary signed transaction
+            let tx = TransactionSigned::arbitrary(&mut unstructured)
+                .expect("Failed to generate arbitrary transaction");
+
+            // Convert the signed transaction to EC recovered
+            let tx = tx.into_ecrecovered().unwrap();
+
+            // Convert the arbitrary Transaction into a keth encoded transaction
+            let keth_transaction_encoded = KethTransactionEncoded::from(tx.clone());
+
+            // Get the encoded bytes from the Keth pointer
+            let encoded_bytes = keth_transaction_encoded.rlp.to_transaction_rlp();
+
+            // Encode the original transaction via RLP to compare with the Keth pointer
+            let mut buffer = Vec::new();
+            tx.transaction.encode(&mut buffer);
+
+            prop_assert_eq!(encoded_bytes, buffer.clone());
+            prop_assert_eq!(buffer.len(), keth_transaction_encoded.rlp.len.to_u64() as usize);
+            prop_assert_eq!(keth_transaction_encoded.rlp.type_size, 1);
+
+            // Verify signature
+            prop_assert_eq!(keth_transaction_encoded.signature.to_signature(), tx.signature);
+
+            // Verify sender
+            prop_assert_eq!(keth_transaction_encoded.sender.to_address(), tx.recover_signer().unwrap());
+        }
     }
 
     #[test]
@@ -906,56 +1074,5 @@ mod tests {
         );
         assert_eq!(keth_pointer.type_size, 1);
         assert_eq!(keth_pointer.data.len(), 16);
-    }
-
-    #[test]
-    fn test_header_arbitrary_roundtrip_conversion() {
-        for _ in 0..30 {
-            // Generate arbitrary raw bytes to use for constructing an unstructured input
-            let raw_bytes: Vec<u8> = (0..1000).map(|_| rand::random::<u8>()).collect();
-            let mut unstructured = Unstructured::new(&raw_bytes);
-
-            // Generate an arbitrary Header using Arbitrary
-            let original_header =
-                Header::arbitrary(&mut unstructured).expect("Failed to generate arbitrary Header");
-
-            // Convert the arbitrary Header into KethBlockHeader
-            let keth_header: KethBlockHeader = original_header.clone().into();
-
-            // Convert it back to a Header
-            let final_header: Header = keth_header.to_reth_header();
-
-            // Assert that the original Header and the final one after roundtrip are equal
-            assert_eq!(final_header, original_header, "Roundtrip conversion failed");
-        }
-    }
-
-    #[test]
-    fn test_blob_tx() {
-        for _ in 0..50 {
-            // Generate arbitrary raw bytes to use for constructing an unstructured input
-            let raw_bytes: Vec<u8> = (0..1000).map(|_| rand::random::<u8>()).collect();
-            let mut unstructured = Unstructured::new(&raw_bytes);
-
-            // Generate an arbitrary signed transaction
-            let tx = Transaction::arbitrary(&mut unstructured)
-                .expect("Failed to generate arbitrary transaction");
-
-            // Convert the arbitrary Transaction into a Keth pointer
-            let keth_rlp = KethPointer::from(tx.clone());
-
-            // Get the encoded bytes from the Keth pointer
-            let encoded_bytes = keth_rlp.to_transaction_rlp();
-
-            // Encode the original transaction via RLP to compare with the Keth pointer
-            let mut buffer = Vec::new();
-            tx.encode(&mut buffer);
-
-            // Assert that the encoded bytes from the Keth pointer match the original transaction
-            assert_eq!(encoded_bytes, buffer);
-            assert_eq!(encoded_bytes.len(), buffer.len());
-            assert_eq!(buffer.len(), keth_rlp.len.to_u64() as usize);
-            assert_eq!(keth_rlp.type_size, 1);
-        }
     }
 }

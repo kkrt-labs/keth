@@ -42,6 +42,7 @@ eyre = { workspace = true }
 once_cell = { workspace = true }
 tokio = { workspace = true }
 futures = { workspace = true }
+thiserror = { workspace = true }
 
 [dev-dependencies]
 reth-exex-test-utils = { workspace = true }
