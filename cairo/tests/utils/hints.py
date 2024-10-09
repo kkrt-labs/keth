@@ -80,12 +80,23 @@ chain_id = """
 ids.chain_id = 1
 """
 
+dict_copy = """
+from starkware.cairo.common.dict import DictTracker
+
+data = __dict_manager.trackers[ids.start.address_.segment_index].data.copy()
+__dict_manager.trackers[ids.new_start.address_.segment_index] = DictTracker(
+    data=data,
+    current_ptr=ids.new_end.address_,
+)
+"""
+
 hints = {
     "dict_manager": dict_manager,
     "block": block,
     "account": account,
     "state": state,
     "chain_id": chain_id,
+    "dict_copy": dict_copy,
 }
 
 

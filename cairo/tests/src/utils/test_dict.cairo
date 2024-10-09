@@ -43,6 +43,7 @@ func test__dict_keys__should_return_keys{range_check_ptr}() {
 }
 
 func test__default_dict_copy__should_return_copied_dict{range_check_ptr}() {
+    alloc_locals;
     let default_value = 0xdead;
     let (dict_ptr_start) = default_dict_new(default_value);
     let dict_ptr = dict_ptr_start;
@@ -58,9 +59,10 @@ func test__default_dict_copy__should_return_copied_dict{range_check_ptr}() {
         dict_write(key + 3, 0xff + 3);
         dict_write(key + 4, 0xff + 4);
     }
+    local dict_size = dict_ptr - dict_ptr_start;
     let (new_start, new_ptr) = default_dict_copy(dict_ptr_start, dict_ptr);
 
-    assert new_ptr - new_start = DictAccess.SIZE * 5;
+    assert new_ptr - new_start = dict_size;
 
     let dict_ptr = new_ptr;
     with dict_ptr {
