@@ -8,7 +8,6 @@ from starkware.cairo.common.memcpy import memcpy
 from starkware.cairo.common.default_dict import default_dict_new
 
 from src.utils.utils import Helpers
-from src.utils.dict import dict_keys
 from src.constants import Constants
 
 func test__bytes_to_uint256{range_check_ptr}() -> Uint256 {
@@ -105,26 +104,6 @@ func test__try_parse_destination_from_bytes{range_check_ptr}(output_ptr: felt*) 
     // Then
     assert [output_ptr] = maybe_address.is_some;
     assert [output_ptr + 1] = maybe_address.value;
-
-    return ();
-}
-
-func test__initialize_jumpdests{pedersen_ptr: HashBuiltin*, range_check_ptr}(output_ptr: felt*) {
-    alloc_locals;
-
-    tempvar bytecode_len;
-    let (bytecode) = alloc();
-
-    %{
-        ids.bytecode_len = len(program_input["bytecode"])
-        segments.write_arg(ids.bytecode, program_input["bytecode"])
-    %}
-
-    let (valid_jumpdests_start, valid_jumpdests) = Helpers.initialize_jumpdests(
-        bytecode_len, bytecode
-    );
-    let (keys_len, keys) = dict_keys(valid_jumpdests_start, valid_jumpdests);
-    memcpy(output_ptr, keys, keys_len);
 
     return ();
 }
