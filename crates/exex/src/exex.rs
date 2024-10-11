@@ -69,7 +69,7 @@ impl<Node: FullNodeComponents> KakarotRollup<Node> {
         // Process all new chain state notifications
         while let Some(notification) = self.ctx.notifications.next().await {
             // Check if the notification contains a committed chain.
-            if let Some(committed_chain) = notification.committed_chain() {
+            if let Some(committed_chain) = notification?.committed_chain() {
                 // Get the tip of the committed chain.
                 let tip = committed_chain.tip();
 
