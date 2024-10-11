@@ -33,24 +33,24 @@ kakarot-pool = { path = "crates/pool" }
 kakarot-exex = { path = "crates/exex" }
 
 # Reth
-reth-transaction-pool = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.0.8" }
-reth-primitives = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.0.8" }
-reth-chainspec = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.0.8" }
-reth-node-ethereum = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.0.8" }
-reth-node-builder = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.0.8" }
-reth-node-api = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.0.8" }
-reth-ethereum-engine-primitives = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.0.8" }
-reth-exex = { git = "https://github.com/paradigmxyz/reth", tag = "v1.0.8", features = [
+reth-transaction-pool = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.1.0" }
+reth-primitives = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.1.0" }
+reth-chainspec = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.1.0" }
+reth-node-ethereum = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.1.0" }
+reth-node-builder = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.1.0" }
+reth-node-api = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.1.0" }
+reth-ethereum-engine-primitives = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.1.0" }
+reth-exex = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.0", features = [
   "serde",
 ] }
-reth-execution-types = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.0.8" }
-reth-tracing = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.0.8" }
-reth-revm = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.0.8" }
-reth-execution-errors = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.0.8" }
-reth-provider = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.0.8" }
-reth = { git = "https://github.com/paradigmxyz/reth", tag = "v1.0.8" }
-reth-exex-test-utils = { git = "https://github.com/paradigmxyz/reth", tag = "v1.0.8" }
-reth-testing-utils = { git = "https://github.com/paradigmxyz/reth", tag = "v1.0.8" }
+reth-execution-types = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.1.0" }
+reth-tracing = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.1.0" }
+reth-revm = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.1.0" }
+reth-execution-errors = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.1.0" }
+reth-provider = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.1.0" }
+reth = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.0" }
+reth-exex-test-utils = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.0" }
+reth-testing-utils = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.0" }
 
 alloy-primitives = { version = "0.8.4", default-features = false }
 alloy-genesis = { version = "0.4.2", default-features = false }
