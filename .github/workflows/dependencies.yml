@@ -5,7 +5,7 @@ name: Update Dependencies
 on:
   schedule:
     # Run weekly
-    - cron: "0 0 * * SUN"
+    - cron: 0 0 * * SUN
   workflow_dispatch:
     # Needed so we can run it manually
 
@@ -26,6 +26,10 @@ env:
     </p>
     </details>
 
+permissions:
+  checks: write
+  contents: write
+
 jobs:
   update:
     name: Update
@@ -36,9 +40,8 @@ jobs:
 
       - name: cargo update
         # Remove first line that always just says "Updating crates.io index"
-        run:
-          cargo update --color never 2>&1 | sed '/crates.io index/d' | tee -a
-          cargo_update.log
+        run: |
+          cargo update --color never 2>&1 | sed '/crates.io index/d' | tee -a cargo_update.log
 
       - name: craft commit message and PR body
         id: msg
