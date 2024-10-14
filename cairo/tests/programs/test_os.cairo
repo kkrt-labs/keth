@@ -8,7 +8,7 @@ from starkware.cairo.common.cairo_builtins import (
     ModBuiltin,
 )
 
-from programs.os import main
+from programs.os import os
 from src.model import model
 from src.account import Internals, Account
 from src.state import State
@@ -25,8 +25,8 @@ func test_os{
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,
-}() {
-    main();
+}() -> model.State* {
+    let state = os();
 
-    return ();
+    return state;
 }

@@ -7,6 +7,7 @@ namespace ICairo1Helpers {
     }
 
     func get_block_hash(block_number: felt) -> (hash: felt) {
+        return (hash=0);
     }
 
     func recover_eth_address(msg_hash: Uint256, r: Uint256, s: Uint256, y_parity: felt) -> (
