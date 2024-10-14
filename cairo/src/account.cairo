@@ -20,7 +20,7 @@ from starkware.cairo.common.find_element import find_element
 
 from src.interfaces.interfaces import ICairo1Helpers
 from src.model import model
-from src.utils.dict import default_dict_copy
+from src.utils.dict import dict_copy, dict_squash
 from src.utils.utils import Helpers
 from src.utils.bytes import keccak
 
@@ -57,15 +57,43 @@ namespace Account {
     }
 
     // @dev Copy the Account to safely mutate the storage
-    // @dev Squash dicts used internally
     // @param self The pointer to the Account
     func copy{range_check_ptr}(self: model.Account*) -> model.Account* {
         alloc_locals;
-        let (storage_start, storage) = default_dict_copy(self.storage_start, self.storage);
-        let (transient_storage_start, transient_storage) = default_dict_copy(
+        let (storage_start, storage) = dict_copy(self.storage_start, self.storage);
+        let (transient_storage_start, transient_storage) = dict_copy(
             self.transient_storage_start, self.transient_storage
         );
-        let (valid_jumpdests_start, valid_jumpdests) = default_dict_copy(
+        let (valid_jumpdests_start, valid_jumpdests) = dict_copy(
+            self.valid_jumpdests_start, self.valid_jumpdests
+        );
+        return new model.Account(
+            code_len=self.code_len,
+            code=self.code,
+            code_hash=self.code_hash,
+            storage_start=storage_start,
+            storage=storage,
+            transient_storage_start=transient_storage_start,
+            transient_storage=transient_storage,
+            valid_jumpdests_start=valid_jumpdests_start,
+            valid_jumpdests=valid_jumpdests,
+            nonce=self.nonce,
+            balance=self.balance,
+            selfdestruct=self.selfdestruct,
+            created=self.created,
+        );
+    }
+
+    // @dev Squash all the internal dicts for soundness
+    // @dev Squashed dicts are not default_dicts anymore
+    // @param self The pointer to the Account
+    func finalize{range_check_ptr}(self: model.Account*) -> model.Account* {
+        alloc_locals;
+        let (storage_start, storage) = dict_squash(self.storage_start, self.storage);
+        let (transient_storage_start, transient_storage) = dict_squash(
+            self.transient_storage_start, self.transient_storage
+        );
+        let (valid_jumpdests_start, valid_jumpdests) = dict_squash(
             self.valid_jumpdests_start, self.valid_jumpdests
         );
         return new model.Account(

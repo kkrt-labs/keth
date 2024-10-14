@@ -80,12 +80,34 @@ chain_id = """
 ids.chain_id = 1
 """
 
+dict_copy = """
+from starkware.cairo.common.dict import DictTracker
+
+data = __dict_manager.trackers[ids.dict_start.address_.segment_index].data.copy()
+__dict_manager.trackers[ids.new_start.address_.segment_index] = DictTracker(
+    data=data,
+    current_ptr=ids.new_end.address_,
+)
+"""
+
+dict_squash = """
+data = __dict_manager.get_dict(ids.dict_accesses_end).copy()
+base = segments.add()
+assert base.segment_index not in __dict_manager.trackers
+__dict_manager.trackers[base.segment_index] = DictTracker(
+    data=data, current_ptr=base
+)
+memory[ap] = base
+"""
+
 hints = {
     "dict_manager": dict_manager,
     "block": block,
     "account": account,
     "state": state,
     "chain_id": chain_id,
+    "dict_copy": dict_copy,
+    "dict_squash": dict_squash,
 }
 
 

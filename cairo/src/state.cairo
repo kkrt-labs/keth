@@ -11,7 +11,7 @@ from starkware.cairo.common.bool import FALSE, TRUE
 from src.account import Account
 from src.model import model
 from src.gas import Gas
-from src.utils.dict import default_dict_copy
+from src.utils.dict import dict_copy, dict_squash
 from src.utils.utils import Helpers
 from src.utils.uint256 import uint256_add, uint256_sub, uint256_eq
 
@@ -36,7 +36,7 @@ namespace State {
     func copy{range_check_ptr, state: model.State*}() -> model.State* {
         alloc_locals;
         // accounts are a new memory segment
-        let (accounts_start, accounts) = default_dict_copy(state.accounts_start, state.accounts);
+        let (accounts_start, accounts) = dict_copy(state.accounts_start, state.accounts);
         // for each account, storage is a new memory segment
         Internals._copy_accounts{accounts=accounts}(accounts_start, accounts);
 
@@ -61,18 +61,16 @@ namespace State {
     func finalize{range_check_ptr, state: model.State*}() {
         alloc_locals;
         // First squash to get only one account per key
-        let (local accounts_start, accounts_end) = default_dict_finalize(
-            state.accounts_start, state.accounts, 0
-        );
+        // All the account instances of the same key (address) use the same storage dict
+        // so it's safe to drop all the intermediate storage dicts.
+        let (local accounts_start, accounts) = dict_squash(state.accounts_start, state.accounts);
 
-        let (local accounts_copy: DictAccess*) = default_dict_new(0);
-        tempvar accounts_copy_start = accounts_copy;
-        // Squashes the storage dicts of accounts, and copy the result to a new memory segment.
-        Internals._copy_accounts{accounts=accounts_copy}(accounts_start, accounts_end);
+        // Then finalize each account. This also creates a new memory segment for the storage dict.
+        Internals._finalize_accounts{accounts=accounts}(accounts_start, accounts);
 
         tempvar state = new model.State(
-            accounts_start=accounts_copy_start,
-            accounts=accounts_copy,
+            accounts_start=accounts_start,
+            accounts=accounts,
             events_len=state.events_len,
             events=state.events,
             transfers_len=state.transfers_len,
@@ -393,7 +391,6 @@ namespace State {
 
 namespace Internals {
     // @notice Iterate through the accounts dict and copy them
-    // @dev Should be applied on a squashed dict
     // @param accounts_start The dict start pointer
     // @param accounts_end The dict end pointer
     func _copy_accounts{range_check_ptr, accounts: DictAccess*}(
@@ -415,6 +412,30 @@ namespace Internals {
         dict_write{dict_ptr=accounts}(key=accounts_start.key, new_value=cast(account, felt));
 
         return _copy_accounts(accounts_start + DictAccess.SIZE, accounts_end);
+    }
+
+    // @notice Iterate through the accounts dict and finalize them
+    // @param accounts_start The dict start pointer
+    // @param accounts_end The dict end pointer
+    func _finalize_accounts{range_check_ptr, accounts: DictAccess*}(
+        accounts_start: DictAccess*, accounts_end: DictAccess*
+    ) {
+        if (accounts_start == accounts_end) {
+            return ();
+        }
+
+        if (accounts_start.new_value == 0) {
+            // If we do a dict_read on an unexisting account, `prev_value` and `new_value` are set to 0.
+            // However we expected pointers to model.Account, and casting 0 to model.Account* will
+            // cause a "Memory address must be relocatable" error.
+            return _finalize_accounts(accounts_start + DictAccess.SIZE, accounts_end);
+        }
+
+        let account = cast(accounts_start.new_value, model.Account*);
+        let account = Account.finalize(account);
+        dict_write{dict_ptr=accounts}(key=accounts_start.key, new_value=cast(account, felt));
+
+        return _finalize_accounts(accounts_start + DictAccess.SIZE, accounts_end);
     }
 
     func _cache_precompile{pedersen_ptr: HashBuiltin*, range_check_ptr, accounts_ptr: DictAccess*}(
