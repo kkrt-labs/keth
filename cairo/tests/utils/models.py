@@ -68,6 +68,7 @@ class BlockHeader(BaseModelIterValuesOnly):
             "withdrawals_root",
             "difficulty",
             "mix_hash",
+            "prev_randao",
         ]:
             if key not in values:
                 key = to_camel(key)
@@ -125,7 +126,7 @@ class BlockHeader(BaseModelIterValuesOnly):
             raise ValueError("Bloom cannot be empty")
         if len(bloom) != 256:
             raise ValueError("Bloom must be 256 bytes")
-        return tuple(int(chunk) for chunk in wrap(bloom.hex(), 32))
+        return tuple(int(chunk, 16) for chunk in wrap(bloom.hex(), 32))
 
     parent_hash_low: int
     parent_hash_high: int
@@ -179,8 +180,16 @@ class BlockHeader(BaseModelIterValuesOnly):
     gas_limit: int
     gas_used: int
     timestamp: int
-    mix_hash_low: int
-    mix_hash_high: int
+    mix_hash_low: int = Field(
+        validation_alias=AliasChoices(
+            "mix_hash", "mixHash", "prev_randao", "prevRandao"
+        )
+    )
+    mix_hash_high: int = Field(
+        validation_alias=AliasChoices(
+            "mixHashHigh", "prev_randao_high", "prevRandaoHigh"
+        )
+    )
     nonce: int
     base_fee_per_gas_is_some: bool
     base_fee_per_gas_value: int
