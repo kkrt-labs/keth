@@ -5,7 +5,7 @@ from ethereum.cancun.fork import (
     validate_header,
 )
 from ethereum.exceptions import InvalidBlock
-from hypothesis import given, reproduce_failure
+from hypothesis import given
 from hypothesis.strategies import integers
 
 from tests.fixtures.data import block_header_strategy

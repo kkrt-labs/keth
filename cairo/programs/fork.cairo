@@ -59,9 +59,9 @@ func calculate_base_fee_per_gas{range_check_ptr}(
             target_fee_gas_delta, BASE_FEE_MAX_CHANGE_DENOMINATOR
         );
         if (base_fee_per_gas_delta == 0) {
-            return 1;
+            return parent_base_fee_per_gas + 1;
         }
-        return base_fee_per_gas_delta;
+        return parent_base_fee_per_gas + base_fee_per_gas_delta;
     }
 
     let gas_used_delta = parent_gas_target - parent_gas_used;
