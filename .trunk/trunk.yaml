@@ -15,9 +15,10 @@ runtimes:
     - go@1.21.0
     - node@18.12.1
     - python@3.10.8
+    - rust@nightly  # Use the nightly Rust toolchain
   definitions:
     - type: rust
-      system_version: allowed
+      system_version: nightly
 # This is the section where you manage your linters. (https://docs.trunk.io/check/configuration)
 lint:
   disabled:
