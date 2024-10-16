@@ -8,6 +8,7 @@ from starkware.cairo.common.bool import FALSE
 from src.model import model
 
 using Uint128 = felt;
+using Uint64 = felt;
 
 const ELASTICITY_MULTIPLIER = 2;
 const GAS_LIMIT_ADJUSTMENT_FACTOR = 1024;
@@ -18,7 +19,7 @@ const EMPTY_OMMER_HASH_HIGH = 0x1dcc4de8dec75d7aab85b567b6ccd41a;
 
 // @notice See https://github.com/ethereum/execution-specs/blob/master/src/ethereum/cancun/fork.py#L1118-L1154
 // @dev We use the Uint128 alias to strenghten the fact that these felts should have been range_checked before
-func check_gas_limit{range_check_ptr}(gas_limit: Uint128, parent_gas_limit: Uint128) {
+func check_gas_limit{range_check_ptr}(gas_limit: Uint64, parent_gas_limit: Uint64) {
     let (max_adjustment_delta, _) = unsigned_div_rem(parent_gas_limit, GAS_LIMIT_ADJUSTMENT_FACTOR);
 
     with_attr error_message("InvalidBlock") {
@@ -32,12 +33,12 @@ func check_gas_limit{range_check_ptr}(gas_limit: Uint128, parent_gas_limit: Uint
 }
 
 // @notice See https://github.com/ethereum/execution-specs/blob/master/src/ethereum/cancun/fork.py#L226-L285
-// @dev We use the Uint128 alias to strenghten the fact that these felts should have been range_checked before
+// @dev We use the Uint64 alias to strenghten the fact that these felts should have been range_checked before
 func calculate_base_fee_per_gas{range_check_ptr}(
-    block_gas_limit: Uint128,
-    parent_gas_limit: Uint128,
-    parent_gas_used: Uint128,
-    parent_base_fee_per_gas: Uint128,
+    block_gas_limit: Uint64,
+    parent_gas_limit: Uint64,
+    parent_gas_used: Uint64,
+    parent_base_fee_per_gas: Uint64,
 ) -> Uint128 {
     let (parent_gas_target, _) = unsigned_div_rem(parent_gas_limit, ELASTICITY_MULTIPLIER);
 
@@ -78,97 +79,112 @@ func calculate_base_fee_per_gas{range_check_ptr}(
 func validate_header{range_check_ptr}(header: model.BlockHeader, parent_header: model.BlockHeader) {
     // parent_hash
     assert [range_check_ptr] = header.parent_hash.low;
-    let range_check_ptr = range_check_ptr + 1;
-    assert [range_check_ptr] = header.parent_hash.high;
-    let range_check_ptr = range_check_ptr + 1;
+    assert [range_check_ptr + 1] = header.parent_hash.high;
+    let range_check_ptr = range_check_ptr + 2;
+
     // ommers_hash
     assert [range_check_ptr] = header.ommers_hash.low;
-    let range_check_ptr = range_check_ptr + 1;
-    assert [range_check_ptr] = header.ommers_hash.high;
-    let range_check_ptr = range_check_ptr + 1;
+    assert [range_check_ptr + 1] = header.ommers_hash.high;
+    let range_check_ptr = range_check_ptr + 2;
+
     // coinbase
     let (coinbase_high, coinbase_low) = split_felt(header.coinbase);
     assert [range_check_ptr] = coinbase_low;
-    let range_check_ptr = range_check_ptr + 1;
-    assert [range_check_ptr] = coinbase_high;
-    let range_check_ptr = range_check_ptr + 1;
-    assert [range_check_ptr] = 2 ** 32 - coinbase_high - 1;
-    let range_check_ptr = range_check_ptr + 1;
+    assert [range_check_ptr + 1] = coinbase_high;
+    assert [range_check_ptr + 2] = 2 ** 32 - coinbase_high - 1;
+    let range_check_ptr = range_check_ptr + 3;
+
     // state_root
     assert [range_check_ptr] = header.state_root.low;
-    let range_check_ptr = range_check_ptr + 1;
-    assert [range_check_ptr] = header.state_root.high;
-    let range_check_ptr = range_check_ptr + 1;
+    assert [range_check_ptr + 1] = header.state_root.high;
+    let range_check_ptr = range_check_ptr + 2;
+
     // transactions_root
     assert [range_check_ptr] = header.transactions_root.low;
-    let range_check_ptr = range_check_ptr + 1;
-    assert [range_check_ptr] = header.transactions_root.high;
-    let range_check_ptr = range_check_ptr + 1;
+    assert [range_check_ptr + 1] = header.transactions_root.high;
+    let range_check_ptr = range_check_ptr + 2;
+
     // receipt_root
     assert [range_check_ptr] = header.receipt_root.low;
-    let range_check_ptr = range_check_ptr + 1;
-    assert [range_check_ptr] = header.receipt_root.high;
-    let range_check_ptr = range_check_ptr + 1;
+    assert [range_check_ptr + 1] = header.receipt_root.high;
+    let range_check_ptr = range_check_ptr + 2;
+
     // withdrawals_root
     assert header.withdrawals_root.is_some * (1 - header.withdrawals_root.is_some) = 0;
     let withdrawals_root = cast(header.withdrawals_root.value, Uint256*);
     assert [range_check_ptr] = withdrawals_root.low;
-    let range_check_ptr = range_check_ptr + 1;
-    assert [range_check_ptr] = withdrawals_root.high;
-    let range_check_ptr = range_check_ptr + 1;
+    assert [range_check_ptr + 1] = withdrawals_root.high;
+    let range_check_ptr = range_check_ptr + 2;
+
     // difficulty
     assert [range_check_ptr] = header.difficulty.low;
-    let range_check_ptr = range_check_ptr + 1;
-    assert [range_check_ptr] = header.difficulty.high;
-    let range_check_ptr = range_check_ptr + 1;
+    assert [range_check_ptr + 1] = header.difficulty.high;
+    let range_check_ptr = range_check_ptr + 2;
+
     // number
     assert [range_check_ptr] = header.number;
-    let range_check_ptr = range_check_ptr + 1;
+    assert [range_check_ptr + 1] = 2 ** 64 - header.number - 1;
+    let range_check_ptr = range_check_ptr + 2;
+
     // gas_limit
     assert [range_check_ptr] = header.gas_limit;
-    let range_check_ptr = range_check_ptr + 1;
+    assert [range_check_ptr + 1] = 2 ** 64 - header.gas_limit - 1;
+    let range_check_ptr = range_check_ptr + 2;
+
     // gas_used
     assert [range_check_ptr] = header.gas_used;
-    let range_check_ptr = range_check_ptr + 1;
+    assert [range_check_ptr + 1] = 2 ** 64 - header.gas_used - 1;
+    let range_check_ptr = range_check_ptr + 2;
+
     // timestamp
     assert [range_check_ptr] = header.timestamp;
-    let range_check_ptr = range_check_ptr + 1;
+    assert [range_check_ptr + 1] = 2 ** 64 - header.timestamp - 1;
+    let range_check_ptr = range_check_ptr + 2;
+
     // mix_hash
     assert [range_check_ptr] = header.mix_hash.low;
-    let range_check_ptr = range_check_ptr + 1;
-    assert [range_check_ptr] = header.mix_hash.high;
-    let range_check_ptr = range_check_ptr + 1;
+    assert [range_check_ptr + 1] = header.mix_hash.high;
+    let range_check_ptr = range_check_ptr + 2;
+
     // nonce
     assert [range_check_ptr] = header.nonce;
-    let range_check_ptr = range_check_ptr + 1;
+    assert [range_check_ptr + 1] = 2 ** 64 - header.nonce - 1;
+    let range_check_ptr = range_check_ptr + 2;
+
     // base_fee_per_gas
     assert header.base_fee_per_gas.is_some * (1 - header.base_fee_per_gas.is_some) = 0;
     assert [range_check_ptr] = header.base_fee_per_gas.value;
-    let range_check_ptr = range_check_ptr + 1;
+    assert [range_check_ptr + 1] = 2 ** 64 - header.base_fee_per_gas.value - 1;
+    let range_check_ptr = range_check_ptr + 2;
+
     // blob_gas_used
     assert header.blob_gas_used.is_some * (1 - header.blob_gas_used.is_some) = 0;
     assert [range_check_ptr] = header.blob_gas_used.value;
-    let range_check_ptr = range_check_ptr + 1;
+    assert [range_check_ptr + 1] = 2 ** 64 - header.blob_gas_used.value - 1;
+    let range_check_ptr = range_check_ptr + 2;
+
     // excess_blob_gas
     assert header.excess_blob_gas.is_some * (1 - header.excess_blob_gas.is_some) = 0;
     assert [range_check_ptr] = header.excess_blob_gas.value;
-    let range_check_ptr = range_check_ptr + 1;
+    assert [range_check_ptr + 1] = 2 ** 64 - header.excess_blob_gas.value - 1;
+    let range_check_ptr = range_check_ptr + 2;
+
     // parent_beacon_block_root
     assert header.parent_beacon_block_root.is_some * (
         1 - header.parent_beacon_block_root.is_some
     ) = 0;
     let parent_beacon_block_root = cast(header.parent_beacon_block_root.value, Uint256*);
     assert [range_check_ptr] = parent_beacon_block_root.low;
-    let range_check_ptr = range_check_ptr + 1;
-    assert [range_check_ptr] = parent_beacon_block_root.high;
-    let range_check_ptr = range_check_ptr + 1;
+    assert [range_check_ptr + 1] = parent_beacon_block_root.high;
+    let range_check_ptr = range_check_ptr + 2;
+
     // requests_root
     assert header.requests_root.is_some * (1 - header.requests_root.is_some) = 0;
     let requests_root = cast(header.requests_root.value, Uint256*);
     assert [range_check_ptr] = requests_root.low;
-    let range_check_ptr = range_check_ptr + 1;
-    assert [range_check_ptr] = requests_root.high;
-    let range_check_ptr = range_check_ptr + 1;
+    assert [range_check_ptr + 1] = requests_root.high;
+    let range_check_ptr = range_check_ptr + 2;
+
     // extra_data_len
     assert [range_check_ptr] = header.extra_data_len;
     let range_check_ptr = range_check_ptr + 1;

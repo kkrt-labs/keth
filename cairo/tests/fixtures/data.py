@@ -24,7 +24,7 @@ block_header_strategy = st.fixed_dictionaries(
         "extra_data": st.binary(max_size=32),
         "prev_randao": st.binary(min_size=32, max_size=32),
         "nonce": st.just("0x0000000000000000"),
-        "base_fee_per_gas": st.integers(min_value=0, max_value=2**128 - 1),
+        "base_fee_per_gas": st.integers(min_value=0, max_value=2**64 - 1),
         "withdrawals_root": st.binary(min_size=32, max_size=32),
         "blob_gas_used": st.integers(min_value=0, max_value=2**64 - 1),
         "excess_blob_gas": st.integers(min_value=0, max_value=2**64 - 1),

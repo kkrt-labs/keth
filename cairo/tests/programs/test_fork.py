@@ -5,7 +5,7 @@ from ethereum.cancun.fork import (
     validate_header,
 )
 from ethereum.exceptions import InvalidBlock
-from hypothesis import given
+from hypothesis import given, reproduce_failure
 from hypothesis.strategies import integers
 
 from tests.fixtures.data import block_header_strategy
@@ -35,10 +35,10 @@ class TestFork:
             )
 
     @given(
-        integers(min_value=0, max_value=2**128 - 1),
-        integers(min_value=0, max_value=2**128 - 1),
-        integers(min_value=0, max_value=2**128 - 1),
-        integers(min_value=0, max_value=2**128 - 1),
+        integers(min_value=0, max_value=2**64 - 1),
+        integers(min_value=0, max_value=2**64 - 1),
+        integers(min_value=0, max_value=2**64 - 1),
+        integers(min_value=0, max_value=2**64 - 1),
     )
     def test_calculate_base_fee_per_gas(
         self,
