@@ -26,7 +26,10 @@ env:
     </p>
     </details>
 
-permissions: write-all
+permissions:
+  checks: write
+  contents: write
+  pull-requests: write
 
 jobs:
   update:
