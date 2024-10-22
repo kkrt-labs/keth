@@ -103,10 +103,9 @@ mod tests {
     use super::*;
     use cairo_vm::types::{layout_name::LayoutName, program::Program};
 
-    #[test]
-    fn test_program_identifier_valid() {
+    fn setup_kakarot_serde() -> KakarotSerde {
         // Load the valid program content from a JSON file
-        let program_content = include_bytes!("../test_data/valid_program.json");
+        let program_content = include_bytes!("../../../cairo/programs/os.json");
 
         // Create a Program instance from the loaded bytes, specifying "main" as the entry point
         let program = Program::from_bytes(program_content, Some("main")).unwrap();
@@ -114,14 +113,20 @@ mod tests {
         // Initialize a CairoRunner with the created program and default parameters
         let runner = CairoRunner::new(&program, LayoutName::plain, false, false).unwrap();
 
-        // Create a new instance of KakarotSerde, passing in the runner and a new Memory instance
-        let kakarot_serde = KakarotSerde { runner, memory: Memory::new() };
+        // Return an instance of KakarotSerde
+        KakarotSerde { runner, memory: Memory::new() }
+    }
+
+    #[test]
+    fn test_program_identifier_valid() {
+        // Setup the KakarotSerde instance
+        let kakarot_serde = setup_kakarot_serde();
 
         // Check if the identifier "main" with expected type "function" is correctly retrieved
         assert_eq!(
             kakarot_serde.get_identifier("main", Some("function".to_string())).unwrap(),
             Identifier {
-                pc: Some(13),
+                pc: Some(3478),
                 type_: Some("function".to_string()),
                 value: None,
                 full_name: None,
@@ -137,7 +142,7 @@ mod tests {
                 pc: None,
                 type_: Some("reference".to_string()),
                 value: None,
-                full_name: Some("__main__.check_range.__temp0".to_string()),
+                full_name: Some("starkware.cairo.common.memcpy.memcpy.__temp0".to_string()),
                 members: None,
                 cairo_type: Some("felt".to_string())
             }
@@ -145,22 +150,14 @@ mod tests {
     }
 
     #[test]
-    fn test_program_identifier_erroneous_identifier() {
-        // Load the valid program content from a JSON file
-        let program_content = include_bytes!("../test_data/valid_program.json");
-
-        // Create a Program instance from the loaded bytes, specifying "main" as the entry point
-        let program = Program::from_bytes(program_content, Some("main")).unwrap();
-
-        // Initialize a CairoRunner with the created program and default parameters
-        let runner = CairoRunner::new(&program, LayoutName::plain, false, false).unwrap();
-
-        // Create a new instance of KakarotSerde, passing in the runner and a new Memory instance
-        let kakarot_serde = KakarotSerde { runner, memory: Memory::new() };
+    fn test_non_existent_identifier() {
+        // Setup the KakarotSerde instance
+        let kakarot_serde = setup_kakarot_serde();
 
         // Test for a non-existent identifier
         let result =
             kakarot_serde.get_identifier("non_existent_struct", Some("function".to_string()));
+
         // Check if the error is valid and validate its parameters
         if let Err(KakarotSerdeError::IdentifierNotFound { struct_name, expected_type }) = result {
             assert_eq!(struct_name, "non_existent_struct");
@@ -168,9 +165,16 @@ mod tests {
         } else {
             panic!("Expected KakarotSerdeError::IdentifierNotFound");
         }
+    }
+
+    #[test]
+    fn test_incorrect_identifier_usage() {
+        // Setup the KakarotSerde instance
+        let kakarot_serde = setup_kakarot_serde();
 
         // Test for an identifier used incorrectly (not the last segment of the full name)
         let result = kakarot_serde.get_identifier("check_range", Some("struct".to_string()));
+
         // Check if the error is valid and validate its parameters
         if let Err(KakarotSerdeError::IdentifierNotFound { struct_name, expected_type }) = result {
             assert_eq!(struct_name, "check_range");
@@ -178,9 +182,16 @@ mod tests {
         } else {
             panic!("Expected KakarotSerdeError::IdentifierNotFound");
         }
+    }
+
+    #[test]
+    fn test_valid_identifier_incorrect_type() {
+        // Setup the KakarotSerde instance
+        let kakarot_serde = setup_kakarot_serde();
 
         // Test for a valid identifier but with an incorrect type
         let result = kakarot_serde.get_identifier("main", Some("struct".to_string()));
+
         // Check if the error is valid and validate its parameters
         if let Err(KakarotSerdeError::IdentifierNotFound { struct_name, expected_type }) = result {
             assert_eq!(struct_name, "main");
@@ -188,9 +199,16 @@ mod tests {
         } else {
             panic!("Expected KakarotSerdeError::IdentifierNotFound");
         }
+    }
+
+    #[test]
+    fn test_identifier_with_multiple_matches() {
+        // Setup the KakarotSerde instance
+        let kakarot_serde = setup_kakarot_serde();
 
         // Test for an identifier with multiple matches
         let result = kakarot_serde.get_identifier("ImplicitArgs", Some("struct".to_string()));
+
         // Check if the error is valid and validate its parameters
         if let Err(KakarotSerdeError::MultipleIdentifiersFound {
             struct_name,
@@ -200,7 +218,7 @@ mod tests {
         {
             assert_eq!(struct_name, "ImplicitArgs");
             assert_eq!(expected_type, Some("struct".to_string()));
-            assert_eq!(count, 3);
+            assert_eq!(count, 63);
         } else {
             panic!("Expected KakarotSerdeError::MultipleIdentifiersFound");
         }
