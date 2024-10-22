@@ -1496,6 +1496,7 @@ version = "1.0.1"
 source = "git+https://github.com/lambdaclass/cairo-vm.git?tag=v1.0.1#93f1f54f38059af89850b1c06d4c901300f9b94d"
 dependencies = [
  "anyhow",
+ "arbitrary",
  "bincode 2.0.0-rc.3",
  "bitvec",
  "generic-array",
@@ -8725,6 +8726,7 @@ version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fa1b9e01ccb217ab6d475c5cda05dbb22c30029f7bb52b192a010a00d77a3d74"
 dependencies = [
+ "arbitrary",
  "lambdaworks-crypto",
  "lambdaworks-math",
  "num-bigint",
