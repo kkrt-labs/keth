@@ -6,55 +6,59 @@ from starkware.cairo.common.uint256 import Uint256, uint256_lt
 from src.model import model
 from src.utils.uint256 import uint256_eq
 from src.utils.utils import Helpers
-from src.utils.maths import unsigned_div_rem
+from src.utils.maths import unsigned_div_rem, ceil32
+
+const GAS_JUMPDEST = 1;
+const GAS_BASE = 2;
+const GAS_VERY_LOW = 3;
+const GAS_STORAGE_SET = 20000;
+const GAS_STORAGE_UPDATE = 5000;
+const GAS_STORAGE_CLEAR_REFUND = 4800;
+const GAS_LOW = 5;
+const GAS_MID = 8;
+const GAS_HIGH = 10;
+const GAS_EXPONENTIATION = 10;
+const GAS_EXPONENTIATION_PER_BYTE = 50;
+const GAS_MEMORY = 3;
+const GAS_KECCAK256 = 30;
+const GAS_KECCAK256_WORD = 6;
+const GAS_COPY = 3;
+const GAS_BLOCK_HASH = 20;
+const GAS_LOG = 375;
+const GAS_LOG_DATA = 8;
+const GAS_LOG_TOPIC = 375;
+const GAS_CREATE = 32000;
+const GAS_CODE_DEPOSIT = 200;
+const GAS_ZERO = 0;
+const GAS_NEW_ACCOUNT = 25000;
+const GAS_CALL_VALUE = 9000;
+const GAS_CALL_STIPEND = 2300;
+const GAS_SELF_DESTRUCT = 5000;
+const GAS_SELF_DESTRUCT_NEW_ACCOUNT = 25000;
+const GAS_ECRECOVER = 3000;
+const GAS_SHA256 = 60;
+const GAS_SHA256_WORD = 12;
+const GAS_RIPEMD160 = 600;
+const GAS_RIPEMD160_WORD = 120;
+const GAS_IDENTITY = 15;
+const GAS_IDENTITY_WORD = 3;
+const GAS_RETURN_DATA_COPY = 3;
+const GAS_FAST_STEP = 5;
+const GAS_BLAKE2_PER_ROUND = 1;
+const GAS_COLD_SLOAD = 2100;
+const GAS_COLD_ACCOUNT_ACCESS = 2600;
+const GAS_WARM_ACCESS = 100;
+const GAS_INIT_CODE_WORD_COST = 2;
+const GAS_BLOBHASH_OPCODE = 3;
+const GAS_POINT_EVALUATION = 50000;
 
 namespace Gas {
-    const JUMPDEST = 1;
-    const BASE = 2;
-    const VERY_LOW = 3;
-    const STORAGE_SET = 20000;
-    const STORAGE_UPDATE = 5000;
-    const STORAGE_CLEAR_REFUND = 4800;
-    const LOW = 5;
-    const MID = 8;
-    const HIGH = 10;
-    const EXPONENTIATION = 10;
-    const EXPONENTIATION_PER_BYTE = 50;
-    const MEMORY = 3;
-    const KECCAK256 = 30;
-    const KECCAK256_WORD = 6;
-    const COPY = 3;
-    const BLOCK_HASH = 20;
-    const LOG = 375;
-    const LOG_DATA = 8;
-    const LOG_TOPIC = 375;
-    const CREATE = 32000;
-    const CODE_DEPOSIT = 200;
-    const ZERO = 0;
-    const NEW_ACCOUNT = 25000;
-    const CALL_VALUE = 9000;
-    const CALL_STIPEND = 2300;
-    const SELF_DESTRUCT = 5000;
-    const SELF_DESTRUCT_NEW_ACCOUNT = 25000;
-    const ECRECOVER = 3000;
-    const SHA256 = 60;
-    const SHA256_WORD = 12;
-    const RIPEMD160 = 600;
-    const RIPEMD160_WORD = 120;
-    const IDENTITY = 15;
-    const IDENTITY_WORD = 3;
-    const RETURN_DATA_COPY = 3;
-    const FAST_STEP = 5;
-    const BLAKE2_PER_ROUND = 1;
-    const COLD_SLOAD = 2100;
-    const COLD_ACCOUNT_ACCESS = 2600;
-    const WARM_ACCESS = 100;
-    const INIT_CODE_WORD_COST = 2;
-    const TX_BASE_COST = 21000;
-    const TX_ACCESS_LIST_ADDRESS_COST = 2400;
-    const TX_ACCESS_LIST_STORAGE_KEY_COST = 1900;
-    const BLOBHASH = 3;
-    const MEMORY_COST_U32 = 0x200018000000;
+    // @notive See https://github.com/ethereum/execution-specs/blob/master/src/ethereum/cancun/vm/gas.py#L253-L269
+    func init_code_cost(init_code_length: felt) -> felt {
+        let init_code_bytes = ceil32(init_code_length);
+        let (init_code_words, _) = unsigned_div_rem(init_code_bytes, 32);
+        return GAS_INIT_CODE_WORD_COST * init_code_words;
+    }
 
     // @notice Compute the cost of the memory for a given words length.
     // @dev To avoid range_check overflow, we compute words_len / 512
