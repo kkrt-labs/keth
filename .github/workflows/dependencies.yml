@@ -5,7 +5,7 @@ name: Update Dependencies
 on:
   schedule:
     # Run weekly
-    - cron: 0 0 * * SUN
+    - cron: 0 0 * * MON
   workflow_dispatch:
     # Needed so we can run it manually
 
@@ -29,6 +29,7 @@ env:
 permissions:
   checks: write
   contents: write
+  pull-requests: write
 
 jobs:
   update:
