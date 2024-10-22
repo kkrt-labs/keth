@@ -1,12 +1,12 @@
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.82"
 description = "Integration of the Kakarot Ethereum execution layer in the Reth client."
 homepage = "https://github.com/kkrt-labs"
 repository = "https://github.com/kkrt-labs/keth"
 readme = "./README.md"
 license = "MIT"
-rust-version = "1.79"
 exclude = [".github/"]
 
 [workspace]
