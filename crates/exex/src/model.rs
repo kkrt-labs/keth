@@ -764,12 +764,8 @@ mod tests {
             // Convert U256 to KethU256
             let keth_u256 = KethU256::from(u256_value);
 
-            println!("keth_u256: {:?}", keth_u256);
-
             // Convert back to U256
             let roundtrip_value = keth_u256.to_u256();
-
-            println!("roundtrip_value: {:?}", roundtrip_value);
 
             // Assert roundtrip conversion is equal to original value
             prop_assert_eq!(roundtrip_value, u256_value);
