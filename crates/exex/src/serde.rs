@@ -146,7 +146,7 @@ mod tests {
 
     fn setup_kakarot_serde() -> KakarotSerde {
         // Load the valid program content from a JSON file
-        let program_content = include_bytes!("../testdata/os_program.json");
+        let program_content = include_bytes!("../testdata/keccak_add_uint256.json");
 
         // Create a Program instance from the loaded bytes, specifying "main" as the entry point
         let program = Program::from_bytes(program_content, Some("main")).unwrap();
@@ -167,7 +167,7 @@ mod tests {
         assert_eq!(
             kakarot_serde.get_identifier("main", Some("function".to_string())).unwrap(),
             Identifier {
-                pc: Some(3478),
+                pc: Some(96),
                 type_: Some("function".to_string()),
                 value: None,
                 full_name: None,
@@ -183,7 +183,9 @@ mod tests {
                 pc: None,
                 type_: Some("reference".to_string()),
                 value: None,
-                full_name: Some("starkware.cairo.common.memcpy.memcpy.__temp0".to_string()),
+                full_name: Some(
+                    "starkware.cairo.common.uint256.word_reverse_endian.__temp0".to_string()
+                ),
                 members: None,
                 cairo_type: Some("felt".to_string())
             }
@@ -259,7 +261,7 @@ mod tests {
         {
             assert_eq!(struct_name, "ImplicitArgs");
             assert_eq!(expected_type, Some("struct".to_string()));
-            assert_eq!(count, 63);
+            assert_eq!(count, 6);
         } else {
             panic!("Expected KakarotSerdeError::MultipleIdentifiersFound");
         }
@@ -271,11 +273,10 @@ mod tests {
         let mut kakarot_serde = setup_kakarot_serde();
 
         // Add a new memory segment to the virtual machine (VM).
-        let _ = kakarot_serde.runner.vm.add_memory_segment();
+        let base = kakarot_serde.runner.vm.add_memory_segment();
 
         // Attempt to serialize pointer with "main", expecting an IdentifierNotFound error.
-        let result =
-            kakarot_serde.serialize_pointers("main", Relocatable { segment_index: 0, offset: 0 });
+        let result = kakarot_serde.serialize_pointers("main", base);
 
         // Assert that the result is an error with the expected struct name and type.
         match result {
@@ -293,22 +294,21 @@ mod tests {
         let mut kakarot_serde = setup_kakarot_serde();
 
         // Insert relocatable values in memory
-        let _ = kakarot_serde.runner.vm.gen_arg(&vec![
-            Relocatable { segment_index: 0, offset: 0 },
-            Relocatable { segment_index: 10, offset: 11 },
-            Relocatable { segment_index: 10, offset: 11 },
-            Relocatable { segment_index: 10, offset: 11 },
-            Relocatable { segment_index: 10, offset: 11 },
-            Relocatable { segment_index: 10, offset: 11 },
-            Relocatable { segment_index: 10, offset: 11 },
-        ]);
+        let base = kakarot_serde
+            .runner
+            .vm
+            .gen_arg(&vec![
+                Relocatable { segment_index: 0, offset: 0 },
+                Relocatable { segment_index: 10, offset: 11 },
+                Relocatable { segment_index: 10, offset: 11 },
+            ])
+            .unwrap()
+            .get_relocatable()
+            .unwrap();
 
         // Serialize the pointers of the "ImplicitArgs" struct using the new memory segment.
         let result = kakarot_serde
-            .serialize_pointers(
-                "apply_transactions.ImplicitArgs",
-                Relocatable { segment_index: 0, offset: 0 },
-            )
+            .serialize_pointers("main.ImplicitArgs", base)
             .expect("failed to serialize pointers");
 
         // Assert that the result matches the expected serialized struct members.
@@ -316,15 +316,11 @@ mod tests {
             result,
             HashMap::from_iter([
                 ("bitwise_ptr".to_string(), Some(Relocatable { segment_index: 10, offset: 11 })),
-                ("chain_id".to_string(), Some(Relocatable { segment_index: 10, offset: 11 })),
-                ("header".to_string(), Some(Relocatable { segment_index: 10, offset: 11 })),
-                ("keccak_ptr".to_string(), Some(Relocatable { segment_index: 10, offset: 11 })),
-                ("pedersen_ptr".to_string(), None),
+                ("output_ptr".to_string(), None),
                 (
                     "range_check_ptr".to_string(),
                     Some(Relocatable { segment_index: 10, offset: 11 })
                 ),
-                ("state".to_string(), Some(Relocatable { segment_index: 10, offset: 11 })),
             ])
         );
     }
@@ -334,27 +330,32 @@ mod tests {
         // Setup the KakarotSerde instance
         let mut kakarot_serde = setup_kakarot_serde();
 
-        // Adding new zero values to check the effect of pointers vs non pointers
-        let _ = kakarot_serde.runner.vm.gen_arg(&vec![
-            Relocatable { segment_index: 0, offset: 0 },
-            Relocatable { segment_index: 0, offset: 0 },
-        ]);
-
-        // Try to serialize
-        let result = kakarot_serde
-            .serialize_pointers(
-                "apply_transactions.Args",
+        // Insert relocatable values in memory
+        let base = kakarot_serde
+            .runner
+            .vm
+            .gen_arg(&vec![
+                Relocatable { segment_index: 10, offset: 11 },
                 Relocatable { segment_index: 0, offset: 0 },
-            )
+                Relocatable { segment_index: 10, offset: 11 },
+            ])
+            .unwrap()
+            .get_relocatable()
+            .unwrap();
+
+        // Serialize the pointers of the "ImplicitArgs" struct using the new memory segment.
+        let result = kakarot_serde
+            .serialize_pointers("main.ImplicitArgs", base)
             .expect("failed to serialize pointers");
 
         // Assert that the result matches the expected serialized struct members.
         assert_eq!(
             result,
             HashMap::from_iter([
-                ("tx_encoded".to_string(), None),
-                // txs_len is not a pointer, so it should not be None
-                ("txs_len".to_string(), Some(Relocatable { segment_index: 0, offset: 0 })),
+                ("bitwise_ptr".to_string(), Some(Relocatable { segment_index: 10, offset: 11 })),
+                // Not a pointer so that we shouldn't have a `None`
+                ("range_check_ptr".to_string(), Some(Relocatable { segment_index: 0, offset: 0 })),
+                ("output_ptr".to_string(), Some(Relocatable { segment_index: 10, offset: 11 })),
             ])
         );
     }
