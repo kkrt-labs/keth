@@ -1,3 +1,4 @@
+use alloy_primitives::U256;
 use cairo_vm::{
     serde::deserialize_program::Identifier,
     types::{
@@ -9,6 +10,8 @@ use cairo_vm::{
 };
 use std::collections::HashMap;
 use thiserror::Error;
+
+use crate::model::U128_BYTES_SIZE;
 
 /// Represents errors that can occur during the serialization and deserialization processes between
 /// Cairo VM programs and Rust representations.
@@ -41,6 +44,13 @@ pub enum KakarotSerdeError {
     /// Error variant indicating a memory error in CairoVM operations
     #[error(transparent)]
     CairoVmMemory(#[from] MemoryError),
+
+    /// Error variant indicating that a required field was not found during serialization.
+    #[error("Missing required field '{field}' in serialization process.")]
+    MissingField {
+        /// The name of the missing field.
+        field: String,
+    },
 }
 
 /// A structure representing the Kakarot serialization and deserialization context for Cairo
@@ -146,12 +156,50 @@ impl KakarotSerde {
 
         Ok(output)
     }
+
+    /// Serializes a Cairo VM `Uint256` structure (with `low` and `high` fields) into a Rust
+    /// [`U256`] value.
+    ///
+    /// This function retrieves the `Uint256` struct from memory, extracts its `low` and `high`
+    /// values, converts them into a big-endian byte representation, and combines them into a
+    /// single [`U256`].
+    pub fn serialize_uint256(&self, ptr: Relocatable) -> Result<U256, KakarotSerdeError> {
+        // Fetches the `Uint256` structure from memory.
+        let raw = self.serialize_pointers("Uint256", ptr)?;
+
+        // Retrieves the `low` field from the deserialized struct, ensuring it's a valid integer.
+        let low = match raw.get("low") {
+            Some(Some(MaybeRelocatable::Int(value))) => value.clone(),
+            _ => return Err(KakarotSerdeError::MissingField { field: "low".to_string() }),
+        };
+
+        // Retrieves the `high` field from the deserialized struct, ensuring it's a valid integer.
+        let high = match raw.get("high") {
+            Some(Some(MaybeRelocatable::Int(value))) => value.clone(),
+            _ => return Err(KakarotSerdeError::MissingField { field: "high".to_string() }),
+        };
+
+        // Converts the `low` and `high` values into big-endian byte arrays.
+        let high_bytes = high.to_bytes_be();
+        let low_bytes = low.to_bytes_be();
+
+        // Concatenates the last 16 bytes (128 bits) of the `high` and `low` byte arrays.
+        //
+        // This forms a 256-bit number, where:
+        // - The `high` bytes make up the most significant 128 bits
+        // - The `low` bytes make up the least significant 128 bits.
+        let bytes = [&high_bytes[U128_BYTES_SIZE..], &low_bytes[U128_BYTES_SIZE..]].concat();
+
+        // Creates a `U256` value from the concatenated big-endian byte array.
+        Ok(U256::from_be_slice(&bytes))
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use cairo_vm::types::{layout_name::LayoutName, program::Program};
+    use std::str::FromStr;
 
     fn setup_kakarot_serde() -> KakarotSerde {
         // Load the valid program content from a JSON file
@@ -316,7 +364,7 @@ mod tests {
         // Setup the KakarotSerde instance
         let mut kakarot_serde = setup_kakarot_serde();
 
-        // Insert relocatable values in memory
+        // Insert values in memory
         let base = kakarot_serde
             .runner
             .vm
@@ -362,7 +410,7 @@ mod tests {
         // Setup the KakarotSerde instance
         let mut kakarot_serde = setup_kakarot_serde();
 
-        // Insert relocatable values in memory
+        // Insert values in memory
         let base = kakarot_serde
             .runner
             .vm
@@ -396,5 +444,136 @@ mod tests {
                 ("bitwise_ptr".to_string(), Some(MaybeRelocatable::Int(Felt252::from(55)))),
             ])
         );
+    }
+
+    #[test]
+    fn test_serialize_uint256_0() {
+        // Setup the KakarotSerde instance
+        let mut kakarot_serde = setup_kakarot_serde();
+
+        // U256 to be serialized
+        let x = U256::ZERO;
+
+        // Setup with the high and low parts of the U256
+        let low =
+            Felt252::from_bytes_be_slice(&x.to_be_bytes::<{ U256::BYTES }>()[U128_BYTES_SIZE..]);
+        let high =
+            Felt252::from_bytes_be_slice(&x.to_be_bytes::<{ U256::BYTES }>()[0..U128_BYTES_SIZE]);
+
+        // Insert values in memory
+        let base = kakarot_serde
+            .runner
+            .vm
+            .gen_arg(&vec![MaybeRelocatable::Int(low), MaybeRelocatable::Int(high)])
+            .unwrap()
+            .get_relocatable()
+            .unwrap();
+
+        // Serialize the Uint256 struct using the new memory segment.
+        let result = kakarot_serde.serialize_uint256(base).expect("failed to serialize pointers");
+
+        // Assert that the result is 0.
+        assert_eq!(result, U256::ZERO);
+    }
+
+    #[test]
+    fn test_serialize_uint256_valid() {
+        // Setup the KakarotSerde instance
+        let mut kakarot_serde = setup_kakarot_serde();
+
+        // U256 to be serialized
+        let x =
+            U256::from_str("0x52f8f61201b2b11a78d6e866abc9c3db2ae8631fa656bfe5cb53668255367afb")
+                .unwrap();
+
+        // Setup with the high and low parts of the U256
+        let low =
+            Felt252::from_bytes_be_slice(&x.to_be_bytes::<{ U256::BYTES }>()[U128_BYTES_SIZE..]);
+        let high =
+            Felt252::from_bytes_be_slice(&x.to_be_bytes::<{ U256::BYTES }>()[0..U128_BYTES_SIZE]);
+
+        // Insert values in memory
+        let base = kakarot_serde
+            .runner
+            .vm
+            .gen_arg(&vec![MaybeRelocatable::Int(low), MaybeRelocatable::Int(high)])
+            .unwrap()
+            .get_relocatable()
+            .unwrap();
+
+        // Serialize the Uint256 struct using the new memory segment.
+        let result = kakarot_serde.serialize_uint256(base).expect("failed to serialize pointers");
+
+        // Assert that the result matches the expected U256 value.
+        assert_eq!(result, x);
+    }
+
+    #[test]
+    fn test_serialize_uint256_not_int_high() {
+        // Setup the KakarotSerde instance
+        let mut kakarot_serde = setup_kakarot_serde();
+
+        // U256 to be serialized
+        let x = U256::MAX;
+
+        // Setup with the high and low parts of the U256
+        let low =
+            Felt252::from_bytes_be_slice(&x.to_be_bytes::<{ U256::BYTES }>()[U128_BYTES_SIZE..]);
+        // High is not an Int to trigger the error
+        let high = Relocatable { segment_index: 10, offset: 11 };
+
+        // Insert values in memory
+        let base = kakarot_serde
+            .runner
+            .vm
+            .gen_arg(&vec![MaybeRelocatable::Int(low), MaybeRelocatable::RelocatableValue(high)])
+            .unwrap()
+            .get_relocatable()
+            .unwrap();
+
+        // Try to serialize the Uint256 struct using the new memory segment.
+        let result = kakarot_serde.serialize_uint256(base);
+
+        // Assert that the result is an error with the expected missing field.
+        match result {
+            Err(KakarotSerdeError::MissingField { field }) => {
+                assert_eq!(field, "high");
+            }
+            _ => panic!("Expected a missing field error, but got: {:?}", result),
+        }
+    }
+
+    #[test]
+    fn test_serialize_uint256_not_int_low() {
+        // Setup the KakarotSerde instance
+        let mut kakarot_serde = setup_kakarot_serde();
+
+        // U256 to be serialized
+        let x = U256::MAX;
+
+        // Low is not an Int to trigger the error
+        let low = Relocatable { segment_index: 10, offset: 11 };
+        let high =
+            Felt252::from_bytes_be_slice(&x.to_be_bytes::<{ U256::BYTES }>()[0..U128_BYTES_SIZE]);
+
+        // Insert values in memory
+        let base = kakarot_serde
+            .runner
+            .vm
+            .gen_arg(&vec![MaybeRelocatable::RelocatableValue(low), MaybeRelocatable::Int(high)])
+            .unwrap()
+            .get_relocatable()
+            .unwrap();
+
+        // Try to serialize the Uint256 struct using the new memory segment.
+        let result = kakarot_serde.serialize_uint256(base);
+
+        // Assert that the result is an error with the expected missing field.
+        match result {
+            Err(KakarotSerdeError::MissingField { field }) => {
+                assert_eq!(field, "low");
+            }
+            _ => panic!("Expected a missing field error, but got: {:?}", result),
+        }
     }
 }
