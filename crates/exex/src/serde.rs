@@ -348,7 +348,7 @@ mod tests {
                     "range_check_ptr".to_string(),
                     Some(MaybeRelocatable::RelocatableValue(range_check_ptr))
                 ),
-                ("bitwise_ptr".to_string(), Some(MaybeRelocatable::RelocatableValue(bitwise_otr))),
+                ("bitwise_ptr".to_string(), Some(MaybeRelocatable::RelocatableValue(bitwise_ptr))),
             ])
         );
     }
@@ -388,7 +388,7 @@ mod tests {
                 ("output_ptr".to_string(), Some(MaybeRelocatable::RelocatableValue(output_ptr))),
                 // Not a pointer so that we shouldn't have a `None`
                 ("range_check_ptr".to_string(), Some(MaybeRelocatable::Int(range_check_ptr))),
-                ("bitwise_ptr".to_string(), Some(MaybeRelocatable::Int(bitwise_otr))),
+                ("bitwise_ptr".to_string(), Some(MaybeRelocatable::Int(bitwise_ptr))),
             ])
         );
     }
