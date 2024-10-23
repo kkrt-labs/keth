@@ -146,7 +146,7 @@ mod tests {
 
     fn setup_kakarot_serde() -> KakarotSerde {
         // Load the valid program content from a JSON file
-        let program_content = include_bytes!("../testdata/os.json");
+        let program_content = include_bytes!("../testdata/os_program.json");
 
         // Create a Program instance from the loaded bytes, specifying "main" as the entry point
         let program = Program::from_bytes(program_content, Some("main")).unwrap();
