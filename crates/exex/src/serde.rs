@@ -315,12 +315,12 @@ mod tests {
         assert_eq!(
             result,
             HashMap::from_iter([
-                ("bitwise_ptr".to_string(), Some(Relocatable { segment_index: 10, offset: 11 })),
                 ("output_ptr".to_string(), None),
                 (
                     "range_check_ptr".to_string(),
                     Some(Relocatable { segment_index: 10, offset: 11 })
                 ),
+                ("bitwise_ptr".to_string(), Some(Relocatable { segment_index: 10, offset: 11 })),                
             ])
         );
     }
