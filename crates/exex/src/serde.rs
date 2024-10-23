@@ -292,24 +292,16 @@ mod tests {
         // Setup the KakarotSerde instance
         let mut kakarot_serde = setup_kakarot_serde();
 
-        // Add a new memory segment to the virtual machine (VM).
-        let new_segment = kakarot_serde.runner.vm.add_memory_segment();
-
-        // Insert a relocatable value at the beginning of the new memory segment.
-        //
-        // We insert a zero Relocatable to test the behaviour in this case.
-        let _ = kakarot_serde
-            .runner
-            .vm
-            .insert_value(new_segment, Relocatable { segment_index: 0, offset: 0 });
-
-        // Loop over a range of values to insert relocatable values into memory.
-        for i in 1..7 {
-            let _ = kakarot_serde.runner.vm.insert_value(
-                (new_segment + i as usize).unwrap(),
-                Relocatable { segment_index: 10, offset: 11 },
-            );
-        }
+        // Insert relocatable values in memory
+        let _ = kakarot_serde.runner.vm.gen_arg(&vec![
+            Relocatable { segment_index: 0, offset: 0 },
+            Relocatable { segment_index: 10, offset: 11 },
+            Relocatable { segment_index: 10, offset: 11 },
+            Relocatable { segment_index: 10, offset: 11 },
+            Relocatable { segment_index: 10, offset: 11 },
+            Relocatable { segment_index: 10, offset: 11 },
+            Relocatable { segment_index: 10, offset: 11 },
+        ]);
 
         // Serialize the pointers of the "ImplicitArgs" struct using the new memory segment.
         let result = kakarot_serde
@@ -342,16 +334,11 @@ mod tests {
         // Setup the KakarotSerde instance
         let mut kakarot_serde = setup_kakarot_serde();
 
-        // Add a new memory segment to the virtual machine (VM).
-        let new_segment = kakarot_serde.runner.vm.add_memory_segment();
-
         // Adding new zero values to check the effect of pointers vs non pointers
-        for i in 0..2 {
-            let _ = kakarot_serde.runner.vm.insert_value(
-                (new_segment + i as usize).unwrap(),
-                Relocatable { segment_index: 0, offset: 0 },
-            );
-        }
+        let _ = kakarot_serde.runner.vm.gen_arg(&vec![
+            Relocatable { segment_index: 0, offset: 0 },
+            Relocatable { segment_index: 0, offset: 0 },
+        ]);
 
         // Try to serialize
         let result = kakarot_serde
