@@ -1,7 +1,13 @@
 use cairo_vm::{
     serde::deserialize_program::Identifier,
-    vm::{runners::cairo_runner::CairoRunner, vm_memory::memory::Memory},
+    types::{
+        errors::math_errors::MathError,
+        relocatable::{MaybeRelocatable, Relocatable},
+    },
+    vm::{errors::memory_errors::MemoryError, runners::cairo_runner::CairoRunner},
+    Felt252,
 };
+use std::collections::HashMap;
 use thiserror::Error;
 
 /// Represents errors that can occur during the serialization and deserialization processes between
@@ -27,6 +33,14 @@ pub enum KakarotSerdeError {
         /// The number of matching identifiers found.
         count: usize,
     },
+
+    /// Error variant indicating a Math error in CairoVM operations
+    #[error(transparent)]
+    CairoVmMath(#[from] MathError),
+
+    /// Error variant indicating a memory error in CairoVM operations
+    #[error(transparent)]
+    CairoVmMemory(#[from] MemoryError),
 }
 
 /// A structure representing the Kakarot serialization and deserialization context for Cairo
@@ -35,7 +49,6 @@ pub enum KakarotSerdeError {
 /// This struct encapsulates the components required to serialize and deserialize
 /// Kakarot programs, including:
 /// - The Cairo runner responsible for executing the program
-/// - The memory
 #[allow(missing_debug_implementations)]
 pub struct KakarotSerde {
     /// The Cairo runner used to execute Kakarot programs.
@@ -45,12 +58,6 @@ pub struct KakarotSerde {
     /// It is responsible for handling program execution flow, managing state, and
     /// providing access to program identifiers.
     runner: CairoRunner,
-
-    /// The memory used to store memory cells inside segments and relocation rules.
-    ///
-    /// This is used to have direct access to the memory cells and their values.
-    #[allow(dead_code)]
-    memory: Memory,
 }
 
 impl KakarotSerde {
@@ -96,6 +103,49 @@ impl KakarotSerde {
             }),
         }
     }
+
+    /// Serializes a pointer to a Hashmap by resolving its members from memory.
+    ///
+    /// We provide:
+    /// - The name of the struct whose pointer is being serialized.
+    /// - The memory location (pointer) of the struct.
+    ///
+    /// We expect:
+    /// - A map of member names to their corresponding values (or `None` if the pointer is 0).
+    pub fn serialize_pointers(
+        &self,
+        struct_name: &str,
+        ptr: Relocatable,
+    ) -> Result<HashMap<String, Option<MaybeRelocatable>>, KakarotSerdeError> {
+        // Fetch the struct definition (identifier) by name.
+        let identifier = self.get_identifier(struct_name, Some("struct".to_string()))?;
+
+        // Initialize the output map.
+        let mut output = HashMap::new();
+
+        // If the struct has members, iterate over them to resolve their values from memory.
+        if let Some(members) = identifier.members {
+            for (name, member) in members {
+                // We try to resolve the member's value from memory.
+                if let Some(member_ptr) = self.runner.vm.get_maybe(&(ptr + member.offset)?) {
+                    // Check for null pointer.
+                    if member_ptr == MaybeRelocatable::Int(Felt252::ZERO) &&
+                        member.cairo_type.ends_with('*')
+                    {
+                        // We insert `None` for cases such as `parent=cast(0, model.Parent*)`
+                        //
+                        // Null pointers are represented as `None`.
+                        output.insert(name, None);
+                    } else {
+                        // Insert the resolved member pointer into the output map.
+                        output.insert(name, Some(member_ptr));
+                    }
+                }
+            }
+        }
+
+        Ok(output)
+    }
 }
 
 #[cfg(test)]
@@ -105,7 +155,7 @@ mod tests {
 
     fn setup_kakarot_serde() -> KakarotSerde {
         // Load the valid program content from a JSON file
-        let program_content = include_bytes!("../../../cairo/programs/os.json");
+        let program_content = include_bytes!("../testdata/keccak_add_uint256.json");
 
         // Create a Program instance from the loaded bytes, specifying "main" as the entry point
         let program = Program::from_bytes(program_content, Some("main")).unwrap();
@@ -114,7 +164,7 @@ mod tests {
         let runner = CairoRunner::new(&program, LayoutName::plain, false, false).unwrap();
 
         // Return an instance of KakarotSerde
-        KakarotSerde { runner, memory: Memory::new() }
+        KakarotSerde { runner }
     }
 
     #[test]
@@ -126,7 +176,7 @@ mod tests {
         assert_eq!(
             kakarot_serde.get_identifier("main", Some("function".to_string())).unwrap(),
             Identifier {
-                pc: Some(3478),
+                pc: Some(96),
                 type_: Some("function".to_string()),
                 value: None,
                 full_name: None,
@@ -142,7 +192,9 @@ mod tests {
                 pc: None,
                 type_: Some("reference".to_string()),
                 value: None,
-                full_name: Some("starkware.cairo.common.memcpy.memcpy.__temp0".to_string()),
+                full_name: Some(
+                    "starkware.cairo.common.uint256.word_reverse_endian.__temp0".to_string()
+                ),
                 members: None,
                 cairo_type: Some("felt".to_string())
             }
@@ -218,9 +270,131 @@ mod tests {
         {
             assert_eq!(struct_name, "ImplicitArgs");
             assert_eq!(expected_type, Some("struct".to_string()));
-            assert_eq!(count, 63);
+            assert_eq!(count, 6);
         } else {
             panic!("Expected KakarotSerdeError::MultipleIdentifiersFound");
         }
+    }
+
+    #[test]
+    fn test_serialize_pointer_not_struct() {
+        // Setup the KakarotSerde instance
+        let mut kakarot_serde = setup_kakarot_serde();
+
+        // Add a new memory segment to the virtual machine (VM).
+        let base = kakarot_serde.runner.vm.add_memory_segment();
+
+        // Attempt to serialize pointer with "main", expecting an IdentifierNotFound error.
+        let result = kakarot_serde.serialize_pointers("main", base);
+
+        // Assert that the result is an error with the expected struct name and type.
+        match result {
+            Err(KakarotSerdeError::IdentifierNotFound { struct_name, expected_type }) => {
+                assert_eq!(struct_name, "main".to_string());
+                assert_eq!(expected_type, Some("struct".to_string()));
+            }
+            _ => panic!("Expected KakarotSerdeError::IdentifierNotFound, but got: {:?}", result),
+        }
+    }
+
+    #[test]
+    fn test_serialize_pointer_empty() {
+        // Setup the KakarotSerde instance
+        let kakarot_serde = setup_kakarot_serde();
+
+        // Serialize the pointers of the "ImplicitArgs" struct but without any memory segment.
+        let result = kakarot_serde
+            .serialize_pointers("main.ImplicitArgs", Relocatable::default())
+            .expect("failed to serialize pointers");
+
+        // The result should be an empty HashMap since there is no memory segment.
+        assert!(result.is_empty(),);
+    }
+
+    #[test]
+    fn test_serialize_pointer_valid() {
+        // Setup the KakarotSerde instance
+        let mut kakarot_serde = setup_kakarot_serde();
+
+        // Insert relocatable values in memory
+        let base = kakarot_serde
+            .runner
+            .vm
+            .gen_arg(&vec![
+                MaybeRelocatable::Int(Felt252::ZERO),
+                MaybeRelocatable::RelocatableValue(Relocatable { segment_index: 10, offset: 11 }),
+                MaybeRelocatable::RelocatableValue(Relocatable { segment_index: 10, offset: 11 }),
+            ])
+            .unwrap()
+            .get_relocatable()
+            .unwrap();
+
+        // Serialize the pointers of the "ImplicitArgs" struct using the new memory segment.
+        let result = kakarot_serde
+            .serialize_pointers("main.ImplicitArgs", base)
+            .expect("failed to serialize pointers");
+
+        // Assert that the result matches the expected serialized struct members.
+        assert_eq!(
+            result,
+            HashMap::from_iter([
+                ("output_ptr".to_string(), None),
+                (
+                    "range_check_ptr".to_string(),
+                    Some(MaybeRelocatable::RelocatableValue(Relocatable {
+                        segment_index: 10,
+                        offset: 11
+                    }))
+                ),
+                (
+                    "bitwise_ptr".to_string(),
+                    Some(MaybeRelocatable::RelocatableValue(Relocatable {
+                        segment_index: 10,
+                        offset: 11
+                    }))
+                ),
+            ])
+        );
+    }
+
+    #[test]
+    fn test_serialize_null_no_pointer() {
+        // Setup the KakarotSerde instance
+        let mut kakarot_serde = setup_kakarot_serde();
+
+        // Insert relocatable values in memory
+        let base = kakarot_serde
+            .runner
+            .vm
+            .gen_arg(&vec![
+                MaybeRelocatable::RelocatableValue(Relocatable { segment_index: 10, offset: 11 }),
+                MaybeRelocatable::Int(Felt252::ZERO),
+                MaybeRelocatable::Int(Felt252::from(55)),
+            ])
+            .unwrap()
+            .get_relocatable()
+            .unwrap();
+
+        // Serialize the pointers of the "ImplicitArgs" struct using the new memory segment.
+        let result = kakarot_serde
+            .serialize_pointers("main.ImplicitArgs", base)
+            .expect("failed to serialize pointers");
+
+        // Assert that the result matches the expected serialized struct members.
+        assert_eq!(
+            result,
+            HashMap::from_iter([
+                (
+                    "output_ptr".to_string(),
+                    Some(MaybeRelocatable::RelocatableValue(Relocatable {
+                        segment_index: 10,
+                        offset: 11
+                    }))
+                ),
+                // Not a pointer so that we shouldn't have a `None`
+                ("range_check_ptr".to_string(), Some(MaybeRelocatable::Int(Felt252::ZERO))),
+                ("bitwise_ptr".to_string(), Some(MaybeRelocatable::Int(Felt252::from(55)))),
+            ])
+        );
     }
 }
