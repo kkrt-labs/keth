@@ -1,7 +1,11 @@
 use cairo_vm::{
     serde::deserialize_program::Identifier,
-    types::{errors::math_errors::MathError, relocatable::Relocatable},
+    types::{
+        errors::math_errors::MathError,
+        relocatable::{MaybeRelocatable, Relocatable},
+    },
     vm::{errors::memory_errors::MemoryError, runners::cairo_runner::CairoRunner},
+    Felt252,
 };
 use std::collections::HashMap;
 use thiserror::Error;
@@ -107,12 +111,12 @@ impl KakarotSerde {
     /// - The memory location (pointer) of the struct.
     ///
     /// We expect:
-    /// - A map of member names to their corresponding values (or `None` if the pointer is null).
+    /// - A map of member names to their corresponding values (or `None` if the pointer is 0).
     pub fn serialize_pointers(
         &self,
         struct_name: &str,
         ptr: Relocatable,
-    ) -> Result<HashMap<String, Option<Relocatable>>, KakarotSerdeError> {
+    ) -> Result<HashMap<String, Option<MaybeRelocatable>>, KakarotSerdeError> {
         // Fetch the struct definition (identifier) by name.
         let identifier = self.get_identifier(struct_name, Some("struct".to_string()))?;
 
@@ -122,16 +126,21 @@ impl KakarotSerde {
         // If the struct has members, iterate over them to resolve their values from memory.
         if let Some(members) = identifier.members {
             for (name, member) in members {
-                // Get the member's pointer in memory by adding its offset to the struct pointer.
-                let mut member_ptr = Some(self.runner.vm.get_relocatable((ptr + member.offset)?)?);
-
-                // If the member is a pointer and its value is 0, set it to `None`.
-                if member_ptr == Some(Relocatable::default()) && member.cairo_type.ends_with('*') {
-                    member_ptr = None;
+                // We try to resolve the member's value from memory.
+                if let Some(member_ptr) = self.runner.vm.get_maybe(&(ptr + member.offset)?) {
+                    // Check for null pointer.
+                    if member_ptr == MaybeRelocatable::Int(Felt252::ZERO) &&
+                        member.cairo_type.ends_with('*')
+                    {
+                        // We insert `None` for cases such as `parent=cast(0, model.Parent*)`
+                        //
+                        // Null pointers are represented as `None`.
+                        output.insert(name, None);
+                    } else {
+                        // Insert the resolved member pointer into the output map.
+                        output.insert(name, Some(member_ptr));
+                    }
                 }
-
-                // Insert the resolved member pointer into the output map.
-                output.insert(name, member_ptr);
             }
         }
 
@@ -289,6 +298,20 @@ mod tests {
     }
 
     #[test]
+    fn test_serialize_pointer_empty() {
+        // Setup the KakarotSerde instance
+        let kakarot_serde = setup_kakarot_serde();
+
+        // Serialize the pointers of the "ImplicitArgs" struct but without any memory segment.
+        let result = kakarot_serde
+            .serialize_pointers("main.ImplicitArgs", Relocatable::default())
+            .expect("failed to serialize pointers");
+
+        // The result should be an empty HashMap since there is no memory segment.
+        assert!(result.is_empty(),);
+    }
+
+    #[test]
     fn test_serialize_pointer_valid() {
         // Setup the KakarotSerde instance
         let mut kakarot_serde = setup_kakarot_serde();
@@ -298,9 +321,9 @@ mod tests {
             .runner
             .vm
             .gen_arg(&vec![
-                Relocatable { segment_index: 0, offset: 0 },
-                Relocatable { segment_index: 10, offset: 11 },
-                Relocatable { segment_index: 10, offset: 11 },
+                MaybeRelocatable::Int(Felt252::ZERO),
+                MaybeRelocatable::RelocatableValue(Relocatable { segment_index: 10, offset: 11 }),
+                MaybeRelocatable::RelocatableValue(Relocatable { segment_index: 10, offset: 11 }),
             ])
             .unwrap()
             .get_relocatable()
@@ -318,15 +341,24 @@ mod tests {
                 ("output_ptr".to_string(), None),
                 (
                     "range_check_ptr".to_string(),
-                    Some(Relocatable { segment_index: 10, offset: 11 })
+                    Some(MaybeRelocatable::RelocatableValue(Relocatable {
+                        segment_index: 10,
+                        offset: 11
+                    }))
                 ),
-                ("bitwise_ptr".to_string(), Some(Relocatable { segment_index: 10, offset: 11 })),                
+                (
+                    "bitwise_ptr".to_string(),
+                    Some(MaybeRelocatable::RelocatableValue(Relocatable {
+                        segment_index: 10,
+                        offset: 11
+                    }))
+                ),
             ])
         );
     }
 
     #[test]
-    fn test_serialize_no_pointer() {
+    fn test_serialize_null_no_pointer() {
         // Setup the KakarotSerde instance
         let mut kakarot_serde = setup_kakarot_serde();
 
@@ -335,9 +367,9 @@ mod tests {
             .runner
             .vm
             .gen_arg(&vec![
-                Relocatable { segment_index: 10, offset: 11 },
-                Relocatable { segment_index: 0, offset: 0 },
-                Relocatable { segment_index: 10, offset: 11 },
+                MaybeRelocatable::RelocatableValue(Relocatable { segment_index: 10, offset: 11 }),
+                MaybeRelocatable::Int(Felt252::ZERO),
+                MaybeRelocatable::Int(Felt252::from(55)),
             ])
             .unwrap()
             .get_relocatable()
@@ -352,10 +384,16 @@ mod tests {
         assert_eq!(
             result,
             HashMap::from_iter([
-                ("bitwise_ptr".to_string(), Some(Relocatable { segment_index: 10, offset: 11 })),
+                (
+                    "output_ptr".to_string(),
+                    Some(MaybeRelocatable::RelocatableValue(Relocatable {
+                        segment_index: 10,
+                        offset: 11
+                    }))
+                ),
                 // Not a pointer so that we shouldn't have a `None`
-                ("range_check_ptr".to_string(), Some(Relocatable { segment_index: 0, offset: 0 })),
-                ("output_ptr".to_string(), Some(Relocatable { segment_index: 10, offset: 11 })),
+                ("range_check_ptr".to_string(), Some(MaybeRelocatable::Int(Felt252::ZERO))),
+                ("bitwise_ptr".to_string(), Some(MaybeRelocatable::Int(Felt252::from(55)))),
             ])
         );
     }
