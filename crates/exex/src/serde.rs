@@ -1,3 +1,4 @@
+use crate::model::U128_BYTES_SIZE;
 use alloy_primitives::U256;
 use cairo_vm::{
     serde::deserialize_program::Identifier,
@@ -10,8 +11,6 @@ use cairo_vm::{
 };
 use std::collections::HashMap;
 use thiserror::Error;
-
-use crate::model::U128_BYTES_SIZE;
 
 /// Represents errors that can occur during the serialization and deserialization processes between
 /// Cairo VM programs and Rust representations.
