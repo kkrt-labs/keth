@@ -316,14 +316,19 @@ mod tests {
         // Setup the KakarotSerde instance
         let mut kakarot_serde = setup_kakarot_serde();
 
+        // Setup
+        let output_ptr = Felt252::ZERO;
+        let range_check_ptr = kakarot_serde.runner.vm.add_memory_segment();
+        let bitwise_otr = kakarot_serde.runner.vm.add_memory_segment();
+
         // Insert relocatable values in memory
         let base = kakarot_serde
             .runner
             .vm
             .gen_arg(&vec![
-                MaybeRelocatable::Int(Felt252::ZERO),
-                MaybeRelocatable::RelocatableValue(Relocatable { segment_index: 10, offset: 11 }),
-                MaybeRelocatable::RelocatableValue(Relocatable { segment_index: 10, offset: 11 }),
+                MaybeRelocatable::Int(output_ptr),
+                MaybeRelocatable::RelocatableValue(range_check_ptr),
+                MaybeRelocatable::RelocatableValue(bitwise_otr),
             ])
             .unwrap()
             .get_relocatable()
@@ -341,18 +346,9 @@ mod tests {
                 ("output_ptr".to_string(), None),
                 (
                     "range_check_ptr".to_string(),
-                    Some(MaybeRelocatable::RelocatableValue(Relocatable {
-                        segment_index: 10,
-                        offset: 11
-                    }))
+                    Some(MaybeRelocatable::RelocatableValue(range_check_ptr))
                 ),
-                (
-                    "bitwise_ptr".to_string(),
-                    Some(MaybeRelocatable::RelocatableValue(Relocatable {
-                        segment_index: 10,
-                        offset: 11
-                    }))
-                ),
+                ("bitwise_ptr".to_string(), Some(MaybeRelocatable::RelocatableValue(bitwise_otr))),
             ])
         );
     }
@@ -362,14 +358,19 @@ mod tests {
         // Setup the KakarotSerde instance
         let mut kakarot_serde = setup_kakarot_serde();
 
+        // Setup
+        let output_ptr = Relocatable { segment_index: 10, offset: 11 };
+        let range_check_ptr = Felt252::ZERO;
+        let bitwise_otr = Felt252::from(55);
+
         // Insert relocatable values in memory
         let base = kakarot_serde
             .runner
             .vm
             .gen_arg(&vec![
-                MaybeRelocatable::RelocatableValue(Relocatable { segment_index: 10, offset: 11 }),
-                MaybeRelocatable::Int(Felt252::ZERO),
-                MaybeRelocatable::Int(Felt252::from(55)),
+                MaybeRelocatable::RelocatableValue(output_ptr),
+                MaybeRelocatable::Int(range_check_ptr),
+                MaybeRelocatable::Int(bitwise_otr),
             ])
             .unwrap()
             .get_relocatable()
@@ -384,16 +385,10 @@ mod tests {
         assert_eq!(
             result,
             HashMap::from_iter([
-                (
-                    "output_ptr".to_string(),
-                    Some(MaybeRelocatable::RelocatableValue(Relocatable {
-                        segment_index: 10,
-                        offset: 11
-                    }))
-                ),
+                ("output_ptr".to_string(), Some(MaybeRelocatable::RelocatableValue(output_ptr))),
                 // Not a pointer so that we shouldn't have a `None`
-                ("range_check_ptr".to_string(), Some(MaybeRelocatable::Int(Felt252::ZERO))),
-                ("bitwise_ptr".to_string(), Some(MaybeRelocatable::Int(Felt252::from(55)))),
+                ("range_check_ptr".to_string(), Some(MaybeRelocatable::Int(range_check_ptr))),
+                ("bitwise_ptr".to_string(), Some(MaybeRelocatable::Int(bitwise_otr))),
             ])
         );
     }
