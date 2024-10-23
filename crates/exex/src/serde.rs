@@ -319,7 +319,7 @@ mod tests {
         // Setup
         let output_ptr = Felt252::ZERO;
         let range_check_ptr = kakarot_serde.runner.vm.add_memory_segment();
-        let bitwise_otr = kakarot_serde.runner.vm.add_memory_segment();
+        let bitwise_ptr = kakarot_serde.runner.vm.add_memory_segment();
 
         // Insert relocatable values in memory
         let base = kakarot_serde
@@ -328,7 +328,7 @@ mod tests {
             .gen_arg(&vec![
                 MaybeRelocatable::Int(output_ptr),
                 MaybeRelocatable::RelocatableValue(range_check_ptr),
-                MaybeRelocatable::RelocatableValue(bitwise_otr),
+                MaybeRelocatable::RelocatableValue(bitwise_ptr),
             ])
             .unwrap()
             .get_relocatable()
@@ -361,7 +361,7 @@ mod tests {
         // Setup
         let output_ptr = Relocatable { segment_index: 10, offset: 11 };
         let range_check_ptr = Felt252::ZERO;
-        let bitwise_otr = Felt252::from(55);
+        let bitwise_ptr = Felt252::from(55);
 
         // Insert relocatable values in memory
         let base = kakarot_serde
@@ -370,7 +370,7 @@ mod tests {
             .gen_arg(&vec![
                 MaybeRelocatable::RelocatableValue(output_ptr),
                 MaybeRelocatable::Int(range_check_ptr),
-                MaybeRelocatable::Int(bitwise_otr),
+                MaybeRelocatable::Int(bitwise_ptr),
             ])
             .unwrap()
             .get_relocatable()
