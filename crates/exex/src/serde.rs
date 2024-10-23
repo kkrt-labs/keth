@@ -273,14 +273,17 @@ mod tests {
         // Add a new memory segment to the virtual machine (VM).
         let _ = kakarot_serde.runner.vm.add_memory_segment();
 
-        // Try to serialize pointer with main which is not a struct.
-        if let Err(KakarotSerdeError::IdentifierNotFound { struct_name, expected_type }) =
-            kakarot_serde.serialize_pointers("main", Relocatable { segment_index: 0, offset: 0 })
-        {
-            assert_eq!(struct_name, "main".to_string());
-            assert_eq!(expected_type, Some("struct".to_string()));
-        } else {
-            panic!("Expected KakarotSerdeError::IdentifierNotFound");
+        // Attempt to serialize pointer with "main", expecting an IdentifierNotFound error.
+        let result =
+            kakarot_serde.serialize_pointers("main", Relocatable { segment_index: 0, offset: 0 });
+
+        // Assert that the result is an error with the expected struct name and type.
+        match result {
+            Err(KakarotSerdeError::IdentifierNotFound { struct_name, expected_type }) => {
+                assert_eq!(struct_name, "main".to_string());
+                assert_eq!(expected_type, Some("struct".to_string()));
+            }
+            _ => panic!("Expected KakarotSerdeError::IdentifierNotFound, but got: {:?}", result),
         }
     }
 
