@@ -6,6 +6,9 @@ from starkware.cairo.common.math_cmp import is_nn
 from starkware.cairo.common.bool import FALSE
 
 from src.model import model
+from src.utils.array import count_not_zero
+from src.gas import Gas
+from src.utils.transaction import TX_DATA_COST_PER_ZERO, TX_DATA_COST_PER_NON_ZERO, TX_CREATE_COST
 
 using Uint128 = felt;
 using Uint64 = felt;
@@ -216,4 +219,27 @@ func validate_header{range_check_ptr}(header: model.BlockHeader, parent_header: 
     // if header.parent_hash != block_parent_hash:
     //     raise InvalidBlock
     return ();
+}
+
+// @notice See https://github.com/ethereum/execution-specs/blob/master/src/ethereum/cancun/fork.py#L818-L862
+func calculate_intrinsic_cost(tx: model.Transaction*) -> felt {
+    let count = count_not_zero(tx.payload_len, tx.payload);
+    let zeroes = payload_len - count;
+    let data_cost = zeroes * TX_DATA_COST_PER_ZERO + count * TX_DATA_COST_PER_NON_ZERO;
+
+    if (tx.destination.is_some == FALSE) {
+        tempvar create_cost = TX_CREATE_COST + Gas.init_code_cost(tx.payload_len);
+    } else {
+        tempvar create_cost = 0;
+    }
+
+    access_list_cost = 0
+    if isinstance(
+        tx, (AccessListTransaction, FeeMarketTransaction, BlobTransaction)
+    ):
+        for _address, keys in tx.access_list:
+            access_list_cost += TX_ACCESS_LIST_ADDRESS_COST
+            access_list_cost += len(keys) * TX_ACCESS_LIST_STORAGE_KEY_COST
+
+    return Uint(TX_BASE_COST + data_cost + create_cost + access_list_cost)
 }
