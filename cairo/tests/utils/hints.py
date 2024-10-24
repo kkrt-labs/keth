@@ -1,5 +1,6 @@
 from collections import defaultdict
 from contextlib import contextmanager
+from dataclasses import asdict, is_dataclass
 from typing import Dict, Iterable, Tuple, Union
 from unittest.mock import patch
 
@@ -42,6 +43,11 @@ def gen_arg(
         )
         segments.load_data(base, arg)
         return base
+
+    if is_dataclass(arg):
+        return gen_arg(
+            dict_manager, segments, asdict(arg).values(), apply_modulo_to_args
+        )
 
     if apply_modulo_to_args and isinstance(arg, int):
         return arg % segments.prime
