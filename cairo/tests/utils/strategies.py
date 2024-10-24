@@ -1,5 +1,7 @@
 from hypothesis import strategies as st
 
+uint20 = st.integers(min_value=0, max_value=2**20 - 1)
+uint24 = st.integers(min_value=0, max_value=2**24 - 1)
 uint64 = st.integers(min_value=0, max_value=2**64 - 1)
 uint128 = st.integers(min_value=0, max_value=2**128 - 1)
 uint256 = st.integers(min_value=0, max_value=2**256 - 1)
