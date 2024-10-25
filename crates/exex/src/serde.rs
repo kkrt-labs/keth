@@ -90,7 +90,7 @@ impl CairoType {
         has_trailing_comma: bool,
         location: Option<Location>,
     ) -> Self {
-        CairoType::Tuple { members, has_trailing_comma, location }
+        Self::Tuple { members, has_trailing_comma, location }
     }
 }
 
