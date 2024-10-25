@@ -143,11 +143,6 @@ impl ScopedName {
         };
         Self { path }
     }
-
-    /// Converts [`ScopedName`] to a string by joining path elements with the separator.
-    pub fn to_string(&self) -> String {
-        self.path.join(Self::SEPARATOR)
-    }
 }
 
 /// A structure representing the Kakarot serialization and deserialization context for Cairo
@@ -266,13 +261,13 @@ impl KakarotSerde {
 
         // Retrieves the `low` field from the deserialized struct, ensuring it's a valid integer.
         let low = match raw.get("low") {
-            Some(Some(MaybeRelocatable::Int(value))) => value.clone(),
+            Some(Some(MaybeRelocatable::Int(value))) => value,
             _ => return Err(KakarotSerdeError::MissingField { field: "low".to_string() }),
         };
 
         // Retrieves the `high` field from the deserialized struct, ensuring it's a valid integer.
         let high = match raw.get("high") {
-            Some(Some(MaybeRelocatable::Int(value))) => value.clone(),
+            Some(Some(MaybeRelocatable::Int(value))) => value,
             _ => return Err(KakarotSerdeError::MissingField { field: "high".to_string() }),
         };
 
