@@ -1,7 +1,7 @@
 use crate::model::U128_BYTES_SIZE;
 use alloy_primitives::U256;
 use cairo_vm::{
-    serde::deserialize_program::Identifier,
+    serde::deserialize_program::{Identifier, Location},
     types::{
         errors::math_errors::MathError,
         relocatable::{MaybeRelocatable, Relocatable},
@@ -50,6 +50,99 @@ pub enum KakarotSerdeError {
         /// The name of the missing field.
         field: String,
     },
+}
+
+/// Represents the types used in Cairo, including felt types, pointers, tuples, and structs.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum CairoType {
+    /// A felt type, optionally associated with a location.
+    Felt { location: Option<Location> },
+
+    /// A pointer type that points to another [`CairoType`], with an optional location.
+    Pointer { pointee: Box<CairoType>, location: Option<Location> },
+
+    /// A tuple type that consists of multiple tuple items.
+    Tuple { members: Vec<TupleItem>, has_trailing_comma: bool, location: Option<Location> },
+
+    /// A struct type defined by its scope and an optional location.
+    Struct { scope: ScopedName, location: Option<Location> },
+}
+
+impl CairoType {
+    /// Creates a new [`CairoType::Struct`] with the specified scope and optional location.
+    pub fn struct_type(scope: &str, location: Option<Location>) -> Self {
+        Self::Struct { scope: ScopedName::from_string(scope), location }
+    }
+
+    /// Creates a new [`CairoType::Felt`] with an optional location.
+    pub fn felt_type(location: Option<Location>) -> Self {
+        Self::Felt { location }
+    }
+
+    /// Creates a new [`CairoType::Pointer`] that points to a specified [`CairoType`].
+    pub fn pointer_type(pointee: CairoType, location: Option<Location>) -> Self {
+        Self::Pointer { pointee: Box::new(pointee), location }
+    }
+
+    /// Creates a new [`CairoType::Tuple`] from a vector of [`TupleItem`]s.
+    pub fn tuple_from_members(
+        members: Vec<TupleItem>,
+        has_trailing_comma: bool,
+        location: Option<Location>,
+    ) -> Self {
+        Self::Tuple { members, has_trailing_comma, location }
+    }
+}
+
+/// Represents an item in a tuple, consisting of an optional name, type, and location.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TupleItem {
+    /// An optional string representing the name of the tuple item.
+    pub name: Option<String>,
+
+    /// The [`CairoType`] of the tuple item.
+    pub typ: CairoType,
+
+    /// An optional location associated with the tuple item.
+    pub location: Option<Location>,
+}
+
+impl TupleItem {
+    /// Creates a new [`TupleItem`] with an optional name, Cairo type, and location.
+    pub fn new(name: Option<String>, typ: CairoType, location: Option<Location>) -> Self {
+        Self { name, typ, location }
+    }
+}
+
+/// Represents a scoped name composed of a series of identifiers forming a path.
+///
+/// Example: `starkware.cairo.common.uint256.Uint256`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ScopedName {
+    /// A vector of strings representing the components of the scoped name.
+    ///
+    /// Each element in the vector corresponds to a segment of the name, separated by
+    /// a dot (`.`).
+    ///
+    /// The first element is the top-level namespace, and subsequent elements represent
+    /// sub-namespaces or types. This structure allows for easy manipulation and representation
+    /// of names in a hierarchical format.
+    pub path: Vec<String>,
+}
+
+impl ScopedName {
+    /// Separator for the scope path.
+    const SEPARATOR: &'static str = ".";
+
+    /// Creates a [`ScopedName`] from a dot-separated string.
+    pub fn from_string(scope: &str) -> Self {
+        let path = if scope.is_empty() {
+            vec![]
+        } else {
+            scope.split(Self::SEPARATOR).map(String::from).collect()
+        };
+        Self { path }
+    }
 }
 
 /// A structure representing the Kakarot serialization and deserialization context for Cairo
@@ -168,13 +261,13 @@ impl KakarotSerde {
 
         // Retrieves the `low` field from the deserialized struct, ensuring it's a valid integer.
         let low = match raw.get("low") {
-            Some(Some(MaybeRelocatable::Int(value))) => value.clone(),
+            Some(Some(MaybeRelocatable::Int(value))) => value,
             _ => return Err(KakarotSerdeError::MissingField { field: "low".to_string() }),
         };
 
         // Retrieves the `high` field from the deserialized struct, ensuring it's a valid integer.
         let high = match raw.get("high") {
-            Some(Some(MaybeRelocatable::Int(value))) => value.clone(),
+            Some(Some(MaybeRelocatable::Int(value))) => value,
             _ => return Err(KakarotSerdeError::MissingField { field: "high".to_string() }),
         };
 
@@ -197,7 +290,10 @@ impl KakarotSerde {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cairo_vm::types::{layout_name::LayoutName, program::Program};
+    use cairo_vm::{
+        serde::deserialize_program::InputFile,
+        types::{layout_name::LayoutName, program::Program},
+    };
     use std::str::FromStr;
 
     fn setup_kakarot_serde() -> KakarotSerde {
@@ -569,5 +665,155 @@ mod tests {
             }
             _ => panic!("Expected a missing field error, but got: {:?}", result),
         }
+    }
+
+    #[test]
+    fn test_cairo_type_struct_type() {
+        // A dummy scope name for the struct type.
+        let scope_name = "starkware.cairo.common.uint256.Uint256";
+
+        // Create a Cairo type for the struct.
+        let cairo_type = CairoType::struct_type(scope_name, None);
+
+        // Assert that the Cairo type is a struct with the correct scope name.
+        assert_eq!(
+            cairo_type,
+            CairoType::Struct {
+                scope: ScopedName {
+                    path: vec![
+                        "starkware".to_string(),
+                        "cairo".to_string(),
+                        "common".to_string(),
+                        "uint256".to_string(),
+                        "Uint256".to_string()
+                    ]
+                },
+                location: None
+            }
+        );
+
+        // Test with a dummy location
+        let location = Some(Location {
+            end_line: 100,
+            end_col: 454,
+            input_file: InputFile { filename: "test.cairo".to_string() },
+            parent_location: None,
+            start_line: 34,
+            start_col: 234,
+        });
+        let cairo_type_with_location = CairoType::struct_type(scope_name, location.clone());
+        assert_eq!(
+            cairo_type_with_location,
+            CairoType::Struct {
+                scope: ScopedName {
+                    path: vec![
+                        "starkware".to_string(),
+                        "cairo".to_string(),
+                        "common".to_string(),
+                        "uint256".to_string(),
+                        "Uint256".to_string()
+                    ]
+                },
+                location
+            }
+        );
+    }
+
+    #[test]
+    fn test_cairo_type_felt() {
+        // Create a Cairo type for a Felt.
+        let cairo_type = CairoType::felt_type(None);
+
+        // Assert that the Cairo type is a Felt with the correct location.
+        assert_eq!(cairo_type, CairoType::Felt { location: None });
+
+        // Test with a dummy location
+        let location = Some(Location {
+            end_line: 100,
+            end_col: 454,
+            input_file: InputFile { filename: "test.cairo".to_string() },
+            parent_location: None,
+            start_line: 34,
+            start_col: 234,
+        });
+        let cairo_type_with_location = CairoType::felt_type(location.clone());
+        assert_eq!(cairo_type_with_location, CairoType::Felt { location });
+    }
+
+    #[test]
+    fn test_cairo_type_pointer() {
+        // Create a Cairo type for a Pointer.
+        let pointee_type = CairoType::felt_type(None);
+        let cairo_type = CairoType::pointer_type(pointee_type.clone(), None);
+
+        // Assert that the Cairo type is a Pointer with the correct pointee type.
+        assert_eq!(
+            cairo_type,
+            CairoType::Pointer { pointee: Box::new(pointee_type), location: None }
+        );
+
+        // Test with a dummy location
+        let location = Some(Location {
+            end_line: 100,
+            end_col: 454,
+            input_file: InputFile { filename: "test.cairo".to_string() },
+            parent_location: None,
+            start_line: 34,
+            start_col: 234,
+        });
+        let cairo_type_with_location =
+            CairoType::pointer_type(CairoType::felt_type(None), location.clone());
+        assert_eq!(
+            cairo_type_with_location,
+            CairoType::Pointer { pointee: Box::new(CairoType::Felt { location: None }), location }
+        );
+    }
+
+    #[test]
+    fn test_cairo_type_tuple() {
+        // Create Cairo types for Tuple members.
+        let member1 = TupleItem::new(Some("a".to_string()), CairoType::felt_type(None), None);
+        let member2 = TupleItem::new(
+            Some("b".to_string()),
+            CairoType::pointer_type(CairoType::felt_type(None), None),
+            None,
+        );
+
+        // Create a Cairo type for a Tuple.
+        let cairo_type =
+            CairoType::tuple_from_members(vec![member1.clone(), member2.clone()], true, None);
+
+        // Assert that the Cairo type is a Tuple with the correct members and trailing comma flag.
+        assert_eq!(
+            cairo_type,
+            CairoType::Tuple {
+                members: vec![member1, member2],
+                has_trailing_comma: true,
+                location: None
+            }
+        );
+
+        // Test with a dummy location
+        let location = Some(Location {
+            end_line: 100,
+            end_col: 454,
+            input_file: InputFile { filename: "test.cairo".to_string() },
+            parent_location: None,
+            start_line: 34,
+            start_col: 234,
+        });
+        let cairo_type_with_location = CairoType::tuple_from_members(
+            vec![TupleItem::new(None, CairoType::felt_type(None), None)],
+            false,
+            location.clone(),
+        );
+        assert_eq!(
+            cairo_type_with_location,
+            CairoType::Tuple {
+                members: vec![TupleItem::new(None, CairoType::felt_type(None), None)],
+                has_trailing_comma: false,
+                location
+            }
+        );
     }
 }
