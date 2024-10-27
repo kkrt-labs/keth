@@ -6,7 +6,9 @@ from starkware.cairo.common.uint256 import Uint256, uint256_lt
 from src.model import model
 from src.utils.uint256 import uint256_eq
 from src.utils.utils import Helpers
-from src.utils.maths import unsigned_div_rem
+from src.utils.maths import unsigned_div_rem, ceil32
+
+const GAS_INIT_CODE_WORD_COST = 2;
 
 namespace Gas {
     const JUMPDEST = 1;
@@ -49,12 +51,18 @@ namespace Gas {
     const COLD_SLOAD = 2100;
     const COLD_ACCOUNT_ACCESS = 2600;
     const WARM_ACCESS = 100;
-    const INIT_CODE_WORD_COST = 2;
     const TX_BASE_COST = 21000;
     const TX_ACCESS_LIST_ADDRESS_COST = 2400;
     const TX_ACCESS_LIST_STORAGE_KEY_COST = 1900;
     const BLOBHASH = 3;
     const MEMORY_COST_U32 = 0x200018000000;
+
+    // @notive See https://github.com/ethereum/execution-specs/blob/master/src/ethereum/cancun/vm/gas.py#L253-L269
+    func init_code_cost{range_check_ptr}(init_code_length: felt) -> felt {
+        let init_code_bytes = ceil32(init_code_length);
+        let (init_code_words, _) = unsigned_div_rem(init_code_bytes, 32);
+        return GAS_INIT_CODE_WORD_COST * init_code_words;
+    }
 
     // @notice Compute the cost of the memory for a given words length.
     // @dev To avoid range_check overflow, we compute words_len / 512

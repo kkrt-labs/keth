@@ -83,3 +83,9 @@ func test__compute_message_call_gas{range_check_ptr}() -> felt {
 
     return gas;
 }
+
+func test__init_code_cost{range_check_ptr}() -> felt {
+    tempvar init_code_len: felt;
+    %{ ids.init_code_len = program_input["init_code_len"]; %}
+    return Gas.init_code_cost(init_code_len);
+}

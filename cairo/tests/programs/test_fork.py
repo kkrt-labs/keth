@@ -1,23 +1,26 @@
 from ethereum.cancun.blocks import Header
 from ethereum.cancun.fork import (
     calculate_base_fee_per_gas,
+    calculate_intrinsic_cost,
     check_gas_limit,
     validate_header,
 )
+from ethereum.cancun.transactions import AccessListTransaction
 from ethereum.exceptions import InvalidBlock
 from hypothesis import given
-from hypothesis.strategies import integers
 
-from tests.fixtures.data import block_header_strategy
 from tests.utils.errors import cairo_error
-from tests.utils.models import BlockHeader
+from tests.utils.models import BlockHeader, Transaction
+from tests.utils.strategies import (
+    access_list_transaction,
+    block_header,
+    uint64,
+    uint128,
+)
 
 
 class TestFork:
-    @given(
-        integers(min_value=0, max_value=2**128 - 1),
-        integers(min_value=0, max_value=2**128 - 1),
-    )
+    @given(uint128, uint128)
     def test_check_gas_limit(self, cairo_run, gas_limit, parent_gas_limit):
         error = check_gas_limit(gas_limit, parent_gas_limit)
         if not error:
@@ -34,12 +37,7 @@ class TestFork:
                 parent_gas_limit=parent_gas_limit,
             )
 
-    @given(
-        integers(min_value=0, max_value=2**64 - 1),
-        integers(min_value=0, max_value=2**64 - 1),
-        integers(min_value=0, max_value=2**64 - 1),
-        integers(min_value=0, max_value=2**64 - 1),
-    )
+    @given(uint64, uint64, uint64, uint64)
     def test_calculate_base_fee_per_gas(
         self,
         cairo_run,
@@ -76,7 +74,7 @@ class TestFork:
                     parent_base_fee_per_gas=parent_base_fee_per_gas,
                 )
 
-    @given(header=block_header_strategy, parent_header=block_header_strategy)
+    @given(header=block_header, parent_header=block_header)
     def test_validate_header(self, cairo_run, header, parent_header):
         error = None
         try:
@@ -97,3 +95,9 @@ class TestFork:
                 header=BlockHeader.model_validate(header),
                 parent_header=BlockHeader.model_validate(parent_header),
             )
+
+    @given(tx=access_list_transaction)
+    def test_calculate_intrinsic_cost(self, cairo_run, tx):
+        assert calculate_intrinsic_cost(AccessListTransaction(**tx)) == cairo_run(
+            "test_calculate_intrinsic_cost", tx=Transaction.model_validate(tx)
+        )

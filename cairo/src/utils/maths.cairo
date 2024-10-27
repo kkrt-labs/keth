@@ -32,3 +32,11 @@ func unsigned_div_rem{range_check_ptr}(value, div) -> (q: felt, r: felt) {
     assert value = q * div + r;
     return (q, r);
 }
+
+func ceil32{range_check_ptr}(value: felt) -> felt {
+    if (value == 0) {
+        return 0;
+    }
+    let (q, r) = unsigned_div_rem(value + 31, 32);
+    return q * 32;
+}

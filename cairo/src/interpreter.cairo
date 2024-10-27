@@ -28,7 +28,7 @@ from src.precompiles.precompiles import Precompiles
 from src.precompiles.precompiles_helpers import PrecompilesHelpers
 from src.stack import Stack
 from src.state import State
-from src.gas import Gas
+from src.gas import Gas, GAS_INIT_CODE_WORD_COST
 from src.utils.utils import Helpers
 from src.utils.array import count_not_zero
 from src.utils.uint256 import uint256_sub, uint256_add
@@ -851,7 +851,7 @@ namespace Interpreter {
         if (is_deploy_tx != FALSE) {
             let (empty: felt*) = alloc();
             let (init_code_words, _) = unsigned_div_rem(bytecode_len + 31, 32);
-            let init_code_gas = Gas.INIT_CODE_WORD_COST * init_code_words;
+            let init_code_gas = GAS_INIT_CODE_WORD_COST * init_code_words;
             assert bytecode = tmp_calldata;
             assert calldata = empty;
             assert intrinsic_gas = tmp_intrinsic_gas + Gas.CREATE + init_code_gas;
