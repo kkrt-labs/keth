@@ -1,4 +1,10 @@
-from programs.fork import check_gas_limit, calculate_base_fee_per_gas, validate_header, Uint128
+from programs.fork import (
+    check_gas_limit,
+    calculate_base_fee_per_gas,
+    validate_header,
+    Uint128,
+    calculate_intrinsic_cost,
+)
 from src.model import model
 
 func test_check_gas_limit{range_check_ptr}() {
@@ -45,4 +51,19 @@ func test_validate_header{range_check_ptr}() {
     %}
     validate_header([header], [parent_header]);
     return ();
+}
+
+func test_calculate_intrinsic_cost{range_check_ptr}() -> felt {
+    tempvar tx: model.Transaction*;
+    %{
+        if '__dict_manager' not in globals():
+            from starkware.cairo.common.dict import DictManager
+            __dict_manager = DictManager()
+
+        from tests.utils.hints import gen_arg
+
+        ids.tx = gen_arg(__dict_manager, segments, program_input["tx"])
+    %}
+
+    return calculate_intrinsic_cost(tx);
 }

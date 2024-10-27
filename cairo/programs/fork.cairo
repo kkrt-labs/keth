@@ -6,6 +6,16 @@ from starkware.cairo.common.math_cmp import is_nn
 from starkware.cairo.common.bool import FALSE
 
 from src.model import model
+from src.utils.array import count_not_zero
+from src.gas import Gas
+from src.utils.transaction import (
+    TX_DATA_COST_PER_ZERO,
+    TX_DATA_COST_PER_NON_ZERO,
+    TX_CREATE_COST,
+    TX_BASE_COST,
+    TX_ACCESS_LIST_ADDRESS_COST,
+    TX_ACCESS_LIST_STORAGE_KEY_COST,
+)
 
 using Uint128 = felt;
 using Uint64 = felt;
@@ -216,4 +226,48 @@ func validate_header{range_check_ptr}(header: model.BlockHeader, parent_header: 
     // if header.parent_hash != block_parent_hash:
     //     raise InvalidBlock
     return ();
+}
+
+// @notice See https://github.com/ethereum/execution-specs/blob/master/src/ethereum/cancun/fork.py#L818-L862
+func calculate_intrinsic_cost{range_check_ptr}(tx: model.Transaction*) -> felt {
+    alloc_locals;
+
+    let count = count_not_zero(tx.payload_len, tx.payload);
+    let zeroes = tx.payload_len - count;
+    local data_cost = zeroes * TX_DATA_COST_PER_ZERO + count * TX_DATA_COST_PER_NON_ZERO;
+
+    if (tx.destination.is_some == FALSE) {
+        let init_code_cost = Gas.init_code_cost(tx.payload_len);
+        tempvar range_check_ptr = range_check_ptr;
+        tempvar create_cost = TX_CREATE_COST + init_code_cost;
+        static_assert range_check_ptr == [ap - 2];
+    } else {
+        tempvar range_check_ptr = range_check_ptr;
+        tempvar create_cost = 0;
+        static_assert range_check_ptr == [ap - 2];
+    }
+    local range_check_ptr = [ap - 2];
+    let create_cost = [ap - 1];
+
+    let access_list_cost = Internals.access_list_cost(tx.access_list_len, tx.access_list);
+    return TX_BASE_COST + data_cost + create_cost + access_list_cost;
+}
+
+// A namespace for functions not part of the execution specs file but required to ease the cairo code
+namespace Internals {
+    func access_list_cost(access_list_len: felt, access_list: felt*) -> felt {
+        alloc_locals;
+
+        if (access_list_len == 0) {
+            return 0;
+        }
+
+        let address = [access_list];
+        let storage_keys_len = [access_list + 1];
+        let item_len = 2 + storage_keys_len * Uint256.SIZE;
+        let cum_gas_cost = access_list_cost(access_list_len - item_len, access_list + item_len);
+        let current_cost = TX_ACCESS_LIST_ADDRESS_COST + storage_keys_len *
+            TX_ACCESS_LIST_STORAGE_KEY_COST;
+        return cum_gas_cost + current_cost;
+    }
 }

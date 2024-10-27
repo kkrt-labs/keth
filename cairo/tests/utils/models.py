@@ -18,8 +18,8 @@ from pydantic.alias_generators import to_camel, to_snake
 from starkware.cairo.lang.vm.crypto import pedersen_hash
 
 from src.utils.uint256 import int_to_uint256
-from tests.utils.helpers import rlp_encode_signed_data
-from tests.utils.parsers import to_bytes, to_int
+from tests.utils.helpers import flatten, rlp_encode_signed_data
+from tests.utils.parsers import address, bytes_, to_bytes, to_int, uint, uint64, uint128
 
 
 class BaseModelIterValuesOnly(BaseModel):
@@ -327,3 +327,87 @@ class State(BaseModelIterValuesOnly):
         values = values.copy()
         values["accounts"] = defaultdict(int, {to_int(k): v for k, v in values.items()})
         return values
+
+
+class Transaction(BaseModelIterValuesOnly):
+
+    @model_validator(mode="before")
+    def split_uint256(cls, values):
+        values = values.copy()
+        for key in ["amount", "value"]:
+            if key not in values:
+                key = to_camel(key)
+            if key not in values:
+                continue
+
+            values[key], values[to_camel(key) + "High"] = int_to_uint256(
+                to_int(values[key])
+            )
+        return values
+
+    @model_validator(mode="before")
+    def split_option(cls, values):
+        values = values.copy()
+        for key in ["destination", "chain_id"]:
+            if key not in values:
+                key = to_camel(key)
+            if key not in values and "to" in values:
+                key = "to"
+            is_some = key in values and values[key] is not None
+            # it's possible that values[key] exists and is None, that why we can't use get default value
+            value = to_int(values.get(key) or 0)
+            values[to_camel(key) + "IsSome"] = is_some
+            values[to_camel(key) + "Value"] = value
+        return values
+
+    @model_validator(mode="before")
+    def parse_access_list(cls, values):
+        values = values.copy()
+        if "access_list" not in values:
+            return values
+
+        value = flatten(
+            [
+                (
+                    int.from_bytes(key, "big"),
+                    len(addresses),
+                    *[
+                        int_to_uint256(int.from_bytes(address, "big"))
+                        for address in addresses
+                    ],
+                )
+                for key, addresses in values["access_list"]
+            ]
+        )
+        if value is None:
+            return values
+        values["access_list"] = value
+        values["access_list_len"] = len(value)
+        return values
+
+    @model_validator(mode="before")
+    def add_len(cls, values):
+        values = values.copy()
+        for key in ["payload", "data"]:
+            if key not in values:
+                key = to_camel(key)
+            if key not in values:
+                continue
+
+            values[to_camel(key) + "Len"] = len(values[key])
+        return values
+
+    signer_nonce: uint64 = Field(validation_alias="nonce")
+    gas_limit: uint = Field(validation_alias="gas")
+    max_priority_fee_per_gas: uint = Field(validation_alias="gas_price")
+    max_fee_per_gas: uint = Field(validation_alias="gas_price")
+    destination_is_some: uint = Field(validation_alias="toIsSome")
+    destination_value: address = Field(validation_alias="toValue")
+    amount_low: uint128 = Field(validation_alias="value")
+    amount_high: uint128 = Field(validation_alias="valueHigh")
+    payload_len: uint = Field(validation_alias="dataLen")
+    payload: bytes_ = Field(validation_alias="data")
+    access_list_len: uint
+    access_list: list[uint]
+    chain_id_is_some: uint
+    chain_id_value: uint64
