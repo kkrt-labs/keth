@@ -2,12 +2,12 @@
 # To learn more about the format of this file, see https://docs.trunk.io/reference/trunk-yaml
 version: 0.1
 cli:
-  version: 1.22.5
+  version: 1.22.7
 # Trunk provides extensibility via plugins. (https://docs.trunk.io/plugins)
 plugins:
   sources:
     - id: trunk
-      ref: v1.6.2
+      ref: v1.6.4
       uri: https://github.com/trunk-io/plugins
 # Many linters and tools depend on runtimes - configure them here. (https://docs.trunk.io/runtimes)
 runtimes:
@@ -53,28 +53,28 @@ lint:
           read_output_from: stdout
           run_linter_from: workspace
   enabled:
-    - cspell@8.14.4
+    - cspell@8.15.4
     - dotenv-linter@3.3.0
-    - actionlint@1.7.1
-    - black@24.8.0
+    - actionlint@1.7.3
+    - black@24.10.0
     - cairo@SYSTEM
-    - checkov@3.2.253
-    - clippy@SYSTEM
+    - checkov@3.2.269
+    - clippy
     - git-diff-check
     - hadolint@2.12.0
     - isort@5.13.2
-    - markdownlint@0.41.0
-    - osv-scanner@1.8.5
+    - markdownlint@0.42.0
+    - osv-scanner@1.9.0
     - oxipng@9.1.2
     - prettier@3.3.3
-    - ruff@0.6.4
+    - ruff@0.7.1
     - rustfmt@SYSTEM
     - shellcheck@0.10.0
     - shfmt@3.6.0
     - solidity@SYSTEM
     - taplo@0.9.3
-    - trivy@0.55.1
-    - trufflehog@3.82.1
+    - trivy@0.56.2
+    - trufflehog@3.82.13
     - yamllint@1.35.1
 
 actions:
