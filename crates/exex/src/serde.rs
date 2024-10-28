@@ -387,12 +387,13 @@ mod tests {
             kakarot_serde.get_identifier("non_existent_struct", Some("function".to_string()));
 
         // Check if the error is valid and validate its parameters
-        if let Err(KakarotSerdeError::IdentifierNotFound { struct_name, expected_type }) = result {
-            assert_eq!(struct_name, "non_existent_struct");
-            assert_eq!(expected_type, Some("function".to_string()));
-        } else {
-            panic!("Expected KakarotSerdeError::IdentifierNotFound");
-        }
+        assert_eq!(
+            result,
+            Err(KakarotSerdeError::IdentifierNotFound {
+                struct_name: "non_existent_struct".to_string(),
+                expected_type: Some("function".to_string())
+            })
+        );
     }
 
     #[test]
@@ -404,12 +405,13 @@ mod tests {
         let result = kakarot_serde.get_identifier("check_range", Some("struct".to_string()));
 
         // Check if the error is valid and validate its parameters
-        if let Err(KakarotSerdeError::IdentifierNotFound { struct_name, expected_type }) = result {
-            assert_eq!(struct_name, "check_range");
-            assert_eq!(expected_type, Some("struct".to_string()));
-        } else {
-            panic!("Expected KakarotSerdeError::IdentifierNotFound");
-        }
+        assert_eq!(
+            result,
+            Err(KakarotSerdeError::IdentifierNotFound {
+                struct_name: "check_range".to_string(),
+                expected_type: Some("struct".to_string())
+            })
+        );
     }
 
     #[test]
@@ -421,12 +423,13 @@ mod tests {
         let result = kakarot_serde.get_identifier("main", Some("struct".to_string()));
 
         // Check if the error is valid and validate its parameters
-        if let Err(KakarotSerdeError::IdentifierNotFound { struct_name, expected_type }) = result {
-            assert_eq!(struct_name, "main");
-            assert_eq!(expected_type, Some("struct".to_string()));
-        } else {
-            panic!("Expected KakarotSerdeError::IdentifierNotFound");
-        }
+        assert_eq!(
+            result,
+            Err(KakarotSerdeError::IdentifierNotFound {
+                struct_name: "main".to_string(),
+                expected_type: Some("struct".to_string())
+            })
+        );
     }
 
     #[test]
@@ -438,18 +441,14 @@ mod tests {
         let result = kakarot_serde.get_identifier("ImplicitArgs", Some("struct".to_string()));
 
         // Check if the error is valid and validate its parameters
-        if let Err(KakarotSerdeError::MultipleIdentifiersFound {
-            struct_name,
-            expected_type,
-            count,
-        }) = result
-        {
-            assert_eq!(struct_name, "ImplicitArgs");
-            assert_eq!(expected_type, Some("struct".to_string()));
-            assert_eq!(count, 6);
-        } else {
-            panic!("Expected KakarotSerdeError::MultipleIdentifiersFound");
-        }
+        assert_eq!(
+            result,
+            Err(KakarotSerdeError::MultipleIdentifiersFound {
+                struct_name: "ImplicitArgs".to_string(),
+                expected_type: Some("struct".to_string()),
+                count: 6
+            })
+        );
     }
 
     #[test]
@@ -464,13 +463,13 @@ mod tests {
         let result = kakarot_serde.serialize_pointers("main", base);
 
         // Assert that the result is an error with the expected struct name and type.
-        match result {
-            Err(KakarotSerdeError::IdentifierNotFound { struct_name, expected_type }) => {
-                assert_eq!(struct_name, "main".to_string());
-                assert_eq!(expected_type, Some("struct".to_string()));
-            }
-            _ => panic!("Expected KakarotSerdeError::IdentifierNotFound, but got: {:?}", result),
-        }
+        assert_eq!(
+            result,
+            Err(KakarotSerdeError::IdentifierNotFound {
+                struct_name: "main".to_string(),
+                expected_type: Some("struct".to_string())
+            })
+        );
     }
 
     #[test]
@@ -692,12 +691,7 @@ mod tests {
         let result = kakarot_serde.serialize_uint256(base);
 
         // Assert that the result is an error with the expected missing field.
-        match result {
-            Err(KakarotSerdeError::MissingField { field }) => {
-                assert_eq!(field, "low");
-            }
-            _ => panic!("Expected a missing field error, but got: {:?}", result),
-        }
+        assert_eq!(result, Err(KakarotSerdeError::MissingField { field: "low".to_string() }));
     }
 
     #[test]
