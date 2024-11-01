@@ -15,7 +15,12 @@ runtimes:
     - go@1.21.0
     - node@18.12.1
     - python@3.10.8
-    - rust@nightly
+downloads:
+  - name: rust
+    downloads:
+      - os: linux
+        url: https://static.rust-lang.org/dist/2024-10-31/rust-nightly-x86_64-unknown-linux-gnu.tar.gz
+        strip_components: 2
 # This is the section where you manage your linters. (https://docs.trunk.io/check/configuration)
 lint:
   disabled:
@@ -58,8 +63,9 @@ lint:
     - actionlint@1.7.3
     - black@24.10.0
     - cairo@SYSTEM
+    - rustfmt@2024-10-31
+    - clippy@2024-10-31
     - checkov@3.2.269
-    - clippy
     - git-diff-check
     - hadolint@2.12.0
     - isort@5.13.2
@@ -68,7 +74,6 @@ lint:
     - oxipng@9.1.2
     - prettier@3.3.3
     - ruff@0.7.1
-    - rustfmt@SYSTEM
     - shellcheck@0.10.0
     - shfmt@3.6.0
     - solidity@SYSTEM
