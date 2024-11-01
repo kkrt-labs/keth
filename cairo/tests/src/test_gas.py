@@ -2,29 +2,22 @@ import pytest
 from ethereum.shanghai.vm.gas import (
     calculate_gas_extend_memory,
     calculate_memory_gas_cost,
+    init_code_cost,
 )
 from hypothesis import given
-from hypothesis.strategies import integers
 
-from src.utils.uint256 import int_to_uint256
-
-int_to_uint256(0)  # (0, 0)
+from tests.utils.strategies import uint20, uint24, uint64, uint128, uint256
 
 
 class TestGas:
     class TestCost:
-        @given(max_offset=integers(min_value=0, max_value=0xFFFFFF))
-        def test_should_return_same_as_execution_specs(self, cairo_run, max_offset):
+        @given(max_offset=uint24)
+        def test_memory_cost(self, cairo_run, max_offset):
             output = cairo_run("test__memory_cost", words_len=(max_offset + 31) // 32)
             assert calculate_memory_gas_cost(max_offset) == output
 
-        @given(
-            bytes_len=integers(min_value=0, max_value=2**128 - 1),
-            added_offset=integers(min_value=0, max_value=2**128 - 1),
-        )
-        def test_should_return_correct_expansion_cost(
-            self, cairo_run, bytes_len, added_offset
-        ):
+        @given(bytes_len=uint128, added_offset=uint128)
+        def test_memory_expansion_cost(self, cairo_run, bytes_len, added_offset):
             max_offset = bytes_len + added_offset
             output = cairo_run(
                 "test__memory_expansion_cost",
@@ -36,13 +29,8 @@ class TestGas:
             diff = cost_after - cost_before
             assert diff == output
 
-        @given(
-            offset_1=integers(min_value=0, max_value=0xFFFFF),
-            size_1=integers(min_value=0, max_value=0xFFFFF),
-            offset_2=integers(min_value=0, max_value=0xFFFFF),
-            size_2=integers(min_value=0, max_value=0xFFFFF),
-        )
-        def test_should_return_max_expansion_cost(
+        @given(offset_1=uint20, size_1=uint20, offset_2=uint20, size_2=uint20)
+        def test_max_memory_expansion_cost(
             self, cairo_run, offset_1, size_1, offset_2, size_2
         ):
             output = cairo_run(
@@ -64,10 +52,7 @@ class TestGas:
                 ).cost
             )
 
-        @given(
-            offset=integers(min_value=0, max_value=2**256 - 1),
-            size=integers(min_value=0, max_value=2**256 - 1),
-        )
+        @given(offset=uint256, size=uint256)
         def test_memory_expansion_cost_saturated(self, cairo_run, offset, size):
             output = cairo_run(
                 "test__memory_expansion_cost_saturated",
@@ -83,6 +68,12 @@ class TestGas:
                 cost = calculate_gas_extend_memory(b"", [(offset, size)]).cost
 
             assert cost == output
+
+        @given(init_code_len=uint64)
+        def test_init_code_cost(self, cairo_run, init_code_len):
+            assert init_code_cost(init_code_len) == cairo_run(
+                "test__init_code_cost", init_code_len=init_code_len
+            )
 
     class TestMessageGas:
         @pytest.mark.parametrize(

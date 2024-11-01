@@ -14,7 +14,7 @@ use thiserror::Error;
 
 /// Represents errors that can occur during the serialization and deserialization processes between
 /// Cairo VM programs and Rust representations.
-#[derive(Debug, Error)]
+#[derive(Debug, Error, PartialEq)]
 pub enum KakarotSerdeError {
     /// Error variant indicating that no identifier matching the specified name was found.
     #[error("Expected one struct named '{struct_name}', found 0 matches. Expected type: {expected_type:?}")]
@@ -285,6 +285,39 @@ impl KakarotSerde {
         // Creates a `U256` value from the concatenated big-endian byte array.
         Ok(U256::from_be_slice(&bytes))
     }
+
+    /// Calculates the offset size for a given Cairo type.
+    ///
+    /// This function computes the offset based on the provided Cairo type:
+    /// - For a tuple, it returns the number of elements in the tuple.
+    /// - For a struct, it finds the identifier, then counts its members.
+    ///   - If no members are found (`None`, which should never happen), it returns an offset of `0`
+    ///     (an empty struct).
+    /// - For all other types, it defaults to an offset of `1`.
+    pub fn get_offset(&self, cairo_type: CairoType) -> Result<usize, KakarotSerdeError> {
+        // Determine offset based on the Cairo type.
+        match cairo_type {
+            // For a tuple type, return the number of elements in the tuple.
+            CairoType::Tuple { members, .. } => Ok(members.len()),
+
+            // For a struct type, attempt to retrieve its identifier using the scope (struct's name
+            // path).
+            CairoType::Struct { scope, .. } => {
+                // Retrieve the struct identifier and verify its presence in the program.
+                let identifier =
+                    self.get_identifier(&scope.path.join("."), Some("struct".to_string()))?;
+
+                // Return the count of struct members.
+                //
+                // If members are `None`, return an offset of `0`, indicating an empty struct.
+                // We should never encounter a struct with no members, so this is a safeguard.
+                Ok(identifier.members.unwrap_or_default().len())
+            }
+
+            // For all other Cairo types, return a default offset of 1.
+            _ => Ok(1),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -354,12 +387,13 @@ mod tests {
             kakarot_serde.get_identifier("non_existent_struct", Some("function".to_string()));
 
         // Check if the error is valid and validate its parameters
-        if let Err(KakarotSerdeError::IdentifierNotFound { struct_name, expected_type }) = result {
-            assert_eq!(struct_name, "non_existent_struct");
-            assert_eq!(expected_type, Some("function".to_string()));
-        } else {
-            panic!("Expected KakarotSerdeError::IdentifierNotFound");
-        }
+        assert_eq!(
+            result,
+            Err(KakarotSerdeError::IdentifierNotFound {
+                struct_name: "non_existent_struct".to_string(),
+                expected_type: Some("function".to_string())
+            })
+        );
     }
 
     #[test]
@@ -371,12 +405,13 @@ mod tests {
         let result = kakarot_serde.get_identifier("check_range", Some("struct".to_string()));
 
         // Check if the error is valid and validate its parameters
-        if let Err(KakarotSerdeError::IdentifierNotFound { struct_name, expected_type }) = result {
-            assert_eq!(struct_name, "check_range");
-            assert_eq!(expected_type, Some("struct".to_string()));
-        } else {
-            panic!("Expected KakarotSerdeError::IdentifierNotFound");
-        }
+        assert_eq!(
+            result,
+            Err(KakarotSerdeError::IdentifierNotFound {
+                struct_name: "check_range".to_string(),
+                expected_type: Some("struct".to_string())
+            })
+        );
     }
 
     #[test]
@@ -388,12 +423,13 @@ mod tests {
         let result = kakarot_serde.get_identifier("main", Some("struct".to_string()));
 
         // Check if the error is valid and validate its parameters
-        if let Err(KakarotSerdeError::IdentifierNotFound { struct_name, expected_type }) = result {
-            assert_eq!(struct_name, "main");
-            assert_eq!(expected_type, Some("struct".to_string()));
-        } else {
-            panic!("Expected KakarotSerdeError::IdentifierNotFound");
-        }
+        assert_eq!(
+            result,
+            Err(KakarotSerdeError::IdentifierNotFound {
+                struct_name: "main".to_string(),
+                expected_type: Some("struct".to_string())
+            })
+        );
     }
 
     #[test]
@@ -405,18 +441,14 @@ mod tests {
         let result = kakarot_serde.get_identifier("ImplicitArgs", Some("struct".to_string()));
 
         // Check if the error is valid and validate its parameters
-        if let Err(KakarotSerdeError::MultipleIdentifiersFound {
-            struct_name,
-            expected_type,
-            count,
-        }) = result
-        {
-            assert_eq!(struct_name, "ImplicitArgs");
-            assert_eq!(expected_type, Some("struct".to_string()));
-            assert_eq!(count, 6);
-        } else {
-            panic!("Expected KakarotSerdeError::MultipleIdentifiersFound");
-        }
+        assert_eq!(
+            result,
+            Err(KakarotSerdeError::MultipleIdentifiersFound {
+                struct_name: "ImplicitArgs".to_string(),
+                expected_type: Some("struct".to_string()),
+                count: 6
+            })
+        );
     }
 
     #[test]
@@ -431,13 +463,13 @@ mod tests {
         let result = kakarot_serde.serialize_pointers("main", base);
 
         // Assert that the result is an error with the expected struct name and type.
-        match result {
-            Err(KakarotSerdeError::IdentifierNotFound { struct_name, expected_type }) => {
-                assert_eq!(struct_name, "main".to_string());
-                assert_eq!(expected_type, Some("struct".to_string()));
-            }
-            _ => panic!("Expected KakarotSerdeError::IdentifierNotFound, but got: {:?}", result),
-        }
+        assert_eq!(
+            result,
+            Err(KakarotSerdeError::IdentifierNotFound {
+                struct_name: "main".to_string(),
+                expected_type: Some("struct".to_string())
+            })
+        );
     }
 
     #[test]
@@ -659,12 +691,100 @@ mod tests {
         let result = kakarot_serde.serialize_uint256(base);
 
         // Assert that the result is an error with the expected missing field.
-        match result {
-            Err(KakarotSerdeError::MissingField { field }) => {
-                assert_eq!(field, "low");
-            }
-            _ => panic!("Expected a missing field error, but got: {:?}", result),
-        }
+        assert_eq!(result, Err(KakarotSerdeError::MissingField { field: "low".to_string() }));
+    }
+
+    #[test]
+    fn test_get_offset_tuple() {
+        // Setup the KakarotSerde instance
+        let kakarot_serde = setup_kakarot_serde();
+
+        // Create Cairo types for Tuple members.
+        let member1 = TupleItem::new(Some("a".to_string()), CairoType::felt_type(None), None);
+        let member2 = TupleItem::new(
+            Some("b".to_string()),
+            CairoType::pointer_type(CairoType::felt_type(None), None),
+            None,
+        );
+
+        // Create a Cairo type for a Tuple.
+        let cairo_type =
+            CairoType::tuple_from_members(vec![member1.clone(), member2.clone()], true, None);
+
+        // Assert that the offset of the Tuple is equal to the number of members.
+        assert_eq!(kakarot_serde.get_offset(cairo_type).unwrap(), 2);
+    }
+
+    #[test]
+    fn test_get_offset_struct_invalid_identifier() {
+        // Setup the KakarotSerde instance
+        let kakarot_serde = setup_kakarot_serde();
+
+        // Create a Cairo type for a Struct with an invalid identifier.
+        let cairo_type = CairoType::Struct {
+            scope: ScopedName {
+                path: vec!["an".to_string(), "invalid".to_string(), "path".to_string()],
+            },
+            location: None,
+        };
+
+        // Assert that the offset of the struct is an error due to the invalid identifier.
+        assert_eq!(
+            kakarot_serde.get_offset(cairo_type),
+            Err(KakarotSerdeError::IdentifierNotFound {
+                struct_name: "an.invalid.path".to_string(),
+                expected_type: Some("struct".to_string()),
+            })
+        );
+    }
+
+    #[test]
+    fn test_get_offset_struct_valid_identifier() {
+        // Setup the KakarotSerde instance
+        let kakarot_serde = setup_kakarot_serde();
+
+        // Create a Cairo type for a Struct with a valid identifier (3 members).
+        let cairo_type = CairoType::Struct {
+            scope: ScopedName { path: vec!["main".to_string(), "ImplicitArgs".to_string()] },
+            location: None,
+        };
+
+        // Assert that the offset of the struct is equal to the number of members (3).
+        assert_eq!(kakarot_serde.get_offset(cairo_type).unwrap(), 3);
+    }
+
+    #[test]
+    fn test_get_offset_struct_valid_identifier_without_members() {
+        // Setup the KakarotSerde instance
+        let kakarot_serde = setup_kakarot_serde();
+
+        // Create a Cairo type for a Struct with a valid identifier (no members).
+        let cairo_type = CairoType::Struct {
+            scope: ScopedName { path: vec!["alloc".to_string(), "ImplicitArgs".to_string()] },
+            location: None,
+        };
+
+        // Assert that the offset of the struct is 0 since the identifier has no members.
+        assert_eq!(kakarot_serde.get_offset(cairo_type).unwrap(), 0);
+    }
+
+    #[test]
+    fn test_get_offset_felt_pointer() {
+        // Setup the KakarotSerde instance
+        let kakarot_serde = setup_kakarot_serde();
+
+        // Create a Cairo type for a Felt.
+        let cairo_type = CairoType::felt_type(None);
+
+        // Assert that the offset of the Felt is 1 (value by default).
+        assert_eq!(kakarot_serde.get_offset(cairo_type).unwrap(), 1);
+
+        // Create a Cairo type for a Pointer.
+        let pointee_type = CairoType::felt_type(None);
+        let cairo_type = CairoType::pointer_type(pointee_type.clone(), None);
+
+        // Assert that the offset of the Pointer is 1 (value by default).
+        assert_eq!(kakarot_serde.get_offset(cairo_type).unwrap(), 1);
     }
 
     #[test]

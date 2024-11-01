@@ -4,7 +4,6 @@ from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin
 from starkware.cairo.common.math import split_felt
 from starkware.cairo.common.math_cmp import is_nn, is_not_zero
 from starkware.cairo.common.uint256 import Uint256, uint256_lt, uint256_le
-from starkware.cairo.common.default_dict import default_dict_new
 from starkware.cairo.common.dict_access import DictAccess
 
 from src.account import Account
@@ -12,7 +11,7 @@ from src.interfaces.interfaces import ICairo1Helpers
 from src.constants import Constants
 from src.errors import Errors
 from src.evm import EVM
-from src.gas import Gas
+from src.gas import Gas, GAS_INIT_CODE_WORD_COST
 from src.memory import Memory
 from src.model import model
 from src.stack import Stack
@@ -57,7 +56,7 @@ namespace SystemOperations {
             return evm;
         }
         let (calldata_words, _) = unsigned_div_rem(size.low + 31, 32);
-        let init_code_gas_low = Gas.INIT_CODE_WORD_COST * calldata_words;
+        let init_code_gas_low = GAS_INIT_CODE_WORD_COST * calldata_words;
         tempvar init_code_gas_high = is_not_zero(size.high) * 2 ** 128;
         let calldata_word_gas = is_create2 * Gas.KECCAK256_WORD * calldata_words;
         let evm = EVM.charge_gas(
