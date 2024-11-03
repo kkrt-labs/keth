@@ -94,6 +94,31 @@ impl CairoType {
     }
 }
 
+/// Represents different types of serialized data extracted from the Cairo VM,
+/// providing a way to handle data that can be communicated between Cairo and Rust.
+///
+/// The [`SerializedData`] enum is used to have a unified representation of data types.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum SerializedData {
+    /// Represents a `Felt` type from Cairo VM.
+    ///
+    /// This variant holds an optional [`MaybeRelocatable`] value, which means it may
+    /// contain a value if it exists within the Cairo VM memory or be [`None`] if no value
+    /// was found or allocated.
+    Felt(Option<MaybeRelocatable>),
+}
+
+/// Defines various scope-based data formats serialized within Cairo VM, mapping them
+/// to Rust representations.
+///
+/// The [`SerializedScope`] enum allows Rust code to handle different types of data structures
+/// that are serialized within the Cairo VM under specific scopes.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum SerializedScope {
+    /// Represents a serialized 256-bit unsigned integer ([`U256`]) as reth format.
+    U256(U256),
+}
+
 /// Represents an item in a tuple, consisting of an optional name, type, and location.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TupleItem {
@@ -316,6 +341,41 @@ impl KakarotSerde {
 
             // For all other Cairo types, return a default offset of 1.
             _ => Ok(1),
+        }
+    }
+
+    /// Serializes the specified scope within the Cairo VM by attempting to extract
+    /// a specific data structure based on the scope's path.
+    pub fn serialize_scope(
+        &self,
+        scope: ScopedName,
+        scope_ptr: Relocatable,
+    ) -> Result<SerializedScope, KakarotSerdeError> {
+        // Retrieves the last segment of the scope path, which typically identifies the type.
+        match scope.path.last().map(String::as_str) {
+            Some("Uint256") => self.serialize_uint256(scope_ptr).map(SerializedScope::U256),
+            _ => Ok(SerializedScope::U256(U256::ZERO)),
+        }
+    }
+
+    /// Serializes inner data types in Cairo by determining the type of data at a given pointer
+    /// location.
+    ///
+    /// This method serializes data by checking its type.
+    pub fn serialize_inner(
+        &self,
+        cairo_type: &CairoType,
+        ptr: Relocatable,
+        _length: Option<usize>,
+    ) -> Result<Option<SerializedData>, KakarotSerdeError> {
+        // Match the Cairo type to determine how to serialize it.
+        match cairo_type {
+            CairoType::Felt { .. } => {
+                // Retrieve the `MaybeRelocatable` value from memory at the specified pointer
+                // location.
+                Ok(Some(SerializedData::Felt(self.runner.vm.get_maybe(&ptr))))
+            }
+            _ => Ok(None),
         }
     }
 }
@@ -935,5 +995,107 @@ mod tests {
                 location
             }
         );
+    }
+
+    #[test]
+    fn test_serialize_inner_felt() {
+        // Setup the KakarotSerde instance
+        let mut kakarot_serde = setup_kakarot_serde();
+
+        // Setup
+        let output_ptr = Relocatable { segment_index: 10, offset: 11 };
+        let range_check_ptr = Felt252::ZERO;
+        let bitwise_ptr = Felt252::from(55);
+
+        // Insert values in memory
+        let base = kakarot_serde
+            .runner
+            .vm
+            .gen_arg(&vec![
+                MaybeRelocatable::RelocatableValue(output_ptr),
+                MaybeRelocatable::Int(range_check_ptr),
+                MaybeRelocatable::Int(bitwise_ptr),
+            ])
+            .unwrap()
+            .get_relocatable()
+            .unwrap();
+
+        // Serialize the Felt at the base memory segment.
+        let result_relocatable =
+            kakarot_serde.serialize_inner(&CairoType::Felt { location: None }, base, None);
+
+        // Assert that the result matches the expected serialized Felt value (Relocatable).
+        assert_eq!(
+            result_relocatable,
+            Ok(Some(SerializedData::Felt(Some(MaybeRelocatable::RelocatableValue(output_ptr)))))
+        );
+
+        // Serialize the Felt at the base memory segment with an offset of 1 to target
+        // range_check_ptr.
+        let result_int = kakarot_serde.serialize_inner(
+            &CairoType::Felt { location: None },
+            (base + 1usize).unwrap(),
+            None,
+        );
+
+        // Assert that the result matches the expected serialized Felt value (Int).
+        assert_eq!(
+            result_int,
+            Ok(Some(SerializedData::Felt(Some(MaybeRelocatable::Int(range_check_ptr)))))
+        );
+
+        // Serialize the Felt at the base memory segment with an offset of 10 to target non-existing
+        // data.
+        let result_non_existing = kakarot_serde.serialize_inner(
+            &CairoType::Felt { location: None },
+            (base + 3usize).unwrap(),
+            None,
+        );
+
+        // Assert that the result matches the expected serialized Felt value (None).
+        assert_eq!(result_non_existing, Ok(Some(SerializedData::Felt(None))));
+    }
+
+    #[test]
+    fn test_serialize_scope_uint256() {
+        // Setup the KakarotSerde instance
+        let mut kakarot_serde = setup_kakarot_serde();
+
+        // Define a ScopedName ending in "Uint256"
+        let scope = ScopedName {
+            path: vec![
+                "starkware".to_string(),
+                "cairo".to_string(),
+                "common".to_string(),
+                "uint256".to_string(),
+                "Uint256".to_string(),
+            ],
+        };
+
+        // U256 to be serialized
+        let x =
+            U256::from_str("0x52f8f61201b2b11a78d6e866abc9c3db2ae8631fa656bfe5cb53668255367afb")
+                .unwrap();
+
+        // Setup with the high and low parts of the U256
+        let low =
+            Felt252::from_bytes_be_slice(&x.to_be_bytes::<{ U256::BYTES }>()[U128_BYTES_SIZE..]);
+        let high =
+            Felt252::from_bytes_be_slice(&x.to_be_bytes::<{ U256::BYTES }>()[0..U128_BYTES_SIZE]);
+
+        // Insert values in memory
+        let base = kakarot_serde
+            .runner
+            .vm
+            .gen_arg(&vec![MaybeRelocatable::Int(low), MaybeRelocatable::Int(high)])
+            .unwrap()
+            .get_relocatable()
+            .unwrap();
+
+        // Serialize the scope with ScopedName "Uint256" and the generated pointer
+        let result = kakarot_serde.serialize_scope(scope, base);
+
+        // Assert that the result matches the expected serialized U256 value
+        assert_eq!(result, Ok(SerializedScope::U256(x)));
     }
 }
