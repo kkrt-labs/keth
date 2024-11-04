@@ -1,13 +1,16 @@
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin
+from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin, KeccakBuiltin
 from starkware.cairo.common.memcpy import memcpy
 
 from src.precompiles.sha256 import PrecompileSHA256
 from src.utils.utils import Helpers
 
-func test__sha256{pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
-    output_ptr: felt*
-) {
+func test__sha256{
+    pedersen_ptr: HashBuiltin*,
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+}(output_ptr: felt*) {
     alloc_locals;
     local data_len: felt;
     let (data: felt*) = alloc();

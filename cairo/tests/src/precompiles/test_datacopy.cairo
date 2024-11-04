@@ -1,12 +1,16 @@
-from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin
+from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin, KeccakBuiltin
 from starkware.cairo.common.alloc import alloc
 
 from src.utils.utils import Helpers
 from src.precompiles.datacopy import PrecompileDataCopy
 from tests.utils.helpers import TestHelpers
 
-func test__datacopy_impl{pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
-    ) {
+func test__datacopy_impl{
+    pedersen_ptr: HashBuiltin*,
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+}() {
     // Given # 1
     alloc_locals;
     local calldata_len: felt;

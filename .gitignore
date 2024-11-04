@@ -30,3 +30,6 @@ cairo/tests/ef_tests/test_data
 
 # Ignore proptest regression files
 **/proptest-regressions/*
+
+# Ide settings
+.vscode/
