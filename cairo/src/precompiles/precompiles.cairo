@@ -1,4 +1,4 @@
-from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin
+from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin, KeccakBuiltin
 from starkware.cairo.common.math_cmp import is_nn, is_not_zero, is_in_range
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bool import FALSE
@@ -34,7 +34,12 @@ namespace Precompiles {
     // @return output The output array.
     // @return gas_used The gas usage of precompile.
     // @return reverted Whether the precompile ran successfully or not
-    func exec_precompile{pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
+    func exec_precompile{
+        pedersen_ptr: HashBuiltin*,
+        range_check_ptr,
+        bitwise_ptr: BitwiseBuiltin*,
+        keccak_ptr: KeccakBuiltin*,
+    }(
         precompile_address: felt,
         input_len: felt,
         input: felt*,
@@ -72,6 +77,7 @@ namespace Precompiles {
         [ap] = pedersen_ptr, ap++;
         [ap] = range_check_ptr, ap++;
         [ap] = bitwise_ptr, ap++;
+        [ap] = keccak_ptr, ap++;
         call unauthorized_precompile;
         ret;
 
@@ -84,6 +90,7 @@ namespace Precompiles {
         [ap] = pedersen_ptr, ap++;
         [ap] = range_check_ptr, ap++;
         [ap] = bitwise_ptr, ap++;
+        [ap] = keccak_ptr, ap++;
         [ap] = precompile_address, ap++;
         [ap] = input_len, ap++;
         [ap] = input, ap++;
@@ -125,6 +132,7 @@ namespace Precompiles {
         [ap] = pedersen_ptr, ap++;
         [ap] = range_check_ptr, ap++;
         [ap] = bitwise_ptr, ap++;
+        [ap] = keccak_ptr, ap++;
         [ap] = input_len, ap++;
         [ap] = input, ap++;
         [ap] = caller_address, ap++;
@@ -142,7 +150,10 @@ namespace Precompiles {
     // @param input_len The length of the input array.
     // @param input The input array.
     func unauthorized_precompile{
-        pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*
+        pedersen_ptr: HashBuiltin*,
+        range_check_ptr,
+        bitwise_ptr: BitwiseBuiltin*,
+        keccak_ptr: KeccakBuiltin*,
     }() -> (output_len: felt, output: felt*, gas_used: felt, reverted: felt) {
         let (revert_reason_len, revert_reason) = Errors.unauthorizedPrecompile();
         return (revert_reason_len, revert_reason, 0, Errors.REVERT);
@@ -154,7 +165,10 @@ namespace Precompiles {
     // @param input_len The length of the input array.
     // @param input The input array.
     func unknown_precompile{
-        pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*
+        pedersen_ptr: HashBuiltin*,
+        range_check_ptr,
+        bitwise_ptr: BitwiseBuiltin*,
+        keccak_ptr: KeccakBuiltin*,
     }(evm_address: felt, input_len: felt, input: felt*) -> (
         output_len: felt, output: felt*, gas_used: felt, reverted: felt
     ) {
@@ -168,7 +182,10 @@ namespace Precompiles {
     // @param input_len The length of the input array.
     // @param input The input array.
     func not_implemented_precompile{
-        pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*
+        pedersen_ptr: HashBuiltin*,
+        range_check_ptr,
+        bitwise_ptr: BitwiseBuiltin*,
+        keccak_ptr: KeccakBuiltin*,
     }(evm_address: felt, input_len: felt, input: felt*) -> (
         output_len: felt, output: felt*, gas_used: felt, reverted: felt
     ) {
@@ -177,7 +194,10 @@ namespace Precompiles {
     }
 
     func external_precompile{
-        pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*
+        pedersen_ptr: HashBuiltin*,
+        range_check_ptr,
+        bitwise_ptr: BitwiseBuiltin*,
+        keccak_ptr: KeccakBuiltin*,
     }(evm_address: felt, input_len: felt, input: felt*) -> (
         output_len: felt, output: felt*, gas_used: felt, reverted: felt
     ) {

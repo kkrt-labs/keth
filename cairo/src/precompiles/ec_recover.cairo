@@ -1,20 +1,17 @@
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin
+from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin, KeccakBuiltin
 from starkware.cairo.common.builtin_keccak.keccak import keccak_uint256s_bigend
 from starkware.cairo.common.bool import FALSE
 from starkware.cairo.common.math_cmp import RC_BOUND
 from starkware.cairo.common.cairo_secp.ec import EcPoint
 from starkware.cairo.common.cairo_secp.bigint import BigInt3
-from starkware.cairo.common.cairo_secp.signature import (
-    recover_public_key,
-    public_key_point_to_eth_address,
-)
-from starkware.cairo.common.uint256 import Uint256, uint256_reverse_endian
-from starkware.cairo.common.cairo_secp.bigint import bigint_to_uint256
+from starkware.cairo.common.cairo_secp.signature import recover_public_key
+from starkware.cairo.common.uint256 import Uint256, uint256_reverse_endian, uint256_lt
+from starkware.cairo.common.cairo_secp.bigint import bigint_to_uint256, uint256_to_bigint
 from starkware.cairo.common.memset import memset
 
 from src.errors import Errors
-from src.interfaces.interfaces import ICairo1Helpers
+from src.utils.uint256 import uint256_eq
 from src.utils.utils import Helpers
 from src.utils.array import slice
 from src.utils.maths import unsigned_div_rem
@@ -28,15 +25,23 @@ namespace PrecompileEcRecover {
     const PRECOMPILE_ADDRESS = 0x01;
     const GAS_COST_EC_RECOVER = 3000;
 
+    const SECP256K1N_HIGH = 0xfffffffffffffffffffffffffffffffe;
+    const SECP256K1N_LOW = 0xbaaedce6af48a03bbfd25e8cd0364141;
+
     // @notice Run the precompile.
     // @param input_len The length of input array.
     // @param input The input array.
     // @return output_len The output length.
     // @return output The output array.
     // @return gas_used The gas usage of precompile.
-    func run{pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
-        _address: felt, input_len: felt, input: felt*
-    ) -> (output_len: felt, output: felt*, gas_used: felt, reverted: felt) {
+    func run{
+        pedersen_ptr: HashBuiltin*,
+        range_check_ptr,
+        bitwise_ptr: BitwiseBuiltin*,
+        keccak_ptr: KeccakBuiltin*,
+    }(_address: felt, input_len: felt, input: felt*) -> (
+        output_len: felt, output: felt*, gas_used: felt, reverted: felt
+    ) {
         alloc_locals;
 
         let (input_padded) = alloc();
@@ -50,19 +55,41 @@ namespace PrecompileEcRecover {
             return (0, output, GAS_COST_EC_RECOVER, 0);
         }
 
-        let msg_hash = Helpers.bytes_to_uint256(32, input_padded);
+        let msg_hash_bigint = Helpers.bytes32_to_bigint(input_padded);
         let r = Helpers.bytes_to_uint256(32, input_padded + 32 * 2);
         let s = Helpers.bytes_to_uint256(32, input_padded + 32 * 3);
 
-        // v - 27, see recover_public_key comment
-        let (success, recovered_address) = ICairo1Helpers.recover_eth_address(
-            msg_hash=msg_hash, r=r, s=s, y_parity=v - 27
-        );
-
-        if (success == 0) {
+        let SECP256K1N = Uint256(low=SECP256K1N_LOW, high=SECP256K1N_HIGH);
+        let (is_valid_upper_r) = uint256_lt(r, SECP256K1N);
+        let (is_valid_upper_s) = uint256_lt(s, SECP256K1N);
+        let is_valid_upper_bound = is_valid_upper_r * is_valid_upper_s;
+        if (is_valid_upper_bound == FALSE) {
             let (output) = alloc();
             return (0, output, GAS_COST_EC_RECOVER, 0);
         }
+
+        let (is_invalid_lower_r) = uint256_eq(r, Uint256(low=0, high=0));
+        let (is_invalid_lower_s) = uint256_eq(s, Uint256(low=0, high=0));
+        let is_invalid_lower_bound = is_invalid_lower_r + is_invalid_lower_s;
+        if (is_invalid_lower_bound != FALSE) {
+            let (output) = alloc();
+            return (0, output, GAS_COST_EC_RECOVER, 0);
+        }
+
+        let (r_bigint) = uint256_to_bigint(r);
+        let (s_bigint) = uint256_to_bigint(s);
+        let (public_key_point) = recover_public_key(msg_hash_bigint, r_bigint, s_bigint, v - 27);
+        let (is_public_key_invalid) = EcRecoverHelpers.ec_point_equal(
+            public_key_point, EcPoint(BigInt3(0, 0, 0), BigInt3(0, 0, 0))
+        );
+        if (is_public_key_invalid != 0) {
+            let (output) = alloc();
+            return (0, output, GAS_COST_EC_RECOVER, 0);
+        }
+
+        let (recovered_address) = EcRecoverHelpers.public_key_point_to_eth_address(
+            public_key_point
+        );
 
         let (output) = alloc();
         memset(output, 0, 12);
@@ -83,8 +110,12 @@ namespace EcRecoverHelpers {
     }
 
     // @notice Convert a public key point to the corresponding Ethereum address.
+    // @dev Uses the `KeccakBuiltin` builtin, while the one in Starkware's CairoZero library does not.
     func public_key_point_to_eth_address{
-        pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*
+        pedersen_ptr: HashBuiltin*,
+        range_check_ptr,
+        bitwise_ptr: BitwiseBuiltin*,
+        keccak_ptr: KeccakBuiltin*,
     }(public_key_point: EcPoint) -> (eth_address: felt) {
         alloc_locals;
         let (local elements: Uint256*) = alloc();
