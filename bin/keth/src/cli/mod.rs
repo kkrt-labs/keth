@@ -1,6 +1,6 @@
 use alloy_genesis::Genesis;
 use alloy_primitives::Address;
-use clap::{Parser, value_parser};
+use clap::{value_parser, Parser};
 use reth_chainspec::{Chain, ChainSpec};
 use reth_node_core::args::DevArgs;
 use std::{str::FromStr, time::Duration};
