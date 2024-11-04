@@ -1,5 +1,5 @@
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin
+from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin, KeccakBuiltin
 from starkware.cairo.common.math import unsigned_div_rem, assert_not_zero
 from starkware.cairo.common.memset import memset
 from starkware.cairo.common.memcpy import memcpy
@@ -7,8 +7,12 @@ from starkware.cairo.common.memcpy import memcpy
 from src.precompiles.ec_recover import PrecompileEcRecover
 from src.utils.utils import Helpers
 
-func test__ec_recover{pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
-    ) -> (output: felt*) {
+func test__ec_recover{
+    pedersen_ptr: HashBuiltin*,
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+}() -> (output: felt*) {
     alloc_locals;
     let (local input) = alloc();
     tempvar input_len: felt;

@@ -1,6 +1,6 @@
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bool import FALSE, TRUE
-from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin
+from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin, KeccakBuiltin
 from starkware.cairo.common.math_cmp import is_not_zero, is_nn, is_le_felt
 from starkware.cairo.common.math import split_felt
 from starkware.cairo.common.default_dict import default_dict_new
@@ -45,6 +45,7 @@ namespace Interpreter {
         pedersen_ptr: HashBuiltin*,
         range_check_ptr,
         bitwise_ptr: BitwiseBuiltin*,
+        keccak_ptr: KeccakBuiltin*,
         stack: model.Stack*,
         memory: model.Memory*,
         state: model.State*,
@@ -693,6 +694,9 @@ namespace Interpreter {
         let evm = cast([ap - 1], model.EVM*);
         let evm_prev = cast([fp - 3], model.EVM*);
 
+        // keccak is still unused in regular opcode execution
+        let keccak_ptr = cast([fp - 7], KeccakBuiltin*);
+
         if (evm_prev.message.depth == evm.message.depth) {
             let evm = EVM.increment_program_counter(evm, 1);
             return evm;
@@ -708,6 +712,9 @@ namespace Interpreter {
         let memory = cast([ap - 3], model.Memory*);
         let state = cast([ap - 2], model.State*);
         let evm = cast([ap - 1], model.EVM*);
+
+        // keccak is still unused in regular opcode execution
+        let keccak_ptr = cast([fp - 7], KeccakBuiltin*);
 
         return evm;
     }
@@ -735,6 +742,7 @@ namespace Interpreter {
         pedersen_ptr: HashBuiltin*,
         range_check_ptr,
         bitwise_ptr: BitwiseBuiltin*,
+        keccak_ptr: KeccakBuiltin*,
         stack: model.Stack*,
         memory: model.Memory*,
         state: model.State*,
@@ -811,7 +819,12 @@ namespace Interpreter {
     // @return gas_used the gas used by the transaction
     // @return required_gas The amount of gas required by the transaction to successfully execute. This is different
     // from the gas used by the transaction as it doesn't take into account any refunds.
-    func execute{pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
+    func execute{
+        pedersen_ptr: HashBuiltin*,
+        range_check_ptr,
+        bitwise_ptr: BitwiseBuiltin*,
+        keccak_ptr: KeccakBuiltin*,
+    }(
         env: model.Environment*,
         address: felt,
         is_deploy_tx: felt,

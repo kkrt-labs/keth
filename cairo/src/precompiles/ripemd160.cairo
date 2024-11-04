@@ -1,4 +1,4 @@
-from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, HashBuiltin
+from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, HashBuiltin, KeccakBuiltin
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.math import assert_nn_le
 from starkware.cairo.common.math_cmp import is_nn_le, is_nn
@@ -32,9 +32,14 @@ namespace PrecompileRIPEMD160 {
     // @return output_len The output length.
     // @return output The output array.
     // @return gas_used The gas usage of precompile.
-    func run{pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
-        _address: felt, input_len: felt, input: felt*
-    ) -> (output_len: felt, output: felt*, gas_used: felt, reverted: felt) {
+    func run{
+        pedersen_ptr: HashBuiltin*,
+        range_check_ptr,
+        bitwise_ptr: BitwiseBuiltin*,
+        keccak_ptr: KeccakBuiltin*,
+    }(_address: felt, input_len: felt, input: felt*) -> (
+        output_len: felt, output: felt*, gas_used: felt, reverted: felt
+    ) {
         alloc_locals;
         let (local buf: felt*) = alloc();
         let (local arr_x: felt*) = alloc();
