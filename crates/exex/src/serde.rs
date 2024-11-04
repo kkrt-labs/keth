@@ -1004,8 +1004,8 @@ mod tests {
 
         // Setup
         let output_ptr = Relocatable { segment_index: 10, offset: 11 };
-        let range_check_ptr = Felt252::ZERO;
-        let bitwise_ptr = Felt252::from(55);
+        let a = Felt252::ZERO;
+        let b = Felt252::from(55);
 
         // Insert values in memory
         let base = kakarot_serde
@@ -1013,8 +1013,8 @@ mod tests {
             .vm
             .gen_arg(&vec![
                 MaybeRelocatable::RelocatableValue(output_ptr),
-                MaybeRelocatable::Int(range_check_ptr),
-                MaybeRelocatable::Int(bitwise_ptr),
+                MaybeRelocatable::Int(a),
+                MaybeRelocatable::Int(b),
             ])
             .unwrap()
             .get_relocatable()
@@ -1039,10 +1039,7 @@ mod tests {
         );
 
         // Assert that the result matches the expected serialized Felt value (Int).
-        assert_eq!(
-            result_int,
-            Ok(Some(SerializedData::Felt(Some(MaybeRelocatable::Int(range_check_ptr)))))
-        );
+        assert_eq!(result_int, Ok(Some(SerializedData::Felt(Some(MaybeRelocatable::Int(a))))));
 
         // Serialize the Felt at the base memory segment with an offset of 10 to target non-existing
         // data.
