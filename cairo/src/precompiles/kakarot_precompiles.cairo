@@ -1,4 +1,4 @@
-from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin
+from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin, KeccakBuiltin
 from starkware.cairo.common.math_cmp import is_nn
 from starkware.cairo.common.math import assert_not_zero
 from starkware.cairo.common.alloc import alloc
@@ -20,7 +20,10 @@ namespace KakarotPrecompiles {
     // @param input The input data.
     // @param caller_address The address of the caller of the precompile. Delegatecall rules apply.
     func cairo_precompile{
-        pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*
+        pedersen_ptr: HashBuiltin*,
+        range_check_ptr,
+        bitwise_ptr: BitwiseBuiltin*,
+        keccak_ptr: KeccakBuiltin*,
     }(input_len: felt, input: felt*, caller_address: felt) -> (
         output_len: felt, output: felt*, gas_used: felt, reverted: felt
     ) {
