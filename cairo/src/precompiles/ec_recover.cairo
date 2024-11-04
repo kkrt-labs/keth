@@ -14,6 +14,7 @@ from src.errors import Errors
 from src.utils.uint256 import uint256_eq
 from src.utils.utils import Helpers
 from src.utils.array import slice
+from src.utils.signature import Signature
 from src.utils.maths import unsigned_div_rem
 
 // @title EcRecover Precompile related functions.
@@ -78,7 +79,13 @@ namespace PrecompileEcRecover {
 
         let (r_bigint) = uint256_to_bigint(r);
         let (s_bigint) = uint256_to_bigint(s);
-        let (public_key_point) = recover_public_key(msg_hash_bigint, r_bigint, s_bigint, v - 27);
+        let (public_key_point, success) = Signature.try_recover_public_key(
+            msg_hash_bigint, r_bigint, s_bigint, v - 27
+        );
+        if (success == 0) {
+            let (output) = alloc();
+            return (0, output, GAS_COST_EC_RECOVER, 0);
+        }
         let (is_public_key_invalid) = EcRecoverHelpers.ec_point_equal(
             public_key_point, EcPoint(BigInt3(0, 0, 0), BigInt3(0, 0, 0))
         );
