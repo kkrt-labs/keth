@@ -50,6 +50,12 @@ pub enum KakarotSerdeError {
         /// The name of the missing field.
         field: String,
     },
+
+    #[error("Invalid value for field '{field}' in serialization process.")]
+    InvalidFieldValue {
+        /// The name of the invalid field.
+        field: String,
+    },
 }
 
 /// Represents the types used in Cairo, including felt types, pointers, tuples, and structs.
@@ -349,6 +355,12 @@ impl KakarotSerde {
     /// In Cairo, a `model.Option` contains two fields:
     /// - `is_some`: A boolean field indicating whether the option contains a value.
     /// - `value`: The value contained in the option, if `is_some` is `true`.
+    ///
+    /// # Errors
+    ///
+    /// This function returns an error if:
+    /// - The `is_some` field is not `0` or `1`.
+    /// - The `is_some` field is `1`, but the `value` field is missing.
     pub fn serialize_option(
         &self,
         ptr: Relocatable,
@@ -356,14 +368,17 @@ impl KakarotSerde {
         // Retrieve the serialized "Option" struct as a map of field names to values.
         let raw = self.serialize_pointers("model.Option", ptr)?;
 
-        // Check if "is_some" field is set to `0`; if so, return `None`.
-        if matches!(raw.get("is_some"), Some(Some(MaybeRelocatable::Int(v))) if *v == Felt252::ZERO)
-        {
-            return Ok(None);
+        // Validate the "is_some" field.
+        match raw.get("is_some") {
+            Some(Some(MaybeRelocatable::Int(v))) if *v == Felt252::ZERO => Ok(None),
+            Some(Some(MaybeRelocatable::Int(v))) if *v == Felt252::ONE => {
+                // `is_some` is `1`, so check for "value" field.
+                raw.get("value")
+                    .cloned()
+                    .ok_or_else(|| KakarotSerdeError::MissingField { field: "value".to_string() })
+            }
+            _ => Err(KakarotSerdeError::InvalidFieldValue { field: "is_some".to_string() }),
         }
-
-        // Return the cloned value if "value" is present, otherwise None.
-        Ok(raw.get("value").and_then(|v| v.clone()))
     }
 
     /// Serializes the specified scope within the Cairo VM by attempting to extract
@@ -1143,7 +1158,7 @@ mod tests {
         let mut kakarot_serde = setup_kakarot_serde(TestProgram::ModelOption);
 
         // Setup
-        let is_some_ptr = kakarot_serde.runner.vm.add_memory_segment();
+        let is_some = Felt252::ONE;
         let value_ptr = kakarot_serde.runner.vm.add_memory_segment();
 
         // Insert values in memory
@@ -1151,7 +1166,7 @@ mod tests {
             .runner
             .vm
             .gen_arg(&vec![
-                MaybeRelocatable::RelocatableValue(is_some_ptr),
+                MaybeRelocatable::Int(is_some),
                 MaybeRelocatable::RelocatableValue(value_ptr),
             ])
             .unwrap()
@@ -1169,67 +1184,76 @@ mod tests {
     #[test]
     fn test_serialize_option_none_value() {
         // Setup KakarotSerde instance
-        let kakarot_serde = setup_kakarot_serde(TestProgram::ModelOption);
-
-        // Serialize the Option struct without any memory segment.
-        let result = kakarot_serde
-            .serialize_option(Relocatable::default())
-            .expect("failed to serialize model.Option");
-
-        // Assert that the result is None since there is no memory segment.
-        assert!(result.is_none());
-    }
-
-    #[test]
-    fn test_serialize_option_no_value() {
-        // Setup KakarotSerde instance
         let mut kakarot_serde = setup_kakarot_serde(TestProgram::ModelOption);
 
-        // Setup
-        let is_some_ptr = kakarot_serde.runner.vm.add_memory_segment();
+        // Setup `is_some` as 0 to indicate None
+        let is_some = Felt252::ZERO;
 
         // Insert values in memory
         let base = kakarot_serde
             .runner
             .vm
-            .gen_arg(&vec![MaybeRelocatable::RelocatableValue(is_some_ptr)])
+            .gen_arg(&vec![MaybeRelocatable::Int(is_some)])
             .unwrap()
             .get_relocatable()
             .unwrap();
 
-        // Serialize the Option struct with `is_some` but without a value.
-        let result =
-            kakarot_serde.serialize_option(base).expect("failed to serialize model.Option");
-
-        // Assert that the result is None since there is no value.
-        assert!(result.is_none());
-    }
-
-    #[test]
-    fn test_serialize_option_is_some_false() {
-        // Setup KakarotSerde instance
-        let mut kakarot_serde = setup_kakarot_serde(TestProgram::ModelOption);
-
-        // Setup
-        let value_ptr = kakarot_serde.runner.vm.add_memory_segment();
-
-        // Insert values in memory
-        let base = kakarot_serde
-            .runner
-            .vm
-            .gen_arg(&vec![
-                MaybeRelocatable::Int(Felt252::ZERO),
-                MaybeRelocatable::RelocatableValue(value_ptr),
-            ])
-            .unwrap()
-            .get_relocatable()
-            .unwrap();
-
-        // Serialize the Option struct with `is_some` set to `false`.
+        // Serialize the Option struct with `is_some` as `false`.
         let result =
             kakarot_serde.serialize_option(base).expect("failed to serialize model.Option");
 
         // Assert that the result is None since `is_some` is `false`.
         assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_serialize_option_missing_value_error() {
+        // Setup KakarotSerde instance
+        let mut kakarot_serde = setup_kakarot_serde(TestProgram::ModelOption);
+
+        // Set `is_some` to 1 but don't provide a `value` field to trigger an error.
+        let is_some = Felt252::ONE;
+
+        // Insert `is_some` in memory without a corresponding `value`.
+        let base = kakarot_serde
+            .runner
+            .vm
+            .gen_arg(&vec![MaybeRelocatable::Int(is_some)])
+            .unwrap()
+            .get_relocatable()
+            .unwrap();
+
+        // Serialize the Option struct expecting an error due to missing `value`.
+        let result = kakarot_serde.serialize_option(base);
+
+        // Assert that an error is returned for the missing `value` field.
+        assert_eq!(result, Err(KakarotSerdeError::MissingField { field: "value".to_string() }));
+    }
+
+    #[test]
+    fn test_serialize_option_invalid_is_some_error() {
+        // Setup KakarotSerde instance
+        let mut kakarot_serde = setup_kakarot_serde(TestProgram::ModelOption);
+
+        // Set `is_some` to an invalid value (e.g., 2) to trigger an error.
+        let invalid_is_some = Felt252::from(2);
+
+        // Insert invalid `is_some` in memory.
+        let base = kakarot_serde
+            .runner
+            .vm
+            .gen_arg(&vec![MaybeRelocatable::Int(invalid_is_some)])
+            .unwrap()
+            .get_relocatable()
+            .unwrap();
+
+        // Serialize the Option struct expecting an error due to invalid `is_some`.
+        let result = kakarot_serde.serialize_option(base);
+
+        // Assert that an error is returned for the invalid `is_some` value.
+        assert_eq!(
+            result,
+            Err(KakarotSerdeError::InvalidFieldValue { field: "is_some".to_string() })
+        );
     }
 }
