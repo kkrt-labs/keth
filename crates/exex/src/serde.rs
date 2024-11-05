@@ -344,6 +344,27 @@ impl KakarotSerde {
         }
     }
 
+    /// Serializes an optional value at the specified pointer in Cairo memory.
+    ///
+    /// In Cairo, a `model.Option` contains two fields:
+    /// - `is_some`: A boolean field indicating whether the option contains a value.
+    /// - `value`: The value contained in the option, if `is_some` is `true`.
+    pub fn serialize_option(
+        &self,
+        ptr: Relocatable,
+    ) -> Result<Option<MaybeRelocatable>, KakarotSerdeError> {
+        // Retrieve the serialized "Option" struct as a map of field names to values.
+        let raw = self.serialize_pointers("model.Option", ptr)?;
+
+        // Check if "is_some" field is present; if not, return None.
+        if !raw.contains_key("is_some") {
+            return Ok(None);
+        }
+
+        // Return the cloned value if "value" is present, otherwise None.
+        Ok(raw.get("value").and_then(|v| v.clone()))
+    }
+
     /// Serializes the specified scope within the Cairo VM by attempting to extract
     /// a specific data structure based on the scope's path.
     pub fn serialize_scope(
@@ -389,9 +410,28 @@ mod tests {
     };
     use std::str::FromStr;
 
-    fn setup_kakarot_serde() -> KakarotSerde {
+    /// Represents different test programs used for testing serialization and deserialization.
+    enum TestProgram {
+        KeccakAddUint256,
+        ModelOption,
+    }
+
+    impl TestProgram {
+        /// Retrieves the byte representation of the selected test program.
+        ///
+        /// This method returns the contents of the JSON file associated with each test program,
+        /// allowing the test runner to load the serialized test data directly into memory.
+        fn path(&self) -> &[u8] {
+            match self {
+                Self::KeccakAddUint256 => include_bytes!("../testdata/keccak_add_uint256.json"),
+                Self::ModelOption => include_bytes!("../testdata/model_option.json"),
+            }
+        }
+    }
+
+    fn setup_kakarot_serde(test_program: TestProgram) -> KakarotSerde {
         // Load the valid program content from a JSON file
-        let program_content = include_bytes!("../testdata/keccak_add_uint256.json");
+        let program_content = test_program.path();
 
         // Create a Program instance from the loaded bytes, specifying "main" as the entry point
         let program = Program::from_bytes(program_content, Some("main")).unwrap();
@@ -406,7 +446,7 @@ mod tests {
     #[test]
     fn test_program_identifier_valid() {
         // Setup the KakarotSerde instance
-        let kakarot_serde = setup_kakarot_serde();
+        let kakarot_serde = setup_kakarot_serde(TestProgram::KeccakAddUint256);
 
         // Check if the identifier "main" with expected type "function" is correctly retrieved
         assert_eq!(
@@ -440,7 +480,7 @@ mod tests {
     #[test]
     fn test_non_existent_identifier() {
         // Setup the KakarotSerde instance
-        let kakarot_serde = setup_kakarot_serde();
+        let kakarot_serde = setup_kakarot_serde(TestProgram::KeccakAddUint256);
 
         // Test for a non-existent identifier
         let result =
@@ -459,7 +499,7 @@ mod tests {
     #[test]
     fn test_incorrect_identifier_usage() {
         // Setup the KakarotSerde instance
-        let kakarot_serde = setup_kakarot_serde();
+        let kakarot_serde = setup_kakarot_serde(TestProgram::KeccakAddUint256);
 
         // Test for an identifier used incorrectly (not the last segment of the full name)
         let result = kakarot_serde.get_identifier("check_range", Some("struct".to_string()));
@@ -477,7 +517,7 @@ mod tests {
     #[test]
     fn test_valid_identifier_incorrect_type() {
         // Setup the KakarotSerde instance
-        let kakarot_serde = setup_kakarot_serde();
+        let kakarot_serde = setup_kakarot_serde(TestProgram::KeccakAddUint256);
 
         // Test for a valid identifier but with an incorrect type
         let result = kakarot_serde.get_identifier("main", Some("struct".to_string()));
@@ -495,7 +535,7 @@ mod tests {
     #[test]
     fn test_identifier_with_multiple_matches() {
         // Setup the KakarotSerde instance
-        let kakarot_serde = setup_kakarot_serde();
+        let kakarot_serde = setup_kakarot_serde(TestProgram::KeccakAddUint256);
 
         // Test for an identifier with multiple matches
         let result = kakarot_serde.get_identifier("ImplicitArgs", Some("struct".to_string()));
@@ -514,7 +554,7 @@ mod tests {
     #[test]
     fn test_serialize_pointer_not_struct() {
         // Setup the KakarotSerde instance
-        let mut kakarot_serde = setup_kakarot_serde();
+        let mut kakarot_serde = setup_kakarot_serde(TestProgram::KeccakAddUint256);
 
         // Add a new memory segment to the virtual machine (VM).
         let base = kakarot_serde.runner.vm.add_memory_segment();
@@ -535,7 +575,7 @@ mod tests {
     #[test]
     fn test_serialize_pointer_empty() {
         // Setup the KakarotSerde instance
-        let kakarot_serde = setup_kakarot_serde();
+        let kakarot_serde = setup_kakarot_serde(TestProgram::KeccakAddUint256);
 
         // Serialize the pointers of the "ImplicitArgs" struct but without any memory segment.
         let result = kakarot_serde
@@ -549,7 +589,7 @@ mod tests {
     #[test]
     fn test_serialize_pointer_valid() {
         // Setup the KakarotSerde instance
-        let mut kakarot_serde = setup_kakarot_serde();
+        let mut kakarot_serde = setup_kakarot_serde(TestProgram::KeccakAddUint256);
 
         // Setup
         let output_ptr = Felt252::ZERO;
@@ -591,7 +631,7 @@ mod tests {
     #[test]
     fn test_serialize_null_no_pointer() {
         // Setup the KakarotSerde instance
-        let mut kakarot_serde = setup_kakarot_serde();
+        let mut kakarot_serde = setup_kakarot_serde(TestProgram::KeccakAddUint256);
 
         // Setup
         let output_ptr = Relocatable { segment_index: 10, offset: 11 };
@@ -631,7 +671,7 @@ mod tests {
     #[test]
     fn test_serialize_uint256_0() {
         // Setup the KakarotSerde instance
-        let mut kakarot_serde = setup_kakarot_serde();
+        let mut kakarot_serde = setup_kakarot_serde(TestProgram::KeccakAddUint256);
 
         // U256 to be serialized
         let x = U256::ZERO;
@@ -661,7 +701,7 @@ mod tests {
     #[test]
     fn test_serialize_uint256_valid() {
         // Setup the KakarotSerde instance
-        let mut kakarot_serde = setup_kakarot_serde();
+        let mut kakarot_serde = setup_kakarot_serde(TestProgram::KeccakAddUint256);
 
         // U256 to be serialized
         let x =
@@ -693,7 +733,7 @@ mod tests {
     #[test]
     fn test_serialize_uint256_not_int_high() {
         // Setup the KakarotSerde instance
-        let mut kakarot_serde = setup_kakarot_serde();
+        let mut kakarot_serde = setup_kakarot_serde(TestProgram::KeccakAddUint256);
 
         // U256 to be serialized
         let x = U256::MAX;
@@ -728,7 +768,7 @@ mod tests {
     #[test]
     fn test_serialize_uint256_not_int_low() {
         // Setup the KakarotSerde instance
-        let mut kakarot_serde = setup_kakarot_serde();
+        let mut kakarot_serde = setup_kakarot_serde(TestProgram::KeccakAddUint256);
 
         // U256 to be serialized
         let x = U256::MAX;
@@ -757,7 +797,7 @@ mod tests {
     #[test]
     fn test_get_offset_tuple() {
         // Setup the KakarotSerde instance
-        let kakarot_serde = setup_kakarot_serde();
+        let kakarot_serde = setup_kakarot_serde(TestProgram::KeccakAddUint256);
 
         // Create Cairo types for Tuple members.
         let member1 = TupleItem::new(Some("a".to_string()), CairoType::felt_type(None), None);
@@ -778,7 +818,7 @@ mod tests {
     #[test]
     fn test_get_offset_struct_invalid_identifier() {
         // Setup the KakarotSerde instance
-        let kakarot_serde = setup_kakarot_serde();
+        let kakarot_serde = setup_kakarot_serde(TestProgram::KeccakAddUint256);
 
         // Create a Cairo type for a Struct with an invalid identifier.
         let cairo_type = CairoType::Struct {
@@ -801,7 +841,7 @@ mod tests {
     #[test]
     fn test_get_offset_struct_valid_identifier() {
         // Setup the KakarotSerde instance
-        let kakarot_serde = setup_kakarot_serde();
+        let kakarot_serde = setup_kakarot_serde(TestProgram::KeccakAddUint256);
 
         // Create a Cairo type for a Struct with a valid identifier (3 members).
         let cairo_type = CairoType::Struct {
@@ -816,7 +856,7 @@ mod tests {
     #[test]
     fn test_get_offset_struct_valid_identifier_without_members() {
         // Setup the KakarotSerde instance
-        let kakarot_serde = setup_kakarot_serde();
+        let kakarot_serde = setup_kakarot_serde(TestProgram::KeccakAddUint256);
 
         // Create a Cairo type for a Struct with a valid identifier (no members).
         let cairo_type = CairoType::Struct {
@@ -831,7 +871,7 @@ mod tests {
     #[test]
     fn test_get_offset_felt_pointer() {
         // Setup the KakarotSerde instance
-        let kakarot_serde = setup_kakarot_serde();
+        let kakarot_serde = setup_kakarot_serde(TestProgram::KeccakAddUint256);
 
         // Create a Cairo type for a Felt.
         let cairo_type = CairoType::felt_type(None);
@@ -1000,7 +1040,7 @@ mod tests {
     #[test]
     fn test_serialize_inner_felt() {
         // Setup the KakarotSerde instance
-        let mut kakarot_serde = setup_kakarot_serde();
+        let mut kakarot_serde = setup_kakarot_serde(TestProgram::KeccakAddUint256);
 
         // Setup
         let output_ptr = Relocatable { segment_index: 10, offset: 11 };
@@ -1056,7 +1096,7 @@ mod tests {
     #[test]
     fn test_serialize_scope_uint256() {
         // Setup the KakarotSerde instance
-        let mut kakarot_serde = setup_kakarot_serde();
+        let mut kakarot_serde = setup_kakarot_serde(TestProgram::KeccakAddUint256);
 
         // Define a ScopedName ending in "Uint256"
         let scope = ScopedName {
@@ -1094,5 +1134,73 @@ mod tests {
 
         // Assert that the result matches the expected serialized U256 value
         assert_eq!(result, Ok(SerializedScope::U256(x)));
+    }
+
+    #[test]
+    fn test_serialize_option_some_value() {
+        // Setup KakarotSerde instance
+        let mut kakarot_serde = setup_kakarot_serde(TestProgram::ModelOption);
+
+        // Setup
+        let is_some_ptr = kakarot_serde.runner.vm.add_memory_segment();
+        let value_ptr = kakarot_serde.runner.vm.add_memory_segment();
+
+        // Insert values in memory
+        let base = kakarot_serde
+            .runner
+            .vm
+            .gen_arg(&vec![
+                MaybeRelocatable::RelocatableValue(is_some_ptr),
+                MaybeRelocatable::RelocatableValue(value_ptr),
+            ])
+            .unwrap()
+            .get_relocatable()
+            .unwrap();
+
+        // Serialize the Option struct using the new memory segment.
+        let result =
+            kakarot_serde.serialize_option(base).expect("failed to serialize model.Option");
+
+        // Assert that the result matches the expected serialized struct members.
+        assert_eq!(result, Some(MaybeRelocatable::RelocatableValue(value_ptr)));
+    }
+
+    #[test]
+    fn test_serialize_option_none_value() {
+        // Setup KakarotSerde instance
+        let kakarot_serde = setup_kakarot_serde(TestProgram::ModelOption);
+
+        // Serialize the Option struct without any memory segment.
+        let result = kakarot_serde
+            .serialize_option(Relocatable::default())
+            .expect("failed to serialize model.Option");
+
+        // Assert that the result is None since there is no memory segment.
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_serialize_option_no_value() {
+        // Setup KakarotSerde instance
+        let mut kakarot_serde = setup_kakarot_serde(TestProgram::ModelOption);
+
+        // Setup
+        let is_some_ptr = kakarot_serde.runner.vm.add_memory_segment();
+
+        // Insert values in memory
+        let base = kakarot_serde
+            .runner
+            .vm
+            .gen_arg(&vec![MaybeRelocatable::RelocatableValue(is_some_ptr)])
+            .unwrap()
+            .get_relocatable()
+            .unwrap();
+
+        // Serialize the Option struct with `is_some` but without a value.
+        let result =
+            kakarot_serde.serialize_option(base).expect("failed to serialize model.Option");
+
+        // Assert that the result is None since there is no value.
+        assert!(result.is_none());
     }
 }
