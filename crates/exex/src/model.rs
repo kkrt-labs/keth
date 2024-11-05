@@ -1,8 +1,8 @@
 use alloy_consensus::Header;
-use alloy_primitives::{Address, Bloom, Bytes, B256, B64, U256};
+use alloy_primitives::{Address, Bloom, Bytes, Signature, B256, B64, U256};
 use alloy_rlp::Encodable;
 use cairo_vm::{types::relocatable::MaybeRelocatable, Felt252};
-use reth_primitives::{Signature, Transaction, TransactionSigned, TransactionSignedEcRecovered};
+use reth_primitives::{Transaction, TransactionSigned, TransactionSignedEcRecovered};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -494,7 +494,7 @@ impl From<Header> for KethBlockHeader {
             blob_gas_used: value.blob_gas_used.into(),
             excess_blob_gas: value.excess_blob_gas.into(),
             parent_beacon_block_root: value.parent_beacon_block_root.into(),
-            requests_root: value.requests_root.into(),
+            requests_root: value.requests_hash.into(),
             extra_data: value.extra_data.into(),
         }
     }
@@ -716,7 +716,7 @@ mod tests {
                 blob_gas_used: self.blob_gas_used.to_option_u64(),
                 excess_blob_gas: self.excess_blob_gas.to_option_u64(),
                 parent_beacon_block_root: self.parent_beacon_block_root.to_option_b256(),
-                requests_root: self.requests_root.to_option_b256(),
+                requests_hash: self.requests_root.to_option_b256(),
                 extra_data: self.extra_data.to_bytes(),
             }
         }

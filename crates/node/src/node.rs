@@ -4,9 +4,10 @@ use reth_chainspec::ChainSpec;
 use reth_ethereum_engine_primitives::{
     EthBuiltPayload, EthPayloadAttributes, EthPayloadBuilderAttributes,
 };
+use reth_node_api::NodeTypesWithDB;
 use reth_node_builder::{
-    components::ComponentsBuilder, FullNodeTypes, Node, NodeTypes, NodeTypesWithEngine,
-    PayloadTypes,
+    components::ComponentsBuilder, FullNodeTypes, Node, NodeAdapter, NodeComponentsBuilder,
+    NodeTypes, NodeTypesWithEngine, PayloadTypes,
 };
 use reth_node_ethereum::{
     node::{
@@ -15,6 +16,7 @@ use reth_node_ethereum::{
     },
     EthEngineTypes,
 };
+use reth_trie_db::MerklePatriciaTrie;
 
 /// Type alias for the Kakarot payload builder.
 pub type KakarotPayloadBuilder = EthereumPayloadBuilder;
@@ -31,7 +33,7 @@ pub type KakarotConsensusBuilder = EthereumConsensusBuilder;
 pub type KakarotEngineValidatorBuilder = EthereumEngineValidatorBuilder;
 
 /// Type alias for the Kakarot add-ons.
-pub type KakarotAddsOns = EthereumAddOns;
+pub type KakarotAddsOns<N> = EthereumAddOns<N>;
 
 /// Type configuration for a regular Kakarot node.
 #[derive(Debug, Default, Clone, Copy)]
@@ -47,7 +49,6 @@ impl KakarotNode {
         KakarotNetworkBuilder,
         KakarotExecutorBuilder,
         KakarotConsensusBuilder,
-        KakarotEngineValidatorBuilder,
     >
     where
         Node: FullNodeTypes<Types: NodeTypes<ChainSpec = ChainSpec>>,
@@ -64,13 +65,13 @@ impl KakarotNode {
             .network(KakarotNetworkBuilder::default())
             .executor(KakarotExecutorBuilder::default())
             .consensus(KakarotConsensusBuilder::default())
-            .engine_validator(KakarotEngineValidatorBuilder::default())
     }
 }
 
 impl NodeTypes for KakarotNode {
     type Primitives = ();
     type ChainSpec = ChainSpec;
+    type StateCommitment = MerklePatriciaTrie;
 }
 
 impl NodeTypesWithEngine for KakarotNode {
@@ -79,7 +80,7 @@ impl NodeTypesWithEngine for KakarotNode {
 
 impl<Types, N> Node<N> for KakarotNode
 where
-    Types: NodeTypesWithEngine<Engine = EthEngineTypes, ChainSpec = ChainSpec>,
+    Types: NodeTypesWithDB + NodeTypesWithEngine<Engine = EthEngineTypes, ChainSpec = ChainSpec>,
     N: FullNodeTypes<Types = Types>,
 {
     type ComponentsBuilder = ComponentsBuilder<
@@ -89,10 +90,11 @@ where
         KakarotNetworkBuilder,
         KakarotExecutorBuilder,
         KakarotConsensusBuilder,
-        KakarotEngineValidatorBuilder,
     >;
 
-    type AddOns = KakarotAddsOns;
+    type AddOns = KakarotAddsOns<
+        NodeAdapter<N, <Self::ComponentsBuilder as NodeComponentsBuilder<N>>::Components>,
+    >;
 
     fn components_builder(&self) -> Self::ComponentsBuilder {
         Self::components()
