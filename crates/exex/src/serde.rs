@@ -356,8 +356,9 @@ impl KakarotSerde {
         // Retrieve the serialized "Option" struct as a map of field names to values.
         let raw = self.serialize_pointers("model.Option", ptr)?;
 
-        // Check if "is_some" field is present; if not, return None.
-        if !raw.contains_key("is_some") {
+        // Check if "is_some" field is present and set to `0`; if so, return `None`.
+        if matches!(raw.get("is_some"), Some(Some(MaybeRelocatable::Int(v))) if *v == Felt252::ZERO)
+        {
             return Ok(None);
         }
 
@@ -1201,6 +1202,34 @@ mod tests {
             kakarot_serde.serialize_option(base).expect("failed to serialize model.Option");
 
         // Assert that the result is None since there is no value.
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_serialize_option_is_some_false() {
+        // Setup KakarotSerde instance
+        let mut kakarot_serde = setup_kakarot_serde(TestProgram::ModelOption);
+
+        // Setup
+        let value_ptr = kakarot_serde.runner.vm.add_memory_segment();
+
+        // Insert values in memory
+        let base = kakarot_serde
+            .runner
+            .vm
+            .gen_arg(&vec![
+                MaybeRelocatable::Int(Felt252::ZERO),
+                MaybeRelocatable::RelocatableValue(value_ptr),
+            ])
+            .unwrap()
+            .get_relocatable()
+            .unwrap();
+
+        // Serialize the Option struct with `is_some` set to `false`.
+        let result =
+            kakarot_serde.serialize_option(base).expect("failed to serialize model.Option");
+
+        // Assert that the result is None since `is_some` is `false`.
         assert!(result.is_none());
     }
 }
