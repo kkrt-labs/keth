@@ -356,7 +356,7 @@ impl KakarotSerde {
         // Retrieve the serialized "Option" struct as a map of field names to values.
         let raw = self.serialize_pointers("model.Option", ptr)?;
 
-        // Check if "is_some" field is present and set to `0`; if so, return `None`.
+        // Check if "is_some" field is set to `0`; if so, return `None`.
         if matches!(raw.get("is_some"), Some(Some(MaybeRelocatable::Int(v))) if *v == Felt252::ZERO)
         {
             return Ok(None);
