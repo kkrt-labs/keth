@@ -51,6 +51,7 @@ pub enum KakarotSerdeError {
         field: String,
     },
 
+    /// Error variant indicating that an invalid value was encountered during serialization.
     #[error("Invalid value for field '{field}' in serialization process.")]
     InvalidFieldValue {
         /// The name of the invalid field.
