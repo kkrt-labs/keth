@@ -134,6 +134,8 @@ pub enum SerializedScope {
 }
 
 impl SerializedScope {
+    /// NOTE: this is a temporary function to allow running the tests.
+    /// It should be removed or improved in the future.
     pub const fn as_maybe_relocatable(&self) -> Option<MaybeRelocatable> {
         Some(MaybeRelocatable::Int(Felt252::ZERO))
     }
