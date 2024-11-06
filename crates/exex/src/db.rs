@@ -16,7 +16,7 @@ use std::{
     sync::{Arc, Mutex, MutexGuard},
 };
 
-/// A struct representing the database, encapsulating a connection to the SQLite database.
+/// A struct representing the database, encapsulating a connection to the `SQLite` database.
 ///
 /// The connection is protected by a `Mutex` for thread-safe access and is shared across
 /// instances using `Arc`.
@@ -38,7 +38,7 @@ impl DerefMut for Database {
 }
 
 impl Database {
-    /// Creates a new `Database` instance with the provided SQLite `Connection`.
+    /// Creates a new `Database` instance with the provided `SQLite` [`Connection`].
     pub fn new(connection: Connection) -> eyre::Result<Self> {
         // Create the database instance and create the required tables.
         let database = Self(Arc::new(Mutex::new(connection)));
@@ -51,7 +51,7 @@ impl Database {
         self.lock().expect("failed to acquire database lock")
     }
 
-    /// Creates the necessary tables in the SQLite database if they do not already exist.
+    /// Creates the necessary tables in the `SQLite` database if they do not already exist.
     ///
     /// This function sets up the following tables:
     /// - `block`: Stores blocks with a unique block number and associated data.
@@ -83,6 +83,7 @@ impl Database {
     }
 
     /// Inserts a block with its associated bundle into the database.
+    #[allow(clippy::significant_drop_tightening)]
     pub fn insert_block_with_bundle(
         &self,
         block: &SealedBlockWithSenders,
@@ -171,13 +172,14 @@ impl Database {
     }
 
     /// Inserts an execution trace into the database.
+    #[allow(clippy::significant_drop_tightening)]
     pub fn insert_execution_trace(
         &self,
         number: u64,
-        trace: Vec<RelocatedTraceEntry>,
-        memory: Vec<Felt252>,
-        air_public_input: PublicInput<'_>,
-        air_private_input: AirPrivateInput,
+        trace: &[RelocatedTraceEntry],
+        memory: &[Felt252],
+        air_public_input: &PublicInput<'_>,
+        air_private_input: &AirPrivateInput,
     ) -> eyre::Result<()> {
         // Acquire a database connection and begin a transaction.
         let mut connection = self.connection();
@@ -196,6 +198,7 @@ impl Database {
     }
 
     /// Retrieves the execution trace and memory state for a specific block from the database.
+    #[allow(clippy::significant_drop_tightening)]
     pub fn execution_trace(
         &self,
         number: u64,
@@ -207,7 +210,7 @@ impl Database {
         let res: Result<(String, String), _> = statement
             .query_map([number.to_string()], |row| Ok((row.get(0)?, row.get(1)?)))?
             .next()
-            .ok_or(eyre::eyre!("No trace found for block"))?;
+            .ok_or_else(|| eyre::eyre!("No trace found for block"))?;
 
         match res {
             // If the trace is found, deserialize the JSON strings into `(Vec<RelocatedTraceEntry>,
@@ -224,7 +227,7 @@ impl Database {
     }
 
     /// Inserts a new account if it doesn't exist or updates it if it does.
-    pub fn set_account(&self, address: Address, account_info: AccountInfo) -> eyre::Result<()> {
+    pub fn set_account(&self, address: Address, account_info: &AccountInfo) -> eyre::Result<()> {
         self.connection().execute(
             "INSERT INTO account (address, data) VALUES (?, ?) ON CONFLICT(address) DO UPDATE SET data = excluded.data",
             (address.to_string(), serde_json::to_string(&account_info)?),
@@ -235,11 +238,13 @@ impl Database {
 
     /// Retrieves an account from the database using its address.
     pub fn account(&self, address: Address) -> eyre::Result<Option<AccountInfo>> {
-        match self.connection().query_row::<String, _, _>(
+        let account = self.connection().query_row::<String, _, _>(
             "SELECT data FROM account WHERE address = ?",
             (address.to_string(),),
             |row| row.get(0),
-        ) {
+        );
+
+        match account {
             Ok(account_info) => Ok(Some(serde_json::from_str(&account_info)?)),
             Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
             Err(e) => Err(e.into()),

@@ -18,7 +18,7 @@ use reth_tracing::tracing::debug;
 
 /// Executes a rollup block, processing the given transactions, and returns the block with recovered
 /// senders, the resulting bundle state, the list of receipts, and the execution results.
-pub async fn execute_block(
+pub fn execute_block(
     db: &mut Database,
     block: &SealedBlockWithSenders,
     txs: Vec<TransactionSignedEcRecovered>,
