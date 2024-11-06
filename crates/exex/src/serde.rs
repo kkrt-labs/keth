@@ -1375,9 +1375,6 @@ mod tests {
         // Setup
         let mut kakarot_serde = setup_kakarot_serde(&TestProgram::KeccakAddUint256);
 
-        // Add a memory segment for the dictionary
-        let dict_ptr = kakarot_serde.runner.vm.add_memory_segment();
-
         // Insert key-value pairs into memory
         let key1 = MaybeRelocatable::Int(Felt252::from(1));
         let key2 = MaybeRelocatable::Int(Felt252::from(2));
@@ -1386,36 +1383,24 @@ mod tests {
         let value2 = MaybeRelocatable::Int(Felt252::from(20));
         let value3 =
             MaybeRelocatable::RelocatableValue(Relocatable { segment_index: 10, offset: 15 });
-        kakarot_serde
+
+        let dict_ptr = kakarot_serde
             .runner
             .vm
-            .insert_value((dict_ptr + 0usize).unwrap(), key1.clone())
-            .expect("failed to insert key1");
-        kakarot_serde
-            .runner
-            .vm
-            .insert_value((dict_ptr + 2usize).unwrap(), value1.clone())
-            .expect("failed to insert value1");
-        kakarot_serde
-            .runner
-            .vm
-            .insert_value((dict_ptr + 3usize).unwrap(), key2.clone())
-            .expect("failed to insert key2");
-        kakarot_serde
-            .runner
-            .vm
-            .insert_value((dict_ptr + 5usize).unwrap(), value2.clone())
-            .expect("failed to insert value2");
-        kakarot_serde
-            .runner
-            .vm
-            .insert_value((dict_ptr + 6usize).unwrap(), key3.clone())
-            .expect("failed to insert key2");
-        kakarot_serde
-            .runner
-            .vm
-            .insert_value((dict_ptr + 8usize).unwrap(), value3.clone())
-            .expect("failed to insert value2");
+            .gen_arg(&vec![
+                key1.clone(),
+                MaybeRelocatable::Int(Felt252::ZERO),
+                value1.clone(),
+                key2.clone(),
+                MaybeRelocatable::Int(Felt252::ZERO),
+                value2.clone(),
+                key3.clone(),
+                MaybeRelocatable::Int(Felt252::ZERO),
+                value3.clone(),
+            ])
+            .unwrap()
+            .get_relocatable()
+            .expect("failed to insert key-value pairs into memory");
 
         // Call serialize_dict
         let result = kakarot_serde
@@ -1433,22 +1418,16 @@ mod tests {
         // Setup
         let mut kakarot_serde = setup_kakarot_serde(&TestProgram::KeccakAddUint256);
 
-        // Add a memory segment for the dictionary
-        let dict_ptr = kakarot_serde.runner.vm.add_memory_segment();
-
         // Insert a key with a null pointer as the value
         let key = MaybeRelocatable::Int(Felt252::from(1));
         let null_value = MaybeRelocatable::Int(Felt252::ZERO);
-        kakarot_serde
+        let dict_ptr = kakarot_serde
             .runner
             .vm
-            .insert_value((dict_ptr + 0usize).unwrap(), key.clone())
-            .expect("failed to insert key");
-        kakarot_serde
-            .runner
-            .vm
-            .insert_value((dict_ptr + 2usize).unwrap(), null_value)
-            .expect("failed to insert null value");
+            .gen_arg(&vec![key.clone(), MaybeRelocatable::Int(Felt252::ZERO), null_value.clone()])
+            .unwrap()
+            .get_relocatable()
+            .expect("failed to insert key-value pairs into memory");
 
         // Call serialize_dict with a value scope
         let result = kakarot_serde
@@ -1465,25 +1444,20 @@ mod tests {
         // Setup
         let mut kakarot_serde = setup_kakarot_serde(&TestProgram::KeccakAddUint256);
 
-        // Add a memory segment for the dictionary
-        let dict_ptr = kakarot_serde.runner.vm.add_memory_segment();
-
         // Insert key-value pairs into memory with a valid scope
         let key = MaybeRelocatable::Int(Felt252::from(1));
         let value_ptr = kakarot_serde.runner.vm.add_memory_segment();
-        kakarot_serde
+        let dict_ptr = kakarot_serde
             .runner
             .vm
-            .insert_value((dict_ptr + 0usize).unwrap(), key.clone())
-            .expect("failed to insert key");
-        kakarot_serde
-            .runner
-            .vm
-            .insert_value(
-                (dict_ptr + 2usize).unwrap(),
-                MaybeRelocatable::RelocatableValue(value_ptr),
-            )
-            .expect("failed to insert value pointer");
+            .gen_arg(&vec![
+                key.clone(),
+                MaybeRelocatable::Int(Felt252::ZERO),
+                MaybeRelocatable::RelocatableValue(value_ptr.clone()),
+            ])
+            .unwrap()
+            .get_relocatable()
+            .expect("failed to insert key-value pairs into memory");
 
         // Call serialize_dict with a valid scope
         let result = kakarot_serde
@@ -1522,22 +1496,16 @@ mod tests {
         // Setup
         let mut kakarot_serde = setup_kakarot_serde(&TestProgram::KeccakAddUint256);
 
-        // Add a memory segment for the dictionary
-        let dict_ptr = kakarot_serde.runner.vm.add_memory_segment();
-
         // Insert only one key-value pair in memory to simulate an invalid size
         let key = MaybeRelocatable::Int(Felt252::from(1));
         let value = MaybeRelocatable::Int(Felt252::from(10));
-        kakarot_serde
+        let dict_ptr = kakarot_serde
             .runner
             .vm
-            .insert_value((dict_ptr + 0usize).unwrap(), key)
-            .expect("failed to insert key");
-        kakarot_serde
-            .runner
-            .vm
-            .insert_value((dict_ptr + 2usize).unwrap(), value)
-            .expect("failed to insert value");
+            .gen_arg(&vec![key.clone(), MaybeRelocatable::Int(Felt252::ZERO), value.clone()])
+            .unwrap()
+            .get_relocatable()
+            .expect("failed to insert key-value pairs into memory");
 
         // Call serialize_dict with a size that exceeds the actual memory entries
         // Here, we use a size of 6 to ensure the loop tries to access a non-existent memory
