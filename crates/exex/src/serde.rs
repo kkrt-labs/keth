@@ -136,8 +136,8 @@ pub enum SerializedScope {
 impl SerializedScope {
     /// NOTE: this is a temporary function to allow running the tests.
     /// It should be removed or improved in the future.
-    pub const fn as_maybe_relocatable(&self) -> Option<MaybeRelocatable> {
-        Some(MaybeRelocatable::Int(Felt252::ZERO))
+    pub fn as_maybe_relocatable(&self) -> Option<MaybeRelocatable> {
+        Some(MaybeRelocatable::Int(Felt252::from(345)))
     }
 }
 
@@ -1493,7 +1493,7 @@ mod tests {
         // The result should serialize the scope correctly
         // NOTE: the Felt zero value is temporary until `serialize_scope` is implemented properly
         // After this, we will be able to implement `SerializedScope::as_maybe_relocatable` properly
-        let expected = HashMap::from([(key, Some(MaybeRelocatable::Int(Felt252::ZERO)))]);
+        let expected = HashMap::from([(key, Some(MaybeRelocatable::Int(Felt252::from(345))))]);
         assert_eq!(result, expected);
     }
 
