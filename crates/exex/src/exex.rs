@@ -1,4 +1,5 @@
 use crate::{db::Database, hints::KakarotHintProcessor};
+use alloy_eips::BlockNumHash;
 use alloy_genesis::Genesis;
 use alloy_primitives::Address;
 use cairo_vm::{
@@ -14,7 +15,6 @@ use once_cell::sync::Lazy;
 use reth_chainspec::{ChainSpec, ChainSpecBuilder};
 use reth_exex::{ExExContext, ExExEvent};
 use reth_node_api::FullNodeComponents;
-use reth_primitives::BlockNumHash;
 use rusqlite::Connection;
 use std::{path::PathBuf, sync::Arc};
 
@@ -144,13 +144,13 @@ impl<Node: FullNodeComponents> KakarotRollup<Node> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alloy_consensus::TxEip1559;
+    use alloy_consensus::{constants::ETH_TO_WEI, TxEip1559};
     use alloy_primitives::{address, hex, Bytes, Sealable, B256, U256};
     use reth_execution_types::{Chain, ExecutionOutcome};
     use reth_exex_test_utils::{test_exex_context, PollOnce};
     use reth_primitives::{
-        constants::ETH_TO_WEI, BlockBody, Header, Receipt, Receipts, SealedBlock,
-        SealedBlockWithSenders, SealedHeader, TransactionSigned,
+        BlockBody, Header, Receipt, Receipts, SealedBlock, SealedBlockWithSenders, SealedHeader,
+        TransactionSigned,
     };
     use reth_revm::primitives::AccountInfo;
     use std::{future::Future, pin::pin, str::FromStr};
@@ -203,7 +203,7 @@ mod tests {
             )
             .unwrap(),
             signature:
-            reth_primitives::Signature::from_rs_and_parity(U256::from_str(
+            alloy_primitives::Signature::from_rs_and_parity(U256::from_str(
                 "0xe74ec6b1365234a0ebe63f8e238d2318b28d1d2c58ada3a153ad364497dac715",
             )
             .unwrap(), U256::from_str(
@@ -248,7 +248,7 @@ mod tests {
             blob_gas_used: None,
             excess_blob_gas: None,
             parent_beacon_block_root: None,
-            requests_root: None
+            requests_hash: None
         };
 
         let sealed_header = header.seal_slow();

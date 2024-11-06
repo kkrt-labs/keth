@@ -1,4 +1,5 @@
 use crate::{db::Database, exex::CHAIN_SPEC};
+use alloy_consensus::Transaction;
 use alloy_primitives::U256;
 use reth::primitives::BlockBody;
 use reth_execution_errors::BlockValidationError;
