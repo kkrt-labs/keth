@@ -1424,7 +1424,7 @@ mod tests {
         let dict_ptr = kakarot_serde
             .runner
             .vm
-            .gen_arg(&vec![key.clone(), MaybeRelocatable::Int(Felt252::ZERO), null_value.clone()])
+            .gen_arg(&vec![key.clone(), MaybeRelocatable::Int(Felt252::ZERO), null_value])
             .unwrap()
             .get_relocatable()
             .expect("failed to insert key-value pairs into memory");
@@ -1453,7 +1453,7 @@ mod tests {
             .gen_arg(&vec![
                 key.clone(),
                 MaybeRelocatable::Int(Felt252::ZERO),
-                MaybeRelocatable::RelocatableValue(value_ptr.clone()),
+                MaybeRelocatable::RelocatableValue(value_ptr),
             ])
             .unwrap()
             .get_relocatable()
@@ -1502,7 +1502,7 @@ mod tests {
         let dict_ptr = kakarot_serde
             .runner
             .vm
-            .gen_arg(&vec![key.clone(), MaybeRelocatable::Int(Felt252::ZERO), value.clone()])
+            .gen_arg(&vec![key, MaybeRelocatable::Int(Felt252::ZERO), value])
             .unwrap()
             .get_relocatable()
             .expect("failed to insert key-value pairs into memory");
