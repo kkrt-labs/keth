@@ -18,7 +18,7 @@ use reth_node_api::FullNodeComponents;
 use rusqlite::Connection;
 use std::{path::PathBuf, sync::Arc};
 
-/// The path to the SQLite database file.
+/// The path to the `SQLite` database file.
 pub const DATABASE_PATH: &str = "rollup.db";
 
 /// The chain ID of the Kakarot Rollup chain.
@@ -45,7 +45,7 @@ pub(crate) static CHAIN_SPEC: Lazy<Arc<ChainSpec>> = Lazy::new(|| {
 pub struct KakarotRollup<Node: FullNodeComponents> {
     /// Capture the Execution Extension context.
     ctx: ExExContext<Node>,
-    /// The SQLite database.
+    /// The `SQLite` database.
     db: Database,
 }
 
@@ -94,7 +94,7 @@ impl<Node: FullNodeComponents> KakarotRollup<Node> {
                 // Retrieve the output of the program
                 let mut output_buffer = String::new();
                 res.vm.write_output(&mut output_buffer).unwrap();
-                println!("Program output: \n{}", output_buffer);
+                println!("Program output: \n{output_buffer}");
 
                 // Extract the execution trace
                 let trace = res.relocated_trace.clone().unwrap_or_default();
@@ -104,8 +104,8 @@ impl<Node: FullNodeComponents> KakarotRollup<Node> {
                     .relocated_memory
                     .clone()
                     .into_iter()
-                    .map(|x| x.unwrap_or_default())
-                    .collect();
+                    .map(Option::unwrap_or_default)
+                    .collect::<Vec<_>>();
 
                 // Extract the public and private inputs
                 //
@@ -117,10 +117,10 @@ impl<Node: FullNodeComponents> KakarotRollup<Node> {
                 // Commit the execution trace to the database
                 self.commit_cairo_execution_traces(
                     committed_chain.tip().number,
-                    trace,
-                    memory,
-                    public_input,
-                    private_input,
+                    &trace,
+                    &memory,
+                    &public_input,
+                    &private_input,
                 )?;
             }
         }
@@ -130,12 +130,12 @@ impl<Node: FullNodeComponents> KakarotRollup<Node> {
 
     /// Commits the execution traces to the database.
     fn commit_cairo_execution_traces(
-        &mut self,
+        &self,
         number: u64,
-        trace: Vec<RelocatedTraceEntry>,
-        memory: Vec<Felt252>,
-        air_public_input: PublicInput<'_>,
-        air_private_input: AirPrivateInput,
+        trace: &[RelocatedTraceEntry],
+        memory: &[Felt252],
+        air_public_input: &PublicInput<'_>,
+        air_private_input: &AirPrivateInput,
     ) -> eyre::Result<()> {
         self.db.insert_execution_trace(number, trace, memory, air_public_input, air_private_input)
     }
@@ -155,11 +155,11 @@ mod tests {
     use reth_revm::primitives::AccountInfo;
     use std::{future::Future, pin::pin, str::FromStr};
 
-    /// The initialization logic of the ExEx is just an async function.
+    /// The initialization logic of the Execution Extension is just an async function.
     ///
-    /// During initialization you can wait for resources you need to be up for the ExEx to function,
-    /// like a database connection.
-    async fn exex_init<Node: FullNodeComponents>(
+    /// During initialization you can wait for resources you need to be up for the Execution
+    /// Extension to function, like a database connection.
+    fn exex_init<Node: FullNodeComponents>(
         ctx: ExExContext<Node>,
     ) -> eyre::Result<impl Future<Output = eyre::Result<()>>> {
         // Open the SQLite database connection.
@@ -177,7 +177,7 @@ mod tests {
         // Deposit some ETH to the sender and insert it into database
         db.set_account(
             sender_address,
-            AccountInfo { balance: U256::from(ETH_TO_WEI), nonce: 0, ..Default::default() },
+            &AccountInfo { balance: U256::from(ETH_TO_WEI), nonce: 0, ..Default::default() },
         )?;
 
         // Create the Kakarot Rollup chain instance and start processing chain state notifications.
@@ -214,8 +214,8 @@ mod tests {
                 chain_id: 1,
                 nonce: 0,
                 gas_limit: 0x3173e,
-                max_fee_per_gas: 0x2a9860004,
-                max_priority_fee_per_gas: 0x4903a597,
+                max_fee_per_gas: 0x0002_a986_0004,
+                max_priority_fee_per_gas: 0x4903_a597,
                 to: alloy_primitives::TxKind::Call(
                     Address::from_str("0xf3de3c0d654fda23dad170f0f320a92172509127").unwrap(),
                 ),
@@ -236,14 +236,14 @@ mod tests {
             receipts_root: hex!("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421").into(),
             logs_bloom: hex!("002400000000004000220000800002000000000000000000000000000000100000000000000000100000000000000021020000000800000006000000002100040000000c0004000000000008000008200000000000000000000000008000000001040000020000020000002000000800000002000020000000022010000000000000010002001000000000020200000000000001000200880000004000000900020000000000020000000040000000000000000000000000000080000000000001000002000000000000012000200020000000000000001000000000000020000010321400000000100000000000000000000000000000400000000000000000").into(),
             difficulty: U256::ZERO, // total difficulty: 0xc70d815d562d3cfa955).into(),
-            number: 0xf21d20,
-            gas_limit: 0x1c9c380,
+            number: 0x00f2_1d20,
+            gas_limit: 0x01c9_c380,
             gas_used: 0x6e813,
-            timestamp: 0x635f9657,
+            timestamp: 0x635f_9657,
             extra_data: hex!("")[..].into(),
             mix_hash: hex!("0000000000000000000000000000000000000000000000000000000000000000").into(),
-            nonce: 0x0000000000000000u64.into(),
-            base_fee_per_gas: 0x28f0001df.into(),
+            nonce: 0x0000_0000_0000_0000_u64.into(),
+            base_fee_per_gas: 0x0002_8f00_01df.into(),
             withdrawals_root: None,
             blob_gas_used: None,
             excess_blob_gas: None,
@@ -270,13 +270,13 @@ mod tests {
         handle
             .send_notification_chain_committed(Chain::from_block(
                 block.clone(),
-                ExecutionOutcome { receipts, first_block: 0xf21d20, ..Default::default() },
+                ExecutionOutcome { receipts, first_block: 0x00f2_1d20, ..Default::default() },
                 None,
             ))
             .await?;
 
         // Initialize the Execution Extension
-        let mut exex = pin!(exex_init(ctx).await?);
+        let mut exex = pin!(exex_init(ctx)?);
 
         // Check that the Execution Extension did not emit any events until we polled it
         handle.assert_events_empty();
@@ -286,7 +286,7 @@ mod tests {
 
         // Check that the Execution Extension emitted a `FinishedHeight` event with the correct
         // height
-        handle.assert_event_finished_height(BlockNumHash::new(0xf21d20, seal))?;
+        handle.assert_event_finished_height(BlockNumHash::new(0x00f2_1d20, seal))?;
 
         // Open the SQLite database connection.
         let connection = Connection::open(DATABASE_PATH)?;
@@ -295,10 +295,10 @@ mod tests {
         let db = Database::new(connection)?;
 
         // Check that the block has been inserted into the database
-        assert_eq!(db.block(U256::from(0xf21d20))?.unwrap(), block);
+        assert_eq!(db.block(U256::from(0x00f2_1d20))?.unwrap(), block);
 
         // Check that the execution trace has been inserted into the database
-        assert!(db.execution_trace(0xf21d20)?.is_some());
+        assert!(db.execution_trace(0x00f2_1d20)?.is_some());
 
         Ok(())
     }

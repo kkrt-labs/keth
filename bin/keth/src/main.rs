@@ -35,8 +35,8 @@ fn main() {
     runner
         .run_command_until_exit(|ctx| async {
             let builder = builder.with_launch_context(ctx.task_executor);
-            let handle = builder.launch_node(KakarotNode::default()).await?;
+            let handle = Box::pin(builder.launch_node(KakarotNode::default())).await?;
             handle.node_exit_future.await
         })
-        .expect("failed to run command until exit")
+        .expect("failed to run command until exit");
 }

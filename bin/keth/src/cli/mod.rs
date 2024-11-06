@@ -6,7 +6,7 @@ use reth_node_core::args::DevArgs;
 use std::{str::FromStr, time::Duration};
 use tracing_subscriber::EnvFilter;
 
-const DEFAULT_CHAIN_ID: u64 = 1802203764;
+const DEFAULT_CHAIN_ID: u64 = 1_802_203_764;
 const DEFAULT_BLOCK_TIME: u64 = 12;
 const DEFAULT_ADDRESS: &str = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
 
@@ -52,7 +52,7 @@ impl From<&ChainArgs> for ChainSpec {
         let genesis_address = Address::from_str(DEFAULT_ADDRESS)
             .expect("DEFAULT_ADDRESS should be a valid Ethereum address");
 
-        ChainSpec::builder()
+        Self::builder()
             .cancun_activated()
             .chain(Chain::from_id(chain_id))
             .genesis(Genesis::clique_genesis(chain_id, genesis_address))
@@ -62,7 +62,7 @@ impl From<&ChainArgs> for ChainSpec {
 
 impl From<&ChainArgs> for DevArgs {
     fn from(args: &ChainArgs) -> Self {
-        DevArgs {
+        Self {
             dev: true,
             block_time: Some(Duration::from_secs(args.block_time)),
             ..Default::default()

@@ -10,7 +10,7 @@ use thiserror::Error;
 pub const U128_BYTES_SIZE: usize = std::mem::size_of::<u128>();
 
 /// This represents the possible errors that can occur during conversions from Ethereum format to
-/// CairoVM compatible formats.
+/// Cairo VM compatible formats.
 #[derive(Error, Debug)]
 pub enum ConversionError {
     /// Error indicating the failure to recover the signer from the transaction.
@@ -174,13 +174,13 @@ impl Default for KethOption<KethU256> {
 impl<U, T> From<Option<T>> for KethOption<U>
 where
     T: Into<U>,
-    KethOption<U>: Default,
+    Self: Default,
 {
     fn from(value: Option<T>) -> Self {
-        match value {
-            Some(value) => KethOption { is_some: KethMaybeRelocatable::one(), value: value.into() },
-            None => KethOption::default(),
-        }
+        value.map_or_else(Self::default, |value| Self {
+            is_some: KethMaybeRelocatable::one(),
+            value: value.into(),
+        })
     }
 }
 
@@ -242,7 +242,7 @@ impl From<U256> for KethU256 {
 /// data.
 ///
 /// This struct is used to represent complex data structures such as Bloom filters or Bytes data in
-/// a format that can be stored and processed by the CairoVM.
+/// a format that can be stored and processed by the Cairo VM.
 ///
 /// It efficiently stores 256-bit values and provides an interface for converting data structures
 /// into a compatible format.
@@ -270,7 +270,7 @@ impl From<Bloom> for KethPointer {
     /// Converts a [`Bloom`] filter into a [`KethPointer`] structure.
     ///
     /// The [`Bloom`] filter is represented as a 256-byte array in big-endian order. Since
-    /// CairoVM's [`Felt252`] can only handle values up to 252 bits, we need to break the
+    /// Cairo VM's [`Felt252`] can only handle values up to 252 bits, we need to break the
     /// 256-byte array into smaller chunks that fit within this limit.
     ///
     /// The conversion process works as follows:
@@ -280,7 +280,7 @@ impl From<Bloom> for KethPointer {
     ///   from the Bloom filter, with each chunk converted into a [`KethMaybeRelocatable`].
     ///
     /// This process allows the 256-byte Bloom filter to be stored and processed efficiently in the
-    /// `KethPointer` structure, making it compatible with CairoVM's constraints.
+    /// `KethPointer` structure, making it compatible with Cairo VM's constraints.
     fn from(value: Bloom) -> Self {
         Self {
             // The length of the Bloom filter.
@@ -301,14 +301,14 @@ impl From<Bytes> for KethPointer {
     /// Converts a [`Bytes`] object into a [`KethPointer`] structure.
     ///
     /// This method takes a [`Bytes`] object (which represents a sequence of bytes) and
-    /// converts it into the [`KethPointer`] format, making it compatible with CairoVM's
+    /// converts it into the [`KethPointer`] format, making it compatible with Cairo VM's
     /// 252-bit limitation for [`Felt252`] values.
     ///
     /// The conversion process:
     /// - The `len` field represents the total length of the input bytes, converted into a
     ///   [`KethMaybeRelocatable`] value.
     /// - The `data` field maps each byte of the input to a [`KethMaybeRelocatable`] value
-    ///   (represented as a [`Felt252`] in CairoVM). This approach ensures that each byte is
+    ///   (represented as a [`Felt252`] in Cairo VM). This approach ensures that each byte is
     ///   individually processed and stored as a relocatable field.
     ///
     /// In the Cairo VM a Byte is represented by a felt pointer, this means one byte is one felt.
@@ -415,7 +415,7 @@ impl From<Transaction> for KethPointer {
             len: buffer.len().into(),
             // Convert the byte array into a vector of felts (one felt per byte).
             // Each byte is mapped into a felt to be used in the Cairo VM.
-            data: buffer.into_iter().map(|byte| byte.into()).collect(),
+            data: buffer.into_iter().map(Into::into).collect(),
             // Set the type size to `1`, meaning this is a single segment in Cairo.
             type_size: 1,
         }
@@ -424,7 +424,7 @@ impl From<Transaction> for KethPointer {
 
 /// Represents a Keth block header, which contains essential metadata about a block.
 ///
-/// These data are converted into a Keth-specific format for use with the CairoVM.
+/// These data are converted into a Keth-specific format for use with the Cairo VM.
 #[derive(Debug, Eq, Ord, Hash, PartialEq, PartialOrd, Clone, Serialize, Deserialize)]
 pub struct KethBlockHeader {
     /// Hash of the parent block.
@@ -562,13 +562,13 @@ mod tests {
     use proptest::prelude::*;
 
     impl KethOption<KethMaybeRelocatable> {
-        /// Helper function to convert KethOption to Option<u64>
+        /// Helper function to convert [`KethOption`] to [`Option<u64>`]
         fn to_option_u64(&self) -> Option<u64> {
             if self.is_some.0 == MaybeRelocatable::from(Felt252::ONE) {
                 // Convert value back to u64 if present
                 match &self.value.0 {
                     MaybeRelocatable::Int(felt) => Some(felt.to_string().parse::<u64>().unwrap()),
-                    _ => None, // Should never happen
+                    MaybeRelocatable::RelocatableValue(_) => None, // Should never happen
                 }
             } else {
                 None
@@ -577,7 +577,7 @@ mod tests {
     }
 
     impl KethOption<KethU256> {
-        /// Helper function to convert KethOption to Option<B256>
+        /// Helper function to convert [`KethOption`] to [`Option<B256>`]
         fn to_option_b256(&self) -> Option<B256> {
             if self.is_some.0 == MaybeRelocatable::from(Felt252::ONE) {
                 // Convert value back to B256 if present
@@ -589,7 +589,7 @@ mod tests {
     }
 
     impl KethU256 {
-        /// Convert KethU256 back to B256.
+        /// Convert [`KethU256`] back to [`B256`].
         fn to_b256(&self) -> B256 {
             let high_bytes = self.high.0.get_int().unwrap().to_bytes_be();
             let low_bytes = self.low.0.get_int().unwrap().to_bytes_be();
@@ -601,7 +601,7 @@ mod tests {
             B256::from_slice(&bytes)
         }
 
-        /// Convert KethU256 back to U256.
+        /// Convert [`KethU256`] back to [`U256`].
         fn to_u256(&self) -> U256 {
             let high_bytes = self.high.0.get_int().unwrap().to_bytes_be();
             let low_bytes = self.low.0.get_int().unwrap().to_bytes_be();
@@ -640,7 +640,7 @@ mod tests {
                     // Iterate through the items in the `data` field.
                     .iter()
                     // For each item, retrieve its integer value and convert to big-endian bytes.
-                    .flat_map(|item| {
+                    .filter_map(|item| {
                         // Take only the last byte from the big-endian byte array.
                         //
                         // In Cairo, a byte is represented as a single felt (1 byte = 1 felt).
@@ -682,7 +682,7 @@ mod tests {
             Signature::from_rs_and_parity(r, s, v).expect("Failed to create signature")
         }
 
-        /// Util to convert the KethPointer to RLP encoded transaction bytes.
+        /// Util to convert the [`KethPointer`] to RLP encoded transaction bytes.
         fn to_transaction_rlp(&self) -> Vec<u8> {
             // Extract the bytes from the data field
             self.data
@@ -795,13 +795,14 @@ mod tests {
             let roundtrip_bytes = keth_pointer.to_bytes();
 
             // Assert roundtrip conversion is equal to original value
-            prop_assert_eq!(roundtrip_bytes, bytes.clone());
+            let bytes_len = bytes.len();
+            prop_assert_eq!(roundtrip_bytes, bytes);
             prop_assert_eq!(
                 keth_pointer.len.0.get_int().unwrap().to_string().parse::<usize>().unwrap(),
-                bytes.len()
+                bytes_len
             );
             prop_assert_eq!(keth_pointer.type_size, 1);
-            prop_assert_eq!(keth_pointer.data.len(), bytes.len());
+            prop_assert_eq!(keth_pointer.data.len(),bytes_len);
         }
 
         #[test]
@@ -879,7 +880,7 @@ mod tests {
             tx.transaction.encode(&mut buffer);
 
             prop_assert_eq!(encoded_bytes, buffer.clone());
-            prop_assert_eq!(buffer.len(), keth_transaction_encoded.rlp.len.to_u64() as usize);
+            prop_assert_eq!(buffer.len(), usize::try_from(keth_transaction_encoded.rlp.len.to_u64()).unwrap());
             prop_assert_eq!(keth_transaction_encoded.rlp.type_size, 1);
 
             // Verify signature
@@ -911,7 +912,7 @@ mod tests {
             tx.transaction.encode(&mut buffer);
 
             prop_assert_eq!(encoded_bytes, buffer.clone());
-            prop_assert_eq!(buffer.len(), keth_transaction_encoded.rlp.len.to_u64() as usize);
+            prop_assert_eq!(buffer.len(), usize::try_from(keth_transaction_encoded.rlp.len.to_u64()).unwrap());
             prop_assert_eq!(keth_transaction_encoded.rlp.type_size, 1);
 
             // Verify signature
