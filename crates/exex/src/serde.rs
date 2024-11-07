@@ -12,6 +12,12 @@ use cairo_vm::{
 use std::collections::HashMap;
 use thiserror::Error;
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum PointerValue {
+    Relocatable,
+    Felt,
+}
+
 /// Represents errors that can occur during the serialization and deserialization processes between
 /// Cairo VM programs and Rust representations.
 #[derive(Debug, Error, PartialEq)]
@@ -64,6 +70,32 @@ pub enum KakarotSerdeError {
         /// The memory location that was expected to contain a value.
         location: Relocatable,
     },
+
+    /// Error variant indicating that a pointer member is missing from a struct.
+    #[error("The pointer member '{member}' is missing.")]
+    MissingPointerMember {
+        /// The name of the missing pointer member.
+        member: String,
+    },
+    /// Error variant indicating that a pointer member has an incorrect value.
+    #[error(
+        "The pointer member '{member}' has an incorrect value. Got: {got_value:?},
+    Expected: {expected_value:?}"
+    )]
+    IncorrectPointerValue {
+        /// The name of the pointer member.
+        member: String,
+        /// The obtained value.
+        got_value: Option<Option<MaybeRelocatable>>,
+        /// The expected value type.
+        expected_value: PointerValue,
+    },
+    // /// Error variant indicating that a key is missing from a dictionary.
+    // #[error("A key is missing from the dictionary: {key:?}")]
+    // MissingDictKey {
+    //     /// The key that is missing from the dictionary.
+    //     key: MaybeRelocatable,
+    // },
 }
 
 /// Represents the types used in Cairo, including felt types, pointers, tuples, and structs.
@@ -485,6 +517,88 @@ impl KakarotSerde {
         Ok(output)
     }
 
+    /// Serializes the contents of the Kakarot OS `model.Memory` starting from a given pointer into
+    /// a hexadecimal string.
+    ///
+    /// The `model.Memory` struct is a structured memory layout that contains the following fields:
+    /// - `word_dict_start`: The pointer to a `DictAccess` used to store the memory's value at a
+    ///   given index.
+    /// - `word_dict`: The pointer to the end of the `DictAccess`.
+    /// - `words_len`: Number of 32-byte words.
+    ///
+    /// This function reads and validates specific fields from a structured memory layout and
+    /// serializes the contents into a compact, hexadecimal string format.
+    ///
+    /// The process involves:
+    /// - Extracting key pointers,
+    /// - Converting values, and handling potential errors gracefully.
+    pub fn serialize_memory(&self, ptr: Relocatable) -> Result<String, KakarotSerdeError> {
+        // Serialize pointers of the "model.Memory" struct
+        let raw = self.serialize_pointers("model.Memory", ptr)?;
+
+        // Extract and validate the `word_dict_start` pointer.
+        // This should be a pointer to the start of the dictionary (`Relocatable`).
+        let dict_start = match raw.get("word_dict_start") {
+            Some(Some(MaybeRelocatable::RelocatableValue(ptr))) => *ptr,
+            other => {
+                return Err(KakarotSerdeError::IncorrectPointerValue {
+                    member: "word_dict_start".to_string(),
+                    got_value: other.cloned(),
+                    expected_value: PointerValue::Relocatable,
+                })
+            }
+        };
+
+        // Extract and validate the `word_dict` pointer.
+        // This should be a pointer to the end of the dictionary (`Relocatable`).
+        let dict_end = match raw.get("word_dict") {
+            Some(Some(MaybeRelocatable::RelocatableValue(word_dict))) => *word_dict,
+            other => {
+                return Err(KakarotSerdeError::IncorrectPointerValue {
+                    member: "word_dict".to_string(),
+                    got_value: other.cloned(),
+                    expected_value: PointerValue::Relocatable,
+                })
+            }
+        };
+
+        // Serialize the dictionary from `dict_start` to `dict_end`.
+        let memory_dict = self.serialize_dict(dict_start, None, Some((dict_end - dict_start)?))?;
+
+        // Extract and validate the `words_len` field.
+        // This should be a `Felt` value representing the number of 32-byte words.
+        let words_len = match raw.get("words_len") {
+            Some(Some(MaybeRelocatable::Int(words_len))) => words_len
+                .to_string()
+                .parse::<usize>()
+                .map_err(|_| MathError::Felt252ToUsizeConversion(Box::new(*words_len)))?,
+            other => {
+                return Err(KakarotSerdeError::IncorrectPointerValue {
+                    member: "words_len".to_string(),
+                    got_value: other.cloned(),
+                    expected_value: PointerValue::Felt,
+                })
+            }
+        };
+
+        // Construct the serialized memory by iterating over the dictionary.
+        // The memory is serialized as a string of 32-byte words.
+        let serialized_memory = (0..words_len * 2)
+            .map(|i| {
+                if let Some(Some(MaybeRelocatable::Int(value))) =
+                    memory_dict.get(&MaybeRelocatable::Int(i.into()))
+                {
+                    format!("{value:032x}")
+                } else {
+                    String::new()
+                }
+            })
+            .collect::<String>();
+
+        // Return the serialized memory as a single string.
+        Ok(serialized_memory)
+    }
+
     /// Serializes inner data types in Cairo by determining the type of data at a given pointer
     /// location.
     ///
@@ -520,6 +634,7 @@ mod tests {
     enum TestProgram {
         KeccakAddUint256,
         ModelOption,
+        ModelMemory,
     }
 
     impl TestProgram {
@@ -531,6 +646,7 @@ mod tests {
             match self {
                 Self::KeccakAddUint256 => include_bytes!("../testdata/keccak_add_uint256.json"),
                 Self::ModelOption => include_bytes!("../testdata/model_option.json"),
+                Self::ModelMemory => include_bytes!("../testdata/model_memory.json"),
             }
         }
     }
@@ -1519,5 +1635,245 @@ mod tests {
             result,
             Err(KakarotSerdeError::NoValueAtMemoryLocation { location }) if location == (dict_ptr + 3usize).unwrap()
         ));
+    }
+
+    #[test]
+    fn test_serialize_memory_empty() {
+        // Setup
+        let mut kakarot_serde = setup_kakarot_serde(&TestProgram::ModelMemory);
+
+        // Add an empty memory segment for the Stack
+        let ptr = kakarot_serde.runner.vm.add_memory_segment();
+
+        // Call serialize_memory on the empty memory
+        let result = kakarot_serde.serialize_memory(ptr);
+
+        // The result should be an empty string
+        assert_eq!(
+            result,
+            Err(KakarotSerdeError::IncorrectPointerValue {
+                member: "word_dict_start".to_string(),
+                got_value: None,
+                expected_value: PointerValue::Relocatable
+            })
+        );
+    }
+
+    #[test]
+    fn test_serialize_memory_with_valid_pointers() {
+        // Setup
+        let mut kakarot_serde = setup_kakarot_serde(&TestProgram::ModelMemory);
+
+        // Some dictionary pointers indicating:
+        // - the start of the dictionary
+        // - the end of the dictionary
+        // - the length of the dictionary in words
+        let dict_start =
+            MaybeRelocatable::RelocatableValue(Relocatable { segment_index: 0, offset: 3 });
+        let dict_end =
+            MaybeRelocatable::RelocatableValue(Relocatable { segment_index: 0, offset: 15 });
+        let words_len = MaybeRelocatable::Int(Felt252::from(2));
+
+        // Key-value pairs to be inserted into the dictionary
+        let key1 = MaybeRelocatable::Int(Felt252::from(0));
+        let key2 = MaybeRelocatable::Int(Felt252::from(1));
+        let key3 = MaybeRelocatable::Int(Felt252::from(2));
+        let key4 = MaybeRelocatable::Int(Felt252::from(3));
+        let value1 = MaybeRelocatable::Int(Felt252::from(10));
+        let value2 = MaybeRelocatable::Int(Felt252::from(20));
+        let value3 = MaybeRelocatable::Int(Felt252::from(30));
+        let value4 = MaybeRelocatable::Int(Felt252::from(40));
+
+        // Insert the dictionary key-value pairs into memory
+        let dict_ptr = kakarot_serde
+            .runner
+            .vm
+            .gen_arg(&vec![
+                dict_start,
+                dict_end,
+                words_len,
+                key1,
+                MaybeRelocatable::Int(Felt252::ZERO),
+                value1,
+                key2,
+                MaybeRelocatable::Int(Felt252::ZERO),
+                value2,
+                key3,
+                MaybeRelocatable::Int(Felt252::ZERO),
+                value3,
+                key4,
+                MaybeRelocatable::Int(Felt252::ZERO),
+                value4,
+            ])
+            .unwrap()
+            .get_relocatable()
+            .expect("failed to insert key-value pairs into memory");
+
+        // Call serialize_memory with the valid pointers
+        let result = kakarot_serde.serialize_memory(dict_ptr).expect("failed to serialize memory");
+
+        // The result should be a string representation of the serialized memory
+        assert_eq!(result, "0000000000000000000000000000000a000000000000000000000000000000140000000000000000000000000000001e00000000000000000000000000000028".to_string());
+    }
+
+    #[test]
+    fn test_serialize_memory_only_word_dict_start() {
+        // Setup
+        let mut kakarot_serde = setup_kakarot_serde(&TestProgram::ModelMemory);
+
+        // Insert only the `word_dict_start` pointer in memory
+        let word_dict_start =
+            MaybeRelocatable::RelocatableValue(Relocatable { segment_index: 0, offset: 3 });
+        let ptr = kakarot_serde
+            .runner
+            .vm
+            .gen_arg(&vec![word_dict_start])
+            .unwrap()
+            .get_relocatable()
+            .expect("failed to insert word_dict_start into memory");
+
+        // Call serialize_memory with incomplete dictionary pointers
+        let result = kakarot_serde.serialize_memory(ptr);
+
+        // The result should be an error due to the missing `word_dict`
+        assert_eq!(
+            result,
+            Err(KakarotSerdeError::IncorrectPointerValue {
+                member: "word_dict".to_string(),
+                got_value: None,
+                expected_value: PointerValue::Relocatable
+            })
+        );
+    }
+
+    #[test]
+    fn test_serialize_memory_word_dict_start_non_relocatable_pointers() {
+        // Setup
+        let mut kakarot_serde = setup_kakarot_serde(&TestProgram::ModelMemory);
+
+        // Set `word_dict_start` as non-relocatable value
+        let dict_start = MaybeRelocatable::Int(Felt252::from(123));
+        let dict_end =
+            MaybeRelocatable::RelocatableValue(Relocatable { segment_index: 0, offset: 15 });
+        let ptr = kakarot_serde
+            .runner
+            .vm
+            .gen_arg(&vec![dict_start.clone(), dict_end])
+            .unwrap()
+            .get_relocatable()
+            .expect("failed to insert non-relocatable pointers into memory");
+
+        // Call serialize_memory with non-relocatable pointers
+        let result = kakarot_serde.serialize_memory(ptr);
+
+        // The result should be an error indicating incorrect pointer values
+        assert_eq!(
+            result,
+            Err(KakarotSerdeError::IncorrectPointerValue {
+                member: "word_dict_start".to_string(),
+                got_value: Some(Some(dict_start)),
+                expected_value: PointerValue::Relocatable
+            })
+        );
+    }
+
+    #[test]
+    fn test_serialize_memory_word_dict_end_non_relocatable_pointers() {
+        // Setup
+        let mut kakarot_serde = setup_kakarot_serde(&TestProgram::ModelMemory);
+
+        // Set`word_dict` as non-relocatable value
+        let dict_start =
+            MaybeRelocatable::RelocatableValue(Relocatable { segment_index: 0, offset: 15 });
+        let dict_end = MaybeRelocatable::Int(Felt252::from(123));
+
+        let ptr = kakarot_serde
+            .runner
+            .vm
+            .gen_arg(&vec![dict_start, dict_end.clone()])
+            .unwrap()
+            .get_relocatable()
+            .expect("failed to insert non-relocatable pointers into memory");
+
+        // Call serialize_memory with non-relocatable pointers
+        let result = kakarot_serde.serialize_memory(ptr);
+
+        // The result should be an error indicating incorrect pointer values
+        assert_eq!(
+            result,
+            Err(KakarotSerdeError::IncorrectPointerValue {
+                member: "word_dict".to_string(),
+                got_value: Some(Some(dict_end)),
+                expected_value: PointerValue::Relocatable
+            })
+        );
+    }
+
+    #[test]
+    fn test_serialize_memory_relocatable_words_len() {
+        // Setup
+        let mut kakarot_serde = setup_kakarot_serde(&TestProgram::ModelMemory);
+
+        // Some dictionary pointers indicating:
+        // - the start of the dictionary
+        // - the end of the dictionary
+        // - we voluntarily set the length of the dictionary to be relocatable (not correct)
+        let dict_start =
+            MaybeRelocatable::RelocatableValue(Relocatable { segment_index: 0, offset: 3 });
+        let dict_end =
+            MaybeRelocatable::RelocatableValue(Relocatable { segment_index: 0, offset: 15 });
+        let words_len =
+            MaybeRelocatable::RelocatableValue(Relocatable { segment_index: 0, offset: 16 });
+
+        // Key-value pairs to be inserted into the dictionary
+        let key1 = MaybeRelocatable::Int(Felt252::from(0));
+        let key2 = MaybeRelocatable::Int(Felt252::from(1));
+        let key3 = MaybeRelocatable::Int(Felt252::from(2));
+        let key4 = MaybeRelocatable::Int(Felt252::from(3));
+        let value1 = MaybeRelocatable::Int(Felt252::from(10));
+        let value2 = MaybeRelocatable::Int(Felt252::from(20));
+        let value3 = MaybeRelocatable::Int(Felt252::from(30));
+        let value4 = MaybeRelocatable::Int(Felt252::from(40));
+
+        // Insert the dictionary key-value pairs into memory
+        let dict_ptr = kakarot_serde
+            .runner
+            .vm
+            .gen_arg(&vec![
+                dict_start,
+                dict_end,
+                words_len,
+                key1,
+                MaybeRelocatable::Int(Felt252::ZERO),
+                value1,
+                key2,
+                MaybeRelocatable::Int(Felt252::ZERO),
+                value2,
+                key3,
+                MaybeRelocatable::Int(Felt252::ZERO),
+                value3,
+                key4,
+                MaybeRelocatable::Int(Felt252::ZERO),
+                value4,
+            ])
+            .unwrap()
+            .get_relocatable()
+            .expect("failed to insert key-value pairs into memory");
+
+        // Call serialize_memory with missing `words_len`
+        let result = kakarot_serde.serialize_memory(dict_ptr);
+
+        // The result should be an error indicating the missing `words_len` field
+        assert_eq!(
+            result,
+            Err(KakarotSerdeError::IncorrectPointerValue {
+                member: "words_len".to_string(),
+                got_value: Some(Some(MaybeRelocatable::RelocatableValue(Relocatable {
+                    segment_index: 0,
+                    offset: 16
+                }))),
+                expected_value: PointerValue::Felt
+            })
+        );
     }
 }
