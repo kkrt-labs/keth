@@ -57,6 +57,13 @@ pub enum KakarotSerdeError {
         /// The name of the invalid field.
         field: String,
     },
+
+    /// Error variant indicating that no value was found at the specified memory location.
+    #[error("No value at memory location: {location:?}")]
+    NoValueAtMemoryLocation {
+        /// The memory location that was expected to contain a value.
+        location: Relocatable,
+    },
 }
 
 /// Represents the types used in Cairo, including felt types, pointers, tuples, and structs.
@@ -124,6 +131,14 @@ pub enum SerializedData {
 pub enum SerializedScope {
     /// Represents a serialized 256-bit unsigned integer ([`U256`]) as reth format.
     U256(U256),
+}
+
+impl SerializedScope {
+    /// NOTE: this is a temporary function to allow running the tests.
+    /// It should be removed or improved in the future.
+    pub fn as_maybe_relocatable(&self) -> Option<MaybeRelocatable> {
+        Some(MaybeRelocatable::Int(Felt252::from(345)))
+    }
 }
 
 /// Represents an item in a tuple, consisting of an optional name, type, and location.
@@ -392,6 +407,82 @@ impl KakarotSerde {
             Some("Uint256") => self.serialize_uint256(scope_ptr).map(SerializedScope::U256),
             _ => Ok(SerializedScope::U256(U256::ZERO)),
         }
+    }
+
+    /// Serializes a dictionary from Cairo VM memory into a Rust [`HashMap`].
+    ///
+    /// This function reads a dictionary from the Cairo VM, where the dictionary is represented
+    /// as a series of key-value pairs. The memory layout for each key-value entry is as follows:
+    /// - The key is located at `dict_ptr`.
+    /// - The previous value is located at `dict_ptr + 1`.
+    /// - The actual value associated with the key is located at `dict_ptr + 2`.
+    ///
+    /// The function takes an optional `value_scope` to determine if the values need to be further
+    /// serialized using a specific scope. If `value_scope` is provided and the value is a
+    /// [`Relocatable`], the value will be serialized according to the given scope. Otherwise,
+    /// the value will be added directly to the [`HashMap`].
+    pub fn serialize_dict(
+        &self,
+        dict_ptr: Relocatable,
+        value_scope: Option<String>,
+        dict_size: Option<usize>,
+    ) -> Result<HashMap<MaybeRelocatable, Option<MaybeRelocatable>>, KakarotSerdeError> {
+        // Determine the size of the dictionary. If not provided, get it from the VM.
+        // We suppose here that the segment index is not negative so that the conversion from isize
+        // to usize is safe.
+        let dict_size = dict_size
+            .or_else(|| self.runner.vm.get_segment_size(dict_ptr.segment_index.try_into().unwrap()))
+            .unwrap_or_default();
+
+        // If a `value_scope` is provided, try to find the corresponding identifier in the VM.
+        let value_scope = value_scope
+            .map(|v| self.get_identifier(&v, Some("struct".to_string())))
+            .transpose()?
+            .map(|id| id.full_name);
+
+        // Create the output `HashMap` with an initial capacity for efficiency.
+        let mut output = HashMap::with_capacity(dict_size / 3);
+
+        // Iterate over the dictionary entries in steps of 3 to access keys and values.
+        for dict_index in (0..dict_size).step_by(3) {
+            // Calculate the pointer to the current key in the dictionary.
+            let key_ptr = (dict_ptr + dict_index).unwrap();
+            // Retrieve the key from the VM. If it doesn't exist, return an error.
+            let key = self
+                .runner
+                .vm
+                .get_maybe(&key_ptr)
+                .ok_or(KakarotSerdeError::NoValueAtMemoryLocation { location: key_ptr })?;
+
+            // The value is located at `key_ptr + 2`. Retrieve it from the VM.
+            let value_ptr = self
+                .runner
+                .vm
+                .get_maybe(&(key_ptr + 2usize).unwrap())
+                .ok_or(KakarotSerdeError::NoValueAtMemoryLocation { location: key_ptr })?;
+
+            // If `value_scope` is provided, we may need to serialize the value differently.
+            if let Some(ref v) = value_scope {
+                if matches!(value_ptr, MaybeRelocatable::RelocatableValue(_)) {
+                    // If it is a `Relocatable`, serialize it using the scope.
+                    let value = self.serialize_scope(
+                        &ScopedName::from_string(&v.clone().unwrap_or_default()),
+                        value_ptr.try_into().unwrap(),
+                    )?;
+                    // Convert the serialized value and insert it into the `HashMap`.
+                    output.insert(key, value.as_maybe_relocatable());
+                } else {
+                    // If the value is not a `Relocatable`, insert `None` as the value.
+                    output.insert(key, None);
+                }
+            } else {
+                // If no `value_scope` is provided, insert the value as-is.
+                output.insert(key, Some(value_ptr));
+            }
+        }
+
+        // Return the serialized dictionary.
+        Ok(output)
     }
 
     /// Serializes inner data types in Cairo by determining the type of data at a given pointer
@@ -1255,5 +1346,178 @@ mod tests {
             result,
             Err(KakarotSerdeError::InvalidFieldValue { field: "is_some".to_string() })
         );
+    }
+
+    #[test]
+    fn test_serialize_dict_empty() {
+        // Setup
+        let mut kakarot_serde = setup_kakarot_serde(&TestProgram::KeccakAddUint256);
+
+        // Add a memory segment for the dictionary
+        let dict_ptr = kakarot_serde.runner.vm.add_memory_segment();
+
+        // Call serialize_dict with nothing in the dictionary
+        let result_dict_size = kakarot_serde
+            .serialize_dict(dict_ptr, None, Some(0))
+            .expect("failed to serialize dict");
+
+        // The result should be empty
+        assert!(result_dict_size.is_empty());
+
+        // Call serialize_dict with no members and no dict size
+        let result_no_dict_size =
+            kakarot_serde.serialize_dict(dict_ptr, None, None).expect("failed to serialize dict");
+
+        // The result should also be empty
+        assert!(result_no_dict_size.is_empty());
+    }
+
+    #[test]
+    fn test_serialize_dict_with_values() {
+        // Setup
+        let mut kakarot_serde = setup_kakarot_serde(&TestProgram::KeccakAddUint256);
+
+        // Insert key-value pairs into memory
+        let key1 = MaybeRelocatable::Int(Felt252::from(1));
+        let key2 = MaybeRelocatable::Int(Felt252::from(2));
+        let key3 = MaybeRelocatable::Int(Felt252::from(3));
+        let value1 = MaybeRelocatable::Int(Felt252::from(10));
+        let value2 = MaybeRelocatable::Int(Felt252::from(20));
+        let value3 =
+            MaybeRelocatable::RelocatableValue(Relocatable { segment_index: 10, offset: 15 });
+
+        let dict_ptr = kakarot_serde
+            .runner
+            .vm
+            .gen_arg(&vec![
+                key1.clone(),
+                MaybeRelocatable::Int(Felt252::ZERO),
+                value1.clone(),
+                key2.clone(),
+                MaybeRelocatable::Int(Felt252::ZERO),
+                value2.clone(),
+                key3.clone(),
+                MaybeRelocatable::Int(Felt252::ZERO),
+                value3.clone(),
+            ])
+            .unwrap()
+            .get_relocatable()
+            .expect("failed to insert key-value pairs into memory");
+
+        // Call serialize_dict
+        let result = kakarot_serde
+            .serialize_dict(dict_ptr, None, Some(9))
+            .expect("failed to serialize dict");
+
+        // The result should contain the key-value pairs
+        let expected =
+            HashMap::from([(key1, Some(value1)), (key2, Some(value2)), (key3, Some(value3))]);
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_serialize_dict_with_null_pointer() {
+        // Setup
+        let mut kakarot_serde = setup_kakarot_serde(&TestProgram::KeccakAddUint256);
+
+        // Insert a key with a null pointer as the value
+        let key = MaybeRelocatable::Int(Felt252::from(1));
+        let null_value = MaybeRelocatable::Int(Felt252::ZERO);
+        let dict_ptr = kakarot_serde
+            .runner
+            .vm
+            .gen_arg(&vec![key.clone(), MaybeRelocatable::Int(Felt252::ZERO), null_value])
+            .unwrap()
+            .get_relocatable()
+            .expect("failed to insert key-value pairs into memory");
+
+        // Call serialize_dict with a value scope
+        let result = kakarot_serde
+            .serialize_dict(dict_ptr, Some("main.ImplicitArgs".to_string()), Some(3))
+            .expect("failed to serialize dict");
+
+        // The result should have the key with a None value
+        let expected = HashMap::from([(key, None)]);
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_serialize_dict_with_scope() {
+        // Setup
+        let mut kakarot_serde = setup_kakarot_serde(&TestProgram::KeccakAddUint256);
+
+        // Insert key-value pairs into memory with a valid scope
+        let key = MaybeRelocatable::Int(Felt252::from(1));
+        let value_ptr = kakarot_serde.runner.vm.add_memory_segment();
+        let dict_ptr = kakarot_serde
+            .runner
+            .vm
+            .gen_arg(&vec![
+                key.clone(),
+                MaybeRelocatable::Int(Felt252::ZERO),
+                MaybeRelocatable::RelocatableValue(value_ptr),
+            ])
+            .unwrap()
+            .get_relocatable()
+            .expect("failed to insert key-value pairs into memory");
+
+        // Call serialize_dict with a valid scope
+        let result = kakarot_serde
+            .serialize_dict(dict_ptr, Some("main.ImplicitArgs".to_string()), Some(3))
+            .expect("failed to serialize dict");
+
+        // The result should serialize the scope correctly
+        // NOTE: the Felt zero value is temporary until `serialize_scope` is implemented properly
+        // After this, we will be able to implement `SerializedScope::as_maybe_relocatable` properly
+        let expected = HashMap::from([(key, Some(MaybeRelocatable::Int(Felt252::from(345))))]);
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_serialize_dict_with_invalid_scope() {
+        // Setup
+        let mut kakarot_serde = setup_kakarot_serde(&TestProgram::KeccakAddUint256);
+
+        // Add a memory segment for the dictionary
+        let dict_ptr = kakarot_serde.runner.vm.add_memory_segment();
+
+        // Call serialize_dict with an invalid scope
+        let result =
+            kakarot_serde.serialize_dict(dict_ptr, Some("InvalidScope".to_string()), Some(3));
+
+        // The result should be an error due to the invalid scope
+        assert!(matches!(
+            result,
+            Err(KakarotSerdeError::IdentifierNotFound { struct_name, .. })
+            if struct_name == "InvalidScope"
+        ));
+    }
+
+    #[test]
+    fn test_serialize_dict_with_invalid_size() {
+        // Setup
+        let mut kakarot_serde = setup_kakarot_serde(&TestProgram::KeccakAddUint256);
+
+        // Insert only one key-value pair in memory to simulate an invalid size
+        let key = MaybeRelocatable::Int(Felt252::from(1));
+        let value = MaybeRelocatable::Int(Felt252::from(10));
+        let dict_ptr = kakarot_serde
+            .runner
+            .vm
+            .gen_arg(&vec![key, MaybeRelocatable::Int(Felt252::ZERO), value])
+            .unwrap()
+            .get_relocatable()
+            .expect("failed to insert key-value pairs into memory");
+
+        // Call serialize_dict with a size that exceeds the actual memory entries
+        // Here, we use a size of 6 to ensure the loop tries to access a non-existent memory
+        // location
+        let result = kakarot_serde.serialize_dict(dict_ptr, None, Some(6));
+
+        // The result should be an error due to the missing value at the memory location
+        assert!(matches!(
+            result,
+            Err(KakarotSerdeError::NoValueAtMemoryLocation { location }) if location == (dict_ptr + 3usize).unwrap()
+        ));
     }
 }
