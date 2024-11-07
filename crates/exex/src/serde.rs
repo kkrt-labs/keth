@@ -12,9 +12,12 @@ use cairo_vm::{
 use std::collections::HashMap;
 use thiserror::Error;
 
+/// Represents the different types of values that can be stored in a pointer.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum PointerValue {
+    /// Relocatable value.
     Relocatable,
+    /// Integer value.
     Felt,
 }
 
@@ -90,12 +93,6 @@ pub enum KakarotSerdeError {
         /// The expected value type.
         expected_value: PointerValue,
     },
-    // /// Error variant indicating that a key is missing from a dictionary.
-    // #[error("A key is missing from the dictionary: {key:?}")]
-    // MissingDictKey {
-    //     /// The key that is missing from the dictionary.
-    //     key: MaybeRelocatable,
-    // },
 }
 
 /// Represents the types used in Cairo, including felt types, pointers, tuples, and structs.
