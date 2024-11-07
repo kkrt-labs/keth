@@ -452,7 +452,7 @@ mod tests {
         let program = Program::from_bytes(program_content, Some("main")).unwrap();
 
         // Initialize a CairoRunner with the created program and default parameters
-        let runner = CairoRunner::new(&program, LayoutName::plain, false, false).unwrap();
+        let runner = CairoRunner::new(&program, LayoutName::plain, None, false, false).unwrap();
 
         // Return an instance of KakarotSerde
         KakarotSerde { runner }
@@ -472,7 +472,8 @@ mod tests {
                 value: None,
                 full_name: None,
                 members: None,
-                cairo_type: None
+                cairo_type: None,
+                size: None
             }
         );
 
@@ -487,7 +488,8 @@ mod tests {
                     "starkware.cairo.common.uint256.word_reverse_endian.__temp0".to_string()
                 ),
                 members: None,
-                cairo_type: Some("felt".to_string())
+                cairo_type: Some("felt".to_string()),
+                size: None
             }
         );
     }
