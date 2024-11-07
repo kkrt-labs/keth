@@ -1657,7 +1657,7 @@ mod tests {
     }
 
     #[test]
-    fn test_serialize_memory_with_valid_pointers() {
+    fn test_serialize_memory_with_valid_pointers_simple() {
         // Setup
         let mut kakarot_serde = setup_kakarot_serde(&TestProgram::ModelMemory);
 
@@ -1695,6 +1695,64 @@ mod tests {
                 key2,
                 MaybeRelocatable::Int(Felt252::ZERO),
                 value2,
+                key3,
+                MaybeRelocatable::Int(Felt252::ZERO),
+                value3,
+                key4,
+                MaybeRelocatable::Int(Felt252::ZERO),
+                value4,
+            ])
+            .unwrap()
+            .get_relocatable()
+            .expect("failed to insert key-value pairs into memory");
+
+        // Call serialize_memory with the valid pointers
+        let result = kakarot_serde.serialize_memory(dict_ptr).expect("failed to serialize memory");
+
+        // The result should be a string representation of the serialized memory
+        assert_eq!(result, "0000000000000000000000000000000a000000000000000000000000000000140000000000000000000000000000001e00000000000000000000000000000028".to_string());
+    }
+
+    #[test]
+    fn test_serialize_memory_with_valid_pointers_holes() {
+        // Setup
+        let mut kakarot_serde = setup_kakarot_serde(&TestProgram::ModelMemory);
+
+        // Some dictionary pointers indicating:
+        // - the start of the dictionary
+        // - the end of the dictionary
+        // - the length of the dictionary in words
+        let dict_start =
+            MaybeRelocatable::RelocatableValue(Relocatable { segment_index: 0, offset: 3 });
+        let dict_end =
+            MaybeRelocatable::RelocatableValue(Relocatable { segment_index: 0, offset: 15 });
+        let words_len = MaybeRelocatable::Int(Felt252::from(3));
+
+        // Key-value pairs to be inserted into the dictionary
+        let key1 = MaybeRelocatable::Int(Felt252::from(0));
+        let key2 = MaybeRelocatable::Int(Felt252::from(1));
+        let key3 = MaybeRelocatable::Int(Felt252::from(2));
+        let key4 = MaybeRelocatable::Int(Felt252::from(5));
+
+        let value1 = MaybeRelocatable::Int(Felt252::from(10));
+        let value2 = MaybeRelocatable::Int(Felt252::from(20));
+        let value3 = MaybeRelocatable::Int(Felt252::from(30));
+        let value4 = MaybeRelocatable::Int(Felt252::from(40));
+
+        // Insert the dictionary key-value pairs into memory
+        let dict_ptr = kakarot_serde
+            .runner
+            .vm
+            .gen_arg(&vec![
+                dict_start,
+                dict_end,
+                words_len,
+                key2,
+                MaybeRelocatable::Int(Felt252::ZERO),
+                value2,
+                key1,
+                MaybeRelocatable::Int(Felt252::ZERO),
+                value1,
                 key3,
                 MaybeRelocatable::Int(Felt252::ZERO),
                 value3,
