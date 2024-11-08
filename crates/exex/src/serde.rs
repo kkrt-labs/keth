@@ -179,9 +179,9 @@ pub enum SerializedScope {
 impl SerializedScope {
     /// NOTE: this is a temporary function to allow running the tests.
     /// It should be removed or improved in the future.
-    pub fn as_serialized_result(&self) -> SerializedResult {
+    pub const fn as_serialized_result(&self) -> SerializedResult {
         match self {
-            Self::U256(value) => SerializedResult::U256(value.clone()),
+            Self::U256(value) => SerializedResult::U256(*value),
         }
     }
 }
