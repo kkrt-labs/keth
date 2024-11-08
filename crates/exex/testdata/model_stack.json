@@ -46,6 +46,10 @@
       "destination": "starkware.cairo.common.dict.DictAccess",
       "type": "alias"
     },
+    "__main__.Uint256": {
+      "destination": "starkware.cairo.common.uint256.Uint256",
+      "type": "alias"
+    },
     "__main__.__end__": {
       "pc": 4,
       "type": "label"
@@ -103,6 +107,21 @@
           },
           "pc": 13,
           "value": "[cast(ap + (-1), starkware.cairo.common.dict_access.DictAccess**)]"
+        }
+      ],
+      "type": "reference"
+    },
+    "__main__.main.num": {
+      "cairo_type": "starkware.cairo.common.uint256.Uint256",
+      "full_name": "__main__.main.num",
+      "references": [
+        {
+          "ap_tracking_data": {
+            "group": 3,
+            "offset": 4
+          },
+          "pc": 13,
+          "value": "cast((34623634663146736, 598249824422424658356), starkware.cairo.common.uint256.Uint256)"
         }
       ],
       "type": "reference"
@@ -1298,6 +1317,14 @@
         },
         "pc": 13,
         "value": "cast(([ap + (-1)], [ap + (-1)], 0), src.model.model.Stack)"
+      },
+      {
+        "ap_tracking_data": {
+          "group": 3,
+          "offset": 4
+        },
+        "pc": 13,
+        "value": "cast((34623634663146736, 598249824422424658356), starkware.cairo.common.uint256.Uint256)"
       }
     ]
   }

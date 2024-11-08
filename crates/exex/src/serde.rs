@@ -151,6 +151,20 @@ pub enum SerializedData {
     Felt(Option<MaybeRelocatable>),
 }
 
+/// Represents the different types of serialized values that can be extracted from the Cairo VM.
+///
+/// This enum provides a way to handle serialized data.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum SerializedResult {
+    /// A serialized 256-bit unsigned integer in the form of a [`U256`].
+    U256(U256),
+
+    /// A temporary data structure.
+    ///
+    /// This is a placeholder that should be removed or improved in the future.
+    Tmp(MaybeRelocatable),
+}
+
 /// Defines various scope-based data formats serialized within Cairo VM, mapping them
 /// to Rust representations.
 ///
@@ -165,8 +179,10 @@ pub enum SerializedScope {
 impl SerializedScope {
     /// NOTE: this is a temporary function to allow running the tests.
     /// It should be removed or improved in the future.
-    pub fn as_maybe_relocatable(&self) -> Option<MaybeRelocatable> {
-        Some(MaybeRelocatable::Int(Felt252::from(345)))
+    pub fn as_serialized_result(&self) -> SerializedResult {
+        match self {
+            Self::U256(value) => SerializedResult::U256(value.clone()),
+        }
     }
 }
 
@@ -455,7 +471,7 @@ impl KakarotSerde {
         dict_ptr: Relocatable,
         value_scope: Option<String>,
         dict_size: Option<usize>,
-    ) -> Result<HashMap<MaybeRelocatable, Option<MaybeRelocatable>>, KakarotSerdeError> {
+    ) -> Result<HashMap<MaybeRelocatable, Option<SerializedResult>>, KakarotSerdeError> {
         // Determine the size of the dictionary. If not provided, get it from the VM.
         // We suppose here that the segment index is not negative so that the conversion from isize
         // to usize is safe.
@@ -499,14 +515,14 @@ impl KakarotSerde {
                         value_ptr.try_into().unwrap(),
                     )?;
                     // Convert the serialized value and insert it into the `HashMap`.
-                    output.insert(key, value.as_maybe_relocatable());
+                    output.insert(key, Some(value.as_serialized_result()));
                 } else {
                     // If the value is not a `Relocatable`, insert `None` as the value.
                     output.insert(key, None);
                 }
             } else {
                 // If no `value_scope` is provided, insert the value as-is.
-                output.insert(key, Some(value_ptr));
+                output.insert(key, Some(SerializedResult::Tmp(value_ptr)));
             }
         }
 
@@ -582,7 +598,7 @@ impl KakarotSerde {
         // The memory is serialized as a string of 32-byte words.
         let serialized_memory = (0..words_len * 2)
             .map(|i| {
-                if let Some(Some(MaybeRelocatable::Int(value))) =
+                if let Some(Some(SerializedResult::Tmp(MaybeRelocatable::Int(value)))) =
                     memory_dict.get(&MaybeRelocatable::Int(i.into()))
                 {
                     format!("{value:032x}")
@@ -594,6 +610,87 @@ impl KakarotSerde {
 
         // Return the serialized memory as a single string.
         Ok(serialized_memory)
+    }
+
+    /// Serializes the contents of the `model.Stack` data structure from Cairo VM memory into a
+    /// vector of serialized results.
+    ///
+    /// The `model.Stack` structure is expected to have the following fields:
+    /// - `dict_ptr_start`: A pointer indicating the start of the dictionary in memory.
+    /// - `dict_ptr`: A pointer indicating the end of the dictionary in memory.
+    /// - `size`: The number of elements in the stack.
+    ///
+    /// This function deserializes the stack data by:
+    /// 1. Extracting key-value pairs from the memory segment between `dict_ptr_start` and
+    ///    `dict_ptr`.
+    /// 2. The values are then serialized into a vector of [`SerializedResult`] instances. If the
+    ///    stack contains values of type [`U256`].
+    pub fn serialize_stack(
+        &self,
+        ptr: Relocatable,
+    ) -> Result<Vec<Option<SerializedResult>>, KakarotSerdeError> {
+        // Fetch the stack structure pointers from memory using the provided `ptr`.
+        let stack = self.serialize_pointers("model.Stack", ptr)?;
+
+        // Retrieve and validate the `dict_ptr_start` pointer from the `stack` structure.
+        // - If the value is a valid `Relocatable` pointer, extract and use it.
+        // - Otherwise, return an error.
+        let dict_start = match stack.get("dict_ptr_start") {
+            Some(Some(MaybeRelocatable::RelocatableValue(ptr))) => *ptr,
+            other => {
+                return Err(KakarotSerdeError::IncorrectPointerValue {
+                    member: "dict_ptr_start".to_string(),
+                    got_value: other.cloned(),
+                    expected_value: PointerValue::Relocatable,
+                })
+            }
+        };
+
+        // Retrieve and validate the `dict_ptr` pointer from the `stack` structure.
+        // - If the value is a valid `Relocatable` pointer, extract and use it.
+        // - Otherwise, return an error.
+        let dict_end = match stack.get("dict_ptr") {
+            Some(Some(MaybeRelocatable::RelocatableValue(ptr))) => *ptr,
+            other => {
+                return Err(KakarotSerdeError::IncorrectPointerValue {
+                    member: "dict_ptr".to_string(),
+                    got_value: other.cloned(),
+                    expected_value: PointerValue::Relocatable,
+                })
+            }
+        };
+
+        // Compute the size of the stack by retrieving and validating the `size` field.
+        // - If the value is a valid `Felt` value, parse it into a `usize`.
+        // - Otherwise, return an error.
+        let size = match stack.get("size") {
+            Some(Some(MaybeRelocatable::Int(size))) => size
+                .to_string()
+                .parse::<usize>()
+                .map_err(|_| MathError::Felt252ToUsizeConversion(Box::new(*size)))?,
+            other => {
+                return Err(KakarotSerdeError::IncorrectPointerValue {
+                    member: "size".to_string(),
+                    got_value: other.cloned(),
+                    expected_value: PointerValue::Felt,
+                })
+            }
+        };
+
+        // Serialize the dictionary from `dict_ptr_start` to `dict_ptr`.
+        // - The method converts the memory data between these pointers into a
+        // `HashMap` of serialized values.
+        // - The stack is expected to contain values of type `Uint256`.
+        let stack_dict = self.serialize_dict(
+            dict_start,
+            Some("Uint256".to_string()),
+            Some((dict_end - dict_start)?),
+        )?;
+
+        // Collect and return the serialized stack as a vector
+        Ok((0..size)
+            .map(|i| stack_dict.get(&MaybeRelocatable::Int(i.into())).cloned().unwrap_or(None))
+            .collect())
     }
 
     /// Serializes inner data types in Cairo by determining the type of data at a given pointer
@@ -632,6 +729,7 @@ mod tests {
         KeccakAddUint256,
         ModelOption,
         ModelMemory,
+        ModelStack,
     }
 
     impl TestProgram {
@@ -644,6 +742,7 @@ mod tests {
                 Self::KeccakAddUint256 => include_bytes!("../testdata/keccak_add_uint256.json"),
                 Self::ModelOption => include_bytes!("../testdata/model_option.json"),
                 Self::ModelMemory => include_bytes!("../testdata/model_memory.json"),
+                Self::ModelStack => include_bytes!("../testdata/model_stack.json"),
             }
         }
     }
@@ -1523,8 +1622,11 @@ mod tests {
             .expect("failed to serialize dict");
 
         // The result should contain the key-value pairs
-        let expected =
-            HashMap::from([(key1, Some(value1)), (key2, Some(value2)), (key3, Some(value3))]);
+        let expected = HashMap::from([
+            (key1, Some(SerializedResult::Tmp(value1))),
+            (key2, Some(SerializedResult::Tmp(value2))),
+            (key3, Some(SerializedResult::Tmp(value3))),
+        ]);
         assert_eq!(result, expected);
     }
 
@@ -1581,8 +1683,8 @@ mod tests {
 
         // The result should serialize the scope correctly
         // NOTE: the Felt zero value is temporary until `serialize_scope` is implemented properly
-        // After this, we will be able to implement `SerializedScope::as_maybe_relocatable` properly
-        let expected = HashMap::from([(key, Some(MaybeRelocatable::Int(Felt252::from(345))))]);
+        // After this, we will be able to implement `SerializedScope::as_serialized_result` properly
+        let expected = HashMap::from([(key, Some(SerializedResult::U256(U256::ZERO)))]);
         assert_eq!(result, expected);
     }
 
@@ -1927,6 +2029,213 @@ mod tests {
                     segment_index: 0,
                     offset: 16
                 }))),
+                expected_value: PointerValue::Felt
+            })
+        );
+    }
+
+    #[test]
+    fn test_serialize_stack_empty() {
+        let mut kakarot_serde = setup_kakarot_serde(&TestProgram::ModelStack);
+
+        // Add an empty memory segment for the Stack
+        let ptr = kakarot_serde.runner.vm.add_memory_segment();
+
+        // Call serialize_stack on the empty memory
+        let result = kakarot_serde.serialize_stack(ptr);
+
+        // The result should be an error for missing `dict_ptr_start`
+        assert_eq!(
+            result,
+            Err(KakarotSerdeError::IncorrectPointerValue {
+                member: "dict_ptr_start".to_string(),
+                got_value: None,
+                expected_value: PointerValue::Relocatable
+            })
+        );
+    }
+
+    #[test]
+    fn test_serialize_stack_with_valid_pointers() {
+        let mut kakarot_serde = setup_kakarot_serde(&TestProgram::ModelStack);
+
+        // Some dictionary pointers indicating:
+        // - the start of the dictionary
+        // - the end of the dictionary
+        // - the length of the dictionary
+        let dict_start =
+            MaybeRelocatable::RelocatableValue(Relocatable { segment_index: 0, offset: 3 });
+        let dict_end =
+            MaybeRelocatable::RelocatableValue(Relocatable { segment_index: 0, offset: 15 });
+        let size = MaybeRelocatable::Int(Felt252::from(4));
+
+        // Key-value pairs to be inserted into the dictionary
+        let key1 = MaybeRelocatable::Int(Felt252::from(0));
+        let key2 = MaybeRelocatable::Int(Felt252::from(1));
+        let key3 = MaybeRelocatable::Int(Felt252::from(2));
+        let key4 = MaybeRelocatable::Int(Felt252::from(3));
+        let value1 =
+            MaybeRelocatable::RelocatableValue(Relocatable { segment_index: 0, offset: 15 });
+        let value2 = MaybeRelocatable::Int(Felt252::from(20));
+        let value3 = MaybeRelocatable::Int(Felt252::from(30));
+        let value4 =
+            MaybeRelocatable::RelocatableValue(Relocatable { segment_index: 0, offset: 17 });
+
+        // Two U256 values to be inserted into the stack
+        let x =
+            U256::from_str("0x52f8f61201b2b11a78d6e866abc9c3db2ae8631fa656bfe5cb53668255367afb")
+                .unwrap();
+        let y = U256::from_str(
+            "18515461264373351373200002665853028612451056578545711640558177340181847433846",
+        )
+        .unwrap();
+
+        // Transform the U256 values into Felt252 values
+        let x_low =
+            Felt252::from_bytes_be_slice(&x.to_be_bytes::<{ U256::BYTES }>()[U128_BYTES_SIZE..]);
+        let x_high =
+            Felt252::from_bytes_be_slice(&x.to_be_bytes::<{ U256::BYTES }>()[0..U128_BYTES_SIZE]);
+        let y_low =
+            Felt252::from_bytes_be_slice(&y.to_be_bytes::<{ U256::BYTES }>()[U128_BYTES_SIZE..]);
+        let y_high =
+            Felt252::from_bytes_be_slice(&y.to_be_bytes::<{ U256::BYTES }>()[0..U128_BYTES_SIZE]);
+
+        // Insert into memory the dictionary:
+        // - key-value pairs
+        // - the U256 values
+        let ptr = kakarot_serde
+            .runner
+            .vm
+            .gen_arg(&vec![
+                dict_start,
+                dict_end,
+                size,
+                key1,
+                MaybeRelocatable::Int(Felt252::ZERO),
+                value1,
+                key2,
+                MaybeRelocatable::Int(Felt252::ZERO),
+                value2,
+                key3,
+                MaybeRelocatable::Int(Felt252::ZERO),
+                value3,
+                key4,
+                MaybeRelocatable::Int(Felt252::ZERO),
+                value4,
+                MaybeRelocatable::Int(x_low),
+                MaybeRelocatable::Int(x_high),
+                MaybeRelocatable::Int(y_low),
+                MaybeRelocatable::Int(y_high),
+            ])
+            .unwrap()
+            .get_relocatable()
+            .expect("failed to insert key-value pairs into memory");
+
+        // Call serialize_stack with valid pointers
+        let result = kakarot_serde.serialize_stack(ptr).expect("failed to serialize stack");
+
+        // The result should be a vector of serialized values
+        assert_eq!(
+            result,
+            vec![Some(SerializedResult::U256(x)), None, None, Some(SerializedResult::U256(y))]
+        );
+    }
+
+    #[test]
+    fn test_serialize_stack_invalid_dict_ptr_start() {
+        let mut kakarot_serde = setup_kakarot_serde(&TestProgram::ModelStack);
+
+        // Setup `dict_ptr_start` as a non-relocatable value
+        let dict_start = MaybeRelocatable::Int(Felt252::from(123));
+        let dict_end =
+            MaybeRelocatable::RelocatableValue(Relocatable { segment_index: 0, offset: 15 });
+        let size = MaybeRelocatable::Int(Felt252::from(2));
+
+        // Insert the invalid `dict_ptr_start` into memory
+        let ptr = kakarot_serde
+            .runner
+            .vm
+            .gen_arg(&vec![dict_start.clone(), dict_end, size])
+            .unwrap()
+            .get_relocatable()
+            .expect("failed to insert invalid dict_ptr_start into memory");
+
+        // Call serialize_stack expecting an error
+        let result = kakarot_serde.serialize_stack(ptr);
+
+        // The result should be an error indicating the incorrect pointer value
+        assert_eq!(
+            result,
+            Err(KakarotSerdeError::IncorrectPointerValue {
+                member: "dict_ptr_start".to_string(),
+                got_value: Some(Some(dict_start)),
+                expected_value: PointerValue::Relocatable
+            })
+        );
+    }
+
+    #[test]
+    fn test_serialize_stack_invalid_dict_ptr() {
+        let mut kakarot_serde = setup_kakarot_serde(&TestProgram::ModelStack);
+
+        // Setup `dict_ptr` as a non-relocatable value
+        let dict_start =
+            MaybeRelocatable::RelocatableValue(Relocatable { segment_index: 0, offset: 3 });
+        let dict_end = MaybeRelocatable::Int(Felt252::from(123));
+        let size = MaybeRelocatable::Int(Felt252::from(2));
+
+        // Insert the invalid `dict_ptr` into memory
+        let ptr = kakarot_serde
+            .runner
+            .vm
+            .gen_arg(&vec![dict_start, dict_end.clone(), size])
+            .unwrap()
+            .get_relocatable()
+            .expect("failed to insert invalid dict_ptr into memory");
+
+        // Call serialize_stack expecting an error
+        let result = kakarot_serde.serialize_stack(ptr);
+
+        // The result should be an error indicating the incorrect pointer value
+        assert_eq!(
+            result,
+            Err(KakarotSerdeError::IncorrectPointerValue {
+                member: "dict_ptr".to_string(),
+                got_value: Some(Some(dict_end)),
+                expected_value: PointerValue::Relocatable
+            })
+        );
+    }
+
+    #[test]
+    fn test_serialize_stack_invalid_size() {
+        let mut kakarot_serde = setup_kakarot_serde(&TestProgram::ModelStack);
+
+        // Setup `size` as a relocatable value
+        let dict_start =
+            MaybeRelocatable::RelocatableValue(Relocatable { segment_index: 0, offset: 3 });
+        let dict_end =
+            MaybeRelocatable::RelocatableValue(Relocatable { segment_index: 0, offset: 15 });
+        let size = MaybeRelocatable::RelocatableValue(Relocatable { segment_index: 0, offset: 16 });
+
+        // Insert the invalid `size` into memory
+        let ptr = kakarot_serde
+            .runner
+            .vm
+            .gen_arg(&vec![dict_start, dict_end, size.clone()])
+            .unwrap()
+            .get_relocatable()
+            .expect("failed to insert invalid size into memory");
+
+        // Call serialize_stack expecting an error
+        let result = kakarot_serde.serialize_stack(ptr);
+
+        // The result should be an error indicating the incorrect pointer value
+        assert_eq!(
+            result,
+            Err(KakarotSerdeError::IncorrectPointerValue {
+                member: "size".to_string(),
+                got_value: Some(Some(size)),
                 expected_value: PointerValue::Felt
             })
         );
