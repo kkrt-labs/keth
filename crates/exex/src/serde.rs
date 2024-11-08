@@ -2056,7 +2056,7 @@ mod tests {
     }
 
     #[test]
-    fn test_serialize_stack_with_valid_pointers() {
+    fn test_serialize_stack_with_valid_pointers_basic() {
         let mut kakarot_serde = setup_kakarot_serde(&TestProgram::ModelStack);
 
         // Some dictionary pointers indicating:
@@ -2122,6 +2122,92 @@ mod tests {
                 key4,
                 MaybeRelocatable::Int(Felt252::ZERO),
                 value4,
+                MaybeRelocatable::Int(x_low),
+                MaybeRelocatable::Int(x_high),
+                MaybeRelocatable::Int(y_low),
+                MaybeRelocatable::Int(y_high),
+            ])
+            .unwrap()
+            .get_relocatable()
+            .expect("failed to insert key-value pairs into memory");
+
+        // Call serialize_stack with valid pointers
+        let result = kakarot_serde.serialize_stack(ptr).expect("failed to serialize stack");
+
+        // The result should be a vector of serialized values
+        assert_eq!(
+            result,
+            vec![Some(SerializedResult::U256(x)), None, None, Some(SerializedResult::U256(y))]
+        );
+    }
+
+    #[test]
+    fn test_serialize_stack_with_valid_pointers_mixed_order() {
+        let mut kakarot_serde = setup_kakarot_serde(&TestProgram::ModelStack);
+
+        // Some dictionary pointers indicating:
+        // - the start of the dictionary
+        // - the end of the dictionary
+        // - the length of the dictionary
+        let dict_start =
+            MaybeRelocatable::RelocatableValue(Relocatable { segment_index: 0, offset: 3 });
+        let dict_end =
+            MaybeRelocatable::RelocatableValue(Relocatable { segment_index: 0, offset: 15 });
+        let size = MaybeRelocatable::Int(Felt252::from(4));
+
+        // Key-value pairs to be inserted into the dictionary
+        let key1 = MaybeRelocatable::Int(Felt252::from(0));
+        let key2 = MaybeRelocatable::Int(Felt252::from(1));
+        let key3 = MaybeRelocatable::Int(Felt252::from(2));
+        let key4 = MaybeRelocatable::Int(Felt252::from(3));
+        let value1 =
+            MaybeRelocatable::RelocatableValue(Relocatable { segment_index: 0, offset: 15 });
+        let value2 = MaybeRelocatable::Int(Felt252::from(20));
+        let value3 = MaybeRelocatable::Int(Felt252::from(30));
+        let value4 =
+            MaybeRelocatable::RelocatableValue(Relocatable { segment_index: 0, offset: 17 });
+
+        // Two U256 values to be inserted into the stack
+        let x =
+            U256::from_str("0x52f8f61201b2b11a78d6e866abc9c3db2ae8631fa656bfe5cb53668255367afb")
+                .unwrap();
+        let y = U256::from_str(
+            "18515461264373351373200002665853028612451056578545711640558177340181847433846",
+        )
+        .unwrap();
+
+        // Transform the U256 values into Felt252 values
+        let x_low =
+            Felt252::from_bytes_be_slice(&x.to_be_bytes::<{ U256::BYTES }>()[U128_BYTES_SIZE..]);
+        let x_high =
+            Felt252::from_bytes_be_slice(&x.to_be_bytes::<{ U256::BYTES }>()[0..U128_BYTES_SIZE]);
+        let y_low =
+            Felt252::from_bytes_be_slice(&y.to_be_bytes::<{ U256::BYTES }>()[U128_BYTES_SIZE..]);
+        let y_high =
+            Felt252::from_bytes_be_slice(&y.to_be_bytes::<{ U256::BYTES }>()[0..U128_BYTES_SIZE]);
+
+        // Insert into memory the dictionary:
+        // - key-value pairs (we voluntarily insert them in a mixed order to test the serialization)
+        // - the U256 values
+        let ptr = kakarot_serde
+            .runner
+            .vm
+            .gen_arg(&vec![
+                dict_start,
+                dict_end,
+                size,
+                key4,
+                MaybeRelocatable::Int(Felt252::ZERO),
+                value4,
+                key3,
+                MaybeRelocatable::Int(Felt252::ZERO),
+                value3,
+                key1,
+                MaybeRelocatable::Int(Felt252::ZERO),
+                value1,
+                key2,
+                MaybeRelocatable::Int(Felt252::ZERO),
+                value2,
                 MaybeRelocatable::Int(x_low),
                 MaybeRelocatable::Int(x_high),
                 MaybeRelocatable::Int(y_low),
