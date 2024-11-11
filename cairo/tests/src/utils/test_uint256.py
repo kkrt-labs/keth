@@ -36,4 +36,4 @@ class TestUint256:
             res = cairo_run(
                 "test__uint256_sub", a=int_to_uint256(a), b=int_to_uint256(b)
             )
-            assert int(res, 16) == (a - b) % 2**256
+            assert res == (a - b) % 2**256

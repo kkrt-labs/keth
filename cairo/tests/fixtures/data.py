@@ -1,6 +1,6 @@
 import pytest
 
-from tests.utils.models import Account, Block, State
+from tests.utils.models import Block, State
 
 
 @pytest.fixture
@@ -59,18 +59,6 @@ def block():
             ],
             "uncleHeaders": [],
             "withdrawals": [],
-        }
-    )
-
-
-@pytest.fixture
-def account():
-    return Account.model_validate(
-        {
-            "balance": "0x00",
-            "code": "0x7fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebf5f527fc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedf6020527fe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff60405260786040356020355f35608a565b5f515f55602051600155604051600255005b5e56",
-            "nonce": "0x01",
-            "storage": {"0x1": "0xabde1"},
         }
     )
 

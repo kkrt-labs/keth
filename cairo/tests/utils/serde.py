@@ -1,38 +1,73 @@
 from typing import Optional
 
 from eth_utils.address import to_checksum_address
+from ethereum.base_types import (
+    U64,
+    U256,
+    Bytes0,
+    Bytes8,
+    Bytes20,
+    Bytes32,
+    Bytes256,
+    Uint,
+)
+from ethereum.cancun.blocks import Block, Header, Log, Receipt, Withdrawal
+from ethereum.cancun.fork_types import Account
 from starkware.cairo.lang.compiler.ast.cairo_types import (
     TypeFelt,
     TypePointer,
     TypeStruct,
     TypeTuple,
 )
-from starkware.cairo.lang.compiler.identifier_definition import StructDefinition
+from starkware.cairo.lang.compiler.identifier_definition import (
+    StructDefinition,
+    TypeDefinition,
+)
 from starkware.cairo.lang.compiler.identifier_manager import MissingIdentifierError
 
 
-class Serde:
-    def __init__(self, runner):
-        self.runner = runner
-        self.memory = runner.segments.memory
+def get_cairo_type(program, name):
+    identifiers = [
+        value
+        for key, value in program.identifiers.as_dict().items()
+        if name in str(key) and name.split(".")[-1] == str(key).split(".")[-1]
+    ]
+    if len(identifiers) != 1:
+        raise ValueError(f"Expected one type named {name}, found {identifiers}")
+    identifier = identifiers[0]
 
-    def get_identifier(self, struct_name, expected_type):
-        identifiers = [
-            value
-            for key, value in self.runner.program.identifiers.as_dict().items()
-            if struct_name in str(key)
-            and isinstance(value, expected_type)
-            and struct_name.split(".")[-1] == str(key).split(".")[-1]
-        ]
-        if len(identifiers) != 1:
-            raise ValueError(
-                f"Expected one struct named {struct_name}, found {identifiers}"
-            )
-        return identifiers[0]
+    if isinstance(identifier, TypeDefinition):
+        return identifier.cairo_type
+    if isinstance(identifier, StructDefinition):
+        return TypeStruct(scope=identifier.full_name, location=identifier.location)
+
+    return identifier
+
+
+def get_struct_definition(program, struct_name):
+    identifiers = [
+        value
+        for key, value in program.identifiers.as_dict().items()
+        if struct_name in str(key)
+        and isinstance(value, StructDefinition)
+        and struct_name.split(".")[-1] == str(key).split(".")[-1]
+    ]
+    if len(identifiers) != 1:
+        raise ValueError(
+            f"Expected one struct named {struct_name}, found {identifiers}"
+        )
+    return identifiers[0]
+
+
+class Serde:
+    def __init__(self, segments, program):
+        self.segments = segments
+        self.memory = segments.memory
+        self.program = program
 
     def serialize_list(self, segment_ptr, item_scope=None, list_len=None):
         item_identifier = (
-            self.get_identifier(item_scope, StructDefinition)
+            get_struct_definition(self.program, item_scope)
             if item_scope is not None
             else None
         )
@@ -42,11 +77,20 @@ class Serde:
             else TypeFelt()
         )
         item_size = item_identifier.size if item_identifier is not None else 1
-        list_len = (
-            list_len * item_size
-            if list_len is not None
-            else self.runner.segments.get_segment_size(segment_ptr.segment_index)
-        )
+        try:
+            list_len = (
+                list_len * item_size
+                if list_len is not None
+                else self.segments.get_segment_size(segment_ptr.segment_index)
+            )
+        except AssertionError as e:
+            if (
+                "compute_effective_sizes must be called before get_segment_used_size."
+                in str(e)
+            ):
+                list_len = 1
+            else:
+                raise e
         output = []
         for i in range(0, list_len, item_size):
             try:
@@ -63,10 +107,10 @@ class Serde:
         Serialize a dict.
         """
         if dict_size is None:
-            dict_size = self.runner.segments.get_segment_size(dict_ptr.segment_index)
+            dict_size = self.segments.get_segment_size(dict_ptr.segment_index)
         output = {}
         value_scope = (
-            self.get_identifier(value_scope, StructDefinition).full_name
+            get_struct_definition(self.program, value_scope).full_name
             if value_scope is not None
             else None
         )
@@ -87,7 +131,7 @@ class Serde:
         """
         Serialize a pointer to a struct, e.g. Uint256*.
         """
-        members = self.get_identifier(name, StructDefinition).members
+        members = get_struct_definition(self.program, name).members
         output = {}
         for name, member in members.items():
             member_ptr = self.memory.get(ptr + member.offset)
@@ -102,17 +146,13 @@ class Serde:
         """
         if ptr is None:
             return None
-        members = self.get_identifier(name, StructDefinition).members
+        members = get_struct_definition(self.program, name).members
         return {
             name: self._serialize(member.cairo_type, ptr + member.offset)
             for name, member in members.items()
         }
 
-    def serialize_uint256(self, ptr):
-        raw = self.serialize_pointers("Uint256", ptr)
-        return hex(raw["low"] + raw["high"] * 2**128)
-
-    def serialize_account(self, ptr):
+    def serialize_kakarot_account(self, ptr):
         raw = self.serialize_pointers("model.Account", ptr)
         return {
             "code": bytes(self.serialize_list(raw["code"], list_len=raw["code_len"])),
@@ -231,7 +271,7 @@ class Serde:
                 items += [self.serialize_rlp_item(data_ptr)]
         return items
 
-    def serialize_block(self, ptr):
+    def serialize_block_kakarot(self, ptr):
         raw = self.serialize_pointers("model.Block", ptr)
         header = self.serialize_struct("model.BlockHeader", raw["block_header"])
         if header is None:
@@ -272,11 +312,160 @@ class Serde:
             return None
         return raw["value"]
 
+    def serialize_uint256(self, ptr):
+        raw = self.serialize_struct("Uint256", ptr)
+        return U256(raw["low"] + raw["high"] * 2**128)
+
+    def serialize_bool(self, ptr):
+        raw = self.serialize_struct("bool", ptr)
+        return bool(raw["value"])
+
+    def serialize_u64(self, ptr):
+        raw = self.serialize_struct("U64", ptr)
+        return U64(raw["value"])
+
+    def serialize_u128(self, ptr):
+        raw = self.serialize_struct("U128", ptr)
+        return Uint(raw["value"])
+
+    def serialize_uint(self, ptr):
+        raw = self.serialize_struct("Uint", ptr)
+        return Uint(raw["value"])
+
+    def serialize_u256(self, ptr):
+        raw = self.serialize_struct("U256", ptr)
+        return U256(raw["value"])
+
+    def serialize_bytes0(self, ptr):
+        raw = self.serialize_struct("Bytes0", ptr)
+        assert raw["value"] == 0
+        return Bytes0(b"")
+
+    def serialize_bytes8(self, ptr):
+        raw = self.serialize_struct("Bytes8", ptr)
+        return Bytes8(raw["value"].to_bytes(8, "big"))
+
+    def serialize_bytes20(self, ptr):
+        raw = self.serialize_struct("Bytes20", ptr)
+        return Bytes20(raw["value"].to_bytes(20, "big"))
+
+    def serialize_bytes32(self, ptr):
+        raw = self.serialize_struct("Bytes32", ptr)
+        return Bytes32(raw["value"].to_bytes(32, "big"))
+
+    def serialize_bytes256(self, ptr):
+        return Bytes256(
+            b"".join(
+                b.to_bytes(16, "big")
+                for b in self.serialize_list(self.memory.get(ptr), list_len=8 * 2)
+            )
+        )
+
+    def serialize_bytes(self, ptr):
+        raw = self.serialize_pointers("BytesStruct", self.memory.get(ptr))
+        return bytes(self.serialize_list(raw["data"], list_len=raw["len"]))
+
+    def serialize_tuple(self, ptr, item_scope):
+        tuple_struct_ptr = self.serialize_pointers(f"Tuple{item_scope}", ptr)["value"]
+        raw = self.serialize_pointers(f"Tuple{item_scope}Struct", tuple_struct_ptr)
+        return tuple(self.serialize_list(raw["value"], item_scope, list_len=raw["len"]))
+
+    def serialize_account(self, ptr):
+        raw = self.serialize_struct("Account", ptr)
+        if raw is None:
+            return None
+        return Account(**raw["value"])
+
+    def serialize_withdrawal(self, ptr):
+        raw = self.serialize_struct("Withdrawal", ptr)
+        if raw is None:
+            return None
+        return Withdrawal(**raw["value"])
+
+    def serialize_header(self, ptr):
+        raw = self.serialize_struct("Header", ptr)
+        if raw is None:
+            return None
+        return Header(**raw["value"])
+
+    def serialize_log(self, ptr):
+        raw = self.serialize_struct("Log", ptr)
+        if raw is None:
+            return None
+        return Log(**raw["value"])
+
+    def serialize_receipt(self, ptr):
+        raw = self.serialize_struct("Receipt", ptr)
+        if raw is None:
+            return None
+        return Receipt(**raw["value"])
+
+    def serialize_block(self, ptr):
+        raw = self.serialize_struct("Block", ptr)
+        if raw is None:
+            return None
+        return Block(**raw["value"])
+
     def serialize_scope(self, scope, scope_ptr):
+        # Corelib types
+        if scope.path[-1] == "Uint256":
+            return self.serialize_uint256(scope_ptr)
+
+        # Base types
+        if scope.path == ("ethereum", "base_types", "bool"):
+            return self.serialize_bool(scope_ptr)
+        if scope.path == ("ethereum", "base_types", "U64"):
+            return self.serialize_u64(scope_ptr)
+        if scope.path == ("ethereum", "base_types", "U128"):
+            return self.serialize_u128(scope_ptr)
+        if scope.path == ("ethereum", "base_types", "Uint"):
+            return self.serialize_uint(scope_ptr)
+        if scope.path == ("ethereum", "base_types", "U256"):
+            return self.serialize_u256(scope_ptr)
+        if scope.path == ("ethereum", "base_types", "Bytes0"):
+            return self.serialize_bytes0(scope_ptr)
+        if scope.path == ("ethereum", "base_types", "Bytes8"):
+            return self.serialize_bytes8(scope_ptr)
+        if scope.path == ("ethereum", "base_types", "Bytes20"):
+            return self.serialize_bytes20(scope_ptr)
+        if scope.path == ("ethereum", "base_types", "Bytes32"):
+            return self.serialize_bytes32(scope_ptr)
+        if scope.path == ("ethereum", "base_types", "Bytes256"):
+            return self.serialize_bytes256(scope_ptr)
+        if scope.path == ("ethereum", "base_types", "Bytes"):
+            return self.serialize_bytes(scope_ptr)
+        if scope.path == ("ethereum", "base_types", "TupleBytes"):
+            return self.serialize_tuple(scope_ptr, "Bytes")
+        if scope.path == ("ethereum", "base_types", "TupleBytes32"):
+            return self.serialize_tuple(scope_ptr, "Bytes32")
+
+        # Fork types
+        if scope.path == ("ethereum", "cancun", "fork_types", "Account"):
+            return self.serialize_account(scope_ptr)
+
+        # Block types
+        if scope.path == ("ethereum", "cancun", "blocks", "Withdrawal"):
+            return self.serialize_withdrawal(scope_ptr)
+        if scope.path == ("ethereum", "cancun", "blocks", "TupleWithdrawal"):
+            return self.serialize_tuple(scope_ptr, "Withdrawal")
+        if scope.path == ("ethereum", "cancun", "blocks", "Header"):
+            return self.serialize_header(scope_ptr)
+        if scope.path == ("ethereum", "cancun", "blocks", "TupleHeader"):
+            return self.serialize_tuple(scope_ptr, "Header")
+        if scope.path == ("ethereum", "cancun", "blocks", "Log"):
+            return self.serialize_log(scope_ptr)
+        if scope.path == ("ethereum", "cancun", "blocks", "TupleLog"):
+            return self.serialize_tuple(scope_ptr, "Log")
+        if scope.path == ("ethereum", "cancun", "blocks", "Receipt"):
+            return self.serialize_receipt(scope_ptr)
+        if scope.path == ("ethereum", "cancun", "blocks", "Block"):
+            return self.serialize_block(scope_ptr)
+
+        # TODO: Remove these once EELS like migration is implemented
         if scope.path[-1] == "State":
             return self.serialize_state(scope_ptr)
         if scope.path[-1] == "Account":
-            return self.serialize_account(scope_ptr)
+            return self.serialize_kakarot_account(scope_ptr)
         if scope.path[-1] == "Transaction":
             return self.serialize_eth_transaction(scope_ptr)
         if scope.path[-1] == "Stack":
@@ -292,7 +481,7 @@ class Serde:
         if scope.path[-2:] == ("RLP", "Item"):
             return self.serialize_rlp_item(scope_ptr)
         if scope.path[-1] == ("Block"):
-            return self.serialize_block(scope_ptr)
+            return self.serialize_block_kakarot(scope_ptr)
         if scope.path[-1] == ("Option"):
             return self.serialize_option(scope_ptr)
         try:
@@ -332,13 +521,12 @@ class Serde:
             return len(cairo_type.members)
         else:
             try:
-                identifier = self.get_identifier(
-                    str(cairo_type.scope), StructDefinition
-                )
+                identifier = get_struct_definition(self.program, str(cairo_type.scope))
                 return len(identifier.members)
             except (ValueError, AttributeError):
                 return 1
 
-    def serialize(self, cairo_type):
-        shift = self.get_offset(cairo_type)
-        return self._serialize(cairo_type, self.runner.vm.run_context.ap - shift, shift)
+    def serialize(self, cairo_type, base_ptr, shift=None, length=None):
+        shift = shift if shift is not None else self.get_offset(cairo_type)
+        length = length if length is not None else shift
+        return self._serialize(cairo_type, base_ptr - shift, length)

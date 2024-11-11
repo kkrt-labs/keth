@@ -10,4 +10,4 @@ class TestPushOperations:
     @pytest.mark.parametrize("i", range(0, 33))
     def test__exec_push(self, cairo_run, i):
         stack = cairo_run("test__exec_push", i=i)
-        assert stack == [hex(256**i - 1)]
+        assert stack == [256**i - 1]

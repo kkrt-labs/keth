@@ -1,8 +1,8 @@
-from ethereum.utils.numeric import ceil32
 from hypothesis import given
 from hypothesis import strategies as st
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 
+from ethereum.utils.numeric import ceil32
 from tests.utils.strategies import uint128
 
 
