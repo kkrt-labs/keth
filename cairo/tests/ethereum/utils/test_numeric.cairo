@@ -1,4 +1,4 @@
-from ethereum.utils.numeric import min, divmod
+from ethereum.utils.numeric import min, divmod, is_zero
 
 func test_min{range_check_ptr}() -> felt {
     tempvar a;
@@ -19,4 +19,10 @@ func test_divmod{range_check_ptr}() -> (q: felt, r: felt) {
         ids.div = program_input["div"]
     %}
     return divmod(value, div);
+}
+
+func test_is_zero() -> felt {
+    tempvar value;
+    %{ ids.value = program_input["value"] %}
+    return is_zero(value);
 }

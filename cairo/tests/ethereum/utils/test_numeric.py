@@ -2,7 +2,7 @@ from hypothesis import given
 from hypothesis import strategies as st
 from starkware.cairo.lang.instances import PRIME
 
-from tests.utils.strategies import uint128
+from tests.utils.strategies import felt, uint128
 
 
 class TestNumeric:
@@ -18,3 +18,7 @@ class TestNumeric:
         assert list(divmod(value, div)) == cairo_run(
             "test_divmod", value=value, div=div
         )
+
+    @given(value=felt)
+    def test_is_zero(self, cairo_run, value):
+        assert (value == 0) == cairo_run("test_is_zero", value=value)
