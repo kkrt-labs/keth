@@ -71,7 +71,7 @@ def test_bytes_to_uint256(cairo_run, word):
         "test__bytes_to_uint256",
         word=int.to_bytes(word, ceil(word.bit_length() / 8), byteorder="big"),
     )
-    assert int(output, 16) == word
+    assert output == word
 
 
 @given(word=st.integers(min_value=0, max_value=2**128 - 1))

@@ -121,7 +121,7 @@ class TestStopMathOperations:
             (evm, result) = cairo_run(
                 "test__exec_math_operation", opcode=opcode, stack=stack
             )
-            assert int(result, 16) == expected_result
+            assert result == expected_result
 
         @pytest.mark.parametrize(
             "opcode, stack", [(0x0C, []), (0x0D, []), (0x0E, []), (0x0F, [])]

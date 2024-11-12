@@ -44,10 +44,12 @@ func test_validate_header{range_check_ptr}() {
             from starkware.cairo.common.dict import DictManager
             __dict_manager = DictManager()
 
-        from tests.utils.hints import gen_arg
+        from tests.utils.hints import gen_arg_pydantic
 
-        ids.header = gen_arg(__dict_manager, segments, program_input["header"])
-        ids.parent_header = gen_arg(__dict_manager, segments, program_input["parent_header"])
+        ids.header = gen_arg_pydantic(__dict_manager, segments, program_input["header"])
+        ids.parent_header = gen_arg_pydantic(
+            __dict_manager, segments, program_input["parent_header"]
+        )
     %}
     validate_header([header], [parent_header]);
     return ();
@@ -60,9 +62,9 @@ func test_calculate_intrinsic_cost{range_check_ptr}() -> felt {
             from starkware.cairo.common.dict import DictManager
             __dict_manager = DictManager()
 
-        from tests.utils.hints import gen_arg
+        from tests.utils.hints import gen_arg_pydantic
 
-        ids.tx = gen_arg(__dict_manager, segments, program_input["tx"])
+        ids.tx = gen_arg_pydantic(__dict_manager, segments, program_input["tx"])
     %}
 
     return calculate_intrinsic_cost(tx);

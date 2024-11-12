@@ -24,4 +24,4 @@ class TestStack:
     class TestSwap:
         def test_should_swap_2_stacks(self, cairo_run):
             stack = cairo_run("test__swap__should_swap_2_stacks")
-            assert stack == ["0x1", "0x3", "0x2", "0x4"]
+            assert stack == [1, 3, 2, 4]

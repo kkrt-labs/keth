@@ -7,6 +7,7 @@ from time import perf_counter, time_ns
 
 import pytest
 import starkware.cairo.lang.instances as LAYOUTS
+from starkware.cairo.common.dict import DictManager
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 from starkware.cairo.lang.compiler.cairo_compile import compile_cairo, get_module_reader
 from starkware.cairo.lang.compiler.preprocessor.default_pass_manager import (
@@ -24,9 +25,8 @@ from starkware.cairo.lang.vm.memory_dict import MemoryDict
 from starkware.cairo.lang.vm.memory_segments import FIRST_MEMORY_ADDR as PROGRAM_BASE
 from starkware.cairo.lang.vm.utils import RunResources
 
-from tests.utils.constants import Opcodes
 from tests.utils.coverage import VmWithCoverage
-from tests.utils.hints import implement_hints
+from tests.utils.hints import gen_arg, implement_hints
 from tests.utils.reporting import profile_from_tracer_data
 from tests.utils.serde import Serde
 
@@ -115,7 +115,7 @@ def cairo_run(request, cairo_program):
             proof_mode=request.config.getoption("proof_mode"),
             allow_missing_builtins=False,
         )
-        serde = Serde(runner)
+        serde = Serde(runner.segments, cairo_program)
 
         runner.program_base = runner.segments.add()
         runner.execution_base = runner.segments.add()
@@ -156,11 +156,13 @@ def cairo_run(request, cairo_program):
         )
         runner.initial_fp = runner.initial_ap = runner.execution_base + len(stack)
 
+        dict_manager = DictManager()
+
         runner.initialize_vm(
-            hint_locals={"program_input": kwargs},
-            static_locals={
-                "serde": serde,
-                "Opcodes": Opcodes,
+            hint_locals={
+                "program_input": kwargs,
+                "__dict_manager": dict_manager,
+                "gen_arg": gen_arg(dict_manager, runner.segments),
             },
             vm_class=VmWithCoverage,
         )
@@ -261,7 +263,9 @@ def cairo_run(request, cairo_program):
         final_output = None
         if add_output:
             final_output = serde.serialize_list(output_ptr)
-        function_output = serde.serialize(return_data.cairo_type)
+        function_output = serde.serialize(
+            return_data.cairo_type, runner.vm.run_context.ap
+        )
         if final_output is not None:
             function_output = (
                 function_output
