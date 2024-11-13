@@ -50,7 +50,7 @@ using bytes = Bytes;
 // In Cairo, tuples are not a first-class type, so we need to define a custom
 // struct to represent a tuple of Bytes32.
 struct TupleBytesStruct {
-    value: Bytes,
+    value: Bytes*,
     len: felt,
 }
 
@@ -59,7 +59,7 @@ struct TupleBytes {
 }
 
 struct TupleBytes32Struct {
-    value: Bytes32,
+    value: Bytes32*,
     len: felt,
 }
 

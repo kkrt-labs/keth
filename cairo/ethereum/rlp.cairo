@@ -1,7 +1,7 @@
 from starkware.cairo.common.math_cmp import is_le, is_not_zero
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.memcpy import memcpy
-from ethereum.base_types import Bytes, BytesStruct, TupleBytes
+from ethereum.base_types import Bytes, BytesStruct, TupleBytes, TupleBytesStruct
 from ethereum.utils.numeric import is_zero
 from src.utils.bytes import felt_to_bytes
 
@@ -42,6 +42,28 @@ func encode_bytes{range_check_ptr}(raw_bytes: Bytes) -> Bytes {
     alloc_locals;
     let (dst) = alloc();
     let len = _encode_bytes(dst, raw_bytes);
+    tempvar value = new BytesStruct(dst, len);
+    let encoded_bytes = Bytes(value);
+    return encoded_bytes;
+}
+
+func _get_joined_encodings{range_check_ptr}(dst: felt*, raw_bytes: Bytes*, len: felt) -> felt {
+    alloc_locals;
+
+    if (len == 0) {
+        return 0;
+    }
+
+    let current_len = _encode_bytes(dst, [raw_bytes]);
+    let len = _get_joined_encodings(dst + current_len, raw_bytes + 1, len - 1);
+
+    return current_len + len;
+}
+
+func get_joined_encodings{range_check_ptr}(raw_sequence: TupleBytes) -> Bytes {
+    alloc_locals;
+    let (dst) = alloc();
+    let len = _get_joined_encodings(dst, raw_sequence.value.value, raw_sequence.value.len);
     tempvar value = new BytesStruct(dst, len);
     let encoded_bytes = Bytes(value);
     return encoded_bytes;
