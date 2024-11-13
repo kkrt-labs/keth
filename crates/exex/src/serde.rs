@@ -4,6 +4,7 @@ use cairo_vm::{
     serde::deserialize_program::{Identifier, Location},
     types::{
         errors::math_errors::MathError,
+        program::Program,
         relocatable::{MaybeRelocatable, Relocatable},
     },
     vm::{errors::memory_errors::MemoryError, runners::cairo_runner::CairoRunner},
@@ -93,6 +94,10 @@ pub enum KakarotSerdeError {
         /// The expected value type.
         expected_value: PointerValue,
     },
+
+    /// Error indicating that a struct was not found during deserialization.
+    #[error("Expected one struct named '{0}', found {1} matches.")]
+    StructNotFound(String, usize),
 }
 
 /// Represents the types used in Cairo, including felt types, pointers, tuples, and structs.
@@ -134,6 +139,14 @@ impl CairoType {
         location: Option<Location>,
     ) -> Self {
         Self::Tuple { members, has_trailing_comma, location }
+    }
+
+    /// Returns the name of the type, if it has one.
+    pub fn from_str(name: &str) -> Self {
+        match name {
+            "felt" => Self::felt_type(None),
+            _ => Self::struct_type(name, None),
+        }
     }
 }
 
@@ -693,6 +706,51 @@ impl KakarotSerde {
             .collect())
     }
 
+    /// Serializes a Cairo struct into a [`HashMap`] mapping field names to their serialized values.
+    ///
+    /// This method takes the name of a Cairo struct and an optional memory pointer to the
+    /// struct's location in the Cairo VM memory.
+    /// - If the pointer is `None`, the method returns an empty `[HashMap`].
+    /// - If a pointer is provided, the method resolves the struct's members and serializes each
+    ///   member according to its Cairo type.
+    pub fn serialize_struct(
+        &self,
+        name: &str,
+        ptr: Option<Relocatable>,
+    ) -> Result<HashMap<String, Option<SerializedData>>, KakarotSerdeError> {
+        // Check if the provided pointer is `None`. If so, return an empty `HashMap`.
+        if ptr.is_none() {
+            return Ok(HashMap::new());
+        }
+
+        // Initialize an empty `HashMap` to store the serialized struct members.
+        let mut res = HashMap::new();
+
+        // Attempt to retrieve the struct definition from the Cairo program.
+        if let Some(members) = get_struct_definition(self.runner.get_program(), name)?.members {
+            // Iterate over each member of the struct.
+            for (name, member) in members {
+                // Serialize the member and insert it into the `HashMap`.
+                // - The member's type is determined using `CairoType::from_str`.
+                // - The memory location is calculated by adding the member's offset to `ptr`.
+                res.insert(
+                    name,
+                    self.serialize_inner(
+                        &CairoType::from_str(&member.cairo_type),
+                        (ptr.unwrap() + member.offset)?,
+                        None,
+                    )?,
+                );
+            }
+
+            // Return the `HashMap` containing all serialized struct members.
+            return Ok(res);
+        }
+
+        // If the struct has no members, return an empty `HashMap`.
+        return Ok(HashMap::new());
+    }
+
     /// Serializes inner data types in Cairo by determining the type of data at a given pointer
     /// location.
     ///
@@ -710,9 +768,37 @@ impl KakarotSerde {
                 // location.
                 Ok(Some(SerializedData::Felt(self.runner.vm.get_maybe(&ptr))))
             }
-            _ => Ok(None),
+            // TODO: for now, we always generate a `Felt` serialized data type.
+            // This is a placeholder for future implementation so that we can unit test.
+            // We will need to implement the serialization of other data types.
+            _ => Ok(Some(SerializedData::Felt(self.runner.vm.get_maybe(&ptr)))),
         }
     }
+}
+
+/// Function to get a struct definition by name.
+pub fn get_struct_definition(
+    program: &Program,
+    struct_name: &str,
+) -> Result<Identifier, KakarotSerdeError> {
+    // Filter identifiers to match the struct name.
+    let identifiers: Vec<&Identifier> = program
+        .iter_identifiers()
+        .filter(|(key, value)| {
+            key.contains(struct_name) &&
+                key.split('.').last() == struct_name.split('.').last() &&
+                value.type_ == Some("struct".to_string())
+        })
+        .map(|(_, value)| value)
+        .collect();
+
+    // Ensure there is only one matching struct.
+    if identifiers.len() != 1 {
+        return Err(KakarotSerdeError::StructNotFound(struct_name.to_string(), identifiers.len()));
+    }
+
+    // Return the single matching struct.
+    Ok(identifiers[0].clone())
 }
 
 #[cfg(test)]
@@ -759,6 +845,12 @@ mod tests {
 
         // Return an instance of KakarotSerde
         KakarotSerde { runner }
+    }
+
+    /// Helper function to set up a [`Program`] from a [`TestProgram`]
+    fn setup_program(test_program: &TestProgram) -> Program {
+        let program_content = test_program.path();
+        Program::from_bytes(program_content, Some("main")).expect("Failed to load test program")
     }
 
     #[test]
@@ -2325,5 +2417,108 @@ mod tests {
                 expected_value: PointerValue::Felt
             })
         );
+    }
+
+    #[test]
+    fn test_get_struct_definition_single_match() {
+        let program = setup_program(&TestProgram::KeccakAddUint256);
+        let result = get_struct_definition(&program, "KeccakBuiltin");
+
+        // Assert that the result is ok and contains the correct identifier
+        assert!(result.is_ok());
+        let identifier = result.unwrap();
+        assert_eq!(
+            identifier.full_name,
+            Some("starkware.cairo.common.cairo_builtins.KeccakBuiltin".to_string())
+        );
+        assert_eq!(identifier.type_, Some("struct".to_string()));
+    }
+
+    #[test]
+    fn test_get_struct_definition_no_match() {
+        let program = setup_program(&TestProgram::ModelOption);
+        let result = get_struct_definition(&program, "NonExistentStruct");
+
+        // Assert that the result is an error indicating a type mismatch directly
+        assert_eq!(
+            result,
+            Err(KakarotSerdeError::StructNotFound("NonExistentStruct".to_string(), 0))
+        );
+    }
+
+    #[test]
+    fn test_get_struct_definition_multiple_matches() {
+        let program = setup_program(&TestProgram::ModelMemory);
+        let result = get_struct_definition(&program, "ImplicitArgs");
+
+        // Assert that the result is an error indicating multiple matches
+        assert_eq!(result, Err(KakarotSerdeError::StructNotFound("ImplicitArgs".to_string(), 3)));
+    }
+
+    #[test]
+    fn test_serialize_struct_none_pointer() {
+        let kakarot_serde = setup_kakarot_serde(&TestProgram::KeccakAddUint256);
+
+        // Test with a None pointer, expecting an empty vector as the result
+        let result = kakarot_serde.serialize_struct("SomeStruct", None);
+        assert_eq!(result, Ok(HashMap::new()));
+    }
+
+    #[test]
+    fn test_serialize_struct_missing_struct_definition() {
+        let kakarot_serde = setup_kakarot_serde(&TestProgram::KeccakAddUint256);
+
+        // Test with a struct name that doesn't exist in the program
+        let ptr = Some(Relocatable { segment_index: 0, offset: 0 });
+        let result = kakarot_serde.serialize_struct("NonExistentStruct", ptr);
+
+        // Assert that the error indicates the struct was not found
+        assert_eq!(
+            result,
+            Err(KakarotSerdeError::StructNotFound("NonExistentStruct".to_string(), 0))
+        );
+    }
+
+    #[test]
+    fn test_serialize_struct_valid_struct() {
+        let mut kakarot_serde = setup_kakarot_serde(&TestProgram::KeccakAddUint256);
+
+        // Setup the struct members
+        // We need to insert the struct members into memory at:
+        // - Offset 0
+        // - Offset 8
+        let member_value1 = MaybeRelocatable::Int(Felt252::from(42));
+        let member_value2 = MaybeRelocatable::Int(Felt252::from(93));
+        let ptr = kakarot_serde
+            .runner
+            .vm
+            .gen_arg(&vec![
+                member_value1.clone(),
+                MaybeRelocatable::Int(Felt252::ZERO),
+                MaybeRelocatable::Int(Felt252::ZERO),
+                MaybeRelocatable::Int(Felt252::ZERO),
+                MaybeRelocatable::Int(Felt252::ZERO),
+                MaybeRelocatable::Int(Felt252::ZERO),
+                MaybeRelocatable::Int(Felt252::ZERO),
+                MaybeRelocatable::Int(Felt252::ZERO),
+                member_value2.clone(),
+            ])
+            .unwrap()
+            .get_relocatable()
+            .expect("failed to insert invalid dict_ptr_start into memory");
+
+        // Test with a valid struct name
+        let result = kakarot_serde
+            .serialize_struct("KeccakBuiltin", Some(ptr))
+            .expect("failed to serialize struct");
+
+        // Create the expected HashMap of serialized data
+        let expected = HashMap::from([
+            ("input".to_string(), Some(SerializedData::Felt(Some(member_value1.clone())))),
+            ("output".to_string(), Some(SerializedData::Felt(Some(member_value2.clone())))),
+        ]);
+
+        // Assert that the result is as expected
+        assert_eq!(result, expected);
     }
 }
