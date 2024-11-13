@@ -142,6 +142,7 @@ impl CairoType {
     }
 
     /// Returns the name of the type, if it has one.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(name: &str) -> Self {
         match name {
             "felt" => Self::felt_type(None),
@@ -748,7 +749,7 @@ impl KakarotSerde {
         }
 
         // If the struct has no members, return an empty `HashMap`.
-        return Ok(HashMap::new());
+        Ok(HashMap::new())
     }
 
     /// Serializes inner data types in Cairo by determining the type of data at a given pointer
@@ -2514,8 +2515,8 @@ mod tests {
 
         // Create the expected HashMap of serialized data
         let expected = HashMap::from([
-            ("input".to_string(), Some(SerializedData::Felt(Some(member_value1.clone())))),
-            ("output".to_string(), Some(SerializedData::Felt(Some(member_value2.clone())))),
+            ("input".to_string(), Some(SerializedData::Felt(Some(member_value1)))),
+            ("output".to_string(), Some(SerializedData::Felt(Some(member_value2)))),
         ]);
 
         // Assert that the result is as expected
