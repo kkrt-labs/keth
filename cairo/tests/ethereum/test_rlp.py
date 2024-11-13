@@ -1,7 +1,7 @@
 import hypothesis.strategies as st
 from hypothesis import given
 
-from ethereum.rlp import encode_bytes, encode_sequence, get_joined_encodings
+from ethereum.rlp import encode_bytes, encode_sequence, get_joined_encodings, rlp_hash
 
 
 class TestRlp:
@@ -22,3 +22,7 @@ class TestRlp:
         assert encode_sequence(raw_sequence) == cairo_run(
             "test_encode_sequence", raw_sequence=raw_sequence
         )
+
+    @given(raw_bytes=st.binary())
+    def test_rlp_hash(self, cairo_run, raw_bytes):
+        assert rlp_hash(raw_bytes) == cairo_run("test_rlp_hash", raw_bytes=raw_bytes)

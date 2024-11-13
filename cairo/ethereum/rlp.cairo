@@ -1,10 +1,12 @@
-from starkware.cairo.common.math_cmp import is_le, is_not_zero
-from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.memcpy import memcpy
 from ethereum.base_types import Bytes, BytesStruct, TupleBytes, TupleBytesStruct
+from ethereum.crypto.hash import keccak256, Hash32
 from ethereum.utils.numeric import is_zero
-from src.utils.bytes import felt_to_bytes, felt_to_bytes_little
 from src.utils.array import reverse
+from src.utils.bytes import felt_to_bytes, felt_to_bytes_little
+from starkware.cairo.common.alloc import alloc
+from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin
+from starkware.cairo.common.math_cmp import is_le, is_not_zero
+from starkware.cairo.common.memcpy import memcpy
 
 func _encode_bytes{range_check_ptr}(dst: felt*, raw_bytes: Bytes) -> felt {
     alloc_locals;
@@ -96,4 +98,11 @@ func encode_sequence{range_check_ptr}(raw_sequence: TupleBytes) -> Bytes {
     tempvar value = new BytesStruct(dst, len + 1 + len_joined_encodings_as_le_len);
     let encoded_bytes = Bytes(value);
     return encoded_bytes;
+}
+
+func rlp_hash{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*}(
+    raw_bytes: Bytes
+) -> Hash32 {
+    let encoded_bytes = encode_bytes(raw_bytes);
+    return keccak256(encoded_bytes);
 }
