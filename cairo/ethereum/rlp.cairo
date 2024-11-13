@@ -3,7 +3,8 @@ from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.memcpy import memcpy
 from ethereum.base_types import Bytes, BytesStruct, TupleBytes, TupleBytesStruct
 from ethereum.utils.numeric import is_zero
-from src.utils.bytes import felt_to_bytes
+from src.utils.bytes import felt_to_bytes, felt_to_bytes_little
+from src.utils.array import reverse
 
 func _encode_bytes{range_check_ptr}(dst: felt*, raw_bytes: Bytes) -> felt {
     alloc_locals;
@@ -65,6 +66,34 @@ func get_joined_encodings{range_check_ptr}(raw_sequence: TupleBytes) -> Bytes {
     let (dst) = alloc();
     let len = _get_joined_encodings(dst, raw_sequence.value.value, raw_sequence.value.len);
     tempvar value = new BytesStruct(dst, len);
+    let encoded_bytes = Bytes(value);
+    return encoded_bytes;
+}
+
+// @notice: Encodes a sequence of RLP encodable objects (`raw_sequence`) using RLP.
+// @dev: The standard implementation assumes that the length fits in at most 9 bytes
+//       since the leading byte is Bytes([0xF7 + len(len_joined_encodings_as_be)]).
+//       In total, it means that the sequence starts at most at dst + 10.
+//       To avoid a memcpy, we start using the allocated memory at dst + 10.
+func encode_sequence{range_check_ptr}(raw_sequence: TupleBytes) -> Bytes {
+    alloc_locals;
+    let (dst) = alloc();
+    let len = _get_joined_encodings(dst + 10, raw_sequence.value.value, raw_sequence.value.len);
+    let cond = is_le(len, 0x38 - 1);
+    if (cond != 0) {
+        assert [dst + 9] = 0xC0 + len;
+        tempvar value = new BytesStruct(dst + 9, len + 1);
+        let encoded_bytes = Bytes(value);
+        return encoded_bytes;
+    }
+
+    let (len_joined_encodings_as_le: felt*) = alloc();
+    let len_joined_encodings_as_le_len = felt_to_bytes_little(len_joined_encodings_as_le, len);
+    let dst = dst + 10 - len_joined_encodings_as_le_len - 1;
+    reverse(dst + 1, len_joined_encodings_as_le_len, len_joined_encodings_as_le);
+    assert [dst] = 0xF7 + len_joined_encodings_as_le_len;
+
+    tempvar value = new BytesStruct(dst, len + 1 + len_joined_encodings_as_le_len);
     let encoded_bytes = Bytes(value);
     return encoded_bytes;
 }
