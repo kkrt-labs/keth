@@ -35,7 +35,6 @@ func encode_bytes{range_check_ptr}(raw_bytes: Bytes) -> Bytes {
         return encoded_bytes;
     }
 
-    // len_raw_data > 0x38
     let (data) = alloc();
 
     let len_raw_data_as_be = felt_to_bytes(data + 1, len_raw_data);
