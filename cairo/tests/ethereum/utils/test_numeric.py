@@ -8,17 +8,15 @@ from tests.utils.strategies import felt, uint128
 class TestNumeric:
     @given(a=uint128, b=uint128)
     def test_min(self, cairo_run, a, b):
-        assert min(a, b) == cairo_run("test_min", a=a, b=b)
+        assert min(a, b) == cairo_run("min", a=a, b=b)
 
     @given(
         value=uint128,
         div=st.integers(min_value=1, max_value=PRIME // (2**128 - 1) - 1),
     )
     def test_divmod(self, cairo_run, value, div):
-        assert list(divmod(value, div)) == cairo_run(
-            "test_divmod", value=value, div=div
-        )
+        assert list(divmod(value, div)) == cairo_run("divmod", value=value, div=div)
 
     @given(value=felt)
     def test_is_zero(self, cairo_run, value):
-        assert (value == 0) == cairo_run("test_is_zero", value=value)
+        assert (value == 0) == cairo_run("is_zero", value=value)

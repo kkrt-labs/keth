@@ -52,7 +52,11 @@ def cairo_compile(path):
 def cairo_program(request):
     cairo_file = Path(request.node.fspath).with_suffix(".cairo")
     if not cairo_file.exists():
-        raise ValueError(f"Missing cairo file: {cairo_file}")
+        # No dedicated cairo file for tests in the tests/ directory
+        # Use the main cairo file directly
+        cairo_file = Path(str(cairo_file).replace("/tests", "").replace("/test_", "/"))
+        if not cairo_file.exists():
+            raise ValueError(f"Missing cairo file: {cairo_file}")
 
     start = perf_counter()
     program = cairo_compile(cairo_file)
