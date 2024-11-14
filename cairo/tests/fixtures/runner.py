@@ -77,13 +77,13 @@ def cairo_run(request, cairo_program):
     Logic is mainly taken from starkware.cairo.lang.vm.cairo_run with minor updates like the addition of the output segment.
     """
 
-    def _factory(entrypoint, **kwargs):
+    def _factory(entrypoint, *args, **kwargs):
         implicit_args = list(
             cairo_program.identifiers.get_by_full_name(
                 ScopedName(path=("__main__", entrypoint, "ImplicitArgs"))
             ).members.keys()
         )
-        args = list(
+        _args = list(
             cairo_program.identifiers.get_by_full_name(
                 ScopedName(path=("__main__", entrypoint, "Args"))
             ).members.keys()
@@ -139,13 +139,13 @@ def cairo_run(request, cairo_program):
                 if add_output:
                     output_ptr = stack[-1]
 
-        for arg in args:
+        for i, arg in enumerate(_args):
             if arg == "output_ptr":
                 add_output = True
                 output_ptr = runner.segments.add()
                 stack.append(output_ptr)
             else:
-                stack.append(gen_arg(kwargs[arg]))
+                stack.append(gen_arg(kwargs.get(arg, args[i])))
 
         return_fp = runner.execution_base + 2
         end = runner.segments.add()

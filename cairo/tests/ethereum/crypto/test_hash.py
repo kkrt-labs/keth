@@ -1,12 +1,13 @@
-import hypothesis.strategies as st
-from hypothesis import given
+from hypothesis import assume, given
 
+from ethereum.base_types import Bytes
 from ethereum.crypto.hash import keccak256
 
 
 class TestHash:
 
     class TestKeccak256:
-        @given(buffer=st.binary(min_size=0, max_size=1000))
-        def test_keccak256(self, cairo_run, buffer):
-            assert keccak256(buffer) == cairo_run("keccak256", buffer=buffer)
+        @given(buffer=...)
+        def test_keccak256(self, cairo_run, buffer: Bytes):
+            assume(len(buffer) <= 1000)
+            assert keccak256(buffer) == cairo_run("keccak256", buffer)

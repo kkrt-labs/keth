@@ -1,6 +1,5 @@
 import pytest
 from hypothesis import given
-from hypothesis import strategies as st
 from starkware.cairo.common.dict import DictManager
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 from starkware.cairo.lang.vm.memory_dict import MemoryDict
@@ -17,27 +16,12 @@ from ethereum.base_types import (
     Bytes256,
     Uint,
 )
-from ethereum.cancun.fork_types import Address, Bloom, Root, VersionedHash
+from ethereum.cancun.blocks import Block, Header, Log, Receipt, Withdrawal
+from ethereum.cancun.fork_types import Account, Address, Bloom, Root, VersionedHash
 from tests.utils.hints import gen_arg as _gen_arg
 from tests.utils.serde import Serde
 from tests.utils.serde import get_cairo_type as _get_cairo_type
-from tests.utils.strategies import (
-    account,
-    block,
-    bytes0,
-    bytes8,
-    bytes20,
-    bytes32,
-    bytes256,
-    header,
-    log,
-    receipt,
-    uint,
-    uint64,
-    uint128,
-    uint256,
-    withdrawal,
-)
+from tests.utils.strategies import uint128
 
 
 @pytest.fixture(scope="module")
@@ -68,8 +52,8 @@ class TestSerde:
 
     class TestBaseTypes:
 
-        @given(b=st.booleans())
-        def test_bool(self, get_cairo_type, serde, gen_arg, b):
+        @given(b=...)
+        def test_bool(self, get_cairo_type, serde, gen_arg, b: bool):
             base = gen_arg([b])
             result = serde.serialize(
                 get_cairo_type("ethereum.base_types.bool"), base, shift=0
@@ -77,8 +61,8 @@ class TestSerde:
             # bool is a also int in Python
             assert result == int(b)
 
-        @given(n=uint64.map(U64))
-        def test_u64(self, get_cairo_type, serde, gen_arg, n):
+        @given(n=...)
+        def test_u64(self, get_cairo_type, serde, gen_arg, n: U64):
             base = gen_arg([n])
             result = serde.serialize(
                 get_cairo_type("ethereum.base_types.U64"), base, shift=0
@@ -97,124 +81,130 @@ class TestSerde:
             )
             assert result == n
 
-        @given(n=uint.map(Uint))
-        def test_uint(self, get_cairo_type, serde, gen_arg, n):
+        @given(n=...)
+        def test_uint(self, get_cairo_type, serde, gen_arg, n: Uint):
             base = gen_arg([n])
             result = serde.serialize(
                 get_cairo_type("ethereum.base_types.Uint"), base, shift=0
             )
             assert result == n
 
-        @given(n=uint256.map(U256))
-        def test_u256(self, get_cairo_type, serde, gen_arg, n):
+        @given(n=...)
+        def test_u256(self, get_cairo_type, serde, gen_arg, n: U256):
             base = gen_arg([n])
             result = serde.serialize(
                 get_cairo_type("ethereum.base_types.U256"), base, shift=0
             )
             assert result == n
 
-        @given(data=bytes0.map(Bytes0))
-        def test_bytes0(self, get_cairo_type, serde, gen_arg, data):
-            base = gen_arg([data])
+        @given(bytes0=...)
+        def test_bytes0(self, get_cairo_type, serde, gen_arg, bytes0: Bytes0):
+            base = gen_arg([bytes0])
             result = serde.serialize(
                 get_cairo_type("ethereum.base_types.Bytes0"), base, shift=0
             )
-            assert result == data
+            assert result == bytes0
 
-        @given(data=bytes8.map(Bytes8))
-        def test_bytes8(self, get_cairo_type, serde, gen_arg, data):
-            base = gen_arg([data])
+        @given(bytes8=...)
+        def test_bytes8(self, get_cairo_type, serde, gen_arg, bytes8: Bytes8):
+            base = gen_arg([bytes8])
             result = serde.serialize(
                 get_cairo_type("ethereum.base_types.Bytes8"), base, shift=0
             )
-            assert result == data
+            assert result == bytes8
 
-        @given(data=bytes20.map(Bytes20))
-        def test_bytes20(self, get_cairo_type, serde, gen_arg, data):
-            base = gen_arg([data])
+        @given(bytes20=...)
+        def test_bytes20(self, get_cairo_type, serde, gen_arg, bytes20: Bytes20):
+            base = gen_arg([bytes20])
             result = serde.serialize(
                 get_cairo_type("ethereum.base_types.Bytes20"), base, shift=0
             )
-            assert result == data
+            assert result == bytes20
 
-        @given(data=bytes32.map(Bytes32))
-        def test_bytes32(self, get_cairo_type, serde, gen_arg, data):
-            base = gen_arg([data])
+        @given(bytes32=...)
+        def test_bytes32(self, get_cairo_type, serde, gen_arg, bytes32: Bytes32):
+            base = gen_arg([bytes32])
             result = serde.serialize(
                 get_cairo_type("ethereum.base_types.Bytes32"), base, shift=0
             )
-            assert result == data
+            assert result == bytes32
 
-        @given(data=bytes256.map(Bytes256))
-        def test_bytes256(self, get_cairo_type, serde, gen_arg, data):
-            base = gen_arg([data])
+        @given(bytes256=...)
+        def test_bytes256(self, get_cairo_type, serde, gen_arg, bytes256: Bytes256):
+            base = gen_arg([bytes256])
             result = serde.serialize(
                 get_cairo_type("ethereum.base_types.Bytes256"), base, shift=0
             )
-            assert result == data
+            assert result == bytes256
 
-        @given(data=st.binary(min_size=0, max_size=100).map(Bytes))
-        def test_bytes(self, get_cairo_type, serde, gen_arg, data):
-            base = gen_arg([data])
+        @given(bytes_=...)
+        def test_bytes(self, get_cairo_type, serde, gen_arg, bytes_: Bytes):
+            base = gen_arg([bytes_])
             result = serde.serialize(
                 get_cairo_type("ethereum.base_types.Bytes"), base, shift=0
             )
-            assert result == data
+            assert result == bytes_
 
-        @given(data=st.tuples(st.binary(min_size=0, max_size=100).map(Bytes)))
-        def test_tuple_bytes(self, get_cairo_type, serde, gen_arg, data):
-            base = gen_arg([data])
+        @given(bytes_=...)
+        def test_tuple_bytes(
+            self, get_cairo_type, serde, gen_arg, bytes_: tuple[Bytes]
+        ):
+            base = gen_arg([bytes_])
             result = serde.serialize(
                 get_cairo_type("ethereum.base_types.TupleBytes"), base, shift=0
             )
-            assert result == data
+            assert result == bytes_
 
-        @given(data=st.tuples(bytes32.map(Bytes32)))
-        def test_tuple_bytes32(self, get_cairo_type, serde, gen_arg, data):
-            base = gen_arg([data])
+        @given(bytes32=...)
+        def test_tuple_bytes32(
+            self, get_cairo_type, serde, gen_arg, bytes32: tuple[Bytes32]
+        ):
+            base = gen_arg([bytes32])
             result = serde.serialize(
                 get_cairo_type("ethereum.base_types.TupleBytes32"), base, shift=0
             )
-            assert result == data
+            assert result == bytes32
 
     class TestForkTypes:
 
-        @given(data=bytes20.map(Address))
-        def test_address(self, get_cairo_type, serde, gen_arg, data):
-            base = gen_arg([data])
+        @given(address=...)
+        def test_address(self, get_cairo_type, serde, gen_arg, address: Address):
+            base = gen_arg([address])
             result = serde.serialize(
                 get_cairo_type("ethereum.cancun.fork_types.Address"), base, shift=0
             )
-            assert result == data
+            assert result == address
 
-        @given(data=bytes32.map(Root))
-        def test_root(self, get_cairo_type, serde, gen_arg, data):
-            base = gen_arg([data])
+        @given(root=...)
+        def test_root(self, get_cairo_type, serde, gen_arg, root: Root):
+            base = gen_arg([root])
             result = serde.serialize(
                 get_cairo_type("ethereum.cancun.fork_types.Root"), base, shift=0
             )
-            assert result == data
+            assert result == root
 
-        @given(data=bytes32.map(VersionedHash))
-        def test_versioned_hash(self, get_cairo_type, serde, gen_arg, data):
-            base = gen_arg([data])
+        @given(versioned_hash=...)
+        def test_versioned_hash(
+            self, get_cairo_type, serde, gen_arg, versioned_hash: VersionedHash
+        ):
+            base = gen_arg([versioned_hash])
             result = serde.serialize(
                 get_cairo_type("ethereum.cancun.fork_types.VersionedHash"),
                 base,
                 shift=0,
             )
-            assert result == data
+            assert result == versioned_hash
 
-        @given(data=bytes256.map(Bloom))
-        def test_bloom(self, get_cairo_type, serde, gen_arg, data):
-            base = gen_arg([data])
+        @given(bloom=...)
+        def test_bloom(self, get_cairo_type, serde, gen_arg, bloom: Bloom):
+            base = gen_arg([bloom])
             result = serde.serialize(
                 get_cairo_type("ethereum.cancun.fork_types.Bloom"), base, shift=0
             )
-            assert result == data
+            assert result == bloom
 
-        @given(account)
-        def test_account(self, get_cairo_type, serde, gen_arg, account):
+        @given(account=...)
+        def test_account(self, get_cairo_type, serde, gen_arg, account: Account):
             base = gen_arg([account])
             result = serde.serialize(
                 get_cairo_type("ethereum.cancun.fork_types.Account"),
@@ -225,64 +215,70 @@ class TestSerde:
 
     class TestBlocks:
 
-        @given(withdrawal)
-        def test_withdrawal(self, get_cairo_type, serde, gen_arg, withdrawal):
+        @given(withdrawal=...)
+        def test_withdrawal(
+            self, get_cairo_type, serde, gen_arg, withdrawal: Withdrawal
+        ):
             base = gen_arg([withdrawal])
             result = serde.serialize(
                 get_cairo_type("ethereum.cancun.blocks.Withdrawal"), base, shift=0
             )
             assert result == withdrawal
 
-        @given(st.tuples(withdrawal))
-        def test_tuple_withdrawal(self, get_cairo_type, serde, gen_arg, data):
-            base = gen_arg([data])
+        @given(withdrawals=...)
+        def test_tuple_withdrawal(
+            self, get_cairo_type, serde, gen_arg, withdrawals: tuple[Withdrawal]
+        ):
+            base = gen_arg([withdrawals])
             result = serde.serialize(
                 get_cairo_type("ethereum.cancun.blocks.TupleWithdrawal"), base, shift=0
             )
-            assert result == data
+            assert result == withdrawals
 
-        @given(header)
-        def test_header(self, get_cairo_type, serde, gen_arg, header):
+        @given(header=...)
+        def test_header(self, get_cairo_type, serde, gen_arg, header: Header):
             base = gen_arg([header])
             result = serde.serialize(
                 get_cairo_type("ethereum.cancun.blocks.Header"), base, shift=0
             )
             assert result == header
 
-        @given(st.tuples(header))
-        def test_tuple_header(self, get_cairo_type, serde, gen_arg, data):
-            base = gen_arg([data])
+        @given(headers=...)
+        def test_tuple_header(
+            self, get_cairo_type, serde, gen_arg, headers: tuple[Header]
+        ):
+            base = gen_arg([headers])
             result = serde.serialize(
                 get_cairo_type("ethereum.cancun.blocks.TupleHeader"), base, shift=0
             )
-            assert result == data
+            assert result == headers
 
-        @given(log)
-        def test_log(self, get_cairo_type, serde, gen_arg, log):
+        @given(log=...)
+        def test_log(self, get_cairo_type, serde, gen_arg, log: Log):
             base = gen_arg([log])
             result = serde.serialize(
                 get_cairo_type("ethereum.cancun.blocks.Log"), base, shift=0
             )
             assert result == log
 
-        @given(st.tuples(log))
-        def test_tuple_log(self, get_cairo_type, serde, gen_arg, data):
-            base = gen_arg([data])
+        @given(logs=...)
+        def test_tuple_log(self, get_cairo_type, serde, gen_arg, logs: tuple[Log]):
+            base = gen_arg([logs])
             result = serde.serialize(
                 get_cairo_type("ethereum.cancun.blocks.TupleLog"), base, shift=0
             )
-            assert result == data
+            assert result == logs
 
-        @given(receipt)
-        def test_receipt(self, get_cairo_type, serde, gen_arg, receipt):
+        @given(receipt=...)
+        def test_receipt(self, get_cairo_type, serde, gen_arg, receipt: Receipt):
             base = gen_arg([receipt])
             result = serde.serialize(
                 get_cairo_type("ethereum.cancun.blocks.Receipt"), base, shift=0
             )
             assert result == receipt
 
-        @given(block)
-        def test_block(self, get_cairo_type, serde, gen_arg, block):
+        @given(block=...)
+        def test_block(self, get_cairo_type, serde, gen_arg, block: Block):
             base = gen_arg([block])
             result = serde.serialize(
                 get_cairo_type("ethereum.cancun.blocks.Block"), base, shift=0
