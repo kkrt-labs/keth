@@ -58,7 +58,7 @@ reth-node-builder = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1
 reth-node-api = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.1.1" }
 reth-ethereum-engine-primitives = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.1.1" }
 reth-exex = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.1", features = [
-    "serde",
+  "serde",
 ] }
 reth-execution-types = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.1.1" }
 reth-tracing = { git = "https://github.com/paradigmxyz/reth.git", tag = "v1.1.1" }
