@@ -141,7 +141,7 @@ impl CairoType {
         Self::Tuple { members, has_trailing_comma, location }
     }
 
-    /// Returns the name of the type, if it has one.
+    /// Generate a [`CairoType`] from a string representation.
     #[allow(clippy::should_implement_trait)]
     pub fn from_str(name: &str) -> Self {
         match name {
