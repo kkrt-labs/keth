@@ -26,7 +26,8 @@ from starkware.cairo.lang.vm.memory_segments import FIRST_MEMORY_ADDR as PROGRAM
 from starkware.cairo.lang.vm.utils import RunResources
 
 from tests.utils.coverage import VmWithCoverage
-from tests.utils.hints import gen_arg, implement_hints
+from tests.utils.hints import gen_arg as gen_arg_builder
+from tests.utils.hints import implement_hints
 from tests.utils.reporting import profile_from_tracer_data
 from tests.utils.serde import Serde
 
@@ -51,7 +52,11 @@ def cairo_compile(path):
 def cairo_program(request):
     cairo_file = Path(request.node.fspath).with_suffix(".cairo")
     if not cairo_file.exists():
-        raise ValueError(f"Missing cairo file: {cairo_file}")
+        # No dedicated cairo file for tests in the tests/ directory
+        # Use the main cairo file directly
+        cairo_file = Path(str(cairo_file).replace("/tests", "").replace("/test_", "/"))
+        if not cairo_file.exists():
+            raise ValueError(f"Missing cairo file: {cairo_file}")
 
     start = perf_counter()
     program = cairo_compile(cairo_file)
@@ -116,6 +121,8 @@ def cairo_run(request, cairo_program):
             allow_missing_builtins=False,
         )
         serde = Serde(runner.segments, cairo_program)
+        dict_manager = DictManager()
+        gen_arg = gen_arg_builder(dict_manager, runner.segments)
 
         runner.program_base = runner.segments.add()
         runner.execution_base = runner.segments.add()
@@ -131,12 +138,14 @@ def cairo_run(request, cairo_program):
                 add_output = "output" in arg
                 if add_output:
                     output_ptr = stack[-1]
-                continue
 
-        add_output = add_output or "output_ptr" in args
-        if add_output:
-            output_ptr = runner.segments.add()
-            stack.append(output_ptr)
+        for arg in args:
+            if arg == "output_ptr":
+                add_output = True
+                output_ptr = runner.segments.add()
+                stack.append(output_ptr)
+            else:
+                stack.append(gen_arg(kwargs[arg]))
 
         return_fp = runner.execution_base + 2
         end = runner.segments.add()
@@ -156,13 +165,11 @@ def cairo_run(request, cairo_program):
         )
         runner.initial_fp = runner.initial_ap = runner.execution_base + len(stack)
 
-        dict_manager = DictManager()
-
         runner.initialize_vm(
             hint_locals={
                 "program_input": kwargs,
                 "__dict_manager": dict_manager,
-                "gen_arg": gen_arg(dict_manager, runner.segments),
+                "gen_arg": gen_arg,
             },
             vm_class=VmWithCoverage,
         )

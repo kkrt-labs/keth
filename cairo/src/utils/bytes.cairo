@@ -151,6 +151,36 @@ func felt_to_bytes{range_check_ptr}(dst: felt*, value: felt) -> felt {
     return bytes_len;
 }
 
+// @notice Loads a sequence of bytes into a single felt in big-endian.
+// @param len: number of bytes.
+// @param ptr: pointer to bytes array.
+// @return: packed felt.
+func bytes_to_felt(len: felt, ptr: felt*) -> felt {
+    if (len == 0) {
+        return 0;
+    }
+    tempvar current = 0;
+
+    // len, ptr, ?, ?, current
+    // ?, ? are intermediate steps created by the compiler to unfold the
+    // complex expression.
+    loop:
+    let len = [ap - 5];
+    let ptr = cast([ap - 4], felt*);
+    let current = [ap - 1];
+
+    tempvar len = len - 1;
+    tempvar ptr = ptr + 1;
+    tempvar current = current * 256 + [ptr - 1];
+
+    static_assert len == [ap - 5];
+    static_assert ptr == [ap - 4];
+    static_assert current == [ap - 1];
+    jmp loop if len != 0;
+
+    return current;
+}
+
 // @notice Split a felt into an array of 20 bytes, big endian
 // @dev Truncate the high 12 bytes
 func felt_to_bytes20{range_check_ptr}(dst: felt*, value: felt) {
