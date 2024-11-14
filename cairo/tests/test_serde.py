@@ -1,6 +1,5 @@
 import pytest
 from hypothesis import given
-from hypothesis import strategies as st
 from starkware.cairo.common.dict import DictManager
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 from starkware.cairo.lang.vm.memory_dict import MemoryDict

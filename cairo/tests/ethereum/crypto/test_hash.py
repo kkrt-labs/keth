@@ -10,4 +10,4 @@ class TestHash:
         @given(buffer=...)
         def test_keccak256(self, cairo_run, buffer: Bytes):
             assume(len(buffer) <= 1000)
-            assert keccak256(buffer) == cairo_run("keccak256", buffer=buffer)
+            assert keccak256(buffer) == cairo_run("keccak256", buffer)
