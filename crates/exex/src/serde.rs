@@ -4,6 +4,7 @@ use cairo_vm::{
     serde::deserialize_program::{Identifier, Location},
     types::{
         errors::math_errors::MathError,
+        program::Program,
         relocatable::{MaybeRelocatable, Relocatable},
     },
     vm::{errors::memory_errors::MemoryError, runners::cairo_runner::CairoRunner},
@@ -93,6 +94,10 @@ pub enum KakarotSerdeError {
         /// The expected value type.
         expected_value: PointerValue,
     },
+
+    /// Error indicating that a struct was not found during deserialization.
+    #[error("Expected one struct named '{0}', found {1} matches.")]
+    StructNotFound(String, usize),
 }
 
 /// Represents the types used in Cairo, including felt types, pointers, tuples, and structs.
@@ -135,20 +140,15 @@ impl CairoType {
     ) -> Self {
         Self::Tuple { members, has_trailing_comma, location }
     }
-}
 
-/// Represents different types of serialized data extracted from the Cairo VM,
-/// providing a way to handle data that can be communicated between Cairo and Rust.
-///
-/// The [`SerializedData`] enum is used to have a unified representation of data types.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum SerializedData {
-    /// Represents a `Felt` type from Cairo VM.
-    ///
-    /// This variant holds an optional [`MaybeRelocatable`] value, which means it may
-    /// contain a value if it exists within the Cairo VM memory or be [`None`] if no value
-    /// was found or allocated.
-    Felt(Option<MaybeRelocatable>),
+    /// Generate a [`CairoType`] from a string representation.
+    #[allow(clippy::should_implement_trait)]
+    pub fn from_str(name: &str) -> Self {
+        match name {
+            "felt" => Self::felt_type(None),
+            _ => Self::struct_type(name, None),
+        }
+    }
 }
 
 /// Represents the different types of serialized values that can be extracted from the Cairo VM.
@@ -162,28 +162,10 @@ pub enum SerializedResult {
     /// A temporary data structure.
     ///
     /// This is a placeholder that should be removed or improved in the future.
-    Tmp(MaybeRelocatable),
-}
+    Tmp(Option<MaybeRelocatable>),
 
-/// Defines various scope-based data formats serialized within Cairo VM, mapping them
-/// to Rust representations.
-///
-/// The [`SerializedScope`] enum allows Rust code to handle different types of data structures
-/// that are serialized within the Cairo VM under specific scopes.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum SerializedScope {
-    /// Represents a serialized 256-bit unsigned integer ([`U256`]) as reth format.
-    U256(U256),
-}
-
-impl SerializedScope {
-    /// NOTE: this is a temporary function to allow running the tests.
-    /// It should be removed or improved in the future.
-    pub const fn as_serialized_result(&self) -> SerializedResult {
-        match self {
-            Self::U256(value) => SerializedResult::U256(*value),
-        }
-    }
+    /// A serialized struct in the form of a map from field names to serialized values.
+    Struct(HashMap<String, Option<SerializedResult>>),
 }
 
 /// Represents an item in a tuple, consisting of an optional name, type, and location.
@@ -446,11 +428,16 @@ impl KakarotSerde {
         &self,
         scope: &ScopedName,
         scope_ptr: Relocatable,
-    ) -> Result<SerializedScope, KakarotSerdeError> {
+    ) -> Result<Option<SerializedResult>, KakarotSerdeError> {
         // Retrieves the last segment of the scope path, which typically identifies the type.
         match scope.path.last().map(String::as_str) {
-            Some("Uint256") => self.serialize_uint256(scope_ptr).map(SerializedScope::U256),
-            _ => Ok(SerializedScope::U256(U256::ZERO)),
+            Some("Uint256") => {
+                self.serialize_uint256(scope_ptr).map(|v| Some(SerializedResult::U256(v)))
+            }
+            Some("KeccakBuiltinState") => {
+                self.serialize_struct("KeccakBuiltinState", Some(scope_ptr))
+            }
+            _ => Ok(Some(SerializedResult::U256(U256::ZERO))),
         }
     }
 
@@ -515,14 +502,14 @@ impl KakarotSerde {
                         value_ptr.try_into().unwrap(),
                     )?;
                     // Convert the serialized value and insert it into the `HashMap`.
-                    output.insert(key, Some(value.as_serialized_result()));
+                    output.insert(key, value);
                 } else {
                     // If the value is not a `Relocatable`, insert `None` as the value.
                     output.insert(key, None);
                 }
             } else {
                 // If no `value_scope` is provided, insert the value as-is.
-                output.insert(key, Some(SerializedResult::Tmp(value_ptr)));
+                output.insert(key, Some(SerializedResult::Tmp(Some(value_ptr))));
             }
         }
 
@@ -598,7 +585,7 @@ impl KakarotSerde {
         // The memory is serialized as a string of 32-byte words.
         let serialized_memory = (0..words_len * 2)
             .map(|i| {
-                if let Some(Some(SerializedResult::Tmp(MaybeRelocatable::Int(value)))) =
+                if let Some(Some(SerializedResult::Tmp(Some(MaybeRelocatable::Int(value))))) =
                     memory_dict.get(&MaybeRelocatable::Int(i.into()))
                 {
                     format!("{value:032x}")
@@ -693,6 +680,51 @@ impl KakarotSerde {
             .collect())
     }
 
+    /// Serializes a Cairo struct into a [`HashMap`] mapping field names to their serialized values.
+    ///
+    /// This method takes the name of a Cairo struct and an optional memory pointer to the
+    /// struct's location in the Cairo VM memory.
+    /// - If the pointer is `None`, the method returns an empty `[HashMap`].
+    /// - If a pointer is provided, the method resolves the struct's members and serializes each
+    ///   member according to its Cairo type.
+    pub fn serialize_struct(
+        &self,
+        name: &str,
+        ptr: Option<Relocatable>,
+    ) -> Result<Option<SerializedResult>, KakarotSerdeError> {
+        // Check if the provided pointer is `None`. If so, return `None`.
+        if ptr.is_none() {
+            return Ok(None);
+        }
+
+        // Initialize an empty `HashMap` to store the serialized struct members.
+        let mut res = HashMap::new();
+
+        // Attempt to retrieve the struct definition from the Cairo program.
+        if let Some(members) = get_struct_definition(self.runner.get_program(), name)?.members {
+            // Iterate over each member of the struct.
+            for (name, member) in members {
+                // Serialize the member and insert it into the `HashMap`.
+                // - The member's type is determined using `CairoType::from_str`.
+                // - The memory location is calculated by adding the member's offset to `ptr`.
+                res.insert(
+                    name,
+                    self.serialize_inner(
+                        &CairoType::from_str(&member.cairo_type),
+                        (ptr.unwrap() + member.offset)?,
+                        None,
+                    )?,
+                );
+            }
+
+            // Return the serialized struct as a `HashMap`.
+            return Ok(Some(SerializedResult::Struct(res)));
+        }
+
+        // If the struct has no members, return `None`.
+        Ok(None)
+    }
+
     /// Serializes inner data types in Cairo by determining the type of data at a given pointer
     /// location.
     ///
@@ -702,17 +734,46 @@ impl KakarotSerde {
         cairo_type: &CairoType,
         ptr: Relocatable,
         _length: Option<usize>,
-    ) -> Result<Option<SerializedData>, KakarotSerdeError> {
+    ) -> Result<Option<SerializedResult>, KakarotSerdeError> {
         // Match the Cairo type to determine how to serialize it.
         match cairo_type {
             CairoType::Felt { .. } => {
                 // Retrieve the `MaybeRelocatable` value from memory at the specified pointer
                 // location.
-                Ok(Some(SerializedData::Felt(self.runner.vm.get_maybe(&ptr))))
+                Ok(Some(SerializedResult::Tmp(self.runner.vm.get_maybe(&ptr))))
             }
-            _ => Ok(None),
+            CairoType::Struct { scope, .. } => self.serialize_scope(scope, ptr),
+            // TODO: for now, we always generate a `Felt` serialized data type.
+            // This is a placeholder for future implementation so that we can unit test.
+            // We will need to implement the serialization of other data types.
+            _ => Ok(Some(SerializedResult::Tmp(self.runner.vm.get_maybe(&ptr)))),
         }
     }
+}
+
+/// Function to get a struct definition by name.
+pub fn get_struct_definition(
+    program: &Program,
+    struct_name: &str,
+) -> Result<Identifier, KakarotSerdeError> {
+    // Filter identifiers to match the struct name.
+    let identifiers: Vec<&Identifier> = program
+        .iter_identifiers()
+        .filter(|(key, value)| {
+            key.contains(struct_name) &&
+                key.split('.').last() == struct_name.split('.').last() &&
+                value.type_ == Some("struct".to_string())
+        })
+        .map(|(_, value)| value)
+        .collect();
+
+    // Ensure there is only one matching struct.
+    if identifiers.len() != 1 {
+        return Err(KakarotSerdeError::StructNotFound(struct_name.to_string(), identifiers.len()));
+    }
+
+    // Return the single matching struct.
+    Ok(identifiers[0].clone())
 }
 
 #[cfg(test)]
@@ -759,6 +820,12 @@ mod tests {
 
         // Return an instance of KakarotSerde
         KakarotSerde { runner }
+    }
+
+    /// Helper function to set up a [`Program`] from a [`TestProgram`]
+    fn setup_program(test_program: &TestProgram) -> Program {
+        let program_content = test_program.path();
+        Program::from_bytes(program_content, Some("main")).expect("Failed to load test program")
     }
 
     #[test]
@@ -1386,7 +1453,7 @@ mod tests {
         // Assert that the result matches the expected serialized Felt value (Relocatable).
         assert_eq!(
             result_relocatable,
-            Ok(Some(SerializedData::Felt(Some(MaybeRelocatable::RelocatableValue(output_ptr)))))
+            Ok(Some(SerializedResult::Tmp(Some(MaybeRelocatable::RelocatableValue(output_ptr)))))
         );
 
         // Serialize the Felt at the base memory segment with an offset of 1 to target
@@ -1398,7 +1465,7 @@ mod tests {
         );
 
         // Assert that the result matches the expected serialized Felt value (Int).
-        assert_eq!(result_int, Ok(Some(SerializedData::Felt(Some(MaybeRelocatable::Int(a))))));
+        assert_eq!(result_int, Ok(Some(SerializedResult::Tmp(Some(MaybeRelocatable::Int(a))))));
 
         // Serialize the Felt at the base memory segment with an offset of 10 to target non-existing
         // data.
@@ -1409,7 +1476,7 @@ mod tests {
         );
 
         // Assert that the result matches the expected serialized Felt value (None).
-        assert_eq!(result_non_existing, Ok(Some(SerializedData::Felt(None))));
+        assert_eq!(result_non_existing, Ok(Some(SerializedResult::Tmp(None))));
     }
 
     #[test]
@@ -1452,7 +1519,7 @@ mod tests {
         let result = kakarot_serde.serialize_scope(&scope, base);
 
         // Assert that the result matches the expected serialized U256 value
-        assert_eq!(result, Ok(SerializedScope::U256(x)));
+        assert_eq!(result, Ok(Some(SerializedResult::U256(x))));
     }
 
     #[test]
@@ -1623,9 +1690,9 @@ mod tests {
 
         // The result should contain the key-value pairs
         let expected = HashMap::from([
-            (key1, Some(SerializedResult::Tmp(value1))),
-            (key2, Some(SerializedResult::Tmp(value2))),
-            (key3, Some(SerializedResult::Tmp(value3))),
+            (key1, Some(SerializedResult::Tmp(Some(value1)))),
+            (key2, Some(SerializedResult::Tmp(Some(value2)))),
+            (key3, Some(SerializedResult::Tmp(Some(value3)))),
         ]);
         assert_eq!(result, expected);
     }
@@ -2325,5 +2392,114 @@ mod tests {
                 expected_value: PointerValue::Felt
             })
         );
+    }
+
+    #[test]
+    fn test_get_struct_definition_single_match() {
+        let program = setup_program(&TestProgram::KeccakAddUint256);
+        let result = get_struct_definition(&program, "KeccakBuiltin");
+
+        // Assert that the result is ok and contains the correct identifier
+        assert!(result.is_ok());
+        let identifier = result.unwrap();
+        assert_eq!(
+            identifier.full_name,
+            Some("starkware.cairo.common.cairo_builtins.KeccakBuiltin".to_string())
+        );
+        assert_eq!(identifier.type_, Some("struct".to_string()));
+    }
+
+    #[test]
+    fn test_get_struct_definition_no_match() {
+        let program = setup_program(&TestProgram::ModelOption);
+        let result = get_struct_definition(&program, "NonExistentStruct");
+
+        // Assert that the result is an error indicating a type mismatch directly
+        assert_eq!(
+            result,
+            Err(KakarotSerdeError::StructNotFound("NonExistentStruct".to_string(), 0))
+        );
+    }
+
+    #[test]
+    fn test_get_struct_definition_multiple_matches() {
+        let program = setup_program(&TestProgram::ModelMemory);
+        let result = get_struct_definition(&program, "ImplicitArgs");
+
+        // Assert that the result is an error indicating multiple matches
+        assert_eq!(result, Err(KakarotSerdeError::StructNotFound("ImplicitArgs".to_string(), 3)));
+    }
+
+    #[test]
+    fn test_serialize_struct_none_pointer() {
+        let kakarot_serde = setup_kakarot_serde(&TestProgram::KeccakAddUint256);
+
+        // Test with a None pointer, expecting an empty vector as the result
+        let result = kakarot_serde.serialize_struct("SomeStruct", None).unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_serialize_struct_missing_struct_definition() {
+        let kakarot_serde = setup_kakarot_serde(&TestProgram::KeccakAddUint256);
+
+        // Test with a struct name that doesn't exist in the program
+        let ptr = Some(Relocatable { segment_index: 0, offset: 0 });
+        let result = kakarot_serde.serialize_struct("NonExistentStruct", ptr);
+
+        // Assert that the error indicates the struct was not found
+        assert_eq!(
+            result,
+            Err(KakarotSerdeError::StructNotFound("NonExistentStruct".to_string(), 0))
+        );
+    }
+
+    #[test]
+    fn test_serialize_struct_valid_struct() {
+        // Helper function to generate a vector of `MaybeRelocatable::Int` from a range
+        fn generate_memory_data(start: u64, count: usize) -> Vec<MaybeRelocatable> {
+            (start..start + count as u64).map(|i| MaybeRelocatable::Int(Felt252::from(i))).collect()
+        }
+
+        // Helper function to create a `SerializedResult::Tmp` from a number
+        fn create_tmp(value: u64) -> SerializedResult {
+            SerializedResult::Tmp(Some(MaybeRelocatable::Int(Felt252::from(value))))
+        }
+
+        // Helper function to create a `HashMap` for struct serialization
+        fn create_struct_data(start: u64) -> SerializedResult {
+            SerializedResult::Struct(
+                (0..8).map(|i| (format!("s{i}"), Some(create_tmp(start + i)))).collect(),
+            )
+        }
+
+        let mut kakarot_serde = setup_kakarot_serde(&TestProgram::KeccakAddUint256);
+
+        // Setup the struct members and insert them into memory
+        let ptr = kakarot_serde
+            .runner
+            .vm
+            .gen_arg(&generate_memory_data(0, 18))
+            .unwrap()
+            .get_relocatable()
+            .expect("failed to insert invalid dict_ptr_start into memory");
+
+        // Test with a valid struct name
+        let result = kakarot_serde
+            .serialize_struct("KeccakBuiltin", Some(ptr))
+            .expect("failed to serialize struct");
+
+        // Expected input and output structs
+        let input = create_struct_data(0);
+        let output = create_struct_data(8);
+
+        // Create the expected serialized result
+        let expected = SerializedResult::Struct(HashMap::from([
+            ("input".to_string(), Some(input)),
+            ("output".to_string(), Some(output)),
+        ]));
+
+        // Assert that the result is as expected
+        assert_eq!(result, Some(expected));
     }
 }
