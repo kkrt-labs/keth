@@ -2456,21 +2456,10 @@ mod tests {
 
     #[test]
     fn test_serialize_struct_valid_struct() {
-        let mut kakarot_serde = setup_kakarot_serde(&TestProgram::KeccakAddUint256);
-
         // Helper function to generate a vector of `MaybeRelocatable::Int` from a range
         fn generate_memory_data(start: u64, count: usize) -> Vec<MaybeRelocatable> {
             (start..start + count as u64).map(|i| MaybeRelocatable::Int(Felt252::from(i))).collect()
         }
-
-        // Setup the struct members and insert them into memory
-        let ptr = kakarot_serde
-            .runner
-            .vm
-            .gen_arg(&generate_memory_data(0, 18))
-            .unwrap()
-            .get_relocatable()
-            .expect("failed to insert invalid dict_ptr_start into memory");
 
         // Helper function to create a `SerializedResult::Tmp` from a number
         fn create_tmp(value: u64) -> SerializedResult {
@@ -2480,9 +2469,20 @@ mod tests {
         // Helper function to create a `HashMap` for struct serialization
         fn create_struct_data(start: u64) -> SerializedResult {
             SerializedResult::Struct(
-                (0..8).map(|i| (format!("s{}", i), Some(create_tmp(start + i)))).collect(),
+                (0..8).map(|i| (format!("s{i}"), Some(create_tmp(start + i)))).collect(),
             )
         }
+
+        let mut kakarot_serde = setup_kakarot_serde(&TestProgram::KeccakAddUint256);
+
+        // Setup the struct members and insert them into memory
+        let ptr = kakarot_serde
+            .runner
+            .vm
+            .gen_arg(&generate_memory_data(0, 18))
+            .unwrap()
+            .get_relocatable()
+            .expect("failed to insert invalid dict_ptr_start into memory");
 
         // Test with a valid struct name
         let result = kakarot_serde
