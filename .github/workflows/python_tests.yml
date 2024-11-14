@@ -20,4 +20,12 @@ jobs:
       - run: |
           cd cairo
           uv run compile
-          uv run pytest -n logical
+          uv run pytest -n logical --junitxml=junit.xml -o junit_family=legacy
+      - uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          directory: ./cairo/coverage/
+      - uses: codecov/test-results-action@v1
+        if: ${{ !cancelled() }}
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
