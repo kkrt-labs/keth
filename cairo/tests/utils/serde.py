@@ -1,6 +1,18 @@
 from typing import Optional
 
 from eth_utils.address import to_checksum_address
+from starkware.cairo.lang.compiler.ast.cairo_types import (
+    TypeFelt,
+    TypePointer,
+    TypeStruct,
+    TypeTuple,
+)
+from starkware.cairo.lang.compiler.identifier_definition import (
+    StructDefinition,
+    TypeDefinition,
+)
+from starkware.cairo.lang.compiler.identifier_manager import MissingIdentifierError
+
 from ethereum.base_types import (
     U64,
     U256,
@@ -13,17 +25,6 @@ from ethereum.base_types import (
 )
 from ethereum.cancun.blocks import Block, Header, Log, Receipt, Withdrawal
 from ethereum.cancun.fork_types import Account
-from starkware.cairo.lang.compiler.ast.cairo_types import (
-    TypeFelt,
-    TypePointer,
-    TypeStruct,
-    TypeTuple,
-)
-from starkware.cairo.lang.compiler.identifier_definition import (
-    StructDefinition,
-    TypeDefinition,
-)
-from starkware.cairo.lang.compiler.identifier_manager import MissingIdentifierError
 
 
 def get_cairo_type(program, name):

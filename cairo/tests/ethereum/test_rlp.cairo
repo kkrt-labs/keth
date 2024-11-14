@@ -1,4 +1,10 @@
-from ethereum.rlp import encode_bytes, get_joined_encodings, encode_sequence, rlp_hash
+from ethereum.rlp import (
+    encode_bytes,
+    get_joined_encodings,
+    encode_sequence,
+    rlp_hash,
+    decode_to_bytes,
+)
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin
 from ethereum.base_types import Bytes, TupleBytes
 from ethereum.crypto.hash import Hash32
@@ -30,4 +36,11 @@ func test_rlp_hash{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: Ke
     %{ memory[ap - 1] = gen_arg(program_input["raw_bytes"]) %}
     let hash = rlp_hash(raw_bytes);
     return hash;
+}
+
+func test_decode_to_bytes{range_check_ptr}() -> Bytes {
+    tempvar encoded_bytes: Bytes;
+    %{ memory[ap - 1] = gen_arg(program_input["encoded_bytes"]) %}
+    let decoded_bytes = decode_to_bytes(encoded_bytes);
+    return decoded_bytes;
 }

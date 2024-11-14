@@ -1,10 +1,11 @@
+from hypothesis import strategies as st
+from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
+
 from ethereum.base_types import U64, U256, Bytes8, Bytes32, Uint
 from ethereum.cancun.blocks import Block, Header, Log, Receipt, Withdrawal
 from ethereum.cancun.fork_types import Account, Address, Bloom, Root
 from ethereum.cancun.trie import Trie
 from ethereum.crypto.hash import Hash32
-from hypothesis import strategies as st
-from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 
 # Base types
 uint20 = st.integers(min_value=0, max_value=2**20 - 1)

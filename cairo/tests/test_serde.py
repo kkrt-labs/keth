@@ -1,4 +1,11 @@
 import pytest
+from hypothesis import given
+from hypothesis import strategies as st
+from starkware.cairo.common.dict import DictManager
+from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
+from starkware.cairo.lang.vm.memory_dict import MemoryDict
+from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
+
 from ethereum.base_types import (
     U64,
     U256,
@@ -11,13 +18,6 @@ from ethereum.base_types import (
     Uint,
 )
 from ethereum.cancun.fork_types import Address, Bloom, Root, VersionedHash
-from hypothesis import given
-from hypothesis import strategies as st
-from starkware.cairo.common.dict import DictManager
-from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
-from starkware.cairo.lang.vm.memory_dict import MemoryDict
-from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
-
 from tests.utils.hints import gen_arg as _gen_arg
 from tests.utils.serde import Serde
 from tests.utils.serde import get_cairo_type as _get_cairo_type

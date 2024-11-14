@@ -2,10 +2,11 @@ from ethereum.base_types import Bytes, BytesStruct, TupleBytes, TupleBytesStruct
 from ethereum.crypto.hash import keccak256, Hash32
 from ethereum.utils.numeric import is_zero
 from src.utils.array import reverse
-from src.utils.bytes import felt_to_bytes, felt_to_bytes_little
+from src.utils.bytes import felt_to_bytes, felt_to_bytes_little, bytes_to_felt
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin
 from starkware.cairo.common.math_cmp import is_le, is_not_zero
+from starkware.cairo.common.math import assert_not_zero
 from starkware.cairo.common.memcpy import memcpy
 
 func _encode_bytes{range_check_ptr}(dst: felt*, raw_bytes: Bytes) -> felt {
@@ -105,4 +106,54 @@ func rlp_hash{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakB
 ) -> Hash32 {
     let encoded_bytes = encode_bytes(raw_bytes);
     return keccak256(encoded_bytes);
+}
+
+// @dev The reference function doesn't handle the case where encoded_bytes.len == 0
+func decode_to_bytes{range_check_ptr}(encoded_bytes: Bytes) -> Bytes {
+    alloc_locals;
+    assert_not_zero(encoded_bytes.value.len);
+    assert [range_check_ptr] = encoded_bytes.value.len;
+    let range_check_ptr = range_check_ptr + 1;
+
+    let cond = is_le(encoded_bytes.value.data[0], 0x80 - 1);
+    if (encoded_bytes.value.len == 1 and cond != 0) {
+        return encoded_bytes;
+    }
+
+    let cond = is_le(encoded_bytes.value.data[0], 0xB7);
+    if (cond != 0) {
+        let len_raw_data = encoded_bytes.value.data[0] - 0x80;
+        assert [range_check_ptr] = len_raw_data;
+        let range_check_ptr = range_check_ptr + 1;
+        assert [range_check_ptr] = encoded_bytes.value.len - len_raw_data;
+        let range_check_ptr = range_check_ptr + 1;
+        let raw_data = encoded_bytes.value.data + 1;
+        if (len_raw_data == 1) {
+            assert [range_check_ptr] = raw_data[0] - 0x80;
+            tempvar range_check_ptr = range_check_ptr + 1;
+        } else {
+            tempvar range_check_ptr = range_check_ptr;
+        }
+        let range_check_ptr = [ap - 1];
+        tempvar value = new BytesStruct(raw_data, len_raw_data);
+        let decoded_bytes = Bytes(value);
+        return decoded_bytes;
+    }
+
+    let decoded_data_start_idx = 1 + encoded_bytes.value.data[0] - 0xB7;
+    assert [range_check_ptr] = encoded_bytes.value.len - decoded_data_start_idx;
+    let range_check_ptr = range_check_ptr + 1;
+    assert_not_zero(encoded_bytes.value.data[1]);
+    let len_decoded_data = bytes_to_felt(decoded_data_start_idx - 1, encoded_bytes.value.data + 1);
+    assert [range_check_ptr] = len_decoded_data - 0x38;
+    let range_check_ptr = range_check_ptr + 1;
+
+    let decoded_data_end_idx = decoded_data_start_idx + len_decoded_data;
+    assert [range_check_ptr] = encoded_bytes.value.len - decoded_data_end_idx;
+
+    let raw_data = encoded_bytes.value.data + decoded_data_start_idx;
+    tempvar value = new BytesStruct(raw_data, decoded_data_end_idx - decoded_data_start_idx);
+    let decoded_bytes = Bytes(value);
+
+    return decoded_bytes;
 }
