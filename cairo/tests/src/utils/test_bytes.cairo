@@ -12,6 +12,7 @@ from src.utils.bytes import (
     uint256_to_bytes,
     uint256_to_bytes32,
     bytes_to_bytes8_little_endian,
+    bytes_to_felt,
 )
 
 func test__felt_to_ascii{range_check_ptr}(output_ptr: felt*) {
@@ -100,4 +101,15 @@ func test__bytes_to_bytes8_little_endian{range_check_ptr}() -> felt* {
     bytes_to_bytes8_little_endian(bytes8, bytes_len, bytes);
 
     return bytes8;
+}
+
+func test__bytes_to_felt() -> felt {
+    tempvar len;
+    let (ptr) = alloc();
+    %{
+        ids.len = len(program_input["data"])
+        segments.write_arg(ids.ptr, program_input["data"])
+    %}
+    let res = bytes_to_felt(len, ptr);
+    return res;
 }

@@ -123,3 +123,10 @@ class TestBytes:
             output = cairo_run("test__bytes_to_bytes8_little_endian", bytes=data)
 
             assert bytes8_little_endian == output
+
+    class TestBytesToFelt:
+
+        @given(data=binary(min_size=0, max_size=35))
+        def test_should_convert_bytes_to_felt_with_overflow(self, cairo_run, data):
+            output = cairo_run("test__bytes_to_felt", data=list(data))
+            assert output == int.from_bytes(data, byteorder="big") % DEFAULT_PRIME

@@ -5,13 +5,13 @@ from functools import partial
 from typing import Dict, Iterable, Tuple, Union
 from unittest.mock import patch
 
-from ethereum.base_types import U256, Bytes, Bytes0, Bytes8, Bytes20, Bytes32, Bytes256
-from ethereum.cancun.blocks import Header, Log, Withdrawal
-from ethereum.crypto.hash import Hash32
 from starkware.cairo.common.dict import DictTracker
 from starkware.cairo.lang.compiler.program import CairoHint
 from starkware.cairo.lang.vm.relocatable import MaybeRelocatable
 
+from ethereum.base_types import U256, Bytes, Bytes0, Bytes8, Bytes20, Bytes32, Bytes256
+from ethereum.cancun.blocks import Header, Log, Withdrawal
+from ethereum.crypto.hash import Hash32
 from src.utils.uint256 import int_to_uint256
 from tests.utils.helpers import flatten
 
