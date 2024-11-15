@@ -49,7 +49,7 @@ def cairo_compile(path):
 
 
 @pytest.fixture(scope="module")
-def cairo_program(request):
+def cairo_file(request):
     cairo_file = Path(request.node.fspath).with_suffix(".cairo")
     if not cairo_file.exists():
         # No dedicated cairo file for tests in the tests/ directory
@@ -57,7 +57,11 @@ def cairo_program(request):
         cairo_file = Path(str(cairo_file).replace("/tests", "").replace("/test_", "/"))
         if not cairo_file.exists():
             raise ValueError(f"Missing cairo file: {cairo_file}")
+    return cairo_file
 
+
+@pytest.fixture(scope="module")
+def cairo_program(cairo_file):
     start = perf_counter()
     program = cairo_compile(cairo_file)
     program.hints = implement_hints(program)
@@ -67,7 +71,7 @@ def cairo_program(request):
 
 
 @pytest.fixture(scope="module")
-def cairo_run(request, cairo_program):
+def cairo_run(request, cairo_program, cairo_file):
     """
     Run the cairo program corresponding to the python test file at a given entrypoint with given program inputs as kwargs.
     Returns the output of the cairo program put in the output memory segment.
@@ -120,7 +124,7 @@ def cairo_run(request, cairo_program):
             proof_mode=request.config.getoption("proof_mode"),
             allow_missing_builtins=False,
         )
-        serde = Serde(runner.segments, cairo_program)
+        serde = Serde(runner.segments, cairo_program, cairo_file)
         dict_manager = DictManager()
         gen_arg = gen_arg_builder(dict_manager, runner.segments)
 

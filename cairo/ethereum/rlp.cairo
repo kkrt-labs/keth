@@ -9,6 +9,28 @@ from starkware.cairo.common.math_cmp import is_le, is_not_zero
 from starkware.cairo.common.math import assert_not_zero
 from starkware.cairo.common.memcpy import memcpy
 
+struct SequenceEnumSimple {
+    value: SequenceEnumSimpleStruct*,
+}
+
+struct SequenceEnumSimpleStruct {
+    value: EnumSimple*,
+    len: felt,
+}
+
+struct EnumSimple {
+    value: EnumSimpleStruct*,
+}
+
+struct EnumSimpleStruct {
+    sequence: SequenceEnumSimple,
+    bytes: Bytes,
+}
+
+//
+// RLP Encode
+//
+
 func _encode_bytes{range_check_ptr}(dst: felt*, raw_bytes: Bytes) -> felt {
     alloc_locals;
 
@@ -108,6 +130,34 @@ func rlp_hash{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakB
     return keccak256(encoded_bytes);
 }
 
+//
+// RLP Decode
+//
+
+func decode{range_check_ptr}(encoded_data: Bytes) -> EnumSimple {
+    alloc_locals;
+    assert [range_check_ptr] = encoded_data.value.len;
+    let range_check_ptr = range_check_ptr + 1;
+    assert_not_zero(encoded_data.value.len);
+
+    let cond = is_le(encoded_data.value.data[0], 0xbf);
+    if (cond != 0) {
+        let decoded_data = decode_to_bytes(encoded_data);
+        tempvar value = EnumSimple(
+            new EnumSimpleStruct(
+                sequence=SequenceEnumSimple(cast(0, SequenceEnumSimpleStruct*)), bytes=decoded_data
+            ),
+        );
+        return value;
+    }
+
+    let decoded_sequence = decode_to_sequence(encoded_data);
+    tempvar value = EnumSimple(
+        new EnumSimpleStruct(sequence=decoded_sequence, Bytes(cast(0, BytesStruct*)))
+    );
+    return value;
+}
+
 // @dev The reference function doesn't handle the case where encoded_bytes.len == 0
 func decode_to_bytes{range_check_ptr}(encoded_bytes: Bytes) -> Bytes {
     alloc_locals;
@@ -156,4 +206,120 @@ func decode_to_bytes{range_check_ptr}(encoded_bytes: Bytes) -> Bytes {
     let decoded_bytes = Bytes(value);
 
     return decoded_bytes;
+}
+
+func decode_to_sequence{range_check_ptr}(encoded_sequence: Bytes) -> SequenceEnumSimple {
+    alloc_locals;
+
+    let cond = is_le(encoded_sequence.value.data[0], 0xF7);
+    if (cond == 1) {
+        let len_joined_encodings = encoded_sequence.value.data[0] - 0xC0;
+        assert [range_check_ptr] = len_joined_encodings;
+        let range_check_ptr = range_check_ptr + 1;
+        assert [range_check_ptr] = encoded_sequence.value.len - len_joined_encodings - 1;
+        let range_check_ptr = range_check_ptr + 1;
+
+        tempvar value = new BytesStruct(encoded_sequence.value.data + 1, len_joined_encodings);
+        let joined_encodings = Bytes(value);
+        return decode_joined_encodings(joined_encodings);
+    }
+
+    let joined_encodings_start_idx = 1 + encoded_sequence.value.data[0] - 0xF7;
+    assert [range_check_ptr] = encoded_sequence.value.len - joined_encodings_start_idx;
+    let range_check_ptr = range_check_ptr + 1;
+    assert_not_zero(encoded_sequence.value.data[1]);
+
+    let len_joined_encodings = bytes_to_felt(
+        joined_encodings_start_idx - 1, encoded_sequence.value.data + 1
+    );
+    assert [range_check_ptr] = len_joined_encodings - 0x38;
+    let range_check_ptr = range_check_ptr + 1;
+
+    let joined_encodings_end_idx = joined_encodings_start_idx + len_joined_encodings;
+    assert [range_check_ptr] = encoded_sequence.value.len - joined_encodings_end_idx;
+    let range_check_ptr = range_check_ptr + 1;
+
+    tempvar value = new BytesStruct(
+        encoded_sequence.value.data + joined_encodings_start_idx,
+        joined_encodings_end_idx - joined_encodings_start_idx,
+    );
+    let joined_encodings = Bytes(value);
+    return decode_joined_encodings(joined_encodings);
+}
+
+func decode_joined_encodings{range_check_ptr}(joined_encodings: Bytes) -> SequenceEnumSimple {
+    alloc_locals;
+
+    let (dst: EnumSimple*) = alloc();
+    let len = _decode_joined_encodings(dst, joined_encodings);
+    tempvar decoded_sequence = SequenceEnumSimple(new SequenceEnumSimpleStruct(dst, len));
+    return decoded_sequence;
+}
+
+func _decode_joined_encodings{range_check_ptr}(dst: EnumSimple*, joined_encodings: Bytes) -> felt {
+    alloc_locals;
+
+    if (joined_encodings.value.len == 0) {
+        return 0;
+    }
+
+    let encoded_item_length = decode_item_length(joined_encodings);
+    assert [range_check_ptr] = joined_encodings.value.len - encoded_item_length;
+    let range_check_ptr = range_check_ptr + 1;
+
+    tempvar encoded_item = Bytes(new BytesStruct(joined_encodings.value.data, encoded_item_length));
+    let decoded_item = decode(encoded_item);
+    assert [dst] = decoded_item;
+
+    tempvar joined_encodings = Bytes(
+        new BytesStruct(
+            joined_encodings.value.data + encoded_item_length,
+            joined_encodings.value.len - encoded_item_length,
+        ),
+    );
+
+    let len = _decode_joined_encodings(dst + 1, joined_encodings);
+    return 1 + len;
+}
+
+func decode_item_length{range_check_ptr}(encoded_data: Bytes) -> felt {
+    alloc_locals;
+    assert [range_check_ptr] = encoded_data.value.len;
+    let range_check_ptr = range_check_ptr + 1;
+
+    let first_rlp_byte = encoded_data.value.data[0];
+
+    let cond = is_le(first_rlp_byte, 0x80 - 1);
+    if (cond != 0) {
+        return 1;
+    }
+
+    let cond = is_le(first_rlp_byte, 0xB7);
+    if (cond != 0) {
+        let decoded_data_length = first_rlp_byte - 0x80;
+        return 1 + decoded_data_length;
+    }
+
+    let cond = is_le(first_rlp_byte, 0xBF);
+    if (cond != 0) {
+        let length_length = first_rlp_byte - 0xB7;
+        assert [range_check_ptr] = encoded_data.value.len - length_length - 1;
+        let range_check_ptr = range_check_ptr + 1;
+        assert_not_zero(encoded_data.value.data[1]);
+        let decoded_data_length = bytes_to_felt(length_length, encoded_data.value.data + 1);
+        return 1 + length_length + decoded_data_length;
+    }
+
+    let cond = is_le(first_rlp_byte, 0xF7);
+    if (cond != 0) {
+        let decoded_data_length = first_rlp_byte - 0xC0;
+        return 1 + decoded_data_length;
+    }
+
+    let length_length = first_rlp_byte - 0xF7;
+    assert [range_check_ptr] = encoded_data.value.len - length_length - 1;
+    let range_check_ptr = range_check_ptr + 1;
+    assert_not_zero(encoded_data.value.data[1]);
+    let decoded_data_length = bytes_to_felt(length_length, encoded_data.value.data + 1);
+    return 1 + length_length + decoded_data_length;
 }

@@ -110,7 +110,7 @@ def _gen_arg(
         )
 
     # Empty tuples will match also match this case.
-    if isinstance(arg, tuple) and (
+    if (isinstance(arg, tuple) or isinstance(arg, list)) and (
         all(isinstance(x, Log) for x in arg)
         or all(isinstance(x, Hash32) for x in arg)
         or all(isinstance(x, Bytes32) for x in arg)
