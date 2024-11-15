@@ -14,34 +14,28 @@ pub struct Job {
 }
 
 #[derive(Deserialize, Serialize, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 pub struct SharpQueryDetails {
     id: String,
-    #[serde(rename = "submittedByClient")]
     submitted_by_client: String,
     status: String,
     step: Option<String>,
-    #[serde(rename = "programHash")]
     program_hash: Option<String>,
     layout: Option<String>,
-    #[serde(rename = "programFactHash")]
     program_fact_hash: Option<String>,
     price: String,
-    #[serde(rename = "creditsUsed")]
     credits_used: usize,
-    #[serde(rename = "isFactMocked")]
     is_fact_mocked: bool,
     prover: Option<String>,
     chain: String,
     steps: Vec<String>,
-    #[serde(rename = "createdAt")]
     created_at: String,
-    #[serde(rename = "completedAt")]
     completed_at: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 pub struct QueryResponse {
-    #[serde(rename = "sharpQueryId")]
     pub sharp_query_id: String,
 }
 
