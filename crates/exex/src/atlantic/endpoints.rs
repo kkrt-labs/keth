@@ -37,19 +37,19 @@ impl L2Endpoints {
 #[derive(Debug, Clone)]
 pub struct SharpQueriesEndpoints {
     /// Get the list of Atlantic queries submitted by the user
-    pub get_queries: Url,
+    pub queries: Url,
     /// Get the details of a specific Atlantic query
-    pub get_query: Url,
+    pub query: Url,
     /// Get the list of jobs for a specific Atlantic query
-    pub get_query_jobs: Url,
+    pub query_jobs: Url,
 }
 
 impl SharpQueriesEndpoints {
     pub fn new(base_url: &Url) -> Result<Self, SharpSdkError> {
         Ok(Self {
-            get_queries: base_url.join("atlantic-queries")?,
-            get_query: base_url.join("atlantic-query")?,
-            get_query_jobs: base_url.join("atlantic-query-jobs")?,
+            queries: base_url.join("atlantic-queries")?,
+            query: base_url.join("atlantic-query")?,
+            query_jobs: base_url.join("atlantic-query-jobs")?,
         })
     }
 }
@@ -173,13 +173,10 @@ mod tests {
             SharpQueriesEndpoints::new(&base_url).expect("Failed to create SharpQueriesEndpoints");
 
         // Check that URLs are constructed correctly even with a trailing slash in base URL
+        assert_eq!(endpoints.queries, Url::parse("https://example.com/atlantic-queries").unwrap());
+        assert_eq!(endpoints.query, Url::parse("https://example.com/atlantic-query").unwrap());
         assert_eq!(
-            endpoints.get_queries,
-            Url::parse("https://example.com/atlantic-queries").unwrap()
-        );
-        assert_eq!(endpoints.get_query, Url::parse("https://example.com/atlantic-query").unwrap());
-        assert_eq!(
-            endpoints.get_query_jobs,
+            endpoints.query_jobs,
             Url::parse("https://example.com/atlantic-query-jobs").unwrap()
         );
     }
@@ -191,13 +188,10 @@ mod tests {
             SharpQueriesEndpoints::new(&base_url).expect("Failed to create SharpQueriesEndpoints");
 
         // Check that URLs are constructed correctly even without a trailing slash in base URL
+        assert_eq!(endpoints.queries, Url::parse("https://example.com/atlantic-queries").unwrap());
+        assert_eq!(endpoints.query, Url::parse("https://example.com/atlantic-query").unwrap());
         assert_eq!(
-            endpoints.get_queries,
-            Url::parse("https://example.com/atlantic-queries").unwrap()
-        );
-        assert_eq!(endpoints.get_query, Url::parse("https://example.com/atlantic-query").unwrap());
-        assert_eq!(
-            endpoints.get_query_jobs,
+            endpoints.query_jobs,
             Url::parse("https://example.com/atlantic-query-jobs").unwrap()
         );
     }
