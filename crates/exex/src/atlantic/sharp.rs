@@ -14,7 +14,7 @@ pub struct SharpSdk {
 
 impl SharpSdk {
     /// Create a new Sharp SDK instance
-    pub fn new(api_key: String, base_url: Url) -> Self {
+    pub const fn new(api_key: String, base_url: Url) -> Self {
         Self { api_key, base_url }
     }
 

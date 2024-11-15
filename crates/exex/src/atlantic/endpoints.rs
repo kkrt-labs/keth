@@ -15,9 +15,9 @@ pub enum ProofTraceEndpoints {
 impl ProofTraceEndpoints {
     pub fn url(&self, base_url: &Url) -> Result<Url, SharpSdkError> {
         match self {
-            ProofTraceEndpoints::ProofGeneration => base_url.join("proof-generation"),
-            ProofTraceEndpoints::TraceGeneration => base_url.join("trace-generation"),
-            ProofTraceEndpoints::TraceGenerationProofGeneration => {
+            Self::ProofGeneration => base_url.join("proof-generation"),
+            Self::TraceGeneration => base_url.join("trace-generation"),
+            Self::TraceGenerationProofGeneration => {
                 base_url.join("trace-generation-proof-generation")
             }
         }
@@ -39,11 +39,11 @@ pub enum L2Endpoints {
 impl L2Endpoints {
     pub fn url(&self, base_url: &Url) -> Result<Url, SharpSdkError> {
         match self {
-            L2Endpoints::AtlanticQuery => base_url.join("l2/atlantic-query"),
-            L2Endpoints::ProofGenerationVerification => {
+            Self::AtlanticQuery => base_url.join("l2/atlantic-query"),
+            Self::ProofGenerationVerification => {
                 base_url.join("l2/atlantic-query/proof-generation-verification")
             }
-            L2Endpoints::ProofVerification => base_url.join("l2/atlantic-query/proof-verification"),
+            Self::ProofVerification => base_url.join("l2/atlantic-query/proof-verification"),
         }
         .map_err(SharpSdkError::from)
     }
@@ -63,9 +63,9 @@ pub enum SharpQueryEndpoints {
 impl SharpQueryEndpoints {
     pub fn url(&self, base_url: &Url) -> Result<Url, SharpSdkError> {
         match self {
-            SharpQueryEndpoints::Queries => base_url.join("atlantic-queries"),
-            SharpQueryEndpoints::Query => base_url.join("atlantic-query"),
-            SharpQueryEndpoints::QueryJobs => base_url.join("atlantic-query-jobs"),
+            Self::Queries => base_url.join("atlantic-queries"),
+            Self::Query => base_url.join("atlantic-query"),
+            Self::QueryJobs => base_url.join("atlantic-query-jobs"),
         }
         .map_err(SharpSdkError::from)
     }
@@ -81,7 +81,7 @@ pub enum HealthCheckEndpoints {
 impl HealthCheckEndpoints {
     pub fn url(&self, base_url: &Url) -> Result<Url, SharpSdkError> {
         match self {
-            HealthCheckEndpoints::IsAlive => base_url.join("is-alive"),
+            Self::IsAlive => base_url.join("is-alive"),
         }
         .map_err(SharpSdkError::from)
     }
@@ -97,7 +97,7 @@ pub enum ProgramRegistryEndpoints {
 impl ProgramRegistryEndpoints {
     pub fn url(&self, base_url: &Url) -> Result<Url, SharpSdkError> {
         match self {
-            ProgramRegistryEndpoints::SubmitProgram => base_url.join("submit-program"),
+            Self::SubmitProgram => base_url.join("submit-program"),
         }
         .map_err(SharpSdkError::from)
     }
