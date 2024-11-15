@@ -39,7 +39,7 @@ Coming soon 🏗️.
   openness and cutting-edge research on the subject of Type 1 provers.
 - reth: keth's backend logic relies on
   [Reth Execution Extensions](https://www.paradigm.xyz/2024/05/reth-exex). Thank
-  you to the team who's helped us since day 1 in design and development.
+  you to the team who have helped us since day 1 in design and development.
 - Herodotus: keth's Cairo code relies on Herodotus' implementation and
-  architecture of MPT proofs in Cairo. Thank you to the team who's helped in
+  architecture of MPT proofs in Cairo. Thank you to the team who have helped in
   designing our Cairo code and development.
