@@ -54,12 +54,16 @@ impl SharpSdk {
         // Create a new HTTP client
         let client = Client::new();
 
-        // Construct the full URL including the API key
-        let url = format!("{}?apiKey={}", self.l2.proof_generation, self.api_key);
-
-        // Make a POST request to the proof generation endpoint
-        let response =
-            client.post(&url).multipart(form).send().await?.json::<QueryResponse>().await?;
+        // Construct the full URL using .query() to add the API key as a query parameter
+        let url = self.l2.proof_generation.clone();
+        let response = client
+            .post(url)
+            .query(&[("apiKey", &self.api_key)])
+            .multipart(form)
+            .send()
+            .await?
+            .json::<QueryResponse>()
+            .await?;
 
         Ok(response)
     }
