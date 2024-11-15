@@ -1,7 +1,5 @@
 use super::{error::SharpSdkError, model::QueryResponse, prover::ProverVersion};
-use crate::atlantic::endpoints::{
-    HealthCheckEndpoint, L2Endpoints, ProgramRegistryEndpoint, SharpQueriesEndpoints,
-};
+use crate::atlantic::endpoints::ProofTraceEndpoints;
 use reqwest::Client;
 use url::Url;
 
@@ -10,28 +8,14 @@ use url::Url;
 pub struct SharpSdk {
     /// The API key to use for authentication.
     pub api_key: String,
-    /// The L2 endpoints.
-    pub l2: L2Endpoints,
-    /// The Sharp queries endpoints.
-    pub sharp_queries: SharpQueriesEndpoints,
-    /// The health check endpoint.
-    pub health_check: HealthCheckEndpoint,
-    /// The program registry endpoint.
-    pub program_registry: ProgramRegistryEndpoint,
+    /// The base URL for the Sharp API.
+    pub base_url: Url,
 }
 
 impl SharpSdk {
-    /// Create a new Sharp SDK instance from:
-    /// - an API key
-    /// - a base URL
-    pub fn new(api_key: String, base_url: &Url) -> Result<Self, SharpSdkError> {
-        Ok(Self {
-            api_key,
-            l2: L2Endpoints::new(base_url)?,
-            sharp_queries: SharpQueriesEndpoints::new(base_url)?,
-            health_check: HealthCheckEndpoint::new(base_url)?,
-            program_registry: ProgramRegistryEndpoint::new(base_url)?,
-        })
+    /// Create a new Sharp SDK instance
+    pub fn new(api_key: String, base_url: Url) -> Self {
+        Self { api_key, base_url }
     }
 
     pub async fn proof_generation(
@@ -54,8 +38,10 @@ impl SharpSdk {
         // Create a new HTTP client
         let client = Client::new();
 
-        // Construct the full URL using .query() to add the API key as a query parameter
-        let url = self.l2.proof_generation.clone();
+        // Construct the full URL.
+        let url = ProofTraceEndpoints::ProofGeneration.url(&self.base_url)?;
+
+        // Send the request
         let response = client
             .post(url)
             .query(&[("apiKey", &self.api_key)])

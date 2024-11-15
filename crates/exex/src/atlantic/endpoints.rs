@@ -1,82 +1,105 @@
 use super::error::SharpSdkError;
 use url::Url;
 
+/// Proof and trace generation endpoints.
+#[derive(Debug, Clone)]
+pub enum ProofTraceEndpoints {
+    /// Submit a Atlantic proof generation query.
+    ProofGeneration,
+    /// Submit a Atlantic trace generation query.
+    TraceGeneration,
+    /// Submit a Atlantic trace generation and proof generation query.
+    TraceGenerationProofGeneration,
+}
+
+impl ProofTraceEndpoints {
+    pub fn url(&self, base_url: &Url) -> Result<Url, SharpSdkError> {
+        match self {
+            ProofTraceEndpoints::ProofGeneration => base_url.join("proof-generation"),
+            ProofTraceEndpoints::TraceGeneration => base_url.join("trace-generation"),
+            ProofTraceEndpoints::TraceGenerationProofGeneration => {
+                base_url.join("trace-generation-proof-generation")
+            }
+        }
+        .map_err(SharpSdkError::from)
+    }
+}
+
 /// The L2 endpoints.
 #[derive(Debug, Clone)]
-pub struct L2Endpoints {
-    /// Submit an Atlantic proof generation query
-    pub proof_generation: Url,
-    /// Submit an Atlantic trace generation query
-    pub trace_generation: Url,
-    /// Submit an Atlantic trace generation and proof generation query
-    pub trace_generation_proof_generation: Url,
-    /// Submit a L2 Atlantic query
-    pub atlantic_query: Url,
-    /// Submit a L2 Atlantic proof generation and proof verification query
-    pub proof_generation_verification: Url,
-    /// Submit a L2 Atlantic proof verification query
-    pub proof_verification: Url,
+pub enum L2Endpoints {
+    /// Submit a Atlantic L2 query.
+    AtlanticQuery,
+    /// Submit a Atlantic proof generation and verification query.
+    ProofGenerationVerification,
+    /// Submit a Atlantic proof verification query.
+    ProofVerification,
 }
 
 impl L2Endpoints {
-    pub fn new(base_url: &Url) -> Result<Self, SharpSdkError> {
-        Ok(Self {
-            proof_generation: base_url.join("proof-generation")?,
-            trace_generation: base_url.join("trace-generation")?,
-            trace_generation_proof_generation: base_url
-                .join("trace-generation-proof-generation")?,
-            atlantic_query: base_url.join("l2/atlantic-query")?,
-            proof_generation_verification: base_url
-                .join("l2/atlantic-query/proof-generation-verification")?,
-            proof_verification: base_url.join("l2/atlantic-query/proof-verification")?,
-        })
+    pub fn url(&self, base_url: &Url) -> Result<Url, SharpSdkError> {
+        match self {
+            L2Endpoints::AtlanticQuery => base_url.join("l2/atlantic-query"),
+            L2Endpoints::ProofGenerationVerification => {
+                base_url.join("l2/atlantic-query/proof-generation-verification")
+            }
+            L2Endpoints::ProofVerification => base_url.join("l2/atlantic-query/proof-verification"),
+        }
+        .map_err(SharpSdkError::from)
     }
 }
 
 /// The Sharp queries endpoints.
 #[derive(Debug, Clone)]
-pub struct SharpQueriesEndpoints {
-    /// Get the list of Atlantic queries submitted by the user
-    pub queries: Url,
-    /// Get the details of a specific Atlantic query
-    pub query: Url,
-    /// Get the list of jobs for a specific Atlantic query
-    pub query_jobs: Url,
+pub enum SharpQueryEndpoints {
+    /// Get the list of Atlantic queries that have been submitted.
+    Queries,
+    /// Get an Atlantic query.
+    Query,
+    /// Get the Atlantic query jobs for a given Atlantic query.
+    QueryJobs,
 }
 
-impl SharpQueriesEndpoints {
-    pub fn new(base_url: &Url) -> Result<Self, SharpSdkError> {
-        Ok(Self {
-            queries: base_url.join("atlantic-queries")?,
-            query: base_url.join("atlantic-query")?,
-            query_jobs: base_url.join("atlantic-query-jobs")?,
-        })
+impl SharpQueryEndpoints {
+    pub fn url(&self, base_url: &Url) -> Result<Url, SharpSdkError> {
+        match self {
+            SharpQueryEndpoints::Queries => base_url.join("atlantic-queries"),
+            SharpQueryEndpoints::Query => base_url.join("atlantic-query"),
+            SharpQueryEndpoints::QueryJobs => base_url.join("atlantic-query-jobs"),
+        }
+        .map_err(SharpSdkError::from)
     }
 }
 
 /// The health check endpoint.
 #[derive(Debug, Clone)]
-pub struct HealthCheckEndpoint {
-    /// Check if the server is alive
-    pub is_alive: Url,
+pub enum HealthCheckEndpoints {
+    /// Check if the server is alive.
+    IsAlive,
 }
 
-impl HealthCheckEndpoint {
-    pub fn new(base_url: &Url) -> Result<Self, SharpSdkError> {
-        Ok(Self { is_alive: base_url.join("is-alive")? })
+impl HealthCheckEndpoints {
+    pub fn url(&self, base_url: &Url) -> Result<Url, SharpSdkError> {
+        match self {
+            HealthCheckEndpoints::IsAlive => base_url.join("is-alive"),
+        }
+        .map_err(SharpSdkError::from)
     }
 }
 
 /// The program registry endpoint.
 #[derive(Debug, Clone)]
-pub struct ProgramRegistryEndpoint {
-    /// Submit a program to the program registry
-    pub submit_program: Url,
+pub enum ProgramRegistryEndpoints {
+    /// Submit a program to the program registry.
+    SubmitProgram,
 }
 
-impl ProgramRegistryEndpoint {
-    pub fn new(base_url: &Url) -> Result<Self, SharpSdkError> {
-        Ok(Self { submit_program: base_url.join("submit-program")? })
+impl ProgramRegistryEndpoints {
+    pub fn url(&self, base_url: &Url) -> Result<Url, SharpSdkError> {
+        match self {
+            ProgramRegistryEndpoints::SubmitProgram => base_url.join("submit-program"),
+        }
+        .map_err(SharpSdkError::from)
     }
 }
 
@@ -85,143 +108,81 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_l2_endpoints_valid_base_url_trailing_slash() {
+    fn test_proof_trace_endpoint_urls() {
         let base_url = Url::parse("https://example.com/").unwrap();
-        let endpoints = L2Endpoints::new(&base_url).expect("Failed to create L2Endpoints");
 
-        // Check that URLs are constructed correctly even with a trailing slash in base URL
+        // Test ProofTraceEndpoints URLs
         assert_eq!(
-            endpoints.proof_generation,
+            ProofTraceEndpoints::ProofGeneration.url(&base_url).unwrap(),
             Url::parse("https://example.com/proof-generation").unwrap()
         );
         assert_eq!(
-            endpoints.trace_generation,
+            ProofTraceEndpoints::TraceGeneration.url(&base_url).unwrap(),
             Url::parse("https://example.com/trace-generation").unwrap()
         );
         assert_eq!(
-            endpoints.trace_generation_proof_generation,
+            ProofTraceEndpoints::TraceGenerationProofGeneration.url(&base_url).unwrap(),
             Url::parse("https://example.com/trace-generation-proof-generation").unwrap()
         );
+    }
+
+    #[test]
+    fn test_l2_endpoint_urls() {
+        let base_url = Url::parse("https://example.com/").unwrap();
+
+        // Test L2Endpoints URLs
         assert_eq!(
-            endpoints.atlantic_query,
+            L2Endpoints::AtlanticQuery.url(&base_url).unwrap(),
             Url::parse("https://example.com/l2/atlantic-query").unwrap()
         );
         assert_eq!(
-            endpoints.proof_generation_verification,
+            L2Endpoints::ProofGenerationVerification.url(&base_url).unwrap(),
             Url::parse("https://example.com/l2/atlantic-query/proof-generation-verification")
                 .unwrap()
         );
         assert_eq!(
-            endpoints.proof_verification,
+            L2Endpoints::ProofVerification.url(&base_url).unwrap(),
             Url::parse("https://example.com/l2/atlantic-query/proof-verification").unwrap()
         );
     }
 
     #[test]
-    fn test_l2_endpoints_valid_base_url() {
-        let base_url = Url::parse("https://example.com").unwrap();
-        let endpoints = L2Endpoints::new(&base_url).expect("Failed to create L2Endpoints");
-
-        // Check that URLs are constructed correctly even without a trailing slash in base URL
-        assert_eq!(
-            endpoints.proof_generation,
-            Url::parse("https://example.com/proof-generation").unwrap()
-        );
-        assert_eq!(
-            endpoints.trace_generation,
-            Url::parse("https://example.com/trace-generation").unwrap()
-        );
-        assert_eq!(
-            endpoints.trace_generation_proof_generation,
-            Url::parse("https://example.com/trace-generation-proof-generation").unwrap()
-        );
-        assert_eq!(
-            endpoints.atlantic_query,
-            Url::parse("https://example.com/l2/atlantic-query").unwrap()
-        );
-        assert_eq!(
-            endpoints.proof_generation_verification,
-            Url::parse("https://example.com/l2/atlantic-query/proof-generation-verification")
-                .unwrap()
-        );
-        assert_eq!(
-            endpoints.proof_verification,
-            Url::parse("https://example.com/l2/atlantic-query/proof-verification").unwrap()
-        );
-    }
-
-    #[test]
-    fn test_sharp_queries_endpoints_valid_base_url_trailing_slash() {
+    fn test_sharp_query_endpoint_urls() {
         let base_url = Url::parse("https://example.com/").unwrap();
-        let endpoints =
-            SharpQueriesEndpoints::new(&base_url).expect("Failed to create SharpQueriesEndpoints");
 
-        // Check that URLs are constructed correctly even with a trailing slash in base URL
-        assert_eq!(endpoints.queries, Url::parse("https://example.com/atlantic-queries").unwrap());
-        assert_eq!(endpoints.query, Url::parse("https://example.com/atlantic-query").unwrap());
+        // Test SharpQueryEndpoints URLs
         assert_eq!(
-            endpoints.query_jobs,
+            SharpQueryEndpoints::Queries.url(&base_url).unwrap(),
+            Url::parse("https://example.com/atlantic-queries").unwrap()
+        );
+        assert_eq!(
+            SharpQueryEndpoints::Query.url(&base_url).unwrap(),
+            Url::parse("https://example.com/atlantic-query").unwrap()
+        );
+        assert_eq!(
+            SharpQueryEndpoints::QueryJobs.url(&base_url).unwrap(),
             Url::parse("https://example.com/atlantic-query-jobs").unwrap()
         );
     }
 
     #[test]
-    fn test_sharp_queries_endpoints_valid_base_url() {
-        let base_url = Url::parse("https://example.com").unwrap();
-        let endpoints =
-            SharpQueriesEndpoints::new(&base_url).expect("Failed to create SharpQueriesEndpoints");
+    fn test_health_check_endpoint_url() {
+        let base_url = Url::parse("https://example.com/").unwrap();
 
-        // Check that URLs are constructed correctly even without a trailing slash in base URL
-        assert_eq!(endpoints.queries, Url::parse("https://example.com/atlantic-queries").unwrap());
-        assert_eq!(endpoints.query, Url::parse("https://example.com/atlantic-query").unwrap());
+        // Test HealthCheckEndpoints URL
         assert_eq!(
-            endpoints.query_jobs,
-            Url::parse("https://example.com/atlantic-query-jobs").unwrap()
+            HealthCheckEndpoints::IsAlive.url(&base_url).unwrap(),
+            Url::parse("https://example.com/is-alive").unwrap()
         );
     }
 
     #[test]
-    fn test_health_check_endpoint_valid_base_url() {
-        let base_url = Url::parse("https://example.com").unwrap();
-        let endpoint =
-            HealthCheckEndpoint::new(&base_url).expect("Failed to create HealthCheckEndpoint");
-
-        // Check that the URL is constructed correctly
-        assert_eq!(endpoint.is_alive, Url::parse("https://example.com/is-alive").unwrap());
-    }
-
-    #[test]
-    fn test_health_check_endpoint_valid_base_url_trailing_slash() {
+    fn test_program_registry_endpoint_url() {
         let base_url = Url::parse("https://example.com/").unwrap();
-        let endpoint =
-            HealthCheckEndpoint::new(&base_url).expect("Failed to create HealthCheckEndpoint");
 
-        // Check that the URL is constructed correctly even with a trailing slash
-        assert_eq!(endpoint.is_alive, Url::parse("https://example.com/is-alive").unwrap());
-    }
-
-    #[test]
-    fn test_program_registry_endpoint_valid_base_url() {
-        let base_url = Url::parse("https://example.com").unwrap();
-        let endpoint = ProgramRegistryEndpoint::new(&base_url)
-            .expect("Failed to create ProgramRegistryEndpoint");
-
-        // Check that the URL is constructed correctly
+        // Test ProgramRegistryEndpoints URL
         assert_eq!(
-            endpoint.submit_program,
-            Url::parse("https://example.com/submit-program").unwrap()
-        );
-    }
-
-    #[test]
-    fn test_program_registry_endpoint_valid_base_url_trailing_slash() {
-        let base_url = Url::parse("https://example.com/").unwrap();
-        let endpoint = ProgramRegistryEndpoint::new(&base_url)
-            .expect("Failed to create ProgramRegistryEndpoint");
-
-        // Check that the URL is constructed correctly even with a trailing slash
-        assert_eq!(
-            endpoint.submit_program,
+            ProgramRegistryEndpoints::SubmitProgram.url(&base_url).unwrap(),
             Url::parse("https://example.com/submit-program").unwrap()
         );
     }
