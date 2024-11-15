@@ -85,13 +85,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_l2_endpoints_invalid_base_url() {
-        // Test with an invalid base URL
-        let base_url = Url::parse("invalid-url");
-        assert!(base_url.is_err(), "Expected base URL parsing to fail");
-    }
-
-    #[test]
     fn test_l2_endpoints_valid_base_url_trailing_slash() {
         let base_url = Url::parse("https://example.com/")
             .expect("Failed to parse base URL with trailing slash");
@@ -159,13 +152,6 @@ mod tests {
     }
 
     #[test]
-    fn test_sharp_queries_endpoints_invalid_base_url() {
-        // Test with an invalid base URL
-        let base_url = Url::parse("invalid-url");
-        assert!(base_url.is_err(), "Expected base URL parsing to fail");
-    }
-
-    #[test]
     fn test_sharp_queries_endpoints_valid_base_url_trailing_slash() {
         let base_url = Url::parse("https://example.com/")
             .expect("Failed to parse base URL with trailing slash");
@@ -197,13 +183,6 @@ mod tests {
     }
 
     #[test]
-    fn test_health_check_endpoint_invalid_base_url() {
-        // Test with an invalid base URL
-        let base_url = Url::parse("invalid-url");
-        assert!(base_url.is_err(), "Expected base URL parsing to fail");
-    }
-
-    #[test]
     fn test_health_check_endpoint_valid_base_url() {
         let base_url = Url::parse("https://example.com").expect("Failed to parse base URL");
         let endpoint =
@@ -222,13 +201,6 @@ mod tests {
 
         // Check that the URL is constructed correctly even with a trailing slash
         assert_eq!(endpoint.is_alive, Url::parse("https://example.com/is-alive").unwrap());
-    }
-
-    #[test]
-    fn test_program_registry_endpoint_invalid_base_url() {
-        // Test with an invalid base URL
-        let base_url = Url::parse("invalid-url");
-        assert!(base_url.is_err(), "Expected base URL parsing to fail");
     }
 
     #[test]
