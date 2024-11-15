@@ -86,8 +86,7 @@ mod tests {
 
     #[test]
     fn test_l2_endpoints_valid_base_url_trailing_slash() {
-        let base_url = Url::parse("https://example.com/")
-            .expect("Failed to parse base URL with trailing slash");
+        let base_url = Url::parse("https://example.com/").unwrap();
         let endpoints = L2Endpoints::new(&base_url).expect("Failed to create L2Endpoints");
 
         // Check that URLs are constructed correctly even with a trailing slash in base URL
@@ -120,7 +119,7 @@ mod tests {
 
     #[test]
     fn test_l2_endpoints_valid_base_url() {
-        let base_url = Url::parse("https://example.com").expect("Failed to parse base URL");
+        let base_url = Url::parse("https://example.com").unwrap();
         let endpoints = L2Endpoints::new(&base_url).expect("Failed to create L2Endpoints");
 
         // Check that URLs are constructed correctly even without a trailing slash in base URL
@@ -153,8 +152,7 @@ mod tests {
 
     #[test]
     fn test_sharp_queries_endpoints_valid_base_url_trailing_slash() {
-        let base_url = Url::parse("https://example.com/")
-            .expect("Failed to parse base URL with trailing slash");
+        let base_url = Url::parse("https://example.com/").unwrap();
         let endpoints =
             SharpQueriesEndpoints::new(&base_url).expect("Failed to create SharpQueriesEndpoints");
 
@@ -169,7 +167,7 @@ mod tests {
 
     #[test]
     fn test_sharp_queries_endpoints_valid_base_url() {
-        let base_url = Url::parse("https://example.com").expect("Failed to parse base URL");
+        let base_url = Url::parse("https://example.com").unwrap();
         let endpoints =
             SharpQueriesEndpoints::new(&base_url).expect("Failed to create SharpQueriesEndpoints");
 
@@ -184,7 +182,7 @@ mod tests {
 
     #[test]
     fn test_health_check_endpoint_valid_base_url() {
-        let base_url = Url::parse("https://example.com").expect("Failed to parse base URL");
+        let base_url = Url::parse("https://example.com").unwrap();
         let endpoint =
             HealthCheckEndpoint::new(&base_url).expect("Failed to create HealthCheckEndpoint");
 
@@ -194,8 +192,7 @@ mod tests {
 
     #[test]
     fn test_health_check_endpoint_valid_base_url_trailing_slash() {
-        let base_url = Url::parse("https://example.com/")
-            .expect("Failed to parse base URL with trailing slash");
+        let base_url = Url::parse("https://example.com/").unwrap();
         let endpoint =
             HealthCheckEndpoint::new(&base_url).expect("Failed to create HealthCheckEndpoint");
 
@@ -205,7 +202,7 @@ mod tests {
 
     #[test]
     fn test_program_registry_endpoint_valid_base_url() {
-        let base_url = Url::parse("https://example.com").expect("Failed to parse base URL");
+        let base_url = Url::parse("https://example.com").unwrap();
         let endpoint = ProgramRegistryEndpoint::new(&base_url)
             .expect("Failed to create ProgramRegistryEndpoint");
 
@@ -218,8 +215,7 @@ mod tests {
 
     #[test]
     fn test_program_registry_endpoint_valid_base_url_trailing_slash() {
-        let base_url = Url::parse("https://example.com/")
-            .expect("Failed to parse base URL with trailing slash");
+        let base_url = Url::parse("https://example.com/").unwrap();
         let endpoint = ProgramRegistryEndpoint::new(&base_url)
             .expect("Failed to create ProgramRegistryEndpoint");
 
