@@ -62,11 +62,11 @@ def get_struct_definition(program, struct_name):
 
 
 class Serde:
-    def __init__(self, segments, program, cairo_file):
+    def __init__(self, segments, program, cairo_file=None):
         self.segments = segments
         self.memory = segments.memory
         self.program = program
-        self.cairo_file = cairo_file
+        self.cairo_file = cairo_file or Path()
 
     @property
     def main_part(self):

@@ -26,6 +26,7 @@ from starkware.cairo.lang.vm.memory_segments import FIRST_MEMORY_ADDR as PROGRAM
 from starkware.cairo.lang.vm.utils import RunResources
 
 from tests.utils.coverage import VmWithCoverage
+from tests.utils.hints import debug_info
 from tests.utils.hints import gen_arg as gen_arg_builder
 from tests.utils.hints import implement_hints
 from tests.utils.reporting import profile_from_tracer_data
@@ -174,6 +175,9 @@ def cairo_run(request, cairo_program, cairo_file):
                 "program_input": kwargs,
                 "__dict_manager": dict_manager,
                 "gen_arg": gen_arg,
+            },
+            static_locals={
+                "debug_info": debug_info(cairo_program),
             },
             vm_class=VmWithCoverage,
         )
