@@ -72,11 +72,7 @@ func test_block_hint{output_ptr: felt*}() {
 
     // Bloom: 256-byte array into groups of 16 bytes chunks (16 * 16 = 256)
     tempvar bloom_len = 16;
-    memcpy(
-        output_ptr,
-        block.block_header.bloom,
-        bloom_len,
-    );
+    memcpy(output_ptr, block.block_header.bloom, bloom_len);
     let output_ptr = output_ptr + bloom_len;
 
     assert [output_ptr] = block.block_header.difficulty.low;
@@ -113,7 +109,9 @@ func test_block_hint{output_ptr: felt*}() {
     // Serialize parent beacon block root
     assert [output_ptr] = block.block_header.parent_beacon_block_root.is_some;
     let output_ptr = output_ptr + 1;
-    let parent_beacon_block_root = cast(block.block_header.parent_beacon_block_root.value, Uint256*);
+    let parent_beacon_block_root = cast(
+        block.block_header.parent_beacon_block_root.value, Uint256*
+    );
     assert [output_ptr] = parent_beacon_block_root.low;
     let output_ptr = output_ptr + 1;
     assert [output_ptr] = parent_beacon_block_root.high;
@@ -131,11 +129,7 @@ func test_block_hint{output_ptr: felt*}() {
     // Serialize the extra data
     assert [output_ptr] = block.block_header.extra_data_len;
     let output_ptr = output_ptr + 1;
-    memcpy(
-        output_ptr,
-        block.block_header.extra_data,
-        block.block_header.extra_data_len,
-    );
+    memcpy(output_ptr, block.block_header.extra_data, block.block_header.extra_data_len);
     let output_ptr = output_ptr + block.block_header.extra_data_len;
 
     return ();
