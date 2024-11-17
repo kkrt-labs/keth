@@ -70,6 +70,9 @@ class Serde:
 
     @property
     def main_part(self):
+        """
+        Resolve the __main__ part of the cairo scope path.
+        """
         parts = self.cairo_file.relative_to(Path.cwd()).with_suffix("").parts
         return parts[1:] if parts[0] == "cairo" else parts
 
