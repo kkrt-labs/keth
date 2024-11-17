@@ -7,6 +7,7 @@ from starkware.cairo.common.cairo_builtins import (
     PoseidonBuiltin,
     ModBuiltin,
 )
+from starkware.cairo.common.memcpy import memcpy
 
 from programs.os import main
 from src.model import model
@@ -27,6 +28,115 @@ func test_os{
     mul_mod_ptr: ModBuiltin*,
 }() {
     main();
+
+    return ();
+}
+
+func test_block_hint{output_ptr: felt*}() {
+    alloc_locals;
+    local block: model.Block*;
+    %{ block %}
+
+    // Serialize block header
+    assert [output_ptr] = block.block_header.parent_hash.low;
+    let output_ptr = output_ptr + 1;
+    assert [output_ptr] = block.block_header.parent_hash.high;
+    let output_ptr = output_ptr + 1;
+    assert [output_ptr] = block.block_header.ommers_hash.low;
+    let output_ptr = output_ptr + 1;
+    assert [output_ptr] = block.block_header.ommers_hash.high;
+    let output_ptr = output_ptr + 1;
+    assert [output_ptr] = block.block_header.coinbase;
+    let output_ptr = output_ptr + 1;
+    assert [output_ptr] = block.block_header.state_root.low;
+    let output_ptr = output_ptr + 1;
+    assert [output_ptr] = block.block_header.state_root.high;
+    let output_ptr = output_ptr + 1;
+    assert [output_ptr] = block.block_header.transactions_root.low;
+    let output_ptr = output_ptr + 1;
+    assert [output_ptr] = block.block_header.transactions_root.high;
+    let output_ptr = output_ptr + 1;
+    assert [output_ptr] = block.block_header.receipt_root.low;
+    let output_ptr = output_ptr + 1;
+    assert [output_ptr] = block.block_header.receipt_root.high;
+    let output_ptr = output_ptr + 1;
+
+    // Serialize withdrawals root
+    assert [output_ptr] = block.block_header.withdrawals_root.is_some;
+    let output_ptr = output_ptr + 1;
+    let withdrawals_root = cast(block.block_header.withdrawals_root.value, Uint256*);
+    assert [output_ptr] = withdrawals_root.low;
+    let output_ptr = output_ptr + 1;
+    assert [output_ptr] = withdrawals_root.high;
+    let output_ptr = output_ptr + 1;
+
+    // Bloom: 256-byte array into groups of 16 bytes chunks (16 * 16 = 256)
+    tempvar bloom_len = 16;
+    memcpy(
+        output_ptr,
+        block.block_header.bloom,
+        bloom_len,
+    );
+    let output_ptr = output_ptr + bloom_len;
+
+    assert [output_ptr] = block.block_header.difficulty.low;
+    let output_ptr = output_ptr + 1;
+    assert [output_ptr] = block.block_header.difficulty.high;
+    let output_ptr = output_ptr + 1;
+    assert [output_ptr] = block.block_header.number;
+    let output_ptr = output_ptr + 1;
+    assert [output_ptr] = block.block_header.gas_limit;
+    let output_ptr = output_ptr + 1;
+    assert [output_ptr] = block.block_header.gas_used;
+    let output_ptr = output_ptr + 1;
+    assert [output_ptr] = block.block_header.timestamp;
+    let output_ptr = output_ptr + 1;
+    assert [output_ptr] = block.block_header.mix_hash.low;
+    let output_ptr = output_ptr + 1;
+    assert [output_ptr] = block.block_header.mix_hash.high;
+    let output_ptr = output_ptr + 1;
+    assert [output_ptr] = block.block_header.nonce;
+    let output_ptr = output_ptr + 1;
+    assert [output_ptr] = block.block_header.base_fee_per_gas.is_some;
+    let output_ptr = output_ptr + 1;
+    assert [output_ptr] = block.block_header.base_fee_per_gas.value;
+    let output_ptr = output_ptr + 1;
+    assert [output_ptr] = block.block_header.blob_gas_used.is_some;
+    let output_ptr = output_ptr + 1;
+    assert [output_ptr] = block.block_header.blob_gas_used.value;
+    let output_ptr = output_ptr + 1;
+    assert [output_ptr] = block.block_header.excess_blob_gas.is_some;
+    let output_ptr = output_ptr + 1;
+    assert [output_ptr] = block.block_header.excess_blob_gas.value;
+    let output_ptr = output_ptr + 1;
+
+    // Serialize parent beacon block root
+    assert [output_ptr] = block.block_header.parent_beacon_block_root.is_some;
+    let output_ptr = output_ptr + 1;
+    let parent_beacon_block_root = cast(block.block_header.parent_beacon_block_root.value, Uint256*);
+    assert [output_ptr] = parent_beacon_block_root.low;
+    let output_ptr = output_ptr + 1;
+    assert [output_ptr] = parent_beacon_block_root.high;
+    let output_ptr = output_ptr + 1;
+
+    // Serialize requests root
+    assert [output_ptr] = block.block_header.requests_root.is_some;
+    let output_ptr = output_ptr + 1;
+    let requests_root = cast(block.block_header.requests_root.value, Uint256*);
+    assert [output_ptr] = requests_root.low;
+    let output_ptr = output_ptr + 1;
+    assert [output_ptr] = requests_root.high;
+    let output_ptr = output_ptr + 1;
+
+    // Serialize the extra data
+    assert [output_ptr] = block.block_header.extra_data_len;
+    let output_ptr = output_ptr + 1;
+    memcpy(
+        output_ptr,
+        block.block_header.extra_data,
+        block.block_header.extra_data_len,
+    );
+    let output_ptr = output_ptr + block.block_header.extra_data_len;
 
     return ();
 }
