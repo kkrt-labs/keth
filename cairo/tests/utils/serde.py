@@ -9,7 +9,6 @@ from starkware.cairo.lang.compiler.ast.cairo_types import (
     TypeTuple,
 )
 from starkware.cairo.lang.compiler.identifier_definition import (
-    AliasDefinition,
     StructDefinition,
     TypeDefinition,
 )
@@ -25,7 +24,7 @@ from ethereum.base_types import (
     Bytes256,
     Uint,
 )
-from ethereum.cancun.blocks import Block, Header, Log, Receipt, Withdrawal
+from ethereum.cancun.blocks import Header, Log, Receipt, Withdrawal
 from ethereum.cancun.fork_types import Account
 from ethereum.cancun.transactions import (
     AccessListTransaction,
@@ -33,6 +32,7 @@ from ethereum.cancun.transactions import (
     FeeMarketTransaction,
     LegacyTransaction,
 )
+from ethereum.cancun.vm.gas import MessageCallGas
 
 
 def get_cairo_type(program, name):
@@ -342,6 +342,10 @@ class Serde:
         raw = self.serialize_struct("Uint256", ptr)
         return U256(raw["low"] + raw["high"] * 2**128)
 
+    def serialize_message_call_gas(self, ptr):
+        raw = self.serialize_struct("MessageCallGas", ptr)
+        return MessageCallGas(cost=raw["cost"], stipend=raw["stipend"])
+
     def serialize_bool(self, ptr):
         raw = self.serialize_struct("bool", ptr)
         return bool(raw["value"])
@@ -481,6 +485,10 @@ class Serde:
 
         if scope_path[-1] == "Uint256":
             return self.serialize_uint256(scope_ptr)
+
+        # Gas types
+        if scope_path == ("ethereum", "cancun", "vm", "gas", "MessageCallGas"):
+            return self.serialize_message_call_gas(scope_ptr)
 
         # Base types
         if scope_path == ("ethereum", "base_types", "bool"):

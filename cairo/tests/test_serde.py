@@ -1,5 +1,3 @@
-from typing import Union
-
 import pytest
 from hypothesis import given
 from starkware.cairo.common.dict import DictManager
@@ -18,7 +16,7 @@ from ethereum.base_types import (
     Bytes256,
     Uint,
 )
-from ethereum.cancun.blocks import Block, Header, Log, Receipt, Withdrawal
+from ethereum.cancun.blocks import Header, Log, Receipt, Withdrawal
 from ethereum.cancun.fork_types import Account, Address, Bloom, Root, VersionedHash
 from ethereum.cancun.transactions import Transaction
 from tests.utils.hints import gen_arg as _gen_arg

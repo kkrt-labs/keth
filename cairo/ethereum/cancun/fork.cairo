@@ -106,10 +106,7 @@ func validate_header{range_check_ptr}(header: Header, parent_header: Header) {
 func calculate_intrinsic_cost{range_check_ptr}(tx: Transaction) -> Uint {
     alloc_locals;
 
-    %{ breakpoint() %}
-
     if (tx.value.legacy_transaction.value != 0) {
-        %{ print("legacy_tx") %}
         let legacy_tx = tx.value.legacy_transaction;
         let cost_data_and_create = _calculate_data_and_create_cost(
             legacy_tx.value.data, legacy_tx.value.to
@@ -119,7 +116,6 @@ func calculate_intrinsic_cost{range_check_ptr}(tx: Transaction) -> Uint {
     }
 
     if (tx.value.access_list_transaction.value != 0) {
-        %{ print("access_list_tx") %}
         let access_list_tx = tx.value.access_list_transaction;
         let cost_data_and_create = _calculate_data_and_create_cost(
             access_list_tx.value.data, access_list_tx.value.to
@@ -132,7 +128,6 @@ func calculate_intrinsic_cost{range_check_ptr}(tx: Transaction) -> Uint {
     }
 
     if (tx.value.fee_market_transaction.value != 0) {
-        %{ print("fee_market_tx") %}
         let fee_market_tx = tx.value.fee_market_transaction;
         let cost_data_and_create = _calculate_data_and_create_cost(
             fee_market_tx.value.data, fee_market_tx.value.to
@@ -143,7 +138,6 @@ func calculate_intrinsic_cost{range_check_ptr}(tx: Transaction) -> Uint {
     }
 
     if (tx.value.blob_transaction.value != 0) {
-        %{ print("blob_tx") %}
         let blob_tx = tx.value.blob_transaction;
         tempvar to = new ToStruct(bytes0=cast(0, Bytes0*), address=&blob_tx.value.to);
         let cost_data_and_create = _calculate_data_and_create_cost(blob_tx.value.data, To(to));
