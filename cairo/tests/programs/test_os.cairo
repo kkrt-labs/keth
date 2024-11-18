@@ -132,5 +132,33 @@ func test_block_hint{output_ptr: felt*}() {
     memcpy(output_ptr, block.block_header.extra_data, block.block_header.extra_data_len);
     let output_ptr = output_ptr + block.block_header.extra_data_len;
 
+    // Serialize transactions
+    assert [output_ptr] = block.transactions_len;
+    let output_ptr = output_ptr + 1;
+
+    if (block.transactions_len == 0) {
+        return ();
+    }
+
+    // Serialize the first transaction only for testing purposes
+    assert [output_ptr] = block.transactions[0].rlp_len;
+    let output_ptr = output_ptr + 1;
+    memcpy(
+        output_ptr,
+        block.transactions[0].rlp,
+        block.transactions[0].rlp_len,
+    );
+    let output_ptr = output_ptr + block.transactions[0].rlp_len;
+    assert [output_ptr] = block.transactions[0].signature_len;
+    let output_ptr = output_ptr + 1;
+    memcpy(
+        output_ptr,
+        block.transactions[0].signature,
+        block.transactions[0].signature_len,
+    );
+    let output_ptr = output_ptr + block.transactions[0].signature_len;
+    assert [output_ptr] = block.transactions[0].sender;
+    let output_ptr = output_ptr + 1;
+
     return ();
 }
