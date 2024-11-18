@@ -9,6 +9,7 @@ from starkware.cairo.lang.compiler.ast.cairo_types import (
     TypeTuple,
 )
 from starkware.cairo.lang.compiler.identifier_definition import (
+    AliasDefinition,
     StructDefinition,
     TypeDefinition,
 )
@@ -26,6 +27,12 @@ from ethereum.base_types import (
 )
 from ethereum.cancun.blocks import Block, Header, Log, Receipt, Withdrawal
 from ethereum.cancun.fork_types import Account
+from ethereum.cancun.transactions import (
+    AccessListTransaction,
+    BlobTransaction,
+    FeeMarketTransaction,
+    LegacyTransaction,
+)
 
 
 def get_cairo_type(program, name):
@@ -46,18 +53,26 @@ def get_cairo_type(program, name):
     return identifier
 
 
-def get_struct_definition(program, struct_name):
+def get_struct_definition(program, name):
     identifiers = [
-        value
+        (
+            value
+            if isinstance(value, StructDefinition)
+            else get_struct_definition(program, str(value.cairo_type.scope))
+        )
         for key, value in program.identifiers.as_dict().items()
-        if struct_name in str(key)
-        and isinstance(value, StructDefinition)
-        and struct_name.split(".")[-1] == str(key).split(".")[-1]
+        if name in str(key)
+        and name.split(".")[-1] == str(key).split(".")[-1]
+        and (
+            isinstance(value, StructDefinition)
+            or (
+                isinstance(value, TypeDefinition)
+                and isinstance(value.cairo_type, TypeStruct)
+            )
+        )
     ]
     if len(identifiers) != 1:
-        raise ValueError(
-            f"Expected one struct named {struct_name}, found {identifiers}"
-        )
+        raise ValueError(f"Expected one struct named {name}, found {identifiers}")
     return identifiers[0]
 
 
@@ -391,15 +406,15 @@ class Serde:
         return list(self.serialize_list(raw["value"], item_scope, list_len=raw["len"]))
 
     def serialize_enum(self, ptr, item_scope):
-        enum_struct_ptr = self.serialize_pointers(f"Enum{item_scope}", ptr)["value"]
-        raw = self.serialize_pointers(f"Enum{item_scope}Struct", enum_struct_ptr)
-        raw = {key for key, value in raw.items() if value != 0}
+        enum_struct_ptr = self.serialize_pointers(f"{item_scope}", ptr)["value"]
+        raw = self.serialize_pointers(f"{item_scope}Struct", enum_struct_ptr)
+        raw = {key for key, value in raw.items() if value != 0 and value is not None}
         if len(raw) != 1:
             raise ValueError(
                 f"Expected 1 item only to be relocatable in enum, got {len(raw)}"
             )
         key = list(raw)[0]
-        members = get_struct_definition(self.program, f"Enum{item_scope}Struct").members
+        members = get_struct_definition(self.program, f"{item_scope}Struct").members
         return self._serialize(
             members[key].cairo_type, enum_struct_ptr + members[key].offset
         )
@@ -434,11 +449,29 @@ class Serde:
             return None
         return Receipt(**raw["value"])
 
-    def serialize_block(self, ptr):
-        raw = self.serialize_struct("Block", ptr)
+    def serialize_legacy_transaction(self, ptr):
+        raw = self.serialize_struct("LegacyTransaction", ptr)
         if raw is None:
             return None
-        return Block(**raw["value"])
+        return LegacyTransaction(**raw["value"])
+
+    def serialize_access_list_transaction(self, ptr):
+        raw = self.serialize_struct("AccessListTransaction", ptr)
+        if raw is None:
+            return None
+        return AccessListTransaction(**raw["value"])
+
+    def serialize_fee_market_transaction(self, ptr):
+        raw = self.serialize_struct("FeeMarketTransaction", ptr)
+        if raw is None:
+            return None
+        return FeeMarketTransaction(**raw["value"])
+
+    def serialize_blob_transaction(self, ptr):
+        raw = self.serialize_struct("BlobTransaction", ptr)
+        if raw is None:
+            return None
+        return BlobTransaction(**raw["value"])
 
     def serialize_scope(self, scope, scope_ptr):
         # Corelib types
@@ -478,14 +511,16 @@ class Serde:
             return self.serialize_tuple(scope_ptr, "Bytes32")
 
         # RLP types
-        if scope_path == ("ethereum", "rlp", "SequenceEnumSimple"):
-            return self.serialize_sequence(scope_ptr, "EnumSimple")
-        if scope_path == ("ethereum", "rlp", "EnumSimple"):
+        if scope_path == ("ethereum", "rlp", "SequenceSimple"):
+            return self.serialize_sequence(scope_ptr, "Simple")
+        if scope_path == ("ethereum", "rlp", "Simple"):
             return self.serialize_enum(scope_ptr, "Simple")
 
         # Fork types
         if scope_path == ("ethereum", "cancun", "fork_types", "Account"):
             return self.serialize_account(scope_ptr)
+        if scope_path == ("ethereum", "cancun", "fork_types", "TupleVersionedHash"):
+            return self.serialize_tuple(scope_ptr, "VersionedHash")
 
         # Block types
         if scope_path == ("ethereum", "cancun", "blocks", "Withdrawal"):
@@ -502,8 +537,27 @@ class Serde:
             return self.serialize_tuple(scope_ptr, "Log")
         if scope_path == ("ethereum", "cancun", "blocks", "Receipt"):
             return self.serialize_receipt(scope_ptr)
-        if scope_path == ("ethereum", "cancun", "blocks", "Block"):
-            return self.serialize_block(scope_ptr)
+
+        # Transaction types
+        if scope_path == ("ethereum", "cancun", "transactions", "To"):
+            return self.serialize_enum(scope_ptr, "To")
+        if scope_path == ("ethereum", "cancun", "transactions", "TupleAccessList"):
+            return self.serialize_tuple(scope_ptr, "AccessList")
+        if scope_path == ("ethereum", "cancun", "transactions", "Transaction"):
+            return self.serialize_enum(scope_ptr, "Transaction")
+        if scope_path == ("ethereum", "cancun", "transactions", "LegacyTransaction"):
+            return self.serialize_legacy_transaction(scope_ptr)
+        if scope_path == (
+            "ethereum",
+            "cancun",
+            "transactions",
+            "AccessListTransaction",
+        ):
+            return self.serialize_access_list_transaction(scope_ptr)
+        if scope_path == ("ethereum", "cancun", "transactions", "FeeMarketTransaction"):
+            return self.serialize_fee_market_transaction(scope_ptr)
+        if scope_path == ("ethereum", "cancun", "transactions", "BlobTransaction"):
+            return self.serialize_blob_transaction(scope_ptr)
 
         # TODO: Remove these once EELS like migration is implemented
         if scope_path[-1] == "State":

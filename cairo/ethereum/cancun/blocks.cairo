@@ -68,17 +68,6 @@ struct TupleHeader {
     value: TupleHeaderStruct*,
 }
 
-struct BlockStruct {
-    header: Header,
-    transactions: TupleBytes,
-    ommers: TupleHeader,
-    withdrawals: TupleWithdrawal,
-}
-
-struct Block {
-    value: BlockStruct*,
-}
-
 struct LogStruct {
     address: Address,
     topics: TupleBytes32,

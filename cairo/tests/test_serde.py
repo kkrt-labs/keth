@@ -1,3 +1,5 @@
+from typing import Union
+
 import pytest
 from hypothesis import given
 from starkware.cairo.common.dict import DictManager
@@ -18,6 +20,7 @@ from ethereum.base_types import (
 )
 from ethereum.cancun.blocks import Block, Header, Log, Receipt, Withdrawal
 from ethereum.cancun.fork_types import Account, Address, Bloom, Root, VersionedHash
+from ethereum.cancun.transactions import Transaction
 from tests.utils.hints import gen_arg as _gen_arg
 from tests.utils.serde import Serde
 from tests.utils.serde import get_cairo_type as _get_cairo_type
@@ -277,10 +280,17 @@ class TestSerde:
             )
             assert result == receipt
 
-        @given(block=...)
-        def test_block(self, get_cairo_type, serde, gen_arg, block: Block):
-            base = gen_arg([block])
+    class TestTransactions:
+
+        @pytest.mark.skip(reason="TODO: Implement access_list serialization")
+        @given(transaction=...)
+        def test_transaction(
+            self, get_cairo_type, serde, gen_arg, transaction: Transaction
+        ):
+            base = gen_arg([transaction])
             result = serde.serialize(
-                get_cairo_type("ethereum.cancun.blocks.Block"), base, shift=0
+                get_cairo_type("ethereum.cancun.transactions.Transaction"),
+                base,
+                shift=0,
             )
-            assert result == block
+            assert result == transaction

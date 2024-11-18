@@ -2,7 +2,7 @@ from collections import defaultdict
 from contextlib import contextmanager
 from dataclasses import asdict, fields, is_dataclass
 from functools import partial
-from typing import Dict, Iterable, Tuple, Union
+from typing import Dict, Iterable, Tuple, Union, get_args, get_origin
 from unittest.mock import patch
 
 from starkware.cairo.common.dict import DictTracker
@@ -11,6 +11,7 @@ from starkware.cairo.lang.vm.relocatable import MaybeRelocatable
 
 from ethereum.base_types import U256, Bytes, Bytes0, Bytes8, Bytes20, Bytes32, Bytes256
 from ethereum.cancun.blocks import Header, Log, Withdrawal
+from ethereum.cancun.transactions import Transaction
 from ethereum.crypto.hash import Hash32
 from src.utils.uint256 import int_to_uint256
 from tests.utils.helpers import flatten
@@ -118,6 +119,35 @@ def _gen_arg(
     if isinstance(arg, Bytes):
         return _gen_arg(
             dict_manager, segments, (list(arg), len(arg)), apply_modulo_to_args
+        )
+
+    if isinstance(arg, Transaction):
+        return _gen_arg(
+            dict_manager,
+            segments,
+            [
+                (
+                    [
+                        (
+                            getattr(arg, field.name)
+                            if not get_origin(field.type) == Union
+                            else [
+                                (
+                                    [getattr(arg, field.name)]
+                                    if isinstance(getattr(arg, field.name), t_arg)
+                                    else 0
+                                )
+                                for t_arg in get_args(field.type)
+                            ]
+                        )
+                        for field in fields(arg)
+                    ]
+                    if isinstance(arg, t)
+                    else 0
+                )
+                for t in get_args(Transaction)
+            ],
+            apply_modulo_to_args,
         )
 
     # Empty tuples will match also match this case.
