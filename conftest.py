@@ -59,12 +59,12 @@ settings.register_profile(
 settings.register_profile(
     "dev",
     deadline=None,
-    max_examples=10,
+    max_examples=20,
     phases=[Phase.explicit, Phase.reuse, Phase.generate, Phase.target],
 )
 settings.register_profile(
     "debug",
-    max_examples=10,
+    max_examples=20,
     verbosity=Verbosity.verbose,
     phases=[Phase.explicit, Phase.reuse, Phase.generate, Phase.target],
 )

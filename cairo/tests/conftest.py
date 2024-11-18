@@ -7,9 +7,11 @@ from dotenv import load_dotenv
 
 from tests.utils.coverage import report_runs
 from tests.utils.reporting import dump_coverage
+from tests.utils.strategies import register_type_strategies
 
 load_dotenv()
 logger = logging.getLogger()
+register_type_strategies()
 
 
 @pytest.fixture(autouse=True, scope="session")

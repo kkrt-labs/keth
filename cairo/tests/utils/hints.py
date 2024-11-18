@@ -16,6 +16,17 @@ from src.utils.uint256 import int_to_uint256
 from tests.utils.helpers import flatten
 
 
+def debug_info(program):
+    def _debug_info(pc):
+        print(
+            program.debug_info.instruction_locations.get(
+                pc.offset
+            ).inst.to_string_with_content("")
+        )
+
+    return _debug_info
+
+
 def gen_arg_pydantic(
     dict_manager, segments, arg, apply_modulo_to_args=True
 ) -> Union[MaybeRelocatable, Tuple[MaybeRelocatable, MaybeRelocatable]]:
@@ -169,7 +180,7 @@ def _gen_arg(
         )
 
     if apply_modulo_to_args and isinstance(arg, int):
-        return arg.__class__(int(arg) % segments.prime)
+        return int(arg) % segments.prime
 
     return arg
 

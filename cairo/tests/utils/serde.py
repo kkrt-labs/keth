@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Optional
 
 from eth_utils.address import to_checksum_address
@@ -61,10 +62,19 @@ def get_struct_definition(program, struct_name):
 
 
 class Serde:
-    def __init__(self, segments, program):
+    def __init__(self, segments, program, cairo_file=None):
         self.segments = segments
         self.memory = segments.memory
         self.program = program
+        self.cairo_file = cairo_file or Path()
+
+    @property
+    def main_part(self):
+        """
+        Resolve the __main__ part of the cairo scope path.
+        """
+        parts = self.cairo_file.relative_to(Path.cwd()).with_suffix("").parts
+        return parts[1:] if parts[0] == "cairo" else parts
 
     def serialize_list(self, segment_ptr, item_scope=None, list_len=None):
         item_identifier = (
@@ -371,6 +381,29 @@ class Serde:
         raw = self.serialize_pointers(f"Tuple{item_scope}Struct", tuple_struct_ptr)
         return tuple(self.serialize_list(raw["value"], item_scope, list_len=raw["len"]))
 
+    def serialize_sequence(self, ptr, item_scope):
+        sequence_struct_ptr = self.serialize_pointers(f"Sequence{item_scope}", ptr)[
+            "value"
+        ]
+        raw = self.serialize_pointers(
+            f"Sequence{item_scope}Struct", sequence_struct_ptr
+        )
+        return list(self.serialize_list(raw["value"], item_scope, list_len=raw["len"]))
+
+    def serialize_enum(self, ptr, item_scope):
+        enum_struct_ptr = self.serialize_pointers(f"Enum{item_scope}", ptr)["value"]
+        raw = self.serialize_pointers(f"Enum{item_scope}Struct", enum_struct_ptr)
+        raw = {key for key, value in raw.items() if value != 0}
+        if len(raw) != 1:
+            raise ValueError(
+                f"Expected 1 item only to be relocatable in enum, got {len(raw)}"
+            )
+        key = list(raw)[0]
+        members = get_struct_definition(self.program, f"Enum{item_scope}Struct").members
+        return self._serialize(
+            members[key].cairo_type, enum_struct_ptr + members[key].offset
+        )
+
     def serialize_account(self, ptr):
         raw = self.serialize_struct("Account", ptr)
         if raw is None:
@@ -409,81 +442,91 @@ class Serde:
 
     def serialize_scope(self, scope, scope_ptr):
         # Corelib types
-        if scope.path[-1] == "Uint256":
+        scope_path = scope.path
+        if "__main__" in scope_path:
+            scope_path = self.main_part + scope_path[scope_path.index("__main__") + 1 :]
+
+        if scope_path[-1] == "Uint256":
             return self.serialize_uint256(scope_ptr)
 
         # Base types
-        if scope.path == ("ethereum", "base_types", "bool"):
+        if scope_path == ("ethereum", "base_types", "bool"):
             return self.serialize_bool(scope_ptr)
-        if scope.path == ("ethereum", "base_types", "U64"):
+        if scope_path == ("ethereum", "base_types", "U64"):
             return self.serialize_u64(scope_ptr)
-        if scope.path == ("ethereum", "base_types", "U128"):
+        if scope_path == ("ethereum", "base_types", "U128"):
             return self.serialize_u128(scope_ptr)
-        if scope.path == ("ethereum", "base_types", "Uint"):
+        if scope_path == ("ethereum", "base_types", "Uint"):
             return self.serialize_uint(scope_ptr)
-        if scope.path == ("ethereum", "base_types", "U256"):
+        if scope_path == ("ethereum", "base_types", "U256"):
             return self.serialize_u256(scope_ptr)
-        if scope.path == ("ethereum", "base_types", "Bytes0"):
+        if scope_path == ("ethereum", "base_types", "Bytes0"):
             return self.serialize_bytes0(scope_ptr)
-        if scope.path == ("ethereum", "base_types", "Bytes8"):
+        if scope_path == ("ethereum", "base_types", "Bytes8"):
             return self.serialize_bytes8(scope_ptr)
-        if scope.path == ("ethereum", "base_types", "Bytes20"):
+        if scope_path == ("ethereum", "base_types", "Bytes20"):
             return self.serialize_bytes20(scope_ptr)
-        if scope.path == ("ethereum", "base_types", "Bytes32"):
+        if scope_path == ("ethereum", "base_types", "Bytes32"):
             return self.serialize_bytes32(scope_ptr)
-        if scope.path == ("ethereum", "base_types", "Bytes256"):
+        if scope_path == ("ethereum", "base_types", "Bytes256"):
             return self.serialize_bytes256(scope_ptr)
-        if scope.path == ("ethereum", "base_types", "Bytes"):
+        if scope_path == ("ethereum", "base_types", "Bytes"):
             return self.serialize_bytes(scope_ptr)
-        if scope.path == ("ethereum", "base_types", "TupleBytes"):
+        if scope_path == ("ethereum", "base_types", "TupleBytes"):
             return self.serialize_tuple(scope_ptr, "Bytes")
-        if scope.path == ("ethereum", "base_types", "TupleBytes32"):
+        if scope_path == ("ethereum", "base_types", "TupleBytes32"):
             return self.serialize_tuple(scope_ptr, "Bytes32")
 
+        # RLP types
+        if scope_path == ("ethereum", "rlp", "SequenceEnumSimple"):
+            return self.serialize_sequence(scope_ptr, "EnumSimple")
+        if scope_path == ("ethereum", "rlp", "EnumSimple"):
+            return self.serialize_enum(scope_ptr, "Simple")
+
         # Fork types
-        if scope.path == ("ethereum", "cancun", "fork_types", "Account"):
+        if scope_path == ("ethereum", "cancun", "fork_types", "Account"):
             return self.serialize_account(scope_ptr)
 
         # Block types
-        if scope.path == ("ethereum", "cancun", "blocks", "Withdrawal"):
+        if scope_path == ("ethereum", "cancun", "blocks", "Withdrawal"):
             return self.serialize_withdrawal(scope_ptr)
-        if scope.path == ("ethereum", "cancun", "blocks", "TupleWithdrawal"):
+        if scope_path == ("ethereum", "cancun", "blocks", "TupleWithdrawal"):
             return self.serialize_tuple(scope_ptr, "Withdrawal")
-        if scope.path == ("ethereum", "cancun", "blocks", "Header"):
+        if scope_path == ("ethereum", "cancun", "blocks", "Header"):
             return self.serialize_header(scope_ptr)
-        if scope.path == ("ethereum", "cancun", "blocks", "TupleHeader"):
+        if scope_path == ("ethereum", "cancun", "blocks", "TupleHeader"):
             return self.serialize_tuple(scope_ptr, "Header")
-        if scope.path == ("ethereum", "cancun", "blocks", "Log"):
+        if scope_path == ("ethereum", "cancun", "blocks", "Log"):
             return self.serialize_log(scope_ptr)
-        if scope.path == ("ethereum", "cancun", "blocks", "TupleLog"):
+        if scope_path == ("ethereum", "cancun", "blocks", "TupleLog"):
             return self.serialize_tuple(scope_ptr, "Log")
-        if scope.path == ("ethereum", "cancun", "blocks", "Receipt"):
+        if scope_path == ("ethereum", "cancun", "blocks", "Receipt"):
             return self.serialize_receipt(scope_ptr)
-        if scope.path == ("ethereum", "cancun", "blocks", "Block"):
+        if scope_path == ("ethereum", "cancun", "blocks", "Block"):
             return self.serialize_block(scope_ptr)
 
         # TODO: Remove these once EELS like migration is implemented
-        if scope.path[-1] == "State":
+        if scope_path[-1] == "State":
             return self.serialize_state(scope_ptr)
-        if scope.path[-1] == "Account":
+        if scope_path[-1] == "Account":
             return self.serialize_kakarot_account(scope_ptr)
-        if scope.path[-1] == "Transaction":
+        if scope_path[-1] == "Transaction":
             return self.serialize_eth_transaction(scope_ptr)
-        if scope.path[-1] == "Stack":
+        if scope_path[-1] == "Stack":
             return self.serialize_stack(scope_ptr)
-        if scope.path[-1] == "Memory":
+        if scope_path[-1] == "Memory":
             return self.serialize_memory(scope_ptr)
-        if scope.path[-1] == "Uint256":
+        if scope_path[-1] == "Uint256":
             return self.serialize_uint256(scope_ptr)
-        if scope.path[-1] == "Message":
+        if scope_path[-1] == "Message":
             return self.serialize_message(scope_ptr)
-        if scope.path[-1] == "EVM":
+        if scope_path[-1] == "EVM":
             return self.serialize_evm(scope_ptr)
-        if scope.path[-2:] == ("RLP", "Item"):
+        if scope_path[-2:] == ("RLP", "Item"):
             return self.serialize_rlp_item(scope_ptr)
-        if scope.path[-1] == ("Block"):
+        if scope_path[-1] == ("Block"):
             return self.serialize_block_kakarot(scope_ptr)
-        if scope.path[-1] == ("Option"):
+        if scope_path[-1] == ("Option"):
             return self.serialize_option(scope_ptr)
         try:
             return self.serialize_struct(str(scope), scope_ptr)
