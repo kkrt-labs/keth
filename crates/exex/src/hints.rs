@@ -11,6 +11,7 @@ use cairo_vm::{
     vm::{errors::hint_errors::HintError, vm_core::VirtualMachine},
     Felt252,
 };
+use reth_primitives::SealedBlock;
 use std::{collections::HashMap, fmt, rc::Rc};
 
 /// The type of a hint execution result.
@@ -51,6 +52,15 @@ impl KakarotHintProcessor {
     pub fn with_hint(mut self, hint: &Hint) -> Self {
         self.processor.add_hint(hint.name.clone(), hint.func.clone());
         self
+    }
+
+    /// Adds the block hint to the [`KakarotHintProcessor`].
+    ///
+    /// This method wraps the [`block_hint`] function, which creates a hint that is related to the
+    /// given `SealedBlock`. The hint is then registered with the [`KakarotHintProcessor`].
+    #[must_use]
+    pub fn with_block(self, block: SealedBlock) -> Self {
+        self.with_hint(&block_hint(block))
     }
 
     /// Returns the underlying [`BuiltinHintProcessor`].
@@ -110,6 +120,23 @@ pub fn add_segment_hint() -> Hint {
          -> HintExecutionResult {
             // Calls the function to add a new memory segment to the VM.
             add_segment(vm)
+        },
+    )
+}
+
+/// Proper header documentation needs to be defined after the implementation of the hint.
+pub fn block_hint(_block: SealedBlock) -> Hint {
+    Hint::new(
+        String::from("block"),
+        move |_vm: &mut VirtualMachine,
+              _exec_scopes: &mut ExecutionScopes,
+              _ids_data: &HashMap<String, HintReference>,
+              _ap_tracking: &ApTracking,
+              _constants: &HashMap<String, Felt252>|
+              -> HintExecutionResult {
+            // Implementation to be done in a follow up PR
+
+            Ok(())
         },
     )
 }
