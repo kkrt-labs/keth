@@ -46,4 +46,17 @@ class TestOs:
             *block_header.requests_root_value,
             block_header.extra_data_len,
             *[int(byte) for byte in block_header.extra_data],
+            len(block.transactions),
+            # First transaction
+            *(
+                [
+                    block.transactions[0].rlp_len,
+                    *[int(byte) for byte in block.transactions[0].rlp],
+                    block.transactions[0].signature_len,
+                    *block.transactions[0].signature,
+                    block.transactions[0].sender,
+                ]
+                if len(block.transactions) > 0
+                else []
+            ),
         ]
