@@ -13,7 +13,7 @@ from ethereum.base_types import (
     Bytes256,
     Uint,
 )
-from ethereum.cancun.blocks import Block, Header, Log, Receipt, Withdrawal
+from ethereum.cancun.blocks import Header, Log, Receipt, Withdrawal
 from ethereum.cancun.fork_types import Account, Address, Bloom, Root
 from ethereum.cancun.transactions import (
     AccessListTransaction,
@@ -104,42 +104,3 @@ def register_type_strategies():
     st.register_type_strategy(AccessListTransaction, st_builds(AccessListTransaction))
     st.register_type_strategy(FeeMarketTransaction, st_builds(FeeMarketTransaction))
     st.register_type_strategy(BlobTransaction, st_builds(BlobTransaction))
-
-
-# TODO: Below are wip or deprecated
-block_chain = st.fixed_dictionaries(
-    {
-        "blocks": st.lists(st.from_type(Block)),
-        "state": st.just(state),
-        "chain_id": uint64,
-    }
-)
-
-block_header = st.fixed_dictionaries(
-    {
-        "parent_hash": bytes32,
-        "ommers_hash": st.just(
-            bytes.fromhex(
-                "1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347"
-            )
-        ),
-        "coinbase": bytes20,
-        "state_root": bytes32,
-        "transactions_root": bytes32,
-        "receipt_root": bytes32,
-        "bloom": st.binary(min_size=256, max_size=256),
-        "difficulty": st.just(0x00),
-        "number": uint64,
-        "gas_limit": uint64,
-        "gas_used": uint64,
-        "timestamp": uint64,
-        "extra_data": st.binary(max_size=32),
-        "prev_randao": bytes32,
-        "nonce": st.just("0x0000000000000000"),
-        "base_fee_per_gas": uint64,
-        "withdrawals_root": bytes32,
-        "blob_gas_used": uint64,
-        "excess_blob_gas": uint64,
-        "parent_beacon_block_root": bytes32,
-    }
-)
