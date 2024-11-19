@@ -6,7 +6,6 @@ readme = "README.md"
 requires-python = ">=3.10"
 
 dependencies = [
-  "bidict>=0.23.1",
   "cairo-lang>=0.13.2",
   "ethereum",
   "marshmallow-dataclass>=8.6.1",
