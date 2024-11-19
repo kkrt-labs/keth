@@ -373,20 +373,20 @@ class Serde:
 
     def serialize_bytes8(self, ptr):
         raw = self.serialize_struct("Bytes8", ptr)
-        return Bytes8(raw["value"].to_bytes(8, "big"))
+        return Bytes8(raw["value"].to_bytes(8, "little"))
 
     def serialize_bytes20(self, ptr):
         raw = self.serialize_struct("Bytes20", ptr)
-        return Bytes20(raw["value"].to_bytes(20, "big"))
+        return Bytes20(raw["value"].to_bytes(20, "little"))
 
     def serialize_bytes32(self, ptr):
         raw = self.serialize_struct("Bytes32", ptr)
-        return Bytes32(raw["value"].to_bytes(32, "big"))
+        return Bytes32(raw["value"].to_bytes(32, "little"))
 
     def serialize_bytes256(self, ptr):
         return Bytes256(
             b"".join(
-                b.to_bytes(16, "big")
+                b.to_bytes(16, "little")
                 for b in self.serialize_list(self.memory.get(ptr), list_len=8 * 2)
             )
         )
@@ -399,6 +399,10 @@ class Serde:
         tuple_struct_ptr = self.serialize_pointers(f"Tuple{item_scope}", ptr)["value"]
         raw = self.serialize_pointers(f"Tuple{item_scope}Struct", tuple_struct_ptr)
         return tuple(self.serialize_list(raw["value"], item_scope, list_len=raw["len"]))
+
+    def serialize_access_list(self, ptr):
+        raw = self.serialize_struct("AccessList", ptr)
+        return (raw["value"]["address"], raw["value"]["storage_keys"])
 
     def serialize_sequence(self, ptr, item_scope):
         sequence_struct_ptr = self.serialize_pointers(f"Sequence{item_scope}", ptr)[
@@ -549,6 +553,8 @@ class Serde:
         # Transaction types
         if scope_path == ("ethereum", "cancun", "transactions", "To"):
             return self.serialize_enum(scope_ptr, "To")
+        if scope_path == ("ethereum", "cancun", "transactions", "AccessList"):
+            return self.serialize_access_list(scope_ptr)
         if scope_path == ("ethereum", "cancun", "transactions", "TupleAccessList"):
             return self.serialize_tuple(scope_ptr, "AccessList")
         if scope_path == ("ethereum", "cancun", "transactions", "Transaction"):

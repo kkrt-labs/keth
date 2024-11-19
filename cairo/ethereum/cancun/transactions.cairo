@@ -33,9 +33,13 @@ struct LegacyTransaction {
     value: LegacyTransactionStruct*,
 }
 
-struct AccessList {
+struct AccessListStruct {
     address: Address,
     storage_keys: TupleBytes32,
+}
+
+struct AccessList {
+    value: AccessListStruct*,
 }
 
 struct TupleAccessListStruct {

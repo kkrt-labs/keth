@@ -1,3 +1,5 @@
+from typing import Tuple
+
 import pytest
 from hypothesis import assume, given
 from hypothesis import strategies as st
@@ -25,13 +27,13 @@ class TestRlp:
             assert encode_bytes(raw_bytes) == cairo_run("encode_bytes", raw_bytes)
 
         @given(raw_sequence=...)
-        def test_get_joined_encodings(self, cairo_run, raw_sequence: tuple[Bytes]):
+        def test_get_joined_encodings(self, cairo_run, raw_sequence: Tuple[Bytes, ...]):
             assert get_joined_encodings(raw_sequence) == cairo_run(
                 "get_joined_encodings", raw_sequence
             )
 
         @given(raw_sequence=...)
-        def test_encode_sequence(self, cairo_run, raw_sequence: tuple[Bytes]):
+        def test_encode_sequence(self, cairo_run, raw_sequence: Tuple[Bytes, ...]):
             assert encode_sequence(raw_sequence) == cairo_run(
                 "encode_sequence", raw_sequence
             )
@@ -76,7 +78,9 @@ class TestRlp:
             )
 
         @given(raw_sequence=...)
-        def test_decode_joined_encodings(self, cairo_run, raw_sequence: tuple[Bytes]):
+        def test_decode_joined_encodings(
+            self, cairo_run, raw_sequence: Tuple[Bytes, ...]
+        ):
             joined_encodings = b"".join(encode_bytes(raw) for raw in raw_sequence)
             assert decode_joined_encodings(joined_encodings) == cairo_run(
                 "decode_joined_encodings", joined_encodings
