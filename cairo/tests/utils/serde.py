@@ -35,24 +35,6 @@ from ethereum.cancun.transactions import (
 from ethereum.cancun.vm.gas import MessageCallGas
 
 
-def get_cairo_type(program, name):
-    identifiers = [
-        value
-        for key, value in program.identifiers.as_dict().items()
-        if name in str(key) and name.split(".")[-1] == str(key).split(".")[-1]
-    ]
-    if len(identifiers) != 1:
-        raise ValueError(f"Expected one type named {name}, found {identifiers}")
-    identifier = identifiers[0]
-
-    if isinstance(identifier, TypeDefinition):
-        return identifier.cairo_type
-    if isinstance(identifier, StructDefinition):
-        return TypeStruct(scope=identifier.full_name, location=identifier.location)
-
-    return identifier
-
-
 def get_struct_definition(program, name):
     identifiers = [
         (

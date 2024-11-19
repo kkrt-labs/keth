@@ -1,15 +1,21 @@
 from collections import defaultdict
 from dataclasses import fields, is_dataclass
 from functools import partial
-from importlib import import_module
-from typing import Tuple, Union, get_args, get_origin
+from typing import Any, Tuple, Type, Union, get_args, get_origin
 
+from bidict import bidict
 from starkware.cairo.common.dict import DictTracker
 from starkware.cairo.lang.compiler.ast.cairo_types import (
     CairoType,
     TypeFelt,
     TypeStruct,
 )
+from starkware.cairo.lang.compiler.identifier_definition import (
+    StructDefinition,
+    TypeDefinition,
+)
+from starkware.cairo.lang.compiler.program import Program
+from starkware.cairo.lang.compiler.scoped_name import ScopedName
 from starkware.cairo.lang.vm.relocatable import MaybeRelocatable, RelocatableValue
 
 from ethereum.base_types import (
@@ -23,7 +29,84 @@ from ethereum.base_types import (
     Bytes256,
     Uint,
 )
+from ethereum.cancun.blocks import Header, Log, Receipt, Withdrawal
+from ethereum.cancun.fork_types import Account, Address, Bloom, Root, VersionedHash
+from ethereum.cancun.transactions import (
+    AccessListTransaction,
+    BlobTransaction,
+    FeeMarketTransaction,
+    LegacyTransaction,
+    Transaction,
+)
 from ethereum.crypto.hash import Hash32
+from ethereum.rlp import Extended, Simple
+
+_python_type_to_cairo_struct: bidict[Any, Tuple[str, ...]] = bidict(
+    {
+        bool: ("ethereum", "base_types", "bool"),
+        U64: ("ethereum", "base_types", "U64"),
+        Uint: ("ethereum", "base_types", "Uint"),
+        U256: ("ethereum", "base_types", "U256"),
+        Bytes0: ("ethereum", "base_types", "Bytes0"),
+        Bytes8: ("ethereum", "base_types", "Bytes8"),
+        Bytes20: ("ethereum", "base_types", "Bytes20"),
+        Bytes32: ("ethereum", "base_types", "Bytes32"),
+        Tuple[Bytes32, ...]: ("ethereum", "base_types", "TupleBytes32"),
+        Bytes256: ("ethereum", "base_types", "Bytes256"),
+        Bytes: ("ethereum", "base_types", "Bytes"),
+        bytes: ("ethereum", "base_types", "Bytes"),
+        Tuple[Bytes, ...]: ("ethereum", "base_types", "TupleBytes"),
+        Header: ("ethereum", "cancun", "blocks", "Header"),
+        Tuple[Header, ...]: ("ethereum", "cancun", "blocks", "TupleHeader"),
+        Withdrawal: ("ethereum", "cancun", "blocks", "Withdrawal"),
+        Tuple[Withdrawal, ...]: ("ethereum", "cancun", "blocks", "TupleWithdrawal"),
+        Log: ("ethereum", "cancun", "blocks", "Log"),
+        Tuple[Log, ...]: ("ethereum", "cancun", "blocks", "TupleLog"),
+        Receipt: ("ethereum", "cancun", "blocks", "Receipt"),
+        Tuple[Receipt, ...]: ("ethereum", "cancun", "blocks", "TupleReceipt"),
+        Address: ("ethereum", "cancun", "fork_types", "Address"),
+        Root: ("ethereum", "cancun", "fork_types", "Root"),
+        Account: ("ethereum", "cancun", "fork_types", "Account"),
+        Bloom: ("ethereum", "cancun", "fork_types", "Bloom"),
+        VersionedHash: ("ethereum", "cancun", "fork_types", "VersionedHash"),
+        Tuple[VersionedHash, ...]: (
+            "ethereum",
+            "cancun",
+            "fork_types",
+            "TupleVersionedHash",
+        ),
+        Union[Bytes0, Address]: ("ethereum", "cancun", "transactions", "To"),
+        LegacyTransaction: ("ethereum", "cancun", "transactions", "LegacyTransaction"),
+        AccessListTransaction: (
+            "ethereum",
+            "cancun",
+            "transactions",
+            "AccessListTransaction",
+        ),
+        FeeMarketTransaction: (
+            "ethereum",
+            "cancun",
+            "transactions",
+            "FeeMarketTransaction",
+        ),
+        BlobTransaction: ("ethereum", "cancun", "transactions", "BlobTransaction"),
+        Transaction: ("ethereum", "cancun", "transactions", "Transaction"),
+        Tuple[Tuple[Address, Tuple[Bytes32, ...]], ...]: (
+            "ethereum",
+            "cancun",
+            "transactions",
+            "TupleAccessList",
+        ),
+        Tuple[Address, Tuple[Bytes32, ...]]: (
+            "ethereum",
+            "cancun",
+            "transactions",
+            "AccessList",
+        ),
+        Simple: ("ethereum", "rlp", "Simple"),
+        Extended: ("ethereum", "rlp", "Extended"),
+    }
+)
 
 
 def gen_arg(dict_manager, segments):
@@ -31,6 +114,9 @@ def gen_arg(dict_manager, segments):
 
 
 def _gen_arg(dict_manager, segments, arg_type, arg):
+    """
+    Generate a Cairo argument from a Python argument.
+    """
     if get_origin(arg_type) is Union:
         # Union are represented as Enum in Cairo, with 0 pointers for all but one variant.
         struct_ptr = segments.add()
@@ -140,11 +226,21 @@ def to_python_type(cairo_type: CairoType):
         return int
 
     if isinstance(cairo_type, TypeStruct):
-        module = import_module(".".join(cairo_type.scope.path[:-1]))
-        type_name = cairo_type.scope.path[-1]
-        python_type = getattr(module, type_name.replace("Tuple", ""))
-        if type_name.startswith("Tuple"):
-            return Tuple[python_type, ...]
-        return python_type
+        return _python_type_to_cairo_struct.inverse[cairo_type.scope.path]
 
     raise NotImplementedError(f"Cairo type {cairo_type} not implemented")
+
+
+def to_cairo_type(program: Program, type_name: Type):
+    if type_name is int:
+        return TypeFelt()
+
+    scope = ScopedName(_python_type_to_cairo_struct[type_name])
+    identifier = program.identifiers.as_dict()[scope]
+
+    if isinstance(identifier, TypeDefinition):
+        return identifier.cairo_type
+    if isinstance(identifier, StructDefinition):
+        return TypeStruct(scope=identifier.full_name, location=identifier.location)
+
+    return identifier
