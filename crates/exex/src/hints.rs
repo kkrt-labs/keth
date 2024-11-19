@@ -57,7 +57,7 @@ impl KakarotHintProcessor {
     /// Adds the block hint to the [`KakarotHintProcessor`].
     ///
     /// This method wraps the [`block_hint`] function, which creates a hint that is related to the
-    /// given `SealedBlock`. The hint is then registered with the [`KakarotHintProcessor`].
+    /// given [`SealedBlock`]. The hint is then registered with the [`KakarotHintProcessor`].
     #[must_use]
     pub fn with_block(self, block: SealedBlock) -> Self {
         self.with_hint(&block_hint(block))
