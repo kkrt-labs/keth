@@ -23,6 +23,14 @@ from ethereum.cancun.blocks import (
     TupleHeader,
     Log,
     TupleLog,
-    Block,
     Receipt,
+)
+
+from ethereum.cancun.transactions import (
+    TupleAccessList,
+    Transaction,
+    LegacyTransaction,
+    AccessListTransaction,
+    FeeMarketTransaction,
+    BlobTransaction,
 )

@@ -1,5 +1,7 @@
+from typing import Any, Tuple, Type, Union
+
 import pytest
-from hypothesis import given
+from hypothesis import assume, given, settings
 from starkware.cairo.common.dict import DictManager
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 from starkware.cairo.lang.vm.memory_dict import MemoryDict
@@ -16,12 +18,13 @@ from ethereum.base_types import (
     Bytes256,
     Uint,
 )
-from ethereum.cancun.blocks import Block, Header, Log, Receipt, Withdrawal
+from ethereum.cancun.blocks import Header, Log, Receipt, Withdrawal
 from ethereum.cancun.fork_types import Account, Address, Bloom, Root, VersionedHash
-from tests.utils.hints import gen_arg as _gen_arg
+from ethereum.cancun.transactions import Transaction
+from tests.utils.args_gen import _cairo_struct_to_python_type
+from tests.utils.args_gen import gen_arg as _gen_arg
+from tests.utils.args_gen import to_cairo_type as _to_cairo_type
 from tests.utils.serde import Serde
-from tests.utils.serde import get_cairo_type as _get_cairo_type
-from tests.utils.strategies import uint128
 
 
 @pytest.fixture(scope="module")
@@ -41,246 +44,83 @@ def gen_arg(segments):
 
 
 @pytest.fixture(scope="module")
-def get_cairo_type(cairo_program):
-    def _factory(name):
-        return _get_cairo_type(cairo_program, name)
+def to_cairo_type(cairo_program):
+    def _factory(type_name: Type):
+        return _to_cairo_type(cairo_program, type_name)
 
     return _factory
 
 
+def get_type(instance: Any) -> Type:
+    if not isinstance(instance, tuple):
+        return type(instance)
+
+    # Empty tuple
+    if not instance:
+        return tuple
+
+    # Get all element types
+    elem_types = [get_type(x) for x in instance]
+
+    # If all elements are the same type, use ellipsis
+    if all(t == elem_types[0] for t in elem_types):
+        return Tuple[elem_types[0], ...]
+
+    # Otherwise return tuple of exact types
+    return Tuple[tuple(elem_types)]
+
+
+def no_empty_tuples(value: Any) -> bool:
+    """Recursively check that no tuples (including nested ones) are empty."""
+    if not isinstance(value, tuple):
+        return True
+
+    if not value:  # Empty tuple
+        return False
+
+    # Check each element recursively if it's a tuple
+    return all(no_empty_tuples(x) if isinstance(x, tuple) else True for x in value)
+
+
 class TestSerde:
-
-    class TestBaseTypes:
-
-        @given(b=...)
-        def test_bool(self, get_cairo_type, serde, gen_arg, b: bool):
-            base = gen_arg([b])
-            result = serde.serialize(
-                get_cairo_type("ethereum.base_types.bool"), base, shift=0
-            )
-            # bool is a also int in Python
-            assert result == int(b)
-
-        @given(n=...)
-        def test_u64(self, get_cairo_type, serde, gen_arg, n: U64):
-            base = gen_arg([n])
-            result = serde.serialize(
-                get_cairo_type("ethereum.base_types.U64"), base, shift=0
-            )
-            assert result == n
-
-        @given(n=uint128)
-        def test_u128(self, get_cairo_type, serde, gen_arg, n):
-            """
-            This type is not used in the spec, but it's a good sanity check in
-            Cairo where a lot of functions expect a < RC_BOUND value.
-            """
-            base = gen_arg([n])
-            result = serde.serialize(
-                get_cairo_type("ethereum.base_types.U128"), base, shift=0
-            )
-            assert result == n
-
-        @given(n=...)
-        def test_uint(self, get_cairo_type, serde, gen_arg, n: Uint):
-            base = gen_arg([n])
-            result = serde.serialize(
-                get_cairo_type("ethereum.base_types.Uint"), base, shift=0
-            )
-            assert result == n
-
-        @given(n=...)
-        def test_u256(self, get_cairo_type, serde, gen_arg, n: U256):
-            base = gen_arg([n])
-            result = serde.serialize(
-                get_cairo_type("ethereum.base_types.U256"), base, shift=0
-            )
-            assert result == n
-
-        @given(bytes0=...)
-        def test_bytes0(self, get_cairo_type, serde, gen_arg, bytes0: Bytes0):
-            base = gen_arg([bytes0])
-            result = serde.serialize(
-                get_cairo_type("ethereum.base_types.Bytes0"), base, shift=0
-            )
-            assert result == bytes0
-
-        @given(bytes8=...)
-        def test_bytes8(self, get_cairo_type, serde, gen_arg, bytes8: Bytes8):
-            base = gen_arg([bytes8])
-            result = serde.serialize(
-                get_cairo_type("ethereum.base_types.Bytes8"), base, shift=0
-            )
-            assert result == bytes8
-
-        @given(bytes20=...)
-        def test_bytes20(self, get_cairo_type, serde, gen_arg, bytes20: Bytes20):
-            base = gen_arg([bytes20])
-            result = serde.serialize(
-                get_cairo_type("ethereum.base_types.Bytes20"), base, shift=0
-            )
-            assert result == bytes20
-
-        @given(bytes32=...)
-        def test_bytes32(self, get_cairo_type, serde, gen_arg, bytes32: Bytes32):
-            base = gen_arg([bytes32])
-            result = serde.serialize(
-                get_cairo_type("ethereum.base_types.Bytes32"), base, shift=0
-            )
-            assert result == bytes32
-
-        @given(bytes256=...)
-        def test_bytes256(self, get_cairo_type, serde, gen_arg, bytes256: Bytes256):
-            base = gen_arg([bytes256])
-            result = serde.serialize(
-                get_cairo_type("ethereum.base_types.Bytes256"), base, shift=0
-            )
-            assert result == bytes256
-
-        @given(bytes_=...)
-        def test_bytes(self, get_cairo_type, serde, gen_arg, bytes_: Bytes):
-            base = gen_arg([bytes_])
-            result = serde.serialize(
-                get_cairo_type("ethereum.base_types.Bytes"), base, shift=0
-            )
-            assert result == bytes_
-
-        @given(bytes_=...)
-        def test_tuple_bytes(
-            self, get_cairo_type, serde, gen_arg, bytes_: tuple[Bytes]
-        ):
-            base = gen_arg([bytes_])
-            result = serde.serialize(
-                get_cairo_type("ethereum.base_types.TupleBytes"), base, shift=0
-            )
-            assert result == bytes_
-
-        @given(bytes32=...)
-        def test_tuple_bytes32(
-            self, get_cairo_type, serde, gen_arg, bytes32: tuple[Bytes32]
-        ):
-            base = gen_arg([bytes32])
-            result = serde.serialize(
-                get_cairo_type("ethereum.base_types.TupleBytes32"), base, shift=0
-            )
-            assert result == bytes32
-
-    class TestForkTypes:
-
-        @given(address=...)
-        def test_address(self, get_cairo_type, serde, gen_arg, address: Address):
-            base = gen_arg([address])
-            result = serde.serialize(
-                get_cairo_type("ethereum.cancun.fork_types.Address"), base, shift=0
-            )
-            assert result == address
-
-        @given(root=...)
-        def test_root(self, get_cairo_type, serde, gen_arg, root: Root):
-            base = gen_arg([root])
-            result = serde.serialize(
-                get_cairo_type("ethereum.cancun.fork_types.Root"), base, shift=0
-            )
-            assert result == root
-
-        @given(versioned_hash=...)
-        def test_versioned_hash(
-            self, get_cairo_type, serde, gen_arg, versioned_hash: VersionedHash
-        ):
-            base = gen_arg([versioned_hash])
-            result = serde.serialize(
-                get_cairo_type("ethereum.cancun.fork_types.VersionedHash"),
-                base,
-                shift=0,
-            )
-            assert result == versioned_hash
-
-        @given(bloom=...)
-        def test_bloom(self, get_cairo_type, serde, gen_arg, bloom: Bloom):
-            base = gen_arg([bloom])
-            result = serde.serialize(
-                get_cairo_type("ethereum.cancun.fork_types.Bloom"), base, shift=0
-            )
-            assert result == bloom
-
-        @given(account=...)
-        def test_account(self, get_cairo_type, serde, gen_arg, account: Account):
-            base = gen_arg([account])
-            result = serde.serialize(
-                get_cairo_type("ethereum.cancun.fork_types.Account"),
-                base,
-                shift=0,
-            )
-            assert result == account
-
-    class TestBlocks:
-
-        @given(withdrawal=...)
-        def test_withdrawal(
-            self, get_cairo_type, serde, gen_arg, withdrawal: Withdrawal
-        ):
-            base = gen_arg([withdrawal])
-            result = serde.serialize(
-                get_cairo_type("ethereum.cancun.blocks.Withdrawal"), base, shift=0
-            )
-            assert result == withdrawal
-
-        @given(withdrawals=...)
-        def test_tuple_withdrawal(
-            self, get_cairo_type, serde, gen_arg, withdrawals: tuple[Withdrawal]
-        ):
-            base = gen_arg([withdrawals])
-            result = serde.serialize(
-                get_cairo_type("ethereum.cancun.blocks.TupleWithdrawal"), base, shift=0
-            )
-            assert result == withdrawals
-
-        @given(header=...)
-        def test_header(self, get_cairo_type, serde, gen_arg, header: Header):
-            base = gen_arg([header])
-            result = serde.serialize(
-                get_cairo_type("ethereum.cancun.blocks.Header"), base, shift=0
-            )
-            assert result == header
-
-        @given(headers=...)
-        def test_tuple_header(
-            self, get_cairo_type, serde, gen_arg, headers: tuple[Header]
-        ):
-            base = gen_arg([headers])
-            result = serde.serialize(
-                get_cairo_type("ethereum.cancun.blocks.TupleHeader"), base, shift=0
-            )
-            assert result == headers
-
-        @given(log=...)
-        def test_log(self, get_cairo_type, serde, gen_arg, log: Log):
-            base = gen_arg([log])
-            result = serde.serialize(
-                get_cairo_type("ethereum.cancun.blocks.Log"), base, shift=0
-            )
-            assert result == log
-
-        @given(logs=...)
-        def test_tuple_log(self, get_cairo_type, serde, gen_arg, logs: tuple[Log]):
-            base = gen_arg([logs])
-            result = serde.serialize(
-                get_cairo_type("ethereum.cancun.blocks.TupleLog"), base, shift=0
-            )
-            assert result == logs
-
-        @given(receipt=...)
-        def test_receipt(self, get_cairo_type, serde, gen_arg, receipt: Receipt):
-            base = gen_arg([receipt])
-            result = serde.serialize(
-                get_cairo_type("ethereum.cancun.blocks.Receipt"), base, shift=0
-            )
-            assert result == receipt
-
-        @given(block=...)
-        def test_block(self, get_cairo_type, serde, gen_arg, block: Block):
-            base = gen_arg([block])
-            result = serde.serialize(
-                get_cairo_type("ethereum.cancun.blocks.Block"), base, shift=0
-            )
-            assert result == block
+    @given(b=...)
+    @settings(max_examples=50 * len(_cairo_struct_to_python_type))
+    def test_type(
+        self,
+        to_cairo_type,
+        segments,
+        serde,
+        gen_arg,
+        b: Union[
+            bool,
+            U64,
+            Uint,
+            U256,
+            Bytes0,
+            Bytes8,
+            Bytes20,
+            Bytes32,
+            Bytes256,
+            Bytes,
+            Address,
+            Root,
+            VersionedHash,
+            Bloom,
+            Account,
+            Transaction,
+            Receipt,
+            Tuple[Bytes32, ...],
+            Tuple[Bytes, ...],
+            Tuple[Header, ...],
+            Tuple[Withdrawal, ...],
+            Tuple[Log, ...],
+            Tuple[VersionedHash, ...],
+            Tuple[Address, Tuple[Bytes32, ...]],
+            Tuple[Tuple[Address, Tuple[Bytes32, ...]], ...],
+        ],
+    ):
+        assume(no_empty_tuples(b))
+        type_ = get_type(b)
+        base = segments.gen_arg([gen_arg(type_, b)])
+        result = serde.serialize(to_cairo_type(type_), base, shift=0)
+        assert result == b

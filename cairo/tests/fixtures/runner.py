@@ -25,10 +25,10 @@ from starkware.cairo.lang.vm.memory_dict import MemoryDict
 from starkware.cairo.lang.vm.memory_segments import FIRST_MEMORY_ADDR as PROGRAM_BASE
 from starkware.cairo.lang.vm.utils import RunResources
 
+from tests.utils.args_gen import gen_arg as gen_arg_builder
+from tests.utils.args_gen import to_python_type
 from tests.utils.coverage import VmWithCoverage
-from tests.utils.hints import debug_info
-from tests.utils.hints import gen_arg as gen_arg_builder
-from tests.utils.hints import implement_hints
+from tests.utils.hints import debug_info, implement_hints
 from tests.utils.reporting import profile_from_tracer_data
 from tests.utils.serde import Serde
 
@@ -88,11 +88,12 @@ def cairo_run(request, cairo_program, cairo_file):
                 ScopedName(path=("__main__", entrypoint, "ImplicitArgs"))
             ).members.keys()
         )
-        _args = list(
-            cairo_program.identifiers.get_by_full_name(
+        _args = {
+            k: to_python_type(v.cairo_type)
+            for k, v in cairo_program.identifiers.get_by_full_name(
                 ScopedName(path=("__main__", entrypoint, "Args"))
-            ).members.keys()
-        )
+            ).members.items()
+        }
         return_data = cairo_program.identifiers.get_by_full_name(
             ScopedName(path=("__main__", entrypoint, "Return"))
         )
@@ -144,13 +145,13 @@ def cairo_run(request, cairo_program, cairo_file):
                 if add_output:
                     output_ptr = stack[-1]
 
-        for i, arg in enumerate(_args):
-            if arg == "output_ptr":
+        for i, (arg_name, python_type) in enumerate(_args.items()):
+            if arg_name == "output_ptr":
                 add_output = True
                 output_ptr = runner.segments.add()
                 stack.append(output_ptr)
             else:
-                stack.append(gen_arg(kwargs.get(arg, args[i])))
+                stack.append(gen_arg(python_type, kwargs.get(arg_name, args[i])))
 
         return_fp = runner.execution_base + 2
         end = runner.segments.add()

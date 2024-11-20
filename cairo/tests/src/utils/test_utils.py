@@ -70,7 +70,7 @@ def test_bytes_to_uint256(cairo_run, word):
         "test__bytes_to_uint256",
         word=int.to_bytes(word, ceil(word.bit_length() / 8), byteorder="big"),
     )
-    assert output == word
+    assert output["low"] + output["high"] * 2**128 == word
 
 
 @given(word=st.integers(min_value=0, max_value=2**128 - 1))

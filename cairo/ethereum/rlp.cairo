@@ -9,21 +9,21 @@ from starkware.cairo.common.math_cmp import is_le, is_not_zero
 from starkware.cairo.common.math import assert_not_zero
 from starkware.cairo.common.memcpy import memcpy
 
-struct SequenceEnumSimple {
-    value: SequenceEnumSimpleStruct*,
+struct SequenceSimple {
+    value: SequenceSimpleStruct*,
 }
 
-struct SequenceEnumSimpleStruct {
-    value: EnumSimple*,
+struct SequenceSimpleStruct {
+    value: Simple*,
     len: felt,
 }
 
-struct EnumSimple {
-    value: EnumSimpleStruct*,
+struct Simple {
+    value: SimpleStruct*,
 }
 
-struct EnumSimpleStruct {
-    sequence: SequenceEnumSimple,
+struct SimpleStruct {
+    sequence: SequenceSimple,
     bytes: Bytes,
 }
 
@@ -134,7 +134,7 @@ func rlp_hash{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakB
 // RLP Decode
 //
 
-func decode{range_check_ptr}(encoded_data: Bytes) -> EnumSimple {
+func decode{range_check_ptr}(encoded_data: Bytes) -> Simple {
     alloc_locals;
     assert [range_check_ptr] = encoded_data.value.len;
     let range_check_ptr = range_check_ptr + 1;
@@ -143,17 +143,17 @@ func decode{range_check_ptr}(encoded_data: Bytes) -> EnumSimple {
     let cond = is_le(encoded_data.value.data[0], 0xbf);
     if (cond != 0) {
         let decoded_data = decode_to_bytes(encoded_data);
-        tempvar value = EnumSimple(
-            new EnumSimpleStruct(
-                sequence=SequenceEnumSimple(cast(0, SequenceEnumSimpleStruct*)), bytes=decoded_data
+        tempvar value = Simple(
+            new SimpleStruct(
+                sequence=SequenceSimple(cast(0, SequenceSimpleStruct*)), bytes=decoded_data
             ),
         );
         return value;
     }
 
     let decoded_sequence = decode_to_sequence(encoded_data);
-    tempvar value = EnumSimple(
-        new EnumSimpleStruct(sequence=decoded_sequence, Bytes(cast(0, BytesStruct*)))
+    tempvar value = Simple(
+        new SimpleStruct(sequence=decoded_sequence, Bytes(cast(0, BytesStruct*)))
     );
     return value;
 }
@@ -208,7 +208,7 @@ func decode_to_bytes{range_check_ptr}(encoded_bytes: Bytes) -> Bytes {
     return decoded_bytes;
 }
 
-func decode_to_sequence{range_check_ptr}(encoded_sequence: Bytes) -> SequenceEnumSimple {
+func decode_to_sequence{range_check_ptr}(encoded_sequence: Bytes) -> SequenceSimple {
     alloc_locals;
 
     let cond = is_le(encoded_sequence.value.data[0], 0xF7);
@@ -247,16 +247,16 @@ func decode_to_sequence{range_check_ptr}(encoded_sequence: Bytes) -> SequenceEnu
     return decode_joined_encodings(joined_encodings);
 }
 
-func decode_joined_encodings{range_check_ptr}(joined_encodings: Bytes) -> SequenceEnumSimple {
+func decode_joined_encodings{range_check_ptr}(joined_encodings: Bytes) -> SequenceSimple {
     alloc_locals;
 
-    let (dst: EnumSimple*) = alloc();
+    let (dst: Simple*) = alloc();
     let len = _decode_joined_encodings(dst, joined_encodings);
-    tempvar decoded_sequence = SequenceEnumSimple(new SequenceEnumSimpleStruct(dst, len));
+    tempvar decoded_sequence = SequenceSimple(new SequenceSimpleStruct(dst, len));
     return decoded_sequence;
 }
 
-func _decode_joined_encodings{range_check_ptr}(dst: EnumSimple*, joined_encodings: Bytes) -> felt {
+func _decode_joined_encodings{range_check_ptr}(dst: Simple*, joined_encodings: Bytes) -> felt {
     alloc_locals;
 
     if (joined_encodings.value.len == 0) {

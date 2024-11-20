@@ -1,4 +1,5 @@
-from starkware.cairo.common.math_cmp import is_le
+from starkware.cairo.common.math_cmp import is_le, is_not_zero
+from ethereum.base_types import Uint
 
 func min{range_check_ptr}(a: felt, b: felt) -> felt {
     if (a == b) {
@@ -6,6 +7,18 @@ func min{range_check_ptr}(a: felt, b: felt) -> felt {
     }
 
     let res = is_le(a, b);
+    if (res == 1) {
+        return a;
+    }
+    return b;
+}
+
+func max{range_check_ptr}(a: felt, b: felt) -> felt {
+    if (a == b) {
+        return a;
+    }
+
+    let res = is_le(b, a);
     if (res == 1) {
         return a;
     }
@@ -54,4 +67,43 @@ func divmod{range_check_ptr}(value, div) -> (q: felt, r: felt) {
 
     assert value = q * div + r;
     return (q, r);
+}
+
+func ceil32{range_check_ptr}(value: Uint) -> Uint {
+    let ceiling = 32;
+    let (_, remainder) = divmod(value.value, ceiling);
+    if (remainder == 0) {
+        return value;
+    }
+    let result = Uint(value.value + 32 - remainder);
+    return result;
+}
+
+func taylor_exponential{range_check_ptr}(factor: Uint, numerator: Uint, denominator: Uint) -> Uint {
+    let output = 0;
+    let i = 1;
+    let numerator_accumulated = factor.value * denominator.value;
+    let value = _taylor_exponential(
+        output, i, numerator_accumulated, numerator.value, denominator.value
+    );
+    let result = Uint(value);
+    return result;
+}
+
+func _taylor_exponential{range_check_ptr}(
+    output: felt, i: felt, numerator_accumulated: felt, numerator: felt, denominator: felt
+) -> felt {
+    let cond = is_not_zero(numerator_accumulated);
+    if (cond == 0) {
+        let (res, _) = divmod(output, denominator);
+        return res;
+    }
+
+    let output = output + numerator_accumulated;
+    let value = numerator_accumulated * numerator;
+    let div = denominator * i;
+    let (numerator_accumulated, _) = divmod(value, div);
+    let i = i + 1;
+
+    return _taylor_exponential(output, i, numerator_accumulated, numerator, denominator);
 }

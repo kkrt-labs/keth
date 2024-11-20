@@ -59,4 +59,4 @@ class TestAccount:
         def test_should_compute_code_hash(self, cairo_run, bytecode):
             output = cairo_run("test__compute_code_hash", code=bytecode)
             code_hash = int.from_bytes(keccak(bytecode), byteorder="big")
-            assert output == code_hash
+            assert output["low"] + 2**128 * output["high"] == code_hash
