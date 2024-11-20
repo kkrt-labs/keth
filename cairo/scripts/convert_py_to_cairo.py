@@ -78,7 +78,9 @@ class CairoConverter(ast.NodeVisitor):
         """Handle function definitions"""
         # Get return type annotation if it exists
         return_type = handle_type_annotation(node.returns) if node.returns else None
-        returns = f" -> {return_type}" if return_type else ""
+        returns = (
+            f" -> {return_type}" if (return_type and return_type != "None") else ""
+        )
 
         # Get parameters
         params = []
@@ -238,6 +240,8 @@ def handle_type_annotation(node: ast.AST) -> str:
         return f"{value}.{node.attr}"
     elif isinstance(node, ast.Constant) and node.value is Ellipsis:
         return "..."
+    elif isinstance(node, ast.Constant) and node.value is None:
+        return "None"
     else:
         return ast.dump(node)
 
