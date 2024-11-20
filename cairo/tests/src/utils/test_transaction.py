@@ -92,7 +92,7 @@ class TestTransaction:
             expected_access_list = flatten_tx_access_list(
                 transaction.get("accessList", [])
             )
-            expected_to = transaction["to"] or None
+            expected_to = int(transaction["to"], 16) if transaction["to"] else None
 
             assert transaction["nonce"] == decoded_tx["signer_nonce"]
             assert (
@@ -101,11 +101,18 @@ class TestTransaction:
             )
             assert transaction["gas"] == decoded_tx["gas_limit"]
             assert expected_to == decoded_tx["destination"]
-            assert transaction["value"] == decoded_tx["amount"]
+            assert (
+                transaction["value"]
+                == decoded_tx["amount"]["low"] + decoded_tx["amount"]["high"] * 2**128
+            )
             # pre-eip155 txs have an internal chain_id set to 0 in the decoded tx
             assert transaction.get("chainId") == decoded_tx["chain_id"]
-            assert expected_data == decoded_tx["payload"]
-            assert expected_access_list == decoded_tx["access_list"]
+            assert (
+                expected_data
+                == "0x"
+                + bytes(decoded_tx["payload"][: (len(expected_data) - 2) // 2]).hex()
+            )
+            assert expected_access_list == (decoded_tx["access_list"] or [])
 
         @pytest.mark.parametrize("transaction", INVALID_TRANSACTIONS)
         def test_should_panic_on_unsupported_tx_types(self, cairo_run, transaction):
