@@ -1,4 +1,4 @@
-from typing import Any, Tuple, Type, Union, get_origin
+from typing import Any, Tuple, Type, Union
 
 import pytest
 from hypothesis import assume, given, settings
