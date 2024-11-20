@@ -218,23 +218,26 @@ def handle_type_annotation(node: ast.AST) -> str:
         base_type = handle_type_annotation(node.value)
 
         # Handle the slice (arguments inside [])
-        if isinstance(node.slice, ast.Tuple):
+        if isinstance(node.slice, ast.Tuple) or isinstance(node.slice, ast.List):
             # Handle multiple arguments like Tuple[int, str]
             args = [handle_type_annotation(arg) for arg in node.slice.elts]
             if any(
                 isinstance(e, ast.Constant) and e.value is Ellipsis
                 for e in node.slice.elts
-            ):
+            ) or isinstance(node.slice, ast.List):
                 # Handle cases like Tuple[int, ...]
-                return f"{base_type}[{args[0]}, ...]"
+                return f"{base_type}{args[0]}"
             return f"{base_type}[{', '.join(args)}]"
         else:
-            # Handle single argument like List[int]
-            arg = handle_type_annotation(node.slice)
-            return f"{base_type}[{arg}]"
+            # Handle other cases like Optional[int]
+            return handle_type_annotation(node.slice)
 
     elif isinstance(node, ast.Name):
-        return node.id
+        mapping = {
+            "bytes": "Bytes",
+            "int": "felt",
+        }
+        return mapping.get(node.id, node.id)
     elif isinstance(node, ast.Attribute):
         value = handle_type_annotation(node.value)
         return f"{value}.{node.attr}"
