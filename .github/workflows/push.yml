@@ -18,3 +18,7 @@ jobs:
       checks: write
       contents: read
     uses: ./.github/workflows/trunk_check.yml
+
+  python_tests:
+    name: Tests
+    uses: ./.github/workflows/python_tests.yml
