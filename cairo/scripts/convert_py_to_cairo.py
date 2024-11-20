@@ -77,14 +77,14 @@ class CairoConverter(ast.NodeVisitor):
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         """Handle function definitions"""
         # Get return type annotation if it exists
-        return_type = self._get_annotation(node.returns) if node.returns else None
+        return_type = handle_type_annotation(node.returns) if node.returns else None
         returns = f" -> {return_type}" if return_type else ""
 
         # Get parameters
         params = []
         for arg in node.args.args:
             if arg.annotation:
-                param_type = self._get_annotation(arg.annotation)
+                param_type = handle_type_annotation(arg.annotation)
                 if param_type:
                     params.append(f"{arg.arg}: {param_type}")
             else:
@@ -200,36 +200,46 @@ class CairoConverter(ast.NodeVisitor):
 
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
         """Handle class definitions"""
-        # Check if it's a dataclass
-        if any(
-            isinstance(dec, ast.Name)
-            and dec.id == "dataclass"
-            or isinstance(dec, ast.Call)
-            and isinstance(dec.func, ast.Name)
-            and dec.func.id == "dataclass"
-            for dec in node.decorator_list
-        ):
-            fields = []
-            for item in node.body:
-                if isinstance(item, ast.AnnAssign) and isinstance(
-                    item.target, ast.Name
-                ):
-                    field_type = self._get_annotation(item.annotation)
-                    if field_type:
-                        fields.append(f"    {item.target.id}: {field_type},")
+        fields = []
+        for item in node.body:
+            if isinstance(item, ast.AnnAssign) and isinstance(item.target, ast.Name):
+                field_type = handle_type_annotation(item.annotation)
+                fields.append(f"    {item.target.id}: {field_type},")
 
-            if fields:
-                struct_def = [f"struct {node.name} {{", *fields, "}", ""]
-                self.structs.extend(struct_def)
+        struct_def = [f"struct {node.name} {{", *fields, "}", ""]
+        self.structs.extend(struct_def)
 
-    def _get_annotation(self, node: ast.expr) -> Optional[str]:
-        """Convert type annotations to Cairo types"""
-        if isinstance(node, ast.Name):
-            return node.id
-        elif isinstance(node, ast.Subscript):
-            # Handle generic types if needed
-            return None
-        return None
+
+def handle_type_annotation(node: ast.AST) -> str:
+    if isinstance(node, ast.Subscript):
+        # Get the base type (e.g., List, Tuple, etc.)
+        base_type = handle_type_annotation(node.value)
+
+        # Handle the slice (arguments inside [])
+        if isinstance(node.slice, ast.Tuple):
+            # Handle multiple arguments like Tuple[int, str]
+            args = [handle_type_annotation(arg) for arg in node.slice.elts]
+            if any(
+                isinstance(e, ast.Constant) and e.value is Ellipsis
+                for e in node.slice.elts
+            ):
+                # Handle cases like Tuple[int, ...]
+                return f"{base_type}[{args[0]}, ...]"
+            return f"{base_type}[{', '.join(args)}]"
+        else:
+            # Handle single argument like List[int]
+            arg = handle_type_annotation(node.slice)
+            return f"{base_type}[{arg}]"
+
+    elif isinstance(node, ast.Name):
+        return node.id
+    elif isinstance(node, ast.Attribute):
+        value = handle_type_annotation(node.value)
+        return f"{value}.{node.attr}"
+    elif isinstance(node, ast.Constant) and node.value is Ellipsis:
+        return "..."
+    else:
+        return ast.dump(node)
 
 
 def create_cairo_file(relative_path: str, dry_run: bool = False):
