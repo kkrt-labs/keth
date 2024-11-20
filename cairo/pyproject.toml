@@ -14,6 +14,8 @@ dependencies = [
 
 [project.scripts]
 compile = "src.utils.compile_cairo:compile_os"
+transpile = "scripts.convert_py_to_cairo:main"
+generate-tests = "scripts.generate_tests:main"
 
 [tool.uv]
 dev-dependencies = [
