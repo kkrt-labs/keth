@@ -21,8 +21,8 @@ pub enum ConversionError {
 
 /// A custom trait for encoding types into a vector of [`MaybeRelocatable`] values.
 pub trait KethEncodable {
-    /// Encodes the type into a vector of [`MaybeRelocatable`] values.
-    fn encode(&self) -> Vec<MaybeRelocatable>;
+    /// Encodes the type into a [`KethPayload`] (a vector of [`MaybeRelocatable`] values).
+    fn encode(&self) -> KethPayload;
 }
 
 /// A custom wrapper around [`MaybeRelocatable`] for the Keth execution environment.
@@ -34,7 +34,7 @@ pub trait KethEncodable {
 /// types, making it easier to work with the underlying data structures.
 ///
 /// # Usage
-/// - This type is primarily used for wrapping values in Keth, enabling smooth interoperation
+/// - This type is primarily used for wrapping values in Keth, enabling smooth interoperability
 ///   between [`Felt252`], [`MaybeRelocatable`] and reth primitive data.
 #[derive(Debug, Eq, Ord, Hash, PartialEq, PartialOrd, Clone, Serialize, Deserialize)]
 pub struct KethMaybeRelocatable(MaybeRelocatable);
@@ -105,8 +105,8 @@ impl KethMaybeRelocatable {
 }
 
 impl KethEncodable for KethMaybeRelocatable {
-    fn encode(&self) -> Vec<MaybeRelocatable> {
-        vec![self.0.clone()]
+    fn encode(&self) -> KethPayload {
+        vec![self.0.clone()].into()
     }
 }
 
@@ -173,14 +173,14 @@ pub struct KethOption<T> {
 }
 
 impl<T: KethEncodable + Default> KethEncodable for KethOption<T> {
-    fn encode(&self) -> Vec<MaybeRelocatable> {
+    fn encode(&self) -> KethPayload {
         let mut encoded = vec![self.is_some.0.clone()];
         if self.is_some.0 == MaybeRelocatable::from(Felt252::ONE) {
-            encoded.extend(self.value.encode());
+            encoded.extend(self.value.encode().0);
         } else {
-            encoded.extend(T::default().encode());
+            encoded.extend(T::default().encode().0);
         }
-        encoded
+        encoded.into()
     }
 }
 
@@ -242,8 +242,8 @@ impl KethU256 {
 }
 
 impl KethEncodable for KethU256 {
-    fn encode(&self) -> Vec<MaybeRelocatable> {
-        vec![self.low.0.clone(), self.high.0.clone()]
+    fn encode(&self) -> KethPayload {
+        vec![self.low.0.clone(), self.high.0.clone()].into()
     }
 }
 
@@ -298,10 +298,10 @@ impl Default for KethPointer {
 }
 
 impl KethEncodable for KethPointer {
-    fn encode(&self) -> Vec<MaybeRelocatable> {
+    fn encode(&self) -> KethPayload {
         let mut encoded = vec![self.len.0.clone()];
         encoded.extend(self.data.iter().map(|item| item.0.clone()));
-        encoded
+        encoded.into()
     }
 }
 
@@ -547,6 +547,12 @@ impl From<Header> for KethBlockHeader {
 #[derive(Debug, Eq, Ord, Hash, PartialEq, PartialOrd, Clone, Serialize, Deserialize)]
 pub struct KethPayload(pub Vec<MaybeRelocatable>);
 
+impl From<Vec<MaybeRelocatable>> for KethPayload {
+    fn from(value: Vec<MaybeRelocatable>) -> Self {
+        Self(value)
+    }
+}
+
 impl Deref for KethPayload {
     type Target = Vec<MaybeRelocatable>;
 
@@ -585,7 +591,7 @@ impl From<KethBlockHeader> for KethPayload {
         ];
 
         for field in fields {
-            payload.extend(field.encode());
+            payload.extend(field.encode().0);
         }
 
         Self(payload)
