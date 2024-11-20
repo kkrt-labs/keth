@@ -1170,6 +1170,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::too_many_lines, clippy::cognitive_complexity)]
     fn test_keth_block_header_to_payload() {
         // Create realistic non-default values for the fields
         let parent_hash = B256::from([0x11u8; 32]);
