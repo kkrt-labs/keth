@@ -62,7 +62,6 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "cancun", "blocks", "Log"): Log,
     ("ethereum", "cancun", "blocks", "TupleLog"): Tuple[Log, ...],
     ("ethereum", "cancun", "blocks", "Receipt"): Receipt,
-    ("ethereum", "cancun", "blocks", "TupleReceipt"): Tuple[Receipt, ...],
     ("ethereum", "cancun", "fork_types", "Address"): Address,
     ("ethereum", "cancun", "fork_types", "Root"): Root,
     ("ethereum", "cancun", "fork_types", "Account"): Account,
