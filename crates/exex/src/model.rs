@@ -4,6 +4,7 @@ use alloy_rlp::Encodable;
 use cairo_vm::{types::relocatable::MaybeRelocatable, Felt252};
 use reth_primitives::{Transaction, TransactionSigned, TransactionSignedEcRecovered};
 use serde::{Deserialize, Serialize};
+use std::ops::Deref;
 use thiserror::Error;
 
 /// The size in bytes of the `u128` type.
@@ -16,6 +17,12 @@ pub enum ConversionError {
     /// Error indicating the failure to recover the signer from the transaction.
     #[error("Failed to recover signer from transaction")]
     TransactionSigner,
+}
+
+/// A custom trait for encoding types into a vector of [`MaybeRelocatable`] values.
+pub trait KethEncodable {
+    /// Encodes the type into a vector of [`MaybeRelocatable`] values.
+    fn encode(&self) -> Vec<MaybeRelocatable>;
 }
 
 /// A custom wrapper around [`MaybeRelocatable`] for the Keth execution environment.
@@ -97,6 +104,12 @@ impl KethMaybeRelocatable {
     }
 }
 
+impl KethEncodable for KethMaybeRelocatable {
+    fn encode(&self) -> Vec<MaybeRelocatable> {
+        vec![self.0.clone()]
+    }
+}
+
 impl From<Felt252> for KethMaybeRelocatable {
     fn from(value: Felt252) -> Self {
         Self(value.into())
@@ -159,6 +172,18 @@ pub struct KethOption<T> {
     value: T,
 }
 
+impl<T: KethEncodable + Default> KethEncodable for KethOption<T> {
+    fn encode(&self) -> Vec<MaybeRelocatable> {
+        let mut encoded = vec![self.is_some.0.clone()];
+        if self.is_some.0 == MaybeRelocatable::from(Felt252::ONE) {
+            encoded.extend(self.value.encode());
+        } else {
+            encoded.extend(T::default().encode());
+        }
+        encoded
+    }
+}
+
 impl Default for KethOption<KethMaybeRelocatable> {
     fn default() -> Self {
         Self { is_some: KethMaybeRelocatable::zero(), value: KethMaybeRelocatable::zero() }
@@ -216,6 +241,12 @@ impl KethU256 {
     }
 }
 
+impl KethEncodable for KethU256 {
+    fn encode(&self) -> Vec<MaybeRelocatable> {
+        vec![self.low.0.clone(), self.high.0.clone()]
+    }
+}
+
 impl From<B256> for KethU256 {
     fn from(value: B256) -> Self {
         Self {
@@ -263,6 +294,14 @@ pub struct KethPointer {
 impl Default for KethPointer {
     fn default() -> Self {
         Self { len: KethMaybeRelocatable::zero(), data: Vec::new(), type_size: 1 }
+    }
+}
+
+impl KethEncodable for KethPointer {
+    fn encode(&self) -> Vec<MaybeRelocatable> {
+        let mut encoded = vec![self.len.0.clone()];
+        encoded.extend(self.data.iter().map(|item| item.0.clone()));
+        encoded
     }
 }
 
@@ -425,7 +464,7 @@ impl From<Transaction> for KethPointer {
 /// Represents a Keth block header, which contains essential metadata about a block.
 ///
 /// These data are converted into a Keth-specific format for use with the Cairo VM.
-#[derive(Debug, Eq, Ord, Hash, PartialEq, PartialOrd, Clone, Serialize, Deserialize)]
+#[derive(Default, Debug, Eq, Ord, Hash, PartialEq, PartialOrd, Clone, Serialize, Deserialize)]
 pub struct KethBlockHeader {
     /// Hash of the parent block.
     parent_hash: KethU256,
@@ -497,6 +536,59 @@ impl From<Header> for KethBlockHeader {
             requests_root: value.requests_hash.into(),
             extra_data: value.extra_data.into(),
         }
+    }
+}
+
+/// [`KethPayload`] is a wrapper around a [`Vec<MaybeRelocatable>`], designed to represent
+/// a collection of `[MaybeRelocatable`] values in the Keth environment.
+///
+/// This struct is primarily used to encapsulate data that can injected into the Cairo VM for hint
+/// manipulation.
+#[derive(Debug, Eq, Ord, Hash, PartialEq, PartialOrd, Clone, Serialize, Deserialize)]
+pub struct KethPayload(pub Vec<MaybeRelocatable>);
+
+impl Deref for KethPayload {
+    type Target = Vec<MaybeRelocatable>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl From<KethBlockHeader> for KethPayload {
+    fn from(header: KethBlockHeader) -> Self {
+        let mut payload = Vec::new();
+
+        // Dynamically encode each field using a trait
+        let fields = [
+            &header.parent_hash as &dyn KethEncodable,
+            &header.ommers_hash,
+            &header.coinbase,
+            &header.state_root,
+            &header.transactions_root,
+            &header.receipt_root,
+            &header.withdrawals_root,
+            &header.bloom,
+            &header.difficulty,
+            &header.number,
+            &header.gas_limit,
+            &header.gas_used,
+            &header.timestamp,
+            &header.mix_hash,
+            &header.nonce,
+            &header.base_fee_per_gas,
+            &header.blob_gas_used,
+            &header.excess_blob_gas,
+            &header.parent_beacon_block_root,
+            &header.requests_root,
+            &header.extra_data,
+        ];
+
+        for field in fields {
+            payload.extend(field.encode());
+        }
+
+        Self(payload)
     }
 }
 
@@ -1075,5 +1167,142 @@ mod tests {
         );
         assert_eq!(keth_pointer.type_size, 1);
         assert_eq!(keth_pointer.data.len(), 16);
+    }
+
+    #[test]
+    fn test_keth_block_header_to_payload() {
+        // Create realistic non-default values for the fields
+        let parent_hash = B256::from([0x11u8; 32]);
+        let ommers_hash = B256::from([0x22u8; 32]);
+        let coinbase = Address::new([0x33u8; 20]);
+        let state_root = B256::from([0x44u8; 32]);
+        let transactions_root = B256::from([0x55u8; 32]);
+        let receipt_root = B256::from([0x66u8; 32]);
+        let withdrawals_root = Some(B256::from([0x77u8; 32]));
+        let bloom = Bloom::from_slice(&[0x88u8; 256]);
+        let difficulty = U256::from(999_999_999_u64);
+        let number = 123_456_u64;
+        let gas_limit = 8_000_000_u64;
+        let gas_used = 7_500_000_u64;
+        let timestamp = 1_630_000_000_u64;
+        let mix_hash = B256::from([0x99u8; 32]);
+        let nonce = 42u64;
+        let base_fee_per_gas = Some(100u64);
+        let blob_gas_used = Some(200u64);
+        let excess_blob_gas = Some(300u64);
+        let parent_beacon_block_root = Some(B256::from([0xAAu8; 32]));
+        let requests_root = Some(B256::from([0xBBu8; 32]));
+        let extra_data = Bytes::from(vec![0xCC, 0xDD, 0xEE, 0xFF]);
+
+        // Construct a Header using the values
+        let header = Header {
+            parent_hash,
+            ommers_hash,
+            beneficiary: coinbase,
+            state_root,
+            transactions_root,
+            receipts_root: receipt_root,
+            withdrawals_root,
+            logs_bloom: bloom,
+            difficulty,
+            number,
+            gas_limit,
+            gas_used,
+            timestamp,
+            mix_hash,
+            nonce: nonce.into(),
+            base_fee_per_gas,
+            blob_gas_used,
+            excess_blob_gas,
+            parent_beacon_block_root,
+            requests_hash: requests_root,
+            extra_data: extra_data.clone(),
+        };
+
+        // Convert to KethBlockHeader
+        let keth_header: KethBlockHeader = header.into();
+
+        // Convert KethBlockHeader to payload
+        let payload: KethPayload = keth_header.into();
+
+        // The payload is structured as follows:
+        // 1. 37 fixed fields
+        // 2. 16 bloom entries (16 bytes x 16 chunks = 256 bytes)
+        // 3. 4 extra data bytes
+        assert_eq!(payload.len(), 37 + 16 + 4);
+
+        // Transform the reth types into keth types
+        let keth_parent_hash = KethU256::from(parent_hash);
+        let keth_ommers_hash = KethU256::from(ommers_hash);
+        let keth_coinbase = KethMaybeRelocatable::from(coinbase);
+        let keth_state_root = KethU256::from(state_root);
+        let keth_transactions_root = KethU256::from(transactions_root);
+        let keth_receipt_root = KethU256::from(receipt_root);
+        let keth_withdrawals_root = KethOption::<KethU256>::from(withdrawals_root);
+        let keth_bloom = KethPointer::from(bloom);
+        let keth_difficulty = KethU256::from(difficulty);
+        let keth_number = KethMaybeRelocatable::from(number);
+        let keth_gas_limit = KethMaybeRelocatable::from(gas_limit);
+        let keth_gas_used = KethMaybeRelocatable::from(gas_used);
+        let keth_timestamp = KethMaybeRelocatable::from(timestamp);
+        let keth_mix_hash = KethU256::from(mix_hash);
+        let keth_nonce = KethMaybeRelocatable::from(nonce);
+        let keth_base_fee_per_gas = KethOption::<KethMaybeRelocatable>::from(base_fee_per_gas);
+        let keth_blob_gas_used = KethOption::<KethMaybeRelocatable>::from(blob_gas_used);
+        let keth_excess_blob_gas = KethOption::<KethMaybeRelocatable>::from(excess_blob_gas);
+        let keth_parent_beacon_block_root = KethOption::<KethU256>::from(parent_beacon_block_root);
+        let keth_requests_root = KethOption::<KethU256>::from(requests_root);
+        let keth_extra_data = KethPointer::from(extra_data);
+
+        // Check all the fixed fields
+        assert_eq!(payload[0], keth_parent_hash.low.0);
+        assert_eq!(payload[1], keth_parent_hash.high.0);
+        assert_eq!(payload[2], keth_ommers_hash.low.0);
+        assert_eq!(payload[3], keth_ommers_hash.high.0);
+        assert_eq!(payload[4], keth_coinbase.0);
+        assert_eq!(payload[5], keth_state_root.low.0);
+        assert_eq!(payload[6], keth_state_root.high.0);
+        assert_eq!(payload[7], keth_transactions_root.low.0);
+        assert_eq!(payload[8], keth_transactions_root.high.0);
+        assert_eq!(payload[9], keth_receipt_root.low.0);
+        assert_eq!(payload[10], keth_receipt_root.high.0);
+        assert_eq!(payload[11], keth_withdrawals_root.is_some.0);
+        assert_eq!(payload[12], keth_withdrawals_root.value.low.0);
+        assert_eq!(payload[13], keth_withdrawals_root.value.high.0);
+        assert_eq!(payload[14], keth_bloom.len.0);
+
+        // Check bloom data (16 chunks of 16 bytes)
+        for (i, item) in keth_bloom.data.iter().enumerate() {
+            assert_eq!(payload[15 + i], item.0);
+        }
+
+        // Continue with the remaining fields
+        assert_eq!(payload[31], keth_difficulty.low.0);
+        assert_eq!(payload[32], keth_difficulty.high.0);
+        assert_eq!(payload[33], keth_number.0);
+        assert_eq!(payload[34], keth_gas_limit.0);
+        assert_eq!(payload[35], keth_gas_used.0);
+        assert_eq!(payload[36], keth_timestamp.0);
+        assert_eq!(payload[37], keth_mix_hash.low.0);
+        assert_eq!(payload[38], keth_mix_hash.high.0);
+        assert_eq!(payload[39], keth_nonce.0);
+        assert_eq!(payload[40], keth_base_fee_per_gas.is_some.0);
+        assert_eq!(payload[41], keth_base_fee_per_gas.value.0);
+        assert_eq!(payload[42], keth_blob_gas_used.is_some.0);
+        assert_eq!(payload[43], keth_blob_gas_used.value.0);
+        assert_eq!(payload[44], keth_excess_blob_gas.is_some.0);
+        assert_eq!(payload[45], keth_excess_blob_gas.value.0);
+        assert_eq!(payload[46], keth_parent_beacon_block_root.is_some.0);
+        assert_eq!(payload[47], keth_parent_beacon_block_root.value.low.0);
+        assert_eq!(payload[48], keth_parent_beacon_block_root.value.high.0);
+        assert_eq!(payload[49], keth_requests_root.is_some.0);
+        assert_eq!(payload[50], keth_requests_root.value.low.0);
+        assert_eq!(payload[51], keth_requests_root.value.high.0);
+        assert_eq!(payload[52], keth_extra_data.len.0);
+
+        // Check the extra_data field
+        for (i, byte) in keth_extra_data.data.iter().enumerate() {
+            assert_eq!(payload[53 + i], byte.0);
+        }
     }
 }
