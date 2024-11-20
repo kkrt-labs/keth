@@ -7,6 +7,7 @@ from starkware.cairo.common.dict import DictManager, DictTracker
 from starkware.cairo.lang.compiler.ast.cairo_types import (
     CairoType,
     TypeFelt,
+    TypePointer,
     TypeStruct,
 )
 from starkware.cairo.lang.compiler.identifier_definition import (
@@ -204,6 +205,9 @@ def _gen_arg(
 def to_python_type(cairo_type: Union[CairoType, Tuple[str, ...]]):
     if isinstance(cairo_type, TypeFelt):
         return int
+
+    if isinstance(cairo_type, TypePointer):
+        return RelocatableValue
 
     if isinstance(cairo_type, TypeStruct):
         return _cairo_struct_to_python_type.get(cairo_type.scope.path)
