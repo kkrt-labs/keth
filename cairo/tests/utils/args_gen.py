@@ -130,8 +130,9 @@ def _gen_arg(
         segments.load_data(struct_ptr, data)
         return struct_ptr
 
-    if get_origin(arg_type) in (tuple, list, Sequence, abc.Sequence):
-        if get_origin(arg_type) is tuple and Ellipsis not in get_args(arg_type):
+    arg_type_origin = get_origin(arg_type) or arg_type
+    if arg_type_origin in (tuple, list, Sequence, abc.Sequence):
+        if arg_type_origin is tuple and Ellipsis not in get_args(arg_type):
             # Case a tuple with a fixed number of elements, all of different types.
             # These are represented as a pointer to a struct with a pointer to each element.
             struct_ptr = segments.add()
@@ -150,7 +151,7 @@ def _gen_arg(
         segments.load_data(struct_ptr, [instances_ptr, len(arg)])
         return struct_ptr
 
-    if get_origin(arg_type) is dict:
+    if arg_type_origin is dict:
         dict_ptr = segments.add()
         assert dict_ptr.segment_index not in dict_manager.trackers
 

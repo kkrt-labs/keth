@@ -1,4 +1,4 @@
-from typing import Tuple, Type, Union, get_origin
+from typing import Any, Tuple, Type, Union, get_origin
 
 import pytest
 from hypothesis import assume, given, settings
@@ -51,19 +51,40 @@ def to_cairo_type(cairo_program):
     return _factory
 
 
-value_types = {
-    v for v in _cairo_struct_to_python_type.values() if get_origin(v) is not tuple
-}
+def get_type(instance: Any) -> Type:
+    if not isinstance(instance, tuple):
+        return type(instance)
 
-tuple_types = {
-    v for v in _cairo_struct_to_python_type.values() if get_origin(v) is tuple
-}
+    # Empty tuple
+    if not instance:
+        return tuple
+
+    # Get all element types
+    elem_types = [get_type(x) for x in instance]
+
+    # If all elements are the same type, use ellipsis
+    if all(t == elem_types[0] for t in elem_types):
+        return Tuple[elem_types[0], ...]
+
+    # Otherwise return tuple of exact types
+    return Tuple[tuple(elem_types)]
+
+
+def no_empty_tuples(value: Any) -> bool:
+    """Recursively check that no tuples (including nested ones) are empty."""
+    if not isinstance(value, tuple):
+        return True
+
+    if not value:  # Empty tuple
+        return False
+
+    # Check each element recursively if it's a tuple
+    return all(no_empty_tuples(x) if isinstance(x, tuple) else True for x in value)
 
 
 class TestSerde:
-
     @given(b=...)
-    @settings(max_examples=50 * len(value_types))
+    @settings(max_examples=50 * len(_cairo_struct_to_python_type))
     def test_type(
         self,
         to_cairo_type,
@@ -88,31 +109,18 @@ class TestSerde:
             Account,
             Transaction,
             Receipt,
-        ],
-    ):
-        base = segments.gen_arg([gen_arg(type(b), b)])
-        result = serde.serialize(to_cairo_type(type(b)), base, shift=0)
-        assert result == b
-
-    @given(b=...)
-    @settings(max_examples=50 * len(tuple_types))
-    def test_tuple_type(
-        self,
-        to_cairo_type,
-        segments,
-        serde,
-        gen_arg,
-        b: Union[
             Tuple[Bytes32, ...],
             Tuple[Bytes, ...],
             Tuple[Header, ...],
             Tuple[Withdrawal, ...],
             Tuple[Log, ...],
             Tuple[VersionedHash, ...],
+            Tuple[Address, Tuple[Bytes32, ...]],
+            Tuple[Tuple[Address, Tuple[Bytes32, ...]], ...],
         ],
     ):
-        assume(len(b) > 0)
-        type_ = Tuple[type(b[0]), ...]
+        assume(no_empty_tuples(b))
+        type_ = get_type(b)
         base = segments.gen_arg([gen_arg(type_, b)])
         result = serde.serialize(to_cairo_type(type_), base, shift=0)
         assert result == b
