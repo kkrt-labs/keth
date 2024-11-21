@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Tuple, Union
 
 import pytest
 from hypothesis import assume, given
@@ -19,32 +19,42 @@ from ethereum.rlp import (
 )
 from tests.utils.errors import cairo_error
 
+# See ethereum.rlp.Simple and ethereum.rlp.Extended for the definition of Simple and Extended
+simple = st.recursive(st.one_of(st.binary()), st.tuples)
+extended = st.recursive(
+    st.one_of(st.binary(), st.from_type(Uint), st.booleans()), st.tuples
+)
+
 
 class TestRlp:
     class TestEncode:
+        @given(raw_data=extended)
+        def test_encode(self, cairo_run, raw_data):
+            assert encode(raw_data) == cairo_run("encode", raw_data)
+
+        @given(raw_uint=...)
+        def test_encode_uint(self, cairo_run, raw_uint: Union[Uint, bool]):
+            assert encode(raw_uint) == cairo_run("encode_uint", raw_uint)
+
         @given(raw_bytes=...)
         def test_encode_bytes(self, cairo_run, raw_bytes: Bytes):
             assert encode_bytes(raw_bytes) == cairo_run("encode_bytes", raw_bytes)
 
-        @given(raw_sequence=...)
-        def test_get_joined_encodings(self, cairo_run, raw_sequence: Tuple[Bytes, ...]):
-            assert get_joined_encodings(raw_sequence) == cairo_run(
-                "get_joined_encodings", raw_sequence
-            )
-
-        @given(raw_sequence=...)
-        def test_encode_sequence(self, cairo_run, raw_sequence: Tuple[Bytes, ...]):
+        @given(raw_sequence=st.tuples(extended))
+        def test_encode_sequence(self, cairo_run, raw_sequence):
             assert encode_sequence(raw_sequence) == cairo_run(
                 "encode_sequence", raw_sequence
+            )
+
+        @given(raw_sequence=st.tuples(extended))
+        def test_get_joined_encodings(self, cairo_run, raw_sequence):
+            assert get_joined_encodings(raw_sequence) == cairo_run(
+                "get_joined_encodings", raw_sequence
             )
 
         @given(raw_bytes=...)
         def test_rlp_hash(self, cairo_run, raw_bytes: Bytes):
             assert rlp_hash(raw_bytes) == cairo_run("rlp_hash", raw_bytes)
-
-        @given(raw_uint=...)
-        def test_encode_uint(self, cairo_run, raw_uint: Uint):
-            assert encode(raw_uint) == cairo_run("encode_uint", raw_uint)
 
     class TestDecode:
         @given(raw_data=st.recursive(st.binary(), st.tuples))
