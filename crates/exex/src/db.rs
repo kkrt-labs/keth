@@ -3,12 +3,10 @@ use cairo_vm::{
     air_private_input::AirPrivateInput, air_public_input::PublicInput,
     vm::trace::trace_entry::RelocatedTraceEntry, Felt252,
 };
-use reth_primitives::{
-    revm_primitives::{AccountInfo, Bytecode},
-    SealedBlockWithSenders,
-};
+use reth_primitives::SealedBlockWithSenders;
 use reth_provider::OriginalValuesKnown;
-use reth_revm::db::BundleState;
+use reth_revm::{db::BundleState, primitives::AccountInfo};
+use revm_primitives::Bytecode;
 use rusqlite::Connection;
 use std::{
     ops::{Deref, DerefMut},
@@ -87,7 +85,7 @@ impl Database {
     pub fn insert_block_with_bundle(
         &self,
         block: &SealedBlockWithSenders,
-        bundle: BundleState,
+        bundle: &BundleState,
     ) -> eyre::Result<()> {
         // Acquire a database connection and begin a transaction.
         let mut connection = self.connection();
@@ -100,7 +98,7 @@ impl Database {
         )?;
 
         // Convert the `BundleState` into plain state changes and reverts.
-        let (changeset, _) = bundle.into_plain_state_and_reverts(OriginalValuesKnown::Yes);
+        let (changeset, _) = bundle.to_plain_state_and_reverts(OriginalValuesKnown::Yes);
 
         // Process and insert or update account information based on the changeset.
         for (address, account) in changeset.accounts {

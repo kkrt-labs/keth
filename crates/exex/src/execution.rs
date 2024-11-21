@@ -1,20 +1,20 @@
 use crate::{db::Database, exex::CHAIN_SPEC};
-use alloy_consensus::Transaction;
+use alloy_consensus::{Header, Transaction};
 use alloy_primitives::U256;
 use reth::primitives::BlockBody;
 use reth_execution_errors::BlockValidationError;
 use reth_node_api::{ConfigureEvm, ConfigureEvmEnv};
 use reth_node_ethereum::EthEvmConfig;
 use reth_primitives::{
-    revm_primitives::{CfgEnvWithHandlerCfg, EVMError, ExecutionResult, ResultAndState},
-    Block, BlockWithSenders, EthereumHardfork, Header, Receipt, SealedBlockWithSenders,
-    TransactionSigned, TransactionSignedEcRecovered,
+    Block, BlockWithSenders, EthereumHardfork, Receipt, SealedBlockWithSenders, TransactionSigned,
+    TransactionSignedEcRecovered,
 };
 use reth_revm::{
     db::{states::bundle_state::BundleRetention, BundleState},
     DBBox, DatabaseCommit, Evm, StateBuilder, StateDBBox,
 };
 use reth_tracing::tracing::debug;
+use revm_primitives::{CfgEnvWithHandlerCfg, EVMError, ExecutionResult, ResultAndState};
 
 /// Executes a rollup block, processing the given transactions, and returns the block with recovered
 /// senders, the resulting bundle state, the list of receipts, and the execution results.

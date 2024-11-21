@@ -11,7 +11,7 @@ workspace = true
 [dependencies]
 # Cairo-VM deps
 cairo-vm = { git = "https://github.com/lambdaclass/cairo-vm.git", rev = "6025257", features = [
-  "test_utils",
+    "test_utils",
 ] }
 
 kakarot-pool = { workspace = true }
@@ -29,6 +29,7 @@ reth-primitives = { workspace = true }
 reth-revm = { workspace = true }
 reth-execution-errors = { workspace = true }
 reth-provider = { workspace = true }
+revm-primitives = { workspace = true }
 
 alloy-primitives = { workspace = true }
 alloy-genesis = { workspace = true }
