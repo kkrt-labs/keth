@@ -4,7 +4,7 @@ import pytest
 from hypothesis import assume, given
 from hypothesis import strategies as st
 
-from ethereum.base_types import Bytes
+from ethereum.base_types import Bytes, Uint
 from ethereum.rlp import (
     decode,
     decode_item_length,
@@ -41,6 +41,10 @@ class TestRlp:
         @given(raw_bytes=...)
         def test_rlp_hash(self, cairo_run, raw_bytes: Bytes):
             assert rlp_hash(raw_bytes) == cairo_run("rlp_hash", raw_bytes)
+
+        @given(raw_uint=...)
+        def test_encode_uint(self, cairo_run, raw_uint: Uint):
+            assert encode(raw_uint) == cairo_run("encode_uint", raw_uint)
 
     class TestDecode:
         @given(raw_data=st.recursive(st.binary(), st.tuples))
