@@ -20,7 +20,14 @@ from ethereum.base_types import (
 )
 from ethereum.cancun.blocks import Header, Log, Receipt, Withdrawal
 from ethereum.cancun.fork_types import Account, Address, Bloom, Root, VersionedHash
-from ethereum.cancun.transactions import Transaction
+from ethereum.cancun.transactions import (
+    AccessListTransaction,
+    BlobTransaction,
+    FeeMarketTransaction,
+    LegacyTransaction,
+    Transaction,
+)
+from ethereum.cancun.vm.gas import MessageCallGas
 from tests.utils.args_gen import _cairo_struct_to_python_type
 from tests.utils.args_gen import gen_arg as _gen_arg
 from tests.utils.args_gen import to_cairo_type as _to_cairo_type
@@ -84,7 +91,9 @@ def no_empty_tuples(value: Any) -> bool:
 
 class TestSerde:
     @given(b=...)
-    @settings(max_examples=50 * len(_cairo_struct_to_python_type))
+    # 20 examples per type
+    # Cannot build a type object from the dict until we upgrade to python 3.12
+    @settings(max_examples=20 * len(_cairo_struct_to_python_type))
     def test_type(
         self,
         to_cairo_type,
@@ -100,23 +109,32 @@ class TestSerde:
             Bytes8,
             Bytes20,
             Bytes32,
+            Tuple[Bytes32, ...],
             Bytes256,
             Bytes,
+            Tuple[Bytes, ...],
+            Header,
+            Tuple[Header, ...],
+            Withdrawal,
+            Tuple[Withdrawal, ...],
+            Log,
+            Tuple[Log, ...],
+            Receipt,
             Address,
             Root,
-            VersionedHash,
-            Bloom,
             Account,
-            Transaction,
-            Receipt,
-            Tuple[Bytes32, ...],
-            Tuple[Bytes, ...],
-            Tuple[Header, ...],
-            Tuple[Withdrawal, ...],
-            Tuple[Log, ...],
+            Bloom,
+            VersionedHash,
             Tuple[VersionedHash, ...],
-            Tuple[Address, Tuple[Bytes32, ...]],
+            Union[Bytes0, Address],
+            LegacyTransaction,
+            AccessListTransaction,
+            FeeMarketTransaction,
+            BlobTransaction,
+            Transaction,
             Tuple[Tuple[Address, Tuple[Bytes32, ...]], ...],
+            Tuple[Address, Tuple[Bytes32, ...]],
+            MessageCallGas,
         ],
     ):
         assume(no_empty_tuples(b))

@@ -11,9 +11,13 @@ const GAS_PER_BLOB = 2 ** 17;
 const MIN_BLOB_GASPRICE = 1;
 const BLOB_GASPRICE_UPDATE_FRACTION = 3338477;
 
-struct MessageCallGas {
+struct MessageCallGasStruct {
     cost: Uint,
     stipend: Uint,
+}
+
+struct MessageCallGas {
+    value: MessageCallGasStruct*,
 }
 
 func calculate_memory_gas_cost{range_check_ptr}(size_in_bytes: Uint) -> Uint {
@@ -37,8 +41,8 @@ func calculate_message_call_gas{range_check_ptr}(
 
     let cond = is_le(gas_left.value, extra_gas.value + memory_cost.value - 1);
     if (cond != 0) {
-        let message_call_gas = MessageCallGas(
-            Uint(gas.value + extra_gas.value), Uint(gas.value + stipend)
+        tempvar message_call_gas = MessageCallGas(
+            new MessageCallGasStruct(Uint(gas.value + extra_gas.value), Uint(gas.value + stipend))
         );
         return message_call_gas;
     }
@@ -48,8 +52,8 @@ func calculate_message_call_gas{range_check_ptr}(
     );
     let actual_gas = min(gas.value, max_allowed_gas.value);
 
-    let message_call_gas = MessageCallGas(
-        Uint(actual_gas + extra_gas.value), Uint(actual_gas + stipend)
+    tempvar message_call_gas = MessageCallGas(
+        new MessageCallGasStruct(Uint(actual_gas + extra_gas.value), Uint(actual_gas + stipend))
     );
     return message_call_gas;
 }
