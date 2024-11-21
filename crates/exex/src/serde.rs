@@ -1,4 +1,3 @@
-use crate::model::U128_BYTES_SIZE;
 use alloy_primitives::U256;
 use cairo_vm::{
     serde::deserialize_program::{Identifier, Location},
@@ -12,6 +11,8 @@ use cairo_vm::{
 };
 use std::collections::HashMap;
 use thiserror::Error;
+
+use crate::models::primitives::U128_BYTES_SIZE;
 
 /// Represents the different types of values that can be stored in a pointer.
 #[derive(Clone, Debug, PartialEq, Eq)]
