@@ -526,10 +526,6 @@ mod tests {
             self.0.get_int().unwrap().to_string().parse::<u64>().unwrap()
         }
 
-        pub fn to_bool(&self) -> bool {
-            self.0.get_int().unwrap().to_string().parse::<bool>().unwrap()
-        }
-
         pub fn to_address(&self) -> Address {
             // Get the bytes in big-endian order
             let bytes = self.0.get_int().unwrap().to_bytes_be();
@@ -592,7 +588,7 @@ mod tests {
             let s = B256::from(
                 KethU256 { low: self.data[2].clone(), high: self.data[3].clone() }.to_u256(),
             );
-            let v = self.data[4].clone().to_bool();
+            let v = self.data[4].clone().to_u64() != 0;
 
             PrimitiveSignature::from_scalars_and_parity(r, s, v)
         }
