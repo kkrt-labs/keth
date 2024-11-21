@@ -1,12 +1,10 @@
-use alloy_consensus::Header;
-use alloy_primitives::{Address, Bloom, Bytes, PrimitiveSignature, B256, B64, U256};
+use super::payload::{KethEncodable, KethPayload};
+use alloy_primitives::{Address, Bloom, Bytes, Signature, B256, B64, U256};
+use alloy_rlp::Encodable;
 use cairo_vm::{types::relocatable::MaybeRelocatable, Felt252};
-use reth_primitives::{Transaction, TransactionSigned, TransactionSignedEcRecovered};
+use reth_primitives::Transaction;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-
-/// The size in bytes of the `u128` type.
-pub const U128_BYTES_SIZE: usize = std::mem::size_of::<u128>();
 
 /// This represents the possible errors that can occur during conversions from Ethereum format to
 /// Cairo VM compatible formats.
@@ -17,11 +15,8 @@ pub enum ConversionError {
     TransactionSigner,
 }
 
-/// A custom trait for encoding types into a vector of [`MaybeRelocatable`] values.
-pub trait KethEncodable {
-    /// Encodes the type into a [`KethPayload`] (a vector of [`MaybeRelocatable`] values).
-    fn encode(&self) -> KethPayload;
-}
+/// The size in bytes of the `u128` type.
+pub const U128_BYTES_SIZE: usize = std::mem::size_of::<u128>();
 
 /// A custom wrapper around [`MaybeRelocatable`] for the Keth execution environment.
 ///
@@ -52,7 +47,7 @@ impl KethMaybeRelocatable {
     /// # Examples
     ///
     /// ```
-    /// use kakarot_exex::model::KethMaybeRelocatable;
+    /// use kakarot_exex::model::primitives::KethMaybeRelocatable;
     ///
     /// let zero_value = KethMaybeRelocatable::zero();
     /// ```
@@ -68,7 +63,7 @@ impl KethMaybeRelocatable {
     /// # Examples
     ///
     /// ```
-    /// use kakarot_exex::model::KethMaybeRelocatable;
+    /// use kakarot_exex::model::primitives::KethMaybeRelocatable;
     ///
     /// let one_value = KethMaybeRelocatable::one();
     /// ```
@@ -92,7 +87,7 @@ impl KethMaybeRelocatable {
     /// # Examples
     ///
     /// ```
-    /// use kakarot_exex::model::KethMaybeRelocatable;
+    /// use kakarot_exex::model::primitives::KethMaybeRelocatable;
     ///
     /// let bytes: &[u8] = &[0x00, 0x01, 0x02, 0x03]; // Example big-endian byte array
     /// let keth_value = KethMaybeRelocatable::from_bytes_be_slice(bytes);
@@ -283,15 +278,15 @@ impl From<U256> for KethU256 {
 #[derive(Debug, Eq, Ord, Hash, PartialEq, PartialOrd, Clone, Serialize, Deserialize)]
 pub struct KethPointer {
     /// The length of the data to be stored.
-    len: KethMaybeRelocatable,
+    pub len: KethMaybeRelocatable,
 
     /// A vector holding the main data.
-    data: Vec<KethMaybeRelocatable>,
+    pub data: Vec<KethMaybeRelocatable>,
 
     /// The size of the underlying Cairo struct (see `.SIZE`)
     ///
     /// By default, this is set to 1, which is the size of a single felt in Cairo.
-    type_size: usize,
+    pub type_size: usize,
 }
 
 impl Default for KethPointer {
@@ -363,7 +358,7 @@ impl From<Bytes> for KethPointer {
     ///
     /// ```rust
     /// use alloy_primitives::Bytes;
-    /// use kakarot_exex::model::KethPointer;
+    /// use kakarot_exex::model::primitives::KethPointer;
     ///
     /// let bytes = Bytes::from(vec![0x01, 0x02, 0x03]);
     /// let keth_pointer = KethPointer::from(bytes);
@@ -380,16 +375,15 @@ impl From<Bytes> for KethPointer {
     }
 }
 
-impl From<PrimitiveSignature> for KethPointer {
-    /// Converts a [`PrimitiveSignature`] into a [`KethPointer`].
+impl From<Signature> for KethPointer {
+    /// Converts a [`Signature`] into a [`KethPointer`].
     ///
-    /// This implementation encodes an Ethereum-like [`PrimitiveSignature`] into a format compatible
-    /// with the Cairo virtual machine by converting the signature's components (R, S, V) into
-    /// felts.
+    /// This implementation encodes an Ethereum-like [`Signature`] into a format compatible with the
+    /// Cairo virtual machine by converting the signature's components (R, S, V) into felts.
     ///
-    /// Cairo's VM assumes that a [`PrimitiveSignature`] is a pointer to a segment of felts. This
-    /// implementation adapts the Ethereum [`PrimitiveSignature`] by splitting its components (R, S,
-    /// and V) into parts, each of which is mapped to felts. Specifically:
+    /// Cairo's VM assumes that a [`Signature`] is a pointer to a segment of felts. This
+    /// implementation adapts the Ethereum [`Signature`] by splitting its components (R, S, and V)
+    /// into parts, each of which is mapped to felts. Specifically:
     ///
     /// - R and S, which are 256-bit integers, are split into their low and high 128-bit parts.
     /// - V, which is typically a single byte, is converted directly into a felt.
@@ -408,11 +402,11 @@ impl From<PrimitiveSignature> for KethPointer {
     ///
     /// - `type_size`: This is set to `1`, indicating that the pointer refers to a single segment of
     ///   felts within Cairo.
-    fn from(value: PrimitiveSignature) -> Self {
+    fn from(value: Signature) -> Self {
         // Convert the signature into multiple felts.
         let r: KethU256 = value.r().into();
         let s: KethU256 = value.s().into();
-        let v: KethMaybeRelocatable = u64::from(value.v()).into();
+        let v: KethMaybeRelocatable = value.v().to_u64().into();
 
         Self {
             // We store the signature as a vector of 5 Felts:
@@ -453,7 +447,7 @@ impl From<Transaction> for KethPointer {
         // Initialize an empty buffer to hold the RLP-encoded transaction.
         let mut buffer = Vec::new();
         // Encode the transaction into the buffer using RLP encoding.
-        value.encode_for_signing(&mut buffer);
+        value.encode(&mut buffer);
 
         Self {
             // Set the `len` field to the length of the encoded byte array.
@@ -468,216 +462,6 @@ impl From<Transaction> for KethPointer {
     }
 }
 
-/// Represents a Keth block header, which contains essential metadata about a block.
-///
-/// These data are converted into a Keth-specific format for use with the Cairo VM.
-#[derive(Default, Debug, Eq, Ord, Hash, PartialEq, PartialOrd, Clone, Serialize, Deserialize)]
-pub struct KethBlockHeader {
-    /// Hash of the parent block.
-    parent_hash: KethU256,
-    /// Hash of the ommers (uncle blocks) of the block.
-    ommers_hash: KethU256,
-    /// Address of the beneficiary or coinbase address (the miner or validator).
-    coinbase: KethMaybeRelocatable,
-    /// State root, which represents the root hash of the state trie after transactions.
-    state_root: KethU256,
-    /// Root of the trie that contains the block's transactions.
-    transactions_root: KethU256,
-    /// Root of the trie that contains the block's transaction receipts.
-    receipt_root: KethU256,
-    /// Root of the trie that contains withdrawals in the block.
-    withdrawals_root: KethOption<KethU256>,
-    /// Logs bloom filter for efficient log search.
-    bloom: KethPointer,
-    /// Block difficulty value, which defines how difficult it is to mine the block.
-    difficulty: KethU256,
-    /// Block number, i.e., the height of the block in the chain.
-    number: KethMaybeRelocatable,
-    /// Gas limit for the block, specifying the maximum gas that can be used by transactions.
-    gas_limit: KethMaybeRelocatable,
-    /// Total amount of gas used by transactions in this block.
-    gas_used: KethMaybeRelocatable,
-    /// Timestamp of when the block was mined or validated.
-    timestamp: KethMaybeRelocatable,
-    /// Mix hash used for proof-of-work verification.
-    mix_hash: KethU256,
-    /// Nonce value used for proof-of-work.
-    nonce: KethMaybeRelocatable,
-    /// Base fee per gas (EIP-1559), which represents the minimum gas fee per transaction.
-    base_fee_per_gas: KethOption<KethMaybeRelocatable>,
-    /// Blob gas used in the block.
-    blob_gas_used: KethOption<KethMaybeRelocatable>,
-    /// Excess blob gas for rollups.
-    excess_blob_gas: KethOption<KethMaybeRelocatable>,
-    /// Root of the parent beacon block in the proof-of-stake chain.
-    parent_beacon_block_root: KethOption<KethU256>,
-    /// Root of the trie containing request receipts.
-    requests_root: KethOption<KethU256>,
-    /// Extra data provided within the block, usually for protocol-specific purposes.
-    extra_data: KethPointer,
-}
-
-impl From<Header> for KethBlockHeader {
-    /// Implements the conversion from a [`Header`] to a [`KethBlockHeader`].
-    fn from(value: Header) -> Self {
-        Self {
-            parent_hash: value.parent_hash.into(),
-            ommers_hash: value.ommers_hash.into(),
-            coinbase: value.beneficiary.into(),
-            state_root: value.state_root.into(),
-            transactions_root: value.transactions_root.into(),
-            receipt_root: value.receipts_root.into(),
-            withdrawals_root: value.withdrawals_root.into(),
-            bloom: value.logs_bloom.into(),
-            difficulty: value.difficulty.into(),
-            number: value.number.into(),
-            gas_limit: value.gas_limit.into(),
-            gas_used: value.gas_used.into(),
-            timestamp: value.timestamp.into(),
-            mix_hash: value.mix_hash.into(),
-            nonce: value.nonce.into(),
-            base_fee_per_gas: value.base_fee_per_gas.into(),
-            blob_gas_used: value.blob_gas_used.into(),
-            excess_blob_gas: value.excess_blob_gas.into(),
-            parent_beacon_block_root: value.parent_beacon_block_root.into(),
-            requests_root: value.requests_hash.into(),
-            extra_data: value.extra_data.into(),
-        }
-    }
-}
-
-/// Represents a payload in the Keth context.
-///
-/// This structure is designed for use in the Keth execution environment,
-/// particularly in the context of encoding data for compatibility with Cairo VM.
-///
-/// This structure is recursive, enabling complex, nested encodings.
-#[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
-pub enum KethPayload {
-    /// A classic payload with a vector of [`MaybeRelocatable`] values.
-    Flat(Vec<MaybeRelocatable>),
-
-    /// An optional value encoded with a flag indicating presence.
-    ///
-    /// - `is_some`: Indicates whether the value is present (`1`) or absent (`0`).
-    /// - `value`: The actual value if present, wrapped in a [`KethPayload`].
-    Option {
-        /// Presence flag.
-        is_some: MaybeRelocatable,
-        /// The optional value.
-        value: Box<KethPayload>,
-    },
-
-    /// A pointer to a segment of memory with associated data.
-    ///
-    /// - `len`: The length of the data segment.
-    /// - `data`: The data itself, encoded as another [`KethPayload`].
-    Pointer {
-        /// The length of the pointer data.
-        len: MaybeRelocatable,
-        /// The data segment associated with this pointer.
-        data: Box<KethPayload>,
-    },
-
-    /// A complex payload that encapsulates a vector of other [`KethPayload`] objects.
-    ///
-    /// This variant enables encoding of deeply nested or structured data,
-    /// where each element can itself be a [`KethPayload`].
-    Nested(Vec<KethPayload>),
-}
-
-impl From<KethBlockHeader> for KethPayload {
-    fn from(header: KethBlockHeader) -> Self {
-        let mut payload = Vec::new();
-
-        // Dynamically encode each field using a trait
-        let fields = [
-            &header.parent_hash as &dyn KethEncodable,
-            &header.ommers_hash,
-            &header.coinbase,
-            &header.state_root,
-            &header.transactions_root,
-            &header.receipt_root,
-            &header.withdrawals_root,
-            &header.bloom,
-            &header.difficulty,
-            &header.number,
-            &header.gas_limit,
-            &header.gas_used,
-            &header.timestamp,
-            &header.mix_hash,
-            &header.nonce,
-            &header.base_fee_per_gas,
-            &header.blob_gas_used,
-            &header.excess_blob_gas,
-            &header.parent_beacon_block_root,
-            &header.requests_root,
-            &header.extra_data,
-        ];
-
-        for field in fields {
-            payload.push(field.encode());
-        }
-
-        Self::Nested(payload)
-    }
-}
-
-/// [`KethTransactionEncoded`] represents an encoded Ethereum transaction.
-///
-/// This struct holds three components of a transaction:
-/// - The RLP (Recursive Length Prefix) encoding of the transaction.
-/// - The signature of the transaction.
-/// - The address of the sender.
-#[derive(Debug, Eq, Ord, Hash, PartialEq, PartialOrd, Clone, Serialize, Deserialize)]
-pub struct KethTransactionEncoded {
-    /// The RLP encoding of the transaction.
-    rlp: KethPointer,
-
-    /// The signature associated with the transaction.
-    signature: KethPointer,
-
-    /// The address of the sender.
-    sender: KethMaybeRelocatable,
-}
-
-impl TryFrom<TransactionSigned> for KethTransactionEncoded {
-    type Error = ConversionError;
-
-    /// Attempts to convert a [`TransactionSigned`] into a [`KethTransactionEncoded`].
-    fn try_from(value: TransactionSigned) -> Result<Self, Self::Error> {
-        // Recover the signer (sender) from the signed transaction.
-        // This can fail for some early ethereum mainnet transactions pre EIP-2
-        // If it fails, return a `ConversionError` error.
-        let sender = value.recover_signer().ok_or(ConversionError::TransactionSigner)?.into();
-
-        // Convert the transaction and its signature to the corresponding types,
-        // and return a new `KethTransactionEncoded` instance.
-        Ok(Self {
-            // The transaction is converted into a `KethPointer` via RLP encoding.
-            rlp: value.transaction.into(),
-            // The signature is converted into a `KethPointer`.
-            signature: value.signature.into(),
-            // The sender address is stored as a `KethMaybeRelocatable`.
-            sender,
-        })
-    }
-}
-
-impl From<TransactionSignedEcRecovered> for KethTransactionEncoded {
-    /// Converts a [`TransactionSignedEcRecovered`] into a [`KethTransactionEncoded`].
-    fn from(value: TransactionSignedEcRecovered) -> Self {
-        Self {
-            // The transaction is converted into a `KethPointer` via RLP encoding.
-            rlp: value.transaction.clone().into(),
-            // The signature is converted into a `KethPointer`.
-            signature: value.signature.into(),
-            // The signer is part of the transaction so that we are sure it is correct.
-            sender: value.signer().into(),
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -686,7 +470,7 @@ mod tests {
 
     impl KethOption<KethMaybeRelocatable> {
         /// Helper function to convert [`KethOption`] to [`Option<u64>`]
-        fn to_option_u64(&self) -> Option<u64> {
+        pub fn to_option_u64(&self) -> Option<u64> {
             if self.is_some.0 == MaybeRelocatable::from(Felt252::ONE) {
                 // Convert value back to u64 if present
                 match &self.value.0 {
@@ -701,7 +485,7 @@ mod tests {
 
     impl KethOption<KethU256> {
         /// Helper function to convert [`KethOption`] to [`Option<B256>`]
-        fn to_option_b256(&self) -> Option<B256> {
+        pub fn to_option_b256(&self) -> Option<B256> {
             if self.is_some.0 == MaybeRelocatable::from(Felt252::ONE) {
                 // Convert value back to B256 if present
                 Some(self.value.to_b256())
@@ -713,7 +497,7 @@ mod tests {
 
     impl KethU256 {
         /// Convert [`KethU256`] back to [`B256`].
-        fn to_b256(&self) -> B256 {
+        pub fn to_b256(&self) -> B256 {
             let high_bytes = self.high.0.get_int().unwrap().to_bytes_be();
             let low_bytes = self.low.0.get_int().unwrap().to_bytes_be();
             let bytes = [
@@ -725,7 +509,7 @@ mod tests {
         }
 
         /// Convert [`KethU256`] back to [`U256`].
-        fn to_u256(&self) -> U256 {
+        pub fn to_u256(&self) -> U256 {
             let high_bytes = self.high.0.get_int().unwrap().to_bytes_be();
             let low_bytes = self.low.0.get_int().unwrap().to_bytes_be();
             let bytes = [
@@ -738,15 +522,11 @@ mod tests {
     }
 
     impl KethMaybeRelocatable {
-        fn to_u64(&self) -> u64 {
+        pub fn to_u64(&self) -> u64 {
             self.0.get_int().unwrap().to_string().parse::<u64>().unwrap()
         }
 
-        fn to_bool(&self) -> bool {
-            self.0.get_int().unwrap().to_string().parse::<bool>().unwrap()
-        }
-
-        fn to_address(&self) -> Address {
+        pub fn to_address(&self) -> Address {
             // Get the bytes in big-endian order
             let bytes = self.0.get_int().unwrap().to_bytes_be();
             // Extract the last 20 bytes to get the address
@@ -761,7 +541,7 @@ mod tests {
         ///
         /// # Returns
         /// A [`Bytes`] object containing the last byte of each integer in the `data` field.
-        fn to_bytes(&self) -> Bytes {
+        pub fn to_bytes(&self) -> Bytes {
             Bytes::from(
                 self.data
                     // Iterate through the items in the `data` field.
@@ -784,7 +564,7 @@ mod tests {
         ///
         /// # Returns
         /// A [`Bloom`] object created from the sliced bytes of the `data` field.
-        fn to_bloom(&self) -> Bloom {
+        pub fn to_bloom(&self) -> Bloom {
             Bloom::from_slice(
                 &self
                     .data
@@ -801,55 +581,21 @@ mod tests {
         }
 
         /// Converts the [`KethPointer`] data into a [`Signature`] object.
-        fn to_signature(&self) -> PrimitiveSignature {
-            let r = B256::from(
-                KethU256 { low: self.data[0].clone(), high: self.data[1].clone() }.to_u256(),
-            );
-            let s = B256::from(
-                KethU256 { low: self.data[2].clone(), high: self.data[3].clone() }.to_u256(),
-            );
-            let v = self.data[4].clone().to_bool();
+        pub fn to_signature(&self) -> Signature {
+            let r = KethU256 { low: self.data[0].clone(), high: self.data[1].clone() }.to_u256();
+            let s = KethU256 { low: self.data[2].clone(), high: self.data[3].clone() }.to_u256();
+            let v = self.data[4].clone().to_u64();
 
-            PrimitiveSignature::from_scalars_and_parity(r, s, v)
+            Signature::from_rs_and_parity(r, s, v).expect("Failed to create signature")
         }
 
         /// Util to convert the [`KethPointer`] to RLP encoded transaction bytes.
-        fn to_transaction_rlp(&self) -> Vec<u8> {
+        pub fn to_transaction_rlp(&self) -> Vec<u8> {
             // Extract the bytes from the data field
             self.data
                 .iter()
                 .map(|item| item.0.get_int().unwrap().to_string().parse::<u8>().unwrap())
                 .collect::<Vec<_>>()
-        }
-    }
-
-    impl KethBlockHeader {
-        /// Function used to convert the [`KethBlockHeader`] to a Header in order to build roundtrip
-        /// tests.
-        fn to_reth_header(&self) -> Header {
-            Header {
-                parent_hash: self.parent_hash.to_b256(),
-                ommers_hash: self.ommers_hash.to_b256(),
-                beneficiary: self.coinbase.to_address(),
-                state_root: self.state_root.to_b256(),
-                transactions_root: self.transactions_root.to_b256(),
-                receipts_root: self.receipt_root.to_b256(),
-                withdrawals_root: self.withdrawals_root.to_option_b256(),
-                logs_bloom: self.bloom.to_bloom(),
-                difficulty: self.difficulty.to_u256(),
-                number: self.number.to_u64(),
-                gas_limit: self.gas_limit.to_u64(),
-                gas_used: self.gas_used.to_u64(),
-                timestamp: self.timestamp.to_u64(),
-                mix_hash: self.mix_hash.to_b256(),
-                nonce: self.nonce.to_u64().into(),
-                base_fee_per_gas: self.base_fee_per_gas.to_option_u64(),
-                blob_gas_used: self.blob_gas_used.to_option_u64(),
-                excess_blob_gas: self.excess_blob_gas.to_option_u64(),
-                parent_beacon_block_root: self.parent_beacon_block_root.to_option_b256(),
-                requests_hash: self.requests_root.to_option_b256(),
-                extra_data: self.extra_data.to_bytes(),
-            }
         }
     }
 
@@ -937,7 +683,7 @@ mod tests {
         }
 
         #[test]
-        fn test_signature_to_keth_pointer_roundtrip(signature in any::<PrimitiveSignature>()) {
+        fn test_signature_to_keth_pointer_roundtrip(signature in any::<Signature>()) {
             // Convert to KethPointer
             let keth_pointer = KethPointer::from(signature);
             let keth_pointer_len: usize = keth_pointer.len.to_u64() as usize;
@@ -949,23 +695,6 @@ mod tests {
             prop_assert_eq!(roundtrip_signature, signature);
             prop_assert_eq!(keth_pointer.type_size, 1);
             prop_assert_eq!(keth_pointer_len, 5);
-        }
-
-        #[test]
-        fn test_header_arbitrary_roundtrip_conversion(raw_bytes in any::<[u8; 1000]>()) {
-            let mut unstructured = Unstructured::new(&raw_bytes);
-
-            // Generate an arbitrary Header using Arbitrary
-            let original_header = Header::arbitrary(&mut unstructured).expect("Failed to generate arbitrary Header");
-
-            // Convert the arbitrary Header into KethBlockHeader
-            let keth_header: KethBlockHeader = original_header.clone().into();
-
-            // Convert it back to a Header
-            let final_header: Header = keth_header.to_reth_header();
-
-            // Assert that the original Header and the final one after roundtrip are equal
-            prop_assert_eq!(final_header, original_header);
         }
 
         #[test]
@@ -984,73 +713,12 @@ mod tests {
 
             // Encode the original transaction via RLP to compare with the Keth pointer
             let mut buffer = Vec::new();
-            tx.encode_for_signing(&mut buffer);
+            tx.encode(&mut buffer);
 
             // Assert that the encoded bytes from the Keth pointer match the original transaction
             prop_assert_eq!(encoded_bytes, buffer.clone());
             prop_assert_eq!(buffer.len(), keth_rlp.len.to_u64() as usize);
             prop_assert_eq!(keth_rlp.type_size, 1);
-        }
-
-        #[test]
-        fn test_signed_transaction_to_transaction_encoded(raw_bytes in any::<[u8; 1000]>()) {
-            let mut unstructured = Unstructured::new(&raw_bytes);
-
-            // Generate an arbitrary signed transaction
-            let tx = TransactionSigned::arbitrary(&mut unstructured)
-                .expect("Failed to generate arbitrary transaction");
-
-            // Convert the signed transaction to a keth encoded transaction
-            let keth_transaction_encoded = KethTransactionEncoded::try_from(tx.clone()).unwrap();
-
-            // Get the encoded bytes from the Keth pointer
-            let encoded_bytes = keth_transaction_encoded.rlp.to_transaction_rlp();
-
-            // Encode the original transaction via RLP to compare with the Keth pointer
-            let mut buffer = Vec::new();
-            tx.transaction.encode_for_signing(&mut buffer);
-
-            prop_assert_eq!(encoded_bytes, buffer.clone());
-            prop_assert_eq!(buffer.len(), usize::try_from(keth_transaction_encoded.rlp.len.to_u64()).unwrap());
-            prop_assert_eq!(keth_transaction_encoded.rlp.type_size, 1);
-
-            // Verify signature
-            prop_assert_eq!(keth_transaction_encoded.signature.to_signature(), tx.signature);
-
-            // Verify sender
-            prop_assert_eq!(keth_transaction_encoded.sender.to_address(), tx.recover_signer().unwrap());
-        }
-
-        #[test]
-        fn test_transaction_signed_ec_recovered_to_transaction_encoded(raw_bytes in any::<[u8; 1000]>()) {
-            let mut unstructured = Unstructured::new(&raw_bytes);
-
-            // Generate an arbitrary signed transaction
-            let tx = TransactionSigned::arbitrary(&mut unstructured)
-                .expect("Failed to generate arbitrary transaction");
-
-            // Convert the signed transaction to EC recovered
-            let tx = tx.into_ecrecovered().unwrap();
-
-            // Convert the arbitrary Transaction into a keth encoded transaction
-            let keth_transaction_encoded = KethTransactionEncoded::from(tx.clone());
-
-            // Get the encoded bytes from the Keth pointer
-            let encoded_bytes = keth_transaction_encoded.rlp.to_transaction_rlp();
-
-            // Encode the original transaction via RLP to compare with the Keth pointer
-            let mut buffer = Vec::new();
-            tx.transaction.encode_for_signing(&mut buffer);
-
-            prop_assert_eq!(encoded_bytes, buffer.clone());
-            prop_assert_eq!(buffer.len(), usize::try_from(keth_transaction_encoded.rlp.len.to_u64()).unwrap());
-            prop_assert_eq!(keth_transaction_encoded.rlp.type_size, 1);
-
-            // Verify signature
-            prop_assert_eq!(keth_transaction_encoded.signature.to_signature(), tx.signature);
-
-            // Verify sender
-            prop_assert_eq!(keth_transaction_encoded.sender.to_address(), tx.recover_signer().unwrap());
         }
     }
 
@@ -1206,99 +874,5 @@ mod tests {
         );
         assert_eq!(keth_pointer.type_size, 1);
         assert_eq!(keth_pointer.data.len(), 16);
-    }
-
-    #[test]
-    #[allow(clippy::too_many_lines, clippy::cognitive_complexity)]
-    fn test_keth_block_header_to_payload() {
-        // Create realistic non-default values for the fields
-        let parent_hash = B256::from([0x11u8; 32]);
-        let ommers_hash = B256::from([0x22u8; 32]);
-        let coinbase = Address::new([0x33u8; 20]);
-        let state_root = B256::from([0x44u8; 32]);
-        let transactions_root = B256::from([0x55u8; 32]);
-        let receipt_root = B256::from([0x66u8; 32]);
-        let withdrawals_root = Some(B256::from([0x77u8; 32]));
-        let bloom = Bloom::from_slice(&[0x88u8; 256]);
-        let difficulty = U256::from(999_999_999_u64);
-        let number = 123_456_u64;
-        let gas_limit = 8_000_000_u64;
-        let gas_used = 7_500_000_u64;
-        let timestamp = 1_630_000_000_u64;
-        let mix_hash = B256::from([0x99u8; 32]);
-        let nonce = 42u64;
-        let base_fee_per_gas = Some(100u64);
-        let blob_gas_used = Some(200u64);
-        let excess_blob_gas = Some(300u64);
-        let parent_beacon_block_root = Some(B256::from([0xAAu8; 32]));
-        let requests_root = Some(B256::from([0xBBu8; 32]));
-        let extra_data = Bytes::from(vec![0xCC, 0xDD, 0xEE, 0xFF]);
-
-        // Construct a Header using the values
-        let header = Header {
-            parent_hash,
-            ommers_hash,
-            beneficiary: coinbase,
-            state_root,
-            transactions_root,
-            receipts_root: receipt_root,
-            withdrawals_root,
-            logs_bloom: bloom,
-            difficulty,
-            number,
-            gas_limit,
-            gas_used,
-            timestamp,
-            mix_hash,
-            nonce: nonce.into(),
-            base_fee_per_gas,
-            blob_gas_used,
-            excess_blob_gas,
-            parent_beacon_block_root,
-            requests_hash: requests_root,
-            extra_data: extra_data.clone(),
-        };
-
-        // Convert to KethBlockHeader
-        let keth_header: KethBlockHeader = header.into();
-
-        // Convert KethBlockHeader to payload
-        let payload: KethPayload = keth_header.into();
-
-        // Ensure the payload is of the Nested variant
-        if let KethPayload::Nested(fields) = payload {
-            // Verify each field individually by reconstructing the expected payloads
-            let expected_fields = vec![
-                KethU256::from(parent_hash).encode(),
-                KethU256::from(ommers_hash).encode(),
-                KethMaybeRelocatable::from(coinbase).encode(),
-                KethU256::from(state_root).encode(),
-                KethU256::from(transactions_root).encode(),
-                KethU256::from(receipt_root).encode(),
-                KethOption::<KethU256>::from(withdrawals_root).encode(),
-                KethPointer::from(bloom).encode(),
-                KethU256::from(difficulty).encode(),
-                KethMaybeRelocatable::from(number).encode(),
-                KethMaybeRelocatable::from(gas_limit).encode(),
-                KethMaybeRelocatable::from(gas_used).encode(),
-                KethMaybeRelocatable::from(timestamp).encode(),
-                KethU256::from(mix_hash).encode(),
-                KethMaybeRelocatable::from(nonce).encode(),
-                KethOption::<KethMaybeRelocatable>::from(base_fee_per_gas).encode(),
-                KethOption::<KethMaybeRelocatable>::from(blob_gas_used).encode(),
-                KethOption::<KethMaybeRelocatable>::from(excess_blob_gas).encode(),
-                KethOption::<KethU256>::from(parent_beacon_block_root).encode(),
-                KethOption::<KethU256>::from(requests_root).encode(),
-                KethPointer::from(extra_data).encode(),
-            ];
-
-            assert_eq!(fields.len(), expected_fields.len(), "Field count mismatch in payload");
-
-            for (actual, expected) in fields.iter().zip(expected_fields.iter()) {
-                assert_eq!(actual, expected, "Field mismatch in payload");
-            }
-        } else {
-            panic!("Expected payload to be of type Nested");
-        }
     }
 }
