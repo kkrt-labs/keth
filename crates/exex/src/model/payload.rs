@@ -88,7 +88,7 @@ impl From<KethBlockHeader> for KethPayload {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::primitives::{KethMaybeRelocatable, KethOption, KethPointer, KethU256};
+    use crate::model::primitives::{KethMaybeRelocatable, KethOption, KethPointer, KethU256};
     use alloy_consensus::Header;
     use alloy_primitives::{Address, Bloom, Bytes, B256, U256};
 
