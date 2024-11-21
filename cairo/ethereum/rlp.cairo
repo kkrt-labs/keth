@@ -42,49 +42,113 @@ struct Extended {
 
 struct ExtendedStruct {
     sequence: SequenceExtended,
+    bytesarray: Bytes,
     bytes: Bytes,
-    uint: Uint,
-    bool: bool,
+    uint: Uint*,
+    fixed_uint: Uint*,
+    str: Bytes,
+    bool: bool*,
+    RLP: Bytes,
 }
 
 //
 // RLP Encode
 //
 
-// func encode{range_check_ptr}(raw_data: Extended) -> Bytes {
-//     alloc_locals;
-
-// if (cast(raw_data.value.sequence.value, felt) != 0) {
-//         return encode_sequence(raw_data.value.sequence);
-//     }
-
-// if (cast(raw_data.value.bytes.value, felt) == 0) {
-//         return encode_bytes(raw_data.value.bytes);
-//     }
-
-// if (cast(raw_data.value.uint.value, felt) != 0) {
-//         return encode_uint(raw_data.value.uint);
-//     }
-
-// with_attr error_message("RLP Encoding of type {} is not supported") {
-//         assert 0 = 1;
-//         let res = Bytes(cast(0, BytesStruct*));
-//         return res;
-//     }
-// }
+func encode{range_check_ptr}(raw_data: Extended) -> Bytes {
+    alloc_locals;
+    let (dst) = alloc();
+    let len = _encode(dst, raw_data);
+    tempvar value = new BytesStruct(dst, len);
+    let encoded_bytes = Bytes(value);
+    return encoded_bytes;
+}
 
 func encode_uint{range_check_ptr}(raw_uint: Uint) -> Bytes {
     alloc_locals;
     let (dst) = alloc();
-    if (raw_uint.value == 0) {
-        assert [dst] = 0x80;
-        tempvar value = new BytesStruct(dst, 1);
-        let raw_uint_as_bytes = Bytes(value);
-        return raw_uint_as_bytes;
+    let len = _encode_uint(dst, raw_uint.value);
+    tempvar value = new BytesStruct(dst, len);
+    let encoded_uint = Bytes(value);
+    return encoded_uint;
+}
+
+func encode_bytes{range_check_ptr}(raw_bytes: Bytes) -> Bytes {
+    alloc_locals;
+    let (dst) = alloc();
+    let len = _encode_bytes(dst, raw_bytes);
+    tempvar value = new BytesStruct(dst, len);
+    let encoded_bytes = Bytes(value);
+    return encoded_bytes;
+}
+
+func encode_sequence{range_check_ptr}(raw_sequence: SequenceExtended) -> Bytes {
+    alloc_locals;
+    let (dst) = alloc();
+    let len = _encode_sequence(dst, raw_sequence);
+    tempvar value = new BytesStruct(dst, len);
+    let encoded_bytes = Bytes(value);
+    return encoded_bytes;
+}
+
+func get_joined_encodings{range_check_ptr}(raw_sequence: SequenceExtended) -> Bytes {
+    alloc_locals;
+    let (dst) = alloc();
+    let len = _get_joined_encodings(dst, raw_sequence.value.value, raw_sequence.value.len);
+    tempvar value = new BytesStruct(dst, len);
+    let encoded_bytes = Bytes(value);
+    return encoded_bytes;
+}
+
+func _encode{range_check_ptr}(dst: felt*, raw_data: Extended) -> felt {
+    alloc_locals;
+
+    if (cast(raw_data.value.sequence.value, felt) != 0) {
+        return _encode_sequence(dst, raw_data.value.sequence);
     }
-    let raw_uint_as_bytes_len = felt_to_bytes(dst, raw_uint.value);
-    tempvar raw_uint_as_bytes = Bytes(new BytesStruct(dst, raw_uint_as_bytes_len));
-    return encode_bytes(raw_uint_as_bytes);
+
+    if (cast(raw_data.value.bytesarray.value, felt) != 0) {
+        return _encode_bytes(dst, raw_data.value.bytesarray);
+    }
+
+    if (cast(raw_data.value.bytes.value, felt) != 0) {
+        return _encode_bytes(dst, raw_data.value.bytes);
+    }
+
+    if (cast(raw_data.value.uint, felt) != 0) {
+        return _encode_uint(dst, raw_data.value.uint.value);
+    }
+
+    if (cast(raw_data.value.fixed_uint, felt) != 0) {
+        return _encode_uint(dst, raw_data.value.fixed_uint.value);
+    }
+
+    if (cast(raw_data.value.str.value, felt) != 0) {
+        return _encode_bytes(dst, raw_data.value.str);
+    }
+
+    if (cast(raw_data.value.bool, felt) != 0) {
+        return _encode_uint(dst, raw_data.value.bool.value);
+    }
+
+    with_attr error_message("RLP Encoding type is not supported") {
+        assert 0 = 1;
+        return 0;
+    }
+}
+
+func _encode_uint{range_check_ptr}(dst: felt*, raw_uint: felt) -> felt {
+    alloc_locals;
+    if (raw_uint == 0) {
+        assert [dst] = 0x80;
+        return 1;
+    }
+    let (raw_uint_as_bytes_be) = alloc();
+    let raw_uint_as_bytes_be_len = felt_to_bytes(raw_uint_as_bytes_be, raw_uint);
+    tempvar raw_uint_as_bytes = Bytes(
+        new BytesStruct(raw_uint_as_bytes_be, raw_uint_as_bytes_be_len)
+    );
+    return _encode_bytes(dst, raw_uint_as_bytes);
 }
 
 func _encode_bytes{range_check_ptr}(dst: felt*, raw_bytes: Bytes) -> felt {
@@ -120,70 +184,38 @@ func _encode_bytes{range_check_ptr}(dst: felt*, raw_bytes: Bytes) -> felt {
     return 1 + len_raw_data_as_be + raw_bytes.value.len;
 }
 
-func encode_bytes{range_check_ptr}(raw_bytes: Bytes) -> Bytes {
-    alloc_locals;
-    let (dst) = alloc();
-    let len = _encode_bytes(dst, raw_bytes);
-    tempvar value = new BytesStruct(dst, len);
-    let encoded_bytes = Bytes(value);
-    return encoded_bytes;
-}
-
-func _get_joined_encodings{range_check_ptr}(dst: felt*, raw_bytes: Bytes*, len: felt) -> felt {
+func _get_joined_encodings{range_check_ptr}(dst: felt*, raw_bytes: Extended*, len: felt) -> felt {
     alloc_locals;
 
     if (len == 0) {
         return 0;
     }
 
-    let current_len = _encode_bytes(dst, [raw_bytes]);
+    let current_len = _encode(dst, raw_bytes[0]);
     let len = _get_joined_encodings(dst + current_len, raw_bytes + 1, len - 1);
 
     return current_len + len;
 }
 
-func get_joined_encodings{range_check_ptr}(raw_sequence: TupleBytes) -> Bytes {
+func _encode_sequence{range_check_ptr}(dst: felt*, raw_sequence: SequenceExtended) -> felt {
     alloc_locals;
-    let (dst) = alloc();
-    let len = _get_joined_encodings(dst, raw_sequence.value.value, raw_sequence.value.len);
-    tempvar value = new BytesStruct(dst, len);
-    let encoded_bytes = Bytes(value);
-    return encoded_bytes;
-}
-
-// @notice: Encodes a sequence of RLP encodable objects (`raw_sequence`) using RLP.
-// @dev: The standard implementation assumes that the length fits in at most 9 bytes
-//       since the leading byte is Bytes([0xF7 + len(len_joined_encodings_as_be)]).
-//       In total, it means that the sequence starts at most at dst + 10.
-//       To avoid a memcpy, we start using the allocated memory at dst + 10.
-func encode_sequence{range_check_ptr}(raw_sequence: TupleBytes) -> Bytes {
-    alloc_locals;
-    let (dst) = alloc();
-    let len = _get_joined_encodings(dst + 10, raw_sequence.value.value, raw_sequence.value.len);
+    let (tmp_dst) = alloc();
+    let len = _get_joined_encodings(tmp_dst, raw_sequence.value.value, raw_sequence.value.len);
     let cond = is_le(len, 0x38 - 1);
     if (cond != 0) {
-        assert [dst + 9] = 0xC0 + len;
-        tempvar value = new BytesStruct(dst + 9, len + 1);
-        let encoded_bytes = Bytes(value);
-        return encoded_bytes;
+        assert [dst] = 0xC0 + len;
+        memcpy(dst + 1, tmp_dst, len);
+        return len + 1;
     }
 
     let (len_joined_encodings_as_le: felt*) = alloc();
     let len_joined_encodings_as_le_len = felt_to_bytes_little(len_joined_encodings_as_le, len);
-    let dst = dst + 10 - len_joined_encodings_as_le_len - 1;
-    reverse(dst + 1, len_joined_encodings_as_le_len, len_joined_encodings_as_le);
+
     assert [dst] = 0xF7 + len_joined_encodings_as_le_len;
+    memcpy(dst + 1, len_joined_encodings_as_le, len_joined_encodings_as_le_len);
+    memcpy(dst + 1 + len_joined_encodings_as_le_len, tmp_dst, len);
 
-    tempvar value = new BytesStruct(dst, len + 1 + len_joined_encodings_as_le_len);
-    let encoded_bytes = Bytes(value);
-    return encoded_bytes;
-}
-
-func rlp_hash{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*}(
-    raw_bytes: Bytes
-) -> Hash32 {
-    let encoded_bytes = encode_bytes(raw_bytes);
-    return keccak256(encoded_bytes);
+    return 1 + len_joined_encodings_as_le_len + len;
 }
 
 //
@@ -378,4 +410,11 @@ func decode_item_length{range_check_ptr}(encoded_data: Bytes) -> felt {
     assert_not_zero(encoded_data.value.data[1]);
     let decoded_data_length = bytes_to_felt(length_length, encoded_data.value.data + 1);
     return 1 + length_length + decoded_data_length;
+}
+
+func rlp_hash{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*}(
+    data: Extended
+) -> Hash32 {
+    let encoded_bytes = encode(data);
+    return keccak256(encoded_bytes);
 }

@@ -1,7 +1,18 @@
 from collections import abc, defaultdict
 from dataclasses import fields, is_dataclass
 from functools import partial
-from typing import Any, Dict, Sequence, Tuple, Type, Union, get_args, get_origin
+from typing import (
+    Any,
+    Dict,
+    ForwardRef,
+    Sequence,
+    Tuple,
+    Type,
+    Union,
+    _ProtocolMeta,
+    get_args,
+    get_origin,
+)
 
 from starkware.cairo.common.dict import DictManager, DictTracker
 from starkware.cairo.lang.compiler.ast.cairo_types import (
@@ -97,7 +108,24 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "rlp", "Simple"): Simple,
     ("ethereum", "rlp", "Extended"): Extended,
     ("ethereum", "rlp", "SequenceSimple"): Sequence[Simple],
+    ("ethereum", "rlp", "SequenceExtended"): Sequence[Extended],
 }
+
+
+def isinstance_with_generic(obj, type_hint):
+    """Check if obj is instance of a generic type."""
+    if isinstance(type_hint, _ProtocolMeta):
+        return False
+
+    origin = get_origin(type_hint)
+    if origin is None:
+        return isinstance(obj, type_hint)
+
+    # Sequence should be _real_ Sequence, not bytes or str
+    if origin is abc.Sequence:
+        return type(obj) in (list, tuple)
+
+    return isinstance(obj, origin)
 
 
 def gen_arg(dict_manager: DictManager, segments: MemorySegmentManager):
@@ -110,27 +138,33 @@ def _gen_arg(
     """
     Generate a Cairo argument from a Python argument.
     """
-    if get_origin(arg_type) is Union:
+    arg_type_origin = get_origin(arg_type) or arg_type
+    if isinstance_with_generic(arg_type_origin, ForwardRef):
+        arg_type = arg_type_origin._evaluate(globals(), locals(), frozenset())
+        arg_type_origin = get_origin(arg_type) or arg_type
+
+    if arg_type_origin is Union:
         # Union are represented as Enum in Cairo, with 0 pointers for all but one variant.
         struct_ptr = segments.add()
         data = [
             (
                 _gen_arg(dict_manager, segments, x_type, arg)
-                if isinstance(arg, x_type)
+                if isinstance_with_generic(arg, x_type)
                 else 0
             )
             for x_type in get_args(arg_type)
         ]
         # Value types are not pointers by default, so we need to convert them to pointers.
         for i, (x_type, d) in enumerate(zip(get_args(arg_type), data)):
-            if isinstance(arg, x_type) and not isinstance(d, RelocatableValue):
+            if isinstance_with_generic(arg, x_type) and not isinstance_with_generic(
+                d, RelocatableValue
+            ):
                 d_ptr = segments.add()
                 segments.load_data(d_ptr, [d])
                 data[i] = d_ptr
         segments.load_data(struct_ptr, data)
         return struct_ptr
 
-    arg_type_origin = get_origin(arg_type) or arg_type
     if arg_type_origin in (tuple, list, Sequence, abc.Sequence):
         if arg_type_origin is tuple and Ellipsis not in get_args(arg_type):
             # Case a tuple with a fixed number of elements, all of different types.
@@ -159,7 +193,7 @@ def _gen_arg(
             k: _gen_arg(dict_manager, segments, get_args(arg_type)[1], v)
             for k, v in arg.items()
         }
-        if isinstance(arg, defaultdict):
+        if isinstance_with_generic(arg, defaultdict):
             data = defaultdict(arg.default_factory, data)
 
         dict_manager.trackers[dict_ptr.segment_index] = DictTracker(
@@ -181,7 +215,7 @@ def _gen_arg(
         return struct_ptr
 
     if arg_type in (U256, Hash32, Bytes32, Bytes256):
-        if isinstance(arg, U256):
+        if isinstance_with_generic(arg, U256):
             arg = arg.to_be_bytes32()[::-1]
         base = segments.add()
         segments.load_data(
@@ -198,7 +232,11 @@ def _gen_arg(
         return struct_ptr
 
     if arg_type in (bool, U64, Uint, Bytes0, Bytes8, Bytes20):
-        return int(arg) if not isinstance(arg, bytes) else int.from_bytes(arg, "little")
+        return (
+            int(arg)
+            if not isinstance_with_generic(arg, bytes)
+            else int.from_bytes(arg, "little")
+        )
 
     return arg
 
