@@ -203,7 +203,7 @@ def cairo_run(request, cairo_program, cairo_file, resolve_main_path):
                 "__dict_manager": dict_manager,
                 "gen_arg": gen_arg,
                 "serde": serde,
-                "to_cairo_type": partial(to_cairo_type, program=cairo_program),
+                "to_cairo_type": partial(to_cairo_type, cairo_program),
             },
             static_locals={
                 "debug_info": debug_info(cairo_program),
