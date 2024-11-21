@@ -4,11 +4,13 @@ import math
 from hashlib import md5
 from pathlib import Path
 from time import perf_counter, time_ns
+from typing import Tuple
 
 import pytest
 import starkware.cairo.lang.instances as LAYOUTS
 from starkware.cairo.common.dict import DictManager
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
+from starkware.cairo.lang.compiler.ast.cairo_types import CairoType, TypeStruct
 from starkware.cairo.lang.compiler.cairo_compile import compile_cairo, get_module_reader
 from starkware.cairo.lang.compiler.preprocessor.default_pass_manager import (
     default_pass_manager,
@@ -72,7 +74,30 @@ def cairo_program(cairo_file):
 
 
 @pytest.fixture(scope="module")
-def cairo_run(request, cairo_program, cairo_file):
+def main_path(cairo_file):
+    """
+    Resolve the __main__ part of the cairo scope path.
+    """
+    parts = cairo_file.relative_to(Path.cwd()).with_suffix("").parts
+    return parts[1:] if parts[0] == "cairo" else parts
+
+
+@pytest.fixture(scope="module")
+def resolve_main_path(main_path: Tuple[str, ...]):
+
+    def _factory(cairo_type: CairoType):
+        if isinstance(cairo_type, TypeStruct):
+            full_path = cairo_type.scope.path
+            if "__main__" in full_path:
+                full_path = main_path + full_path[full_path.index("__main__") + 1 :]
+                cairo_type.scope = ScopedName(full_path)
+        return cairo_type
+
+    return _factory
+
+
+@pytest.fixture(scope="module")
+def cairo_run(request, cairo_program, cairo_file, resolve_main_path):
     """
     Run the cairo program corresponding to the python test file at a given entrypoint with given program inputs as kwargs.
     Returns the output of the cairo program put in the output memory segment.
@@ -89,7 +114,7 @@ def cairo_run(request, cairo_program, cairo_file):
             ).members.keys()
         )
         _args = {
-            k: to_python_type(v.cairo_type)
+            k: to_python_type(resolve_main_path(v.cairo_type))
             for k, v in cairo_program.identifiers.get_by_full_name(
                 ScopedName(path=("__main__", entrypoint, "Args"))
             ).members.items()
