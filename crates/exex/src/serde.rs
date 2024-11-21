@@ -1,4 +1,4 @@
-use crate::model::U128_BYTES_SIZE;
+use crate::model::primitives::U128_BYTES_SIZE;
 use alloy_primitives::U256;
 use cairo_vm::{
     serde::deserialize_program::{Identifier, Location},
