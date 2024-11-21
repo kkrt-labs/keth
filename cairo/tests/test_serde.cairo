@@ -34,3 +34,5 @@ from ethereum.cancun.transactions import (
     FeeMarketTransaction,
     BlobTransaction,
 )
+
+from ethereum.cancun.vm.gas import MessageCallGas
