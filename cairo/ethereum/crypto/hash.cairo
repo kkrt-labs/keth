@@ -6,6 +6,15 @@ from starkware.cairo.common.alloc import alloc
 
 using Hash32 = Bytes32;
 
+struct TupleHash32Struct {
+    value: Hash32*,
+    len: felt,
+}
+
+struct TupleHash32 {
+    value: TupleHash32Struct*,
+}
+
 func keccak256{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*}(
     buffer: Bytes
 ) -> Hash32 {
