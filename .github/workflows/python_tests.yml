@@ -22,7 +22,7 @@ jobs:
           cd cairo
           uv run compile
           uv run pytest -n logical --junitxml=junit.xml -o junit_family=legacy
-      - uses: codecov/codecov-action@v5
+      - uses: codecov/codecov-action@v5.0.5
         with:
           directory: ./cairo/coverage/
       - uses: codecov/test-results-action@v1
