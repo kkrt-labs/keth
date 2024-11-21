@@ -57,7 +57,7 @@ class TestRlp:
             assert rlp_hash(raw_bytes) == cairo_run("rlp_hash", raw_bytes)
 
     class TestDecode:
-        @given(raw_data=st.recursive(st.binary(), st.tuples))
+        @given(raw_data=extended)
         def test_decode(self, cairo_run, raw_data):
             assert decode(encode(raw_data)) == cairo_run("decode", encode(raw_data))
 
@@ -83,7 +83,7 @@ class TestRlp:
             if decoded_bytes is not None:
                 assert decoded_bytes == decode_to_bytes(encoded_bytes)
 
-        @given(raw_data=st.recursive(st.binary(), st.tuples))
+        @given(raw_data=extended)
         def test_decode_to_sequence(self, cairo_run, raw_data):
             assume(isinstance(raw_data, tuple))
             encoded_sequence = encode(raw_data)
