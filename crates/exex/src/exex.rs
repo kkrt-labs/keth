@@ -144,12 +144,12 @@ impl<Node: FullNodeComponents> KakarotRollup<Node> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alloy_consensus::{constants::ETH_TO_WEI, TxEip1559};
+    use alloy_consensus::{constants::ETH_TO_WEI, Header, TxEip1559};
     use alloy_primitives::{address, hex, Bytes, Sealable, B256, U256};
     use reth_execution_types::{Chain, ExecutionOutcome};
     use reth_exex_test_utils::{test_exex_context, PollOnce};
     use reth_primitives::{
-        BlockBody, Header, Receipt, Receipts, SealedBlock, SealedBlockWithSenders, SealedHeader,
+        BlockBody, Receipt, Receipts, SealedBlock, SealedBlockWithSenders, SealedHeader,
         TransactionSigned,
     };
     use reth_revm::primitives::AccountInfo;
@@ -203,13 +203,13 @@ mod tests {
             )
             .unwrap(),
             signature:
-            alloy_primitives::Signature::from_rs_and_parity(U256::from_str(
+            alloy_primitives::PrimitiveSignature::from_scalars_and_parity(B256::from_str(
                 "0xe74ec6b1365234a0ebe63f8e238d2318b28d1d2c58ada3a153ad364497dac715",
             )
-            .unwrap(), U256::from_str(
+            .unwrap(), B256::from_str(
                 "0x7306a7cab3679ead15daee428d2481b1b92a5dc2303adfe4b3bbbb4713be74af",
             )
-            .unwrap(), false).unwrap(),
+            .unwrap(), false),
             transaction: reth_primitives::Transaction::Eip1559(TxEip1559 {
                 chain_id: 1,
                 nonce: 0,
