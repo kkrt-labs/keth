@@ -9,7 +9,7 @@ from starkware.cairo.common.math_cmp import is_le, is_not_zero
 from starkware.cairo.common.math import assert_not_zero
 from starkware.cairo.common.memcpy import memcpy
 
-from src.utils.bytes import uint256_to_bytes
+from src.utils.bytes import uint256_to_bytes_little, uint256_to_bytes
 
 struct SequenceSimple {
     value: SequenceSimpleStruct*,
@@ -79,6 +79,15 @@ func encode_uint256{range_check_ptr}(raw_uint: U256) -> Bytes {
     alloc_locals;
     let (dst) = alloc();
     let len = _encode_uint256(dst, raw_uint);
+    tempvar value = new BytesStruct(dst, len);
+    let encoded_uint = Bytes(value);
+    return encoded_uint;
+}
+
+func encode_uint256_little{range_check_ptr}(raw_uint: U256) -> Bytes {
+    alloc_locals;
+    let (dst) = alloc();
+    let len = _encode_uint256_little(dst, raw_uint);
     tempvar value = new BytesStruct(dst, len);
     let encoded_uint = Bytes(value);
     return encoded_uint;
@@ -351,6 +360,20 @@ func _encode_uint256{range_check_ptr}(dst: felt*, raw_uint: U256) -> felt {
     let raw_uint_as_bytes_be_len = uint256_to_bytes(raw_uint_as_bytes_be, [raw_uint.value]);
     tempvar raw_uint_as_bytes = Bytes(
         new BytesStruct(raw_uint_as_bytes_be, raw_uint_as_bytes_be_len)
+    );
+    return _encode_bytes(dst, raw_uint_as_bytes);
+}
+
+func _encode_uint256_little{range_check_ptr}(dst: felt*, raw_uint: U256) -> felt {
+    alloc_locals;
+    if (raw_uint.value.high == 0 and raw_uint.value.low == 0) {
+        assert [dst] = 0x80;
+        return 1;
+    }
+    let (raw_uint_as_bytes_le) = alloc();
+    let raw_uint_as_bytes_le_len = uint256_to_bytes_little(raw_uint_as_bytes_le, [raw_uint.value]);
+    tempvar raw_uint_as_bytes = Bytes(
+        new BytesStruct(raw_uint_as_bytes_le, raw_uint_as_bytes_le_len)
     );
     return _encode_bytes(dst, raw_uint_as_bytes);
 }
