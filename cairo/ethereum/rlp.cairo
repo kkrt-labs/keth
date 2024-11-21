@@ -1,4 +1,4 @@
-from ethereum.base_types import Bytes, BytesStruct, TupleBytes, TupleBytesStruct
+from ethereum.base_types import Bytes, BytesStruct, TupleBytes, TupleBytesStruct, Uint, U256, bool
 from ethereum.crypto.hash import keccak256, Hash32
 from ethereum.utils.numeric import is_zero
 from src.utils.array import reverse
@@ -27,9 +27,65 @@ struct SimpleStruct {
     bytes: Bytes,
 }
 
+struct SequenceExtended {
+    value: SequenceExtendedStruct*,
+}
+
+struct SequenceExtendedStruct {
+    value: Extended*,
+    len: felt,
+}
+
+struct Extended {
+    value: ExtendedStruct*,
+}
+
+struct ExtendedStruct {
+    sequence: SequenceExtended,
+    bytes: Bytes,
+    uint: Uint,
+    bool: bool,
+}
+
 //
 // RLP Encode
 //
+
+// func encode{range_check_ptr}(raw_data: Extended) -> Bytes {
+//     alloc_locals;
+
+// if (cast(raw_data.value.sequence.value, felt) != 0) {
+//         return encode_sequence(raw_data.value.sequence);
+//     }
+
+// if (cast(raw_data.value.bytes.value, felt) == 0) {
+//         return encode_bytes(raw_data.value.bytes);
+//     }
+
+// if (cast(raw_data.value.uint.value, felt) != 0) {
+//         return encode_uint(raw_data.value.uint);
+//     }
+
+// with_attr error_message("RLP Encoding of type {} is not supported") {
+//         assert 0 = 1;
+//         let res = Bytes(cast(0, BytesStruct*));
+//         return res;
+//     }
+// }
+
+func encode_uint{range_check_ptr}(raw_uint: Uint) -> Bytes {
+    alloc_locals;
+    let (dst) = alloc();
+    if (raw_uint.value == 0) {
+        assert [dst] = 0x80;
+        tempvar value = new BytesStruct(dst, 1);
+        let raw_uint_as_bytes = Bytes(value);
+        return raw_uint_as_bytes;
+    }
+    let raw_uint_as_bytes_len = felt_to_bytes(dst, raw_uint.value);
+    tempvar raw_uint_as_bytes = Bytes(new BytesStruct(dst, raw_uint_as_bytes_len));
+    return encode_bytes(raw_uint_as_bytes);
+}
 
 func _encode_bytes{range_check_ptr}(dst: felt*, raw_bytes: Bytes) -> felt {
     alloc_locals;
