@@ -66,3 +66,30 @@ struct TupleBytes32Struct {
 struct TupleBytes32 {
     value: TupleBytes32Struct*,
 }
+
+struct Exception {
+    value: felt,
+}
+
+struct OptionalExceptionStruct {
+    is_some: bool,
+    value: Exception*,
+}
+
+struct OptionalException {
+    value: OptionalExceptionStruct*,
+}
+
+struct Dict {
+    dict_start: DictAccess*,
+    dict_ptr: DictAccess*,
+}
+
+struct TupleDictStruct {
+    value: Dict*,
+    len: felt,
+}
+
+struct TupleDict {
+    value: TupleDictStruct*,
+}

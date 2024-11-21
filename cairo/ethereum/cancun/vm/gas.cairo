@@ -1,19 +1,75 @@
-from ethereum.base_types import U256, Uint, U64
-from ethereum.utils.numeric import is_zero, divmod, taylor_exponential, min, ceil32
+from ethereum.base_types import U64, U256, Uint
+from ethereum.trace import GasAndRefund
+from ethereum.utils.numeric import ceil32, taylor_exponential
 from ethereum.cancun.blocks import Header
-from ethereum.cancun.transactions import Transaction
-from starkware.cairo.common.math_cmp import is_le, is_not_zero
+from ethereum.cancun.transactions import BlobTransaction, Transaction
+from ethereum.cancun.vm import Evm
 
-const TARGET_BLOB_GAS_PER_BLOCK = 393216;
-const GAS_INIT_CODE_WORD_COST = 2;
+const GAS_JUMPDEST = 1;
+const GAS_BASE = 2;
+const GAS_VERY_LOW = 3;
+const GAS_STORAGE_SET = 20000;
+const GAS_STORAGE_UPDATE = 5000;
+const GAS_STORAGE_CLEAR_REFUND = 4800;
+const GAS_LOW = 5;
+const GAS_MID = 8;
+const GAS_HIGH = 10;
+const GAS_EXPONENTIATION = 10;
+const GAS_EXPONENTIATION_PER_BYTE = 50;
 const GAS_MEMORY = 3;
+const GAS_KECCAK256 = 30;
+const GAS_KECCAK256_WORD = 6;
+const GAS_COPY = 3;
+const GAS_BLOCK_HASH = 20;
+const GAS_LOG = 375;
+const GAS_LOG_DATA = 8;
+const GAS_LOG_TOPIC = 375;
+const GAS_CREATE = 32000;
+const GAS_CODE_DEPOSIT = 200;
+const GAS_ZERO = 0;
+const GAS_NEW_ACCOUNT = 25000;
+const GAS_CALL_VALUE = 9000;
+const GAS_CALL_STIPEND = 2300;
+const GAS_SELF_DESTRUCT = 5000;
+const GAS_SELF_DESTRUCT_NEW_ACCOUNT = 25000;
+const GAS_ECRECOVER = 3000;
+const GAS_SHA256 = 60;
+const GAS_SHA256_WORD = 12;
+const GAS_RIPEMD160 = 600;
+const GAS_RIPEMD160_WORD = 120;
+const GAS_IDENTITY = 15;
+const GAS_IDENTITY_WORD = 3;
+const GAS_RETURN_DATA_COPY = 3;
+const GAS_FAST_STEP = 5;
+const GAS_BLAKE2_PER_ROUND = 1;
+const GAS_COLD_SLOAD = 2100;
+const GAS_COLD_ACCOUNT_ACCESS = 2600;
+const GAS_WARM_ACCESS = 100;
+const GAS_INIT_CODE_WORD_COST = 2;
+const GAS_BLOBHASH_OPCODE = 3;
+const GAS_POINT_EVALUATION = 50000;
+const TARGET_BLOB_GAS_PER_BLOCK = 393216;
 const GAS_PER_BLOB = 2 ** 17;
 const MIN_BLOB_GASPRICE = 1;
 const BLOB_GASPRICE_UPDATE_FRACTION = 3338477;
 
+struct ExtendMemory {
+    cost: Uint,
+    expand_by: Uint,
+}
+
 struct MessageCallGas {
     cost: Uint,
     stipend: Uint,
+}
+
+func charge_gas(evm: Evm, amount: Uint) {
+    // evm_trace(evm, GasAndRefund(amount))
+    with_attr error_message("OutOfGasError") {
+        assert [range_check_ptr] = evm.gas_left.value - amount.value;
+    }
+    evm.gas_left -= U256(amount);
+    return ();
 }
 
 func calculate_memory_gas_cost{range_check_ptr}(size_in_bytes: Uint) -> Uint {
@@ -24,6 +80,39 @@ func calculate_memory_gas_cost{range_check_ptr}(size_in_bytes: Uint) -> Uint {
     let (quadratic_cost, _) = divmod(quadratic_cost, 512);
     let total_gas_cost = Uint(linear_cost + quadratic_cost);
     return total_gas_cost;
+}
+
+func calculate_gas_extend_memory(memory: bytearray, extensions: Tuple[U256, U256]) -> ExtendMemory {
+    // Implementation:
+    // size_to_extend = Uint(0)
+    // to_be_paid = Uint(0)
+    // current_size = Uint(len(memory))
+    // for (start_position, size) in extensions:
+    // if size == 0:
+    // continue
+    // before_size = ceil32(current_size)
+    // after_size = ceil32(Uint(start_position) + Uint(size))
+    // if after_size <= before_size:
+    // continue
+    // size_to_extend += after_size - before_size
+    // already_paid = calculate_memory_gas_cost(before_size)
+    // total_cost = calculate_memory_gas_cost(after_size)
+    // to_be_paid += total_cost - already_paid
+    // current_size = after_size
+        // if size == 0:
+        // continue
+            // continue
+        // before_size = ceil32(current_size)
+        // after_size = ceil32(Uint(start_position) + Uint(size))
+        // if after_size <= before_size:
+        // continue
+            // continue
+        // size_to_extend += after_size - before_size
+        // already_paid = calculate_memory_gas_cost(before_size)
+        // total_cost = calculate_memory_gas_cost(after_size)
+        // to_be_paid += total_cost - already_paid
+        // current_size = after_size
+    // return ExtendMemory(to_be_paid, size_to_extend)
 }
 
 func calculate_message_call_gas{range_check_ptr}(
