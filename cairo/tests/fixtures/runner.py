@@ -1,6 +1,7 @@
 import json
 import logging
 import math
+from functools import partial
 from hashlib import md5
 from pathlib import Path
 from time import perf_counter, time_ns
@@ -28,7 +29,7 @@ from starkware.cairo.lang.vm.memory_segments import FIRST_MEMORY_ADDR as PROGRAM
 from starkware.cairo.lang.vm.utils import RunResources
 
 from tests.utils.args_gen import gen_arg as gen_arg_builder
-from tests.utils.args_gen import to_python_type
+from tests.utils.args_gen import to_cairo_type, to_python_type
 from tests.utils.coverage import VmWithCoverage
 from tests.utils.hints import debug_info, implement_hints
 from tests.utils.reporting import profile_from_tracer_data
@@ -201,6 +202,8 @@ def cairo_run(request, cairo_program, cairo_file, resolve_main_path):
                 "program_input": kwargs,
                 "__dict_manager": dict_manager,
                 "gen_arg": gen_arg,
+                "serde": serde,
+                "to_cairo_type": partial(to_cairo_type, program=cairo_program),
             },
             static_locals={
                 "debug_info": debug_info(cairo_program),
