@@ -60,7 +60,6 @@ impl From<TransactionSignedEcRecovered> for KethTransactionEncoded {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alloy_rlp::Encodable;
     use arbitrary::{Arbitrary, Unstructured};
     use proptest::prelude::*;
 
@@ -81,7 +80,7 @@ mod tests {
 
             // Encode the original transaction via RLP to compare with the Keth pointer
             let mut buffer = Vec::new();
-            tx.transaction.encode(&mut buffer);
+            tx.transaction.encode_for_signing(&mut buffer);
 
             prop_assert_eq!(encoded_bytes, buffer.clone());
             prop_assert_eq!(buffer.len(), usize::try_from(keth_transaction_encoded.rlp.len.to_u64()).unwrap());
@@ -113,7 +112,7 @@ mod tests {
 
             // Encode the original transaction via RLP to compare with the Keth pointer
             let mut buffer = Vec::new();
-            tx.transaction.encode(&mut buffer);
+            tx.transaction.encode_for_signing(&mut buffer);
 
             prop_assert_eq!(encoded_bytes, buffer.clone());
             prop_assert_eq!(buffer.len(), usize::try_from(keth_transaction_encoded.rlp.len.to_u64()).unwrap());
