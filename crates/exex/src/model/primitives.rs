@@ -47,7 +47,7 @@ impl KethMaybeRelocatable {
     /// # Examples
     ///
     /// ```
-    /// use kakarot_exex::model::KethMaybeRelocatable;
+    /// use kakarot_exex::model::primitives::KethMaybeRelocatable;
     ///
     /// let zero_value = KethMaybeRelocatable::zero();
     /// ```
@@ -63,7 +63,7 @@ impl KethMaybeRelocatable {
     /// # Examples
     ///
     /// ```
-    /// use kakarot_exex::model::KethMaybeRelocatable;
+    /// use kakarot_exex::model::primitives::KethMaybeRelocatable;
     ///
     /// let one_value = KethMaybeRelocatable::one();
     /// ```
@@ -87,7 +87,7 @@ impl KethMaybeRelocatable {
     /// # Examples
     ///
     /// ```
-    /// use kakarot_exex::model::KethMaybeRelocatable;
+    /// use kakarot_exex::model::primitives::KethMaybeRelocatable;
     ///
     /// let bytes: &[u8] = &[0x00, 0x01, 0x02, 0x03]; // Example big-endian byte array
     /// let keth_value = KethMaybeRelocatable::from_bytes_be_slice(bytes);
