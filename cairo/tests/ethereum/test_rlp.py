@@ -4,7 +4,7 @@ import pytest
 from hypothesis import assume, given
 from hypothesis import strategies as st
 
-from ethereum.base_types import Bytes, Uint
+from ethereum.base_types import U256, Bytes, Uint
 from ethereum.rlp import (
     decode,
     decode_item_length,
@@ -35,6 +35,10 @@ class TestRlp:
         @given(raw_uint=...)
         def test_encode_uint(self, cairo_run, raw_uint: Union[Uint, bool]):
             assert encode(raw_uint) == cairo_run("encode_uint", raw_uint)
+
+        @given(raw_uint256=...)
+        def test_encode_uint256(self, cairo_run, raw_uint256: U256):
+            assert encode(raw_uint256) == cairo_run("encode_uint256", raw_uint256)
 
         @given(raw_bytes=...)
         def test_encode_bytes(self, cairo_run, raw_bytes: Bytes):
