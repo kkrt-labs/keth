@@ -91,10 +91,9 @@ def oracle(program, serde, main_path, gen_arg):
         full_path = function_scope.path
         if "__main__" in full_path:
             full_path = main_path + full_path[full_path.index("__main__") + 1 :]
-            function_scope = ScopedName(full_path)
 
-        mod = import_module(".".join(function_scope.path[:-1]))
-        target = getattr(mod, function_scope.path[-1])
+        mod = import_module(".".join(full_path[:-1]))
+        target = getattr(mod, full_path[-1])
         from inspect import signature
 
         sig = signature(target)
