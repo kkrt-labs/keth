@@ -216,7 +216,7 @@ mod tests {
 
         // Convert the signed transaction into KethTransactionEncoded
         let keth_transaction_encoded =
-            KethTransactionEncoded::try_from(tx.clone()).expect("Failed to convert transaction");
+            KethTransactionEncoded::try_from(tx).expect("Failed to convert transaction");
 
         // Convert KethTransactionEncoded into KethPayload
         let payload: KethPayload = keth_transaction_encoded.clone().into();
