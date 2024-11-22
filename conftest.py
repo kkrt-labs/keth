@@ -41,7 +41,11 @@ def pytest_addoption(parser):
     )
 
 
-pytest_plugins = ["tests.fixtures.runner", "tests.fixtures.data"]
+pytest_plugins = [
+    "tests.fixtures.compiler",
+    "tests.fixtures.runner",
+    "tests.fixtures.data",
+]
 
 
 settings.register_profile(

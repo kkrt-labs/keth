@@ -1,13 +1,15 @@
 from collections import defaultdict
 from contextlib import contextmanager
 from dataclasses import asdict, is_dataclass
-from typing import Dict, Iterable, Tuple, Union
+from importlib import import_module
+from typing import Dict, Iterable, Optional, Tuple, Union
 from unittest.mock import patch
 
 from starkware.cairo.common.dict import DictTracker
 from starkware.cairo.lang.compiler.program import CairoHint
 from starkware.cairo.lang.vm.relocatable import MaybeRelocatable
 
+from tests.utils.args_gen import to_cairo_type
 from tests.utils.helpers import flatten
 
 
@@ -177,3 +179,33 @@ def patch_hint(program, hint, new_hint):
         raise ValueError(f"Hint\n\n{hint}\n\nnot found in program hints.")
     with patch.object(program, "hints", new=patched_hints):
         yield
+
+
+def oracle(program, serde, main_path, gen_arg):
+
+    def _factory(ids, reference: Optional[str] = None):
+        full_path = (
+            reference.split(".")
+            if reference is not None
+            else list(program.hints.values())[-1][0].accessible_scopes[-1].path
+        )
+        if "__main__" in full_path:
+            full_path = main_path + full_path[full_path.index("__main__") + 1 :]
+
+        mod = import_module(".".join(full_path[:-1]))
+        target = getattr(mod, full_path[-1])
+        from inspect import signature
+
+        sig = signature(target)
+        args = []
+        for name, type_ in sig.parameters.items():
+            args += [
+                serde.serialize(
+                    to_cairo_type(program, type_._annotation),
+                    getattr(ids, name).address_,
+                    shift=0,
+                )
+            ]
+        return gen_arg(sig.return_annotation, target(*args))
+
+    return _factory
