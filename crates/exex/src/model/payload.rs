@@ -1,4 +1,4 @@
-use super::header::KethBlockHeader;
+use super::{header::KethBlockHeader, transaction::KethTransactionEncoded};
 use cairo_vm::types::relocatable::MaybeRelocatable;
 use serde::{Deserialize, Serialize};
 
@@ -85,12 +85,30 @@ impl From<KethBlockHeader> for KethPayload {
     }
 }
 
+impl From<KethTransactionEncoded> for KethPayload {
+    fn from(transaction: KethTransactionEncoded) -> Self {
+        let mut payload = Vec::new();
+
+        // Dynamically encode each field using a trait
+        let fields =
+            [&transaction.rlp as &dyn KethEncodable, &transaction.signature, &transaction.sender];
+
+        for field in fields {
+            payload.push(field.encode());
+        }
+
+        Self::Nested(payload)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::model::primitives::{KethMaybeRelocatable, KethOption, KethPointer, KethU256};
     use alloy_consensus::Header;
     use alloy_primitives::{Address, Bloom, Bytes, B256, U256};
+    use arbitrary::{Arbitrary, Unstructured};
+    use reth_primitives::TransactionSigned;
 
     #[test]
     #[allow(clippy::too_many_lines, clippy::cognitive_complexity)]
@@ -181,6 +199,42 @@ mod tests {
             for (actual, expected) in fields.iter().zip(expected_fields.iter()) {
                 assert_eq!(actual, expected, "Field mismatch in payload");
             }
+        } else {
+            panic!("Expected payload to be of type Nested");
+        }
+    }
+
+    #[test]
+    fn test_keth_transaction_encoded_to_payload_arbitrary() {
+        // Generate arbitrary raw bytes
+        let raw_bytes = [0u8; 1000];
+        let mut unstructured = Unstructured::new(&raw_bytes);
+
+        // Generate an arbitrary signed transaction
+        let tx = TransactionSigned::arbitrary(&mut unstructured)
+            .expect("Failed to generate arbitrary transaction");
+
+        // Convert the signed transaction into KethTransactionEncoded
+        let keth_transaction_encoded =
+            KethTransactionEncoded::try_from(tx).expect("Failed to convert transaction");
+
+        // Convert KethTransactionEncoded into KethPayload
+        let payload: KethPayload = keth_transaction_encoded.clone().into();
+
+        // Ensure the payload is of the Nested variant
+        if let KethPayload::Nested(fields) = payload {
+            assert_eq!(fields.len(), 3, "Payload should contain 3 fields (RLP, signature, sender)");
+
+            // Verify each field
+            let encoded_rlp = keth_transaction_encoded.rlp.encode();
+            let encoded_signature = keth_transaction_encoded.signature.encode();
+            let encoded_sender = keth_transaction_encoded.sender.encode();
+
+            assert_eq!(&fields[0], &encoded_rlp, "RLP field mismatch in payload");
+
+            assert_eq!(&fields[1], &encoded_signature, "Signature field mismatch in payload");
+
+            assert_eq!(&fields[2], &encoded_sender, "Sender field mismatch in payload");
         } else {
             panic!("Expected payload to be of type Nested");
         }
