@@ -129,7 +129,7 @@ def cairo_run(request, cairo_program, cairo_file, main_path):
                 stack.append(gen_arg(python_type, kwargs.get(arg_name, args[i])))
 
         return_fp = runner.execution_base + 2
-        end = runner.segments.add()
+        end = runner.program_base + len(runner.program.data)
         # Add a jmp rel 0 instruction to be able to loop in proof mode
         runner.memory[end] = 0x10780017FFF7FFF
         runner.memory[end + 1] = 0
@@ -138,12 +138,9 @@ def cairo_run(request, cairo_program, cairo_file, main_path):
         stack = [return_fp, end] + stack + [return_fp, end]
         runner.execution_public_memory = list(range(len(stack)))
 
-        runner.initialize_state(
-            entrypoint=cairo_program.identifiers.get_by_full_name(
-                ScopedName(path=("__main__", entrypoint))
-            ).pc,
-            stack=stack,
-        )
+        runner.initial_pc = runner.program_base + cairo_program.get_label(entrypoint)
+        runner.load_data(runner.program_base, runner.program.data)
+        runner.load_data(runner.execution_base, stack)
         runner.initial_fp = runner.initial_ap = runner.execution_base + len(stack)
 
         runner.initialize_vm(
@@ -160,7 +157,7 @@ def cairo_run(request, cairo_program, cairo_file, main_path):
             },
             vm_class=VmWithCoverage,
         )
-        run_resources = RunResources(n_steps=10_000_000)
+        run_resources = RunResources(n_steps=64_000_000)
         try:
             runner.run_until_pc(end, run_resources)
         except Exception as e:
