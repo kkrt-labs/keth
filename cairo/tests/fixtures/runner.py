@@ -1,10 +1,12 @@
 import json
 import logging
 import math
+from functools import partial
 from hashlib import md5
+from importlib import import_module
 from pathlib import Path
 from time import perf_counter, time_ns
-from typing import Tuple
+from typing import Optional, Tuple
 
 import pytest
 import starkware.cairo.lang.instances as LAYOUTS
@@ -28,7 +30,7 @@ from starkware.cairo.lang.vm.memory_segments import FIRST_MEMORY_ADDR as PROGRAM
 from starkware.cairo.lang.vm.utils import RunResources
 
 from tests.utils.args_gen import gen_arg as gen_arg_builder
-from tests.utils.args_gen import to_python_type
+from tests.utils.args_gen import to_cairo_type, to_python_type
 from tests.utils.coverage import VmWithCoverage
 from tests.utils.hints import debug_info, implement_hints
 from tests.utils.reporting import profile_from_tracer_data
@@ -82,6 +84,36 @@ def main_path(cairo_file):
     return parts[1:] if parts[0] == "cairo" else parts
 
 
+def oracle(program, serde, main_path, gen_arg):
+
+    def _factory(ids, reference: Optional[str] = None):
+        full_path = (
+            reference.split(".")
+            if reference is not None
+            else list(program.hints.values())[-1][0].accessible_scopes[-1].path
+        )
+        if "__main__" in full_path:
+            full_path = main_path + full_path[full_path.index("__main__") + 1 :]
+
+        mod = import_module(".".join(full_path[:-1]))
+        target = getattr(mod, full_path[-1])
+        from inspect import signature
+
+        sig = signature(target)
+        args = []
+        for name, type_ in sig.parameters.items():
+            args += [
+                serde.serialize(
+                    to_cairo_type(program, type_._annotation),
+                    getattr(ids, name).address_,
+                    shift=0,
+                )
+            ]
+        return gen_arg(sig.return_annotation, target(*args))
+
+    return _factory
+
+
 @pytest.fixture(scope="module")
 def resolve_main_path(main_path: Tuple[str, ...]):
 
@@ -97,7 +129,7 @@ def resolve_main_path(main_path: Tuple[str, ...]):
 
 
 @pytest.fixture(scope="module")
-def cairo_run(request, cairo_program, cairo_file, resolve_main_path):
+def cairo_run(request, cairo_program, cairo_file, main_path, resolve_main_path):
     """
     Run the cairo program corresponding to the python test file at a given entrypoint with given program inputs as kwargs.
     Returns the output of the cairo program put in the output memory segment.
@@ -201,6 +233,9 @@ def cairo_run(request, cairo_program, cairo_file, resolve_main_path):
                 "program_input": kwargs,
                 "__dict_manager": dict_manager,
                 "gen_arg": gen_arg,
+                "serde": serde,
+                "oracle": oracle(cairo_program, serde, main_path, gen_arg),
+                "to_cairo_type": partial(to_cairo_type, cairo_program),
             },
             static_locals={
                 "debug_info": debug_info(cairo_program),
