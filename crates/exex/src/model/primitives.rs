@@ -1,6 +1,5 @@
 use super::payload::{KethEncodable, KethPayload};
-use alloy_primitives::{Address, Bloom, Bytes, Signature, B256, B64, U256};
-use alloy_rlp::Encodable;
+use alloy_primitives::{Address, Bloom, Bytes, PrimitiveSignature, B256, B64, U256};
 use cairo_vm::{types::relocatable::MaybeRelocatable, Felt252};
 use reth_primitives::Transaction;
 use serde::{Deserialize, Serialize};
@@ -375,15 +374,16 @@ impl From<Bytes> for KethPointer {
     }
 }
 
-impl From<Signature> for KethPointer {
-    /// Converts a [`Signature`] into a [`KethPointer`].
+impl From<PrimitiveSignature> for KethPointer {
+    /// Converts a [`PrimitiveSignature`] into a [`KethPointer`].
     ///
-    /// This implementation encodes an Ethereum-like [`Signature`] into a format compatible with the
-    /// Cairo virtual machine by converting the signature's components (R, S, V) into felts.
+    /// This implementation encodes an Ethereum-like [`PrimitiveSignature`] into a format compatible
+    /// with the Cairo virtual machine by converting the signature's components (R, S, V) into
+    /// felts.
     ///
-    /// Cairo's VM assumes that a [`Signature`] is a pointer to a segment of felts. This
-    /// implementation adapts the Ethereum [`Signature`] by splitting its components (R, S, and V)
-    /// into parts, each of which is mapped to felts. Specifically:
+    /// Cairo's VM assumes that a [`PrimitiveSignature`] is a pointer to a segment of felts. This
+    /// implementation adapts the Ethereum [`PrimitiveSignature`] by splitting its components (R, S,
+    /// and V) into parts, each of which is mapped to felts. Specifically:
     ///
     /// - R and S, which are 256-bit integers, are split into their low and high 128-bit parts.
     /// - V, which is typically a single byte, is converted directly into a felt.
@@ -402,11 +402,11 @@ impl From<Signature> for KethPointer {
     ///
     /// - `type_size`: This is set to `1`, indicating that the pointer refers to a single segment of
     ///   felts within Cairo.
-    fn from(value: Signature) -> Self {
+    fn from(value: PrimitiveSignature) -> Self {
         // Convert the signature into multiple felts.
         let r: KethU256 = value.r().into();
         let s: KethU256 = value.s().into();
-        let v: KethMaybeRelocatable = value.v().to_u64().into();
+        let v: KethMaybeRelocatable = u64::from(value.v()).into();
 
         Self {
             // We store the signature as a vector of 5 Felts:
@@ -447,7 +447,7 @@ impl From<Transaction> for KethPointer {
         // Initialize an empty buffer to hold the RLP-encoded transaction.
         let mut buffer = Vec::new();
         // Encode the transaction into the buffer using RLP encoding.
-        value.encode(&mut buffer);
+        value.encode_for_signing(&mut buffer);
 
         Self {
             // Set the `len` field to the length of the encoded byte array.
@@ -580,13 +580,17 @@ mod tests {
             )
         }
 
-        /// Converts the [`KethPointer`] data into a [`Signature`] object.
-        pub fn to_signature(&self) -> Signature {
-            let r = KethU256 { low: self.data[0].clone(), high: self.data[1].clone() }.to_u256();
-            let s = KethU256 { low: self.data[2].clone(), high: self.data[3].clone() }.to_u256();
-            let v = self.data[4].clone().to_u64();
+        /// Converts the [`KethPointer`] data into a [`PrimitiveSignature`] object.
+        pub fn to_signature(&self) -> PrimitiveSignature {
+            let r = B256::from(
+                KethU256 { low: self.data[0].clone(), high: self.data[1].clone() }.to_u256(),
+            );
+            let s = B256::from(
+                KethU256 { low: self.data[2].clone(), high: self.data[3].clone() }.to_u256(),
+            );
+            let v = self.data[4].clone().to_u64() != 0;
 
-            Signature::from_rs_and_parity(r, s, v).expect("Failed to create signature")
+            PrimitiveSignature::from_scalars_and_parity(r, s, v)
         }
 
         /// Util to convert the [`KethPointer`] to RLP encoded transaction bytes.
@@ -683,12 +687,12 @@ mod tests {
         }
 
         #[test]
-        fn test_signature_to_keth_pointer_roundtrip(signature in any::<Signature>()) {
+        fn test_signature_to_keth_pointer_roundtrip(signature in any::<PrimitiveSignature>()) {
             // Convert to KethPointer
             let keth_pointer = KethPointer::from(signature);
             let keth_pointer_len: usize = keth_pointer.len.to_u64() as usize;
 
-            // Convert back to Signature
+            // Convert back to PrimitiveSignature
             let roundtrip_signature = keth_pointer.to_signature();
 
             // Assert roundtrip conversion is equal to original value
@@ -713,7 +717,7 @@ mod tests {
 
             // Encode the original transaction via RLP to compare with the Keth pointer
             let mut buffer = Vec::new();
-            tx.encode(&mut buffer);
+            tx.encode_for_signing(&mut buffer);
 
             // Assert that the encoded bytes from the Keth pointer match the original transaction
             prop_assert_eq!(encoded_bytes, buffer.clone());
