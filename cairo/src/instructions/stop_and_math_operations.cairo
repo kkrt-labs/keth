@@ -1,4 +1,4 @@
-from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin
+from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin, KeccakBuiltin
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bool import FALSE
 from starkware.cairo.common.registers import get_fp_and_pc
@@ -43,6 +43,7 @@ namespace StopAndMathOperations {
         pedersen_ptr: HashBuiltin*,
         range_check_ptr,
         bitwise_ptr: BitwiseBuiltin*,
+        keccak_ptr: KeccakBuiltin*,
         stack: model.Stack*,
         memory: model.Memory*,
         state: model.State*,
@@ -60,6 +61,7 @@ namespace StopAndMathOperations {
         pedersen_ptr: HashBuiltin*,
         range_check_ptr,
         bitwise_ptr: BitwiseBuiltin*,
+        keccak_ptr: KeccakBuiltin*,
         stack: model.Stack*,
         memory: model.Memory*,
         state: model.State*,
@@ -134,7 +136,8 @@ namespace StopAndMathOperations {
         // Rebind args with fp
         // Function args are in [fp - n - 2: fp - 2]
         // locals are retrieved from [fp] in the order they are defined
-        let pedersen_ptr = cast([fp - 9], HashBuiltin*);
+        let pedersen_ptr = cast([fp - 10], HashBuiltin*);
+        let keccak_ptr = cast([fp - 7], KeccakBuiltin*);
         let memory = cast([fp - 5], model.Memory*);
         let state = cast([fp - 4], model.State*);
         let evm = cast([fp - 3], model.EVM*);
@@ -308,8 +311,9 @@ namespace StopAndMathOperations {
         }
         let range_check_ptr = [ap - 1];
 
-        let pedersen_ptr = cast([fp - 9], HashBuiltin*);
-        let bitwise_ptr = cast([fp - 7], BitwiseBuiltin*);
+        let pedersen_ptr = cast([fp - 10], HashBuiltin*);
+        let bitwise_ptr = cast([fp - 8], BitwiseBuiltin*);
+        let keccak_ptr = cast([fp - 7], KeccakBuiltin*);
         let memory = cast([fp - 5], model.Memory*);
         let state = cast([fp - 4], model.State*);
         let evm = cast([fp - 3], model.EVM*);
@@ -343,8 +347,9 @@ namespace StopAndMathOperations {
         // Rebind args with fp
         // Function args are in [fp - n - 2: fp - 2]
         // locals are retrieved from [fp] in the order they are defined
-        let pedersen_ptr = cast([fp - 9], HashBuiltin*);
-        let bitwise_ptr = cast([fp - 7], BitwiseBuiltin*);
+        let pedersen_ptr = cast([fp - 10], HashBuiltin*);
+        let bitwise_ptr = cast([fp - 8], BitwiseBuiltin*);
+        let keccak_ptr = cast([fp - 7], KeccakBuiltin*);
         let memory = cast([fp - 5], model.Memory*);
         let state = cast([fp - 4], model.State*);
         let evm = cast([fp - 3], model.EVM*);
@@ -421,7 +426,7 @@ namespace StopAndMathOperations {
         jmp end;
 
         AND:
-        let bitwise_ptr = cast([fp - 7], BitwiseBuiltin*);
+        let bitwise_ptr = cast([fp - 8], BitwiseBuiltin*);
         let range_check_ptr = [ap - 2];
         let popped = cast([ap - 1], Uint256*);
 
@@ -433,7 +438,7 @@ namespace StopAndMathOperations {
         jmp end;
 
         OR:
-        let bitwise_ptr = cast([fp - 7], BitwiseBuiltin*);
+        let bitwise_ptr = cast([fp - 8], BitwiseBuiltin*);
         let range_check_ptr = [ap - 2];
         let popped = cast([ap - 1], Uint256*);
 
@@ -445,7 +450,7 @@ namespace StopAndMathOperations {
         jmp end;
 
         XOR:
-        let bitwise_ptr = cast([fp - 7], BitwiseBuiltin*);
+        let bitwise_ptr = cast([fp - 8], BitwiseBuiltin*);
         let range_check_ptr = [ap - 2];
         let popped = cast([ap - 1], Uint256*);
 
@@ -457,7 +462,7 @@ namespace StopAndMathOperations {
         jmp end;
 
         BYTE:
-        let bitwise_ptr = cast([fp - 7], BitwiseBuiltin*);
+        let bitwise_ptr = cast([fp - 8], BitwiseBuiltin*);
         let range_check_ptr = [ap - 2];
         let popped = cast([ap - 1], Uint256*);
 
@@ -505,7 +510,7 @@ namespace StopAndMathOperations {
         jmp end;
 
         SAR:
-        let bitwise_ptr = cast([fp - 7], BitwiseBuiltin*);
+        let bitwise_ptr = cast([fp - 8], BitwiseBuiltin*);
         let range_check_ptr = [ap - 2];
         let popped = cast([ap - 1], Uint256*);
 

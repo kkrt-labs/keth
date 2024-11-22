@@ -1,12 +1,11 @@
 from starkware.cairo.common.bool import FALSE
-from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin
+from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin, KeccakBuiltin
 from starkware.cairo.common.math import split_felt
 from starkware.cairo.common.math_cmp import is_in_range
 from starkware.cairo.common.uint256 import Uint256
 
 from src.constants import Constants
 from src.evm import EVM
-from src.interfaces.interfaces import ICairo1Helpers
 from src.model import model
 from src.stack import Stack
 from src.state import State
@@ -19,6 +18,7 @@ namespace BlockInformation {
         pedersen_ptr: HashBuiltin*,
         range_check_ptr,
         bitwise_ptr: BitwiseBuiltin*,
+        keccak_ptr: KeccakBuiltin*,
         stack: model.Stack*,
         memory: model.Memory*,
         state: model.State*,
@@ -41,14 +41,15 @@ namespace BlockInformation {
         jmp blobbasefee;
 
         blockhash:
-        let pedersen_ptr = cast([fp - 9], HashBuiltin*);
-        let range_check_ptr = [fp - 8];
+        let range_check_ptr = [fp - 9];
         let stack = cast([fp - 6], model.Stack*);
         let evm = cast([fp - 3], model.EVM*);
         Internals.blockhash(evm);
 
         // Rebind unused args with fp
-        let bitwise_ptr = cast([fp - 7], BitwiseBuiltin*);
+        let pedersen_ptr = cast([fp - 10], HashBuiltin*);
+        let bitwise_ptr = cast([fp - 8], BitwiseBuiltin*);
+        let keccak_ptr = cast([fp - 7], KeccakBuiltin*);
         let memory = cast([fp - 5], model.Memory*);
         let state = cast([fp - 4], model.State*);
         return evm;
@@ -56,14 +57,15 @@ namespace BlockInformation {
         coinbase:
         let evm = cast([fp - 3], model.EVM*);
         let stack = cast([fp - 6], model.Stack*);
-        let range_check_ptr = [fp - 8];
+        let range_check_ptr = [fp - 9];
         let (coinbase_high, coinbase_low) = split_felt(evm.message.env.coinbase);
         tempvar coinbase_u256 = Uint256(low=coinbase_low, high=coinbase_high);
         Stack.push_uint256(coinbase_u256);
 
         // Rebind unused args with fp
-        let pedersen_ptr = cast([fp - 9], HashBuiltin*);
-        let bitwise_ptr = cast([fp - 7], BitwiseBuiltin*);
+        let pedersen_ptr = cast([fp - 10], HashBuiltin*);
+        let bitwise_ptr = cast([fp - 8], BitwiseBuiltin*);
+        let keccak_ptr = cast([fp - 7], KeccakBuiltin*);
         let memory = cast([fp - 5], model.Memory*);
         let state = cast([fp - 4], model.State*);
         return evm;
@@ -99,15 +101,16 @@ namespace BlockInformation {
         jmp end;
 
         selfbalance:
-        let pedersen_ptr = cast([fp - 9], HashBuiltin*);
-        let range_check_ptr = [fp - 8];
+        let pedersen_ptr = cast([fp - 10], HashBuiltin*);
+        let range_check_ptr = [fp - 9];
         let stack = cast([fp - 6], model.Stack*);
         let state = cast([fp - 4], model.State*);
         let evm = cast([fp - 3], model.EVM*);
         Internals.selfbalance(evm);
 
         // Rebind unused args with fp
-        let bitwise_ptr = cast([fp - 7], BitwiseBuiltin*);
+        let bitwise_ptr = cast([fp - 8], BitwiseBuiltin*);
+        let keccak_ptr = cast([fp - 7], KeccakBuiltin*);
         let memory = cast([fp - 5], model.Memory*);
         return evm;
 
@@ -130,9 +133,10 @@ namespace BlockInformation {
 
         end:
         // Rebind unused args with fp
-        let pedersen_ptr = cast([fp - 9], HashBuiltin*);
-        let range_check_ptr = [fp - 8];
-        let bitwise_ptr = cast([fp - 7], BitwiseBuiltin*);
+        let pedersen_ptr = cast([fp - 10], HashBuiltin*);
+        let range_check_ptr = [fp - 9];
+        let bitwise_ptr = cast([fp - 8], BitwiseBuiltin*);
+        let keccak_ptr = cast([fp - 7], KeccakBuiltin*);
         let memory = cast([fp - 5], model.Memory*);
         let state = cast([fp - 4], model.State*);
         let evm = cast([fp - 3], model.EVM*);
@@ -145,7 +149,7 @@ namespace BlockInformation {
 }
 
 namespace Internals {
-    func blockhash{}(evm: model.EVM*) {
+    func blockhash{range_check_ptr, stack: model.Stack*}(evm: model.EVM*) {
         let (block_number) = Stack.pop();
         if (block_number.high != 0) {
             Stack.push_uint256(Uint256(0, 0));
@@ -160,9 +164,10 @@ namespace Internals {
             return ();
         }
 
-        let (blockhash) = ICairo1Helpers.get_block_hash(implementation, block_number.low);
-        let (blockhash_high, blockhash_low) = split_felt(blockhash);
-        Stack.push_uint256(Uint256(low=blockhash_low, high=blockhash_high));
+        let block_hashes = evm.message.env.block_hashes[
+            evm.message.env.block_number - block_number.low
+        ];
+        Stack.push_uint256(block_hashes);
         return ();
     }
 

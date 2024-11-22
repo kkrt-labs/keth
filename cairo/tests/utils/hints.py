@@ -82,6 +82,12 @@ from tests.utils.hints import gen_arg_pydantic
 ids.block = gen_arg_pydantic(__dict_manager, segments, program_input["block"])
 """
 
+block_hashes = """
+import random
+
+ids.block_hashes = segments.gen_arg([random.randint(0, 2**128 - 1) for _ in range(256 * 2)])
+"""
+
 account = f"""
 {dict_manager}
 from tests.utils.hints import gen_arg_pydantic
@@ -111,6 +117,8 @@ __dict_manager.trackers[ids.new_start.address_.segment_index] = DictTracker(
 """
 
 dict_squash = """
+from starkware.cairo.common.dict import DictTracker
+
 data = __dict_manager.get_dict(ids.dict_accesses_end).copy()
 base = segments.add()
 assert base.segment_index not in __dict_manager.trackers
@@ -128,6 +136,7 @@ hints = {
     "chain_id": chain_id,
     "dict_copy": dict_copy,
     "dict_squash": dict_squash,
+    "block_hashes": block_hashes,
 }
 
 

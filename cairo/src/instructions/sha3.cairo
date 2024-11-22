@@ -1,12 +1,11 @@
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bool import FALSE
 from starkware.cairo.common.math import split_felt
-from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin
+from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin, KeccakBuiltin
 from starkware.cairo.common.uint256 import Uint256
 from starkware.cairo.common.math_cmp import is_not_zero
 
 from src.evm import EVM
-from src.interfaces.interfaces import ICairo1Helpers
 from src.gas import Gas
 from src.memory import Memory
 from src.model import model
@@ -19,6 +18,7 @@ namespace Sha3 {
         pedersen_ptr: HashBuiltin*,
         range_check_ptr,
         bitwise_ptr: BitwiseBuiltin*,
+        keccak_ptr: KeccakBuiltin*,
         stack: model.Stack*,
         memory: model.Memory*,
         state: model.State*,

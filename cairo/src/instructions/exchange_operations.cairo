@@ -1,4 +1,4 @@
-from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin
+from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin, KeccakBuiltin
 from starkware.cairo.common.bool import TRUE
 
 from src.model import model
@@ -13,10 +13,11 @@ namespace ExchangeOperations {
     // @dev Exchange 1st and i-th stack items
     // @param evm The pointer to the execution context
     // @return EVM Updated execution context.
-    func exec_swap{
+        func exec_swap{
         pedersen_ptr: HashBuiltin*,
         range_check_ptr,
         bitwise_ptr: BitwiseBuiltin*,
+        keccak_ptr: KeccakBuiltin*,
         stack: model.Stack*,
         memory: model.Memory*,
         state: model.State*,

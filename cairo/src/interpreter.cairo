@@ -164,6 +164,7 @@ namespace Interpreter {
         [ap] = pedersen_ptr, ap++;
         [ap] = range_check_ptr, ap++;
         [ap] = bitwise_ptr, ap++;
+        [ap] = keccak_ptr, ap++;
         [ap] = stack, ap++;
         [ap] = memory, ap++;
         [ap] = state, ap++;
@@ -685,9 +686,10 @@ namespace Interpreter {
         jmp end;
 
         end:
-        let pedersen_ptr = cast([ap - 7], HashBuiltin*);
-        let range_check_ptr = [ap - 6];
-        let bitwise_ptr = cast([ap - 5], BitwiseBuiltin*);
+        let pedersen_ptr = cast([ap - 8], HashBuiltin*);
+        let range_check_ptr = [ap - 7];
+        let bitwise_ptr = cast([ap - 6], BitwiseBuiltin*);
+        let keccak_ptr = cast([ap - 5], KeccakBuiltin*);
         let stack = cast([ap - 4], model.Stack*);
         let memory = cast([ap - 3], model.Memory*);
         let state = cast([ap - 2], model.State*);
@@ -705,9 +707,10 @@ namespace Interpreter {
         }
 
         end_no_pc_increment:
-        let pedersen_ptr = cast([ap - 7], HashBuiltin*);
-        let range_check_ptr = [ap - 6];
-        let bitwise_ptr = cast([ap - 5], BitwiseBuiltin*);
+        let pedersen_ptr = cast([ap - 8], HashBuiltin*);
+        let range_check_ptr = [ap - 7];
+        let bitwise_ptr = cast([ap - 6], BitwiseBuiltin*);
+        let keccak_ptr = cast([ap - 5], KeccakBuiltin*);
         let stack = cast([ap - 4], model.Stack*);
         let memory = cast([ap - 3], model.Memory*);
         let state = cast([ap - 2], model.State*);
@@ -726,6 +729,7 @@ namespace Interpreter {
         pedersen_ptr: HashBuiltin*,
         range_check_ptr,
         bitwise_ptr: BitwiseBuiltin*,
+        keccak_ptr: KeccakBuiltin*,
         stack: model.Stack*,
         memory: model.Memory*,
         state: model.State*,
@@ -824,6 +828,7 @@ namespace Interpreter {
         range_check_ptr,
         bitwise_ptr: BitwiseBuiltin*,
         keccak_ptr: KeccakBuiltin*,
+        state: model.State*,
     }(
         env: model.Environment*,
         address: felt,
@@ -836,7 +841,7 @@ namespace Interpreter {
         gas_limit: felt,
         access_list_len: felt,
         access_list: felt*,
-    ) -> (model.EVM*, model.Stack*, model.Memory*, model.State*, felt, felt) {
+    ) {
         alloc_locals;
         let fp_and_pc = get_fp_and_pc();
         local __fp__: felt* = fp_and_pc.fp_val;
@@ -911,9 +916,9 @@ namespace Interpreter {
 
         let stack = Stack.init();
         let memory = Memory.init();
-        let state = State.init();
 
         // Cache the coinbase, precompiles, caller, and target, making them warm
+        let state = State.copy();
         with state {
             let coinbase = State.get_account(env.coinbase);
             State.cache_precompiles();
@@ -928,7 +933,7 @@ namespace Interpreter {
         if (is_gas_limit_enough == FALSE) {
             let evm = EVM.halt_validation_failed(evm);
             State.finalize{state=state}();
-            return (evm, stack, memory, state, 0, 0);
+            return ();
         }
 
         tempvar is_initcode_invalid = is_deploy_tx * is_nn(
@@ -937,7 +942,7 @@ namespace Interpreter {
         if (is_initcode_invalid != FALSE) {
             let evm = EVM.halt_validation_failed(evm);
             State.finalize{state=state}();
-            return (evm, stack, memory, state, 0, 0);
+            return ();
         }
 
         // Charge the gas fee to the user without setting up a transfer.
@@ -954,7 +959,7 @@ namespace Interpreter {
             let sender = Account.set_nonce(sender, sender.nonce + 1);
             State.update_account(env.origin, sender);
 
-            let transfer = model.Transfer(sender.address, address, [value]);
+            let transfer = model.Transfer(env.origin, address, [value]);
             let success = State.add_transfer(transfer);
 
             // Check collision
@@ -999,11 +1004,7 @@ namespace Interpreter {
         // Only the gas fee paid will be committed.
         State.finalize{state=state}();
         if (evm.reverted != 0) {
-            with_attr error_message(
-                    "EVM tx reverted, reverting SN tx because of previous calls to cairo precompiles") {
-                assert evm.message.cairo_precompile_called = FALSE;
-            }
-            tempvar state = State.init();
+            tempvar state = cast([fp - 14], model.State*);
         } else {
             tempvar state = state;
         }
@@ -1024,21 +1025,25 @@ namespace Interpreter {
         let actual_fee = total_gas_used * env.gas_price;
         let (fee_high, fee_low) = split_felt(actual_fee);
         let actual_fee_u256 = Uint256(low=fee_low, high=fee_high);
-        let transfer = model.Transfer(sender.address, coinbase.address, actual_fee_u256);
+        let transfer = model.Transfer(env.origin, env.coinbase, actual_fee_u256);
 
         with state {
             State.add_transfer(transfer);
             State.finalize();
         }
 
-        return (evm, stack, memory, state, total_gas_used, required_gas);
+        return ();
     }
 }
 
 namespace Internals {
-    func _finalize_create_tx{pedersen_ptr: HashBuiltin*, range_check_ptr, state: model.State*}(
-        evm: model.EVM*
-    ) -> model.EVM* {
+    func _finalize_create_tx{
+        range_check_ptr,
+        bitwise_ptr: BitwiseBuiltin*,
+        keccak_ptr: KeccakBuiltin*,
+        pedersen_ptr: HashBuiltin*,
+        state: model.State*,
+    }(evm: model.EVM*) -> model.EVM* {
         alloc_locals;
         let is_reverted = is_not_zero(evm.reverted);
         if (is_reverted != 0) {

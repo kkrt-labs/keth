@@ -18,7 +18,6 @@ from starkware.cairo.common.hash_state import (
 from starkware.cairo.lang.compiler.lib.registers import get_ap
 from starkware.cairo.common.find_element import find_element
 
-from src.interfaces.interfaces import ICairo1Helpers
 from src.model import model
 from src.utils.dict import dict_copy, dict_squash
 from src.utils.utils import Helpers
@@ -168,6 +167,7 @@ namespace Account {
         } else {
             assert value_ptr = new Uint256(0, 0);
         }
+        return [value_ptr];
     }
 
     // @notice Update a storage key with the given value
@@ -275,7 +275,7 @@ namespace Account {
     // @param code_len The len of the code
     // @param code The code array
     // @return The updated Account with the code and valid jumpdests set
-    func set_code{pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    func set_code{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*}(
         self: model.Account*, code_len: felt, code: felt*
     ) -> model.Account* {
         alloc_locals;

@@ -10,10 +10,14 @@ from starkware.cairo.common.cairo_builtins import (
 )
 from starkware.cairo.common.math import assert_le, assert_nn
 from starkware.cairo.common.bool import FALSE
+from starkware.cairo.common.math_cmp import is_not_zero
+from starkware.cairo.common.uint256 import Uint256
 
 from src.model import model
 from src.utils.transaction import Transaction
 from src.state import State
+from src.instructions.system_operations import CreateHelper
+from src.interpreter import Interpreter
 
 func main{
     output_ptr: felt*,
@@ -33,9 +37,11 @@ func main{
     local block: model.Block*;
     local state: model.State*;
     local chain_id: felt;
+    local block_hashes: Uint256*;
     %{ block %}
     %{ state %}
     %{ chain_id %}
+    %{ block_hashes %}
     // TODO: Compute initial state root hash and compare with block.parent_hash
     // TODO: Loop through transactions and apply them to the initial state
 
@@ -45,7 +51,7 @@ func main{
     assert [range_check_ptr + 2] = header.base_fee_per_gas.value;
     let range_check_ptr = range_check_ptr + 3;
 
-    with header, chain_id, state {
+    with header, chain_id, state, block_hashes {
         apply_transactions(block.transactions_len, block.transactions);
     }
 
@@ -63,6 +69,7 @@ func apply_transactions{
     range_check_ptr,
     keccak_ptr: KeccakBuiltin*,
     header: model.BlockHeader*,
+    block_hashes: Uint256*,
     chain_id: felt,
     state: model.State*,
 }(txs_len: felt, tx_encoded: model.TransactionEncoded*) {
@@ -114,5 +121,57 @@ func apply_transactions{
         assert_le(tx.max_priority_fee_per_gas, tx.max_fee_per_gas);
     }
 
+    let is_regular_tx = is_not_zero(tx.destination.is_some);
+
+    let is_deploy_tx = 1 - is_regular_tx;
+    let evm_contract_address = resolve_to(tx.destination, tx_encoded.sender, tx.signer_nonce);
+    let code_account = State.get_account(evm_contract_address);
+    tempvar env = new model.Environment(
+        origin=tx_encoded.sender,
+        gas_price=tx.max_fee_per_gas,
+        chain_id=chain_id,
+        prev_randao=header.mix_hash,
+        block_number=header.number,
+        block_gas_limit=header.gas_limit,
+        block_timestamp=header.timestamp,
+        coinbase=header.coinbase,
+        base_fee=header.base_fee_per_gas.value,
+        block_hashes=block_hashes,
+    );
+
+    Interpreter.execute(
+        env,
+        evm_contract_address,
+        is_deploy_tx,
+        code_account.code_len,
+        code_account.code,
+        tx.payload_len,
+        tx.payload,
+        &tx.amount,
+        tx.gas_limit,
+        tx.access_list_len,
+        tx.access_list,
+    );
+
     return apply_transactions(txs_len - 1, tx_encoded + model.TransactionEncoded.SIZE);
+}
+
+// @notice Get the EVM address from the transaction
+// @dev When to=None, it's a deploy tx so we first compute the target address
+// @param to The transaction to parameter
+// @param origin The transaction origin parameter
+// @param nonce The transaction nonce parameter, used to compute the target address if it's a deploy tx
+// @return the target evm address
+func resolve_to{
+    pedersen_ptr: HashBuiltin*,
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+}(to: model.Option, origin: felt, nonce: felt) -> felt {
+    alloc_locals;
+    if (to.is_some != 0) {
+        return to.value;
+    }
+    let (local evm_contract_address) = CreateHelper.get_create_address(origin, nonce);
+    return evm_contract_address;
 }
