@@ -172,13 +172,7 @@ func bytes_to_nibble_list{bitwise_ptr: BitwiseBuiltin*}(bytes_: Bytes) -> Bytes 
     alloc_locals;
     local result: Bytes;
 
-    %{
-        from ethereum.cancun.trie import bytes_to_nibble_list
-        from ethereum.base_types import Bytes
-
-        original = serde.serialize(to_cairo_type(Bytes), ids.bytes_.address_, shift=0)
-        memory[ap - 1] = gen_arg(Bytes, bytes_to_nibble_list(original))
-    %}
+    %{ memory[ap - 1] = oracle(ids) %}
 
     assert result.value.len = 2 * bytes_.value.len;
 
