@@ -6,7 +6,7 @@ from hashlib import md5
 from importlib import import_module
 from pathlib import Path
 from time import perf_counter, time_ns
-from typing import Tuple
+from typing import Optional, Tuple
 
 import pytest
 import starkware.cairo.lang.instances as LAYOUTS
@@ -86,9 +86,12 @@ def main_path(cairo_file):
 
 def oracle(program, serde, main_path, gen_arg):
 
-    def _factory(ids):
-        function_scope = list(program.hints.values())[-1][0].accessible_scopes[-1]
-        full_path = function_scope.path
+    def _factory(ids, reference: Optional[str] = None):
+        full_path = (
+            reference.split(".")
+            if reference is not None
+            else list(program.hints.values())[-1][0].accessible_scopes[-1].path
+        )
         if "__main__" in full_path:
             full_path = main_path + full_path[full_path.index("__main__") + 1 :]
 
