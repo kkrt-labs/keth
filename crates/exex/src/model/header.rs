@@ -80,41 +80,42 @@ impl From<Header> for KethBlockHeader {
     }
 }
 
+impl KethBlockHeader {
+    /// Function used to convert the [`KethBlockHeader`] to a Header in order to build roundtrip
+    /// tests.
+    #[cfg(test)]
+    pub fn to_reth_header(&self) -> Header {
+        Header {
+            parent_hash: self.parent_hash.to_b256(),
+            ommers_hash: self.ommers_hash.to_b256(),
+            beneficiary: self.coinbase.to_address(),
+            state_root: self.state_root.to_b256(),
+            transactions_root: self.transactions_root.to_b256(),
+            receipts_root: self.receipt_root.to_b256(),
+            withdrawals_root: self.withdrawals_root.to_option_b256(),
+            logs_bloom: self.bloom.to_bloom(),
+            difficulty: self.difficulty.to_u256(),
+            number: self.number.to_u64(),
+            gas_limit: self.gas_limit.to_u64(),
+            gas_used: self.gas_used.to_u64(),
+            timestamp: self.timestamp.to_u64(),
+            mix_hash: self.mix_hash.to_b256(),
+            nonce: self.nonce.to_u64().into(),
+            base_fee_per_gas: self.base_fee_per_gas.to_option_u64(),
+            blob_gas_used: self.blob_gas_used.to_option_u64(),
+            excess_blob_gas: self.excess_blob_gas.to_option_u64(),
+            parent_beacon_block_root: self.parent_beacon_block_root.to_option_b256(),
+            requests_hash: self.requests_root.to_option_b256(),
+            extra_data: self.extra_data.to_bytes(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use arbitrary::{Arbitrary, Unstructured};
     use proptest::prelude::*;
-
-    impl KethBlockHeader {
-        /// Function used to convert the [`KethBlockHeader`] to a Header in order to build roundtrip
-        /// tests.
-        fn to_reth_header(&self) -> Header {
-            Header {
-                parent_hash: self.parent_hash.to_b256(),
-                ommers_hash: self.ommers_hash.to_b256(),
-                beneficiary: self.coinbase.to_address(),
-                state_root: self.state_root.to_b256(),
-                transactions_root: self.transactions_root.to_b256(),
-                receipts_root: self.receipt_root.to_b256(),
-                withdrawals_root: self.withdrawals_root.to_option_b256(),
-                logs_bloom: self.bloom.to_bloom(),
-                difficulty: self.difficulty.to_u256(),
-                number: self.number.to_u64(),
-                gas_limit: self.gas_limit.to_u64(),
-                gas_used: self.gas_used.to_u64(),
-                timestamp: self.timestamp.to_u64(),
-                mix_hash: self.mix_hash.to_b256(),
-                nonce: self.nonce.to_u64().into(),
-                base_fee_per_gas: self.base_fee_per_gas.to_option_u64(),
-                blob_gas_used: self.blob_gas_used.to_option_u64(),
-                excess_blob_gas: self.excess_blob_gas.to_option_u64(),
-                parent_beacon_block_root: self.parent_beacon_block_root.to_option_b256(),
-                requests_hash: self.requests_root.to_option_b256(),
-                extra_data: self.extra_data.to_bytes(),
-            }
-        }
-    }
 
     proptest! {
         #[test]
