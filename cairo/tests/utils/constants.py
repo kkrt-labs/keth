@@ -20,6 +20,7 @@ CAIRO_MESSAGE_GAS = 5000
 
 CHAIN_ID = int.from_bytes(b"keth", "big")
 TRANSACTION_GAS_LIMIT = 10_000_000
+COINBASE = "0x2adc25665018aa1fe0e6bc666dac8fc2697ff9ba"
 BASE_FEE_PER_GAS = 1_000
 # Taken from eth_account.account.Account.sign_transaction docstring
 # https://eth-account.readthedocs.io/en/stable/eth_account.html?highlight=sign_transaction#eth_account.account.Account.sign_transaction

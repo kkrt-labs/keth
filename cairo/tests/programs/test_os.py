@@ -2,6 +2,7 @@ from eth_abi import encode
 from eth_keys import keys
 
 from ethereum.crypto.hash import keccak256
+from tests.utils.constants import COINBASE
 from tests.utils.data import block
 from tests.utils.models import Block, State
 from tests.utils.solidity import get_contract
@@ -37,13 +38,19 @@ class TestOs:
             OTHER.public_key.to_checksum_address(): {
                 "code": [],
                 "storage": {},
-                "balance": 0,
+                "balance": int(1e18),
                 "nonce": 0,
             },
             OWNER.public_key.to_checksum_address(): {
                 "code": [],
                 "storage": {},
-                "balance": 0,
+                "balance": int(1e18),
+                "nonce": 0,
+            },
+            COINBASE: {
+                "code": [],
+                "storage": {},
+                "balance": int(1e18),
                 "nonce": 0,
             },
         }

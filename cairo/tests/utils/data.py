@@ -2,7 +2,7 @@ from collections import defaultdict
 
 from eth_account import Account
 
-from tests.utils.constants import BASE_FEE_PER_GAS, TRANSACTION_GAS_LIMIT
+from tests.utils.constants import BASE_FEE_PER_GAS, COINBASE, TRANSACTION_GAS_LIMIT
 from tests.utils.models import Block
 
 
@@ -28,7 +28,7 @@ def block(transactions=None):
             "blockHeader": {
                 "parentHash": "0x02a4bfb03275efd1bf926bcbccc1c12ef1ed723414c1196b75c33219355c7180",
                 "uncleHash": "0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347",
-                "coinbase": "0x2adc25665018aa1fe0e6bc666dac8fc2697ff9ba",
+                "coinbase": COINBASE,
                 "stateRoot": "0x2f79dbc20b78bcd7a771a9eb6b25a4af69724085c97be69a95ba91187e66a9c0",
                 "transactionsTrie": "0x5f3c4c1da4f0b2351fbb60b9e720d481ce0706b5aa697f10f28efbbab54e6ac8",
                 "receiptTrie": "0xf44202824894394d28fa6c8c8e3ef83e1adf05405da06240c2ce9ca461e843d1",
