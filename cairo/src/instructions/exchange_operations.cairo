@@ -13,7 +13,7 @@ namespace ExchangeOperations {
     // @dev Exchange 1st and i-th stack items
     // @param evm The pointer to the execution context
     // @return EVM Updated execution context.
-        func exec_swap{
+    func exec_swap{
         pedersen_ptr: HashBuiltin*,
         range_check_ptr,
         bitwise_ptr: BitwiseBuiltin*,

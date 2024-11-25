@@ -159,7 +159,6 @@ namespace Interpreter {
         // Compute the corresponding offset in the jump table:
         // count 1 for "next line" and 4 steps per opcode: call, opcode, jmp, end
         tempvar offset = 1 + 4 * opcode_number;
-        %{ print(get_op(ids.opcode_number)) %}
 
         // Prepare arguments
         [ap] = pedersen_ptr, ap++;

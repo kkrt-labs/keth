@@ -19,7 +19,7 @@ from src.state import State
 from src.instructions.system_operations import CreateHelper
 from src.interpreter import Interpreter
 
-func main{
+func os{
     output_ptr: felt*,
     pedersen_ptr: HashBuiltin*,
     range_check_ptr,
@@ -31,7 +31,7 @@ func main{
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,
-}() {
+}() -> model.State* {
     alloc_locals;
     %{ dict_manager %}
     local block: model.Block*;
@@ -39,18 +39,13 @@ func main{
     local chain_id: felt;
     local block_hashes: Uint256*;
     %{ block %}
+    // TODO: Validate header
     %{ state %}
+    // TODO: Compute initial state root hash and compare with block.parent_hash
     %{ chain_id %}
     %{ block_hashes %}
-    // TODO: Compute initial state root hash and compare with block.parent_hash
-    // TODO: Loop through transactions and apply them to the initial state
 
     let header = block.block_header;
-    assert [range_check_ptr] = header.gas_limit;
-    assert [range_check_ptr + 1] = header.gas_used;
-    assert [range_check_ptr + 2] = header.base_fee_per_gas.value;
-    let range_check_ptr = range_check_ptr + 3;
-
     with header, chain_id, state, block_hashes {
         apply_transactions(block.transactions_len, block.transactions);
     }
@@ -60,7 +55,7 @@ func main{
 
     // TODO: Compare the final state root hash with block.state_root
     end:
-    return ();
+    return state;
 }
 
 func apply_transactions{
@@ -176,4 +171,23 @@ func resolve_to{
     }
     let (local evm_contract_address) = CreateHelper.get_create_address(origin, nonce);
     return evm_contract_address;
+}
+
+// @notice The main function for the os program
+func main{
+    output_ptr: felt*,
+    pedersen_ptr: HashBuiltin*,
+    range_check_ptr,
+    ecdsa_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    ec_op_ptr,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
+}() {
+    os();
+
+    return ();
 }

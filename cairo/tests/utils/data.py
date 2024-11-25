@@ -2,7 +2,12 @@ from collections import defaultdict
 
 from eth_account import Account
 
-from tests.utils.constants import BASE_FEE_PER_GAS, COINBASE, TRANSACTION_GAS_LIMIT
+from tests.utils.constants import (
+    BASE_FEE_PER_GAS,
+    COINBASE,
+    TRANSACTION_GAS_LIMIT,
+    signers,
+)
 from tests.utils.models import Block
 
 
@@ -12,13 +17,12 @@ def block(transactions=None):
 
     for transaction in transactions:
         signer = transaction.pop("signer")
-        sender = signer.public_key.to_checksum_address()
         transaction["gas"] = TRANSACTION_GAS_LIMIT
         transaction["gasPrice"] = BASE_FEE_PER_GAS
-        transaction["nonce"] = nonces[sender]
-        nonces[sender] += 1
-        signed_tx = Account.sign_transaction(transaction, signer)
-        transaction["sender"] = sender
+        transaction["nonce"] = nonces[signer]
+        nonces[signer] += 1
+        signed_tx = Account.sign_transaction(transaction, signers[signer])
+        transaction["sender"] = signer
         transaction["r"] = signed_tx.r
         transaction["s"] = signed_tx.s
         transaction["v"] = signed_tx.v

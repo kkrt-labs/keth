@@ -9,7 +9,7 @@ from starkware.cairo.common.cairo_builtins import (
 )
 from starkware.cairo.common.memcpy import memcpy
 
-from programs.os import main
+from programs.os import os
 from src.model import model
 from src.account import Internals, Account
 from src.state import State
@@ -26,10 +26,8 @@ func test_os{
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,
-}() {
-    main();
-
-    return ();
+}() -> model.State* {
+    return os();
 }
 
 func test_block_hint{output_ptr: felt*}() {

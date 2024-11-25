@@ -1,14 +1,10 @@
 from eth_abi import encode
-from eth_keys import keys
 
 from ethereum.crypto.hash import keccak256
-from tests.utils.constants import COINBASE
+from tests.utils.constants import COINBASE, OTHER, OWNER
 from tests.utils.data import block
 from tests.utils.models import Block, State
 from tests.utils.solidity import get_contract
-
-OWNER = keys.PrivateKey(b"1" * 32)
-OTHER = keys.PrivateKey(b"2" * 32)
 
 
 class TestOs:
@@ -23,25 +19,22 @@ class TestOs:
             erc20.address: {
                 "code": list(erc20.bytecode_runtime),
                 "storage": {
-                    "0x2": 18,
-                    "0x3": amount,
-                    keccak256(
-                        encode(
-                            ["address", "uint8"],
-                            [OWNER.public_key.to_checksum_address(), 3],
-                        )
-                    ).hex(): amount,
+                    "0x0": encode(["string"], ["KethToken"]),  # name
+                    "0x1": encode(["string"], ["KETH"]),  # symbol
+                    "0x2": amount,  # totalSupply
+                    # balanceOf[OWNER]
+                    keccak256(encode(["address", "uint8"], [OWNER, 3])).hex(): amount,
                 },
                 "balance": 0,
                 "nonce": 0,
             },
-            OTHER.public_key.to_checksum_address(): {
+            OTHER: {
                 "code": [],
                 "storage": {},
                 "balance": int(1e18),
                 "nonce": 0,
             },
-            OWNER.public_key.to_checksum_address(): {
+            OWNER: {
                 "code": [],
                 "storage": {},
                 "balance": int(1e18),
@@ -55,29 +48,26 @@ class TestOs:
             },
         }
         transactions = [
-            erc20.transfer(
-                OWNER.public_key.to_checksum_address(), amount, signer=OTHER
-            ),
-            erc20.transfer(
-                OTHER.public_key.to_checksum_address(), amount, signer=OWNER
-            ),
-            erc20.transfer(
-                OTHER.public_key.to_checksum_address(), amount, signer=OWNER
-            ),
-            erc20.approve(OWNER.public_key.to_checksum_address(), amount, signer=OTHER),
-            erc20.transferFrom(
-                OTHER.public_key.to_checksum_address(),
-                OWNER.public_key.to_checksum_address(),
-                amount,
-                signer=OWNER,
-            ),
+            erc20.transfer(OWNER, amount, signer=OTHER),
+            erc20.transfer(OTHER, amount, signer=OWNER),
+            erc20.transfer(OTHER, amount, signer=OWNER),
+            erc20.approve(OWNER, 2**256 - 1, signer=OTHER),
+            erc20.transferFrom(OTHER, OWNER, amount // 3, signer=OWNER),
         ]
 
-        cairo_run(
+        state = cairo_run(
             "test_os",
             block=block(transactions),
             state=State.model_validate(initial_state),
         )
+        # TODO: parse the storage keys to check the values properly
+        assert (
+            sum(
+                [v["low"] for v in state["accounts"][erc20.address]["storage"].values()]
+            )
+            == amount + 2**128 - 1
+        )
+        assert len(state["accounts"][erc20.address]["storage"].keys()) == 3
 
     def test_block_hint(self, cairo_run, block: Block):
         output = cairo_run("test_block_hint", block=block)

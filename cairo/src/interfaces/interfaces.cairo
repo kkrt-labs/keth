@@ -15,8 +15,3 @@ namespace ICairo1Helpers {
         return (is_valid=1);
     }
 }
-
-namespace IAccount {
-    func is_valid_jumpdest(address: felt, index: felt) -> (is_valid: felt) {
-    }
-}

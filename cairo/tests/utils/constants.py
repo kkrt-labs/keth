@@ -1,6 +1,7 @@
 from enum import IntEnum
 
 import pytest
+from eth_keys import keys
 
 # STACK
 STACK_MAX_DEPTH = 1024
@@ -22,6 +23,14 @@ CHAIN_ID = int.from_bytes(b"keth", "big")
 TRANSACTION_GAS_LIMIT = 10_000_000
 COINBASE = "0x2adc25665018aa1fe0e6bc666dac8fc2697ff9ba"
 BASE_FEE_PER_GAS = 1_000
+signers = {
+    keys.PrivateKey(
+        i.to_bytes(1, "big") * 32
+    ).public_key.to_checksum_address(): keys.PrivateKey(i.to_bytes(1, "big") * 32)
+    for i in range(1, 3)
+}
+OWNER, OTHER = signers.keys()
+
 # Taken from eth_account.account.Account.sign_transaction docstring
 # https://eth-account.readthedocs.io/en/stable/eth_account.html?highlight=sign_transaction#eth_account.account.Account.sign_transaction
 TRANSACTIONS = [
@@ -101,7 +110,7 @@ TRANSACTIONS = [
         ),
         "chainId": CHAIN_ID,
     },
-    # eip1559 with storage keys in accesslist and 2 addresses, including one duplication
+    # eip1559 with storage keys in access list and 2 addresses, including one duplication
     {
         "type": 2,
         "gas": 100_000,
