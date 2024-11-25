@@ -9,6 +9,7 @@ from starkware.cairo.common.dict import DictTracker
 from starkware.cairo.lang.compiler.program import CairoHint
 from starkware.cairo.lang.vm.relocatable import MaybeRelocatable
 
+from ethereum.cancun.vm.instructions import Ops
 from tests.utils.args_gen import to_cairo_type
 from tests.utils.constants import CHAIN_ID
 from tests.utils.helpers import flatten
@@ -23,6 +24,14 @@ def debug_info(program):
         )
 
     return _debug_info
+
+
+def get_op(value: int) -> Ops:
+    """Get an Ops enum by its opcode value."""
+    try:
+        return Ops._value2member_map_[value]
+    except KeyError:
+        raise ValueError(f"Invalid opcode: {hex(value)}")
 
 
 def gen_arg_pydantic(

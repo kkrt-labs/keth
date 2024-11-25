@@ -26,7 +26,7 @@ from starkware.cairo.lang.vm.utils import RunResources
 from tests.utils.args_gen import gen_arg as gen_arg_builder
 from tests.utils.args_gen import to_cairo_type, to_python_type
 from tests.utils.coverage import VmWithCoverage
-from tests.utils.hints import debug_info, oracle
+from tests.utils.hints import debug_info, get_op, oracle
 from tests.utils.reporting import profile_from_tracer_data
 from tests.utils.serde import Serde
 
@@ -154,6 +154,7 @@ def cairo_run(request, cairo_program, cairo_file, main_path):
             },
             static_locals={
                 "debug_info": debug_info(cairo_program),
+                "get_op": get_op,
             },
             vm_class=VmWithCoverage,
         )

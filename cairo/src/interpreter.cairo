@@ -159,7 +159,7 @@ namespace Interpreter {
         // Compute the corresponding offset in the jump table:
         // count 1 for "next line" and 4 steps per opcode: call, opcode, jmp, end
         tempvar offset = 1 + 4 * opcode_number;
-        %{ print(f"opcode_number: {hex(ids.opcode_number)}") %}
+        %{ print(get_op(ids.opcode_number)) %}
 
         // Prepare arguments
         [ap] = pedersen_ptr, ap++;
@@ -870,24 +870,18 @@ namespace Interpreter {
             assert calldata = empty;
             assert intrinsic_gas = tmp_intrinsic_gas + Gas.CREATE + init_code_gas;
             assert code_address = 0;
-            let (valid_jumpdests_start, valid_jumpdests) = Helpers.initialize_jumpdests(
-                bytecode_len=bytecode_len, bytecode=bytecode
-            );
             tempvar range_check_ptr = range_check_ptr;
-            tempvar valid_jumpdests_start = valid_jumpdests_start;
-            tempvar valid_jumpdests = valid_jumpdests;
         } else {
             assert bytecode = tmp_bytecode;
             assert calldata = tmp_calldata;
             assert intrinsic_gas = tmp_intrinsic_gas;
             assert code_address = address;
-
-            let (new_dict) = default_dict_new(0);
             tempvar range_check_ptr = range_check_ptr;
-            tempvar valid_jumpdests_start = new_dict;
-            tempvar valid_jumpdests = new_dict;
         }
 
+        let (valid_jumpdests_start, valid_jumpdests) = Helpers.initialize_jumpdests(
+            bytecode_len=bytecode_len, bytecode=bytecode
+        );
         let valid_jumpdests_start = cast([ap - 2], DictAccess*);
         let valid_jumpdests = cast([ap - 1], DictAccess*);
 
