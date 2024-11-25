@@ -18,9 +18,11 @@ LAST_KAKAROT_PRECOMPILE_ADDRESS = 0x75002
 CAIRO_PRECOMPILE_GAS = 10000
 CAIRO_MESSAGE_GAS = 5000
 
+CHAIN_ID = int.from_bytes(b"keth", "big")
+TRANSACTION_GAS_LIMIT = 10_000_000
+BASE_FEE_PER_GAS = 1_000
 # Taken from eth_account.account.Account.sign_transaction docstring
 # https://eth-account.readthedocs.io/en/stable/eth_account.html?highlight=sign_transaction#eth_account.account.Account.sign_transaction
-CHAIN_ID = int.from_bytes(b"keth", "big")
 TRANSACTIONS = [
     {
         "to": "0xF0109fC8DF283027b6285cc889F5aA624EaC1F55",

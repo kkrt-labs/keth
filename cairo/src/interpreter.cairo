@@ -159,6 +159,7 @@ namespace Interpreter {
         // Compute the corresponding offset in the jump table:
         // count 1 for "next line" and 4 steps per opcode: call, opcode, jmp, end
         tempvar offset = 1 + 4 * opcode_number;
+        %{ print(f"opcode_number: {hex(ids.opcode_number)}") %}
 
         // Prepare arguments
         [ap] = pedersen_ptr, ap++;
@@ -694,10 +695,8 @@ namespace Interpreter {
         let memory = cast([ap - 3], model.Memory*);
         let state = cast([ap - 2], model.State*);
         let evm = cast([ap - 1], model.EVM*);
-        let evm_prev = cast([fp - 3], model.EVM*);
 
-        // keccak is still unused in regular opcode execution
-        let keccak_ptr = cast([fp - 7], KeccakBuiltin*);
+        let evm_prev = cast([fp - 3], model.EVM*);
 
         if (evm_prev.message.depth == evm.message.depth) {
             let evm = EVM.increment_program_counter(evm, 1);
@@ -715,9 +714,6 @@ namespace Interpreter {
         let memory = cast([ap - 3], model.Memory*);
         let state = cast([ap - 2], model.State*);
         let evm = cast([ap - 1], model.EVM*);
-
-        // keccak is still unused in regular opcode execution
-        let keccak_ptr = cast([fp - 7], KeccakBuiltin*);
 
         return evm;
     }
@@ -768,7 +764,7 @@ namespace Interpreter {
         if (evm.message.depth == 0) {
             if (evm.reverted != 0) {
                 // All REVERTS in a root ctx set the gas_refund to 0.
-                // Only if the execution has halted exceptionnaly, consume all gas
+                // Only if the execution has halted exceptionally, consume all gas
                 let is_not_exceptional_revert = Helpers.is_zero(evm.reverted - 1);
                 let gas_left = is_not_exceptional_revert * evm.gas_left;
                 tempvar evm = new model.EVM(

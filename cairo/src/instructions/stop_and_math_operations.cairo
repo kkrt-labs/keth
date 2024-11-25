@@ -153,7 +153,7 @@ namespace StopAndMathOperations {
 
         let (result, _) = uint256_add(popped[0], popped[1]);
 
-        tempvar bitwise_ptr = cast([fp - 7], BitwiseBuiltin*);
+        tempvar bitwise_ptr = cast([fp - 8], BitwiseBuiltin*);
         tempvar range_check_ptr = range_check_ptr;
         tempvar result = Uint256(result.low, result.high);
         jmp end;
@@ -164,7 +164,7 @@ namespace StopAndMathOperations {
 
         let (result, _) = uint256_mul(popped[0], popped[1]);
 
-        tempvar bitwise_ptr = cast([fp - 7], BitwiseBuiltin*);
+        tempvar bitwise_ptr = cast([fp - 8], BitwiseBuiltin*);
         tempvar range_check_ptr = range_check_ptr;
         tempvar result = Uint256(result.low, result.high);
         jmp end;
@@ -175,7 +175,7 @@ namespace StopAndMathOperations {
 
         let (result) = uint256_sub(popped[0], popped[1]);
 
-        tempvar bitwise_ptr = cast([fp - 7], BitwiseBuiltin*);
+        tempvar bitwise_ptr = cast([fp - 8], BitwiseBuiltin*);
         tempvar range_check_ptr = range_check_ptr;
         tempvar result = Uint256(result.low, result.high);
         jmp end;
@@ -186,7 +186,7 @@ namespace StopAndMathOperations {
 
         let (quotient, _) = uint256_unsigned_div_rem(popped[0], popped[1]);
 
-        tempvar bitwise_ptr = cast([fp - 7], BitwiseBuiltin*);
+        tempvar bitwise_ptr = cast([fp - 8], BitwiseBuiltin*);
         tempvar range_check_ptr = range_check_ptr;
         tempvar result = Uint256(quotient.low, quotient.high);
         jmp end;
@@ -197,7 +197,7 @@ namespace StopAndMathOperations {
 
         let (quotient, _) = uint256_signed_div_rem(popped[0], popped[1]);
 
-        tempvar bitwise_ptr = cast([fp - 7], BitwiseBuiltin*);
+        tempvar bitwise_ptr = cast([fp - 8], BitwiseBuiltin*);
         tempvar range_check_ptr = range_check_ptr;
         tempvar result = Uint256(quotient.low, quotient.high);
         jmp end;
@@ -208,7 +208,7 @@ namespace StopAndMathOperations {
 
         let (_, remainder) = uint256_unsigned_div_rem(popped[0], popped[1]);
 
-        tempvar bitwise_ptr = cast([fp - 7], BitwiseBuiltin*);
+        tempvar bitwise_ptr = cast([fp - 8], BitwiseBuiltin*);
         tempvar range_check_ptr = range_check_ptr;
         tempvar result = Uint256(remainder.low, remainder.high);
         jmp end;
@@ -219,7 +219,7 @@ namespace StopAndMathOperations {
 
         let (_, remainder) = uint256_signed_div_rem(popped[0], popped[1]);
 
-        tempvar bitwise_ptr = cast([fp - 7], BitwiseBuiltin*);
+        tempvar bitwise_ptr = cast([fp - 8], BitwiseBuiltin*);
         tempvar range_check_ptr = range_check_ptr;
         tempvar result = Uint256(remainder.low, remainder.high);
         jmp end;
@@ -231,7 +231,7 @@ namespace StopAndMathOperations {
         tempvar mod_is_not_zero = popped[2].low + popped[2].high;
         jmp addmod_not_zero if mod_is_not_zero != 0;
 
-        tempvar bitwise_ptr = cast([fp - 7], BitwiseBuiltin*);
+        tempvar bitwise_ptr = cast([fp - 8], BitwiseBuiltin*);
         tempvar range_check_ptr = range_check_ptr;
         tempvar result = Uint256(0, 0);
         jmp end;
@@ -253,7 +253,7 @@ namespace StopAndMathOperations {
             let (overflown_part) = uint256_sub(popped[2], sum);
             let (to_remove) = uint256_sub(overflown_part, Uint256(1, 0));
             let (result) = uint256_sub(max_u256, to_remove);
-            tempvar bitwise_ptr = cast([fp - 7], BitwiseBuiltin*);
+            tempvar bitwise_ptr = cast([fp - 8], BitwiseBuiltin*);
             tempvar range_check_ptr = range_check_ptr;
             tempvar result = result;
             jmp end;
@@ -261,14 +261,14 @@ namespace StopAndMathOperations {
 
         let (is_sum_lt_n) = uint256_lt(sum, popped[2]);
         if (is_sum_lt_n != 0) {
-            tempvar bitwise_ptr = cast([fp - 7], BitwiseBuiltin*);
+            tempvar bitwise_ptr = cast([fp - 8], BitwiseBuiltin*);
             tempvar range_check_ptr = range_check_ptr;
             tempvar result = sum;
             jmp end;
         }
 
         let (result) = uint256_sub(sum, popped[2]);
-        tempvar bitwise_ptr = cast([fp - 7], BitwiseBuiltin*);
+        tempvar bitwise_ptr = cast([fp - 8], BitwiseBuiltin*);
         tempvar range_check_ptr = range_check_ptr;
         tempvar result = result;
         jmp end;
@@ -280,7 +280,7 @@ namespace StopAndMathOperations {
         tempvar mod_is_not_zero = popped[2].low + popped[2].high;
         jmp mulmod_not_zero if mod_is_not_zero != 0;
 
-        tempvar bitwise_ptr = cast([fp - 7], BitwiseBuiltin*);
+        tempvar bitwise_ptr = cast([fp - 8], BitwiseBuiltin*);
         tempvar range_check_ptr = range_check_ptr;
         tempvar result = Uint256(0, 0);
         jmp end;
@@ -288,7 +288,7 @@ namespace StopAndMathOperations {
         mulmod_not_zero:
         let (_, _, result) = uint256_mul_div_mod(popped[0], popped[1], popped[2]);
 
-        tempvar bitwise_ptr = cast([fp - 7], BitwiseBuiltin*);
+        tempvar bitwise_ptr = cast([fp - 8], BitwiseBuiltin*);
         tempvar range_check_ptr = range_check_ptr;
         tempvar result = Uint256(result.low, result.high);
         jmp end;
@@ -327,7 +327,7 @@ namespace StopAndMathOperations {
         let result = uint256_fast_exp(popped[0], exponent);
 
         Stack.push_uint256(result);
-        tempvar bitwise_ptr = cast([fp - 7], BitwiseBuiltin*);
+        tempvar bitwise_ptr = cast([fp - 8], BitwiseBuiltin*);
         tempvar range_check_ptr = range_check_ptr;
         return evm;
 
@@ -337,7 +337,7 @@ namespace StopAndMathOperations {
 
         let result = uint256_signextend(popped[1], popped[0]);
 
-        tempvar bitwise_ptr = cast([fp - 7], BitwiseBuiltin*);
+        tempvar bitwise_ptr = cast([fp - 8], BitwiseBuiltin*);
         tempvar range_check_ptr = range_check_ptr;
         tempvar result = result;
         jmp end;
@@ -365,7 +365,7 @@ namespace StopAndMathOperations {
 
         let (res) = uint256_lt(popped[0], popped[1]);
 
-        tempvar bitwise_ptr = cast([fp - 7], BitwiseBuiltin*);
+        tempvar bitwise_ptr = cast([fp - 8], BitwiseBuiltin*);
         tempvar range_check_ptr = range_check_ptr;
         tempvar result = Uint256(res, 0);
         jmp end;
@@ -376,7 +376,7 @@ namespace StopAndMathOperations {
 
         let (res) = uint256_lt(popped[1], popped[0]);
 
-        tempvar bitwise_ptr = cast([fp - 7], BitwiseBuiltin*);
+        tempvar bitwise_ptr = cast([fp - 8], BitwiseBuiltin*);
         tempvar range_check_ptr = range_check_ptr;
         tempvar result = Uint256(res, 0);
         jmp end;
@@ -387,7 +387,7 @@ namespace StopAndMathOperations {
 
         let (res) = uint256_signed_lt(popped[0], popped[1]);
 
-        tempvar bitwise_ptr = cast([fp - 7], BitwiseBuiltin*);
+        tempvar bitwise_ptr = cast([fp - 8], BitwiseBuiltin*);
         tempvar range_check_ptr = range_check_ptr;
         tempvar result = Uint256(res, 0);
         jmp end;
@@ -398,7 +398,7 @@ namespace StopAndMathOperations {
 
         let (res) = uint256_signed_lt(popped[1], popped[0]);
 
-        tempvar bitwise_ptr = cast([fp - 7], BitwiseBuiltin*);
+        tempvar bitwise_ptr = cast([fp - 8], BitwiseBuiltin*);
         tempvar range_check_ptr = range_check_ptr;
         tempvar result = Uint256(res, 0);
         jmp end;
@@ -409,7 +409,7 @@ namespace StopAndMathOperations {
 
         let (res) = uint256_eq(popped[0], popped[1]);
 
-        tempvar bitwise_ptr = cast([fp - 7], BitwiseBuiltin*);
+        tempvar bitwise_ptr = cast([fp - 8], BitwiseBuiltin*);
         tempvar range_check_ptr = range_check_ptr;
         tempvar result = Uint256(res, 0);
         jmp end;
@@ -420,7 +420,7 @@ namespace StopAndMathOperations {
 
         let (res) = uint256_eq(popped[0], Uint256(0, 0));
 
-        tempvar bitwise_ptr = cast([fp - 7], BitwiseBuiltin*);
+        tempvar bitwise_ptr = cast([fp - 8], BitwiseBuiltin*);
         tempvar range_check_ptr = range_check_ptr;
         tempvar result = Uint256(res, 0);
         jmp end;
@@ -493,7 +493,7 @@ namespace StopAndMathOperations {
 
         let (result) = uint256_shl(popped[1], popped[0]);
 
-        tempvar bitwise_ptr = cast([fp - 7], BitwiseBuiltin*);
+        tempvar bitwise_ptr = cast([fp - 8], BitwiseBuiltin*);
         tempvar range_check_ptr = range_check_ptr;
         tempvar result = Uint256(result.low, result.high);
         jmp end;
@@ -504,7 +504,7 @@ namespace StopAndMathOperations {
 
         let (result) = uint256_shr(popped[1], popped[0]);
 
-        tempvar bitwise_ptr = cast([fp - 7], BitwiseBuiltin*);
+        tempvar bitwise_ptr = cast([fp - 8], BitwiseBuiltin*);
         tempvar range_check_ptr = range_check_ptr;
         tempvar result = Uint256(result.low, result.high);
         jmp end;
@@ -559,7 +559,7 @@ namespace StopAndMathOperations {
 
         let (result) = uint256_not(popped[0]);
 
-        tempvar bitwise_ptr = cast([fp - 7], BitwiseBuiltin*);
+        tempvar bitwise_ptr = cast([fp - 8], BitwiseBuiltin*);
         tempvar range_check_ptr = range_check_ptr;
         tempvar result = Uint256(result.low, result.high);
         jmp end;

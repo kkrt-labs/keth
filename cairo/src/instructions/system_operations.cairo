@@ -316,7 +316,7 @@ namespace SystemOperations {
     // @notice CALL operation. Message call into an account.
     // @dev we don't pop the two last arguments (ret_offset and ret_size) to get
     // them at the end of the CALL. These two extra stack values need to be
-    // cleard if the CALL early return without reverting (value > balance, stack
+    // cleared if the CALL early return without reverting (value > balance, stack
     // too deep).
     // @custom:since Frontier
     // @custom:group System Operations

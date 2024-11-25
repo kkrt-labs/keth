@@ -10,6 +10,7 @@ from starkware.cairo.lang.compiler.program import CairoHint
 from starkware.cairo.lang.vm.relocatable import MaybeRelocatable
 
 from tests.utils.args_gen import to_cairo_type
+from tests.utils.constants import CHAIN_ID
 from tests.utils.helpers import flatten
 
 
@@ -104,8 +105,8 @@ from tests.utils.hints import gen_arg_pydantic
 ids.state = gen_arg_pydantic(__dict_manager, segments, program_input["state"])
 """
 
-chain_id = """
-ids.chain_id = 1
+chain_id = f"""
+ids.chain_id = {CHAIN_ID}
 """
 
 dict_copy = """
