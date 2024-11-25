@@ -1,4 +1,4 @@
-use super::{header::KethBlockHeader, transaction::KethTransactionEncoded};
+use super::{block::KethBlock, header::KethBlockHeader, transaction::KethTransactionEncoded};
 use cairo_vm::types::relocatable::MaybeRelocatable;
 use serde::{Deserialize, Serialize};
 
@@ -101,6 +101,25 @@ impl From<KethTransactionEncoded> for KethPayload {
     }
 }
 
+impl From<KethBlock> for KethPayload {
+    fn from(block: KethBlock) -> Self {
+        let mut payload = Vec::new();
+
+        // Encode the block header
+        payload.push(block.block_header.into());
+
+        // Encode the transaction count
+        payload.push(block.transactions_len.encode());
+
+        // Encode the transactions
+        let transactions_payload = block.transactions.into_iter().map(Into::into).collect();
+
+        payload.push(Self::Nested(transactions_payload));
+
+        Self::Nested(payload)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -108,7 +127,7 @@ mod tests {
     use alloy_consensus::Header;
     use alloy_primitives::{Address, Bloom, Bytes, B256, U256};
     use arbitrary::{Arbitrary, Unstructured};
-    use reth_primitives::TransactionSigned;
+    use reth_primitives::{SealedBlock, TransactionSigned};
 
     #[test]
     #[allow(clippy::too_many_lines, clippy::cognitive_complexity)]
@@ -237,6 +256,59 @@ mod tests {
             assert_eq!(&fields[2], &encoded_sender, "Sender field mismatch in payload");
         } else {
             panic!("Expected payload to be of type Nested");
+        }
+    }
+
+    #[test]
+    fn test_keth_block_to_payload_conversion() {
+        // Generate arbitrary data for testing
+        let raw_bytes = [0u8; 1500];
+        let mut unstructured = Unstructured::new(&raw_bytes);
+
+        // Create an arbitrary SealedBlock
+        let sealed_block: SealedBlock = SealedBlock::arbitrary(&mut unstructured)
+            .expect("Failed to generate arbitrary SealedBlock");
+
+        // Convert the SealedBlock into a KethBlock
+        let keth_block: KethBlock = sealed_block.into();
+
+        // Convert the KethBlock into KethPayload
+        let payload: KethPayload = keth_block.clone().into();
+
+        // Ensure the payload is of the Nested variant
+        if let KethPayload::Nested(fields) = payload {
+            // Check that the payload contains exactly 3 elements
+            assert_eq!(fields.len(), 3, "Payload should contain 3 top-level elements");
+
+            // Verify the block header is encoded
+            let header_payload = KethPayload::from(keth_block.block_header);
+            assert_eq!(fields[0], header_payload, "Block header payload mismatch");
+
+            // Verify the transactions_len field is encoded
+            let transactions_len_payload = keth_block.transactions_len.encode();
+            assert_eq!(fields[1], transactions_len_payload, "Transaction length payload mismatch");
+
+            // Verify the transactions are encoded
+            if let KethPayload::Nested(transaction_fields) = &fields[2] {
+                assert_eq!(
+                    transaction_fields.len(),
+                    keth_block.transactions.len(),
+                    "Number of transactions in payload mismatch"
+                );
+
+                // Check each transaction
+                for (i, keth_tx) in keth_block.transactions.iter().enumerate() {
+                    let transaction_payload = KethPayload::from(keth_tx.clone());
+                    assert_eq!(
+                        transaction_fields[i], transaction_payload,
+                        "Transaction payload mismatch at index {i}"
+                    );
+                }
+            } else {
+                panic!("Expected Nested payload for transactions");
+            }
+        } else {
+            panic!("Expected Nested payload at top level");
         }
     }
 }
