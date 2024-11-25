@@ -1,5 +1,8 @@
 use super::{block::KethBlock, header::KethBlockHeader, transaction::KethTransactionEncoded};
-use cairo_vm::types::relocatable::MaybeRelocatable;
+use cairo_vm::{
+    types::relocatable::MaybeRelocatable,
+    vm::{errors::memory_errors::MemoryError, vm_core::VirtualMachine},
+};
 use serde::{Deserialize, Serialize};
 
 /// A custom trait for encoding types into a vector of [`MaybeRelocatable`] values.
@@ -46,6 +49,32 @@ pub enum KethPayload {
     /// This variant enables encoding of deeply nested or structured data,
     /// where each element can itself be a [`KethPayload`].
     Nested(Vec<KethPayload>),
+}
+
+impl KethPayload {
+    fn collect_args(&self, vm: &mut VirtualMachine) -> Result<Vec<MaybeRelocatable>, MemoryError> {
+        match self {
+            KethPayload::Flat(values) => Ok(values.clone()),
+            KethPayload::Option { is_some, value } => {
+                let mut args = vec![is_some.clone()];
+                args.extend(value.collect_args(vm)?);
+                Ok(args)
+            }
+            KethPayload::Pointer { len, data } => Ok(vec![len.clone(), data.gen_arg(vm)?]),
+            KethPayload::Nested(values) => {
+                let mut args = Vec::new();
+                for value in values {
+                    args.extend(value.collect_args(vm)?);
+                }
+                Ok(args)
+            }
+        }
+    }
+
+    pub fn gen_arg(&self, vm: &mut VirtualMachine) -> Result<MaybeRelocatable, MemoryError> {
+        let args = self.collect_args(vm)?;
+        vm.gen_arg(&args)
+    }
 }
 
 impl From<KethBlockHeader> for KethPayload {
@@ -127,6 +156,7 @@ mod tests {
     use alloy_consensus::Header;
     use alloy_primitives::{Address, Bloom, Bytes, B256, U256};
     use arbitrary::{Arbitrary, Unstructured};
+    use cairo_vm::types::relocatable::Relocatable;
     use reth_primitives::{SealedBlock, TransactionSigned};
 
     #[test]
@@ -310,5 +340,239 @@ mod tests {
         } else {
             panic!("Expected Nested payload at top level");
         }
+    }
+
+    #[test]
+    fn test_gen_arg_flat() {
+        // Create a new instance of the VirtualMachine.
+        let mut vm = VirtualMachine::new(false);
+
+        // Define a flat payload with three Felt values.
+        let values =
+            vec![MaybeRelocatable::from(1), MaybeRelocatable::from(2), MaybeRelocatable::from(3)];
+
+        // Wrap the values in a KethPayload::Flat variant.
+        let payload = KethPayload::Flat(values.clone());
+
+        // Call gen_arg to encode the payload and write it to the VM's memory.
+        let result = payload.gen_arg(&mut vm);
+
+        // Ensure that the gen_arg call succeeded.
+        assert!(result.is_ok(), "Expected gen_arg to succeed");
+
+        // Retrieve the resulting pointer to the memory segment where the payload was written.
+        let ptr = result.unwrap();
+
+        // Verify that the pointer points to the start of the new segment (0, 0).
+        assert_eq!(ptr, MaybeRelocatable::from((0, 0)), "Expected pointer to start of segment");
+
+        // Check each value in the payload to ensure it matches the expected values.
+        for (i, value) in values.iter().enumerate() {
+            assert_eq!(
+                vm.get_maybe(&Relocatable::from((0, i))),
+                Some(value.clone()),
+                "Value mismatch at index {i}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_gen_arg_option_some() {
+        // Create a new instance of the VirtualMachine.
+        let mut vm = VirtualMachine::new(false);
+
+        // Define an Option payload with:
+        // - A presence flag indicating the value is present
+        // - A nested Flat payload containing a single relocatable value.
+        let payload = KethPayload::Option {
+            is_some: MaybeRelocatable::from(1),
+            value: Box::new(KethPayload::Flat(vec![MaybeRelocatable::from(42)])),
+        };
+
+        // Call gen_arg to encode the payload and write it to the VM's memory.
+        let result = payload.gen_arg(&mut vm);
+
+        // Ensure that the gen_arg call succeeded and returned a valid pointer.
+        assert!(result.is_ok(), "Expected gen_arg to succeed");
+
+        // Retrieve the resulting pointer to the memory segment for the Option payload.
+        let ptr = result.unwrap();
+
+        // Verify that the pointer points to the start of the new segment (0, 0).
+        assert_eq!(ptr, MaybeRelocatable::from((0, 0)));
+
+        // Verify presence flag and value are written to the memory.
+        assert_eq!(vm.get_maybe(&Relocatable::from((0, 0))), Some(MaybeRelocatable::from(1)));
+        assert_eq!(vm.get_maybe(&Relocatable::from((0, 1))), Some(MaybeRelocatable::from(42)));
+    }
+
+    #[test]
+    fn test_gen_arg_option_none() {
+        // Create a new instance of the VirtualMachine.
+        let mut vm = VirtualMachine::new(false);
+
+        // Define an Option payload with a presence flag indicating the value is absent.
+        // - The presence flag is set to `0` to indicate that the value is absent.
+        // - The nested payload is an empty Flat variant.
+        let payload = KethPayload::Option {
+            is_some: MaybeRelocatable::from(0),
+            value: Box::new(KethPayload::Flat(vec![])),
+        };
+
+        // Call gen_arg to encode the payload and write it to the VM's memory.
+        let result = payload.gen_arg(&mut vm);
+
+        // Ensure that the gen_arg call succeeded and returned a valid pointer.
+        assert!(result.is_ok(), "Expected gen_arg to succeed");
+
+        // Retrieve the resulting pointer to the memory segment for the Option payload.
+        let ptr = result.unwrap();
+
+        // Verify that the pointer points to the correct segment.
+        assert_eq!(ptr, MaybeRelocatable::from((0, 0)));
+
+        // Verify that the value of the option is None.
+        assert_eq!(vm.get_maybe(&Relocatable::from((0, 0))), Some(MaybeRelocatable::from(0)));
+        assert_eq!(vm.get_maybe(&Relocatable::from((0, 1))), None);
+    }
+
+    #[test]
+    fn test_gen_arg_pointer() {
+        // Create a new instance of the VirtualMachine.
+        let mut vm = VirtualMachine::new(false);
+
+        // Define a Pointer payload with a length and nested data.
+        // - The length is set to 3.
+        let payload = KethPayload::Pointer {
+            len: MaybeRelocatable::from(3),
+            data: Box::new(KethPayload::Flat(vec![
+                MaybeRelocatable::from(1),
+                MaybeRelocatable::from(2),
+                MaybeRelocatable::from(3),
+            ])),
+        };
+
+        // Call gen_arg to encode the payload and write it to the VM's memory.
+        let result = payload.gen_arg(&mut vm);
+
+        // Ensure that the gen_arg call succeeded and returned a valid pointer.
+        assert!(result.is_ok(), "Expected gen_arg to succeed");
+
+        // Retrieve the resulting pointer to the memory segment for the Pointer payload.
+        let ptr = result.unwrap();
+
+        // Verify that the pointer points to the start of the second segment (1, 0).
+        assert_eq!(ptr, MaybeRelocatable::from((1, 0)), "Expected pointer to start of segment");
+
+        // Verify that the length of the data segment is correctly written in the second segment.
+        assert_eq!(vm.get_maybe(&Relocatable::from((1, 0))), Some(MaybeRelocatable::from(3)));
+
+        // Verify that each data value is correctly written in memory.
+        for (i, value) in [1, 2, 3].iter().enumerate() {
+            assert_eq!(
+                vm.get_maybe(&Relocatable::from((0, i))),
+                Some(MaybeRelocatable::from(*value)),
+                "Data value mismatch at index {i}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_gen_arg_nested() {
+        // Create a new instance of the VirtualMachine.
+        let mut vm = VirtualMachine::new(false);
+
+        // Define a Nested payload containing three Flat payloads.
+        let nested_payloads = vec![
+            KethPayload::Flat(vec![MaybeRelocatable::from(10)]),
+            KethPayload::Flat(vec![MaybeRelocatable::from(20)]),
+            KethPayload::Flat(vec![MaybeRelocatable::from(30)]),
+        ];
+
+        // Wrap the nested payloads in a KethPayload::Nested variant.
+        let payload = KethPayload::Nested(nested_payloads.clone());
+
+        // Call gen_arg to encode the payload and write it to the VM's memory.
+        let result = payload.gen_arg(&mut vm);
+
+        // Ensure that the gen_arg call succeeded and returned a valid pointer.
+        assert!(result.is_ok(), "Expected gen_arg to succeed");
+
+        // Retrieve the resulting pointer to the memory segment for the Nested payload.
+        let ptr = result.unwrap();
+
+        // Verify that the pointer points to the correct segment.
+        assert_eq!(ptr, MaybeRelocatable::from((0, 0)), "Expected pointer to start of segment");
+
+        // Verify that each nested payload is correctly written in memory.
+        assert_eq!(vm.get_maybe(&Relocatable::from((0, 0))), Some(MaybeRelocatable::from(10)));
+        assert_eq!(vm.get_maybe(&Relocatable::from((0, 1))), Some(MaybeRelocatable::from(20)));
+        assert_eq!(vm.get_maybe(&Relocatable::from((0, 2))), Some(MaybeRelocatable::from(30)));
+    }
+
+    #[test]
+    fn test_gen_arg_complex_nested() {
+        // Create a new instance of the VirtualMachine.
+        let mut vm = VirtualMachine::new(false);
+
+        // Define a deeply nested payload with various combinations of:
+        // - Flat,
+        // - Option,
+        // - Pointer.
+        let complex_payload = KethPayload::Nested(vec![
+            // First element: A Flat payload
+            KethPayload::Flat(vec![MaybeRelocatable::from(1), MaybeRelocatable::from(2)]),
+            // Second element: An Option payload containing a Flat payload
+            KethPayload::Option {
+                is_some: MaybeRelocatable::from(1),
+                value: Box::new(KethPayload::Flat(vec![MaybeRelocatable::from(42)])),
+            },
+            // Third element: A Pointer payload with a nested Flat payload
+            KethPayload::Pointer {
+                len: MaybeRelocatable::from(3),
+                data: Box::new(KethPayload::Flat(vec![
+                    MaybeRelocatable::from(10),
+                    MaybeRelocatable::from(20),
+                    MaybeRelocatable::from(30),
+                ])),
+            },
+        ]);
+
+        // Call gen_arg to encode the complex payload and write it to the VM's memory.
+        let result = complex_payload.gen_arg(&mut vm);
+
+        // Ensure that the gen_arg call succeeded and returned a valid pointer.
+        assert!(result.is_ok(), "Expected gen_arg to succeed");
+
+        // Retrieve the resulting pointer to the memory segment for the complex Nested payload.
+        let ptr = result.unwrap();
+
+        // Verify that the pointer points to the start of the correct segment.
+        assert_eq!(
+            ptr,
+            MaybeRelocatable::from((1, 0)),
+            "Expected pointer to start of segment for complex nested payload"
+        );
+
+        // Verify the Flat payload
+        assert_eq!(vm.get_maybe(&Relocatable::from((1, 0))), Some(MaybeRelocatable::from(1)));
+        assert_eq!(vm.get_maybe(&Relocatable::from((1, 1))), Some(MaybeRelocatable::from(2)));
+
+        // Verify the Option payload
+        // The presence flag
+        assert_eq!(vm.get_maybe(&Relocatable::from((1, 2))), Some(MaybeRelocatable::from(1)));
+        // The value
+        assert_eq!(vm.get_maybe(&Relocatable::from((1, 3))), Some(MaybeRelocatable::from(42)));
+
+        // Verify the Pointer payload
+        // The values
+        assert_eq!(vm.get_maybe(&Relocatable::from((0, 0))), Some(MaybeRelocatable::from(10)));
+        assert_eq!(vm.get_maybe(&Relocatable::from((0, 1))), Some(MaybeRelocatable::from(20)));
+        assert_eq!(vm.get_maybe(&Relocatable::from((0, 2))), Some(MaybeRelocatable::from(30)));
+
+        // The length
+        assert_eq!(vm.get_maybe(&Relocatable::from((1, 4))), Some(MaybeRelocatable::from(3)));
+        // The pointer to the data
+        assert_eq!(vm.get_maybe(&Relocatable::from((1, 5))), Some(MaybeRelocatable::from((0, 0))));
     }
 }
