@@ -36,5 +36,5 @@ pub struct SharpQueryDetails {
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct QueryResponse {
-    pub sharp_query_id: String,
+    pub atlantic_query_id: String,
 }

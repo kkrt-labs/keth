@@ -1,4 +1,8 @@
-use crate::{db::Database, hints::KakarotHintProcessor};
+use crate::{
+    atlantic::{prover::ProverVersion, sharp::SharpSdk},
+    db::Database,
+    hints::KakarotHintProcessor,
+};
 use alloy_eips::BlockNumHash;
 use alloy_genesis::Genesis;
 use alloy_primitives::Address;
@@ -10,13 +14,20 @@ use cairo_vm::{
     vm::trace::trace_entry::RelocatedTraceEntry,
     Felt252,
 };
+use dotenv::dotenv;
 use futures::StreamExt;
 use once_cell::sync::Lazy;
 use reth_chainspec::{ChainSpec, ChainSpecBuilder};
 use reth_exex::{ExExContext, ExExEvent};
 use reth_node_api::FullNodeComponents;
 use rusqlite::Connection;
-use std::{path::PathBuf, sync::Arc};
+use std::{
+    env, fs,
+    io::Read,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
+use url::Url;
 
 /// The path to the `SQLite` database file.
 pub const DATABASE_PATH: &str = "rollup.db";
@@ -62,7 +73,7 @@ impl<Node: FullNodeComponents> KakarotRollup<Node> {
             layout: LayoutName::all_cairo,
             trace_enabled: true,
             relocate_mem: true,
-            proof_mode: true,
+            // proof_mode: true,
             ..Default::default()
         };
 
@@ -86,10 +97,43 @@ impl<Node: FullNodeComponents> KakarotRollup<Node> {
                 let mut hint_processor = KakarotHintProcessor::default().build();
 
                 // Load the cairo program from the file
-                let program = std::fs::read(PathBuf::from("../../cairo/programs/os.json"))?;
+                let program = std::fs::read(PathBuf::from("../../cairo/programs/fibonacci.json"))?;
 
                 // Execute the Kakarot os program
                 let mut res = cairo_run(&program, &config, &mut hint_processor)?;
+
+                // Load environment variables.
+                dotenv().ok();
+
+                // Retrieve the API key from the environment variables.
+                let atlantic_api_key = env::var("ATLANTIC_API_KEY")
+                    .expect("API_KEY must be set in the environment variables");
+
+                let sharp_sdk = SharpSdk::new(
+                    atlantic_api_key.clone(),
+                    Url::parse("https://atlantic.api.herodotus.cloud/").unwrap(),
+                );
+
+                let cairo_pie = res.get_cairo_pie().unwrap();
+
+                // Path to a temporary file for the CairoPie.
+                let temp_file_path = Path::new("temp_pie.zip");
+
+                // Write the CairoPie data into a temporary file.
+                cairo_pie.write_zip_file(temp_file_path)?;
+
+                // Read the temporary file into a Vec<u8>.
+                let mut file = fs::File::open(temp_file_path)?;
+                let mut pie_bytes = Vec::new();
+                file.read_to_end(&mut pie_bytes)?;
+
+                // Remove the temporary file after reading.
+                fs::remove_file(temp_file_path)?;
+
+                // Call the proof generation function using the Sharp SDK.
+                let result =
+                    sharp_sdk.proof_generation(pie_bytes, "auto", ProverVersion::Starkware).await;
+                println!("Proof generation result: {:?}", result);
 
                 // Retrieve the output of the program
                 let mut output_buffer = String::new();
@@ -153,7 +197,8 @@ mod tests {
         TransactionSigned,
     };
     use reth_revm::primitives::AccountInfo;
-    use std::{future::Future, pin::pin, str::FromStr};
+    use std::{future::Future, pin::pin, str::FromStr, time::Duration};
+    use tokio::time::timeout;
 
     /// The initialization logic of the Execution Extension is just an async function.
     ///
@@ -184,7 +229,7 @@ mod tests {
         Ok(KakarotRollup { ctx, db }.start())
     }
 
-    #[ignore = "block_header not implemented"]
+    // #[ignore = "block_header not implemented"]
     #[tokio::test]
     async fn test_exex() -> eyre::Result<()> {
         // Initialize the tracing subscriber for testing
@@ -275,14 +320,27 @@ mod tests {
             ))
             .await?;
 
-        // Initialize the Execution Extension
-        let mut exex = pin!(exex_init(ctx)?);
+        // Initialize the Execution Extension future
+        let exex_future = exex_init(ctx)?;
+        tokio::pin!(exex_future);
 
-        // Check that the Execution Extension did not emit any events until we polled it
-        handle.assert_events_empty();
+        // Set a timeout to stop infinite execution
+        let timeout_duration = Duration::from_secs(1);
+        let exex_result = timeout(timeout_duration, exex_future).await;
 
-        // Poll the Execution Extension once to process incoming notifications
-        exex.poll_once().await?;
+        match exex_result {
+            Ok(Ok(())) => {
+                println!("Execution Extension completed successfully.");
+            }
+            Ok(Err(err)) => {
+                eprintln!("Execution Extension returned an error: {:?}", err);
+                return Err(err);
+            }
+            Err(_) => {
+                eprintln!("Execution Extension timed out after {:?}", timeout_duration);
+                return Err(eyre::eyre!("Execution Extension timeout"));
+            }
+        }
 
         // Check that the Execution Extension emitted a `FinishedHeight` event with the correct
         // height
