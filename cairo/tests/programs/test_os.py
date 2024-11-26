@@ -72,6 +72,7 @@ class TestOs:
     def test_block_hint(self, cairo_run):
         output = cairo_run("test_block_hint", block=block())
         block_header = block().block_header
+        transactions = block().transactions
 
         assert output == [
             block_header.parent_hash_low,
@@ -109,17 +110,17 @@ class TestOs:
             *block_header.requests_root_value,
             block_header.extra_data_len,
             *[int(byte) for byte in block_header.extra_data],
-            len(block.transactions),
+            len(transactions),
             # First transaction
             *(
                 [
-                    block.transactions[0].rlp_len,
-                    *[int(byte) for byte in block.transactions[0].rlp],
-                    block.transactions[0].signature_len,
-                    *block.transactions[0].signature,
-                    block.transactions[0].sender,
+                    transactions[0].rlp_len,
+                    *[int(byte) for byte in transactions[0].rlp],
+                    transactions[0].signature_len,
+                    *transactions[0].signature,
+                    transactions[0].sender,
                 ]
-                if len(block.transactions) > 0
+                if len(transactions) > 0
                 else []
             ),
         ]
