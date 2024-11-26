@@ -177,7 +177,7 @@ namespace Gas {
         return expansion;
 
         no_expansion:
-        let range_check_ptr = [fp - 9];
+        let range_check_ptr = [fp - 8];
         let expansion = model.MemoryExpansion(cost=0, new_words_len=words_len);
         return expansion;
 

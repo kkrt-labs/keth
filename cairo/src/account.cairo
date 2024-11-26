@@ -157,6 +157,7 @@ namespace Account {
         self: model.Account*, key: Uint256*
     ) -> Uint256 {
         alloc_locals;
+        // TODO: Fetch from parent account
         tempvar value = Uint256(0, 0);
         return value;
     }
