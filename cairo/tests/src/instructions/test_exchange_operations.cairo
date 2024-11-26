@@ -10,8 +10,12 @@ from src.model import model
 from src.instructions.exchange_operations import ExchangeOperations
 from tests.utils.helpers import TestHelpers
 
-func test__exec_swap{pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*}(
-    ) -> model.Stack* {
+func test__exec_swap{
+    pedersen_ptr: HashBuiltin*,
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+}() -> model.Stack* {
     alloc_locals;
 
     local i: felt;

@@ -12,8 +12,12 @@ from src.memory import Memory
 from src.instructions.push_operations import PushOperations
 from tests.utils.helpers import TestHelpers
 
-func test__exec_push{pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*}(
-    ) -> model.Stack* {
+func test__exec_push{
+    pedersen_ptr: HashBuiltin*,
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+}() -> model.Stack* {
     alloc_locals;
     local i: felt;
     %{ ids.i = program_input["i"] %}

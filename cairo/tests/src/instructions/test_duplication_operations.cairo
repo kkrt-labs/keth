@@ -9,8 +9,12 @@ from src.memory import Memory
 from src.instructions.duplication_operations import DuplicationOperations
 from tests.utils.helpers import TestHelpers
 
-func test__exec_dup{pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*}(
-    ) -> model.Stack* {
+func test__exec_dup{
+    pedersen_ptr: HashBuiltin*,
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+}() -> model.Stack* {
     alloc_locals;
     local i: felt;
     local initial_stack_len: felt;

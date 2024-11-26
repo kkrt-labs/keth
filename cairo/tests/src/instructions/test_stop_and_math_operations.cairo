@@ -10,8 +10,12 @@ from src.model import model
 from src.instructions.stop_and_math_operations import StopAndMathOperations
 from tests.utils.helpers import TestHelpers
 
-func test__exec_stop{pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*}(
-    ) {
+func test__exec_stop{
+    pedersen_ptr: HashBuiltin*,
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+}() {
     alloc_locals;
 
     let evm = TestHelpers.init_evm();
@@ -30,7 +34,10 @@ func test__exec_stop{pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: B
 }
 
 func test__exec_math_operation{
-    pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*
+    pedersen_ptr: HashBuiltin*,
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
 }() -> (evm: model.EVM*, result: Uint256*) {
     // Given
     alloc_locals;
