@@ -3,13 +3,13 @@ from eth_abi import encode
 from ethereum.crypto.hash import keccak256
 from tests.utils.constants import COINBASE, OTHER, OWNER
 from tests.utils.data import block
-from tests.utils.models import Block, State
+from tests.utils.models import State
 from tests.utils.solidity import get_contract
 
 
 class TestOs:
 
-    def test_os(self, cairo_run, block, state):
+    def test_os(self, cairo_run, state):
         cairo_run("test_os", block=block(), state=state())
 
     def test_erc20_transfer(self, cairo_run):
@@ -69,9 +69,9 @@ class TestOs:
         )
         assert len(state["accounts"][erc20.address]["storage"].keys()) == 3
 
-    def test_block_hint(self, cairo_run, block: Block):
-        output = cairo_run("test_block_hint", block=block)
-        block_header = block.block_header
+    def test_block_hint(self, cairo_run):
+        output = cairo_run("test_block_hint", block=block())
+        block_header = block().block_header
 
         assert output == [
             block_header.parent_hash_low,
