@@ -1,5 +1,5 @@
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin
+from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin, KeccakBuiltin
 from starkware.cairo.common.uint256 import Uint256, assert_uint256_eq
 from starkware.cairo.common.memcpy import memcpy
 from starkware.cairo.common.uint256 import ALL_ONES
@@ -14,7 +14,7 @@ from tests.utils.helpers import TestHelpers
 from src.utils.utils import Helpers
 
 func test__exec_address__should_push_address_to_stack{
-    pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*
+    pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*
 }() {
     // Given
     alloc_locals;
@@ -40,7 +40,7 @@ func test__exec_address__should_push_address_to_stack{
 }
 
 func test__exec_extcodesize{
-    pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*
+    pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*
 }() -> Uint256* {
     // Given
     alloc_locals;
@@ -63,7 +63,7 @@ func test__exec_extcodesize{
 }
 
 func test__exec_extcodecopy{
-    pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*
+    pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*
 }() -> model.Memory* {
     // Given
     alloc_locals;
@@ -101,7 +101,7 @@ func test__exec_extcodecopy{
 }
 
 func test__exec_extcodecopy_zellic_issue_1258{
-    pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*
+    pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*
 }() -> model.Memory* {
     // Given
     alloc_locals;
@@ -147,7 +147,7 @@ func test__exec_extcodecopy_zellic_issue_1258{
     return memory;
 }
 
-func test__exec_copy{pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
+func test__exec_copy{pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*}(
     ) -> (model.EVM*, model.Memory*) {
     // Given
     alloc_locals;
@@ -269,7 +269,7 @@ func test__exec_gasprice{pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_pt
 }
 
 func test__exec_extcodehash{
-    pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*
+    pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*
 }() -> Uint256* {
     // Given
     alloc_locals;

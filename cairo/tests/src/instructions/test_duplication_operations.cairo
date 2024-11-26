@@ -1,5 +1,5 @@
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin
+from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin, KeccakBuiltin
 from starkware.cairo.common.uint256 import Uint256
 
 from src.model import model
@@ -9,7 +9,7 @@ from src.memory import Memory
 from src.instructions.duplication_operations import DuplicationOperations
 from tests.utils.helpers import TestHelpers
 
-func test__exec_dup{pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
+func test__exec_dup{pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*}(
     ) -> model.Stack* {
     alloc_locals;
     local i: felt;

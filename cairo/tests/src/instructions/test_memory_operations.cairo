@@ -1,5 +1,5 @@
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin
+from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin, KeccakBuiltin
 from starkware.cairo.common.uint256 import Uint256, assert_uint256_eq
 
 from src.model import model
@@ -11,7 +11,7 @@ from src.instructions.memory_operations import MemoryOperations
 from tests.utils.helpers import TestHelpers
 
 func test__exec_pc__should_return_evm_program_counter{
-    pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*
+    pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*
 }() {
     // Given
     alloc_locals;
@@ -40,7 +40,7 @@ func test__exec_pc__should_return_evm_program_counter{
 }
 
 func test__exec_pop_should_pop_an_item_from_execution_context{
-    pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*
+    pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*
 }() {
     // Given
     alloc_locals;
@@ -69,7 +69,7 @@ func test__exec_pop_should_pop_an_item_from_execution_context{
 }
 
 func test__exec_mload_should_load_a_value_from_memory{
-    pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*
+    pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*
 }() {
     // Given
     alloc_locals;
@@ -102,7 +102,7 @@ func test__exec_mload_should_load_a_value_from_memory{
 }
 
 func test__exec_mload_should_load_a_value_from_memory_with_memory_expansion{
-    pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*
+    pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*
 }() {
     // Given
     alloc_locals;
@@ -135,7 +135,7 @@ func test__exec_mload_should_load_a_value_from_memory_with_memory_expansion{
 }
 
 func test__exec_mload_should_load_a_value_from_memory_with_offset_larger_than_msize{
-    pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*
+    pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*
 }() {
     // Given
     alloc_locals;
@@ -167,7 +167,7 @@ func test__exec_mload_should_load_a_value_from_memory_with_offset_larger_than_ms
     return ();
 }
 
-func test__exec_mcopy{pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
+func test__exec_mcopy{pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*}(
     ) -> (model.EVM*, model.Memory*) {
     alloc_locals;
     let (memory_init_state) = alloc();
@@ -202,7 +202,7 @@ func test__exec_mcopy{pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: 
     return (evm, memory);
 }
 
-func test_exec_mstore{pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
+func test_exec_mstore{pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*}(
     ) -> (model.EVM*, model.Memory*) {
     alloc_locals;
     let (value_ptr) = alloc();
