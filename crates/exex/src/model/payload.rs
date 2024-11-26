@@ -52,15 +52,30 @@ pub enum KethPayload {
 }
 
 impl KethPayload {
+    /// Recursively collects arguments from a [`KethPayload`] into a flat vector.
+    ///
+    /// This function processes each variant of [`KethPayload`], flattening all nested structures
+    /// into a single vector of [`MaybeRelocatable`] values that can be used to interact with the
+    /// VM.
     fn collect_args(&self, vm: &mut VirtualMachine) -> Result<Vec<MaybeRelocatable>, MemoryError> {
         match self {
+            // For the Flat variant, clone the values into the result vector.
             Self::Flat(values) => Ok(values.clone()),
+            // For the Option variant:
+            // - Add the `is_some` flag to the result vector.
+            // - Recursively process the inner `value` and append its arguments.
             Self::Option { is_some, value } => {
                 let mut args = vec![is_some.clone()];
                 args.extend(value.collect_args(vm)?);
                 Ok(args)
             }
+            // For the Pointer variant:
+            // - Generate arguments for the `data` payload using the VM.
+            // - Include the `len` value and the generated data pointer.
             Self::Pointer { len, data } => Ok(vec![len.clone(), data.gen_arg(vm)?]),
+            // For the Nested variant:
+            // - Iterate through all inner payloads.
+            // - Recursively collect arguments for each payload and flatten the results.
             Self::Nested(values) => {
                 let mut args = Vec::new();
                 for value in values {
@@ -71,8 +86,16 @@ impl KethPayload {
         }
     }
 
+    /// Encodes the [`KethPayload`] into the virtual machine's memory.
+    ///
+    /// This function uses `collect_args` to recursively flatten the payload into a vector
+    /// and then writes the arguments to the VM's memory, returning a pointer to the encoded
+    /// segment.
     pub fn gen_arg(&self, vm: &mut VirtualMachine) -> Result<MaybeRelocatable, MemoryError> {
+        // Recursively collect arguments from the payload.
         let args = self.collect_args(vm)?;
+
+        // Write the collected arguments into the VM's memory and return the resulting pointer.
         vm.gen_arg(&args)
     }
 }
