@@ -209,7 +209,10 @@ func test__exec_copy{
 }
 
 func test__exec_copy_offset_high_zellic_issue_1258{
-    pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*
+    pedersen_ptr: HashBuiltin*,
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
 }() -> model.Memory* {
     // Given
     alloc_locals;
@@ -262,8 +265,12 @@ func test__exec_copy_offset_high_zellic_issue_1258{
     return memory;
 }
 
-func test__exec_gasprice{pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*}(
-    ) {
+func test__exec_gasprice{
+    pedersen_ptr: HashBuiltin*,
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+}() {
     alloc_locals;
 
     // Given
