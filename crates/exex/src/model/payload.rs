@@ -54,14 +54,14 @@ pub enum KethPayload {
 impl KethPayload {
     fn collect_args(&self, vm: &mut VirtualMachine) -> Result<Vec<MaybeRelocatable>, MemoryError> {
         match self {
-            KethPayload::Flat(values) => Ok(values.clone()),
-            KethPayload::Option { is_some, value } => {
+            Self::Flat(values) => Ok(values.clone()),
+            Self::Option { is_some, value } => {
                 let mut args = vec![is_some.clone()];
                 args.extend(value.collect_args(vm)?);
                 Ok(args)
             }
-            KethPayload::Pointer { len, data } => Ok(vec![len.clone(), data.gen_arg(vm)?]),
-            KethPayload::Nested(values) => {
+            Self::Pointer { len, data } => Ok(vec![len.clone(), data.gen_arg(vm)?]),
+            Self::Nested(values) => {
                 let mut args = Vec::new();
                 for value in values {
                     args.extend(value.collect_args(vm)?);
@@ -490,7 +490,7 @@ mod tests {
         ];
 
         // Wrap the nested payloads in a KethPayload::Nested variant.
-        let payload = KethPayload::Nested(nested_payloads.clone());
+        let payload = KethPayload::Nested(nested_payloads);
 
         // Call gen_arg to encode the payload and write it to the VM's memory.
         let result = payload.gen_arg(&mut vm);
