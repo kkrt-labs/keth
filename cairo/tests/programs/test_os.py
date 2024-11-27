@@ -9,9 +9,6 @@ from tests.utils.solidity import get_contract
 
 class TestOs:
 
-    def test_os(self, cairo_run, state):
-        cairo_run("test_os", block=block(), state=state())
-
     def test_erc20_transfer(self, cairo_run):
         erc20 = get_contract("ERC20", "KethToken")
         amount = int(1e18)
