@@ -2,6 +2,7 @@ use super::payload::{KethEncodable, KethPayload};
 use alloy_primitives::{Address, Bloom, Bytes, PrimitiveSignature, B256, B64, U256};
 use cairo_vm::{types::relocatable::MaybeRelocatable, Felt252};
 use reth_primitives::Transaction;
+use revm_primitives::hex::ToHexExt;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -29,7 +30,7 @@ pub const U128_BYTES_SIZE: usize = std::mem::size_of::<u128>();
 /// - This type is primarily used for wrapping values in Keth, enabling smooth interoperability
 ///   between [`Felt252`], [`MaybeRelocatable`] and reth primitive data.
 #[derive(Debug, Eq, Ord, Hash, PartialEq, PartialOrd, Clone, Serialize, Deserialize)]
-pub struct KethMaybeRelocatable(MaybeRelocatable);
+pub struct KethMaybeRelocatable(pub MaybeRelocatable);
 
 impl Default for KethMaybeRelocatable {
     fn default() -> Self {
@@ -156,12 +157,12 @@ pub struct KethOption<T> {
     /// Indicates whether the option contains a value ([`Some`]) or is empty ([`None`]).
     /// - When set to `1`, it indicates the presence of a value.
     /// - When set to `0`, it represents a [`None`] value.
-    is_some: KethMaybeRelocatable,
+    pub is_some: KethMaybeRelocatable,
 
     /// The value stored in the option, which can be of type `T`.
     ///
     /// If the option is [`None`], this field holds a default value.
-    value: T,
+    pub value: T,
 }
 
 impl<T: KethEncodable + Default> KethEncodable for KethOption<T> {
@@ -218,12 +219,12 @@ pub struct KethU256 {
     /// The lower 128 bits of the 256-bit unsigned integer.
     ///
     /// This field is represented as a [`KethMaybeRelocatable`] type.
-    low: KethMaybeRelocatable,
+    pub low: KethMaybeRelocatable,
 
     /// The upper 128 bits of the 256-bit unsigned integer.
     ///
     /// Like the `low` field, this is stored as a [`KethMaybeRelocatable`].
-    high: KethMaybeRelocatable,
+    pub high: KethMaybeRelocatable,
 }
 
 impl Default for KethU256 {
