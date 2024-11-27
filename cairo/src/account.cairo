@@ -18,7 +18,6 @@ from starkware.cairo.common.hash_state import (
 from starkware.cairo.lang.compiler.lib.registers import get_ap
 from starkware.cairo.common.find_element import find_element
 
-from src.interfaces.interfaces import ICairo1Helpers
 from src.model import model
 from src.utils.dict import dict_copy, dict_squash
 from src.utils.utils import Helpers
@@ -151,23 +150,16 @@ namespace Account {
         return (self, value_ptr);
     }
 
-    // @notive Read the first value of a given storage slot
+    // @notice Read the first value of a given storage slot
     // @dev The storage needs to exists already, to this should be used only
     //      after a storage_read or storage_write has been done
     func fetch_original_storage{pedersen_ptr: HashBuiltin*}(
         self: model.Account*, key: Uint256*
     ) -> Uint256 {
         alloc_locals;
-        let storage = self.storage;
-        let (local storage_addr) = Internals._storage_addr(key);
-
-        let (pointer) = dict_read{dict_ptr=storage}(key=storage_addr);
-        local value_ptr: Uint256*;
-        if (pointer != 0) {
-            assert value_ptr = cast(pointer, Uint256*);
-        } else {
-            assert value_ptr = new Uint256(0, 0);
-        }
+        // TODO: Fetch from parent account
+        tempvar value = Uint256(0, 0);
+        return value;
     }
 
     // @notice Update a storage key with the given value
@@ -275,7 +267,7 @@ namespace Account {
     // @param code_len The len of the code
     // @param code The code array
     // @return The updated Account with the code and valid jumpdests set
-    func set_code{pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    func set_code{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*}(
         self: model.Account*, code_len: felt, code: felt*
     ) -> model.Account* {
         alloc_locals;

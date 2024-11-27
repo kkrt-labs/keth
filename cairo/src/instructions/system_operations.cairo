@@ -1,13 +1,12 @@
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bool import TRUE, FALSE
-from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin
+from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin, KeccakBuiltin
 from starkware.cairo.common.math import split_felt
 from starkware.cairo.common.math_cmp import is_nn, is_not_zero
 from starkware.cairo.common.uint256 import Uint256, uint256_lt, uint256_le
 from starkware.cairo.common.dict_access import DictAccess
 
 from src.account import Account
-from src.interfaces.interfaces import ICairo1Helpers
 from src.constants import Constants
 from src.errors import Errors
 from src.evm import EVM
@@ -31,6 +30,7 @@ namespace SystemOperations {
         pedersen_ptr: HashBuiltin*,
         range_check_ptr,
         bitwise_ptr: BitwiseBuiltin*,
+        keccak_ptr: KeccakBuiltin*,
         stack: model.Stack*,
         memory: model.Memory*,
         state: model.State*,
@@ -162,7 +162,7 @@ namespace SystemOperations {
             value=value,
             caller=evm.message.address,
             parent=parent,
-            address=target_account.address,
+            address=target_address,
             code_address=address_zero,
             read_only=FALSE,
             is_create=TRUE,
@@ -202,6 +202,7 @@ namespace SystemOperations {
         pedersen_ptr: HashBuiltin*,
         range_check_ptr,
         bitwise_ptr: BitwiseBuiltin*,
+        keccak_ptr: KeccakBuiltin*,
         stack: model.Stack*,
         memory: model.Memory*,
         state: model.State*,
@@ -232,6 +233,7 @@ namespace SystemOperations {
         pedersen_ptr: HashBuiltin*,
         range_check_ptr,
         bitwise_ptr: BitwiseBuiltin*,
+        keccak_ptr: KeccakBuiltin*,
         stack: model.Stack*,
         memory: model.Memory*,
         state: model.State*,
@@ -277,6 +279,7 @@ namespace SystemOperations {
         pedersen_ptr: HashBuiltin*,
         range_check_ptr,
         bitwise_ptr: BitwiseBuiltin*,
+        keccak_ptr: KeccakBuiltin*,
         stack: model.Stack*,
         memory: model.Memory*,
         state: model.State*,
@@ -313,7 +316,7 @@ namespace SystemOperations {
     // @notice CALL operation. Message call into an account.
     // @dev we don't pop the two last arguments (ret_offset and ret_size) to get
     // them at the end of the CALL. These two extra stack values need to be
-    // cleard if the CALL early return without reverting (value > balance, stack
+    // cleared if the CALL early return without reverting (value > balance, stack
     // too deep).
     // @custom:since Frontier
     // @custom:group System Operations
@@ -325,6 +328,7 @@ namespace SystemOperations {
         pedersen_ptr: HashBuiltin*,
         range_check_ptr,
         bitwise_ptr: BitwiseBuiltin*,
+        keccak_ptr: KeccakBuiltin*,
         stack: model.Stack*,
         memory: model.Memory*,
         state: model.State*,
@@ -461,6 +465,7 @@ namespace SystemOperations {
         pedersen_ptr: HashBuiltin*,
         range_check_ptr,
         bitwise_ptr: BitwiseBuiltin*,
+        keccak_ptr: KeccakBuiltin*,
         stack: model.Stack*,
         memory: model.Memory*,
         state: model.State*,
@@ -563,6 +568,7 @@ namespace SystemOperations {
         pedersen_ptr: HashBuiltin*,
         range_check_ptr,
         bitwise_ptr: BitwiseBuiltin*,
+        keccak_ptr: KeccakBuiltin*,
         stack: model.Stack*,
         memory: model.Memory*,
         state: model.State*,
@@ -670,6 +676,7 @@ namespace SystemOperations {
         pedersen_ptr: HashBuiltin*,
         range_check_ptr,
         bitwise_ptr: BitwiseBuiltin*,
+        keccak_ptr: KeccakBuiltin*,
         stack: model.Stack*,
         memory: model.Memory*,
         state: model.State*,
@@ -770,6 +777,7 @@ namespace SystemOperations {
         pedersen_ptr: HashBuiltin*,
         range_check_ptr,
         bitwise_ptr: BitwiseBuiltin*,
+        keccak_ptr: KeccakBuiltin*,
         stack: model.Stack*,
         memory: model.Memory*,
         state: model.State*,
@@ -814,11 +822,8 @@ namespace SystemOperations {
             tempvar recipient = recipient;
         }
 
-        let recipient_account = State.get_account(recipient);
         let transfer = model.Transfer(
-            sender=self_account.address,
-            recipient=recipient_account.address,
-            amount=[self_account.balance],
+            sender=evm.message.address, recipient=recipient, amount=[self_account.balance]
         );
         let success = State.add_transfer(transfer);
 
@@ -906,7 +911,7 @@ namespace CallHelper {
             caller=caller,
             parent=parent,
             address=to_address,
-            code_address=code_account.address,
+            code_address=code_address,
             read_only=read_only,
             is_create=FALSE,
             depth=evm.message.depth + 1,
@@ -1033,7 +1038,10 @@ namespace CreateHelper {
     // @param nonce The nonce given to the create opcode.
     // @return EVM The pointer to the updated calling context.
     func get_create_address{
-        pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*
+        pedersen_ptr: HashBuiltin*,
+        range_check_ptr,
+        bitwise_ptr: BitwiseBuiltin*,
+        keccak_ptr: KeccakBuiltin*,
     }(sender_address: felt, nonce: felt) -> (evm_contract_address: felt) {
         alloc_locals;
         local message_len;
@@ -1078,7 +1086,10 @@ namespace CreateHelper {
     // @param salt The salt given to the create2 opcode.
     // @return EVM The pointer to the updated calling context.
     func get_create2_address{
-        pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*
+        pedersen_ptr: HashBuiltin*,
+        range_check_ptr,
+        bitwise_ptr: BitwiseBuiltin*,
+        keccak_ptr: KeccakBuiltin*,
     }(sender_address: felt, bytecode_len: felt, bytecode: felt*, salt: Uint256) -> felt {
         alloc_locals;
 
@@ -1106,6 +1117,7 @@ namespace CreateHelper {
         pedersen_ptr: HashBuiltin*,
         range_check_ptr,
         bitwise_ptr: BitwiseBuiltin*,
+        keccak_ptr: KeccakBuiltin*,
         state: model.State*,
     }(
         evm_address: felt, popped_len: felt, popped: Uint256*, bytecode_len: felt, bytecode: felt*
@@ -1137,6 +1149,7 @@ namespace CreateHelper {
         pedersen_ptr: HashBuiltin*,
         range_check_ptr,
         bitwise_ptr: BitwiseBuiltin*,
+        keccak_ptr: KeccakBuiltin*,
         stack: model.Stack*,
         memory: model.Memory*,
         state: model.State*,

@@ -323,7 +323,7 @@ namespace State {
         let fp_and_pc = get_fp_and_pc();
         local __fp__: felt* = fp_and_pc.fp_val;
 
-        if (transfer.sender.evm == transfer.recipient.evm) {
+        if (transfer.sender == transfer.recipient) {
             return 1;
         }
 
@@ -332,14 +332,14 @@ namespace State {
             return 1;
         }
 
-        let sender = get_account(transfer.sender.evm);
+        let sender = get_account(transfer.sender);
         let (success) = uint256_le(transfer.amount, [sender.balance]);
 
         if (success == 0) {
             return success;
         }
 
-        let recipient = get_account(transfer.recipient.evm);
+        let recipient = get_account(transfer.recipient);
 
         let (local sender_balance_new) = uint256_sub([sender.balance], transfer.amount);
         let (local recipient_balance_new, carry) = uint256_add(
@@ -350,8 +350,8 @@ namespace State {
         let recipient = Account.set_balance(recipient, &recipient_balance_new);
 
         let accounts = state.accounts;
-        dict_write{dict_ptr=accounts}(key=transfer.sender.evm, new_value=cast(sender, felt));
-        dict_write{dict_ptr=accounts}(key=transfer.recipient.evm, new_value=cast(recipient, felt));
+        dict_write{dict_ptr=accounts}(key=transfer.sender, new_value=cast(sender, felt));
+        dict_write{dict_ptr=accounts}(key=transfer.recipient, new_value=cast(recipient, felt));
         assert state.transfers[state.transfers_len] = transfer;
 
         tempvar state = new model.State(
