@@ -2,7 +2,6 @@ use super::payload::{KethEncodable, KethPayload};
 use alloy_primitives::{Address, Bloom, Bytes, PrimitiveSignature, B256, B64, U256};
 use cairo_vm::{types::relocatable::MaybeRelocatable, Felt252};
 use reth_primitives::Transaction;
-use revm_primitives::hex::ToHexExt;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
