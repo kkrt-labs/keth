@@ -18,9 +18,14 @@ jobs:
         with:
           enable-cache: true
           cache-dependency-glob: uv.lock
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
       - run: |
           cd cairo
           uv run compile
+          forge build
           uv run pytest -n logical --junitxml=junit.xml -o junit_family=legacy
       - uses: codecov/codecov-action@v5.0.5
         with:

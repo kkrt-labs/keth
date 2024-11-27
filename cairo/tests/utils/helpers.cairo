@@ -35,6 +35,7 @@ namespace TestHelpers {
             block_timestamp=0,
             coinbase=0,
             base_fee=0,
+            block_hashes=cast(0, Uint256*),
         );
         tempvar address = evm_contract_address;
         let (valid_jumpdests_start, valid_jumpdests) = Helpers.initialize_jumpdests(

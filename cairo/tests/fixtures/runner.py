@@ -3,20 +3,14 @@ import logging
 import math
 from functools import partial
 from hashlib import md5
-from importlib import import_module
 from pathlib import Path
-from time import perf_counter, time_ns
-from typing import Optional, Tuple
+from time import time_ns
+from typing import Tuple
 
 import pytest
 import starkware.cairo.lang.instances as LAYOUTS
 from starkware.cairo.common.dict import DictManager
-from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 from starkware.cairo.lang.compiler.ast.cairo_types import CairoType, TypeStruct
-from starkware.cairo.lang.compiler.cairo_compile import compile_cairo, get_module_reader
-from starkware.cairo.lang.compiler.preprocessor.default_pass_manager import (
-    default_pass_manager,
-)
 from starkware.cairo.lang.compiler.scoped_name import ScopedName
 from starkware.cairo.lang.tracer.tracer_data import TracerData
 from starkware.cairo.lang.vm.cairo_run import (
@@ -32,89 +26,13 @@ from starkware.cairo.lang.vm.utils import RunResources
 from tests.utils.args_gen import gen_arg as gen_arg_builder
 from tests.utils.args_gen import to_cairo_type, to_python_type
 from tests.utils.coverage import VmWithCoverage
-from tests.utils.hints import debug_info, implement_hints
+from tests.utils.hints import debug_info, get_op, oracle
 from tests.utils.reporting import profile_from_tracer_data
 from tests.utils.serde import Serde
 
 logger = logging.getLogger()
 
 
-def cairo_compile(path):
-    module_reader = get_module_reader(cairo_path=[str(Path(__file__).parents[2])])
-
-    pass_manager = default_pass_manager(
-        prime=DEFAULT_PRIME, read_module=module_reader.read
-    )
-
-    return compile_cairo(
-        Path(path).read_text(),
-        pass_manager=pass_manager,
-        debug_info=True,
-    )
-
-
-@pytest.fixture(scope="module")
-def cairo_file(request):
-    cairo_file = Path(request.node.fspath).with_suffix(".cairo")
-    if not cairo_file.exists():
-        # No dedicated cairo file for tests in the tests/ directory
-        # Use the main cairo file directly
-        cairo_file = Path(str(cairo_file).replace("/tests", "").replace("/test_", "/"))
-        if not cairo_file.exists():
-            raise ValueError(f"Missing cairo file: {cairo_file}")
-    return cairo_file
-
-
-@pytest.fixture(scope="module")
-def cairo_program(cairo_file):
-    start = perf_counter()
-    program = cairo_compile(cairo_file)
-    program.hints = implement_hints(program)
-    stop = perf_counter()
-    logger.info(f"{cairo_file} compiled in {stop - start:.2f}s")
-    return program
-
-
-@pytest.fixture(scope="module")
-def main_path(cairo_file):
-    """
-    Resolve the __main__ part of the cairo scope path.
-    """
-    parts = cairo_file.relative_to(Path.cwd()).with_suffix("").parts
-    return parts[1:] if parts[0] == "cairo" else parts
-
-
-def oracle(program, serde, main_path, gen_arg):
-
-    def _factory(ids, reference: Optional[str] = None):
-        full_path = (
-            reference.split(".")
-            if reference is not None
-            else list(program.hints.values())[-1][0].accessible_scopes[-1].path
-        )
-        if "__main__" in full_path:
-            full_path = main_path + full_path[full_path.index("__main__") + 1 :]
-
-        mod = import_module(".".join(full_path[:-1]))
-        target = getattr(mod, full_path[-1])
-        from inspect import signature
-
-        sig = signature(target)
-        args = []
-        for name, type_ in sig.parameters.items():
-            args += [
-                serde.serialize(
-                    to_cairo_type(program, type_._annotation),
-                    getattr(ids, name).address_,
-                    shift=0,
-                )
-            ]
-        return gen_arg(sig.return_annotation, target(*args))
-
-    return _factory
-
-
-@pytest.fixture(scope="module")
 def resolve_main_path(main_path: Tuple[str, ...]):
 
     def _factory(cairo_type: CairoType):
@@ -129,7 +47,7 @@ def resolve_main_path(main_path: Tuple[str, ...]):
 
 
 @pytest.fixture(scope="module")
-def cairo_run(request, cairo_program, cairo_file, main_path, resolve_main_path):
+def cairo_run(request, cairo_program, cairo_file, main_path):
     """
     Run the cairo program corresponding to the python test file at a given entrypoint with given program inputs as kwargs.
     Returns the output of the cairo program put in the output memory segment.
@@ -146,7 +64,7 @@ def cairo_run(request, cairo_program, cairo_file, main_path, resolve_main_path):
             ).members.keys()
         )
         _args = {
-            k: to_python_type(resolve_main_path(v.cairo_type))
+            k: to_python_type(resolve_main_path(main_path)(v.cairo_type))
             for k, v in cairo_program.identifiers.get_by_full_name(
                 ScopedName(path=("__main__", entrypoint, "Args"))
             ).members.items()
@@ -211,7 +129,7 @@ def cairo_run(request, cairo_program, cairo_file, main_path, resolve_main_path):
                 stack.append(gen_arg(python_type, kwargs.get(arg_name, args[i])))
 
         return_fp = runner.execution_base + 2
-        end = runner.segments.add()
+        end = runner.program_base + len(runner.program.data)
         # Add a jmp rel 0 instruction to be able to loop in proof mode
         runner.memory[end] = 0x10780017FFF7FFF
         runner.memory[end + 1] = 0
@@ -220,12 +138,9 @@ def cairo_run(request, cairo_program, cairo_file, main_path, resolve_main_path):
         stack = [return_fp, end] + stack + [return_fp, end]
         runner.execution_public_memory = list(range(len(stack)))
 
-        runner.initialize_state(
-            entrypoint=cairo_program.identifiers.get_by_full_name(
-                ScopedName(path=("__main__", entrypoint))
-            ).pc,
-            stack=stack,
-        )
+        runner.initial_pc = runner.program_base + cairo_program.get_label(entrypoint)
+        runner.load_data(runner.program_base, runner.program.data)
+        runner.load_data(runner.execution_base, stack)
         runner.initial_fp = runner.initial_ap = runner.execution_base + len(stack)
 
         runner.initialize_vm(
@@ -239,10 +154,11 @@ def cairo_run(request, cairo_program, cairo_file, main_path, resolve_main_path):
             },
             static_locals={
                 "debug_info": debug_info(cairo_program),
+                "get_op": get_op,
             },
             vm_class=VmWithCoverage,
         )
-        run_resources = RunResources(n_steps=10_000_000)
+        run_resources = RunResources(n_steps=64_000_000)
         try:
             runner.run_until_pc(end, run_resources)
         except Exception as e:

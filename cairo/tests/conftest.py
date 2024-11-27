@@ -25,8 +25,12 @@ def seed(request):
 
 
 @pytest.fixture(scope="session", autouse=True)
-def coverage(worker_id):
+def coverage(worker_id, request):
     yield
+
+    if any(p.suffix == ".py" for p in request.node._initialpaths):
+        # Skip coverage when running single test files
+        return
 
     files = report_runs(excluded_file={"site-packages", "tests"})
 
