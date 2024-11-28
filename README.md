@@ -1,28 +1,32 @@
 # keth
 
-Keth is an open-source, proving backend for Ethereum, Optimism, Arbitrum and
-arbitrary Ethereum execution environments built with
+## Introduction
+
+Keth is an open-source, proving backend for the Ethereum Execution Layer built with
 [Kakarot Core EVM](https://github.com/kkrt-labs/kakarot) and
-[Starkware's provable VM, Cairo](https://book.cairo-lang.org/) as well as
-[Reth ExEx](https://www.paradigm.xyz/2024/05/reth-exex).
+[Starkware's provable VM, Cairo](https://book.cairo-lang.org/).
 
-Similar to [zeth](https://github.com/kkrt-labs/keth/edit/main/README.md), keth
-makes it possible to prove a given block by completing all the necessary steps
-required to assert its integrity in the provable Cairo Virtual Machine:
+Keth makes it possible to prove a given state transition asynchronously by:
 
-- verify transactions validity (signature, sufficient balance & nonce);
-- execute transactions in the block;
-- verify storage reads and writes;
-- paying block rewards;
-- update state root;
-- compute transactions and receipts tries;
-- compute the block hash;
-- etc.
+- pulling pre-state,
+- executing all required transactions,
+- computing post-state
 
-By running this process in the context of the Cairo VM, we can generate a STARK
-proof that the new block is valid. For Optimism and Arbitrum, keth will draw
-inspiration from zeth and its ability to ensure that the block was correctly
-derived from the available data posted to Ethereum.
+For instance, this can be run for a given block to prove the Ethereum protocol's State Transition Function (STF).
+
+## Getting started
+
+### Requirements
+
+The project uses [uv](https://github.com/astral-sh/uv) to manage python
+dependencies and run commands. To install uv:
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+Moreover, the project uses [rust](https://www.rust-lang.org/) to manage rust dependencies.
+
 
 ## Status
 
@@ -34,12 +38,4 @@ Coming soon 🏗️.
 
 ## Acknowledgements
 
-- zeth: inspiration and design is drawn from Risc-Zero's
-  [zeth](https://github.com/risc0/zeth). We warmly thank the team for their
-  openness and cutting-edge research on the subject of Type 1 provers.
-- reth: keth's backend logic relies on
-  [Reth Execution Extensions](https://www.paradigm.xyz/2024/05/reth-exex). Thank
-  you to the team who's helped us since day 1 in design and development.
-- Herodotus: keth's Cairo code relies on Herodotus' implementation and
-  architecture of MPT proofs in Cairo. Thank you to the team who's helped in
-  designing our Cairo code and development.
+- Herodotus: thanks to Herodotus team for SHARP SDK libraries.
