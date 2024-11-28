@@ -159,20 +159,11 @@ impl From<KethTransactionEncoded> for KethPayload {
 
 impl From<KethBlock> for KethPayload {
     fn from(block: KethBlock) -> Self {
-        let mut payload = Vec::new();
-
-        // Encode the block header
-        payload.push(block.block_header.into());
-
-        // Encode the transaction count
-        payload.push(block.transactions_len.encode());
-
-        // Encode the transactions
-        let transactions_payload = block.transactions.into_iter().map(Into::into).collect();
-
-        payload.push(Self::StructPointer(transactions_payload));
-
-        Self::Nested(payload)
+        Self::Nested(vec![
+            block.block_header.into(),
+            block.transactions_len.encode(),
+            Self::StructPointer(block.transactions.into_iter().map(Into::into).collect()),
+        ])
     }
 }
 
