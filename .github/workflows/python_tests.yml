@@ -22,7 +22,10 @@ jobs:
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
 
-      - run: |
+      - name: Run tests
+        env:
+          PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python
+        run: |
           cd cairo
           uv run compile
           forge build
