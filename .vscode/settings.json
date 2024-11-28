@@ -4,6 +4,7 @@
     "datadir",
     "fibonacci",
     "isort",
+    "jupyter",
     "kkrt",
     "ommers",
     "recv",

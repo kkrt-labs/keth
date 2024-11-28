@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 import starkware.cairo.lang.instances as LAYOUTS
 from dotenv import load_dotenv
+from hypothesis import Phase, Verbosity, settings
 
 from tests.utils.coverage import report_runs
 from tests.utils.reporting import dump_coverage
@@ -17,7 +18,6 @@ from tests.utils.strategies import register_type_strategies
 
 load_dotenv()
 logger = logging.getLogger()
-register_type_strategies()
 
 
 def pytest_addoption(parser):
@@ -49,6 +49,34 @@ def pytest_addoption(parser):
 
 
 pytest_plugins = ["tests.fixtures.compiler", "tests.fixtures.runner"]
+
+register_type_strategies()
+settings.register_profile(
+    "nightly",
+    deadline=None,
+    max_examples=1500,
+    phases=[Phase.explicit, Phase.reuse, Phase.generate, Phase.target],
+)
+settings.register_profile(
+    "ci",
+    deadline=None,
+    max_examples=100,
+    phases=[Phase.explicit, Phase.reuse, Phase.generate, Phase.target],
+)
+settings.register_profile(
+    "dev",
+    deadline=None,
+    max_examples=20,
+    phases=[Phase.explicit, Phase.reuse, Phase.generate, Phase.target],
+)
+settings.register_profile(
+    "debug",
+    max_examples=20,
+    verbosity=Verbosity.verbose,
+    phases=[Phase.explicit, Phase.reuse, Phase.generate, Phase.target],
+)
+settings.load_profile(os.getenv("HYPOTHESIS_PROFILE", "default"))
+logger.info(f"Using Hypothesis profile: {os.getenv('HYPOTHESIS_PROFILE', 'default')}")
 
 
 @pytest.fixture(autouse=True, scope="session")

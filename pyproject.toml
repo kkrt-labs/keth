@@ -1,7 +1,7 @@
 [project]
 name = "keth"
 version = "0.1.0"
-description = "Add your description here"
+description = "An EVM proving backend in Cairo"
 readme = "README.md"
 requires-python = ">=3.10"
 
