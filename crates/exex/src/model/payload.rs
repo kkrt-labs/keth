@@ -138,7 +138,7 @@ impl From<KethBlockHeader> for KethPayload {
 
 impl From<KethTransactionEncoded> for KethPayload {
     fn from(transaction: KethTransactionEncoded) -> Self {
-        KethPayload::Nested(vec![
+        Self::Nested(vec![
             transaction.rlp.encode(),
             transaction.signature.encode(),
             transaction.sender.encode(),
