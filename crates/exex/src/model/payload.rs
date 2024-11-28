@@ -33,6 +33,15 @@ pub enum KethPayload {
         value: Box<KethPayload>,
     },
 
+    /// Temporary pointer to store big structures such as block header or transaction.
+    StructPointer(Vec<KethPayload>),
+
+    /// A static pointer to a segment of memory.
+    StaticPointer {
+        /// The data segment associated with this pointer.
+        data: Vec<MaybeRelocatable>,
+    },
+
     /// A pointer to a segment of memory with associated data.
     ///
     /// - `len`: The length of the data segment.
@@ -69,6 +78,16 @@ impl KethPayload {
                 args.extend(value.collect_args(vm)?);
                 Ok(args)
             }
+            Self::StructPointer(data) => {
+                let mut args = Vec::new();
+                for value in data {
+                    args.extend(value.collect_args(vm)?);
+                }
+                Ok(vec![vm.gen_arg(&args)?])
+            }
+            // For the StaticPointer variant:
+            // - Generate arguments for the `data` payload using the VM.
+            Self::StaticPointer { data } => Ok(vec![vm.gen_arg(data)?]),
             // For the Pointer variant:
             // - Generate arguments for the `data` payload using the VM.
             // - Include the `len` value and the generated data pointer.
@@ -133,7 +152,7 @@ impl From<KethBlockHeader> for KethPayload {
             payload.push(field.encode());
         }
 
-        Self::Nested(payload)
+        Self::StructPointer(payload)
     }
 }
 
@@ -166,7 +185,7 @@ impl From<KethBlock> for KethPayload {
         // Encode the transactions
         let transactions_payload = block.transactions.into_iter().map(Into::into).collect();
 
-        payload.push(Self::Nested(transactions_payload));
+        payload.push(Self::StructPointer(transactions_payload));
 
         Self::Nested(payload)
     }
@@ -175,7 +194,9 @@ impl From<KethBlock> for KethPayload {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::primitives::{KethMaybeRelocatable, KethOption, KethPointer, KethU256};
+    use crate::model::primitives::{
+        KethMaybeRelocatable, KethOption, KethPointer, KethSimplePointer, KethU256,
+    };
     use alloy_consensus::{Header, TxLegacy};
     use alloy_primitives::{
         hex, Address, Bloom, Bytes, Parity, PrimitiveSignature, B256, B64, U256,
@@ -255,8 +276,8 @@ mod tests {
                 KethU256::from(state_root).encode(),
                 KethU256::from(transactions_root).encode(),
                 KethU256::from(receipt_root).encode(),
-                KethOption::<KethU256>::from(withdrawals_root).encode(),
-                KethPointer::from(bloom).encode(),
+                KethOption::<KethSimplePointer>::from(withdrawals_root).encode(),
+                KethSimplePointer::from(bloom).encode(),
                 KethU256::from(difficulty).encode(),
                 KethMaybeRelocatable::from(number).encode(),
                 KethMaybeRelocatable::from(gas_limit).encode(),
@@ -267,8 +288,8 @@ mod tests {
                 KethOption::<KethMaybeRelocatable>::from(base_fee_per_gas).encode(),
                 KethOption::<KethMaybeRelocatable>::from(blob_gas_used).encode(),
                 KethOption::<KethMaybeRelocatable>::from(excess_blob_gas).encode(),
-                KethOption::<KethU256>::from(parent_beacon_block_root).encode(),
-                KethOption::<KethU256>::from(requests_root).encode(),
+                KethOption::<KethSimplePointer>::from(parent_beacon_block_root).encode(),
+                KethOption::<KethSimplePointer>::from(requests_root).encode(),
                 KethPointer::from(extra_data).encode(),
             ];
 
@@ -729,76 +750,72 @@ mod tests {
         // Retrieve the resulting pointer to the memory segment for the complex Nested payload.
         let ptr = result.unwrap();
 
-        // The Bloom data, as felt*, should be stored in the first segment of the memory.
+        // ############################ Pointers in header ############################
+
+        // Segment 0
+        // Withdrawal root U256 pointer:
+        // - Low
+        // - High
+        assert_eq!(
+            vm.get_maybe(&Relocatable::from((0, 0))),
+            Some(keth_block.block_header.withdrawals_root.value.data[0].0.clone())
+        );
+        assert_eq!(
+            vm.get_maybe(&Relocatable::from((0, 1))),
+            Some(keth_block.block_header.withdrawals_root.value.data[1].0.clone())
+        );
+
+        // Segment 1
+        // The Bloom data, as felt*
         for i in 0..16 {
             assert_eq!(
-                vm.get_maybe(&Relocatable::from((0, i))),
+                vm.get_maybe(&Relocatable::from((1, i))),
                 Some(keth_block.block_header.bloom.data[i].0.clone())
             );
         }
         // After the last Bloom data index, the memory should be None.
-        assert_eq!(vm.get_maybe(&Relocatable::from((0, 16))), None);
+        assert_eq!(vm.get_maybe(&Relocatable::from((1, 16))), None);
 
+        // Segment 2
+        // Parent Beacon Block Root U256 pointer:
+        // - Low
+        // - High
+        assert_eq!(
+            vm.get_maybe(&Relocatable::from((2, 0))),
+            Some(keth_block.block_header.parent_beacon_block_root.value.data[0].0.clone())
+        );
+        assert_eq!(
+            vm.get_maybe(&Relocatable::from((2, 1))),
+            Some(keth_block.block_header.parent_beacon_block_root.value.data[1].0.clone())
+        );
+
+        // Segment 3
+        // Requests Root U256 pointer (None in this case):
+        // - Low
+        // - High
+        assert_eq!(vm.get_maybe(&Relocatable::from((3, 0))), None);
+
+        // Segment 4
         // The Extra Data, as felt*, should be stored in the second segment of the memory.
         assert_eq!(
-            vm.get_maybe(&Relocatable::from((1, 0))),
+            vm.get_maybe(&Relocatable::from((4, 0))),
             Some(keth_block.block_header.extra_data.data[0].0.clone())
         );
         // After the last Extra Data index, the memory should be None.
-        assert_eq!(vm.get_maybe(&Relocatable::from((1, 2))), None);
+        assert_eq!(vm.get_maybe(&Relocatable::from((4, 1))), None);
 
-        // The first transaction rlp, as felt*, should be stored in the third segment of the memory.
-        for i in 0..128 {
-            assert_eq!(
-                vm.get_maybe(&Relocatable::from((2, i))),
-                Some(keth_block.transactions[0].rlp.data[i].0.clone())
-            );
-        }
-        // After the last transaction rlp index, the memory should be None.
-        assert_eq!(vm.get_maybe(&Relocatable::from((2, 128))), None);
+        // ############################ Header fields ############################
 
-        // The first transaction signature, as felt*, should be stored in the fourth segment of the
-        // memory.
-        for i in 0..5 {
-            assert_eq!(
-                vm.get_maybe(&Relocatable::from((3, i))),
-                Some(keth_block.transactions[0].signature.data[i].0.clone())
-            );
-        }
-        // After the last transaction signature index, the memory should be None.
-        assert_eq!(vm.get_maybe(&Relocatable::from((3, 5))), None);
-
-        // The second transaction rlp, as felt*, should be stored in the fifth segment of the
-        // memory.
-        for i in 0..128 {
-            assert_eq!(
-                vm.get_maybe(&Relocatable::from((4, i))),
-                Some(keth_block.transactions[1].rlp.data[i].0.clone())
-            );
-        }
-        // After the last transaction rlp index, the memory should be None.
-        assert_eq!(vm.get_maybe(&Relocatable::from((4, 128))), None);
-
-        // The second transaction signature, as felt*, should be stored in the sixth segment of the
-        for i in 0..5 {
-            assert_eq!(
-                vm.get_maybe(&Relocatable::from((5, i))),
-                Some(keth_block.transactions[1].signature.data[i].0.clone())
-            );
-        }
-        // After the last transaction signature index, the memory should be None.
-        assert_eq!(vm.get_maybe(&Relocatable::from((5, 5))), None);
-
-        // Block header fields
+        // Block header fields - Segment 5
         // The parent hash as U256:
         // - Low
         // - High
         assert_eq!(
-            vm.get_maybe(&Relocatable::from((6, 0))),
+            vm.get_maybe(&Relocatable::from((5, 0))),
             Some(keth_block.block_header.parent_hash.low.0)
         );
         assert_eq!(
-            vm.get_maybe(&Relocatable::from((6, 1))),
+            vm.get_maybe(&Relocatable::from((5, 1))),
             Some(keth_block.block_header.parent_hash.high.0)
         );
 
@@ -806,17 +823,17 @@ mod tests {
         // - Low
         // - High
         assert_eq!(
-            vm.get_maybe(&Relocatable::from((6, 2))),
+            vm.get_maybe(&Relocatable::from((5, 2))),
             Some(keth_block.block_header.ommers_hash.low.0)
         );
         assert_eq!(
-            vm.get_maybe(&Relocatable::from((6, 3))),
+            vm.get_maybe(&Relocatable::from((5, 3))),
             Some(keth_block.block_header.ommers_hash.high.0)
         );
 
         // The beneficiary as Address with a single Felt
         assert_eq!(
-            vm.get_maybe(&Relocatable::from((6, 4))),
+            vm.get_maybe(&Relocatable::from((5, 4))),
             Some(keth_block.block_header.coinbase.0)
         );
 
@@ -824,11 +841,11 @@ mod tests {
         // - Low
         // - High
         assert_eq!(
-            vm.get_maybe(&Relocatable::from((6, 5))),
+            vm.get_maybe(&Relocatable::from((5, 5))),
             Some(keth_block.block_header.state_root.low.0)
         );
         assert_eq!(
-            vm.get_maybe(&Relocatable::from((6, 6))),
+            vm.get_maybe(&Relocatable::from((5, 6))),
             Some(keth_block.block_header.state_root.high.0)
         );
 
@@ -836,11 +853,11 @@ mod tests {
         // - Low
         // - High
         assert_eq!(
-            vm.get_maybe(&Relocatable::from((6, 7))),
+            vm.get_maybe(&Relocatable::from((5, 7))),
             Some(keth_block.block_header.transactions_root.low.0)
         );
         assert_eq!(
-            vm.get_maybe(&Relocatable::from((6, 8))),
+            vm.get_maybe(&Relocatable::from((5, 8))),
             Some(keth_block.block_header.transactions_root.high.0)
         );
 
@@ -848,73 +865,60 @@ mod tests {
         // - Low
         // - High
         assert_eq!(
-            vm.get_maybe(&Relocatable::from((6, 9))),
+            vm.get_maybe(&Relocatable::from((5, 9))),
             Some(keth_block.block_header.receipt_root.low.0)
         );
         assert_eq!(
-            vm.get_maybe(&Relocatable::from((6, 10))),
+            vm.get_maybe(&Relocatable::from((5, 10))),
             Some(keth_block.block_header.receipt_root.high.0)
         );
 
-        // The withdrawal root as an Option of U256:
+        // The withdrawal root as an Option of U256*:
         // - is_some
-        // - Low
-        // - High
+        // - address of the U256
         assert_eq!(
-            vm.get_maybe(&Relocatable::from((6, 11))),
+            vm.get_maybe(&Relocatable::from((5, 11))),
             Some(keth_block.block_header.withdrawals_root.is_some.0)
         );
-        assert_eq!(
-            vm.get_maybe(&Relocatable::from((6, 12))),
-            Some(keth_block.block_header.withdrawals_root.value.low.0)
-        );
-        assert_eq!(
-            vm.get_maybe(&Relocatable::from((6, 13))),
-            Some(keth_block.block_header.withdrawals_root.value.high.0)
-        );
+        assert_eq!(vm.get_maybe(&Relocatable::from((5, 12))), Some(MaybeRelocatable::from((0, 0))));
 
         // The bloom as a pointer:
-        // - The length
         // - The address at which the data are
-        assert_eq!(
-            vm.get_maybe(&Relocatable::from((6, 14))),
-            Some(keth_block.block_header.bloom.len.0)
-        );
-        assert_eq!(vm.get_maybe(&Relocatable::from((6, 15))), Some(MaybeRelocatable::from((0, 0))));
+        assert_eq!(vm.get_maybe(&Relocatable::from((5, 13))), Some(MaybeRelocatable::from((1, 0))));
 
         // The difficulty as U256:
         // - Low
         // - High
         assert_eq!(
-            vm.get_maybe(&Relocatable::from((6, 16))),
+            vm.get_maybe(&Relocatable::from((5, 14))),
             Some(keth_block.block_header.difficulty.low.0)
         );
         assert_eq!(
-            vm.get_maybe(&Relocatable::from((6, 17))),
+            vm.get_maybe(&Relocatable::from((5, 15))),
             Some(keth_block.block_header.difficulty.high.0)
         );
 
         // The block number as MaybeRelocatable:
         assert_eq!(
-            vm.get_maybe(&Relocatable::from((6, 18))),
+            vm.get_maybe(&Relocatable::from((5, 16))),
             Some(keth_block.block_header.number.0)
         );
 
         // The gas limit as MaybeRelocatable:
         assert_eq!(
-            vm.get_maybe(&Relocatable::from((6, 19))),
+            vm.get_maybe(&Relocatable::from((5, 17))),
             Some(keth_block.block_header.gas_limit.0)
         );
 
         // The gas used as MaybeRelocatable:
         assert_eq!(
-            vm.get_maybe(&Relocatable::from((6, 20))),
+            vm.get_maybe(&Relocatable::from((5, 18))),
             Some(keth_block.block_header.gas_used.0)
         );
 
         // The timestamp as MaybeRelocatable:
         assert_eq!(
-            vm.get_maybe(&Relocatable::from((6, 21))),
+            vm.get_maybe(&Relocatable::from((5, 19))),
             Some(keth_block.block_header.timestamp.0)
         );
 
@@ -922,17 +926,17 @@ mod tests {
         // - Low
         // - High
         assert_eq!(
-            vm.get_maybe(&Relocatable::from((6, 22))),
+            vm.get_maybe(&Relocatable::from((5, 20))),
             Some(keth_block.block_header.mix_hash.low.0)
         );
         assert_eq!(
-            vm.get_maybe(&Relocatable::from((6, 23))),
+            vm.get_maybe(&Relocatable::from((5, 21))),
             Some(keth_block.block_header.mix_hash.high.0)
         );
 
         // The nonce as MaybeRelocatable:
         assert_eq!(
-            vm.get_maybe(&Relocatable::from((6, 24))),
+            vm.get_maybe(&Relocatable::from((5, 22))),
             Some(keth_block.block_header.nonce.0)
         );
 
@@ -940,11 +944,11 @@ mod tests {
         // - is_some
         // - Value
         assert_eq!(
-            vm.get_maybe(&Relocatable::from((6, 25))),
+            vm.get_maybe(&Relocatable::from((5, 23))),
             Some(keth_block.block_header.base_fee_per_gas.is_some.0)
         );
         assert_eq!(
-            vm.get_maybe(&Relocatable::from((6, 26))),
+            vm.get_maybe(&Relocatable::from((5, 24))),
             Some(keth_block.block_header.base_fee_per_gas.value.0)
         );
 
@@ -952,11 +956,11 @@ mod tests {
         // - is_some
         // - Value
         assert_eq!(
-            vm.get_maybe(&Relocatable::from((6, 27))),
+            vm.get_maybe(&Relocatable::from((5, 25))),
             Some(keth_block.block_header.blob_gas_used.is_some.0)
         );
         assert_eq!(
-            vm.get_maybe(&Relocatable::from((6, 28))),
+            vm.get_maybe(&Relocatable::from((5, 26))),
             Some(keth_block.block_header.blob_gas_used.value.0)
         );
 
@@ -964,82 +968,112 @@ mod tests {
         // - is_some
         // - Value
         assert_eq!(
-            vm.get_maybe(&Relocatable::from((6, 29))),
+            vm.get_maybe(&Relocatable::from((5, 27))),
             Some(keth_block.block_header.excess_blob_gas.is_some.0)
         );
         assert_eq!(
-            vm.get_maybe(&Relocatable::from((6, 30))),
+            vm.get_maybe(&Relocatable::from((5, 28))),
             Some(keth_block.block_header.excess_blob_gas.value.0)
         );
 
-        // The parent beacon block root as an Option of U256:
+        // The parent beacon block root as an Option of U256*:
         // - is_some
-        // - Low
-        // - High
+        // - address of the U256
         assert_eq!(
-            vm.get_maybe(&Relocatable::from((6, 31))),
+            vm.get_maybe(&Relocatable::from((5, 29))),
             Some(keth_block.block_header.parent_beacon_block_root.is_some.0)
         );
-        assert_eq!(
-            vm.get_maybe(&Relocatable::from((6, 32))),
-            Some(keth_block.block_header.parent_beacon_block_root.value.low.0)
-        );
-        assert_eq!(
-            vm.get_maybe(&Relocatable::from((6, 33))),
-            Some(keth_block.block_header.parent_beacon_block_root.value.high.0)
-        );
+        assert_eq!(vm.get_maybe(&Relocatable::from((5, 30))), Some(MaybeRelocatable::from((2, 0))));
 
-        // The requests root as an Option of U256:
+        // The requests root as an Option of U256*:
         // - is_some
-        // - Low
-        // - High
+        // - address of the U256
         assert_eq!(
-            vm.get_maybe(&Relocatable::from((6, 34))),
+            vm.get_maybe(&Relocatable::from((5, 31))),
             Some(keth_block.block_header.requests_root.is_some.0)
         );
-        assert_eq!(
-            vm.get_maybe(&Relocatable::from((6, 35))),
-            Some(keth_block.block_header.requests_root.value.low.0)
-        );
-        assert_eq!(
-            vm.get_maybe(&Relocatable::from((6, 36))),
-            Some(keth_block.block_header.requests_root.value.high.0)
-        );
+        assert_eq!(vm.get_maybe(&Relocatable::from((5, 32))), Some(MaybeRelocatable::from((3, 0))));
 
         // The extra data pointer as KethPointer:
         // - Length
         // - Address
         assert_eq!(
-            vm.get_maybe(&Relocatable::from((6, 37))),
+            vm.get_maybe(&Relocatable::from((5, 33))),
             Some(keth_block.block_header.extra_data.len.0)
         );
-        assert_eq!(vm.get_maybe(&Relocatable::from((6, 38))), Some(MaybeRelocatable::from((1, 0))));
+        assert_eq!(vm.get_maybe(&Relocatable::from((5, 34))), Some(MaybeRelocatable::from((4, 0))));
 
-        // The number of transactions in the block as MaybeRelocatable:
-        assert_eq!(vm.get_maybe(&Relocatable::from((6, 39))), Some(keth_block.transactions_len.0));
+        // ############################ Transaction pointers ############################
 
+        // Segment 6
+        // The first transaction rlp, as felt*
+        for i in 0..128 {
+            assert_eq!(
+                vm.get_maybe(&Relocatable::from((6, i))),
+                Some(keth_block.transactions[0].rlp.data[i].0.clone())
+            );
+        }
+        // After the last transaction rlp index, the memory should be None.
+        assert_eq!(vm.get_maybe(&Relocatable::from((6, 128))), None);
+
+        // Segment 7
+        // The first transaction signature, as felt*
+        for i in 0..5 {
+            assert_eq!(
+                vm.get_maybe(&Relocatable::from((7, i))),
+                Some(keth_block.transactions[0].signature.data[i].0.clone())
+            );
+        }
+        // After the last transaction signature index, the memory should be None.
+        assert_eq!(vm.get_maybe(&Relocatable::from((7, 5))), None);
+
+        // Segment 8
+        // The second transaction rlp, as felt*
+        for i in 0..128 {
+            assert_eq!(
+                vm.get_maybe(&Relocatable::from((8, i))),
+                Some(keth_block.transactions[1].rlp.data[i].0.clone())
+            );
+        }
+        // After the last transaction rlp index, the memory should be None.
+        assert_eq!(vm.get_maybe(&Relocatable::from((8, 128))), None);
+
+        // Segment 9
+        // The second transaction signature, as felt*
+        for i in 0..5 {
+            assert_eq!(
+                vm.get_maybe(&Relocatable::from((9, i))),
+                Some(keth_block.transactions[1].signature.data[i].0.clone())
+            );
+        }
+        // After the last transaction signature index, the memory should be None.
+        assert_eq!(vm.get_maybe(&Relocatable::from((9, 5))), None);
+
+        // ############################ Transactions ############################
+
+        // Segment 10
         // First transaction
         // Rlp of the transaction as a KethPointer:
         // - Length
         // - Address
         assert_eq!(
-            vm.get_maybe(&Relocatable::from((6, 40))),
+            vm.get_maybe(&Relocatable::from((10, 0))),
             Some(keth_block.transactions[0].rlp.len.0.clone())
         );
-        assert_eq!(vm.get_maybe(&Relocatable::from((6, 41))), Some(MaybeRelocatable::from((2, 0))));
+        assert_eq!(vm.get_maybe(&Relocatable::from((10, 1))), Some(MaybeRelocatable::from((6, 0))));
 
         // Transaction signature as a KethPointer:
         // - Length
         // - Address
         assert_eq!(
-            vm.get_maybe(&Relocatable::from((6, 42))),
+            vm.get_maybe(&Relocatable::from((10, 2))),
             Some(keth_block.transactions[0].signature.len.0.clone())
         );
-        assert_eq!(vm.get_maybe(&Relocatable::from((6, 43))), Some(MaybeRelocatable::from((3, 0))));
+        assert_eq!(vm.get_maybe(&Relocatable::from((10, 3))), Some(MaybeRelocatable::from((7, 0))));
 
         // Transaction sender as an address:
         assert_eq!(
-            vm.get_maybe(&Relocatable::from((6, 44))),
+            vm.get_maybe(&Relocatable::from((10, 4))),
             Some(keth_block.transactions[0].sender.0.clone())
         );
 
@@ -1048,30 +1082,42 @@ mod tests {
         // - Length
         // - Address
         assert_eq!(
-            vm.get_maybe(&Relocatable::from((6, 45))),
+            vm.get_maybe(&Relocatable::from((10, 5))),
             Some(keth_block.transactions[1].rlp.len.0.clone())
         );
-        assert_eq!(vm.get_maybe(&Relocatable::from((6, 46))), Some(MaybeRelocatable::from((4, 0))));
+        assert_eq!(vm.get_maybe(&Relocatable::from((10, 6))), Some(MaybeRelocatable::from((8, 0))));
 
         // Transaction signature as a KethPointer:
         // - Length
         // - Address
         assert_eq!(
-            vm.get_maybe(&Relocatable::from((6, 47))),
+            vm.get_maybe(&Relocatable::from((10, 7))),
             Some(keth_block.transactions[1].signature.len.0.clone())
         );
-        assert_eq!(vm.get_maybe(&Relocatable::from((6, 48))), Some(MaybeRelocatable::from((5, 0))));
+        assert_eq!(vm.get_maybe(&Relocatable::from((10, 8))), Some(MaybeRelocatable::from((9, 0))));
 
         // Transaction sender as an address:
         assert_eq!(
-            vm.get_maybe(&Relocatable::from((6, 49))),
+            vm.get_maybe(&Relocatable::from((10, 9))),
             Some(keth_block.transactions[1].sender.0.clone())
         );
 
+        // Segment 11
+        // The block:
+        // - Header
+        // - Transactions length
+        // - Transactions
+        assert_eq!(vm.get_maybe(&Relocatable::from((11, 0))), Some(MaybeRelocatable::from((5, 0))));
+        assert_eq!(vm.get_maybe(&Relocatable::from((11, 1))), Some(keth_block.transactions_len.0));
+        assert_eq!(
+            vm.get_maybe(&Relocatable::from((11, 2))),
+            Some(MaybeRelocatable::from((10, 0)))
+        );
+
         // At the end we should have a None
-        assert_eq!(vm.get_maybe(&Relocatable::from((6, 50))), None);
+        assert_eq!(vm.get_maybe(&Relocatable::from((11, 3))), None);
 
         // The ptr should return the address of the first element of the block
-        assert_eq!(ptr, MaybeRelocatable::from((6, 0)));
+        assert_eq!(ptr, MaybeRelocatable::from((11, 0)));
     }
 }
