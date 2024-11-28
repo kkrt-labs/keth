@@ -2,8 +2,8 @@
 
 ## Introduction
 
-Keth is an open-source, proving backend for the Ethereum Execution Layer built with
-[Kakarot Core EVM](https://github.com/kkrt-labs/kakarot) and
+Keth is an open-source, proving backend for the Ethereum Execution Layer built
+with [Kakarot Core EVM](https://github.com/kkrt-labs/kakarot) and
 [Starkware's provable VM, Cairo](https://book.cairo-lang.org/).
 
 Keth makes it possible to prove a given state transition asynchronously by:
@@ -12,7 +12,8 @@ Keth makes it possible to prove a given state transition asynchronously by:
 - executing all required transactions,
 - computing post-state
 
-For instance, this can be run for a given block to prove the Ethereum protocol's State Transition Function (STF).
+For instance, this can be run for a given block to prove the Ethereum protocol's
+State Transition Function (STF).
 
 ## Getting started
 
@@ -25,8 +26,8 @@ dependencies and run commands. To install uv:
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-Moreover, the project uses [rust](https://www.rust-lang.org/) to manage rust dependencies.
-
+Moreover, the project uses [rust](https://www.rust-lang.org/) to manage rust
+dependencies.
 
 ## Status
 
