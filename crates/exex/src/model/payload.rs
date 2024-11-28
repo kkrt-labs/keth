@@ -77,7 +77,6 @@ impl KethPayload {
             } else {
                 vec![data.gen_arg(vm)?]
             }),
-
             // For the Nested variant:
             // - Iterate through all inner payloads.
             // - Recursively collect arguments for each payload and flatten the results.
