@@ -1,8 +1,14 @@
+import os
+
+os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
+
 import logging
+import os
 import shutil
 from pathlib import Path
 
 import pytest
+import starkware.cairo.lang.instances as LAYOUTS
 from dotenv import load_dotenv
 
 from tests.utils.coverage import report_runs
@@ -12,6 +18,37 @@ from tests.utils.strategies import register_type_strategies
 load_dotenv()
 logger = logging.getLogger()
 register_type_strategies()
+
+
+def pytest_addoption(parser):
+    parser.addoption(
+        "--profile-cairo",
+        action="store_true",
+        default=False,
+        help="compute and dump TracerData for the VM runner: True or False",
+    )
+    parser.addoption(
+        "--proof-mode",
+        action="store_true",
+        default=False,
+        help="run the CairoRunner in proof mode: True or False",
+    )
+    parser.addoption(
+        "--layout",
+        choices=dir(LAYOUTS),
+        default="all_cairo_instance",
+        help="The layout of the Cairo AIR.",
+    )
+    parser.addoption(
+        "--seed",
+        action="store",
+        default=None,
+        type=int,
+        help="The seed to set random with.",
+    )
+
+
+pytest_plugins = ["tests.fixtures.compiler", "tests.fixtures.runner"]
 
 
 @pytest.fixture(autouse=True, scope="session")
