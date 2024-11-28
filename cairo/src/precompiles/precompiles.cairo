@@ -4,7 +4,6 @@ from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bool import FALSE
 from starkware.cairo.common.memcpy import memcpy
 
-from src.interfaces.interfaces import ICairo1Helpers
 from src.errors import Errors
 from src.precompiles.blake2f import PrecompileBlake2f
 from src.precompiles.kakarot_precompiles import KakarotPrecompiles
@@ -101,13 +100,13 @@ namespace Precompiles {
         ret;
         call PrecompileEcRecover.run;  // 0x1
         ret;
-        call external_precompile;  // 0x2
+        call not_implemented_precompile;  // 0x2
         ret;
         call PrecompileRIPEMD160.run;  // 0x3
         ret;
         call PrecompileDataCopy.run;  // 0x4
         ret;
-        call external_precompile;  // 0x5
+        call not_implemented_precompile;  // 0x5
         ret;
         call not_implemented_precompile;  // 0x6
         ret;
@@ -191,26 +190,5 @@ namespace Precompiles {
     ) {
         let (revert_reason_len, revert_reason) = Errors.notImplementedPrecompile(evm_address);
         return (revert_reason_len, revert_reason, 0, Errors.EXCEPTIONAL_HALT);
-    }
-
-    func external_precompile{
-        pedersen_ptr: HashBuiltin*,
-        range_check_ptr,
-        bitwise_ptr: BitwiseBuiltin*,
-        keccak_ptr: KeccakBuiltin*,
-    }(evm_address: felt, input_len: felt, input: felt*) -> (
-        output_len: felt, output: felt*, gas_used: felt, reverted: felt
-    ) {
-        alloc_locals;
-
-        let (calldata: felt*) = alloc();
-        assert [calldata] = evm_address;
-        assert [calldata + 1] = input_len;
-        memcpy(calldata + 2, input, input_len);
-        let (success, gas, return_data_len, return_data) = ICairo1Helpers.exec_precompile(
-            address=evm_address, data_len=input_len, data=input
-        );
-
-        return (return_data_len, return_data, gas, 1 - success);
     }
 }

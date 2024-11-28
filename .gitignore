@@ -33,3 +33,5 @@ cairo/tests/ef_tests/test_data
 
 # Ide settings
 .vscode/
+
+cache

@@ -13,8 +13,8 @@ logger = logging.getLogger("timer")
 
 # A mapping to fix the mismatch between the debug_info and the identifiers.
 _label_scope = {
-    "kakarot.constants.opcodes_label": "kakarot.constants",
-    "kakarot.accounts.library.internal.pow_": "kakarot.accounts.library.internal",
+    "src.constants.opcodes_label": "src.constants",
+    "src.accounts.library.internal.pow_": "src.accounts.library.internal",
 }
 T = TypeVar("T", bound=Callable[..., Any])
 

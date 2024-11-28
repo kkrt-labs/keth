@@ -44,7 +44,6 @@ namespace Debug {
         print_felt(message.env.gas_price);
         print_felt(message.env.origin);
         print_felt(message.address);
-        print_felt(message.address.starknet);
         print_felt(message.read_only);
         print_felt(message.is_create);
         return ();

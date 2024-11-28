@@ -1,5 +1,5 @@
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin
+from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin, KeccakBuiltin
 from starkware.cairo.common.uint256 import Uint256
 from starkware.cairo.common.memset import memset
 from starkware.cairo.common.memcpy import memcpy
@@ -12,8 +12,12 @@ from src.memory import Memory
 from src.instructions.push_operations import PushOperations
 from tests.utils.helpers import TestHelpers
 
-func test__exec_push{pedersen_ptr: HashBuiltin*, range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
-    ) -> model.Stack* {
+func test__exec_push{
+    pedersen_ptr: HashBuiltin*,
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+}() -> model.Stack* {
     alloc_locals;
     local i: felt;
     %{ ids.i = program_input["i"] %}
