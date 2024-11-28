@@ -121,54 +121,39 @@ impl KethPayload {
 
 impl From<KethBlockHeader> for KethPayload {
     fn from(header: KethBlockHeader) -> Self {
-        let mut payload = Vec::new();
-
-        // Dynamically encode each field using a trait
-        let fields = [
-            &header.parent_hash as &dyn KethEncodable,
-            &header.ommers_hash,
-            &header.coinbase,
-            &header.state_root,
-            &header.transactions_root,
-            &header.receipt_root,
-            &header.withdrawals_root,
-            &header.bloom,
-            &header.difficulty,
-            &header.number,
-            &header.gas_limit,
-            &header.gas_used,
-            &header.timestamp,
-            &header.mix_hash,
-            &header.nonce,
-            &header.base_fee_per_gas,
-            &header.blob_gas_used,
-            &header.excess_blob_gas,
-            &header.parent_beacon_block_root,
-            &header.requests_root,
-            &header.extra_data,
-        ];
-
-        for field in fields {
-            payload.push(field.encode());
-        }
-
-        Self::StructPointer(payload)
+        Self::StructPointer(vec![
+            header.parent_hash.encode(),
+            header.ommers_hash.encode(),
+            header.coinbase.encode(),
+            header.state_root.encode(),
+            header.transactions_root.encode(),
+            header.receipt_root.encode(),
+            header.withdrawals_root.encode(),
+            header.bloom.encode(),
+            header.difficulty.encode(),
+            header.number.encode(),
+            header.gas_limit.encode(),
+            header.gas_used.encode(),
+            header.timestamp.encode(),
+            header.mix_hash.encode(),
+            header.nonce.encode(),
+            header.base_fee_per_gas.encode(),
+            header.blob_gas_used.encode(),
+            header.excess_blob_gas.encode(),
+            header.parent_beacon_block_root.encode(),
+            header.requests_root.encode(),
+            header.extra_data.encode(),
+        ])
     }
 }
 
 impl From<KethTransactionEncoded> for KethPayload {
     fn from(transaction: KethTransactionEncoded) -> Self {
-        let mut payload = Vec::new();
-
-        // Dynamically encode each field using a trait
-        let fields =
-            [&transaction.rlp as &dyn KethEncodable, &transaction.signature, &transaction.sender];
-
-        for field in fields {
-            payload.push(field.encode());
-        }
-
-        Self::Nested(payload)
+        KethPayload::Nested(vec![
+            transaction.rlp.encode(),
+            transaction.signature.encode(),
+            transaction.sender.encode(),
+        ])
     }
 }
 
