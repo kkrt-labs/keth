@@ -33,22 +33,13 @@ pub enum KethPayload {
         value: Box<KethPayload>,
     },
 
-    /// Temporary pointer to store big structures such as block header or transaction.
-    StructPointer(Vec<KethPayload>),
-
-    /// A static pointer to a segment of memory.
-    StaticPointer {
-        /// The data segment associated with this pointer.
-        data: Vec<MaybeRelocatable>,
-    },
-
     /// A pointer to a segment of memory with associated data.
     ///
-    /// - `len`: The length of the data segment.
+    /// - `len`: The length of the data segment (if the size can be variable).
     /// - `data`: The data itself, encoded as another [`KethPayload`].
     Pointer {
         /// The length of the pointer data.
-        len: MaybeRelocatable,
+        len: Option<MaybeRelocatable>,
         /// The data segment associated with this pointer.
         data: Box<KethPayload>,
     },
@@ -78,20 +69,15 @@ impl KethPayload {
                 args.extend(value.collect_args(vm)?);
                 Ok(args)
             }
-            Self::StructPointer(data) => {
-                let mut args = Vec::new();
-                for value in data {
-                    args.extend(value.collect_args(vm)?);
-                }
-                Ok(vec![vm.gen_arg(&args)?])
-            }
-            // For the StaticPointer variant:
-            // - Generate arguments for the `data` payload using the VM.
-            Self::StaticPointer { data } => Ok(vec![vm.gen_arg(data)?]),
             // For the Pointer variant:
             // - Generate arguments for the `data` payload using the VM.
-            // - Include the `len` value and the generated data pointer.
-            Self::Pointer { len, data } => Ok(vec![len.clone(), data.gen_arg(vm)?]),
+            // - Include the `len` value (if available) and the generated data pointer.
+            Self::Pointer { len, data } => Ok(if let Some(len) = len {
+                vec![len.clone(), data.gen_arg(vm)?]
+            } else {
+                vec![data.gen_arg(vm)?]
+            }),
+
             // For the Nested variant:
             // - Iterate through all inner payloads.
             // - Recursively collect arguments for each payload and flatten the results.
@@ -121,29 +107,32 @@ impl KethPayload {
 
 impl From<KethBlockHeader> for KethPayload {
     fn from(header: KethBlockHeader) -> Self {
-        Self::StructPointer(vec![
-            header.parent_hash.encode(),
-            header.ommers_hash.encode(),
-            header.coinbase.encode(),
-            header.state_root.encode(),
-            header.transactions_root.encode(),
-            header.receipt_root.encode(),
-            header.withdrawals_root.encode(),
-            header.bloom.encode(),
-            header.difficulty.encode(),
-            header.number.encode(),
-            header.gas_limit.encode(),
-            header.gas_used.encode(),
-            header.timestamp.encode(),
-            header.mix_hash.encode(),
-            header.nonce.encode(),
-            header.base_fee_per_gas.encode(),
-            header.blob_gas_used.encode(),
-            header.excess_blob_gas.encode(),
-            header.parent_beacon_block_root.encode(),
-            header.requests_root.encode(),
-            header.extra_data.encode(),
-        ])
+        Self::Pointer {
+            len: None,
+            data: Box::new(Self::Nested(vec![
+                header.parent_hash.encode(),
+                header.ommers_hash.encode(),
+                header.coinbase.encode(),
+                header.state_root.encode(),
+                header.transactions_root.encode(),
+                header.receipt_root.encode(),
+                header.withdrawals_root.encode(),
+                header.bloom.encode(),
+                header.difficulty.encode(),
+                header.number.encode(),
+                header.gas_limit.encode(),
+                header.gas_used.encode(),
+                header.timestamp.encode(),
+                header.mix_hash.encode(),
+                header.nonce.encode(),
+                header.base_fee_per_gas.encode(),
+                header.blob_gas_used.encode(),
+                header.excess_blob_gas.encode(),
+                header.parent_beacon_block_root.encode(),
+                header.requests_root.encode(),
+                header.extra_data.encode(),
+            ])),
+        }
     }
 }
 
@@ -162,7 +151,12 @@ impl From<KethBlock> for KethPayload {
         Self::Nested(vec![
             block.block_header.into(),
             block.transactions_len.encode(),
-            Self::StructPointer(block.transactions.into_iter().map(Into::into).collect()),
+            Self::Pointer {
+                len: None,
+                data: Box::new(Self::Nested(
+                    block.transactions.into_iter().map(Into::into).collect(),
+                )),
+            },
         ])
     }
 }
@@ -470,7 +464,7 @@ mod tests {
         // Define a Pointer payload with a length and nested data.
         // - The length is set to 3.
         let payload = KethPayload::Pointer {
-            len: MaybeRelocatable::from(3),
+            len: Some(MaybeRelocatable::from(3)),
             data: Box::new(KethPayload::Flat(vec![
                 MaybeRelocatable::from(1),
                 MaybeRelocatable::from(2),
@@ -555,7 +549,7 @@ mod tests {
             },
             // Third element: A Pointer payload with a nested Flat payload
             KethPayload::Pointer {
-                len: MaybeRelocatable::from(3),
+                len: Some(MaybeRelocatable::from(3)),
                 data: Box::new(KethPayload::Flat(vec![
                     MaybeRelocatable::from(10),
                     MaybeRelocatable::from(20),

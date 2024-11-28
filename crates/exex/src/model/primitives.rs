@@ -317,7 +317,12 @@ impl From<Bloom> for KethSimplePointer {
 
 impl KethEncodable for KethSimplePointer {
     fn encode(&self) -> KethPayload {
-        KethPayload::StaticPointer { data: self.data.iter().map(|item| item.0.clone()).collect() }
+        KethPayload::Pointer {
+            len: None,
+            data: Box::new(KethPayload::Flat(
+                self.data.iter().map(|item| item.0.clone()).collect(),
+            )),
+        }
     }
 }
 
@@ -352,7 +357,7 @@ impl Default for KethPointer {
 impl KethEncodable for KethPointer {
     fn encode(&self) -> KethPayload {
         KethPayload::Pointer {
-            len: self.len.0.clone(),
+            len: Some(self.len.0.clone()),
             data: Box::new(KethPayload::Flat(
                 self.data.iter().map(|item| item.0.clone()).collect(),
             )),
