@@ -3,6 +3,8 @@
     "Arbitrum",
     "datadir",
     "fibonacci",
+    "isort",
+    "jupyter",
     "kkrt",
     "ommers",
     "recv",
@@ -12,9 +14,6 @@
   "python.testing.unittestEnabled": false,
   "python.testing.pytestEnabled": true,
   "jupyter.notebookFileRoot": "${workspaceFolder}/cairo",
-  "githubPullRequests.remotes": [
-    "kakarot",
-    "upstream"
-  ],
+  "githubPullRequests.remotes": ["kakarot", "upstream"],
   "cairols.sourceDir": "cairo"
 }
