@@ -1,3 +1,4 @@
+use crate::model::{block::KethBlock, payload::KethPayload};
 use cairo_vm::{
     hint_processor::{
         builtin_hint_processor::{
@@ -14,8 +15,6 @@ use cairo_vm::{
 };
 use reth_primitives::SealedBlock;
 use std::{collections::HashMap, fmt, rc::Rc};
-
-use crate::model::{block::KethBlock, payload::KethPayload};
 
 /// The type of a hint execution result.
 pub type HintExecutionResult = Result<(), HintError>;
