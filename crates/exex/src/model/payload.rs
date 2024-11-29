@@ -53,9 +53,9 @@ pub enum KethPayload {
 
 impl KethPayload {
     /// Returns the inner vector of [`KethPayload`] values if the payload is of type `Nested`.
-    pub fn as_nested_vec(&self) -> Option<Vec<KethPayload>> {
+    pub fn as_nested_vec(&self) -> Option<Vec<Self>> {
         match self {
-            KethPayload::Nested(payloads) => Some(payloads.clone()),
+            Self::Nested(payloads) => Some(payloads.clone()),
             _ => None,
         }
     }
