@@ -1509,8 +1509,8 @@ dependencies = [
 
 [[package]]
 name = "cairo-vm"
-version = "2.0.0-rc0"
-source = "git+https://github.com/lambdaclass/cairo-vm.git?rev=6025257#60252573255bdf77cf980d689db5b8539dde5e52"
+version = "2.0.0-rc1"
+source = "git+https://github.com/lambdaclass/cairo-vm.git?tag=v2.0.0-rc1#388a4e51001377717b7e4c902c35f8e271c92ad7"
 dependencies = [
  "anyhow",
  "arbitrary",

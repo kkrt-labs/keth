@@ -10,7 +10,7 @@ workspace = true
 
 [dependencies]
 # Cairo-VM deps
-cairo-vm = { git = "https://github.com/lambdaclass/cairo-vm.git", rev = "6025257", features = [
+cairo-vm = { git = "https://github.com/lambdaclass/cairo-vm.git", tag = "v2.0.0-rc1", features = [
   "test_utils",
 ] }
 
