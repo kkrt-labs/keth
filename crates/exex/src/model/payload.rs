@@ -52,6 +52,14 @@ pub enum KethPayload {
 }
 
 impl KethPayload {
+    /// Returns the inner vector of [`KethPayload`] values if the payload is of type `Nested`.
+    pub fn as_nested_vec(&self) -> Option<Vec<KethPayload>> {
+        match self {
+            KethPayload::Nested(payloads) => Some(payloads.clone()),
+            _ => None,
+        }
+    }
+
     /// Recursively collects arguments from a [`KethPayload`] into a flat vector.
     ///
     /// This function processes each variant of [`KethPayload`], flattening all nested structures
@@ -237,39 +245,37 @@ mod tests {
 
         // Ensure the payload is of the Nested variant
         if let KethPayload::Pointer { data, .. } = payload {
-            if let KethPayload::Nested(fields) = data.as_ref() {
-                // Verify each field individually by reconstructing the expected payloads
-                let expected_fields = vec![
-                    KethU256::from(parent_hash).encode(),
-                    KethU256::from(ommers_hash).encode(),
-                    KethMaybeRelocatable::from(coinbase).encode(),
-                    KethU256::from(state_root).encode(),
-                    KethU256::from(transactions_root).encode(),
-                    KethU256::from(receipt_root).encode(),
-                    KethOption::<KethSimplePointer>::from(withdrawals_root).encode(),
-                    KethSimplePointer::from(bloom).encode(),
-                    KethU256::from(difficulty).encode(),
-                    KethMaybeRelocatable::from(number).encode(),
-                    KethMaybeRelocatable::from(gas_limit).encode(),
-                    KethMaybeRelocatable::from(gas_used).encode(),
-                    KethMaybeRelocatable::from(timestamp).encode(),
-                    KethU256::from(mix_hash).encode(),
-                    KethMaybeRelocatable::from(nonce).encode(),
-                    KethOption::<KethMaybeRelocatable>::from(base_fee_per_gas).encode(),
-                    KethOption::<KethMaybeRelocatable>::from(blob_gas_used).encode(),
-                    KethOption::<KethMaybeRelocatable>::from(excess_blob_gas).encode(),
-                    KethOption::<KethSimplePointer>::from(parent_beacon_block_root).encode(),
-                    KethOption::<KethSimplePointer>::from(requests_root).encode(),
-                    KethPointer::from(extra_data).encode(),
-                ];
+            let fields = data.as_nested_vec().expect("Fields should be nested");
 
-                assert_eq!(fields.len(), expected_fields.len(), "Field count mismatch in payload");
+            // Verify each field individually by reconstructing the expected payloads
+            let expected_fields = vec![
+                KethU256::from(parent_hash).encode(),
+                KethU256::from(ommers_hash).encode(),
+                KethMaybeRelocatable::from(coinbase).encode(),
+                KethU256::from(state_root).encode(),
+                KethU256::from(transactions_root).encode(),
+                KethU256::from(receipt_root).encode(),
+                KethOption::<KethSimplePointer>::from(withdrawals_root).encode(),
+                KethSimplePointer::from(bloom).encode(),
+                KethU256::from(difficulty).encode(),
+                KethMaybeRelocatable::from(number).encode(),
+                KethMaybeRelocatable::from(gas_limit).encode(),
+                KethMaybeRelocatable::from(gas_used).encode(),
+                KethMaybeRelocatable::from(timestamp).encode(),
+                KethU256::from(mix_hash).encode(),
+                KethMaybeRelocatable::from(nonce).encode(),
+                KethOption::<KethMaybeRelocatable>::from(base_fee_per_gas).encode(),
+                KethOption::<KethMaybeRelocatable>::from(blob_gas_used).encode(),
+                KethOption::<KethMaybeRelocatable>::from(excess_blob_gas).encode(),
+                KethOption::<KethSimplePointer>::from(parent_beacon_block_root).encode(),
+                KethOption::<KethSimplePointer>::from(requests_root).encode(),
+                KethPointer::from(extra_data).encode(),
+            ];
 
-                for (actual, expected) in fields.iter().zip(expected_fields.iter()) {
-                    assert_eq!(actual, expected, "Field mismatch in payload");
-                }
-            } else {
-                panic!("Expected payload to be of type Nested")
+            assert_eq!(fields.len(), expected_fields.len(), "Field count mismatch in payload");
+
+            for (actual, expected) in fields.iter().zip(expected_fields.iter()) {
+                assert_eq!(actual, expected, "Field mismatch in payload");
             }
         } else {
             panic!("Expected payload to be of type Pointer");
@@ -342,7 +348,10 @@ mod tests {
             assert_eq!(fields[1], transactions_len_payload, "Transaction length payload mismatch");
 
             // Verify the transactions are encoded
-            if let KethPayload::Nested(transaction_fields) = &fields[2] {
+            if let KethPayload::Pointer { data, .. } = &fields[2] {
+                let transaction_fields =
+                    data.as_nested_vec().expect("Transaction fields should be nested");
+
                 assert_eq!(
                     transaction_fields.len(),
                     keth_block.transactions.len(),
@@ -358,7 +367,7 @@ mod tests {
                     );
                 }
             } else {
-                panic!("Expected Nested payload for transactions");
+                panic!("Expected Pointer payload for transactions");
             }
         } else {
             panic!("Expected Nested payload at top level");

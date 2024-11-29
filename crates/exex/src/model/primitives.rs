@@ -522,7 +522,11 @@ mod tests {
             // Implementation of `to_b256` for `KethU256`.
             let high_bytes = self.high.0.get_int().unwrap().to_bytes_be();
             let low_bytes = self.low.0.get_int().unwrap().to_bytes_be();
-            let bytes = [&high_bytes[..], &low_bytes[..]].concat();
+            let bytes = [
+                &high_bytes[U128_BYTES_SIZE..], // Get the high 16 bytes
+                &low_bytes[U128_BYTES_SIZE..],  // Get the low 16 bytes
+            ]
+            .concat();
             B256::from_slice(&bytes)
         }
     }
