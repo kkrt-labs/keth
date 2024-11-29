@@ -534,33 +534,6 @@ mod tests {
         }
     }
 
-    // impl KethOption<KethU256> {
-    //     /// Helper function to convert [`KethOption`] to [`Option<B256>`]
-    //     pub fn to_option_b256(&self) -> Option<B256> {
-    //         if self.is_some.0 == MaybeRelocatable::from(Felt252::ONE) {
-    //             // Convert value back to B256 if present
-    //             Some(self.value.to_b256())
-    //         } else {
-    //             None
-    //         }
-    //     }
-    // }
-
-    // impl KethOption<KethSimplePointer> {
-    //     /// Helper function to convert [`KethOption`] to [`Option<B256>`]
-    //     pub fn to_option_b256(&self) -> Option<B256> {
-    //         if self.is_some.0 == MaybeRelocatable::from(Felt252::ONE) {
-    //             // Convert value back to B256 if present
-    //             Some(
-    //                 KethU256 { low: self.value.data[0].clone(), high: self.value.data[1].clone()
-    // }                     .to_b256(),
-    //             )
-    //         } else {
-    //             None
-    //         }
-    //     }
-    // }
-
     impl<T: ToB256> KethOption<T> {
         /// Helper function to convert `KethOption` to `Option<B256>`.
         pub fn to_option_b256(&self) -> Option<B256> {
