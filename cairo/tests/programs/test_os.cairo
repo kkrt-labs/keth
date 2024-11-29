@@ -30,6 +30,22 @@ func test_os{
     return os();
 }
 
+func main{
+    output_ptr: felt*,
+    pedersen_ptr: HashBuiltin*,
+    range_check_ptr,
+    ecdsa_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    ec_op_ptr,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
+}() {
+    return ();
+}
+
 func test_block_hint{output_ptr: felt*}() {
     alloc_locals;
     local block: model.Block*;
