@@ -236,39 +236,43 @@ mod tests {
         let payload: KethPayload = keth_header.into();
 
         // Ensure the payload is of the Nested variant
-        if let KethPayload::Nested(fields) = payload {
-            // Verify each field individually by reconstructing the expected payloads
-            let expected_fields = vec![
-                KethU256::from(parent_hash).encode(),
-                KethU256::from(ommers_hash).encode(),
-                KethMaybeRelocatable::from(coinbase).encode(),
-                KethU256::from(state_root).encode(),
-                KethU256::from(transactions_root).encode(),
-                KethU256::from(receipt_root).encode(),
-                KethOption::<KethSimplePointer>::from(withdrawals_root).encode(),
-                KethSimplePointer::from(bloom).encode(),
-                KethU256::from(difficulty).encode(),
-                KethMaybeRelocatable::from(number).encode(),
-                KethMaybeRelocatable::from(gas_limit).encode(),
-                KethMaybeRelocatable::from(gas_used).encode(),
-                KethMaybeRelocatable::from(timestamp).encode(),
-                KethU256::from(mix_hash).encode(),
-                KethMaybeRelocatable::from(nonce).encode(),
-                KethOption::<KethMaybeRelocatable>::from(base_fee_per_gas).encode(),
-                KethOption::<KethMaybeRelocatable>::from(blob_gas_used).encode(),
-                KethOption::<KethMaybeRelocatable>::from(excess_blob_gas).encode(),
-                KethOption::<KethSimplePointer>::from(parent_beacon_block_root).encode(),
-                KethOption::<KethSimplePointer>::from(requests_root).encode(),
-                KethPointer::from(extra_data).encode(),
-            ];
+        if let KethPayload::Pointer { data, .. } = payload {
+            if let KethPayload::Nested(fields) = data.as_ref() {
+                // Verify each field individually by reconstructing the expected payloads
+                let expected_fields = vec![
+                    KethU256::from(parent_hash).encode(),
+                    KethU256::from(ommers_hash).encode(),
+                    KethMaybeRelocatable::from(coinbase).encode(),
+                    KethU256::from(state_root).encode(),
+                    KethU256::from(transactions_root).encode(),
+                    KethU256::from(receipt_root).encode(),
+                    KethOption::<KethSimplePointer>::from(withdrawals_root).encode(),
+                    KethSimplePointer::from(bloom).encode(),
+                    KethU256::from(difficulty).encode(),
+                    KethMaybeRelocatable::from(number).encode(),
+                    KethMaybeRelocatable::from(gas_limit).encode(),
+                    KethMaybeRelocatable::from(gas_used).encode(),
+                    KethMaybeRelocatable::from(timestamp).encode(),
+                    KethU256::from(mix_hash).encode(),
+                    KethMaybeRelocatable::from(nonce).encode(),
+                    KethOption::<KethMaybeRelocatable>::from(base_fee_per_gas).encode(),
+                    KethOption::<KethMaybeRelocatable>::from(blob_gas_used).encode(),
+                    KethOption::<KethMaybeRelocatable>::from(excess_blob_gas).encode(),
+                    KethOption::<KethSimplePointer>::from(parent_beacon_block_root).encode(),
+                    KethOption::<KethSimplePointer>::from(requests_root).encode(),
+                    KethPointer::from(extra_data).encode(),
+                ];
 
-            assert_eq!(fields.len(), expected_fields.len(), "Field count mismatch in payload");
+                assert_eq!(fields.len(), expected_fields.len(), "Field count mismatch in payload");
 
-            for (actual, expected) in fields.iter().zip(expected_fields.iter()) {
-                assert_eq!(actual, expected, "Field mismatch in payload");
+                for (actual, expected) in fields.iter().zip(expected_fields.iter()) {
+                    assert_eq!(actual, expected, "Field mismatch in payload");
+                }
+            } else {
+                panic!("Expected payload to be of type Nested")
             }
         } else {
-            panic!("Expected payload to be of type Nested");
+            panic!("Expected payload to be of type Pointer");
         }
     }
 
