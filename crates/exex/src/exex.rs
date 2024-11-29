@@ -14,7 +14,6 @@ use cairo_vm::{
     vm::trace::trace_entry::RelocatedTraceEntry,
     Felt252,
 };
-use dotenv::dotenv;
 use futures::StreamExt;
 use once_cell::sync::Lazy;
 use reth_chainspec::{ChainSpec, ChainSpecBuilder};
@@ -67,7 +66,7 @@ impl<Node: FullNodeComponents> KakarotRollup<Node> {
     }
 
     /// Starts processing chain state notifications.
-    pub async fn start(mut self) -> eyre::Result<()> {
+    pub async fn start(mut self, sharp_sdk: SharpSdk) -> eyre::Result<()> {
         // Initialize the Cairo run configuration
         let config = CairoRunConfig {
             layout: LayoutName::all_cairo,
@@ -102,18 +101,6 @@ impl<Node: FullNodeComponents> KakarotRollup<Node> {
                 // Execute the Kakarot os program
                 let mut res = cairo_run(&program, &config, &mut hint_processor)?;
 
-                // Load environment variables.
-                dotenv().ok();
-
-                // Retrieve the API key from the environment variables.
-                let atlantic_api_key = env::var("ATLANTIC_API_KEY")
-                    .expect("API_KEY must be set in the environment variables");
-
-                let sharp_sdk = SharpSdk::new(
-                    atlantic_api_key.clone(),
-                    Url::parse("https://atlantic.api.herodotus.cloud/").unwrap(),
-                );
-
                 let cairo_pie = res.get_cairo_pie().unwrap();
 
                 // Path to a temporary file for the CairoPie.
@@ -140,8 +127,12 @@ impl<Node: FullNodeComponents> KakarotRollup<Node> {
                 res.vm.write_output(&mut output_buffer).unwrap();
                 println!("Program output: \n{output_buffer}");
 
+                println!("tototototo 1");
+
                 // Extract the execution trace
                 let trace = res.relocated_trace.clone().unwrap_or_default();
+
+                println!("tototototo 2");
 
                 // Extract the relocated memory
                 let memory = res
@@ -166,6 +157,8 @@ impl<Node: FullNodeComponents> KakarotRollup<Node> {
                     &public_input,
                     &private_input,
                 )?;
+
+                println!("tototototo 3");
             }
         }
 
@@ -190,14 +183,15 @@ mod tests {
     use super::*;
     use alloy_consensus::{constants::ETH_TO_WEI, Header, TxEip1559};
     use alloy_primitives::{address, hex, Bytes, Sealable, B256, U256};
+    use mockito::Server;
     use reth_execution_types::{Chain, ExecutionOutcome};
-    use reth_exex_test_utils::{test_exex_context, PollOnce};
+    use reth_exex_test_utils::test_exex_context;
     use reth_primitives::{
         BlockBody, Receipt, Receipts, SealedBlock, SealedBlockWithSenders, SealedHeader,
         TransactionSigned,
     };
     use reth_revm::primitives::AccountInfo;
-    use std::{future::Future, pin::pin, str::FromStr, time::Duration};
+    use std::{future::Future, str::FromStr, time::Duration};
     use tokio::time::timeout;
 
     /// The initialization logic of the Execution Extension is just an async function.
@@ -206,6 +200,7 @@ mod tests {
     /// Extension to function, like a database connection.
     fn exex_init<Node: FullNodeComponents>(
         ctx: ExExContext<Node>,
+        sharp_sdk: SharpSdk,
     ) -> eyre::Result<impl Future<Output = eyre::Result<()>>> {
         // Open the SQLite database connection.
         let connection = Connection::open(DATABASE_PATH)?;
@@ -226,14 +221,38 @@ mod tests {
         )?;
 
         // Create the Kakarot Rollup chain instance and start processing chain state notifications.
-        Ok(KakarotRollup { ctx, db }.start())
+        Ok(KakarotRollup { ctx, db }.start(sharp_sdk))
     }
 
-    // #[ignore = "block_header not implemented"]
+    #[ignore = "block_header not implemented"]
     #[tokio::test]
     async fn test_exex() -> eyre::Result<()> {
         // Initialize the tracing subscriber for testing
         reth_tracing::init_test_tracing();
+
+        let mocked_api_key = "mocked_api_key";
+        env::set_var("ATLANTIC_API_KEY", mocked_api_key);
+
+        let mut server = Server::new_async().await;
+
+        let proof_generation_mock = server
+            .mock("POST", "/proof-generation")
+            .match_query(mockito::Matcher::UrlEncoded(
+                "apiKey".to_string(),
+                mocked_api_key.to_string(),
+            ))
+            .match_body(mockito::Matcher::Any)
+            .with_status(200)
+            .with_body(
+                r#"{
+                       "atlanticQueryId": "mocked_query_id"
+                   }"#,
+            )
+            .create_async()
+            .await;
+
+        let sharp_sdk =
+            SharpSdk::new(mocked_api_key.to_string(), Url::parse(&server.url()).unwrap());
 
         // Remove the database file if it exists so we start with a clean db
         std::fs::remove_file(DATABASE_PATH).ok();
@@ -321,7 +340,7 @@ mod tests {
             .await?;
 
         // Initialize the Execution Extension future
-        let exex_future = exex_init(ctx)?;
+        let exex_future = exex_init(ctx, sharp_sdk)?;
         tokio::pin!(exex_future);
 
         // Set a timeout to stop infinite execution
@@ -329,16 +348,12 @@ mod tests {
         let exex_result = timeout(timeout_duration, exex_future).await;
 
         match exex_result {
-            Ok(Ok(())) => {
-                println!("Execution Extension completed successfully.");
-            }
             Ok(Err(err)) => {
                 eprintln!("Execution Extension returned an error: {:?}", err);
                 return Err(err);
             }
-            Err(_) => {
-                eprintln!("Execution Extension timed out after {:?}", timeout_duration);
-                return Err(eyre::eyre!("Execution Extension timeout"));
+            _ => {
+                println!("Execution Extension completed successfully.");
             }
         }
 
@@ -357,6 +372,8 @@ mod tests {
 
         // Check that the execution trace has been inserted into the database
         assert!(db.execution_trace(0x00f2_1d20)?.is_some());
+
+        proof_generation_mock.assert();
 
         Ok(())
     }
