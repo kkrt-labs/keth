@@ -40,12 +40,8 @@ impl Default for KakarotHintProcessor {
         Self::new_empty()
             .with_hint(&add_segment_hint())
             .with_hint(&dict_manager_hint())
-            .with_hint(&account_hint())
-            .with_hint(&state_hint())
-            .with_hint(&chain_id_hint())
             .with_hint(&dict_copy_hint())
             .with_hint(&dict_squash_hint())
-            .with_hint(&block_hashes_hint())
     }
 }
 
