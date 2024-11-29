@@ -1,58 +1,25 @@
-use crate::{db::Database, hints::KakarotHintProcessor};
+use crate::hints::KakarotHintProcessor;
 use alloy_eips::BlockNumHash;
-use alloy_genesis::Genesis;
-use alloy_primitives::Address;
 use cairo_vm::{
-    air_private_input::AirPrivateInput,
-    air_public_input::PublicInput,
     cairo_run::{cairo_run, CairoRunConfig},
     types::layout_name::LayoutName,
-    vm::trace::trace_entry::RelocatedTraceEntry,
-    Felt252,
 };
 use futures::StreamExt;
-use once_cell::sync::Lazy;
-use reth_chainspec::{ChainSpec, ChainSpecBuilder};
 use reth_exex::{ExExContext, ExExEvent};
 use reth_node_api::FullNodeComponents;
-use rusqlite::Connection;
-use std::{path::PathBuf, sync::Arc};
-
-/// The path to the `SQLite` database file.
-pub const DATABASE_PATH: &str = "rollup.db";
-
-/// The chain ID of the Kakarot Rollup chain.
-const CHAIN_ID: u64 = 1;
-
-/// The address of the rollup submitter (signer) to be funded with max coins.
-const ROLLUP_SUBMITTER_ADDRESS: Address = Address::new([0; 20]);
-
-/// The chain specification for the Kakarot Rollup chain.
-///
-/// Generated from the [`CHAIN_ID`] and [`ROLLUP_SUBMITTER_ADDRESS`] constants.
-pub(crate) static CHAIN_SPEC: Lazy<Arc<ChainSpec>> = Lazy::new(|| {
-    Arc::new(
-        ChainSpecBuilder::default()
-            .chain(CHAIN_ID.into())
-            .genesis(Genesis::clique_genesis(CHAIN_ID, ROLLUP_SUBMITTER_ADDRESS))
-            .cancun_activated()
-            .build(),
-    )
-});
+use std::path::PathBuf;
 
 /// The Execution Extension for the Kakarot Rollup chain.
 #[allow(missing_debug_implementations)]
 pub struct KakarotRollup<Node: FullNodeComponents> {
     /// Capture the Execution Extension context.
     ctx: ExExContext<Node>,
-    /// The `SQLite` database.
-    db: Database,
 }
 
 impl<Node: FullNodeComponents> KakarotRollup<Node> {
     /// Creates a new instance of the [`KakarotRollup`] structure.
-    pub fn new(ctx: ExExContext<Node>, connection: Connection) -> eyre::Result<Self> {
-        Ok(Self { ctx, db: Database::new(connection)? })
+    pub const fn new(ctx: ExExContext<Node>) -> eyre::Result<Self> {
+        Ok(Self { ctx })
     }
 
     /// Starts processing chain state notifications.
@@ -97,10 +64,10 @@ impl<Node: FullNodeComponents> KakarotRollup<Node> {
                 println!("Program output: \n{output_buffer}");
 
                 // Extract the execution trace
-                let trace = res.relocated_trace.clone().unwrap_or_default();
+                let _trace = res.relocated_trace.clone().unwrap_or_default();
 
                 // Extract the relocated memory
-                let memory = res
+                let _memory = res
                     .relocated_memory
                     .clone()
                     .into_iter()
@@ -111,48 +78,26 @@ impl<Node: FullNodeComponents> KakarotRollup<Node> {
                 //
                 // We want to store the public input in the database in order to use them to run
                 // the prover
-                let public_input = res.get_air_public_input()?;
-                let private_input = res.get_air_private_input();
-
-                // Commit the execution trace to the database
-                self.commit_cairo_execution_traces(
-                    committed_chain.tip().number,
-                    &trace,
-                    &memory,
-                    &public_input,
-                    &private_input,
-                )?;
+                let _public_input = res.get_air_public_input()?;
+                let _private_input = res.get_air_private_input();
             }
         }
 
         Ok(())
-    }
-
-    /// Commits the execution traces to the database.
-    fn commit_cairo_execution_traces(
-        &self,
-        number: u64,
-        trace: &[RelocatedTraceEntry],
-        memory: &[Felt252],
-        air_public_input: &PublicInput<'_>,
-        air_private_input: &AirPrivateInput,
-    ) -> eyre::Result<()> {
-        self.db.insert_execution_trace(number, trace, memory, air_public_input, air_private_input)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alloy_consensus::{constants::ETH_TO_WEI, Header, TxEip1559};
-    use alloy_primitives::{address, hex, Bytes, Sealable, B256, U256};
+    use alloy_consensus::{Header, TxEip1559};
+    use alloy_primitives::{address, hex, Address, Bytes, Sealable, B256, U256};
     use reth_execution_types::{Chain, ExecutionOutcome};
     use reth_exex_test_utils::{test_exex_context, PollOnce};
     use reth_primitives::{
         BlockBody, Receipt, Receipts, SealedBlock, SealedBlockWithSenders, SealedHeader,
         TransactionSigned,
     };
-    use reth_revm::primitives::AccountInfo;
     use std::{future::Future, pin::pin, str::FromStr};
 
     /// The initialization logic of the Execution Extension is just an async function.
@@ -161,27 +106,9 @@ mod tests {
     /// Extension to function, like a database connection.
     fn exex_init<Node: FullNodeComponents>(
         ctx: ExExContext<Node>,
-    ) -> eyre::Result<impl Future<Output = eyre::Result<()>>> {
-        // Open the SQLite database connection.
-        let connection = Connection::open(DATABASE_PATH)?;
-
-        // Initialize the database with the connection.
-        let db = Database::new(connection)?;
-
-        // Create a sender address for testing
-        //
-        // We want to fund artificially this address with some ETH because this is the address used
-        // to send funds in the test transaction.
-        let sender_address = address!("6a3cA5811d2c185E6e441cEFa771824fb355f9Ec");
-
-        // Deposit some ETH to the sender and insert it into database
-        db.set_account(
-            sender_address,
-            &AccountInfo { balance: U256::from(ETH_TO_WEI), nonce: 0, ..Default::default() },
-        )?;
-
+    ) -> impl Future<Output = eyre::Result<()>> {
         // Create the Kakarot Rollup chain instance and start processing chain state notifications.
-        Ok(KakarotRollup { ctx, db }.start())
+        KakarotRollup { ctx }.start()
     }
 
     #[ignore = "block_header not implemented"]
@@ -189,9 +116,6 @@ mod tests {
     async fn test_exex() -> eyre::Result<()> {
         // Initialize the tracing subscriber for testing
         reth_tracing::init_test_tracing();
-
-        // Remove the database file if it exists so we start with a clean db
-        std::fs::remove_file(DATABASE_PATH).ok();
 
         // Initialize a test Execution Extension context with all dependencies
         let (ctx, mut handle) = test_exex_context().await?;
@@ -276,7 +200,7 @@ mod tests {
             .await?;
 
         // Initialize the Execution Extension
-        let mut exex = pin!(exex_init(ctx)?);
+        let mut exex = pin!(exex_init(ctx));
 
         // Check that the Execution Extension did not emit any events until we polled it
         handle.assert_events_empty();
@@ -287,18 +211,6 @@ mod tests {
         // Check that the Execution Extension emitted a `FinishedHeight` event with the correct
         // height
         handle.assert_event_finished_height(BlockNumHash::new(0x00f2_1d20, seal))?;
-
-        // Open the SQLite database connection.
-        let connection = Connection::open(DATABASE_PATH)?;
-
-        // Initialize the database with the connection.
-        let db = Database::new(connection)?;
-
-        // Check that the block has been inserted into the database
-        assert_eq!(db.block(U256::from(0x00f2_1d20))?.unwrap(), block);
-
-        // Check that the execution trace has been inserted into the database
-        assert!(db.execution_trace(0x00f2_1d20)?.is_some());
 
         Ok(())
     }
