@@ -173,21 +173,6 @@ pub fn dict_manager_hint() -> Hint {
     )
 }
 
-/// Generates a placeholder hint for account.
-pub fn account_hint() -> Hint {
-    Hint::new(
-        String::from("account"),
-        |_vm: &mut VirtualMachine,
-         _exec_scopes: &mut ExecutionScopes,
-         _ids_data: &HashMap<String, HintReference>,
-         _ap_tracking: &ApTracking,
-         _constants: &HashMap<String, Felt252>|
-         -> HintExecutionResult {
-            // Placeholder logic for account
-            Ok(())
-        },
-    )
-}
 
 /// Generates a placeholder hint for state.
 pub fn state_hint() -> Hint {
