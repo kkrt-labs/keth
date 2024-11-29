@@ -98,23 +98,23 @@ namespace Precompiles {
         jmp rel offset;
         call unknown_precompile;  // 0x0
         ret;
-        call PrecompileEcRecover.run;  // 0x1
+        call PrecompileEcRecover.run;  // 0x1 EC_RECOVER
         ret;
-        call not_implemented_precompile;  // 0x2
+        call not_implemented_precompile;  // 0x2 SHA2-256
         ret;
-        call PrecompileRIPEMD160.run;  // 0x3
+        call PrecompileRIPEMD160.run;  // 0x3 RIPEMD-160
         ret;
-        call PrecompileDataCopy.run;  // 0x4
+        call PrecompileDataCopy.run;  // 0x4 DATA_COPY
         ret;
-        call not_implemented_precompile;  // 0x5
+        call not_implemented_precompile;  // 0x5 MODEXP
         ret;
-        call not_implemented_precompile;  // 0x6
+        call not_implemented_precompile;  // 0x6 EC_ADD
         ret;
-        call not_implemented_precompile;  // 0x7
+        call not_implemented_precompile;  // 0x7 EC_MUL
         ret;
-        call not_implemented_precompile;  // 0x8
+        call not_implemented_precompile;  // 0x8 EC_PAIRING
         ret;
-        call PrecompileBlake2f.run;  // 0x9
+        call PrecompileBlake2f.run;  // 0x9 BLAKE2-F
         ret;
         call not_implemented_precompile;  // 0x0a: POINT_EVALUATION_PRECOMPILE
         ret;
