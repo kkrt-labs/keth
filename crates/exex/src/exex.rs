@@ -21,12 +21,11 @@ use reth_exex::{ExExContext, ExExEvent};
 use reth_node_api::FullNodeComponents;
 use rusqlite::Connection;
 use std::{
-    env, fs,
+    fs,
     io::Read,
     path::{Path, PathBuf},
     sync::Arc,
 };
-use url::Url;
 
 /// The path to the `SQLite` database file.
 pub const DATABASE_PATH: &str = "rollup.db";
@@ -118,21 +117,16 @@ impl<Node: FullNodeComponents> KakarotRollup<Node> {
                 fs::remove_file(temp_file_path)?;
 
                 // Call the proof generation function using the Sharp SDK.
-                let result =
+                let _result =
                     sharp_sdk.proof_generation(pie_bytes, "auto", ProverVersion::Starkware).await;
-                println!("Proof generation result: {:?}", result);
 
                 // Retrieve the output of the program
                 let mut output_buffer = String::new();
                 res.vm.write_output(&mut output_buffer).unwrap();
                 println!("Program output: \n{output_buffer}");
 
-                println!("tototototo 1");
-
                 // Extract the execution trace
                 let trace = res.relocated_trace.clone().unwrap_or_default();
-
-                println!("tototototo 2");
 
                 // Extract the relocated memory
                 let memory = res
@@ -157,8 +151,6 @@ impl<Node: FullNodeComponents> KakarotRollup<Node> {
                     &public_input,
                     &private_input,
                 )?;
-
-                println!("tototototo 3");
             }
         }
 
@@ -191,8 +183,9 @@ mod tests {
         TransactionSigned,
     };
     use reth_revm::primitives::AccountInfo;
-    use std::{future::Future, str::FromStr, time::Duration};
+    use std::{env, future::Future, str::FromStr, time::Duration};
     use tokio::time::timeout;
+    use url::Url;
 
     /// The initialization logic of the Execution Extension is just an async function.
     ///
@@ -226,6 +219,7 @@ mod tests {
 
     #[ignore = "block_header not implemented"]
     #[tokio::test]
+    #[allow(clippy::too_many_lines)]
     async fn test_exex() -> eyre::Result<()> {
         // Initialize the tracing subscriber for testing
         reth_tracing::init_test_tracing();
@@ -253,6 +247,8 @@ mod tests {
 
         let sharp_sdk =
             SharpSdk::new(mocked_api_key.to_string(), Url::parse(&server.url()).unwrap());
+
+        drop(server);
 
         // Remove the database file if it exists so we start with a clean db
         std::fs::remove_file(DATABASE_PATH).ok();
@@ -349,7 +345,7 @@ mod tests {
 
         match exex_result {
             Ok(Err(err)) => {
-                eprintln!("Execution Extension returned an error: {:?}", err);
+                eprintln!("Execution Extension returned an error: {err:?}");
                 return Err(err);
             }
             _ => {
