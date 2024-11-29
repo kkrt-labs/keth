@@ -264,7 +264,7 @@ mod tests {
         tokio::pin!(exex_future);
 
         // Set a timeout to stop infinite execution
-        let timeout_duration = Duration::from_secs(1);
+        let timeout_duration = Duration::from_millis(100);
         let exex_result = timeout(timeout_duration, exex_future).await;
 
         match exex_result {
