@@ -1,4 +1,7 @@
-use crate::hints::KakarotHintProcessor;
+use crate::{
+    atlantic::{prover::ProverVersion, sharp::SharpSdk},
+    hints::KakarotHintProcessor,
+};
 use alloy_eips::BlockNumHash;
 use cairo_vm::{
     cairo_run::{cairo_run, CairoRunConfig},
@@ -7,7 +10,11 @@ use cairo_vm::{
 use futures::StreamExt;
 use reth_exex::{ExExContext, ExExEvent};
 use reth_node_api::FullNodeComponents;
-use std::path::PathBuf;
+use std::{
+    fs,
+    io::Read,
+    path::{Path, PathBuf},
+};
 
 /// The Execution Extension for the Kakarot Rollup chain.
 #[allow(missing_debug_implementations)]
@@ -109,21 +116,21 @@ impl<Node: FullNodeComponents> KakarotRollup<Node> {
 
 #[cfg(test)]
 mod tests {
+    use crate::atlantic::sharp::SharpSdk;
+
     use super::*;
-    use mockito::Server;
     use alloy_consensus::{Header, TxEip1559};
     use alloy_primitives::{address, hex, Address, Bytes, Sealable, B256, U256};
+    use mockito::Server;
     use reth_execution_types::{Chain, ExecutionOutcome};
     use reth_exex_test_utils::test_exex_context;
     use reth_primitives::{
         BlockBody, Receipt, Receipts, SealedBlock, SealedBlockWithSenders, SealedHeader,
         TransactionSigned,
     };
-    use reth_revm::primitives::AccountInfo;
     use std::{env, future::Future, str::FromStr, time::Duration};
     use tokio::time::timeout;
     use url::Url;
-    use std::{future::Future, pin::pin, str::FromStr};
 
     /// The initialization logic of the Execution Extension is just an async function.
     ///
@@ -132,9 +139,9 @@ mod tests {
     fn exex_init<Node: FullNodeComponents>(
         ctx: ExExContext<Node>,
         sharp_sdk: SharpSdk,
-    ) -> eyre::Result<impl Future<Output = eyre::Result<()>>> {
+    ) -> impl Future<Output = eyre::Result<()>> {
         // Create the Kakarot Rollup chain instance and start processing chain state notifications.
-        Ok(KakarotRollup { ctx }.start(sharp_sdk))
+        KakarotRollup { ctx }.start(sharp_sdk)
     }
 
     #[ignore = "block_header not implemented"]
@@ -253,7 +260,7 @@ mod tests {
             .await?;
 
         // Initialize the Execution Extension future
-        let exex_future = exex_init(ctx, sharp_sdk)?;
+        let exex_future = exex_init(ctx, sharp_sdk);
         tokio::pin!(exex_future);
 
         // Set a timeout to stop infinite execution
