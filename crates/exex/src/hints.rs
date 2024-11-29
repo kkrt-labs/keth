@@ -161,7 +161,7 @@ pub fn block_hint(block: SealedBlock) -> Hint {
     )
 }
 
-/// Generates a placeholder hint for dict_manager.
+/// Generates a placeholder hint for `dict_manager`.
 pub fn dict_manager_hint() -> Hint {
     Hint::new(
         String::from("dict_manager"),
@@ -209,7 +209,7 @@ pub fn state_hint() -> Hint {
     )
 }
 
-/// Generates a placeholder hint for chain_id.
+/// Generates a placeholder hint for `chain_id`.
 pub fn chain_id_hint() -> Hint {
     Hint::new(
         String::from("chain_id"),
@@ -225,7 +225,7 @@ pub fn chain_id_hint() -> Hint {
     )
 }
 
-/// Generates a placeholder hint for dict_copy.
+/// Generates a placeholder hint for `dict_copy`.
 pub fn dict_copy_hint() -> Hint {
     Hint::new(
         String::from("dict_copy"),
@@ -241,7 +241,7 @@ pub fn dict_copy_hint() -> Hint {
     )
 }
 
-/// Generates a placeholder hint for dict_squash.
+/// Generates a placeholder hint for `dict_squash`.
 pub fn dict_squash_hint() -> Hint {
     Hint::new(
         String::from("dict_squash"),
@@ -257,7 +257,7 @@ pub fn dict_squash_hint() -> Hint {
     )
 }
 
-/// Generates a placeholder hint for block_hashes.
+/// Generates a placeholder hint for `block_hashes`.
 pub fn block_hashes_hint() -> Hint {
     Hint::new(
         String::from("block_hashes"),
@@ -276,6 +276,7 @@ pub fn block_hashes_hint() -> Hint {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use arbitrary::{Arbitrary, Unstructured};
     use cairo_vm::{
         cairo_run::{cairo_run, CairoRunConfig},
         types::layout_name::LayoutName,
@@ -298,11 +299,19 @@ mod tests {
             ..Default::default()
         };
 
+        // Prepare a random byte array for testing
+        let raw_bytes = [0u8; 1500];
+        let mut unstructured = Unstructured::new(&raw_bytes);
+
+        // Generate an arbitrary `SealedBlock`
+        let block: SealedBlock = SealedBlock::arbitrary(&mut unstructured)
+            .expect("Failed to generate arbitrary SealedBlock");
+
         // Build the Kakarot hint processor.
-        let mut hint_processor = KakarotHintProcessor::default().build();
+        let mut hint_processor = KakarotHintProcessor::default().with_block(block).build();
 
         // Execute the Kakarot os program
-        let mut res = cairo_run(&program, &config, &mut hint_processor)
+        let _res = cairo_run(&program, &config, &mut hint_processor)
             .expect("The program should run properly");
     }
 }
