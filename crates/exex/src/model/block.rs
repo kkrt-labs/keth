@@ -95,7 +95,8 @@ mod tests {
             // Assert that the buffer length matches the length in the Keth RLP structure
             assert_eq!(
                 buffer.len(),
-                usize::try_from(keth_tx.rlp.len.to_u64()).expect("Invalid length conversion")
+                usize::try_from(keth_tx.rlp.len.clone().unwrap().to_u64())
+                    .expect("Invalid length conversion")
             );
 
             // Assert that the type size is 1

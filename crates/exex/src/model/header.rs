@@ -1,6 +1,4 @@
-use super::primitives::{
-    KethMaybeRelocatable, KethOption, KethPointer, KethSimplePointer, KethU256,
-};
+use super::primitives::{KethMaybeRelocatable, KethOption, KethPointer, KethU256};
 use alloy_consensus::Header;
 use serde::{Deserialize, Serialize};
 
@@ -22,9 +20,9 @@ pub struct KethBlockHeader {
     /// Root of the trie that contains the block's transaction receipts.
     pub receipt_root: KethU256,
     /// Root of the trie that contains withdrawals in the block.
-    pub withdrawals_root: KethOption<KethSimplePointer>,
+    pub withdrawals_root: KethOption<KethPointer>,
     /// Logs bloom filter for efficient log search.
-    pub bloom: KethSimplePointer,
+    pub bloom: KethPointer,
     /// Block difficulty value, which defines how difficult it is to mine the block.
     pub difficulty: KethU256,
     /// Block number, i.e., the height of the block in the chain.
@@ -46,9 +44,9 @@ pub struct KethBlockHeader {
     /// Excess blob gas for rollups.
     pub excess_blob_gas: KethOption<KethMaybeRelocatable>,
     /// Root of the parent beacon block in the proof-of-stake chain.
-    pub parent_beacon_block_root: KethOption<KethSimplePointer>,
+    pub parent_beacon_block_root: KethOption<KethPointer>,
     /// Root of the trie containing request receipts.
-    pub requests_root: KethOption<KethSimplePointer>,
+    pub requests_root: KethOption<KethPointer>,
     /// Extra data provided within the block, usually for protocol-specific purposes.
     pub extra_data: KethPointer,
 }
