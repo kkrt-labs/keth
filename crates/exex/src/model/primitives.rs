@@ -283,6 +283,9 @@ impl From<U256> for KethU256 {
 #[derive(Debug, Eq, Ord, Hash, PartialEq, PartialOrd, Clone, Serialize, Deserialize)]
 pub struct KethPointer {
     /// The optional length of the data to be stored.
+    ///
+    /// For some data structures, the length is fixed and known in advance, so this field is
+    /// optional.
     pub len: Option<KethMaybeRelocatable>,
 
     /// A vector holding the main data.
@@ -469,9 +472,30 @@ impl From<Bloom> for KethPointer {
 }
 
 impl From<B256> for KethPointer {
+    /// Converts a [`B256`] object into a [`KethPointer`] structure.
+    ///
+    /// This method takes a [`B256`] object (which represents a 256-bit unsigned integer)
+    /// and converts it into the [`KethPointer`] format. The conversion splits the 256-bit
+    /// number into two 128-bit chunks for compatibility with Cairo VM.
     fn from(value: B256) -> Self {
+        // Convert the 256-bit value into the `KethU256` structure.
+        // The `KethU256` structure splits the 256-bit value into two 128-bit chunks:
+        // - `low`: Represents the lower 128 bits of the 256-bit value.
+        // - `high`: Represents the upper 128 bits of the 256-bit value.
         let keth_u256 = KethU256::from(value);
-        Self { len: None, data: vec![keth_u256.low, keth_u256.high], type_size: 1 }
+
+        // Construct the `KethPointer` instance.
+        // - `len`: Set to `None` because the length is fixed and implicitly known (always 2).
+        // - `data`: A vector containing the `low` and `high` fields from `keth_u256`.
+        // - `type_size`: Set to `1` to indicate a single segment representation in Cairo VM.
+        Self {
+            // Length is fixed (always 2) so we don't need to store it
+            len: None,
+            // Store the two 128-bit chunks.
+            data: vec![keth_u256.low, keth_u256.high],
+            // In Cairo, B256 is a pointer to a segment of felts.
+            type_size: 1,
+        }
     }
 }
 
