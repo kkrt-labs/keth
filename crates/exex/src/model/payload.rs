@@ -1000,7 +1000,7 @@ mod tests {
         // - Address
         assert_eq!(
             vm.get_maybe(&transaction_ptr),
-            Some(keth_block.transactions[0].rlp.len.clone().unwrap().0.clone())
+            Some(keth_block.transactions[0].rlp.len.clone().unwrap().0)
         );
         let transaction1_rlp_ptr =
             vm.get_maybe(&(transaction_ptr + 1usize).unwrap()).unwrap().get_relocatable().unwrap();
@@ -1020,7 +1020,7 @@ mod tests {
         // - Address
         assert_eq!(
             vm.get_maybe(&(transaction_ptr + 2usize).unwrap()),
-            Some(keth_block.transactions[0].signature.len.clone().unwrap().0.clone())
+            Some(keth_block.transactions[0].signature.len.clone().unwrap().0)
         );
         let transaction1_signature_ptr =
             vm.get_maybe(&(transaction_ptr + 3usize).unwrap()).unwrap().get_relocatable().unwrap();
@@ -1047,7 +1047,7 @@ mod tests {
         // - Address
         assert_eq!(
             vm.get_maybe(&(transaction_ptr + 5usize).unwrap()),
-            Some(keth_block.transactions[1].rlp.len.clone().unwrap().0.clone())
+            Some(keth_block.transactions[1].rlp.len.clone().unwrap().0)
         );
         let transaction2_rlp_ptr =
             vm.get_maybe(&(transaction_ptr + 6usize).unwrap()).unwrap().get_relocatable().unwrap();
@@ -1067,7 +1067,7 @@ mod tests {
         // - Address
         assert_eq!(
             vm.get_maybe(&(transaction_ptr + 7usize).unwrap()),
-            Some(keth_block.transactions[1].signature.len.clone().unwrap().0.clone())
+            Some(keth_block.transactions[1].signature.len.clone().unwrap().0)
         );
         let transaction2_signature_ptr =
             vm.get_maybe(&(transaction_ptr + 8usize).unwrap()).unwrap().get_relocatable().unwrap();
