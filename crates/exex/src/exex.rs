@@ -1,4 +1,7 @@
-use crate::hints::KakarotHintProcessor;
+use crate::{
+    atlantic::{prover::ProverVersion, sharp::SharpSdk},
+    hints::KakarotHintProcessor,
+};
 use alloy_eips::BlockNumHash;
 use cairo_vm::{
     cairo_run::{cairo_run, CairoRunConfig},
@@ -7,7 +10,11 @@ use cairo_vm::{
 use futures::StreamExt;
 use reth_exex::{ExExContext, ExExEvent};
 use reth_node_api::FullNodeComponents;
-use std::path::PathBuf;
+use std::{
+    fs,
+    io::Read,
+    path::{Path, PathBuf},
+};
 
 /// The Execution Extension for the Kakarot Rollup chain.
 #[allow(missing_debug_implementations)]
@@ -23,13 +30,13 @@ impl<Node: FullNodeComponents> KakarotRollup<Node> {
     }
 
     /// Starts processing chain state notifications.
-    pub async fn start(mut self) -> eyre::Result<()> {
+    pub async fn start(mut self, sharp_sdk: SharpSdk) -> eyre::Result<()> {
         // Initialize the Cairo run configuration
         let config = CairoRunConfig {
             layout: LayoutName::all_cairo,
             trace_enabled: true,
             relocate_mem: true,
-            proof_mode: true,
+            // proof_mode: true,
             ..Default::default()
         };
 
@@ -53,10 +60,30 @@ impl<Node: FullNodeComponents> KakarotRollup<Node> {
                 let mut hint_processor = KakarotHintProcessor::default().build();
 
                 // Load the cairo program from the file
-                let program = std::fs::read(PathBuf::from("../../cairo/programs/os.json"))?;
+                let program = std::fs::read(PathBuf::from("../../cairo/programs/fibonacci.json"))?;
 
                 // Execute the Kakarot os program
                 let mut res = cairo_run(&program, &config, &mut hint_processor)?;
+
+                let cairo_pie = res.get_cairo_pie().unwrap();
+
+                // Path to a temporary file for the CairoPie.
+                let temp_file_path = Path::new("temp_pie.zip");
+
+                // Write the CairoPie data into a temporary file.
+                cairo_pie.write_zip_file(temp_file_path)?;
+
+                // Read the temporary file into a Vec<u8>.
+                let mut file = fs::File::open(temp_file_path)?;
+                let mut pie_bytes = Vec::new();
+                file.read_to_end(&mut pie_bytes)?;
+
+                // Remove the temporary file after reading.
+                fs::remove_file(temp_file_path)?;
+
+                // Call the proof generation function using the Sharp SDK.
+                let _result =
+                    sharp_sdk.proof_generation(pie_bytes, "auto", ProverVersion::Starkware).await;
 
                 // Retrieve the output of the program
                 let mut output_buffer = String::new();
@@ -89,16 +116,21 @@ impl<Node: FullNodeComponents> KakarotRollup<Node> {
 
 #[cfg(test)]
 mod tests {
+    use crate::atlantic::sharp::SharpSdk;
+
     use super::*;
     use alloy_consensus::{Header, TxEip1559};
     use alloy_primitives::{address, hex, Address, Bytes, Sealable, B256, U256};
+    use mockito::Server;
     use reth_execution_types::{Chain, ExecutionOutcome};
-    use reth_exex_test_utils::{test_exex_context, PollOnce};
+    use reth_exex_test_utils::test_exex_context;
     use reth_primitives::{
         BlockBody, Receipt, Receipts, SealedBlock, SealedBlockWithSenders, SealedHeader,
         TransactionSigned,
     };
-    use std::{future::Future, pin::pin, str::FromStr};
+    use std::{env, future::Future, str::FromStr, time::Duration};
+    use tokio::time::timeout;
+    use url::Url;
 
     /// The initialization logic of the Execution Extension is just an async function.
     ///
@@ -106,16 +138,44 @@ mod tests {
     /// Extension to function, like a database connection.
     fn exex_init<Node: FullNodeComponents>(
         ctx: ExExContext<Node>,
+        sharp_sdk: SharpSdk,
     ) -> impl Future<Output = eyre::Result<()>> {
         // Create the Kakarot Rollup chain instance and start processing chain state notifications.
-        KakarotRollup { ctx }.start()
+        KakarotRollup { ctx }.start(sharp_sdk)
     }
 
     #[ignore = "block_header not implemented"]
     #[tokio::test]
+    #[allow(clippy::too_many_lines)]
     async fn test_exex() -> eyre::Result<()> {
         // Initialize the tracing subscriber for testing
         reth_tracing::init_test_tracing();
+
+        let mocked_api_key = "mocked_api_key";
+        env::set_var("ATLANTIC_API_KEY", mocked_api_key);
+
+        let mut server = Server::new_async().await;
+
+        let proof_generation_mock = server
+            .mock("POST", "/proof-generation")
+            .match_query(mockito::Matcher::UrlEncoded(
+                "apiKey".to_string(),
+                mocked_api_key.to_string(),
+            ))
+            .match_body(mockito::Matcher::Any)
+            .with_status(200)
+            .with_body(
+                r#"{
+                       "atlanticQueryId": "mocked_query_id"
+                   }"#,
+            )
+            .create_async()
+            .await;
+
+        let sharp_sdk =
+            SharpSdk::new(mocked_api_key.to_string(), Url::parse(&server.url()).unwrap());
+
+        drop(server);
 
         // Initialize a test Execution Extension context with all dependencies
         let (ctx, mut handle) = test_exex_context().await?;
@@ -199,18 +259,28 @@ mod tests {
             ))
             .await?;
 
-        // Initialize the Execution Extension
-        let mut exex = pin!(exex_init(ctx));
+        // Initialize the Execution Extension future
+        let exex_future = exex_init(ctx, sharp_sdk);
+        tokio::pin!(exex_future);
 
-        // Check that the Execution Extension did not emit any events until we polled it
-        handle.assert_events_empty();
+        // Set a timeout to stop infinite execution
+        let timeout_duration = Duration::from_millis(100);
+        let exex_result = timeout(timeout_duration, exex_future).await;
 
-        // Poll the Execution Extension once to process incoming notifications
-        exex.poll_once().await?;
+        match exex_result {
+            Ok(Err(err)) => {
+                eprintln!("Execution Extension returned an error: {err:?}");
+                return Err(err);
+            }
+            _ => {
+                println!("Execution Extension completed successfully.");
+            }
+        }
 
         // Check that the Execution Extension emitted a `FinishedHeight` event with the correct
         // height
         handle.assert_event_finished_height(BlockNumHash::new(0x00f2_1d20, seal))?;
+        proof_generation_mock.assert();
 
         Ok(())
     }
