@@ -111,6 +111,11 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "rlp", "SequenceExtended"): Sequence[Extended],
 }
 
+# In the EELS, some functions are annotated with Sequence while it's actually Bytes.
+_type_aliases = {
+    Sequence: Bytes,
+}
+
 
 def isinstance_with_generic(obj, type_hint):
     """Check if obj is instance of a generic type."""
@@ -264,7 +269,9 @@ def to_cairo_type(program: Program, type_name: Type):
     _python_type_to_cairo_struct = {
         v: k for k, v in _cairo_struct_to_python_type.items()
     }
-    scope = ScopedName(_python_type_to_cairo_struct[type_name])
+    scope = ScopedName(
+        _python_type_to_cairo_struct[_type_aliases.get(type_name, type_name)]
+    )
     identifier = program.identifiers.as_dict()[scope]
 
     if isinstance(identifier, TypeDefinition):

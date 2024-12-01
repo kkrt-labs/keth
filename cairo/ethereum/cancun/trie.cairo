@@ -1,4 +1,6 @@
 from starkware.cairo.common.alloc import alloc
+from starkware.cairo.common.math_cmp import is_le
+from starkware.cairo.common.math import assert_not_zero
 from starkware.cairo.common.bitwise import BitwiseBuiltin
 
 from ethereum.crypto.hash import keccak256
@@ -136,16 +138,39 @@ from ethereum.utils.numeric import divmod
 //     // return trie._data.get(key, trie.default)
 // }
 
-// func common_prefix_length(a: Sequence, b: Sequence) -> felt {
-//     // Implementation:
-//     // for i in range(len(a)):
-//     // if i >= len(b) or a[i] != b[i]:
-//     // return i
-//         // if i >= len(b) or a[i] != b[i]:
-//         // return i
-//             // return i
-//     // return len(a)
-// }
+func common_prefix_length(a: Bytes, b: Bytes) -> felt {
+    alloc_locals;
+    local result;
+
+    %{ memory[fp] = oracle(ids, reference="ethereum.cancun.trie.common_prefix_length") %}
+
+    jmp common if result != 0;
+    jmp diff;
+
+    common:
+    let index = [ap - 1];
+    with_attr error_message("common_prefix_length") {
+        assert a.value.data[index - 1] = b.value.data[index - 1];
+    }
+    tempvar index = index - 1;
+    jmp common if index != 0;
+
+    diff:
+    let result = [fp];
+    if (a.value.len == result) {
+        return result;
+    }
+
+    if (b.value.len == result) {
+        return result;
+    }
+
+    with_attr error_message("common_prefix_length") {
+        assert_not_zero(a.value.data[result] - b.value.data[result]);
+    }
+
+    return result;
+}
 
 func nibble_list_to_compact{range_check_ptr}(x: Bytes, is_leaf: bool) -> Bytes {
     alloc_locals;
@@ -191,7 +216,7 @@ func bytes_to_nibble_list{bitwise_ptr: BitwiseBuiltin*}(bytes_: Bytes) -> Bytes 
     alloc_locals;
     local result: Bytes;
 
-    %{ memory[ap - 1] = oracle(ids) %}
+    %{ memory[ap - 1] = oracle(ids, reference="ethereum.cancun.trie.bytes_to_nibble_list") %}
 
     assert result.value.len = 2 * bytes_.value.len;
 
