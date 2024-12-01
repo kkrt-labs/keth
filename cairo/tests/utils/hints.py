@@ -87,37 +87,6 @@ if '__dict_manager' not in globals():
     __dict_manager = DictManager()
 """
 
-block = f"""
-{dict_manager}
-from tests.utils.hints import gen_arg_pydantic
-
-ids.block = gen_arg_pydantic(__dict_manager, segments, program_input["block"])
-"""
-
-block_hashes = """
-import random
-
-ids.block_hashes = segments.gen_arg([random.randint(0, 2**128 - 1) for _ in range(256 * 2)])
-"""
-
-account = f"""
-{dict_manager}
-from tests.utils.hints import gen_arg_pydantic
-
-ids.account = gen_arg_pydantic(__dict_manager, segments, program_input["account"])
-"""
-
-state = f"""
-{dict_manager}
-from tests.utils.hints import gen_arg_pydantic
-
-ids.state = gen_arg_pydantic(__dict_manager, segments, program_input["state"])
-"""
-
-chain_id = f"""
-ids.chain_id = {CHAIN_ID}
-"""
-
 dict_copy = """
 from starkware.cairo.common.dict import DictTracker
 
@@ -140,14 +109,38 @@ __dict_manager.trackers[base.segment_index] = DictTracker(
 memory[ap] = base
 """
 
+block = f"""
+{dict_manager}
+from tests.utils.hints import gen_arg_pydantic
+
+ids.block = gen_arg_pydantic(__dict_manager, segments, program_input["block"])
+"""
+
+state = f"""
+{dict_manager}
+from tests.utils.hints import gen_arg_pydantic
+
+ids.state = gen_arg_pydantic(__dict_manager, segments, program_input["state"])
+"""
+
+chain_id = f"""
+ids.chain_id = {CHAIN_ID}
+"""
+
+block_hashes = """
+import random
+
+ids.block_hashes = segments.gen_arg([random.randint(0, 2**128 - 1) for _ in range(256 * 2)])
+"""
+
+
 hints = {
     "dict_manager": dict_manager,
-    "block": block,
-    "account": account,
-    "state": state,
-    "chain_id": chain_id,
     "dict_copy": dict_copy,
     "dict_squash": dict_squash,
+    "block": block,
+    "state": state,
+    "chain_id": chain_id,
     "block_hashes": block_hashes,
 }
 
