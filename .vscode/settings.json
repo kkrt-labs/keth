@@ -2,13 +2,16 @@
   "cSpell.words": [
     "Arbitrum",
     "datadir",
+    "divmod",
     "fibonacci",
     "isort",
     "jupyter",
     "kkrt",
     "memset",
+    "nondet",
     "ommers",
     "recv",
+    "Reth",
     "Risc"
   ],
   "python.testing.pytestArgs": ["cairo"],
