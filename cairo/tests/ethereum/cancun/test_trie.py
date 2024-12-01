@@ -1,7 +1,8 @@
 from hypothesis import given
 
 from ethereum.base_types import Bytes
-from ethereum.cancun.trie import bytes_to_nibble_list
+from ethereum.cancun.trie import bytes_to_nibble_list, nibble_list_to_compact
+from tests.utils.strategies import nibble
 
 
 class TestTrie:
@@ -29,11 +30,11 @@ class TestTrie:
     # def test_common_prefix_length(self, cairo_run, a: Sequence, b: Sequence):
     #     assert common_prefix_length(a, b) == cairo_run("common_prefix_length", a, b)
 
-    # @given(x=..., is_leaf=...)
-    # def test_nibble_list_to_compact(self, cairo_run, x: Bytes, is_leaf: bool):
-    #     assert nibble_list_to_compact(x, is_leaf) == cairo_run(
-    #         "nibble_list_to_compact", x, is_leaf
-    #     )
+    @given(x=nibble, is_leaf=...)
+    def test_nibble_list_to_compact(self, cairo_run, x, is_leaf: bool):
+        assert nibble_list_to_compact(x, is_leaf) == cairo_run(
+            "nibble_list_to_compact", x, is_leaf
+        )
 
     @given(bytes_=...)
     def test_bytes_to_nibble_list(self, cairo_run, bytes_: Bytes):

@@ -27,6 +27,7 @@ from ethereum.crypto.hash import Hash32
 # Base types
 # The EELS uses a Uint type different from U64, but Reth uses U64.
 # We use the same strategy for both.
+uint4 = st.integers(min_value=0, max_value=2**4 - 1)
 uint20 = st.integers(min_value=0, max_value=2**20 - 1)
 uint24 = st.integers(min_value=0, max_value=2**24 - 1)
 uint64 = st.integers(min_value=0, max_value=2**64 - 1).map(U64)
@@ -34,6 +35,7 @@ uint = uint64.map(Uint)
 uint128 = st.integers(min_value=0, max_value=2**128 - 1)
 felt = st.integers(min_value=0, max_value=DEFAULT_PRIME - 1)
 uint256 = st.integers(min_value=0, max_value=2**256 - 1).map(U256)
+nibble = st.lists(uint4).map(bytes)
 
 bytes0 = st.binary(min_size=0, max_size=0).map(Bytes0)
 bytes8 = st.binary(min_size=8, max_size=8).map(Bytes8)

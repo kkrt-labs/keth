@@ -3,10 +3,12 @@ from starkware.cairo.common.bitwise import BitwiseBuiltin
 
 from ethereum.crypto.hash import keccak256
 from ethereum.rlp import encode
-from ethereum.base_types import U256, Bytes, Uint, BytesStruct
+from ethereum.base_types import U256, Bytes, Uint, BytesStruct, bool
 from ethereum.cancun.blocks import Receipt, Withdrawal
 from ethereum.cancun.fork_types import Account, Address, Root, encode_account
 from ethereum.cancun.transactions import LegacyTransaction
+
+from ethereum.utils.numeric import divmod
 
 // struct LeafNode {
 //     rest_of_key: Bytes,
@@ -145,28 +147,45 @@ from ethereum.cancun.transactions import LegacyTransaction
 //     // return len(a)
 // }
 
-// func nibble_list_to_compact(x: Bytes, is_leaf: bool) -> Bytes {
-//     // Implementation:
-//     // compact = bytearray()
-//     // if len(x) % 2 == 0:
-//     // compact.append(16 * (2 * is_leaf))
-//     // for i in range(0, len(x), 2):
-//     // compact.append(16 * x[i] + x[i + 1])
-//     // else:
-//     // compact.append(16 * (2 * is_leaf + 1) + x[0])
-//     // for i in range(1, len(x), 2):
-//     // compact.append(16 * x[i] + x[i + 1])
-//         // compact.append(16 * (2 * is_leaf))
-//         // for i in range(0, len(x), 2):
-//         // compact.append(16 * x[i] + x[i + 1])
-//             // compact.append(16 * x[i] + x[i + 1])
-//     // else:
-//         // compact.append(16 * (2 * is_leaf + 1) + x[0])
-//         // for i in range(1, len(x), 2):
-//         // compact.append(16 * x[i] + x[i + 1])
-//             // compact.append(16 * x[i] + x[i + 1])
-//     // return Bytes(compact)
-// }
+func nibble_list_to_compact{range_check_ptr}(x: Bytes, is_leaf: bool) -> Bytes {
+    alloc_locals;
+    let (local compact) = alloc();
+
+    let (_, local remainder) = divmod(x.value.len, 2);
+    if (remainder == 0) {
+        assert [compact] = 16 * (2 * is_leaf.value);
+    } else {
+        assert [compact] = 16 * (2 * is_leaf.value + 1) + x.value.data[0];
+    }
+
+    if (x.value.len == remainder) {
+        tempvar result = Bytes(new BytesStruct(compact, 1));
+        return result;
+    }
+
+    tempvar compact = compact + 1;
+    tempvar i = remainder;
+
+    loop:
+    let compact = cast([ap - 2], felt*);
+    let i = [ap - 1];
+    let x_ptr = cast([fp - 4], BytesStruct*);
+
+    assert [compact] = 16 * x_ptr.data[i] + x_ptr.data[i + 1];
+
+    tempvar cond = x_ptr.len - i - 2;
+    tempvar compact = compact + 1;
+    tempvar i = i + 2;
+
+    jmp loop if cond != 0;
+
+    let (len, r) = divmod(i - remainder, 2);
+    assert r = 0;
+
+    let compact = cast([fp], felt*);
+    tempvar result = Bytes(new BytesStruct(compact, 1 + len));
+    return result;
+}
 
 func bytes_to_nibble_list{bitwise_ptr: BitwiseBuiltin*}(bytes_: Bytes) -> Bytes {
     alloc_locals;
