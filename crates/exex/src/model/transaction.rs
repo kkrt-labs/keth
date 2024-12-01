@@ -83,7 +83,7 @@ mod tests {
             tx.transaction.encode_for_signing(&mut buffer);
 
             prop_assert_eq!(encoded_bytes, buffer.clone());
-            prop_assert_eq!(buffer.len(), usize::try_from(keth_transaction_encoded.rlp.len.to_u64()).unwrap());
+            prop_assert_eq!(buffer.len(), usize::try_from(keth_transaction_encoded.rlp.len.unwrap().to_u64()).unwrap());
             prop_assert_eq!(keth_transaction_encoded.rlp.type_size, 1);
 
             // Verify signature
@@ -115,7 +115,7 @@ mod tests {
             tx.transaction.encode_for_signing(&mut buffer);
 
             prop_assert_eq!(encoded_bytes, buffer.clone());
-            prop_assert_eq!(buffer.len(), usize::try_from(keth_transaction_encoded.rlp.len.to_u64()).unwrap());
+            prop_assert_eq!(buffer.len(), usize::try_from(keth_transaction_encoded.rlp.len.unwrap().to_u64()).unwrap());
             prop_assert_eq!(keth_transaction_encoded.rlp.type_size, 1);
 
             // Verify signature

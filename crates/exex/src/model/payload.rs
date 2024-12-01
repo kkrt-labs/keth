@@ -171,9 +171,7 @@ impl From<KethBlock> for KethPayload {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::primitives::{
-        KethMaybeRelocatable, KethOption, KethPointer, KethSimplePointer, KethU256,
-    };
+    use crate::model::primitives::{KethMaybeRelocatable, KethOption, KethPointer, KethU256};
     use alloy_consensus::{Header, TxLegacy};
     use alloy_primitives::{
         hex, Address, Bloom, Bytes, Parity, PrimitiveSignature, B256, B64, U256,
@@ -255,8 +253,8 @@ mod tests {
                 KethU256::from(state_root).encode(),
                 KethU256::from(transactions_root).encode(),
                 KethU256::from(receipt_root).encode(),
-                KethOption::<KethSimplePointer>::from(withdrawals_root).encode(),
-                KethSimplePointer::from(bloom).encode(),
+                KethOption::<KethPointer>::from(withdrawals_root).encode(),
+                KethPointer::from(bloom).encode(),
                 KethU256::from(difficulty).encode(),
                 KethMaybeRelocatable::from(number).encode(),
                 KethMaybeRelocatable::from(gas_limit).encode(),
@@ -267,8 +265,8 @@ mod tests {
                 KethOption::<KethMaybeRelocatable>::from(base_fee_per_gas).encode(),
                 KethOption::<KethMaybeRelocatable>::from(blob_gas_used).encode(),
                 KethOption::<KethMaybeRelocatable>::from(excess_blob_gas).encode(),
-                KethOption::<KethSimplePointer>::from(parent_beacon_block_root).encode(),
-                KethOption::<KethSimplePointer>::from(requests_root).encode(),
+                KethOption::<KethPointer>::from(parent_beacon_block_root).encode(),
+                KethOption::<KethPointer>::from(requests_root).encode(),
                 KethPointer::from(extra_data).encode(),
             ];
 
@@ -980,7 +978,7 @@ mod tests {
         // - Address
         assert_eq!(
             vm.get_maybe(&(header_ptr + 33usize).unwrap()),
-            Some(keth_block.block_header.extra_data.len.0)
+            Some(keth_block.block_header.extra_data.len.unwrap().0)
         );
         let extra_data_ptr =
             vm.get_maybe(&(header_ptr + 34usize).unwrap()).unwrap().get_relocatable().unwrap();
@@ -1002,7 +1000,7 @@ mod tests {
         // - Address
         assert_eq!(
             vm.get_maybe(&transaction_ptr),
-            Some(keth_block.transactions[0].rlp.len.0.clone())
+            Some(keth_block.transactions[0].rlp.len.clone().unwrap().0)
         );
         let transaction1_rlp_ptr =
             vm.get_maybe(&(transaction_ptr + 1usize).unwrap()).unwrap().get_relocatable().unwrap();
@@ -1022,7 +1020,7 @@ mod tests {
         // - Address
         assert_eq!(
             vm.get_maybe(&(transaction_ptr + 2usize).unwrap()),
-            Some(keth_block.transactions[0].signature.len.0.clone())
+            Some(keth_block.transactions[0].signature.len.clone().unwrap().0)
         );
         let transaction1_signature_ptr =
             vm.get_maybe(&(transaction_ptr + 3usize).unwrap()).unwrap().get_relocatable().unwrap();
@@ -1049,7 +1047,7 @@ mod tests {
         // - Address
         assert_eq!(
             vm.get_maybe(&(transaction_ptr + 5usize).unwrap()),
-            Some(keth_block.transactions[1].rlp.len.0.clone())
+            Some(keth_block.transactions[1].rlp.len.clone().unwrap().0)
         );
         let transaction2_rlp_ptr =
             vm.get_maybe(&(transaction_ptr + 6usize).unwrap()).unwrap().get_relocatable().unwrap();
@@ -1069,7 +1067,7 @@ mod tests {
         // - Address
         assert_eq!(
             vm.get_maybe(&(transaction_ptr + 7usize).unwrap()),
-            Some(keth_block.transactions[1].signature.len.0.clone())
+            Some(keth_block.transactions[1].signature.len.clone().unwrap().0)
         );
         let transaction2_signature_ptr =
             vm.get_maybe(&(transaction_ptr + 8usize).unwrap()).unwrap().get_relocatable().unwrap();
