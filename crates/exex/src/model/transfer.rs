@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 /// This structure captures the details of a token transfer. It is compatible with Cairo's execution
 /// model and is used to finalize Starknet ETH transfers during transaction processing.
 #[derive(Debug, Eq, Ord, Hash, PartialEq, PartialOrd, Clone, Serialize, Deserialize)]
-pub struct Transfer {
+pub struct KethTransfer {
     /// The address of the sender initiating the transfer.
     pub sender: KethMaybeRelocatable,
 
