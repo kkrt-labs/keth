@@ -1,4 +1,4 @@
-from typing import Any, Sequence, Tuple, Type, Union
+from typing import Any, Tuple, Type, Union
 
 import pytest
 from hypothesis import assume, given, settings
@@ -27,7 +27,7 @@ from ethereum.cancun.transactions import (
     LegacyTransaction,
     Transaction,
 )
-from ethereum.cancun.trie import LeafNode
+from ethereum.cancun.trie import BranchNode, ExtensionNode, LeafNode
 from ethereum.cancun.vm.gas import MessageCallGas
 from tests.utils.args_gen import _cairo_struct_to_python_type
 from tests.utils.args_gen import gen_arg as _gen_arg
@@ -140,6 +140,8 @@ class TestSerde:
             Tuple[Address, Tuple[Bytes32, ...]],
             MessageCallGas,
             LeafNode,
+            ExtensionNode,
+            BranchNode,
         ],
     ):
         assume(no_empty_sequence(b))
