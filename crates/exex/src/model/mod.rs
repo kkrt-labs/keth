@@ -1,4 +1,5 @@
 pub mod block;
+pub mod event;
 pub mod header;
 pub mod payload;
 pub mod primitives;
