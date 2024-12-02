@@ -5,6 +5,7 @@ from typing import (
     Any,
     Dict,
     ForwardRef,
+    Optional,
     Sequence,
     Tuple,
     Type,
@@ -56,6 +57,7 @@ from ethereum.crypto.hash import Hash32
 from ethereum.rlp import Extended, Simple
 
 _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
+    ("ethereum", "base_types", "None"): type(None),
     ("ethereum", "base_types", "bool"): bool,
     ("ethereum", "base_types", "U64"): U64,
     ("ethereum", "base_types", "Uint"): Uint,
@@ -153,6 +155,9 @@ def _gen_arg(
     """
     Generate a Cairo argument from a Python argument.
     """
+    if arg_type is type(None):
+        return 0
+
     arg_type_origin = get_origin(arg_type) or arg_type
     if isinstance_with_generic(arg_type_origin, ForwardRef):
         arg_type = arg_type_origin._evaluate(globals(), locals(), frozenset())
@@ -160,6 +165,10 @@ def _gen_arg(
 
     if arg_type_origin is Union:
         # Union are represented as Enum in Cairo, with 0 pointers for all but one variant.
+        arg_types = get_args(arg_type)
+        if arg_type_origin is Optional:
+            arg_types = (None, *arg_types)
+
         struct_ptr = segments.add()
         data = [
             (
@@ -167,10 +176,10 @@ def _gen_arg(
                 if isinstance_with_generic(arg, x_type)
                 else 0
             )
-            for x_type in get_args(arg_type)
+            for x_type in arg_types
         ]
         # Value types are not pointers by default, so we need to convert them to pointers.
-        for i, (x_type, d) in enumerate(zip(get_args(arg_type), data)):
+        for i, (x_type, d) in enumerate(zip(arg_types, data)):
             if isinstance_with_generic(arg, x_type) and not isinstance_with_generic(
                 d, RelocatableValue
             ):
