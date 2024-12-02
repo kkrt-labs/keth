@@ -1,4 +1,8 @@
+# ruff: noqa: E402
+
 from dataclasses import fields
+from typing import ForwardRef, Sequence, TypeAlias, Union
+from unittest.mock import patch
 
 from hypothesis import strategies as st
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
@@ -11,8 +15,16 @@ from ethereum.base_types import (
     Bytes20,
     Bytes32,
     Bytes256,
+    FixedUint,
     Uint,
 )
+
+# Mock the Extended type because hypothesis cannot handle the RLP Protocol
+# Needs to be done before importing the types from ethereum.cancun.trie
+# trunk-ignore(ruff/F821)
+MockExtended: TypeAlias = Union[Sequence["Extended"], bytearray, bytes, Uint, FixedUint, str, bool]  # type: ignore
+patch("ethereum.rlp.Extended", MockExtended).start()
+
 from ethereum.cancun.blocks import Header, Log, Receipt, Withdrawal
 from ethereum.cancun.fork_types import Account, Address, Bloom, Root
 from ethereum.cancun.transactions import (
@@ -21,7 +33,7 @@ from ethereum.cancun.transactions import (
     FeeMarketTransaction,
     LegacyTransaction,
 )
-from ethereum.cancun.trie import Trie
+from ethereum.cancun.trie import LeafNode, Trie
 from ethereum.crypto.hash import Hash32
 
 # Base types
@@ -47,12 +59,18 @@ root = bytes32.map(Root)
 bytes256 = st.binary(min_size=256, max_size=256).map(Bytes256)
 bloom = bytes256.map(Bloom)
 
+# See ethereum.rlp.Simple and ethereum.rlp.Extended for the definition of Simple and Extended
+simple = st.recursive(st.one_of(st.binary()), st.lists)
+extended = st.recursive(
+    st.one_of(st.binary(), uint, st.text(), st.booleans()), st.lists
+)
+
 
 # See https://github.com/ethereum/execution-specs/issues/1036
 # It's currently not possible to generate strategies using `st.builds` because the dataclasses
 # use a slotted_freezable decorator that overrides the default __init__ method without wrapping it.
 # So we need to redefine all dataclasses here manually instead of using `st.builds`.
-def st_builds(cls):
+def st_from_type(cls):
     return st.fixed_dictionaries(
         {field.name: st.from_type(field.type) for field in fields(cls)}
     ).map(lambda x: cls(**x))
@@ -87,6 +105,7 @@ state = st.lists(bytes20).flatmap(
 def register_type_strategies():
     st.register_type_strategy(U64, uint64)
     st.register_type_strategy(Uint, uint)
+    st.register_type_strategy(FixedUint, uint)
     st.register_type_strategy(U256, uint256)
     st.register_type_strategy(Bytes0, bytes0)
     st.register_type_strategy(Bytes8, bytes8)
@@ -97,12 +116,17 @@ def register_type_strategies():
     st.register_type_strategy(Root, root)
     st.register_type_strategy(Bytes256, bytes256)
     st.register_type_strategy(Bloom, bloom)
-    st.register_type_strategy(Account, st_builds(Account))
-    st.register_type_strategy(Withdrawal, st_builds(Withdrawal))
-    st.register_type_strategy(Header, st_builds(Header))
-    st.register_type_strategy(Log, st_builds(Log))
-    st.register_type_strategy(Receipt, st_builds(Receipt))
-    st.register_type_strategy(LegacyTransaction, st_builds(LegacyTransaction))
-    st.register_type_strategy(AccessListTransaction, st_builds(AccessListTransaction))
-    st.register_type_strategy(FeeMarketTransaction, st_builds(FeeMarketTransaction))
-    st.register_type_strategy(BlobTransaction, st_builds(BlobTransaction))
+    st.register_type_strategy(ForwardRef("Simple"), simple)  # type: ignore
+    st.register_type_strategy(ForwardRef("Extended"), extended)  # type: ignore
+    st.register_type_strategy(Account, st_from_type(Account))
+    st.register_type_strategy(Withdrawal, st_from_type(Withdrawal))
+    st.register_type_strategy(Header, st_from_type(Header))
+    st.register_type_strategy(Log, st_from_type(Log))
+    st.register_type_strategy(Receipt, st_from_type(Receipt))
+    st.register_type_strategy(LegacyTransaction, st_from_type(LegacyTransaction))
+    st.register_type_strategy(
+        AccessListTransaction, st_from_type(AccessListTransaction)
+    )
+    st.register_type_strategy(FeeMarketTransaction, st_from_type(FeeMarketTransaction))
+    st.register_type_strategy(BlobTransaction, st_from_type(BlobTransaction))
+    st.register_type_strategy(LeafNode, st_from_type(LeafNode))

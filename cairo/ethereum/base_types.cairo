@@ -47,6 +47,14 @@ struct Bytes {
 // Some parts of the exec spec use bytes, so just easier to copy/paste
 using bytes = Bytes;
 
+struct StringStruct {
+    data: felt*,
+    len: felt,
+}
+struct String {
+    value: StringStruct*,
+}
+
 // In Cairo, tuples are not a first-class type, so we need to define a custom
 // struct to represent a tuple of Bytes32.
 struct TupleBytesStruct {

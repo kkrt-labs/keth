@@ -50,6 +50,7 @@ from ethereum.cancun.transactions import (
     LegacyTransaction,
     Transaction,
 )
+from ethereum.cancun.trie import LeafNode
 from ethereum.cancun.vm.gas import MessageCallGas
 from ethereum.crypto.hash import Hash32
 from ethereum.rlp import Extended, Simple
@@ -66,6 +67,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "base_types", "TupleBytes32"): Tuple[Bytes32, ...],
     ("ethereum", "base_types", "Bytes256"): Bytes256,
     ("ethereum", "base_types", "Bytes"): Bytes,
+    ("ethereum", "base_types", "String"): str,
     ("ethereum", "base_types", "TupleBytes"): Tuple[Bytes, ...],
     ("ethereum", "cancun", "blocks", "Header"): Header,
     ("ethereum", "cancun", "blocks", "TupleHeader"): Tuple[Header, ...],
@@ -109,9 +111,10 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "rlp", "Extended"): Extended,
     ("ethereum", "rlp", "SequenceSimple"): Sequence[Simple],
     ("ethereum", "rlp", "SequenceExtended"): Sequence[Extended],
+    ("ethereum", "cancun", "trie", "LeafNode"): LeafNode,
 }
 
-# In the EELS, some functions are annotated with Sequence while it's actually Bytes.
+# In the EELS, some functions are annotated with Sequence while it's actually just Bytes.
 _type_aliases = {
     Sequence: Bytes,
 }
@@ -124,6 +127,10 @@ def isinstance_with_generic(obj, type_hint):
 
     origin = get_origin(type_hint)
     if origin is None:
+        if isinstance(obj, int):
+            # int is a subclass of bool, so we need to check for bool or int
+            return type(obj) is type_hint
+
         return isinstance(obj, type_hint)
 
     # Sequence should be _real_ Sequence, not bytes or str
@@ -229,14 +236,16 @@ def _gen_arg(
         )
         return base
 
-    if arg_type == Bytes:
+    if arg_type in (Bytes, bytes, bytearray, str):
+        if isinstance(arg, str):
+            arg = arg.encode()
         bytes_ptr = segments.add()
         segments.load_data(bytes_ptr, list(arg))
         struct_ptr = segments.add()
         segments.load_data(struct_ptr, [bytes_ptr, len(arg)])
         return struct_ptr
 
-    if arg_type in (bool, U64, Uint, Bytes0, Bytes8, Bytes20):
+    if arg_type in (int, bool, U64, Uint, Bytes0, Bytes8, Bytes20):
         return (
             int(arg)
             if not isinstance_with_generic(arg, bytes)
