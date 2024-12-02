@@ -33,7 +33,7 @@ from ethereum.cancun.transactions import (
     FeeMarketTransaction,
     LegacyTransaction,
 )
-from ethereum.cancun.trie import LeafNode, Trie
+from ethereum.cancun.trie import BranchNode, ExtensionNode, LeafNode, Trie
 from ethereum.crypto.hash import Hash32
 
 # Base types
@@ -130,3 +130,5 @@ def register_type_strategies():
     st.register_type_strategy(FeeMarketTransaction, st_from_type(FeeMarketTransaction))
     st.register_type_strategy(BlobTransaction, st_from_type(BlobTransaction))
     st.register_type_strategy(LeafNode, st_from_type(LeafNode))
+    st.register_type_strategy(ExtensionNode, st_from_type(ExtensionNode))
+    st.register_type_strategy(BranchNode, st_from_type(BranchNode))

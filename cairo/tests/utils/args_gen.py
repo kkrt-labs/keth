@@ -50,7 +50,7 @@ from ethereum.cancun.transactions import (
     LegacyTransaction,
     Transaction,
 )
-from ethereum.cancun.trie import LeafNode
+from ethereum.cancun.trie import BranchNode, ExtensionNode, LeafNode
 from ethereum.cancun.vm.gas import MessageCallGas
 from ethereum.crypto.hash import Hash32
 from ethereum.rlp import Extended, Simple
@@ -112,6 +112,8 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "rlp", "SequenceSimple"): Sequence[Simple],
     ("ethereum", "rlp", "SequenceExtended"): Sequence[Extended],
     ("ethereum", "cancun", "trie", "LeafNode"): LeafNode,
+    ("ethereum", "cancun", "trie", "ExtensionNode"): ExtensionNode,
+    ("ethereum", "cancun", "trie", "BranchNode"): BranchNode,
 }
 
 # In the EELS, some functions are annotated with Sequence while it's actually just Bytes.

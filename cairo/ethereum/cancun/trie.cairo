@@ -9,7 +9,7 @@ from ethereum.base_types import U256, Bytes, Uint, BytesStruct, bool
 from ethereum.cancun.blocks import Receipt, Withdrawal
 from ethereum.cancun.fork_types import Account, Address, Root, encode_account
 from ethereum.cancun.transactions import LegacyTransaction
-from ethereum.rlp import Extended
+from ethereum.rlp import Extended, SequenceExtended
 
 from ethereum.utils.numeric import divmod
 
@@ -22,17 +22,25 @@ struct LeafNode {
     value: LeafNodeStruct*,
 }
 
-// struct ExtensionNode {
-//     key_segment: Bytes,
-//     subnode: rlp.Extended,
-// }
+struct ExtensionNodeStruct {
+    key_segment: Bytes,
+    subnode: Extended,
+}
 
-// struct BranchNode {
-//     subnodes: rlp.Extended,
-//     value: rlp.Extended,
-// }
+struct ExtensionNode {
+    value: ExtensionNodeStruct*,
+}
 
-// struct Trie {
+struct BranchNodeStruct {
+    subnodes: SequenceExtended,
+    value: Extended,
+}
+
+struct BranchNode {
+    value: BranchNodeStruct*,
+}
+
+// struct TrieStruct {
 //     secured: bool,
 //     default: V,
 //     _data: Dict[K, V],
