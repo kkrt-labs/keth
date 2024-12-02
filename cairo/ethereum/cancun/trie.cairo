@@ -9,13 +9,18 @@ from ethereum.base_types import U256, Bytes, Uint, BytesStruct, bool
 from ethereum.cancun.blocks import Receipt, Withdrawal
 from ethereum.cancun.fork_types import Account, Address, Root, encode_account
 from ethereum.cancun.transactions import LegacyTransaction
+from ethereum.rlp import Extended
 
 from ethereum.utils.numeric import divmod
 
-// struct LeafNode {
-//     rest_of_key: Bytes,
-//     value: rlp.Extended,
-// }
+struct LeafNodeStruct {
+    rest_of_key: Bytes,
+    value: Extended,
+}
+
+struct LeafNode {
+    value: LeafNodeStruct*,
+}
 
 // struct ExtensionNode {
 //     key_segment: Bytes,

@@ -1,4 +1,13 @@
-from ethereum.base_types import Bytes, BytesStruct, TupleBytes, TupleBytesStruct, Uint, U256, bool
+from ethereum.base_types import (
+    Bytes,
+    BytesStruct,
+    TupleBytes,
+    TupleBytesStruct,
+    Uint,
+    U256,
+    bool,
+    String,
+)
 from ethereum.crypto.hash import keccak256, Hash32
 from ethereum.utils.numeric import is_zero
 from src.utils.array import reverse
@@ -44,13 +53,12 @@ struct Extended {
 
 struct ExtendedStruct {
     sequence: SequenceExtended,
-    bytesarray: Bytes,
+    bytearray: Bytes,
     bytes: Bytes,
     uint: Uint*,
     fixed_uint: Uint*,
-    str: Bytes,
+    str: String,
     bool: bool*,
-    RLP: Bytes,
 }
 
 //
@@ -190,6 +198,7 @@ func decode_to_bytes{range_check_ptr}(encoded_bytes: Bytes) -> Bytes {
 
     let decoded_data_end_idx = decoded_data_start_idx + len_decoded_data;
     assert [range_check_ptr] = encoded_bytes.value.len - decoded_data_end_idx;
+    let range_check_ptr = range_check_ptr + 1;
 
     let raw_data = encoded_bytes.value.data + decoded_data_start_idx;
     tempvar value = new BytesStruct(raw_data, decoded_data_end_idx - decoded_data_start_idx);
@@ -306,8 +315,8 @@ func _encode{range_check_ptr}(dst: felt*, raw_data: Extended) -> felt {
         return _encode_sequence(dst, raw_data.value.sequence);
     }
 
-    if (cast(raw_data.value.bytesarray.value, felt) != 0) {
-        return _encode_bytes(dst, raw_data.value.bytesarray);
+    if (cast(raw_data.value.bytearray.value, felt) != 0) {
+        return _encode_bytes(dst, raw_data.value.bytearray);
     }
 
     if (cast(raw_data.value.bytes.value, felt) != 0) {
@@ -323,7 +332,7 @@ func _encode{range_check_ptr}(dst: felt*, raw_data: Extended) -> felt {
     }
 
     if (cast(raw_data.value.str.value, felt) != 0) {
-        return _encode_bytes(dst, raw_data.value.str);
+        return _encode_string(dst, raw_data.value.str);
     }
 
     if (cast(raw_data.value.bool, felt) != 0) {
@@ -376,6 +385,10 @@ func _encode_uint256_little{range_check_ptr}(dst: felt*, raw_uint: U256) -> felt
         new BytesStruct(raw_uint_as_bytes_le, raw_uint_as_bytes_le_len)
     );
     return _encode_bytes(dst, raw_uint_as_bytes);
+}
+
+func _encode_string{range_check_ptr}(dst: felt*, raw_string: String) -> felt {
+    return _encode_bytes(dst, Bytes(cast(raw_string.value, BytesStruct*)));
 }
 
 func _encode_bytes{range_check_ptr}(dst: felt*, raw_bytes: Bytes) -> felt {
@@ -436,7 +449,7 @@ func _encode_sequence{range_check_ptr}(dst: felt*, raw_sequence: SequenceExtende
     }
 
     let (len_joined_encodings_as_le: felt*) = alloc();
-    let len_joined_encodings_as_le_len = felt_to_bytes_little(len_joined_encodings_as_le, len);
+    let len_joined_encodings_as_le_len = felt_to_bytes(len_joined_encodings_as_le, len);
 
     assert [dst] = 0xF7 + len_joined_encodings_as_le_len;
     memcpy(dst + 1, len_joined_encodings_as_le, len_joined_encodings_as_le_len);

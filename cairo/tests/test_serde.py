@@ -1,4 +1,4 @@
-from typing import Any, Tuple, Type, Union
+from typing import Any, Sequence, Tuple, Type, Union
 
 import pytest
 from hypothesis import assume, given, settings
@@ -27,6 +27,7 @@ from ethereum.cancun.transactions import (
     LegacyTransaction,
     Transaction,
 )
+from ethereum.cancun.trie import LeafNode
 from ethereum.cancun.vm.gas import MessageCallGas
 from tests.utils.args_gen import _cairo_struct_to_python_type
 from tests.utils.args_gen import gen_arg as _gen_arg
@@ -77,16 +78,19 @@ def get_type(instance: Any) -> Type:
     return Tuple[tuple(elem_types)]
 
 
-def no_empty_tuples(value: Any) -> bool:
+def no_empty_sequence(value: Any) -> bool:
     """Recursively check that no tuples (including nested ones) are empty."""
-    if not isinstance(value, tuple):
+    if not isinstance(value, tuple) and not isinstance(value, list):
         return True
 
     if not value:  # Empty tuple
         return False
 
     # Check each element recursively if it's a tuple
-    return all(no_empty_tuples(x) if isinstance(x, tuple) else True for x in value)
+    return all(
+        no_empty_sequence(x) if (isinstance(x, tuple) or isinstance(x, list)) else True
+        for x in value
+    )
 
 
 class TestSerde:
@@ -135,9 +139,10 @@ class TestSerde:
             Tuple[Tuple[Address, Tuple[Bytes32, ...]], ...],
             Tuple[Address, Tuple[Bytes32, ...]],
             MessageCallGas,
+            LeafNode,
         ],
     ):
-        assume(no_empty_tuples(b))
+        assume(no_empty_sequence(b))
         type_ = get_type(b)
         base = segments.gen_arg([gen_arg(type_, b)])
         result = serde.serialize(to_cairo_type(type_), base, shift=0)

@@ -133,13 +133,15 @@ class Serde:
                     ]
                 )
 
-        if python_cls == Bytes:
+        if python_cls in (bytes, bytearray, Bytes, str):
             tuple_struct_ptr = self.serialize_pointers(path, ptr)["value"]
             struct_name = path[-1] + "Struct"
             path = (*path[:-1], struct_name)
             raw = self.serialize_pointers(path, tuple_struct_ptr)
             data = [self.memory.get(raw["data"] + i) for i in range(raw["len"])]
-            return Bytes(data)
+            if python_cls is str:
+                return bytes(data).decode()
+            return python_cls(data)
 
         if python_cls == Bytes256:
             base_ptr = self.memory.get(ptr)
