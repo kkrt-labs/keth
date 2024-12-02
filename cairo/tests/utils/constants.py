@@ -31,6 +31,25 @@ signers = {
 }
 OWNER, OTHER = signers.keys()
 
+ACCESS_LIST_TRANSACTION = {
+    "type": 1,
+    "gas": 100_000,
+    "gasPrice": 1_000_000_000,
+    "data": "0x616263646566",
+    "nonce": 34,
+    "to": "0x09616C3d61b3331fc4109a9E41a8BDB7d9776609",
+    "value": 0x5AF3107A4000,
+    "accessList": (
+        {
+            "address": "0x0000000000000000000000000000000000000001",
+            "storageKeys": (
+                "0x0100000000000000000000000000000000000000000000000000000000000000",
+            ),
+        },
+    ),
+    "chainId": CHAIN_ID,
+}
+
 # Taken from eth_account.account.Account.sign_transaction docstring
 # https://eth-account.readthedocs.io/en/stable/eth_account.html?highlight=sign_transaction#eth_account.account.Account.sign_transaction
 TRANSACTIONS = [
@@ -43,24 +62,7 @@ TRANSACTIONS = [
         "chainId": CHAIN_ID,
         "data": b"",
     },
-    {
-        "type": 1,
-        "gas": 100_000,
-        "gasPrice": 1_000_000_000,
-        "data": "0x616263646566",
-        "nonce": 34,
-        "to": "0x09616C3d61b3331fc4109a9E41a8BDB7d9776609",
-        "value": 0x5AF3107A4000,
-        "accessList": (
-            {
-                "address": "0x0000000000000000000000000000000000000001",
-                "storageKeys": (
-                    "0x0100000000000000000000000000000000000000000000000000000000000000",
-                ),
-            },
-        ),
-        "chainId": CHAIN_ID,
-    },
+    ACCESS_LIST_TRANSACTION,
     # Access list with two addresses
     {
         "type": 1,
