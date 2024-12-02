@@ -68,6 +68,7 @@ namespace Transaction {
 
         // pre eip-155 txs have 6 fields, post eip-155 txs have 9 fields
         if (items_len == 6) {
+            tempvar range_check_ptr = range_check_ptr;
             tempvar is_some = 0;
             tempvar chain_id = 0;
         } else {
@@ -75,11 +76,15 @@ namespace Transaction {
             assert items[6].is_list = FALSE;
             assert items[7].is_list = FALSE;
             assert items[8].is_list = FALSE;
+
+            assert_nn(31 - items[6].data_len);
             let chain_id = Helpers.bytes_to_felt(items[6].data_len, items[6].data);
 
+            tempvar range_check_ptr = range_check_ptr;
             tempvar is_some = 1;
             tempvar chain_id = chain_id;
         }
+        let range_check_ptr = [ap - 3];
         let is_some = [ap - 2];
         let chain_id = [ap - 1];
 
