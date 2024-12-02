@@ -184,6 +184,36 @@ def patch_hint(program, hint, new_hint):
         yield
 
 
+@contextmanager
+def insert_hint(program, location: str, hint):
+    """
+    Insert a hint at a given location in the program.
+
+    The location should be file_name:line_number.
+
+    """
+    instructions = {
+        index: loc
+        for index, loc in program.debug_info.instruction_locations.items()
+        if location in str(loc.inst)
+    }
+    if not instructions:
+        raise ValueError(f"Location {location} not found in program.")
+    pc, instruction = list(instructions.items())[0]
+    hint = CairoHint(
+        accessible_scopes=instruction.accessible_scopes,
+        flow_tracking_data=instruction.flow_tracking_data,
+        code=hint,
+    )
+    new_hints = program.hints.copy()
+    new_hints[pc] = [*new_hints.get(pc, []), hint]
+    with (
+        patch.object(instruction, "hints", new=new_hints.get(pc, [])),
+        patch.object(program, "hints", new=new_hints),
+    ):
+        yield
+
+
 def oracle(program, serde, main_path, gen_arg):
 
     def _factory(ids, reference: Optional[str] = None):
