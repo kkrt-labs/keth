@@ -2,7 +2,7 @@ from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.math_cmp import is_le
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin
 from starkware.cairo.common.memcpy import memcpy
-from src.utils.bytes import felt_to_bytes_little
+from src.utils.bytes import felt_to_bytes_little, uint256_to_bytes32_little
 from ethereum.crypto.hash import Hash32, keccak256
 from ethereum.base_types import Bytes20, Bytes256, Uint, U256, Bytes, BytesStruct
 from ethereum.rlp import (
@@ -50,10 +50,11 @@ func encode_account{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: K
     let balance_len = _encode_uint256(dst + nonce_len, raw_account_data.value.balance);
     let storage_root_len = _encode_bytes(dst + nonce_len + balance_len, storage_root);
     let code_hash = keccak256(raw_account_data.value.code);
-    let code_hash_len = _encode_uint256_little(
-        dst + nonce_len + balance_len + storage_root_len, U256(code_hash.value)
+    let (code_hash_le: felt*) = alloc();
+    uint256_to_bytes32_little(code_hash_le, [code_hash.value]);
+    let code_hash_len = _encode_bytes(
+        dst + nonce_len + balance_len + storage_root_len, Bytes(new BytesStruct(code_hash_le, 32))
     );
-
     let len = nonce_len + balance_len + storage_root_len + code_hash_len;
     let cond = is_le(len, 0x38 - 1);
     if (cond != 0) {
