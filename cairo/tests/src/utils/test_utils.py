@@ -1,13 +1,15 @@
-import random
 from math import ceil
 
 import pytest
-from hypothesis import given, settings
+from hypothesis import example, given, settings
 from hypothesis import strategies as st
 
+from ethereum.base_types import Bytes
+from ethereum.cancun.vm.runtime import get_valid_jump_destinations
 from tests.utils.errors import cairo_error
 from tests.utils.helpers import pack_calldata
 from tests.utils.hints import patch_hint
+from tests.utils.solidity import get_contract
 
 
 @pytest.mark.parametrize(
@@ -155,17 +157,42 @@ def test_should_unpack_felt_array_to_bytes32_array(cairo_run, data, expected):
     assert bytes(result) == expected
 
 
+class TestInitializeJumpdests:
+    @given(bytecode=...)
+    @example(bytecode=get_contract("Counter", "Counter").bytecode_runtime)
+    def test_should_return_same_as_execution_specs(self, cairo_run, bytecode: Bytes):
+        output = cairo_run("test__initialize_jumpdests", bytecode=bytecode)
+        assert set(output) == get_valid_jump_destinations(bytecode)
+
+    @given(bytecode=...)
+    @example(bytecode=get_contract("Counter", "Counter").bytecode_runtime)
+    def test_should_err_on_malicious_prover(
+        self, cairo_program, cairo_run, bytecode: Bytes
+    ):
+        with (
+            patch_hint(
+                cairo_program,
+                "memory[ap] = 0 if 0 <= (ids.a % PRIME) < range_check_builtin.bound else 1",
+                "memory[ap] = 1",
+                "initialize_jumpdests",
+            ),
+            cairo_error(message="Reading out of bounds bytecode"),
+        ):
+            bytecode = get_contract("Counter", "Counter").bytecode_runtime
+            cairo_run("test__initialize_jumpdests", bytecode=bytecode)
+
+
 class TestLoadPackedBytes:
-    def test_should_load_packed_bytes(self, cairo_run):
-        bytes = random.randbytes(100)
+    @given(bytes=...)
+    def test_should_load_packed_bytes(self, cairo_run, bytes: Bytes):
         packed_bytes = pack_calldata(bytes)
         output = cairo_run("test__load_packed_bytes", data=packed_bytes)
         assert output == list(bytes)
 
+    @given(bytes=st.binary(min_size=1))
     def test_should_raise_zellic_issue_1283_load_packed_bytes(
-        self, cairo_program, cairo_run
+        self, cairo_program, cairo_run, bytes: Bytes
     ):
-        bytes = random.randbytes(100)
         packed_bytes = pack_calldata(bytes)
         with (
             patch_hint(
