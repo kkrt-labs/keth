@@ -50,12 +50,10 @@ func encode_account{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: K
     let balance_len = _encode_uint256(dst + nonce_len, raw_account_data.value.balance);
     let storage_root_len = _encode_bytes(dst + nonce_len + balance_len, storage_root);
     let code_hash = keccak256(raw_account_data.value.code);
-    let (code_hash_le: felt*) = alloc();
-    uint256_to_bytes32_little(code_hash_le, [code_hash.value]);
-    let code_hash_len = _encode_bytes(
-        dst + nonce_len + balance_len + storage_root_len, Bytes(new BytesStruct(code_hash_le, 32))
-    );
-    let len = nonce_len + balance_len + storage_root_len + code_hash_len;
+    let code_hash_ptr = dst + nonce_len + balance_len + storage_root_len;
+    assert [code_hash_ptr] = 0x80 + 32;
+    uint256_to_bytes32_little(code_hash_ptr + 1, [code_hash.value]);
+    let len = nonce_len + balance_len + storage_root_len + 33;
     let cond = is_le(len, 0x38 - 1);
     if (cond != 0) {
         let dst = dst - 1;
