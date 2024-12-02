@@ -6,6 +6,7 @@
     "isort",
     "jupyter",
     "kkrt",
+    "memset",
     "ommers",
     "recv",
     "Risc"

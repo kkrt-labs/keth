@@ -87,9 +87,7 @@ class TestBytes:
             assert f"{n:064x}"[-40:] == bytes(output).hex()
 
     class TestUint256ToBytesLittle:
-        @pytest.mark.parametrize(
-            "n", [0, 10, 1234, 0xFFFFFF, 2**128, DEFAULT_PRIME - 1, 2**256 - 1]
-        )
+        @given(n=integers(min_value=0, max_value=2**256 - 1))
         def test_should_return_bytes(self, cairo_run, n):
             output = cairo_run("test__uint256_to_bytes_little", n=int_to_uint256(n))
             res = bytes(output)
@@ -105,9 +103,7 @@ class TestBytes:
             assert bytes.fromhex(f"{n:x}".rjust(len(res) * 2, "0")) == res
 
     class TestUint256ToBytes32:
-        @pytest.mark.parametrize(
-            "n", [0, 10, 1234, 0xFFFFFF, 2**128, DEFAULT_PRIME - 1, 2**256 - 1]
-        )
+        @given(n=integers(min_value=0, max_value=2**256 - 1))
         def test_should_return_bytes(self, cairo_run, n):
             output = cairo_run("test__uint256_to_bytes32", n=int_to_uint256(n))
             assert bytes.fromhex(f"{n:064x}") == bytes(output)

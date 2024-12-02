@@ -230,12 +230,18 @@ func uint256_to_bytes{range_check_ptr}(dst: felt*, n: Uint256) -> felt {
     return bytes_len;
 }
 
+func uint256_to_bytes32_little{range_check_ptr}(dst: felt*, n: Uint256) {
+    alloc_locals;
+    let bytes_len = uint256_to_bytes_little(dst, n);
+    memset(dst + bytes_len, 0, 32 - bytes_len);
+    return ();
+}
+
 func uint256_to_bytes32{range_check_ptr}(dst: felt*, n: Uint256) {
     alloc_locals;
     let (bytes: felt*) = alloc();
-    let bytes_len = uint256_to_bytes_little(bytes, n);
-    memset(dst, 0, 32 - bytes_len);
-    reverse(dst + 32 - bytes_len, bytes_len, bytes);
+    uint256_to_bytes32_little(bytes, n);
+    reverse(dst, 32, bytes);
     return ();
 }
 
