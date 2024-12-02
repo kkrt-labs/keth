@@ -1,4 +1,5 @@
 from ethereum.base_types import (
+    None,
     bool,
     U64,
     U128,

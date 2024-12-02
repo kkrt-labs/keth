@@ -1,4 +1,4 @@
-from typing import Any, Tuple, Type, Union
+from typing import Any, Optional, Tuple, Type, Union
 
 import pytest
 from hypothesis import assume, given, settings
@@ -143,6 +143,7 @@ class TestSerde:
             ExtensionNode,
             BranchNode,
             InternalNode,
+            Optional[InternalNode],
         ],
     ):
         assume(no_empty_sequence(b))

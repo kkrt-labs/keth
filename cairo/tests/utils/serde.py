@@ -69,6 +69,9 @@ class Serde:
         """
         Recursively serialize a Cairo instance, returning the corresponding Python instance.
         """
+        if ptr == 0:
+            return None
+
         full_path = path
         if "__main__" in full_path:
             full_path = self.main_part + full_path[full_path.index("__main__") + 1 :]
