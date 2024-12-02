@@ -40,6 +40,16 @@ struct BranchNode {
     value: BranchNodeStruct*,
 }
 
+struct InternalNode {
+    value: InternalNodeStruct*,
+}
+
+struct InternalNodeStruct {
+    leaf_node: LeafNode,
+    extension_node: ExtensionNode,
+    branch_node: BranchNode,
+}
+
 // struct TrieStruct {
 //     secured: bool,
 //     default: V,
