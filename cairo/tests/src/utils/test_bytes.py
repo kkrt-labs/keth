@@ -71,6 +71,19 @@ class TestBytes:
             ):
                 cairo_run("test__felt_to_bytes_little", n=n)
 
+        def test_should_raise_when_bytes_len_is_greater_than_31(
+            self, cairo_program, cairo_run
+        ):
+            with (
+                patch_hint(
+                    cairo_program,
+                    "memory[ids.output] = res = (int(ids.value) % PRIME) % ids.base\nassert res < ids.bound, f'split_int(): Limb {res} is out of range.'",
+                    "memory[ids.output] = 2 if ids.bytes_len < 3 else (int(ids.value) % PRIME) % ids.base\nprint(f'[DEBUG] Byte value: {memory[ids.output]}')",
+                ),
+                cairo_error(message="bytes_len is not the minimal possible"),
+            ):
+                cairo_run("test__felt_to_bytes_little", n=3)
+
     class TestFeltToBytes:
         @given(n=integers(min_value=0, max_value=2**248 - 1))
         def test_should_return_bytes(self, cairo_run, n):
