@@ -181,25 +181,39 @@ func bytes_to_felt(len: felt, ptr: felt*) -> felt {
     return current;
 }
 
+// @notice Split a felt into an array of 20 bytes, little endian
+// @dev Truncate the high 12 bytes
+func felt_to_bytes20_little{range_check_ptr}(dst: felt*, value: felt) {
+    alloc_locals;
+    let (high, low) = split_felt(value);
+    let (_, high) = unsigned_div_rem(high, 2 ** 32);
+    split_int(low, 16, 256, 256, dst);
+    split_int(high, 4, 256, 256, dst + 16);
+    return ();
+}
+
 // @notice Split a felt into an array of 20 bytes, big endian
 // @dev Truncate the high 12 bytes
 func felt_to_bytes20{range_check_ptr}(dst: felt*, value: felt) {
     alloc_locals;
     let (bytes20: felt*) = alloc();
-    let (high, low) = split_felt(value);
-    let (_, high) = unsigned_div_rem(high, 2 ** 32);
-    split_int(low, 16, 256, 256, bytes20);
-    split_int(high, 4, 256, 256, bytes20 + 16);
+    felt_to_bytes20_little(bytes20, value);
     reverse(dst, 20, bytes20);
+    return ();
+}
+
+func felt_to_bytes32_little{range_check_ptr}(dst: felt*, value: felt) {
+    alloc_locals;
+    let (high, low) = split_felt(value);
+    split_int(low, 16, 256, 256, dst);
+    split_int(high, 16, 256, 256, dst + 16);
     return ();
 }
 
 func felt_to_bytes32{range_check_ptr}(dst: felt*, value: felt) {
     alloc_locals;
     let (bytes32: felt*) = alloc();
-    let (high, low) = split_felt(value);
-    split_int(low, 16, 256, 256, bytes32);
-    split_int(high, 16, 256, 256, bytes32 + 16);
+    felt_to_bytes32_little(bytes32, value);
     reverse(dst, 32, bytes32);
     return ();
 }
