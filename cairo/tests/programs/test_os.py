@@ -1,8 +1,13 @@
 from eth_abi import encode
+from hypothesis import given
+from hypothesis.strategies import integers
 
+from ethereum.crypto.elliptic_curve import SECP256K1N
 from ethereum.crypto.hash import keccak256
+from src.utils.uint256 import int_to_uint256
 from tests.utils.constants import COINBASE, OTHER, OWNER
 from tests.utils.data import block
+from tests.utils.errors import cairo_error
 from tests.utils.models import State
 from tests.utils.solidity import get_contract
 
@@ -121,3 +126,27 @@ class TestOs:
                 else []
             ),
         ]
+
+    @given(s_value=integers(min_value=SECP256K1N // 2 + 1, max_value=SECP256K1N))
+    def test_should_raise_on_invalid_s_value(self, cairo_run, s_value):
+        initial_state = {
+            OWNER: {
+                "code": [],
+                "storage": {},
+                "balance": int(1e18),
+                "nonce": 0,
+            }
+        }
+        transactions = [{"to": OTHER, "data": "0x6001", "value": 0, "signer": OWNER}]
+
+        low, high = int_to_uint256(s_value)
+        block_to_pass = block(transactions)
+        block_to_pass.transactions[0].signature[2] = low
+        block_to_pass.transactions[0].signature[3] = high
+
+        with cairo_error("Invalid s value"):
+            cairo_run(
+                "test_os",
+                block=block_to_pass,
+                state=State.model_validate(initial_state),
+            )
