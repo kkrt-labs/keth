@@ -27,7 +27,7 @@ from ethereum.cancun.transactions import (
     LegacyTransaction,
     Transaction,
 )
-from ethereum.cancun.trie import BranchNode, ExtensionNode, InternalNode, LeafNode
+from ethereum.cancun.trie import BranchNode, ExtensionNode, InternalNode, LeafNode, Node
 from ethereum.cancun.vm.gas import MessageCallGas
 from tests.utils.args_gen import _cairo_struct_to_python_type
 from tests.utils.args_gen import gen_arg as _gen_arg
@@ -144,6 +144,7 @@ class TestSerde:
             BranchNode,
             InternalNode,
             Optional[InternalNode],
+            Node,
         ],
     ):
         assume(no_empty_sequence(b))
