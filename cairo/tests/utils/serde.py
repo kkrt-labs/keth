@@ -4,8 +4,6 @@ from pathlib import Path
 from typing import Any, Optional, Sequence, Tuple, Union, get_args, get_origin
 
 from eth_utils.address import to_checksum_address
-from ethereum.base_types import U256, Bytes, Bytes0, Bytes8, Bytes20, Bytes32, Bytes256
-from ethereum.crypto.hash import Hash32
 from starkware.cairo.lang.compiler.ast.cairo_types import (
     TypeFelt,
     TypePointer,
@@ -19,6 +17,9 @@ from starkware.cairo.lang.compiler.identifier_definition import (
 from starkware.cairo.lang.compiler.identifier_manager import MissingIdentifierError
 from starkware.cairo.lang.compiler.scoped_name import ScopedName
 from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
+
+from ethereum.base_types import U256, Bytes, Bytes0, Bytes8, Bytes20, Bytes32, Bytes256
+from ethereum.crypto.hash import Hash32
 from tests.utils.args_gen import to_python_type
 
 

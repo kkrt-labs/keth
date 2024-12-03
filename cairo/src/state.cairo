@@ -21,10 +21,7 @@ namespace State {
         let (accounts_start) = default_dict_new(0);
         let (events: model.Event*) = alloc();
         return new model.State(
-            accounts_start=accounts_start,
-            accounts=accounts_start,
-            events_len=0,
-            events=events,
+            accounts_start=accounts_start, accounts=accounts_start, events_len=0, events=events
         );
     }
 
