@@ -15,9 +15,8 @@ from pydantic import (
     model_validator,
 )
 from pydantic.alias_generators import to_camel, to_snake
-from starkware.cairo.lang.vm.crypto import pedersen_hash
-
 from src.utils.uint256 import int_to_uint256
+from starkware.cairo.lang.vm.crypto import pedersen_hash
 from tests.utils.helpers import flatten, rlp_encode_signed_data
 from tests.utils.parsers import address, bytes_, to_bytes, to_int, uint, uint64, uint128
 
@@ -319,8 +318,6 @@ class State(BaseModelIterValuesOnly):
     ] = defaultdict(int)
     events_len: int = 0
     events: list = []
-    transfers_len: int = 0
-    transfers: list = []
 
     @model_validator(mode="before")
     def parse_addresses(cls, values):
@@ -330,7 +327,6 @@ class State(BaseModelIterValuesOnly):
 
 
 class Transaction(BaseModelIterValuesOnly):
-
     @model_validator(mode="before")
     def split_uint256(cls, values):
         values = values.copy()

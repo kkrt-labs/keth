@@ -949,7 +949,6 @@ namespace Interpreter {
             State.update_account(env.origin, sender);
 
             let transfer = model.Transfer(env.origin, address, [value]);
-            let success = State.add_transfer(transfer);
 
             // Check collision
             let account = State.get_account(address);
@@ -964,13 +963,6 @@ namespace Interpreter {
 
         if (is_collision != 0) {
             let (revert_reason_len, revert_reason) = Errors.addressCollision();
-            tempvar evm = EVM.stop(evm, revert_reason_len, revert_reason, Errors.EXCEPTIONAL_HALT);
-        } else {
-            tempvar evm = evm;
-        }
-
-        if (success == 0) {
-            let (revert_reason_len, revert_reason) = Errors.balanceError();
             tempvar evm = EVM.stop(evm, revert_reason_len, revert_reason, Errors.EXCEPTIONAL_HALT);
         } else {
             tempvar evm = evm;
@@ -1017,7 +1009,6 @@ namespace Interpreter {
         let transfer = model.Transfer(env.origin, env.coinbase, actual_fee_u256);
 
         with state {
-            State.add_transfer(transfer);
             State.finalize();
         }
 
