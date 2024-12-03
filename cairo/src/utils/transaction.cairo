@@ -4,7 +4,7 @@ from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, HashBuiltin, K
 from starkware.cairo.common.math_cmp import is_not_zero, is_nn
 from starkware.cairo.common.math import assert_not_zero, assert_nn
 from starkware.cairo.common.memcpy import memcpy
-from starkware.cairo.common.uint256 import Uint256
+from starkware.cairo.common.uint256 import Uint256, uint256_lt
 
 from src.model import model
 from src.constants import Constants
@@ -19,6 +19,9 @@ const TX_DATA_COST_PER_ZERO = 4;
 const TX_CREATE_COST = 32000;
 const TX_ACCESS_LIST_ADDRESS_COST = 2400;
 const TX_ACCESS_LIST_STORAGE_KEY_COST = 1900;
+
+const SECP256K1N_DIV_2_LOW = 0x5d576e7357a4501ddfe92f46681b20a0;
+const SECP256K1N_DIV_2_HIGH = 0x7fffffffffffffffffffffffffffffff;
 
 // @title Transaction utils
 // @notice This file contains utils for decoding eth transactions
@@ -395,6 +398,16 @@ namespace Transaction {
             tempvar range_check_ptr = range_check_ptr;
         }
         let range_check_ptr = [ap - 1];
+
+        // Signature validation
+        // `verify_eth_signature_uint256` verifies that r and s are in the range [1, N[
+        // TX validation imposes s to be the range [1, N//2], see EIP-2
+        let (is_invalid_upper_s) = uint256_lt(
+            Uint256(SECP256K1N_DIV_2_LOW, SECP256K1N_DIV_2_HIGH), s
+        );
+        with_attr error_message("Invalid s value") {
+            assert is_invalid_upper_s = FALSE;
+        }
 
         let msg_hash = keccak(tx.rlp_len, tx.rlp);
 
