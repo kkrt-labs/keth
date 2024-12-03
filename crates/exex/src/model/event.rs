@@ -34,25 +34,37 @@ pub struct KethEvent {
 impl From<LogData> for KethEvent {
     /// Converts a [`LogData`] object into a [`KethEvent`].
     ///
-    /// This implementation encodes the `topics` and `data` from the [`LogData`] structure into
-    /// the Keth model format compatible with the Cairo VM.
-    fn from(value: LogData) -> Self {
-        // Convert the topics into a flat array of 256-bit values
-        // For each topic, we convert it into a `KethU256` and then split it into:
-        // - The low 128 bits
-        // - The high 128 bits
-        let topics: Vec<_> = value
+    /// This function transforms the `topics` and `data` from the Ethereum-compatible [`LogData`]
+    /// structure into the Cairo VM-compatible [`KethEvent`] representation.
+    ///
+    /// # Details
+    /// - Each topic (`B256`) is split into two 128-bit components (`low` and `high`) and stored as
+    ///   `KethMaybeRelocatable` values.
+    /// - The `data` is directly converted into a [`KethPointer`] with each byte represented as a
+    ///   felt.
+    fn from(log_data: LogData) -> Self {
+        // Flatten each topic into its low and high components as `KethMaybeRelocatable`.
+        let encoded_topics: Vec<_> = log_data
             .topics()
             .iter()
             .flat_map(|topic| {
-                let t: KethU256 = (*topic).into();
-                [t.low, t.high]
+                let keth_u256: KethU256 = (*topic).into();
+                [keth_u256.low, keth_u256.high]
             })
             .collect();
 
-        let topics = KethPointer { len: Some(topics.len().into()), data: topics, type_size: 1 };
+        // Create a `KethPointer` for topics with the calculated length.
+        let topic_pointer = KethPointer {
+            len: Some(encoded_topics.len().into()),
+            data: encoded_topics,
+            type_size: 1,
+        };
 
-        Self { topics, data: value.data.into() }
+        // Convert data directly into a `KethPointer`.
+        let data_pointer = log_data.data.into();
+
+        // Return the `KethEvent`.
+        Self { topics: topic_pointer, data: data_pointer }
     }
 }
 
