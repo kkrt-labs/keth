@@ -1,12 +1,13 @@
 from ethereum.base_types import (
+    Bool,
     Bytes,
     BytesStruct,
     TupleBytes,
     TupleBytesStruct,
     Uint,
     U256,
-    bool,
     String,
+    StringStruct,
 )
 from ethereum.crypto.hash import keccak256, Hash32
 from ethereum.utils.numeric import is_zero
@@ -58,7 +59,114 @@ struct ExtendedStruct {
     uint: Uint*,
     fixed_uint: Uint*,
     str: String,
-    bool: bool*,
+    bool: Bool*,
+}
+
+namespace ExtendedImpl {
+    func sequence(value: SequenceExtended) -> Extended {
+        tempvar extended = Extended(
+            new ExtendedStruct(
+                sequence=value,
+                bytearray=Bytes(cast(0, BytesStruct*)),
+                bytes=Bytes(cast(0, BytesStruct*)),
+                uint=cast(0, Uint*),
+                fixed_uint=cast(0, Uint*),
+                str=String(cast(0, StringStruct*)),
+                bool=cast(0, Bool*),
+            ),
+        );
+        return extended;
+    }
+
+    func bytearray(value: Bytes) -> Extended {
+        tempvar extended = Extended(
+            new ExtendedStruct(
+                sequence=SequenceExtended(cast(0, SequenceExtendedStruct*)),
+                bytearray=value,
+                bytes=Bytes(cast(0, BytesStruct*)),
+                uint=cast(0, Uint*),
+                fixed_uint=cast(0, Uint*),
+                str=String(cast(0, StringStruct*)),
+                bool=cast(0, Bool*),
+            ),
+        );
+        return extended;
+    }
+
+    func bytes(value: Bytes) -> Extended {
+        tempvar extended = Extended(
+            new ExtendedStruct(
+                sequence=SequenceExtended(cast(0, SequenceExtendedStruct*)),
+                bytearray=Bytes(cast(0, BytesStruct*)),
+                bytes=value,
+                uint=cast(0, Uint*),
+                fixed_uint=cast(0, Uint*),
+                str=String(cast(0, StringStruct*)),
+                bool=cast(0, Bool*),
+            ),
+        );
+        return extended;
+    }
+
+    func uint(value: Uint) -> Extended {
+        tempvar extended = Extended(
+            new ExtendedStruct(
+                sequence=SequenceExtended(cast(0, SequenceExtendedStruct*)),
+                bytearray=Bytes(cast(0, BytesStruct*)),
+                bytes=Bytes(cast(0, BytesStruct*)),
+                uint=value,
+                fixed_uint=cast(0, Uint*),
+                str=String(cast(0, StringStruct*)),
+                bool=cast(0, Bool*),
+            ),
+        );
+        return extended;
+    }
+
+    func fixed_uint(value: Uint) -> Extended {
+        tempvar extended = Extended(
+            new ExtendedStruct(
+                sequence=SequenceExtended(cast(0, SequenceExtendedStruct*)),
+                bytearray=Bytes(cast(0, BytesStruct*)),
+                bytes=Bytes(cast(0, BytesStruct*)),
+                uint=cast(0, Uint*),
+                fixed_uint=value,
+                str=String(cast(0, StringStruct*)),
+                bool=cast(0, Bool*),
+            ),
+        );
+        return extended;
+    }
+
+    func string(value: String) -> Extended {
+        tempvar extended = Extended(
+            new ExtendedStruct(
+                sequence=SequenceExtended(cast(0, SequenceExtendedStruct*)),
+                bytearray=Bytes(cast(0, BytesStruct*)),
+                bytes=Bytes(cast(0, BytesStruct*)),
+                uint=cast(0, Uint*),
+                fixed_uint=cast(0, Uint*),
+                str=value,
+                bool=cast(0, Bool*),
+            ),
+        );
+        return extended;
+    }
+
+    func bool(value: Bool*) -> Extended {
+        tempvar extended = Extended(
+            new ExtendedStruct(
+                sequence=SequenceExtended(cast(0, SequenceExtendedStruct*)),
+                bytearray=Bytes(cast(0, BytesStruct*)),
+                bytes=Bytes(cast(0, BytesStruct*)),
+                uint=cast(0, Uint*),
+                fixed_uint=cast(0, Uint*),
+                str=String(cast(0, StringStruct*)),
+                bool=value,
+            ),
+        );
+        return extended;
+    }
 }
 
 //

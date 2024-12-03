@@ -11,6 +11,7 @@ struct None {
 struct bool {
     value: felt,
 }
+using Bool = bool;
 struct U64 {
     value: felt,
 }

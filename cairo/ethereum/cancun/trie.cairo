@@ -2,14 +2,22 @@ from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.math_cmp import is_le
 from starkware.cairo.common.math import assert_not_zero
 from starkware.cairo.common.bitwise import BitwiseBuiltin
+from starkware.cairo.common.cairo_builtins import KeccakBuiltin
 
+from src.utils.bytes import uint256_to_bytes32_little
 from ethereum.crypto.hash import keccak256
-from ethereum.rlp import encode
-from ethereum.base_types import U256, Bytes, Uint, BytesStruct, bool
+from ethereum.rlp import encode, _encode_bytes, _encode
+from ethereum.base_types import U256, Bytes, Uint, BytesStruct, bool, StringStruct, String
 from ethereum.cancun.blocks import Receipt, Withdrawal
 from ethereum.cancun.fork_types import Account, Address, Root, encode_account
 from ethereum.cancun.transactions import LegacyTransaction
-from ethereum.rlp import Extended, SequenceExtended
+from ethereum.rlp import (
+    Extended,
+    SequenceExtended,
+    SequenceExtendedStruct,
+    ExtendedStruct,
+    ExtendedImpl,
+)
 
 from ethereum.utils.numeric import divmod
 
@@ -56,55 +64,92 @@ struct InternalNodeStruct {
 //     _data: Dict[K, V],
 // }
 
-// func encode_internal_node(node: InternalNode) -> rlp.Extended {
-//     // Implementation:
-//     // unencoded: rlp.Extended
-//     // if node is None:
-//     // unencoded = b''
-//     // elif isinstance(node, LeafNode):
-//     // unencoded = (nibble_list_to_compact(node.rest_of_key, True), node.value)
-//     // elif isinstance(node, ExtensionNode):
-//     // unencoded = (nibble_list_to_compact(node.key_segment, False), node.subnode)
-//     // elif isinstance(node, BranchNode):
-//     // unencoded = node.subnodes + [node.value]
-//     // else:
-//     // raise AssertionError(f'Invalid internal node type {type(node)}!')
-//         // unencoded = b''
-//     // else:
-//         // if isinstance(node, LeafNode):
-//         // unencoded = (nibble_list_to_compact(node.rest_of_key, True), node.value)
-//         // elif isinstance(node, ExtensionNode):
-//         // unencoded = (nibble_list_to_compact(node.key_segment, False), node.subnode)
-//         // elif isinstance(node, BranchNode):
-//         // unencoded = node.subnodes + [node.value]
-//         // else:
-//         // raise AssertionError(f'Invalid internal node type {type(node)}!')
-//             // unencoded = (nibble_list_to_compact(node.rest_of_key, True), node.value)
-//         // else:
-//             // if isinstance(node, ExtensionNode):
-//             // unencoded = (nibble_list_to_compact(node.key_segment, False), node.subnode)
-//             // elif isinstance(node, BranchNode):
-//             // unencoded = node.subnodes + [node.value]
-//             // else:
-//             // raise AssertionError(f'Invalid internal node type {type(node)}!')
-//                 // unencoded = (nibble_list_to_compact(node.key_segment, False), node.subnode)
-//             // else:
-//                 // if isinstance(node, BranchNode):
-//                 // unencoded = node.subnodes + [node.value]
-//                 // else:
-//                 // raise AssertionError(f'Invalid internal node type {type(node)}!')
-//                     // unencoded = node.subnodes + [node.value]
-//                 // else:
-//                     // raise AssertionError(f'Invalid internal node type {type(node)}!')
-//     // encoded = encode(unencoded)
-//     // if len(encoded) < 32:
-//     // return unencoded
-//     // else:
-//     // return keccak256(encoded)
-//         // return unencoded
-//     // else:
-//         // return keccak256(encoded)
-// }
+func encode_internal_node{
+    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*
+}(node: InternalNode) -> Extended {
+    alloc_locals;
+
+    if (cast(node.value.leaf_node.value, felt) != 0) {
+        let is_leaf = bool(1);
+        let compact = nibble_list_to_compact(node.value.leaf_node.value.rest_of_key, is_leaf);
+        let compact_extended = ExtendedImpl.bytes(compact);
+        let (sequence_data: Extended*) = alloc();
+        assert [sequence_data] = compact_extended;
+        assert [sequence_data + 1] = node.value.leaf_node.value.value;
+        tempvar sequence = SequenceExtended(new SequenceExtendedStruct(sequence_data, 2));
+        let unencoded = ExtendedImpl.sequence(sequence);
+
+        let encoded = encode(unencoded);
+
+        let cond = is_le(encoded.value.len, 32 - 1);
+        if (cond == 1) {
+            return unencoded;
+        }
+
+        let hash = keccak256(encoded);
+        let (data) = alloc();
+        uint256_to_bytes32_little(data, [hash.value]);
+        let hashed = ExtendedImpl.bytes(Bytes(new BytesStruct(data, 32)));
+        return hashed;
+    }
+
+    if (cast(node.value.extension_node.value, felt) != 0) {
+        let is_leaf = bool(0);
+        let compact = nibble_list_to_compact(node.value.extension_node.value.key_segment, is_leaf);
+        let compact_extended = ExtendedImpl.bytes(compact);
+        let (sequence_data: Extended*) = alloc();
+        assert [sequence_data] = compact_extended;
+        assert [sequence_data + 1] = node.value.extension_node.value.subnode;
+        tempvar sequence = SequenceExtended(new SequenceExtendedStruct(sequence_data, 2));
+        let unencoded = ExtendedImpl.sequence(sequence);
+
+        let encoded = encode(unencoded);
+
+        let cond = is_le(encoded.value.len, 32 - 1);
+        if (cond == 1) {
+            return unencoded;
+        }
+
+        let hash = keccak256(encoded);
+        let (data) = alloc();
+        uint256_to_bytes32_little(data, [hash.value]);
+        let hashed = ExtendedImpl.bytes(Bytes(new BytesStruct(data, 32)));
+        return hashed;
+    }
+
+    if (cast(node.value.branch_node.value, felt) != 0) {
+        assert [
+            node.value.branch_node.value.subnodes.value.value +
+            node.value.branch_node.value.subnodes.value.len
+        ] = node.value.branch_node.value.value;
+        tempvar sequence = SequenceExtended(
+            new SequenceExtendedStruct(
+                node.value.branch_node.value.subnodes.value.value,
+                node.value.branch_node.value.subnodes.value.len + 1,
+            ),
+        );
+        let unencoded = ExtendedImpl.sequence(sequence);
+
+        let encoded = encode(unencoded);
+
+        let cond = is_le(encoded.value.len, 32 - 1);
+        if (cond == 1) {
+            return unencoded;
+        }
+
+        let hash = keccak256(encoded);
+        let (data) = alloc();
+        uint256_to_bytes32_little(data, [hash.value]);
+        let hashed = ExtendedImpl.bytes(Bytes(new BytesStruct(data, 32)));
+        return hashed;
+    }
+
+    let (data) = alloc();
+    tempvar empty_byte = Bytes(new BytesStruct(data, 0));
+    let unencoded = ExtendedImpl.bytes(empty_byte);
+    // rlp(b'') = 0x80 so no need to hash
+    return unencoded;
+}
 
 // func encode_node(node: Node, storage_root: Bytes) -> Bytes {
 //     // Implementation:
