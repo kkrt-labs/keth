@@ -1,4 +1,3 @@
-import pytest
 from hypothesis import assume, given
 
 from ethereum.base_types import Uint
@@ -72,7 +71,6 @@ class TestFork:
         else:
             cairo_run("validate_header", header, parent_header)
 
-    @pytest.mark.skip(reason="TODO: Implement access_list serialization")
     @given(tx=...)
     def test_calculate_intrinsic_cost(self, cairo_run, tx: Transaction):
         assert calculate_intrinsic_cost(tx) == cairo_run("calculate_intrinsic_cost", tx)
