@@ -282,7 +282,7 @@ namespace State {
         return ();
     }
 
-    // @notice Add a transfer to the Transfer* array
+    // @notice Processes a transfer (we don't need to include the it in the state)
     // @param event The pointer to the Transfer
     // @return The updated State
     // @return The status of the transfer
