@@ -99,6 +99,7 @@ func felt_to_bytes_little{range_check_ptr}(dst: felt*, value: felt) -> felt {
     let lower_bound = [ap - 1];
     let upper_bound = pow256_address[bytes_len];
     with_attr error_message("bytes_len is not the minimal possible") {
+        assert_le_felt(bytes_len, 31);
         assert_le_felt(lower_bound, initial_value);
         assert_le_felt(initial_value, upper_bound - 1);
     }
