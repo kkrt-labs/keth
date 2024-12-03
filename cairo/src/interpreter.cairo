@@ -948,8 +948,6 @@ namespace Interpreter {
             let sender = Account.set_nonce(sender, sender.nonce + 1);
             State.update_account(env.origin, sender);
 
-            let transfer = model.Transfer(env.origin, address, [value]);
-
             // Check collision
             let account = State.get_account(address);
             let code_or_nonce = Account.has_code_or_nonce(account);
@@ -1006,7 +1004,6 @@ namespace Interpreter {
         let actual_fee = total_gas_used * env.gas_price;
         let (fee_high, fee_low) = split_felt(actual_fee);
         let actual_fee_u256 = Uint256(low=fee_low, high=fee_high);
-        let transfer = model.Transfer(env.origin, env.coinbase, actual_fee_u256);
 
         with state {
             State.finalize();

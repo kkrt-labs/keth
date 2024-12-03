@@ -85,13 +85,6 @@ namespace model {
         data: felt*,
     }
 
-    // @dev A struct to save Starknet native ETH transfers to be made when finalizing a tx
-    struct Transfer {
-        sender: felt,
-        recipient: felt,
-        amount: Uint256,
-    }
-
     // @notice info: https://www.evm.codes/about#calldata
     // @notice Struct storing data related to a call.
     // @dev All Message fields are constant during a given call.

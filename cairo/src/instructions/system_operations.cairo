@@ -804,10 +804,6 @@ namespace SystemOperations {
             tempvar recipient = recipient;
         }
 
-        let transfer = model.Transfer(
-            sender=evm.message.address, recipient=recipient, amount=[self_account.balance]
-        );
-
         // Marked as SELFDESTRUCT for commitment
         // @dev: get_account again because add_transfer updated it
         let account = State.get_account(evm.message.address);
