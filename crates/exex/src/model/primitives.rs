@@ -507,8 +507,9 @@ impl From<B256> for KethPointer {
 pub struct KethDict<T> {
     /// The underlying hash map storing key-value pairs.
     ///
-    /// Keys and values are represented as [`KethMaybeRelocatable`], ensuring compatibility
-    /// with Cairo's memory model.
+    /// Keys are represented as [`KethMaybeRelocatable`] to ensure compatibility
+    /// with Cairo's memory model, while values are of the generic type `T` (which should also be
+    /// Cairo VM compatible).
     pub data: HashMap<KethMaybeRelocatable, T>,
 }
 
