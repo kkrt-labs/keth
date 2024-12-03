@@ -129,6 +129,18 @@ def register_type_strategies():
     )
     st.register_type_strategy(FeeMarketTransaction, st_from_type(FeeMarketTransaction))
     st.register_type_strategy(BlobTransaction, st_from_type(BlobTransaction))
-    st.register_type_strategy(LeafNode, st_from_type(LeafNode))
-    st.register_type_strategy(ExtensionNode, st_from_type(ExtensionNode))
+    # See https://github.com/ethereum/execution-specs/issues/1043
+    st.register_type_strategy(
+        LeafNode,
+        st.fixed_dictionaries({"rest_of_key": nibble, "value": extended}).map(
+            lambda x: LeafNode(**x)
+        ),
+    )
+    # See https://github.com/ethereum/execution-specs/issues/1043
+    st.register_type_strategy(
+        ExtensionNode,
+        st.fixed_dictionaries({"key_segment": nibble, "subnode": extended}).map(
+            lambda x: ExtensionNode(**x)
+        ),
+    )
     st.register_type_strategy(BranchNode, st_from_type(BranchNode))

@@ -1,19 +1,27 @@
+from typing import Optional
+
 from hypothesis import given
 
 from ethereum.base_types import Bytes
 from ethereum.cancun.trie import (
+    InternalNode,
     bytes_to_nibble_list,
     common_prefix_length,
+    encode_internal_node,
     nibble_list_to_compact,
 )
+from tests.utils.assertion import sequence_equal
 from tests.utils.errors import cairo_error
 from tests.utils.hints import patch_hint
 from tests.utils.strategies import nibble
 
 
 class TestTrie:
-    # def test_encode_internal_node(self, cairo_run, node):
-    #     assert encode_internal_node(node) == cairo_run("encode_internal_node", node)
+    @given(node=...)
+    def test_encode_internal_node(self, cairo_run, node: Optional[InternalNode]):
+        assert sequence_equal(
+            encode_internal_node(node), cairo_run("encode_internal_node", node)
+        )
 
     # @given(node=...)
     # def test_encode_node(self, cairo_run, node: Node):
