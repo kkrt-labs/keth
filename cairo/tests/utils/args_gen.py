@@ -5,7 +5,6 @@ from typing import (
     Any,
     Dict,
     ForwardRef,
-    Optional,
     Sequence,
     Tuple,
     Type,
@@ -165,10 +164,6 @@ def _gen_arg(
 
     if arg_type_origin is Union:
         # Union are represented as Enum in Cairo, with 0 pointers for all but one variant.
-        arg_types = get_args(arg_type)
-        if arg_type_origin is Optional:
-            arg_types = (None, *arg_types)
-
         struct_ptr = segments.add()
         data = [
             (
@@ -176,10 +171,10 @@ def _gen_arg(
                 if isinstance_with_generic(arg, x_type)
                 else 0
             )
-            for x_type in arg_types
+            for x_type in get_args(arg_type)
         ]
         # Value types are not pointers by default, so we need to convert them to pointers.
-        for i, (x_type, d) in enumerate(zip(arg_types, data)):
+        for i, (x_type, d) in enumerate(zip(get_args(arg_type), data)):
             if isinstance_with_generic(arg, x_type) and not isinstance_with_generic(
                 d, RelocatableValue
             ):

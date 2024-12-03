@@ -69,86 +69,72 @@ func encode_internal_node{
 }(node: InternalNode) -> Extended {
     alloc_locals;
 
-    if (cast(node.value.leaf_node.value, felt) != 0) {
-        let is_leaf = bool(1);
-        let compact = nibble_list_to_compact(node.value.leaf_node.value.rest_of_key, is_leaf);
-        let compact_extended = ExtendedImpl.bytes(compact);
-        let (sequence_data: Extended*) = alloc();
-        assert [sequence_data] = compact_extended;
-        assert [sequence_data + 1] = node.value.leaf_node.value.value;
-        tempvar sequence = SequenceExtended(new SequenceExtendedStruct(sequence_data, 2));
-        let unencoded = ExtendedImpl.sequence(sequence);
+    local unencoded: Extended;
 
-        let encoded = encode(unencoded);
+    tempvar is_leaf = cast(node.value.leaf_node.value, felt);
+    jmp leaf_node if is_leaf != 0;
+    tempvar is_extension_node = cast(node.value.extension_node.value, felt);
+    jmp extension_node if is_extension_node != 0;
+    tempvar is_branch_node = cast(node.value.branch_node.value, felt);
+    jmp branch_node if is_branch_node != 0;
 
-        let cond = is_le(encoded.value.len, 32 - 1);
-        if (cond == 1) {
-            return unencoded;
-        }
-
-        let hash = keccak256(encoded);
-        let (data) = alloc();
-        uint256_to_bytes32_little(data, [hash.value]);
-        let hashed = ExtendedImpl.bytes(Bytes(new BytesStruct(data, 32)));
-        return hashed;
-    }
-
-    if (cast(node.value.extension_node.value, felt) != 0) {
-        let is_leaf = bool(0);
-        let compact = nibble_list_to_compact(node.value.extension_node.value.key_segment, is_leaf);
-        let compact_extended = ExtendedImpl.bytes(compact);
-        let (sequence_data: Extended*) = alloc();
-        assert [sequence_data] = compact_extended;
-        assert [sequence_data + 1] = node.value.extension_node.value.subnode;
-        tempvar sequence = SequenceExtended(new SequenceExtendedStruct(sequence_data, 2));
-        let unencoded = ExtendedImpl.sequence(sequence);
-
-        let encoded = encode(unencoded);
-
-        let cond = is_le(encoded.value.len, 32 - 1);
-        if (cond == 1) {
-            return unencoded;
-        }
-
-        let hash = keccak256(encoded);
-        let (data) = alloc();
-        uint256_to_bytes32_little(data, [hash.value]);
-        let hashed = ExtendedImpl.bytes(Bytes(new BytesStruct(data, 32)));
-        return hashed;
-    }
-
-    if (cast(node.value.branch_node.value, felt) != 0) {
-        assert [
-            node.value.branch_node.value.subnodes.value.value +
-            node.value.branch_node.value.subnodes.value.len
-        ] = node.value.branch_node.value.value;
-        tempvar sequence = SequenceExtended(
-            new SequenceExtendedStruct(
-                node.value.branch_node.value.subnodes.value.value,
-                node.value.branch_node.value.subnodes.value.len + 1,
-            ),
-        );
-        let unencoded = ExtendedImpl.sequence(sequence);
-
-        let encoded = encode(unencoded);
-
-        let cond = is_le(encoded.value.len, 32 - 1);
-        if (cond == 1) {
-            return unencoded;
-        }
-
-        let hash = keccak256(encoded);
-        let (data) = alloc();
-        uint256_to_bytes32_little(data, [hash.value]);
-        let hashed = ExtendedImpl.bytes(Bytes(new BytesStruct(data, 32)));
-        return hashed;
-    }
-
+    none:
     let (data) = alloc();
     tempvar empty_byte = Bytes(new BytesStruct(data, 0));
     let unencoded = ExtendedImpl.bytes(empty_byte);
     // rlp(b'') = 0x80 so no need to hash
     return unencoded;
+
+    leaf_node:
+    let compact = nibble_list_to_compact(node.value.leaf_node.value.rest_of_key, bool(1));
+    let compact_extended = ExtendedImpl.bytes(compact);
+    let (sequence_data: Extended*) = alloc();
+    assert [sequence_data] = compact_extended;
+    assert [sequence_data + 1] = node.value.leaf_node.value.value;
+    tempvar sequence = SequenceExtended(new SequenceExtendedStruct(sequence_data, 2));
+    let unencoded_ = ExtendedImpl.sequence(sequence);
+    assert unencoded = unencoded_;
+    jmp common;
+
+    extension_node:
+    let compact = nibble_list_to_compact(node.value.extension_node.value.key_segment, bool(0));
+    let compact_extended = ExtendedImpl.bytes(compact);
+    let (sequence_data: Extended*) = alloc();
+    assert [sequence_data] = compact_extended;
+    assert [sequence_data + 1] = node.value.extension_node.value.subnode;
+    tempvar sequence = SequenceExtended(new SequenceExtendedStruct(sequence_data, 2));
+    let unencoded_ = ExtendedImpl.sequence(sequence);
+    assert unencoded = unencoded_;
+    jmp common;
+
+    branch_node:
+    assert [
+        node.value.branch_node.value.subnodes.value.value +
+        node.value.branch_node.value.subnodes.value.len
+    ] = node.value.branch_node.value.value;
+    tempvar sequence = SequenceExtended(
+        new SequenceExtendedStruct(
+            node.value.branch_node.value.subnodes.value.value,
+            node.value.branch_node.value.subnodes.value.len + 1,
+        ),
+    );
+    let unencoded_ = ExtendedImpl.sequence(sequence);
+    assert unencoded = unencoded_;
+    jmp common;
+
+    common:
+    let encoded = encode(unencoded);
+
+    let cond = is_le(encoded.value.len, 32 - 1);
+    if (cond == 1) {
+        return unencoded;
+    }
+
+    let hash = keccak256(encoded);
+    let (data) = alloc();
+    uint256_to_bytes32_little(data, [hash.value]);
+    let hashed = ExtendedImpl.bytes(Bytes(new BytesStruct(data, 32)));
+    return hashed;
 }
 
 // func encode_node(node: Node, storage_root: Bytes) -> Bytes {
@@ -240,16 +226,19 @@ func common_prefix_length(a: Bytes, b: Bytes) -> felt {
     return result;
 }
 
-func nibble_list_to_compact{range_check_ptr}(x: Bytes, is_leaf: bool) -> Bytes {
+func nibble_list_to_compact(x: Bytes, is_leaf: bool) -> Bytes {
     alloc_locals;
     let (local compact) = alloc();
 
-    let (_, local remainder) = divmod(x.value.len, 2);
-    if (remainder == 0) {
+    if (x.value.len == 0) {
         assert [compact] = 16 * (2 * is_leaf.value);
-    } else {
-        assert [compact] = 16 * (2 * is_leaf.value + 1) + x.value.data[0];
+        tempvar result = Bytes(new BytesStruct(compact, 1));
+        return result;
     }
+
+    local remainder = nondet %{ ids.x.value.len % 2 %};
+    assert remainder * (1 - remainder) = 0;
+    assert [compact] = 16 * (2 * is_leaf.value + remainder) + x.value.data[0] * remainder;
 
     if (x.value.len == remainder) {
         tempvar result = Bytes(new BytesStruct(compact, 1));
@@ -272,8 +261,7 @@ func nibble_list_to_compact{range_check_ptr}(x: Bytes, is_leaf: bool) -> Bytes {
 
     jmp loop if cond != 0;
 
-    let (len, r) = divmod(i - remainder, 2);
-    assert r = 0;
+    let len = (i - remainder) / 2;
 
     let compact = cast([fp], felt*);
     tempvar result = Bytes(new BytesStruct(compact, 1 + len));
