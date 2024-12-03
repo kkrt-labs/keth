@@ -3,7 +3,9 @@ from typing import Sequence, Tuple, Union
 import pytest
 from hypothesis import assume, given
 
-from ethereum.base_types import U256, Bytes, Uint
+from ethereum.base_types import U256, Bytes, Bytes0, Bytes32, Uint
+from ethereum.cancun.fork_types import Account, Address, encode_account
+from ethereum.cancun.transactions import LegacyTransaction
 from ethereum.rlp import (
     Extended,
     decode,
@@ -61,6 +63,38 @@ class TestRlp:
         @given(raw_bytes=...)
         def test_rlp_hash(self, cairo_run, raw_bytes: Bytes):
             assert rlp_hash(raw_bytes) == cairo_run("rlp_hash", raw_bytes)
+
+        @given(address=...)
+        def test_encode_address(self, cairo_run, address: Address):
+            assert encode(address) == cairo_run("encode_address", address)
+
+        @given(raw_bytes32=...)
+        def test_encode_bytes32(self, cairo_run, raw_bytes32: Bytes32):
+            assert encode(raw_bytes32) == cairo_run("encode_bytes32", raw_bytes32)
+
+        @given(raw_tuple_bytes32=...)
+        def test_encode_tuple_bytes32(
+            self, cairo_run, raw_tuple_bytes32: Tuple[Bytes32, ...]
+        ):
+            assert encode(raw_tuple_bytes32) == cairo_run(
+                "encode_tuple_bytes32", raw_tuple_bytes32
+            )
+
+        @given(to=...)
+        def test_encode_to(self, cairo_run, to: Union[Bytes0, Address]):
+            assert encode(to) == cairo_run("encode_to", to)
+
+        @given(raw_account_data=..., storage_root=...)
+        def test_encode_account(
+            self, cairo_run, raw_account_data: Account, storage_root: Bytes
+        ):
+            assert encode_account(raw_account_data, storage_root) == cairo_run(
+                "encode_account", raw_account_data, storage_root
+            )
+
+        @given(tx=...)
+        def test_encode_legacy_transaction(self, cairo_run, tx: LegacyTransaction):
+            assert encode(tx) == cairo_run("encode_legacy_transaction", tx)
 
     class TestDecode:
         @given(raw_data=...)
