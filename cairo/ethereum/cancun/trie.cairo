@@ -58,6 +58,20 @@ struct InternalNodeStruct {
     branch_node: BranchNode,
 }
 
+struct NodeStruct {
+    account: Account,
+    bytes: Bytes,
+    legacy_transaction: LegacyTransaction,
+    receipt: Receipt,
+    uint: Uint,
+    u256: U256,
+    withdrawal: Withdrawal,
+}
+
+struct Node {
+    value: NodeStruct*,
+}
+
 // struct TrieStruct {
 //     secured: bool,
 //     default: V,
