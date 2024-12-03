@@ -178,6 +178,13 @@ namespace SystemOperations {
         let target_account = Account.set_created(target_account, 1);
         State.update_account(target_address, target_account);
 
+        let transfer = model.Transfer(evm.message.address, target_address, [value]);
+        let success = State.add_transfer(transfer);
+        if (success == 0) {
+            Stack.push_uint128(0);
+            return child_evm;
+        }
+
         return child_evm;
     }
 
@@ -431,6 +438,17 @@ namespace SystemOperations {
             ret_offset=ret_offset,
             ret_size=ret_size,
         );
+
+        let transfer = model.Transfer(evm.message.address, child_evm.message.address, [value]);
+        let success = State.add_transfer(transfer);
+        if (success == 0) {
+            let (revert_reason_len, revert_reason) = Errors.balanceError();
+            tempvar child_evm = EVM.stop(
+                child_evm, revert_reason_len, revert_reason, Errors.EXCEPTIONAL_HALT
+            );
+        } else {
+            tempvar child_evm = child_evm;
+        }
 
         return child_evm;
     }
@@ -803,6 +821,11 @@ namespace SystemOperations {
         } else {
             tempvar recipient = recipient;
         }
+
+        let transfer = model.Transfer(
+            sender=evm.message.address, recipient=recipient, amount=[self_account.balance]
+        );
+        let success = State.add_transfer(transfer);
 
         // Marked as SELFDESTRUCT for commitment
         // @dev: get_account again because add_transfer updated it

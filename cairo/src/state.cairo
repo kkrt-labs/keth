@@ -282,6 +282,57 @@ namespace State {
         return ();
     }
 
+    // @notice Add a transfer to the Transfer* array
+    // @param event The pointer to the Transfer
+    // @return The updated State
+    // @return The status of the transfer
+    func add_transfer{pedersen_ptr: HashBuiltin*, range_check_ptr, state: model.State*}(
+        transfer: model.Transfer
+    ) -> felt {
+        alloc_locals;
+        // See https://docs.cairo-lang.org/0.12.0/how_cairo_works/functions.html#retrieving-registers
+        let fp_and_pc = get_fp_and_pc();
+        local __fp__: felt* = fp_and_pc.fp_val;
+
+        if (transfer.sender == transfer.recipient) {
+            return 1;
+        }
+
+        let (null_transfer) = uint256_eq(transfer.amount, Uint256(0, 0));
+        if (null_transfer != 0) {
+            return 1;
+        }
+
+        let sender = get_account(transfer.sender);
+        let (success) = uint256_le(transfer.amount, [sender.balance]);
+
+        if (success == 0) {
+            return success;
+        }
+
+        let recipient = get_account(transfer.recipient);
+
+        let (local sender_balance_new) = uint256_sub([sender.balance], transfer.amount);
+        let (local recipient_balance_new, carry) = uint256_add(
+            [recipient.balance], transfer.amount
+        );
+
+        let sender = Account.set_balance(sender, &sender_balance_new);
+        let recipient = Account.set_balance(recipient, &recipient_balance_new);
+
+        let accounts = state.accounts;
+        dict_write{dict_ptr=accounts}(key=transfer.sender, new_value=cast(sender, felt));
+        dict_write{dict_ptr=accounts}(key=transfer.recipient, new_value=cast(recipient, felt));
+
+        tempvar state = new model.State(
+            accounts_start=state.accounts_start,
+            accounts=accounts,
+            events_len=state.events_len,
+            events=state.events,
+        );
+        return success;
+    }
+
     // @notice Check whether an account is both in the state and non empty.
     // @param address EVM Address of the account that needs to be checked.
     // @return is_alive TRUE if the account is alive.
