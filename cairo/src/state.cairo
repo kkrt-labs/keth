@@ -282,7 +282,8 @@ namespace State {
         return ();
     }
 
-    // @notice Processes a transfer (we don't need to include the it in the state)
+    // @notice Process a transfer
+    // @dev Check and update balances
     // @param event The pointer to the Transfer
     // @return The updated State
     // @return The status of the transfer
