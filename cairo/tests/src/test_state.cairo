@@ -19,7 +19,6 @@ func test__init__should_return_state_with_default_dicts() {
     // Then
     assert state.accounts - state.accounts_start = 0;
     assert state.events_len = 0;
-    assert state.transfers_len = 0;
 
     let accounts = state.accounts;
     let (value) = dict_read{dict_ptr=accounts}(0xdead);
@@ -53,19 +52,11 @@ func test__copy__should_return_new_state_with_same_attributes{
         let (local data: felt*) = alloc();
         let event = model.Event(topics_len=0, topics=topics, data_len=0, data=data);
         State.add_event(event);
-
-        // 4. Add transfers
-        // State.add_transfer requires a native token contract deployed so we just push.
-        let amount = Uint256(0xa, 0xb);
-        tempvar transfer = model.Transfer(address_0, address_1, amount);
-        assert state.transfers[0] = transfer;
         tempvar state = new model.State(
             accounts_start=state.accounts_start,
             accounts=state.accounts,
             events_len=state.events_len,
             events=state.events,
-            transfers_len=1,
-            transfers=state.transfers,
         );
 
         // When
@@ -84,13 +75,6 @@ func test__copy__should_return_new_state_with_same_attributes{
 
     // Events
     assert state_copy.events_len = state.events_len;
-
-    // Transfers
-    assert state_copy.transfers_len = state.transfers_len;
-    let transfer_copy = state_copy.transfers;
-    assert transfer.sender = transfer_copy.sender;
-    assert transfer.recipient = transfer_copy.recipient;
-    assert_uint256_eq(transfer.amount, transfer_copy.amount);
 
     return ();
 }

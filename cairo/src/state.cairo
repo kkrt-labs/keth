@@ -20,14 +20,8 @@ namespace State {
     func init() -> model.State* {
         let (accounts_start) = default_dict_new(0);
         let (events: model.Event*) = alloc();
-        let (transfers: model.Transfer*) = alloc();
         return new model.State(
-            accounts_start=accounts_start,
-            accounts=accounts_start,
-            events_len=0,
-            events=events,
-            transfers_len=0,
-            transfers=transfers,
+            accounts_start=accounts_start, accounts=accounts_start, events_len=0, events=events
         );
     }
 
@@ -43,16 +37,11 @@ namespace State {
         let (local events: felt*) = alloc();
         memcpy(dst=events, src=state.events, len=state.events_len * model.Event.SIZE);
 
-        let (local transfers: felt*) = alloc();
-        memcpy(dst=transfers, src=state.transfers, len=state.transfers_len * model.Transfer.SIZE);
-
         tempvar state_copy = new model.State(
             accounts_start=accounts_start,
             accounts=accounts,
             events_len=state.events_len,
             events=cast(events, model.Event*),
-            transfers_len=state.transfers_len,
-            transfers=cast(transfers, model.Transfer*),
         );
         return state_copy;
     }
@@ -73,8 +62,6 @@ namespace State {
             accounts=accounts,
             events_len=state.events_len,
             events=state.events,
-            transfers_len=state.transfers_len,
-            transfers=state.transfers,
         );
         return ();
     }
@@ -94,8 +81,6 @@ namespace State {
             accounts=accounts,
             events_len=state.events_len,
             events=state.events,
-            transfers_len=state.transfers_len,
-            transfers=state.transfers,
         );
         return account;
     }
@@ -121,8 +106,6 @@ namespace State {
             accounts=accounts_ptr,
             events_len=state.events_len,
             events=state.events,
-            transfers_len=state.transfers_len,
-            transfers=state.transfers,
         );
 
         return ();
@@ -147,8 +130,6 @@ namespace State {
             accounts=accounts_ptr,
             events_len=state.events_len,
             events=state.events,
-            transfers_len=state.transfers_len,
-            transfers=state.transfers,
         );
 
         return gas_cost;
@@ -170,8 +151,6 @@ namespace State {
             accounts=accounts,
             events_len=state.events_len,
             events=state.events,
-            transfers_len=state.transfers_len,
-            transfers=state.transfers,
         );
 
         if (pointer != 0) {
@@ -201,8 +180,6 @@ namespace State {
                 accounts=accounts,
                 events_len=state.events_len,
                 events=state.events,
-                transfers_len=state.transfers_len,
-                transfers=state.transfers,
             );
             return FALSE;
         }
@@ -215,8 +192,6 @@ namespace State {
             accounts=accounts,
             events_len=state.events_len,
             events=state.events,
-            transfers_len=state.transfers_len,
-            transfers=state.transfers,
         );
         return res;
     }
@@ -231,8 +206,6 @@ namespace State {
             accounts=accounts,
             events_len=state.events_len,
             events=state.events,
-            transfers_len=state.transfers_len,
-            transfers=state.transfers,
         );
         return ();
     }
@@ -305,13 +278,12 @@ namespace State {
             accounts=state.accounts,
             events_len=state.events_len + 1,
             events=state.events,
-            transfers_len=state.transfers_len,
-            transfers=state.transfers,
         );
         return ();
     }
 
-    // @notice Add a transfer to the Transfer* array
+    // @notice Process a transfer
+    // @dev Check and update balances
     // @param event The pointer to the Transfer
     // @return The updated State
     // @return The status of the transfer
@@ -352,15 +324,12 @@ namespace State {
         let accounts = state.accounts;
         dict_write{dict_ptr=accounts}(key=transfer.sender, new_value=cast(sender, felt));
         dict_write{dict_ptr=accounts}(key=transfer.recipient, new_value=cast(recipient, felt));
-        assert state.transfers[state.transfers_len] = transfer;
 
         tempvar state = new model.State(
             accounts_start=state.accounts_start,
             accounts=accounts,
             events_len=state.events_len,
             events=state.events,
-            transfers_len=state.transfers_len + 1,
-            transfers=state.transfers,
         );
         return success;
     }

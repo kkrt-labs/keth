@@ -296,11 +296,6 @@ class Serde:
                 ("src", "model", "model", "Event"),
                 list_len=raw["events_len"],
             ),
-            "transfers": self.serialize_list(
-                raw["transfers"],
-                ("src", "model", "model", "Transfer"),
-                list_len=raw["transfers_len"],
-            ),
         }
 
     def serialize_eth_transaction(self, ptr):

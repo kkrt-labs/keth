@@ -49,16 +49,11 @@ namespace model {
     //      felt with inlined structs. Hence one has eventually
     //      accounts := Dict<starknet_address, Account*>
     //      events := List<Event>
-    //      transfers := List<Transfer>
-    //      Unlike in standard EVM, we need to store the native token transfers as well since we use the
-    //      Starknet's ETH and can't just set the balances
     struct State {
         accounts_start: DictAccess*,
         accounts: DictAccess*,
         events_len: felt,
         events: Event*,
-        transfers_len: felt,
-        transfers: Transfer*,
     }
 
     // @notice The struct representing an EVM account.
