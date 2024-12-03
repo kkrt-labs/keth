@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 /// metadata, code, and storage information. Each field corresponds to an EVM concept while
 /// adhering to Cairo's execution constraints.
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
-pub struct Account {
+pub struct KethAccount {
     /// A pointer to the account's bytecode in memory.
     ///
     /// The bytecode represents the executable logic of the account.
