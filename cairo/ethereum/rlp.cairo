@@ -17,7 +17,7 @@ from ethereum.base_types import (
     StringStruct,
     TupleBytes32,
 )
-from ethereum.cancun.blocks import Log, TupleLog
+from ethereum.cancun.blocks import Log, TupleLog, Receipt
 from ethereum.cancun.fork_types import Address, Account, Bloom
 from ethereum.cancun.transactions import LegacyTransaction, To
 from ethereum.crypto.hash import keccak256, Hash32
@@ -366,56 +366,39 @@ func encode_log{range_check_ptr}(raw_log: Log) -> Bytes {
 
 func encode_tuple_log{range_check_ptr}(raw_tuple_log: TupleLog) -> Bytes {
     alloc_locals;
-    let (local dst_start) = alloc();
-
-    if (raw_tuple_log.value.len == 0) {
-        assert [dst_start] = 0xc0;
-        tempvar result = Bytes(new BytesStruct(dst_start, 1));
-        return result;
-    }
-
-    let dst = dst_start + PREFIX_LEN_MAX;
-
-    let len = _encode_tuple_log(dst, raw_tuple_log.value.len, raw_tuple_log.value.value);
-    let dst = dst + len;
-
-    let len = dst - dst_start - PREFIX_LEN_MAX;
-    let dst = dst_start + PREFIX_LEN_MAX;
-    let offset = _encode_prefix_len(dst, len);
-
-    tempvar result = Bytes(new BytesStruct(dst - offset, offset + len));
+    let (local dst) = alloc();
+    let len = _encode_tuple_log(dst, raw_tuple_log);
+    tempvar result = Bytes(new BytesStruct(dst, len));
     return result;
 }
 
 func encode_bloom{range_check_ptr}(raw_bloom: Bloom) -> Bytes {
     alloc_locals;
     let (local dst) = alloc();
-    // Bloom is 256 bytes, so the prefix is [0xb7 + 2, 0x01, 0x00]
-    // ie. a bytes of length 0x0100
-    assert [dst] = 0xb7 + 2;
-    assert [dst + 1] = 1;
-    assert [dst + 2] = 0;
-    let dst = dst + 3;
+    let len = _encode_bloom(dst, raw_bloom);
+    tempvar result = Bytes(new BytesStruct(dst, len));
+    return result;
+}
 
-    // Bloom is 256 bytes encoded as 16 u128 little endian
-    felt_to_bytes16_little(dst, raw_bloom.value[0].value);
-    felt_to_bytes16_little(dst + 16, raw_bloom.value[1].value);
-    felt_to_bytes16_little(dst + 32, raw_bloom.value[2].value);
-    felt_to_bytes16_little(dst + 48, raw_bloom.value[3].value);
-    felt_to_bytes16_little(dst + 64, raw_bloom.value[4].value);
-    felt_to_bytes16_little(dst + 80, raw_bloom.value[5].value);
-    felt_to_bytes16_little(dst + 96, raw_bloom.value[6].value);
-    felt_to_bytes16_little(dst + 112, raw_bloom.value[7].value);
-    felt_to_bytes16_little(dst + 128, raw_bloom.value[8].value);
-    felt_to_bytes16_little(dst + 144, raw_bloom.value[9].value);
-    felt_to_bytes16_little(dst + 160, raw_bloom.value[10].value);
-    felt_to_bytes16_little(dst + 176, raw_bloom.value[11].value);
-    felt_to_bytes16_little(dst + 192, raw_bloom.value[12].value);
-    felt_to_bytes16_little(dst + 208, raw_bloom.value[13].value);
-    felt_to_bytes16_little(dst + 224, raw_bloom.value[14].value);
-    felt_to_bytes16_little(dst + 240, raw_bloom.value[15].value);
+func encode_receipt{range_check_ptr}(raw_receipt: Receipt) -> Bytes {
+    alloc_locals;
+    let (local dst_start) = alloc();
+    let dst = dst_start + PREFIX_LEN_MAX;
 
-    tempvar result = Bytes(new BytesStruct(dst - 3, 3 + 256));
+    let succeeded_len = _encode_uint(dst, raw_receipt.value.succeeded.value);
+    let dst = dst + succeeded_len;
+    let cumulative_gas_used_len = _encode_uint(dst, raw_receipt.value.cumulative_gas_used.value);
+    let dst = dst + cumulative_gas_used_len;
+    let bloom_len = _encode_bloom(dst, raw_receipt.value.bloom);
+    let dst = dst + bloom_len;
+    let logs_len = _encode_tuple_log(dst, raw_receipt.value.logs);
+    let dst = dst + logs_len;
+
+    let len = dst - dst_start - PREFIX_LEN_MAX;
+    let dst = dst_start + PREFIX_LEN_MAX;
+    let offset = _encode_prefix_len(dst, len);
+
+    tempvar result = Bytes(new BytesStruct(dst - offset, offset + len));
     return result;
 }
 
@@ -808,7 +791,28 @@ func _encode_tuple_bytes32_inner{range_check_ptr}(
     return ();
 }
 
-func _encode_tuple_log{range_check_ptr}(dst: felt*, len: felt, raw_tuple_log: Log*) -> felt {
+func _encode_tuple_log{range_check_ptr}(dst: felt*, raw_tuple_log: TupleLog) -> felt {
+    alloc_locals;
+    if (raw_tuple_log.value.len == 0) {
+        assert [dst] = 0xc0;
+        return 1;
+    }
+
+    let (local tmp_start) = alloc();
+    let tmp = tmp_start + PREFIX_LEN_MAX;
+
+    let len = _encode_tuple_log_inner(tmp, raw_tuple_log.value.len, raw_tuple_log.value.value);
+    let tmp = tmp + len;
+
+    let len = tmp - tmp_start - PREFIX_LEN_MAX;
+    let tmp = tmp_start + PREFIX_LEN_MAX;
+    let offset = _encode_prefix_len(tmp, len);
+    memcpy(dst, tmp - offset, offset + len);
+
+    return offset + len;
+}
+
+func _encode_tuple_log_inner{range_check_ptr}(dst: felt*, len: felt, raw_tuple_log: Log*) -> felt {
     alloc_locals;
     if (len == 0) {
         return 0;
@@ -817,9 +821,41 @@ func _encode_tuple_log{range_check_ptr}(dst: felt*, len: felt, raw_tuple_log: Lo
     let log_encoded = encode_log(raw_tuple_log[0]);
     memcpy(dst, log_encoded.value.data, log_encoded.value.len);
 
-    let remaining_len = _encode_tuple_log(dst + log_encoded.value.len, len - 1, raw_tuple_log + 1);
+    let remaining_len = _encode_tuple_log_inner(
+        dst + log_encoded.value.len, len - 1, raw_tuple_log + 1
+    );
 
     return log_encoded.value.len + remaining_len;
+}
+
+func _encode_bloom{range_check_ptr}(dst: felt*, raw_bloom: Bloom) -> felt {
+    alloc_locals;
+    // Bloom is 256 bytes, so the prefix is [0xb7 + 2, 0x01, 0x00]
+    // ie. a bytes of length 0x0100
+    assert [dst] = 0xb7 + 2;
+    assert [dst + 1] = 1;
+    assert [dst + 2] = 0;
+    let dst = dst + 3;
+
+    // Bloom is 256 bytes encoded as 16 u128 little endian
+    felt_to_bytes16_little(dst, raw_bloom.value[0].value);
+    felt_to_bytes16_little(dst + 16, raw_bloom.value[1].value);
+    felt_to_bytes16_little(dst + 32, raw_bloom.value[2].value);
+    felt_to_bytes16_little(dst + 48, raw_bloom.value[3].value);
+    felt_to_bytes16_little(dst + 64, raw_bloom.value[4].value);
+    felt_to_bytes16_little(dst + 80, raw_bloom.value[5].value);
+    felt_to_bytes16_little(dst + 96, raw_bloom.value[6].value);
+    felt_to_bytes16_little(dst + 112, raw_bloom.value[7].value);
+    felt_to_bytes16_little(dst + 128, raw_bloom.value[8].value);
+    felt_to_bytes16_little(dst + 144, raw_bloom.value[9].value);
+    felt_to_bytes16_little(dst + 160, raw_bloom.value[10].value);
+    felt_to_bytes16_little(dst + 176, raw_bloom.value[11].value);
+    felt_to_bytes16_little(dst + 192, raw_bloom.value[12].value);
+    felt_to_bytes16_little(dst + 208, raw_bloom.value[13].value);
+    felt_to_bytes16_little(dst + 224, raw_bloom.value[14].value);
+    felt_to_bytes16_little(dst + 240, raw_bloom.value[15].value);
+
+    return 3 + 256;
 }
 
 // @notice Prepend the encoded length to the encoded data.
