@@ -126,6 +126,7 @@ func encode_internal_node{
     branch_node:
     let (value: Extended*) = alloc();
     let len = node.value.branch_node.value.subnodes.value.len;
+    // TOD0: check if we really need to copy of if we can just use the pointer
     memcpy(value, node.value.branch_node.value.subnodes.value.value, len);
     assert [value + len] = node.value.branch_node.value.value;
     tempvar sequence = SequenceExtended(new SequenceExtendedStruct(value, len + 1));

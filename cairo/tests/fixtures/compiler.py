@@ -56,6 +56,11 @@ def cairo_program(cairo_file, main_path):
     program = cairo_compile(cairo_file)
     program.hints = implement_hints(program)
     all_identifiers = list(program.identifiers.dict.items())
+    # when running the tests, the main file is the test file
+    # and the compiler is not able to find struct defined therein
+    # in a breakpoint, looking for, e.g. ethereum.cancun.trie.InternalNode
+    # while only __main__.InternalNode exists.
+    # There is probably a better way to solve this at the IdentifierManager.
     for k, v in all_identifiers:
         if "__main__" not in str(k):
             continue
