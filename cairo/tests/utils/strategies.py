@@ -69,7 +69,7 @@ extended = st.recursive(
 # See https://github.com/ethereum/execution-specs/issues/1036
 # It's currently not possible to generate strategies using `st.builds` because the dataclasses
 # use a slotted_freezable decorator that overrides the default __init__ method without wrapping it.
-# So we need to redefine all dataclasses here manually instead of using `st.builds`.
+# So we need to redefine all dataclasses here manually instead of using `st.from_type`.
 def st_from_type(cls):
     return st.fixed_dictionaries(
         {field.name: st.from_type(field.type) for field in fields(cls)}
