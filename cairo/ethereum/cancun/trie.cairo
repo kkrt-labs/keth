@@ -15,7 +15,7 @@ from ethereum.rlp import (
     Extended,
     SequenceExtended,
     SequenceExtendedStruct,
-    ExtendedStruct,
+    ExtendedEnum,
     ExtendedImpl,
     encode_account,
 )
@@ -50,16 +50,16 @@ struct BranchNode {
 }
 
 struct InternalNode {
-    value: InternalNodeStruct*,
+    value: InternalNodeEnum*,
 }
 
-struct InternalNodeStruct {
+struct InternalNodeEnum {
     leaf_node: LeafNode,
     extension_node: ExtensionNode,
     branch_node: BranchNode,
 }
 
-struct NodeStruct {
+struct NodeEnum {
     account: Account,
     bytes: Bytes,
     legacy_transaction: LegacyTransaction,
@@ -70,7 +70,7 @@ struct NodeStruct {
 }
 
 struct Node {
-    value: NodeStruct*,
+    value: NodeEnum*,
 }
 
 // struct TrieStruct {

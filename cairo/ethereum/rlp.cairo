@@ -43,10 +43,10 @@ struct SequenceSimpleStruct {
 }
 
 struct Simple {
-    value: SimpleStruct*,
+    value: SimpleEnum*,
 }
 
-struct SimpleStruct {
+struct SimpleEnum {
     sequence: SequenceSimple,
     bytes: Bytes,
 }
@@ -61,10 +61,10 @@ struct SequenceExtendedStruct {
 }
 
 struct Extended {
-    value: ExtendedStruct*,
+    value: ExtendedEnum*,
 }
 
-struct ExtendedStruct {
+struct ExtendedEnum {
     sequence: SequenceExtended,
     bytearray: Bytes,
     bytes: Bytes,
@@ -77,7 +77,7 @@ struct ExtendedStruct {
 namespace ExtendedImpl {
     func sequence(value: SequenceExtended) -> Extended {
         tempvar extended = Extended(
-            new ExtendedStruct(
+            new ExtendedEnum(
                 sequence=value,
                 bytearray=Bytes(cast(0, BytesStruct*)),
                 bytes=Bytes(cast(0, BytesStruct*)),
@@ -92,7 +92,7 @@ namespace ExtendedImpl {
 
     func bytearray(value: Bytes) -> Extended {
         tempvar extended = Extended(
-            new ExtendedStruct(
+            new ExtendedEnum(
                 sequence=SequenceExtended(cast(0, SequenceExtendedStruct*)),
                 bytearray=value,
                 bytes=Bytes(cast(0, BytesStruct*)),
@@ -107,7 +107,7 @@ namespace ExtendedImpl {
 
     func bytes(value: Bytes) -> Extended {
         tempvar extended = Extended(
-            new ExtendedStruct(
+            new ExtendedEnum(
                 sequence=SequenceExtended(cast(0, SequenceExtendedStruct*)),
                 bytearray=Bytes(cast(0, BytesStruct*)),
                 bytes=value,
@@ -122,7 +122,7 @@ namespace ExtendedImpl {
 
     func uint(value: Uint) -> Extended {
         tempvar extended = Extended(
-            new ExtendedStruct(
+            new ExtendedEnum(
                 sequence=SequenceExtended(cast(0, SequenceExtendedStruct*)),
                 bytearray=Bytes(cast(0, BytesStruct*)),
                 bytes=Bytes(cast(0, BytesStruct*)),
@@ -137,7 +137,7 @@ namespace ExtendedImpl {
 
     func fixed_uint(value: Uint) -> Extended {
         tempvar extended = Extended(
-            new ExtendedStruct(
+            new ExtendedEnum(
                 sequence=SequenceExtended(cast(0, SequenceExtendedStruct*)),
                 bytearray=Bytes(cast(0, BytesStruct*)),
                 bytes=Bytes(cast(0, BytesStruct*)),
@@ -152,7 +152,7 @@ namespace ExtendedImpl {
 
     func string(value: String) -> Extended {
         tempvar extended = Extended(
-            new ExtendedStruct(
+            new ExtendedEnum(
                 sequence=SequenceExtended(cast(0, SequenceExtendedStruct*)),
                 bytearray=Bytes(cast(0, BytesStruct*)),
                 bytes=Bytes(cast(0, BytesStruct*)),
@@ -167,7 +167,7 @@ namespace ExtendedImpl {
 
     func bool(value: Bool*) -> Extended {
         tempvar extended = Extended(
-            new ExtendedStruct(
+            new ExtendedEnum(
                 sequence=SequenceExtended(cast(0, SequenceExtendedStruct*)),
                 bytearray=Bytes(cast(0, BytesStruct*)),
                 bytes=Bytes(cast(0, BytesStruct*)),
@@ -419,7 +419,7 @@ func decode{range_check_ptr}(encoded_data: Bytes) -> Simple {
     if (cond != 0) {
         let decoded_data = decode_to_bytes(encoded_data);
         tempvar value = Simple(
-            new SimpleStruct(
+            new SimpleEnum(
                 sequence=SequenceSimple(cast(0, SequenceSimpleStruct*)), bytes=decoded_data
             ),
         );
@@ -427,9 +427,7 @@ func decode{range_check_ptr}(encoded_data: Bytes) -> Simple {
     }
 
     let decoded_sequence = decode_to_sequence(encoded_data);
-    tempvar value = Simple(
-        new SimpleStruct(sequence=decoded_sequence, Bytes(cast(0, BytesStruct*)))
-    );
+    tempvar value = Simple(new SimpleEnum(sequence=decoded_sequence, Bytes(cast(0, BytesStruct*))));
     return value;
 }
 
