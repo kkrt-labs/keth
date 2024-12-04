@@ -5,7 +5,7 @@ from hypothesis import assume, given
 
 from ethereum.base_types import U256, Bytes, Bytes0, Bytes32, Uint
 from ethereum.cancun.blocks import Log
-from ethereum.cancun.fork_types import Account, Address, encode_account
+from ethereum.cancun.fork_types import Account, Address, Bloom, encode_account
 from ethereum.cancun.transactions import LegacyTransaction
 from ethereum.rlp import (
     Extended,
@@ -104,6 +104,10 @@ class TestRlp:
         @given(tuple_log=...)
         def test_encode_tuple_log(self, cairo_run, tuple_log: Tuple[Log, ...]):
             assert encode(tuple_log) == cairo_run("encode_tuple_log", tuple_log)
+
+        @given(bloom=...)
+        def test_encode_bloom(self, cairo_run, bloom: Bloom):
+            assert encode(bloom) == cairo_run("encode_bloom", bloom)
 
     class TestDecode:
         @given(raw_data=...)

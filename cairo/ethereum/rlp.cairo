@@ -18,7 +18,7 @@ from ethereum.base_types import (
     TupleBytes32,
 )
 from ethereum.cancun.blocks import Log, TupleLog
-from ethereum.cancun.fork_types import Address, Account
+from ethereum.cancun.fork_types import Address, Account, Bloom
 from ethereum.cancun.transactions import LegacyTransaction, To
 from ethereum.crypto.hash import keccak256, Hash32
 from ethereum.utils.numeric import is_zero
@@ -31,6 +31,7 @@ from src.utils.bytes import (
     felt_to_bytes20_little,
     uint256_to_bytes_little,
     uint256_to_bytes,
+    felt_to_bytes16_little,
 )
 
 struct SequenceSimple {
@@ -383,6 +384,38 @@ func encode_tuple_log{range_check_ptr}(raw_tuple_log: TupleLog) -> Bytes {
     let offset = _encode_prefix_len(dst, len);
 
     tempvar result = Bytes(new BytesStruct(dst - offset, offset + len));
+    return result;
+}
+
+func encode_bloom{range_check_ptr}(raw_bloom: Bloom) -> Bytes {
+    alloc_locals;
+    let (local dst) = alloc();
+    // Bloom is 256 bytes, so the prefix is [0xb7 + 2, 0x01, 0x00]
+    // ie. a bytes of length 0x0100
+    assert [dst] = 0xb7 + 2;
+    assert [dst + 1] = 1;
+    assert [dst + 2] = 0;
+    let dst = dst + 3;
+
+    // Bloom is 256 bytes encoded as 16 u128 little endian
+    felt_to_bytes16_little(dst, raw_bloom.value[0].value);
+    felt_to_bytes16_little(dst + 16, raw_bloom.value[1].value);
+    felt_to_bytes16_little(dst + 32, raw_bloom.value[2].value);
+    felt_to_bytes16_little(dst + 48, raw_bloom.value[3].value);
+    felt_to_bytes16_little(dst + 64, raw_bloom.value[4].value);
+    felt_to_bytes16_little(dst + 80, raw_bloom.value[5].value);
+    felt_to_bytes16_little(dst + 96, raw_bloom.value[6].value);
+    felt_to_bytes16_little(dst + 112, raw_bloom.value[7].value);
+    felt_to_bytes16_little(dst + 128, raw_bloom.value[8].value);
+    felt_to_bytes16_little(dst + 144, raw_bloom.value[9].value);
+    felt_to_bytes16_little(dst + 160, raw_bloom.value[10].value);
+    felt_to_bytes16_little(dst + 176, raw_bloom.value[11].value);
+    felt_to_bytes16_little(dst + 192, raw_bloom.value[12].value);
+    felt_to_bytes16_little(dst + 208, raw_bloom.value[13].value);
+    felt_to_bytes16_little(dst + 224, raw_bloom.value[14].value);
+    felt_to_bytes16_little(dst + 240, raw_bloom.value[15].value);
+
+    tempvar result = Bytes(new BytesStruct(dst - 3, 3 + 256));
     return result;
 }
 
