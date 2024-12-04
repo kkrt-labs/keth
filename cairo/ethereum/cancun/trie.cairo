@@ -9,7 +9,7 @@ from ethereum.crypto.hash import keccak256
 from ethereum.rlp import encode, _encode_bytes, _encode
 from ethereum.base_types import U256, Bytes, Uint, BytesStruct, bool, StringStruct, String
 from ethereum.cancun.blocks import Receipt, Withdrawal
-from ethereum.cancun.fork_types import Account, Address, Root, encode_account
+from ethereum.cancun.fork_types import Account, Address, Root
 from ethereum.cancun.transactions import LegacyTransaction
 from ethereum.rlp import (
     Extended,
@@ -17,6 +17,7 @@ from ethereum.rlp import (
     SequenceExtendedStruct,
     ExtendedStruct,
     ExtendedImpl,
+    encode_account,
 )
 
 from ethereum.utils.numeric import divmod
