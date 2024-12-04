@@ -4,7 +4,7 @@ import pytest
 from hypothesis import assume, given
 
 from ethereum.base_types import U256, Bytes, Bytes0, Bytes32, Uint
-from ethereum.cancun.blocks import Log, Receipt
+from ethereum.cancun.blocks import Log, Receipt, Withdrawal
 from ethereum.cancun.fork_types import Account, Address, Bloom, encode_account
 from ethereum.cancun.transactions import LegacyTransaction
 from ethereum.rlp import (
@@ -112,6 +112,10 @@ class TestRlp:
         @given(receipt=...)
         def test_encode_receipt(self, cairo_run, receipt: Receipt):
             assert encode(receipt) == cairo_run("encode_receipt", receipt)
+
+        @given(withdrawal=...)
+        def test_encode_withdrawal(self, cairo_run, withdrawal: Withdrawal):
+            assert encode(withdrawal) == cairo_run("encode_withdrawal", withdrawal)
 
     class TestDecode:
         @given(raw_data=...)

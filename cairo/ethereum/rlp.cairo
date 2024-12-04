@@ -17,7 +17,7 @@ from ethereum.base_types import (
     StringStruct,
     TupleBytes32,
 )
-from ethereum.cancun.blocks import Log, TupleLog, Receipt
+from ethereum.cancun.blocks import Log, TupleLog, Receipt, Withdrawal
 from ethereum.cancun.fork_types import Address, Account, Bloom
 from ethereum.cancun.transactions import LegacyTransaction, To
 from ethereum.crypto.hash import keccak256, Hash32
@@ -393,6 +393,28 @@ func encode_receipt{range_check_ptr}(raw_receipt: Receipt) -> Bytes {
     let dst = dst + bloom_len;
     let logs_len = _encode_tuple_log(dst, raw_receipt.value.logs);
     let dst = dst + logs_len;
+
+    let len = dst - dst_start - PREFIX_LEN_MAX;
+    let dst = dst_start + PREFIX_LEN_MAX;
+    let offset = _encode_prefix_len(dst, len);
+
+    tempvar result = Bytes(new BytesStruct(dst - offset, offset + len));
+    return result;
+}
+
+func encode_withdrawal{range_check_ptr}(raw_withdrawal: Withdrawal) -> Bytes {
+    alloc_locals;
+    let (local dst_start) = alloc();
+    let dst = dst_start + PREFIX_LEN_MAX;
+
+    let index_len = _encode_uint(dst, raw_withdrawal.value.index.value);
+    let dst = dst + index_len;
+    let validator_index_len = _encode_uint(dst, raw_withdrawal.value.validator_index.value);
+    let dst = dst + validator_index_len;
+    let address_len = _encode_address(dst, raw_withdrawal.value.address);
+    let dst = dst + address_len;
+    let amount_len = _encode_uint256(dst, raw_withdrawal.value.amount);
+    let dst = dst + amount_len;
 
     let len = dst - dst_start - PREFIX_LEN_MAX;
     let dst = dst_start + PREFIX_LEN_MAX;
