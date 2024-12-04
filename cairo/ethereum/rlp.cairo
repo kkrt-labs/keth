@@ -308,17 +308,17 @@ func encode_account{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: K
         return result;
     }
 
-    let (len_joined_encodings_as_le: felt*) = alloc();
-    let len_joined_encodings_as_le_len = felt_to_bytes_little(len_joined_encodings_as_le, len);
+    let (len_joined_encodings: felt*) = alloc();
+    let len_joined_encodings_len = felt_to_bytes_little(len_joined_encodings, len);
 
     // Write the length encoding
     // Length encoding is 1 byte for the prefix and then the length in little endian
-    let dst = dst - 1 - len_joined_encodings_as_le_len;
-    assert [dst] = 0xF7 + len_joined_encodings_as_le_len;
+    let dst = dst - 1 - len_joined_encodings_len;
+    assert [dst] = 0xF7 + len_joined_encodings_len;
     // Copy the length encoding
-    memcpy(dst + 1, len_joined_encodings_as_le, len_joined_encodings_as_le_len);
+    memcpy(dst + 1, len_joined_encodings, len_joined_encodings_len);
 
-    tempvar result = Bytes(new BytesStruct(dst, 1 + len_joined_encodings_as_le_len + len));
+    tempvar result = Bytes(new BytesStruct(dst, 1 + len_joined_encodings_len + len));
     return result;
 }
 
@@ -355,17 +355,17 @@ func encode_legacy_transaction{range_check_ptr}(transaction: LegacyTransaction) 
         return result;
     }
 
-    let (len_joined_encodings_as_le: felt*) = alloc();
-    let len_joined_encodings_as_le_len = felt_to_bytes_little(len_joined_encodings_as_le, len);
+    let (len_joined_encodings: felt*) = alloc();
+    let len_joined_encodings_len = felt_to_bytes_little(len_joined_encodings, len);
 
     // Write the length encoding
     // Length encoding is 1 byte for the prefix and then the length in little endian
-    let dst = dst - len_joined_encodings_as_le_len;
-    assert [dst] = 0xF7 + len_joined_encodings_as_le_len;
+    let dst = dst - len_joined_encodings_len;
+    assert [dst] = 0xF7 + len_joined_encodings_len;
     // Copy the length encoding
-    memcpy(dst + 1, len_joined_encodings_as_le, len_joined_encodings_as_le_len);
+    memcpy(dst + 1, len_joined_encodings, len_joined_encodings_len);
 
-    tempvar result = Bytes(new BytesStruct(dst, 1 + len_joined_encodings_as_le_len + len));
+    tempvar result = Bytes(new BytesStruct(dst, 1 + len_joined_encodings_len + len));
     return result;
 }
 
@@ -394,13 +394,13 @@ func encode_log{range_check_ptr}(raw_log: Log) -> Bytes {
         return result;
     }
 
-    let (len_joined_encodings_as_le: felt*) = alloc();
-    let len_joined_encodings_as_le_len = felt_to_bytes(len_joined_encodings_as_le, len);
+    let (len_joined_encodings: felt*) = alloc();
+    let len_joined_encodings_len = felt_to_bytes(len_joined_encodings, len);
 
-    let dst = dst - len_joined_encodings_as_le_len;
-    assert [dst] = 0xF7 + len_joined_encodings_as_le_len;
-    memcpy(dst + 1, len_joined_encodings_as_le, len_joined_encodings_as_le_len);
-    let len = 1 + len_joined_encodings_as_le_len + len;
+    let dst = dst - len_joined_encodings_len;
+    assert [dst] = 0xF7 + len_joined_encodings_len;
+    memcpy(dst + 1, len_joined_encodings, len_joined_encodings_len);
+    let len = 1 + len_joined_encodings_len + len;
     tempvar result = Bytes(new BytesStruct(dst, len));
     return result;
 }
@@ -725,14 +725,14 @@ func _encode_sequence{range_check_ptr}(dst: felt*, raw_sequence: SequenceExtende
         return len + 1;
     }
 
-    let (len_joined_encodings_as_le: felt*) = alloc();
-    let len_joined_encodings_as_le_len = felt_to_bytes(len_joined_encodings_as_le, len);
+    let (len_joined_encodings: felt*) = alloc();
+    let len_joined_encodings_len = felt_to_bytes(len_joined_encodings, len);
 
-    assert [dst] = 0xF7 + len_joined_encodings_as_le_len;
-    memcpy(dst + 1, len_joined_encodings_as_le, len_joined_encodings_as_le_len);
-    memcpy(dst + 1 + len_joined_encodings_as_le_len, tmp_dst, len);
+    assert [dst] = 0xF7 + len_joined_encodings_len;
+    memcpy(dst + 1, len_joined_encodings, len_joined_encodings_len);
+    memcpy(dst + 1 + len_joined_encodings_len, tmp_dst, len);
 
-    return 1 + len_joined_encodings_as_le_len + len;
+    return 1 + len_joined_encodings_len + len;
 }
 
 func _encode_address{range_check_ptr}(dst: felt*, address: Address) -> felt {
@@ -772,17 +772,15 @@ func _encode_tuple_bytes32{range_check_ptr}(dst: felt*, raw_tuple_bytes32: Tuple
     }
 
     let joined_encodings_len = raw_tuple_bytes32.value.len * 33;
-    let (len_joined_encodings_as_le: felt*) = alloc();
-    let len_joined_encodings_as_le_len = felt_to_bytes(
-        len_joined_encodings_as_le, joined_encodings_len
-    );
-    assert [dst] = 0xF7 + len_joined_encodings_as_le_len;
-    memcpy(dst + 1, len_joined_encodings_as_le, len_joined_encodings_as_le_len);
-    let dst = dst + 1 + len_joined_encodings_as_le_len;
+    let (len_joined_encodings: felt*) = alloc();
+    let len_joined_encodings_len = felt_to_bytes(len_joined_encodings, joined_encodings_len);
+    assert [dst] = 0xF7 + len_joined_encodings_len;
+    memcpy(dst + 1, len_joined_encodings, len_joined_encodings_len);
+    let dst = dst + 1 + len_joined_encodings_len;
 
     _encode_tuple_bytes32_inner(dst, raw_tuple_bytes32.value.len, raw_tuple_bytes32.value.value);
 
-    return 1 + len_joined_encodings_as_le_len + joined_encodings_len;
+    return 1 + len_joined_encodings_len + joined_encodings_len;
 }
 
 func _encode_tuple_bytes32_inner{range_check_ptr}(
