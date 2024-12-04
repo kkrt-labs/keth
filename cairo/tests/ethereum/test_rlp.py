@@ -1,11 +1,14 @@
-from typing import Tuple, Union
+from typing import Sequence, Tuple, Union
 
 import pytest
 from hypothesis import assume, given
-from hypothesis import strategies as st
 
-from ethereum.base_types import U256, Bytes, Uint
+from ethereum.base_types import U256, Bytes, Bytes0, Bytes32, Uint
+from ethereum.cancun.blocks import Log
+from ethereum.cancun.fork_types import Account, Address, encode_account
+from ethereum.cancun.transactions import LegacyTransaction
 from ethereum.rlp import (
+    Extended,
     decode,
     decode_item_length,
     decode_joined_encodings,
@@ -19,17 +22,11 @@ from ethereum.rlp import (
 )
 from tests.utils.errors import cairo_error
 
-# See ethereum.rlp.Simple and ethereum.rlp.Extended for the definition of Simple and Extended
-simple = st.recursive(st.one_of(st.binary()), st.tuples)
-extended = st.recursive(
-    st.one_of(st.binary(), st.from_type(Uint), st.booleans()), st.tuples
-)
-
 
 class TestRlp:
     class TestEncode:
-        @given(raw_data=extended)
-        def test_encode(self, cairo_run, raw_data):
+        @given(raw_data=...)
+        def test_encode(self, cairo_run, raw_data: Extended):
             assert encode(raw_data) == cairo_run("encode", raw_data)
 
         @given(raw_uint=...)
@@ -50,14 +47,16 @@ class TestRlp:
         def test_encode_bytes(self, cairo_run, raw_bytes: Bytes):
             assert encode_bytes(raw_bytes) == cairo_run("encode_bytes", raw_bytes)
 
-        @given(raw_sequence=st.tuples(extended))
-        def test_encode_sequence(self, cairo_run, raw_sequence):
+        @given(raw_sequence=...)
+        def test_encode_sequence(self, cairo_run, raw_sequence: Sequence[Extended]):
             assert encode_sequence(raw_sequence) == cairo_run(
                 "encode_sequence", raw_sequence
             )
 
-        @given(raw_sequence=st.tuples(extended))
-        def test_get_joined_encodings(self, cairo_run, raw_sequence):
+        @given(raw_sequence=...)
+        def test_get_joined_encodings(
+            self, cairo_run, raw_sequence: Sequence[Extended]
+        ):
             assert get_joined_encodings(raw_sequence) == cairo_run(
                 "get_joined_encodings", raw_sequence
             )
@@ -66,9 +65,45 @@ class TestRlp:
         def test_rlp_hash(self, cairo_run, raw_bytes: Bytes):
             assert rlp_hash(raw_bytes) == cairo_run("rlp_hash", raw_bytes)
 
+        @given(address=...)
+        def test_encode_address(self, cairo_run, address: Address):
+            assert encode(address) == cairo_run("encode_address", address)
+
+        @given(raw_bytes32=...)
+        def test_encode_bytes32(self, cairo_run, raw_bytes32: Bytes32):
+            assert encode(raw_bytes32) == cairo_run("encode_bytes32", raw_bytes32)
+
+        @given(raw_tuple_bytes32=...)
+        def test_encode_tuple_bytes32(
+            self, cairo_run, raw_tuple_bytes32: Tuple[Bytes32, ...]
+        ):
+            assert encode(raw_tuple_bytes32) == cairo_run(
+                "encode_tuple_bytes32", raw_tuple_bytes32
+            )
+
+        @given(to=...)
+        def test_encode_to(self, cairo_run, to: Union[Bytes0, Address]):
+            assert encode(to) == cairo_run("encode_to", to)
+
+        @given(raw_account_data=..., storage_root=...)
+        def test_encode_account(
+            self, cairo_run, raw_account_data: Account, storage_root: Bytes
+        ):
+            assert encode_account(raw_account_data, storage_root) == cairo_run(
+                "encode_account", raw_account_data, storage_root
+            )
+
+        @given(tx=...)
+        def test_encode_legacy_transaction(self, cairo_run, tx: LegacyTransaction):
+            assert encode(tx) == cairo_run("encode_legacy_transaction", tx)
+
+        @given(log=...)
+        def test_encode_log(self, cairo_run, log: Log):
+            assert encode(log) == cairo_run("encode_log", log)
+
     class TestDecode:
-        @given(raw_data=extended)
-        def test_decode(self, cairo_run, raw_data):
+        @given(raw_data=...)
+        def test_decode(self, cairo_run, raw_data: Extended):
             assert decode(encode(raw_data)) == cairo_run("decode", encode(raw_data))
 
         @given(raw_bytes=...)
@@ -93,9 +128,9 @@ class TestRlp:
             if decoded_bytes is not None:
                 assert decoded_bytes == decode_to_bytes(encoded_bytes)
 
-        @given(raw_data=extended)
-        def test_decode_to_sequence(self, cairo_run, raw_data):
-            assume(isinstance(raw_data, tuple))
+        @given(raw_data=...)
+        def test_decode_to_sequence(self, cairo_run, raw_data: Sequence[Extended]):
+            assume(isinstance(raw_data, list))
             encoded_sequence = encode(raw_data)
             assert decode_to_sequence(encoded_sequence) == cairo_run(
                 "decode_to_sequence", encoded_sequence

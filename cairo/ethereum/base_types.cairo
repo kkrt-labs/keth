@@ -1,10 +1,17 @@
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.uint256 import Uint256
 
+// None values are just null pointers generally speaking (i.e. cast(my_var, felt) == 0)
+// but we need to explicitly define None to be able to serialize/deserialize None
+struct None {
+    value: felt*,
+}
+
 // Int types
 struct bool {
     value: felt,
 }
+using Bool = bool;
 struct U64 {
     value: felt,
 }
@@ -46,6 +53,14 @@ struct Bytes {
 }
 // Some parts of the exec spec use bytes, so just easier to copy/paste
 using bytes = Bytes;
+
+struct StringStruct {
+    data: felt*,
+    len: felt,
+}
+struct String {
+    value: StringStruct*,
+}
 
 // In Cairo, tuples are not a first-class type, so we need to define a custom
 // struct to represent a tuple of Bytes32.

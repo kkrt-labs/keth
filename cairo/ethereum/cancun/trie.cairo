@@ -1,83 +1,153 @@
 from starkware.cairo.common.alloc import alloc
+from starkware.cairo.common.math_cmp import is_le
+from starkware.cairo.common.math import assert_not_zero
 from starkware.cairo.common.bitwise import BitwiseBuiltin
+from starkware.cairo.common.cairo_builtins import KeccakBuiltin
+from starkware.cairo.common.memcpy import memcpy
 
+from src.utils.bytes import uint256_to_bytes32_little
 from ethereum.crypto.hash import keccak256
-from ethereum.rlp import encode
-from ethereum.base_types import U256, Bytes, Uint, BytesStruct
+from ethereum.rlp import encode, _encode_bytes, _encode
+from ethereum.base_types import U256, Bytes, Uint, BytesStruct, bool, StringStruct, String
 from ethereum.cancun.blocks import Receipt, Withdrawal
-from ethereum.cancun.fork_types import Account, Address, Root, encode_account
+from ethereum.cancun.fork_types import Account, Address, Root
 from ethereum.cancun.transactions import LegacyTransaction
+from ethereum.rlp import (
+    Extended,
+    SequenceExtended,
+    SequenceExtendedStruct,
+    ExtendedEnum,
+    ExtendedImpl,
+    encode_account,
+)
 
-// struct LeafNode {
-//     rest_of_key: Bytes,
-//     value: rlp.Extended,
-// }
+from ethereum.utils.numeric import divmod
 
-// struct ExtensionNode {
-//     key_segment: Bytes,
-//     subnode: rlp.Extended,
-// }
+struct LeafNodeStruct {
+    rest_of_key: Bytes,
+    value: Extended,
+}
 
-// struct BranchNode {
-//     subnodes: rlp.Extended,
-//     value: rlp.Extended,
-// }
+struct LeafNode {
+    value: LeafNodeStruct*,
+}
 
-// struct Trie {
+struct ExtensionNodeStruct {
+    key_segment: Bytes,
+    subnode: Extended,
+}
+
+struct ExtensionNode {
+    value: ExtensionNodeStruct*,
+}
+
+struct BranchNodeStruct {
+    subnodes: SequenceExtended,
+    value: Extended,
+}
+
+struct BranchNode {
+    value: BranchNodeStruct*,
+}
+
+struct InternalNode {
+    value: InternalNodeEnum*,
+}
+
+struct InternalNodeEnum {
+    leaf_node: LeafNode,
+    extension_node: ExtensionNode,
+    branch_node: BranchNode,
+}
+
+struct NodeEnum {
+    account: Account,
+    bytes: Bytes,
+    legacy_transaction: LegacyTransaction,
+    receipt: Receipt,
+    uint: Uint,
+    u256: U256,
+    withdrawal: Withdrawal,
+}
+
+struct Node {
+    value: NodeEnum*,
+}
+
+// struct TrieStruct {
 //     secured: bool,
 //     default: V,
 //     _data: Dict[K, V],
 // }
 
-// func encode_internal_node(node: InternalNode) -> rlp.Extended {
-//     // Implementation:
-//     // unencoded: rlp.Extended
-//     // if node is None:
-//     // unencoded = b''
-//     // elif isinstance(node, LeafNode):
-//     // unencoded = (nibble_list_to_compact(node.rest_of_key, True), node.value)
-//     // elif isinstance(node, ExtensionNode):
-//     // unencoded = (nibble_list_to_compact(node.key_segment, False), node.subnode)
-//     // elif isinstance(node, BranchNode):
-//     // unencoded = node.subnodes + [node.value]
-//     // else:
-//     // raise AssertionError(f'Invalid internal node type {type(node)}!')
-//         // unencoded = b''
-//     // else:
-//         // if isinstance(node, LeafNode):
-//         // unencoded = (nibble_list_to_compact(node.rest_of_key, True), node.value)
-//         // elif isinstance(node, ExtensionNode):
-//         // unencoded = (nibble_list_to_compact(node.key_segment, False), node.subnode)
-//         // elif isinstance(node, BranchNode):
-//         // unencoded = node.subnodes + [node.value]
-//         // else:
-//         // raise AssertionError(f'Invalid internal node type {type(node)}!')
-//             // unencoded = (nibble_list_to_compact(node.rest_of_key, True), node.value)
-//         // else:
-//             // if isinstance(node, ExtensionNode):
-//             // unencoded = (nibble_list_to_compact(node.key_segment, False), node.subnode)
-//             // elif isinstance(node, BranchNode):
-//             // unencoded = node.subnodes + [node.value]
-//             // else:
-//             // raise AssertionError(f'Invalid internal node type {type(node)}!')
-//                 // unencoded = (nibble_list_to_compact(node.key_segment, False), node.subnode)
-//             // else:
-//                 // if isinstance(node, BranchNode):
-//                 // unencoded = node.subnodes + [node.value]
-//                 // else:
-//                 // raise AssertionError(f'Invalid internal node type {type(node)}!')
-//                     // unencoded = node.subnodes + [node.value]
-//                 // else:
-//                     // raise AssertionError(f'Invalid internal node type {type(node)}!')
-//     // encoded = encode(unencoded)
-//     // if len(encoded) < 32:
-//     // return unencoded
-//     // else:
-//     // return keccak256(encoded)
-//         // return unencoded
-//     // else:
-//         // return keccak256(encoded)
-// }
+func encode_internal_node{
+    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*
+}(node: InternalNode) -> Extended {
+    alloc_locals;
+
+    local unencoded: Extended;
+
+    tempvar is_leaf = cast(node.value.leaf_node.value, felt);
+    jmp leaf_node if is_leaf != 0;
+    tempvar is_extension_node = cast(node.value.extension_node.value, felt);
+    jmp extension_node if is_extension_node != 0;
+    tempvar is_branch_node = cast(node.value.branch_node.value, felt);
+    jmp branch_node if is_branch_node != 0;
+
+    none:
+    let (data) = alloc();
+    tempvar empty_byte = Bytes(new BytesStruct(data, 0));
+    let unencoded = ExtendedImpl.bytes(empty_byte);
+    // rlp(b'') = 0x80 so no need to hash
+    return unencoded;
+
+    leaf_node:
+    let compact = nibble_list_to_compact(node.value.leaf_node.value.rest_of_key, bool(1));
+    let compact_extended = ExtendedImpl.bytes(compact);
+    let (sequence_data: Extended*) = alloc();
+    assert [sequence_data] = compact_extended;
+    assert [sequence_data + 1] = node.value.leaf_node.value.value;
+    tempvar sequence = SequenceExtended(new SequenceExtendedStruct(sequence_data, 2));
+    let unencoded_ = ExtendedImpl.sequence(sequence);
+    assert unencoded = unencoded_;
+    jmp common;
+
+    extension_node:
+    let compact = nibble_list_to_compact(node.value.extension_node.value.key_segment, bool(0));
+    let compact_extended = ExtendedImpl.bytes(compact);
+    let (sequence_data: Extended*) = alloc();
+    assert [sequence_data] = compact_extended;
+    assert [sequence_data + 1] = node.value.extension_node.value.subnode;
+    tempvar sequence = SequenceExtended(new SequenceExtendedStruct(sequence_data, 2));
+    let unencoded_ = ExtendedImpl.sequence(sequence);
+    assert unencoded = unencoded_;
+    jmp common;
+
+    branch_node:
+    let (value: Extended*) = alloc();
+    let len = node.value.branch_node.value.subnodes.value.len;
+    // TOD0: check if we really need to copy of if we can just use the pointer
+    memcpy(value, node.value.branch_node.value.subnodes.value.value, len);
+    assert [value + len] = node.value.branch_node.value.value;
+    tempvar sequence = SequenceExtended(new SequenceExtendedStruct(value, len + 1));
+    let unencoded_ = ExtendedImpl.sequence(sequence);
+    assert unencoded = unencoded_;
+    jmp common;
+
+    common:
+    let encoded = encode(unencoded);
+
+    let cond = is_le(encoded.value.len, 32 - 1);
+    if (cond == 1) {
+        return unencoded;
+    }
+
+    let hash = keccak256(encoded);
+    let (data) = alloc();
+    uint256_to_bytes32_little(data, [hash.value]);
+    let hashed = ExtendedImpl.bytes(Bytes(new BytesStruct(data, 32)));
+    return hashed;
+}
 
 // func encode_node(node: Node, storage_root: Bytes) -> Bytes {
 //     // Implementation:
@@ -134,45 +204,87 @@ from ethereum.cancun.transactions import LegacyTransaction
 //     // return trie._data.get(key, trie.default)
 // }
 
-// func common_prefix_length(a: Sequence, b: Sequence) -> felt {
-//     // Implementation:
-//     // for i in range(len(a)):
-//     // if i >= len(b) or a[i] != b[i]:
-//     // return i
-//         // if i >= len(b) or a[i] != b[i]:
-//         // return i
-//             // return i
-//     // return len(a)
-// }
+func common_prefix_length(a: Bytes, b: Bytes) -> felt {
+    alloc_locals;
+    local result;
 
-// func nibble_list_to_compact(x: Bytes, is_leaf: bool) -> Bytes {
-//     // Implementation:
-//     // compact = bytearray()
-//     // if len(x) % 2 == 0:
-//     // compact.append(16 * (2 * is_leaf))
-//     // for i in range(0, len(x), 2):
-//     // compact.append(16 * x[i] + x[i + 1])
-//     // else:
-//     // compact.append(16 * (2 * is_leaf + 1) + x[0])
-//     // for i in range(1, len(x), 2):
-//     // compact.append(16 * x[i] + x[i + 1])
-//         // compact.append(16 * (2 * is_leaf))
-//         // for i in range(0, len(x), 2):
-//         // compact.append(16 * x[i] + x[i + 1])
-//             // compact.append(16 * x[i] + x[i + 1])
-//     // else:
-//         // compact.append(16 * (2 * is_leaf + 1) + x[0])
-//         // for i in range(1, len(x), 2):
-//         // compact.append(16 * x[i] + x[i + 1])
-//             // compact.append(16 * x[i] + x[i + 1])
-//     // return Bytes(compact)
-// }
+    %{ memory[fp] = oracle(ids, reference="ethereum.cancun.trie.common_prefix_length") %}
+
+    jmp common if result != 0;
+    jmp diff;
+
+    common:
+    let index = [ap - 1];
+    with_attr error_message("common_prefix_length") {
+        assert a.value.data[index - 1] = b.value.data[index - 1];
+    }
+    tempvar index = index - 1;
+    jmp common if index != 0;
+
+    diff:
+    let result = [fp];
+    if (a.value.len == result) {
+        return result;
+    }
+
+    if (b.value.len == result) {
+        return result;
+    }
+
+    with_attr error_message("common_prefix_length") {
+        assert_not_zero(a.value.data[result] - b.value.data[result]);
+    }
+
+    return result;
+}
+
+func nibble_list_to_compact(x: Bytes, is_leaf: bool) -> Bytes {
+    alloc_locals;
+    let (local compact) = alloc();
+
+    if (x.value.len == 0) {
+        assert [compact] = 16 * (2 * is_leaf.value);
+        tempvar result = Bytes(new BytesStruct(compact, 1));
+        return result;
+    }
+
+    local remainder = nondet %{ ids.x.value.len % 2 %};
+    assert remainder * (1 - remainder) = 0;
+    assert [compact] = 16 * (2 * is_leaf.value + remainder) + x.value.data[0] * remainder;
+
+    if (x.value.len == 1) {
+        tempvar result = Bytes(new BytesStruct(compact, 1));
+        return result;
+    }
+
+    tempvar compact = compact + 1;
+    tempvar i = remainder;
+
+    loop:
+    let compact = cast([ap - 2], felt*);
+    let i = [ap - 1];
+    let x_ptr = cast([fp - 4], BytesStruct*);
+
+    assert [compact] = 16 * x_ptr.data[i] + x_ptr.data[i + 1];
+
+    tempvar cond = x_ptr.len - i - 2;
+    tempvar compact = compact + 1;
+    tempvar i = i + 2;
+
+    jmp loop if cond != 0;
+
+    let len = (i - remainder) / 2;
+
+    let compact = cast([fp], felt*);
+    tempvar result = Bytes(new BytesStruct(compact, 1 + len));
+    return result;
+}
 
 func bytes_to_nibble_list{bitwise_ptr: BitwiseBuiltin*}(bytes_: Bytes) -> Bytes {
     alloc_locals;
     local result: Bytes;
 
-    %{ memory[ap - 1] = oracle(ids) %}
+    %{ memory[ap - 1] = oracle(ids, reference="ethereum.cancun.trie.bytes_to_nibble_list") %}
 
     assert result.value.len = 2 * bytes_.value.len;
 

@@ -1,15 +1,37 @@
-from ethereum.base_types import Bytes, BytesStruct, TupleBytes, TupleBytesStruct, Uint, U256, bool
-from ethereum.crypto.hash import keccak256, Hash32
-from ethereum.utils.numeric import is_zero
-from src.utils.array import reverse
-from src.utils.bytes import felt_to_bytes, felt_to_bytes_little, bytes_to_felt
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin
 from starkware.cairo.common.math_cmp import is_le, is_not_zero
 from starkware.cairo.common.math import assert_not_zero
 from starkware.cairo.common.memcpy import memcpy
 
-from src.utils.bytes import uint256_to_bytes_little, uint256_to_bytes
+from ethereum.base_types import (
+    Bool,
+    Bytes,
+    BytesStruct,
+    Bytes32,
+    TupleBytes,
+    TupleBytesStruct,
+    Uint,
+    U256,
+    String,
+    StringStruct,
+    TupleBytes32,
+)
+from ethereum.cancun.blocks import Log
+from ethereum.cancun.fork_types import Address, Account
+from ethereum.cancun.transactions import LegacyTransaction, To
+from ethereum.crypto.hash import keccak256, Hash32
+from ethereum.utils.numeric import is_zero
+from src.utils.array import reverse
+from src.utils.bytes import (
+    felt_to_bytes,
+    felt_to_bytes_little,
+    bytes_to_felt,
+    uint256_to_bytes32_little,
+    felt_to_bytes20_little,
+    uint256_to_bytes_little,
+    uint256_to_bytes,
+)
 
 struct SequenceSimple {
     value: SequenceSimpleStruct*,
@@ -21,10 +43,10 @@ struct SequenceSimpleStruct {
 }
 
 struct Simple {
-    value: SimpleStruct*,
+    value: SimpleEnum*,
 }
 
-struct SimpleStruct {
+struct SimpleEnum {
     sequence: SequenceSimple,
     bytes: Bytes,
 }
@@ -39,18 +61,124 @@ struct SequenceExtendedStruct {
 }
 
 struct Extended {
-    value: ExtendedStruct*,
+    value: ExtendedEnum*,
 }
 
-struct ExtendedStruct {
+struct ExtendedEnum {
     sequence: SequenceExtended,
-    bytesarray: Bytes,
+    bytearray: Bytes,
     bytes: Bytes,
     uint: Uint*,
     fixed_uint: Uint*,
-    str: Bytes,
-    bool: bool*,
-    RLP: Bytes,
+    str: String,
+    bool: Bool*,
+}
+
+namespace ExtendedImpl {
+    func sequence(value: SequenceExtended) -> Extended {
+        tempvar extended = Extended(
+            new ExtendedEnum(
+                sequence=value,
+                bytearray=Bytes(cast(0, BytesStruct*)),
+                bytes=Bytes(cast(0, BytesStruct*)),
+                uint=cast(0, Uint*),
+                fixed_uint=cast(0, Uint*),
+                str=String(cast(0, StringStruct*)),
+                bool=cast(0, Bool*),
+            ),
+        );
+        return extended;
+    }
+
+    func bytearray(value: Bytes) -> Extended {
+        tempvar extended = Extended(
+            new ExtendedEnum(
+                sequence=SequenceExtended(cast(0, SequenceExtendedStruct*)),
+                bytearray=value,
+                bytes=Bytes(cast(0, BytesStruct*)),
+                uint=cast(0, Uint*),
+                fixed_uint=cast(0, Uint*),
+                str=String(cast(0, StringStruct*)),
+                bool=cast(0, Bool*),
+            ),
+        );
+        return extended;
+    }
+
+    func bytes(value: Bytes) -> Extended {
+        tempvar extended = Extended(
+            new ExtendedEnum(
+                sequence=SequenceExtended(cast(0, SequenceExtendedStruct*)),
+                bytearray=Bytes(cast(0, BytesStruct*)),
+                bytes=value,
+                uint=cast(0, Uint*),
+                fixed_uint=cast(0, Uint*),
+                str=String(cast(0, StringStruct*)),
+                bool=cast(0, Bool*),
+            ),
+        );
+        return extended;
+    }
+
+    func uint(value: Uint) -> Extended {
+        tempvar extended = Extended(
+            new ExtendedEnum(
+                sequence=SequenceExtended(cast(0, SequenceExtendedStruct*)),
+                bytearray=Bytes(cast(0, BytesStruct*)),
+                bytes=Bytes(cast(0, BytesStruct*)),
+                uint=value,
+                fixed_uint=cast(0, Uint*),
+                str=String(cast(0, StringStruct*)),
+                bool=cast(0, Bool*),
+            ),
+        );
+        return extended;
+    }
+
+    func fixed_uint(value: Uint) -> Extended {
+        tempvar extended = Extended(
+            new ExtendedEnum(
+                sequence=SequenceExtended(cast(0, SequenceExtendedStruct*)),
+                bytearray=Bytes(cast(0, BytesStruct*)),
+                bytes=Bytes(cast(0, BytesStruct*)),
+                uint=cast(0, Uint*),
+                fixed_uint=value,
+                str=String(cast(0, StringStruct*)),
+                bool=cast(0, Bool*),
+            ),
+        );
+        return extended;
+    }
+
+    func string(value: String) -> Extended {
+        tempvar extended = Extended(
+            new ExtendedEnum(
+                sequence=SequenceExtended(cast(0, SequenceExtendedStruct*)),
+                bytearray=Bytes(cast(0, BytesStruct*)),
+                bytes=Bytes(cast(0, BytesStruct*)),
+                uint=cast(0, Uint*),
+                fixed_uint=cast(0, Uint*),
+                str=value,
+                bool=cast(0, Bool*),
+            ),
+        );
+        return extended;
+    }
+
+    func bool(value: Bool*) -> Extended {
+        tempvar extended = Extended(
+            new ExtendedEnum(
+                sequence=SequenceExtended(cast(0, SequenceExtendedStruct*)),
+                bytearray=Bytes(cast(0, BytesStruct*)),
+                bytes=Bytes(cast(0, BytesStruct*)),
+                uint=cast(0, Uint*),
+                fixed_uint=cast(0, Uint*),
+                str=String(cast(0, StringStruct*)),
+                bool=value,
+            ),
+        );
+        return extended;
+    }
 }
 
 //
@@ -120,6 +248,163 @@ func get_joined_encodings{range_check_ptr}(raw_sequence: SequenceExtended) -> By
     return encoded_bytes;
 }
 
+func encode_bytes32{range_check_ptr}(raw_bytes32: Bytes32) -> Bytes {
+    alloc_locals;
+    let (dst) = alloc();
+    let len = _encode_bytes32(dst, raw_bytes32);
+    tempvar value = Bytes(new BytesStruct(dst, len));
+    return value;
+}
+
+func encode_tuple_bytes32{range_check_ptr}(raw_tuple_bytes32: TupleBytes32) -> Bytes {
+    alloc_locals;
+    let (dst) = alloc();
+    let len = _encode_tuple_bytes32(dst, raw_tuple_bytes32);
+    tempvar value = Bytes(new BytesStruct(dst, len));
+    return value;
+}
+
+func encode_to{range_check_ptr}(to: To) -> Bytes {
+    alloc_locals;
+    let (dst) = alloc();
+    let len = _encode_to(dst, to);
+    tempvar result = Bytes(new BytesStruct(dst, len));
+    return result;
+}
+
+func encode_address{range_check_ptr}(address: Address) -> Bytes {
+    alloc_locals;
+    let (dst) = alloc();
+    let len = _encode_address(dst, address);
+    tempvar result = Bytes(new BytesStruct(dst, len));
+    return result;
+}
+
+func encode_account{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*}(
+    raw_account_data: Account, storage_root: Bytes
+) -> Bytes {
+    alloc_locals;
+    let (dst) = alloc();
+    // Leave space for the length encoding
+    let dst = dst + 10;
+    let nonce_len = _encode_uint(dst, raw_account_data.value.nonce.value);
+    let balance_len = _encode_uint256(dst + nonce_len, raw_account_data.value.balance);
+    let storage_root_len = _encode_bytes(dst + nonce_len + balance_len, storage_root);
+
+    // Encoding the code hash is encoding 32 bytes, so we know the prefix is 0x80 + 32
+    // code_hash_len is 33 bytes and we can directly copy the bytes into the buffer
+    let code_hash = keccak256(raw_account_data.value.code);
+    let code_hash_ptr = dst + nonce_len + balance_len + storage_root_len;
+    assert [code_hash_ptr] = 0x80 + 32;
+    uint256_to_bytes32_little(code_hash_ptr + 1, [code_hash.value]);
+    let code_hash_len = 33;
+
+    let len = nonce_len + balance_len + storage_root_len + code_hash_len;
+    let cond = is_le(len, 0x38 - 1);
+    if (cond != 0) {
+        let dst = dst - 1;
+        assert [dst] = 0xC0 + len;
+        tempvar result = Bytes(new BytesStruct(dst, 1 + len));
+        return result;
+    }
+
+    let (len_joined_encodings: felt*) = alloc();
+    let len_joined_encodings_len = felt_to_bytes_little(len_joined_encodings, len);
+
+    // Write the length encoding
+    // Length encoding is 1 byte for the prefix and then the length in little endian
+    let dst = dst - 1 - len_joined_encodings_len;
+    assert [dst] = 0xF7 + len_joined_encodings_len;
+    // Copy the length encoding
+    memcpy(dst + 1, len_joined_encodings, len_joined_encodings_len);
+
+    tempvar result = Bytes(new BytesStruct(dst, 1 + len_joined_encodings_len + len));
+    return result;
+}
+
+func encode_legacy_transaction{range_check_ptr}(transaction: LegacyTransaction) -> Bytes {
+    alloc_locals;
+    let (local dst_start) = alloc();
+    // Leave space for the length encoding
+    let dst = dst_start + 10;
+    let nonce_len = _encode_uint256(dst, transaction.value.nonce);
+    let dst = dst + nonce_len;
+    let gas_price_len = _encode_uint(dst, transaction.value.gas_price.value);
+    let dst = dst + gas_price_len;
+    let gas_len = _encode_uint(dst, transaction.value.gas.value);
+    let dst = dst + gas_len;
+    let to_len = _encode_to(dst, transaction.value.to);
+    let dst = dst + to_len;
+    let value_len = _encode_uint256(dst, transaction.value.value);
+    let dst = dst + value_len;
+    let data_len = _encode_bytes(dst, transaction.value.data);
+    let dst = dst + data_len;
+    let v_len = _encode_uint256(dst, transaction.value.v);
+    let dst = dst + v_len;
+    let r_len = _encode_uint256(dst, transaction.value.r);
+    let dst = dst + r_len;
+    let s_len = _encode_uint256(dst, transaction.value.s);
+    let dst = dst + s_len;
+
+    let len = dst - dst_start - 10;
+    let cond = is_le(len, 0x38 - 1);
+    let dst = dst_start + 9;
+    if (cond != 0) {
+        assert [dst] = 0xC0 + len;
+        tempvar result = Bytes(new BytesStruct(dst, 1 + len));
+        return result;
+    }
+
+    let (len_joined_encodings: felt*) = alloc();
+    let len_joined_encodings_len = felt_to_bytes_little(len_joined_encodings, len);
+
+    // Write the length encoding
+    // Length encoding is 1 byte for the prefix and then the length in little endian
+    let dst = dst - len_joined_encodings_len;
+    assert [dst] = 0xF7 + len_joined_encodings_len;
+    // Copy the length encoding
+    memcpy(dst + 1, len_joined_encodings, len_joined_encodings_len);
+
+    tempvar result = Bytes(new BytesStruct(dst, 1 + len_joined_encodings_len + len));
+    return result;
+}
+
+func encode_log{range_check_ptr}(raw_log: Log) -> Bytes {
+    alloc_locals;
+
+    let (local dst) = alloc();
+
+    tempvar offset = 10;
+    let dst = dst + offset;
+    let len = _encode_address(dst, raw_log.value.address);
+    let dst = dst + len;
+    let len = _encode_tuple_bytes32(dst, raw_log.value.topics);
+    let dst = dst + len;
+    let len = _encode_bytes(dst, raw_log.value.data);
+    let dst = dst + len;
+
+    let dst_start = cast([fp], felt*);
+    let len = dst - dst_start - offset;
+    let dst = dst_start + offset - 1;
+
+    let cond = is_le(len, 0x38 - 1);
+    if (cond != 0) {
+        assert [dst] = 0xC0 + len;
+        tempvar result = Bytes(new BytesStruct(dst, 1 + len));
+        return result;
+    }
+
+    let (len_joined_encodings: felt*) = alloc();
+    let len_joined_encodings_len = felt_to_bytes(len_joined_encodings, len);
+
+    let dst = dst - len_joined_encodings_len;
+    assert [dst] = 0xF7 + len_joined_encodings_len;
+    memcpy(dst + 1, len_joined_encodings, len_joined_encodings_len);
+    let len = 1 + len_joined_encodings_len + len;
+    tempvar result = Bytes(new BytesStruct(dst, len));
+    return result;
+}
+
 //
 // RLP Decode
 //
@@ -134,7 +419,7 @@ func decode{range_check_ptr}(encoded_data: Bytes) -> Simple {
     if (cond != 0) {
         let decoded_data = decode_to_bytes(encoded_data);
         tempvar value = Simple(
-            new SimpleStruct(
+            new SimpleEnum(
                 sequence=SequenceSimple(cast(0, SequenceSimpleStruct*)), bytes=decoded_data
             ),
         );
@@ -142,9 +427,7 @@ func decode{range_check_ptr}(encoded_data: Bytes) -> Simple {
     }
 
     let decoded_sequence = decode_to_sequence(encoded_data);
-    tempvar value = Simple(
-        new SimpleStruct(sequence=decoded_sequence, Bytes(cast(0, BytesStruct*)))
-    );
+    tempvar value = Simple(new SimpleEnum(sequence=decoded_sequence, Bytes(cast(0, BytesStruct*))));
     return value;
 }
 
@@ -190,6 +473,7 @@ func decode_to_bytes{range_check_ptr}(encoded_bytes: Bytes) -> Bytes {
 
     let decoded_data_end_idx = decoded_data_start_idx + len_decoded_data;
     assert [range_check_ptr] = encoded_bytes.value.len - decoded_data_end_idx;
+    let range_check_ptr = range_check_ptr + 1;
 
     let raw_data = encoded_bytes.value.data + decoded_data_start_idx;
     tempvar value = new BytesStruct(raw_data, decoded_data_end_idx - decoded_data_start_idx);
@@ -306,8 +590,8 @@ func _encode{range_check_ptr}(dst: felt*, raw_data: Extended) -> felt {
         return _encode_sequence(dst, raw_data.value.sequence);
     }
 
-    if (cast(raw_data.value.bytesarray.value, felt) != 0) {
-        return _encode_bytes(dst, raw_data.value.bytesarray);
+    if (cast(raw_data.value.bytearray.value, felt) != 0) {
+        return _encode_bytes(dst, raw_data.value.bytearray);
     }
 
     if (cast(raw_data.value.bytes.value, felt) != 0) {
@@ -323,7 +607,7 @@ func _encode{range_check_ptr}(dst: felt*, raw_data: Extended) -> felt {
     }
 
     if (cast(raw_data.value.str.value, felt) != 0) {
-        return _encode_bytes(dst, raw_data.value.str);
+        return _encode_string(dst, raw_data.value.str);
     }
 
     if (cast(raw_data.value.bool, felt) != 0) {
@@ -376,6 +660,10 @@ func _encode_uint256_little{range_check_ptr}(dst: felt*, raw_uint: U256) -> felt
         new BytesStruct(raw_uint_as_bytes_le, raw_uint_as_bytes_le_len)
     );
     return _encode_bytes(dst, raw_uint_as_bytes);
+}
+
+func _encode_string{range_check_ptr}(dst: felt*, raw_string: String) -> felt {
+    return _encode_bytes(dst, Bytes(cast(raw_string.value, BytesStruct*)));
 }
 
 func _encode_bytes{range_check_ptr}(dst: felt*, raw_bytes: Bytes) -> felt {
@@ -435,14 +723,75 @@ func _encode_sequence{range_check_ptr}(dst: felt*, raw_sequence: SequenceExtende
         return len + 1;
     }
 
-    let (len_joined_encodings_as_le: felt*) = alloc();
-    let len_joined_encodings_as_le_len = felt_to_bytes_little(len_joined_encodings_as_le, len);
+    let (len_joined_encodings: felt*) = alloc();
+    let len_joined_encodings_len = felt_to_bytes(len_joined_encodings, len);
 
-    assert [dst] = 0xF7 + len_joined_encodings_as_le_len;
-    memcpy(dst + 1, len_joined_encodings_as_le, len_joined_encodings_as_le_len);
-    memcpy(dst + 1 + len_joined_encodings_as_le_len, tmp_dst, len);
+    assert [dst] = 0xF7 + len_joined_encodings_len;
+    memcpy(dst + 1, len_joined_encodings, len_joined_encodings_len);
+    memcpy(dst + 1 + len_joined_encodings_len, tmp_dst, len);
 
-    return 1 + len_joined_encodings_as_le_len + len;
+    return 1 + len_joined_encodings_len + len;
+}
+
+func _encode_address{range_check_ptr}(dst: felt*, address: Address) -> felt {
+    assert [dst] = 0x80 + 20;
+    felt_to_bytes20_little(dst + 1, address.value);
+    return 21;
+}
+
+func _encode_to{range_check_ptr}(dst: felt*, to: To) -> felt {
+    if (cast(to.value.address, felt) != 0) {
+        return _encode_address(dst, [to.value.address]);
+    }
+
+    assert [dst] = 0x80;
+    return 1;
+}
+
+func _encode_bytes32{range_check_ptr}(dst: felt*, raw_bytes32: Bytes32) -> felt {
+    assert [dst] = 0x80 + 32;
+    uint256_to_bytes32_little(dst + 1, [raw_bytes32.value]);
+    return 33;
+}
+
+func _encode_tuple_bytes32{range_check_ptr}(dst: felt*, raw_tuple_bytes32: TupleBytes32) -> felt {
+    alloc_locals;
+
+    if (raw_tuple_bytes32.value.len == 0) {
+        assert [dst] = 0xc0;
+        return 1;
+    }
+
+    if (raw_tuple_bytes32.value.len == 1) {
+        assert [dst] = 0xc0 + 33;
+        assert [dst + 1] = 0x80 + 32;
+        uint256_to_bytes32_little(dst + 2, [raw_tuple_bytes32.value.value[0].value]);
+        return 34;
+    }
+
+    let joined_encodings_len = raw_tuple_bytes32.value.len * 33;
+    let (len_joined_encodings: felt*) = alloc();
+    let len_joined_encodings_len = felt_to_bytes(len_joined_encodings, joined_encodings_len);
+    assert [dst] = 0xF7 + len_joined_encodings_len;
+    memcpy(dst + 1, len_joined_encodings, len_joined_encodings_len);
+    let dst = dst + 1 + len_joined_encodings_len;
+
+    _encode_tuple_bytes32_inner(dst, raw_tuple_bytes32.value.len, raw_tuple_bytes32.value.value);
+
+    return 1 + len_joined_encodings_len + joined_encodings_len;
+}
+
+func _encode_tuple_bytes32_inner{range_check_ptr}(
+    dst: felt*, len: felt, raw_tuple_bytes32: Bytes32*
+) {
+    if (len == 0) {
+        return ();
+    }
+
+    _encode_bytes32(dst, [raw_tuple_bytes32]);
+    _encode_tuple_bytes32_inner(dst + 33, len - 1, raw_tuple_bytes32 + 1);
+
+    return ();
 }
 
 //

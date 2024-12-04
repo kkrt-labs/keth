@@ -1,14 +1,22 @@
 {
   "cSpell.words": [
     "Arbitrum",
+    "ascii",
+    "assertrepr",
+    "bytearray",
     "datadir",
+    "divmod",
     "fibonacci",
     "isort",
     "jupyter",
     "kkrt",
     "memset",
+    "merkleize",
+    "nondet",
     "ommers",
+    "patricialize",
     "recv",
+    "Reth",
     "Risc"
   ],
   "python.testing.pytestArgs": ["cairo"],

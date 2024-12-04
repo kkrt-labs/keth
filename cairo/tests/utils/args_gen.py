@@ -50,11 +50,13 @@ from ethereum.cancun.transactions import (
     LegacyTransaction,
     Transaction,
 )
+from ethereum.cancun.trie import BranchNode, ExtensionNode, InternalNode, LeafNode, Node
 from ethereum.cancun.vm.gas import MessageCallGas
 from ethereum.crypto.hash import Hash32
 from ethereum.rlp import Extended, Simple
 
 _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
+    ("ethereum", "base_types", "None"): type(None),
     ("ethereum", "base_types", "bool"): bool,
     ("ethereum", "base_types", "U64"): U64,
     ("ethereum", "base_types", "Uint"): Uint,
@@ -66,6 +68,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "base_types", "TupleBytes32"): Tuple[Bytes32, ...],
     ("ethereum", "base_types", "Bytes256"): Bytes256,
     ("ethereum", "base_types", "Bytes"): Bytes,
+    ("ethereum", "base_types", "String"): str,
     ("ethereum", "base_types", "TupleBytes"): Tuple[Bytes, ...],
     ("ethereum", "cancun", "blocks", "Header"): Header,
     ("ethereum", "cancun", "blocks", "TupleHeader"): Tuple[Header, ...],
@@ -109,6 +112,16 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "rlp", "Extended"): Extended,
     ("ethereum", "rlp", "SequenceSimple"): Sequence[Simple],
     ("ethereum", "rlp", "SequenceExtended"): Sequence[Extended],
+    ("ethereum", "cancun", "trie", "LeafNode"): LeafNode,
+    ("ethereum", "cancun", "trie", "ExtensionNode"): ExtensionNode,
+    ("ethereum", "cancun", "trie", "BranchNode"): BranchNode,
+    ("ethereum", "cancun", "trie", "InternalNode"): InternalNode,
+    ("ethereum", "cancun", "trie", "Node"): Node,
+}
+
+# In the EELS, some functions are annotated with Sequence while it's actually just Bytes.
+_type_aliases = {
+    Sequence: Bytes,
 }
 
 
@@ -119,6 +132,10 @@ def isinstance_with_generic(obj, type_hint):
 
     origin = get_origin(type_hint)
     if origin is None:
+        if isinstance(obj, int):
+            # int is a subclass of bool, so we need to check for bool or int
+            return type(obj) is type_hint
+
         return isinstance(obj, type_hint)
 
     # Sequence should be _real_ Sequence, not bytes or str
@@ -138,6 +155,9 @@ def _gen_arg(
     """
     Generate a Cairo argument from a Python argument.
     """
+    if arg_type is type(None):
+        return 0
+
     arg_type_origin = get_origin(arg_type) or arg_type
     if isinstance_with_generic(arg_type_origin, ForwardRef):
         arg_type = arg_type_origin._evaluate(globals(), locals(), frozenset())
@@ -224,14 +244,16 @@ def _gen_arg(
         )
         return base
 
-    if arg_type == Bytes:
+    if arg_type in (Bytes, bytes, bytearray, str):
+        if isinstance(arg, str):
+            arg = arg.encode()
         bytes_ptr = segments.add()
         segments.load_data(bytes_ptr, list(arg))
         struct_ptr = segments.add()
         segments.load_data(struct_ptr, [bytes_ptr, len(arg)])
         return struct_ptr
 
-    if arg_type in (bool, U64, Uint, Bytes0, Bytes8, Bytes20):
+    if arg_type in (int, bool, U64, Uint, Bytes0, Bytes8, Bytes20):
         return (
             int(arg)
             if not isinstance_with_generic(arg, bytes)
@@ -264,7 +286,9 @@ def to_cairo_type(program: Program, type_name: Type):
     _python_type_to_cairo_struct = {
         v: k for k, v in _cairo_struct_to_python_type.items()
     }
-    scope = ScopedName(_python_type_to_cairo_struct[type_name])
+    scope = ScopedName(
+        _python_type_to_cairo_struct[_type_aliases.get(type_name, type_name)]
+    )
     identifier = program.identifiers.as_dict()[scope]
 
     if isinstance(identifier, TypeDefinition):

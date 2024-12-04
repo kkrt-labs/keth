@@ -1,4 +1,5 @@
 from ethereum.base_types import (
+    None,
     bool,
     U64,
     U128,
@@ -36,3 +37,5 @@ from ethereum.cancun.transactions import (
 )
 
 from ethereum.cancun.vm.gas import MessageCallGas
+
+from ethereum.cancun.trie import BranchNode, ExtensionNode, InternalNode, LeafNode, Node
