@@ -19,6 +19,11 @@ from ethereum.rlp import (
     ExtendedEnum,
     ExtendedImpl,
     encode_account,
+    encode_legacy_transaction,
+    encode_receipt,
+    encode_withdrawal,
+    encode_uint,
+    encode_u256,
 )
 
 from ethereum.utils.numeric import divmod
@@ -65,7 +70,7 @@ struct NodeEnum {
     bytes: Bytes,
     legacy_transaction: LegacyTransaction,
     receipt: Receipt,
-    uint: Uint,
+    uint: Uint*,
     u256: U256,
     withdrawal: Withdrawal,
 }
@@ -153,36 +158,70 @@ func encode_internal_node{
     return hashed;
 }
 
-// func encode_node(node: Node, storage_root: Bytes) -> Bytes {
-//     // Implementation:
-//     // if isinstance(node, Account):
-//     // assert storage_root is not None
-//     // return encode_account(node, storage_root)
-//     // elif isinstance(node, (LegacyTransaction, Receipt, Withdrawal, U256)):
-//     // return encode(node)
-//     // elif isinstance(node, Bytes):
-//     // return node
-//     // else:
-//     // return previous_trie.encode_node(node, storage_root)
-//         // assert storage_root is not None
-//         // return encode_account(node, storage_root)
-//     // else:
-//         // if isinstance(node, (LegacyTransaction, Receipt, Withdrawal, U256)):
-//         // return encode(node)
-//         // elif isinstance(node, Bytes):
-//         // return node
-//         // else:
-//         // return previous_trie.encode_node(node, storage_root)
-//             // return encode(node)
-//         // else:
-//             // if isinstance(node, Bytes):
-//             // return node
-//             // else:
-//             // return previous_trie.encode_node(node, storage_root)
-//                 // return node
-//             // else:
-//                 // return previous_trie.encode_node(node, storage_root)
-// }
+func encode_node{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*}(
+    node: Node, storage_root: Bytes
+) -> Bytes {
+    alloc_locals;
+
+    tempvar is_account = cast(node.value.account.value, felt);
+    jmp account if is_account != 0;
+
+    tempvar is_bytes = cast(node.value.bytes.value, felt);
+    jmp bytes if is_bytes != 0;
+
+    tempvar is_legacy_transaction = cast(node.value.legacy_transaction.value, felt);
+    jmp legacy_transaction if is_legacy_transaction != 0;
+
+    tempvar is_receipt = cast(node.value.receipt.value, felt);
+    jmp receipt if is_receipt != 0;
+
+    tempvar is_uint = cast(node.value.uint, felt);
+    jmp uint if is_uint != 0;
+
+    tempvar is_u256 = cast(node.value.u256.value, felt);
+    jmp u256 if is_u256 != 0;
+
+    tempvar is_withdrawal = cast(node.value.withdrawal.value, felt);
+    jmp withdrawal if is_withdrawal != 0;
+
+    none:
+    // None defined for type Node but actually not supported in the EELS
+    assert 0 = 1;
+    tempvar result = Bytes(new BytesStruct(cast(0, felt*), 0));
+    return result;
+
+    account:
+    if (cast(storage_root.value, felt) == 0) {
+        with_attr error_message("encode_node: account without storage root") {
+            assert 0 = 1;
+        }
+    }
+    let encoded = encode_account(node.value.account, storage_root);
+    return encoded;
+
+    bytes:
+    return node.value.bytes;
+
+    legacy_transaction:
+    let encoded = encode_legacy_transaction(node.value.legacy_transaction);
+    return encoded;
+
+    receipt:
+    let encoded = encode_receipt(node.value.receipt);
+    return encoded;
+
+    uint:
+    let encoded = encode_uint([node.value.uint]);
+    return encoded;
+
+    u256:
+    let encoded = encode_u256(node.value.u256);
+    return encoded;
+
+    withdrawal:
+    let encoded = encode_withdrawal(node.value.withdrawal);
+    return encoded;
+}
 
 // func copy_trie(trie: Trie[K, V]) -> Trie[K, V] {
 //     // Implementation:

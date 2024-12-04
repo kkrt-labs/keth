@@ -245,6 +245,8 @@ def _gen_arg(
         return base
 
     if arg_type in (Bytes, bytes, bytearray, str):
+        if arg is None:
+            return 0
         if isinstance(arg, str):
             arg = arg.encode()
         bytes_ptr = segments.add()

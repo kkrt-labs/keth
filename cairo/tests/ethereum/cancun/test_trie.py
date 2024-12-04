@@ -1,13 +1,17 @@
 from typing import Optional
 
-from hypothesis import given
+import pytest
+from hypothesis import assume, given
 
-from ethereum.base_types import Bytes
+from ethereum.base_types import Bytes, Uint
+from ethereum.cancun.fork_types import Account
 from ethereum.cancun.trie import (
     InternalNode,
+    Node,
     bytes_to_nibble_list,
     common_prefix_length,
     encode_internal_node,
+    encode_node,
     nibble_list_to_compact,
 )
 from tests.utils.assertion import sequence_equal
@@ -23,11 +27,23 @@ class TestTrie:
             encode_internal_node(node), cairo_run("encode_internal_node", node)
         )
 
-    # @given(node=...)
-    # def test_encode_node(self, cairo_run, node: Node):
-    #     assert encode_node(node, storage_root) == cairo_run(
-    #         "encode_node", node, storage_root
-    #     )
+    @given(node=..., storage_root=...)
+    def test_encode_node(self, cairo_run, node: Node, storage_root: Optional[Bytes]):
+        assume(node is not None)
+        assume(not isinstance(node, Uint))
+        assume(not (isinstance(node, Account) and storage_root is None))
+        assert encode_node(node, storage_root) == cairo_run(
+            "encode_node", node, storage_root
+        )
+
+    @given(node=...)
+    def test_encode_account_should_fail_without_storage_root(
+        self, cairo_run, node: Account
+    ):
+        with pytest.raises(AssertionError):
+            encode_node(node, None)
+        with cairo_error(message="encode_node"):
+            cairo_run("encode_node", node, None)
 
     # def test_copy_trie(self, cairo_run, trie):
     #     assert copy_trie(trie) == cairo_run("copy_trie", trie)

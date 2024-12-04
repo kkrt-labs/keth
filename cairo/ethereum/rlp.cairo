@@ -206,19 +206,19 @@ func encode_uint{range_check_ptr}(raw_uint: Uint) -> Bytes {
     return encoded_uint;
 }
 
-func encode_uint256{range_check_ptr}(raw_uint: U256) -> Bytes {
+func encode_u256{range_check_ptr}(raw_uint: U256) -> Bytes {
     alloc_locals;
     let (dst) = alloc();
-    let len = _encode_uint256(dst, raw_uint);
+    let len = _encode_u256(dst, raw_uint);
     tempvar value = new BytesStruct(dst, len);
     let encoded_uint = Bytes(value);
     return encoded_uint;
 }
 
-func encode_uint256_little{range_check_ptr}(raw_uint: U256) -> Bytes {
+func encode_u256_little{range_check_ptr}(raw_uint: U256) -> Bytes {
     alloc_locals;
     let (dst) = alloc();
-    let len = _encode_uint256_little(dst, raw_uint);
+    let len = _encode_u256_little(dst, raw_uint);
     tempvar value = new BytesStruct(dst, len);
     let encoded_uint = Bytes(value);
     return encoded_uint;
@@ -292,7 +292,7 @@ func encode_account{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: K
 
     let nonce_len = _encode_uint(dst, raw_account_data.value.nonce.value);
     let dst = dst + nonce_len;
-    let balance_len = _encode_uint256(dst, raw_account_data.value.balance);
+    let balance_len = _encode_u256(dst, raw_account_data.value.balance);
     let dst = dst + balance_len;
     let storage_root_len = _encode_bytes(dst, storage_root);
     let dst = dst + storage_root_len;
@@ -317,7 +317,7 @@ func encode_legacy_transaction{range_check_ptr}(transaction: LegacyTransaction) 
     let (local dst_start) = alloc();
     let dst = dst_start + PREFIX_LEN_MAX;
 
-    let nonce_len = _encode_uint256(dst, transaction.value.nonce);
+    let nonce_len = _encode_u256(dst, transaction.value.nonce);
     let dst = dst + nonce_len;
     let gas_price_len = _encode_uint(dst, transaction.value.gas_price.value);
     let dst = dst + gas_price_len;
@@ -325,15 +325,15 @@ func encode_legacy_transaction{range_check_ptr}(transaction: LegacyTransaction) 
     let dst = dst + gas_len;
     let to_len = _encode_to(dst, transaction.value.to);
     let dst = dst + to_len;
-    let value_len = _encode_uint256(dst, transaction.value.value);
+    let value_len = _encode_u256(dst, transaction.value.value);
     let dst = dst + value_len;
     let data_len = _encode_bytes(dst, transaction.value.data);
     let dst = dst + data_len;
-    let v_len = _encode_uint256(dst, transaction.value.v);
+    let v_len = _encode_u256(dst, transaction.value.v);
     let dst = dst + v_len;
-    let r_len = _encode_uint256(dst, transaction.value.r);
+    let r_len = _encode_u256(dst, transaction.value.r);
     let dst = dst + r_len;
-    let s_len = _encode_uint256(dst, transaction.value.s);
+    let s_len = _encode_u256(dst, transaction.value.s);
     let dst = dst + s_len;
 
     let len = dst - dst_start - PREFIX_LEN_MAX;
@@ -413,7 +413,7 @@ func encode_withdrawal{range_check_ptr}(raw_withdrawal: Withdrawal) -> Bytes {
     let dst = dst + validator_index_len;
     let address_len = _encode_address(dst, raw_withdrawal.value.address);
     let dst = dst + address_len;
-    let amount_len = _encode_uint256(dst, raw_withdrawal.value.amount);
+    let amount_len = _encode_u256(dst, raw_withdrawal.value.amount);
     let dst = dst + amount_len;
 
     let len = dst - dst_start - PREFIX_LEN_MAX;
@@ -653,7 +653,7 @@ func _encode_uint{range_check_ptr}(dst: felt*, raw_uint: felt) -> felt {
     return _encode_bytes(dst, raw_uint_as_bytes);
 }
 
-func _encode_uint256{range_check_ptr}(dst: felt*, raw_uint: U256) -> felt {
+func _encode_u256{range_check_ptr}(dst: felt*, raw_uint: U256) -> felt {
     alloc_locals;
     if (raw_uint.value.high == 0 and raw_uint.value.low == 0) {
         assert [dst] = 0x80;
@@ -667,7 +667,7 @@ func _encode_uint256{range_check_ptr}(dst: felt*, raw_uint: U256) -> felt {
     return _encode_bytes(dst, raw_uint_as_bytes);
 }
 
-func _encode_uint256_little{range_check_ptr}(dst: felt*, raw_uint: U256) -> felt {
+func _encode_u256_little{range_check_ptr}(dst: felt*, raw_uint: U256) -> felt {
     alloc_locals;
     if (raw_uint.value.high == 0 and raw_uint.value.low == 0) {
         assert [dst] = 0x80;

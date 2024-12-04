@@ -34,13 +34,13 @@ class TestRlp:
             assert encode(raw_uint) == cairo_run("encode_uint", raw_uint)
 
         @given(raw_uint256=...)
-        def test_encode_uint256(self, cairo_run, raw_uint256: U256):
-            assert encode(raw_uint256) == cairo_run("encode_uint256", raw_uint256)
+        def test_encode_u256(self, cairo_run, raw_uint256: U256):
+            assert encode(raw_uint256) == cairo_run("encode_u256", raw_uint256)
 
         @given(raw_uint256=...)
-        def test_encode_uint256_little(self, cairo_run, raw_uint256: U256):
+        def test_encode_u256_little(self, cairo_run, raw_uint256: U256):
             assert encode(raw_uint256.to_be_bytes()[::-1]) == cairo_run(
-                "encode_uint256_little", raw_uint256
+                "encode_u256_little", raw_uint256
             )
 
         @given(raw_bytes=...)
