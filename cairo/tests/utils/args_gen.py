@@ -1,10 +1,11 @@
-from collections import abc, defaultdict
+from collections import ChainMap, abc, defaultdict
 from dataclasses import fields, is_dataclass
 from functools import partial
 from typing import (
     Any,
     Dict,
     ForwardRef,
+    Mapping,
     Sequence,
     Tuple,
     Type,
@@ -117,6 +118,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "cancun", "trie", "BranchNode"): BranchNode,
     ("ethereum", "cancun", "trie", "InternalNode"): InternalNode,
     ("ethereum", "cancun", "trie", "Node"): Node,
+    ("ethereum", "base_types", "MappingBytesBytes"): Mapping[Bytes, Bytes],
 }
 
 # In the EELS, some functions are annotated with Sequence while it's actually just Bytes.
@@ -205,12 +207,14 @@ def _gen_arg(
         segments.load_data(struct_ptr, [instances_ptr, len(arg)])
         return struct_ptr
 
-    if arg_type_origin is dict:
+    if arg_type_origin in (dict, ChainMap, abc.Mapping):
         dict_ptr = segments.add()
         assert dict_ptr.segment_index not in dict_manager.trackers
 
         data = {
-            k: _gen_arg(dict_manager, segments, get_args(arg_type)[1], v)
+            _gen_arg(dict_manager, segments, get_args(arg_type)[0], k): _gen_arg(
+                dict_manager, segments, get_args(arg_type)[1], v
+            )
             for k, v in arg.items()
         }
         if isinstance_with_generic(arg, defaultdict):
@@ -219,7 +223,9 @@ def _gen_arg(
         dict_manager.trackers[dict_ptr.segment_index] = DictTracker(
             data=data, current_ptr=dict_ptr
         )
-        return dict_ptr
+        base = segments.add()
+        segments.load_data(base, [dict_ptr, dict_ptr])
+        return base
 
     if arg_type == MaybeRelocatable:
         return arg

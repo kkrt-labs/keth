@@ -1,4 +1,4 @@
-from typing import Any, Optional, Tuple, Type, Union
+from typing import Any, Mapping, Optional, Tuple, Type, Union
 
 import pytest
 from hypothesis import assume, given, settings
@@ -41,13 +41,17 @@ def segments():
 
 
 @pytest.fixture(scope="module")
-def serde(cairo_program, segments):
-    return Serde(segments, cairo_program)
+def dict_manager():
+    return DictManager()
 
 
 @pytest.fixture(scope="module")
-def gen_arg(segments):
-    dict_manager = DictManager()
+def serde(cairo_program, segments, dict_manager):
+    return Serde(segments, cairo_program, dict_manager=dict_manager)
+
+
+@pytest.fixture(scope="module")
+def gen_arg(dict_manager, segments):
     return _gen_arg(dict_manager, segments)
 
 
@@ -60,6 +64,14 @@ def to_cairo_type(cairo_program):
 
 
 def get_type(instance: Any) -> Type:
+    if isinstance(instance, Mapping):
+        # Get key and value types from the first item in the mapping
+        if instance:
+            key_type = get_type(next(iter(instance.keys())))
+            value_type = get_type(next(iter(instance.values())))
+            return Mapping[key_type, value_type]
+        return Mapping
+
     if not isinstance(instance, tuple):
         return type(instance)
 
@@ -80,8 +92,15 @@ def get_type(instance: Any) -> Type:
 
 def no_empty_sequence(value: Any) -> bool:
     """Recursively check that no tuples (including nested ones) are empty."""
-    if not isinstance(value, tuple) and not isinstance(value, list):
+    if (
+        not isinstance(value, tuple)
+        and not isinstance(value, list)
+        and not isinstance(value, Mapping)
+    ):
         return True
+
+    if isinstance(value, Mapping):
+        return len(value) > 0
 
     if not value:  # Empty tuple
         return False
@@ -145,6 +164,7 @@ class TestSerde:
             InternalNode,
             Optional[InternalNode],
             Node,
+            Mapping[Bytes, Bytes],
         ],
     ):
         assume(no_empty_sequence(b))
