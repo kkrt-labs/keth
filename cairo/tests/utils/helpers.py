@@ -35,7 +35,7 @@ def rlp_encode_signed_data(tx: dict):
             to_int(tx["nonce"]),
             to_int(tx["gasPrice"]),
             to_int(tx["gas"] if "gas" in tx else tx["gasLimit"]),
-            bytes.fromhex(f"{to_int(tx['to']):040x}"),
+            bytes.fromhex(f"{to_int(tx['to']):040x}") if tx["to"] else b"",
             to_int(tx["value"]),
             to_bytes(tx["data"]),
         ] + ([to_int(tx["chainId"]), 0, 0] if "chainId" in tx else [])

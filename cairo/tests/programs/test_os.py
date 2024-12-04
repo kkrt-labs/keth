@@ -150,3 +150,40 @@ class TestOs:
                 block=block_to_pass,
                 state=State.model_validate(initial_state),
             )
+
+    def test_create_tx_returndata(self, cairo_run):
+        initial_state = {
+            OWNER: {
+                "code": [],
+                "storage": {},
+                "balance": int(1e18),
+                "nonce": 0,
+            },
+            COINBASE: {
+                "code": [],
+                "storage": {},
+                "balance": 0,
+                "nonce": 0,
+            },
+            "0x32dCAB0EF3FB2De2fce1D2E0799D36239671F04A": {
+                "code": [],
+                "storage": {},
+                "balance": 0,
+                "nonce": 0,
+            },
+        }
+        transaction = {
+            "to": "",
+            "data": "0x604580600e600039806000f350fe7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe03601600081602082378035828234f58015156039578182fd5b8082525050506014600cf3",
+            "value": 0,
+            "signer": OWNER,
+        }
+        state = cairo_run(
+            "test_os",
+            block=block([transaction]),
+            state=State.model_validate(initial_state),
+        )
+
+        bytes.fromhex(
+            "7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe03601600081602082378035828234f58015156039578182fd5b8082525050506014600cf3"
+        ) == state["accounts"]["0x32dCAB0EF3FB2De2fce1D2E0799D36239671F04A"]["code"]
