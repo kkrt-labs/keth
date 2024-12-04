@@ -251,7 +251,7 @@ func nibble_list_to_compact(x: Bytes, is_leaf: bool) -> Bytes {
     assert remainder * (1 - remainder) = 0;
     assert [compact] = 16 * (2 * is_leaf.value + remainder) + x.value.data[0] * remainder;
 
-    if (x.value.len == remainder) {
+    if (x.value.len == 1) {
         tempvar result = Bytes(new BytesStruct(compact, 1));
         return result;
     }
