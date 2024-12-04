@@ -2,6 +2,7 @@ use super::payload::{KethEncodable, KethPayload};
 use alloy_primitives::{Address, Bloom, Bytes, PrimitiveSignature, B256, B64, U256};
 use cairo_vm::{types::relocatable::MaybeRelocatable, Felt252};
 use reth_primitives::Transaction;
+use revm_primitives::HashMap;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -497,6 +498,19 @@ impl From<B256> for KethPointer {
             type_size: 1,
         }
     }
+}
+
+/// Represents a dictionary in the Keth execution environment.
+///
+/// This structure serves as a Cairo-compatible representation of a key-value mapping.
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+pub struct KethDict<T> {
+    /// The underlying hash map storing key-value pairs.
+    ///
+    /// Keys are represented as [`KethMaybeRelocatable`] to ensure compatibility
+    /// with Cairo's memory model, while values are of the generic type `T` (which should also be
+    /// Cairo VM compatible).
+    pub data: HashMap<KethMaybeRelocatable, T>,
 }
 
 #[cfg(test)]
