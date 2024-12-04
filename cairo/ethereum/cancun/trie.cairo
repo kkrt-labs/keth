@@ -3,6 +3,7 @@ from starkware.cairo.common.math_cmp import is_le
 from starkware.cairo.common.math import assert_not_zero
 from starkware.cairo.common.bitwise import BitwiseBuiltin
 from starkware.cairo.common.cairo_builtins import KeccakBuiltin
+from starkware.cairo.common.memcpy import memcpy
 
 from src.utils.bytes import uint256_to_bytes32_little
 from ethereum.crypto.hash import keccak256
@@ -123,16 +124,11 @@ func encode_internal_node{
     jmp common;
 
     branch_node:
-    assert [
-        node.value.branch_node.value.subnodes.value.value +
-        node.value.branch_node.value.subnodes.value.len
-    ] = node.value.branch_node.value.value;
-    tempvar sequence = SequenceExtended(
-        new SequenceExtendedStruct(
-            node.value.branch_node.value.subnodes.value.value,
-            node.value.branch_node.value.subnodes.value.len + 1,
-        ),
-    );
+    let (value: Extended*) = alloc();
+    let len = node.value.branch_node.value.subnodes.value.len;
+    memcpy(value, node.value.branch_node.value.subnodes.value.value, len);
+    assert [value + len] = node.value.branch_node.value.value;
+    tempvar sequence = SequenceExtended(new SequenceExtendedStruct(value, len + 1));
     let unencoded_ = ExtendedImpl.sequence(sequence);
     assert unencoded = unencoded_;
     jmp common;
