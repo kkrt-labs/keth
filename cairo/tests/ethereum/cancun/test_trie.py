@@ -64,6 +64,22 @@ class TestTrie:
             "nibble_list_to_compact", x, is_leaf
         )
 
+    @given(x=nibble.filter(lambda x: len(x) != 0), is_leaf=...)
+    def test_nibble_list_to_compact_should_raise_when_wrong_remainder(
+        self, cairo_program, cairo_run, x, is_leaf: bool
+    ):
+        with (
+            patch_hint(
+                cairo_program,
+                "ids.remainder = ids.x.value.len % 2",
+                "ids.remainder = not (ids.x.value.len % 2)",
+            ),
+            cairo_error(message="nibble_list_to_compact: invalid remainder"),
+        ):
+            nibble_list_to_compact(x, is_leaf) == cairo_run(
+                "nibble_list_to_compact", x, is_leaf
+            )
+
     @given(bytes_=...)
     def test_bytes_to_nibble_list(self, cairo_run, bytes_: Bytes):
         assert bytes_to_nibble_list(bytes_) == cairo_run("bytes_to_nibble_list", bytes_)
