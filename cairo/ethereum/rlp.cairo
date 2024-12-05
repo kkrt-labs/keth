@@ -186,6 +186,9 @@ namespace ExtendedImpl {
 // RLP Encode
 //
 
+// @dev The maximum prefix length for the RLP encoding is 9 bytes.
+// @dev When possible, we start by offset the allocated buffer by 9 bytes to avoid
+// @dev a memcpy in the end just for the prefix.
 const PREFIX_LEN_MAX = 9;
 
 func encode{range_check_ptr}(raw_data: Extended) -> Bytes {
