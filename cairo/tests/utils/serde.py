@@ -36,18 +36,11 @@ def get_struct_definition(program, path: Tuple[str, ...]) -> StructDefinition:
 
 
 class Serde:
-    def __init__(
-        self,
-        segments: MemorySegmentManager,
-        program,
-        cairo_file=None,
-        dict_manager=None,
-    ):
+    def __init__(self, segments: MemorySegmentManager, program, cairo_file=None):
         self.segments = segments
         self.memory = segments.memory
         self.program = program
         self.cairo_file = cairo_file or Path()
-        self.dict_manager = dict_manager
 
     @property
     def main_part(self):
@@ -86,6 +79,8 @@ class Serde:
 
         if get_origin(python_cls) is Union:
             value_ptr = self.serialize_pointers(path, ptr)["value"]
+            if value_ptr is None:
+                return None
             value_path = (
                 get_struct_definition(self.program, path)
                 .members["value"]
@@ -163,25 +158,6 @@ class Serde:
             pointers = self.serialize_pointers(mapping_struct_path, mapping_struct_ptr)
             segment_size = pointers["dict_ptr"] - pointers["dict_ptr_start"]
             dict_ptr = pointers["dict_ptr_start"]
-            # Note: using the DictManager can return values that were never actually
-            # accessed. This is mainly for testing purposes.
-            if self.dict_manager is not None:
-                # We need to put the keys and values in a new segment because in the regular
-                # case we have at this stage a DictAccess pointer, not the actual keys and values.
-                keys_ptr = self.segments.add()
-                values_ptr = self.segments.add()
-                self.segments.load_data(
-                    keys_ptr, self.dict_manager.get_dict(dict_ptr).keys()
-                )
-                self.segments.load_data(
-                    values_ptr, self.dict_manager.get_dict(dict_ptr).values()
-                )
-                return {
-                    self._serialize(key_type, keys_ptr + i): self._serialize(
-                        value_type, values_ptr + i
-                    )
-                    for i in range(len(self.dict_manager.get_dict(dict_ptr)))
-                }
 
             return {
                 self._serialize(key_type, dict_ptr + i): self._serialize(

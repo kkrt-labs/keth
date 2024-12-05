@@ -46,8 +46,8 @@ def dict_manager():
 
 
 @pytest.fixture(scope="module")
-def serde(cairo_program, segments, dict_manager):
-    return Serde(segments, cairo_program, dict_manager=dict_manager)
+def serde(cairo_program, segments):
+    return Serde(segments, cairo_program)
 
 
 @pytest.fixture(scope="module")
@@ -90,13 +90,17 @@ def get_type(instance: Any) -> Type:
     return Tuple[tuple(elem_types)]
 
 
+def is_sequence(value: Any) -> bool:
+    return (
+        isinstance(value, tuple)
+        or isinstance(value, list)
+        or isinstance(value, Mapping)
+    )
+
+
 def no_empty_sequence(value: Any) -> bool:
     """Recursively check that no tuples (including nested ones) are empty."""
-    if (
-        not isinstance(value, tuple)
-        and not isinstance(value, list)
-        and not isinstance(value, Mapping)
-    ):
+    if not is_sequence(value):
         return True
 
     if isinstance(value, Mapping):
@@ -106,10 +110,7 @@ def no_empty_sequence(value: Any) -> bool:
         return False
 
     # Check each element recursively if it's a tuple
-    return all(
-        no_empty_sequence(x) if (isinstance(x, tuple) or isinstance(x, list)) else True
-        for x in value
-    )
+    return all(no_empty_sequence(x) if is_sequence(x) else True for x in value)
 
 
 class TestSerde:
@@ -165,6 +166,7 @@ class TestSerde:
             Optional[InternalNode],
             Node,
             Mapping[Bytes, Bytes],
+            Tuple[Mapping[Bytes, Bytes], ...],
         ],
     ):
         assume(no_empty_sequence(b))

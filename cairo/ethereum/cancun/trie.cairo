@@ -7,8 +7,22 @@ from starkware.cairo.common.memcpy import memcpy
 
 from src.utils.bytes import uint256_to_bytes32_little
 from ethereum.crypto.hash import keccak256
+from ethereum.utils.numeric import min
 from ethereum.rlp import encode, _encode_bytes, _encode
-from ethereum.base_types import U256, Bytes, Uint, BytesStruct, bool, StringStruct, String
+from ethereum.base_types import (
+    U256,
+    Bytes,
+    Uint,
+    BytesStruct,
+    bool,
+    StringStruct,
+    String,
+    MappingBytesBytes,
+    MappingBytesBytesStruct,
+    BytesBytesDictAccess,
+    TupleMappingBytesBytes,
+    TupleMappingBytesBytesStruct,
+)
 from ethereum.cancun.blocks import Receipt, Withdrawal
 from ethereum.cancun.fork_types import Account, Address, Root
 from ethereum.cancun.transactions import LegacyTransaction
@@ -65,6 +79,41 @@ struct InternalNodeEnum {
     branch_node: BranchNode,
 }
 
+namespace InternalNodeImpl {
+    func leaf_node(leaf_node: LeafNode) -> InternalNode {
+        tempvar result = InternalNode(
+            new InternalNodeEnum(
+                leaf_node=leaf_node,
+                extension_node=ExtensionNode(cast(0, ExtensionNodeStruct*)),
+                branch_node=BranchNode(cast(0, BranchNodeStruct*)),
+            ),
+        );
+        return result;
+    }
+
+    func extension_node(extension_node: ExtensionNode) -> InternalNode {
+        tempvar result = InternalNode(
+            new InternalNodeEnum(
+                leaf_node=LeafNode(cast(0, LeafNodeStruct*)),
+                extension_node=extension_node,
+                branch_node=BranchNode(cast(0, BranchNodeStruct*)),
+            ),
+        );
+        return result;
+    }
+
+    func branch_node(branch_node: BranchNode) -> InternalNode {
+        tempvar result = InternalNode(
+            new InternalNodeEnum(
+                leaf_node=LeafNode(cast(0, LeafNodeStruct*)),
+                extension_node=ExtensionNode(cast(0, ExtensionNodeStruct*)),
+                branch_node=branch_node,
+            ),
+        );
+        return result;
+    }
+}
+
 struct NodeEnum {
     account: Account,
     bytes: Bytes,
@@ -91,6 +140,10 @@ func encode_internal_node{
     alloc_locals;
     local unencoded: Extended;
     local range_check_ptr_end;
+
+    if (cast(node.value, felt) == 0) {
+        jmp none;
+    }
 
     tempvar is_leaf = cast(node.value.leaf_node.value, felt);
     jmp leaf_node if is_leaf != 0;
@@ -423,55 +476,353 @@ func bytes_to_nibble_list{bitwise_ptr: BitwiseBuiltin*}(bytes_: Bytes) -> Bytes 
 //         // return Root(root_node)
 // }
 
-// func patricialize(obj: Mapping[Bytes, Bytes], level: Uint) -> InternalNode {
-//     // Implementation:
-//     // if len(obj) == 0:
-//     // return None
-//         // return None
-//     // arbitrary_key = next(iter(obj))
-//     // if len(obj) == 1:
-//     // leaf = LeafNode(arbitrary_key[level:], obj[arbitrary_key])
-//     // return leaf
-//         // leaf = LeafNode(arbitrary_key[level:], obj[arbitrary_key])
-//         // return leaf
-//     // substring = arbitrary_key[level:]
-//     // prefix_length = len(substring)
-//     // for key in obj:
-//     // prefix_length = min(prefix_length, common_prefix_length(substring, key[level:]))
-//     // if prefix_length == 0:
-//     // break
-//         // prefix_length = min(prefix_length, common_prefix_length(substring, key[level:]))
-//         // if prefix_length == 0:
-//         // break
-//             // break
-//     // if prefix_length > 0:
-//     // prefix = arbitrary_key[level:level + prefix_length]
-//     // return ExtensionNode(prefix, encode_internal_node(patricialize(obj, level + prefix_length)))
-//         // prefix = arbitrary_key[level:level + prefix_length]
-//         // return ExtensionNode(prefix, encode_internal_node(patricialize(obj, level + prefix_length)))
-//     // branches: List[MutableMapping[Bytes, Bytes]] = []
-//     // for _ in range(16):
-//     // branches.append({})
-//         // branches.append({})
-//     // value = b''
-//     // for key in obj:
-//     // if len(key) == level:
-//     // if isinstance(obj[key], (Account, Receipt, Uint)):
-//     // raise AssertionError
-//     // value = obj[key]
-//     // else:
-//     // branches[key[level]][key] = obj[key]
-//         // if len(key) == level:
-//         // if isinstance(obj[key], (Account, Receipt, Uint)):
-//         // raise AssertionError
-//         // value = obj[key]
-//         // else:
-//         // branches[key[level]][key] = obj[key]
-//             // if isinstance(obj[key], (Account, Receipt, Uint)):
-//             // raise AssertionError
-//                 // raise AssertionError
-//             // value = obj[key]
-//         // else:
-//             // branches[key[level]][key] = obj[key]
-//     // return BranchNode([encode_internal_node(patricialize(branches[k], level + 1)) for k in range(16)], value)
-// }
+func _search_common_prefix_length{
+    range_check_ptr, substring: Bytes, level: Uint, dict_ptr_stop: BytesBytesDictAccess*
+}(obj: BytesBytesDictAccess*, current_length: felt) -> felt {
+    alloc_locals;
+    if (obj == dict_ptr_stop) {
+        return current_length;
+    }
+
+    tempvar sliced_key = Bytes(
+        new BytesStruct(obj.key.value.data + level.value, obj.key.value.len - level.value)
+    );
+    let result = common_prefix_length(substring, sliced_key);
+    let current_length = min(result, current_length);
+    if (current_length == 0) {
+        return 0;
+    }
+
+    return _search_common_prefix_length(obj + BytesBytesDictAccess.SIZE, current_length);
+}
+
+// @dev Iterate over the DictAccesses from dict_ptr_start to dict_ptr to create a new DictAccess*
+// @dev whose key[level] = nibble.
+func _get_branche_for_nibble_at_level(obj: MappingBytesBytes, nibble: felt, level: felt) -> (
+    MappingBytesBytes, Bytes
+) {
+    alloc_locals;
+    let (local branch: BytesBytesDictAccess*) = alloc();
+    local dict_ptr_stop: BytesBytesDictAccess* = obj.value.dict_ptr;
+    local value: Bytes;
+    local value_set: felt;
+
+    tempvar branch = branch;
+    tempvar dict_ptr = obj.value.dict_ptr_start;
+
+    loop:
+    let branch = cast([ap - 2], BytesBytesDictAccess*);
+    let dict_ptr = cast([ap - 1], BytesBytesDictAccess*);
+    // The verifier just needs to make sure that whatever case we are in is properly asserted.
+    tempvar is_nibble_case = nondet %{ memory.get(ids.dict_ptr.key.value.data + ids.level) == ids.nibble %};
+    tempvar is_value_case = nondet %{ int(ids.dict_ptr.key.value.len == ids.level) %};
+
+    static_assert branch == [ap - 4];
+    static_assert dict_ptr == [ap - 3];
+
+    jmp value_case if is_value_case != 0;
+    jmp nibble_case if is_nibble_case != 0;
+    jmp not_nibble_case;
+
+    value_case:
+    let branch = cast([ap - 4], BytesBytesDictAccess*);
+    let dict_ptr = cast([ap - 3], BytesBytesDictAccess*);
+
+    assert dict_ptr.key.value.len = level;
+    assert value = dict_ptr.new_value;
+    assert value_set = 1;
+
+    let dict_ptr_stop = cast([fp + 1], BytesBytesDictAccess*);
+    tempvar stop = (dict_ptr_stop - dict_ptr) - BytesBytesDictAccess.SIZE;
+    tempvar branch = branch;
+    tempvar dict_ptr = dict_ptr + BytesBytesDictAccess.SIZE;
+
+    static_assert branch == [ap - 2];
+    static_assert dict_ptr == [ap - 1];
+    jmp loop if stop != 0;
+    jmp end;
+
+    // Case 1: nibble != key[level], don't include in branch
+    not_nibble_case:
+    let branch = cast([ap - 4], BytesBytesDictAccess*);
+    let dict_ptr = cast([ap - 3], BytesBytesDictAccess*);
+
+    assert_not_zero(dict_ptr.key.value.data[level] - nibble);
+
+    let dict_ptr_stop = cast([fp + 1], BytesBytesDictAccess*);
+    tempvar stop = (dict_ptr_stop - dict_ptr) - BytesBytesDictAccess.SIZE;
+    tempvar branch = branch;
+    tempvar dict_ptr = dict_ptr + BytesBytesDictAccess.SIZE;
+
+    static_assert branch == [ap - 2];
+    static_assert dict_ptr == [ap - 1];
+    jmp loop if stop != 0;
+    jmp end;
+
+    // Case 2: nibble == key[level], include in branch
+    nibble_case:
+    let branch = cast([ap - 4], BytesBytesDictAccess*);
+    let dict_ptr = cast([ap - 3], BytesBytesDictAccess*);
+
+    assert dict_ptr.key.value.data[level] = nibble;
+    assert [branch].key = dict_ptr.key;
+    assert [branch].prev_value = dict_ptr.prev_value;
+    assert [branch].new_value = dict_ptr.new_value;
+
+    let dict_ptr_stop = cast([fp + 1], BytesBytesDictAccess*);
+    tempvar stop = (dict_ptr_stop - dict_ptr) - BytesBytesDictAccess.SIZE;
+    tempvar branch = branch + BytesBytesDictAccess.SIZE;
+    tempvar dict_ptr = dict_ptr + BytesBytesDictAccess.SIZE;
+
+    static_assert branch == [ap - 2];
+    static_assert dict_ptr == [ap - 1];
+    jmp loop if stop != 0;
+    jmp end;
+
+    end:
+    let branche_stop = cast([ap - 2], BytesBytesDictAccess*);
+    let branche_start = cast([fp], BytesBytesDictAccess*);
+    let value = Bytes(cast([fp + 2], BytesStruct*));
+    let value_set = [fp + 3];
+
+    // Fill value_set if it's not set yet. This is just to be able to test against 1
+    // as this would raise if the memory is empty.
+    %{ ids.value_set = memory.get(fp + 3) or 0 %}
+    if (value_set != 1) {
+        let (data: felt*) = alloc();
+        tempvar empty_bytes = Bytes(new BytesStruct(data, 0));
+        assert value = empty_bytes;
+    }
+
+    tempvar result = MappingBytesBytes(new MappingBytesBytesStruct(branche_start, branche_stop));
+    return (result, value);
+}
+
+// @dev Fill each of the 16 branches.
+func _get_branches(obj: MappingBytesBytes, level: Uint) -> (TupleMappingBytesBytes, Bytes) {
+    alloc_locals;
+
+    let (local branches: MappingBytesBytes*) = alloc();
+    local value: Bytes;
+    local value_set: felt;
+
+    let (branches_0, value_0) = _get_branche_for_nibble_at_level(obj, 0, level.value);
+    assert branches[0] = branches_0;
+    if (value_0.value.len != 0) {
+        assert value = value_0;
+        assert value_set = 1;
+    }
+    let (branches_1, value_1) = _get_branche_for_nibble_at_level(obj, 1, level.value);
+    assert branches[1] = branches_1;
+    if (value_1.value.len != 0) {
+        assert value = value_1;
+        assert value_set = 1;
+    }
+    let (branches_2, value_2) = _get_branche_for_nibble_at_level(obj, 2, level.value);
+    assert branches[2] = branches_2;
+    if (value_2.value.len != 0) {
+        assert value = value_2;
+        assert value_set = 1;
+    }
+    let (branches_3, value_3) = _get_branche_for_nibble_at_level(obj, 3, level.value);
+    assert branches[3] = branches_3;
+    if (value_3.value.len != 0) {
+        assert value = value_3;
+        assert value_set = 1;
+    }
+    let (branches_4, value_4) = _get_branche_for_nibble_at_level(obj, 4, level.value);
+    assert branches[4] = branches_4;
+    if (value_4.value.len != 0) {
+        assert value = value_4;
+        assert value_set = 1;
+    }
+    let (branches_5, value_5) = _get_branche_for_nibble_at_level(obj, 5, level.value);
+    assert branches[5] = branches_5;
+    if (value_5.value.len != 0) {
+        assert value = value_5;
+        assert value_set = 1;
+    }
+    let (branches_6, value_6) = _get_branche_for_nibble_at_level(obj, 6, level.value);
+    assert branches[6] = branches_6;
+    if (value_6.value.len != 0) {
+        assert value = value_6;
+        assert value_set = 1;
+    }
+    let (branches_7, value_7) = _get_branche_for_nibble_at_level(obj, 7, level.value);
+    assert branches[7] = branches_7;
+    if (value_7.value.len != 0) {
+        assert value = value_7;
+        assert value_set = 1;
+    }
+    let (branches_8, value_8) = _get_branche_for_nibble_at_level(obj, 8, level.value);
+    assert branches[8] = branches_8;
+    if (value_8.value.len != 0) {
+        assert value = value_8;
+        assert value_set = 1;
+    }
+    let (branches_9, value_9) = _get_branche_for_nibble_at_level(obj, 9, level.value);
+    assert branches[9] = branches_9;
+    if (value_9.value.len != 0) {
+        assert value = value_9;
+        assert value_set = 1;
+    }
+    let (branches_10, value_10) = _get_branche_for_nibble_at_level(obj, 10, level.value);
+    assert branches[10] = branches_10;
+    if (value_10.value.len != 0) {
+        assert value = value_10;
+        assert value_set = 1;
+    }
+    let (branches_11, value_11) = _get_branche_for_nibble_at_level(obj, 11, level.value);
+    assert branches[11] = branches_11;
+    if (value_11.value.len != 0) {
+        assert value = value_11;
+        assert value_set = 1;
+    }
+    let (branches_12, value_12) = _get_branche_for_nibble_at_level(obj, 12, level.value);
+    assert branches[12] = branches_12;
+    if (value_12.value.len != 0) {
+        assert value = value_12;
+        assert value_set = 1;
+    }
+    let (branches_13, value_13) = _get_branche_for_nibble_at_level(obj, 13, level.value);
+    assert branches[13] = branches_13;
+    if (value_13.value.len != 0) {
+        assert value = value_13;
+        assert value_set = 1;
+    }
+    let (branches_14, value_14) = _get_branche_for_nibble_at_level(obj, 14, level.value);
+    assert branches[14] = branches_14;
+    if (value_14.value.len != 0) {
+        assert value = value_14;
+        assert value_set = 1;
+    }
+    let (branches_15, value_15) = _get_branche_for_nibble_at_level(obj, 15, level.value);
+    assert branches[15] = branches_15;
+    if (value_15.value.len != 0) {
+        assert value = value_15;
+        assert value_set = 1;
+    }
+    %{ ids.value_set = memory.get(fp + 2) or 0 %}
+    if (value_set != 1) {
+        let (data: felt*) = alloc();
+        tempvar empty_bytes = Bytes(new BytesStruct(data, 0));
+        assert value = empty_bytes;
+    }
+
+    tempvar branches_tuple = TupleMappingBytesBytes(new TupleMappingBytesBytesStruct(branches, 16));
+    return (branches_tuple, value);
+}
+
+// @dev The obj mapping needs to be squashed before calling this function.
+// @dev No other squashing is required after this function returns as it only reads from the DictAccess segment.
+// @dev This function could be made faster by sorting the DictAccess segment by key before processing it.
+func patricialize{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*}(
+    obj: MappingBytesBytes, level: Uint
+) -> InternalNode {
+    alloc_locals;
+
+    let len = (obj.value.dict_ptr - obj.value.dict_ptr_start) / BytesBytesDictAccess.SIZE;
+    if (len == 0) {
+        tempvar internal_node = InternalNode(cast(0, InternalNodeEnum*));
+        return internal_node;
+    }
+
+    let arbitrary_key = obj.value.dict_ptr_start.key;
+    let arbitrary_value = obj.value.dict_ptr_start.new_value;
+
+    // if leaf node
+    if (len == 1) {
+        tempvar sliced_key = Bytes(
+            new BytesStruct(
+                arbitrary_key.value.data + level.value, arbitrary_key.value.len - level.value
+            ),
+        );
+        let extended = ExtendedImpl.bytes(arbitrary_value);
+        tempvar leaf_node = LeafNode(new LeafNodeStruct(sliced_key, extended));
+        let internal_node = InternalNodeImpl.leaf_node(leaf_node);
+        return internal_node;
+    }
+
+    // prepare for extension node check by finding max j such that all keys in
+    // obj have the same key[i:j]
+    let dict_ptr_stop = obj.value.dict_ptr;
+    let prefix_length = arbitrary_key.value.len - level.value;
+    tempvar substring = Bytes(
+        new BytesStruct(arbitrary_key.value.data + level.value, prefix_length)
+    );
+    let prefix_length = _search_common_prefix_length{
+        substring=substring, level=level, dict_ptr_stop=dict_ptr_stop
+    }(obj.value.dict_ptr_start + BytesBytesDictAccess.SIZE, prefix_length);
+
+    if (prefix_length != 0) {
+        tempvar prefix = Bytes(
+            new BytesStruct(arbitrary_key.value.data + level.value, prefix_length)
+        );
+        let patricialized_subnode = patricialize(obj, Uint(level.value + prefix_length));
+        let encoded_subnode = encode_internal_node(patricialized_subnode);
+        tempvar extension_node = ExtensionNode(new ExtensionNodeStruct(prefix, encoded_subnode));
+        let internal_node = InternalNodeImpl.extension_node(extension_node);
+        return internal_node;
+    }
+
+    let (branches, value) = _get_branches(obj, level);
+    tempvar next_level = Uint(level.value + 1);
+
+    let patricialized_0 = patricialize(branches.value.value[0], next_level);
+    let encoded_0 = encode_internal_node(patricialized_0);
+    let patricialized_1 = patricialize(branches.value.value[1], next_level);
+    let encoded_1 = encode_internal_node(patricialized_1);
+    let patricialized_2 = patricialize(branches.value.value[2], next_level);
+    let encoded_2 = encode_internal_node(patricialized_2);
+    let patricialized_3 = patricialize(branches.value.value[3], next_level);
+    let encoded_3 = encode_internal_node(patricialized_3);
+    let patricialized_4 = patricialize(branches.value.value[4], next_level);
+    let encoded_4 = encode_internal_node(patricialized_4);
+    let patricialized_5 = patricialize(branches.value.value[5], next_level);
+    let encoded_5 = encode_internal_node(patricialized_5);
+    let patricialized_6 = patricialize(branches.value.value[6], next_level);
+    let encoded_6 = encode_internal_node(patricialized_6);
+    let patricialized_7 = patricialize(branches.value.value[7], next_level);
+    let encoded_7 = encode_internal_node(patricialized_7);
+    let patricialized_8 = patricialize(branches.value.value[8], next_level);
+    let encoded_8 = encode_internal_node(patricialized_8);
+    let patricialized_9 = patricialize(branches.value.value[9], next_level);
+    let encoded_9 = encode_internal_node(patricialized_9);
+    let patricialized_10 = patricialize(branches.value.value[10], next_level);
+    let encoded_10 = encode_internal_node(patricialized_10);
+    let patricialized_11 = patricialize(branches.value.value[11], next_level);
+    let encoded_11 = encode_internal_node(patricialized_11);
+    let patricialized_12 = patricialize(branches.value.value[12], next_level);
+    let encoded_12 = encode_internal_node(patricialized_12);
+    let patricialized_13 = patricialize(branches.value.value[13], next_level);
+    let encoded_13 = encode_internal_node(patricialized_13);
+    let patricialized_14 = patricialize(branches.value.value[14], next_level);
+    let encoded_14 = encode_internal_node(patricialized_14);
+    let patricialized_15 = patricialize(branches.value.value[15], next_level);
+    let encoded_15 = encode_internal_node(patricialized_15);
+
+    let (sequence: Extended*) = alloc();
+    assert sequence[0] = encoded_0;
+    assert sequence[1] = encoded_1;
+    assert sequence[2] = encoded_2;
+    assert sequence[3] = encoded_3;
+    assert sequence[4] = encoded_4;
+    assert sequence[5] = encoded_5;
+    assert sequence[6] = encoded_6;
+    assert sequence[7] = encoded_7;
+    assert sequence[8] = encoded_8;
+    assert sequence[9] = encoded_9;
+    assert sequence[10] = encoded_10;
+    assert sequence[11] = encoded_11;
+    assert sequence[12] = encoded_12;
+    assert sequence[13] = encoded_13;
+    assert sequence[14] = encoded_14;
+    assert sequence[15] = encoded_15;
+
+    tempvar sequence_extended = SequenceExtended(new SequenceExtendedStruct(sequence, 16));
+    let value_extended = ExtendedImpl.bytes(value);
+    tempvar branch_node = BranchNode(new BranchNodeStruct(sequence_extended, value_extended));
+    let internal_node = InternalNodeImpl.branch_node(branch_node);
+
+    return internal_node;
+}

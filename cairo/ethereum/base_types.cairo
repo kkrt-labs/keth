@@ -90,6 +90,15 @@ struct MappingBytesBytes {
     value: MappingBytesBytesStruct*,
 }
 
+struct TupleMappingBytesBytesStruct {
+    value: MappingBytesBytes*,
+    len: felt,
+}
+
+struct TupleMappingBytesBytes {
+    value: TupleMappingBytesBytesStruct*,
+}
+
 struct TupleBytes32Struct {
     value: Bytes32*,
     len: felt,
