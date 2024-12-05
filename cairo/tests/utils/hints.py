@@ -170,15 +170,13 @@ def patch_hint(program, hint: str, new_hint: str, scope: Optional[str] = None):
     1. Nondet hints in the format: 'nondet %{arg%};'
     2. Regular hints with arbitrary code
 
-    When patching nondet hints, the function will automatically handle the memory assignment
-    pattern 'memory[fp + <i>] = to_felt_or_relocatable(arg)'.
+    When patching nondet hints, the function will automatically look for the memory assignment
+    pattern 'memory[fp + <i>] = to_felt_or_relocatable(arg)' and replace the argument.
 
     Args:
         program: The Cairo program containing the hints to patch
         hint: The original hint code to replace. Can be either a regular hint or a nondet hint.
-        new_hint: The new hint code to use. For nondet hints, this can be either:
-                 - A new nondet hint (will preserve the nondet format)
-                 - Raw code (will be inserted into the memory assignment)
+        new_hint: The new hint code to use. For nondet hints, this should be a new nondet hint.
         scope: Optional scope name to restrict which hints are patched. If provided,
                only hints within matching scopes will be modified
 
@@ -235,7 +233,7 @@ def patch_hint(program, hint: str, new_hint: str, scope: Optional[str] = None):
                         CairoHint(
                             accessible_scopes=hint_.accessible_scopes,
                             flow_tracking_data=hint_.flow_tracking_data,
-                            code=f"memory[{mem_loc}] = to_felt_or_relocatable({new_nondet_arg or new_hint})",
+                            code=f"memory[{mem_loc}] = to_felt_or_relocatable({new_nondet_arg})",
                         )
                     )
                 else:
