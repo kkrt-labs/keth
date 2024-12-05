@@ -71,8 +71,8 @@ class TestTrie:
         with (
             patch_hint(
                 cairo_program,
-                "ids.remainder = ids.x.value.len % 2",
-                "ids.remainder = not (ids.x.value.len % 2)",
+                "nondet %{ ids.x.value.len % 2 %};",
+                "nondet %{ not (ids.x.value.len % 2) %};",
             ),
             cairo_error(message="nibble_list_to_compact: invalid remainder"),
         ):

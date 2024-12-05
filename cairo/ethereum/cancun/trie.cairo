@@ -253,9 +253,7 @@ func nibble_list_to_compact{range_check_ptr: felt}(x: Bytes, is_leaf: bool) -> B
         return result;
     }
 
-    // TODO: add a way to patch `nondet %{ ids.x.value.len % 2 %};` in test runner
-    local remainder;
-    %{ ids.remainder = ids.x.value.len % 2 %}
+    local remainder = nondet %{ ids.x.value.len % 2 %};
     with_attr error_message("nibble_list_to_compact: invalid remainder") {
         assert remainder * (1 - remainder) = 0;
         tempvar underflow_check = (x.value.len - remainder) / 2;

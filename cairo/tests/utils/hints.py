@@ -162,37 +162,101 @@ def implement_hints(program):
 
 
 @contextmanager
-def patch_hint(program, hint, new_hint, scope: Optional[str] = None):
+def patch_hint(program, hint: str, new_hint: str, scope: Optional[str] = None):
     """
-    Patch a Cairo hint in a program with a new hint.
+    Temporarily patches a Cairo hint in a program with a new hint code.
+
+    This function can handle two types of hints:
+    1. Nondet hints in the format: 'nondet %{arg%};'
+    2. Regular hints with arbitrary code
+
+    When patching nondet hints, the function will automatically handle the memory assignment
+    pattern 'memory[fp + <i>] = to_felt_or_relocatable(arg)'.
+
     Args:
-        program: The Cairo program containing the hints
-        hint: The original hint code to replace
-        new_hint: The new hint code to use instead
+        program: The Cairo program containing the hints to patch
+        hint: The original hint code to replace. Can be either a regular hint or a nondet hint.
+        new_hint: The new hint code to use. For nondet hints, this can be either:
+                 - A new nondet hint (will preserve the nondet format)
+                 - Raw code (will be inserted into the memory assignment)
         scope: Optional scope name to restrict which hints are patched. If provided,
-              only hints in scope containing this string will be patched.
+               only hints within matching scopes will be modified
+
+    Raises:
+        ValueError: If the specified hint is not found in the program
+
     Example:
-        with patch_hint(program, "old_hint", "new_hint", "initialize_jumpdests"):
-            # Code that runs with the patched hint
+        # Replace a nondet hint
+        with patch_hint(program, 'nondet %{x%};', 'nondet %{y%};'):
+            ...
+
+        # Replace a regular hint
+        with patch_hint(program, 'ids.x = 5', 'ids.x = 10'):
+            ...
+
+        # Replace hint only in specific scope
+        with patch_hint(program, 'ids.x = 5', 'ids.x = 10', scope='my_function'):
+            ...
     """
-    patched_hints = {
-        k: [
-            (
-                hint_
-                if hint_.code != hint
-                or (scope is not None and scope not in str(hint_.accessible_scopes[-1]))
-                else CairoHint(
-                    accessible_scopes=hint_.accessible_scopes,
-                    flow_tracking_data=hint_.flow_tracking_data,
-                    code=new_hint,
-                )
-            )
-            for hint_ in v
-        ]
-        for k, v in program.hints.items()
-    }
+    import re
+
+    def get_nondet_arg(hint_code: str) -> Optional[str]:
+        """Extract argument from nondet hint if it is one, otherwise return None."""
+        if match := re.match(r"nondet %{(.+)%};", hint_code.strip()):
+            return match.group(1).strip()
+        return None
+
+    def parse_fp_assignment_hint(hint_code: str) -> tuple[Optional[str], Optional[str]]:
+        """Extract memory location and argument from an fp assignment hint."""
+        if match := re.match(
+            r"memory\[(.+)\] = to_felt_or_relocatable\((.+)\)", hint_code
+        ):
+            return match.group(1), match.group(2).strip()
+        return None, None
+
+    # Determine if we're dealing with nondet hints
+    orig_nondet_arg = get_nondet_arg(hint)
+    new_nondet_arg = get_nondet_arg(new_hint)
+
+    patched_hints = {}
+    for k, hint_list in program.hints.items():
+        new_hints = []
+        for hint_ in hint_list:
+            # Skip hints not in specified scope
+            if scope is not None and scope not in str(hint_.accessible_scopes[-1]):
+                new_hints.append(hint_)
+                continue
+
+            if orig_nondet_arg:
+                # Handle nondet hint patching
+                mem_loc, arg = parse_fp_assignment_hint(hint_.code)
+                if arg == orig_nondet_arg:
+                    new_hints.append(
+                        CairoHint(
+                            accessible_scopes=hint_.accessible_scopes,
+                            flow_tracking_data=hint_.flow_tracking_data,
+                            code=f"memory[{mem_loc}] = to_felt_or_relocatable({new_nondet_arg or new_hint})",
+                        )
+                    )
+                else:
+                    new_hints.append(hint_)
+            else:
+                # Handle regular hint patching
+                if hint_.code.strip() == hint.strip():
+                    new_hints.append(
+                        CairoHint(
+                            accessible_scopes=hint_.accessible_scopes,
+                            flow_tracking_data=hint_.flow_tracking_data,
+                            code=new_hint,
+                        )
+                    )
+                else:
+                    new_hints.append(hint_)
+        patched_hints[k] = new_hints
+
     if patched_hints == program.hints:
         raise ValueError(f"Hint\n\n{hint}\n\nnot found in program hints.")
+
     with patch.object(program, "hints", new=patched_hints):
         yield
 
