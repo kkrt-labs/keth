@@ -84,8 +84,8 @@ func encode_internal_node{
     range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*
 }(node: InternalNode) -> Extended {
     alloc_locals;
-
     local unencoded: Extended;
+    local range_check_ptr_end;
 
     tempvar is_leaf = cast(node.value.leaf_node.value, felt);
     jmp leaf_node if is_leaf != 0;
@@ -110,6 +110,7 @@ func encode_internal_node{
     tempvar sequence = SequenceExtended(new SequenceExtendedStruct(sequence_data, 2));
     let unencoded_ = ExtendedImpl.sequence(sequence);
     assert unencoded = unencoded_;
+    assert range_check_ptr_end = range_check_ptr;
     jmp common;
 
     extension_node:
@@ -121,6 +122,7 @@ func encode_internal_node{
     tempvar sequence = SequenceExtended(new SequenceExtendedStruct(sequence_data, 2));
     let unencoded_ = ExtendedImpl.sequence(sequence);
     assert unencoded = unencoded_;
+    assert range_check_ptr_end = range_check_ptr;
     jmp common;
 
     branch_node:
@@ -132,9 +134,11 @@ func encode_internal_node{
     tempvar sequence = SequenceExtended(new SequenceExtendedStruct(value, len + 1));
     let unencoded_ = ExtendedImpl.sequence(sequence);
     assert unencoded = unencoded_;
+    assert range_check_ptr_end = range_check_ptr;
     jmp common;
 
     common:
+    let range_check_ptr = range_check_ptr_end;
     let encoded = encode(unencoded);
 
     let cond = is_le(encoded.value.len, 32 - 1);
@@ -238,9 +242,10 @@ func common_prefix_length(a: Bytes, b: Bytes) -> felt {
     return result;
 }
 
-func nibble_list_to_compact(x: Bytes, is_leaf: bool) -> Bytes {
+func nibble_list_to_compact{range_check_ptr: felt}(x: Bytes, is_leaf: bool) -> Bytes {
     alloc_locals;
     let (local compact) = alloc();
+    local range_check_ptr_end;
 
     if (x.value.len == 0) {
         assert [compact] = 16 * (2 * is_leaf.value);
@@ -249,7 +254,12 @@ func nibble_list_to_compact(x: Bytes, is_leaf: bool) -> Bytes {
     }
 
     local remainder = nondet %{ ids.x.value.len % 2 %};
-    assert remainder * (1 - remainder) = 0;
+    with_attr error_message("nibble_list_to_compact: invalid remainder") {
+        assert remainder * (1 - remainder) = 0;
+        tempvar underflow_check = (x.value.len - remainder) / 2;
+        assert [range_check_ptr] = underflow_check;
+    }
+    let range_check_ptr = range_check_ptr + 1;
     assert [compact] = 16 * (2 * is_leaf.value + remainder) + x.value.data[0] * remainder;
 
     if (x.value.len == 1) {
@@ -259,6 +269,7 @@ func nibble_list_to_compact(x: Bytes, is_leaf: bool) -> Bytes {
 
     tempvar compact = compact + 1;
     tempvar i = remainder;
+    assert range_check_ptr_end = range_check_ptr;
 
     loop:
     let compact = cast([ap - 2], felt*);
@@ -276,6 +287,7 @@ func nibble_list_to_compact(x: Bytes, is_leaf: bool) -> Bytes {
     let len = (i - remainder) / 2;
 
     let compact = cast([fp], felt*);
+    let range_check_ptr = range_check_ptr_end;
     tempvar result = Bytes(new BytesStruct(compact, 1 + len));
     return result;
 }
