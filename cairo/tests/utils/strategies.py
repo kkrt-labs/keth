@@ -47,7 +47,7 @@ uint = uint64.map(Uint)
 uint128 = st.integers(min_value=0, max_value=2**128 - 1)
 felt = st.integers(min_value=0, max_value=DEFAULT_PRIME - 1)
 uint256 = st.integers(min_value=0, max_value=2**256 - 1).map(U256)
-nibble = st.lists(uint4).map(bytes)
+nibble = st.lists(uint4, max_size=64).map(bytes)
 
 bytes0 = st.binary(min_size=0, max_size=0).map(Bytes0)
 bytes8 = st.binary(min_size=8, max_size=8).map(Bytes8)

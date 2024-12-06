@@ -1,7 +1,7 @@
-from collections.abc import Sequence as ABCSequence
+from collections import abc
 from inspect import signature
 from pathlib import Path
-from typing import Any, Optional, Sequence, Tuple, Union, get_args, get_origin
+from typing import Any, Mapping, Optional, Sequence, Tuple, Union, get_args, get_origin
 
 from eth_utils.address import to_checksum_address
 from starkware.cairo.lang.compiler.ast.cairo_types import (
@@ -79,6 +79,8 @@ class Serde:
 
         if get_origin(python_cls) is Union:
             value_ptr = self.serialize_pointers(path, ptr)["value"]
+            if value_ptr is None:
+                return None
             value_path = (
                 get_struct_definition(self.program, path)
                 .members["value"]
@@ -101,7 +103,7 @@ class Serde:
 
             return self._serialize(variant.cairo_type, value_ptr + variant.offset)
 
-        if get_origin(python_cls) in (tuple, list, Sequence, ABCSequence):
+        if get_origin(python_cls) in (tuple, list, Sequence, abc.Sequence):
             # Tuple and list are represented as structs with a pointer to the first element and the length.
             # The value field is a list of Relocatable (pointers to each element) or Felt (tuple of felts).
             # In usual cairo, a pointer to a struct, (e.g. Uint256*) is actually a pointer to one single
@@ -126,7 +128,7 @@ class Serde:
                 tuple_item_path = members["value"].cairo_type.pointee.scope.path
                 resolved_cls = (
                     get_origin(python_cls)
-                    if get_origin(python_cls) not in (Sequence, ABCSequence)
+                    if get_origin(python_cls) not in (Sequence, abc.Sequence)
                     else list
                 )
                 return resolved_cls(
@@ -135,6 +137,34 @@ class Serde:
                         for i in range(raw["len"])
                     ]
                 )
+
+        if get_origin(python_cls) in (Mapping, abc.Mapping):
+            mapping_struct_ptr = self.serialize_pointers(path, ptr)["value"]
+            mapping_struct_path = (
+                get_struct_definition(self.program, path)
+                .members["value"]
+                .cairo_type.pointee.scope.path
+            )
+            dict_access_path = (
+                get_struct_definition(self.program, mapping_struct_path)
+                .members["dict_ptr"]
+                .cairo_type.pointee.scope.path
+            )
+            dict_access_types = get_struct_definition(
+                self.program, dict_access_path
+            ).members
+            key_type = dict_access_types["key"].cairo_type
+            value_type = dict_access_types["new_value"].cairo_type
+            pointers = self.serialize_pointers(mapping_struct_path, mapping_struct_ptr)
+            segment_size = pointers["dict_ptr"] - pointers["dict_ptr_start"]
+            dict_ptr = pointers["dict_ptr_start"]
+
+            return {
+                self._serialize(key_type, dict_ptr + i): self._serialize(
+                    value_type, dict_ptr + i + 2
+                )
+                for i in range(0, segment_size, 3)
+            }
 
         if python_cls in (bytes, bytearray, Bytes, str):
             tuple_struct_ptr = self.serialize_pointers(path, ptr)["value"]

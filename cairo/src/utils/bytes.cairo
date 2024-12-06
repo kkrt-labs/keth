@@ -193,6 +193,16 @@ func felt_to_bytes20_little{range_check_ptr}(dst: felt*, value: felt) {
     return ();
 }
 
+// @notice Split a felt into an array of 16 bytes, little endian
+// @dev Raise if the value is greater than 2**128 - 1
+func felt_to_bytes16_little{range_check_ptr}(dst: felt*, value: felt) {
+    alloc_locals;
+    assert [range_check_ptr] = value;
+    let range_check_ptr = range_check_ptr + 1;
+    split_int(value, 16, 256, 256, dst);
+    return ();
+}
+
 // @notice Split a felt into an array of 20 bytes, big endian
 // @dev Truncate the high 12 bytes
 func felt_to_bytes20{range_check_ptr}(dst: felt*, value: felt) {

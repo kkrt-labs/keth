@@ -17,8 +17,8 @@ from ethereum.base_types import (
     StringStruct,
     TupleBytes32,
 )
-from ethereum.cancun.blocks import Log
-from ethereum.cancun.fork_types import Address, Account
+from ethereum.cancun.blocks import Log, TupleLog, Receipt, Withdrawal
+from ethereum.cancun.fork_types import Address, Account, Bloom
 from ethereum.cancun.transactions import LegacyTransaction, To
 from ethereum.crypto.hash import keccak256, Hash32
 from ethereum.utils.numeric import is_zero
@@ -31,6 +31,7 @@ from src.utils.bytes import (
     felt_to_bytes20_little,
     uint256_to_bytes_little,
     uint256_to_bytes,
+    felt_to_bytes16_little,
 )
 
 struct SequenceSimple {
@@ -185,6 +186,11 @@ namespace ExtendedImpl {
 // RLP Encode
 //
 
+// @dev The maximum prefix length for the RLP encoding is 9 bytes.
+// @dev When possible, we start by offset the allocated buffer by 9 bytes to avoid
+// @dev a memcpy in the end just for the prefix.
+const PREFIX_LEN_MAX = 9;
+
 func encode{range_check_ptr}(raw_data: Extended) -> Bytes {
     alloc_locals;
     let (dst) = alloc();
@@ -203,19 +209,19 @@ func encode_uint{range_check_ptr}(raw_uint: Uint) -> Bytes {
     return encoded_uint;
 }
 
-func encode_uint256{range_check_ptr}(raw_uint: U256) -> Bytes {
+func encode_u256{range_check_ptr}(raw_uint: U256) -> Bytes {
     alloc_locals;
     let (dst) = alloc();
-    let len = _encode_uint256(dst, raw_uint);
+    let len = _encode_u256(dst, raw_uint);
     tempvar value = new BytesStruct(dst, len);
     let encoded_uint = Bytes(value);
     return encoded_uint;
 }
 
-func encode_uint256_little{range_check_ptr}(raw_uint: U256) -> Bytes {
+func encode_u256_little{range_check_ptr}(raw_uint: U256) -> Bytes {
     alloc_locals;
     let (dst) = alloc();
-    let len = _encode_uint256_little(dst, raw_uint);
+    let len = _encode_u256_little(dst, raw_uint);
     tempvar value = new BytesStruct(dst, len);
     let encoded_uint = Bytes(value);
     return encoded_uint;
@@ -284,124 +290,143 @@ func encode_account{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: K
     raw_account_data: Account, storage_root: Bytes
 ) -> Bytes {
     alloc_locals;
-    let (dst) = alloc();
-    // Leave space for the length encoding
-    let dst = dst + 10;
-    let nonce_len = _encode_uint(dst, raw_account_data.value.nonce.value);
-    let balance_len = _encode_uint256(dst + nonce_len, raw_account_data.value.balance);
-    let storage_root_len = _encode_bytes(dst + nonce_len + balance_len, storage_root);
+    let (local dst) = alloc();
+    let body_ptr = dst + PREFIX_LEN_MAX;
+
+    let nonce_len = _encode_uint(body_ptr, raw_account_data.value.nonce.value);
+    let body_ptr = body_ptr + nonce_len;
+    let balance_len = _encode_u256(body_ptr, raw_account_data.value.balance);
+    let body_ptr = body_ptr + balance_len;
+    let storage_root_len = _encode_bytes(body_ptr, storage_root);
+    let body_ptr = body_ptr + storage_root_len;
 
     // Encoding the code hash is encoding 32 bytes, so we know the prefix is 0x80 + 32
     // code_hash_len is 33 bytes and we can directly copy the bytes into the buffer
     let code_hash = keccak256(raw_account_data.value.code);
-    let code_hash_ptr = dst + nonce_len + balance_len + storage_root_len;
-    assert [code_hash_ptr] = 0x80 + 32;
-    uint256_to_bytes32_little(code_hash_ptr + 1, [code_hash.value]);
-    let code_hash_len = 33;
+    let code_hash_len = 32;
+    assert [body_ptr] = 0x80 + code_hash_len;
+    uint256_to_bytes32_little(body_ptr + 1, [code_hash.value]);
+    let body_ptr = body_ptr + 1 + code_hash_len;
 
-    let len = nonce_len + balance_len + storage_root_len + code_hash_len;
-    let cond = is_le(len, 0x38 - 1);
-    if (cond != 0) {
-        let dst = dst - 1;
-        assert [dst] = 0xC0 + len;
-        tempvar result = Bytes(new BytesStruct(dst, 1 + len));
-        return result;
-    }
+    let body_len = body_ptr - dst - PREFIX_LEN_MAX;
+    let body_ptr = dst + PREFIX_LEN_MAX;
+    let prefix_len = _encode_prefix_len(body_ptr, body_len);
 
-    let (len_joined_encodings: felt*) = alloc();
-    let len_joined_encodings_len = felt_to_bytes_little(len_joined_encodings, len);
-
-    // Write the length encoding
-    // Length encoding is 1 byte for the prefix and then the length in little endian
-    let dst = dst - 1 - len_joined_encodings_len;
-    assert [dst] = 0xF7 + len_joined_encodings_len;
-    // Copy the length encoding
-    memcpy(dst + 1, len_joined_encodings, len_joined_encodings_len);
-
-    tempvar result = Bytes(new BytesStruct(dst, 1 + len_joined_encodings_len + len));
+    tempvar result = Bytes(new BytesStruct(body_ptr - prefix_len, prefix_len + body_len));
     return result;
 }
 
 func encode_legacy_transaction{range_check_ptr}(transaction: LegacyTransaction) -> Bytes {
     alloc_locals;
-    let (local dst_start) = alloc();
-    // Leave space for the length encoding
-    let dst = dst_start + 10;
-    let nonce_len = _encode_uint256(dst, transaction.value.nonce);
-    let dst = dst + nonce_len;
-    let gas_price_len = _encode_uint(dst, transaction.value.gas_price.value);
-    let dst = dst + gas_price_len;
-    let gas_len = _encode_uint(dst, transaction.value.gas.value);
-    let dst = dst + gas_len;
-    let to_len = _encode_to(dst, transaction.value.to);
-    let dst = dst + to_len;
-    let value_len = _encode_uint256(dst, transaction.value.value);
-    let dst = dst + value_len;
-    let data_len = _encode_bytes(dst, transaction.value.data);
-    let dst = dst + data_len;
-    let v_len = _encode_uint256(dst, transaction.value.v);
-    let dst = dst + v_len;
-    let r_len = _encode_uint256(dst, transaction.value.r);
-    let dst = dst + r_len;
-    let s_len = _encode_uint256(dst, transaction.value.s);
-    let dst = dst + s_len;
+    let (local dst) = alloc();
+    let body_ptr = dst + PREFIX_LEN_MAX;
 
-    let len = dst - dst_start - 10;
-    let cond = is_le(len, 0x38 - 1);
-    let dst = dst_start + 9;
-    if (cond != 0) {
-        assert [dst] = 0xC0 + len;
-        tempvar result = Bytes(new BytesStruct(dst, 1 + len));
-        return result;
-    }
+    let nonce_len = _encode_u256(body_ptr, transaction.value.nonce);
+    let body_ptr = body_ptr + nonce_len;
+    let gas_price_len = _encode_uint(body_ptr, transaction.value.gas_price.value);
+    let body_ptr = body_ptr + gas_price_len;
+    let gas_len = _encode_uint(body_ptr, transaction.value.gas.value);
+    let body_ptr = body_ptr + gas_len;
+    let to_len = _encode_to(body_ptr, transaction.value.to);
+    let body_ptr = body_ptr + to_len;
+    let value_len = _encode_u256(body_ptr, transaction.value.value);
+    let body_ptr = body_ptr + value_len;
+    let data_len = _encode_bytes(body_ptr, transaction.value.data);
+    let body_ptr = body_ptr + data_len;
+    let v_len = _encode_u256(body_ptr, transaction.value.v);
+    let body_ptr = body_ptr + v_len;
+    let r_len = _encode_u256(body_ptr, transaction.value.r);
+    let body_ptr = body_ptr + r_len;
+    let s_len = _encode_u256(body_ptr, transaction.value.s);
+    let body_ptr = body_ptr + s_len;
 
-    let (len_joined_encodings: felt*) = alloc();
-    let len_joined_encodings_len = felt_to_bytes_little(len_joined_encodings, len);
+    let body_len = body_ptr - dst - PREFIX_LEN_MAX;
+    let body_ptr = dst + PREFIX_LEN_MAX;
+    let prefix_len = _encode_prefix_len(body_ptr, body_len);
 
-    // Write the length encoding
-    // Length encoding is 1 byte for the prefix and then the length in little endian
-    let dst = dst - len_joined_encodings_len;
-    assert [dst] = 0xF7 + len_joined_encodings_len;
-    // Copy the length encoding
-    memcpy(dst + 1, len_joined_encodings, len_joined_encodings_len);
-
-    tempvar result = Bytes(new BytesStruct(dst, 1 + len_joined_encodings_len + len));
+    tempvar result = Bytes(new BytesStruct(body_ptr - prefix_len, prefix_len + body_len));
     return result;
 }
 
 func encode_log{range_check_ptr}(raw_log: Log) -> Bytes {
     alloc_locals;
-
     let (local dst) = alloc();
+    let body_ptr = dst + PREFIX_LEN_MAX;
 
-    tempvar offset = 10;
-    let dst = dst + offset;
-    let len = _encode_address(dst, raw_log.value.address);
-    let dst = dst + len;
-    let len = _encode_tuple_bytes32(dst, raw_log.value.topics);
-    let dst = dst + len;
-    let len = _encode_bytes(dst, raw_log.value.data);
-    let dst = dst + len;
+    let address_len = _encode_address(body_ptr, raw_log.value.address);
+    let body_ptr = body_ptr + address_len;
+    let topics_len = _encode_tuple_bytes32(body_ptr, raw_log.value.topics);
+    let body_ptr = body_ptr + topics_len;
+    let data_len = _encode_bytes(body_ptr, raw_log.value.data);
+    let body_ptr = body_ptr + data_len;
 
-    let dst_start = cast([fp], felt*);
-    let len = dst - dst_start - offset;
-    let dst = dst_start + offset - 1;
+    let body_len = body_ptr - dst - PREFIX_LEN_MAX;
+    let body_ptr = dst + PREFIX_LEN_MAX;
+    let prefix_len = _encode_prefix_len(body_ptr, body_len);
 
-    let cond = is_le(len, 0x38 - 1);
-    if (cond != 0) {
-        assert [dst] = 0xC0 + len;
-        tempvar result = Bytes(new BytesStruct(dst, 1 + len));
-        return result;
-    }
+    tempvar result = Bytes(new BytesStruct(body_ptr - prefix_len, prefix_len + body_len));
+    return result;
+}
 
-    let (len_joined_encodings: felt*) = alloc();
-    let len_joined_encodings_len = felt_to_bytes(len_joined_encodings, len);
-
-    let dst = dst - len_joined_encodings_len;
-    assert [dst] = 0xF7 + len_joined_encodings_len;
-    memcpy(dst + 1, len_joined_encodings, len_joined_encodings_len);
-    let len = 1 + len_joined_encodings_len + len;
+func encode_tuple_log{range_check_ptr}(raw_tuple_log: TupleLog) -> Bytes {
+    alloc_locals;
+    let (local dst) = alloc();
+    let len = _encode_tuple_log(dst, raw_tuple_log);
     tempvar result = Bytes(new BytesStruct(dst, len));
+    return result;
+}
+
+func encode_bloom{range_check_ptr}(raw_bloom: Bloom) -> Bytes {
+    alloc_locals;
+    let (local dst) = alloc();
+    let len = _encode_bloom(dst, raw_bloom);
+    tempvar result = Bytes(new BytesStruct(dst, len));
+    return result;
+}
+
+func encode_receipt{range_check_ptr}(raw_receipt: Receipt) -> Bytes {
+    alloc_locals;
+    let (local dst) = alloc();
+    let body_ptr = dst + PREFIX_LEN_MAX;
+
+    let succeeded_len = _encode_uint(body_ptr, raw_receipt.value.succeeded.value);
+    let body_ptr = body_ptr + succeeded_len;
+    let cumulative_gas_used_len = _encode_uint(
+        body_ptr, raw_receipt.value.cumulative_gas_used.value
+    );
+    let body_ptr = body_ptr + cumulative_gas_used_len;
+    let bloom_len = _encode_bloom(body_ptr, raw_receipt.value.bloom);
+    let body_ptr = body_ptr + bloom_len;
+    let logs_len = _encode_tuple_log(body_ptr, raw_receipt.value.logs);
+    let body_ptr = body_ptr + logs_len;
+
+    let body_len = body_ptr - dst - PREFIX_LEN_MAX;
+    let body_ptr = dst + PREFIX_LEN_MAX;
+    let prefix_len = _encode_prefix_len(body_ptr, body_len);
+
+    tempvar result = Bytes(new BytesStruct(body_ptr - prefix_len, prefix_len + body_len));
+    return result;
+}
+
+func encode_withdrawal{range_check_ptr}(raw_withdrawal: Withdrawal) -> Bytes {
+    alloc_locals;
+    let (local dst) = alloc();
+    let body_ptr = dst + PREFIX_LEN_MAX;
+
+    let index_len = _encode_uint(body_ptr, raw_withdrawal.value.index.value);
+    let body_ptr = body_ptr + index_len;
+    let validator_index_len = _encode_uint(body_ptr, raw_withdrawal.value.validator_index.value);
+    let body_ptr = body_ptr + validator_index_len;
+    let address_len = _encode_address(body_ptr, raw_withdrawal.value.address);
+    let body_ptr = body_ptr + address_len;
+    let amount_len = _encode_u256(body_ptr, raw_withdrawal.value.amount);
+    let body_ptr = body_ptr + amount_len;
+
+    let body_len = body_ptr - dst - PREFIX_LEN_MAX;
+    let body_ptr = dst + PREFIX_LEN_MAX;
+    let prefix_len = _encode_prefix_len(body_ptr, body_len);
+
+    tempvar result = Bytes(new BytesStruct(body_ptr - prefix_len, prefix_len + body_len));
     return result;
 }
 
@@ -634,7 +659,7 @@ func _encode_uint{range_check_ptr}(dst: felt*, raw_uint: felt) -> felt {
     return _encode_bytes(dst, raw_uint_as_bytes);
 }
 
-func _encode_uint256{range_check_ptr}(dst: felt*, raw_uint: U256) -> felt {
+func _encode_u256{range_check_ptr}(dst: felt*, raw_uint: U256) -> felt {
     alloc_locals;
     if (raw_uint.value.high == 0 and raw_uint.value.low == 0) {
         assert [dst] = 0x80;
@@ -648,7 +673,7 @@ func _encode_uint256{range_check_ptr}(dst: felt*, raw_uint: U256) -> felt {
     return _encode_bytes(dst, raw_uint_as_bytes);
 }
 
-func _encode_uint256_little{range_check_ptr}(dst: felt*, raw_uint: U256) -> felt {
+func _encode_u256_little{range_check_ptr}(dst: felt*, raw_uint: U256) -> felt {
     alloc_locals;
     if (raw_uint.value.high == 0 and raw_uint.value.low == 0) {
         assert [dst] = 0x80;
@@ -714,23 +739,14 @@ func _get_joined_encodings{range_check_ptr}(dst: felt*, raw_bytes: Extended*, le
 
 func _encode_sequence{range_check_ptr}(dst: felt*, raw_sequence: SequenceExtended) -> felt {
     alloc_locals;
-    let (tmp_dst) = alloc();
-    let len = _get_joined_encodings(tmp_dst, raw_sequence.value.value, raw_sequence.value.len);
-    let cond = is_le(len, 0x38 - 1);
-    if (cond != 0) {
-        assert [dst] = 0xC0 + len;
-        memcpy(dst + 1, tmp_dst, len);
-        return len + 1;
-    }
-
-    let (len_joined_encodings: felt*) = alloc();
-    let len_joined_encodings_len = felt_to_bytes(len_joined_encodings, len);
-
-    assert [dst] = 0xF7 + len_joined_encodings_len;
-    memcpy(dst + 1, len_joined_encodings, len_joined_encodings_len);
-    memcpy(dst + 1 + len_joined_encodings_len, tmp_dst, len);
-
-    return 1 + len_joined_encodings_len + len;
+    let (tmp_dst_start: felt*) = alloc();
+    let body_ptr = tmp_dst_start + PREFIX_LEN_MAX;
+    let body_len = _get_joined_encodings(
+        body_ptr, raw_sequence.value.value, raw_sequence.value.len
+    );
+    let prefix_len = _encode_prefix_len(body_ptr, body_len);
+    memcpy(dst, body_ptr - prefix_len, prefix_len + body_len);
+    return prefix_len + body_len;
 }
 
 func _encode_address{range_check_ptr}(dst: felt*, address: Address) -> felt {
@@ -792,6 +808,92 @@ func _encode_tuple_bytes32_inner{range_check_ptr}(
     _encode_tuple_bytes32_inner(dst + 33, len - 1, raw_tuple_bytes32 + 1);
 
     return ();
+}
+
+func _encode_tuple_log{range_check_ptr}(dst: felt*, raw_tuple_log: TupleLog) -> felt {
+    alloc_locals;
+    if (raw_tuple_log.value.len == 0) {
+        assert [dst] = 0xc0;
+        return 1;
+    }
+
+    let (local tmp) = alloc();
+    let body_ptr = tmp + PREFIX_LEN_MAX;
+    let body_len = _encode_tuple_log_inner(
+        body_ptr, raw_tuple_log.value.len, raw_tuple_log.value.value
+    );
+    let prefix_len = _encode_prefix_len(body_ptr, body_len);
+
+    memcpy(dst, body_ptr - prefix_len, prefix_len + body_len);
+
+    return prefix_len + body_len;
+}
+
+func _encode_tuple_log_inner{range_check_ptr}(dst: felt*, len: felt, raw_tuple_log: Log*) -> felt {
+    alloc_locals;
+    if (len == 0) {
+        return 0;
+    }
+
+    let log_encoded = encode_log(raw_tuple_log[0]);
+    memcpy(dst, log_encoded.value.data, log_encoded.value.len);
+
+    let remaining_len = _encode_tuple_log_inner(
+        dst + log_encoded.value.len, len - 1, raw_tuple_log + 1
+    );
+
+    return log_encoded.value.len + remaining_len;
+}
+
+func _encode_bloom{range_check_ptr}(dst: felt*, raw_bloom: Bloom) -> felt {
+    alloc_locals;
+    // Bloom is 256 bytes, so the prefix is [0xb7 + 2, 0x01, 0x00]
+    // ie. a bytes of length 0x0100
+    assert [dst] = 0xb7 + 2;
+    assert [dst + 1] = 1;
+    assert [dst + 2] = 0;
+    let dst = dst + 3;
+
+    // Bloom is 256 bytes encoded as 16 u128 little endian
+    felt_to_bytes16_little(dst, raw_bloom.value[0].value);
+    felt_to_bytes16_little(dst + 16, raw_bloom.value[1].value);
+    felt_to_bytes16_little(dst + 32, raw_bloom.value[2].value);
+    felt_to_bytes16_little(dst + 48, raw_bloom.value[3].value);
+    felt_to_bytes16_little(dst + 64, raw_bloom.value[4].value);
+    felt_to_bytes16_little(dst + 80, raw_bloom.value[5].value);
+    felt_to_bytes16_little(dst + 96, raw_bloom.value[6].value);
+    felt_to_bytes16_little(dst + 112, raw_bloom.value[7].value);
+    felt_to_bytes16_little(dst + 128, raw_bloom.value[8].value);
+    felt_to_bytes16_little(dst + 144, raw_bloom.value[9].value);
+    felt_to_bytes16_little(dst + 160, raw_bloom.value[10].value);
+    felt_to_bytes16_little(dst + 176, raw_bloom.value[11].value);
+    felt_to_bytes16_little(dst + 192, raw_bloom.value[12].value);
+    felt_to_bytes16_little(dst + 208, raw_bloom.value[13].value);
+    felt_to_bytes16_little(dst + 224, raw_bloom.value[14].value);
+    felt_to_bytes16_little(dst + 240, raw_bloom.value[15].value);
+
+    return 3 + 256;
+}
+
+// @notice Prepend the encoded length to the encoded data.
+// @dev The encoded length is prepended, meaning that [dst - i] is written into.
+// @dev The big endian encoded length cannot be greater than 8 (0xff - 0xf7),
+// @dev meaning that 9 bytes upfront (1 + 8) at maximum are enough.
+// @return The final offset to apply to dst.
+func _encode_prefix_len{range_check_ptr}(dst: felt*, len: felt) -> felt {
+    alloc_locals;
+
+    let cond = is_le(len, 0x38 - 1);
+    if (cond != 0) {
+        assert [dst - 1] = 0xC0 + len;
+        return 1;
+    }
+
+    let (len_be: felt*) = alloc();
+    let len_be_len = felt_to_bytes(len_be, len);
+    assert [dst - 1 - len_be_len] = 0xF7 + len_be_len;
+    memcpy(dst - len_be_len, len_be, len_be_len);
+    return 1 + len_be_len;
 }
 
 //

@@ -1,19 +1,25 @@
-from typing import Optional
+from typing import Mapping, Optional
 
-from hypothesis import given
+import pytest
+from hypothesis import assume, given
+from hypothesis import strategies as st
 
-from ethereum.base_types import Bytes
+from ethereum.base_types import Bytes, Uint
+from ethereum.cancun.fork_types import Account
 from ethereum.cancun.trie import (
     InternalNode,
+    Node,
     bytes_to_nibble_list,
     common_prefix_length,
     encode_internal_node,
+    encode_node,
     nibble_list_to_compact,
+    patricialize,
 )
 from tests.utils.assertion import sequence_equal
 from tests.utils.errors import cairo_error
 from tests.utils.hints import patch_hint
-from tests.utils.strategies import nibble
+from tests.utils.strategies import bytes32, nibble, uint4
 
 
 class TestTrie:
@@ -23,11 +29,23 @@ class TestTrie:
             encode_internal_node(node), cairo_run("encode_internal_node", node)
         )
 
-    # @given(node=...)
-    # def test_encode_node(self, cairo_run, node: Node):
-    #     assert encode_node(node, storage_root) == cairo_run(
-    #         "encode_node", node, storage_root
-    #     )
+    @given(node=..., storage_root=...)
+    def test_encode_node(self, cairo_run, node: Node, storage_root: Optional[Bytes]):
+        assume(node is not None)
+        assume(not isinstance(node, Uint))
+        assume(not (isinstance(node, Account) and storage_root is None))
+        assert encode_node(node, storage_root) == cairo_run(
+            "encode_node", node, storage_root
+        )
+
+    @given(node=...)
+    def test_encode_account_should_fail_without_storage_root(
+        self, cairo_run, node: Account
+    ):
+        with pytest.raises(AssertionError):
+            encode_node(node, None)
+        with cairo_error(message="encode_node"):
+            cairo_run("encode_node", node, None)
 
     # def test_copy_trie(self, cairo_run, trie):
     #     assert copy_trie(trie) == cairo_run("copy_trie", trie)
@@ -87,6 +105,35 @@ class TestTrie:
     # def test_root(self, cairo_run, trie, get_storage_root):
     #     assert root(trie, get_storage_root) == cairo_run("root", trie, get_storage_root)
 
-    # @given(level=...)
-    # def test_patricialize(self, cairo_run, level: Uint):
-    #     assert patricialize(obj, level) == cairo_run("patricialize", obj, level)
+    @given(obj=st.dictionaries(nibble, bytes32), nibble=uint4, level=uint4)
+    def test_get_branche_for_nibble_at_level(self, cairo_run, obj, nibble, level):
+        assume(
+            len(obj) > 0  # no empty objects
+            and min(len(k) for k in obj) > level  # longer than level
+            and len({k[:level] for k in obj}) == 1  # same prefix at level
+        )
+        branche, value = cairo_run(
+            "_get_branche_for_nibble_at_level", obj, nibble, level
+        )
+        assert branche == {
+            k: v for k, v in obj.items() if k[level] == nibble and len(k) > level
+        }
+        assert value == obj.get(level, b"")
+
+    @given(obj=st.dictionaries(nibble, bytes32), level=uint4)
+    def test_get_branches(self, cairo_run, obj, level):
+        assume(
+            len(obj) > 0  # no empty objects
+            and min(len(k) for k in obj) > level  # longer than level
+            and len({k[:level] for k in obj}) == 1  # same prefix at level
+        )
+        branches, value = cairo_run("_get_branches", obj, level)
+        assert branches == tuple(
+            {k: v for k, v in obj.items() if k[level] == nibble and len(k) > level}
+            for nibble in range(16)
+        )
+        assert value == obj.get(level, b"")
+
+    @given(obj=st.dictionaries(nibble, bytes32))
+    def test_patricialize(self, cairo_run, obj: Mapping[Bytes, Bytes]):
+        assert patricialize(obj, Uint(0)) == cairo_run("patricialize", obj, Uint(0))

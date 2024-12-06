@@ -4,8 +4,8 @@ import pytest
 from hypothesis import assume, given
 
 from ethereum.base_types import U256, Bytes, Bytes0, Bytes32, Uint
-from ethereum.cancun.blocks import Log
-from ethereum.cancun.fork_types import Account, Address, encode_account
+from ethereum.cancun.blocks import Log, Receipt, Withdrawal
+from ethereum.cancun.fork_types import Account, Address, Bloom, encode_account
 from ethereum.cancun.transactions import LegacyTransaction
 from ethereum.rlp import (
     Extended,
@@ -34,13 +34,13 @@ class TestRlp:
             assert encode(raw_uint) == cairo_run("encode_uint", raw_uint)
 
         @given(raw_uint256=...)
-        def test_encode_uint256(self, cairo_run, raw_uint256: U256):
-            assert encode(raw_uint256) == cairo_run("encode_uint256", raw_uint256)
+        def test_encode_u256(self, cairo_run, raw_uint256: U256):
+            assert encode(raw_uint256) == cairo_run("encode_u256", raw_uint256)
 
         @given(raw_uint256=...)
-        def test_encode_uint256_little(self, cairo_run, raw_uint256: U256):
+        def test_encode_u256_little(self, cairo_run, raw_uint256: U256):
             assert encode(raw_uint256.to_be_bytes()[::-1]) == cairo_run(
-                "encode_uint256_little", raw_uint256
+                "encode_u256_little", raw_uint256
             )
 
         @given(raw_bytes=...)
@@ -100,6 +100,22 @@ class TestRlp:
         @given(log=...)
         def test_encode_log(self, cairo_run, log: Log):
             assert encode(log) == cairo_run("encode_log", log)
+
+        @given(tuple_log=...)
+        def test_encode_tuple_log(self, cairo_run, tuple_log: Tuple[Log, ...]):
+            assert encode(tuple_log) == cairo_run("encode_tuple_log", tuple_log)
+
+        @given(bloom=...)
+        def test_encode_bloom(self, cairo_run, bloom: Bloom):
+            assert encode(bloom) == cairo_run("encode_bloom", bloom)
+
+        @given(receipt=...)
+        def test_encode_receipt(self, cairo_run, receipt: Receipt):
+            assert encode(receipt) == cairo_run("encode_receipt", receipt)
+
+        @given(withdrawal=...)
+        def test_encode_withdrawal(self, cairo_run, withdrawal: Withdrawal):
+            assert encode(withdrawal) == cairo_run("encode_withdrawal", withdrawal)
 
     class TestDecode:
         @given(raw_data=...)

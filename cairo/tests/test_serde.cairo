@@ -13,6 +13,7 @@ from ethereum.base_types import (
     Bytes,
     TupleBytes,
     TupleBytes32,
+    MappingBytesBytes,
 )
 
 from ethereum.cancun.fork_types import Address, Root, VersionedHash, Bloom, Account

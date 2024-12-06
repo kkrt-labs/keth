@@ -1,10 +1,11 @@
-from collections import abc, defaultdict
+from collections import ChainMap, abc, defaultdict
 from dataclasses import fields, is_dataclass
 from functools import partial
 from typing import (
     Any,
     Dict,
     ForwardRef,
+    Mapping,
     Sequence,
     Tuple,
     Type,
@@ -54,6 +55,7 @@ from ethereum.cancun.trie import BranchNode, ExtensionNode, InternalNode, LeafNo
 from ethereum.cancun.vm.gas import MessageCallGas
 from ethereum.crypto.hash import Hash32
 from ethereum.rlp import Extended, Simple
+from tests.utils.helpers import flatten
 
 _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "base_types", "None"): type(None),
@@ -117,6 +119,10 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "cancun", "trie", "BranchNode"): BranchNode,
     ("ethereum", "cancun", "trie", "InternalNode"): InternalNode,
     ("ethereum", "cancun", "trie", "Node"): Node,
+    ("ethereum", "base_types", "MappingBytesBytes"): Mapping[Bytes, Bytes],
+    ("ethereum", "base_types", "TupleMappingBytesBytes"): Tuple[
+        Mapping[Bytes, Bytes], ...
+    ],
 }
 
 # In the EELS, some functions are annotated with Sequence while it's actually just Bytes.
@@ -205,21 +211,30 @@ def _gen_arg(
         segments.load_data(struct_ptr, [instances_ptr, len(arg)])
         return struct_ptr
 
-    if arg_type_origin is dict:
+    if arg_type_origin in (dict, ChainMap, abc.Mapping):
         dict_ptr = segments.add()
         assert dict_ptr.segment_index not in dict_manager.trackers
 
         data = {
-            k: _gen_arg(dict_manager, segments, get_args(arg_type)[1], v)
+            _gen_arg(dict_manager, segments, get_args(arg_type)[0], k): _gen_arg(
+                dict_manager, segments, get_args(arg_type)[1], v
+            )
             for k, v in arg.items()
         }
         if isinstance_with_generic(arg, defaultdict):
             data = defaultdict(arg.default_factory, data)
 
+        # This is required for tests where we read data from DictAccess segments while no dict method has been used.
+        # Equivalent to doing an initial dict_read of all keys.
+        initial_data = flatten([(k, v, v) for k, v in data.items()])
+        segments.load_data(dict_ptr, initial_data)
+        current_ptr = dict_ptr + len(initial_data)
         dict_manager.trackers[dict_ptr.segment_index] = DictTracker(
-            data=data, current_ptr=dict_ptr
+            data=data, current_ptr=current_ptr
         )
-        return dict_ptr
+        base = segments.add()
+        segments.load_data(base, [dict_ptr, current_ptr])
+        return base
 
     if arg_type == MaybeRelocatable:
         return arg
@@ -245,6 +260,8 @@ def _gen_arg(
         return base
 
     if arg_type in (Bytes, bytes, bytearray, str):
+        if arg is None:
+            return 0
         if isinstance(arg, str):
             arg = arg.encode()
         bytes_ptr = segments.add()
