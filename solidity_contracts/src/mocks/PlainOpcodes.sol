@@ -31,5 +31,4 @@ contract PlainOpcodes {
         }
         emit Create2Address(_address);
     }
-
 }

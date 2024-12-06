@@ -860,7 +860,7 @@ namespace Interpreter {
         local bytecode: felt*;
         local calldata: felt*;
         local intrinsic_gas: felt;
-        local code_address: felt;
+        let code_address = address;
         if (is_deploy_tx != FALSE) {
             let (empty: felt*) = alloc();
             let (init_code_words, _) = unsigned_div_rem(bytecode_len + 31, 32);
@@ -868,13 +868,11 @@ namespace Interpreter {
             assert bytecode = tmp_calldata;
             assert calldata = empty;
             assert intrinsic_gas = tmp_intrinsic_gas + Gas.CREATE + init_code_gas;
-            assert code_address = 0;
             tempvar range_check_ptr = range_check_ptr;
         } else {
             assert bytecode = tmp_bytecode;
             assert calldata = tmp_calldata;
             assert intrinsic_gas = tmp_intrinsic_gas;
-            assert code_address = address;
             tempvar range_check_ptr = range_check_ptr;
         }
 

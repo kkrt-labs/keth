@@ -229,7 +229,6 @@ class TestOs:
             state=State.model_validate(initial_state),
         )
 
-
     def test_create_opcode(self, cairo_run):
         plain_opcodes = get_contract("PlainOpcodes", "PlainOpcodes")
 

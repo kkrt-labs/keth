@@ -151,7 +151,6 @@ namespace SystemOperations {
         let (valid_jumpdests_start, valid_jumpdests) = Helpers.initialize_jumpdests(
             bytecode_len=size.low, bytecode=bytecode
         );
-        tempvar address_zero = 0;
         tempvar message = new model.Message(
             bytecode=bytecode,
             bytecode_len=size.low,
@@ -163,7 +162,7 @@ namespace SystemOperations {
             caller=evm.message.address,
             parent=parent,
             address=target_address,
-            code_address=address_zero,
+            code_address=target_address,
             read_only=FALSE,
             is_create=TRUE,
             depth=evm.message.depth + 1,
