@@ -187,3 +187,84 @@ class TestOs:
         bytes.fromhex(
             "7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe03601600081602082378035828234f58015156039578182fd5b8082525050506014600cf3"
         ) == state["accounts"]["0x32dCAB0EF3FB2De2fce1D2E0799D36239671F04A"]["code"]
+
+    def test_jump_creation_code_deploy_tx_should_succeed(self, cairo_run):
+        initial_state = {
+            OWNER: {
+                "code": [],
+                "storage": {},
+                "balance": int(1e18),
+                "nonce": 0,
+            },
+            "0x32dCAB0EF3FB2De2fce1D2E0799D36239671F04A": {
+                "code": [],
+                "storage": {},
+                "balance": 0,
+                "nonce": 0,
+            },
+            COINBASE: {
+                "code": [],
+                "storage": {},
+                "balance": int(1e18),
+                "nonce": 0,
+            },
+            "0xc68b9a5f0f00048f2956aac21cba12fb731a1934": {
+                "code": [],
+                "storage": {},
+                "balance": 0,
+                "nonce": 0,
+            },
+        }
+        transactions = [
+            {
+                "to": "",
+                "data": bytes.fromhex("605f5f53605660015360025f5ff0"),
+                "value": 0,
+                "signer": OWNER,
+            }
+        ]
+        cairo_run(
+            "test_os",
+            block=block(transactions),
+            state=State.model_validate(initial_state),
+        )
+
+
+    def test_create_opcode(self, cairo_run):
+        plain_opcodes = get_contract("PlainOpcodes", "PlainOpcodes")
+
+        initial_state = {
+            plain_opcodes.address: {
+                "code": list(plain_opcodes.bytecode_runtime),
+                "storage": {},
+                "balance": 0,
+                "nonce": 0,
+            },
+            OWNER: {
+                "code": [],
+                "storage": {},
+                "balance": int(1e18),
+                "nonce": 0,
+            },
+            COINBASE: {
+                "code": [],
+                "storage": {},
+                "balance": int(1e18),
+                "nonce": 0,
+            },
+            "0x8bbc3514477d75ec797bbe4e19d7961660bb849c": {
+                "code": [],
+                "storage": {},
+                "balance": 0,
+                "nonce": 0,
+            },
+        }
+        transactions = [
+            plain_opcodes.create(bytes.fromhex("5f56"), 1, signer=OWNER),
+        ]
+
+        cairo_run(
+            "test_os",
+            block=block(transactions),
+            state=State.model_validate(initial_state),
+        )
