@@ -519,8 +519,25 @@ func _search_common_prefix_length{
     return _search_common_prefix_length(obj + BytesBytesDictAccess.SIZE, current_length);
 }
 
-// @dev Iterate over the DictAccesses from dict_ptr_start to dict_ptr to create a new DictAccess*
-// @dev whose key[level] = nibble.
+/// Creates a BranchNode's branch during the patricialization of a merkle trie for a specific nibble
+/// at a given level.
+///
+/// This function filters the trie's key-value pairs to create a new mapping containing only entries
+/// where the key's nibble at the specified level matches the given nibble. It also identifies any
+/// value associated with a key that ends exactly at the given level.
+/// This is used to create the 16 branches of a BranchNode during the patricialization of a merkle trie.
+///
+/// # Arguments
+///
+/// * `obj` - The trie's key-value pairs
+/// * `nibble` - The nibble value (0-15) to filter for at the given level
+/// * `level` - The level in the trie at which to check the nibble
+///
+/// # Returns
+///
+/// * A tuple containing:
+///   * The filtered mapping containing only key-value pairs where key[level] == nibble
+///   * The value associated with any key that ends exactly at the given level, or an empty Bytes if none exists
 func _get_branche_for_nibble_at_level(obj: MappingBytesBytes, nibble: felt, level: felt) -> (
     MappingBytesBytes, Bytes
 ) {
