@@ -26,15 +26,15 @@ jobs:
         uses: foundry-rs/foundry-toolchain@v1
         with:
           version: nightly
-      - name: Compile Solidity contracts
-        run: |
-          forge build
       - name: Run tests
         id: tests
         continue-on-error: true # To send a notification if the tests fail
         run: |
           echo "HYPOTHESIS_PROFILE=nightly" >> .env
-          uv run pytest "cairo/tests" -m "not NoCI" -n logical --seed 42
+          cd cairo
+          uv run compile
+          forge build
+          uv run pytest "tests" -m "not NoCI" -n logical --seed 42 --junitxml=junit.xml -o junit_family=legacy
       - name: Upload coverage report to codecov
         if: steps.tests.outcome == 'success'
         uses: codecov/codecov-action@v3
@@ -47,29 +47,10 @@ jobs:
         with:
           payload: |
             {
-              "text": "🚨 Keth Nightly Fuzzing Failed!",
-              "blocks": [
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "*Nightly Fuzzing Tests Failed*\n\n• Workflow: ${{ github.workflow }}\n• Commit: ${{ github.sha }}\n• Branch: ${{ github.ref_name }}"
-                  }
-                },
-                {
-                  "type": "actions",
-                  "elements": [
-                    {
-                      "type": "button",
-                      "text": {
-                        "type": "plain_text",
-                        "text": "View Run"
-                      },
-                      "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-                    }
-                  ]
-                }
-              ]
+              "text": ":rotating_light: *Keth Nightly Fuzzing Failed!*: <@${{ secrets.SLACK_USER_1 }}> <@${{ secrets.SLACK_USER_2 }}>\n"
             }
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      - name: Fail workflow if tests failed
+        if: steps.tests.outcome == 'failure'
+        run: exit 1

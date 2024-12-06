@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 import starkware.cairo.lang.instances as LAYOUTS
 from dotenv import load_dotenv
-from hypothesis import Phase, Verbosity, settings, HealthCheck
+from hypothesis import HealthCheck, Phase, Verbosity, settings
 
 from tests.utils.coverage import report_runs
 from tests.utils.reporting import dump_coverage
@@ -57,7 +57,7 @@ settings.register_profile(
     max_examples=1500,
     phases=[Phase.explicit, Phase.reuse, Phase.generate, Phase.target],
     report_multiple_bugs=True,
-    suppress_health_check=[HealthCheck.too_slow]
+    suppress_health_check=[HealthCheck.too_slow],
 )
 settings.register_profile(
     "ci",
