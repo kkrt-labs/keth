@@ -412,7 +412,7 @@ namespace Transaction {
         let msg_hash = keccak(tx.rlp_len, tx.rlp);
 
         Signature.verify_eth_signature_uint256(
-            msg_hash=msg_hash, r=r, s=s, v=y_parity, eth_address=tx.sender
+            msg_hash=msg_hash, r=r, s=s, y_parity=y_parity, eth_address=tx.sender
         );
 
         return ();
