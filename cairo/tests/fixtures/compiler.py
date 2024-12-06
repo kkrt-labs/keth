@@ -19,7 +19,7 @@ def cairo_compile(path):
     module_reader = get_module_reader(cairo_path=[str(Path(__file__).parents[2])])
 
     pass_manager = default_pass_manager(
-        prime=DEFAULT_PRIME, read_module=module_reader.read
+        prime=DEFAULT_PRIME, read_module=module_reader.read, opt_unused_functions=False
     )
 
     return compile_cairo(
