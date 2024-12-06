@@ -239,7 +239,9 @@ func encode_node{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: Kecc
 
     none:
     // None defined for type Node but actually not supported in the EELS
-    assert 0 = 1;
+    with_attr error_message("encode_node: node cannot be None"){
+        assert 0 = 1;
+    }
     tempvar result = Bytes(new BytesStruct(cast(0, felt*), 0));
     return result;
 
