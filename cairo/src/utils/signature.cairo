@@ -18,7 +18,7 @@ namespace Signature {
     // A version of verify_eth_signature, with that msg_hash, r and s as Uint256 and
     // using the Cairo1 helpers class.
     func verify_eth_signature_uint256{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
-        msg_hash: Uint256, r: Uint256, s: Uint256, v: felt, eth_address: felt
+        msg_hash: Uint256, r: Uint256, s: Uint256, y_parity: felt, eth_address: felt
     ) {
         alloc_locals;
         let (msg_hash_bigint: BigInt3) = uint256_to_bigint(msg_hash);
@@ -30,9 +30,13 @@ namespace Signature {
             validate_signature_entry(s_bigint);
         }
 
+        with_attr error_message("Invalid y_parity") {
+            assert (1 - y_parity) * y_parity = 0;
+        }
+
         with_attr error_message("Invalid signature.") {
             let (success, recovered_address) = ICairo1Helpers.recover_eth_address(
-                msg_hash=msg_hash, r=r, s=s, y_parity=v
+                msg_hash=msg_hash, r=r, s=s, y_parity=y_parity
             );
             // TODO: uncomment when we have a working recover_eth_address
             // assert success = 1;
