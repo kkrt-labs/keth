@@ -34,7 +34,7 @@ jobs:
           cd cairo
           uv run compile
           forge build
-          uv run pytest "tests" -m "not NoCI" -n logical --seed 42 --junitxml=junit.xml -o junit_family=legacy
+          uv run pytest "tests" -m "not NoCI" -n logical --junitxml=junit.xml -o junit_family=legacy
       - name: Upload coverage report to codecov
         if: steps.tests.outcome == 'success'
         uses: codecov/codecov-action@v3
