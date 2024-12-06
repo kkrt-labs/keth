@@ -622,6 +622,21 @@ func _get_branche_for_nibble_at_level(obj: MappingBytesBytes, nibble: felt, leve
 }
 
 // @dev Fill each of the 16 branches.
+/// Fill each of the 16 branches of a branch node in a Merkle Patricia Trie.
+///
+/// Given a trie's key-value pairs (obj) with keys in nibble-list format and a level in the trie,
+/// splits the mapping into 16 branches based on the nibble at the given level in each key. It also
+/// extracts any value associated with a key that ends exactly at the given level.
+///
+/// # Arguments
+///
+/// * `obj` - The trie's key-value pairs
+/// * `level` - The level in the trie at which to split the branches (determines which nibble to use)
+///
+/// # Returns
+///
+/// * A tuple containing:
+///   * A tuple of 16 mappings, one for each possible nibble value
 func _get_branches(obj: MappingBytesBytes, level: Uint) -> (TupleMappingBytesBytes, Bytes) {
     alloc_locals;
 
