@@ -239,7 +239,7 @@ func encode_node{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: Kecc
 
     none:
     // None defined for type Node but actually not supported in the EELS
-    with_attr error_message("encode_node: node cannot be None"){
+    with_attr error_message("encode_node: node cannot be None") {
         assert 0 = 1;
     }
     tempvar result = Bytes(new BytesStruct(cast(0, felt*), 0));
@@ -478,27 +478,27 @@ func bytes_to_nibble_list{bitwise_ptr: BitwiseBuiltin*}(bytes_: Bytes) -> Bytes 
 //         // return Root(root_node)
 // }
 
-/// Finds the maximum length of common prefix among all keys in a trie at a given level.
-///
-/// Given a trie's key-value pairs (obj) with keys in nibble-list format, this function searches
-/// for the maximum length `j` such that all keys in obj share the same prefix from position level to j.
-/// This is used during trie construction to determine how many nibbles can be grouped into a single
-/// extension node.
-///
-/// # Arguments
-/// ## Implicit Arguments
-/// * `substring` - The prefix of the current key-value pair being examined
-/// * `level` - The current level being examined
-/// * `dict_ptr_stop` - The pointer to the end of the key-value pairs being examined
-///
-/// ## Explicit Arguments
-/// * `obj` - Pointer to the current key-value pair being examined
-/// * `current_length` - Current maximum common prefix length found so far
-///
-/// # Returns
-///
-/// * The length of the common prefix shared by all keys starting from `level`
-/// ```
+// / Finds the maximum length of common prefix among all keys in a trie at a given level.
+// /
+// / Given a trie's key-value pairs (obj) with keys in nibble-list format, this function searches
+// / for the maximum length `j` such that all keys in obj share the same prefix from position level to j.
+// / This is used during trie construction to determine how many nibbles can be grouped into a single
+// / extension node.
+// /
+// / # Arguments
+// / ## Implicit Arguments
+// / * `substring` - The prefix of the current key-value pair being examined
+// / * `level` - The current level being examined
+// / * `dict_ptr_stop` - The pointer to the end of the key-value pairs being examined
+// /
+// / ## Explicit Arguments
+// / * `obj` - Pointer to the current key-value pair being examined
+// / * `current_length` - Current maximum common prefix length found so far
+// /
+// / # Returns
+// /
+// / * The length of the common prefix shared by all keys starting from `level`
+// / ```
 func _search_common_prefix_length{
     range_check_ptr, substring: Bytes, level: Uint, dict_ptr_stop: BytesBytesDictAccess*
 }(obj: BytesBytesDictAccess*, current_length: felt) -> felt {
@@ -519,25 +519,25 @@ func _search_common_prefix_length{
     return _search_common_prefix_length(obj + BytesBytesDictAccess.SIZE, current_length);
 }
 
-/// Creates a BranchNode's branch during the patricialization of a merkle trie for a specific nibble
-/// at a given level.
-///
-/// This function filters the trie's key-value pairs to create a new mapping containing only entries
-/// where the key's nibble at the specified level matches the given nibble. It also identifies any
-/// value associated with a key that ends exactly at the given level.
-/// This is used to create the 16 branches of a BranchNode during the patricialization of a merkle trie.
-///
-/// # Arguments
-///
-/// * `obj` - The trie's key-value pairs
-/// * `nibble` - The nibble value (0-15) to filter for at the given level
-/// * `level` - The level in the trie at which to check the nibble
-///
-/// # Returns
-///
-/// * A tuple containing:
-///   * The filtered mapping containing only key-value pairs where key[level] == nibble
-///   * The value associated with any key that ends exactly at the given level, or an empty Bytes if none exists
+// / Creates a BranchNode's branch during the patricialization of a merkle trie for a specific nibble
+// / at a given level.
+// /
+// / This function filters the trie's key-value pairs to create a new mapping containing only entries
+// / where the key's nibble at the specified level matches the given nibble. It also identifies any
+// / value associated with a key that ends exactly at the given level.
+// / This is used to create the 16 branches of a BranchNode during the patricialization of a merkle trie.
+// /
+// / # Arguments
+// /
+// / * `obj` - The trie's key-value pairs
+// / * `nibble` - The nibble value (0-15) to filter for at the given level
+// / * `level` - The level in the trie at which to check the nibble
+// /
+// / # Returns
+// /
+// / * A tuple containing:
+// /   * The filtered mapping containing only key-value pairs where key[level] == nibble
+// /   * The value associated with any key that ends exactly at the given level, or an empty Bytes if none exists
 func _get_branche_for_nibble_at_level(obj: MappingBytesBytes, nibble: felt, level: felt) -> (
     MappingBytesBytes, Bytes
 ) {
@@ -639,21 +639,21 @@ func _get_branche_for_nibble_at_level(obj: MappingBytesBytes, nibble: felt, leve
 }
 
 // @dev Fill each of the 16 branches.
-/// Fill each of the 16 branches of a branch node in a Merkle Patricia Trie.
-///
-/// Given a trie's key-value pairs (obj) with keys in nibble-list format and a level in the trie,
-/// splits the mapping into 16 branches based on the nibble at the given level in each key. It also
-/// extracts any value associated with a key that ends exactly at the given level.
-///
-/// # Arguments
-///
-/// * `obj` - The trie's key-value pairs
-/// * `level` - The level in the trie at which to split the branches (determines which nibble to use)
-///
-/// # Returns
-///
-/// * A tuple containing:
-///   * A tuple of 16 mappings, one for each possible nibble value
+// / Fill each of the 16 branches of a branch node in a Merkle Patricia Trie.
+// /
+// / Given a trie's key-value pairs (obj) with keys in nibble-list format and a level in the trie,
+// / splits the mapping into 16 branches based on the nibble at the given level in each key. It also
+// / extracts any value associated with a key that ends exactly at the given level.
+// /
+// / # Arguments
+// /
+// / * `obj` - The trie's key-value pairs
+// / * `level` - The level in the trie at which to split the branches (determines which nibble to use)
+// /
+// / # Returns
+// /
+// / * A tuple containing:
+// /   * A tuple of 16 mappings, one for each possible nibble value
 func _get_branches(obj: MappingBytesBytes, level: Uint) -> (TupleMappingBytesBytes, Bytes) {
     alloc_locals;
 
