@@ -478,6 +478,27 @@ func bytes_to_nibble_list{bitwise_ptr: BitwiseBuiltin*}(bytes_: Bytes) -> Bytes 
 //         // return Root(root_node)
 // }
 
+/// Finds the maximum length of common prefix among all keys in a trie at a given level.
+///
+/// Given a trie's key-value pairs (obj) with keys in nibble-list format, this function searches
+/// for the maximum length `j` such that all keys in obj share the same prefix from position level to j.
+/// This is used during trie construction to determine how many nibbles can be grouped into a single
+/// extension node.
+///
+/// # Arguments
+/// ## Implicit Arguments
+/// * `substring` - The prefix of the current key-value pair being examined
+/// * `level` - The current level being examined
+/// * `dict_ptr_stop` - The pointer to the end of the key-value pairs being examined
+///
+/// ## Explicit Arguments
+/// * `obj` - Pointer to the current key-value pair being examined
+/// * `current_length` - Current maximum common prefix length found so far
+///
+/// # Returns
+///
+/// * The length of the common prefix shared by all keys starting from `level`
+/// ```
 func _search_common_prefix_length{
     range_check_ptr, substring: Bytes, level: Uint, dict_ptr_stop: BytesBytesDictAccess*
 }(obj: BytesBytesDictAccess*, current_length: felt) -> felt {
