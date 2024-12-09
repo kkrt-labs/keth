@@ -1,7 +1,9 @@
+use crate::model::{block::KethBlock, payload::KethPayload};
 use cairo_vm::{
     hint_processor::{
         builtin_hint_processor::{
             builtin_hint_processor_definition::{BuiltinHintProcessor, HintFunc},
+            hint_utils::insert_value_from_var_name,
             memcpy_hint_utils::add_segment,
         },
         hint_processor_definition::HintReference,
@@ -35,7 +37,11 @@ impl fmt::Debug for KakarotHintProcessor {
 
 impl Default for KakarotHintProcessor {
     fn default() -> Self {
-        Self::new_empty().with_hint(&add_segment_hint())
+        Self::new_empty()
+            .with_hint(&add_segment_hint())
+            .with_hint(&dict_manager_hint())
+            .with_hint(&dict_copy_hint())
+            .with_hint(&dict_squash_hint())
     }
 }
 
@@ -125,18 +131,168 @@ pub fn add_segment_hint() -> Hint {
 }
 
 /// Proper header documentation needs to be defined after the implementation of the hint.
-pub fn block_hint(_block: SealedBlock) -> Hint {
+pub fn block_hint(block: SealedBlock) -> Hint {
+    // Convert the SealedBlock into a KethBlock
+    let keth_block: KethBlock = block.into();
+
+    // Convert the KethBlock into a KethPayload
+    let keth_payload: KethPayload = keth_block.into();
+
     Hint::new(
         String::from("block"),
-        move |_vm: &mut VirtualMachine,
+        move |vm: &mut VirtualMachine,
               _exec_scopes: &mut ExecutionScopes,
-              _ids_data: &HashMap<String, HintReference>,
-              _ap_tracking: &ApTracking,
+              ids_data: &HashMap<String, HintReference>,
+              ap_tracking: &ApTracking,
               _constants: &HashMap<String, Felt252>|
               -> HintExecutionResult {
-            // Implementation to be done in a follow up PR
+            // Add memory segment for the block payload in the VM.
+            let base = keth_payload.gen_arg(vm)?;
+
+            // Assign the base pointer to the block variable.
+            insert_value_from_var_name("block", base, vm, ids_data, ap_tracking)?;
 
             Ok(())
         },
     )
+}
+
+/// Generates a placeholder hint for `dict_manager`.
+pub fn dict_manager_hint() -> Hint {
+    Hint::new(
+        String::from("dict_manager"),
+        |_vm: &mut VirtualMachine,
+         _exec_scopes: &mut ExecutionScopes,
+         _ids_data: &HashMap<String, HintReference>,
+         _ap_tracking: &ApTracking,
+         _constants: &HashMap<String, Felt252>|
+         -> HintExecutionResult {
+            // Placeholder logic for dict_manager
+            Ok(())
+        },
+    )
+}
+
+
+/// Generates a placeholder hint for state.
+pub fn state_hint() -> Hint {
+    Hint::new(
+        String::from("state"),
+        |_vm: &mut VirtualMachine,
+         _exec_scopes: &mut ExecutionScopes,
+         _ids_data: &HashMap<String, HintReference>,
+         _ap_tracking: &ApTracking,
+         _constants: &HashMap<String, Felt252>|
+         -> HintExecutionResult {
+            // Placeholder logic for state
+            Ok(())
+        },
+    )
+}
+
+/// Generates a placeholder hint for `chain_id`.
+pub fn chain_id_hint() -> Hint {
+    Hint::new(
+        String::from("chain_id"),
+        |_vm: &mut VirtualMachine,
+         _exec_scopes: &mut ExecutionScopes,
+         _ids_data: &HashMap<String, HintReference>,
+         _ap_tracking: &ApTracking,
+         _constants: &HashMap<String, Felt252>|
+         -> HintExecutionResult {
+            // Placeholder logic for chain_id
+            Ok(())
+        },
+    )
+}
+
+/// Generates a placeholder hint for `dict_copy`.
+pub fn dict_copy_hint() -> Hint {
+    Hint::new(
+        String::from("dict_copy"),
+        |_vm: &mut VirtualMachine,
+         _exec_scopes: &mut ExecutionScopes,
+         _ids_data: &HashMap<String, HintReference>,
+         _ap_tracking: &ApTracking,
+         _constants: &HashMap<String, Felt252>|
+         -> HintExecutionResult {
+            // Placeholder logic for dict_copy
+            Ok(())
+        },
+    )
+}
+
+/// Generates a placeholder hint for `dict_squash`.
+pub fn dict_squash_hint() -> Hint {
+    Hint::new(
+        String::from("dict_squash"),
+        |_vm: &mut VirtualMachine,
+         _exec_scopes: &mut ExecutionScopes,
+         _ids_data: &HashMap<String, HintReference>,
+         _ap_tracking: &ApTracking,
+         _constants: &HashMap<String, Felt252>|
+         -> HintExecutionResult {
+            // Placeholder logic for dict_squash
+            Ok(())
+        },
+    )
+}
+
+/// Generates a placeholder hint for `block_hashes`.
+pub fn block_hashes_hint() -> Hint {
+    Hint::new(
+        String::from("block_hashes"),
+        |_vm: &mut VirtualMachine,
+         _exec_scopes: &mut ExecutionScopes,
+         _ids_data: &HashMap<String, HintReference>,
+         _ap_tracking: &ApTracking,
+         _constants: &HashMap<String, Felt252>|
+         -> HintExecutionResult {
+            // Placeholder logic for block_hashes
+            Ok(())
+        },
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use arbitrary::{Arbitrary, Unstructured};
+    use cairo_vm::{
+        cairo_run::{cairo_run, CairoRunConfig},
+        types::layout_name::LayoutName,
+    };
+    use std::path::PathBuf;
+
+    #[test]
+    fn test_block_hint() {
+        // Load the cairo program from the file
+        let program =
+            std::fs::read(PathBuf::from("../../cairo/tests/programs/test_os.json")).unwrap();
+
+        // Initialize the Cairo run configuration
+        let config = CairoRunConfig {
+            layout: LayoutName::all_cairo,
+            trace_enabled: true,
+            relocate_mem: true,
+            proof_mode: true,
+            entrypoint: "test_block_hint",
+            ..Default::default()
+        };
+
+        // Prepare a random byte array for testing
+        let raw_bytes = [0u8; 1500];
+        let mut unstructured = Unstructured::new(&raw_bytes);
+
+        // Generate an arbitrary `SealedBlock`
+        let block: SealedBlock = SealedBlock::arbitrary(&mut unstructured)
+            .expect("Failed to generate arbitrary SealedBlock");
+
+        // Build the Kakarot hint processor.
+        let mut hint_processor = KakarotHintProcessor::default().with_block(block).build();
+
+        // Execute the Kakarot os program
+        let _res = cairo_run(&program, &config, &mut hint_processor)
+            .expect("The program should run properly");
+    }
 }
