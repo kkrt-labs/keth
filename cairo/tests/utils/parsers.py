@@ -1,9 +1,10 @@
 import re
 from typing import Annotated, Optional, Union
 
+from pydantic import BeforeValidator
+
 from ethereum.base_types import U64, U256, Bytes, Bytes0, Bytes32, Uint
 from ethereum.cancun.fork_types import Address
-from pydantic import BeforeValidator
 
 hex_pattern = re.compile(r"^(0x)?[0-9a-fA-F]+$")
 
