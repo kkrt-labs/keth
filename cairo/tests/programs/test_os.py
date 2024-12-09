@@ -1,4 +1,5 @@
 from eth_abi import encode
+from ethereum_types.numeric import U256
 from hypothesis import given
 from hypothesis.strategies import integers
 
@@ -127,7 +128,7 @@ class TestOs:
             ),
         ]
 
-    @given(s_value=integers(min_value=SECP256K1N // 2 + 1, max_value=SECP256K1N))
+    @given(s_value=integers(min_value=SECP256K1N // U256(2 + 1), max_value=SECP256K1N))
     def test_should_raise_on_invalid_s_value(self, cairo_run, s_value):
         initial_state = {
             OWNER: {

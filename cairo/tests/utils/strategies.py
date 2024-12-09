@@ -4,27 +4,17 @@ from dataclasses import fields
 from typing import ForwardRef, Sequence, TypeAlias, Union
 from unittest.mock import patch
 
-from eth_keys.datatypes import PrivateKey
+from ethereum_types.bytes import Bytes0, Bytes8, Bytes20, Bytes32, Bytes256
+from ethereum_types.numeric import U64, U256, FixedUnsigned, Uint
 from hypothesis import strategies as st
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
-
-from ethereum.base_types import (
-    U64,
-    U256,
-    Bytes0,
-    Bytes8,
-    Bytes20,
-    Bytes32,
-    Bytes256,
-    FixedUint,
-    Uint,
-)
 from ethereum.crypto.elliptic_curve import SECP256K1N
+from eth_keys.datatypes import PrivateKey
 
 # Mock the Extended type because hypothesis cannot handle the RLP Protocol
 # Needs to be done before importing the types from ethereum.cancun.trie
 # trunk-ignore(ruff/F821)
-MockExtended: TypeAlias = Union[Sequence["Extended"], bytearray, bytes, Uint, FixedUint, str, bool]  # type: ignore
+MockExtended: TypeAlias = Union[Sequence["Extended"], bytearray, bytes, Uint, FixedUnsigned, str, bool]  # type: ignore
 patch("ethereum.rlp.Extended", MockExtended).start()
 
 from ethereum.cancun.blocks import Header, Log, Receipt, Withdrawal
@@ -113,7 +103,7 @@ private_key = (
 def register_type_strategies():
     st.register_type_strategy(U64, uint64)
     st.register_type_strategy(Uint, uint)
-    st.register_type_strategy(FixedUint, uint)
+    st.register_type_strategy(FixedUnsigned, uint)
     st.register_type_strategy(U256, uint256)
     st.register_type_strategy(Bytes0, bytes0)
     st.register_type_strategy(Bytes8, bytes8)

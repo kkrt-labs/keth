@@ -1,8 +1,8 @@
 import pytest
+from ethereum_types.numeric import U256
 from hypothesis import given
 from hypothesis import strategies as st
 
-from ethereum.base_types import U256
 from ethereum.crypto.elliptic_curve import SECP256K1N, secp256k1_recover
 from ethereum.crypto.hash import Hash32, keccak256
 from ethereum.utils.byte import left_pad_zero_bytes
@@ -16,15 +16,15 @@ def ecrecover(data):
     r = U256.from_be_bytes(data[64:96])
     s = U256.from_be_bytes(data[96:128])
 
-    if v != 27 and v != 28:
+    if v != U256(27) and v != U256(28):
         return []
-    if 0 >= r or r >= SECP256K1N:
+    if U256(0) >= r or r >= SECP256K1N:
         return []
-    if 0 >= s or s >= SECP256K1N:
+    if U256(0) >= s or s >= SECP256K1N:
         return []
 
     try:
-        public_key = secp256k1_recover(r, s, v - 27, message_hash)
+        public_key = secp256k1_recover(r, s, v - U256(27), message_hash)
     except ValueError:
         # unable to extract public key
         return []
@@ -64,8 +64,8 @@ class TestEcRecover:
     @given(
         v=st.integers(min_value=0, max_value=26) | st.integers(min_value=29),
         msg=st.binary(min_size=32, max_size=32),
-        r=st.integers(min_value=1, max_value=SECP256K1N - 1),
-        s=st.integers(min_value=1, max_value=SECP256K1N - 1),
+        r=st.integers(min_value=1, max_value=SECP256K1N - U256(1)),
+        s=st.integers(min_value=1, max_value=SECP256K1N - U256(1)),
     )
     def test_invalid_v(self, v, msg, r, s, cairo_run):
         """Test with invalid v values."""

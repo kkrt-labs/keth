@@ -4,15 +4,13 @@ from starkware.cairo.common.math_cmp import is_le, is_not_zero
 from starkware.cairo.common.math import assert_not_zero
 from starkware.cairo.common.memcpy import memcpy
 
-from ethereum.base_types import (
-    Bool,
+from ethereum_types.numeric import Bool, U256, Uint
+from ethereum_types.bytes import (
     Bytes,
     BytesStruct,
     Bytes32,
     TupleBytes,
     TupleBytesStruct,
-    Uint,
-    U256,
     String,
     StringStruct,
     TupleBytes32,

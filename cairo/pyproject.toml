@@ -8,6 +8,7 @@ requires-python = ">=3.10"
 dependencies = [
   "cairo-lang>=0.13.2",
   "ethereum",
+  "ethereum-types>=0.2.3,<0.3",
   "marshmallow-dataclass>=8.6.1",
   "python-dotenv>=1.0.1",
   "toml>=0.10.2",
@@ -152,7 +153,7 @@ profile = "black"
 src_paths = ["src", "tests"]
 
 [tool.uv.sources]
-ethereum = { git = "https://github.com/ethereum/execution-specs.git" }
+ethereum = { git = "https://github.com/ethereum/execution-specs.git", rev = "1adcc1bfe774798bcacc685aebc17bd9935078c3" }
 
 [build-system]
 requires = ["hatchling"]
