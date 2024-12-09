@@ -78,12 +78,12 @@ class TestSignature:
         ):
             signature = private_key.sign_msg_hash(message)
             expected_address = int(private_key.public_key.to_address(), 16)
-            result = cairo_run(
+            success, address = cairo_run(
                 "test__try_recover_eth_address",
                 msg_hash=U256.from_be_bytes(message),
                 r=U256(signature.r),
                 s=U256(signature.s),
                 y_parity=signature.v,
             )
-            assert result.success == 1
-            assert result.address == expected_address
+            assert success == 1
+            assert address == expected_address

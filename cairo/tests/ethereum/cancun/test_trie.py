@@ -105,11 +105,14 @@ class TestTrie:
     # def test_root(self, cairo_run, trie, get_storage_root):
     #     assert root(trie, get_storage_root) == cairo_run("root", trie, get_storage_root)
 
-    @given(obj=st.dictionaries(nibble, bytes32), nibble=uint4, level=uint4)
+    @given(
+        obj=st.dictionaries(nibble, bytes32).filter(lambda x: len(x) > 0),
+        nibble=uint4,
+        level=uint4,
+    )
     def test_get_branche_for_nibble_at_level(self, cairo_run, obj, nibble, level):
         assume(
-            len(obj) > 0  # no empty objects
-            and min(len(k) for k in obj) > level  # longer than level
+            min(len(k) for k in obj) > level  # longer than level
             and len({k[:level] for k in obj}) == 1  # same prefix at level
         )
         branche, value = cairo_run(
