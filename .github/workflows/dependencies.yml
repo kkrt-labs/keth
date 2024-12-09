@@ -27,6 +27,7 @@ jobs:
 
         <details><summary><strong>cargo update log</strong></summary>
         <p>
+
         ```log
         $cargo_update_log
         ```
@@ -81,10 +82,11 @@ jobs:
       BRANCH: uv-update
       TITLE: "chore(deps): update ethereum execution-specs"
       BODY: |
-        Automation to keep ethereum execution-specs dependency current.
+        Automation to keep ethereum execution-specs dependency up to date.
 
         <details><summary><strong>uv update log</strong></summary>
         <p>
+
         ```log
         $uv_update_log
         ```
