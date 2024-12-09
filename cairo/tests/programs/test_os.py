@@ -187,3 +187,39 @@ class TestOs:
         bytes.fromhex(
             "7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe03601600081602082378035828234f58015156039578182fd5b8082525050506014600cf3"
         ) == state["accounts"]["0x32dCAB0EF3FB2De2fce1D2E0799D36239671F04A"]["code"]
+
+    @given(nonce=integers(min_value=2**64, max_value=2**248 - 1))
+    def test_should_raise_when_nonce_is_greater_u64(self, cairo_run, nonce):
+        initial_state = {
+            OWNER: {
+                "code": [],
+                "storage": {},
+                "balance": int(1e18),
+                "nonce": nonce,
+            },
+            OTHER: {
+                "code": [],
+                "storage": {},
+                "balance": int(1e18),
+                "nonce": 0,
+            },
+            COINBASE: {
+                "code": [],
+                "storage": {},
+                "balance": 0,
+                "nonce": 0,
+            },
+        }
+        transaction = {
+            "to": OTHER,
+            "data": "",
+            "value": 0,
+            "signer": OWNER,
+        }
+
+        with cairo_error("Invalid nonce"):
+            cairo_run(
+                "test_os",
+                block=block([transaction], nonces={OWNER: nonce}),
+                state=State.model_validate(initial_state),
+            )

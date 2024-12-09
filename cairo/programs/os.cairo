@@ -87,6 +87,7 @@ func apply_transactions{
 
     // Validate nonce
     with_attr error_message("Invalid nonce") {
+        assert_le(tx.signer_nonce, 2 ** 64 - 2);
         assert tx.signer_nonce = account.nonce;
     }
 
