@@ -1,5 +1,5 @@
 import pytest
-from hypothesis import given
+from hypothesis import example, given
 from hypothesis.strategies import integers
 
 from ethereum.cancun.vm.gas import (
@@ -44,6 +44,7 @@ class TestGas:
                 min_value=0, max_value=0x3C0000
             ),  # upper bound reaching 30M gas limit on expansion
         )
+        @example(offset_1=2**200, size_1=0, offset_2=0, size_2=1, words_len=1)
         def test_should_return_max_expansion_cost(
             self, cairo_run, offset_1, size_1, offset_2, size_2, words_len
         ):
