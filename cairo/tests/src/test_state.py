@@ -10,3 +10,11 @@ class TestState:
     class TestCopyAccounts:
         def test_should_handle_null_pointers(self, cairo_run):
             cairo_run("test___copy_accounts__should_handle_null_pointers")
+
+    class TestAddTransfer:
+        def test_should_return_false_when_overflowing_recipient_balance(
+            self, cairo_run
+        ):
+            cairo_run(
+                "test__add_transfer_should_return_false_when_overflowing_recipient_balance"
+            )

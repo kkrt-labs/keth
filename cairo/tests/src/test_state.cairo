@@ -265,3 +265,34 @@ func test__is_storage_warm__should_return_false_when_not_accessed{
     assert result = 0;
     return ();
 }
+
+func test__add_transfer_should_return_false_when_overflowing_recipient_balance{
+    pedersen_ptr: HashBuiltin*, range_check_ptr
+}() {
+    alloc_locals;
+    let state = State.init();
+    let (code) = alloc();
+    tempvar code_hash = new Uint256(
+        304396909071904405792975023732328604784, 262949717399590921288928019264691438528
+    );
+
+    // Sender
+    tempvar sender = 0x10001;
+    tempvar balanceSender = new Uint256(2 ** 128 - 1, 2 ** 128 - 1);
+    let accountSender = Account.init(0, code, code_hash, 1, balanceSender);
+
+    // Recipient
+    tempvar recipient = 0x10002;
+    tempvar balanceRecipient = new Uint256(2, 0);
+    let accountRecipient = Account.init(0, code, code_hash, 1, balanceRecipient);
+
+    // Tran
+    with state {
+        State.update_account(sender, accountSender);
+        State.update_account(recipient, accountRecipient);
+        tempvar transfer = model.Transfer(sender, recipient, [balanceSender]);
+        let result = State.add_transfer(transfer);
+    }
+    assert result = 0;
+    return ();
+}
