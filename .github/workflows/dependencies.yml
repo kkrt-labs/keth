@@ -151,5 +151,5 @@ jobs:
           title: ${{ env.TITLE }}
           body: ${{ steps.msg.outputs.body }}
           branch: "${{ env.BRANCH }}"
-          labels: "dependencies"
+          labels: dependencies
           delete-branch: true
