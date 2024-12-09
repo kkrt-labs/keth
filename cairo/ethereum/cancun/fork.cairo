@@ -1,7 +1,8 @@
 from starkware.cairo.common.bool import TRUE, FALSE
 from starkware.cairo.common.math_cmp import is_le
 from starkware.cairo.common.math import assert_not_zero
-from ethereum.base_types import Uint, Bytes, Bytes0, bool
+from ethereum_types.numeric import Uint, bool
+from ethereum_types.bytes import Bytes, Bytes0
 from ethereum.utils.numeric import divmod
 from ethereum.cancun.blocks import Header
 from ethereum.cancun.transactions import (

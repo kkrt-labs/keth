@@ -1,4 +1,4 @@
-from ethereum.base_types import U256, Uint, U64
+from ethereum_types.numeric import U256, Uint, U64
 from ethereum.utils.numeric import is_zero, divmod, taylor_exponential, min, ceil32
 from ethereum.cancun.blocks import Header
 from ethereum.cancun.transactions import Transaction

@@ -1,10 +1,11 @@
 from typing import Mapping, Optional
 
 import pytest
+from ethereum_types.bytes import Bytes
+from ethereum_types.numeric import Uint
 from hypothesis import assume, given
 from hypothesis import strategies as st
 
-from ethereum.base_types import Bytes, Uint
 from ethereum.cancun.fork_types import Account
 from ethereum.cancun.trie import (
     InternalNode,

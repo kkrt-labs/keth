@@ -1,10 +1,10 @@
 from math import ceil
 
 import pytest
+from ethereum_types.bytes import Bytes
 from hypothesis import example, given, settings
 from hypothesis import strategies as st
 
-from ethereum.base_types import Bytes
 from ethereum.cancun.vm.runtime import get_valid_jump_destinations
 from tests.utils.errors import cairo_error
 from tests.utils.helpers import pack_calldata

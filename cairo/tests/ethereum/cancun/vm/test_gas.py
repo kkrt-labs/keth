@@ -1,7 +1,7 @@
+from ethereum_types.numeric import U256, Uint
 from hypothesis import assume, given
 from hypothesis import strategies as st
 
-from ethereum.base_types import U256, Uint
 from ethereum.cancun.blocks import Header
 from ethereum.cancun.transactions import BlobTransaction
 from ethereum.cancun.vm.gas import (

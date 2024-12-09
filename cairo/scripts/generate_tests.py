@@ -206,8 +206,10 @@ class TestGenerator(ast.NodeVisitor):
         """Add imports needed for type annotations"""
         if isinstance(node, ast.Name):
             # Add basic types to imports if they're from ethereum
-            if node.id in {"U256", "U64", "Uint", "Bytes", "Bytes32"}:
-                self.imports.add("from ethereum.base_types import " + node.id)
+            if node.id in {"U256", "U64", "Uint"}:
+                self.imports.add("from ethereum_types.numeric import " + node.id)
+            elif node.id in {"Bytes", "Bytes32"}:
+                self.imports.add("from ethereum_types.bytes import " + node.id)
         elif isinstance(node, ast.Subscript):
             # Handle generic types
             if isinstance(node.value, ast.Name):
