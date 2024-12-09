@@ -58,19 +58,20 @@ def cairo_run(request, cairo_program, cairo_file, main_path):
     """
 
     def _factory(entrypoint, *args, **kwargs):
+        entrypoint_path = ("__main__", *entrypoint.split("."))
         implicit_args = list(
             cairo_program.identifiers.get_by_full_name(
-                ScopedName(path=("__main__", entrypoint, "ImplicitArgs"))
+                ScopedName(path=entrypoint_path + ("ImplicitArgs",))
             ).members.keys()
         )
         _args = {
             k: to_python_type(resolve_main_path(main_path)(v.cairo_type))
             for k, v in cairo_program.identifiers.get_by_full_name(
-                ScopedName(path=("__main__", entrypoint, "Args"))
+                ScopedName(path=entrypoint_path + ("Args",))
             ).members.items()
         }
         return_data = cairo_program.identifiers.get_by_full_name(
-            ScopedName(path=("__main__", entrypoint, "Return"))
+            ScopedName(path=entrypoint_path + ("Return",))
         )
         # Fix builtins runner based on the implicit args since the compiler doesn't find them
         cairo_program.builtins = [
