@@ -25,7 +25,6 @@ from src.instructions.system_operations import CallHelper, CreateHelper, SystemO
 from src.memory import Memory
 from src.model import model
 from src.precompiles.precompiles import Precompiles
-from src.precompiles.precompiles_helpers import PrecompilesHelpers
 from src.stack import Stack
 from src.state import State
 from src.gas import Gas, GAS_INIT_CODE_WORD_COST
@@ -58,34 +57,17 @@ namespace Interpreter {
         let pc = evm.program_counter;
         let is_pc_ge_code_len = is_nn(pc - evm.message.bytecode_len);
         if (is_pc_ge_code_len != FALSE) {
-            let is_precompile = PrecompilesHelpers.is_precompile(evm.message.code_address);
+            let is_precompile = Precompiles.is_precompile(evm.message.code_address);
             if (is_precompile != FALSE) {
-                let parent_context = evm.message.parent;
-                let is_parent_zero = Helpers.is_zero(cast(parent_context, felt));
-                if (is_parent_zero != FALSE) {
-                    // Case A: The precompile is called straight from an EOA
-                    tempvar caller_code_address = evm.message.caller;
-                } else {
-                    // Case B: The precompile is called from a contract
-                    tempvar caller_code_address = parent_context.evm.message.code_address;
-                }
-                tempvar caller_address = evm.message.caller;
                 let (
                     output_len, output, gas_used, precompile_reverted
                 ) = Precompiles.exec_precompile(
-                    evm.message.code_address,
-                    evm.message.calldata_len,
-                    evm.message.calldata,
-                    caller_code_address,
-                    caller_address,
+                    evm.message.code_address, evm.message.calldata_len, evm.message.calldata
                 );
                 let evm = EVM.charge_gas(evm, gas_used);
                 let evm_reverted = is_not_zero(evm.reverted);
                 let success = (1 - precompile_reverted) * (1 - evm_reverted);
                 let evm = EVM.stop(evm, output_len, output, 1 - success);
-                let is_cairo_precompile_called = PrecompilesHelpers.is_kakarot_precompile(
-                    evm.message.code_address
-                );
                 tempvar message = new model.Message(
                     bytecode=evm.message.bytecode,
                     bytecode_len=evm.message.bytecode_len,
@@ -102,7 +84,6 @@ namespace Interpreter {
                     is_create=evm.message.is_create,
                     depth=evm.message.depth,
                     env=evm.message.env,
-                    cairo_precompile_called=is_cairo_precompile_called,
                 );
                 tempvar evm = new model.EVM(
                     message=message,
@@ -900,7 +881,6 @@ namespace Interpreter {
             is_create=is_deploy_tx,
             depth=0,
             env=env,
-            cairo_precompile_called=FALSE,
         );
 
         let stack = Stack.init();
