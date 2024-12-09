@@ -57,7 +57,6 @@ namespace EVM {
             is_create=evm.message.is_create,
             depth=evm.message.depth,
             env=evm.message.env,
-            cairo_precompile_called=evm.message.cairo_precompile_called,
         );
 
         tempvar evm = new model.EVM(
@@ -285,7 +284,6 @@ namespace EVM {
             is_create=self.message.is_create,
             depth=self.message.depth,
             env=self.message.env,
-            cairo_precompile_called=self.message.cairo_precompile_called,
         );
 
         if (is_valid_jumpdest == FALSE) {

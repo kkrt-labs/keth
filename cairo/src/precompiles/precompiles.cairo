@@ -6,29 +6,29 @@ from starkware.cairo.common.memcpy import memcpy
 
 from src.errors import Errors
 from src.precompiles.blake2f import PrecompileBlake2f
-from src.precompiles.kakarot_precompiles import KakarotPrecompiles
 from src.precompiles.datacopy import PrecompileDataCopy
 from src.precompiles.ec_recover import PrecompileEcRecover
 from src.precompiles.p256verify import PrecompileP256Verify
 from src.precompiles.ripemd160 import PrecompileRIPEMD160
 from src.precompiles.sha256 import PrecompileSHA256
-from src.precompiles.precompiles_helpers import (
-    PrecompilesHelpers,
-    LAST_ETHEREUM_PRECOMPILE_ADDRESS,
-    FIRST_ROLLUP_PRECOMPILE_ADDRESS,
-    FIRST_KAKAROT_PRECOMPILE_ADDRESS,
-)
 from src.utils.utils import Helpers
+
+const LAST_ETHEREUM_PRECOMPILE_ADDRESS = 0x0a;
 
 // @title Precompile related functions.
 namespace Precompiles {
+    // @notice Return whether the address is a precompile address.
+    // @dev Ethereum precompiles are in range [0x01, 0x0a]
+    func is_precompile{range_check_ptr}(address: felt) -> felt {
+        alloc_locals;
+        return is_not_zero(address) * (is_nn(LAST_ETHEREUM_PRECOMPILE_ADDRESS - address));
+    }
+
     // @notice Executes associated function of precompiled evm_address.
     // @dev This function uses an internal jump table to execute the corresponding precompile impmentation.
     // @param precompile_address The precompile evm_address.
     // @param input_len The length of the input array.
     // @param input The input array.
-    // @param caller_code_address The address of the code of the contract that calls the precompile.
-    // @param caller_address The address of the caller of the precompile. Delegatecall rules apply.
     // @return output_len The output length.
     // @return output The output array.
     // @return gas_used The gas usage of precompile.
@@ -38,51 +38,12 @@ namespace Precompiles {
         range_check_ptr,
         bitwise_ptr: BitwiseBuiltin*,
         keccak_ptr: KeccakBuiltin*,
-    }(
-        precompile_address: felt,
-        input_len: felt,
-        input: felt*,
-        caller_code_address: felt,
-        caller_address: felt,
-    ) -> (output_len: felt, output: felt*, gas_used: felt, reverted: felt) {
-        let is_eth_precompile = is_nn(LAST_ETHEREUM_PRECOMPILE_ADDRESS - precompile_address);
-        tempvar pedersen_ptr = pedersen_ptr;
-        tempvar range_check_ptr = range_check_ptr;
-        jmp eth_precompile if is_eth_precompile != 0;
-
-        let is_rollup_precompile_ = PrecompilesHelpers.is_rollup_precompile(precompile_address);
-        tempvar pedersen_ptr = pedersen_ptr;
-        tempvar range_check_ptr = range_check_ptr;
-        jmp rollup_precompile if is_rollup_precompile_ != 0;
-
-        let is_kakarot_precompile_ = PrecompilesHelpers.is_kakarot_precompile(precompile_address);
-        tempvar pedersen_ptr = pedersen_ptr;
-        tempvar range_check_ptr = range_check_ptr;
-        jmp kakarot_precompile if is_kakarot_precompile_ != 0;
-        jmp unauthorized_call;
-
-        eth_precompile:
-        tempvar index = precompile_address;
-        jmp call_precompile;
-
-        rollup_precompile:
-        tempvar index = (LAST_ETHEREUM_PRECOMPILE_ADDRESS + 1) + (
-            precompile_address - FIRST_ROLLUP_PRECOMPILE_ADDRESS
-        );
-        jmp call_precompile;
-
-        unauthorized_call:
-        // Prepare arguments if none of the above conditions are met
-        [ap] = pedersen_ptr, ap++;
-        [ap] = range_check_ptr, ap++;
-        [ap] = bitwise_ptr, ap++;
-        [ap] = keccak_ptr, ap++;
-        call unauthorized_precompile;
-        ret;
-
-        call_precompile:
+    }(precompile_address: felt, input_len: felt, input: felt*) -> (
+        output_len: felt, output: felt*, gas_used: felt, reverted: felt
+    ) {
         // Compute the corresponding offset in the jump table:
         // count 1 for "next line" and 3 steps per index: call, precompile, ret
+        let index = precompile_address;
         tempvar offset = 1 + 3 * index;
 
         // Prepare arguments
@@ -96,7 +57,7 @@ namespace Precompiles {
 
         // call precompile precompile_address
         jmp rel offset;
-        call unknown_precompile;  // 0x0
+        call invalid_precompile_call;  // 0x0
         ret;
         call PrecompileEcRecover.run;  // 0x1 EC_RECOVER
         ret;
@@ -118,61 +79,20 @@ namespace Precompiles {
         ret;
         call not_implemented_precompile;  // 0x0a: POINT_EVALUATION_PRECOMPILE
         ret;
-        // Rollup precompiles. Offset must have been computed appropriately,
-        // based on the address of the precompile and the last ethereum precompile
-        call PrecompileP256Verify.run;  // offset 0x0b: precompile 0x100
-        ret;
-
-        kakarot_precompile:
-        tempvar index = precompile_address - FIRST_KAKAROT_PRECOMPILE_ADDRESS;
-        tempvar offset = 1 + 3 * index;
-
-        // Prepare arguments
-        [ap] = pedersen_ptr, ap++;
-        [ap] = range_check_ptr, ap++;
-        [ap] = bitwise_ptr, ap++;
-        [ap] = keccak_ptr, ap++;
-        [ap] = input_len, ap++;
-        [ap] = input, ap++;
-        [ap] = caller_address, ap++;
-
-        // Kakarot precompiles. Offset must have been computed appropriately,
-        // based on the total number of kakarot precompiles
-        jmp rel offset;
-        call KakarotPrecompiles.cairo_precompile;  // offset 0x0c: precompile 0x75001
-        ret;
     }
 
-    // @notice A placeholder for attempts to call a precompile without permissions
-    // @dev Halts execution.
-    // @param evm_address The evm_address.
-    // @param input_len The length of the input array.
-    // @param input The input array.
-    func unauthorized_precompile{
+    // @notice Precompile called but is not valid. Should never be reached as checks must have been done before.
+    // @dev Always fails the execution.
+    func invalid_precompile_call{
         pedersen_ptr: HashBuiltin*,
         range_check_ptr,
         bitwise_ptr: BitwiseBuiltin*,
         keccak_ptr: KeccakBuiltin*,
-    }() -> (output_len: felt, output: felt*, gas_used: felt, reverted: felt) {
-        let (revert_reason_len, revert_reason) = Errors.unauthorizedPrecompile();
-        return (revert_reason_len, revert_reason, 0, Errors.REVERT);
-    }
-
-    // @notice A placeholder for precompile that don't exist.
-    // @dev Halts execution.
-    // @param evm_address The evm_address.
-    // @param input_len The length of the input array.
-    // @param input The input array.
-    func unknown_precompile{
-        pedersen_ptr: HashBuiltin*,
-        range_check_ptr,
-        bitwise_ptr: BitwiseBuiltin*,
-        keccak_ptr: KeccakBuiltin*,
-    }(evm_address: felt, input_len: felt, input: felt*) -> (
-        output_len: felt, output: felt*, gas_used: felt, reverted: felt
-    ) {
-        let (revert_reason_len, revert_reason) = Errors.unknownPrecompile(evm_address);
-        return (revert_reason_len, revert_reason, 0, Errors.EXCEPTIONAL_HALT);
+    }(evm_address: felt, input_len: felt, input: felt*) -> () {
+        with_attr error_message("Precompile called but does not exist") {
+            assert 0 = 1;
+        }
+        return ();
     }
 
     // @notice A placeholder for precompile that are not implemented yet.

@@ -58,7 +58,6 @@ namespace TestHelpers {
             is_create=FALSE,
             depth=0,
             env=env,
-            cairo_precompile_called=FALSE,
         );
         let evm: model.EVM* = EVM.init(message, 1000000);
         return evm;
