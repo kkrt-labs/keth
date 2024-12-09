@@ -1,13 +1,13 @@
 import pytest
 from hypothesis import given
 from hypothesis.strategies import integers
-from tests.utils.strategies import felt, uint256, uint128
 
 from ethereum.cancun.vm.gas import (
     calculate_gas_extend_memory,
     calculate_memory_gas_cost,
 )
 from src.utils.uint256 import int_to_uint256
+from tests.utils.strategies import felt, uint128, uint256
 
 
 class TestGas:
@@ -89,7 +89,11 @@ class TestGas:
 
             if size == 0:
                 cost = 0
-            elif total_expansion > 2**32 or total_expansion < offset or total_expansion < size:
+            elif (
+                total_expansion > 2**32
+                or total_expansion < offset
+                or total_expansion < size
+            ):
                 cost = calculate_memory_gas_cost(2**32)
             else:
                 cost = calculate_gas_extend_memory(b"", [(offset, size)]).cost
