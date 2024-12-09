@@ -97,7 +97,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: "3.10"
 
       - uses: astral-sh/setup-uv@v3
         with:
@@ -146,8 +146,8 @@ jobs:
           token: ${{ steps.github_token.outputs.token }}
           add-paths: ./uv.lock
           commit-message: ${{ steps.msg.outputs.commit_message }}
-          title: "chore(deps): update ethereum execution-specs"
+          title: ${{ env.TITLE }}
           body: ${{ steps.msg.outputs.body }}
-          branch: "uv-update"
-          labels: 'dependencies'
+          branch: "${{ env.BRANCH }}"
+          labels: "dependencies"
           delete-branch: true
