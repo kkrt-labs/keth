@@ -1,7 +1,7 @@
 import pytest
 from hypothesis import given
 from hypothesis.strategies import integers
-from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
+from tests.utils.strategies import felt, uint256, uint128
 
 from ethereum.cancun.vm.gas import (
     calculate_gas_extend_memory,
@@ -18,8 +18,8 @@ class TestGas:
             assert calculate_memory_gas_cost(max_offset) == output
 
         @given(
-            bytes_len=integers(min_value=0, max_value=2**128 - 1),
-            added_offset=integers(min_value=0, max_value=2**128 - 1),
+            bytes_len=uint128,
+            added_offset=uint128,
         )
         def test_should_return_correct_expansion_cost(
             self, cairo_run, bytes_len, added_offset
@@ -36,10 +36,10 @@ class TestGas:
             assert diff == output
 
         @given(
-            offset_1=integers(min_value=0, max_value=DEFAULT_PRIME - 1),
-            size_1=integers(min_value=0, max_value=DEFAULT_PRIME - 1),
-            offset_2=integers(min_value=0, max_value=DEFAULT_PRIME - 1),
-            size_2=integers(min_value=0, max_value=DEFAULT_PRIME - 1),
+            offset_1=felt,
+            size_1=felt,
+            offset_2=felt,
+            size_2=felt,
             words_len=integers(
                 min_value=0, max_value=0x3C0000
             ),  # upper bound reaching 30M gas limit on expansion
@@ -74,8 +74,8 @@ class TestGas:
             assert output == expected_saturated
 
         @given(
-            offset=integers(min_value=0, max_value=2**256 - 1),
-            size=integers(min_value=0, max_value=2**256 - 1),
+            offset=uint256,
+            size=uint256,
         )
         def test_memory_expansion_cost_saturated(self, cairo_run, offset, size):
             output = cairo_run(
@@ -84,9 +84,12 @@ class TestGas:
                 offset=offset,
                 size=size,
             )
+
+            total_expansion = offset.wrapping_add(size)
+
             if size == 0:
                 cost = 0
-            elif offset + size > 2**32:
+            elif total_expansion > 2**32 or total_expansion < offset or total_expansion < size:
                 cost = calculate_memory_gas_cost(2**32)
             else:
                 cost = calculate_gas_extend_memory(b"", [(offset, size)]).cost
