@@ -11,8 +11,8 @@ from tests.utils.constants import (
 from tests.utils.models import Block
 
 
-def block(transactions=None):
-    nonces = defaultdict(int)
+def block(transactions=None, nonces=None):
+    nonces = nonces or defaultdict(int)
     transactions = transactions or []
 
     for transaction in transactions:
