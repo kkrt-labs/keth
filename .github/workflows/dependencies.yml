@@ -110,7 +110,8 @@ jobs:
         id: update
         run: |
           LATEST_COMMIT=$(curl -s "https://api.github.com/repos/ethereum/execution-specs/commits/master" | jq -r .sha)
-          uv add ethereum@git+https://github.com/ethereum/execution-specs.git --rev $LATEST_COMMIT 2>&1 | tee -a uv_update.log
+          uv add ethereum@git+https://github.com/ethereum/execution-specs.git --rev $LATEST_COMMIT > uv_update.log 2>&1
+          cat uv_update.log
 
       - name: Craft commit message and PR body
         id: msg
