@@ -1,7 +1,6 @@
 import pytest
 from eth_keys.datatypes import PrivateKey
-from hypothesis import assume, given
-from hypothesis.strategies import integers
+from hypothesis import assume, given, settings, strategies as st
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 
 from ethereum.base_types import U256, Bytes32
@@ -48,16 +47,14 @@ class TestSignature:
 
         @given(
             msg_hash=...,
-            r=...,
-            s=...,
-            y_parity=integers(min_value=2, max_value=DEFAULT_PRIME - 1),
+            r=st.one_of(st.integers(min_value=1, max_value=SECP256K1N - 1).map(U256)),
+            s=st.one_of(st.integers(min_value=1, max_value=SECP256K1N - 1).map(U256)),
+            y_parity=st.integers(min_value=2, max_value=DEFAULT_PRIME - 1),
             eth_address=felt,
         )
         def test_should_raise_with_invalid_y_parity(
             self, cairo_run, msg_hash: U256, r: U256, s: U256, y_parity, eth_address
         ):
-            assume(r != 0 and s != 0)
-            assume(r < SECP256K1N and s < SECP256K1N)
             with cairo_error("Invalid y_parity"):
                 cairo_run(
                     "test__verify_eth_signature_uint256",
@@ -68,7 +65,65 @@ class TestSignature:
                     eth_address,
                 )
 
-            # TODO: check non-valid cases.
+        @given(
+            msg_hash=...,
+            r=st.one_of(
+                st.just(U256(0)),
+                st.integers(min_value=SECP256K1N, max_value=2**256 - 1).map(U256),
+            ),
+            s=...,
+            y_parity=...,
+            eth_address=felt,
+        )
+        @settings(max_examples=5)
+        def test_should_raise_with_out_of_bounds_r(
+            self,
+            cairo_run,
+            msg_hash: U256,
+            r: U256,
+            s: U256,
+            y_parity: bool,
+            eth_address,
+        ):
+            with cairo_error("Signature out of range."):
+                cairo_run(
+                    "test__verify_eth_signature_uint256",
+                    msg_hash,
+                    r,
+                    s,
+                    y_parity,
+                    eth_address,
+                )
+
+        @given(
+            msg_hash=...,
+            r=...,
+            s=st.one_of(
+                st.just(U256(0)),
+                st.integers(min_value=SECP256K1N, max_value=2**256 - 1).map(U256),
+            ),
+            y_parity=...,
+            eth_address=felt,
+        )
+        @settings(max_examples=5)
+        def test_should_raise_with_out_of_bounds_s(
+            self,
+            cairo_run,
+            msg_hash: U256,
+            r: U256,
+            s: U256,
+            y_parity: bool,
+            eth_address,
+        ):
+            with cairo_error("Signature out of range."):
+                cairo_run(
+                    "test__verify_eth_signature_uint256",
+                    msg_hash,
+                    r,
+                    s,
+                    y_parity,
+                    eth_address,
+                )
 
     class TestTryRecoverEthAddress:
         @given(private_key=..., message=...)
