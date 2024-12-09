@@ -180,10 +180,9 @@ namespace SystemOperations {
 
         let transfer = model.Transfer(evm.message.address, target_address, [value]);
         let success = State.add_transfer(transfer);
-        if (success == 0) {
-            Stack.push_uint128(0);
-            return child_evm;
-        }
+
+        // @dev: This transfer cannot fail, as the balance was checked before.
+        State.add_transfer(transfer);
 
         return child_evm;
     }
