@@ -4,12 +4,18 @@ version = "0.1.0"
 description = "An EVM proving backend in Cairo"
 readme = "README.md"
 requires-python = ">=3.10"
+dependencies = [
+    "ethereum",
+]
 
 [tool.uv]
 dev-dependencies = ["jupyter>=1.1.1"]
 
 [tool.uv.workspace]
 members = ["cairo", "keth_scripts"]
+
+[tool.uv.sources]
+ethereum = { git = "https://github.com/ethereum/execution-specs.git", rev = "1adcc1bfe774798bcacc685aebc17bd9935078c3" }
 
 [tool.isort]
 profile = "black"

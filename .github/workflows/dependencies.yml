@@ -73,3 +73,53 @@ jobs:
           title: ${{ env.TITLE }}
           body: ${{ steps.msg.outputs.body }}
           branch: ${{ env.BRANCH }}
+
+name: Update UV Dependencies
+
+on:
+  schedule:
+    # Run at 00:00 UTC every Monday
+    - cron: '0 0 * * 1'
+  workflow_dispatch:
+
+jobs:
+  update-dependencies:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install uv
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Update ethereum execution-specs dependency
+        id: update
+        run: |
+          LATEST_COMMIT=$(curl -s "https://api.github.com/repos/ethereum/execution-specs/commits/master" | jq -r .sha)
+          uv add ethereum@git+https://github.com/ethereum/execution-specs.git --rev $LATEST_COMMIT
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          commit-message: 'chore: update ethereum-specs dependency'
+          title: 'chore: update ethereum-specs dependency'
+          body: |
+            Automated PR to update ethereum-specs dependency to the latest commit.
+
+            This PR was created automatically by the dependency update workflow.
+          branch: 'deps/update-ethereum-specs'
+          base: 'main'
+          labels: 'dependencies'
+          delete-branch: true
