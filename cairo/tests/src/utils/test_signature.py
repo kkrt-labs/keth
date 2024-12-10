@@ -1,6 +1,7 @@
 import pytest
 from eth_keys.datatypes import PrivateKey
-from hypothesis import assume, given, settings, strategies as st
+from hypothesis import given, settings
+from hypothesis import strategies as st
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 
 from ethereum.base_types import U256, Bytes32

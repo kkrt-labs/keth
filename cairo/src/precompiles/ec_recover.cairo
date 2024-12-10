@@ -79,24 +79,14 @@ namespace PrecompileEcRecover {
 
         let (r_bigint) = uint256_to_bigint(r);
         let (s_bigint) = uint256_to_bigint(s);
-        let (public_key_point, success) = Signature.try_recover_public_key(
+        let (recovered_address, success) = Signature.try_recover_eth_address(
             msg_hash_bigint, r_bigint, s_bigint, v - 27
         );
+
         if (success == 0) {
             let (output) = alloc();
             return (0, output, GAS_COST_EC_RECOVER, 0);
         }
-        let (is_public_key_invalid) = EcRecoverHelpers.ec_point_equal(
-            public_key_point, EcPoint(BigInt3(0, 0, 0), BigInt3(0, 0, 0))
-        );
-        if (is_public_key_invalid != 0) {
-            let (output) = alloc();
-            return (0, output, GAS_COST_EC_RECOVER, 0);
-        }
-
-        let (recovered_address) = EcRecoverHelpers.public_key_point_to_eth_address(
-            public_key_point
-        );
 
         let (output) = alloc();
         memset(output, 0, 12);
