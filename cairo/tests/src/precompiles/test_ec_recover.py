@@ -1,5 +1,5 @@
 import pytest
-from hypothesis import given
+from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from ethereum.base_types import U256
@@ -17,17 +17,17 @@ def ecrecover(data):
     s = U256.from_be_bytes(data[96:128])
 
     if v != 27 and v != 28:
-        return
+        return []
     if 0 >= r or r >= SECP256K1N:
-        return
+        return []
     if 0 >= s or s >= SECP256K1N:
-        return
+        return []
 
     try:
         public_key = secp256k1_recover(r, s, v - 27, message_hash)
     except ValueError:
         # unable to extract public key
-        return
+        return []
 
     address = keccak256(public_key)[12:32]
     padded_address = left_pad_zero_bytes(address, 32)
@@ -75,8 +75,9 @@ class TestEcRecover:
             *r.to_bytes(32, "big"),
             *s.to_bytes(32, "big"),
         ]
+        py_result = ecrecover(input_data)
         [output] = cairo_run("test__ec_recover", input=input_data)
-        assert output == []
+        assert output == py_result
 
     @given(
         v=st.integers(min_value=27, max_value=28),
@@ -96,8 +97,8 @@ class TestEcRecover:
         py_result = ecrecover(input_data)
         [cairo_result] = cairo_run("test__ec_recover", input=input_data)
 
-        if py_result is None:
-            assert cairo_result == []
+        if len(py_result) == 0:
+            assert cairo_result == py_result
         else:
             py_address, _ = py_result
             assert bytes(cairo_result) == bytes(py_address)
