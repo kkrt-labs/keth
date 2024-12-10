@@ -89,7 +89,7 @@ namespace State {
         }
 
         // Initialize a new account, empty otherwise
-        let account = Account.new_empty();
+        let account = Account.default();
         dict_write{dict_ptr=accounts}(key=evm_address, new_value=cast(account, felt));
         tempvar state = new model.State(
             accounts_start=state.accounts_start,

@@ -7,8 +7,9 @@ from starkware.cairo.common.uint256 import Uint256, assert_uint256_eq
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.memcpy import memcpy
 
+from ethereum.base_types import U256
 from src.model import model
-from src.account import Account
+from src.account import Account, Internals
 from tests.utils.helpers import TestHelpers
 
 func test__init__should_return_account_with_default_dict_as_storage{}() {
@@ -184,4 +185,9 @@ func test__compute_code_hash{
 
     // Then
     return result;
+}
+
+func test___storage_addr{pedersen_ptr: HashBuiltin*}(key: U256) -> felt {
+    let (res) = Internals._storage_addr(key.value);
+    return res;
 }

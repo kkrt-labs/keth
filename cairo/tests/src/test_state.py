@@ -1,6 +1,7 @@
 from ethereum.cancun.fork_types import EMPTY_ACCOUNT
 from ethereum.crypto.hash import keccak256
 from tests.utils.constants import OTHER, OWNER
+from tests.utils.helpers import get_internal_storage_key
 from tests.utils.models import State
 
 
@@ -47,7 +48,10 @@ class TestState:
                 ),
                 "balance": initial_state[OWNER]["balance"],
                 "nonce": initial_state[OWNER]["nonce"],
-                "storage": initial_state[OWNER]["storage"],
+                "storage": {
+                    get_internal_storage_key(k): v
+                    for k, v in initial_state[OWNER]["storage"].items()
+                },
                 "transient_storage": {},
                 "valid_jumpdests": {},
                 "selfdestruct": 0,
@@ -55,7 +59,7 @@ class TestState:
             }
             assert account == expected
 
-        def test_should_return_new_empty_account_when_account_not_in_state(
+        def test_should_return_default_account_when_account_not_in_state(
             self, cairo_run
         ):
             account = cairo_run(
