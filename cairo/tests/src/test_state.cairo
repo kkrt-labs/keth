@@ -265,3 +265,14 @@ func test__is_storage_warm__should_return_false_when_not_accessed{
     assert result = 0;
     return ();
 }
+
+func test__get_account(evm_address: felt) -> model.Account* {
+    alloc_locals;
+    local state: model.State*;
+    %{ state %}
+    with state {
+        let account = State.get_account(evm_address);
+    }
+
+    return account;
+}
