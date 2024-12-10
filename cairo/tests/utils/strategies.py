@@ -4,6 +4,7 @@ from dataclasses import fields
 from typing import ForwardRef, Sequence, TypeAlias, Union
 from unittest.mock import patch
 
+from eth_keys.datatypes import PrivateKey
 from hypothesis import strategies as st
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 
@@ -18,6 +19,7 @@ from ethereum.base_types import (
     FixedUint,
     Uint,
 )
+from ethereum.crypto.elliptic_curve import SECP256K1N
 
 # Mock the Extended type because hypothesis cannot handle the RLP Protocol
 # Needs to be done before importing the types from ethereum.cancun.trie
@@ -101,6 +103,12 @@ state = st.lists(bytes20).flatmap(
     )
 )
 
+private_key = (
+    st.integers(min_value=1, max_value=SECP256K1N - 1)
+    .map(lambda x: int.to_bytes(x, 32, "big"))
+    .map(PrivateKey)
+)
+
 
 def register_type_strategies():
     st.register_type_strategy(U64, uint64)
@@ -144,3 +152,4 @@ def register_type_strategies():
         ),
     )
     st.register_type_strategy(BranchNode, st_from_type(BranchNode))
+    st.register_type_strategy(PrivateKey, private_key)

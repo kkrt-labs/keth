@@ -126,7 +126,8 @@ def cairo_run(request, cairo_program, cairo_file, main_path):
                 output_ptr = runner.segments.add()
                 stack.append(output_ptr)
             else:
-                stack.append(gen_arg(python_type, kwargs.get(arg_name, args[i])))
+                arg_value = kwargs[arg_name] if arg_name in kwargs else args[i]
+                stack.append(gen_arg(python_type, arg_value))
 
         return_fp = runner.execution_base + 2
         end = runner.program_base + len(runner.program.data)
