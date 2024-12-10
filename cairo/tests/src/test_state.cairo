@@ -11,6 +11,7 @@ from starkware.cairo.common.memcpy import memcpy
 from src.model import model
 from src.state import State, Internals
 from src.account import Account
+from src.constants import Constants
 
 func test__init__should_return_state_with_default_dicts() {
     // When
@@ -273,7 +274,7 @@ func test__add_transfer_should_return_false_when_overflowing_recipient_balance{
     let state = State.init();
     let (code) = alloc();
     tempvar code_hash = new Uint256(
-        304396909071904405792975023732328604784, 262949717399590921288928019264691438528
+        Constants.EMPTY_CODE_HASH_LOW, Constants.EMPTY_CODE_HASH_HIGH
     );
 
     // Sender
@@ -295,4 +296,15 @@ func test__add_transfer_should_return_false_when_overflowing_recipient_balance{
     }
     assert result = 0;
     return ();
+}
+
+func test__get_account(evm_address: felt) -> model.Account* {
+    alloc_locals;
+    local state: model.State*;
+    %{ state %}
+    with state {
+        let account = State.get_account(evm_address);
+    }
+
+    return account;
 }
