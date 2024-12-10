@@ -1,11 +1,11 @@
+from ethereum_types.numeric import Uint
 from hypothesis import given
 from hypothesis import strategies as st
 from starkware.cairo.lang.instances import PRIME
 
-from ethereum_types.numeric import Uint
 from ethereum.cancun.vm.gas import BLOB_GASPRICE_UPDATE_FRACTION, MIN_BLOB_GASPRICE
 from ethereum.utils.numeric import ceil32, taylor_exponential
-from tests.utils.strategies import felt, uint128, uint
+from tests.utils.strategies import felt, uint128
 
 
 class TestNumeric:
