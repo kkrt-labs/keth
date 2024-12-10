@@ -16,28 +16,43 @@ from src.utils.maths import unsigned_div_rem
 from src.utils.utils import Helpers
 
 namespace TestHelpers {
-    func init_evm_at_address{pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    func init_evm_from_with_block_header{pedersen_ptr: HashBuiltin*, range_check_ptr}(
         initial_state: model.State*,
         bytecode_len: felt,
         bytecode: felt*,
-        starknet_contract_address: felt,
+        evm_contract_address: felt,
+        calldata_len: felt,
+        calldata: felt*,
+        header: model.BlockHeader*,
+    ) -> model.EVM* {
+        tempvar env = new model.Environment(
+            origin=0,
+            gas_price=0,
+            chain_id=0,
+            prev_randao=header.mix_hash,
+            block_number=header.number,
+            block_gas_limit=header.gas_limit,
+            block_timestamp=header.timestamp,
+            coinbase=header.coinbase,
+            base_fee=header.base_fee_per_gas.value,
+            block_hashes=cast(0, Uint256*),
+            excess_blob_gas=header.excess_blob_gas,
+        );
+        return init_evm_with_env(
+            env, bytecode_len, bytecode, evm_contract_address, calldata_len, calldata
+        );
+    }
+
+    func init_evm_with_env{pedersen_ptr: HashBuiltin*, range_check_ptr}(
+        initial_state: model.State*,
+        env: model.Environment*,
+        bytecode_len: felt,
+        bytecode: felt*,
         evm_contract_address: felt,
         calldata_len: felt,
         calldata: felt*,
     ) -> model.EVM* {
         alloc_locals;
-        tempvar env = new model.Environment(
-            origin=0,
-            gas_price=0,
-            chain_id=0,
-            prev_randao=Uint256(0, 0),
-            block_number=0,
-            block_gas_limit=0,
-            block_timestamp=0,
-            coinbase=0,
-            base_fee=0,
-            block_hashes=cast(0, Uint256*),
-        );
         tempvar address = evm_contract_address;
         let (valid_jumpdests_start, valid_jumpdests) = Helpers.initialize_jumpdests(
             bytecode_len=bytecode_len, bytecode=bytecode
@@ -65,19 +80,46 @@ namespace TestHelpers {
         return evm;
     }
 
+    func init_evm_at_address{pedersen_ptr: HashBuiltin*, range_check_ptr}(
+        initial_state: model.State*,
+        bytecode_len: felt,
+        bytecode: felt*,
+        evm_contract_address: felt,
+        calldata_len: felt,
+        calldata: felt*,
+    ) -> model.EVM* {
+        alloc_locals;
+        tempvar env = new model.Environment(
+            origin=0,
+            gas_price=0,
+            chain_id=0,
+            prev_randao=Uint256(0, 0),
+            block_number=0,
+            block_gas_limit=0,
+            block_timestamp=0,
+            coinbase=0,
+            base_fee=0,
+            block_hashes=cast(0, Uint256*),
+            excess_blob_gas=0,
+        );
+        return init_evm_with_env(
+            initial_state, env, bytecode_len, bytecode, evm_contract_address, calldata_len, calldata
+        );
+    }
+
     func init_evm{pedersen_ptr: HashBuiltin*, range_check_ptr}(
         initial_state: model.State*
     ) -> model.EVM* {
         let (bytecode) = alloc();
         let (calldata) = alloc();
-        return init_evm_at_address(initial_state, 0, bytecode, 0, 0, 0, calldata);
+        return init_evm_at_address(initial_state, 0, bytecode, 0, 0, calldata);
     }
 
     func init_evm_with_bytecode{pedersen_ptr: HashBuiltin*, range_check_ptr}(
         initial_state: model.State*, bytecode_len: felt, bytecode: felt*
     ) -> model.EVM* {
         let (calldata) = alloc();
-        return init_evm_at_address(initial_state, bytecode_len, bytecode, 0, 0, 0, calldata);
+        return init_evm_at_address(initial_state, bytecode_len, bytecode, 0, 0, calldata);
     }
 
     func init_evm_with_calldata{pedersen_ptr: HashBuiltin*, range_check_ptr}(
@@ -87,9 +129,7 @@ namespace TestHelpers {
         calldata_len: felt,
         calldata: felt*,
     ) -> model.EVM* {
-        return init_evm_at_address(
-            initial_state, bytecode_len, bytecode, 0, 0, calldata_len, calldata
-        );
+        return init_evm_at_address(initial_state, bytecode_len, bytecode, 0, calldata_len, calldata);
     }
 
     func init_stack_with_values(stack_len: felt, stack: Uint256*) -> model.Stack* {
