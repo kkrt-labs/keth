@@ -1,11 +1,11 @@
-from ethereum_types.numeric import Uint
 from hypothesis import given
 from hypothesis import strategies as st
 from starkware.cairo.lang.instances import PRIME
 
+from ethereum_types.numeric import Uint
 from ethereum.cancun.vm.gas import BLOB_GASPRICE_UPDATE_FRACTION, MIN_BLOB_GASPRICE
 from ethereum.utils.numeric import ceil32, taylor_exponential
-from tests.utils.strategies import felt, uint128
+from tests.utils.strategies import felt, uint128, uint
 
 
 class TestNumeric:
@@ -34,7 +34,7 @@ class TestNumeric:
 
     @given(
         factor=st.just(MIN_BLOB_GASPRICE),
-        numerator=st.integers(min_value=1, max_value=100_000),
+        numerator=st.integers(min_value=1, max_value=100_000).map(Uint),
         denominator=st.just(BLOB_GASPRICE_UPDATE_FRACTION),
     )
     def test_taylor_exponential(
