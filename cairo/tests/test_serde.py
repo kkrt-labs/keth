@@ -1,23 +1,14 @@
 from typing import Any, Mapping, Optional, Tuple, Type, Union
 
 import pytest
+from ethereum_types.bytes import Bytes, Bytes0, Bytes8, Bytes20, Bytes32, Bytes256
+from ethereum_types.numeric import U64, U256, Uint
 from hypothesis import assume, given, settings
 from starkware.cairo.common.dict import DictManager
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 from starkware.cairo.lang.vm.memory_dict import MemoryDict
 from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 
-from ethereum.base_types import (
-    U64,
-    U256,
-    Bytes,
-    Bytes0,
-    Bytes8,
-    Bytes20,
-    Bytes32,
-    Bytes256,
-    Uint,
-)
 from ethereum.cancun.blocks import Header, Log, Receipt, Withdrawal
 from ethereum.cancun.fork_types import Account, Address, Bloom, Root, VersionedHash
 from ethereum.cancun.transactions import (

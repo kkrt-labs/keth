@@ -1,4 +1,5 @@
-from ethereum.base_types import BytesStruct, Bytes, Bytes0, Uint, U256, TupleBytes32, U64
+from ethereum_types.bytes import BytesStruct, Bytes, Bytes0, TupleBytes32
+from ethereum_types.numeric import Uint, U256, U64
 from ethereum.cancun.fork_types import Address, TupleVersionedHash
 
 const TX_BASE_COST = 21000;

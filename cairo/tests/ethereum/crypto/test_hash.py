@@ -1,6 +1,6 @@
+from ethereum_types.bytes import Bytes
 from hypothesis import assume, given
 
-from ethereum.base_types import Bytes
 from ethereum.crypto.hash import keccak256
 
 

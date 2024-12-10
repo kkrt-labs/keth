@@ -2,7 +2,7 @@ from hypothesis import assume, given
 from hypothesis.strategies import integers
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 
-from ethereum.base_types import U256
+from ethereum_types.numeric import U256
 from ethereum.crypto.elliptic_curve import SECP256K1N
 from tests.utils.errors import cairo_error
 from tests.utils.strategies import felt

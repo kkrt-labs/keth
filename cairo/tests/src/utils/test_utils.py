@@ -1,10 +1,11 @@
 from math import ceil
 
 import pytest
+from ethereum_types.bytes import Bytes
+from ethereum_types.numeric import Uint
 from hypothesis import example, given, settings
 from hypothesis import strategies as st
 
-from ethereum.base_types import Bytes
 from ethereum.cancun.vm.runtime import get_valid_jump_destinations
 from tests.utils.errors import cairo_error
 from tests.utils.helpers import pack_calldata
@@ -162,7 +163,7 @@ class TestInitializeJumpdests:
     @example(bytecode=get_contract("Counter", "Counter").bytecode_runtime)
     def test_should_return_same_as_execution_specs(self, cairo_run, bytecode: Bytes):
         output = cairo_run("test__initialize_jumpdests", bytecode=bytecode)
-        assert set(output) == get_valid_jump_destinations(bytecode)
+        assert set(map(Uint, output)) == get_valid_jump_destinations(bytecode)
 
     @given(bytecode=...)
     @example(bytecode=get_contract("Counter", "Counter").bytecode_runtime)

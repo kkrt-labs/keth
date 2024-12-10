@@ -1,10 +1,6 @@
-from ethereum.base_types import (
-    None,
-    bool,
-    U64,
-    U128,
-    U256,
-    Uint,
+from ethereum_types.numeric import bool, U64, U128, U256, Uint
+from ethereum_types.others import None
+from ethereum_types.bytes import (
     Bytes0,
     Bytes8,
     Bytes20,
