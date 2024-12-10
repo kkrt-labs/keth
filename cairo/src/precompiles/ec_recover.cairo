@@ -79,7 +79,7 @@ namespace PrecompileEcRecover {
 
         let (r_bigint) = uint256_to_bigint(r);
         let (s_bigint) = uint256_to_bigint(s);
-        let (recovered_address, success) = Signature.try_recover_eth_address(
+        let (success, recovered_address) = Signature.try_recover_eth_address(
             msg_hash_bigint, r_bigint, s_bigint, v - 27
         );
 
@@ -104,27 +104,5 @@ namespace EcRecoverHelpers {
             return (is_equal=1);
         }
         return (is_equal=0);
-    }
-
-    // @notice Convert a public key point to the corresponding Ethereum address.
-    // @dev Uses the `KeccakBuiltin` builtin, while the one in Starkware's CairoZero library does not.
-    func public_key_point_to_eth_address{
-        pedersen_ptr: HashBuiltin*,
-        range_check_ptr,
-        bitwise_ptr: BitwiseBuiltin*,
-        keccak_ptr: KeccakBuiltin*,
-    }(public_key_point: EcPoint) -> (eth_address: felt) {
-        alloc_locals;
-        let (local elements: Uint256*) = alloc();
-        let (x_uint256: Uint256) = bigint_to_uint256(public_key_point.x);
-        assert elements[0] = x_uint256;
-        let (y_uint256: Uint256) = bigint_to_uint256(public_key_point.y);
-        assert elements[1] = y_uint256;
-
-        let (point_hash) = keccak_uint256s_bigend(n_elements=2, elements=elements);
-
-        // The Ethereum address is the 20 least significant bytes of the keccak of the public key.
-        let (high_high, high_low) = unsigned_div_rem(point_hash.high, 2 ** 32);
-        return (eth_address=point_hash.low + RC_BOUND * high_low);
     }
 }

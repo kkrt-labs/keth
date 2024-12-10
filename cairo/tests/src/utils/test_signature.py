@@ -1,6 +1,6 @@
 import pytest
 from eth_keys.datatypes import PrivateKey
-from hypothesis import given, settings
+from hypothesis import given
 from hypothesis import strategies as st
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 
@@ -30,8 +30,8 @@ class TestSignature:
             assert result == int(expected_address, 16)
 
     class TestVerifyEthSignature:
-        @given(private_key=..., message=...)
         @pytest.mark.slow
+        @given(private_key=..., message=...)
         def test__verify_eth_signature_uint256(
             self, cairo_run, private_key: PrivateKey, message: Bytes32
         ):
@@ -48,8 +48,8 @@ class TestSignature:
 
         @given(
             msg_hash=...,
-            r=st.one_of(st.integers(min_value=1, max_value=SECP256K1N - 1).map(U256)),
-            s=st.one_of(st.integers(min_value=1, max_value=SECP256K1N - 1).map(U256)),
+            r=st.integers(min_value=1, max_value=SECP256K1N - 1).map(U256),
+            s=st.integers(min_value=1, max_value=SECP256K1N - 1).map(U256),
             y_parity=st.integers(min_value=2, max_value=DEFAULT_PRIME - 1),
             eth_address=felt,
         )
@@ -76,7 +76,6 @@ class TestSignature:
             y_parity=...,
             eth_address=felt,
         )
-        @settings(max_examples=5)
         def test_should_raise_with_out_of_bounds_r(
             self,
             cairo_run,
@@ -106,7 +105,6 @@ class TestSignature:
             y_parity=...,
             eth_address=felt,
         )
-        @settings(max_examples=5)
         def test_should_raise_with_out_of_bounds_s(
             self,
             cairo_run,
@@ -127,8 +125,8 @@ class TestSignature:
                 )
 
     class TestTryRecoverEthAddress:
-        @given(private_key=..., message=...)
         @pytest.mark.slow
+        @given(private_key=..., message=...)
         def test__try_recover_eth_address(
             self, cairo_run, private_key: PrivateKey, message: Bytes32
         ):

@@ -47,19 +47,19 @@ namespace Signature {
         return ();
     }
 
-    // Similar to `recover_public_key`, but handles the case where 'x' does not correspond to a point on the
+    // @notice Similar to `recover_public_key`, but handles the case where 'x' does not correspond to a point on the
     // curve gracefully.
-    // Receives a signature and the signed message hash.
-    // Returns the public key associated with the signer, represented as a point on the curve, and `true` if valid.
-    // Returns the point (0, 0) and `false` otherwise.
-    // Note:
-    //   Some places use the values 27 and 28 instead of 0 and 1 for v.
-    //   In that case, a subtraction by 27 returns a v that can be used by this function.
-    // Prover assumptions:
-    // * r is the x coordinate of some nonzero point on the curve.
-    // * All the limbs of s and msg_hash are in the range (-2 ** 210.99, 2 ** 210.99).
-    // * All the limbs of r are in the range (-2 ** 124.99, 2 ** 124.99).
-    func try_recover_public_key{range_check_ptr, keccak_ptr: KeccakBuiltin*}(
+    // @param msg_hash The signed message hash.
+    // @param r The r value of the signature.
+    // @param s The s value of the signature.
+    // @param y_parity The y parity value of the signature. true if odd, false if even.
+    // @return The public key associated with the signer, represented as a point on the curve, and `true` if valid.
+    // @return The point (0, 0) and `false` otherwise.
+    // @dev Prover assumptions:
+    // @dev * r is the x coordinate of some nonzero point on the curve.
+    // @dev * All the limbs of s and msg_hash are in the range (-2 ** 210.99, 2 ** 210.99).
+    // @dev * All the limbs of r are in the range (-2 ** 124.99, 2 ** 124.99).
+    func try_recover_public_key{range_check_ptr}(
         msg_hash: BigInt3, r: BigInt3, s: BigInt3, y_parity: felt
     ) -> (public_key_point: EcPoint, success: felt) {
         alloc_locals;
@@ -127,7 +127,7 @@ namespace Internals {
         let (point_hash: Uint256) = keccak_uint256s_bigend(n_elements=2, elements=elements);
 
         // The Ethereum address is the 20 least significant bytes of the keccak of the public key.
-        let (high_high, high_low) = unsigned_div_rem(point_hash.high, 2 ** 32);
+        let (_, high_low) = unsigned_div_rem(point_hash.high, 2 ** 32);
         let eth_address = point_hash.low + RC_BOUND * high_low;
         return eth_address;
     }

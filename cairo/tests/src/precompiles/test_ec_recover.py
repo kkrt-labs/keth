@@ -40,11 +40,11 @@ class TestEcRecover:
     def test_valid_signature(self, message, cairo_run):
         """Test with valid signatures generated from random messages."""
         private_key = generate_random_private_key()
-        msg = keccak256(message)
-        (v, r, s) = ec_sign(msg, private_key)
+        msg_hash = keccak256(message)
+        (v, r, s) = ec_sign(msg_hash, private_key)
 
         input_data = [
-            *msg,
+            *msg_hash,
             *v.to_bytes(32, "big"),
             *r,
             *s,
