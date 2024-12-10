@@ -8,7 +8,7 @@ requires-python = ">=3.10"
 dependencies = [
   "cairo-lang>=0.13.2",
   "ethereum",
-  "ethereum-types>=0.2.3,<0.3",
+  "ethereum-types",
   "marshmallow-dataclass>=8.6.1",
   "python-dotenv>=1.0.1",
   "toml>=0.10.2",
