@@ -168,6 +168,7 @@ namespace SystemOperations {
             is_create=TRUE,
             depth=evm.message.depth + 1,
             env=evm.message.env,
+            initial_state=evm.message.initial_state,
         );
         let child_evm = EVM.init(message, gas_limit);
         let stack = Stack.init();
@@ -914,6 +915,7 @@ namespace CallHelper {
             is_create=FALSE,
             depth=evm.message.depth + 1,
             env=evm.message.env,
+            initial_state=evm.message.initial_state,
         );
 
         let child_evm = EVM.init(message, gas);
@@ -968,10 +970,11 @@ namespace CallHelper {
             is_create=evm.message.parent.evm.message.is_create,
             depth=evm.message.parent.evm.message.depth,
             env=evm.message.parent.evm.message.env,
+            initial_state=evm.message.initial_state,
         );
 
         if (evm.reverted == Errors.EXCEPTIONAL_HALT) {
-            // If the call has halted exceptionnaly, the return_data is empty
+            // If the call has halted exceptionally, the return_data is empty
             // and nothing is copied to memory, and the gas is not returned;
             tempvar evm = new model.EVM(
                 message=message,
@@ -1157,6 +1160,7 @@ namespace CreateHelper {
             is_create=evm.message.parent.evm.message.is_create,
             depth=evm.message.parent.evm.message.depth,
             env=evm.message.parent.evm.message.env,
+            initial_state=evm.message.initial_state,
         );
         // Reverted during execution - either REVERT or exceptional
         if (evm.reverted != FALSE) {

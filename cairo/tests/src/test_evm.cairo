@@ -17,8 +17,12 @@ func test__jump{pedersen_ptr: HashBuiltin*, range_check_ptr}() -> model.EVM* {
         segments.write_arg(ids.bytecode, program_input["bytecode"]);
         ids.jumpdest = program_input["jumpdest"];
     %}
-    let evm = TestHelpers.init_evm_with_bytecode(bytecode_len, bytecode);
+
     let state = State.init();
+    let initial_state = State.copy{state=state}();
+    let evm = TestHelpers.init_evm_with_bytecode{initial_state=initial_state}(
+        bytecode_len, bytecode
+    );
     with state {
         let evm = EVM.jump(evm, jumpdest);
     }
@@ -31,7 +35,9 @@ func test__charge_gas{pedersen_ptr: HashBuiltin*, range_check_ptr}() -> (felt, f
     local amount;
 
     %{ ids.amount = program_input["amount"] %}
-    let evm = TestHelpers.init_evm();
+    let state = State.init();
+    let initial_state = State.copy{state=state}();
+    let evm = TestHelpers.init_evm{initial_state=initial_state}();
     let result = EVM.charge_gas(evm, amount);
 
     return (result.gas_left, result.stopped);

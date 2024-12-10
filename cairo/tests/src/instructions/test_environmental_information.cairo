@@ -23,11 +23,14 @@ func test__exec_address__should_push_address_to_stack{
     alloc_locals;
     let stack = Stack.init();
     let state = State.init();
+    let initial_state = State.copy{state=state}();
     let memory = Memory.init();
     let (bytecode) = alloc();
     let address = 0xdead;
     let (calldata) = alloc();
-    let evm = TestHelpers.init_evm_at_address(0, bytecode, 0, address, 0, calldata);
+    let evm = TestHelpers.init_evm_at_address{initial_state=initial_state}(
+        0, bytecode, 0, address, 0, calldata
+    );
 
     // When
     with stack, memory, state {
@@ -52,10 +55,11 @@ func test__exec_extcodesize{
     alloc_locals;
     local address: felt;
     %{ ids.address = program_input["address"] %}
-    let evm = TestHelpers.init_evm();
     let stack = Stack.init();
-    let state = State.init();
     let memory = Memory.init();
+    let state = State.init();
+    let initial_state = State.copy{state=state}();
+    let evm = TestHelpers.init_evm{initial_state=initial_state}();
 
     // When
     with stack, memory, state {
@@ -86,10 +90,11 @@ func test__exec_extcodecopy{
         ids.dest_offset = program_input["dest_offset"]
         ids.address = program_input["address"]
     %}
-    let evm = TestHelpers.init_evm();
     let stack = Stack.init();
-    let state = State.init();
     let memory = Memory.init();
+    let state = State.init();
+    let initial_state = State.copy{state=state}();
+    let evm = TestHelpers.init_evm{initial_state=initial_state}();
     tempvar item_3 = new Uint256(size, 0);
     tempvar item_2 = new Uint256(offset, 0);
     tempvar item_1 = new Uint256(dest_offset, 0);
@@ -127,10 +132,11 @@ func test__exec_extcodecopy_zellic_issue_1258{
         ids.dest_offset = program_input["dest_offset"]
         ids.address = program_input["address"]
     %}
-    let evm = TestHelpers.init_evm();
     let stack = Stack.init();
-    let state = State.init();
     let memory = Memory.init();
+    let state = State.init();
+    let initial_state = State.copy{state=state}();
+    let evm = TestHelpers.init_evm{initial_state=initial_state}();
 
     tempvar item_1_mstore = new Uint256(ALL_ONES, ALL_ONES);
     tempvar item_0_mstore = new Uint256(0, 0);
@@ -181,15 +187,20 @@ func test__exec_copy{
         segments.write_arg(ids.bytecode, program_input["bytecode"])
         ids.opcode_number = program_input["opcode_number"]
     %}
+    let state = State.init();
+    let initial_state = State.copy{state=state}();
     if (opcode_number == 0x37) {
         // bytecode is passed as calldata and opcode_number (first element in bytecode variable)
         // is passed as bytecode
-        let evm = TestHelpers.init_evm_with_calldata(1, bytecode, bytecode_len, bytecode);
+        let evm = TestHelpers.init_evm_with_calldata{initial_state=initial_state}(
+            1, bytecode, bytecode_len, bytecode
+        );
     } else {
-        let evm = TestHelpers.init_evm_with_bytecode(bytecode_len, bytecode);
+        let evm = TestHelpers.init_evm_with_bytecode{initial_state=initial_state}(
+            bytecode_len, bytecode
+        );
     }
     let stack = Stack.init();
-    let state = State.init();
     let memory = Memory.init();
     tempvar item_2 = new Uint256(size, 0);
     tempvar item_1 = new Uint256(offset, 0);
@@ -230,15 +241,21 @@ func test__exec_copy_offset_high_zellic_issue_1258{
         segments.write_arg(ids.bytecode, program_input["bytecode"])
         ids.opcode_number = program_input["opcode_number"]
     %}
+
+    let state = State.init();
+    let initial_state = State.copy{state=state}();
     if (opcode_number == 0x37) {
         // bytecode is passed as calldata and opcode_number (first element in bytecode variable
         // is passed as bytecode
-        let evm = TestHelpers.init_evm_with_calldata(1, bytecode, bytecode_len, bytecode);
+        let evm = TestHelpers.init_evm_with_calldata{initial_state=initial_state}(
+            1, bytecode, bytecode_len, bytecode
+        );
     } else {
-        let evm = TestHelpers.init_evm_with_bytecode(bytecode_len, bytecode);
+        let evm = TestHelpers.init_evm_with_bytecode{initial_state=initial_state}(
+            bytecode_len, bytecode
+        );
     }
     let stack = Stack.init();
-    let state = State.init();
     let memory = Memory.init();
     tempvar item_2_exec_copy = new Uint256(size, 0);
     tempvar item_1_exec_copy = new Uint256(0, offset_high);
@@ -274,10 +291,11 @@ func test__exec_gasprice{
     alloc_locals;
 
     // Given
-    let evm = TestHelpers.init_evm();
     let stack = Stack.init();
-    let state = State.init();
     let memory = Memory.init();
+    let state = State.init();
+    let initial_state = State.copy{state=state}();
+    let evm = TestHelpers.init_evm{initial_state=initial_state}();
     let expected_gas_price_uint256 = Helpers.to_uint256(evm.message.env.gas_price);
 
     // When
@@ -301,10 +319,11 @@ func test__exec_extcodehash{
     alloc_locals;
     local address: felt;
     %{ ids.address = program_input["address"] %}
-    let evm = TestHelpers.init_evm();
     let stack = Stack.init();
-    let state = State.init();
     let memory = Memory.init();
+    let state = State.init();
+    let initial_state = State.copy{state=state}();
+    let evm = TestHelpers.init_evm{initial_state=initial_state}();
 
     // When
     with stack, memory, state {

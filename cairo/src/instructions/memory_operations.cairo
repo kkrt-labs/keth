@@ -335,12 +335,33 @@ namespace MemoryOperations {
         }
 
         let account = State.get_account(evm.message.address);
-        let original_value = Account.fetch_original_storage(account, key);
         let current_value = State.read_storage(evm.message.address, key);
 
-        let (is_current_original) = uint256_eq(original_value, [current_value]);
+        let initial_state = evm.message.initial_state;
+        let original_value = State.read_storage{state=initial_state}(evm.message.address, key);
+
+        tempvar message = new model.Message(
+            bytecode=evm.message.bytecode,
+            bytecode_len=evm.message.bytecode_len,
+            valid_jumpdests_start=evm.message.valid_jumpdests_start,
+            valid_jumpdests=evm.message.valid_jumpdests,
+            calldata=evm.message.calldata,
+            calldata_len=evm.message.calldata_len,
+            value=evm.message.value,
+            caller=evm.message.caller,
+            parent=evm.message.parent,
+            address=evm.message.address,
+            code_address=evm.message.code_address,
+            read_only=evm.message.read_only,
+            is_create=evm.message.is_create,
+            depth=evm.message.depth,
+            env=evm.message.env,
+            initial_state=initial_state,
+        );
+
+        let (is_current_original) = uint256_eq([original_value], [current_value]);
         let (is_current_new) = uint256_eq([new_value], [current_value]);
-        let (is_original_zero) = uint256_eq(Uint256(0, 0), original_value);
+        let (is_original_zero) = uint256_eq(Uint256(0, 0), [original_value]);
 
         if (is_current_original * (1 - is_current_new) != FALSE) {
             tempvar gas_cost = gas_cost + (is_original_zero * Gas.STORAGE_SET) + (
@@ -362,7 +383,7 @@ namespace MemoryOperations {
         tempvar is_storage_set_changed = (1 - is_current_new) * (1 - is_original_zero);
 
         // storage is being changed and the original value is the new value
-        let (is_new_original) = uint256_eq([new_value], original_value);
+        let (is_new_original) = uint256_eq([new_value], [original_value]);
         tempvar is_storage_restored = (1 - is_current_new) * is_new_original;
 
         tempvar gas_refund = is_storage_set_changed * Gas.STORAGE_CLEAR_REFUND * (
@@ -376,7 +397,7 @@ namespace MemoryOperations {
         if (evm.message.read_only != FALSE) {
             let (revert_reason_len, revert_reason) = Errors.stateModificationError();
             return new model.EVM(
-                message=evm.message,
+                message=message,
                 return_data_len=revert_reason_len,
                 return_data=revert_reason,
                 program_counter=evm.program_counter,
@@ -390,7 +411,7 @@ namespace MemoryOperations {
         State.write_storage(evm.message.address, key, new_value);
         // Return with the updated gas refund
         return new model.EVM(
-            message=evm.message,
+            message=message,
             return_data_len=evm.return_data_len,
             return_data=evm.return_data,
             program_counter=evm.program_counter,

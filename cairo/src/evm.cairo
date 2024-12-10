@@ -57,6 +57,7 @@ namespace EVM {
             is_create=evm.message.is_create,
             depth=evm.message.depth,
             env=evm.message.env,
+            initial_state=evm.message.initial_state,
         );
 
         tempvar evm = new model.EVM(
@@ -284,6 +285,7 @@ namespace EVM {
             is_create=self.message.is_create,
             depth=self.message.depth,
             env=self.message.env,
+            initial_state=self.message.initial_state,
         );
 
         if (is_valid_jumpdest == FALSE) {

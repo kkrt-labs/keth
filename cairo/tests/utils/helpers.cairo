@@ -16,7 +16,9 @@ from src.utils.maths import unsigned_div_rem
 from src.utils.utils import Helpers
 
 namespace TestHelpers {
-    func init_evm_at_address{pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    func init_evm_at_address{
+        pedersen_ptr: HashBuiltin*, range_check_ptr, initial_state: model.State*
+    }(
         bytecode_len: felt,
         bytecode: felt*,
         starknet_contract_address: felt,
@@ -58,27 +60,29 @@ namespace TestHelpers {
             is_create=FALSE,
             depth=0,
             env=env,
+            initial_state=initial_state,
         );
         let evm: model.EVM* = EVM.init(message, 1000000);
         return evm;
     }
 
-    func init_evm{pedersen_ptr: HashBuiltin*, range_check_ptr}() -> model.EVM* {
+    func init_evm{pedersen_ptr: HashBuiltin*, range_check_ptr, initial_state: model.State*}(
+        ) -> model.EVM* {
         let (bytecode) = alloc();
         let (calldata) = alloc();
         return init_evm_at_address(0, bytecode, 0, 0, 0, calldata);
     }
 
-    func init_evm_with_bytecode{pedersen_ptr: HashBuiltin*, range_check_ptr}(
-        bytecode_len: felt, bytecode: felt*
-    ) -> model.EVM* {
+    func init_evm_with_bytecode{
+        pedersen_ptr: HashBuiltin*, range_check_ptr, initial_state: model.State*
+    }(bytecode_len: felt, bytecode: felt*) -> model.EVM* {
         let (calldata) = alloc();
         return init_evm_at_address(bytecode_len, bytecode, 0, 0, 0, calldata);
     }
 
-    func init_evm_with_calldata{pedersen_ptr: HashBuiltin*, range_check_ptr}(
-        bytecode_len: felt, bytecode: felt*, calldata_len: felt, calldata: felt*
-    ) -> model.EVM* {
+    func init_evm_with_calldata{
+        pedersen_ptr: HashBuiltin*, range_check_ptr, initial_state: model.State*
+    }(bytecode_len: felt, bytecode: felt*, calldata_len: felt, calldata: felt*) -> model.EVM* {
         return init_evm_at_address(bytecode_len, bytecode, 0, 0, calldata_len, calldata);
     }
 

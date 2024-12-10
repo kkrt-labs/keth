@@ -30,11 +30,12 @@ func test__exec_swap{
     %}
 
     let stack = TestHelpers.init_stack_with_values(initial_stack_len, initial_stack);
-    let (bytecode) = alloc();
-    assert [bytecode] = i + 0x8f;
-    let evm = TestHelpers.init_evm_with_bytecode(1, bytecode);
     let memory = Memory.init();
     let state = State.init();
+    let initial_state = State.copy{state=state}();
+    let (bytecode) = alloc();
+    assert [bytecode] = i + 0x8f;
+    let evm = TestHelpers.init_evm_with_bytecode{initial_state=initial_state}(1, bytecode);
 
     // When
     with stack, memory, state {

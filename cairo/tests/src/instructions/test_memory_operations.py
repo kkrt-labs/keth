@@ -1,9 +1,12 @@
 import pytest
+from eth_utils.address import to_checksum_address
+from ethereum_types.numeric import U256
 from hypothesis import example, given
 from hypothesis.strategies import binary, integers
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 
 from src.utils.uint256 import int_to_uint256
+from tests.utils.strategies import Address
 
 
 class TestMemoryOperations:
@@ -147,3 +150,45 @@ class TestMemoryOperations:
             )
             assert evm["reverted"] == 2
             assert b"Kakarot: outOfGas left" in bytes(evm["return_data"])
+
+    class TestSstore:
+        def _verify_storage(self, state, address, expected_value):
+            address_hex = to_checksum_address(f"0x{address:040x}")
+            stored_value = list(state["accounts"][address_hex]["storage"].values())[0]
+            low, high = stored_value.values()
+            expected_low, expected_high = int_to_uint256(int(expected_value))
+            assert low == expected_low
+            assert high == expected_high
+
+        @given(initial_value=..., key=..., address=...)
+        def test_exec_sstore_should_store_same_value(
+            self, cairo_run, initial_value: U256, key: U256, address: Address
+        ):
+            address = int.from_bytes(address, "big")
+            state = cairo_run(
+                "test_exec_sstore",
+                initial_value=initial_value,
+                new_value=initial_value,
+                key=key,
+                address=address,
+            )
+            self._verify_storage(state, address, initial_value)
+
+        @given(initial_value=..., new_value=..., key=..., address=...)
+        def test_exec_sstore_should_store_different_value(
+            self,
+            cairo_run,
+            initial_value: U256,
+            new_value: U256,
+            key: U256,
+            address: Address,
+        ):
+            address = int.from_bytes(address, "big")
+            state = cairo_run(
+                "test_exec_sstore",
+                initial_value=initial_value,
+                new_value=new_value,
+                key=key,
+                address=address,
+            )
+            self._verify_storage(state, address, new_value)

@@ -1,7 +1,8 @@
+from ethereum_types.numeric import U256
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin, KeccakBuiltin
 from starkware.cairo.common.uint256 import Uint256, assert_uint256_eq
-
+from src.account import Account
 from src.model import model
 from src.stack import Stack
 from src.state import State
@@ -22,12 +23,13 @@ func test__exec_pc__should_return_evm_program_counter{
     local increment: felt;
     %{ ids.increment = program_input["increment"] %}
 
-    let (bytecode) = alloc();
-    let evm = TestHelpers.init_evm_with_bytecode(0, bytecode);
-    let evm = EVM.increment_program_counter(evm, increment);
     let stack = Stack.init();
-    let state = State.init();
     let memory = Memory.init();
+    let state = State.init();
+    let initial_state = State.copy{state=state}();
+    let (bytecode) = alloc();
+    let evm = TestHelpers.init_evm_with_bytecode{initial_state=initial_state}(0, bytecode);
+    let evm = EVM.increment_program_counter(evm, increment);
 
     // When
     with stack, memory, state {
@@ -50,11 +52,12 @@ func test__exec_pop_should_pop_an_item_from_execution_context{
 }() {
     // Given
     alloc_locals;
-    let (bytecode) = alloc();
-    let evm = TestHelpers.init_evm_with_bytecode(0, bytecode);
     let stack = Stack.init();
-    let state = State.init();
     let memory = Memory.init();
+    let state = State.init();
+    let initial_state = State.copy{state=state}();
+    let (bytecode) = alloc();
+    let evm = TestHelpers.init_evm_with_bytecode{initial_state=initial_state}(0, bytecode);
 
     tempvar item_1 = new Uint256(1, 0);
     tempvar item_0 = new Uint256(2, 0);
@@ -82,11 +85,12 @@ func test__exec_mload_should_load_a_value_from_memory{
 }() {
     // Given
     alloc_locals;
-    let (bytecode) = alloc();
-    let evm = TestHelpers.init_evm_with_bytecode(0, bytecode);
     let stack = Stack.init();
-    let state = State.init();
     let memory = Memory.init();
+    let state = State.init();
+    let initial_state = State.copy{state=state}();
+    let (bytecode) = alloc();
+    let evm = TestHelpers.init_evm_with_bytecode{initial_state=initial_state}(0, bytecode);
 
     tempvar item_1 = new Uint256(1, 0);
     tempvar item_0 = new Uint256(0, 0);
@@ -118,11 +122,12 @@ func test__exec_mload_should_load_a_value_from_memory_with_memory_expansion{
 }() {
     // Given
     alloc_locals;
-    let (bytecode) = alloc();
-    let evm = TestHelpers.init_evm_with_bytecode(0, bytecode);
     let stack = Stack.init();
-    let state = State.init();
     let memory = Memory.init();
+    let state = State.init();
+    let initial_state = State.copy{state=state}();
+    let (bytecode) = alloc();
+    let evm = TestHelpers.init_evm_with_bytecode{initial_state=initial_state}(0, bytecode);
 
     with stack, memory, state {
         tempvar item_1 = new Uint256(1, 0);
@@ -154,12 +159,13 @@ func test__exec_mload_should_load_a_value_from_memory_with_offset_larger_than_ms
 }() {
     // Given
     alloc_locals;
-    let (bytecode) = alloc();
-    let evm = TestHelpers.init_evm_with_bytecode(0, bytecode);
     let test_offset = 684;
     let stack = Stack.init();
-    let state = State.init();
     let memory = Memory.init();
+    let state = State.init();
+    let initial_state = State.copy{state=state}();
+    let (bytecode) = alloc();
+    let evm = TestHelpers.init_evm_with_bytecode{initial_state=initial_state}(0, bytecode);
 
     tempvar item_1 = new Uint256(1, 0);
     tempvar item_0 = new Uint256(0, 0);
@@ -207,10 +213,11 @@ func test__exec_mcopy{
     let src_offset_mcopy = cast(src_offset_mcopy_ptr, Uint256*);
     let dst_offset_mcopy = cast(dst_offset_mcopy_ptr, Uint256*);
 
-    let evm = TestHelpers.init_evm();
     let stack = Stack.init();
-    let state = State.init();
     let memory = TestHelpers.init_memory_with_values(memory_init_state_len, memory_init_state);
+    let state = State.init();
+    let initial_state = State.copy{state=state}();
+    let evm = TestHelpers.init_evm{initial_state=initial_state}();
 
     with stack, memory, state {
         Stack.push(size_mcopy);
@@ -236,10 +243,11 @@ func test_exec_mstore{
         segments.write_arg(ids.offset_ptr, program_input["offset"])
     %}
 
-    let evm = TestHelpers.init_evm();
     let stack = Stack.init();
-    let state = State.init();
     let memory = Memory.init();
+    let state = State.init();
+    let initial_state = State.copy{state=state}();
+    let evm = TestHelpers.init_evm{initial_state=initial_state}();
 
     let value = cast(value_ptr, Uint256*);
     let offset = cast(offset_ptr, Uint256*);
@@ -251,4 +259,39 @@ func test_exec_mstore{
         let evm = MemoryOperations.exec_mstore(evm);
     }
     return (evm, memory);
+}
+
+func test_exec_sstore{
+    pedersen_ptr: HashBuiltin*,
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+}(initial_value: U256, new_value: U256, key: U256, address: felt) -> model.State* {
+    alloc_locals;
+
+    let (local code: felt*) = alloc();
+    tempvar code_hash = new Uint256(0, 0);
+    tempvar balance = new Uint256(0, 0);
+    let account = Account.init(0, code, code_hash, 0, balance);
+
+    let stack = Stack.init();
+    let memory = Memory.init();
+    let state = State.init();
+    with state {
+        State.update_account(address, account);
+        State.write_storage(address, key.value, initial_value.value);
+    }
+    let initial_state = State.copy{state=state}();
+    let (bytecode) = alloc();
+    let (calldata) = alloc();
+    let evm = TestHelpers.init_evm_at_address{initial_state=initial_state}(
+        0, bytecode, 0, address, 0, calldata
+    );
+
+    with stack, memory, state {
+        Stack.push(new_value.value);
+        Stack.push(key.value);
+        let evm = MemoryOperations.exec_sstore(evm);
+    }
+    return state;
 }
