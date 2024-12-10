@@ -88,7 +88,7 @@ lint:
 actions:
   disabled:
     - trunk-announce
-    - trunk-check-pre-push
     - trunk-fmt-pre-commit
   enabled:
+    - trunk-check-pre-push
     - trunk-upgrade-available
