@@ -1,4 +1,3 @@
-
 from ethereum_types.numeric import U256
 
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin
