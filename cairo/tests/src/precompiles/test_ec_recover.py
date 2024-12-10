@@ -64,8 +64,8 @@ class TestEcRecover:
     @given(
         v=st.integers(min_value=0, max_value=26) | st.integers(min_value=29),
         msg=st.binary(min_size=32, max_size=32),
-        r=st.integers(min_value=1, max_value=SECP256K1N - U256(1)),
-        s=st.integers(min_value=1, max_value=SECP256K1N - U256(1)),
+        r=st.integers(min_value=U256(1), max_value=SECP256K1N - U256(1)),
+        s=st.integers(min_value=U256(1), max_value=SECP256K1N - U256(1)),
     )
     def test_invalid_v(self, v, msg, r, s, cairo_run):
         """Test with invalid v values."""
