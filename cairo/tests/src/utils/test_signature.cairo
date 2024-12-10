@@ -1,6 +1,6 @@
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 
-from ethereum.base_types import U256
+from ethereum_types.numeric import U256
 from src.utils.signature import Signature
 
 func test__verify_eth_signature_uint256{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
