@@ -49,8 +49,8 @@ class TestSignature:
 
         @given(
             msg_hash=...,
-            r=st.integers(min_value=U256(1), max_value=SECP256K1N - U256(1)),
-            s=st.integers(min_value=U256(1), max_value=SECP256K1N - U256(1)),
+            r=st.integers(min_value=U256(1), max_value=SECP256K1N - U256(1)).map(U256),
+            s=st.integers(min_value=U256(1), max_value=SECP256K1N - U256(1)).map(U256),
             y_parity=st.integers(min_value=2, max_value=DEFAULT_PRIME - 1),
             eth_address=felt,
         )
@@ -101,7 +101,7 @@ class TestSignature:
             r=...,
             s=st.one_of(
                 st.just(U256(0)),
-                st.integers(min_value=SECP256K1N, max_value=2**256 - 1).map(U256),
+                st.integers(min_value=SECP256K1N, max_value=U256.MAX_VALUE).map(U256),
             ),
             y_parity=...,
             eth_address=felt,
