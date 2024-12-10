@@ -89,6 +89,7 @@ namespace TestHelpers {
         calldata: felt*,
     ) -> model.EVM* {
         alloc_locals;
+        tempvar empty_option = model.Option(0, 0);
         tempvar env = new model.Environment(
             origin=0,
             gas_price=0,
@@ -100,7 +101,7 @@ namespace TestHelpers {
             coinbase=0,
             base_fee=0,
             block_hashes=cast(0, Uint256*),
-            excess_blob_gas=0,
+            excess_blob_gas=empty_option,
         );
         return init_evm_with_env(
             initial_state, env, bytecode_len, bytecode, evm_contract_address, calldata_len, calldata
