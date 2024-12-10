@@ -6,6 +6,7 @@ from ethereum.cancun.vm.gas import (
     calculate_gas_extend_memory,
     calculate_memory_gas_cost,
 )
+from ethereum_types.numeric import Uint
 from src.utils.uint256 import int_to_uint256
 from tests.utils.strategies import felt, uint128, uint256
 
@@ -15,7 +16,7 @@ class TestGas:
         @given(max_offset=integers(min_value=0, max_value=0xFFFFFF))
         def test_should_return_same_as_execution_specs(self, cairo_run, max_offset):
             output = cairo_run("test__memory_cost", words_len=(max_offset + 31) // 32)
-            assert calculate_memory_gas_cost(max_offset) == output
+            assert calculate_memory_gas_cost(Uint(max_offset)) == Uint(output)
 
         @given(
             bytes_len=uint128,
