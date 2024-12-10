@@ -1,5 +1,6 @@
 import random
-from typing import Iterable, Tuple, Union
+from textwrap import wrap
+from typing import Iterable, List, Tuple, Union
 
 import rlp
 from eth_account._utils.transaction_utils import transaction_rpc_to_rlp_structure
@@ -8,7 +9,9 @@ from eth_keys.main import lazy_key_api as keys
 from eth_utils.address import to_checksum_address
 from eth_utils.crypto import keccak
 from eth_utils.hexadecimal import decode_hex
+from ethereum_types.numeric import U256
 
+from starkware.cairo.lang.vm.crypto import pedersen_hash
 from src.utils.uint256 import int_to_uint256
 from tests.utils.parsers import to_bytes, to_int
 
@@ -94,3 +97,7 @@ def flatten_tx_access_list(access_list):
         for key in item["storageKeys"]:
             result.extend(int_to_uint256(int(key, 16)))
     return result
+
+def get_internal_storage_key(key: U256) -> int:
+    low, high = int_to_uint256(key)
+    return pedersen_hash(low, high)

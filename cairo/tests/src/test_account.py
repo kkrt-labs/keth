@@ -3,7 +3,9 @@ from eth_utils import keccak
 from hypothesis import given
 from hypothesis.strategies import binary
 
+from ethereum.base_types import U256
 from src.utils.uint256 import int_to_uint256
+from tests.utils.helpers import get_internal_storage_key
 
 
 class TestAccount:
@@ -60,3 +62,10 @@ class TestAccount:
             output = cairo_run("test__compute_code_hash", code=bytecode)
             code_hash = int.from_bytes(keccak(bytecode), byteorder="big")
             assert output["low"] + 2**128 * output["high"] == code_hash
+
+    class TestInternals:
+        @given(key=...)
+        def test_should_compute_storage_address(self, cairo_run, key: U256):
+            assert get_internal_storage_key(key) == cairo_run(
+                "test___storage_addr", key
+            )

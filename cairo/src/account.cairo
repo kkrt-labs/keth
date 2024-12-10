@@ -29,7 +29,7 @@ namespace Account {
     // @dev This is used to initialize a new, empty account in the state
     // @dev when an account is part of a transaction, but was never interacted with before.
     // @return The new account
-    func new_empty() -> model.Account* {
+    func default() -> model.Account* {
         let (code) = alloc();
         tempvar empty_code_hash = new Uint256(
             low=Constants.EMPTY_CODE_HASH_LOW, high=Constants.EMPTY_CODE_HASH_HIGH
