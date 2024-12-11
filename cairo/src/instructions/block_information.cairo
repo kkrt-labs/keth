@@ -1,5 +1,5 @@
 from ethereum.cancun.vm.gas import calculate_blob_gas_price
-from ethereum.base_types import U64
+from ethereum_types.numeric import U64
 
 from starkware.cairo.common.bool import FALSE
 from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin, KeccakBuiltin
