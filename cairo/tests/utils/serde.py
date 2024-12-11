@@ -126,7 +126,7 @@ class Serde:
             else:
                 # These are tuples with a variable size (or list or sequences).
                 raw = self.serialize_pointers(tuple_struct_path, tuple_struct_ptr)
-                tuple_item_path = members["value"].cairo_type.pointee.scope.path
+                tuple_item_path = members["data"].cairo_type.pointee.scope.path
                 resolved_cls = (
                     get_origin(python_cls)
                     if get_origin(python_cls) not in (Sequence, abc.Sequence)
@@ -134,7 +134,7 @@ class Serde:
                 )
                 return resolved_cls(
                     [
-                        self.serialize_type(tuple_item_path, raw["value"] + i)
+                        self.serialize_type(tuple_item_path, raw["data"] + i)
                         for i in range(raw["len"])
                     ]
                 )

@@ -95,7 +95,7 @@ state = st.lists(bytes20).flatmap(
 )
 
 private_key = (
-    st.integers(min_value=1, max_value=SECP256K1N._number - 1)
+    st.integers(min_value=1, max_value=int(SECP256K1N) - 1)
     .map(lambda x: int.to_bytes(x, 32, "big"))
     .map(PrivateKey)
 )

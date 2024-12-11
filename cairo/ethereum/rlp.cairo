@@ -10,7 +10,6 @@ from ethereum_types.bytes import (
     BytesStruct,
     Bytes32,
     TupleBytes,
-    TupleBytesStruct,
     String,
     StringStruct,
     TupleBytes32,
@@ -37,7 +36,7 @@ struct SequenceSimple {
 }
 
 struct SequenceSimpleStruct {
-    value: Simple*,
+    data: Simple*,
     len: felt,
 }
 
@@ -55,7 +54,7 @@ struct SequenceExtended {
 }
 
 struct SequenceExtendedStruct {
-    value: Extended*,
+    data: Extended*,
     len: felt,
 }
 
@@ -246,7 +245,7 @@ func encode_sequence{range_check_ptr}(raw_sequence: SequenceExtended) -> Bytes {
 func get_joined_encodings{range_check_ptr}(raw_sequence: SequenceExtended) -> Bytes {
     alloc_locals;
     let (dst) = alloc();
-    let len = _get_joined_encodings(dst, raw_sequence.value.value, raw_sequence.value.len);
+    let len = _get_joined_encodings(dst, raw_sequence.value.data, raw_sequence.value.len);
     tempvar value = new BytesStruct(dst, len);
     let encoded_bytes = Bytes(value);
     return encoded_bytes;
@@ -739,9 +738,7 @@ func _encode_sequence{range_check_ptr}(dst: felt*, raw_sequence: SequenceExtende
     alloc_locals;
     let (tmp_dst_start: felt*) = alloc();
     let body_ptr = tmp_dst_start + PREFIX_LEN_MAX;
-    let body_len = _get_joined_encodings(
-        body_ptr, raw_sequence.value.value, raw_sequence.value.len
-    );
+    let body_len = _get_joined_encodings(body_ptr, raw_sequence.value.data, raw_sequence.value.len);
     let prefix_len = _encode_prefix_len(body_ptr, body_len);
     memcpy(dst, body_ptr - prefix_len, prefix_len + body_len);
     return prefix_len + body_len;
@@ -779,7 +776,7 @@ func _encode_tuple_bytes32{range_check_ptr}(dst: felt*, raw_tuple_bytes32: Tuple
     if (raw_tuple_bytes32.value.len == 1) {
         assert [dst] = 0xc0 + 33;
         assert [dst + 1] = 0x80 + 32;
-        uint256_to_bytes32_little(dst + 2, [raw_tuple_bytes32.value.value[0].value]);
+        uint256_to_bytes32_little(dst + 2, [raw_tuple_bytes32.value.data[0].value]);
         return 34;
     }
 
@@ -790,7 +787,7 @@ func _encode_tuple_bytes32{range_check_ptr}(dst: felt*, raw_tuple_bytes32: Tuple
     memcpy(dst + 1, len_joined_encodings, len_joined_encodings_len);
     let dst = dst + 1 + len_joined_encodings_len;
 
-    _encode_tuple_bytes32_inner(dst, raw_tuple_bytes32.value.len, raw_tuple_bytes32.value.value);
+    _encode_tuple_bytes32_inner(dst, raw_tuple_bytes32.value.len, raw_tuple_bytes32.value.data);
 
     return 1 + len_joined_encodings_len + joined_encodings_len;
 }
@@ -818,7 +815,7 @@ func _encode_tuple_log{range_check_ptr}(dst: felt*, raw_tuple_log: TupleLog) -> 
     let (local tmp) = alloc();
     let body_ptr = tmp + PREFIX_LEN_MAX;
     let body_len = _encode_tuple_log_inner(
-        body_ptr, raw_tuple_log.value.len, raw_tuple_log.value.value
+        body_ptr, raw_tuple_log.value.len, raw_tuple_log.value.data
     );
     let prefix_len = _encode_prefix_len(body_ptr, body_len);
 

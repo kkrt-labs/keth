@@ -95,9 +95,7 @@ class TestTrie:
             ),
             cairo_error(message="nibble_list_to_compact: invalid remainder"),
         ):
-            nibble_list_to_compact(x, is_leaf) == cairo_run(
-                "nibble_list_to_compact", x, is_leaf
-            )
+            cairo_run("nibble_list_to_compact", x, is_leaf)
 
     @given(bytes_=...)
     def test_bytes_to_nibble_list(self, cairo_run, bytes_: Bytes):
@@ -107,15 +105,15 @@ class TestTrie:
     #     assert root(trie, get_storage_root) == cairo_run("root", trie, get_storage_root)
 
     @given(
-        obj=st.dictionaries(nibble, bytes32).filter(lambda x: len(x) > 0),
+        obj=st.dictionaries(nibble, bytes32).filter(
+            lambda x: len(x) > 0 and all(len(k) > 0 for k in x)
+        ),
         nibble=uint4,
         level=uint4,
     )
     def test_get_branche_for_nibble_at_level(self, cairo_run, obj, nibble, level):
-        assume(
-            min(len(k) for k in obj) > level  # longer than level
-            and len({k[:level] for k in obj}) == 1  # same prefix at level
-        )
+        prefix = (b"prefix" * 3)[:level]
+        obj = {(prefix + k)[:64]: v for k, v in obj.items()}
         branche, value = cairo_run(
             "_get_branche_for_nibble_at_level", obj, nibble, level
         )
@@ -124,13 +122,15 @@ class TestTrie:
         }
         assert value == obj.get(level, b"")
 
-    @given(obj=st.dictionaries(nibble, bytes32), level=uint4)
+    @given(
+        obj=st.dictionaries(nibble, bytes32).filter(
+            lambda x: len(x) > 0 and all(len(k) > 0 for k in x)
+        ),
+        level=uint4,
+    )
     def test_get_branches(self, cairo_run, obj, level):
-        assume(
-            len(obj) > 0  # no empty objects
-            and min(len(k) for k in obj) > level  # longer than level
-            and len({k[:level] for k in obj}) == 1  # same prefix at level
-        )
+        prefix = (b"prefix" * 3)[:level]
+        obj = {(prefix + k)[:64]: v for k, v in obj.items() if len(k) > 0}
         branches, value = cairo_run("_get_branches", obj, level)
         assert branches == tuple(
             {k: v for k, v in obj.items() if k[level] == nibble and len(k) > level}

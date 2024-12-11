@@ -11,7 +11,7 @@ using Root = Hash32;
 
 using VersionedHash = Hash32;
 struct TupleVersionedHashStruct {
-    value: VersionedHash*,
+    data: VersionedHash*,
     len: felt,
 }
 

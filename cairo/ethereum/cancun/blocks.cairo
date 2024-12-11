@@ -15,7 +15,7 @@ struct Withdrawal {
 }
 
 struct TupleWithdrawalStruct {
-    value: Withdrawal*,
+    data: Withdrawal*,
     len: felt,
 }
 
@@ -51,7 +51,7 @@ struct Header {
 }
 
 struct TupleHeaderStruct {
-    value: Header*,
+    data: Header*,
     len: felt,
 }
 
@@ -70,7 +70,7 @@ struct Log {
 }
 
 struct TupleLogStruct {
-    value: Log*,
+    data: Log*,
     len: felt,
 }
 
