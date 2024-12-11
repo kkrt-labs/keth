@@ -71,7 +71,7 @@ class TestSignature:
             msg_hash=...,
             r=st.one_of(
                 st.just(U256(0)),
-                st.integers(min_value=SECP256K1N, max_value=2**256 - 1).map(U256),
+                st.integers(min_value=SECP256K1N, max_value=U256(2**256 - 1)).map(U256),
             ),
             s=...,
             y_parity=...,
