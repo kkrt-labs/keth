@@ -215,7 +215,8 @@ class Serde:
             return kwargs
 
         if python_cls in (U256, Hash32, Bytes32):
-            value = kwargs["value"]["low"] + kwargs["value"]["high"] * 2**128
+            # The inner uint256 has been serialized in `serialize_uint256` already.
+            value = kwargs["value"]
             if python_cls == U256:
                 return U256(value)
             return python_cls(value.to_bytes(32, "little"))
@@ -262,6 +263,8 @@ class Serde:
             return self.serialize_block_kakarot(scope_ptr)
         if scope.path == ("src", "model", "model", "Option"):
             return self.serialize_option(scope_ptr)
+        if scope.path == ("starkware", "cairo", "common", "uint256", "Uint256"):
+            return self.serialize_uint256(scope_ptr)
         try:
             return self.serialize_type(scope.path, scope_ptr)
         except MissingIdentifierError:

@@ -40,8 +40,8 @@ def gen_arg_pydantic(
     To be removed once all models are removed in favor of eels types.
     """
     if isinstance(arg, Dict):
-        base = segments.add()
-        assert base.segment_index not in dict_manager.trackers
+        dict_ptr = segments.add()
+        assert dict_ptr.segment_index not in dict_manager.trackers
 
         data = {
             k: gen_arg_pydantic(dict_manager, segments, v, apply_modulo_to_args)
@@ -50,13 +50,16 @@ def gen_arg_pydantic(
         if isinstance(arg, defaultdict):
             data = defaultdict(arg.default_factory, data)
 
-        dict_manager.trackers[base.segment_index] = DictTracker(
-            data=data, current_ptr=base
+        # This is required for tests where we read data from DictAccess segments while no dict method has been used.
+        # Equivalent to doing an initial dict_read of all keys.
+        initial_data = flatten([(k, v, v) for k, v in data.items()])
+        segments.load_data(dict_ptr, initial_data)
+        current_ptr = dict_ptr + len(initial_data)
+        dict_manager.trackers[dict_ptr.segment_index] = DictTracker(
+            data=data, current_ptr=current_ptr
         )
 
-        # In case of a dict, it's assumed that the struct **always** have consecutive dict_start, dict_ptr
-        # fields.
-        return base, base
+        return dict_ptr, current_ptr
 
     if isinstance(arg, Iterable):
         base = segments.add()

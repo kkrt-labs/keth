@@ -166,11 +166,8 @@ def cairo_run(request, cairo_program, cairo_file, main_path):
                 output_ptr = runner.segments.add()
                 stack.append(output_ptr)
             else:
-                stack.append(
-                    gen_arg(
-                        python_type, kwargs[arg_name] if arg_name in kwargs else args[i]
-                    )
-                )
+                arg_value = kwargs[arg_name] if arg_name in kwargs else args[i]
+                stack.append(gen_arg(python_type, arg_value))
 
         return_fp = runner.execution_base + 2
         # Return to the jmp rel 0 instruction added previously
