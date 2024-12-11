@@ -123,6 +123,7 @@ namespace model {
         is_create: felt,
         depth: felt,
         env: Environment*,
+        initial_state: State*,
     }
 
     // @dev Stores all data relevant to the current execution context.

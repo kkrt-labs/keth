@@ -18,10 +18,11 @@ func test__exec_stop{
 }() {
     alloc_locals;
 
-    let evm = TestHelpers.init_evm();
     let stack = Stack.init();
-    let state = State.init();
     let memory = Memory.init();
+    let state = State.init();
+    let initial_state = State.copy{state=state}();
+    let evm = TestHelpers.init_evm(initial_state);
 
     with stack, memory, state {
         let evm = StopAndMathOperations.exec_stop(evm);
@@ -57,8 +58,9 @@ func test__exec_math_operation{
     let stack = TestHelpers.init_stack_with_values(
         initial_stack_len, cast(initial_stack, Uint256*)
     );
-    let evm = TestHelpers.init_evm_with_bytecode(1, bytecode);
     let state = State.init();
+    let initial_state = State.copy{state=state}();
+    let evm = TestHelpers.init_evm_with_bytecode(initial_state, 1, bytecode);
 
     // When
     with stack, memory, state {

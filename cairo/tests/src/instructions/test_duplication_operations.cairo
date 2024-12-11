@@ -30,9 +30,10 @@ func test__exec_dup{
     let stack = TestHelpers.init_stack_with_values(initial_stack_len, initial_stack);
     let memory = Memory.init();
     let state = State.init();
+    let initial_state = State.copy{state=state}();
     let (bytecode) = alloc();
     assert [bytecode] = i + 0x7f;
-    let evm = TestHelpers.init_evm_with_bytecode(1, bytecode);
+    let evm = TestHelpers.init_evm_with_bytecode(initial_state, 1, bytecode);
 
     with stack, memory, state {
         let evm = DuplicationOperations.exec_dup(evm);

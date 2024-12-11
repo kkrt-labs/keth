@@ -83,6 +83,7 @@ func apply_transactions{
         }
     }
 
+    let initial_state = State.copy();
     let account = State.get_account(tx_encoded.sender);
 
     // Validate nonce
@@ -136,6 +137,7 @@ func apply_transactions{
     );
 
     Interpreter.execute(
+        initial_state,
         env,
         evm_contract_address,
         is_deploy_tx,

@@ -150,18 +150,6 @@ namespace Account {
         return (self, value_ptr);
     }
 
-    // @notice Read the first value of a given storage slot
-    // @dev The storage needs to exists already, to this should be used only
-    //      after a storage_read or storage_write has been done
-    func fetch_original_storage{pedersen_ptr: HashBuiltin*}(
-        self: model.Account*, key: Uint256*
-    ) -> Uint256 {
-        alloc_locals;
-        // TODO: Fetch from parent account
-        tempvar value = Uint256(0, 0);
-        return value;
-    }
-
     // @notice Update a storage key with the given value
     // @param self The pointer to the Account.
     // @param key The pointer to the Uint256 storage key

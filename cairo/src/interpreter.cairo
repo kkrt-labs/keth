@@ -84,6 +84,7 @@ namespace Interpreter {
                     is_create=evm.message.is_create,
                     depth=evm.message.depth,
                     env=evm.message.env,
+                    initial_state=evm.message.initial_state,
                 );
                 tempvar evm = new model.EVM(
                     message=message,
@@ -806,6 +807,7 @@ namespace Interpreter {
         keccak_ptr: KeccakBuiltin*,
         state: model.State*,
     }(
+        initial_state: model.State*,
         env: model.Environment*,
         address: felt,
         is_deploy_tx: felt,
@@ -881,6 +883,7 @@ namespace Interpreter {
             is_create=is_deploy_tx,
             depth=0,
             env=env,
+            initial_state=initial_state,
         );
 
         let stack = Stack.init();
@@ -972,6 +975,9 @@ namespace Interpreter {
         // Reset the state if the execution has failed.
         // Only the gas fee paid will be committed.
         State.finalize{state=state}();
+        tempvar initial_state = evm.message.initial_state;
+        State.finalize{state=initial_state}();
+
         if (evm.reverted != 0) {
             tempvar state = cast([fp - 14], model.State*);
         } else {
