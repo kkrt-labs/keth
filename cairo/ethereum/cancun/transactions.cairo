@@ -44,7 +44,7 @@ struct AccessList {
 }
 
 struct TupleAccessListStruct {
-    value: AccessList*,
+    data: AccessList*,
     len: felt,
 }
 

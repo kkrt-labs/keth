@@ -42,7 +42,7 @@ struct String {
 // In Cairo, tuples are not a first-class type, so we need to define a custom
 // struct to represent a tuple of Bytes32.
 struct TupleBytesStruct {
-    value: Bytes*,
+    data: Bytes*,
     len: felt,
 }
 
@@ -68,7 +68,7 @@ struct MappingBytesBytes {
 }
 
 struct TupleMappingBytesBytesStruct {
-    value: MappingBytesBytes*,
+    data: MappingBytesBytes*,
     len: felt,
 }
 
@@ -77,7 +77,7 @@ struct TupleMappingBytesBytes {
 }
 
 struct TupleBytes32Struct {
-    value: Bytes32*,
+    data: Bytes32*,
     len: felt,
 }
 

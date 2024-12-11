@@ -175,10 +175,10 @@ func _calculate_access_list_cost{range_check_ptr}(access_list: TupleAccessListSt
         return 0;
     }
 
-    let current_list = access_list.value[access_list.len - 1];
+    let current_list = access_list.data[access_list.len - 1];
     let current_cost = TX_ACCESS_LIST_ADDRESS_COST + current_list.value.storage_keys.value.len *
         TX_ACCESS_LIST_STORAGE_KEY_COST;
-    let access_list = TupleAccessListStruct(value=access_list.value, len=access_list.len - 1);
+    let access_list = TupleAccessListStruct(data=access_list.data, len=access_list.len - 1);
     let cum_gas_cost = _calculate_access_list_cost(access_list);
     let cost = current_cost + cum_gas_cost;
     return cost;
