@@ -92,7 +92,8 @@ def cairo_run(request, cairo_program, cairo_file, main_path):
             ]
             if builtin in {arg.replace("_ptr", "") for arg in implicit_args}
         ]
-
+        # Add a jmp rel 0 instruction to be able to loop in proof mode and avoid the proof-mode at compile time
+        cairo_program.data = cairo_program.data + [0x10780017FFF7FFF, 0]
         memory = MemoryDict()
         runner = CairoRunner(
             program=cairo_program,
@@ -130,10 +131,8 @@ def cairo_run(request, cairo_program, cairo_file, main_path):
                 stack.append(gen_arg(python_type, arg_value))
 
         return_fp = runner.execution_base + 2
-        end = runner.program_base + len(runner.program.data)
-        # Add a jmp rel 0 instruction to be able to loop in proof mode
-        runner.memory[end] = 0x10780017FFF7FFF
-        runner.memory[end + 1] = 0
+        # Return to the jmp rel 0 instruction added previously
+        end = runner.program_base + len(runner.program.data) - 2
         # Proof mode expects the program to start with __start__ and call main
         # Adding [return_fp, end] before and after the stack makes this work both in proof mode and normal mode
         stack = [return_fp, end] + stack + [return_fp, end]
@@ -143,7 +142,7 @@ def cairo_run(request, cairo_program, cairo_file, main_path):
         runner.load_data(runner.program_base, runner.program.data)
         runner.load_data(runner.execution_base, stack)
         runner.initial_fp = runner.initial_ap = runner.execution_base + len(stack)
-
+        runner.initialize_zero_segment()
         runner.initialize_vm(
             hint_locals={
                 "program_input": kwargs,
