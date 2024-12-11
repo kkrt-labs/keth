@@ -273,9 +273,7 @@ func test__add_transfer_should_return_false_when_overflowing_recipient_balance{
     alloc_locals;
     let state = State.init();
     let (code) = alloc();
-    tempvar code_hash = new Uint256(
-        Constants.EMPTY_CODE_HASH_LOW, Constants.EMPTY_CODE_HASH_HIGH
-    );
+    tempvar code_hash = new Uint256(Constants.EMPTY_CODE_HASH_LOW, Constants.EMPTY_CODE_HASH_HIGH);
 
     // Sender
     tempvar sender = 0x10001;
