@@ -1,10 +1,11 @@
 import pytest
 from eth_keys.datatypes import PrivateKey
+from ethereum_types.bytes import Bytes32
+from ethereum_types.numeric import U256
 from hypothesis import given
 from hypothesis import strategies as st
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 
-from ethereum.base_types import U256, Bytes32
 from ethereum.crypto.elliptic_curve import SECP256K1N
 from tests.utils.errors import cairo_error
 from tests.utils.strategies import felt
@@ -48,8 +49,8 @@ class TestSignature:
 
         @given(
             msg_hash=...,
-            r=st.integers(min_value=1, max_value=SECP256K1N - 1).map(U256),
-            s=st.integers(min_value=1, max_value=SECP256K1N - 1).map(U256),
+            r=st.integers(min_value=U256(1), max_value=SECP256K1N - U256(1)).map(U256),
+            s=st.integers(min_value=U256(1), max_value=SECP256K1N - U256(1)).map(U256),
             y_parity=st.integers(min_value=2, max_value=DEFAULT_PRIME - 1),
             eth_address=felt,
         )
@@ -70,7 +71,7 @@ class TestSignature:
             msg_hash=...,
             r=st.one_of(
                 st.just(U256(0)),
-                st.integers(min_value=SECP256K1N, max_value=2**256 - 1).map(U256),
+                st.integers(min_value=SECP256K1N, max_value=U256(2**256 - 1)).map(U256),
             ),
             s=...,
             y_parity=...,
@@ -100,7 +101,7 @@ class TestSignature:
             r=...,
             s=st.one_of(
                 st.just(U256(0)),
-                st.integers(min_value=SECP256K1N, max_value=2**256 - 1).map(U256),
+                st.integers(min_value=SECP256K1N, max_value=U256.MAX_VALUE).map(U256),
             ),
             y_parity=...,
             eth_address=felt,

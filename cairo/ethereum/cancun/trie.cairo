@@ -9,12 +9,10 @@ from src.utils.bytes import uint256_to_bytes32_little
 from ethereum.crypto.hash import keccak256
 from ethereum.utils.numeric import min
 from ethereum.rlp import encode, _encode_bytes, _encode
-from ethereum.base_types import (
-    U256,
+from ethereum_types.numeric import U256, Uint, bool
+from ethereum_types.bytes import (
     Bytes,
-    Uint,
     BytesStruct,
-    bool,
     StringStruct,
     String,
     MappingBytesBytes,

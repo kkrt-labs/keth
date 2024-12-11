@@ -152,7 +152,7 @@ profile = "black"
 src_paths = ["src", "tests"]
 
 [tool.uv.sources]
-ethereum = { git = "https://github.com/ethereum/execution-specs.git" }
+ethereum = { git = "https://github.com/ethereum/execution-specs.git", rev = "1adcc1bfe774798bcacc685aebc17bd9935078c3" }
 
 [build-system]
 requires = ["hatchling"]

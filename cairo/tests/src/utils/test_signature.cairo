@@ -1,9 +1,9 @@
-from ethereum.base_types import U256
+from ethereum_types.numeric import U256
 
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin
-from starkware.cairo.common.uint256 import Uint256
-from src.utils.signature import Signature, Internals
 from starkware.cairo.common.cairo_secp.bigint import uint256_to_bigint
+
+from src.utils.signature import Signature, Internals
 
 func test__public_key_point_to_eth_address{
     range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*

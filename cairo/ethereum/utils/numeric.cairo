@@ -1,5 +1,5 @@
 from starkware.cairo.common.math_cmp import is_le, is_not_zero
-from ethereum.base_types import Uint
+from ethereum_types.numeric import Uint
 
 func min{range_check_ptr}(a: felt, b: felt) -> felt {
     if (a == b) {
