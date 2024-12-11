@@ -22,7 +22,7 @@ func test__exec_stop{
     let memory = Memory.init();
     let state = State.init();
     let initial_state = State.copy{state=state}();
-    let evm = TestHelpers.init_evm{initial_state=initial_state}();
+    let evm = TestHelpers.init_evm(initial_state);
 
     with stack, memory, state {
         let evm = StopAndMathOperations.exec_stop(evm);
@@ -60,7 +60,7 @@ func test__exec_math_operation{
     );
     let state = State.init();
     let initial_state = State.copy{state=state}();
-    let evm = TestHelpers.init_evm_with_bytecode{initial_state=initial_state}(1, bytecode);
+    let evm = TestHelpers.init_evm_with_bytecode(initial_state, 1, bytecode);
 
     // When
     with stack, memory, state {

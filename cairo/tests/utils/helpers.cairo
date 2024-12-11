@@ -16,9 +16,8 @@ from src.utils.maths import unsigned_div_rem
 from src.utils.utils import Helpers
 
 namespace TestHelpers {
-    func init_evm_at_address{
-        pedersen_ptr: HashBuiltin*, range_check_ptr, initial_state: model.State*
-    }(
+    func init_evm_at_address{pedersen_ptr: HashBuiltin*, range_check_ptr}(
+        initial_state: model.State*,
         bytecode_len: felt,
         bytecode: felt*,
         starknet_contract_address: felt,
@@ -66,24 +65,31 @@ namespace TestHelpers {
         return evm;
     }
 
-    func init_evm{pedersen_ptr: HashBuiltin*, range_check_ptr, initial_state: model.State*}(
-        ) -> model.EVM* {
+    func init_evm{pedersen_ptr: HashBuiltin*, range_check_ptr}(
+        initial_state: model.State*
+    ) -> model.EVM* {
         let (bytecode) = alloc();
         let (calldata) = alloc();
-        return init_evm_at_address(0, bytecode, 0, 0, 0, calldata);
+        return init_evm_at_address(initial_state, 0, bytecode, 0, 0, 0, calldata);
     }
 
-    func init_evm_with_bytecode{
-        pedersen_ptr: HashBuiltin*, range_check_ptr, initial_state: model.State*
-    }(bytecode_len: felt, bytecode: felt*) -> model.EVM* {
+    func init_evm_with_bytecode{pedersen_ptr: HashBuiltin*, range_check_ptr}(
+        initial_state: model.State*, bytecode_len: felt, bytecode: felt*
+    ) -> model.EVM* {
         let (calldata) = alloc();
-        return init_evm_at_address(bytecode_len, bytecode, 0, 0, 0, calldata);
+        return init_evm_at_address(initial_state, bytecode_len, bytecode, 0, 0, 0, calldata);
     }
 
-    func init_evm_with_calldata{
-        pedersen_ptr: HashBuiltin*, range_check_ptr, initial_state: model.State*
-    }(bytecode_len: felt, bytecode: felt*, calldata_len: felt, calldata: felt*) -> model.EVM* {
-        return init_evm_at_address(bytecode_len, bytecode, 0, 0, calldata_len, calldata);
+    func init_evm_with_calldata{pedersen_ptr: HashBuiltin*, range_check_ptr}(
+        initial_state: model.State*,
+        bytecode_len: felt,
+        bytecode: felt*,
+        calldata_len: felt,
+        calldata: felt*,
+    ) -> model.EVM* {
+        return init_evm_at_address(
+            initial_state, bytecode_len, bytecode, 0, 0, calldata_len, calldata
+        );
     }
 
     func init_stack_with_values(stack_len: felt, stack: Uint256*) -> model.Stack* {

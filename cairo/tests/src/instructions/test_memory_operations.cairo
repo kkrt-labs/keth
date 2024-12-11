@@ -28,7 +28,7 @@ func test__exec_pc__should_return_evm_program_counter{
     let state = State.init();
     let initial_state = State.copy{state=state}();
     let (bytecode) = alloc();
-    let evm = TestHelpers.init_evm_with_bytecode{initial_state=initial_state}(0, bytecode);
+    let evm = TestHelpers.init_evm_with_bytecode(initial_state, 0, bytecode);
     let evm = EVM.increment_program_counter(evm, increment);
 
     // When
@@ -57,7 +57,7 @@ func test__exec_pop_should_pop_an_item_from_execution_context{
     let state = State.init();
     let initial_state = State.copy{state=state}();
     let (bytecode) = alloc();
-    let evm = TestHelpers.init_evm_with_bytecode{initial_state=initial_state}(0, bytecode);
+    let evm = TestHelpers.init_evm_with_bytecode(initial_state, 0, bytecode);
 
     tempvar item_1 = new Uint256(1, 0);
     tempvar item_0 = new Uint256(2, 0);
@@ -90,7 +90,7 @@ func test__exec_mload_should_load_a_value_from_memory{
     let state = State.init();
     let initial_state = State.copy{state=state}();
     let (bytecode) = alloc();
-    let evm = TestHelpers.init_evm_with_bytecode{initial_state=initial_state}(0, bytecode);
+    let evm = TestHelpers.init_evm_with_bytecode(initial_state, 0, bytecode);
 
     tempvar item_1 = new Uint256(1, 0);
     tempvar item_0 = new Uint256(0, 0);
@@ -127,7 +127,7 @@ func test__exec_mload_should_load_a_value_from_memory_with_memory_expansion{
     let state = State.init();
     let initial_state = State.copy{state=state}();
     let (bytecode) = alloc();
-    let evm = TestHelpers.init_evm_with_bytecode{initial_state=initial_state}(0, bytecode);
+    let evm = TestHelpers.init_evm_with_bytecode(initial_state, 0, bytecode);
 
     with stack, memory, state {
         tempvar item_1 = new Uint256(1, 0);
@@ -165,7 +165,7 @@ func test__exec_mload_should_load_a_value_from_memory_with_offset_larger_than_ms
     let state = State.init();
     let initial_state = State.copy{state=state}();
     let (bytecode) = alloc();
-    let evm = TestHelpers.init_evm_with_bytecode{initial_state=initial_state}(0, bytecode);
+    let evm = TestHelpers.init_evm_with_bytecode(initial_state, 0, bytecode);
 
     tempvar item_1 = new Uint256(1, 0);
     tempvar item_0 = new Uint256(0, 0);
@@ -217,7 +217,7 @@ func test__exec_mcopy{
     let memory = TestHelpers.init_memory_with_values(memory_init_state_len, memory_init_state);
     let state = State.init();
     let initial_state = State.copy{state=state}();
-    let evm = TestHelpers.init_evm{initial_state=initial_state}();
+    let evm = TestHelpers.init_evm(initial_state);
 
     with stack, memory, state {
         Stack.push(size_mcopy);
@@ -247,7 +247,7 @@ func test_exec_mstore{
     let memory = Memory.init();
     let state = State.init();
     let initial_state = State.copy{state=state}();
-    let evm = TestHelpers.init_evm{initial_state=initial_state}();
+    let evm = TestHelpers.init_evm(initial_state);
 
     let value = cast(value_ptr, Uint256*);
     let offset = cast(offset_ptr, Uint256*);
@@ -284,9 +284,7 @@ func test_exec_sstore{
     let initial_state = State.copy{state=state}();
     let (bytecode) = alloc();
     let (calldata) = alloc();
-    let evm = TestHelpers.init_evm_at_address{initial_state=initial_state}(
-        0, bytecode, 0, address, 0, calldata
-    );
+    let evm = TestHelpers.init_evm_at_address(initial_state, 0, bytecode, 0, address, 0, calldata);
 
     with stack, memory, state {
         Stack.push(new_value.value);

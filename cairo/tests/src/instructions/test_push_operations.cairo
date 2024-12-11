@@ -29,7 +29,7 @@ func test__exec_push{
     let memory = Memory.init();
     let state = State.init();
     let initial_state = State.copy{state=state}();
-    let evm = TestHelpers.init_evm_with_bytecode{initial_state=initial_state}(1 + i, bytecode);
+    let evm = TestHelpers.init_evm_with_bytecode(initial_state, 1 + i, bytecode);
 
     with stack, memory, state {
         let evm = PushOperations.exec_push(evm);
