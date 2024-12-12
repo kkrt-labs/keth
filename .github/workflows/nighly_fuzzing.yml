@@ -19,13 +19,22 @@ jobs:
         with:
           enable-cache: true
           cache-dependency-glob: uv.lock
+
       - uses: actions/setup-python@v5
         with:
           python-version-file: ./cairo/.python-version
+
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:
           version: nightly
+
+      - name: Install forge deps
+        run: forge install
+
+      - name: Build solidity contracts
+        run: forge build
+
       - name: Run tests
         id: tests
         continue-on-error: true # To send a notification if the tests fail
@@ -33,14 +42,15 @@ jobs:
           echo "HYPOTHESIS_PROFILE=nightly" >> .env
           cd cairo
           uv run compile
-          forge build
-          uv run pytest "tests" -m "not NoCI" -n logical --junitxml=junit.xml -o junit_family=legacy
+          uv run pytest "tests" -m "not NoCI" -n logical --junitxml=junit.xml -o junit_family=legacy --durations=0
+
       - name: Upload coverage report to codecov
         if: steps.tests.outcome == 'success'
         uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           directory: ./coverage/
+
       - name: Notify Slack on Failure
         if: steps.tests.outcome == 'failure'
         uses: slackapi/slack-github-action@v1.24.0
@@ -51,6 +61,7 @@ jobs:
             }
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
       - name: Fail workflow if tests failed
         if: steps.tests.outcome == 'failure'
         run: exit 1

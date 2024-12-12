@@ -37,6 +37,12 @@ jobs:
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
 
+      - name: Install forge deps
+        run: forge install
+
+      - name: Build solidity contracts
+        run: forge build
+
       - name: Run tests with src
         if: ${{ needs.paths-filter.outputs.src == 'true' }}
         env:
@@ -44,16 +50,14 @@ jobs:
         run: |
           cd cairo
           uv run compile
-          forge build
-          uv run pytest -n logical --junitxml=junit.xml -o junit_family=legacy
+          uv run pytest -n logical --junitxml=junit.xml -o junit_family=legacy --durations=0
 
       - name: Run tests without src
         if: ${{ needs.paths-filter.outputs.src == 'false' }}
         run: |
           cd cairo
           uv run compile
-          forge build
-          uv run pytest -n logical --ignore=tests/src --ignore=tests/programs --junitxml=junit.xml -o junit_family=legacy
+          uv run pytest -n logical --ignore=tests/src --ignore=tests/programs --junitxml=junit.xml -o junit_family=legacy --durations=0
 
       - uses: codecov/codecov-action@v5.0.5
         with:
