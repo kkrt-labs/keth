@@ -24,7 +24,6 @@ func test__exec_blob_base_fee{
     local state: model.State*;
     %{ block %}
     %{ state %}
-    // Given
     let stack = Stack.init();
     let memory = Memory.init();
     let (bytecode) = alloc();
@@ -32,7 +31,7 @@ func test__exec_blob_base_fee{
     let address = 0xdead;
     let (calldata) = alloc();
     let evm = TestHelpers.init_evm_from_with_block_header(
-        0, bytecode, address, 0, calldata, block.block_header
+        state, 0, bytecode, address, 0, calldata, block.block_header
     );
 
     with stack, memory, state {

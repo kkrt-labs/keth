@@ -39,7 +39,7 @@ namespace TestHelpers {
             excess_blob_gas=header.excess_blob_gas,
         );
         return init_evm_with_env(
-            env, bytecode_len, bytecode, evm_contract_address, calldata_len, calldata
+            initial_state, env, bytecode_len, bytecode, evm_contract_address, calldata_len, calldata
         );
     }
 
@@ -130,7 +130,9 @@ namespace TestHelpers {
         calldata_len: felt,
         calldata: felt*,
     ) -> model.EVM* {
-        return init_evm_at_address(initial_state, bytecode_len, bytecode, 0, calldata_len, calldata);
+        return init_evm_at_address(
+            initial_state, bytecode_len, bytecode, 0, calldata_len, calldata
+        );
     }
 
     func init_stack_with_values(stack_len: felt, stack: Uint256*) -> model.Stack* {
