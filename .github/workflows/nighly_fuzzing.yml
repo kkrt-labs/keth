@@ -42,7 +42,7 @@ jobs:
           echo "HYPOTHESIS_PROFILE=nightly" >> .env
           cd cairo
           uv run compile
-          uv run pytest "tests" -m "not NoCI" -n logical --junitxml=junit.xml -o junit_family=legacy
+          uv run pytest "tests" -m "not NoCI" -n logical --junitxml=junit.xml -o junit_family=legacy --durations=0
 
       - name: Upload coverage report to codecov
         if: steps.tests.outcome == 'success'
