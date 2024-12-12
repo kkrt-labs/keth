@@ -7,9 +7,9 @@ from eth_account._utils.transaction_utils import transaction_rpc_to_rlp_structur
 from eth_account.typed_transactions import TypedTransaction
 from eth_keys import keys
 from eth_utils import decode_hex, keccak, to_checksum_address
+from ethereum_types.numeric import U256
 from starkware.cairo.lang.vm.crypto import pedersen_hash
 
-from ethereum.base_types import U256
 from src.utils.uint256 import int_to_uint256
 from tests.utils.parsers import to_bytes, to_int
 
