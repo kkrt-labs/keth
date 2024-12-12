@@ -32,6 +32,20 @@ from tests.utils.serde import Serde
 
 logger = logging.getLogger()
 
+BUILTIN_LIST = [
+    "output",
+    "pedersen",
+    "range_check",
+    "ecdsa",
+    "bitwise",
+    "ec_op",
+    "keccak",
+    "poseidon",
+    "range_check96",
+    "add_mod",
+    "mul_mod",
+]
+
 
 def resolve_main_path(main_path: Tuple[str, ...]):
 
@@ -58,11 +72,23 @@ def cairo_run(request, cairo_program, cairo_file, main_path):
     """
 
     def _factory(entrypoint, *args, **kwargs):
-        implicit_args = list(
-            cairo_program.identifiers.get_by_full_name(
-                ScopedName(path=("__main__", entrypoint, "ImplicitArgs"))
-            ).members.keys()
-        )
+        implicit_args = cairo_program.identifiers.get_by_full_name(
+            ScopedName(path=("__main__", entrypoint, "ImplicitArgs"))
+        ).members.items()
+
+        # Split implicit args into builtins and others
+        _builtins = {
+            k: to_python_type(resolve_main_path(main_path)(v.cairo_type))
+            for k, v in implicit_args
+            if any(builtin in k.replace("_ptr", "") for builtin in BUILTIN_LIST)
+        }
+
+        _other_implicits = {
+            k: to_python_type(resolve_main_path(main_path)(v.cairo_type))
+            for k, v in implicit_args
+            if not any(builtin in k.replace("_ptr", "") for builtin in BUILTIN_LIST)
+        }
+
         _args = {
             k: to_python_type(resolve_main_path(main_path)(v.cairo_type))
             for k, v in cairo_program.identifiers.get_by_full_name(
@@ -75,22 +101,8 @@ def cairo_run(request, cairo_program, cairo_file, main_path):
         # Fix builtins runner based on the implicit args since the compiler doesn't find them
         cairo_program.builtins = [
             builtin
-            # This list is extracted from the builtin runners
-            # Builtins have to be declared in this order
-            for builtin in [
-                "output",
-                "pedersen",
-                "range_check",
-                "ecdsa",
-                "bitwise",
-                "ec_op",
-                "keccak",
-                "poseidon",
-                "range_check96",
-                "add_mod",
-                "mul_mod",
-            ]
-            if builtin in {arg.replace("_ptr", "") for arg in implicit_args}
+            for builtin in BUILTIN_LIST
+            if builtin in {arg.replace("_ptr", "") for arg in _builtins.keys()}
         ]
         # Add a jmp rel 0 instruction to be able to loop in proof mode and avoid the proof-mode at compile time
         cairo_program.data = cairo_program.data + [0x10780017FFF7FFF, 0]
@@ -113,15 +125,23 @@ def cairo_run(request, cairo_program, cairo_file, main_path):
 
         add_output = False
         stack = []
-        for arg in implicit_args:
-            builtin_runner = runner.builtin_runners.get(arg.replace("_ptr", "_builtin"))
-            if builtin_runner is not None:
-                stack.extend(builtin_runner.initial_stack())
-                add_output = "output" in arg
-                if add_output:
-                    output_ptr = stack[-1]
 
-        for i, (arg_name, python_type) in enumerate(_args.items()):
+        # Handle builtins
+        for builtin_arg in _builtins:
+            builtin_runner = runner.builtin_runners.get(
+                builtin_arg.replace("_ptr", "_builtin")
+            )
+            if builtin_runner is None:
+                raise ValueError(f"Builtin runner {builtin_arg} not found")
+            stack.extend(builtin_runner.initial_stack())
+            add_output = "output" in builtin_arg
+            if add_output:
+                output_ptr = stack[-1]
+
+        # Handle other args, (implicit, explicit)
+        for i, (arg_name, python_type) in enumerate(
+            [*_args.items(), *_other_implicits.items()]
+        ):
             if arg_name == "output_ptr":
                 add_output = True
                 output_ptr = runner.segments.add()
