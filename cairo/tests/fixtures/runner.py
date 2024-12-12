@@ -9,6 +9,7 @@ from typing import Tuple
 
 import pytest
 import starkware.cairo.lang.instances as LAYOUTS
+from hypothesis import settings
 from starkware.cairo.common.dict import DictManager
 from starkware.cairo.lang.compiler.ast.cairo_types import CairoType, TypeStruct
 from starkware.cairo.lang.compiler.scoped_name import ScopedName
@@ -25,6 +26,7 @@ from starkware.cairo.lang.vm.utils import RunResources
 
 from tests.utils.args_gen import gen_arg as gen_arg_builder
 from tests.utils.args_gen import to_cairo_type, to_python_type
+from tests.utils.caching import program_hash, testfile_hash
 from tests.utils.coverage import VmWithCoverage
 from tests.utils.hints import debug_info, get_op, oracle
 from tests.utils.reporting import profile_from_tracer_data
@@ -56,6 +58,20 @@ def cairo_run(request, cairo_program, cairo_file, main_path):
 
     Logic is mainly taken from starkware.cairo.lang.vm.cairo_run with minor updates like the addition of the output segment.
     """
+
+    key = "cache-" + str(cairo_file)
+    current_hash = (
+        program_hash(cairo_program) + testfile_hash(request.node.fspath)
+    ).hex()
+    last_hash = request.config.cache.get(key, None)
+    request.config.cache.set(key, current_hash)
+
+    if (
+        last_hash == current_hash
+        and request.config.getoption("skip_cached_tests")
+        and settings()._current_profile != "nightly"
+    ):
+        pytest.skip(f"Skipping {request.node.name}: no change in program nor test file")
 
     def _factory(entrypoint, *args, **kwargs):
         implicit_args = list(

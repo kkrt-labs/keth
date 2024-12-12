@@ -34,6 +34,18 @@ def pytest_addoption(parser):
         help="run the CairoRunner in proof mode: True or False",
     )
     parser.addoption(
+        "--skip-cached-tests",
+        action="store_true",
+        default=True,
+        help="skip tests if neither the cairo program nor the test file has changed: True or False",
+    )
+    parser.addoption(
+        "--no-skip-cached-tests",
+        action="store_false",
+        dest="skip_cached_tests",
+        help="run all tests regardless of cache",
+    )
+    parser.addoption(
         "--layout",
         choices=dir(LAYOUTS),
         default="all_cairo_instance",
@@ -64,18 +76,21 @@ settings.register_profile(
     deadline=None,
     max_examples=100,
     phases=[Phase.explicit, Phase.reuse, Phase.generate, Phase.target],
+    derandomize=True,
 )
 settings.register_profile(
     "dev",
     deadline=None,
     max_examples=30,
     phases=[Phase.explicit, Phase.reuse, Phase.generate, Phase.target],
+    derandomize=True,
 )
 settings.register_profile(
     "debug",
     max_examples=30,
     verbosity=Verbosity.verbose,
     phases=[Phase.explicit, Phase.reuse, Phase.generate, Phase.target],
+    derandomize=True,
 )
 settings.load_profile(os.getenv("HYPOTHESIS_PROFILE", "default"))
 logger.info(f"Using Hypothesis profile: {os.getenv('HYPOTHESIS_PROFILE', 'default')}")
