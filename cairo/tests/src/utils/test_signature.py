@@ -23,11 +23,7 @@ class TestSignature:
             y = U256.from_be_bytes(public_key_bytes[32:64])
 
             expected_address = public_key.to_address()
-            result = cairo_run(
-                "test__public_key_point_to_eth_address",
-                x=x,
-                y=y,
-            )
+            result = cairo_run("test__public_key_point_to_eth_address", x=x, y=y)
             assert result == int(expected_address, 16)
 
     class TestVerifyEthSignature:
@@ -49,8 +45,8 @@ class TestSignature:
 
         @given(
             msg_hash=...,
-            r=st.integers(min_value=U256(1), max_value=SECP256K1N - U256(1)).map(U256),
-            s=st.integers(min_value=U256(1), max_value=SECP256K1N - U256(1)).map(U256),
+            r=st.integers(min_value=1, max_value=int(SECP256K1N) - 1).map(U256),
+            s=st.integers(min_value=1, max_value=int(SECP256K1N) - 1).map(U256),
             y_parity=st.integers(min_value=2, max_value=DEFAULT_PRIME - 1),
             eth_address=felt,
         )
@@ -70,8 +66,10 @@ class TestSignature:
         @given(
             msg_hash=...,
             r=st.one_of(
-                st.just(U256(0)),
-                st.integers(min_value=SECP256K1N, max_value=U256(2**256 - 1)).map(U256),
+                st.just(0),
+                st.integers(
+                    min_value=int(SECP256K1N), max_value=int(U256.MAX_VALUE)
+                ).map(U256),
             ),
             s=...,
             y_parity=...,
@@ -100,8 +98,10 @@ class TestSignature:
             msg_hash=...,
             r=...,
             s=st.one_of(
-                st.just(U256(0)),
-                st.integers(min_value=SECP256K1N, max_value=U256.MAX_VALUE).map(U256),
+                st.just(0),
+                st.integers(
+                    min_value=int(SECP256K1N), max_value=int(U256.MAX_VALUE)
+                ).map(U256),
             ),
             y_parity=...,
             eth_address=felt,
