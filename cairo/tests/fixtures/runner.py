@@ -49,7 +49,7 @@ def resolve_main_path(main_path: Tuple[str, ...]):
 
 
 @pytest.fixture(scope="module")
-def cairo_run(request, cairo_program, cairo_file, main_path):
+def cairo_run(request, worker_id, cairo_program, cairo_file, main_path):
     """
     Run the cairo program corresponding to the python test file at a given entrypoint with given program inputs as kwargs.
     Returns the output of the cairo program put in the output memory segment.
@@ -59,7 +59,7 @@ def cairo_run(request, cairo_program, cairo_file, main_path):
     Logic is mainly taken from starkware.cairo.lang.vm.cairo_run with minor updates like the addition of the output segment.
     """
 
-    key = "cache-" + str(cairo_file)
+    key = "cache-" + str(cairo_file) + worker_id
     current_hash = (
         program_hash(cairo_program) + testfile_hash(request.node.fspath)
     ).hex()
