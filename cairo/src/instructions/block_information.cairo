@@ -1,3 +1,6 @@
+from ethereum.cancun.vm.gas import calculate_blob_gas_price
+from ethereum_types.numeric import U64
+
 from starkware.cairo.common.bool import FALSE
 from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin, KeccakBuiltin
 from starkware.cairo.common.math import split_felt
@@ -38,7 +41,7 @@ namespace BlockInformation {
         jmp selfbalance;
         jmp basefee;
         jmp blobhash;
-        jmp blobbasefee;
+        jmp blob_base_fee;
 
         blockhash:
         let range_check_ptr = [fp - 9];
@@ -126,10 +129,24 @@ namespace BlockInformation {
         Stack.push_uint128(0);
         jmp end;
 
-        blobbasefee:
+        blob_base_fee:
         let stack = cast([fp - 6], model.Stack*);
-        Stack.push_uint128(0);
-        jmp end;
+        let evm = cast([fp - 3], model.EVM*);
+        let range_check_ptr = [fp - 9];
+        with_attr error_message("Excess blob gas is not set") {
+            assert evm.message.env.excess_blob_gas.is_some = 1;
+        }
+        let excess_blob_value = U64(evm.message.env.excess_blob_gas.value);
+        let blob_base_fee_ = calculate_blob_gas_price(excess_blob_value);
+        Stack.push_uint128(blob_base_fee_.value);
+
+        // Rebind unused args with fp
+        let pedersen_ptr = cast([fp - 10], HashBuiltin*);
+        let bitwise_ptr = cast([fp - 8], BitwiseBuiltin*);
+        let keccak_ptr = cast([fp - 7], KeccakBuiltin*);
+        let memory = cast([fp - 5], model.Memory*);
+        let state = cast([fp - 4], model.State*);
+        return evm;
 
         end:
         // Rebind unused args with fp

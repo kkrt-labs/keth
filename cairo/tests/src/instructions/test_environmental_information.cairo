@@ -28,7 +28,7 @@ func test__exec_address__should_push_address_to_stack{
     let (bytecode) = alloc();
     let address = 0xdead;
     let (calldata) = alloc();
-    let evm = TestHelpers.init_evm_at_address(initial_state, 0, bytecode, 0, address, 0, calldata);
+    let evm = TestHelpers.init_evm_at_address(initial_state, 0, bytecode, address, 0, calldata);
 
     // When
     with stack, memory, state {

@@ -14,8 +14,8 @@ func keccak256{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: Keccak
     let (local dst: felt*) = alloc();
     bytes_to_bytes8_little_endian(dst, buffer.value.len, buffer.value.data);
 
-    let (code_hash) = keccak(dst, buffer.value.len);
-    tempvar value = new Uint256(low=code_hash.low, high=code_hash.high);
+    let (result) = keccak(dst, buffer.value.len);
+    tempvar value = new Uint256(low=result.low, high=result.high);
     tempvar hash = Hash32(value=value);
     return hash;
 }
