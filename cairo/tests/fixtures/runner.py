@@ -59,15 +59,18 @@ def cairo_run(request, worker_id, cairo_program, cairo_file, main_path):
     Logic is mainly taken from starkware.cairo.lang.vm.cairo_run with minor updates like the addition of the output segment.
     """
 
-    key = "cache-" + str(cairo_file) + worker_id
+    cached_tests_file = "cairo_run/cached_tests.json"
+    cached_test_key = f"{str(cairo_file)}::{worker_id}"
     current_hash = (
         program_hash(cairo_program) + testfile_hash(request.node.fspath)
     ).hex()
-    last_hash = request.config.cache.get(key, None)
-    request.config.cache.set(key, current_hash)
+    all_cached_tests = request.config.cache.get(cached_tests_file, {})
+    request.config.cache.set(
+        cached_tests_file, {**all_cached_tests, cached_test_key: current_hash}
+    )
 
     if (
-        last_hash == current_hash
+        all_cached_tests.get(cached_test_key) == current_hash
         and request.config.getoption("skip_cached_tests")
         and settings()._current_profile != "nightly"
     ):
