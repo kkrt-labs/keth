@@ -284,7 +284,7 @@ func test_exec_sstore{
     let initial_state = State.copy{state=state}();
     let (bytecode) = alloc();
     let (calldata) = alloc();
-    let evm = TestHelpers.init_evm_at_address(initial_state, 0, bytecode, 0, address, 0, calldata);
+    let evm = TestHelpers.init_evm_at_address(initial_state, 0, bytecode, address, 0, calldata);
 
     with stack, memory, state {
         Stack.push(new_value.value);
