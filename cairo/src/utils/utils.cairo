@@ -232,18 +232,6 @@ namespace Helpers {
         return res;
     }
 
-    // @notice This function is used to convert a sequence of 4 bytes big-endian
-    // to a felt.
-    // @param val: pointer to the first byte of the 4.
-    // @return res: felt representation of the given input in bytes4.
-    func bytes4_to_felt(val: felt*) -> felt {
-        let current = [val] * 256 ** 3;
-        let current = current + [val + 1] * 256 ** 2;
-        let current = current + [val + 2] * 256;
-        let current = current + [val + 3];
-        return current;
-    }
-
     // @notice This function is used to convert a sequence of 20 bytes big-endian
     // to felt.
     // @param val: pointer to the first byte of the 20.
@@ -325,58 +313,6 @@ namespace Helpers {
         let loaded = bytes_to_64_bits_little_felt(input);
         assert [output] = loaded;
         return load_64_bits_array(len - 1, input + 8, output + 1);
-    }
-
-    // @notice Load sequence of 32 bytes into an array of felts
-    // @dev If the input doesn't fit in a felt, the value will be wrapped around.
-    // @param input_len: The number of bytes in the input.
-    // @param input: pointer to bytes array input.
-    // @param output: pointer to bytes array output.
-    func load_256_bits_array(input_len: felt, input: felt*) -> (output_len: felt, output: felt*) {
-        alloc_locals;
-        let (local output_start) = alloc();
-        if (input_len == 0) {
-            return (0, output_start);
-        }
-
-        tempvar ptr = input;
-        tempvar output = output_start;
-        tempvar remaining = input_len;
-
-        loop:
-        let ptr = cast([ap - 3], felt*);
-        let output = cast([ap - 2], felt*);
-        let remaining = [ap - 1];
-
-        let loaded = bytes32_to_felt(ptr);
-        assert [output] = loaded;
-
-        tempvar ptr = ptr + 32;
-        tempvar output = output + 1;
-        tempvar remaining = remaining - 32;
-
-        static_assert ptr == [ap - 3];
-        static_assert output == [ap - 2];
-        static_assert remaining == [ap - 1];
-        jmp loop if remaining != 0;
-
-        let output_len = output - output_start;
-        return (output_len, output_start);
-    }
-
-    // @notice Converts an array of felt to an array of bytes.
-    // @dev Each input felt is converted to 32 bytes.
-    // @param input_len: The number of felts in the input.
-    // @param input: pointer to the input array.
-    // @param output: pointer to the output array.
-    func felt_array_to_bytes32_array{range_check_ptr}(
-        input_len: felt, input: felt*, output: felt*
-    ) {
-        if (input_len == 0) {
-            return ();
-        }
-        felt_to_bytes32(output, [input]);
-        return felt_array_to_bytes32_array(input_len - 1, input + 1, output + 32);
     }
 
     // @notice Divides a 128-bit number with remainder.

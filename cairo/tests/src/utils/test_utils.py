@@ -8,7 +8,6 @@ from hypothesis import strategies as st
 
 from ethereum.cancun.vm.runtime import get_valid_jump_destinations
 from tests.utils.errors import cairo_error
-from tests.utils.helpers import pack_calldata
 from tests.utils.hints import patch_hint
 from tests.utils.solidity import get_contract
 
@@ -107,57 +106,6 @@ def test_should_panic_incorrect_address_encoding(cairo_run, bytes_array):
         cairo_run("test__try_parse_destination_from_bytes", bytes=list(bytes_array))
 
 
-@pytest.mark.parametrize(
-    "data, expected",
-    [
-        (b"", []),  # An empty field
-        (
-            bytes.fromhex(
-                "0800000000000000000000000000000000000000000000000000000000000000"
-            ),
-            [0x800000000000000000000000000000000000000000000000000000000000000],
-        ),  # 251-bit word
-        # two 128-bit words
-        (
-            bytes.fromhex("8000".zfill(64) + "7000".zfill(64)),
-            [0x8000, 0x7000],
-        ),
-    ],
-)
-def test_should_load_256_bits_array(cairo_run, data, expected):
-    result_len, result = cairo_run("test__load_256_bits_array", data=data)
-    assert result == expected
-    assert result_len == len(expected)
-
-
-@pytest.mark.parametrize(
-    "data, expected",
-    [
-        ([0xAB, 0xCD, 0xEF, 0x01], 0xABCDEF01),
-        ([0x00, 0x00, 0x05, 0x67], 0x567),
-    ],
-)
-def test_should_convert_bytes4_to_felt(cairo_run, data, expected):
-    output = cairo_run("test__bytes4_to_felt", data=data)
-    assert output == expected
-
-
-@pytest.mark.parametrize(
-    "data, expected",
-    [
-        ([0x8000, 0x7000], bytes.fromhex(f"{0x8000:064x}" + f"{0x7000:064x}")),
-        ([0x8000], bytes.fromhex(f"{0x8000:064x}")),
-        (
-            [0x8000, 0x7000, 0x6000],
-            bytes.fromhex(f"{0x8000:064x}" + f"{0x7000:064x}" + f"{0x6000:064x}"),
-        ),
-    ],
-)
-def test_should_unpack_felt_array_to_bytes32_array(cairo_run, data, expected):
-    result = cairo_run("test__felt_array_to_bytes32_array", data=data)
-    assert bytes(result) == expected
-
-
 class TestInitializeJumpdests:
     @given(bytecode=...)
     @example(bytecode=get_contract("Counter", "Counter").bytecode_runtime)
@@ -181,29 +129,6 @@ class TestInitializeJumpdests:
         ):
             bytecode = get_contract("Counter", "Counter").bytecode_runtime
             cairo_run("test__initialize_jumpdests", bytecode=bytecode)
-
-
-class TestLoadPackedBytes:
-    @given(bytes=...)
-    def test_should_load_packed_bytes(self, cairo_run, bytes: Bytes):
-        packed_bytes = pack_calldata(bytes)
-        output = cairo_run("test__load_packed_bytes", data=packed_bytes)
-        assert output == list(bytes)
-
-    @given(bytes=st.binary(min_size=1))
-    def test_should_raise_zellic_issue_1283_load_packed_bytes(
-        self, cairo_program, cairo_run, bytes: Bytes
-    ):
-        packed_bytes = pack_calldata(bytes)
-        with (
-            patch_hint(
-                cairo_program,
-                "memory[ids.output] = res = (int(ids.value) % PRIME) % ids.base\nassert res < ids.bound, f'split_int(): Limb {res} is out of range.'",
-                "memory[ids.output] = res = 0x12",
-            ),
-            cairo_error(message="Value is not empty"),
-        ):
-            cairo_run("test__load_packed_bytes", data=packed_bytes)
 
 
 class TestSplitWord:
