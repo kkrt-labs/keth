@@ -1,10 +1,11 @@
 from collections import ChainMap, abc, defaultdict
-from dataclasses import fields, is_dataclass
+from dataclasses import dataclass, fields, is_dataclass
 from functools import partial
 from typing import (
     Any,
     Dict,
     ForwardRef,
+    List,
     Mapping,
     Sequence,
     Tuple,
@@ -47,6 +48,54 @@ from ethereum.cancun.vm.gas import MessageCallGas
 from ethereum.crypto.hash import Hash32
 from ethereum.rlp import Extended, Simple
 from tests.utils.helpers import flatten
+
+
+@dataclass
+class Stack:
+    _inner: List[U256]
+
+    def __getattr__(self, name):
+        # Delegate any missing attributes/methods to the inner list
+        return getattr(self._inner, name)
+
+    def __getitem__(self, key):
+        return self._inner[key]
+
+    def __len__(self):
+        return len(self._inner)
+
+    def __iter__(self):
+        return iter(self._inner)
+
+    ## For arg generation
+    def items(self):
+        return [(i, self._inner[i]) for i in range(len(self._inner))]
+
+    def gen_arg(self, dict_manager: DictManager, segments: MemorySegmentManager):
+        dict_ptr = segments.add()
+        assert dict_ptr.segment_index not in dict_manager.trackers
+
+        # The Cairo key of a stack is a felt, which can be modeled as a Uint
+        data = {
+            _gen_arg(dict_manager, segments, Uint, k): _gen_arg(
+                dict_manager, segments, U256, v
+            )
+            for k, v in self.items()
+        }
+
+        # This is required for tests where we read data from DictAccess segments while no dict method has been used.
+        # Equivalent to doing an initial dict_read of all keys.
+        initial_data = flatten([(k, v, v) for k, v in data.items()])
+        segments.load_data(dict_ptr, initial_data)
+        current_ptr = dict_ptr + len(initial_data)
+        dict_manager.trackers[dict_ptr.segment_index] = DictTracker(
+            data=data, current_ptr=current_ptr
+        )
+        base = segments.add()
+        # Add the length of the stack as the last element
+        segments.load_data(base, [dict_ptr, current_ptr, len(self)])
+        return base
+
 
 _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum_types", "others", "None"): type(None),
@@ -114,6 +163,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "cancun", "trie", "BranchNode"): BranchNode,
     ("ethereum", "cancun", "trie", "InternalNode"): InternalNode,
     ("ethereum", "cancun", "trie", "Node"): Node,
+    ("ethereum", "cancun", "vm", "stack", "Stack"): Stack,
 }
 
 # In the EELS, some functions are annotated with Sequence while it's actually just Bytes.
@@ -226,6 +276,12 @@ def _gen_arg(
         base = segments.add()
         segments.load_data(base, [dict_ptr, current_ptr])
         return base
+
+    if arg_type_origin is Stack:
+        # Cast to Stack to enable gen_arg method if not already a Stack instance
+        if not isinstance(arg, Stack):
+            arg = Stack(arg)
+        return arg.gen_arg(dict_manager, segments)
 
     if arg_type == MaybeRelocatable:
         return arg
