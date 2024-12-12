@@ -6,9 +6,24 @@ on:
 permissions: read-all
 
 jobs:
+  paths-filter:
+    runs-on: ubuntu-latest
+    outputs:
+      src: ${{ steps.filter.outputs.src }}
+      ethereum: ${{ steps.filter.outputs.ethereum }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            src:
+              - 'cairo/src/**'
+
   test:
     name: Python
     runs-on: ubuntu-latest-64-cores
+    needs: paths-filter
     env:
       HYPOTHESIS_PROFILE: ci
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
@@ -22,7 +37,8 @@ jobs:
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
 
-      - name: Run tests
+      - name: Run tests with src
+        if: ${{ needs.paths-filter.outputs.src == 'true' }}
         env:
           PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python
         run: |
@@ -30,6 +46,15 @@ jobs:
           uv run compile
           forge build
           uv run pytest -n logical --junitxml=junit.xml -o junit_family=legacy
+
+      - name: Run tests without src
+        if: ${{ needs.paths-filter.outputs.src == 'false' }}
+        run: |
+          cd cairo
+          uv run compile
+          forge build
+          uv run pytest -n logical --ignore=tests/src --ignore=tests/programs --junitxml=junit.xml -o junit_family=legacy
+
       - uses: codecov/codecov-action@v5.0.5
         with:
           directory: ./cairo/coverage/
