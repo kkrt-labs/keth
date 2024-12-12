@@ -134,6 +134,7 @@ func apply_transactions{
         coinbase=header.coinbase,
         base_fee=header.base_fee_per_gas.value,
         block_hashes=block_hashes,
+        excess_blob_gas=header.excess_blob_gas,
     );
 
     Interpreter.execute(

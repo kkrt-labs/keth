@@ -1,3 +1,4 @@
+import pytest
 from eth_abi import encode
 from ethereum_types.numeric import U256
 from hypothesis import given
@@ -15,6 +16,7 @@ from tests.utils.solidity import get_contract
 
 class TestOs:
 
+    @pytest.mark.slow
     def test_erc20_transfer(self, cairo_run):
         erc20 = get_contract("ERC20", "KethToken")
         amount = int(1e18)
