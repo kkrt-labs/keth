@@ -5,7 +5,6 @@ from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.uint256 import Uint256, assert_uint256_eq
 from starkware.cairo.common.memset import memset
 from starkware.cairo.common.memcpy import memcpy
-from starkware.cairo.common.default_dict import default_dict_new
 
 from src.utils.utils import Helpers
 from src.constants import Constants
@@ -129,70 +128,6 @@ func test__initialize_jumpdests{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, 
     memcpy(output_ptr, keys, keys_len);
 
     return ();
-}
-
-func test__load_256_bits_array{range_check_ptr}() -> (felt, felt*) {
-    alloc_locals;
-
-    // Given
-    let (data) = alloc();
-    local data_len: felt;
-    %{
-        segments.write_arg(ids.data, program_input["data"])
-        ids.data_len = len(program_input["data"])
-    %}
-
-    // When
-    let (result_len, result) = Helpers.load_256_bits_array(data_len, data);
-
-    // Then
-    return (result_len, result);
-}
-
-func test__bytes4_to_felt{range_check_ptr}() -> felt {
-    alloc_locals;
-
-    // Given
-    let (data) = alloc();
-    %{ segments.write_arg(ids.data, program_input["data"]) %}
-
-    // When
-    let result = Helpers.bytes4_to_felt(data);
-
-    // Then
-    return result;
-}
-
-func test__felt_array_to_bytes32_array{range_check_ptr}() -> felt* {
-    alloc_locals;
-
-    let (data) = alloc();
-    local data_len: felt;
-    %{
-        segments.write_arg(ids.data, program_input["data"])
-        ids.data_len = len(program_input["data"])
-    %}
-
-    let (output) = alloc();
-    Helpers.felt_array_to_bytes32_array(data_len, data, output);
-
-    return output;
-}
-
-func test__load_packed_bytes{range_check_ptr}() -> felt* {
-    alloc_locals;
-
-    let (data) = alloc();
-    local data_len: felt;
-    %{
-        segments.write_arg(ids.data, program_input["data"])
-        ids.data_len = len(program_input["data"])
-    %}
-
-    let bytes_len = [data];
-    let (output) = Helpers.load_packed_bytes(data_len - 1, data + 1, bytes_len);
-
-    return output;
 }
 
 func test__split_word{range_check_ptr}() -> felt* {
