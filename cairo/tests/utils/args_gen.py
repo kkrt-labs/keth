@@ -1,3 +1,54 @@
+"""
+Cairo Type System - Argument Generation
+
+This module handles the generation of Cairo memory values from Python types.
+It is a core component of the type system that allows seamless conversion of Python
+values into the appropriate Cairo memory layout.
+
+Type System Patterns:
+
+1. Type Wrapping Pattern:
+   - All complex types are wrapped in a pointer-based structure
+   - Example: `Bytes { value: BytesStruct* }` where BytesStruct contains actual data
+   - This ensures all complex types have a consistent size of 1 pointer
+
+2. None Value Pattern:
+   - None is represented by a null pointer (pointer to 0)
+   - For simple types (size 1), we use direct pointers (e.g., Uint*)
+   - This optimizes memory by storing [value] instead of [ptr_value, value]
+   - For complex types, we can directly use the pointer to the internal struct to check if it's None.
+   - If cast(ptr, felt) == 0, then is None.
+
+3. Union/Enum Pattern:
+   - Python Unions map to Cairo "Enums"
+   - Implementation: A struct with pointers for each variant
+   - Only one variant has non-zero pointer
+   - Example: Union[A,B,C] -> struct { a: A, b: B, c: C }
+   - To check if a variant is None, we can check if the pointer is 0.
+
+4. Collection Patterns:
+   - Fixed Tuples: pointer to struct with each element
+   - Variable Lists/Tuples: pointer to {data: T*, len: felt}
+   - Example: List[T] -> struct { data: T*, len: felt }
+
+5. Dictionary Pattern:
+   - Maps to a DictAccess pointer structure
+   - Keys and values are stored as pointers
+   - Note: Key comparison is pointer-based, not value-based
+   - Example: Dict[Bytes,Bytes] -> struct MappingBytesBytes { dict_ptr_start: BytesBytesDictAccess*, dict_ptr: BytesBytesDictAccess* }
+    with struct BytesBytesDictAccess { key: Bytes, prev_value: Bytes, new_value: Bytes }
+
+Implementation Notes:
+- Type generation is driven by Python type, not Cairo type
+- Cairo type system is consistent based on the rules defined above, allowing predictable memory layout
+- Hypothesis handles test type generation (see strategies.py)
+- Type associations must be explicitly declared in _cairo_struct_to_python_type
+
+When adding new types, you must:
+- Add the type to _cairo_struct_to_python_type
+- Add the test generation strategy to strategies.py
+"""
+
 from collections import ChainMap, abc, defaultdict
 from dataclasses import fields, is_dataclass
 from functools import partial
@@ -153,6 +204,17 @@ def _gen_arg(
 ):
     """
     Generate a Cairo argument from a Python argument.
+
+    This is the core function that implements the type system patterns defined in the module docstring.
+
+    Args:
+        dict_manager: Cairo dictionary manager, mapping Cairo segments to Python dicts
+        segments: Cairo memory segments
+        arg_type: Python type to convert from
+        arg: Python value to convert
+
+    Returns:
+        Cairo memory pointer or value
     """
     if arg_type is type(None):
         return 0
