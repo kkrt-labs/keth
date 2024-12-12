@@ -7,7 +7,7 @@ from starkware.cairo.common.uint256 import Uint256, assert_uint256_eq
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.memcpy import memcpy
 
-from ethereum.base_types import U256
+from ethereum_types.numeric import U256
 from src.model import model
 from src.account import Account, Internals
 from tests.utils.helpers import TestHelpers

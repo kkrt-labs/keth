@@ -1,9 +1,9 @@
 import pytest
 from eth_utils import keccak
+from ethereum_types.numeric import U256
 from hypothesis import given
 from hypothesis.strategies import binary
 
-from ethereum.base_types import U256
 from src.utils.uint256 import int_to_uint256
 from tests.utils.helpers import get_internal_storage_key
 
