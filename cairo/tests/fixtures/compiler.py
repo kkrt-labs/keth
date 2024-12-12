@@ -1,3 +1,16 @@
+"""
+Cairo Test System - Compilation and File Resolution
+
+This module handles the compilation of Cairo files and test file resolution.
+It provides the infrastructure needed to locate and compile Cairo files for testing.
+
+Automatic Test File Resolution is implemented as follows:
+   - When running a Python test file test_xxx.py:
+     a) First looks for test_xxx.cairo in the same directory
+     b) If not found, looks for xxx.cairo in the main codebase
+     c) Follows project directory structure for test organization
+"""
+
 import logging
 from pathlib import Path
 from time import perf_counter
@@ -31,6 +44,17 @@ def cairo_compile(path):
 
 @pytest.fixture(scope="module")
 def cairo_file(request):
+    """
+    Locate the Cairo file corresponding to a Python test file.
+
+    Resolution Strategy:
+    1. Look for test_xxx.cairo in tests/
+    2. If not found, look for xxx.cairo in main codebase
+    3. Raise error if neither exists
+
+    This allows writing Python tests without creating Cairo test files,
+    leveraging the automatic type conversion system.
+    """
     cairo_file = Path(request.node.fspath).with_suffix(".cairo")
     if not cairo_file.exists():
         # No dedicated cairo file for tests in the tests/ directory
