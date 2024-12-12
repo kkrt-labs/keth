@@ -22,9 +22,24 @@ from src.model import model
 from src.utils.dict import dict_copy, dict_squash
 from src.utils.utils import Helpers
 from src.utils.bytes import keccak
+from src.constants import Constants
 
 namespace Account {
-    // @notice Create a new account
+    // @notice Creates a new, empty account
+    // @dev This is used to initialize a new, empty account in the state
+    // @dev when an account is part of a transaction, but was never interacted with before.
+    // @return The new account
+    func default() -> model.Account* {
+        let (code) = alloc();
+        tempvar empty_code_hash = new Uint256(
+            low=Constants.EMPTY_CODE_HASH_LOW, high=Constants.EMPTY_CODE_HASH_HIGH
+        );
+        tempvar empty_balance = new Uint256(low=0, high=0);
+        let account = Account.init(0, code, empty_code_hash, 0, empty_balance);
+        return account;
+    }
+
+    // @notice Create a new account with the given parameters
     // @dev New contract accounts start at nonce=1.
     // @param address The address of the account
     // @param code_len The length of the code
@@ -440,7 +455,7 @@ namespace Account {
         if (code_len == 0) {
             // see https://eips.ethereum.org/EIPS/eip-1052
             let empty_code_hash = Uint256(
-                304396909071904405792975023732328604784, 262949717399590921288928019264691438528
+                low=Constants.EMPTY_CODE_HASH_LOW, high=Constants.EMPTY_CODE_HASH_HIGH
             );
             return empty_code_hash;
         }

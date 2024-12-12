@@ -1,5 +1,4 @@
 import random
-from collections import defaultdict
 from textwrap import wrap
 from typing import Iterable, List, Tuple, Union
 
@@ -8,6 +7,7 @@ from eth_account._utils.transaction_utils import transaction_rpc_to_rlp_structur
 from eth_account.typed_transactions import TypedTransaction
 from eth_keys import keys
 from eth_utils import decode_hex, keccak, to_checksum_address
+from ethereum_types.numeric import U256
 from starkware.cairo.lang.vm.crypto import pedersen_hash
 
 from src.utils.uint256 import int_to_uint256
@@ -93,10 +93,6 @@ def ec_sign(
     )
 
 
-def pack_64_bits_little(input: List[int]):
-    return sum([x * 256**i for (i, x) in enumerate(input)])
-
-
 def flatten(data):
     result = []
 
@@ -125,21 +121,6 @@ def flatten_tx_access_list(access_list):
     return result
 
 
-def merge_access_list(access_list):
-    """
-    Merge all entries of the access list to get one entry per account with all its storage keys.
-    """
-    merged_list = defaultdict(set)
-    for access in access_list:
-        merged_list[access["address"]] = merged_list[access["address"]].union(
-            {
-                pedersen_hash(*int_to_uint256(int(key, 16)))
-                for key in access["storageKeys"]
-            }
-        )
-    return merged_list
-
-
 def pack_calldata(data: bytes) -> List[int]:
     """
     Pack the incoming calldata bytes 31-bytes at a time in big-endian order.
@@ -150,3 +131,8 @@ def pack_calldata(data: bytes) -> List[int]:
     """
 
     return [len(data), *[int(chunk, 16) for chunk in wrap(data.hex(), 2 * 31)]]
+
+
+def get_internal_storage_key(key: U256) -> int:
+    low, high = int_to_uint256(key)
+    return pedersen_hash(low, high)
