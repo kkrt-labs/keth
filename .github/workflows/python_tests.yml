@@ -30,6 +30,7 @@ jobs:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     steps:
       - uses: actions/checkout@v4
+
       - uses: astral-sh/setup-uv@v3
         with:
           enable-cache: true
@@ -47,6 +48,12 @@ jobs:
 
       - name: Build solidity contracts
         run: forge build
+
+      - name: Load pytest cache
+        uses: actions/cache@v4
+        with:
+          path: cairo/.pytest_cache
+          key: ${{ runner.os }}-pytest
 
       - name: Run tests with src
         if: ${{ needs.paths-filter.outputs.src == 'true' }}
