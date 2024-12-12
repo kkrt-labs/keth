@@ -1,5 +1,5 @@
 import pytest
-from eth_abi import encode
+from eth_abi.abi import encode
 from ethereum_types.numeric import U256
 from hypothesis import given
 from hypothesis.strategies import integers
@@ -132,7 +132,7 @@ class TestOs:
 
     @given(
         s_value=integers(
-            min_value=SECP256K1N // U256(2) + U256(1), max_value=SECP256K1N
+            min_value=int(SECP256K1N // U256(2) + U256(1)), max_value=int(SECP256K1N)
         )
     )
     def test_should_raise_on_invalid_s_value(self, cairo_run, s_value):
@@ -191,9 +191,12 @@ class TestOs:
             state=State.model_validate(initial_state),
         )
 
-        bytes.fromhex(
-            "7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe03601600081602082378035828234f58015156039578182fd5b8082525050506014600cf3"
-        ) == state["accounts"]["0x32dCAB0EF3FB2De2fce1D2E0799D36239671F04A"]["code"]
+        assert (
+            bytes.fromhex(
+                "7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe03601600081602082378035828234f58015156039578182fd5b8082525050506014600cf3"
+            )
+            == state["accounts"]["0x32dCAB0EF3FB2De2fce1D2E0799D36239671F04A"]["code"]
+        )
 
     @given(nonce=integers(min_value=2**64, max_value=2**248 - 1))
     def test_should_raise_when_nonce_is_greater_u64(self, cairo_run, nonce):

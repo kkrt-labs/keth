@@ -7,6 +7,7 @@ permissions: read-all
 
 jobs:
   paths-filter:
+    name: Paths filter
     runs-on: ubuntu-latest
     outputs:
       src: ${{ steps.filter.outputs.src }}
