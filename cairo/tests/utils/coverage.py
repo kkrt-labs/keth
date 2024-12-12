@@ -6,7 +6,6 @@ from collections import defaultdict
 from dataclasses import dataclass
 from typing import DefaultDict, List, Optional, Set
 
-from starkware.cairo.lang.compiler.instruction import Instruction
 from starkware.cairo.lang.vm.vm_core import VirtualMachine
 
 
@@ -63,12 +62,6 @@ class VmWithCoverage(VirtualMachine):
         self.old_as_vm_exception = (
             super().as_vm_exception
         )  # Save the old vm as exception function to wrap it afterwards.
-        self.touched_pcs: List[int] = []
-
-    def run_instruction(self, instruction: Instruction):
-        """Save the current pc and runs the instruction."""
-        self.touched_pcs.append(self.run_context.pc.offset)
-        self.old_run_instruction(instruction=instruction)
 
     def end_run(self):
         """In case the run doesn't fail creates report coverage."""
@@ -85,6 +78,10 @@ class VmWithCoverage(VirtualMachine):
         """In case the run fails creates report coverage."""
         self.cover_file()
         return self.old_as_vm_exception(exc, with_traceback, notes, hint_index)
+
+    @property
+    def touched_pcs(self):
+        return [trace.pc.offset for trace in self.trace]
 
     def pc_to_line(
         self,

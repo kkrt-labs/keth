@@ -36,3 +36,5 @@ cairo/tests/ef_tests/test_data
 .vscode/
 
 cache
+prof
+profile*.png
