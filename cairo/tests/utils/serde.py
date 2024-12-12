@@ -1,3 +1,23 @@
+"""
+Cairo Type System Serialization/Deserialization
+
+This module implements the serialization of Cairo types to Python types.
+It is part of the "soft type system" that allows seamless conversion between Python and Cairo,
+and mirrors @args_gen.py.
+
+The serialization process is based on the Cairo type system rules defined in @args_gen.py.
+Given a Cairo type, we know what the memory layout is, and how to retrieve individual values from the memory.
+
+For example, a Union type is represented as a struct with a pointer to the memory segment of the
+variant.  The only value that is not a `0` is the pointer to the memory segment of the variant.
+Thus, when deserializing a Union type, we first get the pointer to the variant struct, then check
+which member has a non-zero pointer value. This non-zero pointer indicates which variant is actually
+present, and points to the memory segment containing that variant's data. If we find more or less
+than exactly one non-zero pointer, it means the Union is malformed.
+Once we have the variant pointer, we can deserialize the variant by recursively calling the
+serialization function.
+"""
+
 from collections import abc
 from inspect import signature
 from pathlib import Path
