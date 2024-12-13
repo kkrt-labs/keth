@@ -13,14 +13,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - uses: astral-sh/setup-uv@v2
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Compile fibonacci
+        run: uv run compile_fibonacci
+
       - run: rustup update
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: "true"
-
-      - name: Compile fibonacci
-        run: uv run compile_fibonacci
 
       - name: Run tests
         run: cargo test --all-features
