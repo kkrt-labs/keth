@@ -19,7 +19,10 @@ jobs:
           cache-dependency-glob: uv.lock
 
       - name: Compile fibonacci
-        run: uv run compile_fibonacci
+        run: |
+          cd cairo
+          uv run compile_fibonacci
+          cd ..
 
       - run: rustup update
       - name: Rust cache
