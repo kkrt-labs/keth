@@ -118,7 +118,7 @@ namespace ExtendedImpl {
         return extended;
     }
 
-    func uint(value: Uint) -> Extended {
+    func uint(value: Uint*) -> Extended {
         tempvar extended = Extended(
             new ExtendedEnum(
                 sequence=SequenceExtended(cast(0, SequenceExtendedStruct*)),
@@ -133,7 +133,7 @@ namespace ExtendedImpl {
         return extended;
     }
 
-    func fixed_uint(value: Uint) -> Extended {
+    func fixed_uint(value: Uint*) -> Extended {
         tempvar extended = Extended(
             new ExtendedEnum(
                 sequence=SequenceExtended(cast(0, SequenceExtendedStruct*)),
