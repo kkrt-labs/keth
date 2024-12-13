@@ -55,14 +55,14 @@ jobs:
         run: |
           cd cairo
           uv run compile_os
-          uv run pytest -n logical --junitxml=junit.xml -o junit_family=legacy --durations=0
+          uv run pytest -n logical --junitxml=junit.xml -o junit_family=legacy --durations=0 -v
 
       - name: Run tests without src
         if: ${{ needs.paths-filter.outputs.src == 'false' }}
         run: |
           cd cairo
           uv run compile_os
-          uv run pytest -n logical --ignore=tests/src --ignore=tests/programs --junitxml=junit.xml -o junit_family=legacy --durations=0
+          uv run pytest -n logical --ignore=tests/src --ignore=tests/programs --junitxml=junit.xml -o junit_family=legacy --durations=0 -v
 
       - uses: codecov/codecov-action@v5.0.5
         with:
