@@ -48,8 +48,12 @@ def resolve_main_path(main_path: Tuple[str, ...]):
     return _factory
 
 
+cached_tests_file = "cairo_run/cached_tests.json"
+cached_hashes_file = "cairo_run/cached_hashes.json"
+
+
 @pytest.fixture(scope="module")
-def cairo_run(request, worker_id, cairo_program, cairo_file, main_path):
+def cairo_run(request, cairo_program, cairo_file, main_path):
     """
     Run the cairo program corresponding to the python test file at a given entrypoint with given program inputs as kwargs.
     Returns the output of the cairo program put in the output memory segment.
@@ -59,14 +63,21 @@ def cairo_run(request, worker_id, cairo_program, cairo_file, main_path):
     Logic is mainly taken from starkware.cairo.lang.vm.cairo_run with minor updates like the addition of the output segment.
     """
 
-    cached_tests_file = "cairo_run/cached_tests.json"
-    cached_test_key = f"{str(cairo_file)}::{worker_id}"
     current_hash = (
         program_hash(cairo_program) + testfile_hash(request.node.fspath)
     ).hex()
     all_cached_tests = request.config.cache.get(cached_tests_file, {})
+    cached_test_key = str(cairo_file)
+    # Because this is a module scoped fixture, when tests are run in parallel,
+    # the cached_tests_file is not shared between workers. So we need to store
+    # the hashes in a separate file first, and then finally update the
+    # cached_tests_file.
     request.config.cache.set(
-        cached_tests_file, {**all_cached_tests, cached_test_key: current_hash}
+        cached_hashes_file,
+        {
+            **request.config.cache.get(cached_hashes_file, {}),
+            cached_test_key: current_hash,
+        },
     )
 
     if (
@@ -291,3 +302,9 @@ def cairo_run(request, worker_id, cairo_program, cairo_file, main_path):
         return final_output
 
     return _factory
+
+
+def pytest_sessionfinish(session, exitstatus):
+    session.config.cache.set(
+        cached_tests_file, session.config.cache.get(cached_hashes_file, {})
+    )
