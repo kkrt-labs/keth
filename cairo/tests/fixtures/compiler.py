@@ -15,7 +15,7 @@ from tests.utils.hints import implement_hints
 logger = logging.getLogger()
 
 
-def cairo_compile(path):
+def cairo_compile(path, debug_info=True, proof_mode=False):
     module_reader = get_module_reader(cairo_path=[str(Path(__file__).parents[2])])
 
     pass_manager = default_pass_manager(
@@ -25,7 +25,8 @@ def cairo_compile(path):
     return compile_cairo(
         Path(path).read_text(),
         pass_manager=pass_manager,
-        debug_info=True,
+        debug_info=debug_info,
+        add_start=proof_mode,
     )
 
 

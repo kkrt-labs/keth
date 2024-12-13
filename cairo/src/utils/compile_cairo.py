@@ -1,7 +1,10 @@
+import json
 import logging
-import subprocess
 import sys
 from pathlib import Path
+
+from tests.fixtures.compiler import cairo_compile
+from tests.utils.hints import implement_hints
 
 # Configure the logger
 logging.basicConfig(
@@ -13,30 +16,11 @@ logger = logging.getLogger(__name__)
 def compile_cairo(file_name):
     input_path = Path(file_name)
     output_path = input_path.with_suffix(".json")
+    program = cairo_compile(input_path, debug_info=False, proof_mode=True)
+    program.hints = implement_hints(program)
 
-    command = [
-        "cairo-compile",
-        str(input_path),
-        "--output",
-        str(output_path),
-        "--proof_mode",
-        "--no_debug_info",
-        "--cairo_path",
-        str(Path(__file__).parents[2]),
-    ]
-
-    result = subprocess.run(command, capture_output=True, text=True)
-
-    if result.returncode == 0:
-        logger.info("Compilation successful.")
-        try:
-            subprocess.run(["trunk", "fmt", str(output_path)])
-        except Exception as e:
-            logger.error("Formatting failed.")
-            logger.error(e)
-    else:
-        logger.error("Compilation failed.")
-        logger.error(result.stderr)
+    with open(output_path, "w") as f:
+        json.dump(program.Schema().dump(program), f, indent=4, sort_keys=True)
 
 
 def compile_os():
