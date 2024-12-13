@@ -115,11 +115,12 @@ def cairo_run(request, cairo_program, cairo_file, main_path):
             ).members.items()
         }
 
-        implicit_return_data_types = [v["cairo_type"] for v in _implicit_args.values()]
-        explicit_return_data_type = cairo_program.identifiers.get_by_full_name(
-            ScopedName(path=("__main__", entrypoint, "Return"))
-        ).cairo_type
-        return_data_types = implicit_return_data_types + [explicit_return_data_type]
+        return_data_types = [
+            *(arg["cairo_type"] for arg in _implicit_args.values()),
+            cairo_program.identifiers.get_by_full_name(
+                ScopedName(path=("__main__", entrypoint, "Return"))
+            ).cairo_type,
+        ]
 
         # Fix builtins runner based on the implicit args since the compiler doesn't find them
         cairo_program.builtins = [
@@ -209,9 +210,9 @@ def cairo_run(request, cairo_program, cairo_file, main_path):
         runner.end_run(disable_trace_padding=False)
         if request.config.getoption("proof_mode"):
             # TODO: should we also support multiple return data types in proof mode?
-            return_data_offset = serde.get_offset(explicit_return_data_type.cairo_type)
+            return_data_offset = serde.get_offset(return_data_types[-1])
             pointer = runner.vm.run_context.ap - return_data_offset
-            for arg in implicit_args[::-1]:
+            for arg in _builtins.keys()[::-1]:
                 builtin_runner = runner.builtin_runners.get(
                     arg.replace("_ptr", "_builtin")
                 )
@@ -302,23 +303,19 @@ def cairo_run(request, cairo_program, cairo_file, main_path):
         if add_output:
             final_output = serde.serialize_list(output_ptr)
 
-        function_output = []
-        return_data_offsets = serde.get_offsets(return_data_types)
-        for i, return_data_type in enumerate(return_data_types):
-            function_output.append(
-                serde.serialize(
-                    return_data_type, runner.vm.run_context.ap, return_data_offsets[i]
-                )
+        function_output = [
+            serde.serialize(return_type, runner.vm.run_context.ap, offset)
+            for return_type, offset in zip(
+                return_data_types, serde.get_offsets(return_data_types)
             )
+        ]
+
         if final_output is not None:
             if len(function_output) > 0:
                 final_output = (final_output, *function_output)
         else:
             final_output = function_output
 
-        if len(final_output) == 1:
-            return final_output[0]
-
-        return final_output
+        return final_output[0] if len(final_output) == 1 else final_output
 
     return _factory
