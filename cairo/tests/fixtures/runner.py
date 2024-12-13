@@ -10,6 +10,7 @@ from typing import Tuple
 import pytest
 import starkware.cairo.lang.instances as LAYOUTS
 from starkware.cairo.common.dict import DictManager
+from starkware.cairo.lang.builtins.all_builtins import ALL_BUILTINS
 from starkware.cairo.lang.compiler.ast.cairo_types import CairoType, TypeStruct
 from starkware.cairo.lang.compiler.scoped_name import ScopedName
 from starkware.cairo.lang.tracer.tracer_data import TracerData
@@ -75,39 +76,56 @@ def cairo_run(request, cairo_program, cairo_file, main_path):
     """
 
     def _factory(entrypoint, *args, **kwargs):
-        implicit_args = list(
-            cairo_program.identifiers.get_by_full_name(
-                ScopedName(path=("__main__", entrypoint, "ImplicitArgs"))
-            ).members.keys()
-        )
+        implicit_args = cairo_program.identifiers.get_by_full_name(
+            ScopedName(path=("__main__", entrypoint, "ImplicitArgs"))
+        ).members.items()
+
+        # Split implicit args into builtins and other implicit args
+        _builtins = {
+            k: {
+                "python_type": to_python_type(
+                    resolve_main_path(main_path)(v.cairo_type)
+                ),
+                "cairo_type": v.cairo_type,
+            }
+            for k, v in implicit_args
+            if any(builtin in k.replace("_ptr", "") for builtin in ALL_BUILTINS)
+        }
+
+        _implicit_args = {
+            k: {
+                "python_type": to_python_type(
+                    resolve_main_path(main_path)(v.cairo_type)
+                ),
+                "cairo_type": v.cairo_type,
+            }
+            for k, v in implicit_args
+            if not any(builtin in k.replace("_ptr", "") for builtin in ALL_BUILTINS)
+        }
+
         _args = {
-            k: to_python_type(resolve_main_path(main_path)(v.cairo_type))
+            k: {
+                "python_type": to_python_type(
+                    resolve_main_path(main_path)(v.cairo_type)
+                ),
+                "cairo_type": v.cairo_type,
+            }
             for k, v in cairo_program.identifiers.get_by_full_name(
                 ScopedName(path=("__main__", entrypoint, "Args"))
             ).members.items()
         }
-        return_data = cairo_program.identifiers.get_by_full_name(
+
+        implicit_return_data_types = [v["cairo_type"] for v in _implicit_args.values()]
+        explicit_return_data_type = cairo_program.identifiers.get_by_full_name(
             ScopedName(path=("__main__", entrypoint, "Return"))
-        )
+        ).cairo_type
+        return_data_types = implicit_return_data_types + [explicit_return_data_type]
+
         # Fix builtins runner based on the implicit args since the compiler doesn't find them
         cairo_program.builtins = [
             builtin
-            # This list is extracted from the builtin runners
-            # Builtins have to be declared in this order
-            for builtin in [
-                "output",
-                "pedersen",
-                "range_check",
-                "ecdsa",
-                "bitwise",
-                "ec_op",
-                "keccak",
-                "poseidon",
-                "range_check96",
-                "add_mod",
-                "mul_mod",
-            ]
-            if builtin in {arg.replace("_ptr", "") for arg in implicit_args}
+            for builtin in ALL_BUILTINS
+            if builtin in {arg.replace("_ptr", "") for arg in _builtins.keys()}
         ]
         # Add a jmp rel 0 instruction to be able to loop in proof mode and avoid the proof-mode at compile time
         cairo_program.data = cairo_program.data + [0x10780017FFF7FFF, 0]
@@ -130,15 +148,23 @@ def cairo_run(request, cairo_program, cairo_file, main_path):
 
         add_output = False
         stack = []
-        for arg in implicit_args:
-            builtin_runner = runner.builtin_runners.get(arg.replace("_ptr", "_builtin"))
-            if builtin_runner is not None:
-                stack.extend(builtin_runner.initial_stack())
-                add_output = "output" in arg
-                if add_output:
-                    output_ptr = stack[-1]
 
-        for i, (arg_name, python_type) in enumerate(_args.items()):
+        # Handle builtins
+        for builtin_arg in _builtins.keys():
+            builtin_runner = runner.builtin_runners.get(
+                builtin_arg.replace("_ptr", "_builtin")
+            )
+            if builtin_runner is None:
+                raise ValueError(f"Builtin runner {builtin_arg} not found")
+            stack.extend(builtin_runner.initial_stack())
+            add_output = "output" in builtin_arg
+            if add_output:
+                output_ptr = stack[-1]
+
+        # Handle other args, (implicit, explicit)
+        for i, (arg_name, python_type) in enumerate(
+            [(k, v["python_type"]) for k, v in {**_implicit_args, **_args}.items()]
+        ):
             if arg_name == "output_ptr":
                 add_output = True
                 output_ptr = runner.segments.add()
@@ -182,7 +208,8 @@ def cairo_run(request, cairo_program, cairo_file, main_path):
 
         runner.end_run(disable_trace_padding=False)
         if request.config.getoption("proof_mode"):
-            return_data_offset = serde.get_offset(return_data.cairo_type)
+            # TODO: should we also support multiple return data types in proof mode?
+            return_data_offset = serde.get_offset(explicit_return_data_type.cairo_type)
             pointer = runner.vm.run_context.ap - return_data_offset
             for arg in implicit_args[::-1]:
                 builtin_runner = runner.builtin_runners.get(
@@ -274,19 +301,23 @@ def cairo_run(request, cairo_program, cairo_file, main_path):
         final_output = None
         if add_output:
             final_output = serde.serialize_list(output_ptr)
-        function_output = serde.serialize(
-            return_data.cairo_type, runner.vm.run_context.ap
-        )
-        if final_output is not None:
-            function_output = (
-                function_output
-                if isinstance(function_output, list)
-                else [function_output]
+
+        function_output = []
+        return_data_offsets = serde.get_offsets(return_data_types)
+        for i, return_data_type in enumerate(return_data_types):
+            function_output.append(
+                serde.serialize(
+                    return_data_type, runner.vm.run_context.ap, return_data_offsets[i]
+                )
             )
+        if final_output is not None:
             if len(function_output) > 0:
                 final_output = (final_output, *function_output)
         else:
             final_output = function_output
+
+        if len(final_output) == 1:
+            return final_output[0]
 
         return final_output
 
