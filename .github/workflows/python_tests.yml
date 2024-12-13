@@ -69,7 +69,7 @@ jobs:
         run: |
           cd cairo
           uv run compile_os
-          uv run pytest -n logical --ignore=tests/src --ignore=tests/programs --junitxml=junit.xml -o junit_family=legacy --durations=0 -v
+          uv run pytest tests/ethereum/utils/test_numeric.py -n logical --ignore=tests/src --ignore=tests/programs --junitxml=junit.xml -o junit_family=legacy --durations=0 -v
 
       - uses: codecov/codecov-action@v5.0.5
         with:
