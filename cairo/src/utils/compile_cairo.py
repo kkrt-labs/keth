@@ -43,6 +43,10 @@ def compile_os():
     compile_cairo(Path(__file__).parents[2] / "programs" / "os.cairo")
 
 
+def compile_fibonacci():
+    compile_cairo(Path(__file__).parents[2] / "programs" / "fibonacci.cairo")
+
+
 if __name__ == "__main__":
     if len(sys.argv) != 2:
         logger.error("Usage: python compile_cairo.py <file_name>")

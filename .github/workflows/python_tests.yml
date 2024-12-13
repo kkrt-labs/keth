@@ -50,14 +50,14 @@ jobs:
           PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python
         run: |
           cd cairo
-          uv run compile
+          uv run compile_os
           uv run pytest -n logical --junitxml=junit.xml -o junit_family=legacy --durations=0
 
       - name: Run tests without src
         if: ${{ needs.paths-filter.outputs.src == 'false' }}
         run: |
           cd cairo
-          uv run compile
+          uv run compile_os
           uv run pytest -n logical --ignore=tests/src --ignore=tests/programs --junitxml=junit.xml -o junit_family=legacy --durations=0
 
       - uses: codecov/codecov-action@v5.0.5

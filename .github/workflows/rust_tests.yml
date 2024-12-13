@@ -19,5 +19,8 @@ jobs:
         with:
           cache-on-failure: "true"
 
+      - name: Compile fibonacci
+        run: uv run compile_fibonacci
+
       - name: Run tests
         run: cargo test --all-features

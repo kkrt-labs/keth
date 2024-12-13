@@ -129,7 +129,8 @@ markers = [
 norecursedirs = "tests/ef_tests/test_data"
 
 [project.scripts]
-compile = "src.utils.compile_cairo:compile_os"
+compile_os = "src.utils.compile_cairo:compile_os"
+compile_fibonacci = "src.utils.compile_cairo:compile_fibonacci"
 transpile = "scripts.convert_py_to_cairo:main"
 generate-tests = "scripts.generate_tests:main"
 
