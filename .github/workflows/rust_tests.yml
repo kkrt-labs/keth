@@ -18,6 +18,10 @@ jobs:
           enable-cache: true
           cache-dependency-glob: uv.lock
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: ./cairo/.python-version
+
       - name: Compile fibonacci
         run: |
           cd cairo
