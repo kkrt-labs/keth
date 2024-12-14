@@ -1,6 +1,11 @@
+import json
+import logging
+from pathlib import Path
+
 import pytest
 from eth_abi.abi import encode
 from ethereum_types.numeric import U256
+from hexbytes import HexBytes
 from hypothesis import given
 from hypothesis.strategies import integers
 
@@ -10,8 +15,13 @@ from src.utils.uint256 import int_to_uint256
 from tests.utils.constants import COINBASE, OTHER, OWNER
 from tests.utils.data import block
 from tests.utils.errors import cairo_error
-from tests.utils.models import State
+from tests.utils.models import Block, State
 from tests.utils.solidity import get_contract
+
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
 
 
 class TestOs:
@@ -73,6 +83,65 @@ class TestOs:
             == amount + 2**128 - 1
         )
         assert len(state["accounts"][erc20.address]["storage"].keys()) == 3
+
+    @pytest.mark.slow
+    @pytest.mark.parametrize("block_number", [21389405])
+    def test_eth_block(self, cairo_run, block_number):
+        prover_input_path = Path(f"cache/{block_number}_long.json")
+        with open(prover_input_path, "r") as f:
+            prover_input = json.load(f)
+
+        transactions = [
+            tx
+            for tx in prover_input["block"]["transactions"]
+            if int(tx["type"], 16) != 3
+        ]
+        logger.info(
+            f"Number of non-blob transactions: {len(transactions)} / {len(prover_input['block']['transactions'])}"
+        )
+
+        header = prover_input["block"].copy()
+        del header["transactions"]
+        del header["withdrawals"]
+        del header["size"]
+
+        codes = {
+            keccak256(HexBytes(code)): HexBytes(code) for code in prover_input["codes"]
+        }
+        pre_state = {
+            account["address"]: {
+                "nonce": account.get("nonce", 0),
+                "balance": int(account.get("balance", 0), 16),
+                "code": list(codes.get(HexBytes(account.get("codeHash", b"")), b"")),
+                "storage": {
+                    slot["key"]: int(slot["value"], 16)
+                    for slot in account.get("storageProof", [])
+                },
+            }
+            for account in prover_input["preStateProofs"]
+        }
+
+        post_state = cairo_run(
+            "test_os",
+            block=Block.model_validate(
+                {"block_header": header, "transactions": transactions}
+            ),
+            state=State.model_validate(pre_state),
+        )
+
+        expected = {
+            account["address"]: {
+                "nonce": account.get("nonce", 0),
+                "balance": int(account.get("balance", 0), 16),
+                "code": list(codes.get(HexBytes(account.get("codeHash", b"")), b"")),
+                "storage": {
+                    slot["key"]: int(slot["value"], 16)
+                    for slot in account.get("storageProof", [])
+                },
+            }
+            for account in prover_input["postStateProofs"]
+        }
+        assert post_state == expected
 
     def test_block_hint(self, cairo_run):
         output = cairo_run("test_block_hint", block=block())

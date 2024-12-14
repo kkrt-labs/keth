@@ -890,7 +890,6 @@ namespace Interpreter {
         let memory = Memory.init();
 
         // Cache the coinbase, precompiles, caller, and target, making them warm
-        let state = State.copy();
         with state {
             let coinbase = State.get_account(env.coinbase);
             State.cache_precompiles();
