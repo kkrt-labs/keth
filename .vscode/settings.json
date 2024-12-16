@@ -29,7 +29,8 @@
     "Risc",
     "runtest",
     "sessionfinish",
-    "sessionstart"
+    "sessionstart",
+    "slackapi"
   ],
   "python.testing.pytestArgs": ["cairo"],
   "python.testing.unittestEnabled": false,

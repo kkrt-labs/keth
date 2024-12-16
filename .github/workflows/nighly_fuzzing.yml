@@ -42,14 +42,7 @@ jobs:
           echo "HYPOTHESIS_PROFILE=nightly" >> .env
           cd cairo
           uv run compile_os
-          uv run pytest "tests" -m "not NoCI" -n logical --junitxml=junit.xml -o junit_family=legacy --durations=0 -v
-
-      - name: Upload coverage report to codecov
-        if: steps.tests.outcome == 'success'
-        uses: codecov/codecov-action@v3
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          directory: ./coverage/
+          uv run pytest "tests" -n logical --durations=0 --no-skip-cached-tests
 
       - name: Notify Slack on Failure
         if: steps.tests.outcome == 'failure'

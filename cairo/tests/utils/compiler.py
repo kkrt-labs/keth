@@ -7,6 +7,9 @@ from starkware.cairo.lang.compiler.scoped_name import ScopedName
 
 from src.utils.compiler import cairo_compile, implement_hints
 
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger()
 
 
