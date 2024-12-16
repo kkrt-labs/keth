@@ -1,10 +1,9 @@
+import argparse
 import json
 import logging
-import sys
 from pathlib import Path
 
-from tests.fixtures.compiler import cairo_compile
-from tests.utils.hints import implement_hints
+from src.utils.compiler import cairo_compile, implement_hints
 
 # Configure the logger
 logging.basicConfig(
@@ -13,22 +12,32 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def compile_cairo(file_name):
+def compile_cairo(file_name, should_implement_hints=False):
     input_path = Path(file_name)
     output_path = input_path.with_suffix(".json")
-    program = cairo_compile(input_path, debug_info=False, proof_mode=True)
-    program.hints = implement_hints(program)
+    program = cairo_compile(input_path)
+    if should_implement_hints:
+        program.hints = implement_hints(program)
 
     with open(output_path, "w") as f:
         json.dump(program.Schema().dump(program), f, indent=4, sort_keys=True)
 
 
 def compile_os():
-    compile_cairo(Path(__file__).parents[2] / "programs" / "os.cairo")
+    compile_cairo(
+        Path(__file__).parents[2] / "programs" / "os.cairo",
+        should_implement_hints=True,
+    )
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        logger.error("Usage: python compile_cairo.py <file_name>")
-    else:
-        compile_cairo(sys.argv[1])
+    parser = argparse.ArgumentParser(description="Compile Cairo program")
+    parser.add_argument("file_name", help="The Cairo file to compile")
+    parser.add_argument(
+        "--implement-hints",
+        action="store_true",
+        help="Implement hints in the compiled program",
+    )
+
+    args = parser.parse_args()
+    compile_cairo(args.file_name, args.implement_hints)

@@ -3,31 +3,11 @@ from pathlib import Path
 from time import perf_counter
 
 import pytest
-from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
-from starkware.cairo.lang.compiler.cairo_compile import compile_cairo, get_module_reader
-from starkware.cairo.lang.compiler.preprocessor.default_pass_manager import (
-    default_pass_manager,
-)
 from starkware.cairo.lang.compiler.scoped_name import ScopedName
 
-from tests.utils.hints import implement_hints
+from src.utils.compiler import cairo_compile, implement_hints
 
 logger = logging.getLogger()
-
-
-def cairo_compile(path, debug_info=True, proof_mode=False):
-    module_reader = get_module_reader(cairo_path=[str(Path(__file__).parents[2])])
-
-    pass_manager = default_pass_manager(
-        prime=DEFAULT_PRIME, read_module=module_reader.read
-    )
-
-    return compile_cairo(
-        Path(path).read_text(),
-        pass_manager=pass_manager,
-        debug_info=debug_info,
-        add_start=proof_mode,
-    )
 
 
 @pytest.fixture(scope="module")
@@ -54,7 +34,7 @@ def main_path(cairo_file):
 @pytest.fixture(scope="module")
 def cairo_program(cairo_file, main_path):
     start = perf_counter()
-    program = cairo_compile(cairo_file)
+    program = cairo_compile(cairo_file, debug_info=True, proof_mode=False)
     program.hints = implement_hints(program)
     all_identifiers = list(program.identifiers.dict.items())
     # when running the tests, the main file is the test file
