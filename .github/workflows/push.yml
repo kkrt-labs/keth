@@ -12,13 +12,17 @@ concurrency:
 permissions: read-all
 
 jobs:
+  rust_tests:
+    name: Tests
+    uses: ./.github/workflows/rust_tests.yml
+
+  python_tests:
+    name: Tests
+    uses: ./.github/workflows/python_tests.yml
+
   lint:
     name: Lint
     permissions:
       checks: write
       contents: read
     uses: ./.github/workflows/trunk_check.yml
-
-  python_tests:
-    name: Tests
-    uses: ./.github/workflows/python_tests.yml
