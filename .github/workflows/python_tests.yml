@@ -45,4 +45,4 @@ jobs:
         run: |
           cd cairo
           uv run compile_os
-          uv run pytest tests/ethereum/utils/test_numeric.py  -n logical --durations=0 -v
+          uv run pytest -n logical --durations=0 -v
