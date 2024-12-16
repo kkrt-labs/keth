@@ -4,8 +4,6 @@ os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
 
 import logging
 import os
-import shutil
-from pathlib import Path
 
 import pytest
 import starkware.cairo.lang.instances as LAYOUTS
@@ -15,8 +13,6 @@ from hypothesis import HealthCheck, Phase, Verbosity, settings
 
 from tests.utils.caching import CACHED_TESTS_FILE, program_hash, testfile_hash
 from tests.utils.compiler import get_cairo_file, get_cairo_program, get_main_path
-from tests.utils.coverage import report_runs
-from tests.utils.reporting import dump_coverage
 from tests.utils.strategies import register_type_strategies
 
 load_dotenv()
@@ -107,25 +103,6 @@ def seed(request):
         logger.info(f"Setting seed to {request.config.getoption('seed')}")
 
         random.seed(request.config.getoption("seed"))
-
-
-@pytest.fixture(scope="session", autouse=True)
-def coverage(worker_id, request):
-    yield
-
-    if any(p.suffix == ".py" for p in request.node._initialpaths):
-        # Skip coverage when running single test files
-        return
-
-    files = report_runs(excluded_file={"site-packages", "tests"})
-
-    output_dir = Path("coverage")
-    if worker_id != "master":
-        output_dir = output_dir / worker_id
-
-    output_dir.mkdir(exist_ok=True, parents=True)
-    shutil.rmtree(output_dir, ignore_errors=True)
-    dump_coverage(output_dir, files)
 
 
 def pytest_sessionstart(session):
