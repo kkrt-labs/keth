@@ -17,6 +17,9 @@ from tests.utils.compiler import get_cairo_file, get_cairo_program, get_main_pat
 from tests.utils.strategies import register_type_strategies
 
 load_dotenv()
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger()
 
 
@@ -112,6 +115,7 @@ def pytest_sessionstart(session):
 
 def pytest_sessionfinish(session):
     if xdist.is_xdist_controller(session):
+        logger.info("Controller worker: collecting tests to skip")
         tests_to_skip = session.config.cache.get(f"cairo_run/{CACHED_TESTS_FILE}", [])
         for worker_id in range(session.config.option.numprocesses):
             tests_to_skip += session.config.cache.get(
@@ -126,19 +130,19 @@ def pytest_sessionfinish(session):
         if item.passed
     ]
 
-    if session.config.option.dist == "no":
-        tests_to_skip = session.config.cache.get(f"cairo_run/{CACHED_TESTS_FILE}", [])
-        tests_to_skip += session_tests_to_skip
+    if xdist.is_xdist_worker(session):
+        worker_id = xdist.get_xdist_worker_id(session)
+        logger.info(f"Worker {worker_id}: collecting tests to skip")
         session.config.cache.set(
-            f"cairo_run/{CACHED_TESTS_FILE}", list(set(tests_to_skip))
+            f"cairo_run/{worker_id}/{CACHED_TESTS_FILE}",
+            session_tests_to_skip,
         )
         return
 
-    worker_id = xdist.get_xdist_worker_id(session)
-    session.config.cache.set(
-        f"cairo_run/{worker_id}/{CACHED_TESTS_FILE}",
-        session_tests_to_skip,
-    )
+    logger.info("Sequential worker: collecting tests to skip")
+    tests_to_skip = session.config.cache.get(f"cairo_run/{CACHED_TESTS_FILE}", [])
+    tests_to_skip += session_tests_to_skip
+    session.config.cache.set(f"cairo_run/{CACHED_TESTS_FILE}", list(set(tests_to_skip)))
 
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
