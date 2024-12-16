@@ -2,37 +2,37 @@ import logging
 from pathlib import Path
 from time import perf_counter
 
-import pytest
 from starkware.cairo.lang.compiler.scoped_name import ScopedName
 
 from src.utils.compiler import cairo_compile, implement_hints
 
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger()
 
 
-@pytest.fixture(scope="module")
-def cairo_file(request):
-    cairo_file = Path(request.node.fspath).with_suffix(".cairo")
+def get_cairo_file(location):
+    cairo_file = Path(location).with_suffix(".cairo")
     if not cairo_file.exists():
-        # No dedicated cairo file for tests in the tests/ directory
-        # Use the main cairo file directly
         cairo_file = Path(str(cairo_file).replace("/tests", "").replace("/test_", "/"))
-        if not cairo_file.exists():
-            raise ValueError(f"Missing cairo file: {cairo_file}")
+    if not cairo_file.exists():
+        raise ValueError(f"Missing cairo file: {cairo_file}")
     return cairo_file
 
 
-@pytest.fixture(scope="module")
-def main_path(cairo_file):
+def get_main_path(cairo_file):
     """
     Resolve the __main__ part of the cairo scope path.
     """
-    parts = cairo_file.relative_to(Path.cwd()).with_suffix("").parts
-    return parts[1:] if parts[0] == "cairo" else parts
+    return tuple(
+        "/".join(cairo_file.relative_to(Path.cwd()).with_suffix("").parts)
+        .replace("cairo/", "")
+        .split("/")
+    )
 
 
-@pytest.fixture(scope="module")
-def cairo_program(cairo_file, main_path):
+def get_cairo_program(cairo_file, main_path):
     start = perf_counter()
     program = cairo_compile(cairo_file, debug_info=True, proof_mode=False)
     program.hints = implement_hints(program)
@@ -41,7 +41,7 @@ def cairo_program(cairo_file, main_path):
     # and the compiler is not able to find struct defined therein
     # in a breakpoint, looking for, e.g. ethereum.cancun.trie.InternalNode
     # while only __main__.InternalNode exists.
-    # There is probably a better way to solve this at the IdentifierManager.
+    # There is probably a better way to solve this at the IdentifierManager level.
     for k, v in all_identifiers:
         if "__main__" not in str(k):
             continue

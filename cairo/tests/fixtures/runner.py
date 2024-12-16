@@ -25,7 +25,6 @@ from starkware.cairo.lang.vm.utils import RunResources
 
 from tests.utils.args_gen import gen_arg as gen_arg_builder
 from tests.utils.args_gen import to_cairo_type, to_python_type
-from tests.utils.coverage import VmWithCoverage
 from tests.utils.hints import debug_info, get_op, oracle
 from tests.utils.reporting import profile_from_tracer_data
 from tests.utils.serde import Serde
@@ -44,6 +43,21 @@ def resolve_main_path(main_path: Tuple[str, ...]):
         return cairo_type
 
     return _factory
+
+
+@pytest.fixture(scope="module")
+def cairo_file(request):
+    return request.session.cairo_files[request.node.fspath]
+
+
+@pytest.fixture(scope="module")
+def cairo_program(request):
+    return request.session.cairo_programs[request.node.fspath]
+
+
+@pytest.fixture(scope="module")
+def main_path(request):
+    return request.session.main_paths[request.node.fspath]
 
 
 @pytest.fixture(scope="module")
@@ -156,7 +170,6 @@ def cairo_run(request, cairo_program, cairo_file, main_path):
                 "debug_info": debug_info(cairo_program),
                 "get_op": get_op,
             },
-            vm_class=VmWithCoverage,
         )
         run_resources = RunResources(n_steps=64_000_000)
         try:
