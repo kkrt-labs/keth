@@ -17,3 +17,18 @@ struct Uint {
 struct U256 {
     value: Uint256*,
 }
+
+struct SetUintDictAccess {
+    key: Uint,
+    prev_value: bool,
+    new_value: bool,
+}
+
+struct SetUintStruct {
+    dict_ptr_start: SetUintDictAccess*,
+    dict_ptr: SetUintDictAccess*,
+}
+
+struct SetUint {
+    value: SetUintStruct*,
+}

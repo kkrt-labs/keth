@@ -7,6 +7,7 @@ from typing import (
     ForwardRef,
     Mapping,
     Sequence,
+    Set,
     Tuple,
     Type,
     Union,
@@ -54,6 +55,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum_types", "numeric", "U64"): U64,
     ("ethereum_types", "numeric", "Uint"): Uint,
     ("ethereum_types", "numeric", "U256"): U256,
+    ("ethereum_types", "numeric", "SetUint"): Set[Uint],
     ("ethereum_types", "bytes", "Bytes0"): Bytes0,
     ("ethereum_types", "bytes", "Bytes8"): Bytes8,
     ("ethereum_types", "bytes", "Bytes20"): Bytes20,
@@ -202,9 +204,13 @@ def _gen_arg(
         segments.load_data(struct_ptr, [instances_ptr, len(arg)])
         return struct_ptr
 
-    if arg_type_origin in (dict, ChainMap, abc.Mapping):
+    if arg_type_origin in (dict, ChainMap, abc.Mapping, set):
         dict_ptr = segments.add()
         assert dict_ptr.segment_index not in dict_manager.trackers
+
+        if arg_type_origin is set:
+            arg = {k: True for k in arg}
+            arg_type = Mapping[type(next(iter(arg))), bool]
 
         data = {
             _gen_arg(dict_manager, segments, get_args(arg_type)[0], k): _gen_arg(

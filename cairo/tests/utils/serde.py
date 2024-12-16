@@ -139,7 +139,7 @@ class Serde:
                     ]
                 )
 
-        if get_origin(python_cls) in (Mapping, abc.Mapping):
+        if get_origin(python_cls) in (Mapping, abc.Mapping, set):
             mapping_struct_ptr = self.serialize_pointers(path, ptr)["value"]
             mapping_struct_path = (
                 get_struct_definition(self.program, path)
@@ -159,6 +159,12 @@ class Serde:
             pointers = self.serialize_pointers(mapping_struct_path, mapping_struct_ptr)
             segment_size = pointers["dict_ptr"] - pointers["dict_ptr_start"]
             dict_ptr = pointers["dict_ptr_start"]
+
+            if get_origin(python_cls) is set:
+                return {
+                    self._serialize(key_type, dict_ptr + i)
+                    for i in range(0, segment_size, 3)
+                }
 
             return {
                 self._serialize(key_type, dict_ptr + i): self._serialize(
