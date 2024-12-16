@@ -1,7 +1,9 @@
+import argparse
+import json
 import logging
-import subprocess
-import sys
 from pathlib import Path
+
+from src.utils.compiler import cairo_compile, implement_hints
 
 # Configure the logger
 logging.basicConfig(
@@ -10,33 +12,15 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def compile_cairo(file_name):
+def compile_cairo(file_name, should_implement_hints=True):
     input_path = Path(file_name)
     output_path = input_path.with_suffix(".json")
+    program = cairo_compile(input_path)
+    if should_implement_hints:
+        program.hints = implement_hints(program)
 
-    command = [
-        "cairo-compile",
-        str(input_path),
-        "--output",
-        str(output_path),
-        "--proof_mode",
-        "--no_debug_info",
-        "--cairo_path",
-        str(Path(__file__).parents[2]),
-    ]
-
-    result = subprocess.run(command, capture_output=True, text=True)
-
-    if result.returncode == 0:
-        logger.info("Compilation successful.")
-        try:
-            subprocess.run(["trunk", "fmt", str(output_path)])
-        except Exception as e:
-            logger.error("Formatting failed.")
-            logger.error(e)
-    else:
-        logger.error("Compilation failed.")
-        logger.error(result.stderr)
+    with open(output_path, "w") as f:
+        json.dump(program.Schema().dump(program), f, indent=4, sort_keys=True)
 
 
 def compile_os():
@@ -44,7 +28,15 @@ def compile_os():
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        logger.error("Usage: python compile_cairo.py <file_name>")
-    else:
-        compile_cairo(sys.argv[1])
+    parser = argparse.ArgumentParser(description="Compile Cairo program")
+    parser.add_argument("file_name", help="The Cairo file to compile")
+    parser.add_argument(
+        "--no-implement-hints",
+        action="store_false",
+        dest="implement_hints",
+        default=True,
+        help="Do not implement hints in the compiled program",
+    )
+
+    args = parser.parse_args()
+    compile_cairo(args.file_name, args.implement_hints)
