@@ -156,6 +156,12 @@ def pytest_runtest_makereport(item, call):
 
 @pytest.hookimpl(wrapper=True)
 def pytest_collection_modifyitems(session, config, items):
+    # Collect only is used by the IDE to collect tests, at this point
+    # we don't want to compile the cairo files
+    if config.option.collectonly:
+        yield
+        return
+
     tests_to_skip = config.cache.get(f"cairo_run/{CACHED_TESTS_FILE}", [])
     session.cairo_files = {}
     session.cairo_programs = {}

@@ -807,7 +807,6 @@ namespace Interpreter {
         keccak_ptr: KeccakBuiltin*,
         state: model.State*,
     }(
-        initial_state: model.State*,
         env: model.Environment*,
         address: felt,
         is_deploy_tx: felt,
@@ -867,6 +866,7 @@ namespace Interpreter {
         let valid_jumpdests_start = cast([ap - 2], DictAccess*);
         let valid_jumpdests = cast([ap - 1], DictAccess*);
 
+        let initial_state = State.copy();
         tempvar message = new model.Message(
             bytecode=bytecode,
             bytecode_len=bytecode_len,
@@ -890,7 +890,6 @@ namespace Interpreter {
         let memory = Memory.init();
 
         // Cache the coinbase, precompiles, caller, and target, making them warm
-        let state = State.copy();
         with state {
             let coinbase = State.get_account(env.coinbase);
             State.cache_precompiles();
@@ -979,7 +978,7 @@ namespace Interpreter {
         State.finalize{state=initial_state}();
 
         if (evm.reverted != 0) {
-            tempvar state = cast([fp - 14], model.State*);
+            tempvar state = initial_state;
         } else {
             tempvar state = state;
         }
