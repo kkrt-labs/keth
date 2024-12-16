@@ -7,6 +7,7 @@ import os
 
 import pytest
 import starkware.cairo.lang.instances as LAYOUTS
+import xdist
 import xxhash
 from dotenv import load_dotenv
 from hypothesis import HealthCheck, Phase, Verbosity, settings
@@ -110,14 +111,34 @@ def pytest_sessionstart(session):
 
 
 def pytest_sessionfinish(session):
-    tests_to_skip = session.config.cache.get(CACHED_TESTS_FILE, [])
-    for item in session.results.values():
-        if not item.passed:
-            continue
-        if session.test_hashes[item.nodeid] not in tests_to_skip:
-            tests_to_skip.append(session.test_hashes[item.nodeid])
+    if xdist.is_xdist_controller(session):
+        tests_to_skip = session.config.cache.get(f"cairo_run/{CACHED_TESTS_FILE}", [])
+        for worker_id in range(session.config.option.numprocesses):
+            tests_to_skip += session.config.cache.get(
+                f"cairo_run/gw{worker_id}/{CACHED_TESTS_FILE}", []
+            )
+        session.config.cache.set(f"cairo_run/{CACHED_TESTS_FILE}", tests_to_skip)
+        return
 
-    session.config.cache.set(CACHED_TESTS_FILE, tests_to_skip)
+    session_tests_to_skip = [
+        session.test_hashes[item.nodeid]
+        for item in session.results.values()
+        if item.passed
+    ]
+
+    if session.config.option.dist == "no":
+        tests_to_skip = session.config.cache.get(f"cairo_run/{CACHED_TESTS_FILE}", [])
+        tests_to_skip += session_tests_to_skip
+        session.config.cache.set(
+            f"cairo_run/{CACHED_TESTS_FILE}", list(set(tests_to_skip))
+        )
+        return
+
+    worker_id = xdist.get_xdist_worker_id(session)
+    session.config.cache.set(
+        f"cairo_run/{worker_id}/{CACHED_TESTS_FILE}",
+        session_tests_to_skip,
+    )
 
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
@@ -131,7 +152,7 @@ def pytest_runtest_makereport(item, call):
 
 @pytest.hookimpl(wrapper=True)
 def pytest_collection_modifyitems(session, config, items):
-    tests_to_skip = config.cache.get(CACHED_TESTS_FILE, [])
+    tests_to_skip = config.cache.get(f"cairo_run/{CACHED_TESTS_FILE}", [])
     session.cairo_files = {}
     session.cairo_programs = {}
     session.main_paths = {}
@@ -143,12 +164,15 @@ def pytest_collection_modifyitems(session, config, items):
             "cairo_program",
             "cairo_run",
         }:
-            cairo_file = get_cairo_file(item.fspath)
-            session.cairo_files[item.fspath] = cairo_file
-            main_path = get_main_path(cairo_file)
-            session.main_paths[item.fspath] = main_path
-            cairo_program = get_cairo_program(cairo_file, main_path)
-            session.cairo_programs[item.fspath] = cairo_program
+            if item.fspath not in session.cairo_files:
+                cairo_file = get_cairo_file(item.fspath)
+                session.cairo_files[item.fspath] = cairo_file
+            if item.fspath not in session.main_paths:
+                main_path = get_main_path(cairo_file)
+                session.main_paths[item.fspath] = main_path
+            if item.fspath not in session.cairo_programs:
+                cairo_program = get_cairo_program(cairo_file, main_path)
+                session.cairo_programs[item.fspath] = cairo_program
 
             test_hash = xxhash.xxh64(
                 program_hash(cairo_program)

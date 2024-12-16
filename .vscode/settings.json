@@ -20,6 +20,7 @@
     "modifyitems",
     "nodeid",
     "nondet",
+    "numprocesses",
     "ommers",
     "patricialization",
     "patricialize",
@@ -30,7 +31,10 @@
     "runtest",
     "sessionfinish",
     "sessionstart",
-    "slackapi"
+    "slackapi",
+    "testrunfinished",
+    "workerid",
+    "workerinput"
   ],
   "python.testing.pytestArgs": ["cairo"],
   "python.testing.unittestEnabled": false,
