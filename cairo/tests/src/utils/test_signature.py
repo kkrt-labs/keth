@@ -69,7 +69,7 @@ class TestSignature:
                 st.just(0),
                 st.integers(min_value=int(SECP256K1N), max_value=int(U256.MAX_VALUE)),
             ).map(U256),
-            s=...,
+            s=st.integers(min_value=1, max_value=int(SECP256K1N) - 1).map(U256),
             y_parity=...,
             eth_address=felt,
         )
