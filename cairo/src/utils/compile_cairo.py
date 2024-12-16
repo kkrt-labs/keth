@@ -27,6 +27,10 @@ def compile_os():
     compile_cairo(Path(__file__).parents[2] / "programs" / "os.cairo")
 
 
+def compile_fibonacci():
+    compile_cairo(Path(__file__).parents[2] / "programs" / "fibonacci.cairo")
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Compile Cairo program")
     parser.add_argument("file_name", help="The Cairo file to compile")
