@@ -12,7 +12,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def compile_cairo(file_name, should_implement_hints=False):
+def compile_cairo(file_name, should_implement_hints=True):
     input_path = Path(file_name)
     output_path = input_path.with_suffix(".json")
     program = cairo_compile(input_path)
@@ -24,19 +24,18 @@ def compile_cairo(file_name, should_implement_hints=False):
 
 
 def compile_os():
-    compile_cairo(
-        Path(__file__).parents[2] / "programs" / "os.cairo",
-        should_implement_hints=True,
-    )
+    compile_cairo(Path(__file__).parents[2] / "programs" / "os.cairo")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Compile Cairo program")
     parser.add_argument("file_name", help="The Cairo file to compile")
     parser.add_argument(
-        "--implement-hints",
-        action="store_true",
-        help="Implement hints in the compiled program",
+        "--no-implement-hints",
+        action="store_false",
+        dest="implement_hints",
+        default=True,
+        help="Do not implement hints in the compiled program",
     )
 
     args = parser.parse_args()
