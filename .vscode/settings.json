@@ -4,6 +4,7 @@
     "ascii",
     "assertrepr",
     "bytearray",
+    "collectonly",
     "datadir",
     "divmod",
     "exitstatus",
