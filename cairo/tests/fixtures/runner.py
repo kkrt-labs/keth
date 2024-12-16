@@ -9,7 +9,6 @@ from typing import Tuple
 
 import pytest
 import starkware.cairo.lang.instances as LAYOUTS
-from hypothesis import settings
 from starkware.cairo.common.dict import DictManager
 from starkware.cairo.lang.compiler.ast.cairo_types import CairoType, TypeStruct
 from starkware.cairo.lang.compiler.scoped_name import ScopedName
@@ -26,7 +25,6 @@ from starkware.cairo.lang.vm.utils import RunResources
 
 from tests.utils.args_gen import gen_arg as gen_arg_builder
 from tests.utils.args_gen import to_cairo_type, to_python_type
-from tests.utils.caching import program_hash, testfile_hash
 from tests.utils.coverage import VmWithCoverage
 from tests.utils.hints import debug_info, get_op, oracle
 from tests.utils.reporting import profile_from_tracer_data
@@ -48,8 +46,19 @@ def resolve_main_path(main_path: Tuple[str, ...]):
     return _factory
 
 
-cached_tests_file = "cairo_run/cached_tests.json"
-cached_hashes_file = "cairo_run/cached_hashes.json"
+@pytest.fixture(scope="module")
+def cairo_file(request):
+    return request.session.cairo_files[request.node.fspath]
+
+
+@pytest.fixture(scope="module")
+def cairo_program(request):
+    return request.session.cairo_programs[request.node.fspath]
+
+
+@pytest.fixture(scope="module")
+def main_path(request):
+    return request.session.main_paths[request.node.fspath]
 
 
 @pytest.fixture(scope="module")
@@ -62,30 +71,6 @@ def cairo_run(request, cairo_program, cairo_file, main_path):
 
     Logic is mainly taken from starkware.cairo.lang.vm.cairo_run with minor updates like the addition of the output segment.
     """
-
-    current_hash = (
-        program_hash(cairo_program) + testfile_hash(request.node.fspath)
-    ).hex()
-    all_cached_tests = request.config.cache.get(cached_tests_file, {})
-    cached_test_key = str(cairo_file)
-    # Because this is a module scoped fixture, when tests are run in parallel,
-    # the cached_tests_file is not shared between workers. So we need to store
-    # the hashes in a separate file first, and then finally update the
-    # cached_tests_file.
-    request.config.cache.set(
-        cached_hashes_file,
-        {
-            **request.config.cache.get(cached_hashes_file, {}),
-            cached_test_key: current_hash,
-        },
-    )
-
-    if (
-        all_cached_tests.get(cached_test_key) == current_hash
-        and request.config.getoption("skip_cached_tests")
-        and settings()._current_profile != "nightly"
-    ):
-        pytest.skip(f"Skipping {request.node.name}: no change in program nor test file")
 
     def _factory(entrypoint, *args, **kwargs):
         implicit_args = list(
@@ -302,9 +287,3 @@ def cairo_run(request, cairo_program, cairo_file, main_path):
         return final_output
 
     return _factory
-
-
-def pytest_sessionfinish(session, exitstatus):
-    session.config.cache.set(
-        cached_tests_file, session.config.cache.get(cached_hashes_file, {})
-    )

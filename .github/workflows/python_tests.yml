@@ -6,25 +6,9 @@ on:
 permissions: read-all
 
 jobs:
-  paths-filter:
-    name: Paths filter
-    runs-on: ubuntu-latest
-    outputs:
-      src: ${{ steps.filter.outputs.src }}
-      ethereum: ${{ steps.filter.outputs.ethereum }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
-        id: filter
-        with:
-          filters: |
-            src:
-              - 'cairo/src/**'
-
   test:
     name: Python
     runs-on: ubuntu-latest-64-cores
-    needs: paths-filter
     env:
       HYPOTHESIS_PROFILE: ci
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
@@ -53,26 +37,12 @@ jobs:
         uses: actions/cache@v4
         with:
           path: cairo/.pytest_cache
-          key: ${{ runner.os }}-pytest
+          key: ${{ runner.os }}-pytest-cache
 
-      - name: Run tests with src
-        if: ${{ needs.paths-filter.outputs.src == 'true' }}
+      - name: Run tests with caching
         env:
           PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python
         run: |
           cd cairo
           uv run compile_os
-          uv run pytest -n logical --junitxml=junit.xml -o junit_family=legacy --durations=0 -v
-
-      - name: Run tests without src
-        if: ${{ needs.paths-filter.outputs.src == 'false' }}
-        run: |
-          cd cairo
-          uv run compile_os
-          uv run pytest tests/ethereum/utils/test_numeric.py -n logical --ignore=tests/src --ignore=tests/programs --junitxml=junit.xml -o junit_family=legacy --durations=0 -v
-
-      - uses: codecov/codecov-action@v5.0.5
-        with:
-          directory: ./cairo/coverage/
-      - uses: codecov/test-results-action@v1
-        if: ${{ !cancelled() }}
+          uv run pytest tests/ethereum/utils/test_numeric.py  -n logical --durations=0 -v

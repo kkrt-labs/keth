@@ -2,6 +2,8 @@ from pathlib import Path
 
 import xxhash
 
+CACHED_TESTS_FILE = "cairo_run/cached_tests.json"
+
 
 def testfile_hash(file_path: str | Path) -> bytes:
     """
