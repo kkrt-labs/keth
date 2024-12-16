@@ -404,7 +404,7 @@ namespace Account {
     }
 
     // @notice Caches the given storage keys by creating an entry in the storage dict of the account.
-    // @dev This is used for access list transactions that provide a list of preaccessed keys
+    // @dev This is used for access list transactions that provide a list of pre-accessed keys
     // @param storage_keys_len The number of storage keys to cache.
     // @param storage_keys The pointer to the first storage key.
     func cache_storage_keys{pedersen_ptr: HashBuiltin*, range_check_ptr}(

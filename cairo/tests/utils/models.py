@@ -18,7 +18,6 @@ from pydantic import (
 from pydantic.alias_generators import to_camel, to_snake
 from starkware.cairo.lang.vm.crypto import pedersen_hash
 
-from ethereum.cancun.vm.runtime import get_valid_jump_destinations
 from ethereum.crypto.elliptic_curve import secp256k1_recover
 from ethereum.crypto.hash import Hash32
 from src.utils.uint256 import int_to_uint256

@@ -29,6 +29,9 @@ from tests.utils.hints import debug_info, get_op, oracle
 from tests.utils.reporting import profile_from_tracer_data
 from tests.utils.serde import Serde
 
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger()
 
 
@@ -197,7 +200,9 @@ def cairo_run(request, cairo_program, cairo_file, main_path):
             runner.finalize_segments()
 
         runner.relocate()
-        logger.info(f"Execution resources: {runner.get_execution_resources()}")
+        logger.info(
+            f"\nExecution resources: {json.dumps(runner.get_execution_resources().to_dict(), indent=4)}"
+        )
 
         # Create a unique output stem for the given test by using the test file name, the entrypoint and the kwargs
         displayed_args = ""

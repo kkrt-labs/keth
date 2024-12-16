@@ -84,6 +84,7 @@ class TestOs:
         )
         assert len(state["accounts"][erc20.address]["storage"].keys()) == 3
 
+    @pytest.mark.skip("Only for debugging")
     @pytest.mark.slow
     @pytest.mark.parametrize("block_number", [21389405])
     def test_eth_block(self, cairo_run, block_number):
