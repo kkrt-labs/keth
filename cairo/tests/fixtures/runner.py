@@ -1,3 +1,13 @@
+"""
+Cairo Test System - Runtime and Type Integration
+
+This module handles the execution of Cairo programs and provides the core integration
+with the type system for testing. It enables running tests with inputs passed as pure Python by automatically
+handling type conversion between Python and Cairo.
+
+The runner works with args_gen.py and serde.py for automatic type conversion.
+"""
+
 import json
 import logging
 import math
@@ -37,6 +47,12 @@ logger = logging.getLogger()
 
 
 def resolve_main_path(main_path: Tuple[str, ...]):
+    """
+    Resolve Cairo type paths for proper type system integration.
+
+    It ensures types defined in __main__ (when the test file is the main file)
+    are properly mapped to their actual module paths for serialization/deserialization.
+    """
 
     def _factory(cairo_type: CairoType):
         if isinstance(cairo_type, TypeStruct):
@@ -72,7 +88,14 @@ def cairo_run(request, cairo_program, cairo_file, main_path):
 
     When --profile-cairo is passed, the cairo program is run with the tracer enabled and the resulting trace is dumped.
 
-    Logic is mainly taken from starkware.cairo.lang.vm.cairo_run with minor updates like the addition of the output segment.
+    Logic is mainly taken from starkware.cairo.lang.vm.cairo_run with minor updates, mainly builtins discovery from implicit args and proof mode enabling by appending jmp rel 0 to the compiled program.
+
+    Type conversion between Python and Cairo is handled by:
+    - gen_arg: Converts Python arguments to Cairo memory layout when preparing runner inputs
+    - serde: Converts Cairo memory data to Python types by reading into the segments, used to return python types.
+
+    Returns:
+        The function's return value, converted back to Python types
     """
 
     def _factory(entrypoint, *args, **kwargs):
