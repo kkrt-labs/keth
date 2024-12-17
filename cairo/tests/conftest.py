@@ -1,7 +1,3 @@
-import os
-
-os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
-
 import logging
 import os
 
@@ -9,12 +5,15 @@ import pytest
 import starkware.cairo.lang.instances as LAYOUTS
 import xdist
 import xxhash
+from _pytest.mark import deselect_by_keyword, deselect_by_mark
 from dotenv import load_dotenv
 from hypothesis import HealthCheck, Phase, Verbosity, settings
 
 from tests.utils.caching import CACHED_TESTS_FILE, program_hash, testfile_hash
 from tests.utils.compiler import get_cairo_file, get_cairo_program, get_main_path
 from tests.utils.strategies import register_type_strategies
+
+os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
 
 load_dotenv()
 logging.basicConfig(
@@ -156,6 +155,10 @@ def pytest_runtest_makereport(item, call):
 
 @pytest.hookimpl(wrapper=True)
 def pytest_collection_modifyitems(session, config, items):
+    # deselect tests by keyword and mark here to avoid compiling cairo files
+    deselect_by_keyword(items, config)
+    deselect_by_mark(items, config)
+
     # Collect only is used by the IDE to collect tests, at this point
     # we don't want to compile the cairo files
     if config.option.collectonly:
