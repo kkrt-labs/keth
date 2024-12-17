@@ -284,7 +284,7 @@ def _gen_arg(
         if arg is None:
             return 0
 
-        error_bytes = bytes(str(arg), "utf-8")
+        error_bytes = str(arg).encode()
         message_ptr = segments.add()
         segments.load_data(message_ptr, list(error_bytes))
         struct_ptr = segments.add()

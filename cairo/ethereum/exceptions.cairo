@@ -1,6 +1,6 @@
 // Error types common across all Ethereum forks.
 //
-// When raising an exception, the exception is a valid pointer. Otherwise, the pointer is `0`.  When
+// When raising an exception, the exception is a valid pointer. Otherwise, the pointer is `0`. When
 // checking for an exceptino, a simple cast(maybe_exception, felt) != 0 is enough to check if the
 // function raised.
 //

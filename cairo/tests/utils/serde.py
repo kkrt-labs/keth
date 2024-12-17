@@ -213,8 +213,11 @@ class Serde:
             tuple_struct_ptr = self.serialize_pointers(path, ptr)["value"]
             if not tuple_struct_ptr:
                 return NO_ERROR_FLAG
-            # All exceptions share the same inner struct "BytesStruct"
-            struct_name = "BytesStruct"
+            struct_name = (
+                get_struct_definition(self.program, path)
+                .members["value"]
+                .cairo_type.pointee.scope.path[-1]
+            )
             path = (*path[:-1], struct_name)
             raw = self.serialize_pointers(path, tuple_struct_ptr)
             data = [self.memory.get(raw["data"] + i) for i in range(raw["len"])]

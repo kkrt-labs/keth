@@ -176,15 +176,18 @@ class TestSerde:
         result = serde.serialize(to_cairo_type(type_), base, shift=0)
         assert result == b
 
-    def test_exceptions(self, to_cairo_type, segments, serde, gen_arg):
-        # No Exception - cast(base, felt) == 0
+    @given(err=...)
+    def test_exception(
+        self, to_cairo_type, segments, serde, gen_arg, err: Union[EthereumException]
+    ):
+        base = segments.gen_arg([gen_arg(EthereumException, err)])
+
+        with pytest.raises(type(err)) as exception:
+            serde.serialize(to_cairo_type(EthereumException), base, shift=0)
+
+        assert str(exception.value) == str(err)
+
+    def test_none_exception(self, to_cairo_type, serde, gen_arg):
         base = gen_arg(EthereumException, None)
         result = serde.serialize(to_cairo_type(EthereumException), base, shift=0)
         assert result is None
-
-        # Test error case - cast(base, felt) != 0
-        expected_error = EthereumException("Some Error")
-        base = segments.gen_arg([gen_arg(EthereumException, expected_error)])
-        with pytest.raises(EthereumException) as exception:
-            serde.serialize(to_cairo_type(EthereumException), base, shift=0)
-        assert str(exception.value) == str(expected_error)
