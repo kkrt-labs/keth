@@ -25,6 +25,7 @@ from starkware.cairo.lang.compiler.ast.cairo_types import (
     TypeTuple,
 )
 from starkware.cairo.lang.compiler.identifier_definition import (
+    AliasDefinition,
     StructDefinition,
     TypeDefinition,
 )
@@ -35,8 +36,17 @@ from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 from ethereum.crypto.hash import Hash32
 from tests.utils.args_gen import to_python_type
 
+# Sentinel object for indicating no error in exception handling
+NO_ERROR_FLAG = object()
+
 
 def get_struct_definition(program, path: Tuple[str, ...]) -> StructDefinition:
+    """
+    Resolves and returns the struct definition for a given path in the Cairo program.
+    If the path is an alias (`import T from ...`), it resolves the alias to the actual struct definition.
+    If the path is a type definition `using T = V`, it resolves the type definition to the actual struct definition.
+    Otherwise, it returns the struct definition directly.
+    """
     scope = ScopedName(path)
     identifier = program.identifiers.as_dict()[scope]
     if isinstance(identifier, StructDefinition):
@@ -45,6 +55,9 @@ def get_struct_definition(program, path: Tuple[str, ...]) -> StructDefinition:
         identifier.cairo_type, TypeStruct
     ):
         return get_struct_definition(program, identifier.cairo_type.scope.path)
+    if isinstance(identifier, AliasDefinition):
+        destination = identifier.destination.path
+        return get_struct_definition(program, destination)
     raise ValueError(f"Expected a struct named {path}, found {identifier}")
 
 
@@ -82,13 +95,17 @@ class Serde:
         """
         Recursively serialize a Cairo instance, returning the corresponding Python instance.
         """
-        if ptr == 0:
-            return None
 
         full_path = path
         if "__main__" in full_path:
             full_path = self.main_part + full_path[full_path.index("__main__") + 1 :]
         python_cls = to_python_type(full_path)
+
+        if ptr == 0 and issubclass(python_cls, Exception):
+            return NO_ERROR_FLAG
+
+        if ptr == 0:
+            return None
 
         if get_origin(python_cls) is Union:
             value_ptr = self.serialize_pointers(path, ptr)["value"]
@@ -195,6 +212,16 @@ class Serde:
                 return bytes(data).decode()
             return python_cls(data)
 
+        if issubclass(python_cls, Exception):
+            tuple_struct_ptr = self.serialize_pointers(path, ptr)["value"]
+            # All exceptions share the same inner struct "BytesStruct"
+            struct_name = "BytesStruct"
+            path = (*path[:-1], struct_name)
+            raw = self.serialize_pointers(path, tuple_struct_ptr)
+            data = [self.memory.get(raw["data"] + i) for i in range(raw["len"])]
+            error_message = bytes(data).decode() or ""
+            raise python_cls(error_message)
+
         if python_cls == Bytes256:
             base_ptr = self.memory.get(ptr)
             data = b"".join(
@@ -284,14 +311,16 @@ class Serde:
                 return serialized[0]
             return serialized
         if isinstance(cairo_type, TypeTuple):
-            return [
+            raw = [
                 self._serialize(m.typ, ptr + i)
                 for i, m in enumerate(cairo_type.members)
             ]
+            return [x for x in raw if x is not NO_ERROR_FLAG]
         if isinstance(cairo_type, TypeFelt):
             return self.memory.get(ptr)
         if isinstance(cairo_type, TypeStruct):
-            return self.serialize_scope(cairo_type.scope, ptr)
+            raw = self.serialize_scope(cairo_type.scope, ptr)
+            return raw if raw is not NO_ERROR_FLAG else None
         raise ValueError(f"Unknown type {cairo_type}")
 
     def get_offset(self, cairo_type):

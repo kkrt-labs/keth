@@ -20,6 +20,7 @@ from ethereum.cancun.transactions import (
 )
 from ethereum.cancun.trie import BranchNode, ExtensionNode, InternalNode, LeafNode, Node
 from ethereum.cancun.vm.gas import MessageCallGas
+from ethereum.exceptions import EthereumException
 from tests.utils.args_gen import _cairo_struct_to_python_type
 from tests.utils.args_gen import gen_arg as _gen_arg
 from tests.utils.args_gen import to_cairo_type as _to_cairo_type
@@ -174,3 +175,16 @@ class TestSerde:
         base = segments.gen_arg([gen_arg(type_, b)])
         result = serde.serialize(to_cairo_type(type_), base, shift=0)
         assert result == b
+
+    def test_exceptions(self, to_cairo_type, segments, serde, gen_arg):
+        # No Exception - cast(base, felt) == 0
+        base = gen_arg(EthereumException, None)
+        result = serde.serialize(to_cairo_type(EthereumException), base, shift=0)
+        assert result is None
+
+        # Test error case - cast(base, felt) != 0
+        expected_error = EthereumException("Some Error")
+        base = segments.gen_arg([gen_arg(EthereumException, expected_error)])
+        with pytest.raises(EthereumException) as exception:
+            serde.serialize(to_cairo_type(EthereumException), base, shift=0)
+        assert str(exception.value) == str(expected_error)
