@@ -133,11 +133,20 @@ def cairo_run(request, cairo_program, cairo_file, main_path):
             ).members.items()
         }
 
+        explicit_return_data = cairo_program.identifiers.get_by_full_name(
+            ScopedName(path=("__main__", entrypoint, "Return"))
+        ).cairo_type
         return_data_types = [
             *(arg["cairo_type"] for arg in _implicit_args.values()),
-            cairo_program.identifiers.get_by_full_name(
-                ScopedName(path=("__main__", entrypoint, "Return"))
-            ).cairo_type,
+            # Filter for the empty tuple return type
+            *(
+                [explicit_return_data]
+                if not (
+                    hasattr(explicit_return_data, "members")
+                    and len(explicit_return_data.members) == 0
+                )
+                else []
+            ),
         ]
 
         # Fix builtins runner based on the implicit args since the compiler doesn't find them
