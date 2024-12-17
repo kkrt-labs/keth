@@ -96,16 +96,13 @@ class Serde:
         Recursively serialize a Cairo instance, returning the corresponding Python instance.
         """
 
+        if ptr == 0:
+            return None
+
         full_path = path
         if "__main__" in full_path:
             full_path = self.main_part + full_path[full_path.index("__main__") + 1 :]
         python_cls = to_python_type(full_path)
-
-        if ptr == 0 and issubclass(python_cls, Exception):
-            return NO_ERROR_FLAG
-
-        if ptr == 0:
-            return None
 
         if get_origin(python_cls) is Union:
             value_ptr = self.serialize_pointers(path, ptr)["value"]
@@ -212,8 +209,10 @@ class Serde:
                 return bytes(data).decode()
             return python_cls(data)
 
-        if issubclass(python_cls, Exception):
+        if python_cls and issubclass(python_cls, Exception):
             tuple_struct_ptr = self.serialize_pointers(path, ptr)["value"]
+            if not tuple_struct_ptr:
+                return NO_ERROR_FLAG
             # All exceptions share the same inner struct "BytesStruct"
             struct_name = "BytesStruct"
             path = (*path[:-1], struct_name)
@@ -315,12 +314,12 @@ class Serde:
                 self._serialize(m.typ, ptr + i)
                 for i, m in enumerate(cairo_type.members)
             ]
-            return [x for x in raw if x is not NO_ERROR_FLAG]
+            filtered = [x for x in raw if x is not NO_ERROR_FLAG]
+            return filtered[0] if len(filtered) == 1 else filtered
         if isinstance(cairo_type, TypeFelt):
             return self.memory.get(ptr)
         if isinstance(cairo_type, TypeStruct):
-            raw = self.serialize_scope(cairo_type.scope, ptr)
-            return raw if raw is not NO_ERROR_FLAG else None
+            return self.serialize_scope(cairo_type.scope, ptr)
         raise ValueError(f"Unknown type {cairo_type}")
 
     def get_offset(self, cairo_type):
@@ -335,8 +334,8 @@ class Serde:
 
     def get_offsets(self, cairo_types: List[CairoType]):
         """Given a list of Cairo types, return the cumulative offset for each type."""
-        offsets = [self.get_offset(t) for t in cairo_types]
-        return list(accumulate(reversed(offsets)))
+        offsets = [self.get_offset(t) for t in reversed(cairo_types)]
+        return list(reversed(list(accumulate(offsets))))
 
     def serialize(self, cairo_type, base_ptr, shift=None, length=None):
         shift = shift if shift is not None else self.get_offset(cairo_type)
