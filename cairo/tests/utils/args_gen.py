@@ -46,7 +46,7 @@ Implementation Notes:
 
 When adding new types, you must:
 - Add the type to _cairo_struct_to_python_type
-- Add the test generation strategy to strategies.py
+- Add the test generation strategy to strategies.py if it's a new type (not required when only doing composition of existing types, e.g. `Union[U256, bool]`)
 """
 
 from collections import ChainMap, abc, defaultdict

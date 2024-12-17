@@ -87,11 +87,11 @@ def cairo_run(request, cairo_program, cairo_file, main_path):
 
     When --profile-cairo is passed, the cairo program is run with the tracer enabled and the resulting trace is dumped.
 
-    Logic is mainly taken from starkware.cairo.lang.vm.cairo_run with minor updates like the addition of the output segment.
+    Logic is mainly taken from starkware.cairo.lang.vm.cairo_run with minor updates, mainly builtins discovery from implicit args and proof mode enabling by appending jmp rel 0 to the compiled program.
 
     Type conversion between Python and Cairo is handled by:
     - gen_arg: Converts Python arguments to Cairo memory layout when preparing runner inputs
-    - serde: Converts Cairo output back to Python types when reading the output_ptr content
+    - serde: Converts Cairo memory data to Python types by reading into the segments, used to return python types.
 
     Returns:
         The function's return value, converted back to Python types
