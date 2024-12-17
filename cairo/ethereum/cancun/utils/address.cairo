@@ -36,8 +36,7 @@ func compute_contract_address{
 
     let range_check_ptr = [ap - 1];
     assert message[0] = message_len + 0xc0 - 1;
-    tempvar value = new BytesStruct(message, message_len);
-    let encoded_bytes = Bytes(value);
+    tempvar encoded_bytes = Bytes(new BytesStruct(message, message_len));
     let computed_address = keccak256(encoded_bytes);
     let (low, _) = divmod(computed_address.value.low, 256 ** 12);
     let padded_address = low + computed_address.value.high * 256 ** 4;
@@ -58,8 +57,7 @@ func compute_create2_contract_address{
     let call_data_hash = keccak256(call_data);
     uint256_to_bytes32_little(preimage + 1 + 20 + 32, [call_data_hash.value]);
     let preimage_len = 1 + 20 + 32 + 32;
-    tempvar value = new BytesStruct(preimage, preimage_len);
-    let preimage_bytes = Bytes(value);
+    tempvar preimage_bytes = Bytes(new BytesStruct(preimage, preimage_len));
     let computed_address = keccak256(preimage_bytes);
     let (low, _) = divmod(computed_address.value.low, 256 ** 12);
     let padded_address = low + computed_address.value.high * 256 ** 4;
