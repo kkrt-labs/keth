@@ -12,8 +12,9 @@ struct Bytes8 {
 struct Bytes20 {
     value: felt,
 }
+using Bytes32Struct = Uint256;
 struct Bytes32 {
-    value: Uint256*,
+    value: Bytes32Struct*,
 }
 struct Bytes256 {
     value: U128*,

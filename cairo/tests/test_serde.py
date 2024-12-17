@@ -166,6 +166,7 @@ class TestSerde:
             Mapping[Bytes, Bytes],
             Tuple[Mapping[Bytes, Bytes], ...],
             Set[Uint],
+            Mapping[Address, Account],
         ],
     ):
         assume(no_empty_sequence(b))

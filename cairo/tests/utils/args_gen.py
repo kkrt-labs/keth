@@ -116,6 +116,9 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "cancun", "trie", "BranchNode"): BranchNode,
     ("ethereum", "cancun", "trie", "InternalNode"): InternalNode,
     ("ethereum", "cancun", "trie", "Node"): Node,
+    ("ethereum", "cancun", "fork_types", "MappingAddressAccount"): Mapping[
+        Address, Account
+    ],
 }
 
 # In the EELS, some functions are annotated with Sequence while it's actually just Bytes.

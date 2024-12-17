@@ -22,7 +22,7 @@ from ethereum_types.bytes import (
     TupleMappingBytesBytesStruct,
 )
 from ethereum.cancun.blocks import Receipt, Withdrawal
-from ethereum.cancun.fork_types import Account, Address, Root
+from ethereum.cancun.fork_types import Account, MappingAddressAccount
 from ethereum.cancun.transactions import LegacyTransaction
 from ethereum.rlp import (
     Extended,
@@ -126,11 +126,15 @@ struct Node {
     value: NodeEnum*,
 }
 
-// struct TrieStruct {
-//     secured: bool,
-//     default: V,
-//     _data: Dict[K, V],
-// }
+struct TrieAddressAccountStruct {
+    secured: bool,
+    default: Account,
+    _data: MappingAddressAccount,
+}
+
+struct TrieAddressAccount {
+    value: TrieAddressAccountStruct*,
+}
 
 func encode_internal_node{
     range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*

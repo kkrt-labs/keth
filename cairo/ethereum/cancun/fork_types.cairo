@@ -1,11 +1,9 @@
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.math_cmp import is_le
-from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin
-from starkware.cairo.common.memcpy import memcpy
-from src.utils.bytes import felt_to_bytes_little, uint256_to_bytes32_little, felt_to_bytes20_little
-from ethereum.crypto.hash import Hash32, keccak256
+
 from ethereum_types.bytes import Bytes20, Bytes256, Bytes, BytesStruct
-from ethereum_types.numeric import Uint, U256
+from ethereum_types.numeric import Uint, U256, U256Struct
+from ethereum.crypto.hash import Hash32
+
 using Address = Bytes20;
 using Root = Hash32;
 
@@ -29,4 +27,27 @@ struct AccountStruct {
 
 struct Account {
     value: AccountStruct*,
+}
+
+struct AddressAccountDictAccess {
+    key: Address,
+    prev_value: Account,
+    new_value: Account,
+}
+
+struct MappingAddressAccountStruct {
+    dict_ptr_start: AddressAccountDictAccess*,
+    dict_ptr: AddressAccountDictAccess*,
+}
+
+struct MappingAddressAccount {
+    value: MappingAddressAccountStruct*,
+}
+
+func EMPTY_ACCOUNT() -> Account {
+    tempvar balance = U256(new U256Struct(0, 0));
+    let (data) = alloc();
+    tempvar code = Bytes(new BytesStruct(data=data, len=0));
+    tempvar account = Account(value=new AccountStruct(nonce=Uint(0), balance=balance, code=code));
+    return account;
 }
