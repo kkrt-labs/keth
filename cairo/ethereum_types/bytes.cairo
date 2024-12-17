@@ -4,7 +4,7 @@
 // and Cairo types. The type system follows these key principles:
 //
 // 1. All complex types are represented as pointers to underlying structs
-// 2. Types with a single 'value' field are considered internal types, pointing to a struct
+// 2. Types with a single 'value' field are considered external types, pointing to a struct
 // that contains the actual data.
 // 3. The memory layout is consistent and predictable, allowing automatic arg generation
 // 4. None values are represented as null pointers (pointer to 0)
@@ -19,7 +19,7 @@
 // - Easy type conversion between Python and Cairo
 // - Support for collections and nested types
 //
-// The data layout defined in this file are coherent with the Cairo arg generation process defined in args_gen.py
+// The data layout defined in this file are coherent with the Cairo arg generation process defined in args_gen.py and Cairo serialization process in serde.py
 
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.uint256 import Uint256
@@ -84,7 +84,7 @@ struct TupleBytes {
 // This could benefit from a redesign of the dictionary/mapping types to internally
 // use the hash of the key instead of the key pointer.
 
-// Just a lke regular DictAccess pointer, with keys and values to be interpreted as
+// Just a like regular DictAccess pointer, with keys and values to be interpreted as
 // Bytes pointers.
 struct BytesBytesDictAccess {
     key: Bytes,

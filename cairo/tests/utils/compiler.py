@@ -10,6 +10,7 @@ Automatic Test File Resolution is implemented as follows:
      b) If not found, looks for xxx.cairo in the main codebase
      c) Follows project directory structure for test organization
 """
+
 import logging
 from pathlib import Path
 from time import perf_counter
