@@ -36,3 +36,4 @@ from ethereum.cancun.transactions import (
 from ethereum.cancun.vm.gas import MessageCallGas
 
 from ethereum.cancun.trie import BranchNode, ExtensionNode, InternalNode, LeafNode, Node
+from ethereum.exceptions import EthereumException

@@ -46,6 +46,7 @@ from ethereum.cancun.transactions import (
 from ethereum.cancun.trie import BranchNode, ExtensionNode, InternalNode, LeafNode, Node
 from ethereum.cancun.vm.gas import MessageCallGas
 from ethereum.crypto.hash import Hash32
+from ethereum.exceptions import EthereumException
 from ethereum.rlp import Extended, Simple
 from tests.utils.helpers import flatten
 
@@ -119,6 +120,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "cancun", "fork_types", "MappingAddressAccount"): Mapping[
         Address, Account
     ],
+    ("ethereum", "exceptions", "EthereumException"): EthereumException,
 }
 
 # In the EELS, some functions are annotated with Sequence while it's actually just Bytes.
@@ -276,6 +278,18 @@ def _gen_arg(
             if not isinstance_with_generic(arg, bytes)
             else int.from_bytes(arg, "little")
         )
+
+    if issubclass(arg_type, Exception):
+        # For exceptions, we either return 0 (no error) or create an error with a message
+        if arg is None:
+            return 0
+
+        error_bytes = str(arg).encode()
+        message_ptr = segments.add()
+        segments.load_data(message_ptr, list(error_bytes))
+        struct_ptr = segments.add()
+        segments.load_data(struct_ptr, [message_ptr, len(error_bytes)])
+        return struct_ptr
 
     return arg
 
