@@ -79,11 +79,16 @@ class TestOs:
         # TODO: parse the storage keys to check the values properly
         assert (
             sum(
-                [v["low"] for k, v in state["accounts"][erc20.address]["storage"].items() if k not in [get_internal_storage_key(i) for i in range(3)]]
+                [
+                    v["low"]
+                    for k, v in state["accounts"][erc20.address]["storage"].items()
+                    if k not in [get_internal_storage_key(i) for i in range(3)]
+                ]
             )
             == amount + 2**128 - 1
         )
-        assert len(state["accounts"][erc20.address]["storage"].keys()) == 3
+        # name, symbol, totalSupply, balanceOf[OWNER], allowance[OTHER][OWNER], balanceOf[OTHER]
+        assert len(state["accounts"][erc20.address]["storage"].keys()) == 6
 
     @pytest.mark.skip("Only for debugging")
     @pytest.mark.slow

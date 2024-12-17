@@ -51,8 +51,8 @@ class TestState:
                 "nonce": initial_state[OWNER]["nonce"],
                 "storage": {
                     get_internal_storage_key(k): {
-                        'low': int_to_uint256(v)[0],
-                        'high': int_to_uint256(v)[1]
+                        "low": int_to_uint256(v)[0],
+                        "high": int_to_uint256(v)[1],
                     }
                     for k, v in initial_state[OWNER]["storage"].items()
                 },
