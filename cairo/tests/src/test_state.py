@@ -1,5 +1,6 @@
 from ethereum.cancun.fork_types import EMPTY_ACCOUNT
 from ethereum.crypto.hash import keccak256
+from src.utils.uint256 import int_to_uint256
 from tests.utils.constants import OTHER, OWNER
 from tests.utils.helpers import get_internal_storage_key
 from tests.utils.models import State
@@ -49,7 +50,10 @@ class TestState:
                 "balance": initial_state[OWNER]["balance"],
                 "nonce": initial_state[OWNER]["nonce"],
                 "storage": {
-                    get_internal_storage_key(k): v
+                    get_internal_storage_key(k): {
+                        'low': int_to_uint256(v)[0],
+                        'high': int_to_uint256(v)[1]
+                    }
                     for k, v in initial_state[OWNER]["storage"].items()
                 },
                 "transient_storage": {},

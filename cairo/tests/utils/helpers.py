@@ -99,5 +99,5 @@ def flatten_tx_access_list(access_list):
 
 
 def get_internal_storage_key(key: U256) -> int:
-    low, high = int_to_uint256(key)
+    low, high = int_to_uint256(int(key))
     return pedersen_hash(low, high)

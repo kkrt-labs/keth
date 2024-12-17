@@ -15,6 +15,7 @@ from src.utils.uint256 import int_to_uint256
 from tests.utils.constants import COINBASE, OTHER, OWNER
 from tests.utils.data import block
 from tests.utils.errors import cairo_error
+from tests.utils.helpers import get_internal_storage_key
 from tests.utils.models import Block, State
 from tests.utils.solidity import get_contract
 
@@ -78,7 +79,7 @@ class TestOs:
         # TODO: parse the storage keys to check the values properly
         assert (
             sum(
-                [v["low"] for v in state["accounts"][erc20.address]["storage"].values()]
+                [v["low"] for k, v in state["accounts"][erc20.address]["storage"].items() if k not in [get_internal_storage_key(i) for i in range(3)]]
             )
             == amount + 2**128 - 1
         )
