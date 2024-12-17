@@ -1,5 +1,6 @@
 from collections import abc
 from inspect import signature
+from itertools import accumulate
 from pathlib import Path
 from typing import (
     Any,
@@ -304,14 +305,9 @@ class Serde:
                 return 1
 
     def get_offsets(self, cairo_types: List[CairoType]):
-        """Given a list of Cairo types, return the offset for each type."""
-        offsets = []
-        total = 0
-        for cairo_type in reversed(cairo_types):
-            offset = self.get_offset(cairo_type)
-            total += offset
-            offsets.append(total)
-        return list(reversed(offsets))
+        """Given a list of Cairo types, return the cumulative offset for each type."""
+        offsets = [self.get_offset(t) for t in cairo_types]
+        return list(accumulate(reversed(offsets)))
 
     def serialize(self, cairo_type, base_ptr, shift=None, length=None):
         shift = shift if shift is not None else self.get_offset(cairo_type)
