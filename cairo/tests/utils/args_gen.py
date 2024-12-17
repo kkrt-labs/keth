@@ -56,6 +56,7 @@ from typing import (
     Any,
     Dict,
     ForwardRef,
+    List,
     Mapping,
     Sequence,
     Set,
@@ -103,6 +104,7 @@ from ethereum.cancun.transactions import (
     Transaction,
 )
 from ethereum.cancun.trie import BranchNode, ExtensionNode, InternalNode, LeafNode, Node
+from ethereum.cancun.vm.exceptions import StackOverflowError, StackUnderflowError
 from ethereum.cancun.vm.gas import MessageCallGas
 from ethereum.crypto.hash import Hash32
 from ethereum.exceptions import EthereumException
@@ -184,6 +186,21 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ],
     ("ethereum", "exceptions", "EthereumException"): EthereumException,
     ("ethereum", "cancun", "vm", "memory", "Bytearray"): bytearray,
+    ("ethereum", "cancun", "vm", "stack", "Stack"): List[U256],
+    (
+        "ethereum",
+        "cancun",
+        "vm",
+        "exceptions",
+        "StackUnderflowError",
+    ): StackUnderflowError,
+    (
+        "ethereum",
+        "cancun",
+        "vm",
+        "exceptions",
+        "StackOverflowError",
+    ): StackOverflowError,
 }
 
 # In the EELS, some functions are annotated with Sequence while it's actually just Bytes.
@@ -263,10 +280,20 @@ def _gen_arg(
         segments.load_data(struct_ptr, data)
         return struct_ptr
 
-    if arg_type_origin in (tuple, list, Sequence, abc.Sequence):
+    if arg_type_origin is list:
+        # A `list` is represented as a Dict[felt, V] along with a length field.
+        value_type = get_args(arg_type)[0]  # Get the concrete type parameter
+        data = defaultdict(int, {k: v for k, v in enumerate(arg)})
+        base = _gen_arg(dict_manager, segments, Dict[Uint, value_type], data)
+        segments.load_data(base + 2, [len(arg)])
+        return base
+
+    if arg_type_origin in (tuple, Sequence, abc.Sequence):
         if arg_type_origin is tuple and (
             Ellipsis not in get_args(arg_type) or annotations
         ):
+            # Case a tuple with a fixed number of elements, all of different types.
+            # These are represented as a pointer to a struct with a pointer to each element.
             element_types = get_args(arg_type)
 
             # Handle fixed-size tuples with size annotation (e.g. Annotated[Tuple[T], N])
@@ -276,7 +303,6 @@ def _gen_arg(
                 raise ValueError(
                     f"Invalid tuple size annotation for {arg_type} with annotations {annotations}"
                 )
-
             struct_ptr = segments.add()
             data = [
                 _gen_arg(dict_manager, segments, x_type, x)

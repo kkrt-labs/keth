@@ -154,7 +154,7 @@ profile = "black"
 src_paths = ["src", "tests"]
 
 [tool.uv.sources]
-ethereum = { git = "https://github.com/ethereum/execution-specs.git", rev = "1adcc1bfe774798bcacc685aebc17bd9935078c3" }
+ethereum = { git = "https://github.com/kkrt-labs/execution-specs.git", branch = "dev/change-type-branch-nodes" }
 
 [build-system]
 requires = ["hatchling"]
