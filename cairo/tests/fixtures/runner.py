@@ -38,7 +38,7 @@ from tests.utils.args_gen import gen_arg as gen_arg_builder
 from tests.utils.args_gen import to_cairo_type, to_python_type
 from tests.utils.hints import debug_info, get_op, oracle
 from tests.utils.reporting import profile_from_tracer_data
-from tests.utils.serde import Serde
+from tests.utils.serde import NO_ERROR_FLAG, Serde
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -332,12 +332,13 @@ def cairo_run(request, cairo_program, cairo_file, main_path):
             final_output = serde.serialize_list(output_ptr)
 
         cumulative_retdata_offsets = serde.get_offsets(return_data_types)
-        function_output = [
+        unfiltered_output = [
             serde.serialize(return_data_type, runner.vm.run_context.ap, offset)
             for offset, return_data_type in zip(
                 cumulative_retdata_offsets, return_data_types
             )
         ]
+        function_output = [x for x in unfiltered_output if x is not NO_ERROR_FLAG]
 
         if final_output is not None:
             if len(function_output) > 0:

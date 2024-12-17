@@ -50,12 +50,13 @@ When adding new types, you must:
 """
 
 from collections import ChainMap, abc, defaultdict
-from dataclasses import fields, is_dataclass
+from dataclasses import dataclass, fields, is_dataclass
 from functools import partial
 from typing import (
     Any,
     Dict,
     ForwardRef,
+    List,
     Mapping,
     Sequence,
     Set,
@@ -95,11 +96,43 @@ from ethereum.cancun.transactions import (
     Transaction,
 )
 from ethereum.cancun.trie import BranchNode, ExtensionNode, InternalNode, LeafNode, Node
+from ethereum.cancun.vm.exceptions import StackOverflowError, StackUnderflowError
 from ethereum.cancun.vm.gas import MessageCallGas
 from ethereum.crypto.hash import Hash32
 from ethereum.exceptions import EthereumException
 from ethereum.rlp import Extended, Simple
 from tests.utils.helpers import flatten
+
+"""Extensions over types defined in EELS.
+
+This module provides extensions that allow generating Cairo arguments when the Cairo memory
+layout of a type cannot be expressed using a generic Python type.
+
+For example, the Stack type is a List[U256] in Python, but requires implementing a mutable
+data structure in Cairo. This is done using a Dict[Uint, U256] to store elements along with
+a length field tracking the number of elements in the stack. Since List already has a generic
+argument generation strategy, we need a custom strategy for Stack.
+"""
+
+
+@dataclass
+class Stack(List[U256]):
+    """
+    An extension of the List[U256] type that allows for the generation of a Cairo 'Stack' argument.
+    """
+
+    def __init__(self, items: List[U256] = []):
+        super().__init__()
+        self.extend(items)
+
+    def gen_arg(self, dict_manager: DictManager, segments: MemorySegmentManager):
+        # The Stack is simply a Dict[Uint, U256] with an extra field
+        # tracking the length of the stack as the last element.
+        data = defaultdict(int, {k: v for k, v in enumerate(self)})
+        base = _gen_arg(dict_manager, segments, Dict[Uint, U256], data)
+        segments.load_data(base + 2, [len(self)])
+        return base
+
 
 _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum_types", "others", "None"): type(None),
@@ -172,6 +205,21 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
         Address, Account
     ],
     ("ethereum", "exceptions", "EthereumException"): EthereumException,
+    ("ethereum", "cancun", "vm", "stack", "Stack"): Stack,
+    (
+        "ethereum",
+        "cancun",
+        "vm",
+        "exceptions",
+        "StackUnderflowError",
+    ): StackUnderflowError,
+    (
+        "ethereum",
+        "cancun",
+        "vm",
+        "exceptions",
+        "StackOverflowError",
+    ): StackOverflowError,
 }
 
 # In the EELS, some functions are annotated with Sequence while it's actually just Bytes.
@@ -299,6 +347,12 @@ def _gen_arg(
         base = segments.add()
         segments.load_data(base, [dict_ptr, current_ptr])
         return base
+
+    if arg_type_origin is Stack:
+        # Cast to Stack to enable gen_arg method if not already a Stack instance
+        if not isinstance(arg, Stack):
+            arg = Stack(arg)
+        return arg.gen_arg(dict_manager, segments)
 
     if arg_type == MaybeRelocatable:
         return arg
