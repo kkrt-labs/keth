@@ -3,9 +3,11 @@ from typing import Iterable, Tuple, Union
 
 import rlp
 from eth_account._utils.transaction_utils import transaction_rpc_to_rlp_structure
-from eth_account.typed_transactions import TypedTransaction
-from eth_keys import keys
-from eth_utils import decode_hex, keccak, to_checksum_address
+from eth_account.typed_transactions.typed_transaction import TypedTransaction
+from eth_keys.main import lazy_key_api as keys
+from eth_utils.address import to_checksum_address
+from eth_utils.crypto import keccak
+from eth_utils.hexadecimal import decode_hex
 
 from src.utils.uint256 import int_to_uint256
 from tests.utils.parsers import to_bytes, to_int
@@ -70,7 +72,7 @@ def flatten(data):
     result = []
 
     def _flatten(item):
-        if isinstance(item, Iterable):
+        if isinstance(item, Iterable) and not isinstance(item, (str, bytes, bytearray)):
             for sub_item in item:
                 _flatten(sub_item)
         else:

@@ -1,12 +1,24 @@
 from collections import abc
 from inspect import signature
+from itertools import accumulate
 from pathlib import Path
-from typing import Any, Mapping, Optional, Sequence, Tuple, Union, get_args, get_origin
+from typing import (
+    Any,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+    get_args,
+    get_origin,
+)
 
 from eth_utils.address import to_checksum_address
 from ethereum_types.bytes import Bytes, Bytes0, Bytes8, Bytes20, Bytes32, Bytes256
 from ethereum_types.numeric import U256
 from starkware.cairo.lang.compiler.ast.cairo_types import (
+    CairoType,
     TypeFelt,
     TypePointer,
     TypeStruct,
@@ -139,7 +151,7 @@ class Serde:
                     ]
                 )
 
-        if get_origin(python_cls) in (Mapping, abc.Mapping):
+        if get_origin(python_cls) in (Mapping, abc.Mapping, set):
             mapping_struct_ptr = self.serialize_pointers(path, ptr)["value"]
             mapping_struct_path = (
                 get_struct_definition(self.program, path)
@@ -159,6 +171,12 @@ class Serde:
             pointers = self.serialize_pointers(mapping_struct_path, mapping_struct_ptr)
             segment_size = pointers["dict_ptr"] - pointers["dict_ptr_start"]
             dict_ptr = pointers["dict_ptr_start"]
+
+            if get_origin(python_cls) is set:
+                return {
+                    self._serialize(key_type, dict_ptr + i)
+                    for i in range(0, segment_size, 3)
+                }
 
             return {
                 self._serialize(key_type, dict_ptr + i): self._serialize(
@@ -285,6 +303,11 @@ class Serde:
                 return len(identifier.members)
             except (ValueError, AttributeError):
                 return 1
+
+    def get_offsets(self, cairo_types: List[CairoType]):
+        """Given a list of Cairo types, return the cumulative offset for each type."""
+        offsets = [self.get_offset(t) for t in cairo_types]
+        return list(accumulate(reversed(offsets)))
 
     def serialize(self, cairo_type, base_ptr, shift=None, length=None):
         shift = shift if shift is not None else self.get_offset(cairo_type)

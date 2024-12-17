@@ -12,3 +12,5 @@ CAIRO_DIR = Path("src")
 TESTS_DIR = Path("tests")
 BUILD_DIR = Path("build")
 BUILD_DIR.mkdir(exist_ok=True, parents=True)
+
+CHAIN_ID = int.from_bytes(b"keth", "big")

@@ -893,6 +893,10 @@ namespace CallHelper {
         let stack = Stack.init();
         let memory = Memory.init();
 
+        let (valid_jumpdests_start, valid_jumpdests) = Helpers.initialize_jumpdests(
+            bytecode_len=code_len, bytecode=code
+        );
+
         if (is_staticcall != FALSE) {
             tempvar read_only = TRUE;
         } else {
@@ -902,8 +906,8 @@ namespace CallHelper {
         tempvar message = new model.Message(
             bytecode=code,
             bytecode_len=code_len,
-            valid_jumpdests_start=code_account.valid_jumpdests_start,
-            valid_jumpdests=code_account.valid_jumpdests,
+            valid_jumpdests_start=valid_jumpdests_start,
+            valid_jumpdests=valid_jumpdests,
             calldata=calldata,
             calldata_len=args_size.low,
             value=value,

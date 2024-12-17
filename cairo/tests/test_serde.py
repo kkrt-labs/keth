@@ -1,4 +1,4 @@
-from typing import Any, Mapping, Optional, Tuple, Type, Union
+from typing import Any, Mapping, Optional, Set, Tuple, Type, Union
 
 import pytest
 from ethereum_types.bytes import Bytes, Bytes0, Bytes8, Bytes20, Bytes32, Bytes256
@@ -63,6 +63,12 @@ def get_type(instance: Any) -> Type:
             return Mapping[key_type, value_type]
         return Mapping
 
+    if isinstance(instance, Set):
+        if instance:
+            item_type = get_type(next(iter(instance)))
+            return Set[item_type]
+        return Set
+
     if not isinstance(instance, tuple):
         return type(instance)
 
@@ -86,6 +92,7 @@ def is_sequence(value: Any) -> bool:
         isinstance(value, tuple)
         or isinstance(value, list)
         or isinstance(value, Mapping)
+        or isinstance(value, Set)
     )
 
 
@@ -94,7 +101,7 @@ def no_empty_sequence(value: Any) -> bool:
     if not is_sequence(value):
         return True
 
-    if isinstance(value, Mapping):
+    if isinstance(value, Mapping) or isinstance(value, Set):
         return len(value) > 0
 
     if not value:  # Empty tuple
@@ -158,6 +165,7 @@ class TestSerde:
             Node,
             Mapping[Bytes, Bytes],
             Tuple[Mapping[Bytes, Bytes], ...],
+            Set[Uint],
         ],
     ):
         assume(no_empty_sequence(b))

@@ -3,7 +3,9 @@ from itertools import chain
 from textwrap import wrap
 from typing import Annotated, DefaultDict, Tuple, Union
 
-from eth_utils import keccak
+from eth_hash.auto import keccak
+from eth_utils.address import to_checksum_address
+from ethereum_types.numeric import U256
 from pydantic import (
     AliasChoices,
     AliasGenerator,
@@ -16,7 +18,8 @@ from pydantic import (
 from pydantic.alias_generators import to_camel, to_snake
 from starkware.cairo.lang.vm.crypto import pedersen_hash
 
-from ethereum.cancun.vm.runtime import get_valid_jump_destinations
+from ethereum.crypto.elliptic_curve import secp256k1_recover
+from ethereum.crypto.hash import Hash32
 from src.utils.uint256 import int_to_uint256
 from tests.utils.helpers import flatten, rlp_encode_signed_data
 from tests.utils.parsers import address, bytes_, to_bytes, to_int, uint, uint64, uint128
@@ -60,11 +63,13 @@ class BlockHeader(BaseModelIterValuesOnly):
             "parent_hash",
             "uncle_hash",
             "ommers_hash",
+            "sha3_uncles",
             "state_root",
             "transactions_trie",
             "transactions_root",
             "receipt_trie",
             "receipt_root",
+            "receipts_root",
             "withdrawals_root",
             "difficulty",
             "mix_hash",
@@ -128,19 +133,38 @@ class BlockHeader(BaseModelIterValuesOnly):
             raise ValueError("Bloom must be 256 bytes")
         return tuple(int(chunk, 16) for chunk in wrap(bloom.hex(), 32))
 
-    parent_hash_low: int
-    parent_hash_high: int
+    parent_hash_low: int = Field(
+        validation_alias=AliasChoices("parentHash", "parent_hash", "parent_hash_low")
+    )
+    parent_hash_high: int = Field(
+        validation_alias=AliasChoices("parentHashHigh", "parent_hash_high")
+    )
     uncle_hash_low: int = Field(
         validation_alias=AliasChoices(
-            "ommersHash", "uncleHash", "ommers_hash", "uncle_hash", "ommers_hash_low"
+            "ommersHash",
+            "uncleHash",
+            "sha3Uncles",
+            "ommers_hash",
+            "uncle_hash",
+            "sha3_uncles",
+            "ommers_hash_low",
+            "uncle_hash_low",
+            "sha3_uncles_low",
         )
     )
     uncle_hash_high: int = Field(
         validation_alias=AliasChoices(
-            "ommersHashHigh", "uncleHashHigh", "ommers_hash_high"
+            "ommersHashHigh",
+            "uncleHashHigh",
+            "sha3UnclesHigh",
+            "ommers_hash_high",
+            "uncle_hash_high",
+            "sha3_uncles_high",
         )
     )
-    coinbase: int
+    coinbase: int = Field(
+        validation_alias=AliasChoices("coinbase", "miner", "miner_address")
+    )
     state_root_low: int
     state_root_high: int
     transactions_trie_low: int = Field(
@@ -164,16 +188,25 @@ class BlockHeader(BaseModelIterValuesOnly):
             "transactions_trie",
             "transactions_root",
             "transactions_root_low",
+            "receiptsRoot",
+            "receipts_root",
+            "receipts_root_low",
         )
     )
     receipt_trie_high: int = Field(
         validation_alias=AliasChoices(
-            "receiptTrieHigh", "receiptRootHigh", "receipt_root_high"
+            "receiptTrieHigh",
+            "receiptRootHigh",
+            "receipt_root_high",
+            "receiptsRootHigh",
+            "receipts_root_high",
         )
     )
     withdrawals_root_is_some: bool
     withdrawals_root_value: Tuple[int, int]
-    bloom: Tuple[int, ...]
+    bloom: Tuple[int, ...] = Field(
+        validation_alias=AliasChoices("bloom", "logsBloom", "logs_bloom")
+    )
     difficulty_low: int
     difficulty_high: int
     number: int
@@ -218,32 +251,63 @@ class TransactionEncoded(BaseModelIterValuesOnly):
         }:
             return values
 
-        signature = [
-            *int_to_uint256(to_int(values["r"])),
-            *int_to_uint256(to_int(values["s"])),
-            to_int(values["v"]),
-        ]
+        # Legacy transaction wrongly labeled as type 0
+        if int(values.get("type", "0x1"), 16) == 0:
+            del values["type"]
+
+        values["v"] = values.pop("v", values.pop("yParity", None))
+        values.pop("hash", None)
+        r = to_int(values["r"])
+        s = to_int(values["s"])
+        v = to_int(values["v"])
+        y_parity = (
+            v
+            if v in [0, 1]
+            else (
+                (v - 27) if v in [27, 28] else (v - 2 * int(values["chainId"], 16) - 35)
+            )
+        )
+        signature = [*int_to_uint256(r), *int_to_uint256(s), v]
         del values["r"]
         del values["s"]
         del values["v"]
+        if "maxFeePerGas" in values and values["maxFeePerGas"] is not None:
+            assert values.pop("gasPrice", None) is None
+        else:
+            assert values.pop("maxFeePerGas", None) is None
+            assert values.pop("maxPriorityFeePerGas", None) is None
+        values["data"] = values.pop(
+            "data", values.pop("payload", values.pop("input", None))
+        )
+        if values.get("to") is not None:
+            values["to"] = to_checksum_address(values["to"])
+
         rlp = rlp_encode_signed_data(values)
 
-        values["rlp"] = rlp
+        values["rlp"] = list(rlp)
         values["rlp_len"] = len(rlp)
         values["signature"] = signature
         values["signature_len"] = len(signature)
+        recovered_sender = int.from_bytes(
+            keccak(
+                secp256k1_recover(
+                    U256(r), U256(s), U256(y_parity), Hash32(keccak(bytes(rlp)))
+                )
+            )[-20:],
+            "big",
+        )
+        if "sender" not in values:
+            values["sender"] = recovered_sender
+        else:
+            assert to_int(values["sender"]) == recovered_sender
         return values
-
-    @field_validator("rlp", mode="before")
-    def parse_hex_to_bytes(cls, v):
-        return to_bytes(v)
 
     @field_validator("sender", mode="before")
     def parse_hex_to_int(cls, v):
         return to_int(v)
 
     rlp_len: int
-    rlp: bytes
+    rlp: list[int]
     signature_len: int
     signature: list[int]
     sender: int
@@ -301,13 +365,6 @@ class Account(BaseModelIterValuesOnly):
             {
                 pedersen_hash(*int_to_uint256(to_int(k))): int_to_uint256(to_int(v))
                 for k, v in values["storage"].items()
-            },
-        )
-        values["valid_jumpdests"] = defaultdict(
-            int,
-            {
-                key: True
-                for key in get_valid_jump_destinations(to_bytes(values["code"]))
             },
         )
         return values

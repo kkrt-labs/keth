@@ -131,16 +131,29 @@ def register_type_strategies():
     # See https://github.com/ethereum/execution-specs/issues/1043
     st.register_type_strategy(
         LeafNode,
-        st.fixed_dictionaries({"rest_of_key": nibble, "value": extended}).map(
-            lambda x: LeafNode(**x)
-        ),
+        st.fixed_dictionaries(
+            # Value is either storage value or RLP encoded account
+            {"rest_of_key": nibble, "value": st.binary(max_size=32 * 4)}
+        ).map(lambda x: LeafNode(**x)),
     )
     # See https://github.com/ethereum/execution-specs/issues/1043
     st.register_type_strategy(
         ExtensionNode,
-        st.fixed_dictionaries({"key_segment": nibble, "subnode": extended}).map(
-            lambda x: ExtensionNode(**x)
-        ),
+        st.fixed_dictionaries(
+            {"key_segment": nibble, "subnode": st.binary(min_size=32, max_size=32)}
+        ).map(lambda x: ExtensionNode(**x)),
     )
-    st.register_type_strategy(BranchNode, st_from_type(BranchNode))
+    st.register_type_strategy(
+        BranchNode,
+        st.fixed_dictionaries(
+            {
+                # 16 subnodes of 32 bytes each
+                "subnodes": st.lists(
+                    st.binary(min_size=32, max_size=32), min_size=16, max_size=16
+                ),
+                # Value in branch nodes is always empty
+                "value": st.just(b""),
+            }
+        ).map(lambda x: BranchNode(**x)),
+    )
     st.register_type_strategy(PrivateKey, private_key)
