@@ -14,8 +14,10 @@ struct U128 {
 struct Uint {
     value: felt,
 }
+
+using U256Struct = Uint256;
 struct U256 {
-    value: Uint256*,
+    value: U256Struct*,
 }
 
 struct SetUintDictAccess {
