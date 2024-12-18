@@ -1,6 +1,6 @@
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.math import assert_le, split_felt, assert_nn_le
-from starkware.cairo.common.math_cmp import is_nn, is_not_zero
+from starkware.cairo.common.math_cmp import is_nn, is_not_zero, is_in_range
 from starkware.cairo.common.memcpy import memcpy
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.bool import TRUE, FALSE
@@ -13,7 +13,6 @@ from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin
 
 from src.model import model
 from src.utils.bytes import uint256_to_bytes32, felt_to_bytes32
-from src.utils.dict import dict_squash
 from src.utils.maths import unsigned_div_rem
 
 // @title Helper Functions
@@ -789,11 +788,9 @@ namespace Helpers {
     // @param bytecode The EVM bytecode to analyze.
     // @return (valid_jumpdests_start, valid_jumpdests) The starting and ending pointers of the valid jump destinations.
     //
-    // @dev This function iterates over the bytecode from the current index 'i'.
-    // If the opcode at the current index is between 0x5f and 0x7f (PUSHN opcodes) (inclusive),
-    // it skips the next 'n_args' opcodes, where 'n_args' is the opcode minus 0x5f.
-    // If the opcode is 0x5b (JUMPDEST), it marks the current index as a valid jump destination.
-    // It continues by jumping back to the body flag until it has processed the entire bytecode.
+    // @dev This function is an oracle and doesn't enforce anything. During the EVM execution, the prover
+    // commits to the valid or invalid jumpdest responses, and the verifier checks the response in the
+    // finalize_jumpdests function.
     func initialize_jumpdests{range_check_ptr}(bytecode_len: felt, bytecode: felt*) -> (
         valid_jumpdests_start: DictAccess*, valid_jumpdests: DictAccess*
     ) {
@@ -819,12 +816,83 @@ namespace Helpers {
         return (valid_jumpdests_start, valid_jumpdests_start);
     }
 
+    // @notice Assert that the dictionary of valid jump destinations in EVM bytecode is valid.
+    // @dev Iterate over the list of DictAccesses and assert that
+    //       - the prev_value is equal to the new_value (no dict_writes)
+    //       - if the prev_value is TRUE
+    //          - assert that the bytecode at the key is 0x5b (JUMPDEST)
+    //          - assert that no PUSH are right before the JUMPDEST
+    //       - if the prev_value is FALSE, assert that the bytecode at the key is not 0x5b (JUMPDEST)
     func finalize_jumpdests{range_check_ptr}(
-        valid_jumpdests_start: DictAccess*, valid_jumpdests: DictAccess*
-    ) -> (valid_jumpdests_start: DictAccess*, valid_jumpdests: DictAccess*) {
-        let (squashed_start, squashed_end) = dict_squash(valid_jumpdests_start, valid_jumpdests);
-        // TODO: loop over code to assert that all jumpdests are valid
-        return (squashed_start, squashed_end);
+        valid_jumpdests_start: DictAccess*, valid_jumpdests: DictAccess*, bytecode: felt*
+    ) {
+        alloc_locals;
+
+        if (valid_jumpdests_start == valid_jumpdests) {
+            return ();
+        }
+
+        assert_valid_jumpdest(bytecode, valid_jumpdests_start);
+
+        return finalize_jumpdests(
+            valid_jumpdests_start=valid_jumpdests_start + DictAccess.SIZE,
+            valid_jumpdests=valid_jumpdests,
+            bytecode=bytecode,
+        );
+    }
+
+    // @notice Assert that a single valid_jumpdest is valid.
+    func assert_valid_jumpdest{range_check_ptr}(bytecode: felt*, valid_jumpdest: DictAccess*) {
+        alloc_locals;
+        // Assert that the dict access is only read (same prev and new value)
+        assert valid_jumpdest.prev_value = valid_jumpdest.new_value;
+        tempvar bytecode_at_jumpdest = [bytecode + valid_jumpdest.key];
+        // Assert FALSE is consistent with not being a jumpdest
+        if (valid_jumpdest.prev_value == 0) {
+            if (bytecode_at_jumpdest == 0x5b) {
+                with_attr error_message("assert_valid_jumpdest: should not be jumpdest") {
+                    assert 0 = 1;
+                }
+            }
+            return ();
+        }
+
+        // Assert that the bytecode at the jumpdest is 0x5b (JUMPDEST)
+        assert bytecode_at_jumpdest = 0x5b;
+
+        // Assert that no PUSHes before the JUMPDEST
+        let i = is_le_unchecked(32, valid_jumpdest.key);
+        tempvar i = i * (valid_jumpdest.key - 32);
+        tempvar range_check_ptr = range_check_ptr;
+        static_assert i == [ap - 2];
+        static_assert range_check_ptr == [ap - 1];
+
+        loop:
+        let i = [ap - 2];
+        let range_check_ptr = [ap - 1];
+        let bytecode = cast([fp - 4], felt*);
+        let valid_jumpdest = cast([fp - 3], DictAccess*);
+
+        let opcode = [bytecode + i];
+        let is_push_opcode = is_in_range(opcode, 0x60, 0x80);
+        tempvar cond;
+        tempvar i = i + 1 + is_push_opcode * (opcode - 0x5f);
+        tempvar range_check_ptr = range_check_ptr;
+
+        static_assert i == [ap - 2];
+        static_assert range_check_ptr == [ap - 1];
+        %{ ids.cond = 1 if ids.i < ids.valid_jumpdest.key else 0 %}
+        jmp loop if cond != 0;
+
+        let i = [ap - 2];
+        let range_check_ptr = [ap - 1];
+        let valid_jumpdest = cast([fp - 3], DictAccess*);
+
+        with_attr error_message("assert_valid_jumpdest: invalid loop") {
+            assert i = valid_jumpdest.key;
+        }
+
+        return ();
     }
 
     const BYTES_PER_FELT = 31;

@@ -880,7 +880,7 @@ namespace Interpreter {
         let intrinsic_gas = intrinsic_gas + access_list_cost;
         assert [range_check_ptr] = gas_limit - intrinsic_gas;
         let range_check_ptr = range_check_ptr + 1;
-        assert [range_check_ptr] = bytecode_len - (2 * Constants.MAX_CODE_SIZE + 1) * is_deploy_tx;
+        assert [range_check_ptr] = (2 * Constants.MAX_CODE_SIZE + 1) * is_deploy_tx - bytecode_len;
         let range_check_ptr = range_check_ptr + 1;
 
         // Charge the gas fee to the user without setting up a transfer.

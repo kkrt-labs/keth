@@ -5,6 +5,7 @@ from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.uint256 import Uint256, assert_uint256_eq
 from starkware.cairo.common.memset import memset
 from starkware.cairo.common.memcpy import memcpy
+from starkware.cairo.common.dict_access import DictAccess
 
 from src.utils.utils import Helpers
 from src.constants import Constants
@@ -125,6 +126,39 @@ func test__initialize_jumpdests{range_check_ptr}(output_ptr: felt*) {
 
     %{ segments.write_arg(ids.output_ptr, __dict_manager.get_dict(ids.valid_jumpdests)) %}
 
+    return ();
+}
+
+func test__finalize_jumpdests{range_check_ptr}() {
+    alloc_locals;
+
+    tempvar bytecode: felt*;
+    tempvar valid_jumpdests_start: DictAccess*;
+    tempvar valid_jumpdests: DictAccess*;
+    %{
+        ids.bytecode = segments.add()
+        segments.write_arg(ids.bytecode, program_input["bytecode"])
+        ids.valid_jumpdests_start = segments.add()
+        segments.write_arg(ids.valid_jumpdests_start.address_, program_input["valid_jumpdests"])
+        ids.valid_jumpdests = ids.valid_jumpdests_start.address_ + len(program_input["valid_jumpdests"])
+    %}
+
+    Helpers.finalize_jumpdests(valid_jumpdests_start, valid_jumpdests, bytecode);
+
+    return ();
+}
+
+func test__assert_valid_jumpdest{range_check_ptr}() {
+    alloc_locals;
+    tempvar bytecode: felt*;
+    tempvar valid_jumpdest: DictAccess*;
+    %{
+        ids.bytecode = segments.add()
+        segments.write_arg(ids.bytecode, program_input["bytecode"])
+        ids.valid_jumpdest = segments.add()
+        segments.write_arg(ids.valid_jumpdest.address_, program_input["valid_jumpdest"])
+    %}
+    Helpers.assert_valid_jumpdest(bytecode, valid_jumpdest);
     return ();
 }
 
