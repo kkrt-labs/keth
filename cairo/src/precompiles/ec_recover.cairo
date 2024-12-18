@@ -1,5 +1,11 @@
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin, KeccakBuiltin
+from starkware.cairo.common.cairo_builtins import (
+    HashBuiltin,
+    BitwiseBuiltin,
+    KeccakBuiltin,
+    PoseidonBuiltin,
+    ModBuiltin,
+)
 from starkware.cairo.common.builtin_keccak.keccak import keccak_uint256s_bigend
 from starkware.cairo.common.bool import FALSE
 from starkware.cairo.common.math_cmp import RC_BOUND
@@ -11,7 +17,7 @@ from starkware.cairo.common.cairo_secp.bigint import bigint_to_uint256, uint256_
 from starkware.cairo.common.memset import memset
 
 from src.errors import Errors
-from src.utils.uint256 import uint256_eq
+from src.utils.uint256 import uint256_eq, uint256_to_uint384
 from src.utils.utils import Helpers
 from src.utils.array import slice
 from src.utils.signature import Signature
@@ -38,8 +44,12 @@ namespace PrecompileEcRecover {
     func run{
         pedersen_ptr: HashBuiltin*,
         range_check_ptr,
+        range_check96_ptr: felt*,
+        add_mod_ptr: ModBuiltin*,
+        mul_mod_ptr: ModBuiltin*,
         bitwise_ptr: BitwiseBuiltin*,
         keccak_ptr: KeccakBuiltin*,
+        poseidon_ptr: PoseidonBuiltin*,
     }(_address: felt, input_len: felt, input: felt*) -> (
         output_len: felt, output: felt*, gas_used: felt, reverted: felt
     ) {
@@ -56,7 +66,8 @@ namespace PrecompileEcRecover {
             return (0, output, GAS_COST_EC_RECOVER, 0);
         }
 
-        let msg_hash_bigint = Helpers.bytes32_to_bigint(input_padded);
+        let msg_hash_uint256 = Helpers.bytes32_to_uint256(input_padded);
+        let msg_hash_uint384 = uint256_to_uint384(msg_hash_uint256);
         let r = Helpers.bytes_to_uint256(32, input_padded + 32 * 2);
         let s = Helpers.bytes_to_uint256(32, input_padded + 32 * 3);
 
@@ -77,10 +88,10 @@ namespace PrecompileEcRecover {
             return (0, output, GAS_COST_EC_RECOVER, 0);
         }
 
-        let (r_bigint) = uint256_to_bigint(r);
-        let (s_bigint) = uint256_to_bigint(s);
+        let r_uint384 = uint256_to_uint384(r);
+        let s_uint384 = uint256_to_uint384(s);
         let (success, recovered_address) = Signature.try_recover_eth_address(
-            msg_hash_bigint, r_bigint, s_bigint, v - 27
+            msg_hash_uint384, r_uint384, s_uint384, v - 27
         );
 
         if (success == 0) {
