@@ -338,7 +338,10 @@ namespace MemoryOperations {
         let current_value = State.read_storage(evm.message.address, key);
 
         let initial_state = evm.message.initial_state;
-        let original_value = State.read_storage{state=initial_state}(evm.message.address, key);
+        // TODO: This raises with wrong dict pointer as the State.copy() only copies visited accounts
+        // so unvisited accounts are actually the same in the initial state and the current state.
+        // let original_value = State.read_storage{state=initial_state}(evm.message.address, key);
+        tempvar original_value = new Uint256(0, 0);
 
         tempvar message = new model.Message(
             bytecode=evm.message.bytecode,

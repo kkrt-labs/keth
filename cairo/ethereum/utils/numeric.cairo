@@ -2,14 +2,20 @@ from starkware.cairo.common.math_cmp import is_le, is_not_zero
 from ethereum_types.numeric import Uint
 
 func min{range_check_ptr}(a: felt, b: felt) -> felt {
-    if (a == b) {
-        return a;
-    }
+    alloc_locals;
 
-    let res = is_le(a, b);
-    if (res == 1) {
-        return a;
-    }
+    tempvar is_min_b;
+    %{ memory[ap - 1] = 1 if ids.b <= ids.a else 0 %}
+    jmp min_is_b if is_min_b != 0;
+
+    min_is_a:
+    assert [range_check_ptr] = b - a;
+    let range_check_ptr = range_check_ptr + 1;
+    return a;
+
+    min_is_b:
+    assert [range_check_ptr] = a - b;
+    let range_check_ptr = range_check_ptr + 1;
     return b;
 }
 

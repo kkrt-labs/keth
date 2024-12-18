@@ -1,6 +1,6 @@
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.math import assert_le, split_felt, assert_nn_le
-from starkware.cairo.common.math_cmp import is_nn, is_not_zero
+from starkware.cairo.common.math_cmp import is_nn, is_not_zero, is_in_range
 from starkware.cairo.common.memcpy import memcpy
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.bool import TRUE, FALSE
@@ -788,73 +788,111 @@ namespace Helpers {
     // @param bytecode The EVM bytecode to analyze.
     // @return (valid_jumpdests_start, valid_jumpdests) The starting and ending pointers of the valid jump destinations.
     //
-    // @dev This function iterates over the bytecode from the current index 'i'.
-    // If the opcode at the current index is between 0x5f and 0x7f (PUSHN opcodes) (inclusive),
-    // it skips the next 'n_args' opcodes, where 'n_args' is the opcode minus 0x5f.
-    // If the opcode is 0x5b (JUMPDEST), it marks the current index as a valid jump destination.
-    // It continues by jumping back to the body flag until it has processed the entire bytecode.
+    // @dev This function is an oracle and doesn't enforce anything. During the EVM execution, the prover
+    // commits to the valid or invalid jumpdest responses, and the verifier checks the response in the
+    // finalize_jumpdests function.
     func initialize_jumpdests{range_check_ptr}(bytecode_len: felt, bytecode: felt*) -> (
         valid_jumpdests_start: DictAccess*, valid_jumpdests: DictAccess*
     ) {
         alloc_locals;
-        let (local valid_jumpdests_start: DictAccess*) = default_dict_new(0);
-        tempvar range_check_ptr = range_check_ptr;
-        tempvar valid_jumpdests = valid_jumpdests_start;
-        tempvar i = 0;
-        jmp body if bytecode_len != 0;
+        %{
+            from ethereum.cancun.vm.runtime import get_valid_jump_destinations
+            from starkware.cairo.common.dict import DictTracker
+            from collections import defaultdict
 
-        static_assert range_check_ptr == [ap - 3];
-        jmp end;
+            bytecode = bytes([memory[ids.bytecode + i] for i in range(ids.bytecode_len)])
+            valid_jumpdest = get_valid_jump_destinations(bytecode)
 
-        body:
-        let bytecode_len = [fp - 4];
-        let bytecode = cast([fp - 3], felt*);
-        let range_check_ptr = [ap - 3];
-        let valid_jumpdests = cast([ap - 2], DictAccess*);
-        let i = [ap - 1];
-
-        with_attr error_message("Reading out of bounds bytecode") {
-            assert [range_check_ptr] = bytecode_len - 1 - i;
-        }
-        let range_check_ptr = range_check_ptr + 1;
-
-        tempvar opcode = [bytecode + i];
-        let is_opcode_ge_0x5f = Helpers.is_le_unchecked(0x5f, opcode);
-        let is_opcode_le_0x7f = Helpers.is_le_unchecked(opcode, 0x7f);
-        let is_push_opcode = is_opcode_ge_0x5f * is_opcode_le_0x7f;
-        let next_i = i + 1 + is_push_opcode * (opcode - 0x5f);  // 0x5f is the first PUSHN opcode, opcode - 0x5f is the number of arguments.
-
-        if (opcode == 0x5b) {
-            dict_write{dict_ptr=valid_jumpdests}(i, TRUE);
-            tempvar valid_jumpdests = valid_jumpdests;
-            tempvar next_i = next_i;
-            tempvar range_check_ptr = range_check_ptr;
-        } else {
-            tempvar valid_jumpdests = valid_jumpdests;
-            tempvar next_i = next_i;
-            tempvar range_check_ptr = range_check_ptr;
-        }
-
-        // continue_loop != 0 => next_i - bytecode_len < 0 <=> next_i < bytecode_len
-        tempvar a = next_i - bytecode_len;
-        %{ memory[ap] = 0 if 0 <= (ids.a % PRIME) < range_check_builtin.bound else 1 %}
+            data = defaultdict(int, {int(dest): 1 for dest in valid_jumpdest})
+            base = segments.add()
+            assert base.segment_index not in __dict_manager.trackers
+            __dict_manager.trackers[base.segment_index] = DictTracker(
+                data=data, current_ptr=base
+            )
+            memory[ap] = base
+        %}
         ap += 1;
-        let continue_loop = [ap - 1];
-        tempvar range_check_ptr = range_check_ptr;
-        tempvar valid_jumpdests = valid_jumpdests;
-        tempvar i = next_i;
-        static_assert range_check_ptr == [ap - 3];
-        static_assert valid_jumpdests == [ap - 2];
-        static_assert i == [ap - 1];
-        jmp body if continue_loop != 0;
+        let valid_jumpdests_start = cast([ap - 1], DictAccess*);
+        return (valid_jumpdests_start, valid_jumpdests_start);
+    }
 
-        end:
-        let range_check_ptr = [ap - 3];
-        let i = [ap - 1];
-        // Verify that i >= bytecode_len to ensure loop terminated correctly.
-        let check = Helpers.is_le_unchecked(bytecode_len, i);
-        assert check = 1;
-        return (valid_jumpdests_start, valid_jumpdests);
+    // @notice Assert that the dictionary of valid jump destinations in EVM bytecode is valid.
+    // @dev Iterate over the list of DictAccesses and assert that
+    //       - the prev_value is equal to the new_value (no dict_writes)
+    //       - if the prev_value is TRUE
+    //          - assert that the bytecode at the key is 0x5b (JUMPDEST)
+    //          - assert that no PUSH are right before the JUMPDEST
+    //       - if the prev_value is FALSE, assert that the bytecode at the key is not 0x5b (JUMPDEST)
+    func finalize_jumpdests{range_check_ptr}(
+        valid_jumpdests_start: DictAccess*, valid_jumpdests: DictAccess*, bytecode: felt*
+    ) {
+        alloc_locals;
+
+        if (valid_jumpdests_start == valid_jumpdests) {
+            return ();
+        }
+
+        assert_valid_jumpdest(bytecode, valid_jumpdests_start);
+
+        return finalize_jumpdests(
+            valid_jumpdests_start=valid_jumpdests_start + DictAccess.SIZE,
+            valid_jumpdests=valid_jumpdests,
+            bytecode=bytecode,
+        );
+    }
+
+    // @notice Assert that a single valid_jumpdest is valid.
+    func assert_valid_jumpdest{range_check_ptr}(bytecode: felt*, valid_jumpdest: DictAccess*) {
+        alloc_locals;
+        // Assert that the dict access is only read (same prev and new value)
+        assert valid_jumpdest.prev_value = valid_jumpdest.new_value;
+        tempvar bytecode_at_jumpdest = [bytecode + valid_jumpdest.key];
+        // Assert FALSE is consistent with not being a jumpdest
+        if (valid_jumpdest.prev_value == 0) {
+            if (bytecode_at_jumpdest == 0x5b) {
+                with_attr error_message("assert_valid_jumpdest: should not be jumpdest") {
+                    assert 0 = 1;
+                }
+            }
+            return ();
+        }
+
+        // Assert that the bytecode at the jumpdest is 0x5b (JUMPDEST)
+        assert bytecode_at_jumpdest = 0x5b;
+
+        // Assert that no PUSHes before the JUMPDEST
+        let i = is_le_unchecked(32, valid_jumpdest.key);
+        tempvar i = i * (valid_jumpdest.key - 32);
+        tempvar range_check_ptr = range_check_ptr;
+        static_assert i == [ap - 2];
+        static_assert range_check_ptr == [ap - 1];
+
+        loop:
+        let i = [ap - 2];
+        let range_check_ptr = [ap - 1];
+        let bytecode = cast([fp - 4], felt*);
+        let valid_jumpdest = cast([fp - 3], DictAccess*);
+
+        let opcode = [bytecode + i];
+        let is_push_opcode = is_in_range(opcode, 0x60, 0x80);
+        tempvar cond;
+        tempvar i = i + 1 + is_push_opcode * (opcode - 0x5f);
+        tempvar range_check_ptr = range_check_ptr;
+
+        static_assert i == [ap - 2];
+        static_assert range_check_ptr == [ap - 1];
+        %{ ids.cond = 1 if ids.i < ids.valid_jumpdest.key else 0 %}
+        jmp loop if cond != 0;
+
+        let i = [ap - 2];
+        let range_check_ptr = [ap - 1];
+        let valid_jumpdest = cast([fp - 3], DictAccess*);
+
+        with_attr error_message("assert_valid_jumpdest: invalid loop") {
+            assert i = valid_jumpdest.key;
+        }
+
+        return ();
     }
 
     const BYTES_PER_FELT = 31;

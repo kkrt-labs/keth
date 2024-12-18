@@ -30,9 +30,9 @@ namespace State {
     // @param self The pointer to the State
     func copy{range_check_ptr, state: model.State*}() -> model.State* {
         alloc_locals;
-        // accounts are a new memory segment
+        // accounts are a new memory segment with the same underlying data
         let (accounts_start, accounts) = dict_copy(state.accounts_start, state.accounts);
-        // for each account, storage is a new memory segment
+        // for each account, storage is a new memory segment with the same underlying data
         Internals._copy_accounts{accounts=accounts}(accounts_start, accounts);
 
         let (local events: felt*) = alloc();
@@ -388,13 +388,6 @@ namespace Internals {
             return ();
         }
 
-        if (accounts_start.new_value == 0) {
-            // If we do a dict_read on an unexisting account, `prev_value` and `new_value` are set to 0.
-            // However we expected pointers to model.Account, and casting 0 to model.Account* will
-            // cause a "Memory address must be relocatable" error.
-            return _copy_accounts(accounts_start + DictAccess.SIZE, accounts_end);
-        }
-
         let account = cast(accounts_start.new_value, model.Account*);
         let account = Account.copy(account);
         dict_write{dict_ptr=accounts}(key=accounts_start.key, new_value=cast(account, felt));
@@ -410,13 +403,6 @@ namespace Internals {
     ) {
         if (accounts_start == accounts_end) {
             return ();
-        }
-
-        if (accounts_start.new_value == 0) {
-            // If we do a dict_read on an unexisting account, `prev_value` and `new_value` are set to 0.
-            // However we expected pointers to model.Account, and casting 0 to model.Account* will
-            // cause a "Memory address must be relocatable" error.
-            return _finalize_accounts(accounts_start + DictAccess.SIZE, accounts_end);
         }
 
         let account = cast(accounts_start.new_value, model.Account*);
@@ -460,10 +446,6 @@ namespace Internals {
         // may already be in the state. If not, we need to fetch it from the contract storage.
         let (account_ptr) = dict_read{dict_ptr=accounts_ptr}(key=address);
         tempvar account = cast(account_ptr, model.Account*);
-
-        let pedersen_ptr = cast([ap - 3], HashBuiltin*);
-        let range_check_ptr = [ap - 2];
-        let account = cast([ap - 1], model.Account*);
 
         let account = Account.cache_storage_keys(
             account, storage_keys_len, cast(access_list + 2, Uint256*)
