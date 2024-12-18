@@ -20,6 +20,15 @@ struct U256 {
     value: U256Struct*,
 }
 
+struct UintU256Enum {
+    uint: Uint*,
+    u256: U256,
+}
+
+struct UintU256 {
+    value: UintU256Enum*,
+}
+
 struct SetUintDictAccess {
     key: Uint,
     prev_value: bool,
