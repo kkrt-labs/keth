@@ -108,9 +108,7 @@ func test__try_parse_destination_from_bytes{range_check_ptr}(output_ptr: felt*) 
     return ();
 }
 
-func test__initialize_jumpdests{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    output_ptr: felt*
-) {
+func test__initialize_jumpdests{range_check_ptr}(output_ptr: felt*) {
     alloc_locals;
 
     tempvar bytecode_len;
@@ -124,8 +122,8 @@ func test__initialize_jumpdests{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, 
     let (valid_jumpdests_start, valid_jumpdests) = Helpers.initialize_jumpdests(
         bytecode_len, bytecode
     );
-    let (keys_len, keys) = dict_keys(valid_jumpdests_start, valid_jumpdests);
-    memcpy(output_ptr, keys, keys_len);
+
+    %{ segments.write_arg(ids.output_ptr, __dict_manager.get_dict(ids.valid_jumpdests)) %}
 
     return ();
 }

@@ -69,14 +69,14 @@ func apply_transactions{
     state: model.State*,
 }(txs_len: felt, tx_encoded: model.TransactionEncoded*) {
     alloc_locals;
-    if (txs_len == 0) {
-        return ();
-    }
-
     %{
         print(f"txs_len: {ids.txs_len}")
         print(f"current_step: {current_step}")
     %}
+
+    if (txs_len == 0) {
+        return ();
+    }
 
     Transaction.validate(tx_encoded, chain_id);
     let tx = Transaction.decode(tx_encoded.rlp_len, tx_encoded.rlp);
