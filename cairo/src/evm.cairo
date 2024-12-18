@@ -39,8 +39,8 @@ namespace EVM {
     }
 
     func finalize{range_check_ptr, evm: model.EVM*}() {
-        let (squashed_start, squashed_end) = default_dict_finalize(
-            evm.message.valid_jumpdests_start, evm.message.valid_jumpdests, 0
+        let (squashed_start, squashed_end) = Helpers.finalize_jumpdests(
+            evm.message.valid_jumpdests_start, evm.message.valid_jumpdests
         );
         tempvar message = new model.Message(
             bytecode=evm.message.bytecode,

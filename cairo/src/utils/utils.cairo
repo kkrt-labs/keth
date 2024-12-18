@@ -798,64 +798,33 @@ namespace Helpers {
         valid_jumpdests_start: DictAccess*, valid_jumpdests: DictAccess*
     ) {
         alloc_locals;
-        let (local valid_jumpdests_start: DictAccess*) = default_dict_new(0);
-        tempvar range_check_ptr = range_check_ptr;
-        tempvar valid_jumpdests = valid_jumpdests_start;
-        tempvar i = 0;
-        jmp body if bytecode_len != 0;
+        %{
+            from ethereum.cancun.vm.runtime import get_valid_jump_destinations
+            from starkware.cairo.common.dict import DictTracker
+            from collections import defaultdict
 
-        static_assert range_check_ptr == [ap - 3];
-        jmp end;
+            bytecode = bytes([memory[ids.bytecode + i] for i in range(ids.bytecode_len)])
+            valid_jumpdest = get_valid_jump_destinations(bytecode)
 
-        body:
-        let bytecode_len = [fp - 4];
-        let bytecode = cast([fp - 3], felt*);
-        let range_check_ptr = [ap - 3];
-        let valid_jumpdests = cast([ap - 2], DictAccess*);
-        let i = [ap - 1];
-
-        with_attr error_message("Reading out of bounds bytecode") {
-            assert [range_check_ptr] = bytecode_len - 1 - i;
-        }
-        let range_check_ptr = range_check_ptr + 1;
-
-        tempvar opcode = [bytecode + i];
-        let is_opcode_ge_0x5f = Helpers.is_le_unchecked(0x5f, opcode);
-        let is_opcode_le_0x7f = Helpers.is_le_unchecked(opcode, 0x7f);
-        let is_push_opcode = is_opcode_ge_0x5f * is_opcode_le_0x7f;
-        let next_i = i + 1 + is_push_opcode * (opcode - 0x5f);  // 0x5f is the first PUSHN opcode, opcode - 0x5f is the number of arguments.
-
-        if (opcode == 0x5b) {
-            dict_write{dict_ptr=valid_jumpdests}(i, TRUE);
-            tempvar valid_jumpdests = valid_jumpdests;
-            tempvar next_i = next_i;
-            tempvar range_check_ptr = range_check_ptr;
-        } else {
-            tempvar valid_jumpdests = valid_jumpdests;
-            tempvar next_i = next_i;
-            tempvar range_check_ptr = range_check_ptr;
-        }
-
-        // continue_loop != 0 => next_i - bytecode_len < 0 <=> next_i < bytecode_len
-        tempvar a = next_i - bytecode_len;
-        %{ memory[ap] = 0 if 0 <= (ids.a % PRIME) < range_check_builtin.bound else 1 %}
+            data = defaultdict(int, {int(dest): 1 for dest in valid_jumpdest})
+            base = segments.add()
+            assert base.segment_index not in __dict_manager.trackers
+            __dict_manager.trackers[base.segment_index] = DictTracker(
+                data=data, current_ptr=base
+            )
+            memory[ap] = base
+        %}
         ap += 1;
-        let continue_loop = [ap - 1];
-        tempvar range_check_ptr = range_check_ptr;
-        tempvar valid_jumpdests = valid_jumpdests;
-        tempvar i = next_i;
-        static_assert range_check_ptr == [ap - 3];
-        static_assert valid_jumpdests == [ap - 2];
-        static_assert i == [ap - 1];
-        jmp body if continue_loop != 0;
+        let valid_jumpdests_start = cast([ap - 1], DictAccess*);
+        return (valid_jumpdests_start, valid_jumpdests_start);
+    }
 
-        end:
-        let range_check_ptr = [ap - 3];
-        let i = [ap - 1];
-        // Verify that i >= bytecode_len to ensure loop terminated correctly.
-        let check = Helpers.is_le_unchecked(bytecode_len, i);
-        assert check = 1;
-        return (valid_jumpdests_start, valid_jumpdests);
+    func finalize_jumpdests{range_check_ptr}(
+        valid_jumpdests_start: DictAccess*, valid_jumpdests: DictAccess*
+    ) -> (valid_jumpdests_start: DictAccess*, valid_jumpdests: DictAccess*) {
+        let (squashed_start, squashed_end) = dict_squash(valid_jumpdests_start, valid_jumpdests);
+        // TODO: loop over code to assert that all jumpdests are valid
+        return (squashed_start, squashed_end);
     }
 
     const BYTES_PER_FELT = 31;

@@ -122,8 +122,8 @@ func test__initialize_jumpdests{range_check_ptr}(output_ptr: felt*) {
     let (valid_jumpdests_start, valid_jumpdests) = Helpers.initialize_jumpdests(
         bytecode_len, bytecode
     );
-    let (keys_len, keys) = dict_keys(valid_jumpdests_start, valid_jumpdests);
-    memcpy(output_ptr, keys, keys_len);
+
+    %{ segments.write_arg(ids.output_ptr, __dict_manager.get_dict(ids.valid_jumpdests)) %}
 
     return ();
 }
