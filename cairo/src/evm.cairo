@@ -14,6 +14,7 @@ from src.model import model
 from src.account import Account
 from src.stack import Stack
 from src.state import State
+from src.utils.utils import Helpers
 
 // @title EVM related functions.
 // @notice This file contains functions related to the execution context.

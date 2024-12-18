@@ -13,6 +13,7 @@ from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin
 
 from src.model import model
 from src.utils.bytes import uint256_to_bytes32, felt_to_bytes32
+from src.utils.dict import dict_squash
 from src.utils.maths import unsigned_div_rem
 
 // @title Helper Functions

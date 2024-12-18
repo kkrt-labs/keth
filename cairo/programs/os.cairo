@@ -78,6 +78,11 @@ func apply_transactions{
         return ();
     }
 
+    %{
+        print(f"txs_len: {ids.txs_len}")
+        print(f"current_step: {current_step}")
+    %}
+
     Transaction.validate(tx_encoded, chain_id);
     let tx = Transaction.decode(tx_encoded.rlp_len, tx_encoded.rlp);
 
