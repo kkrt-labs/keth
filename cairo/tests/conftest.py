@@ -47,6 +47,12 @@ def pytest_addoption(parser):
         help="run all tests regardless of cache",
     )
     parser.addoption(
+        "--no-skip-mark",
+        action="store_true",
+        default=False,
+        help="Do not skip tests by marked with @pytest.mark.skip",
+    )
+    parser.addoption(
         "--layout",
         choices=dir(LAYOUTS),
         default="all_cairo_instance",
@@ -193,6 +199,11 @@ def pytest_collection_modifyitems(session, config, items):
                 + file_hash(Path(__file__).parent / "fixtures" / "runner.py")
             ).hexdigest()
             session.test_hashes[item.nodeid] = test_hash
+
+            if config.getoption("no_skip_mark"):
+                item.own_markers = [
+                    mark for mark in item.own_markers if mark.name != "skip"
+                ]
 
             if test_hash in tests_to_skip and config.getoption("skip_cached_tests"):
                 item.add_marker(pytest.mark.skip(reason="Cached results"))
