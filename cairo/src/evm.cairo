@@ -9,11 +9,12 @@ from starkware.cairo.common.uint256 import Uint256
 from starkware.cairo.common.dict import dict_read, dict_write, DictAccess
 from starkware.cairo.common.default_dict import default_dict_finalize
 
+from src.account import Account
 from src.errors import Errors
 from src.model import model
-from src.account import Account
 from src.stack import Stack
 from src.state import State
+from src.utils.dict import dict_squash
 from src.utils.utils import Helpers
 
 // @title EVM related functions.
@@ -39,9 +40,11 @@ namespace EVM {
     }
 
     func finalize{range_check_ptr, evm: model.EVM*}() {
-        let (squashed_start, squashed_end) = Helpers.finalize_jumpdests(
+        alloc_locals;
+        let (local squashed_start, local squashed_end) = dict_squash(
             evm.message.valid_jumpdests_start, evm.message.valid_jumpdests
         );
+        Helpers.finalize_jumpdests(squashed_start, squashed_end, evm.message.bytecode);
         tempvar message = new model.Message(
             bytecode=evm.message.bytecode,
             bytecode_len=evm.message.bytecode_len,
