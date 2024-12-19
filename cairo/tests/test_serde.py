@@ -169,6 +169,7 @@ class TestSerde:
             Set[Uint],
             Mapping[Address, Account],
             Union[Uint, U256],
+            Set[Address],
         ],
     ):
         assume(no_empty_sequence(b))
