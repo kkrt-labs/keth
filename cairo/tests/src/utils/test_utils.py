@@ -109,7 +109,9 @@ class TestInitializeJumpdests:
     @example(bytecode=get_contract("Counter", "Counter").bytecode_runtime)
     def test_should_return_same_as_execution_specs(self, cairo_run, bytecode: Bytes):
         output = cairo_run("test__initialize_jumpdests", bytecode=bytecode)
-        assert set(map(Uint, output)) == get_valid_jump_destinations(bytecode)
+        assert set(
+            map(Uint, [output] if not isinstance(output, list) else output)
+        ) == get_valid_jump_destinations(bytecode)
 
 
 class TestFinalizeJumpdests:
