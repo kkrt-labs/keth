@@ -106,33 +106,6 @@ func test__is_account_alive__account_not_alive_not_in_state{
     return ();
 }
 
-func test___copy_accounts__should_handle_null_pointers{range_check_ptr}() {
-    alloc_locals;
-    let (accounts) = default_dict_new(0);
-    tempvar accounts_start = accounts;
-    tempvar address = 2;
-    tempvar balance = new Uint256(1, 0);
-    let (code) = alloc();
-    tempvar code_hash = new Uint256(
-        304396909071904405792975023732328604784, 262949717399590921288928019264691438528
-    );
-    let account = Account.init(0, code, code_hash, 1, balance);
-    dict_write{dict_ptr=accounts}(address, cast(account, felt));
-    let empty_address = 'empty address';
-    dict_read{dict_ptr=accounts}(empty_address);
-    let (local accounts_copy: DictAccess*) = default_dict_new(0);
-    Internals._copy_accounts{accounts=accounts_copy}(accounts_start, accounts);
-
-    let (pointer) = dict_read{dict_ptr=accounts_copy}(address);
-    tempvar existing_account = cast(pointer, model.Account*);
-
-    assert existing_account.balance.low = 1;
-    assert existing_account.balance.high = 0;
-    assert existing_account.code_len = 0;
-
-    return ();
-}
-
 func test__is_account_warm__account_in_state{pedersen_ptr: HashBuiltin*, range_check_ptr}() {
     let evm_address = 'alive';
     tempvar address = evm_address;

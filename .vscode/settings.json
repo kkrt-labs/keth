@@ -6,6 +6,7 @@
     "bytearray",
     "collectonly",
     "datadir",
+    "defaultdict",
     "divmod",
     "exitstatus",
     "fibonacci",
@@ -26,6 +27,7 @@
     "patricialization",
     "patricialize",
     "patricialized",
+    "pprint",
     "preimages",
     "PUSHN",
     "recv",
@@ -36,6 +38,7 @@
     "sessionstart",
     "slackapi",
     "testrunfinished",
+    "usort",
     "workerid",
     "workerinput"
   ],
