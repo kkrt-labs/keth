@@ -946,17 +946,6 @@ namespace Interpreter {
             let evm = run(evm);
         }
 
-        let required_gas = gas_limit - evm.gas_left;
-        let (max_refund, _) = unsigned_div_rem(required_gas, 5);
-        let is_max_refund_le_gas_refund = is_nn(evm.gas_refund - max_refund);
-        tempvar gas_refund = is_max_refund_le_gas_refund * max_refund + (
-            1 - is_max_refund_le_gas_refund
-        ) * evm.gas_refund;
-
-        let total_gas_used = required_gas - gas_refund;
-
-        State.finalize();
-
         let initial_state = evm.message.initial_state;
         State.finalize{state=initial_state}();
 
@@ -979,6 +968,14 @@ namespace Interpreter {
         State.update_account(env.origin, sender);
 
         // So as to not burn the base_fee_per gas, we send it to the coinbase.
+        let required_gas = gas_limit - evm.gas_left;
+        let (max_refund, _) = unsigned_div_rem(required_gas, 5);
+        let is_max_refund_le_gas_refund = is_nn(evm.gas_refund - max_refund);
+        tempvar gas_refund = is_max_refund_le_gas_refund * max_refund + (
+            1 - is_max_refund_le_gas_refund
+        ) * evm.gas_refund;
+
+        let total_gas_used = required_gas - gas_refund;
         let actual_fee = total_gas_used * env.gas_price;
         let (fee_high, fee_low) = split_felt(actual_fee);
         let actual_fee_u256 = Uint256(low=fee_low, high=fee_high);
