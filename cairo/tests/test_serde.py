@@ -168,6 +168,7 @@ class TestSerde:
             Tuple[Mapping[Bytes, Bytes], ...],
             Set[Uint],
             Mapping[Address, Account],
+            Union[Uint, U256],
             Set[Address],
         ],
     ):

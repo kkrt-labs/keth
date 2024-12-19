@@ -4,11 +4,42 @@ from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin
 from starkware.cairo.common.math_cmp import is_nn, is_not_zero
 
 from ethereum_types.bytes import Bytes32, Bytes, BytesStruct
-from ethereum_types.numeric import Uint
+from ethereum_types.numeric import Uint, UnionUintU256
 from ethereum.cancun.fork_types import Address
 from ethereum.crypto.hash import keccak256
 from ethereum.utils.numeric import divmod
-from src.utils.bytes import felt_to_bytes20_little, felt_to_bytes, uint256_to_bytes32_little
+
+from src.utils.bytes import (
+    felt_to_bytes20_little,
+    bytes_to_felt,
+    felt_to_bytes,
+    uint256_to_bytes32_little,
+)
+
+func to_address{range_check_ptr}(data: UnionUintU256) -> Address {
+    alloc_locals;
+    let (local bytes_data) = alloc();
+
+    if (cast(data.value.uint, felt) != 0) {
+        felt_to_bytes20_little(bytes_data, data.value.uint.value);
+        let res = bytes_to_felt(20, bytes_data);
+        tempvar address = Address(res);
+        return address;
+    }
+
+    if (cast(data.value.u256.value, felt) != 0) {
+        uint256_to_bytes32_little(bytes_data, [data.value.u256.value]);
+        let res = bytes_to_felt(20, bytes_data);
+        tempvar address = Address(res);
+        return address;
+    }
+
+    with_attr error_message("Type not valid") {
+        assert 0 = 1;
+        tempvar address = Address(0);
+        return address;
+    }
+}
 
 func compute_contract_address{
     range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*
