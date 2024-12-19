@@ -1,6 +1,6 @@
 from starkware.cairo.common.alloc import alloc
 
-from ethereum_types.bytes import Bytes20, Bytes256, Bytes, BytesStruct
+from ethereum_types.bytes import Bytes20, Bytes32, Bytes256, Bytes, BytesStruct
 from ethereum_types.numeric import Uint, U256, U256Struct, bool
 from ethereum.crypto.hash import Hash32
 
@@ -21,6 +21,30 @@ struct SetAddress {
     value: SetAddressStruct*,
 }
 using Root = Hash32;
+
+struct TupleAddressBytes32 {
+    value: TupleAddressBytes32Struct*,
+}
+
+struct TupleAddressBytes32Struct {
+    address: Address,
+    bytes32: Bytes32,
+}
+
+struct SetTupleAddressBytes32DictAccess {
+    key: TupleAddressBytes32,
+    prev_value: bool,
+    new_value: bool,
+}
+
+struct SetTupleAddressBytes32Struct {
+    dict_ptr_start: SetTupleAddressBytes32DictAccess*,
+    dict_ptr: SetTupleAddressBytes32DictAccess*,
+}
+
+struct SetTupleAddressBytes32 {
+    value: SetTupleAddressBytes32Struct*,
+}
 
 using VersionedHash = Hash32;
 struct TupleVersionedHashStruct {

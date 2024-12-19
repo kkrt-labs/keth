@@ -168,6 +168,8 @@ class TestSerde:
             Tuple[Mapping[Bytes, Bytes], ...],
             Set[Uint],
             Mapping[Address, Account],
+            Tuple[Address, Bytes32],
+            Set[Tuple[Address, Bytes32]],
             Set[Address],
         ],
     ):
