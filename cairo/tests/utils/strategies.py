@@ -58,6 +58,9 @@ extended = st.recursive(
     st.one_of(st.binary(), uint, st.text(), st.booleans()), st.lists
 )
 
+# Custom types
+stack = st.lists(uint256)
+
 
 # See https://github.com/ethereum/execution-specs/issues/1036
 # It's currently not possible to generate strategies using `st.builds` because the dataclasses

@@ -54,7 +54,7 @@ from starkware.cairo.lang.compiler.scoped_name import ScopedName
 from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 
 from ethereum.crypto.hash import Hash32
-from tests.utils.args_gen import to_python_type
+from tests.utils.args_gen import Stack, to_python_type
 
 # Sentinel object for indicating no error in exception handling
 NO_ERROR_FLAG = object()
@@ -254,6 +254,37 @@ class Serde:
             )
             return Bytes256(data)
 
+        if python_cls is Stack:
+            mapping_struct_ptr = self.serialize_pointers(path, ptr)["value"]
+            mapping_struct_path = (
+                get_struct_definition(self.program, path)
+                .members["value"]
+                .cairo_type.pointee.scope.path
+            )
+            dict_access_path = (
+                get_struct_definition(self.program, mapping_struct_path)
+                .members["dict_ptr"]
+                .cairo_type.pointee.scope.path
+            )
+            dict_access_types = get_struct_definition(
+                self.program, dict_access_path
+            ).members
+            key_type = dict_access_types["key"].cairo_type
+            value_type = dict_access_types["new_value"].cairo_type
+            pointers = self.serialize_pointers(mapping_struct_path, mapping_struct_ptr)
+            segment_size = pointers["dict_ptr"] - pointers["dict_ptr_start"]
+            dict_ptr = pointers["dict_ptr_start"]
+            stack_len = pointers["len"]
+
+            dict_repr = {
+                self._serialize(key_type, dict_ptr + i): self._serialize(
+                    value_type, dict_ptr + i + 2
+                )
+                for i in range(0, segment_size, 3)
+            }
+            inner_list = [dict_repr[i] for i in range(stack_len)]
+            return Stack(inner_list)
+
         members = get_struct_definition(self.program, path).members
         kwargs = {
             name: self._serialize(member.cairo_type, ptr + member.offset)
@@ -263,14 +294,19 @@ class Serde:
         if python_cls is None:
             return kwargs
 
+        value = kwargs.get("value")
+        if isinstance(members["value"].cairo_type, TypePointer) and value is None:
+            # A None pointer is valid for pointer types, meaning just that the struct is not present.
+            return None
+
         if python_cls in (U256, Hash32, Bytes32):
-            value = kwargs["value"]["low"] + kwargs["value"]["high"] * 2**128
+            value = value["low"] + value["high"] * 2**128
             if python_cls == U256:
                 return U256(value)
             return python_cls(value.to_bytes(32, "little"))
 
         if python_cls in (Bytes0, Bytes8, Bytes20):
-            return python_cls(kwargs["value"].to_bytes(python_cls.LENGTH, "little"))
+            return python_cls(value.to_bytes(python_cls.LENGTH, "little"))
 
         # Because some types are wrapped in a value field, e.g. Account{ value: AccountStruct }
         # this may not work, so that we catch the error and try to fallback.
@@ -280,10 +316,6 @@ class Serde:
         except TypeError:
             pass
 
-        value = kwargs.get("value")
-        if isinstance(members["value"].cairo_type, TypePointer) and value is None:
-            # A None pointer is valid for pointer types, meaning just that the struct is not present.
-            return None
         if isinstance(value, dict):
             signature(python_cls.__init__).bind(None, **value)
             return python_cls(**value)
