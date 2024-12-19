@@ -7,6 +7,7 @@ from starkware.cairo.common.memset import memset
 from starkware.cairo.common.memcpy import memcpy
 from starkware.cairo.common.dict_access import DictAccess
 
+from src.utils.dict import dict_squash
 from src.utils.utils import Helpers
 from src.constants import Constants
 from tests.utils.dict import dict_keys
@@ -132,18 +133,35 @@ func test__initialize_jumpdests{range_check_ptr}(output_ptr: felt*) {
 func test__finalize_jumpdests{range_check_ptr}() {
     alloc_locals;
 
-    tempvar bytecode: felt*;
-    tempvar valid_jumpdests_start: DictAccess*;
-    tempvar valid_jumpdests: DictAccess*;
+    local bytecode: felt*;
+    local valid_jumpdests_start: DictAccess*;
+    local valid_jumpdests: DictAccess*;
     %{
-        ids.bytecode = segments.add()
-        segments.write_arg(ids.bytecode, program_input["bytecode"])
-        ids.valid_jumpdests_start = segments.add()
-        segments.write_arg(ids.valid_jumpdests_start.address_, program_input["valid_jumpdests"])
-        ids.valid_jumpdests = ids.valid_jumpdests_start.address_ + len(program_input["valid_jumpdests"])
+        from starkware.cairo.common.dict import DictTracker
+        from tests.utils.helpers import flatten
+        from ethereum.cancun.vm.runtime import get_valid_jump_destinations
+
+        memory[fp] = segments.add()
+        segments.write_arg(memory[fp], program_input["bytecode"])
+
+        data = {k: 1 for k in get_valid_jump_destinations(program_input["bytecode"])}
+
+        base = segments.add()
+        segments.load_data(
+            base,
+            flatten([[int(k), 1, 1] for k in data.keys()])
+        )
+        __dict_manager.trackers[base.segment_index] = DictTracker(
+            data=data,
+            current_ptr=(base + len(data) * 3),
+        )
+        memory[fp + 1] = base
+        memory[fp + 2] = base + len(data) * 3
     %}
 
-    Helpers.finalize_jumpdests(valid_jumpdests_start, valid_jumpdests, bytecode);
+    let (sorted_keys_start, sorted_keys_end) = dict_squash(valid_jumpdests_start, valid_jumpdests);
+
+    Helpers.finalize_jumpdests(0, sorted_keys_start, sorted_keys_end, bytecode);
 
     return ();
 }
@@ -158,7 +176,7 @@ func test__assert_valid_jumpdest{range_check_ptr}() {
         ids.valid_jumpdest = segments.add()
         segments.write_arg(ids.valid_jumpdest.address_, program_input["valid_jumpdest"])
     %}
-    Helpers.assert_valid_jumpdest(bytecode, valid_jumpdest);
+    Helpers.assert_valid_jumpdest(0, bytecode, valid_jumpdest);
     return ();
 }
 

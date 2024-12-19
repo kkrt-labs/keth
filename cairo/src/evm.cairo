@@ -9,7 +9,6 @@ from starkware.cairo.common.uint256 import Uint256
 from starkware.cairo.common.dict import dict_read, dict_write, DictAccess
 from starkware.cairo.common.default_dict import default_dict_finalize
 
-from src.account import Account
 from src.errors import Errors
 from src.model import model
 from src.stack import Stack
@@ -44,7 +43,7 @@ namespace EVM {
         let (local squashed_start, local squashed_end) = dict_squash(
             evm.message.valid_jumpdests_start, evm.message.valid_jumpdests
         );
-        Helpers.finalize_jumpdests(squashed_start, squashed_end, evm.message.bytecode);
+        Helpers.finalize_jumpdests(0, squashed_start, squashed_end, evm.message.bytecode);
         tempvar message = new model.Message(
             bytecode=evm.message.bytecode,
             bytecode_len=evm.message.bytecode_len,

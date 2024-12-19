@@ -6,6 +6,7 @@
     "bytearray",
     "collectonly",
     "datadir",
+    "defaultdict",
     "divmod",
     "exitstatus",
     "fibonacci",
@@ -37,6 +38,7 @@
     "sessionstart",
     "slackapi",
     "testrunfinished",
+    "usort",
     "workerid",
     "workerinput"
   ],
