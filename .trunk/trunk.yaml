@@ -48,7 +48,7 @@ lint:
         - output: rewrite
           success_codes: [0]
           formatter: true
-          run: .venv/bin/cairo-format ${target}
+          run: cairo-format ${target}
           read_output_from: stdout
           run_linter_from: workspace
     - name: solidity
