@@ -22,13 +22,13 @@ struct SetAddress {
 }
 using Root = Hash32;
 
-struct TupleAddressBytes32 {
-    value: TupleAddressBytes32Struct*,
-}
-
 struct TupleAddressBytes32Struct {
     address: Address,
     bytes32: Bytes32,
+}
+
+struct TupleAddressBytes32 {
+    value: TupleAddressBytes32Struct*,
 }
 
 struct SetTupleAddressBytes32DictAccess {
