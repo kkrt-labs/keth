@@ -67,7 +67,15 @@ from typing import (
     get_origin,
 )
 
-from ethereum_types.bytes import Bytes, Bytes0, Bytes8, Bytes20, Bytes32, Bytes256
+from ethereum_types.bytes import (
+    Bytes,
+    Bytes0,
+    Bytes1,
+    Bytes8,
+    Bytes20,
+    Bytes32,
+    Bytes256,
+)
 from ethereum_types.numeric import U64, U256, Uint
 from starkware.cairo.common.dict import DictManager, DictTracker
 from starkware.cairo.lang.compiler.ast.cairo_types import (
@@ -109,6 +117,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum_types", "numeric", "U256"): U256,
     ("ethereum_types", "numeric", "SetUint"): Set[Uint],
     ("ethereum_types", "bytes", "Bytes0"): Bytes0,
+    ("ethereum_types", "bytes", "Bytes1"): Bytes1,
     ("ethereum_types", "bytes", "Bytes8"): Bytes8,
     ("ethereum_types", "bytes", "Bytes20"): Bytes20,
     ("ethereum_types", "bytes", "Bytes32"): Bytes32,
@@ -173,6 +182,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
         Address, Account
     ],
     ("ethereum", "exceptions", "EthereumException"): EthereumException,
+    ("ethereum", "cancun", "vm", "memory", "Bytearray"): bytearray,
 }
 
 # In the EELS, some functions are annotated with Sequence while it's actually just Bytes.
@@ -272,13 +282,19 @@ def _gen_arg(
         segments.load_data(struct_ptr, [instances_ptr, len(arg)])
         return struct_ptr
 
-    if arg_type_origin in (dict, ChainMap, abc.Mapping, set):
+    if arg_type_origin in (dict, ChainMap, abc.Mapping, set) or arg_type is bytearray:
         dict_ptr = segments.add()
         assert dict_ptr.segment_index not in dict_manager.trackers
 
         if arg_type_origin is set:
             arg = {k: True for k in arg}
             arg_type = Mapping[type(next(iter(arg))), bool]
+        elif arg_type is bytearray:
+            # Create a dict with one byte per value and include length
+            data = defaultdict(int, {k: v for k, v in enumerate(arg)})
+            base = _gen_arg(dict_manager, segments, Mapping[int, int], data)
+            segments.load_data(base + 2, [len(arg)])  # Store length after dict pointers
+            return base
 
         data = {
             _gen_arg(dict_manager, segments, get_args(arg_type)[0], k): _gen_arg(
@@ -324,7 +340,7 @@ def _gen_arg(
         )
         return base
 
-    if arg_type in (Bytes, bytes, bytearray, str):
+    if arg_type in (Bytes, bytes, str):
         if arg is None:
             return 0
         if isinstance(arg, str):
