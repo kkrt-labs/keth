@@ -29,6 +29,9 @@ from ethereum_types.numeric import U128
 struct Bytes0 {
     value: felt,
 }
+struct Bytes1 {
+    value: felt,
+}
 struct Bytes8 {
     value: felt,
 }

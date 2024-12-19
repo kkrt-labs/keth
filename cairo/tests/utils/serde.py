@@ -35,7 +35,15 @@ from typing import (
 )
 
 from eth_utils.address import to_checksum_address
-from ethereum_types.bytes import Bytes, Bytes0, Bytes8, Bytes20, Bytes32, Bytes256
+from ethereum_types.bytes import (
+    Bytes,
+    Bytes0,
+    Bytes1,
+    Bytes8,
+    Bytes20,
+    Bytes32,
+    Bytes256,
+)
 from ethereum_types.numeric import U256
 from starkware.cairo.lang.compiler.ast.cairo_types import (
     CairoType,
@@ -185,7 +193,10 @@ class Serde:
                     ]
                 )
 
-        if get_origin(python_cls) in (Mapping, abc.Mapping, set):
+        if (
+            get_origin(python_cls) in (Mapping, abc.Mapping, set)
+            or python_cls is bytearray
+        ):
             mapping_struct_ptr = self.serialize_pointers(path, ptr)["value"]
             mapping_struct_path = (
                 get_struct_definition(self.program, path)
@@ -212,6 +223,19 @@ class Serde:
                     for i in range(0, segment_size, 3)
                 }
 
+            if python_cls is bytearray:
+                # For bytearray, we reconstruct it from the dictionary values up to length
+                d = {
+                    self._serialize(key_type, dict_ptr + i): self._serialize(
+                        value_type, dict_ptr + i + 2
+                    )
+                    for i in range(0, segment_size, 3)
+                }
+                length = pointers["len"]
+                return bytearray(
+                    [int.from_bytes(d[i], "little") for i in range(length)]
+                )
+
             return {
                 self._serialize(key_type, dict_ptr + i): self._serialize(
                     value_type, dict_ptr + i + 2
@@ -219,7 +243,7 @@ class Serde:
                 for i in range(0, segment_size, 3)
             }
 
-        if python_cls in (bytes, bytearray, Bytes, str):
+        if python_cls in (bytes, Bytes, str):
             tuple_struct_ptr = self.serialize_pointers(path, ptr)["value"]
             struct_name = path[-1] + "Struct"
             path = (*path[:-1], struct_name)
@@ -269,7 +293,7 @@ class Serde:
                 return U256(value)
             return python_cls(value.to_bytes(32, "little"))
 
-        if python_cls in (Bytes0, Bytes8, Bytes20):
+        if python_cls in (Bytes0, Bytes1, Bytes8, Bytes20):
             return python_cls(kwargs["value"].to_bytes(python_cls.LENGTH, "little"))
 
         # Because some types are wrapped in a value field, e.g. Account{ value: AccountStruct }
