@@ -1,10 +1,25 @@
 from starkware.cairo.common.alloc import alloc
 
 from ethereum_types.bytes import Bytes20, Bytes256, Bytes, BytesStruct
-from ethereum_types.numeric import Uint, U256, U256Struct
+from ethereum_types.numeric import Uint, U256, U256Struct, bool
 from ethereum.crypto.hash import Hash32
 
 using Address = Bytes20;
+
+struct SetAddressDictAccess {
+    key: Address,
+    prev_value: bool,
+    new_value: bool,
+}
+
+struct SetAddressStruct {
+    dict_ptr_start: SetAddressDictAccess*,
+    dict_ptr: SetAddressDictAccess*,
+}
+
+struct SetAddress {
+    value: SetAddressStruct*,
+}
 using Root = Hash32;
 
 using VersionedHash = Hash32;
