@@ -284,7 +284,7 @@ def _gen_arg(
 
         if arg_type_origin is set:
             arg = {k: True for k in arg}
-            arg_type = Mapping[type(next(iter(arg))), bool]
+            arg_type = Mapping[get_args(arg_type)[0], bool]
 
         data = {
             _gen_arg(dict_manager, segments, get_args(arg_type)[0], k): _gen_arg(
