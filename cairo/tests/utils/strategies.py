@@ -5,7 +5,7 @@ from typing import ForwardRef, Sequence, TypeAlias, Union
 from unittest.mock import patch
 
 from eth_keys.datatypes import PrivateKey
-from ethereum_types.bytes import Bytes0, Bytes8, Bytes20, Bytes32, Bytes256
+from ethereum_types.bytes import Bytes, Bytes0, Bytes8, Bytes20, Bytes32, Bytes256
 from ethereum_types.numeric import U64, U256, FixedUnsigned, Uint
 from hypothesis import strategies as st
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
@@ -51,6 +51,8 @@ hash32 = bytes32.map(Hash32)
 root = bytes32.map(Root)
 bytes256 = st.binary(min_size=256, max_size=256).map(Bytes256)
 bloom = bytes256.map(Bloom)
+
+smallbytes = st.binary(min_size=0, max_size=2**10).map(Bytes)
 
 # See ethereum.rlp.Simple and ethereum.rlp.Extended for the definition of Simple and Extended
 simple = st.recursive(st.one_of(st.binary()), st.lists)
