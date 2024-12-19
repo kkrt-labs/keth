@@ -170,6 +170,7 @@ class TestSerde:
             Mapping[Address, Account],
             Tuple[Address, Bytes32],
             Set[Tuple[Address, Bytes32]],
+            Union[Uint, U256],
             Set[Address],
         ],
     ):

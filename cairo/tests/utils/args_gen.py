@@ -108,6 +108,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum_types", "numeric", "Uint"): Uint,
     ("ethereum_types", "numeric", "U256"): U256,
     ("ethereum_types", "numeric", "SetUint"): Set[Uint],
+    ("ethereum_types", "numeric", "UnionUintU256"): Union[Uint, U256],
     ("ethereum_types", "bytes", "Bytes0"): Bytes0,
     ("ethereum_types", "bytes", "Bytes8"): Bytes8,
     ("ethereum_types", "bytes", "Bytes20"): Bytes20,
