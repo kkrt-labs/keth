@@ -43,6 +43,7 @@
     "sessionstart",
     "slackapi",
     "testrunfinished",
+    "usort",
     "workerid",
     "workerinput"
   ],

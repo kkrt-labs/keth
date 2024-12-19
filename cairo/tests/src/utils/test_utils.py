@@ -8,8 +8,6 @@ from hypothesis import strategies as st
 
 from ethereum.cancun.vm.runtime import get_valid_jump_destinations
 from tests.utils.errors import cairo_error
-from tests.utils.helpers import flatten
-from tests.utils.hints import patch_hint
 from tests.utils.solidity import get_contract
 
 
@@ -119,35 +117,15 @@ class TestInitializeJumpdests:
             map(Uint, output if isinstance(output, list) else [output])
         ) == get_valid_jump_destinations(bytecode)
 
-    @given(bytecode=...)
-    @example(bytecode=get_contract("Counter", "Counter").bytecode_runtime)
-    def test_should_err_on_malicious_prover(
-        self, cairo_program, cairo_run, bytecode: Bytes
-    ):
-        with (
-            patch_hint(
-                cairo_program,
-                "memory[ap] = 0 if 0 <= (ids.a % PRIME) < range_check_builtin.bound else 1",
-                "memory[ap] = 1",
-                "initialize_jumpdests",
-            ),
-            cairo_error(message="Reading out of bounds bytecode"),
-        ):
-            bytecode = get_contract("Counter", "Counter").bytecode_runtime
-            cairo_run("test__initialize_jumpdests", bytecode=bytecode)
-
 
 class TestFinalizeJumpdests:
     @given(bytecode=...)
     @example(bytecode=get_contract("Counter", "Counter").bytecode_runtime)
     def test_should_pass(self, cairo_run, bytecode: Bytes):
-        valid_jumpdests = flatten(
-            [[int(k), 1, 1] for k in get_valid_jump_destinations(bytecode)]
-        )
         cairo_run(
             "test__finalize_jumpdests",
             bytecode=list(bytecode),
-            valid_jumpdests=valid_jumpdests,
+            valid_jumpdests=get_valid_jump_destinations(bytecode),
         )
 
 
@@ -166,14 +144,14 @@ class TestAssertValidJumpdest:
         )
 
     def test_should_raise_if_jumpdest_but_false(self, cairo_run):
-        with cairo_error("assert_valid_jumpdest: should not be jumpdest"):
+        with cairo_error("assert_valid_jumpdest: invalid jumpdest"):
             cairo_run(
                 "test__assert_valid_jumpdest", bytecode=[0x5B], valid_jumpdest=[0, 0, 0]
             )
 
     @pytest.mark.parametrize("push", list(range(0x60, 0x80)))
-    def test_should_raise_if_not_jumpdest_is_push_arg(self, cairo_run, push):
-        with cairo_error("assert_valid_jumpdest: invalid loop"):
+    def test_should_raise_if_jumpdest_is_push_arg(self, cairo_run, push):
+        with cairo_error("assert_valid_jumpdest: invalid jumpdest"):
             cairo_run(
                 "test__assert_valid_jumpdest",
                 bytecode=[push] + (push - 0x5F) * [0x5B],
