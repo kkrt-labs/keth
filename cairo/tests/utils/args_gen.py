@@ -139,6 +139,12 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
         VersionedHash, ...
     ],
     ("ethereum", "cancun", "transactions", "To"): Union[Bytes0, Address],
+    ("ethereum", "cancun", "fork_types", "TupleAddressBytes32"): Tuple[
+        Address, Bytes32
+    ],
+    ("ethereum", "cancun", "fork_types", "SetTupleAddressBytes32"): Set[
+        Tuple[Address, Bytes32]
+    ],
     ("ethereum", "cancun", "transactions", "LegacyTransaction"): LegacyTransaction,
     (
         "ethereum",
@@ -279,7 +285,7 @@ def _gen_arg(
 
         if arg_type_origin is set:
             arg = {k: True for k in arg}
-            arg_type = Mapping[type(next(iter(arg))), bool]
+            arg_type = Mapping[get_args(arg_type)[0], bool]
 
         data = {
             _gen_arg(dict_manager, segments, get_args(arg_type)[0], k): _gen_arg(
