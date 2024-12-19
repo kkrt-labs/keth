@@ -164,7 +164,7 @@ struct U64 {
 }
 ```
 
-A `null` U64 is represented by the outer U64\* with a value of 0.
+A `null` U64 is represented by a U64 pointer with a value of 0.
 
 2. Complex types (pointer-based):
 
@@ -287,9 +287,9 @@ struct MappingBytesBytes {
 
 Key implementation notes:
 
-- Keys stored as pointers, thus querying a key is a pointer equality check, not
-  a value equality check.
-- In the future, we might consider using key hashes for content-based comparison
+- Keys are stored as pointers, thus querying a key is a pointer equality check,
+  not a value equality check.
+- In the future, we consider using key hashes for content-based comparison
   rather than pointer comparison.
 
 ### Mutable Collections Pattern
