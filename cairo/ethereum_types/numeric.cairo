@@ -20,13 +20,13 @@ struct U256 {
     value: U256Struct*,
 }
 
-struct UintU256Enum {
+struct UnionUintU256Enum {
     uint: Uint*,
     u256: U256,
 }
 
-struct UintU256 {
-    value: UintU256Enum*,
+struct UnionUintU256 {
+    value: UnionUintU256Enum*,
 }
 
 struct SetUintDictAccess {

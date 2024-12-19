@@ -4,7 +4,7 @@ from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin
 from starkware.cairo.common.math_cmp import is_nn, is_not_zero
 
 from ethereum_types.bytes import Bytes32, Bytes, BytesStruct
-from ethereum_types.numeric import Uint, UintU256
+from ethereum_types.numeric import Uint, UnionUintU256
 from ethereum.cancun.fork_types import Address
 from ethereum.crypto.hash import keccak256
 from ethereum.utils.numeric import divmod
@@ -16,7 +16,7 @@ from src.utils.bytes import (
     uint256_to_bytes32_little,
 )
 
-func to_address{range_check_ptr}(data: UintU256) -> Address {
+func to_address{range_check_ptr}(data: UnionUintU256) -> Address {
     alloc_locals;
     let (local bytes_data) = alloc();
 
