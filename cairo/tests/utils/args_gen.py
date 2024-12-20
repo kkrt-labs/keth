@@ -264,9 +264,19 @@ def _gen_arg(
         return struct_ptr
 
     if arg_type_origin in (tuple, list, Sequence, abc.Sequence):
-        if arg_type_origin is tuple and Ellipsis not in get_args(arg_type):
-            # Case a tuple with a fixed number of elements, all of different types.
-            # These are represented as a pointer to a struct with a pointer to each element.
+        if arg_type_origin is tuple and (
+            Ellipsis not in get_args(arg_type) or annotations
+        ):
+            element_types = get_args(arg_type)
+
+            # Handle fixed-size tuples with size annotation (e.g. Annotated[Tuple[T], N])
+            if annotations and len(annotations) == 1 and len(element_types) == 1:
+                element_types = element_types * annotations[0]
+            elif annotations:
+                raise ValueError(
+                    f"Invalid tuple size annotation for {arg_type} with annotations {annotations}"
+                )
+
             struct_ptr = segments.add()
             data = [
                 _gen_arg(dict_manager, segments, x_type, x)
@@ -393,6 +403,9 @@ def to_python_type(cairo_type: Union[CairoType, Tuple[str, ...]]):
 def to_cairo_type(program: Program, type_name: Type):
     if type_name is int:
         return TypeFelt()
+
+    if get_origin(type_name) is Annotated:
+        type_name = get_args(type_name)[0]
 
     _python_type_to_cairo_struct = {
         v: k for k, v in _cairo_struct_to_python_type.items()
