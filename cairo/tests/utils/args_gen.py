@@ -170,7 +170,6 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "cancun", "trie", "LeafNode"): LeafNode,
     ("ethereum", "cancun", "trie", "ExtensionNode"): ExtensionNode,
     ("ethereum", "cancun", "trie", "BranchNode"): BranchNode,
-    ("ethereum", "cancun", "trie", "Subnodes"): Annotated[Tuple[Extended], 16],
     ("ethereum", "cancun", "trie", "InternalNode"): InternalNode,
     ("ethereum", "cancun", "trie", "Node"): Node,
     ("ethereum", "cancun", "fork_types", "MappingAddressAccount"): Mapping[

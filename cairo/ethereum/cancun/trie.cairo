@@ -58,31 +58,8 @@ struct ExtensionNode {
     value: ExtensionNodeStruct*,
 }
 
-struct Subnodes {
-    value: SubnodesStruct*,
-}
-
-struct SubnodesStruct {
-    branch0: Extended,
-    branch1: Extended,
-    branch2: Extended,
-    branch3: Extended,
-    branch4: Extended,
-    branch5: Extended,
-    branch6: Extended,
-    branch7: Extended,
-    branch8: Extended,
-    branch9: Extended,
-    branch10: Extended,
-    branch11: Extended,
-    branch12: Extended,
-    branch13: Extended,
-    branch14: Extended,
-    branch15: Extended,
-}
-
 struct BranchNodeStruct {
-    subnodes: Subnodes,
+    subnodes: SequenceExtended,
     value: Extended,
 }
 
@@ -210,24 +187,11 @@ func encode_internal_node{
 
     branch_node:
     let (value: Extended*) = alloc();
-    assert value[0] = node.value.branch_node.value.subnodes.value.branch0;
-    assert value[1] = node.value.branch_node.value.subnodes.value.branch1;
-    assert value[2] = node.value.branch_node.value.subnodes.value.branch2;
-    assert value[3] = node.value.branch_node.value.subnodes.value.branch3;
-    assert value[4] = node.value.branch_node.value.subnodes.value.branch4;
-    assert value[5] = node.value.branch_node.value.subnodes.value.branch5;
-    assert value[6] = node.value.branch_node.value.subnodes.value.branch6;
-    assert value[7] = node.value.branch_node.value.subnodes.value.branch7;
-    assert value[8] = node.value.branch_node.value.subnodes.value.branch8;
-    assert value[9] = node.value.branch_node.value.subnodes.value.branch9;
-    assert value[10] = node.value.branch_node.value.subnodes.value.branch10;
-    assert value[11] = node.value.branch_node.value.subnodes.value.branch11;
-    assert value[12] = node.value.branch_node.value.subnodes.value.branch12;
-    assert value[13] = node.value.branch_node.value.subnodes.value.branch13;
-    assert value[14] = node.value.branch_node.value.subnodes.value.branch14;
-    assert value[15] = node.value.branch_node.value.subnodes.value.branch15;
-    assert value[16] = node.value.branch_node.value.value;
-    tempvar sequence = SequenceExtended(new SequenceExtendedStruct(value, 17));
+    let len = node.value.branch_node.value.subnodes.value.len;
+    // TOD0: check if we really need to copy of if we can just use the pointer
+    memcpy(value, node.value.branch_node.value.subnodes.value.data, len);
+    assert [value + len] = node.value.branch_node.value.value;
+    tempvar sequence = SequenceExtended(new SequenceExtendedStruct(value, len + 1));
     let unencoded_ = ExtendedImpl.sequence(sequence);
     assert unencoded = unencoded_;
     assert range_check_ptr_end = range_check_ptr;
@@ -894,29 +858,27 @@ func patricialize{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: Kec
     let patricialized_15 = patricialize(branches.value.data[15], next_level);
     let encoded_15 = encode_internal_node(patricialized_15);
 
-    tempvar subnodes = Subnodes(
-        new SubnodesStruct(
-            encoded_0,
-            encoded_1,
-            encoded_2,
-            encoded_3,
-            encoded_4,
-            encoded_5,
-            encoded_6,
-            encoded_7,
-            encoded_8,
-            encoded_9,
-            encoded_10,
-            encoded_11,
-            encoded_12,
-            encoded_13,
-            encoded_14,
-            encoded_15,
-        ),
-    );
+    let (sequence: Extended*) = alloc();
+    assert sequence[0] = encoded_0;
+    assert sequence[1] = encoded_1;
+    assert sequence[2] = encoded_2;
+    assert sequence[3] = encoded_3;
+    assert sequence[4] = encoded_4;
+    assert sequence[5] = encoded_5;
+    assert sequence[6] = encoded_6;
+    assert sequence[7] = encoded_7;
+    assert sequence[8] = encoded_8;
+    assert sequence[9] = encoded_9;
+    assert sequence[10] = encoded_10;
+    assert sequence[11] = encoded_11;
+    assert sequence[12] = encoded_12;
+    assert sequence[13] = encoded_13;
+    assert sequence[14] = encoded_14;
+    assert sequence[15] = encoded_15;
 
+    tempvar sequence_extended = SequenceExtended(new SequenceExtendedStruct(sequence, 16));
     let value_extended = ExtendedImpl.bytes(value);
-    tempvar branch_node = BranchNode(new BranchNodeStruct(subnodes, value_extended));
+    tempvar branch_node = BranchNode(new BranchNodeStruct(sequence_extended, value_extended));
     let internal_node = InternalNodeImpl.branch_node(branch_node);
 
     return internal_node;
