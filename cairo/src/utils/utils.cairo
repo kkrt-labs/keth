@@ -837,6 +837,10 @@ namespace Helpers {
             return ();
         }
 
+        // Assert that the jumpdests are sorted in ascending order
+        assert [range_check_ptr] = valid_jumpdests_start.key - index;
+        let range_check_ptr = range_check_ptr + 1;
+
         assert_valid_jumpdest(index, bytecode, valid_jumpdests_start);
 
         return finalize_jumpdests(
@@ -849,9 +853,9 @@ namespace Helpers {
 
     // @notice Assert that a single valid_jumpdest is valid.
     // @dev Use a hint to determine if the easy case (no PUSHes before the JUMPDEST) is true
-    //      Otherwise, starts back at the given index, ie analyse the whole bytecode[index:key] segment.
+    //      Otherwise, starts back at the given start_index, ie analyse the whole bytecode[start_index:key] segment.
     func assert_valid_jumpdest{range_check_ptr}(
-        index: felt, bytecode: felt*, valid_jumpdest: DictAccess*
+        start_index: felt, bytecode: felt*, valid_jumpdest: DictAccess*
     ) {
         alloc_locals;
         // Assert that the dict access is only read (same prev and new value)
@@ -863,13 +867,19 @@ namespace Helpers {
                 assert valid_jumpdest.prev_value = 0;
             }
             return ();
-        } else {
+        }
+
+        // At this stage, we know that the jumpdest is a JUMPDEST byte. We still need to check if there is a PUSH
+        // before or if it's actually a JUMPDEST opcode. There are two cases:
+        // 1. Optimized case: We can just assert that there is no PUSH in the 32 bytes before the JUMPDEST
+        // 2. General case: We incrementally update the PC from start_index and check if we eventually reach the JUMPDEST.
+        //    This is generally speaking more step consuming and will be used if the optimized case is not possible. Note that
+        //    the start_index needs to point to a real opcode and is not checked to be itself a PUSH argument. 0 will always
+        //    be sound; if some previous JUMPDEST are already checked, they can be used to shorten the range of the general case.
+        if (valid_jumpdest.key == 0) {
             with_attr error_message("assert_valid_jumpdest: invalid jumpdest") {
                 assert valid_jumpdest.prev_value = 1;
             }
-        }
-
-        if (valid_jumpdest.key == 0) {
             return ();
         }
 
@@ -884,7 +894,7 @@ namespace Helpers {
 
         general_case:
         tempvar range_check_ptr = range_check_ptr;
-        tempvar i = index;
+        tempvar i = start_index;
 
         body_general_case:
         let bytecode = cast([fp - 4], felt*);
@@ -904,8 +914,13 @@ namespace Helpers {
         let range_check_ptr = [ap - 2];
         let i = [ap - 1];
 
+        // We stop the loop when i >= valid_jumpdest.key
+        assert [range_check_ptr] = i - valid_jumpdest.key;
+        let range_check_ptr = range_check_ptr + 1;
+
+        // Either the jumpdest is valid and we've reached it, or it's not and we've overpassed it
         with_attr error_message("assert_valid_jumpdest: invalid jumpdest") {
-            assert i = valid_jumpdest.key;
+            assert (i - valid_jumpdest.key) * valid_jumpdest.prev_value = 0;
         }
 
         return ();
@@ -941,6 +956,9 @@ namespace Helpers {
         // Offset should be either 33 or key + 1, meaning we've been up until the beginning of the
         // bytecode, or up to 32 bytes earlier
         assert (32 + 1 - offset) * (valid_jumpdest.key + 1 - offset) = 0;
+        with_attr error_message("assert_valid_jumpdest: invalid jumpdest") {
+            assert valid_jumpdest.prev_value = 1;
+        }
 
         return ();
     }
