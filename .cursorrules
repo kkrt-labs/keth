@@ -410,69 +410,25 @@ func pop{stack: Stack}() -> (U256, StackUnderflowError) {
 
 4. Python Integration:
 The Python side implements Stack as an extension of List[U256], providing custom argument generation logic to bridge between Python's list representation and Cairo's dictionary-based implementation.
+Because the logic on how to generate arguments is already implemented for the `list` type and the U256 type, we have no changes to make here.
 
-```python:cairo/tests/utils/args_gen.py
-@dataclass
-class Stack(List[U256]):
-    """An extension of List[U256] for Cairo Stack argument generation"""
-
-    def gen_arg(self, dict_manager, segments):
-        # Convert Python list to Cairo dict representation
-        data = defaultdict(int, {k: v for k, v in enumerate(self)})
-        # Generate the argument for the stack's dictionary
-        base = _gen_arg(dict_manager, segments, Dict[Uint, U256], data)
-        # Add the length of the stack to the argument
-        segments.load_data(base + 2, [len(self)])
-        return base
-```
-
-The serialization logic reconstructs the Stack from Cairo's memory representation back to Python:
-
-```python:cairo/tests/utils/serde.py
-def serialize_type(self, path: Tuple[str, ...], ptr) -> Any:
-    # ...
-    if python_cls is Stack:
-        # Get pointer to the stack's struct
-        mapping_struct_ptr = self.serialize_pointers(path, ptr)["value"]
-
-        # Navigate through the struct definitions to get types
-        mapping_struct_path = get_struct_definition(self.program, path).members["value"].cairo_type.pointee.scope.path
-        dict_access_path = get_struct_definition(self.program, mapping_struct_path).members["dict_ptr"].cairo_type.pointee.scope.path
-        dict_access_types = get_struct_definition(self.program, dict_access_path).members
-
-        # Get the dictionary's key and value types
-        key_type = dict_access_types["key"].cairo_type
-        value_type = dict_access_types["new_value"].cairo_type
-
-        # Extract pointers and size information
-        pointers = self.serialize_pointers(mapping_struct_path, mapping_struct_ptr)
-        segment_size = pointers["dict_ptr"] - pointers["dict_ptr_start"]
-        dict_ptr = pointers["dict_ptr_start"]
-        stack_len = pointers["len"]
-
-        # Reconstruct the dictionary representation
-        dict_repr = {
-            self._serialize(key_type, dict_ptr + i): self._serialize(value_type, dict_ptr + i + 2)
-            for i in range(0, segment_size, 3)
-        }
-
-        # Convert to list and create Stack instance
-        inner_list = [dict_repr[i] for i in range(stack_len)]
-        return Stack(inner_list)
-```
+The serialization logic reconstructs the Stack from Cairo's memory representation back to Python. Once again, because the logic is already implemented for the `list` type and the U256 type, we have no changes to make here.
 
 5. Testing Pattern:
 The tests use property-based testing with hypothesis to verify both success and error cases. Each test compares the Cairo implementation against an equivalent Python implementation.
 
 ```python:cairo/tests/ethereum/cancun/vm/test_stack.py
 class TestStack:
+    def test_pop_underflow(self, cairo_run):
+        stack = []
+        with pytest.raises(StackUnderflowError):
+            cairo_run("pop", stack)
+        with pytest.raises(StackUnderflowError):
+            pop(stack)
+
     @given(stack=...)
-    def test_pop(self, cairo_run, stack: Stack):
-        # Test both success and error cases
-        if len(stack) == 0:
-            with pytest.raises(StackUnderflowError):
-                cairo_run("pop", stack)
-            return
+    def test_pop_success(self, cairo_run, stack: List[U256]):
+        assume(len(stack) > 0)
 
         (new_stack_cairo, popped_value_cairo) = cairo_run("pop", stack)
         popped_value_py = pop(stack)
