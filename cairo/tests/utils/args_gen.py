@@ -232,12 +232,11 @@ def _gen_arg(
     if arg_type is type(None):
         return 0
 
-    arg_type_origin = get_origin(arg_type)
+    arg_type_origin = get_origin(arg_type) or arg_type
     if arg_type_origin is Annotated:
         base_type, *annotations = get_args(arg_type)
         return _gen_arg(dict_manager, segments, base_type, arg, annotations)
 
-    arg_type_origin = get_origin(arg_type) or arg_type
     if isinstance_with_generic(arg_type_origin, ForwardRef):
         arg_type = arg_type_origin._evaluate(globals(), locals(), frozenset())
         arg_type_origin = get_origin(arg_type) or arg_type
