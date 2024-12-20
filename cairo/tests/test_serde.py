@@ -170,7 +170,7 @@ class TestSerde:
             Mapping[Address, Account],
             Union[Uint, U256],
             Set[Address],
-            Annotated[Tuple[Uint], 16],
+            Annotated[Tuple[VersionedHash, ...], 16],
         ],
     ):
         assume(no_empty_sequence(b))
