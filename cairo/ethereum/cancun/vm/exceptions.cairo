@@ -1,9 +1,9 @@
-from ethereum_types.bytes import BytesStruct
+from ethereum_types.bytes import Bytes
 
 struct StackUnderflowError {
-    value: BytesStruct*,
+    value: Bytes,
 }
 
 struct StackOverflowError {
-    value: BytesStruct*,
+    value: Bytes,
 }

@@ -174,7 +174,7 @@ class Serde:
             pointers = self.serialize_pointers(mapping_struct_path, mapping_struct_ptr)
             segment_size = pointers["dict_ptr"] - pointers["dict_ptr_start"]
             dict_ptr = pointers["dict_ptr_start"]
-            stack_len = pointers["len"]
+            list_len = pointers["len"]
 
             dict_repr = {
                 self._serialize(key_type, dict_ptr + i): self._serialize(
@@ -182,7 +182,7 @@ class Serde:
                 )
                 for i in range(0, segment_size, 3)
             }
-            return [dict_repr[i] for i in range(stack_len)]
+            return [dict_repr[i] for i in range(list_len)]
 
         if get_origin(python_cls) in (tuple, list, Sequence, abc.Sequence):
             # Tuple and list are represented as structs with a pointer to the first element and the length.
