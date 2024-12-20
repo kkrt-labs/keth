@@ -269,9 +269,12 @@ def _gen_arg(
             element_types = get_args(arg_type)
 
             # Handle fixed-size tuples with size annotation (e.g. Annotated[Tuple[T], N])
-            if annotations and len(element_types) == 1:
-                if size := next((a for a in annotations if isinstance(a, int)), None):
-                    element_types = element_types * size
+            if annotations and len(annotations) == 1 and len(element_types) == 1:
+                element_types = element_types * annotations[0]
+            else:
+                raise ValueError(
+                    f"Invalid tuple size annotation for {arg_type} with annotations {annotations}"
+                )
 
             struct_ptr = segments.add()
             data = [
