@@ -280,9 +280,10 @@ def _gen_arg(
         segments.load_data(struct_ptr, data)
         return struct_ptr
 
-    if arg_type_origin is list:
-        # A `list` is represented as a Dict[felt, V] along with a length field.
-        value_type = get_args(arg_type)[0]  # Get the concrete type parameter
+    if arg_type_origin in (list, bytearray):
+        # Collection types are represented as a Dict[felt, V] along with a length field.
+        # Get the concrete type parameter. For bytearray, the value type is int.
+        value_type = next(iter(get_args(arg_type)), int)
         data = defaultdict(int, {k: v for k, v in enumerate(arg)})
         base = _gen_arg(dict_manager, segments, Dict[Uint, value_type], data)
         segments.load_data(base + 2, [len(arg)])
@@ -319,19 +320,13 @@ def _gen_arg(
         segments.load_data(struct_ptr, [instances_ptr, len(arg)])
         return struct_ptr
 
-    if arg_type_origin in (dict, ChainMap, abc.Mapping, set) or arg_type is bytearray:
+    if arg_type_origin in (dict, ChainMap, abc.Mapping, set):
         dict_ptr = segments.add()
         assert dict_ptr.segment_index not in dict_manager.trackers
 
         if arg_type_origin is set:
             arg = {k: True for k in arg}
             arg_type = Mapping[type(next(iter(arg))), bool]
-        elif arg_type is bytearray:
-            # Create a dict with one byte per value and include length
-            data = defaultdict(int, {k: v for k, v in enumerate(arg)})
-            base = _gen_arg(dict_manager, segments, Mapping[int, int], data)
-            segments.load_data(base + 2, [len(arg)])  # Store length after dict pointers
-            return base
 
         data = {
             _gen_arg(dict_manager, segments, get_args(arg_type)[0], k): _gen_arg(

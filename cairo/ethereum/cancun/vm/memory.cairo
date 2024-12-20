@@ -106,9 +106,7 @@ func buffer_read{range_check_ptr}(buffer: Bytes, start_position: U256, size: U25
     let start_position_felt = start_position.value.low;
     let size_felt = size.value.low;
 
-    Internals._buffer_read_internal(
-        buffer_len, buffer_data, start_position_felt, size_felt, output
-    );
+    Internals._buffer_read(buffer_len, buffer_data, start_position_felt, size_felt, output);
     tempvar result = Bytes(new BytesStruct(output, size_felt));
     return result;
 }
@@ -119,7 +117,6 @@ namespace Internals {
     // @param data Pointer to the bytes data.
     // @param len Length of bytes to write.
     func _write_bytes{dict_ptr: DictAccess*}(start_position: felt, data: felt*, len: felt) {
-        alloc_locals;
         if (len == 0) {
             return ();
         }
@@ -181,7 +178,7 @@ namespace Internals {
     // @param start_position Starting position to read from.
     // @param size Number of bytes to read.
     // @param output Pointer to write output bytes to.
-    func _buffer_read_internal{range_check_ptr}(
+    func _buffer_read{range_check_ptr}(
         data_len: felt, data: felt*, start_position: felt, size: felt, output: felt*
     ) {
         alloc_locals;
