@@ -53,10 +53,12 @@ from collections import ChainMap, abc, defaultdict
 from dataclasses import fields, is_dataclass
 from functools import partial
 from typing import (
+    Annotated,
     Any,
     Dict,
     ForwardRef,
     Mapping,
+    Optional,
     Sequence,
     Set,
     Tuple,
@@ -168,6 +170,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "cancun", "trie", "LeafNode"): LeafNode,
     ("ethereum", "cancun", "trie", "ExtensionNode"): ExtensionNode,
     ("ethereum", "cancun", "trie", "BranchNode"): BranchNode,
+    ("ethereum", "cancun", "trie", "Subnodes"): Annotated[Tuple[Extended], 16],
     ("ethereum", "cancun", "trie", "InternalNode"): InternalNode,
     ("ethereum", "cancun", "trie", "Node"): Node,
     ("ethereum", "cancun", "fork_types", "MappingAddressAccount"): Mapping[
@@ -207,7 +210,11 @@ def gen_arg(dict_manager: DictManager, segments: MemorySegmentManager):
 
 
 def _gen_arg(
-    dict_manager: DictManager, segments: MemorySegmentManager, arg_type: Type, arg: Any
+    dict_manager: DictManager,
+    segments: MemorySegmentManager,
+    arg_type: Type,
+    arg: Any,
+    annotations: Optional[Any] = None,
 ):
     """
     Generate a Cairo argument from a Python argument.
@@ -225,6 +232,11 @@ def _gen_arg(
     """
     if arg_type is type(None):
         return 0
+
+    arg_type_origin = get_origin(arg_type)
+    if arg_type_origin is Annotated:
+        base_type, *annotations = get_args(arg_type)
+        return _gen_arg(dict_manager, segments, base_type, arg, annotations)
 
     arg_type_origin = get_origin(arg_type) or arg_type
     if isinstance_with_generic(arg_type_origin, ForwardRef):
@@ -255,12 +267,17 @@ def _gen_arg(
 
     if arg_type_origin in (tuple, list, Sequence, abc.Sequence):
         if arg_type_origin is tuple and Ellipsis not in get_args(arg_type):
-            # Case a tuple with a fixed number of elements, all of different types.
-            # These are represented as a pointer to a struct with a pointer to each element.
+            element_types = get_args(arg_type)
+
+            # Handle fixed-size tuples with size annotation (e.g. Annotated[Tuple[T], N])
+            if annotations and len(element_types) == 1:
+                if size := next((a for a in annotations if isinstance(a, int)), None):
+                    element_types = element_types * size
+
             struct_ptr = segments.add()
             data = [
-                _gen_arg(dict_manager, segments, x_type, x)
-                for x_type, x in zip(get_args(arg_type), arg)
+                _gen_arg(dict_manager, segments, element_type, value)
+                for element_type, value in zip(element_types, arg)
             ]
             segments.load_data(struct_ptr, data)
             return struct_ptr

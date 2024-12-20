@@ -23,6 +23,7 @@ from inspect import signature
 from itertools import accumulate
 from pathlib import Path
 from typing import (
+    Annotated,
     Any,
     List,
     Mapping,
@@ -123,6 +124,9 @@ class Serde:
         if "__main__" in full_path:
             full_path = self.main_part + full_path[full_path.index("__main__") + 1 :]
         python_cls = to_python_type(full_path)
+
+        if get_origin(python_cls) is Annotated:
+            python_cls, _ = get_args(python_cls)
 
         if get_origin(python_cls) is Union:
             value_ptr = self.serialize_pointers(path, ptr)["value"]

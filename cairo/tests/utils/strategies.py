@@ -150,7 +150,7 @@ def register_type_strategies():
                 # 16 subnodes of 32 bytes each
                 "subnodes": st.lists(
                     st.binary(min_size=32, max_size=32), min_size=16, max_size=16
-                ),
+                ).map(tuple),
                 # Value in branch nodes is always empty
                 "value": st.just(b""),
             }
