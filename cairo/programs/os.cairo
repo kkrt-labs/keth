@@ -69,6 +69,7 @@ func apply_transactions{
     state: model.State*,
 }(txs_len: felt, tx_encoded: model.TransactionEncoded*) {
     alloc_locals;
+
     if (txs_len == 0) {
         return ();
     }

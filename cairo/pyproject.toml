@@ -143,7 +143,7 @@ dev-dependencies = [
   "eth-utils>=5.0.0",
   "hypothesis>=6.112.1",
   "ipykernel>=6.29.5",
-  "protobuf>=5.28.1",
+  "protobuf==3.20",
   "pytest-xdist>=3.6.1",
   "pytest>=8.3.3",
   "pydantic>=2.9.1",

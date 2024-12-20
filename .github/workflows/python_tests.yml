@@ -10,7 +10,6 @@ jobs:
     name: Python
     runs-on: ubuntu-latest-64-cores
     env:
-      PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python
       HYPOTHESIS_PROFILE: ci
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     steps:

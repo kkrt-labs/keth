@@ -13,8 +13,6 @@ from tests.utils.caching import CACHED_TESTS_FILE, program_hash, testfile_hash
 from tests.utils.compiler import get_cairo_file, get_cairo_program, get_main_path
 from tests.utils.strategies import register_type_strategies
 
-os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
-
 load_dotenv()
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -46,6 +44,12 @@ def pytest_addoption(parser):
         action="store_false",
         dest="skip_cached_tests",
         help="run all tests regardless of cache",
+    )
+    parser.addoption(
+        "--no-skip-mark",
+        action="store_true",
+        default=False,
+        help="Do not skip tests by marked with @pytest.mark.skip",
     )
     parser.addoption(
         "--layout",
@@ -193,6 +197,11 @@ def pytest_collection_modifyitems(session, config, items):
                 + item.nodeid.encode()
             ).hexdigest()
             session.test_hashes[item.nodeid] = test_hash
+
+            if config.getoption("no_skip_mark"):
+                item.own_markers = [
+                    mark for mark in item.own_markers if mark.name != "skip"
+                ]
 
             if test_hash in tests_to_skip and config.getoption("skip_cached_tests"):
                 item.add_marker(pytest.mark.skip(reason="Cached results"))
