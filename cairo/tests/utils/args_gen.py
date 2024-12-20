@@ -53,11 +53,13 @@ from collections import ChainMap, abc, defaultdict
 from dataclasses import fields, is_dataclass
 from functools import partial
 from typing import (
+    Annotated,
     Any,
     Dict,
     ForwardRef,
     List,
     Mapping,
+    Optional,
     Sequence,
     Set,
     Tuple,
@@ -150,6 +152,12 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
         VersionedHash, ...
     ],
     ("ethereum", "cancun", "transactions", "To"): Union[Bytes0, Address],
+    ("ethereum", "cancun", "fork_types", "TupleAddressBytes32"): Tuple[
+        Address, Bytes32
+    ],
+    ("ethereum", "cancun", "fork_types", "SetTupleAddressBytes32"): Set[
+        Tuple[Address, Bytes32]
+    ],
     ("ethereum", "cancun", "transactions", "LegacyTransaction"): LegacyTransaction,
     (
         "ethereum",
@@ -234,7 +242,11 @@ def gen_arg(dict_manager: DictManager, segments: MemorySegmentManager):
 
 
 def _gen_arg(
-    dict_manager: DictManager, segments: MemorySegmentManager, arg_type: Type, arg: Any
+    dict_manager: DictManager,
+    segments: MemorySegmentManager,
+    arg_type: Type,
+    arg: Any,
+    annotations: Optional[Any] = None,
 ):
     """
     Generate a Cairo argument from a Python argument.
@@ -254,6 +266,10 @@ def _gen_arg(
         return 0
 
     arg_type_origin = get_origin(arg_type) or arg_type
+    if arg_type_origin is Annotated:
+        base_type, *annotations = get_args(arg_type)
+        return _gen_arg(dict_manager, segments, base_type, arg, annotations)
+
     if isinstance_with_generic(arg_type_origin, ForwardRef):
         arg_type = arg_type_origin._evaluate(globals(), locals(), frozenset())
         arg_type_origin = get_origin(arg_type) or arg_type
@@ -306,8 +322,8 @@ def _gen_arg(
                 )
             struct_ptr = segments.add()
             data = [
-                _gen_arg(dict_manager, segments, x_type, x)
-                for x_type, x in zip(get_args(arg_type), arg)
+                _gen_arg(dict_manager, segments, element_type, value)
+                for element_type, value in zip(element_types, arg)
             ]
             segments.load_data(struct_ptr, data)
             return struct_ptr
@@ -326,7 +342,7 @@ def _gen_arg(
 
         if arg_type_origin is set:
             arg = {k: True for k in arg}
-            arg_type = Mapping[type(next(iter(arg))), bool]
+            arg_type = Mapping[get_args(arg_type)[0], bool]
 
         data = {
             _gen_arg(dict_manager, segments, get_args(arg_type)[0], k): _gen_arg(

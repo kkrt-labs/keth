@@ -1,4 +1,4 @@
-from typing import Any, Mapping, Optional, Set, Tuple, Type, Union
+from typing import Annotated, Any, Mapping, Optional, Set, Tuple, Type, Union
 
 import pytest
 from ethereum_types.bytes import Bytes, Bytes0, Bytes8, Bytes20, Bytes32, Bytes256
@@ -168,6 +168,8 @@ class TestSerde:
             Tuple[Mapping[Bytes, Bytes], ...],
             Set[Uint],
             Mapping[Address, Account],
+            Tuple[Address, Bytes32],
+            Set[Tuple[Address, Bytes32]],
             Union[Uint, U256],
             Set[Address],
             Annotated[Tuple[VersionedHash, ...], 16],

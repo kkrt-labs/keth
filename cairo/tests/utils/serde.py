@@ -23,6 +23,7 @@ from inspect import signature
 from itertools import accumulate
 from pathlib import Path
 from typing import (
+    Annotated,
     Any,
     List,
     Mapping,
