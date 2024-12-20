@@ -267,15 +267,11 @@ class Serde:
             tuple_struct_ptr = self.serialize_pointers(path, ptr)["value"]
             if not tuple_struct_ptr:
                 return NO_ERROR_FLAG
-            struct_name = (
-                get_struct_definition(self.program, path)
-                .members["value"]
-                .cairo_type.pointee.scope.path[-1]
+            value_type = (
+                get_struct_definition(self.program, path).members["value"].cairo_type
             )
-            path = (*path[:-1], struct_name)
-            raw = self.serialize_pointers(path, tuple_struct_ptr)
-            data = [self.memory.get(raw["data"] + i) for i in range(raw["len"])]
-            error_message = bytes(data).decode() or ""
+            error_bytes = self._serialize(value_type, tuple_struct_ptr)
+            error_message = error_bytes.decode() or ""
             raise python_cls(error_message)
 
         if python_cls == Bytes256:
