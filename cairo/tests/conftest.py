@@ -13,8 +13,6 @@ from tests.utils.caching import CACHED_TESTS_FILE, program_hash, testfile_hash
 from tests.utils.compiler import get_cairo_file, get_cairo_program, get_main_path
 from tests.utils.strategies import register_type_strategies
 
-os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
-
 load_dotenv()
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
