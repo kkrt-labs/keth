@@ -10,26 +10,8 @@ from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
 from starkware.cairo.common.math import assert_le, assert_lt
 from starkware.cairo.common.math_cmp import is_le, is_not_zero
 
-from ethereum_types.bytes import Bytes, BytesStruct, Bytes1
+from ethereum_types.bytes import Bytes, BytesStruct, Bytearray, BytearrayStruct, Bytes1DictAccess
 from ethereum_types.numeric import U256
-
-// @title Memory related functions.
-// @notice Implements EVM memory operations using a mutable bytearray.
-struct BytearrayStruct {
-    dict_ptr_start: Bytes1DictAccess*,
-    dict_ptr: Bytes1DictAccess*,
-    len: felt,
-}
-
-struct Bytearray {
-    value: BytearrayStruct*,
-}
-
-struct Bytes1DictAccess {
-    key: felt,
-    prev_value: Bytes1,
-    new_value: Bytes1,
-}
 
 // @notice Write bytes to memory at a given position.
 // @dev assumption: start_position < 2**128
@@ -42,6 +24,9 @@ func memory_write{range_check_ptr, memory: Bytearray}(start_position: U256, valu
     let bytes_len = value.value.len;
     let bytes_data = value.value.data;
     let start_position_felt = start_position.value.low;
+    with_attr error_message("memory_write: start_position > 2**128") {
+        assert start_position.value.high = 0;
+    }
     let new_len = start_position_felt + bytes_len;
 
     let dict_ptr = cast(memory.value.dict_ptr, DictAccess*);
@@ -78,6 +63,10 @@ func memory_read_bytes{memory: Bytearray}(start_position: U256, size: U256) -> B
 
     let start_position_felt = start_position.value.low;
     let size_felt = size.value.low;
+    with_attr error_message("memory_read_bytes: start_position > 2**128 || size > 2**128") {
+        assert start_position.value.high = 0;
+        assert size.value.high = 0;
+    }
     let dict_ptr = cast(memory.value.dict_ptr, DictAccess*);
     with dict_ptr {
         Internals._read_bytes(start_position_felt, size_felt, output);
@@ -105,6 +94,10 @@ func buffer_read{range_check_ptr}(buffer: Bytes, start_position: U256, size: U25
     let buffer_data = buffer.value.data;
     let start_position_felt = start_position.value.low;
     let size_felt = size.value.low;
+    with_attr error_message("buffer_read: start_position > 2**128 || size > 2**128") {
+        assert start_position.value.high = 0;
+        assert size.value.high = 0;
+    }
 
     Internals._buffer_read(buffer_len, buffer_data, start_position_felt, size_felt, output);
     tempvar result = Bytes(new BytesStruct(output, size_felt));
