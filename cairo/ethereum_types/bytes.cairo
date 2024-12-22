@@ -29,6 +29,9 @@ from ethereum_types.numeric import U128
 struct Bytes0 {
     value: felt,
 }
+struct Bytes1 {
+    value: felt,
+}
 struct Bytes8 {
     value: felt,
 }
@@ -118,4 +121,21 @@ struct TupleBytes32Struct {
 
 struct TupleBytes32 {
     value: TupleBytes32Struct*,
+}
+
+// mutable bytearray collection type
+struct BytearrayStruct {
+    dict_ptr_start: Bytes1DictAccess*,
+    dict_ptr: Bytes1DictAccess*,
+    len: felt,
+}
+
+struct Bytearray {
+    value: BytearrayStruct*,
+}
+
+struct Bytes1DictAccess {
+    key: felt,
+    prev_value: Bytes1,
+    new_value: Bytes1,
 }
