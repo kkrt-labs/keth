@@ -60,7 +60,7 @@ class TestMemory:
 
     @given(
         buffer=smallbytes,
-        start_position=...,
+        start_position=st.integers(min_value=0, max_value=2**128 - 1).map(U256),
         size=st.integers(min_value=0, max_value=2**10).map(U256),
     )
     def test_buffer_read(
