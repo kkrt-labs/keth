@@ -1,4 +1,11 @@
-from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin
+from starkware.cairo.common.cairo_builtins import (
+    BitwiseBuiltin,
+    KeccakBuiltin,
+    ModBuiltin,
+    UInt384,
+    PoseidonBuiltin,
+)
+from starkware.cairo.common.registers import get_fp_and_pc, get_label_location
 from starkware.cairo.common.cairo_secp.bigint3 import BigInt3
 from starkware.cairo.common.cairo_secp.ec_point import EcPoint
 from starkware.cairo.common.cairo_secp.signature import (
@@ -7,6 +14,8 @@ from starkware.cairo.common.cairo_secp.signature import (
     get_generator_point,
     div_mod_n,
 )
+from ethereum.utils.numeric import divmod
+
 from starkware.cairo.common.math_cmp import RC_BOUND
 from starkware.cairo.common.cairo_secp.bigint import bigint_to_uint256, uint256_to_bigint
 from starkware.cairo.common.builtin_keccak.keccak import keccak_uint256s_bigend
@@ -16,6 +25,188 @@ from starkware.cairo.common.alloc import alloc
 from src.utils.maths import unsigned_div_rem
 
 from src.interfaces.interfaces import ICairo1Helpers
+
+struct G1Point {
+    x: UInt384,
+    y: UInt384,
+}
+
+namespace secp256k1 {
+    const CURVE_ID = 2;
+    const P0 = 0xfffffffffffffffefffffc2f;
+    const P1 = 0xffffffffffffffffffffffff;
+    const P2 = 0xffffffffffffffff;
+    const P3 = 0x0;
+    const N0 = 0xaf48a03bbfd25e8cd0364141;
+    const N1 = 0xfffffffffffffffebaaedce6;
+    const N2 = 0xffffffffffffffff;
+    const N3 = 0x0;
+    const A0 = 0x0;
+    const A1 = 0x0;
+    const A2 = 0x0;
+    const A3 = 0x0;
+    const B0 = 0x7;
+    const B1 = 0x0;
+    const B2 = 0x0;
+    const B3 = 0x0;
+    const G0 = 0x3;
+    const G1 = 0x0;
+    const G2 = 0x0;
+    const G3 = 0x0;
+    const MIN_ONE_D0 = 0xfffffffffffffffefffffc2e;
+    const MIN_ONE_D1 = 0xffffffffffffffffffffffff;
+    const MIN_ONE_D2 = 0xffffffffffffffff;
+    const MIN_ONE_D3 = 0x0;
+}
+
+const POW_2_32 = 2 ** 32;
+const POW_2_64 = 2 ** 64;
+const POW_2_96 = 2 ** 96;
+
+const N_LIMBS = 4;
+// Input must be a valid Uint256.
+func uint256_to_uint384{range_check_ptr}(a: Uint256) -> (res: UInt384) {
+    let (high_64_high, high_64_low) = divmod(a.high, POW_2_64);
+    let (low_32_high, low_96_low) = divmod(a.low, POW_2_96);
+    return (res=UInt384(low_96_low, low_32_high + POW_2_32 * high_64_low, high_64_high, 0));
+}
+
+// Assume the input is valid UInt384 (will be the case if coming from ModuloBuiltin)
+func uint384_to_uint256_mod_secp256k1{range_check_ptr}(a: UInt384) -> (res: Uint256) {
+    // First force the prover to have filled a fully reduced field element < P.
+    assert a.d3 = 0;
+    assert [range_check_ptr] = secp256k1.P2 - a.d2;  // a.d2 <= secp256k1.P2
+    tempvar range_check_ptr = range_check_ptr + 1;
+
+    if (a.d2 == secp256k1.P2) {
+        if (a.d1 == secp256k1.P1) {
+            assert [range_check_ptr] = secp256k1.P0 - 1 - a.d0;
+            tempvar range_check_ptr = range_check_ptr + 1;
+        }
+        assert [range_check_ptr] = secp256k1.P1 - 1 - a.d1;
+        tempvar range_check_ptr = range_check_ptr + 1;
+    }
+    // Then decompose and rebuild uint256
+    let (d1_high_64, d1_low_32) = divmod(a.d1, 2 ** 32);
+    // a.d2 is guaranteed to be in 64 bits since we know it's fully reduced.
+    return (res=Uint256(low=a.d0 + 2 ** 96 * d1_low_32, high=d1_high_64 + 2 ** 64 * a.d2));
+}
+
+func try_get_point_from_x_secp256k1{
+    range_check_ptr,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+}(x: Uint256, v: felt, res: G1Point*) -> (is_on_curve: felt) {
+    alloc_locals;
+
+    let (__fp__, _) = get_fp_and_pc();
+    let (constants_ptr: felt*) = get_label_location(constants_ptr_loc);
+    let (add_offsets_ptr: felt*) = get_label_location(add_offsets_ptr_loc);
+    let (mul_offsets_ptr: felt*) = get_label_location(mul_offsets_ptr_loc);
+    let constants_ptr_len = 2;
+    let input_len = 24;
+    let add_mod_n = 5;
+    let mul_mod_n = 7;
+    let n_assert_eq = 1;
+
+    local rhs_from_x_is_a_square_residue: felt;
+    %{
+        from starkware.python.math_utils import is_quad_residue
+        from garaga.definitions import CURVES
+        a = CURVES[ids.curve_id].a
+        b = CURVES[ids.curve_id].b
+        p = CURVES[ids.curve_id].p
+        rhs = (ids.entropy**3 + a*ids.entropy + b) % p
+        ids.rhs_from_x_is_a_square_residue = is_quad_residue(rhs, p)
+    %}
+    let (x_384: UInt384) = uint256_to_uint384(x);
+
+    let (P: UInt384) = UInt384(secp256k1.P0, secp256k1.P1, secp256k1.P2, secp256k1.P3);
+
+    let (input: UInt384*) = cast(range_check96_ptr, UInt384*);
+
+    assert input[0] = UInt384(1, 0, 0, 0);
+    assert input[1] = UInt384(0, 0, 0, 0);
+    assert input[2] = x_384;
+    assert input[3] = UInt384(secp256k1.A0, secp256k1.A1, secp256k1.A2, secp256k1.A3);
+    assert input[4] = UInt384(secp256k1.B0, secp256k1.B1, secp256k1.B2, secp256k1.B3);
+    assert input[5] = UInt384(secp256k1.G0, secp256k1.G1, secp256k1.G2, secp256k1.G3);
+
+    if (rhs_from_x_is_a_square_residue != 0) {
+        assert input[6] = UInt384(1, 0, 0, 0);
+    } else {
+        assert input[6] = UInt384(0, 0, 0, 0);
+    }
+
+    assert add_mod_ptr[0] = ModBuiltin(
+        p=P, values_ptr=input, offsets_ptr=add_offsets_ptr, n=add_mod_n
+    );
+    assert mul_mod_ptr[0] = ModBuiltin(
+        p=P, values_ptr=input, offsets_ptr=mul_offsets_ptr, n=mul_mod_n
+    );
+
+    tempvar range_check96_ptr = range_check96_ptr + input_len + (
+        constants_ptr_len + add_mod_n + mul_mod_n - n_assert_eq
+    ) * N_LIMBS;
+
+    if (rhs_from_x_is_a_square_residue != 0) {
+        return (is_on_curve=1);
+    } else {
+        return (is_on_curve=0);
+    }
+
+    constants_ptr_loc:
+    dw 1;
+    dw 0;
+    dw 0;
+    dw 0;
+    dw 0;
+    dw 0;
+    dw 0;
+    dw 0;
+
+    add_offsets_ptr_loc:
+    dw 40;  // (ax)+b
+    dw 16;
+    dw 44;
+    dw 36;  // (x3+ax)+b=rhs
+    dw 44;
+    dw 48;
+    dw 28;  // (1-is_on_curve)
+    dw 60;
+    dw 0;
+    dw 56;  // is_on_curve*rhs + (1-is_on_curve)*g*rhs
+    dw 64;
+    dw 68;
+    dw 4;  // assert rhs_or_grhs == should_be_rhs_or_grhs
+    dw 72;
+    dw 68;
+
+    mul_offsets_ptr_loc:
+    dw 8;  // x2
+    dw 8;
+    dw 32;
+    dw 8;  // x3
+    dw 32;
+    dw 36;
+    dw 12;  // ax
+    dw 8;
+    dw 40;
+    dw 20;  // g*rhs
+    dw 48;
+    dw 52;
+    dw 28;  // is_on_curve*rhs
+    dw 48;
+    dw 56;
+    dw 60;  // (1-is_on_curve)*grhs
+    dw 52;
+    dw 64;
+    dw 24;  // y_try^2=should_be_rhs_or_grhs
+    dw 24;
+    dw 72;
+}
 
 namespace Signature {
     // A version of verify_eth_signature that uses the keccak builtin.

@@ -3,10 +3,11 @@ name = "cairo"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.10, <3.11"
 
 dependencies = [
   "cairo-lang>=0.13.2",
+  "garaga @ git+https://github.com/keep-starknet-strange/garaga.git@hydra_upd",
   "ethereum",
   "marshmallow-dataclass>=8.6.1",
   "python-dotenv>=1.0.1",
@@ -15,6 +16,8 @@ dependencies = [
   "xxhash>=3.5.0",
 ]
 
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.pytest.ini_options]
 filterwarnings = [
