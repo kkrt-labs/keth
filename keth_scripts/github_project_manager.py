@@ -54,7 +54,7 @@ def clear_project_items(token: str, project_id: str) -> None:
     """
 
     # First get all items
-    variables = {"project_id": project_id, "first": 100}  # Adjust if needed
+    variables = {"project_id": project_id, "first": 100}  # Adjust the number of items fetched per request if needed
     result = make_graphql_request(token, query, variables)
 
     # Then delete each item
