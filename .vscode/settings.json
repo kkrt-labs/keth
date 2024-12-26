@@ -6,6 +6,8 @@
     "bytearray",
     "collectonly",
     "datadir",
+    "dataframe",
+    "defaultdict",
     "divmod",
     "exitstatus",
     "fibonacci",

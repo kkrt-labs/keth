@@ -2,6 +2,7 @@ import json
 import logging
 from dataclasses import asdict
 from pathlib import Path
+from time import perf_counter
 from typing import Any, Callable, List, TypeVar, Union
 
 import polars as pl
@@ -33,6 +34,8 @@ def dump_coverage(path: Union[str, Path], files: List[CoverageFile]):
 
 
 def profile_from_tracer_data(tracer_data):
+    logger.info("Begin profiling")
+    start = perf_counter()
     program = tracer_data.program
     trace = pl.DataFrame([asdict(x) for x in tracer_data.trace])
     debug_info = (
@@ -109,7 +112,7 @@ def profile_from_tracer_data(tracer_data):
         .group_by("scope")
         .agg(
             primitive_call=pl.col("primitive_call").sum(),
-            total_call=pl.col("primitive_call").sum(),
+            total_call=pl.col("total_call").sum(),
             total_cost=pl.col("total_cost").sum(),
             cumulative_cost=pl.col("cumulative_cost").sum(),
             parents=pl.col("parent").flatten(),
@@ -120,6 +123,8 @@ def profile_from_tracer_data(tracer_data):
             on="scope",
         )
     )
+    stop = perf_counter()
+    logger.info(f"Building dataframe took {stop - start} seconds")
     keys = scopes["filename", "line_number", "function"].rows()
     values = scopes[
         "total_call",
@@ -142,5 +147,6 @@ def profile_from_tracer_data(tracer_data):
                 if parent["scope_parent"] is not None
             },
         )
+    logger.info(f"Building prof dict took {perf_counter() - stop} seconds")
 
     return scopes, prof_dict

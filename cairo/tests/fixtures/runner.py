@@ -227,6 +227,7 @@ def cairo_run(request, cairo_program, cairo_file, main_path):
             static_locals={
                 "debug_info": debug_info(cairo_program),
                 "get_op": get_op,
+                "logger": logger,
             },
         )
         run_resources = RunResources(n_steps=500_000_000)

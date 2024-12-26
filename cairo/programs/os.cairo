@@ -69,6 +69,11 @@ func apply_transactions{
     state: model.State*,
 }(txs_len: felt, tx_encoded: model.TransactionEncoded*) {
     alloc_locals;
+    %{
+        logger.info(f"txs_len: {ids.txs_len}")
+        logger.info(f"current_step: {current_step}")
+    %}
+
     if (txs_len == 0) {
         return ();
     }
