@@ -127,7 +127,7 @@ markers = [
   "NoCI",
   "slow",
 ]
-norecursedirs = "tests/ef_tests/test_data"
+norecursedirs = ".* tests/ef_tests/test_data"
 
 [project.scripts]
 compile_os = "src.utils.compile_cairo:compile_os"
