@@ -37,4 +37,6 @@ cairo/tests/ef_tests/test_data
 
 cache
 prof
-profile*.png
+*.png
+*.prof
+*.csv
