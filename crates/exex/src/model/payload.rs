@@ -1104,7 +1104,7 @@ mod tests {
             .expect("Failed to generate arbitrary SealedBlock");
 
         // Convert the `SealedBlock` to `KethBlock`
-        let keth_block: KethBlock = original_block.clone().into();
+        let keth_block: KethBlock = original_block.into();
 
         // Transform the KethBlock into a KethPayload
         let keth_payload: KethPayload = keth_block.clone().into();
