@@ -177,7 +177,7 @@ mod tests {
         hex, Address, Bloom, Bytes, Parity, PrimitiveSignature, B256, B64, U256,
     };
     use arbitrary::{Arbitrary, Unstructured};
-    use cairo_vm::types::relocatable::Relocatable;
+    use cairo_vm::{types::relocatable::Relocatable, Felt252};
     use reth_primitives::{
         BlockBody, SealedBlock, SealedHeader, Transaction, TransactionSigned,
         TransactionSignedNoHash,
@@ -1090,5 +1090,372 @@ mod tests {
 
         // End of the transactions
         assert_eq!(vm.get_maybe(&(transaction_ptr + 10usize).unwrap()), None);
+    }
+
+    #[test]
+    #[allow(clippy::too_many_lines, clippy::cognitive_complexity, clippy::unnecessary_cast)]
+    fn test_arbitrary_arg_block() {
+        // Prepare a random byte array for testing
+        let raw_bytes = [0u8; 1500];
+        let mut unstructured = Unstructured::new(&raw_bytes);
+
+        // Generate an arbitrary `SealedBlock`
+        let original_block: SealedBlock = SealedBlock::arbitrary(&mut unstructured)
+            .expect("Failed to generate arbitrary SealedBlock");
+
+        // Convert the `SealedBlock` to `KethBlock`
+        let keth_block: KethBlock = original_block.into();
+
+        // Transform the KethBlock into a KethPayload
+        let keth_payload: KethPayload = keth_block.clone().into();
+
+        // Create a new instance of the VirtualMachine.
+        let mut vm = VirtualMachine::new(false);
+
+        // Call gen_arg to encode the block payload and write it to the VM's memory.
+        let result = keth_payload.gen_arg(&mut vm);
+
+        // Retrieve the resulting pointer to the memory segment for the complex Nested payload.
+        let ptr = match result.expect("Failed to gen_arg the block payload") {
+            MaybeRelocatable::RelocatableValue(relocatable) => relocatable,
+            MaybeRelocatable::Int(_) => panic!("Expected a valid pointer"),
+        };
+
+        // Extract the block header pointer
+        let header_ptr = vm.get_maybe(&ptr).unwrap().get_relocatable().unwrap();
+
+        let transaction_ptr =
+            vm.get_maybe(&(ptr + 2usize).unwrap()).unwrap().get_relocatable().unwrap();
+
+        // The ommers hash as U256:
+        // - Low
+        // - High
+        assert_eq!(
+            vm.get_maybe(&(header_ptr + 2usize).unwrap()),
+            Some(keth_block.block_header.ommers_hash.low.0)
+        );
+        assert_eq!(
+            vm.get_maybe(&(header_ptr + 3usize).unwrap()),
+            Some(keth_block.block_header.ommers_hash.high.0)
+        );
+
+        // The beneficiary as Address with a single Felt
+        assert_eq!(
+            vm.get_maybe(&(header_ptr + 4usize).unwrap()),
+            Some(keth_block.block_header.coinbase.0)
+        );
+
+        // The state root as U256:
+        // - Low
+        // - High
+        assert_eq!(
+            vm.get_maybe(&(header_ptr + 5usize).unwrap()),
+            Some(keth_block.block_header.state_root.low.0)
+        );
+        assert_eq!(
+            vm.get_maybe(&(header_ptr + 6usize).unwrap()),
+            Some(keth_block.block_header.state_root.high.0)
+        );
+
+        // The transactions root as U256:
+        // - Low
+        // - High
+        assert_eq!(
+            vm.get_maybe(&(header_ptr + 7usize).unwrap()),
+            Some(keth_block.block_header.transactions_root.low.0)
+        );
+        assert_eq!(
+            vm.get_maybe(&(header_ptr + 8usize).unwrap()),
+            Some(keth_block.block_header.transactions_root.high.0)
+        );
+
+        // The receipt root as U256:
+        // - Low
+        // - High
+        assert_eq!(
+            vm.get_maybe(&(header_ptr + 9usize).unwrap()),
+            Some(keth_block.block_header.receipt_root.low.0)
+        );
+        assert_eq!(
+            vm.get_maybe(&(header_ptr + 10usize).unwrap()),
+            Some(keth_block.block_header.receipt_root.high.0)
+        );
+
+        // The withdrawal root as an Option of U256*:
+        // - is_some
+        // - address of the U256
+        assert_eq!(
+            vm.get_maybe(&(header_ptr + 11usize).unwrap()),
+            Some(keth_block.block_header.withdrawals_root.is_some.0)
+        );
+
+        let withdrawal_root_ptr =
+            vm.get_maybe(&(header_ptr + 12usize).unwrap()).unwrap().get_relocatable().unwrap();
+
+        // Withdrawal root U256 pointer:
+        // - Low
+        // - High
+        assert_eq!(
+            vm.get_maybe(&withdrawal_root_ptr),
+            // Some(keth_block.block_header.withdrawals_root.value.data[0].0.clone())
+            None
+        );
+        assert_eq!(vm.get_maybe(&(withdrawal_root_ptr + 1usize).unwrap()), None);
+        assert_eq!(vm.get_maybe(&(withdrawal_root_ptr + 2usize).unwrap()), None);
+
+        // The bloom as a pointer:
+        // - The address at which the data are
+        let bloom_ptr =
+            vm.get_maybe(&(header_ptr + 13usize).unwrap()).unwrap().get_relocatable().unwrap();
+
+        // The Bloom data, as felt*
+        for i in 0..16 {
+            assert_eq!(
+                vm.get_maybe(&(bloom_ptr + i as usize).unwrap()),
+                Some(keth_block.block_header.bloom.data[i].0.clone())
+            );
+        }
+        // After the last Bloom data index, the memory should be None.
+        assert_eq!(vm.get_maybe(&(bloom_ptr + 16usize).unwrap()), None);
+
+        // The difficulty as U256:
+        // - Low
+        // - High
+        assert_eq!(
+            vm.get_maybe(&(header_ptr + 14usize).unwrap()),
+            Some(keth_block.block_header.difficulty.low.0)
+        );
+        assert_eq!(
+            vm.get_maybe(&(header_ptr + 15usize).unwrap()),
+            Some(keth_block.block_header.difficulty.high.0)
+        );
+
+        // The block number as MaybeRelocatable:
+        assert_eq!(
+            vm.get_maybe(&(header_ptr + 16usize).unwrap()),
+            Some(keth_block.block_header.number.0)
+        );
+
+        // The gas limit as MaybeRelocatable:
+        assert_eq!(
+            vm.get_maybe(&(header_ptr + 17usize).unwrap()),
+            Some(keth_block.block_header.gas_limit.0)
+        );
+
+        // The gas used as MaybeRelocatable:
+        assert_eq!(
+            vm.get_maybe(&(header_ptr + 18usize).unwrap()),
+            Some(keth_block.block_header.gas_used.0)
+        );
+
+        // The timestamp as MaybeRelocatable:
+        assert_eq!(
+            vm.get_maybe(&(header_ptr + 19usize).unwrap()),
+            Some(keth_block.block_header.timestamp.0)
+        );
+
+        // The mix hash as U256:
+        // - Low
+        // - High
+        assert_eq!(
+            vm.get_maybe(&(header_ptr + 20usize).unwrap()),
+            Some(keth_block.block_header.mix_hash.low.0)
+        );
+        assert_eq!(
+            vm.get_maybe(&(header_ptr + 21usize).unwrap()),
+            Some(keth_block.block_header.mix_hash.high.0)
+        );
+
+        // The nonce as MaybeRelocatable:
+        assert_eq!(
+            vm.get_maybe(&(header_ptr + 22usize).unwrap()),
+            Some(keth_block.block_header.nonce.0)
+        );
+
+        // The base fee per gas as an Option of MaybeRelocatable:
+        // - is_some
+        // - Value
+        assert_eq!(
+            vm.get_maybe(&(header_ptr + 23usize).unwrap()),
+            Some(keth_block.block_header.base_fee_per_gas.is_some.0)
+        );
+        assert_eq!(
+            vm.get_maybe(&(header_ptr + 24usize).unwrap()),
+            Some(keth_block.block_header.base_fee_per_gas.value.0)
+        );
+
+        // The blob gas used as an Option of MaybeRelocatable:
+        // - is_some
+        // - Value
+        assert_eq!(
+            vm.get_maybe(&(header_ptr + 25usize).unwrap()),
+            Some(keth_block.block_header.blob_gas_used.is_some.0)
+        );
+        assert_eq!(
+            vm.get_maybe(&(header_ptr + 26usize).unwrap()),
+            Some(keth_block.block_header.blob_gas_used.value.0)
+        );
+
+        // The excess blob gas as an Option of MaybeRelocatable:
+        // - is_some
+        // - Value
+        assert_eq!(
+            vm.get_maybe(&(header_ptr + 27usize).unwrap()),
+            Some(keth_block.block_header.excess_blob_gas.is_some.0)
+        );
+        assert_eq!(
+            vm.get_maybe(&(header_ptr + 28usize).unwrap()),
+            Some(keth_block.block_header.excess_blob_gas.value.0)
+        );
+
+        // The parent beacon block root as an Option of U256*:
+        // - is_some
+        // - address of the U256
+        assert_eq!(
+            vm.get_maybe(&(header_ptr + 29usize).unwrap()),
+            Some(keth_block.block_header.parent_beacon_block_root.is_some.0)
+        );
+        let parent_beacon_block_root_ptr =
+            vm.get_maybe(&(header_ptr + 30usize).unwrap()).unwrap().get_relocatable().unwrap();
+
+        // Parent Beacon Block Root U256 pointer:
+        // - Low
+        // - High
+        assert_eq!(vm.get_maybe(&parent_beacon_block_root_ptr), None);
+
+        assert_eq!(vm.get_maybe(&(parent_beacon_block_root_ptr + 2usize).unwrap()), None);
+
+        // The requests root as an Option of U256*:
+        // - is_some
+        // - address of the U256
+        assert_eq!(
+            vm.get_maybe(&(header_ptr + 31usize).unwrap()),
+            Some(keth_block.block_header.requests_root.is_some.0)
+        );
+        let requests_root_ptr =
+            vm.get_maybe(&(header_ptr + 32usize).unwrap()).unwrap().get_relocatable().unwrap();
+
+        // Requests Root U256 pointer (None in this case):
+        // - Low
+        // - High
+        assert_eq!(vm.get_maybe(&requests_root_ptr), None);
+
+        // The extra data pointer as KethPointer:
+        // - Length
+        // - Address
+        assert_eq!(
+            vm.get_maybe(&(header_ptr + 33usize).unwrap()),
+            Some(keth_block.block_header.extra_data.len.unwrap().0)
+        );
+        let extra_data_ptr =
+            vm.get_maybe(&(header_ptr + 34usize).unwrap()).unwrap().get_relocatable().unwrap();
+
+        // The Extra Data, as felt*, should be stored in the second segment of the memory.
+        assert_eq!(vm.get_maybe(&extra_data_ptr), None);
+        // After the last Extra Data index, the memory should be None.
+        assert_eq!(vm.get_maybe(&(extra_data_ptr + 1usize).unwrap()), None);
+
+        // End of the header
+        assert_eq!(vm.get_maybe(&(header_ptr + 35usize).unwrap()), None);
+
+        // First transaction
+        // Rlp of the transaction as a KethPointer:
+        // - Length
+        // - Address
+        assert_eq!(
+            vm.get_maybe(&transaction_ptr),
+            Some(keth_block.transactions[0].rlp.len.clone().unwrap().0)
+        );
+        let transaction1_rlp_ptr =
+            vm.get_maybe(&(transaction_ptr + 1usize).unwrap()).unwrap().get_relocatable().unwrap();
+
+        // The first transaction rlp, as felt*
+        for i in 0..7 {
+            assert_eq!(
+                vm.get_maybe(&(transaction1_rlp_ptr + i as usize).unwrap()),
+                Some(keth_block.transactions[0].rlp.data[i].0.clone())
+            );
+        }
+        // After the last transaction rlp index, the memory should be None.
+        assert_eq!(vm.get_maybe(&(transaction1_rlp_ptr + 128usize).unwrap()), None);
+
+        // Transaction signature as a KethPointer:
+        // - Length
+        // - Address
+        assert_eq!(
+            vm.get_maybe(&(transaction_ptr + 2usize).unwrap()),
+            Some(keth_block.transactions[0].signature.len.clone().unwrap().0)
+        );
+        let transaction1_signature_ptr =
+            vm.get_maybe(&(transaction_ptr + 3usize).unwrap()).unwrap().get_relocatable().unwrap();
+
+        // The first transaction signature, as felt*
+        for i in 0..5 {
+            assert_eq!(
+                vm.get_maybe(&(transaction1_signature_ptr + i as usize).unwrap()),
+                Some(keth_block.transactions[0].signature.data[i].0.clone())
+            );
+        }
+        // After the last transaction signature index, the memory should be None.
+        assert_eq!(vm.get_maybe(&(transaction1_signature_ptr + 5usize).unwrap()), None);
+
+        // Transaction sender as an address:
+        assert_eq!(
+            vm.get_maybe(&(transaction_ptr + 4usize).unwrap()),
+            Some(keth_block.transactions[0].sender.0.clone())
+        );
+
+        // Second transaction
+        // Rlp of the transaction as a KethPointer:
+        // - Length
+        // - Address
+        assert_eq!(
+            vm.get_maybe(&(transaction_ptr + 5usize).unwrap()),
+            Some(keth_block.transactions[1].rlp.len.clone().unwrap().0)
+        );
+        let transaction2_rlp_ptr =
+            vm.get_maybe(&(transaction_ptr + 6usize).unwrap()).unwrap().get_relocatable().unwrap();
+
+        // The second transaction rlp, as felt*
+        for i in 0..7 {
+            assert_eq!(
+                vm.get_maybe(&(transaction2_rlp_ptr + i as usize).unwrap()),
+                Some(keth_block.transactions[0].rlp.data[i].0.clone())
+            );
+        }
+        // After the last transaction rlp index, the memory should be None.
+        assert_eq!(vm.get_maybe(&(transaction2_rlp_ptr + 128usize).unwrap()), None);
+
+        // Transaction signature as a KethPointer:
+        // - Length
+        // - Address
+        assert_eq!(
+            vm.get_maybe(&(transaction_ptr + 7usize).unwrap()),
+            Some(keth_block.transactions[1].signature.len.clone().unwrap().0)
+        );
+        let transaction2_signature_ptr =
+            vm.get_maybe(&(transaction_ptr + 8usize).unwrap()).unwrap().get_relocatable().unwrap();
+
+        // The first transaction signature, as felt*
+        for i in 0..5 {
+            assert_eq!(
+                vm.get_maybe(&(transaction2_signature_ptr + i as usize).unwrap()),
+                Some(keth_block.transactions[1].signature.data[i].0.clone())
+            );
+        }
+        // After the last transaction signature index, the memory should be None.
+        assert_eq!(vm.get_maybe(&(transaction2_signature_ptr + 5usize).unwrap()), None);
+
+        // Transaction sender as an address:
+        assert_eq!(
+            vm.get_maybe(&(transaction_ptr + 9usize).unwrap()),
+            Some(keth_block.transactions[1].sender.0.clone())
+        );
+
+        // End of the transactions
+        assert_eq!(
+            vm.get_maybe(&(transaction_ptr + 10usize).unwrap()),
+            Some(MaybeRelocatable::Int(Felt252::from(7)))
+        );
     }
 }
