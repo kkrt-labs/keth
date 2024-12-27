@@ -78,11 +78,7 @@ def test_bytes_to_uint256(cairo_run, word):
 @given(word=st.integers(min_value=0, max_value=2**128 - 1))
 def test_should_return_bytes_used_in_128_word(cairo_run, word):
     bytes_length = (word.bit_length() + 7) // 8
-    output = cairo_run(
-        "test__bytes_used_128",
-        word=word,
-    )
-    assert bytes_length == output[0]
+    assert bytes_length == cairo_run("test__bytes_used_128", word=word)
 
 
 @pytest.mark.parametrize(
@@ -111,7 +107,9 @@ class TestInitializeJumpdests:
     @example(bytecode=get_contract("Counter", "Counter").bytecode_runtime)
     def test_should_return_same_as_execution_specs(self, cairo_run, bytecode: Bytes):
         output = cairo_run("test__initialize_jumpdests", bytecode=bytecode)
-        assert set(map(Uint, output)) == get_valid_jump_destinations(bytecode)
+        assert set(
+            map(Uint, output if isinstance(output, list) else [output])
+        ) == get_valid_jump_destinations(bytecode)
 
     @given(bytecode=...)
     @example(bytecode=get_contract("Counter", "Counter").bytecode_runtime)
