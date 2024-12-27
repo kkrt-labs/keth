@@ -108,9 +108,7 @@ func test__try_parse_destination_from_bytes{range_check_ptr}(output_ptr: felt*) 
     return ();
 }
 
-func test__initialize_jumpdests{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    output_ptr: felt*
-) {
+func test__initialize_jumpdests{range_check_ptr}(output_ptr: felt*) {
     alloc_locals;
 
     tempvar bytecode_len;
