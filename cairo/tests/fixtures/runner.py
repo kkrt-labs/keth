@@ -238,18 +238,19 @@ def cairo_run(request, cairo_program, cairo_file, main_path):
             raise Exception(str(e)) from e
 
         runner.end_run(disable_trace_padding=False)
-        if request.config.getoption("proof_mode"):
-            cumulative_retdata_offsets = serde.get_offsets(return_data_types)
-            first_return_data_offset = cumulative_retdata_offsets[0]
-            pointer = runner.vm.run_context.ap - first_return_data_offset
-            for arg in _builtins[::-1]:
-                builtin_runner = runner.builtin_runners.get(
-                    arg.replace("_ptr", "_builtin")
-                )
-                if builtin_runner is not None:
-                    builtin_runner.final_stack(runner, pointer)
+        cumulative_retdata_offsets = serde.get_offsets(return_data_types)
+        first_return_data_offset = (
+            cumulative_retdata_offsets[0] if cumulative_retdata_offsets else 0
+        )
+        pointer = runner.vm.run_context.ap - first_return_data_offset
+        for arg in _builtins[::-1]:
+            builtin_runner = runner.builtin_runners.get(arg.replace("_ptr", "_builtin"))
+            if builtin_runner is not None:
+                pointer = builtin_runner.final_stack(runner, pointer)
+            else:
                 pointer -= 1
 
+        if request.config.getoption("proof_mode"):
             runner.execution_public_memory += list(
                 range(
                     pointer.offset,
@@ -257,9 +258,10 @@ def cairo_run(request, cairo_program, cairo_file, main_path):
                 )
             )
             runner.finalize_segments()
-        verify_secure_runner(runner)
 
+        verify_secure_runner(runner)
         runner.relocate()
+
         logger.info(
             f"\nExecution resources: {json.dumps(runner.get_execution_resources().to_dict(), indent=4)}"
         )
