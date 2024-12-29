@@ -32,6 +32,7 @@ from starkware.cairo.lang.vm.cairo_run import (
 from starkware.cairo.lang.vm.cairo_runner import CairoRunner
 from starkware.cairo.lang.vm.memory_dict import MemoryDict
 from starkware.cairo.lang.vm.memory_segments import FIRST_MEMORY_ADDR as PROGRAM_BASE
+from starkware.cairo.lang.vm.security import verify_secure_runner
 from starkware.cairo.lang.vm.utils import RunResources
 
 from tests.utils.args_gen import gen_arg as gen_arg_builder
@@ -254,6 +255,7 @@ def cairo_run(request, cairo_program, cairo_file, main_path):
                 )
             )
             runner.finalize_segments()
+        verify_secure_runner(runner)
 
         runner.relocate()
         logger.info(
