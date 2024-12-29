@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 
 [tool.uv]
-dev-dependencies = ["jupyter>=1.1.1", "snakeviz>=2.2.2"]
+dev-dependencies = ["gprof2dot>=2024.6.6", "jupyter>=1.1.1", "snakeviz>=2.2.2"]
 
 [tool.uv.workspace]
 members = ["cairo", "keth_scripts"]

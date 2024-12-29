@@ -10,6 +10,7 @@ The runner works with args_gen.py and serde.py for automatic type conversion.
 
 import json
 import logging
+import marshal
 import math
 from functools import partial
 from hashlib import md5
@@ -227,6 +228,7 @@ def cairo_run(request, cairo_program, cairo_file, main_path):
             static_locals={
                 "debug_info": debug_info(cairo_program),
                 "get_op": get_op,
+                "logger": logger,
             },
         )
         run_resources = RunResources(n_steps=500_000_000)
@@ -286,10 +288,17 @@ def cairo_run(request, cairo_program, cairo_file, main_path):
                 debug_info=runner.get_relocated_debug_info(),
                 program_base=PROGRAM_BASE,
             )
-            data = profile_from_tracer_data(tracer_data)
-
-            with open(output_stem.with_suffix(".pb.gz"), "wb") as fp:
-                fp.write(data)
+            stats, prof_dict = profile_from_tracer_data(tracer_data)
+            stats = stats[
+                "scope",
+                "primitive_call",
+                "total_call",
+                "total_cost",
+                "cumulative_cost",
+            ].sort("cumulative_cost", descending=True)
+            logger.info(stats)
+            stats.write_csv(output_stem.with_suffix(".csv"))
+            marshal.dump(prof_dict, open(output_stem.with_suffix(".prof"), "wb"))
 
         if request.config.getoption("proof_mode"):
             with open(output_stem.with_suffix(".trace"), "wb") as fp:
