@@ -1,12 +1,10 @@
 import json
 import logging
 from dataclasses import asdict
-from dataclasses import asdict
 from pathlib import Path
 from time import perf_counter
 from typing import Any, Callable, List, TypeVar, Union
 
-import polars as pl
 import polars as pl
 
 from tests.utils.coverage import CoverageFile
