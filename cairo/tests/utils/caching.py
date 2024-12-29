@@ -5,9 +5,9 @@ import xxhash
 CACHED_TESTS_FILE = "cached_tests.json"
 
 
-def testfile_hash(file_path: str | Path) -> bytes:
+def file_hash(file_path: str | Path) -> bytes:
     """
-    A simple, fast, hash of the test file.
+    A simple, fast, hash of any kind of file.
     """
     file_path = Path(file_path)
     with open(file_path, "rb") as f:

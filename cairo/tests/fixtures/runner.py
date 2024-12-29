@@ -239,7 +239,9 @@ def cairo_run(request, cairo_program, cairo_file, main_path):
 
         runner.end_run(disable_trace_padding=False)
         cumulative_retdata_offsets = serde.get_offsets(return_data_types)
-        first_return_data_offset = cumulative_retdata_offsets[0]
+        first_return_data_offset = (
+            cumulative_retdata_offsets[0] if cumulative_retdata_offsets else 0
+        )
         pointer = runner.vm.run_context.ap - first_return_data_offset
         for arg in _builtins[::-1]:
             builtin_runner = runner.builtin_runners.get(arg.replace("_ptr", "_builtin"))

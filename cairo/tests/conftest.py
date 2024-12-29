@@ -1,5 +1,6 @@
 import logging
 import os
+from pathlib import Path
 
 import pytest
 import starkware.cairo.lang.instances as LAYOUTS
@@ -9,7 +10,7 @@ from _pytest.mark import deselect_by_keyword, deselect_by_mark
 from dotenv import load_dotenv
 from hypothesis import HealthCheck, Phase, Verbosity, settings
 
-from tests.utils.caching import CACHED_TESTS_FILE, program_hash, testfile_hash
+from tests.utils.caching import CACHED_TESTS_FILE, file_hash, program_hash
 from tests.utils.compiler import get_cairo_file, get_cairo_program, get_main_path
 from tests.utils.strategies import register_type_strategies
 
@@ -187,8 +188,9 @@ def pytest_collection_modifyitems(session, config, items):
 
             test_hash = xxhash.xxh64(
                 program_hash(cairo_program)
-                + testfile_hash(item.fspath)
+                + file_hash(item.fspath)
                 + item.nodeid.encode()
+                + file_hash(Path(__file__).parent / "fixtures" / "runner.py")
             ).hexdigest()
             session.test_hashes[item.nodeid] = test_hash
 
