@@ -389,7 +389,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "cairo-lang", specifier = ">=0.13.2" },
-    { name = "ethereum", git = "https://github.com/ethereum/execution-specs.git?rev=1adcc1bfe774798bcacc685aebc17bd9935078c3" },
+    { name = "ethereum", git = "https://github.com/kkrt-labs/execution-specs.git?branch=dev%2Fchange-type-branch-nodes" },
     { name = "marshmallow-dataclass", specifier = ">=8.6.1" },
     { name = "python-dotenv", specifier = ">=1.0.1" },
     { name = "toml", specifier = ">=0.10.2" },
@@ -975,7 +975,7 @@ wheels = [
 [[package]]
 name = "ethereum"
 version = "0.1.0"
-source = { git = "https://github.com/ethereum/execution-specs.git?rev=1adcc1bfe774798bcacc685aebc17bd9935078c3#1adcc1bfe774798bcacc685aebc17bd9935078c3" }
+source = { git = "https://github.com/kkrt-labs/execution-specs.git?branch=dev%2Fchange-type-branch-nodes#678325284038d9aafca8a7594e97f8544d698947" }
 dependencies = [
     { name = "coincurve" },
     { name = "ethereum-types" },
