@@ -43,29 +43,24 @@ class TestEcRecover:
         msg_hash = keccak256(message)
         (v, r, s) = ec_sign(msg_hash, private_key)
 
-        input_data = [
-            *msg_hash,
-            *v.to_bytes(32, "big"),
-            *r,
-            *s,
-        ]
+        input_data = [*msg_hash, *v.to_bytes(32, "big"), *r, *s]
 
         padded_address, _ = ecrecover(input_data)
-        [output] = cairo_run("test__ec_recover", input=input_data)
+        output = cairo_run("test__ec_recover", input=input_data)
         assert bytes(output) == bytes(padded_address)
 
     @given(input_length=st.integers(min_value=0, max_value=127))
     def test_invalid_input_length(self, input_length, cairo_run):
         """Test with various invalid input lengths."""
         input_data = [0] * input_length
-        [output] = cairo_run("test__ec_recover", input=input_data)
+        output = cairo_run("test__ec_recover", input=input_data)
         assert output == []
 
     @given(
         v=st.integers(min_value=0, max_value=26) | st.integers(min_value=29),
         msg=st.binary(min_size=32, max_size=32),
-        r=st.integers(min_value=U256(1), max_value=SECP256K1N - U256(1)),
-        s=st.integers(min_value=U256(1), max_value=SECP256K1N - U256(1)),
+        r=st.integers(min_value=1, max_value=int(SECP256K1N) - 1),
+        s=st.integers(min_value=1, max_value=int(SECP256K1N) - 1),
     )
     def test_invalid_v(self, v, msg, r, s, cairo_run):
         """Test with invalid v values."""
@@ -76,7 +71,7 @@ class TestEcRecover:
             *s.to_bytes(32, "big"),
         ]
         py_result = ecrecover(input_data)
-        [output] = cairo_run("test__ec_recover", input=input_data)
+        output = cairo_run("test__ec_recover", input=input_data)
         assert output == py_result
 
     @given(
@@ -95,7 +90,7 @@ class TestEcRecover:
         ]
 
         py_result = ecrecover(input_data)
-        [cairo_result] = cairo_run("test__ec_recover", input=input_data)
+        cairo_result = cairo_run("test__ec_recover", input=input_data)
 
         if len(py_result) == 0:
             assert cairo_result == py_result
