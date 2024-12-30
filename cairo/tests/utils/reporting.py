@@ -3,7 +3,7 @@ import logging
 from dataclasses import asdict
 from pathlib import Path
 from time import perf_counter
-from typing import Any, Callable, List, TypeVar, Union
+from typing import List, Union
 
 import polars as pl
 
@@ -11,8 +11,6 @@ from tests.utils.coverage import CoverageFile
 
 logging.basicConfig(format="%(levelname)-8s %(message)s")
 logger = logging.getLogger("timer")
-
-T = TypeVar("T", bound=Callable[..., Any])
 
 
 def dump_coverage(path: Union[str, Path], files: List[CoverageFile]):
@@ -33,15 +31,14 @@ def dump_coverage(path: Union[str, Path], files: List[CoverageFile]):
     )
 
 
-def profile_from_tracer_data(tracer_data):
+def profile_from_tracer_data(program, trace, debug_info, program_base):
     logger.info("Begin profiling")
     start = perf_counter()
-    program = tracer_data.program
-    trace = pl.DataFrame([asdict(x) for x in tracer_data.trace])
+    trace = pl.DataFrame([asdict(x) for x in trace])
     debug_info = (
         pl.DataFrame(
             {
-                "pc": key + tracer_data.program_base,
+                "pc": key + program_base,
                 "scope": str(instruction_location.accessible_scopes[-1]),
                 "instruction": str(instruction_location.inst),
             }
