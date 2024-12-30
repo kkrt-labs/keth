@@ -1,6 +1,5 @@
 import json
 import logging
-from dataclasses import asdict
 from pathlib import Path
 from time import perf_counter
 from typing import List, Union
@@ -34,7 +33,7 @@ def dump_coverage(path: Union[str, Path], files: List[CoverageFile]):
 def profile_from_tracer_data(program, trace, debug_info, program_base):
     logger.info("Begin profiling")
     start = perf_counter()
-    trace = pl.DataFrame([asdict(x) for x in trace])
+    trace = pl.DataFrame([{"pc": x.pc, "ap": x.ap, "fp": x.fp} for x in trace])
     debug_info = (
         pl.DataFrame(
             {
