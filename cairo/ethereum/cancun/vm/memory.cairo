@@ -29,7 +29,7 @@ func memory_write{range_check_ptr, memory: Bytearray}(start_position: U256, valu
     let bytes_data = value.value.data;
     let dict_ptr = cast(memory.value.dict_ptr, DictAccess*);
     with dict_ptr {
-        Internals._write_bytes(start_position_felt, bytes_data, bytes_len);
+        _write_bytes(start_position_felt, bytes_data, bytes_len);
     }
     let new_dict_ptr = cast(dict_ptr, Bytes1DictAccess*);
 
@@ -57,7 +57,7 @@ func memory_read_bytes{memory: Bytearray}(start_position: U256, size: U256) -> B
     let size_felt = size.value.low;
 
     with dict_ptr {
-        Internals._read_bytes(start_position_felt, size_felt, output);
+        _read_bytes(start_position_felt, size_felt, output);
     }
     let new_dict_ptr = cast(dict_ptr, Bytes1DictAccess*);
 
@@ -87,102 +87,100 @@ func buffer_read{range_check_ptr}(buffer: Bytes, start_position: U256, size: U25
         assert size.value.high = 0;
     }
 
-    Internals._buffer_read(buffer_len, buffer_data, start_position_felt, size_felt, output);
+    _buffer_read(buffer_len, buffer_data, start_position_felt, size_felt, output);
     tempvar result = Bytes(new BytesStruct(output, size_felt));
     return result;
 }
 
-namespace Internals {
-    // @notice Internal function to write bytes to memory.
-    // @param start_position Starting position to write at.
-    // @param data Pointer to the bytes data.
-    // @param len Length of bytes to write.
-    func _write_bytes{dict_ptr: DictAccess*}(start_position: felt, data: felt*, len: felt) {
-        if (len == 0) {
-            return ();
-        }
-
-        tempvar index = len;
-        tempvar dict_ptr = dict_ptr;
-
-        body:
-        let index = [ap - 2] - 1;
-        let dict_ptr = cast([ap - 1], DictAccess*);
-        let start_position = [fp - 5];
-        let data = cast([fp - 4], felt*);
-
-        dict_write(start_position + index, data[index]);
-
-        tempvar index = index;
-        tempvar dict_ptr = dict_ptr;
-        jmp body if index != 0;
-
-        end:
+// @notice Internal function to write bytes to memory.
+// @param start_position Starting position to write at.
+// @param data Pointer to the bytes data.
+// @param len Length of bytes to write.
+func _write_bytes{dict_ptr: DictAccess*}(start_position: felt, data: felt*, len: felt) {
+    if (len == 0) {
         return ();
     }
 
-    // @notice Internal function to read bytes from memory.
-    // @param start_position Starting position to read from.
-    // @param size Number of bytes to read.
-    // @param output Pointer to write output bytes to.
-    func _read_bytes{dict_ptr: DictAccess*}(start_position: felt, size: felt, output: felt*) {
-        alloc_locals;
-        if (size == 0) {
-            return ();
-        }
+    tempvar index = len;
+    tempvar dict_ptr = dict_ptr;
 
-        tempvar dict_index = start_position + size;
-        tempvar dict_ptr = dict_ptr;
+    body:
+    let index = [ap - 2] - 1;
+    let dict_ptr = cast([ap - 1], DictAccess*);
+    let start_position = [fp - 5];
+    let data = cast([fp - 4], felt*);
 
-        body:
-        let dict_index = [ap - 2] - 1;
-        let dict_ptr = cast([ap - 1], DictAccess*);
-        let output = cast([fp - 3], felt*);
-        let start_position = [fp - 5];
-        tempvar output_index = dict_index - start_position;
+    dict_write(start_position + index, data[index]);
 
-        let (value) = dict_read(dict_index);
-        assert output[output_index] = value;
+    tempvar index = index;
+    tempvar dict_ptr = dict_ptr;
+    jmp body if index != 0;
 
-        tempvar dict_index = dict_index;
-        tempvar dict_ptr = dict_ptr;
-        jmp body if output_index != 0;
+    end:
+    return ();
+}
 
+// @notice Internal function to read bytes from memory.
+// @param start_position Starting position to read from.
+// @param size Number of bytes to read.
+// @param output Pointer to write output bytes to.
+func _read_bytes{dict_ptr: DictAccess*}(start_position: felt, size: felt, output: felt*) {
+    alloc_locals;
+    if (size == 0) {
         return ();
     }
 
-    // @notice Internal function to read bytes from a buffer with zero padding.
-    // @param data_len Length of the buffer.
-    // @param data Pointer to the buffer data.
-    // @param start_position Starting position to read from.
-    // @param size Number of bytes to read.
-    // @param output Pointer to write output bytes to.
-    func _buffer_read{range_check_ptr}(
-        data_len: felt, data: felt*, start_position: felt, size: felt, output: felt*
-    ) {
-        alloc_locals;
-        if (size == 0) {
-            return ();
-        }
+    tempvar dict_index = start_position + size;
+    tempvar dict_ptr = dict_ptr;
 
-        // Check if start position is beyond buffer length
-        let start_oob = is_le(data_len, start_position);
-        if (start_oob == TRUE) {
-            memset(output, 0, size);
-            return ();
-        }
+    body:
+    let dict_index = [ap - 2] - 1;
+    let dict_ptr = cast([ap - 1], DictAccess*);
+    let output = cast([fp - 3], felt*);
+    let start_position = [fp - 5];
+    tempvar output_index = dict_index - start_position;
 
-        // Check if read extends past end of buffer
-        let end_oob = is_le(data_len, start_position + size);
-        if (end_oob == TRUE) {
-            let available_size = data_len - start_position;
-            memcpy(output, data + start_position, available_size);
+    let (value) = dict_read(dict_index);
+    assert output[output_index] = value;
 
-            let remaining_size = size - available_size;
-            memset(output + available_size, 0, remaining_size);
-        } else {
-            memcpy(output, data + start_position, size);
-        }
+    tempvar dict_index = dict_index;
+    tempvar dict_ptr = dict_ptr;
+    jmp body if output_index != 0;
+
+    return ();
+}
+
+// @notice Internal function to read bytes from a buffer with zero padding.
+// @param data_len Length of the buffer.
+// @param data Pointer to the buffer data.
+// @param start_position Starting position to read from.
+// @param size Number of bytes to read.
+// @param output Pointer to write output bytes to.
+func _buffer_read{range_check_ptr}(
+    data_len: felt, data: felt*, start_position: felt, size: felt, output: felt*
+) {
+    alloc_locals;
+    if (size == 0) {
         return ();
     }
+
+    // Check if start position is beyond buffer length
+    let start_oob = is_le(data_len, start_position);
+    if (start_oob == TRUE) {
+        memset(output, 0, size);
+        return ();
+    }
+
+    // Check if read extends past end of buffer
+    let end_oob = is_le(data_len, start_position + size);
+    if (end_oob == TRUE) {
+        let available_size = data_len - start_position;
+        memcpy(output, data + start_position, available_size);
+
+        let remaining_size = size - available_size;
+        memset(output + available_size, 0, remaining_size);
+    } else {
+        memcpy(output, data + start_position, size);
+    }
+    return ();
 }
