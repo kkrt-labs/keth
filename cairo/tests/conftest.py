@@ -1,5 +1,7 @@
 import logging
 import os
+import random
+import shutil
 from pathlib import Path
 
 import pytest
@@ -115,11 +117,14 @@ def seed(request):
 
 def pytest_sessionstart(session):
     session.results = dict()
+    session.build_dir = Path("build") / ".pytest_build"
 
 
 def pytest_sessionfinish(session):
+
     if xdist.is_xdist_controller(session):
         logger.info("Controller worker: collecting tests to skip")
+        shutil.rmtree(session.build_dir)
         tests_to_skip = session.config.cache.get(f"cairo_run/{CACHED_TESTS_FILE}", [])
         for worker_id in range(session.config.option.numprocesses):
             tests_to_skip += session.config.cache.get(
@@ -144,6 +149,7 @@ def pytest_sessionfinish(session):
         return
 
     logger.info("Sequential worker: collecting tests to skip")
+    shutil.rmtree(session.build_dir)
     tests_to_skip = session.config.cache.get(f"cairo_run/{CACHED_TESTS_FILE}", [])
     tests_to_skip += session_tests_to_skip
     session.config.cache.set(f"cairo_run/{CACHED_TESTS_FILE}", list(set(tests_to_skip)))
@@ -175,6 +181,35 @@ def pytest_collection_modifyitems(session, config, items):
     session.cairo_programs = {}
     session.main_paths = {}
     session.test_hashes = {}
+    fspaths = list(
+        {
+            item.fspath
+            for item in items
+            if (
+                hasattr(item, "fixturenames")
+                and set(item.fixturenames)
+                & {
+                    "cairo_file",
+                    "main_path",
+                    "cairo_program",
+                    "cairo_run",
+                }
+            )
+        }
+    )
+    random.shuffle(fspaths)
+    for fspath in fspaths:
+        cairo_file = get_cairo_file(fspath)
+        session.cairo_files[fspath] = cairo_file
+        main_path = get_main_path(cairo_file)
+        session.main_paths[fspath] = main_path
+        dump_path = session.build_dir / cairo_file.relative_to(
+            Path().cwd()
+        ).with_suffix(".json")
+        dump_path.parent.mkdir(parents=True, exist_ok=True)
+        cairo_program = get_cairo_program(cairo_file, main_path, dump_path)
+        session.cairo_programs[fspath] = cairo_program
+
     for item in items:
         if hasattr(item, "fixturenames") and set(item.fixturenames) & {
             "cairo_file",
@@ -182,15 +217,7 @@ def pytest_collection_modifyitems(session, config, items):
             "cairo_program",
             "cairo_run",
         }:
-            if item.fspath not in session.cairo_files:
-                cairo_file = get_cairo_file(item.fspath)
-                session.cairo_files[item.fspath] = cairo_file
-            if item.fspath not in session.main_paths:
-                main_path = get_main_path(cairo_file)
-                session.main_paths[item.fspath] = main_path
-            if item.fspath not in session.cairo_programs:
-                cairo_program = get_cairo_program(cairo_file, main_path)
-                session.cairo_programs[item.fspath] = cairo_program
+            cairo_program = session.cairo_programs[item.fspath]
 
             test_hash = xxhash.xxh64(
                 program_hash(cairo_program)
