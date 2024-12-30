@@ -24,7 +24,6 @@ from starkware.cairo.common.dict import DictManager
 from starkware.cairo.lang.builtins.all_builtins import ALL_BUILTINS
 from starkware.cairo.lang.compiler.ast.cairo_types import CairoType, TypeStruct
 from starkware.cairo.lang.compiler.scoped_name import ScopedName
-from starkware.cairo.lang.tracer.tracer_data import TracerData
 from starkware.cairo.lang.vm.cairo_run import (
     write_air_public_input,
     write_binary_memory,
@@ -283,14 +282,12 @@ def cairo_run(request, cairo_program, cairo_file, main_path):
             f"{output_stem[:160]}_{int(time_ns())}_{md5(output_stem.encode()).digest().hex()[:8]}"
         )
         if request.config.getoption("profile_cairo"):
-            tracer_data = TracerData(
+            stats, prof_dict = profile_from_tracer_data(
                 program=cairo_program,
-                memory=runner.relocated_memory,
                 trace=runner.relocated_trace,
                 debug_info=runner.get_relocated_debug_info(),
                 program_base=PROGRAM_BASE,
             )
-            stats, prof_dict = profile_from_tracer_data(tracer_data)
             stats = stats[
                 "scope",
                 "primitive_call",
