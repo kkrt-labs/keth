@@ -105,7 +105,14 @@ from ethereum.cancun.transactions import (
     LegacyTransaction,
     Transaction,
 )
-from ethereum.cancun.trie import BranchNode, ExtensionNode, InternalNode, LeafNode, Node
+from ethereum.cancun.trie import (
+    BranchNode,
+    ExtensionNode,
+    InternalNode,
+    LeafNode,
+    Node,
+    Trie,
+)
 from ethereum.cancun.vm.exceptions import StackOverflowError, StackUnderflowError
 from ethereum.cancun.vm.gas import MessageCallGas
 from ethereum.crypto.hash import Hash32
@@ -194,6 +201,8 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "cancun", "trie", "BranchNode"): BranchNode,
     ("ethereum", "cancun", "trie", "InternalNode"): InternalNode,
     ("ethereum", "cancun", "trie", "Node"): Node,
+    ("ethereum", "cancun", "trie", "TrieAddressAccount"): Trie[Address, Account],
+    ("ethereum", "cancun", "trie", "TrieBytesU256"): Trie[Bytes, U256],
     ("ethereum", "cancun", "fork_types", "MappingAddressAccount"): Mapping[
         Address, Account
     ],
@@ -380,12 +389,25 @@ def _gen_arg(
     if arg_type == MaybeRelocatable:
         return arg
 
-    if is_dataclass(arg_type):
+    if is_dataclass(arg_type_origin):
+        # Get the concrete type arguments if this is a generic dataclass
+        type_args = get_args(arg_type)
+
+        type_bindings = {}
+        if type_args:
+            type_params = arg_type_origin.__parameters__
+            type_bindings = dict(zip(type_params, type_args))
+
         # Dataclasses are represented as a pointer to a struct with the same fields.
         struct_ptr = segments.add()
         data = [
-            _gen_arg(dict_manager, segments, f.type, getattr(arg, f.name))
-            for f in fields(arg_type)
+            _gen_arg(
+                dict_manager,
+                segments,
+                _bind_generics(f.type, type_bindings),
+                getattr(arg, f.name),
+            )
+            for f in fields(arg_type_origin)
         ]
         segments.load_data(struct_ptr, data)
         return struct_ptr
@@ -418,7 +440,7 @@ def _gen_arg(
             else int.from_bytes(arg, "little")
         )
 
-    if issubclass(arg_type, Exception):
+    if isinstance(arg_type, type) and issubclass(arg_type, Exception):
         # For exceptions, we either return 0 (no error) or create an error with a message
         if arg is None:
             return 0
@@ -431,6 +453,25 @@ def _gen_arg(
         return struct_ptr
 
     return arg
+
+
+def _bind_generics(type_hint, bindings):
+    """Recursively bind generic type parameters."""
+    # If the type is directly in bindings, return the bound type
+    if type_hint in bindings:
+        return bindings[type_hint]
+
+    # Get the origin type (e.g., Dict from Dict[K, V])
+    origin = get_origin(type_hint)
+    if origin is None:
+        return type_hint
+
+    # Get and bind the type arguments
+    args = get_args(type_hint)
+    bound_args = tuple(_bind_generics(arg, bindings) for arg in args)
+
+    # Reconstruct the type with bound arguments
+    return origin[bound_args]
 
 
 def to_python_type(cairo_type: Union[CairoType, Tuple[str, ...]]):

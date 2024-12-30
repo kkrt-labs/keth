@@ -20,6 +20,14 @@ from ethereum.cancun.transactions import (
 )
 from ethereum.cancun.trie import BranchNode, ExtensionNode, InternalNode, LeafNode, Node
 from ethereum.cancun.vm.exceptions import StackOverflowError, StackUnderflowError
+from ethereum.cancun.trie import (
+    BranchNode,
+    ExtensionNode,
+    InternalNode,
+    LeafNode,
+    Node,
+    Trie,
+)
 from ethereum.cancun.vm.gas import MessageCallGas
 from ethereum.exceptions import EthereumException
 from tests.utils.args_gen import _cairo_struct_to_python_type
@@ -70,6 +78,13 @@ def get_type(instance: Any) -> Type:
             item_type = get_type(next(iter(instance)))
             return Set[item_type]
         return Set
+
+    if isinstance(instance, Trie):
+        value_type = get_type(instance.default)
+        if not instance._data.keys():
+            return Trie[Bytes, value_type]  # Default to Bytes for Keys if empty
+        key_type = get_type(next(iter(instance._data.keys())))
+        return Trie[key_type, value_type]
 
     if not isinstance(instance, tuple):
         return type(instance)
