@@ -184,8 +184,8 @@ class Serde:
             }
             return [dict_repr[i] for i in range(list_len)]
 
-        if get_origin(python_cls) in (tuple, list, Sequence, abc.Sequence):
-            # Tuple and list are represented as structs with a pointer to the first element and the length.
+        if get_origin(python_cls) in (tuple, Sequence, abc.Sequence):
+            # Tuples are represented as structs with a pointer to the first element and the length.
             # The value field is a list of Relocatable (pointers to each element) or Felt (tuple of felts).
             # In usual cairo, a pointer to a struct, (e.g. Uint256*) is actually a pointer to one single
             # memory segment, where values need to be read from consecutive memory cells (e.g. data[i: i + 2]).
@@ -271,7 +271,7 @@ class Serde:
                 get_struct_definition(self.program, path).members["value"].cairo_type
             )
             error_bytes = self._serialize(value_type, tuple_struct_ptr)
-            error_message = error_bytes.decode() or ""
+            error_message = error_bytes.decode() if error_bytes is not None else ""
             raise python_cls(error_message)
 
         if python_cls == Bytes256:
