@@ -174,6 +174,7 @@ class TestSerde:
             Union[Uint, U256],
             Set[Address],
             Annotated[Tuple[VersionedHash, ...], 16],
+            Mapping[Bytes, U256],
         ],
     ):
         assume(no_empty_sequence(b))
