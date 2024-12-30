@@ -10,7 +10,7 @@ permissions: read-all
 jobs:
   tests-unit:
     runs-on: ubuntu-latest-16-cores
-    timeout-minutes: 360
+    timeout-minutes: 1440
     env:
       HYPOTHESIS_PROFILE: nightly
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
