@@ -981,6 +981,7 @@ namespace Interpreter {
         let actual_fee_u256 = Uint256(low=fee_low, high=fee_high);
         let transfer = model.Transfer(env.origin, env.coinbase, actual_fee_u256);
 
+        // TODO: This should be burnt
         State.add_transfer(transfer);
         State.finalize();
 
