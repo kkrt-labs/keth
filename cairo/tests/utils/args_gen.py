@@ -70,7 +70,15 @@ from typing import (
     get_origin,
 )
 
-from ethereum_types.bytes import Bytes, Bytes0, Bytes8, Bytes20, Bytes32, Bytes256
+from ethereum_types.bytes import (
+    Bytes,
+    Bytes0,
+    Bytes1,
+    Bytes8,
+    Bytes20,
+    Bytes32,
+    Bytes256,
+)
 from ethereum_types.numeric import U64, U256, Uint
 from starkware.cairo.common.dict import DictManager, DictTracker
 from starkware.cairo.lang.compiler.ast.cairo_types import (
@@ -114,6 +122,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum_types", "numeric", "SetUint"): Set[Uint],
     ("ethereum_types", "numeric", "UnionUintU256"): Union[Uint, U256],
     ("ethereum_types", "bytes", "Bytes0"): Bytes0,
+    ("ethereum_types", "bytes", "Bytes1"): Bytes1,
     ("ethereum_types", "bytes", "Bytes8"): Bytes8,
     ("ethereum_types", "bytes", "Bytes20"): Bytes20,
     ("ethereum_types", "bytes", "Bytes32"): Bytes32,
@@ -184,6 +193,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
         Address, Account
     ],
     ("ethereum", "exceptions", "EthereumException"): EthereumException,
+    ("ethereum_types", "bytes", "Bytearray"): bytearray,
     ("ethereum", "cancun", "vm", "stack", "Stack"): List[U256],
     (
         "ethereum",
@@ -287,9 +297,10 @@ def _gen_arg(
         segments.load_data(struct_ptr, data)
         return struct_ptr
 
-    if arg_type_origin is list:
-        # A `list` is represented as a Dict[felt, V] along with a length field.
-        value_type = get_args(arg_type)[0]  # Get the concrete type parameter
+    if arg_type_origin in (list, bytearray):
+        # Collection types are represented as a Dict[felt, V] along with a length field.
+        # Get the concrete type parameter. For bytearray, the value type is int.
+        value_type = next(iter(get_args(arg_type)), int)
         data = defaultdict(int, {k: v for k, v in enumerate(arg)})
         base = _gen_arg(dict_manager, segments, Dict[Uint, value_type], data)
         segments.load_data(base + 2, [len(arg)])
@@ -383,7 +394,7 @@ def _gen_arg(
         )
         return base
 
-    if arg_type in (Bytes, bytes, bytearray, str):
+    if arg_type in (Bytes, bytes, str):
         if arg is None:
             return 0
         if isinstance(arg, str):
