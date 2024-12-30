@@ -1,6 +1,6 @@
 from starkware.cairo.common.alloc import alloc
 
-from ethereum_types.bytes import Bytes20, Bytes32, Bytes256, Bytes, BytesStruct, BytesU256DictAccess
+from ethereum_types.bytes import Bytes20, Bytes32, Bytes256, Bytes, BytesStruct
 from ethereum_types.numeric import Uint, U256, U256Struct, bool
 from ethereum.crypto.hash import Hash32
 
@@ -81,6 +81,12 @@ struct MappingAddressAccountStruct {
 
 struct MappingAddressAccount {
     value: MappingAddressAccountStruct*,
+}
+
+struct BytesU256DictAccess {
+    key: Bytes,
+    prev_value: U256,
+    new_value: U256,
 }
 
 struct MappingBytesU256Struct {
