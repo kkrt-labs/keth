@@ -271,7 +271,9 @@ class Serde:
                 get_struct_definition(self.program, path).members["value"].cairo_type
             )
             error_bytes = self._serialize(value_type, tuple_struct_ptr)
-            error_message = error_bytes.decode() if error_bytes is not None else ""
+            error_message = (
+                bytes(error_bytes).decode() if error_bytes is not None else ""
+            )
             raise python_cls(error_message)
 
         if python_cls == Bytes256:
