@@ -201,7 +201,9 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "cancun", "trie", "BranchNode"): BranchNode,
     ("ethereum", "cancun", "trie", "InternalNode"): InternalNode,
     ("ethereum", "cancun", "trie", "Node"): Node,
-    ("ethereum", "cancun", "trie", "TrieAddressAccount"): Trie[Address, Account],
+    ("ethereum", "cancun", "trie", "TrieAddressAccount"): Trie[
+        Address, Optional[Account]
+    ],
     ("ethereum", "cancun", "trie", "TrieBytesU256"): Trie[Bytes, U256],
     ("ethereum", "cancun", "fork_types", "MappingAddressAccount"): Mapping[
         Address, Account

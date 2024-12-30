@@ -23,7 +23,7 @@
 
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.uint256 import Uint256
-from ethereum_types.numeric import U128, U256
+from ethereum_types.numeric import U128
 
 // Bytes types
 struct Bytes0 {

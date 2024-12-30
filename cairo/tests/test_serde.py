@@ -18,8 +18,6 @@ from ethereum.cancun.transactions import (
     LegacyTransaction,
     Transaction,
 )
-from ethereum.cancun.trie import BranchNode, ExtensionNode, InternalNode, LeafNode, Node
-from ethereum.cancun.vm.exceptions import StackOverflowError, StackUnderflowError
 from ethereum.cancun.trie import (
     BranchNode,
     ExtensionNode,
@@ -28,6 +26,7 @@ from ethereum.cancun.trie import (
     Node,
     Trie,
 )
+from ethereum.cancun.vm.exceptions import StackOverflowError, StackUnderflowError
 from ethereum.cancun.vm.gas import MessageCallGas
 from ethereum.exceptions import EthereumException
 from tests.utils.args_gen import _cairo_struct_to_python_type
@@ -195,7 +194,7 @@ class TestSerde:
             Annotated[Tuple[VersionedHash, ...], 16],
             Mapping[Bytes, U256],
             Trie[Bytes, U256],
-            Trie[Address, Account],
+            Trie[Address, Optional[Account]],
         ],
     ):
         assume(no_empty_sequence(b))
