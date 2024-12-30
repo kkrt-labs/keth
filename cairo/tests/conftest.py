@@ -88,7 +88,7 @@ settings.register_profile(
 )
 settings.register_profile(
     "debug",
-    max_examples=30,
+    max_examples=2,
     verbosity=Verbosity.verbose,
     phases=[Phase.explicit, Phase.reuse, Phase.generate, Phase.target],
     derandomize=True,

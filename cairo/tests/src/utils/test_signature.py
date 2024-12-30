@@ -2,7 +2,7 @@ import pytest
 from eth_keys.datatypes import PrivateKey
 from ethereum_types.bytes import Bytes32
 from ethereum_types.numeric import U256
-from hypothesis import given
+from hypothesis import given, settings
 from hypothesis import strategies as st
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 
@@ -27,7 +27,8 @@ class TestSignature:
             assert result == int(expected_address, 16)
 
     class TestVerifyEthSignature:
-        @pytest.mark.slow
+        # @pytest.mark.slow
+        @settings(deadline=None)
         @given(private_key=..., message=...)
         def test__verify_eth_signature_uint256(
             self, cairo_run, private_key: PrivateKey, message: Bytes32
@@ -122,7 +123,8 @@ class TestSignature:
                 )
 
     class TestTryRecoverEthAddress:
-        @pytest.mark.slow
+        # @pytest.mark.slow
+        @settings(deadline=None)
         @given(private_key=..., message=...)
         def test__try_recover_eth_address(
             self, cairo_run, private_key: PrivateKey, message: Bytes32
