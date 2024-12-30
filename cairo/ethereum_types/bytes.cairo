@@ -23,7 +23,7 @@
 
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.uint256 import Uint256
-from ethereum_types.numeric import U128
+from ethereum_types.numeric import U128, U256
 
 // Bytes types
 struct Bytes0 {
@@ -127,4 +127,10 @@ struct Bytes1DictAccess {
     key: felt,
     prev_value: Bytes1,
     new_value: Bytes1,
+}
+
+struct BytesU256DictAccess {
+    key: Bytes,
+    prev_value: U256,
+    new_value: U256,
 }

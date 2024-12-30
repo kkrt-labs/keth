@@ -197,6 +197,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "cancun", "fork_types", "MappingAddressAccount"): Mapping[
         Address, Account
     ],
+    ("ethereum", "cancun", "fork_types", "MappingBytesU256"): Mapping[Bytes, U256],
     ("ethereum", "exceptions", "EthereumException"): EthereumException,
     ("ethereum", "cancun", "vm", "memory", "Memory"): Memory,
     ("ethereum", "cancun", "vm", "stack", "Stack"): List[U256],
