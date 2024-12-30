@@ -20,6 +20,7 @@ serialization function.
 
 from collections import abc
 from inspect import signature
+from dataclasses import is_dataclass
 from itertools import accumulate
 from pathlib import Path
 from typing import (
@@ -281,26 +282,26 @@ class Serde:
                 for i in range(0, segment_size, 3)
             }
 
-        if get_origin(python_cls) is Trie:
-            trie_struct_ptr = self.serialize_pointers(path, ptr)["value"]
-            trie_struct_path = (
-                get_struct_definition(self.program, path)
-                .members["value"]
-                .cairo_type.pointee.scope.path
-            )
-            members = get_struct_definition(self.program, trie_struct_path).members
-            secured = self._serialize(
-                members["secured"].cairo_type,
-                trie_struct_ptr + members["secured"].offset,
-            )
-            default = self._serialize(
-                members["default"].cairo_type,
-                trie_struct_ptr + members["default"].offset,
-            )
-            data = self._serialize(
-                members["_data"].cairo_type, trie_struct_ptr + members["_data"].offset
-            )
-            return Trie(secured, default, data)
+        # if get_origin(python_cls) is Trie:
+        #     trie_struct_ptr = self.serialize_pointers(path, ptr)["value"]
+        #     trie_struct_path = (
+        #         get_struct_definition(self.program, path)
+        #         .members["value"]
+        #         .cairo_type.pointee.scope.path
+        #     )
+        #     members = get_struct_definition(self.program, trie_struct_path).members
+        #     secured = self._serialize(
+        #         members["secured"].cairo_type,
+        #         trie_struct_ptr + members["secured"].offset,
+        #     )
+        #     default = self._serialize(
+        #         members["default"].cairo_type,
+        #         trie_struct_ptr + members["default"].offset,
+        #     )
+        #     data = self._serialize(
+        #         members["_data"].cairo_type, trie_struct_ptr + members["_data"].offset
+        #     )
+        #     return Trie(secured, default, data)
 
         if python_cls in (bytes, bytearray, Bytes, str):
             tuple_struct_ptr = self.serialize_pointers(path, ptr)["value"]
@@ -312,7 +313,7 @@ class Serde:
                 return bytes(data).decode()
             return python_cls(data)
 
-        if python_cls and issubclass(python_cls, Exception):
+        if python_cls and isinstance(python_cls, type) and issubclass(python_cls, Exception):
             tuple_struct_ptr = self.serialize_pointers(path, ptr)["value"]
             if not tuple_struct_ptr:
                 return NO_ERROR_FLAG
@@ -362,6 +363,9 @@ class Serde:
             return python_cls(**kwargs)
         except TypeError:
             pass
+
+        if is_dataclass(get_origin(python_cls)):
+            return python_cls(**value)
 
         if isinstance(value, dict):
             signature(python_cls.__init__).bind(None, **value)

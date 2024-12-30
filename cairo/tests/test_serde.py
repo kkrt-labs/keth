@@ -82,7 +82,7 @@ def get_type(instance: Any) -> Type:
     if isinstance(instance, Trie):
         value_type = get_type(instance.default)
         if not instance._data.keys():
-            return Trie[Bytes, value_type]  # Default to Bytes for Keys if empty
+            return Trie[Bytes, U256]  # Default to Bytes for
         key_type = get_type(next(iter(instance._data.keys())))
         return Trie[key_type, value_type]
 
@@ -190,6 +190,8 @@ class TestSerde:
             Set[Address],
             Annotated[Tuple[VersionedHash, ...], 16],
             Mapping[Bytes, U256],
+            Trie[Bytes, U256],
+            Trie[Address, Account]
         ],
     ):
         assume(no_empty_sequence(b))
