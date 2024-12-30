@@ -26,6 +26,10 @@ memory representation and Python conversion logic. The Cairo implementation must
 follow the established patterns for memory layout and pointer relationships,
 while the Python side requires bidirectional conversion handling.
 
+When implementing the Cairo equivalent of a python type, you should always map
+the cairo type to the python type in `_cairo_struct_to_python_type` inside
+`args_gen.py`.
+
 ### Error Types Pattern
 
 Error types should:
@@ -46,7 +50,8 @@ struct StackOverflowError {
 ```
 
 3. Return `cast(0, ErrorType*)` for success cases
-4. Create a new Bytes with message for error cases. The error message can be empty.
+4. Create a new Bytes with message for error cases. The error message can be
+   empty.
 
 ```cairo
     tempvar err = StackUnderflowError(Bytes(new BytesStruct(cast(0, felt*), 0)));
@@ -61,7 +66,7 @@ When working with mutable data structures (stack, memory, state, etc.):
 
 Example:
 
-```cairo
+````cairo
 func push{stack: Stack}(value: U256) -> StackOverflowError {
     # Only return error
 }
@@ -107,7 +112,7 @@ class TestFeature:
             cairo_run("operation", ...)
         with pytest.raises(ErrorType):
             operation(...)
-```
+````
 
 ### Type Wrapping Pattern
 
@@ -355,8 +360,8 @@ together in a real-world component. The stack is a fundamental part of the EVM,
 requiring both mutable state and error handling.
 
 1. Error Types: First, we define the possible error conditions following the
-   Errors pattern. The stack can fail in two ways - underflow when popping
-   from an empty stack, or overflow when pushing beyond the maximum size.
+   Errors pattern. The stack can fail in two ways - underflow when popping from
+   an empty stack, or overflow when pushing beyond the maximum size.
 
 ```cairo:cairo/ethereum/cancun/vm/exceptions.cairo
 struct StackUnderflowError {
