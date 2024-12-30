@@ -81,8 +81,6 @@ def get_type(instance: Any) -> Type:
 
     if isinstance(instance, Trie):
         value_type = get_type(instance.default)
-        if not instance._data.keys():
-            return Trie[Bytes, U256]  # Default to Bytes for
         key_type = get_type(next(iter(instance._data.keys())))
         return Trie[key_type, value_type]
 
@@ -126,6 +124,12 @@ def no_empty_sequence(value: Any) -> bool:
 
     # Check each element recursively if it's a tuple
     return all(no_empty_sequence(x) if is_sequence(x) else True for x in value)
+
+
+def no_empty_trie(value: Any) -> bool:
+    if isinstance(value, Trie):
+        return len(value._data.keys()) > 0
+    return True
 
 
 class TestSerde:
@@ -191,10 +195,11 @@ class TestSerde:
             Annotated[Tuple[VersionedHash, ...], 16],
             Mapping[Bytes, U256],
             Trie[Bytes, U256],
-            Trie[Address, Account]
+            Trie[Address, Account],
         ],
     ):
         assume(no_empty_sequence(b))
+        assume(no_empty_trie(b))
         type_ = get_type(b)
         base = segments.gen_arg([gen_arg(type_, b)])
         result = serde.serialize(to_cairo_type(type_), base, shift=0)

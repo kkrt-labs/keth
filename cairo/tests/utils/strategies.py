@@ -77,7 +77,7 @@ def trie_strategy(thing):
             "default": st.from_type(value_type),
             "_data": st.dictionaries(st.from_type(key_type), st.from_type(value_type)),
         }
-    ).map(lambda x: Trie(**x))
+    ).map(lambda x: Trie[key_type, value_type](**x))
 
 
 # Fork

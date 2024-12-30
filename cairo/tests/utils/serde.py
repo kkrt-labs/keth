@@ -19,8 +19,8 @@ serialization function.
 """
 
 from collections import abc
-from inspect import signature
 from dataclasses import is_dataclass
+from inspect import signature
 from itertools import accumulate
 from pathlib import Path
 from typing import (
@@ -63,7 +63,6 @@ from starkware.cairo.lang.compiler.identifier_manager import MissingIdentifierEr
 from starkware.cairo.lang.compiler.scoped_name import ScopedName
 from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 
-from ethereum.cancun.trie import Trie
 from ethereum.crypto.hash import Hash32
 from tests.utils.args_gen import Memory, to_python_type
 
@@ -313,7 +312,11 @@ class Serde:
                 return bytes(data).decode()
             return python_cls(data)
 
-        if python_cls and isinstance(python_cls, type) and issubclass(python_cls, Exception):
+        if (
+            python_cls
+            and isinstance(python_cls, type)
+            and issubclass(python_cls, Exception)
+        ):
             tuple_struct_ptr = self.serialize_pointers(path, ptr)["value"]
             if not tuple_struct_ptr:
                 return NO_ERROR_FLAG
