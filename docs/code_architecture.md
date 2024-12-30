@@ -28,44 +28,49 @@ while the Python side requires bidirectional conversion handling.
 Error types should:
 
 1. Be defined in the separate `cairo/ethereum/cancun/vm/exceptions.cairo` file.
-2. Follow the BytesStruct pattern for error messages:
+2. Follow the Bytes pattern for error messages:
 
 ```cairo
-struct ErrorType {
-    value: BytesStruct*,  # Allows for error messages
+from ethereum_types.bytes import Bytes
+
+struct StackUnderflowError {
+    value: Bytes,
+}
+
+struct StackOverflowError {
+    value: Bytes,
 }
 ```
 
 3. Return `cast(0, ErrorType*)` for success cases
-4. Create a new BytesStruct with message for error cases. For now the error
-   message can be empty.
+4. Create a new Bytes with message for error cases. The error message can be empty.
 
 ```cairo
-    tempvar inner_error = new BytesStruct(cast(0, felt*), 0);
-    let err = ErrorType(inner_error);
+    tempvar err = StackUnderflowError(Bytes(new BytesStruct(cast(0, felt*), 0)));
 ```
 
 ### Implicit Arguments Pattern
 
-When implementing mutable data structures:
+When working with mutable data structures (stack, memory, state, etc.):
 
 1. Use implicit arguments for the structure being modified
-2. Return only the error type for modification operations
-3. Return both the value and error for query operations
+2. Return the error type if the operation can fail
 
 Example:
 
 ```cairo
-# Modification operation
 func push{stack: Stack}(value: U256) -> StackOverflowError {
     # Only return error
 }
 
-# Query operation
+3. Return the error type as the last element of the tuple if the operation can either return a value or fail
+
+Example:
+
+```cairo
 func pop{stack: Stack}() -> (U256, StackUnderflowError) {
     # Return both value and error
 }
-```
 
 ### Test Structure Pattern
 
@@ -92,38 +97,13 @@ class TestFeature:
         result_py = operation(...)
         assert result_cairo == result_py
 
+    @given(...)
+    def test_error(self, cairo_run, ...):
         # Test error case
         with pytest.raises(ErrorType):
             cairo_run("operation", ...)
-```
-
-### Custom Types
-
-When implementing custom types:
-
-1. Create a Python dataclass
-2. Implement `gen_arg` method for Cairo memory layout
-3. Add serialization logic in `serde.py`
-4. Register all related types in `_cairo_struct_to_python_type`
-5. Add hypothesis strategies in `strategies.py`
-
-Example:
-
-```python
-@dataclass
-class CustomList(List[T]):
-    def gen_arg(self, dict_manager, segments):
-        # Convert to Cairo memory layout
-        pass
-
-# Register in args_gen.py
-_cairo_struct_to_python_type = {
-    ("path", "to", "type"): CustomList,
-    ("path", "to", "exceptions"): CustomError,
-}
-
-# Add strategy in strategies.py
-custom_list = st.lists(base_strategy)
+        with pytest.raises(ErrorType):
+            operation(...)
 ```
 
 ### Type Wrapping Pattern
@@ -351,7 +331,7 @@ Mutation operations create new dictionary entries through the Cairo dictionary
 API:
 
 ```cairo
-func push{stack: Stack}(value: U256) -> StackOverflowError {
+func push{stack: Stack}(value: U256) {
     let len = stack.value.len;
     dict_write(len, cast(value.value, felt));
     tempvar stack = Stack(
@@ -361,6 +341,7 @@ func push{stack: Stack}(value: U256) -> StackOverflowError {
             len=len + 1
         )
     );
+    # `stack` is returned implicitly
 }
 ```
 
@@ -371,16 +352,16 @@ together in a real-world component. The stack is a fundamental part of the EVM,
 requiring both mutable state and error handling.
 
 1. Error Types: First, we define the possible error conditions following the
-   BytesStruct pattern. The stack can fail in two ways - underflow when popping
+   Errors pattern. The stack can fail in two ways - underflow when popping
    from an empty stack, or overflow when pushing beyond the maximum size.
 
 ```cairo:cairo/ethereum/cancun/vm/exceptions.cairo
 struct StackUnderflowError {
-    value: BytesStruct*,
+    value: Bytes,
 }
 
 struct StackOverflowError {
-    value: BytesStruct*,
+    value: Bytes,
 }
 ```
 
@@ -428,6 +409,10 @@ func pop{stack: Stack}() -> (U256, StackUnderflowError) {
    Python's list representation and Cairo's dictionary-based implementation.
    Because the logic on how to generate arguments is already implemented for the
    `list` type and the U256 type, we have no changes to make here.
+
+5. Generally, you should never need to implement argument generation logic or
+   serialization logic, as it can be derived from a composition of existing
+   types.
 
 The serialization logic reconstructs the Stack from Cairo's memory
 representation back to Python. Once again, because the logic is already
