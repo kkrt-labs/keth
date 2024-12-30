@@ -71,13 +71,39 @@ def st_from_type(cls):
 
 def trie_strategy(thing):
     key_type, value_type = thing.__args__
+
+    # Create a subclass of Trie that preserves the type parameters
+    class TypedTrie(Trie[key_type, value_type]):  # type: ignore
+        __args__ = (key_type, value_type)
+
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self._key_type = key_type
+            self._value_type = value_type
+
+        def __class_getitem__(cls, params):
+            return cls
+
+        def __eq__(self, other):
+            if not isinstance(other, TypedTrie):
+                other = TypedTrie(
+                    secured=other.secured,
+                    default=other.default,
+                    _data=other._data,
+                )
+            return (
+                self.secured == other.secured
+                and self.default == other.default
+                and self._data == other._data
+            )
+
     return st.fixed_dictionaries(
         {
             "secured": st.booleans(),
             "default": st.from_type(value_type),
             "_data": st.dictionaries(st.from_type(key_type), st.from_type(value_type)),
         }
-    ).map(lambda x: Trie[key_type, value_type](**x))
+    ).map(lambda x: TypedTrie(**x))
 
 
 # Fork

@@ -292,6 +292,12 @@ def _gen_arg(
         arg_type = arg_type_origin._evaluate(globals(), locals(), frozenset())
         arg_type_origin = get_origin(arg_type) or arg_type
 
+    # arg_type = Optional[T] <=> arg_type_origin = Union[T, None]
+    if arg_type_origin is Union and get_args(arg_type)[1] is type(None):
+        if arg is None:
+            return 0
+        return _gen_arg(dict_manager, segments, get_args(arg_type)[0], arg)
+
     if arg_type_origin is Union:
         # Union are represented as Enum in Cairo, with 0 pointers for all but one variant.
         struct_ptr = segments.add()
