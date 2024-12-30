@@ -12,6 +12,7 @@
     "exitstatus",
     "fibonacci",
     "fixturenames",
+    "frozendict",
     "hookwrapper",
     "intdigest",
     "isort",
@@ -42,6 +43,7 @@
     "sessionstart",
     "slackapi",
     "testrunfinished",
+    "usort",
     "workerid",
     "workerinput"
   ],

@@ -1,7 +1,7 @@
 // Error types common across all Ethereum forks.
 //
 // When raising an exception, the exception is a valid pointer. Otherwise, the pointer is `0`. When
-// checking for an exceptino, a simple cast(maybe_exception, felt) != 0 is enough to check if the
+// checking for an exception, a simple cast(maybe_exception, felt) != 0 is enough to check if the
 // function raised.
 //
 // Example:
@@ -16,10 +16,10 @@
 // tempvar no_error = EthereumException(cast(0, BytesStruct*));
 // ```
 
-from ethereum_types.bytes import BytesStruct
+from ethereum_types.bytes import Bytes
 
 // @notice Base type for all exceptions _expected_ to be thrown during normal
 // operation.
 struct EthereumException {
-    value: BytesStruct*,
+    value: Bytes,
 }

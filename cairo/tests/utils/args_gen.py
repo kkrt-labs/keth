@@ -199,6 +199,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
         "exceptions",
         "StackOverflowError",
     ): StackOverflowError,
+    ("ethereum", "cancun", "trie", "Subnodes"): Annotated[Tuple[Extended, ...], 16],
 }
 
 # In the EELS, some functions are annotated with Sequence while it's actually just Bytes.
@@ -302,9 +303,14 @@ def _gen_arg(
             # These are represented as a pointer to a struct with a pointer to each element.
             element_types = get_args(arg_type)
 
-            # Handle fixed-size tuples with size annotation (e.g. Annotated[Tuple[T], N])
-            if annotations and len(annotations) == 1 and len(element_types) == 1:
-                element_types = element_types * annotations[0]
+            # Handle fixed-size tuples with size annotation (e.g. Annotated[Tuple[T, ...], N])
+            if (
+                annotations
+                and len(annotations) == 1
+                and len(element_types) == 2
+                and element_types[1] == Ellipsis
+            ):
+                element_types = [element_types[0]] * annotations[0]
             elif annotations:
                 raise ValueError(
                     f"Invalid tuple size annotation for {arg_type} with annotations {annotations}"

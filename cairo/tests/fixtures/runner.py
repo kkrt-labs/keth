@@ -344,7 +344,6 @@ def cairo_run(request, cairo_program, cairo_file, main_path):
         if add_output:
             final_output = serde.serialize_list(output_ptr)
 
-        cumulative_retdata_offsets = serde.get_offsets(return_data_types)
         unfiltered_output = [
             serde.serialize(return_data_type, runner.vm.run_context.ap, offset)
             for offset, return_data_type in zip(

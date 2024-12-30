@@ -19,6 +19,7 @@ from ethereum.cancun.transactions import (
     Transaction,
 )
 from ethereum.cancun.trie import BranchNode, ExtensionNode, InternalNode, LeafNode, Node
+from ethereum.cancun.vm.exceptions import StackOverflowError, StackUnderflowError
 from ethereum.cancun.vm.gas import MessageCallGas
 from ethereum.exceptions import EthereumException
 from tests.utils.args_gen import _cairo_struct_to_python_type
@@ -183,16 +184,24 @@ class TestSerde:
 
     @given(err=...)
     def test_exception(
-        self, to_cairo_type, segments, serde, gen_arg, err: Union[EthereumException]
+        self,
+        to_cairo_type,
+        segments,
+        serde,
+        gen_arg,
+        err: Union[EthereumException, StackOverflowError, StackUnderflowError],
     ):
-        base = segments.gen_arg([gen_arg(EthereumException, err)])
+        base = segments.gen_arg([gen_arg(type(err), err)])
 
         with pytest.raises(type(err)) as exception:
-            serde.serialize(to_cairo_type(EthereumException), base, shift=0)
+            serde.serialize(to_cairo_type(type(err)), base, shift=0)
 
         assert str(exception.value) == str(err)
 
-    def test_none_exception(self, to_cairo_type, serde, gen_arg):
-        base = gen_arg(EthereumException, None)
-        result = serde.serialize(to_cairo_type(EthereumException), base, shift=0)
+    @pytest.mark.parametrize(
+        "error_type", [EthereumException, StackOverflowError, StackUnderflowError]
+    )
+    def test_none_exception(self, to_cairo_type, serde, gen_arg, error_type):
+        base = gen_arg(error_type, None)
+        result = serde.serialize(to_cairo_type(error_type), base, shift=0)
         assert result is None

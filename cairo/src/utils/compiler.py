@@ -18,6 +18,9 @@ if '__dict_manager' not in globals():
 dict_copy = """
 from starkware.cairo.common.dict import DictTracker
 
+if ids.new_start.address_.segment_index in __dict_manager.trackers:
+    raise ValueError(f"Segment {ids.new_start.address_.segment_index} already exists in __dict_manager.trackers")
+
 data = __dict_manager.trackers[ids.dict_start.address_.segment_index].data.copy()
 __dict_manager.trackers[ids.new_start.address_.segment_index] = DictTracker(
     data=data,

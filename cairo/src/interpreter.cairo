@@ -866,7 +866,49 @@ namespace Interpreter {
         let valid_jumpdests_start = cast([ap - 2], DictAccess*);
         let valid_jumpdests = cast([ap - 1], DictAccess*);
 
-        let initial_state = State.copy();
+        let initial_state = state;
+        let state = State.copy();
+        let stack = Stack.init();
+        let memory = Memory.init();
+
+        // Cache the coinbase, precompiles, caller, and target, making them warm
+        State.get_account(env.coinbase);
+        State.cache_precompiles();
+        State.get_account(address);
+        let access_list_cost = State.cache_access_list(access_list_len, access_list);
+
+        let intrinsic_gas = intrinsic_gas + access_list_cost;
+        assert [range_check_ptr] = gas_limit - intrinsic_gas;
+        let range_check_ptr = range_check_ptr + 1;
+        assert [range_check_ptr] = (2 * Constants.MAX_CODE_SIZE + 1 - bytecode_len) * is_deploy_tx;
+        let range_check_ptr = range_check_ptr + 1;
+
+        // Charge the gas fee to the user without setting up a transfer.
+        // Transfers with the exact amounts will be performed post-execution.
+        // Note: balance > effective_fee was verified in eth_send_raw_unsigned_tx()
+        let max_fee = gas_limit * env.gas_price;
+        let (fee_high, fee_low) = split_felt(max_fee);
+        let max_fee_u256 = Uint256(low=fee_low, high=fee_high);
+
+        let sender = State.get_account(env.origin);
+        let (local new_balance) = uint256_sub([sender.balance], max_fee_u256);
+        let sender = Account.set_balance(sender, &new_balance);
+        let sender = Account.set_nonce(sender, sender.nonce + 1);
+        State.update_account(env.origin, sender);
+
+        let transfer = model.Transfer(env.origin, address, [value]);
+        let success = State.add_transfer(transfer);
+
+        // Check collision
+        let account = State.get_account(address);
+        let code_or_nonce = Account.has_code_or_nonce(account);
+        let is_collision = code_or_nonce * is_deploy_tx;
+        // Nonce is set to 1 in case of deploy_tx and account is marked as created
+        let nonce = account.nonce * (1 - is_deploy_tx) + is_deploy_tx;
+        let account = Account.set_nonce(account, nonce);
+        let account = Account.set_created(account, is_deploy_tx);
+        State.update_account(address, account);
+
         tempvar message = new model.Message(
             bytecode=bytecode,
             bytecode_len=bytecode_len,
@@ -885,65 +927,7 @@ namespace Interpreter {
             env=env,
             initial_state=initial_state,
         );
-
-        let stack = Stack.init();
-        let memory = Memory.init();
-
-        // Cache the coinbase, precompiles, caller, and target, making them warm
-        with state {
-            let coinbase = State.get_account(env.coinbase);
-            State.cache_precompiles();
-            State.get_account(address);
-            let access_list_cost = State.cache_access_list(access_list_len, access_list);
-        }
-
-        let intrinsic_gas = intrinsic_gas + access_list_cost;
         let evm = EVM.init(message, gas_limit - intrinsic_gas);
-
-        let is_gas_limit_enough = is_le_felt(intrinsic_gas, gas_limit);
-        if (is_gas_limit_enough == FALSE) {
-            let evm = EVM.halt_validation_failed(evm);
-            State.finalize{state=state}();
-            return ();
-        }
-
-        tempvar is_initcode_invalid = is_deploy_tx * is_nn(
-            bytecode_len - (2 * Constants.MAX_CODE_SIZE + 1)
-        );
-        if (is_initcode_invalid != FALSE) {
-            let evm = EVM.halt_validation_failed(evm);
-            State.finalize{state=state}();
-            return ();
-        }
-
-        // Charge the gas fee to the user without setting up a transfer.
-        // Transfers with the exact amounts will be performed post-execution.
-        // Note: balance > effective_fee was verified in eth_send_raw_unsigned_tx()
-        let max_fee = gas_limit * env.gas_price;
-        let (fee_high, fee_low) = split_felt(max_fee);
-        let max_fee_u256 = Uint256(low=fee_low, high=fee_high);
-
-        with state {
-            let sender = State.get_account(env.origin);
-            let (local new_balance) = uint256_sub([sender.balance], max_fee_u256);
-            let sender = Account.set_balance(sender, &new_balance);
-            let sender = Account.set_nonce(sender, sender.nonce + 1);
-            State.update_account(env.origin, sender);
-
-            let transfer = model.Transfer(env.origin, address, [value]);
-            let success = State.add_transfer(transfer);
-
-            // Check collision
-            let account = State.get_account(address);
-            let code_or_nonce = Account.has_code_or_nonce(account);
-            let is_collision = code_or_nonce * is_deploy_tx;
-            // Nonce is set to 1 in case of deploy_tx and account is marked as created
-            let nonce = account.nonce * (1 - is_deploy_tx) + is_deploy_tx;
-            let account = Account.set_nonce(account, nonce);
-            let account = Account.set_created(account, is_deploy_tx);
-            State.update_account(address, account);
-        }
-
         if (is_collision != 0) {
             let (revert_reason_len, revert_reason) = Errors.addressCollision();
             tempvar evm = EVM.stop(evm, revert_reason_len, revert_reason, Errors.EXCEPTIONAL_HALT);
@@ -958,25 +942,15 @@ namespace Interpreter {
             tempvar evm = evm;
         }
 
-        with stack, memory, state {
+        with stack, memory {
             let evm = run(evm);
         }
 
-        let required_gas = gas_limit - evm.gas_left;
-        let (max_refund, _) = unsigned_div_rem(required_gas, 5);
-        let is_max_refund_le_gas_refund = is_nn(evm.gas_refund - max_refund);
-        tempvar gas_refund = is_max_refund_le_gas_refund * max_refund + (
-            1 - is_max_refund_le_gas_refund
-        ) * evm.gas_refund;
-
-        let total_gas_used = required_gas - gas_refund;
+        let initial_state = evm.message.initial_state;
+        State.finalize{state=initial_state}();
 
         // Reset the state if the execution has failed.
         // Only the gas fee paid will be committed.
-        State.finalize{state=state}();
-        tempvar initial_state = evm.message.initial_state;
-        State.finalize{state=initial_state}();
-
         if (evm.reverted != 0) {
             tempvar state = initial_state;
         } else {
@@ -986,25 +960,30 @@ namespace Interpreter {
         let success = 1 - is_reverted;
         let paid_fee_u256 = Uint256(max_fee_u256.low * success, max_fee_u256.high * success);
 
-        with state {
-            let sender = State.get_account(env.origin);
-            uint256_add([sender.balance], paid_fee_u256);
-            let (ap_val) = get_ap();
-            let sender = Account.set_balance(sender, cast(ap_val - 3, Uint256*));
-            let sender = Account.set_nonce(sender, sender.nonce + is_reverted);
-            State.update_account(env.origin, sender);
-        }
+        let sender = State.get_account(env.origin);
+        uint256_add([sender.balance], paid_fee_u256);
+        let (ap_val) = get_ap();
+        let sender = Account.set_balance(sender, cast(ap_val - 3, Uint256*));
+        let sender = Account.set_nonce(sender, sender.nonce + is_reverted);
+        State.update_account(env.origin, sender);
 
         // So as to not burn the base_fee_per gas, we send it to the coinbase.
+        let required_gas = gas_limit - evm.gas_left;
+        let (max_refund, _) = unsigned_div_rem(required_gas, 5);
+        let is_max_refund_le_gas_refund = is_nn(evm.gas_refund - max_refund);
+        tempvar gas_refund = is_max_refund_le_gas_refund * max_refund + (
+            1 - is_max_refund_le_gas_refund
+        ) * evm.gas_refund;
+
+        let total_gas_used = required_gas - gas_refund;
         let actual_fee = total_gas_used * env.gas_price;
         let (fee_high, fee_low) = split_felt(actual_fee);
         let actual_fee_u256 = Uint256(low=fee_low, high=fee_high);
         let transfer = model.Transfer(env.origin, env.coinbase, actual_fee_u256);
 
-        with state {
-            State.add_transfer(transfer);
-            State.finalize();
-        }
+        // TODO: This should be burnt
+        State.add_transfer(transfer);
+        State.finalize();
 
         return ();
     }
