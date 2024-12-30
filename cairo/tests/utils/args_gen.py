@@ -113,6 +113,11 @@ from ethereum.exceptions import EthereumException
 from ethereum.rlp import Extended, Simple
 from tests.utils.helpers import flatten
 
+
+class Memory(bytearray):
+    pass
+
+
 _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum_types", "others", "None"): type(None),
     ("ethereum_types", "numeric", "bool"): bool,
@@ -193,7 +198,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
         Address, Account
     ],
     ("ethereum", "exceptions", "EthereumException"): EthereumException,
-    ("ethereum_types", "bytes", "Bytearray"): bytearray,
+    ("ethereum", "cancun", "vm", "memory", "Memory"): Memory,
     ("ethereum", "cancun", "vm", "stack", "Stack"): List[U256],
     (
         "ethereum",
@@ -297,7 +302,7 @@ def _gen_arg(
         segments.load_data(struct_ptr, data)
         return struct_ptr
 
-    if arg_type_origin in (list, bytearray):
+    if arg_type_origin in (list, Memory):
         # Collection types are represented as a Dict[felt, V] along with a length field.
         # Get the concrete type parameter. For bytearray, the value type is int.
         value_type = next(iter(get_args(arg_type)), int)
@@ -394,7 +399,7 @@ def _gen_arg(
         )
         return base
 
-    if arg_type in (Bytes, bytes, str):
+    if arg_type in (Bytes, bytes, bytearray, str):
         if arg is None:
             return 0
         if isinstance(arg, str):

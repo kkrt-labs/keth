@@ -10,15 +10,25 @@ from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
 from starkware.cairo.common.math import assert_le, assert_lt
 from starkware.cairo.common.math_cmp import is_le, is_not_zero
 
-from ethereum_types.bytes import Bytes, BytesStruct, Bytearray, BytearrayStruct, Bytes1DictAccess
+from ethereum_types.bytes import Bytes, BytesStruct, Bytes1DictAccess
 from ethereum_types.numeric import U256
 from ethereum.utils.numeric import max
+
+struct MemoryStruct {
+    dict_ptr_start: Bytes1DictAccess*,
+    dict_ptr: Bytes1DictAccess*,
+    len: felt,
+}
+
+struct Memory {
+    value: MemoryStruct*,
+}
 
 // @notice Write bytes to memory at a given position.
 // @param memory The pointer to the bytearray.
 // @param start_position Starting position to write at.
 // @param value Bytes to write.
-func memory_write{range_check_ptr, memory: Bytearray}(start_position: U256, value: Bytes) {
+func memory_write{range_check_ptr, memory: Memory}(start_position: U256, value: Bytes) {
     alloc_locals;
     let bytes_len = value.value.len;
     let start_position_felt = start_position.value.low;
@@ -34,7 +44,7 @@ func memory_write{range_check_ptr, memory: Bytearray}(start_position: U256, valu
     let new_dict_ptr = cast(dict_ptr, Bytes1DictAccess*);
 
     let len = max(memory.value.len, start_position.value.low + value.value.len);
-    tempvar memory = Bytearray(new BytearrayStruct(memory.value.dict_ptr_start, new_dict_ptr, len));
+    tempvar memory = Memory(new MemoryStruct(memory.value.dict_ptr_start, new_dict_ptr, len));
     return ();
 }
 
@@ -43,7 +53,7 @@ func memory_write{range_check_ptr, memory: Bytearray}(start_position: U256, valu
 // @param start_position Starting position to read from.
 // @param size Number of bytes to read.
 // @return The bytes read from memory.
-func memory_read_bytes{memory: Bytearray}(start_position: U256, size: U256) -> Bytes {
+func memory_read_bytes{memory: Memory}(start_position: U256, size: U256) -> Bytes {
     alloc_locals;
 
     with_attr error_message("memory_read_bytes: start_position > 2**128 || size > 2**128") {
@@ -61,8 +71,8 @@ func memory_read_bytes{memory: Bytearray}(start_position: U256, size: U256) -> B
     }
     let new_dict_ptr = cast(dict_ptr, Bytes1DictAccess*);
 
-    tempvar memory = Bytearray(
-        new BytearrayStruct(memory.value.dict_ptr_start, new_dict_ptr, memory.value.len)
+    tempvar memory = Memory(
+        new MemoryStruct(memory.value.dict_ptr_start, new_dict_ptr, memory.value.len)
     );
     tempvar result = Bytes(new BytesStruct(output, size_felt));
     return result;

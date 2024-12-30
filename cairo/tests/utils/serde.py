@@ -63,7 +63,7 @@ from starkware.cairo.lang.compiler.scoped_name import ScopedName
 from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 
 from ethereum.crypto.hash import Hash32
-from tests.utils.args_gen import to_python_type
+from tests.utils.args_gen import Memory, to_python_type
 
 # Sentinel object for indicating no error in exception handling
 NO_ERROR_FLAG = object()
@@ -164,7 +164,7 @@ class Serde:
 
             return self._serialize(variant.cairo_type, value_ptr + variant.offset)
 
-        if origin_cls in (list, bytearray):
+        if origin_cls in (list, Memory):
             mapping_struct_ptr = self.serialize_pointers(path, ptr)["value"]
             mapping_struct_path = (
                 get_struct_definition(self.program, path)
@@ -192,9 +192,9 @@ class Serde:
                 )
                 for i in range(0, segment_size, 3)
             }
-            if origin_cls is bytearray:
+            if origin_cls is Memory:
                 # For bytearray, convert Bytes1 objects to integers
-                return bytearray(
+                return Memory(
                     int.from_bytes(dict_repr[i], "little") for i in range(data_len)
                 )
 
@@ -279,7 +279,7 @@ class Serde:
                 for i in range(0, segment_size, 3)
             }
 
-        if python_cls in (bytes, Bytes, str):
+        if python_cls in (bytes, bytearray, Bytes, str):
             tuple_struct_ptr = self.serialize_pointers(path, ptr)["value"]
             struct_name = path[-1] + "Struct"
             path = (*path[:-1], struct_name)
