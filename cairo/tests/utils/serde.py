@@ -165,7 +165,7 @@ class Serde:
 
             return self._serialize(variant.cairo_type, value_ptr + variant.offset)
 
-        if origin_cls in (list, Memory):
+        if origin_cls is list or python_cls is Memory:
             mapping_struct_ptr = self.serialize_pointers(path, ptr)["value"]
             mapping_struct_path = (
                 get_struct_definition(self.program, path)
@@ -193,7 +193,7 @@ class Serde:
                 )
                 for i in range(0, segment_size, 3)
             }
-            if origin_cls is Memory:
+            if python_cls is Memory:
                 # For bytearray, convert Bytes1 objects to integers
                 return Memory(
                     int.from_bytes(dict_repr[i], "little") for i in range(data_len)
