@@ -197,6 +197,8 @@ def pytest_collection_modifyitems(session, config, items):
                 + file_hash(item.fspath)
                 + item.nodeid.encode()
                 + file_hash(Path(__file__).parent / "fixtures" / "runner.py")
+                + file_hash(Path(__file__).parent / "utils" / "serde.py")
+                + file_hash(Path(__file__).parent / "utils" / "args_gen.py")
             ).hexdigest()
             session.test_hashes[item.nodeid] = test_hash
 

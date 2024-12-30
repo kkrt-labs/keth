@@ -283,11 +283,8 @@ class Serde:
             value_type = (
                 get_struct_definition(self.program, path).members["value"].cairo_type
             )
-            error_bytes = self._serialize(value_type, tuple_struct_ptr)
-            error_message = (
-                bytes(error_bytes).decode() if error_bytes is not None else ""
-            )
-            raise python_cls(error_message)
+            error_bytes = self._serialize(value_type, ptr)
+            raise python_cls(error_bytes.decode())
 
         if python_cls == Bytes256:
             base_ptr = self.memory.get(ptr)
