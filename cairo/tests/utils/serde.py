@@ -124,9 +124,10 @@ class Serde:
         if "__main__" in full_path:
             full_path = self.main_part + full_path[full_path.index("__main__") + 1 :]
         python_cls = to_python_type(full_path)
+        annotations = []
 
         if get_origin(python_cls) is Annotated:
-            python_cls, _ = get_args(python_cls)
+            python_cls, *annotations = get_args(python_cls)
 
         if get_origin(python_cls) is Union:
             value_ptr = self.serialize_pointers(path, ptr)["value"]
@@ -197,12 +198,24 @@ class Serde:
                 .cairo_type.pointee.scope.path
             )
             members = get_struct_definition(self.program, tuple_struct_path).members
-            if get_origin(python_cls) is tuple and Ellipsis not in get_args(python_cls):
+            if get_origin(python_cls) is tuple and (
+                (Ellipsis not in get_args(python_cls))
+                or (Ellipsis in get_args(python_cls) and len(annotations) == 1)
+            ):
                 # These are regular tuples with a given size.
-                return tuple(
+                result = tuple(
                     self._serialize(member.cairo_type, tuple_struct_ptr + member.offset)
                     for member in members.values()
                 )
+                if (
+                    annotations
+                    and len(annotations) == 1
+                    and annotations[0] != len(result)
+                ):
+                    raise ValueError(
+                        f"Expected tuple of size {annotations[0]}, got {len(result)}"
+                    )
+                return result
             else:
                 # These are tuples with a variable size (or list or sequences).
                 raw = self.serialize_pointers(tuple_struct_path, tuple_struct_ptr)
