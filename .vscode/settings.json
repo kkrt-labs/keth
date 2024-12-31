@@ -22,6 +22,7 @@
     "isort",
     "jupyter",
     "kkrt",
+    "libpython",
     "makereport",
     "memset",
     "merkleize",

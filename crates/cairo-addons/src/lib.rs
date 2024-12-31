@@ -2,7 +2,7 @@ use pyo3::prelude::*;
 
 #[pyfunction]
 fn hello_from_bin() -> String {
-    "Hello from cairo-addons!".to_string()
+    "Hello from cairo-addons 1000!".to_string()
 }
 
 /// A Python module implemented in Rust. The name of this function must match
