@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 
 dependencies = [
+  "cairo-addons",
   "cairo-lang>=0.13.2",
   "ethereum",
   "marshmallow-dataclass>=8.6.1",
@@ -34,6 +35,7 @@ dev-dependencies = [
 
 [tool.uv.sources]
 ethereum = { git = "https://github.com/kkrt-labs/execution-specs.git", rev = "b255036441d64437bd4fc9f9068bc64c45470e93" }
+cairo-addons = { workspace = true }
 
 [tool.uv.workspace]
 members = ["python/*"]
