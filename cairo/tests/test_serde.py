@@ -124,7 +124,6 @@ def no_empty_sequence(value: Any) -> bool:
     return all(no_empty_sequence(x) if is_sequence(x) else True for x in value)
 
 
-
 class TestSerde:
     @given(b=...)
     # 20 examples per type
