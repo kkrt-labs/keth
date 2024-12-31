@@ -19,6 +19,7 @@ serialization function.
 """
 
 from collections import abc
+from dataclasses import is_dataclass
 from inspect import signature
 from itertools import accumulate
 from pathlib import Path
@@ -290,7 +291,11 @@ class Serde:
                 return bytes(data).decode()
             return python_cls(data)
 
-        if python_cls and issubclass(python_cls, Exception):
+        if (
+            python_cls
+            and isinstance(python_cls, type)
+            and issubclass(python_cls, Exception)
+        ):
             tuple_struct_ptr = self.serialize_pointers(path, ptr)["value"]
             if not tuple_struct_ptr:
                 return NO_ERROR_FLAG
@@ -340,6 +345,9 @@ class Serde:
             return python_cls(**kwargs)
         except TypeError:
             pass
+
+        if is_dataclass(get_origin(python_cls)):
+            return python_cls(**value)
 
         if isinstance(value, dict):
             signature(python_cls.__init__).bind(None, **value)

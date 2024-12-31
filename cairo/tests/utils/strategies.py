@@ -69,6 +69,18 @@ def st_from_type(cls):
     ).map(lambda x: cls(**x))
 
 
+def trie_strategy(thing):
+    key_type, value_type = thing.__args__
+
+    return st.fixed_dictionaries(
+        {
+            "secured": st.booleans(),
+            "default": st.from_type(value_type),
+            "_data": st.dictionaries(st.from_type(key_type), st.from_type(value_type)),
+        }
+    ).map(lambda x: Trie[key_type, value_type](**x))
+
+
 # Fork
 state = st.lists(bytes20).flatmap(
     lambda addresses: st.fixed_dictionaries(
@@ -157,3 +169,4 @@ def register_type_strategies():
         ).map(lambda x: BranchNode(**x)),
     )
     st.register_type_strategy(PrivateKey, private_key)
+    st.register_type_strategy(Trie, trie_strategy)

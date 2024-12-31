@@ -83,6 +83,21 @@ struct MappingAddressAccount {
     value: MappingAddressAccountStruct*,
 }
 
+struct BytesU256DictAccess {
+    key: Bytes,
+    prev_value: U256,
+    new_value: U256,
+}
+
+struct MappingBytesU256Struct {
+    dict_ptr_start: BytesU256DictAccess*,
+    dict_ptr: BytesU256DictAccess*,
+}
+
+struct MappingBytesU256 {
+    value: MappingBytesU256Struct*,
+}
+
 func EMPTY_ACCOUNT() -> Account {
     tempvar balance = U256(new U256Struct(0, 0));
     let (data) = alloc();

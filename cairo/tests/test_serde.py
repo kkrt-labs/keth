@@ -18,7 +18,14 @@ from ethereum.cancun.transactions import (
     LegacyTransaction,
     Transaction,
 )
-from ethereum.cancun.trie import BranchNode, ExtensionNode, InternalNode, LeafNode, Node
+from ethereum.cancun.trie import (
+    BranchNode,
+    ExtensionNode,
+    InternalNode,
+    LeafNode,
+    Node,
+    Trie,
+)
 from ethereum.cancun.vm.exceptions import StackOverflowError, StackUnderflowError
 from ethereum.cancun.vm.gas import MessageCallGas
 from ethereum.exceptions import EthereumException
@@ -70,6 +77,10 @@ def get_type(instance: Any) -> Type:
             item_type = get_type(next(iter(instance)))
             return Set[item_type]
         return Set
+
+    if isinstance(instance, Trie):
+        key_type, value_type = instance.__orig_class__.__args__
+        return Trie[key_type, value_type]
 
     if not isinstance(instance, tuple):
         return type(instance)
@@ -174,6 +185,9 @@ class TestSerde:
             Union[Uint, U256],
             Set[Address],
             Annotated[Tuple[VersionedHash, ...], 16],
+            Mapping[Bytes, U256],
+            Trie[Bytes, U256],
+            Trie[Address, Optional[Account]],
         ],
     ):
         assume(no_empty_sequence(b))
