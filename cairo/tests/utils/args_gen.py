@@ -64,6 +64,7 @@ from typing import (
     Set,
     Tuple,
     Type,
+    TypeVar,
     Union,
     _ProtocolMeta,
     get_args,
@@ -115,6 +116,13 @@ from tests.utils.helpers import flatten
 
 
 class Memory(bytearray):
+    pass
+
+
+T = TypeVar("T")
+
+
+class Stack(List[T]):
     pass
 
 
@@ -199,7 +207,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ],
     ("ethereum", "exceptions", "EthereumException"): EthereumException,
     ("ethereum", "cancun", "vm", "memory", "Memory"): Memory,
-    ("ethereum", "cancun", "vm", "stack", "Stack"): List[U256],
+    ("ethereum", "cancun", "vm", "stack", "Stack"): Stack[U256],
     (
         "ethereum",
         "cancun",
@@ -302,7 +310,7 @@ def _gen_arg(
         segments.load_data(struct_ptr, data)
         return struct_ptr
 
-    if arg_type_origin in (list, Memory):
+    if arg_type_origin in (Stack, Memory):
         # Collection types are represented as a Dict[felt, V] along with a length field.
         # Get the concrete type parameter. For bytearray, the value type is int.
         value_type = next(iter(get_args(arg_type)), int)
@@ -311,7 +319,7 @@ def _gen_arg(
         segments.load_data(base + 2, [len(arg)])
         return base
 
-    if arg_type_origin in (tuple, Sequence, abc.Sequence):
+    if arg_type_origin in (tuple, list, Sequence, abc.Sequence):
         if arg_type_origin is tuple and (
             Ellipsis not in get_args(arg_type) or annotations
         ):
