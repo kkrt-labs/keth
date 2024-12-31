@@ -7,9 +7,6 @@ authors = [{ name = "Clément Walter", email = "clement0walter@gmail.com" }]
 requires-python = ">=3.10"
 dependencies = []
 
-[project.scripts]
-cairo-addons = "cairo_addons:main"
-
 [tool.maturin]
 module-name = "cairo_addons._core"
 python-packages = ["cairo_addons"]
