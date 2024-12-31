@@ -1,9 +1,20 @@
-from typing import Annotated, Any, Mapping, Optional, Set, Tuple, Type, Union
+from typing import (
+    Annotated,
+    Any,
+    Dict,
+    List,
+    Mapping,
+    Optional,
+    Set,
+    Tuple,
+    Type,
+    Union,
+)
 
 import pytest
 from ethereum_types.bytes import Bytes, Bytes0, Bytes8, Bytes20, Bytes32, Bytes256
 from ethereum_types.numeric import U64, U256, Uint
-from hypothesis import assume, given, settings
+from hypothesis import HealthCheck, assume, given, settings
 from starkware.cairo.common.dict import DictManager
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 from starkware.cairo.lang.vm.memory_dict import MemoryDict
@@ -11,7 +22,7 @@ from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 
 from ethereum.cancun.blocks import Header, Log, Receipt, Withdrawal
 from ethereum.cancun.fork_types import Account, Address, Bloom, Root, VersionedHash
-from ethereum.cancun.state import TransientStorage
+from ethereum.cancun.state import State, TransientStorage
 from ethereum.cancun.transactions import (
     AccessListTransaction,
     BlobTransaction,
@@ -83,22 +94,26 @@ def get_type(instance: Any) -> Type:
         key_type, value_type = instance.__orig_class__.__args__
         return Trie[key_type, value_type]
 
-    if not isinstance(instance, tuple):
+    if not isinstance(instance, (tuple, list)):
         return type(instance)
 
-    # Empty tuple
+    # Empty sequence
     if not instance:
-        return tuple
+        return tuple if isinstance(instance, tuple) else list
 
     # Get all element types
     elem_types = [get_type(x) for x in instance]
 
     # If all elements are the same type, use ellipsis
     if all(t == elem_types[0] for t in elem_types):
-        return Tuple[elem_types[0], ...]
+        return (
+            Tuple[elem_types[0], ...]
+            if isinstance(instance, tuple)
+            else List[elem_types[0]]
+        )
 
-    # Otherwise return tuple of exact types
-    return Tuple[tuple(elem_types)]
+    # Otherwise return sequence of exact types
+    return Tuple[tuple(elem_types)] if isinstance(instance, tuple) else List[elem_types]
 
 
 def is_sequence(value: Any) -> bool:
@@ -129,7 +144,10 @@ class TestSerde:
     @given(b=...)
     # 20 examples per type
     # Cannot build a type object from the dict until we upgrade to python 3.12
-    @settings(max_examples=20 * len(_cairo_struct_to_python_type))
+    @settings(
+        max_examples=20 * len(_cairo_struct_to_python_type),
+        suppress_health_check=[HealthCheck.data_too_large],
+    )
     def test_type(
         self,
         to_cairo_type,
@@ -190,6 +208,13 @@ class TestSerde:
             Trie[Bytes, U256],
             Trie[Address, Optional[Account]],
             TransientStorage,
+            State,
+            Tuple[Trie[Address, Optional[Account]], Dict[Address, Trie[Bytes, U256]]],
+            List[
+                Tuple[
+                    Trie[Address, Optional[Account]], Dict[Address, Trie[Bytes, U256]]
+                ]
+            ],
         ],
     ):
         assume(no_empty_sequence(b))
