@@ -128,9 +128,3 @@ struct Bytes1DictAccess {
     prev_value: Bytes1,
     new_value: Bytes1,
 }
-
-struct BytesU256DictAccess {
-    key: Bytes,
-    prev_value: U256,
-    new_value: U256,
-}
