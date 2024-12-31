@@ -9,6 +9,7 @@ dependencies = [
   "cairo-addons",
   "cairo-lang>=0.13.2",
   "ethereum",
+  "filelock>=3.16.1",
   "marshmallow-dataclass>=8.6.1",
   "python-dotenv>=1.0.1",
   "toml>=0.10.2",
