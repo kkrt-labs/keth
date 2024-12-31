@@ -20,6 +20,16 @@ struct SetAddressStruct {
 struct SetAddress {
     value: SetAddressStruct*,
 }
+
+struct ListHash32Struct {
+    data: Hash32*,
+    len: felt,
+}
+
+struct ListHash32 {
+    value: ListHash32Struct*,
+}
+
 using Root = Hash32;
 
 struct TupleAddressBytes32Struct {
@@ -47,6 +57,7 @@ struct SetTupleAddressBytes32 {
 }
 
 using VersionedHash = Hash32;
+
 struct TupleVersionedHashStruct {
     data: VersionedHash*,
     len: felt,

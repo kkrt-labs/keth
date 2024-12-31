@@ -50,7 +50,7 @@ When adding new types, you must:
 """
 
 from collections import ChainMap, abc, defaultdict
-from dataclasses import fields, is_dataclass
+from dataclasses import fields, is_dataclass, make_dataclass
 from functools import partial
 from typing import (
     Annotated,
@@ -115,6 +115,7 @@ from ethereum.cancun.trie import (
     Node,
     Trie,
 )
+from ethereum.cancun.vm import Environment as EnvironmentBase
 from ethereum.cancun.vm.exceptions import StackOverflowError, StackUnderflowError
 from ethereum.cancun.vm.gas import MessageCallGas
 from ethereum.crypto.hash import Hash32
@@ -131,6 +132,17 @@ T = TypeVar("T")
 
 
 class Stack(List[T]):
+    pass
+
+
+class Environment(
+    make_dataclass(
+        "Environment",
+        [(f.name, f.type, f) for f in fields(EnvironmentBase) if f.name != "traces"],
+    )
+):
+    """A version of Environment that excludes the traces field, which is not used during execution."""
+
     pass
 
 
@@ -258,6 +270,8 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ): List[
         Tuple[Trie[Address, Optional[Account]], Mapping[Address, Trie[Bytes, U256]]]
     ],
+    ("ethereum", "cancun", "vm", "Environment"): Environment,
+    ("ethereum", "cancun", "fork_types", "ListHash32"): List[Hash32],
 }
 
 # In the EELS, some functions are annotated with Sequence while it's actually just Bytes.
