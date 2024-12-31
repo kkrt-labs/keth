@@ -353,108 +353,113 @@ func push{stack: Stack}(value: U256) {
 }
 ```
 
-### Real-World Example: Stack Implementation
+### Real-World Example: TransientStorage Implementation
 
-The Stack implementation in the EVM demonstrates how these patterns come
-together in a real-world component. The stack is a fundamental part of the EVM,
-requiring both mutable state and error handling.
+The TransientStorage implementation demonstrates how these patterns come together in a real-world component. TransientStorage is a key part of the EVM, managing temporary storage that persists between message calls within a transaction. We will base our implementation on the `ethereum/execution-specs` repository, in `ethereum/cancun/state.py`.
 
-1. Error Types: First, we define the possible error conditions following the
-   Errors pattern. The stack can fail in two ways - underflow when popping from
-   an empty stack, or overflow when pushing beyond the maximum size.
+In Python, TransientStorage is a dataclass with two fields:
+   - `_tries`: A dictionary mapping addresses to tries
+   - `_snapshots`: A list of dictionaries for state history
 
-```cairo:cairo/ethereum/cancun/vm/exceptions.cairo
-struct StackUnderflowError {
-    value: Bytes,
+```python
+@dataclass
+class TransientStorage:
+    """
+    Contains all information that is preserved between message calls
+    within a transaction.
+    """
+    _tries: Dict[Address, Trie[Bytes, U256]] = field(default_factory=dict)
+    _snapshots: List[Dict[Address, Trie[Bytes, U256]]] = field(default_factory=list)
+```
+
+Here is the Cairo implementation:
+
+1. Type Wrapping Pattern: Following the complex wrapper pattern, we define the TransientStorage structure with nested pointer-based types:
+
+```cairo:cairo/ethereum/cancun/state.cairo
+struct TransientStorage {
+    value: TransientStorageStruct*,
 }
 
-struct StackOverflowError {
-    value: Bytes,
+struct TransientStorageStruct {
+    _tries: MappingAddressTrieBytesU256,  // Dict[Address, Trie[Bytes, U256]]
+    _snapshots: TransientStorageSnapshots, // List[Dict[Address, Trie[Bytes, U256]]]
 }
 ```
 
-2. Mutable Collection Pattern: The stack uses the dictionary-based mutable
-   collection pattern. The two dictionary pointers track the history of
-   modifications, while len maintains the current stack size.
+2. Mappings Pattern: The `_tries` field uses the dictionary-based mapping pattern to store key-value pairs for each address:
 
-```cairo:cairo/ethereum/cancun/vm/stack.cairo
-struct Stack {
-    value: StackStruct*,
+```cairo:cairo/ethereum/cancun/state.cairo
+struct AddressTrieBytesU256DictAccess {
+    key: Address,
+    prev_value: TrieBytesU256,
+    new_value: TrieBytesU256,
 }
 
-struct StackStruct {
-    dict_ptr_start: StackDictAccess*,
-    dict_ptr: StackDictAccess*,
+struct MappingAddressTrieBytesU256Struct {
+    dict_ptr_start: AddressTrieBytesU256DictAccess*,
+    dict_ptr: AddressTrieBytesU256DictAccess*,
+}
+
+struct MappingAddressTrieBytesU256 {
+    value: MappingAddressTrieBytesU256Struct*,
+}
+```
+
+3. Write-once Collections Pattern: The `_snapshots` field uses the collection pattern to maintain a history of storage states:
+
+```cairo:cairo/ethereum/cancun/state.cairo
+struct TransientStorageSnapshotsStruct {
+    data: MappingAddressTrieBytesU256*,  // Array of mappings
     len: felt,
 }
 
-struct StackDictAccess {
-    key: felt,         // Stack index
-    prev_value: U256,  // Previous value at index
-    new_value: U256,   // New value at index
+struct TransientStorageSnapshots {
+    value: TransientStorageSnapshotsStruct*,
 }
 ```
 
-3. Implicit Arguments and Error Handling: The stack operations follow the
-   implicit arguments pattern for state modification. Push operations only
-   return errors, while pop operations return both the value and potential
-   error.
+4. Python Integration:
 
-```cairo:cairo/ethereum/cancun/vm/stack.cairo
-func push{stack: Stack}(value: U256) -> StackOverflowError {
-    // Only return error type for modification
-    // ...
-}
+We integrate the new external types to the Cairo <> Python type mapping:
 
-func pop{stack: Stack}() -> (U256, StackUnderflowError) {
-    // Return both value and error for query
-    // ...
+```python:tests/utils/args_gen.py
+_cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
+    # ... existing mappings ...
+    ("ethereum", "cancun", "state", "TransientStorage"): TransientStorage,
+    ("ethereum", "cancun", "state", "MappingAddressTrieBytesU256"): Mapping[
+        Address, Trie[Bytes, U256]
+    ],
+    ("ethereum", "cancun", "state", "TransientStorageSnapshots"): List[
+        Dict[Address, Trie[Bytes, U256]]
+    ],
 }
 ```
 
-4. Python Integration: The Python side implements Stack as an extension of
-   List[U256], providing custom argument generation logic to bridge between
-   Python's list representation and Cairo's dictionary-based implementation.
-   Because the logic on how to generate arguments is already implemented for the
-   `list` type and the U256 type, we have no changes to make here.
+5. Testing Pattern: We're only adding a type without functions, so we only need to add the new types to `test_serde.py`.
 
-5. Generally, you should never need to implement argument generation logic or
-   serialization logic, as it can be derived from a composition of existing
-   types.
-
-The serialization logic reconstructs the Stack from Cairo's memory
-representation back to Python. Once again, because the logic is already
-implemented for the `list` type and the U256 type, we have no changes to make
-here.
-
-5. Testing Pattern: The tests use property-based testing with hypothesis to
-   verify both success and error cases. Each test compares the Cairo
-   implementation against an equivalent Python implementation.
-
-```python:cairo/tests/ethereum/cancun/vm/test_stack.py
-class TestStack:
-    def test_pop_underflow(self, cairo_run):
-        stack = []
-        with pytest.raises(StackUnderflowError):
-            cairo_run("pop", stack)
-        with pytest.raises(StackUnderflowError):
-            pop(stack)
-
-    @given(stack=...)
-    def test_pop_success(self, cairo_run, stack: List[U256]):
-        assume(len(stack) > 0)
-
-        (new_stack_cairo, popped_value_cairo) = cairo_run("pop", stack)
-        popped_value_py = pop(stack)
-        assert new_stack_cairo == stack
-        assert popped_value_cairo == popped_value_py
+```python:tests/test_serde.py
+    def test_type(
+        self,
+        to_cairo_type,
+        segments,
+        serde,
+        gen_arg,
+        b: Union[
+            # ... existing types ...
+            TransientStorage,
+            MappingAddressTrieBytesU256,
+            TransientStorageSnapshots,
+        ],
+    ):
+        # ... existing test logic ...
 ```
 
-This implementation shows how to:
+This implementation demonstrates:
+- Complex type wrapping with pointer-based structures
+- Dictionary-based mappings for key-value storage
+- Write-once collections for state history
+- Automatic Python-Cairo type bridging
+- Testing for serialization and deserialization
 
-- Define error types following the BytesStruct pattern
-- Implement a mutable collection using the dictionary pattern
-- Use implicit arguments for state modification
-- Bridge between Python and Cairo types
-- Structure tests with property-based testing
-- Handle both success and error cases
+The TransientStorage component shows how Cairo's memory model and type system can be used to implement complex, stateful data structures while maintaining type safety and immutability guarantees.
