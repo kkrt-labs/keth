@@ -63,9 +63,8 @@ def get_main_path(cairo_file):
 def get_cairo_program(cairo_file: Path, main_path, dump_path: Optional[Path] = None):
     start = perf_counter()
     if dump_path is not None and dump_path.is_file():
-        with FileLock(str(dump_path) + ".lock"):
-            logger.info(f"Loading program from {dump_path}")
-            return Program.load(data=json.loads(dump_path.read_text()))
+        logger.info(f"Loading program from {dump_path}")
+        return Program.load(data=json.loads(dump_path.read_text()))
 
     program = cairo_compile(cairo_file, debug_info=True, proof_mode=False)
     program.hints = implement_hints(program)
