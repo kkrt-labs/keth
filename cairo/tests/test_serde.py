@@ -11,6 +11,7 @@ from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 
 from ethereum.cancun.blocks import Header, Log, Receipt, Withdrawal
 from ethereum.cancun.fork_types import Account, Address, Bloom, Root, VersionedHash
+from ethereum.cancun.state import TransientStorage
 from ethereum.cancun.transactions import (
     AccessListTransaction,
     BlobTransaction,
@@ -188,6 +189,7 @@ class TestSerde:
             Mapping[Bytes, U256],
             Trie[Bytes, U256],
             Trie[Address, Optional[Account]],
+            TransientStorage,
         ],
     ):
         assume(no_empty_sequence(b))

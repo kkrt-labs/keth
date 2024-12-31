@@ -99,6 +99,7 @@ from starkware.cairo.lang.vm.relocatable import MaybeRelocatable, RelocatableVal
 
 from ethereum.cancun.blocks import Header, Log, Receipt, Withdrawal
 from ethereum.cancun.fork_types import Account, Address, Bloom, Root, VersionedHash
+from ethereum.cancun.state import TransientStorage
 from ethereum.cancun.transactions import (
     AccessListTransaction,
     BlobTransaction,
@@ -235,6 +236,13 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
         "StackOverflowError",
     ): StackOverflowError,
     ("ethereum", "cancun", "trie", "Subnodes"): Annotated[Tuple[Extended, ...], 16],
+    ("ethereum", "cancun", "state", "TransientStorage"): TransientStorage,
+    ("ethereum", "cancun", "state", "MappingAddressTrieBytesU256"): Mapping[
+        Address, Trie[Bytes, U256]
+    ],
+    ("ethereum", "cancun", "state", "TransientStorageSnapshots"): List[
+        Dict[Address, Trie[Bytes, U256]]
+    ],
 }
 
 # In the EELS, some functions are annotated with Sequence while it's actually just Bytes.
