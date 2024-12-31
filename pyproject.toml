@@ -156,6 +156,7 @@ norecursedirs = ".* tests/ef_tests/test_data"
 
 [tool.isort]
 profile = "black"
+src_paths = ["cairo/src", "cairo/tests"]
 
 [tool.autoflake]
 in_place = true
