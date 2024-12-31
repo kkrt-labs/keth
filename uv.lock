@@ -380,6 +380,7 @@ dev = [
     { name = "eth-utils" },
     { name = "hypothesis" },
     { name = "ipykernel" },
+    { name = "polars" },
     { name = "pydantic" },
     { name = "pytest" },
     { name = "pytest-xdist" },
