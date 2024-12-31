@@ -29,6 +29,9 @@ from ethereum_types.numeric import U128
 struct Bytes0 {
     value: felt,
 }
+struct Bytes1 {
+    value: felt,
+}
 struct Bytes8 {
     value: felt,
 }
@@ -118,4 +121,10 @@ struct TupleBytes32Struct {
 
 struct TupleBytes32 {
     value: TupleBytes32Struct*,
+}
+
+struct Bytes1DictAccess {
+    key: felt,
+    prev_value: Bytes1,
+    new_value: Bytes1,
 }

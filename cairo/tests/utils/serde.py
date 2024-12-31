@@ -36,7 +36,15 @@ from typing import (
 )
 
 from eth_utils.address import to_checksum_address
-from ethereum_types.bytes import Bytes, Bytes0, Bytes8, Bytes20, Bytes32, Bytes256
+from ethereum_types.bytes import (
+    Bytes,
+    Bytes0,
+    Bytes1,
+    Bytes8,
+    Bytes20,
+    Bytes32,
+    Bytes256,
+)
 from ethereum_types.numeric import U256
 from starkware.cairo.lang.compiler.ast.cairo_types import (
     CairoType,
@@ -55,7 +63,7 @@ from starkware.cairo.lang.compiler.scoped_name import ScopedName
 from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 
 from ethereum.crypto.hash import Hash32
-from tests.utils.args_gen import to_python_type
+from tests.utils.args_gen import Memory, to_python_type
 
 # Sentinel object for indicating no error in exception handling
 NO_ERROR_FLAG = object()
@@ -124,12 +132,14 @@ class Serde:
         if "__main__" in full_path:
             full_path = self.main_part + full_path[full_path.index("__main__") + 1 :]
         python_cls = to_python_type(full_path)
+        origin_cls = get_origin(python_cls)
         annotations = []
 
         if get_origin(python_cls) is Annotated:
             python_cls, *annotations = get_args(python_cls)
+            origin_cls = get_origin(python_cls)
 
-        if get_origin(python_cls) is Union:
+        if origin_cls is Union:
             value_ptr = self.serialize_pointers(path, ptr)["value"]
             if value_ptr is None:
                 return None
@@ -155,7 +165,7 @@ class Serde:
 
             return self._serialize(variant.cairo_type, value_ptr + variant.offset)
 
-        if get_origin(python_cls) is list:
+        if origin_cls is list or python_cls is Memory:
             mapping_struct_ptr = self.serialize_pointers(path, ptr)["value"]
             mapping_struct_path = (
                 get_struct_definition(self.program, path)
@@ -175,7 +185,7 @@ class Serde:
             pointers = self.serialize_pointers(mapping_struct_path, mapping_struct_ptr)
             segment_size = pointers["dict_ptr"] - pointers["dict_ptr_start"]
             dict_ptr = pointers["dict_ptr_start"]
-            list_len = pointers["len"]
+            data_len = pointers["len"]
 
             dict_repr = {
                 self._serialize(key_type, dict_ptr + i): self._serialize(
@@ -183,10 +193,16 @@ class Serde:
                 )
                 for i in range(0, segment_size, 3)
             }
-            return [dict_repr[i] for i in range(list_len)]
+            if python_cls is Memory:
+                # For bytearray, convert Bytes1 objects to integers
+                return Memory(
+                    int.from_bytes(dict_repr[i], "little") for i in range(data_len)
+                )
 
-        if get_origin(python_cls) in (tuple, Sequence, abc.Sequence):
-            # Tuples are represented as structs with a pointer to the first element and the length.
+            return [dict_repr[i] for i in range(data_len)]
+
+        if origin_cls in (tuple, Sequence, abc.Sequence):
+            # Tuple and list are represented as structs with a pointer to the first element and the length.
             # The value field is a list of Relocatable (pointers to each element) or Felt (tuple of felts).
             # In usual cairo, a pointer to a struct, (e.g. Uint256*) is actually a pointer to one single
             # memory segment, where values need to be read from consecutive memory cells (e.g. data[i: i + 2]).
@@ -198,7 +214,7 @@ class Serde:
                 .cairo_type.pointee.scope.path
             )
             members = get_struct_definition(self.program, tuple_struct_path).members
-            if get_origin(python_cls) is tuple and (
+            if origin_cls is tuple and (
                 (Ellipsis not in get_args(python_cls))
                 or (Ellipsis in get_args(python_cls) and len(annotations) == 1)
             ):
@@ -221,9 +237,7 @@ class Serde:
                 raw = self.serialize_pointers(tuple_struct_path, tuple_struct_ptr)
                 tuple_item_path = members["data"].cairo_type.pointee.scope.path
                 resolved_cls = (
-                    get_origin(python_cls)
-                    if get_origin(python_cls) not in (Sequence, abc.Sequence)
-                    else list
+                    origin_cls if origin_cls not in (Sequence, abc.Sequence) else list
                 )
                 return resolved_cls(
                     [
@@ -232,7 +246,7 @@ class Serde:
                     ]
                 )
 
-        if get_origin(python_cls) in (Mapping, abc.Mapping, set):
+        if origin_cls in (Mapping, abc.Mapping, set):
             mapping_struct_ptr = self.serialize_pointers(path, ptr)["value"]
             mapping_struct_path = (
                 get_struct_definition(self.program, path)
@@ -253,7 +267,7 @@ class Serde:
             segment_size = pointers["dict_ptr"] - pointers["dict_ptr_start"]
             dict_ptr = pointers["dict_ptr_start"]
 
-            if get_origin(python_cls) is set:
+            if origin_cls is set:
                 return {
                     self._serialize(key_type, dict_ptr + i)
                     for i in range(0, segment_size, 3)
@@ -316,7 +330,7 @@ class Serde:
                 return U256(value)
             return python_cls(value.to_bytes(32, "little"))
 
-        if python_cls in (Bytes0, Bytes8, Bytes20):
+        if python_cls in (Bytes0, Bytes1, Bytes8, Bytes20):
             return python_cls(value.to_bytes(python_cls.LENGTH, "little"))
 
         # Because some types are wrapped in a value field, e.g. Account{ value: AccountStruct }
