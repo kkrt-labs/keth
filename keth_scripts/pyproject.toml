@@ -1,8 +1,0 @@
-[project]
-name = "keth-scripts"
-version = "0.1.0"
-description = "Some utility scripts for Keth, mostly AI generated"
-readme = "README.md"
-requires-python = ">=3.10"
-
-dependencies = ["pygithub>=2.5.0", "requests>=2.32.3"]
