@@ -79,7 +79,8 @@ def get_type(instance: Any) -> Type:
         return Set
 
     if isinstance(instance, Trie):
-        return Trie[instance._key_type, instance._value_type]
+        key_type, value_type = instance.__orig_class__.__args__
+        return Trie[key_type, value_type]
 
     if not isinstance(instance, tuple):
         return type(instance)
