@@ -1,6 +1,6 @@
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bool import FALSE, TRUE
-from starkware.cairo.common.cairo_builtins import HashBuiltin, KeccakBuiltin, BitwiseBuiltin
+from starkware.cairo.common.cairo_builtins import PoseidonBuiltin, KeccakBuiltin, BitwiseBuiltin, PoseidonBuiltin
 from starkware.cairo.common.default_dict import default_dict_new
 from starkware.cairo.common.dict import dict_read, dict_write
 from starkware.cairo.common.dict_access import DictAccess
@@ -133,7 +133,7 @@ namespace Account {
     // @param key The pointer to the storage key
     // @return The updated Account
     // @return The read value
-    func read_storage{pedersen_ptr: HashBuiltin*}(self: model.Account*, key: Uint256*) -> (
+    func read_storage{poseidon_ptr: PoseidonBuiltin*}(self: model.Account*, key: Uint256*) -> (
         model.Account*, Uint256*
     ) {
         alloc_locals;
@@ -169,7 +169,7 @@ namespace Account {
     // @param self The pointer to the Account.
     // @param key The pointer to the Uint256 storage key
     // @param value The pointer to the Uint256 value
-    func write_storage{pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    func write_storage{poseidon_ptr: PoseidonBuiltin*, range_check_ptr}(
         self: model.Account*, key: Uint256*, value: Uint256*
     ) -> model.Account* {
         alloc_locals;
@@ -199,7 +199,7 @@ namespace Account {
     // @param key The pointer to the storage key
     // @return The updated Account
     // @return The read value
-    func read_transient_storage{pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    func read_transient_storage{poseidon_ptr: PoseidonBuiltin*, range_check_ptr}(
         self: model.Account*, key: Uint256*
     ) -> (model.Account*, Uint256*) {
         alloc_locals;
@@ -236,7 +236,7 @@ namespace Account {
     // @param self The pointer to the Account.
     // @param key The pointer to the Uint256 storage key
     // @param value The pointer to the Uint256 value
-    func write_transient_storage{pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    func write_transient_storage{poseidon_ptr: PoseidonBuiltin*, range_check_ptr}(
         self: model.Account*, key: Uint256*, value: Uint256*
     ) -> model.Account* {
         alloc_locals;
@@ -388,7 +388,7 @@ namespace Account {
         return FALSE;
     }
 
-    func is_storage_warm{pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    func is_storage_warm{poseidon_ptr: PoseidonBuiltin*, range_check_ptr}(
         self: model.Account*, key: Uint256*
     ) -> (model.Account*, felt) {
         alloc_locals;
@@ -422,7 +422,7 @@ namespace Account {
     // @dev This is used for access list transactions that provide a list of pre-accessed keys
     // @param storage_keys_len The number of storage keys to cache.
     // @param storage_keys The pointer to the first storage key.
-    func cache_storage_keys{pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    func cache_storage_keys{poseidon_ptr: PoseidonBuiltin*, range_check_ptr}(
         self: model.Account*, storage_keys_len: felt, storage_keys: Uint256*
     ) -> model.Account* {
         alloc_locals;
@@ -467,13 +467,13 @@ namespace Account {
 namespace Internals {
     // @notice Compute the storage address of the given key
     // @dev    Just the hash of low and high to get a unique random felt key
-    func _storage_addr{pedersen_ptr: HashBuiltin*}(key: Uint256*) -> (res: felt) {
-        let (res) = hash2{hash_ptr=pedersen_ptr}(key.low, key.high);
+    func _storage_addr{poseidon_ptr: PoseidonBuiltin*}(key: Uint256*) -> (res: felt) {
+        let (res) = hash2{hash_ptr=poseidon_ptr}(key.low, key.high);
         return (res=res);
     }
 
     // TODO: fixme value shouldn't be always 0
-    func _cache_storage_keys{pedersen_ptr: HashBuiltin*, range_check_ptr, storage_ptr: DictAccess*}(
+    func _cache_storage_keys{poseidon_ptr: PoseidonBuiltin*, range_check_ptr, storage_ptr: DictAccess*}(
         storage_keys_len: felt, storage_keys: Uint256*
     ) {
         alloc_locals;
