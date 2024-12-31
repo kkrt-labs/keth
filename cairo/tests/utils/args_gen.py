@@ -241,7 +241,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
         Address, Trie[Bytes, U256]
     ],
     ("ethereum", "cancun", "state", "TransientStorageSnapshots"): List[
-        Dict[Address, Trie[Bytes, U256]]
+        Mapping[Address, Trie[Bytes, U256]]
     ],
     ("ethereum", "cancun", "state", "State"): State,
     (

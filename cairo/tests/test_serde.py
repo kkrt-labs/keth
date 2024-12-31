@@ -1,7 +1,6 @@
 from typing import (
     Annotated,
     Any,
-    Dict,
     List,
     Mapping,
     Optional,
@@ -209,10 +208,13 @@ class TestSerde:
             Trie[Address, Optional[Account]],
             TransientStorage,
             State,
-            Tuple[Trie[Address, Optional[Account]], Dict[Address, Trie[Bytes, U256]]],
+            Tuple[
+                Trie[Address, Optional[Account]], Mapping[Address, Trie[Bytes, U256]]
+            ],
             List[
                 Tuple[
-                    Trie[Address, Optional[Account]], Dict[Address, Trie[Bytes, U256]]
+                    Trie[Address, Optional[Account]],
+                    Mapping[Address, Trie[Bytes, U256]],
                 ]
             ],
         ],
