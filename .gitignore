@@ -40,3 +40,4 @@ prof
 *.png
 *.prof
 *.csv
+*.so

@@ -131,7 +131,7 @@ def pytest_sessionfinish(session):
     session_tests_to_skip = [
         session.test_hashes[item.nodeid]
         for item in session.results.values()
-        if item.passed
+        if item.passed and item.nodeid in session.test_hashes
     ]
 
     if xdist.is_xdist_worker(session):
