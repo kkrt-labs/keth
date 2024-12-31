@@ -45,7 +45,9 @@ jobs:
         run: |
           cd cairo
           uv run compile_os
-          uv run pytest tests -n logical --durations=0 -v
+          echo "compiled"
+          uv run pytest tests -n logical --durations=0 -v -s --log-cli-level=DEBUG
+          echo "ran tests"
 
       - uses: actions/cache/save@v4
         with:
