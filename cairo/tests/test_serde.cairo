@@ -12,7 +12,15 @@ from ethereum_types.bytes import (
     MappingBytesBytes,
 )
 
-from ethereum.cancun.fork_types import Address, Root, VersionedHash, Bloom, Account
+from ethereum.cancun.fork_types import (
+    Address,
+    Root,
+    VersionedHash,
+    Bloom,
+    Account,
+    TupleVersionedHash,
+    ListHash32,
+)
 
 from ethereum.cancun.blocks import (
     Withdrawal,
@@ -39,3 +47,4 @@ from ethereum.cancun.trie import BranchNode, ExtensionNode, InternalNode, LeafNo
 from ethereum.exceptions import EthereumException
 from ethereum.cancun.vm.exceptions import StackOverflowError, StackUnderflowError
 from ethereum.cancun.state import TransientStorage
+from ethereum.cancun.vm import Environment

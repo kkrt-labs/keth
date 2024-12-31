@@ -29,8 +29,9 @@ from ethereum.cancun.trie import (
 )
 from ethereum.cancun.vm.exceptions import StackOverflowError, StackUnderflowError
 from ethereum.cancun.vm.gas import MessageCallGas
+from ethereum.crypto.hash import Hash32
 from ethereum.exceptions import EthereumException
-from tests.utils.args_gen import _cairo_struct_to_python_type
+from tests.utils.args_gen import Environment, _cairo_struct_to_python_type
 from tests.utils.args_gen import gen_arg as _gen_arg
 from tests.utils.args_gen import to_cairo_type as _to_cairo_type
 from tests.utils.serde import Serde
@@ -207,6 +208,8 @@ class TestSerde:
                     Mapping[Address, Trie[Bytes, U256]],
                 ]
             ],
+            List[Hash32],
+            Environment,
         ],
     ):
         assume(no_empty_sequence(b))
