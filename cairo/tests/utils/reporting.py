@@ -30,10 +30,9 @@ def dump_coverage(path: Union[str, Path], files: List[CoverageFile]):
     )
 
 
-def profile_from_tracer_data(program, trace, debug_info, program_base):
+def profile_from_tracer_data(program, trace, program_base):
     logger.info("Begin profiling")
     start = perf_counter()
-    trace = pl.DataFrame([{"pc": x.pc, "ap": x.ap, "fp": x.fp} for x in trace])
     debug_info = (
         pl.DataFrame(
             {
@@ -73,6 +72,7 @@ def profile_from_tracer_data(program, trace, debug_info, program_base):
         )
         .select(["parent", pl.all().exclude("parent")])
         .join(debug_info["fp", "scope"], how="left", on="fp")
+        .filter(pl.col("scope").is_not_null())
         .join(
             debug_info["fp", "scope"],
             how="left",

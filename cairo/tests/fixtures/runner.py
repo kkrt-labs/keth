@@ -18,6 +18,7 @@ from pathlib import Path
 from time import time_ns
 from typing import Tuple
 
+import polars as pl
 import pytest
 import starkware.cairo.lang.instances as LAYOUTS
 from starkware.cairo.common.dict import DictManager
@@ -282,11 +283,11 @@ def cairo_run(request, cairo_program, cairo_file, main_path):
             f"{output_stem[:160]}_{int(time_ns())}_{md5(output_stem.encode()).digest().hex()[:8]}"
         )
         if request.config.getoption("profile_cairo"):
+            trace = pl.DataFrame(
+                [{"pc": x.pc, "ap": x.ap, "fp": x.fp} for x in runner.relocated_trace]
+            )
             stats, prof_dict = profile_from_tracer_data(
-                program=cairo_program,
-                trace=runner.relocated_trace,
-                debug_info=runner.get_relocated_debug_info(),
-                program_base=PROGRAM_BASE,
+                program=cairo_program, trace=trace, program_base=PROGRAM_BASE
             )
             stats = stats[
                 "scope",
