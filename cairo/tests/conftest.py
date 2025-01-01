@@ -181,31 +181,27 @@ def pytest_collection_modifyitems(session, config, items):
     session.cairo_programs = {}
     session.main_paths = {}
     session.test_hashes = {}
-    fspaths = sorted(
-        list(
-            {
-                item.fspath
-                for item in items
-                if (
-                    hasattr(item, "fixturenames")
-                    and set(item.fixturenames)
-                    & {
-                        "cairo_file",
-                        "main_path",
-                        "cairo_program",
-                        "cairo_run",
-                    }
-                )
+    cairo_items = [
+        item
+        for item in items
+        if (
+            hasattr(item, "fixturenames")
+            and set(item.fixturenames)
+            & {
+                "cairo_file",
+                "main_path",
+                "cairo_program",
+                "cairo_run",
             }
         )
-    )
+    ]
 
     # Distribute compilation using modulo
     worker_count = getattr(config, "workerinput", {}).get("workercount", 1)
     worker_id = getattr(config, "workerinput", {}).get("workerid", "master")
     worker_index = int(worker_id[2:]) if worker_id != "master" else 0
-    fspaths = [p for p in fspaths[worker_index::worker_count]]
-    for fspath in fspaths:
+    fspaths = sorted(list({item.fspath for item in cairo_items}))
+    for fspath in fspaths[worker_index::worker_count]:
         cairo_file = get_cairo_file(fspath)
         main_path = get_main_path(cairo_file)
         dump_path = session.build_dir / cairo_file.relative_to(
@@ -216,63 +212,52 @@ def pytest_collection_modifyitems(session, config, items):
 
     # Wait for all workers to finish
     all_paths = []
-    for item in items:
-        if hasattr(item, "fixturenames") and set(item.fixturenames) & {
-            "cairo_file",
-            "main_path",
-            "cairo_program",
-            "cairo_run",
-        }:
-            cairo_file = get_cairo_file(item.fspath)
-            dump_path = session.build_dir / cairo_file.relative_to(
-                Path().cwd()
-            ).with_suffix(".json")
-            all_paths.append(dump_path)
+    for item in cairo_items:
+        cairo_file = get_cairo_file(item.fspath)
+        dump_path = session.build_dir / cairo_file.relative_to(
+            Path().cwd()
+        ).with_suffix(".json")
+        all_paths.append(dump_path)
 
     while not all([dump_path.exists() for dump_path in all_paths]):
         logger.info(
             f"Worker {worker_id} with index {worker_index} / {worker_count} waiting for other workers to finish"
         )
+        # 0.25 seconds as observed to be one of the smallest time over the current test files
         time.sleep(0.25)
 
     # Select tests
-    for item in items:
-        if hasattr(item, "fixturenames") and set(item.fixturenames) & {
-            "cairo_file",
-            "main_path",
-            "cairo_program",
-            "cairo_run",
-        }:
-            if item.fspath not in session.cairo_files:
-                cairo_file = get_cairo_file(item.fspath)
-                session.cairo_files[item.fspath] = cairo_file
-            if item.fspath not in session.main_paths:
-                main_path = get_main_path(cairo_file)
-                session.main_paths[item.fspath] = main_path
-            if item.fspath not in session.cairo_programs:
-                dump_path = session.build_dir / cairo_file.relative_to(
-                    Path().cwd()
-                ).with_suffix(".json")
-                cairo_program = get_cairo_program(cairo_file, main_path, dump_path)
-                session.cairo_programs[item.fspath] = cairo_program
+    for item in cairo_items:
+        if item.fspath not in session.cairo_files:
+            cairo_file = get_cairo_file(item.fspath)
+            session.cairo_files[item.fspath] = cairo_file
+        if item.fspath not in session.main_paths:
+            main_path = get_main_path(cairo_file)
+            session.main_paths[item.fspath] = main_path
+        if item.fspath not in session.cairo_programs:
+            dump_path = session.build_dir / cairo_file.relative_to(
+                Path().cwd()
+            ).with_suffix(".json")
+            cairo_program = get_cairo_program(cairo_file, main_path, dump_path)
+            session.cairo_programs[item.fspath] = cairo_program
 
-            cairo_program = session.cairo_programs[item.fspath]
-            test_hash = xxhash.xxh64(
-                program_hash(cairo_program)
-                + file_hash(item.fspath)
-                + item.nodeid.encode()
-                + file_hash(Path(__file__).parent / "fixtures" / "runner.py")
-                + file_hash(Path(__file__).parent / "utils" / "serde.py")
-                + file_hash(Path(__file__).parent / "utils" / "args_gen.py")
-            ).hexdigest()
-            session.test_hashes[item.nodeid] = test_hash
+        cairo_program = session.cairo_programs[item.fspath]
+        test_hash = xxhash.xxh64(
+            program_hash(cairo_program)
+            + file_hash(item.fspath)
+            + item.nodeid.encode()
+            + file_hash(Path(__file__).parent / "fixtures" / "runner.py")
+            + file_hash(Path(__file__).parent / "utils" / "serde.py")
+            + file_hash(Path(__file__).parent / "utils" / "args_gen.py")
+        ).hexdigest()
+        session.test_hashes[item.nodeid] = test_hash
 
-            if config.getoption("no_skip_mark"):
-                item.own_markers = [
-                    mark for mark in item.own_markers if mark.name != "skip"
-                ]
+        if config.getoption("no_skip_mark"):
+            item.own_markers = [
+                mark for mark in item.own_markers if mark.name != "skip"
+            ]
 
-            if test_hash in tests_to_skip and config.getoption("skip_cached_tests"):
-                item.add_marker(pytest.mark.skip(reason="Cached results"))
+        if test_hash in tests_to_skip and config.getoption("skip_cached_tests"):
+            item.add_marker(pytest.mark.skip(reason="Cached results"))
 
     yield
