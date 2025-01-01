@@ -63,9 +63,15 @@ def get_cairo_program(cairo_file: Path, main_path, dump_path: Optional[Path] = N
     start = perf_counter()
     if dump_path is not None and dump_path.is_file():
         logger.info(f"Loading program from {dump_path}")
-        return Program.load(data=json.loads(dump_path.read_text()))
+        program = Program.load(data=json.loads(dump_path.read_text()))
+    else:
+        logger.info(f"Compiling {cairo_file}")
+        program = cairo_compile(cairo_file, debug_info=True, proof_mode=False)
+        if dump_path is not None:
+            dump_path.write_text(
+                json.dumps(program.Schema().dump(program), indent=4, sort_keys=True)
+            )
 
-    program = cairo_compile(cairo_file, debug_info=True, proof_mode=False)
     program.hints = implement_hints(program)
     all_identifiers = list(program.identifiers.dict.items())
     # when running the tests, the main file is the test file
@@ -79,8 +85,5 @@ def get_cairo_program(cairo_file: Path, main_path, dump_path: Optional[Path] = N
         program.identifiers.add_identifier(ScopedName(main_path + k.path[1:]), v)
     stop = perf_counter()
     logger.info(f"{cairo_file} compiled in {stop - start:.2f}s")
-    if dump_path is not None:
-        dump_path.write_text(
-            json.dumps(program.Schema().dump(program), indent=4, sort_keys=True)
-        )
+
     return program
