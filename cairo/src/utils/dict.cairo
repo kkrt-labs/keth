@@ -11,7 +11,7 @@ func dict_copy{range_check_ptr}(dict_start: DictAccess*, dict_end: DictAccess*) 
 ) {
     alloc_locals;
     let (local new_start: DictAccess*) = alloc();
-    let new_end = new_start + (dict_end - dict_start);
+    tempvar new_end = new_start + (dict_end - dict_start);
     memcpy(new_start, dict_start, dict_end - dict_start);
     // Register the segment as a dict in the DictManager.
     %{ dict_copy %}
