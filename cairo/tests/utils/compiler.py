@@ -17,7 +17,6 @@ from pathlib import Path
 from time import perf_counter
 from typing import Optional
 
-from filelock import FileLock
 from starkware.cairo.lang.compiler.program import Program
 from starkware.cairo.lang.compiler.scoped_name import ScopedName
 
@@ -81,8 +80,7 @@ def get_cairo_program(cairo_file: Path, main_path, dump_path: Optional[Path] = N
     stop = perf_counter()
     logger.info(f"{cairo_file} compiled in {stop - start:.2f}s")
     if dump_path is not None:
-        with FileLock(str(dump_path) + ".lock"):
-            dump_path.write_text(
-                json.dumps(program.Schema().dump(program), indent=4, sort_keys=True)
-            )
+        dump_path.write_text(
+            json.dumps(program.Schema().dump(program), indent=4, sort_keys=True)
+        )
     return program

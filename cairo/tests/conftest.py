@@ -1,7 +1,7 @@
 import logging
 import os
-import random
 import shutil
+import time
 from pathlib import Path
 
 import pytest
@@ -181,35 +181,41 @@ def pytest_collection_modifyitems(session, config, items):
     session.cairo_programs = {}
     session.main_paths = {}
     session.test_hashes = {}
-    fspaths = list(
-        {
-            item.fspath
-            for item in items
-            if (
-                hasattr(item, "fixturenames")
-                and set(item.fixturenames)
-                & {
-                    "cairo_file",
-                    "main_path",
-                    "cairo_program",
-                    "cairo_run",
-                }
-            )
-        }
+    fspaths = sorted(
+        list(
+            {
+                item.fspath
+                for item in items
+                if (
+                    hasattr(item, "fixturenames")
+                    and set(item.fixturenames)
+                    & {
+                        "cairo_file",
+                        "main_path",
+                        "cairo_program",
+                        "cairo_run",
+                    }
+                )
+            }
+        )
     )
-    random.shuffle(fspaths)
+
+    # Distribute compilation using modulo
+    worker_count = getattr(config, "workerinput", {}).get("workercount", 1)
+    worker_id = getattr(config, "workerinput", {}).get("workerid", "master")
+    worker_index = int(worker_id[2:]) if worker_id != "master" else 0
+    fspaths = [p for p in fspaths[worker_index::worker_count]]
     for fspath in fspaths:
         cairo_file = get_cairo_file(fspath)
-        session.cairo_files[fspath] = cairo_file
         main_path = get_main_path(cairo_file)
-        session.main_paths[fspath] = main_path
         dump_path = session.build_dir / cairo_file.relative_to(
             Path().cwd()
         ).with_suffix(".json")
         dump_path.parent.mkdir(parents=True, exist_ok=True)
-        cairo_program = get_cairo_program(cairo_file, main_path, dump_path)
-        session.cairo_programs[fspath] = cairo_program
+        get_cairo_program(cairo_file, main_path, dump_path)
 
+    # Wait for all workers to finish
+    all_paths = []
     for item in items:
         if hasattr(item, "fixturenames") and set(item.fixturenames) & {
             "cairo_file",
@@ -217,8 +223,40 @@ def pytest_collection_modifyitems(session, config, items):
             "cairo_program",
             "cairo_run",
         }:
-            cairo_program = session.cairo_programs[item.fspath]
+            cairo_file = get_cairo_file(item.fspath)
+            dump_path = session.build_dir / cairo_file.relative_to(
+                Path().cwd()
+            ).with_suffix(".json")
+            all_paths.append(dump_path)
 
+    while not all([dump_path.exists() for dump_path in all_paths]):
+        logger.info(
+            f"Worker {worker_id} with index {worker_index} / {worker_count} waiting for other workers to finish"
+        )
+        time.sleep(0.25)
+
+    # Select tests
+    for item in items:
+        if hasattr(item, "fixturenames") and set(item.fixturenames) & {
+            "cairo_file",
+            "main_path",
+            "cairo_program",
+            "cairo_run",
+        }:
+            if item.fspath not in session.cairo_files:
+                cairo_file = get_cairo_file(item.fspath)
+                session.cairo_files[item.fspath] = cairo_file
+            if item.fspath not in session.main_paths:
+                main_path = get_main_path(cairo_file)
+                session.main_paths[item.fspath] = main_path
+            if item.fspath not in session.cairo_programs:
+                dump_path = session.build_dir / cairo_file.relative_to(
+                    Path().cwd()
+                ).with_suffix(".json")
+                cairo_program = get_cairo_program(cairo_file, main_path, dump_path)
+                session.cairo_programs[item.fspath] = cairo_program
+
+            cairo_program = session.cairo_programs[item.fspath]
             test_hash = xxhash.xxh64(
                 program_hash(cairo_program)
                 + file_hash(item.fspath)
