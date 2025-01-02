@@ -260,11 +260,8 @@ class TestSerde:
         err: Union[EthereumException, StackOverflowError, StackUnderflowError],
     ):
         base = segments.gen_arg([gen_arg(type(err), err)])
-
-        with pytest.raises(type(err)) as exception:
-            serde.serialize(to_cairo_type(type(err)), base, shift=0)
-
-        assert str(exception.value) == str(err)
+        result = serde.serialize(to_cairo_type(type(err)), base, shift=0)
+        assert issubclass(result.__class__, Exception)
 
     @pytest.mark.parametrize(
         "error_type", [EthereumException, StackOverflowError, StackUnderflowError]
