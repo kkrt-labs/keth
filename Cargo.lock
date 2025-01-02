@@ -1509,15 +1509,15 @@ dependencies = [
 
 [[package]]
 name = "cairo-vm"
-version = "2.0.0-rc1"
-source = "git+https://github.com/lambdaclass/cairo-vm.git?tag=v2.0.0-rc1#388a4e51001377717b7e4c902c35f8e271c92ad7"
+version = "2.0.0-rc3"
+source = "git+https://github.com/lambdaclass/cairo-vm.git?tag=v2.0.0-rc3#9aa0a5feac3de846086f98530a3a961395d2da2a"
 dependencies = [
  "anyhow",
  "arbitrary",
  "bincode 2.0.0-rc.3",
  "bitvec",
  "generic-array",
- "hashbrown 0.14.5",
+ "hashbrown 0.15.2",
  "hex",
  "keccak",
  "lazy_static",
@@ -2866,7 +2866,6 @@ checksum = "e5274423e17b7c9fc20b6e7e208532f9b19825d82dfd615708b70edd83df41f1"
 dependencies = [
  "ahash",
  "allocator-api2",
- "serde",
 ]
 
 [[package]]
@@ -8865,9 +8864,9 @@ checksum = "a8f112729512f8e442d81f95a8a7ddf2b7c6b8a1a6f509a95864142b30cab2d3"
 
 [[package]]
 name = "starknet-crypto"
-version = "0.6.2"
+version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2e2c30c01e8eb0fc913c4ee3cf676389fffc1d1182bfe5bb9670e4e72e968064"
+checksum = "ded22ccf4cb9e572ce3f77de6066af53560cd2520d508876c83bb1e6b29d5cbc"
 dependencies = [
  "crypto-bigint",
  "hex",
@@ -8877,42 +8876,18 @@ dependencies = [
  "num-traits",
  "rfc6979",
  "sha2 0.10.8",
- "starknet-crypto-codegen",
  "starknet-curve",
- "starknet-ff",
+ "starknet-types-core",
  "zeroize",
 ]
 
 [[package]]
-name = "starknet-crypto-codegen"
-version = "0.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bbc159a1934c7be9761c237333a57febe060ace2bc9e3b337a59a37af206d19f"
-dependencies = [
- "starknet-curve",
- "starknet-ff",
- "syn 2.0.90",
-]
-
-[[package]]
 name = "starknet-curve"
-version = "0.4.2"
+version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d1c383518bb312751e4be80f53e8644034aa99a0afb29d7ac41b89a997db875b"
+checksum = "bcde6bd74269b8161948190ace6cf069ef20ac6e79cd2ba09b320efa7500b6de"
 dependencies = [
- "starknet-ff",
-]
-
-[[package]]
-name = "starknet-ff"
-version = "0.3.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7abf1b44ec5b18d87c1ae5f54590ca9d0699ef4dd5b2ffa66fc97f24613ec585"
-dependencies = [
- "ark-ff 0.4.2",
- "crypto-bigint",
- "getrandom",
- "hex",
+ "starknet-types-core",
 ]
 
 [[package]]
