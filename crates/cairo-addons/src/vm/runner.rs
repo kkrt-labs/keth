@@ -4,6 +4,8 @@ use cairo_vm::{
 };
 use pyo3::prelude::*;
 
+use crate::vm::relocatable::PyRelocatable;
+
 #[pyclass(name = "CairoRunner", unsendable)]
 pub struct PyCairoRunner {
     inner: RustCairoRunner,
@@ -38,5 +40,22 @@ impl PyCairoRunner {
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
 
         Ok(Self { inner })
+    }
+
+    #[pyo3(signature = (program_base=None))]
+    fn initialize_segments(&mut self, program_base: Option<PyRelocatable>) {
+        self.inner.initialize_segments(program_base.map(|x| x.inner));
+    }
+
+    #[getter]
+    fn program_base(&self) -> Option<PyRelocatable> {
+        self.inner.program_base.map(|x| PyRelocatable { inner: x })
+    }
+
+    #[pyo3(signature = (allow_missing_builtins))]
+    fn initialize_builtins(&mut self, allow_missing_builtins: bool) -> PyResult<()> {
+        self.inner
+            .initialize_builtins(allow_missing_builtins)
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))
     }
 }
