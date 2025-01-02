@@ -666,8 +666,11 @@ class Serde:
                 output.append(self._serialize(item_type, segment_ptr + i))
             # Because there is no way to know for sure the length of the list, we stop when we
             # encounter an error.
-            # trunk-ignore(ruff/E722)
             except UnknownMemoryError:
+                break
+            except Exception:
+                # TODO: handle this better as only UnknownMemoryError is expected
+                # when accessing invalid memory
                 break
         return output
 

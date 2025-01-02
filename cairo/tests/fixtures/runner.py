@@ -349,12 +349,18 @@ def cairo_run(request, cairo_program, cairo_file, main_path):
             )
         ]
         function_output = [x for x in unfiltered_output if x is not NO_ERROR_FLAG]
-        # raise if any of the return data types is an exception
-        for return_data_type in return_data_types:
-            if isinstance(return_data_type, type) and issubclass(
-                return_data_type, Exception
-            ):
-                raise return_data_type
+        flat_output = [
+            item
+            for sublist in function_output
+            for item in (sublist if isinstance(sublist, list) else [sublist])
+        ]
+        exceptions = [
+            val
+            for val in flat_output
+            if getattr(val, "__class__", None) and issubclass(val.__class__, Exception)
+        ]
+        if exceptions:
+            raise exceptions[0]
 
         if final_output is not None:
             if len(function_output) > 0:

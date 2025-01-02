@@ -39,7 +39,7 @@ func pop{stack: Stack}() -> (U256, StackUnderflowError) {
     tempvar stack = Stack(new StackStruct(stack.value.dict_ptr_start, new_dict_ptr, len - 1));
     tempvar value = U256(cast(pointer, U256Struct*));
 
-    tempvar ok = StackUnderflowError(new BytesStruct(cast(0, felt*), 0));
+    tempvar ok = StackUnderflowError(cast(0, BytesStruct*));
     return (value, ok);
 }
 
@@ -58,7 +58,7 @@ func push{stack: Stack}(value: U256) -> StackOverflowError {
     let new_dict_ptr = cast(dict_ptr, StackDictAccess*);
 
     tempvar stack = Stack(new StackStruct(stack.value.dict_ptr_start, new_dict_ptr, len + 1));
-    tempvar ok = StackOverflowError(new BytesStruct(cast(0, felt*), 0));
+    tempvar ok = StackOverflowError(cast(0, BytesStruct*));
 
     return ok;
 }
