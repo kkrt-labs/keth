@@ -1,4 +1,4 @@
-from cairo_addons._core import hello_from_bin
+from cairo_addons.vm import hello_from_bin
 
 
 def test_hello_from_bin():

@@ -8,7 +8,7 @@ requires-python = ">=3.10"
 dependencies = []
 
 [tool.maturin]
-module-name = "cairo_addons._core"
+module-name = "cairo_addons.vm"
 python-packages = ["cairo_addons"]
 python-source = "src"
 manifest-path = "../../crates/cairo-addons/Cargo.toml"
