@@ -29,6 +29,22 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 Moreover, the project uses [rust](https://www.rust-lang.org/) to manage rust
 dependencies.
 
+### Updating Rust dependencies
+
+Any changes to the rust code requires a re-build and re-install of the python
+package, see
+[the uv docs](https://docs.astral.sh/uv/concepts/projects/init/#projects-with-extension-modules)
+for more information.
+
+The tl;dr is:
+
+```bash
+uv run --reinstall <command>
+```
+
+Forgetting the `--reinstall` flag will not re-build the python package and
+consequentially not use any changes to the rust code.
+
 ## Status
 
 Keth is a work in progress (WIP ⚠️) and as such is not suitable for production.
