@@ -2,7 +2,23 @@ import json
 from pathlib import Path
 
 import pytest
+from hypothesis import strategies as st
 from starkware.cairo.lang.compiler.program import Program
+from starkware.cairo.lang.vm.relocatable import RelocatableValue
+
+st.register_type_strategy(
+    RelocatableValue,
+    st.fixed_dictionaries(
+        {
+            "segment_index": st.integers(
+                min_value=0, max_value=2**RelocatableValue.SEGMENT_BITS - 1
+            ),
+            "offset": st.integers(
+                min_value=0, max_value=2**RelocatableValue.OFFSET_BITS - 1
+            ),
+        }
+    ).map(lambda x: RelocatableValue(**x)),
+)
 
 
 @pytest.fixture(scope="module")

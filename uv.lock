@@ -368,6 +368,7 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "cairo-lang" },
+    { name = "hypothesis" },
     { name = "pytest" },
 ]
 
@@ -377,6 +378,7 @@ requires-dist = [{ name = "maturin", specifier = ">=1.8.1" }]
 [package.metadata.requires-dev]
 dev = [
     { name = "cairo-lang", specifier = ">=0.13.0" },
+    { name = "hypothesis", specifier = ">=6.122.3" },
     { name = "pytest", specifier = ">=7.0" },
 ]
 
