@@ -3,7 +3,7 @@ use pyo3::prelude::*;
 
 #[pyclass(name = "Program")]
 pub struct PyProgram {
-    inner: RustProgram,
+    pub(crate) inner: RustProgram,
 }
 
 #[pymethods]
