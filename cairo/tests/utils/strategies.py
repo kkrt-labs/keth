@@ -90,7 +90,12 @@ def stack_strategy(thing):
 
 
 def memory_strategy():
-    return st.binary(min_size=0, max_size=8192).map(bytearray)
+    """
+    Generating up to 2**13 bytes of memory is enough for most tests as more would take too long
+    in the test runner.
+    2**32 bytes would be the value at which the memory expansion would trigger an OOG
+    """
+    return st.binary(min_size=0, max_size=2**13).map(bytearray)
 
 
 # Fork
