@@ -7,19 +7,17 @@
 // Example:
 // This is an error:
 // ```
-// tempvar inner_error = new BytesStruct(cast(0, felt*), 0);
-// let error = EthereumException(inner_error);
+// let error = cast(0, EthereumException*);
 // ```
 //
 // This is not an error:
 // ```
-// tempvar no_error = EthereumException(cast(0, BytesStruct*));
+// from ethereum.cancun.vm.exceptions import StackUnderflowError
+// tempvar no_error = new EthereumException(StackUnderflowError);
 // ```
-
-from ethereum_types.bytes import BytesStruct
 
 // @notice Base type for all exceptions _expected_ to be thrown during normal
 // operation.
 struct EthereumException {
-    value: BytesStruct*,
+    value: felt,
 }

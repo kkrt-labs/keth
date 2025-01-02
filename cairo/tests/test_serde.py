@@ -27,7 +27,11 @@ from ethereum.cancun.trie import (
     Node,
     Trie,
 )
-from ethereum.cancun.vm.exceptions import StackOverflowError, StackUnderflowError
+from ethereum.cancun.vm.exceptions import (
+    InvalidOpcode,
+    StackOverflowError,
+    StackUnderflowError,
+)
 from ethereum.cancun.vm.gas import MessageCallGas
 from ethereum.crypto.hash import Hash32
 from ethereum.exceptions import EthereumException
@@ -257,14 +261,17 @@ class TestSerde:
         segments,
         serde,
         gen_arg,
-        err: Union[EthereumException, StackOverflowError, StackUnderflowError],
+        err: Union[
+            EthereumException, StackOverflowError, StackUnderflowError, InvalidOpcode
+        ],
     ):
         base = segments.gen_arg([gen_arg(type(err), err)])
         result = serde.serialize(to_cairo_type(type(err)), base, shift=0)
         assert issubclass(result.__class__, Exception)
 
     @pytest.mark.parametrize(
-        "error_type", [EthereumException, StackOverflowError, StackUnderflowError]
+        "error_type",
+        [EthereumException, StackOverflowError, StackUnderflowError, InvalidOpcode],
     )
     def test_none_exception(self, to_cairo_type, serde, gen_arg, error_type):
         base = gen_arg(error_type, None)

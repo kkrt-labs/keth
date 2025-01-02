@@ -1,49 +1,23 @@
-from ethereum_types.bytes import BytesStruct
-
-struct StackUnderflowError {
-    value: BytesStruct*,
+struct ExceptionalHalt {
+    value: felt,
 }
 
-struct StackOverflowError {
-    value: BytesStruct*,
-}
+const StackUnderflowError = 'StackUnderflowError';
+const StackOverflowError = 'StackOverflowError';
+const OutOfGasError = 'OutOfGasError';
+const InvalidOpcode = 'InvalidOpcode';
+const InvalidJumpDestError = 'InvalidJumpDestError';
+const StackDepthLimitError = 'StackDepthLimitError';
+const WriteInStaticContext = 'WriteInStaticContext';
+const OutOfBoundsRead = 'OutOfBoundsRead';
+const InvalidParameter = 'InvalidParameter';
+const InvalidContractPrefix = 'InvalidContractPrefix';
+const AddressCollision = 'AddressCollision';
+const KZGProofError = 'KZGProofError';
 
-struct OutOfGasError {
-    value: BytesStruct*,
-}
-
-struct InvalidOpcodeError {
-    value: BytesStruct*,
-}
-
-struct InvalidJumpDestError {
-    value: BytesStruct*,
-}
-
-struct StackDepthLimitError {
-    value: BytesStruct*,
-}
-
-struct WriteInStaticContextError {
-    value: BytesStruct*,
-}
-
-struct OutOfBoundsReadError {
-    value: BytesStruct*,
-}
-
-struct InvalidParameterError {
-    value: BytesStruct*,
-}
-
-struct InvalidContractPrefixError {
-    value: BytesStruct*,
-}
-
-struct AddressCollisionError {
-    value: BytesStruct*,
-}
-
-struct KZGProofError {
-    value: BytesStruct*,
+func InvalidOpcodeError(param: felt) -> ExceptionalHalt {
+    let param = param * 2 ** 30;
+    let error_string = InvalidOpcode + param;
+    let res = ExceptionalHalt(error_string);
+    return res;
 }
