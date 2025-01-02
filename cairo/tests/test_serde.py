@@ -31,7 +31,14 @@ from ethereum.cancun.vm.exceptions import StackOverflowError, StackUnderflowErro
 from ethereum.cancun.vm.gas import MessageCallGas
 from ethereum.crypto.hash import Hash32
 from ethereum.exceptions import EthereumException
-from tests.utils.args_gen import Environment, _cairo_struct_to_python_type
+from tests.utils.args_gen import (
+    Environment,
+    Evm,
+    Memory,
+    Message,
+    Stack,
+    _cairo_struct_to_python_type,
+)
 from tests.utils.args_gen import gen_arg as _gen_arg
 from tests.utils.args_gen import to_cairo_type as _to_cairo_type
 from tests.utils.serde import Serde
@@ -94,16 +101,23 @@ def get_type(instance: Any) -> Type:
     # Get all element types
     elem_types = [get_type(x) for x in instance]
 
-    # If all elements are the same type, use ellipsis
-    if all(t == elem_types[0] for t in elem_types):
-        return (
-            Tuple[elem_types[0], ...]
-            if isinstance(instance, tuple)
-            else List[elem_types[0]]
-        )
+    type_mapping = {
+        tuple: lambda types: (
+            Tuple[types[0], ...]
+            if all(t == types[0] for t in types)
+            else Tuple[tuple(types)]
+        ),
+        Stack: lambda types: (
+            Stack[types[0]] if all(t == types[0] for t in types) else Stack[types]
+        ),
+        list: lambda types: (
+            List[types[0]] if all(t == types[0] for t in types) else List[types]
+        ),
+    }
 
-    # Otherwise return sequence of exact types
-    return Tuple[tuple(elem_types)] if isinstance(instance, tuple) else List[elem_types]
+    # Get the appropriate constructor based on instance type, defaulting to List
+    type_constructor = type_mapping.get(type(instance))
+    return type_constructor(elem_types)
 
 
 def is_sequence(value: Any) -> bool:
@@ -130,13 +144,26 @@ def no_empty_sequence(value: Any) -> bool:
     return all(no_empty_sequence(x) if is_sequence(x) else True for x in value)
 
 
+def single_evm_parent(b: Union[Message, Evm]) -> bool:
+    if isinstance(b, Message):
+        if b.parent_evm is not None:
+            return b.parent_evm.message.parent_evm is None
+
+    if isinstance(b, Evm):
+        message = b.message
+        if message.parent_evm is not None:
+            return message.parent_evm.message.parent_evm is None
+
+    return True
+
+
 class TestSerde:
     @given(b=...)
     # 20 examples per type
     # Cannot build a type object from the dict until we upgrade to python 3.12
     @settings(
         max_examples=20 * len(_cairo_struct_to_python_type),
-        suppress_health_check=[HealthCheck.data_too_large],
+        suppress_health_check=[HealthCheck.data_too_large, HealthCheck.filter_too_much],
     )
     def test_type(
         self,
@@ -210,9 +237,14 @@ class TestSerde:
             ],
             List[Hash32],
             Environment,
+            Stack[U256],
+            Memory,
+            Evm,
+            Message,
         ],
     ):
         assume(no_empty_sequence(b))
+        assume(single_evm_parent(b))
         type_ = get_type(b)
         base = segments.gen_arg([gen_arg(type_, b)])
         result = serde.serialize(to_cairo_type(type_), base, shift=0)

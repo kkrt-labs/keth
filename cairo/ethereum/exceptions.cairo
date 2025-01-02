@@ -16,10 +16,10 @@
 // tempvar no_error = EthereumException(cast(0, BytesStruct*));
 // ```
 
-from ethereum_types.bytes import Bytes
+from ethereum_types.bytes import BytesStruct
 
 // @notice Base type for all exceptions _expected_ to be thrown during normal
 // operation.
 struct EthereumException {
-    value: Bytes,
+    value: BytesStruct*,
 }

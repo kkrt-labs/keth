@@ -50,7 +50,7 @@ When adding new types, you must:
 """
 
 from collections import ChainMap, abc, defaultdict
-from dataclasses import fields, is_dataclass, make_dataclass
+from dataclasses import dataclass, fields, is_dataclass, make_dataclass
 from functools import partial
 from typing import (
     Annotated,
@@ -82,6 +82,7 @@ from ethereum_types.bytes import (
 )
 from ethereum_types.numeric import U64, U256, Uint
 from starkware.cairo.common.dict import DictManager, DictTracker
+from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 from starkware.cairo.lang.compiler.ast.cairo_types import (
     CairoType,
     TypeFelt,
@@ -116,6 +117,8 @@ from ethereum.cancun.trie import (
     Trie,
 )
 from ethereum.cancun.vm import Environment as EnvironmentBase
+from ethereum.cancun.vm import Evm as EvmBase
+from ethereum.cancun.vm import Message as MessageBase
 from ethereum.cancun.vm.exceptions import StackOverflowError, StackUnderflowError
 from ethereum.cancun.vm.gas import MessageCallGas
 from ethereum.crypto.hash import Hash32
@@ -135,6 +138,7 @@ class Stack(List[T]):
     pass
 
 
+@dataclass
 class Environment(
     make_dataclass(
         "Environment",
@@ -144,6 +148,70 @@ class Environment(
     """A version of Environment that excludes the traces field, which is not used during execution."""
 
     pass
+
+
+@dataclass
+class Message(
+    make_dataclass(
+        "Message",
+        [(f.name, f.type, f) for f in fields(MessageBase) if f.name != "parent_evm"]
+        + [
+            ("parent_evm", Optional["Evm"]),
+        ],
+        namespace={
+            "__doc__": "Items that are used by contract creation or message call.",
+        },
+    )
+):
+    pass
+
+
+@dataclass
+class Evm(
+    make_dataclass(
+        "Evm",
+        # Replace all fields with our local types
+        [
+            (
+                f.name,
+                (
+                    Stack[U256]
+                    if f.name == "stack"
+                    else (
+                        Memory
+                        if f.name == "memory"
+                        else (
+                            Environment
+                            if f.name == "env"
+                            else (
+                                Optional[EthereumException]
+                                if f.name == "error"
+                                else Message if f.name == "message" else f.type
+                            )
+                        )
+                    )
+                ),
+                f,
+            )
+            for f in fields(EvmBase)
+        ],
+        namespace={"__doc__": "The internal state of the virtual machine."},
+    )
+):
+    def __eq__(self, other):
+        return (
+            isinstance(other, Evm)
+            and all(
+                getattr(self, field.name) == getattr(other, field.name)
+                for field in fields(self)
+                if field.name != "error"
+            )
+            and (
+                str(self.error) == str(other.error)
+                if self.error is not None
+                else isinstance(self.error, type(other.error))
+            )
+        )
 
 
 _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
@@ -272,6 +340,10 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ],
     ("ethereum", "cancun", "vm", "Environment"): Environment,
     ("ethereum", "cancun", "fork_types", "ListHash32"): List[Hash32],
+    ("ethereum", "cancun", "vm", "Message"): Message,
+    ("ethereum", "cancun", "vm", "Evm"): Evm,
+    ("ethereum", "cancun", "vm", "Memory"): Memory,
+    ("ethereum", "cancun", "vm", "Stack"): Stack[U256],
 }
 
 # In the EELS, some functions are annotated with Sequence while it's actually just Bytes.
@@ -341,7 +413,22 @@ def _gen_arg(
     if arg_type_origin is Union and get_args(arg_type)[1] is type(None):
         if arg is None:
             return 0
-        return _gen_arg(dict_manager, segments, get_args(arg_type)[0], arg)
+        value = _gen_arg(dict_manager, segments, get_args(arg_type)[0], arg)
+        if isinstance(value, RelocatableValue):
+            # struct SomeClassStruct1 {
+            #     maybe_bytes: BytesStruct*
+            # }
+            # if arg is not None, value is already a pointer != 0
+
+            return value
+        # struct SomeClassStruct {
+        #     maybe_address: Address*
+        # }
+        # if arg is not none, value = Bytes20 = 0x123, which must be wrapped in a pointer.
+
+        ptr = segments.add()
+        segments.load_data(ptr, [value])
+        return ptr
 
     if arg_type_origin is Union:
         # Union are represented as Enum in Cairo, with 0 pointers for all but one variant.
@@ -487,6 +574,8 @@ def _gen_arg(
         return struct_ptr
 
     if arg_type in (int, bool, U64, Uint, Bytes0, Bytes8, Bytes20):
+        if arg_type is int and arg < 0:
+            return arg + DEFAULT_PRIME
         return (
             int(arg)
             if not isinstance_with_generic(arg, bytes)

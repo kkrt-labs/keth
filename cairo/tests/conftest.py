@@ -124,7 +124,7 @@ def pytest_sessionfinish(session):
 
     if xdist.is_xdist_controller(session):
         logger.info("Controller worker: collecting tests to skip")
-        shutil.rmtree(session.build_dir)
+        shutil.rmtree(session.build_dir, ignore_errors=True)
         tests_to_skip = session.config.cache.get(f"cairo_run/{CACHED_TESTS_FILE}", [])
         for worker_id in range(session.config.option.numprocesses):
             tests_to_skip += session.config.cache.get(
@@ -149,7 +149,7 @@ def pytest_sessionfinish(session):
         return
 
     logger.info("Sequential worker: collecting tests to skip")
-    shutil.rmtree(session.build_dir)
+    shutil.rmtree(session.build_dir, ignore_errors=True)
     tests_to_skip = session.config.cache.get(f"cairo_run/{CACHED_TESTS_FILE}", [])
     tests_to_skip += session_tests_to_skip
     session.config.cache.set(f"cairo_run/{CACHED_TESTS_FILE}", list(set(tests_to_skip)))

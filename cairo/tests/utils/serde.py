@@ -47,6 +47,7 @@ from ethereum_types.bytes import (
     Bytes256,
 )
 from ethereum_types.numeric import U256
+from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 from starkware.cairo.lang.compiler.ast.cairo_types import (
     CairoType,
     TypeFelt,
@@ -61,6 +62,7 @@ from starkware.cairo.lang.compiler.identifier_definition import (
 )
 from starkware.cairo.lang.compiler.identifier_manager import MissingIdentifierError
 from starkware.cairo.lang.compiler.scoped_name import ScopedName
+from starkware.cairo.lang.vm.memory_dict import UnknownMemoryError
 from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 
 from ethereum.crypto.hash import Hash32
@@ -302,8 +304,15 @@ class Serde:
             value_type = (
                 get_struct_definition(self.program, path).members["value"].cairo_type
             )
-            error_bytes = self._serialize(value_type, ptr)
-            raise python_cls(error_bytes.decode())
+            struct_name = value_type.pointee.scope.path[-1]
+            path = (*path[:-1], struct_name)
+            raw = self.serialize_pointers(path, tuple_struct_ptr)
+            error_bytes = bytes(
+                [self.memory.get(raw["data"] + i) for i in range(raw["len"])]
+            )
+            if error_bytes == b"":
+                return python_cls()
+            return python_cls(error_bytes.decode())
 
         if python_cls == Bytes256:
             base_ptr = self.memory.get(ptr)
@@ -346,8 +355,18 @@ class Serde:
         except TypeError:
             pass
 
-        if is_dataclass(get_origin(python_cls)):
-            return python_cls(**value)
+        if is_dataclass(get_origin(python_cls)) or is_dataclass(python_cls):
+            # Adjust int fields if they exceed 2**128 by subtracting DEFAULT_PRIME
+            # and filter out the NO_ERROR_FLAG, replacing it with None
+            adjusted_value = {
+                k: (
+                    None
+                    if v is NO_ERROR_FLAG
+                    else (v - DEFAULT_PRIME if isinstance(v, int) and v > 2**128 else v)
+                )
+                for k, v in value.items()
+            }
+            return python_cls(**adjusted_value)
 
         if isinstance(value, dict):
             signature(python_cls.__init__).bind(None, **value)
@@ -408,6 +427,8 @@ class Serde:
             return self.memory.get(ptr)
         if isinstance(cairo_type, TypeStruct):
             return self.serialize_scope(cairo_type.scope, ptr)
+        if isinstance(cairo_type, AliasDefinition):
+            return self.serialize_scope(cairo_type.destination, ptr)
         raise ValueError(f"Unknown type {cairo_type}")
 
     def get_offset(self, cairo_type):
@@ -646,7 +667,7 @@ class Serde:
             # Because there is no way to know for sure the length of the list, we stop when we
             # encounter an error.
             # trunk-ignore(ruff/E722)
-            except:
+            except UnknownMemoryError:
                 break
         return output
 
