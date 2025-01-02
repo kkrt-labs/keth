@@ -18,7 +18,4 @@ requires = ["maturin>=1.0,<2.0"]
 build-backend = "maturin"
 
 [tool.uv]
-dev-dependencies = [
-    "pytest>=7.0",
-    "cairo-lang>=0.13.0",
-]
+dev-dependencies = ["pytest>=7.0", "cairo-lang>=0.13.0", "hypothesis>=6.122.3"]
