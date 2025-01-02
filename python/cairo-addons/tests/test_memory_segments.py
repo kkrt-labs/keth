@@ -1,4 +1,4 @@
-from cairo_addons.vm import MaybeRelocatable, MemorySegmentManager, Relocatable
+from cairo_addons.vm import MemorySegmentManager, Relocatable
 
 
 class TestMemorySegmentManager:
@@ -23,7 +23,7 @@ class TestMemorySegmentManager:
     def test_load_data(self):
         memory = MemorySegmentManager()
         ptr = memory.add()
-        data = [MaybeRelocatable.from_int(x) for x in [1, 2, 3, 4]]
+        data = [1, 2, 3, 4]
         next_ptr = memory.load_data(ptr, data)
         assert isinstance(next_ptr, Relocatable)
         assert next_ptr.segment_index == ptr.segment_index
@@ -32,7 +32,7 @@ class TestMemorySegmentManager:
     def test_compute_effective_sizes(self):
         memory = MemorySegmentManager()
         ptr = memory.add()
-        data = [MaybeRelocatable.from_int(x) for x in [1, 2, 3, 4]]
+        data = [1, 2, 3, 4]
         memory.load_data(ptr, data)
         memory.compute_effective_sizes()
         assert memory.get_segment_used_size(0) == 4
