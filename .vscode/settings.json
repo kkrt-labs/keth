@@ -16,6 +16,7 @@
     "filterwarnings",
     "fixturenames",
     "frozendict",
+    "fspaths",
     "hookwrapper",
     "intdigest",
     "ipykernel",
@@ -51,6 +52,7 @@
     "snakeviz",
     "testrunfinished",
     "usort",
+    "workercount",
     "workerid",
     "workerinput",
     "xxhash"
