@@ -49,6 +49,8 @@ When adding new types, you must:
 - Add the test generation strategy to strategies.py if it's a new type (not required when only doing composition of existing types, e.g. `Union[U256, bool]`)
 """
 
+import inspect
+import sys
 from collections import ChainMap, abc, defaultdict
 from dataclasses import dataclass, fields, is_dataclass, make_dataclass
 from functools import partial
@@ -119,7 +121,7 @@ from ethereum.cancun.trie import (
 from ethereum.cancun.vm import Environment as EnvironmentBase
 from ethereum.cancun.vm import Evm as EvmBase
 from ethereum.cancun.vm import Message as MessageBase
-from ethereum.cancun.vm.exceptions import StackOverflowError, StackUnderflowError
+from ethereum.cancun.vm.exceptions import ExceptionalHalt
 from ethereum.cancun.vm.gas import MessageCallGas
 from ethereum.crypto.hash import Hash32
 from ethereum.exceptions import EthereumException
@@ -214,6 +216,23 @@ class Evm(
         )
 
 
+vm_exception_classes = inspect.getmembers(
+    sys.modules["ethereum.cancun.vm.exceptions"],
+    lambda x: inspect.isclass(x) and issubclass(x, ExceptionalHalt),
+)
+
+vm_exception_mappings = {
+    (
+        "ethereum",
+        "cancun",
+        "vm",
+        "exceptions",
+        f"{name}",
+    ): cls
+    for name, cls in vm_exception_classes
+    if cls is not ExceptionalHalt
+}
+
 _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum_types", "others", "None"): type(None),
     ("ethereum_types", "numeric", "bool"): bool,
@@ -301,20 +320,6 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "exceptions", "EthereumException"): EthereumException,
     ("ethereum", "cancun", "vm", "memory", "Memory"): Memory,
     ("ethereum", "cancun", "vm", "stack", "Stack"): Stack[U256],
-    (
-        "ethereum",
-        "cancun",
-        "vm",
-        "exceptions",
-        "StackUnderflowError",
-    ): StackUnderflowError,
-    (
-        "ethereum",
-        "cancun",
-        "vm",
-        "exceptions",
-        "StackOverflowError",
-    ): StackOverflowError,
     ("ethereum", "cancun", "trie", "Subnodes"): Annotated[Tuple[Extended, ...], 16],
     ("ethereum", "cancun", "state", "TransientStorage"): TransientStorage,
     ("ethereum", "cancun", "state", "MappingAddressTrieBytesU256"): Mapping[
@@ -344,6 +349,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "cancun", "vm", "Evm"): Evm,
     ("ethereum", "cancun", "vm", "Memory"): Memory,
     ("ethereum", "cancun", "vm", "Stack"): Stack[U256],
+    **vm_exception_mappings,
 }
 
 # In the EELS, some functions are annotated with Sequence while it's actually just Bytes.
