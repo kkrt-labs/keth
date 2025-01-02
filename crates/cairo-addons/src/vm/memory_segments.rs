@@ -31,7 +31,7 @@ impl PyMemorySegmentManager {
         ptr: &PyRelocatable,
         data: Vec<PyMaybeRelocatable>,
     ) -> PyResult<PyRelocatable> {
-        let data: Vec<MaybeRelocatable> = data.into_iter().map(|x| x.inner).collect();
+        let data: Vec<MaybeRelocatable> = data.into_iter().map(|x| x.into()).collect();
 
         let result = self
             .inner
