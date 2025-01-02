@@ -369,6 +369,7 @@ dependencies = [
 dev = [
     { name = "cairo-lang" },
     { name = "hypothesis" },
+    { name = "jupyter" },
     { name = "pytest" },
 ]
 
@@ -379,6 +380,7 @@ requires-dist = [{ name = "maturin", specifier = ">=1.8.1" }]
 dev = [
     { name = "cairo-lang", specifier = ">=0.13.0" },
     { name = "hypothesis", specifier = ">=6.122.3" },
+    { name = "jupyter", specifier = ">=1.1.1" },
     { name = "pytest", specifier = ">=7.0" },
 ]
 
