@@ -97,3 +97,7 @@ thiserror = "1.0"
 url = "2.5"
 reqwest = { version = "0.12", features = ["multipart"] }
 mockito = "1"
+
+cairo-vm = { git = "https://github.com/lambdaclass/cairo-vm.git", tag = "v2.0.0-rc1", features = [
+  "test_utils",
+] }
