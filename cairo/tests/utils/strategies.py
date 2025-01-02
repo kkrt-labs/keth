@@ -11,6 +11,7 @@ from hypothesis import strategies as st
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 
 from ethereum.crypto.elliptic_curve import SECP256K1N
+from tests.utils.args_gen import Memory, Stack
 
 # Mock the Extended type because hypothesis cannot handle the RLP Protocol
 # Needs to be done before importing the types from ethereum.cancun.trie
@@ -79,6 +80,22 @@ def trie_strategy(thing):
             "_data": st.dictionaries(st.from_type(key_type), st.from_type(value_type)),
         }
     ).map(lambda x: Trie[key_type, value_type](**x))
+
+
+def stack_strategy(thing):
+    value_type = thing.__args__[0]
+    return st.lists(st.from_type(value_type), min_size=0, max_size=1024).map(
+        lambda x: Stack[value_type](x)
+    )
+
+
+def memory_strategy():
+    """
+    Generating up to 2**13 bytes of memory is enough for most tests as more would take too long
+    in the test runner.
+    2**32 bytes would be the value at which the memory expansion would trigger an OOG
+    """
+    return st.binary(min_size=0, max_size=2**13).map(bytearray)
 
 
 # Fork
@@ -170,3 +187,5 @@ def register_type_strategies():
     )
     st.register_type_strategy(PrivateKey, private_key)
     st.register_type_strategy(Trie, trie_strategy)
+    st.register_type_strategy(Stack, stack_strategy)
+    st.register_type_strategy(Memory, memory_strategy)

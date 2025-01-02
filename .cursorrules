@@ -164,6 +164,28 @@ struct U256 {
 
 A `null` U256 is represented by the inner U256Struct\* having a value of 0.
 
+When integrating optional values in other types, we thus have two cases:
+
+1. (simple type) We represent the option as a pointer to the value, with a value
+   of 0 representing a null value.
+2. (complex type) We represent the option as the type itself, as it is already a
+   pointer-based type.
+
+To make it clear to the reader, we define a type alias
+`using OptionalAddress = Address*` (simple type) and
+`using OptionalBytes = Bytes` (complex type).
+
+```cairo
+using OptionalAddress = Address*;
+using OptionalEvm = Evm;
+
+struct MessageStruct {
+    // ... other fields ...
+    code_address: OptionalAddress,
+    parent_evm: OptionalEvm,
+}
+```
+
 ### Union Types Pattern
 
 Unions implement a pointer-based variant system. Real example from RLP encoding,
@@ -355,11 +377,16 @@ func push{stack: Stack}(value: U256) {
 
 ### Real-World Example: TransientStorage Implementation
 
-The TransientStorage implementation demonstrates how these patterns come together in a real-world component. TransientStorage is a key part of the EVM, managing temporary storage that persists between message calls within a transaction. We will base our implementation on the `ethereum/execution-specs` repository, in `ethereum/cancun/state.py`.
+The TransientStorage implementation demonstrates how these patterns come
+together in a real-world component. TransientStorage is a key part of the EVM,
+managing temporary storage that persists between message calls within a
+transaction. We will base our implementation on the `ethereum/execution-specs`
+repository, in `ethereum/cancun/state.py`.
 
 In Python, TransientStorage is a dataclass with two fields:
-   - `_tries`: A dictionary mapping addresses to tries
-   - `_snapshots`: A list of dictionaries for state history
+
+- `_tries`: A dictionary mapping addresses to tries
+- `_snapshots`: A list of dictionaries for state history
 
 ```python
 @dataclass
@@ -374,7 +401,8 @@ class TransientStorage:
 
 Here is the Cairo implementation:
 
-1. Type Wrapping Pattern: Following the complex wrapper pattern, we define the TransientStorage structure with nested pointer-based types:
+1. Type Wrapping Pattern: Following the complex wrapper pattern, we define the
+   TransientStorage structure with nested pointer-based types:
 
 ```cairo:cairo/ethereum/cancun/state.cairo
 struct TransientStorage {
@@ -387,7 +415,8 @@ struct TransientStorageStruct {
 }
 ```
 
-2. Mappings Pattern: The `_tries` field uses the dictionary-based mapping pattern to store key-value pairs for each address:
+2. Mappings Pattern: The `_tries` field uses the dictionary-based mapping
+   pattern to store key-value pairs for each address:
 
 ```cairo:cairo/ethereum/cancun/state.cairo
 struct AddressTrieBytesU256DictAccess {
@@ -406,7 +435,8 @@ struct MappingAddressTrieBytesU256 {
 }
 ```
 
-3. Write-once Collections Pattern: The `_snapshots` field uses the collection pattern to maintain a history of storage states:
+3. Write-once Collections Pattern: The `_snapshots` field uses the collection
+   pattern to maintain a history of storage states:
 
 ```cairo:cairo/ethereum/cancun/state.cairo
 struct TransientStorageSnapshotsStruct {
@@ -436,7 +466,8 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
 }
 ```
 
-5. Testing Pattern: We're only adding a type without functions, so we only need to add the new types to `test_serde.py`.
+5. Testing Pattern: We're only adding a type without functions, so we only need
+   to add the new types to `test_serde.py`.
 
 ```python:tests/test_serde.py
     def test_type(
@@ -456,10 +487,13 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
 ```
 
 This implementation demonstrates:
+
 - Complex type wrapping with pointer-based structures
 - Dictionary-based mappings for key-value storage
 - Write-once collections for state history
 - Automatic Python-Cairo type bridging
 - Testing for serialization and deserialization
 
-The TransientStorage component shows how Cairo's memory model and type system can be used to implement complex, stateful data structures while maintaining type safety and immutability guarantees.
+The TransientStorage component shows how Cairo's memory model and type system
+can be used to implement complex, stateful data structures while maintaining
+type safety and immutability guarantees.

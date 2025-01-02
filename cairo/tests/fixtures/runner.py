@@ -38,6 +38,7 @@ from starkware.cairo.lang.vm.utils import RunResources
 
 from tests.utils.args_gen import gen_arg as gen_arg_builder
 from tests.utils.args_gen import to_cairo_type, to_python_type
+from tests.utils.helpers import flatten
 from tests.utils.hints import debug_info, get_op, oracle
 from tests.utils.reporting import profile_from_tracer_data
 from tests.utils.serde import NO_ERROR_FLAG, Serde
@@ -349,6 +350,13 @@ def cairo_run(request, cairo_program, cairo_file, main_path):
             )
         ]
         function_output = [x for x in unfiltered_output if x is not NO_ERROR_FLAG]
+        exceptions = [
+            val
+            for val in flatten(function_output)
+            if hasattr(val, "__class__") and issubclass(val.__class__, Exception)
+        ]
+        if exceptions:
+            raise exceptions[0]
 
         if final_output is not None:
             if len(function_output) > 0:

@@ -161,6 +161,28 @@ struct U256 {
 
 A `null` U256 is represented by the inner U256Struct\* having a value of 0.
 
+When integrating optional values in other types, we thus have two cases:
+
+1. (simple type) We represent the option as a pointer to the value, with a value
+   of 0 representing a null value.
+2. (complex type) We represent the option as the type itself, as it is already a
+   pointer-based type.
+
+To make it clear to the reader, we define a type alias
+`using OptionalAddress = Address*` (simple type) and
+`using OptionalBytes = Bytes` (complex type).
+
+```cairo
+using OptionalAddress = Address*;
+using OptionalEvm = Evm;
+
+struct MessageStruct {
+    // ... other fields ...
+    code_address: OptionalAddress,
+    parent_evm: OptionalEvm,
+}
+```
+
 ### Union Types Pattern
 
 Unions implement a pointer-based variant system. Real example from RLP encoding,
