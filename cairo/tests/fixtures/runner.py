@@ -24,6 +24,7 @@ import starkware.cairo.lang.instances as LAYOUTS
 from starkware.cairo.common.dict import DictManager
 from starkware.cairo.lang.builtins.all_builtins import ALL_BUILTINS
 from starkware.cairo.lang.compiler.ast.cairo_types import CairoType, TypeStruct
+from starkware.cairo.lang.compiler.program import Program
 from starkware.cairo.lang.compiler.scoped_name import ScopedName
 from starkware.cairo.lang.vm.cairo_run import (
     write_air_public_input,
@@ -74,7 +75,7 @@ def cairo_file(request):
 
 
 @pytest.fixture(scope="module")
-def cairo_program(request):
+def cairo_program(request) -> Program:
     return request.session.cairo_programs[request.node.fspath]
 
 
@@ -84,7 +85,7 @@ def main_path(request):
 
 
 @pytest.fixture(scope="module")
-def cairo_run(request, cairo_program, cairo_file, main_path):
+def cairo_run(request, cairo_program: Program, cairo_file, main_path):
     """
     Run the cairo program corresponding to the python test file at a given entrypoint with given program inputs as kwargs.
     Returns the output of the cairo program put in the output memory segment.
