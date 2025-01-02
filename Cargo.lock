@@ -1543,6 +1543,7 @@ dependencies = [
 name = "cairo_addons"
 version = "0.1.0"
 dependencies = [
+ "cairo-vm",
  "pyo3",
  "pyo3-build-config",
 ]

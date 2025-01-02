@@ -11,6 +11,7 @@
     "dataframe",
     "defaultdict",
     "divmod",
+    "eips",
     "exitstatus",
     "fibonacci",
     "filterwarnings",
