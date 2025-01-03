@@ -11,7 +11,8 @@ from hypothesis import strategies as st
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 
 from ethereum.crypto.elliptic_curve import SECP256K1N
-from tests.utils.args_gen import Memory, Stack
+from ethereum.exceptions import EthereumException
+from tests.utils.args_gen import Environment, Evm, Memory, Message, Stack
 
 # Mock the Extended type because hypothesis cannot handle the RLP Protocol
 # Needs to be done before importing the types from ethereum.cancun.trie
@@ -59,6 +60,8 @@ extended = st.recursive(
     st.one_of(st.binary(), uint, st.text(), st.booleans()), st.lists
 )
 
+small_bytes = st.binary(min_size=0, max_size=256)
+
 
 # See https://github.com/ethereum/execution-specs/issues/1036
 # It's currently not possible to generate strategies using `st.builds` because the dataclasses
@@ -89,13 +92,56 @@ def stack_strategy(thing):
     )
 
 
-def memory_strategy():
-    """
-    Generating up to 2**13 bytes of memory is enough for most tests as more would take too long
-    in the test runner.
-    2**32 bytes would be the value at which the memory expansion would trigger an OOG
-    """
-    return st.binary(min_size=0, max_size=2**13).map(bytearray)
+# Generating up to 2**13 bytes of memory is enough for most tests as more would take too long
+# in the test runner.
+# 2**32 bytes would be the value at which the memory expansion would trigger an OOG
+memory = st.binary(min_size=0, max_size=2**13).map(Memory)
+
+
+evm = st.fixed_dictionaries(
+    {
+        "pc": st.from_type(Uint),
+        "stack": stack_strategy(Stack[U256]),
+        "memory": memory,
+        "code": small_bytes,
+        "gas_left": uint,
+        "env": st.from_type(Environment),
+        "valid_jump_destinations": st.sets(st.from_type(Uint)),
+        "logs": st.tuples(st.from_type(Log)),
+        "refund_counter": st.integers(min_value=0),
+        "running": st.booleans(),
+        "message": st.from_type(Message),
+        "output": small_bytes,
+        "accounts_to_delete": st.sets(st.from_type(Address)),
+        "touched_accounts": st.sets(st.from_type(Address)),
+        "return_data": small_bytes,
+        "error": st.none() | st.from_type(EthereumException),
+        "accessed_addresses": st.sets(st.from_type(Address)),
+        "accessed_storage_keys": st.sets(
+            st.tuples(st.from_type(Address), st.from_type(Bytes32))
+        ),
+    }
+).map(lambda x: Evm(**x))
+
+
+message = st.fixed_dictionaries(
+    {
+        "caller": address,
+        "target": st.one_of(bytes0, address),
+        "current_target": address,
+        "gas": uint,
+        "value": uint256,
+        "data": small_bytes,
+        "code_address": st.none() | address,
+        "code": small_bytes,
+        "depth": uint,
+        "should_transfer_value": st.booleans(),
+        "is_static": st.booleans(),
+        "accessed_addresses": st.sets(address),
+        "accessed_storage_keys": st.sets(st.tuples(address, bytes32)),
+        "parent_evm": st.none() | evm,
+    }
+).map(lambda x: Message(**x))
 
 
 # Fork
@@ -188,4 +234,5 @@ def register_type_strategies():
     st.register_type_strategy(PrivateKey, private_key)
     st.register_type_strategy(Trie, trie_strategy)
     st.register_type_strategy(Stack, stack_strategy)
-    st.register_type_strategy(Memory, memory_strategy)
+    st.register_type_strategy(Memory, memory)
+    st.register_type_strategy(Evm, evm)

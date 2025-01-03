@@ -1,3 +1,4 @@
+import pytest
 from ethereum_types.numeric import U256, Uint
 from hypothesis import assume, given
 from hypothesis import strategies as st
@@ -12,12 +13,26 @@ from ethereum.cancun.vm.gas import (
     calculate_memory_gas_cost,
     calculate_message_call_gas,
     calculate_total_blob_gas,
+    charge_gas,
     init_code_cost,
     max_message_call_gas,
 )
+from tests.utils.args_gen import Evm
 
 
 class TestGas:
+    @given(evm=..., amount=...)
+    def test_charge_gas(self, cairo_run, evm: Evm, amount: Uint):
+        try:
+            cairo_result = cairo_run("charge_gas", evm, amount)
+        except Exception as cairo_error:
+            with pytest.raises(type(cairo_error)):
+                charge_gas(evm, amount)
+            return
+
+        charge_gas(evm, amount)
+        assert evm == cairo_result
+
     @given(size_in_bytes=...)
     def test_calculate_memory_gas_cost(self, cairo_run, size_in_bytes: Uint):
         assert calculate_memory_gas_cost(size_in_bytes) == cairo_run(

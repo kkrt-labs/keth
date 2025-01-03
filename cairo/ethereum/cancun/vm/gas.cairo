@@ -1,8 +1,13 @@
 from ethereum_types.numeric import U256, Uint, U64
 from ethereum.utils.numeric import is_zero, divmod, taylor_exponential, min, ceil32
+from ethereum_types.bytes import BytesStruct
 from ethereum.cancun.blocks import Header
 from ethereum.cancun.transactions import Transaction
-from starkware.cairo.common.math_cmp import is_le, is_not_zero
+from ethereum.cancun.vm import Evm, EvmStruct, EvmImpl
+from ethereum.cancun.vm.exceptions import OutOfGasError
+
+from starkware.cairo.common.math_cmp import is_le, is_not_zero, RC_BOUND
+from starkware.cairo.common.math import assert_le_felt
 
 const TARGET_BLOB_GAS_PER_BLOCK = 393216;
 const GAS_INIT_CODE_WORD_COST = 2;
@@ -18,6 +23,56 @@ struct MessageCallGasStruct {
 
 struct MessageCallGas {
     value: MessageCallGasStruct*,
+}
+
+// @notice Subtracts `amount` from `evm.gas_left`.
+// @dev The gas left is decremented by the given amount.
+// Use code adapted from is_nn.
+// Assumption: gas_left < 2 ** 128
+// @param evm The pointer to the current execution context.
+// @param amount The amount of gas the current operation requires.
+// @return EVM The pointer to the updated execution context.
+func charge_gas{range_check_ptr, evm: Evm}(amount: Uint) -> OutOfGasError {
+    // This is equivalent to is_nn(evm.value.gas_left - amount)
+    with_attr error_message("charge_gas: gas_left > 2**128") {
+        assert [range_check_ptr] = evm.value.gas_left.value;
+        tempvar range_check_ptr = range_check_ptr + 1;
+    }
+
+    tempvar a = evm.value.gas_left.value - amount.value;  // a is necessary for using the whitelisted hint
+    %{ memory[ap] = 0 if 0 <= (ids.a % PRIME) < range_check_builtin.bound else 1 %}
+    jmp out_of_range if [ap] != 0, ap++;
+    [range_check_ptr] = a;
+    ap += 20;
+    tempvar range_check_ptr = range_check_ptr + 1;
+    jmp enough_gas;
+
+    out_of_range:
+    %{ memory[ap] = 0 if 0 <= ((-ids.a - 1) % PRIME) < range_check_builtin.bound else 1 %}
+    jmp need_felt_comparison if [ap] != 0, ap++;
+    assert [range_check_ptr] = (-a) - 1;
+    ap += 17;
+    tempvar range_check_ptr = range_check_ptr + 1;
+    jmp not_enough_gas;
+
+    need_felt_comparison:
+    assert_le_felt(RC_BOUND, a);
+    jmp not_enough_gas;
+
+    enough_gas:
+    let range_check_ptr = [ap - 1];
+    let evm_struct = cast([fp - 4], EvmStruct*);
+    tempvar evm = Evm(evm_struct);
+    EvmImpl.set_gas_left(Uint(a));
+    tempvar ok = OutOfGasError(cast(0, BytesStruct*));
+    return ok;
+
+    not_enough_gas:
+    let range_check_ptr = [ap - 1];
+    let evm_struct = cast([fp - 4], EvmStruct*);
+    tempvar evm = Evm(evm_struct);
+    tempvar err = OutOfGasError(new BytesStruct(cast(0, felt*), 0));
+    return err;
 }
 
 func calculate_memory_gas_cost{range_check_ptr}(size_in_bytes: Uint) -> Uint {
