@@ -1,6 +1,5 @@
 use cairo_vm::{
-    types::relocatable::MaybeRelocatable,
-    vm::vm_memory::memory_segments::MemorySegmentManager as RustMemorySegmentManager,
+    types::relocatable::MaybeRelocatable, vm::runners::cairo_runner::CairoRunner as RustCairoRunner,
 };
 use pyo3::prelude::*;
 
@@ -8,22 +7,17 @@ use crate::vm::{maybe_relocatable::PyMaybeRelocatable, relocatable::PyRelocatabl
 
 #[pyclass(name = "MemorySegmentManager", unsendable)]
 pub struct PyMemorySegmentManager {
-    pub(crate) inner: RustMemorySegmentManager,
+    pub(crate) runner: *mut RustCairoRunner,
 }
 
 #[pymethods]
 impl PyMemorySegmentManager {
-    #[new]
-    fn new() -> Self {
-        Self { inner: RustMemorySegmentManager::new() }
-    }
-
     fn add(&mut self) -> PyRelocatable {
-        self.inner.add().into()
+        unsafe { (*self.runner).vm.segments.add().into() }
     }
 
     fn add_temporary_segment(&mut self) -> PyRelocatable {
-        self.inner.add_temporary_segment().into()
+        unsafe { (*self.runner).vm.segments.add_temporary_segment().into() }
     }
 
     fn load_data(
@@ -33,23 +27,26 @@ impl PyMemorySegmentManager {
     ) -> PyResult<PyRelocatable> {
         let data: Vec<MaybeRelocatable> = data.into_iter().map(|x| x.into()).collect();
 
-        let result = self
-            .inner
-            .load_data(ptr.inner, &data)
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+        let result = unsafe {
+            (*self.runner)
+                .vm
+                .segments
+                .load_data(ptr.inner, &data)
+                .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?
+        };
 
         Ok(result.into())
     }
 
-    fn compute_effective_sizes(&mut self) {
-        self.inner.compute_effective_sizes();
-    }
-
     fn get_segment_used_size(&self, segment_index: usize) -> Option<usize> {
-        self.inner.get_segment_used_size(segment_index)
+        unsafe { (*self.runner).vm.segments.get_segment_used_size(segment_index) }
     }
 
     fn get_segment_size(&self, segment_index: usize) -> Option<usize> {
-        self.inner.get_segment_size(segment_index)
+        unsafe { (*self.runner).vm.segments.get_segment_size(segment_index) }
+    }
+
+    fn compute_effective_sizes(&mut self) -> Vec<usize> {
+        unsafe { (*self.runner).vm.segments.compute_effective_sizes().clone() }
     }
 }

@@ -6,6 +6,8 @@ use pyo3::prelude::*;
 
 use crate::vm::relocatable::PyRelocatable;
 
+use super::memory_segments::PyMemorySegmentManager;
+
 #[pyclass(name = "CairoRunner", unsendable)]
 pub struct PyCairoRunner {
     inner: RustCairoRunner,
@@ -57,5 +59,10 @@ impl PyCairoRunner {
         self.inner
             .initialize_builtins(allow_missing_builtins)
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))
+    }
+
+    #[getter]
+    fn segments(&mut self) -> PyMemorySegmentManager {
+        PyMemorySegmentManager { runner: &mut self.inner }
     }
 }
