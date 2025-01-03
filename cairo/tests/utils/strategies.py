@@ -60,7 +60,7 @@ extended = st.recursive(
     st.one_of(st.binary(), uint, st.text(), st.booleans()), st.lists
 )
 
-small_bytes = st.binary(min_size=0, max_size=256).map(bytes)
+small_bytes = st.binary(min_size=0, max_size=256)
 
 
 # See https://github.com/ethereum/execution-specs/issues/1036
@@ -98,11 +98,10 @@ def memory_strategy():
     in the test runner.
     2**32 bytes would be the value at which the memory expansion would trigger an OOG
     """
-    return st.binary(min_size=0, max_size=2**13).map(Memory)
+memory = st.binary(min_size=0, max_size=2**13).map(Memory)
 
 
-def evm_strategy(_thing):
-    return st.fixed_dictionaries(
+evm = st.fixed_dictionaries(
         {
             "pc": st.from_type(Uint),
             "stack": stack_strategy(Stack[U256]),
@@ -128,8 +127,7 @@ def evm_strategy(_thing):
     ).map(lambda x: Evm(**x))
 
 
-def message_strategy(_thing):
-    return st.fixed_dictionaries(
+message =  st.fixed_dictionaries(
         {
             "caller": address,
             "target": st.one_of(bytes0, address),

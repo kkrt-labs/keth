@@ -88,7 +88,7 @@ struct MessageStruct {
     parent_evm: OptionalEvm,
 }
 
-namespace EvmMethods {
+namespace EvmImpl {
     func set_pc{evm: Evm}(new_pc: Uint) {
         tempvar evm = Evm(
             new EvmStruct(
