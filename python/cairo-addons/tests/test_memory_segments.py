@@ -20,9 +20,17 @@ class TestMemorySegmentManager:
         assert ptr.segment_index == -1
         assert ptr.offset == 0
 
-    def test_load_data(self, runner):
+    def test_load_data_felt(self, runner):
         ptr = runner.segments.add()
         data = [Felt(1), Felt(2), Felt(3), Felt(4)]
+        next_ptr = runner.segments.load_data(ptr, data)
+        assert isinstance(next_ptr, Relocatable)
+        assert next_ptr.segment_index == ptr.segment_index
+        assert next_ptr.offset == 4
+
+    def test_load_data_int(self, runner):
+        ptr = runner.segments.add()
+        data = [1, 2, 3, 4]
         next_ptr = runner.segments.load_data(ptr, data)
         assert isinstance(next_ptr, Relocatable)
         assert next_ptr.segment_index == ptr.segment_index

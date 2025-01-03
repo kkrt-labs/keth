@@ -95,9 +95,8 @@ def get_struct_definition(program, path: Tuple[str, ...]) -> StructDefinition:
 
 
 class Serde:
-    def __init__(self, segments: MemorySegmentManager, program, cairo_file=None):
+    def __init__(self, segments, program, cairo_file=None):
         self.segments = segments
-        self.memory = segments.memory
         self.program = program
         self.cairo_file = cairo_file or Path()
 
@@ -118,7 +117,7 @@ class Serde:
         members = get_struct_definition(self.program, path).members
         output = {}
         for name, member in members.items():
-            member_ptr = self.memory.get(ptr + member.offset)
+            member_ptr = self.segments.get_maybe(ptr + member.offset)
             if member_ptr == 0 and isinstance(member.cairo_type, TypePointer):
                 member_ptr = None
             output[name] = member_ptr
@@ -290,7 +289,7 @@ class Serde:
             struct_name = path[-1] + "Struct"
             path = (*path[:-1], struct_name)
             raw = self.serialize_pointers(path, tuple_struct_ptr)
-            data = [self.memory.get(raw["data"] + i) for i in range(raw["len"])]
+            data = [self.segments.get_maybe(raw["data"] + i) for i in range(raw["len"])]
             if python_cls is str:
                 return bytes(data).decode()
             return python_cls(data)
@@ -318,10 +317,10 @@ class Serde:
             return actual_error_cls()
 
         if python_cls == Bytes256:
-            base_ptr = self.memory.get(ptr)
+            base_ptr = self.segments.get_maybe(ptr)
             data = b"".join(
                 [
-                    self.memory.get(base_ptr + i).to_bytes(16, "little")
+                    self.segments.get_maybe(base_ptr + i).to_bytes(16, "little")
                     for i in range(16)
                 ]
             )
@@ -407,7 +406,7 @@ class Serde:
         if isinstance(cairo_type, TypePointer):
             # A pointer can be a pointer to one single struct or to the beginning of a list of structs.
             # As such, every pointer is considered a list of structs, with length 1 or more.
-            pointee = self.memory.get(ptr)
+            pointee = self.segments.get_maybe(ptr)
             # Edge case: 0 pointers are not pointer but no data
             if pointee == 0:
                 if isinstance(cairo_type.pointee, TypeFelt):
@@ -436,7 +435,7 @@ class Serde:
             filtered = [x for x in raw if x is not NO_ERROR_FLAG]
             return filtered[0] if len(filtered) == 1 else filtered
         if isinstance(cairo_type, TypeFelt):
-            return self.memory.get(ptr)
+            return self.segments.get_maybe(ptr)
         if isinstance(cairo_type, TypeStruct):
             return self.serialize_scope(cairo_type.scope, ptr)
         if isinstance(cairo_type, AliasDefinition):
@@ -699,8 +698,8 @@ class Serde:
             else None
         )
         for dict_index in range(0, dict_size, 3):
-            key = self.memory.get(dict_ptr + dict_index)
-            value_ptr = self.memory.get(dict_ptr + dict_index + 2)
+            key = self.segments.get_maybe(dict_ptr + dict_index)
+            value_ptr = self.segments.get_maybe(dict_ptr + dict_index + 2)
             if value_scope is None:
                 output[key] = value_ptr
             else:
