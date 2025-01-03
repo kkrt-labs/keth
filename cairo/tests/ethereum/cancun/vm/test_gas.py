@@ -1,3 +1,5 @@
+from typing import List, Tuple
+
 import pytest
 from ethereum_types.numeric import U256, Uint
 from hypothesis import assume, given
@@ -5,11 +7,13 @@ from hypothesis import strategies as st
 
 from ethereum.cancun.blocks import Header
 from ethereum.cancun.transactions import BlobTransaction
+from ethereum.cancun.vm.exceptions import ExceptionalHalt
 from ethereum.cancun.vm.gas import (
     GAS_CALL_STIPEND,
     calculate_blob_gas_price,
     calculate_data_fee,
     calculate_excess_blob_gas,
+    calculate_gas_extend_memory,
     calculate_memory_gas_cost,
     calculate_message_call_gas,
     calculate_total_blob_gas,
@@ -17,7 +21,7 @@ from ethereum.cancun.vm.gas import (
     init_code_cost,
     max_message_call_gas,
 )
-from tests.utils.args_gen import Evm
+from tests.utils.args_gen import Evm, Memory
 
 
 class TestGas:
@@ -38,6 +42,28 @@ class TestGas:
         assert calculate_memory_gas_cost(size_in_bytes) == cairo_run(
             "calculate_memory_gas_cost", size_in_bytes
         )
+
+    # Saturate the memory (offsets + size) at 2**64-1
+    @given(
+        memory=...,
+        extensions=st.lists(
+            st.tuples(
+                st.integers(min_value=0, max_value=2**64 - 1).map(U256),
+                st.integers(min_value=0, max_value=2**64 - 1).map(U256),
+            )
+        ),
+    )
+    def test_calculate_gas_extend_memory(
+        self, cairo_run, memory: Memory, extensions: List[Tuple[U256, U256]]
+    ):
+        try:
+            cairo_result = cairo_run("calculate_gas_extend_memory", memory, extensions)
+        except ExceptionalHalt as cairo_error:
+            with pytest.raises(type(cairo_error)):
+                calculate_gas_extend_memory(memory, extensions)
+            return
+
+        assert calculate_gas_extend_memory(memory, extensions) == cairo_result
 
     @given(
         value=...,

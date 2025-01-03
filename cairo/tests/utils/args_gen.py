@@ -122,7 +122,7 @@ from ethereum.cancun.vm import Environment as EnvironmentBase
 from ethereum.cancun.vm import Evm as EvmBase
 from ethereum.cancun.vm import Message as MessageBase
 from ethereum.cancun.vm.exceptions import ExceptionalHalt
-from ethereum.cancun.vm.gas import MessageCallGas
+from ethereum.cancun.vm.gas import ExtendMemory, MessageCallGas
 from ethereum.crypto.hash import Hash32
 from ethereum.exceptions import EthereumException
 from ethereum.rlp import Extended, Simple
@@ -277,6 +277,8 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "cancun", "fork_types", "SetTupleAddressBytes32"): Set[
         Tuple[Address, Bytes32]
     ],
+    ("ethereum_types", "others", "TupleU256U256"): Tuple[U256, U256],
+    ("ethereum_types", "others", "ListTupleU256U256"): List[Tuple[U256, U256]],
     ("ethereum", "cancun", "transactions", "LegacyTransaction"): LegacyTransaction,
     (
         "ethereum",
@@ -348,6 +350,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "cancun", "vm", "Evm"): Evm,
     ("ethereum", "cancun", "vm", "Memory"): Memory,
     ("ethereum", "cancun", "vm", "Stack"): Stack[U256],
+    ("ethereum", "cancun", "vm", "gas", "ExtendMemory"): ExtendMemory,
     **vm_exception_mappings,
 }
 
