@@ -1,7 +1,7 @@
-use cairo_vm::types::relocatable::MaybeRelocatable as RustMaybeRelocatable;
-use pyo3::{FromPyObject, IntoPy, PyObject, Python};
-
 use crate::vm::{felt::PyFelt, relocatable::PyRelocatable};
+use cairo_vm::types::relocatable::MaybeRelocatable as RustMaybeRelocatable;
+use num_bigint::BigUint;
+use pyo3::{FromPyObject, IntoPy, PyObject, Python};
 
 #[derive(FromPyObject)]
 pub enum PyMaybeRelocatable {
@@ -11,6 +11,8 @@ pub enum PyMaybeRelocatable {
     Relocatable(PyRelocatable),
     #[pyo3(transparent)]
     Int(usize),
+    #[pyo3(transparent)]
+    BigUInt(BigUint),
 }
 
 impl From<RustMaybeRelocatable> for PyMaybeRelocatable {
@@ -28,6 +30,7 @@ impl From<PyMaybeRelocatable> for RustMaybeRelocatable {
             PyMaybeRelocatable::Int(x) => RustMaybeRelocatable::Int(x.into()),
             PyMaybeRelocatable::Felt(x) => RustMaybeRelocatable::Int(x.inner),
             PyMaybeRelocatable::Relocatable(r) => RustMaybeRelocatable::RelocatableValue(r.inner),
+            PyMaybeRelocatable::BigUInt(x) => RustMaybeRelocatable::Int(x.into()),
         }
     }
 }
@@ -38,6 +41,7 @@ impl IntoPy<PyObject> for PyMaybeRelocatable {
             PyMaybeRelocatable::Felt(x) => x.into_py(py),
             PyMaybeRelocatable::Relocatable(r) => r.into_py(py),
             PyMaybeRelocatable::Int(x) => x.into_py(py),
+            PyMaybeRelocatable::BigUInt(x) => x.into_py(py),
         }
     }
 }

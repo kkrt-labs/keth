@@ -19,6 +19,7 @@ pyo3 = { version = "0.22.4", features = [
 ] }
 cairo-vm = { workspace = true }
 num-traits = "0.2.18"
+num-bigint = "0.4.6"
 
 [build-dependencies]
 pyo3-build-config = "0.22.4" # Should match pyo3 version
@@ -26,6 +27,3 @@ pyo3-build-config = "0.22.4" # Should match pyo3 version
 [features]
 extension-module = ["pyo3/extension-module"]
 default = ["extension-module", "pyo3/experimental-inspect"]
-
-[tool.maturin]
-bindings = "pyo3"
