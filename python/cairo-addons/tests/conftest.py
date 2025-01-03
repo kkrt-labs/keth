@@ -2,8 +2,9 @@ import json
 from pathlib import Path
 
 import pytest
+from cairo_addons.vm import Program as RustProgram
 from hypothesis import strategies as st
-from starkware.cairo.lang.compiler.program import Program
+from starkware.cairo.lang.compiler.program import Program as SWProgram
 from starkware.cairo.lang.vm.relocatable import RelocatableValue
 
 st.register_type_strategy(
@@ -27,10 +28,15 @@ def program_path():
 
 
 @pytest.fixture(scope="module")
-def program(program_path):
-    return Program.load(data=json.loads(program_path.read_text()))
+def sw_program(program_path):
+    return SWProgram.load(data=json.loads(program_path.read_text()))
+
+
+@pytest.fixture(scope="module")
+def program_bytes(sw_program):
+    return json.dumps(sw_program.Schema().dump(sw_program)).encode()
 
 
 @pytest.fixture
-def program_bytes(program):
-    return json.dumps(program.Schema().dump(program)).encode()
+def rust_program(program_bytes):
+    return RustProgram.from_bytes(program_bytes)
