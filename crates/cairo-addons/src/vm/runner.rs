@@ -53,10 +53,6 @@ impl PyCairoRunner {
         Ok(Self { inner })
     }
 
-    fn initialize_segments(&mut self) {
-        self.inner.initialize_segments(None);
-    }
-
     #[getter]
     fn program_base(&self) -> Option<PyRelocatable> {
         self.inner.program_base.map(|x| PyRelocatable { inner: x })
@@ -69,6 +65,37 @@ impl PyCairoRunner {
         self.inner.program_base.map(|x| PyRelocatable {
             inner: Relocatable { segment_index: x.segment_index + 1, offset: 0 },
         })
+    }
+
+    #[getter]
+    fn segments(&mut self) -> PyMemorySegmentManager {
+        PyMemorySegmentManager { runner: &mut self.inner }
+    }
+
+    #[pyo3(signature = (allow_missing_builtins))]
+    fn initialize_builtins(&mut self, allow_missing_builtins: bool) -> PyResult<()> {
+        self.inner
+            .initialize_builtins(allow_missing_builtins)
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))
+    }
+
+    fn initialize_segments(&mut self) {
+        self.inner.initialize_segments(None);
+    }
+
+    fn initialize_stack(&mut self, builtins: PyBuiltinList) -> Vec<PyMaybeRelocatable> {
+        let builtins = builtins.into_builtin_names().unwrap();
+        let mut stack = Vec::new();
+        let builtin_runners =
+            self.inner.vm.builtin_runners.iter().map(|b| (b.name(), b)).collect::<HashMap<_, _>>();
+        for builtin_name in builtins {
+            if let Some(builtin_runner) = builtin_runners.get(&builtin_name) {
+                stack.append(&mut builtin_runner.initial_stack());
+            } else {
+                stack.push(Felt252::ZERO.into())
+            }
+        }
+        stack.into_iter().map(PyMaybeRelocatable::from).collect()
     }
 
     #[pyo3(signature = (entrypoint, stack, return_fp))]
@@ -86,33 +113,6 @@ impl PyCairoRunner {
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
 
         Ok(PyRelocatable { inner: result })
-    }
-
-    #[pyo3(signature = (allow_missing_builtins))]
-    fn initialize_builtins(&mut self, allow_missing_builtins: bool) -> PyResult<()> {
-        self.inner
-            .initialize_builtins(allow_missing_builtins)
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))
-    }
-
-    #[getter]
-    fn segments(&mut self) -> PyMemorySegmentManager {
-        PyMemorySegmentManager { runner: &mut self.inner }
-    }
-
-    fn initialize_stack(&mut self, builtins: PyBuiltinList) -> Vec<PyMaybeRelocatable> {
-        let builtins = builtins.into_builtin_names().unwrap();
-        let mut stack = Vec::new();
-        let builtin_runners =
-            self.inner.vm.builtin_runners.iter().map(|b| (b.name(), b)).collect::<HashMap<_, _>>();
-        for builtin_name in builtins {
-            if let Some(builtin_runner) = builtin_runners.get(&builtin_name) {
-                stack.append(&mut builtin_runner.initial_stack());
-            } else {
-                stack.push(Felt252::ZERO.into())
-            }
-        }
-        stack.into_iter().map(PyMaybeRelocatable::from).collect()
     }
 
     fn initialize_zero_segment(&mut self) {
