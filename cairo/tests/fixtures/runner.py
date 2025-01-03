@@ -170,9 +170,7 @@ def cairo_run(request, cairo_program: Program, cairo_file, main_path):
 
         # Initialize runner
         end = runner.initialize(
-            builtins=cairo_program.builtins,
-            entrypoint=cairo_program.get_label(entrypoint),
-            stack=stack,
+            entrypoint=cairo_program.get_label(entrypoint), stack=stack
         )
 
         # Run
