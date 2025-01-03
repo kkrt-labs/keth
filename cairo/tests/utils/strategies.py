@@ -97,7 +97,6 @@ def stack_strategy(thing):
 # 2**32 bytes would be the value at which the memory expansion would trigger an OOG
 memory = st.binary(min_size=0, max_size=2**13).map(Memory)
 
-
 evm = st.fixed_dictionaries(
     {
         "pc": st.from_type(Uint),
@@ -142,6 +141,53 @@ message = st.fixed_dictionaries(
         "parent_evm": st.none() | evm,
     }
 ).map(lambda x: Message(**x))
+
+# Versions strategies with less data in collections
+
+memory_lite = st.binary(min_size=0, max_size=128).map(Memory)
+
+message_lite = st.fixed_dictionaries(
+    {
+        "caller": address,
+        "target": st.one_of(bytes0, address),
+        "current_target": address,
+        "gas": uint,
+        "value": uint256,
+        "data": st.just(b""),
+        "code_address": st.none() | address,
+        "code": st.just(b""),
+        "depth": uint,
+        "should_transfer_value": st.booleans(),
+        "is_static": st.booleans(),
+        "accessed_addresses": st.just(set()),
+        "accessed_storage_keys": st.just(set()),
+        "parent_evm": st.none(),
+    }
+).map(lambda x: Message(**x))
+
+
+evm_lite = st.fixed_dictionaries(
+    {
+        "pc": uint,
+        "stack": stack_strategy(Stack[U256]),
+        "memory": memory_lite,
+        "code": st.just(b""),
+        "gas_left": uint,
+        "env": st.from_type(Environment),
+        "valid_jump_destinations": st.just(set()),
+        "logs": st.just(()),
+        "refund_counter": st.just(0),
+        "running": st.booleans(),
+        "message": message_lite,
+        "output": st.just(b""),
+        "accounts_to_delete": st.just(set()),
+        "touched_accounts": st.just(set()),
+        "return_data": st.just(b""),
+        "error": st.none() | st.from_type(EthereumException),
+        "accessed_addresses": st.just(set()),
+        "accessed_storage_keys": st.just(set()),
+    }
+).map(lambda x: Evm(**x))
 
 
 # Fork
