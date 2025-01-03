@@ -1,5 +1,3 @@
-from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin, KeccakBuiltin
-from starkware.cairo.common.bool import FALSE
 from starkware.cairo.common.uint256 import uint256_mul, ALL_ONES, uint256_lt
 
 from src.utils.uint256 import (
