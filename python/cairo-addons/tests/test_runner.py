@@ -49,3 +49,14 @@ class TestRunner:
         )
         assert end.segment_index == len(stack) + 2
         assert end.offset == 0
+
+    def test_initialize_zero_segment(self, sw_program, rust_program):
+        runner = CairoRunner(rust_program, layout="all_cairo")
+        runner.initialize_builtins(allow_missing_builtins=False)
+        runner.initialize_segments()
+        stack = runner.initialize_stack(sw_program.builtins)
+        return_fp = runner.execution_base + 2
+        runner.initialize_function_entrypoint(
+            sw_program.get_label("os"), stack, return_fp
+        )
+        runner.initialize_zero_segment()
