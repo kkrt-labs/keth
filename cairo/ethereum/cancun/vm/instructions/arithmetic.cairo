@@ -1,14 +1,16 @@
 from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin, KeccakBuiltin
 from starkware.cairo.common.bool import FALSE
-from starkware.cairo.common.uint256 import (
-    uint256_add,
+from starkware.cairo.common.uint256 import uint256_mul, ALL_ONES, uint256_lt
+
+from src.utils.uint256 import (
+    uint256_eq,
+    uint256_fast_exp,
+    uint256_signextend,
     uint256_sub,
-    uint256_mul,
+    uint256_add,
     uint256_unsigned_div_rem,
     uint256_signed_div_rem,
 )
-
-from src.utils.uint256 import uint256_eq, uint256_fast_exp, uint256_signextend
 from src.utils.utils import Helpers
 from ethereum.cancun.vm.stack import Stack, pop, push
 from ethereum.cancun.vm import Evm, EvmImpl
@@ -321,11 +323,11 @@ func addmod{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
     // STACK
     let stack = evm.value.stack;
     with stack {
-        let (x, err1) = pop();
+        let (a, err1) = pop();
         if (cast(err1, felt) != 0) {
             return err1;
         }
-        let (y, err2) = pop();
+        let (b, err2) = pop();
         if (cast(err2, felt) != 0) {
             return err2;
         }
@@ -342,26 +344,69 @@ func addmod{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
     }
 
     // OPERATION
-    with stack {
-        let (is_zero) = uint256_eq([n.value], U256Struct(0, 0));
-        if (is_zero != 0) {
+    let (is_zero) = uint256_eq([n.value], U256Struct(0, 0));
+    if (is_zero != 0) {
+        with stack {
             let err5 = push(U256(new U256Struct(0, 0)));
             if (cast(err5, felt) != 0) {
                 return err5;
             }
-            tempvar range_check_ptr = range_check_ptr;
-        } else {
-            let (sum, _) = uint256_add([x.value], [y.value]);
-            let (_, remainder) = uint256_unsigned_div_rem(sum, [n.value]);
-            let err5 = push(U256(new U256Struct(remainder.low, remainder.high)));
-            if (cast(err5, felt) != 0) {
-                return err5;
-            }
-            tempvar range_check_ptr = range_check_ptr;
         }
+        // early return if n is zero
+        EvmImpl.set_stack(stack);
+        EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
+        let ok = cast(0, ExceptionalHalt*);
+        return ok;
     }
 
-    // PROGRAM COUNTER
+    // (a + b) mod n  = (a mod n + b mod n) mod n
+    let (_, x) = uint256_unsigned_div_rem([a.value], [n.value]);
+    let (_, y) = uint256_unsigned_div_rem([b.value], [n.value]);
+    // x, y in range [0, n-1] thus:
+    // if x + y < n then x + y mod n = x + y
+    // if x + y >= n then x + y mod n = x + y - n
+    let (sum, carry) = uint256_add(x, y);
+    if (carry != 0) {
+        // result = (2**256) - (n - overflown_sum)
+        // <=> result = (2**256 - 1) - (n - overflown_sum - 1)
+        // as n > overflown_sum we can't have an underflow
+        tempvar max_u256 = U256Struct(ALL_ONES, ALL_ONES);
+        let (overflown_part) = uint256_sub([n.value], sum);
+        let (to_remove) = uint256_sub(overflown_part, U256Struct(1, 0));
+        let (result) = uint256_sub(max_u256, to_remove);
+        with stack {
+            let err6 = push(U256(new U256Struct(result.low, result.high)));
+            if (cast(err6, felt) != 0) {
+                return err6;
+            }
+        }
+        EvmImpl.set_stack(stack);
+        EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
+        let ok = cast(0, ExceptionalHalt*);
+        return ok;
+    }
+
+    let (is_sum_lt_n) = uint256_lt(sum, [n.value]);
+    if (is_sum_lt_n != 0) {
+        with stack {
+            let err7 = push(U256(new U256Struct(sum.low, sum.high)));
+            if (cast(err7, felt) != 0) {
+                return err7;
+            }
+        }
+        EvmImpl.set_stack(stack);
+        EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
+        let ok = cast(0, ExceptionalHalt*);
+        return ok;
+    }
+
+    let (result) = uint256_sub(sum, [n.value]);
+    with stack {
+        let err8 = push(U256(new U256Struct(result.low, result.high)));
+        if (cast(err8, felt) != 0) {
+            return err8;
+        }
+    }
     EvmImpl.set_stack(stack);
     EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
     let ok = cast(0, ExceptionalHalt*);
