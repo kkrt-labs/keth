@@ -38,7 +38,7 @@ impl From<PyMaybeRelocatable> for RustMaybeRelocatable {
 impl IntoPy<PyObject> for PyMaybeRelocatable {
     fn into_py(self, py: Python<'_>) -> PyObject {
         match self {
-            PyMaybeRelocatable::Felt(x) => x.into_py(py),
+            PyMaybeRelocatable::Felt(x) => x.inner.to_biguint().into_py(py),
             PyMaybeRelocatable::Relocatable(r) => r.into_py(py),
             PyMaybeRelocatable::Int(x) => x.into_py(py),
             PyMaybeRelocatable::BigUInt(x) => x.into_py(py),
