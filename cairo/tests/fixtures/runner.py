@@ -71,12 +71,21 @@ def cairo_program(request) -> Program:
 
 
 @pytest.fixture(scope="module")
+def rust_program(cairo_program: Program) -> RustProgram:
+    return RustProgram.from_bytes(
+        json.dumps(cairo_program.Schema().dump(cairo_program)).encode()
+    )
+
+
+@pytest.fixture(scope="module")
 def main_path(request):
     return request.session.main_paths[request.node.fspath]
 
 
 @pytest.fixture(scope="module")
-def cairo_run(request, cairo_program: Program, cairo_file, main_path):
+def cairo_run(
+    request, cairo_program: Program, rust_program: RustProgram, cairo_file, main_path
+):
     """
     Run the cairo program corresponding to the python test file at a given entrypoint with given program inputs as kwargs.
     Returns the output of the cairo program put in the output memory segment.
@@ -105,7 +114,7 @@ def cairo_run(request, cairo_program: Program, cairo_file, main_path):
             if any(builtin in k.replace("_ptr", "") for builtin in ALL_BUILTINS)
         ]
         # Set program builtins based on the implicit args
-        cairo_program.builtins = [
+        rust_program.builtins = [
             builtin
             for builtin in ALL_BUILTINS
             if builtin in [arg.replace("_ptr", "") for arg in _builtins]
@@ -149,9 +158,7 @@ def cairo_run(request, cairo_program: Program, cairo_file, main_path):
 
         # Create runner
         runner = CairoRunner(
-            program=RustProgram.from_bytes(
-                json.dumps(cairo_program.Schema().dump(cairo_program)).encode()
-            ),
+            program=rust_program,
             layout=getattr(LAYOUTS, request.config.getoption("layout")).layout_name,
             proof_mode=False,
             allow_missing_builtins=False,

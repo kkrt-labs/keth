@@ -1,4 +1,4 @@
-from cairo_addons.vm import CairoRunner, Felt, Relocatable
+from cairo_addons.vm import CairoRunner
 
 
 class TestRunner:
@@ -7,46 +7,26 @@ class TestRunner:
 
     def test_initialize(self, sw_program, rust_program):
         runner = CairoRunner(rust_program, layout="all_cairo")
-        runner.initialize(
-            builtins=sw_program.builtins,
-            stack=[],
-            entrypoint=sw_program.get_label("os"),
-        )
+        runner.initialize(stack=[], entrypoint=sw_program.get_label("os"))
 
     def test_program_base(self, sw_program, rust_program):
         runner = CairoRunner(rust_program, layout="all_cairo")
-        runner.initialize(
-            builtins=sw_program.builtins,
-            stack=[],
-            entrypoint=sw_program.get_label("os"),
-        )
+        runner.initialize(stack=[], entrypoint=sw_program.get_label("os"))
         runner.program_base
 
     def test_execution_base(self, sw_program, rust_program):
         runner = CairoRunner(rust_program, layout="all_cairo")
-        runner.initialize(
-            builtins=sw_program.builtins,
-            stack=[],
-            entrypoint=sw_program.get_label("os"),
-        )
+        runner.initialize(stack=[], entrypoint=sw_program.get_label("os"))
         runner.execution_base
 
     def test_ap(self, sw_program, rust_program):
         runner = CairoRunner(rust_program, layout="all_cairo")
-        runner.initialize(
-            builtins=sw_program.builtins,
-            stack=[],
-            entrypoint=sw_program.get_label("os"),
-        )
+        runner.initialize(stack=[], entrypoint=sw_program.get_label("os"))
         runner.ap
 
     def test_relocated_trace(self, sw_program, rust_program):
         runner = CairoRunner(rust_program, layout="all_cairo")
-        runner.initialize(
-            builtins=sw_program.builtins,
-            stack=[],
-            entrypoint=sw_program.get_label("os"),
-        )
+        runner.initialize(stack=[], entrypoint=sw_program.get_label("os"))
         runner.relocated_trace
 
     def test_get_maybe_relocatable(self, rust_program):

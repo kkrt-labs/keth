@@ -9,3 +9,9 @@ class TestProgram:
     def test_should_raise_entrypoint_not_found(self, program_bytes):
         with pytest.raises(RuntimeError, match="Entrypoint no_name not found"):
             RustProgram.from_bytes(program_bytes, entrypoint="no_name")
+
+    def test_set_builtins(self, program_bytes):
+        program = RustProgram.from_bytes(program_bytes)
+        builtins = program.builtins
+        program.builtins = builtins[:-1]
+        assert program.builtins == builtins[:-1]
