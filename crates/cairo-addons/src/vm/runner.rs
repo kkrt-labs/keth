@@ -4,32 +4,43 @@ use crate::vm::program::PyProgram;
 use cairo_vm::{
     hint_processor::builtin_hint_processor::builtin_hint_processor_definition::BuiltinHintProcessor,
     types::{
+        builtin_name::BuiltinName,
         layout_name::LayoutName,
         relocatable::{MaybeRelocatable, Relocatable},
     },
-    vm::runners::{builtin_runner::BuiltinRunner, cairo_runner::CairoRunner as RustCairoRunner},
+    vm::{
+        runners::{builtin_runner::BuiltinRunner, cairo_runner::CairoRunner as RustCairoRunner},
+        security::verify_secure_runner,
+    },
     Felt252,
 };
 use pyo3::prelude::*;
 
 use crate::vm::{
     builtins::PyBuiltinList, maybe_relocatable::PyMaybeRelocatable, relocatable::PyRelocatable,
-    run_resources::PyRunResources,
+    relocated_trace::PyRelocatedTraceEntry, run_resources::PyRunResources,
 };
+use num_traits::Zero;
 
 use super::memory_segments::PyMemorySegmentManager;
 
 #[pyclass(name = "CairoRunner", unsendable)]
 pub struct PyCairoRunner {
     inner: RustCairoRunner,
-    hint_processor: BuiltinHintProcessor,
+    allow_missing_builtins: bool,
+    builtins: Vec<BuiltinName>,
 }
 
 #[pymethods]
 impl PyCairoRunner {
     #[new]
-    #[pyo3(signature = (program, layout="plain", proof_mode=false))]
-    fn new(program: &PyProgram, layout: &str, proof_mode: bool) -> PyResult<Self> {
+    #[pyo3(signature = (program, layout="plain", proof_mode=false, allow_missing_builtins=false))]
+    fn new(
+        program: &PyProgram,
+        layout: &str,
+        proof_mode: bool,
+        allow_missing_builtins: bool,
+    ) -> PyResult<Self> {
         let layout = match layout {
             "plain" => LayoutName::plain,
             "small" => LayoutName::small,
@@ -53,7 +64,40 @@ impl PyCairoRunner {
         )
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
 
-        Ok(Self { inner, hint_processor: BuiltinHintProcessor::new_empty() })
+        Ok(Self { inner, allow_missing_builtins, builtins: vec![] })
+    }
+
+    /// Initialize the runner with the given builtins and stack.
+    ///
+    /// Mainly CairoRunner::initialize but with the ability to pass a stack and builtins.
+    pub fn initialize(
+        &mut self,
+        builtins: PyBuiltinList,
+        stack: Vec<PyMaybeRelocatable>,
+        entrypoint: usize,
+    ) -> PyResult<PyRelocatable> {
+        self.inner
+            .initialize_builtins(self.allow_missing_builtins)
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+        self.inner.initialize_segments(None);
+        let initial_stack = self.builtins_stack(builtins);
+        let stack = initial_stack.into_iter().chain(stack.into_iter().map(|x| x.into())).collect();
+
+        let return_fp = self.inner.vm.add_memory_segment();
+        let end = self
+            .inner
+            .initialize_function_entrypoint(entrypoint, stack, return_fp.into())
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+
+        for builtin_runner in self.inner.vm.builtin_runners.iter_mut() {
+            if let BuiltinRunner::Mod(runner) = builtin_runner {
+                runner.initialize_zero_segment(&mut self.inner.vm.segments);
+            }
+        }
+        self.inner
+            .initialize_vm()
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+        Ok(PyRelocatable { inner: end })
     }
 
     #[getter]
@@ -71,23 +115,62 @@ impl PyCairoRunner {
     }
 
     #[getter]
+    fn ap(&self) -> PyRelocatable {
+        PyRelocatable { inner: self.inner.vm.get_ap() }
+    }
+
+    #[getter]
     fn segments(&mut self) -> PyMemorySegmentManager {
         PyMemorySegmentManager { runner: &mut self.inner }
     }
 
-    #[pyo3(signature = (allow_missing_builtins))]
-    fn initialize_builtins(&mut self, allow_missing_builtins: bool) -> PyResult<()> {
+    fn run_until_pc(&mut self, address: PyRelocatable, resources: PyRunResources) -> PyResult<()> {
+        let mut hint_processor = BuiltinHintProcessor::new(HashMap::new(), resources.inner);
         self.inner
-            .initialize_builtins(allow_missing_builtins)
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))
+            .run_until_pc(address.inner, &mut hint_processor)
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+
+        self.inner
+            .end_run(false, false, &mut hint_processor)
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+        Ok(())
     }
 
-    fn initialize_segments(&mut self) {
-        self.inner.initialize_segments(None);
+    fn verify_and_relocate(&mut self, offset: usize) -> PyResult<()> {
+        self.inner
+            .vm
+            .verify_auto_deductions()
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+
+        self.read_return_values(offset)?;
+
+        verify_secure_runner(&self.inner, true, None)
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+
+        self.inner
+            .relocate(true)
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+
+        Ok(())
     }
 
-    fn initialize_stack(&mut self, builtins: PyBuiltinList) -> Vec<PyMaybeRelocatable> {
+    #[getter]
+    fn relocated_trace(&self) -> PyResult<Vec<PyRelocatedTraceEntry>> {
+        Ok(self
+            .inner
+            .relocated_trace
+            .clone()
+            .unwrap_or_default()
+            .into_iter()
+            .map(PyRelocatedTraceEntry::from)
+            .collect())
+    }
+}
+
+impl PyCairoRunner {
+    fn builtins_stack(&mut self, builtins: PyBuiltinList) -> Vec<MaybeRelocatable> {
         let builtins = builtins.into_builtin_names().unwrap();
+        self.builtins = builtins.clone();
         let mut stack = Vec::new();
         let builtin_runners =
             self.inner.vm.builtin_runners.iter().map(|b| (b.name(), b)).collect::<HashMap<_, _>>();
@@ -98,64 +181,45 @@ impl PyCairoRunner {
                 stack.push(Felt252::ZERO.into())
             }
         }
-        stack.into_iter().map(PyMaybeRelocatable::from).collect()
+        stack
     }
 
-    #[pyo3(signature = (entrypoint, stack, return_fp))]
-    fn initialize_function_entrypoint(
-        &mut self,
-        entrypoint: usize,
-        stack: Vec<PyMaybeRelocatable>,
-        return_fp: PyMaybeRelocatable,
-    ) -> PyResult<PyRelocatable> {
-        let stack: Vec<MaybeRelocatable> = stack.into_iter().map(|x| x.into()).collect();
-        let return_fp: MaybeRelocatable = return_fp.into();
-        let result = self
-            .inner
-            .initialize_function_entrypoint(entrypoint, stack, return_fp)
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+    /// Mainly like `CairoRunner::read_return_values` but with an `offset` parameter and some checks
+    /// that I needed to remove.
+    fn read_return_values(&mut self, offset: usize) -> PyResult<()> {
+        let mut pointer = (self.inner.vm.get_ap() - offset).unwrap();
+        for builtin_name in self.builtins.iter().rev() {
+            if let Some(builtin_runner) =
+                self.inner.vm.builtin_runners.iter_mut().find(|b| b.name() == *builtin_name)
+            {
+                let new_pointer =
+                    builtin_runner.final_stack(&self.inner.vm.segments, pointer).map_err(|e| {
+                        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string())
+                    })?;
+                pointer = new_pointer;
+            } else {
+                if !self.allow_missing_builtins {
+                    return Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+                        "Missing builtin: {}",
+                        builtin_name
+                    )));
+                }
+                pointer.offset = pointer.offset.saturating_sub(1);
 
-        Ok(PyRelocatable { inner: result })
-    }
-
-    fn initialize_zero_segment(&mut self) {
-        for builtin_runner in self.inner.vm.builtin_runners.iter_mut() {
-            if let BuiltinRunner::Mod(runner) = builtin_runner {
-                runner.initialize_zero_segment(&mut self.inner.vm.segments);
+                if !self
+                    .inner
+                    .vm
+                    .get_integer(pointer)
+                    .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?
+                    .is_zero()
+                {
+                    return Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+                        "Missing builtin stop ptr not zero: {}",
+                        builtin_name
+                    )));
+                }
             }
         }
-    }
-
-    fn initialize_vm(&mut self) -> PyResult<()> {
-        match self.inner.initialize_vm() {
-            Ok(_) => Ok(()),
-            Err(e) => Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string())),
-        }
-    }
-
-    fn run_until_pc(&mut self, address: PyRelocatable, resources: PyRunResources) -> PyResult<()> {
-        let mut hint_processor = BuiltinHintProcessor::new(HashMap::new(), resources.inner);
-        match self.inner.run_until_pc(address.inner, &mut hint_processor) {
-            Ok(_) => {
-                self.hint_processor = hint_processor;
-                Ok(())
-            }
-            Err(e) => Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string())),
-        }
-    }
-
-    pub fn end_run(
-        &mut self,
-        disable_trace_padding: bool,
-        disable_finalize_all: bool,
-    ) -> PyResult<()> {
-        self.inner
-            .end_run(disable_trace_padding, disable_finalize_all, &mut self.hint_processor)
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))
-    }
-
-    #[getter]
-    fn get_ap(&self) -> PyRelocatable {
-        PyRelocatable { inner: self.inner.vm.get_ap() }
+        Ok(())
     }
 }

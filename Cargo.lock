@@ -1544,6 +1544,7 @@ name = "cairo_addons"
 version = "0.1.0"
 dependencies = [
  "cairo-vm",
+ "num-traits",
  "pyo3",
  "pyo3-build-config",
 ]

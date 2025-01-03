@@ -11,8 +11,6 @@ The runner works with args_gen.py and serde.py for automatic type conversion.
 import json
 import logging
 import marshal
-import math
-from functools import partial
 from hashlib import md5
 from pathlib import Path
 from time import time_ns
@@ -27,18 +25,11 @@ from starkware.cairo.lang.builtins.all_builtins import ALL_BUILTINS
 from starkware.cairo.lang.compiler.ast.cairo_types import CairoType, TypeStruct
 from starkware.cairo.lang.compiler.program import Program
 from starkware.cairo.lang.compiler.scoped_name import ScopedName
-from starkware.cairo.lang.vm.cairo_run import (
-    write_air_public_input,
-    write_binary_memory,
-    write_binary_trace,
-)
 from starkware.cairo.lang.vm.memory_segments import FIRST_MEMORY_ADDR as PROGRAM_BASE
-from starkware.cairo.lang.vm.security import verify_secure_runner
 
 from tests.utils.args_gen import gen_arg as gen_arg_builder
-from tests.utils.args_gen import to_cairo_type, to_python_type
+from tests.utils.args_gen import to_python_type
 from tests.utils.helpers import flatten
-from tests.utils.hints import debug_info, get_op, oracle
 from tests.utils.reporting import profile_from_tracer_data
 from tests.utils.serde import NO_ERROR_FLAG, Serde
 
@@ -90,7 +81,7 @@ def cairo_run(request, cairo_program: Program, cairo_file, main_path):
 
     When --profile-cairo is passed, the cairo program is run with the tracer enabled and the resulting trace is dumped.
 
-    Logic is mainly taken from starkware.cairo.lang.vm.cairo_run with minor updates, mainly builtins discovery from implicit args and proof mode enabling by appending jmp rel 0 to the compiled program.
+    Logic is mainly taken from starkware.cairo.lang.vm.cairo_run with minor updates, mainly builtins discovery from implicit args.
 
     Type conversion between Python and Cairo is handled by:
     - gen_arg: Converts Python arguments to Cairo memory layout when preparing runner inputs
@@ -111,7 +102,14 @@ def cairo_run(request, cairo_program: Program, cairo_file, main_path):
             for k in implicit_args.keys()
             if any(builtin in k.replace("_ptr", "") for builtin in ALL_BUILTINS)
         ]
+        # Set program builtins based on the implicit args
+        cairo_program.builtins = [
+            builtin
+            for builtin in ALL_BUILTINS
+            if builtin in [arg.replace("_ptr", "") for arg in _builtins]
+        ]
 
+        # Get actual args from implicit and explicit args
         _implicit_args = {
             k: {
                 "python_type": to_python_type(
@@ -138,102 +136,58 @@ def cairo_run(request, cairo_program: Program, cairo_file, main_path):
         explicit_return_data = cairo_program.identifiers.get_by_full_name(
             ScopedName(path=("__main__", entrypoint, "Return"))
         ).cairo_type
-        return_data_types = [
-            *(arg["cairo_type"] for arg in _implicit_args.values()),
-            # Filter for the empty tuple return type
-            *(
-                [explicit_return_data]
-                if not (
-                    hasattr(explicit_return_data, "members")
-                    and len(explicit_return_data.members) == 0
-                )
-                else []
-            ),
-        ]
+        return_data_types = [arg["cairo_type"] for arg in _implicit_args.values()] + (
+            [explicit_return_data]
+            if len(getattr(explicit_return_data, "members", [])) > 0
+            else []
+        )
 
-        # Fix builtins runner based on the implicit args since the compiler doesn't find them
-        cairo_program.builtins = [
-            builtin
-            for builtin in ALL_BUILTINS
-            if builtin in [arg.replace("_ptr", "") for arg in _builtins]
-        ]
-        # Add a jmp rel 0 instruction to be able to loop in proof mode and avoid the proof-mode at compile time
-        cairo_program.data = cairo_program.data + [0x10780017FFF7FFF, 0]
+        # Create runner
         runner = CairoRunner(
             program=cairo_program,
             layout=getattr(LAYOUTS, request.config.getoption("layout")),
-            proof_mode=request.config.getoption("proof_mode"),
+            proof_mode=False,
+            allow_missing_builtins=False,
         )
+
+        # Fill runner's memory for args
         serde = Serde(runner.segments, cairo_program, cairo_file)
         dict_manager = DictManager()
         gen_arg = gen_arg_builder(dict_manager, runner.segments)
-        runner.initialize_builtins(allow_missing_builtins=False)
-        runner.initialize_segments()
-        stack = runner.initialize_stack(cairo_program.builtins)
-
-        # Handle other args, (implicit, explicit)
+        stack = []
         for i, (arg_name, python_type) in enumerate(
             [(k, v["python_type"]) for k, v in {**_implicit_args, **_args}.items()]
         ):
-            if arg_name == "output_ptr":
-                add_output = True
-                output_ptr = runner.segments.add()
-                stack.append(output_ptr)
-            else:
-                arg_value = kwargs[arg_name] if arg_name in kwargs else args[i]
-                stack.append(gen_arg(python_type, arg_value))
+            arg_value = kwargs[arg_name] if arg_name in kwargs else args[i]
+            stack.append(gen_arg(python_type, arg_value))
 
-        return_fp = runner.execution_base + 2
-        end = runner.initialize_function_entrypoint(
-            cairo_program.get_label(entrypoint), stack, return_fp
+        # Initialize runner
+        end = runner.initialize(
+            builtins=cairo_program.builtins,
+            entrypoint=cairo_program.get_label(entrypoint),
+            stack=stack,
         )
-        runner.initialize_zero_segment()
-        runner.initialize_vm()
-        try:
-            runner.run_until_pc(
-                end,
-                RunResources(),
-                # hint_locals={
-                #     "program_input": kwargs,
-                #     "__dict_manager": dict_manager,
-                #     "gen_arg": gen_arg,
-                #     "serde": serde,
-                #     "oracle": oracle(cairo_program, serde, main_path, gen_arg),
-                #     "to_cairo_type": partial(to_cairo_type, cairo_program),
-                # },
-                # static_locals={
-                #     "debug_info": debug_info(cairo_program),
-                #     "get_op": get_op,
-                #     "logger": logger,
-                # },
-            )
-        except Exception as e:
-            raise Exception(str(e)) from e
 
-        runner.end_run(disable_trace_padding=False, disable_finalize_all=False)
+        # Run
+        # hint_locals={
+        #     "program_input": kwargs,
+        #     "__dict_manager": dict_manager,
+        #     "gen_arg": gen_arg,
+        #     "serde": serde,
+        #     "oracle": oracle(cairo_program, serde, main_path, gen_arg),
+        #     "to_cairo_type": partial(to_cairo_type, cairo_program),
+        # }
+        # static_locals={
+        #     "debug_info": debug_info(cairo_program),
+        #     "get_op": get_op,
+        #     "logger": logger,
+        # }
+        runner.run_until_pc(end, RunResources())
         cumulative_retdata_offsets = serde.get_offsets(return_data_types)
         first_return_data_offset = (
             cumulative_retdata_offsets[0] if cumulative_retdata_offsets else 0
         )
-        pointer = runner.vm.run_context.ap - first_return_data_offset
-        for arg in _builtins[::-1]:
-            builtin_runner = runner.builtin_runners.get(arg.replace("_ptr", "_builtin"))
-            if builtin_runner is not None:
-                pointer = builtin_runner.final_stack(runner, pointer)
-            else:
-                pointer -= 1
-
-        if request.config.getoption("proof_mode"):
-            runner.execution_public_memory += list(
-                range(
-                    pointer.offset,
-                    runner.vm.run_context.ap.offset - first_return_data_offset,
-                )
-            )
-            runner.finalize_segments()
-
-        verify_secure_runner(runner)
-        runner.relocate()
+        runner.verify_and_relocate(offset=first_return_data_offset)
 
         # Create a unique output stem for the given test by using the test file name, the entrypoint and the kwargs
         displayed_args = ""
@@ -269,50 +223,9 @@ def cairo_run(request, cairo_program: Program, cairo_file, main_path):
             stats.write_csv(output_stem.with_suffix(".csv"))
             marshal.dump(prof_dict, open(output_stem.with_suffix(".prof"), "wb"))
 
-        if request.config.getoption("proof_mode"):
-            with open(output_stem.with_suffix(".trace"), "wb") as fp:
-                write_binary_trace(fp, runner.relocated_trace)
-
-            with open(output_stem.with_suffix(".memory"), "wb") as fp:
-                write_binary_memory(
-                    fp,
-                    runner.relocated_memory,
-                    math.ceil(cairo_program.prime.bit_length() / 8),
-                )
-
-            rc_min, rc_max = runner.get_perm_range_check_limits()
-            with open(output_stem.with_suffix(".air_public_input.json"), "w") as fp:
-                write_air_public_input(
-                    layout=request.config.getoption("layout"),
-                    public_input_file=fp,
-                    memory=runner.relocated_memory,
-                    public_memory_addresses=runner.segments.get_public_memory_addresses(
-                        segment_offsets=runner.get_segment_offsets()
-                    ),
-                    memory_segment_addresses=runner.get_memory_segment_addresses(),
-                    trace=runner.relocated_trace,
-                    rc_min=rc_min,
-                    rc_max=rc_max,
-                )
-            with open(output_stem.with_suffix(".air_private_input.json"), "w") as fp:
-                json.dump(
-                    {
-                        "trace_path": str(output_stem.with_suffix(".trace").absolute()),
-                        "memory_path": str(
-                            output_stem.with_suffix(".memory").absolute()
-                        ),
-                        **runner.get_air_private_input(),
-                    },
-                    fp,
-                    indent=4,
-                )
-
         final_output = None
-        if add_output:
-            final_output = serde.serialize_list(output_ptr)
-
         unfiltered_output = [
-            serde.serialize(return_data_type, runner.vm.run_context.ap, offset)
+            serde.serialize(return_data_type, runner.ap, offset)
             for offset, return_data_type in zip(
                 cumulative_retdata_offsets, return_data_types
             )
