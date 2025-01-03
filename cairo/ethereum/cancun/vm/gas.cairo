@@ -3,7 +3,7 @@ from ethereum.utils.numeric import is_zero, divmod, taylor_exponential, min, cei
 from ethereum_types.bytes import BytesStruct
 from ethereum.cancun.blocks import Header
 from ethereum.cancun.transactions import Transaction
-from ethereum.cancun.vm import Evm, EvmStruct, EvmMethods
+from ethereum.cancun.vm import Evm, EvmStruct, EvmImpl
 from ethereum.cancun.vm.exceptions import OutOfGasError
 
 from starkware.cairo.common.math_cmp import is_le, is_not_zero, RC_BOUND
@@ -63,7 +63,7 @@ func charge_gas{range_check_ptr, evm: Evm}(amount: Uint) -> OutOfGasError {
     let range_check_ptr = [ap - 1];
     let evm_struct = cast([fp - 4], EvmStruct*);
     tempvar evm = Evm(evm_struct);
-    EvmMethods.set_gas_left(Uint(a));
+    EvmImpl.set_gas_left(Uint(a));
     tempvar ok = OutOfGasError(cast(0, BytesStruct*));
     return ok;
 
