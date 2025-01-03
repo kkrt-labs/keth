@@ -72,3 +72,17 @@ class TestRunner:
         )
         runner.initialize_zero_segment()
         runner.initialize_vm()
+
+    def test_get_ap(self, sw_program, rust_program):
+        runner = CairoRunner(rust_program, layout="all_cairo")
+        runner.initialize_builtins(allow_missing_builtins=False)
+        runner.initialize_segments()
+        stack = runner.initialize_stack(sw_program.builtins)
+        return_fp = runner.execution_base + 2
+        runner.initialize_function_entrypoint(
+            sw_program.get_label("os"), stack, return_fp
+        )
+        runner.initialize_zero_segment()
+        runner.initialize_vm()
+        assert runner.ap.segment_index == runner.execution_base.segment_index
+        assert runner.ap.offset == runner.execution_base.offset + len(stack) + 2

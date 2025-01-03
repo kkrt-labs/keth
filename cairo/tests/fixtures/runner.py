@@ -21,7 +21,7 @@ from typing import Tuple
 import polars as pl
 import pytest
 import starkware.cairo.lang.instances as LAYOUTS
-from cairo_addons.vm.runner import CairoRunner
+from cairo_addons.vm.runner import CairoRunner, RunResources
 from starkware.cairo.common.dict import DictManager
 from starkware.cairo.lang.builtins.all_builtins import ALL_BUILTINS
 from starkware.cairo.lang.compiler.ast.cairo_types import CairoType, TypeStruct
@@ -34,7 +34,6 @@ from starkware.cairo.lang.vm.cairo_run import (
 )
 from starkware.cairo.lang.vm.memory_segments import FIRST_MEMORY_ADDR as PROGRAM_BASE
 from starkware.cairo.lang.vm.security import verify_secure_runner
-from starkware.cairo.lang.vm.utils import RunResources
 
 from tests.utils.args_gen import gen_arg as gen_arg_builder
 from tests.utils.args_gen import to_cairo_type, to_python_type
@@ -189,28 +188,29 @@ def cairo_run(request, cairo_program: Program, cairo_file, main_path):
             cairo_program.get_label(entrypoint), stack, return_fp
         )
         runner.initialize_zero_segment()
-        runner.initialize_vm(
-            hint_locals={
-                "program_input": kwargs,
-                "__dict_manager": dict_manager,
-                "gen_arg": gen_arg,
-                "serde": serde,
-                "oracle": oracle(cairo_program, serde, main_path, gen_arg),
-                "to_cairo_type": partial(to_cairo_type, cairo_program),
-            },
-            static_locals={
-                "debug_info": debug_info(cairo_program),
-                "get_op": get_op,
-                "logger": logger,
-            },
-        )
-        run_resources = RunResources(n_steps=500_000_000)
+        runner.initialize_vm()
         try:
-            runner.run_until_pc(end, run_resources)
+            runner.run_until_pc(
+                end,
+                RunResources(),
+                # hint_locals={
+                #     "program_input": kwargs,
+                #     "__dict_manager": dict_manager,
+                #     "gen_arg": gen_arg,
+                #     "serde": serde,
+                #     "oracle": oracle(cairo_program, serde, main_path, gen_arg),
+                #     "to_cairo_type": partial(to_cairo_type, cairo_program),
+                # },
+                # static_locals={
+                #     "debug_info": debug_info(cairo_program),
+                #     "get_op": get_op,
+                #     "logger": logger,
+                # },
+            )
         except Exception as e:
             raise Exception(str(e)) from e
 
-        runner.end_run(disable_trace_padding=False)
+        runner.end_run(disable_trace_padding=False, disable_finalize_all=False)
         cumulative_retdata_offsets = serde.get_offsets(return_data_types)
         first_return_data_offset = (
             cumulative_retdata_offsets[0] if cumulative_retdata_offsets else 0

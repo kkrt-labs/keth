@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use crate::vm::program::PyProgram;
 use cairo_vm::{
+    hint_processor::builtin_hint_processor::builtin_hint_processor_definition::BuiltinHintProcessor,
     types::{
         layout_name::LayoutName,
         relocatable::{MaybeRelocatable, Relocatable},
@@ -11,15 +12,17 @@ use cairo_vm::{
 };
 use pyo3::prelude::*;
 
-use crate::vm::{builtins::PyBuiltinList, relocatable::PyRelocatable};
+use crate::vm::{
+    builtins::PyBuiltinList, maybe_relocatable::PyMaybeRelocatable, relocatable::PyRelocatable,
+    run_resources::PyRunResources,
+};
 
 use super::memory_segments::PyMemorySegmentManager;
-
-use crate::vm::maybe_relocatable::PyMaybeRelocatable;
 
 #[pyclass(name = "CairoRunner", unsendable)]
 pub struct PyCairoRunner {
     inner: RustCairoRunner,
+    hint_processor: BuiltinHintProcessor,
 }
 
 #[pymethods]
@@ -50,7 +53,7 @@ impl PyCairoRunner {
         )
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
 
-        Ok(Self { inner })
+        Ok(Self { inner, hint_processor: BuiltinHintProcessor::new_empty() })
     }
 
     #[getter]
@@ -128,5 +131,31 @@ impl PyCairoRunner {
             Ok(_) => Ok(()),
             Err(e) => Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string())),
         }
+    }
+
+    fn run_until_pc(&mut self, address: PyRelocatable, resources: PyRunResources) -> PyResult<()> {
+        let mut hint_processor = BuiltinHintProcessor::new(HashMap::new(), resources.inner);
+        match self.inner.run_until_pc(address.inner, &mut hint_processor) {
+            Ok(_) => {
+                self.hint_processor = hint_processor;
+                Ok(())
+            }
+            Err(e) => Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string())),
+        }
+    }
+
+    pub fn end_run(
+        &mut self,
+        disable_trace_padding: bool,
+        disable_finalize_all: bool,
+    ) -> PyResult<()> {
+        self.inner
+            .end_run(disable_trace_padding, disable_finalize_all, &mut self.hint_processor)
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))
+    }
+
+    #[getter]
+    fn get_ap(&self) -> PyRelocatable {
+        PyRelocatable { inner: self.inner.vm.get_ap() }
     }
 }
