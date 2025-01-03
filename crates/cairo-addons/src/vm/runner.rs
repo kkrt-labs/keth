@@ -1,12 +1,17 @@
+use std::collections::HashMap;
+
 use crate::vm::program::PyProgram;
 use cairo_vm::{
     types::layout_name::LayoutName, vm::runners::cairo_runner::CairoRunner as RustCairoRunner,
+    Felt252,
 };
 use pyo3::prelude::*;
 
-use crate::vm::relocatable::PyRelocatable;
+use crate::vm::{builtins::PyBuiltinList, relocatable::PyRelocatable};
 
 use super::memory_segments::PyMemorySegmentManager;
+
+use crate::vm::maybe_relocatable::PyMaybeRelocatable;
 
 #[pyclass(name = "CairoRunner", unsendable)]
 pub struct PyCairoRunner {
@@ -64,5 +69,20 @@ impl PyCairoRunner {
     #[getter]
     fn segments(&mut self) -> PyMemorySegmentManager {
         PyMemorySegmentManager { runner: &mut self.inner }
+    }
+
+    fn initialize_stack(&mut self, builtins: PyBuiltinList) -> Vec<PyMaybeRelocatable> {
+        let builtins = builtins.into_builtin_names().unwrap();
+        let mut stack = Vec::new();
+        let builtin_runners =
+            self.inner.vm.builtin_runners.iter().map(|b| (b.name(), b)).collect::<HashMap<_, _>>();
+        for builtin_name in builtins {
+            if let Some(builtin_runner) = builtin_runners.get(&builtin_name) {
+                stack.append(&mut builtin_runner.initial_stack());
+            } else {
+                stack.push(Felt252::ZERO.into())
+            }
+        }
+        stack.into_iter().map(PyMaybeRelocatable::from).collect()
     }
 }
