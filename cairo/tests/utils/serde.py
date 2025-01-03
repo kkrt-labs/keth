@@ -409,8 +409,10 @@ class Serde:
             pointee = self.memory.get(ptr)
             # Edge case: 0 pointers are not pointer but no data
             if pointee == 0:
-                python_cls = to_python_type(cairo_type.pointee.scope.path)
+                if isinstance(cairo_type.pointee, TypeFelt):
+                    return None
                 # If the pointer is to an exception, return the error flag
+                python_cls = to_python_type(cairo_type.pointee.scope.path)
                 return (
                     NO_ERROR_FLAG
                     if isinstance(python_cls, type)
