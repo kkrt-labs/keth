@@ -10,6 +10,7 @@ from src.utils.uint256 import (
     uint256_add,
     uint256_unsigned_div_rem,
     uint256_signed_div_rem,
+    uint256_mul_div_mod,
 )
 from src.utils.utils import Helpers
 from ethereum.cancun.vm.stack import Stack, pop, push
@@ -419,11 +420,11 @@ func mulmod{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
     // STACK
     let stack = evm.value.stack;
     with stack {
-        let (x, err1) = pop();
+        let (a, err1) = pop();
         if (cast(err1, felt) != 0) {
             return err1;
         }
-        let (y, err2) = pop();
+        let (b, err2) = pop();
         if (cast(err2, felt) != 0) {
             return err2;
         }
@@ -440,22 +441,27 @@ func mulmod{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
     }
 
     // OPERATION
-    with stack {
-        let (is_zero) = uint256_eq([n.value], U256Struct(0, 0));
-        if (is_zero != 0) {
+    let (is_zero) = uint256_eq([n.value], U256Struct(0, 0));
+    if (is_zero != 0) {
+        with stack {
             let err5 = push(U256(new U256Struct(0, 0)));
             if (cast(err5, felt) != 0) {
                 return err5;
             }
-            tempvar range_check_ptr = range_check_ptr;
-        } else {
-            let (product, _) = uint256_mul([x.value], [y.value]);
-            let (_, remainder) = uint256_unsigned_div_rem(product, [n.value]);
-            let err5 = push(U256(new U256Struct(remainder.low, remainder.high)));
-            if (cast(err5, felt) != 0) {
-                return err5;
-            }
-            tempvar range_check_ptr = range_check_ptr;
+        }
+
+        // PROGRAM COUNTER
+        EvmImpl.set_stack(stack);
+        EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
+        let ok = cast(0, ExceptionalHalt*);
+        return ok;
+    }
+
+    let (_, _, result) = uint256_mul_div_mod([a.value], [b.value], [n.value]);
+    with stack {
+        let err6 = push(U256(new U256Struct(result.low, result.high)));
+        if (cast(err6, felt) != 0) {
+            return err6;
         }
     }
 
