@@ -49,4 +49,8 @@ impl PyMemorySegmentManager {
     fn compute_effective_sizes(&mut self) -> Vec<usize> {
         unsafe { (*self.runner).vm.segments.compute_effective_sizes().clone() }
     }
+
+    fn get_maybe(&self, key: PyRelocatable) -> Option<PyMaybeRelocatable> {
+        unsafe { (*self.runner).vm.get_maybe(&key.inner).map(PyMaybeRelocatable::from) }
+    }
 }

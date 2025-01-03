@@ -1,4 +1,4 @@
-from cairo_addons.vm import CairoRunner
+from cairo_addons.vm import CairoRunner, Felt, Relocatable
 
 
 class TestRunner:
@@ -48,3 +48,10 @@ class TestRunner:
             entrypoint=sw_program.get_label("os"),
         )
         runner.relocated_trace
+
+    def test_get_maybe_relocatable(self, rust_program):
+        runner = CairoRunner(rust_program, layout="all_cairo")
+        base = runner.segments.add()
+        expected = Felt(0xABDE1)
+        runner.segments.load_data(base, [expected])
+        assert runner.segments.get_maybe(base) == expected
