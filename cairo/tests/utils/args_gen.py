@@ -218,7 +218,7 @@ class Evm(
 
 vm_exception_classes = inspect.getmembers(
     sys.modules["ethereum.cancun.vm.exceptions"],
-    lambda x: inspect.isclass(x) and issubclass(x, ExceptionalHalt),
+    lambda x: inspect.isclass(x) and issubclass(x, EthereumException),
 )
 
 vm_exception_mappings = {
@@ -230,7 +230,6 @@ vm_exception_mappings = {
         f"{name}",
     ): cls
     for name, cls in vm_exception_classes
-    if cls is not ExceptionalHalt
 }
 
 _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
@@ -589,16 +588,12 @@ def _gen_arg(
         )
 
     if isinstance(arg_type, type) and issubclass(arg_type, Exception):
-        # For exceptions, we either return 0 (no error) or create an error with a message
+        # For exceptions, we either return 0 (no error) or the ascii representation of the error message
         if arg is None:
             return 0
-
-        error_bytes = str(arg).encode()
-        message_ptr = segments.add()
-        segments.load_data(message_ptr, list(error_bytes))
-        struct_ptr = segments.add()
-        segments.load_data(struct_ptr, [message_ptr, len(error_bytes)])
-        return struct_ptr
+        error_bytes = str(arg.__class__.__name__).encode()
+        error_int = int.from_bytes(error_bytes, "big")
+        return error_int
 
     return arg
 
@@ -648,9 +643,14 @@ def to_cairo_type(program: Program, type_name: Type):
     _python_type_to_cairo_struct = {
         v: k for k, v in _cairo_struct_to_python_type.items()
     }
-    scope = ScopedName(
-        _python_type_to_cairo_struct[_type_aliases.get(type_name, type_name)]
-    )
+
+    if isinstance(type_name, type) and issubclass(type_name, Exception):
+        scope = ScopedName(_python_type_to_cairo_struct[ExceptionalHalt])
+    else:
+        scope = ScopedName(
+            _python_type_to_cairo_struct[_type_aliases.get(type_name, type_name)]
+        )
+
     identifier = program.identifiers.as_dict()[scope]
 
     if isinstance(identifier, TypeDefinition):

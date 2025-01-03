@@ -4,7 +4,7 @@ from ethereum_types.bytes import BytesStruct
 from ethereum.cancun.blocks import Header
 from ethereum.cancun.transactions import Transaction
 from ethereum.cancun.vm import Evm, EvmStruct, EvmImpl
-from ethereum.cancun.vm.exceptions import OutOfGasError
+from ethereum.cancun.vm.exceptions import ExceptionalHalt, OutOfGasError
 
 from starkware.cairo.common.math_cmp import is_le, is_not_zero, RC_BOUND
 from starkware.cairo.common.math import assert_le_felt
@@ -32,7 +32,7 @@ struct MessageCallGas {
 // @param evm The pointer to the current execution context.
 // @param amount The amount of gas the current operation requires.
 // @return EVM The pointer to the updated execution context.
-func charge_gas{range_check_ptr, evm: Evm}(amount: Uint) -> OutOfGasError {
+func charge_gas{range_check_ptr, evm: Evm}(amount: Uint) -> ExceptionalHalt* {
     // This is equivalent to is_nn(evm.value.gas_left - amount)
     with_attr error_message("charge_gas: gas_left > 2**128") {
         assert [range_check_ptr] = evm.value.gas_left.value;
@@ -64,14 +64,14 @@ func charge_gas{range_check_ptr, evm: Evm}(amount: Uint) -> OutOfGasError {
     let evm_struct = cast([fp - 4], EvmStruct*);
     tempvar evm = Evm(evm_struct);
     EvmImpl.set_gas_left(Uint(a));
-    tempvar ok = OutOfGasError(cast(0, BytesStruct*));
+    tempvar ok = cast(0, ExceptionalHalt*);
     return ok;
 
     not_enough_gas:
     let range_check_ptr = [ap - 1];
     let evm_struct = cast([fp - 4], EvmStruct*);
     tempvar evm = Evm(evm_struct);
-    tempvar err = OutOfGasError(new BytesStruct(cast(0, felt*), 0));
+    tempvar err = new ExceptionalHalt(OutOfGasError);
     return err;
 }
 

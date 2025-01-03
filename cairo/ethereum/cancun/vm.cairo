@@ -16,7 +16,7 @@ from ethereum.cancun.transactions import To
 from ethereum.cancun.vm.stack import Stack
 from ethereum.cancun.vm.memory import Memory
 
-using OptionalEthereumException = EthereumException;
+using OptionalEthereumException = EthereumException*;
 using OptionalEvm = Evm;
 using OptionalAddress = Address*;
 

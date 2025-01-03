@@ -65,8 +65,9 @@ from starkware.cairo.lang.compiler.scoped_name import ScopedName
 from starkware.cairo.lang.vm.memory_dict import UnknownMemoryError
 from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 
+from ethereum.cancun.vm.exceptions import InvalidOpcode
 from ethereum.crypto.hash import Hash32
-from tests.utils.args_gen import Memory, Stack, to_python_type
+from tests.utils.args_gen import Memory, Stack, to_python_type, vm_exception_classes
 
 # Sentinel object for indicating no error in exception handling
 NO_ERROR_FLAG = object()
@@ -298,21 +299,22 @@ class Serde:
             and isinstance(python_cls, type)
             and issubclass(python_cls, Exception)
         ):
-            tuple_struct_ptr = self.serialize_pointers(path, ptr)["value"]
-            if not tuple_struct_ptr:
+            error_value = self.serialize_pointers(path, ptr)["value"]
+            if error_value == 0:
                 return NO_ERROR_FLAG
-            value_type = (
-                get_struct_definition(self.program, path).members["value"].cairo_type
+            # Get the first 30 bytes for the error message
+            error_bytes = (error_value & ((1 << (30 * 8)) - 1)).to_bytes(30, "big")
+            ascii_value = error_bytes.decode().strip("\x00")
+            actual_error_cls = next(
+                (cls for name, cls in vm_exception_classes if name == ascii_value), None
             )
-            struct_name = value_type.pointee.scope.path[-1]
-            path = (*path[:-1], struct_name)
-            raw = self.serialize_pointers(path, tuple_struct_ptr)
-            error_bytes = bytes(
-                [self.memory.get(raw["data"] + i) for i in range(raw["len"])]
-            )
-            if error_bytes == b"":
-                return python_cls()
-            return python_cls(error_bytes.decode())
+            if actual_error_cls is None:
+                raise ValueError(f"Unknown error class: {ascii_value}")
+            if actual_error_cls is InvalidOpcode:
+                # Custom parameter (isolated case)
+                param_value = (error_value >> (30 * 8)) & 0xFF
+                return InvalidOpcode(param_value)
+            return actual_error_cls()
 
         if python_cls == Bytes256:
             base_ptr = self.memory.get(ptr)
@@ -407,7 +409,16 @@ class Serde:
             pointee = self.memory.get(ptr)
             # Edge case: 0 pointers are not pointer but no data
             if pointee == 0:
-                return None
+                if isinstance(cairo_type.pointee, TypeFelt):
+                    return None
+                # If the pointer is to an exception, return the error flag
+                python_cls = to_python_type(cairo_type.pointee.scope.path)
+                return (
+                    NO_ERROR_FLAG
+                    if isinstance(python_cls, type)
+                    and issubclass(python_cls, Exception)
+                    else None
+                )
             if isinstance(cairo_type.pointee, TypeFelt):
                 return self.serialize_list(pointee)
             serialized = self.serialize_list(
