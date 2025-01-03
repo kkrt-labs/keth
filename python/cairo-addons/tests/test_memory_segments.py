@@ -1,5 +1,6 @@
 import pytest
 from cairo_addons.vm import CairoRunner, Felt, Relocatable
+from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 
 
 @pytest.fixture
@@ -35,6 +36,14 @@ class TestMemorySegmentManager:
         assert isinstance(next_ptr, Relocatable)
         assert next_ptr.segment_index == ptr.segment_index
         assert next_ptr.offset == 4
+
+    def test_load_data_biguint(self, runner):
+        ptr = runner.segments.add()
+        data = [2**128, DEFAULT_PRIME - 1]
+        next_ptr = runner.segments.load_data(ptr, data)
+        assert isinstance(next_ptr, Relocatable)
+        assert next_ptr.segment_index == ptr.segment_index
+        assert next_ptr.offset == 2
 
     def test_compute_effective_sizes(self, runner):
         ptr = runner.segments.add()
