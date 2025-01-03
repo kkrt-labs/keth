@@ -185,17 +185,9 @@ def cairo_run(request, cairo_program: Program, cairo_file, main_path):
                 stack.append(gen_arg(python_type, arg_value))
 
         return_fp = runner.execution_base + 2
-        # Return to the jmp rel 0 instruction added previously
-        end = runner.program_base + len(runner.program.data) - 2
-        # Proof mode expects the program to start with __start__ and call main
-        # Adding [return_fp, end] before and after the stack makes this work both in proof mode and normal mode
-        stack = [return_fp, end] + stack + [return_fp, end]
-        runner.execution_public_memory = list(range(len(stack)))
-
-        runner.initial_pc = runner.program_base + cairo_program.get_label(entrypoint)
-        runner.load_data(runner.program_base, runner.program.data)
-        runner.load_data(runner.execution_base, stack)
-        runner.initial_fp = runner.initial_ap = runner.execution_base + len(stack)
+        end = runner.initialize_function_entrypoint(
+            cairo_program.get_label(entrypoint), stack, return_fp
+        )
         runner.initialize_zero_segment()
         runner.initialize_vm(
             hint_locals={

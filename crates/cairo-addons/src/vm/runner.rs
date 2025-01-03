@@ -2,7 +2,11 @@ use std::collections::HashMap;
 
 use crate::vm::program::PyProgram;
 use cairo_vm::{
-    types::layout_name::LayoutName, vm::runners::cairo_runner::CairoRunner as RustCairoRunner,
+    types::{
+        layout_name::LayoutName,
+        relocatable::{MaybeRelocatable, Relocatable},
+    },
+    vm::runners::{builtin_runner::BuiltinRunner, cairo_runner::CairoRunner as RustCairoRunner},
     Felt252,
 };
 use pyo3::prelude::*;
@@ -49,14 +53,39 @@ impl PyCairoRunner {
         Ok(Self { inner })
     }
 
-    #[pyo3(signature = (program_base=None))]
-    fn initialize_segments(&mut self, program_base: Option<PyRelocatable>) {
-        self.inner.initialize_segments(program_base.map(|x| x.inner));
+    fn initialize_segments(&mut self) {
+        self.inner.initialize_segments(None);
     }
 
     #[getter]
     fn program_base(&self) -> Option<PyRelocatable> {
         self.inner.program_base.map(|x| PyRelocatable { inner: x })
+    }
+
+    #[getter]
+    fn execution_base(&self) -> Option<PyRelocatable> {
+        // execution_base is not stored but we know it's created right after program_base
+        // during initialize_segments(None), so we can derive it by incrementing the segment_index
+        self.inner.program_base.map(|x| PyRelocatable {
+            inner: Relocatable { segment_index: x.segment_index + 1, offset: 0 },
+        })
+    }
+
+    #[pyo3(signature = (entrypoint, stack, return_fp))]
+    fn initialize_function_entrypoint(
+        &mut self,
+        entrypoint: usize,
+        stack: Vec<PyMaybeRelocatable>,
+        return_fp: PyMaybeRelocatable,
+    ) -> PyResult<PyRelocatable> {
+        let stack: Vec<MaybeRelocatable> = stack.into_iter().map(|x| x.into()).collect();
+        let return_fp: MaybeRelocatable = return_fp.into();
+        let result = self
+            .inner
+            .initialize_function_entrypoint(entrypoint, stack, return_fp)
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+
+        Ok(PyRelocatable { inner: result })
     }
 
     #[pyo3(signature = (allow_missing_builtins))]
@@ -84,5 +113,20 @@ impl PyCairoRunner {
             }
         }
         stack.into_iter().map(PyMaybeRelocatable::from).collect()
+    }
+
+    fn initialize_zero_segment(&mut self) {
+        for builtin_runner in self.inner.vm.builtin_runners.iter_mut() {
+            if let BuiltinRunner::Mod(runner) = builtin_runner {
+                runner.initialize_zero_segment(&mut self.inner.vm.segments);
+            }
+        }
+    }
+
+    fn initialize_vm(&mut self) -> PyResult<()> {
+        match self.inner.initialize_vm() {
+            Ok(_) => Ok(()),
+            Err(e) => Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string())),
+        }
     }
 }
