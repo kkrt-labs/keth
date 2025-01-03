@@ -4,6 +4,7 @@ import pytest
 from ethereum_types.numeric import U256, Uint
 from hypothesis import assume, given
 from hypothesis import strategies as st
+from hypothesis.strategies import composite
 
 from ethereum.cancun.blocks import Header
 from ethereum.cancun.transactions import BlobTransaction
@@ -22,6 +23,14 @@ from ethereum.cancun.vm.gas import (
     max_message_call_gas,
 )
 from tests.utils.args_gen import Evm, Memory
+
+
+@composite
+def extensions_strategy(draw):
+    offset = draw(st.integers(min_value=0, max_value=2**64 - 32))
+    max_size = (2**64 - 32) - offset
+    size = draw(st.integers(min_value=0, max_value=max_size))
+    return (U256(offset), U256(size))
 
 
 class TestGas:
@@ -43,16 +52,8 @@ class TestGas:
             "calculate_memory_gas_cost", size_in_bytes
         )
 
-    # Saturate the memory (offsets + size) at 2**64-1
-    @given(
-        memory=...,
-        extensions=st.lists(
-            st.tuples(
-                st.integers(min_value=0, max_value=2**64 - 1).map(U256),
-                st.integers(min_value=0, max_value=2**64 - 1).map(U256),
-            )
-        ),
-    )
+    # We saturate the memory (offsets + size) at 2**64-32
+    @given(memory=..., extensions=st.lists(extensions_strategy()))
     def test_calculate_gas_extend_memory(
         self, cairo_run, memory: Memory, extensions: List[Tuple[U256, U256]]
     ):

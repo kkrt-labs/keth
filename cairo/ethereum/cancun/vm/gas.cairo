@@ -134,8 +134,12 @@ func charge_gas{range_check_ptr, evm: Evm}(amount: Uint) -> ExceptionalHalt* {
     return err;
 }
 
-// @dev: assumption: not called with size_in_bytes > 2**64
-// only used by calculate_gas_extend_memory
+const MAX_MEMORY_COST = 0x20000000000017f7fffffffffffd;
+const MAX_MEMORY_SIZE = 2 ** 64 - 32;
+
+// @dev: assumption: not called with size_in_bytes >= 2**64
+// only used by calculate_gas_extend_memory which saturates at 2**64-32
+// @dev: max output value given this saturation is MAX_MEMORY_COST
 func calculate_memory_gas_cost{range_check_ptr}(size_in_bytes: Uint) -> Uint {
     let size = ceil32(size_in_bytes);
     let (size_in_words, _) = divmod(size.value, 32);
@@ -146,7 +150,7 @@ func calculate_memory_gas_cost{range_check_ptr}(size_in_bytes: Uint) -> Uint {
     return total_gas_cost;
 }
 
-// @dev: saturates extensions at 2**64 (Uint size)
+// @dev: saturates extensions at (MAX_MEMORY_SIZE, MAX_MEMORY_COST)
 func calculate_gas_extend_memory{range_check_ptr}(
     memory: Memory, extensions: ListTupleU256U256
 ) -> ExtendMemory {
@@ -179,12 +183,12 @@ func _max_offset{range_check_ptr}(
 
     let (max_offset, carry) = uint256_add([offset.value], [size.value]);
     if (carry != 0) {
-        tempvar res = Uint(Constants.UINT64_MAX);
+        tempvar res = Uint(MAX_MEMORY_SIZE);
         return _max_offset(res, extensions, idx + 1);
     }
-    let (is_saturated) = uint256_le(max_offset, U256Struct(Constants.UINT64_MAX, 0));
+    let (is_saturated) = uint256_le(U256Struct(MAX_MEMORY_SIZE + 1, 0), max_offset);
     if (is_saturated != 0) {
-        tempvar res = Uint(Constants.UINT64_MAX);
+        tempvar res = Uint(MAX_MEMORY_SIZE);
         return _max_offset(res, extensions, idx + 1);
     }
 

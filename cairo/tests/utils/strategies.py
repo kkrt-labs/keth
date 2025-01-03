@@ -122,7 +122,12 @@ def tuple_strategy(thing):
 # Generating up to 2**13 bytes of memory is enough for most tests as more would take too long
 # in the test runner.
 # 2**32 bytes would be the value at which the memory expansion would trigger an OOG
-memory = st.binary(min_size=0, max_size=2**13).map(Memory)
+# memory size must be a multiple of 32
+memory = (
+    st.binary(min_size=0, max_size=2**13)
+    .map(lambda x: x + b"\x00" * ((32 - len(x) % 32) % 32))
+    .map(Memory)
+)
 
 evm = st.fixed_dictionaries(
     {
@@ -171,7 +176,11 @@ message = st.fixed_dictionaries(
 
 # Versions strategies with less data in collections
 
-memory_lite = st.binary(min_size=0, max_size=128).map(Memory)
+memory_lite = (
+    st.binary(min_size=0, max_size=128)
+    .map(lambda x: x + b"\x00" * ((32 - len(x) % 32) % 32))
+    .map(Memory)
+)
 
 message_lite = st.fixed_dictionaries(
     {
