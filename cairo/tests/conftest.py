@@ -93,6 +93,7 @@ settings.register_profile(
     max_examples=30,
     phases=[Phase.explicit, Phase.reuse, Phase.generate, Phase.target],
     derandomize=True,
+    print_blob=True,
 )
 settings.register_profile(
     "debug",

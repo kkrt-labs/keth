@@ -6,6 +6,7 @@ from src.gas import Gas
 // @notice This file contains global constants.
 namespace Constants {
     const UINT128_MAX = 0xffffffffffffffffffffffffffffffff;
+    const UINT64_MAX = 2 ** 64 - 1;
 
     // STACK
     const STACK_MAX_DEPTH = 1024;

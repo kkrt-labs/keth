@@ -12,6 +12,26 @@
 
 // None values are just null pointers generally speaking (i.e. cast(my_var, felt) == 0)
 // but we need to explicitly define None to be able to serialize/deserialize None
+from ethereum_types.numeric import U256
+
 struct None {
     value: felt*,
+}
+
+struct TupleU256U256Struct {
+    val_1: U256,
+    val_2: U256,
+}
+
+struct TupleU256U256 {
+    value: TupleU256U256Struct*,
+}
+
+struct ListTupleU256U256Struct {
+    data: TupleU256U256*,
+    len: felt,
+}
+
+struct ListTupleU256U256 {
+    value: ListTupleU256U256Struct*,
 }

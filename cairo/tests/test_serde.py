@@ -32,7 +32,7 @@ from ethereum.cancun.vm.exceptions import (
     StackOverflowError,
     StackUnderflowError,
 )
-from ethereum.cancun.vm.gas import MessageCallGas
+from ethereum.cancun.vm.gas import ExtendMemory, MessageCallGas
 from ethereum.crypto.hash import Hash32
 from ethereum.exceptions import EthereumException
 from tests.utils.args_gen import (
@@ -46,6 +46,7 @@ from tests.utils.args_gen import (
 from tests.utils.args_gen import gen_arg as _gen_arg
 from tests.utils.args_gen import to_cairo_type as _to_cairo_type
 from tests.utils.serde import Serde
+from tests.utils.strategies import TypedTuple
 
 
 @pytest.fixture(scope="module")
@@ -94,6 +95,10 @@ def get_type(instance: Any) -> Type:
     if isinstance(instance, Trie):
         key_type, value_type = instance.__orig_class__.__args__
         return Trie[key_type, value_type]
+
+    if isinstance(instance, TypedTuple):
+        args = instance.__orig_class__.__args__
+        return Tuple[args]
 
     if not isinstance(instance, (tuple, list)):
         return type(instance)
@@ -245,6 +250,8 @@ class TestSerde:
             Memory,
             Evm,
             Message,
+            List[Tuple[U256, U256]],
+            ExtendMemory,
         ],
     ):
         assume(no_empty_sequence(b))

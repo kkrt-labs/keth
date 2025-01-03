@@ -92,10 +92,42 @@ def stack_strategy(thing):
     )
 
 
+from typing import Generic, TypeVar
+
+T1 = TypeVar("T1")
+T2 = TypeVar("T2")
+
+
+class TypedTuple(tuple, Generic[T1, T2]):
+    """A tuple that maintains its type information."""
+
+    def __new__(cls, values):
+        return super(TypedTuple, cls).__new__(cls, values)
+
+
+def tuple_strategy(thing):
+    types = thing.__args__
+
+    # Handle ellipsis tuples
+    if len(types) == 2 and types[1] == Ellipsis:
+        return st.tuples(st.from_type(types[0]), st.from_type(types[0])).map(
+            lambda x: TypedTuple[types[0], Ellipsis](x)
+        )
+
+    return st.tuples(*(st.from_type(t) for t in types)).map(
+        lambda x: TypedTuple[tuple(types)](x)
+    )
+
+
 # Generating up to 2**13 bytes of memory is enough for most tests as more would take too long
 # in the test runner.
 # 2**32 bytes would be the value at which the memory expansion would trigger an OOG
-memory = st.binary(min_size=0, max_size=2**13).map(Memory)
+# memory size must be a multiple of 32
+memory = (
+    st.binary(min_size=0, max_size=2**13)
+    .map(lambda x: x + b"\x00" * ((32 - len(x) % 32) % 32))
+    .map(Memory)
+)
 
 evm = st.fixed_dictionaries(
     {
@@ -144,7 +176,11 @@ message = st.fixed_dictionaries(
 
 # Versions strategies with less data in collections
 
-memory_lite = st.binary(min_size=0, max_size=128).map(Memory)
+memory_lite = (
+    st.binary(min_size=0, max_size=128)
+    .map(lambda x: x + b"\x00" * ((32 - len(x) % 32) % 32))
+    .map(Memory)
+)
 
 message_lite = st.fixed_dictionaries(
     {
@@ -282,3 +318,4 @@ def register_type_strategies():
     st.register_type_strategy(Stack, stack_strategy)
     st.register_type_strategy(Memory, memory)
     st.register_type_strategy(Evm, evm)
+    st.register_type_strategy(tuple, tuple_strategy)
