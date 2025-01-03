@@ -1,5 +1,5 @@
 import pytest
-from cairo_addons.vm import CairoRunner, Relocatable
+from cairo_addons.vm import CairoRunner, Felt, Relocatable
 
 
 @pytest.fixture
@@ -22,7 +22,7 @@ class TestMemorySegmentManager:
 
     def test_load_data(self, runner):
         ptr = runner.segments.add()
-        data = [1, 2, 3, 4]
+        data = [Felt(1), Felt(2), Felt(3), Felt(4)]
         next_ptr = runner.segments.load_data(ptr, data)
         assert isinstance(next_ptr, Relocatable)
         assert next_ptr.segment_index == ptr.segment_index
@@ -30,7 +30,7 @@ class TestMemorySegmentManager:
 
     def test_compute_effective_sizes(self, runner):
         ptr = runner.segments.add()
-        data = [1, 2, 3, 4]
+        data = [Felt(1), Felt(2), Felt(3), Felt(4)]
         runner.segments.load_data(ptr, data)
         sizes = runner.segments.compute_effective_sizes()
         assert sizes == [4]

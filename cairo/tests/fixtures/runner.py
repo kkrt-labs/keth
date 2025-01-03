@@ -21,6 +21,7 @@ from typing import Tuple
 import polars as pl
 import pytest
 import starkware.cairo.lang.instances as LAYOUTS
+from cairo_addons.vm.runner import CairoRunner
 from starkware.cairo.common.dict import DictManager
 from starkware.cairo.lang.builtins.all_builtins import ALL_BUILTINS
 from starkware.cairo.lang.compiler.ast.cairo_types import CairoType, TypeStruct
@@ -31,8 +32,6 @@ from starkware.cairo.lang.vm.cairo_run import (
     write_binary_memory,
     write_binary_trace,
 )
-from starkware.cairo.lang.vm.cairo_runner import CairoRunner
-from starkware.cairo.lang.vm.memory_dict import MemoryDict
 from starkware.cairo.lang.vm.memory_segments import FIRST_MEMORY_ADDR as PROGRAM_BASE
 from starkware.cairo.lang.vm.security import verify_secure_runner
 from starkware.cairo.lang.vm.utils import RunResources
@@ -161,37 +160,17 @@ def cairo_run(request, cairo_program: Program, cairo_file, main_path):
         ]
         # Add a jmp rel 0 instruction to be able to loop in proof mode and avoid the proof-mode at compile time
         cairo_program.data = cairo_program.data + [0x10780017FFF7FFF, 0]
-        memory = MemoryDict()
         runner = CairoRunner(
             program=cairo_program,
             layout=getattr(LAYOUTS, request.config.getoption("layout")),
-            memory=memory,
             proof_mode=request.config.getoption("proof_mode"),
-            allow_missing_builtins=False,
         )
         serde = Serde(runner.segments, cairo_program, cairo_file)
         dict_manager = DictManager()
         gen_arg = gen_arg_builder(dict_manager, runner.segments)
-
-        runner.program_base = runner.segments.add()
-        runner.execution_base = runner.segments.add()
-        for builtin_runner in runner.builtin_runners.values():
-            builtin_runner.initialize_segments(runner)
-
-        add_output = False
-        stack = []
-
-        # Handle builtins
-        for builtin_arg in _builtins:
-            builtin_runner = runner.builtin_runners.get(
-                builtin_arg.replace("_ptr", "_builtin")
-            )
-            if builtin_runner is None:
-                raise ValueError(f"Builtin runner {builtin_arg} not found")
-            stack.extend(builtin_runner.initial_stack())
-            add_output = "output" in builtin_arg
-            if add_output:
-                output_ptr = stack[-1]
+        runner.initialize_builtins(allow_missing_builtins=False)
+        runner.initialize_segments()
+        stack = runner.initialize_stack(cairo_program.builtins)
 
         # Handle other args, (implicit, explicit)
         for i, (arg_name, python_type) in enumerate(

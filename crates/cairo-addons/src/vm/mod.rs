@@ -1,5 +1,6 @@
 use pyo3::prelude::*;
 
+mod builtins;
 mod felt;
 mod maybe_relocatable;
 mod memory_segments;
