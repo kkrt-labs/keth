@@ -19,7 +19,9 @@ from typing import Tuple
 import polars as pl
 import pytest
 import starkware.cairo.lang.instances as LAYOUTS
-from cairo_addons.vm.runner import CairoRunner, RunResources
+from cairo_addons.vm import CairoRunner
+from cairo_addons.vm import Program as RustProgram
+from cairo_addons.vm import RunResources
 from starkware.cairo.common.dict import DictManager
 from starkware.cairo.lang.builtins.all_builtins import ALL_BUILTINS
 from starkware.cairo.lang.compiler.ast.cairo_types import CairoType, TypeStruct
@@ -138,14 +140,19 @@ def cairo_run(request, cairo_program: Program, cairo_file, main_path):
         ).cairo_type
         return_data_types = [arg["cairo_type"] for arg in _implicit_args.values()] + (
             [explicit_return_data]
-            if len(getattr(explicit_return_data, "members", [])) > 0
+            if not (
+                hasattr(explicit_return_data, "members")
+                and len(explicit_return_data.members) == 0
+            )
             else []
         )
 
         # Create runner
         runner = CairoRunner(
-            program=cairo_program,
-            layout=getattr(LAYOUTS, request.config.getoption("layout")),
+            program=RustProgram.from_bytes(
+                json.dumps(cairo_program.Schema().dump(cairo_program)).encode()
+            ),
+            layout=getattr(LAYOUTS, request.config.getoption("layout")).layout_name,
             proof_mode=False,
             allow_missing_builtins=False,
         )
