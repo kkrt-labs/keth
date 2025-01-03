@@ -17,7 +17,7 @@ use cairo_vm::{
 use pyo3::prelude::*;
 
 use crate::vm::{
-    builtins::PyBuiltinList, maybe_relocatable::PyMaybeRelocatable, relocatable::PyRelocatable,
+    maybe_relocatable::PyMaybeRelocatable, relocatable::PyRelocatable,
     relocated_trace::PyRelocatedTraceEntry, run_resources::PyRunResources,
 };
 use num_traits::Zero;
@@ -64,7 +64,11 @@ impl PyCairoRunner {
         )
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
 
-        Ok(Self { inner, allow_missing_builtins, builtins: vec![] })
+        Ok(Self {
+            inner,
+            allow_missing_builtins,
+            builtins: program.inner.iter_builtins().copied().collect(),
+        })
     }
 
     /// Initialize the runner with the given builtins and stack.
@@ -72,7 +76,6 @@ impl PyCairoRunner {
     /// Mainly CairoRunner::initialize but with the ability to pass a stack and builtins.
     pub fn initialize(
         &mut self,
-        builtins: PyBuiltinList,
         stack: Vec<PyMaybeRelocatable>,
         entrypoint: usize,
     ) -> PyResult<PyRelocatable> {
@@ -80,7 +83,7 @@ impl PyCairoRunner {
             .initialize_builtins(self.allow_missing_builtins)
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
         self.inner.initialize_segments(None);
-        let initial_stack = self.builtins_stack(builtins);
+        let initial_stack = self.builtins_stack();
         let stack = initial_stack.into_iter().chain(stack.into_iter().map(|x| x.into())).collect();
 
         let return_fp = self.inner.vm.add_memory_segment();
@@ -168,14 +171,12 @@ impl PyCairoRunner {
 }
 
 impl PyCairoRunner {
-    fn builtins_stack(&mut self, builtins: PyBuiltinList) -> Vec<MaybeRelocatable> {
-        let builtins = builtins.into_builtin_names().unwrap();
-        self.builtins = builtins.clone();
+    fn builtins_stack(&mut self) -> Vec<MaybeRelocatable> {
         let mut stack = Vec::new();
         let builtin_runners =
             self.inner.vm.builtin_runners.iter().map(|b| (b.name(), b)).collect::<HashMap<_, _>>();
-        for builtin_name in builtins {
-            if let Some(builtin_runner) = builtin_runners.get(&builtin_name) {
+        for builtin_name in self.builtins.iter() {
+            if let Some(builtin_runner) = builtin_runners.get(builtin_name) {
                 stack.append(&mut builtin_runner.initial_stack());
             } else {
                 stack.push(Felt252::ZERO.into())
