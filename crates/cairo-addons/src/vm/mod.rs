@@ -2,6 +2,7 @@ use pyo3::prelude::*;
 
 mod builtins;
 mod felt;
+mod layout;
 mod maybe_relocatable;
 mod memory_segments;
 mod program;

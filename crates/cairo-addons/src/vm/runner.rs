@@ -5,7 +5,6 @@ use cairo_vm::{
     hint_processor::builtin_hint_processor::builtin_hint_processor_definition::BuiltinHintProcessor,
     types::{
         builtin_name::BuiltinName,
-        layout_name::LayoutName,
         relocatable::{MaybeRelocatable, Relocatable},
     },
     vm::{
@@ -17,7 +16,7 @@ use cairo_vm::{
 use pyo3::prelude::*;
 
 use crate::vm::{
-    maybe_relocatable::PyMaybeRelocatable, relocatable::PyRelocatable,
+    layout::PyLayout, maybe_relocatable::PyMaybeRelocatable, relocatable::PyRelocatable,
     relocated_trace::PyRelocatedTraceEntry, run_resources::PyRunResources,
 };
 use num_traits::Zero;
@@ -34,26 +33,14 @@ pub struct PyCairoRunner {
 #[pymethods]
 impl PyCairoRunner {
     #[new]
-    #[pyo3(signature = (program, layout="plain", proof_mode=false, allow_missing_builtins=false))]
+    #[pyo3(signature = (program, layout=None, proof_mode=false, allow_missing_builtins=false))]
     fn new(
         program: &PyProgram,
-        layout: &str,
+        layout: Option<PyLayout>,
         proof_mode: bool,
         allow_missing_builtins: bool,
     ) -> PyResult<Self> {
-        let layout = match layout {
-            "plain" => LayoutName::plain,
-            "small" => LayoutName::small,
-            "dex" => LayoutName::dex,
-            "recursive" => LayoutName::recursive,
-            "starknet" => LayoutName::starknet,
-            "starknet_with_keccak" => LayoutName::starknet_with_keccak,
-            "recursive_large_output" => LayoutName::recursive_large_output,
-            "recursive_with_poseidon" => LayoutName::recursive_with_poseidon,
-            "all_cairo" => LayoutName::all_cairo,
-            "all_solidity" => LayoutName::all_solidity,
-            _ => return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>("Invalid layout name")),
-        };
+        let layout = layout.unwrap_or_default().into_layout_name()?;
 
         let inner = RustCairoRunner::new(
             &program.inner,
