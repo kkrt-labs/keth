@@ -1510,7 +1510,7 @@ dependencies = [
 [[package]]
 name = "cairo-vm"
 version = "2.0.0-rc3"
-source = "git+https://github.com/ClementWalter/cairo-rs#bb9a99b6601aaa6c5b4a3651de0ac2f77053da2c"
+source = "git+https://github.com/ClementWalter/cairo-rs#5f29188c8570470bbebce7bf82697a6d6a5e0724"
 dependencies = [
  "anyhow",
  "arbitrary",

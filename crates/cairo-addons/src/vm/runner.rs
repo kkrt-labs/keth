@@ -58,18 +58,22 @@ impl PyCairoRunner {
         })
     }
 
-    /// Initialize the runner with the given builtins and stack.
-    ///
-    /// Mainly CairoRunner::initialize but with the ability to pass a stack and builtins.
-    pub fn initialize(
-        &mut self,
-        stack: Vec<PyMaybeRelocatable>,
-        entrypoint: usize,
-    ) -> PyResult<PyRelocatable> {
+    /// Initialize the runner program_base, execution_base and builtins segments.
+    pub fn initialize_segments(&mut self) -> PyResult<()> {
         self.inner
             .initialize_builtins(self.allow_missing_builtins)
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
         self.inner.initialize_segments(None);
+
+        Ok(())
+    }
+
+    /// Initialize the runner with the given stack and entrypoint offset.
+    pub fn initialize_vm(
+        &mut self,
+        stack: Vec<PyMaybeRelocatable>,
+        entrypoint: usize,
+    ) -> PyResult<PyRelocatable> {
         let initial_stack = self.builtins_stack();
         let stack = initial_stack.into_iter().chain(stack.into_iter().map(|x| x.into())).collect();
 
@@ -107,6 +111,16 @@ impl PyCairoRunner {
     #[getter]
     fn ap(&self) -> PyRelocatable {
         PyRelocatable { inner: self.inner.vm.get_ap() }
+    }
+
+    #[getter]
+    fn fp(&self) -> PyRelocatable {
+        PyRelocatable { inner: self.inner.vm.get_fp() }
+    }
+
+    #[getter]
+    fn pc(&self) -> PyRelocatable {
+        PyRelocatable { inner: self.inner.vm.get_pc() }
     }
 
     #[getter]

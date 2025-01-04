@@ -163,6 +163,9 @@ def cairo_run(
             proof_mode=False,
             allow_missing_builtins=False,
         )
+        # Must be done right after runner creation to make sure the execution base is 1
+        # See https://github.com/lambdaclass/cairo-vm/issues/1908
+        runner.initialize_segments()
 
         # Fill runner's memory for args
         serde = Serde(runner.segments, cairo_program, cairo_file)
@@ -176,7 +179,7 @@ def cairo_run(
             stack.append(gen_arg(python_type, arg_value))
 
         # Initialize runner
-        end = runner.initialize(
+        end = runner.initialize_vm(
             entrypoint=cairo_program.get_label(entrypoint), stack=stack
         )
 
