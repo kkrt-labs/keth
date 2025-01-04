@@ -73,6 +73,7 @@ from typing import (
     get_origin,
 )
 
+from cairo_addons.vm import Relocatable
 from ethereum_types.bytes import (
     Bytes,
     Bytes0,
@@ -98,7 +99,6 @@ from starkware.cairo.lang.compiler.identifier_definition import (
 from starkware.cairo.lang.compiler.program import Program
 from starkware.cairo.lang.compiler.scoped_name import ScopedName
 from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
-from starkware.cairo.lang.vm.relocatable import MaybeRelocatable, RelocatableValue
 
 from ethereum.cancun.blocks import Header, Log, Receipt, Withdrawal
 from ethereum.cancun.fork_types import Account, Address, Bloom, Root, VersionedHash
@@ -422,7 +422,7 @@ def _gen_arg(
         if arg is None:
             return 0
         value = _gen_arg(dict_manager, segments, get_args(arg_type)[0], arg)
-        if isinstance(value, RelocatableValue):
+        if isinstance(value, Relocatable):
             # struct SomeClassStruct1 {
             #     maybe_bytes: BytesStruct*
             # }
@@ -452,7 +452,7 @@ def _gen_arg(
         # Value types are not pointers by default, so we need to convert them to pointers.
         for i, (x_type, d) in enumerate(zip(get_args(arg_type), data)):
             if isinstance_with_generic(arg, x_type) and not isinstance_with_generic(
-                d, RelocatableValue
+                d, Relocatable
             ):
                 d_ptr = segments.add()
                 segments.load_data(d_ptr, [d])
@@ -534,7 +534,7 @@ def _gen_arg(
         segments.load_data(base, [dict_ptr, current_ptr])
         return base
 
-    if arg_type == MaybeRelocatable:
+    if arg_type == Union[int, Relocatable]:
         return arg
 
     if is_dataclass(arg_type_origin):
@@ -625,7 +625,7 @@ def to_python_type(cairo_type: Union[CairoType, Tuple[str, ...]]):
         return int
 
     if isinstance(cairo_type, TypePointer):
-        return RelocatableValue
+        return Relocatable
 
     if isinstance(cairo_type, TypeStruct):
         return _cairo_struct_to_python_type.get(cairo_type.scope.path)

@@ -5,13 +5,15 @@ from importlib import import_module
 from typing import Dict, Iterable, Optional, Tuple, Union
 from unittest.mock import patch
 
+from cairo_addons.vm import Relocatable
 from starkware.cairo.common.dict import DictTracker
 from starkware.cairo.lang.compiler.program import CairoHint
-from starkware.cairo.lang.vm.relocatable import MaybeRelocatable
 
 from ethereum.cancun.vm.instructions import Ops
 from tests.utils.args_gen import to_cairo_type
 from tests.utils.helpers import flatten
+
+MaybeRelocatable = Union[int, Relocatable]
 
 
 def debug_info(program):
