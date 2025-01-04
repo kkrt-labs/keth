@@ -45,6 +45,13 @@ class TestRelocatable:
         assert rust_result.segment_index == sw_result.segment_index
         assert rust_result.offset == sw_result.offset
 
+    @given(off0=st.integers(0, 2**32 - 1), off1=st.integers(0, 2**32 - 1))
+    def test_sub_relocatable(self, off0: int, off1: int):
+        assume(off1 <= off0)
+        rust_rel = RustRelocatable(0, off0) - RustRelocatable(0, off1)
+        sw_result = SWRelocatable(0, off0) - SWRelocatable(0, off1)
+        assert rust_rel == sw_result
+
     @given(rel1=..., rel2=...)
     def test_comparison(self, rel1: SWRelocatable, rel2: SWRelocatable):
         rust_rel1 = RustRelocatable(rel1.segment_index, rel1.offset)
