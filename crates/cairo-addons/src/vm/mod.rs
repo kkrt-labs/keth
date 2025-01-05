@@ -1,6 +1,7 @@
 use pyo3::prelude::*;
 
 mod builtins;
+mod dict_manager;
 mod felt;
 mod layout;
 mod maybe_relocatable;
@@ -11,6 +12,8 @@ mod relocated_trace;
 mod run_resources;
 mod runner;
 mod stripped_program;
+
+use dict_manager::{PyDictManager, PyDictTracker};
 use felt::PyFelt;
 use memory_segments::PyMemorySegmentManager;
 use program::PyProgram;
@@ -30,5 +33,7 @@ fn vm(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<PyRunResources>()?;
     module.add_class::<PyRelocatedTraceEntry>()?;
     module.add_class::<PyStrippedProgram>()?;
+    module.add_class::<PyDictManager>()?;
+    module.add_class::<PyDictTracker>()?;
     Ok(())
 }

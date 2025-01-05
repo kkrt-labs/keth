@@ -73,7 +73,7 @@ from typing import (
     get_origin,
 )
 
-from cairo_addons.vm import Relocatable
+from cairo_addons.vm import DictManager, DictTracker, Relocatable
 from ethereum_types.bytes import (
     Bytes,
     Bytes0,
@@ -84,7 +84,6 @@ from ethereum_types.bytes import (
     Bytes256,
 )
 from ethereum_types.numeric import U64, U256, Uint
-from starkware.cairo.common.dict import DictManager, DictTracker
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 from starkware.cairo.lang.compiler.ast.cairo_types import (
     CairoType,
@@ -507,7 +506,6 @@ def _gen_arg(
 
     if arg_type_origin in (dict, ChainMap, abc.Mapping, set):
         dict_ptr = segments.add()
-        assert dict_ptr.segment_index not in dict_manager.trackers
 
         if arg_type_origin is set:
             arg = {k: True for k in arg}
@@ -527,8 +525,13 @@ def _gen_arg(
         initial_data = flatten([(k, v, v) for k, v in data.items()])
         segments.load_data(dict_ptr, initial_data)
         current_ptr = dict_ptr + len(initial_data)
-        dict_manager.trackers[dict_ptr.segment_index] = DictTracker(
-            data=data, current_ptr=current_ptr
+        dict_manager.insert(
+            dict_ptr.segment_index,
+            DictTracker(
+                keys=list(data.keys()),
+                values=list(data.values()),
+                current_ptr=current_ptr,
+            ),
         )
         base = segments.add()
         segments.load_data(base, [dict_ptr, current_ptr])

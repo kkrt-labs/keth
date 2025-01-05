@@ -23,7 +23,7 @@ use crate::vm::{
 };
 use num_traits::Zero;
 
-use super::memory_segments::PyMemorySegmentManager;
+use super::{dict_manager::PyDictManager, memory_segments::PyMemorySegmentManager};
 
 #[pyclass(name = "CairoRunner", unsendable)]
 pub struct PyCairoRunner {
@@ -44,7 +44,7 @@ impl PyCairoRunner {
     ) -> PyResult<Self> {
         let layout = layout.unwrap_or_default().into_layout_name()?;
 
-        let inner = RustCairoRunner::new(
+        let mut inner = RustCairoRunner::new(
             &program.inner,
             layout,
             None, // dynamic_layout_params
@@ -52,6 +52,9 @@ impl PyCairoRunner {
             true, // trace_enabled
         )
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+
+        let dict_manager = DictManager::new();
+        inner.exec_scopes.insert_value("dict_manager", Rc::new(RefCell::new(dict_manager)));
 
         Ok(Self {
             inner,
@@ -94,9 +97,6 @@ impl PyCairoRunner {
             .initialize_vm()
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
 
-        let dict_manager = DictManager::new();
-        self.inner.exec_scopes.insert_value("dict_manager", Rc::new(RefCell::new(dict_manager)));
-
         Ok(PyRelocatable { inner: end })
     }
 
@@ -132,6 +132,16 @@ impl PyCairoRunner {
     #[getter]
     fn segments(&mut self) -> PyMemorySegmentManager {
         PyMemorySegmentManager { runner: &mut self.inner }
+    }
+
+    #[getter]
+    fn dict_manager(&self) -> PyResult<PyDictManager> {
+        let dict_manager = self
+            .inner
+            .exec_scopes
+            .get_dict_manager()
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+        Ok(PyDictManager { inner: dict_manager })
     }
 
     fn run_until_pc(&mut self, address: PyRelocatable, resources: PyRunResources) -> PyResult<()> {

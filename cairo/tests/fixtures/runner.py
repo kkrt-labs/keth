@@ -22,7 +22,6 @@ import starkware.cairo.lang.instances as LAYOUTS
 from cairo_addons.vm import CairoRunner
 from cairo_addons.vm import Program as RustProgram
 from cairo_addons.vm import RunResources
-from starkware.cairo.common.dict import DictManager
 from starkware.cairo.lang.builtins.all_builtins import ALL_BUILTINS
 from starkware.cairo.lang.compiler.ast.cairo_types import CairoType, TypeStruct
 from starkware.cairo.lang.compiler.program import Program
@@ -169,8 +168,7 @@ def cairo_run(
 
         # Fill runner's memory for args
         serde = Serde(runner.segments, cairo_program, cairo_file)
-        dict_manager = DictManager()
-        gen_arg = gen_arg_builder(dict_manager, runner.segments)
+        gen_arg = gen_arg_builder(runner.dict_manager, runner.segments)
         stack = []
         for i, (arg_name, python_type) in enumerate(
             [(k, v["python_type"]) for k, v in {**_implicit_args, **_args}.items()]
