@@ -1,8 +1,10 @@
-use std::collections::HashMap;
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::vm::program::PyProgram;
 use cairo_vm::{
-    hint_processor::builtin_hint_processor::builtin_hint_processor_definition::BuiltinHintProcessor,
+    hint_processor::builtin_hint_processor::{
+        builtin_hint_processor_definition::BuiltinHintProcessor, dict_manager::DictManager,
+    },
     types::{
         builtin_name::BuiltinName,
         relocatable::{MaybeRelocatable, Relocatable},
@@ -91,6 +93,10 @@ impl PyCairoRunner {
         self.inner
             .initialize_vm()
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+
+        let dict_manager = DictManager::new();
+        self.inner.exec_scopes.insert_value("dict_manager", Rc::new(RefCell::new(dict_manager)));
+
         Ok(PyRelocatable { inner: end })
     }
 
