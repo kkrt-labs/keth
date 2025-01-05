@@ -165,6 +165,14 @@ def pytest_runtest_makereport(item, call):
         item.session.results[item] = result
 
 
+def get_dump_path(session, fspath):
+    dump_path = session.build_dir / session.cairo_files[fspath].relative_to(
+        Path().cwd()
+    ).with_suffix(".json")
+    dump_path.parent.mkdir(parents=True, exist_ok=True)
+    return dump_path
+
+
 @pytest.hookimpl(wrapper=True)
 def pytest_collection_modifyitems(session, config, items):
     # deselect tests by keyword and mark here to avoid compiling cairo files
@@ -203,45 +211,40 @@ def pytest_collection_modifyitems(session, config, items):
     worker_index = int(worker_id[2:]) if worker_id != "master" else 0
     fspaths = sorted(list({item.fspath for item in cairo_items}))
     for fspath in fspaths[worker_index::worker_count]:
-        cairo_file = get_cairo_file(fspath)
-        main_path = get_main_path(cairo_file)
-        dump_path = session.build_dir / cairo_file.relative_to(
-            Path().cwd()
-        ).with_suffix(".json")
-        dump_path.parent.mkdir(parents=True, exist_ok=True)
-        get_cairo_program(cairo_file, main_path, dump_path)
+        session.cairo_files[fspath] = get_cairo_file(fspath)
+        session.main_paths[fspath] = get_main_path(session.cairo_files[fspath])
+        dump_path = get_dump_path(session, fspath)
+        session.cairo_programs[fspath] = get_cairo_program(
+            session.cairo_files[fspath],
+            session.main_paths[fspath],
+            dump_path,
+        )
 
     # Wait for all workers to finish
-    all_paths = []
-    for item in cairo_items:
-        cairo_file = get_cairo_file(item.fspath)
-        dump_path = session.build_dir / cairo_file.relative_to(
-            Path().cwd()
-        ).with_suffix(".json")
-        all_paths.append(dump_path)
-
-    while not all([dump_path.exists() for dump_path in all_paths]):
-        logger.info(
-            f"Worker {worker_id} with index {worker_index} / {worker_count} waiting for other workers to finish"
-        )
-        # 0.25 seconds as observed to be one of the smallest time over the current test files
+    missing = set(fspaths) - set(fspaths[worker_index::worker_count])
+    while missing:
+        logger.info(f"Waiting for {len(missing)} compilations artifacts to be ready")
+        missing_new = set()
+        for fspath in missing:
+            if fspath not in session.cairo_files:
+                session.cairo_files[fspath] = get_cairo_file(fspath)
+            if fspath not in session.main_paths:
+                session.main_paths[fspath] = get_main_path(session.cairo_files[fspath])
+            if fspath not in session.cairo_programs:
+                dump_path = get_dump_path(session, fspath)
+                if dump_path.exists():
+                    session.cairo_programs[fspath] = get_cairo_program(
+                        session.cairo_files[fspath],
+                        session.main_paths[fspath],
+                        dump_path,
+                    )
+                else:
+                    missing_new.add(fspath)
+        missing = missing_new
         time.sleep(0.25)
 
     # Select tests
     for item in cairo_items:
-        if item.fspath not in session.cairo_files:
-            cairo_file = get_cairo_file(item.fspath)
-            session.cairo_files[item.fspath] = cairo_file
-        if item.fspath not in session.main_paths:
-            main_path = get_main_path(cairo_file)
-            session.main_paths[item.fspath] = main_path
-        if item.fspath not in session.cairo_programs:
-            dump_path = session.build_dir / cairo_file.relative_to(
-                Path().cwd()
-            ).with_suffix(".json")
-            cairo_program = get_cairo_program(cairo_file, main_path, dump_path)
-            session.cairo_programs[item.fspath] = cairo_program
-
         cairo_program = session.cairo_programs[item.fspath]
         test_hash = xxhash.xxh64(
             program_hash(cairo_program)
