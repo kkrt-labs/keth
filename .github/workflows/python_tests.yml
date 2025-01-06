@@ -44,7 +44,8 @@ jobs:
       - name: Run tests with caching
         run: |
           cd python/cairo-addons
-          uv sync --reinstall
+          uv sync
+          maturin develop --uv
           cd ../..
           uv run pytest cairo/tests -n logical --durations=0 -v -s --log-cli-level=DEBUG
 
