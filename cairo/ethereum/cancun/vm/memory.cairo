@@ -11,8 +11,9 @@ from starkware.cairo.common.math import assert_le, assert_lt
 from starkware.cairo.common.math_cmp import is_le, is_not_zero
 
 from ethereum_types.bytes import Bytes, BytesStruct, Bytes1DictAccess
-from ethereum_types.numeric import U256
+from ethereum_types.numeric import U256, Uint
 from ethereum.utils.numeric import max
+from src.utils.bytes import uint256_to_bytes32
 
 struct MemoryStruct {
     dict_ptr_start: Bytes1DictAccess*,
@@ -25,6 +26,7 @@ struct Memory {
 }
 
 // @notice Write bytes to memory at a given position.
+// @dev assumption: memory is resized by the calling opcode
 // @param memory The pointer to the bytearray.
 // @param start_position Starting position to write at.
 // @param value Bytes to write.
@@ -32,7 +34,13 @@ func memory_write{range_check_ptr, memory: Memory}(start_position: U256, value: 
     alloc_locals;
     let bytes_len = value.value.len;
     let start_position_felt = start_position.value.low;
-    with_attr error_message("memory_write: start_position > 2**128 || value.len > 2**128") {
+
+    // Early return if nothing to write
+    if (value.value.len == 0) {
+        return ();
+    }
+
+    with_attr error_message("memory_write: start_position > 2**128") {
         assert start_position.value.high = 0;
     }
 
@@ -43,8 +51,10 @@ func memory_write{range_check_ptr, memory: Memory}(start_position: U256, value: 
     }
     let new_dict_ptr = cast(dict_ptr, Bytes1DictAccess*);
 
-    let len = max(memory.value.len, start_position.value.low + value.value.len);
-    tempvar memory = Memory(new MemoryStruct(memory.value.dict_ptr_start, new_dict_ptr, len));
+    // we do not resize the memory here as it is done by the calling opcode
+    tempvar memory = Memory(
+        new MemoryStruct(memory.value.dict_ptr_start, new_dict_ptr, memory.value.len)
+    );
     return ();
 }
 
@@ -56,9 +66,18 @@ func memory_write{range_check_ptr, memory: Memory}(start_position: U256, value: 
 func memory_read_bytes{memory: Memory}(start_position: U256, size: U256) -> Bytes {
     alloc_locals;
 
-    with_attr error_message("memory_read_bytes: start_position > 2**128 || size > 2**128") {
-        assert start_position.value.high = 0;
+    with_attr error_message("memory_read_bytes: size > 2**128") {
         assert size.value.high = 0;
+    }
+
+    // Early return if nothing to read
+    if (size.value.low == 0) {
+        tempvar result = Bytes(new BytesStruct(cast(0, felt*), 0));
+        return result;
+    }
+
+    with_attr error_message("memory_read_bytes: start_position > 2**128") {
+        assert start_position.value.high = 0;
     }
 
     let (local output: felt*) = alloc();
@@ -92,14 +111,36 @@ func buffer_read{range_check_ptr}(buffer: Bytes, start_position: U256, size: U25
     let buffer_data = buffer.value.data;
     let start_position_felt = start_position.value.low;
     let size_felt = size.value.low;
-    with_attr error_message("buffer_read: start_position > 2**128 || size > 2**128") {
-        assert start_position.value.high = 0;
+
+    with_attr error_message("buffer_read: size > 2**128") {
         assert size.value.high = 0;
+    }
+
+    // Early return if nothing to read
+    if (size_felt == 0) {
+        tempvar result = Bytes(new BytesStruct(cast(0, felt*), 0));
+        return result;
+    }
+
+    with_attr error_message("buffer_read: start_position > 2**128") {
+        assert start_position.value.high = 0;
     }
 
     _buffer_read(buffer_len, buffer_data, start_position_felt, size_felt, output);
     tempvar result = Bytes(new BytesStruct(output, size_felt));
     return result;
+}
+
+// @notice Internal function to expand memory by a given amount.
+// @param memory The pointer to the bytearray.
+// @param expansion The amount to expand by.
+func expand_by{memory: Memory}(expansion: Uint) {
+    tempvar memory = Memory(
+        new MemoryStruct(
+            memory.value.dict_ptr_start, memory.value.dict_ptr, memory.value.len + expansion.value
+        ),
+    );
+    return ();
 }
 
 // @notice Internal function to write bytes to memory.

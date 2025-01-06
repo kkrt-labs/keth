@@ -13,6 +13,7 @@ from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 from ethereum.crypto.elliptic_curve import SECP256K1N
 from ethereum.exceptions import EthereumException
 from tests.utils.args_gen import Environment, Evm, Memory, Message, Stack
+from tests.utils.constants import BLOCK_GAS_LIMIT
 
 # Mock the Extended type because hypothesis cannot handle the RLP Protocol
 # Needs to be done before importing the types from ethereum.cancun.trie
@@ -208,7 +209,7 @@ evm_lite = st.fixed_dictionaries(
         "stack": stack_strategy(Stack[U256]),
         "memory": memory_lite,
         "code": st.just(b""),
-        "gas_left": uint,
+        "gas_left": st.integers(min_value=0, max_value=BLOCK_GAS_LIMIT).map(Uint),
         "env": st.from_type(Environment),
         "valid_jump_destinations": st.just(set()),
         "logs": st.just(()),
