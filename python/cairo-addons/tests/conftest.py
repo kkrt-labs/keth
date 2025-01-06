@@ -1,5 +1,4 @@
 import json
-from pathlib import Path
 
 import pytest
 from cairo_addons.vm import Program as RustProgram
@@ -28,15 +27,28 @@ st.register_type_strategy(
 
 
 @pytest.fixture(scope="session")
-def sw_program():
-    module_reader = get_module_reader(cairo_path=[str(Path(__file__).parents[2])])
+def cairo_content():
+    return """
+func main() {
+    os();
 
+    return ();
+}
+
+func os() -> (felt, felt, felt) {
+    return (1, 2, 3);
+}
+"""
+
+
+@pytest.fixture(scope="session")
+def sw_program(cairo_content):
     pass_manager = default_pass_manager(
-        prime=DEFAULT_PRIME, read_module=module_reader.read
+        prime=DEFAULT_PRIME, read_module=get_module_reader(cairo_path=[]).read
     )
 
     return compile_cairo(
-        (Path(__file__).parent / "os.cairo").read_text(),
+        cairo_content,
         pass_manager=pass_manager,
         debug_info=False,
         add_start=False,
