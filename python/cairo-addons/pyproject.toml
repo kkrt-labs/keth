@@ -5,7 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 authors = [{ name = "Clément Walter", email = "clement0walter@gmail.com" }]
 requires-python = ">=3.10"
-dependencies = ["maturin>=1.8.1"]
+dependencies = ["cairo-lang>=0.13.3", "maturin>=1.8.1"]
 
 [tool.maturin]
 module-name = "cairo_addons.vm"
