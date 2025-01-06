@@ -31,13 +31,13 @@ func mstore{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
     // STACK
     let stack = evm.value.stack;
     with stack {
-        let (start_position, err1) = pop();
-        if (cast(err1, felt) != 0) {
-            return err1;
+        let (start_position, err) = pop();
+        if (cast(err, felt) != 0) {
+            return err;
         }
-        let (value, err2) = pop();
-        if (cast(err2, felt) != 0) {
-            return err2;
+        let (value, err) = pop();
+        if (cast(err, felt) != 0) {
+            return err;
         }
     }
 
@@ -49,9 +49,9 @@ func mstore{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
     let extend_memory = calculate_gas_extend_memory(evm.value.memory, mem_access_list);
 
     // assumed that cost < 2**110 (see calculate_memory_gas_cost)
-    let err3 = charge_gas(Uint(GasConstants.GAS_VERY_LOW + extend_memory.value.cost.value));
-    if (cast(err3, felt) != 0) {
-        return err3;
+    let err = charge_gas(Uint(GasConstants.GAS_VERY_LOW + extend_memory.value.cost.value));
+    if (cast(err, felt) != 0) {
+        return err;
     }
 
     // OPERATION
@@ -78,13 +78,13 @@ func mstore8{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Excep
     // STACK
     let stack = evm.value.stack;
     with stack {
-        let (start_position, err1) = pop();
-        if (cast(err1, felt) != 0) {
-            return err1;
+        let (start_position, err) = pop();
+        if (cast(err, felt) != 0) {
+            return err;
         }
-        let (value, err2) = pop();
-        if (cast(err2, felt) != 0) {
-            return err2;
+        let (value, err) = pop();
+        if (cast(err, felt) != 0) {
+            return err;
         }
     }
 
@@ -96,9 +96,9 @@ func mstore8{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Excep
     let extend_memory = calculate_gas_extend_memory(evm.value.memory, mem_access_list);
 
     // assumed that cost < 2**110 (see calculate_memory_gas_cost)
-    let err3 = charge_gas(Uint(GasConstants.GAS_VERY_LOW + extend_memory.value.cost.value));
-    if (cast(err3, felt) != 0) {
-        return err3;
+    let err = charge_gas(Uint(GasConstants.GAS_VERY_LOW + extend_memory.value.cost.value));
+    if (cast(err, felt) != 0) {
+        return err;
     }
 
     // OPERATION
@@ -127,9 +127,9 @@ func mload{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
     // STACK
     let stack = evm.value.stack;
     with stack {
-        let (start_position, err1) = pop();
-        if (cast(err1, felt) != 0) {
-            return err1;
+        let (start_position, err) = pop();
+        if (cast(err, felt) != 0) {
+            return err;
         }
     }
 
@@ -141,9 +141,9 @@ func mload{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
     let extend_memory = calculate_gas_extend_memory(evm.value.memory, mem_access_list);
 
     // assumed that cost < 2**110 (see calculate_memory_gas_cost)
-    let err3 = charge_gas(Uint(GasConstants.GAS_VERY_LOW + extend_memory.value.cost.value));
-    if (cast(err3, felt) != 0) {
-        return err3;
+    let err = charge_gas(Uint(GasConstants.GAS_VERY_LOW + extend_memory.value.cost.value));
+    if (cast(err, felt) != 0) {
+        return err;
     }
 
     // OPERATION
@@ -154,9 +154,9 @@ func mload{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
     }
     let value = Helpers.bytes32_to_uint256(value_bytes.value.data);
     with stack {
-        let err3 = push(U256(new U256Struct(value.low, value.high)));
-        if (cast(err3, felt) != 0) {
-            return err3;
+        let err = push(U256(new U256Struct(value.low, value.high)));
+        if (cast(err, felt) != 0) {
+            return err;
         }
     }
 
@@ -172,17 +172,17 @@ func msize{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
     // STACK
 
     // GAS
-    let err1 = charge_gas(Uint(GasConstants.GAS_BASE));
-    if (cast(err1, felt) != 0) {
-        return err1;
+    let err = charge_gas(Uint(GasConstants.GAS_BASE));
+    if (cast(err, felt) != 0) {
+        return err;
     }
 
     // OPERATION
     let stack = evm.value.stack;
     with stack {
-        let err2 = push(U256(new U256Struct(evm.value.memory.value.len, 0)));
-        if (cast(err2, felt) != 0) {
-            return err2;
+        let err = push(U256(new U256Struct(evm.value.memory.value.len, 0)));
+        if (cast(err, felt) != 0) {
+            return err;
         }
     }
 
@@ -198,17 +198,17 @@ func mcopy{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
     // STACK
     let stack = evm.value.stack;
     with stack {
-        let (destination, err1) = pop();
-        if (cast(err1, felt) != 0) {
-            return err1;
+        let (destination, err) = pop();
+        if (cast(err, felt) != 0) {
+            return err;
         }
-        let (source, err2) = pop();
-        if (cast(err2, felt) != 0) {
-            return err2;
+        let (source, err) = pop();
+        if (cast(err, felt) != 0) {
+            return err;
         }
-        let (length, err3) = pop();
-        if (cast(err3, felt) != 0) {
-            return err3;
+        let (length, err) = pop();
+        if (cast(err, felt) != 0) {
+            return err;
         }
     }
 
@@ -238,11 +238,11 @@ func mcopy{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
     // copy_gas_cost in [0, 3 * 2**120)
     // extend_memory.value.cost.value in [0, 2**110)
     // -> sum < felt_size, no overflow
-    let err4 = charge_gas(
+    let err = charge_gas(
         Uint(GasConstants.GAS_VERY_LOW + copy_gas_cost + extend_memory.value.cost.value)
     );
-    if (cast(err4, felt) != 0) {
-        return err4;
+    if (cast(err, felt) != 0) {
+        return err;
     }
 
     // OPERATION

@@ -40,7 +40,7 @@ func memory_write{range_check_ptr, memory: Memory}(start_position: U256, value: 
         return ();
     }
 
-    with_attr error_message("memory_write: start_position > 2**128 || value.len > 2**128") {
+    with_attr error_message("memory_write: start_position > 2**128") {
         assert start_position.value.high = 0;
     }
 
@@ -66,15 +66,18 @@ func memory_write{range_check_ptr, memory: Memory}(start_position: U256, value: 
 func memory_read_bytes{memory: Memory}(start_position: U256, size: U256) -> Bytes {
     alloc_locals;
 
+    with_attr error_message("memory_read_bytes: size > 2**128") {
+        assert size.value.high = 0;
+    }
+
     // Early return if nothing to read
     if (size.value.low == 0) {
         tempvar result = Bytes(new BytesStruct(cast(0, felt*), 0));
         return result;
     }
 
-    with_attr error_message("memory_read_bytes: start_position > 2**128 || size > 2**128") {
+    with_attr error_message("memory_read_bytes: start_position > 2**128") {
         assert start_position.value.high = 0;
-        assert size.value.high = 0;
     }
 
     let (local output: felt*) = alloc();
@@ -109,15 +112,18 @@ func buffer_read{range_check_ptr}(buffer: Bytes, start_position: U256, size: U25
     let start_position_felt = start_position.value.low;
     let size_felt = size.value.low;
 
+    with_attr error_message("buffer_read: size > 2**128") {
+        assert size.value.high = 0;
+    }
+
     // Early return if nothing to read
     if (size_felt == 0) {
         tempvar result = Bytes(new BytesStruct(cast(0, felt*), 0));
         return result;
     }
 
-    with_attr error_message("buffer_read: start_position > 2**128 || size > 2**128") {
+    with_attr error_message("buffer_read: start_position > 2**128") {
         assert start_position.value.high = 0;
-        assert size.value.high = 0;
     }
 
     _buffer_read(buffer_len, buffer_data, start_position_felt, size_felt, output);
