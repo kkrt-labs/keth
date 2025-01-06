@@ -223,16 +223,14 @@ func mcopy{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
     let (words, _) = divmod(length_ceil32.value, 32);
     let copy_gas_cost = GasConstants.GAS_COPY * words;
 
-    let (mem_access_tuples: TupleU256U256Struct*) = alloc();
-    assert mem_access_tuples[0] = TupleU256U256Struct(
-        source, U256(new U256Struct(length.value.low, 0))
+    let (mem_access_tuples: TupleU256U256*) = alloc();
+    assert mem_access_tuples[0] = TupleU256U256(
+        new TupleU256U256Struct(source, U256(new U256Struct(length.value.low, 0)))
     );
-    assert mem_access_tuples[1] = TupleU256U256Struct(
-        destination, U256(new U256Struct(length.value.low, 0))
+    assert mem_access_tuples[1] = TupleU256U256(
+        new TupleU256U256Struct(destination, U256(new U256Struct(length.value.low, 0)))
     );
-    tempvar mem_access_list = ListTupleU256U256(
-        new ListTupleU256U256Struct(new TupleU256U256(mem_access_tuples), 2)
-    );
+    tempvar mem_access_list = ListTupleU256U256(new ListTupleU256U256Struct(mem_access_tuples, 2));
     let extend_memory = calculate_gas_extend_memory(evm.value.memory, mem_access_list);
 
     // copy_gas_cost in [0, 3 * 2**120)
