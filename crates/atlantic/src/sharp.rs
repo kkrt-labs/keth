@@ -1,5 +1,5 @@
 use super::{error::SharpSdkError, model::QueryResponse, prover::ProverVersion};
-use crate::atlantic::endpoints::ProofTraceEndpoints;
+use crate::endpoints::ProofTraceEndpoints;
 use reqwest::Client;
 use url::Url;
 
