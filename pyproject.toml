@@ -34,7 +34,7 @@ dev-dependencies = [
 ]
 
 [tool.uv.sources]
-ethereum = { git = "https://github.com/kkrt-labs/execution-specs.git", rev = "b255036441d64437bd4fc9f9068bc64c45470e93" }
+ethereum = { git = "https://github.com/ethereum/execution-specs.git" }
 cairo-addons = { workspace = true }
 
 [tool.uv.workspace]
