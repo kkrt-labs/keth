@@ -213,7 +213,7 @@ func mcopy{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
     }
 
     // GAS
-    // OutOfGasError if length.high > 2**128
+    // OutOfGasError if length > 2**128
     if (length.value.high != 0) {
         tempvar err = new ExceptionalHalt(OutOfGasError);
         return err;
