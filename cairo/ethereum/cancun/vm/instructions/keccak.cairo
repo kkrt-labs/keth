@@ -1,17 +1,11 @@
 from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin, KeccakBuiltin
-from starkware.cairo.common.uint256 import Uint256
 from starkware.cairo.common.alloc import alloc
 
-from ethereum.cancun.vm.stack import Stack, pop, push
+from ethereum.cancun.vm.stack import pop, push
 from ethereum.cancun.vm import Evm, EvmImpl
 from ethereum.cancun.vm.exceptions import ExceptionalHalt, OutOfGasError
 from ethereum.cancun.vm.memory import memory_read_bytes, expand_by
-from ethereum.cancun.vm.gas import (
-    calculate_gas_extend_memory,
-    charge_gas,
-    GasConstants,
-    ExtendMemory,
-)
+from ethereum.cancun.vm.gas import calculate_gas_extend_memory, charge_gas, GasConstants
 from ethereum_types.numeric import U256, U256Struct, Uint
 from ethereum.crypto.hash import keccak256
 from ethereum.utils.numeric import ceil32, divmod
@@ -21,7 +15,6 @@ from ethereum_types.others import (
     TupleU256U256,
     TupleU256U256Struct,
 )
-from src.utils.utils import Helpers
 
 // @notice Computes Keccak-256 hash of a region of memory
 func keccak{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*, evm: Evm}(
