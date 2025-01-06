@@ -1,5 +1,7 @@
 import pytest
 
+pytestmark = pytest.mark.python_vm
+
 
 class TestPushOperations:
     # The `exec_push` is tested by initializing the bytecode with a fill value of 0xFF.

@@ -23,6 +23,9 @@ from ethereum.cancun.vm.gas import (
     max_message_call_gas,
 )
 from tests.utils.args_gen import Evm, Memory
+from tests.utils.strategies import evm_lite
+
+pytestmark = pytest.mark.python_vm
 
 
 @composite
@@ -34,7 +37,7 @@ def extensions_strategy(draw):
 
 
 class TestGas:
-    @given(evm=..., amount=...)
+    @given(evm=evm_lite, amount=...)
     def test_charge_gas(self, cairo_run, evm: Evm, amount: Uint):
         try:
             cairo_result = cairo_run("charge_gas", evm, amount)

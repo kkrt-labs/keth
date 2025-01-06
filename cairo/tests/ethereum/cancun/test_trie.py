@@ -22,6 +22,8 @@ from tests.utils.errors import cairo_error
 from tests.utils.hints import patch_hint
 from tests.utils.strategies import bytes32, nibble, uint4
 
+pytestmark = pytest.mark.python_vm
+
 
 class TestTrie:
     @given(node=...)

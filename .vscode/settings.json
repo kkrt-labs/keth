@@ -45,6 +45,7 @@
     "PUSHN",
     "pyclass",
     "pymethods",
+    "pytestmark",
     "recv",
     "retdata",
     "Reth",

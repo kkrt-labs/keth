@@ -15,9 +15,10 @@ from tests.utils.constants import (
 from tests.utils.errors import cairo_error
 from tests.utils.helpers import flatten_tx_access_list, rlp_encode_signed_data
 
+pytestmark = pytest.mark.python_vm
+
 
 class TestTransaction:
-
     class TestDecodeTransaction:
 
         def test_should_raise_with_list_items(self, cairo_run):

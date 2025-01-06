@@ -24,6 +24,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+pytestmark = pytest.mark.python_vm
+
 
 class TestOs:
 

@@ -4,6 +4,8 @@ from hypothesis.strategies import integers
 
 from src.utils.uint256 import int_to_uint256, uint256_to_int
 
+pytestmark = pytest.mark.python_vm
+
 
 class TestUint256:
     class TestUint256ToUint160:

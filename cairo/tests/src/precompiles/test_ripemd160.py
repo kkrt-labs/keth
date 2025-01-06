@@ -6,6 +6,8 @@ from hypothesis.strategies import binary
 from tests.utils.errors import cairo_error
 from tests.utils.hints import insert_hint
 
+pytestmark = pytest.mark.python_vm
+
 
 @pytest.mark.slow
 class TestRIPEMD160:

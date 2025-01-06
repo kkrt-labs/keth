@@ -31,6 +31,12 @@ def pytest_addoption(parser):
         help="compute and dump TracerData for the VM runner: True or False",
     )
     parser.addoption(
+        "--proof-mode",
+        action="store_true",
+        default=False,
+        help="run the CairoRunner in proof mode: True or False",
+    )
+    parser.addoption(
         "--skip-cached-tests",
         action="store_true",
         default=True,

@@ -3,7 +3,7 @@ import pytest
 from tests.utils.constants import LAST_ETHEREUM_PRECOMPILE_ADDRESS
 from tests.utils.errors import cairo_error
 
-CALL_CONTRACT_SOLIDITY_SELECTOR = "b3eb2c1b"
+pytestmark = pytest.mark.python_vm
 
 
 class TestPrecompiles:

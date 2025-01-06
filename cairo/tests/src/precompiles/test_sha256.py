@@ -4,6 +4,8 @@ import pytest
 from hypothesis import given, settings
 from hypothesis.strategies import binary
 
+pytestmark = pytest.mark.python_vm
+
 
 @pytest.mark.SHA256
 class TestSHA256:

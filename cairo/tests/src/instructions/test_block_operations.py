@@ -1,6 +1,10 @@
+import pytest
+
 from ethereum.cancun.vm.gas import calculate_blob_gas_price
 from tests.utils.data import block
 from tests.utils.models import State
+
+pytestmark = pytest.mark.python_vm
 
 
 class TestBlockInformation:

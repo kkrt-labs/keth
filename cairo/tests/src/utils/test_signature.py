@@ -10,6 +10,8 @@ from ethereum.crypto.elliptic_curve import SECP256K1N
 from tests.utils.errors import cairo_error
 from tests.utils.strategies import felt
 
+pytestmark = pytest.mark.python_vm
+
 
 class TestSignature:
     class TestPublicKeyPointToEthAddress:

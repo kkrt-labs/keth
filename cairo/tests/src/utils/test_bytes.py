@@ -7,6 +7,8 @@ from src.utils.uint256 import int_to_uint256
 from tests.utils.errors import cairo_error
 from tests.utils.hints import patch_hint
 
+pytestmark = pytest.mark.python_vm
+
 
 class TestBytes:
     class TestFeltToAscii:

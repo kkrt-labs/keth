@@ -9,6 +9,8 @@ from ethereum.cancun.vm.gas import (
 )
 from tests.utils.strategies import uint128
 
+pytestmark = pytest.mark.python_vm
+
 
 class TestGas:
     class TestCost:

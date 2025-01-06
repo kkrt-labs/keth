@@ -49,6 +49,7 @@ filterwarnings = [
 ]
 asyncio_default_fixture_loop_scope = 'session'
 markers = [
+  "python_vm:      Run tests in the python VM",
   "ArithmeticOperations",
   "ADD:            Opcode Value 0x01 - Addition operation",
   "MUL:            Opcode Value 0x02 - Multiplication operation",

@@ -73,7 +73,8 @@ from typing import (
     get_origin,
 )
 
-from cairo_addons.vm import DictManager, DictTracker, Relocatable
+from cairo_addons.vm import DictTracker as RustDictTracker
+from cairo_addons.vm import Relocatable as RustRelocatable
 from ethereum_types.bytes import (
     Bytes,
     Bytes0,
@@ -84,6 +85,7 @@ from ethereum_types.bytes import (
     Bytes256,
 )
 from ethereum_types.numeric import U64, U256, Uint
+from starkware.cairo.common.dict import DictManager, DictTracker
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 from starkware.cairo.lang.compiler.ast.cairo_types import (
     CairoType,
@@ -97,7 +99,7 @@ from starkware.cairo.lang.compiler.identifier_definition import (
 )
 from starkware.cairo.lang.compiler.program import Program
 from starkware.cairo.lang.compiler.scoped_name import ScopedName
-from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
+from starkware.cairo.lang.vm.relocatable import RelocatableValue
 
 from ethereum.cancun.blocks import Header, Log, Receipt, Withdrawal
 from ethereum.cancun.fork_types import Account, Address, Bloom, Root, VersionedHash
@@ -379,16 +381,12 @@ def isinstance_with_generic(obj, type_hint):
     return isinstance(obj, origin)
 
 
-def gen_arg(dict_manager: DictManager, segments: MemorySegmentManager):
+def gen_arg(dict_manager, segments):
     return partial(_gen_arg, dict_manager, segments)
 
 
 def _gen_arg(
-    dict_manager: DictManager,
-    segments: MemorySegmentManager,
-    arg_type: Type,
-    arg: Any,
-    annotations: Optional[Any] = None,
+    dict_manager, segments, arg_type: Type, arg: Any, annotations: Optional[Any] = None
 ):
     """
     Generate a Cairo argument from a Python argument.
@@ -421,7 +419,7 @@ def _gen_arg(
         if arg is None:
             return 0
         value = _gen_arg(dict_manager, segments, get_args(arg_type)[0], arg)
-        if isinstance(value, Relocatable):
+        if isinstance(value, RustRelocatable) or isinstance(value, RelocatableValue):
             # struct SomeClassStruct1 {
             #     maybe_bytes: BytesStruct*
             # }
@@ -450,8 +448,10 @@ def _gen_arg(
         ]
         # Value types are not pointers by default, so we need to convert them to pointers.
         for i, (x_type, d) in enumerate(zip(get_args(arg_type), data)):
-            if isinstance_with_generic(arg, x_type) and not isinstance_with_generic(
-                d, Relocatable
+            if (
+                isinstance_with_generic(arg, x_type)
+                and not isinstance_with_generic(d, RustRelocatable)
+                and not isinstance_with_generic(d, RelocatableValue)
             ):
                 d_ptr = segments.add()
                 segments.load_data(d_ptr, [d])
@@ -525,19 +525,24 @@ def _gen_arg(
         initial_data = flatten([(k, v, v) for k, v in data.items()])
         segments.load_data(dict_ptr, initial_data)
         current_ptr = dict_ptr + len(initial_data)
-        dict_manager.insert(
-            dict_ptr.segment_index,
-            DictTracker(
-                keys=list(data.keys()),
-                values=list(data.values()),
-                current_ptr=current_ptr,
-            ),
-        )
+        if isinstance(dict_manager, DictManager):
+            dict_manager.trackers[dict_ptr.segment_index] = DictTracker(
+                data=data, current_ptr=current_ptr
+            )
+        else:
+            dict_manager.insert(
+                dict_ptr.segment_index,
+                RustDictTracker(
+                    keys=list(data.keys()),
+                    values=list(data.values()),
+                    current_ptr=current_ptr,
+                ),
+            )
         base = segments.add()
         segments.load_data(base, [dict_ptr, current_ptr])
         return base
 
-    if arg_type == Union[int, Relocatable]:
+    if arg_type in (Union[int, RustRelocatable], Union[int, RelocatableValue]):
         return arg
 
     if is_dataclass(arg_type_origin):
@@ -628,7 +633,7 @@ def to_python_type(cairo_type: Union[CairoType, Tuple[str, ...]]):
         return int
 
     if isinstance(cairo_type, TypePointer):
-        return Relocatable
+        return RustRelocatable
 
     if isinstance(cairo_type, TypeStruct):
         return _cairo_struct_to_python_type.get(cairo_type.scope.path)

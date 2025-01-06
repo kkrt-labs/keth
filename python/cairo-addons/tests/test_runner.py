@@ -57,4 +57,4 @@ class TestRunner:
         base = runner.segments.add()
         expected = 0xABDE1
         runner.segments.load_data(base, [expected])
-        assert runner.segments.get_maybe(base) == expected
+        assert runner.segments.get(base) == expected
