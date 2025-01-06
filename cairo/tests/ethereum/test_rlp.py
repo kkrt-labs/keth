@@ -3,7 +3,7 @@ from typing import Sequence, Tuple, Union
 import pytest
 from ethereum_types.bytes import Bytes, Bytes0, Bytes32
 from ethereum_types.numeric import U256, Uint
-from hypothesis import assume, given
+from hypothesis import assume, given, settings
 
 from ethereum.cancun.blocks import Log, Receipt, Withdrawal
 from ethereum.cancun.fork_types import Account, Address, Bloom, encode_account
@@ -48,12 +48,16 @@ class TestRlp:
         def test_encode_bytes(self, cairo_run, raw_bytes: Bytes):
             assert encode_bytes(raw_bytes) == cairo_run("encode_bytes", raw_bytes)
 
+        @pytest.mark.slow
+        @settings(max_examples=300)
         @given(raw_sequence=...)
         def test_encode_sequence(self, cairo_run, raw_sequence: Sequence[Extended]):
             assert encode_sequence(raw_sequence) == cairo_run(
                 "encode_sequence", raw_sequence
             )
 
+        @pytest.mark.slow
+        @settings(max_examples=300)
         @given(raw_sequence=...)
         def test_get_joined_encodings(
             self, cairo_run, raw_sequence: Sequence[Extended]
@@ -98,10 +102,14 @@ class TestRlp:
         def test_encode_legacy_transaction(self, cairo_run, tx: LegacyTransaction):
             assert encode(tx) == cairo_run("encode_legacy_transaction", tx)
 
+        @pytest.mark.slow
+        @settings(max_examples=300)
         @given(log=...)
         def test_encode_log(self, cairo_run, log: Log):
             assert encode(log) == cairo_run("encode_log", log)
 
+        @pytest.mark.slow
+        @settings(max_examples=300)
         @given(tuple_log=...)
         def test_encode_tuple_log(self, cairo_run, tuple_log: Tuple[Log, ...]):
             assert encode(tuple_log) == cairo_run("encode_tuple_log", tuple_log)
@@ -110,6 +118,8 @@ class TestRlp:
         def test_encode_bloom(self, cairo_run, bloom: Bloom):
             assert encode(bloom) == cairo_run("encode_bloom", bloom)
 
+        @pytest.mark.slow
+        @settings(max_examples=300)
         @given(receipt=...)
         def test_encode_receipt(self, cairo_run, receipt: Receipt):
             assert encode(receipt) == cairo_run("encode_receipt", receipt)
@@ -145,6 +155,8 @@ class TestRlp:
             if decoded_bytes is not None:
                 assert decoded_bytes == decode_to_bytes(encoded_bytes)
 
+        @pytest.mark.slow
+        @settings(max_examples=300)
         @given(raw_data=...)
         def test_decode_to_sequence(self, cairo_run, raw_data: Sequence[Extended]):
             assume(isinstance(raw_data, list))
