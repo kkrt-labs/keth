@@ -1,4 +1,5 @@
-from ethereum_types.numeric import Uint
+from ethereum_types.bytes import Bytes32
+from ethereum_types.numeric import U256, Uint
 from hypothesis import given
 from hypothesis import strategies as st
 from starkware.cairo.lang.instances import PRIME
@@ -43,3 +44,15 @@ class TestNumeric:
         assert taylor_exponential(factor, numerator, denominator) == cairo_run(
             "taylor_exponential", factor, numerator, denominator
         )
+
+    @given(bytes=...)
+    def test_U256_from_be_bytes(self, cairo_run, bytes: Bytes32):
+        expected = U256.from_be_bytes(bytes)
+        result = cairo_run("U256_from_be_bytes", bytes)
+        assert result == expected
+
+    @given(bytes=...)
+    def test_U256_from_le_bytes(self, cairo_run, bytes: Bytes32):
+        expected = U256.from_le_bytes(bytes)
+        result = cairo_run("U256_from_le_bytes", bytes)
+        assert result == expected

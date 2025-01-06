@@ -8,7 +8,7 @@ from ethereum.cancun.vm.memory import memory_read_bytes, expand_by
 from ethereum.cancun.vm.gas import calculate_gas_extend_memory, charge_gas, GasConstants
 from ethereum_types.numeric import U256, U256Struct, Uint
 from ethereum.crypto.hash import keccak256
-from ethereum.utils.numeric import ceil32, divmod
+from ethereum.utils.numeric import ceil32, divmod, U256_from_be_bytes
 from ethereum_types.others import (
     ListTupleU256U256,
     ListTupleU256U256Struct,
@@ -65,12 +65,11 @@ func keccak{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBui
     }
 
     let hash = keccak256(data);
-    // reverse endianness as keccak256 returns little endian bytes and U256 interprets the bytes as big endian
-    let hash = uint256_reverse_endian(hash);
 
     // Push result to stack
     with stack {
-        let err = push(U256(hash.value));
+        let value = U256_from_be_bytes(hash);
+        let err = push(value);
         if (cast(err, felt) != 0) {
             return err;
         }

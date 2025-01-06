@@ -1,5 +1,8 @@
 from starkware.cairo.common.math_cmp import is_le, is_not_zero
-from ethereum_types.numeric import Uint
+from starkware.cairo.common.uint256 import uint256_reverse_endian, Uint256
+from ethereum_types.numeric import Uint, U256, U256Struct
+from ethereum_types.bytes import Bytes32
+from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 
 func min{range_check_ptr}(a: felt, b: felt) -> felt {
     alloc_locals;
@@ -112,4 +115,16 @@ func _taylor_exponential{range_check_ptr}(
     let i = i + 1;
 
     return _taylor_exponential(output, i, numerator_accumulated, numerator, denominator);
+}
+
+func U256_from_be_bytes{bitwise_ptr: BitwiseBuiltin*}(bytes: Bytes32) -> U256 {
+    // All bytes in the repository are expected to be in little endian so we need to reverse them
+    let (value) = uint256_reverse_endian([bytes.value]);
+    tempvar res = U256(new U256Struct(value.low, value.high));
+    return res;
+}
+
+func U256_from_le_bytes(bytes: Bytes32) -> U256 {
+    tempvar res = U256(bytes.value);
+    return res;
 }
