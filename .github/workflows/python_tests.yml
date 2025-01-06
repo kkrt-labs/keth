@@ -37,7 +37,7 @@ jobs:
         id: cache-pytest-restore
         uses: actions/cache/restore@v4
         with:
-          path: cairo/.pytest_cache
+          path: .pytest_cache
           key: ${{ runner.os }}-pytest-cache-${{ github.run_id }}
           restore-keys: ${{ runner.os }}-pytest-cache-
 
@@ -48,5 +48,5 @@ jobs:
 
       - uses: actions/cache/save@v4
         with:
-          path: cairo/.pytest_cache
+          path: .pytest_cache
           key: ${{ runner.os }}-pytest-cache-${{ github.run_id }}
