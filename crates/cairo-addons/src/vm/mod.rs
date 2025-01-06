@@ -3,6 +3,7 @@ use pyo3::prelude::*;
 mod builtins;
 mod dict_manager;
 mod felt;
+mod hints;
 mod layout;
 mod maybe_relocatable;
 mod memory_segments;

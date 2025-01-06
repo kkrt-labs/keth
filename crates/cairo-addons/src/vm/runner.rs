@@ -2,9 +2,7 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::vm::program::PyProgram;
 use cairo_vm::{
-    hint_processor::builtin_hint_processor::{
-        builtin_hint_processor_definition::BuiltinHintProcessor, dict_manager::DictManager,
-    },
+    hint_processor::builtin_hint_processor::dict_manager::DictManager,
     types::{
         builtin_name::BuiltinName,
         relocatable::{MaybeRelocatable, Relocatable},
@@ -23,7 +21,9 @@ use crate::vm::{
 };
 use num_traits::Zero;
 
-use super::{dict_manager::PyDictManager, memory_segments::PyMemorySegmentManager};
+use super::{
+    dict_manager::PyDictManager, hints::HintProcessor, memory_segments::PyMemorySegmentManager,
+};
 
 #[pyclass(name = "CairoRunner", unsendable)]
 pub struct PyCairoRunner {
@@ -145,7 +145,9 @@ impl PyCairoRunner {
     }
 
     fn run_until_pc(&mut self, address: PyRelocatable, resources: PyRunResources) -> PyResult<()> {
-        let mut hint_processor = BuiltinHintProcessor::new(HashMap::new(), resources.inner);
+        let mut hint_processor =
+            HintProcessor::default().with_run_resources(resources.inner).build();
+
         self.inner
             .run_until_pc(address.inner, &mut hint_processor)
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
