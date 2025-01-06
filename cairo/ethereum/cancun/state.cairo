@@ -1,43 +1,43 @@
 from ethereum.cancun.fork_types import Address, Account, MappingAddressAccount, SetAddress
-from ethereum.cancun.trie import TrieBytesU256, TrieAddressAccount
+from ethereum.cancun.trie import TrieBytes32U256, TrieAddressAccount
 from ethereum_types.bytes import Bytes
 from ethereum_types.numeric import U256
 
-struct AddressTrieBytesU256DictAccess {
+struct AddressTrieBytes32U256DictAccess {
     key: Address,
-    prev_value: TrieBytesU256,
-    new_value: TrieBytesU256,
+    prev_value: TrieBytes32U256,
+    new_value: TrieBytes32U256,
 }
 
-struct MappingAddressTrieBytesU256Struct {
-    dict_ptr_start: AddressTrieBytesU256DictAccess*,
-    dict_ptr: AddressTrieBytesU256DictAccess*,
+struct MappingAddressTrieBytes32U256Struct {
+    dict_ptr_start: AddressTrieBytes32U256DictAccess*,
+    dict_ptr: AddressTrieBytes32U256DictAccess*,
 }
 
-struct MappingAddressTrieBytesU256 {
-    value: MappingAddressTrieBytesU256Struct*,
+struct MappingAddressTrieBytes32U256 {
+    value: MappingAddressTrieBytes32U256Struct*,
 }
 
-struct TupleTrieAddressAccountMappingAddressTrieBytesU256Struct {
+struct TupleTrieAddressAccountMappingAddressTrieBytes32U256Struct {
     trie_address_account: TrieAddressAccount,
-    mapping_address_trie: MappingAddressTrieBytesU256,
+    mapping_address_trie: MappingAddressTrieBytes32U256,
 }
 
-struct TupleTrieAddressAccountMappingAddressTrieBytesU256 {
-    value: TupleTrieAddressAccountMappingAddressTrieBytesU256Struct*,
+struct TupleTrieAddressAccountMappingAddressTrieBytes32U256 {
+    value: TupleTrieAddressAccountMappingAddressTrieBytes32U256Struct*,
 }
 
-struct ListTupleTrieAddressAccountMappingAddressTrieBytesU256Struct {
-    data: TupleTrieAddressAccountMappingAddressTrieBytesU256*,
+struct ListTupleTrieAddressAccountMappingAddressTrieBytes32U256Struct {
+    data: TupleTrieAddressAccountMappingAddressTrieBytes32U256*,
     len: felt,
 }
 
-struct ListTupleTrieAddressAccountMappingAddressTrieBytesU256 {
-    value: ListTupleTrieAddressAccountMappingAddressTrieBytesU256Struct*,
+struct ListTupleTrieAddressAccountMappingAddressTrieBytes32U256 {
+    value: ListTupleTrieAddressAccountMappingAddressTrieBytes32U256Struct*,
 }
 
 struct TransientStorageSnapshotsStruct {
-    data: MappingAddressTrieBytesU256*,
+    data: MappingAddressTrieBytes32U256*,
     len: felt,
 }
 
@@ -46,7 +46,7 @@ struct TransientStorageSnapshots {
 }
 
 struct TransientStorageStruct {
-    _tries: MappingAddressTrieBytesU256,
+    _tries: MappingAddressTrieBytes32U256,
     _snapshots: TransientStorageSnapshots,
 }
 
@@ -56,8 +56,8 @@ struct TransientStorage {
 
 struct StateStruct {
     _main_trie: TrieAddressAccount,
-    _storage_tries: MappingAddressTrieBytesU256,
-    _snapshots: ListTupleTrieAddressAccountMappingAddressTrieBytesU256,
+    _storage_tries: MappingAddressTrieBytes32U256,
+    _snapshots: ListTupleTrieAddressAccountMappingAddressTrieBytes32U256,
     created_accounts: SetAddress,
 }
 

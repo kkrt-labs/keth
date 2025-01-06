@@ -185,8 +185,8 @@ def cairo_run(
             proof_mode=request.config.getoption("proof_mode"),
             allow_missing_builtins=False,
         )
-        serde = Serde(runner.segments, cairo_program, cairo_file)
         dict_manager = DictManager()
+        serde = Serde(runner.segments, cairo_program, dict_manager, cairo_file)
         gen_arg = gen_arg_builder(dict_manager, runner.segments)
 
         runner.program_base = runner.segments.add()
@@ -446,7 +446,7 @@ def cairo_run(
         runner.initialize_segments()
 
         # Fill runner's memory for args
-        serde = Serde(runner.segments, cairo_program, cairo_file)
+        serde = Serde(runner.segments, runner.dict_manager, cairo_program, cairo_file)
         gen_arg = gen_arg_builder(runner.dict_manager, runner.segments)
         stack = []
         for i, (arg_name, python_type) in enumerate(

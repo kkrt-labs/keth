@@ -99,6 +99,7 @@ from starkware.cairo.lang.compiler.identifier_definition import (
 )
 from starkware.cairo.lang.compiler.program import Program
 from starkware.cairo.lang.compiler.scoped_name import ScopedName
+from starkware.cairo.lang.vm.crypto import poseidon_hash
 from starkware.cairo.lang.vm.relocatable import RelocatableValue
 
 from ethereum.cancun.blocks import Header, Log, Receipt, Withdrawal
@@ -298,36 +299,36 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "cancun", "trie", "TrieAddressAccount"): Trie[
         Address, Optional[Account]
     ],
-    ("ethereum", "cancun", "trie", "TrieBytesU256"): Trie[Bytes, U256],
+    ("ethereum", "cancun", "trie", "TrieBytes32U256"): Trie[Bytes32, U256],
     ("ethereum", "cancun", "fork_types", "MappingAddressAccount"): Mapping[
         Address, Account
     ],
-    ("ethereum", "cancun", "fork_types", "MappingBytesU256"): Mapping[Bytes, U256],
+    ("ethereum", "cancun", "fork_types", "MappingBytes32U256"): Mapping[Bytes32, U256],
     ("ethereum", "exceptions", "EthereumException"): EthereumException,
     ("ethereum", "cancun", "vm", "memory", "Memory"): Memory,
     ("ethereum", "cancun", "vm", "stack", "Stack"): Stack[U256],
     ("ethereum", "cancun", "trie", "Subnodes"): Annotated[Tuple[Extended, ...], 16],
     ("ethereum", "cancun", "state", "TransientStorage"): TransientStorage,
-    ("ethereum", "cancun", "state", "MappingAddressTrieBytesU256"): Mapping[
-        Address, Trie[Bytes, U256]
+    ("ethereum", "cancun", "state", "MappingAddressTrieBytes32U256"): Mapping[
+        Address, Trie[Bytes32, U256]
     ],
     ("ethereum", "cancun", "state", "TransientStorageSnapshots"): List[
-        Mapping[Address, Trie[Bytes, U256]]
+        Mapping[Address, Trie[Bytes32, U256]]
     ],
     ("ethereum", "cancun", "state", "State"): State,
     (
         "ethereum",
         "cancun",
         "state",
-        "TupleTrieAddressAccountMappingAddressTrieBytesU256",
-    ): Tuple[Trie[Address, Optional[Account]], Mapping[Address, Trie[Bytes, U256]]],
+        "TupleTrieAddressAccountMappingAddressTrieBytes32U256",
+    ): Tuple[Trie[Address, Optional[Account]], Mapping[Address, Trie[Bytes32, U256]]],
     (
         "ethereum",
         "cancun",
         "state",
-        "ListTupleTrieAddressAccountMappingAddressTrieBytesU256",
+        "ListTupleTrieAddressAccountMappingAddressTrieBytes32U256",
     ): List[
-        Tuple[Trie[Address, Optional[Account]], Mapping[Address, Trie[Bytes, U256]]]
+        Tuple[Trie[Address, Optional[Account]], Mapping[Address, Trie[Bytes32, U256]]]
     ],
     ("ethereum", "cancun", "vm", "Environment"): Environment,
     ("ethereum", "cancun", "fork_types", "ListHash32"): List[Hash32],
@@ -370,7 +371,12 @@ def gen_arg(dict_manager, segments):
 
 
 def _gen_arg(
-    dict_manager, segments, arg_type: Type, arg: Any, annotations: Optional[Any] = None
+    dict_manager,
+    segments,
+    arg_type: Type,
+    arg: Any,
+    annotations: Optional[Any] = None,
+    hash_mode: bool = False,
 ):
     """
     Generate a Cairo argument from a Python argument.
@@ -496,32 +502,53 @@ def _gen_arg(
             arg_type = Mapping[get_args(arg_type)[0], bool]
 
         data = {
-            _gen_arg(dict_manager, segments, get_args(arg_type)[0], k): _gen_arg(
-                dict_manager, segments, get_args(arg_type)[1], v
-            )
-            for k, v in arg.items()
+            preimage_key: {
+                "hashed_key": _gen_arg(
+                    dict_manager,
+                    segments,
+                    get_args(arg_type)[0],
+                    preimage_key,
+                    hash_mode=True,
+                ),
+                "value": _gen_arg(dict_manager, segments, get_args(arg_type)[1], value),
+            }
+            for preimage_key, value in arg.items()
         }
+
         if isinstance_with_generic(arg, defaultdict):
             data = defaultdict(arg.default_factory, data)
 
+        # The dict written to the memory segment, with hashed keys
+        initial_dict = {v["hashed_key"]: v["value"] for v in data.values()}
+
         # This is required for tests where we read data from DictAccess segments while no dict method has been used.
         # Equivalent to doing an initial dict_read of all keys.
-        initial_data = flatten([(k, v, v) for k, v in data.items()])
+        initial_data = flatten([(k, v, v) for k, v in initial_dict.items()])
         segments.load_data(dict_ptr, initial_data)
         current_ptr = dict_ptr + len(initial_data)
+
+        # Create base dictionary
+        base_dict = {k: v["value"] for k, v in data.items()}
+        # Wrap in defaultdict if needed
+        tracking_dict = (
+            defaultdict(data.default_factory, base_dict)
+            if isinstance_with_generic(data, defaultdict)
+            else base_dict
+        )
+
         if isinstance(dict_manager, DictManager):
             dict_manager.trackers[dict_ptr.segment_index] = DictTracker(
-                data=data, current_ptr=current_ptr
+                data=tracking_dict, current_ptr=current_ptr
             )
         else:
             dict_manager.insert(
                 dict_ptr.segment_index,
                 RustDictTracker(
-                    keys=list(data.keys()),
-                    values=list(data.values()),
+                    keys=list(tracking_dict.keys()),
+                    values=list(tracking_dict.values()),
                     current_ptr=current_ptr,
                     default_value=(
-                        data.default_factory()
+                        tracking_dict.default_factory()
                         if isinstance(data, defaultdict)
                         else None
                     ),
@@ -555,15 +582,38 @@ def _gen_arg(
             for f in fields(arg_type_origin)
         ]
         segments.load_data(struct_ptr, data)
+
+        if arg_type_origin is Trie:
+            # In case of a Trie, we need the dict to be a defaultdict with the trie.default as the default value.
+            dict_ptr = segments.memory[data[2]]
+            default_arg = _gen_arg(
+                dict_manager, segments, get_args(arg_type)[1], arg.default
+            )
+            dict_manager.trackers[dict_ptr.segment_index].data = defaultdict(
+                lambda: default_arg, dict_manager.trackers[dict_ptr.segment_index].data
+            )
+
         return struct_ptr
 
     if arg_type in (U256, Hash32, Bytes32, Bytes256):
         if isinstance_with_generic(arg, U256):
             arg = arg.to_be_bytes32()[::-1]
+
+        felt_values = [
+            int.from_bytes(arg[i : i + 16], "little") for i in range(0, len(arg), 16)
+        ]
+
+        if hash_mode:
+            if len(felt_values) != 2:
+                raise ValueError(
+                    "Hashmode is currently only supported for 32-bytes integers"
+                )
+            return poseidon_hash(felt_values[0], felt_values[1])
+
         base = segments.add()
         segments.load_data(
             base,
-            [int.from_bytes(arg[i : i + 16], "little") for i in range(0, len(arg), 16)],
+            felt_values,
         )
         return base
 
