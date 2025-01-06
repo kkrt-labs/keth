@@ -176,6 +176,7 @@ namespace EvmImpl {
                 code=new_code,
                 gas_left=evm.value.gas_left,
                 env=evm.value.env,
+                valid_jump_destinations=evm.value.valid_jump_destinations,
                 logs=evm.value.logs,
                 refund_counter=evm.value.refund_counter,
                 running=evm.value.running,
@@ -549,6 +550,58 @@ namespace EvmImpl {
                 error=evm.value.error,
                 accessed_addresses=evm.value.accessed_addresses,
                 accessed_storage_keys=new_accessed_storage_keys,
+            ),
+        );
+        return ();
+    }
+
+    func set_pc_stack{evm: Evm}(new_pc: Uint, new_stack: Stack) {
+        tempvar evm = Evm(
+            new EvmStruct(
+                pc=new_pc,
+                stack=new_stack,
+                memory=evm.value.memory,
+                code=evm.value.code,
+                gas_left=evm.value.gas_left,
+                env=evm.value.env,
+                valid_jump_destinations=evm.value.valid_jump_destinations,
+                logs=evm.value.logs,
+                refund_counter=evm.value.refund_counter,
+                running=evm.value.running,
+                message=evm.value.message,
+                output=evm.value.output,
+                accounts_to_delete=evm.value.accounts_to_delete,
+                touched_accounts=evm.value.touched_accounts,
+                return_data=evm.value.return_data,
+                error=evm.value.error,
+                accessed_addresses=evm.value.accessed_addresses,
+                accessed_storage_keys=evm.value.accessed_storage_keys,
+            ),
+        );
+        return ();
+    }
+
+    func set_pc_stack_memory{evm: Evm}(new_pc: Uint, new_stack: Stack, new_memory: Memory) {
+        tempvar evm = Evm(
+            new EvmStruct(
+                pc=new_pc,
+                stack=new_stack,
+                memory=new_memory,
+                code=evm.value.code,
+                gas_left=evm.value.gas_left,
+                env=evm.value.env,
+                valid_jump_destinations=evm.value.valid_jump_destinations,
+                logs=evm.value.logs,
+                refund_counter=evm.value.refund_counter,
+                running=evm.value.running,
+                message=evm.value.message,
+                output=evm.value.output,
+                accounts_to_delete=evm.value.accounts_to_delete,
+                touched_accounts=evm.value.touched_accounts,
+                return_data=evm.value.return_data,
+                error=evm.value.error,
+                accessed_addresses=evm.value.accessed_addresses,
+                accessed_storage_keys=evm.value.accessed_storage_keys,
             ),
         );
         return ();

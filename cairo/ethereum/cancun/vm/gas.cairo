@@ -174,8 +174,8 @@ func _max_offset{range_check_ptr}(
         return before_size;
     }
 
-    let offset = extensions.value.data[idx].value.val_1;
-    let size = extensions.value.data[idx].value.val_2;
+    let offset = extensions.value.data.value[idx].val_1;
+    let size = extensions.value.data.value[idx].val_2;
     let (is_zero) = uint256_eq([size.value], U256Struct(0, 0));
     if (is_zero != 0) {
         return _max_offset(before_size, extensions, idx + 1);

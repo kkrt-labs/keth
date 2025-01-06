@@ -200,7 +200,8 @@ class Serde:
             if python_cls is Memory:
                 # For bytearray, convert Bytes1 objects to integers
                 return Memory(
-                    int.from_bytes(dict_repr[i], "little") for i in range(data_len)
+                    int.from_bytes(dict_repr.get(i, b"\x00"), "little")
+                    for i in range(data_len)
                 )
 
             return [dict_repr[i] for i in range(data_len)]
