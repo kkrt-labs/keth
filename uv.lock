@@ -877,7 +877,7 @@ wheels = [
 [[package]]
 name = "ethereum"
 version = "0.1.0"
-source = { git = "https://github.com/kkrt-labs/execution-specs.git?rev=b255036441d64437bd4fc9f9068bc64c45470e93#b255036441d64437bd4fc9f9068bc64c45470e93" }
+source = { git = "https://github.com/ethereum/execution-specs.git?rev=4c7eaa840c421a1db2c01617532f31d08dc3dc6e#4c7eaa840c421a1db2c01617532f31d08dc3dc6e" }
 dependencies = [
     { name = "coincurve" },
     { name = "ethereum-types" },
@@ -1134,7 +1134,7 @@ name = "ipykernel"
 version = "6.29.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "appnope", marker = "platform_system == 'Darwin'" },
+    { name = "appnope", marker = "sys_platform == 'darwin'" },
     { name = "comm" },
     { name = "debugpy" },
     { name = "ipython" },
@@ -1520,7 +1520,7 @@ dev = [
 requires-dist = [
     { name = "cairo-addons", editable = "python/cairo-addons" },
     { name = "cairo-lang", specifier = ">=0.13.2" },
-    { name = "ethereum", git = "https://github.com/kkrt-labs/execution-specs.git?rev=b255036441d64437bd4fc9f9068bc64c45470e93" },
+    { name = "ethereum", git = "https://github.com/ethereum/execution-specs.git?rev=4c7eaa840c421a1db2c01617532f31d08dc3dc6e" },
     { name = "marshmallow-dataclass", specifier = ">=8.6.1" },
     { name = "python-dotenv", specifier = ">=1.0.1" },
     { name = "toml", specifier = ">=0.10.2" },
@@ -3063,7 +3063,7 @@ dependencies = [
     { name = "hexbytes" },
     { name = "pydantic" },
     { name = "pyunormalize" },
-    { name = "pywin32", marker = "platform_system == 'Windows'" },
+    { name = "pywin32", marker = "sys_platform == 'win32'" },
     { name = "requests" },
     { name = "types-requests" },
     { name = "typing-extensions" },
