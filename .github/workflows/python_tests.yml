@@ -45,7 +45,9 @@ jobs:
         run: |
           cd python/cairo-addons
           uv sync
-          maturin develop --uv
+          pwd
+          ls -la
+          maturin develop --uv -vvvv
           cd ../..
           uv run pytest cairo/tests -n logical --durations=0 -v -s --log-cli-level=DEBUG
 
