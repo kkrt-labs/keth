@@ -2,7 +2,7 @@ import random
 
 import pytest
 from Crypto.Hash import keccak
-from hypothesis import example, given
+from hypothesis import example, given, settings
 from hypothesis import strategies as st
 
 EXISTING_ACCOUNT = 0xABDE1
@@ -69,6 +69,8 @@ class TestEnvironmentalInformation:
                 == copied_bytecode
             )
 
+        @pytest.mark.slow
+        @settings(max_examples=300)
         @given(
             opcode_number=st.sampled_from([0x39, 0x37]),
             offset=st.integers(0, 2**128 - 1),

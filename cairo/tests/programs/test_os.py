@@ -6,7 +6,7 @@ import pytest
 from eth_abi.abi import encode
 from ethereum_types.numeric import U256
 from hexbytes import HexBytes
-from hypothesis import given
+from hypothesis import given, settings
 from hypothesis.strategies import integers
 
 from ethereum.crypto.elliptic_curve import SECP256K1N
@@ -274,6 +274,8 @@ class TestOs:
             == state["accounts"]["0x32dCAB0EF3FB2De2fce1D2E0799D36239671F04A"]["code"]
         )
 
+    @pytest.mark.slow
+    @settings(max_examples=300)
     @given(nonce=integers(min_value=2**64, max_value=2**248 - 1))
     def test_should_raise_when_nonce_is_greater_u64(self, cairo_run, nonce):
         initial_state = {

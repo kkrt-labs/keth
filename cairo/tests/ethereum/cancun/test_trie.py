@@ -3,7 +3,7 @@ from typing import Mapping, Optional
 import pytest
 from ethereum_types.bytes import Bytes
 from ethereum_types.numeric import Uint
-from hypothesis import assume, given
+from hypothesis import assume, given, settings
 from hypothesis import strategies as st
 
 from ethereum.cancun.fork_types import Account
@@ -30,6 +30,8 @@ class TestTrie:
             encode_internal_node(node), cairo_run("encode_internal_node", node)
         )
 
+    @pytest.mark.slow
+    @settings(max_examples=300)
     @given(node=..., storage_root=...)
     def test_encode_node(self, cairo_run, node: Node, storage_root: Optional[Bytes]):
         assume(node is not None)
@@ -138,6 +140,8 @@ class TestTrie:
         )
         assert value == obj.get(level, b"")
 
+    @pytest.mark.slow
+    @settings(max_examples=300)
     @given(obj=st.dictionaries(nibble, bytes32))
     def test_patricialize(self, cairo_run, obj: Mapping[Bytes, Bytes]):
         assert patricialize(obj, Uint(0)) == cairo_run("patricialize", obj, Uint(0))
