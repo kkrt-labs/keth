@@ -1,4 +1,5 @@
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin
+from starkware.cairo.common.uint256 import uint256_reverse_endian
 
 from ethereum.cancun.vm.stack import pop, push
 from ethereum.cancun.vm import Evm, EvmImpl
@@ -64,6 +65,8 @@ func keccak{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBui
     }
 
     let hash = keccak256(data);
+    // reverse endianness as keccak256 returns little endian bytes and U256 interprets the bytes as big endian
+    let hash = uint256_reverse_endian(hash);
 
     // Push result to stack
     with stack {
