@@ -63,11 +63,13 @@ from starkware.cairo.lang.compiler.identifier_definition import (
 )
 from starkware.cairo.lang.compiler.identifier_manager import MissingIdentifierError
 from starkware.cairo.lang.compiler.scoped_name import ScopedName
+from starkware.cairo.lang.vm.crypto import poseidon_hash
 from starkware.cairo.lang.vm.memory_dict import UnknownMemoryError
 from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 
 from ethereum.cancun.vm.exceptions import InvalidOpcode
 from ethereum.crypto.hash import Hash32
+from src.utils.uint256 import int_to_uint256
 from tests.utils.args_gen import Memory, Stack, to_python_type, vm_exception_classes
 
 # Sentinel object for indicating no error in exception handling
@@ -99,6 +101,7 @@ class Serde:
     def __init__(
         self,
         segments: Union[MemorySegmentManager, RustMemorySegmentManager],
+        dict_manager,
         program,
         cairo_file=None,
     ):
@@ -107,6 +110,7 @@ class Serde:
             segments.memory if isinstance(segments, MemorySegmentManager) else segments
         )
         self.program = program
+        self.dict_manager = dict_manager
         self.cairo_file = cairo_file or Path()
 
     @property
@@ -274,7 +278,15 @@ class Serde:
             dict_access_types = get_struct_definition(
                 self.program, dict_access_path
             ).members
-            key_type = dict_access_types["key"].cairo_type
+            # Mappings of with keys of these types are hashed - the actual key type becomes a felt.
+            key_type = (
+                TypeFelt()
+                if any(
+                    x == str(dict_access_types["key"].cairo_type.scope.path[-1])
+                    for x in ["Bytes32", "U256", "Hash32"]
+                )
+                else dict_access_types["key"].cairo_type
+            )
             value_type = dict_access_types["new_value"].cairo_type
             pointers = self.serialize_pointers(mapping_struct_path, mapping_struct_ptr)
             segment_size = pointers["dict_ptr"] - pointers["dict_ptr_start"]
@@ -286,11 +298,31 @@ class Serde:
                     for i in range(0, segment_size, 3)
                 }
 
-            return {
+            # The dict serialized from the memory segment values.
+            memory_dict = {
                 self._serialize(key_type, dict_ptr + i): self._serialize(
                     value_type, dict_ptr + i + 2
                 )
                 for i in range(0, segment_size, 3)
+            }
+
+            if key_type != TypeFelt():
+                return memory_dict
+
+            # We need to retrieve preimages from the dict tracker in case the keys were hashed.
+            # If no value is found for the preimage, we hash it and re-try.
+            tracker_data = self.dict_manager.trackers[dict_ptr.segment_index].data
+            return {
+                preimage: memory_dict.get(preimage_int)
+                or memory_dict[poseidon_hash(*int_to_uint256(preimage_int))]
+                for preimage in tracker_data.keys()
+                for preimage_int in [
+                    (
+                        int.from_bytes(preimage, "little")
+                        if isinstance(preimage, bytes)
+                        else preimage
+                    )
+                ]
             }
 
         if python_cls in (bytes, bytearray, Bytes, str):
@@ -369,6 +401,9 @@ class Serde:
         if is_dataclass(get_origin(python_cls)) or is_dataclass(python_cls):
             # Adjust int fields if they exceed 2**128 by subtracting DEFAULT_PRIME
             # and filter out the NO_ERROR_FLAG, replacing it with None
+            if True:
+                pass
+
             adjusted_value = {
                 k: (
                     None

@@ -94,19 +94,19 @@ struct MappingAddressAccount {
     value: MappingAddressAccountStruct*,
 }
 
-struct BytesU256DictAccess {
-    key: Bytes,
+struct Bytes32U256DictAccess {
+    key: Bytes32,
     prev_value: U256,
     new_value: U256,
 }
 
-struct MappingBytesU256Struct {
-    dict_ptr_start: BytesU256DictAccess*,
-    dict_ptr: BytesU256DictAccess*,
+struct MappingBytes32U256Struct {
+    dict_ptr_start: Bytes32U256DictAccess*,
+    dict_ptr: Bytes32U256DictAccess*,
 }
 
-struct MappingBytesU256 {
-    value: MappingBytesU256Struct*,
+struct MappingBytes32U256 {
+    value: MappingBytes32U256Struct*,
 }
 
 func EMPTY_ACCOUNT() -> Account {

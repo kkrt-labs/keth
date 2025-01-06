@@ -1,18 +1,22 @@
+from starkware.cairo.common.cairo_builtins import PoseidonBuiltin
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.math_cmp import is_le
 from starkware.cairo.common.math import assert_not_zero
 from starkware.cairo.common.bitwise import BitwiseBuiltin
+from starkware.cairo.common.dict import DictAccess, dict_read, dict_write
 from starkware.cairo.common.cairo_builtins import KeccakBuiltin
 from starkware.cairo.common.memcpy import memcpy
 
 from src.utils.bytes import uint256_to_bytes32_little
+from src.utils.hashdict import hashdict_bytes32_read, hashdict_bytes32_write
 from ethereum.crypto.hash import keccak256
 from ethereum.utils.numeric import min
 from ethereum.rlp import encode, _encode_bytes, _encode
-from ethereum_types.numeric import U256, Uint, bool
+from ethereum_types.numeric import U256, Uint, bool, U256Struct
 from ethereum_types.bytes import (
     Bytes,
     BytesStruct,
+    Bytes32,
     StringStruct,
     String,
     MappingBytesBytes,
@@ -22,7 +26,15 @@ from ethereum_types.bytes import (
     TupleMappingBytesBytesStruct,
 )
 from ethereum.cancun.blocks import Receipt, Withdrawal
-from ethereum.cancun.fork_types import Account, MappingAddressAccount, MappingBytesU256
+from ethereum.cancun.fork_types import (
+    Account,
+    AccountStruct,
+    Address,
+    Bytes32U256DictAccess,
+    MappingAddressAccount,
+    MappingBytes32U256,
+    AddressAccountDictAccess,
+)
 from ethereum.cancun.transactions import LegacyTransaction
 from ethereum.rlp import (
     Extended,
@@ -159,14 +171,14 @@ struct TrieAddressAccount {
     value: TrieAddressAccountStruct*,
 }
 
-struct TrieBytesU256Struct {
+struct TrieBytes32U256Struct {
     secured: bool,
     default: U256,
-    _data: MappingBytesU256,
+    _data: MappingBytes32U256,
 }
 
-struct TrieBytesU256 {
-    value: TrieBytesU256Struct*,
+struct TrieBytes32U256 {
+    value: TrieBytes32U256Struct*,
 }
 
 func encode_internal_node{
@@ -332,10 +344,30 @@ func encode_node{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: Kecc
 //         // trie._data[key] = value
 // }
 
-// func trie_get(trie: Trie[K, V], key: K) -> V {
-//     // Implementation:
-//     // return trie._data.get(key, trie.default)
-// }
+func trie_get_TrieAddressAccount(trie: TrieAddressAccount, key: Address) -> Account {
+    let dict_ptr = cast(trie.value._data.value.dict_ptr, DictAccess*);
+
+    with dict_ptr {
+        let (pointer) = dict_read(key.value);
+    }
+    let new_dict_ptr = cast(dict_ptr, AddressAccountDictAccess*);
+    tempvar res = Account(cast(pointer, AccountStruct*));
+    return res;
+}
+
+func trie_get_TrieBytes32U256{poseidon_ptr: PoseidonBuiltin*}(
+    trie: TrieBytes32U256, key: Bytes32
+) -> U256 {
+    let dict_ptr = cast(trie.value._data.value.dict_ptr, DictAccess*);
+
+    with dict_ptr {
+        let (pointer) = hashdict_bytes32_read(key);
+    }
+
+    let new_dict_ptr = cast(dict_ptr, Bytes32U256DictAccess*);
+    tempvar res = U256(cast(pointer, U256Struct*));
+    return res;
+}
 
 func common_prefix_length(a: Bytes, b: Bytes) -> felt {
     alloc_locals;

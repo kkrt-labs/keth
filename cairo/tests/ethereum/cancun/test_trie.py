@@ -1,21 +1,23 @@
 from typing import Mapping, Optional
 
 import pytest
-from ethereum_types.bytes import Bytes
-from ethereum_types.numeric import Uint
+from ethereum_types.bytes import Bytes, Bytes32
+from ethereum_types.numeric import U256, Uint
 from hypothesis import assume, given, settings
 from hypothesis import strategies as st
 
-from ethereum.cancun.fork_types import Account
+from ethereum.cancun.fork_types import Account, Address
 from ethereum.cancun.trie import (
     InternalNode,
     Node,
+    Trie,
     bytes_to_nibble_list,
     common_prefix_length,
     encode_internal_node,
     encode_node,
     nibble_list_to_compact,
     patricialize,
+    trie_get,
 )
 from tests.utils.assertion import sequence_equal
 from tests.utils.errors import cairo_error
@@ -147,3 +149,20 @@ class TestTrie:
     @given(obj=st.dictionaries(nibble, bytes32))
     def test_patricialize(self, cairo_run, obj: Mapping[Bytes, Bytes]):
         assert patricialize(obj, Uint(0)) == cairo_run("patricialize", obj, Uint(0))
+
+
+class TestTrieOperations:
+    @given(trie=..., key=...)
+    def test_trie_get_TrieAddressAccount(
+        self, cairo_run, trie: Trie[Address, Optional[Account]], key: Address
+    ):
+        cairo_result = cairo_run("trie_get_TrieAddressAccount", trie, key)
+        assert trie_get(trie, key) == cairo_result
+
+    @given(trie=..., key=...)
+    @settings(max_examples=1)
+    def test_trie_get_TrieBytes32U256(
+        self, cairo_run, trie: Trie[Bytes32, U256], key: Bytes32
+    ):
+        cairo_result = cairo_run("trie_get_TrieBytes32U256", trie, key)
+        assert trie_get(trie, key) == cairo_result

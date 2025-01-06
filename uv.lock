@@ -903,7 +903,7 @@ wheels = [
 [[package]]
 name = "ethereum"
 version = "0.1.0"
-source = { git = "https://github.com/kkrt-labs/execution-specs.git?rev=b255036441d64437bd4fc9f9068bc64c45470e93#b255036441d64437bd4fc9f9068bc64c45470e93" }
+source = { git = "https://github.com/kkrt-labs/execution-specs.git?rev=7d685c83af787e7519f8787563a5e94020700d6e#7d685c83af787e7519f8787563a5e94020700d6e" }
 dependencies = [
     { name = "coincurve" },
     { name = "ethereum-types" },
@@ -1547,7 +1547,7 @@ dev = [
 requires-dist = [
     { name = "cairo-addons", editable = "python/cairo-addons" },
     { name = "cairo-lang", specifier = ">=0.13.2" },
-    { name = "ethereum", git = "https://github.com/kkrt-labs/execution-specs.git?rev=b255036441d64437bd4fc9f9068bc64c45470e93" },
+    { name = "ethereum", git = "https://github.com/kkrt-labs/execution-specs.git?rev=7d685c83af787e7519f8787563a5e94020700d6e" },
     { name = "marshmallow-dataclass", specifier = ">=8.6.1" },
     { name = "python-dotenv", specifier = ">=1.0.1" },
     { name = "toml", specifier = ">=0.10.2" },
