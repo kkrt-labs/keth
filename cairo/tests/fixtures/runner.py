@@ -263,10 +263,6 @@ def cairo_run(request, cairo_program, cairo_file, main_path):
         verify_secure_runner(runner)
         runner.relocate()
 
-        logger.info(
-            f"\nExecution resources: {json.dumps(runner.get_execution_resources().to_dict(), indent=4)}"
-        )
-
         # Create a unique output stem for the given test by using the test file name, the entrypoint and the kwargs
         displayed_args = ""
         if kwargs:
