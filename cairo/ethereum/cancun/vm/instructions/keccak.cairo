@@ -82,7 +82,7 @@ func keccak{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBui
     }
 
     // PROGRAM COUNTER
-    EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
+    EvmImpl.set_pc_stack_memory(Uint(evm.value.pc.value + 1), stack, memory);
     let ok = cast(0, ExceptionalHalt*);
     return ok;
 }
