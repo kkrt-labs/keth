@@ -6,6 +6,7 @@ from hypothesis import strategies as st
 from ethereum.cancun.vm.exceptions import ExceptionalHalt
 from ethereum.cancun.vm.instructions.keccak import keccak
 from ethereum.cancun.vm.stack import push
+from tests.ethereum.cancun.vm.test_memory import MAX_MEMORY_SIZE
 from tests.utils.args_gen import Evm
 from tests.utils.strategies import evm_lite
 
@@ -13,8 +14,10 @@ from tests.utils.strategies import evm_lite
 class TestKeccak:
     @given(
         evm=evm_lite,
-        start_index=st.integers(min_value=0, max_value=128).map(U256),
-        size=st.integers(min_value=0, max_value=32768).map(U256),
+        # We limit the memory size to MEMORY_SIZE, thus we parameterize start_index and size
+        # to ensure the memory size after expansion is within bounds.
+        start_index=st.integers(min_value=0, max_value=MAX_MEMORY_SIZE // 2).map(U256),
+        size=st.integers(min_value=0, max_value=MAX_MEMORY_SIZE // 2).map(U256),
     )
     def test_keccak(self, cairo_run, evm: Evm, start_index: U256, size: U256):
         """

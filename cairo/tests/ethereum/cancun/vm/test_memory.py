@@ -9,11 +9,13 @@ from ethereum.cancun.vm.memory import buffer_read, memory_read_bytes, memory_wri
 # NOTE: The testing strategy always assume that memory accesses are within bounds.
 # Because the memory is always extended to the proper size _before_ being accessed.
 
+# Higher than 2**10 will cause a HealthCheck too large error.
+MAX_MEMORY_SIZE = 2**10
+
 
 @composite
 def memory_write_strategy(draw):
-    # Higher than 2**10 will cause a HealthCheck too large error.
-    memory_size = draw(st.integers(min_value=0, max_value=2**10))
+    memory_size = draw(st.integers(min_value=0, max_value=MAX_MEMORY_SIZE))
     memory = draw(st.binary(min_size=memory_size, max_size=memory_size).map(bytearray))
 
     # Generate a start position in bounds with existing memory
