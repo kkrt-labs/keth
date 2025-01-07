@@ -12,7 +12,16 @@ from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 
 from ethereum.crypto.elliptic_curve import SECP256K1N
 from ethereum.exceptions import EthereumException
-from tests.utils.args_gen import Environment, Evm, Memory, Message, Stack
+from tests.utils.args_gen import (
+    Environment,
+    Evm,
+    Memory,
+    Message,
+    Stack,
+    State,
+    TransientStorage,
+    VersionedHash,
+)
 from tests.utils.constants import BLOCK_GAS_LIMIT
 
 # Mock the Extended type because hypothesis cannot handle the RLP Protocol
@@ -150,6 +159,33 @@ message_lite = st.builds(
     parent_evm=st.none(),
 )
 
+BLOCK_HASHES_LIST = [Hash32(Bytes32(bytes([i] * 32))) for i in range(256)]
+
+environment_lite = st.integers(min_value=0).flatmap(  # Generate block number first
+    lambda number: st.builds(
+        Environment,
+        caller=address,
+        block_hashes=st.lists(
+            st.sampled_from(BLOCK_HASHES_LIST),
+            min_size=min(number, 256),  # number or 256 if number is greater
+            max_size=min(number, 256),
+        ),
+        origin=address,
+        coinbase=address,
+        number=st.just(Uint(number)),  # Use the same number
+        base_fee_per_gas=uint,
+        gas_limit=uint,
+        gas_price=uint,
+        time=uint256,
+        prev_randao=bytes32,
+        state=st.from_type(State),
+        chain_id=uint64,
+        excess_blob_gas=uint64,
+        blob_versioned_hashes=st.from_type(Tuple[VersionedHash, ...]),
+        transient_storage=st.from_type(TransientStorage),
+    )
+)
+
 evm_lite = st.builds(
     Evm,
     pc=uint,
@@ -157,7 +193,7 @@ evm_lite = st.builds(
     memory=memory_lite,
     code=st.just(b""),
     gas_left=st.integers(min_value=0, max_value=BLOCK_GAS_LIMIT).map(Uint),
-    env=st.from_type(Environment),
+    env=environment_lite,
     valid_jump_destinations=st.just(set()),
     logs=st.just(()),
     refund_counter=st.just(0),
