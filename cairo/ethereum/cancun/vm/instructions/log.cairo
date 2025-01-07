@@ -99,7 +99,7 @@ func log1{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Exceptio
     // STACK
     let stack = evm.value.stack;
     with stack {
-        // Pop memory_start_index and size
+        // Pop memory_start_index, size and topic
         let (memory_start_index, err) = pop();
         if (cast(err, felt) != 0) {
             return err;
