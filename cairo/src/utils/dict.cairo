@@ -54,7 +54,7 @@ func dict_squash{range_check_ptr}(
 // @param key_len: The number of felt values used to represent the key.
 // @param key: The key to access the dictionary.
 func hashdict_read{poseidon_ptr: PoseidonBuiltin*, dict_ptr: DictAccess*}(
-    byte_length: felt, key_len: felt, key: felt*
+    key_len: felt, key: felt*
 ) -> (value: felt) {
     alloc_locals;
     local value;
@@ -70,14 +70,8 @@ func hashdict_read{poseidon_ptr: PoseidonBuiltin*, dict_ptr: DictAccess*}(
     %{
         dict_tracker = __dict_manager.get_tracker(ids.dict_ptr)
         dict_tracker.current_ptr += ids.DictAccess.SIZE
-        preimage_bytes = (
-            # Reading bytes values fitting in a felt
-            memory[ids.key].to_bytes(ids.byte_length, "little") if ids.key_len == 1
-            # Reading bytes split in multiple felts
-            # Assumed that if the bytes are split evenly in key_len keys.
-            else b''.join([memory[ids.key + i].to_bytes(ids.byte_length//ids.key_len, "little") for i in range(ids.key_len)])
-        )
-        ids.value = dict_tracker.data[preimage_bytes]
+        preimage = tuple([memory[ids.key + i] for i in range(ids.key_len)])
+        ids.value = dict_tracker.data[preimage]
     %}
     dict_ptr.key = felt_key;
     dict_ptr.prev_value = value;
