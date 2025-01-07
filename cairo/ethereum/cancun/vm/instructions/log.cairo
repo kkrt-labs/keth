@@ -1,10 +1,7 @@
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin
-from starkware.cairo.common.uint256 import Uint256
-from starkware.cairo.common.math_cmp import is_not_zero
-from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
+from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 
-from ethereum.cancun.vm.stack import Stack, pop, push
+from ethereum.cancun.vm.stack import pop
 from ethereum.cancun.vm import Evm, EvmImpl
 from ethereum.cancun.vm.exceptions import ExceptionalHalt, WriteInStaticContext, OutOfGasError
 from ethereum.cancun.vm.memory import memory_read_bytes, expand_by
