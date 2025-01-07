@@ -354,7 +354,7 @@ func trie_get_TrieAddressAccount{poseidon_ptr: PoseidonBuiltin*, trie: TrieAddre
     with dict_ptr {
         let (keys) = alloc();
         assert [keys] = key.value;
-        let (pointer) = hashdict_read_bytes(1, keys);
+        let (pointer) = hashdict_read_bytes(20, 1, keys);
     }
     let new_dict_ptr = cast(dict_ptr, AddressAccountDictAccess*);
     tempvar mapping = MappingAddressAccount(
@@ -373,7 +373,7 @@ func trie_get_TrieBytes32U256{poseidon_ptr: PoseidonBuiltin*, trie: TrieBytes32U
     let dict_ptr = cast(trie.value._data.value.dict_ptr, DictAccess*);
 
     with dict_ptr {
-        let (pointer) = hashdict_read_bytes(2, cast(key.value, felt*));
+        let (pointer) = hashdict_read_bytes(32, 2, cast(key.value, felt*));
     }
     let new_dict_ptr = cast(dict_ptr, Bytes32U256DictAccess*);
     tempvar mapping = MappingBytes32U256(

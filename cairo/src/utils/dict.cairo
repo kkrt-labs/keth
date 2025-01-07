@@ -48,7 +48,11 @@ func dict_squash{range_check_ptr}(
     return (squashed_dict_start=squashed_dict_start, squashed_dict_end=squashed_dict_end);
 }
 
-// A wrapper around dict_read that hashes the key before accessing the dictionary.
+// A wrapper around dict_read that hashes the key before accessing the dictionary if the key
+// does not fit in a felt.
+// @param byte_length: The number of bytes in the key.
+// @param key_len: The number of felt values used to represent the key.
+// @param key: The key to access the dictionary.
 func hashdict_read_bytes{poseidon_ptr: PoseidonBuiltin*, dict_ptr: DictAccess*}(
     byte_length: felt, key_len: felt, key: felt*
 ) -> (value: felt) {
@@ -69,9 +73,7 @@ func hashdict_read_bytes{poseidon_ptr: PoseidonBuiltin*, dict_ptr: DictAccess*}(
         preimage_bytes = (
             # Reading bytes values fitting in a felt
             memory[ids.key].to_bytes(ids.byte_length, "little") if ids.key_len == 1
-            # Reading bytes split in two felt values
-            else (memory[ids.key] + memory[ids.key+1] * 2**128).to_bytes(ids.byte_length, "little") if ids.key_len == 2
-            # Reading other values
+            # Reading bytes split in multiple felts
             # Assumed that if the bytes are split evenly in key_len keys.
             else b''.join([memory[ids.key + i].to_bytes(ids.byte_length//ids.key_len, "little") for i in range(ids.key_len)])
         )
