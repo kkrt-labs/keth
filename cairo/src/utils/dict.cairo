@@ -1,5 +1,5 @@
 from starkware.cairo.common.cairo_builtins import PoseidonBuiltin
-from starkware.cairo.common.builtin_poseidon.poseidon import poseidon_hash
+from starkware.cairo.common.builtin_poseidon.poseidon import poseidon_hash, poseidon_hash_many
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.memcpy import memcpy
@@ -49,35 +49,35 @@ func dict_squash{range_check_ptr}(
 }
 
 // A wrapper around dict_read that hashes the key before accessing the dictionary.
-func hashdict_bytes32_read{poseidon_ptr: PoseidonBuiltin*, dict_ptr: DictAccess*}(key: Bytes32) -> (
-    value: felt
-) {
+func hashdict_read_bytes{poseidon_ptr: PoseidonBuiltin*, dict_ptr: DictAccess*}(
+    byte_length: felt, key_len: felt, key: felt*
+) -> (value: felt) {
     alloc_locals;
     local value;
-    let (hashed_key) = poseidon_hash(key.value.low, key.value.high);
+    local felt_key;
+    if (key_len == 1) {
+        assert felt_key = key[0];
+        tempvar poseidon_ptr = poseidon_ptr;
+    } else {
+        let (felt_key_) = poseidon_hash_many(key_len, key);
+        assert felt_key = felt_key_;
+        tempvar poseidon_ptr = poseidon_ptr;
+    }
     %{
         dict_tracker = __dict_manager.get_tracker(ids.dict_ptr)
         dict_tracker.current_ptr += ids.DictAccess.SIZE
-        preimage = ids.key.value.low + ids.key.value.high * 2**128
-        ids.value = dict_tracker.data[preimage.to_bytes(32, "little")]
+        preimage_bytes = (
+            # Reading bytes values fitting in a felt
+            memory[ids.key].to_bytes(ids.byte_length, "little") if ids.key_len == 1
+            # Reading bytes split in two felt values
+            else (memory[ids.key] + memory[ids.key+1] * 2**128).to_bytes(ids.byte_length, "little") if ids.key_len == 2
+            # Reading other values
+            # Assumed that if the bytes are split evenly in key_len keys.
+            else b''.join([memory[ids.key + i].to_bytes(ids.byte_length//ids.key_len, "little") for i in range(ids.key_len)])
+        )
+        ids.value = dict_tracker.data[preimage_bytes]
     %}
-    dict_ptr.key = hashed_key;
-    dict_ptr.prev_value = value;
-    dict_ptr.new_value = value;
-    let dict_ptr = dict_ptr + DictAccess.SIZE;
-    return (value=value);
-}
-
-// A wrapper around dict_read that converts the key to a 20-byte address before accessing the dictionary.
-func dict_address_read{dict_ptr: DictAccess*}(key: Address) -> (value: felt) {
-    alloc_locals;
-    local value;
-    %{
-        dict_tracker = __dict_manager.get_tracker(ids.dict_ptr)
-        dict_tracker.current_ptr += ids.DictAccess.SIZE
-        ids.value = dict_tracker.data[ids.key.value.to_bytes(20, "little")]
-    %}
-    dict_ptr.key = key.value;
+    dict_ptr.key = felt_key;
     dict_ptr.prev_value = value;
     dict_ptr.new_value = value;
     let dict_ptr = dict_ptr + DictAccess.SIZE;
