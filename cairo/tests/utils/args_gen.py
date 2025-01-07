@@ -515,9 +515,6 @@ def _gen_arg(
             for preimage_key, value in arg.items()
         }
 
-        if isinstance_with_generic(arg, defaultdict):
-            data = defaultdict(arg.default_factory, data)
-
         # The dict written to the memory segment, with hashed keys
         initial_dict = {v["hashed_key"]: v["value"] for v in data.values()}
 
