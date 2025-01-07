@@ -4,11 +4,12 @@ from starkware.cairo.common.math_cmp import is_le
 from starkware.cairo.common.math import assert_not_zero
 from starkware.cairo.common.bitwise import BitwiseBuiltin
 from starkware.cairo.common.dict import DictAccess
+from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
 from starkware.cairo.common.cairo_builtins import KeccakBuiltin
 from starkware.cairo.common.memcpy import memcpy
 
 from src.utils.bytes import uint256_to_bytes32_little
-from src.utils.dict import hashdict_read_bytes
+from src.utils.dict import hashdict_read
 from ethereum.crypto.hash import keccak256
 from ethereum.utils.numeric import min
 from ethereum.rlp import encode, _encode_bytes, _encode
@@ -349,12 +350,14 @@ func encode_node{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: Kecc
 func trie_get_TrieAddressAccount{poseidon_ptr: PoseidonBuiltin*, trie: TrieAddressAccount}(
     key: Address
 ) -> Account {
+    alloc_locals;
     let dict_ptr = cast(trie.value._data.value.dict_ptr, DictAccess*);
 
+    let fp_and_pc = get_fp_and_pc();
+    local __fp__: felt* = fp_and_pc.fp_val;
+
     with dict_ptr {
-        let (keys) = alloc();
-        assert [keys] = key.value;
-        let (pointer) = hashdict_read_bytes(20, 1, keys);
+        let (pointer) = hashdict_read(20, 1, &key.value);
     }
     let new_dict_ptr = cast(dict_ptr, AddressAccountDictAccess*);
     tempvar mapping = MappingAddressAccount(
@@ -373,7 +376,7 @@ func trie_get_TrieBytes32U256{poseidon_ptr: PoseidonBuiltin*, trie: TrieBytes32U
     let dict_ptr = cast(trie.value._data.value.dict_ptr, DictAccess*);
 
     with dict_ptr {
-        let (pointer) = hashdict_read_bytes(32, 2, cast(key.value, felt*));
+        let (pointer) = hashdict_read(32, 2, cast(key.value, felt*));
     }
     let new_dict_ptr = cast(dict_ptr, Bytes32U256DictAccess*);
     tempvar mapping = MappingBytes32U256(
