@@ -586,11 +586,8 @@ def _gen_arg(
         if arg_type_origin is Trie:
             # In case of a Trie, we need the dict to be a defaultdict with the trie.default as the default value.
             dict_ptr = segments.memory[data[2]]
-            default_arg = _gen_arg(
-                dict_manager, segments, get_args(arg_type)[1], arg.default
-            )
             dict_manager.trackers[dict_ptr.segment_index].data = defaultdict(
-                lambda: default_arg, dict_manager.trackers[dict_ptr.segment_index].data
+                lambda: data[1], dict_manager.trackers[dict_ptr.segment_index].data
             )
 
         return struct_ptr
@@ -611,10 +608,7 @@ def _gen_arg(
             return poseidon_hash(felt_values[0], felt_values[1])
 
         base = segments.add()
-        segments.load_data(
-            base,
-            felt_values,
-        )
+        segments.load_data(base, felt_values)
         return base
 
     if arg_type in (Bytes, bytes, bytearray, str):

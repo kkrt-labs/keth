@@ -3,12 +3,12 @@ from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.math_cmp import is_le
 from starkware.cairo.common.math import assert_not_zero
 from starkware.cairo.common.bitwise import BitwiseBuiltin
-from starkware.cairo.common.dict import DictAccess, dict_read, dict_write
+from starkware.cairo.common.dict import DictAccess
 from starkware.cairo.common.cairo_builtins import KeccakBuiltin
 from starkware.cairo.common.memcpy import memcpy
 
 from src.utils.bytes import uint256_to_bytes32_little
-from src.utils.hashdict import hashdict_bytes32_read, hashdict_bytes32_write
+from src.utils.dict import dict_address_read, hashdict_bytes32_read
 from ethereum.crypto.hash import keccak256
 from ethereum.utils.numeric import min
 from ethereum.rlp import encode, _encode_bytes, _encode
@@ -32,7 +32,9 @@ from ethereum.cancun.fork_types import (
     Address,
     Bytes32U256DictAccess,
     MappingAddressAccount,
+    MappingAddressAccountStruct,
     MappingBytes32U256,
+    MappingBytes32U256Struct,
     AddressAccountDictAccess,
 )
 from ethereum.cancun.transactions import LegacyTransaction
@@ -344,27 +346,38 @@ func encode_node{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: Kecc
 //         // trie._data[key] = value
 // }
 
-func trie_get_TrieAddressAccount(trie: TrieAddressAccount, key: Address) -> Account {
+func trie_get_TrieAddressAccount{trie: TrieAddressAccount}(key: Address) -> Account {
     let dict_ptr = cast(trie.value._data.value.dict_ptr, DictAccess*);
 
     with dict_ptr {
-        let (pointer) = dict_read(key.value);
+        let (pointer) = dict_address_read(key);
     }
     let new_dict_ptr = cast(dict_ptr, AddressAccountDictAccess*);
+    tempvar mapping = MappingAddressAccount(
+        new MappingAddressAccountStruct(trie.value._data.value.dict_ptr_start, new_dict_ptr)
+    );
+    tempvar trie = TrieAddressAccount(
+        new TrieAddressAccountStruct(trie.value.secured, trie.value.default, mapping)
+    );
     tempvar res = Account(cast(pointer, AccountStruct*));
     return res;
 }
 
-func trie_get_TrieBytes32U256{poseidon_ptr: PoseidonBuiltin*}(
-    trie: TrieBytes32U256, key: Bytes32
+func trie_get_TrieBytes32U256{poseidon_ptr: PoseidonBuiltin*, trie: TrieBytes32U256}(
+    key: Bytes32
 ) -> U256 {
     let dict_ptr = cast(trie.value._data.value.dict_ptr, DictAccess*);
 
     with dict_ptr {
         let (pointer) = hashdict_bytes32_read(key);
     }
-
     let new_dict_ptr = cast(dict_ptr, Bytes32U256DictAccess*);
+    tempvar mapping = MappingBytes32U256(
+        new MappingBytes32U256Struct(trie.value._data.value.dict_ptr_start, new_dict_ptr)
+    );
+    tempvar trie = TrieBytes32U256(
+        new TrieBytes32U256Struct(trie.value.secured, trie.value.default, mapping)
+    );
     tempvar res = U256(cast(pointer, U256Struct*));
     return res;
 }
