@@ -83,12 +83,24 @@ def cairo_program(request) -> Program:
 
 
 @pytest.fixture(scope="module")
+def rust_program(request, cairo_program: Program) -> RustProgram:
+    if request.node.get_closest_marker("python_vm"):
+        return None
+
+    return RustProgram.from_bytes(
+        json.dumps(cairo_program.Schema().dump(cairo_program)).encode()
+    )
+
+
+@pytest.fixture(scope="module")
 def main_path(request):
     return request.session.main_paths[request.node.fspath]
 
 
 @pytest.fixture(scope="module")
-def cairo_run(request, cairo_program: Program, cairo_file, main_path):
+def cairo_run(
+    request, cairo_program: Program, rust_program: RustProgram, cairo_file, main_path
+):
     """
     Run the cairo program corresponding to the python test file at a given entrypoint with given program inputs as kwargs.
     Returns the output of the cairo program put in the output memory segment.
@@ -369,10 +381,6 @@ def cairo_run(request, cairo_program: Program, cairo_file, main_path):
 
     def _factory_rs(entrypoint, *args, **kwargs):
         logger.info(f"Running the CairoVM Rust VM for {entrypoint}")
-        rust_program = RustProgram.from_bytes(
-            json.dumps(cairo_program.Schema().dump(cairo_program)).encode()
-        )
-
         implicit_args = cairo_program.identifiers.get_by_full_name(
             ScopedName(path=("__main__", entrypoint, "ImplicitArgs"))
         ).members
