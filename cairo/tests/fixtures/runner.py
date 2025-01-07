@@ -446,7 +446,7 @@ def cairo_run(
         runner.initialize_segments()
 
         # Fill runner's memory for args
-        serde = Serde(runner.segments, runner.dict_manager, cairo_program, cairo_file)
+        serde = Serde(runner.segments, cairo_program, runner.dict_manager, cairo_file)
         gen_arg = gen_arg_builder(runner.dict_manager, runner.segments)
         stack = []
         for i, (arg_name, python_type) in enumerate(
