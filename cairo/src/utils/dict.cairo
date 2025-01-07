@@ -53,7 +53,7 @@ func dict_squash{range_check_ptr}(
 // @param byte_length: The number of bytes in the key.
 // @param key_len: The number of felt values used to represent the key.
 // @param key: The key to access the dictionary.
-func hashdict_read_bytes{poseidon_ptr: PoseidonBuiltin*, dict_ptr: DictAccess*}(
+func hashdict_read{poseidon_ptr: PoseidonBuiltin*, dict_ptr: DictAccess*}(
     byte_length: felt, key_len: felt, key: felt*
 ) -> (value: felt) {
     alloc_locals;

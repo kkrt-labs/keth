@@ -527,9 +527,8 @@ def _gen_arg(
         segments.load_data(dict_ptr, initial_data)
         current_ptr = dict_ptr + len(initial_data)
 
-        # Create base dictionary
+        # Set up dictionary tracker with preimage keys for lookups
         base_dict = {k: v["value"] for k, v in data.items()}
-        # Wrap in defaultdict if needed
         tracking_dict = (
             defaultdict(data.default_factory, base_dict)
             if isinstance_with_generic(data, defaultdict)
