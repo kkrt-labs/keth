@@ -282,8 +282,11 @@ class Serde:
             # Mappings with these keys are hashed - the actual key type becomes a felt.
             key_type = (
                 TypeFelt()
-                if str(dict_access_types["key"].cairo_type.scope.path[-1])
-                in ["Bytes", "U256", "Hash32"]
+                if str(dict_access_types["key"].cairo_type.scope.path[-1]).startswith(
+                    "Bytes"
+                )
+                or str(dict_access_types["key"].cairo_type.scope.path[-1])
+                in ["U256", "Hash32", "VersionedHash", "Root"]
                 else dict_access_types["key"].cairo_type
             )
             value_type = dict_access_types["new_value"].cairo_type
