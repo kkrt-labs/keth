@@ -279,6 +279,7 @@ namespace EvmImpl {
                 code=evm.value.code,
                 gas_left=evm.value.gas_left,
                 env=evm.value.env,
+                valid_jump_destinations=evm.value.valid_jump_destinations,
                 logs=new_logs,
                 refund_counter=evm.value.refund_counter,
                 running=evm.value.running,
