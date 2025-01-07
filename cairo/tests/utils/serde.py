@@ -69,11 +69,20 @@ from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 
 from ethereum.cancun.vm.exceptions import InvalidOpcode
 from ethereum.crypto.hash import Hash32
-from src.utils.uint256 import int_to_uint256
 from tests.utils.args_gen import Memory, Stack, to_python_type, vm_exception_classes
 
 # Sentinel object for indicating no error in exception handling
 NO_ERROR_FLAG = object()
+
+HASHED_KEYS = [
+    "Bytes32",
+    "Hash32",
+    "Bytes256",
+    "VersionedHash",
+    "Root",
+    "Bytes",
+    "U256",
+]
 
 
 def get_struct_definition(program, path: Tuple[str, ...]) -> StructDefinition:
@@ -280,13 +289,18 @@ class Serde:
             ).members
 
             # Mappings with these keys are hashed - the actual key type becomes a felt.
-            key_type = (
+            inner_type = (
                 TypeFelt()
-                if str(dict_access_types["key"].cairo_type.scope.path[-1]).startswith(
-                    "Bytes"
-                )
-                or str(dict_access_types["key"].cairo_type.scope.path[-1])
-                in ["U256", "Hash32", "VersionedHash", "Root"]
+                if str(dict_access_types["key"].cairo_type.scope.path[-1])
+                in [
+                    "Bytes",
+                    "U256",
+                    "Bytes256",
+                    "Bytes32",
+                    "Hash32",
+                    "VersionedHash",
+                    "Root",
+                ]
                 else dict_access_types["key"].cairo_type
             )
             value_type = dict_access_types["new_value"].cairo_type
@@ -295,46 +309,47 @@ class Serde:
             dict_ptr = pointers["dict_ptr_start"]
 
             dict_data = {
-                self._serialize(key_type, dict_ptr + i): self._serialize(
+                self._serialize(inner_type, dict_ptr + i): self._serialize(
                     value_type, dict_ptr + i + 2
                 )
                 for i in range(0, segment_size, 3)
             }
 
-            if key_type == TypeFelt():
-                # Keys are felt only when they are actually hashes of complex keys
-                # We need to retrieve preimages from the dict tracker in case the keys were hashed.
-                tracker_data = self.dict_manager.trackers[dict_ptr.segment_index].data
-                preimages_dict = {
-                    preimage: dict_data[
-                        # Don't hash 20-byte addresses
-                        (
-                            preimage_int
-                            if isinstance(preimage, bytes) and len(preimage) == 20
-                            # Hash 32-byte values using poseidon
-                            else (
-                                poseidon_hash_many(int_to_uint256(preimage_int))
-                                if isinstance(preimage, bytes) and len(preimage) == 32
-                                # Default case - use original value
-                                else preimage_int
-                            )
+            serialized_dict = {}
+            tracker_data = self.dict_manager.trackers[dict_ptr.segment_index].data
+            actual_type_name = dict_access_types["key"].cairo_type.scope.path[-1]
+            if actual_type_name in HASHED_KEYS:
+                for key, value in tracker_data.items():
+                    # Reconstruct the original key from the preimage
+                    if actual_type_name in [
+                        "Bytes32",
+                        "Hash32",
+                        "Bytes256",
+                        "VersionedHash",
+                        "Root",
+                    ]:
+                        hashed_key = poseidon_hash_many(key)
+                        preimage = b"".join(felt.to_bytes(16, "little") for felt in key)
+                        serialized_dict[preimage] = dict_data[hashed_key]
+
+                    elif actual_type_name == "U256":
+                        hashed_key = poseidon_hash_many(key)
+                        preimage = sum(
+                            felt * 2 ** (128 * i) for i, felt in enumerate(key)
                         )
-                    ]
-                    for preimage in tracker_data.keys()
-                    for preimage_int in [
-                        (
-                            int.from_bytes(preimage, "little")
-                            if isinstance(preimage, bytes)
-                            else preimage
-                        )
-                    ]
-                }
-                dict_data = preimages_dict
+                        serialized_dict[preimage] = dict_data[hashed_key]
+
+                    elif actual_type_name == "Bytes":
+                        hashed_key = poseidon_hash_many(key)
+                        preimage = bytes(list(key))
+                        serialized_dict[preimage] = dict_data[hashed_key]
+            else:
+                serialized_dict = dict_data
 
             if origin_cls is set:
-                return set(dict_data.keys())
+                return set(serialized_dict.keys())
 
-            return dict_data
+            return serialized_dict
 
         if python_cls in (bytes, bytearray, Bytes, str):
             tuple_struct_ptr = self.serialize_pointers(path, ptr)["value"]

@@ -513,11 +513,15 @@ def _gen_arg(
 
         # This is required for tests where we read data from DictAccess segments while no dict method has been used.
         # Equivalent to doing an initial dict_read of all keys.
-        initial_data = flatten([(k, v, v) for k, v in data.items()])
+        # We only hash keys if they're in tuples.
+        initial_data = flatten(
+            [
+                (poseidon_hash_many(tuple(k)) if len(k) > 1 else k, v, v)
+                for k, v in data.items()
+            ]
+        )
         segments.load_data(dict_ptr, initial_data)
         current_ptr = dict_ptr + len(initial_data)
-
-        data = dict(zip(arg.keys(), data.values()))
 
         if isinstance(dict_manager, DictManager):
             dict_manager.trackers[dict_ptr.segment_index] = DictTracker(
@@ -584,7 +588,7 @@ def _gen_arg(
         ]
 
         if hash_mode:
-            return poseidon_hash_many(felt_values)
+            return tuple(felt_values)
 
         base = segments.add()
         segments.load_data(base, felt_values)
@@ -595,6 +599,10 @@ def _gen_arg(
             return 0
         if isinstance(arg, str):
             arg = arg.encode()
+
+        if hash_mode:
+            return tuple(list(arg))
+
         bytes_ptr = segments.add()
         segments.load_data(bytes_ptr, list(arg))
         struct_ptr = segments.add()
@@ -603,12 +611,16 @@ def _gen_arg(
 
     if arg_type in (int, bool, U64, Uint, Bytes0, Bytes8, Bytes20):
         if arg_type is int and arg < 0:
-            return arg + DEFAULT_PRIME
-        return (
+            ret_value = arg + DEFAULT_PRIME
+            return tuple([ret_value]) if hash_mode else ret_value
+
+        ret_value = (
             int(arg)
             if not isinstance_with_generic(arg, bytes)
             else int.from_bytes(arg, "little")
         )
+
+        return tuple([ret_value]) if hash_mode else ret_value
 
     if isinstance(arg_type, type) and issubclass(arg_type, Exception):
         # For exceptions, we either return 0 (no error) or the ascii representation of the error message
