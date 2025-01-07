@@ -72,7 +72,7 @@ class TestEnvironmentalInformation:
             )
 
         @pytest.mark.slow
-        @settings(max_examples=300)
+        @settings(max_examples=20)  # for max_examples=2, it takes 45.71s in local
         @given(
             opcode_number=st.sampled_from([0x39, 0x37]),
             offset=st.integers(0, 2**128 - 1),

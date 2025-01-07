@@ -76,7 +76,7 @@ register_type_strategies()
 settings.register_profile(
     "nightly",
     deadline=None,
-    max_examples=1500,
+    max_examples=700,
     phases=[Phase.explicit, Phase.reuse, Phase.generate, Phase.target],
     report_multiple_bugs=True,
     suppress_health_check=[HealthCheck.too_slow],

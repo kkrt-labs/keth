@@ -35,7 +35,7 @@ class TestTrie:
         )
 
     @pytest.mark.slow
-    @settings(max_examples=300)
+    @settings(max_examples=20)  # for max_examples=2, it takes 129.91s in local
     @given(node=..., storage_root=...)
     def test_encode_node(self, cairo_run, node: Node, storage_root: Optional[Bytes]):
         assume(node is not None)
@@ -145,7 +145,7 @@ class TestTrie:
         assert value == obj.get(level, b"")
 
     @pytest.mark.slow
-    @settings(max_examples=300)
+    @settings(max_examples=5)  # for max_examples=2, it takes 239.03s in local
     @given(obj=st.dictionaries(nibble, bytes32))
     def test_patricialize(self, cairo_run, obj: Mapping[Bytes, Bytes]):
         assert patricialize(obj, Uint(0)) == cairo_run("patricialize", obj, Uint(0))

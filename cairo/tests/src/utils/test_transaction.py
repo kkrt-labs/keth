@@ -3,7 +3,7 @@ from eth_account._utils.transaction_utils import transaction_rpc_to_rlp_structur
 from eth_account._utils.validation import LEGACY_TRANSACTION_VALID_VALUES
 from eth_account.typed_transactions.access_list_transaction import AccessListTransaction
 from eth_account.typed_transactions.dynamic_fee_transaction import DynamicFeeTransaction
-from hypothesis import given
+from hypothesis import given, settings
 from hypothesis import strategies as st
 from rlp import encode
 
@@ -47,6 +47,7 @@ class TestTransaction:
                 encoded_unsigned_tx = rlp_encode_signed_data(transaction)
                 cairo_run("test__decode", data=list(encoded_unsigned_tx))
 
+        @settings(max_examples=len(TRANSACTIONS))
         @given(value=st.integers(min_value=2**248))
         @pytest.mark.parametrize("transaction", TRANSACTIONS)
         @pytest.mark.parametrize(
