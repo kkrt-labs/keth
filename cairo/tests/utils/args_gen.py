@@ -502,49 +502,36 @@ def _gen_arg(
             arg_type = Mapping[get_args(arg_type)[0], bool]
 
         data = {
-            preimage_key: {
-                "hashed_key": _gen_arg(
-                    dict_manager,
-                    segments,
-                    get_args(arg_type)[0],
-                    preimage_key,
-                    hash_mode=True,
-                ),
-                "value": _gen_arg(dict_manager, segments, get_args(arg_type)[1], value),
-            }
-            for preimage_key, value in arg.items()
+            _gen_arg(
+                dict_manager, segments, get_args(arg_type)[0], k, hash_mode=True
+            ): _gen_arg(dict_manager, segments, get_args(arg_type)[1], v)
+            for k, v in arg.items()
         }
 
-        # The dict written to the memory segment, with hashed keys
-        initial_dict = {v["hashed_key"]: v["value"] for v in data.values()}
+        if isinstance_with_generic(arg, defaultdict):
+            data = defaultdict(arg.default_factory, data)
 
         # This is required for tests where we read data from DictAccess segments while no dict method has been used.
         # Equivalent to doing an initial dict_read of all keys.
-        initial_data = flatten([(k, v, v) for k, v in initial_dict.items()])
+        initial_data = flatten([(k, v, v) for k, v in data.items()])
         segments.load_data(dict_ptr, initial_data)
         current_ptr = dict_ptr + len(initial_data)
 
-        # Set up dictionary tracker with preimage keys for lookups
-        base_dict = {k: v["value"] for k, v in data.items()}
-        tracking_dict = (
-            defaultdict(data.default_factory, base_dict)
-            if isinstance_with_generic(data, defaultdict)
-            else base_dict
-        )
+        data = dict(zip(arg.keys(), data.values()))
 
         if isinstance(dict_manager, DictManager):
             dict_manager.trackers[dict_ptr.segment_index] = DictTracker(
-                data=tracking_dict, current_ptr=current_ptr
+                data=data, current_ptr=current_ptr
             )
         else:
             dict_manager.insert(
                 dict_ptr.segment_index,
                 RustDictTracker(
-                    keys=list(tracking_dict.keys()),
-                    values=list(tracking_dict.values()),
+                    keys=list(data.keys()),
+                    values=list(data.values()),
                     current_ptr=current_ptr,
                     default_value=(
-                        tracking_dict.default_factory()
+                        data.default_factory()
                         if isinstance(data, defaultdict)
                         else None
                     ),
