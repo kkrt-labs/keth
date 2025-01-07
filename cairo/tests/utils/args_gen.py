@@ -99,7 +99,7 @@ from starkware.cairo.lang.compiler.identifier_definition import (
 )
 from starkware.cairo.lang.compiler.program import Program
 from starkware.cairo.lang.compiler.scoped_name import ScopedName
-from starkware.cairo.lang.vm.crypto import poseidon_hash
+from starkware.cairo.lang.vm.crypto import poseidon_hash_many
 from starkware.cairo.lang.vm.relocatable import RelocatableValue
 
 from ethereum.cancun.blocks import Header, Log, Receipt, Withdrawal
@@ -601,11 +601,7 @@ def _gen_arg(
         ]
 
         if hash_mode:
-            if len(felt_values) != 2:
-                raise ValueError(
-                    "Hashmode is currently only supported for 32-bytes integers"
-                )
-            return poseidon_hash(felt_values[0], felt_values[1])
+            return poseidon_hash_many(felt_values)
 
         base = segments.add()
         segments.load_data(base, felt_values)

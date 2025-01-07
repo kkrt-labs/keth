@@ -63,7 +63,7 @@ from starkware.cairo.lang.compiler.identifier_definition import (
 )
 from starkware.cairo.lang.compiler.identifier_manager import MissingIdentifierError
 from starkware.cairo.lang.compiler.scoped_name import ScopedName
-from starkware.cairo.lang.vm.crypto import poseidon_hash
+from starkware.cairo.lang.vm.crypto import poseidon_hash_many
 from starkware.cairo.lang.vm.memory_dict import UnknownMemoryError
 from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 
@@ -278,13 +278,12 @@ class Serde:
             dict_access_types = get_struct_definition(
                 self.program, dict_access_path
             ).members
-            # Mappings of with keys of these types are hashed - the actual key type becomes a felt.
+
+            # Mappings with these keys are hashed - the actual key type becomes a felt.
             key_type = (
                 TypeFelt()
-                if any(
-                    x == str(dict_access_types["key"].cairo_type.scope.path[-1])
-                    for x in ["Bytes32", "U256", "Hash32"]
-                )
+                if str(dict_access_types["key"].cairo_type.scope.path[-1])
+                in ["Bytes", "U256", "Hash32"]
                 else dict_access_types["key"].cairo_type
             )
             value_type = dict_access_types["new_value"].cairo_type
@@ -292,38 +291,47 @@ class Serde:
             segment_size = pointers["dict_ptr"] - pointers["dict_ptr_start"]
             dict_ptr = pointers["dict_ptr_start"]
 
-            if origin_cls is set:
-                return {
-                    self._serialize(key_type, dict_ptr + i)
-                    for i in range(0, segment_size, 3)
-                }
-
-            # The dict serialized from the memory segment values.
-            memory_dict = {
+            dict_data = {
                 self._serialize(key_type, dict_ptr + i): self._serialize(
                     value_type, dict_ptr + i + 2
                 )
                 for i in range(0, segment_size, 3)
             }
 
-            if key_type != TypeFelt():
-                return memory_dict
+            if key_type == TypeFelt():
+                # Keys are felt only when they are actually hashes of complex keys
+                # We need to retrieve preimages from the dict tracker in case the keys were hashed.
+                tracker_data = self.dict_manager.trackers[dict_ptr.segment_index].data
+                preimages_dict = {
+                    preimage: dict_data[
+                        # Don't hash 20-byte addresses
+                        (
+                            preimage_int
+                            if isinstance(preimage, bytes) and len(preimage) == 20
+                            # Hash 32-byte values using poseidon
+                            else (
+                                poseidon_hash_many(int_to_uint256(preimage_int))
+                                if isinstance(preimage, bytes) and len(preimage) == 32
+                                # Default case - use original value
+                                else preimage_int
+                            )
+                        )
+                    ]
+                    for preimage in tracker_data.keys()
+                    for preimage_int in [
+                        (
+                            int.from_bytes(preimage, "little")
+                            if isinstance(preimage, bytes)
+                            else preimage
+                        )
+                    ]
+                }
+                dict_data = preimages_dict
 
-            # We need to retrieve preimages from the dict tracker in case the keys were hashed.
-            # If no value is found for the preimage, we hash it and re-try.
-            tracker_data = self.dict_manager.trackers[dict_ptr.segment_index].data
-            return {
-                preimage: memory_dict.get(preimage_int)
-                or memory_dict[poseidon_hash(*int_to_uint256(preimage_int))]
-                for preimage in tracker_data.keys()
-                for preimage_int in [
-                    (
-                        int.from_bytes(preimage, "little")
-                        if isinstance(preimage, bytes)
-                        else preimage
-                    )
-                ]
-            }
+            if origin_cls is set:
+                return set(dict_data.keys())
+
+            return dict_data
 
         if python_cls in (bytes, bytearray, Bytes, str):
             tuple_struct_ptr = self.serialize_pointers(path, ptr)["value"]
@@ -401,8 +409,6 @@ class Serde:
         if is_dataclass(get_origin(python_cls)) or is_dataclass(python_cls):
             # Adjust int fields if they exceed 2**128 by subtracting DEFAULT_PRIME
             # and filter out the NO_ERROR_FLAG, replacing it with None
-            if True:
-                pass
 
             adjusted_value = {
                 k: (
