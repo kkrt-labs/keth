@@ -20,7 +20,7 @@ from ethereum.cancun.blocks import Log, LogStruct, TupleLog, TupleLogStruct
 // @notice LOG0 instruction - append log record with no topics
 func log0{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> ExceptionalHalt* {
     alloc_locals;
-    let num_topics = 0;
+    const NUM_TOPICS = 0;
 
     // STACK
     let stack = evm.value.stack;
@@ -52,7 +52,7 @@ func log0{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Exceptio
 
     // Calculate total gas cost
     let data_cost = GasConstants.GAS_LOG_DATA * size.value.low;
-    let topic_cost = GasConstants.GAS_LOG_TOPIC * num_topics;
+    let topic_cost = GasConstants.GAS_LOG_TOPIC * NUM_TOPICS;
     let total_cost = Uint(
         GasConstants.GAS_LOG + data_cost + topic_cost + extend_memory.value.cost.value
     );
@@ -94,7 +94,7 @@ func log0{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Exceptio
 // @notice LOG1 instruction - append log record with one topic
 func log1{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> ExceptionalHalt* {
     alloc_locals;
-    let num_topics = 1;
+    const NUM_TOPICS = 1;
 
     // STACK
     let stack = evm.value.stack;
@@ -130,7 +130,7 @@ func log1{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Exceptio
 
     // Calculate total gas cost
     let data_cost = GasConstants.GAS_LOG_DATA * size.value.low;
-    let topic_cost = GasConstants.GAS_LOG_TOPIC * num_topics;
+    let topic_cost = GasConstants.GAS_LOG_TOPIC * NUM_TOPICS;
     let total_cost = Uint(
         GasConstants.GAS_LOG + data_cost + topic_cost + extend_memory.value.cost.value
     );
@@ -173,7 +173,7 @@ func log1{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Exceptio
 // @notice LOG2 instruction - append log record with two topics
 func log2{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> ExceptionalHalt* {
     alloc_locals;
-    let num_topics = 2;
+    const NUM_TOPICS = 2;
 
     // STACK
     let stack = evm.value.stack;
@@ -213,7 +213,7 @@ func log2{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Exceptio
 
     // Calculate total gas cost
     let data_cost = GasConstants.GAS_LOG_DATA * size.value.low;
-    let topic_cost = GasConstants.GAS_LOG_TOPIC * num_topics;
+    let topic_cost = GasConstants.GAS_LOG_TOPIC * NUM_TOPICS;
     let total_cost = Uint(
         GasConstants.GAS_LOG + data_cost + topic_cost + extend_memory.value.cost.value
     );
@@ -259,7 +259,7 @@ func log2{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Exceptio
 // @notice LOG3 instruction - append log record with three topics
 func log3{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> ExceptionalHalt* {
     alloc_locals;
-    let num_topics = 3;
+    const NUM_TOPICS = 3;
 
     // STACK
     let stack = evm.value.stack;
@@ -303,7 +303,7 @@ func log3{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Exceptio
 
     // Calculate total gas cost
     let data_cost = GasConstants.GAS_LOG_DATA * size.value.low;
-    let topic_cost = GasConstants.GAS_LOG_TOPIC * num_topics;
+    let topic_cost = GasConstants.GAS_LOG_TOPIC * NUM_TOPICS;
     let total_cost = Uint(
         GasConstants.GAS_LOG + data_cost + topic_cost + extend_memory.value.cost.value
     );
@@ -351,7 +351,7 @@ func log3{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Exceptio
 // @notice LOG4 instruction - append log record with four topics
 func log4{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> ExceptionalHalt* {
     alloc_locals;
-    let num_topics = 4;
+    const NUM_TOPICS = 4;
 
     // STACK
     let stack = evm.value.stack;
@@ -399,7 +399,7 @@ func log4{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Exceptio
 
     // Calculate total gas cost
     let data_cost = GasConstants.GAS_LOG_DATA * size.value.low;
-    let topic_cost = GasConstants.GAS_LOG_TOPIC * num_topics;
+    let topic_cost = GasConstants.GAS_LOG_TOPIC * NUM_TOPICS;
     let total_cost = Uint(
         GasConstants.GAS_LOG + data_cost + topic_cost + extend_memory.value.cost.value
     );
