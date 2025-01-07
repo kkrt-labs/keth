@@ -116,7 +116,6 @@ func log1{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Exceptio
 
     // GAS
     // Calculate memory expansion cost
-
     // If the size is greater than 2**128, the memory expansion will trigger an out of gas error.
     if (size.value.high != 0) {
         tempvar err = new ExceptionalHalt(OutOfGasError);
