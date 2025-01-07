@@ -1,5 +1,7 @@
 import pytest
 
+pytestmark = pytest.mark.python_vm
+
 
 @pytest.mark.parametrize(
     "test_case",

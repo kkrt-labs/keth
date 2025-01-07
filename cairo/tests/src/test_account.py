@@ -7,6 +7,8 @@ from hypothesis.strategies import binary
 from src.utils.uint256 import int_to_uint256
 from tests.utils.helpers import get_internal_storage_key
 
+pytestmark = pytest.mark.python_vm
+
 
 class TestAccount:
     class TestInit:

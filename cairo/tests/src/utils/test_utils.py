@@ -10,6 +10,8 @@ from ethereum.cancun.vm.runtime import get_valid_jump_destinations
 from tests.utils.errors import cairo_error
 from tests.utils.solidity import get_contract
 
+pytestmark = pytest.mark.python_vm
+
 
 @pytest.mark.parametrize(
     "test_case,data,expected",

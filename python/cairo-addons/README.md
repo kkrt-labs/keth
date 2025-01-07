@@ -5,16 +5,18 @@ Starkware core library.
 
 ## Installation
 
-Any changes to the rust code requires a re-build and re-install of the python
-package, see
-[the uv docs](https://docs.astral.sh/uv/concepts/projects/init/#projects-with-extension-modules)
-for more information.
-
-The tl;dr is:
+As any uv workspace, you can install the package with:
 
 ```bash
-uv run --reinstall <command>
+uv sync
 ```
 
-Forgetting the `--reinstall` flag will not re-build the python package and
-consequentially not use any changes to the rust code.
+## Updating Rust dependencies
+
+To update the rust dependencies, you can run:
+
+```bash
+maturin develop --uv
+```
+
+Then, running `uv run python ...` should have the changes reflected.

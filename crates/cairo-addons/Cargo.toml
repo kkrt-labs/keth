@@ -4,18 +4,26 @@ version = "0.1.0"
 edition = "2021"
 
 [lib]
-name = "_core"
+name = "vm"
 # "cdylib" is necessary to produce a shared library for Python to import from.
 crate-type = ["cdylib"]
 
 [dependencies]
 # "extension-module" tells pyo3 we want to build an extension module (skips linking against libpython.so)
 # "abi3-py39" tells pyo3 (and maturin) to build using the stable ABI with minimum Python version 3.9
-pyo3 = { version = "0.22.4", features = ["extension-module", "abi3-py39"] }
+pyo3 = { version = "0.22.4", features = [
+  "extension-module",
+  "abi3-py39",
+  "num-bigint",
+  "experimental-inspect",
+] }
+cairo-vm = { workspace = true }
+num-traits = "0.2.18"
+num-bigint = "0.4.6"
 
 [build-dependencies]
 pyo3-build-config = "0.22.4" # Should match pyo3 version
 
 [features]
 extension-module = ["pyo3/extension-module"]
-default = ["extension-module"]
+default = ["extension-module", "pyo3/experimental-inspect"]

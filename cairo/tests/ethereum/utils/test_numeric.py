@@ -1,3 +1,4 @@
+import pytest
 from ethereum_types.bytes import Bytes32
 from ethereum_types.numeric import U256, Uint
 from hypothesis import given
@@ -8,8 +9,11 @@ from ethereum.cancun.vm.gas import BLOB_GASPRICE_UPDATE_FRACTION, MIN_BLOB_GASPR
 from ethereum.utils.numeric import ceil32, taylor_exponential
 from tests.utils.strategies import felt, uint128
 
+pytestmark = pytest.mark.python_vm
+
 
 class TestNumeric:
+
     @given(a=uint128, b=uint128)
     def test_min(self, cairo_run, a, b):
         assert min(a, b) == cairo_run("min", a, b)

@@ -43,8 +43,7 @@ jobs:
 
       - name: Run tests with caching
         run: |
-          uv run compile_os
-          uv run pytest cairo/tests -n logical --durations=0 -v -s --log-cli-level=DEBUG
+          uv run --reinstall pytest cairo/tests -n logical --durations=0 -v -s --log-cli-level=DEBUG
 
       - uses: actions/cache/save@v4
         with:

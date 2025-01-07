@@ -1,5 +1,7 @@
 import pytest
 
+pytestmark = pytest.mark.python_vm
+
 
 class TestSwapOperations:
     @pytest.mark.parametrize("i", range(1, 17))

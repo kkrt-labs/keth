@@ -9,6 +9,8 @@ EXISTING_ACCOUNT = 0xABDE1
 EXISTING_ACCOUNT_SN_ADDR = 0x1234
 NON_EXISTING_ACCOUNT = 0xDEAD
 
+pytestmark = pytest.mark.python_vm
+
 
 @pytest.fixture(scope="module", params=[0, 32], ids=["no bytecode", "32 bytes"])
 def bytecode(request):

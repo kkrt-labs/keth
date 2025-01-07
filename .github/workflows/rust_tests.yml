@@ -13,18 +13,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - uses: astral-sh/setup-uv@v2
-        with:
-          enable-cache: true
-          cache-dependency-glob: uv.lock
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version-file: .python-version
-
-      - name: Compile fibonacci
-        run: uv run compile_fibonacci
-
       - run: rustup update
       - name: Rust cache
         uses: Swatinem/rust-cache@v2

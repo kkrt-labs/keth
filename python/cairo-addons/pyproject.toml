@@ -5,10 +5,10 @@ description = "Add your description here"
 readme = "README.md"
 authors = [{ name = "Clément Walter", email = "clement0walter@gmail.com" }]
 requires-python = ">=3.10"
-dependencies = []
+dependencies = ["cairo-lang>=0.13.3", "maturin>=1.8.1"]
 
 [tool.maturin]
-module-name = "cairo_addons._core"
+module-name = "cairo_addons.vm"
 python-packages = ["cairo_addons"]
 python-source = "src"
 manifest-path = "../../crates/cairo-addons/Cargo.toml"
@@ -16,3 +16,11 @@ manifest-path = "../../crates/cairo-addons/Cargo.toml"
 [build-system]
 requires = ["maturin>=1.0,<2.0"]
 build-backend = "maturin"
+
+[tool.uv]
+dev-dependencies = [
+  "pytest>=7.0",
+  "cairo-lang>=0.13.0",
+  "hypothesis>=6.122.3",
+  "jupyter>=1.1.1",
+]

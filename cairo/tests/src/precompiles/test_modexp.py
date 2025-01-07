@@ -2,6 +2,8 @@ import math
 
 import pytest
 
+pytestmark = pytest.mark.python_vm
+
 
 @pytest.mark.MOD_EXP
 class TestModExp:

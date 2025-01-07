@@ -8,6 +8,8 @@ from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 from src.utils.uint256 import int_to_uint256
 from tests.utils.strategies import Address
 
+pytestmark = pytest.mark.python_vm
+
 
 class TestMemoryOperations:
     class TestPc:

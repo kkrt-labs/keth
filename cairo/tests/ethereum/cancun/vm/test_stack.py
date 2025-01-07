@@ -7,6 +7,8 @@ from hypothesis import assume, given
 from ethereum.cancun.vm.exceptions import StackOverflowError, StackUnderflowError
 from ethereum.cancun.vm.stack import pop, push
 
+pytestmark = pytest.mark.python_vm
+
 
 class TestStack:
     def test_pop_underflow(self, cairo_run):

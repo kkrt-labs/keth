@@ -2,6 +2,8 @@ import hypothesis.strategies as st
 import pytest
 from hypothesis import given, settings
 
+pytestmark = pytest.mark.python_vm
+
 
 @pytest.mark.EC_ADD
 class TestEcAdd:

@@ -36,6 +36,7 @@ from typing import (
     get_origin,
 )
 
+from cairo_addons.vm import MemorySegmentManager as RustMemorySegmentManager
 from eth_utils.address import to_checksum_address
 from ethereum_types.bytes import (
     Bytes,
@@ -95,9 +96,16 @@ def get_struct_definition(program, path: Tuple[str, ...]) -> StructDefinition:
 
 
 class Serde:
-    def __init__(self, segments: MemorySegmentManager, program, cairo_file=None):
+    def __init__(
+        self,
+        segments: Union[MemorySegmentManager, RustMemorySegmentManager],
+        program,
+        cairo_file=None,
+    ):
         self.segments = segments
-        self.memory = segments.memory
+        self.memory = (
+            segments.memory if isinstance(segments, MemorySegmentManager) else segments
+        )
         self.program = program
         self.cairo_file = cairo_file or Path()
 

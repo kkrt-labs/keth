@@ -1,5 +1,8 @@
+import pytest
 from hypothesis import given
 from hypothesis.strategies import integers
+
+pytestmark = pytest.mark.python_vm
 
 
 class TestIsValidJumpdest:

@@ -1,3 +1,4 @@
+import pytest
 from ethereum_types.numeric import Uint
 from hypothesis import assume, given
 
@@ -12,6 +13,8 @@ from ethereum.cancun.fork import (
 from ethereum.cancun.transactions import Transaction
 from ethereum.exceptions import InvalidBlock
 from tests.utils.errors import cairo_error
+
+pytestmark = pytest.mark.python_vm
 
 
 class TestFork:

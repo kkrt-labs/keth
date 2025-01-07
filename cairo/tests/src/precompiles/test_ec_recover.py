@@ -8,6 +8,8 @@ from ethereum.crypto.hash import Hash32, keccak256
 from ethereum.utils.byte import left_pad_zero_bytes
 from tests.utils.helpers import ec_sign, generate_random_private_key
 
+pytestmark = pytest.mark.python_vm
+
 
 def ecrecover(data):
     message_hash_bytes = data[0:32]
