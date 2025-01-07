@@ -101,8 +101,8 @@ class Serde:
     def __init__(
         self,
         segments: Union[MemorySegmentManager, RustMemorySegmentManager],
-        dict_manager,
         program,
+        dict_manager,
         cairo_file=None,
     ):
         self.segments = segments
