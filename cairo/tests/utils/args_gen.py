@@ -146,6 +146,7 @@ class Environment(
     make_dataclass(
         "Environment",
         [(f.name, f.type, f) for f in fields(EnvironmentBase) if f.name != "traces"],
+        namespace={"__doc__": EnvironmentBase.__doc__},
     )
 ):
     """A version of Environment that excludes the traces field, which is not used during execution."""
@@ -157,48 +158,31 @@ class Environment(
 class Message(
     make_dataclass(
         "Message",
-        [(f.name, f.type, f) for f in fields(MessageBase) if f.name != "parent_evm"]
-        + [
-            ("parent_evm", Optional["Evm"]),
+        [
+            (f.name, f.type if f.name != "parent_evm" else Optional["Evm"], f)
+            for f in fields(MessageBase)
         ],
-        namespace={
-            "__doc__": "Items that are used by contract creation or message call.",
-        },
+        namespace={"__doc__": MessageBase.__doc__},
     )
 ):
     pass
+
+
+_field_mapping = {
+    "stack": Stack[U256],
+    "memory": Memory,
+    "env": Environment,
+    "error": Optional[EthereumException],
+    "message": Message,
+}
 
 
 @dataclass
 class Evm(
     make_dataclass(
         "Evm",
-        # Replace all fields with our local types
-        [
-            (
-                f.name,
-                (
-                    Stack[U256]
-                    if f.name == "stack"
-                    else (
-                        Memory
-                        if f.name == "memory"
-                        else (
-                            Environment
-                            if f.name == "env"
-                            else (
-                                Optional[EthereumException]
-                                if f.name == "error"
-                                else Message if f.name == "message" else f.type
-                            )
-                        )
-                    )
-                ),
-                f,
-            )
-            for f in fields(EvmBase)
-        ],
-        namespace={"__doc__": "The internal state of the virtual machine."},
+        [(f.name, _field_mapping.get(f.name, f.type), f) for f in fields(EvmBase)],
+        namespace={"__doc__": EvmBase.__doc__},
     )
 ):
     def __eq__(self, other):
@@ -536,6 +520,11 @@ def _gen_arg(
                     keys=list(data.keys()),
                     values=list(data.values()),
                     current_ptr=current_ptr,
+                    default_value=(
+                        data.default_factory()
+                        if isinstance(data, defaultdict)
+                        else None
+                    ),
                 ),
             )
         base = segments.add()

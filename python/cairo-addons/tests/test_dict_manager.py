@@ -26,6 +26,16 @@ class TestDictManager:
         assert runner.dict_manager.get_value(current_ptr.segment_index, 1) == data[1]
         assert runner.dict_manager.get_value(current_ptr.segment_index, 2) == data[2]
 
+    def test_should_insert_default_dict(self, runner):
+        dict_ptr = runner.segments.add()
+        runner.dict_manager.insert(
+            dict_ptr.segment_index,
+            DictTracker(
+                keys=[], values=[], current_ptr=dict_ptr, default_value=0xABDE1
+            ),
+        )
+        assert runner.dict_manager.get_value(dict_ptr.segment_index, 1) == 0xABDE1
+
     def test_should_raise_existing_dict(self, runner):
         dict_ptr = runner.segments.add()
         runner.dict_manager.insert(

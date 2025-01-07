@@ -56,14 +56,23 @@ impl PyDictTracker {
     // Note: This is a temporary implementation, need to understand why HashMap<PyMaybeRelocatable,
     // PyMaybeRelocatable> is not working
     #[new]
+    #[pyo3(signature = (keys, values, current_ptr, default_value=None))]
     fn new(
         keys: Vec<PyMaybeRelocatable>,
         values: Vec<PyMaybeRelocatable>,
         current_ptr: PyRelocatable,
+        default_value: Option<PyMaybeRelocatable>,
     ) -> PyResult<Self> {
         let data: HashMap<MaybeRelocatable, MaybeRelocatable> =
             keys.into_iter().zip(values).map(|(k, v)| (k.into(), v.into())).collect();
 
-        Ok(Self { inner: DictTracker::new_with_initial(current_ptr.inner, data) })
+        if let Some(default_value) = default_value {
+            let default_value = default_value.into();
+            Ok(Self {
+                inner: DictTracker::new_default_dict(current_ptr.inner, &default_value, Some(data)),
+            })
+        } else {
+            Ok(Self { inner: DictTracker::new_with_initial(current_ptr.inner, data) })
+        }
     }
 }
