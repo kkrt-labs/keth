@@ -1,3 +1,0 @@
-struct Exception {
-    value: felt,
-}
