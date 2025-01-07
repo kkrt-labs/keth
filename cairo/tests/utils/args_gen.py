@@ -130,6 +130,8 @@ from ethereum.exceptions import EthereumException
 from ethereum.rlp import Extended, Simple
 from tests.utils.helpers import flatten
 
+HASHED_TYPES = [Bytes, bytes, bytearray, str, U256, Hash32, Bytes32, Bytes256]
+
 
 class Memory(bytearray):
     pass
@@ -376,7 +378,7 @@ def _gen_arg(
     arg_type: Type,
     arg: Any,
     annotations: Optional[Any] = None,
-    hash_mode: bool = False,
+    hash_mode: Optional[bool] = None,
 ):
     """
     Generate a Cairo argument from a Python argument.
@@ -454,7 +456,10 @@ def _gen_arg(
         # Get the concrete type parameter. For bytearray, the value type is int.
         value_type = next(iter(get_args(arg_type)), int)
         data = defaultdict(int, {k: v for k, v in enumerate(arg)})
-        base = _gen_arg(dict_manager, segments, Dict[Uint, value_type], data)
+        # Use regular, non-hashed dict entries for stack and memory.
+        base = _gen_arg(
+            dict_manager, segments, Dict[Uint, value_type], data, hash_mode=False
+        )
         segments.load_data(base + 2, [len(arg)])
         return base
 
@@ -503,7 +508,11 @@ def _gen_arg(
 
         data = {
             _gen_arg(
-                dict_manager, segments, get_args(arg_type)[0], k, hash_mode=True
+                dict_manager,
+                segments,
+                get_args(arg_type)[0],
+                k,
+                hash_mode=hash_mode is not False,
             ): _gen_arg(dict_manager, segments, get_args(arg_type)[1], v)
             for k, v in arg.items()
         }
@@ -516,7 +525,15 @@ def _gen_arg(
         # We only hash keys if they're in tuples.
         initial_data = flatten(
             [
-                (poseidon_hash_many(tuple(k)) if len(k) > 1 else k, v, v)
+                (
+                    (
+                        poseidon_hash_many(tuple(k))
+                        if get_args(arg_type)[0] in HASHED_TYPES
+                        else k
+                    ),
+                    v,
+                    v,
+                )
                 for k, v in data.items()
             ]
         )
