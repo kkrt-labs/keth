@@ -239,9 +239,9 @@ namespace Internals {
             return ok;
         }
 
-        let block_hashes = evm.value.env.value.block_hashes.value.data[
-            evm.value.env.value.number.value - block_number.value.low
-        ];
+        let index_from_end = evm.value.env.value.block_hashes.value.len -
+            evm.value.env.value.number.value + block_number.value.low;
+        let block_hashes = evm.value.env.value.block_hashes.value.data[index_from_end];
         with stack {
             let err = push(U256(new U256Struct(block_hashes.value.low, block_hashes.value.high)));
             if (cast(err, felt) != 0) {
