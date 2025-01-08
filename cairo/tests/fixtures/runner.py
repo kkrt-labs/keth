@@ -238,6 +238,7 @@ def cairo_run(
             hint_locals={
                 "program_input": kwargs,
                 "__dict_manager": dict_manager,
+                "dict_manager": dict_manager,
                 "gen_arg": gen_arg,
                 "serde": serde,
                 "oracle": oracle(cairo_program, serde, main_path, gen_arg),
