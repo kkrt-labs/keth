@@ -159,6 +159,7 @@ message_lite = st.builds(
     parent_evm=st.none(),
 )
 
+# Using this list instead of the hash32 strategy to avoid data_to_large errors
 BLOCK_HASHES_LIST = [Hash32(Bytes32(bytes([i] * 32))) for i in range(256)]
 
 environment_lite = st.integers(min_value=0).flatmap(  # Generate block number first
