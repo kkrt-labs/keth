@@ -78,20 +78,22 @@ struct TupleBytes {
 }
 
 // Important note about dictionary/mapping types:
-// Since keys are stored as pointers, accessing a dictionary with equivalent but distinct
+// When the key type are pointers, accessing a dictionary with equivalent but distinct
 // key objects may not work as expected. For example:
 //
 // If dict[b'123'] = b'345' is set, accessing with k = b'123' later may not find the value
 // since k points to a different memory location than the original key, even though the
 // content is identical.
 //
-// This could benefit from a redesign of the dictionary/mapping types to internally
+// To prevent this, we designed the dictionary/mapping types to internally
 // use the hash of the key instead of the key pointer.
+// As such, `args_gen` and `serde` automatically hash keys when generating arguments for complex types.
+// ([Bytes, bytes, bytearray, str, U256, Hash32, Bytes32, Bytes256]...)
 
-// Just a like regular DictAccess pointer, with keys and values to be interpreted as
+// Just a like regular DictAccess pointer, with keys hashed and values to be interpreted as
 // Bytes pointers.
 struct BytesBytesDictAccess {
-    key: Bytes,
+    key: felt,
     prev_value: Bytes,
     new_value: Bytes,
 }

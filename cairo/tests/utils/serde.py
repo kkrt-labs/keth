@@ -18,6 +18,7 @@ Once we have the variant pointer, we can deserialize the variant by recursively 
 serialization function.
 """
 
+import re
 from collections import abc
 from dataclasses import is_dataclass
 from inspect import signature
@@ -289,20 +290,7 @@ class Serde:
             ).members
 
             # Mappings with these keys are hashed - the actual key type becomes a felt.
-            inner_type = (
-                TypeFelt()
-                if str(dict_access_types["key"].cairo_type.scope.path[-1])
-                in [
-                    "Bytes",
-                    "U256",
-                    "Bytes256",
-                    "Bytes32",
-                    "Hash32",
-                    "VersionedHash",
-                    "Root",
-                ]
-                else dict_access_types["key"].cairo_type
-            )
+            inner_type = dict_access_types["key"].cairo_type
             value_type = dict_access_types["new_value"].cairo_type
             pointers = self.serialize_pointers(mapping_struct_path, mapping_struct_ptr)
             segment_size = pointers["dict_ptr"] - pointers["dict_ptr_start"]
@@ -317,11 +305,12 @@ class Serde:
 
             serialized_dict = {}
             tracker_data = self.dict_manager.trackers[dict_ptr.segment_index].data
-            actual_type_name = dict_access_types["key"].cairo_type.scope.path[-1]
-            if actual_type_name in HASHED_KEYS:
+            # Get the target type name from the path e.g. "BytesBytesDictAccess" -> "Bytes"
+            target_type_name = re.match(r"[A-Z][a-z]*", dict_access_path[-1])[0]
+            if isinstance(inner_type, TypeFelt):
                 for key, value in tracker_data.items():
                     # Reconstruct the original key from the preimage
-                    if actual_type_name in [
+                    if target_type_name in [
                         "Bytes32",
                         "Hash32",
                         "Bytes256",
@@ -332,14 +321,14 @@ class Serde:
                         preimage = b"".join(felt.to_bytes(16, "little") for felt in key)
                         serialized_dict[preimage] = dict_data[hashed_key]
 
-                    elif actual_type_name == "U256":
+                    elif target_type_name == "U256":
                         hashed_key = poseidon_hash_many(key)
                         preimage = sum(
                             felt * 2 ** (128 * i) for i, felt in enumerate(key)
                         )
                         serialized_dict[preimage] = dict_data[hashed_key]
 
-                    elif actual_type_name == "Bytes":
+                    elif target_type_name == "Bytes":
                         hashed_key = poseidon_hash_many(key)
                         preimage = bytes(list(key))
                         serialized_dict[preimage] = dict_data[hashed_key]
