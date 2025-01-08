@@ -73,6 +73,7 @@ from typing import (
     get_origin,
 )
 
+import pytest
 from cairo_addons.vm import DictTracker as RustDictTracker
 from cairo_addons.vm import Relocatable as RustRelocatable
 from ethereum_types.bytes import (
@@ -131,6 +132,9 @@ from ethereum.rlp import Extended, Simple
 from tests.utils.helpers import flatten
 
 HASHED_TYPES = [Bytes, bytes, bytearray, str, U256, Hash32, Bytes32, Bytes256]
+
+
+pytestmark = pytest.mark.python_vm
 
 
 class Memory(bytearray):

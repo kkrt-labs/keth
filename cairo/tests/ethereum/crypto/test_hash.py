@@ -1,7 +1,10 @@
+import pytest
 from ethereum_types.bytes import Bytes
 from hypothesis import assume, given
 
 from ethereum.crypto.hash import keccak256
+
+pytestmark = pytest.mark.python_vm
 
 
 class TestHash:

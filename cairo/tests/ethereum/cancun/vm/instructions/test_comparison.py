@@ -13,6 +13,8 @@ from ethereum.cancun.vm.instructions.comparison import (
 from tests.utils.args_gen import Evm
 from tests.utils.strategies import evm_lite
 
+pytestmark = pytest.mark.python_vm
+
 
 class TestComparison:
     @given(evm=evm_lite)

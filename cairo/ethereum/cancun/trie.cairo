@@ -4,16 +4,15 @@ from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.math_cmp import is_le
 from starkware.cairo.common.math import assert_not_zero
 from starkware.cairo.common.bitwise import BitwiseBuiltin
-from starkware.cairo.common.dict import DictAccess
+from starkware.cairo.common.dict import DictAccess, dict_new
 from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
 from starkware.cairo.common.cairo_builtins import KeccakBuiltin
 from starkware.cairo.common.memcpy import memcpy
 
 from src.utils.bytes import uint256_to_bytes32_little
 from src.utils.dict import hashdict_read
-from src.utils.utils import Helpers
 from ethereum.crypto.hash import keccak256
-from ethereum.utils.numeric import min
+from ethereum.utils.numeric import min, is_zero
 from ethereum.rlp import encode, _encode_bytes, _encode
 from ethereum_types.numeric import U256, Uint, bool, U256Struct
 from ethereum_types.bytes import (
@@ -629,7 +628,7 @@ func _get_branche_for_nibble_at_level_inner{poseidon_ptr: PoseidonBuiltin*}(
     let preimage = _get_preimage_for_key(dict_ptr, dict_ptr_stop);
 
     // Check cases
-    let is_value_case = Helpers.is_zero(preimage.value.len - level);
+    let is_value_case = is_zero(preimage.value.len - level);
     if (is_value_case != 0) {
         // Value case - update value and continue
         return _get_branche_for_nibble_at_level_inner(
@@ -642,7 +641,7 @@ func _get_branche_for_nibble_at_level_inner{poseidon_ptr: PoseidonBuiltin*}(
         );
     }
 
-    let is_nibble_case = Helpers.is_zero(preimage.value.data[level] - nibble);
+    let is_nibble_case = is_zero(preimage.value.data[level] - nibble);
     if (is_nibble_case != 0) {
         // Nibble case - copy entry and continue
         assert [branch_ptr].key = dict_ptr.key;
@@ -697,18 +696,10 @@ func _get_branche_for_nibble_at_level{poseidon_ptr: PoseidonBuiltin*}(
     obj: MappingBytesBytes, nibble: felt, level: felt
 ) -> (MappingBytesBytes, Bytes) {
     alloc_locals;
-    // Allocate branch array and initialize locals
-    let (branch_start: BytesBytesDictAccess*) = alloc();
+    // Allocate a segment for the branch and register an associated tracker
+    let (branch_start_: DictAccess*) = dict_new();
+    let branch_start = cast(branch_start_, BytesBytesDictAccess*);
     let dict_ptr_stop = obj.value.dict_ptr;
-
-    %{
-        from starkware.cairo.common.dict import DictTracker
-        # Add a tracker for the branch dict segment
-        __dict_manager.trackers[ids.branch_start.address_.segment_index] = DictTracker(
-            data={},
-            current_ptr=ids.branch_start.address_,
-        )
-    %}
 
     tempvar empty_value = Bytes(new BytesStruct(cast(0, felt*), 0));
 
@@ -855,6 +846,8 @@ func _get_branches{poseidon_ptr: PoseidonBuiltin*}(obj: MappingBytesBytes, level
     return (branches_tuple, value);
 }
 
+// @notice Given a key (inside `dict_ptr`), returns the preimage of the key registered in the tracker.
+// The preimage is validated to be correctly provided by the prover by hashing it and comparing it to the key.
 func _get_preimage_for_key{poseidon_ptr: PoseidonBuiltin*}(
     dict_ptr: BytesBytesDictAccess*, dict_ptr_stop: BytesBytesDictAccess*
 ) -> Bytes {
@@ -867,6 +860,7 @@ func _get_preimage_for_key{poseidon_ptr: PoseidonBuiltin*}(
         from starkware.cairo.lang.vm.crypto import poseidon_hash_many
         hashed_value = ids.dict_ptr.key
         dict_tracker = __dict_manager.get_tracker(ids.dict_ptr_stop)
+        # Get the key in the dict that matches the hashed value
         preimage = bytes(next(key for key in dict_tracker.data.keys() if poseidon_hash_many(key) == hashed_value))
         segments.write_arg(ids.preimage_data, preimage)
         ids.preimage_len = len(preimage)

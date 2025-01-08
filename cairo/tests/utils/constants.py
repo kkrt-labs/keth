@@ -213,6 +213,9 @@ INVALID_TRANSACTIONS = [
 ]
 
 
+pytestmark = pytest.mark.python_vm
+
+
 class Opcodes(IntEnum):
     STOP = 0x00
     ADD = 0x01
