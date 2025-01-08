@@ -18,7 +18,7 @@ from ethereum_types.others import (
 from ethereum.cancun.blocks import Log, LogStruct, TupleLog, TupleLogStruct
 
 // @notice LOG0 instruction - append log record with no topics
-func log0{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> ExceptionalHalt* {
+func log0{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
     alloc_locals;
     const NUM_TOPICS = 0;
 
@@ -69,9 +69,8 @@ func log0{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Exceptio
     }
 
     // Create log entry
-    let null_ptr = cast(0, Bytes32Struct*);
-    tempvar topics = TupleBytes32(new TupleBytes32Struct(new Bytes32(null_ptr), 0));
-    tempvar log_entry = new Log(
+    tempvar topics = TupleBytes32(new TupleBytes32Struct(cast(0, Bytes32*), 0));
+    tempvar log_entry = Log(
         new LogStruct(address=evm.value.message.value.current_target, topics=topics, data=data)
     );
 
@@ -82,7 +81,10 @@ func log0{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Exceptio
     }
 
     // Append log entry
-    EvmImpl.set_logs(TupleLog(new TupleLogStruct(log_entry, 1)));
+    let logs = evm.value.logs.value;
+    assert logs.data[logs.len] = log_entry;
+    let len = logs.len + 1;
+    EvmImpl.set_logs(TupleLog(new TupleLogStruct(logs.data, len)));
 
     // PROGRAM COUNTER
     EvmImpl.set_pc_stack_memory(Uint(evm.value.pc.value + 1), stack, memory);
@@ -149,7 +151,7 @@ func log1{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Exceptio
     let be_topic_ = U256_to_be_bytes(topic);
     tempvar be_topic = new Bytes32(be_topic_.value);
     tempvar topics = TupleBytes32(new TupleBytes32Struct(be_topic, 1));
-    tempvar log_entry = new Log(
+    tempvar log_entry = Log(
         new LogStruct(address=evm.value.message.value.current_target, topics=topics, data=data)
     );
 
@@ -160,7 +162,10 @@ func log1{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Exceptio
     }
 
     // Append log entry
-    EvmImpl.set_logs(TupleLog(new TupleLogStruct(log_entry, 1)));
+    let logs = evm.value.logs.value;
+    assert logs.data[logs.len] = log_entry;
+    let len = logs.len + 1;
+    EvmImpl.set_logs(TupleLog(new TupleLogStruct(logs.data, len)));
 
     // PROGRAM COUNTER
     EvmImpl.set_pc_stack_memory(Uint(evm.value.pc.value + 1), stack, memory);
@@ -197,7 +202,6 @@ func log2{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Exceptio
 
     // GAS
     // Calculate memory expansion cost
-
     // If the size is greater than 2**128, the memory expansion will trigger an out of gas error.
     if (size.value.high != 0) {
         tempvar err = new ExceptionalHalt(OutOfGasError);
@@ -235,7 +239,7 @@ func log2{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Exceptio
     assert _topics[0] = be_topic1;
     assert _topics[1] = be_topic2;
     tempvar topics = TupleBytes32(new TupleBytes32Struct(_topics, 2));
-    tempvar log_entry = new Log(
+    tempvar log_entry = Log(
         new LogStruct(address=evm.value.message.value.current_target, topics=topics, data=data)
     );
 
@@ -246,7 +250,10 @@ func log2{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Exceptio
     }
 
     // Append log entry
-    EvmImpl.set_logs(TupleLog(new TupleLogStruct(log_entry, 1)));
+    let logs = evm.value.logs.value;
+    assert logs.data[logs.len] = log_entry;
+    let len = logs.len + 1;
+    EvmImpl.set_logs(TupleLog(new TupleLogStruct(logs.data, len)));
 
     // PROGRAM COUNTER
     EvmImpl.set_pc_stack_memory(Uint(evm.value.pc.value + 1), stack, memory);
@@ -287,7 +294,6 @@ func log3{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Exceptio
 
     // GAS
     // Calculate memory expansion cost
-
     // If the size is greater than 2**128, the memory expansion will trigger an out of gas error.
     if (size.value.high != 0) {
         tempvar err = new ExceptionalHalt(OutOfGasError);
@@ -327,7 +333,7 @@ func log3{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Exceptio
     assert _topics[1] = be_topic2;
     assert _topics[2] = be_topic3;
     tempvar topics = TupleBytes32(new TupleBytes32Struct(_topics, 3));
-    tempvar log_entry = new Log(
+    tempvar log_entry = Log(
         new LogStruct(address=evm.value.message.value.current_target, topics=topics, data=data)
     );
 
@@ -338,7 +344,10 @@ func log3{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Exceptio
     }
 
     // Append log entry
-    EvmImpl.set_logs(TupleLog(new TupleLogStruct(log_entry, 1)));
+    let logs = evm.value.logs.value;
+    assert logs.data[logs.len] = log_entry;
+    let len = logs.len + 1;
+    EvmImpl.set_logs(TupleLog(new TupleLogStruct(logs.data, len)));
 
     // PROGRAM COUNTER
     EvmImpl.set_pc_stack_memory(Uint(evm.value.pc.value + 1), stack, memory);
@@ -383,7 +392,6 @@ func log4{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Exceptio
 
     // GAS
     // Calculate memory expansion cost
-
     // If the size is greater than 2**128, the memory expansion will trigger an out of gas error.
     if (size.value.high != 0) {
         tempvar err = new ExceptionalHalt(OutOfGasError);
@@ -425,7 +433,7 @@ func log4{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Exceptio
     assert _topics[2] = be_topic3;
     assert _topics[3] = be_topic4;
     tempvar topics = TupleBytes32(new TupleBytes32Struct(_topics, 4));
-    tempvar log_entry = new Log(
+    tempvar log_entry = Log(
         new LogStruct(address=evm.value.message.value.current_target, topics=topics, data=data)
     );
 
@@ -436,7 +444,10 @@ func log4{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Exceptio
     }
 
     // Append log entry
-    EvmImpl.set_logs(TupleLog(new TupleLogStruct(log_entry, 1)));
+    let logs = evm.value.logs.value;
+    assert logs.data[logs.len] = log_entry;
+    let len = logs.len + 1;
+    EvmImpl.set_logs(TupleLog(new TupleLogStruct(logs.data, len)));
 
     // PROGRAM COUNTER
     EvmImpl.set_pc_stack_memory(Uint(evm.value.pc.value + 1), stack, memory);
