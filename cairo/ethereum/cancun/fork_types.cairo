@@ -1,6 +1,6 @@
 from starkware.cairo.common.alloc import alloc
 
-from ethereum_types.bytes import Bytes20, Bytes32, Bytes256, Bytes, BytesStruct
+from ethereum_types.bytes import Bytes20, Bytes32, Bytes256, Bytes, BytesStruct, Bytes__eq__
 from ethereum_types.numeric import Uint, U256, U256Struct, bool
 from ethereum.crypto.hash import Hash32
 
@@ -118,4 +118,27 @@ func EMPTY_ACCOUNT() -> Account {
     tempvar code = Bytes(new BytesStruct(data=data, len=0));
     tempvar account = Account(value=new AccountStruct(nonce=Uint(0), balance=balance, code=code));
     return account;
+}
+
+func Account__eq__(a: Account, b: Account) -> bool {
+    if (a.value.nonce.value != b.value.nonce.value) {
+        tempvar res = bool(0);
+        return res;
+    }
+    if (a.value.balance.value.low != b.value.balance.value.low) {
+        tempvar res = bool(0);
+        return res;
+    }
+    if (a.value.balance.value.high != b.value.balance.value.high) {
+        tempvar res = bool(0);
+        return res;
+    }
+    if (a.value.code.value.len != b.value.code.value.len) {
+        tempvar res = bool(0);
+        return res;
+    }
+
+    let code_eq = Bytes__eq__(a.value.code, b.value.code);
+
+    return code_eq;
 }

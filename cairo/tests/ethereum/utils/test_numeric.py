@@ -1,12 +1,12 @@
 import pytest
-from ethereum_types.bytes import Bytes32
-from ethereum_types.numeric import U256, Uint
 from hypothesis import given
 from hypothesis import strategies as st
 from starkware.cairo.lang.instances import PRIME
 
 from ethereum.cancun.vm.gas import BLOB_GASPRICE_UPDATE_FRACTION, MIN_BLOB_GASPRICE
 from ethereum.utils.numeric import ceil32, taylor_exponential
+from ethereum_types.bytes import Bytes32
+from ethereum_types.numeric import U256, Uint
 from tests.utils.strategies import felt, uint128
 
 pytestmark = pytest.mark.python_vm
@@ -72,3 +72,7 @@ class TestNumeric:
         expected = value.to_le_bytes32()
         result = cairo_run("U256_to_le_bytes", value)
         assert result == expected
+
+    @given(a=..., b=...)
+    def test_U256__eq__(self, cairo_run, a: U256, b: U256):
+        assert (a == b) == cairo_run("U256__eq__", a, b)

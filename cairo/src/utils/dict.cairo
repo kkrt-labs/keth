@@ -80,3 +80,87 @@ func hashdict_read{poseidon_ptr: PoseidonBuiltin*, dict_ptr: DictAccess*}(
     let dict_ptr = dict_ptr + DictAccess.SIZE;
     return (value=value);
 }
+
+// A wrapper around dict_write that hashes the key before accessing the dictionary if the key
+// does not fit in a felt.
+// @param key_len: The number of felt values used to represent the key.
+// @param key: The key to access the dictionary.
+// @param new_value: The value to write to the dictionary.
+func hashdict_write{poseidon_ptr: PoseidonBuiltin*, dict_ptr: DictAccess*}(
+    key_len: felt, key: felt*, new_value: felt
+) {
+    alloc_locals;
+    local felt_key;
+    if (key_len == 1) {
+        assert felt_key = key[0];
+        tempvar poseidon_ptr = poseidon_ptr;
+    } else {
+        let (felt_key_) = poseidon_hash_many(key_len, key);
+        assert felt_key = felt_key_;
+        tempvar poseidon_ptr = poseidon_ptr;
+    }
+    %{
+        dict_tracker = __dict_manager.get_tracker(ids.dict_ptr)
+        dict_tracker.current_ptr += ids.DictAccess.SIZE
+        preimage = tuple([memory[ids.key + i] for i in range(ids.key_len)])
+        ids.dict_ptr.prev_value = dict_tracker.data[preimage]
+        dict_tracker.data[preimage] = ids.new_value
+    %}
+    dict_ptr.key = felt_key;
+    dict_ptr.new_value = new_value;
+    let dict_ptr = dict_ptr + DictAccess.SIZE;
+    return ();
+}
+
+// A special dict function that writes a special value to the dictionary to represent a deleted
+// value if that key is present, or writes the new value if the key is not present.
+// @param byte_length: The number of bytes in the key.
+// @param key_len: The number of felt values used to represent the key.
+// @param key: The key to access the dictionary.
+// @param new_value: The value to write to the dictionary.
+func hashdict_delete_if_present_bytes{poseidon_ptr: PoseidonBuiltin*, dict_ptr: DictAccess*}(
+    key_len: felt, key: felt*
+) {
+    alloc_locals;
+    local felt_key;
+    if (key_len == 1) {
+        assert felt_key = key[0];
+        tempvar poseidon_ptr = poseidon_ptr;
+    } else {
+        let (felt_key_) = poseidon_hash_many(key_len, key);
+        assert felt_key = felt_key_;
+        tempvar poseidon_ptr = poseidon_ptr;
+    }
+
+    tempvar is_deleted: felt;
+    %{
+        from tests.utils.hints import DELETED_KEY_FLAG
+        dict_tracker = __dict_manager.get_tracker(ids.dict_ptr)
+        dict_tracker.current_ptr += ids.DictAccess.SIZE
+        preimage = tuple([memory[ids.key + i] for i in range(ids.key_len)])
+        if preimage in dict_tracker.data:
+            # Deleting the key means writing a special value to the dictionary to represent a deleted value.
+            ids.dict_ptr.prev_value = dict_tracker.data[preimage]
+            dict_tracker.data[preimage] = DELETED_KEY_FLAG
+            ids.is_deleted = 1
+        else:
+            # Nothing to do.
+            ids.dict_ptr.prev_value = 0
+            ids.is_deleted = 0
+    %}
+    dict_ptr.key = felt_key;
+
+    if (is_deleted != 0) {
+        // TODO: is it fine to return an empty pointer, which is the same as representing an absent value,
+        //      or should we return a special value?
+        tempvar ptr_zero = cast(0, DictAccess*);
+        dict_ptr.new_value = ptr_zero;
+        let dict_ptr = dict_ptr + DictAccess.SIZE;
+        return ();
+    }
+
+    tempvar prev_value = dict_ptr.prev_value;
+    dict_ptr.new_value = prev_value;
+    let dict_ptr = dict_ptr + DictAccess.SIZE;
+    return ();
+}

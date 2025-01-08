@@ -76,16 +76,6 @@ from typing import (
 import pytest
 from cairo_addons.vm import DictTracker as RustDictTracker
 from cairo_addons.vm import Relocatable as RustRelocatable
-from ethereum_types.bytes import (
-    Bytes,
-    Bytes0,
-    Bytes1,
-    Bytes8,
-    Bytes20,
-    Bytes32,
-    Bytes256,
-)
-from ethereum_types.numeric import U64, U256, Uint
 from starkware.cairo.common.dict import DictManager, DictTracker
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 from starkware.cairo.lang.compiler.ast.cairo_types import (
@@ -129,6 +119,16 @@ from ethereum.cancun.vm.gas import ExtendMemory, MessageCallGas
 from ethereum.crypto.hash import Hash32
 from ethereum.exceptions import EthereumException
 from ethereum.rlp import Extended, Simple
+from ethereum_types.bytes import (
+    Bytes,
+    Bytes0,
+    Bytes1,
+    Bytes8,
+    Bytes20,
+    Bytes32,
+    Bytes256,
+)
+from ethereum_types.numeric import U64, U256, Uint
 from tests.utils.helpers import flatten
 
 HASHED_TYPES = [Bytes, bytes, bytearray, str, U256, Hash32, Bytes32, Bytes256]

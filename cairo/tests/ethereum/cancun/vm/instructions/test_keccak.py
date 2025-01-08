@@ -1,10 +1,10 @@
 import pytest
-from ethereum_types.numeric import U256
 from hypothesis import given
 
 from ethereum.cancun.vm.exceptions import ExceptionalHalt
 from ethereum.cancun.vm.instructions.keccak import keccak
 from ethereum.cancun.vm.stack import push
+from ethereum_types.numeric import U256
 from tests.utils.args_gen import Evm
 from tests.utils.strategies import evm_lite, memory_access_size, memory_start_position
 

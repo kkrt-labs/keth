@@ -1,8 +1,6 @@
 from typing import Annotated, Any, List, Mapping, Optional, Set, Tuple, Type, Union
 
 import pytest
-from ethereum_types.bytes import Bytes, Bytes0, Bytes8, Bytes20, Bytes32, Bytes256
-from ethereum_types.numeric import U64, U256, Uint
 from hypothesis import HealthCheck, assume, given, settings
 from starkware.cairo.common.dict import DictManager
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
@@ -35,6 +33,8 @@ from ethereum.cancun.vm.exceptions import (
 from ethereum.cancun.vm.gas import ExtendMemory, MessageCallGas
 from ethereum.crypto.hash import Hash32
 from ethereum.exceptions import EthereumException
+from ethereum_types.bytes import Bytes, Bytes0, Bytes8, Bytes20, Bytes32, Bytes256
+from ethereum_types.numeric import U64, U256, Uint
 from tests.utils.args_gen import (
     Environment,
     Evm,

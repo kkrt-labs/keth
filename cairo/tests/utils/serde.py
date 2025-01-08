@@ -38,16 +38,6 @@ from typing import (
 
 from cairo_addons.vm import MemorySegmentManager as RustMemorySegmentManager
 from eth_utils.address import to_checksum_address
-from ethereum_types.bytes import (
-    Bytes,
-    Bytes0,
-    Bytes1,
-    Bytes8,
-    Bytes20,
-    Bytes32,
-    Bytes256,
-)
-from ethereum_types.numeric import U256
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 from starkware.cairo.lang.compiler.ast.cairo_types import (
     CairoType,
@@ -70,7 +60,18 @@ from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 from ethereum.cancun.fork_types import Address
 from ethereum.cancun.vm.exceptions import InvalidOpcode
 from ethereum.crypto.hash import Hash32
+from ethereum_types.bytes import (
+    Bytes,
+    Bytes0,
+    Bytes1,
+    Bytes8,
+    Bytes20,
+    Bytes32,
+    Bytes256,
+)
+from ethereum_types.numeric import U256
 from tests.utils.args_gen import Memory, Stack, to_python_type, vm_exception_classes
+from tests.utils.hints import DELETED_KEY_FLAG
 
 # Sentinel object for indicating no error in exception handling
 NO_ERROR_FLAG = object()
@@ -320,6 +321,8 @@ class Serde:
             tracker_data = self.dict_manager.trackers[dict_ptr.segment_index].data
             if isinstance(key_type, TypeFelt):
                 for key, value in tracker_data.items():
+                    if value is DELETED_KEY_FLAG:
+                        continue
                     # Reconstruct the original key from the preimage
                     if key_python_type in [
                         Bytes32,

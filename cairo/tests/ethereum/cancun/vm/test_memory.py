@@ -1,11 +1,11 @@
 import pytest
-from ethereum_types.bytes import Bytes
-from ethereum_types.numeric import U256
 from hypothesis import given
 from hypothesis import strategies as st
 from hypothesis.strategies import composite
 
 from ethereum.cancun.vm.memory import buffer_read, memory_read_bytes, memory_write
+from ethereum_types.bytes import Bytes
+from ethereum_types.numeric import U256
 
 
 @composite

@@ -1,8 +1,6 @@
 from typing import Mapping, Optional
 
 import pytest
-from ethereum_types.bytes import Bytes, Bytes32
-from ethereum_types.numeric import U256, Uint
 from hypothesis import assume, given, settings
 from hypothesis import strategies as st
 
@@ -18,7 +16,10 @@ from ethereum.cancun.trie import (
     nibble_list_to_compact,
     patricialize,
     trie_get,
+    trie_set,
 )
+from ethereum_types.bytes import Bytes, Bytes32
+from ethereum_types.numeric import U256, Uint
 from tests.utils.assertion import sequence_equal
 from tests.utils.errors import cairo_error
 from tests.utils.hints import patch_hint
@@ -169,3 +170,19 @@ class TestTrieOperations:
         result_py = trie_get(trie, key)
         assert result_cairo == result_py
         assert trie_cairo == trie
+
+    @given(trie=..., key=..., value=...)
+    def test_trie_set_TrieAddressAccount(
+        self, cairo_run, trie: Trie[Address, Account], key: Address, value: Account
+    ):
+        cairo_trie = cairo_run("trie_set_TrieAddressAccount", trie, key, value)
+        trie_set(trie, key, value)
+        assert cairo_trie == trie
+
+    @given(trie=..., key=..., value=...)
+    def test_trie_set_TrieBytes32U256(
+        self, cairo_run, trie: Trie[Bytes32, U256], key: Bytes32, value: U256
+    ):
+        cairo_trie = cairo_run("trie_set_TrieBytes32U256", trie, key, value)
+        trie_set(trie, key, value)
+        assert cairo_trie == trie
