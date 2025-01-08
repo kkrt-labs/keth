@@ -81,7 +81,7 @@ def trie_strategy(thing):
     key_type, value_type = thing.__args__
 
     return st.builds(
-        Trie,
+        Trie[key_type, value_type],
         secured=st.booleans(),
         default=st.from_type(value_type),
         _data=st.dictionaries(
