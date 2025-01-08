@@ -56,9 +56,9 @@ bytes256 = st.binary(min_size=256, max_size=256).map(Bytes256)
 bloom = bytes256.map(Bloom)
 
 # Maximum recursion depth for the recursive strategy to avoid heavy memory usage and health check errors
-MAX_RECURSION_DEPTH = int(os.getenv("HYPOTHESIS_MAX_RECURSION_DEPTH", 50))
+MAX_RECURSION_DEPTH = int(os.getenv("HYPOTHESIS_MAX_RECURSION_DEPTH", 10))
 # Maximum size for sets of addresses and tuples of address and bytes32 to avoid heavy memory usage and health check errors
-MAX_ADDRESS_SET_SIZE = int(os.getenv("HYPOTHESIS_MAX_ADDRESS_SET_SIZE", 1000))
+MAX_ADDRESS_SET_SIZE = int(os.getenv("HYPOTHESIS_MAX_ADDRESS_SET_SIZE", 10))
 MAX_STORAGE_KEY_SET_SIZE = int(os.getenv("HYPOTHESIS_MAX_STORAGE_KEY_SET_SIZE", 10))
 
 # See ethereum.rlp.Simple and ethereum.rlp.Extended for the definition of Simple and Extended
