@@ -50,7 +50,6 @@ func dict_squash{range_check_ptr}(
 
 // A wrapper around dict_read that hashes the key before accessing the dictionary if the key
 // does not fit in a felt.
-// @param byte_length: The number of bytes in the key.
 // @param key_len: The number of felt values used to represent the key.
 // @param key: The key to access the dictionary.
 func hashdict_read{poseidon_ptr: PoseidonBuiltin*, dict_ptr: DictAccess*}(

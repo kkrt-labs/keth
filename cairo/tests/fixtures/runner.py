@@ -84,14 +84,12 @@ def cairo_program(request) -> Program:
 
 @pytest.fixture(scope="module")
 def rust_program(request, cairo_program: Program) -> RustProgram:
-    return None
-    # TODO: restore rust vm
-    # if request.node.get_closest_marker("python_vm"):
-    #     return None
+    if request.node.get_closest_marker("python_vm"):
+        return None
 
-    # return RustProgram.from_bytes(
-    #     json.dumps(cairo_program.Schema().dump(cairo_program)).encode()
-    # )
+    return RustProgram.from_bytes(
+        json.dumps(cairo_program.Schema().dump(cairo_program)).encode()
+    )
 
 
 @pytest.fixture(scope="module")
@@ -528,9 +526,7 @@ def cairo_run(
 
         return final_output[0] if len(final_output) == 1 else final_output
 
-    return _factory_py
-    # TODO: restore rust vm
-    # if request.node.get_closest_marker("python_vm"):
-    #     return _factory_py
-    # else:
-    #     return _factory_rs
+    if request.node.get_closest_marker("python_vm"):
+        return _factory_py
+    else:
+        return _factory_rs
