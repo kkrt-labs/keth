@@ -60,3 +60,15 @@ class TestNumeric:
         expected = U256.from_le_bytes(bytes)
         result = cairo_run("U256_from_le_bytes", bytes)
         assert result == expected
+
+    @given(value=...)
+    def test_U256_to_be_bytes(self, cairo_run, value: U256):
+        expected = value.to_be_bytes32()
+        result = cairo_run("U256_to_be_bytes", value)
+        assert result == expected
+
+    @given(value=...)
+    def test_U256_to_le_bytes(self, cairo_run, value: U256):
+        expected = value.to_le_bytes32()
+        result = cairo_run("U256_to_le_bytes", value)
+        assert result == expected

@@ -216,11 +216,14 @@ evm_lite = st.builds(
 # in the test runner.
 # 2**32 bytes would be the value at which the memory expansion would trigger an OOG
 # memory size must be a multiple of 32
+memory_size = 2**13
 memory = (
-    st.binary(min_size=0, max_size=2**13)
+    st.binary(min_size=0, max_size=memory_size)
     .map(lambda x: x + b"\x00" * ((32 - len(x) % 32) % 32))
     .map(Memory)
 )
+memory_start_position = st.integers(min_value=0, max_value=memory_size // 2).map(U256)
+memory_access_size = st.integers(min_value=0, max_value=memory_size // 2).map(U256)
 
 # Create a deferred reference to evm strategy to allow message to reference it without causing a circular dependency
 evm_strategy = st.deferred(lambda: evm)
