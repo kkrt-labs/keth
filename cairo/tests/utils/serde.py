@@ -305,8 +305,8 @@ class Serde:
 
             serialized_dict = {}
             tracker_data = self.dict_manager.trackers[dict_ptr.segment_index].data
-            # Get the target type name from the path e.g. "BytesBytesDictAccess" -> "Bytes"
-            target_type_name = re.match(r"[A-Z][a-z]*", dict_access_path[-1])[0]
+            # Get the target type name from the path e.g. "Bytes32U256DictAccess" -> "Bytes32"
+            target_type_name = re.match(r"[A-Z][a-z]*\d*", dict_access_path[-1])[0]
             if isinstance(inner_type, TypeFelt):
                 for key, value in tracker_data.items():
                     # Reconstruct the original key from the preimage
