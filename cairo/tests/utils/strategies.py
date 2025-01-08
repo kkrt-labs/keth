@@ -46,13 +46,21 @@ uint256 = st.integers(min_value=0, max_value=2**256 - 1).map(U256)
 nibble = st.lists(uint4, max_size=64).map(bytes)
 
 bytes0 = st.binary(min_size=0, max_size=0).map(Bytes0)
-bytes8 = st.binary(min_size=8, max_size=8).map(Bytes8)
-bytes20 = st.binary(min_size=20, max_size=20).map(Bytes20)
+bytes8 = st.integers(min_value=0, max_value=2**64 - 1).map(
+    lambda x: Bytes8(x.to_bytes(8, "little"))
+)
+bytes20 = st.integers(min_value=0, max_value=2**160 - 1).map(
+    lambda x: Bytes20(x.to_bytes(20, "little"))
+)
 address = bytes20.map(Address)
-bytes32 = st.binary(min_size=32, max_size=32).map(Bytes32)
+bytes32 = st.integers(min_value=0, max_value=2**256 - 1).map(
+    lambda x: Bytes32(x.to_bytes(32, "little"))
+)
 hash32 = bytes32.map(Hash32)
 root = bytes32.map(Root)
-bytes256 = st.binary(min_size=256, max_size=256).map(Bytes256)
+bytes256 = st.integers(min_value=0, max_value=2**2048 - 1).map(
+    lambda x: Bytes256(x.to_bytes(256, "little"))
+)
 bloom = bytes256.map(Bloom)
 
 # Maximum recursion depth for the recursive strategy to avoid heavy memory usage and health check errors
@@ -302,7 +310,12 @@ def register_type_strategies():
     st.register_type_strategy(
         ExtensionNode,
         st.fixed_dictionaries(
-            {"key_segment": nibble, "subnode": st.binary(min_size=32, max_size=32)}
+            {
+                "key_segment": nibble,
+                "subnode": st.integers(min_value=0, max_value=2**256 - 1).map(
+                    lambda x: x.to_bytes(32, "little")
+                ),
+            }
         ).map(lambda x: ExtensionNode(**x)),
     )
     st.register_type_strategy(
@@ -311,7 +324,11 @@ def register_type_strategies():
             {
                 # 16 subnodes of 32 bytes each
                 "subnodes": st.lists(
-                    st.binary(min_size=32, max_size=32), min_size=16, max_size=16
+                    st.integers(min_value=0, max_value=2**256 - 1).map(
+                        lambda x: x.to_bytes(32, "little")
+                    ),
+                    min_size=16,
+                    max_size=16,
                 ).map(tuple),
                 # Value in branch nodes is always empty
                 "value": st.just(b""),
