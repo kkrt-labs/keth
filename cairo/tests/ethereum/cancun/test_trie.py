@@ -156,12 +156,16 @@ class TestTrieOperations:
     def test_trie_get_TrieAddressAccount(
         self, cairo_run, trie: Trie[Address, Optional[Account]], key: Address
     ):
-        [_trie, result] = cairo_run("trie_get_TrieAddressAccount", trie, key)
-        assert trie_get(trie, key) == result
+        [trie_cairo, result_cairo] = cairo_run("trie_get_TrieAddressAccount", trie, key)
+        result_py = trie_get(trie, key)
+        assert result_cairo == result_py
+        assert trie_cairo == trie
 
     @given(trie=..., key=...)
     def test_trie_get_TrieBytes32U256(
         self, cairo_run, trie: Trie[Bytes32, U256], key: Bytes32
     ):
-        [_trie, result] = cairo_run("trie_get_TrieBytes32U256", trie, key)
-        assert trie_get(trie, key) == result
+        [trie_cairo, result_cairo] = cairo_run("trie_get_TrieBytes32U256", trie, key)
+        result_py = trie_get(trie, key)
+        assert result_cairo == result_py
+        assert trie_cairo == trie

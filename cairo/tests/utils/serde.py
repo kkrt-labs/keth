@@ -18,7 +18,6 @@ Once we have the variant pointer, we can deserialize the variant by recursively 
 serialization function.
 """
 
-import re
 from collections import abc
 from dataclasses import is_dataclass
 from inspect import signature
@@ -74,16 +73,6 @@ from tests.utils.args_gen import Memory, Stack, to_python_type, vm_exception_cla
 
 # Sentinel object for indicating no error in exception handling
 NO_ERROR_FLAG = object()
-
-HASHED_KEYS = [
-    "Bytes32",
-    "Hash32",
-    "Bytes256",
-    "VersionedHash",
-    "Root",
-    "Bytes",
-    "U256",
-]
 
 
 def get_struct_definition(program, path: Tuple[str, ...]) -> StructDefinition:
@@ -306,35 +295,43 @@ class Serde:
             serialized_dict = {}
             tracker_data = self.dict_manager.trackers[dict_ptr.segment_index].data
             # Get the target type name from the path e.g. "Bytes32U256DictAccess" -> "Bytes32"
-            target_type_name = re.match(r"[A-Z][a-z]*\d*", dict_access_path[-1])[0]
+            key_python_type = to_python_type(dict_access_types["key"].cairo_type)
             if isinstance(inner_type, TypeFelt):
                 for key, value in tracker_data.items():
                     # Reconstruct the original key from the preimage
-                    if target_type_name in [
-                        "Bytes32",
-                        "Hash32",
-                        "Bytes256",
-                        "VersionedHash",
-                        "Root",
+                    if key_python_type in [
+                        Bytes32,
+                        Bytes256,
                     ]:
                         hashed_key = poseidon_hash_many(key)
                         preimage = b"".join(felt.to_bytes(16, "little") for felt in key)
                         serialized_dict[preimage] = dict_data[hashed_key]
 
-                    elif target_type_name == "U256":
+                    elif key_python_type == U256:
                         hashed_key = poseidon_hash_many(key)
                         preimage = sum(
                             felt * 2 ** (128 * i) for i, felt in enumerate(key)
                         )
                         serialized_dict[preimage] = dict_data[hashed_key]
 
-                    elif target_type_name == "Bytes":
+                    elif key_python_type == Bytes:
                         hashed_key = poseidon_hash_many(key)
                         preimage = bytes(list(key))
                         serialized_dict[preimage] = dict_data[hashed_key]
             else:
-                serialized_dict = dict_data
+                # Even if the dict is not hashed, we need to use the tracker
+                # to differentiate between default-values _read_ and explicit writes.
+                # Only include keys that were explicitly written to the dict.
+                def key_transform(k):
+                    return (
+                        k[0].to_bytes(20, "little") if key_python_type == Bytes20 else k
+                    )
 
+                serialized_dict = {
+                    key_transform(k): dict_data[key_transform(k)]
+                    for k in tracker_data
+                    if key_transform(k) in dict_data
+                }
             if origin_cls is set:
                 return set(serialized_dict.keys())
 

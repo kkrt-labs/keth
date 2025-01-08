@@ -52,6 +52,7 @@ func dict_squash{range_check_ptr}(
 // does not fit in a felt.
 // @param key_len: The number of felt values used to represent the key.
 // @param key: The key to access the dictionary.
+// TODO: write the associated squash function.
 func hashdict_read{poseidon_ptr: PoseidonBuiltin*, dict_ptr: DictAccess*}(
     key_len: felt, key: felt*
 ) -> (value: felt) {
@@ -70,7 +71,8 @@ func hashdict_read{poseidon_ptr: PoseidonBuiltin*, dict_ptr: DictAccess*}(
         dict_tracker = __dict_manager.get_tracker(ids.dict_ptr)
         dict_tracker.current_ptr += ids.DictAccess.SIZE
         preimage = tuple([memory[ids.key + i] for i in range(ids.key_len)])
-        ids.value = dict_tracker.data[preimage]
+        # Not using [] here because it will register the value for that key in the tracker.
+        ids.value = dict_tracker.data.get(preimage, dict_tracker.data.default_factory())
     %}
     dict_ptr.key = felt_key;
     dict_ptr.prev_value = value;
