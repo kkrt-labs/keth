@@ -673,7 +673,7 @@ def _bind_generics(type_hint, bindings):
     return origin[bound_args]
 
 
-def to_python_type(cairo_type: Union[CairoType, Tuple[str, ...]]):
+def to_python_type(cairo_type: Union[CairoType, Tuple[str, ...], str]):
     if isinstance(cairo_type, TypeFelt):
         return int
 
@@ -685,6 +685,11 @@ def to_python_type(cairo_type: Union[CairoType, Tuple[str, ...]]):
 
     if isinstance(cairo_type, Tuple):
         return _cairo_struct_to_python_type.get(cairo_type)
+
+    if isinstance(cairo_type, str):
+        for k, v in _cairo_struct_to_python_type.items():
+            if k[-1] == cairo_type:
+                return v
 
     raise NotImplementedError(f"Cairo type {cairo_type} not implemented")
 

@@ -67,6 +67,7 @@ from starkware.cairo.lang.vm.crypto import poseidon_hash_many
 from starkware.cairo.lang.vm.memory_dict import UnknownMemoryError
 from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 
+from ethereum.cancun.fork_types import Address
 from ethereum.cancun.vm.exceptions import InvalidOpcode
 from ethereum.crypto.hash import Hash32
 from tests.utils.args_gen import Memory, Stack, to_python_type, vm_exception_classes
@@ -278,15 +279,38 @@ class Serde:
                 self.program, dict_access_path
             ).members
 
-            # Mappings with these keys are hashed - the actual key type becomes a felt.
-            inner_type = dict_access_types["key"].cairo_type
+            # Some mappings have keys that are hashed. In that case, the cairo key type is a felt,
+            # but it's an alias to a `HashedT` type.
+            # Find the type definition that matches our key's location to get the original type name
+            # and then convert it to the Python type by stripping the `Hashed` prefix.
+            maybe_aliased_key_type = next(
+                iter(
+                    (k, v)
+                    for k, v in self.program.identifiers.as_dict().items()
+                    if isinstance(v, TypeDefinition)
+                    and v.cairo_type.location
+                    == dict_access_types["key"].cairo_type.location
+                ),
+                None,
+            )
+
+            if maybe_aliased_key_type is None:
+                key_type = dict_access_types["key"].cairo_type
+                key_python_type = to_python_type(key_type)
+            else:
+                key_definition_path = (
+                    maybe_aliased_key_type[0].path[-1].removeprefix("Hashed")
+                )
+                key_type = maybe_aliased_key_type[1].cairo_type
+                key_python_type = to_python_type(key_definition_path)
+
             value_type = dict_access_types["new_value"].cairo_type
             pointers = self.serialize_pointers(mapping_struct_path, mapping_struct_ptr)
             segment_size = pointers["dict_ptr"] - pointers["dict_ptr_start"]
             dict_ptr = pointers["dict_ptr_start"]
 
             dict_data = {
-                self._serialize(inner_type, dict_ptr + i): self._serialize(
+                self._serialize(key_type, dict_ptr + i): self._serialize(
                     value_type, dict_ptr + i + 2
                 )
                 for i in range(0, segment_size, 3)
@@ -294,9 +318,7 @@ class Serde:
 
             serialized_dict = {}
             tracker_data = self.dict_manager.trackers[dict_ptr.segment_index].data
-            # Get the target type name from the path e.g. "Bytes32U256DictAccess" -> "Bytes32"
-            key_python_type = to_python_type(dict_access_types["key"].cairo_type)
-            if isinstance(inner_type, TypeFelt):
+            if isinstance(key_type, TypeFelt):
                 for key, value in tracker_data.items():
                     # Reconstruct the original key from the preimage
                     if key_python_type in [
@@ -318,13 +340,16 @@ class Serde:
                         hashed_key = poseidon_hash_many(key)
                         preimage = bytes(list(key))
                         serialized_dict[preimage] = dict_data[hashed_key]
-            else:
+
+            elif len(get_args(key_python_type)) < 2:
                 # Even if the dict is not hashed, we need to use the tracker
                 # to differentiate between default-values _read_ and explicit writes.
                 # Only include keys that were explicitly written to the dict.
                 def key_transform(k):
                     return (
-                        k[0].to_bytes(20, "little") if key_python_type == Bytes20 else k
+                        k[0].to_bytes(20, "little")
+                        if key_python_type in [Bytes20, Address]
+                        else key_python_type(k[0])
                     )
 
                 serialized_dict = {
@@ -332,6 +357,11 @@ class Serde:
                     for k in tracker_data
                     if key_transform(k) in dict_data
                 }
+            else:
+                # Cases where they key is not hashed, and the key is composed of multiple felt.
+                # In that case the key is a pointer internally, we can just return the dict as is.
+                serialized_dict = dict_data
+
             if origin_cls is set:
                 return set(serialized_dict.keys())
 
