@@ -92,8 +92,10 @@ struct TupleBytes {
 
 // Just a like regular DictAccess pointer, with keys hashed and values to be interpreted as
 // Bytes pointers.
+
+using HashedBytes = felt;
 struct BytesBytesDictAccess {
-    key: felt,
+    key: HashedBytes,
     prev_value: Bytes,
     new_value: Bytes,
 }

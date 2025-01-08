@@ -94,9 +94,11 @@ struct MappingAddressAccount {
     value: MappingAddressAccountStruct*,
 }
 
+using HashedBytes32 = felt;
+
 struct Bytes32U256DictAccess {
     // key is hashed.
-    key: felt,
+    key: HashedBytes32,
     prev_value: U256,
     new_value: U256,
 }
