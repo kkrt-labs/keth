@@ -1,6 +1,6 @@
 # ruff: noqa: E402
 
-from dataclasses import fields
+import os
 from typing import ForwardRef, Sequence, TypeAlias, Union
 from unittest.mock import patch
 
@@ -55,35 +55,37 @@ root = bytes32.map(Root)
 bytes256 = st.binary(min_size=256, max_size=256).map(Bytes256)
 bloom = bytes256.map(Bloom)
 
+# Maximum recursion depth for the recursive strategy to avoid heavy memory usage and health check errors
+MAX_RECURSION_DEPTH = int(os.getenv("HYPOTHESIS_MAX_RECURSION_DEPTH", 50))
+# Maximum size for sets of addresses and tuples of address and bytes32 to avoid heavy memory usage and health check errors
+MAX_ADDRESS_SET_SIZE = int(os.getenv("HYPOTHESIS_MAX_ADDRESS_SET_SIZE", 1000))
+MAX_STORAGE_KEY_SET_SIZE = int(os.getenv("HYPOTHESIS_MAX_STORAGE_KEY_SET_SIZE", 1000))
+
 # See ethereum.rlp.Simple and ethereum.rlp.Extended for the definition of Simple and Extended
-simple = st.recursive(st.one_of(st.binary()), st.lists)
+simple = st.recursive(
+    st.one_of(st.binary()),
+    st.lists,
+    max_leaves=MAX_RECURSION_DEPTH,
+)
+
 extended = st.recursive(
-    st.one_of(st.binary(), uint, st.text(), st.booleans()), st.lists
+    st.one_of(st.binary(), uint, st.text(), st.booleans()),
+    st.lists,
+    max_leaves=MAX_RECURSION_DEPTH,
 )
 
 small_bytes = st.binary(min_size=0, max_size=256)
 
 
-# See https://github.com/ethereum/execution-specs/issues/1036
-# It's currently not possible to generate strategies using `st.builds` because the dataclasses
-# use a slotted_freezable decorator that overrides the default __init__ method without wrapping it.
-# So we need to redefine all dataclasses here manually instead of using `st.from_type`.
-def st_from_type(cls):
-    return st.fixed_dictionaries(
-        {field.name: st.from_type(field.type) for field in fields(cls)}
-    ).map(lambda x: cls(**x))
-
-
 def trie_strategy(thing):
     key_type, value_type = thing.__args__
 
-    return st.fixed_dictionaries(
-        {
-            "secured": st.booleans(),
-            "default": st.from_type(value_type),
-            "_data": st.dictionaries(st.from_type(key_type), st.from_type(value_type)),
-        }
-    ).map(lambda x: Trie[key_type, value_type](**x))
+    return st.builds(
+        Trie,
+        secured=st.booleans(),
+        default=st.from_type(value_type),
+        _data=st.dictionaries(st.from_type(key_type), st.from_type(value_type)),
+    )
 
 
 def stack_strategy(thing):
@@ -120,6 +122,55 @@ def tuple_strategy(thing):
     )
 
 
+# Versions strategies with less data in collections
+
+memory_lite = (
+    st.binary(min_size=0, max_size=128)
+    .map(lambda x: x + b"\x00" * ((32 - len(x) % 32) % 32))
+    .map(Memory)
+)
+
+message_lite = st.builds(
+    Message,
+    caller=address,
+    target=st.one_of(bytes0, address),
+    current_target=address,
+    gas=uint,
+    value=uint256,
+    data=st.just(b""),
+    code_address=st.none() | address,
+    code=st.just(b""),
+    depth=uint,
+    should_transfer_value=st.booleans(),
+    is_static=st.booleans(),
+    accessed_addresses=st.just(set()),
+    accessed_storage_keys=st.just(set()),
+    parent_evm=st.none(),
+)
+
+evm_lite = st.builds(
+    Evm,
+    pc=uint,
+    stack=stack_strategy(Stack[U256]),
+    memory=memory_lite,
+    code=st.just(b""),
+    gas_left=st.integers(min_value=0, max_value=BLOCK_GAS_LIMIT).map(Uint),
+    env=st.from_type(Environment),
+    valid_jump_destinations=st.just(set()),
+    logs=st.just(()),
+    refund_counter=st.just(0),
+    running=st.booleans(),
+    message=message_lite,
+    output=st.just(b""),
+    accounts_to_delete=st.just(set()),
+    touched_accounts=st.just(set()),
+    return_data=st.just(b""),
+    error=st.none() | st.from_type(EthereumException),
+    accessed_addresses=st.just(set()),
+    accessed_storage_keys=st.just(set()),
+)
+
+
 # Generating up to 2**13 bytes of memory is enough for most tests as more would take too long
 # in the test runner.
 # 2**32 bytes would be the value at which the memory expansion would trigger an OOG
@@ -130,105 +181,57 @@ memory = (
     .map(Memory)
 )
 
-evm = st.fixed_dictionaries(
-    {
-        "pc": st.from_type(Uint),
-        "stack": stack_strategy(Stack[U256]),
-        "memory": memory,
-        "code": small_bytes,
-        "gas_left": uint,
-        "env": st.from_type(Environment),
-        "valid_jump_destinations": st.sets(st.from_type(Uint)),
-        "logs": st.tuples(st.from_type(Log)),
-        "refund_counter": st.integers(min_value=0),
-        "running": st.booleans(),
-        "message": st.from_type(Message),
-        "output": small_bytes,
-        "accounts_to_delete": st.sets(st.from_type(Address)),
-        "touched_accounts": st.sets(st.from_type(Address)),
-        "return_data": small_bytes,
-        "error": st.none() | st.from_type(EthereumException),
-        "accessed_addresses": st.sets(st.from_type(Address)),
-        "accessed_storage_keys": st.sets(
-            st.tuples(st.from_type(Address), st.from_type(Bytes32))
-        ),
-    }
-).map(lambda x: Evm(**x))
+# Create a deferred reference to evm strategy to allow message to reference it without causing a circular dependency
+evm_strategy = st.deferred(lambda: evm)
 
-
-message = st.fixed_dictionaries(
-    {
-        "caller": address,
-        "target": st.one_of(bytes0, address),
-        "current_target": address,
-        "gas": uint,
-        "value": uint256,
-        "data": small_bytes,
-        "code_address": st.none() | address,
-        "code": small_bytes,
-        "depth": uint,
-        "should_transfer_value": st.booleans(),
-        "is_static": st.booleans(),
-        "accessed_addresses": st.sets(address),
-        "accessed_storage_keys": st.sets(st.tuples(address, bytes32)),
-        "parent_evm": st.none() | evm,
-    }
-).map(lambda x: Message(**x))
-
-# Versions strategies with less data in collections
-
-memory_lite = (
-    st.binary(min_size=0, max_size=128)
-    .map(lambda x: x + b"\x00" * ((32 - len(x) % 32) % 32))
-    .map(Memory)
+message = st.builds(
+    Message,
+    caller=address,
+    target=st.one_of(bytes0, address),
+    current_target=address,
+    gas=uint,
+    value=uint256,
+    data=small_bytes,
+    code_address=st.none() | address,
+    code=small_bytes,
+    depth=uint,
+    should_transfer_value=st.booleans(),
+    is_static=st.booleans(),
+    accessed_addresses=st.sets(address, max_size=MAX_ADDRESS_SET_SIZE),
+    accessed_storage_keys=st.sets(
+        st.tuples(address, bytes32), max_size=MAX_STORAGE_KEY_SET_SIZE
+    ),
+    parent_evm=st.none() | evm_strategy,
 )
 
-message_lite = st.fixed_dictionaries(
-    {
-        "caller": address,
-        "target": st.one_of(bytes0, address),
-        "current_target": address,
-        "gas": uint,
-        "value": uint256,
-        "data": st.just(b""),
-        "code_address": st.none() | address,
-        "code": st.just(b""),
-        "depth": uint,
-        "should_transfer_value": st.booleans(),
-        "is_static": st.booleans(),
-        "accessed_addresses": st.just(set()),
-        "accessed_storage_keys": st.just(set()),
-        "parent_evm": st.none(),
-    }
-).map(lambda x: Message(**x))
-
-
-evm_lite = st.fixed_dictionaries(
-    {
-        "pc": uint,
-        "stack": stack_strategy(Stack[U256]),
-        "memory": memory_lite,
-        "code": st.just(b""),
-        "gas_left": st.integers(min_value=0, max_value=BLOCK_GAS_LIMIT).map(Uint),
-        "env": st.from_type(Environment),
-        "valid_jump_destinations": st.just(set()),
-        "logs": st.just(()),
-        "refund_counter": st.just(0),
-        "running": st.booleans(),
-        "message": message_lite,
-        "output": st.just(b""),
-        "accounts_to_delete": st.just(set()),
-        "touched_accounts": st.just(set()),
-        "return_data": st.just(b""),
-        "error": st.none() | st.from_type(EthereumException),
-        "accessed_addresses": st.just(set()),
-        "accessed_storage_keys": st.just(set()),
-    }
-).map(lambda x: Evm(**x))
+evm = st.builds(
+    Evm,
+    pc=st.from_type(Uint),
+    stack=stack_strategy(Stack[U256]),
+    memory=memory,
+    code=small_bytes,
+    gas_left=st.integers(min_value=0, max_value=BLOCK_GAS_LIMIT).map(Uint),
+    env=st.from_type(Environment),
+    valid_jump_destinations=st.sets(st.from_type(Uint)),
+    logs=st.tuples(st.from_type(Log)),
+    refund_counter=st.integers(min_value=0),
+    running=st.booleans(),
+    message=message,
+    output=small_bytes,
+    accounts_to_delete=st.sets(st.from_type(Address), max_size=MAX_ADDRESS_SET_SIZE),
+    touched_accounts=st.sets(st.from_type(Address), max_size=MAX_ADDRESS_SET_SIZE),
+    return_data=small_bytes,
+    error=st.none() | st.from_type(EthereumException),
+    accessed_addresses=st.sets(st.from_type(Address), max_size=MAX_ADDRESS_SET_SIZE),
+    accessed_storage_keys=st.sets(
+        st.tuples(st.from_type(Address), st.from_type(Bytes32)),
+        max_size=MAX_STORAGE_KEY_SET_SIZE,
+    ),
+)
 
 
 # Fork
-state = st.lists(bytes20).flatmap(
+state = st.lists(bytes20, min_size=0, max_size=MAX_ADDRESS_SET_SIZE).flatmap(
     lambda addresses: st.fixed_dictionaries(
         {
             "_main_trie": st.builds(
@@ -251,6 +254,7 @@ state = st.lists(bytes20).flatmap(
         }
     )
 )
+
 
 private_key = (
     st.integers(min_value=1, max_value=int(SECP256K1N) - 1)
@@ -275,17 +279,15 @@ def register_type_strategies():
     st.register_type_strategy(Bloom, bloom)
     st.register_type_strategy(ForwardRef("Simple"), simple)  # type: ignore
     st.register_type_strategy(ForwardRef("Extended"), extended)  # type: ignore
-    st.register_type_strategy(Account, st_from_type(Account))
-    st.register_type_strategy(Withdrawal, st_from_type(Withdrawal))
-    st.register_type_strategy(Header, st_from_type(Header))
-    st.register_type_strategy(Log, st_from_type(Log))
-    st.register_type_strategy(Receipt, st_from_type(Receipt))
-    st.register_type_strategy(LegacyTransaction, st_from_type(LegacyTransaction))
-    st.register_type_strategy(
-        AccessListTransaction, st_from_type(AccessListTransaction)
-    )
-    st.register_type_strategy(FeeMarketTransaction, st_from_type(FeeMarketTransaction))
-    st.register_type_strategy(BlobTransaction, st_from_type(BlobTransaction))
+    st.register_type_strategy(Account, st.builds(Account))
+    st.register_type_strategy(Withdrawal, st.builds(Withdrawal))
+    st.register_type_strategy(Header, st.builds(Header))
+    st.register_type_strategy(Log, st.builds(Log))
+    st.register_type_strategy(Receipt, st.builds(Receipt))
+    st.register_type_strategy(LegacyTransaction, st.builds(LegacyTransaction))
+    st.register_type_strategy(AccessListTransaction, st.builds(AccessListTransaction))
+    st.register_type_strategy(FeeMarketTransaction, st.builds(FeeMarketTransaction))
+    st.register_type_strategy(BlobTransaction, st.builds(BlobTransaction))
     # See https://github.com/ethereum/execution-specs/issues/1043
     st.register_type_strategy(
         LeafNode,
