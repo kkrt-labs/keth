@@ -84,7 +84,9 @@ def trie_strategy(thing):
         Trie,
         secured=st.booleans(),
         default=st.from_type(value_type),
-        _data=st.dictionaries(st.from_type(key_type), st.from_type(value_type)),
+        _data=st.dictionaries(
+            st.from_type(key_type), st.from_type(value_type), max_size=50
+        ),
     )
 
 
