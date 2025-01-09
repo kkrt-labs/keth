@@ -612,7 +612,7 @@ func _search_common_prefix_length{
     return _search_common_prefix_length(obj + BytesBytesDictAccess.SIZE, current_length);
 }
 
-func _get_branche_for_nibble_at_level_inner{poseidon_ptr: PoseidonBuiltin*}(
+func _get_branch_for_nibble_at_level_inner{poseidon_ptr: PoseidonBuiltin*}(
     dict_ptr: BytesBytesDictAccess*,
     dict_ptr_stop: BytesBytesDictAccess*,
     branch_ptr: BytesBytesDictAccess*,
@@ -631,7 +631,7 @@ func _get_branche_for_nibble_at_level_inner{poseidon_ptr: PoseidonBuiltin*}(
     let is_value_case = is_zero(preimage.value.len - level);
     if (is_value_case != 0) {
         // Value case - update value and continue
-        return _get_branche_for_nibble_at_level_inner(
+        return _get_branch_for_nibble_at_level_inner(
             dict_ptr + BytesBytesDictAccess.SIZE,
             dict_ptr_stop,
             branch_ptr,
@@ -657,7 +657,7 @@ func _get_branche_for_nibble_at_level_inner{poseidon_ptr: PoseidonBuiltin*}(
             dict_tracker.data[preimage] = obj_tracker.data[preimage]
         %}
 
-        return _get_branche_for_nibble_at_level_inner(
+        return _get_branch_for_nibble_at_level_inner(
             dict_ptr + BytesBytesDictAccess.SIZE,
             dict_ptr_stop,
             branch_ptr + BytesBytesDictAccess.SIZE,
@@ -668,7 +668,7 @@ func _get_branche_for_nibble_at_level_inner{poseidon_ptr: PoseidonBuiltin*}(
     }
 
     // Not nibble case - skip entry and continue
-    return _get_branche_for_nibble_at_level_inner(
+    return _get_branch_for_nibble_at_level_inner(
         dict_ptr + BytesBytesDictAccess.SIZE, dict_ptr_stop, branch_ptr, nibble, level, value
     );
 }
@@ -692,7 +692,7 @@ func _get_branche_for_nibble_at_level_inner{poseidon_ptr: PoseidonBuiltin*}(
 // * A tuple containing:
 //   * The filtered mapping containing only key-value pairs where key[level] == nibble
 //   * The value associated with any key that ends exactly at the given level, or an empty Bytes if none exists
-func _get_branche_for_nibble_at_level{poseidon_ptr: PoseidonBuiltin*}(
+func _get_branch_for_nibble_at_level{poseidon_ptr: PoseidonBuiltin*}(
     obj: MappingBytesBytes, nibble: felt, level: felt
 ) -> (MappingBytesBytes, Bytes) {
     alloc_locals;
@@ -706,7 +706,7 @@ func _get_branche_for_nibble_at_level{poseidon_ptr: PoseidonBuiltin*}(
     tempvar empty_value = Bytes(new BytesStruct(cast(0, felt*), 0));
 
     // Process entries recursively
-    let (branch_ptr, value) = _get_branche_for_nibble_at_level_inner(
+    let (branch_ptr, value) = _get_branch_for_nibble_at_level_inner(
         obj.value.dict_ptr_start, dict_ptr_stop, branch_start, nibble, level, empty_value
     );
 
@@ -741,97 +741,97 @@ func _get_branches{poseidon_ptr: PoseidonBuiltin*}(obj: MappingBytesBytes, level
     local value: Bytes;
     local value_set: felt;
 
-    let (branches_0, value_0) = _get_branche_for_nibble_at_level(obj, 0, level.value);
+    let (branches_0, value_0) = _get_branch_for_nibble_at_level(obj, 0, level.value);
     assert branches[0] = branches_0;
     if (value_0.value.len != 0) {
         assert value = value_0;
         assert value_set = 1;
     }
-    let (branches_1, value_1) = _get_branche_for_nibble_at_level(obj, 1, level.value);
+    let (branches_1, value_1) = _get_branch_for_nibble_at_level(obj, 1, level.value);
     assert branches[1] = branches_1;
     if (value_1.value.len != 0) {
         assert value = value_1;
         assert value_set = 1;
     }
-    let (branches_2, value_2) = _get_branche_for_nibble_at_level(obj, 2, level.value);
+    let (branches_2, value_2) = _get_branch_for_nibble_at_level(obj, 2, level.value);
     assert branches[2] = branches_2;
     if (value_2.value.len != 0) {
         assert value = value_2;
         assert value_set = 1;
     }
-    let (branches_3, value_3) = _get_branche_for_nibble_at_level(obj, 3, level.value);
+    let (branches_3, value_3) = _get_branch_for_nibble_at_level(obj, 3, level.value);
     assert branches[3] = branches_3;
     if (value_3.value.len != 0) {
         assert value = value_3;
         assert value_set = 1;
     }
-    let (branches_4, value_4) = _get_branche_for_nibble_at_level(obj, 4, level.value);
+    let (branches_4, value_4) = _get_branch_for_nibble_at_level(obj, 4, level.value);
     assert branches[4] = branches_4;
     if (value_4.value.len != 0) {
         assert value = value_4;
         assert value_set = 1;
     }
-    let (branches_5, value_5) = _get_branche_for_nibble_at_level(obj, 5, level.value);
+    let (branches_5, value_5) = _get_branch_for_nibble_at_level(obj, 5, level.value);
     assert branches[5] = branches_5;
     if (value_5.value.len != 0) {
         assert value = value_5;
         assert value_set = 1;
     }
-    let (branches_6, value_6) = _get_branche_for_nibble_at_level(obj, 6, level.value);
+    let (branches_6, value_6) = _get_branch_for_nibble_at_level(obj, 6, level.value);
     assert branches[6] = branches_6;
     if (value_6.value.len != 0) {
         assert value = value_6;
         assert value_set = 1;
     }
-    let (branches_7, value_7) = _get_branche_for_nibble_at_level(obj, 7, level.value);
+    let (branches_7, value_7) = _get_branch_for_nibble_at_level(obj, 7, level.value);
     assert branches[7] = branches_7;
     if (value_7.value.len != 0) {
         assert value = value_7;
         assert value_set = 1;
     }
-    let (branches_8, value_8) = _get_branche_for_nibble_at_level(obj, 8, level.value);
+    let (branches_8, value_8) = _get_branch_for_nibble_at_level(obj, 8, level.value);
     assert branches[8] = branches_8;
     if (value_8.value.len != 0) {
         assert value = value_8;
         assert value_set = 1;
     }
-    let (branches_9, value_9) = _get_branche_for_nibble_at_level(obj, 9, level.value);
+    let (branches_9, value_9) = _get_branch_for_nibble_at_level(obj, 9, level.value);
     assert branches[9] = branches_9;
     if (value_9.value.len != 0) {
         assert value = value_9;
         assert value_set = 1;
     }
-    let (branches_10, value_10) = _get_branche_for_nibble_at_level(obj, 10, level.value);
+    let (branches_10, value_10) = _get_branch_for_nibble_at_level(obj, 10, level.value);
     assert branches[10] = branches_10;
     if (value_10.value.len != 0) {
         assert value = value_10;
         assert value_set = 1;
     }
-    let (branches_11, value_11) = _get_branche_for_nibble_at_level(obj, 11, level.value);
+    let (branches_11, value_11) = _get_branch_for_nibble_at_level(obj, 11, level.value);
     assert branches[11] = branches_11;
     if (value_11.value.len != 0) {
         assert value = value_11;
         assert value_set = 1;
     }
-    let (branches_12, value_12) = _get_branche_for_nibble_at_level(obj, 12, level.value);
+    let (branches_12, value_12) = _get_branch_for_nibble_at_level(obj, 12, level.value);
     assert branches[12] = branches_12;
     if (value_12.value.len != 0) {
         assert value = value_12;
         assert value_set = 1;
     }
-    let (branches_13, value_13) = _get_branche_for_nibble_at_level(obj, 13, level.value);
+    let (branches_13, value_13) = _get_branch_for_nibble_at_level(obj, 13, level.value);
     assert branches[13] = branches_13;
     if (value_13.value.len != 0) {
         assert value = value_13;
         assert value_set = 1;
     }
-    let (branches_14, value_14) = _get_branche_for_nibble_at_level(obj, 14, level.value);
+    let (branches_14, value_14) = _get_branch_for_nibble_at_level(obj, 14, level.value);
     assert branches[14] = branches_14;
     if (value_14.value.len != 0) {
         assert value = value_14;
         assert value_set = 1;
     }
-    let (branches_15, value_15) = _get_branche_for_nibble_at_level(obj, 15, level.value);
+    let (branches_15, value_15) = _get_branch_for_nibble_at_level(obj, 15, level.value);
     assert branches[15] = branches_15;
     if (value_15.value.len != 0) {
         assert value = value_15;

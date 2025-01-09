@@ -8,6 +8,8 @@ from ethereum.cancun.vm.stack import push
 from tests.utils.args_gen import Evm
 from tests.utils.strategies import evm_lite, memory_access_size, memory_start_position
 
+pytestmark = pytest.mark.python_vm
+
 
 class TestLog:
     @given(
