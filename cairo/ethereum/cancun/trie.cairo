@@ -653,7 +653,7 @@ func _get_branche_for_nibble_at_level_inner{poseidon_ptr: PoseidonBuiltin*}(
             obj_tracker = __dict_manager.get_tracker(ids.dict_ptr_stop.address_)
             dict_tracker = __dict_manager.get_tracker(ids.branch_ptr.address_)
             dict_tracker.current_ptr += ids.DictAccess.SIZE
-            preimage = next(key for key in obj_tracker.data.keys() if poseidon_hash_many(key) == ids.dict_ptr.key)
+            preimage = next(key for key in obj_tracker.data.keys() if poseidon_hash_many(key) == ids.dict_ptr.key.value)
             dict_tracker.data[preimage] = obj_tracker.data[preimage]
         %}
 
@@ -697,6 +697,8 @@ func _get_branche_for_nibble_at_level{poseidon_ptr: PoseidonBuiltin*}(
 ) -> (MappingBytesBytes, Bytes) {
     alloc_locals;
     // Allocate a segment for the branch and register an associated tracker
+    // dict_new expectes an initial_dict hint argument.
+    %{ initial_dict = {} %}
     let (branch_start_: DictAccess*) = dict_new();
     let branch_start = cast(branch_start_, BytesBytesDictAccess*);
     let dict_ptr_stop = obj.value.dict_ptr;
@@ -858,7 +860,7 @@ func _get_preimage_for_key{poseidon_ptr: PoseidonBuiltin*}(
     local preimage_len;
     %{
         from starkware.cairo.lang.vm.crypto import poseidon_hash_many
-        hashed_value = ids.dict_ptr.key
+        hashed_value = ids.dict_ptr.key.value
         dict_tracker = __dict_manager.get_tracker(ids.dict_ptr_stop)
         # Get the key in the dict that matches the hashed value
         preimage = bytes(next(key for key in dict_tracker.data.keys() if poseidon_hash_many(key) == hashed_value))
@@ -869,7 +871,7 @@ func _get_preimage_for_key{poseidon_ptr: PoseidonBuiltin*}(
     // Verify preimage
     let (preimage_hash) = poseidon_hash_many(preimage_len, preimage_data);
     with_attr error_message("preimage_hash != key") {
-        assert preimage_hash = dict_ptr.key;
+        assert preimage_hash = dict_ptr.key.value;
     }
 
     tempvar res = Bytes(new BytesStruct(preimage_data, preimage_len));

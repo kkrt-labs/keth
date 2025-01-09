@@ -57,7 +57,6 @@ func hashdict_read{poseidon_ptr: PoseidonBuiltin*, dict_ptr: DictAccess*}(
     key_len: felt, key: felt*
 ) -> (value: felt) {
     alloc_locals;
-    local value;
     local felt_key;
     if (key_len == 1) {
         assert felt_key = key[0];
@@ -67,6 +66,8 @@ func hashdict_read{poseidon_ptr: PoseidonBuiltin*, dict_ptr: DictAccess*}(
         assert felt_key = felt_key_;
         tempvar poseidon_ptr = poseidon_ptr;
     }
+
+    local value;
     %{
         dict_tracker = __dict_manager.get_tracker(ids.dict_ptr)
         dict_tracker.current_ptr += ids.DictAccess.SIZE

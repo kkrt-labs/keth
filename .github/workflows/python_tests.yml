@@ -43,7 +43,7 @@ jobs:
 
       - name: Run tests with caching
         run: |
-          uv run --reinstall pytest "cairo/tests/test_serde.py::TestSerde::test_type" -n logical --durations=0 -v -s --log-cli-level=DEBUG
+          uv run --reinstall pytest cairo/tests -n logical --durations=0 -v -s --log-cli-level=DEBUG
 
       - uses: actions/cache/save@v4
         with:

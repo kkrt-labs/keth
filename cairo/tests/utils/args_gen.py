@@ -73,7 +73,6 @@ from typing import (
     get_origin,
 )
 
-import pytest
 from cairo_addons.vm import DictTracker as RustDictTracker
 from cairo_addons.vm import Relocatable as RustRelocatable
 from ethereum_types.bytes import (
@@ -132,9 +131,6 @@ from ethereum.rlp import Extended, Simple
 from tests.utils.helpers import flatten
 
 HASHED_TYPES = [Bytes, bytes, bytearray, str, U256, Hash32, Bytes32, Bytes256]
-
-
-pytestmark = pytest.mark.python_vm
 
 
 class Memory(bytearray):
@@ -516,7 +512,7 @@ def _gen_arg(
                 segments,
                 get_args(arg_type)[0],
                 k,
-                hash_mode=hash_mode is not False,
+                hash_mode=hash_mode in (True, None),
             ): _gen_arg(dict_manager, segments, get_args(arg_type)[1], v)
             for k, v in arg.items()
         }
@@ -531,7 +527,7 @@ def _gen_arg(
             [
                 (
                     (
-                        poseidon_hash_many(tuple(k))
+                        poseidon_hash_many(k)
                         if get_args(arg_type)[0] in HASHED_TYPES
                         else k
                     ),
@@ -681,7 +677,12 @@ def to_python_type(cairo_type: Union[CairoType, Tuple[str, ...], str]):
         return RustRelocatable
 
     if isinstance(cairo_type, TypeStruct):
-        return _cairo_struct_to_python_type.get(cairo_type.scope.path)
+        # Some mappings have keys that are hashed. In that case, the cairo type name starts with "Hashed".
+        # We need to remove the "Hashed" prefix to get the original type name.
+        unhashed_path = cairo_type.scope.path[:-1] + (
+            cairo_type.scope.path[-1].removeprefix("Hashed"),
+        )
+        return _cairo_struct_to_python_type.get(unhashed_path)
 
     if isinstance(cairo_type, Tuple):
         return _cairo_struct_to_python_type.get(cairo_type)

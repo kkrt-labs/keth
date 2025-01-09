@@ -1,6 +1,6 @@
 from starkware.cairo.common.alloc import alloc
 
-from ethereum_types.bytes import Bytes20, Bytes32, Bytes256, Bytes, BytesStruct
+from ethereum_types.bytes import Bytes20, Bytes32, Bytes256, Bytes, BytesStruct, HashedBytes32
 from ethereum_types.numeric import Uint, U256, U256Struct, bool
 from ethereum.crypto.hash import Hash32
 
@@ -93,8 +93,6 @@ struct MappingAddressAccountStruct {
 struct MappingAddressAccount {
     value: MappingAddressAccountStruct*,
 }
-
-using HashedBytes32 = felt;
 
 struct Bytes32U256DictAccess {
     // key is hashed.
