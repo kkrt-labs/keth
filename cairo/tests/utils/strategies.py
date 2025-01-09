@@ -77,7 +77,9 @@ MAX_RECURSION_DEPTH = int(os.getenv("HYPOTHESIS_MAX_RECURSION_DEPTH", 10))
 # Maximum size for sets of addresses and tuples of address and bytes32 to avoid heavy memory usage and health check errors
 MAX_ADDRESS_SET_SIZE = int(os.getenv("HYPOTHESIS_MAX_ADDRESS_SET_SIZE", 10))
 MAX_STORAGE_KEY_SET_SIZE = int(os.getenv("HYPOTHESIS_MAX_STORAGE_KEY_SET_SIZE", 10))
-
+MAX_JUMP_DESTINATIONS_SET_SIZE = int(
+    os.getenv("HYPOTHESIS_MAX_JUMP_DESTINATIONS_SET_SIZE", 10)
+)
 # See ethereum.rlp.Simple and ethereum.rlp.Extended for the definition of Simple and Extended
 simple = st.recursive(
     st.one_of(st.binary()),
@@ -205,7 +207,7 @@ evm_lite = st.builds(
     code=st.just(b""),
     gas_left=st.integers(min_value=0, max_value=BLOCK_GAS_LIMIT).map(Uint),
     env=environment_lite,
-    valid_jump_destinations=st.just(set()),
+    valid_jump_destinations=st.sets(uint, max_size=MAX_ADDRESS_SET_SIZE),
     logs=st.just(()),
     refund_counter=st.just(0),
     running=st.booleans(),
