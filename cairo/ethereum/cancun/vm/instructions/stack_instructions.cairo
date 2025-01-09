@@ -21,7 +21,7 @@ func push_n{range_check_ptr, evm: Evm}(num_bytes: Uint) -> ExceptionalHalt* {
 
     let code = evm.value.code;
     tempvar start_position = U256(new U256Struct(evm.value.pc.value + 1, 0));
-    // @dev: assumption that size is less than 32
+    // @dev: assumption that size is <= 32
     tempvar size = U256(new U256Struct(num_bytes.value, 0));
     let _data = buffer_read(code, start_position, size);
     let data = Helpers.bytes_to_uint256(num_bytes.value, _data.value.data);
