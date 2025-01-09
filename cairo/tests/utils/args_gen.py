@@ -503,7 +503,7 @@ def _gen_arg(
         dict_ptr = segments.add()
 
         if arg_type_origin is set:
-            arg = {k: True for k in arg}
+            arg = defaultdict(lambda: False, {k: True for k in arg})
             arg_type = Mapping[get_args(arg_type)[0], bool]
 
         data = {
