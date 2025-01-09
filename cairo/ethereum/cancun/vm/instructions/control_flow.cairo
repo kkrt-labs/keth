@@ -9,9 +9,8 @@ from ethereum.cancun.vm.gas import charge_gas, GasConstants
 from ethereum.cancun.vm.stack import Stack, pop, push
 
 // @notice Stop further execution of EVM code
-func stop{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+func stop{evm: Evm}(){
     // STACK
-    let stack = evm.value.stack;
 
     // GAS
     // No gas charge for STOP
@@ -20,9 +19,8 @@ func stop{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
     EvmImpl.set_running(bool(FALSE));
 
     // PROGRAM COUNTER
-    EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
-    let ok = cast(0, ExceptionalHalt*);
-    return ok;
+    EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
+    return ();
 }
 
 // @notice Alter the program counter to the location specified by the top of the stack
@@ -158,8 +156,6 @@ func gas_left{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
 // @notice Mark a valid destination for jumps
 func jumpdest{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
     alloc_locals;
-    // STACK
-    let stack = evm.value.stack;
 
     // GAS
     let err = charge_gas(Uint(GasConstants.GAS_JUMPDEST));
@@ -171,7 +167,7 @@ func jumpdest{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
     // No operation needed, just a marker
 
     // PROGRAM COUNTER
-    EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
+    EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
     let ok = cast(0, ExceptionalHalt*);
     return ok;
 }
