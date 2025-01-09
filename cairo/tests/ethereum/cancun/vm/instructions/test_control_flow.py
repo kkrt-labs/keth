@@ -40,6 +40,7 @@ class TestControlFlow:
             else 0
         )
         push(evm.stack, U256(jump_dest))
+
         try:
             cairo_result = cairo_run("jump", evm)
         except ExceptionalHalt as cairo_error:
@@ -66,6 +67,7 @@ class TestControlFlow:
             else 0
         )
         push(evm.stack, U256(jump_dest))
+
         try:
             cairo_result = cairo_run("jumpi", evm)
         except ExceptionalHalt as cairo_error:

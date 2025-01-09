@@ -1,13 +1,23 @@
 from starkware.cairo.common.bool import TRUE, FALSE
-from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
+from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, PoseidonBuiltin
 from starkware.cairo.common.dict import dict_read, DictAccess
 
-from ethereum_types.numeric import U256, U256Struct, Uint, bool, SetUint, SetUintStruct, SetUintDictAccess
+from ethereum_types.numeric import (
+    U256,
+    U256Struct,
+    Uint,
+    bool,
+    SetUint,
+    SetUintStruct,
+    SetUintDictAccess,
+)
 
 from ethereum.cancun.vm import Evm, EvmImpl
 from ethereum.cancun.vm.exceptions import ExceptionalHalt, InvalidJumpDestError
 from ethereum.cancun.vm.gas import charge_gas, GasConstants
 from ethereum.cancun.vm.stack import Stack, pop, push
+
+from src.utils.dict import hashdict_read
 
 // @notice Stop further execution of EVM code
 func stop{evm: Evm}() {
@@ -25,7 +35,7 @@ func stop{evm: Evm}() {
 }
 
 // @notice Alter the program counter to the location specified by the top of the stack
-func jump{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+func jump{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, evm: Evm}() -> ExceptionalHalt* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -46,7 +56,7 @@ func jump{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
     // Check if jump destination is valid by looking it up in valid_jump_destinations
     let valid_jump_destinations_ptr = evm.value.valid_jump_destinations.value.dict_ptr;
     let dict_ptr = cast(valid_jump_destinations_ptr, DictAccess*);
-    let (is_valid_dest) = dict_read{dict_ptr=dict_ptr}(jump_dest.value.low);
+    let (is_valid_dest) = hashdict_read{dict_ptr=dict_ptr}(1, &jump_dest.value.low);
     if (is_valid_dest == FALSE) {
         tempvar err = new ExceptionalHalt(InvalidJumpDestError);
         return err;
@@ -65,7 +75,7 @@ func jump{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
 }
 
 // @notice Alter the program counter to the specified location if and only if a condition is true
-func jumpi{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+func jumpi{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, evm: Evm}() -> ExceptionalHalt* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -96,7 +106,8 @@ func jumpi{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
 
     let valid_jump_destinations_ptr = evm.value.valid_jump_destinations.value.dict_ptr;
     let dict_ptr = cast(valid_jump_destinations_ptr, DictAccess*);
-    let (is_valid_dest) = dict_read{dict_ptr=dict_ptr}(jump_dest.value.low);
+    let (is_valid_dest) = hashdict_read{dict_ptr=dict_ptr}(1, &jump_dest.value.low);
+
     if (is_valid_dest == FALSE) {
         tempvar err = new ExceptionalHalt(InvalidJumpDestError);
         return err;
