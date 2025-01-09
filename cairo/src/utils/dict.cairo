@@ -1,8 +1,14 @@
+from starkware.cairo.common.cairo_builtins import PoseidonBuiltin
+from starkware.cairo.common.builtin_poseidon.poseidon import poseidon_hash, poseidon_hash_many
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.memcpy import memcpy
 from starkware.cairo.common.squash_dict import squash_dict
 from starkware.cairo.common.uint256 import Uint256
+
+from ethereum_types.numeric import U256
+from ethereum_types.bytes import Bytes32
+from ethereum.cancun.fork_types import Address
 
 from src.utils.maths import unsigned_div_rem
 
@@ -40,4 +46,38 @@ func dict_squash{range_check_ptr}(
             ids.squashed_dict_end.address_
     %}
     return (squashed_dict_start=squashed_dict_start, squashed_dict_end=squashed_dict_end);
+}
+
+// A wrapper around dict_read that hashes the key before accessing the dictionary if the key
+// does not fit in a felt.
+// @param key_len: The number of felt values used to represent the key.
+// @param key: The key to access the dictionary.
+// TODO: write the associated squash function.
+func hashdict_read{poseidon_ptr: PoseidonBuiltin*, dict_ptr: DictAccess*}(
+    key_len: felt, key: felt*
+) -> (value: felt) {
+    alloc_locals;
+    local felt_key;
+    if (key_len == 1) {
+        assert felt_key = key[0];
+        tempvar poseidon_ptr = poseidon_ptr;
+    } else {
+        let (felt_key_) = poseidon_hash_many(key_len, key);
+        assert felt_key = felt_key_;
+        tempvar poseidon_ptr = poseidon_ptr;
+    }
+
+    local value;
+    %{
+        dict_tracker = __dict_manager.get_tracker(ids.dict_ptr)
+        dict_tracker.current_ptr += ids.DictAccess.SIZE
+        preimage = tuple([memory[ids.key + i] for i in range(ids.key_len)])
+        # Not using [] here because it will register the value for that key in the tracker.
+        ids.value = dict_tracker.data.get(preimage, dict_tracker.data.default_factory())
+    %}
+    dict_ptr.key = felt_key;
+    dict_ptr.prev_value = value;
+    dict_ptr.new_value = value;
+    let dict_ptr = dict_ptr + DictAccess.SIZE;
+    return (value=value);
 }

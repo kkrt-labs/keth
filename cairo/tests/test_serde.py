@@ -60,8 +60,8 @@ def dict_manager():
 
 
 @pytest.fixture(scope="module")
-def serde(cairo_program, segments):
-    return Serde(segments, cairo_program)
+def serde(cairo_program, segments, dict_manager):
+    return Serde(segments, cairo_program, dict_manager)
 
 
 @pytest.fixture(scope="module")
@@ -166,6 +166,9 @@ def single_evm_parent(b: Union[Message, Evm]) -> bool:
     return True
 
 
+pytestmark = pytest.mark.python_vm
+
+
 class TestSerde:
     @given(b=...)
     # 20 examples per type
@@ -230,18 +233,18 @@ class TestSerde:
             Union[Uint, U256],
             Set[Address],
             Annotated[Tuple[VersionedHash, ...], 16],
-            Mapping[Bytes, U256],
-            Trie[Bytes, U256],
+            Mapping[Bytes32, U256],
+            Trie[Bytes32, U256],
             Trie[Address, Optional[Account]],
             TransientStorage,
             State,
             Tuple[
-                Trie[Address, Optional[Account]], Mapping[Address, Trie[Bytes, U256]]
+                Trie[Address, Optional[Account]], Mapping[Address, Trie[Bytes32, U256]]
             ],
             List[
                 Tuple[
                     Trie[Address, Optional[Account]],
-                    Mapping[Address, Trie[Bytes, U256]],
+                    Mapping[Address, Trie[Bytes32, U256]],
                 ]
             ],
             List[Hash32],

@@ -395,8 +395,8 @@ class TransientStorage:
     Contains all information that is preserved between message calls
     within a transaction.
     """
-    _tries: Dict[Address, Trie[Bytes, U256]] = field(default_factory=dict)
-    _snapshots: List[Dict[Address, Trie[Bytes, U256]]] = field(default_factory=list)
+    _tries: Dict[Address, Trie[Bytes32, U256]] = field(default_factory=dict)
+    _snapshots: List[Dict[Address, Trie[Bytes32, U256]]] = field(default_factory=list)
 ```
 
 Here is the Cairo implementation:
@@ -410,8 +410,8 @@ struct TransientStorage {
 }
 
 struct TransientStorageStruct {
-    _tries: MappingAddressTrieBytesU256,  // Dict[Address, Trie[Bytes, U256]]
-    _snapshots: TransientStorageSnapshots, // List[Dict[Address, Trie[Bytes, U256]]]
+    _tries: MappingAddressTrieBytes32U256,  // Dict[Address, Trie[Bytes32, U256]]
+    _snapshots: TransientStorageSnapshots, // List[Dict[Address, Trie[Bytes32, U256]]]
 }
 ```
 
@@ -419,19 +419,19 @@ struct TransientStorageStruct {
    pattern to store key-value pairs for each address:
 
 ```cairo:cairo/ethereum/cancun/state.cairo
-struct AddressTrieBytesU256DictAccess {
+struct AddressTrieBytes32U256DictAccess {
     key: Address,
-    prev_value: TrieBytesU256,
-    new_value: TrieBytesU256,
+    prev_value: TrieBytes32U256,
+    new_value: TrieBytes32U256,
 }
 
-struct MappingAddressTrieBytesU256Struct {
-    dict_ptr_start: AddressTrieBytesU256DictAccess*,
-    dict_ptr: AddressTrieBytesU256DictAccess*,
+struct MappingAddressTrieBytes32U256Struct {
+    dict_ptr_start: AddressTrieBytes32U256DictAccess*,
+    dict_ptr: AddressTrieBytes32U256DictAccess*,
 }
 
-struct MappingAddressTrieBytesU256 {
-    value: MappingAddressTrieBytesU256Struct*,
+struct MappingAddressTrieBytes32U256 {
+    value: MappingAddressTrieBytes32U256Struct*,
 }
 ```
 
@@ -440,7 +440,7 @@ struct MappingAddressTrieBytesU256 {
 
 ```cairo:cairo/ethereum/cancun/state.cairo
 struct TransientStorageSnapshotsStruct {
-    data: MappingAddressTrieBytesU256*,  // Array of mappings
+    data: MappingAddressTrieBytes32U256*,  // Array of mappings
     len: felt,
 }
 
@@ -457,11 +457,11 @@ We integrate the new external types to the Cairo <> Python type mapping:
 _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     # ... existing mappings ...
     ("ethereum", "cancun", "state", "TransientStorage"): TransientStorage,
-    ("ethereum", "cancun", "state", "MappingAddressTrieBytesU256"): Mapping[
-        Address, Trie[Bytes, U256]
+    ("ethereum", "cancun", "state", "MappingAddressTrieBytes32U256"): Mapping[
+        Address, Trie[Bytes32, U256]
     ],
     ("ethereum", "cancun", "state", "TransientStorageSnapshots"): List[
-        Dict[Address, Trie[Bytes, U256]]
+        Dict[Address, Trie[Bytes32, U256]]
     ],
 }
 ```
@@ -479,7 +479,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
         b: Union[
             # ... existing types ...
             TransientStorage,
-            MappingAddressTrieBytesU256,
+            MappingAddressTrieBytes32U256,
             TransientStorageSnapshots,
         ],
     ):

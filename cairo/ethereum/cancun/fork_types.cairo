@@ -1,6 +1,6 @@
 from starkware.cairo.common.alloc import alloc
 
-from ethereum_types.bytes import Bytes20, Bytes32, Bytes256, Bytes, BytesStruct
+from ethereum_types.bytes import Bytes20, Bytes32, Bytes256, Bytes, BytesStruct, HashedBytes32
 from ethereum_types.numeric import Uint, U256, U256Struct, bool
 from ethereum.crypto.hash import Hash32
 
@@ -94,19 +94,20 @@ struct MappingAddressAccount {
     value: MappingAddressAccountStruct*,
 }
 
-struct BytesU256DictAccess {
-    key: Bytes,
+struct Bytes32U256DictAccess {
+    // key is hashed.
+    key: HashedBytes32,
     prev_value: U256,
     new_value: U256,
 }
 
-struct MappingBytesU256Struct {
-    dict_ptr_start: BytesU256DictAccess*,
-    dict_ptr: BytesU256DictAccess*,
+struct MappingBytes32U256Struct {
+    dict_ptr_start: Bytes32U256DictAccess*,
+    dict_ptr: Bytes32U256DictAccess*,
 }
 
-struct MappingBytesU256 {
-    value: MappingBytesU256Struct*,
+struct MappingBytes32U256 {
+    value: MappingBytes32U256Struct*,
 }
 
 func EMPTY_ACCOUNT() -> Account {

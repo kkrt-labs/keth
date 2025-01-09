@@ -1,21 +1,23 @@
 from typing import Mapping, Optional
 
 import pytest
-from ethereum_types.bytes import Bytes
-from ethereum_types.numeric import Uint
+from ethereum_types.bytes import Bytes, Bytes32
+from ethereum_types.numeric import U256, Uint
 from hypothesis import assume, given, settings
 from hypothesis import strategies as st
 
-from ethereum.cancun.fork_types import Account
+from ethereum.cancun.fork_types import Account, Address
 from ethereum.cancun.trie import (
     InternalNode,
     Node,
+    Trie,
     bytes_to_nibble_list,
     common_prefix_length,
     encode_internal_node,
     encode_node,
     nibble_list_to_compact,
     patricialize,
+    trie_get,
 )
 from tests.utils.assertion import sequence_equal
 from tests.utils.errors import cairo_error
@@ -115,11 +117,11 @@ class TestTrie:
         nibble=uint4,
         level=uint4,
     )
-    def test_get_branche_for_nibble_at_level(self, cairo_run, obj, nibble, level):
+    def test_get_branch_for_nibble_at_level(self, cairo_run, obj, nibble, level):
         prefix = (b"prefix" * 3)[:level]
         obj = {(prefix + k)[:64]: v for k, v in obj.items()}
         branche, value = cairo_run(
-            "_get_branche_for_nibble_at_level", obj, nibble, level
+            "_get_branch_for_nibble_at_level", obj, nibble, level
         )
         assert branche == {
             k: v for k, v in obj.items() if k[level] == nibble and len(k) > level
@@ -147,3 +149,23 @@ class TestTrie:
     @given(obj=st.dictionaries(nibble, bytes32))
     def test_patricialize(self, cairo_run, obj: Mapping[Bytes, Bytes]):
         assert patricialize(obj, Uint(0)) == cairo_run("patricialize", obj, Uint(0))
+
+
+class TestTrieOperations:
+    @given(trie=..., key=...)
+    def test_trie_get_TrieAddressAccount(
+        self, cairo_run, trie: Trie[Address, Optional[Account]], key: Address
+    ):
+        [trie_cairo, result_cairo] = cairo_run("trie_get_TrieAddressAccount", trie, key)
+        result_py = trie_get(trie, key)
+        assert result_cairo == result_py
+        assert trie_cairo == trie
+
+    @given(trie=..., key=...)
+    def test_trie_get_TrieBytes32U256(
+        self, cairo_run, trie: Trie[Bytes32, U256], key: Bytes32
+    ):
+        [trie_cairo, result_cairo] = cairo_run("trie_get_TrieBytes32U256", trie, key)
+        result_py = trie_get(trie, key)
+        assert result_cairo == result_py
+        assert trie_cairo == trie

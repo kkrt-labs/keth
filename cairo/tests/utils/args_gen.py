@@ -99,6 +99,7 @@ from starkware.cairo.lang.compiler.identifier_definition import (
 )
 from starkware.cairo.lang.compiler.program import Program
 from starkware.cairo.lang.compiler.scoped_name import ScopedName
+from starkware.cairo.lang.vm.crypto import poseidon_hash_many
 from starkware.cairo.lang.vm.relocatable import RelocatableValue
 
 from ethereum.cancun.blocks import Header, Log, Receipt, Withdrawal
@@ -128,6 +129,8 @@ from ethereum.crypto.hash import Hash32
 from ethereum.exceptions import EthereumException
 from ethereum.rlp import Extended, Simple
 from tests.utils.helpers import flatten
+
+HASHED_TYPES = [Bytes, bytes, bytearray, str, U256, Hash32, Bytes32, Bytes256]
 
 
 class Memory(bytearray):
@@ -298,36 +301,36 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "cancun", "trie", "TrieAddressAccount"): Trie[
         Address, Optional[Account]
     ],
-    ("ethereum", "cancun", "trie", "TrieBytesU256"): Trie[Bytes, U256],
+    ("ethereum", "cancun", "trie", "TrieBytes32U256"): Trie[Bytes32, U256],
     ("ethereum", "cancun", "fork_types", "MappingAddressAccount"): Mapping[
         Address, Account
     ],
-    ("ethereum", "cancun", "fork_types", "MappingBytesU256"): Mapping[Bytes, U256],
+    ("ethereum", "cancun", "fork_types", "MappingBytes32U256"): Mapping[Bytes32, U256],
     ("ethereum", "exceptions", "EthereumException"): EthereumException,
     ("ethereum", "cancun", "vm", "memory", "Memory"): Memory,
     ("ethereum", "cancun", "vm", "stack", "Stack"): Stack[U256],
     ("ethereum", "cancun", "trie", "Subnodes"): Annotated[Tuple[Extended, ...], 16],
     ("ethereum", "cancun", "state", "TransientStorage"): TransientStorage,
-    ("ethereum", "cancun", "state", "MappingAddressTrieBytesU256"): Mapping[
-        Address, Trie[Bytes, U256]
+    ("ethereum", "cancun", "state", "MappingAddressTrieBytes32U256"): Mapping[
+        Address, Trie[Bytes32, U256]
     ],
     ("ethereum", "cancun", "state", "TransientStorageSnapshots"): List[
-        Mapping[Address, Trie[Bytes, U256]]
+        Mapping[Address, Trie[Bytes32, U256]]
     ],
     ("ethereum", "cancun", "state", "State"): State,
     (
         "ethereum",
         "cancun",
         "state",
-        "TupleTrieAddressAccountMappingAddressTrieBytesU256",
-    ): Tuple[Trie[Address, Optional[Account]], Mapping[Address, Trie[Bytes, U256]]],
+        "TupleTrieAddressAccountMappingAddressTrieBytes32U256",
+    ): Tuple[Trie[Address, Optional[Account]], Mapping[Address, Trie[Bytes32, U256]]],
     (
         "ethereum",
         "cancun",
         "state",
-        "ListTupleTrieAddressAccountMappingAddressTrieBytesU256",
+        "ListTupleTrieAddressAccountMappingAddressTrieBytes32U256",
     ): List[
-        Tuple[Trie[Address, Optional[Account]], Mapping[Address, Trie[Bytes, U256]]]
+        Tuple[Trie[Address, Optional[Account]], Mapping[Address, Trie[Bytes32, U256]]]
     ],
     ("ethereum", "cancun", "vm", "Environment"): Environment,
     ("ethereum", "cancun", "fork_types", "ListHash32"): List[Hash32],
@@ -370,7 +373,12 @@ def gen_arg(dict_manager, segments):
 
 
 def _gen_arg(
-    dict_manager, segments, arg_type: Type, arg: Any, annotations: Optional[Any] = None
+    dict_manager,
+    segments,
+    arg_type: Type,
+    arg: Any,
+    annotations: Optional[Any] = None,
+    hash_mode: Optional[bool] = None,
 ):
     """
     Generate a Cairo argument from a Python argument.
@@ -448,7 +456,10 @@ def _gen_arg(
         # Get the concrete type parameter. For bytearray, the value type is int.
         value_type = next(iter(get_args(arg_type)), int)
         data = defaultdict(int, {k: v for k, v in enumerate(arg)})
-        base = _gen_arg(dict_manager, segments, Dict[Uint, value_type], data)
+        # Use regular, non-hashed dict entries for stack and memory.
+        base = _gen_arg(
+            dict_manager, segments, Dict[Uint, value_type], data, hash_mode=False
+        )
         segments.load_data(base + 2, [len(arg)])
         return base
 
@@ -496,19 +507,39 @@ def _gen_arg(
             arg_type = Mapping[get_args(arg_type)[0], bool]
 
         data = {
-            _gen_arg(dict_manager, segments, get_args(arg_type)[0], k): _gen_arg(
-                dict_manager, segments, get_args(arg_type)[1], v
-            )
+            _gen_arg(
+                dict_manager,
+                segments,
+                get_args(arg_type)[0],
+                k,
+                hash_mode=hash_mode in (True, None),
+            ): _gen_arg(dict_manager, segments, get_args(arg_type)[1], v)
             for k, v in arg.items()
         }
+
         if isinstance_with_generic(arg, defaultdict):
             data = defaultdict(arg.default_factory, data)
 
         # This is required for tests where we read data from DictAccess segments while no dict method has been used.
         # Equivalent to doing an initial dict_read of all keys.
-        initial_data = flatten([(k, v, v) for k, v in data.items()])
+        # We only hash keys if they're in tuples.
+        initial_data = flatten(
+            [
+                (
+                    (
+                        poseidon_hash_many(k)
+                        if get_args(arg_type)[0] in HASHED_TYPES
+                        else k
+                    ),
+                    v,
+                    v,
+                )
+                for k, v in data.items()
+            ]
+        )
         segments.load_data(dict_ptr, initial_data)
         current_ptr = dict_ptr + len(initial_data)
+
         if isinstance(dict_manager, DictManager):
             dict_manager.trackers[dict_ptr.segment_index] = DictTracker(
                 data=data, current_ptr=current_ptr
@@ -555,16 +586,29 @@ def _gen_arg(
             for f in fields(arg_type_origin)
         ]
         segments.load_data(struct_ptr, data)
+
+        if arg_type_origin is Trie:
+            # In case of a Trie, we need the dict to be a defaultdict with the trie.default as the default value.
+            dict_ptr = segments.memory[data[2]]
+            dict_manager.trackers[dict_ptr.segment_index].data = defaultdict(
+                lambda: data[1], dict_manager.trackers[dict_ptr.segment_index].data
+            )
+
         return struct_ptr
 
     if arg_type in (U256, Hash32, Bytes32, Bytes256):
         if isinstance_with_generic(arg, U256):
             arg = arg.to_be_bytes32()[::-1]
+
+        felt_values = [
+            int.from_bytes(arg[i : i + 16], "little") for i in range(0, len(arg), 16)
+        ]
+
+        if hash_mode:
+            return tuple(felt_values)
+
         base = segments.add()
-        segments.load_data(
-            base,
-            [int.from_bytes(arg[i : i + 16], "little") for i in range(0, len(arg), 16)],
-        )
+        segments.load_data(base, felt_values)
         return base
 
     if arg_type in (Bytes, bytes, bytearray, str):
@@ -572,6 +616,10 @@ def _gen_arg(
             return 0
         if isinstance(arg, str):
             arg = arg.encode()
+
+        if hash_mode:
+            return tuple(list(arg))
+
         bytes_ptr = segments.add()
         segments.load_data(bytes_ptr, list(arg))
         struct_ptr = segments.add()
@@ -580,12 +628,16 @@ def _gen_arg(
 
     if arg_type in (int, bool, U64, Uint, Bytes0, Bytes8, Bytes20):
         if arg_type is int and arg < 0:
-            return arg + DEFAULT_PRIME
-        return (
+            ret_value = arg + DEFAULT_PRIME
+            return tuple([ret_value]) if hash_mode else ret_value
+
+        ret_value = (
             int(arg)
             if not isinstance_with_generic(arg, bytes)
             else int.from_bytes(arg, "little")
         )
+
+        return tuple([ret_value]) if hash_mode else ret_value
 
     if isinstance(arg_type, type) and issubclass(arg_type, Exception):
         # For exceptions, we either return 0 (no error) or the ascii representation of the error message
@@ -617,7 +669,7 @@ def _bind_generics(type_hint, bindings):
     return origin[bound_args]
 
 
-def to_python_type(cairo_type: Union[CairoType, Tuple[str, ...]]):
+def to_python_type(cairo_type: Union[CairoType, Tuple[str, ...], str]):
     if isinstance(cairo_type, TypeFelt):
         return int
 
@@ -625,10 +677,20 @@ def to_python_type(cairo_type: Union[CairoType, Tuple[str, ...]]):
         return RustRelocatable
 
     if isinstance(cairo_type, TypeStruct):
-        return _cairo_struct_to_python_type.get(cairo_type.scope.path)
+        # Some mappings have keys that are hashed. In that case, the cairo type name starts with "Hashed".
+        # We need to remove the "Hashed" prefix to get the original type name.
+        unhashed_path = cairo_type.scope.path[:-1] + (
+            cairo_type.scope.path[-1].removeprefix("Hashed"),
+        )
+        return _cairo_struct_to_python_type.get(unhashed_path)
 
     if isinstance(cairo_type, Tuple):
         return _cairo_struct_to_python_type.get(cairo_type)
+
+    if isinstance(cairo_type, str):
+        for k, v in _cairo_struct_to_python_type.items():
+            if k[-1] == cairo_type:
+                return v
 
     raise NotImplementedError(f"Cairo type {cairo_type} not implemented")
 

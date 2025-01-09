@@ -1,18 +1,24 @@
+from starkware.cairo.common.cairo_builtins import PoseidonBuiltin
+from starkware.cairo.common.builtin_poseidon.poseidon import poseidon_hash, poseidon_hash_many
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.math_cmp import is_le
 from starkware.cairo.common.math import assert_not_zero
 from starkware.cairo.common.bitwise import BitwiseBuiltin
+from starkware.cairo.common.dict import DictAccess, dict_new
+from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
 from starkware.cairo.common.cairo_builtins import KeccakBuiltin
 from starkware.cairo.common.memcpy import memcpy
 
 from src.utils.bytes import uint256_to_bytes32_little
+from src.utils.dict import hashdict_read
 from ethereum.crypto.hash import keccak256
-from ethereum.utils.numeric import min
+from ethereum.utils.numeric import min, is_zero
 from ethereum.rlp import encode, _encode_bytes, _encode
-from ethereum_types.numeric import U256, Uint, bool
+from ethereum_types.numeric import U256, Uint, bool, U256Struct
 from ethereum_types.bytes import (
     Bytes,
     BytesStruct,
+    Bytes32,
     StringStruct,
     String,
     MappingBytesBytes,
@@ -22,7 +28,17 @@ from ethereum_types.bytes import (
     TupleMappingBytesBytesStruct,
 )
 from ethereum.cancun.blocks import Receipt, Withdrawal
-from ethereum.cancun.fork_types import Account, MappingAddressAccount, MappingBytesU256
+from ethereum.cancun.fork_types import (
+    Account,
+    AccountStruct,
+    Address,
+    Bytes32U256DictAccess,
+    MappingAddressAccount,
+    MappingAddressAccountStruct,
+    MappingBytes32U256,
+    MappingBytes32U256Struct,
+    AddressAccountDictAccess,
+)
 from ethereum.cancun.transactions import LegacyTransaction
 from ethereum.rlp import (
     Extended,
@@ -159,14 +175,14 @@ struct TrieAddressAccount {
     value: TrieAddressAccountStruct*,
 }
 
-struct TrieBytesU256Struct {
+struct TrieBytes32U256Struct {
     secured: bool,
     default: U256,
-    _data: MappingBytesU256,
+    _data: MappingBytes32U256,
 }
 
-struct TrieBytesU256 {
-    value: TrieBytesU256Struct*,
+struct TrieBytes32U256 {
+    value: TrieBytes32U256Struct*,
 }
 
 func encode_internal_node{
@@ -332,10 +348,47 @@ func encode_node{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: Kecc
 //         // trie._data[key] = value
 // }
 
-// func trie_get(trie: Trie[K, V], key: K) -> V {
-//     // Implementation:
-//     // return trie._data.get(key, trie.default)
-// }
+func trie_get_TrieAddressAccount{poseidon_ptr: PoseidonBuiltin*, trie: TrieAddressAccount}(
+    key: Address
+) -> Account {
+    alloc_locals;
+    let dict_ptr = cast(trie.value._data.value.dict_ptr, DictAccess*);
+
+    let fp_and_pc = get_fp_and_pc();
+    local __fp__: felt* = fp_and_pc.fp_val;
+
+    with dict_ptr {
+        let (pointer) = hashdict_read(1, &key.value);
+    }
+    let new_dict_ptr = cast(dict_ptr, AddressAccountDictAccess*);
+    tempvar mapping = MappingAddressAccount(
+        new MappingAddressAccountStruct(trie.value._data.value.dict_ptr_start, new_dict_ptr)
+    );
+    tempvar trie = TrieAddressAccount(
+        new TrieAddressAccountStruct(trie.value.secured, trie.value.default, mapping)
+    );
+    tempvar res = Account(cast(pointer, AccountStruct*));
+    return res;
+}
+
+func trie_get_TrieBytes32U256{poseidon_ptr: PoseidonBuiltin*, trie: TrieBytes32U256}(
+    key: Bytes32
+) -> U256 {
+    let dict_ptr = cast(trie.value._data.value.dict_ptr, DictAccess*);
+
+    with dict_ptr {
+        let (pointer) = hashdict_read(2, cast(key.value, felt*));
+    }
+    let new_dict_ptr = cast(dict_ptr, Bytes32U256DictAccess*);
+    tempvar mapping = MappingBytes32U256(
+        new MappingBytes32U256Struct(trie.value._data.value.dict_ptr_start, new_dict_ptr)
+    );
+    tempvar trie = TrieBytes32U256(
+        new TrieBytes32U256Struct(trie.value.secured, trie.value.default, mapping)
+    );
+    tempvar res = U256(cast(pointer, U256Struct*));
+    return res;
+}
 
 func common_prefix_length(a: Bytes, b: Bytes) -> felt {
     alloc_locals;
@@ -535,15 +588,20 @@ func bytes_to_nibble_list{bitwise_ptr: BitwiseBuiltin*}(bytes_: Bytes) -> Bytes 
 // * The length of the common prefix shared by all keys starting from `level`
 // ```
 func _search_common_prefix_length{
-    range_check_ptr, substring: Bytes, level: Uint, dict_ptr_stop: BytesBytesDictAccess*
+    range_check_ptr,
+    substring: Bytes,
+    level: Uint,
+    dict_ptr_stop: BytesBytesDictAccess*,
+    poseidon_ptr: PoseidonBuiltin*,
 }(obj: BytesBytesDictAccess*, current_length: felt) -> felt {
     alloc_locals;
     if (obj == dict_ptr_stop) {
         return current_length;
     }
 
+    let preimage = _get_preimage_for_key(obj, dict_ptr_stop);
     tempvar sliced_key = Bytes(
-        new BytesStruct(obj.key.value.data + level.value, obj.key.value.len - level.value)
+        new BytesStruct(preimage.value.data + level.value, preimage.value.len - level.value)
     );
     let result = common_prefix_length(substring, sliced_key);
     let current_length = min(result, current_length);
@@ -552,6 +610,67 @@ func _search_common_prefix_length{
     }
 
     return _search_common_prefix_length(obj + BytesBytesDictAccess.SIZE, current_length);
+}
+
+func _get_branch_for_nibble_at_level_inner{poseidon_ptr: PoseidonBuiltin*}(
+    dict_ptr: BytesBytesDictAccess*,
+    dict_ptr_stop: BytesBytesDictAccess*,
+    branch_ptr: BytesBytesDictAccess*,
+    nibble: felt,
+    level: felt,
+    value: Bytes,
+) -> (BytesBytesDictAccess*, Bytes) {
+    alloc_locals;
+    if (dict_ptr == dict_ptr_stop) {
+        return (branch_ptr, value);
+    }
+
+    let preimage = _get_preimage_for_key(dict_ptr, dict_ptr_stop);
+
+    // Check cases
+    let is_value_case = is_zero(preimage.value.len - level);
+    if (is_value_case != 0) {
+        // Value case - update value and continue
+        return _get_branch_for_nibble_at_level_inner(
+            dict_ptr + BytesBytesDictAccess.SIZE,
+            dict_ptr_stop,
+            branch_ptr,
+            nibble,
+            level,
+            dict_ptr.new_value,
+        );
+    }
+
+    let is_nibble_case = is_zero(preimage.value.data[level] - nibble);
+    if (is_nibble_case != 0) {
+        // Nibble case - copy entry and continue
+        assert [branch_ptr].key = dict_ptr.key;
+        assert [branch_ptr].prev_value = dict_ptr.prev_value;
+        assert [branch_ptr].new_value = dict_ptr.new_value;
+
+        // Add an entry to the dict_tracker
+        %{
+            obj_tracker = __dict_manager.get_tracker(ids.dict_ptr_stop.address_)
+            dict_tracker = __dict_manager.get_tracker(ids.branch_ptr.address_)
+            dict_tracker.current_ptr += ids.DictAccess.SIZE
+            preimage = next(key for key in obj_tracker.data.keys() if poseidon_hash_many(key) == ids.dict_ptr.key.value)
+            dict_tracker.data[preimage] = obj_tracker.data[preimage]
+        %}
+
+        return _get_branch_for_nibble_at_level_inner(
+            dict_ptr + BytesBytesDictAccess.SIZE,
+            dict_ptr_stop,
+            branch_ptr + BytesBytesDictAccess.SIZE,
+            nibble,
+            level,
+            value,
+        );
+    }
+
+    // Not nibble case - skip entry and continue
+    return _get_branch_for_nibble_at_level_inner(
+        dict_ptr + BytesBytesDictAccess.SIZE, dict_ptr_stop, branch_ptr, nibble, level, value
+    );
 }
 
 // Creates a BranchNode's branch during the patricialization of a merkle trie for a specific nibble
@@ -573,103 +692,26 @@ func _search_common_prefix_length{
 // * A tuple containing:
 //   * The filtered mapping containing only key-value pairs where key[level] == nibble
 //   * The value associated with any key that ends exactly at the given level, or an empty Bytes if none exists
-func _get_branche_for_nibble_at_level(obj: MappingBytesBytes, nibble: felt, level: felt) -> (
-    MappingBytesBytes, Bytes
-) {
+func _get_branch_for_nibble_at_level{poseidon_ptr: PoseidonBuiltin*}(
+    obj: MappingBytesBytes, nibble: felt, level: felt
+) -> (MappingBytesBytes, Bytes) {
     alloc_locals;
-    let (local branch: BytesBytesDictAccess*) = alloc();
-    local dict_ptr_stop: BytesBytesDictAccess* = obj.value.dict_ptr;
-    local value: Bytes;
-    local value_set: felt;
+    // Allocate a segment for the branch and register an associated tracker
+    // dict_new expectes an initial_dict hint argument.
+    %{ initial_dict = {} %}
+    let (branch_start_: DictAccess*) = dict_new();
+    let branch_start = cast(branch_start_, BytesBytesDictAccess*);
+    let dict_ptr_stop = obj.value.dict_ptr;
 
-    tempvar branch = branch;
-    tempvar dict_ptr = obj.value.dict_ptr_start;
+    tempvar empty_value = Bytes(new BytesStruct(cast(0, felt*), 0));
 
-    loop:
-    let branch = cast([ap - 2], BytesBytesDictAccess*);
-    let dict_ptr = cast([ap - 1], BytesBytesDictAccess*);
-    // The verifier just needs to make sure that whatever case we are in is properly asserted.
-    tempvar is_nibble_case = nondet %{ memory.get(ids.dict_ptr.key.value.data + ids.level) == ids.nibble %};
-    tempvar is_value_case = nondet %{ int(ids.dict_ptr.key.value.len == ids.level) %};
+    // Process entries recursively
+    let (branch_ptr, value) = _get_branch_for_nibble_at_level_inner(
+        obj.value.dict_ptr_start, dict_ptr_stop, branch_start, nibble, level, empty_value
+    );
 
-    static_assert branch == [ap - 4];
-    static_assert dict_ptr == [ap - 3];
+    tempvar result = MappingBytesBytes(new MappingBytesBytesStruct(branch_start, branch_ptr));
 
-    jmp value_case if is_value_case != 0;
-    jmp nibble_case if is_nibble_case != 0;
-    jmp not_nibble_case;
-
-    value_case:
-    let branch = cast([ap - 4], BytesBytesDictAccess*);
-    let dict_ptr = cast([ap - 3], BytesBytesDictAccess*);
-
-    assert dict_ptr.key.value.len = level;
-    assert value = dict_ptr.new_value;
-    assert value_set = 1;
-
-    let dict_ptr_stop = cast([fp + 1], BytesBytesDictAccess*);
-    tempvar stop = (dict_ptr_stop - dict_ptr) - BytesBytesDictAccess.SIZE;
-    tempvar branch = branch;
-    tempvar dict_ptr = dict_ptr + BytesBytesDictAccess.SIZE;
-
-    static_assert branch == [ap - 2];
-    static_assert dict_ptr == [ap - 1];
-    jmp loop if stop != 0;
-    jmp end;
-
-    // Case 1: nibble != key[level], don't include in branch
-    not_nibble_case:
-    let branch = cast([ap - 4], BytesBytesDictAccess*);
-    let dict_ptr = cast([ap - 3], BytesBytesDictAccess*);
-
-    assert_not_zero(dict_ptr.key.value.data[level] - nibble);
-
-    let dict_ptr_stop = cast([fp + 1], BytesBytesDictAccess*);
-    tempvar stop = (dict_ptr_stop - dict_ptr) - BytesBytesDictAccess.SIZE;
-    tempvar branch = branch;
-    tempvar dict_ptr = dict_ptr + BytesBytesDictAccess.SIZE;
-
-    static_assert branch == [ap - 2];
-    static_assert dict_ptr == [ap - 1];
-    jmp loop if stop != 0;
-    jmp end;
-
-    // Case 2: nibble == key[level], include in branch
-    nibble_case:
-    let branch = cast([ap - 4], BytesBytesDictAccess*);
-    let dict_ptr = cast([ap - 3], BytesBytesDictAccess*);
-
-    assert dict_ptr.key.value.data[level] = nibble;
-    assert [branch].key = dict_ptr.key;
-    assert [branch].prev_value = dict_ptr.prev_value;
-    assert [branch].new_value = dict_ptr.new_value;
-
-    let dict_ptr_stop = cast([fp + 1], BytesBytesDictAccess*);
-    tempvar stop = (dict_ptr_stop - dict_ptr) - BytesBytesDictAccess.SIZE;
-    tempvar branch = branch + BytesBytesDictAccess.SIZE;
-    tempvar dict_ptr = dict_ptr + BytesBytesDictAccess.SIZE;
-
-    static_assert branch == [ap - 2];
-    static_assert dict_ptr == [ap - 1];
-    jmp loop if stop != 0;
-    jmp end;
-
-    end:
-    let branche_stop = cast([ap - 2], BytesBytesDictAccess*);
-    let branche_start = cast([fp], BytesBytesDictAccess*);
-    let value = Bytes(cast([fp + 2], BytesStruct*));
-    let value_set = [fp + 3];
-
-    // Fill value_set if it's not set yet. This is just to be able to test against 1
-    // as this would raise if the memory is empty.
-    %{ ids.value_set = memory.get(fp + 3) or 0 %}
-    if (value_set != 1) {
-        let (data: felt*) = alloc();
-        tempvar empty_bytes = Bytes(new BytesStruct(data, 0));
-        assert value = empty_bytes;
-    }
-
-    tempvar result = MappingBytesBytes(new MappingBytesBytesStruct(branche_start, branche_stop));
     return (result, value);
 }
 
@@ -689,104 +731,107 @@ func _get_branche_for_nibble_at_level(obj: MappingBytesBytes, nibble: felt, leve
 //
 // * A tuple containing:
 //   * A tuple of 16 mappings, one for each possible nibble value
-func _get_branches(obj: MappingBytesBytes, level: Uint) -> (TupleMappingBytesBytes, Bytes) {
+func _get_branches{poseidon_ptr: PoseidonBuiltin*}(obj: MappingBytesBytes, level: Uint) -> (
+    TupleMappingBytesBytes, Bytes
+) {
     alloc_locals;
 
     let (local branches: MappingBytesBytes*) = alloc();
+
     local value: Bytes;
     local value_set: felt;
 
-    let (branches_0, value_0) = _get_branche_for_nibble_at_level(obj, 0, level.value);
+    let (branches_0, value_0) = _get_branch_for_nibble_at_level(obj, 0, level.value);
     assert branches[0] = branches_0;
     if (value_0.value.len != 0) {
         assert value = value_0;
         assert value_set = 1;
     }
-    let (branches_1, value_1) = _get_branche_for_nibble_at_level(obj, 1, level.value);
+    let (branches_1, value_1) = _get_branch_for_nibble_at_level(obj, 1, level.value);
     assert branches[1] = branches_1;
     if (value_1.value.len != 0) {
         assert value = value_1;
         assert value_set = 1;
     }
-    let (branches_2, value_2) = _get_branche_for_nibble_at_level(obj, 2, level.value);
+    let (branches_2, value_2) = _get_branch_for_nibble_at_level(obj, 2, level.value);
     assert branches[2] = branches_2;
     if (value_2.value.len != 0) {
         assert value = value_2;
         assert value_set = 1;
     }
-    let (branches_3, value_3) = _get_branche_for_nibble_at_level(obj, 3, level.value);
+    let (branches_3, value_3) = _get_branch_for_nibble_at_level(obj, 3, level.value);
     assert branches[3] = branches_3;
     if (value_3.value.len != 0) {
         assert value = value_3;
         assert value_set = 1;
     }
-    let (branches_4, value_4) = _get_branche_for_nibble_at_level(obj, 4, level.value);
+    let (branches_4, value_4) = _get_branch_for_nibble_at_level(obj, 4, level.value);
     assert branches[4] = branches_4;
     if (value_4.value.len != 0) {
         assert value = value_4;
         assert value_set = 1;
     }
-    let (branches_5, value_5) = _get_branche_for_nibble_at_level(obj, 5, level.value);
+    let (branches_5, value_5) = _get_branch_for_nibble_at_level(obj, 5, level.value);
     assert branches[5] = branches_5;
     if (value_5.value.len != 0) {
         assert value = value_5;
         assert value_set = 1;
     }
-    let (branches_6, value_6) = _get_branche_for_nibble_at_level(obj, 6, level.value);
+    let (branches_6, value_6) = _get_branch_for_nibble_at_level(obj, 6, level.value);
     assert branches[6] = branches_6;
     if (value_6.value.len != 0) {
         assert value = value_6;
         assert value_set = 1;
     }
-    let (branches_7, value_7) = _get_branche_for_nibble_at_level(obj, 7, level.value);
+    let (branches_7, value_7) = _get_branch_for_nibble_at_level(obj, 7, level.value);
     assert branches[7] = branches_7;
     if (value_7.value.len != 0) {
         assert value = value_7;
         assert value_set = 1;
     }
-    let (branches_8, value_8) = _get_branche_for_nibble_at_level(obj, 8, level.value);
+    let (branches_8, value_8) = _get_branch_for_nibble_at_level(obj, 8, level.value);
     assert branches[8] = branches_8;
     if (value_8.value.len != 0) {
         assert value = value_8;
         assert value_set = 1;
     }
-    let (branches_9, value_9) = _get_branche_for_nibble_at_level(obj, 9, level.value);
+    let (branches_9, value_9) = _get_branch_for_nibble_at_level(obj, 9, level.value);
     assert branches[9] = branches_9;
     if (value_9.value.len != 0) {
         assert value = value_9;
         assert value_set = 1;
     }
-    let (branches_10, value_10) = _get_branche_for_nibble_at_level(obj, 10, level.value);
+    let (branches_10, value_10) = _get_branch_for_nibble_at_level(obj, 10, level.value);
     assert branches[10] = branches_10;
     if (value_10.value.len != 0) {
         assert value = value_10;
         assert value_set = 1;
     }
-    let (branches_11, value_11) = _get_branche_for_nibble_at_level(obj, 11, level.value);
+    let (branches_11, value_11) = _get_branch_for_nibble_at_level(obj, 11, level.value);
     assert branches[11] = branches_11;
     if (value_11.value.len != 0) {
         assert value = value_11;
         assert value_set = 1;
     }
-    let (branches_12, value_12) = _get_branche_for_nibble_at_level(obj, 12, level.value);
+    let (branches_12, value_12) = _get_branch_for_nibble_at_level(obj, 12, level.value);
     assert branches[12] = branches_12;
     if (value_12.value.len != 0) {
         assert value = value_12;
         assert value_set = 1;
     }
-    let (branches_13, value_13) = _get_branche_for_nibble_at_level(obj, 13, level.value);
+    let (branches_13, value_13) = _get_branch_for_nibble_at_level(obj, 13, level.value);
     assert branches[13] = branches_13;
     if (value_13.value.len != 0) {
         assert value = value_13;
         assert value_set = 1;
     }
-    let (branches_14, value_14) = _get_branche_for_nibble_at_level(obj, 14, level.value);
+    let (branches_14, value_14) = _get_branch_for_nibble_at_level(obj, 14, level.value);
     assert branches[14] = branches_14;
     if (value_14.value.len != 0) {
         assert value = value_14;
         assert value_set = 1;
     }
-    let (branches_15, value_15) = _get_branche_for_nibble_at_level(obj, 15, level.value);
+    let (branches_15, value_15) = _get_branch_for_nibble_at_level(obj, 15, level.value);
     assert branches[15] = branches_15;
     if (value_15.value.len != 0) {
         assert value = value_15;
@@ -803,12 +848,45 @@ func _get_branches(obj: MappingBytesBytes, level: Uint) -> (TupleMappingBytesByt
     return (branches_tuple, value);
 }
 
+// @notice Given a key (inside `dict_ptr`), returns the preimage of the key registered in the tracker.
+// The preimage is validated to be correctly provided by the prover by hashing it and comparing it to the key.
+func _get_preimage_for_key{poseidon_ptr: PoseidonBuiltin*}(
+    dict_ptr: BytesBytesDictAccess*, dict_ptr_stop: BytesBytesDictAccess*
+) -> Bytes {
+    alloc_locals;
+
+    // Get preimage data
+    let (local preimage_data: felt*) = alloc();
+    local preimage_len;
+    %{
+        from starkware.cairo.lang.vm.crypto import poseidon_hash_many
+        hashed_value = ids.dict_ptr.key.value
+        dict_tracker = __dict_manager.get_tracker(ids.dict_ptr_stop)
+        # Get the key in the dict that matches the hashed value
+        preimage = bytes(next(key for key in dict_tracker.data.keys() if poseidon_hash_many(key) == hashed_value))
+        segments.write_arg(ids.preimage_data, preimage)
+        ids.preimage_len = len(preimage)
+    %}
+
+    // Verify preimage
+    let (preimage_hash) = poseidon_hash_many(preimage_len, preimage_data);
+    with_attr error_message("preimage_hash != key") {
+        assert preimage_hash = dict_ptr.key.value;
+    }
+
+    tempvar res = Bytes(new BytesStruct(preimage_data, preimage_len));
+    return res;
+}
+
 // @dev The obj mapping needs to be squashed before calling this function.
 // @dev No other squashing is required after this function returns as it only reads from the DictAccess segment.
 // @dev This function could be made faster by sorting the DictAccess segment by key before processing it.
-func patricialize{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*}(
-    obj: MappingBytesBytes, level: Uint
-) -> InternalNode {
+func patricialize{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+}(obj: MappingBytesBytes, level: Uint) -> InternalNode {
     alloc_locals;
 
     let len = (obj.value.dict_ptr - obj.value.dict_ptr_start) / BytesBytesDictAccess.SIZE;
@@ -817,15 +895,13 @@ func patricialize{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: Kec
         return internal_node;
     }
 
-    let arbitrary_key = obj.value.dict_ptr_start.key;
     let arbitrary_value = obj.value.dict_ptr_start.new_value;
+    let preimage = _get_preimage_for_key(obj.value.dict_ptr_start, obj.value.dict_ptr);
 
     // if leaf node
     if (len == 1) {
         tempvar sliced_key = Bytes(
-            new BytesStruct(
-                arbitrary_key.value.data + level.value, arbitrary_key.value.len - level.value
-            ),
+            new BytesStruct(preimage.value.data + level.value, preimage.value.len - level.value)
         );
         let extended = ExtendedImpl.bytes(arbitrary_value);
         tempvar leaf_node = LeafNode(new LeafNodeStruct(sliced_key, extended));
@@ -836,18 +912,14 @@ func patricialize{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: Kec
     // prepare for extension node check by finding max j such that all keys in
     // obj have the same key[i:j]
     let dict_ptr_stop = obj.value.dict_ptr;
-    let prefix_length = arbitrary_key.value.len - level.value;
-    tempvar substring = Bytes(
-        new BytesStruct(arbitrary_key.value.data + level.value, prefix_length)
-    );
+    let prefix_length = preimage.value.len - level.value;
+    tempvar substring = Bytes(new BytesStruct(preimage.value.data + level.value, prefix_length));
     let prefix_length = _search_common_prefix_length{
         substring=substring, level=level, dict_ptr_stop=dict_ptr_stop
     }(obj.value.dict_ptr_start + BytesBytesDictAccess.SIZE, prefix_length);
 
     if (prefix_length != 0) {
-        tempvar prefix = Bytes(
-            new BytesStruct(arbitrary_key.value.data + level.value, prefix_length)
-        );
+        tempvar prefix = Bytes(new BytesStruct(preimage.value.data + level.value, prefix_length));
         let patricialized_subnode = patricialize(obj, Uint(level.value + prefix_length));
         let encoded_subnode = encode_internal_node(patricialized_subnode);
         tempvar extension_node = ExtensionNode(new ExtensionNodeStruct(prefix, encoded_subnode));
