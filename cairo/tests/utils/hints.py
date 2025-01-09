@@ -14,6 +14,7 @@ from tests.utils.args_gen import to_cairo_type
 from tests.utils.helpers import flatten
 
 MaybeRelocatable = Union[int, Relocatable]
+DELETED_KEY_FLAG = object()
 
 
 def debug_info(program):

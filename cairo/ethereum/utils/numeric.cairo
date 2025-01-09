@@ -1,6 +1,6 @@
 from starkware.cairo.common.math_cmp import is_le, is_not_zero
 from starkware.cairo.common.uint256 import uint256_reverse_endian
-from ethereum_types.numeric import Uint, U256, U256Struct
+from ethereum_types.numeric import Uint, U256, U256Struct, bool
 from ethereum_types.bytes import Bytes32, Bytes32Struct
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 
@@ -137,5 +137,14 @@ func U256_to_be_bytes{bitwise_ptr: BitwiseBuiltin*}(value: U256) -> Bytes32 {
 
 func U256_to_le_bytes(value: U256) -> Bytes32 {
     tempvar res = Bytes32(value.value);
+    return res;
+}
+
+func U256__eq__(a: U256, b: U256) -> bool {
+    if (a.value.low == b.value.low and a.value.high == b.value.high) {
+        tempvar res = bool(1);
+        return res;
+    }
+    tempvar res = bool(0);
     return res;
 }

@@ -70,6 +70,7 @@ from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 from ethereum.cancun.vm.exceptions import InvalidOpcode
 from ethereum.crypto.hash import Hash32
 from tests.utils.args_gen import Memory, Stack, to_python_type, vm_exception_classes
+from tests.utils.hints import DELETED_KEY_FLAG
 
 # Sentinel object for indicating no error in exception handling
 NO_ERROR_FLAG = object()
@@ -305,6 +306,8 @@ class Serde:
             tracker_data = self.dict_manager.trackers[dict_ptr.segment_index].data
             if isinstance(cairo_key_type, TypeFelt):
                 for key, value in tracker_data.items():
+                    if value is DELETED_KEY_FLAG:
+                        continue
                     # Reconstruct the original key from the preimage
                     if python_key_type in [
                         Bytes32,
@@ -325,6 +328,8 @@ class Serde:
                         hashed_key = poseidon_hash_many(key)
                         preimage = bytes(list(key))
                         serialized_dict[preimage] = dict_data[hashed_key]
+                    else:
+                        raise ValueError(f"Unsupported key type: {python_key_type}")
 
             elif get_origin(python_key_type) is tuple:
                 # If the key is a tuple, we're in the case of a Set[Tuple[Address, Bytes32]]]

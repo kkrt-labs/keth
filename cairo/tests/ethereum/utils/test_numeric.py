@@ -72,3 +72,7 @@ class TestNumeric:
         expected = value.to_le_bytes32()
         result = cairo_run("U256_to_le_bytes", value)
         assert result == expected
+
+    @given(a=..., b=...)
+    def test_U256__eq__(self, cairo_run, a: U256, b: U256):
+        assert (a == b) == cairo_run("U256__eq__", a, b)
