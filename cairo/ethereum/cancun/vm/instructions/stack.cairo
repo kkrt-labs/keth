@@ -41,3 +41,103 @@ func push_n{range_check_ptr, evm: Evm}(num_bytes: Uint) -> ExceptionalHalt* {
     let ok = cast(0, ExceptionalHalt*);
     return ok;
 }
+
+func push0{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    return push_n{evm=evm}(Uint(0));
+}
+func push1{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    return push_n{evm=evm}(Uint(1));
+}
+func push2{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    return push_n{evm=evm}(Uint(2));
+}
+func push3{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    return push_n{evm=evm}(Uint(3));
+}
+func push4{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    return push_n{evm=evm}(Uint(4));
+}
+func push5{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    return push_n{evm=evm}(Uint(5));
+}
+func push6{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    return push_n{evm=evm}(Uint(6));
+}
+func push7{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    return push_n{evm=evm}(Uint(7));
+}
+func push8{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    return push_n{evm=evm}(Uint(8));
+}
+func push9{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    return push_n{evm=evm}(Uint(9));
+}
+func push10{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    return push_n{evm=evm}(Uint(10));
+}
+func push11{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    return push_n{evm=evm}(Uint(11));
+}
+func push12{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    return push_n{evm=evm}(Uint(12));
+}
+func push13{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    return push_n{evm=evm}(Uint(13));
+}
+func push14{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    return push_n{evm=evm}(Uint(14));
+}
+func push15{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    return push_n{evm=evm}(Uint(15));
+}
+func push16{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    return push_n{evm=evm}(Uint(16));
+}
+func push17{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    return push_n{evm=evm}(Uint(17));
+}
+func push18{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    return push_n{evm=evm}(Uint(18));
+}
+func push19{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    return push_n{evm=evm}(Uint(19));
+}
+func push20{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    return push_n{evm=evm}(Uint(20));
+}
+func push21{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    return push_n{evm=evm}(Uint(21));
+}
+func push22{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    return push_n{evm=evm}(Uint(22));
+}
+func push23{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    return push_n{evm=evm}(Uint(23));
+}
+func push24{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    return push_n{evm=evm}(Uint(24));
+}
+func push25{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    return push_n{evm=evm}(Uint(25));
+}
+func push26{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    return push_n{evm=evm}(Uint(26));
+}
+func push27{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    return push_n{evm=evm}(Uint(27));
+}
+func push28{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    return push_n{evm=evm}(Uint(28));
+}
+func push29{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    return push_n{evm=evm}(Uint(29));
+}
+func push30{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    return push_n{evm=evm}(Uint(30));
+}
+func push31{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    return push_n{evm=evm}(Uint(31));
+}
+func push32{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    return push_n{evm=evm}(Uint(32));
+}

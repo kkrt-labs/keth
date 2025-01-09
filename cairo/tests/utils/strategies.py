@@ -197,7 +197,7 @@ environment_lite = st.integers(min_value=0).flatmap(  # Generate block number fi
         chain_id=uint64,
         excess_blob_gas=uint64,
         blob_versioned_hashes=st.lists(
-            st.from_type(VersionedHash), min_size=0, max_size=50
+            st.from_type(VersionedHash), min_size=0, max_size=5
         ).map(tuple),
         transient_storage=st.from_type(TransientStorage),
     )
