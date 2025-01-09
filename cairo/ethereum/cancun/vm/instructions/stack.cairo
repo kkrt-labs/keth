@@ -1,9 +1,9 @@
-from ethereum.cancun.vm.stack import pop, push
+from ethereum.cancun.vm.stack import push
 from ethereum.cancun.vm import Evm, EvmImpl
-from ethereum.cancun.vm.exceptions import ExceptionalHalt, OutOfGasError
+from ethereum.cancun.vm.exceptions import ExceptionalHalt
 from ethereum.cancun.vm.gas import charge_gas, GasConstants
 from ethereum_types.numeric import Uint, U256, U256Struct
-from ethereum.utils.numeric import is_zero, U256_from_be_bytes
+from ethereum.utils.numeric import is_zero
 from ethereum.cancun.vm.memory import buffer_read
 from src.utils.utils import Helpers
 
