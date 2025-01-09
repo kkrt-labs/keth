@@ -2,14 +2,15 @@ from starkware.cairo.common.bool import TRUE, FALSE
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 from starkware.cairo.common.dict import dict_read, DictAccess
 
-from ethereum_types.numeric import U256, U256Struct, Uint, bool
+from ethereum_types.numeric import U256, U256Struct, Uint, bool, SetUint, SetUintStruct, SetUintDictAccess
+
 from ethereum.cancun.vm import Evm, EvmImpl
 from ethereum.cancun.vm.exceptions import ExceptionalHalt, InvalidJumpDestError
 from ethereum.cancun.vm.gas import charge_gas, GasConstants
 from ethereum.cancun.vm.stack import Stack, pop, push
 
 // @notice Stop further execution of EVM code
-func stop{evm: Evm}(){
+func stop{evm: Evm}() {
     // STACK
 
     // GAS
@@ -50,6 +51,12 @@ func jump{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
         tempvar err = new ExceptionalHalt(InvalidJumpDestError);
         return err;
     }
+
+    let set_dict_ptr = cast(dict_ptr, SetUintDictAccess*);
+    tempvar valid_jumpdests_set = SetUint(
+        new SetUintStruct(evm.value.valid_jump_destinations.value.dict_ptr_start, set_dict_ptr)
+    );
+    EvmImpl.set_valid_jump_destinations(valid_jumpdests_set);
 
     // PROGRAM COUNTER
     EvmImpl.set_pc_stack(Uint(jump_dest.value.low), stack);
@@ -94,6 +101,12 @@ func jumpi{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
         tempvar err = new ExceptionalHalt(InvalidJumpDestError);
         return err;
     }
+
+    let set_dict_ptr = cast(dict_ptr, SetUintDictAccess*);
+    tempvar valid_jumpdests_set = SetUint(
+        new SetUintStruct(evm.value.valid_jump_destinations.value.dict_ptr_start, set_dict_ptr)
+    );
+    EvmImpl.set_valid_jump_destinations(valid_jumpdests_set);
 
     // PROGRAM COUNTER
     EvmImpl.set_pc_stack(Uint(jump_dest.value.low), stack);
