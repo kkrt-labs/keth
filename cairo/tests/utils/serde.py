@@ -340,10 +340,11 @@ class Serde:
                 def key_transform(k):
                     if python_key_type is Bytes20:
                         return k[0].to_bytes(20, "little")
-                    elif get_origin(python_key_type) in (tuple, list):
-                        return python_key_type(k[0])
                     else:
-                        return python_key_type(k)
+                        try:
+                            return python_key_type(k[0])
+                        except Exception:
+                            return python_key_type(k)
 
                 serialized_dict = {
                     key_transform(k): dict_data[key_transform(k)]
