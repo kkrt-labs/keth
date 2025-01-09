@@ -299,5 +299,22 @@ def pytest_assertrepr_compare(op, left, right):
                         f"  right: {right_val}",
                     ]
                 )
+        else:
+            if left_val is not None and str(left_val) != str(right_val):
+                lines.extend(
+                    [
+                        "error field mismatch:",
+                        f"  left:  {left_val}",
+                        f"  right: {right_val}",
+                    ]
+                )
+            elif not isinstance(left_val, type(right_val)):
+                lines.extend(
+                    [
+                        "error field mismatch:",
+                        f"  left:  {type(left_val)}",
+                        f"  right: {type(right_val)}",
+                    ]
+                )
 
     return lines if len(lines) > 0 else None

@@ -8,6 +8,8 @@ from ethereum.cancun.vm.instructions.stack import push_n
 from tests.utils.args_gen import Evm
 from tests.utils.strategies import evm_lite
 
+pytestmark = pytest.mark.python_vm
+
 
 class TestPushN:
     @given(evm=evm_lite, num_bytes=st.integers(min_value=0, max_value=32).map(Uint))
@@ -19,6 +21,5 @@ class TestPushN:
                 push_n(evm, num_bytes)
             return
 
-        # Run Python implementation
         push_n(evm, num_bytes)
         assert evm == cairo_result
