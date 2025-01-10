@@ -1,156 +1,95 @@
 import pytest
-from ethereum_types.numeric import Uint
 from hypothesis import given
 
 from ethereum.cancun.vm.exceptions import ExceptionalHalt
-from ethereum.cancun.vm.instructions.stack import push_n
+from ethereum.cancun.vm.instructions.stack import (
+    push0,
+    push1,
+    push2,
+    push3,
+    push4,
+    push5,
+    push6,
+    push7,
+    push8,
+    push9,
+    push10,
+    push11,
+    push12,
+    push13,
+    push14,
+    push15,
+    push16,
+    push17,
+    push18,
+    push19,
+    push20,
+    push21,
+    push22,
+    push23,
+    push24,
+    push25,
+    push26,
+    push27,
+    push28,
+    push29,
+    push30,
+    push31,
+    push32,
+)
 from tests.utils.args_gen import Evm
 from tests.utils.strategies import evm_lite
 
 pytestmark = pytest.mark.python_vm
 
-
-def _test_push_n(cairo_run, evm: Evm, num_bytes: Uint):
-    try:
-        cairo_result = cairo_run("push_n", evm, num_bytes)
-    except ExceptionalHalt as cairo_error:
-        with pytest.raises(type(cairo_error)):
-            push_n(evm, num_bytes)
-        return
-
-    push_n(evm, num_bytes)
-    assert evm == cairo_result
+PUSH_I = {
+    0: push0,
+    1: push1,
+    2: push2,
+    3: push3,
+    4: push4,
+    5: push5,
+    6: push6,
+    7: push7,
+    8: push8,
+    9: push9,
+    10: push10,
+    11: push11,
+    12: push12,
+    13: push13,
+    14: push14,
+    15: push15,
+    16: push16,
+    17: push17,
+    18: push18,
+    19: push19,
+    20: push20,
+    21: push21,
+    22: push22,
+    23: push23,
+    24: push24,
+    25: push25,
+    26: push26,
+    27: push27,
+    28: push28,
+    29: push29,
+    30: push30,
+    31: push31,
+    32: push32,
+}
 
 
 class TestPushN:
+    @pytest.mark.parametrize("num_bytes", range(33))
     @given(evm=evm_lite)
-    def test_push0(self, cairo_run, evm: Evm):
-        _test_push_n(cairo_run, evm, Uint(0))
+    def test_push_n(self, cairo_run, evm: Evm, num_bytes: int):
+        try:
+            func_name = f"push{num_bytes}"
+            cairo_result = cairo_run(func_name, evm)
+        except ExceptionalHalt as cairo_error:
+            with pytest.raises(type(cairo_error)):
+                PUSH_I[num_bytes](evm)
+            return
 
-    @given(evm=evm_lite)
-    def test_push1(self, cairo_run, evm: Evm):
-        _test_push_n(cairo_run, evm, Uint(1))
-
-    @given(evm=evm_lite)
-    def test_push2(self, cairo_run, evm: Evm):
-        _test_push_n(cairo_run, evm, Uint(2))
-
-    @given(evm=evm_lite)
-    def test_push3(self, cairo_run, evm: Evm):
-        _test_push_n(cairo_run, evm, Uint(3))
-
-    @given(evm=evm_lite)
-    def test_push4(self, cairo_run, evm: Evm):
-        _test_push_n(cairo_run, evm, Uint(4))
-
-    @given(evm=evm_lite)
-    def test_push5(self, cairo_run, evm: Evm):
-        _test_push_n(cairo_run, evm, Uint(5))
-
-    @given(evm=evm_lite)
-    def test_push6(self, cairo_run, evm: Evm):
-        _test_push_n(cairo_run, evm, Uint(6))
-
-    @given(evm=evm_lite)
-    def test_push7(self, cairo_run, evm: Evm):
-        _test_push_n(cairo_run, evm, Uint(7))
-
-    @given(evm=evm_lite)
-    def test_push8(self, cairo_run, evm: Evm):
-        _test_push_n(cairo_run, evm, Uint(8))
-
-    @given(evm=evm_lite)
-    def test_push9(self, cairo_run, evm: Evm):
-        _test_push_n(cairo_run, evm, Uint(9))
-
-    @given(evm=evm_lite)
-    def test_push10(self, cairo_run, evm: Evm):
-        _test_push_n(cairo_run, evm, Uint(10))
-
-    @given(evm=evm_lite)
-    def test_push11(self, cairo_run, evm: Evm):
-        _test_push_n(cairo_run, evm, Uint(11))
-
-    @given(evm=evm_lite)
-    def test_push12(self, cairo_run, evm: Evm):
-        _test_push_n(cairo_run, evm, Uint(12))
-
-    @given(evm=evm_lite)
-    def test_push13(self, cairo_run, evm: Evm):
-        _test_push_n(cairo_run, evm, Uint(13))
-
-    @given(evm=evm_lite)
-    def test_push14(self, cairo_run, evm: Evm):
-        _test_push_n(cairo_run, evm, Uint(14))
-
-    @given(evm=evm_lite)
-    def test_push15(self, cairo_run, evm: Evm):
-        _test_push_n(cairo_run, evm, Uint(15))
-
-    @given(evm=evm_lite)
-    def test_push16(self, cairo_run, evm: Evm):
-        _test_push_n(cairo_run, evm, Uint(16))
-
-    @given(evm=evm_lite)
-    def test_push17(self, cairo_run, evm: Evm):
-        _test_push_n(cairo_run, evm, Uint(17))
-
-    @given(evm=evm_lite)
-    def test_push18(self, cairo_run, evm: Evm):
-        _test_push_n(cairo_run, evm, Uint(18))
-
-    @given(evm=evm_lite)
-    def test_push19(self, cairo_run, evm: Evm):
-        _test_push_n(cairo_run, evm, Uint(19))
-
-    @given(evm=evm_lite)
-    def test_push20(self, cairo_run, evm: Evm):
-        _test_push_n(cairo_run, evm, Uint(20))
-
-    @given(evm=evm_lite)
-    def test_push21(self, cairo_run, evm: Evm):
-        _test_push_n(cairo_run, evm, Uint(21))
-
-    @given(evm=evm_lite)
-    def test_push22(self, cairo_run, evm: Evm):
-        _test_push_n(cairo_run, evm, Uint(22))
-
-    @given(evm=evm_lite)
-    def test_push23(self, cairo_run, evm: Evm):
-        _test_push_n(cairo_run, evm, Uint(23))
-
-    @given(evm=evm_lite)
-    def test_push24(self, cairo_run, evm: Evm):
-        _test_push_n(cairo_run, evm, Uint(24))
-
-    @given(evm=evm_lite)
-    def test_push25(self, cairo_run, evm: Evm):
-        _test_push_n(cairo_run, evm, Uint(25))
-
-    @given(evm=evm_lite)
-    def test_push26(self, cairo_run, evm: Evm):
-        _test_push_n(cairo_run, evm, Uint(26))
-
-    @given(evm=evm_lite)
-    def test_push27(self, cairo_run, evm: Evm):
-        _test_push_n(cairo_run, evm, Uint(27))
-
-    @given(evm=evm_lite)
-    def test_push28(self, cairo_run, evm: Evm):
-        _test_push_n(cairo_run, evm, Uint(28))
-
-    @given(evm=evm_lite)
-    def test_push29(self, cairo_run, evm: Evm):
-        _test_push_n(cairo_run, evm, Uint(29))
-
-    @given(evm=evm_lite)
-    def test_push30(self, cairo_run, evm: Evm):
-        _test_push_n(cairo_run, evm, Uint(30))
-
-    @given(evm=evm_lite)
-    def test_push31(self, cairo_run, evm: Evm):
-        _test_push_n(cairo_run, evm, Uint(31))
-
-    @given(evm=evm_lite)
-    def test_push32(self, cairo_run, evm: Evm):
-        _test_push_n(cairo_run, evm, Uint(32))
+        PUSH_I[num_bytes](evm)
+        assert evm == cairo_result
