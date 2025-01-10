@@ -10,12 +10,7 @@ from starkware.cairo.common.cairo_builtins import KeccakBuiltin
 from starkware.cairo.common.memcpy import memcpy
 
 from src.utils.bytes import uint256_to_bytes32_little
-from src.utils.dict import (
-    hashdict_read,
-    hashdict_delete_if_present_account,
-    hashdict_delete_if_present_u256,
-    hashdict_write,
-)
+from src.utils.dict import hashdict_read, hashdict_write
 from ethereum.crypto.hash import keccak256
 from ethereum.utils.numeric import min, is_zero
 from ethereum.rlp import encode, _encode_bytes, _encode
@@ -411,7 +406,7 @@ func trie_set_TrieAddressAccount{poseidon_ptr: PoseidonBuiltin*, trie: TrieAddre
         assert [keys] = key.value;
 
         if (is_default.value != 0) {
-            hashdict_delete_if_present_account(1, keys, value);
+            hashdict_write(1, keys, 0);
             tempvar dict_ptr_start = dict_ptr_start;
             tempvar dict_ptr = dict_ptr;
             tempvar poseidon_ptr = poseidon_ptr;
@@ -443,7 +438,7 @@ func trie_set_TrieBytes32U256{poseidon_ptr: PoseidonBuiltin*, trie: TrieBytes32U
 
     with dict_ptr_start, dict_ptr {
         if (is_default.value != 0) {
-            hashdict_delete_if_present_u256(2, cast(key.value, felt*), value);
+            hashdict_write(2, cast(key.value, felt*), 0);
             tempvar dict_ptr_start = dict_ptr_start;
             tempvar dict_ptr = dict_ptr;
             tempvar poseidon_ptr = poseidon_ptr;
