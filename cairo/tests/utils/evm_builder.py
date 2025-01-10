@@ -79,32 +79,32 @@ class EvmBuilder:
         self._accessed_addresses = st.just(set())
         self._accessed_storage_keys = st.just(set())
 
-    def with_pc(self, strategy=None):
-        self._pc = strategy if strategy is not None else uint
+    def with_pc(self, strategy=uint):
+        self._pc = strategy
         return self
 
-    def with_stack(self, strategy=None):
-        self._stack = strategy if strategy is not None else stack_strategy(Stack[U256])
+    def with_stack(self, strategy=stack_strategy(Stack[U256])):
+        self._stack = strategy
         return self
 
-    def with_memory(self, strategy=None):
-        self._memory = strategy if strategy is not None else memory
+    def with_memory(self, strategy=memory):
+        self._memory = strategy
         return self
 
-    def with_code(self, strategy=None):
-        self._code = strategy if strategy is not None else small_bytes
+    def with_code(self, strategy=small_bytes):
+        self._code = strategy
         return self
 
-    def with_gas_left(self, strategy=None):
-        self._gas_left = strategy if strategy is not None else gas_left
+    def with_gas_left(self, strategy=gas_left):
+        self._gas_left = strategy
         return self
 
-    def with_env(self, strategy=None):
-        self._env = strategy if strategy is not None else environment_lite
+    def with_env(self, strategy=environment_lite):
+        self._env = strategy
         return self
 
-    def with_message(self, strategy=None):
-        self._message = strategy if strategy is not None else message_lite
+    def with_message(self, strategy=message_lite):
+        self._message = strategy
         return self
 
     def build(self):
