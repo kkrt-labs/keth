@@ -24,3 +24,36 @@ class TestPushN:
 
         push_i(evm)
         assert evm == cairo_result
+
+
+class TestSwapN:
+    @pytest.mark.parametrize("item_number", range(1, 17))
+    @given(evm=evm_lite)
+    def test_swap_n(self, cairo_run, evm: Evm, item_number: int):
+        func_name = f"swap{item_number}"
+        swap_i = getattr(stack, func_name)
+        try:
+            cairo_result = cairo_run(func_name, evm)
+        except ExceptionalHalt as cairo_error:
+            with pytest.raises(type(cairo_error)):
+                swap_i(evm)
+            return
+
+        swap_i(evm)
+        assert evm == cairo_result
+
+
+class TestDupN:
+    @pytest.mark.parametrize("item_number", range(1, 17))
+    @given(evm=evm_lite)
+    def test_dup_n(self, cairo_run, evm: Evm, item_number: int):
+        func_name = f"dup{item_number}"
+        dup_i = getattr(stack, func_name)
+        try:
+            cairo_result = cairo_run(func_name, evm)
+        except ExceptionalHalt as cairo_error:
+            with pytest.raises(type(cairo_error)):
+                dup_i(evm)
+            return
+        dup_i(evm)
+        assert evm == cairo_result
