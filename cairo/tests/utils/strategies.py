@@ -86,12 +86,6 @@ small_bytes = st.binary(min_size=0, max_size=256)
 code = st.binary(min_size=0, max_size=MAX_CODE_SIZE)
 pc = st.integers(min_value=0, max_value=MAX_CODE_SIZE * 2).map(Uint)
 
-MAX_CODE_SIZE = int(os.getenv("HYPOTHESIS_MAX_CODE_SIZE", 256))
-
-small_bytes = st.binary(min_size=0, max_size=256)
-code = st.binary(min_size=0, max_size=MAX_CODE_SIZE)
-pc = st.integers(min_value=0, max_value=MAX_CODE_SIZE * 2).map(Uint)
-
 # See ethereum.rlp.Simple and ethereum.rlp.Extended for the definition of Simple and Extended
 simple = st.recursive(
     st.one_of(st.binary()),
