@@ -1,7 +1,15 @@
 # ruff: noqa: E402
 
 import os
-from typing import ForwardRef, Sequence, TypeAlias, Union, get_args, get_origin
+from typing import (
+    ForwardRef,
+    Optional,
+    Sequence,
+    TypeAlias,
+    Union,
+    get_args,
+    get_origin,
+)
 from unittest.mock import patch
 
 from eth_keys.datatypes import PrivateKey
@@ -317,26 +325,33 @@ evm = st.builds(
 
 # Fork
 state = st.lists(bytes20, min_size=0, max_size=MAX_ADDRESS_SET_SIZE).flatmap(
-    lambda addresses: st.fixed_dictionaries(
-        {
-            "_main_trie": st.builds(
-                lambda data: Trie(secured=True, default=None, _data=data),
-                data=st.fixed_dictionaries(
-                    {address: st.from_type(Account) for address in addresses}
-                ),
+    lambda addresses: st.builds(
+        State,
+        _main_trie=st.builds(
+            Trie,
+            secured=st.just(True),
+            default=st.none(),
+            _data=st.fixed_dictionaries(
+                {address: st.from_type(Optional[Account]) for address in addresses}
             ),
-            "_storage_tries": st.fixed_dictionaries(
-                {
-                    address: st.builds(
-                        lambda data: Trie(secured=True, default=0, _data=data),
-                        data=st.dictionaries(bytes32, uint256),
-                    )
-                    for address in addresses
-                },
-            ),
-            "_snapshots": st.just([]),
-            "created_accounts": st.just(set()),
-        }
+        ),
+        _storage_tries=st.fixed_dictionaries(
+            {
+                address: st.builds(
+                    Trie,
+                    secured=st.just(True),
+                    default=st.just(U256(0)),
+                    _data=st.dictionaries(
+                        keys=st.from_type(Bytes32),
+                        values=st.from_type(U256),
+                        max_size=MAX_STORAGE_KEY_SET_SIZE,
+                    ),
+                )
+                for address in addresses
+            }
+        ),
+        _snapshots=st.just([]),
+        created_accounts=st.just(set()),
     )
 )
 

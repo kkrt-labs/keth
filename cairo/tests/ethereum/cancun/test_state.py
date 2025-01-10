@@ -1,15 +1,12 @@
 import pytest
 from ethereum_types.bytes import Bytes32
 from hypothesis import given
-from hypothesis import strategies as st
 
 from ethereum.cancun.fork_types import Address
 from ethereum.cancun.state import State, get_account, get_account_optional, get_storage
-from tests.utils.strategies import address_strategy, key_strategy
+from tests.utils.strategies import address_strategy, key_strategy, state
 
 pytestmark = pytest.mark.python_vm
-
-state = st.from_type(State)
 
 
 class TestState:
