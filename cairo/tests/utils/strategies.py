@@ -220,34 +220,6 @@ environment_lite = st.integers(min_value=0).flatmap(  # Generate block number fi
     )
 )
 
-# No state, no transient storage, no block versioned hashes
-environment_extra_lite = st.integers(
-    min_value=0
-).flatmap(  # Generate block number first
-    lambda number: st.builds(
-        Environment,
-        caller=address,
-        block_hashes=st.lists(
-            st.sampled_from(BLOCK_HASHES_LIST),
-            min_size=min(number, 256),  # number or 256 if number is greater
-            max_size=min(number, 256),
-        ),
-        origin=address,
-        coinbase=address,
-        number=st.just(Uint(number)),  # Use the same number
-        base_fee_per_gas=uint,
-        gas_limit=uint,
-        gas_price=uint,
-        time=uint256,
-        prev_randao=bytes32,
-        state=st.just(State()),
-        chain_id=uint64,
-        excess_blob_gas=uint64,
-        blob_versioned_hashes=st.just(()),
-        transient_storage=st.just(TransientStorage()),
-    )
-)
-
 evm_lite = st.builds(
     Evm,
     pc=pc,

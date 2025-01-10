@@ -1,5 +1,7 @@
 import pytest
+from ethereum_types.numeric import U64, Uint
 from hypothesis import given
+from hypothesis import strategies as st
 
 from ethereum.cancun.vm.exceptions import ExceptionalHalt
 from ethereum.cancun.vm.instructions.block import (
@@ -11,11 +13,54 @@ from ethereum.cancun.vm.instructions.block import (
     prev_randao,
     timestamp,
 )
-from tests.utils.args_gen import Evm
-from tests.utils.evm_builder import EvmBuilder
-from tests.utils.strategies import environment_extra_lite
+from tests.utils.args_gen import Environment, Evm, State, TransientStorage
+from tests.utils.evm_builder import EvmBuilder, address_zero
+from tests.utils.strategies import (
+    BLOCK_HASHES_LIST,
+    address,
+    bytes32,
+    uint,
+    uint64,
+    uint256,
+)
 
 pytestmark = pytest.mark.python_vm
+
+
+# Specific environment strategy with minimal items
+#   * Empty state
+#   * Empty transient storage
+#   * Empty block versioned hashes
+#   * Excess blob gas is 0
+#   * Caller and origin are address_zero
+#   * Gas price is 0
+#   * Base fee per gas is 0
+environment_extra_lite = st.integers(
+    min_value=0
+).flatmap(  # Generate block number first
+    lambda number: st.builds(
+        Environment,
+        caller=address_zero,
+        block_hashes=st.lists(
+            st.sampled_from(BLOCK_HASHES_LIST),
+            min_size=min(number, 256),  # number or 256 if number is greater
+            max_size=min(number, 256),
+        ),
+        origin=address_zero,
+        coinbase=address,
+        number=st.just(Uint(number)),  # Use the same number
+        base_fee_per_gas=st.just(Uint(0)),
+        gas_limit=uint,
+        gas_price=st.just(Uint(0)),
+        time=uint256,
+        prev_randao=bytes32,
+        state=st.just(State()),
+        chain_id=uint64,
+        excess_blob_gas=st.just(U64(0)),
+        blob_versioned_hashes=st.just(()),
+        transient_storage=st.just(TransientStorage()),
+    )
+)
 
 
 class TestBlock:
