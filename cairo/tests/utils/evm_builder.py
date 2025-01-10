@@ -9,11 +9,12 @@ from tests.utils.strategies import (
     Memory,
     environment_lite,
     gas_left,
-    memory,
+    memory_lite,
     message_lite,
     small_bytes,
     stack_strategy,
     uint,
+    valid_jump_destinations_lite,
 )
 
 address_zero = Bytes20(b"\x00" * 20)
@@ -87,7 +88,7 @@ class EvmBuilder:
         self._stack = strategy
         return self
 
-    def with_memory(self, strategy=memory):
+    def with_memory(self, strategy=memory_lite):
         self._memory = strategy
         return self
 
@@ -105,6 +106,14 @@ class EvmBuilder:
 
     def with_message(self, strategy=message_lite):
         self._message = strategy
+        return self
+
+    def with_valid_jump_destinations(self, strategy=valid_jump_destinations_lite):
+        self._valid_jump_destinations = strategy
+        return self
+
+    def with_running(self, strategy=st.booleans()):
+        self._running = strategy
         return self
 
     def build(self):

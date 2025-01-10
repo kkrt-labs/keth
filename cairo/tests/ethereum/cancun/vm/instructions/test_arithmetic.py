@@ -17,9 +17,10 @@ from ethereum.cancun.vm.instructions.arithmetic import (
 from tests.utils.args_gen import Evm
 from tests.utils.evm_builder import EvmBuilder
 
+arithmetic_tests_strategy = EvmBuilder().with_stack().with_gas_left().build()
 
 class TestArithmetic:
-    @given(evm=EvmBuilder().with_stack().with_gas_left().build())
+    @given(evm=arithmetic_tests_strategy)
     def test_add(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("add", evm)
@@ -31,7 +32,7 @@ class TestArithmetic:
         add(evm)
         assert evm == cairo_result
 
-    @given(evm=EvmBuilder().with_stack().with_gas_left().build())
+    @given(evm=arithmetic_tests_strategy)
     def test_sub(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("sub", evm)
@@ -43,7 +44,7 @@ class TestArithmetic:
         sub(evm)
         assert evm == cairo_result
 
-    @given(evm=EvmBuilder().with_stack().with_gas_left().build())
+    @given(evm=arithmetic_tests_strategy)
     def test_mul(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("mul", evm)
@@ -55,7 +56,7 @@ class TestArithmetic:
         mul(evm)
         assert evm == cairo_result
 
-    @given(evm=EvmBuilder().with_stack().with_gas_left().build())
+    @given(evm=arithmetic_tests_strategy)
     def test_div(self, cairo_run, evm: Evm):
         """Test the DIV operation"""
         try:
@@ -68,7 +69,7 @@ class TestArithmetic:
         div(evm)
         assert evm == cairo_result
 
-    @given(evm=EvmBuilder().with_stack().with_gas_left().build())
+    @given(evm=arithmetic_tests_strategy)
     def test_sdiv(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("sdiv", evm)
@@ -80,7 +81,7 @@ class TestArithmetic:
         sdiv(evm)
         assert evm == cairo_result
 
-    @given(evm=EvmBuilder().with_stack().with_gas_left().build())
+    @given(evm=arithmetic_tests_strategy)
     def test_mod(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("mod", evm)
@@ -92,7 +93,7 @@ class TestArithmetic:
         mod(evm)
         assert evm == cairo_result
 
-    @given(evm=EvmBuilder().with_stack().with_gas_left().build())
+    @given(evm=arithmetic_tests_strategy)
     def test_smod(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("smod", evm)
@@ -104,7 +105,7 @@ class TestArithmetic:
         smod(evm)
         assert evm == cairo_result
 
-    @given(evm=EvmBuilder().with_stack().with_gas_left().build())
+    @given(evm=arithmetic_tests_strategy)
     def test_addmod(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("addmod", evm)
@@ -116,7 +117,7 @@ class TestArithmetic:
         addmod(evm)
         assert evm == cairo_result
 
-    @given(evm=EvmBuilder().with_stack().with_gas_left().build())
+    @given(evm=arithmetic_tests_strategy)
     def test_mulmod(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("mulmod", evm)
@@ -128,7 +129,7 @@ class TestArithmetic:
         mulmod(evm)
         assert evm == cairo_result
 
-    @given(evm=EvmBuilder().with_stack().with_gas_left().build())
+    @given(evm=arithmetic_tests_strategy)
     def test_exp(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("exp", evm)
@@ -140,7 +141,7 @@ class TestArithmetic:
         exp(evm)
         assert evm == cairo_result
 
-    @given(evm=EvmBuilder().with_stack().with_gas_left().build())
+    @given(evm=arithmetic_tests_strategy)
     def test_signextend(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("signextend", evm)

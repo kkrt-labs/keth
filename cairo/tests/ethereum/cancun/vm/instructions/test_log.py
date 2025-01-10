@@ -6,14 +6,18 @@ from ethereum.cancun.vm.exceptions import ExceptionalHalt
 from ethereum.cancun.vm.instructions.log import log0, log1, log2, log3, log4
 from ethereum.cancun.vm.stack import push
 from tests.utils.args_gen import Evm
-from tests.utils.strategies import evm_lite, memory_access_size, memory_start_position
+from tests.utils.evm_builder import EvmBuilder
+from tests.utils.strategies import memory_lite_access_size, memory_lite_start_position
+
+
+tests_log_strategy = EvmBuilder().with_stack().with_gas_left().with_memory().build()
 
 
 class TestLog:
     @given(
-        evm=evm_lite,
-        start_index=memory_start_position,
-        size=memory_access_size,
+        evm=tests_log_strategy,
+        start_index=memory_lite_start_position,
+        size=memory_lite_access_size,
     )
     def test_log0(self, cairo_run, evm: Evm, start_index: U256, size: U256):
         push(evm.stack, start_index)
@@ -29,9 +33,9 @@ class TestLog:
         assert evm == cairo_result
 
     @given(
-        evm=evm_lite,
-        start_index=memory_start_position,
-        size=memory_access_size,
+        evm=tests_log_strategy,
+        start_index=memory_lite_start_position,
+        size=memory_lite_access_size,
         topic1=...,
     )
     def test_log1(
@@ -51,9 +55,9 @@ class TestLog:
         assert evm == cairo_result
 
     @given(
-        evm=evm_lite,
-        start_index=memory_start_position,
-        size=memory_access_size,
+        evm=tests_log_strategy,
+        start_index=memory_lite_start_position,
+        size=memory_lite_access_size,
         topic1=...,
         topic2=...,
     )
@@ -81,9 +85,9 @@ class TestLog:
         assert evm == cairo_result
 
     @given(
-        evm=evm_lite,
-        start_index=memory_start_position,
-        size=memory_access_size,
+        evm=tests_log_strategy,
+        start_index=memory_lite_start_position,
+        size=memory_lite_access_size,
         topic1=...,
         topic2=...,
         topic3=...,
@@ -114,9 +118,9 @@ class TestLog:
         assert evm == cairo_result
 
     @given(
-        evm=evm_lite,
-        start_index=memory_start_position,
-        size=memory_access_size,
+        evm=tests_log_strategy,
+        start_index=memory_lite_start_position,
+        size=memory_lite_access_size,
         topic1=...,
         topic2=...,
         topic3=...,
