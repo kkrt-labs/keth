@@ -81,9 +81,10 @@ struct State {
     value: StateStruct*,
 }
 
+using OptionalAccount = Account;
 func get_account_optional{poseidon_ptr: PoseidonBuiltin*, state: State}(
     address: Address
-) -> Account {
+) -> OptionalAccount {
     let trie = state.value._main_trie;
     with trie {
         let account = trie_get_TrieAddressAccount(address);
