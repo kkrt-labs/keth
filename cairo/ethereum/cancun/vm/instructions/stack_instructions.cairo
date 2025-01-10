@@ -74,6 +74,41 @@ func swap_n{range_check_ptr, evm: Evm}(n: Uint) -> ExceptionalHalt* {
     return ok;
 }
 
+func dup_n{range_check_ptr, evm: Evm}(item_number: Uint) -> ExceptionalHalt* {
+    alloc_locals;
+    let err = charge_gas(Uint(GasConstants.GAS_VERY_LOW));
+    if (cast(err, felt) != 0) {
+        return err;
+    }
+
+    let stack = evm.value.stack;
+    let len = stack.value.len;
+    let stack_underflow = is_le(len, item_number.value);
+    if (stack_underflow != 0) {
+        tempvar err = new ExceptionalHalt(StackUnderflowError);
+        return err;
+    }
+
+    let dict_ptr = cast(stack.value.dict_ptr, DictAccess*);
+    with dict_ptr {
+        let (value_to_dup) = dict_read(len - 1 - item_number.value);
+    }
+    let new_dict_ptr = cast(dict_ptr, StackDictAccess*);
+    tempvar stack = Stack(new StackStruct(stack.value.dict_ptr_start, new_dict_ptr, len));
+
+    tempvar value_to_push = U256(cast(value_to_dup, U256Struct*));
+    with stack {
+        let err = push(value_to_push);
+        if (cast(err, felt) != 0) {
+            return err;
+        }
+    }
+
+    EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
+    let ok = cast(0, ExceptionalHalt*);
+    return ok;
+}
+
 func push0{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
     return push_n{evm=evm}(Uint(0));
 }
@@ -221,4 +256,53 @@ func swap15{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
 }
 func swap16{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
     return swap_n{evm=evm}(Uint(16));
+}
+
+func dup1{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    return dup_n{evm=evm}(Uint(0));
+}
+func dup2{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    return dup_n{evm=evm}(Uint(1));
+}
+func dup3{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    return dup_n{evm=evm}(Uint(2));
+}
+func dup4{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    return dup_n{evm=evm}(Uint(3));
+}
+func dup5{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    return dup_n{evm=evm}(Uint(4));
+}
+func dup6{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    return dup_n{evm=evm}(Uint(5));
+}
+func dup7{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    return dup_n{evm=evm}(Uint(6));
+}
+func dup8{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    return dup_n{evm=evm}(Uint(7));
+}
+func dup9{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    return dup_n{evm=evm}(Uint(8));
+}
+func dup10{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    return dup_n{evm=evm}(Uint(9));
+}
+func dup11{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    return dup_n{evm=evm}(Uint(10));
+}
+func dup12{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    return dup_n{evm=evm}(Uint(11));
+}
+func dup13{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    return dup_n{evm=evm}(Uint(12));
+}
+func dup14{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    return dup_n{evm=evm}(Uint(13));
+}
+func dup15{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    return dup_n{evm=evm}(Uint(14));
+}
+func dup16{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    return dup_n{evm=evm}(Uint(15));
 }
