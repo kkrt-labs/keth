@@ -118,7 +118,7 @@ def cairo_run(
     """
 
     def _factory_py(entrypoint, *args, **kwargs):
-        logger.info(f"Running the CairoVM Python VM for {entrypoint}")
+        logger.debug(f"Running the CairoVM Python VM for {entrypoint}")
         implicit_args = cairo_program.identifiers.get_by_full_name(
             ScopedName(path=("__main__", entrypoint, "ImplicitArgs"))
         ).members
@@ -381,7 +381,7 @@ def cairo_run(
         return final_output[0] if len(final_output) == 1 else final_output
 
     def _factory_rs(entrypoint, *args, **kwargs):
-        logger.info(f"Running the CairoVM Rust VM for {entrypoint}")
+        logger.debug(f"Running the CairoVM Rust VM for {entrypoint}")
         implicit_args = cairo_program.identifiers.get_by_full_name(
             ScopedName(path=("__main__", entrypoint, "ImplicitArgs"))
         ).members

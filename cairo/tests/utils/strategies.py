@@ -80,6 +80,12 @@ MAX_STORAGE_KEY_SET_SIZE = int(os.getenv("HYPOTHESIS_MAX_STORAGE_KEY_SET_SIZE", 
 MAX_JUMP_DESTINATIONS_SET_SIZE = int(
     os.getenv("HYPOTHESIS_MAX_JUMP_DESTINATIONS_SET_SIZE", 10)
 )
+MAX_CODE_SIZE = int(os.getenv("HYPOTHESIS_MAX_CODE_SIZE", 256))
+
+small_bytes = st.binary(min_size=0, max_size=256)
+code = st.binary(min_size=0, max_size=MAX_CODE_SIZE)
+pc = st.integers(min_value=0, max_value=MAX_CODE_SIZE * 2).map(Uint)
+
 # See ethereum.rlp.Simple and ethereum.rlp.Extended for the definition of Simple and Extended
 simple = st.recursive(
     st.one_of(st.binary()),
@@ -92,8 +98,6 @@ extended = st.recursive(
     st.lists,
     max_leaves=MAX_RECURSION_DEPTH,
 )
-
-small_bytes = st.binary(min_size=0, max_size=256)
 
 
 def trie_strategy(thing):
@@ -160,7 +164,7 @@ message_lite = st.builds(
     value=uint256,
     data=st.just(b""),
     code_address=st.none() | address,
-    code=st.just(b""),
+    code=code,
     depth=uint,
     should_transfer_value=st.booleans(),
     is_static=st.booleans(),
@@ -193,7 +197,7 @@ environment_lite = st.integers(min_value=0).flatmap(  # Generate block number fi
         chain_id=uint64,
         excess_blob_gas=uint64,
         blob_versioned_hashes=st.lists(
-            st.from_type(VersionedHash), min_size=0, max_size=50
+            st.from_type(VersionedHash), min_size=0, max_size=5
         ).map(tuple),
         transient_storage=st.from_type(TransientStorage),
     )
@@ -201,10 +205,10 @@ environment_lite = st.integers(min_value=0).flatmap(  # Generate block number fi
 
 evm_lite = st.builds(
     Evm,
-    pc=uint,
+    pc=pc,
     stack=stack_strategy(Stack[U256]),
     memory=memory_lite,
-    code=st.just(b""),
+    code=code,
     gas_left=st.integers(min_value=0, max_value=BLOCK_GAS_LIMIT).map(Uint),
     env=environment_lite,
     valid_jump_destinations=st.sets(uint, max_size=MAX_ADDRESS_SET_SIZE),
@@ -247,7 +251,7 @@ message = st.builds(
     value=uint256,
     data=small_bytes,
     code_address=st.none() | address,
-    code=small_bytes,
+    code=code,
     depth=uint,
     should_transfer_value=st.booleans(),
     is_static=st.booleans(),
@@ -260,10 +264,10 @@ message = st.builds(
 
 evm = st.builds(
     Evm,
-    pc=st.from_type(Uint),
+    pc=pc,
     stack=stack_strategy(Stack[U256]),
     memory=memory,
-    code=small_bytes,
+    code=code,
     gas_left=st.integers(min_value=0, max_value=BLOCK_GAS_LIMIT).map(Uint),
     env=st.from_type(Environment),
     valid_jump_destinations=st.sets(st.from_type(Uint)),
