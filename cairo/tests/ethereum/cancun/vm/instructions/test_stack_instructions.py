@@ -36,6 +36,22 @@ from ethereum.cancun.vm.instructions.stack import (
     push30,
     push31,
     push32,
+    swap1,
+    swap2,
+    swap3,
+    swap4,
+    swap5,
+    swap6,
+    swap7,
+    swap8,
+    swap9,
+    swap10,
+    swap11,
+    swap12,
+    swap13,
+    swap14,
+    swap15,
+    swap16,
 )
 from tests.utils.args_gen import Evm
 from tests.utils.strategies import evm_lite
@@ -78,6 +94,25 @@ PUSH_I = {
     32: push32,
 }
 
+SWAP_I = {
+    1: swap1,
+    2: swap2,
+    3: swap3,
+    4: swap4,
+    5: swap5,
+    6: swap6,
+    7: swap7,
+    8: swap8,
+    9: swap9,
+    10: swap10,
+    11: swap11,
+    12: swap12,
+    13: swap13,
+    14: swap14,
+    15: swap15,
+    16: swap16,
+}
+
 
 class TestPushN:
     @pytest.mark.parametrize("num_bytes", range(33))
@@ -92,4 +127,20 @@ class TestPushN:
             return
 
         PUSH_I[num_bytes](evm)
+        assert evm == cairo_result
+
+
+class TestSwapN:
+    @pytest.mark.parametrize("item_number", range(1, 17))
+    @given(evm=evm_lite)
+    def test_swap_n(self, cairo_run, evm: Evm, item_number: int):
+        try:
+            func_name = f"swap{item_number}"
+            cairo_result = cairo_run(func_name, evm)
+        except ExceptionalHalt as cairo_error:
+            with pytest.raises(type(cairo_error)):
+                SWAP_I[item_number](evm)
+            return
+
+        SWAP_I[item_number](evm)
         assert evm == cairo_result
