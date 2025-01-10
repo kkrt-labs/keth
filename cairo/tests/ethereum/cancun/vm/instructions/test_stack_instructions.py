@@ -6,8 +6,6 @@ from ethereum.cancun.vm.exceptions import ExceptionalHalt
 from tests.utils.args_gen import Evm
 from tests.utils.evm_builder import EvmBuilder
 
-pytestmark = pytest.mark.python_vm
-
 
 class TestPushN:
     @pytest.mark.parametrize("num_bytes", range(33))

@@ -37,3 +37,16 @@ def dict_squash(
     assert base.segment_index not in dict_manager.trackers
     dict_manager.trackers[base.segment_index] = DictTracker(data=data, current_ptr=base)
     memory[ap] = base
+
+
+@register_hint
+def copy_dict_segment(
+    dict_manager: DictManager,
+    ids: VmConsts,
+    segments: MemorySegmentManager,
+    memory: MemoryDict,
+    ap: RelocatableValue,
+):
+    dict_tracker = dict_manager.get_tracker(ids.original_mapping.dict_ptr)
+    copied_data = dict_tracker.data
+    ids.new_dict_ptr = dict_manager.new_dict(segments, copied_data)

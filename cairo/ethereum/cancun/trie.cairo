@@ -351,11 +351,7 @@ func copy_TrieAddressOptionalAccount{range_check_ptr, trie: TrieAddressOptionalA
 
     local new_dict_ptr: AddressAccountDictAccess*;
     tempvar original_mapping = trie.value._data.value;
-    %{
-        dict_tracker = __dict_manager.get_tracker(ids.original_mapping.dict_ptr)
-        copied_data = dict_tracker.data
-        ids.new_dict_ptr = __dict_manager.new_dict(segments, copied_data)
-    %}
+    %{ copy_dict_segment %}
 
     tempvar res = TrieAddressOptionalAccount(
         new TrieAddressOptionalAccountStruct(
@@ -375,13 +371,7 @@ func copy_trieBytes32U256{range_check_ptr, trie: TrieBytes32U256}() -> TrieBytes
 
     local new_dict_ptr: Bytes32U256DictAccess*;
     tempvar original_mapping = trie.value._data.value;
-    %{
-        from starkware.cairo.lang.vm.crypto import poseidon_hash_many
-
-        dict_tracker = __dict_manager.get_tracker(ids.original_mapping.dict_ptr)
-        copied_data = dict_tracker.data
-        ids.new_dict_ptr = __dict_manager.new_dict(segments, copied_data)
-    %}
+    %{ copy_dict_segment %}
 
     tempvar res = TrieBytes32U256(
         new TrieBytes32U256Struct(

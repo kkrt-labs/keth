@@ -1,8 +1,5 @@
-import pytest
 from ethereum_types.bytes import Bytes
 from hypothesis import given
-
-pytestmark = pytest.mark.python_vm
 
 
 class TestBytes:

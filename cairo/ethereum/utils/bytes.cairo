@@ -13,18 +13,7 @@ func Bytes__eq__(_self: Bytes, other: Bytes) -> bool {
     // return the first different byte index, and assert in cairo that the a[index] != b[index]
     tempvar is_diff;
     tempvar diff_index;
-    %{
-        self_bytes = b''.join([memory[ids._self.value.data + i].to_bytes(1, "little") for i in range(ids._self.value.len)])
-        other_bytes = b''.join([memory[ids.other.value.data + i].to_bytes(1, "little") for i in range(ids.other.value.len)])
-        diff_index = next((i for i, (b_self, b_other) in enumerate(zip(self_bytes, other_bytes)) if b_self != b_other), None)
-        if diff_index is not None:
-            ids.is_diff = 1
-            ids.diff_index = diff_index
-        else:
-            # No differences found in common prefix. Lengths were checked before
-            ids.is_diff = 0
-            ids.diff_index = 0
-    %}
+    %{ Bytes__eq__ %}
 
     if (is_diff == 1) {
         // Assert that the bytes are different at the first different index

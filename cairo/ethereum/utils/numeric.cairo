@@ -8,7 +8,7 @@ func min{range_check_ptr}(a: felt, b: felt) -> felt {
     alloc_locals;
 
     tempvar is_min_b;
-    %{ memory[ap - 1] = 1 if ids.b <= ids.a else 0 %}
+    %{ b_le_a %}
     jmp min_is_b if is_min_b != 0;
 
     min_is_a:

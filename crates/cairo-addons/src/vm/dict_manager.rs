@@ -61,20 +61,23 @@ pub struct PyTrackerMapping {
 
 #[pymethods]
 impl PyTrackerMapping {
-    fn __getitem__(&self, key: isize) -> PyResult<PyDictTracker> {
+    fn __getitem__(&self, segment_index: isize) -> PyResult<PyDictTracker> {
         self.inner
             .borrow()
             .trackers
-            .get(&key)
+            .get(&segment_index)
             .cloned()
             .map(|tracker| PyDictTracker { inner: tracker })
             .ok_or_else(|| {
-                PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!("Key {} not found", key))
+                PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!(
+                    "segment_index {} not found",
+                    segment_index
+                ))
             })
     }
 
-    fn __setitem__(&mut self, key: isize, value: PyDictTracker) -> PyResult<()> {
-        self.inner.borrow_mut().trackers.insert(key, value.inner);
+    fn __setitem__(&mut self, segment_index: isize, value: PyDictTracker) -> PyResult<()> {
+        self.inner.borrow_mut().trackers.insert(segment_index, value.inner.clone());
         Ok(())
     }
 }
@@ -123,7 +126,7 @@ impl PyDictManager {
 }
 
 #[pyclass(name = "DictTracker")]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PyDictTracker {
     inner: DictTracker,
 }

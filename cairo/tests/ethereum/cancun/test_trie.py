@@ -26,8 +26,6 @@ from tests.utils.errors import cairo_error
 from tests.utils.hints import patch_hint
 from tests.utils.strategies import bytes32, nibble, uint4
 
-pytestmark = pytest.mark.python_vm
-
 
 class TestTrie:
     @given(node=...)
@@ -154,25 +152,28 @@ class TestTrie:
 
 
 class TestTrieOperations:
-    @given(trie=..., key=...)
-    def test_trie_get_TrieAddressOptionalAccount(
-        self, cairo_run, trie: Trie[Address, Optional[Account]], key: Address
-    ):
-        [trie_cairo, result_cairo] = cairo_run(
-            "trie_get_TrieAddressOptionalAccount", trie, key
-        )
-        result_py = trie_get(trie, key)
-        assert result_cairo == result_py
-        assert trie_cairo == trie
+    class TestGet:
+        @given(trie=..., key=...)
+        def test_trie_get_TrieAddressAccount(
+            self, cairo_run, trie: Trie[Address, Optional[Account]], key: Address
+        ):
+            [trie_cairo, result_cairo] = cairo_run(
+                "trie_get_TrieAddressAccount", trie, key
+            )
+            result_py = trie_get(trie, key)
+            assert result_cairo == result_py
+            assert trie_cairo == trie
 
-    @given(trie=..., key=...)
-    def test_trie_get_TrieBytes32U256(
-        self, cairo_run, trie: Trie[Bytes32, U256], key: Bytes32
-    ):
-        [trie_cairo, result_cairo] = cairo_run("trie_get_TrieBytes32U256", trie, key)
-        result_py = trie_get(trie, key)
-        assert result_cairo == result_py
-        assert trie_cairo == trie
+        @given(trie=..., key=...)
+        def test_trie_get_TrieBytes32U256(
+            self, cairo_run, trie: Trie[Bytes32, U256], key: Bytes32
+        ):
+            [trie_cairo, result_cairo] = cairo_run(
+                "trie_get_TrieBytes32U256", trie, key
+            )
+            result_py = trie_get(trie, key)
+            assert result_cairo == result_py
+            assert trie_cairo == trie
 
     @given(trie=..., key=..., value=...)
     def test_trie_set_TrieAddressOptionalAccount(
@@ -186,27 +187,26 @@ class TestTrieOperations:
         trie_set(trie, key, value)
         assert cairo_trie == trie
 
-    @given(trie=..., key=..., value=...)
-    def test_trie_set_TrieBytes32U256(
-        self, cairo_run, trie: Trie[Bytes32, U256], key: Bytes32, value: U256
-    ):
-        cairo_trie = cairo_run("trie_set_TrieBytes32U256", trie, key, value)
-        trie_set(trie, key, value)
-        assert cairo_trie == trie
+        @given(trie=..., key=..., value=...)
+        def test_trie_set_TrieBytes32U256(
+            self, cairo_run, trie: Trie[Bytes32, U256], key: Bytes32, value: U256
+        ):
+            cairo_trie = cairo_run("trie_set_TrieBytes32U256", trie, key, value)
+            trie_set(trie, key, value)
+            assert cairo_trie == trie
 
-    @given(trie=...)
-    def test_copy_trie_AddressAccount(
-        self, cairo_run, trie: Trie[Address, Optional[Account]]
-    ):
-        [original_trie, copied_trie] = cairo_run(
-            "copy_TrieAddressOptionalAccount", trie
-        )
-        trie_copy_py = copy_trie(trie)
-        assert original_trie == trie
-        assert copied_trie == trie_copy_py
+    class TestCopy:
+        @given(trie=...)
+        def test_copy_trie_AddressAccount(
+            self, cairo_run, trie: Trie[Address, Optional[Account]]
+        ):
+            [original_trie, copied_trie] = cairo_run("copy_trieAddressAccount", trie)
+            trie_copy_py = copy_trie(trie)
+            assert original_trie == trie
+            assert copied_trie == trie_copy_py
 
-    @given(trie=...)
-    def test_copy_trie_Bytes32U256(self, cairo_run, trie: Trie[Bytes32, U256]):
-        [original_trie, copied_trie] = cairo_run("copy_trieBytes32U256", trie)
-        copy_trie(trie)
-        assert original_trie == trie
+        @given(trie=...)
+        def test_copy_trie_Bytes32U256(self, cairo_run, trie: Trie[Bytes32, U256]):
+            [original_trie, copied_trie] = cairo_run("copy_trieBytes32U256", trie)
+            copy_trie(trie)
+            assert original_trie == trie

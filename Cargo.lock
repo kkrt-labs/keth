@@ -145,7 +145,7 @@ checksum = "325918d6fe32f23b19878fe4b34794ae41fc19ddbe53b10571a4874d44ffd39b"
 [[package]]
 name = "cairo-vm"
 version = "2.0.0-rc3"
-source = "git+https://github.com/kkrt-labs/cairo-vm?rev=dd3d3f6e76248fc02395b31cbefe5fe8183222f1#dd3d3f6e76248fc02395b31cbefe5fe8183222f1"
+source = "git+https://github.com/kkrt-labs/cairo-vm?rev=11ecc932cfabf0653a008a7f408d698ec780cc24#11ecc932cfabf0653a008a7f408d698ec780cc24"
 dependencies = [
  "anyhow",
  "arbitrary",

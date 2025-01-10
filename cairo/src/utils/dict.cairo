@@ -69,13 +69,7 @@ func hashdict_read{poseidon_ptr: PoseidonBuiltin*, dict_ptr: DictAccess*}(
     }
 
     local value;
-    %{
-        dict_tracker = __dict_manager.get_tracker(ids.dict_ptr)
-        dict_tracker.current_ptr += ids.DictAccess.SIZE
-        preimage = tuple([memory[ids.key + i] for i in range(ids.key_len)])
-        # Not using [] here because it will register the value for that key in the tracker.
-        ids.value = dict_tracker.data.get(preimage, dict_tracker.data.default_factory())
-    %}
+    %{ hashdict_read %}
     dict_ptr.key = felt_key;
     dict_ptr.prev_value = value;
     dict_ptr.new_value = value;
@@ -139,17 +133,7 @@ func hashdict_write{poseidon_ptr: PoseidonBuiltin*, dict_ptr: DictAccess*}(
         assert felt_key = felt_key_;
         tempvar poseidon_ptr = poseidon_ptr;
     }
-    %{
-        from collections import defaultdict
-        dict_tracker = __dict_manager.get_tracker(ids.dict_ptr)
-        dict_tracker.current_ptr += ids.DictAccess.SIZE
-        preimage = tuple([memory[ids.key + i] for i in range(ids.key_len)])
-        if isinstance(dict_tracker.data, defaultdict):
-            ids.dict_ptr.prev_value = dict_tracker.data[preimage]
-        else:
-            ids.dict_ptr.prev_value = 0
-        dict_tracker.data[preimage] = ids.new_value
-    %}
+    %{ hashdict_write %}
     dict_ptr.key = felt_key;
     dict_ptr.new_value = new_value;
     let dict_ptr = dict_ptr + DictAccess.SIZE;
