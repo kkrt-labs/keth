@@ -398,7 +398,6 @@ func trie_set_TrieAddressAccount{poseidon_ptr: PoseidonBuiltin*, trie: TrieAddre
     let dict_ptr_start = cast(trie.value._data.value.dict_ptr_start, DictAccess*);
     let dict_ptr = cast(trie.value._data.value.dict_ptr, DictAccess*);
 
-    let default = cast(trie.value.default.value, felt);
     let is_default = Account__eq__(value, trie.value.default);
 
     with dict_ptr_start, dict_ptr {
@@ -433,7 +432,6 @@ func trie_set_TrieBytes32U256{poseidon_ptr: PoseidonBuiltin*, trie: TrieBytes32U
     let dict_ptr_start = cast(trie.value._data.value.dict_ptr_start, DictAccess*);
     let dict_ptr = cast(trie.value._data.value.dict_ptr, DictAccess*);
 
-    let default = cast(trie.value.default.value, felt);
     let is_default = U256__eq__(value, trie.value.default);
 
     with dict_ptr_start, dict_ptr {

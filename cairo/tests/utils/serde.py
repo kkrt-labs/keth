@@ -312,6 +312,7 @@ class Serde:
             tracker_data = self.dict_manager.trackers[dict_ptr.segment_index].data
             if isinstance(cairo_key_type, TypeFelt):
                 for key, value in tracker_data.items():
+                    # We skip serialization of null pointers, but serialize values equal to zero
                     if value == 0 and self.is_pointer_wrapper(value_type.scope.path):
                         continue
                     # Reconstruct the original key from the preimage

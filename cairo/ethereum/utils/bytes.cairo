@@ -28,7 +28,9 @@ func Bytes__eq__(_self: Bytes, other: Bytes) -> bool {
 
     if (is_diff == 1) {
         // Assert that the bytes are different at the first different index
-        assert_not_equal(_self.value.data[diff_index], other.value.data[diff_index]);
+        with_attr error_message("Bytes__eq__: bytes at provided index are equal") {
+            assert_not_equal(_self.value.data[diff_index], other.value.data[diff_index]);
+        }
         tempvar res = bool(0);
         return res;
     }
