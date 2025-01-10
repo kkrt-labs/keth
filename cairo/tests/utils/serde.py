@@ -135,6 +135,13 @@ class Serde:
             output[name] = member_ptr
         return output
 
+    def is_pointer_wrapper(self, path: Tuple[str, ...]) -> bool:
+        """Returns whether the type is a wrapper to a pointer."""
+        members = get_struct_definition(self.program, path).members
+        if len(members) != 1:
+            return False
+        return isinstance(list(members.values())[0].cairo_type, TypePointer)
+
     def serialize_type(self, path: Tuple[str, ...], ptr) -> Any:
         """
         Recursively serialize a Cairo instance, returning the corresponding Python instance.
@@ -305,6 +312,9 @@ class Serde:
             tracker_data = self.dict_manager.trackers[dict_ptr.segment_index].data
             if isinstance(cairo_key_type, TypeFelt):
                 for key, value in tracker_data.items():
+                    # We skip serialization of null pointers, but serialize values equal to zero
+                    if value == 0 and self.is_pointer_wrapper(value_type.scope.path):
+                        continue
                     # Reconstruct the original key from the preimage
                     if python_key_type in [
                         Bytes32,
@@ -325,6 +335,8 @@ class Serde:
                         hashed_key = poseidon_hash_many(key)
                         preimage = bytes(list(key))
                         serialized_dict[preimage] = dict_data[hashed_key]
+                    else:
+                        raise ValueError(f"Unsupported key type: {python_key_type}")
 
             elif get_origin(python_key_type) is tuple:
                 # If the key is a tuple, we're in the case of a Set[Tuple[Address, Bytes32]]]
@@ -348,8 +360,9 @@ class Serde:
 
                 serialized_dict = {
                     key_transform(k): dict_data[key_transform(k)]
-                    for k in tracker_data
+                    for k, v in tracker_data.items()
                     if key_transform(k) in dict_data
+                    and not (v == 0 and self.is_pointer_wrapper(value_type.scope.path))
                 }
 
             if origin_cls is set:

@@ -22,8 +22,10 @@
 // The data layout defined in this file are coherent with the Cairo arg generation process defined in args_gen.py and Cairo serialization process in serde.py
 
 from starkware.cairo.common.dict_access import DictAccess
+from starkware.cairo.common.math import assert_not_equal
 from starkware.cairo.common.uint256 import Uint256
-from ethereum_types.numeric import U128
+from src.utils.utils import Helpers
+from ethereum_types.numeric import U128, bool
 
 // Bytes types
 struct Bytes0 {

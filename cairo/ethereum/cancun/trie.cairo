@@ -10,10 +10,11 @@ from starkware.cairo.common.cairo_builtins import KeccakBuiltin
 from starkware.cairo.common.memcpy import memcpy
 
 from src.utils.bytes import uint256_to_bytes32_little
-from src.utils.dict import hashdict_read
+from src.utils.dict import hashdict_read, hashdict_write
 from ethereum.crypto.hash import keccak256
 from ethereum.utils.numeric import min, is_zero
 from ethereum.rlp import encode, _encode_bytes, _encode
+from ethereum.utils.numeric import U256__eq__
 from ethereum_types.numeric import U256, Uint, bool, U256Struct
 from ethereum_types.bytes import (
     Bytes,
@@ -30,6 +31,7 @@ from ethereum_types.bytes import (
 from ethereum.cancun.blocks import Receipt, Withdrawal
 from ethereum.cancun.fork_types import (
     Account,
+    Account__eq__,
     AccountStruct,
     Address,
     Bytes32U256DictAccess,
@@ -388,6 +390,71 @@ func trie_get_TrieBytes32U256{poseidon_ptr: PoseidonBuiltin*, trie: TrieBytes32U
     );
     tempvar res = U256(cast(pointer, U256Struct*));
     return res;
+}
+
+func trie_set_TrieAddressAccount{poseidon_ptr: PoseidonBuiltin*, trie: TrieAddressAccount}(
+    key: Address, value: Account
+) {
+    let dict_ptr_start = cast(trie.value._data.value.dict_ptr_start, DictAccess*);
+    let dict_ptr = cast(trie.value._data.value.dict_ptr, DictAccess*);
+
+    let is_default = Account__eq__(value, trie.value.default);
+
+    with dict_ptr_start, dict_ptr {
+        let (keys) = alloc();
+        assert [keys] = key.value;
+
+        if (is_default.value != 0) {
+            hashdict_write(1, keys, 0);
+            tempvar dict_ptr_start = dict_ptr_start;
+            tempvar dict_ptr = dict_ptr;
+            tempvar poseidon_ptr = poseidon_ptr;
+        } else {
+            hashdict_write(1, keys, cast(value.value, felt));
+            tempvar dict_ptr_start = dict_ptr_start;
+            tempvar dict_ptr = dict_ptr;
+            tempvar poseidon_ptr = poseidon_ptr;
+        }
+    }
+    let new_dict_ptr = cast(dict_ptr, AddressAccountDictAccess*);
+    tempvar mapping = MappingAddressAccount(
+        new MappingAddressAccountStruct(trie.value._data.value.dict_ptr_start, new_dict_ptr)
+    );
+    tempvar trie = TrieAddressAccount(
+        new TrieAddressAccountStruct(trie.value.secured, trie.value.default, mapping)
+    );
+    return ();
+}
+
+func trie_set_TrieBytes32U256{poseidon_ptr: PoseidonBuiltin*, trie: TrieBytes32U256}(
+    key: Bytes32, value: U256
+) {
+    let dict_ptr_start = cast(trie.value._data.value.dict_ptr_start, DictAccess*);
+    let dict_ptr = cast(trie.value._data.value.dict_ptr, DictAccess*);
+
+    let is_default = U256__eq__(value, trie.value.default);
+
+    with dict_ptr_start, dict_ptr {
+        if (is_default.value != 0) {
+            hashdict_write(2, cast(key.value, felt*), 0);
+            tempvar dict_ptr_start = dict_ptr_start;
+            tempvar dict_ptr = dict_ptr;
+            tempvar poseidon_ptr = poseidon_ptr;
+        } else {
+            hashdict_write(2, cast(key.value, felt*), cast(value.value, felt));
+            tempvar dict_ptr_start = dict_ptr_start;
+            tempvar dict_ptr = dict_ptr;
+            tempvar poseidon_ptr = poseidon_ptr;
+        }
+    }
+    let new_dict_ptr = cast(dict_ptr, Bytes32U256DictAccess*);
+    tempvar mapping = MappingBytes32U256(
+        new MappingBytes32U256Struct(trie.value._data.value.dict_ptr_start, new_dict_ptr)
+    );
+    tempvar trie = TrieBytes32U256(
+        new TrieBytes32U256Struct(trie.value.secured, trie.value.default, mapping)
+    );
+    return ();
 }
 
 func common_prefix_length(a: Bytes, b: Bytes) -> felt {

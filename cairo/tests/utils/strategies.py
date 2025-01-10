@@ -1,7 +1,7 @@
 # ruff: noqa: E402
 
 import os
-from typing import ForwardRef, Sequence, TypeAlias, Union
+from typing import ForwardRef, Sequence, TypeAlias, Union, get_args, get_origin
 from unittest.mock import patch
 
 from eth_keys.datatypes import PrivateKey
@@ -102,14 +102,29 @@ extended = st.recursive(
 
 def trie_strategy(thing):
     key_type, value_type = thing.__args__
+    value_type_origin = get_origin(value_type) or value_type
 
-    return st.builds(
-        Trie[key_type, value_type],
-        secured=st.booleans(),
-        default=st.from_type(value_type),
-        _data=st.dictionaries(
-            st.from_type(key_type), st.from_type(value_type), max_size=50
-        ),
+    # If the value_type is Optional[T], then the default value is _always_ None in our context
+    # (Trie[Address, Optional[Account]]).
+    default_strategy = (
+        st.none()
+        if value_type_origin is Union and get_args(value_type)[1] is type(None)
+        else st.from_type(value_type)
+    )
+
+    # In a trie, a key that has a default value is considered not included in the trie.
+    # Thus it needs to be filtered out from the data generated.
+    return default_strategy.flatmap(
+        lambda default: st.builds(
+            Trie[key_type, value_type],
+            secured=st.booleans(),
+            default=st.just(default),
+            _data=st.dictionaries(
+                st.from_type(key_type),
+                st.from_type(value_type).filter(lambda x: x != default),
+                max_size=50,
+            ),
+        )
     )
 
 
