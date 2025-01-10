@@ -10,8 +10,8 @@ pytestmark = pytest.mark.python_vm
 @pytest.mark.SHA256
 class TestSHA256:
     @pytest.mark.slow
-    @given(message_bytes=binary(min_size=1, max_size=56))
     @settings(max_examples=10)
+    @given(message_bytes=binary(min_size=1, max_size=56))
     def test_sha256_should_return_correct_hash(self, cairo_run, message_bytes):
         # Hash with SHA256
         m = py_sha256()

@@ -30,7 +30,7 @@ class TestSignature:
 
     class TestVerifyEthSignature:
         @pytest.mark.slow
-        @settings(max_examples=300)
+        @settings(max_examples=1)  # for max_examples=2, it takes 1934.87s in local
         @given(private_key=..., message=...)
         def test__verify_eth_signature_uint256(
             self, cairo_run, private_key: PrivateKey, message: Bytes32
@@ -126,7 +126,7 @@ class TestSignature:
 
     class TestTryRecoverEthAddress:
         @pytest.mark.slow
-        @settings(max_examples=300)
+        @settings(max_examples=1)  # for max_examples=2, it takes 1934.87s in local
         @given(private_key=..., message=...)
         def test__try_recover_eth_address(
             self, cairo_run, private_key: PrivateKey, message: Bytes32

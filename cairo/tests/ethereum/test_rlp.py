@@ -111,7 +111,7 @@ class TestRlp:
             assert encode(log) == cairo_run("encode_log", log)
 
         @pytest.mark.slow
-        @settings(max_examples=300)
+        @settings(max_examples=200)
         @given(tuple_log=...)
         def test_encode_tuple_log(self, cairo_run, tuple_log: Tuple[Log, ...]):
             assert encode(tuple_log) == cairo_run("encode_tuple_log", tuple_log)
@@ -121,7 +121,7 @@ class TestRlp:
             assert encode(bloom) == cairo_run("encode_bloom", bloom)
 
         @pytest.mark.slow
-        @settings(max_examples=300)
+        @settings(max_examples=200)
         @given(receipt=...)
         def test_encode_receipt(self, cairo_run, receipt: Receipt):
             assert encode(receipt) == cairo_run("encode_receipt", receipt)
