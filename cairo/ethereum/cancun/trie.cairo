@@ -10,7 +10,12 @@ from starkware.cairo.common.cairo_builtins import KeccakBuiltin
 from starkware.cairo.common.memcpy import memcpy
 
 from src.utils.bytes import uint256_to_bytes32_little
-from src.utils.dict import hashdict_read, hashdict_delete_if_present_bytes, hashdict_write
+from src.utils.dict import (
+    hashdict_read,
+    hashdict_delete_if_present_account,
+    hashdict_delete_if_present_u256,
+    hashdict_write,
+)
 from ethereum.crypto.hash import keccak256
 from ethereum.utils.numeric import min, is_zero
 from ethereum.rlp import encode, _encode_bytes, _encode
@@ -395,21 +400,26 @@ func trie_get_TrieBytes32U256{poseidon_ptr: PoseidonBuiltin*, trie: TrieBytes32U
 func trie_set_TrieAddressAccount{poseidon_ptr: PoseidonBuiltin*, trie: TrieAddressAccount}(
     key: Address, value: Account
 ) {
+    let dict_ptr_start = cast(trie.value._data.value.dict_ptr_start, DictAccess*);
     let dict_ptr = cast(trie.value._data.value.dict_ptr, DictAccess*);
 
     let default = cast(trie.value.default.value, felt);
     let is_default = Account__eq__(value, trie.value.default);
 
-    with dict_ptr {
+    with dict_ptr_start, dict_ptr {
         let (keys) = alloc();
         assert [keys] = key.value;
 
         if (is_default.value != 0) {
-            hashdict_delete_if_present_bytes(1, keys);
+            hashdict_delete_if_present_account(1, keys, value);
+            tempvar dict_ptr_start = dict_ptr_start;
             tempvar dict_ptr = dict_ptr;
+            tempvar poseidon_ptr = poseidon_ptr;
         } else {
             hashdict_write(1, keys, cast(value.value, felt));
+            tempvar dict_ptr_start = dict_ptr_start;
             tempvar dict_ptr = dict_ptr;
+            tempvar poseidon_ptr = poseidon_ptr;
         }
     }
     let new_dict_ptr = cast(dict_ptr, AddressAccountDictAccess*);
@@ -425,18 +435,23 @@ func trie_set_TrieAddressAccount{poseidon_ptr: PoseidonBuiltin*, trie: TrieAddre
 func trie_set_TrieBytes32U256{poseidon_ptr: PoseidonBuiltin*, trie: TrieBytes32U256}(
     key: Bytes32, value: U256
 ) {
+    let dict_ptr_start = cast(trie.value._data.value.dict_ptr_start, DictAccess*);
     let dict_ptr = cast(trie.value._data.value.dict_ptr, DictAccess*);
 
     let default = cast(trie.value.default.value, felt);
     let is_default = U256__eq__(value, trie.value.default);
 
-    with dict_ptr {
+    with dict_ptr_start, dict_ptr {
         if (is_default.value != 0) {
-            hashdict_delete_if_present_bytes(2, cast(key.value, felt*));
+            hashdict_delete_if_present_u256(2, cast(key.value, felt*), value);
+            tempvar dict_ptr_start = dict_ptr_start;
             tempvar dict_ptr = dict_ptr;
+            tempvar poseidon_ptr = poseidon_ptr;
         } else {
             hashdict_write(2, cast(key.value, felt*), cast(value.value, felt));
+            tempvar dict_ptr_start = dict_ptr_start;
             tempvar dict_ptr = dict_ptr;
+            tempvar poseidon_ptr = poseidon_ptr;
         }
     }
     let new_dict_ptr = cast(dict_ptr, Bytes32U256DictAccess*);
