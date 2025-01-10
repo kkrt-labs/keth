@@ -166,9 +166,6 @@ def single_evm_parent(b: Union[Message, Evm]) -> bool:
     return True
 
 
-pytestmark = pytest.mark.python_vm
-
-
 class TestSerde:
     @given(b=...)
     # 20 examples per type

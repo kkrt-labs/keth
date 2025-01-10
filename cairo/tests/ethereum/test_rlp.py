@@ -23,8 +23,6 @@ from ethereum.rlp import (
 )
 from tests.utils.errors import cairo_error
 
-pytestmark = pytest.mark.python_vm
-
 
 class TestRlp:
     class TestEncode:

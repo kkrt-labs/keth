@@ -24,8 +24,6 @@ from tests.utils.strategies import (
     uint256,
 )
 
-pytestmark = pytest.mark.python_vm
-
 
 # Specific environment strategy with minimal items:
 # block_hashes, coinbase, number, gas_limit, time, prev_randao, chain_id are

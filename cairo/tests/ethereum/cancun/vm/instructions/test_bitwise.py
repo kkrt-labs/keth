@@ -15,8 +15,6 @@ from ethereum.cancun.vm.instructions.bitwise import (
 from tests.utils.args_gen import Evm
 from tests.utils.evm_builder import EvmBuilder
 
-pytestmark = pytest.mark.python_vm
-
 
 class TestBitwise:
     @given(evm=EvmBuilder().with_stack().with_gas_left().build())
