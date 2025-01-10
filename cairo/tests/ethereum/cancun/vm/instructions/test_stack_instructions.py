@@ -41,3 +41,19 @@ class TestSwapN:
 
         swap_i(evm)
         assert evm == cairo_result
+
+
+class TestDupN:
+    @pytest.mark.parametrize("item_number", range(1, 17))
+    @given(evm=evm_lite)
+    def test_dup_n(self, cairo_run, evm: Evm, item_number: int):
+        func_name = f"dup{item_number}"
+        dup_i = getattr(stack, func_name)
+        try:
+            cairo_result = cairo_run(func_name, evm)
+        except ExceptionalHalt as cairo_error:
+            with pytest.raises(type(cairo_error)):
+                dup_i(evm)
+            return
+        dup_i(evm)
+        assert evm == cairo_result
