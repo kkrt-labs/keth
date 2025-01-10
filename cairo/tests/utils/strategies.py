@@ -162,6 +162,8 @@ def tuple_strategy(thing):
     )
 
 
+gas_left = st.integers(min_value=0, max_value=BLOCK_GAS_LIMIT).map(Uint)
+
 # Versions strategies with less data in collections
 
 memory_lite = (
@@ -218,13 +220,41 @@ environment_lite = st.integers(min_value=0).flatmap(  # Generate block number fi
     )
 )
 
+# No state, no transient storage, no block versioned hashes
+environment_extra_lite = st.integers(
+    min_value=0
+).flatmap(  # Generate block number first
+    lambda number: st.builds(
+        Environment,
+        caller=address,
+        block_hashes=st.lists(
+            st.sampled_from(BLOCK_HASHES_LIST),
+            min_size=min(number, 256),  # number or 256 if number is greater
+            max_size=min(number, 256),
+        ),
+        origin=address,
+        coinbase=address,
+        number=st.just(Uint(number)),  # Use the same number
+        base_fee_per_gas=uint,
+        gas_limit=uint,
+        gas_price=uint,
+        time=uint256,
+        prev_randao=bytes32,
+        state=st.just(State()),
+        chain_id=uint64,
+        excess_blob_gas=uint64,
+        blob_versioned_hashes=st.just(()),
+        transient_storage=st.just(TransientStorage()),
+    )
+)
+
 evm_lite = st.builds(
     Evm,
     pc=pc,
     stack=stack_strategy(Stack[U256]),
     memory=memory_lite,
     code=code,
-    gas_left=st.integers(min_value=0, max_value=BLOCK_GAS_LIMIT).map(Uint),
+    gas_left=gas_left,
     env=environment_lite,
     valid_jump_destinations=st.sets(uint, max_size=MAX_ADDRESS_SET_SIZE),
     logs=st.just(()),
@@ -283,7 +313,7 @@ evm = st.builds(
     stack=stack_strategy(Stack[U256]),
     memory=memory,
     code=code,
-    gas_left=st.integers(min_value=0, max_value=BLOCK_GAS_LIMIT).map(Uint),
+    gas_left=gas_left,
     env=st.from_type(Environment),
     valid_jump_destinations=st.sets(st.from_type(Uint)),
     logs=st.tuples(st.from_type(Log)),

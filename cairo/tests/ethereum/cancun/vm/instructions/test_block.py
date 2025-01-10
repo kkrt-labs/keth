@@ -12,13 +12,20 @@ from ethereum.cancun.vm.instructions.block import (
     timestamp,
 )
 from tests.utils.args_gen import Evm
-from tests.utils.strategies import evm_lite
+from tests.utils.evm_builder import EvmBuilder
+from tests.utils.strategies import environment_extra_lite
 
 pytestmark = pytest.mark.python_vm
 
 
 class TestBlock:
-    @given(evm=evm_lite)
+    @given(
+        evm=EvmBuilder()
+        .with_stack()
+        .with_gas_left()
+        .with_env(environment_extra_lite)
+        .build()
+    )
     def test_block_hash(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("block_hash", evm)
@@ -30,7 +37,13 @@ class TestBlock:
         block_hash(evm)
         assert evm == cairo_result
 
-    @given(evm=evm_lite)
+    @given(
+        evm=EvmBuilder()
+        .with_stack()
+        .with_gas_left()
+        .with_env(environment_extra_lite)
+        .build()
+    )
     def test_coinbase(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("coinbase", evm)
@@ -42,7 +55,13 @@ class TestBlock:
         coinbase(evm)
         assert evm == cairo_result
 
-    @given(evm=evm_lite)
+    @given(
+        evm=EvmBuilder()
+        .with_stack()
+        .with_gas_left()
+        .with_env(environment_extra_lite)
+        .build()
+    )
     def test_timestamp(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("timestamp", evm)
@@ -54,7 +73,13 @@ class TestBlock:
         timestamp(evm)
         assert evm == cairo_result
 
-    @given(evm=evm_lite)
+    @given(
+        evm=EvmBuilder()
+        .with_stack()
+        .with_gas_left()
+        .with_env(environment_extra_lite)
+        .build()
+    )
     def test_number(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("number", evm)
@@ -66,7 +91,13 @@ class TestBlock:
         number(evm)
         assert evm == cairo_result
 
-    @given(evm=evm_lite)
+    @given(
+        evm=EvmBuilder()
+        .with_stack()
+        .with_gas_left()
+        .with_env(environment_extra_lite)
+        .build()
+    )
     def test_prev_randao(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("prev_randao", evm)
@@ -78,7 +109,13 @@ class TestBlock:
         prev_randao(evm)
         assert evm == cairo_result
 
-    @given(evm=evm_lite)
+    @given(
+        evm=EvmBuilder()
+        .with_stack()
+        .with_gas_left()
+        .with_env(environment_extra_lite)
+        .build()
+    )
     def test_gas_limit(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("gas_limit", evm)
@@ -90,7 +127,13 @@ class TestBlock:
         gas_limit(evm)
         assert evm == cairo_result
 
-    @given(evm=evm_lite)
+    @given(
+        evm=EvmBuilder()
+        .with_stack()
+        .with_gas_left()
+        .with_env(environment_extra_lite)
+        .build()
+    )
     def test_chain_id(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("chain_id", evm)
