@@ -55,6 +55,4 @@ class TestDupN:
             with pytest.raises(type(cairo_error)):
                 dup_i(evm)
             return
-
-        dup_i(evm)
         assert evm == cairo_result
