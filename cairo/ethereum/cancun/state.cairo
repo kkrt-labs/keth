@@ -1,5 +1,18 @@
-from ethereum.cancun.fork_types import Address, Account, MappingAddressAccount, SetAddress
-from ethereum.cancun.trie import TrieBytes32U256, TrieAddressAccount
+from starkware.cairo.common.cairo_builtins import PoseidonBuiltin
+
+from ethereum.cancun.fork_types import (
+    Address,
+    Account,
+    MappingAddressAccount,
+    SetAddress,
+    EMPTY_ACCOUNT,
+)
+from ethereum.cancun.trie import (
+    TrieBytes32U256,
+    TrieAddressAccount,
+    trie_get_TrieAddressAccount,
+    AccountStruct,
+)
 from ethereum_types.bytes import Bytes
 from ethereum_types.numeric import U256
 
@@ -66,4 +79,26 @@ struct StateStruct {
 
 struct State {
     value: StateStruct*,
+}
+
+func get_account_optional{poseidon_ptr: PoseidonBuiltin*, state: State}(
+    address: Address
+) -> Account {
+    let trie = state.value._main_trie;
+    with trie {
+        let account = trie_get_TrieAddressAccount(address);
+    }
+
+    return account;
+}
+
+func get_account{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Address) -> Account {
+    let account = get_account_optional{state=state}(address);
+
+    if (cast(account.value, felt) == 0) {
+        let empty_account = EMPTY_ACCOUNT();
+        return empty_account;
+    }
+
+    return account;
 }
