@@ -479,7 +479,9 @@ class Serde:
         # This is because the dict_tracker has the original values, but cairo memory
         # does not: they're held in parent segments.
         # If ptr=0 -> No parent.
-        original_mapping_ptr = pointers["original_mapping"]
+
+        # Note: only "real mappings" have this. Memory and Stack, which are dict-based, do not.
+        original_mapping_ptr = pointers.get("original_mapping")
         serialized_original = (
             self._serialize_mapping_struct(
                 mapping_struct_path, original_mapping_ptr, origin_cls

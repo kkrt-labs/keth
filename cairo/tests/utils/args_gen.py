@@ -562,7 +562,13 @@ def _gen_arg(
 
         # The last element is the original_segment_stop pointer.
         # Because this is a new dict, this is 0 (null ptr).
-        segments.load_data(base, [dict_ptr, current_ptr, 0])
+        # This does not apply to stack and memory (hash_mode=False), in which case there's only 2 elements.
+        data_to_load = (
+            [dict_ptr, current_ptr, 0]
+            if (hash_mode is not False)
+            else [dict_ptr, current_ptr]
+        )
+        segments.load_data(base, data_to_load)
         return base
 
     if arg_type in (Union[int, RustRelocatable], Union[int, RelocatableValue]):

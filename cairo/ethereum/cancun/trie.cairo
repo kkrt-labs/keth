@@ -835,7 +835,7 @@ func _get_branch_for_nibble_at_level{poseidon_ptr: PoseidonBuiltin*}(
     );
 
     tempvar result = MappingBytesBytes(
-        new MappingBytesBytesStruct(branch_start, branch_ptr, obj.value.original_mapping)
+        new MappingBytesBytesStruct(branch_start, branch_ptr, cast(0, MappingBytesBytesStruct*))
     );
 
     return (result, value);
