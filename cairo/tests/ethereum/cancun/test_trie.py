@@ -13,6 +13,7 @@ from ethereum.cancun.trie import (
     Trie,
     bytes_to_nibble_list,
     common_prefix_length,
+    copy_trie,
     encode_internal_node,
     encode_node,
     nibble_list_to_compact,
@@ -186,3 +187,18 @@ class TestTrieOperations:
         cairo_trie = cairo_run("trie_set_TrieBytes32U256", trie, key, value)
         trie_set(trie, key, value)
         assert cairo_trie == trie
+
+    @given(trie=...)
+    def test_copy_trie_AddressAccount(
+        self, cairo_run, trie: Trie[Address, Optional[Account]]
+    ):
+        [original_trie, copied_trie] = cairo_run("copy_trieAddressAccount", trie)
+        trie_copy_py = copy_trie(trie)
+        assert original_trie == trie
+        assert copied_trie == trie_copy_py
+
+    @given(trie=...)
+    def test_copy_trie_Bytes32U256(self, cairo_run, trie: Trie[Bytes32, U256]):
+        [original_trie, copied_trie] = cairo_run("copy_trieBytes32U256", trie)
+        copy_trie(trie)
+        assert original_trie == trie

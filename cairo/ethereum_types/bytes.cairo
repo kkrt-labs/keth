@@ -112,6 +112,9 @@ struct BytesBytesDictAccess {
 struct MappingBytesBytesStruct {
     dict_ptr_start: BytesBytesDictAccess*,
     dict_ptr: BytesBytesDictAccess*,
+    // In case this is a copy of a previous dict,
+    // this field points to the address of the original mapping.
+    original_mapping: MappingBytesBytesStruct*,
 }
 
 struct MappingBytesBytes {

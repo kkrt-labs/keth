@@ -331,24 +331,67 @@ func encode_node{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: Kecc
     return encoded;
 }
 
-// func copy_trie(trie: Trie[K, V]) -> Trie[K, V] {
-//     // Implementation:
-//     // return Trie(trie.secured, trie.default, copy.copy(trie._data))
-// }
+// @notice Copies the trie to a new segment.
+// @dev This function simply creates a new segment for the new dict and associates it with the
+// dict_tracker of the source dict.
+func copy_trieAddressAccount{range_check_ptr, trie: TrieAddressAccount}() -> TrieAddressAccount {
+    alloc_locals;
+    // TODO: soundness
+    // We need to ensure it is sound when finalizing that copy.
+    // The full design is:
+    // - We create a new segment for the new dict
+    // - We copy the python dict tracker and associate it with that new segment
+    // - When interacting with the copied trie, we use the new segment with the new dict_ptr
+    // - If the state reverts, then upon squashing that copy, we:
+    //  - copy all the prev_keys in the new segment to the main segment (as if they were read from the new segment)
+    //  - delete the new segment
+    //  - This ensures that when squashing the main segment, we ensure that the data read in the new segment matched the data from the main segment.
 
-// func trie_set(trie: Trie[K, V], key: K, value: V) {
-//     // Implementation:
-//     // if value == trie.default:
-//     // if key in trie._data:
-//     // del trie._data[key]
-//     // else:
-//     // trie._data[key] = value
-//         // if key in trie._data:
-//         // del trie._data[key]
-//             // del trie._data[key]
-//     // else:
-//         // trie._data[key] = value
-// }
+    local new_dict_ptr: AddressAccountDictAccess*;
+    tempvar original_mapping = trie.value._data.value;
+    %{
+        dict_tracker = __dict_manager.get_tracker(ids.original_mapping.dict_ptr)
+        copied_data = dict_tracker.data
+        ids.new_dict_ptr = __dict_manager.new_dict(segments, copied_data)
+    %}
+
+    tempvar res = TrieAddressAccount(
+        new TrieAddressAccountStruct(
+            trie.value.secured,
+            trie.value.default,
+            MappingAddressAccount(
+                new MappingAddressAccountStruct(new_dict_ptr, new_dict_ptr, original_mapping)
+            ),
+        ),
+    );
+    return res;
+}
+
+func copy_trieBytes32U256{range_check_ptr, trie: TrieBytes32U256}() -> TrieBytes32U256 {
+    alloc_locals;
+    // TODO: same as above
+
+    local new_dict_ptr: Bytes32U256DictAccess*;
+    tempvar original_mapping = trie.value._data.value;
+    %{
+        from starkware.cairo.lang.vm.crypto import poseidon_hash_many
+
+        dict_tracker = __dict_manager.get_tracker(ids.original_mapping.dict_ptr)
+        copied_data = dict_tracker.data
+        ids.new_dict_ptr = __dict_manager.new_dict(segments, copied_data)
+    %}
+
+    tempvar res = TrieBytes32U256(
+        new TrieBytes32U256Struct(
+            trie.value.secured,
+            trie.value.default,
+            MappingBytes32U256(
+                new MappingBytes32U256Struct(new_dict_ptr, new_dict_ptr, original_mapping)
+            ),
+        ),
+    );
+    return res;
+}
 
 func trie_get_TrieAddressAccount{poseidon_ptr: PoseidonBuiltin*, trie: TrieAddressAccount}(
     key: Address
@@ -363,8 +406,11 @@ func trie_get_TrieAddressAccount{poseidon_ptr: PoseidonBuiltin*, trie: TrieAddre
         let (pointer) = hashdict_read(1, &key.value);
     }
     let new_dict_ptr = cast(dict_ptr, AddressAccountDictAccess*);
+    let original_mapping = trie.value._data.value.original_mapping;
     tempvar mapping = MappingAddressAccount(
-        new MappingAddressAccountStruct(trie.value._data.value.dict_ptr_start, new_dict_ptr)
+        new MappingAddressAccountStruct(
+            trie.value._data.value.dict_ptr_start, new_dict_ptr, original_mapping
+        ),
     );
     tempvar trie = TrieAddressAccount(
         new TrieAddressAccountStruct(trie.value.secured, trie.value.default, mapping)
@@ -382,8 +428,11 @@ func trie_get_TrieBytes32U256{poseidon_ptr: PoseidonBuiltin*, trie: TrieBytes32U
         let (pointer) = hashdict_read(2, cast(key.value, felt*));
     }
     let new_dict_ptr = cast(dict_ptr, Bytes32U256DictAccess*);
+    let original_mapping = trie.value._data.value.original_mapping;
     tempvar mapping = MappingBytes32U256(
-        new MappingBytes32U256Struct(trie.value._data.value.dict_ptr_start, new_dict_ptr)
+        new MappingBytes32U256Struct(
+            trie.value._data.value.dict_ptr_start, new_dict_ptr, original_mapping
+        ),
     );
     tempvar trie = TrieBytes32U256(
         new TrieBytes32U256Struct(trie.value.secured, trie.value.default, mapping)
@@ -418,7 +467,11 @@ func trie_set_TrieAddressAccount{poseidon_ptr: PoseidonBuiltin*, trie: TrieAddre
     }
     let new_dict_ptr = cast(dict_ptr, AddressAccountDictAccess*);
     tempvar mapping = MappingAddressAccount(
-        new MappingAddressAccountStruct(trie.value._data.value.dict_ptr_start, new_dict_ptr)
+        new MappingAddressAccountStruct(
+            trie.value._data.value.dict_ptr_start,
+            new_dict_ptr,
+            trie.value._data.value.original_mapping,
+        ),
     );
     tempvar trie = TrieAddressAccount(
         new TrieAddressAccountStruct(trie.value.secured, trie.value.default, mapping)
@@ -449,7 +502,11 @@ func trie_set_TrieBytes32U256{poseidon_ptr: PoseidonBuiltin*, trie: TrieBytes32U
     }
     let new_dict_ptr = cast(dict_ptr, Bytes32U256DictAccess*);
     tempvar mapping = MappingBytes32U256(
-        new MappingBytes32U256Struct(trie.value._data.value.dict_ptr_start, new_dict_ptr)
+        new MappingBytes32U256Struct(
+            trie.value._data.value.dict_ptr_start,
+            new_dict_ptr,
+            trie.value._data.value.original_mapping,
+        ),
     );
     tempvar trie = TrieBytes32U256(
         new TrieBytes32U256Struct(trie.value.secured, trie.value.default, mapping)
@@ -777,7 +834,9 @@ func _get_branch_for_nibble_at_level{poseidon_ptr: PoseidonBuiltin*}(
         obj.value.dict_ptr_start, dict_ptr_stop, branch_start, nibble, level, empty_value
     );
 
-    tempvar result = MappingBytesBytes(new MappingBytesBytesStruct(branch_start, branch_ptr));
+    tempvar result = MappingBytesBytes(
+        new MappingBytesBytesStruct(branch_start, branch_ptr, obj.value.original_mapping)
+    );
 
     return (result, value);
 }

@@ -12,6 +12,9 @@ struct AddressTrieBytes32U256DictAccess {
 struct MappingAddressTrieBytes32U256Struct {
     dict_ptr_start: AddressTrieBytes32U256DictAccess*,
     dict_ptr: AddressTrieBytes32U256DictAccess*,
+    // In case this is a copy of a previous dict,
+    // this field points to the address of the original mapping.
+    original_mapping: MappingAddressTrieBytes32U256Struct*,
 }
 
 struct MappingAddressTrieBytes32U256 {
