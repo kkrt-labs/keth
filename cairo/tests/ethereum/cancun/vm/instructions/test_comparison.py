@@ -15,6 +15,7 @@ from tests.utils.evm_builder import EvmBuilder
 
 comparison_tests_strategy = EvmBuilder().with_stack().with_gas_left().build()
 
+
 class TestComparison:
     @given(evm=comparison_tests_strategy)
     def test_less_than(self, cairo_run, evm: Evm):

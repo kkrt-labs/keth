@@ -19,6 +19,7 @@ from tests.utils.evm_builder import EvmBuilder
 
 arithmetic_tests_strategy = EvmBuilder().with_stack().with_gas_left().build()
 
+
 class TestArithmetic:
     @given(evm=arithmetic_tests_strategy)
     def test_add(self, cairo_run, evm: Evm):

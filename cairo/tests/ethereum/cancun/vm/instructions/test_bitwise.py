@@ -17,6 +17,7 @@ from tests.utils.evm_builder import EvmBuilder
 
 bitwise_tests_strategy = EvmBuilder().with_stack().with_gas_left().build()
 
+
 class TestBitwise:
     @given(evm=bitwise_tests_strategy)
     def test_and(self, cairo_run, evm: Evm):

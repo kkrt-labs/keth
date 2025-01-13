@@ -15,6 +15,7 @@ from tests.utils.strategies import (
 
 tests_memory_strategy = EvmBuilder().with_stack().with_gas_left().with_memory().build()
 
+
 class TestMemory:
     @given(
         evm=tests_memory_strategy,

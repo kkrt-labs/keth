@@ -9,7 +9,6 @@ from tests.utils.args_gen import Evm
 from tests.utils.evm_builder import EvmBuilder
 from tests.utils.strategies import memory_lite_access_size, memory_lite_start_position
 
-
 tests_log_strategy = EvmBuilder().with_stack().with_gas_left().with_memory().build()
 
 
