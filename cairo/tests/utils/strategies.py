@@ -341,8 +341,9 @@ state = st.lists(address, min_size=0, max_size=MAX_ADDRESS_SET_SIZE).flatmap(
                 )
                 for address in addresses
             }
-            # Convert the dict to a defaultdict with the default value of 0
-            # In case the dict is empty, we return 0 as the default value
+            # In case the dict is empty, we use 0 as the default value
+            # To avoid panic in the dict.cairo:hashdict_read hint
+            # `ids.value = dict_tracker.data.get(preimage, dict_tracker.data.default_factory())`
         ).map(lambda d: defaultdict(lambda: 0, d)),
         _snapshots=st.just([]),
         created_accounts=st.just(set()),
