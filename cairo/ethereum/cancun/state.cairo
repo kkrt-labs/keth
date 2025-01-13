@@ -133,6 +133,7 @@ func get_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(
             new MappingAddressTrieBytes32U256Struct(
                 dict_ptr_start=storage_tries.value.dict_ptr_start,
                 dict_ptr=new_storage_tries_dict_ptr,
+                original_mapping=storage_tries.value.original_mapping,
             ),
         );
         tempvar state = State(
@@ -164,7 +165,9 @@ func get_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(
     );
     tempvar storage_tries = MappingAddressTrieBytes32U256(
         new MappingAddressTrieBytes32U256Struct(
-            dict_ptr_start=storage_tries.value.dict_ptr_start, dict_ptr=new_storage_tries_dict_ptr
+            dict_ptr_start=storage_tries.value.dict_ptr_start,
+            dict_ptr=new_storage_tries_dict_ptr,
+            original_mapping=storage_tries.value.original_mapping,
         ),
     );
     tempvar state = State(
