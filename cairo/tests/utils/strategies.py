@@ -8,7 +8,6 @@ from eth_keys.datatypes import PrivateKey
 from ethereum_types.bytes import Bytes0, Bytes8, Bytes20, Bytes32, Bytes256
 from ethereum_types.numeric import U64, U256, FixedUnsigned, Uint
 from hypothesis import strategies as st
-from hypothesis.strategies import composite
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 
 from ethereum.crypto.elliptic_curve import SECP256K1N
@@ -353,29 +352,6 @@ private_key = (
     .map(lambda x: int.to_bytes(x, 32, "big"))
     .map(PrivateKey)
 )
-
-
-@composite
-def address_strategy(draw, state):
-    _state = draw(state)
-    if _state._storage_tries and draw(st.booleans()):
-        return draw(st.sampled_from(sorted(list(_state._storage_tries.keys()))))
-    return draw(st.from_type(Address))
-
-
-@composite
-def key_strategy(draw, state, address):
-    _state = draw(state)
-    _address = draw(address)
-    if (
-        _address in _state._storage_tries
-        and _state._storage_tries[_address]
-        and draw(st.booleans())
-    ):
-        return draw(
-            st.sampled_from(sorted(list(_state._storage_tries[_address].keys())))
-        )
-    return draw(st.from_type(Bytes32))
 
 
 def register_type_strategies():
