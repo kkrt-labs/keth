@@ -24,7 +24,6 @@ from tests.utils.strategies import (
     uint256,
 )
 
-
 # Specific environment strategy with minimal items:
 # block_hashes, coinbase, number, gas_limit, time, prev_randao, chain_id are
 # strategies, the rest:
