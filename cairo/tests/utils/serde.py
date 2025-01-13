@@ -276,99 +276,12 @@ class Serde:
                 .members["value"]
                 .cairo_type.pointee.scope.path
             )
-            dict_access_path = (
-                get_struct_definition(self.program, mapping_struct_path)
-                .members["dict_ptr"]
-                .cairo_type.pointee.scope.path
+
+            # Recursively serialize the mapping struct with support
+            # for copying from a previous mapping segment.
+            return self._serialize_mapping_struct(
+                mapping_struct_path, mapping_struct_ptr, origin_cls
             )
-            dict_access_types = get_struct_definition(
-                self.program, dict_access_path
-            ).members
-
-            python_key_type = to_python_type(dict_access_types["key"].cairo_type)
-            # Some mappings have keys that are hashed. In that case, the cairo type name starts with "Hashed".
-            # but in reality, the key is a felt.
-            cairo_key_type = (
-                TypeFelt()
-                if dict_access_types["key"]
-                .cairo_type.scope.path[-1]
-                .startswith("Hashed")
-                else dict_access_types["key"].cairo_type
-            )
-
-            value_type = dict_access_types["new_value"].cairo_type
-            pointers = self.serialize_pointers(mapping_struct_path, mapping_struct_ptr)
-            segment_size = pointers["dict_ptr"] - pointers["dict_ptr_start"]
-            dict_ptr = pointers["dict_ptr_start"]
-
-            dict_data = {
-                self._serialize(cairo_key_type, dict_ptr + i): self._serialize(
-                    value_type, dict_ptr + i + 2
-                )
-                for i in range(0, segment_size, 3)
-            }
-
-            serialized_dict = {}
-            tracker_data = self.dict_manager.trackers[dict_ptr.segment_index].data
-            if isinstance(cairo_key_type, TypeFelt):
-                for key, value in tracker_data.items():
-                    # We skip serialization of null pointers, but serialize values equal to zero
-                    if value == 0 and self.is_pointer_wrapper(value_type.scope.path):
-                        continue
-                    # Reconstruct the original key from the preimage
-                    if python_key_type in [
-                        Bytes32,
-                        Bytes256,
-                    ]:
-                        hashed_key = poseidon_hash_many(key)
-                        preimage = b"".join(felt.to_bytes(16, "little") for felt in key)
-                        serialized_dict[preimage] = dict_data[hashed_key]
-
-                    elif python_key_type == U256:
-                        hashed_key = poseidon_hash_many(key)
-                        preimage = sum(
-                            felt * 2 ** (128 * i) for i, felt in enumerate(key)
-                        )
-                        serialized_dict[preimage] = dict_data[hashed_key]
-
-                    elif python_key_type == Bytes:
-                        hashed_key = poseidon_hash_many(key)
-                        preimage = bytes(list(key))
-                        serialized_dict[preimage] = dict_data[hashed_key]
-                    else:
-                        raise ValueError(f"Unsupported key type: {python_key_type}")
-
-            elif get_origin(python_key_type) is tuple:
-                # If the key is a tuple, we're in the case of a Set[Tuple[Address, Bytes32]]]
-                # In that case, the keys are not hashed __yet__, the dict simply registers the
-                # Cases where they key is not hashed, and the key is a pointer.
-                # In that case, we can just return the dict as is.
-                # TODO: we need to hash the keys here.
-                serialized_dict = dict_data
-            else:
-                # Even if the dict is not hashed, we need to use the tracker
-                # to differentiate between default-values _read_ and explicit writes.
-                # Only include keys that were explicitly written to the dict.
-                def key_transform(k):
-                    if python_key_type is Bytes20:
-                        return k[0].to_bytes(20, "little")
-                    else:
-                        try:
-                            return python_key_type(k[0])
-                        except Exception:
-                            return python_key_type(k)
-
-                serialized_dict = {
-                    key_transform(k): dict_data[key_transform(k)]
-                    for k, v in tracker_data.items()
-                    if key_transform(k) in dict_data
-                    and not (v == 0 and self.is_pointer_wrapper(value_type.scope.path))
-                }
-
-            if origin_cls is set:
-                return set(serialized_dict.keys())
-
-            return serialized_dict
 
         if python_cls in (bytes, bytearray, Bytes, str):
             tuple_struct_ptr = self.serialize_pointers(path, ptr)["value"]
@@ -528,6 +441,137 @@ class Serde:
         if isinstance(cairo_type, AliasDefinition):
             return self.serialize_scope(cairo_type.destination, ptr)
         raise ValueError(f"Unknown type {cairo_type}")
+
+    def _serialize_mapping_struct(
+        self, mapping_struct_path, mapping_struct_ptr, origin_cls
+    ):
+        dict_access_path = (
+            get_struct_definition(self.program, mapping_struct_path)
+            .members["dict_ptr"]
+            .cairo_type.pointee.scope.path
+        )
+        dict_access_types = get_struct_definition(
+            self.program, dict_access_path
+        ).members
+
+        python_key_type = to_python_type(dict_access_types["key"].cairo_type)
+        # Some mappings have keys that are hashed. In that case, the cairo type name starts with "Hashed".
+        # but in reality, the key is a felt.
+        cairo_key_type = (
+            TypeFelt()
+            if dict_access_types["key"].cairo_type.scope.path[-1].startswith("Hashed")
+            else dict_access_types["key"].cairo_type
+        )
+
+        value_type = dict_access_types["new_value"].cairo_type
+        pointers = self.serialize_pointers(mapping_struct_path, mapping_struct_ptr)
+        segment_size = pointers["dict_ptr"] - pointers["dict_ptr_start"]
+        dict_ptr = pointers["dict_ptr_start"]
+
+        dict_segment_data = {
+            self._serialize(cairo_key_type, dict_ptr + i): self._serialize(
+                value_type, dict_ptr + i + 2
+            )
+            for i in range(0, segment_size, 3)
+        }
+
+        # In case this is a copy of a previous dict, we serialize the original dict.
+        # This is because the dict_tracker has the original values, but cairo memory
+        # does not: they're held in parent segments.
+        # If ptr=0 -> No parent.
+
+        # Note: only "real mappings" have this. Memory and Stack, which are dict-based, do not.
+        original_mapping_ptr = pointers.get("original_mapping")
+        serialized_original = (
+            self._serialize_mapping_struct(
+                mapping_struct_path, original_mapping_ptr, origin_cls
+            )
+            if original_mapping_ptr
+            else {}
+        )
+
+        serialized_dict = {}
+        tracker_data = self.dict_manager.trackers[dict_ptr.segment_index].data
+        if isinstance(cairo_key_type, TypeFelt):
+            for key, value in tracker_data.items():
+                # We skip serialization of null pointers, but serialize values equal to zero
+                if value == 0 and self.is_pointer_wrapper(value_type.scope.path):
+                    continue
+                # Reconstruct the original key from the preimage
+                if python_key_type in [
+                    Bytes32,
+                    Bytes256,
+                ]:
+                    hashed_key = poseidon_hash_many(key)
+                    preimage = b"".join(felt.to_bytes(16, "little") for felt in key)
+                    # Other syntaxes are eagerly evaluated, and thus throw a key error.
+                    serialized_dict[preimage] = (
+                        dict_segment_data[hashed_key]
+                        if dict_segment_data.get(hashed_key) is not None
+                        else serialized_original[preimage]
+                    )
+
+                elif python_key_type == U256:
+                    hashed_key = poseidon_hash_many(key)
+                    preimage = sum(felt * 2 ** (128 * i) for i, felt in enumerate(key))
+                    serialized_dict[preimage] = (
+                        dict_segment_data[hashed_key]
+                        if dict_segment_data.get(hashed_key) is not None
+                        else serialized_original[preimage]
+                    )
+
+                elif python_key_type == Bytes:
+                    hashed_key = poseidon_hash_many(key)
+                    preimage = bytes(list(key))
+                    serialized_dict[preimage] = (
+                        dict_segment_data[hashed_key]
+                        if dict_segment_data.get(hashed_key) is not None
+                        else serialized_original[preimage]
+                    )
+                else:
+                    raise ValueError(f"Unsupported key type: {python_key_type}")
+
+        elif get_origin(python_key_type) is tuple:
+            # If the key is a tuple, we're in the case of a Set[Tuple[Address, Bytes32]]]
+            # In that case, the keys are not hashed __yet__, the dict simply registers the
+            # Cases where they key is not hashed, and the key is a pointer.
+            # In that case, we can just return the dict as is.
+            # TODO: we need to hash the keys here.
+            serialized_dict = {**dict_segment_data, **serialized_original}
+        else:
+            # Even if the dict is not hashed, we need to use the tracker
+            # to differentiate between default-values _read_ and explicit writes.
+            # Only include keys that were explicitly written to the dict.
+            def key_transform(k):
+                if python_key_type is Bytes20:
+                    return k[0].to_bytes(20, "little")
+                else:
+                    try:
+                        return python_key_type(k[0])
+                    except Exception:
+                        # If the type is not indexable
+                        return python_key_type(k)
+
+            for cairo_key, cairo_value in tracker_data.items():
+                preimage = key_transform(cairo_key)
+
+                # For pointer types, a value of 0 means absent - should skip
+                is_null_pointer = cairo_value == 0 and self.is_pointer_wrapper(
+                    value_type.scope.path
+                )
+                if is_null_pointer:
+                    continue
+
+                serialized_dict[preimage] = (
+                    dict_segment_data.get(preimage)
+                    if dict_segment_data.get(preimage) is not None
+                    else serialized_original[preimage]
+                )
+
+        if origin_cls is set:
+            return set(serialized_dict.keys())
+
+        return serialized_dict
 
     def get_offset(self, cairo_type):
         if hasattr(cairo_type, "members"):

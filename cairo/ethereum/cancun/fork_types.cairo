@@ -89,6 +89,9 @@ struct AddressAccountDictAccess {
 struct MappingAddressAccountStruct {
     dict_ptr_start: AddressAccountDictAccess*,
     dict_ptr: AddressAccountDictAccess*,
+    // In case this is a copy of a previous dict,
+    // this field points to the address of the original mapping.
+    original_mapping: MappingAddressAccountStruct*,
 }
 
 struct MappingAddressAccount {
@@ -105,6 +108,9 @@ struct Bytes32U256DictAccess {
 struct MappingBytes32U256Struct {
     dict_ptr_start: Bytes32U256DictAccess*,
     dict_ptr: Bytes32U256DictAccess*,
+    // In case this is a copy of a previous dict,
+    // this field points to the address of the original mapping.
+    original_mapping: MappingBytes32U256Struct*,
 }
 
 struct MappingBytes32U256 {

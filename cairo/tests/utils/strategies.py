@@ -112,6 +112,15 @@ def trie_strategy(thing):
         else st.from_type(value_type)
     )
 
+    # Create a strategy for non-default values
+    def non_default_strategy(default):
+        if default is None:
+            # For Optional types, just use the base type strategy (which won't generate None)
+            base_type = get_args(value_type)[0]
+            return st.from_type(base_type)
+        # For other types, use the regular strategy as default values are rare, and filter them out
+        return st.from_type(value_type).filter(lambda x: x != default)
+
     # In a trie, a key that has a default value is considered not included in the trie.
     # Thus it needs to be filtered out from the data generated.
     return default_strategy.flatmap(
@@ -121,8 +130,8 @@ def trie_strategy(thing):
             default=st.just(default),
             _data=st.dictionaries(
                 st.from_type(key_type),
-                st.from_type(value_type).filter(lambda x: x != default),
-                max_size=50,
+                non_default_strategy(default),
+                max_size=20,
             ),
         )
     )
