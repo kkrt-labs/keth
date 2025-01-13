@@ -174,11 +174,21 @@ def tuple_strategy(thing):
 gas_left = st.integers(min_value=0, max_value=BLOCK_GAS_LIMIT).map(Uint)
 
 # Versions strategies with less data in collections
-
+memory_lite_size = 512
 memory_lite = (
-    st.binary(min_size=0, max_size=128)
+    st.binary(min_size=0, max_size=memory_lite_size)
     .map(lambda x: x + b"\x00" * ((32 - len(x) % 32) % 32))
     .map(Memory)
+)
+memory_lite_start_position = st.integers(
+    min_value=0, max_value=memory_lite_size // 2
+).map(U256)
+memory_lite_access_size = st.integers(min_value=0, max_value=memory_lite_size // 2).map(
+    U256
+)
+
+memory_lite_destination = st.integers(min_value=0, max_value=memory_lite_size * 2).map(
+    U256
 )
 
 message_lite = st.builds(
@@ -229,27 +239,7 @@ environment_lite = st.integers(min_value=0).flatmap(  # Generate block number fi
     )
 )
 
-evm_lite = st.builds(
-    Evm,
-    pc=pc,
-    stack=stack_strategy(Stack[U256]),
-    memory=memory_lite,
-    code=code,
-    gas_left=gas_left,
-    env=environment_lite,
-    valid_jump_destinations=st.sets(uint, max_size=MAX_ADDRESS_SET_SIZE),
-    logs=st.just(()),
-    refund_counter=st.just(0),
-    running=st.booleans(),
-    message=message_lite,
-    output=st.just(b""),
-    accounts_to_delete=st.just(set()),
-    touched_accounts=st.just(set()),
-    return_data=st.just(b""),
-    error=st.none() | st.from_type(EthereumException),
-    accessed_addresses=st.just(set()),
-    accessed_storage_keys=st.just(set()),
-)
+valid_jump_destinations_lite = st.sets(uint, max_size=MAX_JUMP_DESTINATIONS_SET_SIZE)
 
 
 # Generating up to 2**13 bytes of memory is enough for most tests as more would take too long

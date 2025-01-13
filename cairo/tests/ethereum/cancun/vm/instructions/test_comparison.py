@@ -11,11 +11,13 @@ from ethereum.cancun.vm.instructions.comparison import (
     signed_less_than,
 )
 from tests.utils.args_gen import Evm
-from tests.utils.strategies import evm_lite
+from tests.utils.evm_builder import EvmBuilder
+
+comparison_tests_strategy = EvmBuilder().with_stack().with_gas_left().build()
 
 
 class TestComparison:
-    @given(evm=evm_lite)
+    @given(evm=comparison_tests_strategy)
     def test_less_than(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("less_than", evm)
@@ -27,7 +29,7 @@ class TestComparison:
         less_than(evm)
         assert evm == cairo_result
 
-    @given(evm=evm_lite)
+    @given(evm=comparison_tests_strategy)
     def test_greater_than(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("greater_than", evm)
@@ -39,7 +41,7 @@ class TestComparison:
         greater_than(evm)
         assert evm == cairo_result
 
-    @given(evm=evm_lite)
+    @given(evm=comparison_tests_strategy)
     def test_signed_less_than(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("signed_less_than", evm)
@@ -51,7 +53,7 @@ class TestComparison:
         signed_less_than(evm)
         assert evm == cairo_result
 
-    @given(evm=evm_lite)
+    @given(evm=comparison_tests_strategy)
     def test_signed_greater_than(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("signed_greater_than", evm)
@@ -63,7 +65,7 @@ class TestComparison:
         signed_greater_than(evm)
         assert evm == cairo_result
 
-    @given(evm=evm_lite)
+    @given(evm=comparison_tests_strategy)
     def test_equal(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("equal", evm)
@@ -75,7 +77,7 @@ class TestComparison:
         equal(evm)
         assert evm == cairo_result
 
-    @given(evm=evm_lite)
+    @given(evm=comparison_tests_strategy)
     def test_is_zero(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("is_zero", evm)
