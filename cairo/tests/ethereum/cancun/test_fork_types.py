@@ -1,6 +1,9 @@
+import pytest
 from hypothesis import given
 
 from ethereum.cancun.fork_types import EMPTY_ACCOUNT, Account
+
+pytestmark = pytest.mark.python_vm
 
 
 class TestForkTypes:
