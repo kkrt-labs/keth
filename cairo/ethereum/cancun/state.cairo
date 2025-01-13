@@ -1,7 +1,7 @@
 from starkware.cairo.common.cairo_builtins import PoseidonBuiltin
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.dict import dict_new
-from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
+from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.cairo.common.math import assert_not_zero
 from ethereum_types.numeric import bool
 
@@ -23,10 +23,12 @@ from ethereum.cancun.trie import (
     trie_set_TrieBytes32U256,
     AccountStruct,
     TrieBytes32U256Struct,
+    TrieAddressAccountStruct,
 )
 from ethereum_types.bytes import Bytes, Bytes32
-from src.utils.dict import hashdict_read, hashdict_write, hashdict_get
 from ethereum_types.numeric import U256, U256Struct
+
+from src.utils.dict import hashdict_read, hashdict_write, hashdict_get
 
 struct AddressTrieBytes32U256DictAccess {
     key: Address,
@@ -187,7 +189,6 @@ func get_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(
             created_accounts=state.value.created_accounts,
         ),
     );
-
     return value;
 }
 
@@ -297,4 +298,63 @@ func set_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(
         ),
     );
     return ();
+}
+
+func get_transient_storage{poseidon_ptr: PoseidonBuiltin*, transient_storage: TransientStorage}(
+    address: Address, key: Bytes32
+) -> U256 {
+    alloc_locals;
+    let fp_and_pc = get_fp_and_pc();
+    local __fp__: felt* = fp_and_pc.fp_val;
+
+    let transient_storage_tries_dict_ptr = cast(
+        transient_storage.value._tries.value.dict_ptr, DictAccess*
+    );
+    with poseidon_ptr {
+        let (trie_ptr) = hashdict_get{dict_ptr=transient_storage_tries_dict_ptr}(1, &address.value);
+    }
+
+    // If no storage trie is associated to that address, return the 0 default
+    if (trie_ptr == 0) {
+        let new_transient_storage_tries_dict_ptr = cast(
+            transient_storage_tries_dict_ptr, AddressTrieBytes32U256DictAccess*
+        );
+        tempvar transient_storage_tries = MappingAddressTrieBytes32U256(
+            new MappingAddressTrieBytes32U256Struct(
+                transient_storage.value._tries.value.dict_ptr_start,
+                new_transient_storage_tries_dict_ptr,
+                transient_storage.value._tries.value.original_mapping,
+            ),
+        );
+        tempvar transient_storage = TransientStorage(
+            new TransientStorageStruct(transient_storage_tries, transient_storage.value._snapshots)
+        );
+        tempvar result = U256(new U256Struct(0, 0));
+        return result;
+    }
+
+    let trie = TrieBytes32U256(cast(trie_ptr, TrieBytes32U256Struct*));
+    with trie {
+        let value = trie_get_TrieBytes32U256(key);
+    }
+
+    // Rebind the trie to the transient storage
+    hashdict_write{poseidon_ptr=poseidon_ptr, dict_ptr=transient_storage_tries_dict_ptr}(
+        1, &address.value, cast(trie.value, felt)
+    );
+    let new_storage_tries_dict_ptr = cast(
+        transient_storage_tries_dict_ptr, AddressTrieBytes32U256DictAccess*
+    );
+    tempvar transient_storage_tries = MappingAddressTrieBytes32U256(
+        new MappingAddressTrieBytes32U256Struct(
+            transient_storage.value._tries.value.dict_ptr_start,
+            new_storage_tries_dict_ptr,
+            transient_storage.value._tries.value.original_mapping,
+        ),
+    );
+    tempvar transient_storage = TransientStorage(
+        new TransientStorageStruct(transient_storage_tries, transient_storage.value._snapshots)
+    );
+
+    return value;
 }
