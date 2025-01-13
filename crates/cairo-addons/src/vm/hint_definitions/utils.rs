@@ -19,7 +19,7 @@ use cairo_vm::{
 use crate::vm::hints::Hint;
 
 #[allow(non_snake_case)]
-pub fn Bytes__eq__() -> Hint {
+pub fn bytes__eq__() -> Hint {
     Hint::new(
         String::from("Bytes__eq__"),
         |vm: &mut VirtualMachine,

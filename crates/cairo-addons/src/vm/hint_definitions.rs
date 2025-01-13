@@ -4,4 +4,4 @@ mod hashdict;
 pub use hashdict::{hashdict_read, hashdict_write};
 
 mod utils;
-pub use utils::{b_le_a, Bytes__eq__};
+pub use utils::{b_le_a, bytes__eq__};

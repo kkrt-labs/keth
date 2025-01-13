@@ -17,7 +17,7 @@ use cairo_vm::{
 use std::{collections::HashMap, fmt, rc::Rc};
 
 use super::{
-    hint_definitions::{b_le_a, copy_dict_segment, hashdict_read, hashdict_write, Bytes__eq__},
+    hint_definitions::{b_le_a, bytes__eq__, copy_dict_segment, hashdict_read, hashdict_write},
     hint_loader::load_python_hints,
 };
 
@@ -62,10 +62,7 @@ impl HintProcessor {
     pub fn with_hints(mut self, hints: Vec<Hint>) -> Self {
         for hint in hints {
             self.inner.add_hint(
-                self.python_hints
-                    .get(&hint.id)
-                    .unwrap_or_else(|| panic!("Hint {} not found", hint.id))
-                    .to_string(),
+                self.python_hints.get(&hint.id).unwrap_or(&hint.id).to_string(),
                 hint.func.clone(),
             );
         }
@@ -91,7 +88,7 @@ impl Default for HintProcessor {
             add_segment_hint(),
             hashdict_read(),
             hashdict_write(),
-            Bytes__eq__(),
+            bytes__eq__(),
             copy_dict_segment(),
             b_le_a(),
         ])
