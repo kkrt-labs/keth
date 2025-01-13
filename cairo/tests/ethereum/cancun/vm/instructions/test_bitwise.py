@@ -13,13 +13,13 @@ from ethereum.cancun.vm.instructions.bitwise import (
     get_byte,
 )
 from tests.utils.args_gen import Evm
-from tests.utils.strategies import evm_lite
+from tests.utils.evm_builder import EvmBuilder
 
 pytestmark = pytest.mark.python_vm
 
 
 class TestBitwise:
-    @given(evm=evm_lite)
+    @given(evm=EvmBuilder().with_stack().with_gas_left().build())
     def test_and(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("bitwise_and", evm)
@@ -31,7 +31,7 @@ class TestBitwise:
         bitwise_and(evm)
         assert evm == cairo_result
 
-    @given(evm=evm_lite)
+    @given(evm=EvmBuilder().with_stack().with_gas_left().build())
     def test_or(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("bitwise_or", evm)
@@ -43,7 +43,7 @@ class TestBitwise:
         bitwise_or(evm)
         assert evm == cairo_result
 
-    @given(evm=evm_lite)
+    @given(evm=EvmBuilder().with_stack().with_gas_left().build())
     def test_xor(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("bitwise_xor", evm)
@@ -55,7 +55,7 @@ class TestBitwise:
         bitwise_xor(evm)
         assert evm == cairo_result
 
-    @given(evm=evm_lite)
+    @given(evm=EvmBuilder().with_stack().with_gas_left().build())
     def test_not(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("bitwise_not", evm)
@@ -67,7 +67,7 @@ class TestBitwise:
         bitwise_not(evm)
         assert evm == cairo_result
 
-    @given(evm=evm_lite)
+    @given(evm=EvmBuilder().with_stack().with_gas_left().build())
     def test_get_byte(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("get_byte", evm)
@@ -79,7 +79,7 @@ class TestBitwise:
         get_byte(evm)
         assert evm == cairo_result
 
-    @given(evm=evm_lite)
+    @given(evm=EvmBuilder().with_stack().with_gas_left().build())
     def test_shl(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("bitwise_shl", evm)
@@ -91,7 +91,7 @@ class TestBitwise:
         bitwise_shl(evm)
         assert evm == cairo_result
 
-    @given(evm=evm_lite)
+    @given(evm=EvmBuilder().with_stack().with_gas_left().build())
     def test_shr(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("bitwise_shr", evm)
@@ -103,7 +103,7 @@ class TestBitwise:
         bitwise_shr(evm)
         assert evm == cairo_result
 
-    @given(evm=evm_lite)
+    @given(evm=EvmBuilder().with_stack().with_gas_left().build())
     def test_sar(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("bitwise_sar", evm)

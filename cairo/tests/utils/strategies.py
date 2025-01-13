@@ -162,6 +162,8 @@ def tuple_strategy(thing):
     )
 
 
+gas_left = st.integers(min_value=0, max_value=BLOCK_GAS_LIMIT).map(Uint)
+
 # Versions strategies with less data in collections
 
 memory_lite = (
@@ -224,7 +226,7 @@ evm_lite = st.builds(
     stack=stack_strategy(Stack[U256]),
     memory=memory_lite,
     code=code,
-    gas_left=st.integers(min_value=0, max_value=BLOCK_GAS_LIMIT).map(Uint),
+    gas_left=gas_left,
     env=environment_lite,
     valid_jump_destinations=st.sets(uint, max_size=MAX_ADDRESS_SET_SIZE),
     logs=st.just(()),
@@ -283,7 +285,7 @@ evm = st.builds(
     stack=stack_strategy(Stack[U256]),
     memory=memory,
     code=code,
-    gas_left=st.integers(min_value=0, max_value=BLOCK_GAS_LIMIT).map(Uint),
+    gas_left=gas_left,
     env=st.from_type(Environment),
     valid_jump_destinations=st.sets(st.from_type(Uint)),
     logs=st.tuples(st.from_type(Log)),
