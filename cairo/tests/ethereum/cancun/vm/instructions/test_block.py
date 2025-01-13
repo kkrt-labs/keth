@@ -27,7 +27,9 @@ from tests.utils.strategies import (
 pytestmark = pytest.mark.python_vm
 
 
-# Specific environment strategy with minimal items
+# Specific environment strategy with minimal items:
+# block_hashes, coinbase, number, gas_limit, time, prev_randao, chain_id are
+# strategies, the rest:
 #   * Empty state
 #   * Empty transient storage
 #   * Empty block versioned hashes
@@ -40,13 +42,13 @@ environment_extra_lite = st.integers(
 ).flatmap(  # Generate block number first
     lambda number: st.builds(
         Environment,
-        caller=address_zero,
+        caller=st.just(address_zero),
         block_hashes=st.lists(
             st.sampled_from(BLOCK_HASHES_LIST),
             min_size=min(number, 256),  # number or 256 if number is greater
             max_size=min(number, 256),
         ),
-        origin=address_zero,
+        origin=st.just(address_zero),
         coinbase=address,
         number=st.just(Uint(number)),  # Use the same number
         base_fee_per_gas=st.just(Uint(0)),
