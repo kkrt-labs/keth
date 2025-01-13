@@ -60,7 +60,7 @@ class TestState:
         if (
             draw_key_from_state
             and state._storage_tries.get(address) is not None
-            and state._storage_tries.get(address)._data is not None
+            and state._storage_tries.get(address)._data.keys()
         ):
             key = next(iter(state._storage_tries.get(address)._data))
         [state_cairo, result_cairo] = cairo_run("get_storage", state, address, key)
