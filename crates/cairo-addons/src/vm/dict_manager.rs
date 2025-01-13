@@ -77,7 +77,7 @@ impl PyTrackerMapping {
     }
 
     fn __setitem__(&mut self, segment_index: isize, value: PyDictTracker) -> PyResult<()> {
-        self.inner.borrow_mut().trackers.insert(segment_index, value.inner.clone());
+        self.inner.borrow_mut().trackers.insert(segment_index, value.inner);
         Ok(())
     }
 }
