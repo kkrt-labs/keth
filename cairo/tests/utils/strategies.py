@@ -1,6 +1,7 @@
 # ruff: noqa: E402
 
 import os
+from collections import defaultdict
 from typing import ForwardRef, Sequence, TypeAlias, Union, get_args, get_origin
 from unittest.mock import patch
 
@@ -315,11 +316,11 @@ evm = st.builds(
 
 
 # Fork
-state = st.lists(bytes20, min_size=0, max_size=MAX_ADDRESS_SET_SIZE).flatmap(
+state = st.lists(address, min_size=0, max_size=MAX_ADDRESS_SET_SIZE).flatmap(
     lambda addresses: st.builds(
         State,
         _main_trie=st.builds(
-            Trie,
+            Trie[Address, Account],
             secured=st.just(True),
             default=st.none(),
             _data=st.fixed_dictionaries(
@@ -329,18 +330,20 @@ state = st.lists(bytes20, min_size=0, max_size=MAX_ADDRESS_SET_SIZE).flatmap(
         _storage_tries=st.fixed_dictionaries(
             {
                 address: st.builds(
-                    Trie,
+                    Trie[Bytes32, U256],
                     secured=st.just(True),
                     default=st.just(U256(0)),
                     _data=st.dictionaries(
-                        keys=st.from_type(Bytes32),
-                        values=st.from_type(U256),
+                        keys=bytes32,
+                        values=uint256,
                         max_size=MAX_STORAGE_KEY_SET_SIZE,
                     ),
                 )
                 for address in addresses
             }
-        ),
+            # Convert the dict to a defaultdict with the default value of 0
+            # In case the dict is empty, we return 0 as the default value
+        ).map(lambda d: defaultdict(lambda: 0, d)),
         _snapshots=st.just([]),
         created_accounts=st.just(set()),
     )

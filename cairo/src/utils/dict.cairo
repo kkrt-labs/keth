@@ -74,8 +74,7 @@ func hashdict_read{poseidon_ptr: PoseidonBuiltin*, dict_ptr: DictAccess*}(
         dict_tracker.current_ptr += ids.DictAccess.SIZE
         preimage = tuple([memory[ids.key + i] for i in range(ids.key_len)])
         # Not using [] here because it will register the value for that key in the tracker.
-        default_value = dict_tracker.data.default_factory() if hasattr(dict_tracker.data, 'default_factory') else 0
-        ids.value = dict_tracker.data.get(preimage, default_value)
+        ids.value = dict_tracker.data.get(preimage, dict_tracker.data.default_factory())
     %}
     dict_ptr.key = felt_key;
     dict_ptr.prev_value = value;
