@@ -32,5 +32,5 @@ class TestState:
     def test_get_storage(self, cairo_run, state: State, address: Address, key: Bytes32):
         [state_cairo, result_cairo] = cairo_run("get_storage", state, address, key)
         result_py = get_storage(state, address, key)
-        assert state_cairo == state
         assert result_cairo == result_py
+        assert state_cairo == state

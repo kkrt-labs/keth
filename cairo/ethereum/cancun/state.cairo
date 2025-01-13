@@ -120,9 +120,9 @@ func get_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(
 
     let storage_tries_dict_ptr = cast(storage_tries.value.dict_ptr, DictAccess*);
 
-    with storage_tries_dict_ptr {
-        let (pointer) = hashdict_read(1, &address.value);
-    }
+    let (pointer) = hashdict_read{poseidon_ptr=poseidon_ptr, dict_ptr=storage_tries_dict_ptr}(
+        1, &address.value
+    );
 
     if (cast(pointer, felt) == 0) {
         // Early return if no associated Trie at address
@@ -150,15 +150,15 @@ func get_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(
 
     let storage_trie_ptr = cast(pointer, TrieBytes32U256Struct*);
     let storage_trie = TrieBytes32U256(storage_trie_ptr);
-    with storage_trie {
-        let value = trie_get_TrieBytes32U256(key);
-    }
+    let value = trie_get_TrieBytes32U256{poseidon_ptr=poseidon_ptr, trie=storage_trie}(key);
 
     // Rebind the storage trie to the state
     let new_storage_trie_ptr = cast(storage_trie_ptr, felt);
-    with storage_tries_dict_ptr {
-        hashdict_write(1, &key.value, new_storage_trie_ptr);
-    }
+
+    hashdict_write{poseidon_ptr=poseidon_ptr, dict_ptr=storage_tries_dict_ptr}(
+        1, &address.value, new_storage_trie_ptr
+    );
+
     let new_storage_tries_dict_ptr = cast(
         storage_tries_dict_ptr, AddressTrieBytes32U256DictAccess*
     );

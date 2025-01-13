@@ -1,15 +1,7 @@
 # ruff: noqa: E402
 
 import os
-from typing import (
-    ForwardRef,
-    Optional,
-    Sequence,
-    TypeAlias,
-    Union,
-    get_args,
-    get_origin,
-)
+from typing import ForwardRef, Sequence, TypeAlias, Union, get_args, get_origin
 from unittest.mock import patch
 
 from eth_keys.datatypes import PrivateKey
@@ -332,7 +324,7 @@ state = st.lists(bytes20, min_size=0, max_size=MAX_ADDRESS_SET_SIZE).flatmap(
             secured=st.just(True),
             default=st.none(),
             _data=st.fixed_dictionaries(
-                {address: st.from_type(Optional[Account]) for address in addresses}
+                {address: st.from_type(Account) for address in addresses}
             ),
         ),
         _storage_tries=st.fixed_dictionaries(
