@@ -6,8 +6,6 @@ from ethereum.cancun.vm.instructions.memory import mcopy, mload, msize, mstore, 
 from tests.utils.args_gen import Evm
 from tests.utils.strategies import evm_lite
 
-pytestmark = pytest.mark.python_vm
-
 
 class TestMemory:
     @given(evm=evm_lite)

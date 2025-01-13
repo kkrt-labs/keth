@@ -16,7 +16,7 @@ impl Felt252Input {
 }
 
 #[pyclass(name = "Felt")]
-#[derive(Clone)]
+#[derive(Clone, Eq, PartialEq, Hash)]
 pub struct PyFelt {
     pub(crate) inner: Felt252,
 }

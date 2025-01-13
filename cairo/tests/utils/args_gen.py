@@ -74,6 +74,7 @@ from typing import (
 )
 
 from cairo_addons.vm import DictTracker as RustDictTracker
+from cairo_addons.vm import MemorySegmentManager as RustMemorySegmentManager
 from cairo_addons.vm import Relocatable as RustRelocatable
 from ethereum_types.bytes import (
     Bytes,
@@ -100,6 +101,7 @@ from starkware.cairo.lang.compiler.identifier_definition import (
 from starkware.cairo.lang.compiler.program import Program
 from starkware.cairo.lang.compiler.scoped_name import ScopedName
 from starkware.cairo.lang.vm.crypto import poseidon_hash_many
+from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 from starkware.cairo.lang.vm.relocatable import RelocatableValue
 
 from ethereum.cancun.blocks import Header, Log, Receipt, Withdrawal
@@ -374,7 +376,7 @@ def gen_arg(dict_manager, segments):
 
 def _gen_arg(
     dict_manager,
-    segments,
+    segments: Union[MemorySegmentManager, RustMemorySegmentManager],
     arg_type: Type,
     arg: Any,
     annotations: Optional[Any] = None,
@@ -545,19 +547,15 @@ def _gen_arg(
                 data=data, current_ptr=current_ptr
             )
         else:
-            dict_manager.insert(
-                dict_ptr.segment_index,
-                RustDictTracker(
-                    keys=list(data.keys()),
-                    values=list(data.values()),
-                    current_ptr=current_ptr,
-                    default_value=(
-                        data.default_factory()
-                        if isinstance(data, defaultdict)
-                        else None
-                    ),
-                ),
+            default_value = (
+                data.default_factory() if isinstance(data, defaultdict) else None
             )
+            dict_manager.trackers[dict_ptr.segment_index] = RustDictTracker(
+                data=data,
+                current_ptr=current_ptr,
+                default_value=default_value,
+            )
+
         base = segments.add()
 
         # The last element is the original_segment_stop pointer.
@@ -598,11 +596,17 @@ def _gen_arg(
 
         if arg_type_origin is Trie:
             # In case of a Trie, we need the dict to be a defaultdict with the trie.default as the default value.
-            dict_ptr = segments.memory[data[2]]
-            dict_manager.trackers[dict_ptr.segment_index].data = defaultdict(
-                lambda: data[1], dict_manager.trackers[dict_ptr.segment_index].data
-            )
-
+            dict_ptr = segments.memory.get(data[2])
+            if isinstance(dict_manager, DictManager):
+                dict_manager.trackers[dict_ptr.segment_index].data = defaultdict(
+                    lambda: data[1], dict_manager.trackers[dict_ptr.segment_index].data
+                )
+            else:
+                dict_manager.trackers[dict_ptr.segment_index] = RustDictTracker(
+                    data=dict_manager.trackers[dict_ptr.segment_index].data,
+                    current_ptr=dict_ptr,
+                    default_value=data[1],
+                )
         return struct_ptr
 
     if arg_type in (U256, Hash32, Bytes32, Bytes256):

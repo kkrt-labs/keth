@@ -3,7 +3,7 @@ use cairo_vm::types::relocatable::MaybeRelocatable as RustMaybeRelocatable;
 use num_bigint::BigUint;
 use pyo3::{FromPyObject, IntoPy, PyObject, Python};
 
-#[derive(FromPyObject)]
+#[derive(FromPyObject, Eq, PartialEq, Hash)]
 pub enum PyMaybeRelocatable {
     #[pyo3(transparent)]
     Felt(PyFelt),

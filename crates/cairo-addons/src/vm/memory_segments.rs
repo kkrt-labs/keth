@@ -10,8 +10,26 @@ pub struct PyMemorySegmentManager {
     pub(crate) runner: *mut RustCairoRunner,
 }
 
+/// Enables syntax `segments.memory.<op>`
+#[pyclass(name = "MemoryWrapper", unsendable)]
+pub struct PyMemoryWrapper {
+    pub(crate) runner: *mut RustCairoRunner,
+}
+
+#[pymethods]
+impl PyMemoryWrapper {
+    fn get(&self, key: PyRelocatable) -> Option<PyMaybeRelocatable> {
+        unsafe { (*self.runner).vm.get_maybe(&key.inner).map(PyMaybeRelocatable::from) }
+    }
+}
+
 #[pymethods]
 impl PyMemorySegmentManager {
+    #[getter]
+    fn memory(&self) -> PyMemoryWrapper {
+        PyMemoryWrapper { runner: self.runner }
+    }
+
     fn add(&mut self) -> PyRelocatable {
         unsafe { (*self.runner).vm.segments.add().into() }
     }
@@ -48,9 +66,5 @@ impl PyMemorySegmentManager {
 
     fn compute_effective_sizes(&mut self) -> Vec<usize> {
         unsafe { (*self.runner).vm.segments.compute_effective_sizes().clone() }
-    }
-
-    fn get(&self, key: PyRelocatable) -> Option<PyMaybeRelocatable> {
-        unsafe { (*self.runner).vm.get_maybe(&key.inner).map(PyMaybeRelocatable::from) }
     }
 }

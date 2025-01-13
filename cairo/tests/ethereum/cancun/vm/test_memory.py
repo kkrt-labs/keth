@@ -1,4 +1,3 @@
-import pytest
 from ethereum_types.bytes import Bytes
 from ethereum_types.numeric import U256
 from hypothesis import given
@@ -36,9 +35,6 @@ def memory_read_strategy(draw):
     )
 
     return memory, start_position, size
-
-
-pytestmark = pytest.mark.python_vm
 
 
 class TestMemory:

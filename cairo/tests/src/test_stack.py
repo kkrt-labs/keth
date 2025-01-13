@@ -1,8 +1,3 @@
-import pytest
-
-pytestmark = pytest.mark.python_vm
-
-
 class TestStack:
     class TestPeek:
         def test_should_return_stack_at_given_index__when_value_is_0(self, cairo_run):
