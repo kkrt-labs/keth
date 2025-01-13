@@ -1,6 +1,7 @@
 # ruff: noqa: E402
 
 import os
+from collections import defaultdict
 from typing import ForwardRef, Sequence, TypeAlias, Union, get_args, get_origin
 from unittest.mock import patch
 
@@ -305,27 +306,37 @@ evm = st.builds(
 
 
 # Fork
-state = st.lists(bytes20, min_size=0, max_size=MAX_ADDRESS_SET_SIZE).flatmap(
-    lambda addresses: st.fixed_dictionaries(
-        {
-            "_main_trie": st.builds(
-                lambda data: Trie(secured=True, default=None, _data=data),
-                data=st.fixed_dictionaries(
-                    {address: st.from_type(Account) for address in addresses}
-                ),
+state = st.lists(address, min_size=0, max_size=MAX_ADDRESS_SET_SIZE).flatmap(
+    lambda addresses: st.builds(
+        State,
+        _main_trie=st.builds(
+            Trie[Address, Account],
+            secured=st.just(True),
+            default=st.none(),
+            _data=st.fixed_dictionaries(
+                {address: st.from_type(Account) for address in addresses}
             ),
-            "_storage_tries": st.fixed_dictionaries(
-                {
-                    address: st.builds(
-                        lambda data: Trie(secured=True, default=0, _data=data),
-                        data=st.dictionaries(bytes32, uint256),
-                    )
-                    for address in addresses
-                },
-            ),
-            "_snapshots": st.just([]),
-            "created_accounts": st.just(set()),
-        }
+        ),
+        _storage_tries=st.fixed_dictionaries(
+            {
+                address: st.builds(
+                    Trie[Bytes32, U256],
+                    secured=st.just(True),
+                    default=st.just(U256(0)),
+                    _data=st.dictionaries(
+                        keys=bytes32,
+                        values=uint256,
+                        max_size=MAX_STORAGE_KEY_SET_SIZE,
+                    ),
+                )
+                for address in addresses
+            }
+            # In case the dict is empty, we use 0 as the default value
+            # To avoid panic in the dict.cairo:hashdict_read hint
+            # `ids.value = dict_tracker.data.get(preimage, dict_tracker.data.default_factory())`
+        ).map(lambda d: defaultdict(lambda: 0, d)),
+        _snapshots=st.just([]),
+        created_accounts=st.just(set()),
     )
 )
 
