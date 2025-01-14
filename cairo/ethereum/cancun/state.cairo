@@ -230,7 +230,6 @@ func set_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(
             1, &address.value, new_storage_trie_ptr
         );
 
-        let storage_trie = TrieBytes32U256(_storage_trie);
         let new_storage_tries_dict_ptr = cast(
             storage_tries_dict_ptr, AddressTrieBytes32U256DictAccess*
         );
