@@ -7,6 +7,22 @@ from starkware.cairo.lang.vm.vm_consts import VmConsts
 
 
 @register_hint
+def dict_new_empty(
+    dict_manager: DictManager,
+    ids: VmConsts,
+    segments: MemorySegmentManager,
+    memory: MemoryDict,
+    ap: RelocatableValue,
+):
+    if "__dict_manager" not in globals():
+        from starkware.cairo.common.dict import DictManager
+
+        __dict_manager = DictManager()
+
+    memory[ap] = __dict_manager.new_dict(segments, {})
+
+
+@register_hint
 def dict_copy(dict_manager: DictManager, ids: VmConsts):
     from starkware.cairo.common.dict import DictTracker
 

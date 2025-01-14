@@ -1,8 +1,11 @@
-use std::collections::HashMap;
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use cairo_vm::{
     hint_processor::{
-        builtin_hint_processor::hint_utils::{get_ptr_from_var_name, insert_value_from_var_name},
+        builtin_hint_processor::{
+            dict_manager::DictManager,
+            hint_utils::{get_ptr_from_var_name, insert_value_from_var_name, insert_value_into_ap},
+        },
         hint_processor_definition::HintReference,
     },
     serde::deserialize_program::ApTracking,
@@ -12,6 +15,29 @@ use cairo_vm::{
 };
 
 use crate::vm::hints::Hint;
+
+pub fn dict_new_empty() -> Hint {
+    Hint::new(
+        String::from("dict_new_empty"),
+        |vm: &mut VirtualMachine,
+         exec_scopes: &mut ExecutionScopes,
+         _ids_data: &HashMap<String, HintReference>,
+         _ap_tracking: &ApTracking,
+         _constants: &HashMap<String, Felt252>|
+         -> Result<(), HintError> {
+            //Check if there is a dict manager in scope, create it if there isnt one
+            let base = if let Ok(dict_manager) = exec_scopes.get_dict_manager() {
+                dict_manager.borrow_mut().new_dict(vm, Default::default())?
+            } else {
+                let mut dict_manager = DictManager::new();
+                let base = dict_manager.new_dict(vm, Default::default())?;
+                exec_scopes.insert_value("dict_manager", Rc::new(RefCell::new(dict_manager)));
+                base
+            };
+            insert_value_into_ap(vm, base)
+        },
+    )
+}
 
 pub fn copy_dict_segment() -> Hint {
     Hint::new(

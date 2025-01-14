@@ -10,7 +10,7 @@ from starkware.cairo.common.cairo_builtins import KeccakBuiltin
 from starkware.cairo.common.memcpy import memcpy
 
 from src.utils.bytes import uint256_to_bytes32_little
-from src.utils.dict import hashdict_read, hashdict_write
+from src.utils.dict import hashdict_read, hashdict_write, dict_new_empty
 from ethereum.crypto.hash import keccak256
 from ethereum.utils.numeric import min, is_zero
 from ethereum.rlp import encode, _encode_bytes, _encode
@@ -814,8 +814,7 @@ func _get_branch_for_nibble_at_level{poseidon_ptr: PoseidonBuiltin*}(
     alloc_locals;
     // Allocate a segment for the branch and register an associated tracker
     // dict_new expectes an initial_dict hint argument.
-    %{ initial_dict = {} %}
-    let (branch_start_: DictAccess*) = dict_new();
+    let (branch_start_: DictAccess*) = dict_new_empty();
     let branch_start = cast(branch_start_, BytesBytesDictAccess*);
     let dict_ptr_stop = obj.value.dict_ptr;
 

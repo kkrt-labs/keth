@@ -1,5 +1,5 @@
 mod dict;
-pub use dict::copy_dict_segment;
+pub use dict::{copy_dict_segment, dict_new_empty};
 mod hashdict;
 pub use hashdict::{hashdict_read, hashdict_write};
 

@@ -5,13 +5,19 @@ from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.memcpy import memcpy
 from starkware.cairo.common.squash_dict import squash_dict
 from starkware.cairo.common.uint256 import Uint256
-
 from ethereum_types.numeric import U256, U256Struct
 from ethereum_types.bytes import Bytes32
 from ethereum.utils.numeric import U256__eq__
 from ethereum.cancun.fork_types import Address, Account, AccountStruct, Account__eq__
 
 from src.utils.maths import unsigned_div_rem
+
+// @ notice: Creates a new, empty dict, doesn not require an `initial_dict` argument.
+func dict_new_empty() -> (res: DictAccess*) {
+    %{ dict_new_empty %}
+    ap += 1;
+    return (res=cast([ap - 1], DictAccess*));
+}
 
 func dict_copy{range_check_ptr}(dict_start: DictAccess*, dict_end: DictAccess*) -> (
     DictAccess*, DictAccess*

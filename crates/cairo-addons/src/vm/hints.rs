@@ -17,7 +17,9 @@ use cairo_vm::{
 use std::{collections::HashMap, fmt, rc::Rc};
 
 use super::{
-    hint_definitions::{b_le_a, bytes__eq__, copy_dict_segment, hashdict_read, hashdict_write},
+    hint_definitions::{
+        b_le_a, bytes__eq__, copy_dict_segment, dict_new_empty, hashdict_read, hashdict_write,
+    },
     hint_loader::load_python_hints,
 };
 
@@ -88,8 +90,9 @@ impl Default for HintProcessor {
             add_segment_hint(),
             hashdict_read(),
             hashdict_write(),
-            bytes__eq__(),
+            dict_new_empty(),
             copy_dict_segment(),
+            bytes__eq__(),
             b_le_a(),
         ])
     }
