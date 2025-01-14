@@ -715,7 +715,7 @@ func _search_common_prefix_length{
         return current_length;
     }
 
-    let preimage = _get_preimage_for_key(obj, dict_ptr_stop);
+    let preimage = _get_preimage_for_key(obj.key.value, dict_ptr_stop);
     tempvar sliced_key = Bytes(
         new BytesStruct(preimage.value.data + level.value, preimage.value.len - level.value)
     );
@@ -741,7 +741,7 @@ func _get_branch_for_nibble_at_level_inner{poseidon_ptr: PoseidonBuiltin*}(
         return (branch_ptr, value);
     }
 
-    let preimage = _get_preimage_for_key(dict_ptr, dict_ptr_stop);
+    let preimage = _get_preimage_for_key(dict_ptr.key.value, dict_ptr_stop);
 
     // Check cases
     let is_value_case = is_zero(preimage.value.len - level);
@@ -764,14 +764,11 @@ func _get_branch_for_nibble_at_level_inner{poseidon_ptr: PoseidonBuiltin*}(
         assert [branch_ptr].prev_value = dict_ptr.prev_value;
         assert [branch_ptr].new_value = dict_ptr.new_value;
 
-        // Add an entry to the dict_tracker
-        %{
-            obj_tracker = __dict_manager.get_tracker(ids.dict_ptr_stop.address_)
-            dict_tracker = __dict_manager.get_tracker(ids.branch_ptr.address_)
-            dict_tracker.current_ptr += ids.DictAccess.SIZE
-            preimage = next(key for key in obj_tracker.data.keys() if poseidon_hash_many(key) == ids.dict_ptr.key.value)
-            dict_tracker.data[preimage] = obj_tracker.data[preimage]
-        %}
+        // Copy the entry from the dict_ptr's tracker to the branch_ptr's tracker
+        let source_key = dict_ptr.key.value;
+        let source_ptr_stop = dict_ptr_stop;
+        let dest_ptr = branch_ptr;
+        %{ copy_hashdict_tracker_entry %}
 
         return _get_branch_for_nibble_at_level_inner(
             dict_ptr + BytesBytesDictAccess.SIZE,
@@ -954,7 +951,7 @@ func _get_branches{poseidon_ptr: PoseidonBuiltin*}(obj: MappingBytesBytes, level
         assert value = value_15;
         assert value_set = 1;
     }
-    %{ ids.value_set = memory.get(fp + 2) or 0 %}
+    %{ value_set_or_zero %}
     if (value_set != 1) {
         let (data: felt*) = alloc();
         tempvar empty_bytes = Bytes(new BytesStruct(data, 0));
@@ -967,28 +964,22 @@ func _get_branches{poseidon_ptr: PoseidonBuiltin*}(obj: MappingBytesBytes, level
 
 // @notice Given a key (inside `dict_ptr`), returns the preimage of the key registered in the tracker.
 // The preimage is validated to be correctly provided by the prover by hashing it and comparing it to the key.
+// @param key - The key to get the preimage for. Either a hashed or non-hashed key - but it must be a felt.
+// @param dict_ptr_stop - The pointer to the end of the dict segment, the one registered in the tracker.
 func _get_preimage_for_key{poseidon_ptr: PoseidonBuiltin*}(
-    dict_ptr: BytesBytesDictAccess*, dict_ptr_stop: BytesBytesDictAccess*
+    key: felt, dict_ptr_stop: BytesBytesDictAccess*
 ) -> Bytes {
     alloc_locals;
 
     // Get preimage data
     let (local preimage_data: felt*) = alloc();
     local preimage_len;
-    %{
-        from starkware.cairo.lang.vm.crypto import poseidon_hash_many
-        hashed_value = ids.dict_ptr.key.value
-        dict_tracker = __dict_manager.get_tracker(ids.dict_ptr_stop)
-        # Get the key in the dict that matches the hashed value
-        preimage = bytes(next(key for key in dict_tracker.data.keys() if poseidon_hash_many(key) == hashed_value))
-        segments.write_arg(ids.preimage_data, preimage)
-        ids.preimage_len = len(preimage)
-    %}
+    %{ get_preimage_for_key %}
 
     // Verify preimage
     let (preimage_hash) = poseidon_hash_many(preimage_len, preimage_data);
     with_attr error_message("preimage_hash != key") {
-        assert preimage_hash = dict_ptr.key.value;
+        assert preimage_hash = key;
     }
 
     tempvar res = Bytes(new BytesStruct(preimage_data, preimage_len));
@@ -1013,7 +1004,8 @@ func patricialize{
     }
 
     let arbitrary_value = obj.value.dict_ptr_start.new_value;
-    let preimage = _get_preimage_for_key(obj.value.dict_ptr_start, obj.value.dict_ptr);
+    let current_key = obj.value.dict_ptr_start.key.value;
+    let preimage = _get_preimage_for_key(current_key, obj.value.dict_ptr);
 
     // if leaf node
     if (len == 1) {

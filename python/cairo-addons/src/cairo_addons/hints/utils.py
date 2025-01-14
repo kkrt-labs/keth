@@ -52,3 +52,15 @@ def b_le_a(
     ap: RelocatableValue,
 ):
     ids.is_min_b = 1 if ids.b <= ids.a else 0
+
+
+@register_hint
+def value_set_or_zero(
+    dict_manager: DictManager,
+    ids: VmConsts,
+    segments: MemorySegmentManager,
+    memory: MemoryDict,
+    ap: RelocatableValue,
+    fp: RelocatableValue,
+):
+    ids.value_set = memory.get(fp + 2) or 0

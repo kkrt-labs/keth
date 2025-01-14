@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use cairo_vm::{
     hint_processor::{
         builtin_hint_processor::hint_utils::{
-            get_maybe_relocatable_from_var_name, get_ptr_from_var_name, insert_value_from_var_name,
+            get_integer_from_var_name, get_ptr_from_var_name, insert_value_from_var_name,
         },
         hint_processor_definition::HintReference,
     },
@@ -27,7 +27,6 @@ pub fn bytes__eq__() -> Hint {
          ap_tracking: &ApTracking,
          _constants: &HashMap<String, Felt252>|
          -> Result<(), HintError> {
-            // Helper closure to get bytes parameters
             let get_bytes_params = |name: &str| -> Result<
                 (usize, cairo_vm::types::relocatable::Relocatable),
                 HintError,
@@ -104,8 +103,8 @@ pub fn b_le_a() -> Hint {
          ap_tracking: &ApTracking,
          _constants: &HashMap<String, Felt252>|
          -> Result<(), HintError> {
-            let a = get_maybe_relocatable_from_var_name("a", vm, ids_data, ap_tracking)?;
-            let b = get_maybe_relocatable_from_var_name("b", vm, ids_data, ap_tracking)?;
+            let a = get_integer_from_var_name("a", vm, ids_data, ap_tracking)?;
+            let b = get_integer_from_var_name("b", vm, ids_data, ap_tracking)?;
             let result = usize::from(b <= a);
             insert_value_from_var_name(
                 "is_min_b",
@@ -114,6 +113,45 @@ pub fn b_le_a() -> Hint {
                 ids_data,
                 ap_tracking,
             )?;
+            Ok(())
+        },
+    )
+}
+
+pub fn value_set_or_zero() -> Hint {
+    Hint::new(
+        String::from("value_set_or_zero"),
+        |vm: &mut VirtualMachine,
+         _exec_scopes: &mut ExecutionScopes,
+         _ids_data: &HashMap<String, HintReference>,
+         _ap_tracking: &ApTracking,
+         _constants: &HashMap<String, Felt252>|
+         -> Result<(), HintError> {
+            let fp_offset = (vm.get_fp() + 2)?;
+            let value_set = vm.get_maybe(&fp_offset);
+            if value_set.is_none() {
+                vm.insert_value(fp_offset, MaybeRelocatable::from(0))?;
+            }
+            Ok(())
+        },
+    )
+}
+
+pub fn nibble_remainder() -> Hint {
+    Hint::new(
+        String::from("memory[fp + 2] = to_felt_or_relocatable(ids.x.value.len % 2)"),
+        |vm: &mut VirtualMachine,
+         _exec_scopes: &mut ExecutionScopes,
+         ids_data: &HashMap<String, HintReference>,
+         ap_tracking: &ApTracking,
+         _constants: &HashMap<String, Felt252>|
+         -> Result<(), HintError> {
+            let bytes_ptr = get_ptr_from_var_name("x", vm, ids_data, ap_tracking)?;
+            let len = vm.get_integer((bytes_ptr + 1)?)?.into_owned();
+            let len: usize =
+                len.try_into().map_err(|_| MathError::Felt252ToUsizeConversion(Box::new(len)))?;
+            let remainder = len % 2;
+            vm.insert_value((vm.get_fp() + 2)?, MaybeRelocatable::from(remainder))?;
             Ok(())
         },
     )

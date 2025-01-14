@@ -526,7 +526,9 @@ def cairo_run(
 
         return final_output[0] if len(final_output) == 1 else final_output
 
-    if request.node.get_closest_marker("python_vm"):
-        return _factory_py
-    else:
-        return _factory_rs
+    def _run(entrypoint, *args, vm=None, **kwargs):
+        if vm == "python":
+            return _factory_py(entrypoint, *args, **kwargs)
+        return _factory_rs(entrypoint, *args, **kwargs)
+
+    return _run

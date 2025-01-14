@@ -52,22 +52,13 @@ class TestTrie:
         with pytest.raises(AssertionError):
             encode_node(node, None)
         with cairo_error(message="encode_node"):
-            cairo_run("encode_node", node, None)
-
-    # def test_copy_trie(self, cairo_run, trie):
-    #     assert copy_trie(trie) == cairo_run("copy_trie", trie)
-
-    # @given(key=..., value=...)
-    # def test_trie_set(self, cairo_run, key: K, value: V):
-    #     assert trie_set(trie, key, value) == cairo_run("trie_set", trie, key, value)
-
-    # @given(key=...)
-    # def test_trie_get(self, cairo_run, key: K):
-    #     assert trie_get(trie, key) == cairo_run("trie_get", trie, key)
+            cairo_run("encode_node", node, None, vm="python")
 
     @given(a=..., b=...)
     def test_common_prefix_length(self, cairo_run, a: Bytes, b: Bytes):
-        assert common_prefix_length(a, b) == cairo_run("common_prefix_length", a, b)
+        assert common_prefix_length(a, b) == cairo_run(
+            "common_prefix_length", a, b, vm="python"
+        )
 
     @given(a=..., b=...)
     def test_common_prefix_length_should_fail(
@@ -101,11 +92,14 @@ class TestTrie:
             ),
             cairo_error(message="nibble_list_to_compact: invalid remainder"),
         ):
-            cairo_run("nibble_list_to_compact", x, is_leaf)
+            # Always run patch_hint tests with the python VM
+            cairo_run("nibble_list_to_compact", x, is_leaf, vm="python")
 
     @given(bytes_=...)
     def test_bytes_to_nibble_list(self, cairo_run, bytes_: Bytes):
-        assert bytes_to_nibble_list(bytes_) == cairo_run("bytes_to_nibble_list", bytes_)
+        assert bytes_to_nibble_list(bytes_) == cairo_run(
+            "bytes_to_nibble_list", bytes_, vm="python"
+        )
 
     # def test_root(self, cairo_run, trie, get_storage_root):
     #     assert root(trie, get_storage_root) == cairo_run("root", trie, get_storage_root)
@@ -148,7 +142,9 @@ class TestTrie:
     @settings(max_examples=5)  # for max_examples=2, it takes 239.03s in local
     @given(obj=st.dictionaries(nibble, bytes32))
     def test_patricialize(self, cairo_run, obj: Mapping[Bytes, Bytes]):
-        assert patricialize(obj, Uint(0)) == cairo_run("patricialize", obj, Uint(0))
+        assert patricialize(obj, Uint(0)) == cairo_run(
+            "patricialize", obj, Uint(0), vm="python"
+        )
 
 
 class TestTrieOperations:

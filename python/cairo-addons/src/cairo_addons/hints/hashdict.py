@@ -38,3 +38,48 @@ def hashdict_write(
     else:
         ids.dict_ptr.prev_value = 0
     dict_tracker.data[preimage] = ids.new_value
+
+
+@register_hint
+def get_preimage_for_key(
+    dict_manager: DictManager,
+    ids: VmConsts,
+    segments: MemorySegmentManager,
+    memory: MemoryDict,
+    ap: RelocatableValue,
+) -> int:
+    from starkware.cairo.lang.vm.crypto import poseidon_hash_many
+
+    hashed_value = ids.key
+    dict_tracker = dict_manager.get_tracker(ids.dict_ptr_stop)
+    # Get the key in the dict that matches the hashed value
+    preimage = bytes(
+        next(
+            key
+            for key in dict_tracker.data.keys()
+            if poseidon_hash_many(key) == hashed_value
+        )
+    )
+    segments.write_arg(ids.preimage_data, preimage)
+    ids.preimage_len = len(preimage)
+
+
+@register_hint
+def copy_hashdict_tracker_entry(
+    dict_manager: DictManager,
+    ids: VmConsts,
+    segments: MemorySegmentManager,
+    memory: MemoryDict,
+    ap: RelocatableValue,
+) -> int:
+    from starkware.cairo.lang.vm.crypto import poseidon_hash_many
+
+    obj_tracker = dict_manager.get_tracker(ids.dict_ptr_stop.address_)
+    dict_tracker = dict_manager.get_tracker(ids.branch_ptr.address_)
+    dict_tracker.current_ptr += ids.DictAccess.SIZE
+    preimage = next(
+        key
+        for key in obj_tracker.data.keys()
+        if poseidon_hash_many(key) == ids.dict_ptr.key.value
+    )
+    dict_tracker.data[preimage] = obj_tracker.data[preimage]

@@ -18,7 +18,8 @@ use std::{collections::HashMap, fmt, rc::Rc};
 
 use super::{
     hint_definitions::{
-        b_le_a, bytes__eq__, copy_dict_segment, dict_new_empty, hashdict_read, hashdict_write,
+        b_le_a, bytes__eq__, copy_dict_segment, copy_hashdict_tracker_entry, dict_new_empty,
+        get_preimage_for_key, hashdict_read, hashdict_write, nibble_remainder, value_set_or_zero,
     },
     hint_loader::load_python_hints,
 };
@@ -90,10 +91,14 @@ impl Default for HintProcessor {
             add_segment_hint(),
             hashdict_read(),
             hashdict_write(),
+            get_preimage_for_key(),
+            copy_hashdict_tracker_entry(),
             dict_new_empty(),
             copy_dict_segment(),
             bytes__eq__(),
             b_le_a(),
+            value_set_or_zero(),
+            nibble_remainder(),
         ])
     }
 }
