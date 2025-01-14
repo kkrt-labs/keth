@@ -25,7 +25,7 @@ from ethereum.cancun.trie import (
     TrieBytes32U256Struct,
 )
 from ethereum_types.bytes import Bytes, Bytes32
-from src.utils.dict import hashdict_read, hashdict_write
+from src.utils.dict import hashdict_read, hashdict_write, hashdict_get
 from ethereum_types.numeric import U256, U256Struct
 
 struct AddressTrieBytes32U256DictAccess {
@@ -127,7 +127,7 @@ func get_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(
 
     let storage_tries_dict_ptr = cast(storage_tries.value.dict_ptr, DictAccess*);
 
-    let (pointer) = hashdict_read{poseidon_ptr=poseidon_ptr, dict_ptr=storage_tries_dict_ptr}(
+    let (pointer) = hashdict_get{poseidon_ptr=poseidon_ptr, dict_ptr=storage_tries_dict_ptr}(
         1, &address.value
     );
 
@@ -207,11 +207,10 @@ func set_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(
     }
 
     let storage_tries_dict_ptr = cast(storage_tries.value.dict_ptr, DictAccess*);
-    let (storage_trie_pointer) = hashdict_read{
+    let (storage_trie_pointer) = hashdict_get{
         poseidon_ptr=poseidon_ptr, dict_ptr=storage_tries_dict_ptr
     }(1, &address.value);
 
-    // If the storage trie is not found, create an empty one and store it in the state
     if (cast(storage_trie_pointer, felt) == 0) {
         let (new_mapping_dict_ptr) = dict_new();
         tempvar _storage_trie = new TrieBytes32U256Struct(
@@ -236,7 +235,7 @@ func set_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(
             storage_tries_dict_ptr, AddressTrieBytes32U256DictAccess*
         );
 
-        tempvar storage_tries = MappingAddressTrieBytes32U256(
+        tempvar new_storage_tries = MappingAddressTrieBytes32U256(
             new MappingAddressTrieBytes32U256Struct(
                 dict_ptr_start=storage_tries.value.dict_ptr_start,
                 dict_ptr=new_storage_tries_dict_ptr,

@@ -517,29 +517,29 @@ class Serde:
                     hashed_key = poseidon_hash_many(key)
                     preimage = b"".join(felt.to_bytes(16, "little") for felt in key)
                     # Other syntaxes are eagerly evaluated, and thus throw a key error.
-                    serialized_dict[preimage] = (
-                        dict_segment_data[hashed_key]
-                        if dict_segment_data.get(hashed_key) is not None
-                        else serialized_original[preimage]
-                    )
+                    value = dict_segment_data.get(
+                        hashed_key
+                    ) or serialized_original.get(preimage)
+                    if value is not None:
+                        serialized_dict[preimage] = value
 
                 elif python_key_type == U256:
                     hashed_key = poseidon_hash_many(key)
                     preimage = sum(felt * 2 ** (128 * i) for i, felt in enumerate(key))
-                    serialized_dict[preimage] = (
-                        dict_segment_data[hashed_key]
-                        if dict_segment_data.get(hashed_key) is not None
-                        else serialized_original[preimage]
-                    )
+                    value = dict_segment_data.get(
+                        hashed_key
+                    ) or serialized_original.get(preimage)
+                    if value is not None:
+                        serialized_dict[preimage] = value
 
                 elif python_key_type == Bytes:
                     hashed_key = poseidon_hash_many(key)
                     preimage = bytes(list(key))
-                    serialized_dict[preimage] = (
-                        dict_segment_data[hashed_key]
-                        if dict_segment_data.get(hashed_key) is not None
-                        else serialized_original[preimage]
-                    )
+                    value = dict_segment_data.get(
+                        hashed_key
+                    ) or serialized_original.get(preimage)
+                    if value is not None:
+                        serialized_dict[preimage] = value
                 else:
                     raise ValueError(f"Unsupported key type: {python_key_type}")
 
@@ -574,11 +574,11 @@ class Serde:
                 if is_null_pointer:
                     continue
 
-                serialized_dict[preimage] = (
-                    dict_segment_data.get(preimage)
-                    if dict_segment_data.get(preimage) is not None
-                    else serialized_original[preimage]
+                value = dict_segment_data.get(preimage) or serialized_original.get(
+                    preimage
                 )
+                if value is not None:
+                    serialized_dict[preimage] = value
 
         if origin_cls is set:
             return set(serialized_dict.keys())
