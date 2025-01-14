@@ -8,11 +8,10 @@ use cairo_vm::{
         hint_processor_definition::HintReference,
     },
     serde::deserialize_program::ApTracking,
-    types::{exec_scope::ExecutionScopes, relocatable::MaybeRelocatable},
-    vm::{
-        errors::{hint_errors::HintError, memory_errors::MemoryError},
-        vm_core::VirtualMachine,
+    types::{
+        errors::math_errors::MathError, exec_scope::ExecutionScopes, relocatable::MaybeRelocatable,
     },
+    vm::{errors::hint_errors::HintError, vm_core::VirtualMachine},
     Felt252,
 };
 
@@ -28,56 +27,32 @@ pub fn bytes__eq__() -> Hint {
          ap_tracking: &ApTracking,
          _constants: &HashMap<String, Felt252>|
          -> Result<(), HintError> {
-            // Get self bytes parameters
-            let self_ptr = get_ptr_from_var_name("_self", vm, ids_data, ap_tracking)?;
-            let self_len_addr = (self_ptr + 1)?;
-            let self_len = vm.get_maybe(&self_len_addr).ok_or_else(|| {
-                HintError::Memory(MemoryError::UnknownMemoryCell(Box::new(self_len_addr)))
-            })?;
-            let self_data = vm.get_maybe(&self_ptr).ok_or_else(|| {
-                HintError::Memory(MemoryError::UnknownMemoryCell(Box::new(self_ptr)))
-            })?;
+            // Helper closure to get bytes parameters
+            let get_bytes_params = |name: &str| -> Result<
+                (usize, cairo_vm::types::relocatable::Relocatable),
+                HintError,
+            > {
+                let ptr = get_ptr_from_var_name(name, vm, ids_data, ap_tracking)?;
+                let len_addr = (ptr + 1)?;
 
-            // Get other bytes parameters
-            let other_ptr = get_ptr_from_var_name("other", vm, ids_data, ap_tracking)?;
-            let other_len_addr = (other_ptr + 1)?;
-            let other_len = vm.get_maybe(&other_len_addr).ok_or_else(|| {
-                HintError::Memory(MemoryError::UnknownMemoryCell(Box::new(other_len_addr)))
-            })?;
-            let other_data = vm.get_maybe(&other_ptr).ok_or_else(|| {
-                HintError::Memory(MemoryError::UnknownMemoryCell(Box::new(other_ptr)))
-            })?;
+                let len_felt = vm.get_integer(len_addr)?.into_owned();
+                let len = len_felt
+                    .try_into()
+                    .map_err(|_| MathError::Felt252ToUsizeConversion(Box::new(len_felt)))?;
 
-            // Convert lengths to usize
-            let self_len = self_len
-                .get_int()
-                .ok_or_else(|| HintError::IdentifierNotInteger(Box::from("self_len")))?
-                .try_into()
-                .unwrap();
-            let other_len = other_len
-                .get_int()
-                .ok_or_else(|| HintError::IdentifierNotInteger(Box::from("other_len")))?
-                .try_into()
-                .unwrap();
+                let data = vm.get_relocatable(ptr)?;
 
-            // Get data pointers
-            let self_data = self_data
-                .get_relocatable()
-                .ok_or_else(|| HintError::IdentifierNotRelocatable(Box::from("self_data")))?;
-            let other_data = other_data
-                .get_relocatable()
-                .ok_or_else(|| HintError::IdentifierNotRelocatable(Box::from("other_data")))?;
+                Ok((len, data))
+            };
+
+            let (self_len, self_data) = get_bytes_params("_self")?;
+            let (other_len, other_data) = get_bytes_params("other")?;
 
             // Compare bytes until we find a difference
             for i in 0..std::cmp::min(self_len, other_len) {
-                let self_bytes_addr = (self_data + i)?;
-                let self_byte = vm.get_maybe(&self_bytes_addr).ok_or_else(|| {
-                    HintError::Memory(MemoryError::UnknownMemoryCell(Box::new(self_bytes_addr)))
-                })?;
-                let other_bytes_addr = (other_data + i)?;
-                let other_byte = vm.get_maybe(&other_bytes_addr).ok_or_else(|| {
-                    HintError::Memory(MemoryError::UnknownMemoryCell(Box::new(other_bytes_addr)))
-                })?;
+                let self_byte = vm.get_integer((self_data + i)?)?.into_owned();
+
+                let other_byte = vm.get_integer((other_data + i)?)?.into_owned();
 
                 if self_byte != other_byte {
                     // Found difference - set is_diff=1 and diff_index=i
@@ -131,7 +106,7 @@ pub fn b_le_a() -> Hint {
          -> Result<(), HintError> {
             let a = get_maybe_relocatable_from_var_name("a", vm, ids_data, ap_tracking)?;
             let b = get_maybe_relocatable_from_var_name("b", vm, ids_data, ap_tracking)?;
-            let result = if b <= a { 1 } else { 0 };
+            let result = usize::from(b <= a);
             insert_value_from_var_name(
                 "is_min_b",
                 MaybeRelocatable::from(result),

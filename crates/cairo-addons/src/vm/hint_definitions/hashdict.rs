@@ -6,14 +6,14 @@ use cairo_vm::{
             dict_hint_utils::DICT_ACCESS_SIZE,
             dict_manager::DictKey,
             hint_utils::{
-                get_maybe_relocatable_from_var_name, get_ptr_from_var_name,
-                insert_value_from_var_name,
+                get_integer_from_var_name, get_maybe_relocatable_from_var_name,
+                get_ptr_from_var_name, insert_value_from_var_name,
             },
         },
         hint_processor_definition::HintReference,
     },
     serde::deserialize_program::ApTracking,
-    types::{exec_scope::ExecutionScopes, relocatable::MaybeRelocatable},
+    types::{errors::math_errors::MathError,relocatable::MaybeRelocatable, exec_scope::ExecutionScopes},
     vm::{
         errors::{hint_errors::HintError, memory_errors::MemoryError},
         vm_core::VirtualMachine,
@@ -39,17 +39,12 @@ pub fn hashdict_read() -> Hint {
             let tracker = dict.get_tracker_mut(dict_ptr)?;
             tracker.current_ptr.offset += DICT_ACCESS_SIZE;
 
-            // Get key parameters
-            let key = get_maybe_relocatable_from_var_name("key", vm, ids_data, ap_tracking)?
-                .get_relocatable()
-                .ok_or_else(|| HintError::IdentifierNotRelocatable(Box::from("key")))?;
-
-            let key_len: usize =
-                get_maybe_relocatable_from_var_name("key_len", vm, ids_data, ap_tracking)?
-                    .get_int()
-                    .ok_or_else(|| HintError::IdentifierNotInteger(Box::from("key_len")))?
-                    .try_into()
-                    .unwrap();
+            let key = get_ptr_from_var_name("key", vm, ids_data, ap_tracking)?;
+            let key_len_felt: Felt252 =
+                get_integer_from_var_name("key_len", vm, ids_data, ap_tracking)?;
+            let key_len: usize = key_len_felt
+                .try_into()
+                .map_err(|_| MathError::Felt252ToUsizeConversion(Box::new(key_len_felt)))?;
 
             // Build and process compound key
             let dict_key = build_compound_key(vm, &key, key_len)?;
@@ -76,17 +71,12 @@ pub fn hashdict_write() -> Hint {
             let tracker = dict.get_tracker_mut(dict_ptr)?;
             tracker.current_ptr.offset += DICT_ACCESS_SIZE;
 
-            // Get key parameters
-            let key = get_maybe_relocatable_from_var_name("key", vm, ids_data, ap_tracking)?
-                .get_relocatable()
-                .ok_or_else(|| HintError::IdentifierNotRelocatable(Box::from("key")))?;
-
-            let key_len: usize =
-                get_maybe_relocatable_from_var_name("key_len", vm, ids_data, ap_tracking)?
-                    .get_int()
-                    .ok_or_else(|| HintError::IdentifierNotInteger(Box::from("key_len")))?
-                    .try_into()
-                    .unwrap();
+            let key = get_ptr_from_var_name("key", vm, ids_data, ap_tracking)?;
+            let key_len_felt: Felt252 =
+                get_integer_from_var_name("key_len", vm, ids_data, ap_tracking)?;
+            let key_len: usize = key_len_felt
+                .try_into()
+                .map_err(|_| MathError::Felt252ToUsizeConversion(Box::new(key_len_felt)))?;
 
             // Build compound key and get new value
             let dict_key = build_compound_key(vm, &key, key_len)?;
