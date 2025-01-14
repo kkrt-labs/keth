@@ -193,6 +193,8 @@ func set_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(
     address: Address, key: Bytes32, value: U256
 ) {
     alloc_locals;
+
+    let storage_tries = state.value._storage_tries;
     let fp_and_pc = get_fp_and_pc();
     local __fp__: felt* = fp_and_pc.fp_val;
 
@@ -204,7 +206,7 @@ func set_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(
         }
     }
 
-    let storage_tries_dict_ptr = cast(state.value._storage_tries.value.dict_ptr, DictAccess*);
+    let storage_tries_dict_ptr = cast(storage_tries.value.dict_ptr, DictAccess*);
     let (storage_trie_pointer) = hashdict_read{
         poseidon_ptr=poseidon_ptr, dict_ptr=storage_tries_dict_ptr
     }(1, &address.value);
@@ -236,50 +238,12 @@ func set_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(
 
         tempvar storage_tries = MappingAddressTrieBytes32U256(
             new MappingAddressTrieBytes32U256Struct(
-                dict_ptr_start=state.value._storage_tries.value.dict_ptr_start,
+                dict_ptr_start=storage_tries.value.dict_ptr_start,
                 dict_ptr=new_storage_tries_dict_ptr,
-                original_mapping=state.value._storage_tries.value.original_mapping,
+                original_mapping=storage_tries.value.original_mapping,
             ),
         );
 
-        tempvar state = State(
-            new StateStruct(
-                _main_trie=state.value._main_trie,
-                _storage_tries=storage_tries,
-                _snapshots=state.value._snapshots,
-                created_accounts=state.value.created_accounts,
-            ),
-        );
-        return ();
-    } else {
-        let trie_struct = cast(storage_trie_pointer, TrieBytes32U256Struct*);
-        let storage_trie = TrieBytes32U256(trie_struct);
-        trie_set_TrieBytes32U256{poseidon_ptr=poseidon_ptr, trie=storage_trie}(key, value);
-
-        // From EELS <https://github.com/ethereum/execution-specs/blob/master/src/ethereum/cancun/state.py#L318>:
-        // if trie._data == {}:
-        //     del state._storage_tries[address]
-        // TODO: Investigate whether this is needed inside provable code
-        // If the storage trie is empty, then write null ptr to the mapping address -> storage trie at address
-
-        // Update state
-        // 1. Write the updated storage trie to the mapping address -> storage trie
-        let storage_trie_ptr = cast(storage_trie.value, felt);
-        hashdict_write{poseidon_ptr=poseidon_ptr, dict_ptr=storage_tries_dict_ptr}(
-            1, &address.value, storage_trie_ptr
-        );
-        // 2. Create a new storage_tries instance with the updated storage trie at address
-        let new_storage_tries_dict_ptr = cast(
-            storage_tries_dict_ptr, AddressTrieBytes32U256DictAccess*
-        );
-        tempvar storage_tries = MappingAddressTrieBytes32U256(
-            new MappingAddressTrieBytes32U256Struct(
-                dict_ptr_start=state.value._storage_tries.value.dict_ptr_start,
-                dict_ptr=new_storage_tries_dict_ptr,
-                original_mapping=state.value._storage_tries.value.original_mapping,
-            ),
-        );
-        // 3. Update state with the updated storage tries
         tempvar state = State(
             new StateStruct(
                 _main_trie=state.value._main_trie,
@@ -290,4 +254,41 @@ func set_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(
         );
         return ();
     }
+    let trie_struct = cast(storage_trie_pointer, TrieBytes32U256Struct*);
+    let storage_trie = TrieBytes32U256(trie_struct);
+    trie_set_TrieBytes32U256{poseidon_ptr=poseidon_ptr, trie=storage_trie}(key, value);
+
+    // From EELS <https://github.com/ethereum/execution-specs/blob/master/src/ethereum/cancun/state.py#L318>:
+    // if trie._data == {}:
+    //     del state._storage_tries[address]
+    // TODO: Investigate whether this is needed inside provable code
+    // If the storage trie is empty, then write null ptr to the mapping address -> storage trie at address
+
+    // Update state
+    // 1. Write the updated storage trie to the mapping address -> storage trie
+    let storage_trie_ptr = cast(storage_trie.value, felt);
+    hashdict_write{poseidon_ptr=poseidon_ptr, dict_ptr=storage_tries_dict_ptr}(
+        1, &address.value, storage_trie_ptr
+    );
+    // 2. Create a new storage_tries instance with the updated storage trie at address
+    let new_storage_tries_dict_ptr = cast(
+        storage_tries_dict_ptr, AddressTrieBytes32U256DictAccess*
+    );
+    tempvar new_storage_tries = MappingAddressTrieBytes32U256(
+        new MappingAddressTrieBytes32U256Struct(
+            dict_ptr_start=storage_tries.value.dict_ptr_start,
+            dict_ptr=new_storage_tries_dict_ptr,
+            original_mapping=storage_tries.value.original_mapping,
+        ),
+    );
+    // 3. Update state with the updated storage tries
+    tempvar state = State(
+        new StateStruct(
+            _main_trie=state.value._main_trie,
+            _storage_tries=new_storage_tries,
+            _snapshots=state.value._snapshots,
+            created_accounts=state.value.created_accounts,
+        ),
+    );
+    return ();
 }
