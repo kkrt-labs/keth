@@ -516,7 +516,7 @@ class Serde:
                 ]:
                     hashed_key = poseidon_hash_many(key)
                     preimage = b"".join(felt.to_bytes(16, "little") for felt in key)
-                    # Other syntaxes are eagerly evaluated, and thus throw a key error.
+
                     value = dict_segment_data.get(
                         hashed_key
                     ) or serialized_original.get(preimage)
