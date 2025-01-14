@@ -17,10 +17,7 @@ use cairo_vm::{
 use std::{collections::HashMap, fmt, rc::Rc};
 
 use super::{
-    hint_definitions::{
-        b_le_a, bytes__eq__, copy_dict_segment, copy_hashdict_tracker_entry, dict_new_empty,
-        get_preimage_for_key, hashdict_read, hashdict_write, nibble_remainder, value_set_or_zero,
-    },
+    hint_definitions::{DICT_HINTS, HASHDICT_HINTS, UTILS_HINTS},
     hint_loader::load_python_hints,
 };
 
@@ -62,8 +59,9 @@ impl HintProcessor {
     }
 
     #[must_use]
-    pub fn with_hints(mut self, hints: Vec<Hint>) -> Self {
-        for hint in hints {
+    pub fn with_hints(mut self, hints: Vec<fn() -> Hint>) -> Self {
+        for fn_hint in hints {
+            let hint = fn_hint();
             self.inner.add_hint(
                 self.python_hints.get(&hint.id).unwrap_or(&hint.id).to_string(),
                 hint.func.clone(),
@@ -87,19 +85,12 @@ impl HintProcessor {
 
 impl Default for HintProcessor {
     fn default() -> Self {
-        Self::new(RunResources::default()).with_hints(vec![
-            add_segment_hint(),
-            hashdict_read(),
-            hashdict_write(),
-            get_preimage_for_key(),
-            copy_hashdict_tracker_entry(),
-            dict_new_empty(),
-            copy_dict_segment(),
-            bytes__eq__(),
-            b_le_a(),
-            value_set_or_zero(),
-            nibble_remainder(),
-        ])
+        let mut hints: Vec<fn() -> Hint> = vec![add_segment_hint];
+        hints.extend_from_slice(DICT_HINTS);
+        hints.extend_from_slice(HASHDICT_HINTS);
+        hints.extend_from_slice(UTILS_HINTS);
+
+        Self::new(RunResources::default()).with_hints(hints)
     }
 }
 

@@ -1,9 +1,6 @@
 mod dict;
-pub use dict::{copy_dict_segment, dict_new_empty};
+pub use dict::HINTS as DICT_HINTS;
 mod hashdict;
-pub use hashdict::{
-    copy_hashdict_tracker_entry, get_preimage_for_key, hashdict_read, hashdict_write,
-};
-
+pub use hashdict::HINTS as HASHDICT_HINTS;
 mod utils;
-pub use utils::{b_le_a, bytes__eq__, nibble_remainder, value_set_or_zero};
+pub use utils::HINTS as UTILS_HINTS;

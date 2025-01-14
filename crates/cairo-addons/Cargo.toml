@@ -20,7 +20,6 @@ pyo3 = { version = "0.22.4", features = [
 cairo-vm = { workspace = true }
 num-traits = "0.2.18"
 num-bigint = "0.4.6"
-starknet = "0.13.0"
 starknet-crypto = "0.7.4"
 
 [build-dependencies]

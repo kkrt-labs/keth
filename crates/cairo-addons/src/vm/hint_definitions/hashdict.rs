@@ -24,6 +24,9 @@ use starknet_crypto::poseidon_hash_many;
 
 use crate::vm::hints::Hint;
 
+pub const HINTS: &[fn() -> Hint] =
+    &[hashdict_read, hashdict_write, get_preimage_for_key, copy_hashdict_tracker_entry];
+
 pub fn hashdict_read() -> Hint {
     Hint::new(
         String::from("hashdict_read"),

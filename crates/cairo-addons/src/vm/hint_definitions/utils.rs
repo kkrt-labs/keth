@@ -17,6 +17,8 @@ use cairo_vm::{
 
 use crate::vm::hints::Hint;
 
+pub const HINTS: &[fn() -> Hint] = &[bytes__eq__, b_le_a, value_set_or_zero, nibble_remainder];
+
 #[allow(non_snake_case)]
 pub fn bytes__eq__() -> Hint {
     Hint::new(

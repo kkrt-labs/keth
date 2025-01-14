@@ -16,6 +16,8 @@ use cairo_vm::{
 
 use crate::vm::hints::Hint;
 
+pub const HINTS: &[fn() -> Hint] = &[dict_new_empty, copy_dict_segment];
+
 pub fn dict_new_empty() -> Hint {
     Hint::new(
         String::from("dict_new_empty"),

@@ -12,7 +12,7 @@ from ethereum.cancun.fork_types import Address, Account, AccountStruct, Account_
 
 from src.utils.maths import unsigned_div_rem
 
-// @ notice: Creates a new, empty dict, doesn not require an `initial_dict` argument.
+// @ notice: Creates a new, empty dict, does not require an `initial_dict` argument.
 func dict_new_empty() -> (res: DictAccess*) {
     %{ dict_new_empty %}
     ap += 1;
