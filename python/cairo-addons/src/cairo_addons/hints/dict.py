@@ -14,12 +14,7 @@ def dict_new_empty(
     memory: MemoryDict,
     ap: RelocatableValue,
 ):
-    if "__dict_manager" not in globals():
-        from starkware.cairo.common.dict import DictManager
-
-        __dict_manager = DictManager()
-
-    memory[ap] = __dict_manager.new_dict(segments, {})
+    memory[ap] = dict_manager.new_dict(segments, {})
 
 
 @register_hint

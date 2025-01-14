@@ -47,18 +47,16 @@ class TestTrie:
 
     @given(node=...)
     def test_encode_account_should_fail_without_storage_root(
-        self, cairo_run, node: Account
+        self, cairo_run_py, node: Account
     ):
         with pytest.raises(AssertionError):
             encode_node(node, None)
         with cairo_error(message="encode_node"):
-            cairo_run("encode_node", node, None, vm="python")
+            cairo_run_py("encode_node", node, None)
 
     @given(a=..., b=...)
-    def test_common_prefix_length(self, cairo_run, a: Bytes, b: Bytes):
-        assert common_prefix_length(a, b) == cairo_run(
-            "common_prefix_length", a, b, vm="python"
-        )
+    def test_common_prefix_length(self, cairo_run_py, a: Bytes, b: Bytes):
+        assert common_prefix_length(a, b) == cairo_run_py("common_prefix_length", a, b)
 
     @given(a=..., b=...)
     def test_common_prefix_length_should_fail(
@@ -82,7 +80,7 @@ class TestTrie:
 
     @given(x=nibble.filter(lambda x: len(x) != 0), is_leaf=...)
     def test_nibble_list_to_compact_should_raise_when_wrong_remainder(
-        self, cairo_program, cairo_run, x, is_leaf: bool
+        self, cairo_program, cairo_run_py, x, is_leaf: bool
     ):
         with (
             patch_hint(
@@ -93,12 +91,12 @@ class TestTrie:
             cairo_error(message="nibble_list_to_compact: invalid remainder"),
         ):
             # Always run patch_hint tests with the python VM
-            cairo_run("nibble_list_to_compact", x, is_leaf, vm="python")
+            cairo_run_py("nibble_list_to_compact", x, is_leaf)
 
     @given(bytes_=...)
-    def test_bytes_to_nibble_list(self, cairo_run, bytes_: Bytes):
-        assert bytes_to_nibble_list(bytes_) == cairo_run(
-            "bytes_to_nibble_list", bytes_, vm="python"
+    def test_bytes_to_nibble_list(self, cairo_run_py, bytes_: Bytes):
+        assert bytes_to_nibble_list(bytes_) == cairo_run_py(
+            "bytes_to_nibble_list", bytes_
         )
 
     # def test_root(self, cairo_run, trie, get_storage_root):
@@ -141,10 +139,8 @@ class TestTrie:
     @pytest.mark.slow
     @settings(max_examples=5)  # for max_examples=2, it takes 239.03s in local
     @given(obj=st.dictionaries(nibble, bytes32))
-    def test_patricialize(self, cairo_run, obj: Mapping[Bytes, Bytes]):
-        assert patricialize(obj, Uint(0)) == cairo_run(
-            "patricialize", obj, Uint(0), vm="python"
-        )
+    def test_patricialize(self, cairo_run_py, obj: Mapping[Bytes, Bytes]):
+        assert patricialize(obj, Uint(0)) == cairo_run_py("patricialize", obj, Uint(0))
 
 
 class TestTrieOperations:

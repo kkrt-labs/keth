@@ -1,10 +1,9 @@
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::collections::HashMap;
 
 use cairo_vm::{
     hint_processor::{
-        builtin_hint_processor::{
-            dict_manager::DictManager,
-            hint_utils::{get_ptr_from_var_name, insert_value_from_var_name, insert_value_into_ap},
+        builtin_hint_processor::hint_utils::{
+            get_ptr_from_var_name, insert_value_from_var_name, insert_value_into_ap,
         },
         hint_processor_definition::HintReference,
     },
@@ -27,15 +26,8 @@ pub fn dict_new_empty() -> Hint {
          _ap_tracking: &ApTracking,
          _constants: &HashMap<String, Felt252>|
          -> Result<(), HintError> {
-            //Check if there is a dict manager in scope, create it if there isnt one
-            let base = if let Ok(dict_manager) = exec_scopes.get_dict_manager() {
-                dict_manager.borrow_mut().new_dict(vm, Default::default())?
-            } else {
-                let mut dict_manager = DictManager::new();
-                let base = dict_manager.new_dict(vm, Default::default())?;
-                exec_scopes.insert_value("dict_manager", Rc::new(RefCell::new(dict_manager)));
-                base
-            };
+            let base =
+                exec_scopes.get_dict_manager()?.borrow_mut().new_dict(vm, Default::default())?;
             insert_value_into_ap(vm, base)
         },
     )
