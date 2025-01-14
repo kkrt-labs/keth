@@ -1,9 +1,15 @@
 import pytest
+from ethereum_types.numeric import U256
 from hypothesis import given
 from hypothesis import strategies as st
 from hypothesis.strategies import composite
 
-from ethereum.cancun.state import get_account, get_account_optional, get_storage
+from ethereum.cancun.state import (
+    get_account,
+    get_account_optional,
+    get_storage,
+    set_storage,
+)
 from tests.utils.strategies import address, bytes32, state
 
 pytestmark = pytest.mark.python_vm
@@ -38,7 +44,7 @@ def state_and_address_and_key(
     return state, address, key
 
 
-class TestState:
+class TestStateAccounts:
     @given(
         data=state_and_address_and_key(state_strategy=state, address_strategy=address),
     )
@@ -59,6 +65,8 @@ class TestState:
         assert result_cairo == result_py
         assert state_cairo == state
 
+
+class TestStateStorage:
     @given(
         data=state_and_address_and_key(
             state_strategy=state, address_strategy=address, key_strategy=bytes32
@@ -73,4 +81,22 @@ class TestState:
         [state_cairo, result_cairo] = cairo_run("get_storage", state, address, key)
         result_py = get_storage(state, address, key)
         assert result_cairo == result_py
+        assert state_cairo == state
+
+    @given(
+        data=state_and_address_and_key(
+            state_strategy=state, address_strategy=address, key_strategy=bytes32
+        ),
+        value=...,
+    )
+    def test_set_storage(self, cairo_run, data, value: U256):
+        state, address, key = data
+        try:
+            state_cairo = cairo_run("set_storage", state, address, key, value)
+        except Exception as e:
+            with pytest.raises(type(e)):
+                set_storage(state, address, key, value)
+            return
+
+        set_storage(state, address, key, value)
         assert state_cairo == state
