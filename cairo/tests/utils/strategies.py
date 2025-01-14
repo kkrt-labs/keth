@@ -326,6 +326,8 @@ state = st.lists(address, min_size=0, max_size=MAX_ADDRESS_SET_SIZE).flatmap(
                     _data=st.dictionaries(
                         keys=bytes32,
                         values=uint256,
+                        # If _data is empty, the trie is not created
+                        min_size=1,
                         max_size=MAX_STORAGE_KEY_SET_SIZE,
                     ),
                 )
@@ -416,3 +418,4 @@ def register_type_strategies():
     st.register_type_strategy(Memory, memory)
     st.register_type_strategy(Evm, evm)
     st.register_type_strategy(tuple, tuple_strategy)
+    st.register_type_strategy(State, state)
