@@ -822,7 +822,7 @@ class Serde:
             # encounter an error.
             except UnknownMemoryError:
                 break
-            except Exception as _e:
+            except Exception:
                 # TODO: handle this better as only UnknownMemoryError is expected
                 # when accessing invalid memory
                 break
