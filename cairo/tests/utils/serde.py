@@ -520,6 +520,10 @@ class Serde:
                     value = dict_segment_data.get(
                         hashed_key
                     ) or serialized_original.get(preimage)
+
+                    # If `value` is None, it means the dict tracker has more
+                    # data than the corresponding `dict_segment`.
+                    # This can occur when serializing snapshots of dictionaries.
                     if value is not None:
                         serialized_dict[preimage] = value
 
