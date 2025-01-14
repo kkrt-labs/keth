@@ -161,7 +161,7 @@ func get_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(
     let value = trie_get_TrieBytes32U256{poseidon_ptr=poseidon_ptr, trie=storage_trie}(key);
 
     // Rebind the storage trie to the state
-    let new_storage_trie_ptr = cast(storage_trie_ptr, felt);
+    let new_storage_trie_ptr = cast(storage_trie.value, felt);
 
     hashdict_write{poseidon_ptr=poseidon_ptr, dict_ptr=storage_tries_dict_ptr}(
         1, &address.value, new_storage_trie_ptr
