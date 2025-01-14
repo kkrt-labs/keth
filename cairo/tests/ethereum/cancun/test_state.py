@@ -24,7 +24,7 @@ def state_and_address_and_key(
     # For address selection, use address_strategy if no keys in state
     address_options = (
         [st.sampled_from(list(state._main_trie._data.keys())), address_strategy]
-        if state._main_trie._data is not None and state._main_trie._data
+        if state._main_trie._data != {}
         else [address_strategy]
     )
     address = draw(st.one_of(*address_options))
@@ -36,7 +36,7 @@ def state_and_address_and_key(
 
     key_options = (
         [st.sampled_from(list(storage._data.keys())), key_strategy]
-        if storage is not None and storage._data
+        if storage is not None and storage._data != {}
         else [key_strategy]
     )
     key = draw(st.one_of(*key_options))

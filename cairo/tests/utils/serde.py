@@ -67,6 +67,7 @@ from starkware.cairo.lang.vm.crypto import poseidon_hash_many
 from starkware.cairo.lang.vm.memory_dict import UnknownMemoryError
 from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 
+from ethereum.cancun.state import State
 from ethereum.cancun.vm.exceptions import InvalidOpcode
 from ethereum.crypto.hash import Hash32
 from tests.utils.args_gen import Memory, Stack, to_python_type, vm_exception_classes
@@ -357,6 +358,19 @@ class Serde:
         if is_dataclass(get_origin(python_cls)) or is_dataclass(python_cls):
             # Adjust int fields if they exceed 2**128 by subtracting DEFAULT_PRIME
             # and filter out the NO_ERROR_FLAG, replacing it with None
+
+            if python_cls is State:
+                if (
+                    value["_storage_tries"] is not None
+                    and value["_storage_tries"] != {}
+                ):
+                    # First collect all keys with empty tries
+                    keys_to_delete = [
+                        k for k, v in value["_storage_tries"].items() if v._data == {}
+                    ]
+                    # Cannot iterate over a dict while deleting items from it
+                    for k in keys_to_delete:
+                        del value["_storage_tries"][k]
 
             adjusted_value = {
                 k: (
@@ -808,7 +822,7 @@ class Serde:
             # encounter an error.
             except UnknownMemoryError:
                 break
-            except Exception:
+            except Exception as _e:
                 # TODO: handle this better as only UnknownMemoryError is expected
                 # when accessing invalid memory
                 break
