@@ -127,6 +127,8 @@ func get_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(
 
     let storage_tries_dict_ptr = cast(storage_tries.value.dict_ptr, DictAccess*);
 
+    // Use `hashdict_get` instead of `hashdict_read` because `MappingAddressTrieBytes32U256` is not a
+    // `default_dict`. Accessing a key that does not exist in the dict would have panicked for `hashdict_read`.
     let (pointer) = hashdict_get{poseidon_ptr=poseidon_ptr, dict_ptr=storage_tries_dict_ptr}(
         1, &address.value
     );
@@ -207,6 +209,8 @@ func set_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(
     }
 
     let storage_tries_dict_ptr = cast(storage_tries.value.dict_ptr, DictAccess*);
+    // Use `hashdict_get` instead of `hashdict_read` because `MappingAddressTrieBytes32U256` is not a
+    // `default_dict`. Accessing a key that does not exist in the dict would have panicked for `hashdict_read`.
     let (storage_trie_pointer) = hashdict_get{
         poseidon_ptr=poseidon_ptr, dict_ptr=storage_tries_dict_ptr
     }(1, &address.value);
