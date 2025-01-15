@@ -228,6 +228,7 @@ namespace EvmImpl {
                 code=evm.value.code,
                 gas_left=evm.value.gas_left,
                 env=new_env,
+                valid_jump_destinations=evm.value.valid_jump_destinations,
                 logs=evm.value.logs,
                 refund_counter=evm.value.refund_counter,
                 running=evm.value.running,
@@ -603,6 +604,31 @@ namespace EvmImpl {
                 error=evm.value.error,
                 accessed_addresses=evm.value.accessed_addresses,
                 accessed_storage_keys=evm.value.accessed_storage_keys,
+            ),
+        );
+        return ();
+    }
+}
+
+namespace EnvImpl {
+    func set_state{env: Environment}(new_state: State) {
+        tempvar env = Environment(
+            new EnvironmentStruct(
+                caller=env.value.caller,
+                block_hashes=env.value.block_hashes,
+                origin=env.value.origin,
+                coinbase=env.value.coinbase,
+                number=env.value.number,
+                base_fee_per_gas=env.value.base_fee_per_gas,
+                gas_limit=env.value.gas_limit,
+                gas_price=env.value.gas_price,
+                time=env.value.time,
+                prev_randao=env.value.prev_randao,
+                state=new_state,
+                chain_id=env.value.chain_id,
+                excess_blob_gas=env.value.excess_blob_gas,
+                blob_versioned_hashes=env.value.blob_versioned_hashes,
+                transient_storage=env.value.transient_storage,
             ),
         );
         return ();

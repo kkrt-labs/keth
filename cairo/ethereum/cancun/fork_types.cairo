@@ -43,8 +43,12 @@ struct TupleAddressBytes32 {
     value: TupleAddressBytes32Struct*,
 }
 
+struct HashedTupleAddressBytes32 {
+    value: felt,
+}
+
 struct SetTupleAddressBytes32DictAccess {
-    key: TupleAddressBytes32,
+    key: HashedTupleAddressBytes32,
     prev_value: bool,
     new_value: bool,
 }

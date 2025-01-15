@@ -132,7 +132,18 @@ from ethereum.exceptions import EthereumException
 from ethereum.rlp import Extended, Simple
 from tests.utils.helpers import flatten
 
-HASHED_TYPES = [Bytes, bytes, bytearray, str, U256, Hash32, Bytes32, Bytes256]
+HASHED_TYPES = [
+    Bytes,
+    bytes,
+    bytearray,
+    str,
+    U256,
+    Hash32,
+    Bytes32,
+    Bytes256,
+    Tuple[Bytes20, Bytes32],
+    tuple[Bytes20, Bytes32],
+]
 
 
 class Memory(bytearray):
@@ -487,15 +498,26 @@ def _gen_arg(
                 )
             struct_ptr = segments.add()
             data = [
-                _gen_arg(dict_manager, segments, element_type, value)
+                _gen_arg(
+                    dict_manager, segments, element_type, value, hash_mode=hash_mode
+                )
                 for element_type, value in zip(element_types, arg)
             ]
+            if hash_mode:
+                return tuple(flatten(data))
             segments.load_data(struct_ptr, data)
             return struct_ptr
 
         # Case list, which is represented as a pointer to a struct with a pointer to the elements and the size.
         instances_ptr = segments.add()
-        data = [_gen_arg(dict_manager, segments, get_args(arg_type)[0], x) for x in arg]
+        data = [
+            _gen_arg(
+                dict_manager, segments, get_args(arg_type)[0], x, hash_mode=hash_mode
+            )
+            for x in arg
+        ]
+        if hash_mode:
+            return tuple(flatten(data))
         segments.load_data(instances_ptr, data)
         struct_ptr = segments.add()
         segments.load_data(struct_ptr, [instances_ptr, len(arg)])

@@ -1125,16 +1125,16 @@ wheels = [
 
 [[package]]
 name = "hypothesis"
-version = "6.122.3"
+version = "6.123.17"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "attrs" },
     { name = "exceptiongroup", marker = "python_full_version < '3.11'" },
     { name = "sortedcontainers" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/5a/21/c4c755ad5763f4c882a855b9966ac019c2314e5578b5f5eb39d9fe9fe64d/hypothesis-6.122.3.tar.gz", hash = "sha256:f4c927ce0ec739fa6266e4572949d0b54e24a14601a2bc5fec8f78e16af57918", size = 414395 }
+sdist = { url = "https://files.pythonhosted.org/packages/15/a7/695b2bcb4e8438e1d4683efa6877fc95be293a11251471d4552d6dd08259/hypothesis-6.123.17.tar.gz", hash = "sha256:5850893975b4f08e893ddc10f1d468bc7e011d59703f70fe06a10161e426e602", size = 418572 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/66/cb/44fe7e78c3cfbcb01f905b3b252eff6396e2f2e8e88b2d27b5140a6ac474/hypothesis-6.122.3-py3-none-any.whl", hash = "sha256:f0f57036d3b95b979491602b32c95b6725c3af678cccb6165d8de330857f3c83", size = 475651 },
+    { url = "https://files.pythonhosted.org/packages/11/8a/f1c166f048df4b314d0d38e9530b7af516a16160873d724bb416084d6990/hypothesis-6.123.17-py3-none-any.whl", hash = "sha256:5c949fb44935e32c61c64abfcc3975eec41f8205ade2223073ba074c1e078ead", size = 480880 },
 ]
 
 [[package]]
@@ -1562,7 +1562,7 @@ dev = [
     { name = "eth-keys", specifier = ">=0.5.1" },
     { name = "eth-utils", specifier = ">=5.0.0" },
     { name = "gprof2dot", specifier = ">=2024.6.6" },
-    { name = "hypothesis", specifier = ">=6.112.1" },
+    { name = "hypothesis", specifier = ">=6.123.17" },
     { name = "ipykernel", specifier = ">=6.29.5" },
     { name = "jupyter", specifier = ">=1.1.1" },
     { name = "polars", specifier = ">=1.18.0" },
