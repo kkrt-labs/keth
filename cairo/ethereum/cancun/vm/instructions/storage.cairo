@@ -22,7 +22,7 @@ from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.dict_access import DictAccess
 
-// @notice Loads to the stack, the value corresponding to a certain key from the
+// @notice Loads to the stack the value corresponding to a certain key from the
 // storage of the current account.
 func sload{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, poseidon_ptr: PoseidonBuiltin*, evm: Evm}(
     ) -> ExceptionalHalt* {
@@ -57,16 +57,18 @@ func sload{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, poseidon_ptr: Poseidon
             tempvar poseidon_ptr = poseidon_ptr;
             tempvar dict_ptr = dict_ptr;
         }
-        let poseidon_ptr = cast([ap - 2], PoseidonBuiltin*);
-        let dict_ptr = cast([ap - 1], DictAccess*);
-
-        let access_gas_cost = (is_present * GasConstants.GAS_WARM_ACCESS) + (1 - is_present) *
-            GasConstants.GAS_COLD_SLOAD;
-        let err = charge_gas(Uint(access_gas_cost));
-        if (cast(err, felt) != 0) {
-            return err;
-        }
     }
+
+    let poseidon_ptr = cast([ap - 2], PoseidonBuiltin*);
+    let dict_ptr = cast([ap - 1], DictAccess*);
+
+    let access_gas_cost = (is_present * GasConstants.GAS_WARM_ACCESS) + (1 - is_present) *
+        GasConstants.GAS_COLD_SLOAD;
+    let err = charge_gas(Uint(access_gas_cost));
+    if (cast(err, felt) != 0) {
+        return err;
+    }
+
     let new_dict_ptr = cast(dict_ptr, SetTupleAddressBytes32DictAccess*);
     tempvar new_accessed_storage_keys = SetTupleAddressBytes32(
         new SetTupleAddressBytes32Struct(
