@@ -330,18 +330,19 @@ state = st.lists(address, max_size=MAX_ADDRESS_SET_SIZE, unique=True).flatmap(
         ),
         # Storage tries are not always present for existing accounts
         # Thus we generate a subset of addresses from the existing accounts
-        _storage_tries=st.fixed_dictionaries(
-            {
-                address: trie_strategy(Trie[Bytes32, U256]).filter(
-                    lambda t: bool(t._data)
-                )
-                # TODO: change to a random number between 0 and len(addresses)
-                for address in addresses[: len(addresses) // 2]
-            }
+        _storage_tries=st.integers(max_value=len(addresses)).flatmap(
+            lambda i: st.fixed_dictionaries(
+                {
+                    address: trie_strategy(Trie[Bytes32, U256]).filter(
+                        lambda t: bool(t._data)
+                    )
+                    for address in addresses[:i]
+                }
+            )
         ),
         _snapshots=st.just([]),
         created_accounts=st.just(set()),
-    )
+    ),
 )
 
 
