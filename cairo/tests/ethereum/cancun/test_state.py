@@ -7,6 +7,7 @@ from hypothesis.strategies import composite
 
 from ethereum.cancun.fork_types import Address
 from ethereum.cancun.state import (
+    account_has_code_or_nonce,
     get_account,
     get_account_optional,
     get_storage,
@@ -21,8 +22,8 @@ pytestmark = pytest.mark.python_vm
 
 
 @composite
-def state_and_address_and_key(
-    draw, state_strategy, address_strategy, key_strategy=None
+def state_and_address_and_optional_key(
+    draw, state_strategy=state, address_strategy=address, key_strategy=None
 ):
     state = draw(state_strategy)
 
@@ -50,9 +51,7 @@ def state_and_address_and_key(
 
 
 class TestStateAccounts:
-    @given(
-        data=state_and_address_and_key(state_strategy=state, address_strategy=address),
-    )
+    @given(data=state_and_address_and_optional_key())
     def test_get_account(self, cairo_run, data):
         state, address = data
         [state_cairo, result_cairo] = cairo_run("get_account", state, address)
@@ -60,9 +59,7 @@ class TestStateAccounts:
         assert result_cairo == result_py
         assert state_cairo == state
 
-    @given(
-        data=state_and_address_and_key(state_strategy=state, address_strategy=address)
-    )
+    @given(data=state_and_address_and_optional_key())
     def test_get_account_optional(self, cairo_run, data):
         state, address = data
         [state_cairo, result_cairo] = cairo_run("get_account_optional", state, address)
@@ -70,30 +67,30 @@ class TestStateAccounts:
         assert result_cairo == result_py
         assert state_cairo == state
 
+    @given(data=state_and_address_and_optional_key())
+    def test_account_has_code_or_nonce(self, cairo_run, data):
+        state, address = data
+        [state_cairo, result_cairo] = cairo_run(
+            "account_has_code_or_nonce", state, address
+        )
+        result_py = account_has_code_or_nonce(state, address)
+        assert result_cairo == result_py
+        assert state_cairo == state
+
 
 class TestStateStorage:
-    @given(
-        data=state_and_address_and_key(
-            state_strategy=state, address_strategy=address, key_strategy=bytes32
-        )
-    )
+    @given(data=state_and_address_and_optional_key(key_strategy=bytes32))
     def test_get_storage(
         self,
         cairo_run,
         data,
     ):
         state, address, key = data
-        [state_cairo, result_cairo] = cairo_run("get_storage", state, address, key)
-        result_py = get_storage(state, address, key)
-        assert result_cairo == result_py
+        state_cairo, result_cairo = cairo_run("get_storage", state, address, key)
+        assert result_cairo == get_storage(state, address, key)
         assert state_cairo == state
 
-    @given(
-        data=state_and_address_and_key(
-            state_strategy=state, address_strategy=address, key_strategy=bytes32
-        ),
-        value=...,
-    )
+    @given(data=state_and_address_and_optional_key(key_strategy=bytes32), value=...)
     def test_set_storage(self, cairo_run, data, value: U256):
         state, address, key = data
         try:
