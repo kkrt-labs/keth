@@ -15,7 +15,7 @@ from ethereum.cancun.state import (
     set_transient_storage,
 )
 from tests.utils.args_gen import TransientStorage
-from tests.utils.strategies import address, bytes32, state, transient_storage_lite
+from tests.utils.strategies import address, bytes32, state, transient_storage
 
 pytestmark = pytest.mark.python_vm
 
@@ -109,7 +109,7 @@ class TestStateStorage:
 
 class TestTransientStorage:
     @given(
-        transient_storage=transient_storage_lite,
+        transient_storage=transient_storage,
         address=...,
         key=...,
     )
@@ -131,7 +131,7 @@ class TestTransientStorage:
         assert transient_storage_cairo == transient_storage
 
     @given(
-        transient_storage=transient_storage_lite,
+        transient_storage=transient_storage,
         address=...,
         key=...,
         value=...,
