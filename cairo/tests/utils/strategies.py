@@ -90,6 +90,14 @@ MAX_JUMP_DESTINATIONS_SET_SIZE = int(
 )
 MAX_CODE_SIZE = int(os.getenv("HYPOTHESIS_MAX_CODE_SIZE", 256))
 
+MAX_ADDRESS_TRANSIENT_STORAGE_SIZE = int(
+    os.getenv("HYPOTHESIS_MAX_ADDRESS_TRANSIENT_STORAGE_SIZE", 10)
+)
+MAX_TRANSIENT_STORAGE_SNAPSHOTS_SIZE = int(
+    os.getenv("HYPOTHESIS_MAX_TRANSIENT_STORAGE_SNAPSHOTS_SIZE", 10)
+)
+
+
 small_bytes = st.binary(min_size=0, max_size=256)
 code = st.binary(min_size=0, max_size=MAX_CODE_SIZE)
 pc = st.integers(min_value=0, max_value=MAX_CODE_SIZE * 2).map(Uint)
@@ -224,6 +232,33 @@ message_lite = st.builds(
 # Using this list instead of the hash32 strategy to avoid data_to_large errors
 BLOCK_HASHES_LIST = [Hash32(Bytes32(bytes([i] * 32))) for i in range(256)]
 
+transient_storage_lite = st.lists(
+    address, max_size=MAX_ADDRESS_TRANSIENT_STORAGE_SIZE
+).flatmap(
+    lambda addresses: st.builds(
+        TransientStorage,
+        _tries=st.fixed_dictionaries(
+            {
+                address: trie_strategy(Trie[Bytes32, U256]).filter(
+                    lambda t: bool(t._data)
+                )
+                for address in addresses
+            }
+        ),
+        _snapshots=st.lists(
+            st.fixed_dictionaries(
+                {
+                    address: trie_strategy(Trie[Bytes32, U256]).filter(
+                        lambda t: bool(t._data)
+                    )
+                    for address in addresses
+                }
+            ),
+            max_size=MAX_TRANSIENT_STORAGE_SNAPSHOTS_SIZE,
+        ),
+    )
+)
+
 environment_lite = st.integers(min_value=0).flatmap(  # Generate block number first
     lambda number: st.builds(
         Environment,
@@ -247,7 +282,7 @@ environment_lite = st.integers(min_value=0).flatmap(  # Generate block number fi
         blob_versioned_hashes=st.lists(
             st.from_type(VersionedHash), min_size=0, max_size=5
         ).map(tuple),
-        transient_storage=st.from_type(TransientStorage),
+        transient_storage=transient_storage_lite,
     )
 )
 

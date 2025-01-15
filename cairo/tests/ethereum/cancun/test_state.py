@@ -1,16 +1,20 @@
 import pytest
+from ethereum_types.bytes import Bytes32
 from ethereum_types.numeric import U256
 from hypothesis import given
 from hypothesis import strategies as st
 from hypothesis.strategies import composite
 
+from ethereum.cancun.fork_types import Address
 from ethereum.cancun.state import (
     get_account,
     get_account_optional,
     get_storage,
+    get_transient_storage,
     set_storage,
 )
-from tests.utils.strategies import address, bytes32, state
+from tests.utils.args_gen import TransientStorage
+from tests.utils.strategies import address, bytes32, state, transient_storage_lite
 
 pytestmark = pytest.mark.python_vm
 
@@ -100,3 +104,27 @@ class TestStateStorage:
 
         set_storage(state, address, key, value)
         assert state_cairo == state
+
+
+class TestTransientStorage:
+    @given(
+        transient_storage=transient_storage_lite,
+        address=...,
+        key=...,
+    )
+    def test_get_transient_storage(
+        self,
+        cairo_run,
+        transient_storage: TransientStorage,
+        address: Address,
+        key: Bytes32,
+    ):
+        [transient_storage_cairo, result_cairo] = cairo_run(
+            "get_transient_storage",
+            transient_storage,
+            address,
+            key,
+        )
+        result_py = get_transient_storage(transient_storage, address, key)
+        assert result_cairo == result_py
+        assert transient_storage_cairo == transient_storage
