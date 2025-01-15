@@ -382,10 +382,11 @@ func set_transient_storage{poseidon_ptr: PoseidonBuiltin*, transient_storage: Tr
                 ),
             ),
         );
+        let new_trie_ptr = cast(new_trie, felt);
         hashdict_write{poseidon_ptr=poseidon_ptr, dict_ptr=transient_storage_tries_dict_ptr}(
-            1, &address.value, cast(new_trie, felt)
+            1, &address.value, new_trie_ptr
         );
-        tempvar trie_ptr = cast(new_trie, felt);
+        tempvar trie_ptr = new_trie_ptr;
     } else {
         tempvar trie_ptr = trie_ptr;
     }
