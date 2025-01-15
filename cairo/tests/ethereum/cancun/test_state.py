@@ -1,6 +1,6 @@
 import pytest
 from ethereum_types.numeric import U256
-from hypothesis import given, settings
+from hypothesis import given
 from hypothesis import strategies as st
 from hypothesis.strategies import composite
 
@@ -89,16 +89,14 @@ class TestStateStorage:
         ),
         value=...,
     )
-    @settings(max_examples=100)
     def test_set_storage(self, cairo_run, data, value: U256):
         state, address, key = data
-        if state._storage_tries.get(address) is None:
-            try:
-                state_cairo = cairo_run("set_storage", state, address, key, value)
-            except Exception as e:
-                with pytest.raises(type(e)):
-                    set_storage(state, address, key, value)
-                return
+        try:
+            state_cairo = cairo_run("set_storage", state, address, key, value)
+        except Exception as e:
+            with pytest.raises(type(e)):
+                set_storage(state, address, key, value)
+            return
 
-            set_storage(state, address, key, value)
-            assert state_cairo == state
+        set_storage(state, address, key, value)
+        assert state_cairo == state
