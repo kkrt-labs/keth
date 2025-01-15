@@ -317,9 +317,7 @@ evm = st.builds(
 
 
 # Fork
-state = st.lists(
-    address, min_size=0, max_size=MAX_ADDRESS_SET_SIZE, unique=True
-).flatmap(
+state = st.lists(address, max_size=MAX_ADDRESS_SET_SIZE, unique=True).flatmap(
     lambda addresses: st.builds(
         State,
         _main_trie=st.builds(
