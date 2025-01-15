@@ -554,16 +554,23 @@ class Serde:
                     )
                     if value is not None:
                         serialized_dict[preimage] = value
+
+                elif get_origin(python_key_type) is tuple:
+                    # If the key is a tuple, we're in the case of a Set[Tuple[Address, Bytes32]]]
+                    # Where the key is the hashed tuple.]
+                    hashed_key = poseidon_hash_many(key)
+                    preimage_address = key[0].to_bytes(20, "little")
+                    preimage_bytes32 = b"".join(
+                        felt.to_bytes(16, "little") for felt in key[1:]
+                    )
+                    preimage = (preimage_address, preimage_bytes32)
+                    value = dict_segment_data.get(
+                        hashed_key, serialized_original.get(preimage)
+                    )
+                    if value is not None:
+                        serialized_dict[preimage] = value
                 else:
                     raise ValueError(f"Unsupported key type: {python_key_type}")
-
-        elif get_origin(python_key_type) is tuple:
-            # If the key is a tuple, we're in the case of a Set[Tuple[Address, Bytes32]]]
-            # In that case, the keys are not hashed __yet__, the dict simply registers the
-            # Cases where they key is not hashed, and the key is a pointer.
-            # In that case, we can just return the dict as is.
-            # TODO: we need to hash the keys here.
-            serialized_dict = {**dict_segment_data, **serialized_original}
         else:
             # Even if the dict is not hashed, we need to use the tracker
             # to differentiate between default-values _read_ and explicit writes.
