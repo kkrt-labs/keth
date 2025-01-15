@@ -218,11 +218,11 @@ func set_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(
         poseidon_ptr=poseidon_ptr, dict_ptr=storage_tries_dict_ptr
     }(1, &address.value);
 
-    if (cast(storage_trie_pointer, felt) == 0) {
+    if (storage_trie_pointer == 0) {
         // dict_new expects an initial_dict hint argument.
         %{ initial_dict = {} %}
         let (new_mapping_dict_ptr) = dict_new();
-        tempvar _storage_trie = new TrieBytes32U256Struct(
+        tempvar new_storage_trie = new TrieBytes32U256Struct(
             secured=bool(1),
             default=U256(new U256Struct(0, 0)),
             _data=MappingBytes32U256(
@@ -234,33 +234,17 @@ func set_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(
             ),
         );
 
-        let new_storage_trie_ptr = cast(_storage_trie, felt);
+        let storage_trie_pointer = cast(new_storage_trie, felt);
         hashdict_write{poseidon_ptr=poseidon_ptr, dict_ptr=storage_tries_dict_ptr}(
-            1, &address.value, new_storage_trie_ptr
+            1, &address.value, storage_trie_pointer
         );
 
-        let new_storage_tries_dict_ptr = cast(
-            storage_tries_dict_ptr, AddressTrieBytes32U256DictAccess*
-        );
-
-        tempvar new_storage_tries = MappingAddressTrieBytes32U256(
-            new MappingAddressTrieBytes32U256Struct(
-                dict_ptr_start=storage_tries.value.dict_ptr_start,
-                dict_ptr=new_storage_tries_dict_ptr,
-                original_mapping=storage_tries.value.original_mapping,
-            ),
-        );
-
-        tempvar state = State(
-            new StateStruct(
-                _main_trie=state.value._main_trie,
-                _storage_tries=storage_tries,
-                _snapshots=state.value._snapshots,
-                created_accounts=state.value.created_accounts,
-            ),
-        );
-        return ();
+        tempvar storage_trie_pointer = storage_trie_pointer;
+    } else {
+        tempvar storage_trie_pointer = storage_trie_pointer;
     }
+    let storage_tries_dict_ptr = storage_tries_dict_ptr;
+
     let trie_struct = cast(storage_trie_pointer, TrieBytes32U256Struct*);
     let storage_trie = TrieBytes32U256(trie_struct);
     trie_set_TrieBytes32U256{poseidon_ptr=poseidon_ptr, trie=storage_trie}(key, value);

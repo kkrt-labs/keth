@@ -352,7 +352,7 @@ evm = st.builds(
 
 
 # Fork
-state = st.lists(address, min_size=0, max_size=MAX_ADDRESS_SET_SIZE).flatmap(
+state = st.lists(address, max_size=MAX_ADDRESS_SET_SIZE, unique=True).flatmap(
     lambda addresses: st.builds(
         State,
         _main_trie=st.builds(
@@ -363,17 +363,21 @@ state = st.lists(address, min_size=0, max_size=MAX_ADDRESS_SET_SIZE).flatmap(
                 {address: st.from_type(Account) for address in addresses}
             ),
         ),
-        _storage_tries=st.fixed_dictionaries(
-            {
-                address: trie_strategy(Trie[Bytes32, U256]).filter(
-                    lambda t: bool(t._data)
-                )
-                for address in addresses
-            }
+        # Storage tries are not always present for existing accounts
+        # Thus we generate a subset of addresses from the existing accounts
+        _storage_tries=st.integers(max_value=len(addresses)).flatmap(
+            lambda i: st.fixed_dictionaries(
+                {
+                    address: trie_strategy(Trie[Bytes32, U256]).filter(
+                        lambda t: bool(t._data)
+                    )
+                    for address in addresses[:i]
+                }
+            )
         ),
         _snapshots=st.just([]),
         created_accounts=st.just(set()),
-    )
+    ),
 )
 
 

@@ -34,10 +34,10 @@ def state_and_address_and_key(
     address = draw(st.one_of(*address_options))
 
     # For key selection, use key_strategy if no storage keys for this address
-    storage = state._storage_tries.get(address)
     if key_strategy is None:
         return state, address
 
+    storage = state._storage_tries.get(address)
     key_options = (
         [st.sampled_from(list(storage._data.keys())), key_strategy]
         if storage is not None and storage._data != {}
