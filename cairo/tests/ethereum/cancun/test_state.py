@@ -7,6 +7,7 @@ from hypothesis.strategies import composite
 
 from ethereum.cancun.fork_types import Address
 from ethereum.cancun.state import (
+    account_exists,
     account_has_code_or_nonce,
     get_account,
     get_account_optional,
@@ -72,6 +73,13 @@ class TestStateAccounts:
             "account_has_code_or_nonce", state, address
         )
         assert result_cairo == account_has_code_or_nonce(state, address)
+        assert state_cairo == state
+
+    @given(data=state_and_address_and_optional_key())
+    def test_account_exists(self, cairo_run, data):
+        state, address = data
+        state_cairo, result_cairo = cairo_run("account_exists", state, address)
+        assert result_cairo == account_exists(state, address)
         assert state_cairo == state
 
 

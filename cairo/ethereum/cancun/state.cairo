@@ -425,3 +425,14 @@ func account_has_code_or_nonce{poseidon_ptr: PoseidonBuiltin*, state: State}(
     tempvar res = bool(0);
     return res;
 }
+
+func account_exists{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Address) -> bool {
+    let account = get_account_optional(address);
+
+    if (cast(account.value, felt) == 0) {
+        tempvar result = bool(0);
+        return result;
+    }
+    tempvar result = bool(1);
+    return result;
+}
