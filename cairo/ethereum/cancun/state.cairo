@@ -310,9 +310,7 @@ func get_transient_storage{poseidon_ptr: PoseidonBuiltin*, transient_storage: Tr
     let transient_storage_tries_dict_ptr = cast(
         transient_storage.value._tries.value.dict_ptr, DictAccess*
     );
-    with poseidon_ptr {
-        let (trie_ptr) = hashdict_get{dict_ptr=transient_storage_tries_dict_ptr}(1, &address.value);
-    }
+    let (trie_ptr) = hashdict_get{dict_ptr=transient_storage_tries_dict_ptr}(1, &address.value);
 
     // If no storage trie is associated to that address, return the 0 default
     if (trie_ptr == 0) {
