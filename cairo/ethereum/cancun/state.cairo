@@ -406,3 +406,22 @@ func set_transient_storage{poseidon_ptr: PoseidonBuiltin*, transient_storage: Tr
 
     return ();
 }
+
+func account_has_code_or_nonce{poseidon_ptr: PoseidonBuiltin*, state: State}(
+    address: Address
+) -> bool {
+    let account = get_account(address);
+
+    if (account.value.nonce.value != 0) {
+        tempvar res = bool(1);
+        return res;
+    }
+
+    if (account.value.code.value.len != 0) {
+        tempvar res = bool(1);
+        return res;
+    }
+
+    tempvar res = bool(0);
+    return res;
+}
