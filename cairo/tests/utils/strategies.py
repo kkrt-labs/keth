@@ -1,7 +1,15 @@
 # ruff: noqa: E402
 
 import os
-from typing import ForwardRef, Sequence, TypeAlias, Union, get_args, get_origin
+from typing import (
+    ForwardRef,
+    Optional,
+    Sequence,
+    TypeAlias,
+    Union,
+    get_args,
+    get_origin,
+)
 from unittest.mock import patch
 
 from eth_keys.datatypes import PrivateKey
@@ -313,7 +321,7 @@ state = st.lists(address, min_size=0, max_size=MAX_ADDRESS_SET_SIZE).flatmap(
     lambda addresses: st.builds(
         State,
         _main_trie=st.builds(
-            Trie[Address, Account],
+            Trie[Address, Optional[Account]],
             secured=st.just(True),
             default=st.none(),
             _data=st.fixed_dictionaries(
