@@ -11,6 +11,7 @@ from ethereum.cancun.state import (
     account_exists,
     account_exists_and_is_empty,
     account_has_code_or_nonce,
+    begin_transaction,
     destroy_account,
     destroy_storage,
     get_account,
@@ -25,6 +26,7 @@ from ethereum.cancun.state import (
     set_storage,
     set_transient_storage,
 )
+from tests.utils.args_gen import State, TransientStorage
 from tests.utils.strategies import address, bytes32, state, transient_storage
 
 
@@ -244,4 +246,19 @@ class TestTransientStorage:
             value,
         )
         set_transient_storage(transient_storage, address, key, value)
+        assert transient_storage_cairo == transient_storage
+
+
+class TestBeginTransaction:
+    @given(state=..., transient_storage=...)
+    def test_begin_transaction(
+        self, cairo_run_py, state: State, transient_storage: TransientStorage
+    ):
+        state_cairo, transient_storage_cairo = cairo_run_py(
+            "begin_transaction",
+            state,
+            transient_storage,
+        )
+        begin_transaction(state, transient_storage)
+        assert state_cairo == state
         assert transient_storage_cairo == transient_storage
