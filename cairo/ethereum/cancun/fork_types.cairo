@@ -4,6 +4,7 @@ from ethereum_types.bytes import Bytes20, Bytes32, Bytes256, Bytes, BytesStruct,
 from ethereum.utils.bytes import Bytes__eq__
 from ethereum_types.numeric import Uint, U256, U256Struct, bool
 from ethereum.crypto.hash import Hash32
+from ethereum.utils.numeric import is_zero
 
 using Address = Bytes20;
 
@@ -126,6 +127,16 @@ func EMPTY_ACCOUNT() -> Account {
 }
 
 func Account__eq__(a: Account, b: Account) -> bool {
+    if (cast(a.value, felt) == 0) {
+        let b_is_none = is_zero(cast(b.value, felt));
+        let res = bool(b_is_none);
+        return res;
+    }
+    if (cast(b.value, felt) == 0) {
+        let a_is_none = is_zero(cast(a.value, felt));
+        let res = bool(a_is_none);
+        return res;
+    }
     if (a.value.nonce.value != b.value.nonce.value) {
         tempvar res = bool(0);
         return res;

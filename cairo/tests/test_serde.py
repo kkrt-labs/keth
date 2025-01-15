@@ -234,6 +234,7 @@ class TestSerde:
             Trie[Bytes32, U256],
             Trie[Address, Optional[Account]],
             TransientStorage,
+            Mapping[Address, Trie[Bytes32, U256]],
             State,
             Tuple[
                 Trie[Address, Optional[Account]], Mapping[Address, Trie[Bytes32, U256]]

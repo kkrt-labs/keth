@@ -67,6 +67,7 @@ from starkware.cairo.lang.vm.crypto import poseidon_hash_many
 from starkware.cairo.lang.vm.memory_dict import UnknownMemoryError
 from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 
+from ethereum.cancun.state import State
 from ethereum.cancun.vm.exceptions import InvalidOpcode
 from ethereum.crypto.hash import Hash32
 from tests.utils.args_gen import Memory, Stack, to_python_type, vm_exception_classes
@@ -358,6 +359,19 @@ class Serde:
             # Adjust int fields if they exceed 2**128 by subtracting DEFAULT_PRIME
             # and filter out the NO_ERROR_FLAG, replacing it with None
 
+            if python_cls is State:
+                if (
+                    value["_storage_tries"] is not None
+                    and value["_storage_tries"] != {}
+                ):
+                    # First collect all keys with empty tries
+                    keys_to_delete = [
+                        k for k, v in value["_storage_tries"].items() if v._data == {}
+                    ]
+                    # Cannot iterate over a dict while deleting items from it
+                    for k in keys_to_delete:
+                        del value["_storage_tries"][k]
+
             adjusted_value = {
                 k: (
                     None
@@ -502,30 +516,34 @@ class Serde:
                 ]:
                     hashed_key = poseidon_hash_many(key)
                     preimage = b"".join(felt.to_bytes(16, "little") for felt in key)
-                    # Other syntaxes are eagerly evaluated, and thus throw a key error.
-                    serialized_dict[preimage] = (
-                        dict_segment_data[hashed_key]
-                        if dict_segment_data.get(hashed_key) is not None
-                        else serialized_original[preimage]
+
+                    value = dict_segment_data.get(
+                        hashed_key, serialized_original.get(preimage)
                     )
+
+                    # If `value` is None, it means the dict tracker has more
+                    # data than the corresponding `dict_segment`.
+                    # This can occur when serializing snapshots of dictionaries.
+                    if value is not None:
+                        serialized_dict[preimage] = value
 
                 elif python_key_type == U256:
                     hashed_key = poseidon_hash_many(key)
                     preimage = sum(felt * 2 ** (128 * i) for i, felt in enumerate(key))
-                    serialized_dict[preimage] = (
-                        dict_segment_data[hashed_key]
-                        if dict_segment_data.get(hashed_key) is not None
-                        else serialized_original[preimage]
+                    value = dict_segment_data.get(
+                        hashed_key, serialized_original.get(preimage)
                     )
+                    if value is not None:
+                        serialized_dict[preimage] = value
 
                 elif python_key_type == Bytes:
                     hashed_key = poseidon_hash_many(key)
                     preimage = bytes(list(key))
-                    serialized_dict[preimage] = (
-                        dict_segment_data[hashed_key]
-                        if dict_segment_data.get(hashed_key) is not None
-                        else serialized_original[preimage]
+                    value = dict_segment_data.get(
+                        hashed_key, serialized_original.get(preimage)
                     )
+                    if value is not None:
+                        serialized_dict[preimage] = value
                 else:
                     raise ValueError(f"Unsupported key type: {python_key_type}")
 
@@ -560,11 +578,12 @@ class Serde:
                 if is_null_pointer:
                     continue
 
-                serialized_dict[preimage] = (
-                    dict_segment_data.get(preimage)
-                    if dict_segment_data.get(preimage) is not None
-                    else serialized_original[preimage]
+                value = dict_segment_data.get(
+                    preimage, serialized_original.get(preimage)
                 )
+
+                if value is not None:
+                    serialized_dict[preimage] = value
 
         if origin_cls is set:
             return set(serialized_dict.keys())

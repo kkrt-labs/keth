@@ -1,8 +1,15 @@
 # ruff: noqa: E402
 
 import os
-from collections import defaultdict
-from typing import ForwardRef, Sequence, TypeAlias, Union, get_args, get_origin
+from typing import (
+    ForwardRef,
+    Optional,
+    Sequence,
+    TypeAlias,
+    Union,
+    get_args,
+    get_origin,
+)
 from unittest.mock import patch
 
 from eth_keys.datatypes import PrivateKey
@@ -110,7 +117,11 @@ def trie_strategy(thing):
     default_strategy = (
         st.none()
         if value_type_origin is Union and get_args(value_type)[1] is type(None)
-        else st.from_type(value_type)
+        else (
+            st.just(value_type(0))
+            if value_type is U256
+            else st.nothing()  # No other type is accepted
+        )
     )
 
     # Create a strategy for non-default values
@@ -310,7 +321,7 @@ state = st.lists(address, min_size=0, max_size=MAX_ADDRESS_SET_SIZE).flatmap(
     lambda addresses: st.builds(
         State,
         _main_trie=st.builds(
-            Trie[Address, Account],
+            Trie[Address, Optional[Account]],
             secured=st.just(True),
             default=st.none(),
             _data=st.fixed_dictionaries(
@@ -319,22 +330,12 @@ state = st.lists(address, min_size=0, max_size=MAX_ADDRESS_SET_SIZE).flatmap(
         ),
         _storage_tries=st.fixed_dictionaries(
             {
-                address: st.builds(
-                    Trie[Bytes32, U256],
-                    secured=st.just(True),
-                    default=st.just(U256(0)),
-                    _data=st.dictionaries(
-                        keys=bytes32,
-                        values=uint256,
-                        max_size=MAX_STORAGE_KEY_SET_SIZE,
-                    ),
+                address: trie_strategy(Trie[Bytes32, U256]).filter(
+                    lambda t: bool(t._data)
                 )
                 for address in addresses
             }
-            # In case the dict is empty, we use 0 as the default value
-            # To avoid panic in the dict.cairo:hashdict_read hint
-            # `ids.value = dict_tracker.data.get(preimage, dict_tracker.data.default_factory())`
-        ).map(lambda d: defaultdict(lambda: 0, d)),
+        ),
         _snapshots=st.just([]),
         created_accounts=st.just(set()),
     )
@@ -416,3 +417,4 @@ def register_type_strategies():
     st.register_type_strategy(Memory, memory)
     st.register_type_strategy(Evm, evm)
     st.register_type_strategy(tuple, tuple_strategy)
+    st.register_type_strategy(State, state)

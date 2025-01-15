@@ -174,7 +174,11 @@ class TestTrieOperations:
 
     @given(trie=..., key=..., value=...)
     def test_trie_set_TrieAddressAccount(
-        self, cairo_run, trie: Trie[Address, Account], key: Address, value: Account
+        self,
+        cairo_run,
+        trie: Trie[Address, Optional[Account]],
+        key: Address,
+        value: Account,
     ):
         cairo_trie = cairo_run("trie_set_TrieAddressAccount", trie, key, value)
         trie_set(trie, key, value)
