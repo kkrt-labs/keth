@@ -218,6 +218,8 @@ func set_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(
     }(1, &address.value);
 
     if (cast(storage_trie_pointer, felt) == 0) {
+        // dict_new expects an initial_dict hint argument.
+        %{ initial_dict = {} %}
         let (new_mapping_dict_ptr) = dict_new();
         tempvar _storage_trie = new TrieBytes32U256Struct(
             secured=bool(1),
