@@ -447,15 +447,7 @@ func trie_set_TrieAddressAccount{poseidon_ptr: PoseidonBuiltin*, trie: TrieAddre
     let dict_ptr_start = cast(trie.value._data.value.dict_ptr_start, DictAccess*);
     let dict_ptr = cast(trie.value._data.value.dict_ptr, DictAccess*);
 
-    // If the trie's default value is None (i.e. a null pointer), we compare `value` with the null pointer.
-    // As otherwise, Account__eq__ will panic.
-    if (cast(trie.value.default.value, felt) == 0) {
-        let value_is_null = is_zero(cast(value.value, felt));
-        tempvar is_default = bool(value_is_null);
-    } else {
-        let is_default = Account__eq__(value, trie.value.default);
-        tempvar is_default = is_default;
-    }
+    let is_default = Account__eq__(value, trie.value.default);
 
     with dict_ptr_start, dict_ptr {
         let (keys) = alloc();
