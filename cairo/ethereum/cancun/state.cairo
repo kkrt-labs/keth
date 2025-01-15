@@ -239,12 +239,9 @@ func set_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(
         );
 
         tempvar storage_trie_pointer = storage_trie_pointer;
-        tempvar storage_tries_dict_ptr = storage_tries_dict_ptr;
     } else {
         tempvar storage_trie_pointer = storage_trie_pointer;
-        tempvar storage_tries_dict_ptr = storage_tries_dict_ptr;
     }
-    let storage_trie_pointer = storage_trie_pointer;
     let storage_tries_dict_ptr = storage_tries_dict_ptr;
 
     let trie_struct = cast(storage_trie_pointer, TrieBytes32U256Struct*);
