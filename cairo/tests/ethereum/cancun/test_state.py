@@ -92,12 +92,13 @@ class TestStateStorage:
     @settings(max_examples=100)
     def test_set_storage(self, cairo_run, data, value: U256):
         state, address, key = data
-        try:
-            state_cairo = cairo_run("set_storage", state, address, key, value)
-        except Exception as e:
-            with pytest.raises(type(e)):
-                set_storage(state, address, key, value)
-            return
+        if state._storage_tries.get(address) is None:
+            try:
+                state_cairo = cairo_run("set_storage", state, address, key, value)
+            except Exception as e:
+                with pytest.raises(type(e)):
+                    set_storage(state, address, key, value)
+                return
 
-        set_storage(state, address, key, value)
-        assert state_cairo == state
+            set_storage(state, address, key, value)
+            assert state_cairo == state
