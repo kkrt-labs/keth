@@ -34,6 +34,7 @@ from ethereum.cancun.fork_types import (
     Account__eq__,
     AccountStruct,
     Address,
+    OptionalAccount,
     Bytes32U256DictAccess,
     MappingAddressAccount,
     MappingAddressAccountStruct,
@@ -167,14 +168,14 @@ struct Node {
     value: NodeEnum*,
 }
 
-struct TrieAddressAccountStruct {
+struct TrieAddressOptionalAccountStruct {
     secured: bool,
-    default: Account,
+    default: OptionalAccount,
     _data: MappingAddressAccount,
 }
 
-struct TrieAddressAccount {
-    value: TrieAddressAccountStruct*,
+struct TrieAddressOptionalAccount {
+    value: TrieAddressOptionalAccountStruct*,
 }
 
 struct TrieBytes32U256Struct {
@@ -334,7 +335,8 @@ func encode_node{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: Kecc
 // @notice Copies the trie to a new segment.
 // @dev This function simply creates a new segment for the new dict and associates it with the
 // dict_tracker of the source dict.
-func copy_trieAddressAccount{range_check_ptr, trie: TrieAddressAccount}() -> TrieAddressAccount {
+func copy_TrieAddressOptionalAccount{range_check_ptr, trie: TrieAddressOptionalAccount}(
+    ) -> TrieAddressOptionalAccount {
     alloc_locals;
     // TODO: soundness
     // We need to ensure it is sound when finalizing that copy.
@@ -355,8 +357,8 @@ func copy_trieAddressAccount{range_check_ptr, trie: TrieAddressAccount}() -> Tri
         ids.new_dict_ptr = __dict_manager.new_dict(segments, copied_data)
     %}
 
-    tempvar res = TrieAddressAccount(
-        new TrieAddressAccountStruct(
+    tempvar res = TrieAddressOptionalAccount(
+        new TrieAddressOptionalAccountStruct(
             trie.value.secured,
             trie.value.default,
             MappingAddressAccount(
@@ -393,9 +395,9 @@ func copy_trieBytes32U256{range_check_ptr, trie: TrieBytes32U256}() -> TrieBytes
     return res;
 }
 
-func trie_get_TrieAddressAccount{poseidon_ptr: PoseidonBuiltin*, trie: TrieAddressAccount}(
-    key: Address
-) -> Account {
+func trie_get_TrieAddressOptionalAccount{
+    poseidon_ptr: PoseidonBuiltin*, trie: TrieAddressOptionalAccount
+}(key: Address) -> OptionalAccount {
     alloc_locals;
     let dict_ptr = cast(trie.value._data.value.dict_ptr, DictAccess*);
 
@@ -412,10 +414,10 @@ func trie_get_TrieAddressAccount{poseidon_ptr: PoseidonBuiltin*, trie: TrieAddre
             trie.value._data.value.dict_ptr_start, new_dict_ptr, original_mapping
         ),
     );
-    tempvar trie = TrieAddressAccount(
-        new TrieAddressAccountStruct(trie.value.secured, trie.value.default, mapping)
+    tempvar trie = TrieAddressOptionalAccount(
+        new TrieAddressOptionalAccountStruct(trie.value.secured, trie.value.default, mapping)
     );
-    tempvar res = Account(cast(pointer, AccountStruct*));
+    tempvar res = OptionalAccount(cast(pointer, AccountStruct*));
     return res;
 }
 
@@ -441,9 +443,9 @@ func trie_get_TrieBytes32U256{poseidon_ptr: PoseidonBuiltin*, trie: TrieBytes32U
     return res;
 }
 
-func trie_set_TrieAddressAccount{poseidon_ptr: PoseidonBuiltin*, trie: TrieAddressAccount}(
-    key: Address, value: Account
-) {
+func trie_set_TrieAddressOptionalAccount{
+    poseidon_ptr: PoseidonBuiltin*, trie: TrieAddressOptionalAccount
+}(key: Address, value: OptionalAccount) {
     let dict_ptr_start = cast(trie.value._data.value.dict_ptr_start, DictAccess*);
     let dict_ptr = cast(trie.value._data.value.dict_ptr, DictAccess*);
 
@@ -473,8 +475,8 @@ func trie_set_TrieAddressAccount{poseidon_ptr: PoseidonBuiltin*, trie: TrieAddre
             trie.value._data.value.original_mapping,
         ),
     );
-    tempvar trie = TrieAddressAccount(
-        new TrieAddressAccountStruct(trie.value.secured, trie.value.default, mapping)
+    tempvar trie = TrieAddressOptionalAccount(
+        new TrieAddressOptionalAccountStruct(trie.value.secured, trie.value.default, mapping)
     );
     return ();
 }

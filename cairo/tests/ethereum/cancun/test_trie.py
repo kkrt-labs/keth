@@ -155,10 +155,12 @@ class TestTrie:
 
 class TestTrieOperations:
     @given(trie=..., key=...)
-    def test_trie_get_TrieAddressAccount(
+    def test_trie_get_TrieAddressOptionalAccount(
         self, cairo_run, trie: Trie[Address, Optional[Account]], key: Address
     ):
-        [trie_cairo, result_cairo] = cairo_run("trie_get_TrieAddressAccount", trie, key)
+        [trie_cairo, result_cairo] = cairo_run(
+            "trie_get_TrieAddressOptionalAccount", trie, key
+        )
         result_py = trie_get(trie, key)
         assert result_cairo == result_py
         assert trie_cairo == trie
@@ -173,14 +175,14 @@ class TestTrieOperations:
         assert trie_cairo == trie
 
     @given(trie=..., key=..., value=...)
-    def test_trie_set_TrieAddressAccount(
+    def test_trie_set_TrieAddressOptionalAccount(
         self,
         cairo_run,
         trie: Trie[Address, Optional[Account]],
         key: Address,
         value: Account,
     ):
-        cairo_trie = cairo_run("trie_set_TrieAddressAccount", trie, key, value)
+        cairo_trie = cairo_run("trie_set_TrieAddressOptionalAccount", trie, key, value)
         trie_set(trie, key, value)
         assert cairo_trie == trie
 
@@ -196,7 +198,9 @@ class TestTrieOperations:
     def test_copy_trie_AddressAccount(
         self, cairo_run, trie: Trie[Address, Optional[Account]]
     ):
-        [original_trie, copied_trie] = cairo_run("copy_trieAddressAccount", trie)
+        [original_trie, copied_trie] = cairo_run(
+            "copy_TrieAddressOptionalAccount", trie
+        )
         trie_copy_py = copy_trie(trie)
         assert original_trie == trie
         assert copied_trie == trie_copy_py

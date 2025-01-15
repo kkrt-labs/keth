@@ -266,6 +266,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "cancun", "fork_types", "SetAddress"): Set[Address],
     ("ethereum", "cancun", "fork_types", "Root"): Root,
     ("ethereum", "cancun", "fork_types", "Account"): Account,
+    ("ethereum", "cancun", "fork_types", "OptionalAccount"): Optional[Account],
     ("ethereum", "cancun", "fork_types", "Bloom"): Bloom,
     ("ethereum", "cancun", "fork_types", "VersionedHash"): VersionedHash,
     ("ethereum", "cancun", "fork_types", "TupleVersionedHash"): Tuple[
@@ -311,7 +312,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "cancun", "trie", "BranchNode"): BranchNode,
     ("ethereum", "cancun", "trie", "InternalNode"): InternalNode,
     ("ethereum", "cancun", "trie", "Node"): Node,
-    ("ethereum", "cancun", "trie", "TrieAddressAccount"): Trie[
+    ("ethereum", "cancun", "trie", "TrieAddressOptionalAccount"): Trie[
         Address, Optional[Account]
     ],
     ("ethereum", "cancun", "trie", "TrieBytes32U256"): Trie[Bytes32, U256],
@@ -335,13 +336,13 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
         "ethereum",
         "cancun",
         "state",
-        "TupleTrieAddressAccountMappingAddressTrieBytes32U256",
+        "TupleTrieAddressOptionalAccountMappingAddressTrieBytes32U256",
     ): Tuple[Trie[Address, Optional[Account]], Mapping[Address, Trie[Bytes32, U256]]],
     (
         "ethereum",
         "cancun",
         "state",
-        "ListTupleTrieAddressAccountMappingAddressTrieBytes32U256",
+        "ListTupleTrieAddressOptionalAccountMappingAddressTrieBytes32U256",
     ): List[
         Tuple[Trie[Address, Optional[Account]], Mapping[Address, Trie[Bytes32, U256]]]
     ],

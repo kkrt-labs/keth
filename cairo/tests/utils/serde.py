@@ -160,6 +160,25 @@ class Serde:
             python_cls, *annotations = get_args(python_cls)
             origin_cls = get_origin(python_cls)
 
+        # arg_type = Optional[T] <=> arg_type_origin = Union[T, None]
+        if origin_cls is Union and get_args(python_cls)[1] is type(None):
+            # Get the value pointer: if it's zero, return None.
+            # Otherwise, consider this the non-pointer type: get the struct definition, and remove
+            # the "Struct" suffix from the type name to get the non-optional type path.
+            # Now that we know it's not an optional type, we can serialize it as usual.
+            value_ptr = self.serialize_pointers(path, ptr)["value"]
+            if value_ptr is None:
+                return None
+            value_struct_path = (
+                get_struct_definition(self.program, path)
+                .members["value"]
+                .cairo_type.pointee.scope.path
+            )
+            value_path = value_struct_path[:-1] + (
+                value_struct_path[-1].removesuffix("Struct"),
+            )
+            return self.serialize_type(value_path, ptr)
+
         if origin_cls is Union:
             value_ptr = self.serialize_pointers(path, ptr)["value"]
             if value_ptr is None:
@@ -176,6 +195,7 @@ class Serde:
                 if value != 0 and value is not None
             }
             if len(variant_keys) != 1:
+                breakpoint()
                 raise ValueError(
                     f"Expected 1 item only to be relocatable in enum, got {len(variant_keys)}"
                 )
