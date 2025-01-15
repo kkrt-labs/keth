@@ -436,3 +436,32 @@ func account_exists{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Addre
     tempvar result = bool(1);
     return result;
 }
+
+func is_account_empty{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Address) -> bool {
+    // Get the account at the address
+    let account = get_account(address);
+
+    // Check if nonce is 0, code is empty, and balance is 0
+    if (account.value.nonce.value != 0) {
+        tempvar res = bool(0);
+        return res;
+    }
+
+    if (account.value.code.value.len != 0) {
+        tempvar res = bool(0);
+        return res;
+    }
+
+    if (account.value.balance.value.low != 0) {
+        tempvar res = bool(0);
+        return res;
+    }
+
+    if (account.value.balance.value.high != 0) {
+        tempvar res = bool(0);
+        return res;
+    }
+
+    tempvar res = bool(1);
+    return res;
+}
