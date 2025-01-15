@@ -203,6 +203,8 @@ func set_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(
     // Assert that the account exists
     let account = get_account_optional(address);
     if (cast(account.value, felt) == 0) {
+        // TODO: think about which cases lead to this error and decide on the correct type of exception to raise
+        // perhaps AssertionError
         with_attr error_message("Cannot set storage on non-existent account") {
             assert 0 = 1;
         }
