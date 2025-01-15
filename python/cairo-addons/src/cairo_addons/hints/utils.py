@@ -55,7 +55,7 @@ def b_le_a(
 
 
 @register_hint
-def value_set_or_zero(
+def fp_plus_2_or_0(
     dict_manager: DictManager,
     ids: VmConsts,
     segments: MemorySegmentManager,

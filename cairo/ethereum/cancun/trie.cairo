@@ -951,7 +951,7 @@ func _get_branches{poseidon_ptr: PoseidonBuiltin*}(obj: MappingBytesBytes, level
         assert value = value_15;
         assert value_set = 1;
     }
-    %{ value_set_or_zero %}
+    %{ fp_plus_2_or_0 %}
     if (value_set != 1) {
         let (data: felt*) = alloc();
         tempvar empty_bytes = Bytes(new BytesStruct(data, 0));
