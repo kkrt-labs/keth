@@ -518,8 +518,8 @@ class Serde:
                     preimage = b"".join(felt.to_bytes(16, "little") for felt in key)
 
                     value = dict_segment_data.get(
-                        hashed_key
-                    ) or serialized_original.get(preimage)
+                        hashed_key, serialized_original.get(preimage)
+                    )
 
                     # If `value` is None, it means the dict tracker has more
                     # data than the corresponding `dict_segment`.
@@ -531,8 +531,8 @@ class Serde:
                     hashed_key = poseidon_hash_many(key)
                     preimage = sum(felt * 2 ** (128 * i) for i, felt in enumerate(key))
                     value = dict_segment_data.get(
-                        hashed_key
-                    ) or serialized_original.get(preimage)
+                        hashed_key, serialized_original.get(preimage)
+                    )
                     if value is not None:
                         serialized_dict[preimage] = value
 
@@ -540,8 +540,8 @@ class Serde:
                     hashed_key = poseidon_hash_many(key)
                     preimage = bytes(list(key))
                     value = dict_segment_data.get(
-                        hashed_key
-                    ) or serialized_original.get(preimage)
+                        hashed_key, serialized_original.get(preimage)
+                    )
                     if value is not None:
                         serialized_dict[preimage] = value
                 else:
@@ -578,9 +578,10 @@ class Serde:
                 if is_null_pointer:
                     continue
 
-                value = dict_segment_data.get(preimage) or serialized_original.get(
-                    preimage
+                value = dict_segment_data.get(
+                    preimage, serialized_original.get(preimage)
                 )
+
                 if value is not None:
                     serialized_dict[preimage] = value
 
