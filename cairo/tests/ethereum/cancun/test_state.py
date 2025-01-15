@@ -54,27 +54,24 @@ class TestStateAccounts:
     @given(data=state_and_address_and_optional_key())
     def test_get_account(self, cairo_run, data):
         state, address = data
-        [state_cairo, result_cairo] = cairo_run("get_account", state, address)
-        result_py = get_account(state, address)
-        assert result_cairo == result_py
+        state_cairo, result_cairo = cairo_run("get_account", state, address)
+        assert result_cairo == get_account(state, address)
         assert state_cairo == state
 
     @given(data=state_and_address_and_optional_key())
     def test_get_account_optional(self, cairo_run, data):
         state, address = data
-        [state_cairo, result_cairo] = cairo_run("get_account_optional", state, address)
-        result_py = get_account_optional(state, address)
-        assert result_cairo == result_py
+        state_cairo, result_cairo = cairo_run("get_account_optional", state, address)
+        assert result_cairo == get_account_optional(state, address)
         assert state_cairo == state
 
     @given(data=state_and_address_and_optional_key())
     def test_account_has_code_or_nonce(self, cairo_run, data):
         state, address = data
-        [state_cairo, result_cairo] = cairo_run(
+        state_cairo, result_cairo = cairo_run(
             "account_has_code_or_nonce", state, address
         )
-        result_py = account_has_code_or_nonce(state, address)
-        assert result_cairo == result_py
+        assert result_cairo == account_has_code_or_nonce(state, address)
         assert state_cairo == state
 
 
@@ -117,14 +114,13 @@ class TestTransientStorage:
         address: Address,
         key: Bytes32,
     ):
-        [transient_storage_cairo, result_cairo] = cairo_run(
+        transient_storage_cairo, result_cairo = cairo_run(
             "get_transient_storage",
             transient_storage,
             address,
             key,
         )
-        result_py = get_transient_storage(transient_storage, address, key)
-        assert result_cairo == result_py
+        assert result_cairo == get_transient_storage(transient_storage, address, key)
         assert transient_storage_cairo == transient_storage
 
     @given(
