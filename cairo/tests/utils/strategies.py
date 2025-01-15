@@ -232,8 +232,8 @@ message_lite = st.builds(
 # Using this list instead of the hash32 strategy to avoid data_to_large errors
 BLOCK_HASHES_LIST = [Hash32(Bytes32(bytes([i] * 32))) for i in range(256)]
 
-transient_storage_lite = st.lists(
-    address, max_size=MAX_ADDRESS_TRANSIENT_STORAGE_SIZE
+transient_storage = st.lists(
+    address, max_size=MAX_ADDRESS_TRANSIENT_STORAGE_SIZE, unique=True
 ).flatmap(
     lambda addresses: st.builds(
         TransientStorage,
@@ -282,7 +282,7 @@ environment_lite = st.integers(min_value=0).flatmap(  # Generate block number fi
         blob_versioned_hashes=st.lists(
             st.from_type(VersionedHash), min_size=0, max_size=5
         ).map(tuple),
-        transient_storage=transient_storage_lite,
+        transient_storage=transient_storage,
     )
 )
 
@@ -457,3 +457,4 @@ def register_type_strategies():
     st.register_type_strategy(Evm, evm)
     st.register_type_strategy(tuple, tuple_strategy)
     st.register_type_strategy(State, state)
+    st.register_type_strategy(TransientStorage, transient_storage)

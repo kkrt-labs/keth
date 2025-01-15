@@ -67,7 +67,7 @@ from starkware.cairo.lang.vm.crypto import poseidon_hash_many
 from starkware.cairo.lang.vm.memory_dict import UnknownMemoryError
 from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 
-from ethereum.cancun.state import State
+from ethereum.cancun.state import State, TransientStorage
 from ethereum.cancun.vm.exceptions import InvalidOpcode
 from ethereum.crypto.hash import Hash32
 from tests.utils.args_gen import Memory, Stack, to_python_type, vm_exception_classes
@@ -371,6 +371,16 @@ class Serde:
                     # Cannot iterate over a dict while deleting items from it
                     for k in keys_to_delete:
                         del value["_storage_tries"][k]
+
+            if python_cls is TransientStorage:
+                if value["_tries"] is not None and value["_tries"] != {}:
+                    # First collect all keys with empty tries
+                    keys_to_delete = [
+                        k for k, v in value["_tries"].items() if v._data == {}
+                    ]
+                    # Cannot iterate over a dict while deleting items from it
+                    for k in keys_to_delete:
+                        del value["_tries"][k]
 
             adjusted_value = {
                 k: (
