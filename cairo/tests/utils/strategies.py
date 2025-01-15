@@ -233,7 +233,7 @@ message_lite = st.builds(
 BLOCK_HASHES_LIST = [Hash32(Bytes32(bytes([i] * 32))) for i in range(256)]
 
 transient_storage = st.lists(
-    address, max_size=MAX_ADDRESS_TRANSIENT_STORAGE_SIZE
+    address, max_size=MAX_ADDRESS_TRANSIENT_STORAGE_SIZE, unique=True
 ).flatmap(
     lambda addresses: st.builds(
         TransientStorage,
