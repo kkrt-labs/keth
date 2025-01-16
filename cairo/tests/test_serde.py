@@ -203,6 +203,7 @@ class TestSerde:
             Address,
             Root,
             Account,
+            Optional[Account],
             Bloom,
             VersionedHash,
             Tuple[VersionedHash, ...],

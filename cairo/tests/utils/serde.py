@@ -160,6 +160,16 @@ class Serde:
             python_cls, *annotations = get_args(python_cls)
             origin_cls = get_origin(python_cls)
 
+        # arg_type = Optional[T] <=> arg_type_origin = Union[T, None]
+        if origin_cls is Union and get_args(python_cls)[1] is type(None):
+            # Get the value pointer: if it's zero, return None.
+            # Otherwise, consider this the non-optional type:
+            value_ptr = self.serialize_pointers(path, ptr)["value"]
+            if value_ptr is None:
+                return None
+            python_cls = get_args(python_cls)[0]
+            origin_cls = get_origin(python_cls)
+
         if origin_cls is Union:
             value_ptr = self.serialize_pointers(path, ptr)["value"]
             if value_ptr is None:
@@ -176,6 +186,7 @@ class Serde:
                 if value != 0 and value is not None
             }
             if len(variant_keys) != 1:
+                breakpoint()
                 raise ValueError(
                     f"Expected 1 item only to be relocatable in enum, got {len(variant_keys)}"
                 )

@@ -85,6 +85,10 @@ struct Account {
     value: AccountStruct*,
 }
 
+struct OptionalAccount {
+    value: AccountStruct*,
+}
+
 struct AddressAccountDictAccess {
     key: Address,
     prev_value: Account,
@@ -130,7 +134,7 @@ func EMPTY_ACCOUNT() -> Account {
     return account;
 }
 
-func Account__eq__(a: Account, b: Account) -> bool {
+func Account__eq__(a: OptionalAccount, b: OptionalAccount) -> bool {
     if (cast(a.value, felt) == 0) {
         let b_is_none = is_zero(cast(b.value, felt));
         let res = bool(b_is_none);

@@ -7,6 +7,7 @@ from starkware.cairo.common.math import assert_not_zero
 from ethereum.cancun.fork_types import (
     Address,
     Account,
+    OptionalAccount,
     MappingAddressAccount,
     SetAddress,
     EMPTY_ACCOUNT,
@@ -16,13 +17,14 @@ from ethereum.cancun.fork_types import (
 )
 from ethereum.cancun.trie import (
     TrieBytes32U256,
-    TrieAddressAccount,
-    trie_get_TrieAddressAccount,
+    TrieAddressOptionalAccount,
+    trie_get_TrieAddressOptionalAccount,
+    trie_set_TrieAddressOptionalAccount,
     trie_get_TrieBytes32U256,
     trie_set_TrieBytes32U256,
     AccountStruct,
     TrieBytes32U256Struct,
-    TrieAddressAccountStruct,
+    TrieAddressOptionalAccountStruct,
 )
 from ethereum_types.bytes import Bytes, Bytes32
 from ethereum_types.numeric import U256, U256Struct, Bool, bool
@@ -47,22 +49,22 @@ struct MappingAddressTrieBytes32U256 {
     value: MappingAddressTrieBytes32U256Struct*,
 }
 
-struct TupleTrieAddressAccountMappingAddressTrieBytes32U256Struct {
-    trie_address_account: TrieAddressAccount,
+struct TupleTrieAddressOptionalAccountMappingAddressTrieBytes32U256Struct {
+    trie_address_account: TrieAddressOptionalAccount,
     mapping_address_trie: MappingAddressTrieBytes32U256,
 }
 
-struct TupleTrieAddressAccountMappingAddressTrieBytes32U256 {
-    value: TupleTrieAddressAccountMappingAddressTrieBytes32U256Struct*,
+struct TupleTrieAddressOptionalAccountMappingAddressTrieBytes32U256 {
+    value: TupleTrieAddressOptionalAccountMappingAddressTrieBytes32U256Struct*,
 }
 
-struct ListTupleTrieAddressAccountMappingAddressTrieBytes32U256Struct {
-    data: TupleTrieAddressAccountMappingAddressTrieBytes32U256*,
+struct ListTupleTrieAddressOptionalAccountMappingAddressTrieBytes32U256Struct {
+    data: TupleTrieAddressOptionalAccountMappingAddressTrieBytes32U256*,
     len: felt,
 }
 
-struct ListTupleTrieAddressAccountMappingAddressTrieBytes32U256 {
-    value: ListTupleTrieAddressAccountMappingAddressTrieBytes32U256Struct*,
+struct ListTupleTrieAddressOptionalAccountMappingAddressTrieBytes32U256 {
+    value: ListTupleTrieAddressOptionalAccountMappingAddressTrieBytes32U256Struct*,
 }
 
 struct TransientStorageSnapshotsStruct {
@@ -84,9 +86,9 @@ struct TransientStorage {
 }
 
 struct StateStruct {
-    _main_trie: TrieAddressAccount,
+    _main_trie: TrieAddressOptionalAccount,
     _storage_tries: MappingAddressTrieBytes32U256,
-    _snapshots: ListTupleTrieAddressAccountMappingAddressTrieBytes32U256,
+    _snapshots: ListTupleTrieAddressOptionalAccountMappingAddressTrieBytes32U256,
     created_accounts: SetAddress,
 }
 
@@ -94,13 +96,12 @@ struct State {
     value: StateStruct*,
 }
 
-using OptionalAccount = Account;
 func get_account_optional{poseidon_ptr: PoseidonBuiltin*, state: State}(
     address: Address
 ) -> OptionalAccount {
     let trie = state.value._main_trie;
     with trie {
-        let account = trie_get_TrieAddressAccount(address);
+        let account = trie_get_TrieAddressOptionalAccount(address);
     }
 
     return account;
@@ -114,7 +115,26 @@ func get_account{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Address)
         return empty_account;
     }
 
-    return account;
+    tempvar res = Account(account.value);
+    return res;
+}
+
+func set_account{poseidon_ptr: PoseidonBuiltin*, state: State}(
+    address: Address, account: OptionalAccount
+) {
+    let trie = state.value._main_trie;
+    with trie {
+        trie_set_TrieAddressOptionalAccount(address, account);
+    }
+    tempvar state = State(
+        new StateStruct(
+            _main_trie=trie,
+            _storage_tries=state.value._storage_tries,
+            _snapshots=state.value._snapshots,
+            created_accounts=state.value.created_accounts,
+        ),
+    );
+    return ();
 }
 
 func get_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(

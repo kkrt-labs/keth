@@ -1,3 +1,5 @@
+from typing import Optional
+
 import pytest
 from ethereum_types.bytes import Bytes32
 from ethereum_types.numeric import U256
@@ -5,7 +7,7 @@ from hypothesis import given
 from hypothesis import strategies as st
 from hypothesis.strategies import composite
 
-from ethereum.cancun.fork_types import Address
+from ethereum.cancun.fork_types import Account, Address
 from ethereum.cancun.state import (
     account_exists,
     account_has_code_or_nonce,
@@ -14,6 +16,7 @@ from ethereum.cancun.state import (
     get_storage,
     get_transient_storage,
     is_account_empty,
+    set_account,
     set_storage,
     set_transient_storage,
 )
@@ -65,6 +68,13 @@ class TestStateAccounts:
         state, address = data
         state_cairo, result_cairo = cairo_run("get_account_optional", state, address)
         assert result_cairo == get_account_optional(state, address)
+        assert state_cairo == state
+
+    @given(data=state_and_address_and_optional_key(), account=...)
+    def test_set_account(self, cairo_run, data, account: Optional[Account]):
+        state, address = data
+        state_cairo = cairo_run("set_account", state, address, account)
+        set_account(state, address, account)
         assert state_cairo == state
 
     @given(data=state_and_address_and_optional_key())
