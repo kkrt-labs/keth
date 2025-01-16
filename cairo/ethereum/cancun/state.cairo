@@ -14,6 +14,8 @@ from ethereum.cancun.fork_types import (
     MappingBytes32U256,
     MappingBytes32U256Struct,
     Bytes32U256DictAccess,
+    SetAddressDictAccess,
+    SetAddressStruct,
 )
 from ethereum.cancun.trie import (
     TrieBytes32U256,
@@ -484,4 +486,34 @@ func is_account_empty{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Add
 
     tempvar res = bool(1);
     return res;
+}
+
+func mark_account_created{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Address) {
+    alloc_locals;
+
+    let created_accounts = state.value.created_accounts;
+
+    let fp_and_pc = get_fp_and_pc();
+    local __fp__: felt* = fp_and_pc.fp_val;
+
+    let set_dict_ptr = cast(created_accounts.value.dict_ptr, DictAccess*);
+    hashdict_write{poseidon_ptr=poseidon_ptr, dict_ptr=set_dict_ptr}(1, &address.value, 1);
+
+    // Rebind state
+    tempvar new_created_account = SetAddress(
+        new SetAddressStruct(
+            dict_ptr_start=created_accounts.value.dict_ptr_start,
+            dict_ptr=cast(set_dict_ptr, SetAddressDictAccess*),
+        ),
+    );
+    tempvar state = State(
+        new StateStruct(
+            _main_trie=state.value._main_trie,
+            _storage_tries=state.value._storage_tries,
+            _snapshots=state.value._snapshots,
+            created_accounts=new_created_account,
+        ),
+    );
+
+    return ();
 }
