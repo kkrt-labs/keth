@@ -17,7 +17,7 @@ use cairo_vm::{
 
 use crate::vm::hints::Hint;
 
-pub const HINTS: &[fn() -> Hint] = &[bytes__eq__, b_le_a, value_set_or_zero, nibble_remainder];
+pub const HINTS: &[fn() -> Hint] = &[bytes__eq__, b_le_a, fp_plus_2_or_0, nibble_remainder];
 
 #[allow(non_snake_case)]
 pub fn bytes__eq__() -> Hint {
@@ -120,9 +120,9 @@ pub fn b_le_a() -> Hint {
     )
 }
 
-pub fn value_set_or_zero() -> Hint {
+pub fn fp_plus_2_or_0() -> Hint {
     Hint::new(
-        String::from("value_set_or_zero"),
+        String::from("fp_plus_2_or_0"),
         |vm: &mut VirtualMachine,
          _exec_scopes: &mut ExecutionScopes,
          _ids_data: &HashMap<String, HintReference>,

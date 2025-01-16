@@ -31,7 +31,7 @@ from ethereum.cancun.trie import (
 from ethereum_types.bytes import Bytes, Bytes32
 from ethereum_types.numeric import U256, U256Struct, Bool, bool
 
-from src.utils.dict import hashdict_read, hashdict_write, hashdict_get
+from src.utils.dict import hashdict_read, hashdict_write, hashdict_get, dict_new_empty
 
 struct AddressTrieBytes32U256DictAccess {
     key: Address,
@@ -247,9 +247,7 @@ func set_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(
     }(1, &address.value);
 
     if (storage_trie_pointer == 0) {
-        // dict_new expects an initial_dict hint argument.
-        %{ initial_dict = {} %}
-        let (new_mapping_dict_ptr) = dict_new();
+        let (new_mapping_dict_ptr) = dict_new_empty();
         tempvar new_storage_trie = new TrieBytes32U256Struct(
             secured=bool(1),
             default=U256(new U256Struct(0, 0)),
@@ -443,8 +441,7 @@ func set_transient_storage{poseidon_ptr: PoseidonBuiltin*, transient_storage: Tr
     let (trie_ptr) = hashdict_get{dict_ptr=transient_storage_tries_dict_ptr}(1, &address.value);
 
     if (trie_ptr == 0) {
-        %{ initial_dict = {} %}
-        let (empty_dict) = dict_new();
+        let (empty_dict) = dict_new_empty();
         tempvar new_trie = new TrieBytes32U256Struct(
             secured=Bool(1),
             default=U256(new U256Struct(0, 0)),

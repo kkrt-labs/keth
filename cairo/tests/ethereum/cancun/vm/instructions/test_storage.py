@@ -12,8 +12,6 @@ from tests.utils.args_gen import Evm
 from tests.utils.evm_builder import EvmBuilder
 from tests.utils.strategies import MAX_STORAGE_KEY_SET_SIZE
 
-pytestmark = pytest.mark.python_vm
-
 
 @composite
 def evm_with_accessed_storage_keys(draw):

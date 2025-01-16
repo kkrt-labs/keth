@@ -13,7 +13,9 @@ use cairo_vm::{
         hint_processor_definition::HintReference,
     },
     serde::deserialize_program::ApTracking,
-    types::{errors::math_errors::MathError,relocatable::MaybeRelocatable, exec_scope::ExecutionScopes},
+    types::{
+        errors::math_errors::MathError, exec_scope::ExecutionScopes, relocatable::MaybeRelocatable,
+    },
     vm::{
         errors::{hint_errors::HintError, memory_errors::MemoryError},
         vm_core::VirtualMachine,
@@ -24,8 +26,13 @@ use starknet_crypto::poseidon_hash_many;
 
 use crate::vm::hints::Hint;
 
-pub const HINTS: &[fn() -> Hint] =
-    &[hashdict_read, hashdict_write, get_preimage_for_key, copy_hashdict_tracker_entry];
+pub const HINTS: &[fn() -> Hint] = &[
+    hashdict_read,
+    hashdict_get,
+    hashdict_write,
+    get_preimage_for_key,
+    copy_hashdict_tracker_entry,
+];
 
 pub fn hashdict_read() -> Hint {
     Hint::new(
@@ -52,9 +59,43 @@ pub fn hashdict_read() -> Hint {
 
             // Build and process compound key
             let dict_key = build_compound_key(vm, &key, key_len)?;
+
             tracker.get_value(&dict_key).and_then(|value| {
                 insert_value_from_var_name("value", value.clone(), vm, ids_data, ap_tracking)
             })
+        },
+    )
+}
+
+/// Same as above, but returns 0 if the key is not found and the dict is NOT a defaultdict.
+pub fn hashdict_get() -> Hint {
+    Hint::new(
+        String::from("hashdict_get"),
+        |vm: &mut VirtualMachine,
+         exec_scopes: &mut ExecutionScopes,
+         ids_data: &HashMap<String, HintReference>,
+         ap_tracking: &ApTracking,
+         _constants: &HashMap<String, Felt252>|
+         -> Result<(), HintError> {
+            // Get dictionary pointer and setup tracker
+            let dict_ptr = get_ptr_from_var_name("dict_ptr", vm, ids_data, ap_tracking)?;
+            let dict_manager_ref = exec_scopes.get_dict_manager()?;
+            let mut dict = dict_manager_ref.borrow_mut();
+            let tracker = dict.get_tracker_mut(dict_ptr)?;
+            tracker.current_ptr.offset += DICT_ACCESS_SIZE;
+
+            let key = get_ptr_from_var_name("key", vm, ids_data, ap_tracking)?;
+            let key_len_felt: Felt252 =
+                get_integer_from_var_name("key_len", vm, ids_data, ap_tracking)?;
+            let key_len: usize = key_len_felt
+                .try_into()
+                .map_err(|_| MathError::Felt252ToUsizeConversion(Box::new(key_len_felt)))?;
+
+            // Build and process compound key
+            let dict_key = build_compound_key(vm, &key, key_len)?;
+            let default_value = MaybeRelocatable::Int(0.into());
+            let prev_value = tracker.get_value(&dict_key).unwrap_or(&default_value);
+            insert_value_from_var_name("value", prev_value.clone(), vm, ids_data, ap_tracking)
         },
     )
 }
@@ -90,7 +131,8 @@ pub fn hashdict_write() -> Hint {
 
             // Update tracker and memory
             let tracker_dict = tracker.get_dictionary_ref();
-            let prev_value = tracker_dict.get(&dict_key).cloned().unwrap_or(MaybeRelocatable::Int(0.into()));
+            let prev_value =
+                tracker_dict.get(&dict_key).cloned().unwrap_or(MaybeRelocatable::Int(0.into()));
             tracker.insert_value(&dict_key, &new_value);
             vm.insert_value(dict_ptr_prev_value, prev_value)?;
 

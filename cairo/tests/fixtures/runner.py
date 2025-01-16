@@ -237,6 +237,8 @@ def _run_python_vm(cairo_program: Program, cairo_file, main_path, request):
         try:
             runner.run_until_pc(end, run_resources)
         except Exception as e:
+            if "An ASSERT_EQ instruction failed" in str(e):
+                raise AssertionError(e) from e
             raise Exception(str(e)) from e
 
         runner.end_run(disable_trace_padding=False)
@@ -452,7 +454,13 @@ def _run_rust_vm(
             entrypoint=cairo_program.get_label(entrypoint), stack=stack
         )
 
-        runner.run_until_pc(end, RustRunResources())
+        # Bind Cairo's ASSERT_EQ instruction to a Python exception
+        try:
+            runner.run_until_pc(end, RustRunResources())
+        except Exception as e:
+            if "An ASSERT_EQ instruction failed" in str(e):
+                raise AssertionError(e) from e
+
         cumulative_retdata_offsets = serde.get_offsets(return_data_types)
         first_return_data_offset = (
             cumulative_retdata_offsets[0] if cumulative_retdata_offsets else 0

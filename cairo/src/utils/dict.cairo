@@ -104,16 +104,7 @@ func hashdict_get{poseidon_ptr: PoseidonBuiltin*, dict_ptr: DictAccess*}(
     }
 
     local value;
-    %{
-        from collections import defaultdict
-        dict_tracker = __dict_manager.get_tracker(ids.dict_ptr)
-        dict_tracker.current_ptr += ids.DictAccess.SIZE
-        preimage = tuple([memory[ids.key + i] for i in range(ids.key_len)])
-        if isinstance(dict_tracker.data, defaultdict):
-            ids.value = dict_tracker.data[preimage]
-        else:
-            ids.value = dict_tracker.data.get(preimage, 0)
-    %}
+    %{ hashdict_get %}
     dict_ptr.key = felt_key;
     dict_ptr.prev_value = value;
     dict_ptr.new_value = value;

@@ -22,6 +22,25 @@ def hashdict_read(
 
 
 @register_hint
+def hashdict_get(
+    dict_manager: DictManager,
+    ids: VmConsts,
+    segments: MemorySegmentManager,
+    memory: MemoryDict,
+    ap: RelocatableValue,
+) -> int:
+    from collections import defaultdict
+
+    dict_tracker = dict_manager.get_tracker(ids.dict_ptr)
+    dict_tracker.current_ptr += ids.DictAccess.SIZE
+    preimage = tuple([memory[ids.key + i] for i in range(ids.key_len)])
+    if isinstance(dict_tracker.data, defaultdict):
+        ids.value = dict_tracker.data[preimage]
+    else:
+        ids.value = dict_tracker.data.get(preimage, 0)
+
+
+@register_hint
 def hashdict_write(
     dict_manager: DictManager,
     ids: VmConsts,
@@ -30,6 +49,7 @@ def hashdict_write(
     ap: RelocatableValue,
 ) -> int:
     from collections import defaultdict
+
     dict_tracker = dict_manager.get_tracker(ids.dict_ptr)
     dict_tracker.current_ptr += ids.DictAccess.SIZE
     preimage = tuple([memory[ids.key + i] for i in range(ids.key_len)])

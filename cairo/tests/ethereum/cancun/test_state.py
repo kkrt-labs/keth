@@ -26,8 +26,6 @@ from ethereum.cancun.state import (
 from tests.utils.args_gen import TransientStorage
 from tests.utils.strategies import address, bytes32, state, transient_storage
 
-pytestmark = pytest.mark.python_vm
-
 
 @composite
 def state_and_address_and_optional_key(
