@@ -330,7 +330,7 @@ func destroy_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Addr
     }
 
     // del state._storage_tries[address] is equivalent to setting the value to 0
-    hashdict_write{poseidon_ptr=poseidon_ptr, dict_ptr=storage_tries_dict_ptr}(
+    hashdict_write{dict_ptr=storage_tries_dict_ptr}(
         1, &address.value, 0
     );
 
