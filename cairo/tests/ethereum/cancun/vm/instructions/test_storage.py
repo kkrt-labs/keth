@@ -7,7 +7,7 @@ from hypothesis import given
 from hypothesis import strategies as st
 from hypothesis.strategies import composite
 
-from ethereum.cancun.vm.instructions.storage import sload, tload
+from ethereum.cancun.vm.instructions.storage import sload, tload, tstore
 from tests.utils.args_gen import Evm
 from tests.utils.evm_builder import EvmBuilder
 from tests.utils.strategies import MAX_STORAGE_KEY_SET_SIZE
@@ -57,4 +57,15 @@ class TestStorage:
             return
 
         tload(evm)
+        assert evm == cairo_evm
+
+    @given(evm=evm_with_accessed_storage_keys())
+    def test_tstore(self, cairo_run, evm: Evm):
+        try:
+            cairo_evm = cairo_run("tstore", evm)
+        except Exception as cairo_error:
+            with pytest.raises(type(cairo_error)):
+                tstore(evm)
+            return
+        tstore(evm)
         assert evm == cairo_evm

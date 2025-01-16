@@ -244,6 +244,7 @@ transient_storage = st.lists(
         TransientStorage,
         _tries=st.fixed_dictionaries(
             {
+                # min_size = 1 because empty tries are deleted from the Dict[Address,Trie] in EELS
                 address: trie_strategy(Trie[Bytes32, U256], min_size=1)
                 for address in addresses
             }
