@@ -149,7 +149,7 @@ class TestTrieOperations:
         def test_trie_get_TrieAddressAccount(
             self, cairo_run, trie: Trie[Address, Optional[Account]], key: Address
         ):
-            [trie_cairo, result_cairo] = cairo_run(
+            trie_cairo, result_cairo = cairo_run(
                 "trie_get_TrieAddressAccount", trie, key
             )
             result_py = trie_get(trie, key)
@@ -160,24 +160,23 @@ class TestTrieOperations:
         def test_trie_get_TrieBytes32U256(
             self, cairo_run, trie: Trie[Bytes32, U256], key: Bytes32
         ):
-            [trie_cairo, result_cairo] = cairo_run(
-                "trie_get_TrieBytes32U256", trie, key
-            )
+            trie_cairo, result_cairo = cairo_run("trie_get_TrieBytes32U256", trie, key)
             result_py = trie_get(trie, key)
             assert result_cairo == result_py
             assert trie_cairo == trie
 
-    @given(trie=..., key=..., value=...)
-    def test_trie_set_TrieAddressOptionalAccount(
-        self,
-        cairo_run,
-        trie: Trie[Address, Optional[Account]],
-        key: Address,
-        value: Account,
-    ):
-        cairo_trie = cairo_run("trie_set_TrieAddressOptionalAccount", trie, key, value)
-        trie_set(trie, key, value)
-        assert cairo_trie == trie
+    class TestSet:
+        @given(trie=..., key=..., value=...)
+        def test_trie_set_TrieAddressAccount(
+            self,
+            cairo_run,
+            trie: Trie[Address, Optional[Account]],
+            key: Address,
+            value: Account,
+        ):
+            cairo_trie = cairo_run("trie_set_TrieAddressAccount", trie, key, value)
+            trie_set(trie, key, value)
+            assert cairo_trie == trie
 
         @given(trie=..., key=..., value=...)
         def test_trie_set_TrieBytes32U256(
@@ -192,13 +191,16 @@ class TestTrieOperations:
         def test_copy_trie_AddressAccount(
             self, cairo_run, trie: Trie[Address, Optional[Account]]
         ):
-            [original_trie, copied_trie] = cairo_run("copy_trieAddressAccount", trie)
-            trie_copy_py = copy_trie(trie)
+            original_trie, copied_trie_cairo = cairo_run(
+                "copy_trieAddressAccount", trie
+            )
+            copied_trie_py = copy_trie(trie)
             assert original_trie == trie
-            assert copied_trie == trie_copy_py
+            assert copied_trie_cairo == copied_trie_py
 
         @given(trie=...)
         def test_copy_trie_Bytes32U256(self, cairo_run, trie: Trie[Bytes32, U256]):
-            [original_trie, copied_trie] = cairo_run("copy_trieBytes32U256", trie)
-            copy_trie(trie)
+            original_trie, copied_trie_cairo = cairo_run("copy_trieBytes32U256", trie)
+            copied_trie_py = copy_trie(trie)
             assert original_trie == trie
+            assert copied_trie_cairo == copied_trie_py
