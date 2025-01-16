@@ -17,8 +17,6 @@ from ethereum.cancun.fork_types import (
     MappingBytes32U256Struct,
     Account__eq__,
     Bytes32U256DictAccess,
-    SetAddressDictAccess,
-    SetAddressStruct,
 )
 from ethereum.cancun.trie import (
     TrieBytes32U256,
@@ -437,6 +435,7 @@ func destroy_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Addr
                 _storage_tries=storage_tries,
                 _snapshots=state.value._snapshots,
                 created_accounts=state.value.created_accounts,
+                original_storage_tries=state.value.original_storage_tries,
             ),
         );
         return ();
@@ -461,6 +460,7 @@ func destroy_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Addr
             _storage_tries=new_storage_tries,
             _snapshots=state.value._snapshots,
             created_accounts=state.value.created_accounts,
+            original_storage_tries=state.value.original_storage_tries,
         ),
     );
 
