@@ -389,11 +389,7 @@ state = st.lists(address, max_size=MAX_ADDRESS_SET_SIZE, unique=True).flatmap(
                 (
                     copy_trie(state._main_trie),
                     {
-                        addr: Trie(
-                            secured=trie.secured,
-                            default=trie.default,
-                            _data=dict(trie._data),
-                        )
+                        addr: copy_trie(trie)
                         for addr, trie in state._storage_tries.items()
                     },
                 )
