@@ -11,6 +11,8 @@ from ethereum.cancun.fork_types import Account, Address
 from ethereum.cancun.state import (
     account_exists,
     account_has_code_or_nonce,
+    destroy_account,
+    destroy_storage,
     get_account,
     get_account_optional,
     get_storage,
@@ -79,6 +81,13 @@ class TestStateAccounts:
         assert state_cairo == state
 
     @given(data=state_and_address_and_optional_key())
+    def test_destroy_account(self, cairo_run, data):
+        state, address = data
+        state_cairo = cairo_run("destroy_account", state, address)
+        destroy_account(state, address)
+        assert state_cairo == state
+
+    @given(data=state_and_address_and_optional_key())
     def test_account_has_code_or_nonce(self, cairo_run, data):
         state, address = data
         state_cairo, result_cairo = cairo_run(
@@ -132,6 +141,13 @@ class TestStateStorage:
             return
 
         set_storage(state, address, key, value)
+        assert state_cairo == state
+
+    @given(data=state_and_address_and_optional_key())
+    def test_destroy_storage(self, cairo_run, data):
+        state, address = data
+        state_cairo = cairo_run("destroy_storage", state, address)
+        destroy_storage(state, address)
         assert state_cairo == state
 
 

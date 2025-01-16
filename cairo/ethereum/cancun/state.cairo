@@ -213,6 +213,13 @@ func get_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(
     return value;
 }
 
+func destroy_account{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Address) {
+    destroy_storage(address);
+    let none_account = OptionalAccount(cast(0, AccountStruct*));
+    set_account(address, none_account);
+    return ();
+}
+
 func set_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(
     address: Address, key: Bytes32, value: U256
 ) {
@@ -302,6 +309,67 @@ func set_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(
             created_accounts=state.value.created_accounts,
         ),
     );
+    return ();
+}
+
+func destroy_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Address) {
+    alloc_locals;
+
+    let storage_tries = state.value._storage_tries;
+    let fp_and_pc = get_fp_and_pc();
+    local __fp__: felt* = fp_and_pc.fp_val;
+
+    let storage_tries_dict_ptr = cast(storage_tries.value.dict_ptr, DictAccess*);
+
+    // Use `hashdict_get` instead of `hashdict_read` because `MappingAddressTrieBytes32U256` is not a
+    // `default_dict`. Accessing a key that does not exist in the dict would have panicked for `hashdict_read`.
+    let (pointer) = hashdict_get{dict_ptr=storage_tries_dict_ptr}(1, &address.value);
+
+    if (pointer == 0) {
+        // rebind storage_tries
+        let new_storage_tries_dict_ptr = cast(
+            storage_tries_dict_ptr, AddressTrieBytes32U256DictAccess*
+        );
+        tempvar storage_tries = MappingAddressTrieBytes32U256(
+            new MappingAddressTrieBytes32U256Struct(
+                dict_ptr_start=storage_tries.value.dict_ptr_start,
+                dict_ptr=new_storage_tries_dict_ptr,
+                original_mapping=storage_tries.value.original_mapping,
+            ),
+        );
+        tempvar state = State(
+            new StateStruct(
+                _main_trie=state.value._main_trie,
+                _storage_tries=storage_tries,
+                _snapshots=state.value._snapshots,
+                created_accounts=state.value.created_accounts,
+            ),
+        );
+        return ();
+    }
+
+    // del state._storage_tries[address] is equivalent to setting the value to 0
+    hashdict_write{dict_ptr=storage_tries_dict_ptr}(1, &address.value, 0);
+
+    let new_storage_tries_dict_ptr = cast(
+        storage_tries_dict_ptr, AddressTrieBytes32U256DictAccess*
+    );
+    tempvar new_storage_tries = MappingAddressTrieBytes32U256(
+        new MappingAddressTrieBytes32U256Struct(
+            dict_ptr_start=storage_tries.value.dict_ptr_start,
+            dict_ptr=new_storage_tries_dict_ptr,
+            original_mapping=storage_tries.value.original_mapping,
+        ),
+    );
+    tempvar state = State(
+        new StateStruct(
+            _main_trie=state.value._main_trie,
+            _storage_tries=new_storage_tries,
+            _snapshots=state.value._snapshots,
+            created_accounts=state.value.created_accounts,
+        ),
+    );
+
     return ();
 }
 
