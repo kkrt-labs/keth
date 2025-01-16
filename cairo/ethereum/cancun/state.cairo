@@ -629,3 +629,34 @@ func account_exists_and_is_empty{poseidon_ptr: PoseidonBuiltin*, state: State}(
     tempvar res = bool(1);
     return res;
 }
+
+func is_account_alive{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Address) -> bool {
+    let account = get_account_optional(address);
+    if (cast(account.value, felt) == 0) {
+        tempvar res = bool(0);
+        return res;
+    }
+
+    if (account.value.nonce.value != 0) {
+        tempvar res = bool(1);
+        return res;
+    }
+
+    if (account.value.code.value.len != 0) {
+        tempvar res = bool(1);
+        return res;
+    }
+
+    if (account.value.balance.value.low != 0) {
+        tempvar res = bool(1);
+        return res;
+    }
+
+    if (account.value.balance.value.high != 0) {
+        tempvar res = bool(1);
+        return res;
+    }
+
+    tempvar res = bool(0);
+    return res;
+}

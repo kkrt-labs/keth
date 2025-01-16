@@ -18,6 +18,7 @@ from ethereum.cancun.state import (
     get_account_optional,
     get_storage,
     get_transient_storage,
+    is_account_alive,
     is_account_empty,
     mark_account_created,
     set_account,
@@ -125,6 +126,13 @@ class TestStateAccounts:
             "account_exists_and_is_empty", state, address
         )
         assert result_cairo == account_exists_and_is_empty(state, address)
+        assert state_cairo == state
+
+    @given(data=state_and_address_and_optional_key())
+    def test_is_account_alive(self, cairo_run, data):
+        state, address = data
+        state_cairo, result_cairo = cairo_run("is_account_alive", state, address)
+        assert result_cairo == is_account_alive(state, address)
         assert state_cairo == state
 
 
