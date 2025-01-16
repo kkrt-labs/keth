@@ -214,7 +214,7 @@ func get_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(
 func destroy_account{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Address) {
     destroy_storage(address);
     let none_account = OptionalAccount(cast(0, AccountStruct*));
-    set_account{poseidon_ptr=poseidon_ptr, state=state}(address, none_account);
+    set_account(address, none_account);
     return ();
 }
 
