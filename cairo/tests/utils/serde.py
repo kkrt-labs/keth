@@ -385,10 +385,11 @@ class Serde:
 
                 # Replace snapshot[0]._storage_tries with the original_storage_tries,
                 # and remove the original_storage_tries from the state. It's a pure cairo concept.
-                value["_snapshots"][0] = (
-                    value["_snapshots"][0][0],
-                    value["original_storage_tries"],
-                )
+                if value["_snapshots"]:
+                    value["_snapshots"][0] = (
+                        value["_snapshots"][0][0],
+                        value["original_storage_tries"],
+                    )
                 del value["original_storage_tries"]
 
             if python_cls is TransientStorage:
