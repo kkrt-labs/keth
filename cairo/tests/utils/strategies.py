@@ -18,6 +18,7 @@ from ethereum_types.numeric import U64, U256, FixedUnsigned, Uint
 from hypothesis import strategies as st
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 
+from ethereum.cancun.trie import copy_trie
 from ethereum.crypto.elliptic_curve import SECP256K1N
 from ethereum.exceptions import EthereumException
 from tests.utils.args_gen import (
@@ -376,7 +377,25 @@ state = st.lists(address, max_size=MAX_ADDRESS_SET_SIZE, unique=True).flatmap(
             )
         ),
         _snapshots=st.just([]),
-        created_accounts=st.just(set()),
+        created_accounts=st.sets(st.from_type(Address), max_size=10),
+    ).map(
+        # Create the original state snapshot using copies of the tries
+        lambda state: State(
+            _main_trie=state._main_trie,
+            _storage_tries=state._storage_tries,
+            # Create deep copies of the tries for the snapshot,
+            # because otherwise mutating the main trie will also mutate the snapshot
+            _snapshots=[
+                (
+                    copy_trie(state._main_trie),
+                    {
+                        addr: copy_trie(trie)
+                        for addr, trie in state._storage_tries.items()
+                    },
+                )
+            ],
+            created_accounts=state.created_accounts,
+        )
     ),
 )
 

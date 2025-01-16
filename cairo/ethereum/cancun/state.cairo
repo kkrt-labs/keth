@@ -10,13 +10,13 @@ from ethereum.cancun.fork_types import (
     OptionalAccount,
     MappingAddressAccount,
     SetAddress,
+    SetAddressStruct,
+    SetAddressDictAccess,
     EMPTY_ACCOUNT,
     MappingBytes32U256,
     MappingBytes32U256Struct,
     Account__eq__,
     Bytes32U256DictAccess,
-    SetAddressDictAccess,
-    SetAddressStruct,
 )
 from ethereum.cancun.trie import (
     TrieBytes32U256,
@@ -93,6 +93,7 @@ struct StateStruct {
     _storage_tries: MappingAddressTrieBytes32U256,
     _snapshots: ListTupleTrieAddressOptionalAccountMappingAddressTrieBytes32U256,
     created_accounts: SetAddress,
+    original_storage_tries: MappingAddressTrieBytes32U256,
 }
 
 struct State {
@@ -113,6 +114,7 @@ func get_account_optional{poseidon_ptr: PoseidonBuiltin*, state: State}(
             _storage_tries=state.value._storage_tries,
             _snapshots=state.value._snapshots,
             created_accounts=state.value.created_accounts,
+            original_storage_tries=state.value.original_storage_tries,
         ),
     );
 
@@ -144,6 +146,7 @@ func set_account{poseidon_ptr: PoseidonBuiltin*, state: State}(
             _storage_tries=state.value._storage_tries,
             _snapshots=state.value._snapshots,
             created_accounts=state.value.created_accounts,
+            original_storage_tries=state.value.original_storage_tries,
         ),
     );
     return ();
@@ -184,6 +187,7 @@ func get_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(
                 _storage_tries=storage_tries,
                 _snapshots=state.value._snapshots,
                 created_accounts=state.value.created_accounts,
+                original_storage_tries=state.value.original_storage_tries,
             ),
         );
 
@@ -218,6 +222,7 @@ func get_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(
             _storage_tries=storage_tries,
             _snapshots=state.value._snapshots,
             created_accounts=state.value.created_accounts,
+            original_storage_tries=state.value.original_storage_tries,
         ),
     );
     return value;
@@ -317,9 +322,89 @@ func set_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(
             _storage_tries=new_storage_tries,
             _snapshots=state.value._snapshots,
             created_accounts=state.value.created_accounts,
+            original_storage_tries=state.value.original_storage_tries,
         ),
     );
     return ();
+}
+
+func get_storage_original{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, state: State}(
+    address: Address, key: Bytes32
+) -> U256 {
+    alloc_locals;
+
+    let fp_and_pc = get_fp_and_pc();
+    local __fp__: felt* = fp_and_pc.fp_val;
+
+    let created_accounts_ptr = cast(state.value.created_accounts.value.dict_ptr, DictAccess*);
+    let (is_created) = hashdict_read{dict_ptr=created_accounts_ptr}(1, &address.value);
+    let new_created_accounts_ptr = cast(created_accounts_ptr, SetAddressDictAccess*);
+    tempvar new_created_accounts = SetAddress(
+        new SetAddressStruct(
+            dict_ptr_start=state.value.created_accounts.value.dict_ptr_start,
+            dict_ptr=new_created_accounts_ptr,
+        ),
+    );
+    StateImpl.set_created_accounts(new_created_accounts);
+
+    // In the transaction where an account is created, its preexisting storage
+    // is ignored.
+    if (is_created == 0) {
+        tempvar res = U256(new U256Struct(0, 0));
+        return res;
+    }
+
+    let original_storage_tries = state.value.original_storage_tries;
+    let original_storage_tries_ptr = cast(original_storage_tries.value.dict_ptr, DictAccess*);
+    // The address might not have an original storage trie - `get` returns 0 (None) if no key is
+    // hit.
+    let (original_account_trie_pointer) = hashdict_get{dict_ptr=original_storage_tries_ptr}(
+        1, &address.value
+    );
+
+    // If account trie is null, return 0
+    if (cast(original_account_trie_pointer, felt) == 0) {
+        let new_original_storage_tries_ptr = cast(
+            original_storage_tries_ptr, AddressTrieBytes32U256DictAccess*
+        );
+        tempvar new_original_storage_tries = MappingAddressTrieBytes32U256(
+            new MappingAddressTrieBytes32U256Struct(
+                dict_ptr_start=original_storage_tries.value.dict_ptr_start,
+                dict_ptr=new_original_storage_tries_ptr,
+                original_mapping=original_storage_tries.value.original_mapping,
+            ),
+        );
+        StateImpl.set_original_storage_tries(new_original_storage_tries);
+        tempvar res = U256(new U256Struct(0, 0));
+        return res;
+    }
+
+    // Get the value from the account's original storage trie
+    let original_account_trie = TrieBytes32U256(
+        cast(original_account_trie_pointer, TrieBytes32U256Struct*)
+    );
+    let original_value = trie_get_TrieBytes32U256{trie=original_account_trie}(key);
+
+    // Overwrite the original_storage_tries with the updated account's storage trie, post-read.
+    let new_account_storage_trie_ptr = cast(original_account_trie.value, felt);
+    hashdict_write{dict_ptr=original_storage_tries_ptr}(
+        1, &address.value, new_account_storage_trie_ptr
+    );
+
+    // Update state
+    let new_original_storage_tries_ptr = cast(
+        original_storage_tries_ptr, AddressTrieBytes32U256DictAccess*
+    );
+    tempvar new_original_storage_tries = MappingAddressTrieBytes32U256(
+        new MappingAddressTrieBytes32U256Struct(
+            dict_ptr_start=original_storage_tries.value.dict_ptr_start,
+            dict_ptr=new_original_storage_tries_ptr,
+            original_mapping=original_storage_tries.value.original_mapping,
+        ),
+    );
+    StateImpl.set_original_storage_tries(new_original_storage_tries);
+
+    return original_value;
 }
 
 func destroy_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Address) {
@@ -353,6 +438,7 @@ func destroy_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Addr
                 _storage_tries=storage_tries,
                 _snapshots=state.value._snapshots,
                 created_accounts=state.value.created_accounts,
+                original_storage_tries=state.value.original_storage_tries,
             ),
         );
         return ();
@@ -377,6 +463,7 @@ func destroy_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Addr
             _storage_tries=new_storage_tries,
             _snapshots=state.value._snapshots,
             created_accounts=state.value.created_accounts,
+            original_storage_tries=state.value.original_storage_tries,
         ),
     );
 
@@ -590,6 +677,7 @@ func mark_account_created{poseidon_ptr: PoseidonBuiltin*, state: State}(address:
             _storage_tries=state.value._storage_tries,
             _snapshots=state.value._snapshots,
             created_accounts=new_created_account,
+            original_storage_tries=state.value.original_storage_tries,
         ),
     );
 
@@ -629,4 +717,34 @@ func is_account_alive{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Add
 
     tempvar res = bool(0);
     return res;
+}
+
+namespace StateImpl {
+    func set_created_accounts{state: State}(new_created_accounts: SetAddress) {
+        tempvar state = State(
+            new StateStruct(
+                _main_trie=state.value._main_trie,
+                _storage_tries=state.value._storage_tries,
+                _snapshots=state.value._snapshots,
+                created_accounts=new_created_accounts,
+                original_storage_tries=state.value.original_storage_tries,
+            ),
+        );
+        return ();
+    }
+
+    func set_original_storage_tries{state: State}(
+        new_original_storage_tries: MappingAddressTrieBytes32U256
+    ) {
+        tempvar state = State(
+            new StateStruct(
+                _main_trie=state.value._main_trie,
+                _storage_tries=state.value._storage_tries,
+                _snapshots=state.value._snapshots,
+                created_accounts=state.value.created_accounts,
+                original_storage_tries=new_original_storage_tries,
+            ),
+        );
+        return ();
+    }
 }
