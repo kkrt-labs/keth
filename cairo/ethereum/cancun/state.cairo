@@ -13,6 +13,7 @@ from ethereum.cancun.fork_types import (
     EMPTY_ACCOUNT,
     MappingBytes32U256,
     MappingBytes32U256Struct,
+    Account__eq__,
     Bytes32U256DictAccess,
     SetAddressDictAccess,
     SetAddressStruct,
@@ -105,6 +106,15 @@ func get_account_optional{poseidon_ptr: PoseidonBuiltin*, state: State}(
     with trie {
         let account = trie_get_TrieAddressOptionalAccount(address);
     }
+
+    tempvar state = State(
+        new StateStruct(
+            _main_trie=trie,
+            _storage_tries=state.value._storage_tries,
+            _snapshots=state.value._snapshots,
+            created_accounts=state.value.created_accounts,
+        ),
+    );
 
     return account;
 }
@@ -584,4 +594,39 @@ func mark_account_created{poseidon_ptr: PoseidonBuiltin*, state: State}(address:
     );
 
     return ();
+}
+
+func account_exists_and_is_empty{poseidon_ptr: PoseidonBuiltin*, state: State}(
+    address: Address
+) -> bool {
+    alloc_locals;
+    // Get the account at the address
+    let account = get_account_optional(address);
+
+    let _empty_account = EMPTY_ACCOUNT();
+    let empty_account = OptionalAccount(_empty_account.value);
+    let is_empty_account = Account__eq__(account, empty_account);
+
+    return is_empty_account;
+}
+
+func is_account_alive{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Address) -> bool {
+    alloc_locals;
+    let account = get_account_optional(address);
+    if (cast(account.value, felt) == 0) {
+        tempvar res = bool(0);
+        return res;
+    }
+
+    let _empty_account = EMPTY_ACCOUNT();
+    let empty_account = OptionalAccount(_empty_account.value);
+    let is_empty_account = Account__eq__(account, empty_account);
+
+    if (is_empty_account.value == 0) {
+        tempvar res = bool(1);
+        return res;
+    }
+
+    tempvar res = bool(0);
+    return res;
 }
