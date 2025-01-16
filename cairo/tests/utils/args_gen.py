@@ -617,7 +617,7 @@ def _gen_arg(
         ]
 
         if arg_type_origin is State:
-            # In case of a Trie, we need to put the original_storage_tries (trie._snapshots[0]) in a
+            # In case of a Trie, we need to put the original_storage_tries (state._snapshots[0][1]) in a
             # special field of the State. We want easy access / overrides to this specific snapshot in
             # Cairo, as each `sstore` performs an update of this original trie.
             data.append(data[1])
