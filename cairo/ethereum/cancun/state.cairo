@@ -602,10 +602,6 @@ func account_exists_and_is_empty{poseidon_ptr: PoseidonBuiltin*, state: State}(
     alloc_locals;
     // Get the account at the address
     let account = get_account_optional(address);
-    if (cast(account.value, felt) == 0) {
-        tempvar res = bool(0);
-        return res;
-    }
 
     let _empty_account = EMPTY_ACCOUNT();
     let empty_account = OptionalAccount(_empty_account.value);
@@ -615,28 +611,18 @@ func account_exists_and_is_empty{poseidon_ptr: PoseidonBuiltin*, state: State}(
 }
 
 func is_account_alive{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Address) -> bool {
+    alloc_locals;
     let account = get_account_optional(address);
     if (cast(account.value, felt) == 0) {
         tempvar res = bool(0);
         return res;
     }
 
-    if (account.value.nonce.value != 0) {
-        tempvar res = bool(1);
-        return res;
-    }
+    let _empty_account = EMPTY_ACCOUNT();
+    let empty_account = OptionalAccount(_empty_account.value);
+    let is_empty_account = Account__eq__(account, empty_account);
 
-    if (account.value.code.value.len != 0) {
-        tempvar res = bool(1);
-        return res;
-    }
-
-    if (account.value.balance.value.low != 0) {
-        tempvar res = bool(1);
-        return res;
-    }
-
-    if (account.value.balance.value.high != 0) {
+    if (is_empty_account.value == 0) {
         tempvar res = bool(1);
         return res;
     }
