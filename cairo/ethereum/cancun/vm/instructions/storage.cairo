@@ -2,7 +2,7 @@ from ethereum.cancun.vm.stack import pop, push
 from ethereum.cancun.vm import Evm, EvmImpl, Environment, EnvImpl
 from ethereum.cancun.vm.exceptions import ExceptionalHalt
 from ethereum.cancun.vm.gas import charge_gas, GasConstants
-from ethereum.cancun.state import get_storage
+from ethereum.cancun.state import get_storage, get_transient_storage
 from ethereum.cancun.fork_types import (
     SetTupleAddressBytes32,
     SetTupleAddressBytes32DictAccess,
@@ -92,6 +92,43 @@ func sload{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, poseidon_ptr: Poseidon
     EvmImpl.set_env(env);
     EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
     EvmImpl.set_accessed_storage_keys(new_accessed_storage_keys);
+    let ok = cast(0, ExceptionalHalt*);
+    return ok;
+}
+
+// @notice Loads to the stack the value corresponding to a certain key from the
+// transient storage of the current account.
+func tload{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, poseidon_ptr: PoseidonBuiltin*, evm: Evm}(
+    ) -> ExceptionalHalt* {
+    alloc_locals;
+    // STACK
+    let stack = evm.value.stack;
+    with stack {
+        let (key, err) = pop();
+        if (cast(err, felt) != 0) {
+            return err;
+        }
+    }
+
+    // GAS
+    let err = charge_gas(Uint(GasConstants.GAS_WARM_ACCESS));
+    if (cast(err, felt) != 0) {
+        return err;
+    }
+
+    // OPERATION
+    let transient_storage = evm.value.env.value.transient_storage;
+    let key_bytes32 = U256_to_be_bytes(key);
+    let value = get_transient_storage{transient_storage=transient_storage}(
+        evm.value.message.value.current_target, key_bytes32
+    );
+    let err = push{stack=stack}(value);
+    if (cast(err, felt) != 0) {
+        return err;
+    }
+
+    // PROGRAM COUNTER
+    EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
     let ok = cast(0, ExceptionalHalt*);
     return ok;
 }
