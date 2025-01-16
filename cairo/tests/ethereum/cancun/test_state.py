@@ -252,9 +252,9 @@ class TestTransientStorage:
 class TestBeginTransaction:
     @given(state=..., transient_storage=...)
     def test_begin_transaction(
-        self, cairo_run_py, state: State, transient_storage: TransientStorage
+        self, cairo_run, state: State, transient_storage: TransientStorage
     ):
-        state_cairo, transient_storage_cairo = cairo_run_py(
+        state_cairo, transient_storage_cairo = cairo_run(
             "begin_transaction",
             state,
             transient_storage,
