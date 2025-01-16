@@ -38,12 +38,14 @@ def state_and_address_and_optional_key(
 ):
     state = draw(state_strategy)
 
-    # For address selection, use address_strategy if no keys in state
-    address_options = (
-        [st.sampled_from(list(state._main_trie._data.keys())), address_strategy]
-        if state._main_trie._data != {}
-        else [address_strategy]
-    )
+    # For address selection, shuffle from one of the following strategies
+    address_options = []
+    if state._main_trie._data:
+        address_options.append(st.sampled_from(list(state._main_trie._data.keys())))
+    if state.created_accounts:
+        address_options.append(st.sampled_from(list(state.created_accounts)))
+    address_options.append(address_strategy)
+
     address = draw(st.one_of(*address_options))
 
     # For key selection, use key_strategy if no storage keys for this address

@@ -341,7 +341,7 @@ func get_storage_original{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, state
     let new_created_accounts_ptr = cast(created_accounts_ptr, SetAddressDictAccess*);
     tempvar new_created_accounts = SetAddress(
         new SetAddressStruct(
-            dict_ptr_start=state.value.created_accounts.value.dict_ptr,
+            dict_ptr_start=state.value.created_accounts.value.dict_ptr_start,
             dict_ptr=new_created_accounts_ptr,
         ),
     );
@@ -356,7 +356,9 @@ func get_storage_original{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, state
 
     let original_storage_tries = state.value.original_storage_tries;
     let original_storage_tries_ptr = cast(original_storage_tries.value.dict_ptr, DictAccess*);
-    let (original_account_trie_pointer) = hashdict_read{dict_ptr=original_storage_tries_ptr}(
+    // The address might not have an original storage trie - `get` returns 0 (None) if no key is
+    // hit.
+    let (original_account_trie_pointer) = hashdict_get{dict_ptr=original_storage_tries_ptr}(
         1, &address.value
     );
 
