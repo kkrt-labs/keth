@@ -163,21 +163,12 @@ class Serde:
         # arg_type = Optional[T] <=> arg_type_origin = Union[T, None]
         if origin_cls is Union and get_args(python_cls)[1] is type(None):
             # Get the value pointer: if it's zero, return None.
-            # Otherwise, consider this the non-pointer type: get the struct definition, and remove
-            # the "Struct" suffix from the type name to get the non-optional type path.
-            # Now that we know it's not an optional type, we can serialize it as usual.
+            # Otherwise, consider this the non-optional type:
             value_ptr = self.serialize_pointers(path, ptr)["value"]
             if value_ptr is None:
                 return None
-            value_struct_path = (
-                get_struct_definition(self.program, path)
-                .members["value"]
-                .cairo_type.pointee.scope.path
-            )
-            value_path = value_struct_path[:-1] + (
-                value_struct_path[-1].removesuffix("Struct"),
-            )
-            return self.serialize_type(value_path, ptr)
+            python_cls = get_args(python_cls)[0]
+            origin_cls = get_origin(python_cls)
 
         if origin_cls is Union:
             value_ptr = self.serialize_pointers(path, ptr)["value"]
