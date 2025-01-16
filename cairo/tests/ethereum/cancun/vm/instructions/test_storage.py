@@ -6,7 +6,7 @@ from hypothesis import given
 from hypothesis import strategies as st
 from hypothesis.strategies import composite
 
-from ethereum.cancun.vm.instructions.storage import sload, tload, tstore
+from ethereum.cancun.vm.instructions.storage import sload, sstore, tload, tstore
 from tests.utils.args_gen import Evm
 from tests.utils.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder
@@ -43,6 +43,17 @@ class TestStorage:
             return
 
         sload(evm)
+        assert evm == cairo_evm
+
+    @given(evm=evm_with_accessed_storage_keys())
+    def test_sstore(self, cairo_run, evm: Evm):
+        try:
+            cairo_evm = cairo_run("sstore", evm)
+        except Exception as cairo_error:
+            with assert_raises_exactly(type(cairo_error)):
+                sstore(evm)
+            return
+        sstore(evm)
         assert evm == cairo_evm
 
     @given(evm=evm_with_accessed_storage_keys())

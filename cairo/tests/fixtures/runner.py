@@ -460,6 +460,7 @@ def _run_rust_vm(
         except Exception as e:
             if "An ASSERT_EQ instruction failed" in str(e):
                 raise AssertionError(e) from e
+            raise Exception(str(e)) from e
 
         cumulative_retdata_offsets = serde.get_offsets(return_data_types)
         first_return_data_offset = (
