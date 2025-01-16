@@ -106,6 +106,15 @@ func get_account_optional{poseidon_ptr: PoseidonBuiltin*, state: State}(
         let account = trie_get_TrieAddressOptionalAccount(address);
     }
 
+    tempvar state = State(
+        new StateStruct(
+            _main_trie=trie,
+            _storage_tries=state.value._storage_tries,
+            _snapshots=state.value._snapshots,
+            created_accounts=state.value.created_accounts,
+        ),
+    );
+
     return account;
 }
 
