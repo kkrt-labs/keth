@@ -383,6 +383,14 @@ class Serde:
                     for k in keys_to_delete:
                         del value["_storage_tries"][k]
 
+                # Replace snapshot[0]._storage_tries with the original_storage_tries,
+                # and remove the original_storage_tries from the state. It's a pure cairo concept.
+                value["_snapshots"][0] = (
+                    value["_snapshots"][0][0],
+                    value["original_storage_tries"],
+                )
+                del value["original_storage_tries"]
+
             if python_cls is TransientStorage:
                 if value["_tries"] is not None and value["_tries"] != {}:
                     # First collect all keys with empty tries

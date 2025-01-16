@@ -377,6 +377,14 @@ state = st.lists(address, max_size=MAX_ADDRESS_SET_SIZE, unique=True).flatmap(
         ),
         _snapshots=st.just([]),
         created_accounts=st.just(set()),
+    ).map(
+        # Create the original state snapshot using the same tries
+        lambda state: State(
+            _main_trie=state._main_trie,
+            _storage_tries=state._storage_tries,
+            _snapshots=[(state._main_trie, state._storage_tries)],
+            created_accounts=set(),
+        )
     ),
 )
 

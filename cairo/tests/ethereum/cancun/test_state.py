@@ -17,6 +17,7 @@ from ethereum.cancun.state import (
     get_account,
     get_account_optional,
     get_storage,
+    get_storage_original,
     get_transient_storage,
     is_account_alive,
     is_account_empty,
@@ -137,6 +138,15 @@ class TestStateAccounts:
 
 
 class TestStateStorage:
+    @given(state_and_address_and_optional_key(key_strategy=bytes32))
+    def test_get_storage_original(self, cairo_run, data):
+        state, address, key = data
+        state_cairo, result_cairo = cairo_run(
+            "get_storage_original", state, address, key
+        )
+        assert result_cairo == get_storage_original(state, address, key)
+        assert state_cairo == state
+
     @given(data=state_and_address_and_optional_key(key_strategy=bytes32))
     def test_get_storage(
         self,
