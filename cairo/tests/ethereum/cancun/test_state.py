@@ -10,6 +10,7 @@ from hypothesis.strategies import composite
 from ethereum.cancun.fork_types import Account, Address
 from ethereum.cancun.state import (
     account_exists,
+    account_exists_and_is_empty,
     account_has_code_or_nonce,
     get_account,
     get_account_optional,
@@ -98,6 +99,15 @@ class TestStateAccounts:
         state, address = data
         state_cairo, result_cairo = cairo_run("is_account_empty", state, address)
         assert result_cairo == is_account_empty(state, address)
+        assert state_cairo == state
+
+    @given(data=state_and_address_and_optional_key())
+    def test_account_exists_and_is_empty(self, cairo_run, data):
+        state, address = data
+        state_cairo, result_cairo = cairo_run(
+            "account_exists_and_is_empty", state, address
+        )
+        assert result_cairo == account_exists_and_is_empty(state, address)
         assert state_cairo == state
 
 
