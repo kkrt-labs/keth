@@ -145,7 +145,7 @@ checksum = "325918d6fe32f23b19878fe4b34794ae41fc19ddbe53b10571a4874d44ffd39b"
 [[package]]
 name = "cairo-vm"
 version = "2.0.0-rc3"
-source = "git+https://github.com/kkrt-labs/cairo-vm?rev=dd3d3f6e76248fc02395b31cbefe5fe8183222f1#dd3d3f6e76248fc02395b31cbefe5fe8183222f1"
+source = "git+https://github.com/kkrt-labs/cairo-vm?rev=11ecc932cfabf0653a008a7f408d698ec780cc24#11ecc932cfabf0653a008a7f408d698ec780cc24"
 dependencies = [
  "anyhow",
  "arbitrary",
@@ -183,6 +183,7 @@ dependencies = [
  "num-traits",
  "pyo3",
  "pyo3-build-config",
+ "starknet-crypto",
 ]
 
 [[package]]
@@ -1505,9 +1506,9 @@ checksum = "a8f112729512f8e442d81f95a8a7ddf2b7c6b8a1a6f509a95864142b30cab2d3"
 
 [[package]]
 name = "starknet-crypto"
-version = "0.7.3"
+version = "0.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ded22ccf4cb9e572ce3f77de6066af53560cd2520d508876c83bb1e6b29d5cbc"
+checksum = "039a3bad70806b494c9e6b21c5238a6c8a373d66a26071859deb0ccca6f93634"
 dependencies = [
  "crypto-bigint",
  "hex",

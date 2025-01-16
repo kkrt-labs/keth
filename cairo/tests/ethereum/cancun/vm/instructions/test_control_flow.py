@@ -15,8 +15,6 @@ from ethereum.cancun.vm.stack import push
 from tests.utils.args_gen import Evm
 from tests.utils.evm_builder import EvmBuilder
 
-pytestmark = pytest.mark.python_vm
-
 
 class TestControlFlow:
     @given(evm=EvmBuilder().with_running().build())

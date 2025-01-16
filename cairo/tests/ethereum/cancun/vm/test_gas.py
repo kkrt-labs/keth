@@ -25,8 +25,6 @@ from ethereum.cancun.vm.gas import (
 from tests.utils.args_gen import Evm, Memory
 from tests.utils.evm_builder import EvmBuilder
 
-pytestmark = pytest.mark.python_vm
-
 
 @composite
 def extensions_strategy(draw):

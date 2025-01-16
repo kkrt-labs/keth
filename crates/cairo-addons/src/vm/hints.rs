@@ -16,6 +16,11 @@ use cairo_vm::{
 };
 use std::{collections::HashMap, fmt, rc::Rc};
 
+use super::{
+    hint_definitions::{DICT_HINTS, HASHDICT_HINTS, UTILS_HINTS},
+    hint_loader::load_python_hints,
+};
+
 /// A struct representing a hint.
 pub struct Hint {
     /// The hint id, ie the raw string written in the Cairo code in between `%{` and `%}`.
@@ -44,22 +49,33 @@ impl Hint {
 /// A wrapper around [`BuiltinHintProcessor`] to manage hint registration.
 pub struct HintProcessor {
     inner: BuiltinHintProcessor,
+    python_hints: HashMap<String, String>,
 }
 
 impl HintProcessor {
     pub fn new(run_resources: RunResources) -> Self {
-        Self { inner: BuiltinHintProcessor::new(HashMap::new(), run_resources) }
+        let python_hints = load_python_hints().unwrap();
+        Self { inner: BuiltinHintProcessor::new(HashMap::new(), run_resources), python_hints }
     }
 
     #[must_use]
-    pub fn with_hint(mut self, hint: &Hint) -> Self {
-        self.inner.add_hint(hint.id.clone(), hint.func.clone());
+    pub fn with_hints(mut self, hints: Vec<fn() -> Hint>) -> Self {
+        for fn_hint in hints {
+            let hint = fn_hint();
+            self.inner.add_hint(
+                self.python_hints.get(&hint.id).unwrap_or(&hint.id).to_string(),
+                hint.func.clone(),
+            );
+        }
         self
     }
 
     #[must_use]
     pub fn with_run_resources(self, run_resources: RunResources) -> Self {
-        Self { inner: BuiltinHintProcessor::new(self.inner.extra_hints, run_resources) }
+        Self {
+            inner: BuiltinHintProcessor::new(self.inner.extra_hints, run_resources),
+            python_hints: self.python_hints,
+        }
     }
 
     pub fn build(self) -> BuiltinHintProcessor {
@@ -69,7 +85,12 @@ impl HintProcessor {
 
 impl Default for HintProcessor {
     fn default() -> Self {
-        Self::new(RunResources::default()).with_hint(&add_segment_hint())
+        let mut hints: Vec<fn() -> Hint> = vec![add_segment_hint];
+        hints.extend_from_slice(DICT_HINTS);
+        hints.extend_from_slice(HASHDICT_HINTS);
+        hints.extend_from_slice(UTILS_HINTS);
+
+        Self::new(RunResources::default()).with_hints(hints)
     }
 }
 

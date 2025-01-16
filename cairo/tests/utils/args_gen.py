@@ -627,6 +627,7 @@ def _gen_arg(
         if arg_type_origin is Trie:
             # In case of a Trie, we need the dict to be a defaultdict with the trie.default as the default value.
             dict_ptr = segments.memory.get(data[2])
+            current_ptr = segments.memory.get(data[2] + 1)
             if isinstance(dict_manager, DictManager):
                 dict_manager.trackers[dict_ptr.segment_index].data = defaultdict(
                     lambda: data[1], dict_manager.trackers[dict_ptr.segment_index].data
@@ -634,7 +635,7 @@ def _gen_arg(
             else:
                 dict_manager.trackers[dict_ptr.segment_index] = RustDictTracker(
                     data=dict_manager.trackers[dict_ptr.segment_index].data,
-                    current_ptr=dict_ptr,
+                    current_ptr=current_ptr,
                     default_value=data[1],
                 )
         return struct_ptr

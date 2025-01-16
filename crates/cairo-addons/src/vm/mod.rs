@@ -3,6 +3,8 @@ use pyo3::prelude::*;
 mod builtins;
 mod dict_manager;
 mod felt;
+mod hint_definitions;
+mod hint_loader;
 mod hints;
 mod layout;
 mod maybe_relocatable;

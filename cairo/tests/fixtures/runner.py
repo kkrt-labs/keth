@@ -97,27 +97,10 @@ def main_path(request):
     return request.session.main_paths[request.node.fspath]
 
 
-@pytest.fixture(scope="module")
-def cairo_run(
-    request, cairo_program: Program, rust_program: RustProgram, cairo_file, main_path
-):
-    """
-    Run the cairo program corresponding to the python test file at a given entrypoint with given program inputs as kwargs.
-    Returns the output of the cairo program put in the output memory segment.
+def _run_python_vm(cairo_program: Program, cairo_file, main_path, request):
+    """Helper function containing Python VM implementation"""
 
-    When --profile-cairo is passed, the cairo program is run with the tracer enabled and the resulting trace is dumped.
-
-    Logic is mainly taken from starkware.cairo.lang.vm.cairo_run with minor updates, mainly builtins discovery from implicit args.
-
-    Type conversion between Python and Cairo is handled by:
-    - gen_arg: Converts Python arguments to Cairo memory layout when preparing runner inputs
-    - serde: Converts Cairo memory data to Python types by reading into the segments, used to return python types.
-
-    Returns:
-        The function's return value, converted back to Python types
-    """
-
-    def _factory_py(entrypoint, *args, **kwargs):
+    def _run(entrypoint, *args, **kwargs):
         logger.debug(f"Running the CairoVM Python VM for {entrypoint}")
         implicit_args = cairo_program.identifiers.get_by_full_name(
             ScopedName(path=("__main__", entrypoint, "ImplicitArgs"))
@@ -254,6 +237,8 @@ def cairo_run(
         try:
             runner.run_until_pc(end, run_resources)
         except Exception as e:
+            if "An ASSERT_EQ instruction failed" in str(e):
+                raise AssertionError(e) from e
             raise Exception(str(e)) from e
 
         runner.end_run(disable_trace_padding=False)
@@ -380,7 +365,15 @@ def cairo_run(
 
         return final_output[0] if len(final_output) == 1 else final_output
 
-    def _factory_rs(entrypoint, *args, **kwargs):
+    return _run
+
+
+def _run_rust_vm(
+    cairo_program: Program, rust_program: RustProgram, cairo_file, main_path, request
+):
+    """Helper function containing Rust VM implementation"""
+
+    def _run(entrypoint, *args, **kwargs):
         logger.debug(f"Running the CairoVM Rust VM for {entrypoint}")
         implicit_args = cairo_program.identifiers.get_by_full_name(
             ScopedName(path=("__main__", entrypoint, "ImplicitArgs"))
@@ -461,7 +454,13 @@ def cairo_run(
             entrypoint=cairo_program.get_label(entrypoint), stack=stack
         )
 
-        runner.run_until_pc(end, RustRunResources())
+        # Bind Cairo's ASSERT_EQ instruction to a Python exception
+        try:
+            runner.run_until_pc(end, RustRunResources())
+        except Exception as e:
+            if "An ASSERT_EQ instruction failed" in str(e):
+                raise AssertionError(e) from e
+
         cumulative_retdata_offsets = serde.get_offsets(return_data_types)
         first_return_data_offset = (
             cumulative_retdata_offsets[0] if cumulative_retdata_offsets else 0
@@ -526,7 +525,37 @@ def cairo_run(
 
         return final_output[0] if len(final_output) == 1 else final_output
 
+    return _run
+
+
+@pytest.fixture(scope="module")
+def cairo_run_py(request, cairo_program: Program, cairo_file, main_path):
+    """Run the cairo program using Python VM."""
+    return _run_python_vm(cairo_program, cairo_file, main_path, request)
+
+
+@pytest.fixture(scope="module")
+def cairo_run(
+    request, cairo_program: Program, rust_program: RustProgram, cairo_file, main_path
+):
+    """
+    Run the cairo program corresponding to the python test file at a given entrypoint with given program inputs as kwargs.
+    Returns the output of the cairo program put in the output memory segment.
+
+    When --profile-cairo is passed, the cairo program is run with the tracer enabled and the resulting trace is dumped.
+
+    Logic is mainly taken from starkware.cairo.lang.vm.cairo_run with minor updates, mainly builtins discovery from implicit args.
+
+    Type conversion between Python and Cairo is handled by:
+    - gen_arg: Converts Python arguments to Cairo memory layout when preparing runner inputs
+    - serde: Converts Cairo memory data to Python types by reading into the segments, used to return python types.
+
+    The VM used for the run depends on the presence of a "python_vm" marker in the test.
+
+    Returns:
+        The function's return value, converted back to Python types
+    """
     if request.node.get_closest_marker("python_vm"):
-        return _factory_py
-    else:
-        return _factory_rs
+        return _run_python_vm(cairo_program, cairo_file, main_path, request)
+
+    return _run_rust_vm(cairo_program, rust_program, cairo_file, main_path, request)
