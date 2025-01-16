@@ -321,18 +321,33 @@ func destroy_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Addr
 
     // Use `hashdict_get` instead of `hashdict_read` because `MappingAddressTrieBytes32U256` is not a
     // `default_dict`. Accessing a key that does not exist in the dict would have panicked for `hashdict_read`.
-    let (pointer) = hashdict_get{dict_ptr=storage_tries_dict_ptr}(
-        1, &address.value
-    );
+    let (pointer) = hashdict_get{dict_ptr=storage_tries_dict_ptr}(1, &address.value);
 
     if (pointer == 0) {
+        // rebind storage_tries
+        let new_storage_tries_dict_ptr = cast(
+            storage_tries_dict_ptr, AddressTrieBytes32U256DictAccess*
+        );
+        tempvar storage_tries = MappingAddressTrieBytes32U256(
+            new MappingAddressTrieBytes32U256Struct(
+                dict_ptr_start=storage_tries.value.dict_ptr_start,
+                dict_ptr=new_storage_tries_dict_ptr,
+                original_mapping=storage_tries.value.original_mapping,
+            ),
+        );
+        tempvar state = State(
+            new StateStruct(
+                _main_trie=state.value._main_trie,
+                _storage_tries=storage_tries,
+                _snapshots=state.value._snapshots,
+                created_accounts=state.value.created_accounts,
+            ),
+        );
         return ();
     }
 
     // del state._storage_tries[address] is equivalent to setting the value to 0
-    hashdict_write{dict_ptr=storage_tries_dict_ptr}(
-        1, &address.value, 0
-    );
+    hashdict_write{dict_ptr=storage_tries_dict_ptr}(1, &address.value, 0);
 
     let new_storage_tries_dict_ptr = cast(
         storage_tries_dict_ptr, AddressTrieBytes32U256DictAccess*
