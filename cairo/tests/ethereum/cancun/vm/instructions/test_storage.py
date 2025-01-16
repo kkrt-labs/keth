@@ -29,7 +29,7 @@ def evm_with_accessed_storage_keys(draw):
     if not use_random_key and accessed_storage_keys:
         # Draw a key from the set and put it on top of the stack
         _, key = draw(st.sampled_from(accessed_storage_keys))
-        evm.stack.insert(0, U256.from_be_bytes(key))
+        evm.stack.insert(0, U256.from_le_bytes(key))
 
     return evm
 

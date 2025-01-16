@@ -117,7 +117,7 @@ extended = st.recursive(
 )
 
 
-def trie_strategy(thing):
+def trie_strategy(thing, min_size=0):
     key_type, value_type = thing.__args__
     value_type_origin = get_origin(value_type) or value_type
 
@@ -127,7 +127,7 @@ def trie_strategy(thing):
         st.none()
         if value_type_origin is Union and get_args(value_type)[1] is type(None)
         else (
-            st.just(value_type(0))
+            st.just(U256(0))
             if value_type is U256
             else st.nothing()  # No other type is accepted
         )
@@ -139,8 +139,11 @@ def trie_strategy(thing):
             # For Optional types, just use the base type strategy (which won't generate None)
             base_type = get_args(value_type)[0]
             return st.from_type(base_type)
-        # For other types, use the regular strategy as default values are rare, and filter them out
-        return st.from_type(value_type).filter(lambda x: x != default)
+        elif value_type is U256:
+            # For U256, we don't want to generate 0 as default value
+            return st.integers(min_value=1, max_value=2**256 - 1).map(U256)
+        else:
+            raise ValueError(f"Unsupported default type in Trie: {value_type}")
 
     # In a trie, a key that has a default value is considered not included in the trie.
     # Thus it needs to be filtered out from the data generated.
@@ -152,6 +155,7 @@ def trie_strategy(thing):
             _data=st.dictionaries(
                 st.from_type(key_type),
                 non_default_strategy(default),
+                min_size=min_size,
                 max_size=20,
             ),
         )
@@ -240,18 +244,14 @@ transient_storage = st.lists(
         TransientStorage,
         _tries=st.fixed_dictionaries(
             {
-                address: trie_strategy(Trie[Bytes32, U256]).filter(
-                    lambda t: bool(t._data)
-                )
+                address: trie_strategy(Trie[Bytes32, U256], min_size=1)
                 for address in addresses
             }
         ),
         _snapshots=st.lists(
             st.fixed_dictionaries(
                 {
-                    address: trie_strategy(Trie[Bytes32, U256]).filter(
-                        lambda t: bool(t._data)
-                    )
+                    address: trie_strategy(Trie[Bytes32, U256], min_size=1)
                     for address in addresses
                 }
             ),
@@ -369,9 +369,7 @@ state = st.lists(address, max_size=MAX_ADDRESS_SET_SIZE, unique=True).flatmap(
         _storage_tries=st.integers(max_value=len(addresses)).flatmap(
             lambda i: st.fixed_dictionaries(
                 {
-                    address: trie_strategy(Trie[Bytes32, U256]).filter(
-                        lambda t: bool(t._data)
-                    )
+                    address: trie_strategy(Trie[Bytes32, U256], min_size=1)
                     for address in addresses[:i]
                 }
             )
