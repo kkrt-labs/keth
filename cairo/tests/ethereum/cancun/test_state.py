@@ -1,13 +1,12 @@
 from typing import Optional
 
 import pytest
-from ethereum_types.bytes import Bytes32
 from ethereum_types.numeric import U256
 from hypothesis import given
 from hypothesis import strategies as st
 from hypothesis.strategies import composite
 
-from ethereum.cancun.fork_types import Account, Address
+from ethereum.cancun.fork_types import Account
 from ethereum.cancun.state import (
     account_exists,
     account_exists_and_is_empty,
@@ -26,7 +25,6 @@ from ethereum.cancun.state import (
     set_storage,
     set_transient_storage,
 )
-from tests.utils.args_gen import TransientStorage
 from tests.utils.strategies import address, bytes32, state, transient_storage
 
 
@@ -59,6 +57,37 @@ def state_and_address_and_optional_key(
     key = draw(st.one_of(*key_options))
 
     return state, address, key
+
+
+@composite
+def transient_storage_and_address_and_optional_key(
+    draw,
+    transient_storage_strategy=transient_storage,
+    address_strategy=address,
+    key_strategy=None,
+):
+    transient_storage = draw(transient_storage_strategy)
+
+    # Shuffle from a random addres of an
+    address_options = []
+    if transient_storage._tries:
+        address_options.append(st.sampled_from(list(transient_storage._tries.keys())))
+    address_options.append(address_strategy)
+    address = draw(st.one_of(*address_options))
+
+    if key_strategy is None:
+        return transient_storage, address
+
+    # Shuffle from a random key of the address, if it exists
+    key_options = []
+    if address in transient_storage._tries:
+        key_options.append(
+            st.sampled_from(list(transient_storage._tries[address]._data.keys()))
+        )
+    key_options.append(key_strategy)
+    key = draw(st.one_of(*key_options))
+
+    return transient_storage, address, key
 
 
 class TestStateAccounts:
@@ -180,18 +209,13 @@ class TestStateStorage:
 
 
 class TestTransientStorage:
-    @given(
-        transient_storage=transient_storage,
-        address=...,
-        key=...,
-    )
+    @given(data=transient_storage_and_address_and_optional_key(key_strategy=bytes32))
     def test_get_transient_storage(
         self,
         cairo_run,
-        transient_storage: TransientStorage,
-        address: Address,
-        key: Bytes32,
+        data,
     ):
+        transient_storage, address, key = data
         transient_storage_cairo, result_cairo = cairo_run(
             "get_transient_storage",
             transient_storage,
@@ -202,19 +226,16 @@ class TestTransientStorage:
         assert transient_storage_cairo == transient_storage
 
     @given(
-        transient_storage=transient_storage,
-        address=...,
-        key=...,
+        data=transient_storage_and_address_and_optional_key(key_strategy=bytes32),
         value=...,
     )
     def test_set_transient_storage(
         self,
         cairo_run,
-        transient_storage: TransientStorage,
-        address: Address,
-        key: Bytes32,
+        data,
         value: U256,
     ):
+        transient_storage, address, key = data
         transient_storage_cairo = cairo_run(
             "set_transient_storage",
             transient_storage,

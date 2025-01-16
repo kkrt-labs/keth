@@ -633,4 +633,27 @@ namespace EnvImpl {
         );
         return ();
     }
+
+    func set_transient_storage{env: Environment}(new_transient_storage: TransientStorage) {
+        tempvar env = Environment(
+            new EnvironmentStruct(
+                caller=env.value.caller,
+                block_hashes=env.value.block_hashes,
+                origin=env.value.origin,
+                coinbase=env.value.coinbase,
+                number=env.value.number,
+                base_fee_per_gas=env.value.base_fee_per_gas,
+                gas_limit=env.value.gas_limit,
+                gas_price=env.value.gas_price,
+                time=env.value.time,
+                prev_randao=env.value.prev_randao,
+                state=env.value.state,
+                chain_id=env.value.chain_id,
+                excess_blob_gas=env.value.excess_blob_gas,
+                blob_versioned_hashes=env.value.blob_versioned_hashes,
+                transient_storage=new_transient_storage,
+            ),
+        );
+        return ();
+    }
 }
