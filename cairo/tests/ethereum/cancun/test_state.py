@@ -19,6 +19,7 @@ from ethereum.cancun.state import (
     get_storage,
     get_storage_original,
     get_transient_storage,
+    increment_nonce,
     is_account_alive,
     is_account_empty,
     mark_account_created,
@@ -187,6 +188,13 @@ class TestStateAccounts:
         state, address = data
         state_cairo = cairo_run("set_account_balance", state, address, amount)
         set_account_balance(state, address, amount)
+        assert state_cairo == state
+
+    @given(data=state_and_address_and_optional_key())
+    def test_increment_nonce(self, cairo_run, data):
+        state, address = data
+        state_cairo = cairo_run("increment_nonce", state, address)
+        increment_nonce(state, address)
         assert state_cairo == state
 
 
