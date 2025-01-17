@@ -31,7 +31,7 @@ from ethereum.cancun.trie import (
     copy_trieBytes32U256,
 )
 from ethereum_types.bytes import Bytes, Bytes32
-from ethereum_types.numeric import U256, U256Struct, Bool, bool
+from ethereum_types.numeric import U256, U256Struct, Bool, bool, Uint
 from ethereum.utils.numeric import is_zero
 
 from src.utils.dict import hashdict_read, hashdict_write, hashdict_get, dict_new_empty
@@ -267,6 +267,19 @@ func destroy_account{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Addr
     return ();
 }
 
+func increment_nonce{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Address) {
+    alloc_locals;
+    let account = get_account(address);
+    // This increment is safe since
+    // `validate_transaction` will not allow a transaction
+    // with a nonce equal to max nonce (u64 as of today)
+    let new_nonce = account.value.nonce.value + 1;
+    tempvar new_account = OptionalAccount(
+        new AccountStruct(Uint(new_nonce), account.value.balance, account.value.code)
+    );
+    set_account(address, new_account);
+    return ();
+}
 func set_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(
     address: Address, key: Bytes32, value: U256
 ) {
