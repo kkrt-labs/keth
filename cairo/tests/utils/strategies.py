@@ -354,6 +354,20 @@ evm = st.builds(
 
 
 # Fork
+# A strategy for an empty state - the tries have no data.
+empty_state = st.builds(
+    State,
+    _main_trie=st.just(
+        Trie[Address, Optional[Account]](secured=True, default=None, _data={})
+    ),
+    _storage_tries=st.just({}),
+    _snapshots=st.just(
+        [(Trie[Address, Optional[Account]](secured=True, default=None, _data={}), {})]
+    ),
+    created_accounts=st.just(set()),
+)
+
+
 state = st.lists(address, max_size=MAX_ADDRESS_SET_SIZE, unique=True).flatmap(
     lambda addresses: st.builds(
         State,

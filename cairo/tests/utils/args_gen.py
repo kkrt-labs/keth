@@ -620,7 +620,11 @@ def _gen_arg(
             # In case of a Trie, we need to put the original_storage_tries (state._snapshots[0][1]) in a
             # special field of the State. We want easy access / overrides to this specific snapshot in
             # Cairo, as each `sstore` performs an update of this original trie.
-            data.append(data[1])
+            # The state strategy should always generate a valid snapshots[0], corresponding to the initial state.
+            snapshots_ptr = segments.memory.get(data[2])
+            snapshots0_ptr = segments.memory.get(snapshots_ptr)
+            snapshots0_storage_tries_ptr = segments.memory.get(snapshots0_ptr + 1)
+            data.append(snapshots0_storage_tries_ptr)
 
         segments.load_data(struct_ptr, data)
 
