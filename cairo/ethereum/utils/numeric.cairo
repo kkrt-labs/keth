@@ -170,7 +170,7 @@ func U256_from_be_bytes20{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(bytes20
 // @dev Panics if overflow
 func U256_add{range_check_ptr}(a: U256, b: U256) -> U256 {
     alloc_locals;
-    let (res, carry) = uint256_add(cast([a.value], Uint256), cast([b.value], Uint256));
+    let (res, carry) = uint256_add([a.value], [b.value]);
     if (carry != 0) {
         with_attr error_message("OverflowError") {
             assert 0 = 1;
@@ -189,13 +189,13 @@ func U256_sub{range_check_ptr}(a: U256, b: U256) -> U256 {
             assert 0 = 1;
         }
     }
-    let (result) = uint256_sub(cast([a.value], Uint256), cast([b.value], Uint256));
+    let (result) = uint256_sub([a.value], [b.value]);
     tempvar res = U256(new U256Struct(result.low, result.high));
     return res;
 }
 
 func U256_le{range_check_ptr}(a: U256, b: U256) -> bool {
-    let (result) = uint256_le(cast([a.value], Uint256), cast([b.value], Uint256));
+    let (result) = uint256_le([a.value], [b.value]);
     tempvar res = bool(result);
     return res;
 }
