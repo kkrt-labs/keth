@@ -23,6 +23,7 @@ from ethereum.cancun.state import (
     is_account_empty,
     mark_account_created,
     set_account,
+    set_account_balance,
     set_code,
     set_storage,
     set_transient_storage,
@@ -176,6 +177,16 @@ class TestStateAccounts:
         state, address = data
         state_cairo = cairo_run("set_code", state, address, code)
         set_code(state, address, code)
+        assert state_cairo == state
+
+    @given(
+        data=state_and_address_and_optional_key(),
+        amount=...,
+    )
+    def test_set_account_balance(self, cairo_run, data, amount: U256):
+        state, address = data
+        state_cairo = cairo_run("set_account_balance", state, address, amount)
+        set_account_balance(state, address, amount)
         assert state_cairo == state
 
 
