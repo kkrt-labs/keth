@@ -943,3 +943,17 @@ func copy_transient_storage_tries_recursive{
         dict_start + AddressTrieBytes32U256DictAccess.SIZE, dict_end
     );
 }
+
+func set_code{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Address, code: Bytes) {
+    // Get the current account
+    let account = get_account(address);
+
+    // Create new account with updated code
+    tempvar new_account = OptionalAccount(
+        new AccountStruct(nonce=account.value.nonce, balance=account.value.balance, code=code)
+    );
+
+    // Set the updated account
+    set_account(address, new_account);
+    return ();
+}

@@ -23,11 +23,12 @@ from ethereum.cancun.state import (
     is_account_empty,
     mark_account_created,
     set_account,
+    set_code,
     set_storage,
     set_transient_storage,
 )
 from tests.utils.args_gen import State, TransientStorage
-from tests.utils.strategies import address, bytes32, state, transient_storage
+from tests.utils.strategies import address, bytes32, code, state, transient_storage
 
 
 @composite
@@ -165,6 +166,16 @@ class TestStateAccounts:
         state, address = data
         state_cairo, result_cairo = cairo_run("is_account_alive", state, address)
         assert result_cairo == is_account_alive(state, address)
+        assert state_cairo == state
+
+    @given(
+        data=state_and_address_and_optional_key(),
+        code=code,
+    )
+    def test_set_code(self, cairo_run, data, code: bytes):
+        state, address = data
+        state_cairo = cairo_run("set_code", state, address, code)
+        set_code(state, address, code)
         assert state_cairo == state
 
 
