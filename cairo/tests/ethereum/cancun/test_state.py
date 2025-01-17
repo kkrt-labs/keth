@@ -28,6 +28,7 @@ from ethereum.cancun.state import (
     set_code,
     set_storage,
     set_transient_storage,
+    touch_account,
 )
 from tests.utils.args_gen import State, TransientStorage
 from tests.utils.strategies import address, bytes32, code, state, transient_storage
@@ -195,6 +196,13 @@ class TestStateAccounts:
         state, address = data
         state_cairo = cairo_run("increment_nonce", state, address)
         increment_nonce(state, address)
+        assert state_cairo == state
+
+    @given(data=state_and_address_and_optional_key())
+    def test_touch_account(self, cairo_run, data):
+        state, address = data
+        state_cairo = cairo_run("touch_account", state, address)
+        touch_account(state, address)
         assert state_cairo == state
 
 
