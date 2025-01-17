@@ -31,27 +31,9 @@ from ethereum.cancun.state import (
     set_transient_storage,
     touch_account,
 )
-from ethereum.cancun.trie import copy_trie
 from tests.utils.args_gen import State, TransientStorage
-from tests.utils.errors import cairo_error
+from tests.utils.errors import strict_raises
 from tests.utils.strategies import address, bytes32, code, state, transient_storage
-
-
-def _state_deep_copy(state: State) -> State:
-    return State(
-        _main_trie=copy_trie(state._main_trie),
-        _storage_tries={
-            addr: copy_trie(trie) for addr, trie in state._storage_tries.items()
-        },
-        _snapshots=[
-            (
-                copy_trie(trie_tuple[0]),
-                {addr: copy_trie(trie) for addr, trie in trie_tuple[1].items()},
-            )
-            for trie_tuple in state._snapshots
-        ],
-        created_accounts=state.created_accounts,
-    )
 
 
 @composite
@@ -145,28 +127,16 @@ class TestStateAccounts:
         self, cairo_run, data, recipient_address: Address, amount: U256
     ):
         state, sender_address = data
-        # We need to create a deep copy of the state to avoid mutating the original state
-        # We can refactor it into a deep_copy State util if we ever need to do this again
-        python_state = _state_deep_copy(state)
-
         try:
-            move_ether(python_state, sender_address, recipient_address, amount)
-        except AssertionError:
-            with pytest.raises(AssertionError):
-                cairo_run(
-                    "move_ether", state, sender_address, recipient_address, amount
-                )
+            state_cairo = cairo_run(
+                "move_ether", state, sender_address, recipient_address, amount
+            )
+        except Exception as cairo_error:
+            with strict_raises(type(cairo_error)):
+                move_ether(state, sender_address, recipient_address, amount)
             return
-        except OverflowError:
-            with cairo_error("OverflowError"):
-                cairo_run(
-                    "move_ether", state, sender_address, recipient_address, amount
-                )
-            return
-        state_cairo = cairo_run(
-            "move_ether", state, sender_address, recipient_address, amount
-        )
-        assert state_cairo == python_state
+        move_ether(state, sender_address, recipient_address, amount)
+        assert state_cairo == state
 
     @given(data=state_and_address_and_optional_key())
     def test_destroy_account(self, cairo_run, data):
