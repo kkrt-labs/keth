@@ -5,6 +5,7 @@ struct ExceptionalHalt {
 const StackUnderflowError = 'StackUnderflowError';
 const StackOverflowError = 'StackOverflowError';
 const OutOfGasError = 'OutOfGasError';
+const IndexError = 'IndexError';
 const InvalidOpcode = 'InvalidOpcode';
 const InvalidJumpDestError = 'InvalidJumpDestError';
 const StackDepthLimitError = 'StackDepthLimitError';
