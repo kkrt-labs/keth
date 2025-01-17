@@ -13,12 +13,13 @@ from ethereum.cancun.vm.instructions.block import (
     prev_randao,
     timestamp,
 )
-from tests.utils.args_gen import Environment, Evm, State, TransientStorage
+from tests.utils.args_gen import Environment, Evm, TransientStorage
 from tests.utils.evm_builder import EvmBuilder, address_zero
 from tests.utils.strategies import (
     BLOCK_HASHES_LIST,
     address,
     bytes32,
+    empty_state,
     uint,
     uint64,
     uint256,
@@ -53,7 +54,7 @@ environment_extra_lite = st.integers(
         gas_price=st.just(Uint(0)),
         time=uint256,
         prev_randao=bytes32,
-        state=st.just(State()),
+        state=empty_state,
         chain_id=uint64,
         excess_blob_gas=st.just(U64(0)),
         blob_versioned_hashes=st.just(()),

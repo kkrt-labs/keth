@@ -2,11 +2,12 @@ from ethereum_types.bytes import Bytes20
 from ethereum_types.numeric import U64, U256, Bytes32, Uint
 from hypothesis import strategies as st
 
-from ethereum.cancun.state import State, TransientStorage
+from ethereum.cancun.state import TransientStorage
 from ethereum.exceptions import EthereumException
 from tests.utils.args_gen import Environment, Evm, Message, Stack
 from tests.utils.strategies import (
     Memory,
+    empty_state,
     environment_lite,
     gas_left,
     memory_lite,
@@ -31,7 +32,7 @@ empty_environment = st.builds(
     gas_price=st.just(Uint(0)),
     time=st.just(U256(0)),
     prev_randao=st.just(Bytes32(b"\x00" * 32)),
-    state=st.just(State()),
+    state=empty_state,
     chain_id=st.just(U64(0)),
     excess_blob_gas=st.just(U64(0)),
     blob_versioned_hashes=st.just(()),
