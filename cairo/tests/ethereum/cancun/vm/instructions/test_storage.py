@@ -1,14 +1,14 @@
 from typing import Tuple
 
-import pytest
 from ethereum_types.bytes import Bytes20, Bytes32
 from ethereum_types.numeric import U256
 from hypothesis import given
 from hypothesis import strategies as st
 from hypothesis.strategies import composite
 
-from ethereum.cancun.vm.instructions.storage import sload, tload, tstore
+from ethereum.cancun.vm.instructions.storage import sload, sstore, tload, tstore
 from tests.utils.args_gen import Evm
+from tests.utils.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder
 from tests.utils.strategies import MAX_STORAGE_KEY_SET_SIZE
 
@@ -38,7 +38,7 @@ class TestStorage:
         try:
             cairo_evm = cairo_run("sload", evm)
         except Exception as cairo_error:
-            with pytest.raises(type(cairo_error)):
+            with strict_raises(type(cairo_error)):
                 sload(evm)
             return
 
@@ -46,11 +46,22 @@ class TestStorage:
         assert evm == cairo_evm
 
     @given(evm=evm_with_accessed_storage_keys())
+    def test_sstore(self, cairo_run, evm: Evm):
+        try:
+            cairo_evm = cairo_run("sstore", evm)
+        except Exception as cairo_error:
+            with strict_raises(type(cairo_error)):
+                sstore(evm)
+            return
+        sstore(evm)
+        assert evm == cairo_evm
+
+    @given(evm=evm_with_accessed_storage_keys())
     def test_tload(self, cairo_run, evm: Evm):
         try:
             cairo_evm = cairo_run("tload", evm)
         except Exception as cairo_error:
-            with pytest.raises(type(cairo_error)):
+            with strict_raises(type(cairo_error)):
                 tload(evm)
             return
 
@@ -62,7 +73,7 @@ class TestStorage:
         try:
             cairo_evm = cairo_run("tstore", evm)
         except Exception as cairo_error:
-            with pytest.raises(type(cairo_error)):
+            with strict_raises(type(cairo_error)):
                 tstore(evm)
             return
         tstore(evm)
