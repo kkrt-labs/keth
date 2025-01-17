@@ -8,6 +8,20 @@ from tests.utils.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder
 
 
+class TestPop:
+    @given(evm=EvmBuilder().with_stack().with_gas_left().with_code().build())
+    def test_pop(self, cairo_run, evm: Evm):
+        try:
+            cairo_result = cairo_run("pop", evm)
+        except ExceptionalHalt as cairo_error:
+            with strict_raises(type(cairo_error)):
+                stack.pop(evm)
+            return
+
+        stack.pop(evm)
+        assert evm == cairo_result
+
+
 class TestPushN:
     @pytest.mark.parametrize("num_bytes", range(33))
     @given(evm=EvmBuilder().with_stack().with_gas_left().with_code().build())

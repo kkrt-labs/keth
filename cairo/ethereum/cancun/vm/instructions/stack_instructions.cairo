@@ -1,7 +1,7 @@
 from starkware.cairo.common.math_cmp import is_le
 from starkware.cairo.common.dict import DictAccess, dict_read, dict_write
 
-from ethereum.cancun.vm.stack import push, StackDictAccess, Stack, StackStruct
+from ethereum.cancun.vm.stack import push, StackDictAccess, Stack, StackStruct, pop as stack_pop
 from ethereum.cancun.vm import Evm, EvmImpl
 from ethereum.cancun.vm.exceptions import ExceptionalHalt, StackUnderflowError
 from ethereum.cancun.vm.gas import charge_gas, GasConstants
@@ -104,6 +104,29 @@ func dup_n{range_check_ptr, evm: Evm}(item_number: Uint) -> ExceptionalHalt* {
         }
     }
 
+    EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
+    let ok = cast(0, ExceptionalHalt*);
+    return ok;
+}
+
+func pop{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    alloc_locals;
+    // STACK
+    let stack = evm.value.stack;
+    with stack {
+        let (value, err) = stack_pop();
+        if (cast(err, felt) != 0) {
+            return err;
+        }
+    }
+
+    // GAS
+    let err = charge_gas(Uint(GasConstants.GAS_BASE));
+    if (cast(err, felt) != 0) {
+        return err;
+    }
+
+    // PROGRAM COUNTER
     EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
     let ok = cast(0, ExceptionalHalt*);
     return ok;
