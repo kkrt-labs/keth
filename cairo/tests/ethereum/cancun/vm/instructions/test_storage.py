@@ -50,7 +50,7 @@ class TestStorage:
         try:
             cairo_evm = cairo_run("sstore", evm)
         except Exception as cairo_error:
-            with assert_raises_exactly(type(cairo_error)):
+            with strict_raises(type(cairo_error)):
                 sstore(evm)
             return
         sstore(evm)

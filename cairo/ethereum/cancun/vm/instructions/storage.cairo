@@ -164,6 +164,13 @@ func sstore{
     let poseidon_ptr = cast([ap - 2], PoseidonBuiltin*);
     let dict_ptr = cast([ap - 1], DictAccess*);
 
+    let new_dict_ptr = cast(dict_ptr, SetTupleAddressBytes32DictAccess*);
+    tempvar new_accessed_storage_keys = SetTupleAddressBytes32(
+        new SetTupleAddressBytes32Struct(
+            evm.value.accessed_storage_keys.value.dict_ptr_start, new_dict_ptr
+        ),
+    );
+
     // Calculate storage gas cost
     tempvar zero_u256 = U256(new U256Struct(0, 0));
     let is_original_eq_current = U256__eq__(original_value, current_value);
@@ -229,6 +236,7 @@ func sstore{
     EvmImpl.set_env(env);
     EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
     EvmImpl.set_refund_counter(refund_counter);
+    EvmImpl.set_accessed_storage_keys(new_accessed_storage_keys);
     let ok = cast(0, ExceptionalHalt*);
     return ok;
 }
