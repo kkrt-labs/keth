@@ -37,6 +37,23 @@ from tests.utils.errors import cairo_error
 from tests.utils.strategies import address, bytes32, code, state, transient_storage
 
 
+def _state_deep_copy(state: State) -> State:
+    return State(
+        _main_trie=copy_trie(state._main_trie),
+        _storage_tries={
+            addr: copy_trie(trie) for addr, trie in state._storage_tries.items()
+        },
+        _snapshots=[
+            (
+                copy_trie(trie_tuple[0]),
+                {addr: copy_trie(trie) for addr, trie in trie_tuple[1].items()},
+            )
+            for trie_tuple in state._snapshots
+        ],
+        created_accounts=state.created_accounts,
+    )
+
+
 @composite
 def state_and_address_and_optional_key(
     draw, state_strategy=state, address_strategy=address, key_strategy=None
@@ -130,20 +147,7 @@ class TestStateAccounts:
         state, sender_address = data
         # We need to create a deep copy of the state to avoid mutating the original state
         # We can refactor it into a deep_copy State util if we ever need to do this again
-        python_state = State(
-            _main_trie=copy_trie(state._main_trie),
-            _storage_tries={
-                addr: copy_trie(trie) for addr, trie in state._storage_tries.items()
-            },
-            _snapshots=[
-                (
-                    copy_trie(trie_tuple[0]),
-                    {addr: copy_trie(trie) for addr, trie in trie_tuple[1].items()},
-                )
-                for trie_tuple in state._snapshots
-            ],
-            created_accounts=state.created_accounts,
-        )
+        python_state = _state_deep_copy(state)
 
         try:
             move_ether(python_state, sender_address, recipient_address, amount)
