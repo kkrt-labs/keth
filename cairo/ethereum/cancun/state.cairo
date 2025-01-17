@@ -636,6 +636,17 @@ func set_transient_storage{poseidon_ptr: PoseidonBuiltin*, transient_storage: Tr
     return ();
 }
 
+func account_exists{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Address) -> bool {
+    let account = get_account_optional(address);
+
+    if (cast(account.value, felt) == 0) {
+        tempvar result = bool(0);
+        return result;
+    }
+    tempvar result = bool(1);
+    return result;
+}
+
 func account_has_code_or_nonce{poseidon_ptr: PoseidonBuiltin*, state: State}(
     address: Address
 ) -> bool {
@@ -653,17 +664,6 @@ func account_has_code_or_nonce{poseidon_ptr: PoseidonBuiltin*, state: State}(
 
     tempvar res = bool(0);
     return res;
-}
-
-func account_exists{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Address) -> bool {
-    let account = get_account_optional(address);
-
-    if (cast(account.value, felt) == 0) {
-        tempvar result = bool(0);
-        return result;
-    }
-    tempvar result = bool(1);
-    return result;
 }
 
 func is_account_empty{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Address) -> bool {
@@ -981,5 +981,17 @@ func set_account_balance{poseidon_ptr: PoseidonBuiltin*, state: State}(
     );
 
     set_account(address, new_account);
+    return ();
+}
+
+func touch_account{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Address) {
+    let _account_exists = account_exists(address);
+    if (_account_exists.value != 0) {
+        return ();
+    }
+
+    let _empty_account = EMPTY_ACCOUNT();
+    let empty_account = OptionalAccount(_empty_account.value);
+    set_account(address, empty_account);
     return ();
 }
