@@ -5,7 +5,8 @@ from ethereum_types.bytes import Bytes32, Bytes32Struct, Bytes20
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 
 from starkware.cairo.common.math import split_felt
-from starkware.cairo.common.uint256 import word_reverse_endian
+from starkware.cairo.common.uint256 import word_reverse_endian, Uint256, uint256_le
+from src.utils.uint256 import uint256_add, uint256_sub
 
 func min{range_check_ptr}(a: felt, b: felt) -> felt {
     alloc_locals;
@@ -163,5 +164,38 @@ func U256_from_be_bytes20{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(bytes20
     let (low_low, _) = divmod(rev_high, 2 ** 96);
     let low = low_low + remainder * 2 ** 32;
     tempvar res = U256(new U256Struct(low=low, high=high));
+    return res;
+}
+
+// @dev Panics if overflow
+func U256_add{range_check_ptr}(a: U256, b: U256) -> U256 {
+    alloc_locals;
+    let (res, carry) = uint256_add(cast([a.value], Uint256), cast([b.value], Uint256));
+    if (carry != 0) {
+        with_attr error_message("OverflowError") {
+            assert 0 = 1;
+        }
+    }
+    tempvar result = U256(new U256Struct(res.low, res.high));
+    return result;
+}
+
+// @dev Panics if underflow with OverflowError
+func U256_sub{range_check_ptr}(a: U256, b: U256) -> U256 {
+    alloc_locals;
+    let is_within_bounds = U256_le(b, a);
+    if (is_within_bounds.value == 0) {
+        with_attr error_message("OverflowError") {
+            assert 0 = 1;
+        }
+    }
+    let (result) = uint256_sub(cast([a.value], Uint256), cast([b.value], Uint256));
+    tempvar res = U256(new U256Struct(result.low, result.high));
+    return res;
+}
+
+func U256_le{range_check_ptr}(a: U256, b: U256) -> bool {
+    let (result) = uint256_le(cast([a.value], Uint256), cast([b.value], Uint256));
+    tempvar res = bool(result);
     return res;
 }
