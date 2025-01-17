@@ -957,3 +957,16 @@ func set_code{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Address, co
     set_account(address, new_account);
     return ();
 }
+
+func set_account_balance{poseidon_ptr: PoseidonBuiltin*, state: State}(
+    address: Address, amount: U256
+) {
+    let account = get_account(address);
+
+    tempvar new_account = OptionalAccount(
+        new AccountStruct(nonce=account.value.nonce, balance=amount, code=account.value.code)
+    );
+
+    set_account(address, new_account);
+    return ();
+}
