@@ -1,4 +1,3 @@
-import pytest
 from ethereum_types.numeric import U64, Uint
 from hypothesis import given
 from hypothesis import strategies as st
@@ -14,6 +13,7 @@ from ethereum.cancun.vm.instructions.block import (
     timestamp,
 )
 from tests.utils.args_gen import Environment, Evm, TransientStorage
+from tests.utils.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder, address_zero
 from tests.utils.strategies import (
     BLOCK_HASHES_LIST,
@@ -73,7 +73,7 @@ class TestBlock:
         try:
             cairo_result = cairo_run("block_hash", evm)
         except ExceptionalHalt as cairo_error:
-            with pytest.raises(type(cairo_error)):
+            with strict_raises(type(cairo_error)):
                 block_hash(evm)
             return
 
@@ -85,7 +85,7 @@ class TestBlock:
         try:
             cairo_result = cairo_run("coinbase", evm)
         except ExceptionalHalt as cairo_error:
-            with pytest.raises(type(cairo_error)):
+            with strict_raises(type(cairo_error)):
                 coinbase(evm)
             return
 
@@ -97,7 +97,7 @@ class TestBlock:
         try:
             cairo_result = cairo_run("timestamp", evm)
         except ExceptionalHalt as cairo_error:
-            with pytest.raises(type(cairo_error)):
+            with strict_raises(type(cairo_error)):
                 timestamp(evm)
             return
 
@@ -109,7 +109,7 @@ class TestBlock:
         try:
             cairo_result = cairo_run("number", evm)
         except ExceptionalHalt as cairo_error:
-            with pytest.raises(type(cairo_error)):
+            with strict_raises(type(cairo_error)):
                 number(evm)
             return
 
@@ -121,7 +121,7 @@ class TestBlock:
         try:
             cairo_result = cairo_run("prev_randao", evm)
         except ExceptionalHalt as cairo_error:
-            with pytest.raises(type(cairo_error)):
+            with strict_raises(type(cairo_error)):
                 prev_randao(evm)
             return
 
@@ -133,7 +133,7 @@ class TestBlock:
         try:
             cairo_result = cairo_run("gas_limit", evm)
         except ExceptionalHalt as cairo_error:
-            with pytest.raises(type(cairo_error)):
+            with strict_raises(type(cairo_error)):
                 gas_limit(evm)
             return
 
@@ -145,7 +145,7 @@ class TestBlock:
         try:
             cairo_result = cairo_run("chain_id", evm)
         except ExceptionalHalt as cairo_error:
-            with pytest.raises(type(cairo_error)):
+            with strict_raises(type(cairo_error)):
                 chain_id(evm)
             return
 
