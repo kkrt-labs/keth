@@ -791,9 +791,7 @@ func begin_transaction{
     );
 
     // Update the snapshots list
-    let current_snapshot = state.value._snapshots.value.data + state.value._snapshots.value.len;
-    let current_snapshot_ptr = cast(current_snapshot, felt);
-    assert [current_snapshot_ptr] = cast(new_snapshot.value, felt);
+    assert state.value._snapshots.value.data[state.value._snapshots.value.len] = new_snapshot;
 
     tempvar new_snapshots = ListTupleTrieAddressOptionalAccountMappingAddressTrieBytes32U256(
         new ListTupleTrieAddressOptionalAccountMappingAddressTrieBytes32U256Struct(
@@ -842,10 +840,9 @@ func begin_transaction{
     );
 
     // Update the snapshots list
-    let current_transient_snapshot = transient_storage.value._snapshots.value.data +
-        transient_storage.value._snapshots.value.len;
-    let current_transient_snapshot_ptr = cast(current_transient_snapshot, felt);
-    assert [current_transient_snapshot_ptr] = cast(new_transient_snapshot.value, felt);
+    assert transient_storage.value._snapshots.value.data[
+        transient_storage.value._snapshots.value.len
+    ] = new_transient_snapshot;
 
     tempvar new_transient_snapshots = TransientStorageSnapshots(
         new TransientStorageSnapshotsStruct(
