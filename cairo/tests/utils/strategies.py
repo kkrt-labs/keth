@@ -258,6 +258,14 @@ transient_storage = st.sets(
     )
 )
 
+# Fork
+# A strategy for an empty state - the tries have no data.
+empty_transient_storage = st.builds(
+    TransientStorage,
+    _tries=st.just({}),
+    _snapshots=st.just([]),
+)
+
 environment_lite = st.integers(min_value=0).flatmap(  # Generate block number first
     lambda number: st.builds(
         Environment,

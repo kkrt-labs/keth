@@ -1,8 +1,11 @@
 from starkware.cairo.common.math_cmp import is_le, is_not_zero
 from starkware.cairo.common.uint256 import uint256_reverse_endian
 from ethereum_types.numeric import Uint, U256, U256Struct, bool
-from ethereum_types.bytes import Bytes32, Bytes32Struct
+from ethereum_types.bytes import Bytes32, Bytes32Struct, Bytes20
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
+
+from starkware.cairo.common.math import split_felt
+from starkware.cairo.common.uint256 import word_reverse_endian
 
 func min{range_check_ptr}(a: felt, b: felt) -> felt {
     alloc_locals;
@@ -146,5 +149,19 @@ func U256__eq__(a: U256, b: U256) -> bool {
         return res;
     }
     tempvar res = bool(0);
+    return res;
+}
+
+func U256_be_from_address{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(address: Bytes20) -> U256 {
+    // 1. Splits the 20-byte address into high and low parts
+    let (address_high, address_low) = split_felt(address.value);
+    // 2. Reverses the endianness of both parts
+    let (rev_low) = word_reverse_endian(address_low);
+    let (rev_high) = word_reverse_endian(address_high);
+    // 3. The final value contains 16bytes in the low part and 4 bytes in the high part
+    let (high, remainder) = divmod(rev_low, 2 ** 96);
+    let (low_low, _) = divmod(rev_high, 2 ** 96);
+    let low = low_low + remainder * 2 ** 32;
+    tempvar res = U256(new U256Struct(low=low, high=high));
     return res;
 }

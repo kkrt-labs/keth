@@ -1,7 +1,10 @@
+from typing import Tuple
+
 from ethereum_types.bytes import Bytes20
 from ethereum_types.numeric import U64, U256, Bytes32, Uint
 from hypothesis import strategies as st
 
+from ethereum.cancun.fork_types import Address
 from ethereum.cancun.state import TransientStorage
 from ethereum.exceptions import EthereumException
 from tests.utils.args_gen import Environment, Evm, Message, Stack
@@ -115,6 +118,18 @@ class EvmBuilder:
 
     def with_running(self, strategy=st.booleans()):
         self._running = strategy
+        return self
+
+    def with_accessed_addresses(
+        self, strategy=st.sets(st.from_type(Address), max_size=10)
+    ):
+        self._accessed_addresses = strategy
+        return self
+
+    def with_accessed_storage_keys(
+        self, strategy=st.sets(st.from_type(Tuple[Address, U256]), max_size=10)
+    ):
+        self._accessed_storage_keys = strategy
         return self
 
     def build(self):
