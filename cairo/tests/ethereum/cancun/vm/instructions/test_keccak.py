@@ -5,7 +5,7 @@ from ethereum.cancun.vm.exceptions import ExceptionalHalt
 from ethereum.cancun.vm.instructions.keccak import keccak
 from ethereum.cancun.vm.stack import push
 from tests.utils.args_gen import Evm
-from tests.utils.errors import assert_raises_exactly
+from tests.utils.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder
 from tests.utils.strategies import memory_lite_access_size, memory_lite_start_position
 
@@ -25,7 +25,7 @@ class TestKeccak:
         try:
             cairo_result = cairo_run("keccak", evm)
         except ExceptionalHalt as cairo_error:
-            with assert_raises_exactly(type(cairo_error)):
+            with strict_raises(type(cairo_error)):
                 keccak(evm)
             return
 

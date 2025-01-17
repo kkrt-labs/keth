@@ -4,7 +4,7 @@ from hypothesis import given
 import ethereum.cancun.vm.instructions.stack as stack
 from ethereum.cancun.vm.exceptions import ExceptionalHalt
 from tests.utils.args_gen import Evm
-from tests.utils.errors import assert_raises_exactly
+from tests.utils.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder
 
 
@@ -17,7 +17,7 @@ class TestPushN:
         try:
             cairo_result = cairo_run(func_name, evm)
         except ExceptionalHalt as cairo_error:
-            with assert_raises_exactly(type(cairo_error)):
+            with strict_raises(type(cairo_error)):
                 push_i(evm)
             return
 
@@ -34,7 +34,7 @@ class TestSwapN:
         try:
             cairo_result = cairo_run(func_name, evm)
         except ExceptionalHalt as cairo_error:
-            with assert_raises_exactly(type(cairo_error)):
+            with strict_raises(type(cairo_error)):
                 swap_i(evm)
             return
 
@@ -51,7 +51,7 @@ class TestDupN:
         try:
             cairo_result = cairo_run(func_name, evm)
         except ExceptionalHalt as cairo_error:
-            with assert_raises_exactly(type(cairo_error)):
+            with strict_raises(type(cairo_error)):
                 dup_i(evm)
             return
         dup_i(evm)

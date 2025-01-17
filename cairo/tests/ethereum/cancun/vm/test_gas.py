@@ -22,7 +22,7 @@ from ethereum.cancun.vm.gas import (
     max_message_call_gas,
 )
 from tests.utils.args_gen import Evm, Memory
-from tests.utils.errors import assert_raises_exactly
+from tests.utils.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder
 
 
@@ -40,7 +40,7 @@ class TestGas:
         try:
             cairo_result = cairo_run("charge_gas", evm, amount)
         except Exception as cairo_error:
-            with assert_raises_exactly(type(cairo_error)):
+            with strict_raises(type(cairo_error)):
                 charge_gas(evm, amount)
             return
 
@@ -61,7 +61,7 @@ class TestGas:
         try:
             cairo_result = cairo_run("calculate_gas_extend_memory", memory, extensions)
         except ExceptionalHalt as cairo_error:
-            with assert_raises_exactly(type(cairo_error)):
+            with strict_raises(type(cairo_error)):
                 calculate_gas_extend_memory(memory, extensions)
             return
 

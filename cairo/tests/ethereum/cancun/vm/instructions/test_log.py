@@ -5,7 +5,7 @@ from ethereum.cancun.vm.exceptions import ExceptionalHalt
 from ethereum.cancun.vm.instructions.log import log0, log1, log2, log3, log4
 from ethereum.cancun.vm.stack import push
 from tests.utils.args_gen import Evm
-from tests.utils.errors import assert_raises_exactly
+from tests.utils.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder
 from tests.utils.strategies import memory_lite_access_size, memory_lite_start_position
 
@@ -24,7 +24,7 @@ class TestLog:
         try:
             cairo_result = cairo_run("log0", evm)
         except ExceptionalHalt as cairo_error:
-            with assert_raises_exactly(type(cairo_error)):
+            with strict_raises(type(cairo_error)):
                 log0(evm)
             return
 
@@ -46,7 +46,7 @@ class TestLog:
         try:
             cairo_result = cairo_run("log1", evm)
         except ExceptionalHalt as cairo_error:
-            with assert_raises_exactly(type(cairo_error)):
+            with strict_raises(type(cairo_error)):
                 log1(evm)
             return
 
@@ -76,7 +76,7 @@ class TestLog:
         try:
             cairo_result = cairo_run("log2", evm)
         except ExceptionalHalt as cairo_error:
-            with assert_raises_exactly(type(cairo_error)):
+            with strict_raises(type(cairo_error)):
                 log2(evm)
             return
 
@@ -109,7 +109,7 @@ class TestLog:
         try:
             cairo_result = cairo_run("log3", evm)
         except ExceptionalHalt as cairo_error:
-            with assert_raises_exactly(type(cairo_error)):
+            with strict_raises(type(cairo_error)):
                 log3(evm)
             return
 
@@ -145,7 +145,7 @@ class TestLog:
         try:
             cairo_result = cairo_run("log4", evm)
         except ExceptionalHalt as cairo_error:
-            with assert_raises_exactly(type(cairo_error)):
+            with strict_raises(type(cairo_error)):
                 log4(evm)
             return
 

@@ -20,32 +20,30 @@ def cairo_error(message=None):
 
 
 @contextmanager
-def assert_raises_exactly(expected_exception: Type[Exception], msg: str = None):
+def strict_raises(expected_exception: Type[Exception], match: str = None):
     """
-    Context manager that verifies an exception of exactly the specified type is raised.
+    Context manager that extends pytest.raises to enforce strict exception type matching.
     Unlike pytest.raises, this doesn't allow subclass exceptions to match.
 
     Args:
         expected_exception: The exact exception type expected
-        msg: Optional message to include in assertion error
+        match: Optional string pattern to match against the exception message
 
     Example:
-        with assert_raises_exactly(AssertionError):
-            raise AssertionError()  # passes
+        with strict_raises(ValueError, match="invalid value"):
+            raise ValueError("invalid value")  # passes
 
-        with assert_raises_exactly(Exception):
-            raise AssertionError()  # fails - more specific exception
+        with strict_raises(Exception):
+            raise ValueError()  # fails - more specific exception
     """
-    try:
-        yield
-    except Exception as e:
-        if type(e) is not expected_exception:
-            raise AssertionError(
-                msg
-                or f"Expected exactly {expected_exception.__name__}, but got {type(e).__name__}"
-            )
-    else:
+    with pytest.raises(Exception) as exc_info:
+        yield exc_info
+
+    if type(exc_info.value) is not expected_exception:
         raise AssertionError(
-            msg
-            or f"Expected {expected_exception.__name__} to be raised, but no exception was raised"
+            f"Expected exactly {expected_exception.__name__}, but got {type(exc_info.value).__name__}"
         )
+
+    if match is not None:
+        error_msg = str(exc_info.value)
+        assert match in error_msg, f"Expected '{match}' in '{error_msg}'"

@@ -8,7 +8,7 @@ from hypothesis.strategies import composite
 
 from ethereum.cancun.vm.instructions.storage import sload, tload, tstore
 from tests.utils.args_gen import Evm
-from tests.utils.errors import assert_raises_exactly
+from tests.utils.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder
 from tests.utils.strategies import MAX_STORAGE_KEY_SET_SIZE
 
@@ -38,7 +38,7 @@ class TestStorage:
         try:
             cairo_evm = cairo_run("sload", evm)
         except Exception as cairo_error:
-            with assert_raises_exactly(type(cairo_error)):
+            with strict_raises(type(cairo_error)):
                 sload(evm)
             return
 
@@ -50,7 +50,7 @@ class TestStorage:
         try:
             cairo_evm = cairo_run("tload", evm)
         except Exception as cairo_error:
-            with assert_raises_exactly(type(cairo_error)):
+            with strict_raises(type(cairo_error)):
                 tload(evm)
             return
 
@@ -62,7 +62,7 @@ class TestStorage:
         try:
             cairo_evm = cairo_run("tstore", evm)
         except Exception as cairo_error:
-            with assert_raises_exactly(type(cairo_error)):
+            with strict_raises(type(cairo_error)):
                 tstore(evm)
             return
         tstore(evm)
