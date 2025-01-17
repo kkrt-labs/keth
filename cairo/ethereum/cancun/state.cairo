@@ -189,9 +189,6 @@ func move_ether{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, state: State}(
     sender_address: Address, recipient_address: Address, amount: U256
 ) {
     alloc_locals;
-    let fp_and_pc = get_fp_and_pc();
-    local __fp__: felt* = fp_and_pc.fp_val;
-
     let sender_account = get_account(sender_address);
     let recipient_account = get_account(recipient_address);
     let sender_balance = sender_account.value.balance;
