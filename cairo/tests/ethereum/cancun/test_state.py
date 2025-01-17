@@ -2,7 +2,7 @@ from typing import Optional
 
 import pytest
 from ethereum_types.numeric import U256
-from hypothesis import given
+from hypothesis import given, reproduce_failure
 from hypothesis import strategies as st
 from hypothesis.strategies import composite
 
@@ -12,6 +12,7 @@ from ethereum.cancun.state import (
     account_exists_and_is_empty,
     account_has_code_or_nonce,
     begin_transaction,
+    commit_transaction,
     destroy_account,
     destroy_storage,
     get_account,
@@ -29,6 +30,7 @@ from ethereum.cancun.state import (
     set_transient_storage,
 )
 from tests.utils.args_gen import State, TransientStorage
+from tests.utils.errors import strict_raises
 from tests.utils.strategies import address, bytes32, code, state, transient_storage
 
 
@@ -271,7 +273,7 @@ class TestTransientStorage:
         assert transient_storage_cairo == transient_storage
 
 
-class TestBeginTransaction:
+class TestSnapshots:
     @given(state=..., transient_storage=...)
     def test_begin_transaction(
         self, cairo_run, state: State, transient_storage: TransientStorage
@@ -282,5 +284,26 @@ class TestBeginTransaction:
             transient_storage,
         )
         begin_transaction(state, transient_storage)
+        assert state_cairo == state
+        assert transient_storage_cairo == transient_storage
+
+    @reproduce_failure("6.123.17", b"AABBAAAAAA==")
+    @given(state=..., transient_storage=...)
+    def test_commit_transaction(
+        self, cairo_run_py, state: State, transient_storage: TransientStorage
+    ):
+        try:
+            state_cairo, transient_storage_cairo, err = cairo_run_py(
+                "commit_transaction",
+                state,
+                transient_storage,
+            )
+            assert len(err) == 0
+        except Exception as cairo_error:
+            with strict_raises(type(cairo_error)):
+                commit_transaction(state, transient_storage)
+            return
+
+        commit_transaction(state, transient_storage)
         assert state_cairo == state
         assert transient_storage_cairo == transient_storage
