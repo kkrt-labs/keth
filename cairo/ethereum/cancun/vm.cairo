@@ -297,7 +297,7 @@ namespace EvmImpl {
         return ();
     }
 
-    func set_refund_counter{evm: Evm}(new_refund_counter: Uint) {
+    func set_refund_counter{evm: Evm}(new_refund_counter: felt) {
         tempvar evm = Evm(
             new EvmStruct(
                 pc=evm.value.pc,
