@@ -1,5 +1,5 @@
 from starkware.cairo.common.math_cmp import is_le, is_not_zero
-from starkware.cairo.common.uint256 import uint256_reverse_endian
+from starkware.cairo.common.uint256 import uint256_reverse_endian, uint256_lt
 from ethereum_types.numeric import Uint, U256, U256Struct, bool
 from ethereum_types.bytes import Bytes32, Bytes32Struct, Bytes20
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
@@ -163,5 +163,11 @@ func U256_from_be_bytes20{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(bytes20
     let (low_low, _) = divmod(rev_high, 2 ** 96);
     let low = low_low + remainder * 2 ** 32;
     tempvar res = U256(new U256Struct(low=low, high=high));
+    return res;
+}
+
+func U256_lt{range_check_ptr}(a: U256, b: U256) -> bool {
+    let (result) = uint256_lt([a.value], [b.value]);
+    tempvar res = bool(result);
     return res;
 }

@@ -2,10 +2,12 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from ethereum.cancun.state import TransientStorage
+from ethereum.cancun.vm.exceptions import ExceptionalHalt
 from ethereum.cancun.vm.instructions.environment import (
     address,
     balance,
     base_fee,
+    blob_hash,
     caller,
     callvalue,
     codesize,
@@ -171,4 +173,16 @@ class TestEnvironmentInstructions:
             return
 
         base_fee(evm)
+        assert evm == cairo_result
+
+    @given(evm=evm_environment_strategy)
+    def test_blob_hash(self, cairo_run, evm: Evm):
+        try:
+            cairo_result = cairo_run("blob_hash", evm)
+        except ExceptionalHalt as cairo_error:
+            with strict_raises(type(cairo_error)):
+                blob_hash(evm)
+            return
+
+        blob_hash(evm)
         assert evm == cairo_result
