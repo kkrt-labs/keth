@@ -190,7 +190,6 @@ func move_ether{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, state: State}(
 ) {
     alloc_locals;
     let sender_account = get_account(sender_address);
-    let recipient_account = get_account(recipient_address);
     let sender_balance = sender_account.value.balance;
 
     let is_sender_balance_sufficient = U256_le(amount, sender_balance);
@@ -199,9 +198,10 @@ func move_ether{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, state: State}(
     }
 
     let new_sender_account_balance = U256_sub(sender_balance, amount);
-    let new_recipient_account_balance = U256_add(recipient_account.value.balance, amount);
-
     set_account_balance(sender_address, new_sender_account_balance);
+
+    let recipient_account = get_account(recipient_address);
+    let new_recipient_account_balance = U256_add(recipient_account.value.balance, amount);
     set_account_balance(recipient_address, new_recipient_account_balance);
     return ();
 }
