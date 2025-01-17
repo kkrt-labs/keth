@@ -1,4 +1,3 @@
-import pytest
 from hypothesis import given
 
 from ethereum.cancun.vm.exceptions import ExceptionalHalt
@@ -13,6 +12,7 @@ from ethereum.cancun.vm.instructions.bitwise import (
     get_byte,
 )
 from tests.utils.args_gen import Evm
+from tests.utils.errors import assert_raises_exactly
 from tests.utils.evm_builder import EvmBuilder
 
 bitwise_tests_strategy = EvmBuilder().with_stack().with_gas_left().build()
@@ -24,7 +24,7 @@ class TestBitwise:
         try:
             cairo_result = cairo_run("bitwise_and", evm)
         except ExceptionalHalt as cairo_error:
-            with pytest.raises(type(cairo_error)):
+            with assert_raises_exactly(type(cairo_error)):
                 bitwise_and(evm)
             return
 
@@ -36,7 +36,7 @@ class TestBitwise:
         try:
             cairo_result = cairo_run("bitwise_or", evm)
         except ExceptionalHalt as cairo_error:
-            with pytest.raises(type(cairo_error)):
+            with assert_raises_exactly(type(cairo_error)):
                 bitwise_or(evm)
             return
 
@@ -48,7 +48,7 @@ class TestBitwise:
         try:
             cairo_result = cairo_run("bitwise_xor", evm)
         except ExceptionalHalt as cairo_error:
-            with pytest.raises(type(cairo_error)):
+            with assert_raises_exactly(type(cairo_error)):
                 bitwise_xor(evm)
             return
 
@@ -60,7 +60,7 @@ class TestBitwise:
         try:
             cairo_result = cairo_run("bitwise_not", evm)
         except ExceptionalHalt as cairo_error:
-            with pytest.raises(type(cairo_error)):
+            with assert_raises_exactly(type(cairo_error)):
                 bitwise_not(evm)
             return
 
@@ -72,7 +72,7 @@ class TestBitwise:
         try:
             cairo_result = cairo_run("get_byte", evm)
         except ExceptionalHalt as cairo_error:
-            with pytest.raises(type(cairo_error)):
+            with assert_raises_exactly(type(cairo_error)):
                 get_byte(evm)
             return
 
@@ -84,7 +84,7 @@ class TestBitwise:
         try:
             cairo_result = cairo_run("bitwise_shl", evm)
         except ExceptionalHalt as cairo_error:
-            with pytest.raises(type(cairo_error)):
+            with assert_raises_exactly(type(cairo_error)):
                 bitwise_shl(evm)
             return
 
@@ -96,7 +96,7 @@ class TestBitwise:
         try:
             cairo_result = cairo_run("bitwise_shr", evm)
         except ExceptionalHalt as cairo_error:
-            with pytest.raises(type(cairo_error)):
+            with assert_raises_exactly(type(cairo_error)):
                 bitwise_shr(evm)
             return
 
@@ -108,7 +108,7 @@ class TestBitwise:
         try:
             cairo_result = cairo_run("bitwise_sar", evm)
         except ExceptionalHalt as cairo_error:
-            with pytest.raises(type(cairo_error)):
+            with assert_raises_exactly(type(cairo_error)):
                 bitwise_sar(evm)
             return
 

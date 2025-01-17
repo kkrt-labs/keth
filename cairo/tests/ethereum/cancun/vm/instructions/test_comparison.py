@@ -1,4 +1,3 @@
-import pytest
 from hypothesis import given
 
 from ethereum.cancun.vm.exceptions import ExceptionalHalt
@@ -11,6 +10,7 @@ from ethereum.cancun.vm.instructions.comparison import (
     signed_less_than,
 )
 from tests.utils.args_gen import Evm
+from tests.utils.errors import assert_raises_exactly
 from tests.utils.evm_builder import EvmBuilder
 
 comparison_tests_strategy = EvmBuilder().with_stack().with_gas_left().build()
@@ -22,7 +22,7 @@ class TestComparison:
         try:
             cairo_result = cairo_run("less_than", evm)
         except ExceptionalHalt as cairo_error:
-            with pytest.raises(type(cairo_error)):
+            with assert_raises_exactly(type(cairo_error)):
                 less_than(evm)
             return
 
@@ -34,7 +34,7 @@ class TestComparison:
         try:
             cairo_result = cairo_run("greater_than", evm)
         except ExceptionalHalt as cairo_error:
-            with pytest.raises(type(cairo_error)):
+            with assert_raises_exactly(type(cairo_error)):
                 greater_than(evm)
             return
 
@@ -46,7 +46,7 @@ class TestComparison:
         try:
             cairo_result = cairo_run("signed_less_than", evm)
         except ExceptionalHalt as cairo_error:
-            with pytest.raises(type(cairo_error)):
+            with assert_raises_exactly(type(cairo_error)):
                 signed_less_than(evm)
             return
 
@@ -58,7 +58,7 @@ class TestComparison:
         try:
             cairo_result = cairo_run("signed_greater_than", evm)
         except ExceptionalHalt as cairo_error:
-            with pytest.raises(type(cairo_error)):
+            with assert_raises_exactly(type(cairo_error)):
                 signed_greater_than(evm)
             return
 
@@ -70,7 +70,7 @@ class TestComparison:
         try:
             cairo_result = cairo_run("equal", evm)
         except ExceptionalHalt as cairo_error:
-            with pytest.raises(type(cairo_error)):
+            with assert_raises_exactly(type(cairo_error)):
                 equal(evm)
             return
 
@@ -82,7 +82,7 @@ class TestComparison:
         try:
             cairo_result = cairo_run("is_zero", evm)
         except ExceptionalHalt as cairo_error:
-            with pytest.raises(type(cairo_error)):
+            with assert_raises_exactly(type(cairo_error)):
                 is_zero(evm)
             return
 

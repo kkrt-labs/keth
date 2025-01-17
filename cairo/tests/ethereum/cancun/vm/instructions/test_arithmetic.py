@@ -1,4 +1,3 @@
-import pytest
 from hypothesis import given
 
 from ethereum.cancun.vm.instructions.arithmetic import (
@@ -15,6 +14,7 @@ from ethereum.cancun.vm.instructions.arithmetic import (
     sub,
 )
 from tests.utils.args_gen import Evm
+from tests.utils.errors import assert_raises_exactly
 from tests.utils.evm_builder import EvmBuilder
 
 arithmetic_tests_strategy = EvmBuilder().with_stack().with_gas_left().build()
@@ -26,7 +26,7 @@ class TestArithmetic:
         try:
             cairo_result = cairo_run("add", evm)
         except Exception as cairo_error:
-            with pytest.raises(type(cairo_error)):
+            with assert_raises_exactly(type(cairo_error)):
                 add(evm)
             return
 
@@ -38,7 +38,7 @@ class TestArithmetic:
         try:
             cairo_result = cairo_run("sub", evm)
         except Exception as cairo_error:
-            with pytest.raises(type(cairo_error)):
+            with assert_raises_exactly(type(cairo_error)):
                 sub(evm)
             return
 
@@ -50,7 +50,7 @@ class TestArithmetic:
         try:
             cairo_result = cairo_run("mul", evm)
         except Exception as cairo_error:
-            with pytest.raises(type(cairo_error)):
+            with assert_raises_exactly(type(cairo_error)):
                 mul(evm)
             return
 
@@ -63,7 +63,7 @@ class TestArithmetic:
         try:
             cairo_result = cairo_run("div", evm)
         except Exception as cairo_error:
-            with pytest.raises(type(cairo_error)):
+            with assert_raises_exactly(type(cairo_error)):
                 div(evm)
             return
 
@@ -75,7 +75,7 @@ class TestArithmetic:
         try:
             cairo_result = cairo_run("sdiv", evm)
         except Exception as cairo_error:
-            with pytest.raises(type(cairo_error)):
+            with assert_raises_exactly(type(cairo_error)):
                 sdiv(evm)
             return
 
@@ -87,7 +87,7 @@ class TestArithmetic:
         try:
             cairo_result = cairo_run("mod", evm)
         except Exception as cairo_error:
-            with pytest.raises(type(cairo_error)):
+            with assert_raises_exactly(type(cairo_error)):
                 mod(evm)
             return
 
@@ -99,7 +99,7 @@ class TestArithmetic:
         try:
             cairo_result = cairo_run("smod", evm)
         except Exception as cairo_error:
-            with pytest.raises(type(cairo_error)):
+            with assert_raises_exactly(type(cairo_error)):
                 smod(evm)
             return
 
@@ -111,7 +111,7 @@ class TestArithmetic:
         try:
             cairo_result = cairo_run("addmod", evm)
         except Exception as cairo_error:
-            with pytest.raises(type(cairo_error)):
+            with assert_raises_exactly(type(cairo_error)):
                 addmod(evm)
             return
 
@@ -123,7 +123,7 @@ class TestArithmetic:
         try:
             cairo_result = cairo_run("mulmod", evm)
         except Exception as cairo_error:
-            with pytest.raises(type(cairo_error)):
+            with assert_raises_exactly(type(cairo_error)):
                 mulmod(evm)
             return
 
@@ -135,7 +135,7 @@ class TestArithmetic:
         try:
             cairo_result = cairo_run("exp", evm)
         except Exception as cairo_error:
-            with pytest.raises(type(cairo_error)):
+            with assert_raises_exactly(type(cairo_error)):
                 exp(evm)
             return
 
@@ -147,7 +147,7 @@ class TestArithmetic:
         try:
             cairo_result = cairo_run("signextend", evm)
         except Exception as cairo_error:
-            with pytest.raises(type(cairo_error)):
+            with assert_raises_exactly(type(cairo_error)):
                 signextend(evm)
             return
 

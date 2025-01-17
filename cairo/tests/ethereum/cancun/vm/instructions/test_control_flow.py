@@ -1,4 +1,3 @@
-import pytest
 from ethereum_types.numeric import U256
 from hypothesis import given
 
@@ -13,6 +12,7 @@ from ethereum.cancun.vm.instructions.control_flow import (
 )
 from ethereum.cancun.vm.stack import push
 from tests.utils.args_gen import Evm
+from tests.utils.errors import assert_raises_exactly
 from tests.utils.evm_builder import EvmBuilder
 
 
@@ -22,7 +22,7 @@ class TestControlFlow:
         try:
             cairo_result = cairo_run("stop", evm)
         except ExceptionalHalt as cairo_error:
-            with pytest.raises(type(cairo_error)):
+            with assert_raises_exactly(type(cairo_error)):
                 stop(evm)
             return
 
@@ -49,7 +49,7 @@ class TestControlFlow:
         try:
             cairo_result = cairo_run("jump", evm)
         except ExceptionalHalt as cairo_error:
-            with pytest.raises(type(cairo_error)):
+            with assert_raises_exactly(type(cairo_error)):
                 jump(evm)
             return
 
@@ -84,7 +84,7 @@ class TestControlFlow:
         try:
             cairo_result = cairo_run("jumpi", evm)
         except ExceptionalHalt as cairo_error:
-            with pytest.raises(type(cairo_error)):
+            with assert_raises_exactly(type(cairo_error)):
                 jumpi(evm)
             return
 
@@ -96,7 +96,7 @@ class TestControlFlow:
         try:
             cairo_result = cairo_run("pc", evm)
         except ExceptionalHalt as cairo_error:
-            with pytest.raises(type(cairo_error)):
+            with assert_raises_exactly(type(cairo_error)):
                 pc(evm)
             return
 
@@ -108,7 +108,7 @@ class TestControlFlow:
         try:
             cairo_result = cairo_run("gas_left", evm)
         except ExceptionalHalt as cairo_error:
-            with pytest.raises(type(cairo_error)):
+            with assert_raises_exactly(type(cairo_error)):
                 gas_left(evm)
             return
 
@@ -120,7 +120,7 @@ class TestControlFlow:
         try:
             cairo_result = cairo_run("jumpdest", evm)
         except ExceptionalHalt as cairo_error:
-            with pytest.raises(type(cairo_error)):
+            with assert_raises_exactly(type(cairo_error)):
                 jumpdest(evm)
             return
 
