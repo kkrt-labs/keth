@@ -1,4 +1,3 @@
-from copy import deepcopy
 from typing import Optional
 
 import pytest
@@ -32,6 +31,7 @@ from ethereum.cancun.state import (
     set_transient_storage,
     touch_account,
 )
+from ethereum.cancun.trie import copy_trie
 from tests.utils.args_gen import State, TransientStorage
 from tests.utils.errors import cairo_error
 from tests.utils.strategies import address, bytes32, code, state, transient_storage
@@ -128,8 +128,23 @@ class TestStateAccounts:
         self, cairo_run, data, recipient_address: Address, amount: U256
     ):
         state, sender_address = data
-        # create a deep copy of state to avoid mutating the original state
-        python_state = deepcopy(state)
+        # We need to create a deep copy of the state to avoid mutating the original state
+        # We can refactor it into a deep_copy State util if we ever need to do this again
+        python_state = State(
+            _main_trie=copy_trie(state._main_trie),
+            _storage_tries={
+                addr: copy_trie(trie) for addr, trie in state._storage_tries.items()
+            },
+            _snapshots=[
+                (
+                    copy_trie(trie_tuple[0]),
+                    {addr: copy_trie(trie) for addr, trie in trie_tuple[1].items()},
+                )
+                for trie_tuple in state._snapshots
+            ],
+            created_accounts=state.created_accounts,
+        )
+
         try:
             move_ether(python_state, sender_address, recipient_address, amount)
         except AssertionError:
