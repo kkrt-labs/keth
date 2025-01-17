@@ -123,15 +123,12 @@ def trie_strategy(thing, min_size=0):
 
     # If the value_type is Optional[T], then the default value is _always_ None in our context
     # (Trie[Address, Optional[Account]]).
-    default_strategy = (
-        st.none()
-        if value_type_origin is Union and get_args(value_type)[1] is type(None)
-        else (
-            st.just(U256(0))
-            if value_type is U256
-            else st.nothing()  # No other type is accepted
-        )
-    )
+    if value_type_origin is Union and get_args(value_type)[1] is type(None):
+        default_strategy = st.none()
+    elif value_type is U256:
+        default_strategy = st.just(U256(0))
+    else:
+        default_strategy = st.nothing()
 
     # Create a strategy for non-default values
     def non_default_strategy(default):
@@ -156,7 +153,7 @@ def trie_strategy(thing, min_size=0):
                 st.from_type(key_type),
                 non_default_strategy(default),
                 min_size=min_size,
-                max_size=20,
+                max_size=15,
             ),
         )
     )
@@ -237,8 +234,8 @@ message_lite = st.builds(
 # Using this list instead of the hash32 strategy to avoid data_to_large errors
 BLOCK_HASHES_LIST = [Hash32(Bytes32(bytes([i] * 32))) for i in range(256)]
 
-transient_storage = st.lists(
-    address, max_size=MAX_ADDRESS_TRANSIENT_STORAGE_SIZE, unique=True
+transient_storage = st.sets(
+    address, max_size=MAX_ADDRESS_TRANSIENT_STORAGE_SIZE
 ).flatmap(
     lambda addresses: st.builds(
         TransientStorage,
@@ -353,6 +350,8 @@ evm = st.builds(
 )
 
 
+account_strategy = st.builds(Account, nonce=uint, balance=uint256, code=code)
+
 # Fork
 state = st.lists(address, max_size=MAX_ADDRESS_SET_SIZE, unique=True).flatmap(
     lambda addresses: st.builds(
@@ -362,7 +361,7 @@ state = st.lists(address, max_size=MAX_ADDRESS_SET_SIZE, unique=True).flatmap(
             secured=st.just(True),
             default=st.none(),
             _data=st.fixed_dictionaries(
-                {address: st.from_type(Account) for address in addresses}
+                {address: account_strategy for address in addresses}
             ),
         ),
         # Storage tries are not always present for existing accounts
@@ -376,7 +375,7 @@ state = st.lists(address, max_size=MAX_ADDRESS_SET_SIZE, unique=True).flatmap(
             )
         ),
         _snapshots=st.just([]),
-        created_accounts=st.sets(st.from_type(Address), max_size=10),
+        created_accounts=st.sets(address, max_size=10),
     ).map(
         # Create the original state snapshot using copies of the tries
         lambda state: State(
