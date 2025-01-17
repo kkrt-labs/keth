@@ -361,7 +361,7 @@ state = st.lists(address, max_size=MAX_ADDRESS_SET_SIZE, unique=True).flatmap(
             secured=st.just(True),
             default=st.none(),
             _data=st.fixed_dictionaries(
-                {address: account_strategy for address in addresses}
+                {address: st.from_type(Account) for address in addresses}
             ),
         ),
         # Storage tries are not always present for existing accounts
@@ -421,7 +421,7 @@ def register_type_strategies():
     st.register_type_strategy(Bloom, bloom)
     st.register_type_strategy(ForwardRef("Simple"), simple)  # type: ignore
     st.register_type_strategy(ForwardRef("Extended"), extended)  # type: ignore
-    st.register_type_strategy(Account, st.builds(Account))
+    st.register_type_strategy(Account, account_strategy)
     st.register_type_strategy(Withdrawal, st.builds(Withdrawal))
     st.register_type_strategy(Header, st.builds(Header))
     st.register_type_strategy(Log, st.builds(Log))
