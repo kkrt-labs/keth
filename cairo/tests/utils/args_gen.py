@@ -622,7 +622,7 @@ def _gen_arg(
             # Cairo, as each `sstore` performs an update of this original trie.
             snapshots_ptr = segments.memory.get(data[2])
             snapshots0_ptr = segments.memory.get(snapshots_ptr)
-            snapshots0_storage_tries_ptr = segments.memory.get(snapshots0_ptr+1)
+            snapshots0_storage_tries_ptr = segments.memory.get(snapshots0_ptr + 1)
             data.append(snapshots0_storage_tries_ptr)
 
         segments.load_data(struct_ptr, data)
