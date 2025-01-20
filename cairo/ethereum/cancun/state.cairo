@@ -193,8 +193,8 @@ func move_ether{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, state: State}(
     let sender_balance = sender_account.value.balance;
 
     let is_sender_balance_sufficient = U256_le(amount, sender_balance);
-    if (is_sender_balance_sufficient.value == 0) {
-        assert 0 = 1;
+    with_attr error_message("Sender has insufficient balance") {
+        assert is_sender_balance_sufficient.value = 1;
     }
 
     let new_sender_account_balance = U256_sub(sender_balance, amount);
