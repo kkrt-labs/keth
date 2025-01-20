@@ -2,6 +2,7 @@ from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, PoseidonBuilti
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.math import split_felt
+from starkware.cairo.common.uint256 import uint256_lt, Uint256
 
 from ethereum_types.bytes import Bytes32, Bytes32Struct
 from ethereum_types.numeric import U256, U256Struct, Uint, UnionUintU256, UnionUintU256Enum
@@ -13,7 +14,7 @@ from ethereum.cancun.vm.stack import Stack, push, pop
 from ethereum.cancun.state import get_account
 from ethereum.cancun.utils.address import to_address
 
-from ethereum.utils.numeric import U256_lt, U256_from_be_bytes, U256_from_be_bytes20
+from ethereum.utils.numeric import U256_from_be_bytes, U256_from_be_bytes20
 
 from src.utils.bytes import felt_to_bytes20_little
 from src.utils.dict import hashdict_read, hashdict_write
@@ -352,8 +353,8 @@ func blob_hash{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Exc
     // If index is within bounds, get the hash at that index
     // Otherwise return zero bytes
     let (high, low) = split_felt(blob_hashes.value.len);
-    let in_bounds = U256_lt(index, U256(new U256Struct(low, high)));
-    if (in_bounds.value == 0) {
+    let (in_bounds) = uint256_lt([index.value], Uint256(low, high));
+    if (in_bounds == 0) {
         tempvar blob_hash = Bytes32(new Bytes32Struct(0, 0));
     } else {
         tempvar blob_hash = blob_hashes.value.data[index.value.low];
