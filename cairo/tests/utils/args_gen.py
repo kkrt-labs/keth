@@ -354,6 +354,8 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "cancun", "vm", "Stack"): Stack[U256],
     ("ethereum", "cancun", "vm", "gas", "ExtendMemory"): ExtendMemory,
     **vm_exception_mappings,
+    # For tests only
+    ("tests", "src", "utils", "test_dict", "MappingUintUint"): Mapping[Uint, Uint],
 }
 
 # In the EELS, some functions are annotated with Sequence while it's actually just Bytes.
@@ -625,6 +627,12 @@ def _gen_arg(
             snapshots0_ptr = segments.memory.get(snapshots_ptr)
             snapshots0_storage_tries_ptr = segments.memory.get(snapshots0_ptr + 1)
             data.append(snapshots0_storage_tries_ptr)
+
+            # Similarly the main_trie and storage_tries's mappings should point to their parent which is the last snapshot created.
+            snapshots_len = segments.memory.get(data[2] + 1)
+            last_snapshot_ptr = snapshots_ptr + (snapshots_len - 1)
+            last_snapshot_main_trie_ptr = segments.memory.get(last_snapshot_ptr)
+            last_snapshot_storage_tries_ptr = segments.memory.get(last_snapshot_ptr + 1)
 
         segments.load_data(struct_ptr, data)
 
