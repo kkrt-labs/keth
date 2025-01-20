@@ -352,8 +352,8 @@ func blob_hash{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Exc
     // If index is within bounds, get the hash at that index
     // Otherwise return zero bytes
     let (high, low) = split_felt(blob_hashes.value.len);
-    let out_of_bounds = U256_lt(index, U256(new U256Struct(low, high)));
-    if (out_of_bounds.value == 0) {
+    let in_bounds = U256_lt(index, U256(new U256Struct(low, high)));
+    if (in_bounds.value == 0) {
         tempvar blob_hash = Bytes32(new Bytes32Struct(0, 0));
     } else {
         tempvar blob_hash = blob_hashes.value.data[index.value.low];
