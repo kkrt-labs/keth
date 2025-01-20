@@ -2,7 +2,7 @@ from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, PoseidonBuilti
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.math import split_felt
-from starkware.cairo.common.uint256 import uint256_lt, Uint256
+from starkware.cairo.common.uint256 import uint256_lt
 
 from ethereum_types.bytes import Bytes32, Bytes32Struct
 from ethereum_types.numeric import U256, U256Struct, Uint, UnionUintU256, UnionUintU256Enum
@@ -353,7 +353,7 @@ func blob_hash{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Exc
     // If index is within bounds, get the hash at that index
     // Otherwise return zero bytes
     let (high, low) = split_felt(blob_hashes.value.len);
-    let (in_bounds) = uint256_lt([index.value], Uint256(low, high));
+    let (in_bounds) = uint256_lt([index.value], U256Struct(low, high));
     if (in_bounds == 0) {
         tempvar blob_hash = Bytes32(new Bytes32Struct(0, 0));
     } else {
