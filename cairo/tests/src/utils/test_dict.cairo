@@ -1,10 +1,4 @@
-%builtins range_check
-
-from ethereum.cancun.fork_types import (
-    MappingBytes32U256,
-    MappingBytes32U256Struct,
-    Bytes32U256DictAccess,
-)
+from ethereum.cancun.fork_types import MappingBytes32U256
 
 from starkware.cairo.common.cairo_builtins import HashBuiltin
 from starkware.cairo.common.default_dict import default_dict_new, default_dict_finalize
@@ -19,7 +13,7 @@ func test_prev_values{range_check_ptr}() -> (prev_values_start_ptr: felt*) {
     alloc_locals;
     let (local dict_ptr_start: DictAccess*) = alloc();
     local dict_ptr_stop: DictAccess*;
-    %{ test_prev_values %}
+    %{ prev_values_test_hint %}
 
     let (prev_values_start, prev_values_stop) = prev_values(dict_ptr_start, dict_ptr_stop);
 
@@ -44,7 +38,7 @@ struct MappingUintUintStruct {
 }
 
 func test_hashdict_finalize{range_check_ptr}(
-    input_mapping: MappingUintUint, should_merge: felt
+    input_mapping: MappingUintUint, merge: felt
 ) -> MappingUintUint {
     alloc_locals;
 
@@ -54,13 +48,13 @@ func test_hashdict_finalize{range_check_ptr}(
     %{ copy_dict_segment %}
 
     tempvar modified_dict_end: UintDictAccess*;
-    %{ test_hashdict_finalize %}
+    %{ hashdict_finalize_test_hint %}
     let (finalized_dict_start, finalized_dict_end) = hashdict_finalize(
         cast(modified_dict_start, DictAccess*),
         cast(modified_dict_end, DictAccess*),
         cast(input_mapping.value.dict_ptr_start, DictAccess*),
         cast(input_mapping.value.dict_ptr, DictAccess*),
-        should_merge,
+        merge,
     );
 
     tempvar result = MappingUintUint(

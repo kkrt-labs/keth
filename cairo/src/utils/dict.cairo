@@ -8,7 +8,7 @@ from starkware.cairo.common.squash_dict import squash_dict
 from starkware.cairo.common.uint256 import Uint256
 from ethereum_types.numeric import U256, U256Struct
 from ethereum_types.bytes import Bytes32
-from ethereum.utils.numeric import U256__eq__, is_zero
+from ethereum.utils.numeric import U256__eq__, is_not_zero
 from ethereum.cancun.fork_types import Address, Account, AccountStruct, Account__eq__
 
 from src.utils.maths import unsigned_div_rem
@@ -143,38 +143,33 @@ func hashdict_finalize{range_check_ptr}(
     dict_ptr: DictAccess*,
     original_mapping_start: DictAccess*,
     original_mapping_end: DictAccess*,
-    should_merge: felt,
+    merge: felt,
 ) -> (DictAccess*, DictAccess*) {
     alloc_locals;
 
-    if (should_merge == FALSE) {
+    if (merge == FALSE) {
         let (squashed_dict_start: DictAccess*) = alloc();
         let (squashed_dict_end) = squash_dict(dict_ptr_start, dict_ptr, squashed_dict_start);
         let (prev_values_start, prev_values_end) = prev_values(
             squashed_dict_start, squashed_dict_end
         );
-        tempvar dict_ptr_start = prev_values_start;
-        tempvar dict_ptr = prev_values_end;
-        tempvar range_check_ptr = range_check_ptr;
     } else {
+        tempvar range_check_ptr = range_check_ptr;
         tempvar dict_ptr_start = dict_ptr_start;
         tempvar dict_ptr = dict_ptr;
-        tempvar range_check_ptr = range_check_ptr;
     }
-    let dict_ptr_start = cast([ap - 3], DictAccess*);
-    let dict_ptr = cast([ap - 2], DictAccess*);
-    let range_check_ptr = [ap - 1];
+    let range_check_ptr = [ap - 3];
+    let dict_ptr_start = cast([ap - 2], DictAccess*);
+    let dict_ptr = cast([ap - 1], DictAccess*);
 
     if (cast(original_mapping_end, felt) == 0) {
         // No parent mapping, just return the current dict.
         return (dict_ptr_start, dict_ptr);
     }
 
-    let segment_to_merge = dict_ptr_start;
-    let len_to_merge = dict_ptr - dict_ptr_start;
-    let dst_ptr = original_mapping_end;
-    memcpy(dst_ptr, segment_to_merge, len_to_merge);
-    let new_original_mapping_end = dst_ptr + len_to_merge;
+    tempvar len = dict_ptr - dict_ptr_start;
+    memcpy(original_mapping_end, dict_ptr_start, len);
+    let new_original_mapping_end = original_mapping_end + len;
     return (original_mapping_start, new_original_mapping_end);
 }
 
@@ -188,19 +183,22 @@ func prev_values{range_check_ptr}(dict_ptr_start: DictAccess*, dict_ptr_stop: Di
     prev_values_start: DictAccess*, prev_values_end: DictAccess*
 ) {
     alloc_locals;
+
     let (local prev_values_start: DictAccess*) = alloc();
+    if (dict_ptr_start == dict_ptr_stop) {
+        return (prev_values_start, prev_values_start);
+    }
 
     tempvar prev_values = prev_values_start;
     tempvar dict_ptr = dict_ptr_start;
+    ap += 4;
+
+    static_assert prev_values == [ap - 6];
+    static_assert dict_ptr == [ap - 5];
 
     loop:
-    let prev_values = cast([ap - 2], DictAccess*);
-    let dict_ptr = cast([ap - 1], DictAccess*);
-
-    let is_done = is_zero(dict_ptr_stop - dict_ptr);
-
-    tempvar prev_values_end = prev_values;
-    jmp end if is_done != 0;
+    let prev_values = cast([ap - 6], DictAccess*);
+    let dict_ptr = cast([ap - 5], DictAccess*);
 
     let key = dict_ptr.key;
     let prev_value = dict_ptr.prev_value;
@@ -211,9 +209,11 @@ func prev_values{range_check_ptr}(dict_ptr_start: DictAccess*, dict_ptr_stop: Di
 
     tempvar prev_values = prev_values + DictAccess.SIZE;
     tempvar dict_ptr = dict_ptr + DictAccess.SIZE;
-    jmp loop;
+    let is_not_done = is_not_zero(dict_ptr_stop - dict_ptr);
 
-    end:
-    let prev_values_end = cast([ap - 1], DictAccess*);
-    return (prev_values_start=prev_values_start, prev_values_end=prev_values_end);
+    static_assert prev_values == [ap - 6];
+    static_assert dict_ptr == [ap - 5];
+    jmp loop if is_not_done != 0;
+
+    return (prev_values_start=prev_values_start, prev_values_end=prev_values);
 }
