@@ -15,6 +15,7 @@ from ethereum.cancun.vm.instructions.environment import (
     codecopy,
     codesize,
     extcodecopy,
+    extcodehash,
     extcodesize,
     gasprice,
     origin,
@@ -292,4 +293,16 @@ class TestEnvironmentInstructions:
             return
 
         extcodecopy(evm)
+        assert evm == cairo_result
+
+    @given(evm=evm_accessed_addresses_empty_state_strategy)
+    def test_extcodehash(self, cairo_run, evm: Evm):
+        try:
+            cairo_result = cairo_run("extcodehash", evm)
+        except ExceptionalHalt as cairo_error:
+            with strict_raises(type(cairo_error)):
+                extcodehash(evm)
+            return
+
+        extcodehash(evm)
         assert evm == cairo_result

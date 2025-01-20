@@ -1,4 +1,4 @@
-from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, PoseidonBuiltin
+from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, PoseidonBuiltin, KeccakBuiltin
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.math import split_felt
@@ -13,7 +13,15 @@ from ethereum_types.others import (
     TupleU256U256Struct,
 )
 from ethereum_types.numeric import U256, U256Struct, Uint, UnionUintU256, UnionUintU256Enum
-from ethereum.cancun.fork_types import Address, SetAddress, SetAddressStruct, SetAddressDictAccess
+from ethereum.cancun.fork_types import (
+    Address,
+    Account__eq__,
+    EMPTY_ACCOUNT,
+    OptionalAccount,
+    SetAddress,
+    SetAddressStruct,
+    SetAddressDictAccess,
+)
 from ethereum.cancun.vm import Evm, EvmImpl, EnvImpl
 from ethereum.cancun.vm.exceptions import ExceptionalHalt, OutOfGasError, OutOfBoundsRead
 from ethereum.cancun.vm.gas import charge_gas, GasConstants, calculate_gas_extend_memory
@@ -21,6 +29,8 @@ from ethereum.cancun.vm.memory import buffer_read, memory_write, expand_by
 from ethereum.cancun.vm.stack import Stack, push, pop
 from ethereum.cancun.state import get_account
 from ethereum.cancun.utils.address import to_address
+
+from ethereum.crypto.hash import keccak256
 
 from ethereum.utils.numeric import U256_from_be_bytes, U256_from_be_bytes20, ceil32, divmod
 
@@ -671,6 +681,105 @@ func extcodecopy{
 
     // PROGRAM COUNTER
     EvmImpl.set_pc_stack_memory(Uint(evm.value.pc.value + 1), stack, memory);
+    let ok = cast(0, ExceptionalHalt*);
+    return ok;
+}
+
+// @notice Returns the keccak256 hash of a contract's bytecode
+func extcodehash{
+    range_check_ptr,
+    poseidon_ptr: PoseidonBuiltin*,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    evm: Evm,
+}() -> ExceptionalHalt* {
+    alloc_locals;
+
+    // STACK
+    let stack = evm.value.stack;
+    with stack {
+        let (address_u256, err) = pop();
+        if (cast(err, felt) != 0) {
+            return err;
+        }
+    }
+
+    // GAS
+    let accessed_addresses = evm.value.accessed_addresses;
+    let accessed_addresses_ptr = cast(accessed_addresses.value.dict_ptr, DictAccess*);
+    tempvar address_u256_ = UnionUintU256(new UnionUintU256Enum(cast(0, Uint*), address_u256));
+    let address_ = to_address(address_u256_);
+    tempvar address = new Address(address_.value);
+    let (is_present) = hashdict_read{dict_ptr=accessed_addresses_ptr}(1, &address.value);
+    if (is_present == 0) {
+        // If the entry is not in the accessed storage keys, add it
+        hashdict_write{dict_ptr=accessed_addresses_ptr}(1, &address.value, 1);
+        tempvar poseidon_ptr = poseidon_ptr;
+        tempvar accessed_addresses_ptr = accessed_addresses_ptr;
+    } else {
+        tempvar poseidon_ptr = poseidon_ptr;
+        tempvar accessed_addresses_ptr = accessed_addresses_ptr;
+    }
+    let poseidon_ptr = cast([ap - 2], PoseidonBuiltin*);
+    let new_accessed_addresses_ptr = cast([ap - 1], SetAddressDictAccess*);
+    tempvar new_accessed_addresses = SetAddress(
+        new SetAddressStruct(
+            evm.value.accessed_addresses.value.dict_ptr_start, new_accessed_addresses_ptr
+        ),
+    );
+    EvmImpl.set_accessed_addresses(new_accessed_addresses);
+
+    let access_gas_cost = (is_present * GasConstants.GAS_WARM_ACCESS) + (1 - is_present) *
+        GasConstants.GAS_COLD_ACCOUNT_ACCESS;
+    let err = charge_gas(Uint(access_gas_cost));
+    if (cast(err, felt) != 0) {
+        return err;
+    }
+
+    // OPERATION
+    // Get the account from state
+    let state = evm.value.env.value.state;
+    let account = get_account{state=state}([address]);
+    let env = evm.value.env;
+    EnvImpl.set_state{env=env}(state);
+    EvmImpl.set_env(env);
+
+    let _empty_account = EMPTY_ACCOUNT();
+    let empty_account = OptionalAccount(_empty_account.value);
+    let is_empty_account = Account__eq__(OptionalAccount(account.value), empty_account);
+
+    // If account is empty, push 0
+    if (is_empty_account.value != 0) {
+        tempvar code_hash_u256 = U256(new U256Struct(0, 0));
+        tempvar keccak_ptr = keccak_ptr;
+        tempvar poseidon_ptr = poseidon_ptr;
+        tempvar range_check_ptr = range_check_ptr;
+        tempvar bitwise_ptr = bitwise_ptr;
+    } else {
+        // Calculate keccak256 hash of code and push to stack
+        let code_hash = keccak256(account.value.code);
+        tempvar code_hash_u256 = U256(new U256Struct(code_hash.value.low, code_hash.value.high));
+
+        tempvar keccak_ptr = keccak_ptr;
+        tempvar poseidon_ptr = poseidon_ptr;
+        tempvar range_check_ptr = range_check_ptr;
+        tempvar bitwise_ptr = bitwise_ptr;
+    }
+
+    let keccak_ptr = cast([ap - 4], KeccakBuiltin*);
+    let poseidon_ptr = cast([ap - 3], PoseidonBuiltin*);
+    let range_check_ptr = [ap - 2];
+    let bitwise_ptr = cast([ap - 1], BitwiseBuiltin*);
+
+    with stack {
+        let err = push(code_hash_u256);
+        if (cast(err, felt) != 0) {
+            return err;
+        }
+    }
+
+    // PROGRAM COUNTER
+    EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
     let ok = cast(0, ExceptionalHalt*);
     return ok;
 }
