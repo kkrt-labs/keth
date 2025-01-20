@@ -392,7 +392,7 @@ func get_storage_original{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, state
 
     // In the transaction where an account is created, its preexisting storage
     // is ignored.
-    if (is_created == 0) {
+    if (is_created != 0) {
         tempvar res = U256(new U256Struct(0, 0));
         return res;
     }
