@@ -10,12 +10,12 @@ from ethereum.exceptions import EthereumException
 from tests.utils.args_gen import Environment, Evm, Message, Stack
 from tests.utils.strategies import (
     Memory,
+    code,
     empty_state,
     environment_lite,
     gas_left,
     memory_lite,
     message_lite,
-    small_bytes,
     stack_strategy,
     uint,
     valid_jump_destinations_lite,
@@ -96,7 +96,7 @@ class EvmBuilder:
         self._memory = strategy
         return self
 
-    def with_code(self, strategy=small_bytes):
+    def with_code(self, strategy=code):
         self._code = strategy
         return self
 

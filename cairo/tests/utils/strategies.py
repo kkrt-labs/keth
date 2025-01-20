@@ -213,6 +213,10 @@ memory_lite_destination = st.integers(min_value=0, max_value=memory_lite_size * 
     U256
 )
 
+
+code_access_size = st.integers(min_value=0, max_value=MAX_CODE_SIZE).map(U256)
+code_start_index = code_access_size
+
 message_lite = st.builds(
     Message,
     caller=address,
