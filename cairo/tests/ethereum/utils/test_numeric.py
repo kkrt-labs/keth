@@ -91,8 +91,8 @@ class TestNumeric:
     def test_U256_add(self, cairo_run, a: U256, b: U256):
         try:
             a + b
-        except OverflowError:
-            with cairo_error("OverflowError"):
+        except Exception as e:
+            with cairo_error(str(e.__class__.__name__)):
                 cairo_result = cairo_run("U256_add", a, b)
             return
         cairo_result = cairo_run("U256_add", a, b)
@@ -102,8 +102,8 @@ class TestNumeric:
     def test_U256_sub(self, cairo_run, a: U256, b: U256):
         try:
             a - b
-        except OverflowError:
-            with cairo_error("OverflowError"):
+        except Exception as e:
+            with cairo_error(str(e.__class__.__name__)):
                 cairo_result = cairo_run("U256_sub", a, b)
             return
 
