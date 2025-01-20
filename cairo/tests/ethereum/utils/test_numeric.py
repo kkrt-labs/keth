@@ -5,6 +5,7 @@ from hypothesis import given
 from hypothesis import strategies as st
 from starkware.cairo.lang.instances import PRIME
 
+from ethereum.cancun.fork_types import Address
 from ethereum.cancun.vm.gas import BLOB_GASPRICE_UPDATE_FRACTION, MIN_BLOB_GASPRICE
 from ethereum.utils.numeric import ceil32, taylor_exponential
 from tests.utils.strategies import felt, uint128
@@ -76,3 +77,7 @@ class TestNumeric:
     @given(a=..., b=...)
     def test_U256__eq__(self, cairo_run, a: U256, b: U256):
         assert (a == b) == cairo_run("U256__eq__", a, b)
+
+    @given(address=...)
+    def test_U256_from_be_bytes20(self, cairo_run, address: Address):
+        assert U256.from_be_bytes(address) == cairo_run("U256_from_be_bytes20", address)
