@@ -16,6 +16,7 @@ from ethereum.cancun.vm.instructions.environment import (
     codesize,
     gasprice,
     origin,
+    returndatacopy,
     returndatasize,
     self_balance,
 )
@@ -54,6 +55,16 @@ environment_empty_state = st.builds(
 
 evm_environment_strategy = (
     EvmBuilder().with_gas_left().with_env(environment_empty_state).build()
+)
+
+evm_environment_strategy_with_return_data = (
+    EvmBuilder()
+    .with_memory()
+    .with_gas_left()
+    .with_env(environment_empty_state)
+    .with_return_data()
+    .with_capped_values_stack()
+    .build()
 )
 
 code_access_size_strategy = st.integers(min_value=0, max_value=MAX_CODE_SIZE).map(U256)
@@ -192,6 +203,18 @@ class TestEnvironmentInstructions:
             return
 
         returndatasize(evm)
+        assert evm == cairo_result
+
+    @given(evm=evm_environment_strategy_with_return_data)
+    def test_returndatacopy(self, cairo_run, evm: Evm):
+        try:
+            cairo_result = cairo_run("returndatacopy", evm)
+        except Exception as cairo_error:
+            with strict_raises(type(cairo_error)):
+                returndatacopy(evm)
+            return
+
+        returndatacopy(evm)
         assert evm == cairo_result
 
     @given(evm=evm_environment_strategy)

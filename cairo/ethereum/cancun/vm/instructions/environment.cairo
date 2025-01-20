@@ -3,6 +3,7 @@ from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.math import split_felt
 from starkware.cairo.common.uint256 import uint256_lt
+from starkware.cairo.common.math_cmp import is_le
 
 from ethereum_types.bytes import Bytes32, Bytes32Struct
 from ethereum_types.numeric import U256, U256Struct, Uint, UnionUintU256, UnionUintU256Enum
@@ -14,7 +15,7 @@ from ethereum_types.others import (
 )
 from ethereum.cancun.fork_types import Address, SetAddress, SetAddressStruct, SetAddressDictAccess
 from ethereum.cancun.vm import Evm, EvmImpl, EnvImpl
-from ethereum.cancun.vm.exceptions import ExceptionalHalt, OutOfGasError
+from ethereum.cancun.vm.exceptions import ExceptionalHalt, OutOfGasError, OutOfBoundsRead
 from ethereum.cancun.vm.gas import charge_gas, GasConstants, calculate_gas_extend_memory
 from ethereum.cancun.vm.memory import buffer_read, memory_write, expand_by
 from ethereum.cancun.vm.stack import Stack, push, pop
@@ -274,6 +275,75 @@ func returndatasize{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
 
     // PROGRAM COUNTER
     EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
+    let ok = cast(0, ExceptionalHalt*);
+    return ok;
+}
+
+func returndatacopy{range_check_ptr: felt, evm: Evm}() -> ExceptionalHalt* {
+    alloc_locals;
+    // STACK
+    let stack = evm.value.stack;
+    with stack {
+        let (memory_start_index, err) = pop();
+        if (cast(err, felt) != 0) {
+            return err;
+        }
+        let (returndata_start_position, err) = pop();
+        if (cast(err, felt) != 0) {
+            return err;
+        }
+        let (size, err) = pop();
+        if (cast(err, felt) != 0) {
+            return err;
+        }
+    }
+    if (size.value.high != 0) {
+        tempvar err = new ExceptionalHalt(OutOfGasError);
+        return err;
+    }
+
+    let ceil32_size = ceil32(Uint(size.value.low));
+    let (words, _) = divmod(ceil32_size.value, 32);
+    let return_data_copy_gas_cost = GasConstants.GAS_RETURN_DATA_COPY * words;
+    // Calculate memory expansion cost
+    tempvar extensions_tuple = new TupleU256U256(new TupleU256U256Struct(memory_start_index, size));
+    tempvar extensions_list = ListTupleU256U256(new ListTupleU256U256Struct(extensions_tuple, 1));
+    let extend_memory = calculate_gas_extend_memory(evm.value.memory, extensions_list);
+    let err = charge_gas(
+        Uint(GasConstants.GAS_VERY_LOW + return_data_copy_gas_cost + extend_memory.value.cost.value)
+    );
+    if (cast(err, felt) != 0) {
+        return err;
+    }
+
+    let memory = evm.value.memory;
+    // Check if the read on return_data is in bounds
+    // If the start position is greater than 2 ** 128, then it is almost surely out of bounds
+    if (returndata_start_position.value.high != 0) {
+        tempvar err = new ExceptionalHalt(OutOfBoundsRead);
+        return err;
+    }
+    // Check if returndata_start_position and size are each less than 2**128, so that their
+    // sum is less than 2**129, which fits into a felt. We can then be sure that
+    // size.value.low + returndata_start_position.value.low won't wrap around the PRIME.
+    assert [range_check_ptr] = returndata_start_position.value.low;
+    let range_check_ptr = range_check_ptr + 1;
+    assert [range_check_ptr] = size.value.low;
+    let range_check_ptr = range_check_ptr + 1;
+    let is_in_bounds = is_le(
+        size.value.low + returndata_start_position.value.low, evm.value.return_data.value.len
+    );
+    if (is_in_bounds == 0) {
+        tempvar err = new ExceptionalHalt(OutOfBoundsRead);
+        return err;
+    }
+
+    with memory {
+        expand_by(extend_memory.value.expand_by);
+        let value = buffer_read(evm.value.return_data, returndata_start_position, size);
+        memory_write(memory_start_index, value);
+    }
+    EvmImpl.set_pc_stack_memory(Uint(evm.value.pc.value + 1), stack, memory);
     let ok = cast(0, ExceptionalHalt*);
     return ok;
 }
