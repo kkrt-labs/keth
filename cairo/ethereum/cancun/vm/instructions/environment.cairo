@@ -417,6 +417,10 @@ func codecopy{range_check_ptr: felt, evm: Evm}() -> ExceptionalHalt* {
     tempvar extensions_tuple = new TupleU256U256(new TupleU256U256Struct(memory_start_index, size));
     tempvar extensions_list = ListTupleU256U256(new ListTupleU256U256Struct(extensions_tuple, 1));
     let extend_memory = calculate_gas_extend_memory(evm.value.memory, extensions_list);
+
+    // copy_gas_cost in [0, 3 * 2**123)
+    // extend_memory.value.cost.value is < 2**110 (see calculate_gas_extend_memory)
+    // Hence sum cannot overflow
     let err = charge_gas(
         Uint(GasConstants.GAS_VERY_LOW + copy_gas_cost + extend_memory.value.cost.value)
     );

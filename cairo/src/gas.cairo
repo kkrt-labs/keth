@@ -108,7 +108,7 @@ namespace Gas {
         return expansion;
     }
 
-    // @notive A saturated version of the memory_expansion_cost function
+    // @notice A saturated version of the memory_expansion_cost function
     // @dev Saturation at offset + size = 2^128.
     // @param words_len The current length of the memory as Uint256.
     // @param offset An offset to be applied to the given memory as Uint256.
