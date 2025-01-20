@@ -2,12 +2,16 @@ from starkware.cairo.common.cairo_builtins import PoseidonBuiltin
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.cairo.common.math import assert_not_zero
+from starkware.cairo.common.squash_dict import squash_dict
+from starkware.cairo.common.alloc import alloc
+from starkware.cairo.common.memcpy import memcpy
 
 from ethereum.cancun.fork_types import (
     Address,
     Account,
     OptionalAccount,
     MappingAddressAccount,
+    MappingAddressAccountStruct,
     SetAddress,
     SetAddressStruct,
     SetAddressDictAccess,
@@ -16,6 +20,7 @@ from ethereum.cancun.fork_types import (
     MappingBytes32U256Struct,
     Account__eq__,
     Bytes32U256DictAccess,
+    AddressAccountDictAccess,
 )
 from ethereum.cancun.trie import (
     TrieBytes32U256,
@@ -34,7 +39,13 @@ from ethereum_types.bytes import Bytes, Bytes32
 from ethereum_types.numeric import U256, U256Struct, Bool, bool, Uint
 from ethereum.utils.numeric import is_zero
 
-from src.utils.dict import hashdict_read, hashdict_write, hashdict_get, dict_new_empty
+from src.utils.dict import (
+    hashdict_read,
+    hashdict_write,
+    hashdict_get,
+    dict_new_empty,
+    hashdict_finalize,
+)
 
 struct AddressTrieBytes32U256DictAccess {
     key: Address,
@@ -872,6 +883,146 @@ func begin_transaction{
     );
 
     return ();
+}
+
+func rollback_transaction{
+    range_check_ptr,
+    poseidon_ptr: PoseidonBuiltin*,
+    state: State,
+    transient_storage: TransientStorage,
+}() {
+    alloc_locals;
+
+    // Main Trie
+    let main_trie = state.value._main_trie;
+    let main_trie_start = main_trie.value._data.value.dict_ptr_start;
+    let main_trie_end = main_trie.value._data.value.dict_ptr;
+    let original_main_trie = main_trie.value._data.value.original_mapping;
+    let prev_original_trie_start = original_main_trie.dict_ptr_start;
+    let prev_original_trie_end = original_main_trie.dict_ptr;
+
+    let (original_trie_start, original_trie_end) = hashdict_finalize(
+        cast(main_trie_start, DictAccess*),
+        cast(main_trie_end, DictAccess*),
+        cast(prev_original_trie_start, DictAccess*),
+        cast(prev_original_trie_end, DictAccess*),
+        0,
+    );
+
+    tempvar new_main_trie = TrieAddressOptionalAccount(
+        new TrieAddressOptionalAccountStruct(
+            secured=main_trie.value.secured,
+            default=main_trie.value.default,
+            _data=MappingAddressAccount(
+                new MappingAddressAccountStruct(
+                    dict_ptr_start=cast(original_trie_start, AddressAccountDictAccess*),
+                    dict_ptr=cast(original_trie_end, AddressAccountDictAccess*),
+                    original_mapping=original_main_trie,
+                ),
+            ),
+        ),
+    );
+
+    // Storage Tries
+    // This is a mapping from address to trie
+    // Thus we need to finalize each inner trie - squash them for soundness purposes, even though they are not re-used.
+    // 1. Squash the Address -> Trie "outer" mapping to get unique keys
+    // 2. Squash each trie
+    // 3. Finalize the outer mapping.
+    // TODO: avoid double-squashing the outer trie.
+    let storage_tries = state.value._storage_tries;
+
+    let (squashed_outer_dict_start: DictAccess*) = alloc();
+    let (squashed_outer_dict) = squash_dict(
+        cast(storage_tries.value.dict_ptr_start, DictAccess*),
+        cast(storage_tries.value.dict_ptr, DictAccess*),
+        squashed_outer_dict_start,
+    );
+
+    _squash_inner_storage_tries(squashed_outer_dict_start, squashed_outer_dict);
+
+    // TODO: optimize this as the segment has already been squashed once.
+    let prev_original_outer_dict_start = storage_tries.value.original_mapping.dict_ptr_start;
+    let prev_original_outer_dict = storage_tries.value.original_mapping.dict_ptr;
+    let (original_outer_dict_start, original_outer_dict) = hashdict_finalize(
+        squashed_outer_dict_start,
+        squashed_outer_dict,
+        cast(prev_original_outer_dict_start, DictAccess*),
+        cast(prev_original_outer_dict, DictAccess*),
+        0,
+    );
+
+    tempvar new_storage_tries = MappingAddressTrieBytes32U256(
+        new MappingAddressTrieBytes32U256Struct(
+            dict_ptr_start=cast(original_outer_dict_start, AddressTrieBytes32U256DictAccess*),
+            dict_ptr=cast(original_outer_dict, AddressTrieBytes32U256DictAccess*),
+            original_mapping=storage_tries.value.original_mapping,
+        ),
+    );
+
+    // Snapshots
+    // This is only used for serde purposes. To remove, and handle the re-creation of the "snapshot" struct directly in serde?
+
+    let snapshots = state.value._snapshots;
+    let new_len = snapshots.value.len - 1;
+    let (
+        new_snapshots_inner: TupleTrieAddressOptionalAccountMappingAddressTrieBytes32U256*
+    ) = alloc();
+    memcpy(new_snapshots_inner, snapshots.value.data, new_len);
+
+    tempvar new_snapshots = ListTupleTrieAddressOptionalAccountMappingAddressTrieBytes32U256(
+        new ListTupleTrieAddressOptionalAccountMappingAddressTrieBytes32U256Struct(
+            data=new_snapshots_inner, len=new_len
+        ),
+    );
+
+    if (new_len == 0) {
+        let (new_created_accounts_ptr) = dict_new_empty();
+        tempvar new_created_accounts = SetAddress(
+            new SetAddressStruct(
+                dict_ptr_start=cast(new_created_accounts_ptr, SetAddressDictAccess*),
+                dict_ptr=cast(new_created_accounts_ptr, SetAddressDictAccess*),
+            ),
+        );
+    } else {
+        tempvar new_created_accounts = state.value.created_accounts;
+    }
+
+    tempvar state = State(
+        new StateStruct(
+            _main_trie=new_main_trie,
+            _storage_tries=new_storage_tries,
+            _snapshots=new_snapshots,
+            created_accounts=new_created_accounts,
+            original_storage_tries=state.value.original_storage_tries,
+        ),
+    );
+
+    return ();
+}
+
+// @notice Squashes each inner dict in a dict segment for soundness purposes.
+func _squash_inner_storage_tries{range_check_ptr}(dict_start: DictAccess*, dict_end: DictAccess*) {
+    alloc_locals;
+
+    tempvar range_check_ptr = range_check_ptr;
+    tempvar current_dict = dict_start;
+
+    loop:
+    let x = 0;
+    %{ print(ids.x) %}
+    let range_check_ptr = [ap - 2];
+    let current_dict = cast([ap - 1], DictAccess*);
+    if (current_dict == dict_end) {
+        return ();
+    }
+
+    let (squashed_dict_start: DictAccess*) = alloc();
+    let (squashed_dict) = squash_dict(dict_start, dict_end, squashed_dict_start);
+
+    tempvar range_check_ptr = range_check_ptr;
+    tempvar current_dict = current_dict + DictAccess.SIZE;
+    jmp loop;
 }
 
 func copy_storage_tries_recursive{

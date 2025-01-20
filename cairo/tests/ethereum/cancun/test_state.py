@@ -23,6 +23,7 @@ from ethereum.cancun.state import (
     is_account_alive,
     is_account_empty,
     mark_account_created,
+    rollback_transaction,
     set_account,
     set_account_balance,
     set_code,
@@ -298,5 +299,16 @@ class TestBeginTransaction:
             transient_storage,
         )
         begin_transaction(state, transient_storage)
+        assert state_cairo == state
+        assert transient_storage_cairo == transient_storage
+
+    @given(state=..., transient_storage=...)
+    def test_rollback_transaction(
+        self, cairo_run_py, state: State, transient_storage: TransientStorage
+    ):
+        state_cairo, transient_storage_cairo = cairo_run_py(
+            "rollback_transaction", state, transient_storage
+        )
+        rollback_transaction(state, transient_storage)
         assert state_cairo == state
         assert transient_storage_cairo == transient_storage
