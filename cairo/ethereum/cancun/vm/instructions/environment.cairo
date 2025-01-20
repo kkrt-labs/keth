@@ -32,7 +32,13 @@ from ethereum.cancun.utils.address import to_address
 
 from ethereum.crypto.hash import keccak256
 
-from ethereum.utils.numeric import U256_from_be_bytes, U256_from_be_bytes20, ceil32, divmod
+from ethereum.utils.numeric import (
+    U256_from_be_bytes,
+    U256_from_be_bytes20,
+    ceil32,
+    divmod,
+    U256_to_be_bytes,
+)
 
 from src.utils.bytes import felt_to_bytes20_little
 from src.utils.dict import hashdict_read, hashdict_write
@@ -111,8 +117,15 @@ func balance{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, evm: Evm}() -> Exc
     }
 
     // OPERATION
+    // Get the account from state
+    let state = evm.value.env.value.state;
+    let account = get_account{state=state}([address]);
+    let env = evm.value.env;
+    EnvImpl.set_state{env=env}(state);
+    EvmImpl.set_env(env);
+
     with stack {
-        let err = push(evm.value.message.value.value);
+        let err = push(account.value.balance);
         if (cast(err, felt) != 0) {
             return err;
         }
@@ -751,6 +764,7 @@ func extcodehash{
     // If account is empty, push 0
     if (is_empty_account.value != 0) {
         tempvar code_hash_u256 = U256(new U256Struct(0, 0));
+
         tempvar keccak_ptr = keccak_ptr;
         tempvar poseidon_ptr = poseidon_ptr;
         tempvar range_check_ptr = range_check_ptr;
@@ -759,6 +773,8 @@ func extcodehash{
         // Calculate keccak256 hash of code and push to stack
         let code_hash = keccak256(account.value.code);
         tempvar code_hash_u256 = U256(new U256Struct(code_hash.value.low, code_hash.value.high));
+        let code_hash_bytes32 = U256_to_be_bytes(code_hash_u256);
+        tempvar code_hash_u256 = U256(code_hash_bytes32.value);
 
         tempvar keccak_ptr = keccak_ptr;
         tempvar poseidon_ptr = poseidon_ptr;
