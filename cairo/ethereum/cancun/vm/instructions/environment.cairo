@@ -701,9 +701,9 @@ func extcodecopy{
 // @notice Returns the keccak256 hash of a contract's bytecode
 func extcodehash{
     range_check_ptr,
-    poseidon_ptr: PoseidonBuiltin*,
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
     evm: Evm,
 }() -> ExceptionalHalt* {
     alloc_locals;
