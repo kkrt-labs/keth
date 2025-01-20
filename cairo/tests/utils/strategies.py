@@ -213,6 +213,7 @@ memory_lite_destination = st.integers(min_value=0, max_value=memory_lite_size * 
     U256
 )
 
+
 message_lite = st.builds(
     Message,
     caller=address,

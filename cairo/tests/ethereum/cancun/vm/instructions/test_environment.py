@@ -1,5 +1,7 @@
+from ethereum_types.numeric import U256
 from hypothesis import given
 from hypothesis import strategies as st
+from hypothesis.strategies import composite, integers
 
 from ethereum.cancun.state import TransientStorage
 from ethereum.cancun.vm.exceptions import ExceptionalHalt
@@ -10,16 +12,24 @@ from ethereum.cancun.vm.instructions.environment import (
     blob_hash,
     caller,
     callvalue,
+    codecopy,
     codesize,
     gasprice,
     origin,
     returndatasize,
     self_balance,
 )
+from ethereum.cancun.vm.stack import push
 from tests.utils.args_gen import Environment, Evm, VersionedHash
 from tests.utils.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder
-from tests.utils.strategies import empty_state
+from tests.utils.strategies import (
+    MAX_CODE_SIZE,
+    code,
+    empty_state,
+    memory_lite,
+    memory_lite_start_position,
+)
 
 environment_empty_state = st.builds(
     Environment,
@@ -45,6 +55,39 @@ environment_empty_state = st.builds(
 evm_environment_strategy = (
     EvmBuilder().with_gas_left().with_env(environment_empty_state).build()
 )
+
+code_access_size_strategy = st.integers(min_value=0, max_value=MAX_CODE_SIZE).map(U256)
+code_start_index_strategy = code_access_size_strategy
+
+
+@composite
+def codecopy_strategy(draw):
+    """Generate test cases for the codecopy instruction.
+
+    This strategy generates an EVM instance and the required parameters for codecopy.
+    - 8/10 chance: pushes all parameters onto the stack to test normal operation
+    - 2/10 chance: use stack already populated with values, mostly to test errors cases
+    """
+    evm = draw(
+        EvmBuilder()
+        .with_stack()
+        .with_gas_left()
+        .with_code(strategy=code)
+        .with_memory(strategy=memory_lite)
+        .build()
+    )
+    memory_start_index = draw(memory_lite_start_position)
+    code_start_index = draw(code_start_index_strategy)
+    size = draw(code_access_size_strategy)
+
+    # 80% chance to push valid values onto stack
+    should_push = draw(integers(0, 99)) < 80
+    if should_push:
+        push(evm.stack, U256(size))
+        push(evm.stack, U256(code_start_index))
+        push(evm.stack, U256(memory_start_index))
+
+    return evm
 
 
 class TestEnvironmentInstructions:
@@ -185,4 +228,16 @@ class TestEnvironmentInstructions:
             return
 
         blob_hash(evm)
+        assert evm == cairo_result
+
+    @given(evm=codecopy_strategy())
+    def test_codecopy(self, cairo_run, evm: Evm):
+        try:
+            cairo_result = cairo_run("codecopy", evm)
+        except Exception as cairo_error:
+            with strict_raises(type(cairo_error)):
+                codecopy(evm)
+            return
+
+        codecopy(evm)
         assert evm == cairo_result

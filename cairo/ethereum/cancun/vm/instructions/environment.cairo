@@ -6,10 +6,17 @@ from starkware.cairo.common.uint256 import uint256_lt
 
 from ethereum_types.bytes import Bytes32, Bytes32Struct
 from ethereum_types.numeric import U256, U256Struct, Uint, UnionUintU256, UnionUintU256Enum
+from ethereum_types.others import (
+    ListTupleU256U256,
+    ListTupleU256U256Struct,
+    TupleU256U256,
+    TupleU256U256Struct,
+)
 from ethereum.cancun.fork_types import Address, SetAddress, SetAddressStruct, SetAddressDictAccess
 from ethereum.cancun.vm import Evm, EvmImpl, EnvImpl
-from ethereum.cancun.vm.exceptions import ExceptionalHalt
-from ethereum.cancun.vm.gas import charge_gas, GasConstants
+from ethereum.cancun.vm.exceptions import ExceptionalHalt, OutOfGasError
+from ethereum.cancun.vm.gas import charge_gas, GasConstants, calculate_gas_extend_memory
+from ethereum.cancun.vm.memory import buffer_read, memory_write, expand_by
 from ethereum.cancun.vm.stack import Stack, push, pop
 from ethereum.cancun.state import get_account
 from ethereum.cancun.utils.address import to_address
@@ -18,6 +25,8 @@ from ethereum.utils.numeric import U256_from_be_bytes, U256_from_be_bytes20
 
 from src.utils.bytes import felt_to_bytes20_little
 from src.utils.dict import hashdict_read, hashdict_write
+
+from ethereum.utils.numeric import ceil32, divmod
 
 // @notice Pushes the address of the current executing account to the stack.
 func address{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> ExceptionalHalt* {
@@ -371,6 +380,62 @@ func blob_hash{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Exc
 
     // PROGRAM COUNTER
     EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
+    let ok = cast(0, ExceptionalHalt*);
+    return ok;
+}
+
+func codecopy{range_check_ptr: felt, evm: Evm}() -> ExceptionalHalt* {
+    alloc_locals;
+
+    // STACK
+    let stack = evm.value.stack;
+    with stack {
+        let (memory_start_index, err) = pop();
+        if (cast(err, felt) != 0) {
+            return err;
+        }
+        let (code_start_index, err) = pop();
+        if (cast(err, felt) != 0) {
+            return err;
+        }
+        let (size, err) = pop();
+        if (cast(err, felt) != 0) {
+            return err;
+        }
+    }
+
+    // Gas
+    // OutOfGasError if size > 2**128
+    if (size.value.high != 0) {
+        tempvar err = new ExceptionalHalt(OutOfGasError);
+        return err;
+    }
+    let ceil32_size = ceil32(Uint(size.value.low));
+    let (words, _) = divmod(ceil32_size.value, 32);
+    let copy_gas_cost = GasConstants.GAS_COPY * words;
+    // Calculate memory expansion cost
+    tempvar extensions_tuple = new TupleU256U256(new TupleU256U256Struct(memory_start_index, size));
+    tempvar extensions_list = ListTupleU256U256(new ListTupleU256U256Struct(extensions_tuple, 1));
+    let extend_memory = calculate_gas_extend_memory(evm.value.memory, extensions_list);
+
+    // copy_gas_cost in [0, 3 * 2**123)
+    // extend_memory.value.cost.value is < 2**110 (see calculate_gas_extend_memory)
+    // Hence sum cannot overflow
+    let err = charge_gas(
+        Uint(GasConstants.GAS_VERY_LOW + copy_gas_cost + extend_memory.value.cost.value)
+    );
+    if (cast(err, felt) != 0) {
+        return err;
+    }
+    let memory = evm.value.memory;
+    with memory {
+        expand_by(extend_memory.value.expand_by);
+        let value = buffer_read(evm.value.code, code_start_index, size);
+        memory_write(memory_start_index, value);
+    }
+
+    // PROGRAM COUNTER
+    EvmImpl.set_pc_stack_memory(Uint(evm.value.pc.value + 1), stack, memory);
     let ok = cast(0, ExceptionalHalt*);
     return ok;
 }
