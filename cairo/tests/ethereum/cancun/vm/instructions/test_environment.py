@@ -1,6 +1,7 @@
 from hypothesis import given
 from hypothesis import strategies as st
 
+from ethereum.cancun.state import TransientStorage
 from ethereum.cancun.vm.instructions.environment import (
     address,
     balance,
@@ -16,7 +17,7 @@ from ethereum.cancun.vm.instructions.environment import (
 from tests.utils.args_gen import Environment, Evm, VersionedHash
 from tests.utils.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder
-from tests.utils.strategies import empty_state, empty_transient_storage
+from tests.utils.strategies import empty_state
 
 environment_empty_state = st.builds(
     Environment,
@@ -36,12 +37,16 @@ environment_empty_state = st.builds(
     blob_versioned_hashes=st.lists(
         st.from_type(VersionedHash), min_size=0, max_size=5
     ).map(tuple),
-    transient_storage=empty_transient_storage,
+    transient_storage=st.just(TransientStorage()),
+)
+
+evm_environment_strategy = (
+    EvmBuilder().with_gas_left().with_env(environment_empty_state).build()
 )
 
 
 class TestEnvironmentInstructions:
-    @given(evm=EvmBuilder().with_gas_left().with_env(environment_empty_state).build())
+    @given(evm=evm_environment_strategy)
     def test_address(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("address", evm)
@@ -61,9 +66,9 @@ class TestEnvironmentInstructions:
         .with_env(environment_empty_state)
         .build()
     )
-    def test_balance(self, cairo_run_py, evm: Evm):
+    def test_balance(self, cairo_run, evm: Evm):
         try:
-            cairo_result = cairo_run_py("balance", evm)
+            cairo_result = cairo_run("balance", evm)
         except Exception as cairo_error:
             with strict_raises(type(cairo_error)):
                 balance(evm)
@@ -72,10 +77,10 @@ class TestEnvironmentInstructions:
         balance(evm)
         assert evm == cairo_result
 
-    @given(evm=EvmBuilder().with_gas_left().with_env(environment_empty_state).build())
-    def test_origin(self, cairo_run_py, evm: Evm):
+    @given(evm=evm_environment_strategy)
+    def test_origin(self, cairo_run, evm: Evm):
         try:
-            cairo_result = cairo_run_py("origin", evm)
+            cairo_result = cairo_run("origin", evm)
         except Exception as cairo_error:
             with strict_raises(type(cairo_error)):
                 origin(evm)
@@ -84,7 +89,7 @@ class TestEnvironmentInstructions:
         origin(evm)
         assert evm == cairo_result
 
-    @given(evm=EvmBuilder().with_gas_left().with_env(environment_empty_state).build())
+    @given(evm=evm_environment_strategy)
     def test_caller(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("caller", evm)
@@ -96,7 +101,7 @@ class TestEnvironmentInstructions:
         caller(evm)
         assert evm == cairo_result
 
-    @given(evm=EvmBuilder().with_gas_left().with_env(environment_empty_state).build())
+    @given(evm=evm_environment_strategy)
     def test_callvalue(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("callvalue", evm)
@@ -108,7 +113,7 @@ class TestEnvironmentInstructions:
         callvalue(evm)
         assert evm == cairo_result
 
-    @given(evm=EvmBuilder().with_gas_left().with_env(environment_empty_state).build())
+    @given(evm=evm_environment_strategy)
     def test_codesize(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("codesize", evm)
@@ -120,7 +125,7 @@ class TestEnvironmentInstructions:
         codesize(evm)
         assert evm == cairo_result
 
-    @given(evm=EvmBuilder().with_gas_left().with_env(environment_empty_state).build())
+    @given(evm=evm_environment_strategy)
     def test_gasprice(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("gasprice", evm)
@@ -132,7 +137,7 @@ class TestEnvironmentInstructions:
         gasprice(evm)
         assert evm == cairo_result
 
-    @given(evm=EvmBuilder().with_gas_left().with_env(environment_empty_state).build())
+    @given(evm=evm_environment_strategy)
     def test_returndatasize(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("returndatasize", evm)
@@ -144,7 +149,7 @@ class TestEnvironmentInstructions:
         returndatasize(evm)
         assert evm == cairo_result
 
-    @given(evm=EvmBuilder().with_gas_left().with_env(environment_empty_state).build())
+    @given(evm=evm_environment_strategy)
     def test_self_balance(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("self_balance", evm)
@@ -156,7 +161,7 @@ class TestEnvironmentInstructions:
         self_balance(evm)
         assert evm == cairo_result
 
-    @given(evm=EvmBuilder().with_gas_left().with_env(environment_empty_state).build())
+    @given(evm=evm_environment_strategy)
     def test_base_fee(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("base_fee", evm)

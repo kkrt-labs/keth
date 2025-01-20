@@ -79,5 +79,5 @@ class TestNumeric:
         assert (a == b) == cairo_run("U256__eq__", a, b)
 
     @given(address=...)
-    def test_U256_be_from_address(self, cairo_run, address: Address):
-        assert U256.from_be_bytes(address) == cairo_run("U256_be_from_address", address)
+    def test_U256_from_be_bytes20(self, cairo_run, address: Address):
+        assert U256.from_be_bytes(address) == cairo_run("U256_from_be_bytes20", address)

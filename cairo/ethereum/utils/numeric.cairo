@@ -152,12 +152,12 @@ func U256__eq__(a: U256, b: U256) -> bool {
     return res;
 }
 
-func U256_be_from_address{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(address: Bytes20) -> U256 {
-    // 1. Splits the 20-byte address into high and low parts
-    let (address_high, address_low) = split_felt(address.value);
+func U256_from_be_bytes20{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(bytes20: Bytes20) -> U256 {
+    // 1. Splits the 20-byte value into high and low parts
+    let (bytes20_high, bytes20_low) = split_felt(bytes20.value);
     // 2. Reverses the endianness of both parts
-    let (rev_low) = word_reverse_endian(address_low);
-    let (rev_high) = word_reverse_endian(address_high);
+    let (rev_low) = word_reverse_endian(bytes20_low);
+    let (rev_high) = word_reverse_endian(bytes20_high);
     // 3. The final value contains 16bytes in the low part and 4 bytes in the high part
     let (high, remainder) = divmod(rev_low, 2 ** 96);
     let (low_low, _) = divmod(rev_high, 2 ** 96);

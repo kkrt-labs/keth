@@ -11,7 +11,7 @@ from ethereum.cancun.vm.stack import Stack, push, pop
 from ethereum.cancun.state import get_account
 from ethereum.cancun.utils.address import to_address
 
-from ethereum.utils.numeric import U256_be_from_address
+from ethereum.utils.numeric import U256_from_be_bytes20
 from src.utils.bytes import felt_to_bytes20_little
 from src.utils.dict import hashdict_read, hashdict_write
 
@@ -29,7 +29,7 @@ func address{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Excep
 
     // OPERATION
     with stack {
-        let address_u256 = U256_be_from_address(evm.value.message.value.current_target);
+        let address_u256 = U256_from_be_bytes20(evm.value.message.value.current_target);
         let err = push(address_u256);
         if (cast(err, felt) != 0) {
             return err;
@@ -58,26 +58,26 @@ func balance{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, evm: Evm}() -> Exc
 
     // GAS
     let accessed_addresses = evm.value.accessed_addresses;
-    let dict_ptr = cast(accessed_addresses.value.dict_ptr, DictAccess*);
+    let accessed_addresses_ptr = cast(accessed_addresses.value.dict_ptr, DictAccess*);
     tempvar address_u256_ = UnionUintU256(new UnionUintU256Enum(cast(0, Uint*), address_u256));
     let address_ = to_address(address_u256_);
     tempvar address = new Address(address_.value);
-    with dict_ptr {
-        let (is_present) = hashdict_read(1, &address.value);
-        if (is_present == 0) {
-            // If the entry is not in the accessed storage keys, add it
-            hashdict_write(1, &address.value, 1);
-            tempvar poseidon_ptr = poseidon_ptr;
-            tempvar dict_ptr = dict_ptr;
-        } else {
-            tempvar poseidon_ptr = poseidon_ptr;
-            tempvar dict_ptr = dict_ptr;
-        }
+    let (is_present) = hashdict_read{dict_ptr=accessed_addresses_ptr}(1, &address.value);
+    if (is_present == 0) {
+        // If the entry is not in the accessed storage keys, add it
+        hashdict_write{dict_ptr=accessed_addresses_ptr}(1, &address.value, 1);
+        tempvar poseidon_ptr = poseidon_ptr;
+        tempvar accessed_addresses_ptr = accessed_addresses_ptr;
+    } else {
+        tempvar poseidon_ptr = poseidon_ptr;
+        tempvar accessed_addresses_ptr = accessed_addresses_ptr;
     }
     let poseidon_ptr = cast([ap - 2], PoseidonBuiltin*);
-    let new_dict_ptr = cast([ap - 1], SetAddressDictAccess*);
+    let new_accessed_addresses_ptr = cast([ap - 1], SetAddressDictAccess*);
     tempvar new_accessed_addresses = SetAddress(
-        new SetAddressStruct(evm.value.accessed_addresses.value.dict_ptr_start, new_dict_ptr)
+        new SetAddressStruct(
+            evm.value.accessed_addresses.value.dict_ptr_start, new_accessed_addresses_ptr
+        ),
     );
     EvmImpl.set_accessed_addresses(new_accessed_addresses);
 
@@ -115,7 +115,7 @@ func origin{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Except
 
     // OPERATION
     with stack {
-        let origin_u256 = U256_be_from_address(evm.value.env.value.origin);
+        let origin_u256 = U256_from_be_bytes20(evm.value.env.value.origin);
 
         let err = push(origin_u256);
         if (cast(err, felt) != 0) {
@@ -143,7 +143,7 @@ func caller{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Except
 
     // OPERATION
     with stack {
-        let caller_u256 = U256_be_from_address(evm.value.message.value.caller);
+        let caller_u256 = U256_from_be_bytes20(evm.value.message.value.caller);
         let err = push(caller_u256);
         if (cast(err, felt) != 0) {
             return err;
