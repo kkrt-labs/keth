@@ -138,16 +138,23 @@ func hashdict_write{poseidon_ptr: PoseidonBuiltin*, dict_ptr: DictAccess*}(
     return ();
 }
 
-func hashdict_finalize{range_check_ptr}(
+// @notice Given a dict segment (start, end) and a pointer to another dict segment (original_mapping_start, original_mapping_end),
+// updates the original dict segment with the new values from the given dict segment.
+// @dev If the drop flag is set to false, the new values are added to the existing values.
+// @dev If the drop flag is set to true, the new values are discarded, and only the prev_values are appended to the original dict segment.
+// @param drop: If false, the new values are added to the existing values.
+// @return new_dict_start: The start of the updated dict segment.
+// @return new_dict_end: The end of the updated dict segment.
+func dict_update{range_check_ptr}(
     dict_ptr_start: DictAccess*,
     dict_ptr: DictAccess*,
     original_mapping_start: DictAccess*,
     original_mapping_end: DictAccess*,
-    merge: felt,
+    drop: felt,
 ) -> (DictAccess*, DictAccess*) {
     alloc_locals;
 
-    if (merge == FALSE) {
+    if (drop != FALSE) {
         let (squashed_dict_start: DictAccess*) = alloc();
         let (squashed_dict_end) = squash_dict(dict_ptr_start, dict_ptr, squashed_dict_start);
         let (prev_values_start, prev_values_end) = prev_values(
@@ -174,7 +181,7 @@ func hashdict_finalize{range_check_ptr}(
 }
 
 // @notice Given a dict segment (start and end), returns a new dict segment with (key, prev_value, prev_value) for each key.
-// @dev Expectes the given dict to be squashed, with one DictAccess instance per key.
+// @dev Expectes the given dict to be squashed, with one DictAccess instance per key, to avoid creating useless entries.
 // @param dict_ptr_start: The start of the dict segment.
 // @param dict_ptr_stop: The end of the dict segment.
 // @return prev_values_start: The start of the new dict segment.

@@ -18,7 +18,7 @@ pytestmark = pytest.mark.python_vm
 
 # Hints for tests
 @register_hint
-def hashdict_finalize_test_hint(
+def dict_update_test_hint(
     dict_manager: DictManager,
     ids: VmConsts,
     segments: MemorySegmentManager,
@@ -72,13 +72,11 @@ def test_prev_values(cairo_run_py, dict_entries: List[Tuple[int, int, int]]):
     )
 
 
-@given(original_mapping=..., merge=...)
-def test_hashdict_finalize(
-    cairo_run_py, original_mapping: Mapping[Uint, Uint], merge: bool
-):
-    finalized_dict = cairo_run_py("test_hashdict_finalize", original_mapping, merge)
+@given(original_mapping=..., drop=...)
+def test_dict_update(cairo_run_py, original_mapping: Mapping[Uint, Uint], drop: bool):
+    finalized_dict = cairo_run_py("test_dict_update", original_mapping, drop)
 
     for original_value, new_value in zip(
         original_mapping.values(), finalized_dict.values()
     ):
-        assert new_value == original_value + Uint(int(merge))
+        assert new_value == original_value + Uint(1 - int(drop))
