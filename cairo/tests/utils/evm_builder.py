@@ -92,6 +92,14 @@ class EvmBuilder:
         self._stack = strategy
         return self
 
+    def with_capped_values_stack(self, max_value=2**8 - 1):
+        self._stack = st.lists(
+            st.integers(min_value=0, max_value=max_value).map(U256),
+            min_size=0,
+            max_size=1024,
+        ).map(lambda x: Stack[U256](x))
+        return self
+
     def with_memory(self, strategy=memory_lite):
         self._memory = strategy
         return self
@@ -130,6 +138,10 @@ class EvmBuilder:
         self, strategy=st.sets(st.from_type(Tuple[Address, U256]), max_size=10)
     ):
         self._accessed_storage_keys = strategy
+        return self
+
+    def with_return_data(self, strategy=st.binary(min_size=0, max_size=1024)):
+        self._return_data = strategy
         return self
 
     def build(self):
