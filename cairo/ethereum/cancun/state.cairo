@@ -40,7 +40,13 @@ from ethereum_types.bytes import Bytes, Bytes32
 from ethereum_types.numeric import U256, U256Struct, Bool, bool, Uint
 from ethereum.utils.numeric import is_zero, U256_le, U256_sub, U256_add
 
-from src.utils.dict import hashdict_read, hashdict_write, hashdict_get, dict_new_empty
+from src.utils.dict import (
+    hashdict_read,
+    hashdict_write,
+    hashdict_get,
+    dict_new_empty,
+    get_keys_for_address_prefix,
+)
 
 struct TupleTrieAddressOptionalAccountTrieTupleAddressBytes32U256Struct {
     trie_address_account: TrieAddressOptionalAccount,
@@ -358,14 +364,10 @@ func destroy_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Addr
 
     let prefix_len = 1;
     let prefix = &address.value;
-    local keys_len: felt;
-    local keys: TupleAddressBytes32*;
     tempvar dict_ptr = cast(storage_tries.value._data.value.dict_ptr, DictAccess*);
-    %{ get_keys_for_address_prefix %}
+    let keys = get_keys_for_address_prefix{dict_ptr=dict_ptr}(prefix_len, prefix);
 
-    tempvar list_keys = ListTupleAddressBytes32(new ListTupleAddressBytes32Struct(keys, keys_len));
-
-    _destroy_storage_keys{poseidon_ptr=poseidon_ptr, storage_tries_ptr=dict_ptr}(list_keys, 0);
+    _destroy_storage_keys{poseidon_ptr=poseidon_ptr, storage_tries_ptr=dict_ptr}(keys, 0);
     let new_dict_ptr = cast(dict_ptr, TupleAddressBytes32U256DictAccess*);
 
     tempvar new_storage_tries_data = MappingTupleAddressBytes32U256(

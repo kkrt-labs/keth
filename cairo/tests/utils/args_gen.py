@@ -474,18 +474,15 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
         Address, Account
     ],
     ("ethereum", "cancun", "fork_types", "MappingTupleAddressBytes32U256"): Mapping[
-        Bytes32, U256
+        Tuple[Address, Bytes32], U256
     ],
     ("ethereum", "exceptions", "EthereumException"): EthereumException,
     ("ethereum", "cancun", "vm", "memory", "Memory"): Memory,
     ("ethereum", "cancun", "vm", "stack", "Stack"): Stack[U256],
     ("ethereum", "cancun", "trie", "Subnodes"): Annotated[Tuple[Extended, ...], 16],
     ("ethereum", "cancun", "state", "TransientStorage"): TransientStorage,
-    ("ethereum", "cancun", "state", "MappingHashedAddressBytes32U256"): Mapping[
-        Address, Trie[Bytes32, U256]
-    ],
-    ("ethereum", "cancun", "state", "MappingTupleAddressBytes32U256"): Mapping[
-        Tuple[Address, Bytes32], U256
+    ("ethereum", "cancun", "fork_types", "ListTupleAddressBytes32"): List[
+        Tuple[Address, Bytes32]
     ],
     ("ethereum", "cancun", "state", "ListTrieTupleAddressBytes32U256"): List[
         Trie[Tuple[Address, Bytes32], U256]
@@ -529,9 +526,6 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     **vm_exception_mappings,
     # For tests only
     ("tests", "src", "utils", "test_dict", "MappingUintUint"): Mapping[Uint, Uint],
-    ("tests", "src", "utils", "test_dict", "ListTupleAddressBytes32"): List[
-        Tuple[Address, Bytes32]
-    ],
 }
 
 # In the EELS, some functions are annotated with Sequence while it's actually just Bytes.

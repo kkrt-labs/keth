@@ -11,7 +11,7 @@ from ethereum.cancun.state import (
     ListTupleAddressBytes32,
     ListTupleAddressBytes32Struct,
 )
-from src.utils.dict import prev_values, dict_update
+from src.utils.dict import prev_values, dict_update, get_keys_for_address_prefix
 
 func test_prev_values{range_check_ptr}() -> (prev_values_start_ptr: felt*) {
     alloc_locals;
@@ -78,10 +78,7 @@ func test_get_keys_for_address_prefix{range_check_ptr}(
     let prefix_len = 1;
     let (prefix: felt*) = alloc();
     assert [prefix] = prefix_.value;
-    local keys_len: felt;
-    local keys: TupleAddressBytes32*;
-    let dict_ptr = dict_entries.value.dict_ptr;
-    %{ get_keys_for_address_prefix %}
-    tempvar res = ListTupleAddressBytes32(new ListTupleAddressBytes32Struct(keys, keys_len));
+    let dict_ptr = cast(dict_entries.value.dict_ptr, DictAccess*);
+    let res = get_keys_for_address_prefix{dict_ptr=dict_ptr}(prefix_len, prefix);
     return res;
 }
