@@ -1,6 +1,12 @@
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bool import TRUE, FALSE
-from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, HashBuiltin, KeccakBuiltin
+from starkware.cairo.common.cairo_builtins import (
+    HashBuiltin,
+    BitwiseBuiltin,
+    KeccakBuiltin,
+    PoseidonBuiltin,
+    ModBuiltin,
+)
 from starkware.cairo.common.math_cmp import is_not_zero, is_nn
 from starkware.cairo.common.math import assert_not_zero, assert_nn
 from starkware.cairo.common.memcpy import memcpy
@@ -359,6 +365,10 @@ namespace Transaction {
         pedersen_ptr: HashBuiltin*,
         bitwise_ptr: BitwiseBuiltin*,
         range_check_ptr,
+        range_check96_ptr: felt*,
+        add_mod_ptr: ModBuiltin*,
+        mul_mod_ptr: ModBuiltin*,
+        poseidon_ptr: PoseidonBuiltin*,
         keccak_ptr: KeccakBuiltin*,
     }(tx: model.TransactionEncoded*, chain_id: felt) {
         alloc_locals;
