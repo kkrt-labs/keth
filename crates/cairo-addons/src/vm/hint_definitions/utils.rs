@@ -3,7 +3,8 @@ use std::collections::HashMap;
 use cairo_vm::{
     hint_processor::{
         builtin_hint_processor::hint_utils::{
-            get_integer_from_var_name, get_ptr_from_var_name, insert_value_from_var_name,
+            get_integer_from_var_name, get_maybe_relocatable_from_var_name, get_ptr_from_var_name,
+            insert_value_from_var_name,
         },
         hint_processor_definition::HintReference,
     },
@@ -17,7 +18,8 @@ use cairo_vm::{
 
 use crate::vm::hints::Hint;
 
-pub const HINTS: &[fn() -> Hint] = &[bytes__eq__, b_le_a, fp_plus_2_or_0, nibble_remainder];
+pub const HINTS: &[fn() -> Hint] =
+    &[bytes__eq__, b_le_a, fp_plus_2_or_0, nibble_remainder, print_maybe_relocatable];
 
 #[allow(non_snake_case)]
 pub fn bytes__eq__() -> Hint {
@@ -154,6 +156,23 @@ pub fn nibble_remainder() -> Hint {
                 len.try_into().map_err(|_| MathError::Felt252ToUsizeConversion(Box::new(len)))?;
             let remainder = len % 2;
             vm.insert_value((vm.get_fp() + 2)?, MaybeRelocatable::from(remainder))?;
+            Ok(())
+        },
+    )
+}
+
+pub fn print_maybe_relocatable() -> Hint {
+    Hint::new(
+        String::from("print_maybe_relocatable"),
+        |vm: &mut VirtualMachine,
+         _exec_scopes: &mut ExecutionScopes,
+         ids_data: &HashMap<String, HintReference>,
+         ap_tracking: &ApTracking,
+         _constants: &HashMap<String, Felt252>|
+         -> Result<(), HintError> {
+            let maybe_relocatable =
+                get_maybe_relocatable_from_var_name("x", vm, ids_data, ap_tracking)?;
+            println!("maybe_relocatable: {:?}", maybe_relocatable);
             Ok(())
         },
     )

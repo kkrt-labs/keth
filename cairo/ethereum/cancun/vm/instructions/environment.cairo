@@ -1,19 +1,27 @@
-from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, PoseidonBuiltin
+from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, PoseidonBuiltin, KeccakBuiltin
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.math import split_felt
 from starkware.cairo.common.uint256 import uint256_lt
 from starkware.cairo.common.math_cmp import is_le
 
-from ethereum_types.bytes import Bytes32, Bytes32Struct
-from ethereum_types.numeric import U256, U256Struct, Uint, UnionUintU256, UnionUintU256Enum
+from ethereum_types.bytes import Bytes32, Bytes32Struct, Bytes20
 from ethereum_types.others import (
     ListTupleU256U256,
     ListTupleU256U256Struct,
     TupleU256U256,
     TupleU256U256Struct,
 )
-from ethereum.cancun.fork_types import Address, SetAddress, SetAddressStruct, SetAddressDictAccess
+from ethereum_types.numeric import U256, U256Struct, Uint, UnionUintU256, UnionUintU256Enum
+from ethereum.cancun.fork_types import (
+    Address,
+    Account__eq__,
+    EMPTY_ACCOUNT,
+    OptionalAccount,
+    SetAddress,
+    SetAddressStruct,
+    SetAddressDictAccess,
+)
 from ethereum.cancun.vm import Evm, EvmImpl, EnvImpl
 from ethereum.cancun.vm.exceptions import ExceptionalHalt, OutOfGasError, OutOfBoundsRead
 from ethereum.cancun.vm.gas import charge_gas, GasConstants, calculate_gas_extend_memory
@@ -22,12 +30,18 @@ from ethereum.cancun.vm.stack import Stack, push, pop
 from ethereum.cancun.state import get_account
 from ethereum.cancun.utils.address import to_address
 
-from ethereum.utils.numeric import U256_from_be_bytes, U256_from_be_bytes20
+from ethereum.crypto.hash import keccak256
+
+from ethereum.utils.numeric import (
+    U256_from_be_bytes,
+    U256_from_be_bytes20,
+    ceil32,
+    divmod,
+    U256_to_be_bytes,
+)
 
 from src.utils.bytes import felt_to_bytes20_little
 from src.utils.dict import hashdict_read, hashdict_write
-
-from ethereum.utils.numeric import ceil32, divmod
 
 // @notice Pushes the address of the current executing account to the stack.
 func address{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> ExceptionalHalt* {
@@ -103,8 +117,15 @@ func balance{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, evm: Evm}() -> Exc
     }
 
     // OPERATION
+    // Get the account from state
+    let state = evm.value.env.value.state;
+    let account = get_account{state=state}([address]);
+    let env = evm.value.env;
+    EnvImpl.set_state{env=env}(state);
+    EvmImpl.set_env(env);
+
     with stack {
-        let err = push(evm.value.message.value.value);
+        let err = push(account.value.balance);
         if (cast(err, felt) != 0) {
             return err;
         }
@@ -506,6 +527,275 @@ func codecopy{range_check_ptr: felt, evm: Evm}() -> ExceptionalHalt* {
 
     // PROGRAM COUNTER
     EvmImpl.set_pc_stack_memory(Uint(evm.value.pc.value + 1), stack, memory);
+    let ok = cast(0, ExceptionalHalt*);
+    return ok;
+}
+
+// @notice Get the code size of an external contract
+func extcodesize{
+    range_check_ptr, poseidon_ptr: PoseidonBuiltin*, bitwise_ptr: BitwiseBuiltin*, evm: Evm
+}() -> ExceptionalHalt* {
+    alloc_locals;
+
+    // STACK
+    let stack = evm.value.stack;
+    with stack {
+        let (address_u256, err) = pop();
+        if (cast(err, felt) != 0) {
+            return err;
+        }
+    }
+
+    // GAS
+    let accessed_addresses = evm.value.accessed_addresses;
+    let accessed_addresses_ptr = cast(accessed_addresses.value.dict_ptr, DictAccess*);
+    tempvar address_u256_ = UnionUintU256(new UnionUintU256Enum(cast(0, Uint*), address_u256));
+    let address_ = to_address(address_u256_);
+    tempvar address = new Address(address_.value);
+    let (is_present) = hashdict_read{dict_ptr=accessed_addresses_ptr}(1, &address.value);
+    if (is_present == 0) {
+        // If the entry is not in the accessed storage keys, add it
+        hashdict_write{dict_ptr=accessed_addresses_ptr}(1, &address.value, 1);
+        tempvar poseidon_ptr = poseidon_ptr;
+        tempvar accessed_addresses_ptr = accessed_addresses_ptr;
+    } else {
+        tempvar poseidon_ptr = poseidon_ptr;
+        tempvar accessed_addresses_ptr = accessed_addresses_ptr;
+    }
+    let poseidon_ptr = cast([ap - 2], PoseidonBuiltin*);
+    let new_accessed_addresses_ptr = cast([ap - 1], SetAddressDictAccess*);
+    tempvar new_accessed_addresses = SetAddress(
+        new SetAddressStruct(
+            evm.value.accessed_addresses.value.dict_ptr_start, new_accessed_addresses_ptr
+        ),
+    );
+    EvmImpl.set_accessed_addresses(new_accessed_addresses);
+
+    let access_gas_cost = (is_present * GasConstants.GAS_WARM_ACCESS) + (1 - is_present) *
+        GasConstants.GAS_COLD_ACCOUNT_ACCESS;
+    let err = charge_gas(Uint(access_gas_cost));
+    if (cast(err, felt) != 0) {
+        return err;
+    }
+
+    // OPERATION
+    // Get the account from state
+    let state = evm.value.env.value.state;
+    let account = get_account{state=state}([address]);
+    let env = evm.value.env;
+    EnvImpl.set_state{env=env}(state);
+    EvmImpl.set_env(env);
+
+    // Get code size and push to stack
+    tempvar code_size_u256 = U256(new U256Struct(account.value.code.value.len, 0));
+    with stack {
+        let err = push(code_size_u256);
+        if (cast(err, felt) != 0) {
+            return err;
+        }
+    }
+
+    // PROGRAM COUNTER
+    EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
+    let ok = cast(0, ExceptionalHalt*);
+    return ok;
+}
+
+// @notice Copy a portion of an account's code to memory
+func extcodecopy{
+    range_check_ptr, poseidon_ptr: PoseidonBuiltin*, bitwise_ptr: BitwiseBuiltin*, evm: Evm
+}() -> ExceptionalHalt* {
+    alloc_locals;
+
+    // STACK
+    let stack = evm.value.stack;
+    with stack {
+        let (address_u256, err) = pop();
+        if (cast(err, felt) != 0) {
+            return err;
+        }
+        let (memory_start_index, err) = pop();
+        if (cast(err, felt) != 0) {
+            return err;
+        }
+        let (code_start_index, err) = pop();
+        if (cast(err, felt) != 0) {
+            return err;
+        }
+        let (size, err) = pop();
+        if (cast(err, felt) != 0) {
+            return err;
+        }
+    }
+
+    // Gas
+    // OutOfGasError if size > 2**128
+    if (size.value.high != 0) {
+        tempvar err = new ExceptionalHalt(OutOfGasError);
+        return err;
+    }
+    let ceil32_size = ceil32(Uint(size.value.low));
+    let (words, _) = divmod(ceil32_size.value, 32);
+    let copy_gas_cost = GasConstants.GAS_COPY * words;
+
+    // Calculate memory expansion cost
+    tempvar extensions_tuple = new TupleU256U256(new TupleU256U256Struct(memory_start_index, size));
+    tempvar extensions_list = ListTupleU256U256(new ListTupleU256U256Struct(extensions_tuple, 1));
+    let extend_memory = calculate_gas_extend_memory(evm.value.memory, extensions_list);
+
+    // Check if address is in accessed_addresses
+    let accessed_addresses = evm.value.accessed_addresses;
+    let accessed_addresses_ptr = cast(accessed_addresses.value.dict_ptr, DictAccess*);
+    tempvar address_u256_ = UnionUintU256(new UnionUintU256Enum(cast(0, Uint*), address_u256));
+    let address_ = to_address(address_u256_);
+    tempvar address = new Address(address_.value);
+    let (is_present) = hashdict_read{dict_ptr=accessed_addresses_ptr}(1, &address.value);
+
+    if (is_present == 0) {
+        // If the entry is not in the accessed storage keys, add it
+        hashdict_write{dict_ptr=accessed_addresses_ptr}(1, &address.value, 1);
+        tempvar poseidon_ptr = poseidon_ptr;
+        tempvar accessed_addresses_ptr = accessed_addresses_ptr;
+    } else {
+        tempvar poseidon_ptr = poseidon_ptr;
+        tempvar accessed_addresses_ptr = accessed_addresses_ptr;
+    }
+    let poseidon_ptr = cast([ap - 2], PoseidonBuiltin*);
+    let new_accessed_addresses_ptr = cast([ap - 1], SetAddressDictAccess*);
+    tempvar new_accessed_addresses = SetAddress(
+        new SetAddressStruct(
+            evm.value.accessed_addresses.value.dict_ptr_start, new_accessed_addresses_ptr
+        ),
+    );
+    EvmImpl.set_accessed_addresses(new_accessed_addresses);
+
+    let access_gas_cost = (is_present * GasConstants.GAS_WARM_ACCESS) + (1 - is_present) *
+        GasConstants.GAS_COLD_ACCOUNT_ACCESS;
+    let total_gas = Uint(access_gas_cost + copy_gas_cost + extend_memory.value.cost.value);
+    let err = charge_gas(total_gas);
+    if (cast(err, felt) != 0) {
+        return err;
+    }
+
+    // OPERATION
+    // Get the account code from state
+    let state = evm.value.env.value.state;
+    let account = get_account{state=state}([address]);
+    let env = evm.value.env;
+    EnvImpl.set_state{env=env}(state);
+    EvmImpl.set_env(env);
+
+    let memory = evm.value.memory;
+    with memory {
+        expand_by(extend_memory.value.expand_by);
+        let value = buffer_read(account.value.code, code_start_index, size);
+        memory_write(memory_start_index, value);
+    }
+
+    // PROGRAM COUNTER
+    EvmImpl.set_pc_stack_memory(Uint(evm.value.pc.value + 1), stack, memory);
+    let ok = cast(0, ExceptionalHalt*);
+    return ok;
+}
+
+// @notice Returns the keccak256 hash of a contract's bytecode
+func extcodehash{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> ExceptionalHalt* {
+    alloc_locals;
+
+    // STACK
+    let stack = evm.value.stack;
+    with stack {
+        let (address_u256, err) = pop();
+        if (cast(err, felt) != 0) {
+            return err;
+        }
+    }
+
+    // GAS
+    let accessed_addresses = evm.value.accessed_addresses;
+    let accessed_addresses_ptr = cast(accessed_addresses.value.dict_ptr, DictAccess*);
+    tempvar address_u256_ = UnionUintU256(new UnionUintU256Enum(cast(0, Uint*), address_u256));
+    let address_ = to_address(address_u256_);
+    tempvar address = new Address(address_.value);
+    let (is_present) = hashdict_read{dict_ptr=accessed_addresses_ptr}(1, &address.value);
+    if (is_present == 0) {
+        // If the entry is not in the accessed storage keys, add it
+        hashdict_write{dict_ptr=accessed_addresses_ptr}(1, &address.value, 1);
+        tempvar poseidon_ptr = poseidon_ptr;
+        tempvar accessed_addresses_ptr = accessed_addresses_ptr;
+    } else {
+        tempvar poseidon_ptr = poseidon_ptr;
+        tempvar accessed_addresses_ptr = accessed_addresses_ptr;
+    }
+    let poseidon_ptr = cast([ap - 2], PoseidonBuiltin*);
+    let new_accessed_addresses_ptr = cast([ap - 1], SetAddressDictAccess*);
+    tempvar new_accessed_addresses = SetAddress(
+        new SetAddressStruct(
+            evm.value.accessed_addresses.value.dict_ptr_start, new_accessed_addresses_ptr
+        ),
+    );
+    EvmImpl.set_accessed_addresses(new_accessed_addresses);
+
+    let access_gas_cost = (is_present * GasConstants.GAS_WARM_ACCESS) + (1 - is_present) *
+        GasConstants.GAS_COLD_ACCOUNT_ACCESS;
+    let err = charge_gas(Uint(access_gas_cost));
+    if (cast(err, felt) != 0) {
+        return err;
+    }
+
+    // OPERATION
+    // Get the account from state
+    let state = evm.value.env.value.state;
+    let account = get_account{state=state}([address]);
+    let env = evm.value.env;
+    EnvImpl.set_state{env=env}(state);
+    EvmImpl.set_env(env);
+
+    let _empty_account = EMPTY_ACCOUNT();
+    let empty_account = OptionalAccount(_empty_account.value);
+    let is_empty_account = Account__eq__(OptionalAccount(account.value), empty_account);
+
+    // If account is empty, push 0
+    if (is_empty_account.value != 0) {
+        tempvar code_hash_u256 = U256(new U256Struct(0, 0));
+
+        tempvar keccak_ptr = keccak_ptr;
+        tempvar poseidon_ptr = poseidon_ptr;
+        tempvar range_check_ptr = range_check_ptr;
+        tempvar bitwise_ptr = bitwise_ptr;
+    } else {
+        // Calculate keccak256 hash of code and push to stack
+        let code_hash = keccak256(account.value.code);
+        tempvar code_hash_u256 = U256(new U256Struct(code_hash.value.low, code_hash.value.high));
+        let code_hash_bytes32 = U256_to_be_bytes(code_hash_u256);
+        tempvar code_hash_u256 = U256(code_hash_bytes32.value);
+
+        tempvar keccak_ptr = keccak_ptr;
+        tempvar poseidon_ptr = poseidon_ptr;
+        tempvar range_check_ptr = range_check_ptr;
+        tempvar bitwise_ptr = bitwise_ptr;
+    }
+
+    let keccak_ptr = cast([ap - 4], KeccakBuiltin*);
+    let poseidon_ptr = cast([ap - 3], PoseidonBuiltin*);
+    let range_check_ptr = [ap - 2];
+    let bitwise_ptr = cast([ap - 1], BitwiseBuiltin*);
+
+    with stack {
+        let err = push(code_hash_u256);
+        if (cast(err, felt) != 0) {
+            return err;
+        }
+    }
+
+    // PROGRAM COUNTER
+    EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
     let ok = cast(0, ExceptionalHalt*);
     return ok;
 }

@@ -7,6 +7,7 @@ from hypothesis import strategies as st
 from hypothesis.strategies import composite
 
 from ethereum.cancun.vm.instructions.storage import sload, sstore, tload, tstore
+from ethereum.cancun.vm.stack import push
 from tests.utils.args_gen import Evm
 from tests.utils.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder
@@ -27,7 +28,7 @@ def evm_with_accessed_storage_keys(draw):
     if not use_random_key and accessed_storage_keys:
         # Draw a key from the set and put it on top of the stack
         _, key = draw(st.sampled_from(accessed_storage_keys))
-        evm.stack.insert(0, U256.from_le_bytes(key))
+        push(evm.stack, U256.from_le_bytes(key))
 
     return evm
 
