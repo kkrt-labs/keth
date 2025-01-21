@@ -19,6 +19,7 @@
     "frozendict",
     "fspaths",
     "getattr",
+    "hashdict",
     "hookwrapper",
     "intdigest",
     "ipykernel",
