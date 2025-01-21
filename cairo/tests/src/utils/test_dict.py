@@ -2,7 +2,8 @@ from typing import List, Mapping, Tuple
 
 import pytest
 from cairo_addons.hints.decorator import register_hint
-from ethereum_types.numeric import Uint
+from ethereum_types.bytes import Bytes32
+from ethereum_types.numeric import U256, Uint
 from hypothesis import given
 from hypothesis import strategies as st
 from starkware.cairo.common.dict import DictManager
@@ -11,6 +12,7 @@ from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 from starkware.cairo.lang.vm.relocatable import RelocatableValue
 from starkware.cairo.lang.vm.vm_consts import VmConsts
 
+from ethereum.cancun.fork_types import Address
 from tests.utils.strategies import felt
 
 pytestmark = pytest.mark.python_vm
@@ -80,3 +82,36 @@ def test_dict_update(cairo_run_py, original_mapping: Mapping[Uint, Uint], drop: 
         original_mapping.values(), finalized_dict.values()
     ):
         assert new_value == original_value + Uint(1 - int(drop))
+
+
+@st.composite
+def dict_with_prefix(draw):
+    # Draw a single value for the prefix
+    prefix = draw(st.from_type(Address))
+
+    # Generate a dictionary where each key has 50% chance of having the prefix
+    dict_entries = draw(
+        st.dictionaries(
+            keys=st.tuples(
+                st.one_of(
+                    st.just(prefix),  # 50% chance of using the prefix
+                    st.from_type(Address),  # 50% chance of random bytes20
+                ),
+                st.from_type(Bytes32),
+            ),
+            values=st.from_type(U256),
+            min_size=1,
+            max_size=50,
+        )
+    )
+
+    return dict_entries, prefix
+
+
+@given(dict_with_prefix=dict_with_prefix())
+def test_get_keys_for_address_prefix(cairo_run_py, dict_with_prefix):
+    dict_entries: Mapping[Tuple[Address, Bytes32], U256] = dict_with_prefix[0]
+    prefix: Address = dict_with_prefix[1]
+    keys = cairo_run_py("test_get_keys_for_address_prefix", prefix, dict_entries)
+    keys = [keys] if not isinstance(keys, list) else keys
+    assert keys == [key for key in dict_entries.keys() if key[0] == prefix]

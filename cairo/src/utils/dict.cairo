@@ -224,3 +224,16 @@ func prev_values{range_check_ptr}(dict_ptr_start: DictAccess*, dict_ptr_stop: Di
 
     return (prev_values_start=prev_values_start, prev_values_end=prev_values);
 }
+
+// @notice Returns all keys that have a prefix matching the given prefix.
+// TODO: this is unsound and soundness should be ensured at squash time.
+func get_keys_for_address_prefix{poseidon_ptr: PoseidonBuiltin*, dict_ptr: DictAccess*}(
+    prefix_len: felt, prefix: felt*
+) -> (keys_len: felt, keys: felt*) {
+    alloc_locals;
+
+    let (keys: felt*) = alloc();
+    local keys_len;
+    %{ get_keys_for_address_prefix %}
+    return (keys_len=keys_len, keys=keys);
+}

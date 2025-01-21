@@ -79,6 +79,7 @@ settings.register_profile(
     max_examples=2000,
     phases=[Phase.explicit, Phase.reuse, Phase.generate, Phase.target],
     report_multiple_bugs=True,
+    print_blob=True,
     suppress_health_check=[HealthCheck.too_slow],
 )
 settings.register_profile(

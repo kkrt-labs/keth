@@ -4,6 +4,7 @@ from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.cairo.common.math import assert_not_zero
 from starkware.cairo.common.uint256 import Uint256
 from src.utils.uint256 import uint256_add, uint256_sub
+from starkware.cairo.common.alloc import alloc
 from ethereum.cancun.fork_types import (
     Address,
     Account,
@@ -13,23 +14,27 @@ from ethereum.cancun.fork_types import (
     SetAddressStruct,
     SetAddressDictAccess,
     EMPTY_ACCOUNT,
-    MappingBytes32U256,
-    MappingBytes32U256Struct,
+    MappingTupleAddressBytes32U256,
+    MappingTupleAddressBytes32U256Struct,
     Account__eq__,
-    Bytes32U256DictAccess,
+    TupleAddressBytes32U256DictAccess,
+    HashedTupleAddressBytes32,
+    TupleAddressBytes32,
+    ListTupleAddressBytes32,
+    ListTupleAddressBytes32Struct,
 )
 from ethereum.cancun.trie import (
-    TrieBytes32U256,
+    TrieTupleAddressBytes32U256,
     TrieAddressOptionalAccount,
     trie_get_TrieAddressOptionalAccount,
     trie_set_TrieAddressOptionalAccount,
-    trie_get_TrieBytes32U256,
-    trie_set_TrieBytes32U256,
+    trie_get_TrieTupleAddressBytes32U256,
+    trie_set_TrieTupleAddressBytes32U256,
     AccountStruct,
-    TrieBytes32U256Struct,
+    TrieTupleAddressBytes32U256Struct,
     TrieAddressOptionalAccountStruct,
     copy_TrieAddressOptionalAccount,
-    copy_trieBytes32U256,
+    copy_TrieTupleAddressBytes32U256,
 )
 from ethereum_types.bytes import Bytes, Bytes32
 from ethereum_types.numeric import U256, U256Struct, Bool, bool, Uint
@@ -37,54 +42,36 @@ from ethereum.utils.numeric import is_zero, U256_le, U256_sub, U256_add
 
 from src.utils.dict import hashdict_read, hashdict_write, hashdict_get, dict_new_empty
 
-struct AddressTrieBytes32U256DictAccess {
-    key: Address,
-    prev_value: TrieBytes32U256,
-    new_value: TrieBytes32U256,
-}
-
-struct MappingAddressTrieBytes32U256Struct {
-    dict_ptr_start: AddressTrieBytes32U256DictAccess*,
-    dict_ptr: AddressTrieBytes32U256DictAccess*,
-    // In case this is a copy of a previous dict,
-    // this field points to the address of the original mapping.
-    original_mapping: MappingAddressTrieBytes32U256Struct*,
-}
-
-struct MappingAddressTrieBytes32U256 {
-    value: MappingAddressTrieBytes32U256Struct*,
-}
-
-struct TupleTrieAddressOptionalAccountMappingAddressTrieBytes32U256Struct {
+struct TupleTrieAddressOptionalAccountTrieTupleAddressBytes32U256Struct {
     trie_address_account: TrieAddressOptionalAccount,
-    mapping_address_trie: MappingAddressTrieBytes32U256,
+    trie_tuple_address_bytes32_u256: TrieTupleAddressBytes32U256,
 }
 
-struct TupleTrieAddressOptionalAccountMappingAddressTrieBytes32U256 {
-    value: TupleTrieAddressOptionalAccountMappingAddressTrieBytes32U256Struct*,
+struct TupleTrieAddressOptionalAccountTrieTupleAddressBytes32U256 {
+    value: TupleTrieAddressOptionalAccountTrieTupleAddressBytes32U256Struct*,
 }
 
-struct ListTupleTrieAddressOptionalAccountMappingAddressTrieBytes32U256Struct {
-    data: TupleTrieAddressOptionalAccountMappingAddressTrieBytes32U256*,
+struct ListTupleTrieAddressOptionalAccountTrieTupleAddressBytes32U256Struct {
+    data: TupleTrieAddressOptionalAccountTrieTupleAddressBytes32U256*,
     len: felt,
 }
 
-struct ListTupleTrieAddressOptionalAccountMappingAddressTrieBytes32U256 {
-    value: ListTupleTrieAddressOptionalAccountMappingAddressTrieBytes32U256Struct*,
+struct ListTupleTrieAddressOptionalAccountTrieTupleAddressBytes32U256 {
+    value: ListTupleTrieAddressOptionalAccountTrieTupleAddressBytes32U256Struct*,
 }
 
-struct TransientStorageSnapshotsStruct {
-    data: MappingAddressTrieBytes32U256*,
+struct ListTrieTupleAddressBytes32U256Struct {
+    data: TrieTupleAddressBytes32U256*,
     len: felt,
 }
 
-struct TransientStorageSnapshots {
-    value: TransientStorageSnapshotsStruct*,
+struct ListTrieTupleAddressBytes32U256 {
+    value: ListTrieTupleAddressBytes32U256Struct*,
 }
 
 struct TransientStorageStruct {
-    _tries: MappingAddressTrieBytes32U256,
-    _snapshots: TransientStorageSnapshots,
+    _tries: TrieTupleAddressBytes32U256,
+    _snapshots: ListTrieTupleAddressBytes32U256,
 }
 
 struct TransientStorage {
@@ -93,10 +80,10 @@ struct TransientStorage {
 
 struct StateStruct {
     _main_trie: TrieAddressOptionalAccount,
-    _storage_tries: MappingAddressTrieBytes32U256,
-    _snapshots: ListTupleTrieAddressOptionalAccountMappingAddressTrieBytes32U256,
+    _storage_tries: TrieTupleAddressBytes32U256,
+    _snapshots: ListTupleTrieAddressOptionalAccountTrieTupleAddressBytes32U256,
     created_accounts: SetAddress,
-    original_storage_tries: MappingAddressTrieBytes32U256,
+    original_storage_tries: TrieTupleAddressBytes32U256,
 }
 
 struct State {
@@ -118,7 +105,7 @@ namespace StateImpl {
     }
 
     func set_original_storage_tries{state: State}(
-        new_original_storage_tries: MappingAddressTrieBytes32U256
+        new_original_storage_tries: TrieTupleAddressBytes32U256
     ) {
         tempvar state = State(
             new StateStruct(
@@ -210,76 +197,51 @@ func get_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(
     address: Address, key: Bytes32
 ) -> U256 {
     alloc_locals;
-    let storage_tries = state.value._storage_tries;
+    let storage_tries_data = state.value._storage_tries.value._data;
 
     let fp_and_pc = get_fp_and_pc();
     local __fp__: felt* = fp_and_pc.fp_val;
 
-    let storage_tries_dict_ptr = cast(storage_tries.value.dict_ptr, DictAccess*);
+    let storage_data_dict_ptr = cast(storage_tries_data.value.dict_ptr, DictAccess*);
 
-    // Use `hashdict_get` instead of `hashdict_read` because `MappingAddressTrieBytes32U256` is not a
+    // Use `hashdict_get` instead of `hashdict_read` because `MappingTupleAddressBytes32U256` is not a
     // `default_dict`. Accessing a key that does not exist in the dict would have panicked for `hashdict_read`.
-    let (pointer) = hashdict_get{poseidon_ptr=poseidon_ptr, dict_ptr=storage_tries_dict_ptr}(
-        1, &address.value
+    let (keys) = alloc();
+    assert keys[0] = address.value;
+    assert keys[1] = key.value.low;
+    assert keys[2] = key.value.high;
+    let (value_ptr) = hashdict_read{poseidon_ptr=poseidon_ptr, dict_ptr=storage_data_dict_ptr}(
+        3, keys
     );
 
-    if (cast(pointer, felt) == 0) {
-        // Early return if no associated Trie at address
-        let new_storage_tries_dict_ptr = cast(
-            storage_tries_dict_ptr, AddressTrieBytes32U256DictAccess*
-        );
-        tempvar storage_tries = MappingAddressTrieBytes32U256(
-            new MappingAddressTrieBytes32U256Struct(
-                dict_ptr_start=storage_tries.value.dict_ptr_start,
-                dict_ptr=new_storage_tries_dict_ptr,
-                original_mapping=storage_tries.value.original_mapping,
-            ),
-        );
-        tempvar state = State(
-            new StateStruct(
-                _main_trie=state.value._main_trie,
-                _storage_tries=storage_tries,
-                _snapshots=state.value._snapshots,
-                created_accounts=state.value.created_accounts,
-                original_storage_tries=state.value.original_storage_tries,
-            ),
-        );
-
-        tempvar res = U256(new U256Struct(0, 0));
-        return res;
-    }
-
-    let storage_trie_ptr = cast(pointer, TrieBytes32U256Struct*);
-    let storage_trie = TrieBytes32U256(storage_trie_ptr);
-    let value = trie_get_TrieBytes32U256{poseidon_ptr=poseidon_ptr, trie=storage_trie}(key);
-
-    // Rebind the storage trie to the state
-    let new_storage_trie_ptr = cast(storage_trie.value, felt);
-
-    hashdict_write{poseidon_ptr=poseidon_ptr, dict_ptr=storage_tries_dict_ptr}(
-        1, &address.value, new_storage_trie_ptr
+    // Early return if no associated Trie at address
+    let new_storage_data_dict_ptr = cast(storage_data_dict_ptr, TupleAddressBytes32U256DictAccess*);
+    tempvar new_storage_data = MappingTupleAddressBytes32U256(
+        new MappingTupleAddressBytes32U256Struct(
+            dict_ptr_start=storage_tries_data.value.dict_ptr_start,
+            dict_ptr=new_storage_data_dict_ptr,
+            original_mapping=storage_tries_data.value.original_mapping,
+        ),
     );
-
-    let new_storage_tries_dict_ptr = cast(
-        storage_tries_dict_ptr, AddressTrieBytes32U256DictAccess*
-    );
-    tempvar storage_tries = MappingAddressTrieBytes32U256(
-        new MappingAddressTrieBytes32U256Struct(
-            dict_ptr_start=storage_tries.value.dict_ptr_start,
-            dict_ptr=new_storage_tries_dict_ptr,
-            original_mapping=storage_tries.value.original_mapping,
+    tempvar new_storage_tries = TrieTupleAddressBytes32U256(
+        new TrieTupleAddressBytes32U256Struct(
+            secured=state.value._storage_tries.value.secured,
+            default=state.value._storage_tries.value.default,
+            _data=new_storage_data,
         ),
     );
     tempvar state = State(
         new StateStruct(
             _main_trie=state.value._main_trie,
-            _storage_tries=storage_tries,
+            _storage_tries=new_storage_tries,
             _snapshots=state.value._snapshots,
             created_accounts=state.value.created_accounts,
             original_storage_tries=state.value.original_storage_tries,
         ),
     );
-    return value;
+
+    tempvar res = U256(cast(value_ptr, U256Struct*));
+    return res;
 }
 
 func destroy_account{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Address) {
@@ -320,42 +282,10 @@ func set_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(
             assert 0 = 1;
         }
     }
-
-    let storage_tries_dict_ptr = cast(storage_tries.value.dict_ptr, DictAccess*);
-    // Use `hashdict_get` instead of `hashdict_read` because `MappingAddressTrieBytes32U256` is not a
-    // `default_dict`. Accessing a key that does not exist in the dict would have panicked for `hashdict_read`.
-    let (storage_trie_pointer) = hashdict_get{
-        poseidon_ptr=poseidon_ptr, dict_ptr=storage_tries_dict_ptr
-    }(1, &address.value);
-
-    if (storage_trie_pointer == 0) {
-        let (new_mapping_dict_ptr) = dict_new_empty();
-        tempvar new_storage_trie = new TrieBytes32U256Struct(
-            secured=bool(1),
-            default=U256(new U256Struct(0, 0)),
-            _data=MappingBytes32U256(
-                new MappingBytes32U256Struct(
-                    dict_ptr_start=cast(new_mapping_dict_ptr, Bytes32U256DictAccess*),
-                    dict_ptr=cast(new_mapping_dict_ptr, Bytes32U256DictAccess*),
-                    original_mapping=cast(0, MappingBytes32U256Struct*),
-                ),
-            ),
-        );
-
-        let storage_trie_pointer = cast(new_storage_trie, felt);
-        hashdict_write{poseidon_ptr=poseidon_ptr, dict_ptr=storage_tries_dict_ptr}(
-            1, &address.value, storage_trie_pointer
-        );
-
-        tempvar storage_trie_pointer = storage_trie_pointer;
-    } else {
-        tempvar storage_trie_pointer = storage_trie_pointer;
-    }
-    let storage_tries_dict_ptr = storage_tries_dict_ptr;
-
-    let trie_struct = cast(storage_trie_pointer, TrieBytes32U256Struct*);
-    let storage_trie = TrieBytes32U256(trie_struct);
-    trie_set_TrieBytes32U256{poseidon_ptr=poseidon_ptr, trie=storage_trie}(key, value);
+    let storage_trie = state.value._storage_tries;
+    trie_set_TrieTupleAddressBytes32U256{poseidon_ptr=poseidon_ptr, trie=storage_trie}(
+        address, key, value
+    );
 
     // From EELS <https://github.com/ethereum/execution-specs/blob/master/src/ethereum/cancun/state.py#L318>:
     // if trie._data == {}:
@@ -363,28 +293,11 @@ func set_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(
     // TODO: Investigate whether this is needed inside provable code
     // If the storage trie is empty, then write null ptr to the mapping address -> storage trie at address
 
-    // Update state
-    // 1. Write the updated storage trie to the mapping address -> storage trie
-    let storage_trie_ptr = cast(storage_trie.value, felt);
-    hashdict_write{poseidon_ptr=poseidon_ptr, dict_ptr=storage_tries_dict_ptr}(
-        1, &address.value, storage_trie_ptr
-    );
-    // 2. Create a new storage_tries instance with the updated storage trie at address
-    let new_storage_tries_dict_ptr = cast(
-        storage_tries_dict_ptr, AddressTrieBytes32U256DictAccess*
-    );
-    tempvar new_storage_tries = MappingAddressTrieBytes32U256(
-        new MappingAddressTrieBytes32U256Struct(
-            dict_ptr_start=storage_tries.value.dict_ptr_start,
-            dict_ptr=new_storage_tries_dict_ptr,
-            original_mapping=storage_tries.value.original_mapping,
-        ),
-    );
     // 3. Update state with the updated storage tries
     tempvar state = State(
         new StateStruct(
             _main_trie=state.value._main_trie,
-            _storage_tries=new_storage_tries,
+            _storage_tries=storage_trie,
             _snapshots=state.value._snapshots,
             created_accounts=state.value.created_accounts,
             original_storage_tries=state.value.original_storage_tries,
@@ -419,57 +332,21 @@ func get_storage_original{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, state
         return res;
     }
 
-    let original_storage_tries = state.value.original_storage_tries;
-    let original_storage_tries_ptr = cast(original_storage_tries.value.dict_ptr, DictAccess*);
-    // The address might not have an original storage trie - `get` returns 0 (None) if no key is
-    // hit.
-    let (original_account_trie_pointer) = hashdict_get{dict_ptr=original_storage_tries_ptr}(
-        1, &address.value
-    );
-
-    // If account trie is null, return 0
-    if (cast(original_account_trie_pointer, felt) == 0) {
-        let new_original_storage_tries_ptr = cast(
-            original_storage_tries_ptr, AddressTrieBytes32U256DictAccess*
-        );
-        tempvar new_original_storage_tries = MappingAddressTrieBytes32U256(
-            new MappingAddressTrieBytes32U256Struct(
-                dict_ptr_start=original_storage_tries.value.dict_ptr_start,
-                dict_ptr=new_original_storage_tries_ptr,
-                original_mapping=original_storage_tries.value.original_mapping,
-            ),
-        );
-        StateImpl.set_original_storage_tries(new_original_storage_tries);
-        tempvar res = U256(new U256Struct(0, 0));
-        return res;
-    }
-
-    // Get the value from the account's original storage trie
-    let original_account_trie = TrieBytes32U256(
-        cast(original_account_trie_pointer, TrieBytes32U256Struct*)
-    );
-    let original_value = trie_get_TrieBytes32U256{trie=original_account_trie}(key);
-
-    // Overwrite the original_storage_tries with the updated account's storage trie, post-read.
-    let new_account_storage_trie_ptr = cast(original_account_trie.value, felt);
-    hashdict_write{dict_ptr=original_storage_tries_ptr}(
-        1, &address.value, new_account_storage_trie_ptr
-    );
+    let new_original_storage_tries = state.value.original_storage_tries;
+    let value = trie_get_TrieTupleAddressBytes32U256{trie=new_original_storage_tries}(address, key);
 
     // Update state
-    let new_original_storage_tries_ptr = cast(
-        original_storage_tries_ptr, AddressTrieBytes32U256DictAccess*
-    );
-    tempvar new_original_storage_tries = MappingAddressTrieBytes32U256(
-        new MappingAddressTrieBytes32U256Struct(
-            dict_ptr_start=original_storage_tries.value.dict_ptr_start,
-            dict_ptr=new_original_storage_tries_ptr,
-            original_mapping=original_storage_tries.value.original_mapping,
+    tempvar state = State(
+        new StateStruct(
+            _main_trie=state.value._main_trie,
+            _storage_tries=state.value._storage_tries,
+            _snapshots=state.value._snapshots,
+            created_accounts=state.value.created_accounts,
+            original_storage_tries=new_original_storage_tries,
         ),
     );
-    StateImpl.set_original_storage_tries(new_original_storage_tries);
 
-    return original_value;
+    return value;
 }
 
 func destroy_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Address) {
@@ -479,47 +356,29 @@ func destroy_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Addr
     let fp_and_pc = get_fp_and_pc();
     local __fp__: felt* = fp_and_pc.fp_val;
 
-    let storage_tries_dict_ptr = cast(storage_tries.value.dict_ptr, DictAccess*);
+    let prefix_len = 1;
+    let prefix = &address.value;
+    local keys_len: felt;
+    local keys: TupleAddressBytes32*;
+    tempvar dict_ptr = cast(storage_tries.value._data.value.dict_ptr, DictAccess*);
+    %{ get_keys_for_address_prefix %}
 
-    // Use `hashdict_get` instead of `hashdict_read` because `MappingAddressTrieBytes32U256` is not a
-    // `default_dict`. Accessing a key that does not exist in the dict would have panicked for `hashdict_read`.
-    let (pointer) = hashdict_get{dict_ptr=storage_tries_dict_ptr}(1, &address.value);
+    tempvar list_keys = ListTupleAddressBytes32(new ListTupleAddressBytes32Struct(keys, keys_len));
 
-    if (pointer == 0) {
-        // rebind storage_tries
-        let new_storage_tries_dict_ptr = cast(
-            storage_tries_dict_ptr, AddressTrieBytes32U256DictAccess*
-        );
-        tempvar storage_tries = MappingAddressTrieBytes32U256(
-            new MappingAddressTrieBytes32U256Struct(
-                dict_ptr_start=storage_tries.value.dict_ptr_start,
-                dict_ptr=new_storage_tries_dict_ptr,
-                original_mapping=storage_tries.value.original_mapping,
-            ),
-        );
-        tempvar state = State(
-            new StateStruct(
-                _main_trie=state.value._main_trie,
-                _storage_tries=storage_tries,
-                _snapshots=state.value._snapshots,
-                created_accounts=state.value.created_accounts,
-                original_storage_tries=state.value.original_storage_tries,
-            ),
-        );
-        return ();
-    }
+    _destroy_storage_keys{poseidon_ptr=poseidon_ptr, storage_tries_ptr=dict_ptr}(list_keys, 0);
+    let new_dict_ptr = cast(dict_ptr, TupleAddressBytes32U256DictAccess*);
 
-    // del state._storage_tries[address] is equivalent to setting the value to 0
-    hashdict_write{dict_ptr=storage_tries_dict_ptr}(1, &address.value, 0);
-
-    let new_storage_tries_dict_ptr = cast(
-        storage_tries_dict_ptr, AddressTrieBytes32U256DictAccess*
+    tempvar new_storage_tries_data = MappingTupleAddressBytes32U256(
+        new MappingTupleAddressBytes32U256Struct(
+            dict_ptr_start=storage_tries.value._data.value.dict_ptr_start,
+            dict_ptr=new_dict_ptr,
+            original_mapping=storage_tries.value._data.value.original_mapping,
+        ),
     );
-    tempvar new_storage_tries = MappingAddressTrieBytes32U256(
-        new MappingAddressTrieBytes32U256Struct(
-            dict_ptr_start=storage_tries.value.dict_ptr_start,
-            dict_ptr=new_storage_tries_dict_ptr,
-            original_mapping=storage_tries.value.original_mapping,
+
+    tempvar new_storage_tries = TrieTupleAddressBytes32U256(
+        new TrieTupleAddressBytes32U256Struct(
+            storage_tries.value.secured, storage_tries.value.default, new_storage_tries_data
         ),
     );
     tempvar state = State(
@@ -535,6 +394,26 @@ func destroy_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Addr
     return ();
 }
 
+func _destroy_storage_keys{poseidon_ptr: PoseidonBuiltin*, storage_tries_ptr: DictAccess*}(
+    keys: ListTupleAddressBytes32, index: felt
+) {
+    if (index == keys.value.len) {
+        return ();
+    }
+
+    let current_key = keys.value.data[index];
+    let key_len = 3;
+    let (key) = alloc();
+    assert key[0] = current_key.value.address.value;
+    assert key[1] = current_key.value.bytes32.value.low;
+    assert key[2] = current_key.value.bytes32.value.high;
+    hashdict_write{dict_ptr=storage_tries_ptr}(key_len, key, 0);
+
+    return _destroy_storage_keys{poseidon_ptr=poseidon_ptr, storage_tries_ptr=storage_tries_ptr}(
+        keys, index + 1
+    );
+}
+
 func get_transient_storage{poseidon_ptr: PoseidonBuiltin*, transient_storage: TransientStorage}(
     address: Address, key: Bytes32
 ) -> U256 {
@@ -542,51 +421,13 @@ func get_transient_storage{poseidon_ptr: PoseidonBuiltin*, transient_storage: Tr
     let fp_and_pc = get_fp_and_pc();
     local __fp__: felt* = fp_and_pc.fp_val;
 
-    let transient_storage_tries_dict_ptr = cast(
-        transient_storage.value._tries.value.dict_ptr, DictAccess*
+    let new_transient_storage_tries = transient_storage.value._tries;
+    let value = trie_get_TrieTupleAddressBytes32U256{trie=new_transient_storage_tries}(
+        address, key
     );
-    let (trie_ptr) = hashdict_get{dict_ptr=transient_storage_tries_dict_ptr}(1, &address.value);
 
-    // If no storage trie is associated to that address, return the 0 default
-    if (trie_ptr == 0) {
-        let new_transient_storage_tries_dict_ptr = cast(
-            transient_storage_tries_dict_ptr, AddressTrieBytes32U256DictAccess*
-        );
-        tempvar transient_storage_tries = MappingAddressTrieBytes32U256(
-            new MappingAddressTrieBytes32U256Struct(
-                transient_storage.value._tries.value.dict_ptr_start,
-                new_transient_storage_tries_dict_ptr,
-                transient_storage.value._tries.value.original_mapping,
-            ),
-        );
-        tempvar transient_storage = TransientStorage(
-            new TransientStorageStruct(transient_storage_tries, transient_storage.value._snapshots)
-        );
-        tempvar result = U256(new U256Struct(0, 0));
-        return result;
-    }
-
-    let trie = TrieBytes32U256(cast(trie_ptr, TrieBytes32U256Struct*));
-    with trie {
-        let value = trie_get_TrieBytes32U256(key);
-    }
-
-    // Rebind the trie to the transient storage
-    hashdict_write{poseidon_ptr=poseidon_ptr, dict_ptr=transient_storage_tries_dict_ptr}(
-        1, &address.value, cast(trie.value, felt)
-    );
-    let new_storage_tries_dict_ptr = cast(
-        transient_storage_tries_dict_ptr, AddressTrieBytes32U256DictAccess*
-    );
-    tempvar transient_storage_tries = MappingAddressTrieBytes32U256(
-        new MappingAddressTrieBytes32U256Struct(
-            transient_storage.value._tries.value.dict_ptr_start,
-            new_storage_tries_dict_ptr,
-            transient_storage.value._tries.value.original_mapping,
-        ),
-    );
     tempvar transient_storage = TransientStorage(
-        new TransientStorageStruct(transient_storage_tries, transient_storage.value._snapshots)
+        new TransientStorageStruct(new_transient_storage_tries, transient_storage.value._snapshots)
     );
 
     return value;
@@ -599,60 +440,17 @@ func set_transient_storage{poseidon_ptr: PoseidonBuiltin*, transient_storage: Tr
     let fp_and_pc = get_fp_and_pc();
     local __fp__: felt* = fp_and_pc.fp_val;
 
-    let transient_storage_tries_dict_ptr = cast(
-        transient_storage.value._tries.value.dict_ptr, DictAccess*
-    );
-    let (trie_ptr) = hashdict_get{dict_ptr=transient_storage_tries_dict_ptr}(1, &address.value);
-
-    if (trie_ptr == 0) {
-        let (empty_dict) = dict_new_empty();
-        tempvar new_trie = new TrieBytes32U256Struct(
-            secured=Bool(1),
-            default=U256(new U256Struct(0, 0)),
-            _data=MappingBytes32U256(
-                new MappingBytes32U256Struct(
-                    dict_ptr_start=cast(empty_dict, Bytes32U256DictAccess*),
-                    dict_ptr=cast(empty_dict, Bytes32U256DictAccess*),
-                    original_mapping=cast(0, MappingBytes32U256Struct*),
-                ),
-            ),
-        );
-        let new_trie_ptr = cast(new_trie, felt);
-        hashdict_write{poseidon_ptr=poseidon_ptr, dict_ptr=transient_storage_tries_dict_ptr}(
-            1, &address.value, new_trie_ptr
-        );
-        tempvar trie_ptr = new_trie_ptr;
-    } else {
-        tempvar trie_ptr = trie_ptr;
-    }
-
-    let transient_storage_tries_dict_ptr = transient_storage_tries_dict_ptr;
-    tempvar trie = TrieBytes32U256(cast(trie_ptr, TrieBytes32U256Struct*));
-    with trie {
-        trie_set_TrieBytes32U256{poseidon_ptr=poseidon_ptr}(key, value);
-    }
+    let new_transient_storage_tries = transient_storage.value._tries;
+    trie_set_TrieTupleAddressBytes32U256{
+        poseidon_ptr=poseidon_ptr, trie=new_transient_storage_tries
+    }(address, key, value);
 
     // Trie is not deleted if empty
     // From EELS https://github.com/ethereum/execution-specs/blob/5c82ed6ac3eb992c7d87320a3e771b5e852a06df/src/ethereum/cancun/state.py#L697:
     // if trie._data == {}:
     //    del transient_storage._tries[address]
-
-    // Update the transient storage tries
-    hashdict_write{poseidon_ptr=poseidon_ptr, dict_ptr=transient_storage_tries_dict_ptr}(
-        1, &address.value, cast(trie.value, felt)
-    );
-    let new_storage_tries_dict_ptr = cast(
-        transient_storage_tries_dict_ptr, AddressTrieBytes32U256DictAccess*
-    );
-    tempvar transient_storage_tries = MappingAddressTrieBytes32U256(
-        new MappingAddressTrieBytes32U256Struct(
-            transient_storage.value._tries.value.dict_ptr_start,
-            new_storage_tries_dict_ptr,
-            transient_storage.value._tries.value.original_mapping,
-        ),
-    );
     tempvar transient_storage = TransientStorage(
-        new TransientStorageStruct(transient_storage_tries, transient_storage.value._snapshots)
+        new TransientStorageStruct(new_transient_storage_tries, transient_storage.value._snapshots)
     );
 
     return ();
@@ -798,38 +596,23 @@ func begin_transaction{
     let trie = state.value._main_trie;
     let copied_main_trie = copy_TrieAddressOptionalAccount{trie=trie}();
 
-    // Initialize a new storage tries mapping to be used in the snapshot
-    let (new_storage_tries_dict_ptr) = dict_new_empty();
-    tempvar new_storage_tries = MappingAddressTrieBytes32U256(
-        new MappingAddressTrieBytes32U256Struct(
-            dict_ptr_start=cast(new_storage_tries_dict_ptr, AddressTrieBytes32U256DictAccess*),
-            dict_ptr=cast(new_storage_tries_dict_ptr, AddressTrieBytes32U256DictAccess*),
-            original_mapping=cast(0, MappingAddressTrieBytes32U256Struct*),
-        ),
-    );
-
-    // Copy storage tries
-    with new_storage_tries {
-        copy_storage_tries_recursive(
-            cast(
-                state.value._storage_tries.value.dict_ptr_start, AddressTrieBytes32U256DictAccess*
-            ),
-            cast(state.value._storage_tries.value.dict_ptr, AddressTrieBytes32U256DictAccess*),
-        );
-    }
+    // Copy the storage tries
+    let storage_tries = state.value._storage_tries;
+    let copied_storage_tries = copy_TrieTupleAddressBytes32U256{trie=storage_tries}();
 
     // Store in snapshots the copied main trie and the new storage tries mapping
-    tempvar new_snapshot = TupleTrieAddressOptionalAccountMappingAddressTrieBytes32U256(
-        new TupleTrieAddressOptionalAccountMappingAddressTrieBytes32U256Struct(
-            trie_address_account=copied_main_trie, mapping_address_trie=new_storage_tries
+    tempvar new_snapshot = TupleTrieAddressOptionalAccountTrieTupleAddressBytes32U256(
+        new TupleTrieAddressOptionalAccountTrieTupleAddressBytes32U256Struct(
+            trie_address_account=copied_main_trie,
+            trie_tuple_address_bytes32_u256=copied_storage_tries,
         ),
     );
 
     // Update the snapshots list
     assert state.value._snapshots.value.data[state.value._snapshots.value.len] = new_snapshot;
 
-    tempvar new_snapshots = ListTupleTrieAddressOptionalAccountMappingAddressTrieBytes32U256(
-        new ListTupleTrieAddressOptionalAccountMappingAddressTrieBytes32U256Struct(
+    tempvar new_snapshots = ListTupleTrieAddressOptionalAccountTrieTupleAddressBytes32U256(
+        new ListTupleTrieAddressOptionalAccountTrieTupleAddressBytes32U256Struct(
             data=state.value._snapshots.value.data, len=state.value._snapshots.value.len + 1
         ),
     );
@@ -845,42 +628,19 @@ func begin_transaction{
         ),
     );
 
-    // Initialize new transient storage tries mapping
-    let (new_transient_tries_dict_ptr) = dict_new_empty();
-    tempvar new_transient_tries = MappingAddressTrieBytes32U256(
-        new MappingAddressTrieBytes32U256Struct(
-            dict_ptr_start=cast(new_transient_tries_dict_ptr, AddressTrieBytes32U256DictAccess*),
-            dict_ptr=cast(new_transient_tries_dict_ptr, AddressTrieBytes32U256DictAccess*),
-            original_mapping=cast(0, MappingAddressTrieBytes32U256Struct*),
-        ),
-    );
-
     // Copy transient storage tries
-    with new_transient_tries {
-        copy_transient_storage_tries_recursive(
-            cast(
-                transient_storage.value._tries.value.dict_ptr_start,
-                AddressTrieBytes32U256DictAccess*,
-            ),
-            cast(transient_storage.value._tries.value.dict_ptr, AddressTrieBytes32U256DictAccess*),
-        );
-    }
-
-    tempvar new_transient_snapshot = MappingAddressTrieBytes32U256(
-        new MappingAddressTrieBytes32U256Struct(
-            dict_ptr_start=new_transient_tries.value.dict_ptr_start,
-            dict_ptr=new_transient_tries.value.dict_ptr,
-            original_mapping=new_transient_tries.value.original_mapping,
-        ),
-    );
+    let transient_storage_tries = transient_storage.value._tries;
+    let copied_transient_storage_tries = copy_TrieTupleAddressBytes32U256{
+        trie=transient_storage_tries
+    }();
 
     // Update the snapshots list
     assert transient_storage.value._snapshots.value.data[
         transient_storage.value._snapshots.value.len
-    ] = new_transient_snapshot;
+    ] = copied_transient_storage_tries;
 
-    tempvar new_transient_snapshots = TransientStorageSnapshots(
-        new TransientStorageSnapshotsStruct(
+    tempvar new_transient_snapshots = ListTrieTupleAddressBytes32U256(
+        new ListTrieTupleAddressBytes32U256Struct(
             data=transient_storage.value._snapshots.value.data,
             len=transient_storage.value._snapshots.value.len + 1,
         ),
@@ -899,8 +659,8 @@ func begin_transaction{
 func copy_storage_tries_recursive{
     range_check_ptr,
     poseidon_ptr: PoseidonBuiltin*,
-    new_storage_tries: MappingAddressTrieBytes32U256,
-}(dict_start: AddressTrieBytes32U256DictAccess*, dict_end: AddressTrieBytes32U256DictAccess*) {
+    new_storage_tries: MappingTupleAddressBytes32U256,
+}(dict_start: TupleAddressBytes32U256DictAccess*, dict_end: TupleAddressBytes32U256DictAccess*) {
     alloc_locals;
     // Base case: if start == end, return
     if (dict_start == dict_end) {
@@ -924,25 +684,25 @@ func copy_storage_tries_recursive{
     );
 
     // Update new_storage_tries with new dict_ptr
-    tempvar new_storage_tries = MappingAddressTrieBytes32U256(
-        new MappingAddressTrieBytes32U256Struct(
+    tempvar new_storage_tries = MappingTupleAddressBytes32U256(
+        new MappingTupleAddressBytes32U256Struct(
             dict_ptr_start=new_storage_tries.value.dict_ptr_start,
-            dict_ptr=cast(new_storage_trie_ptr, AddressTrieBytes32U256DictAccess*),
+            dict_ptr=cast(new_storage_trie_ptr, TupleAddressBytes32U256DictAccess*),
             original_mapping=new_storage_tries.value.original_mapping,
         ),
     );
 
     // Recursive call with next entry
     return copy_storage_tries_recursive(
-        dict_start + AddressTrieBytes32U256DictAccess.SIZE, dict_end
+        dict_start + TupleAddressBytes32U256DictAccess.SIZE, dict_end
     );
 }
 
 func copy_transient_storage_tries_recursive{
     range_check_ptr,
     poseidon_ptr: PoseidonBuiltin*,
-    new_transient_tries: MappingAddressTrieBytes32U256,
-}(dict_start: AddressTrieBytes32U256DictAccess*, dict_end: AddressTrieBytes32U256DictAccess*) {
+    new_transient_tries: MappingTupleAddressBytes32U256,
+}(dict_start: TupleAddressBytes32U256DictAccess*, dict_end: TupleAddressBytes32U256DictAccess*) {
     alloc_locals;
 
     // Base case: if start == end, return
@@ -955,8 +715,10 @@ func copy_transient_storage_tries_recursive{
     let trie_ptr = [dict_start].new_value;
 
     // Copy the trie
-    let trie_to_copy = TrieBytes32U256(cast(trie_ptr.value, TrieBytes32U256Struct*));
-    let copied_trie = copy_trieBytes32U256{trie=trie_to_copy}();
+    let trie_to_copy = TrieTupleAddressBytes32U256(
+        cast(trie_ptr.value, TrieTupleAddressBytes32U256Struct*)
+    );
+    let copied_trie = copy_TrieTupleAddressBytes32U256{trie=trie_to_copy}();
 
     // Write to new transient storage tries mapping
     let new_transient_trie_ptr = cast(new_transient_tries.value.dict_ptr, DictAccess*);
@@ -965,17 +727,17 @@ func copy_transient_storage_tries_recursive{
     );
 
     // Update new_transient_tries with new dict_ptr
-    tempvar new_transient_tries = MappingAddressTrieBytes32U256(
-        new MappingAddressTrieBytes32U256Struct(
+    tempvar new_transient_tries = MappingTupleAddressBytes32U256(
+        new MappingTupleAddressBytes32U256Struct(
             dict_ptr_start=new_transient_tries.value.dict_ptr_start,
-            dict_ptr=cast(new_transient_trie_ptr, AddressTrieBytes32U256DictAccess*),
+            dict_ptr=cast(new_transient_trie_ptr, TupleAddressBytes32U256DictAccess*),
             original_mapping=new_transient_tries.value.original_mapping,
         ),
     );
 
     // Recursive call with next entry
     return copy_transient_storage_tries_recursive(
-        dict_start + AddressTrieBytes32U256DictAccess.SIZE, dict_end
+        dict_start + TupleAddressBytes32U256DictAccess.SIZE, dict_end
     );
 }
 

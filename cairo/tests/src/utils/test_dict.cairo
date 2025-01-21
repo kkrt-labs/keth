@@ -5,6 +5,12 @@ from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.uint256 import Uint256
 from ethereum_types.numeric import Uint
+from ethereum.cancun.fork_types import Address, TupleAddressBytes32
+from ethereum.cancun.state import (
+    MappingTupleAddressBytes32U256,
+    ListTupleAddressBytes32,
+    ListTupleAddressBytes32Struct,
+)
 from src.utils.dict import prev_values, dict_update
 
 func test_prev_values{range_check_ptr}() -> (prev_values_start_ptr: felt*) {
@@ -63,4 +69,19 @@ func test_dict_update{range_check_ptr}(
         ),
     );
     return result;
+}
+
+func test_get_keys_for_address_prefix{range_check_ptr}(
+    prefix_: Address, dict_entries: MappingTupleAddressBytes32U256
+) -> ListTupleAddressBytes32 {
+    alloc_locals;
+    let prefix_len = 1;
+    let (prefix: felt*) = alloc();
+    assert [prefix] = prefix_.value;
+    local keys_len: felt;
+    local keys: TupleAddressBytes32*;
+    let dict_ptr = dict_entries.value.dict_ptr;
+    %{ get_keys_for_address_prefix %}
+    tempvar res = ListTupleAddressBytes32(new ListTupleAddressBytes32Struct(keys, keys_len));
+    return res;
 }
