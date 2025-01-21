@@ -122,8 +122,11 @@ func buffer_read{range_check_ptr}(buffer: Bytes, start_position: U256, size: U25
         return result;
     }
 
-    with_attr error_message("buffer_read: start_position > 2**128") {
-        assert start_position.value.high = 0;
+    // If start position is greater than buffer length, return 0 bytes
+    if (start_position.value.high != 0) {
+        memset(output, 0, size_felt);
+        tempvar result = Bytes(new BytesStruct(output, size_felt));
+        return result;
     }
 
     _buffer_read(buffer_len, buffer_data, start_position_felt, size_felt, output);
