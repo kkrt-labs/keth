@@ -1024,14 +1024,13 @@ func destroy_touched_empty_accounts{poseidon_ptr: PoseidonBuiltin*, state: State
     alloc_locals;
 
     // if current == end, return
-    let current = cast(touched_accounts.value.dict_ptr_start, DictAccess*);
-    let end = cast(touched_accounts.value.dict_ptr, DictAccess*);
+    let current = touched_accounts.value.dict_ptr_start;
+    let end = touched_accounts.value.dict_ptr;
     if (current == end) {
         return ();
     }
 
-    let key = [current].key;
-    tempvar address = Address(key);
+    let address = [current].key;
 
     // Check if current account exists and is empty, destroy if so
     let is_empty = account_exists_and_is_empty(address);
