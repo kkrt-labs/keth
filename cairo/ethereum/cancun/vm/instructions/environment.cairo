@@ -868,3 +868,61 @@ func calldataload{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
     let ok = cast(0, ExceptionalHalt*);
     return ok;
 }
+
+// @notice Copy a portion of the input data in current environment to memory
+func calldatacopy{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    alloc_locals;
+
+    // STACK
+    let stack = evm.value.stack;
+    with stack {
+        let (memory_start_index, err) = pop();
+        if (cast(err, felt) != 0) {
+            return err;
+        }
+        let (data_start_index, err) = pop();
+        if (cast(err, felt) != 0) {
+            return err;
+        }
+        let (size, err) = pop();
+        if (cast(err, felt) != 0) {
+            return err;
+        }
+    }
+
+    // GAS
+    // OutOfGasError if size > 2**128
+    if (size.value.high != 0) {
+        tempvar err = new ExceptionalHalt(OutOfGasError);
+        return err;
+    }
+
+    let ceil32_size = ceil32(Uint(size.value.low));
+    let (words, _) = divmod(ceil32_size.value, 32);
+    let copy_gas_cost = GasConstants.GAS_COPY * words;
+
+    // Calculate memory expansion cost
+    tempvar extensions_tuple = new TupleU256U256(new TupleU256U256Struct(memory_start_index, size));
+    tempvar extensions_list = ListTupleU256U256(new ListTupleU256U256Struct(extensions_tuple, 1));
+    let extend_memory = calculate_gas_extend_memory(evm.value.memory, extensions_list);
+
+    let err = charge_gas(
+        Uint(GasConstants.GAS_VERY_LOW + copy_gas_cost + extend_memory.value.cost.value)
+    );
+    if (cast(err, felt) != 0) {
+        return err;
+    }
+
+    // OPERATION
+    let memory = evm.value.memory;
+    with memory {
+        expand_by(extend_memory.value.expand_by);
+        let value = buffer_read(evm.value.message.value.data, data_start_index, size);
+        memory_write(memory_start_index, value);
+    }
+
+    // PROGRAM COUNTER
+    EvmImpl.set_pc_stack_memory(Uint(evm.value.pc.value + 1), stack, memory);
+    let ok = cast(0, ExceptionalHalt*);
+    return ok;
+}

@@ -11,6 +11,7 @@ from ethereum.cancun.vm.instructions.environment import (
     base_fee,
     blob_base_fee,
     blob_hash,
+    calldatacopy,
     calldataload,
     caller,
     callvalue,
@@ -37,6 +38,7 @@ from tests.utils.strategies import (
     excess_blob_gas,
     memory_lite,
     memory_lite_start_position,
+    uint256,
 )
 
 environment_empty_state = st.builds(
@@ -103,6 +105,37 @@ def codecopy_strategy(draw):
     if should_push:
         push(evm.stack, U256(size))
         push(evm.stack, U256(code_start_index))
+        push(evm.stack, U256(memory_start_index))
+
+    return evm
+
+
+@composite
+def calldatacopy_strategy(draw):
+    """Generate test cases for the calldatacopy instruction.
+
+    This strategy generates an EVM instance and the required parameters for calldatacopy.
+    - 8/10 chance: pushes all parameters onto the stack to test normal operation
+    - 2/10 chance: use stack already populated with values, mostly to test error cases
+    """
+    evm = draw(
+        EvmBuilder()
+        .with_stack()
+        .with_gas_left()
+        .with_memory()
+        .with_message_calldata()
+        .build()
+    )
+
+    memory_start_index = draw(memory_lite_start_position)
+    data_start_index = draw(uint256)
+    size = draw(st.integers(min_value=0, max_value=1024).map(U256))
+
+    # 80% chance to push valid values onto stack
+    should_push = draw(integers(0, 99)) < 80
+    if should_push:
+        push(evm.stack, U256(size))
+        push(evm.stack, U256(data_start_index))
         push(evm.stack, U256(memory_start_index))
 
     return evm
@@ -352,4 +385,16 @@ class TestEnvironmentInstructions:
             return
 
         calldataload(evm)
+        assert evm == cairo_result
+
+    @given(evm=calldatacopy_strategy())
+    def test_calldatacopy(self, cairo_run, evm: Evm):
+        try:
+            cairo_result = cairo_run("calldatacopy", evm)
+        except ExceptionalHalt as cairo_error:
+            with strict_raises(type(cairo_error)):
+                calldatacopy(evm)
+            return
+
+        calldatacopy(evm)
         assert evm == cairo_result
