@@ -14,6 +14,7 @@ from ethereum.cancun.state import (
     begin_transaction,
     destroy_account,
     destroy_storage,
+    destroy_touched_empty_accounts,
     get_account,
     get_account_optional,
     get_storage,
@@ -76,11 +77,13 @@ def transient_storage_and_address_and_optional_key(
 ):
     transient_storage = draw(transient_storage_strategy)
 
-    # Shuffle from a random addres of an
+    # Generate address options for sampling
     address_options = []
     if transient_storage._tries:
         address_options.append(st.sampled_from(list(transient_storage._tries.keys())))
     address_options.append(address_strategy)
+
+    # Draw an address from the options
     address = draw(st.one_of(*address_options))
 
     if key_strategy is None:
@@ -96,6 +99,31 @@ def transient_storage_and_address_and_optional_key(
     key = draw(st.one_of(*key_options))
 
     return transient_storage, address, key
+
+
+@composite
+def touched_accounts_strategy(
+    draw,
+    state_strategy=state,
+    address_strategy=address,
+):
+    state = draw(state_strategy)
+
+    # Generate a list of addresses that includes both existing accounts and random addresses
+    address_options = []
+    if state._main_trie._data:
+        address_options.append(st.sampled_from(list(state._main_trie._data.keys())))
+    address_options.append(address_strategy)
+
+    # Draw a list of addresses and convert to a set
+    num_addresses = draw(st.integers(min_value=0, max_value=10))
+    addresses = draw(
+        st.sets(
+            st.one_of(*address_options), min_size=num_addresses, max_size=num_addresses
+        )
+    )
+
+    return state, addresses
 
 
 class TestStateAccounts:
@@ -225,9 +253,18 @@ class TestStateAccounts:
         touch_account(state, address)
         assert state_cairo == state
 
+    @given(data=touched_accounts_strategy())
+    def test_destroy_touched_empty_accounts(self, cairo_run, data):
+        state, touched_accounts = data
+        state_cairo = cairo_run(
+            "destroy_touched_empty_accounts", state, touched_accounts
+        )
+        destroy_touched_empty_accounts(state, touched_accounts)
+        assert state_cairo == state
+
 
 class TestStateStorage:
-    @given(state_and_address_and_optional_key(key_strategy=bytes32))
+    @given(data=state_and_address_and_optional_key(key_strategy=bytes32))
     def test_get_storage_original(self, cairo_run, data):
         state, address, key = data
         state_cairo, result_cairo = cairo_run(

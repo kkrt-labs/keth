@@ -1017,3 +1017,39 @@ func touch_account{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Addres
     set_account(address, empty_account);
     return ();
 }
+
+func destroy_touched_empty_accounts{poseidon_ptr: PoseidonBuiltin*, state: State}(
+    touched_accounts: SetAddress
+) -> () {
+    alloc_locals;
+
+    // if current == end, return
+    let current = touched_accounts.value.dict_ptr_start;
+    let end = touched_accounts.value.dict_ptr;
+    if (current == end) {
+        return ();
+    }
+
+    let address = [current].key;
+
+    // Check if current account exists and is empty, destroy if so
+    let is_empty = account_exists_and_is_empty(address);
+    if (is_empty.value != 0) {
+        destroy_account(address);
+        tempvar poseidon_ptr = poseidon_ptr;
+        tempvar state = state;
+    } else {
+        tempvar poseidon_ptr = poseidon_ptr;
+        tempvar state = state;
+    }
+
+    // Recurse with updated touched_accounts
+    return destroy_touched_empty_accounts(
+        SetAddress(
+            new SetAddressStruct(
+                dict_ptr_start=cast(current + DictAccess.SIZE, SetAddressDictAccess*),
+                dict_ptr=cast(end, SetAddressDictAccess*),
+            ),
+        ),
+    );
+}
