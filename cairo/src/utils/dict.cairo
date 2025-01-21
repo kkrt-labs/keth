@@ -2,12 +2,13 @@ from starkware.cairo.common.cairo_builtins import PoseidonBuiltin
 from starkware.cairo.common.builtin_poseidon.poseidon import poseidon_hash, poseidon_hash_many
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.dict_access import DictAccess
+from starkware.cairo.common.bool import FALSE
 from starkware.cairo.common.memcpy import memcpy
 from starkware.cairo.common.squash_dict import squash_dict
 from starkware.cairo.common.uint256 import Uint256
 from ethereum_types.numeric import U256, U256Struct
 from ethereum_types.bytes import Bytes32
-from ethereum.utils.numeric import U256__eq__
+from ethereum.utils.numeric import U256__eq__, is_not_zero
 from ethereum.cancun.fork_types import Address, Account, AccountStruct, Account__eq__
 
 from src.utils.maths import unsigned_div_rem
@@ -135,4 +136,91 @@ func hashdict_write{poseidon_ptr: PoseidonBuiltin*, dict_ptr: DictAccess*}(
     dict_ptr.new_value = new_value;
     let dict_ptr = dict_ptr + DictAccess.SIZE;
     return ();
+}
+
+// @notice Given a dict segment (start, end) and a pointer to another dict segment (original_mapping_start, original_mapping_end),
+// updates the original dict segment with the new values from the given dict segment.
+// @dev If the drop flag is set to false, the new values are added to the existing values.
+// @dev If the drop flag is set to true, the new values are discarded, and only the prev_values are appended to the original dict segment.
+// @param drop: If false, the new values are added to the existing values.
+// @return new_dict_start: The start of the updated dict segment.
+// @return new_dict_end: The end of the updated dict segment.
+func dict_update{range_check_ptr}(
+    dict_ptr_start: DictAccess*,
+    dict_ptr: DictAccess*,
+    original_mapping_start: DictAccess*,
+    original_mapping_end: DictAccess*,
+    drop: felt,
+) -> (DictAccess*, DictAccess*) {
+    alloc_locals;
+
+    if (drop != FALSE) {
+        let (squashed_dict_start: DictAccess*) = alloc();
+        let (squashed_dict_end) = squash_dict(dict_ptr_start, dict_ptr, squashed_dict_start);
+        let (prev_values_start, prev_values_end) = prev_values(
+            squashed_dict_start, squashed_dict_end
+        );
+    } else {
+        tempvar range_check_ptr = range_check_ptr;
+        tempvar dict_ptr_start = dict_ptr_start;
+        tempvar dict_ptr = dict_ptr;
+    }
+    let range_check_ptr = [ap - 3];
+    let dict_ptr_start = cast([ap - 2], DictAccess*);
+    let dict_ptr = cast([ap - 1], DictAccess*);
+
+    if (cast(original_mapping_end, felt) == 0) {
+        // No parent mapping, just return the current dict.
+        return (dict_ptr_start, dict_ptr);
+    }
+
+    tempvar len = dict_ptr - dict_ptr_start;
+    memcpy(original_mapping_end, dict_ptr_start, len);
+    let new_original_mapping_end = original_mapping_end + len;
+    return (original_mapping_start, new_original_mapping_end);
+}
+
+// @notice Given a dict segment (start and end), returns a new dict segment with (key, prev_value, prev_value) for each key.
+// @dev Expectes the given dict to be squashed, with one DictAccess instance per key, to avoid creating useless entries.
+// @param dict_ptr_start: The start of the dict segment.
+// @param dict_ptr_stop: The end of the dict segment.
+// @return prev_values_start: The start of the new dict segment.
+// @return prev_values_end: The end of the new dict segment.
+func prev_values{range_check_ptr}(dict_ptr_start: DictAccess*, dict_ptr_stop: DictAccess*) -> (
+    prev_values_start: DictAccess*, prev_values_end: DictAccess*
+) {
+    alloc_locals;
+
+    let (local prev_values_start: DictAccess*) = alloc();
+    if (dict_ptr_start == dict_ptr_stop) {
+        return (prev_values_start, prev_values_start);
+    }
+
+    tempvar prev_values = prev_values_start;
+    tempvar dict_ptr = dict_ptr_start;
+    ap += 4;
+
+    static_assert prev_values == [ap - 6];
+    static_assert dict_ptr == [ap - 5];
+
+    loop:
+    let prev_values = cast([ap - 6], DictAccess*);
+    let dict_ptr = cast([ap - 5], DictAccess*);
+
+    let key = dict_ptr.key;
+    let prev_value = dict_ptr.prev_value;
+
+    assert prev_values.key = key;
+    assert prev_values.prev_value = prev_value;
+    assert prev_values.new_value = prev_value;
+
+    tempvar prev_values = prev_values + DictAccess.SIZE;
+    tempvar dict_ptr = dict_ptr + DictAccess.SIZE;
+    let is_not_done = is_not_zero(dict_ptr_stop - dict_ptr);
+
+    static_assert prev_values == [ap - 6];
+    static_assert dict_ptr == [ap - 5];
+    jmp loop if is_not_done != 0;
+
+    return (prev_values_start=prev_values_start, prev_values_end=prev_values);
 }

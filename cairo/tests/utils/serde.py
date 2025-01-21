@@ -186,7 +186,6 @@ class Serde:
                 if value != 0 and value is not None
             }
             if len(variant_keys) != 1:
-                breakpoint()
                 raise ValueError(
                     f"Expected 1 item only to be relocatable in enum, got {len(variant_keys)}"
                 )
