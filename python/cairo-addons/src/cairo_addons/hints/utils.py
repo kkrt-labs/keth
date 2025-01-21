@@ -64,3 +64,15 @@ def fp_plus_2_or_0(
     fp: RelocatableValue,
 ):
     ids.value_set = memory.get(fp + 2) or 0
+
+
+@register_hint
+def print_maybe_relocatable(
+    dict_manager: DictManager,
+    ids: VmConsts,
+    segments: MemorySegmentManager,
+    memory: MemoryDict,
+    ap: RelocatableValue,
+):
+    maybe_relocatable = ids.x
+    print(f"maybe_relocatable: {maybe_relocatable}")

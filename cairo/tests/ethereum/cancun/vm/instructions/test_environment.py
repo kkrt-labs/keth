@@ -14,8 +14,12 @@ from ethereum.cancun.vm.instructions.environment import (
     callvalue,
     codecopy,
     codesize,
+    extcodecopy,
+    extcodehash,
+    extcodesize,
     gasprice,
     origin,
+    returndatacopy,
     returndatasize,
     self_balance,
 )
@@ -23,8 +27,9 @@ from ethereum.cancun.vm.stack import push
 from tests.utils.args_gen import Environment, Evm, VersionedHash
 from tests.utils.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder
+from tests.utils.strategies import MAX_CODE_SIZE
+from tests.utils.strategies import address as address_strategy
 from tests.utils.strategies import (
-    MAX_CODE_SIZE,
     code,
     empty_state,
     memory_lite,
@@ -54,6 +59,16 @@ environment_empty_state = st.builds(
 
 evm_environment_strategy = (
     EvmBuilder().with_gas_left().with_env(environment_empty_state).build()
+)
+
+evm_environment_strategy_with_return_data = (
+    EvmBuilder()
+    .with_memory()
+    .with_gas_left()
+    .with_env(environment_empty_state)
+    .with_return_data()
+    .with_capped_values_stack()
+    .build()
 )
 
 code_access_size_strategy = st.integers(min_value=0, max_value=MAX_CODE_SIZE).map(U256)
@@ -90,6 +105,33 @@ def codecopy_strategy(draw):
     return evm
 
 
+@composite
+def evm_accessed_addresses_strategy(draw):
+    """Strategy to generate an EVM and an address that potentially exists in the state."""
+    evm = draw(
+        EvmBuilder()
+        .with_stack()
+        .with_accessed_addresses()
+        .with_gas_left()
+        .with_env()
+        .build()
+    )
+    state = evm.env.state
+
+    address_options = []
+
+    # Add addresses from main trie if any exist
+    if state._main_trie._data:
+        address_options.append(st.sampled_from(list(state._main_trie._data.keys())))
+    address_options.append(address_strategy)
+
+    # Draw an address from one of the available options
+    address = draw(st.one_of(*address_options))
+    push(evm.stack, U256.from_be_bytes(address))
+
+    return evm
+
+
 class TestEnvironmentInstructions:
     @given(evm=evm_environment_strategy)
     def test_address(self, cairo_run, evm: Evm):
@@ -103,14 +145,7 @@ class TestEnvironmentInstructions:
         address(evm)
         assert evm == cairo_result
 
-    @given(
-        evm=EvmBuilder()
-        .with_stack()
-        .with_accessed_addresses()
-        .with_gas_left()
-        .with_env(environment_empty_state)
-        .build()
-    )
+    @given(evm=evm_accessed_addresses_strategy())
     def test_balance(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("balance", evm)
@@ -194,6 +229,18 @@ class TestEnvironmentInstructions:
         returndatasize(evm)
         assert evm == cairo_result
 
+    @given(evm=evm_environment_strategy_with_return_data)
+    def test_returndatacopy(self, cairo_run, evm: Evm):
+        try:
+            cairo_result = cairo_run("returndatacopy", evm)
+        except Exception as cairo_error:
+            with strict_raises(type(cairo_error)):
+                returndatacopy(evm)
+            return
+
+        returndatacopy(evm)
+        assert evm == cairo_result
+
     @given(evm=evm_environment_strategy)
     def test_self_balance(self, cairo_run, evm: Evm):
         try:
@@ -240,4 +287,40 @@ class TestEnvironmentInstructions:
             return
 
         codecopy(evm)
+        assert evm == cairo_result
+
+    @given(evm=evm_accessed_addresses_strategy())
+    def test_extcodesize(self, cairo_run, evm: Evm):
+        try:
+            cairo_result = cairo_run("extcodesize", evm)
+        except ExceptionalHalt as cairo_error:
+            with strict_raises(type(cairo_error)):
+                extcodesize(evm)
+            return
+
+        extcodesize(evm)
+        assert evm == cairo_result
+
+    @given(evm=evm_accessed_addresses_strategy())
+    def test_extcodecopy(self, cairo_run, evm: Evm):
+        try:
+            cairo_result = cairo_run("extcodecopy", evm)
+        except ExceptionalHalt as cairo_error:
+            with strict_raises(type(cairo_error)):
+                extcodecopy(evm)
+            return
+
+        extcodecopy(evm)
+        assert evm == cairo_result
+
+    @given(evm=evm_accessed_addresses_strategy())
+    def test_extcodehash(self, cairo_run, evm: Evm):
+        try:
+            cairo_result = cairo_run("extcodehash", evm)
+        except ExceptionalHalt as cairo_error:
+            with strict_raises(type(cairo_error)):
+                extcodehash(evm)
+            return
+
+        extcodehash(evm)
         assert evm == cairo_result
