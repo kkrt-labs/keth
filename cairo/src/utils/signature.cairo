@@ -31,61 +31,8 @@ from src.utils.ecdsa_circuit import (
 )
 from src.utils.uint256 import assert_uint256_le
 from src.utils.uint384 import uint384_to_uint256, uint256_to_uint384
-
-struct G1Point {
-    x: UInt384,
-    y: UInt384,
-}
-
-namespace secp256k1 {
-    const CURVE_ID = 2;
-    const P0 = 0xfffffffffffffffefffffc2f;
-    const P1 = 0xffffffffffffffffffffffff;
-    const P2 = 0xffffffffffffffff;
-    const P3 = 0x0;
-    const P_LOW_128 = 0xfffffffffffffffffffffffefffffc2f;
-    const P_HIGH_128 = 0xffffffffffffffffffffffffffffffff;
-    const N0 = 0xaf48a03bbfd25e8cd0364141;
-    const N1 = 0xfffffffffffffffebaaedce6;
-    const N2 = 0xffffffffffffffff;
-    const N3 = 0x0;
-    const N_LOW_128 = 0xbaaedce6af48a03bbfd25e8cd0364141;
-    const N_HIGH_128 = 0xfffffffffffffffffffffffffffffffe;
-    const A0 = 0x0;
-    const A1 = 0x0;
-    const A2 = 0x0;
-    const A3 = 0x0;
-    const B0 = 0x7;
-    const B1 = 0x0;
-    const B2 = 0x0;
-    const B3 = 0x0;
-    const G0 = 0x3;
-    const G1 = 0x0;
-    const G2 = 0x0;
-    const G3 = 0x0;
-    const MIN_ONE_D0 = 0xfffffffffffffffefffffc2e;
-    const MIN_ONE_D1 = 0xffffffffffffffffffffffff;
-    const MIN_ONE_D2 = 0xffffffffffffffff;
-    const MIN_ONE_D3 = 0x0;
-}
-
-@known_ap_change
-func get_generator_point() -> (point: G1Point) {
-    // generator_point = (
-    //     0x79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798,
-    //     0x483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8
-    // ).
-    return (
-        point=G1Point(
-            x=UInt384(
-                0x2dce28d959f2815b16f81798, 0x55a06295ce870b07029bfcdb, 0x79be667ef9dcbbac, 0x0
-            ),
-            y=UInt384(
-                0xa68554199c47d08ffb10d4b8, 0x5da4fbfc0e1108a8fd17b448, 0x483ada7726a3c465, 0x0
-            ),
-        ),
-    );
-}
+from src.curve.secp256k1 import secp256k1, get_generator_point
+from src.curve.g1_point import G1Point
 
 @known_ap_change
 func sign_to_uint384_mod_secp256k1(sign: felt) -> UInt384 {
@@ -370,7 +317,6 @@ namespace Signature {
                 public_key_point=G1Point(x=UInt384(0, 0, 0, 0), y=UInt384(0, 0, 0, 0)), success=0
             );
         }
-        let (generator_point: G1Point) = get_generator_point();
         // The result is given by
         //   -(msg_hash / r) * gen + (s / r) * r_point
         // where the division by r is modulo N.
@@ -412,7 +358,7 @@ namespace Signature {
         let (en2_high_384) = felt_to_UInt384(en2_high);
         let sp2_high_384 = sign_to_uint384_mod_secp256k1(sp2_high);
         let sn2_high_384 = sign_to_uint384_mod_secp256k1(sn2_high);
-        let (local generator_point: G1Point) = get_generator_point();
+        let generator_point = get_generator_point();
 
         // _hash_inputs_points_scalars_and_result_points
 
@@ -474,7 +420,7 @@ namespace Signature {
         // tempvar init_s0 = poseidon_ptr[1].output.s0 + 0;
         // // %{ print(f"CAIROS0: {hex(ids.init_s0)}") %}
         let poseidon_ptr = poseidon_ptr + 2 * PoseidonBuiltin.SIZE;
-        let (_, _, _) = hash_full_transcript_and_get_Z_3_LIMBS(cast(&generator_point, felt*), 2);
+        let (_, _, _) = hash_full_transcript_and_get_Z_3_LIMBS(cast(generator_point, felt*), 2);
         let (_, _, _) = hash_full_transcript_and_get_Z_3_LIMBS(cast(r_point, felt*), 2);
         // Q_low, Q_high, Q_high_shifted (filled by prover) (50 - 55).
         let (_s0, _s1, _s2) = hash_full_transcript_and_get_Z_3_LIMBS(
