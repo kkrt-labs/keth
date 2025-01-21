@@ -8,6 +8,7 @@ from starkware.cairo.lang.instances import PRIME
 from ethereum.cancun.fork_types import Address
 from ethereum.cancun.vm.gas import BLOB_GASPRICE_UPDATE_FRACTION, MIN_BLOB_GASPRICE
 from ethereum.utils.numeric import ceil32, taylor_exponential
+from tests.utils.errors import cairo_error
 from tests.utils.strategies import felt, uint128
 
 pytestmark = pytest.mark.python_vm
@@ -81,3 +82,30 @@ class TestNumeric:
     @given(address=...)
     def test_U256_from_be_bytes20(self, cairo_run, address: Address):
         assert U256.from_be_bytes(address) == cairo_run("U256_from_be_bytes20", address)
+
+    @given(a=..., b=...)
+    def test_U256_le(self, cairo_run, a: U256, b: U256):
+        assert (a <= b) == cairo_run("U256_le", a, b)
+
+    @given(a=..., b=...)
+    def test_U256_add(self, cairo_run, a: U256, b: U256):
+        try:
+            a + b
+        except Exception as e:
+            with cairo_error(str(e.__class__.__name__)):
+                cairo_result = cairo_run("U256_add", a, b)
+            return
+        cairo_result = cairo_run("U256_add", a, b)
+        assert cairo_result == a + b
+
+    @given(a=..., b=...)
+    def test_U256_sub(self, cairo_run, a: U256, b: U256):
+        try:
+            a - b
+        except Exception as e:
+            with cairo_error(str(e.__class__.__name__)):
+                cairo_result = cairo_run("U256_sub", a, b)
+            return
+
+        cairo_result = cairo_run("U256_sub", a, b)
+        assert cairo_result == a - b

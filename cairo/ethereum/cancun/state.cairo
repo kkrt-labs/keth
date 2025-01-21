@@ -2,7 +2,8 @@ from starkware.cairo.common.cairo_builtins import PoseidonBuiltin
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.cairo.common.math import assert_not_zero
-
+from starkware.cairo.common.uint256 import Uint256
+from src.utils.uint256 import uint256_add, uint256_sub
 from ethereum.cancun.fork_types import (
     Address,
     Account,
@@ -32,7 +33,7 @@ from ethereum.cancun.trie import (
 )
 from ethereum_types.bytes import Bytes, Bytes32
 from ethereum_types.numeric import U256, U256Struct, Bool, bool, Uint
-from ethereum.utils.numeric import is_zero
+from ethereum.utils.numeric import is_zero, U256_le, U256_sub, U256_add
 
 from src.utils.dict import hashdict_read, hashdict_write, hashdict_get, dict_new_empty
 
@@ -181,6 +182,27 @@ func set_account{poseidon_ptr: PoseidonBuiltin*, state: State}(
             original_storage_tries=state.value.original_storage_tries,
         ),
     );
+    return ();
+}
+
+func move_ether{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, state: State}(
+    sender_address: Address, recipient_address: Address, amount: U256
+) {
+    alloc_locals;
+    let sender_account = get_account(sender_address);
+    let sender_balance = sender_account.value.balance;
+
+    let is_sender_balance_sufficient = U256_le(amount, sender_balance);
+    with_attr error_message("Sender has insufficient balance") {
+        assert is_sender_balance_sufficient.value = 1;
+    }
+
+    let new_sender_account_balance = U256_sub(sender_balance, amount);
+    set_account_balance(sender_address, new_sender_account_balance);
+
+    let recipient_account = get_account(recipient_address);
+    let new_recipient_account_balance = U256_add(recipient_account.value.balance, amount);
+    set_account_balance(recipient_address, new_recipient_account_balance);
     return ();
 }
 
