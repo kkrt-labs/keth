@@ -12,6 +12,7 @@
     "defaultdict",
     "divmod",
     "eips",
+    "epns",
     "exitstatus",
     "fibonacci",
     "filterwarnings",

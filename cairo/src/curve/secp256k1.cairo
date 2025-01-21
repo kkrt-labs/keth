@@ -41,7 +41,6 @@ namespace secp256k1 {
 // )
 // @dev Split in 96 bits chunks
 func get_generator_point() -> G1Point* {
-
     let (_, pc) = get_fp_and_pc();
 
     pc_label:
@@ -50,12 +49,12 @@ func get_generator_point() -> G1Point* {
     return cast(generator_ptr, G1Point*);
 
     generator_label:
-    dw 0x2dce28d959f2815b16f81798; // x.d0
-    dw 0x55a06295ce870b07029bfcdb; // x.d1
-    dw 0x79be667ef9dcbbac; // x.d2
-    dw 0x0; // x.d3
-    dw 0xa68554199c47d08ffb10d4b8; // y.d0
-    dw 0x5da4fbfc0e1108a8fd17b448; // y.d1
-    dw 0x483ada7726a3c465; // y.d2
-    dw 0x0; // y.d3
+    dw 0x2dce28d959f2815b16f81798;  // x.d0
+    dw 0x55a06295ce870b07029bfcdb;  // x.d1
+    dw 0x79be667ef9dcbbac;  // x.d2
+    dw 0x0;  // x.d3
+    dw 0xa68554199c47d08ffb10d4b8;  // y.d0
+    dw 0x5da4fbfc0e1108a8fd17b448;  // y.d1
+    dw 0x483ada7726a3c465;  // y.d2
+    dw 0x0;  // y.d3
 }

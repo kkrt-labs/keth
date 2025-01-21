@@ -59,31 +59,6 @@ struct FunctionFelt {
     b_den: UInt384*,
 }
 
-func hash_sum_dlog_div_batched{poseidon_ptr: PoseidonBuiltin*}(
-    f: FunctionFelt, msm_size: felt, init_hash: felt, curve_id: felt
-) -> (res: felt) {
-    alloc_locals;
-    assert poseidon_ptr[0].input.s0 = init_hash;
-    assert poseidon_ptr[0].input.s1 = 0;
-    assert poseidon_ptr[0].input.s2 = 1;
-    let poseidon_ptr = poseidon_ptr + PoseidonBuiltin.SIZE;
-
-    let (s0: felt, s1: felt, s2: felt) = hash_full_transcript_and_get_Z_3_LIMBS(
-        limbs_ptr=cast(f.a_num, felt*), n=msm_size + 1, curve_id=curve_id
-    );
-    let (s0: felt, s1: felt, s2: felt) = hash_full_transcript_and_get_Z_3_LIMBS(
-        limbs_ptr=cast(f.a_den, felt*), n=msm_size + 2, curve_id=curve_id
-    );
-    let (s0: felt, s1: felt, s2: felt) = hash_full_transcript_and_get_Z_3_LIMBS(
-        limbs_ptr=cast(f.b_num, felt*), n=msm_size + 2, curve_id=curve_id
-    );
-    let (Z: felt, _, _) = hash_full_transcript_and_get_Z_3_LIMBS(
-        limbs_ptr=cast(f.b_den, felt*), n=msm_size + 5, curve_id=curve_id
-    );
-
-    return (res=Z);
-}
-
 func try_get_point_from_x_secp256k1{
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,

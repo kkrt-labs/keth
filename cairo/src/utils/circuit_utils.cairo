@@ -115,9 +115,10 @@ func sign{range_check_ptr}(value) -> felt {
 
 // From a 128 bit scalar, decomposes it into base (-3) such that
 // scalar = sum(digits[i] * (-3)^i for i in [0, 81])
+// digits[i] in {-1, 0, 1} for all i
 // scalar = sum_p - sum_n
-// Where sum_p = sum(digits[i] * (-3)^i for i in [0, 81] if digits[i]==1)
-// And sum_n = sum(digits[i] * (-3)^i for i in [0, 81] if digits[i]==-1)
+// sum_p = sum(digits[i] * (-3)^i for i in [0, 81] if digits[i]==1)
+// sum_n = sum(digits[i] * (-3)^i for i in [0, 81] if digits[i]==-1)
 // Returns (abs(sum_p), abs(sum_n), p_sign, n_sign)
 func scalar_to_epns{range_check_ptr}(scalar: felt) -> (
     sum_p: felt, sum_n: felt, p_sign: felt, n_sign: felt
@@ -138,22 +139,21 @@ func scalar_to_epns{range_check_ptr}(scalar: felt) -> (
         if (d0 == 1) {
             tempvar sum_p = 1;
             tempvar sum_n = 0;
-            tempvar pow3 = -3;
         } else {
             tempvar sum_p = 0;
             tempvar sum_n = 1;
-            tempvar pow3 = -3;
         }
     } else {
         tempvar sum_p = 0;
         tempvar sum_n = 0;
-        tempvar pow3 = -3;
     }
 
+    tempvar pow3 = -3;
+
     loop:
-    let pow3 = [ap - 1];
-    let sum_n = [ap - 2];
     let sum_p = [ap - 3];
+    let sum_n = [ap - 2];
+    let pow3 = [ap - 1];
     %{ memory[ap] = 1 if i == 82 else 0 %}
     jmp end if [ap] != 0, ap++;
 
@@ -184,13 +184,8 @@ func scalar_to_epns{range_check_ptr}(scalar: felt) -> (
     let pow3 = [ap - 2];
     let sum_n = [ap - 3];
     let sum_p = [ap - 4];
-    assert pow3 = (-3) ** 82;  //
+    assert pow3 = (-3) ** 82;
 
-    // %{
-    //     from starkware.cairo.common.math_utils import as_int
-    //     print(f"{as_int(ids.sum_p, PRIME)=}")
-    //     print(f"{as_int(ids.sum_n, PRIME)=}")
-    // %}
     assert scalar = sum_p - sum_n;
 
     let p_sign = sign(sum_p);
@@ -211,16 +206,17 @@ func felt_to_UInt384{range_check96_ptr: felt*}(x: felt) -> (res: UInt384) {
     %}
     assert [range_check96_ptr + 3] = STARK_MIN_ONE_D2 - d2;
     assert x = d0 + d1 * 2 ** 96 + d2 * 2 ** 192;
+
     if (d2 == STARK_MIN_ONE_D2) {
-        // Take advantage of Cairo prime structure. STARK_MIN_ONE = 0 + 0 * BASE + stark_min_1_d2 * (BASE)**2.
+        // STARK_MIN_ONE = 0x800000000000011000000000000000000000000000000000000000000000000
+        // So d0 = 0, d1 = 0, d2 = 0x800000000000011
+        // If d2 == STARK_MIN_ONE_D2, then d0 == 0 and d1 == 0
         assert d0 = 0;
         assert d1 = 0;
-        tempvar range_check96_ptr = range_check96_ptr + 4;
-        return (res=UInt384(d0, d1, d2, 0));
-    } else {
-        tempvar range_check96_ptr = range_check96_ptr + 4;
-        return (res=UInt384(d0, d1, d2, 0));
     }
+
+    tempvar range_check96_ptr = range_check96_ptr + 4;
+    return (res=UInt384(d0, d1, d2, 0));
 }
 
 func run_modulo_circuit_basic{
