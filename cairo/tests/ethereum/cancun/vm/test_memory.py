@@ -57,7 +57,7 @@ class TestMemory:
 
     @given(
         buffer=st.binary(min_size=0, max_size=2**10).map(Bytes),
-        start_position=st.integers(min_value=0, max_value=2**128 - 1).map(U256),
+        start_position=...,
         size=st.integers(min_value=0, max_value=2**10).map(U256),
     )
     def test_buffer_read(
