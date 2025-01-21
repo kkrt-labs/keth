@@ -4,7 +4,8 @@ from starkware.cairo.common.math_cmp import is_le_felt
 
 from ethereum.cancun.vm.stack import Stack, pop, push
 from ethereum.cancun.vm import Evm, EvmImpl, EvmStruct
-from ethereum.cancun.vm.exceptions import ExceptionalHalt, OutOfGasError
+from ethereum.exceptions import EthereumException
+from ethereum.cancun.vm.exceptions import OutOfGasError
 from ethereum_types.numeric import U256, U256Struct, Uint
 from ethereum.cancun.vm.gas import (
     charge_gas,
@@ -26,7 +27,7 @@ from src.utils.bytes import uint256_to_bytes32
 from src.utils.utils import Helpers
 
 // @notice Stores a word to memory
-func mstore{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+func mstore{range_check_ptr, evm: Evm}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -68,12 +69,12 @@ func mstore{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
 
     // PROGRAM COUNTER
     EvmImpl.set_pc_stack_memory(Uint(evm.value.pc.value + 1), stack, memory);
-    let ok = cast(0, ExceptionalHalt*);
+    let ok = cast(0, EthereumException*);
     return ok;
 }
 
 // @notice Stores a byte to memory
-func mstore8{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> ExceptionalHalt* {
+func mstore8{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -117,12 +118,12 @@ func mstore8{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Excep
 
     // PROGRAM COUNTER
     EvmImpl.set_pc_stack_memory(Uint(evm.value.pc.value + 1), stack, memory);
-    let ok = cast(0, ExceptionalHalt*);
+    let ok = cast(0, EthereumException*);
     return ok;
 }
 
 // @notice Load word from memory
-func mload{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+func mload{range_check_ptr, evm: Evm}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -162,12 +163,12 @@ func mload{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
 
     // PROGRAM COUNTER
     EvmImpl.set_pc_stack_memory(Uint(evm.value.pc.value + 1), stack, memory);
-    let ok = cast(0, ExceptionalHalt*);
+    let ok = cast(0, EthereumException*);
     return ok;
 }
 
 // @notice Push the size of active memory in bytes onto the stack
-func msize{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+func msize{range_check_ptr, evm: Evm}() -> EthereumException* {
     alloc_locals;
     // STACK
 
@@ -188,12 +189,12 @@ func msize{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
 
     // PROGRAM COUNTER
     EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
-    let ok = cast(0, ExceptionalHalt*);
+    let ok = cast(0, EthereumException*);
     return ok;
 }
 
 // @notice Copy the bytes in memory from one location to another
-func mcopy{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+func mcopy{range_check_ptr, evm: Evm}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -215,7 +216,7 @@ func mcopy{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
     // GAS
     // OutOfGasError if length > 2**128
     if (length.value.high != 0) {
-        tempvar err = new ExceptionalHalt(OutOfGasError);
+        tempvar err = new EthereumException(OutOfGasError);
         return err;
     }
 
@@ -252,6 +253,6 @@ func mcopy{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
     }
 
     EvmImpl.set_pc_stack_memory(Uint(evm.value.pc.value + 1), stack, memory);
-    let ok = cast(0, ExceptionalHalt*);
+    let ok = cast(0, EthereumException*);
     return ok;
 }

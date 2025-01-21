@@ -13,7 +13,8 @@ from ethereum_types.numeric import (
 )
 
 from ethereum.cancun.vm import Evm, EvmImpl
-from ethereum.cancun.vm.exceptions import ExceptionalHalt, InvalidJumpDestError
+from ethereum.exceptions import EthereumException
+from ethereum.cancun.vm.exceptions import InvalidJumpDestError
 from ethereum.cancun.vm.gas import charge_gas, GasConstants
 from ethereum.cancun.vm.stack import Stack, pop, push
 
@@ -35,7 +36,7 @@ func stop{evm: Evm}() {
 }
 
 // @notice Alter the program counter to the location specified by the top of the stack
-func jump{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, evm: Evm}() -> ExceptionalHalt* {
+func jump{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, evm: Evm}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -58,7 +59,7 @@ func jump{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, evm: Evm}() -> Except
     let dict_ptr = cast(valid_jump_destinations_ptr, DictAccess*);
     let (is_valid_dest) = hashdict_read{dict_ptr=dict_ptr}(1, &jump_dest.value.low);
     if (is_valid_dest == FALSE) {
-        tempvar err = new ExceptionalHalt(InvalidJumpDestError);
+        tempvar err = new EthereumException(InvalidJumpDestError);
         return err;
     }
 
@@ -70,12 +71,12 @@ func jump{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, evm: Evm}() -> Except
 
     // PROGRAM COUNTER
     EvmImpl.set_pc_stack(Uint(jump_dest.value.low), stack);
-    let ok = cast(0, ExceptionalHalt*);
+    let ok = cast(0, EthereumException*);
     return ok;
 }
 
 // @notice Alter the program counter to the specified location if and only if a condition is true
-func jumpi{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, evm: Evm}() -> ExceptionalHalt* {
+func jumpi{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, evm: Evm}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -100,7 +101,7 @@ func jumpi{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, evm: Evm}() -> Excep
     if (condition.value.low == 0 and condition.value.high == 0) {
         // If condition is false, just increment PC
         EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
-        let ok = cast(0, ExceptionalHalt*);
+        let ok = cast(0, EthereumException*);
         return ok;
     }
 
@@ -109,7 +110,7 @@ func jumpi{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, evm: Evm}() -> Excep
     let (is_valid_dest) = hashdict_read{dict_ptr=dict_ptr}(1, &jump_dest.value.low);
 
     if (is_valid_dest == FALSE) {
-        tempvar err = new ExceptionalHalt(InvalidJumpDestError);
+        tempvar err = new EthereumException(InvalidJumpDestError);
         return err;
     }
 
@@ -121,12 +122,12 @@ func jumpi{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, evm: Evm}() -> Excep
 
     // PROGRAM COUNTER
     EvmImpl.set_pc_stack(Uint(jump_dest.value.low), stack);
-    let ok = cast(0, ExceptionalHalt*);
+    let ok = cast(0, EthereumException*);
     return ok;
 }
 
 // @notice Push the value of the program counter before the increment onto the stack
-func pc{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+func pc{range_check_ptr, evm: Evm}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -147,12 +148,12 @@ func pc{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
 
     // PROGRAM COUNTER
     EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
-    let ok = cast(0, ExceptionalHalt*);
+    let ok = cast(0, EthereumException*);
     return ok;
 }
 
 // @notice Push the amount of available gas onto the stack
-func gas_left{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+func gas_left{range_check_ptr, evm: Evm}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -173,12 +174,12 @@ func gas_left{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
 
     // PROGRAM COUNTER
     EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
-    let ok = cast(0, ExceptionalHalt*);
+    let ok = cast(0, EthereumException*);
     return ok;
 }
 
 // @notice Mark a valid destination for jumps
-func jumpdest{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+func jumpdest{range_check_ptr, evm: Evm}() -> EthereumException* {
     alloc_locals;
 
     // GAS
@@ -192,6 +193,6 @@ func jumpdest{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
 
     // PROGRAM COUNTER
     EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
-    let ok = cast(0, ExceptionalHalt*);
+    let ok = cast(0, EthereumException*);
     return ok;
 }

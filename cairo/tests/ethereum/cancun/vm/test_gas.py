@@ -7,7 +7,6 @@ from hypothesis.strategies import composite
 
 from ethereum.cancun.blocks import Header
 from ethereum.cancun.transactions import BlobTransaction
-from ethereum.cancun.vm.exceptions import ExceptionalHalt
 from ethereum.cancun.vm.gas import (
     GAS_CALL_STIPEND,
     calculate_blob_gas_price,
@@ -21,6 +20,7 @@ from ethereum.cancun.vm.gas import (
     init_code_cost,
     max_message_call_gas,
 )
+from ethereum.exceptions import EthereumException
 from tests.utils.args_gen import Evm, Memory
 from tests.utils.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder
@@ -61,7 +61,7 @@ class TestGas:
     ):
         try:
             cairo_result = cairo_run("calculate_gas_extend_memory", memory, extensions)
-        except ExceptionalHalt as cairo_error:
+        except EthereumException as cairo_error:
             with strict_raises(type(cairo_error)):
                 calculate_gas_extend_memory(memory, extensions)
             return

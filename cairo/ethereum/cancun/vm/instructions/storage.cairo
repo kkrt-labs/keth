@@ -1,6 +1,7 @@
 from ethereum.cancun.vm.stack import pop, push
 from ethereum.cancun.vm import Evm, EvmImpl, Environment, EnvImpl
-from ethereum.cancun.vm.exceptions import ExceptionalHalt, WriteInStaticContext, OutOfGasError
+from ethereum.exceptions import EthereumException
+from ethereum.cancun.vm.exceptions import WriteInStaticContext, OutOfGasError
 from ethereum.cancun.vm.gas import charge_gas, GasConstants
 from ethereum.utils.numeric import U256__eq__
 from ethereum.cancun.state import (
@@ -33,7 +34,7 @@ from starkware.cairo.common.math_cmp import is_le
 // @notice Loads to the stack the value corresponding to a certain key from the
 // storage of the current account.
 func sload{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, poseidon_ptr: PoseidonBuiltin*, evm: Evm}(
-    ) -> ExceptionalHalt* {
+    ) -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -100,14 +101,14 @@ func sload{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, poseidon_ptr: Poseidon
     EvmImpl.set_env(env);
     EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
     EvmImpl.set_accessed_storage_keys(new_accessed_storage_keys);
-    let ok = cast(0, ExceptionalHalt*);
+    let ok = cast(0, EthereumException*);
     return ok;
 }
 
 // @notice Stores a value at a certain key in the current context's storage.
 func sstore{
     range_check_ptr, bitwise_ptr: BitwiseBuiltin*, poseidon_ptr: PoseidonBuiltin*, evm: Evm
-}() -> ExceptionalHalt* {
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -124,7 +125,7 @@ func sstore{
 
     let is_gas_left_not_enough = is_le(evm.value.gas_left.value, GasConstants.GAS_CALL_STIPEND);
     if (is_gas_left_not_enough != 0) {
-        tempvar err = new ExceptionalHalt(OutOfGasError);
+        tempvar err = new EthereumException(OutOfGasError);
         return err;
     }
 
@@ -222,7 +223,7 @@ func sstore{
     }
     // Check static call
     if (evm.value.message.value.is_static.value != 0) {
-        tempvar err = new ExceptionalHalt(WriteInStaticContext);
+        tempvar err = new EthereumException(WriteInStaticContext);
         return err;
     }
 
@@ -238,14 +239,14 @@ func sstore{
     EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
     EvmImpl.set_refund_counter(refund_counter);
     EvmImpl.set_accessed_storage_keys(new_accessed_storage_keys);
-    let ok = cast(0, ExceptionalHalt*);
+    let ok = cast(0, EthereumException*);
     return ok;
 }
 
 // @notice Loads to the stack the value corresponding to a certain key from the
 // transient storage of the current account.
 func tload{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, poseidon_ptr: PoseidonBuiltin*, evm: Evm}(
-    ) -> ExceptionalHalt* {
+    ) -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -278,14 +279,14 @@ func tload{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, poseidon_ptr: Poseidon
     EnvImpl.set_transient_storage{env=env}(transient_storage);
     EvmImpl.set_env(env);
     EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
-    let ok = cast(0, ExceptionalHalt*);
+    let ok = cast(0, EthereumException*);
     return ok;
 }
 
 // @notice Stores a value at a certain key in the current context's transient storage.
 func tstore{
     range_check_ptr, bitwise_ptr: BitwiseBuiltin*, poseidon_ptr: PoseidonBuiltin*, evm: Evm
-}() -> ExceptionalHalt* {
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -308,8 +309,8 @@ func tstore{
 
     // Check for static call
     if (evm.value.message.value.is_static.value != 0) {
-        tempvar err = new ExceptionalHalt(WriteInStaticContext);
-        return cast(err, ExceptionalHalt*);
+        tempvar err = new EthereumException(WriteInStaticContext);
+        return cast(err, EthereumException*);
     }
 
     // OPERATION
@@ -324,6 +325,6 @@ func tstore{
     EnvImpl.set_transient_storage{env=env}(transient_storage);
     EvmImpl.set_env(env);
     EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
-    let ok = cast(0, ExceptionalHalt*);
+    let ok = cast(0, EthereumException*);
     return ok;
 }
