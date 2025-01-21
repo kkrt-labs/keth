@@ -11,6 +11,7 @@ from ethereum.cancun.vm.instructions.environment import (
     base_fee,
     blob_base_fee,
     blob_hash,
+    calldataload,
     caller,
     callvalue,
     codecopy,
@@ -337,4 +338,18 @@ class TestEnvironmentInstructions:
             return
 
         blob_base_fee(evm)
+        assert evm == cairo_result
+
+    @given(
+        evm=EvmBuilder().with_stack().with_gas_left().with_message_calldata().build()
+    )
+    def test_calldataload(self, cairo_run, evm: Evm):
+        try:
+            cairo_result = cairo_run("calldataload", evm)
+        except ExceptionalHalt as cairo_error:
+            with strict_raises(type(cairo_error)):
+                calldataload(evm)
+            return
+
+        calldataload(evm)
         assert evm == cairo_result

@@ -60,6 +60,23 @@ empty_message = st.builds(
     parent_evm=st.none(),
 )
 
+message_empty_except_calldata = st.builds(
+    Message,
+    caller=st.just(address_zero),
+    target=st.just(address_zero),
+    current_target=st.just(address_zero),
+    gas=st.just(Uint(0)),
+    value=st.just(U256(0)),
+    data=code,
+    code_address=st.none(),
+    depth=st.just(0),
+    should_transfer_value=st.booleans(),
+    is_static=st.booleans(),
+    accessed_addresses=st.just(set()),
+    accessed_storage_keys=st.just(set()),
+    parent_evm=st.none(),
+)
+
 
 class EvmBuilder:
     """Builder pattern for creating EVM hypothesis strategies."""
@@ -117,6 +134,10 @@ class EvmBuilder:
         return self
 
     def with_message(self, strategy=message_lite):
+        self._message = strategy
+        return self
+
+    def with_message_calldata(self, strategy=message_empty_except_calldata):
         self._message = strategy
         return self
 
