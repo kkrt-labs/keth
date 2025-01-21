@@ -502,20 +502,6 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
         "TupleTrieAddressOptionalAccountTrieTupleAddressBytes32U256",
     ): Tuple[Trie[Address, Optional[Account]], Trie[Tuple[Address, Bytes32], U256]],
     ("ethereum", "cancun", "state", "State"): State,
-    (
-        "ethereum",
-        "cancun",
-        "state",
-        "TupleTrieAddressOptionalAccountMappingHashedAddressBytes32U256",
-    ): Tuple[Trie[Address, Optional[Account]], Mapping[Address, Trie[Bytes32, U256]]],
-    (
-        "ethereum",
-        "cancun",
-        "state",
-        "ListTupleTrieAddressOptionalAccountMappingHashedAddressBytes32U256",
-    ): List[
-        Tuple[Trie[Address, Optional[Account]], Mapping[Address, Trie[Bytes32, U256]]]
-    ],
     ("ethereum", "cancun", "vm", "Environment"): Environment,
     ("ethereum", "cancun", "fork_types", "ListHash32"): List[Hash32],
     ("ethereum", "cancun", "vm", "Message"): Message,

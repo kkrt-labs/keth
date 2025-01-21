@@ -231,19 +231,18 @@ class TestSerde:
             Union[Uint, U256],
             Set[Address],
             Annotated[Tuple[VersionedHash, ...], 16],
-            Mapping[Bytes32, U256],
-            Trie[Bytes32, U256],
+            Mapping[Tuple[Address, Bytes32], U256],
+            Trie[Tuple[Address, Bytes32], U256],
             Trie[Address, Optional[Account]],
             TransientStorage,
-            Mapping[Address, Trie[Bytes32, U256]],
             State,
             Tuple[
-                Trie[Address, Optional[Account]], Mapping[Address, Trie[Bytes32, U256]]
+                Trie[Address, Optional[Account]], Trie[Tuple[Address, Bytes32], U256]
             ],
             List[
                 Tuple[
                     Trie[Address, Optional[Account]],
-                    Mapping[Address, Trie[Bytes32, U256]],
+                    Trie[Tuple[Address, Bytes32], U256],
                 ]
             ],
             List[Hash32],
