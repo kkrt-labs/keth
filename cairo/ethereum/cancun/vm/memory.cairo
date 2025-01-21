@@ -98,7 +98,6 @@ func memory_read_bytes{memory: Memory}(start_position: U256, size: U256) -> Byte
 }
 
 // @notice Read bytes from a buffer with zero padding.
-// @dev assumption: start_position < 2**128
 // @dev assumption: size < 2**128
 // @param buffer Source bytes to read from.
 // @param start_position Starting position to read from.
