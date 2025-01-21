@@ -13,6 +13,7 @@ from ethereum.cancun.vm.instructions.environment import (
     blob_hash,
     calldatacopy,
     calldataload,
+    calldatasize,
     caller,
     callvalue,
     codecopy,
@@ -397,4 +398,18 @@ class TestEnvironmentInstructions:
             return
 
         calldatacopy(evm)
+        assert evm == cairo_result
+
+    @given(
+        evm=EvmBuilder().with_stack().with_gas_left().with_message_calldata().build()
+    )
+    def test_calldatasize(self, cairo_run, evm: Evm):
+        try:
+            cairo_result = cairo_run("calldatasize", evm)
+        except ExceptionalHalt as cairo_error:
+            with strict_raises(type(cairo_error)):
+                calldatasize(evm)
+            return
+
+        calldatasize(evm)
         assert evm == cairo_result

@@ -926,3 +926,30 @@ func calldatacopy{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
     let ok = cast(0, ExceptionalHalt*);
     return ok;
 }
+
+func calldatasize{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    alloc_locals;
+    // STACK
+    // No stack input
+    let stack = evm.value.stack;
+    // GAS
+    let err = charge_gas(Uint(GasConstants.GAS_BASE));
+    if (cast(err, felt) != 0) {
+        return err;
+    }
+
+    // OPERATION
+    let calldata_len = evm.value.message.value.data.value.len;
+    with stack {
+        let err = push(U256(new U256Struct(calldata_len, 0)));
+        if (cast(err, felt) != 0) {
+            return err;
+        }
+    }
+
+    // PROGRAM COUNTER
+    EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
+
+    let ok = cast(0, ExceptionalHalt*);
+    return ok;
+}
