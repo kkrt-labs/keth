@@ -932,6 +932,7 @@ func calldatasize{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
     // STACK
     // No stack input
     let stack = evm.value.stack;
+
     // GAS
     let err = charge_gas(Uint(GasConstants.GAS_BASE));
     if (cast(err, felt) != 0) {

@@ -130,7 +130,7 @@ def calldatacopy_strategy(draw):
 
     memory_start_index = draw(memory_lite_start_position)
     data_start_index = draw(uint256)
-    size = draw(st.integers(min_value=0, max_value=1024).map(U256))
+    size = draw(uint256)
 
     # 80% chance to push valid values onto stack
     should_push = draw(integers(0, 99)) < 80
