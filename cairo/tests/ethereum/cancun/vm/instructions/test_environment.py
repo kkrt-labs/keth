@@ -9,6 +9,7 @@ from ethereum.cancun.vm.instructions.environment import (
     address,
     balance,
     base_fee,
+    blob_base_fee,
     blob_hash,
     caller,
     callvalue,
@@ -32,6 +33,7 @@ from tests.utils.strategies import address as address_strategy
 from tests.utils.strategies import (
     code,
     empty_state,
+    excess_blob_gas,
     memory_lite,
     memory_lite_start_position,
 )
@@ -50,7 +52,7 @@ environment_empty_state = st.builds(
     prev_randao=...,
     state=empty_state,
     chain_id=...,
-    excess_blob_gas=...,
+    excess_blob_gas=excess_blob_gas,
     blob_versioned_hashes=st.lists(
         st.from_type(VersionedHash), min_size=0, max_size=5
     ).map(tuple),
@@ -323,4 +325,16 @@ class TestEnvironmentInstructions:
             return
 
         extcodehash(evm)
+        assert evm == cairo_result
+
+    @given(evm=evm_environment_strategy)
+    def test_blob_base_fee(self, cairo_run, evm: Evm):
+        try:
+            cairo_result = cairo_run("blob_base_fee", evm)
+        except ExceptionalHalt as cairo_error:
+            with strict_raises(type(cairo_error)):
+                blob_base_fee(evm)
+            return
+
+        blob_base_fee(evm)
         assert evm == cairo_result
