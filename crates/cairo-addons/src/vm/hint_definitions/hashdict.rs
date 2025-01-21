@@ -152,9 +152,7 @@ pub fn get_keys_for_address_prefix() -> Hint {
          _constants: &HashMap<String, Felt252>|
          -> Result<(), HintError> {
             // Get dictionary tracker
-            println!("get_keys_for_address_prefix");
             let dict_ptr = get_ptr_from_var_name("dict_ptr", vm, ids_data, ap_tracking)?;
-            println!("dict_ptr: {:?}", dict_ptr);
             let dict_manager_ref = exec_scopes.get_dict_manager()?;
             let dict = dict_manager_ref.borrow();
             let tracker = dict.get_tracker(dict_ptr)?;
