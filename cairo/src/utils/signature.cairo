@@ -15,13 +15,10 @@ from starkware.cairo.common.uint256 import Uint256
 from starkware.cairo.common.alloc import alloc
 
 from src.utils.maths import unsigned_div_rem
-from src.interfaces.interfaces import ICairo1Helpers
-from src.utils.circuit_basic_field_ops import div_mod_p, neg_mod_p, is_opposite_mod_p, is_eq_mod_p
 from src.utils.circuit_utils import (
     N_LIMBS,
     hash_full_transcript_and_get_Z_3_LIMBS,
     scalar_to_epns,
-    felt_to_UInt384,
     run_modulo_circuit_basic,
 )
 from src.utils.ecdsa_circuit import (
@@ -30,7 +27,15 @@ from src.utils.ecdsa_circuit import (
     get_DOUBLE_EC_POINT_circuit,
 )
 from src.utils.uint256 import assert_uint256_le
-from src.utils.uint384 import uint384_to_uint256, uint256_to_uint384
+from src.utils.uint384 import (
+    uint384_to_uint256,
+    uint256_to_uint384,
+    uint384_eq_mod_p,
+    uint384_is_neg_mod_p,
+    uint384_div_mod_p,
+    uint384_neg_mod_p,
+    felt_to_uint384,
+)
 from src.curve.secp256k1 import secp256k1, get_generator_point
 from src.curve.g1_point import G1Point
 
@@ -186,7 +191,7 @@ func get_point_from_x_secp256k1{
 }(x: felt, attempt: felt) -> (res: G1Point) {
     alloc_locals;
     let (local res: G1Point*) = alloc();
-    let (x_384: UInt384) = felt_to_UInt384(x);
+    let (x_384: UInt384) = felt_to_uint384(x);
 
     let (is_on_curve) = try_get_point_from_x_secp256k1(x=x_384, v=0, result=res);
 
@@ -299,9 +304,9 @@ namespace Signature {
         let N = UInt384(secp256k1.N0, secp256k1.N1, secp256k1.N2, secp256k1.N3);
         let N_min_one = Uint256(secp256k1.N_LOW_128 - 1, secp256k1.N_HIGH_128);
 
-        let (_u1: UInt384) = div_mod_p(msg_hash, r, N);
-        let (_u1: UInt384) = neg_mod_p(_u1, N);
-        let (_u2: UInt384) = div_mod_p(s, r, N);
+        let _u1 = uint384_div_mod_p(msg_hash, r, N);
+        let _u1 = uint384_neg_mod_p(_u1, N);
+        let _u2 = uint384_div_mod_p(s, r, N);
 
         let u1 = uint384_to_uint256(_u1);
         assert_uint256_le(u1, N_min_one);
@@ -311,26 +316,26 @@ namespace Signature {
         let (ep1_low, en1_low, sp1_low, sn1_low) = scalar_to_epns(u1.low);
         let (ep1_high, en1_high, sp1_high, sn1_high) = scalar_to_epns(u1.high);
 
-        let (ep1_low_384) = felt_to_UInt384(ep1_low);
-        let (en1_low_384) = felt_to_UInt384(en1_low);
+        let (ep1_low_384) = felt_to_uint384(ep1_low);
+        let (en1_low_384) = felt_to_uint384(en1_low);
         let sp1_low_384 = sign_to_uint384_mod_secp256k1(sp1_low);
         let sn1_low_384 = sign_to_uint384_mod_secp256k1(sn1_low);
 
-        let (ep1_high_384) = felt_to_UInt384(ep1_high);
-        let (en1_high_384) = felt_to_UInt384(en1_high);
+        let (ep1_high_384) = felt_to_uint384(ep1_high);
+        let (en1_high_384) = felt_to_uint384(en1_high);
         let sp1_high_384 = sign_to_uint384_mod_secp256k1(sp1_high);
         let sn1_high_384 = sign_to_uint384_mod_secp256k1(sn1_high);
 
         let (ep2_low, en2_low, sp2_low, sn2_low) = scalar_to_epns(u2.low);
 
-        let (ep2_low_384) = felt_to_UInt384(ep2_low);
-        let (en2_low_384) = felt_to_UInt384(en2_low);
+        let (ep2_low_384) = felt_to_uint384(ep2_low);
+        let (en2_low_384) = felt_to_uint384(en2_low);
         let sp2_low_384 = sign_to_uint384_mod_secp256k1(sp2_low);
         let sn2_low_384 = sign_to_uint384_mod_secp256k1(sn2_low);
 
         let (ep2_high, en2_high, sp2_high, sn2_high) = scalar_to_epns(u2.high);
-        let (ep2_high_384) = felt_to_UInt384(ep2_high);
-        let (en2_high_384) = felt_to_UInt384(en2_high);
+        let (ep2_high_384) = felt_to_uint384(ep2_high);
+        let (en2_high_384) = felt_to_uint384(en2_high);
         let sp2_high_384 = sign_to_uint384_mod_secp256k1(sp2_high);
         let sn2_high_384 = sign_to_uint384_mod_secp256k1(sn2_high);
         let generator_point = get_generator_point();
@@ -414,7 +419,7 @@ namespace Signature {
         tempvar rlc_coeff = poseidon_ptr[1].output.s1 + 0;
         let poseidon_ptr = poseidon_ptr + 2 * PoseidonBuiltin.SIZE;
         %{ print(f"CAIRORLC: {hex(ids.rlc_coeff)}") %}
-        let (rlc_coeff_u384) = felt_to_UInt384(rlc_coeff);
+        let (rlc_coeff_u384) = felt_to_uint384(rlc_coeff);
 
         // Hash sumdlogdiv 2 points : (4-29)
         let (_random_x_coord, _, _) = hash_full_transcript_and_get_Z_3_LIMBS(
@@ -581,10 +586,10 @@ func add_ec_points_secp256k1{
     alloc_locals;
     let (__fp__, _) = get_fp_and_pc();
     let modulus = UInt384(secp256k1.P0, secp256k1.P1, secp256k1.P2, secp256k1.P3);
-    let (same_x) = is_eq_mod_p(P.x, Q.x, modulus);
+    let same_x = uint384_eq_mod_p(P.x, Q.x, modulus);
 
     if (same_x != 0) {
-        let (opposite_y) = is_opposite_mod_p(P.y, Q.y, modulus);
+        let opposite_y = uint384_is_neg_mod_p(P.y, Q.y, modulus);
 
         if (opposite_y != 0) {
             // P + (-P) = O (point at infinity)

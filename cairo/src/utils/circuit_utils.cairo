@@ -6,19 +6,12 @@ from starkware.cairo.common.registers import get_fp_and_pc, get_label_location
 from starkware.cairo.common.math import assert_le_felt
 
 const N_LIMBS = 4;
-const STARK_MIN_ONE_D2 = 0x800000000000011;
 
 func hash_full_transcript_and_get_Z_3_LIMBS{poseidon_ptr: PoseidonBuiltin*}(
     limbs_ptr: felt*, n: felt
 ) -> (_s0: felt, _s1: felt, _s2: felt) {
     alloc_locals;
     local BASE = 2 ** 96;
-    // %{
-    //     from garaga.hints.io import pack_bigint_ptr
-    //     to_hash=pack_bigint_ptr(memory, ids.limbs_ptr, ids.N_LIMBS, ids.BASE, ids.n)
-    //     for e in to_hash:
-    //         print(f"Will Hash {hex(e)}")
-    // %}
 
     let elements_end = &limbs_ptr[n * N_LIMBS];
 
@@ -27,13 +20,6 @@ func hash_full_transcript_and_get_Z_3_LIMBS{poseidon_ptr: PoseidonBuiltin*}(
 
     loop:
     if (nondet %{ ids.elements_end - ids.elements >= 6*ids.N_LIMBS %} != 0) {
-        // %{
-        //     from garaga.hints.io import pack_bigint_ptr
-        //     to_hash=pack_bigint_ptr(memory, ids.elements, ids.N_LIMBS, ids.BASE, 6)
-        //     for e in to_hash:
-        //         print(f"\t Will Hash {hex(e)}")
-        // %}
-
         assert [pos_ptr + 0] = [pos_ptr - 3] + elements[0] + (BASE) * elements[1];
         assert [pos_ptr + 1] = [pos_ptr - 2] + elements[2];
         assert [pos_ptr + 2] = [pos_ptr - 1];
@@ -65,12 +51,6 @@ func hash_full_transcript_and_get_Z_3_LIMBS{poseidon_ptr: PoseidonBuiltin*}(
     }
 
     if (nondet %{ ids.elements_end - ids.elements >= ids.N_LIMBS %} != 0) {
-        // %{
-        //     from garaga.hints.io import pack_bigint_ptr
-        //     to_hash=pack_bigint_ptr(memory, ids.elements, ids.N_LIMBS, ids.BASE, 1)
-        //     for e in to_hash:
-        //         print(f"\t\t Will Hash {e}")
-        // %}
         assert [pos_ptr + 0] = [pos_ptr - 3] + elements[0] + (BASE) * elements[1];
         assert [pos_ptr + 1] = [pos_ptr - 2] + elements[2];
         assert [pos_ptr + 2] = [pos_ptr - 1];
@@ -192,31 +172,6 @@ func scalar_to_epns{range_check_ptr}(scalar: felt) -> (
     let n_sign = sign(sum_n);
 
     return (p_sign * sum_p, n_sign * sum_n, p_sign, n_sign);
-}
-
-func felt_to_UInt384{range_check96_ptr: felt*}(x: felt) -> (res: UInt384) {
-    let d0 = [range_check96_ptr];
-    let d1 = [range_check96_ptr + 1];
-    let d2 = [range_check96_ptr + 2];
-    %{
-        from garaga.hints.io import bigint_split
-        limbs = bigint_split(ids.x, 4, 2 ** 96)
-        assert limbs[3] == 0
-        ids.d0, ids.d1, ids.d2 = limbs[0], limbs[1], limbs[2]
-    %}
-    assert [range_check96_ptr + 3] = STARK_MIN_ONE_D2 - d2;
-    assert x = d0 + d1 * 2 ** 96 + d2 * 2 ** 192;
-
-    if (d2 == STARK_MIN_ONE_D2) {
-        // STARK_MIN_ONE = 0x800000000000011000000000000000000000000000000000000000000000000
-        // So d0 = 0, d1 = 0, d2 = 0x800000000000011
-        // If d2 == STARK_MIN_ONE_D2, then d0 == 0 and d1 == 0
-        assert d0 = 0;
-        assert d1 = 0;
-    }
-
-    tempvar range_check96_ptr = range_check96_ptr + 4;
-    return (res=UInt384(d0, d1, d2, 0));
 }
 
 func run_modulo_circuit_basic{
