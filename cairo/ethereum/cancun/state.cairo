@@ -210,8 +210,6 @@ func get_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(
 
     let storage_data_dict_ptr = cast(storage_tries_data.value.dict_ptr, DictAccess*);
 
-    // Use `hashdict_get` instead of `hashdict_read` because `MappingTupleAddressBytes32U256` is not a
-    // `default_dict`. Accessing a key that does not exist in the dict would have panicked for `hashdict_read`.
     let (keys) = alloc();
     assert keys[0] = address.value;
     assert keys[1] = key.value.low;
@@ -220,7 +218,6 @@ func get_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(
         3, keys
     );
 
-    // Early return if no associated Trie at address
     let new_storage_data_dict_ptr = cast(storage_data_dict_ptr, TupleAddressBytes32U256DictAccess*);
     tempvar new_storage_data = MappingTupleAddressBytes32U256(
         new MappingTupleAddressBytes32U256Struct(
