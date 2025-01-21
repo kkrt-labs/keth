@@ -1,77 +1,6 @@
 from starkware.cairo.common.cairo_builtins import UInt384
 from starkware.cairo.common.cairo_builtins import ModBuiltin
 from starkware.cairo.common.registers import get_fp_and_pc
-from ethereum.utils.numeric import divmod
-
-const POW_2_32 = 2 ** 32;
-const POW_2_64 = 2 ** 64;
-const POW_2_96 = 2 ** 96;
-
-// Compute u512 mod p, where u512 = high * 2^256 + low
-// Each high/low limb is 32 bits big and passed in BE
-func u512_mod_p{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
-    low: (v0: felt, v1: felt, v2: felt, v3: felt, v4: felt, v5: felt, v6: felt, v7: felt),
-    high: (v0: felt, v1: felt, v2: felt, v3: felt, v4: felt, v5: felt, v6: felt, v7: felt),
-    p: UInt384,
-) -> (result: UInt384) {
-    let (_, pc) = get_fp_and_pc();
-
-    pc_labelx:
-    let add_offsets_ptr = pc + (add_offsets - pc_labelx);
-    let mul_offsets_ptr = pc + (mul_offsets - pc_labelx);
-
-    // High limbs.
-    assert [range_check96_ptr] = high.v7 + high.v6 * POW_2_32 + high.v5 * POW_2_64;
-    assert [range_check96_ptr + 1] = high.v4 + high.v3 * POW_2_32 + high.v2 * POW_2_64;
-    assert [range_check96_ptr + 2] = high.v1 + high.v0 * POW_2_32;
-    assert [range_check96_ptr + 3] = 0;
-
-    // Shift Limbs.
-    assert [range_check96_ptr + 4] = 0;
-    assert [range_check96_ptr + 5] = 0;
-    assert [range_check96_ptr + 6] = 0x10000000000000000;
-    assert [range_check96_ptr + 7] = 0;
-
-    // Low limbs.
-    assert [range_check96_ptr + 8] = low.v7 + low.v6 * POW_2_32 + low.v5 * POW_2_64;
-    assert [range_check96_ptr + 9] = low.v4 + low.v3 * POW_2_32 + low.v2 * POW_2_64;
-    assert [range_check96_ptr + 10] = low.v1 + low.v0 * POW_2_32;
-    assert [range_check96_ptr + 11] = 0;
-
-    assert add_mod_ptr[0] = ModBuiltin(
-        p=p, values_ptr=cast(range_check96_ptr, UInt384*), offsets_ptr=add_offsets_ptr, n=1
-    );
-    assert mul_mod_ptr[0] = ModBuiltin(
-        p=p, values_ptr=cast(range_check96_ptr, UInt384*), offsets_ptr=mul_offsets_ptr, n=1
-    );
-    %{
-        from starkware.cairo.lang.builtins.modulo.mod_builtin_runner import ModBuiltinRunner
-        assert builtin_runners["add_mod_builtin"].instance_def.batch_size == 1
-        assert builtin_runners["mul_mod_builtin"].instance_def.batch_size == 1
-
-        ModBuiltinRunner.fill_memory(
-            memory=memory,
-            add_mod=(ids.add_mod_ptr.address_, builtin_runners["add_mod_builtin"], 1),
-            mul_mod=(ids.mul_mod_ptr.address_, builtin_runners["mul_mod_builtin"], 1),
-        )
-    %}
-    let range_check96_ptr = range_check96_ptr + 20;
-    let add_mod_ptr = add_mod_ptr + ModBuiltin.SIZE;
-    let mul_mod_ptr = mul_mod_ptr + ModBuiltin.SIZE;
-    return (result=[cast(range_check96_ptr - 4, UInt384*)]);
-
-    mul_offsets:
-    // Compute High * Shift
-    dw 0;  // [High]
-    dw 4;  // [Shift]
-    dw 12;  // [High * Shift]
-
-    // Computes [Low + High * Shift]
-    add_offsets:
-    dw 8;  // Low
-    dw 12;  // [High * Shift]
-    dw 16;  // [Low + High * Shift]
-}
 
 // Compute X + Y mod p.
 func add_mod_p{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*}(
@@ -79,8 +8,8 @@ func add_mod_p{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*}(
 ) -> (x_plus_y: UInt384) {
     let (_, pc) = get_fp_and_pc();
 
-    pc_labelx:
-    let add_offsets_ptr = pc + (add_offsets - pc_labelx);
+    pc_label:
+    let add_offsets_ptr = pc + (add_offsets - pc_label);
 
     // X limbs (offset 0)
     assert [range_check96_ptr] = x.d0;
@@ -124,8 +53,8 @@ func sub_mod_p{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*}(
 ) -> (x_minus_y: UInt384) {
     let (_, pc) = get_fp_and_pc();
 
-    pc_labelx:
-    let add_offsets_ptr = pc + (add_offsets - pc_labelx);
+    pc_label:
+    let add_offsets_ptr = pc + (add_offsets - pc_label);
 
     // X limbs (offset 0)
     assert [range_check96_ptr] = x.d0;
@@ -171,8 +100,8 @@ func neg_mod_p{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*}(y: UInt384, p
 ) {
     let (_, pc) = get_fp_and_pc();
 
-    pc_labelx:
-    let add_offsets_ptr = pc + (add_offsets - pc_labelx);
+    pc_label:
+    let add_offsets_ptr = pc + (add_offsets - pc_label);
 
     // X limbs (offset 0)
     assert [range_check96_ptr] = 0;
@@ -218,8 +147,8 @@ func div_mod_p{range_check96_ptr: felt*, mul_mod_ptr: ModBuiltin*}(
 ) -> (x_div_y: UInt384) {
     let (_, pc) = get_fp_and_pc();
 
-    pc_labelx:
-    let mul_offsets_ptr = pc + (mul_offsets - pc_labelx);
+    pc_label:
+    let mul_offsets_ptr = pc + (mul_offsets - pc_label);
 
     // X limbs (offset 0)
     assert [range_check96_ptr] = x.d0;
@@ -263,8 +192,8 @@ func div_mod_p{range_check96_ptr: felt*, mul_mod_ptr: ModBuiltin*}(
 func assert_zero_mod_P{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*}(x: UInt384, p: UInt384) {
     let (_, pc) = get_fp_and_pc();
 
-    pc_labelx:
-    let add_offsets_ptr = pc + (add_offsets - pc_labelx);
+    pc_label:
+    let add_offsets_ptr = pc + (add_offsets - pc_label);
 
     // Const 0.
     assert [range_check96_ptr] = 0;
@@ -308,8 +237,8 @@ func assert_not_zero_mod_P{range_check96_ptr: felt*, mul_mod_ptr: ModBuiltin*}(
 ) {
     let (_, pc) = get_fp_and_pc();
 
-    pc_labelx:
-    let mul_offsets_ptr = pc + (mul_offsets - pc_labelx);
+    pc_label:
+    let mul_offsets_ptr = pc + (mul_offsets - pc_label);
 
     // Const 1. (offset 0)
     assert [range_check96_ptr] = 1;
@@ -391,8 +320,8 @@ func assert_eq_mod_p{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*}(
 ) {
     let (_, pc) = get_fp_and_pc();
 
-    pc_labelx:
-    let add_offsets_ptr = pc + (add_offsets - pc_labelx);
+    pc_label:
+    let add_offsets_ptr = pc + (add_offsets - pc_label);
 
     // Const 0. (offset 0)
     assert [range_check96_ptr] = 0;
@@ -448,9 +377,9 @@ func assert_neq_mod_p{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mo
 ) {
     let (_, pc) = get_fp_and_pc();
 
-    pc_labelx:
-    let add_offsets_ptr = pc + (add_offsets - pc_labelx);
-    let mul_offsets_ptr = pc + (mul_offsets - pc_labelx);
+    pc_label:
+    let add_offsets_ptr = pc + (add_offsets - pc_label);
+    let mul_offsets_ptr = pc + (mul_offsets - pc_label);
 
     // Const 1. (0)
     assert [range_check96_ptr] = 1;
@@ -551,8 +480,8 @@ func assert_opposite_mod_p{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*}(
 ) {
     let (_, pc) = get_fp_and_pc();
 
-    pc_labelx:
-    let add_offsets_ptr = pc + (add_offsets - pc_labelx);
+    pc_label:
+    let add_offsets_ptr = pc + (add_offsets - pc_label);
 
     // Const 0.
     assert [range_check96_ptr] = 0;
@@ -601,9 +530,9 @@ func assert_not_opposite_mod_p{
 }(x: UInt384, y: UInt384, p: UInt384) {
     let (_, pc) = get_fp_and_pc();
 
-    pc_labelx:
-    let add_offsets_ptr = pc + (add_offsets - pc_labelx);
-    let mul_offsets_ptr = pc + (mul_offsets - pc_labelx);
+    pc_label:
+    let add_offsets_ptr = pc + (add_offsets - pc_label);
+    let mul_offsets_ptr = pc + (mul_offsets - pc_label);
 
     // Const 1. (0)
     assert [range_check96_ptr] = 1;

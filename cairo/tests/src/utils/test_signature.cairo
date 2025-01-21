@@ -9,7 +9,8 @@ from starkware.cairo.common.cairo_builtins import (
 from starkware.cairo.common.cairo_secp.bigint import uint256_to_bigint
 
 from src.utils.signature import Signature, Internals
-from src.utils.uint256 import uint256_eq, uint256_to_uint384
+from src.utils.uint256 import uint256_eq
+from src.utils.uint384 import uint256_to_uint384
 
 func test__public_key_point_to_eth_address{
     range_check_ptr,

@@ -24,13 +24,13 @@ from src.utils.circuit_utils import (
     felt_to_UInt384,
     run_modulo_circuit_basic,
 )
-from src.utils.uint256 import uint256_to_uint384
-
 from src.utils.ecdsa_circuit import (
     get_full_ecip_2P_circuit,
     get_ADD_EC_POINT_circuit,
     get_DOUBLE_EC_POINT_circuit,
 )
+from src.utils.uint256 import assert_uint256_le
+from src.utils.uint384 import uint384_to_uint256, uint256_to_uint384
 
 struct G1Point {
     x: UInt384,
@@ -43,12 +43,14 @@ namespace secp256k1 {
     const P1 = 0xffffffffffffffffffffffff;
     const P2 = 0xffffffffffffffff;
     const P3 = 0x0;
+    const P_LOW_128 = 0xfffffffffffffffffffffffefffffc2f;
+    const P_HIGH_128 = 0xffffffffffffffffffffffffffffffff;
     const N0 = 0xaf48a03bbfd25e8cd0364141;
     const N1 = 0xfffffffffffffffebaaedce6;
     const N2 = 0xffffffffffffffff;
+    const N3 = 0x0;
     const N_LOW_128 = 0xbaaedce6af48a03bbfd25e8cd0364141;
     const N_HIGH_128 = 0xfffffffffffffffffffffffffffffffe;
-    const N3 = 0x0;
     const A0 = 0x0;
     const A1 = 0x0;
     const A2 = 0x0;
@@ -98,33 +100,11 @@ func sign_to_uint384_mod_secp256k1(sign: felt) -> UInt384 {
     }
 }
 
-// Takes a valid UInt384 value from ModuloBuiltin output, adds constraints to enforce it is canonically reduced mod p (ie: 0 <= a < p) and converts it to a Uint256.
-// Assumes 1 < p < 2^256 passed as valid Uint384.
-func uint384_to_uint256_mod_p{range_check_ptr}(a: UInt384, p: UInt384) -> (res: Uint256) {
-    assert a.d3 = 0;  // From assumption : "p < 2^256", canonical reduction of a is only possible if a.d3 is 0.
-    if (a.d2 == p.d2) {
-        if (a.d1 == p.d1) {
-            assert [range_check_ptr] = p.d0 - 1 - a.d0;
-            tempvar range_check_ptr = range_check_ptr + 1;
-        } else {
-            assert [range_check_ptr] = p.d1 - 1 - a.d1;
-            tempvar range_check_ptr = range_check_ptr + 1;
-        }
-    } else {
-        assert [range_check_ptr] = p.d2 - a.d2;  // a.d2 <= p.d2 && a.d2 != p.d2 => a.d2 < p.d2
-        tempvar range_check_ptr = range_check_ptr + 1;
-    }
-    // Then decompose and rebuild uint256
-    let (d1_high_64, d1_low_32) = divmod(a.d1, 2 ** 32);
-    // a.d2 is guaranteed to be in 64 bits since we know it's fully reduced.
-    return (res=Uint256(low=a.d0 + 2 ** 96 * d1_low_32, high=d1_high_64 + 2 ** 64 * a.d2));
-}
-
 // A function field element of the form :
 // F(x,y) = a(x) + y b(x)
 // Where a, b are rational functions of x.
 // The rational functions are represented as polynomials in x with coefficients in F_p, starting from the constant term.
-// No information about the degrees of the polynomials is stored here as they are derived implicitely from the MSM size.
+// No information about the degrees of the polynomials is stored here as they are derived implicitly from the MSM size.
 struct FunctionFelt {
     a_num: UInt384*,
     a_den: UInt384*,
@@ -396,13 +376,16 @@ namespace Signature {
         // where the division by r is modulo N.
 
         let N = UInt384(secp256k1.N0, secp256k1.N1, secp256k1.N2, secp256k1.N3);
+        let N_min_one = Uint256(secp256k1.N_LOW_128 - 1, secp256k1.N_HIGH_128);
 
         let (_u1: UInt384) = div_mod_p(msg_hash, r, N);
         let (_u1: UInt384) = neg_mod_p(_u1, N);
         let (_u2: UInt384) = div_mod_p(s, r, N);
 
-        let (u1) = uint384_to_uint256_mod_p(_u1, N);
-        let (u2) = uint384_to_uint256_mod_p(_u2, N);
+        let u1 = uint384_to_uint256(_u1);
+        assert_uint256_le(u1, N_min_one);
+        let u2 = uint384_to_uint256(_u2);
+        assert_uint256_le(u2, N_min_one);
 
         let (ep1_low, en1_low, sp1_low, sn1_low) = scalar_to_epns(u1.low);
         let (ep1_high, en1_high, sp1_high, sn1_high) = scalar_to_epns(u1.high);
@@ -583,12 +566,6 @@ namespace Signature {
         // base_rlc
         assert ecip_input[59] = rlc_coeff_u384;
 
-        // let (point1) = ec_mul(generator_point, u1);
-        // let (minus_point1) = ec_negate(point1);
-        // let (point2) = ec_mul([r_point], u2);
-        // let (public_key_point) = ec_add(minus_point1, point2);
-        // return (public_key_point=public_key_point, success=1);
-
         let (add_offsets_ptr, mul_offsets_ptr) = get_full_ecip_2P_circuit();
 
         let p = UInt384(secp256k1.P0, secp256k1.P1, secp256k1.P2, secp256k1.P3);
@@ -615,14 +592,6 @@ namespace Signature {
         tempvar range_check96_ptr = range_check96_ptr_final;
         let add_mod_ptr = add_mod_ptr + 117 * ModBuiltin.SIZE;
         let mul_mod_ptr = mul_mod_ptr + 108 * ModBuiltin.SIZE;
-        // Add Q_low and Q_high_shifted:
-        // %{
-        //     from garaga.hints.io import pack_bigint_array
-
-        // arro = pack_bigint_array(ids.ecip_input, 4, 2**96, 283)
-        //     for i, v in enumerate(arro):
-        //         print(f"{i}: {hex(v)}")
-        // %}
         let (res) = add_ec_points_secp256k1(
             G1Point(x=ecip_input[50], y=ecip_input[51]), G1Point(x=ecip_input[54], y=ecip_input[55])
         );
@@ -651,12 +620,13 @@ namespace Signature {
             msg_hash=msg_hash, r=r, s=s, y_parity=y_parity
         );
         if (success == 0) {
-            assert 1 = 0;
             return (success=0, address=0);
         }
-        let modulus = UInt384(secp256k1.P0, secp256k1.P1, secp256k1.P2, secp256k1.P3);
-        let (x_uint256) = uint384_to_uint256_mod_p(public_key_point.x, modulus);
-        let (y_uint256) = uint384_to_uint256_mod_p(public_key_point.y, modulus);
+        let max_value = Uint256(secp256k1.P_LOW_128 - 1, secp256k1.P_HIGH_128);
+        let x_uint256 = uint384_to_uint256(public_key_point.x);
+        assert_uint256_le(x_uint256, max_value);
+        let y_uint256 = uint384_to_uint256(public_key_point.y);
+        assert_uint256_le(y_uint256, max_value);
         let address = Internals.public_key_point_to_eth_address(x=x_uint256, y=y_uint256);
         return (success=success, address=address);
     }

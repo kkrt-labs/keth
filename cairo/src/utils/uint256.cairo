@@ -382,15 +382,6 @@ func uint256_to_uint160{range_check_ptr}(x: Uint256) -> felt {
     return x.low + high * 2 ** 128;
 }
 
-// @notice Converts a 256-bit unsigned integer to a 384-bit unsigned integer.
-// @param a The 256-bit unsigned integer.
-// @return res The resulting 384-bit unsigned integer.
-func uint256_to_uint384{range_check_ptr}(a: Uint256) -> UInt384 {
-    let (high_64_high, high_64_low) = divmod(a.high, 2 ** 64);
-    let (low_32_high, low_96_low) = divmod(a.low, 2 ** 96);
-    let res = UInt384(low_96_low, low_32_high + 2 ** 32 * high_64_low, high_64_high, 0);
-    return res;
-}
 // @notice Return true if both integers are equal.
 // @dev Same as the one from starkware's cairo common library, but without the useless range_check arg
 func uint256_eq(a: Uint256, b: Uint256) -> (res: felt) {
@@ -401,4 +392,15 @@ func uint256_eq(a: Uint256, b: Uint256) -> (res: felt) {
         return (res=0);
     }
     return (res=1);
+}
+
+func assert_uint256_le{range_check_ptr}(a: Uint256, b: Uint256) {
+    assert [range_check_ptr + 0] = b.high - a.high;
+    if (b.high != a.high) {
+        let range_check_ptr = range_check_ptr + 1;
+        return ();
+    }
+    assert [range_check_ptr + 1] = b.low - a.low;
+    let range_check_ptr = range_check_ptr + 2;
+    return ();
 }

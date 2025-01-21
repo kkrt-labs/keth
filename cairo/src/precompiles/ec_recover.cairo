@@ -17,7 +17,8 @@ from starkware.cairo.common.cairo_secp.bigint import bigint_to_uint256, uint256_
 from starkware.cairo.common.memset import memset
 
 from src.errors import Errors
-from src.utils.uint256 import uint256_eq, uint256_to_uint384
+from src.utils.uint256 import uint256_eq
+from src.utils.uint384 import uint256_to_uint384
 from src.utils.utils import Helpers
 from src.utils.array import slice
 from src.utils.signature import Signature
