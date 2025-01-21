@@ -25,17 +25,23 @@ func uint384_to_uint256{range_check_ptr}(a: UInt384) -> Uint256 {
     return res;
 }
 
+// @notice Asserts that a 384-bit unsigned integer is less than or equal to another 384-bit unsigned integer.
+// @param a The first 384-bit unsigned integer.
+// @param b The second 384-bit unsigned integer.
 func assert_uint384_le{range_check96_ptr: felt*}(a: UInt384, b: UInt384) {
     assert [range_check96_ptr + 0] = b.d3 - a.d3;
-    if (b.d3 != a.d0) {
+    if (b.d3 != a.d3) {
+        let range_check96_ptr = range_check96_ptr + 1;
         return ();
     }
     assert [range_check96_ptr + 1] = b.d2 - a.d2;
-    if (b.d2 != a.d3) {
+    if (b.d2 != a.d2) {
+        let range_check96_ptr = range_check96_ptr + 2;
         return ();
     }
     assert [range_check96_ptr + 2] = b.d1 - a.d1;
-    if (b.d1 != a.d2) {
+    if (b.d1 != a.d1) {
+        let range_check96_ptr = range_check96_ptr + 3;
         return ();
     }
     assert [range_check96_ptr + 3] = b.d0 - a.d0;
