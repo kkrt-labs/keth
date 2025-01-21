@@ -86,11 +86,15 @@ func get_generator_point() -> (point: G1Point) {
 }
 
 @known_ap_change
-func sign_to_UInt384_mod_secp256k1(sign: felt) -> (res: UInt384) {
+func sign_to_uint384_mod_secp256k1(sign: felt) -> UInt384 {
     if (sign == -1) {
-        return (res=UInt384(secp256k1.MIN_ONE_D0, secp256k1.MIN_ONE_D1, secp256k1.MIN_ONE_D2, 0));
+        let res = UInt384(
+            secp256k1.MIN_ONE_D0, secp256k1.MIN_ONE_D1, secp256k1.MIN_ONE_D2, secp256k1.MIN_ONE_D3
+        );
+        return res;
     } else {
-        return (res=UInt384(1, 0, 0, 0));
+        let res = UInt384(1, 0, 0, 0);
+        return res;
     }
 }
 
@@ -405,26 +409,26 @@ namespace Signature {
 
         let (ep1_low_384) = felt_to_UInt384(ep1_low);
         let (en1_low_384) = felt_to_UInt384(en1_low);
-        let (sp1_low_384) = sign_to_UInt384_mod_secp256k1(sp1_low);
-        let (sn1_low_384) = sign_to_UInt384_mod_secp256k1(sn1_low);
+        let sp1_low_384 = sign_to_uint384_mod_secp256k1(sp1_low);
+        let sn1_low_384 = sign_to_uint384_mod_secp256k1(sn1_low);
 
         let (ep1_high_384) = felt_to_UInt384(ep1_high);
         let (en1_high_384) = felt_to_UInt384(en1_high);
-        let (sp1_high_384) = sign_to_UInt384_mod_secp256k1(sp1_high);
-        let (sn1_high_384) = sign_to_UInt384_mod_secp256k1(sn1_high);
+        let sp1_high_384 = sign_to_uint384_mod_secp256k1(sp1_high);
+        let sn1_high_384 = sign_to_uint384_mod_secp256k1(sn1_high);
 
         let (ep2_low, en2_low, sp2_low, sn2_low) = scalar_to_epns(u2.low);
 
         let (ep2_low_384) = felt_to_UInt384(ep2_low);
         let (en2_low_384) = felt_to_UInt384(en2_low);
-        let (sp2_low_384) = sign_to_UInt384_mod_secp256k1(sp2_low);
-        let (sn2_low_384) = sign_to_UInt384_mod_secp256k1(sn2_low);
+        let sp2_low_384 = sign_to_uint384_mod_secp256k1(sp2_low);
+        let sn2_low_384 = sign_to_uint384_mod_secp256k1(sn2_low);
 
         let (ep2_high, en2_high, sp2_high, sn2_high) = scalar_to_epns(u2.high);
         let (ep2_high_384) = felt_to_UInt384(ep2_high);
         let (en2_high_384) = felt_to_UInt384(en2_high);
-        let (sp2_high_384) = sign_to_UInt384_mod_secp256k1(sp2_high);
-        let (sn2_high_384) = sign_to_UInt384_mod_secp256k1(sn2_high);
+        let sp2_high_384 = sign_to_uint384_mod_secp256k1(sp2_high);
+        let sn2_high_384 = sign_to_uint384_mod_secp256k1(sn2_high);
         let (local generator_point: G1Point) = get_generator_point();
 
         // _hash_inputs_points_scalars_and_result_points
