@@ -176,18 +176,19 @@ func sstore{
     let is_original_eq_current = U256__eq__(original_value, current_value);
     let is_current_eq_new = U256__eq__(current_value, new_value);
     let is_original_zero = U256__eq__(original_value, zero_u256);
-    if (is_original_eq_current.value != 0) {
-        if (is_current_eq_new.value == 0) {
-            if (is_original_zero.value != 0) {
-                tempvar gas_cost = gas_cost + GasConstants.GAS_STORAGE_SET;
-            } else {
-                tempvar gas_cost = gas_cost + (
-                    GasConstants.GAS_STORAGE_UPDATE - GasConstants.GAS_COLD_SLOAD
-                );
-            }
+    let is_original_eq_current_and_current_diff_new = is_original_eq_current.value * (
+        1 - is_current_eq_new.value
+    );
+    if (is_original_eq_current_and_current_diff_new != 0) {
+        if (is_original_zero.value != 0) {
+            tempvar gas_cost = gas_cost + GasConstants.GAS_STORAGE_SET;
+        } else {
+            tempvar gas_cost = gas_cost + (
+                GasConstants.GAS_STORAGE_UPDATE - GasConstants.GAS_COLD_SLOAD
+            );
         }
     } else {
-        tempvar gas_cost = GasConstants.GAS_WARM_ACCESS;
+        tempvar gas_cost = gas_cost + GasConstants.GAS_WARM_ACCESS;
     }
     let gas_cost = [ap - 1];
 
