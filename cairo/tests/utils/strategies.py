@@ -443,17 +443,7 @@ def register_type_strategies():
     st.register_type_strategy(ForwardRef("Simple"), simple)  # type: ignore
     st.register_type_strategy(ForwardRef("Extended"), extended)  # type: ignore
     st.register_type_strategy(Account, account_strategy)
-    st.register_type_strategy(
-        Withdrawal,
-        st.builds(
-            Withdrawal,
-            # Withdrawal amount is in gwei, so we need to convert it to wei
-            # thus its max value is (2**256 - 1) // (10 ** 9)
-            amount=st.integers(min_value=0, max_value=(2**256 - 1) // (10**9)).map(
-                lambda x: U256(x)
-            ),
-        ),
-    )
+    st.register_type_strategy(Withdrawal, st.builds(Withdrawal))
     st.register_type_strategy(Header, st.builds(Header))
     st.register_type_strategy(Log, st.builds(Log))
     st.register_type_strategy(Receipt, st.builds(Receipt))

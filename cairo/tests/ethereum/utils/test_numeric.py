@@ -108,10 +108,9 @@ class TestNumeric:
     @given(a=..., b=...)
     def test_U256_mul(self, cairo_run, a: U256, b: U256):
         try:
-            a * b
-        except Exception as e:
-            with cairo_error(str(e.__class__.__name__)):
-                cairo_result = cairo_run("U256_mul", a, b)
+            cairo_result = cairo_run("U256_mul", a, b)
+        except Exception as cairo_error:
+            with with_matching_error_name(cairo_error):
+                a * b
             return
-        cairo_result = cairo_run("U256_mul", a, b)
         assert cairo_result == a * b

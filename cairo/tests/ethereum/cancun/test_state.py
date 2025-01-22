@@ -34,8 +34,10 @@ from ethereum.cancun.state import (
     touch_account,
 )
 from tests.utils.args_gen import State, TransientStorage, Withdrawal
-from tests.utils.errors import strict_raises
+from tests.utils.errors import strict_raises, with_matching_error_name
 from tests.utils.strategies import address, bytes32, code, state, transient_storage
+
+pytestmark = pytest.mark.python_vm
 
 
 @composite
@@ -170,7 +172,12 @@ class TestStateAccounts:
     @given(data=state_and_address_and_optional_key(), withdrawal=...)
     def test_process_withdrawal(self, cairo_run, data, withdrawal: Withdrawal):
         state, _ = data
-        state_cairo = cairo_run("process_withdrawal", state, withdrawal)
+        try:
+            state_cairo = cairo_run("process_withdrawal", state, withdrawal)
+        except Exception as cairo_error:
+            with with_matching_error_name(cairo_error):
+                process_withdrawal(state, withdrawal)
+            return
         process_withdrawal(state, withdrawal)
         assert state_cairo == state
 
