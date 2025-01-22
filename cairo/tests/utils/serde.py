@@ -509,12 +509,12 @@ class Serde:
         # If ptr=0 -> No parent.
 
         # Note: only "real mappings" have this. Memory and Stack, which are dict-based, do not.
-        original_mapping_ptr = pointers.get("original_mapping")
+        parent_dict_ptr = pointers.get("parent_dict")
         serialized_original = (
             self._serialize_mapping_struct(
-                mapping_struct_path, original_mapping_ptr, origin_cls
+                mapping_struct_path, parent_dict_ptr, origin_cls
             )
-            if original_mapping_ptr
+            if parent_dict_ptr
             else {}
         )
 

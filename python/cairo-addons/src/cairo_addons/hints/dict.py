@@ -58,7 +58,7 @@ def copy_dict_segment(
     memory: MemoryDict,
     ap: RelocatableValue,
 ):
-    dict_tracker = dict_manager.get_tracker(ids.original_mapping.dict_ptr)
+    dict_tracker = dict_manager.get_tracker(ids.parent_dict.dict_ptr)
     copied_data = dict_tracker.data
     ids.new_dict_ptr = dict_manager.new_dict(segments, copied_data)
 

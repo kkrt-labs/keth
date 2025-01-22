@@ -44,9 +44,8 @@ pub fn copy_dict_segment() -> Hint {
          _constants: &HashMap<String, Felt252>|
          -> Result<(), HintError> {
             // Get original dict pointer
-            let original_mapping_ptr =
-                get_ptr_from_var_name("original_mapping", vm, ids_data, ap_tracking)?;
-            let original_dict_ptr = vm.get_relocatable((original_mapping_ptr + 1)?)?;
+            let parent_dict_ptr = get_ptr_from_var_name("parent_dict", vm, ids_data, ap_tracking)?;
+            let original_dict_ptr = vm.get_relocatable((parent_dict_ptr + 1)?)?;
 
             // Get tracker and copy its data
             let dict_manager_ref = exec_scopes.get_dict_manager()?;
