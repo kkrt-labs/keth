@@ -56,4 +56,6 @@ def with_matching_error_name(cairo_error: Exception):
         yield exc_info
 
     error = re.search(r"Error message: (.*)", str(cairo_error))
+    if error is None:
+        raise AssertionError(f"No error message found in {cairo_error}")
     assert error.group(1) == exc_info.value.__class__.__name__
