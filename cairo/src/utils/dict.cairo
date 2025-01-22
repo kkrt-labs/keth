@@ -146,7 +146,7 @@ func hashdict_write{poseidon_ptr: PoseidonBuiltin*, dict_ptr: DictAccess*}(
     return ();
 }
 
-// @notice Given a dict segment (start, end) and a pointer to another dict segment (original_mapping_start, original_mapping_end),
+// @notice Given a dict segment (start, end) and a pointer to another dict segment (parent_dict_start, parent_dict_end),
 // updates the original dict segment with the new values from the given dict segment.
 // @dev If the drop flag is set to false, the new values are added to the existing values.
 // @dev If the drop flag is set to true, the new values are discarded, and only the prev_values are appended to the original dict segment.
@@ -156,19 +156,21 @@ func hashdict_write{poseidon_ptr: PoseidonBuiltin*, dict_ptr: DictAccess*}(
 func dict_update{range_check_ptr}(
     dict_ptr_start: DictAccess*,
     dict_ptr: DictAccess*,
-    original_mapping_start: DictAccess*,
-    original_mapping_end: DictAccess*,
+    parent_dict_start: DictAccess*,
+    parent_dict_end: DictAccess*,
     drop: felt,
 ) -> (DictAccess*, DictAccess*) {
     alloc_locals;
 
     if (drop != FALSE) {
+        // No need to merge a dict tracker, because we revert to the previous dict.
         let (squashed_dict_start: DictAccess*) = alloc();
         let (squashed_dict_end) = squash_dict(dict_ptr_start, dict_ptr, squashed_dict_start);
         let (prev_values_start, prev_values_end) = prev_values(
             squashed_dict_start, squashed_dict_end
         );
     } else {
+        %{ merge_dict_tracker_with_parent %}
         tempvar range_check_ptr = range_check_ptr;
         tempvar dict_ptr_start = dict_ptr_start;
         tempvar dict_ptr = dict_ptr;
@@ -177,15 +179,15 @@ func dict_update{range_check_ptr}(
     let dict_ptr_start = cast([ap - 2], DictAccess*);
     let dict_ptr = cast([ap - 1], DictAccess*);
 
-    if (cast(original_mapping_end, felt) == 0) {
+    if (cast(parent_dict_end, felt) == 0) {
         // No parent mapping, just return the current dict.
         return (dict_ptr_start, dict_ptr);
     }
 
     tempvar len = dict_ptr - dict_ptr_start;
-    memcpy(original_mapping_end, dict_ptr_start, len);
-    let new_original_mapping_end = original_mapping_end + len;
-    return (original_mapping_start, new_original_mapping_end);
+    memcpy(parent_dict_end, dict_ptr_start, len);
+    let new_parent_dict_end = parent_dict_end + len;
+    return (parent_dict_start, new_parent_dict_end);
 }
 
 // @notice Given a dict segment (start and end), returns a new dict segment with (key, prev_value, prev_value) for each key.

@@ -38,7 +38,7 @@ struct MappingUintUint {
 struct MappingUintUintStruct {
     dict_ptr_start: UintDictAccess*,
     dict_ptr: UintDictAccess*,
-    original_mapping: MappingUintUintStruct*,
+    parent_dict: MappingUintUintStruct*,
 }
 
 func test_dict_update{range_check_ptr}(
@@ -48,7 +48,7 @@ func test_dict_update{range_check_ptr}(
 
     local new_dict_ptr: UintDictAccess*;
     let modified_dict_start = new_dict_ptr;
-    let original_mapping = input_mapping.value;
+    let parent_dict = input_mapping.value;
     %{ copy_dict_segment %}
 
     tempvar modified_dict_end: UintDictAccess*;
@@ -65,7 +65,7 @@ func test_dict_update{range_check_ptr}(
         new MappingUintUintStruct(
             cast(finalized_dict_start, UintDictAccess*),
             cast(finalized_dict_end, UintDictAccess*),
-            input_mapping.value.original_mapping,
+            input_mapping.value.parent_dict,
         ),
     );
     return result;

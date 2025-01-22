@@ -257,15 +257,15 @@ transient_storage = st.sets(
                 for address in addresses
             }
         ),
-        _snapshots=st.lists(
-            st.fixed_dictionaries(
-                {
-                    address: trie_strategy(Trie[Bytes32, U256], min_size=1)
-                    for address in addresses
-                }
-            ),
-            max_size=MAX_TRANSIENT_STORAGE_SNAPSHOTS_SIZE,
-        ),
+        _snapshots=st.just([]),  # Start with empty snapshots list
+    ).map(
+        # Create the original snapshot using copies of the tries
+        lambda storage: TransientStorage(
+            _tries=storage._tries,
+            _snapshots=[
+                {addr: copy_trie(trie) for addr, trie in storage._tries.items()}
+            ],
+        )
     )
 )
 

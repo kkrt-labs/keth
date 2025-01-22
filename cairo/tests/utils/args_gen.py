@@ -682,72 +682,9 @@ def _gen_arg(
         return struct_ptr
 
     if arg_type_origin in (dict, ChainMap, abc.Mapping, set):
-        dict_ptr = segments.add()
-
-        if arg_type_origin is set:
-            arg = defaultdict(lambda: False, {k: True for k in arg})
-            arg_type = Mapping[get_args(arg_type)[0], bool]
-
-        data = {
-            _gen_arg(
-                dict_manager,
-                segments,
-                get_args(arg_type)[0],
-                k,
-                hash_mode=hash_mode in (True, None),
-            ): _gen_arg(dict_manager, segments, get_args(arg_type)[1], v)
-            for k, v in arg.items()
-        }
-
-        if isinstance_with_generic(arg, defaultdict):
-            data = defaultdict(arg.default_factory, data)
-
-        # This is required for tests where we read data from DictAccess segments while no dict method has been used.
-        # Equivalent to doing an initial dict_read of all keys.
-        # We only hash keys if they're in tuples.
-        initial_data = flatten(
-            [
-                (
-                    (
-                        poseidon_hash_many(k)
-                        if get_args(arg_type)[0] in HASHED_TYPES
-                        else k
-                    ),
-                    v,
-                    v,
-                )
-                for k, v in data.items()
-            ]
+        return generate_dict_arg(
+            dict_manager, segments, arg_type, arg_type_origin, arg, hash_mode=hash_mode
         )
-        segments.load_data(dict_ptr, initial_data)
-        current_ptr = dict_ptr + len(initial_data)
-
-        if isinstance(dict_manager, DictManager):
-            dict_manager.trackers[dict_ptr.segment_index] = DictTracker(
-                data=data, current_ptr=current_ptr
-            )
-        else:
-            default_value = (
-                data.default_factory() if isinstance(data, defaultdict) else None
-            )
-            dict_manager.trackers[dict_ptr.segment_index] = RustDictTracker(
-                data=data,
-                current_ptr=current_ptr,
-                default_value=default_value,
-            )
-
-        base = segments.add()
-
-        # The last element is the original_segment_stop pointer.
-        # Because this is a new dict, this is 0 (null ptr).
-        # This does not apply to stack and memory (hash_mode=False), in which case there's only 2 elements.
-        data_to_load = (
-            [dict_ptr, current_ptr, 0]
-            if (hash_mode is not False)
-            else [dict_ptr, current_ptr]
-        )
-        segments.load_data(base, data_to_load)
-        return base
 
     if arg_type in (Union[int, RustRelocatable], Union[int, RelocatableValue]):
         return arg
@@ -762,17 +699,10 @@ def _gen_arg(
             type_bindings = dict(zip(type_params, type_args))
 
         if arg_type_origin is State:
-            return _gen_arg(
-                dict_manager, segments, FlatState, FlatState.from_state(arg)
-            )
+            return generate_state_arg(dict_manager, segments, arg)
 
         if arg_type_origin is TransientStorage:
-            return _gen_arg(
-                dict_manager,
-                segments,
-                FlatTransientStorage,
-                FlatTransientStorage.from_transient_storage(arg),
-            )
+            return generate_transient_storage_arg(dict_manager, segments, arg)
 
         # Dataclasses are represented as a pointer to a struct with the same fields.
         struct_ptr = segments.add()
@@ -785,16 +715,6 @@ def _gen_arg(
             )
             for f in fields(arg_type_origin)
         ]
-
-        if arg_type_origin is FlatState:
-            # In case of a Trie, we need to put the original_storage_tries (state._snapshots[0][1]) in a
-            # special field of the State. We want easy access / overrides to this specific snapshot in
-            # Cairo, as each `sstore` performs an update of this original trie.
-            # The state strategy should always generate a valid snapshots[0], corresponding to the initial state.
-            snapshots_ptr = segments.memory.get(data[2])
-            snapshots0_ptr = segments.memory.get(snapshots_ptr)
-            snapshots0_storage_tries_ptr = segments.memory.get(snapshots0_ptr + 1)
-            data.append(snapshots0_storage_tries_ptr)
 
         segments.load_data(struct_ptr, data)
 
@@ -866,6 +786,230 @@ def _gen_arg(
         return error_int
 
     return arg
+
+
+def generate_trie_arg(
+    dict_manager,
+    segments: Union[MemorySegmentManager, RustMemorySegmentManager],
+    arg_type: Trie,
+    arg: Trie,
+    parent_trie_data: Optional[RelocatableValue] = None,
+):
+    secured = _gen_arg(dict_manager, segments, type(arg.secured), arg.secured)
+    default = _gen_arg(dict_manager, segments, type(arg.default), arg.default)
+    data = generate_dict_arg(
+        dict_manager,
+        segments,
+        arg_type,
+        arg_type,
+        arg._data,
+        parent_ptr=parent_trie_data,
+    )
+    base = segments.add()
+    segments.load_data(base, [secured, default, data])
+
+    # In case of a Trie, we need the dict to be a defaultdict with the trie.default as the default value.
+    dict_ptr = segments.memory.get(data)
+    current_ptr = segments.memory.get(data + 1)
+    if isinstance(dict_manager, DictManager):
+        dict_manager.trackers[dict_ptr.segment_index].data = defaultdict(
+            lambda: default, dict_manager.trackers[dict_ptr.segment_index].data
+        )
+    else:
+        dict_manager.trackers[dict_ptr.segment_index] = RustDictTracker(
+            data=dict_manager.trackers[dict_ptr.segment_index].data,
+            current_ptr=current_ptr,
+            default_value=default,
+        )
+
+    return base
+
+
+def generate_state_arg(
+    dict_manager,
+    segments: Union[MemorySegmentManager, RustMemorySegmentManager],
+    arg: State,
+):
+    flat_state = FlatState.from_state(arg)
+
+    all_snapshots = []
+    parent_main_trie_data = 0
+    parent_storage_tries_data = 0
+
+    for snap in flat_state._snapshots:
+        main_trie, storage_tries = snap
+        snap_trie = generate_trie_arg(
+            dict_manager,
+            segments,
+            Trie[Address, Optional[Account]],
+            main_trie,
+            parent_trie_data=parent_main_trie_data,
+        )
+        snap_storage_tries = generate_trie_arg(
+            dict_manager,
+            segments,
+            Trie[Tuple[Address, Bytes32], U256],
+            storage_tries,
+            parent_trie_data=parent_storage_tries_data,
+        )
+        tuple_ptr = segments.add()
+        segments.load_data(tuple_ptr, [snap_trie, snap_storage_tries])
+        all_snapshots.append(tuple_ptr)
+        parent_main_trie_data = segments.memory.get(snap_trie + 2)
+        parent_storage_tries_data = segments.memory.get(snap_storage_tries + 2)
+
+    main_trie = generate_trie_arg(
+        dict_manager,
+        segments,
+        Trie[Address, Optional[Account]],
+        flat_state._main_trie,
+        parent_trie_data=parent_main_trie_data,
+    )
+    storage_tries = generate_trie_arg(
+        dict_manager,
+        segments,
+        Trie[Tuple[Address, Bytes32], U256],
+        flat_state._storage_tries,
+        parent_trie_data=parent_storage_tries_data,
+    )
+    snapshots_data_ptr = segments.add()
+    segments.load_data(snapshots_data_ptr, all_snapshots)
+    snapshots_ptr = segments.add()
+    segments.load_data(snapshots_ptr, [snapshots_data_ptr, len(all_snapshots)])
+
+    created_accounts = _gen_arg(
+        dict_manager, segments, Set[Address], flat_state.created_accounts
+    )
+
+    base = segments.add()
+    snapshots0_ptr = segments.memory.get(snapshots_ptr)
+    snapshots0_tuple_ptr = segments.memory.get(snapshots0_ptr)
+    if not snapshots0_tuple_ptr:
+        snapshots0_storage_tries_ptr = 0
+    else:
+        snapshots0_storage_tries_ptr = segments.memory.get(snapshots0_tuple_ptr + 1)
+    segments.load_data(
+        base,
+        [
+            main_trie,
+            storage_tries,
+            snapshots_ptr,
+            created_accounts,
+            snapshots0_storage_tries_ptr,
+        ],
+    )
+    return base
+
+
+def generate_transient_storage_arg(
+    dict_manager,
+    segments: Union[MemorySegmentManager, RustMemorySegmentManager],
+    arg: TransientStorage,
+):
+    flat_transient_storage = FlatTransientStorage.from_transient_storage(arg)
+
+    snapshots = []
+    parent_trie_data = 0
+    for snap in flat_transient_storage._snapshots:
+        snap_trie = generate_trie_arg(
+            dict_manager,
+            segments,
+            Trie[Tuple[Address, Bytes32], U256],
+            snap,
+            parent_trie_data=parent_trie_data,
+        )
+        snapshots.append(snap_trie)
+        parent_trie_data = segments.memory.get(snap_trie + 2)
+
+    main_transient_storage_trie = generate_trie_arg(
+        dict_manager,
+        segments,
+        Trie[Tuple[Address, Bytes32], U256],
+        flat_transient_storage._tries,
+        parent_trie_data=parent_trie_data,
+    )
+    snapshots_data_ptr = segments.add()
+    segments.load_data(snapshots_data_ptr, snapshots)
+    snapshots_ptr = segments.add()
+    segments.load_data(snapshots_ptr, [snapshots_data_ptr, len(snapshots)])
+
+    base = segments.add()
+    segments.load_data(base, [main_transient_storage_trie, snapshots_ptr])
+    return base
+
+
+def generate_dict_arg(
+    dict_manager,
+    segments: Union[MemorySegmentManager, RustMemorySegmentManager],
+    arg_type: Type,
+    arg_type_origin: Type,
+    arg: Any,
+    hash_mode: Optional[bool] = None,
+    parent_ptr: Optional[RelocatableValue] = None,
+):
+
+    dict_ptr = segments.add()
+
+    if arg_type_origin is set:
+        arg = defaultdict(lambda: False, {k: True for k in arg})
+        arg_type = Mapping[get_args(arg_type)[0], bool]
+
+    data = {
+        _gen_arg(
+            dict_manager,
+            segments,
+            get_args(arg_type)[0],
+            k,
+            hash_mode=hash_mode in (True, None),
+        ): _gen_arg(dict_manager, segments, get_args(arg_type)[1], v)
+        for k, v in arg.items()
+    }
+
+    if isinstance_with_generic(arg, defaultdict):
+        data = defaultdict(arg.default_factory, data)
+
+    # This is required for tests where we read data from DictAccess segments while no dict method has been used.
+    # Equivalent to doing an initial dict_read of all keys.
+    # We only hash keys if they're in tuples.
+    initial_data = flatten(
+        [
+            (
+                (poseidon_hash_many(k) if get_args(arg_type)[0] in HASHED_TYPES else k),
+                v,
+                v,
+            )
+            for k, v in data.items()
+        ]
+    )
+    segments.load_data(dict_ptr, initial_data)
+    current_ptr = dict_ptr + len(initial_data)
+
+    if isinstance(dict_manager, DictManager):
+        dict_manager.trackers[dict_ptr.segment_index] = DictTracker(
+            data=data, current_ptr=current_ptr
+        )
+    else:
+        default_value = (
+            data.default_factory() if isinstance(data, defaultdict) else None
+        )
+        dict_manager.trackers[dict_ptr.segment_index] = RustDictTracker(
+            data=data,
+            current_ptr=current_ptr,
+            default_value=default_value,
+        )
+
+    base = segments.add()
+
+    # The last element is the original_segment_stop pointer.
+    # Because this is a new dict, this is 0 (null ptr).
+    # This does not apply to stack and memory (hash_mode=False), in which case there's only 2 elements.
+    data_to_load = (
+        [dict_ptr, current_ptr, parent_ptr or 0]
+        if (hash_mode is not False)
+        else [dict_ptr, current_ptr]
+    )
+    segments.load_data(base, data_to_load)
+    return base
 
 
 def _bind_generics(type_hint, bindings):
