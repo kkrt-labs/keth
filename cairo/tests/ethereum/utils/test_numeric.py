@@ -1,4 +1,3 @@
-import pytest
 from ethereum_types.bytes import Bytes32
 from ethereum_types.numeric import U256, Uint
 from hypothesis import given
@@ -8,10 +7,8 @@ from starkware.cairo.lang.instances import PRIME
 from ethereum.cancun.fork_types import Address
 from ethereum.cancun.vm.gas import BLOB_GASPRICE_UPDATE_FRACTION, MIN_BLOB_GASPRICE
 from ethereum.utils.numeric import ceil32, taylor_exponential
-from tests.utils.errors import cairo_error
+from tests.utils.errors import strict_raises
 from tests.utils.strategies import felt, uint128
-
-pytestmark = pytest.mark.python_vm
 
 
 class TestNumeric:
@@ -90,22 +87,20 @@ class TestNumeric:
     @given(a=..., b=...)
     def test_U256_add(self, cairo_run, a: U256, b: U256):
         try:
-            a + b
+            cairo_result = cairo_run("U256_add", a, b)
         except Exception as e:
-            with cairo_error(str(e.__class__.__name__)):
-                cairo_result = cairo_run("U256_add", a, b)
+            with strict_raises(type(e)):
+                a + b
             return
-        cairo_result = cairo_run("U256_add", a, b)
         assert cairo_result == a + b
 
     @given(a=..., b=...)
     def test_U256_sub(self, cairo_run, a: U256, b: U256):
         try:
-            a - b
+            cairo_result = cairo_run("U256_sub", a, b)
         except Exception as e:
-            with cairo_error(str(e.__class__.__name__)):
-                cairo_result = cairo_run("U256_sub", a, b)
+            with strict_raises(type(e)):
+                a - b
             return
 
-        cairo_result = cairo_run("U256_sub", a, b)
         assert cairo_result == a - b

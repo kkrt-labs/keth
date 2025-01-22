@@ -8,6 +8,7 @@ use cairo_vm::{
         relocatable::{MaybeRelocatable, Relocatable},
     },
     vm::{
+        errors::vm_exception::VmException,
         runners::{builtin_runner::BuiltinRunner, cairo_runner::CairoRunner as RustCairoRunner},
         security::verify_secure_runner,
     },
@@ -150,6 +151,7 @@ impl PyCairoRunner {
 
         self.inner
             .run_until_pc(address.inner, &mut hint_processor)
+            .map_err(|e| VmException::from_vm_error(&self.inner, e))
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
 
         self.inner

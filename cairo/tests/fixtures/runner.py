@@ -12,6 +12,7 @@ import json
 import logging
 import marshal
 import math
+import re
 from functools import partial
 from hashlib import md5
 from pathlib import Path
@@ -237,9 +238,7 @@ def _run_python_vm(cairo_program: Program, cairo_file, main_path, request):
         try:
             runner.run_until_pc(end, run_resources)
         except Exception as e:
-            if "An ASSERT_EQ instruction failed" in str(e):
-                raise AssertionError(e) from e
-            raise Exception(str(e)) from e
+            map_to_python_exception(e)
 
         runner.end_run(disable_trace_padding=False)
         cumulative_retdata_offsets = serde.get_offsets(return_data_types)
@@ -458,9 +457,7 @@ def _run_rust_vm(
         try:
             runner.run_until_pc(end, RustRunResources())
         except Exception as e:
-            if "An ASSERT_EQ instruction failed" in str(e):
-                raise AssertionError(e) from e
-            raise Exception(str(e)) from e
+            map_to_python_exception(e)
 
         cumulative_retdata_offsets = serde.get_offsets(return_data_types)
         first_return_data_offset = (
@@ -560,3 +557,20 @@ def cairo_run(
         return _run_python_vm(cairo_program, cairo_file, main_path, request)
 
     return _run_rust_vm(cairo_program, rust_program, cairo_file, main_path, request)
+
+
+def map_to_python_exception(e: Exception):
+    error_str = str(e)
+
+    # Throw a specialized python exception from the error message, if possible
+    error_type = None
+    error = re.search(r"Error message: (.*)", error_str)
+    error_type = error.group(1) if error else error_str
+    exception_class = __builtins__.get(error_type)
+    if isinstance(exception_class, type) and issubclass(exception_class, Exception):
+        raise exception_class() from e
+
+    # Fallback to generic exception
+    if "An ASSERT_EQ instruction failed" in error_str:
+        raise AssertionError(e) from e
+    raise Exception(error_str) from e
