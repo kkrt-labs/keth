@@ -1,6 +1,5 @@
 from hypothesis import given
 
-from ethereum.cancun.vm.exceptions import ExceptionalHalt
 from ethereum.cancun.vm.instructions.bitwise import (
     bitwise_and,
     bitwise_not,
@@ -11,6 +10,7 @@ from ethereum.cancun.vm.instructions.bitwise import (
     bitwise_xor,
     get_byte,
 )
+from ethereum.exceptions import EthereumException
 from tests.utils.args_gen import Evm
 from tests.utils.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder
@@ -23,7 +23,7 @@ class TestBitwise:
     def test_and(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("bitwise_and", evm)
-        except ExceptionalHalt as cairo_error:
+        except EthereumException as cairo_error:
             with strict_raises(type(cairo_error)):
                 bitwise_and(evm)
             return
@@ -35,7 +35,7 @@ class TestBitwise:
     def test_or(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("bitwise_or", evm)
-        except ExceptionalHalt as cairo_error:
+        except EthereumException as cairo_error:
             with strict_raises(type(cairo_error)):
                 bitwise_or(evm)
             return
@@ -47,7 +47,7 @@ class TestBitwise:
     def test_xor(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("bitwise_xor", evm)
-        except ExceptionalHalt as cairo_error:
+        except EthereumException as cairo_error:
             with strict_raises(type(cairo_error)):
                 bitwise_xor(evm)
             return
@@ -59,7 +59,7 @@ class TestBitwise:
     def test_not(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("bitwise_not", evm)
-        except ExceptionalHalt as cairo_error:
+        except EthereumException as cairo_error:
             with strict_raises(type(cairo_error)):
                 bitwise_not(evm)
             return
@@ -71,7 +71,7 @@ class TestBitwise:
     def test_get_byte(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("get_byte", evm)
-        except ExceptionalHalt as cairo_error:
+        except EthereumException as cairo_error:
             with strict_raises(type(cairo_error)):
                 get_byte(evm)
             return
@@ -83,7 +83,7 @@ class TestBitwise:
     def test_shl(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("bitwise_shl", evm)
-        except ExceptionalHalt as cairo_error:
+        except EthereumException as cairo_error:
             with strict_raises(type(cairo_error)):
                 bitwise_shl(evm)
             return
@@ -95,7 +95,7 @@ class TestBitwise:
     def test_shr(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("bitwise_shr", evm)
-        except ExceptionalHalt as cairo_error:
+        except EthereumException as cairo_error:
             with strict_raises(type(cairo_error)):
                 bitwise_shr(evm)
             return
@@ -107,7 +107,7 @@ class TestBitwise:
     def test_sar(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("bitwise_sar", evm)
-        except ExceptionalHalt as cairo_error:
+        except EthereumException as cairo_error:
             with strict_raises(type(cairo_error)):
                 bitwise_sar(evm)
             return

@@ -3,7 +3,8 @@ from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 
 from ethereum.cancun.vm.stack import pop
 from ethereum.cancun.vm import Evm, EvmImpl
-from ethereum.cancun.vm.exceptions import ExceptionalHalt, WriteInStaticContext, OutOfGasError
+from ethereum.exceptions import EthereumException
+from ethereum.cancun.vm.exceptions import WriteInStaticContext, OutOfGasError
 from ethereum.cancun.vm.memory import memory_read_bytes, expand_by
 from ethereum.cancun.vm.gas import calculate_gas_extend_memory, charge_gas, GasConstants
 from ethereum.utils.numeric import U256_to_be_bytes
@@ -18,7 +19,7 @@ from ethereum_types.others import (
 from ethereum.cancun.blocks import Log, LogStruct, TupleLog, TupleLogStruct
 
 // @notice LOG0 instruction - append log record with no topics
-func log0{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+func log0{range_check_ptr, evm: Evm}() -> EthereumException* {
     alloc_locals;
     const NUM_TOPICS = 0;
 
@@ -40,7 +41,7 @@ func log0{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
     // Calculate memory expansion cost
     // If the size is greater than 2**128, the memory expansion will trigger an out of gas error.
     if (size.value.high != 0) {
-        tempvar err = new ExceptionalHalt(OutOfGasError);
+        tempvar err = new EthereumException(OutOfGasError);
         return err;
     }
 
@@ -76,7 +77,7 @@ func log0{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
 
     // Check for static context
     if (evm.value.message.value.is_static.value != 0) {
-        tempvar err = new ExceptionalHalt(WriteInStaticContext);
+        tempvar err = new EthereumException(WriteInStaticContext);
         return err;
     }
 
@@ -88,12 +89,12 @@ func log0{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
 
     // PROGRAM COUNTER
     EvmImpl.set_pc_stack_memory(Uint(evm.value.pc.value + 1), stack, memory);
-    let ok = cast(0, ExceptionalHalt*);
+    let ok = cast(0, EthereumException*);
     return ok;
 }
 
 // @notice LOG1 instruction - append log record with one topic
-func log1{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> ExceptionalHalt* {
+func log1{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> EthereumException* {
     alloc_locals;
     const NUM_TOPICS = 1;
 
@@ -119,7 +120,7 @@ func log1{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Exceptio
     // Calculate memory expansion cost
     // If the size is greater than 2**128, the memory expansion will trigger an out of gas error.
     if (size.value.high != 0) {
-        tempvar err = new ExceptionalHalt(OutOfGasError);
+        tempvar err = new EthereumException(OutOfGasError);
         return err;
     }
 
@@ -157,7 +158,7 @@ func log1{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Exceptio
 
     // Check for static context
     if (evm.value.message.value.is_static.value != 0) {
-        tempvar err = new ExceptionalHalt(WriteInStaticContext);
+        tempvar err = new EthereumException(WriteInStaticContext);
         return err;
     }
 
@@ -169,12 +170,12 @@ func log1{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Exceptio
 
     // PROGRAM COUNTER
     EvmImpl.set_pc_stack_memory(Uint(evm.value.pc.value + 1), stack, memory);
-    let ok = cast(0, ExceptionalHalt*);
+    let ok = cast(0, EthereumException*);
     return ok;
 }
 
 // @notice LOG2 instruction - append log record with two topics
-func log2{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> ExceptionalHalt* {
+func log2{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> EthereumException* {
     alloc_locals;
     const NUM_TOPICS = 2;
 
@@ -204,7 +205,7 @@ func log2{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Exceptio
     // Calculate memory expansion cost
     // If the size is greater than 2**128, the memory expansion will trigger an out of gas error.
     if (size.value.high != 0) {
-        tempvar err = new ExceptionalHalt(OutOfGasError);
+        tempvar err = new EthereumException(OutOfGasError);
         return err;
     }
 
@@ -245,7 +246,7 @@ func log2{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Exceptio
 
     // Check for static context
     if (evm.value.message.value.is_static.value != 0) {
-        tempvar err = new ExceptionalHalt(WriteInStaticContext);
+        tempvar err = new EthereumException(WriteInStaticContext);
         return err;
     }
 
@@ -257,12 +258,12 @@ func log2{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Exceptio
 
     // PROGRAM COUNTER
     EvmImpl.set_pc_stack_memory(Uint(evm.value.pc.value + 1), stack, memory);
-    let ok = cast(0, ExceptionalHalt*);
+    let ok = cast(0, EthereumException*);
     return ok;
 }
 
 // @notice LOG3 instruction - append log record with three topics
-func log3{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> ExceptionalHalt* {
+func log3{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> EthereumException* {
     alloc_locals;
     const NUM_TOPICS = 3;
 
@@ -296,7 +297,7 @@ func log3{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Exceptio
     // Calculate memory expansion cost
     // If the size is greater than 2**128, the memory expansion will trigger an out of gas error.
     if (size.value.high != 0) {
-        tempvar err = new ExceptionalHalt(OutOfGasError);
+        tempvar err = new EthereumException(OutOfGasError);
         return err;
     }
 
@@ -339,7 +340,7 @@ func log3{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Exceptio
 
     // Check for static context
     if (evm.value.message.value.is_static.value != 0) {
-        tempvar err = new ExceptionalHalt(WriteInStaticContext);
+        tempvar err = new EthereumException(WriteInStaticContext);
         return err;
     }
 
@@ -351,12 +352,12 @@ func log3{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Exceptio
 
     // PROGRAM COUNTER
     EvmImpl.set_pc_stack_memory(Uint(evm.value.pc.value + 1), stack, memory);
-    let ok = cast(0, ExceptionalHalt*);
+    let ok = cast(0, EthereumException*);
     return ok;
 }
 
 // @notice LOG4 instruction - append log record with four topics
-func log4{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> ExceptionalHalt* {
+func log4{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> EthereumException* {
     alloc_locals;
     const NUM_TOPICS = 4;
 
@@ -394,7 +395,7 @@ func log4{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Exceptio
     // Calculate memory expansion cost
     // If the size is greater than 2**128, the memory expansion will trigger an out of gas error.
     if (size.value.high != 0) {
-        tempvar err = new ExceptionalHalt(OutOfGasError);
+        tempvar err = new EthereumException(OutOfGasError);
         return err;
     }
 
@@ -439,7 +440,7 @@ func log4{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Exceptio
 
     // Check for static context
     if (evm.value.message.value.is_static.value != 0) {
-        tempvar err = new ExceptionalHalt(WriteInStaticContext);
+        tempvar err = new EthereumException(WriteInStaticContext);
         return err;
     }
 
@@ -451,6 +452,6 @@ func log4{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Exceptio
 
     // PROGRAM COUNTER
     EvmImpl.set_pc_stack_memory(Uint(evm.value.pc.value + 1), stack, memory);
-    let ok = cast(0, ExceptionalHalt*);
+    let ok = cast(0, EthereumException*);
     return ok;
 }

@@ -1,9 +1,9 @@
 from ethereum_types.numeric import U256
 from hypothesis import given
 
-from ethereum.cancun.vm.exceptions import ExceptionalHalt
 from ethereum.cancun.vm.instructions.log import log0, log1, log2, log3, log4
 from ethereum.cancun.vm.stack import push
+from ethereum.exceptions import EthereumException
 from tests.utils.args_gen import Evm
 from tests.utils.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder
@@ -23,7 +23,7 @@ class TestLog:
         push(evm.stack, size)
         try:
             cairo_result = cairo_run("log0", evm)
-        except ExceptionalHalt as cairo_error:
+        except EthereumException as cairo_error:
             with strict_raises(type(cairo_error)):
                 log0(evm)
             return
@@ -45,7 +45,7 @@ class TestLog:
         push(evm.stack, topic1)
         try:
             cairo_result = cairo_run("log1", evm)
-        except ExceptionalHalt as cairo_error:
+        except EthereumException as cairo_error:
             with strict_raises(type(cairo_error)):
                 log1(evm)
             return
@@ -75,7 +75,7 @@ class TestLog:
         push(evm.stack, topic2)
         try:
             cairo_result = cairo_run("log2", evm)
-        except ExceptionalHalt as cairo_error:
+        except EthereumException as cairo_error:
             with strict_raises(type(cairo_error)):
                 log2(evm)
             return
@@ -108,7 +108,7 @@ class TestLog:
         push(evm.stack, topic3)
         try:
             cairo_result = cairo_run("log3", evm)
-        except ExceptionalHalt as cairo_error:
+        except EthereumException as cairo_error:
             with strict_raises(type(cairo_error)):
                 log3(evm)
             return
@@ -144,7 +144,7 @@ class TestLog:
         push(evm.stack, topic4)
         try:
             cairo_result = cairo_run("log4", evm)
-        except ExceptionalHalt as cairo_error:
+        except EthereumException as cairo_error:
             with strict_raises(type(cairo_error)):
                 log4(evm)
             return

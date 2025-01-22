@@ -4,12 +4,12 @@ from starkware.cairo.common.uint256 import uint256_eq, Uint256
 from src.utils.uint256 import uint256_lt, uint256_signed_lt
 from ethereum.cancun.vm.stack import Stack, pop, push
 from ethereum.cancun.vm import Evm, EvmImpl
-from ethereum.cancun.vm.exceptions import ExceptionalHalt
+from ethereum.exceptions import EthereumException
 from ethereum_types.numeric import U256, U256Struct, Uint
 from ethereum.cancun.vm.gas import charge_gas, GasConstants
 
 // @notice Checks if the top element is less than the next top element
-func less_than{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+func less_than{range_check_ptr, evm: Evm}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -42,12 +42,12 @@ func less_than{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
     // PROGRAM COUNTER
     EvmImpl.set_stack(stack);
     EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
-    let ok = cast(0, ExceptionalHalt*);
+    let ok = cast(0, EthereumException*);
     return ok;
 }
 
 // @notice Checks if the top element is greater than the next top element
-func greater_than{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+func greater_than{range_check_ptr, evm: Evm}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -80,12 +80,12 @@ func greater_than{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
     // PROGRAM COUNTER
     EvmImpl.set_stack(stack);
     EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
-    let ok = cast(0, ExceptionalHalt*);
+    let ok = cast(0, EthereumException*);
     return ok;
 }
 
 // @notice Signed less-than comparison
-func signed_less_than{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+func signed_less_than{range_check_ptr, evm: Evm}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -118,12 +118,12 @@ func signed_less_than{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
     // PROGRAM COUNTER
     EvmImpl.set_stack(stack);
     EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
-    let ok = cast(0, ExceptionalHalt*);
+    let ok = cast(0, EthereumException*);
     return ok;
 }
 
 // @notice Signed greater-than comparison
-func signed_greater_than{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+func signed_greater_than{range_check_ptr, evm: Evm}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -156,12 +156,12 @@ func signed_greater_than{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
     // PROGRAM COUNTER
     EvmImpl.set_stack(stack);
     EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
-    let ok = cast(0, ExceptionalHalt*);
+    let ok = cast(0, EthereumException*);
     return ok;
 }
 
 // @notice Checks if the top element is equal to the next top element
-func equal{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+func equal{range_check_ptr, evm: Evm}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -194,12 +194,12 @@ func equal{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
     // PROGRAM COUNTER
     EvmImpl.set_stack(stack);
     EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
-    let ok = cast(0, ExceptionalHalt*);
+    let ok = cast(0, EthereumException*);
     return ok;
 }
 
 // @notice Checks if the top element is equal to zero
-func is_zero{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+func is_zero{range_check_ptr, evm: Evm}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -228,6 +228,6 @@ func is_zero{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
     // PROGRAM COUNTER
     EvmImpl.set_stack(stack);
     EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
-    let ok = cast(0, ExceptionalHalt*);
+    let ok = cast(0, EthereumException*);
     return ok;
 }

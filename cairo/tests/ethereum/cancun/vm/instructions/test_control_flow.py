@@ -1,7 +1,6 @@
 from ethereum_types.numeric import U256
 from hypothesis import given
 
-from ethereum.cancun.vm.exceptions import ExceptionalHalt
 from ethereum.cancun.vm.instructions.control_flow import (
     gas_left,
     jump,
@@ -11,6 +10,7 @@ from ethereum.cancun.vm.instructions.control_flow import (
     stop,
 )
 from ethereum.cancun.vm.stack import push
+from ethereum.exceptions import EthereumException
 from tests.utils.args_gen import Evm
 from tests.utils.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder
@@ -21,7 +21,7 @@ class TestControlFlow:
     def test_stop(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("stop", evm)
-        except ExceptionalHalt as cairo_error:
+        except EthereumException as cairo_error:
             with strict_raises(type(cairo_error)):
                 stop(evm)
             return
@@ -48,7 +48,7 @@ class TestControlFlow:
 
         try:
             cairo_result = cairo_run("jump", evm)
-        except ExceptionalHalt as cairo_error:
+        except EthereumException as cairo_error:
             with strict_raises(type(cairo_error)):
                 jump(evm)
             return
@@ -83,7 +83,7 @@ class TestControlFlow:
 
         try:
             cairo_result = cairo_run("jumpi", evm)
-        except ExceptionalHalt as cairo_error:
+        except EthereumException as cairo_error:
             with strict_raises(type(cairo_error)):
                 jumpi(evm)
             return
@@ -95,7 +95,7 @@ class TestControlFlow:
     def test_pc(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("pc", evm)
-        except ExceptionalHalt as cairo_error:
+        except EthereumException as cairo_error:
             with strict_raises(type(cairo_error)):
                 pc(evm)
             return
@@ -107,7 +107,7 @@ class TestControlFlow:
     def test_gas_left(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("gas_left", evm)
-        except ExceptionalHalt as cairo_error:
+        except EthereumException as cairo_error:
             with strict_raises(type(cairo_error)):
                 gas_left(evm)
             return
@@ -119,7 +119,7 @@ class TestControlFlow:
     def test_jumpdest(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("jumpdest", evm)
-        except ExceptionalHalt as cairo_error:
+        except EthereumException as cairo_error:
             with strict_raises(type(cairo_error)):
                 jumpdest(evm)
             return

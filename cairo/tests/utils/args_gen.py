@@ -127,7 +127,6 @@ from ethereum.cancun.trie import (
 from ethereum.cancun.vm import Environment as EnvironmentBase
 from ethereum.cancun.vm import Evm as EvmBase
 from ethereum.cancun.vm import Message as MessageBase
-from ethereum.cancun.vm.exceptions import ExceptionalHalt
 from ethereum.cancun.vm.gas import ExtendMemory, MessageCallGas
 from ethereum.crypto.hash import Hash32
 from ethereum.exceptions import EthereumException
@@ -926,7 +925,7 @@ def to_cairo_type(program: Program, type_name: Type):
     }
 
     if isinstance(type_name, type) and issubclass(type_name, Exception):
-        scope = ScopedName(_python_type_to_cairo_struct[ExceptionalHalt])
+        scope = ScopedName(_python_type_to_cairo_struct[EthereumException])
     else:
         scope = ScopedName(
             _python_type_to_cairo_struct[_type_aliases.get(type_name, type_name)]

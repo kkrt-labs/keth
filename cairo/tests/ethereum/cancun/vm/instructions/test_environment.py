@@ -4,7 +4,6 @@ from hypothesis import strategies as st
 from hypothesis.strategies import composite, integers
 
 from ethereum.cancun.state import TransientStorage
-from ethereum.cancun.vm.exceptions import ExceptionalHalt
 from ethereum.cancun.vm.instructions.environment import (
     address,
     balance,
@@ -28,6 +27,7 @@ from ethereum.cancun.vm.instructions.environment import (
     self_balance,
 )
 from ethereum.cancun.vm.stack import push
+from ethereum.exceptions import EthereumException
 from tests.utils.args_gen import Environment, Evm, VersionedHash
 from tests.utils.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder
@@ -304,7 +304,7 @@ class TestEnvironmentInstructions:
     def test_blob_hash(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("blob_hash", evm)
-        except ExceptionalHalt as cairo_error:
+        except EthereumException as cairo_error:
             with strict_raises(type(cairo_error)):
                 blob_hash(evm)
             return
@@ -328,7 +328,7 @@ class TestEnvironmentInstructions:
     def test_extcodesize(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("extcodesize", evm)
-        except ExceptionalHalt as cairo_error:
+        except EthereumException as cairo_error:
             with strict_raises(type(cairo_error)):
                 extcodesize(evm)
             return
@@ -340,7 +340,7 @@ class TestEnvironmentInstructions:
     def test_extcodecopy(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("extcodecopy", evm)
-        except ExceptionalHalt as cairo_error:
+        except EthereumException as cairo_error:
             with strict_raises(type(cairo_error)):
                 extcodecopy(evm)
             return
@@ -352,7 +352,7 @@ class TestEnvironmentInstructions:
     def test_extcodehash(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("extcodehash", evm)
-        except ExceptionalHalt as cairo_error:
+        except EthereumException as cairo_error:
             with strict_raises(type(cairo_error)):
                 extcodehash(evm)
             return
@@ -364,7 +364,7 @@ class TestEnvironmentInstructions:
     def test_blob_base_fee(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("blob_base_fee", evm)
-        except ExceptionalHalt as cairo_error:
+        except EthereumException as cairo_error:
             with strict_raises(type(cairo_error)):
                 blob_base_fee(evm)
             return
@@ -382,7 +382,7 @@ class TestEnvironmentInstructions:
     def test_calldataload(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("calldataload", evm)
-        except ExceptionalHalt as cairo_error:
+        except EthereumException as cairo_error:
             with strict_raises(type(cairo_error)):
                 calldataload(evm)
             return
@@ -394,7 +394,7 @@ class TestEnvironmentInstructions:
     def test_calldatacopy(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("calldatacopy", evm)
-        except ExceptionalHalt as cairo_error:
+        except EthereumException as cairo_error:
             with strict_raises(type(cairo_error)):
                 calldatacopy(evm)
             return
@@ -412,7 +412,7 @@ class TestEnvironmentInstructions:
     def test_calldatasize(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("calldatasize", evm)
-        except ExceptionalHalt as cairo_error:
+        except EthereumException as cairo_error:
             with strict_raises(type(cairo_error)):
                 calldatasize(evm)
             return

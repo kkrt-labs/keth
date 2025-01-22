@@ -1,7 +1,9 @@
-struct ExceptionalHalt {
-    value: felt,
-}
+from ethereum.exceptions import EthereumException
 
+// Revert
+const Revert = 'Revert';
+
+// Exceptional halt
 const StackUnderflowError = 'StackUnderflowError';
 const StackOverflowError = 'StackOverflowError';
 const OutOfGasError = 'OutOfGasError';
@@ -15,9 +17,9 @@ const InvalidContractPrefix = 'InvalidContractPrefix';
 const AddressCollision = 'AddressCollision';
 const KZGProofError = 'KZGProofError';
 
-func InvalidOpcodeError(param: felt) -> ExceptionalHalt {
+func InvalidOpcodeError(param: felt) -> EthereumException {
     let param = param * 2 ** 30;
     let error_string = InvalidOpcode + param;
-    let res = ExceptionalHalt(error_string);
+    let res = EthereumException(error_string);
     return res;
 }

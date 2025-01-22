@@ -1,9 +1,9 @@
 from ethereum_types.numeric import U256
 from hypothesis import given
 
-from ethereum.cancun.vm.exceptions import ExceptionalHalt
 from ethereum.cancun.vm.instructions.keccak import keccak
 from ethereum.cancun.vm.stack import push
+from ethereum.exceptions import EthereumException
 from tests.utils.args_gen import Evm
 from tests.utils.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder
@@ -24,7 +24,7 @@ class TestKeccak:
         push(evm.stack, size)
         try:
             cairo_result = cairo_run("keccak", evm)
-        except ExceptionalHalt as cairo_error:
+        except EthereumException as cairo_error:
             with strict_raises(type(cairo_error)):
                 keccak(evm)
             return
