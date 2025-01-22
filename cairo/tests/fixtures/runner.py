@@ -563,7 +563,6 @@ def map_to_python_exception(e: Exception):
     error_str = str(e)
 
     # Throw a specialized python exception from the error message, if possible
-    error_type = None
     error = re.search(r"Error message: (.*)", error_str)
     error_type = error.group(1) if error else error_str
     exception_class = __builtins__.get(error_type)
