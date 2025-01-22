@@ -47,6 +47,7 @@ from ethereum.utils.numeric import (
 
 from src.utils.bytes import felt_to_bytes20_little
 from src.utils.dict import hashdict_read, hashdict_write
+from src.utils.utils import Helpers
 
 // @notice Pushes the address of the current executing account to the stack.
 func address{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> ExceptionalHalt* {
@@ -824,6 +825,130 @@ func blob_base_fee{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
         }
     }
 
+    EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
+
+    let ok = cast(0, ExceptionalHalt*);
+    return ok;
+}
+
+// @notice Load input data from the current environment's call data
+func calldataload{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    alloc_locals;
+
+    // STACK
+    let stack = evm.value.stack;
+    with stack {
+        let (offset, err) = pop();
+        if (cast(err, felt) != 0) {
+            return err;
+        }
+    }
+
+    // GAS
+    let err = charge_gas(Uint(GasConstants.GAS_VERY_LOW));
+    if (cast(err, felt) != 0) {
+        return err;
+    }
+
+    // OPERATION
+    let calldata = evm.value.message.value.data;
+    let data = buffer_read(calldata, offset, U256(new U256Struct(32, 0)));
+    let data_u256 = Helpers.bytes_to_uint256(data.value.len, data.value.data);
+    tempvar data_to_push = U256(new U256Struct(data_u256.low, data_u256.high));
+
+    with stack {
+        let err = push(data_to_push);
+        if (cast(err, felt) != 0) {
+            return err;
+        }
+    }
+
+    // PROGRAM COUNTER
+    EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
+    let ok = cast(0, ExceptionalHalt*);
+    return ok;
+}
+
+// @notice Copy a portion of the input data in current environment to memory
+func calldatacopy{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    alloc_locals;
+
+    // STACK
+    let stack = evm.value.stack;
+    with stack {
+        let (memory_start_index, err) = pop();
+        if (cast(err, felt) != 0) {
+            return err;
+        }
+        let (data_start_index, err) = pop();
+        if (cast(err, felt) != 0) {
+            return err;
+        }
+        let (size, err) = pop();
+        if (cast(err, felt) != 0) {
+            return err;
+        }
+    }
+
+    // GAS
+    // OutOfGasError if size > 2**128
+    if (size.value.high != 0) {
+        tempvar err = new ExceptionalHalt(OutOfGasError);
+        return err;
+    }
+
+    let ceil32_size = ceil32(Uint(size.value.low));
+    let (words, _) = divmod(ceil32_size.value, 32);
+    let copy_gas_cost = GasConstants.GAS_COPY * words;
+
+    // Calculate memory expansion cost
+    tempvar extensions_tuple = new TupleU256U256(new TupleU256U256Struct(memory_start_index, size));
+    tempvar extensions_list = ListTupleU256U256(new ListTupleU256U256Struct(extensions_tuple, 1));
+    let extend_memory = calculate_gas_extend_memory(evm.value.memory, extensions_list);
+
+    let err = charge_gas(
+        Uint(GasConstants.GAS_VERY_LOW + copy_gas_cost + extend_memory.value.cost.value)
+    );
+    if (cast(err, felt) != 0) {
+        return err;
+    }
+
+    // OPERATION
+    let memory = evm.value.memory;
+    with memory {
+        expand_by(extend_memory.value.expand_by);
+        let value = buffer_read(evm.value.message.value.data, data_start_index, size);
+        memory_write(memory_start_index, value);
+    }
+
+    // PROGRAM COUNTER
+    EvmImpl.set_pc_stack_memory(Uint(evm.value.pc.value + 1), stack, memory);
+    let ok = cast(0, ExceptionalHalt*);
+    return ok;
+}
+
+func calldatasize{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    alloc_locals;
+    // STACK
+    // No stack input
+    let stack = evm.value.stack;
+
+    // GAS
+    let err = charge_gas(Uint(GasConstants.GAS_BASE));
+    if (cast(err, felt) != 0) {
+        return err;
+    }
+
+    // OPERATION
+    let calldata_len = evm.value.message.value.data.value.len;
+    with stack {
+        let err = push(U256(new U256Struct(calldata_len, 0)));
+        if (cast(err, felt) != 0) {
+            return err;
+        }
+    }
+
+    // PROGRAM COUNTER
     EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
 
     let ok = cast(0, ExceptionalHalt*);

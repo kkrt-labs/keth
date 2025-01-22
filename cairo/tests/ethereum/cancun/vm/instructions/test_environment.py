@@ -11,6 +11,9 @@ from ethereum.cancun.vm.instructions.environment import (
     base_fee,
     blob_base_fee,
     blob_hash,
+    calldatacopy,
+    calldataload,
+    calldatasize,
     caller,
     callvalue,
     codecopy,
@@ -28,14 +31,15 @@ from ethereum.cancun.vm.stack import push
 from tests.utils.args_gen import Environment, Evm, VersionedHash
 from tests.utils.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder
-from tests.utils.strategies import MAX_CODE_SIZE
+from tests.utils.message_builder import MessageBuilder
+from tests.utils.strategies import MAX_CODE_SIZE, MAX_MEMORY_SIZE
 from tests.utils.strategies import address as address_strategy
 from tests.utils.strategies import (
+    bounded_u256_strategy,
     code,
     empty_state,
     excess_blob_gas,
     memory_lite,
-    memory_lite_start_position,
 )
 
 environment_empty_state = st.builds(
@@ -59,22 +63,12 @@ environment_empty_state = st.builds(
     transient_storage=st.just(TransientStorage()),
 )
 
+message_empty_except_calldata = MessageBuilder().with_data(code).build()
+
+
 evm_environment_strategy = (
     EvmBuilder().with_gas_left().with_env(environment_empty_state).build()
 )
-
-evm_environment_strategy_with_return_data = (
-    EvmBuilder()
-    .with_memory()
-    .with_gas_left()
-    .with_env(environment_empty_state)
-    .with_return_data()
-    .with_capped_values_stack()
-    .build()
-)
-
-code_access_size_strategy = st.integers(min_value=0, max_value=MAX_CODE_SIZE).map(U256)
-code_start_index_strategy = code_access_size_strategy
 
 
 @composite
@@ -93,16 +87,47 @@ def codecopy_strategy(draw):
         .with_memory(strategy=memory_lite)
         .build()
     )
-    memory_start_index = draw(memory_lite_start_position)
-    code_start_index = draw(code_start_index_strategy)
-    size = draw(code_access_size_strategy)
+    memory_start_index = draw(bounded_u256_strategy(max_value=MAX_MEMORY_SIZE))
+    code_start_index = draw(bounded_u256_strategy(max_value=MAX_CODE_SIZE))
+    size = draw(bounded_u256_strategy(max_value=MAX_CODE_SIZE * 2))
 
     # 80% chance to push valid values onto stack
     should_push = draw(integers(0, 99)) < 80
     if should_push:
-        push(evm.stack, U256(size))
-        push(evm.stack, U256(code_start_index))
-        push(evm.stack, U256(memory_start_index))
+        push(evm.stack, size)
+        push(evm.stack, code_start_index)
+        push(evm.stack, memory_start_index)
+
+    return evm
+
+
+@composite
+def calldatacopy_strategy(draw):
+    """Generate test cases for the calldatacopy instruction.
+
+    This strategy generates an EVM instance and the required parameters for calldatacopy.
+    - 8/10 chance: pushes all parameters onto the stack to test normal operation
+    - 2/10 chance: use stack already populated with values, mostly to test error cases
+    """
+    evm = draw(
+        EvmBuilder()
+        .with_stack()
+        .with_gas_left()
+        .with_memory()
+        .with_message(strategy=message_empty_except_calldata)
+        .build()
+    )
+
+    memory_start_index = draw(bounded_u256_strategy(max_value=MAX_MEMORY_SIZE))
+    data_start_index = draw(bounded_u256_strategy(max_value=MAX_CODE_SIZE))
+    size = draw(bounded_u256_strategy(max_value=MAX_CODE_SIZE * 2))
+
+    # 80% chance to push valid values onto stack
+    should_push = draw(integers(0, 99)) < 80
+    if should_push:
+        push(evm.stack, size)
+        push(evm.stack, data_start_index)
+        push(evm.stack, memory_start_index)
 
     return evm
 
@@ -231,7 +256,15 @@ class TestEnvironmentInstructions:
         returndatasize(evm)
         assert evm == cairo_result
 
-    @given(evm=evm_environment_strategy_with_return_data)
+    @given(
+        evm=EvmBuilder()
+        .with_memory()
+        .with_gas_left()
+        .with_env(environment_empty_state)
+        .with_return_data()
+        .with_capped_values_stack()
+        .build()
+    )
     def test_returndatacopy(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("returndatacopy", evm)
@@ -337,4 +370,52 @@ class TestEnvironmentInstructions:
             return
 
         blob_base_fee(evm)
+        assert evm == cairo_result
+
+    @given(
+        evm=EvmBuilder()
+        .with_stack()
+        .with_gas_left()
+        .with_message(strategy=message_empty_except_calldata)
+        .build()
+    )
+    def test_calldataload(self, cairo_run, evm: Evm):
+        try:
+            cairo_result = cairo_run("calldataload", evm)
+        except ExceptionalHalt as cairo_error:
+            with strict_raises(type(cairo_error)):
+                calldataload(evm)
+            return
+
+        calldataload(evm)
+        assert evm == cairo_result
+
+    @given(evm=calldatacopy_strategy())
+    def test_calldatacopy(self, cairo_run, evm: Evm):
+        try:
+            cairo_result = cairo_run("calldatacopy", evm)
+        except ExceptionalHalt as cairo_error:
+            with strict_raises(type(cairo_error)):
+                calldatacopy(evm)
+            return
+
+        calldatacopy(evm)
+        assert evm == cairo_result
+
+    @given(
+        evm=EvmBuilder()
+        .with_stack()
+        .with_gas_left()
+        .with_message(strategy=message_empty_except_calldata)
+        .build()
+    )
+    def test_calldatasize(self, cairo_run, evm: Evm):
+        try:
+            cairo_result = cairo_run("calldatasize", evm)
+        except ExceptionalHalt as cairo_error:
+            with strict_raises(type(cairo_error)):
+                calldatasize(evm)
+            return
+
+        calldatasize(evm)
         assert evm == cairo_result
