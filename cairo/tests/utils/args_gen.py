@@ -683,7 +683,9 @@ def _gen_arg(
         return struct_ptr
 
     if arg_type_origin in (dict, ChainMap, abc.Mapping, set):
-        return generate_dict_arg(dict_manager, segments, arg_type, arg_type_origin, arg)
+        return generate_dict_arg(
+            dict_manager, segments, arg_type, arg_type_origin, arg, hash_mode=hash_mode
+        )
 
     if arg_type in (Union[int, RustRelocatable], Union[int, RelocatableValue]):
         return arg
