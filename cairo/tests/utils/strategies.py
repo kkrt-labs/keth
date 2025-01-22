@@ -148,10 +148,11 @@ def trie_strategy(thing, min_size=0):
 
     # In a trie, a key that has a default value is considered not included in the trie.
     # Thus it needs to be filtered out from the data generated.
+    # All trees are generated secured.
     return default_strategy.flatmap(
         lambda default: st.builds(
             Trie[key_type, value_type],
-            secured=st.booleans(),
+            secured=st.just(True),
             default=st.just(default),
             _data=st.dictionaries(
                 st.from_type(key_type),

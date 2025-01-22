@@ -107,23 +107,32 @@ struct MappingAddressAccount {
     value: MappingAddressAccountStruct*,
 }
 
-struct Bytes32U256DictAccess {
-    // key is hashed.
-    key: HashedBytes32,
+struct ListTupleAddressBytes32 {
+    value: ListTupleAddressBytes32Struct*,
+}
+
+struct ListTupleAddressBytes32Struct {
+    data: TupleAddressBytes32*,
+    len: felt,
+}
+
+struct TupleAddressBytes32U256DictAccess {
+    // key is hashed address
+    key: HashedTupleAddressBytes32,
     prev_value: U256,
     new_value: U256,
 }
 
-struct MappingBytes32U256Struct {
-    dict_ptr_start: Bytes32U256DictAccess*,
-    dict_ptr: Bytes32U256DictAccess*,
+struct MappingTupleAddressBytes32U256Struct {
+    dict_ptr_start: TupleAddressBytes32U256DictAccess*,
+    dict_ptr: TupleAddressBytes32U256DictAccess*,
     // In case this is a copy of a previous dict,
     // this field points to the address of the original mapping.
-    original_mapping: MappingBytes32U256Struct*,
+    original_mapping: MappingTupleAddressBytes32U256Struct*,
 }
 
-struct MappingBytes32U256 {
-    value: MappingBytes32U256Struct*,
+struct MappingTupleAddressBytes32U256 {
+    value: MappingTupleAddressBytes32U256Struct*,
 }
 
 func EMPTY_ACCOUNT() -> Account {
