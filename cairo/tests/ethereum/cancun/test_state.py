@@ -25,6 +25,7 @@ from ethereum.cancun.state import (
     is_account_empty,
     mark_account_created,
     move_ether,
+    process_withdrawal,
     set_account,
     set_account_balance,
     set_code,
@@ -32,7 +33,7 @@ from ethereum.cancun.state import (
     set_transient_storage,
     touch_account,
 )
-from tests.utils.args_gen import State, TransientStorage
+from tests.utils.args_gen import State, TransientStorage, Withdrawal
 from tests.utils.errors import strict_raises
 from tests.utils.strategies import address, bytes32, code, state, transient_storage
 
@@ -164,6 +165,18 @@ class TestStateAccounts:
                 move_ether(state, sender_address, recipient_address, amount)
             return
         move_ether(state, sender_address, recipient_address, amount)
+        assert state_cairo == state
+
+    @given(data=state_and_address_and_optional_key(), withdrawal=...)
+    def test_process_withdrawal(self, cairo_run, data, withdrawal: Withdrawal):
+        state, _ = data
+        try:
+            state_cairo = cairo_run("process_withdrawal", state, withdrawal)
+        except Exception as cairo_error:
+            with strict_raises(type(cairo_error)):
+                process_withdrawal(state, withdrawal)
+            return
+        process_withdrawal(state, withdrawal)
         assert state_cairo == state
 
     @given(data=state_and_address_and_optional_key())
