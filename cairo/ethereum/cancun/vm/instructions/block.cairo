@@ -1,6 +1,6 @@
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bool import FALSE
-from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
+from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin, PoseidonBuiltin
 from starkware.cairo.common.math_cmp import is_nn, is_in_range
 
 from ethereum_types.numeric import U256, U256Struct, Uint
@@ -13,7 +13,13 @@ from src.utils.bytes import felt_to_bytes20_little
 from src.utils.utils import Helpers
 
 // @notice Get the hash of one of the 256 most recent complete blocks
-func block_hash{range_check_ptr, evm: Evm}() -> EthereumException* {
+func block_hash{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -45,7 +51,13 @@ func block_hash{range_check_ptr, evm: Evm}() -> EthereumException* {
 }
 
 // @notice Get the current block's beneficiary address
-func coinbase{range_check_ptr, evm: Evm}() -> EthereumException* {
+func coinbase{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -76,7 +88,13 @@ func coinbase{range_check_ptr, evm: Evm}() -> EthereumException* {
 }
 
 // @notice Get the current block's timestamp
-func timestamp{range_check_ptr, evm: Evm}() -> EthereumException* {
+func timestamp{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -102,7 +120,13 @@ func timestamp{range_check_ptr, evm: Evm}() -> EthereumException* {
 }
 
 // @notice Get the current block's number
-func number{range_check_ptr, evm: Evm}() -> EthereumException* {
+func number{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -128,7 +152,13 @@ func number{range_check_ptr, evm: Evm}() -> EthereumException* {
 }
 
 // @notice Get the current block's prev_randao value
-func prev_randao{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> EthereumException* {
+func prev_randao{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -155,7 +185,13 @@ func prev_randao{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> E
 }
 
 // @notice Get the current block's gas limit
-func gas_limit{range_check_ptr, evm: Evm}() -> EthereumException* {
+func gas_limit{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -181,7 +217,13 @@ func gas_limit{range_check_ptr, evm: Evm}() -> EthereumException* {
 }
 
 // @notice Get the chain ID
-func chain_id{range_check_ptr, evm: Evm}() -> EthereumException* {
+func chain_id{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;

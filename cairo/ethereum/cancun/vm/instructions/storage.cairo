@@ -25,7 +25,7 @@ from ethereum.utils.numeric import U256_to_be_bytes
 from src.utils.dict import hashdict_read, hashdict_write
 from src.utils.utils import Helpers
 
-from starkware.cairo.common.cairo_builtins import PoseidonBuiltin, BitwiseBuiltin
+from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin, PoseidonBuiltin
 from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.dict_access import DictAccess
@@ -33,8 +33,13 @@ from starkware.cairo.common.math_cmp import is_le
 
 // @notice Loads to the stack the value corresponding to a certain key from the
 // storage of the current account.
-func sload{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, poseidon_ptr: PoseidonBuiltin*, evm: Evm}(
-    ) -> EthereumException* {
+func sload{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -107,7 +112,11 @@ func sload{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, poseidon_ptr: Poseidon
 
 // @notice Stores a value at a certain key in the current context's storage.
 func sstore{
-    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, poseidon_ptr: PoseidonBuiltin*, evm: Evm
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
 }() -> EthereumException* {
     alloc_locals;
     // STACK
@@ -245,8 +254,13 @@ func sstore{
 
 // @notice Loads to the stack the value corresponding to a certain key from the
 // transient storage of the current account.
-func tload{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, poseidon_ptr: PoseidonBuiltin*, evm: Evm}(
-    ) -> EthereumException* {
+func tload{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -285,7 +299,11 @@ func tload{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, poseidon_ptr: Poseidon
 
 // @notice Stores a value at a certain key in the current context's transient storage.
 func tstore{
-    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, poseidon_ptr: PoseidonBuiltin*, evm: Evm
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
 }() -> EthereumException* {
     alloc_locals;
     // STACK

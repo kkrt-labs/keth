@@ -1,4 +1,4 @@
-from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, PoseidonBuiltin, KeccakBuiltin
+from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin, PoseidonBuiltin
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.math import split_felt
@@ -51,7 +51,13 @@ from src.utils.dict import hashdict_read, hashdict_write
 from src.utils.utils import Helpers
 
 // @notice Pushes the address of the current executing account to the stack.
-func address{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> EthereumException* {
+func address{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -77,7 +83,13 @@ func address{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Ether
     return ok;
 }
 
-func balance{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, evm: Evm}() -> EthereumException* {
+func balance{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -144,7 +156,13 @@ func balance{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, evm: Evm}() -> Eth
     return ok;
 }
 
-func origin{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> EthereumException* {
+func origin{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -172,7 +190,13 @@ func origin{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Ethere
 }
 
 // @notice Push the address of the caller onto the stack
-func caller{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> EthereumException* {
+func caller{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -199,7 +223,13 @@ func caller{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Ethere
 }
 
 // @notice Push the value (in wei) sent with the call onto the stack
-func callvalue{range_check_ptr, evm: Evm}() -> EthereumException* {
+func callvalue{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -225,7 +255,13 @@ func callvalue{range_check_ptr, evm: Evm}() -> EthereumException* {
 }
 
 // @notice Push the size of code running in current environment onto the stack
-func codesize{range_check_ptr, evm: Evm}() -> EthereumException* {
+func codesize{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -253,7 +289,13 @@ func codesize{range_check_ptr, evm: Evm}() -> EthereumException* {
 }
 
 // @notice Push the gas price used in current environment onto the stack
-func gasprice{range_check_ptr, evm: Evm}() -> EthereumException* {
+func gasprice{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -281,7 +323,13 @@ func gasprice{range_check_ptr, evm: Evm}() -> EthereumException* {
 }
 
 // @notice Push the size of the return data buffer onto the stack
-func returndatasize{range_check_ptr, evm: Evm}() -> EthereumException* {
+func returndatasize{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -307,7 +355,13 @@ func returndatasize{range_check_ptr, evm: Evm}() -> EthereumException* {
     return ok;
 }
 
-func returndatacopy{range_check_ptr: felt, evm: Evm}() -> EthereumException* {
+func returndatacopy{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -377,8 +431,13 @@ func returndatacopy{range_check_ptr: felt, evm: Evm}() -> EthereumException* {
 }
 
 // @notice Push the balance of the current address to the stack
-func self_balance{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, evm: Evm}(
-    ) -> EthereumException* {
+func self_balance{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -410,7 +469,13 @@ func self_balance{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, evm: Evm}(
 }
 
 // @notice Push the base fee of the current block onto the stack
-func base_fee{range_check_ptr, evm: Evm}() -> EthereumException* {
+func base_fee{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -438,7 +503,13 @@ func base_fee{range_check_ptr, evm: Evm}() -> EthereumException* {
 }
 
 // @notice Gets the versioned hash at a particular index
-func blob_hash{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> EthereumException* {
+func blob_hash{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
 
     // STACK
@@ -483,7 +554,13 @@ func blob_hash{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Eth
     return ok;
 }
 
-func codecopy{range_check_ptr: felt, evm: Evm}() -> EthereumException* {
+func codecopy{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
 
     // STACK
@@ -541,7 +618,11 @@ func codecopy{range_check_ptr: felt, evm: Evm}() -> EthereumException* {
 
 // @notice Get the code size of an external contract
 func extcodesize{
-    range_check_ptr, poseidon_ptr: PoseidonBuiltin*, bitwise_ptr: BitwiseBuiltin*, evm: Evm
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
 }() -> EthereumException* {
     alloc_locals;
 
@@ -611,7 +692,11 @@ func extcodesize{
 
 // @notice Copy a portion of an account's code to memory
 func extcodecopy{
-    range_check_ptr, poseidon_ptr: PoseidonBuiltin*, bitwise_ptr: BitwiseBuiltin*, evm: Evm
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
 }() -> EthereumException* {
     alloc_locals;
 
@@ -808,7 +893,13 @@ func extcodehash{
     return ok;
 }
 
-func blob_base_fee{range_check_ptr, evm: Evm}() -> EthereumException* {
+func blob_base_fee{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
 
     let err = charge_gas(Uint(GasConstants.GAS_BASE));
@@ -834,7 +925,13 @@ func blob_base_fee{range_check_ptr, evm: Evm}() -> EthereumException* {
 }
 
 // @notice Load input data from the current environment's call data
-func calldataload{range_check_ptr, evm: Evm}() -> EthereumException* {
+func calldataload{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
 
     // STACK
@@ -872,7 +969,13 @@ func calldataload{range_check_ptr, evm: Evm}() -> EthereumException* {
 }
 
 // @notice Copy a portion of the input data in current environment to memory
-func calldatacopy{range_check_ptr, evm: Evm}() -> EthereumException* {
+func calldatacopy{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
 
     // STACK
@@ -929,7 +1032,13 @@ func calldatacopy{range_check_ptr, evm: Evm}() -> EthereumException* {
     return ok;
 }
 
-func calldatasize{range_check_ptr, evm: Evm}() -> EthereumException* {
+func calldatasize{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     // No stack input

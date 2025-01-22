@@ -1,5 +1,5 @@
 from starkware.cairo.common.bool import TRUE, FALSE
-from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, PoseidonBuiltin
+from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin, PoseidonBuiltin
 from starkware.cairo.common.dict import dict_read, DictAccess
 
 from ethereum_types.numeric import (
@@ -21,7 +21,13 @@ from ethereum.cancun.vm.stack import Stack, pop, push
 from src.utils.dict import hashdict_read
 
 // @notice Stop further execution of EVM code
-func stop{evm: Evm}() {
+func stop{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     // STACK
 
     // GAS
@@ -32,11 +38,18 @@ func stop{evm: Evm}() {
 
     // PROGRAM COUNTER
     EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
-    return ();
+    let ok = cast(0, EthereumException*);
+    return ok;
 }
 
 // @notice Alter the program counter to the location specified by the top of the stack
-func jump{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, evm: Evm}() -> EthereumException* {
+func jump{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -76,7 +89,13 @@ func jump{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, evm: Evm}() -> Ethere
 }
 
 // @notice Alter the program counter to the specified location if and only if a condition is true
-func jumpi{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, evm: Evm}() -> EthereumException* {
+func jumpi{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -127,7 +146,13 @@ func jumpi{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, evm: Evm}() -> Ether
 }
 
 // @notice Push the value of the program counter before the increment onto the stack
-func pc{range_check_ptr, evm: Evm}() -> EthereumException* {
+func pc{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -153,7 +178,13 @@ func pc{range_check_ptr, evm: Evm}() -> EthereumException* {
 }
 
 // @notice Push the amount of available gas onto the stack
-func gas_left{range_check_ptr, evm: Evm}() -> EthereumException* {
+func gas_left{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -179,7 +210,13 @@ func gas_left{range_check_ptr, evm: Evm}() -> EthereumException* {
 }
 
 // @notice Mark a valid destination for jumps
-func jumpdest{range_check_ptr, evm: Evm}() -> EthereumException* {
+func jumpdest{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
 
     // GAS

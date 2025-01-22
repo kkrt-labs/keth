@@ -1,3 +1,4 @@
+from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin, PoseidonBuiltin
 from starkware.cairo.common.uint256 import uint256_mul, ALL_ONES, uint256_lt
 
 from src.utils.uint256 import (
@@ -21,7 +22,13 @@ from ethereum.cancun.vm.gas import charge_gas, GasConstants
 // @notice Implements arithmetic operations like add, sub, mul, div, etc.
 
 // @notice Adds the top two elements of the stack together
-func add{range_check_ptr, evm: Evm}() -> EthereumException* {
+func add{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -59,7 +66,13 @@ func add{range_check_ptr, evm: Evm}() -> EthereumException* {
 }
 
 // @notice Subtracts the top two elements of the stack
-func sub{range_check_ptr, evm: Evm}() -> EthereumException* {
+func sub{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -97,7 +110,13 @@ func sub{range_check_ptr, evm: Evm}() -> EthereumException* {
 }
 
 // @notice Multiplies the top two elements of the stack
-func mul{range_check_ptr, evm: Evm}() -> EthereumException* {
+func mul{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -135,7 +154,13 @@ func mul{range_check_ptr, evm: Evm}() -> EthereumException* {
 }
 
 // @notice Integer division of the top two elements of the stack
-func div{range_check_ptr, evm: Evm}() -> EthereumException* {
+func div{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -183,7 +208,13 @@ func div{range_check_ptr, evm: Evm}() -> EthereumException* {
 }
 
 // @notice Signed integer division of the top two elements of the stack
-func sdiv{range_check_ptr, evm: Evm}() -> EthereumException* {
+func sdiv{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -221,7 +252,13 @@ func sdiv{range_check_ptr, evm: Evm}() -> EthereumException* {
 }
 
 // @notice Modulo remainder of the top two elements of the stack
-func mod{range_check_ptr, evm: Evm}() -> EthereumException* {
+func mod{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -269,7 +306,13 @@ func mod{range_check_ptr, evm: Evm}() -> EthereumException* {
 }
 
 // @notice Signed modulo remainder of the top two elements of the stack
-func smod{range_check_ptr, evm: Evm}() -> EthereumException* {
+func smod{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -317,7 +360,13 @@ func smod{range_check_ptr, evm: Evm}() -> EthereumException* {
 }
 
 // @notice Addition modulo of three elements on the stack
-func addmod{range_check_ptr, evm: Evm}() -> EthereumException* {
+func addmod{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -413,7 +462,13 @@ func addmod{range_check_ptr, evm: Evm}() -> EthereumException* {
 }
 
 // @notice Multiplication modulo of three elements on the stack
-func mulmod{range_check_ptr, evm: Evm}() -> EthereumException* {
+func mulmod{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -471,7 +526,13 @@ func mulmod{range_check_ptr, evm: Evm}() -> EthereumException* {
 }
 
 // @notice Exponential operation of the top 2 elements
-func exp{range_check_ptr, evm: Evm}() -> EthereumException* {
+func exp{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -524,7 +585,13 @@ func exp{range_check_ptr, evm: Evm}() -> EthereumException* {
 }
 
 // @notice Sign extend operation
-func signextend{range_check_ptr, evm: Evm}() -> EthereumException* {
+func signextend{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;

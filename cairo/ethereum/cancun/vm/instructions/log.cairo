@@ -1,5 +1,5 @@
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
+from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin, PoseidonBuiltin
 
 from ethereum.cancun.vm.stack import pop
 from ethereum.cancun.vm import Evm, EvmImpl
@@ -19,7 +19,13 @@ from ethereum_types.others import (
 from ethereum.cancun.blocks import Log, LogStruct, TupleLog, TupleLogStruct
 
 // @notice LOG0 instruction - append log record with no topics
-func log0{range_check_ptr, evm: Evm}() -> EthereumException* {
+func log0{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     const NUM_TOPICS = 0;
 
@@ -94,7 +100,13 @@ func log0{range_check_ptr, evm: Evm}() -> EthereumException* {
 }
 
 // @notice LOG1 instruction - append log record with one topic
-func log1{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> EthereumException* {
+func log1{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     const NUM_TOPICS = 1;
 
@@ -175,7 +187,13 @@ func log1{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Ethereum
 }
 
 // @notice LOG2 instruction - append log record with two topics
-func log2{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> EthereumException* {
+func log2{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     const NUM_TOPICS = 2;
 
@@ -263,7 +281,13 @@ func log2{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Ethereum
 }
 
 // @notice LOG3 instruction - append log record with three topics
-func log3{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> EthereumException* {
+func log3{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     const NUM_TOPICS = 3;
 
@@ -357,7 +381,13 @@ func log3{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Ethereum
 }
 
 // @notice LOG4 instruction - append log record with four topics
-func log4{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> EthereumException* {
+func log4{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     const NUM_TOPICS = 4;
 
