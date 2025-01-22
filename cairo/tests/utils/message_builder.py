@@ -1,4 +1,4 @@
-from ethereum_types.numeric import U256, Uint
+from ethereum_types.numeric import U256, Optional, Uint
 from hypothesis import strategies as st
 
 from ethereum.cancun.fork_types import Address
@@ -56,7 +56,7 @@ class MessageBuilder:
         self._data = strategy
         return self
 
-    def with_code_address(self, strategy=st.from_type(Address) | st.none()):
+    def with_code_address(self, strategy=st.from_type(Optional[Address])):
         self._code_address = strategy
         return self
 
