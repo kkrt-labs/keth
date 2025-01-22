@@ -716,16 +716,6 @@ def _gen_arg(
             for f in fields(arg_type_origin)
         ]
 
-        if arg_type_origin is FlatState:
-            # In case of a Trie, we need to put the original_storage_tries (state._snapshots[0][1]) in a
-            # special field of the State. We want easy access / overrides to this specific snapshot in
-            # Cairo, as each `sstore` performs an update of this original trie.
-            # The state strategy should always generate a valid snapshots[0], corresponding to the initial state.
-            snapshots_ptr = segments.memory.get(data[2])
-            snapshots0_ptr = segments.memory.get(snapshots_ptr)
-            snapshots0_storage_tries_ptr = segments.memory.get(snapshots0_ptr + 1)
-            data.append(snapshots0_storage_tries_ptr)
-
         segments.load_data(struct_ptr, data)
 
         if arg_type_origin is Trie:
@@ -803,8 +793,6 @@ def generate_trie_arg(
     segments: Union[MemorySegmentManager, RustMemorySegmentManager],
     arg_type: Trie,
     arg: Trie,
-    annotations: Optional[Any] = None,
-    hash_mode: Optional[bool] = None,
     parent_trie_data: Optional[RelocatableValue] = None,
 ):
     secured = _gen_arg(dict_manager, segments, type(arg.secured), arg.secured)
@@ -819,6 +807,21 @@ def generate_trie_arg(
     )
     base = segments.add()
     segments.load_data(base, [secured, default, data])
+
+    # In case of a Trie, we need the dict to be a defaultdict with the trie.default as the default value.
+    dict_ptr = segments.memory.get(data)
+    current_ptr = segments.memory.get(data + 1)
+    if isinstance(dict_manager, DictManager):
+        dict_manager.trackers[dict_ptr.segment_index].data = defaultdict(
+            lambda: default, dict_manager.trackers[dict_ptr.segment_index].data
+        )
+    else:
+        dict_manager.trackers[dict_ptr.segment_index] = RustDictTracker(
+            data=dict_manager.trackers[dict_ptr.segment_index].data,
+            current_ptr=current_ptr,
+            default_value=default,
+        )
+
     return base
 
 
@@ -827,11 +830,6 @@ def generate_state_arg(
     segments: Union[MemorySegmentManager, RustMemorySegmentManager],
     arg: State,
 ):
-    # OLD
-    # return _gen_arg(
-    #     dict_manager, segments, FlatState, FlatState.from_state(arg)
-    # )
-
     flat_state = FlatState.from_state(arg)
 
     all_snapshots = []
