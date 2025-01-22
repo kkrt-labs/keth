@@ -70,7 +70,14 @@ from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 from ethereum.cancun.state import State, TransientStorage
 from ethereum.cancun.vm.exceptions import InvalidOpcode
 from ethereum.crypto.hash import Hash32
-from tests.utils.args_gen import Memory, Stack, to_python_type, vm_exception_classes
+from tests.utils.args_gen import (
+    FlatState,
+    FlatTransientStorage,
+    Memory,
+    Stack,
+    to_python_type,
+    vm_exception_classes,
+)
 
 # Sentinel object for indicating no error in exception handling
 NO_ERROR_FLAG = object()
@@ -369,38 +376,6 @@ class Serde:
             # Adjust int fields if they exceed 2**128 by subtracting DEFAULT_PRIME
             # and filter out the NO_ERROR_FLAG, replacing it with None
 
-            if python_cls is State:
-                if (
-                    value["_storage_tries"] is not None
-                    and value["_storage_tries"] != {}
-                ):
-                    # First collect all keys with empty tries
-                    keys_to_delete = [
-                        k for k, v in value["_storage_tries"].items() if v._data == {}
-                    ]
-                    # Cannot iterate over a dict while deleting items from it
-                    for k in keys_to_delete:
-                        del value["_storage_tries"][k]
-
-                # Replace snapshot[0]._storage_tries with the original_storage_tries,
-                # and remove the original_storage_tries from the state. It's a pure cairo concept.
-                if value["_snapshots"]:
-                    value["_snapshots"][0] = (
-                        value["_snapshots"][0][0],
-                        value["original_storage_tries"],
-                    )
-                del value["original_storage_tries"]
-
-            if python_cls is TransientStorage:
-                if value["_tries"] is not None and value["_tries"] != {}:
-                    # First collect all keys with empty tries
-                    keys_to_delete = [
-                        k for k, v in value["_tries"].items() if v._data == {}
-                    ]
-                    # Cannot iterate over a dict while deleting items from it
-                    for k in keys_to_delete:
-                        del value["_tries"][k]
-
             adjusted_value = {
                 k: (
                     None
@@ -409,6 +384,18 @@ class Serde:
                 )
                 for k, v in value.items()
             }
+
+            if python_cls is State:
+                # Remove our extra field
+                del adjusted_value["original_storage_tries"]
+                flat_state = FlatState(**adjusted_value)
+                state = flat_state.to_state()
+                return state
+
+            if python_cls is TransientStorage:
+                flat_transient_storage = FlatTransientStorage(**adjusted_value)
+                return flat_transient_storage.to_transient_storage()
+
             return python_cls(**adjusted_value)
 
         if isinstance(value, dict):

@@ -2,7 +2,7 @@ from typing import Optional
 
 import pytest
 from ethereum_types.numeric import U256
-from hypothesis import given
+from hypothesis import given, settings
 from hypothesis import strategies as st
 from hypothesis.strategies import composite
 
@@ -298,6 +298,7 @@ class TestStateStorage:
         assert state_cairo == state
 
     @given(data=state_and_address_and_optional_key())
+    @settings(max_examples=100)
     def test_destroy_storage(self, cairo_run, data):
         state, address = data
         state_cairo = cairo_run("destroy_storage", state, address)

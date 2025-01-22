@@ -61,6 +61,30 @@ def hashdict_write(
 
 
 @register_hint
+def get_keys_for_address_prefix(
+    dict_manager: DictManager,
+    ids: VmConsts,
+    segments: MemorySegmentManager,
+    memory: MemoryDict,
+    ap: RelocatableValue,
+) -> int:
+    dict_tracker = dict_manager.get_tracker(ids.dict_ptr)
+    prefix = tuple([memory[ids.prefix + i] for i in range(ids.prefix_len)])
+    matching_preimages = [
+        key for key in dict_tracker.data.keys() if key[: len(prefix)] == prefix
+    ]
+    base = segments.add()
+    for i, preimage in enumerate(matching_preimages):
+        ptr = segments.add()
+        bytes32_base = segments.add()
+        segments.write_arg(bytes32_base, preimage[1:])
+        segments.write_arg(ptr, [preimage[0], bytes32_base])
+        memory[base + i] = ptr
+    ids.keys_len = len(matching_preimages)
+    ids.keys = base
+
+
+@register_hint
 def get_preimage_for_key(
     dict_manager: DictManager,
     ids: VmConsts,

@@ -9,7 +9,15 @@ from starkware.cairo.common.uint256 import Uint256
 from ethereum_types.numeric import U256, U256Struct
 from ethereum_types.bytes import Bytes32
 from ethereum.utils.numeric import U256__eq__, is_not_zero
-from ethereum.cancun.fork_types import Address, Account, AccountStruct, Account__eq__
+from ethereum.cancun.fork_types import (
+    Address,
+    Account,
+    AccountStruct,
+    Account__eq__,
+    ListTupleAddressBytes32,
+    ListTupleAddressBytes32Struct,
+    TupleAddressBytes32,
+)
 
 from src.utils.maths import unsigned_div_rem
 
@@ -223,4 +231,21 @@ func prev_values{range_check_ptr}(dict_ptr_start: DictAccess*, dict_ptr_stop: Di
     jmp loop if is_not_done != 0;
 
     return (prev_values_start=prev_values_start, prev_values_end=prev_values);
+}
+
+// @notice Returns all keys that have a prefix matching the given prefix.
+// TODO: this is unsound and soundness should be ensured at squash time.
+func get_keys_for_address_prefix{dict_ptr: DictAccess*}(
+    prefix_len: felt, prefix: felt*
+) -> ListTupleAddressBytes32 {
+    alloc_locals;
+
+    local keys_len: felt;
+    local keys: TupleAddressBytes32*;
+    %{ get_keys_for_address_prefix %}
+
+    // warning: this is unsound as the prover can return any list of keys.
+
+    tempvar res = ListTupleAddressBytes32(new ListTupleAddressBytes32Struct(keys, keys_len));
+    return res;
 }

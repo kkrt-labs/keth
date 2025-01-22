@@ -121,6 +121,8 @@ from ethereum.cancun.trie import (
     LeafNode,
     Node,
     Trie,
+    trie_get,
+    trie_set,
 )
 from ethereum.cancun.vm import Environment as EnvironmentBase
 from ethereum.cancun.vm import Evm as EvmBase
@@ -155,6 +157,156 @@ T = TypeVar("T")
 
 class Stack(List[T]):
     pass
+
+
+@dataclass
+class FlatState:
+    """A version of the State class that has flattened storage tries.
+    The keys of the storage tries are of type Tuple[Address, Bytes32]
+    """
+
+    _main_trie: Trie[Address, Optional[Account]]
+    _storage_tries: Trie[Tuple[Address, Bytes32], U256]
+    _snapshots: List[
+        Tuple[Trie[Address, Optional[Account]], Trie[Tuple[Address, Bytes32], U256]]
+    ]
+    created_accounts: Set[Address]
+
+    @classmethod
+    def from_state(cls, state: State) -> "FlatState":
+        """Convert a State object to a FlatState object."""
+        flat_state = cls(
+            _main_trie=state._main_trie,
+            _storage_tries=Trie(secured=True, default=U256(0), _data={}),
+            _snapshots=[],
+            created_accounts=state.created_accounts,
+        )
+
+        # Flatten storage tries
+        for address, storage_trie in state._storage_tries.items():
+            for key in storage_trie._data.keys():
+                value = trie_get(storage_trie, key)
+                trie_set(flat_state._storage_tries, (address, key), value)
+
+        # Flatten snapshots
+        for snapshot in state._snapshots:
+            snapshot_main_trie = snapshot[0]
+            snapshot_storage_tries = Trie(
+                flat_state._storage_tries.secured, flat_state._storage_tries.default, {}
+            )
+            for address, storage_trie in snapshot[1].items():
+                for key in storage_trie._data.keys():
+                    value = trie_get(storage_trie, key)
+                    trie_set(snapshot_storage_tries, (address, key), value)
+            flat_state._snapshots.append((snapshot_main_trie, snapshot_storage_tries))
+
+        return flat_state
+
+    def to_state(self) -> State:
+        """Convert a FlatState object back to a State object."""
+        # Initialize state with main trie and created accounts
+        state = State(
+            _main_trie=self._main_trie,
+            _storage_tries={},
+            _snapshots=[],
+            created_accounts=self.created_accounts,
+        )
+
+        # Unflatten storage tries by grouping by address
+        for (address, key), value in self._storage_tries._data.items():
+            if address not in state._storage_tries:
+                state._storage_tries[address] = Trie(
+                    secured=self._storage_tries.secured, default=U256(0), _data={}
+                )
+            trie = state._storage_tries[address]
+            trie_set(trie, key, value)
+            state._storage_tries[address] = trie
+
+        # Unflatten snapshots
+        for snapshot_main_trie, snapshot_storage_tries in self._snapshots:
+            address_to_storage_trie = {}
+            # Group storage tries by address for each snapshot
+            for (address, key), value in snapshot_storage_tries._data.items():
+                if address not in address_to_storage_trie:
+                    address_to_storage_trie[address] = Trie(
+                        secured=snapshot_storage_tries.secured,
+                        default=U256(0),
+                        _data={},
+                    )
+                trie = address_to_storage_trie[address]
+                trie_set(trie, key, value)
+                address_to_storage_trie[address] = trie
+            state._snapshots.append((snapshot_main_trie, address_to_storage_trie))
+
+        return state
+
+
+@dataclass
+class FlatTransientStorage:
+    """A version of the TransientStorage class that has flattened storage tries.
+    The keys of the storage tries are of type Tuple[Address, Bytes32]
+    """
+
+    _tries: Trie[Tuple[Address, Bytes32], U256]
+    _snapshots: List[Trie[Tuple[Address, Bytes32], U256]]
+
+    @classmethod
+    def from_transient_storage(cls, ts: TransientStorage) -> "FlatTransientStorage":
+        """Convert a TransientStorage object to a FlatTransientStorage object."""
+        flat_ts = cls(
+            _tries=Trie(secured=True, default=U256(0), _data={}),
+            _snapshots=[],
+        )
+
+        # Flatten tries
+        for address, storage_trie in ts._tries.items():
+            for key in storage_trie._data.keys():
+                value = trie_get(storage_trie, key)
+                trie_set(flat_ts._tries, (address, key), value)
+
+        # Flatten snapshots
+        for snapshot in ts._snapshots:
+            snapshot_tries = Trie(flat_ts._tries.secured, flat_ts._tries.default, {})
+            for address, storage_trie in snapshot.items():
+                for key in storage_trie._data.keys():
+                    value = trie_get(storage_trie, key)
+                    trie_set(snapshot_tries, (address, key), value)
+            flat_ts._snapshots.append(snapshot_tries)
+
+        return flat_ts
+
+    def to_transient_storage(self) -> TransientStorage:
+        """Convert a FlatTransientStorage object back to a TransientStorage object."""
+        # Initialize transient storage
+        ts = TransientStorage()
+
+        # Unflatten tries by grouping by address
+        for (address, key), value in self._tries._data.items():
+            if address not in ts._tries:
+                ts._tries[address] = Trie(
+                    secured=self._tries.secured, default=U256(0), _data={}
+                )
+            trie = ts._tries[address]
+            trie_set(trie, key, value)
+            ts._tries[address] = trie
+
+        # Unflatten snapshots
+        for snapshot_tries in self._snapshots:
+            address_to_storage_trie = {}
+            # Group storage tries by address for each snapshot
+            for (address, key), value in snapshot_tries._data.items():
+                if address not in address_to_storage_trie:
+                    address_to_storage_trie[address] = Trie(
+                        secured=snapshot_tries.secured,
+                        default=U256(0),
+                        _data={},
+                    )
+                trie = address_to_storage_trie[address]
+                trie_set(trie, key, value)
+                address_to_storage_trie[address] = trie
+            ts._snapshots.append(address_to_storage_trie)
+
+        return ts
 
 
 @dataclass
@@ -315,37 +467,41 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "cancun", "trie", "TrieAddressOptionalAccount"): Trie[
         Address, Optional[Account]
     ],
-    ("ethereum", "cancun", "trie", "TrieBytes32U256"): Trie[Bytes32, U256],
+    ("ethereum", "cancun", "trie", "TrieTupleAddressBytes32U256"): Trie[
+        Tuple[Address, Bytes32], U256
+    ],
     ("ethereum", "cancun", "fork_types", "MappingAddressAccount"): Mapping[
         Address, Account
     ],
-    ("ethereum", "cancun", "fork_types", "MappingBytes32U256"): Mapping[Bytes32, U256],
+    ("ethereum", "cancun", "fork_types", "MappingTupleAddressBytes32U256"): Mapping[
+        Tuple[Address, Bytes32], U256
+    ],
     ("ethereum", "exceptions", "EthereumException"): EthereumException,
     ("ethereum", "cancun", "vm", "memory", "Memory"): Memory,
     ("ethereum", "cancun", "vm", "stack", "Stack"): Stack[U256],
     ("ethereum", "cancun", "trie", "Subnodes"): Annotated[Tuple[Extended, ...], 16],
     ("ethereum", "cancun", "state", "TransientStorage"): TransientStorage,
-    ("ethereum", "cancun", "state", "MappingAddressTrieBytes32U256"): Mapping[
-        Address, Trie[Bytes32, U256]
+    ("ethereum", "cancun", "fork_types", "ListTupleAddressBytes32"): List[
+        Tuple[Address, Bytes32]
     ],
-    ("ethereum", "cancun", "state", "TransientStorageSnapshots"): List[
-        Mapping[Address, Trie[Bytes32, U256]]
+    ("ethereum", "cancun", "state", "ListTrieTupleAddressBytes32U256"): List[
+        Trie[Tuple[Address, Bytes32], U256]
     ],
-    ("ethereum", "cancun", "state", "State"): State,
     (
         "ethereum",
         "cancun",
         "state",
-        "TupleTrieAddressOptionalAccountMappingAddressTrieBytes32U256",
-    ): Tuple[Trie[Address, Optional[Account]], Mapping[Address, Trie[Bytes32, U256]]],
-    (
-        "ethereum",
-        "cancun",
-        "state",
-        "ListTupleTrieAddressOptionalAccountMappingAddressTrieBytes32U256",
+        "ListTupleTrieAddressOptionalAccountTrieTupleAddressBytes32U256",
     ): List[
-        Tuple[Trie[Address, Optional[Account]], Mapping[Address, Trie[Bytes32, U256]]]
+        Tuple[Trie[Address, Optional[Account]], Trie[Tuple[Address, Bytes32], U256]]
     ],
+    (
+        "ethereum",
+        "cancun",
+        "state",
+        "TupleTrieAddressOptionalAccountTrieTupleAddressBytes32U256",
+    ): Tuple[Trie[Address, Optional[Account]], Trie[Tuple[Address, Bytes32], U256]],
+    ("ethereum", "cancun", "state", "State"): State,
     ("ethereum", "cancun", "vm", "Environment"): Environment,
     ("ethereum", "cancun", "fork_types", "ListHash32"): List[Hash32],
     ("ethereum", "cancun", "vm", "Message"): Message,
@@ -606,6 +762,19 @@ def _gen_arg(
             type_params = arg_type_origin.__parameters__
             type_bindings = dict(zip(type_params, type_args))
 
+        if arg_type_origin is State:
+            return _gen_arg(
+                dict_manager, segments, FlatState, FlatState.from_state(arg)
+            )
+
+        if arg_type_origin is TransientStorage:
+            return _gen_arg(
+                dict_manager,
+                segments,
+                FlatTransientStorage,
+                FlatTransientStorage.from_transient_storage(arg),
+            )
+
         # Dataclasses are represented as a pointer to a struct with the same fields.
         struct_ptr = segments.add()
         data = [
@@ -618,7 +787,7 @@ def _gen_arg(
             for f in fields(arg_type_origin)
         ]
 
-        if arg_type_origin is State:
+        if arg_type_origin is FlatState:
             # In case of a Trie, we need to put the original_storage_tries (state._snapshots[0][1]) in a
             # special field of the State. We want easy access / overrides to this specific snapshot in
             # Cairo, as each `sstore` performs an update of this original trie.

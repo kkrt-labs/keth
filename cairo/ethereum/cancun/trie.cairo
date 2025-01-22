@@ -35,12 +35,12 @@ from ethereum.cancun.fork_types import (
     AccountStruct,
     Address,
     OptionalAccount,
-    Bytes32U256DictAccess,
+    TupleAddressBytes32U256DictAccess,
     MappingAddressAccount,
     MappingAddressAccountStruct,
-    MappingBytes32U256,
-    MappingBytes32U256Struct,
     AddressAccountDictAccess,
+    MappingTupleAddressBytes32U256,
+    MappingTupleAddressBytes32U256Struct,
 )
 from ethereum.cancun.transactions import LegacyTransaction
 from ethereum.rlp import (
@@ -178,14 +178,14 @@ struct TrieAddressOptionalAccount {
     value: TrieAddressOptionalAccountStruct*,
 }
 
-struct TrieBytes32U256Struct {
+struct TrieTupleAddressBytes32U256Struct {
     secured: bool,
     default: U256,
-    _data: MappingBytes32U256,
+    _data: MappingTupleAddressBytes32U256,
 }
 
-struct TrieBytes32U256 {
-    value: TrieBytes32U256Struct*,
+struct TrieTupleAddressBytes32U256 {
+    value: TrieTupleAddressBytes32U256Struct*,
 }
 
 func encode_internal_node{
@@ -365,20 +365,23 @@ func copy_TrieAddressOptionalAccount{range_check_ptr, trie: TrieAddressOptionalA
     return res;
 }
 
-func copy_trieBytes32U256{range_check_ptr, trie: TrieBytes32U256}() -> TrieBytes32U256 {
+func copy_TrieTupleAddressBytes32U256{range_check_ptr, trie: TrieTupleAddressBytes32U256}(
+    ) -> TrieTupleAddressBytes32U256 {
     alloc_locals;
     // TODO: same as above
 
-    local new_dict_ptr: Bytes32U256DictAccess*;
+    local new_dict_ptr: TupleAddressBytes32U256DictAccess*;
     tempvar original_mapping = trie.value._data.value;
     %{ copy_dict_segment %}
 
-    tempvar res = TrieBytes32U256(
-        new TrieBytes32U256Struct(
+    tempvar res = TrieTupleAddressBytes32U256(
+        new TrieTupleAddressBytes32U256Struct(
             trie.value.secured,
             trie.value.default,
-            MappingBytes32U256(
-                new MappingBytes32U256Struct(new_dict_ptr, new_dict_ptr, original_mapping)
+            MappingTupleAddressBytes32U256(
+                new MappingTupleAddressBytes32U256Struct(
+                    new_dict_ptr, new_dict_ptr, original_mapping
+                ),
             ),
         ),
     );
@@ -411,23 +414,28 @@ func trie_get_TrieAddressOptionalAccount{
     return res;
 }
 
-func trie_get_TrieBytes32U256{poseidon_ptr: PoseidonBuiltin*, trie: TrieBytes32U256}(
-    key: Bytes32
-) -> U256 {
+func trie_get_TrieTupleAddressBytes32U256{
+    poseidon_ptr: PoseidonBuiltin*, trie: TrieTupleAddressBytes32U256
+}(address: Address, key: Bytes32) -> U256 {
     let dict_ptr = cast(trie.value._data.value.dict_ptr, DictAccess*);
 
+    let (keys) = alloc();
+    assert keys[0] = address.value;
+    assert keys[1] = key.value.low;
+    assert keys[2] = key.value.high;
+
     with dict_ptr {
-        let (pointer) = hashdict_read(2, cast(key.value, felt*));
+        let (pointer) = hashdict_read(3, keys);
     }
-    let new_dict_ptr = cast(dict_ptr, Bytes32U256DictAccess*);
+    let new_dict_ptr = cast(dict_ptr, TupleAddressBytes32U256DictAccess*);
     let original_mapping = trie.value._data.value.original_mapping;
-    tempvar mapping = MappingBytes32U256(
-        new MappingBytes32U256Struct(
+    tempvar mapping = MappingTupleAddressBytes32U256(
+        new MappingTupleAddressBytes32U256Struct(
             trie.value._data.value.dict_ptr_start, new_dict_ptr, original_mapping
         ),
     );
-    tempvar trie = TrieBytes32U256(
-        new TrieBytes32U256Struct(trie.value.secured, trie.value.default, mapping)
+    tempvar trie = TrieTupleAddressBytes32U256(
+        new TrieTupleAddressBytes32U256Struct(trie.value.secured, trie.value.default, mapping)
     );
     tempvar res = U256(cast(pointer, U256Struct*));
     return res;
@@ -471,37 +479,42 @@ func trie_set_TrieAddressOptionalAccount{
     return ();
 }
 
-func trie_set_TrieBytes32U256{poseidon_ptr: PoseidonBuiltin*, trie: TrieBytes32U256}(
-    key: Bytes32, value: U256
-) {
+func trie_set_TrieTupleAddressBytes32U256{
+    poseidon_ptr: PoseidonBuiltin*, trie: TrieTupleAddressBytes32U256
+}(address: Address, key: Bytes32, value: U256) {
     let dict_ptr_start = cast(trie.value._data.value.dict_ptr_start, DictAccess*);
     let dict_ptr = cast(trie.value._data.value.dict_ptr, DictAccess*);
 
     let is_default = U256__eq__(value, trie.value.default);
 
+    let (keys) = alloc();
+    assert keys[0] = address.value;
+    assert keys[1] = key.value.low;
+    assert keys[2] = key.value.high;
+
     with dict_ptr_start, dict_ptr {
         if (is_default.value != 0) {
-            hashdict_write(2, cast(key.value, felt*), 0);
+            hashdict_write(3, keys, 0);
             tempvar dict_ptr_start = dict_ptr_start;
             tempvar dict_ptr = dict_ptr;
             tempvar poseidon_ptr = poseidon_ptr;
         } else {
-            hashdict_write(2, cast(key.value, felt*), cast(value.value, felt));
+            hashdict_write(3, keys, cast(value.value, felt));
             tempvar dict_ptr_start = dict_ptr_start;
             tempvar dict_ptr = dict_ptr;
             tempvar poseidon_ptr = poseidon_ptr;
         }
     }
-    let new_dict_ptr = cast(dict_ptr, Bytes32U256DictAccess*);
-    tempvar mapping = MappingBytes32U256(
-        new MappingBytes32U256Struct(
+    let new_dict_ptr = cast(dict_ptr, TupleAddressBytes32U256DictAccess*);
+    tempvar mapping = MappingTupleAddressBytes32U256(
+        new MappingTupleAddressBytes32U256Struct(
             trie.value._data.value.dict_ptr_start,
             new_dict_ptr,
             trie.value._data.value.original_mapping,
         ),
     );
-    tempvar trie = TrieBytes32U256(
-        new TrieBytes32U256Struct(trie.value.secured, trie.value.default, mapping)
+    tempvar trie = TrieTupleAddressBytes32U256(
+        new TrieTupleAddressBytes32U256Struct(trie.value.secured, trie.value.default, mapping)
     );
     return ();
 }

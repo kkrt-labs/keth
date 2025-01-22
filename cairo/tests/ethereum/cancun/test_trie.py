@@ -1,4 +1,4 @@
-from typing import Mapping, Optional
+from typing import Mapping, Optional, Tuple
 
 import pytest
 from ethereum_types.bytes import Bytes, Bytes32
@@ -154,12 +154,18 @@ class TestTrieOperations:
             assert result_cairo == result_py
             assert trie_cairo == trie
 
-        @given(trie=..., key=...)
-        def test_trie_get_TrieBytes32U256(
-            self, cairo_run, trie: Trie[Bytes32, U256], key: Bytes32
+        @given(trie=..., key_tuple=...)
+        def test_trie_get_TrieTupleAddressBytes32U256(
+            self,
+            cairo_run,
+            trie: Trie[Tuple[Address, Bytes32], U256],
+            key_tuple: Tuple[Address, Bytes32],
         ):
-            trie_cairo, result_cairo = cairo_run("trie_get_TrieBytes32U256", trie, key)
-            result_py = trie_get(trie, key)
+            address, key = key_tuple
+            trie_cairo, result_cairo = cairo_run(
+                "trie_get_TrieTupleAddressBytes32U256", trie, address, key
+            )
+            result_py = trie_get(trie, key_tuple)
             assert result_cairo == result_py
             assert trie_cairo == trie
 
@@ -178,12 +184,19 @@ class TestTrieOperations:
             trie_set(trie, key, value)
             assert cairo_trie == trie
 
-        @given(trie=..., key=..., value=...)
-        def test_trie_set_TrieBytes32U256(
-            self, cairo_run, trie: Trie[Bytes32, U256], key: Bytes32, value: U256
+        @given(trie=..., key_tuple=..., value=...)
+        def test_trie_set_TrieTupleAddressBytes32U256(
+            self,
+            cairo_run,
+            trie: Trie[Tuple[Address, Bytes32], U256],
+            key_tuple: Tuple[Address, Bytes32],
+            value: U256,
         ):
-            cairo_trie = cairo_run("trie_set_TrieBytes32U256", trie, key, value)
-            trie_set(trie, key, value)
+            address, key = key_tuple
+            cairo_trie = cairo_run(
+                "trie_set_TrieTupleAddressBytes32U256", trie, address, key, value
+            )
+            trie_set(trie, key_tuple, value)
             assert cairo_trie == trie
 
     class TestCopy:
@@ -199,8 +212,12 @@ class TestTrieOperations:
             assert copied_trie_cairo == copied_trie_py
 
         @given(trie=...)
-        def test_copy_trie_Bytes32U256(self, cairo_run, trie: Trie[Bytes32, U256]):
-            original_trie, copied_trie_cairo = cairo_run("copy_trieBytes32U256", trie)
+        def test_copy_trie_TupleAddressBytes32U256(
+            self, cairo_run, trie: Trie[Tuple[Address, Bytes32], U256]
+        ):
+            original_trie, copied_trie_cairo = cairo_run(
+                "copy_TrieTupleAddressBytes32U256", trie
+            )
             copied_trie_py = copy_trie(trie)
             assert original_trie == trie
             assert copied_trie_cairo == copied_trie_py
