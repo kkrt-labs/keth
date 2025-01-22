@@ -32,14 +32,14 @@ from tests.utils.args_gen import Environment, Evm, VersionedHash
 from tests.utils.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder
 from tests.utils.message_builder import MessageBuilder
-from tests.utils.strategies import MAX_CODE_SIZE
+from tests.utils.strategies import MAX_CODE_SIZE, MAX_MEMORY_SIZE
 from tests.utils.strategies import address as address_strategy
 from tests.utils.strategies import (
+    bounded_u256_strategy,
     code,
     empty_state,
     excess_blob_gas,
     memory_lite,
-    memory_lite_start_position,
 )
 
 environment_empty_state = st.builds(
@@ -70,26 +70,6 @@ evm_environment_strategy = (
     EvmBuilder().with_gas_left().with_env(environment_empty_state).build()
 )
 
-evm_environment_strategy_with_return_data = (
-    EvmBuilder()
-    .with_memory()
-    .with_gas_left()
-    .with_env(environment_empty_state)
-    .with_return_data()
-    .with_capped_values_stack()
-    .build()
-)
-
-
-def create_bounded_u256_strategy(min_value: int = 0, max_value: int = MAX_CODE_SIZE):
-    return st.integers(min_value=min_value, max_value=max_value).map(U256)
-
-
-code_access_size_strategy = create_bounded_u256_strategy()
-code_start_index_strategy = create_bounded_u256_strategy()
-data_start_index_strategy = create_bounded_u256_strategy()
-size_data_strategy = create_bounded_u256_strategy(max_value=MAX_CODE_SIZE * 2)
-
 
 @composite
 def codecopy_strategy(draw):
@@ -107,9 +87,9 @@ def codecopy_strategy(draw):
         .with_memory(strategy=memory_lite)
         .build()
     )
-    memory_start_index = draw(memory_lite_start_position)
-    code_start_index = draw(code_start_index_strategy)
-    size = draw(code_access_size_strategy)
+    memory_start_index = draw(bounded_u256_strategy(max_value=MAX_MEMORY_SIZE))
+    code_start_index = draw(bounded_u256_strategy(max_value=MAX_CODE_SIZE))
+    size = draw(bounded_u256_strategy(max_value=MAX_CODE_SIZE * 2))
 
     # 80% chance to push valid values onto stack
     should_push = draw(integers(0, 99)) < 80
@@ -138,9 +118,9 @@ def calldatacopy_strategy(draw):
         .build()
     )
 
-    memory_start_index = draw(memory_lite_start_position)
-    data_start_index = draw(data_start_index_strategy)
-    size = draw(size_data_strategy)
+    memory_start_index = draw(bounded_u256_strategy(max_value=MAX_MEMORY_SIZE))
+    data_start_index = draw(bounded_u256_strategy(max_value=MAX_CODE_SIZE))
+    size = draw(bounded_u256_strategy(max_value=MAX_CODE_SIZE * 2))
 
     # 80% chance to push valid values onto stack
     should_push = draw(integers(0, 99)) < 80
@@ -276,7 +256,15 @@ class TestEnvironmentInstructions:
         returndatasize(evm)
         assert evm == cairo_result
 
-    @given(evm=evm_environment_strategy_with_return_data)
+    @given(
+        evm=EvmBuilder()
+        .with_memory()
+        .with_gas_left()
+        .with_env(environment_empty_state)
+        .with_return_data()
+        .with_capped_values_stack()
+        .build()
+    )
     def test_returndatacopy(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("returndatacopy", evm)
