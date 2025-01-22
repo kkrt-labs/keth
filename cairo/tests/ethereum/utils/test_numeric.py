@@ -110,7 +110,7 @@ class TestNumeric:
         try:
             cairo_result = cairo_run("U256_mul", a, b)
         except Exception as cairo_error:
-            with with_matching_error_name(cairo_error):
+            with strict_raises(type(cairo_error)):
                 a * b
             return
         assert cairo_result == a * b

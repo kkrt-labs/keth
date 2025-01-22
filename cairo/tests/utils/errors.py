@@ -47,15 +47,3 @@ def strict_raises(expected_exception: Type[Exception], match: str = None):
     if match is not None:
         error_msg = str(exc_info.value)
         assert match in error_msg, f"Expected '{match}' in '{error_msg}'"
-
-
-@contextmanager
-def with_matching_error_name(cairo_error: Exception):
-
-    with pytest.raises(Exception) as exc_info:
-        yield exc_info
-
-    error = re.search(r"Error message: (.*)", str(cairo_error))
-    if error is None:
-        raise AssertionError(f"No error message found in {cairo_error}")
-    assert error.group(1) == exc_info.value.__class__.__name__
