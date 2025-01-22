@@ -229,7 +229,7 @@ func get_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(
         new MappingTupleAddressBytes32U256Struct(
             dict_ptr_start=storage_tries_data.value.dict_ptr_start,
             dict_ptr=new_storage_data_dict_ptr,
-            original_mapping=storage_tries_data.value.original_mapping,
+            parent_dict=storage_tries_data.value.parent_dict,
         ),
     );
     tempvar new_storage_tries = TrieTupleAddressBytes32U256(
@@ -377,7 +377,7 @@ func destroy_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Addr
         new MappingTupleAddressBytes32U256Struct(
             dict_ptr_start=storage_tries.value._data.value.dict_ptr_start,
             dict_ptr=new_dict_ptr,
-            original_mapping=storage_tries.value._data.value.original_mapping,
+            parent_dict=storage_tries.value._data.value.parent_dict,
         ),
     );
 
@@ -667,15 +667,32 @@ func rollback_transaction{
     state: State,
     transient_storage: TransientStorage,
 }() {
-    alloc_locals;
+    return close_transaction(drop=1);
+}
 
+func commit_transaction{
+    range_check_ptr,
+    poseidon_ptr: PoseidonBuiltin*,
+    state: State,
+    transient_storage: TransientStorage,
+}() {
+    return close_transaction(drop=0);
+}
+
+func close_transaction{
+    range_check_ptr,
+    poseidon_ptr: PoseidonBuiltin*,
+    state: State,
+    transient_storage: TransientStorage,
+}(drop: felt) {
+    alloc_locals;
     // State //
 
     // Main Trie
     let main_trie = state.value._main_trie;
     let main_trie_start = main_trie.value._data.value.dict_ptr_start;
     let main_trie_end = main_trie.value._data.value.dict_ptr;
-    let parent_main_trie = main_trie.value._data.value.original_mapping;
+    let parent_main_trie = main_trie.value._data.value.parent_dict;
 
     with_attr error_message("IndexError") {
         tempvar parent_main_trie_ptr = cast(parent_main_trie, felt);
@@ -691,7 +708,7 @@ func rollback_transaction{
         cast(main_trie_end, DictAccess*),
         cast(parent_trie_start, DictAccess*),
         cast(parent_trie_end, DictAccess*),
-        0,
+        drop,
     );
 
     tempvar new_main_trie = TrieAddressOptionalAccount(
@@ -702,7 +719,7 @@ func rollback_transaction{
                 new MappingAddressAccountStruct(
                     dict_ptr_start=cast(new_parent_trie_start, AddressAccountDictAccess*),
                     dict_ptr=cast(new_parent_trie_end, AddressAccountDictAccess*),
-                    original_mapping=parent_main_trie,
+                    parent_dict=parent_main_trie.parent_dict,
                 ),
             ),
         ),
@@ -712,7 +729,7 @@ func rollback_transaction{
     let storage_tries = state.value._storage_tries;
     let storage_tries_start = storage_tries.value._data.value.dict_ptr_start;
     let storage_tries_end = storage_tries.value._data.value.dict_ptr;
-    let parent_storage_tries = storage_tries.value._data.value.original_mapping;
+    let parent_storage_tries = storage_tries.value._data.value.parent_dict;
     let parent_storage_tries_start = parent_storage_tries.dict_ptr_start;
     let parent_storage_tries_end = parent_storage_tries.dict_ptr;
     let (parent_storage_tries_dict_start, parent_storage_tries_dict) = dict_update(
@@ -720,7 +737,7 @@ func rollback_transaction{
         cast(storage_tries_end, DictAccess*),
         cast(parent_storage_tries_start, DictAccess*),
         cast(parent_storage_tries_end, DictAccess*),
-        0,
+        drop,
     );
 
     tempvar new_storage_tries = TrieTupleAddressBytes32U256(
@@ -733,7 +750,7 @@ func rollback_transaction{
                         parent_storage_tries_dict_start, TupleAddressBytes32U256DictAccess*
                     ),
                     dict_ptr=cast(parent_storage_tries_dict, TupleAddressBytes32U256DictAccess*),
-                    original_mapping=parent_storage_tries,
+                    parent_dict=parent_storage_tries.parent_dict,
                 ),
             ),
         ),
@@ -781,7 +798,7 @@ func rollback_transaction{
     let transient_storage_tries = transient_storage.value._tries;
     let transient_storage_tries_start = transient_storage_tries.value._data.value.dict_ptr_start;
     let transient_storage_tries_end = transient_storage_tries.value._data.value.dict_ptr;
-    let parent_transient_storage_tries = transient_storage_tries.value._data.value.original_mapping;
+    let parent_transient_storage_tries = transient_storage_tries.value._data.value.parent_dict;
     with_attr error_message("IndexError") {
         tempvar parent_transient_storage_tries_ptr = cast(parent_transient_storage_tries, felt);
         if (cast(parent_transient_storage_tries_ptr, felt) == 0) {
@@ -797,7 +814,7 @@ func rollback_transaction{
         cast(transient_storage_tries_end, DictAccess*),
         cast(parent_transient_storage_tries_start, DictAccess*),
         cast(parent_transient_storage_tries_end, DictAccess*),
-        0,
+        drop,
     );
 
     tempvar new_transient_storage_tries = TrieTupleAddressBytes32U256(
@@ -812,7 +829,7 @@ func rollback_transaction{
                     dict_ptr=cast(
                         new_parent_transient_storage_tries_end, TupleAddressBytes32U256DictAccess*
                     ),
-                    original_mapping=parent_transient_storage_tries,
+                    parent_dict=parent_transient_storage_tries,
                 ),
             ),
         ),
@@ -869,7 +886,7 @@ func copy_storage_tries_recursive{
         new MappingTupleAddressBytes32U256Struct(
             dict_ptr_start=new_storage_tries.value.dict_ptr_start,
             dict_ptr=cast(new_storage_trie_ptr, TupleAddressBytes32U256DictAccess*),
-            original_mapping=new_storage_tries.value.original_mapping,
+            parent_dict=new_storage_tries.value.parent_dict,
         ),
     );
 
@@ -912,7 +929,7 @@ func copy_transient_storage_tries_recursive{
         new MappingTupleAddressBytes32U256Struct(
             dict_ptr_start=new_transient_tries.value.dict_ptr_start,
             dict_ptr=cast(new_transient_trie_ptr, TupleAddressBytes32U256DictAccess*),
-            original_mapping=new_transient_tries.value.original_mapping,
+            parent_dict=new_transient_tries.value.parent_dict,
         ),
     );
 

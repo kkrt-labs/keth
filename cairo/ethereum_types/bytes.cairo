@@ -114,7 +114,7 @@ struct MappingBytesBytesStruct {
     dict_ptr: BytesBytesDictAccess*,
     // In case this is a copy of a previous dict,
     // this field points to the address of the original mapping.
-    original_mapping: MappingBytesBytesStruct*,
+    parent_dict: MappingBytesBytesStruct*,
 }
 
 struct MappingBytesBytes {

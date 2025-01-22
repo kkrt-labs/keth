@@ -13,6 +13,7 @@ from ethereum.cancun.state import (
     account_exists_and_is_empty,
     account_has_code_or_nonce,
     begin_transaction,
+    commit_transaction,
     destroy_account,
     destroy_storage,
     destroy_touched_empty_accounts,
@@ -82,38 +83,46 @@ def state_and_address_and_optional_key(
 def state_with_snapshots(draw):
     """
     Generate a State instance with up to 10 different snapshots.
-    Each snapshot contains different tries and storages to simulate state changes.
+    Each snapshot builds on top of the previous one, with up to 5 new entries per snapshot.
     """
     base_state = draw(state)
-    num_snapshots = draw(st.integers(min_value=0, max_value=10))
+    num_snapshots = draw(st.integers(min_value=0, max_value=5))
 
+    # Start with base state's tries
+    current_main_trie = base_state._main_trie
+    current_storage_tries = base_state._storage_tries.copy()
     snapshots = []
+
     for _ in range(num_snapshots):
-        main_trie = draw(
-            st.builds(
-                Trie[Address, Optional[Account]],
-                secured=st.just(True),
-                default=st.none(),
-                _data=st.dictionaries(
-                    keys=address, values=st.from_type(Account), max_size=10
-                ),
-            )
+        snapshots.append((current_main_trie, current_storage_tries))
+        # Add up to 5 new entries to main_trie
+        new_accounts = draw(
+            st.dictionaries(keys=address, values=st.from_type(Account), max_size=5)
+        )
+        main_trie_data = current_main_trie._data.copy()
+        main_trie_data.update(new_accounts)
+        main_trie = Trie[Address, Optional[Account]](
+            secured=True, default=None, _data=main_trie_data
         )
 
-        storage_tries = draw(
+        # Add up to 5 new storage tries or update existing ones
+        new_storage_tries = draw(
             st.dictionaries(
                 keys=address,
                 values=trie_strategy(Trie[Bytes32, U256], min_size=1),
-                max_size=10,
+                max_size=5,
             )
         )
+        storage_tries = current_storage_tries.copy()
+        storage_tries.update(new_storage_tries)
 
-        snapshots.append((main_trie, storage_tries))
+        # Update current state for next iteration
+        current_main_trie = main_trie
+        current_storage_tries = storage_tries
 
-    # Return state with generated snapshots
     return State(
-        _main_trie=base_state._main_trie,
-        _storage_tries=base_state._storage_tries,
+        _main_trie=current_main_trie,
+        _storage_tries=current_storage_tries,
         _snapshots=snapshots,
         created_accounts=base_state.created_accounts,
     )
@@ -123,25 +132,32 @@ def state_with_snapshots(draw):
 def transient_storage_with_snapshots(draw):
     """
     Generate a TransientStorage instance with up to 10 different snapshots.
-    Each snapshot contains different tries to simulate transient storage changes.
+    Each snapshot builds on top of the previous one, with up to 5 new entries per snapshot.
     """
     base_transient_storage = draw(transient_storage)
-    num_snapshots = draw(st.integers(min_value=0, max_value=10))
+    num_snapshots = draw(st.integers(min_value=0, max_value=5))
 
+    # Start with base transient storage tries
+    current_tries = base_transient_storage._tries.copy()
     snapshots = []
+
     for _ in range(num_snapshots):
-        # Generate a dictionary of tries for each snapshot
-        tries = draw(
+        snapshots.append(current_tries)
+        # Add up to 5 new tries or update existing ones
+        new_tries = draw(
             st.dictionaries(
                 keys=address,
                 values=trie_strategy(Trie[Bytes32, U256], min_size=1),
-                max_size=10,
+                max_size=5,
             )
         )
-        snapshots.append(tries)
+        tries = current_tries.copy()
+        tries.update(new_tries)
 
-    # Return transient storage with generated snapshots
-    return TransientStorage(_tries=base_transient_storage._tries, _snapshots=snapshots)
+        # Update current tries for next iteration
+        current_tries = tries
+
+    return TransientStorage(_tries=current_tries, _snapshots=snapshots)
 
 
 @composite
@@ -440,10 +456,10 @@ class TestBeginTransaction:
         transient_storage=transient_storage_with_snapshots(),
     )
     def test_rollback_transaction(
-        self, cairo_run_py, state: State, transient_storage: TransientStorage
+        self, cairo_run, state: State, transient_storage: TransientStorage
     ):
         try:
-            state_cairo, transient_storage_cairo = cairo_run_py(
+            state_cairo, transient_storage_cairo = cairo_run(
                 "rollback_transaction", state, transient_storage
             )
         except Exception as e:
@@ -451,5 +467,24 @@ class TestBeginTransaction:
                 rollback_transaction(state, transient_storage)
             return
         rollback_transaction(state, transient_storage)
+        assert state_cairo == state
+        assert transient_storage_cairo == transient_storage
+
+    @given(
+        state=state_with_snapshots(),
+        transient_storage=transient_storage_with_snapshots(),
+    )
+    def test_commit_transaction(
+        self, cairo_run, state: State, transient_storage: TransientStorage
+    ):
+        try:
+            state_cairo, transient_storage_cairo = cairo_run(
+                "commit_transaction", state, transient_storage
+            )
+        except Exception as e:
+            with strict_raises(type(e)):
+                commit_transaction(state, transient_storage)
+            return
+        commit_transaction(state, transient_storage)
         assert state_cairo == state
         assert transient_storage_cairo == transient_storage

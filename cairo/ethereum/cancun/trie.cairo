@@ -350,7 +350,7 @@ func copy_TrieAddressOptionalAccount{range_check_ptr, trie: TrieAddressOptionalA
     //  - This ensures that when squashing the main segment, we ensure that the data read in the new segment matched the data from the main segment.
 
     local new_dict_ptr: AddressAccountDictAccess*;
-    tempvar original_mapping = trie.value._data.value;
+    tempvar parent_dict = trie.value._data.value;
     %{ copy_dict_segment %}
 
     tempvar res = TrieAddressOptionalAccount(
@@ -358,7 +358,7 @@ func copy_TrieAddressOptionalAccount{range_check_ptr, trie: TrieAddressOptionalA
             trie.value.secured,
             trie.value.default,
             MappingAddressAccount(
-                new MappingAddressAccountStruct(new_dict_ptr, new_dict_ptr, original_mapping)
+                new MappingAddressAccountStruct(new_dict_ptr, new_dict_ptr, parent_dict)
             ),
         ),
     );
@@ -371,7 +371,7 @@ func copy_TrieTupleAddressBytes32U256{range_check_ptr, trie: TrieTupleAddressByt
     // TODO: same as above
 
     local new_dict_ptr: TupleAddressBytes32U256DictAccess*;
-    tempvar original_mapping = trie.value._data.value;
+    tempvar parent_dict = trie.value._data.value;
     %{ copy_dict_segment %}
 
     tempvar res = TrieTupleAddressBytes32U256(
@@ -379,9 +379,7 @@ func copy_TrieTupleAddressBytes32U256{range_check_ptr, trie: TrieTupleAddressByt
             trie.value.secured,
             trie.value.default,
             MappingTupleAddressBytes32U256(
-                new MappingTupleAddressBytes32U256Struct(
-                    new_dict_ptr, new_dict_ptr, original_mapping
-                ),
+                new MappingTupleAddressBytes32U256Struct(new_dict_ptr, new_dict_ptr, parent_dict)
             ),
         ),
     );
@@ -401,10 +399,10 @@ func trie_get_TrieAddressOptionalAccount{
         let (pointer) = hashdict_read(1, &key.value);
     }
     let new_dict_ptr = cast(dict_ptr, AddressAccountDictAccess*);
-    let original_mapping = trie.value._data.value.original_mapping;
+    let parent_dict = trie.value._data.value.parent_dict;
     tempvar mapping = MappingAddressAccount(
         new MappingAddressAccountStruct(
-            trie.value._data.value.dict_ptr_start, new_dict_ptr, original_mapping
+            trie.value._data.value.dict_ptr_start, new_dict_ptr, parent_dict
         ),
     );
     tempvar trie = TrieAddressOptionalAccount(
@@ -428,10 +426,10 @@ func trie_get_TrieTupleAddressBytes32U256{
         let (pointer) = hashdict_read(3, keys);
     }
     let new_dict_ptr = cast(dict_ptr, TupleAddressBytes32U256DictAccess*);
-    let original_mapping = trie.value._data.value.original_mapping;
+    let parent_dict = trie.value._data.value.parent_dict;
     tempvar mapping = MappingTupleAddressBytes32U256(
         new MappingTupleAddressBytes32U256Struct(
-            trie.value._data.value.dict_ptr_start, new_dict_ptr, original_mapping
+            trie.value._data.value.dict_ptr_start, new_dict_ptr, parent_dict
         ),
     );
     tempvar trie = TrieTupleAddressBytes32U256(
@@ -468,9 +466,7 @@ func trie_set_TrieAddressOptionalAccount{
     let new_dict_ptr = cast(dict_ptr, AddressAccountDictAccess*);
     tempvar mapping = MappingAddressAccount(
         new MappingAddressAccountStruct(
-            trie.value._data.value.dict_ptr_start,
-            new_dict_ptr,
-            trie.value._data.value.original_mapping,
+            trie.value._data.value.dict_ptr_start, new_dict_ptr, trie.value._data.value.parent_dict
         ),
     );
     tempvar trie = TrieAddressOptionalAccount(
@@ -508,9 +504,7 @@ func trie_set_TrieTupleAddressBytes32U256{
     let new_dict_ptr = cast(dict_ptr, TupleAddressBytes32U256DictAccess*);
     tempvar mapping = MappingTupleAddressBytes32U256(
         new MappingTupleAddressBytes32U256Struct(
-            trie.value._data.value.dict_ptr_start,
-            new_dict_ptr,
-            trie.value._data.value.original_mapping,
+            trie.value._data.value.dict_ptr_start, new_dict_ptr, trie.value._data.value.parent_dict
         ),
     );
     tempvar trie = TrieTupleAddressBytes32U256(
