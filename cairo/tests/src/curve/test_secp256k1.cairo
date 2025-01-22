@@ -1,5 +1,8 @@
-from starkware.cairo.common.cairo_builtins import UInt384
-from src.curve.secp256k1 import get_generator_point
+from starkware.cairo.common.cairo_builtins import UInt384, ModBuiltin
+from starkware.cairo.common.alloc import alloc
+
+from src.curve.secp256k1 import get_generator_point, try_get_point_from_x
+from src.curve.g1_point import G1Point
 
 func test__get_generator_point() {
     let generator = get_generator_point();
@@ -14,4 +17,22 @@ func test__get_generator_point() {
     assert generator.y.d3 = 0x0;
 
     return ();
+}
+
+func test__try_get_point_from_x{
+    range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
+}() -> (y: UInt384*, is_on_curve: felt) {
+    alloc_locals;
+    let (x_ptr) = alloc();
+    tempvar v;
+    %{
+        segments.write_arg(ids.x_ptr, program_input["x"])
+        ids.v = program_input["v"]
+    %}
+
+    let x = [cast(x_ptr, UInt384*)];
+    let (y, is_on_curve) = try_get_point_from_x(x=x, v=v);
+    // serde doesn't handle non pointer types in tuples
+    tempvar y_ptr = new UInt384(y.d0, y.d1, y.d2, y.d3);
+    return (y_ptr, is_on_curve);
 }

@@ -11,7 +11,6 @@ from starkware.cairo.common.uint256 import (
 from starkware.cairo.common.cairo_builtins import UInt384
 from starkware.cairo.common.bool import FALSE
 from starkware.cairo.common.math_cmp import is_nn
-from ethereum.utils.numeric import divmod
 
 from src.utils.maths import unsigned_div_rem
 

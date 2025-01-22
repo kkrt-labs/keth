@@ -7,7 +7,6 @@ from starkware.cairo.common.cairo_builtins import (
 )
 from starkware.cairo.common.poseidon_state import PoseidonBuiltinState
 from starkware.cairo.common.registers import get_fp_and_pc, get_label_location
-from ethereum.utils.numeric import divmod
 
 from starkware.cairo.common.math_cmp import RC_BOUND
 from starkware.cairo.common.builtin_keccak.keccak import keccak_uint256s_bigend
@@ -36,7 +35,12 @@ from src.utils.uint384 import (
     uint384_neg_mod_p,
     felt_to_uint384,
 )
-from src.curve.secp256k1 import secp256k1, get_generator_point
+from src.curve.secp256k1 import (
+    secp256k1,
+    get_generator_point,
+    try_get_point_from_x,
+    get_point_from_x,
+)
 from src.curve.g1_point import G1Point
 
 @known_ap_change
@@ -62,149 +66,6 @@ struct FunctionFelt {
     a_den: UInt384*,
     b_num: UInt384*,
     b_den: UInt384*,
-}
-
-func try_get_point_from_x_secp256k1{
-    range_check96_ptr: felt*,
-    add_mod_ptr: ModBuiltin*,
-    mul_mod_ptr: ModBuiltin*,
-    poseidon_ptr: PoseidonBuiltin*,
-}(x: UInt384, v: felt, result: G1Point*) -> (is_on_curve: felt) {
-    alloc_locals;
-    let (__fp__, _) = get_fp_and_pc();
-    let (add_offsets_ptr: felt*) = get_label_location(add_offsets_ptr_loc);
-    let (mul_offsets_ptr: felt*) = get_label_location(mul_offsets_ptr_loc);
-    let constants_ptr_len = 2;
-    let input_len = 6;
-    let add_mod_n = 5;
-    let mul_mod_n = 7;
-    let n_assert_eq = 1;
-
-    local rhs_from_x_is_a_square_residue: felt;
-    local y_try: UInt384;
-    %{
-        from starkware.python.math_utils import is_quad_residue
-        from sympy import sqrt_mod
-        from garaga.definitions import CURVES, CurveID
-        from garaga.hints.io import bigint_pack, bigint_fill
-        curve_id = CurveID.SECP256K1.value
-        a = CURVES[curve_id].a
-        b = CURVES[curve_id].b
-        p = CURVES[curve_id].p
-        x = bigint_pack(ids.x, 4, 2**96)
-        rhs = (x**3 + a*x + b) % p
-        ids.rhs_from_x_is_a_square_residue = is_quad_residue(rhs, p)
-        if ids.rhs_from_x_is_a_square_residue == 1:
-            square_root = sqrt_mod(rhs, p)
-            if ids.v % 2 == square_root % 2:
-                pass
-            else:
-                square_root = - square_root % p
-        else:
-            square_root = sqrt_mod(rhs*CURVES[curve_id].fp_generator, p)
-
-        bigint_fill(square_root, ids.y_try, 4, 2**96)
-    %}
-
-    let P: UInt384 = UInt384(secp256k1.P0, secp256k1.P1, secp256k1.P2, secp256k1.P3);
-
-    let input: UInt384* = cast(range_check96_ptr, UInt384*);
-
-    assert input[0] = UInt384(1, 0, 0, 0);  // constant
-    assert input[1] = UInt384(0, 0, 0, 0);  // constant
-    assert input[2] = x;
-    assert input[3] = UInt384(secp256k1.A0, secp256k1.A1, secp256k1.A2, secp256k1.A3);
-    assert input[4] = UInt384(secp256k1.B0, secp256k1.B1, secp256k1.B2, secp256k1.B3);
-    assert input[5] = UInt384(secp256k1.G0, secp256k1.G1, secp256k1.G2, secp256k1.G3);
-    assert input[6] = y_try;
-
-    if (rhs_from_x_is_a_square_residue != 0) {
-        assert input[7] = UInt384(1, 0, 0, 0);  // True
-    } else {
-        assert input[7] = UInt384(0, 0, 0, 0);  // False
-    }
-
-    run_modulo_circuit_basic(
-        P,
-        add_offsets_ptr,
-        add_mod_n,
-        mul_offsets_ptr,
-        mul_mod_n,
-        input_len + constants_ptr_len,
-        n_assert_eq,
-    );
-
-    if (rhs_from_x_is_a_square_residue != 0) {
-        assert [result] = G1Point(x=x, y=y_try);
-        return (is_on_curve=1);
-    } else {
-        assert [result] = G1Point(x=UInt384(0, 0, 0, 0), y=UInt384(0, 0, 0, 0));
-        return (is_on_curve=0);
-    }
-
-    add_offsets_ptr_loc:
-    dw 40;  // (ax)+b
-    dw 16;
-    dw 44;
-    dw 36;  // (x3+ax)+b=rhs
-    dw 44;
-    dw 48;
-    dw 28;  // (1-is_on_curve)
-    dw 60;
-    dw 0;
-    dw 56;  // is_on_curve*rhs + (1-is_on_curve)*g*rhs
-    dw 64;
-    dw 68;
-    dw 4;  // assert rhs_or_grhs == should_be_rhs_or_grhs
-    dw 72;
-    dw 68;
-
-    mul_offsets_ptr_loc:
-    dw 8;  // x2
-    dw 8;
-    dw 32;
-    dw 8;  // x3
-    dw 32;
-    dw 36;
-    dw 12;  // ax
-    dw 8;
-    dw 40;
-    dw 20;  // g*rhs
-    dw 48;
-    dw 52;
-    dw 28;  // is_on_curve*rhs
-    dw 48;
-    dw 56;
-    dw 60;  // (1-is_on_curve)*grhs
-    dw 52;
-    dw 64;
-    dw 24;  // y_try^2=should_be_rhs_or_grhs
-    dw 24;
-    dw 72;
-}
-
-func get_point_from_x_secp256k1{
-    range_check96_ptr: felt*,
-    add_mod_ptr: ModBuiltin*,
-    mul_mod_ptr: ModBuiltin*,
-    poseidon_ptr: PoseidonBuiltin*,
-}(x: felt, attempt: felt) -> (res: G1Point) {
-    alloc_locals;
-    let (local res: G1Point*) = alloc();
-    let (x_384: UInt384) = felt_to_uint384(x);
-
-    let (is_on_curve) = try_get_point_from_x_secp256k1(x=x_384, v=0, result=res);
-
-    if (is_on_curve != 0) {
-        return (res=[res]);
-    } else {
-        assert poseidon_ptr[0].input.s0 = x;
-        assert poseidon_ptr[0].input.s1 = attempt;
-        assert poseidon_ptr[0].input.s2 = 2;
-        let new_x = poseidon_ptr[0].output.s0;
-        tempvar poseidon_ptr = poseidon_ptr + PoseidonBuiltin.SIZE;
-        return get_point_from_x_secp256k1(x=new_x, attempt=attempt + 1);
-    }
 }
 
 namespace Signature {
@@ -289,14 +150,13 @@ namespace Signature {
     ) {
         alloc_locals;
         let (__fp__, _) = get_fp_and_pc();
-        let (local r_point: G1Point*) = alloc();
-        let (is_on_curve) = try_get_point_from_x_secp256k1(x=r, v=y_parity, result=r_point);
+        let (y, is_on_curve) = try_get_point_from_x(x=r, v=y_parity);
         if (is_on_curve == 0) {
-            assert 1 = 0;
             return (
                 public_key_point=G1Point(x=UInt384(0, 0, 0, 0), y=UInt384(0, 0, 0, 0)), success=0
             );
         }
+        let r_point = G1Point(x=r, y=y);
         // The result is given by
         //   -(msg_hash / r) * gen + (s / r) * r_point
         // where the division by r is modulo N.
@@ -316,31 +176,29 @@ namespace Signature {
         let (ep1_low, en1_low, sp1_low, sn1_low) = scalar_to_epns(u1.low);
         let (ep1_high, en1_high, sp1_high, sn1_high) = scalar_to_epns(u1.high);
 
-        let (ep1_low_384) = felt_to_uint384(ep1_low);
-        let (en1_low_384) = felt_to_uint384(en1_low);
+        let ep1_low_384 = felt_to_uint384(ep1_low);
+        let en1_low_384 = felt_to_uint384(en1_low);
         let sp1_low_384 = sign_to_uint384_mod_secp256k1(sp1_low);
         let sn1_low_384 = sign_to_uint384_mod_secp256k1(sn1_low);
 
-        let (ep1_high_384) = felt_to_uint384(ep1_high);
-        let (en1_high_384) = felt_to_uint384(en1_high);
+        let ep1_high_384 = felt_to_uint384(ep1_high);
+        let en1_high_384 = felt_to_uint384(en1_high);
         let sp1_high_384 = sign_to_uint384_mod_secp256k1(sp1_high);
         let sn1_high_384 = sign_to_uint384_mod_secp256k1(sn1_high);
 
         let (ep2_low, en2_low, sp2_low, sn2_low) = scalar_to_epns(u2.low);
 
-        let (ep2_low_384) = felt_to_uint384(ep2_low);
-        let (en2_low_384) = felt_to_uint384(en2_low);
+        let ep2_low_384 = felt_to_uint384(ep2_low);
+        let en2_low_384 = felt_to_uint384(en2_low);
         let sp2_low_384 = sign_to_uint384_mod_secp256k1(sp2_low);
         let sn2_low_384 = sign_to_uint384_mod_secp256k1(sn2_low);
 
         let (ep2_high, en2_high, sp2_high, sn2_high) = scalar_to_epns(u2.high);
-        let (ep2_high_384) = felt_to_uint384(ep2_high);
-        let (en2_high_384) = felt_to_uint384(en2_high);
+        let ep2_high_384 = felt_to_uint384(ep2_high);
+        let en2_high_384 = felt_to_uint384(en2_high);
         let sp2_high_384 = sign_to_uint384_mod_secp256k1(sp2_high);
         let sn2_high_384 = sign_to_uint384_mod_secp256k1(sn2_high);
         let generator_point = get_generator_point();
-
-        // _hash_inputs_points_scalars_and_result_points
 
         %{
             from garaga.hints.io import pack_bigint_ptr, pack_felt_ptr, fill_sum_dlog_div, fill_g1_point, bigint_split
@@ -397,11 +255,9 @@ namespace Signature {
             s2=poseidon_ptr[0].output.s2,
         );
 
-        // tempvar init_s0 = poseidon_ptr[1].output.s0 + 0;
-        // // %{ print(f"CAIROS0: {hex(ids.init_s0)}") %}
         let poseidon_ptr = poseidon_ptr + 2 * PoseidonBuiltin.SIZE;
-        let (_, _, _) = hash_full_transcript_and_get_Z_3_LIMBS(cast(generator_point, felt*), 2);
-        let (_, _, _) = hash_full_transcript_and_get_Z_3_LIMBS(cast(r_point, felt*), 2);
+        hash_full_transcript_and_get_Z_3_LIMBS(cast(generator_point, felt*), 2);
+        hash_full_transcript_and_get_Z_3_LIMBS(cast(&r_point, felt*), 2);
         // Q_low, Q_high, Q_high_shifted (filled by prover) (50 - 55).
         let (_s0, _s1, _s2) = hash_full_transcript_and_get_Z_3_LIMBS(
             cast(range_check96_ptr + 4 + 50 * N_LIMBS, felt*), 3 * 2
@@ -418,22 +274,20 @@ namespace Signature {
 
         tempvar rlc_coeff = poseidon_ptr[1].output.s1 + 0;
         let poseidon_ptr = poseidon_ptr + 2 * PoseidonBuiltin.SIZE;
-        %{ print(f"CAIRORLC: {hex(ids.rlc_coeff)}") %}
-        let (rlc_coeff_u384) = felt_to_uint384(rlc_coeff);
+        let rlc_coeff_u384 = felt_to_uint384(rlc_coeff);
 
         // Hash sumdlogdiv 2 points : (4-29)
         let (_random_x_coord, _, _) = hash_full_transcript_and_get_Z_3_LIMBS(
             cast(range_check96_ptr + 4 * N_LIMBS, felt*), 26
         );
-        %{ print(f"CAIROX: {hex(ids._random_x_coord)}") %}
 
         tempvar range_check96_ptr_init = range_check96_ptr;
         tempvar range_check96_ptr_after_circuit = range_check96_ptr + 224 + (4 + 117 + 108 - 1) *
             N_LIMBS;
 
-        let (random_point: G1Point) = get_point_from_x_secp256k1{
-            range_check96_ptr=range_check96_ptr_after_circuit
-        }(x=_random_x_coord, attempt=0);
+        let random_point = get_point_from_x{range_check96_ptr=range_check96_ptr_after_circuit}(
+            x=_random_x_coord, attempt=0
+        );
 
         tempvar range_check96_ptr_final = range_check96_ptr_after_circuit;
         let range_check96_ptr = range_check96_ptr_init;
