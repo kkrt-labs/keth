@@ -24,6 +24,7 @@ from ethereum.cancun.vm.gas import (
 from tests.utils.args_gen import Evm, Memory
 from tests.utils.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder
+from tests.utils.strategies import excess_blob_gas
 
 
 @composite
@@ -122,13 +123,13 @@ class TestGas:
         assume(len(tx.blob_versioned_hashes) > 0)
         assert calculate_total_blob_gas(tx) == cairo_run("calculate_total_blob_gas", tx)
 
-    @given(excess_blob_gas=st.integers(min_value=0, max_value=100_000))
+    @given(excess_blob_gas=excess_blob_gas)
     def test_calculate_blob_gas_price(self, cairo_run, excess_blob_gas):
         assert calculate_blob_gas_price(excess_blob_gas) == cairo_run(
             "calculate_blob_gas_price", excess_blob_gas
         )
 
-    @given(excess_blob_gas=st.integers(min_value=0, max_value=100_000), tx=...)
+    @given(excess_blob_gas=excess_blob_gas, tx=...)
     def test_calculate_data_fee(self, cairo_run, excess_blob_gas, tx: BlobTransaction):
         assume(len(tx.blob_versioned_hashes) > 0)
         assert calculate_data_fee(excess_blob_gas, tx) == cairo_run(

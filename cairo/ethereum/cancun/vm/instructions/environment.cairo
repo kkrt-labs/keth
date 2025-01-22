@@ -24,7 +24,12 @@ from ethereum.cancun.fork_types import (
 )
 from ethereum.cancun.vm import Evm, EvmImpl, EnvImpl
 from ethereum.cancun.vm.exceptions import ExceptionalHalt, OutOfGasError, OutOfBoundsRead
-from ethereum.cancun.vm.gas import charge_gas, GasConstants, calculate_gas_extend_memory
+from ethereum.cancun.vm.gas import (
+    charge_gas,
+    GasConstants,
+    calculate_gas_extend_memory,
+    calculate_blob_gas_price,
+)
 from ethereum.cancun.vm.memory import buffer_read, memory_write, expand_by
 from ethereum.cancun.vm.stack import Stack, push, pop
 from ethereum.cancun.state import get_account
@@ -796,6 +801,31 @@ func extcodehash{
 
     // PROGRAM COUNTER
     EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
+    let ok = cast(0, ExceptionalHalt*);
+    return ok;
+}
+
+func blob_base_fee{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+    alloc_locals;
+
+    let err = charge_gas(Uint(GasConstants.GAS_BASE));
+    if (cast(err, felt) != 0) {
+        return err;
+    }
+
+    let _blob_base_fee = calculate_blob_gas_price(evm.value.env.value.excess_blob_gas);
+
+    tempvar blob_base_fee = U256(new U256Struct(_blob_base_fee.value, 0));
+    let stack = evm.value.stack;
+    with stack {
+        let err = push(blob_base_fee);
+        if (cast(err, felt) != 0) {
+            return err;
+        }
+    }
+
+    EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
+
     let ok = cast(0, ExceptionalHalt*);
     return ok;
 }

@@ -31,7 +31,7 @@ from tests.utils.args_gen import (
     TransientStorage,
     VersionedHash,
 )
-from tests.utils.constants import BLOCK_GAS_LIMIT
+from tests.utils.constants import BLOCK_GAS_LIMIT, MAX_BLOB_GAS_PER_BLOCK
 
 # Mock the Extended type because hypothesis cannot handle the RLP Protocol
 # Needs to be done before importing the types from ethereum.cancun.trie
@@ -80,6 +80,10 @@ bytes256 = st.integers(min_value=0, max_value=2**2048 - 1).map(
     lambda x: Bytes256(x.to_bytes(256, "little"))
 )
 bloom = bytes256.map(Bloom)
+
+excess_blob_gas = st.integers(min_value=0, max_value=MAX_BLOB_GAS_PER_BLOCK * 2).map(
+    Uint
+)
 
 # Maximum recursion depth for the recursive strategy to avoid heavy memory usage and health check errors
 MAX_RECURSION_DEPTH = int(os.getenv("HYPOTHESIS_MAX_RECURSION_DEPTH", 10))
@@ -280,7 +284,7 @@ environment_lite = st.integers(min_value=0).flatmap(  # Generate block number fi
         prev_randao=bytes32,
         state=st.from_type(State),
         chain_id=uint64,
-        excess_blob_gas=uint64,
+        excess_blob_gas=excess_blob_gas,
         blob_versioned_hashes=st.lists(
             st.from_type(VersionedHash), min_size=0, max_size=5
         ).map(tuple),
