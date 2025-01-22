@@ -40,7 +40,6 @@ from tests.utils.strategies import (
     excess_blob_gas,
     memory_lite,
     memory_lite_start_position,
-    uint256,
 )
 
 environment_empty_state = st.builds(
@@ -81,8 +80,15 @@ evm_environment_strategy_with_return_data = (
     .build()
 )
 
-code_access_size_strategy = st.integers(min_value=0, max_value=MAX_CODE_SIZE).map(U256)
-code_start_index_strategy = code_access_size_strategy
+
+def create_bounded_u256_strategy(min_value: int = 0, max_value: int = MAX_CODE_SIZE):
+    return st.integers(min_value=min_value, max_value=max_value).map(U256)
+
+
+code_access_size_strategy = create_bounded_u256_strategy()
+code_start_index_strategy = create_bounded_u256_strategy()
+data_start_index_strategy = create_bounded_u256_strategy()
+size_data_strategy = create_bounded_u256_strategy(max_value=MAX_CODE_SIZE * 2)
 
 
 @composite
@@ -108,9 +114,9 @@ def codecopy_strategy(draw):
     # 80% chance to push valid values onto stack
     should_push = draw(integers(0, 99)) < 80
     if should_push:
-        push(evm.stack, U256(size))
-        push(evm.stack, U256(code_start_index))
-        push(evm.stack, U256(memory_start_index))
+        push(evm.stack, size)
+        push(evm.stack, code_start_index)
+        push(evm.stack, memory_start_index)
 
     return evm
 
@@ -133,15 +139,15 @@ def calldatacopy_strategy(draw):
     )
 
     memory_start_index = draw(memory_lite_start_position)
-    data_start_index = draw(uint256)
-    size = draw(uint256)
+    data_start_index = draw(data_start_index_strategy)
+    size = draw(size_data_strategy)
 
     # 80% chance to push valid values onto stack
     should_push = draw(integers(0, 99)) < 80
     if should_push:
-        push(evm.stack, U256(size))
-        push(evm.stack, U256(data_start_index))
-        push(evm.stack, U256(memory_start_index))
+        push(evm.stack, size)
+        push(evm.stack, data_start_index)
+        push(evm.stack, memory_start_index)
 
     return evm
 
