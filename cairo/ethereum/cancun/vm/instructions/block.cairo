@@ -26,6 +26,7 @@ func block_hash{
     with stack {
         let (block_number, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -40,6 +41,7 @@ func block_hash{
     with stack {
         let err = Internals.blockhash(evm, block_number);
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -77,6 +79,7 @@ func coinbase{
     with stack {
         let err = push(U256(new U256Struct(coinbase_uint256.low, coinbase_uint256.high)));
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -109,6 +112,7 @@ func timestamp{
     with stack {
         let err = push(evm.value.env.value.time);
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -141,6 +145,7 @@ func number{
     with stack {
         let err = push(U256(new U256Struct(evm.value.env.value.number.value, 0)));
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -174,6 +179,7 @@ func prev_randao{
     with stack {
         let err = push(prev_randao_uint256);
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -206,6 +212,7 @@ func gas_limit{
     with stack {
         let err = push(U256(new U256Struct(evm.value.env.value.gas_limit.value, 0)));
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -238,6 +245,7 @@ func chain_id{
     with stack {
         let err = push(U256(new U256Struct(evm.value.env.value.chain_id.value, 0)));
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -257,6 +265,7 @@ namespace Internals {
             with stack {
                 let err = push(U256(new U256Struct(0, 0)));
                 if (cast(err, felt) != 0) {
+                    EvmImpl.set_stack{evm=evm}(stack);
                     return err;
                 }
             }
@@ -274,6 +283,7 @@ namespace Internals {
             with stack {
                 let err = push(U256(new U256Struct(0, 0)));
                 if (cast(err, felt) != 0) {
+                    EvmImpl.set_stack{evm=evm}(stack);
                     return err;
                 }
             }
@@ -287,6 +297,7 @@ namespace Internals {
         with stack {
             let err = push(U256(new U256Struct(block_hashes.value.low, block_hashes.value.high)));
             if (cast(err, felt) != 0) {
+                EvmImpl.set_stack{evm=evm}(stack);
                 return err;
             }
         }

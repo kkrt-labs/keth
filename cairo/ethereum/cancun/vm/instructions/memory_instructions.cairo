@@ -40,10 +40,12 @@ func mstore{
     with stack {
         let (start_position, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
         let (value, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -93,10 +95,12 @@ func mstore8{
     with stack {
         let (start_position, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
         let (value, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -148,6 +152,7 @@ func mload{
     with stack {
         let (start_position, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -175,6 +180,7 @@ func mload{
     with stack {
         let err = push(U256(new U256Struct(value.low, value.high)));
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -207,6 +213,7 @@ func msize{
     with stack {
         let err = push(U256(new U256Struct(evm.value.memory.value.len, 0)));
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -231,14 +238,17 @@ func mcopy{
     with stack {
         let (destination, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
         let (source, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
         let (length, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }

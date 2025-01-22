@@ -79,10 +79,12 @@ func sub{
     with stack {
         let (x, err1) = pop();
         if (cast(err1, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err1;
         }
         let (y, err2) = pop();
         if (cast(err2, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err2;
         }
     }
@@ -98,13 +100,13 @@ func sub{
     with stack {
         let err4 = push(U256(new U256Struct(result.low, result.high)));
         if (cast(err4, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err4;
         }
     }
 
     // PROGRAM COUNTER
-    EvmImpl.set_stack(stack);
-    EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
+    EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
     let ok = cast(0, EthereumException*);
     return ok;
 }
@@ -123,10 +125,12 @@ func mul{
     with stack {
         let (x, err1) = pop();
         if (cast(err1, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err1;
         }
         let (y, err2) = pop();
         if (cast(err2, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err2;
         }
     }
@@ -142,13 +146,13 @@ func mul{
     with stack {
         let err4 = push(U256(new U256Struct(result.low, result.high)));
         if (cast(err4, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err4;
         }
     }
 
     // PROGRAM COUNTER
-    EvmImpl.set_stack(stack);
-    EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
+    EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
     let ok = cast(0, EthereumException*);
     return ok;
 }
@@ -167,10 +171,12 @@ func div{
     with stack {
         let (x, err1) = pop();
         if (cast(err1, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err1;
         }
         let (y, err2) = pop();
         if (cast(err2, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err2;
         }
     }
@@ -187,6 +193,7 @@ func div{
         if (is_zero != 0) {
             let err4 = push(U256(new U256Struct(0, 0)));
             if (cast(err4, felt) != 0) {
+                EvmImpl.set_stack(stack);
                 return err4;
             }
             tempvar range_check_ptr = range_check_ptr;
@@ -194,6 +201,7 @@ func div{
             let (result, _) = uint256_unsigned_div_rem([x.value], [y.value]);
             let err4 = push(U256(new U256Struct(result.low, result.high)));
             if (cast(err4, felt) != 0) {
+                EvmImpl.set_stack(stack);
                 return err4;
             }
             tempvar range_check_ptr = range_check_ptr;
@@ -201,8 +209,7 @@ func div{
     }
 
     // PROGRAM COUNTER
-    EvmImpl.set_stack(stack);
-    EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
+    EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
     let ok = cast(0, EthereumException*);
     return ok;
 }
@@ -221,10 +228,12 @@ func sdiv{
     with stack {
         let (x, err1) = pop();
         if (cast(err1, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err1;
         }
         let (y, err2) = pop();
         if (cast(err2, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err2;
         }
     }
@@ -240,13 +249,13 @@ func sdiv{
     with stack {
         let err4 = push(U256(new U256Struct(result.low, result.high)));
         if (cast(err4, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err4;
         }
     }
 
     // PROGRAM COUNTER
-    EvmImpl.set_stack(stack);
-    EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
+    EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
     let ok = cast(0, EthereumException*);
     return ok;
 }
@@ -265,10 +274,12 @@ func mod{
     with stack {
         let (x, err1) = pop();
         if (cast(err1, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err1;
         }
         let (y, err2) = pop();
         if (cast(err2, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err2;
         }
     }
@@ -285,6 +296,7 @@ func mod{
         if (is_zero != 0) {
             let err4 = push(U256(new U256Struct(0, 0)));
             if (cast(err4, felt) != 0) {
+                EvmImpl.set_stack(stack);
                 return err4;
             }
             tempvar range_check_ptr = range_check_ptr;
@@ -292,6 +304,7 @@ func mod{
             let (_, remainder) = uint256_unsigned_div_rem([x.value], [y.value]);
             let err4 = push(U256(new U256Struct(remainder.low, remainder.high)));
             if (cast(err4, felt) != 0) {
+                EvmImpl.set_stack(stack);
                 return err4;
             }
             tempvar range_check_ptr = range_check_ptr;
@@ -299,8 +312,7 @@ func mod{
     }
 
     // PROGRAM COUNTER
-    EvmImpl.set_stack(stack);
-    EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
+    EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
     let ok = cast(0, EthereumException*);
     return ok;
 }
@@ -319,10 +331,12 @@ func smod{
     with stack {
         let (x, err1) = pop();
         if (cast(err1, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err1;
         }
         let (y, err2) = pop();
         if (cast(err2, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err2;
         }
     }
@@ -339,6 +353,7 @@ func smod{
         if (is_zero != 0) {
             let err4 = push(U256(new U256Struct(0, 0)));
             if (cast(err4, felt) != 0) {
+                EvmImpl.set_stack(stack);
                 return err4;
             }
             tempvar range_check_ptr = range_check_ptr;
@@ -346,6 +361,7 @@ func smod{
             let (_, remainder) = uint256_signed_div_rem([x.value], [y.value]);
             let err4 = push(U256(new U256Struct(remainder.low, remainder.high)));
             if (cast(err4, felt) != 0) {
+                EvmImpl.set_stack(stack);
                 return err4;
             }
             tempvar range_check_ptr = range_check_ptr;
@@ -353,8 +369,7 @@ func smod{
     }
 
     // PROGRAM COUNTER
-    EvmImpl.set_stack(stack);
-    EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
+    EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
     let ok = cast(0, EthereumException*);
     return ok;
 }
@@ -373,14 +388,17 @@ func addmod{
     with stack {
         let (a, err1) = pop();
         if (cast(err1, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err1;
         }
         let (b, err2) = pop();
         if (cast(err2, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err2;
         }
         let (n, err3) = pop();
         if (cast(err3, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err3;
         }
     }
@@ -397,12 +415,12 @@ func addmod{
         with stack {
             let err5 = push(U256(new U256Struct(0, 0)));
             if (cast(err5, felt) != 0) {
+                EvmImpl.set_stack(stack);
                 return err5;
             }
         }
         // early return if n is zero
-        EvmImpl.set_stack(stack);
-        EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
+        EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
         let ok = cast(0, EthereumException*);
         return ok;
     }
@@ -425,11 +443,11 @@ func addmod{
         with stack {
             let err6 = push(U256(new U256Struct(result.low, result.high)));
             if (cast(err6, felt) != 0) {
+                EvmImpl.set_stack(stack);
                 return err6;
             }
         }
-        EvmImpl.set_stack(stack);
-        EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
+        EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
         let ok = cast(0, EthereumException*);
         return ok;
     }
@@ -439,6 +457,7 @@ func addmod{
         with stack {
             let err7 = push(U256(new U256Struct(sum.low, sum.high)));
             if (cast(err7, felt) != 0) {
+                EvmImpl.set_stack(stack);
                 return err7;
             }
         }
@@ -452,11 +471,11 @@ func addmod{
     with stack {
         let err8 = push(U256(new U256Struct(result.low, result.high)));
         if (cast(err8, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err8;
         }
     }
-    EvmImpl.set_stack(stack);
-    EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
+    EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
     let ok = cast(0, EthereumException*);
     return ok;
 }
@@ -475,14 +494,17 @@ func mulmod{
     with stack {
         let (a, err1) = pop();
         if (cast(err1, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err1;
         }
         let (b, err2) = pop();
         if (cast(err2, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err2;
         }
         let (n, err3) = pop();
         if (cast(err3, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err3;
         }
     }
@@ -499,13 +521,13 @@ func mulmod{
         with stack {
             let err5 = push(U256(new U256Struct(0, 0)));
             if (cast(err5, felt) != 0) {
+                EvmImpl.set_stack(stack);
                 return err5;
             }
         }
 
         // PROGRAM COUNTER
-        EvmImpl.set_stack(stack);
-        EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
+        EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
         let ok = cast(0, EthereumException*);
         return ok;
     }
@@ -514,13 +536,13 @@ func mulmod{
     with stack {
         let err6 = push(U256(new U256Struct(result.low, result.high)));
         if (cast(err6, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err6;
         }
     }
 
     // PROGRAM COUNTER
-    EvmImpl.set_stack(stack);
-    EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
+    EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
     let ok = cast(0, EthereumException*);
     return ok;
 }
@@ -539,10 +561,12 @@ func exp{
     with stack {
         let (base, err1) = pop();
         if (cast(err1, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err1;
         }
         let (exponent, err2) = pop();
         if (cast(err2, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err2;
         }
     }
@@ -573,12 +597,12 @@ func exp{
     with stack {
         let err4 = push(U256(new U256Struct(result.low, result.high)));
         if (cast(err4, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err4;
         }
     }
 
     // PROGRAM COUNTER
-    EvmImpl.set_stack(stack);
     EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
     let ok = cast(0, EthereumException*);
     return ok;
@@ -598,10 +622,12 @@ func signextend{
     with stack {
         let (byte_num, err1) = pop();
         if (cast(err1, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err1;
         }
         let (value, err2) = pop();
         if (cast(err2, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err2;
         }
     }
@@ -617,13 +643,13 @@ func signextend{
     with stack {
         let err4 = push(U256(new U256Struct(result.low, result.high)));
         if (cast(err4, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err4;
         }
     }
 
     // PROGRAM COUNTER
-    EvmImpl.set_stack(stack);
-    EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
     let ok = cast(0, EthereumException*);
+    EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
     return ok;
 }

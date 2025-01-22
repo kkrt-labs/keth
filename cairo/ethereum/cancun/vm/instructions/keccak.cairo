@@ -31,10 +31,12 @@ func keccak{
     with stack {
         let (memory_start_index, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
         let (size, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -77,6 +79,7 @@ func keccak{
         let value = U256_from_be_bytes(hash);
         let err = push(value);
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }

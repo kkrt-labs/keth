@@ -35,10 +35,12 @@ func log0{
         // Pop memory_start_index and size
         let (memory_start_index, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
         let (size, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -116,14 +118,17 @@ func log1{
         // Pop memory_start_index, size and topic
         let (memory_start_index, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
         let (size, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
         let (topic, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -203,18 +208,22 @@ func log2{
         // Pop memory_start_index and size
         let (memory_start_index, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
         let (size, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
         let (topic1, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
         let (topic2, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -297,22 +306,27 @@ func log3{
         // Pop memory_start_index and size
         let (memory_start_index, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
         let (size, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
         let (topic1, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
         let (topic2, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
         let (topic3, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -397,26 +411,32 @@ func log4{
         // Pop memory_start_index and size
         let (memory_start_index, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
         let (size, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
         let (topic1, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
         let (topic2, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
         let (topic3, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
         let (topic4, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }

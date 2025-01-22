@@ -46,6 +46,7 @@ func sload{
     with stack {
         let (key, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -96,6 +97,7 @@ func sload{
         let value = get_storage(evm.value.message.value.current_target, Bytes32(key.value));
         let err = push(value);
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -124,10 +126,12 @@ func sstore{
     with stack {
         let (key, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
         let (new_value, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -267,6 +271,7 @@ func tload{
     with stack {
         let (key, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -285,6 +290,7 @@ func tload{
     );
     let err = push{stack=stack}(value);
     if (cast(err, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err;
     }
 
@@ -311,10 +317,12 @@ func tstore{
     with stack {
         let (key, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
         let (new_value, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }

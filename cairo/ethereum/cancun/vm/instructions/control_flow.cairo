@@ -56,6 +56,7 @@ func jump{
     with stack {
         let (jump_dest, err1) = pop();
         if (cast(err1, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err1;
         }
     }
@@ -63,6 +64,7 @@ func jump{
     // GAS
     let err2 = charge_gas(Uint(GasConstants.GAS_MID));
     if (cast(err2, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err2;
     }
 
@@ -102,10 +104,12 @@ func jumpi{
     with stack {
         let (jump_dest, err1) = pop();
         if (cast(err1, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err1;
         }
         let (condition, err2) = pop();
         if (cast(err2, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err2;
         }
     }
@@ -167,6 +171,7 @@ func pc{
     with stack {
         let err2 = push(U256(new U256Struct(evm.value.pc.value, 0)));
         if (cast(err2, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err2;
         }
     }
@@ -199,6 +204,7 @@ func gas_left{
     with stack {
         let err2 = push(U256(new U256Struct(evm.value.gas_left.value, 0)));
         if (cast(err2, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err2;
         }
     }
