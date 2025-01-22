@@ -496,6 +496,10 @@ class Serde:
         segment_size = pointers["dict_ptr"] - pointers["dict_ptr_start"]
         dict_ptr = pointers["dict_ptr_start"]
 
+        # Invariant Testing:
+        # We need to ensure that the last dict_ptr points properly
+        assert self.memory.get(pointers["dict_ptr"]) is None
+
         dict_segment_data = {
             self._serialize(cairo_key_type, dict_ptr + i): self._serialize(
                 value_type, dict_ptr + i + 2
