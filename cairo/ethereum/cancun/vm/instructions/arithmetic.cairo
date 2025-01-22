@@ -13,7 +13,7 @@ from src.utils.uint256 import (
 from src.utils.utils import Helpers
 from ethereum.cancun.vm.stack import Stack, pop, push
 from ethereum.cancun.vm import Evm, EvmImpl
-from ethereum.cancun.vm.exceptions import ExceptionalHalt
+from ethereum.exceptions import EthereumException
 from ethereum_types.numeric import U256, U256Struct, Uint
 from ethereum.cancun.vm.gas import charge_gas, GasConstants
 
@@ -21,7 +21,7 @@ from ethereum.cancun.vm.gas import charge_gas, GasConstants
 // @notice Implements arithmetic operations like add, sub, mul, div, etc.
 
 // @notice Adds the top two elements of the stack together
-func add{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+func add{range_check_ptr, evm: Evm}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -54,12 +54,12 @@ func add{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
     // PROGRAM COUNTER
     EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
     EvmImpl.set_stack(stack);
-    let ok = cast(0, ExceptionalHalt*);
+    let ok = cast(0, EthereumException*);
     return ok;
 }
 
 // @notice Subtracts the top two elements of the stack
-func sub{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+func sub{range_check_ptr, evm: Evm}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -92,12 +92,12 @@ func sub{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
     // PROGRAM COUNTER
     EvmImpl.set_stack(stack);
     EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
-    let ok = cast(0, ExceptionalHalt*);
+    let ok = cast(0, EthereumException*);
     return ok;
 }
 
 // @notice Multiplies the top two elements of the stack
-func mul{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+func mul{range_check_ptr, evm: Evm}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -130,12 +130,12 @@ func mul{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
     // PROGRAM COUNTER
     EvmImpl.set_stack(stack);
     EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
-    let ok = cast(0, ExceptionalHalt*);
+    let ok = cast(0, EthereumException*);
     return ok;
 }
 
 // @notice Integer division of the top two elements of the stack
-func div{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+func div{range_check_ptr, evm: Evm}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -178,12 +178,12 @@ func div{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
     // PROGRAM COUNTER
     EvmImpl.set_stack(stack);
     EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
-    let ok = cast(0, ExceptionalHalt*);
+    let ok = cast(0, EthereumException*);
     return ok;
 }
 
 // @notice Signed integer division of the top two elements of the stack
-func sdiv{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+func sdiv{range_check_ptr, evm: Evm}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -216,12 +216,12 @@ func sdiv{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
     // PROGRAM COUNTER
     EvmImpl.set_stack(stack);
     EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
-    let ok = cast(0, ExceptionalHalt*);
+    let ok = cast(0, EthereumException*);
     return ok;
 }
 
 // @notice Modulo remainder of the top two elements of the stack
-func mod{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+func mod{range_check_ptr, evm: Evm}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -264,12 +264,12 @@ func mod{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
     // PROGRAM COUNTER
     EvmImpl.set_stack(stack);
     EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
-    let ok = cast(0, ExceptionalHalt*);
+    let ok = cast(0, EthereumException*);
     return ok;
 }
 
 // @notice Signed modulo remainder of the top two elements of the stack
-func smod{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+func smod{range_check_ptr, evm: Evm}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -312,12 +312,12 @@ func smod{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
     // PROGRAM COUNTER
     EvmImpl.set_stack(stack);
     EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
-    let ok = cast(0, ExceptionalHalt*);
+    let ok = cast(0, EthereumException*);
     return ok;
 }
 
 // @notice Addition modulo of three elements on the stack
-func addmod{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+func addmod{range_check_ptr, evm: Evm}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -354,7 +354,7 @@ func addmod{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
         // early return if n is zero
         EvmImpl.set_stack(stack);
         EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
-        let ok = cast(0, ExceptionalHalt*);
+        let ok = cast(0, EthereumException*);
         return ok;
     }
 
@@ -381,7 +381,7 @@ func addmod{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
         }
         EvmImpl.set_stack(stack);
         EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
-        let ok = cast(0, ExceptionalHalt*);
+        let ok = cast(0, EthereumException*);
         return ok;
     }
 
@@ -395,7 +395,7 @@ func addmod{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
         }
         EvmImpl.set_stack(stack);
         EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
-        let ok = cast(0, ExceptionalHalt*);
+        let ok = cast(0, EthereumException*);
         return ok;
     }
 
@@ -408,12 +408,12 @@ func addmod{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
     }
     EvmImpl.set_stack(stack);
     EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
-    let ok = cast(0, ExceptionalHalt*);
+    let ok = cast(0, EthereumException*);
     return ok;
 }
 
 // @notice Multiplication modulo of three elements on the stack
-func mulmod{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+func mulmod{range_check_ptr, evm: Evm}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -451,7 +451,7 @@ func mulmod{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
         // PROGRAM COUNTER
         EvmImpl.set_stack(stack);
         EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
-        let ok = cast(0, ExceptionalHalt*);
+        let ok = cast(0, EthereumException*);
         return ok;
     }
 
@@ -466,12 +466,12 @@ func mulmod{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
     // PROGRAM COUNTER
     EvmImpl.set_stack(stack);
     EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
-    let ok = cast(0, ExceptionalHalt*);
+    let ok = cast(0, EthereumException*);
     return ok;
 }
 
 // @notice Exponential operation of the top 2 elements
-func exp{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+func exp{range_check_ptr, evm: Evm}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -519,12 +519,12 @@ func exp{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
     // PROGRAM COUNTER
     EvmImpl.set_stack(stack);
     EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
-    let ok = cast(0, ExceptionalHalt*);
+    let ok = cast(0, EthereumException*);
     return ok;
 }
 
 // @notice Sign extend operation
-func signextend{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+func signextend{range_check_ptr, evm: Evm}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -557,6 +557,6 @@ func signextend{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
     // PROGRAM COUNTER
     EvmImpl.set_stack(stack);
     EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
-    let ok = cast(0, ExceptionalHalt*);
+    let ok = cast(0, EthereumException*);
     return ok;
 }

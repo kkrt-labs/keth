@@ -5,7 +5,7 @@ from starkware.cairo.common.math_cmp import is_nn, is_in_range
 
 from ethereum_types.numeric import U256, U256Struct, Uint
 from ethereum.cancun.vm import Evm, EvmImpl
-from ethereum.cancun.vm.exceptions import ExceptionalHalt
+from ethereum.exceptions import EthereumException
 from ethereum.cancun.vm.gas import charge_gas, GasConstants
 from ethereum.cancun.vm.stack import Stack, pop, push
 from ethereum.utils.numeric import U256_from_be_bytes
@@ -13,7 +13,7 @@ from src.utils.bytes import felt_to_bytes20_little
 from src.utils.utils import Helpers
 
 // @notice Get the hash of one of the 256 most recent complete blocks
-func block_hash{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+func block_hash{range_check_ptr, evm: Evm}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -40,12 +40,12 @@ func block_hash{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
 
     // PROGRAM COUNTER
     EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
-    let ok = cast(0, ExceptionalHalt*);
+    let ok = cast(0, EthereumException*);
     return ok;
 }
 
 // @notice Get the current block's beneficiary address
-func coinbase{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+func coinbase{range_check_ptr, evm: Evm}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -71,12 +71,12 @@ func coinbase{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
 
     // PROGRAM COUNTER
     EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
-    let ok = cast(0, ExceptionalHalt*);
+    let ok = cast(0, EthereumException*);
     return ok;
 }
 
 // @notice Get the current block's timestamp
-func timestamp{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+func timestamp{range_check_ptr, evm: Evm}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -97,12 +97,12 @@ func timestamp{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
 
     // PROGRAM COUNTER
     EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
-    let ok = cast(0, ExceptionalHalt*);
+    let ok = cast(0, EthereumException*);
     return ok;
 }
 
 // @notice Get the current block's number
-func number{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+func number{range_check_ptr, evm: Evm}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -123,12 +123,12 @@ func number{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
 
     // PROGRAM COUNTER
     EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
-    let ok = cast(0, ExceptionalHalt*);
+    let ok = cast(0, EthereumException*);
     return ok;
 }
 
 // @notice Get the current block's prev_randao value
-func prev_randao{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> ExceptionalHalt* {
+func prev_randao{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -150,12 +150,12 @@ func prev_randao{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> E
 
     // PROGRAM COUNTER
     EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
-    let ok = cast(0, ExceptionalHalt*);
+    let ok = cast(0, EthereumException*);
     return ok;
 }
 
 // @notice Get the current block's gas limit
-func gas_limit{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+func gas_limit{range_check_ptr, evm: Evm}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -176,12 +176,12 @@ func gas_limit{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
 
     // PROGRAM COUNTER
     EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
-    let ok = cast(0, ExceptionalHalt*);
+    let ok = cast(0, EthereumException*);
     return ok;
 }
 
 // @notice Get the chain ID
-func chain_id{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+func chain_id{range_check_ptr, evm: Evm}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -202,14 +202,14 @@ func chain_id{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
 
     // PROGRAM COUNTER
     EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
-    let ok = cast(0, ExceptionalHalt*);
+    let ok = cast(0, EthereumException*);
     return ok;
 }
 
 namespace Internals {
     func blockhash{range_check_ptr, stack: Stack}(
         evm: Evm, block_number: U256
-    ) -> ExceptionalHalt* {
+    ) -> EthereumException* {
         alloc_locals;
         if (block_number.value.high != 0) {
             with stack {
@@ -218,7 +218,7 @@ namespace Internals {
                     return err;
                 }
             }
-            let ok = cast(0, ExceptionalHalt*);
+            let ok = cast(0, EthereumException*);
             return ok;
         }
 
@@ -235,7 +235,7 @@ namespace Internals {
                     return err;
                 }
             }
-            let ok = cast(0, ExceptionalHalt*);
+            let ok = cast(0, EthereumException*);
             return ok;
         }
 
@@ -248,7 +248,7 @@ namespace Internals {
                 return err;
             }
         }
-        let ok = cast(0, ExceptionalHalt*);
+        let ok = cast(0, EthereumException*);
         return ok;
     }
 }

@@ -5,15 +5,15 @@
 // function raised.
 //
 // Example:
-// This is an error:
-// ```
-// let error = cast(0, EthereumException*);
-// ```
-//
 // This is not an error:
 // ```
+// let no_error = cast(0, EthereumException*);
+// ```
+//
+// This is an error:
+// ```
 // from ethereum.cancun.vm.exceptions import StackUnderflowError
-// tempvar no_error = new EthereumException(StackUnderflowError);
+// tempvar error = new EthereumException(StackUnderflowError);
 // ```
 
 // @notice Base type for all exceptions _expected_ to be thrown during normal

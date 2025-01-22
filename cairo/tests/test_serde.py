@@ -29,6 +29,7 @@ from ethereum.cancun.trie import (
 )
 from ethereum.cancun.vm.exceptions import (
     InvalidOpcode,
+    Revert,
     StackOverflowError,
     StackUnderflowError,
 )
@@ -270,7 +271,11 @@ class TestSerde:
         serde,
         gen_arg,
         err: Union[
-            EthereumException, StackOverflowError, StackUnderflowError, InvalidOpcode
+            EthereumException,
+            Revert,
+            StackOverflowError,
+            StackUnderflowError,
+            InvalidOpcode,
         ],
     ):
         base = segments.gen_arg([gen_arg(type(err), err)])
@@ -279,7 +284,13 @@ class TestSerde:
 
     @pytest.mark.parametrize(
         "error_type",
-        [EthereumException, StackOverflowError, StackUnderflowError, InvalidOpcode],
+        [
+            EthereumException,
+            Revert,
+            StackOverflowError,
+            StackUnderflowError,
+            InvalidOpcode,
+        ],
     )
     def test_none_exception(self, to_cairo_type, serde, gen_arg, error_type):
         base = gen_arg(error_type, None)

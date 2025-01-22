@@ -3,7 +3,8 @@ from starkware.cairo.common.uint256 import uint256_reverse_endian
 
 from ethereum.cancun.vm.stack import pop, push
 from ethereum.cancun.vm import Evm, EvmImpl
-from ethereum.cancun.vm.exceptions import ExceptionalHalt, OutOfGasError
+from ethereum.exceptions import EthereumException
+from ethereum.cancun.vm.exceptions import OutOfGasError
 from ethereum.cancun.vm.memory import memory_read_bytes, expand_by
 from ethereum.cancun.vm.gas import calculate_gas_extend_memory, charge_gas, GasConstants
 from ethereum_types.numeric import U256, U256Struct, Uint
@@ -18,7 +19,7 @@ from ethereum_types.others import (
 
 // @notice Computes Keccak-256 hash of a region of memory
 func keccak{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*, evm: Evm}(
-    ) -> ExceptionalHalt* {
+    ) -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -36,7 +37,7 @@ func keccak{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBui
     // GAS
     // If the size is greater than 2**128, the memory expansion will trigger an out of gas error.
     if (size.value.high != 0) {
-        tempvar err = new ExceptionalHalt(OutOfGasError);
+        tempvar err = new EthereumException(OutOfGasError);
         return err;
     }
     let ceil32_size = ceil32(Uint(size.value.low));
@@ -77,6 +78,6 @@ func keccak{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBui
 
     // PROGRAM COUNTER
     EvmImpl.set_pc_stack_memory(Uint(evm.value.pc.value + 1), stack, memory);
-    let ok = cast(0, ExceptionalHalt*);
+    let ok = cast(0, EthereumException*);
     return ok;
 }

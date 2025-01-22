@@ -2,7 +2,6 @@ from ethereum_types.numeric import U64, Uint
 from hypothesis import given
 from hypothesis import strategies as st
 
-from ethereum.cancun.vm.exceptions import ExceptionalHalt
 from ethereum.cancun.vm.instructions.block import (
     block_hash,
     chain_id,
@@ -12,6 +11,7 @@ from ethereum.cancun.vm.instructions.block import (
     prev_randao,
     timestamp,
 )
+from ethereum.exceptions import EthereumException
 from tests.utils.args_gen import Environment, Evm, TransientStorage
 from tests.utils.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder, address_zero
@@ -72,7 +72,7 @@ class TestBlock:
     def test_block_hash(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("block_hash", evm)
-        except ExceptionalHalt as cairo_error:
+        except EthereumException as cairo_error:
             with strict_raises(type(cairo_error)):
                 block_hash(evm)
             return
@@ -84,7 +84,7 @@ class TestBlock:
     def test_coinbase(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("coinbase", evm)
-        except ExceptionalHalt as cairo_error:
+        except EthereumException as cairo_error:
             with strict_raises(type(cairo_error)):
                 coinbase(evm)
             return
@@ -96,7 +96,7 @@ class TestBlock:
     def test_timestamp(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("timestamp", evm)
-        except ExceptionalHalt as cairo_error:
+        except EthereumException as cairo_error:
             with strict_raises(type(cairo_error)):
                 timestamp(evm)
             return
@@ -108,7 +108,7 @@ class TestBlock:
     def test_number(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("number", evm)
-        except ExceptionalHalt as cairo_error:
+        except EthereumException as cairo_error:
             with strict_raises(type(cairo_error)):
                 number(evm)
             return
@@ -120,7 +120,7 @@ class TestBlock:
     def test_prev_randao(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("prev_randao", evm)
-        except ExceptionalHalt as cairo_error:
+        except EthereumException as cairo_error:
             with strict_raises(type(cairo_error)):
                 prev_randao(evm)
             return
@@ -132,7 +132,7 @@ class TestBlock:
     def test_gas_limit(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("gas_limit", evm)
-        except ExceptionalHalt as cairo_error:
+        except EthereumException as cairo_error:
             with strict_raises(type(cairo_error)):
                 gas_limit(evm)
             return
@@ -144,7 +144,7 @@ class TestBlock:
     def test_chain_id(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("chain_id", evm)
-        except ExceptionalHalt as cairo_error:
+        except EthereumException as cairo_error:
             with strict_raises(type(cairo_error)):
                 chain_id(evm)
             return

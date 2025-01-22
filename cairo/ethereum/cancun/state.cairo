@@ -41,9 +41,10 @@ from ethereum.cancun.trie import (
     copy_TrieAddressOptionalAccount,
     copy_TrieTupleAddressBytes32U256,
 )
+from ethereum.cancun.blocks import Withdrawal
 from ethereum_types.bytes import Bytes, Bytes32
 from ethereum_types.numeric import U256, U256Struct, Bool, bool, Uint
-from ethereum.utils.numeric import is_zero, U256_le, U256_sub, U256_add
+from ethereum.utils.numeric import is_zero, U256_le, U256_sub, U256_add, U256_mul
 
 from src.utils.dict import (
     hashdict_read,
@@ -202,6 +203,21 @@ func move_ether{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, state: State}(
     let recipient_account = get_account(recipient_address);
     let new_recipient_account_balance = U256_add(recipient_account.value.balance, amount);
     set_account_balance(recipient_address, new_recipient_account_balance);
+    return ();
+}
+
+func process_withdrawal{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, state: State}(
+    withdrawal: Withdrawal
+) {
+    alloc_locals;
+
+    let address = withdrawal.value.address;
+    let amount = U256_mul(withdrawal.value.amount, U256(new U256Struct(10 ** 9, 0)));
+    let account = get_account(address);
+    let balance = account.value.balance;
+
+    let new_balance = U256_add(balance, amount);
+    set_account_balance(address, new_balance);
     return ();
 }
 

@@ -2,7 +2,7 @@ import pytest
 from hypothesis import given
 
 import ethereum.cancun.vm.instructions.stack as stack
-from ethereum.cancun.vm.exceptions import ExceptionalHalt
+from ethereum.exceptions import EthereumException
 from tests.utils.args_gen import Evm
 from tests.utils.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder
@@ -13,7 +13,7 @@ class TestPop:
     def test_pop(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("pop", evm)
-        except ExceptionalHalt as cairo_error:
+        except EthereumException as cairo_error:
             with strict_raises(type(cairo_error)):
                 stack.pop(evm)
             return
@@ -30,7 +30,7 @@ class TestPushN:
         push_i = getattr(stack, func_name)
         try:
             cairo_result = cairo_run(func_name, evm)
-        except ExceptionalHalt as cairo_error:
+        except EthereumException as cairo_error:
             with strict_raises(type(cairo_error)):
                 push_i(evm)
             return
@@ -47,7 +47,7 @@ class TestSwapN:
         swap_i = getattr(stack, func_name)
         try:
             cairo_result = cairo_run(func_name, evm)
-        except ExceptionalHalt as cairo_error:
+        except EthereumException as cairo_error:
             with strict_raises(type(cairo_error)):
                 swap_i(evm)
             return
@@ -64,7 +64,7 @@ class TestDupN:
         dup_i = getattr(stack, func_name)
         try:
             cairo_result = cairo_run(func_name, evm)
-        except ExceptionalHalt as cairo_error:
+        except EthereumException as cairo_error:
             with strict_raises(type(cairo_error)):
                 dup_i(evm)
             return

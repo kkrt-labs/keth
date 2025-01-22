@@ -1,9 +1,9 @@
 from ethereum_types.numeric import U256
 from hypothesis import given
 
-from ethereum.cancun.vm.exceptions import ExceptionalHalt
 from ethereum.cancun.vm.instructions.memory import mcopy, mload, msize, mstore, mstore8
 from ethereum.cancun.vm.stack import push
+from ethereum.exceptions import EthereumException
 from tests.utils.args_gen import Evm
 from tests.utils.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder
@@ -31,7 +31,7 @@ class TestMemory:
             push(evm.stack, size)
         try:
             cairo_result = cairo_run("mstore", evm)
-        except ExceptionalHalt as cairo_error:
+        except EthereumException as cairo_error:
             with strict_raises(type(cairo_error)):
                 mstore(evm)
             return
@@ -54,7 +54,7 @@ class TestMemory:
 
         try:
             cairo_result = cairo_run("mstore8", evm)
-        except ExceptionalHalt as cairo_error:
+        except EthereumException as cairo_error:
             with strict_raises(type(cairo_error)):
                 mstore8(evm)
             return
@@ -75,7 +75,7 @@ class TestMemory:
 
         try:
             cairo_result = cairo_run("mload", evm)
-        except ExceptionalHalt as cairo_error:
+        except EthereumException as cairo_error:
             with strict_raises(type(cairo_error)):
                 mload(evm)
             return
@@ -87,7 +87,7 @@ class TestMemory:
     def test_msize(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("msize", evm)
-        except ExceptionalHalt as cairo_error:
+        except EthereumException as cairo_error:
             with strict_raises(type(cairo_error)):
                 msize(evm)
             return
@@ -117,7 +117,7 @@ class TestMemory:
             push(evm.stack, destination)
         try:
             cairo_result = cairo_run("mcopy", evm)
-        except ExceptionalHalt as cairo_error:
+        except EthereumException as cairo_error:
             with strict_raises(type(cairo_error)):
                 mcopy(evm)
             return

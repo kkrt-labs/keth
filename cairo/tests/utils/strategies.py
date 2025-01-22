@@ -71,6 +71,7 @@ bytes20 = st.integers(min_value=0, max_value=2**160 - 1).map(
     lambda x: Bytes20(x.to_bytes(20, "little"))
 )
 address = bytes20.map(Address)
+address_zero = Bytes20(b"\x00" * 20)
 bytes32 = st.integers(min_value=0, max_value=2**256 - 1).map(
     lambda x: Bytes32(x.to_bytes(32, "little"))
 )
@@ -94,6 +95,7 @@ MAX_JUMP_DESTINATIONS_SET_SIZE = int(
     os.getenv("HYPOTHESIS_MAX_JUMP_DESTINATIONS_SET_SIZE", 10)
 )
 MAX_CODE_SIZE = int(os.getenv("HYPOTHESIS_MAX_CODE_SIZE", 256))
+MAX_MEMORY_SIZE = int(os.getenv("HYPOTHESIS_MAX_MEMORY_SIZE", 256))
 
 MAX_ADDRESS_TRANSIENT_STORAGE_SIZE = int(
     os.getenv("HYPOTHESIS_MAX_ADDRESS_TRANSIENT_STORAGE_SIZE", 10)
@@ -200,6 +202,10 @@ def tuple_strategy(thing):
 
 gas_left = st.integers(min_value=0, max_value=BLOCK_GAS_LIMIT).map(Uint)
 
+accessed_addresses = st.sets(st.from_type(Address), max_size=MAX_ADDRESS_SET_SIZE)
+accessed_storage_keys = st.sets(
+    st.tuples(address, bytes32), max_size=MAX_STORAGE_KEY_SET_SIZE
+)
 # Versions strategies with less data in collections
 memory_lite_size = 512
 memory_lite = (
@@ -207,16 +213,15 @@ memory_lite = (
     .map(lambda x: x + b"\x00" * ((32 - len(x) % 32) % 32))
     .map(Memory)
 )
-memory_lite_start_position = st.integers(
-    min_value=0, max_value=memory_lite_size // 2
-).map(U256)
-memory_lite_access_size = st.integers(min_value=0, max_value=memory_lite_size // 2).map(
-    U256
-)
 
-memory_lite_destination = st.integers(min_value=0, max_value=memory_lite_size * 2).map(
-    U256
-)
+
+def bounded_u256_strategy(min_value: int = 0, max_value: int = 2**256 - 1):
+    return st.integers(min_value=min_value, max_value=max_value).map(U256)
+
+
+memory_lite_start_position = bounded_u256_strategy(max_value=memory_lite_size // 2)
+memory_lite_access_size = bounded_u256_strategy(max_value=memory_lite_size // 2)
+memory_lite_destination = bounded_u256_strategy(max_value=memory_lite_size * 2)
 
 
 message_lite = st.builds(
@@ -305,8 +310,8 @@ memory = (
     .map(lambda x: x + b"\x00" * ((32 - len(x) % 32) % 32))
     .map(Memory)
 )
-memory_start_position = st.integers(min_value=0, max_value=memory_size // 2).map(U256)
-memory_access_size = st.integers(min_value=0, max_value=memory_size // 2).map(U256)
+memory_start_position = bounded_u256_strategy(max_value=memory_size // 2)
+memory_access_size = bounded_u256_strategy(max_value=memory_size // 2)
 
 # Create a deferred reference to evm strategy to allow message to reference it without causing a circular dependency
 evm_strategy = st.deferred(lambda: evm)
@@ -324,10 +329,8 @@ message = st.builds(
     depth=uint,
     should_transfer_value=st.booleans(),
     is_static=st.booleans(),
-    accessed_addresses=st.sets(address, max_size=MAX_ADDRESS_SET_SIZE),
-    accessed_storage_keys=st.sets(
-        st.tuples(address, bytes32), max_size=MAX_STORAGE_KEY_SET_SIZE
-    ),
+    accessed_addresses=accessed_addresses,
+    accessed_storage_keys=accessed_storage_keys,
     parent_evm=st.none() | evm_strategy,
 )
 
@@ -349,11 +352,8 @@ evm = st.builds(
     touched_accounts=st.sets(st.from_type(Address), max_size=MAX_ADDRESS_SET_SIZE),
     return_data=small_bytes,
     error=st.none() | st.from_type(EthereumException),
-    accessed_addresses=st.sets(st.from_type(Address), max_size=MAX_ADDRESS_SET_SIZE),
-    accessed_storage_keys=st.sets(
-        st.tuples(st.from_type(Address), st.from_type(Bytes32)),
-        max_size=MAX_STORAGE_KEY_SET_SIZE,
-    ),
+    accessed_addresses=accessed_addresses,
+    accessed_storage_keys=accessed_storage_keys,
 )
 
 

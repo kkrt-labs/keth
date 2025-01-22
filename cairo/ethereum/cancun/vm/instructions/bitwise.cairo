@@ -13,12 +13,12 @@ from starkware.cairo.common.uint256 import (
 from src.utils.uint256 import uint256_lt
 from ethereum.cancun.vm.stack import Stack, pop, push
 from ethereum.cancun.vm import Evm, EvmImpl
-from ethereum.cancun.vm.exceptions import ExceptionalHalt
+from ethereum.exceptions import EthereumException
 from ethereum_types.numeric import U256, U256Struct, Uint
 from ethereum.cancun.vm.gas import charge_gas, GasConstants
 
 // @notice Performs bitwise AND operation on the top two stack elements
-func bitwise_and{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> ExceptionalHalt* {
+func bitwise_and{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -51,12 +51,12 @@ func bitwise_and{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> E
     // PROGRAM COUNTER
     EvmImpl.set_stack(stack);
     EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
-    let ok = cast(0, ExceptionalHalt*);
+    let ok = cast(0, EthereumException*);
     return ok;
 }
 
 // @notice Performs bitwise OR operation on the top two stack elements
-func bitwise_or{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> ExceptionalHalt* {
+func bitwise_or{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -89,12 +89,12 @@ func bitwise_or{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Ex
     // PROGRAM COUNTER
     EvmImpl.set_stack(stack);
     EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
-    let ok = cast(0, ExceptionalHalt*);
+    let ok = cast(0, EthereumException*);
     return ok;
 }
 
 // @notice Performs bitwise XOR operation on the top two stack elements
-func bitwise_xor{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> ExceptionalHalt* {
+func bitwise_xor{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -127,12 +127,12 @@ func bitwise_xor{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> E
     // PROGRAM COUNTER
     EvmImpl.set_stack(stack);
     EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
-    let ok = cast(0, ExceptionalHalt*);
+    let ok = cast(0, EthereumException*);
     return ok;
 }
 
 // @notice Performs bitwise NOT operation on the top stack element
-func bitwise_not{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> ExceptionalHalt* {
+func bitwise_not{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -161,12 +161,12 @@ func bitwise_not{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> E
     // PROGRAM COUNTER
     EvmImpl.set_stack(stack);
     EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
-    let ok = cast(0, ExceptionalHalt*);
+    let ok = cast(0, EthereumException*);
     return ok;
 }
 
 // @notice Returns the byte at position n in x, where n is the position from the most significant byte
-func get_byte{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> ExceptionalHalt* {
+func get_byte{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -200,7 +200,7 @@ func get_byte{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Exce
         // PROGRAM COUNTER
         EvmImpl.set_stack(stack);
         EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
-        let ok = cast(0, ExceptionalHalt*);
+        let ok = cast(0, EthereumException*);
         return ok;
     }
 
@@ -217,12 +217,12 @@ func get_byte{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Exce
     // PROGRAM COUNTER
     EvmImpl.set_stack(stack);
     EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
-    let ok = cast(0, ExceptionalHalt*);
+    let ok = cast(0, EthereumException*);
     return ok;
 }
 
 // @notice Left shift operation
-func bitwise_shl{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+func bitwise_shl{range_check_ptr, evm: Evm}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -255,12 +255,12 @@ func bitwise_shl{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
     // PROGRAM COUNTER
     EvmImpl.set_stack(stack);
     EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
-    let ok = cast(0, ExceptionalHalt*);
+    let ok = cast(0, EthereumException*);
     return ok;
 }
 
 // @notice Right shift operation
-func bitwise_shr{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
+func bitwise_shr{range_check_ptr, evm: Evm}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -293,12 +293,12 @@ func bitwise_shr{range_check_ptr, evm: Evm}() -> ExceptionalHalt* {
     // PROGRAM COUNTER
     EvmImpl.set_stack(stack);
     EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
-    let ok = cast(0, ExceptionalHalt*);
+    let ok = cast(0, EthereumException*);
     return ok;
 }
 
 // @notice Sign extend operation
-func bitwise_sar{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> ExceptionalHalt* {
+func bitwise_sar{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -362,6 +362,6 @@ func bitwise_sar{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> E
     // PROGRAM COUNTER
     EvmImpl.set_stack(stack);
     EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
-    let ok = cast(0, ExceptionalHalt*);
+    let ok = cast(0, EthereumException*);
     return ok;
 }
