@@ -589,6 +589,7 @@ func exp{
     );
     let err3 = charge_gas(gas_cost);
     if (cast(err3, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err3;
     }
 

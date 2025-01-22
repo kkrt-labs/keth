@@ -84,6 +84,11 @@ func jump{
     );
     EvmImpl.set_valid_jump_destinations(valid_jumpdests_set);
 
+    if (is_valid_dest == FALSE) {
+        tempvar err = new ExceptionalHalt(InvalidJumpDestError);
+        return err;
+    }
+
     // PROGRAM COUNTER
     EvmImpl.set_pc_stack(Uint(jump_dest.value.low), stack);
     let ok = cast(0, EthereumException*);
@@ -142,6 +147,11 @@ func jumpi{
         new SetUintStruct(evm.value.valid_jump_destinations.value.dict_ptr_start, set_dict_ptr)
     );
     EvmImpl.set_valid_jump_destinations(valid_jumpdests_set);
+
+    if (is_valid_dest == FALSE) {
+        tempvar err = new ExceptionalHalt(InvalidJumpDestError);
+        return err;
+    }
 
     // PROGRAM COUNTER
     EvmImpl.set_pc_stack(Uint(jump_dest.value.low), stack);
