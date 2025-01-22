@@ -71,6 +71,7 @@ bytes20 = st.integers(min_value=0, max_value=2**160 - 1).map(
     lambda x: Bytes20(x.to_bytes(20, "little"))
 )
 address = bytes20.map(Address)
+address_zero = Bytes20(b"\x00" * 20)
 bytes32 = st.integers(min_value=0, max_value=2**256 - 1).map(
     lambda x: Bytes32(x.to_bytes(32, "little"))
 )
@@ -200,6 +201,10 @@ def tuple_strategy(thing):
 
 gas_left = st.integers(min_value=0, max_value=BLOCK_GAS_LIMIT).map(Uint)
 
+accessed_addresses = st.sets(st.from_type(Address), max_size=MAX_ADDRESS_SET_SIZE)
+accessed_storage_keys = st.sets(
+    st.tuples(address, bytes32), max_size=MAX_STORAGE_KEY_SET_SIZE
+)
 # Versions strategies with less data in collections
 memory_lite_size = 512
 memory_lite = (
@@ -324,10 +329,8 @@ message = st.builds(
     depth=uint,
     should_transfer_value=st.booleans(),
     is_static=st.booleans(),
-    accessed_addresses=st.sets(address, max_size=MAX_ADDRESS_SET_SIZE),
-    accessed_storage_keys=st.sets(
-        st.tuples(address, bytes32), max_size=MAX_STORAGE_KEY_SET_SIZE
-    ),
+    accessed_addresses=accessed_addresses,
+    accessed_storage_keys=accessed_storage_keys,
     parent_evm=st.none() | evm_strategy,
 )
 
@@ -349,11 +352,8 @@ evm = st.builds(
     touched_accounts=st.sets(st.from_type(Address), max_size=MAX_ADDRESS_SET_SIZE),
     return_data=small_bytes,
     error=st.none() | st.from_type(EthereumException),
-    accessed_addresses=st.sets(st.from_type(Address), max_size=MAX_ADDRESS_SET_SIZE),
-    accessed_storage_keys=st.sets(
-        st.tuples(st.from_type(Address), st.from_type(Bytes32)),
-        max_size=MAX_STORAGE_KEY_SET_SIZE,
-    ),
+    accessed_addresses=accessed_addresses,
+    accessed_storage_keys=accessed_storage_keys,
 )
 
 

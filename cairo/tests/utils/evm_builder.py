@@ -1,15 +1,16 @@
 from typing import Tuple
 
-from ethereum_types.bytes import Bytes20
 from ethereum_types.numeric import U64, U256, Bytes32, Uint
 from hypothesis import strategies as st
 
 from ethereum.cancun.fork_types import Address
 from ethereum.cancun.state import TransientStorage
 from ethereum.exceptions import EthereumException
-from tests.utils.args_gen import Environment, Evm, Message, Stack
+from tests.utils.args_gen import Environment, Evm, Stack
+from tests.utils.message_builder import MessageBuilder
 from tests.utils.strategies import (
     Memory,
+    address_zero,
     code,
     empty_state,
     environment_lite,
@@ -20,8 +21,6 @@ from tests.utils.strategies import (
     uint,
     valid_jump_destinations_lite,
 )
-
-address_zero = Bytes20(b"\x00" * 20)
 
 empty_environment = st.builds(
     Environment,
@@ -42,41 +41,6 @@ empty_environment = st.builds(
     transient_storage=st.just(TransientStorage()),
 )
 
-empty_message = st.builds(
-    Message,
-    caller=st.just(address_zero),
-    target=st.just(address_zero),
-    current_target=st.just(address_zero),
-    gas=st.just(Uint(0)),
-    value=st.just(U256(0)),
-    data=st.just(b""),
-    code_address=st.none(),
-    code=st.just(b""),
-    depth=st.just(Uint(0)),
-    should_transfer_value=st.just(False),
-    is_static=st.just(False),
-    accessed_addresses=st.just(set()),
-    accessed_storage_keys=st.just(set()),
-    parent_evm=st.none(),
-)
-
-message_empty_except_calldata = st.builds(
-    Message,
-    caller=st.just(address_zero),
-    target=st.just(address_zero),
-    current_target=st.just(address_zero),
-    gas=st.just(Uint(0)),
-    value=st.just(U256(0)),
-    data=code,
-    code_address=st.none(),
-    depth=st.just(0),
-    should_transfer_value=st.booleans(),
-    is_static=st.booleans(),
-    accessed_addresses=st.just(set()),
-    accessed_storage_keys=st.just(set()),
-    parent_evm=st.none(),
-)
-
 
 class EvmBuilder:
     """Builder pattern for creating EVM hypothesis strategies."""
@@ -92,7 +56,7 @@ class EvmBuilder:
         self._logs = st.just(())
         self._refund_counter = st.just(0)
         self._running = st.just(True)
-        self._message = empty_message
+        self._message = MessageBuilder().build()  # empty message
         self._output = st.just(b"")
         self._accounts_to_delete = st.just(set())
         self._touched_accounts = st.just(set())
@@ -134,10 +98,6 @@ class EvmBuilder:
         return self
 
     def with_message(self, strategy=message_lite):
-        self._message = strategy
-        return self
-
-    def with_message_calldata(self, strategy=message_empty_except_calldata):
         self._message = strategy
         return self
 

@@ -31,6 +31,7 @@ from ethereum.cancun.vm.stack import push
 from tests.utils.args_gen import Environment, Evm, VersionedHash
 from tests.utils.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder
+from tests.utils.message_builder import MessageBuilder
 from tests.utils.strategies import MAX_CODE_SIZE
 from tests.utils.strategies import address as address_strategy
 from tests.utils.strategies import (
@@ -62,6 +63,9 @@ environment_empty_state = st.builds(
     ).map(tuple),
     transient_storage=st.just(TransientStorage()),
 )
+
+message_empty_except_calldata = MessageBuilder().with_data(code).build()
+
 
 evm_environment_strategy = (
     EvmBuilder().with_gas_left().with_env(environment_empty_state).build()
@@ -124,7 +128,7 @@ def calldatacopy_strategy(draw):
         .with_stack()
         .with_gas_left()
         .with_memory()
-        .with_message_calldata()
+        .with_message(strategy=message_empty_except_calldata)
         .build()
     )
 
@@ -375,7 +379,11 @@ class TestEnvironmentInstructions:
         assert evm == cairo_result
 
     @given(
-        evm=EvmBuilder().with_stack().with_gas_left().with_message_calldata().build()
+        evm=EvmBuilder()
+        .with_stack()
+        .with_gas_left()
+        .with_message(strategy=message_empty_except_calldata)
+        .build()
     )
     def test_calldataload(self, cairo_run, evm: Evm):
         try:
@@ -401,7 +409,11 @@ class TestEnvironmentInstructions:
         assert evm == cairo_result
 
     @given(
-        evm=EvmBuilder().with_stack().with_gas_left().with_message_calldata().build()
+        evm=EvmBuilder()
+        .with_stack()
+        .with_gas_left()
+        .with_message(strategy=message_empty_except_calldata)
+        .build()
     )
     def test_calldatasize(self, cairo_run, evm: Evm):
         try:
