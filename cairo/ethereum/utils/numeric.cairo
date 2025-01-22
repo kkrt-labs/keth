@@ -2,6 +2,7 @@ from starkware.cairo.common.math_cmp import is_le, is_not_zero
 from starkware.cairo.common.uint256 import uint256_reverse_endian
 from ethereum_types.numeric import Uint, U256, U256Struct, bool
 from ethereum_types.bytes import Bytes32, Bytes32Struct, Bytes20
+from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 
 from starkware.cairo.common.math import split_felt
@@ -199,13 +200,16 @@ func U256_le{range_check_ptr}(a: U256, b: U256) -> bool {
 }
 
 func U256_mul{range_check_ptr}(a: U256, b: U256) -> U256 {
-    let (low, high) = uint256_mul([a.value], [b.value]);
+    alloc_locals;
+    let fp_and_pc = get_fp_and_pc();
+    local __fp__: felt* = fp_and_pc.fp_val;
+
+    let (local low, high) = uint256_mul([a.value], [b.value]);
 
     with_attr error_message("OverflowError") {
         assert high.high = 0;
         assert high.low = 0;
     }
-
-    tempvar result = U256(new U256Struct(low.low, low.high));
+    tempvar result = U256(&low);
     return result;
 }
