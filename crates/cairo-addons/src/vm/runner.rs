@@ -1,5 +1,6 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
+use cairo_vm::vm::errors::vm_exception::VmException;
 use crate::vm::program::PyProgram;
 use cairo_vm::{
     hint_processor::builtin_hint_processor::dict_manager::DictManager,
