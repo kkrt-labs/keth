@@ -203,9 +203,6 @@ func U256_mul{range_check_ptr}(a: U256, b: U256) -> U256 {
 
     with_attr error_message("OverflowError") {
         assert high.high = 0;
-    }
-
-    with_attr error_message("OverflowError") {
         assert high.low = 0;
     }
 
