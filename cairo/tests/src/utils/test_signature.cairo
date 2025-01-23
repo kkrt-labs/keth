@@ -8,7 +8,7 @@ from starkware.cairo.common.cairo_builtins import (
 )
 from starkware.cairo.common.cairo_secp.bigint import uint256_to_bigint
 
-from src.utils.signature import Signature, Internals
+from src.utils.signature import Signature
 from src.utils.uint256 import uint256_eq
 from src.utils.uint384 import uint256_to_uint384
 
@@ -21,7 +21,7 @@ func test__public_key_point_to_eth_address{
     mul_mod_ptr: ModBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
 }(x: U256, y: U256) -> felt {
-    let eth_address = Internals.public_key_point_to_eth_address(x=[x.value], y=[y.value]);
+    let eth_address = Signature.public_key_point_to_eth_address(x=[x.value], y=[y.value]);
 
     return eth_address;
 }

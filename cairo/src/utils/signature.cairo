@@ -20,11 +20,7 @@ from src.utils.circuit_utils import (
     scalar_to_epns,
     run_modulo_circuit_basic,
 )
-from src.utils.ecdsa_circuit import (
-    get_full_ecip_2P_circuit,
-    get_ADD_EC_POINT_circuit,
-    get_DOUBLE_EC_POINT_circuit,
-)
+from src.utils.ecdsa_circuit import get_full_ecip_2P_circuit
 from src.utils.uint256 import assert_uint256_le
 from src.utils.uint384 import (
     uint384_to_uint256,
@@ -39,7 +35,8 @@ from src.curve.secp256k1 import (
     secp256k1,
     get_generator_point,
     try_get_point_from_x,
-    get_point_from_x,
+    get_random_point,
+    ec_add,
 )
 from src.curve.g1_point import G1Point
 
@@ -56,21 +53,7 @@ func sign_to_uint384_mod_secp256k1(sign: felt) -> UInt384 {
     }
 }
 
-// A function field element of the form :
-// F(x,y) = a(x) + y b(x)
-// Where a, b are rational functions of x.
-// The rational functions are represented as polynomials in x with coefficients in F_p, starting from the constant term.
-// No information about the degrees of the polynomials is stored here as they are derived implicitly from the MSM size.
-struct FunctionFelt {
-    a_num: UInt384*,
-    a_den: UInt384*,
-    b_num: UInt384*,
-    b_den: UInt384*,
-}
-
 namespace Signature {
-    // A version of verify_eth_signature that uses the keccak builtin.
-
     // Assert 1 <= x < N. Assumes valid Uint256.
     func validate_signature_entry{range_check_ptr}(x: Uint256) {
         if (x.high == 0) {
@@ -103,14 +86,13 @@ namespace Signature {
         poseidon_ptr: PoseidonBuiltin*,
     }(msg_hash: Uint256, r: Uint256, s: Uint256, y_parity: felt, eth_address: felt) {
         alloc_locals;
-        let msg_hash_uint384: UInt384 = uint256_to_uint384(msg_hash);
-        // Todo :fix with UInt384
         with_attr error_message("Signature out of range.") {
             validate_signature_entry(r);
             validate_signature_entry(s);
         }
-        let r_uint384: UInt384 = uint256_to_uint384(r);
-        let s_uint384: UInt384 = uint256_to_uint384(s);
+        let msg_hash_uint384 = uint256_to_uint384(msg_hash);
+        let r_uint384 = uint256_to_uint384(r);
+        let s_uint384 = uint256_to_uint384(s);
 
         with_attr error_message("Invalid y_parity") {
             assert (1 - y_parity) * y_parity = 0;
@@ -121,9 +103,9 @@ namespace Signature {
                 msg_hash=msg_hash_uint384, r=r_uint384, s=s_uint384, y_parity=y_parity
             );
             assert success = 1;
+            assert eth_address = recovered_address;
         }
 
-        assert eth_address = recovered_address;
         return ();
     }
 
@@ -277,7 +259,7 @@ namespace Signature {
         let rlc_coeff_u384 = felt_to_uint384(rlc_coeff);
 
         // Hash sumdlogdiv 2 points : (4-29)
-        let (_random_x_coord, _, _) = hash_full_transcript_and_get_Z_3_LIMBS(
+        let (seed, _, _) = hash_full_transcript_and_get_Z_3_LIMBS(
             cast(range_check96_ptr + 4 * N_LIMBS, felt*), 26
         );
 
@@ -285,8 +267,8 @@ namespace Signature {
         tempvar range_check96_ptr_after_circuit = range_check96_ptr + 224 + (4 + 117 + 108 - 1) *
             N_LIMBS;
 
-        let random_point = get_point_from_x{range_check96_ptr=range_check96_ptr_after_circuit}(
-            x=_random_x_coord, attempt=0
+        let random_point = get_random_point{range_check96_ptr=range_check96_ptr_after_circuit}(
+            seed=seed
         );
 
         tempvar range_check96_ptr_final = range_check96_ptr_after_circuit;
@@ -341,7 +323,7 @@ namespace Signature {
         assert ecip_input[56] = random_point.x;
         assert ecip_input[57] = random_point.y;
 
-        // a_weirstrass
+        // a_Weierstrass
         assert ecip_input[58] = UInt384(secp256k1.A0, secp256k1.A1, secp256k1.A2, secp256k1.A3);
         // base_rlc
         assert ecip_input[59] = rlc_coeff_u384;
@@ -372,10 +354,29 @@ namespace Signature {
         tempvar range_check96_ptr = range_check96_ptr_final;
         let add_mod_ptr = add_mod_ptr + 117 * ModBuiltin.SIZE;
         let mul_mod_ptr = mul_mod_ptr + 108 * ModBuiltin.SIZE;
-        let (res) = add_ec_points_secp256k1(
+        let res = ec_add(
             G1Point(x=ecip_input[50], y=ecip_input[51]), G1Point(x=ecip_input[54], y=ecip_input[55])
         );
         return (public_key_point=res, success=1);
+    }
+
+    // @notice Converts a public key point to the corresponding Ethereum address.
+    // @param x The x coordinate of the public key point.
+    // @param y The y coordinate of the public key point.
+    // @return The Ethereum address.
+    func public_key_point_to_eth_address{
+        range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*
+    }(x: Uint256, y: Uint256) -> felt {
+        alloc_locals;
+        let (local elements: Uint256*) = alloc();
+        assert elements[0] = x;
+        assert elements[1] = y;
+        let (point_hash: Uint256) = keccak_uint256s_bigend(n_elements=2, elements=elements);
+
+        // The Ethereum address is the 20 least significant bytes of the keccak of the public key.
+        let (_, high_low) = unsigned_div_rem(point_hash.high, 2 ** 32);
+        let eth_address = point_hash.low + RC_BOUND * high_low;
+        return eth_address;
     }
 
     // @notice Recovers the Ethereum address from a signature.
@@ -407,95 +408,7 @@ namespace Signature {
         assert_uint256_le(x_uint256, max_value);
         let y_uint256 = uint384_to_uint256(public_key_point.y);
         assert_uint256_le(y_uint256, max_value);
-        let address = Internals.public_key_point_to_eth_address(x=x_uint256, y=y_uint256);
+        let address = public_key_point_to_eth_address(x=x_uint256, y=y_uint256);
         return (success=success, address=address);
-    }
-}
-
-namespace Internals {
-    // @notice Converts a public key point to the corresponding Ethereum address.
-    // @param x The x coordinate of the public key point.
-    // @param y The y coordinate of the public key point.
-    // @return The Ethereum address.
-    func public_key_point_to_eth_address{
-        range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*
-    }(x: Uint256, y: Uint256) -> felt {
-        alloc_locals;
-        let (local elements: Uint256*) = alloc();
-        assert elements[0] = x;
-        assert elements[1] = y;
-        let (point_hash: Uint256) = keccak_uint256s_bigend(n_elements=2, elements=elements);
-
-        // The Ethereum address is the 20 least significant bytes of the keccak of the public key.
-        let (_, high_low) = unsigned_div_rem(point_hash.high, 2 ** 32);
-        let eth_address = point_hash.low + RC_BOUND * high_low;
-        return eth_address;
-    }
-}
-
-// Add two EC points. Doesn't check if the inputs are on curve nor if they are the point at infinity.
-func add_ec_points_secp256k1{
-    range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
-}(P: G1Point, Q: G1Point) -> (res: G1Point) {
-    alloc_locals;
-    let (__fp__, _) = get_fp_and_pc();
-    let modulus = UInt384(secp256k1.P0, secp256k1.P1, secp256k1.P2, secp256k1.P3);
-    let same_x = uint384_eq_mod_p(P.x, Q.x, modulus);
-
-    if (same_x != 0) {
-        let opposite_y = uint384_is_neg_mod_p(P.y, Q.y, modulus);
-
-        if (opposite_y != 0) {
-            // P + (-P) = O (point at infinity)
-            return (res=G1Point(UInt384(0, 0, 0, 0), UInt384(0, 0, 0, 0)));
-        } else {
-            // P = Q, so we need to double the point
-            let (add_offsets, mul_offsets) = get_DOUBLE_EC_POINT_circuit();
-            let input: UInt384* = cast(range_check96_ptr, UInt384*);
-            assert input[0] = UInt384(3, 0, 0, 0);
-            assert input[1] = P.x;
-            assert input[2] = P.y;
-            assert input[3] = UInt384(secp256k1.A0, secp256k1.A1, secp256k1.A2, secp256k1.A3);
-
-            run_modulo_circuit_basic(
-                p=modulus,
-                add_offsets_ptr=add_offsets,
-                add_n=6,
-                mul_offsets_ptr=mul_offsets,
-                mul_n=5,
-                input_len=4,
-                n_assert_eq=0,
-            );
-            return (
-                res=G1Point(
-                    x=[cast(cast(input, felt*) + 44, UInt384*)],
-                    y=[cast(cast(input, felt*) + 56, UInt384*)],
-                ),
-            );
-        }
-    } else {
-        // P and Q have different x-coordinates, perform regular addition
-        let (add_offsets, mul_offsets) = get_ADD_EC_POINT_circuit();
-        let input: UInt384* = cast(range_check96_ptr, UInt384*);
-        assert input[0] = P.x;
-        assert input[1] = P.y;
-        assert input[2] = Q.x;
-        assert input[3] = Q.y;
-
-        run_modulo_circuit_basic(
-            p=modulus,
-            add_offsets_ptr=add_offsets,
-            add_n=6,
-            mul_offsets_ptr=mul_offsets,
-            mul_n=3,
-            input_len=4,
-            n_assert_eq=0,
-        );
-        return (
-            res=G1Point(
-                x=[cast(cast(input, felt*) + 36, UInt384*)],
-                y=[cast(cast(input, felt*) + 48, UInt384*)],
-            ),
-        );
     }
 }
