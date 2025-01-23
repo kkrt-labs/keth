@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 
+from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin, PoseidonBuiltin
 from ethereum.cancun.vm.stack import pop
 from ethereum.cancun.vm import Evm, EvmImpl
 from ethereum.cancun.vm.exceptions import Revert, OutOfGasError
@@ -15,7 +16,13 @@ from ethereum_types.others import (
     TupleU256U256Struct,
 )
 // @notice Revert operation - stop execution and revert state changes, returning data from memory
-func revert{range_check_ptr, evm: Evm}() -> EthereumException* {
+func revert{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;

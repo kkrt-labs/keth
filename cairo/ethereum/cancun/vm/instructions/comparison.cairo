@@ -1,4 +1,4 @@
-from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
+from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin, PoseidonBuiltin
 from starkware.cairo.common.uint256 import uint256_eq, Uint256
 
 from src.utils.uint256 import uint256_lt, uint256_signed_lt
@@ -9,7 +9,13 @@ from ethereum_types.numeric import U256, U256Struct, Uint
 from ethereum.cancun.vm.gas import charge_gas, GasConstants
 
 // @notice Checks if the top element is less than the next top element
-func less_than{range_check_ptr, evm: Evm}() -> EthereumException* {
+func less_than{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -47,7 +53,13 @@ func less_than{range_check_ptr, evm: Evm}() -> EthereumException* {
 }
 
 // @notice Checks if the top element is greater than the next top element
-func greater_than{range_check_ptr, evm: Evm}() -> EthereumException* {
+func greater_than{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -85,7 +97,13 @@ func greater_than{range_check_ptr, evm: Evm}() -> EthereumException* {
 }
 
 // @notice Signed less-than comparison
-func signed_less_than{range_check_ptr, evm: Evm}() -> EthereumException* {
+func signed_less_than{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -123,7 +141,13 @@ func signed_less_than{range_check_ptr, evm: Evm}() -> EthereumException* {
 }
 
 // @notice Signed greater-than comparison
-func signed_greater_than{range_check_ptr, evm: Evm}() -> EthereumException* {
+func signed_greater_than{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -161,7 +185,13 @@ func signed_greater_than{range_check_ptr, evm: Evm}() -> EthereumException* {
 }
 
 // @notice Checks if the top element is equal to the next top element
-func equal{range_check_ptr, evm: Evm}() -> EthereumException* {
+func equal{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -199,7 +229,13 @@ func equal{range_check_ptr, evm: Evm}() -> EthereumException* {
 }
 
 // @notice Checks if the top element is equal to zero
-func is_zero{range_check_ptr, evm: Evm}() -> EthereumException* {
+func is_zero{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;

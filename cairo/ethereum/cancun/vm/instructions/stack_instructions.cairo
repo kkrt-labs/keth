@@ -1,3 +1,4 @@
+from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin, PoseidonBuiltin
 from starkware.cairo.common.math_cmp import is_le
 from starkware.cairo.common.dict import DictAccess, dict_read, dict_write
 
@@ -110,7 +111,13 @@ func dup_n{range_check_ptr, evm: Evm}(item_number: Uint) -> EthereumException* {
     return ok;
 }
 
-func pop{range_check_ptr, evm: Evm}() -> EthereumException* {
+func pop{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -133,200 +140,655 @@ func pop{range_check_ptr, evm: Evm}() -> EthereumException* {
     return ok;
 }
 
-func push0{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return push_n{evm=evm}(Uint(0));
+func push0{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = push_n(Uint(0));
+    return res;
 }
-func push1{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return push_n{evm=evm}(Uint(1));
+func push1{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = push_n(Uint(1));
+    return res;
 }
-func push2{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return push_n{evm=evm}(Uint(2));
+func push2{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = push_n(Uint(2));
+    return res;
 }
-func push3{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return push_n{evm=evm}(Uint(3));
+func push3{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = push_n(Uint(3));
+    return res;
 }
-func push4{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return push_n{evm=evm}(Uint(4));
+func push4{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = push_n(Uint(4));
+    return res;
 }
-func push5{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return push_n{evm=evm}(Uint(5));
+func push5{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = push_n(Uint(5));
+    return res;
 }
-func push6{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return push_n{evm=evm}(Uint(6));
+func push6{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = push_n(Uint(6));
+    return res;
 }
-func push7{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return push_n{evm=evm}(Uint(7));
+func push7{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = push_n(Uint(7));
+    return res;
 }
-func push8{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return push_n{evm=evm}(Uint(8));
+func push8{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = push_n(Uint(8));
+    return res;
 }
-func push9{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return push_n{evm=evm}(Uint(9));
+func push9{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = push_n(Uint(9));
+    return res;
 }
-func push10{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return push_n{evm=evm}(Uint(10));
+func push10{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = push_n(Uint(10));
+    return res;
 }
-func push11{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return push_n{evm=evm}(Uint(11));
+func push11{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = push_n(Uint(11));
+    return res;
 }
-func push12{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return push_n{evm=evm}(Uint(12));
+func push12{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = push_n(Uint(12));
+    return res;
 }
-func push13{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return push_n{evm=evm}(Uint(13));
+func push13{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = push_n(Uint(13));
+    return res;
 }
-func push14{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return push_n{evm=evm}(Uint(14));
+func push14{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = push_n(Uint(14));
+    return res;
 }
-func push15{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return push_n{evm=evm}(Uint(15));
+func push15{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = push_n(Uint(15));
+    return res;
 }
-func push16{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return push_n{evm=evm}(Uint(16));
+func push16{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = push_n(Uint(16));
+    return res;
 }
-func push17{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return push_n{evm=evm}(Uint(17));
+func push17{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = push_n(Uint(17));
+    return res;
 }
-func push18{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return push_n{evm=evm}(Uint(18));
+func push18{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = push_n(Uint(18));
+    return res;
 }
-func push19{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return push_n{evm=evm}(Uint(19));
+func push19{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = push_n(Uint(19));
+    return res;
 }
-func push20{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return push_n{evm=evm}(Uint(20));
+func push20{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = push_n(Uint(20));
+    return res;
 }
-func push21{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return push_n{evm=evm}(Uint(21));
+func push21{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = push_n(Uint(21));
+    return res;
 }
-func push22{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return push_n{evm=evm}(Uint(22));
+func push22{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = push_n(Uint(22));
+    return res;
 }
-func push23{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return push_n{evm=evm}(Uint(23));
+func push23{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = push_n(Uint(23));
+    return res;
 }
-func push24{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return push_n{evm=evm}(Uint(24));
+func push24{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = push_n(Uint(24));
+    return res;
 }
-func push25{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return push_n{evm=evm}(Uint(25));
+func push25{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = push_n(Uint(25));
+    return res;
 }
-func push26{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return push_n{evm=evm}(Uint(26));
+func push26{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = push_n(Uint(26));
+    return res;
 }
-func push27{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return push_n{evm=evm}(Uint(27));
+func push27{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = push_n(Uint(27));
+    return res;
 }
-func push28{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return push_n{evm=evm}(Uint(28));
+func push28{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = push_n(Uint(28));
+    return res;
 }
-func push29{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return push_n{evm=evm}(Uint(29));
+func push29{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = push_n(Uint(29));
+    return res;
 }
-func push30{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return push_n{evm=evm}(Uint(30));
+func push30{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = push_n(Uint(30));
+    return res;
 }
-func push31{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return push_n{evm=evm}(Uint(31));
+func push31{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = push_n(Uint(31));
+    return res;
 }
-func push32{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return push_n{evm=evm}(Uint(32));
+func push32{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = push_n(Uint(32));
+    return res;
 }
 
-func swap1{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return swap_n{evm=evm}(Uint(1));
+func swap1{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = swap_n(Uint(1));
+    return res;
 }
-func swap2{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return swap_n{evm=evm}(Uint(2));
+func swap2{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = swap_n(Uint(2));
+    return res;
 }
-func swap3{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return swap_n{evm=evm}(Uint(3));
+func swap3{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = swap_n(Uint(3));
+    return res;
 }
-func swap4{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return swap_n{evm=evm}(Uint(4));
+func swap4{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = swap_n(Uint(4));
+    return res;
 }
-func swap5{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return swap_n{evm=evm}(Uint(5));
+func swap5{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = swap_n(Uint(5));
+    return res;
 }
-func swap6{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return swap_n{evm=evm}(Uint(6));
+func swap6{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = swap_n(Uint(6));
+    return res;
 }
-func swap7{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return swap_n{evm=evm}(Uint(7));
+func swap7{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = swap_n(Uint(7));
+    return res;
 }
-func swap8{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return swap_n{evm=evm}(Uint(8));
+func swap8{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = swap_n(Uint(8));
+    return res;
 }
-func swap9{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return swap_n{evm=evm}(Uint(9));
+func swap9{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = swap_n(Uint(9));
+    return res;
 }
-func swap10{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return swap_n{evm=evm}(Uint(10));
+func swap10{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = swap_n(Uint(10));
+    return res;
 }
-func swap11{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return swap_n{evm=evm}(Uint(11));
+func swap11{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = swap_n(Uint(11));
+    return res;
 }
-func swap12{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return swap_n{evm=evm}(Uint(12));
+func swap12{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = swap_n(Uint(12));
+    return res;
 }
-func swap13{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return swap_n{evm=evm}(Uint(13));
+func swap13{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = swap_n(Uint(13));
+    return res;
 }
-func swap14{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return swap_n{evm=evm}(Uint(14));
+func swap14{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = swap_n(Uint(14));
+    return res;
 }
-func swap15{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return swap_n{evm=evm}(Uint(15));
+func swap15{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = swap_n(Uint(15));
+    return res;
 }
-func swap16{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return swap_n{evm=evm}(Uint(16));
+func swap16{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = swap_n(Uint(16));
+    return res;
 }
 
-func dup1{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return dup_n{evm=evm}(Uint(0));
+func dup1{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = dup_n(Uint(0));
+    return res;
 }
-func dup2{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return dup_n{evm=evm}(Uint(1));
+func dup2{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = dup_n(Uint(1));
+    return res;
 }
-func dup3{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return dup_n{evm=evm}(Uint(2));
+func dup3{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = dup_n(Uint(2));
+    return res;
 }
-func dup4{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return dup_n{evm=evm}(Uint(3));
+func dup4{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = dup_n(Uint(3));
+    return res;
 }
-func dup5{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return dup_n{evm=evm}(Uint(4));
+func dup5{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = dup_n(Uint(4));
+    return res;
 }
-func dup6{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return dup_n{evm=evm}(Uint(5));
+func dup6{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = dup_n(Uint(5));
+    return res;
 }
-func dup7{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return dup_n{evm=evm}(Uint(6));
+func dup7{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = dup_n(Uint(6));
+    return res;
 }
-func dup8{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return dup_n{evm=evm}(Uint(7));
+func dup8{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = dup_n(Uint(7));
+    return res;
 }
-func dup9{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return dup_n{evm=evm}(Uint(8));
+func dup9{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = dup_n(Uint(8));
+    return res;
 }
-func dup10{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return dup_n{evm=evm}(Uint(9));
+func dup10{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = dup_n(Uint(9));
+    return res;
 }
-func dup11{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return dup_n{evm=evm}(Uint(10));
+func dup11{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = dup_n(Uint(10));
+    return res;
 }
-func dup12{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return dup_n{evm=evm}(Uint(11));
+func dup12{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = dup_n(Uint(11));
+    return res;
 }
-func dup13{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return dup_n{evm=evm}(Uint(12));
+func dup13{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = dup_n(Uint(12));
+    return res;
 }
-func dup14{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return dup_n{evm=evm}(Uint(13));
+func dup14{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = dup_n(Uint(13));
+    return res;
 }
-func dup15{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return dup_n{evm=evm}(Uint(14));
+func dup15{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = dup_n(Uint(14));
+    return res;
 }
-func dup16{range_check_ptr, evm: Evm}() -> EthereumException* {
-    return dup_n{evm=evm}(Uint(15));
+func dup16{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let res = dup_n(Uint(15));
+    return res;
 }

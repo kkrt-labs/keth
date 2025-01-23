@@ -1,4 +1,4 @@
-from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
+from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin, PoseidonBuiltin
 from starkware.cairo.common.uint256 import uint256_eq, Uint256, uint256_and
 from starkware.cairo.common.math_cmp import is_le_felt
 
@@ -27,7 +27,13 @@ from src.utils.bytes import uint256_to_bytes32
 from src.utils.utils import Helpers
 
 // @notice Stores a word to memory
-func mstore{range_check_ptr, evm: Evm}() -> EthereumException* {
+func mstore{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -74,7 +80,13 @@ func mstore{range_check_ptr, evm: Evm}() -> EthereumException* {
 }
 
 // @notice Stores a byte to memory
-func mstore8{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> EthereumException* {
+func mstore8{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -123,7 +135,13 @@ func mstore8{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Ether
 }
 
 // @notice Load word from memory
-func mload{range_check_ptr, evm: Evm}() -> EthereumException* {
+func mload{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -168,7 +186,13 @@ func mload{range_check_ptr, evm: Evm}() -> EthereumException* {
 }
 
 // @notice Push the size of active memory in bytes onto the stack
-func msize{range_check_ptr, evm: Evm}() -> EthereumException* {
+func msize{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
 
@@ -194,7 +218,13 @@ func msize{range_check_ptr, evm: Evm}() -> EthereumException* {
 }
 
 // @notice Copy the bytes in memory from one location to another
-func mcopy{range_check_ptr, evm: Evm}() -> EthereumException* {
+func mcopy{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;

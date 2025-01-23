@@ -1,4 +1,4 @@
-from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
+from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin, PoseidonBuiltin
 from starkware.cairo.common.uint256 import (
     uint256_and,
     uint256_not,
@@ -18,7 +18,13 @@ from ethereum_types.numeric import U256, U256Struct, Uint
 from ethereum.cancun.vm.gas import charge_gas, GasConstants
 
 // @notice Performs bitwise AND operation on the top two stack elements
-func bitwise_and{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> EthereumException* {
+func bitwise_and{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -56,7 +62,13 @@ func bitwise_and{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> E
 }
 
 // @notice Performs bitwise OR operation on the top two stack elements
-func bitwise_or{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> EthereumException* {
+func bitwise_or{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -94,7 +106,13 @@ func bitwise_or{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Et
 }
 
 // @notice Performs bitwise XOR operation on the top two stack elements
-func bitwise_xor{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> EthereumException* {
+func bitwise_xor{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -132,7 +150,13 @@ func bitwise_xor{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> E
 }
 
 // @notice Performs bitwise NOT operation on the top stack element
-func bitwise_not{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> EthereumException* {
+func bitwise_not{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -166,7 +190,13 @@ func bitwise_not{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> E
 }
 
 // @notice Returns the byte at position n in x, where n is the position from the most significant byte
-func get_byte{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> EthereumException* {
+func get_byte{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -222,7 +252,13 @@ func get_byte{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> Ethe
 }
 
 // @notice Left shift operation
-func bitwise_shl{range_check_ptr, evm: Evm}() -> EthereumException* {
+func bitwise_shl{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -260,7 +296,13 @@ func bitwise_shl{range_check_ptr, evm: Evm}() -> EthereumException* {
 }
 
 // @notice Right shift operation
-func bitwise_shr{range_check_ptr, evm: Evm}() -> EthereumException* {
+func bitwise_shr{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
@@ -298,7 +340,13 @@ func bitwise_shr{range_check_ptr, evm: Evm}() -> EthereumException* {
 }
 
 // @notice Sign extend operation
-func bitwise_sar{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> EthereumException* {
+func bitwise_sar{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;

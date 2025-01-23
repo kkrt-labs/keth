@@ -16,10 +16,3 @@ const InvalidParameter = 'InvalidParameter';
 const InvalidContractPrefix = 'InvalidContractPrefix';
 const AddressCollision = 'AddressCollision';
 const KZGProofError = 'KZGProofError';
-
-func InvalidOpcodeError(param: felt) -> EthereumException {
-    let param = param * 2 ** 30;
-    let error_string = InvalidOpcode + param;
-    let res = EthereumException(error_string);
-    return res;
-}
