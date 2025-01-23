@@ -84,7 +84,6 @@ struct ListTrieTupleAddressBytes32U256 {
 
 struct TransientStorageStruct {
     _tries: TrieTupleAddressBytes32U256,
-    _snapshots: ListTrieTupleAddressBytes32U256,
 }
 
 struct TransientStorage {
@@ -94,7 +93,6 @@ struct TransientStorage {
 struct StateStruct {
     _main_trie: TrieAddressOptionalAccount,
     _storage_tries: TrieTupleAddressBytes32U256,
-    _snapshots: ListTupleTrieAddressOptionalAccountTrieTupleAddressBytes32U256,
     created_accounts: SetAddress,
     original_storage_tries: TrieTupleAddressBytes32U256,
 }
@@ -109,7 +107,6 @@ namespace StateImpl {
             new StateStruct(
                 _main_trie=state.value._main_trie,
                 _storage_tries=state.value._storage_tries,
-                _snapshots=state.value._snapshots,
                 created_accounts=new_created_accounts,
                 original_storage_tries=state.value.original_storage_tries,
             ),
@@ -124,7 +121,6 @@ namespace StateImpl {
             new StateStruct(
                 _main_trie=state.value._main_trie,
                 _storage_tries=state.value._storage_tries,
-                _snapshots=state.value._snapshots,
                 created_accounts=state.value.created_accounts,
                 original_storage_tries=new_original_storage_tries,
             ),
@@ -145,7 +141,6 @@ func get_account_optional{poseidon_ptr: PoseidonBuiltin*, state: State}(
         new StateStruct(
             _main_trie=trie,
             _storage_tries=state.value._storage_tries,
-            _snapshots=state.value._snapshots,
             created_accounts=state.value.created_accounts,
             original_storage_tries=state.value.original_storage_tries,
         ),
@@ -177,7 +172,6 @@ func set_account{poseidon_ptr: PoseidonBuiltin*, state: State}(
         new StateStruct(
             _main_trie=trie,
             _storage_tries=state.value._storage_tries,
-            _snapshots=state.value._snapshots,
             created_accounts=state.value.created_accounts,
             original_storage_tries=state.value.original_storage_tries,
         ),
@@ -259,7 +253,6 @@ func get_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(
         new StateStruct(
             _main_trie=state.value._main_trie,
             _storage_tries=new_storage_tries,
-            _snapshots=state.value._snapshots,
             created_accounts=state.value.created_accounts,
             original_storage_tries=state.value.original_storage_tries,
         ),
@@ -323,7 +316,6 @@ func set_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(
         new StateStruct(
             _main_trie=state.value._main_trie,
             _storage_tries=storage_trie,
-            _snapshots=state.value._snapshots,
             created_accounts=state.value.created_accounts,
             original_storage_tries=state.value.original_storage_tries,
         ),
@@ -365,7 +357,6 @@ func get_storage_original{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, state
         new StateStruct(
             _main_trie=state.value._main_trie,
             _storage_tries=state.value._storage_tries,
-            _snapshots=state.value._snapshots,
             created_accounts=state.value.created_accounts,
             original_storage_tries=new_original_storage_tries,
         ),
@@ -406,7 +397,6 @@ func destroy_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Addr
         new StateStruct(
             _main_trie=state.value._main_trie,
             _storage_tries=new_storage_tries,
-            _snapshots=state.value._snapshots,
             created_accounts=state.value.created_accounts,
             original_storage_tries=state.value.original_storage_tries,
         ),
@@ -448,7 +438,7 @@ func get_transient_storage{poseidon_ptr: PoseidonBuiltin*, transient_storage: Tr
     );
 
     tempvar transient_storage = TransientStorage(
-        new TransientStorageStruct(new_transient_storage_tries, transient_storage.value._snapshots)
+        new TransientStorageStruct(new_transient_storage_tries)
     );
 
     return value;
@@ -471,7 +461,7 @@ func set_transient_storage{poseidon_ptr: PoseidonBuiltin*, transient_storage: Tr
     // if trie._data == {}:
     //    del transient_storage._tries[address]
     tempvar transient_storage = TransientStorage(
-        new TransientStorageStruct(new_transient_storage_tries, transient_storage.value._snapshots)
+        new TransientStorageStruct(new_transient_storage_tries)
     );
 
     return ();
@@ -558,7 +548,6 @@ func mark_account_created{poseidon_ptr: PoseidonBuiltin*, state: State}(address:
         new StateStruct(
             _main_trie=state.value._main_trie,
             _storage_tries=state.value._storage_tries,
-            _snapshots=state.value._snapshots,
             created_accounts=new_created_account,
             original_storage_tries=state.value.original_storage_tries,
         ),
@@ -621,29 +610,10 @@ func begin_transaction{
     let storage_tries = state.value._storage_tries;
     let copied_storage_tries = copy_TrieTupleAddressBytes32U256{trie=storage_tries}();
 
-    // Store in snapshots the copied main trie and the new storage tries mapping
-    tempvar new_snapshot = TupleTrieAddressOptionalAccountTrieTupleAddressBytes32U256(
-        new TupleTrieAddressOptionalAccountTrieTupleAddressBytes32U256Struct(
-            trie_address_account=copied_main_trie,
-            trie_tuple_address_bytes32_u256=copied_storage_tries,
-        ),
-    );
-
-    // Update the snapshots list
-    assert state.value._snapshots.value.data[state.value._snapshots.value.len] = new_snapshot;
-
-    tempvar new_snapshots = ListTupleTrieAddressOptionalAccountTrieTupleAddressBytes32U256(
-        new ListTupleTrieAddressOptionalAccountTrieTupleAddressBytes32U256Struct(
-            data=state.value._snapshots.value.data, len=state.value._snapshots.value.len + 1
-        ),
-    );
-
-    // Update state with new snapshots
     tempvar state = State(
         new StateStruct(
-            _main_trie=state.value._main_trie,
-            _storage_tries=state.value._storage_tries,
-            _snapshots=new_snapshots,
+            _main_trie=copied_main_trie,
+            _storage_tries=copied_storage_tries,
             created_accounts=state.value.created_accounts,
             original_storage_tries=state.value.original_storage_tries,
         ),
@@ -655,23 +625,8 @@ func begin_transaction{
         trie=transient_storage_tries
     }();
 
-    // Update the snapshots list
-    assert transient_storage.value._snapshots.value.data[
-        transient_storage.value._snapshots.value.len
-    ] = copied_transient_storage_tries;
-
-    tempvar new_transient_snapshots = ListTrieTupleAddressBytes32U256(
-        new ListTrieTupleAddressBytes32U256Struct(
-            data=transient_storage.value._snapshots.value.data,
-            len=transient_storage.value._snapshots.value.len + 1,
-        ),
-    );
-
-    // Update transient storage with new snapshots
     tempvar transient_storage = TransientStorage(
-        new TransientStorageStruct(
-            _tries=transient_storage.value._tries, _snapshots=new_transient_snapshots
-        ),
+        new TransientStorageStruct(_tries=copied_transient_storage_tries)
     );
 
     return ();
@@ -748,7 +703,8 @@ func close_transaction{
     let parent_storage_tries = storage_tries.value._data.value.parent_dict;
     let parent_storage_tries_start = parent_storage_tries.dict_ptr_start;
     let parent_storage_tries_end = parent_storage_tries.dict_ptr;
-    let (parent_storage_tries_dict_start, parent_storage_tries_dict) = dict_update(
+
+    let (new_parent_storage_tries_dict_start, new_parent_storage_tries_dict) = dict_update(
         cast(storage_tries_start, DictAccess*),
         cast(storage_tries_end, DictAccess*),
         cast(parent_storage_tries_start, DictAccess*),
@@ -763,30 +719,20 @@ func close_transaction{
             _data=MappingTupleAddressBytes32U256(
                 new MappingTupleAddressBytes32U256Struct(
                     dict_ptr_start=cast(
-                        parent_storage_tries_dict_start, TupleAddressBytes32U256DictAccess*
+                        new_parent_storage_tries_dict_start, TupleAddressBytes32U256DictAccess*
                     ),
-                    dict_ptr=cast(parent_storage_tries_dict, TupleAddressBytes32U256DictAccess*),
+                    dict_ptr=cast(
+                        new_parent_storage_tries_dict, TupleAddressBytes32U256DictAccess*
+                    ),
                     parent_dict=parent_storage_tries.parent_dict,
                 ),
             ),
         ),
     );
 
-    // Snapshots
-    // TODO: This is only used for serde purposes. To remove, and handle the re-creation of the "snapshot" struct directly in serde?
-    let snapshots = state.value._snapshots;
-    let new_len = snapshots.value.len - 1;
-    let (new_snapshots_inner: TupleTrieAddressOptionalAccountTrieTupleAddressBytes32U256*) = alloc(
-        );
-    memcpy(new_snapshots_inner, snapshots.value.data, new_len);
-
-    tempvar new_snapshots = ListTupleTrieAddressOptionalAccountTrieTupleAddressBytes32U256(
-        new ListTupleTrieAddressOptionalAccountTrieTupleAddressBytes32U256Struct(
-            data=new_snapshots_inner, len=new_len
-        ),
-    );
-
-    if (new_len == 0) {
+    // If we're in the root state, we need to clear the created accounts
+    let is_root_state = is_zero(cast(new_main_trie.value._data.value.parent_dict, felt));
+    if (is_root_state != 0) {
         // Clear created accounts
         let (new_created_accounts_ptr) = dict_new_empty();
         tempvar new_created_accounts = SetAddress(
@@ -803,7 +749,6 @@ func close_transaction{
         new StateStruct(
             _main_trie=new_main_trie,
             _storage_tries=new_storage_tries,
-            _snapshots=new_snapshots,
             created_accounts=new_created_accounts,
             original_storage_tries=state.value.original_storage_tries,
         ),
@@ -845,26 +790,14 @@ func close_transaction{
                     dict_ptr=cast(
                         new_parent_transient_storage_tries_end, TupleAddressBytes32U256DictAccess*
                     ),
-                    parent_dict=parent_transient_storage_tries,
+                    parent_dict=parent_transient_storage_tries.parent_dict,
                 ),
             ),
         ),
     );
 
-    // Snapshots
-    let ts_snapshots = transient_storage.value._snapshots;
-    let new_len = ts_snapshots.value.len - 1;
-    let (new_ts_snapshots_inner: TrieTupleAddressBytes32U256*) = alloc();
-    memcpy(new_ts_snapshots_inner, ts_snapshots.value.data, new_len);
-
-    tempvar new_transient_snapshots = ListTrieTupleAddressBytes32U256(
-        new ListTrieTupleAddressBytes32U256Struct(data=new_ts_snapshots_inner, len=new_len)
-    );
-
     tempvar transient_storage = TransientStorage(
-        new TransientStorageStruct(
-            _tries=new_transient_storage_tries, _snapshots=new_transient_snapshots
-        ),
+        new TransientStorageStruct(_tries=new_transient_storage_tries)
     );
 
     return ();

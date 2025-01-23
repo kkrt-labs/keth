@@ -824,11 +824,11 @@ def generate_state_arg(
 ):
     flat_state = FlatState.from_state(arg)
 
-    all_snapshots = []
     parent_main_trie_data = 0
     parent_storage_tries_data = 0
+    snapshots0_storage_tries_ptr = 0
 
-    for snap in flat_state._snapshots:
+    for i, snap in enumerate(flat_state._snapshots):
         main_trie, storage_tries = snap
         snap_trie = generate_trie_arg(
             dict_manager,
@@ -844,11 +844,11 @@ def generate_state_arg(
             storage_tries,
             parent_trie_data=parent_storage_tries_data,
         )
-        tuple_ptr = segments.add()
-        segments.load_data(tuple_ptr, [snap_trie, snap_storage_tries])
-        all_snapshots.append(tuple_ptr)
         parent_main_trie_data = segments.memory.get(snap_trie + 2)
         parent_storage_tries_data = segments.memory.get(snap_storage_tries + 2)
+        # Save the pointer to the first storage tries, which is our original_storage_tries field in the Cairo State.
+        if i == 0:
+            snapshots0_storage_tries_ptr = snap_storage_tries
 
     main_trie = generate_trie_arg(
         dict_manager,
@@ -864,28 +864,16 @@ def generate_state_arg(
         flat_state._storage_tries,
         parent_trie_data=parent_storage_tries_data,
     )
-    snapshots_data_ptr = segments.add()
-    segments.load_data(snapshots_data_ptr, all_snapshots)
-    snapshots_ptr = segments.add()
-    segments.load_data(snapshots_ptr, [snapshots_data_ptr, len(all_snapshots)])
-
     created_accounts = _gen_arg(
         dict_manager, segments, Set[Address], flat_state.created_accounts
     )
 
     base = segments.add()
-    snapshots0_ptr = segments.memory.get(snapshots_ptr)
-    snapshots0_tuple_ptr = segments.memory.get(snapshots0_ptr)
-    if not snapshots0_tuple_ptr:
-        snapshots0_storage_tries_ptr = 0
-    else:
-        snapshots0_storage_tries_ptr = segments.memory.get(snapshots0_tuple_ptr + 1)
     segments.load_data(
         base,
         [
             main_trie,
             storage_tries,
-            snapshots_ptr,
             created_accounts,
             snapshots0_storage_tries_ptr,
         ],
@@ -899,9 +887,9 @@ def generate_transient_storage_arg(
     arg: TransientStorage,
 ):
     flat_transient_storage = FlatTransientStorage.from_transient_storage(arg)
-
-    snapshots = []
     parent_trie_data = 0
+
+    # Process snapshots first to generate the recursive trie structure.
     for snap in flat_transient_storage._snapshots:
         snap_trie = generate_trie_arg(
             dict_manager,
@@ -910,9 +898,9 @@ def generate_transient_storage_arg(
             snap,
             parent_trie_data=parent_trie_data,
         )
-        snapshots.append(snap_trie)
         parent_trie_data = segments.memory.get(snap_trie + 2)
 
+    # Generate the main transient storage trie
     main_transient_storage_trie = generate_trie_arg(
         dict_manager,
         segments,
@@ -920,13 +908,9 @@ def generate_transient_storage_arg(
         flat_transient_storage._tries,
         parent_trie_data=parent_trie_data,
     )
-    snapshots_data_ptr = segments.add()
-    segments.load_data(snapshots_data_ptr, snapshots)
-    snapshots_ptr = segments.add()
-    segments.load_data(snapshots_ptr, [snapshots_data_ptr, len(snapshots)])
 
     base = segments.add()
-    segments.load_data(base, [main_transient_storage_trie, snapshots_ptr])
+    segments.load_data(base, [main_transient_storage_trie])
     return base
 
 
