@@ -35,6 +35,7 @@ func less_than{
     // GAS
     let err3 = charge_gas(Uint(GasConstants.GAS_VERY_LOW));
     if (cast(err3, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err3;
     }
 
@@ -81,6 +82,7 @@ func greater_than{
     // GAS
     let err3 = charge_gas(Uint(GasConstants.GAS_VERY_LOW));
     if (cast(err3, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err3;
     }
 
@@ -127,6 +129,7 @@ func signed_less_than{
     // GAS
     let err3 = charge_gas(Uint(GasConstants.GAS_VERY_LOW));
     if (cast(err3, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err3;
     }
 
@@ -173,6 +176,7 @@ func signed_greater_than{
     // GAS
     let err3 = charge_gas(Uint(GasConstants.GAS_VERY_LOW));
     if (cast(err3, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err3;
     }
 
@@ -219,6 +223,7 @@ func equal{
     // GAS
     let err3 = charge_gas(Uint(GasConstants.GAS_VERY_LOW));
     if (cast(err3, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err3;
     }
 
@@ -260,6 +265,7 @@ func is_zero{
     // GAS
     let err2 = charge_gas(Uint(GasConstants.GAS_VERY_LOW));
     if (cast(err2, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err2;
     }
 

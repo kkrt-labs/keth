@@ -77,14 +77,6 @@ func sload{
     let poseidon_ptr = cast([ap - 2], PoseidonBuiltin*);
     let dict_ptr = cast([ap - 1], DictAccess*);
 
-    let access_gas_cost = (is_present * GasConstants.GAS_WARM_ACCESS) + (1 - is_present) *
-        GasConstants.GAS_COLD_SLOAD;
-    let err = charge_gas(Uint(access_gas_cost));
-    if (cast(err, felt) != 0) {
-        EvmImpl.set_stack(stack);
-        return err;
-    }
-
     let new_dict_ptr = cast(dict_ptr, SetTupleAddressBytes32DictAccess*);
     tempvar new_accessed_storage_keys = SetTupleAddressBytes32(
         new SetTupleAddressBytes32Struct(
@@ -92,6 +84,14 @@ func sload{
         ),
     );
     EvmImpl.set_accessed_storage_keys(new_accessed_storage_keys);
+
+    let access_gas_cost = (is_present * GasConstants.GAS_WARM_ACCESS) + (1 - is_present) *
+        GasConstants.GAS_COLD_SLOAD;
+    let err = charge_gas(Uint(access_gas_cost));
+    if (cast(err, felt) != 0) {
+        EvmImpl.set_stack(stack);
+        return err;
+    }
 
     // OPERATION
     let state = evm.value.env.value.state;

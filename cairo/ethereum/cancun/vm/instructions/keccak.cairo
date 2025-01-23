@@ -44,6 +44,7 @@ func keccak{
     // GAS
     // If the size is greater than 2**128, the memory expansion will trigger an out of gas error.
     if (size.value.high != 0) {
+        EvmImpl.set_stack(stack);
         tempvar err = new EthereumException(OutOfGasError);
         return err;
     }
@@ -62,6 +63,7 @@ func keccak{
 
     let err = charge_gas(total_gas);
     if (cast(err, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err;
     }
 

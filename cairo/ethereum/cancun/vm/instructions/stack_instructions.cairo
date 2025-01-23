@@ -134,6 +134,7 @@ func pop{
     // GAS
     let err = charge_gas(Uint(GasConstants.GAS_BASE));
     if (cast(err, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err;
     }
 

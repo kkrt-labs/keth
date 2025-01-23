@@ -134,6 +134,7 @@ func balance{
         GasConstants.GAS_COLD_ACCOUNT_ACCESS;
     let err = charge_gas(Uint(access_gas_cost));
     if (cast(err, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err;
     }
 
@@ -407,6 +408,7 @@ func returndatacopy{
         Uint(GasConstants.GAS_VERY_LOW + return_data_copy_gas_cost + extend_memory.value.cost.value)
     );
     if (cast(err, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err;
     }
 
@@ -414,6 +416,7 @@ func returndatacopy{
     // Check if the read on return_data is in bounds
     // If the start position is greater than 2 ** 128, then it is almost surely out of bounds
     if (returndata_start_position.value.high != 0) {
+        EvmImpl.set_stack(stack);
         tempvar err = new EthereumException(OutOfBoundsRead);
         return err;
     }
@@ -428,6 +431,7 @@ func returndatacopy{
         size.value.low + returndata_start_position.value.low, evm.value.return_data.value.len
     );
     if (is_in_bounds == 0) {
+        EvmImpl.set_stack(stack);
         tempvar err = new EthereumException(OutOfBoundsRead);
         return err;
     }
@@ -539,6 +543,7 @@ func blob_hash{
     // GAS
     let err = charge_gas(Uint(GasConstants.GAS_BLOBHASH_OPCODE));
     if (cast(err, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err;
     }
 
@@ -602,6 +607,7 @@ func codecopy{
     // Gas
     // OutOfGasError if size > 2**128
     if (size.value.high != 0) {
+        EvmImpl.set_stack(stack);
         tempvar err = new EthereumException(OutOfGasError);
         return err;
     }
@@ -620,6 +626,7 @@ func codecopy{
         Uint(GasConstants.GAS_VERY_LOW + copy_gas_cost + extend_memory.value.cost.value)
     );
     if (cast(err, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err;
     }
     let memory = evm.value.memory;
@@ -684,6 +691,7 @@ func extcodesize{
         GasConstants.GAS_COLD_ACCOUNT_ACCESS;
     let err = charge_gas(Uint(access_gas_cost));
     if (cast(err, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err;
     }
 
@@ -749,6 +757,7 @@ func extcodecopy{
     // Gas
     // OutOfGasError if size > 2**128
     if (size.value.high != 0) {
+        EvmImpl.set_stack(stack);
         tempvar err = new EthereumException(OutOfGasError);
         return err;
     }
@@ -792,6 +801,7 @@ func extcodecopy{
     let total_gas = Uint(access_gas_cost + copy_gas_cost + extend_memory.value.cost.value);
     let err = charge_gas(total_gas);
     if (cast(err, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err;
     }
 
@@ -865,6 +875,7 @@ func extcodehash{
         GasConstants.GAS_COLD_ACCOUNT_ACCESS;
     let err = charge_gas(Uint(access_gas_cost));
     if (cast(err, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err;
     }
 
@@ -975,6 +986,7 @@ func calldataload{
     // GAS
     let err = charge_gas(Uint(GasConstants.GAS_VERY_LOW));
     if (cast(err, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err;
     }
 
@@ -1031,6 +1043,7 @@ func calldatacopy{
     // GAS
     // OutOfGasError if size > 2**128
     if (size.value.high != 0) {
+        EvmImpl.set_stack(stack);
         tempvar err = new EthereumException(OutOfGasError);
         return err;
     }
@@ -1048,6 +1061,7 @@ func calldatacopy{
         Uint(GasConstants.GAS_VERY_LOW + copy_gas_cost + extend_memory.value.cost.value)
     );
     if (cast(err, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err;
     }
 

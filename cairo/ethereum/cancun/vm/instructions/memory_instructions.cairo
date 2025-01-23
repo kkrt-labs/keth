@@ -60,6 +60,7 @@ func mstore{
     // assumed that cost < 2**110 (see calculate_memory_gas_cost)
     let err = charge_gas(Uint(GasConstants.GAS_VERY_LOW + extend_memory.value.cost.value));
     if (cast(err, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err;
     }
 
@@ -115,6 +116,7 @@ func mstore8{
     // assumed that cost < 2**110 (see calculate_memory_gas_cost)
     let err = charge_gas(Uint(GasConstants.GAS_VERY_LOW + extend_memory.value.cost.value));
     if (cast(err, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err;
     }
 
@@ -167,6 +169,7 @@ func mload{
     // assumed that cost < 2**110 (see calculate_memory_gas_cost)
     let err = charge_gas(Uint(GasConstants.GAS_VERY_LOW + extend_memory.value.cost.value));
     if (cast(err, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err;
     }
 
@@ -256,6 +259,7 @@ func mcopy{
     // GAS
     // OutOfGasError if length > 2**128
     if (length.value.high != 0) {
+        EvmImpl.set_stack(stack);
         tempvar err = new EthereumException(OutOfGasError);
         return err;
     }
@@ -281,6 +285,7 @@ func mcopy{
         Uint(GasConstants.GAS_VERY_LOW + copy_gas_cost + extend_memory.value.cost.value)
     );
     if (cast(err, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err;
     }
 
