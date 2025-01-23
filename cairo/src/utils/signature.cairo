@@ -18,7 +18,6 @@ from src.utils.circuit_utils import (
     N_LIMBS,
     hash_full_transcript_and_get_Z_3_LIMBS,
     scalar_to_epns,
-    run_modulo_circuit_basic,
 )
 from src.utils.ecdsa_circuit import get_full_ecip_2P_circuit
 from src.utils.uint256 import assert_uint256_le
