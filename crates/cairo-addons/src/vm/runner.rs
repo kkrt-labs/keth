@@ -75,12 +75,15 @@ impl PyCairoRunner {
     }
 
     /// Initialize the runner with the given stack and entrypoint offset.
+    // #[pyo3(signature = (stack, entrypoint, ordered_builtins=None))]
+    #[pyo3(signature = (stack, entrypoint, ordered_builtins=None))]
     pub fn initialize_vm(
         &mut self,
         stack: Vec<PyMaybeRelocatable>,
         entrypoint: usize,
+        ordered_builtins: Option<Vec<String>>,
     ) -> PyResult<PyRelocatable> {
-        let initial_stack = self.builtins_stack();
+        let initial_stack = self.builtins_stack(ordered_builtins)?;
         let stack = initial_stack.into_iter().chain(stack.into_iter().map(|x| x.into())).collect();
 
         let return_fp = self.inner.vm.add_memory_segment();
@@ -192,18 +195,38 @@ impl PyCairoRunner {
 }
 
 impl PyCairoRunner {
-    fn builtins_stack(&mut self) -> Vec<MaybeRelocatable> {
+    fn builtins_stack(
+        &mut self,
+        ordered_builtins: Option<Vec<String>>,
+    ) -> PyResult<Vec<MaybeRelocatable>> {
         let mut stack = Vec::new();
         let builtin_runners =
             self.inner.vm.builtin_runners.iter().map(|b| (b.name(), b)).collect::<HashMap<_, _>>();
+
+        if let Some(names) = ordered_builtins {
+            self.builtins = names
+                .iter()
+                .map(|name| {
+                    BuiltinName::from_str_with_suffix(name).ok_or_else(|| {
+                        PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                            "Invalid builtin name: {}",
+                            name
+                        ))
+                    })
+                })
+                .collect::<PyResult<Vec<_>>>()?;
+        };
         for builtin_name in self.builtins.iter() {
             if let Some(builtin_runner) = builtin_runners.get(builtin_name) {
                 stack.append(&mut builtin_runner.initial_stack());
             } else {
-                stack.push(Felt252::ZERO.into())
+                return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                    "Builtin runner {} not found",
+                    builtin_name
+                )));
             }
         }
-        stack
+        Ok(stack)
     }
 
     /// Mainly like `CairoRunner::read_return_values` but with an `offset` parameter and some checks
