@@ -817,7 +817,6 @@ func _get_branch_for_nibble_at_level{poseidon_ptr: PoseidonBuiltin*}(
 ) -> (MappingBytesBytes, Bytes) {
     alloc_locals;
     // Allocate a segment for the branch and register an associated tracker
-    // dict_new expectes an initial_dict hint argument.
     let (branch_start_: DictAccess*) = dict_new_empty();
     let branch_start = cast(branch_start_, BytesBytesDictAccess*);
     let dict_ptr_stop = obj.value.dict_ptr;

@@ -35,7 +35,7 @@ from ethereum.cancun.vm.instructions.bitwise import (
     bitwise_shr,
     bitwise_sar,
 )
-from ethereum.cancun.vm.instructions.keccak import keccak
+from ethereum.cancun.vm.instructions.keccak import keccak as keccak_instruction
 from ethereum.cancun.vm.instructions.block import (
     block_hash,
     coinbase,
@@ -228,7 +228,7 @@ func op_implementation{
     ret;
     call unknown_opcode;  // 0x1f
     ret;
-    call keccak;  // 0x20 - KECCAK
+    call keccak_instruction;  // 0x20 - KECCAK
     ret;
     call unknown_opcode;  // 0x21
     ret;
