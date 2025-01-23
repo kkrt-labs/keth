@@ -187,6 +187,10 @@ func dict_update{range_check_ptr}(
     tempvar len = dict_ptr - dict_ptr_start;
     memcpy(parent_dict_end, dict_ptr_start, len);
     let new_parent_dict_end = parent_dict_end + len;
+
+    let current_tracker_ptr = parent_dict_end;
+    let new_tracker_ptr = new_parent_dict_end;
+    %{ update_dict_tracker %}
     return (parent_dict_start, new_parent_dict_end);
 }
 

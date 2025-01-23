@@ -16,7 +16,7 @@ use cairo_vm::{
 use crate::vm::hints::Hint;
 
 pub const HINTS: &[fn() -> Hint] =
-    &[dict_new_empty, copy_dict_segment, merge_dict_tracker_with_parent];
+    &[dict_new_empty, copy_dict_segment, merge_dict_tracker_with_parent, update_dict_tracker];
 
 pub fn dict_new_empty() -> Hint {
     Hint::new(
@@ -81,6 +81,30 @@ pub fn merge_dict_tracker_with_parent() -> Hint {
             for (key, value) in current_data {
                 parent_tracker.insert_value(&key, &value);
             }
+
+            Ok(())
+        },
+    )
+}
+
+pub fn update_dict_tracker() -> Hint {
+    Hint::new(
+        String::from("update_dict_tracker"),
+        |vm: &mut VirtualMachine,
+         exec_scopes: &mut ExecutionScopes,
+         ids_data: &HashMap<String, HintReference>,
+         ap_tracking: &ApTracking,
+         _constants: &HashMap<String, Felt252>|
+         -> Result<(), HintError> {
+            let current_tracker_ptr =
+                get_ptr_from_var_name("current_tracker_ptr", vm, ids_data, ap_tracking)?;
+            let new_tracker_ptr =
+                get_ptr_from_var_name("new_tracker_ptr", vm, ids_data, ap_tracking)?;
+
+            let dict_manager_ref = exec_scopes.get_dict_manager()?;
+            let mut dict_manager = dict_manager_ref.borrow_mut();
+            let tracker = dict_manager.get_tracker_mut(current_tracker_ptr)?;
+            tracker.current_ptr = new_tracker_ptr;
 
             Ok(())
         },
