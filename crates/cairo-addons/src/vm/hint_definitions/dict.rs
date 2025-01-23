@@ -52,10 +52,32 @@ pub fn copy_dict_segment() -> Hint {
             let mut dict_manager = dict_manager_ref.borrow_mut();
             let tracker = dict_manager.get_tracker(original_dict_ptr)?;
             let copied_data = tracker.get_dictionary_copy();
+            let default_value = tracker.get_default_value().cloned();
 
             // Create new dict with copied data and insert its pointer
-            let new_dict_ptr = dict_manager.new_dict(vm, copied_data)?;
-            insert_value_from_var_name("new_dict_ptr", new_dict_ptr, vm, ids_data, ap_tracking)
+            match default_value {
+                Some(default_value) => {
+                    let new_dict_ptr =
+                        dict_manager.new_default_dict(vm, &default_value, Some(copied_data))?;
+                    insert_value_from_var_name(
+                        "new_dict_ptr",
+                        new_dict_ptr,
+                        vm,
+                        ids_data,
+                        ap_tracking,
+                    )
+                }
+                None => {
+                    let new_dict_ptr = dict_manager.new_dict(vm, copied_data)?;
+                    insert_value_from_var_name(
+                        "new_dict_ptr",
+                        new_dict_ptr,
+                        vm,
+                        ids_data,
+                        ap_tracking,
+                    )
+                }
+            }
         },
     )
 }

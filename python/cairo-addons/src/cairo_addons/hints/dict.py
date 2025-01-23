@@ -58,9 +58,28 @@ def copy_dict_segment(
     memory: MemoryDict,
     ap: RelocatableValue,
 ):
-    dict_tracker = dict_manager.get_tracker(ids.parent_dict.dict_ptr)
-    copied_data = dict_tracker.data
-    ids.new_dict_ptr = dict_manager.new_dict(segments, copied_data)
+    from collections import defaultdict
+
+    from starkware.cairo.common.dict import DictTracker
+
+    current_tracker = dict_manager.get_tracker(ids.parent_dict.dict_ptr)
+    if isinstance(current_tracker.data, defaultdict):
+        # Same as new_dict but supports a default value
+        base = segments.add()
+        assert base.segment_index not in dict_manager.trackers
+        dict_manager.trackers[base.segment_index] = DictTracker(
+            data=defaultdict(
+                current_tracker.data.default_factory,
+                {
+                    key: segments.gen_arg(value)
+                    for key, value in current_tracker.data.items()
+                },
+            ),
+            current_ptr=base,
+        )
+        ids.new_dict_ptr = base
+    else:
+        ids.new_dict_ptr = dict_manager.new_dict(segments, current_tracker.data)
 
 
 @register_hint
