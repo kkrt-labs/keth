@@ -353,19 +353,11 @@ class Evm(
     )
 ):
     def __eq__(self, other):
-        return (
-            isinstance(other, Evm)
-            and all(
-                getattr(self, field.name) == getattr(other, field.name)
-                for field in fields(self)
-                if field.name != "error"
-            )
-            and (
-                str(self.error) == str(other.error)
-                if self.error is not None
-                else isinstance(self.error, type(other.error))
-            )
-        )
+        return all(
+            getattr(self, field.name) == getattr(other, field.name)
+            for field in fields(self)
+            if field.name != "error"
+        ) and type(self.error) is type(other.error)
 
 
 vm_exception_classes = inspect.getmembers(

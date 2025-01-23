@@ -2,7 +2,6 @@
 
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bool import FALSE, TRUE
-from starkware.cairo.common.default_dict import default_dict_new, default_dict_finalize
 from starkware.cairo.common.dict import DictAccess, dict_read, dict_write
 from starkware.cairo.common.memset import memset
 from starkware.cairo.common.memcpy import memcpy
