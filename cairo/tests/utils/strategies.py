@@ -84,7 +84,7 @@ bytes256 = st.integers(min_value=0, max_value=2**2048 - 1).map(
 bloom = bytes256.map(Bloom)
 
 excess_blob_gas = st.integers(min_value=0, max_value=MAX_BLOB_GAS_PER_BLOCK * 2).map(
-    Uint
+    U64
 )
 
 # Maximum recursion depth for the recursive strategy to avoid heavy memory usage and health check errors
