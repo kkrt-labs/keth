@@ -278,7 +278,7 @@ class TestOs:
         )
 
     @pytest.mark.slow
-    @settings(max_examples=1)  # for max_examples=2, it takes 1773.25s in local
+    @settings(max_examples=1)
     @given(nonce=integers(min_value=2**64, max_value=2**248 - 1))
     def test_should_raise_when_nonce_is_greater_u64(self, cairo_run, nonce):
         initial_state = {

@@ -68,6 +68,7 @@ def get_cairo_program(cairo_file: Path, main_path, dump_path: Optional[Path] = N
         logger.info(f"Compiling {cairo_file}")
         program = cairo_compile(cairo_file, debug_info=True, proof_mode=False)
         if dump_path is not None:
+            dump_path.parent.mkdir(parents=True, exist_ok=True)
             dump_path.with_suffix(".lock").write_text(
                 json.dumps(program.Schema().dump(program), indent=4, sort_keys=True)
             )
