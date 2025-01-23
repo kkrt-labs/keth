@@ -57,4 +57,4 @@ cairo-vm = { git = "https://github.com/lambdaclass/cairo-vm.git", tag = "v2.0.0-
 ] }
 
 [patch."https://github.com/lambdaclass/cairo-vm.git"]
-cairo-vm = { git = "https://github.com/kkrt-labs/cairo-vm", rev = "11ecc932cfabf0653a008a7f408d698ec780cc24" }
+cairo-vm = { git = "https://github.com/kkrt-labs/cairo-vm", rev = "b74689483485f9d32bed9da7eb0c5f3a48573c4e" }
