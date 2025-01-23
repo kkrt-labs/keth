@@ -152,6 +152,28 @@ class TestOs:
         }
         assert post_state == expected
 
+    @pytest.mark.skip("Only for debugging")
+    @pytest.mark.slow
+    @pytest.mark.parametrize("block_number", [21421739])
+    def test_eth_block_recover_signer(self, cairo_run, block_number):
+        prover_input_path = Path(f"cache/{block_number}_long.json")
+        with open(prover_input_path, "r") as f:
+            prover_input = json.load(f)
+
+        transactions = prover_input["block"]["transactions"]
+        header = prover_input["block"].copy()
+        del header["transactions"]
+        del header["withdrawals"]
+        del header["size"]
+
+        cairo_run(
+            "test_recover_signer",
+            block=Block.model_validate(
+                {"block_header": header, "transactions": transactions}
+            ),
+            state=State.model_validate({}),
+        )
+
     def test_block_hint(self, cairo_run):
         output = cairo_run("test_block_hint", block=block())
         block_header = block().block_header
