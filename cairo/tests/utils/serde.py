@@ -30,6 +30,7 @@ from typing import (
     Mapping,
     Optional,
     Sequence,
+    Set,
     Tuple,
     Union,
     get_args,
@@ -67,7 +68,9 @@ from starkware.cairo.lang.vm.crypto import poseidon_hash_many
 from starkware.cairo.lang.vm.memory_dict import UnknownMemoryError
 from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 
+from ethereum.cancun.fork_types import Address
 from ethereum.cancun.state import State, TransientStorage
+from ethereum.cancun.trie import Trie
 from ethereum.cancun.vm.exceptions import InvalidOpcode
 from ethereum.crypto.hash import Hash32
 from tests.utils.args_gen import (
@@ -78,6 +81,7 @@ from tests.utils.args_gen import (
     to_python_type,
     vm_exception_classes,
 )
+from tests.utils.models import Account
 
 # Sentinel object for indicating no error in exception handling
 NO_ERROR_FLAG = object()
@@ -340,6 +344,14 @@ class Serde:
             )
             return Bytes256(data)
 
+        # Special handling of the State and TransientStorage types, because the cairo representation is recursive-based (no snapshots list);
+        # we need to re-construct the snapshots list from the recursive representation.
+        if python_cls is State:
+            return self.serialize_state(ptr)
+
+        if python_cls is TransientStorage:
+            return self.serialize_transient_storage(ptr)
+
         members = get_struct_definition(self.program, path).members
         kwargs = {
             name: self._serialize(member.cairo_type, ptr + member.offset)
@@ -384,17 +396,6 @@ class Serde:
                 for k, v in value.items()
             }
 
-            if python_cls is State:
-                # Remove our extra field
-                del adjusted_value["original_storage_tries"]
-                flat_state = FlatState(**adjusted_value)
-                state = flat_state.to_state()
-                return state
-
-            if python_cls is TransientStorage:
-                flat_transient_storage = FlatTransientStorage(**adjusted_value)
-                return flat_transient_storage.to_transient_storage()
-
             return python_cls(**adjusted_value)
 
         if isinstance(value, dict):
@@ -409,7 +410,7 @@ class Serde:
     def serialize_scope(self, scope, scope_ptr):
         # TODO: Remove these once EELS like migration is implemented
         if scope.path == ("src", "model", "model", "State"):
-            return self.serialize_state(scope_ptr)
+            return self.serialize_state_old(scope_ptr)
         if scope.path == ("src", "model", "model", "Account"):
             return self.serialize_kakarot_account(scope_ptr)
         if scope.path == ("src", "model", "model", "Stack"):
@@ -612,6 +613,207 @@ class Serde:
 
         return serialized_dict
 
+    def serialize_state(self, ptr) -> State:
+        """
+        Deserialize a Cairo state pointer into a Python State object.
+        Reconstructs the snapshots list from Cairo's recursive trie structure.
+        """
+        value_ptr = self.memory.get(ptr)
+        raw_state = self.serialize_pointers(
+            ("ethereum", "cancun", "state", "StateStruct"), value_ptr
+        )
+
+        # Don't fill the snapshots yet
+        flat_state = FlatState(
+            _main_trie=Trie(
+                **self._serialize(
+                    self.get_cairo_type_from_path(
+                        (
+                            "ethereum",
+                            "cancun",
+                            "trie",
+                            "TrieAddressOptionalAccountStruct",
+                        )
+                    ),
+                    raw_state["_main_trie"],
+                )
+            ),
+            _storage_tries=Trie(
+                **self._serialize(
+                    self.get_cairo_type_from_path(
+                        (
+                            "ethereum",
+                            "cancun",
+                            "trie",
+                            "TrieTupleAddressBytes32U256Struct",
+                        )
+                    ),
+                    raw_state["_storage_tries"],
+                )
+            ),
+            _snapshots=[],
+            created_accounts=set(
+                self._serialize_mapping_struct(
+                    ("ethereum", "cancun", "fork_types", "SetAddressStruct"),
+                    raw_state["created_accounts"],
+                    Set[Address],
+                ).keys()
+            ),
+        )
+
+        # Follow parent pointers to reconstruct snapshots
+        parent_main_dict = self._get_trie_parent_ptr(raw_state["_main_trie"])
+        parent_storage_dict = self._get_trie_parent_ptr(raw_state["_storage_tries"])
+
+        while True:
+            if not parent_main_dict or not parent_storage_dict:
+                break
+
+            snapshot = (
+                Trie(
+                    flat_state._main_trie.secured,
+                    flat_state._main_trie.default,
+                    self._serialize_mapping_struct(
+                        (
+                            "ethereum",
+                            "cancun",
+                            "fork_types",
+                            "MappingAddressAccountStruct",
+                        ),
+                        parent_main_dict,
+                        Mapping[Address, Optional[Account]],
+                    ),
+                ),
+                Trie(
+                    flat_state._storage_tries.secured,
+                    flat_state._storage_tries.default,
+                    self._serialize_mapping_struct(
+                        (
+                            "ethereum",
+                            "cancun",
+                            "fork_types",
+                            "MappingTupleAddressBytes32U256Struct",
+                        ),
+                        parent_storage_dict,
+                        Mapping[Tuple[Address, Bytes32], U256],
+                    ),
+                ),
+            )
+            flat_state._snapshots.append(snapshot)
+
+            parent_main_dict = self._get_mapping_parent_ptr(
+                parent_main_dict,
+                ("ethereum", "cancun", "fork_types", "MappingAddressAccountStruct"),
+            )
+            parent_storage_dict = self._get_mapping_parent_ptr(
+                parent_storage_dict,
+                (
+                    "ethereum",
+                    "cancun",
+                    "fork_types",
+                    "MappingTupleAddressBytes32U256Struct",
+                ),
+            )
+
+        # Reverse the snapshots to match the expected order (older first)
+        flat_state._snapshots.reverse()
+        return flat_state.to_state()
+
+    def serialize_transient_storage(self, ptr) -> TransientStorage:
+        """
+        Deserialize a Cairo transient storage pointer into a Python TransientStorage object.
+        Reconstructs the snapshots list from Cairo's recursive trie structure.
+        """
+        value_ptr = self.memory.get(ptr)
+        raw_transient_storage = self.serialize_pointers(
+            ("ethereum", "cancun", "state", "TransientStorageStruct"), value_ptr
+        )
+
+        flat_transient_storage = FlatTransientStorage(
+            _tries=Trie(
+                **self._serialize(
+                    self.get_cairo_type_from_path(
+                        (
+                            "ethereum",
+                            "cancun",
+                            "trie",
+                            "TrieTupleAddressBytes32U256Struct",
+                        )
+                    ),
+                    raw_transient_storage["_tries"],
+                )
+            ),
+            _snapshots=[],
+        )
+
+        parent_dict = self._get_trie_parent_ptr(raw_transient_storage["_tries"])
+
+        while parent_dict:
+            snapshot = Trie(
+                flat_transient_storage._tries.secured,
+                flat_transient_storage._tries.default,
+                self._serialize_mapping_struct(
+                    (
+                        "ethereum",
+                        "cancun",
+                        "fork_types",
+                        "MappingTupleAddressBytes32U256Struct",
+                    ),
+                    parent_dict,
+                    Mapping[Tuple[Address, Bytes32], U256],
+                ),
+            )
+            flat_transient_storage._snapshots.append(snapshot)
+
+            parent_dict = self._get_mapping_parent_ptr(
+                parent_dict,
+                (
+                    "ethereum",
+                    "cancun",
+                    "fork_types",
+                    "MappingTupleAddressBytes32U256Struct",
+                ),
+            )
+
+        # Reverse the snapshots to match the expected order (older first)
+        flat_transient_storage._snapshots.reverse()
+        return flat_transient_storage.to_transient_storage()
+
+    def _get_mapping_parent_ptr(self, mapping_ptr, mapping_path: Tuple[str, ...]):
+        """
+        Helper to get the pointer to the parent of a mapping. Returns None if there is no parent.
+        """
+        if mapping_ptr == 0:
+            return None
+
+        fields = self.serialize_pointers(mapping_path, mapping_ptr)
+        parent_dict = fields.get("parent_dict")
+        return parent_dict if parent_dict != 0 else None
+
+    def _get_trie_parent_ptr(self, trie_ptr):
+        """
+        Helper to get parent pointer from a trie structure. Returns None if there is no parent.
+        """
+        if trie_ptr == 0:
+            return None
+
+        trie_data = self.serialize_pointers(
+            ("ethereum", "cancun", "trie", "TrieAddressOptionalAccountStruct"), trie_ptr
+        )
+
+        # All tries have the same mapping layout thus the type passed here doesn't matter
+        return self._get_mapping_parent_ptr(
+            trie_data["_data"],
+            ("ethereum", "cancun", "fork_types", "MappingAddressAccountStruct"),
+        )
+
+    def get_cairo_type_from_path(self, path: Tuple[str, ...]) -> CairoType:
+        scope = ScopedName(path)
+        identifier = self.program.identifiers.as_dict()[scope]
+        if isinstance(identifier, TypeDefinition):
+            return identifier.cairo_type
+        return TypeStruct(scope=identifier.full_name, location=identifier.location)
+
     def get_offset(self, cairo_type):
         if hasattr(cairo_type, "members"):
             return len(cairo_type.members)
@@ -659,7 +861,7 @@ class Serde:
             "created": raw["created"],
         }
 
-    def serialize_state(self, ptr):
+    def serialize_state_old(self, ptr):
         raw = self.serialize_pointers(("src", "model", "model", "State"), ptr)
         return {
             "accounts": {
