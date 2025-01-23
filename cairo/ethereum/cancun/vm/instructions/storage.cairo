@@ -310,6 +310,7 @@ func tload{
     );
     let err = push{stack=stack}(value);
     if (cast(err, felt) != 0) {
+        let env = evm.value.env;
         EnvImpl.set_transient_storage{env=env}(transient_storage);
         EvmImpl.set_env(env);
         EvmImpl.set_stack(stack);

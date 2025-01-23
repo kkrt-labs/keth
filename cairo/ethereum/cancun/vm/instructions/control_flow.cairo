@@ -73,17 +73,18 @@ func jump{
     let valid_jump_destinations_ptr = evm.value.valid_jump_destinations.value.dict_ptr;
     let dict_ptr = cast(valid_jump_destinations_ptr, DictAccess*);
     let (is_valid_dest) = hashdict_read{dict_ptr=dict_ptr}(1, &jump_dest.value.low);
-    if (is_valid_dest == FALSE) {
-        EvmImpl.set_stack(stack);
-        tempvar err = new EthereumException(InvalidJumpDestError);
-        return err;
-    }
 
     let set_dict_ptr = cast(dict_ptr, SetUintDictAccess*);
     tempvar valid_jumpdests_set = SetUint(
         new SetUintStruct(evm.value.valid_jump_destinations.value.dict_ptr_start, set_dict_ptr)
     );
     EvmImpl.set_valid_jump_destinations(valid_jumpdests_set);
+
+    if (is_valid_dest == FALSE) {
+        EvmImpl.set_stack(stack);
+        tempvar err = new EthereumException(InvalidJumpDestError);
+        return err;
+    }
 
     // PROGRAM COUNTER
     EvmImpl.set_pc_stack(Uint(jump_dest.value.low), stack);
@@ -134,17 +135,17 @@ func jumpi{
     let dict_ptr = cast(valid_jump_destinations_ptr, DictAccess*);
     let (is_valid_dest) = hashdict_read{dict_ptr=dict_ptr}(1, &jump_dest.value.low);
 
-    if (is_valid_dest == FALSE) {
-        EvmImpl.set_stack(stack);
-        tempvar err = new EthereumException(InvalidJumpDestError);
-        return err;
-    }
-
     let set_dict_ptr = cast(dict_ptr, SetUintDictAccess*);
     tempvar valid_jumpdests_set = SetUint(
         new SetUintStruct(evm.value.valid_jump_destinations.value.dict_ptr_start, set_dict_ptr)
     );
     EvmImpl.set_valid_jump_destinations(valid_jumpdests_set);
+
+    if (is_valid_dest == FALSE) {
+        EvmImpl.set_stack(stack);
+        tempvar err = new EthereumException(InvalidJumpDestError);
+        return err;
+    }
 
     // PROGRAM COUNTER
     EvmImpl.set_pc_stack(Uint(jump_dest.value.low), stack);

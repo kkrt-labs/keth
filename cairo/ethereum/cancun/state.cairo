@@ -342,6 +342,13 @@ func get_storage_original{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, state
     );
     StateImpl.set_created_accounts(new_created_accounts);
 
+    // In the transaction where an account is created, its preexisting storage
+    // is ignored.
+    if (is_created != 0) {
+        tempvar res = U256(new U256Struct(0, 0));
+        return res;
+    }
+
     let new_original_storage_tries = state.value.original_storage_tries;
     let value = trie_get_TrieTupleAddressBytes32U256{trie=new_original_storage_tries}(address, key);
 
@@ -354,13 +361,6 @@ func get_storage_original{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, state
             original_storage_tries=new_original_storage_tries,
         ),
     );
-
-    // In the transaction where an account is created, its preexisting storage
-    // is ignored.
-    if (is_created != 0) {
-        tempvar res = U256(new U256Struct(0, 0));
-        return res;
-    }
 
     return value;
 }
