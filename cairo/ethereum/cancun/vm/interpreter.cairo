@@ -13,12 +13,23 @@ from ethereum.cancun.fork_types import SetAddressStruct, SetAddressDictAccess
 from ethereum.cancun.vm import Evm, EvmStruct, Message, Environment, EvmImpl
 from ethereum.cancun.vm.exceptions import EthereumException
 from ethereum.cancun.vm.exceptions import Revert
+from ethereum.cancun.state import (
+    State,
+    begin_transaction,
+    commit_transaction,
+    rollback_transaction,
+    touch_account,
+    move_ether,
+)
 from ethereum.cancun.vm.instructions import op_implementation
 from ethereum.cancun.vm.memory import Memory, MemoryStruct, Bytes1DictAccess
 from ethereum.cancun.vm.runtime import get_valid_jump_destinations
 from ethereum.cancun.vm.stack import Stack, StackStruct, StackDictAccess
+from ethereum.utils.numeric import U256, U256Struct, U256__eq__
 
 from src.utils.dict import dict_new_empty
+
+const STACK_DEPTH_LIMIT = 1024;
 
 func execute_code{
     range_check_ptr,
@@ -139,4 +150,55 @@ func _execute_code{
 
     // Recursive call to continue execution
     return _execute_code(evm);
+}
+
+func process_message{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+}(message: Message, env: Environment) -> Evm {
+    alloc_locals;
+
+    // Check if depth exceeds limit by checking if (depth - limit) is non-negative
+    let is_depth_exceeded = is_nn(message.value.depth.value - STACK_DEPTH_LIMIT);
+    with_attr error_message("StackDepthLimitError") {
+        assert is_depth_exceeded = FALSE;
+    }
+
+    // Take snapshot of state before processing the message
+    let state = env.value.state;
+    let transient_storage = env.value.transient_storage;
+    begin_transaction{state=state, transient_storage=transient_storage}();
+
+    // Touch account
+    touch_account{state=state}(message.value.current_target);
+
+    // Handle value transfer if needed
+    let value_eq_zero = U256__eq__(message.value.value, U256(new U256Struct(0, 0)));
+    let should_move_ether = message.value.should_transfer_value.value * (1 - value_eq_zero.value);
+    if (should_move_ether != FALSE) {
+        move_ether{state=state}(
+            message.value.caller, message.value.current_target, message.value.value
+        );
+        tempvar range_check_ptr = range_check_ptr;
+        tempvar poseidon_ptr = poseidon_ptr;
+    } else {
+        tempvar range_check_ptr = range_check_ptr;
+        tempvar poseidon_ptr = poseidon_ptr;
+    }
+
+    // Execute the code
+    let evm = execute_code(message, env);
+
+    // Handle transaction state based on execution result
+    let state = env.value.state;
+    let transient_storage = env.value.transient_storage;
+    if (cast(evm.value.error, felt) != 0) {
+        rollback_transaction{state=state, transient_storage=transient_storage}();
+    } else {
+        commit_transaction{state=state, transient_storage=transient_storage}();
+    }
+
+    return evm;
 }
