@@ -918,12 +918,7 @@ def generate_transient_storage_arg(
     )
 
     base = segments.add()
-    segments.load_data(
-        base,
-        [
-            main_transient_storage_trie,
-        ],
-    )
+    segments.load_data(base, [main_transient_storage_trie])
     return base
 
 

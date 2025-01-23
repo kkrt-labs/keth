@@ -665,10 +665,7 @@ class Serde:
         parent_main_dict = self._get_trie_parent_ptr(raw_state["_main_trie"])
         parent_storage_dict = self._get_trie_parent_ptr(raw_state["_storage_tries"])
 
-        while True:
-            if not parent_main_dict or not parent_storage_dict:
-                break
-
+        while parent_main_dict and parent_storage_dict:
             snapshot = (
                 Trie(
                     flat_state._main_trie.secured,
