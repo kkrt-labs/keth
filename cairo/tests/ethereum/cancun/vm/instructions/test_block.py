@@ -1,5 +1,5 @@
 from ethereum_types.numeric import U64, Uint
-from hypothesis import given, settings
+from hypothesis import given
 from hypothesis import strategies as st
 
 from ethereum.cancun.vm.instructions.block import (
@@ -69,7 +69,6 @@ block_tests_strategy = (
 
 class TestBlock:
     @given(block_tests_strategy)
-    @settings(max_examples=1000)
     def test_block_hash(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("block_hash", evm)
