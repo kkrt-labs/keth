@@ -10,7 +10,7 @@ from ethereum_types.numeric import Uint, bool
 from ethereum.cancun.blocks import TupleLog, TupleLogStruct, Log
 from ethereum.cancun.fork_types import SetAddress
 from ethereum.cancun.fork_types import SetAddressStruct, SetAddressDictAccess
-from ethereum.cancun.vm import Evm, EvmStruct, Message, Environment, EvmImpl
+from ethereum.cancun.vm import Evm, EvmStruct, Message, Environment, EvmImpl, EnvImpl
 from ethereum.cancun.vm.exceptions import EthereumException
 from ethereum.cancun.vm.exceptions import Revert
 from ethereum.cancun.state import (
@@ -181,17 +181,22 @@ func process_message{
         move_ether{state=state}(
             message.value.caller, message.value.current_target, message.value.value
         );
+        tempvar state = state;
         tempvar range_check_ptr = range_check_ptr;
         tempvar poseidon_ptr = poseidon_ptr;
     } else {
+        tempvar state = state;
         tempvar range_check_ptr = range_check_ptr;
         tempvar poseidon_ptr = poseidon_ptr;
     }
 
     // Execute the code
+    EnvImpl.set_state{env=env}(state);
+    EnvImpl.set_transient_storage{env=env}(transient_storage);
     let evm = execute_code(message, env);
 
     // Handle transaction state based on execution result
+    let env = evm.value.env;
     let state = env.value.state;
     let transient_storage = env.value.transient_storage;
     if (cast(evm.value.error, felt) != 0) {
@@ -199,6 +204,8 @@ func process_message{
     } else {
         commit_transaction{state=state, transient_storage=transient_storage}();
     }
-
+    EnvImpl.set_state{env=env}(state);
+    EnvImpl.set_transient_storage{env=env}(transient_storage);
+    EvmImpl.set_env{evm=evm}(env);
     return evm;
 }

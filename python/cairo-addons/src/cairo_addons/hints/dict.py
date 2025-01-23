@@ -74,3 +74,15 @@ def merge_dict_tracker_with_parent(
     current_dict_tracker = dict_manager.get_tracker(ids.dict_ptr)
     parent_dict_tracker = dict_manager.get_tracker(ids.parent_dict_end)
     parent_dict_tracker.data.update(current_dict_tracker.data)
+
+
+@register_hint
+def update_dict_tracker(
+    dict_manager: DictManager,
+    ids: VmConsts,
+    segments: MemorySegmentManager,
+    memory: MemoryDict,
+    ap: RelocatableValue,
+):
+    dict_tracker = dict_manager.get_tracker(ids.current_tracker_ptr)
+    dict_tracker.current_ptr = ids.new_tracker_ptr
