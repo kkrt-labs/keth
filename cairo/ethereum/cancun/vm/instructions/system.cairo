@@ -63,3 +63,58 @@ func revert{range_check_ptr, evm: Evm}() -> EthereumException* {
     EvmImpl.set_stack(stack);
     return revert;
 }
+
+// @notice Return operation - stop execution and return data from memory
+func return_{range_check_ptr, evm: Evm}() -> EthereumException* {
+    alloc_locals;
+    // STACK
+    let stack = evm.value.stack;
+    with stack {
+        let (memory_start_position, err) = pop();
+        if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
+            return err;
+        }
+        let (memory_size, err) = pop();
+        if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
+            return err;
+        }
+    }
+
+    // GAS
+    // Calculate memory expansion cost
+    // If memory_size > 2**128 - 1, OutOfGasError
+    if (memory_size.value.high != 0) {
+        EvmImpl.set_stack(stack);
+        tempvar err = new EthereumException(OutOfGasError);
+        return err;
+    }
+
+    tempvar extensions_tuple = new TupleU256U256(
+        new TupleU256U256Struct(memory_start_position, memory_size)
+    );
+    tempvar extensions_list = ListTupleU256U256(new ListTupleU256U256Struct(extensions_tuple, 1));
+    let extend_memory = calculate_gas_extend_memory(evm.value.memory, extensions_list);
+
+    let err = charge_gas(Uint(GasConstants.GAS_ZERO + extend_memory.value.cost.value));
+    if (cast(err, felt) != 0) {
+        EvmImpl.set_stack(stack);
+        return err;
+    }
+
+    // OPERATION
+    let memory = evm.value.memory;
+    with memory {
+        expand_by(extend_memory.value.expand_by);
+        let output = memory_read_bytes(memory_start_position, memory_size);
+        EvmImpl.set_output(output);
+    }
+
+    // Stop execution
+    EvmImpl.set_running(bool(0));
+    EvmImpl.set_stack(stack);
+    EvmImpl.set_memory(memory);
+    let ok = cast(0, EthereumException*);
+    return ok;
+}
