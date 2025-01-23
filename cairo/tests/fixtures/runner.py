@@ -450,7 +450,11 @@ def _run_rust_vm(
 
         # Initialize runner
         end = runner.initialize_vm(
-            entrypoint=cairo_program.get_label(entrypoint), stack=stack
+            entrypoint=cairo_program.get_label(entrypoint),
+            stack=stack,
+            ordered_builtins=[
+                builtin.replace("_ptr", "_builtin") for builtin in _builtins
+            ],
         )
 
         # Bind Cairo's ASSERT_EQ instruction to a Python exception
