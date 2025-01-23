@@ -44,6 +44,7 @@ func bitwise_and{
     // GAS
     let err3 = charge_gas(Uint(GasConstants.GAS_VERY_LOW));
     if (cast(err3, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err3;
     }
 
@@ -90,6 +91,7 @@ func bitwise_or{
     // GAS
     let err3 = charge_gas(Uint(GasConstants.GAS_VERY_LOW));
     if (cast(err3, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err3;
     }
 
@@ -136,6 +138,7 @@ func bitwise_xor{
     // GAS
     let err3 = charge_gas(Uint(GasConstants.GAS_VERY_LOW));
     if (cast(err3, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err3;
     }
 
@@ -177,6 +180,7 @@ func bitwise_not{
     // GAS
     let err2 = charge_gas(Uint(GasConstants.GAS_VERY_LOW));
     if (cast(err2, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err2;
     }
 
@@ -223,6 +227,7 @@ func get_byte{
     // GAS
     let err3 = charge_gas(Uint(GasConstants.GAS_VERY_LOW));
     if (cast(err3, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err3;
     }
 
@@ -287,6 +292,7 @@ func bitwise_shl{
     // GAS
     let err3 = charge_gas(Uint(GasConstants.GAS_VERY_LOW));
     if (cast(err3, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err3;
     }
 
@@ -333,6 +339,7 @@ func bitwise_shr{
     // GAS
     let err3 = charge_gas(Uint(GasConstants.GAS_VERY_LOW));
     if (cast(err3, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err3;
     }
 
@@ -380,6 +387,7 @@ func bitwise_sar{
     // GAS
     let err3 = charge_gas(Uint(GasConstants.GAS_VERY_LOW));
     if (cast(err3, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err3;
     }
 

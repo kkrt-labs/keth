@@ -46,6 +46,7 @@ func add{
     // GAS
     let err3 = charge_gas(Uint(GasConstants.GAS_VERY_LOW));
     if (cast(err3, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err3;
     }
 
@@ -92,6 +93,7 @@ func sub{
     // GAS
     let err3 = charge_gas(Uint(GasConstants.GAS_VERY_LOW));
     if (cast(err3, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err3;
     }
 
@@ -138,6 +140,7 @@ func mul{
     // GAS
     let err3 = charge_gas(Uint(GasConstants.GAS_LOW));
     if (cast(err3, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err3;
     }
 
@@ -184,6 +187,7 @@ func div{
     // GAS
     let err3 = charge_gas(Uint(GasConstants.GAS_LOW));
     if (cast(err3, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err3;
     }
 
@@ -241,6 +245,7 @@ func sdiv{
     // GAS
     let err3 = charge_gas(Uint(GasConstants.GAS_LOW));
     if (cast(err3, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err3;
     }
 
@@ -287,6 +292,7 @@ func mod{
     // GAS
     let err3 = charge_gas(Uint(GasConstants.GAS_LOW));
     if (cast(err3, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err3;
     }
 
@@ -344,6 +350,7 @@ func smod{
     // GAS
     let err3 = charge_gas(Uint(GasConstants.GAS_LOW));
     if (cast(err3, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err3;
     }
 
@@ -406,6 +413,7 @@ func addmod{
     // GAS
     let err4 = charge_gas(Uint(GasConstants.GAS_MID));
     if (cast(err4, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err4;
     }
 
@@ -512,6 +520,7 @@ func mulmod{
     // GAS
     let err4 = charge_gas(Uint(GasConstants.GAS_MID));
     if (cast(err4, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err4;
     }
 
@@ -636,6 +645,7 @@ func signextend{
     // GAS
     let err3 = charge_gas(Uint(GasConstants.GAS_LOW));
     if (cast(err3, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err3;
     }
 

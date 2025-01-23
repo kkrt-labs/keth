@@ -471,7 +471,13 @@ class Serde:
         raise ValueError(f"Unknown type {cairo_type}")
 
     def _serialize_mapping_struct(
-        self, mapping_struct_path, mapping_struct_ptr, origin_cls, skip_dict_check=False
+        self,
+        mapping_struct_path,
+        mapping_struct_ptr,
+        origin_cls,
+        # this is used to toggle enforcement of checking
+        # if `dict_ptr` is correctly pointing at the next empty memory cell
+        check_dict_consistency=True,
     ):
         dict_access_path = (
             get_struct_definition(self.program, mapping_struct_path)
@@ -501,7 +507,9 @@ class Serde:
         # We skip this invariant check if we're serializing `original_mapping` fields
         # since they might have been updated by reading the `original_storage_trie` field of the state.
         assert (
-            self.memory.get(pointers["dict_ptr"]) is None if skip_dict_check else True
+            self.memory.get(pointers["dict_ptr"]) is None
+            if check_dict_consistency
+            else True
         )
 
         dict_segment_data = {
@@ -520,7 +528,10 @@ class Serde:
         parent_dict_ptr = pointers.get("parent_dict")
         serialized_original = (
             self._serialize_mapping_struct(
-                mapping_struct_path, parent_dict_ptr, origin_cls,skip_dict_check=True
+                mapping_struct_path,
+                parent_dict_ptr,
+                origin_cls,
+                check_dict_consistency=False,
             )
             if parent_dict_ptr
             else {}
