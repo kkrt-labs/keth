@@ -128,6 +128,7 @@ from ethereum.cancun.vm import Environment as EnvironmentBase
 from ethereum.cancun.vm import Evm as EvmBase
 from ethereum.cancun.vm import Message as MessageBase
 from ethereum.cancun.vm.gas import ExtendMemory, MessageCallGas
+from ethereum.cancun.vm.interpreter import MessageCallOutput as MessageCallOutputBase
 from ethereum.crypto.hash import Hash32
 from ethereum.exceptions import EthereumException
 from ethereum_rlp.rlp import Extended, Simple
@@ -360,6 +361,22 @@ class Evm(
         ) and type(self.error) is type(other.error)
 
 
+@dataclass
+class MessageCallOutput(
+    make_dataclass(
+        "MessageCallOutput",
+        [(f.name, f.type, f) for f in fields(MessageCallOutputBase)],
+        namespace={"__doc__": MessageCallOutputBase.__doc__},
+    )
+):
+    def __eq__(self, other):
+        return all(
+            getattr(self, field.name) == getattr(other, field.name)
+            for field in fields(self)
+            if field.name != "error"
+        ) and type(self.error) is type(other.error)
+
+
 vm_exception_classes = inspect.getmembers(
     sys.modules["ethereum.cancun.vm.exceptions"],
     lambda x: inspect.isclass(x) and issubclass(x, EthereumException),
@@ -500,6 +517,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "cancun", "vm", "Memory"): Memory,
     ("ethereum", "cancun", "vm", "Stack"): Stack[U256],
     ("ethereum", "cancun", "vm", "gas", "ExtendMemory"): ExtendMemory,
+    ("ethereum", "cancun", "vm", "interpreter", "MessageCallOutput"): MessageCallOutput,
     **vm_exception_mappings,
     # For tests only
     ("tests", "src", "utils", "test_dict", "MappingUintUint"): Mapping[Uint, Uint],

@@ -12,7 +12,15 @@ from ethereum.cancun.blocks import TupleLog, TupleLogStruct, Log
 from ethereum.cancun.vm.gas import GasConstants, charge_gas
 from ethereum.cancun.fork_types import SetAddress
 from ethereum.cancun.fork_types import SetAddressStruct, SetAddressDictAccess
-from ethereum.cancun.vm import Evm, EvmStruct, Message, Environment, EvmImpl, EnvImpl
+from ethereum.cancun.vm import (
+    Evm,
+    EvmStruct,
+    Message,
+    Environment,
+    EnvironmentStruct,
+    EvmImpl,
+    EnvImpl,
+)
 from ethereum.cancun.utils.constants import STACK_DEPTH_LIMIT, MAX_CODE_SIZE
 from ethereum.cancun.vm.exceptions import (
     EthereumException,
@@ -20,26 +28,44 @@ from ethereum.cancun.vm.exceptions import (
     OutOfGasError,
     StackDepthLimitError,
     Revert,
+    AddressCollision,
 )
+
+from ethereum.cancun.vm import OptionalEthereumException
 from ethereum.cancun.vm.instructions import op_implementation
 from ethereum.cancun.vm.memory import Memory, MemoryStruct, Bytes1DictAccess
 from ethereum.cancun.vm.runtime import get_valid_jump_destinations
 from ethereum.cancun.vm.stack import Stack, StackStruct, StackDictAccess
 from ethereum.utils.numeric import U256, U256Struct, U256__eq__
 from ethereum.cancun.state import (
-    State,
+    account_exists_and_is_empty,
+    account_has_code_or_nonce,
     begin_transaction,
-    destroy_storage,
-    mark_account_created,
-    increment_nonce,
     commit_transaction,
-    rollback_transaction,
+    destroy_storage,
+    increment_nonce,
+    mark_account_created,
     move_ether,
-    touch_account,
+    rollback_transaction,
     set_code,
+    State,
+    touch_account,
 )
 
-from src.utils.dict import dict_new_empty
+from src.utils.dict import dict_new_empty, hashdict_write, dict_squash
+
+struct MessageCallOutput {
+    value: MessageCallOutputStruct*,
+}
+
+struct MessageCallOutputStruct {
+    gas_left: Uint,
+    refund_counter: U256,
+    logs: TupleLog,
+    accounts_to_delete: SetAddress,
+    touched_accounts: SetAddress,
+    error: OptionalEthereumException,
+}
 
 func process_create_message{
     range_check_ptr,
@@ -330,4 +356,216 @@ func _execute_code{
 
     // Recursive call to continue execution
     return _execute_code(evm);
+}
+
+func process_message_call{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    env: Environment,
+}(message: Message) -> (MessageCallOutput, EthereumException*) {
+    alloc_locals;
+
+    // Check if this is a contract creation (target is empty)
+    if (cast(message.value.target.value.address, felt) == 0) {
+        let state = env.value.state;
+        let has_collision = account_has_code_or_nonce{state=state}(message.value.current_target);
+        EnvImpl.set_state{env=env}(state);
+        if (has_collision.value != FALSE) {
+            // Return early with collision error
+            tempvar collision_error = new EthereumException(AddressCollision);
+            let msg = create_empty_message_call_output(collision_error);
+            tempvar msg = msg;
+            tempvar err = cast(0, EthereumException*);
+            return (msg, err);
+        }
+
+        // Process create message
+        let evm = process_create_message(message, env);
+        let env = evm.value.env;
+
+        tempvar range_check_ptr = range_check_ptr;
+        tempvar bitwise_ptr = bitwise_ptr;
+        tempvar keccak_ptr = keccak_ptr;
+        tempvar poseidon_ptr = poseidon_ptr;
+        tempvar env = env;
+        tempvar evm = evm;
+    } else {
+        // Regular message call path
+        let evm = process_message(message, env);
+        let env = evm.value.env;
+
+        // Check if account exists and is empty
+        let state = env.value.state;
+        let is_empty = account_exists_and_is_empty{state=state}(
+            [message.value.target.value.address]
+        );
+
+        if (is_empty.value != FALSE) {
+            // Add to touched accounts
+            tempvar x = 1;
+            let dict_ptr = cast(evm.value.touched_accounts.value.dict_ptr, DictAccess*);
+            hashdict_write{poseidon_ptr=poseidon_ptr, dict_ptr=dict_ptr}(
+                1, message.value.target.value.address, 1
+            );
+            tempvar new_touched_accounts = SetAddress(
+                new SetAddressStruct(
+                    dict_ptr_start=evm.value.touched_accounts.value.dict_ptr_start,
+                    dict_ptr=cast(dict_ptr, SetAddressDictAccess*),
+                ),
+            );
+
+            EvmImpl.set_touched_accounts{evm=evm}(new_touched_accounts);
+            tempvar range_check_ptr = range_check_ptr;
+            tempvar bitwise_ptr = bitwise_ptr;
+            tempvar keccak_ptr = keccak_ptr;
+            tempvar poseidon_ptr = poseidon_ptr;
+            tempvar env = env;
+            tempvar evm = evm;
+        } else {
+            tempvar x = 2;
+            tempvar range_check_ptr = range_check_ptr;
+            tempvar bitwise_ptr = bitwise_ptr;
+            tempvar keccak_ptr = keccak_ptr;
+            tempvar poseidon_ptr = poseidon_ptr;
+            tempvar env = env;
+            tempvar evm = evm;
+        }
+        EnvImpl.set_state{env=env}(state);
+        EvmImpl.set_env{evm=evm}(env);
+        let env = evm.value.env;
+        tempvar range_check_ptr = range_check_ptr;
+        tempvar bitwise_ptr = bitwise_ptr;
+        tempvar keccak_ptr = keccak_ptr;
+        tempvar poseidon_ptr = poseidon_ptr;
+        tempvar env = env;
+        tempvar evm = evm;
+    }
+    let range_check_ptr = [ap - 6];
+    let bitwise_ptr = cast([ap - 5], BitwiseBuiltin*);
+    let keccak_ptr = cast([ap - 4], KeccakBuiltin*);
+    let poseidon_ptr = cast([ap - 3], PoseidonBuiltin*);
+    let env_struct = cast([ap - 2], EnvironmentStruct*);
+    let evm_struct = cast([ap - 1], EvmStruct*);
+    tempvar env = Environment(env_struct);
+    tempvar evm = Evm(evm_struct);
+
+    // Prepare return values based on error state
+    if (cast(evm.value.error, felt) != 0) {
+        let msg = create_empty_message_call_output(evm.value.error);
+        drop_evm(evm);
+        tempvar msg = msg;
+        tempvar err = cast(0, EthereumException*);
+        return (msg, err);
+    }
+
+    assert [range_check_ptr] = evm.value.refund_counter;
+    let range_check_ptr = range_check_ptr + 1;
+    tempvar msg = MessageCallOutput(
+        new MessageCallOutputStruct(
+            gas_left=evm.value.gas_left,
+            refund_counter=U256(new U256Struct(evm.value.refund_counter, 0)),
+            logs=evm.value.logs,
+            accounts_to_delete=evm.value.accounts_to_delete,
+            touched_accounts=evm.value.touched_accounts,
+            error=evm.value.error,
+        ),
+    );
+    tempvar msg = msg;
+    tempvar err = cast(0, EthereumException*);
+    drop_evm(evm);
+    return (msg, err);
+}
+
+func create_empty_message_call_output(error: EthereumException*) -> MessageCallOutput {
+    alloc_locals;
+    let (empty_logs: Log*) = alloc();
+    tempvar empty_tuple_log = TupleLog(new TupleLogStruct(data=empty_logs, len=0));
+
+    // Create first empty set for accounts_to_delete
+    let (dict_start1: DictAccess*) = default_dict_new(0);
+    let dict_ptr1 = dict_start1;
+    tempvar empty_set1 = SetAddress(
+        new SetAddressStruct(
+            dict_ptr_start=cast(dict_start1, SetAddressDictAccess*),
+            dict_ptr=cast(dict_ptr1, SetAddressDictAccess*),
+        ),
+    );
+
+    // Create second empty set for touched_accounts
+    let (dict_start2: DictAccess*) = default_dict_new(0);
+    let dict_ptr2 = dict_start2;
+    tempvar empty_set2 = SetAddress(
+        new SetAddressStruct(
+            dict_ptr_start=cast(dict_start2, SetAddressDictAccess*),
+            dict_ptr=cast(dict_ptr2, SetAddressDictAccess*),
+        ),
+    );
+
+    tempvar msg = MessageCallOutput(
+        new MessageCallOutputStruct(
+            gas_left=Uint(0),
+            refund_counter=U256(new U256Struct(0, 0)),
+            logs=empty_tuple_log,
+            accounts_to_delete=empty_set1,
+            touched_accounts=empty_set2,
+            error=error,
+        ),
+    );
+    return msg;
+}
+
+// @dev Drop an `Evm` struct by squashing all of its fields except for Environment.
+func drop_evm{range_check_ptr}(evm: Evm) {
+    alloc_locals;
+    let evm_struct = cast(evm.value, EvmStruct*);
+
+    // Squash stack
+    let stack = evm.value.stack;
+    let stack_start = stack.value.dict_ptr_start;
+    let stack_end = cast(stack.value.dict_ptr, DictAccess*);
+    dict_squash(cast(stack_start, DictAccess*), cast(stack_end, DictAccess*));
+
+    // Squash memory
+    let memory = evm.value.memory;
+    let memory_start = memory.value.dict_ptr_start;
+    let memory_end = cast(memory.value.dict_ptr, DictAccess*);
+    dict_squash(cast(memory_start, DictAccess*), cast(memory_end, DictAccess*));
+
+    // No squash for Env which is an implicit argument in `process_message_call`
+
+    // Squash valid_jump_destinations
+    let valid_jump_destinations = evm.value.valid_jump_destinations;
+    let valid_jump_destinations_start = valid_jump_destinations.value.dict_ptr_start;
+    let valid_jump_destinations_end = cast(valid_jump_destinations.value.dict_ptr, DictAccess*);
+    dict_squash(cast(valid_jump_destinations_start, DictAccess*), valid_jump_destinations_end);
+
+    // Squash accounts_to_delete
+    let accounts_to_delete = evm.value.accounts_to_delete;
+    let accounts_to_delete_start = accounts_to_delete.value.dict_ptr_start;
+    let accounts_to_delete_end = cast(accounts_to_delete.value.dict_ptr, DictAccess*);
+    dict_squash(cast(accounts_to_delete_start, DictAccess*), accounts_to_delete_end);
+
+    // Squash touched_accounts
+    let touched_accounts = evm.value.touched_accounts;
+    let touched_accounts_start = touched_accounts.value.dict_ptr_start;
+    let touched_accounts_end = cast(touched_accounts.value.dict_ptr, DictAccess*);
+    dict_squash(cast(touched_accounts_start, DictAccess*), cast(touched_accounts_end, DictAccess*));
+
+    // Squash accessed_addresses
+    let accessed_addresses = evm.value.accessed_addresses;
+    let accessed_addresses_start = accessed_addresses.value.dict_ptr_start;
+    let accessed_addresses_end = cast(accessed_addresses.value.dict_ptr, DictAccess*);
+    dict_squash(cast(accessed_addresses_start, DictAccess*), accessed_addresses_end);
+
+    // Squash accessed_storage_keys
+    let accessed_storage_keys = evm.value.accessed_storage_keys;
+    let accessed_storage_keys_start = accessed_storage_keys.value.dict_ptr_start;
+    let accessed_storage_keys_end = cast(accessed_storage_keys.value.dict_ptr, DictAccess*);
+    dict_squash(
+        cast(accessed_storage_keys_start, DictAccess*), cast(accessed_storage_keys_end, DictAccess*)
+    );
+
+    return ();
 }

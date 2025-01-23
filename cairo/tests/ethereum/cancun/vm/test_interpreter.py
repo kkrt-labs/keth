@@ -8,6 +8,7 @@ from ethereum.cancun.vm.interpreter import (
     execute_code,
     process_create_message,
     process_message,
+    process_message_call,
 )
 from tests.utils.errors import strict_raises
 from tests.utils.message_builder import MessageBuilder
@@ -82,3 +83,17 @@ class TestInterpreter:
 
         evm_python = process_create_message(message, env)
         assert evm_python == evm_cairo
+
+    @given(
+        env=environment_lite,
+        message=message_without_precompile,
+    )
+    def test_process_message_call(self, cairo_run, env: Environment, message: Message):
+        try:
+            _, messageCallOutput = cairo_run("process_message_call", env, message)
+        except Exception as e:
+            with strict_raises(type(e)):
+                process_message_call(message, env)
+            return
+
+        assert messageCallOutput == process_message_call(message, env)

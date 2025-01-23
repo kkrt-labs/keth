@@ -47,3 +47,4 @@ from ethereum.cancun.trie import BranchNode, ExtensionNode, InternalNode, LeafNo
 from ethereum.exceptions import EthereumException
 from ethereum.cancun.state import TransientStorage
 from ethereum.cancun.vm import Environment
+from ethereum.cancun.vm.interpreter import MessageCallOutput
