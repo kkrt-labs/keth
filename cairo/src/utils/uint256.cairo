@@ -8,7 +8,6 @@ from starkware.cairo.common.uint256 import (
     uint256_lt,
     uint256_not,
 )
-from starkware.cairo.common.cairo_builtins import UInt384
 from starkware.cairo.common.bool import FALSE
 from starkware.cairo.common.math_cmp import is_nn
 

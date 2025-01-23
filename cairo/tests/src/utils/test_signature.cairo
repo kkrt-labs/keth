@@ -13,13 +13,7 @@ from src.utils.uint256 import uint256_eq
 from src.utils.uint384 import uint256_to_uint384
 
 func test__public_key_point_to_eth_address{
-    range_check_ptr,
-    bitwise_ptr: BitwiseBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
-    range_check96_ptr: felt*,
-    add_mod_ptr: ModBuiltin*,
-    mul_mod_ptr: ModBuiltin*,
-    poseidon_ptr: PoseidonBuiltin*,
+    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*
 }(x: U256, y: U256) -> felt {
     let eth_address = Signature.public_key_point_to_eth_address(x=[x.value], y=[y.value]);
 
