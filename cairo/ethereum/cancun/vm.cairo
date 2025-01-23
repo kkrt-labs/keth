@@ -389,7 +389,7 @@ namespace EvmImpl {
                 refund_counter=evm.value.refund_counter,
                 running=evm.value.running,
                 message=evm.value.message,
-                output=evm.value.output,
+                output=new_output,
                 accounts_to_delete=evm.value.accounts_to_delete,
                 touched_accounts=evm.value.touched_accounts,
                 return_data=evm.value.return_data,
