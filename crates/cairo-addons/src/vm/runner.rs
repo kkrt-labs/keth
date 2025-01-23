@@ -75,7 +75,6 @@ impl PyCairoRunner {
     }
 
     /// Initialize the runner with the given stack and entrypoint offset.
-    // #[pyo3(signature = (stack, entrypoint, ordered_builtins=None))]
     #[pyo3(signature = (stack, entrypoint, ordered_builtins=None))]
     pub fn initialize_vm(
         &mut self,
