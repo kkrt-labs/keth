@@ -78,54 +78,54 @@ func process_create_message{
         return (evm, err);
     }
 
-    // Success case
-    if (cast(evm.value.error, felt) == 0) {
-        let contract_code = evm.value.output;
-        let contract_code_gas = Uint(contract_code.value.len * GasConstants.GAS_CODE_DEPOSIT);
-
-        if (contract_code.value.len != 0) {
-            let first_opcode = contract_code.value.data[0];
-            if (first_opcode == 0xEF) {
-                tempvar err = new EthereumException(InvalidContractPrefix);
-                _process_create_message_error{evm=evm}(err);
-                tempvar ok = cast(0, EthereumException*);
-                return (evm, ok);
-            }
-        }
-        let err = charge_gas{evm=evm}(contract_code_gas);
-        if (cast(err, felt) != 0) {
-            _process_create_message_error{evm=evm}(err);
-            tempvar ok = cast(0, EthereumException*);
-            return (evm, ok);
-        }
-        let is_max_code_size_exceeded = is_nn(contract_code.value.len - MAX_CODE_SIZE);
-        if (is_max_code_size_exceeded != FALSE) {
-            tempvar err = new EthereumException(OutOfGasError);
-            _process_create_message_error{evm=evm}(err);
-            tempvar ok = cast(0, EthereumException*);
-            return (evm, ok);
-        }
-
-        // Success case
+    if (cast(evm.value.error, felt) != 0) {
+        // Error case
         let env = evm.value.env;
         let state = env.value.state;
-        set_code{state=state}(message.value.current_target, contract_code);
-        commit_transaction{state=state, transient_storage=transient_storage}();
+        rollback_transaction{state=state, transient_storage=transient_storage}();
         EnvImpl.set_state{env=env}(state);
         EnvImpl.set_transient_storage{env=env}(transient_storage);
         EvmImpl.set_env{evm=evm}(env);
+
         tempvar ok = cast(0, EthereumException*);
         return (evm, ok);
     }
 
-    // Error case
+    let contract_code = evm.value.output;
+    let contract_code_gas = Uint(contract_code.value.len * GasConstants.GAS_CODE_DEPOSIT);
+
+    if (contract_code.value.len != 0) {
+        let first_opcode = contract_code.value.data[0];
+        if (first_opcode == 0xEF) {
+            tempvar err = new EthereumException(InvalidContractPrefix);
+            _process_create_message_error{evm=evm}(err);
+            tempvar ok = cast(0, EthereumException*);
+            return (evm, ok);
+        }
+    }
+
+    let err = charge_gas{evm=evm}(contract_code_gas);
+    if (cast(err, felt) != 0) {
+        _process_create_message_error{evm=evm}(err);
+        tempvar ok = cast(0, EthereumException*);
+        return (evm, ok);
+    }
+
+    let is_max_code_size_exceeded = is_nn(contract_code.value.len - MAX_CODE_SIZE);
+    if (is_max_code_size_exceeded != FALSE) {
+        tempvar err = new EthereumException(OutOfGasError);
+        _process_create_message_error{evm=evm}(err);
+        tempvar ok = cast(0, EthereumException*);
+        return (evm, ok);
+    }
+
     let env = evm.value.env;
     let state = env.value.state;
-    rollback_transaction{state=state, transient_storage=transient_storage}();
+    set_code{state=state}(message.value.current_target, contract_code);
+    commit_transaction{state=state, transient_storage=transient_storage}();
     EnvImpl.set_state{env=env}(state);
     EnvImpl.set_transient_storage{env=env}(transient_storage);
     EvmImpl.set_env{evm=evm}(env);
-
     tempvar ok = cast(0, EthereumException*);
     return (evm, ok);
 }
