@@ -11,6 +11,8 @@
     "dataframe",
     "defaultdict",
     "divmod",
+    "Dlog",
+    "ecip",
     "eips",
     "epns",
     "exitstatus",

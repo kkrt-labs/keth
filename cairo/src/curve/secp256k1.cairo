@@ -377,3 +377,16 @@ func ec_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: Mod
     dw 40;
     dw 44;
 }
+
+@known_ap_change
+func sign_to_uint384_mod_secp256k1(sign: felt) -> UInt384 {
+    if (sign == -1) {
+        let res = UInt384(
+            secp256k1.MIN_ONE_D0, secp256k1.MIN_ONE_D1, secp256k1.MIN_ONE_D2, secp256k1.MIN_ONE_D3
+        );
+        return res;
+    } else {
+        let res = UInt384(1, 0, 0, 0);
+        return res;
+    }
+}

@@ -1,10 +1,8 @@
-from starkware.cairo.common.cairo_builtins import PoseidonBuiltin
+from starkware.cairo.common.cairo_builtins import PoseidonBuiltin, UInt384
 
-const N_LIMBS = 4;
+const N_LIMBS = UInt384.SIZE;
 
-func hash_full_transcript_and_get_Z_3_LIMBS{poseidon_ptr: PoseidonBuiltin*}(
-    limbs_ptr: felt*, n: felt
-) -> (_s0: felt, _s1: felt, _s2: felt) {
+func hash_full_transcript{poseidon_ptr: PoseidonBuiltin*}(limbs_ptr: felt*, n: felt) -> () {
     alloc_locals;
     local BASE = 2 ** 96;
 
@@ -60,9 +58,6 @@ func hash_full_transcript_and_get_Z_3_LIMBS{poseidon_ptr: PoseidonBuiltin*}(
     assert cast(elements_end, felt) = cast(elements, felt);
 
     tempvar poseidon_ptr = poseidon_ptr + n * PoseidonBuiltin.SIZE;
-    let res_ptr = poseidon_ptr - PoseidonBuiltin.SIZE;
-    tempvar s0 = [res_ptr].output.s0;
-    tempvar s1 = [res_ptr].output.s1;
-    tempvar s2 = [res_ptr].output.s2;
-    return (_s0=s0, _s1=s1, _s2=s2);
+
+    return ();
 }
