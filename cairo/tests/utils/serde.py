@@ -317,18 +317,17 @@ class Serde:
             error_value = self.serialize_pointers(path, ptr)["value"]
             if error_value == 0:
                 return NO_ERROR_FLAG
-            # Get the first 30 bytes for the error message
-            error_bytes = (error_value & ((1 << (30 * 8)) - 1)).to_bytes(30, "big")
+            error_bytes = error_value.to_bytes(32, "big")
             ascii_value = error_bytes.decode().strip("\x00")
             actual_error_cls = next(
                 (cls for name, cls in vm_exception_classes if name == ascii_value), None
             )
+            if actual_error_cls is InvalidOpcode:
+                return actual_error_cls(
+                    0
+                )  # Return 0 by default, as we don't pass the argument in cairo
             if actual_error_cls is None:
                 raise ValueError(f"Unknown error class: {ascii_value}")
-            if actual_error_cls is InvalidOpcode:
-                # Custom parameter (isolated case)
-                param_value = (error_value >> (30 * 8)) & 0xFF
-                return InvalidOpcode(param_value)
             return actual_error_cls()
 
         if python_cls == Bytes256:

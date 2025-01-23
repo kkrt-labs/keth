@@ -1,7 +1,7 @@
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin, PoseidonBuiltin
 from starkware.cairo.common.alloc import alloc
 from ethereum.cancun.vm import Evm, EvmStruct, EvmImpl
-from ethereum.cancun.vm.exceptions import Revert, EthereumException
+from ethereum.cancun.vm.exceptions import Revert, EthereumException, InvalidOpcode
 from ethereum_types.numeric import Uint
 from ethereum_types.bytes import Bytes, BytesStruct
 from ethereum.cancun.vm.instructions.arithmetic import (
@@ -153,8 +153,8 @@ func op_implementation{
     evm: Evm,
 }(opcode: felt) -> EthereumException* {
     // call opcode
-    // count 1 for "next line" and 4 steps per opcode: call, opcode, jmp, end
-    tempvar offset = opcode * 4 + 1;
+    // count 1 for "next line" and 4 steps per opcode: call, opcode, ret
+    tempvar offset = opcode * 3 + 1;
 
     // Prepare arguments
     [ap] = range_check_ptr, ap++;
@@ -165,528 +165,517 @@ func op_implementation{
 
     jmp rel offset;
     call stop;  // 0x0
-    jmp end;
+    ret;
     call add;  // 0x1 - ADD
-    jmp end;
+    ret;
     call mul;  // 0x2 - MUL
-    jmp end;
+    ret;
     call sub;  // 0x3 - SUB
-    jmp end;
+    ret;
     call div;  // 0x4 - DIV
-    jmp end;
+    ret;
     call sdiv;  // 0x5 - SDIV
-    jmp end;
+    ret;
     call mod;  // 0x6 - MOD
-    jmp end;
+    ret;
     call smod;  // 0x7 - SMOD
-    jmp end;
+    ret;
     call addmod;  // 0x8 - ADDMOD
-    jmp end;
+    ret;
     call mulmod;  // 0x9 - MULMOD
-    jmp end;
+    ret;
     call exp;  // 0xa - EXP
-    jmp end;
+    ret;
     call signextend;  // 0xb - SIGNEXTEND
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xc
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xd
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xe
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xf
-    jmp end;
+    ret;
     call less_than;  // 0x10 - LT
-    jmp end;
+    ret;
     call greater_than;  // 0x11 - GT
-    jmp end;
+    ret;
     call signed_less_than;  // 0x12 - SLT
-    jmp end;
+    ret;
     call signed_greater_than;  // 0x13 - SGT
-    jmp end;
+    ret;
     call equal;  // 0x14 - EQ
-    jmp end;
+    ret;
     call is_zero;  // 0x15 - ISZERO
-    jmp end;
+    ret;
     call bitwise_and;  // 0x16 - AND
-    jmp end;
+    ret;
     call bitwise_or;  // 0x17 - OR
-    jmp end;
+    ret;
     call bitwise_xor;  // 0x18 - XOR
-    jmp end;
+    ret;
     call bitwise_not;  // 0x19 - NOT
-    jmp end;
+    ret;
     call get_byte;  // 0x1a - BYTE
-    jmp end;
+    ret;
     call bitwise_shl;  // 0x1b - SHL
-    jmp end;
+    ret;
     call bitwise_shr;  // 0x1c - SHR
-    jmp end;
+    ret;
     call bitwise_sar;  // 0x1d - SAR
-    jmp end;
+    ret;
     call unknown_opcode;  // 0x1e
-    jmp end;
+    ret;
     call unknown_opcode;  // 0x1f
-    jmp end;
+    ret;
     call keccak;  // 0x20 - KECCAK
-    jmp end;
+    ret;
     call unknown_opcode;  // 0x21
-    jmp end;
+    ret;
     call unknown_opcode;  // 0x22
-    jmp end;
+    ret;
     call unknown_opcode;  // 0x23
-    jmp end;
+    ret;
     call unknown_opcode;  // 0x24
-    jmp end;
+    ret;
     call unknown_opcode;  // 0x25
-    jmp end;
+    ret;
     call unknown_opcode;  // 0x26
-    jmp end;
+    ret;
     call unknown_opcode;  // 0x27
-    jmp end;
+    ret;
     call unknown_opcode;  // 0x28
-    jmp end;
+    ret;
     call unknown_opcode;  // 0x29
-    jmp end;
+    ret;
     call unknown_opcode;  // 0x2a
-    jmp end;
+    ret;
     call unknown_opcode;  // 0x2b
-    jmp end;
+    ret;
     call unknown_opcode;  // 0x2c
-    jmp end;
+    ret;
     call unknown_opcode;  // 0x2d
-    jmp end;
+    ret;
     call unknown_opcode;  // 0x2e
-    jmp end;
+    ret;
     call unknown_opcode;  // 0x2f
-    jmp end;
+    ret;
     call address;  // 0x30 - ADDRESS
-    jmp end;
+    ret;
     call balance;  // 0x31 - BALANCE
-    jmp end;
+    ret;
     call origin;  // 0x32 - ORIGIN
-    jmp end;
+    ret;
     call caller;  // 0x33 - CALLER
-    jmp end;
+    ret;
     call callvalue;  // 0x34 - CALLVALUE
-    jmp end;
+    ret;
     call calldataload;  // 0x35 - CALLDATALOAD
-    jmp end;
+    ret;
     call calldatasize;  // 0x36 - CALLDATASIZE
-    jmp end;
+    ret;
     call calldatacopy;  // 0x37 - CALLDATACOPY
-    jmp end;
+    ret;
     call codesize;  // 0x38 - CODESIZE
-    jmp end;
+    ret;
     call codecopy;  // 0x39 - CODECOPY
-    jmp end;
+    ret;
     call gasprice;  // 0x3a - GASPRICE
-    jmp end;
+    ret;
     call extcodesize;  // 0x3b - EXTCODESIZE
-    jmp end;
+    ret;
     call extcodecopy;  // 0x3c - EXTCODECOPY
-    jmp end;
+    ret;
     call returndatasize;  // 0x3d - RETURNDATASIZE
-    jmp end;
+    ret;
     call returndatacopy;  // 0x3e - RETURNDATACOPY
-    jmp end;
+    ret;
     call extcodehash;  // 0x3f - EXTCODEHASH
-    jmp end;
+    ret;
     call block_hash;  // 0x40 - BLOCKHASH
-    jmp end;
+    ret;
     call coinbase;  // 0x41 - COINBASE
-    jmp end;
+    ret;
     call timestamp;  // 0x42 - TIMESTAMP
-    jmp end;
+    ret;
     call number;  // 0x43 - NUMBER
-    jmp end;
+    ret;
     call prev_randao;  // 0x44 - PREVRANDAO
-    jmp end;
+    ret;
     call gas_limit;  // 0x45 - GASLIMIT
-    jmp end;
+    ret;
     call chain_id;  // 0x46 - CHAINID
-    jmp end;
+    ret;
     call self_balance;  // 0x47 - SELFBALANCE
-    jmp end;
+    ret;
     call base_fee;  // 0x48 - BASEFEE
-    jmp end;
+    ret;
     call blob_hash;  // 0x49 - BLOBHASH
-    jmp end;
+    ret;
     call blob_base_fee;  // 0x4a - BLOBBASEFEE
-    jmp end;
+    ret;
     call unknown_opcode;  // 0x4b
-    jmp end;
+    ret;
     call unknown_opcode;  // 0x4c
-    jmp end;
+    ret;
     call unknown_opcode;  // 0x4d
-    jmp end;
+    ret;
     call unknown_opcode;  // 0x4e
-    jmp end;
+    ret;
     call unknown_opcode;  // 0x4f
-    jmp end;
+    ret;
     call pop;  // 0x50 - POP
-    jmp end;
+    ret;
     call mload;  // 0x51 - MLOAD
-    jmp end;
+    ret;
     call mstore;  // 0x52 - MSTORE
-    jmp end;
+    ret;
     call mstore8;  // 0x53 - MSTORE8
-    jmp end;
+    ret;
     call sload;  // 0x54 - SLOAD
-    jmp end;
+    ret;
     call sstore;  // 0x55 - SSTORE
-    jmp end;
+    ret;
     call jump;  // 0x56 - JUMP
-    jmp end;
+    ret;
     call jumpi;  // 0x57 - JUMPI
-    jmp end;
+    ret;
     call pc;  // 0x58 - PC
-    jmp end;
+    ret;
     call msize;  // 0x59 - MSIZE
-    jmp end;
+    ret;
     call gas_left;  // 0x5a - GAS
-    jmp end;
+    ret;
     call jumpdest;  // 0x5b - JUMPDEST
-    jmp end;
+    ret;
     call tload;  // 0x5c - TLOAD
-    jmp end;
+    ret;
     call tstore;  // 0x5d - TSTORE
-    jmp end;
+    ret;
     call mcopy;  // 0x5e - MCOPY
-    jmp end;
+    ret;
     call push0;  // 0x5f - PUSH0
-    jmp end;
+    ret;
     call push1;  // 0x60 - PUSH1
-    jmp end;
+    ret;
     call push2;  // 0x61 - PUSH2
-    jmp end;
+    ret;
     call push3;  // 0x62 - PUSH3
-    jmp end;
+    ret;
     call push4;  // 0x63 - PUSH4
-    jmp end;
+    ret;
     call push5;  // 0x64 - PUSH5
-    jmp end;
+    ret;
     call push6;  // 0x65 - PUSH6
-    jmp end;
+    ret;
     call push7;  // 0x66 - PUSH7
-    jmp end;
+    ret;
     call push8;  // 0x67 - PUSH8
-    jmp end;
+    ret;
     call push9;  // 0x68 - PUSH9
-    jmp end;
+    ret;
     call push10;  // 0x69 - PUSH10
-    jmp end;
+    ret;
     call push11;  // 0x6a - PUSH11
-    jmp end;
+    ret;
     call push12;  // 0x6b - PUSH12
-    jmp end;
+    ret;
     call push13;  // 0x6c - PUSH13
-    jmp end;
+    ret;
     call push14;  // 0x6d - PUSH14
-    jmp end;
+    ret;
     call push15;  // 0x6e - PUSH15
-    jmp end;
+    ret;
     call push16;  // 0x6f - PUSH16
-    jmp end;
+    ret;
     call push17;  // 0x70 - PUSH17
-    jmp end;
+    ret;
     call push18;  // 0x71 - PUSH18
-    jmp end;
+    ret;
     call push19;  // 0x72 - PUSH19
-    jmp end;
+    ret;
     call push20;  // 0x73 - PUSH20
-    jmp end;
+    ret;
     call push21;  // 0x74 - PUSH21
-    jmp end;
+    ret;
     call push22;  // 0x75 - PUSH22
-    jmp end;
+    ret;
     call push23;  // 0x76 - PUSH23
-    jmp end;
+    ret;
     call push24;  // 0x77 - PUSH24
-    jmp end;
+    ret;
     call push25;  // 0x78 - PUSH25
-    jmp end;
+    ret;
     call push26;  // 0x79 - PUSH26
-    jmp end;
+    ret;
     call push27;  // 0x7a - PUSH27
-    jmp end;
+    ret;
     call push28;  // 0x7b - PUSH28
-    jmp end;
+    ret;
     call push29;  // 0x7c - PUSH29
-    jmp end;
+    ret;
     call push30;  // 0x7d - PUSH30
-    jmp end;
+    ret;
     call push31;  // 0x7e - PUSH31
-    jmp end;
+    ret;
     call push32;  // 0x7f - PUSH32
-    jmp end;
+    ret;
     call dup1;  // 0x80 - DUP1
-    jmp end;
+    ret;
     call dup2;  // 0x81 - DUP2
-    jmp end;
+    ret;
     call dup3;  // 0x82 - DUP3
-    jmp end;
+    ret;
     call dup4;  // 0x83 - DUP4
-    jmp end;
+    ret;
     call dup5;  // 0x84 - DUP5
-    jmp end;
+    ret;
     call dup6;  // 0x85 - DUP6
-    jmp end;
+    ret;
     call dup7;  // 0x86 - DUP7
-    jmp end;
+    ret;
     call dup8;  // 0x87 - DUP8
-    jmp end;
+    ret;
     call dup9;  // 0x88 - DUP9
-    jmp end;
+    ret;
     call dup10;  // 0x89 - DUP10
-    jmp end;
+    ret;
     call dup11;  // 0x8a - DUP11
-    jmp end;
+    ret;
     call dup12;  // 0x8b - DUP12
-    jmp end;
+    ret;
     call dup13;  // 0x8c - DUP13
-    jmp end;
+    ret;
     call dup14;  // 0x8d - DUP14
-    jmp end;
+    ret;
     call dup15;  // 0x8e - DUP15
-    jmp end;
+    ret;
     call dup16;  // 0x8f - DUP16
-    jmp end;
+    ret;
     call swap1;  // 0x90 - SWAP1
-    jmp end;
+    ret;
     call swap2;  // 0x91 - SWAP2
-    jmp end;
+    ret;
     call swap3;  // 0x92 - SWAP3
-    jmp end;
+    ret;
     call swap4;  // 0x93 - SWAP4
-    jmp end;
+    ret;
     call swap5;  // 0x94 - SWAP5
-    jmp end;
+    ret;
     call swap6;  // 0x95 - SWAP6
-    jmp end;
+    ret;
     call swap7;  // 0x96 - SWAP7
-    jmp end;
+    ret;
     call swap8;  // 0x97 - SWAP8
-    jmp end;
+    ret;
     call swap9;  // 0x98 - SWAP9
-    jmp end;
+    ret;
     call swap10;  // 0x99 - SWAP10
-    jmp end;
+    ret;
     call swap11;  // 0x9a - SWAP11
-    jmp end;
+    ret;
     call swap12;  // 0x9b - SWAP12
-    jmp end;
+    ret;
     call swap13;  // 0x9c - SWAP13
-    jmp end;
+    ret;
     call swap14;  // 0x9d - SWAP14
-    jmp end;
+    ret;
     call swap15;  // 0x9e - SWAP15
-    jmp end;
+    ret;
     call swap16;  // 0x9f - SWAP16
-    jmp end;
+    ret;
     call log0;  // 0xa0 - LOG0
-    jmp end;
+    ret;
     call log1;  // 0xa1 - LOG1
-    jmp end;
+    ret;
     call log2;  // 0xa2 - LOG2
-    jmp end;
+    ret;
     call log3;  // 0xa3 - LOG3
-    jmp end;
+    ret;
     call log4;  // 0xa4 - LOG4
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xa5
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xa6
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xa7
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xa8
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xa9
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xaa
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xab
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xac
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xad
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xae
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xaf
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xb0
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xb1
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xb2
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xb3
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xb4
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xb5
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xb6
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xb7
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xb8
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xb9
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xba
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xbb
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xbc
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xbd
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xbe
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xbf
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xc0
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xc1
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xc2
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xc3
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xc4
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xc5
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xc6
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xc7
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xc8
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xc9
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xca
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xcb
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xcc
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xcd
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xce
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xcf
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xd0
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xd1
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xd2
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xd3
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xd4
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xd5
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xd6
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xd7
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xd8
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xd9
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xda
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xdb
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xdc
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xdd
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xde
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xdf
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xe0
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xe1
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xe2
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xe3
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xe4
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xe5
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xe6
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xe7
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xe8
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xe9
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xea
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xeb
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xec
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xed
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xee
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xef
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xf0 //TODO: create
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xf1 //TODO: call
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xf2 //TODO: callcode
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xf3 //TODO: return
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xf4 //TODO: delegatecall
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xf5 //TODO: create2
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xf6
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xf7
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xf8
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xf9
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xfa: TODO: staticcall
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xfb
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xfc
-    jmp end;
+    ret;
     call revert;  // 0xfd
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xfe
-    jmp end;
+    ret;
     call unknown_opcode;  // 0xff TODO: selfdestruct
-    jmp end;
-
-    end:
-    let range_check_ptr = [ap - 6];
-    let bitwise_ptr = cast([ap - 5], BitwiseBuiltin*);
-    let keccak_ptr = cast([ap - 4], KeccakBuiltin*);
-    let poseidon_ptr = cast([ap - 3], PoseidonBuiltin*);
-    let evm_ = cast([ap - 2], EvmStruct*);
-    let evm = Evm(evm_);
-    let error = cast([ap - 1], EthereumException*);
-
-    return error;
+    ret;
 }
 
 func unknown_opcode{
@@ -695,9 +684,7 @@ func unknown_opcode{
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
     evm: Evm,
-}() {
-    with_attr error_message("ValueError") {
-        assert 1 = 0;
-    }
-    return ();
+}() -> EthereumException* {
+    tempvar err = new EthereumException(InvalidOpcode);
+    return err;
 }
