@@ -13,12 +13,8 @@ from starkware.cairo.common.builtin_keccak.keccak import keccak_uint256s_bigend
 from starkware.cairo.common.uint256 import Uint256
 from starkware.cairo.common.alloc import alloc
 
-from src.utils.maths import unsigned_div_rem
-from src.utils.circuit_utils import (
-    N_LIMBS,
-    hash_full_transcript_and_get_Z_3_LIMBS,
-    scalar_to_epns,
-)
+from src.utils.maths import unsigned_div_rem, scalar_to_epns
+from src.utils.circuit_utils import N_LIMBS, hash_full_transcript_and_get_Z_3_LIMBS
 from src.utils.ecdsa_circuit import get_full_ecip_2P_circuit
 from src.utils.uint256 import assert_uint256_le
 from src.utils.uint384 import (
