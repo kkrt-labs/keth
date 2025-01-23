@@ -68,8 +68,9 @@ func process_create_message{
     // In the previously mentioned edge case the preexisting storage is ignored
     // for gas refund purposes. In order to do this we must track created
     // accounts.
-    increment_nonce{state=state}(message.value.current_target);
+    mark_account_created{state=state}(message.value.current_target);
 
+    increment_nonce{state=state}(message.value.current_target);
     EnvImpl.set_state{env=env}(state);
     EnvImpl.set_transient_storage{env=env}(transient_storage);
     let (evm, err) = process_message(message, env);
@@ -111,6 +112,7 @@ func process_create_message{
         set_code{state=state}(message.value.current_target, contract_code);
         commit_transaction{state=state, transient_storage=transient_storage}();
         EnvImpl.set_state{env=env}(state);
+        EnvImpl.set_transient_storage{env=env}(transient_storage);
         EvmImpl.set_env{evm=evm}(env);
         tempvar ok = cast(0, EthereumException*);
         return (evm, ok);
@@ -121,6 +123,7 @@ func process_create_message{
     let state = env.value.state;
     rollback_transaction{state=state, transient_storage=transient_storage}();
     EnvImpl.set_state{env=env}(state);
+    EnvImpl.set_transient_storage{env=env}(transient_storage);
     EvmImpl.set_env{evm=evm}(env);
 
     tempvar ok = cast(0, EthereumException*);
