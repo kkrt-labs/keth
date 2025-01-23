@@ -21,7 +21,9 @@ message_without_precompile = (
     .with_value()
     .with_data()
     .with_code_address()
-    .with_code(strategy=st.just(Bytes(bytes.fromhex("6060"))))
+    .with_code(
+        strategy=st.just(Bytes(bytes.fromhex("6060")))
+    )  # TODO: generate code with random opcodes
     .with_accessed_addresses()
     .with_accessed_storage_keys()
     .build()
@@ -29,7 +31,6 @@ message_without_precompile = (
 
 
 class TestInterpreter:
-    # TODO: generate code with random opcodes
     @given(
         message=message_without_precompile,
         env=environment_lite,

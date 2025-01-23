@@ -11,8 +11,7 @@ from ethereum.cancun.blocks import TupleLog, TupleLogStruct, Log
 from ethereum.cancun.fork_types import SetAddress
 from ethereum.cancun.fork_types import SetAddressStruct, SetAddressDictAccess
 from ethereum.cancun.vm import Evm, EvmStruct, Message, Environment, EvmImpl, EnvImpl
-from ethereum.cancun.vm.exceptions import EthereumException
-from ethereum.cancun.vm.exceptions import Revert
+from ethereum.cancun.vm.exceptions import EthereumException, StackDepthLimitError, Revert
 from ethereum.cancun.state import (
     State,
     begin_transaction,
@@ -157,13 +156,15 @@ func process_message{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
-}(message: Message, env: Environment) -> Evm {
+}(message: Message, env: Environment) -> (Evm, EthereumException*) {
     alloc_locals;
 
     // Check if depth exceeds limit by checking if (depth - limit) is non-negative
     let is_depth_exceeded = is_nn(message.value.depth.value - STACK_DEPTH_LIMIT);
-    with_attr error_message("StackDepthLimitError") {
-        assert is_depth_exceeded = FALSE;
+    if (is_depth_exceeded != FALSE) {
+        tempvar err = new EthereumException(StackDepthLimitError);
+        tempvar evm = Evm(cast(0, EvmStruct*));
+        return (evm, err);
     }
 
     // Take snapshot of state before processing the message
@@ -207,5 +208,7 @@ func process_message{
     EnvImpl.set_state{env=env}(state);
     EnvImpl.set_transient_storage{env=env}(transient_storage);
     EvmImpl.set_env{evm=evm}(env);
-    return evm;
+
+    let ok = cast(0, EthereumException*);
+    return (evm, ok);
 }
