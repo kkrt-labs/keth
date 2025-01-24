@@ -15,8 +15,13 @@ use cairo_vm::{
 
 use crate::vm::hints::Hint;
 
-pub const HINTS: &[fn() -> Hint] =
-    &[dict_new_empty, copy_dict_segment, merge_dict_tracker_with_parent, update_dict_tracker];
+pub const HINTS: &[fn() -> Hint] = &[
+    dict_new_empty,
+    dict_squash,
+    copy_dict_segment,
+    merge_dict_tracker_with_parent,
+    update_dict_tracker,
+];
 
 pub fn dict_new_empty() -> Hint {
     Hint::new(
@@ -29,6 +34,34 @@ pub fn dict_new_empty() -> Hint {
          -> Result<(), HintError> {
             let base =
                 exec_scopes.get_dict_manager()?.borrow_mut().new_dict(vm, Default::default())?;
+            insert_value_into_ap(vm, base)
+        },
+    )
+}
+
+pub fn dict_squash() -> Hint {
+    Hint::new(
+        String::from("dict_squash"),
+        |vm: &mut VirtualMachine,
+         exec_scopes: &mut ExecutionScopes,
+         ids_data: &HashMap<String, HintReference>,
+         ap_tracking: &ApTracking,
+         _constants: &HashMap<String, Felt252>|
+         -> Result<(), HintError> {
+            // Get the dict_accesses_end pointer
+            let dict_accesses_end =
+                get_ptr_from_var_name("dict_accesses_end", vm, ids_data, ap_tracking)?;
+
+            // Get dict manager and copy data from the source dictionary
+            let dict_manager_ref = exec_scopes.get_dict_manager()?;
+            let mut dict_manager = dict_manager_ref.borrow_mut();
+            let tracker = dict_manager.get_tracker(dict_accesses_end)?;
+            let copied_data = tracker.get_dictionary_copy();
+
+            // Create new dict with copied data
+            let base = dict_manager.new_dict(vm, copied_data)?;
+
+            // Insert the new dictionary's base pointer into ap
             insert_value_into_ap(vm, base)
         },
     )

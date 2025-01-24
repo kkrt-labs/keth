@@ -114,3 +114,14 @@ def test_get_keys_for_address_prefix(cairo_run_py, dict_with_prefix):
     keys = cairo_run_py("test_get_keys_for_address_prefix", prefix, dict_entries)
     keys = [keys] if not isinstance(keys, list) else keys
     assert keys == [key for key in dict_entries.keys() if key[0] == prefix]
+
+
+@given(src_dict=..., dst_dict=...)
+def test_squash_and_update(
+    cairo_run_py,
+    src_dict: Mapping[Tuple[Address, Bytes32], U256],
+    dst_dict: Mapping[Tuple[Address, Bytes32], U256],
+):
+    new_dst_dict = cairo_run_py("test_squash_and_update", src_dict, dst_dict)
+    dst_dict.update(src_dict)
+    assert new_dst_dict == dst_dict

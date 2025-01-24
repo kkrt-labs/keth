@@ -8,7 +8,7 @@ from starkware.cairo.common.squash_dict import squash_dict
 from starkware.cairo.common.uint256 import Uint256
 from ethereum_types.numeric import U256, U256Struct
 from ethereum_types.bytes import Bytes32
-from ethereum.utils.numeric import U256__eq__, is_not_zero
+from ethereum.utils.numeric import U256__eq__, is_not_zero, is_zero
 from ethereum.cancun.fork_types import (
     Address,
     Account,
@@ -254,4 +254,55 @@ func get_keys_for_address_prefix{dict_ptr: DictAccess*}(
 
     tempvar res = ListTupleAddressBytes32(new ListTupleAddressBytes32Struct(keys, keys_len));
     return res;
+}
+
+// @notice squashes the `src` dict and writes all its values to the `dst` dict.
+// @dev If the `dst` dict is not empty, the values are added to the existing values.
+// @param src: The source dict to squash.
+// @param dst: The end pointer of the destination dict to write the values to.
+// @returns The new end pointer of the destination dict
+func squash_and_update{range_check_ptr}(
+    src_start: DictAccess*, src_end: DictAccess*, dst: DictAccess*
+) -> DictAccess* {
+    alloc_locals;
+
+    let (squashed_src_start, local squashed_src_end) = dict_squash(src_start, src_end);
+    let len = squashed_src_end - squashed_src_start;
+    local range_check_ptr = range_check_ptr;
+
+    if (len == 0) {
+        return dst;
+    }
+
+    let dict_ptr = squashed_src_end;
+    let parent_dict_end = dst;
+    %{ merge_dict_tracker_with_parent %}
+
+    // Loop on all keys and write the new_value to the dst dict.
+    tempvar squashed_src = squashed_src_start;
+    tempvar dst_end = dst;
+
+    loop:
+    let squashed_src = cast([ap - 2], DictAccess*);
+    let dst_end = cast([ap - 1], DictAccess*);
+    let key = squashed_src.key;
+    let new_value = squashed_src.new_value;
+
+    let is_done = is_zero(squashed_src_end - squashed_src);
+    static_assert dst_end == [ap - 5];
+    jmp done if is_done != 0;
+
+    assert dst_end.key = key;
+    assert dst_end.new_value = new_value;
+
+    tempvar squashed_src = squashed_src + DictAccess.SIZE;
+    tempvar dst_end = dst_end + DictAccess.SIZE;
+    jmp loop;
+
+    done:
+    let current_tracker_ptr = dst;
+    let new_tracker_ptr = cast([ap - 5], DictAccess*);
+    %{ update_dict_tracker %}
+
+    return new_tracker_ptr;
 }
