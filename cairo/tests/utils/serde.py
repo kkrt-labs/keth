@@ -686,7 +686,6 @@ class Serde:
 
         while parent_main_dict and parent_storage_dict:
 
-
             tmp_parent_main_dict = self._get_mapping_parent_ptr(
                 parent_main_dict,
                 ("ethereum", "cancun", "fork_types", "MappingAddressAccountStruct"),
@@ -700,8 +699,10 @@ class Serde:
                     "MappingTupleAddressBytes32U256Struct",
                 ),
             )
-            
-            is_original_state = tmp_parent_main_dict is None and tmp_parent_storage_dict is None
+
+            is_original_state = (
+                tmp_parent_main_dict is None and tmp_parent_storage_dict is None
+            )
             snapshot = (
                 Trie(
                     flat_state._main_trie.secured,
