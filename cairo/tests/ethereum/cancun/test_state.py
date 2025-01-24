@@ -1,3 +1,4 @@
+import copy
 from typing import Optional
 
 import pytest
@@ -36,7 +37,7 @@ from ethereum.cancun.state import (
     set_transient_storage,
     touch_account,
 )
-from ethereum.cancun.trie import Trie
+from ethereum.cancun.trie import Trie, copy_trie
 from tests.utils.args_gen import State, TransientStorage, Withdrawal
 from tests.utils.errors import strict_raises
 from tests.utils.strategies import (
@@ -91,7 +92,7 @@ def state_with_snapshots(draw):
 
     # Start with base state's tries
     current_main_trie = base_state._main_trie
-    current_storage_tries = base_state._storage_tries.copy()
+    current_storage_tries = copy.deepcopy(base_state._storage_tries)
     snapshots = []
 
     for _ in range(num_snapshots):
@@ -100,11 +101,8 @@ def state_with_snapshots(draw):
         new_accounts = draw(
             st.dictionaries(keys=address, values=st.from_type(Account), max_size=5)
         )
-        main_trie_data = current_main_trie._data.copy()
-        main_trie_data.update(new_accounts)
-        main_trie = Trie[Address, Optional[Account]](
-            secured=True, default=None, _data=main_trie_data
-        )
+        main_trie_copy = copy_trie(current_main_trie)
+        main_trie_copy._data.update(new_accounts)
 
         # Add up to 5 new storage tries or update existing ones
         new_storage_tries = draw(
@@ -114,11 +112,11 @@ def state_with_snapshots(draw):
                 max_size=5,
             )
         )
-        storage_tries = current_storage_tries.copy()
+        storage_tries = copy.deepcopy(current_storage_tries)
         storage_tries.update(new_storage_tries)
 
         # Update current state for next iteration
-        current_main_trie = main_trie
+        current_main_trie = main_trie_copy
         current_storage_tries = storage_tries
 
     return State(
@@ -139,7 +137,7 @@ def transient_storage_with_snapshots(draw):
     num_snapshots = draw(st.integers(min_value=0, max_value=5))
 
     # Start with base transient storage tries
-    current_tries = base_transient_storage._tries.copy()
+    current_tries = copy.deepcopy(base_transient_storage._tries)
     snapshots = []
 
     for _ in range(num_snapshots):
@@ -152,7 +150,7 @@ def transient_storage_with_snapshots(draw):
                 max_size=5,
             )
         )
-        tries = current_tries.copy()
+        tries = copy.deepcopy(current_tries)
         tries.update(new_tries)
 
         # Update current tries for next iteration

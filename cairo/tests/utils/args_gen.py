@@ -803,6 +803,7 @@ def generate_trie_arg(
     # In case of a Trie, we need the dict to be a defaultdict with the trie.default as the default value.
     dict_ptr = segments.memory.get(data)
     current_ptr = segments.memory.get(data + 1)
+
     if isinstance(dict_manager, DictManager):
         dict_manager.trackers[dict_ptr.segment_index].data = defaultdict(
             lambda: default, dict_manager.trackers[dict_ptr.segment_index].data
@@ -947,16 +948,25 @@ def generate_dict_arg(
     # This is required for tests where we read data from DictAccess segments while no dict method has been used.
     # Equivalent to doing an initial dict_read of all keys.
     # We only hash keys if they're in tuples.
+
+    # In case of a dict update, we need to get the prev_value from the dict_tracker of the parent_ptr.
+    # For consistency purposes when we drop the dict and put its prev values back in the parent_ptr.
+    parent_dict_end_ptr = segments.memory.get(parent_ptr + 1) if parent_ptr else None
     initial_data = flatten(
         [
             (
                 (poseidon_hash_many(k) if get_args(arg_type)[0] in HASHED_TYPES else k),
-                v,
+                (
+                    dict_manager.get_tracker(parent_dict_end_ptr).data.get(k, v)
+                    if parent_dict_end_ptr
+                    else v
+                ),
                 v,
             )
             for k, v in data.items()
         ]
     )
+
     segments.load_data(dict_ptr, initial_data)
     current_ptr = dict_ptr + len(initial_data)
 

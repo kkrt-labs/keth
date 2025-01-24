@@ -104,4 +104,4 @@ def update_dict_tracker(
     ap: RelocatableValue,
 ):
     dict_tracker = dict_manager.get_tracker(ids.current_tracker_ptr)
-    dict_tracker.current_ptr = ids.new_tracker_ptr
+    dict_tracker.current_ptr = ids.new_tracker_ptr.address_
