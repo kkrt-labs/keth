@@ -266,7 +266,6 @@ namespace Internals {
             with stack {
                 let err = push(U256(new U256Struct(0, 0)));
                 if (cast(err, felt) != 0) {
-                    EvmImpl.set_stack{evm=evm}(stack);
                     return err;
                 }
             }
@@ -284,7 +283,6 @@ namespace Internals {
             with stack {
                 let err = push(U256(new U256Struct(0, 0)));
                 if (cast(err, felt) != 0) {
-                    EvmImpl.set_stack{evm=evm}(stack);
                     return err;
                 }
             }
@@ -298,11 +296,9 @@ namespace Internals {
         with stack {
             let err = push(U256(new U256Struct(block_hashes.value.low, block_hashes.value.high)));
             if (cast(err, felt) != 0) {
-                EvmImpl.set_stack{evm=evm}(stack);
                 return err;
             }
         }
-        EvmImpl.set_stack{evm=evm}(stack);
         let ok = cast(0, EthereumException*);
         return ok;
     }
