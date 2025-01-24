@@ -271,15 +271,13 @@ func uint256_to_bytes32{range_check_ptr}(dst: felt*, n: Uint256) {
 }
 
 // @notice Converts an array of bytes to an array of bytes8, little endian
-// @dev The individual bytes are packed into 8-byte words, little endian.
-//     The last word is returned separately, along with the number of used bytes
-//     as it may be incomplete.
+// @dev The function is sound because the number of steps is limited to 2^50 by the verifier.
+//      Consequently, `bytes8` cannot wrap around P. No range_check is needed in the main loop.
+//      Only in the final step, depending on the size of the remainder, is the total length of the
+//      output array checked.
 // @param dst The destination array.
 // @param bytes_len The number of bytes in the input array.
 // @param bytes The input array.
-// @return The number of bytes written to the destination array.
-// @return The last word.
-// @return The number of bytes used in the last word
 func bytes_to_bytes8_little_endian{range_check_ptr}(dst: felt*, bytes_len: felt, bytes: felt*) -> (
     ) {
     alloc_locals;
@@ -298,6 +296,7 @@ func bytes_to_bytes8_little_endian{range_check_ptr}(dst: felt*, bytes_len: felt,
 
     jmp skip_full_word_loop if less_than_8 != 0;
 
+    // Main loop done a random number of times
     full_word_loop:
     let bytes8 = cast([ap - 2], felt*);
     let bytes = cast([ap - 1], felt*);
@@ -329,6 +328,10 @@ func bytes_to_bytes8_little_endian{range_check_ptr}(dst: felt*, bytes_len: felt,
     jmp remaining_5;
     jmp remaining_6;
     jmp remaining_7;
+
+    // Remaining bytes, one case per possible number of bytes
+    // Each case assert the number of bytes written to the destination array
+    // and the value of the bytes
 
     remaining_7:
     let dst = cast([fp - 5], felt*);
