@@ -40,6 +40,18 @@ def get_function_body(func) -> str:
 
 
 def register_hint(wrapped_function):
-    implementations[wrapped_function.__name__] = get_function_body(wrapped_function)
+    implementation = get_function_body(wrapped_function)
+    if (
+        wrapped_function.__name__ in implementations
+        and implementations[wrapped_function.__name__] != implementation
+    ):
+        raise ValueError(
+            f"Trying to register hint {wrapped_function.__name__} with\n\n"
+            f"{implementation}\n\n"
+            f"but already registered with another implementation\n\n"
+            f"{implementations[wrapped_function.__name__]}"
+        )
+
+    implementations[wrapped_function.__name__] = implementation
 
     return wrapped_function

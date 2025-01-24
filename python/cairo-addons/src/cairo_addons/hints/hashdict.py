@@ -2,18 +2,11 @@ from cairo_addons.hints.decorator import register_hint
 from starkware.cairo.common.dict import DictManager
 from starkware.cairo.lang.vm.memory_dict import MemoryDict
 from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
-from starkware.cairo.lang.vm.relocatable import RelocatableValue
 from starkware.cairo.lang.vm.vm_consts import VmConsts
 
 
 @register_hint
-def hashdict_read(
-    dict_manager: DictManager,
-    ids: VmConsts,
-    segments: MemorySegmentManager,
-    memory: MemoryDict,
-    ap: RelocatableValue,
-) -> int:
+def hashdict_read(dict_manager: DictManager, ids: VmConsts, memory: MemoryDict):
     dict_tracker = dict_manager.get_tracker(ids.dict_ptr)
     dict_tracker.current_ptr += ids.DictAccess.SIZE
     preimage = tuple([memory[ids.key + i] for i in range(ids.key_len)])
@@ -22,13 +15,7 @@ def hashdict_read(
 
 
 @register_hint
-def hashdict_get(
-    dict_manager: DictManager,
-    ids: VmConsts,
-    segments: MemorySegmentManager,
-    memory: MemoryDict,
-    ap: RelocatableValue,
-) -> int:
+def hashdict_get(dict_manager: DictManager, ids: VmConsts, memory: MemoryDict):
     from collections import defaultdict
 
     dict_tracker = dict_manager.get_tracker(ids.dict_ptr)
@@ -41,13 +28,7 @@ def hashdict_get(
 
 
 @register_hint
-def hashdict_write(
-    dict_manager: DictManager,
-    ids: VmConsts,
-    segments: MemorySegmentManager,
-    memory: MemoryDict,
-    ap: RelocatableValue,
-) -> int:
+def hashdict_write(dict_manager: DictManager, ids: VmConsts, memory: MemoryDict):
     from collections import defaultdict
 
     dict_tracker = dict_manager.get_tracker(ids.dict_ptr)
@@ -66,8 +47,7 @@ def get_keys_for_address_prefix(
     ids: VmConsts,
     segments: MemorySegmentManager,
     memory: MemoryDict,
-    ap: RelocatableValue,
-) -> int:
+):
     dict_tracker = dict_manager.get_tracker(ids.dict_ptr)
     prefix = tuple([memory[ids.prefix + i] for i in range(ids.prefix_len)])
     matching_preimages = [
@@ -86,12 +66,8 @@ def get_keys_for_address_prefix(
 
 @register_hint
 def get_preimage_for_key(
-    dict_manager: DictManager,
-    ids: VmConsts,
-    segments: MemorySegmentManager,
-    memory: MemoryDict,
-    ap: RelocatableValue,
-) -> int:
+    dict_manager: DictManager, ids: VmConsts, segments: MemorySegmentManager
+):
     from starkware.cairo.lang.vm.crypto import poseidon_hash_many
 
     hashed_value = ids.key
@@ -109,13 +85,7 @@ def get_preimage_for_key(
 
 
 @register_hint
-def copy_hashdict_tracker_entry(
-    dict_manager: DictManager,
-    ids: VmConsts,
-    segments: MemorySegmentManager,
-    memory: MemoryDict,
-    ap: RelocatableValue,
-) -> int:
+def copy_hashdict_tracker_entry(dict_manager: DictManager, ids: VmConsts):
     from starkware.cairo.lang.vm.crypto import poseidon_hash_many
 
     obj_tracker = dict_manager.get_tracker(ids.dict_ptr_stop.address_)

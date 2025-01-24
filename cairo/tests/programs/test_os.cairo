@@ -13,6 +13,7 @@ from programs.os import os
 from src.model import model
 from src.account import Internals, Account
 from src.state import State
+from src.utils.transaction import Transaction
 
 func test_os{
     output_ptr: felt*,
@@ -28,6 +29,56 @@ func test_os{
     mul_mod_ptr: ModBuiltin*,
 }() -> model.State* {
     return os();
+}
+
+func test_recover_signer{
+    output_ptr: felt*,
+    pedersen_ptr: HashBuiltin*,
+    range_check_ptr,
+    ecdsa_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    ec_op_ptr,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
+}() {
+    alloc_locals;
+    local block: model.Block*;
+    local chain_id: felt;
+    %{ block %}
+    %{ chain_id %}
+
+    with chain_id {
+        validate_transactions(block.transactions_len, block.transactions);
+    }
+    return ();
+}
+
+func validate_transactions{
+    pedersen_ptr: HashBuiltin*,
+    bitwise_ptr: BitwiseBuiltin*,
+    range_check_ptr,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    chain_id: felt,
+}(txs_len: felt, tx_encoded: model.TransactionEncoded*) {
+    %{
+        logger.info(f"txs_len: {ids.txs_len}")
+        logger.info(f"current_step: {current_step}")
+    %}
+
+    if (txs_len == 0) {
+        return ();
+    }
+
+    Transaction.validate(tx_encoded, chain_id);
+
+    return validate_transactions(txs_len - 1, tx_encoded + model.TransactionEncoded.SIZE);
 }
 
 func test_block_hint{output_ptr: felt*}() {

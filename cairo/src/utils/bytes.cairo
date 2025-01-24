@@ -271,15 +271,13 @@ func uint256_to_bytes32{range_check_ptr}(dst: felt*, n: Uint256) {
 }
 
 // @notice Converts an array of bytes to an array of bytes8, little endian
-// @dev The individual bytes are packed into 8-byte words, little endian.
-//     The last word is returned separately, along with the number of used bytes
-//     as it may be incomplete.
+// @dev The function is sound because the number of steps is limited to 2^50 by the verifier.
+//      Consequently, `bytes8` cannot wrap around P. No range_check is needed in the main loop.
+//      Only in the final step, depending on the size of the remainder, is the total length of the
+//      output array checked.
 // @param dst The destination array.
 // @param bytes_len The number of bytes in the input array.
 // @param bytes The input array.
-// @return The number of bytes written to the destination array.
-// @return The last word.
-// @return The number of bytes used in the last word
 func bytes_to_bytes8_little_endian{range_check_ptr}(dst: felt*, bytes_len: felt, bytes: felt*) -> (
     ) {
     alloc_locals;
@@ -288,77 +286,137 @@ func bytes_to_bytes8_little_endian{range_check_ptr}(dst: felt*, bytes_len: felt,
         return ();
     }
 
-    let (local pow256) = get_label_location(pow256_table);
-    let (full_u64_word_count, local last_input_num_bytes) = unsigned_div_rem(bytes_len, 8);
-    local range_check_ptr = range_check_ptr;
+    tempvar less_than_8;
+    %{ bytes_len_less_than_8 %}
+    tempvar bytes8 = dst;
+    tempvar bytes = bytes;
 
-    tempvar dst_index = 0;
-    tempvar bytes_index = bytes_len - 1;
-    tempvar bytes8 = 0;
-    tempvar bytes8_index = 7;
+    static_assert bytes8 == [ap - 2];
+    static_assert bytes == [ap - 1];
 
-    body:
-    let dst_index = [ap - 4];
-    let bytes_index = [ap - 3];
-    let bytes8 = [ap - 2];
-    let bytes8_index = [ap - 1];
+    jmp skip_full_word_loop if less_than_8 != 0;
 
-    let bytes_len = [fp - 4];
-    let bytes = cast([fp - 3], felt*);
-    let pow256 = cast([fp], felt*);
-    let current_byte = bytes[bytes_len - 1 - bytes_index];
-    let current_pow = pow256[bytes8_index];
+    // Main loop done a random number of times
+    full_word_loop:
+    let bytes8 = cast([ap - 2], felt*);
+    let bytes = cast([ap - 1], felt*);
 
-    tempvar bytes8 = bytes8 + current_byte * current_pow;
+    assert [bytes8] = bytes[0] + bytes[1] * 256 + bytes[2] * 256 ** 2 + bytes[3] * 256 ** 3 + bytes[
+        4
+    ] * 256 ** 4 + bytes[5] * 256 ** 5 + bytes[6] * 256 ** 6 + bytes[7] * 256 ** 7;
+    tempvar continue_loop;
+    tempvar bytes8 = bytes8 + 1;
+    tempvar bytes = bytes + 8;
+    %{ remaining_bytes_greater_than_8 %}
 
-    jmp next if bytes_index != 0;
-    jmp end_word_not_full if bytes8_index != 0;
+    jmp full_word_loop if continue_loop != 0;
 
-    let last_input_num_bytes = [fp + 1];
-    assert [dst + dst_index] = bytes8;
-    let range_check_ptr = [fp + 2];
+    skip_full_word_loop:
+    let bytes8 = cast([ap - 2], felt*);
+    let bytes = cast([ap - 1], felt*);
+
+    tempvar remaining_offset;
+    %{ remaining_bytes_jmp_offset %}
+    static_assert bytes8 == [ap - 3];
+    static_assert bytes == [ap - 2];
+    jmp rel remaining_offset;
+    jmp remaining_0;
+    jmp remaining_1;
+    jmp remaining_2;
+    jmp remaining_3;
+    jmp remaining_4;
+    jmp remaining_5;
+    jmp remaining_6;
+    jmp remaining_7;
+
+    // Remaining bytes, one case per possible number of bytes
+    // Each case assert the number of bytes written to the destination array
+    // and the value of the bytes
+
+    remaining_7:
+    let dst = cast([fp - 5], felt*);
+    let bytes_len = cast([fp - 4], felt);
+    let bytes8 = cast([ap - 3], felt*);
+    let bytes = cast([ap - 2], felt*);
+    assert (bytes8 - dst) * 8 = bytes_len - 7;
+    assert [bytes8] = bytes[0] + bytes[1] * 256 + bytes[2] * 256 ** 2 + bytes[3] * 256 ** 3 + bytes[
+        4
+    ] * 256 ** 4 + bytes[5] * 256 ** 5 + bytes[6] * 256 ** 6;
+    let range_check_ptr = [fp - 6];
     return ();
 
-    next:
-    jmp regular if bytes8_index != 0;
-
-    assert [dst + dst_index] = bytes8;
-
-    tempvar dst_index = dst_index + 1;
-    tempvar bytes_index = bytes_index - 1;
-    tempvar bytes8 = 0;
-    tempvar bytes8_index = 7;
-    static_assert dst_index == [ap - 4];
-    static_assert bytes_index == [ap - 3];
-    static_assert bytes8 == [ap - 2];
-    static_assert bytes8_index == [ap - 1];
-    jmp body;
-
-    regular:
-    tempvar dst_index = dst_index;
-    tempvar bytes_index = bytes_index - 1;
-    tempvar bytes8 = bytes8;
-    tempvar bytes8_index = bytes8_index - 1;
-    static_assert dst_index == [ap - 4];
-    static_assert bytes_index == [ap - 3];
-    static_assert bytes8 == [ap - 2];
-    static_assert bytes8_index == [ap - 1];
-    jmp body;
-
-    end_word_not_full:
-    assert [dst + dst_index] = bytes8;
-    let range_check_ptr = [fp + 2];
+    remaining_6:
+    let dst = cast([fp - 5], felt*);
+    let bytes_len = cast([fp - 4], felt);
+    let bytes8 = cast([ap - 3], felt*);
+    let bytes = cast([ap - 2], felt*);
+    assert (bytes8 - dst) * 8 = bytes_len - 6;
+    assert [bytes8] = bytes[0] + bytes[1] * 256 + bytes[2] * 256 ** 2 + bytes[3] * 256 ** 3 + bytes[
+        4
+    ] * 256 ** 4 + bytes[5] * 256 ** 5;
+    let range_check_ptr = [fp - 6];
     return ();
 
-    pow256_table:
-    dw 256 ** 7;
-    dw 256 ** 6;
-    dw 256 ** 5;
-    dw 256 ** 4;
-    dw 256 ** 3;
-    dw 256 ** 2;
-    dw 256 ** 1;
-    dw 256 ** 0;
+    remaining_5:
+    let dst = cast([fp - 5], felt*);
+    let bytes_len = cast([fp - 4], felt);
+    let bytes8 = cast([ap - 3], felt*);
+    let bytes = cast([ap - 2], felt*);
+    assert (bytes8 - dst) * 8 = bytes_len - 5;
+    assert [bytes8] = bytes[0] + bytes[1] * 256 + bytes[2] * 256 ** 2 + bytes[3] * 256 ** 3 + bytes[
+        4
+    ] * 256 ** 4;
+    let range_check_ptr = [fp - 6];
+    return ();
+
+    remaining_4:
+    let dst = cast([fp - 5], felt*);
+    let bytes_len = cast([fp - 4], felt);
+    let bytes8 = cast([ap - 3], felt*);
+    let bytes = cast([ap - 2], felt*);
+    assert (bytes8 - dst) * 8 = bytes_len - 4;
+    assert [bytes8] = bytes[0] + bytes[1] * 256 + bytes[2] * 256 ** 2 + bytes[3] * 256 ** 3;
+    let range_check_ptr = [fp - 6];
+    return ();
+
+    remaining_3:
+    let dst = cast([fp - 5], felt*);
+    let bytes_len = cast([fp - 4], felt);
+    let bytes8 = cast([ap - 3], felt*);
+    let bytes = cast([ap - 2], felt*);
+    assert (bytes8 - dst) * 8 = bytes_len - 3;
+    assert [bytes8] = bytes[0] + bytes[1] * 256 + bytes[2] * 256 ** 2;
+    let range_check_ptr = [fp - 6];
+    return ();
+
+    remaining_2:
+    let dst = cast([fp - 5], felt*);
+    let bytes_len = cast([fp - 4], felt);
+    let bytes8 = cast([ap - 3], felt*);
+    let bytes = cast([ap - 2], felt*);
+    assert (bytes8 - dst) * 8 = bytes_len - 2;
+    assert [bytes8] = bytes[0] + bytes[1] * 256;
+    let range_check_ptr = [fp - 6];
+    return ();
+
+    remaining_1:
+    let dst = cast([fp - 5], felt*);
+    let bytes_len = cast([fp - 4], felt);
+    let bytes8 = cast([ap - 3], felt*);
+    let bytes = cast([ap - 2], felt*);
+    assert (bytes8 - dst) * 8 = bytes_len - 1;
+    assert [bytes8] = bytes[0];
+    let range_check_ptr = [fp - 6];
+    return ();
+
+    remaining_0:
+    let dst = cast([fp - 5], felt*);
+    let bytes_len = cast([fp - 4], felt);
+    let bytes8 = cast([ap - 3], felt*);
+    let bytes = cast([ap - 2], felt*);
+    assert (bytes8 - dst) * 8 = bytes_len;
+    let range_check_ptr = [fp - 6];
+    return ();
 }
 
 func keccak{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*}(

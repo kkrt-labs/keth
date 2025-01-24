@@ -27,6 +27,17 @@ logger = logging.getLogger(__name__)
 pytestmark = pytest.mark.python_vm
 
 
+@pytest.fixture(params=[21692382])
+def prover_input_path(request):
+    return Path(f"cache/1/prover-inputs/{request.param}.json")
+
+
+@pytest.fixture
+def prover_input(prover_input_path):
+    with open(prover_input_path, "r") as f:
+        return json.load(f)
+
+
 class TestOs:
 
     @pytest.mark.slow
@@ -94,12 +105,7 @@ class TestOs:
 
     @pytest.mark.skip("Only for debugging")
     @pytest.mark.slow
-    @pytest.mark.parametrize("block_number", [21421739])
-    def test_eth_block(self, cairo_run, block_number):
-        prover_input_path = Path(f"cache/{block_number}_long.json")
-        with open(prover_input_path, "r") as f:
-            prover_input = json.load(f)
-
+    def test_eth_block(self, cairo_run, prover_input):
         transactions = [
             tx
             for tx in prover_input["block"]["transactions"]
@@ -151,6 +157,23 @@ class TestOs:
             for account in prover_input["postStateProofs"]
         }
         assert post_state == expected
+
+    @pytest.mark.skip("Only for debugging")
+    @pytest.mark.slow
+    def test_eth_block_recover_signer(self, cairo_run, prover_input):
+        transactions = prover_input["block"]["transactions"]
+        header = prover_input["block"].copy()
+        del header["transactions"]
+        del header["withdrawals"]
+        del header["size"]
+
+        cairo_run(
+            "test_recover_signer",
+            block=Block.model_validate(
+                {"block_header": header, "transactions": transactions}
+            ),
+            state=State.model_validate({}),
+        )
 
     def test_block_hint(self, cairo_run):
         output = cairo_run("test_block_hint", block=block())
