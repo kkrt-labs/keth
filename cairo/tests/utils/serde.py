@@ -685,6 +685,23 @@ class Serde:
         parent_storage_dict = self._get_trie_parent_ptr(raw_state["_storage_tries"])
 
         while parent_main_dict and parent_storage_dict:
+
+
+            tmp_parent_main_dict = self._get_mapping_parent_ptr(
+                parent_main_dict,
+                ("ethereum", "cancun", "fork_types", "MappingAddressAccountStruct"),
+            )
+            tmp_parent_storage_dict = self._get_mapping_parent_ptr(
+                parent_storage_dict,
+                (
+                    "ethereum",
+                    "cancun",
+                    "fork_types",
+                    "MappingTupleAddressBytes32U256Struct",
+                ),
+            )
+            
+            is_original_state = tmp_parent_main_dict is None and tmp_parent_storage_dict is None
             snapshot = (
                 Trie(
                     flat_state._main_trie.secured,
@@ -698,6 +715,9 @@ class Serde:
                         ),
                         parent_main_dict,
                         Mapping[Address, Optional[Account]],
+                        # If the parent pointers are None, the state is the original state,
+                        # We can skip the consistency check on dicts
+                        check_dict_consistency=not is_original_state,
                     ),
                 ),
                 Trie(
@@ -712,24 +732,14 @@ class Serde:
                         ),
                         parent_storage_dict,
                         Mapping[Tuple[Address, Bytes32], U256],
+                        check_dict_consistency=not is_original_state,
                     ),
                 ),
             )
             flat_state._snapshots.append(snapshot)
 
-            parent_main_dict = self._get_mapping_parent_ptr(
-                parent_main_dict,
-                ("ethereum", "cancun", "fork_types", "MappingAddressAccountStruct"),
-            )
-            parent_storage_dict = self._get_mapping_parent_ptr(
-                parent_storage_dict,
-                (
-                    "ethereum",
-                    "cancun",
-                    "fork_types",
-                    "MappingTupleAddressBytes32U256Struct",
-                ),
-            )
+            parent_main_dict = tmp_parent_main_dict
+            parent_storage_dict = tmp_parent_storage_dict
 
         # Reverse the snapshots to match the expected order (older first)
         flat_state._snapshots.reverse()
