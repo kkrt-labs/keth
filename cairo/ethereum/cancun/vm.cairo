@@ -110,15 +110,6 @@ func incorporate_child_on_success{range_check_ptr, poseidon_ptr: PoseidonBuiltin
 ) {
     alloc_locals;
 
-    // TODO: unless we want to retro-prove all blocks, we could remove this logic.
-    // In block 2675119, the empty account at 0x3 (the RIPEMD160 precompile) was
-    // cleared despite running out of gas. This is an obscure edge case that can
-    // only happen to a precompile.
-    // According to the general rules governing clearing of empty accounts, the
-    // touch should have been reverted. Due to client bugs, this event went
-    // unnoticed and 0x3 has been exempted from the rule that touches are
-    // reverted in order to preserve this historical behaviour.
-
     let fp_and_pc = get_fp_and_pc();
     local __fp__: felt* = fp_and_pc.fp_val;
 
@@ -133,22 +124,6 @@ func incorporate_child_on_success{range_check_ptr, poseidon_ptr: PoseidonBuiltin
     );
 
     let new_refund_counter = evm.value.refund_counter + child_evm.value.refund_counter;
-
-    // Squash & update accounts_to_delete into parent
-    let accounts_to_delete = evm.value.accounts_to_delete;
-    let accounts_to_delete_start = accounts_to_delete.value.dict_ptr_start;
-    let accounts_to_delete_end = accounts_to_delete.value.dict_ptr;
-    let new_accounts_to_delete_end = squash_and_update(
-        cast(child_evm.value.accounts_to_delete.value.dict_ptr_start, DictAccess*),
-        cast(child_evm.value.accounts_to_delete.value.dict_ptr, DictAccess*),
-        cast(accounts_to_delete_end, DictAccess*),
-    );
-    tempvar new_accounts_to_delete = SetAddress(
-        new SetAddressStruct(
-            dict_ptr_start=cast(accounts_to_delete_start, SetAddressDictAccess*),
-            dict_ptr=cast(new_accounts_to_delete_end, SetAddressDictAccess*),
-        ),
-    );
 
     // Squash & update touched_accounts into parent
     let child_touched_accounts_start = child_evm.value.touched_accounts.value.dict_ptr_start;
@@ -183,6 +158,22 @@ func incorporate_child_on_success{range_check_ptr, poseidon_ptr: PoseidonBuiltin
         new SetAddressStruct(
             dict_ptr_start=cast(touched_accounts.value.dict_ptr_start, SetAddressDictAccess*),
             dict_ptr=cast(new_touched_accounts_end, SetAddressDictAccess*),
+        ),
+    );
+
+    // Squash & update accounts_to_delete into parent
+    let accounts_to_delete = evm.value.accounts_to_delete;
+    let accounts_to_delete_start = accounts_to_delete.value.dict_ptr_start;
+    let accounts_to_delete_end = accounts_to_delete.value.dict_ptr;
+    let new_accounts_to_delete_end = squash_and_update(
+        cast(child_evm.value.accounts_to_delete.value.dict_ptr_start, DictAccess*),
+        cast(child_evm.value.accounts_to_delete.value.dict_ptr, DictAccess*),
+        cast(accounts_to_delete_end, DictAccess*),
+    );
+    tempvar new_accounts_to_delete = SetAddress(
+        new SetAddressStruct(
+            dict_ptr_start=cast(accounts_to_delete_start, SetAddressDictAccess*),
+            dict_ptr=cast(new_accounts_to_delete_end, SetAddressDictAccess*),
         ),
     );
 
@@ -236,6 +227,12 @@ func incorporate_child_on_success{range_check_ptr, poseidon_ptr: PoseidonBuiltin
         cast(child_evm.value.valid_jump_destinations.value.dict_ptr, DictAccess*),
     );
 
+    // No need to squash the message's `accessed_addresses` and `accessed_storage_keys` because
+    // they were moved into the Evm, which we just squashed.
+
+    // No need to squash the env's `state` and `transient_storage` because it was handled in `rollback_transaction`,
+    // when we squashed and appended the prev keys to the parent's state and transient storage segments.
+
     tempvar evm = Evm(
         new EvmStruct(
             pc=evm.value.pc,
@@ -273,6 +270,15 @@ func incorporate_child_on_error{range_check_ptr, poseidon_ptr: PoseidonBuiltin*,
     local __fp__: felt* = fp_and_pc.fp_val;
 
     // Special handling for RIPEMD160 precompile address (0x3)
+    // TODO: unless we want to retro-prove all blocks, we could remove this logic.
+    // In block 2675119, the empty account at 0x3 (the RIPEMD160 precompile) was
+    // cleared despite running out of gas. This is an obscure edge case that can
+    // only happen to a precompile.
+    // According to the general rules governing clearing of empty accounts, the
+    // touch should have been reverted. Due to client bugs, this event went
+    // unnoticed and 0x3 has been exempted from the rule that touches are
+    // reverted in order to preserve this historical behaviour.
+
     // TODO: Move this to precompiled_contracts.cairo
     const RIPEMD160_ADDRESS = 0x0300000000000000000000000000000000000000;
 
@@ -295,10 +301,7 @@ func incorporate_child_on_error{range_check_ptr, poseidon_ptr: PoseidonBuiltin*,
     let child_accessed_addresses = child_evm.value.accessed_addresses;
     let child_accessed_addresses_start = child_accessed_addresses.value.dict_ptr_start;
     let child_accessed_addresses_end = cast(child_accessed_addresses.value.dict_ptr, DictAccess*);
-    dict_squash(
-        cast(child_accessed_addresses_start, DictAccess*),
-        cast(child_accessed_addresses_end, DictAccess*),
-    );
+    dict_squash(cast(child_accessed_addresses_start, DictAccess*), child_accessed_addresses_end);
 
     let child_accessed_storage_keys = child_evm.value.accessed_storage_keys;
     let child_accessed_storage_keys_start = child_accessed_storage_keys.value.dict_ptr_start;
@@ -313,17 +316,12 @@ func incorporate_child_on_error{range_check_ptr, poseidon_ptr: PoseidonBuiltin*,
     let accounts_to_delete = child_evm.value.accounts_to_delete;
     let accounts_to_delete_start = accounts_to_delete.value.dict_ptr_start;
     let accounts_to_delete_end = cast(accounts_to_delete.value.dict_ptr, DictAccess*);
-    dict_squash(
-        cast(accounts_to_delete_start, DictAccess*), cast(accounts_to_delete_end, DictAccess*)
-    );
+    dict_squash(cast(accounts_to_delete_start, DictAccess*), accounts_to_delete_end);
 
     let valid_jump_destinations = child_evm.value.valid_jump_destinations;
     let valid_jump_destinations_start = valid_jump_destinations.value.dict_ptr_start;
     let valid_jump_destinations_end = cast(valid_jump_destinations.value.dict_ptr, DictAccess*);
-    dict_squash(
-        cast(valid_jump_destinations_start, DictAccess*),
-        cast(valid_jump_destinations_end, DictAccess*),
-    );
+    dict_squash(cast(valid_jump_destinations_start, DictAccess*), valid_jump_destinations_end);
 
     let stack = child_evm.value.stack;
     let stack_start = stack.value.dict_ptr_start;
