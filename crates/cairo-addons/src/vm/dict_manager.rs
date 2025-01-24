@@ -99,6 +99,21 @@ impl PyDictManager {
         Ok(PyTrackerMapping { inner: self.inner.clone() })
     }
 
+    fn get_tracker(&self, ptr: PyRelocatable) -> PyResult<PyDictTracker> {
+        self.inner
+            .borrow()
+            .trackers
+            .get(&ptr.inner.segment_index)
+            .cloned()
+            .map(|tracker| PyDictTracker { inner: tracker })
+            .ok_or_else(|| {
+                PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!(
+                    "segment_index {} not found",
+                    ptr.inner.segment_index
+                ))
+            })
+    }
+
     fn insert(&mut self, segment_index: isize, value: &PyDictTracker) -> PyResult<()> {
         if self.inner.borrow().trackers.contains_key(&segment_index) {
             return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(

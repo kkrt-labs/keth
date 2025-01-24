@@ -760,6 +760,7 @@ func close_transaction{
     let transient_storage_tries_start = transient_storage_tries.value._data.value.dict_ptr_start;
     let transient_storage_tries_end = transient_storage_tries.value._data.value.dict_ptr;
     let parent_transient_storage_tries = transient_storage_tries.value._data.value.parent_dict;
+
     with_attr error_message("IndexError") {
         tempvar parent_transient_storage_tries_ptr = cast(parent_transient_storage_tries, felt);
         if (cast(parent_transient_storage_tries_ptr, felt) == 0) {
