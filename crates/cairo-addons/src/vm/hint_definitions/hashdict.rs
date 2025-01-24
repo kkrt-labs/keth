@@ -255,10 +255,14 @@ pub fn hashdict_read_from_key() -> Hint {
             // keys.
             let simple_key = DictKey::Simple(hashed_key.into());
             let preimage =
-                get_preimage_for_hashed_key(hashed_key, tracker).unwrap_or(&simple_key).clone();
+                _get_preimage_for_hashed_key(hashed_key, tracker).unwrap_or(&simple_key).clone();
             let value = tracker
                 .get_value(&preimage)
-                .map_err(|_| HintError::CustomHint("No value found for preimage".into()))?
+                .map_err(|_| {
+                    HintError::CustomHint(
+                        format!("No value found for preimage {}", preimage).into(),
+                    )
+                })?
                 .clone();
 
             // Set the value
@@ -286,7 +290,7 @@ pub fn get_preimage_for_key() -> Hint {
             let tracker = dict.get_tracker(dict_ptr)?;
 
             // Find matching preimage
-            let preimage = get_preimage_for_hashed_key(hashed_key, tracker)?;
+            let preimage = _get_preimage_for_hashed_key(hashed_key, tracker)?;
 
             // Write preimage data to memory
             let preimage_data_ptr =
@@ -330,7 +334,7 @@ pub fn copy_hashdict_tracker_entry() -> Hint {
 
             // Find matching preimage from source tracker data
             let key_hash = get_integer_from_var_name("source_key", vm, ids_data, ap_tracking)?;
-            let preimage = get_preimage_for_hashed_key(key_hash, source_tracker)?.clone();
+            let preimage = _get_preimage_for_hashed_key(key_hash, source_tracker)?.clone();
             let value = source_tracker
                 .get_value(&preimage)
                 .map_err(|_| {
@@ -367,7 +371,7 @@ fn build_compound_key(
 }
 
 /// Helper function to find a preimage in a tracker's dictionary given a hashed key
-fn get_preimage_for_hashed_key(
+fn _get_preimage_for_hashed_key(
     hashed_key: Felt252,
     tracker: &DictTracker,
 ) -> Result<&DictKey, HintError> {

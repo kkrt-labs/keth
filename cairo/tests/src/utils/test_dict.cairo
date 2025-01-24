@@ -13,7 +13,13 @@ from ethereum.cancun.state import (
     ListTupleAddressBytes32,
     ListTupleAddressBytes32Struct,
 )
-from src.utils.dict import prev_values, dict_update, get_keys_for_address_prefix, squash_and_update
+from src.utils.dict import (
+    prev_values,
+    dict_update,
+    get_keys_for_address_prefix,
+    squash_and_update,
+    dict_squash,
+)
 
 func test_prev_values{range_check_ptr}() -> (prev_values_start_ptr: felt*) {
     alloc_locals;
@@ -97,10 +103,15 @@ func test_squash_and_update{range_check_ptr}(
         cast(src_start, DictAccess*), cast(src_end, DictAccess*), cast(dst, DictAccess*)
     );
 
+    // Squash the dict another time to ensure that the update was done correctly
+    let (final_start, final_end) = dict_squash(
+        cast(dst_dict.value.dict_ptr_start, DictAccess*), new_dst_end
+    );
+
     tempvar new_dst_dict = MappingTupleAddressBytes32U256(
         new MappingTupleAddressBytes32U256Struct(
-            dict_ptr_start=cast(dst_dict.value.dict_ptr_start, TupleAddressBytes32U256DictAccess*),
-            dict_ptr=cast(new_dst_end, TupleAddressBytes32U256DictAccess*),
+            dict_ptr_start=cast(final_start, TupleAddressBytes32U256DictAccess*),
+            dict_ptr=cast(final_end, TupleAddressBytes32U256DictAccess*),
             parent_dict=dst_dict.value.parent_dict,
         ),
     );

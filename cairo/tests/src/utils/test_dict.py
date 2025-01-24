@@ -1,3 +1,4 @@
+from collections import defaultdict
 from typing import List, Mapping, Tuple
 
 from cairo_addons.hints.decorator import register_hint
@@ -121,6 +122,10 @@ def test_squash_and_update(
     src_dict: Mapping[Tuple[Address, Bytes32], U256],
     dst_dict: Mapping[Tuple[Address, Bytes32], U256],
 ):
-    new_dst_dict = cairo_run("test_squash_and_update", src_dict, dst_dict)
+    new_dst_dict = cairo_run(
+        "test_squash_and_update",
+        defaultdict(lambda: U256(0), src_dict),
+        defaultdict(lambda: U256(0), dst_dict),
+    )
     dst_dict.update(src_dict)
     assert new_dst_dict == dst_dict

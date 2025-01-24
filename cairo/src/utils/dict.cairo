@@ -274,10 +274,6 @@ func squash_and_update{range_check_ptr}(
         return dst;
     }
 
-    let dict_ptr = squashed_src_end;
-    let parent_dict_end = dst;
-    %{ merge_dict_tracker_with_parent %}
-
     // Loop on all keys and write the new_value to the dst dict.
     tempvar squashed_src = squashed_src_start;
     tempvar dst_end = dst;
@@ -305,6 +301,11 @@ func squash_and_update{range_check_ptr}(
     jmp loop;
 
     done:
+    // Merge
+    let dict_ptr = squashed_src_end;
+    let parent_dict_end = dst;
+    %{ merge_dict_tracker_with_parent %}
+
     let current_tracker_ptr = dst;
     let new_tracker_ptr = cast([ap - 5], DictAccess*);
     %{ update_dict_tracker %}

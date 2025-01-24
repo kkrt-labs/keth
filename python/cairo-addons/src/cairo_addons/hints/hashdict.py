@@ -22,8 +22,12 @@ def hashdict_read_from_key(
     from cairo_addons.hints.hashdict import _get_preimage_for_hashed_key
 
     dict_tracker = dict_manager.get_tracker(ids.dict_ptr_stop)
-    preimage = _get_preimage_for_hashed_key(ids.key, dict_tracker) or ids.key
-    ids.value = dict_tracker.data[preimage]
+    try:
+        preimage = _get_preimage_for_hashed_key(ids.key, dict_tracker) or ids.key
+    except Exception:
+        ids.value = dict_tracker.data.default_factory()
+    else:
+        ids.value = dict_tracker.data[preimage]
 
 
 @register_hint

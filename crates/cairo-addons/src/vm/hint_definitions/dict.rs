@@ -2,8 +2,9 @@ use std::collections::HashMap;
 
 use cairo_vm::{
     hint_processor::{
-        builtin_hint_processor::hint_utils::{
-            get_ptr_from_var_name, insert_value_from_var_name, insert_value_into_ap,
+        builtin_hint_processor::{
+            dict_manager::DictTracker,
+            hint_utils::{get_ptr_from_var_name, insert_value_from_var_name, insert_value_into_ap},
         },
         hint_processor_definition::HintReference,
     },
@@ -18,6 +19,7 @@ use crate::vm::hints::Hint;
 pub const HINTS: &[fn() -> Hint] = &[
     dict_new_empty,
     dict_squash,
+    dict_copy,
     copy_dict_segment,
     merge_dict_tracker_with_parent,
     update_dict_tracker,
@@ -63,6 +65,52 @@ pub fn dict_squash() -> Hint {
 
             // Insert the new dictionary's base pointer into ap
             insert_value_into_ap(vm, base)
+        },
+    )
+}
+
+pub fn dict_copy() -> Hint {
+    Hint::new(
+        String::from("dict_copy"),
+        |vm: &mut VirtualMachine,
+         exec_scopes: &mut ExecutionScopes,
+         ids_data: &HashMap<String, HintReference>,
+         ap_tracking: &ApTracking,
+         _constants: &HashMap<String, Felt252>|
+         -> Result<(), HintError> {
+            // Get the new_start and dict_start pointers from ids
+            let new_start = get_ptr_from_var_name("new_start", vm, ids_data, ap_tracking)?;
+            let dict_start = get_ptr_from_var_name("dict_start", vm, ids_data, ap_tracking)?;
+            let new_end = get_ptr_from_var_name("new_end", vm, ids_data, ap_tracking)?;
+
+            let dict_manager_ref = exec_scopes.get_dict_manager()?;
+            let mut dict_manager = dict_manager_ref.borrow_mut();
+
+            // Check if new segment already exists in trackers
+            // Get and copy data from the source dictionary
+            let source_tracker = dict_manager.trackers.get(&dict_start.segment_index).ok_or(
+                HintError::CustomHint(Box::from(format!(
+                    "Segment {} already exists in dict_manager.trackers",
+                    new_start.segment_index
+                ))),
+            )?;
+            let copied_data = source_tracker.get_dictionary_copy();
+            let default_value = source_tracker.get_default_value().cloned();
+
+            // Create new tracker with copied data
+            if let Some(default_value) = default_value {
+                dict_manager.trackers.insert(
+                    new_end.segment_index,
+                    DictTracker::new_default_dict(new_end, &default_value, Some(copied_data)),
+                );
+            } else {
+                dict_manager.trackers.insert(
+                    new_end.segment_index,
+                    DictTracker::new_with_initial(new_end, copied_data),
+                );
+            }
+
+            Ok(())
         },
     )
 }
