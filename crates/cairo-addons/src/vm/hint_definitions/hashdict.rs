@@ -4,7 +4,7 @@ use cairo_vm::{
     hint_processor::{
         builtin_hint_processor::{
             dict_hint_utils::DICT_ACCESS_SIZE,
-            dict_manager::DictKey,
+            dict_manager::{DictKey, DictTracker},
             hint_utils::{
                 get_integer_from_var_name, get_maybe_relocatable_from_var_name,
                 get_ptr_from_var_name, insert_value_from_var_name,
@@ -30,6 +30,7 @@ pub const HINTS: &[fn() -> Hint] = &[
     hashdict_read,
     hashdict_get,
     hashdict_write,
+    hashdict_read_from_hashed_key,
     get_preimage_for_key,
     copy_hashdict_tracker_entry,
     get_keys_for_address_prefix,
@@ -232,6 +233,37 @@ pub fn get_keys_for_address_prefix() -> Hint {
     )
 }
 
+pub fn hashdict_read_from_hashed_key() -> Hint {
+    Hint::new(
+        String::from("hashdict_read_from_hashed_key"),
+        |vm: &mut VirtualMachine,
+         exec_scopes: &mut ExecutionScopes,
+         ids_data: &HashMap<String, HintReference>,
+         ap_tracking: &ApTracking,
+         _constants: &HashMap<String, Felt252>|
+         -> Result<(), HintError> {
+            // Get the hashed key value
+            let hashed_key = get_integer_from_var_name("key", vm, ids_data, ap_tracking)?;
+
+            // Get dictionary tracker
+            let dict_ptr = get_ptr_from_var_name("dict_ptr_stop", vm, ids_data, ap_tracking)?;
+            let dict_manager_ref = exec_scopes.get_dict_manager()?;
+            let mut dict = dict_manager_ref.borrow_mut();
+            let tracker = dict.get_tracker_mut(dict_ptr)?;
+
+            // Find matching preimage and get its value
+            let preimage = get_preimage_for_hashed_key(hashed_key, tracker)?.clone();
+            let value = tracker
+                .get_value(&preimage)
+                .map_err(|_| HintError::CustomHint("No value found for preimage".into()))?
+                .clone();
+
+            // Set the value
+            insert_value_from_var_name("value", value, vm, ids_data, ap_tracking)
+        },
+    )
+}
+
 pub fn get_preimage_for_key() -> Hint {
     Hint::new(
         String::from("get_preimage_for_key"),
@@ -250,19 +282,8 @@ pub fn get_preimage_for_key() -> Hint {
             let dict = dict_manager_ref.borrow();
             let tracker = dict.get_tracker(dict_ptr)?;
 
-            // Find matching preimage from tracker data
-            let preimage = tracker
-                .get_dictionary_ref()
-                .keys()
-                .find(|key| match key {
-                    DictKey::Compound(values) => {
-                        let felt_values: Vec<Felt252> =
-                            values.iter().filter_map(|v| v.get_int()).collect();
-                        poseidon_hash_many(felt_values.iter()) == hashed_key
-                    }
-                    _ => false,
-                })
-                .ok_or_else(|| HintError::CustomHint("No matching preimage found".into()))?;
+            // Find matching preimage
+            let preimage = get_preimage_for_hashed_key(hashed_key, tracker)?;
 
             // Write preimage data to memory
             let preimage_data_ptr =
@@ -302,30 +323,20 @@ pub fn copy_hashdict_tracker_entry() -> Hint {
             let dict_manager_ref = exec_scopes.get_dict_manager()?;
             let mut dict = dict_manager_ref.borrow_mut();
 
-            let source_tracker = dict.get_tracker(source_ptr_stop)?;
-            let source_dict = source_tracker.get_dictionary_copy();
+            let source_tracker = dict.get_tracker_mut(source_ptr_stop)?;
 
             // Find matching preimage from source tracker data
             let key_hash = get_integer_from_var_name("source_key", vm, ids_data, ap_tracking)?;
-            let preimage = source_dict
-                .keys()
-                .find(|key| match key {
-                    DictKey::Compound(values) => {
-                        let felt_values: Vec<Felt252> =
-                            values.iter().filter_map(|v| v.get_int()).collect();
-                        poseidon_hash_many(felt_values.iter()) == key_hash
-                    }
-                    _ => false,
-                })
-                .ok_or_else(|| HintError::CustomHint("No matching preimage found".into()))?;
-            let value = source_dict
-                .get(preimage)
-                .ok_or_else(|| HintError::CustomHint("No matching preimage found".into()))?;
+            let preimage = get_preimage_for_hashed_key(key_hash, source_tracker)?.clone();
+            let value = source_tracker
+                .get_value(&preimage)
+                .map_err(|_| HintError::CustomHint("No matching preimage found".into()))?
+                .clone();
 
             // Update destination tracker
             let dest_tracker = dict.get_tracker_mut(dest_ptr)?;
             dest_tracker.current_ptr.offset += DICT_ACCESS_SIZE;
-            dest_tracker.insert_value(preimage, &value.clone());
+            dest_tracker.insert_value(&preimage, &value.clone());
 
             Ok(())
         },
@@ -346,4 +357,22 @@ fn build_compound_key(
         })
         .collect::<Result<Vec<_>, _>>()
         .map(DictKey::Compound)
+}
+
+/// Helper function to find a preimage in a tracker's dictionary given a hashed key
+fn get_preimage_for_hashed_key(
+    hashed_key: Felt252,
+    tracker: &DictTracker,
+) -> Result<&DictKey, HintError> {
+    tracker
+        .get_dictionary_ref()
+        .keys()
+        .find(|key| match key {
+            DictKey::Compound(values) => {
+                let felt_values: Vec<Felt252> = values.iter().filter_map(|v| v.get_int()).collect();
+                poseidon_hash_many(felt_values.iter()) == hashed_key
+            }
+            _ => false,
+        })
+        .ok_or_else(|| HintError::CustomHint("No matching preimage found".into()))
 }

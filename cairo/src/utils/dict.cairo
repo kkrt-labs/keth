@@ -293,6 +293,11 @@ func squash_and_update{range_check_ptr}(
     jmp done if is_done != 0;
 
     assert dst_end.key = key;
+    let dict_ptr_stop = dst;
+    tempvar value;
+    // Get the prev value from a hint, as it will be verified upon squashing.
+    %{ hashdict_read_from_hashed_key %}
+    assert dst_end.prev_value = value;
     assert dst_end.new_value = new_value;
 
     tempvar squashed_src = squashed_src + DictAccess.SIZE;
