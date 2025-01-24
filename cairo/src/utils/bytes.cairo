@@ -289,7 +289,7 @@ func bytes_to_bytes8_little_endian{range_check_ptr}(dst: felt*, bytes_len: felt,
     }
 
     tempvar less_than_8;
-    %{ ids.less_than_8 = int(ids.bytes_len < 8) %}
+    %{ bytes_len_less_than_8 %}
     tempvar bytes8 = dst;
     tempvar bytes = bytes;
 
@@ -308,7 +308,7 @@ func bytes_to_bytes8_little_endian{range_check_ptr}(dst: felt*, bytes_len: felt,
     tempvar continue_loop;
     tempvar bytes8 = bytes8 + 1;
     tempvar bytes = bytes + 8;
-    %{ ids.continue_loop = int(ids.bytes_len - (ids.bytes8 - memory[fp - 5]) * 8 >= 8) %}
+    %{ remaining_bytes_greater_than_8 %}
 
     jmp full_word_loop if continue_loop != 0;
 
@@ -316,11 +316,11 @@ func bytes_to_bytes8_little_endian{range_check_ptr}(dst: felt*, bytes_len: felt,
     let bytes8 = cast([ap - 2], felt*);
     let bytes = cast([ap - 1], felt*);
 
-    tempvar remaining;
-    %{ ids.remaining = 2 * (ids.bytes_len - (ids.bytes8 - memory[fp - 5]) * 8) + 1 %}
+    tempvar remaining_offset;
+    %{ remaining_bytes_jmp_offset %}
     static_assert bytes8 == [ap - 3];
     static_assert bytes == [ap - 2];
-    jmp rel remaining;
+    jmp rel remaining_offset;
     jmp remaining_0;
     jmp remaining_1;
     jmp remaining_2;

@@ -1,4 +1,5 @@
 # ruff: noqa: F403
+from cairo_addons.hints.bytes_hints import *
 from cairo_addons.hints.decorator import implementations, register_hint
 from cairo_addons.hints.dict import *
 from cairo_addons.hints.hashdict import *
