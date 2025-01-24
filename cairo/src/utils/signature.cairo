@@ -26,14 +26,8 @@ from src.utils.uint384 import (
     uint384_neg_mod_p,
     felt_to_uint384,
 )
-from src.curve.secp256k1 import (
-    secp256k1,
-    get_generator_point,
-    try_get_point_from_x,
-    get_random_point,
-    ec_add,
-    sign_to_uint384_mod_secp256k1,
-)
+from src.curve.secp256k1 import secp256k1, get_generator_point, sign_to_uint384_mod_secp256k1
+from src.curve.ec_ops import ec_add, try_get_point_from_x, get_random_point
 from src.curve.g1_point import G1Point
 
 namespace Signature {
@@ -115,7 +109,13 @@ namespace Signature {
     ) {
         alloc_locals;
         let (__fp__, _) = get_fp_and_pc();
-        let (y, is_on_curve) = try_get_point_from_x(x=r, v=y_parity);
+
+        local a: UInt384 = UInt384(secp256k1.A0, secp256k1.A1, secp256k1.A2, secp256k1.A3);
+        local b: UInt384 = UInt384(secp256k1.B0, secp256k1.B1, secp256k1.B2, secp256k1.B3);
+        local g: UInt384 = UInt384(secp256k1.G0, secp256k1.G1, secp256k1.G2, secp256k1.G3);
+        local p: UInt384 = UInt384(secp256k1.P0, secp256k1.P1, secp256k1.P2, secp256k1.P3);
+
+        let (y, is_on_curve) = try_get_point_from_x(x=r, v=y_parity, a=&a, b=&b, g=&g, p=&p);
         if (is_on_curve == 0) {
             return (
                 public_key_point=G1Point(x=UInt384(0, 0, 0, 0), y=UInt384(0, 0, 0, 0)), success=0
@@ -166,7 +166,10 @@ namespace Signature {
             from garaga.hints.io import pack_bigint_ptr, pack_felt_ptr, fill_sum_dlog_div, fill_g1_point, bigint_split
             from garaga.starknet.tests_and_calldata_generators.msm import MSMCalldataBuilder
             from garaga.definitions import G1Point
+            from garaga.definitions import CurveID
+            from garaga.hints.io import bigint_pack, bigint_fill
             import time
+
             curve_id = CurveID.SECP256K1
             r_point = (bigint_pack(ids.r_point.x, 4, 2**96), bigint_pack(ids.r_point.y, 4, 2**96))
             points = [G1Point.get_nG(curve_id, 1), G1Point(r_point[0], r_point[1], curve_id)]
@@ -261,7 +264,7 @@ namespace Signature {
         tempvar range_check96_ptr_after_circuit = range_check96_ptr + 224 + (4 + 117 + 108 - 1) *
             N_LIMBS;
         let random_point = get_random_point{range_check96_ptr=range_check96_ptr_after_circuit}(
-            seed=[cast(poseidon_ptr, felt*) - 3]
+            seed=[cast(poseidon_ptr, felt*) - 3], a=&a, b=&b, g=&g, p=&p
         );
 
         tempvar range_check96_ptr_final = range_check96_ptr_after_circuit;
@@ -271,7 +274,7 @@ namespace Signature {
 
         let ecip_input: UInt384* = cast(range_check96_ptr, UInt384*);
         // Constants (0-3)
-        assert ecip_input[0] = UInt384(secp256k1.G0, secp256k1.G1, secp256k1.G2, secp256k1.G3);
+        assert ecip_input[0] = g;
         assert ecip_input[1] = UInt384(0, 0, 0, 0);
         assert ecip_input[2] = UInt384(12528508628158887531275213211, 66632300, 0, 0);
         assert ecip_input[3] = UInt384(12528508628158887531275213211, 4361599596, 0, 0);
@@ -317,12 +320,11 @@ namespace Signature {
         assert ecip_input[57] = random_point.y;
 
         // a_Weierstrass
-        assert ecip_input[58] = UInt384(secp256k1.A0, secp256k1.A1, secp256k1.A2, secp256k1.A3);
+        assert ecip_input[58] = a;
         // base_rlc
         assert ecip_input[59] = rlc_coeff_u384;
 
         let (add_offsets_ptr, mul_offsets_ptr) = get_full_ecip_2P_circuit();
-        let p = UInt384(secp256k1.P0, secp256k1.P1, secp256k1.P2, secp256k1.P3);
         assert add_mod_ptr[0] = ModBuiltin(
             p=p, values_ptr=cast(range_check96_ptr, UInt384*), offsets_ptr=add_offsets_ptr, n=117
         );
@@ -346,7 +348,11 @@ namespace Signature {
         let add_mod_ptr = add_mod_ptr + 117 * ModBuiltin.SIZE;
         let mul_mod_ptr = mul_mod_ptr + 108 * ModBuiltin.SIZE;
         let res = ec_add(
-            G1Point(x=ecip_input[50], y=ecip_input[51]), G1Point(x=ecip_input[54], y=ecip_input[55])
+            G1Point(x=ecip_input[50], y=ecip_input[51]),
+            G1Point(x=ecip_input[54], y=ecip_input[55]),
+            g,
+            a,
+            p,
         );
         return (public_key_point=res, success=1);
     }

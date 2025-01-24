@@ -3,6 +3,8 @@ from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
 from starkware.cairo.common.uint256 import Uint256
 from ethereum.utils.numeric import divmod
 
+using Uint384 = UInt384;
+
 const STARK_MIN_ONE_D2 = 0x800000000000011;
 
 func felt_to_uint384{range_check96_ptr: felt*}(x: felt) -> UInt384 {
