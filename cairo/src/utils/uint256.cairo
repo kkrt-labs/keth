@@ -13,6 +13,8 @@ from starkware.cairo.common.math_cmp import is_nn
 
 from src.utils.maths import unsigned_div_rem
 
+using UInt256 = Uint256;
+
 // Adds two integers. Returns the result as a 256-bit integer and the (1-bit) carry.
 // Strictly equivalent and faster version of common.uint256.uint256_add using the same whitelisted hint.
 func uint256_add{range_check_ptr}(a: Uint256, b: Uint256) -> (res: Uint256, carry: felt) {

@@ -1,14 +1,52 @@
-from starkware.cairo.common.cairo_builtins import UInt384, ModBuiltin, PoseidonBuiltin
-from starkware.cairo.common.alloc import alloc
+from src.utils.uint384 import UInt384
+from src.utils.uint256 import UInt256
 
-from src.curve.secp256k1 import (
-    get_generator_point,
-    try_get_point_from_x,
-    get_random_point,
-    ec_double,
-    ec_add,
-)
-from src.curve.g1_point import G1Point
+from src.curve.secp256k1 import get_generator_point, secp256k1
+
+func test__get_P() -> UInt384* {
+    tempvar p_ptr = new UInt384(secp256k1.P0, secp256k1.P1, secp256k1.P2, secp256k1.P3);
+    return p_ptr;
+}
+
+func test__get_P_256() -> UInt256* {
+    tempvar p_ptr = new UInt256(secp256k1.P_LOW_128, secp256k1.P_HIGH_128);
+    return p_ptr;
+}
+
+func test__get_N() -> UInt384* {
+    tempvar n_ptr = new UInt384(secp256k1.N0, secp256k1.N1, secp256k1.N2, secp256k1.N3);
+    return n_ptr;
+}
+
+func test__get_N_256() -> UInt256* {
+    tempvar n_ptr = new UInt256(secp256k1.N_LOW_128, secp256k1.N_HIGH_128);
+    return n_ptr;
+}
+
+func test__get_A() -> UInt384* {
+    tempvar a_ptr = new UInt384(secp256k1.A0, secp256k1.A1, secp256k1.A2, secp256k1.A3);
+    return a_ptr;
+}
+
+func test__get_B() -> UInt384* {
+    tempvar b_ptr = new UInt384(secp256k1.B0, secp256k1.B1, secp256k1.B2, secp256k1.B3);
+    return b_ptr;
+}
+
+func test__get_G() -> UInt384* {
+    tempvar g_ptr = new UInt384(secp256k1.G0, secp256k1.G1, secp256k1.G2, secp256k1.G3);
+    return g_ptr;
+}
+
+func test__get_P_MIN_ONE() -> UInt384* {
+    tempvar p_min_one_ptr = new UInt384(
+        secp256k1.P_MIN_ONE_D0,
+        secp256k1.P_MIN_ONE_D1,
+        secp256k1.P_MIN_ONE_D2,
+        secp256k1.P_MIN_ONE_D3,
+    );
+    return p_min_one_ptr;
+}
 
 func test__get_generator_point() {
     let generator = get_generator_point();
@@ -23,75 +61,4 @@ func test__get_generator_point() {
     assert generator.y.d3 = 0x0;
 
     return ();
-}
-
-func test__try_get_point_from_x{
-    range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
-}() -> (y: UInt384*, is_on_curve: felt) {
-    alloc_locals;
-    let (x_ptr) = alloc();
-    tempvar v;
-    %{
-        segments.write_arg(ids.x_ptr, program_input["x"])
-        ids.v = program_input["v"]
-    %}
-
-    let x = [cast(x_ptr, UInt384*)];
-    let (y, is_on_curve) = try_get_point_from_x(x=x, v=v);
-    // serde doesn't handle non pointer types in tuples
-    tempvar y_ptr = new UInt384(y.d0, y.d1, y.d2, y.d3);
-    return (y_ptr, is_on_curve);
-}
-
-func test__get_random_point{
-    range_check96_ptr: felt*,
-    add_mod_ptr: ModBuiltin*,
-    mul_mod_ptr: ModBuiltin*,
-    poseidon_ptr: PoseidonBuiltin*,
-}() -> G1Point* {
-    alloc_locals;
-    tempvar seed;
-    %{ ids.seed =  program_input["seed"] %}
-
-    let point = get_random_point(seed);
-    tempvar point_ptr = new G1Point(
-        UInt384(point.x.d0, point.x.d1, point.x.d2, point.x.d3),
-        UInt384(point.y.d0, point.y.d1, point.y.d2, point.y.d3),
-    );
-    return point_ptr;
-}
-
-func test__ec_double{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
-    ) -> G1Point* {
-    alloc_locals;
-    let (p_ptr) = alloc();
-    %{ segments.write_arg(ids.p_ptr, program_input["p"]) %}
-
-    let p = [cast(p_ptr, G1Point*)];
-    let res = ec_double(p);
-    tempvar res_ptr = new G1Point(
-        UInt384(res.x.d0, res.x.d1, res.x.d2, res.x.d3),
-        UInt384(res.y.d0, res.y.d1, res.y.d2, res.y.d3),
-    );
-    return res_ptr;
-}
-
-func test__ec_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
-    ) -> G1Point* {
-    alloc_locals;
-    let (p_ptr) = alloc();
-    let (q_ptr) = alloc();
-    %{
-        segments.write_arg(ids.p_ptr, program_input["p"])
-        segments.write_arg(ids.q_ptr, program_input["q"])
-    %}
-
-    let p = [cast(p_ptr, G1Point*)];
-    let q = [cast(q_ptr, G1Point*)];
-    let res = ec_add(p, q);
-    tempvar res_ptr = new G1Point(
-        UInt384(res.x.d0, res.x.d1, res.x.d2, res.x.d3),
-        UInt384(res.y.d0, res.y.d1, res.y.d2, res.y.d3),
-    );
-    return res_ptr;
 }

@@ -1,16 +1,13 @@
 from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin, KeccakBuiltin
-from starkware.cairo.common.cairo_secp.bigint import BigInt3
-from starkware.cairo.common.uint256 import Uint256
-from starkware.cairo.common.memcpy import memcpy
+from starkware.cairo.common.alloc import alloc
 
-from src.utils.alt_bn128.alt_bn128_g1 import G1Point, ALT_BN128
+from src.curve.alt_bn128 import alt_bn128
+from src.curve.g1_point import G1Point
+from src.curve.ec_ops import ec_mul
 from src.utils.utils import Helpers
+from src.utils.bytes import uint256_to_bytes32
+from src.utils.uint384 import UInt384, uint256_to_uint384, uint384_to_uint256
 
-// @title EcMul Precompile related functions.
-// @notice This file contains the logic required to run the ec_mul precompile
-// using alt_bn128 library
-// @author @pedrobergamini
-// @custom:namespace PrecompileEcMul
 namespace PrecompileEcMul {
     const PRECOMPILE_ADDRESS = 0x07;
     const GAS_COST_EC_MUL = 6000;
@@ -32,17 +29,32 @@ namespace PrecompileEcMul {
     ) {
         alloc_locals;
 
-        let x: BigInt3 = Helpers.bytes32_to_bigint(input);
-        let y: BigInt3 = Helpers.bytes32_to_bigint(input + G1POINT_BYTES_LEN);
-        let scalar: BigInt3 = Helpers.bytes32_to_bigint(input + G1POINT_BYTES_LEN * 2);
+        let x0_u256 = Helpers.bytes32_to_uint256(input);
+        let y0_u256 = Helpers.bytes32_to_uint256(input + G1POINT_BYTES_LEN);
+        let x1_u256 = Helpers.bytes32_to_uint256(input + G1POINT_BYTES_LEN * 2);
+        let y1_u256 = Helpers.bytes32_to_uint256(input + G1POINT_BYTES_LEN * 3);
+
+        let x0 = uint256_to_uint384(x0_u256);
+        let y0 = uint256_to_uint384(y0_u256);
+        let x1 = uint256_to_uint384(x1_u256);
+        let y1 = uint256_to_uint384(y1_u256);
+        let p = G1Point(x0, y0);
+        let q = G1Point(x1, y1);
+
+        tempvar g_ptr = UInt384(alt_bn128.G0, alt_bn128.G1, alt_bn128.G2, alt_bn128.G3);
+        tempvar a_ptr = UInt384(alt_bn128.A0, alt_bn128.A1, alt_bn128.A2, alt_bn128.A3);
+        tempvar modulus_ptr = UInt384(alt_bn128.P0, alt_bn128.P1, alt_bn128.P2, alt_bn128.P3);
 
         with_attr error_message("Kakarot: ec_mul failed") {
-            let result: G1Point = ALT_BN128.ec_mul(G1Point(x, y), scalar);
+            let result: G1Point = ec_mul(p, q, g_ptr, a_ptr, modulus_ptr);
         }
 
-        let (bytes_x_len, output: felt*) = Helpers.bigint_to_bytes_array(result.x);
-        let (bytes_y_len, bytes_y: felt*) = Helpers.bigint_to_bytes_array(result.y);
-        memcpy(output + bytes_x_len, bytes_y, bytes_y_len);
+        let x_u256 = uint384_to_uint256(result.x);
+        let y_u256 = uint384_to_uint256(result.y);
+
+        let (output) = alloc();
+        uint256_to_bytes32(output, x_u256);
+        uint256_to_bytes32(output + G1POINT_BYTES_LEN, y_u256);
 
         return (G1POINT_BYTES_LEN * 2, output, GAS_COST_EC_MUL, 0);
     }
