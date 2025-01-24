@@ -104,14 +104,14 @@ func sload{
         EvmImpl.set_env(env);
 
         let err = push(value);
-        EvmImpl.set_stack(stack);
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
 
     // PROGRAM COUNTER
-    EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
+    EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
     let ok = cast(0, EthereumException*);
     return ok;
 }

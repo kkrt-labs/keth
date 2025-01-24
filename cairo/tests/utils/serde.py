@@ -699,9 +699,7 @@ class Serde:
                 ),
             )
 
-            is_root_state = (
-                parent_main_dict is None and parent_storage_dict is None
-            )
+            is_root_state = parent_main_dict is None and parent_storage_dict is None
             snapshot = (
                 Trie(
                     flat_state._main_trie.secured,
