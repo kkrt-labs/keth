@@ -700,7 +700,7 @@ class Serde:
                 ),
             )
 
-            is_original_state = (
+            is_root_state = (
                 tmp_parent_main_dict is None and tmp_parent_storage_dict is None
             )
             snapshot = (
