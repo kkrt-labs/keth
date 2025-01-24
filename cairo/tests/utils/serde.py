@@ -716,9 +716,6 @@ class Serde:
                         ),
                         parent_main_dict,
                         Mapping[Address, Optional[Account]],
-                        # If the parent pointers are None, the state is the original state,
-                        # We can skip the consistency check on dicts
-                        check_dict_consistency=not is_original_state,
                     ),
                 ),
                 Trie(
