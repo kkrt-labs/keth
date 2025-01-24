@@ -504,7 +504,6 @@ class Serde:
 
         # Invariant Testing:
         # We need to ensure that the last dict_ptr points properly
-        # We skip this invariant check if we're serializing `original_mapping` fields
         # since they might have been updated by reading the `original_storage_trie` field of the state.
         assert (
             self.memory.get(pointers["dict_ptr"]) is None
@@ -681,17 +680,17 @@ class Serde:
         )
 
         # Follow parent pointers to reconstruct snapshots
-        parent_main_dict = self._get_trie_parent_ptr(raw_state["_main_trie"])
-        parent_storage_dict = self._get_trie_parent_ptr(raw_state["_storage_tries"])
+        current_main_dict = self._get_trie_parent_ptr(raw_state["_main_trie"])
+        current_storage_dict = self._get_trie_parent_ptr(raw_state["_storage_tries"])
 
-        while parent_main_dict and parent_storage_dict:
+        while current_main_dict and current_storage_dict:
 
-            tmp_parent_main_dict = self._get_mapping_parent_ptr(
-                parent_main_dict,
+            parent_main_dict = self._get_mapping_parent_ptr(
+                current_main_dict,
                 ("ethereum", "cancun", "fork_types", "MappingAddressAccountStruct"),
             )
-            tmp_parent_storage_dict = self._get_mapping_parent_ptr(
-                parent_storage_dict,
+            parent_storage_dict = self._get_mapping_parent_ptr(
+                current_storage_dict,
                 (
                     "ethereum",
                     "cancun",
@@ -701,7 +700,7 @@ class Serde:
             )
 
             is_root_state = (
-                tmp_parent_main_dict is None and tmp_parent_storage_dict is None
+                parent_main_dict is None and parent_storage_dict is None
             )
             snapshot = (
                 Trie(
@@ -730,14 +729,14 @@ class Serde:
                         ),
                         parent_storage_dict,
                         Mapping[Tuple[Address, Bytes32], U256],
-                        check_dict_consistency=not is_original_state,
+                        check_dict_consistency=not is_root_state,
                     ),
                 ),
             )
             flat_state._snapshots.append(snapshot)
 
-            parent_main_dict = tmp_parent_main_dict
-            parent_storage_dict = tmp_parent_storage_dict
+            current_main_dict = parent_main_dict
+            current_storage_dict = parent_storage_dict
 
         # Reverse the snapshots to match the expected order (older first)
         flat_state._snapshots.reverse()

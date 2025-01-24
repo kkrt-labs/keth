@@ -56,14 +56,14 @@ func add{
     let (result, _) = uint256_add([x.value], [y.value]);
     with stack {
         let err4 = push(U256(new U256Struct(result.low, result.high)));
-        EvmImpl.set_stack(stack);
         if (cast(err4, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err4;
         }
     }
 
     // PROGRAM COUNTER
-    EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
+    EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
     let ok = cast(0, EthereumException*);
     return ok;
 }

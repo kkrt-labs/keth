@@ -302,6 +302,7 @@ namespace Internals {
                 return err;
             }
         }
+        EvmImpl.set_stack{evm=evm}(stack);
         let ok = cast(0, EthereumException*);
         return ok;
     }
