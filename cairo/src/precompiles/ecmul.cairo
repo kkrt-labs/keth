@@ -8,9 +8,9 @@ from src.utils.utils import Helpers
 from src.utils.bytes import uint256_to_bytes32
 from src.utils.uint384 import UInt384, uint256_to_uint384, uint384_to_uint256
 
-namespace PrecompileEcAdd {
-    const PRECOMPILE_ADDRESS = 0x06;
-    const GAS_COST_EC_ADD = 150;
+namespace PrecompileEcMul {
+    const PRECOMPILE_ADDRESS = 0x07;
+    const GAS_COST_EC_MUL = 6000;
     const G1POINT_BYTES_LEN = 32;
 
     // @notice Run the precompile.
@@ -45,7 +45,7 @@ namespace PrecompileEcAdd {
         tempvar a_ptr = UInt384(alt_bn128.A0, alt_bn128.A1, alt_bn128.A2, alt_bn128.A3);
         tempvar modulus_ptr = UInt384(alt_bn128.P0, alt_bn128.P1, alt_bn128.P2, alt_bn128.P3);
 
-        with_attr error_message("Kakarot: ec_add failed") {
+        with_attr error_message("Kakarot: ec_mul failed") {
             let result: G1Point = ec_mul(p, q, g_ptr, a_ptr, modulus_ptr);
         }
 
@@ -56,6 +56,6 @@ namespace PrecompileEcAdd {
         uint256_to_bytes32(output, x_u256);
         uint256_to_bytes32(output + G1POINT_BYTES_LEN, y_u256);
 
-        return (G1POINT_BYTES_LEN * 2, output, GAS_COST_EC_ADD, 0);
+        return (G1POINT_BYTES_LEN * 2, output, GAS_COST_EC_MUL, 0);
     }
 }
