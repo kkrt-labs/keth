@@ -37,6 +37,7 @@ func push_n{range_check_ptr, evm: Evm}(num_bytes: Uint) -> EthereumException* {
     with stack {
         let err = push(data_to_push);
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -102,6 +103,7 @@ func dup_n{range_check_ptr, evm: Evm}(item_number: Uint) -> EthereumException* {
     with stack {
         let err = push(value_to_push);
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -124,6 +126,7 @@ func pop{
     with stack {
         let (value, err) = stack_pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -131,6 +134,7 @@ func pop{
     // GAS
     let err = charge_gas(Uint(GasConstants.GAS_BASE));
     if (cast(err, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err;
     }
 

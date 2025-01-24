@@ -35,10 +35,12 @@ func log0{
         // Pop memory_start_index and size
         let (memory_start_index, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
         let (size, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -47,6 +49,7 @@ func log0{
     // Calculate memory expansion cost
     // If the size is greater than 2**128, the memory expansion will trigger an out of gas error.
     if (size.value.high != 0) {
+        EvmImpl.set_stack(stack);
         tempvar err = new EthereumException(OutOfGasError);
         return err;
     }
@@ -65,6 +68,7 @@ func log0{
 
     let err = charge_gas(total_cost);
     if (cast(err, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err;
     }
 
@@ -83,6 +87,7 @@ func log0{
 
     // Check for static context
     if (evm.value.message.value.is_static.value != 0) {
+        EvmImpl.set_stack(stack);
         tempvar err = new EthereumException(WriteInStaticContext);
         return err;
     }
@@ -116,14 +121,17 @@ func log1{
         // Pop memory_start_index, size and topic
         let (memory_start_index, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
         let (size, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
         let (topic, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -132,6 +140,7 @@ func log1{
     // Calculate memory expansion cost
     // If the size is greater than 2**128, the memory expansion will trigger an out of gas error.
     if (size.value.high != 0) {
+        EvmImpl.set_stack(stack);
         tempvar err = new EthereumException(OutOfGasError);
         return err;
     }
@@ -150,6 +159,7 @@ func log1{
 
     let err = charge_gas(total_cost);
     if (cast(err, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err;
     }
 
@@ -170,6 +180,7 @@ func log1{
 
     // Check for static context
     if (evm.value.message.value.is_static.value != 0) {
+        EvmImpl.set_stack(stack);
         tempvar err = new EthereumException(WriteInStaticContext);
         return err;
     }
@@ -203,18 +214,22 @@ func log2{
         // Pop memory_start_index and size
         let (memory_start_index, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
         let (size, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
         let (topic1, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
         let (topic2, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -223,6 +238,7 @@ func log2{
     // Calculate memory expansion cost
     // If the size is greater than 2**128, the memory expansion will trigger an out of gas error.
     if (size.value.high != 0) {
+        EvmImpl.set_stack(stack);
         tempvar err = new EthereumException(OutOfGasError);
         return err;
     }
@@ -241,6 +257,7 @@ func log2{
 
     let err = charge_gas(total_cost);
     if (cast(err, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err;
     }
 
@@ -264,6 +281,7 @@ func log2{
 
     // Check for static context
     if (evm.value.message.value.is_static.value != 0) {
+        EvmImpl.set_stack(stack);
         tempvar err = new EthereumException(WriteInStaticContext);
         return err;
     }
@@ -297,22 +315,27 @@ func log3{
         // Pop memory_start_index and size
         let (memory_start_index, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
         let (size, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
         let (topic1, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
         let (topic2, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
         let (topic3, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -321,6 +344,7 @@ func log3{
     // Calculate memory expansion cost
     // If the size is greater than 2**128, the memory expansion will trigger an out of gas error.
     if (size.value.high != 0) {
+        EvmImpl.set_stack(stack);
         tempvar err = new EthereumException(OutOfGasError);
         return err;
     }
@@ -339,6 +363,7 @@ func log3{
 
     let err = charge_gas(total_cost);
     if (cast(err, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err;
     }
 
@@ -364,6 +389,7 @@ func log3{
 
     // Check for static context
     if (evm.value.message.value.is_static.value != 0) {
+        EvmImpl.set_stack(stack);
         tempvar err = new EthereumException(WriteInStaticContext);
         return err;
     }
@@ -397,26 +423,32 @@ func log4{
         // Pop memory_start_index and size
         let (memory_start_index, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
         let (size, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
         let (topic1, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
         let (topic2, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
         let (topic3, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
         let (topic4, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -425,6 +457,7 @@ func log4{
     // Calculate memory expansion cost
     // If the size is greater than 2**128, the memory expansion will trigger an out of gas error.
     if (size.value.high != 0) {
+        EvmImpl.set_stack(stack);
         tempvar err = new EthereumException(OutOfGasError);
         return err;
     }
@@ -443,6 +476,7 @@ func log4{
 
     let err = charge_gas(total_cost);
     if (cast(err, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err;
     }
 
@@ -470,6 +504,7 @@ func log4{
 
     // Check for static context
     if (evm.value.message.value.is_static.value != 0) {
+        EvmImpl.set_stack(stack);
         tempvar err = new EthereumException(WriteInStaticContext);
         return err;
     }

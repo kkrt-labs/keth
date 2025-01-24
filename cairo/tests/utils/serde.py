@@ -471,7 +471,13 @@ class Serde:
         raise ValueError(f"Unknown type {cairo_type}")
 
     def _serialize_mapping_struct(
-        self, mapping_struct_path, mapping_struct_ptr, origin_cls
+        self,
+        mapping_struct_path,
+        mapping_struct_ptr,
+        origin_cls,
+        # this is used to toggle enforcement of checking
+        # if `dict_ptr` is correctly pointing at the next empty memory cell
+        check_dict_consistency=True,
     ):
         dict_access_path = (
             get_struct_definition(self.program, mapping_struct_path)
@@ -496,6 +502,15 @@ class Serde:
         segment_size = pointers["dict_ptr"] - pointers["dict_ptr_start"]
         dict_ptr = pointers["dict_ptr_start"]
 
+        # Invariant Testing:
+        # We need to ensure that the last dict_ptr points properly
+        # since they might have been updated by reading the `original_storage_trie` field of the state.
+        assert (
+            self.memory.get(pointers["dict_ptr"]) is None
+            if check_dict_consistency
+            else True
+        )
+
         dict_segment_data = {
             self._serialize(cairo_key_type, dict_ptr + i): self._serialize(
                 value_type, dict_ptr + i + 2
@@ -512,7 +527,10 @@ class Serde:
         parent_dict_ptr = pointers.get("parent_dict")
         serialized_original = (
             self._serialize_mapping_struct(
-                mapping_struct_path, parent_dict_ptr, origin_cls
+                mapping_struct_path,
+                parent_dict_ptr,
+                origin_cls,
+                check_dict_consistency=False,
             )
             if parent_dict_ptr
             else {}
@@ -662,10 +680,26 @@ class Serde:
         )
 
         # Follow parent pointers to reconstruct snapshots
-        parent_main_dict = self._get_trie_parent_ptr(raw_state["_main_trie"])
-        parent_storage_dict = self._get_trie_parent_ptr(raw_state["_storage_tries"])
+        current_main_dict = self._get_trie_parent_ptr(raw_state["_main_trie"])
+        current_storage_dict = self._get_trie_parent_ptr(raw_state["_storage_tries"])
 
-        while parent_main_dict and parent_storage_dict:
+        while current_main_dict and current_storage_dict:
+
+            parent_main_dict = self._get_mapping_parent_ptr(
+                current_main_dict,
+                ("ethereum", "cancun", "fork_types", "MappingAddressAccountStruct"),
+            )
+            parent_storage_dict = self._get_mapping_parent_ptr(
+                current_storage_dict,
+                (
+                    "ethereum",
+                    "cancun",
+                    "fork_types",
+                    "MappingTupleAddressBytes32U256Struct",
+                ),
+            )
+
+            is_root_state = parent_main_dict is None and parent_storage_dict is None
             snapshot = (
                 Trie(
                     flat_state._main_trie.secured,
@@ -677,7 +711,7 @@ class Serde:
                             "fork_types",
                             "MappingAddressAccountStruct",
                         ),
-                        parent_main_dict,
+                        current_main_dict,
                         Mapping[Address, Optional[Account]],
                     ),
                 ),
@@ -691,26 +725,16 @@ class Serde:
                             "fork_types",
                             "MappingTupleAddressBytes32U256Struct",
                         ),
-                        parent_storage_dict,
+                        current_storage_dict,
                         Mapping[Tuple[Address, Bytes32], U256],
+                        check_dict_consistency=not is_root_state,
                     ),
                 ),
             )
             flat_state._snapshots.append(snapshot)
 
-            parent_main_dict = self._get_mapping_parent_ptr(
-                parent_main_dict,
-                ("ethereum", "cancun", "fork_types", "MappingAddressAccountStruct"),
-            )
-            parent_storage_dict = self._get_mapping_parent_ptr(
-                parent_storage_dict,
-                (
-                    "ethereum",
-                    "cancun",
-                    "fork_types",
-                    "MappingTupleAddressBytes32U256Struct",
-                ),
-            )
+            current_main_dict = parent_main_dict
+            current_storage_dict = parent_storage_dict
 
         # Reverse the snapshots to match the expected order (older first)
         flat_state._snapshots.reverse()

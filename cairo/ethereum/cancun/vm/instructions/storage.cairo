@@ -46,6 +46,7 @@ func sload{
     with stack {
         let (key, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -76,36 +77,41 @@ func sload{
     let poseidon_ptr = cast([ap - 2], PoseidonBuiltin*);
     let dict_ptr = cast([ap - 1], DictAccess*);
 
-    let access_gas_cost = (is_present * GasConstants.GAS_WARM_ACCESS) + (1 - is_present) *
-        GasConstants.GAS_COLD_SLOAD;
-    let err = charge_gas(Uint(access_gas_cost));
-    if (cast(err, felt) != 0) {
-        return err;
-    }
-
     let new_dict_ptr = cast(dict_ptr, SetTupleAddressBytes32DictAccess*);
     tempvar new_accessed_storage_keys = SetTupleAddressBytes32(
         new SetTupleAddressBytes32Struct(
             evm.value.accessed_storage_keys.value.dict_ptr_start, new_dict_ptr
         ),
     );
+    EvmImpl.set_accessed_storage_keys(new_accessed_storage_keys);
+
+    let access_gas_cost = (is_present * GasConstants.GAS_WARM_ACCESS) + (1 - is_present) *
+        GasConstants.GAS_COLD_SLOAD;
+    let err = charge_gas(Uint(access_gas_cost));
+    if (cast(err, felt) != 0) {
+        EvmImpl.set_stack(stack);
+        return err;
+    }
 
     // OPERATION
     let state = evm.value.env.value.state;
     with state, stack {
         let value = get_storage(evm.value.message.value.current_target, Bytes32(key.value));
+
+        // Rebind state, env, stack, and accessed_storage_keys since it's the last time they are used
+        let env = evm.value.env;
+        EnvImpl.set_state{env=env}(state);
+        EvmImpl.set_env(env);
+
         let err = push(value);
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
 
     // PROGRAM COUNTER
-    let env = evm.value.env;
-    EnvImpl.set_state{env=env}(state);
-    EvmImpl.set_env(env);
     EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
-    EvmImpl.set_accessed_storage_keys(new_accessed_storage_keys);
     let ok = cast(0, EthereumException*);
     return ok;
 }
@@ -124,16 +130,19 @@ func sstore{
     with stack {
         let (key, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
         let (new_value, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
 
     let is_gas_left_not_enough = is_le(evm.value.gas_left.value, GasConstants.GAS_CALL_STIPEND);
     if (is_gas_left_not_enough != 0) {
+        EvmImpl.set_stack(stack);
         tempvar err = new EthereumException(OutOfGasError);
         return err;
     }
@@ -228,10 +237,24 @@ func sstore{
     // Charge gas
     let err = charge_gas(Uint(gas_cost));
     if (cast(err, felt) != 0) {
+        // Update EVM state
+        let env = evm.value.env;
+        EnvImpl.set_state{env=env}(state);
+        EvmImpl.set_env(env);
+        EvmImpl.set_accessed_storage_keys(new_accessed_storage_keys);
+        EvmImpl.set_refund_counter(refund_counter);
+        EvmImpl.set_stack(stack);
         return err;
     }
     // Check static call
     if (evm.value.message.value.is_static.value != 0) {
+        // Update EVM state
+        let env = evm.value.env;
+        EnvImpl.set_state{env=env}(state);
+        EvmImpl.set_env(env);
+        EvmImpl.set_accessed_storage_keys(new_accessed_storage_keys);
+        EvmImpl.set_refund_counter(refund_counter);
+        EvmImpl.set_stack(stack);
         tempvar err = new EthereumException(WriteInStaticContext);
         return err;
     }
@@ -267,6 +290,7 @@ func tload{
     with stack {
         let (key, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -274,6 +298,7 @@ func tload{
     // GAS
     let err = charge_gas(Uint(GasConstants.GAS_WARM_ACCESS));
     if (cast(err, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err;
     }
 
@@ -285,6 +310,10 @@ func tload{
     );
     let err = push{stack=stack}(value);
     if (cast(err, felt) != 0) {
+        let env = evm.value.env;
+        EnvImpl.set_transient_storage{env=env}(transient_storage);
+        EvmImpl.set_env(env);
+        EvmImpl.set_stack(stack);
         return err;
     }
 
@@ -311,10 +340,12 @@ func tstore{
     with stack {
         let (key, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
         let (new_value, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -322,11 +353,13 @@ func tstore{
     // GAS
     let err = charge_gas(Uint(GasConstants.GAS_WARM_ACCESS));
     if (cast(err, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err;
     }
 
     // Check for static call
     if (evm.value.message.value.is_static.value != 0) {
+        EvmImpl.set_stack(stack);
         tempvar err = new EthereumException(WriteInStaticContext);
         return cast(err, EthereumException*);
     }

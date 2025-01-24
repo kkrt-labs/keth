@@ -40,10 +40,12 @@ func mstore{
     with stack {
         let (start_position, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
         let (value, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -58,6 +60,7 @@ func mstore{
     // assumed that cost < 2**110 (see calculate_memory_gas_cost)
     let err = charge_gas(Uint(GasConstants.GAS_VERY_LOW + extend_memory.value.cost.value));
     if (cast(err, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err;
     }
 
@@ -93,10 +96,12 @@ func mstore8{
     with stack {
         let (start_position, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
         let (value, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -111,6 +116,7 @@ func mstore8{
     // assumed that cost < 2**110 (see calculate_memory_gas_cost)
     let err = charge_gas(Uint(GasConstants.GAS_VERY_LOW + extend_memory.value.cost.value));
     if (cast(err, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err;
     }
 
@@ -148,6 +154,7 @@ func mload{
     with stack {
         let (start_position, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -162,6 +169,7 @@ func mload{
     // assumed that cost < 2**110 (see calculate_memory_gas_cost)
     let err = charge_gas(Uint(GasConstants.GAS_VERY_LOW + extend_memory.value.cost.value));
     if (cast(err, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err;
     }
 
@@ -175,6 +183,7 @@ func mload{
     with stack {
         let err = push(U256(new U256Struct(value.low, value.high)));
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -207,6 +216,7 @@ func msize{
     with stack {
         let err = push(U256(new U256Struct(evm.value.memory.value.len, 0)));
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -231,14 +241,17 @@ func mcopy{
     with stack {
         let (destination, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
         let (source, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
         let (length, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -246,6 +259,7 @@ func mcopy{
     // GAS
     // OutOfGasError if length > 2**128
     if (length.value.high != 0) {
+        EvmImpl.set_stack(stack);
         tempvar err = new EthereumException(OutOfGasError);
         return err;
     }
@@ -271,6 +285,7 @@ func mcopy{
         Uint(GasConstants.GAS_VERY_LOW + copy_gas_cost + extend_memory.value.cost.value)
     );
     if (cast(err, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err;
     }
 

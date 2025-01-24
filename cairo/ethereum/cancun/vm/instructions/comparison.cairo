@@ -22,10 +22,12 @@ func less_than{
     with stack {
         let (x, err1) = pop();
         if (cast(err1, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err1;
         }
         let (y, err2) = pop();
         if (cast(err2, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err2;
         }
     }
@@ -33,6 +35,7 @@ func less_than{
     // GAS
     let err3 = charge_gas(Uint(GasConstants.GAS_VERY_LOW));
     if (cast(err3, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err3;
     }
 
@@ -41,13 +44,13 @@ func less_than{
     with stack {
         let err4 = push(U256(new U256Struct(result, 0)));
         if (cast(err4, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err4;
         }
     }
 
     // PROGRAM COUNTER
-    EvmImpl.set_stack(stack);
-    EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
+    EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
     let ok = cast(0, EthereumException*);
     return ok;
 }
@@ -66,10 +69,12 @@ func greater_than{
     with stack {
         let (x, err1) = pop();
         if (cast(err1, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err1;
         }
         let (y, err2) = pop();
         if (cast(err2, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err2;
         }
     }
@@ -77,6 +82,7 @@ func greater_than{
     // GAS
     let err3 = charge_gas(Uint(GasConstants.GAS_VERY_LOW));
     if (cast(err3, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err3;
     }
 
@@ -85,13 +91,13 @@ func greater_than{
     with stack {
         let err4 = push(U256(new U256Struct(result, 0)));
         if (cast(err4, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err4;
         }
     }
 
     // PROGRAM COUNTER
-    EvmImpl.set_stack(stack);
-    EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
+    EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
     let ok = cast(0, EthereumException*);
     return ok;
 }
@@ -110,10 +116,12 @@ func signed_less_than{
     with stack {
         let (x, err1) = pop();
         if (cast(err1, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err1;
         }
         let (y, err2) = pop();
         if (cast(err2, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err2;
         }
     }
@@ -121,6 +129,7 @@ func signed_less_than{
     // GAS
     let err3 = charge_gas(Uint(GasConstants.GAS_VERY_LOW));
     if (cast(err3, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err3;
     }
 
@@ -129,13 +138,13 @@ func signed_less_than{
     with stack {
         let err4 = push(U256(new U256Struct(result, 0)));
         if (cast(err4, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err4;
         }
     }
 
     // PROGRAM COUNTER
-    EvmImpl.set_stack(stack);
-    EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
+    EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
     let ok = cast(0, EthereumException*);
     return ok;
 }
@@ -154,10 +163,12 @@ func signed_greater_than{
     with stack {
         let (x, err1) = pop();
         if (cast(err1, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err1;
         }
         let (y, err2) = pop();
         if (cast(err2, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err2;
         }
     }
@@ -165,6 +176,7 @@ func signed_greater_than{
     // GAS
     let err3 = charge_gas(Uint(GasConstants.GAS_VERY_LOW));
     if (cast(err3, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err3;
     }
 
@@ -173,13 +185,13 @@ func signed_greater_than{
     with stack {
         let err4 = push(U256(new U256Struct(result, 0)));
         if (cast(err4, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err4;
         }
     }
 
     // PROGRAM COUNTER
-    EvmImpl.set_stack(stack);
-    EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
+    EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
     let ok = cast(0, EthereumException*);
     return ok;
 }
@@ -198,10 +210,12 @@ func equal{
     with stack {
         let (x, err1) = pop();
         if (cast(err1, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err1;
         }
         let (y, err2) = pop();
         if (cast(err2, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err2;
         }
     }
@@ -209,6 +223,7 @@ func equal{
     // GAS
     let err3 = charge_gas(Uint(GasConstants.GAS_VERY_LOW));
     if (cast(err3, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err3;
     }
 
@@ -217,13 +232,13 @@ func equal{
     with stack {
         let err4 = push(U256(new U256Struct(result, 0)));
         if (cast(err4, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err4;
         }
     }
 
     // PROGRAM COUNTER
-    EvmImpl.set_stack(stack);
-    EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
+    EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
     let ok = cast(0, EthereumException*);
     return ok;
 }
@@ -242,6 +257,7 @@ func is_zero{
     with stack {
         let (x, err1) = pop();
         if (cast(err1, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err1;
         }
     }
@@ -249,6 +265,7 @@ func is_zero{
     // GAS
     let err2 = charge_gas(Uint(GasConstants.GAS_VERY_LOW));
     if (cast(err2, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err2;
     }
 
@@ -257,13 +274,13 @@ func is_zero{
     with stack {
         let err3 = push(U256(new U256Struct(result, 0)));
         if (cast(err3, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err3;
         }
     }
 
     // PROGRAM COUNTER
-    EvmImpl.set_stack(stack);
-    EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
+    EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
     let ok = cast(0, EthereumException*);
     return ok;
 }

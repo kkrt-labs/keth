@@ -73,6 +73,7 @@ func address{
         let address_u256 = U256_from_be_bytes20(evm.value.message.value.current_target);
         let err = push(address_u256);
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -96,6 +97,7 @@ func balance{
     with stack {
         let (address_u256, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -132,6 +134,7 @@ func balance{
         GasConstants.GAS_COLD_ACCOUNT_ACCESS;
     let err = charge_gas(Uint(access_gas_cost));
     if (cast(err, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err;
     }
 
@@ -146,6 +149,7 @@ func balance{
     with stack {
         let err = push(account.value.balance);
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -179,6 +183,7 @@ func origin{
 
         let err = push(origin_u256);
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -212,6 +217,7 @@ func caller{
         let caller_u256 = U256_from_be_bytes20(evm.value.message.value.caller);
         let err = push(caller_u256);
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -244,6 +250,7 @@ func callvalue{
     with stack {
         let err = push(evm.value.message.value.value);
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -278,6 +285,7 @@ func codesize{
         tempvar code_len = U256(new U256Struct(evm.value.code.value.len, 0));
         let err = push(code_len);
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -312,6 +320,7 @@ func gasprice{
         tempvar gas_price = U256(new U256Struct(evm.value.env.value.gas_price.value, 0));
         let err = push(gas_price);
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -345,6 +354,7 @@ func returndatasize{
         // any returndata bigger would produce an OOG upstream.
         let err = push(U256(new U256Struct(evm.value.return_data.value.len, 0)));
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -368,14 +378,17 @@ func returndatacopy{
     with stack {
         let (memory_start_index, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
         let (returndata_start_position, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
         let (size, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -395,6 +408,7 @@ func returndatacopy{
         Uint(GasConstants.GAS_VERY_LOW + return_data_copy_gas_cost + extend_memory.value.cost.value)
     );
     if (cast(err, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err;
     }
 
@@ -402,6 +416,7 @@ func returndatacopy{
     // Check if the read on return_data is in bounds
     // If the start position is greater than 2 ** 128, then it is almost surely out of bounds
     if (returndata_start_position.value.high != 0) {
+        EvmImpl.set_stack(stack);
         tempvar err = new EthereumException(OutOfBoundsRead);
         return err;
     }
@@ -416,6 +431,7 @@ func returndatacopy{
         size.value.low + returndata_start_position.value.low, evm.value.return_data.value.len
     );
     if (is_in_bounds == 0) {
+        EvmImpl.set_stack(stack);
         tempvar err = new EthereumException(OutOfBoundsRead);
         return err;
     }
@@ -458,6 +474,7 @@ func self_balance{
     with stack {
         let err = push(account.value.balance);
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -492,6 +509,7 @@ func base_fee{
         tempvar base_fee = U256(new U256Struct(evm.value.env.value.base_fee_per_gas.value, 0));
         let err = push(base_fee);
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -517,6 +535,7 @@ func blob_hash{
     with stack {
         let (index, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -524,6 +543,7 @@ func blob_hash{
     // GAS
     let err = charge_gas(Uint(GasConstants.GAS_BLOBHASH_OPCODE));
     if (cast(err, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err;
     }
 
@@ -544,6 +564,7 @@ func blob_hash{
     with stack {
         let err = push(res);
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -568,14 +589,17 @@ func codecopy{
     with stack {
         let (memory_start_index, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
         let (code_start_index, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
         let (size, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -583,6 +607,7 @@ func codecopy{
     // Gas
     // OutOfGasError if size > 2**128
     if (size.value.high != 0) {
+        EvmImpl.set_stack(stack);
         tempvar err = new EthereumException(OutOfGasError);
         return err;
     }
@@ -601,6 +626,7 @@ func codecopy{
         Uint(GasConstants.GAS_VERY_LOW + copy_gas_cost + extend_memory.value.cost.value)
     );
     if (cast(err, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err;
     }
     let memory = evm.value.memory;
@@ -631,6 +657,7 @@ func extcodesize{
     with stack {
         let (address_u256, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -664,6 +691,7 @@ func extcodesize{
         GasConstants.GAS_COLD_ACCOUNT_ACCESS;
     let err = charge_gas(Uint(access_gas_cost));
     if (cast(err, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err;
     }
 
@@ -680,6 +708,7 @@ func extcodesize{
     with stack {
         let err = push(code_size_u256);
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -705,18 +734,22 @@ func extcodecopy{
     with stack {
         let (address_u256, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
         let (memory_start_index, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
         let (code_start_index, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
         let (size, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -724,6 +757,7 @@ func extcodecopy{
     // Gas
     // OutOfGasError if size > 2**128
     if (size.value.high != 0) {
+        EvmImpl.set_stack(stack);
         tempvar err = new EthereumException(OutOfGasError);
         return err;
     }
@@ -767,6 +801,7 @@ func extcodecopy{
     let total_gas = Uint(access_gas_cost + copy_gas_cost + extend_memory.value.cost.value);
     let err = charge_gas(total_gas);
     if (cast(err, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err;
     }
 
@@ -806,6 +841,7 @@ func extcodehash{
     with stack {
         let (address_u256, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -839,6 +875,7 @@ func extcodehash{
         GasConstants.GAS_COLD_ACCOUNT_ACCESS;
     let err = charge_gas(Uint(access_gas_cost));
     if (cast(err, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err;
     }
 
@@ -883,6 +920,7 @@ func extcodehash{
     with stack {
         let err = push(code_hash_u256);
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -914,6 +952,7 @@ func blob_base_fee{
     with stack {
         let err = push(blob_base_fee);
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -939,6 +978,7 @@ func calldataload{
     with stack {
         let (offset, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -946,6 +986,7 @@ func calldataload{
     // GAS
     let err = charge_gas(Uint(GasConstants.GAS_VERY_LOW));
     if (cast(err, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err;
     }
 
@@ -958,6 +999,7 @@ func calldataload{
     with stack {
         let err = push(data_to_push);
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -983,14 +1025,17 @@ func calldatacopy{
     with stack {
         let (memory_start_index, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
         let (data_start_index, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
         let (size, err) = pop();
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -998,6 +1043,7 @@ func calldatacopy{
     // GAS
     // OutOfGasError if size > 2**128
     if (size.value.high != 0) {
+        EvmImpl.set_stack(stack);
         tempvar err = new EthereumException(OutOfGasError);
         return err;
     }
@@ -1015,6 +1061,7 @@ func calldatacopy{
         Uint(GasConstants.GAS_VERY_LOW + copy_gas_cost + extend_memory.value.cost.value)
     );
     if (cast(err, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err;
     }
 
@@ -1055,6 +1102,7 @@ func calldatasize{
     with stack {
         let err = push(U256(new U256Struct(calldata_len, 0)));
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }

@@ -83,8 +83,8 @@ func return_{range_check_ptr, evm: Evm}() -> EthereumException* {
             return err;
         }
         let (memory_size, err) = pop();
-        EvmImpl.set_stack(stack);
         if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
             return err;
         }
     }
@@ -93,6 +93,7 @@ func return_{range_check_ptr, evm: Evm}() -> EthereumException* {
     // Calculate memory expansion cost
     // If memory_size > 2**128 - 1, OutOfGasError
     if (memory_size.value.high != 0) {
+        EvmImpl.set_stack(stack);
         tempvar err = new EthereumException(OutOfGasError);
         return err;
     }
@@ -105,6 +106,7 @@ func return_{range_check_ptr, evm: Evm}() -> EthereumException* {
 
     let err = charge_gas(Uint(GasConstants.GAS_ZERO + extend_memory.value.cost.value));
     if (cast(err, felt) != 0) {
+        EvmImpl.set_stack(stack);
         return err;
     }
 
@@ -119,6 +121,7 @@ func return_{range_check_ptr, evm: Evm}() -> EthereumException* {
     // Stop execution
     EvmImpl.set_running(bool(0));
     EvmImpl.set_memory(memory);
+    EvmImpl.set_stack(stack);
     let ok = cast(0, EthereumException*);
     return ok;
 }
