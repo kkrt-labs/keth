@@ -102,7 +102,6 @@ def _run_python_vm(cairo_program: Program, cairo_file, main_path, request):
     """Helper function containing Python VM implementation"""
 
     def _run(entrypoint, *args, **kwargs):
-        logger.debug(f"Running the CairoVM Python VM for {entrypoint}")
         implicit_args = cairo_program.identifiers.get_by_full_name(
             ScopedName(path=("__main__", entrypoint, "ImplicitArgs"))
         ).members
@@ -373,7 +372,6 @@ def _run_rust_vm(
     """Helper function containing Rust VM implementation"""
 
     def _run(entrypoint, *args, **kwargs):
-        logger.debug(f"Running the CairoVM Rust VM for {entrypoint}")
         implicit_args = cairo_program.identifiers.get_by_full_name(
             ScopedName(path=("__main__", entrypoint, "ImplicitArgs"))
         ).members
