@@ -296,7 +296,7 @@ func squash_and_update{range_check_ptr}(
     let dict_ptr_stop = dst;
     tempvar value;
     // Get the prev value from a hint, as it will be verified upon squashing.
-    %{ hashdict_read_from_hashed_key %}
+    %{ hashdict_read_from_key %}
     assert dst_end.prev_value = value;
     assert dst_end.new_value = new_value;
 

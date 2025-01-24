@@ -15,14 +15,14 @@ def hashdict_read(dict_manager: DictManager, ids: VmConsts, memory: MemoryDict):
 
 
 @register_hint
-def hashdict_read_from_hashed_key(
+def hashdict_read_from_key(
     dict_manager: DictManager,
     ids: VmConsts,
 ) -> int:
     from cairo_addons.hints.hashdict import _get_preimage_for_hashed_key
 
     dict_tracker = dict_manager.get_tracker(ids.dict_ptr_stop)
-    preimage = _get_preimage_for_hashed_key(ids.key, dict_tracker)
+    preimage = _get_preimage_for_hashed_key(ids.key, dict_tracker) or ids.key
     ids.value = dict_tracker.data[preimage]
 
 

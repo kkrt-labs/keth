@@ -30,7 +30,7 @@ pub const HINTS: &[fn() -> Hint] = &[
     hashdict_read,
     hashdict_get,
     hashdict_write,
-    hashdict_read_from_hashed_key,
+    hashdict_read_from_key,
     get_preimage_for_key,
     copy_hashdict_tracker_entry,
     get_keys_for_address_prefix,
@@ -233,9 +233,9 @@ pub fn get_keys_for_address_prefix() -> Hint {
     )
 }
 
-pub fn hashdict_read_from_hashed_key() -> Hint {
+pub fn hashdict_read_from_key() -> Hint {
     Hint::new(
-        String::from("hashdict_read_from_hashed_key"),
+        String::from("hashdict_read_from_key"),
         |vm: &mut VirtualMachine,
          exec_scopes: &mut ExecutionScopes,
          ids_data: &HashMap<String, HintReference>,
@@ -251,8 +251,11 @@ pub fn hashdict_read_from_hashed_key() -> Hint {
             let mut dict = dict_manager_ref.borrow_mut();
             let tracker = dict.get_tracker_mut(dict_ptr)?;
 
-            // Find matching preimage and get its value
-            let preimage = get_preimage_for_hashed_key(hashed_key, tracker)?.clone();
+            // Find matching preimage and get its value. This hint can also be called on non-hashed
+            // keys.
+            let simple_key = DictKey::Simple(hashed_key.into());
+            let preimage =
+                get_preimage_for_hashed_key(hashed_key, tracker).unwrap_or(&simple_key).clone();
             let value = tracker
                 .get_value(&preimage)
                 .map_err(|_| HintError::CustomHint("No value found for preimage".into()))?
@@ -330,7 +333,11 @@ pub fn copy_hashdict_tracker_entry() -> Hint {
             let preimage = get_preimage_for_hashed_key(key_hash, source_tracker)?.clone();
             let value = source_tracker
                 .get_value(&preimage)
-                .map_err(|_| HintError::CustomHint("No matching preimage found".into()))?
+                .map_err(|_| {
+                    HintError::CustomHint(
+                        format!("No value found for preimage {}", preimage).into(),
+                    )
+                })?
                 .clone();
 
             // Update destination tracker
@@ -374,5 +381,7 @@ fn get_preimage_for_hashed_key(
             }
             _ => false,
         })
-        .ok_or_else(|| HintError::CustomHint("No matching preimage found".into()))
+        .ok_or_else(|| {
+            HintError::CustomHint(format!("No preimage found for hashed key {}", hashed_key).into())
+        })
 }
