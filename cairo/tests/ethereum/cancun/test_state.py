@@ -113,7 +113,12 @@ def state_with_snapshots(draw):
             )
         )
         storage_tries = copy.deepcopy(current_storage_tries)
-        storage_tries.update(new_storage_tries)
+        # Deep update - merge inner tries instead of overwriting
+        for addr, new_trie in new_storage_tries.items():
+            if addr in storage_tries:
+                storage_tries[addr]._data.update(new_trie._data)
+            else:
+                storage_tries[addr] = new_trie
 
         # Update current state for next iteration
         current_main_trie = main_trie_copy
@@ -151,7 +156,12 @@ def transient_storage_with_snapshots(draw):
             )
         )
         tries = copy.deepcopy(current_tries)
-        tries.update(new_tries)
+        # Deep update - merge inner tries instead of overwriting
+        for addr, new_trie in new_tries.items():
+            if addr in tries:
+                tries[addr]._data.update(new_trie._data)
+            else:
+                tries[addr] = new_trie
 
         # Update current tries for next iteration
         current_tries = tries
