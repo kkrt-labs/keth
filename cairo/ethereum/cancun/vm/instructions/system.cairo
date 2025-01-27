@@ -98,11 +98,16 @@ func generic_call{
         let calldata = memory_read_bytes(memory_input_start_position, memory_input_size);
     }
     EvmImpl.set_memory(memory);
+
     let env = evm.value.env;
     let state = env.value.state;
     let account = get_account{state=state}(code_address);
+
     EnvImpl.set_state{env=env}(state);
+    let env = env;
     EvmImpl.set_env(env);
+    let evm = evm;
+
     let code = account.value.code;
 
     if (is_staticcall.value != 0) {
@@ -199,6 +204,12 @@ func generic_call{
         tempvar bitwise_ptr = bitwise_ptr;
         tempvar range_check_ptr = range_check_ptr;
     } else {
+        incorporate_child_on_success(child_evm);
+        EvmImpl.set_return_data(child_evm.value.output);
+        let stack = evm.value.stack;
+        push{stack=stack}(U256(new U256Struct(1, 0)));
+        EvmImpl.set_stack(stack);
+
         tempvar evm = evm;
         tempvar poseidon_ptr = poseidon_ptr;
         tempvar keccak_ptr = keccak_ptr;
@@ -210,12 +221,6 @@ func generic_call{
     let keccak_ptr = keccak_ptr;
     let bitwise_ptr = bitwise_ptr;
     let range_check_ptr = range_check_ptr;
-
-    incorporate_child_on_success(child_evm);
-    EvmImpl.set_return_data(child_evm.value.output);
-    let stack = evm.value.stack;
-    push{stack=stack}(U256(new U256Struct(1, 0)));
-    EvmImpl.set_stack(stack);
 
     let len = child_evm.value.output.value.len;
     assert [range_check_ptr] = len;
