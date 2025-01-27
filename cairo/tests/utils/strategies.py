@@ -37,7 +37,7 @@ from tests.utils.constants import BLOCK_GAS_LIMIT, MAX_BLOB_GAS_PER_BLOCK
 # Needs to be done before importing the types from ethereum.cancun.trie
 # trunk-ignore(ruff/F821)
 MockExtended: TypeAlias = Union[Sequence["Extended"], bytearray, bytes, Uint, FixedUnsigned, str, bool]  # type: ignore
-patch("ethereum.rlp.Extended", MockExtended).start()
+patch("ethereum_rlp.rlp.Extended", MockExtended).start()
 
 from ethereum.cancun.blocks import Header, Log, Receipt, Withdrawal
 from ethereum.cancun.fork_types import Account, Address, Bloom, Root
@@ -115,7 +115,7 @@ small_bytes = st.binary(min_size=0, max_size=256)
 code = st.binary(min_size=0, max_size=MAX_CODE_SIZE)
 pc = st.integers(min_value=0, max_value=MAX_CODE_SIZE * 2).map(Uint)
 
-# See ethereum.rlp.Simple and ethereum.rlp.Extended for the definition of Simple and Extended
+# See ethereum_rlp.rlp.Simple and ethereum_rlp.rlp.Extended for the definition of Simple and Extended
 simple = st.recursive(
     st.one_of(st.binary()),
     st.lists,

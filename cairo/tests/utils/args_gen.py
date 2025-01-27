@@ -130,7 +130,7 @@ from ethereum.cancun.vm import Message as MessageBase
 from ethereum.cancun.vm.gas import ExtendMemory, MessageCallGas
 from ethereum.crypto.hash import Hash32
 from ethereum.exceptions import EthereumException
-from ethereum.rlp import Extended, Simple
+from ethereum_rlp.rlp import Extended, Simple
 from tests.utils.helpers import flatten
 
 HASHED_TYPES = [
@@ -446,10 +446,10 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
         Address, Tuple[Bytes32, ...]
     ],
     ("ethereum", "cancun", "vm", "gas", "MessageCallGas"): MessageCallGas,
-    ("ethereum", "rlp", "Simple"): Simple,
-    ("ethereum", "rlp", "Extended"): Extended,
-    ("ethereum", "rlp", "SequenceSimple"): Sequence[Simple],
-    ("ethereum", "rlp", "SequenceExtended"): Sequence[Extended],
+    ("ethereum_rlp", "rlp", "Simple"): Simple,
+    ("ethereum_rlp", "rlp", "Extended"): Extended,
+    ("ethereum_rlp", "rlp", "SequenceSimple"): Sequence[Simple],
+    ("ethereum_rlp", "rlp", "SequenceExtended"): Sequence[Extended],
     ("ethereum", "cancun", "trie", "LeafNode"): LeafNode,
     ("ethereum", "cancun", "trie", "ExtensionNode"): ExtensionNode,
     ("ethereum", "cancun", "trie", "BranchNode"): BranchNode,

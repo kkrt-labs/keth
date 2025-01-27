@@ -242,7 +242,7 @@ func encode_sequence{range_check_ptr}(raw_sequence: SequenceExtended) -> Bytes {
     return encoded_bytes;
 }
 
-func get_joined_encodings{range_check_ptr}(raw_sequence: SequenceExtended) -> Bytes {
+func join_encodings{range_check_ptr}(raw_sequence: SequenceExtended) -> Bytes {
     alloc_locals;
     let (dst) = alloc();
     let len = _get_joined_encodings(dst, raw_sequence.value.data, raw_sequence.value.len);
@@ -592,13 +592,6 @@ func decode_item_length{range_check_ptr}(encoded_data: Bytes) -> felt {
     assert_not_zero(encoded_data.value.data[1]);
     let decoded_data_length = bytes_to_felt(length_length, encoded_data.value.data + 1);
     return 1 + length_length + decoded_data_length;
-}
-
-func rlp_hash{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*}(
-    data: Extended
-) -> Hash32 {
-    let encoded_bytes = encode(data);
-    return keccak256(encoded_bytes);
 }
 
 //
