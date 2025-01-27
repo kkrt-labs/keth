@@ -36,7 +36,7 @@ dev-dependencies = [
 ]
 
 [tool.uv.sources]
-ethereum = { git = "https://github.com/kkrt-labs/execution-specs.git", rev = "7d685c83af787e7519f8787563a5e94020700d6e" }
+ethereum = { git = "https://github.com/kkrt-labs/execution-specs.git", rev = "53fbc954b8e9e7dd86060814dfbf836791a22f4c" }
 garaga = { git = "https://github.com/keep-starknet-strange/garaga.git", rev = "hydra_upd" }
 cairo-addons = { workspace = true }
 

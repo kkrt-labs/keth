@@ -8,7 +8,7 @@ from hypothesis import assume, given
 from ethereum.cancun.blocks import Log, Receipt, Withdrawal
 from ethereum.cancun.fork_types import Account, Address, Bloom, encode_account
 from ethereum.cancun.transactions import LegacyTransaction
-from ethereum.rlp import (
+from ethereum_rlp.rlp import (
     Extended,
     decode,
     decode_item_length,
@@ -18,8 +18,7 @@ from ethereum.rlp import (
     encode,
     encode_bytes,
     encode_sequence,
-    get_joined_encodings,
-    rlp_hash,
+    join_encodings,
 )
 from tests.utils.errors import cairo_error
 
@@ -57,16 +56,10 @@ class TestRlp:
 
         @pytest.mark.slow
         @given(raw_sequence=...)
-        def test_get_joined_encodings(
-            self, cairo_run, raw_sequence: Sequence[Extended]
-        ):
-            assert get_joined_encodings(raw_sequence) == cairo_run(
-                "get_joined_encodings", raw_sequence
+        def test_join_encodings(self, cairo_run_py, raw_sequence: Sequence[Extended]):
+            assert join_encodings(raw_sequence) == cairo_run_py(
+                "join_encodings", raw_sequence
             )
-
-        @given(raw_bytes=...)
-        def test_rlp_hash(self, cairo_run, raw_bytes: Bytes):
-            assert rlp_hash(raw_bytes) == cairo_run("rlp_hash", raw_bytes)
 
         @given(address=...)
         def test_encode_address(self, cairo_run, address: Address):
