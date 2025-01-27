@@ -47,7 +47,7 @@ func process_create_message{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
-}(message: Message, env: Environment) -> (Evm, EthereumException*) {
+}(message: Message, env: Environment) -> Evm {
     alloc_locals;
 
     let state = env.value.state;
@@ -73,10 +73,7 @@ func process_create_message{
     increment_nonce{state=state}(message.value.current_target);
     EnvImpl.set_state{env=env}(state);
     EnvImpl.set_transient_storage{env=env}(transient_storage);
-    let (evm, err) = process_message(message, env);
-    if (cast(err, felt) != 0) {
-        return (evm, err);
-    }
+    let evm = process_message(message, env);
 
     if (cast(evm.value.error, felt) != 0) {
         // Error case
@@ -86,9 +83,7 @@ func process_create_message{
         EnvImpl.set_state{env=env}(state);
         EnvImpl.set_transient_storage{env=env}(transient_storage);
         EvmImpl.set_env{evm=evm}(env);
-
-        tempvar ok = cast(0, EthereumException*);
-        return (evm, ok);
+        return evm;
     }
 
     let contract_code = evm.value.output;
@@ -99,24 +94,21 @@ func process_create_message{
         if (first_opcode == 0xEF) {
             tempvar err = new EthereumException(InvalidContractPrefix);
             _process_create_message_error{evm=evm}(err);
-            tempvar ok = cast(0, EthereumException*);
-            return (evm, ok);
+            return evm;
         }
     }
 
     let err = charge_gas{evm=evm}(contract_code_gas);
     if (cast(err, felt) != 0) {
         _process_create_message_error{evm=evm}(err);
-        tempvar ok = cast(0, EthereumException*);
-        return (evm, ok);
+        return evm;
     }
 
     let is_max_code_size_exceeded = is_nn(contract_code.value.len - MAX_CODE_SIZE);
     if (is_max_code_size_exceeded != FALSE) {
         tempvar err = new EthereumException(OutOfGasError);
         _process_create_message_error{evm=evm}(err);
-        tempvar ok = cast(0, EthereumException*);
-        return (evm, ok);
+        return evm;
     }
 
     let env = evm.value.env;
@@ -126,8 +118,7 @@ func process_create_message{
     EnvImpl.set_state{env=env}(state);
     EnvImpl.set_transient_storage{env=env}(transient_storage);
     EvmImpl.set_env{evm=evm}(env);
-    tempvar ok = cast(0, EthereumException*);
-    return (evm, ok);
+    return evm;
 }
 
 func _process_create_message_error{
@@ -157,16 +148,12 @@ func process_message{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
-}(message: Message, env: Environment) -> (Evm, EthereumException*) {
+}(message: Message, env: Environment) -> Evm {
     alloc_locals;
 
-    // Check if depth exceeds limit by checking if (depth - limit) is non-negative
-    let is_depth_exceeded = is_nn(message.value.depth.value - STACK_DEPTH_LIMIT);
-    if (is_depth_exceeded != FALSE) {
-        tempvar err = new EthereumException(StackDepthLimitError);
-        tempvar evm = Evm(cast(0, EvmStruct*));
-        return (evm, err);
-    }
+    // EELS checks whether the stack depth limit is reached here.
+    // However, this case is never triggered, because `generic_call` and `generic_create`
+    // check the stack depth limit before calling `process_message`.
 
     // Take snapshot of state before processing the message
     let state = env.value.state;
@@ -210,8 +197,7 @@ func process_message{
     EnvImpl.set_transient_storage{env=env}(transient_storage);
     EvmImpl.set_env{evm=evm}(env);
 
-    let ok = cast(0, EthereumException*);
-    return (evm, ok);
+    return evm;
 }
 
 func execute_code{

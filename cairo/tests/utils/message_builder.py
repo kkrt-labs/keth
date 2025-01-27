@@ -10,7 +10,6 @@ from tests.utils.strategies import (
     code,
     gas_left,
     small_bytes,
-    uint,
 )
 
 
@@ -64,7 +63,10 @@ class MessageBuilder:
         self._code = strategy
         return self
 
-    def with_depth(self, strategy=uint):
+    # Restricted to 0-1023 because EELS has an extra, unrequired check on the stack depth
+    # in `process_message` which cannot trigger, because `generic_call` and `generic_create`
+    # check the stack depth limit before calling `process_message`.
+    def with_depth(self, strategy=st.integers(min_value=0, max_value=1023).map(Uint)):
         self._depth = strategy
         return self
 
