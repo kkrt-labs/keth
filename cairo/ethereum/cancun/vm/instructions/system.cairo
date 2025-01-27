@@ -19,6 +19,7 @@ from ethereum.cancun.vm.exceptions import Revert, OutOfGasError, WriteInStaticCo
 from ethereum.cancun.utils.address import compute_contract_address, compute_create2_contract_address
 from ethereum.cancun.vm.memory import memory_read_bytes, expand_by, memory_write
 from ethereum.cancun.vm.gas import (
+    init_code_cost,
     calculate_gas_extend_memory,
     charge_gas,
     GasConstants,
@@ -27,7 +28,6 @@ from ethereum.cancun.vm.gas import (
 from ethereum_types.numeric import U256, U256Struct, Uint, bool
 from ethereum.exceptions import EthereumException
 from ethereum.cancun.utils.constants import STACK_DEPTH_LIMIT, MAX_CODE_SIZE
-from ethereum.utils.numeric import U256_le, is_zero, U256_from_be_bytes20
 from ethereum.cancun.fork_types import (
     Address,
     SetAddress,
@@ -37,19 +37,27 @@ from ethereum.cancun.fork_types import (
     SetTupleAddressBytes32Struct,
     SetTupleAddressBytes32DictAccess,
 )
-from ethereum_types.bytes import Bytes, BytesStruct, Bytes0
-from ethereum.cancun.state import get_account, account_has_code_or_nonce, increment_nonce
-from ethereum.cancun.transactions import To, ToStruct
-from src.utils.dict import hashdict_write, dict_copy
-from starkware.cairo.common.uint256 import uint256_lt
-from starkware.cairo.common.alloc import alloc
-
 from ethereum_types.others import (
     ListTupleU256U256,
     ListTupleU256U256Struct,
     TupleU256U256,
     TupleU256U256Struct,
 )
+from ethereum.cancun.state import get_account, account_has_code_or_nonce, increment_nonce
+from ethereum_types.bytes import Bytes, BytesStruct, Bytes0
+from ethereum.cancun.transactions import To, ToStruct
+from ethereum.utils.numeric import (
+    is_zero,
+    U256_from_be_bytes20,
+    is_not_zero,
+    ceil32,
+    divmod,
+    U256_to_be_bytes,
+    U256_le,
+)
+from src.utils.dict import hashdict_write, dict_copy
+from starkware.cairo.common.uint256 import uint256_lt
+from starkware.cairo.common.alloc import alloc
 
 func generic_call{
     process_message_label: felt*,
@@ -538,5 +546,194 @@ func generic_create{
         return err;
     }
     tempvar ok = cast(0, EthereumException*);
+    return ok;
+}
+
+// @notice Creates a new account with associated code
+func create{
+    process_create_message_label: felt*,
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    alloc_locals;
+    // STACK
+    let stack = evm.value.stack;
+    with stack {
+        let (endowment, err) = pop();
+        if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
+            return err;
+        }
+        let (memory_start_position, err) = pop();
+        if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
+            return err;
+        }
+        let (memory_size, err) = pop();
+        EvmImpl.set_stack(stack);
+        if (cast(err, felt) != 0) {
+            return err;
+        }
+    }
+
+    // GAS
+    // Calculate memory expansion cost
+    tempvar extensions_tuple = new TupleU256U256(
+        new TupleU256U256Struct(memory_start_position, memory_size)
+    );
+    tempvar extensions_list = ListTupleU256U256(new ListTupleU256U256Struct(extensions_tuple, 1));
+    let extend_memory = calculate_gas_extend_memory(evm.value.memory, extensions_list);
+
+    // Calculate init code cost
+    // Avoid overflows in gas calculations by limiting memory_size to 2**64, bound at which we
+    // saturate in gas calculations.
+    let high_not_zero = is_not_zero(memory_size.value.high);
+    let low_too_big = is_le(2 ** 64, memory_size.value.low);
+    let memory_size_oog = high_not_zero + low_too_big;
+    if (memory_size_oog != 0) {
+        tempvar err = new EthereumException(OutOfGasError);
+        return err;
+    }
+
+    // Charge gas for CREATE operation
+    // Won't overflow as bounded by (MAX_MEMORY_COST + MAX_INIT_CODE_COST) < 2**128
+    let init_code_gas = init_code_cost(Uint(memory_size.value.low));
+    let err = charge_gas(
+        Uint(GasConstants.GAS_CREATE + extend_memory.value.cost.value + init_code_gas.value)
+    );
+    if (cast(err, felt) != 0) {
+        return err;
+    }
+
+    // OPERATION
+    let memory = evm.value.memory;
+    expand_by{memory=memory}(extend_memory.value.expand_by);
+    EvmImpl.set_memory(memory);
+
+    let env = evm.value.env;
+    let state = env.value.state;
+    let current_target = evm.value.message.value.current_target;
+    let sender = get_account{state=state}(current_target);
+    EnvImpl.set_state{env=env}(state);
+    EvmImpl.set_env(env);
+    let contract_address = compute_contract_address(current_target, sender.value.nonce);
+
+    let err = generic_create{process_create_message_label=process_create_message_label}(
+        endowment, contract_address, memory_start_position, memory_size, init_code_gas
+    );
+    if (cast(err, felt) != 0) {
+        return err;
+    }
+
+    // PROGRAM COUNTER
+    let pc = evm.value.pc;
+    EvmImpl.set_pc(Uint(pc.value + 1));
+
+    let ok = cast(0, EthereumException*);
+    return ok;
+}
+
+// @notice Creates a new account with associated code using CREATE2 opcode
+// Similar to CREATE but the address depends on the init_code instead of sender nonce
+func create2{
+    process_create_message_label: felt*,
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    alloc_locals;
+    // STACK
+    let stack = evm.value.stack;
+    with stack {
+        let (endowment, err) = pop();
+        if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
+            return err;
+        }
+        let (memory_start_position, err) = pop();
+        if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
+            return err;
+        }
+        let (memory_size, err) = pop();
+        if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
+            return err;
+        }
+        let (salt, err) = pop();
+        EvmImpl.set_stack(stack);
+        if (cast(err, felt) != 0) {
+            return err;
+        }
+    }
+
+    // GAS
+    // Calculate memory expansion cost
+    tempvar extensions_tuple = new TupleU256U256(
+        new TupleU256U256Struct(memory_start_position, memory_size)
+    );
+    tempvar extensions_list = ListTupleU256U256(new ListTupleU256U256Struct(extensions_tuple, 1));
+    let extend_memory = calculate_gas_extend_memory(evm.value.memory, extensions_list);
+
+    // Calculate init code cost and keccak word cost
+    // Avoid overflows in gas calculations by limiting memory_size to 2**64, bound at which we
+    // saturate in gas calculations.
+    let high_not_zero = is_not_zero(memory_size.value.high);
+    let low_too_big = is_le(2 ** 64, memory_size.value.low);
+    let memory_size_oog = high_not_zero + low_too_big;
+    if (memory_size_oog != 0) {
+        tempvar err = new EthereumException(OutOfGasError);
+        return err;
+    }
+
+    let init_code_gas = init_code_cost(Uint(memory_size.value.low));
+    let ceiled_memory_size = ceil32(Uint(memory_size.value.low));
+    let (call_data_words, _) = divmod(ceiled_memory_size.value, 32);
+    let keccak_cost = GasConstants.GAS_KECCAK256_WORD * call_data_words;
+
+    // Charge gas for CREATE2 operation
+    // wont overflow because:
+    // keccak_cost <= 3e18
+    // extend_memory.cost <= 1e32
+    // init_code_gas <= 1e17
+    let err = charge_gas(
+        Uint(
+            GasConstants.GAS_CREATE + extend_memory.value.cost.value + init_code_gas.value +
+            keccak_cost,
+        ),
+    );
+    if (cast(err, felt) != 0) {
+        return err;
+    }
+
+    // OPERATION
+    let memory = evm.value.memory;
+    expand_by{memory=memory}(extend_memory.value.expand_by);
+    let call_data = memory_read_bytes{memory=memory}(memory_start_position, memory_size);
+    EvmImpl.set_memory(memory);
+
+    let current_target = evm.value.message.value.current_target;
+    let salt_bytes32 = U256_to_be_bytes(salt);
+    let contract_address = compute_create2_contract_address(
+        current_target, salt_bytes32, call_data
+    );
+
+    let err = generic_create{process_create_message_label=process_create_message_label}(
+        endowment, contract_address, memory_start_position, memory_size, init_code_gas
+    );
+    if (cast(err, felt) != 0) {
+        return err;
+    }
+
+    // PROGRAM COUNTER
+    let pc = evm.value.pc;
+    EvmImpl.set_pc(Uint(pc.value + 1));
+
+    let ok = cast(0, EthereumException*);
     return ok;
 }
