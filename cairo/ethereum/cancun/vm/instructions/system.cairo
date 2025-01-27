@@ -1,58 +1,242 @@
 // SPDX-License-Identifier: MIT
 
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin, PoseidonBuiltin
-from ethereum.cancun.vm.stack import pop
+from starkware.cairo.common.registers import get_fp_and_pc
+from starkware.cairo.common.math_cmp import is_le
+from ethereum.cancun.vm.stack import pop, push
 from ethereum.cancun.vm import (
     Evm,
-    EvmStruct,
     EvmImpl,
+    EvmStruct,
     EnvImpl,
     Message,
     MessageStruct,
     incorporate_child_on_error,
     incorporate_child_on_success,
 )
+from starkware.cairo.common.dict_access import DictAccess
 from ethereum.cancun.vm.exceptions import Revert, OutOfGasError, WriteInStaticContext
-from ethereum.cancun.vm.memory import memory_read_bytes, expand_by
+from ethereum.cancun.utils.address import compute_contract_address, compute_create2_contract_address
+from ethereum.cancun.vm.memory import memory_read_bytes, expand_by, memory_write
 from ethereum.cancun.vm.gas import (
     calculate_gas_extend_memory,
     charge_gas,
     GasConstants,
     max_message_call_gas,
 )
+from ethereum_types.numeric import U256, U256Struct, Uint, bool
+from ethereum.exceptions import EthereumException
+from ethereum.cancun.utils.constants import STACK_DEPTH_LIMIT, MAX_CODE_SIZE
+from ethereum.utils.numeric import U256_le, is_zero, U256_from_be_bytes20
 from ethereum.cancun.fork_types import (
     Address,
     SetAddress,
     SetAddressStruct,
-    SetAddressDictAccess,
     SetTupleAddressBytes32,
+    SetAddressDictAccess,
     SetTupleAddressBytes32Struct,
     SetTupleAddressBytes32DictAccess,
 )
-from ethereum.cancun.utils.address import compute_contract_address, compute_create2_contract_address
-from ethereum_types.numeric import U256, Uint, bool, U256Struct
-from ethereum.exceptions import EthereumException
+from ethereum_types.bytes import Bytes, BytesStruct, Bytes0
+from ethereum.cancun.state import get_account, account_has_code_or_nonce, increment_nonce
+from ethereum.cancun.transactions import To, ToStruct
+from src.utils.dict import hashdict_write, dict_copy
+from starkware.cairo.common.uint256 import uint256_lt
+from starkware.cairo.common.alloc import alloc
+
 from ethereum_types.others import (
     ListTupleU256U256,
     ListTupleU256U256Struct,
     TupleU256U256,
     TupleU256U256Struct,
 )
-from ethereum.cancun.state import get_account, account_has_code_or_nonce, increment_nonce
-from ethereum_types.bytes import Bytes, BytesStruct, Bytes0
-from ethereum.cancun.vm.stack import push
-from ethereum.cancun.transactions import To, ToStruct
-from ethereum.utils.numeric import is_zero, U256_from_be_bytes20
-from src.utils.dict import hashdict_write, dict_copy
-// from ethereum.cancun.vm.interpreter import process_create_message
-from starkware.cairo.common.math_cmp import is_le
-from starkware.cairo.common.dict_access import DictAccess
-from starkware.cairo.common.registers import get_fp_and_pc
-from starkware.cairo.common.uint256 import uint256_lt
-from starkware.cairo.common.alloc import alloc
 
-const STACK_DEPTH_LIMIT = 1024;
-const MAX_CODE_SIZE = 0x6000;
+func generic_call{
+    process_message_label: felt*,
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}(
+    gas: Uint,
+    value: U256,
+    caller: Address,
+    to: Address,
+    code_address: Address,
+    should_transfer_value: bool,
+    is_staticcall: bool,
+    memory_input_start_position: U256,
+    memory_input_size: U256,
+    memory_output_start: U256,
+    memory_output_size: U256,
+) -> EthereumException* {
+    alloc_locals;
+    let fp_and_pc = get_fp_and_pc();
+    local __fp__: felt* = fp_and_pc.fp_val;
+
+    let (empty_data: felt*) = alloc();
+    tempvar empty_data_bytes = Bytes(new BytesStruct(empty_data, 0));
+    EvmImpl.set_return_data(empty_data_bytes);
+
+    let depth_too_deep = is_le(STACK_DEPTH_LIMIT, evm.value.message.value.depth.value);
+    if (depth_too_deep != 0) {
+        let gas = Uint(gas.value + evm.value.gas_left.value);
+        EvmImpl.set_gas_left(gas);
+        let stack = evm.value.stack;
+        tempvar zero = U256(new U256Struct(0, 0));
+        let err = push{stack=stack}(zero);
+        EvmImpl.set_stack(stack);
+        if (cast(err, felt) != 0) {
+            return err;
+        }
+        let ok = cast(0, EthereumException*);
+        return ok;
+    }
+
+    let memory = evm.value.memory;
+    let calldata = memory_read_bytes{memory=memory}(memory_input_start_position, memory_input_size);
+    EvmImpl.set_memory(memory);
+
+    let env = evm.value.env;
+    let state = env.value.state;
+    let account = get_account{state=state}(code_address);
+
+    EnvImpl.set_state{env=env}(state);
+    EvmImpl.set_env(env);
+
+    let code = account.value.code;
+
+    let is_static = bool(is_staticcall.value + evm.value.message.value.is_static.value);
+
+    // TODO: this could be optimized using a non-copy mechanism.
+    let (accessed_addresses_copy_start, accessed_addresses_copy) = dict_copy(
+        cast(evm.value.accessed_addresses.value.dict_ptr_start, DictAccess*),
+        cast(evm.value.accessed_addresses.value.dict_ptr, DictAccess*),
+    );
+    let (accessed_storage_keys_copy_start, accessed_storage_keys_copy) = dict_copy(
+        cast(evm.value.accessed_storage_keys.value.dict_ptr_start, DictAccess*),
+        cast(evm.value.accessed_storage_keys.value.dict_ptr, DictAccess*),
+    );
+    tempvar child_accessed_addresses = SetAddress(
+        new SetAddressStruct(
+            cast(accessed_addresses_copy_start, SetAddressDictAccess*),
+            cast(accessed_addresses_copy, SetAddressDictAccess*),
+        ),
+    );
+    tempvar child_accessed_storage_keys = SetTupleAddressBytes32(
+        new SetTupleAddressBytes32Struct(
+            cast(accessed_storage_keys_copy_start, SetTupleAddressBytes32DictAccess*),
+            cast(accessed_storage_keys_copy, SetTupleAddressBytes32DictAccess*),
+        ),
+    );
+
+    tempvar child_message = Message(
+        new MessageStruct(
+            caller=caller,
+            target=To(new ToStruct(cast(0, Bytes0*), &to)),
+            current_target=to,
+            gas=gas,
+            value=value,
+            data=calldata,
+            code_address=&code_address,
+            code=code,
+            depth=Uint(evm.value.message.value.depth.value + 1),
+            should_transfer_value=should_transfer_value,
+            is_static=is_static,
+            accessed_addresses=child_accessed_addresses,
+            accessed_storage_keys=child_accessed_storage_keys,
+            parent_evm=evm,
+        ),
+    );
+
+    // prepare arguments to jump to process_message
+    [ap] = range_check_ptr, ap++;
+    [ap] = bitwise_ptr, ap++;
+    [ap] = keccak_ptr, ap++;
+    [ap] = poseidon_ptr, ap++;
+    [ap] = child_message.value, ap++;
+    [ap] = env.value, ap++;
+
+    call abs process_message_label;
+
+    let range_check_ptr = [ap - 5];
+    let bitwise_ptr = cast([ap - 4], BitwiseBuiltin*);
+    let keccak_ptr = cast([ap - 3], KeccakBuiltin*);
+    let poseidon_ptr = cast([ap - 2], PoseidonBuiltin*);
+    let child_evm_ = cast([ap - 1], EvmStruct*);
+    tempvar child_evm = Evm(child_evm_);
+
+    // The previous operations have mutated the `env` passed to the function, which
+    // is now located in child_evm.value.env. Notably, we must rebind env.state and env.transient_storage
+    // to their new mutated values. The reset is handled on a per-case basis in incorporate_child.
+    let updated_state = child_evm.value.env.value.state;
+    let updated_transient_storage = child_evm.value.env.value.transient_storage;
+    let old_env = evm.value.env;
+    EnvImpl.set_state{env=old_env}(updated_state);
+    EnvImpl.set_transient_storage{env=old_env}(updated_transient_storage);
+    EvmImpl.set_env{evm=evm}(old_env);
+
+    if (cast(child_evm.value.error, felt) != 0) {
+        incorporate_child_on_error(child_evm);
+        EvmImpl.set_return_data(child_evm.value.output);
+        let stack = evm.value.stack;
+        let err = push{stack=stack}(U256(new U256Struct(0, 0)));
+        EvmImpl.set_stack(stack);
+        if (cast(err, felt) != 0) {
+            return err;
+        }
+
+        tempvar evm = evm;
+        tempvar poseidon_ptr = poseidon_ptr;
+        tempvar keccak_ptr = keccak_ptr;
+        tempvar bitwise_ptr = bitwise_ptr;
+        tempvar range_check_ptr = range_check_ptr;
+    } else {
+        incorporate_child_on_success(child_evm);
+        EvmImpl.set_return_data(child_evm.value.output);
+        let stack = evm.value.stack;
+        let err = push{stack=stack}(U256(new U256Struct(1, 0)));
+        EvmImpl.set_stack(stack);
+        if (cast(err, felt) != 0) {
+            return err;
+        }
+
+        tempvar evm = evm;
+        tempvar poseidon_ptr = poseidon_ptr;
+        tempvar keccak_ptr = keccak_ptr;
+        tempvar bitwise_ptr = bitwise_ptr;
+        tempvar range_check_ptr = range_check_ptr;
+    }
+    let evm = evm;
+    let poseidon_ptr = poseidon_ptr;
+    let keccak_ptr = keccak_ptr;
+    let bitwise_ptr = bitwise_ptr;
+    let range_check_ptr = range_check_ptr;
+
+    let len = child_evm.value.output.value.len;
+    assert [range_check_ptr] = len;
+    let range_check_ptr = range_check_ptr + 1;
+    tempvar child_output_len = U256(new U256Struct(len, 0));
+    let output_size_is_le = U256_le(memory_output_size, child_output_len);
+    if (output_size_is_le.value != 0) {
+        tempvar actual_output_size = memory_output_size;
+    } else {
+        tempvar actual_output_size = child_output_len;
+    }
+    let actual_output_size = actual_output_size;
+    let memory = evm.value.memory;
+    tempvar new_output = Bytes(
+        new BytesStruct(child_evm.value.output.value.data, actual_output_size.value.low)
+    );
+    // This is safe because the gas cost associated with memory_output_start and memory_output_size
+    // are checked in outer functions.
+    memory_write{memory=memory}(memory_output_start, new_output);
+    EvmImpl.set_memory(memory);
+
+    let ok = cast(0, EthereumException*);
+    return ok;
+}
 
 // @notice Revert operation - stop execution and revert state changes, returning data from memory
 func revert{

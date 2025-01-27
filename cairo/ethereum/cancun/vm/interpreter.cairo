@@ -13,6 +13,7 @@ from ethereum.cancun.vm.gas import GasConstants, charge_gas
 from ethereum.cancun.fork_types import SetAddress
 from ethereum.cancun.fork_types import SetAddressStruct, SetAddressDictAccess
 from ethereum.cancun.vm import Evm, EvmStruct, Message, Environment, EvmImpl, EnvImpl
+from ethereum.cancun.utils.constants import STACK_DEPTH_LIMIT, MAX_CODE_SIZE
 from ethereum.cancun.vm.exceptions import (
     EthereumException,
     InvalidContractPrefix,
@@ -39,9 +40,6 @@ from ethereum.cancun.state import (
 )
 
 from src.utils.dict import dict_new_empty
-
-const STACK_DEPTH_LIMIT = 1024;
-const MAX_CODE_SIZE = 0x6000;
 
 func process_create_message{
     range_check_ptr,
