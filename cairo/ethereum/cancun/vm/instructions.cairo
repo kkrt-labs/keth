@@ -648,7 +648,7 @@ func op_implementation{
     ret;
     call unknown_opcode;  // 0xef
     ret;
-    call create;  // 0xf0 //TODO: create
+    call create;  // 0xf0 - CREATE
     ret;
     call unknown_opcode;  // 0xf1 //TODO: call
     ret;
