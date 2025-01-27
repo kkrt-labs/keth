@@ -8,6 +8,7 @@ from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 from starkware.cairo.common.math import split_felt
 from starkware.cairo.common.uint256 import word_reverse_endian, Uint256, uint256_le, uint256_mul
 from src.utils.uint256 import uint256_add, uint256_sub
+from src.utils.utils import Helpers
 
 func min{range_check_ptr}(a: felt, b: felt) -> felt {
     alloc_locals;
@@ -212,4 +213,10 @@ func U256_mul{range_check_ptr}(a: U256, b: U256) -> U256 {
     }
     tempvar result = U256(&low);
     return result;
+}
+
+func U256_to_Uint{range_check_ptr}(value: U256) -> Uint {
+    let _res = Helpers.uint256_to_felt([value.value]);
+    let res = Uint(_res);
+    return res;
 }

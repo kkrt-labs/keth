@@ -1,11 +1,12 @@
 from ethereum_types.numeric import U256, Uint
-from hypothesis import given
+from hypothesis import given, reproduce_failure
 
 from ethereum.cancun.fork_types import Address
 from ethereum.cancun.vm.instructions.system import (
     create,
     create2,
     generic_call,
+    call,
     generic_create,
 )
 from tests.utils.args_gen import Evm
@@ -183,3 +184,16 @@ class TestSystem:
             memory_output_size,
         )
         assert evm == cairo_evm
+
+    @reproduce_failure('6.124.3', b'AAFBYQFCWvEBQwD3rQFDAJdcAUEAAUEBAUFNAGblygjY18JDAOD1QQE=')
+    @given(evm=evm_stack_memory_gas)
+    def test_call(self, cairo_run, evm: Evm):
+        try:
+            cairo_result = cairo_run("test_call", evm)
+        except Exception as cairo_error:
+            with strict_raises(type(cairo_error)):
+                call(evm)
+            return
+
+        call(evm)
+        assert evm == cairo_result

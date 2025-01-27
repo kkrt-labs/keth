@@ -14,6 +14,7 @@ from ethereum.cancun.vm import (
     incorporate_child_on_error,
     incorporate_child_on_success,
 )
+from ethereum.cancun.utils.address import to_address
 from starkware.cairo.common.dict_access import DictAccess
 from ethereum.cancun.vm.exceptions import Revert, OutOfGasError, WriteInStaticContext
 from ethereum.cancun.utils.address import compute_contract_address, compute_create2_contract_address
@@ -24,8 +25,9 @@ from ethereum.cancun.vm.gas import (
     charge_gas,
     GasConstants,
     max_message_call_gas,
+    calculate_message_call_gas,
 )
-from ethereum_types.numeric import U256, U256Struct, Uint, bool
+from ethereum_types.numeric import U256, U256Struct, Uint, bool, UnionUintU256, UnionUintU256Enum
 from ethereum.exceptions import EthereumException
 from ethereum.cancun.utils.constants import STACK_DEPTH_LIMIT, MAX_CODE_SIZE
 from ethereum.cancun.fork_types import (
@@ -48,6 +50,7 @@ from ethereum.cancun.state import (
     account_has_code_or_nonce,
     account_has_storage,
     increment_nonce,
+    is_account_alive,
 )
 from ethereum_types.bytes import Bytes, BytesStruct, Bytes0
 from ethereum.cancun.transactions import To, ToStruct
@@ -59,10 +62,13 @@ from ethereum.utils.numeric import (
     divmod,
     U256_to_be_bytes,
     U256_le,
+    U256__eq__,
+    U256_to_Uint,
 )
 from src.utils.dict import hashdict_write, dict_copy
 from starkware.cairo.common.uint256 import uint256_lt
 from starkware.cairo.common.alloc import alloc
+from src.utils.dict import hashdict_read
 
 func generic_call{
     process_message_label: felt*,
@@ -247,6 +253,193 @@ func generic_call{
     memory_write{memory=memory}(memory_output_start, new_output);
     EvmImpl.set_memory(memory);
 
+    let ok = cast(0, EthereumException*);
+    return ok;
+}
+
+func call_{
+    process_message_label: felt*,
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    alloc_locals;
+    let fp_and_pc = get_fp_and_pc();
+    local __fp__: felt* = fp_and_pc.fp_val;
+
+    let stack = evm.value.stack;
+    with stack {
+        let (_gas, err) = pop();
+        if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
+            return err;
+        }
+        let (_to, err) = pop();
+        if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
+            return err;
+        }
+        let (value, err) = pop();
+        if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
+            return err;
+        }
+        let (memory_input_start_position, err) = pop();
+        if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
+            return err;
+        }
+        let (memory_input_size, err) = pop();
+        if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
+            return err;
+        }
+        let (memory_output_start_position, err) = pop();
+        if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
+            return err;
+        }
+        let (memory_output_size, err) = pop();
+        if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
+            return err;
+        }
+    }
+
+    let gas = U256_to_Uint(_gas);
+
+    // Calculate memory expansion cost
+    let (data: TupleU256U256*) = alloc();
+    assert data[0] = TupleU256U256(
+        new TupleU256U256Struct(memory_input_start_position, memory_input_size)
+    );
+    assert data[1] = TupleU256U256(
+        new TupleU256U256Struct(memory_output_start_position, memory_output_size)
+    );
+    tempvar extensions_list = ListTupleU256U256(new ListTupleU256U256Struct(data, 2));
+    let extend_memory = calculate_gas_extend_memory(evm.value.memory, extensions_list);
+
+    tempvar address_u256_ = UnionUintU256(new UnionUintU256Enum(cast(0, Uint*), _to));
+    let address_ = to_address(address_u256_);
+    tempvar to = new Address(address_.value);
+
+    let accessed_addresses = evm.value.accessed_addresses;
+    let accessed_addresses_end = cast(accessed_addresses.value.dict_ptr, DictAccess*);
+    let (is_warm) = hashdict_read{dict_ptr=accessed_addresses_end}(1, &to.value);
+    if (is_warm != 0) {
+        tempvar accessed_addresses_end = accessed_addresses_end;
+        tempvar access_gas_cost = Uint(GasConstants.GAS_WARM_ACCESS);
+        tempvar poseidon_ptr = poseidon_ptr;
+    } else {
+        hashdict_write{dict_ptr=accessed_addresses_end}(1, &to.value, 1);
+        tempvar accessed_addresses_end = accessed_addresses_end;
+        tempvar access_gas_cost = Uint(GasConstants.GAS_COLD_ACCOUNT_ACCESS);
+        tempvar poseidon_ptr = poseidon_ptr;
+    }
+    let access_gas_cost = access_gas_cost;
+
+    tempvar new_accessed_addresses = SetAddress(
+        new SetAddressStruct(
+            accessed_addresses.value.dict_ptr_start,
+            cast(accessed_addresses_end, SetAddressDictAccess*),
+        ),
+    );
+    EvmImpl.set_accessed_addresses(new_accessed_addresses);
+
+    let env = evm.value.env;
+    let state = env.value.state;
+    let _is_account_alive = is_account_alive{state=state}([to]);
+    let is_value_zero = U256__eq__(value, U256(new U256Struct(0, 0)));
+    let is_account_alive_or_value_zero = _is_account_alive.value + is_value_zero.value;
+    if (is_account_alive_or_value_zero != 0) {
+        tempvar create_gas_cost = Uint(0);
+    } else {
+        tempvar create_gas_cost = Uint(GasConstants.GAS_NEW_ACCOUNT);
+    }
+    tempvar transfer_gas_cost = Uint(
+        is_value_zero.value * 0 + (1 - is_value_zero.value) * GasConstants.GAS_CALL_VALUE
+    );
+
+    let message_call_gas = calculate_message_call_gas(
+        value,
+        gas,
+        evm.value.gas_left,
+        extend_memory.value.cost,
+        Uint(access_gas_cost.value + create_gas_cost.value + transfer_gas_cost.value),
+        Uint(GasConstants.GAS_CALL_STIPEND),
+    );
+    let err = charge_gas(Uint(message_call_gas.value.cost.value + extend_memory.value.cost.value));
+    if (cast(err, felt) != 0) {
+        EnvImpl.set_state{env=env}(state);
+        EvmImpl.set_env(env);
+        EvmImpl.set_stack(stack);
+        return err;
+    }
+    let value_non_zero_in_static = evm.value.message.value.is_static.value * (
+        1 - is_value_zero.value
+    );
+    if (value_non_zero_in_static != 0) {
+        EvmImpl.set_stack(stack);
+        EnvImpl.set_state{env=env}(state);
+        EvmImpl.set_env(env);
+        tempvar err = new EthereumException(WriteInStaticContext);
+        return err;
+    }
+
+    let memory = evm.value.memory;
+    with memory {
+        expand_by(extend_memory.value.expand_by);
+    }
+    EvmImpl.set_memory(memory);
+
+    let sender_address = evm.value.message.value.current_target;
+    let sender = get_account{state=state}(sender_address);
+    EnvImpl.set_state{env=env}(state);
+    EvmImpl.set_env(env);
+    let sender_balance = sender.value.balance;
+    let sender_has_enough_balance = U256_le(value, sender_balance);
+    if (sender_has_enough_balance.value == 0) {
+        push{stack=stack}(U256(new U256Struct(0, 0)));
+        EvmImpl.set_stack(stack);
+        let (empty_data: felt*) = alloc();
+        tempvar empty_data_bytes = Bytes(new BytesStruct(empty_data, 0));
+        EvmImpl.set_return_data(empty_data_bytes);
+        let gas_left = Uint(evm.value.gas_left.value + message_call_gas.value.stipend.value);
+        EvmImpl.set_gas_left(gas_left);
+        tempvar process_message_label = process_message_label;
+        tempvar range_check_ptr = range_check_ptr;
+        tempvar bitwise_ptr = bitwise_ptr;
+        tempvar poseidon_ptr = poseidon_ptr;
+        tempvar keccak_ptr = keccak_ptr;
+        tempvar evm = evm;
+        tempvar stack = evm.value.stack;
+    } else {
+        EvmImpl.set_stack(stack);
+        generic_call(
+            message_call_gas.value.stipend,
+            value,
+            evm.value.message.value.current_target,
+            [to],
+            [to],
+            bool(1),
+            bool(0),
+            memory_input_start_position,
+            memory_input_size,
+            memory_output_start_position,
+            memory_output_size,
+        );
+        tempvar process_message_label = process_message_label;
+        tempvar range_check_ptr = range_check_ptr;
+        tempvar bitwise_ptr = bitwise_ptr;
+        tempvar poseidon_ptr = poseidon_ptr;
+        tempvar keccak_ptr = keccak_ptr;
+        tempvar evm = evm;
+        tempvar stack = evm.value.stack;
+    }
+
+    EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
     let ok = cast(0, EthereumException*);
     return ok;
 }
