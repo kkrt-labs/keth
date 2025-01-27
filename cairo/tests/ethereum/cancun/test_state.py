@@ -13,6 +13,7 @@ from ethereum.cancun.state import (
     account_exists,
     account_exists_and_is_empty,
     account_has_code_or_nonce,
+    account_has_storage,
     begin_transaction,
     commit_transaction,
     destroy_account,
@@ -293,6 +294,13 @@ class TestStateAccounts:
             "account_has_code_or_nonce", state, address
         )
         assert result_cairo == account_has_code_or_nonce(state, address)
+        assert state_cairo == state
+
+    @given(data=state_and_address_and_optional_key())
+    def test_account_has_storage(self, cairo_run, data):
+        state, address = data
+        state_cairo, result_cairo = cairo_run("account_has_storage", state, address)
+        assert result_cairo == account_has_storage(state, address)
         assert state_cairo == state
 
     @given(data=state_and_address_and_optional_key())

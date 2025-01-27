@@ -40,6 +40,7 @@ from ethereum.utils.numeric import U256, U256Struct, U256__eq__
 from ethereum.cancun.state import (
     account_exists_and_is_empty,
     account_has_code_or_nonce,
+    account_has_storage,
     begin_transaction,
     commit_transaction,
     destroy_storage,
@@ -371,40 +372,38 @@ func process_message_call{
     if (cast(message.value.target.value.address, felt) == 0) {
         let state = env.value.state;
         let has_collision = account_has_code_or_nonce{state=state}(message.value.current_target);
+        let has_storage = account_has_storage{poseidon_ptr=poseidon_ptr, state=state}(
+            message.value.current_target
+        );
         EnvImpl.set_state{env=env}(state);
-        if (has_collision.value != FALSE) {
+        if (has_collision.value + has_storage.value != FALSE) {
             // Return early with collision error
             tempvar collision_error = new EthereumException(AddressCollision);
             let msg = create_empty_message_call_output(collision_error);
-            tempvar msg = msg;
             tempvar err = cast(0, EthereumException*);
             return (msg, err);
         }
 
         // Process create message
         let evm = process_create_message(message, env);
-        let env = evm.value.env;
 
         tempvar range_check_ptr = range_check_ptr;
         tempvar bitwise_ptr = bitwise_ptr;
         tempvar keccak_ptr = keccak_ptr;
         tempvar poseidon_ptr = poseidon_ptr;
-        tempvar env = env;
         tempvar evm = evm;
     } else {
         // Regular message call path
         let evm = process_message(message, env);
-        let env = evm.value.env;
 
         // Check if account exists and is empty
-        let state = env.value.state;
+        let state = evm.value.env.value.state;
         let is_empty = account_exists_and_is_empty{state=state}(
             [message.value.target.value.address]
         );
 
         if (is_empty.value != FALSE) {
             // Add to touched accounts
-            tempvar x = 1;
             let dict_ptr = cast(evm.value.touched_accounts.value.dict_ptr, DictAccess*);
             hashdict_write{poseidon_ptr=poseidon_ptr, dict_ptr=dict_ptr}(
                 1, message.value.target.value.address, 1
@@ -421,60 +420,59 @@ func process_message_call{
             tempvar bitwise_ptr = bitwise_ptr;
             tempvar keccak_ptr = keccak_ptr;
             tempvar poseidon_ptr = poseidon_ptr;
-            tempvar env = env;
             tempvar evm = evm;
         } else {
-            tempvar x = 2;
             tempvar range_check_ptr = range_check_ptr;
             tempvar bitwise_ptr = bitwise_ptr;
             tempvar keccak_ptr = keccak_ptr;
             tempvar poseidon_ptr = poseidon_ptr;
-            tempvar env = env;
             tempvar evm = evm;
         }
         EnvImpl.set_state{env=env}(state);
         EvmImpl.set_env{evm=evm}(env);
-        let env = evm.value.env;
         tempvar range_check_ptr = range_check_ptr;
         tempvar bitwise_ptr = bitwise_ptr;
         tempvar keccak_ptr = keccak_ptr;
         tempvar poseidon_ptr = poseidon_ptr;
-        tempvar env = env;
         tempvar evm = evm;
     }
-    let range_check_ptr = [ap - 6];
-    let bitwise_ptr = cast([ap - 5], BitwiseBuiltin*);
-    let keccak_ptr = cast([ap - 4], KeccakBuiltin*);
-    let poseidon_ptr = cast([ap - 3], PoseidonBuiltin*);
-    let env_struct = cast([ap - 2], EnvironmentStruct*);
+    let range_check_ptr = [ap - 5];
+    let bitwise_ptr = cast([ap - 4], BitwiseBuiltin*);
+    let keccak_ptr = cast([ap - 3], KeccakBuiltin*);
+    let poseidon_ptr = cast([ap - 2], PoseidonBuiltin*);
     let evm_struct = cast([ap - 1], EvmStruct*);
-    tempvar env = Environment(env_struct);
     tempvar evm = Evm(evm_struct);
+    let env = evm.value.env;
 
     // Prepare return values based on error state
     if (cast(evm.value.error, felt) != 0) {
         let msg = create_empty_message_call_output(evm.value.error);
-        drop_evm(evm);
-        tempvar msg = msg;
+        with evm {
+            squash_evm();
+        }
         tempvar err = cast(0, EthereumException*);
         return (msg, err);
     }
 
     assert [range_check_ptr] = evm.value.refund_counter;
     let range_check_ptr = range_check_ptr + 1;
+
+    with evm {
+        squash_evm();
+    }
+
+    let squashed_evm = evm;
     tempvar msg = MessageCallOutput(
         new MessageCallOutputStruct(
-            gas_left=evm.value.gas_left,
-            refund_counter=U256(new U256Struct(evm.value.refund_counter, 0)),
-            logs=evm.value.logs,
-            accounts_to_delete=evm.value.accounts_to_delete,
-            touched_accounts=evm.value.touched_accounts,
-            error=evm.value.error,
+            gas_left=squashed_evm.value.gas_left,
+            refund_counter=U256(new U256Struct(squashed_evm.value.refund_counter, 0)),
+            logs=squashed_evm.value.logs,
+            accounts_to_delete=squashed_evm.value.accounts_to_delete,
+            touched_accounts=squashed_evm.value.touched_accounts,
+            error=squashed_evm.value.error,
         ),
     );
-    tempvar msg = msg;
     tempvar err = cast(0, EthereumException*);
-    drop_evm(evm);
     return (msg, err);
 }
 
@@ -517,7 +515,7 @@ func create_empty_message_call_output(error: EthereumException*) -> MessageCallO
 }
 
 // @dev Drop an `Evm` struct by squashing all of its fields except for Environment.
-func drop_evm{range_check_ptr}(evm: Evm) {
+func squash_evm{range_check_ptr, evm: Evm}() {
     alloc_locals;
     let evm_struct = cast(evm.value, EvmStruct*);
 
