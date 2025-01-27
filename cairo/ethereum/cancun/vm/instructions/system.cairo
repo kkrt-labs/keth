@@ -75,7 +75,8 @@ func generic_call{
     let fp_and_pc = get_fp_and_pc();
     local __fp__: felt* = fp_and_pc.fp_val;
 
-    tempvar return_data = Bytes(new BytesStruct(cast(0, felt*), 0));
+    let (empty_data: felt*) = alloc();
+    tempvar empty_data_bytes = Bytes(new BytesStruct(empty_data, 0));
     EvmImpl.set_return_data(return_data);
 
     let depth_too_deep = is_le(STACK_DEPTH_LIMIT, evm.value.message.value.depth.value);
@@ -85,8 +86,8 @@ func generic_call{
         let stack = evm.value.stack;
         tempvar zero = U256(new U256Struct(0, 0));
         let err = push{stack=stack}(zero);
+        EvmImpl.set_stack(stack);
         if (cast(err, felt) != 0) {
-            EvmImpl.set_stack(stack);
             return err;
         }
         let ok = cast(0, EthereumException*);
@@ -94,9 +95,7 @@ func generic_call{
     }
 
     let memory = evm.value.memory;
-    with memory {
-        let calldata = memory_read_bytes(memory_input_start_position, memory_input_size);
-    }
+    let calldata = memory_read_bytes{memory=memory}(memory_input_start_position, memory_input_size);
     EvmImpl.set_memory(memory);
 
     let env = evm.value.env;
@@ -104,9 +103,7 @@ func generic_call{
     let account = get_account{state=state}(code_address);
 
     EnvImpl.set_state{env=env}(state);
-    let env = env;
     EvmImpl.set_env(env);
-    let evm = evm;
 
     let code = account.value.code;
 
@@ -247,9 +244,7 @@ func generic_call{
     );
     // This is safe because the gas cost associated with memory_output_start and memory_output_size
     // are checked in outer functions.
-    with memory {
-        memory_write(memory_output_start, new_output);
-    }
+    memory_write{memory=memory}(memory_output_start, new_output);
     EvmImpl.set_memory(memory);
 
     // TODO: drop stack and memory from child_evm
