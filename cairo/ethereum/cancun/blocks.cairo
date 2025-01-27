@@ -29,7 +29,7 @@ struct HeaderStruct {
     coinbase: Address,
     state_root: Root,
     transactions_root: Root,
-    receipt_root: Root,
+    receipts_root: Root,
     bloom: Bloom,
     difficulty: Uint,
     number: Uint,
