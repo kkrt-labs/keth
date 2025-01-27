@@ -195,7 +195,11 @@ func generic_call{
         incorporate_child_on_error(child_evm);
         EvmImpl.set_return_data(child_evm.value.output);
         let stack = evm.value.stack;
-        push{stack=stack}(U256(new U256Struct(0, 0)));
+        let err = push{stack=stack}(U256(new U256Struct(0, 0)));
+        if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
+            return err;
+        }
         EvmImpl.set_stack(stack);
 
         tempvar evm = evm;
@@ -207,7 +211,11 @@ func generic_call{
         incorporate_child_on_success(child_evm);
         EvmImpl.set_return_data(child_evm.value.output);
         let stack = evm.value.stack;
-        push{stack=stack}(U256(new U256Struct(1, 0)));
+        let err = push{stack=stack}(U256(new U256Struct(1, 0)));
+        if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
+            return err;
+        }
         EvmImpl.set_stack(stack);
 
         tempvar evm = evm;
