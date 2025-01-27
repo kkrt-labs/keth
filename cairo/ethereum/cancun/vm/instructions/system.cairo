@@ -107,12 +107,7 @@ func generic_call{
 
     let code = account.value.code;
 
-    if (is_staticcall.value != 0) {
-        tempvar is_static = bool(1);
-    } else {
-        tempvar is_static = evm.value.message.value.is_static;
-    }
-    let is_static = is_static;
+    let is_static = bool(is_staticcall.value + evm.value.message.value.is_static)
 
     // TODO: this could be optimized using a non-copy mechanism.
     let (accessed_addresses_copy_start, accessed_addresses_copy) = dict_copy(
@@ -187,11 +182,10 @@ func generic_call{
         EvmImpl.set_return_data(child_evm.value.output);
         let stack = evm.value.stack;
         let err = push{stack=stack}(U256(new U256Struct(0, 0)));
+        EvmImpl.set_stack(stack);
         if (cast(err, felt) != 0) {
-            EvmImpl.set_stack(stack);
             return err;
         }
-        EvmImpl.set_stack(stack);
 
         tempvar evm = evm;
         tempvar poseidon_ptr = poseidon_ptr;
@@ -202,12 +196,11 @@ func generic_call{
         incorporate_child_on_success(child_evm);
         EvmImpl.set_return_data(child_evm.value.output);
         let stack = evm.value.stack;
-        let err = push{stack=stack}(U256(new U256Struct(1, 0)));
+        let err = push{stack=stack}(U256(new U256Struct(1, 0)));            
+        EvmImpl.set_stack(stack);
         if (cast(err, felt) != 0) {
-            EvmImpl.set_stack(stack);
             return err;
         }
-        EvmImpl.set_stack(stack);
 
         tempvar evm = evm;
         tempvar poseidon_ptr = poseidon_ptr;
@@ -241,7 +234,6 @@ func generic_call{
     memory_write{memory=memory}(memory_output_start, new_output);
     EvmImpl.set_memory(memory);
 
-    // TODO: drop stack and memory from child_evm
     let ok = cast(0, EthereumException*);
     return ok;
 }
