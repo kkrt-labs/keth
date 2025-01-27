@@ -1,0 +1,5 @@
+*.so
+*.egg-info
+build/
+dist/
+.pytest_cache/
