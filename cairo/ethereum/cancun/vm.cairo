@@ -123,6 +123,8 @@ func incorporate_child_on_success{range_check_ptr, poseidon_ptr: PoseidonBuiltin
         new TupleLogStruct(data=evm.value.logs.value.data, len=evm.value.logs.value.len + len)
     );
 
+    // 30M block gas, at least 5k gas per SSTORE, max 6k SSTOREs per block, meaning at most 6000 * 4800 = 28.8M refund counter
+    // thus this won't overflow.
     let new_refund_counter = evm.value.refund_counter + child_evm.value.refund_counter;
 
     // Squash & update touched_accounts into parent
@@ -230,7 +232,7 @@ func incorporate_child_on_success{range_check_ptr, poseidon_ptr: PoseidonBuiltin
     // No need to squash the message's `accessed_addresses` and `accessed_storage_keys` because
     // they were moved into the Evm, which we just squashed.
 
-    // No need to squash the env's `state` and `transient_storage` because it was handled in `rollback_transaction`,
+    // No need to squash the env's `state` and `transient_storage` because it was handled in `commit_transaction`,
     // when we squashed and appended the prev keys to the parent's state and transient storage segments.
 
     tempvar evm = Evm(
@@ -334,7 +336,7 @@ func incorporate_child_on_error{range_check_ptr, poseidon_ptr: PoseidonBuiltin*,
     dict_squash(cast(memory_start, DictAccess*), cast(memory_end, DictAccess*));
 
     // No need to squash the message's `accessed_addresses` and `accessed_storage_keys` because
-    // they were moved into the Evm, which we just squashed.
+    // they are the same segments as the ones in the EVM, which we just squashed.
 
     // No need to squash the env's `state` and `transient_storage` because it was handled in `rollback_transaction`,
     // when we squashed and appended the prev keys to the parent's state and transient storage segments.

@@ -108,6 +108,7 @@ MAX_ACCOUNTS_TO_DELETE_SIZE = int(
     os.getenv("HYPOTHESIS_MAX_ACCOUNTS_TO_DELETE_SIZE", 10)
 )
 MAX_TOUCHED_ACCOUNTS_SIZE = int(os.getenv("HYPOTHESIS_MAX_TOUCHED_ACCOUNTS_SIZE", 10))
+MAX_LOGS_SIZE = int(os.getenv("HYPOTHESIS_MAX_LOGS_SIZE", 10))
 
 
 small_bytes = st.binary(min_size=0, max_size=256)

@@ -11,6 +11,7 @@ from tests.utils.args_gen import Environment, Evm, Stack
 from tests.utils.message_builder import MessageBuilder
 from tests.utils.strategies import (
     MAX_ACCOUNTS_TO_DELETE_SIZE,
+    MAX_LOGS_SIZE,
     MAX_TOUCHED_ACCOUNTS_SIZE,
     Memory,
     address_zero,
@@ -128,7 +129,9 @@ class EvmBuilder:
         self._return_data = strategy
         return self
 
-    def with_logs(self, strategy=st.tuples(st.from_type(Log))):
+    def with_logs(
+        self, strategy=st.lists(st.from_type(Log), max_size=MAX_LOGS_SIZE).map(tuple)
+    ):
         self._logs = strategy
         return self
 

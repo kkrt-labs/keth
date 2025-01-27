@@ -281,13 +281,13 @@ func squash_and_update{range_check_ptr}(
     loop:
     let squashed_src = cast([ap - 2], DictAccess*);
     let dst_end = cast([ap - 1], DictAccess*);
-    let key = squashed_src.key;
-    let new_value = squashed_src.new_value;
 
     let is_done = is_zero(squashed_src_end - squashed_src);
     static_assert dst_end == [ap - 5];
     jmp done if is_done != 0;
 
+    let key = squashed_src.key;
+    let new_value = squashed_src.new_value;
     assert dst_end.key = key;
     let dict_ptr_stop = dst;
     tempvar value;
