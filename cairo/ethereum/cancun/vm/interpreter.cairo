@@ -4,6 +4,7 @@ from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin,
 from starkware.cairo.common.default_dict import default_dict_new
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.math_cmp import is_nn
+from starkware.cairo.common.registers import get_label_location
 
 from ethereum_types.bytes import Bytes, BytesStruct
 from ethereum_types.numeric import Uint, bool
@@ -85,7 +86,6 @@ func process_create_message{
         EvmImpl.set_env{evm=evm}(env);
         return evm;
     }
-
     let contract_code = evm.value.output;
     let contract_code_gas = Uint(contract_code.value.len * GasConstants.GAS_CODE_DEPOSIT);
 
@@ -96,21 +96,22 @@ func process_create_message{
             _process_create_message_error{evm=evm}(err);
             return evm;
         }
+        tempvar range_check_ptr = range_check_ptr;
+    } else {
+        tempvar range_check_ptr = range_check_ptr;
     }
-
+    let range_check_ptr = [ap - 1];
     let err = charge_gas{evm=evm}(contract_code_gas);
     if (cast(err, felt) != 0) {
         _process_create_message_error{evm=evm}(err);
         return evm;
     }
-
     let is_max_code_size_exceeded = is_nn(contract_code.value.len - MAX_CODE_SIZE);
     if (is_max_code_size_exceeded != FALSE) {
         tempvar err = new EthereumException(OutOfGasError);
         _process_create_message_error{evm=evm}(err);
         return evm;
     }
-
     let env = evm.value.env;
     let state = env.value.state;
     set_code{state=state}(message.value.current_target, contract_code);
@@ -278,10 +279,18 @@ func execute_code{
     // TODO: Handle precompiled contracts
 
     // Execute bytecode recursively
-    return _execute_code(evm);
+    let (process_create_message_label) = get_label_location(process_create_message);
+    let (process_message_label) = get_label_location(process_message);
+    let res = _execute_code{
+        process_create_message_label=process_create_message_label,
+        process_message_label=process_message_label,
+    }(evm);
+    return res;
 }
 
 func _execute_code{
+    process_create_message_label: felt*,
+    process_message_label: felt*,
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
@@ -301,7 +310,11 @@ func _execute_code{
     // Execute the opcode and handle any errors
     let opcode = [evm.value.code.value.data + evm.value.pc.value];
     with evm {
-        let err = op_implementation(opcode);
+        let err = op_implementation(
+            process_create_message_label=process_create_message_label,
+            process_message_label=process_message_label,
+            opcode=opcode,
+        );
         if (cast(err, felt) != 0) {
             if (err.value == Revert) {
                 EvmImpl.set_error(err);

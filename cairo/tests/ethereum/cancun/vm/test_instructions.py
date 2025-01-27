@@ -13,7 +13,7 @@ unimplemented_opcodes = [0xF0, 0xF1, 0xF2, 0xF3, 0xF4, 0xF5, 0xFA, 0xFF]
 @given(evm=..., opcode=uint8.filter(lambda x: x not in unimplemented_opcodes))
 def test_op_implementation(cairo_run, evm: Evm, opcode):
     try:
-        cairo_evm = cairo_run("op_implementation", evm, opcode)
+        cairo_evm = cairo_run("test_op_implementation", evm, opcode)
     except Exception as e:
         with strict_raises(type(e)):
             try:
