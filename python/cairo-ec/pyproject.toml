@@ -1,0 +1,44 @@
+[project]
+name = "cairo-ec"
+version = "0.1.0"
+description = "Elliptic curve library for Cairo"
+readme = "README.md"
+authors = [{ name = "Clément Walter", email = "clement0walter@gmail.com" }]
+requires-python = ">=3.10"
+dependencies = [
+  "cairo-addons",
+  "cairo-core",
+  "cairo-lang>=0.13.3",
+  "maturin>=1.8.1",
+]
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+include = [
+  "src/**/*.cairo", # Include all .cairo files in src directory
+]
+
+[tool.hatch.build]
+artifacts = [
+  "src/**/*.cairo", # Also include .cairo files as artifacts
+]
+
+[tool.uv]
+dev-dependencies = [
+  "pytest>=7.0",
+  "cairo-lang>=0.13.0",
+  "hypothesis>=6.122.3",
+  "jupyter>=1.1.1",
+  "ethereum",
+]
+
+[tool.isort]
+profile = "black"
+known_first_party = ["cairo_addons"]
+
+[tool.uv.sources]
+ethereum = { git = "https://github.com/kkrt-labs/execution-specs.git", rev = "7d685c83af787e7519f8787563a5e94020700d6e" }
+cairo-addons = { workspace = true }
+cairo-core = { workspace = true }
