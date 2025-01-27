@@ -107,7 +107,7 @@ func generic_call{
 
     let code = account.value.code;
 
-    let is_static = bool(is_staticcall.value + evm.value.message.value.is_static)
+    let is_static = bool(is_staticcall.value + evm.value.message.value.is_static.value);
 
     // TODO: this could be optimized using a non-copy mechanism.
     let (accessed_addresses_copy_start, accessed_addresses_copy) = dict_copy(
@@ -196,7 +196,7 @@ func generic_call{
         incorporate_child_on_success(child_evm);
         EvmImpl.set_return_data(child_evm.value.output);
         let stack = evm.value.stack;
-        let err = push{stack=stack}(U256(new U256Struct(1, 0)));            
+        let err = push{stack=stack}(U256(new U256Struct(1, 0)));
         EvmImpl.set_stack(stack);
         if (cast(err, felt) != 0) {
             return err;
