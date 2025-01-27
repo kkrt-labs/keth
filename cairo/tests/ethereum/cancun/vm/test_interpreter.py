@@ -25,6 +25,7 @@ message_without_precompile = (
     .with_value()
     .with_data()
     .with_code_address()
+    .with_depth()
     .with_code(
         strategy=st.just(Bytes(bytes.fromhex("6060")))
     )  # TODO: generate code with random opcodes
