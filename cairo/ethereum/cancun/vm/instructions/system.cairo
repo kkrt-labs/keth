@@ -2,19 +2,58 @@
 
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin, PoseidonBuiltin
 from ethereum.cancun.vm.stack import pop
-from ethereum.cancun.vm import Evm, EvmImpl
-from ethereum.cancun.vm.exceptions import Revert, OutOfGasError
+from ethereum.cancun.vm import (
+    Evm,
+    EvmStruct,
+    EvmImpl,
+    EnvImpl,
+    Message,
+    MessageStruct,
+    incorporate_child_on_error,
+    incorporate_child_on_success,
+)
+from ethereum.cancun.vm.exceptions import Revert, OutOfGasError, WriteInStaticContext
 from ethereum.cancun.vm.memory import memory_read_bytes, expand_by
-from ethereum.cancun.vm.gas import calculate_gas_extend_memory, charge_gas, GasConstants
-from ethereum_types.numeric import U256, Uint, bool
+from ethereum.cancun.vm.gas import (
+    calculate_gas_extend_memory,
+    charge_gas,
+    GasConstants,
+    max_message_call_gas,
+)
+from ethereum.cancun.fork_types import (
+    Address,
+    SetAddress,
+    SetAddressStruct,
+    SetAddressDictAccess,
+    SetTupleAddressBytes32,
+    SetTupleAddressBytes32Struct,
+    SetTupleAddressBytes32DictAccess,
+)
+from ethereum.cancun.utils.address import compute_contract_address, compute_create2_contract_address
+from ethereum_types.numeric import U256, Uint, bool, U256Struct
 from ethereum.exceptions import EthereumException
-
 from ethereum_types.others import (
     ListTupleU256U256,
     ListTupleU256U256Struct,
     TupleU256U256,
     TupleU256U256Struct,
 )
+from ethereum.cancun.state import get_account, account_has_code_or_nonce, increment_nonce
+from ethereum_types.bytes import Bytes, BytesStruct, Bytes0
+from ethereum.cancun.vm.stack import push
+from ethereum.cancun.transactions import To, ToStruct
+from ethereum.utils.numeric import is_zero, U256_from_be_bytes20
+from src.utils.dict import hashdict_write, dict_copy
+// from ethereum.cancun.vm.interpreter import process_create_message
+from starkware.cairo.common.math_cmp import is_le
+from starkware.cairo.common.dict_access import DictAccess
+from starkware.cairo.common.registers import get_fp_and_pc
+from starkware.cairo.common.uint256 import uint256_lt
+from starkware.cairo.common.alloc import alloc
+
+const STACK_DEPTH_LIMIT = 1024;
+const MAX_CODE_SIZE = 0x6000;
+
 // @notice Revert operation - stop execution and revert state changes, returning data from memory
 func revert{
     range_check_ptr,
@@ -123,5 +162,187 @@ func return_{range_check_ptr, evm: Evm}() -> EthereumException* {
     EvmImpl.set_memory(memory);
     EvmImpl.set_stack(stack);
     let ok = cast(0, EthereumException*);
+    return ok;
+}
+
+func generic_create{
+    process_create_message_label: felt*,
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}(
+    endowment: U256,
+    contract_address: Address,
+    memory_start_position: U256,
+    memory_size: U256,
+    init_code_gas: Uint,
+) -> EthereumException* {
+    alloc_locals;
+
+    let fp_and_pc = get_fp_and_pc();
+    local __fp__: felt* = fp_and_pc.fp_val;
+
+    let memory = evm.value.memory;
+    let call_data = memory_read_bytes{memory=memory}(memory_start_position, memory_size);
+    EvmImpl.set_memory(memory);
+
+    let is_gt_two_max_code_size = is_le(2 * MAX_CODE_SIZE + 1, call_data.value.len);
+    if (is_gt_two_max_code_size != 0) {
+        tempvar err = new EthereumException(OutOfGasError);
+        return err;
+    }
+
+    let accessed_addresses = evm.value.accessed_addresses;
+    let accessed_addresses_end = cast(accessed_addresses.value.dict_ptr, DictAccess*);
+    hashdict_write{dict_ptr=accessed_addresses_end}(1, &contract_address, 1);
+
+    tempvar new_accessed_addresses = SetAddress(
+        new SetAddressStruct(
+            accessed_addresses.value.dict_ptr_start,
+            cast(accessed_addresses_end, SetAddressDictAccess*),
+        ),
+    );
+    EvmImpl.set_accessed_addresses(new_accessed_addresses);
+
+    let create_message_gas = max_message_call_gas(evm.value.gas_left);
+    let new_gas_left = evm.value.gas_left.value - create_message_gas.value;
+    EvmImpl.set_gas_left(Uint(new_gas_left));
+
+    if (evm.value.message.value.is_static.value != 0) {
+        tempvar err = new EthereumException(WriteInStaticContext);
+        return err;
+    }
+    let (empty_data: felt*) = alloc();
+    tempvar empty_data_bytes = Bytes(new BytesStruct(empty_data, 0));
+    EvmImpl.set_return_data(empty_data_bytes);
+
+    let env = evm.value.env;
+    let state = env.value.state;
+    let sender_address = evm.value.message.value.current_target;
+    let sender = get_account{state=state}(sender_address);
+
+    let (sender_balance_not_enough) = uint256_lt([sender.value.balance.value], [endowment.value]);
+    let sender_nonce_max = is_zero(sender.value.nonce.value - (2 ** 64 - 1));
+    let is_depth_max = is_zero((evm.value.message.value.depth.value + 1) - STACK_DEPTH_LIMIT);
+
+    let is_invalid = sender_balance_not_enough + sender_nonce_max + is_depth_max;
+    if (is_invalid != 0) {
+        let new_gas_left = evm.value.gas_left.value + create_message_gas.value;
+        EvmImpl.set_gas_left(Uint(new_gas_left));
+        tempvar zero = U256(new U256Struct(0, 0));
+        let stack = evm.value.stack;
+        push{stack=stack}(zero);
+        EnvImpl.set_state{env=env}(state);
+        EvmImpl.set_env(env);
+        EvmImpl.set_stack(stack);
+        tempvar ok = cast(0, EthereumException*);
+        return ok;
+    }
+
+    let account_has_code_or_nonce_ = account_has_code_or_nonce{state=state}(contract_address);
+    if (account_has_code_or_nonce_.value != 0) {
+        increment_nonce{state=state}(evm.value.message.value.current_target);
+        tempvar zero = U256(new U256Struct(0, 0));
+        let stack = evm.value.stack;
+        push{stack=stack}(zero);
+        EnvImpl.set_state{env=env}(state);
+        EvmImpl.set_env(env);
+        EvmImpl.set_stack(stack);
+        tempvar ok = cast(0, EthereumException*);
+        return ok;
+    }
+
+    increment_nonce{state=state}(evm.value.message.value.current_target);
+    EnvImpl.set_state{env=env}(state);
+    EvmImpl.set_env(env);
+
+    // TODO: this could be optimized using a non-copy mechanism.
+    let (accessed_addresses_copy_start, accessed_addresses_copy) = dict_copy(
+        cast(evm.value.accessed_addresses.value.dict_ptr_start, DictAccess*),
+        cast(evm.value.accessed_addresses.value.dict_ptr, DictAccess*),
+    );
+    let (accessed_storage_keys_copy_start, accessed_storage_keys_copy) = dict_copy(
+        cast(evm.value.accessed_storage_keys.value.dict_ptr_start, DictAccess*),
+        cast(evm.value.accessed_storage_keys.value.dict_ptr, DictAccess*),
+    );
+    tempvar child_accessed_addresses = SetAddress(
+        new SetAddressStruct(
+            cast(accessed_addresses_copy_start, SetAddressDictAccess*),
+            cast(accessed_addresses_copy, SetAddressDictAccess*),
+        ),
+    );
+    tempvar child_accessed_storage_keys = SetTupleAddressBytes32(
+        new SetTupleAddressBytes32Struct(
+            cast(accessed_storage_keys_copy_start, SetTupleAddressBytes32DictAccess*),
+            cast(accessed_storage_keys_copy, SetTupleAddressBytes32DictAccess*),
+        ),
+    );
+    tempvar to = To(new ToStruct(new Bytes0(0), cast(0, Address*)));
+    tempvar child_message = Message(
+        new MessageStruct(
+            caller=evm.value.message.value.current_target,
+            target=to,
+            current_target=contract_address,
+            gas=create_message_gas,
+            value=endowment,
+            data=empty_data_bytes,
+            code_address=cast(0, Address*),
+            code=call_data,
+            depth=Uint(evm.value.message.value.depth.value + 1),
+            should_transfer_value=bool(1),
+            is_static=bool(0),
+            accessed_addresses=child_accessed_addresses,
+            accessed_storage_keys=child_accessed_storage_keys,
+            parent_evm=evm,
+        ),
+    );
+
+    [ap] = range_check_ptr, ap++;
+    [ap] = bitwise_ptr, ap++;
+    [ap] = keccak_ptr, ap++;
+    [ap] = poseidon_ptr, ap++;
+    [ap] = child_message.value, ap++;
+    [ap] = env.value, ap++;
+
+    call abs process_create_message_label;
+
+    let range_check_ptr = [ap - 5];
+    let bitwise_ptr = cast([ap - 4], BitwiseBuiltin*);
+    let keccak_ptr = cast([ap - 3], KeccakBuiltin*);
+    let poseidon_ptr = cast([ap - 2], PoseidonBuiltin*);
+    let child_evm_ = cast([ap - 1], EvmStruct*);
+    tempvar child_evm = Evm(child_evm_);
+
+    // The previous operations have mutated the `env` passed to the function, which
+    // is now located in child_evm.value.env. Notably, we must rebind env.state and env.transient_storage
+    // to their new mutated values. The reset is handled on a per-case basis in incorporate_child.
+    let updated_state = child_evm.value.env.value.state;
+    let updated_transient_storage = child_evm.value.env.value.transient_storage;
+    let old_env = evm.value.env;
+    EnvImpl.set_state{env=old_env}(updated_state);
+    EnvImpl.set_transient_storage{env=old_env}(updated_transient_storage);
+    EvmImpl.set_env{evm=evm}(old_env);
+
+    if (cast(child_evm.value.error, felt) != 0) {
+        incorporate_child_on_error(child_evm);
+        EvmImpl.set_return_data(child_evm.value.output);
+        let stack = evm.value.stack;
+        push{stack=stack}(U256(new U256Struct(0, 0)));
+        EvmImpl.set_stack(stack);
+        // TODO drop all child evm dicts
+        tempvar ok = cast(0, EthereumException*);
+        return ok;
+    }
+
+    incorporate_child_on_success(child_evm);
+    EvmImpl.set_return_data(empty_data_bytes);
+    let stack = evm.value.stack;
+    let to_push = U256_from_be_bytes20(child_evm.value.message.value.current_target);
+    push{stack=stack}(to_push);
+    EvmImpl.set_stack(stack);
+    // todo drop all child evm dicts
+    tempvar ok = cast(0, EthereumException*);
     return ok;
 }

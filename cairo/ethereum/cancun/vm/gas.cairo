@@ -9,7 +9,7 @@ from ethereum.exceptions import EthereumException
 from ethereum.cancun.vm.exceptions import OutOfGasError
 from ethereum.cancun.vm.memory import Memory
 
-from starkware.cairo.common.math_cmp import is_le, is_not_zero, RC_BOUND
+from starkware.cairo.common.math_cmp import is_le, is_not_zero, RC_BOUND, is_le_felt
 from starkware.cairo.common.math import assert_le_felt
 from starkware.cairo.common.uint256 import ALL_ONES, uint256_eq, uint256_le
 
@@ -93,10 +93,10 @@ struct MessageCallGas {
 // @param amount The amount of gas the current operation requires.
 // @return EVM The pointer to the updated execution context.
 func charge_gas{range_check_ptr, evm: Evm}(amount: Uint) -> EthereumException* {
-    // This is equivalent to is_nn(evm.value.gas_left - amount)
-    with_attr error_message("charge_gas: gas_left > 2**128") {
-        assert [range_check_ptr] = evm.value.gas_left.value;
-        tempvar range_check_ptr = range_check_ptr + 1;
+    let is_in_range = is_le_felt(evm.value.gas_left.value, 2 ** 128 - 1);
+    if (is_in_range == 0) {
+        tempvar err = new EthereumException(OutOfGasError);
+        return err;
     }
 
     tempvar a = evm.value.gas_left.value - amount.value;  // a is necessary for using the whitelisted hint

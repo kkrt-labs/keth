@@ -151,12 +151,16 @@ func op_implementation{
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
     evm: Evm,
-}(opcode: felt) -> EthereumException* {
+}(
+    process_create_message_label: felt*, process_message_label: felt*, opcode: felt
+) -> EthereumException* {
     // call opcode
     // count 1 for "next line" and 4 steps per opcode: call, opcode, ret
     tempvar offset = opcode * 3 + 1;
 
     // Prepare arguments
+    [ap] = process_create_message_label, ap++;
+    [ap] = process_message_label, ap++;
     [ap] = range_check_ptr, ap++;
     [ap] = bitwise_ptr, ap++;
     [ap] = keccak_ptr, ap++;
