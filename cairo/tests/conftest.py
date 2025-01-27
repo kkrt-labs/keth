@@ -1,20 +1,16 @@
 import logging
 import os
-import shutil
-import time
 from dataclasses import fields
-from pathlib import Path
 
 import pytest
-import starkware.cairo.lang.instances as LAYOUTS
-import xdist
-import xxhash
-from _pytest.mark import deselect_by_keyword, deselect_by_mark
+from cairo_addons.testing.runner import run_python_vm, run_rust_vm
 from dotenv import load_dotenv
 from hypothesis import HealthCheck, Phase, Verbosity, settings
 
-from tests.utils.caching import CACHED_TESTS_FILE, file_hash, program_hash
-from tests.utils.compiler import get_cairo_file, get_cairo_program, get_main_path
+from tests.utils.args_gen import gen_arg as gen_arg_builder
+from tests.utils.args_gen import to_cairo_type, to_python_type
+from tests.utils.hints import get_op
+from tests.utils.serde import Serde
 from tests.utils.strategies import register_type_strategies
 
 load_dotenv()
@@ -24,53 +20,15 @@ logging.basicConfig(
 logger = logging.getLogger()
 
 
-def pytest_addoption(parser):
-    parser.addoption(
-        "--profile-cairo",
-        action="store_true",
-        default=False,
-        help="compute and dump TracerData for the VM runner: True or False",
-    )
-    parser.addoption(
-        "--proof-mode",
-        action="store_true",
-        default=False,
-        help="run the CairoRunner in proof mode: True or False",
-    )
-    parser.addoption(
-        "--skip-cached-tests",
-        action="store_true",
-        default=True,
-        help="skip tests if neither the cairo program nor the test file has changed: True or False",
-    )
-    parser.addoption(
-        "--no-skip-cached-tests",
-        action="store_false",
-        dest="skip_cached_tests",
-        help="run all tests regardless of cache",
-    )
-    parser.addoption(
-        "--no-skip-mark",
-        action="store_true",
-        default=False,
-        help="Do not skip tests by marked with @pytest.mark.skip",
-    )
-    parser.addoption(
-        "--layout",
-        choices=dir(LAYOUTS),
-        default="all_cairo_instance",
-        help="The layout of the Cairo AIR.",
-    )
-    parser.addoption(
-        "--seed",
-        action="store",
-        default=None,
-        type=int,
-        help="The seed to set random with.",
-    )
+@pytest.fixture(autouse=True, scope="session")
+def seed(request):
+    if request.config.getoption("seed") is not None:
+        import random
 
+        logger.info(f"Setting seed to {request.config.getoption('seed')}")
 
-pytest_plugins = ["tests.fixtures.runner"]
+        random.seed(request.config.getoption("seed"))
+
 
 register_type_strategies()
 settings.register_profile(
@@ -111,166 +69,64 @@ settings.load_profile(os.getenv("HYPOTHESIS_PROFILE", "default"))
 logger.info(f"Using Hypothesis profile: {os.getenv('HYPOTHESIS_PROFILE', 'default')}")
 
 
-@pytest.fixture(autouse=True, scope="session")
-def seed(request):
-    if request.config.getoption("seed") is not None:
-        import random
-
-        logger.info(f"Setting seed to {request.config.getoption('seed')}")
-
-        random.seed(request.config.getoption("seed"))
-
-
-def pytest_sessionstart(session):
-    session.results = dict()
-    session.build_dir = Path("build") / ".pytest_build"
-
-
-def pytest_sessionfinish(session):
-
-    if xdist.is_xdist_controller(session):
-        logger.info("Controller worker: collecting tests to skip")
-        shutil.rmtree(session.build_dir, ignore_errors=True)
-        tests_to_skip = session.config.cache.get(f"cairo_run/{CACHED_TESTS_FILE}", [])
-        for worker_id in range(session.config.option.numprocesses):
-            tests_to_skip += session.config.cache.get(
-                f"cairo_run/gw{worker_id}/{CACHED_TESTS_FILE}", []
-            )
-        session.config.cache.set(f"cairo_run/{CACHED_TESTS_FILE}", tests_to_skip)
-        return
-
-    session_tests_to_skip = [
-        session.test_hashes[item.nodeid]
-        for item in session.results.values()
-        if item.passed and item.nodeid in session.test_hashes
-    ]
-
-    if xdist.is_xdist_worker(session):
-        worker_id = xdist.get_xdist_worker_id(session)
-        logger.info(f"Worker {worker_id}: collecting tests to skip")
-        session.config.cache.set(
-            f"cairo_run/{worker_id}/{CACHED_TESTS_FILE}",
-            session_tests_to_skip,
-        )
-        return
-
-    logger.info("Sequential worker: collecting tests to skip")
-    shutil.rmtree(session.build_dir, ignore_errors=True)
-    tests_to_skip = session.config.cache.get(f"cairo_run/{CACHED_TESTS_FILE}", [])
-    tests_to_skip += session_tests_to_skip
-    session.config.cache.set(f"cairo_run/{CACHED_TESTS_FILE}", list(set(tests_to_skip)))
+@pytest.fixture(scope="module")
+def cairo_run_py(request, cairo_program, cairo_file, main_path):
+    """Run the cairo program using Python VM."""
+    return run_python_vm(
+        cairo_program,
+        cairo_file,
+        main_path,
+        request,
+        gen_arg_builder=gen_arg_builder,
+        serde_cls=Serde,
+        to_python_type=to_python_type,
+        to_cairo_type=to_cairo_type,
+        hint_locals={"get_op": get_op},
+    )
 
 
-@pytest.hookimpl(tryfirst=True, hookwrapper=True)
-def pytest_runtest_makereport(item, call):
-    outcome = yield
-    result = outcome.get_result()
+@pytest.fixture(scope="module")
+def cairo_run(request, cairo_program, rust_program, cairo_file, main_path):
+    """
+    Run the cairo program corresponding to the python test file at a given entrypoint with given program inputs as kwargs.
+    Returns the output of the cairo program put in the output memory segment.
 
-    if result.when == "call":
-        item.session.results[item] = result
+    When --profile-cairo is passed, the cairo program is run with the tracer enabled and the resulting trace is dumped.
 
+    Logic is mainly taken from starkware.cairo.lang.vm.cairo_run with minor updates, mainly builtins discovery from implicit args.
 
-def get_dump_path(session, fspath):
-    dump_path = session.build_dir / session.cairo_files[fspath].relative_to(
-        Path().cwd()
-    ).with_suffix(".json")
-    dump_path.parent.mkdir(parents=True, exist_ok=True)
-    return dump_path
+    Type conversion between Python and Cairo is handled by:
+    - gen_arg: Converts Python arguments to Cairo memory layout when preparing runner inputs
+    - serde: Converts Cairo memory data to Python types by reading into the segments, used to return python types.
 
+    The VM used for the run depends on the presence of a "python_vm" marker in the test.
 
-@pytest.hookimpl(wrapper=True)
-def pytest_collection_modifyitems(session, config, items):
-    # deselect tests by keyword and mark here to avoid compiling cairo files
-    deselect_by_keyword(items, config)
-    deselect_by_mark(items, config)
-
-    # Collect only is used by the IDE to collect tests, at this point
-    # we don't want to compile the cairo files
-    if config.option.collectonly:
-        yield
-        return
-
-    tests_to_skip = config.cache.get(f"cairo_run/{CACHED_TESTS_FILE}", [])
-    session.cairo_files = {}
-    session.cairo_programs = {}
-    session.main_paths = {}
-    session.test_hashes = {}
-    cairo_items = [
-        item
-        for item in items
-        if (
-            hasattr(item, "fixturenames")
-            and set(item.fixturenames)
-            & {
-                "cairo_file",
-                "main_path",
-                "cairo_program",
-                "cairo_run",
-            }
-        )
-    ]
-
-    # Distribute compilation using modulo
-    worker_count = getattr(config, "workerinput", {}).get("workercount", 1)
-    worker_id = getattr(config, "workerinput", {}).get("workerid", "master")
-    worker_index = int(worker_id[2:]) if worker_id != "master" else 0
-    fspaths = sorted(list({item.fspath for item in cairo_items}))
-    for fspath in fspaths[worker_index::worker_count]:
-        session.cairo_files[fspath] = get_cairo_file(fspath)
-        session.main_paths[fspath] = get_main_path(session.cairo_files[fspath])
-        dump_path = get_dump_path(session, fspath)
-        session.cairo_programs[fspath] = get_cairo_program(
-            session.cairo_files[fspath],
-            session.main_paths[fspath],
-            dump_path,
+    Returns:
+        The function's return value, converted back to Python types
+    """
+    if request.node.get_closest_marker("python_vm"):
+        return run_python_vm(
+            cairo_program,
+            cairo_file,
+            main_path,
+            request,
+            gen_arg_builder=gen_arg_builder,
+            serde_cls=Serde,
+            to_python_type=to_python_type,
+            to_cairo_type=to_cairo_type,
+            hint_locals={"get_op": get_op},
         )
 
-    # Wait for all workers to finish
-    missing = set(fspaths) - set(fspaths[worker_index::worker_count])
-    while missing:
-        logger.info(f"Waiting for {len(missing)} compilations artifacts to be ready")
-        missing_new = set()
-        for fspath in missing:
-            if fspath not in session.cairo_files:
-                session.cairo_files[fspath] = get_cairo_file(fspath)
-            if fspath not in session.main_paths:
-                session.main_paths[fspath] = get_main_path(session.cairo_files[fspath])
-            if fspath not in session.cairo_programs:
-                dump_path = get_dump_path(session, fspath)
-                if dump_path.exists():
-                    session.cairo_programs[fspath] = get_cairo_program(
-                        session.cairo_files[fspath],
-                        session.main_paths[fspath],
-                        dump_path,
-                    )
-                else:
-                    missing_new.add(fspath)
-        missing = missing_new
-        time.sleep(0.25)
-
-    # Select tests
-    for item in cairo_items:
-        cairo_program = session.cairo_programs[item.fspath]
-        test_hash = xxhash.xxh64(
-            program_hash(cairo_program)
-            + file_hash(item.fspath)
-            + item.nodeid.encode()
-            + file_hash(Path(__file__).parent / "fixtures" / "runner.py")
-            + file_hash(Path(__file__).parent / "utils" / "serde.py")
-            + file_hash(Path(__file__).parent / "utils" / "args_gen.py")
-            + file_hash(Path(__file__).parent / "utils" / "strategies.py")
-        ).hexdigest()
-        session.test_hashes[item.nodeid] = test_hash
-
-        if config.getoption("no_skip_mark"):
-            item.own_markers = [
-                mark for mark in item.own_markers if mark.name != "skip"
-            ]
-
-        if test_hash in tests_to_skip and config.getoption("skip_cached_tests"):
-            item.add_marker(pytest.mark.skip(reason="Cached results"))
-
-    yield
+    return run_rust_vm(
+        cairo_program,
+        rust_program,
+        cairo_file,
+        main_path,
+        request,
+        gen_arg_builder=gen_arg_builder,
+        serde_cls=Serde,
+        to_python_type=to_python_type,
+    )
 
 
 def pytest_assertrepr_compare(op, left, right):

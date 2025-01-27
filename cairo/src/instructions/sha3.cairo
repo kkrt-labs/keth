@@ -11,7 +11,7 @@ from src.memory import Memory
 from src.model import model
 from src.stack import Stack
 from src.utils.bytes import keccak
-from src.utils.maths import unsigned_div_rem
+from cairo_core.maths import unsigned_div_rem
 
 namespace Sha3 {
     func exec_sha3{

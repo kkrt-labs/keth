@@ -12,10 +12,9 @@ import json
 import logging
 
 import pytest
-from starkware.cairo.lang.compiler.program import Program
-
 from cairo_addons.testing.runner import run_python_vm, run_rust_vm
 from cairo_addons.vm import Program as RustProgram
+from starkware.cairo.lang.compiler.program import Program
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"

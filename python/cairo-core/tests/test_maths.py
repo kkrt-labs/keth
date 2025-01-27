@@ -1,8 +1,7 @@
 import pytest
+from cairo_addons.testing.strategies import felt, uint128
 from hypothesis import assume, given
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
-
-from cairo_addons.testing.strategies import felt, uint128
 
 pytestmark = pytest.mark.python_vm
 

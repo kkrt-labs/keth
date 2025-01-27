@@ -20,10 +20,21 @@ from typing import Callable, Optional, Tuple, Type
 
 import polars as pl
 import starkware.cairo.lang.instances as LAYOUTS
+from cairo_addons.profiler import profile_from_tracer_data
+from cairo_addons.testing.hints import debug_info, oracle
+from cairo_addons.testing.serde import Serde, SerdeProtocol
+from cairo_addons.testing.utils import flatten
+from cairo_addons.vm import CairoRunner as RustCairoRunner
+from cairo_addons.vm import Program as RustProgram
+from cairo_addons.vm import RunResources as RustRunResources
 from pytest import FixtureRequest
 from starkware.cairo.common.dict import DictManager
 from starkware.cairo.lang.builtins.all_builtins import ALL_BUILTINS
-from starkware.cairo.lang.compiler.ast.cairo_types import CairoType, TypeStruct
+from starkware.cairo.lang.compiler.ast.cairo_types import (
+    CairoType,
+    TypeStruct,
+    TypeTuple,
+)
 from starkware.cairo.lang.compiler.identifier_definition import (
     StructDefinition,
     TypeDefinition,
@@ -42,14 +53,6 @@ from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 from starkware.cairo.lang.vm.security import verify_secure_runner
 from starkware.cairo.lang.vm.utils import RunResources
 from starkware.cairo.lang.vm.vm import VirtualMachine
-
-from cairo_addons.profiler import profile_from_tracer_data
-from cairo_addons.testing.hints import debug_info
-from cairo_addons.testing.serde import Serde, SerdeProtocol
-from cairo_addons.testing.utils import flatten
-from cairo_addons.vm import CairoRunner as RustCairoRunner
-from cairo_addons.vm import Program as RustProgram
-from cairo_addons.vm import RunResources as RustRunResources
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -149,7 +152,7 @@ def build_entrypoint(
         *(
             [explicit_return_data]
             if not (
-                isinstance(explicit_return_data, StructDefinition)
+                isinstance(explicit_return_data, TypeTuple)
                 and len(explicit_return_data.members) == 0
             )
             else []
@@ -175,7 +178,10 @@ def run_python_vm(
         Callable[[DictManager, MemorySegmentManager], Callable]
     ] = None,
     to_python_type: Optional[Callable] = None,
-    serde_cls: Optional[Type[SerdeProtocol]] = Serde,
+    to_cairo_type: Optional[Callable] = None,
+    serde_cls: Type[SerdeProtocol] = Serde,
+    hint_locals: Optional[dict] = None,
+    static_locals: Optional[dict] = None,
 ):
     """Helper function containing Python VM implementation"""
 
@@ -218,6 +224,7 @@ def run_python_vm(
                 output_ptr = stack[-1]
 
         # Handle other args, (implicit, explicit)
+        gen_arg = None
         if gen_arg_builder is not None:
             gen_arg = gen_arg_builder(dict_manager, runner.segments)
             for i, (arg_name, python_type) in enumerate(
@@ -253,10 +260,15 @@ def run_python_vm(
                 "__dict_manager": dict_manager,
                 "dict_manager": dict_manager,
                 "serde": serde,
+                "oracle": oracle(
+                    cairo_program, serde, main_path, gen_arg, to_cairo_type
+                ),
+                **(hint_locals or {}),
             },
             static_locals={
                 "debug_info": debug_info(cairo_program),
                 "logger": logger,
+                **(static_locals or {}),
             },
             vm_class=VirtualMachine,
         )
@@ -409,7 +421,7 @@ def run_rust_vm(
         Callable[[DictManager, MemorySegmentManager], Callable]
     ] = None,
     to_python_type: Optional[Callable] = None,
-    serde_cls: Optional[Type[SerdeProtocol]] = Serde,
+    serde_cls: Type[SerdeProtocol] = Serde,
 ):
     """Helper function containing Rust VM implementation"""
 
@@ -417,6 +429,13 @@ def run_rust_vm(
         _builtins, _implicit_args, _args, return_data_types = build_entrypoint(
             cairo_program, entrypoint, to_python_type, main_path
         )
+
+        # Set program builtins based on the implicit args
+        rust_program.builtins = [
+            builtin
+            for builtin in ALL_BUILTINS
+            if builtin in [arg.replace("_ptr", "") for arg in _builtins]
+        ]
 
         # Create runner
         runner = RustCairoRunner(
@@ -434,6 +453,7 @@ def run_rust_vm(
             runner.segments, cairo_program, runner.dict_manager, cairo_file
         )
         stack = []
+        gen_arg = None
         if gen_arg_builder is not None:
             gen_arg = gen_arg_builder(runner.dict_manager, runner.segments)
             for i, (arg_name, python_type) in enumerate(

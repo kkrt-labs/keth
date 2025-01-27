@@ -1,11 +1,11 @@
 import pytest
-from ethereum.crypto.elliptic_curve import SECP256K1N
+from cairo_addons.utils.uint256 import int_to_uint256, uint256_to_int
+from cairo_addons.utils.uint384 import int_to_uint384, uint384_to_int
 from hypothesis import assume, given
 from hypothesis import strategies as st
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 
-from cairo_addons.utils.uint256 import int_to_uint256, uint256_to_int
-from cairo_addons.utils.uint384 import int_to_uint384, uint384_to_int
+from ethereum.crypto.elliptic_curve import SECP256K1N
 
 pytestmark = pytest.mark.python_vm
 

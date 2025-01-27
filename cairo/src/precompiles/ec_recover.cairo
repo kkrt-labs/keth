@@ -18,11 +18,11 @@ from starkware.cairo.common.memset import memset
 
 from src.errors import Errors
 from src.utils.uint256 import uint256_eq
-from src.utils.uint384 import uint256_to_uint384
+from cairo_ec.uint384 import uint256_to_uint384
 from src.utils.utils import Helpers
 from src.utils.array import slice
 from src.utils.signature import Signature
-from src.utils.maths import unsigned_div_rem
+from cairo_core.maths import unsigned_div_rem
 
 // @title EcRecover Precompile related functions.
 // @notice This file contains the logic required to run the ec_recover precompile

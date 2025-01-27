@@ -6,7 +6,7 @@ from starkware.cairo.common.bool import FALSE
 
 from src.errors import Errors
 from src.utils.utils import Helpers
-from src.utils.maths import unsigned_div_rem
+from cairo_core.maths import unsigned_div_rem
 
 // @title Blake2f Precompile related functions.
 // @notice This file contains the logic required to run the blake2f precompile

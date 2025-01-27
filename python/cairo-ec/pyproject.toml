@@ -29,16 +29,16 @@ artifacts = [
 dev-dependencies = [
   "pytest>=7.0",
   "cairo-lang>=0.13.0",
-  "hypothesis>=6.122.3",
+  "hypothesis>=6.124.3",
   "jupyter>=1.1.1",
   "ethereum",
 ]
 
 [tool.isort]
 profile = "black"
-known_first_party = ["cairo_addons"]
+known_first_party = ["cairo_addons", "cairo_core"]
 
 [tool.uv.sources]
-ethereum = { git = "https://github.com/kkrt-labs/execution-specs.git", rev = "7d685c83af787e7519f8787563a5e94020700d6e" }
+ethereum = { git = "https://github.com/kkrt-labs/execution-specs.git", rev = "53fbc954b8e9e7dd86060814dfbf836791a22f4c" }
 cairo-addons = { workspace = true }
 cairo-core = { workspace = true }

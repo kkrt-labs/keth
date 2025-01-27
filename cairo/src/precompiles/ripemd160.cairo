@@ -14,7 +14,7 @@ from src.model import model
 from src.memory import Memory
 from src.evm import EVM
 from src.utils.utils import Helpers
-from src.utils.maths import unsigned_div_rem
+from cairo_core.maths import unsigned_div_rem
 
 // @title RIPEMD-160 precompile
 // @custom:precompile

@@ -29,4 +29,4 @@ profile = "black"
 known_first_party = ["cairo_addons"]
 
 [dependency-groups]
-dev = ["hypothesis>=6.123.17"]
+dev = ["hypothesis>=6.124.3"]

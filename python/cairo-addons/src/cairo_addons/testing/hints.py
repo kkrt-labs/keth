@@ -1,4 +1,5 @@
 from contextlib import contextmanager
+from importlib import import_module
 from typing import Optional
 from unittest.mock import patch
 
@@ -11,9 +12,11 @@ def debug_info(program: Program):
             raise ValueError("Program debug info is not set")
 
         if (
-            instruction_location := program.debug_info.instruction_locations.get(pc)
+            instruction_location := program.debug_info.instruction_locations.get(
+                pc.offset
+            )
         ) is None:
-            raise ValueError()
+            raise ValueError("Instruction location not found")
 
         print(instruction_location.inst.to_string_with_content(""))
 
@@ -146,3 +149,33 @@ def insert_hint(program, location: str, hint):
         patch.object(program, "hints", new=new_hints),
     ):
         yield
+
+
+def oracle(program, serde, main_path, gen_arg, to_cairo_type):
+
+    def _factory(ids, reference: Optional[str] = None):
+        full_path = (
+            reference.split(".")
+            if reference is not None
+            else list(program.hints.values())[-1][0].accessible_scopes[-1].path
+        )
+        if "__main__" in full_path:
+            full_path = main_path + full_path[full_path.index("__main__") + 1 :]
+
+        mod = import_module(".".join(full_path[:-1]))
+        target = getattr(mod, full_path[-1])
+        from inspect import signature
+
+        sig = signature(target)
+        args = []
+        for name, type_ in sig.parameters.items():
+            args += [
+                serde.serialize(
+                    to_cairo_type(program, type_._annotation),
+                    getattr(ids, name).address_,
+                    shift=0,
+                )
+            ]
+        return gen_arg(sig.return_annotation, target(*args))
+
+    return _factory

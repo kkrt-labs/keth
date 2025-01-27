@@ -3,7 +3,7 @@ import json
 import logging
 from pathlib import Path
 
-from src.utils.compiler import cairo_compile, implement_hints
+from cairo_addons.compiler import cairo_compile, implement_hints
 
 # Configure the logger
 logging.basicConfig(
@@ -24,11 +24,11 @@ def compile_cairo(file_name, should_implement_hints=True):
 
 
 def compile_os():
-    compile_cairo(Path(__file__).parents[2] / "programs" / "os.cairo")
+    compile_cairo(Path(__file__).parents[1] / "programs" / "os.cairo")
 
 
 def compile_fibonacci():
-    compile_cairo(Path(__file__).parents[2] / "programs" / "fibonacci.cairo")
+    compile_cairo(Path(__file__).parents[1] / "programs" / "fibonacci.cairo")
 
 
 if __name__ == "__main__":

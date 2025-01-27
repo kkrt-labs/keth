@@ -53,7 +53,9 @@ def get_main_path(cairo_file):
     Resolve the __main__ part of the cairo scope path.
     """
     return tuple(
-        "/".join(cairo_file.relative_to(Path.cwd()).with_suffix("").parts).split("/")
+        "/".join(cairo_file.relative_to(Path.cwd()).with_suffix("").parts)
+        .replace("cairo/", "")
+        .split("/")
     )
 
 

@@ -12,7 +12,7 @@ from src.evm import EVM
 from src.memory import Memory
 from src.model import model
 from src.stack import Stack
-from src.utils.maths import unsigned_div_rem
+from cairo_core.maths import unsigned_div_rem
 from src.utils.utils import Helpers
 
 namespace TestHelpers {

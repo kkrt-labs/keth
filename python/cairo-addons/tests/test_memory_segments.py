@@ -57,4 +57,4 @@ class TestMemorySegmentManager:
     def test_memory_wrapper(self, runner):
         ptr = runner.segments.add()
         runner.segments.load_data(ptr, [Felt(1), Felt(2), Felt(3), Felt(4)])
-        assert runner.segments.memory.get(ptr) == Felt(1)
+        assert runner.segments.memory.get(ptr) == 1

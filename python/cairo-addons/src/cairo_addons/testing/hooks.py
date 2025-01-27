@@ -8,7 +8,6 @@ import starkware.cairo.lang.instances as LAYOUTS
 import xdist
 import xxhash
 from _pytest.mark import deselect_by_keyword, deselect_by_mark
-
 from cairo_addons.testing.caching import CACHED_TESTS_FILE, file_hash, program_hash
 from cairo_addons.testing.compiler import (
     get_cairo_file,

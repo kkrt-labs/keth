@@ -1,14 +1,14 @@
 import hypothesis.strategies as st
 import pytest
+from cairo_addons.testing.strategies import felt
+from cairo_addons.utils.uint384 import int_to_uint384, uint384_to_int
+from hypothesis import given
+from sympy import sqrt_mod
+
 from ethereum.crypto.alt_bn128 import BNF as AltBn128P
 from ethereum.crypto.alt_bn128 import BNP as AltBn128
 from ethereum.crypto.elliptic_curve import EllipticCurve
 from ethereum.crypto.finite_field import PrimeField
-from hypothesis import given
-from sympy import sqrt_mod
-
-from cairo_addons.testing.strategies import felt
-from cairo_addons.utils.uint384 import int_to_uint384, uint384_to_int
 
 pytestmark = pytest.mark.python_vm
 

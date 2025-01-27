@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 from typing import Union
 
+from cairo_addons.hints import implementations
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 from starkware.cairo.lang.compiler.cairo_compile import compile_cairo, get_module_reader
 from starkware.cairo.lang.compiler.constants import LIBS_DIR_ENVVAR
@@ -9,8 +10,6 @@ from starkware.cairo.lang.compiler.preprocessor.default_pass_manager import (
     default_pass_manager,
 )
 from starkware.cairo.lang.compiler.program import CairoHint, Program
-
-from cairo_addons.hints import implementations
 
 
 def implement_hints(program: Program):

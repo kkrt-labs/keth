@@ -19,7 +19,7 @@ from ethereum.cancun.fork_types import (
     TupleAddressBytes32,
 )
 
-from src.utils.maths import unsigned_div_rem
+from cairo_core.maths import unsigned_div_rem
 
 // @ notice: Creates a new, empty dict, does not require an `initial_dict` argument.
 func dict_new_empty() -> (res: DictAccess*) {

@@ -14,7 +14,7 @@ from src.stack import Stack
 from src.state import State
 from src.utils.utils import Helpers
 from src.utils.uint256 import uint256_unsigned_div_rem, uint256_eq
-from src.utils.maths import unsigned_div_rem
+from cairo_core.maths import unsigned_div_rem
 
 namespace MemoryOperations {
     func exec_mload{

@@ -15,7 +15,7 @@ from src.model import model
 from src.stack import Stack
 from src.state import State
 from src.utils.array import slice
-from src.utils.maths import unsigned_div_rem
+from cairo_core.maths import unsigned_div_rem
 from src.utils.uint256 import uint256_to_uint160, uint256_add, uint256_eq
 from src.utils.utils import Helpers
 

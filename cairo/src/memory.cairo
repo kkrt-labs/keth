@@ -7,7 +7,7 @@ from starkware.cairo.common.uint256 import Uint256
 
 from src.model import model
 from src.utils.utils import Helpers
-from src.utils.maths import unsigned_div_rem
+from cairo_core.maths import unsigned_div_rem
 
 // @title Memory related functions.
 // @notice This file contains functions related to the memory.
