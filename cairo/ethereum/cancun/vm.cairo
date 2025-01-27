@@ -105,6 +105,10 @@ struct MessageStruct {
     parent_evm: OptionalEvm,
 }
 
+// @notice Incorporates the child EVM in its parent in case of a successful execution.
+// @dev This merges the current logs, touched_accounts, accounts_to_delete, accessed addresses and storage keys into the parent.
+// @dev The transient storage and state have been handled in `commit_transaction`, in which we
+// dict accesses to the parent's state and transient storage segments.
 func incorporate_child_on_success{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, evm: Evm}(
     child_evm: Evm
 ) {
@@ -262,7 +266,10 @@ func incorporate_child_on_success{range_check_ptr, poseidon_ptr: PoseidonBuiltin
 }
 
 // @notice Incorporates the child EVM in its parent in case of an error.
-// @dev This function is responsible for correctly squashing all the child's dicts that are dropped.
+// @dev This squashes and drops the current logs, touched_accounts, accounts_to_delete, accessed
+// addresses and storage keys that are no longer used.
+// @dev The transient storage and state have been handled in `rollback_transaction`, in which we squashed the segment
+// and appended the (key, prev_value, prev_value) pairs to the parent's state and transient storage segments.
 func incorporate_child_on_error{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, evm: Evm}(
     child_evm: Evm
 ) {
