@@ -121,7 +121,7 @@ from ethereum.cancun.vm.instructions.stack_instructions import (
 )
 from ethereum.cancun.vm.instructions.memory_instructions import mstore, mstore8, mload, msize, mcopy
 from ethereum.cancun.vm.instructions.log import log0, log1, log2, log3, log4
-from ethereum.cancun.vm.instructions.system import revert
+from ethereum.cancun.vm.instructions.system import return_, revert, create, create2
 from ethereum.cancun.vm.instructions.environment import (
     address,
     balance,
@@ -648,17 +648,17 @@ func op_implementation{
     ret;
     call unknown_opcode;  // 0xef
     ret;
-    call unknown_opcode;  // 0xf0 //TODO: create
+    call create;  // 0xf0 //TODO: create
     ret;
     call unknown_opcode;  // 0xf1 //TODO: call
     ret;
     call unknown_opcode;  // 0xf2 //TODO: callcode
     ret;
-    call unknown_opcode;  // 0xf3 //TODO: return
+    call return_;  // 0xf3 - RETURN
     ret;
     call unknown_opcode;  // 0xf4 //TODO: delegatecall
     ret;
-    call unknown_opcode;  // 0xf5 //TODO: create2
+    call create2;  // 0xf5 - CREATE2
     ret;
     call unknown_opcode;  // 0xf6
     ret;
