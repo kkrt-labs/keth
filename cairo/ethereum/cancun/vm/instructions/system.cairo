@@ -97,6 +97,7 @@ func generic_call{
     with memory {
         let calldata = memory_read_bytes(memory_input_start_position, memory_input_size);
     }
+    EvmImpl.set_memory(memory);
     let env = evm.value.env;
     let state = env.value.state;
     let account = get_account{state=state}(code_address);
@@ -171,7 +172,7 @@ func generic_call{
     tempvar child_evm = Evm(child_evm_);
 
     if (cast(err, felt) != 0) {
-        // TODO we still need to drop dicts and get the child evm state etc
+        // TODO: <https://github.com/kkrt-labs/keth/issues/568> we still need to drop dicts and get the child evm state etc
         return err;
     }
 
