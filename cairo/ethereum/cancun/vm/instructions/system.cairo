@@ -233,10 +233,13 @@ func generic_create{
         EvmImpl.set_gas_left(Uint(new_gas_left));
         tempvar zero = U256(new U256Struct(0, 0));
         let stack = evm.value.stack;
-        push{stack=stack}(zero);
+        let err = push{stack=stack}(zero);
         EnvImpl.set_state{env=env}(state);
         EvmImpl.set_env(env);
         EvmImpl.set_stack(stack);
+        if (cast(err, felt) != 0) {
+            return err;
+        }
         tempvar ok = cast(0, EthereumException*);
         return ok;
     }
@@ -246,10 +249,13 @@ func generic_create{
         increment_nonce{state=state}(evm.value.message.value.current_target);
         tempvar zero = U256(new U256Struct(0, 0));
         let stack = evm.value.stack;
-        push{stack=stack}(zero);
+        let err = push{stack=stack}(zero);
         EnvImpl.set_state{env=env}(state);
         EvmImpl.set_env(env);
         EvmImpl.set_stack(stack);
+        if (cast(err, felt) != 0) {
+            return err;
+        }
         tempvar ok = cast(0, EthereumException*);
         return ok;
     }
@@ -329,9 +335,11 @@ func generic_create{
         incorporate_child_on_error(child_evm);
         EvmImpl.set_return_data(child_evm.value.output);
         let stack = evm.value.stack;
-        push{stack=stack}(U256(new U256Struct(0, 0)));
+        let err = push{stack=stack}(U256(new U256Struct(0, 0)));
         EvmImpl.set_stack(stack);
-        // TODO drop all child evm dicts
+        if (cast(err, felt) != 0) {
+            return err;
+        }
         tempvar ok = cast(0, EthereumException*);
         return ok;
     }
@@ -340,9 +348,11 @@ func generic_create{
     EvmImpl.set_return_data(empty_data_bytes);
     let stack = evm.value.stack;
     let to_push = U256_from_be_bytes20(child_evm.value.message.value.current_target);
-    push{stack=stack}(to_push);
+    let err = push{stack=stack}(to_push);
     EvmImpl.set_stack(stack);
-    // todo drop all child evm dicts
+    if (cast(err, felt) != 0) {
+        return err;
+    }
     tempvar ok = cast(0, EthereumException*);
     return ok;
 }
