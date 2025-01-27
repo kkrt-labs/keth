@@ -2,7 +2,12 @@ from ethereum_types.numeric import U256, Uint
 from hypothesis import given
 
 from ethereum.cancun.fork_types import Address
-from ethereum.cancun.vm.instructions.system import generic_call, generic_create
+from ethereum.cancun.vm.instructions.system import (
+    create,
+    create2,
+    generic_call,
+    generic_create,
+)
 from tests.utils.args_gen import Evm
 from tests.utils.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder
@@ -19,6 +24,8 @@ local_strategy = (
     .with_refund_counter()
     .build()
 )
+
+evm_stack_memory_gas = EvmBuilder().with_stack().with_memory().with_gas_left().build()
 
 
 class TestSystem:
@@ -72,6 +79,30 @@ class TestSystem:
             init_code_gas,
         )
         assert evm == cairo_evm
+
+    @given(evm=evm_stack_memory_gas)
+    def test_create(self, cairo_run, evm: Evm):
+        try:
+            cairo_result = cairo_run("test_create", evm)
+        except Exception as cairo_error:
+            with strict_raises(type(cairo_error)):
+                create(evm)
+            return
+
+        create(evm)
+        assert evm == cairo_result
+
+    @given(evm=evm_stack_memory_gas)
+    def test_create2(self, cairo_run, evm: Evm):
+        try:
+            cairo_result = cairo_run("test_create2", evm)
+        except Exception as cairo_error:
+            with strict_raises(type(cairo_error)):
+                create2(evm)
+            return
+
+        create2(evm)
+        assert evm == cairo_result
 
     @given(
         evm=local_strategy,
