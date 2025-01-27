@@ -77,7 +77,7 @@ func generic_call{
 
     let (empty_data: felt*) = alloc();
     tempvar empty_data_bytes = Bytes(new BytesStruct(empty_data, 0));
-    EvmImpl.set_return_data(return_data);
+    EvmImpl.set_return_data(empty_data_bytes);
 
     let depth_too_deep = is_le(STACK_DEPTH_LIMIT, evm.value.message.value.depth.value);
     if (depth_too_deep != 0) {
@@ -165,18 +165,12 @@ func generic_call{
 
     call abs process_message_label;
 
-    let range_check_ptr = [ap - 6];
-    let bitwise_ptr = cast([ap - 5], BitwiseBuiltin*);
-    let keccak_ptr = cast([ap - 4], KeccakBuiltin*);
-    let poseidon_ptr = cast([ap - 3], PoseidonBuiltin*);
-    let child_evm_ = cast([ap - 2], EvmStruct*);
-    let err = cast([ap - 1], EthereumException*);
+    let range_check_ptr = [ap - 5];
+    let bitwise_ptr = cast([ap - 4], BitwiseBuiltin*);
+    let keccak_ptr = cast([ap - 3], KeccakBuiltin*);
+    let poseidon_ptr = cast([ap - 2], PoseidonBuiltin*);
+    let child_evm_ = cast([ap - 1], EvmStruct*);
     tempvar child_evm = Evm(child_evm_);
-
-    if (cast(err, felt) != 0) {
-        // TODO: <https://github.com/kkrt-labs/keth/issues/568> we still need to drop dicts and get the child evm state etc
-        return err;
-    }
 
     // The previous operations have mutated the `env` passed to the function, which
     // is now located in child_evm.value.env. Notably, we must rebind env.state and env.transient_storage
