@@ -3,12 +3,16 @@ from typing import Tuple
 from ethereum_types.numeric import U64, U256, Bytes32, Uint
 from hypothesis import strategies as st
 
+from ethereum.cancun.blocks import Log
 from ethereum.cancun.fork_types import Address
 from ethereum.cancun.state import TransientStorage
 from ethereum.exceptions import EthereumException
 from tests.utils.args_gen import Environment, Evm, Stack
 from tests.utils.message_builder import MessageBuilder
 from tests.utils.strategies import (
+    MAX_ACCOUNTS_TO_DELETE_SIZE,
+    MAX_LOGS_SIZE,
+    MAX_TOUCHED_ACCOUNTS_SIZE,
     Memory,
     address_zero,
     code,
@@ -116,13 +120,39 @@ class EvmBuilder:
         return self
 
     def with_accessed_storage_keys(
-        self, strategy=st.sets(st.from_type(Tuple[Address, U256]), max_size=10)
+        self, strategy=st.sets(st.from_type(Tuple[Address, Bytes32]), max_size=10)
     ):
         self._accessed_storage_keys = strategy
         return self
 
     def with_return_data(self, strategy=st.binary(min_size=0, max_size=1024)):
         self._return_data = strategy
+        return self
+
+    def with_logs(
+        self, strategy=st.lists(st.from_type(Log), max_size=MAX_LOGS_SIZE).map(tuple)
+    ):
+        self._logs = strategy
+        return self
+
+    def with_accounts_to_delete(
+        self,
+        strategy=st.sets(st.from_type(Address), max_size=MAX_ACCOUNTS_TO_DELETE_SIZE),
+    ):
+        self._accounts_to_delete = strategy
+        return self
+
+    def with_touched_accounts(
+        self,
+        strategy=st.sets(st.from_type(Address), max_size=MAX_TOUCHED_ACCOUNTS_SIZE),
+    ):
+        self._touched_accounts = strategy
+        return self
+
+    def with_refund_counter(
+        self, strategy=st.integers(min_value=-(2**64) - 1, max_value=2**64)
+    ):
+        self._refund_counter = strategy
         return self
 
     def build(self):

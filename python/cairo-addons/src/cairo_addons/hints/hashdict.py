@@ -1,5 +1,5 @@
 from cairo_addons.hints.decorator import register_hint
-from starkware.cairo.common.dict import DictManager
+from starkware.cairo.common.dict import DictManager, DictTracker
 from starkware.cairo.lang.vm.memory_dict import MemoryDict
 from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 from starkware.cairo.lang.vm.vm_consts import VmConsts
@@ -15,7 +15,23 @@ def hashdict_read(dict_manager: DictManager, ids: VmConsts, memory: MemoryDict):
 
 
 @register_hint
-def hashdict_get(dict_manager: DictManager, ids: VmConsts, memory: MemoryDict):
+def hashdict_read_from_key(
+    dict_manager: DictManager,
+    ids: VmConsts,
+) -> int:
+    from cairo_addons.hints.hashdict import _get_preimage_for_hashed_key
+
+    dict_tracker = dict_manager.get_tracker(ids.dict_ptr_stop)
+    try:
+        preimage = _get_preimage_for_hashed_key(ids.key, dict_tracker) or ids.key
+    except Exception:
+        ids.value = dict_tracker.data.default_factory()
+    else:
+        ids.value = dict_tracker.data[preimage]
+
+
+@register_hint
+def hashdict_get(dict_manager: DictManager, ids: VmConsts, memory: MemoryDict) -> int:
     from collections import defaultdict
 
     dict_tracker = dict_manager.get_tracker(ids.dict_ptr)
@@ -68,16 +84,11 @@ def get_keys_for_address_prefix(
 def get_preimage_for_key(
     dict_manager: DictManager, ids: VmConsts, segments: MemorySegmentManager
 ):
-    from starkware.cairo.lang.vm.crypto import poseidon_hash_many
+    from cairo_addons.hints.hashdict import _get_preimage_for_hashed_key
 
-    hashed_value = ids.key
-    dict_tracker = dict_manager.get_tracker(ids.dict_ptr_stop)
-    # Get the key in the dict that matches the hashed value
     preimage = bytes(
-        next(
-            key
-            for key in dict_tracker.data.keys()
-            if poseidon_hash_many(key) == hashed_value
+        _get_preimage_for_hashed_key(
+            ids.key, dict_manager.get_tracker(ids.dict_ptr_stop)
         )
     )
     segments.write_arg(ids.preimage_data, preimage)
@@ -86,14 +97,21 @@ def get_preimage_for_key(
 
 @register_hint
 def copy_hashdict_tracker_entry(dict_manager: DictManager, ids: VmConsts):
-    from starkware.cairo.lang.vm.crypto import poseidon_hash_many
-
     obj_tracker = dict_manager.get_tracker(ids.dict_ptr_stop.address_)
+    preimage = _get_preimage_for_hashed_key(ids.dict_ptr.key.value, obj_tracker)
     dict_tracker = dict_manager.get_tracker(ids.branch_ptr.address_)
     dict_tracker.current_ptr += ids.DictAccess.SIZE
-    preimage = next(
-        key
-        for key in obj_tracker.data.keys()
-        if poseidon_hash_many(key) == ids.dict_ptr.key.value
-    )
     dict_tracker.data[preimage] = obj_tracker.data[preimage]
+
+
+def _get_preimage_for_hashed_key(
+    hashed_key: int,
+    dict_tracker: DictTracker,
+) -> tuple:
+    from starkware.cairo.lang.vm.crypto import poseidon_hash_many
+
+    # Get the key in the dict that matches the hashed value
+    preimage = next(
+        key for key in dict_tracker.data.keys() if poseidon_hash_many(key) == hashed_key
+    )
+    return preimage

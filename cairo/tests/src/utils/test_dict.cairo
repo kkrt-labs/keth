@@ -8,10 +8,18 @@ from ethereum_types.numeric import Uint
 from ethereum.cancun.fork_types import Address, TupleAddressBytes32
 from ethereum.cancun.state import (
     MappingTupleAddressBytes32U256,
+    MappingTupleAddressBytes32U256Struct,
+    TupleAddressBytes32U256DictAccess,
     ListTupleAddressBytes32,
     ListTupleAddressBytes32Struct,
 )
-from src.utils.dict import prev_values, dict_update, get_keys_for_address_prefix
+from src.utils.dict import (
+    prev_values,
+    dict_update,
+    get_keys_for_address_prefix,
+    squash_and_update,
+    dict_squash,
+)
 
 func test_prev_values{range_check_ptr}() -> (prev_values_start_ptr: felt*) {
     alloc_locals;
@@ -81,4 +89,31 @@ func test_get_keys_for_address_prefix{range_check_ptr}(
     let dict_ptr = cast(dict_entries.value.dict_ptr, DictAccess*);
     let res = get_keys_for_address_prefix{dict_ptr=dict_ptr}(prefix_len, prefix);
     return res;
+}
+
+func test_squash_and_update{range_check_ptr}(
+    src_dict: MappingTupleAddressBytes32U256, dst_dict: MappingTupleAddressBytes32U256
+) -> MappingTupleAddressBytes32U256 {
+    alloc_locals;
+
+    let src_start = src_dict.value.dict_ptr_start;
+    let src_end = src_dict.value.dict_ptr;
+    let dst = dst_dict.value.dict_ptr;
+    let new_dst_end = squash_and_update(
+        cast(src_start, DictAccess*), cast(src_end, DictAccess*), cast(dst, DictAccess*)
+    );
+
+    // Squash the dict another time to ensure that the update was done correctly
+    let (final_start, final_end) = dict_squash(
+        cast(dst_dict.value.dict_ptr_start, DictAccess*), new_dst_end
+    );
+
+    tempvar new_dst_dict = MappingTupleAddressBytes32U256(
+        new MappingTupleAddressBytes32U256Struct(
+            dict_ptr_start=cast(final_start, TupleAddressBytes32U256DictAccess*),
+            dict_ptr=cast(final_end, TupleAddressBytes32U256DictAccess*),
+            parent_dict=dst_dict.value.parent_dict,
+        ),
+    );
+    return new_dst_dict;
 }
