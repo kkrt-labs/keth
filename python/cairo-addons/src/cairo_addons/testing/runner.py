@@ -316,7 +316,7 @@ def run_python_vm(
             try:
                 displayed_args = json.dumps(kwargs)
             except TypeError as e:
-                logger.info(f"Failed to serialize kwargs: {e}")
+                logger.debug(f"Failed to serialize kwargs: {e}")
         output_stem = str(
             request.node.path.parent
             / f"{request.node.path.stem}_{entrypoint}_{displayed_args}"
@@ -490,7 +490,7 @@ def run_rust_vm(
             try:
                 displayed_args = json.dumps(kwargs)
             except TypeError as e:
-                logger.info(f"Failed to serialize kwargs: {e}")
+                logger.debug(f"Failed to serialize kwargs: {e}")
         output_stem = str(
             request.node.path.parent
             / f"{request.node.path.stem}_{entrypoint}_{displayed_args}"
