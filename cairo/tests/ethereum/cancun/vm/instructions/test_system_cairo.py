@@ -4,11 +4,14 @@ from hypothesis import given, reproduce_failure
 from ethereum.cancun.fork_types import Address
 from ethereum.cancun.vm.instructions.system import (
     call,
+    callcode,
     create,
     create2,
+    delegatecall,
     generic_call,
     call,
     generic_create,
+    staticcall,
 )
 from tests.utils.args_gen import Evm
 from tests.utils.errors import strict_raises
@@ -208,4 +211,46 @@ class TestSystem:
             return
 
         call(evm)
+        assert evm == cairo_result
+
+    @given(evm=evm_call)
+    def test_callcode(self, cairo_run, evm: Evm):
+        # Set depth to 1024 to avoid entering into generic_call, but only testing callcode logic
+        evm.message.depth = Uint(1024)
+        try:
+            cairo_result = cairo_run("test_callcode", evm)
+        except Exception as cairo_error:
+            with strict_raises(type(cairo_error)):
+                callcode(evm)
+            return
+
+        callcode(evm)
+        assert evm == cairo_result
+
+    @given(evm=evm_call)
+    def test_delegatecall(self, cairo_run, evm: Evm):
+        # Set depth to 1024 to avoid entering into generic_call, but only testing delegatecall logic
+        evm.message.depth = Uint(1024)
+        try:
+            cairo_result = cairo_run("test_delegatecall", evm)
+        except Exception as cairo_error:
+            with strict_raises(type(cairo_error)):
+                delegatecall(evm)
+            return
+
+        delegatecall(evm)
+        assert evm == cairo_result
+
+    @given(evm=evm_call)
+    def test_staticcall(self, cairo_run, evm: Evm):
+        # Set depth to 1024 to avoid entering into generic_call, but only testing staticcall logic
+        evm.message.depth = Uint(1024)
+        try:
+            cairo_result = cairo_run("test_staticcall", evm)
+        except Exception as cairo_error:
+            with strict_raises(type(cairo_error)):
+                staticcall(evm)
+            return
+
+        staticcall(evm)
         assert evm == cairo_result

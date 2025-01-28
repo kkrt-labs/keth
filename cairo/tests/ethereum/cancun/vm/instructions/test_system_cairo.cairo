@@ -7,6 +7,9 @@ from ethereum.cancun.vm.instructions.system import (
     create,
     create2,
     call_,
+    callcode,
+    delegatecall,
+    staticcall,
 )
 from ethereum.cancun.vm.interpreter import process_create_message, process_message
 from ethereum_types.numeric import U256, Uint, bool
@@ -104,4 +107,40 @@ func test_call{
     let (process_message_label) = get_label_location(process_message);
     let result = call_{process_message_label=process_message_label, evm=evm}();
     return result;
+}
+
+func test_callcode{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let (process_message_label) = get_label_location(process_message);
+    let res = callcode{process_message_label=process_message_label, evm=evm}();
+    return res;
+}
+
+func test_delegatecall{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let (process_message_label) = get_label_location(process_message);
+    let res = delegatecall{process_message_label=process_message_label, evm=evm}();
+    return res;
+}
+
+func test_staticcall{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    let (process_message_label) = get_label_location(process_message);
+    let res = staticcall{process_message_label=process_message_label, evm=evm}();
+    return res;
 }
