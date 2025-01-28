@@ -309,11 +309,11 @@ func call_{
 
     let high_not_zero = is_not_zero(_gas.value.high);
     if (high_not_zero != 0) {
-        EvmImpl.set_stack(stack);
-        tempvar err = new EthereumException(OutOfGasError);
-        return err;
+        tempvar gas = Uint(2 ** 64 - 1);
+    } else {
+        tempvar gas = Uint(_gas.value.low);
     }
-    let gas = Uint(_gas.value.low);
+    let gas = Uint([ap - 1]);
 
     // Calculate memory expansion cost
     let (data: TupleU256U256*) = alloc();
@@ -529,11 +529,11 @@ func callcode{
 
     let high_not_zero = is_not_zero(_gas.value.high);
     if (high_not_zero != 0) {
-        EvmImpl.set_stack(stack);
-        tempvar err = new EthereumException(OutOfGasError);
-        return err;
+        tempvar gas = Uint(2 ** 64 - 1);
+    } else {
+        tempvar gas = Uint(_gas.value.low);
     }
-    let gas = Uint(_gas.value.low);
+    let gas = Uint([ap - 1]);
 
     let is_value_zero = U256__eq__(value, U256(new U256Struct(0, 0)));
     tempvar transfer_gas_cost = Uint((1 - is_value_zero.value) * GasConstants.GAS_CALL_VALUE);
@@ -690,11 +690,11 @@ func delegatecall{
 
     let high_not_zero = is_not_zero(_gas.value.high);
     if (high_not_zero != 0) {
-        EvmImpl.set_stack(stack);
-        tempvar err = new EthereumException(OutOfGasError);
-        return err;
+        tempvar gas = Uint(2 ** 64 - 1);
+    } else {
+        tempvar gas = Uint(_gas.value.low);
     }
-    let gas = Uint(_gas.value.low);
+    let gas = Uint([ap - 1]);
 
     let message_call_gas = calculate_message_call_gas(
         U256(new U256Struct(0, 0)),
@@ -823,11 +823,11 @@ func staticcall{
 
     let high_not_zero = is_not_zero(_gas.value.high);
     if (high_not_zero != 0) {
-        EvmImpl.set_stack(stack);
-        tempvar err = new EthereumException(OutOfGasError);
-        return err;
+        tempvar gas = Uint(2 ** 64 - 1);
+    } else {
+        tempvar gas = Uint(_gas.value.low);
     }
-    let gas = Uint(_gas.value.low);
+    let gas = Uint([ap - 1]);
 
     let message_call_gas = calculate_message_call_gas(
         U256(new U256Struct(0, 0)),
