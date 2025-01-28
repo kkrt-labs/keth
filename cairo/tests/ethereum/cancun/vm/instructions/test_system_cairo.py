@@ -196,7 +196,7 @@ class TestSystem:
 
     @given(evm=evm_call)
     def test_call(self, cairo_run, evm: Evm):
-        # Set depth to 1024 to avoid entering into generic_call, but only testing call logic
+        # Set depth to 1024 to avoid triggering regular execution flow when entering into generic_call
         # TODO: remove this once we have all opcodes implemented
         evm.message.depth = Uint(1024)
         try:

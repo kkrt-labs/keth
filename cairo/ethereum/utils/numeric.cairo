@@ -214,9 +214,3 @@ func U256_mul{range_check_ptr}(a: U256, b: U256) -> U256 {
     tempvar result = U256(&low);
     return result;
 }
-
-func U256_to_Uint{range_check_ptr}(value: U256) -> Uint {
-    let _res = Helpers.uint256_to_felt([value.value]);
-    let res = Uint(_res);
-    return res;
-}

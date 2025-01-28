@@ -63,7 +63,6 @@ from ethereum.utils.numeric import (
     U256_to_be_bytes,
     U256_le,
     U256__eq__,
-    U256_to_Uint,
 )
 from src.utils.dict import hashdict_write, dict_copy
 from starkware.cairo.common.uint256 import uint256_lt
@@ -368,9 +367,7 @@ func call_{
     } else {
         tempvar create_gas_cost = Uint(GasConstants.GAS_NEW_ACCOUNT);
     }
-    tempvar transfer_gas_cost = Uint(
-        is_value_zero.value * 0 + (1 - is_value_zero.value) * GasConstants.GAS_CALL_VALUE
-    );
+    tempvar transfer_gas_cost = Uint((1 - is_value_zero.value) * GasConstants.GAS_CALL_VALUE);
 
     let message_call_gas = calculate_message_call_gas(
         value,
@@ -387,10 +384,10 @@ func call_{
         EvmImpl.set_stack(stack);
         return err;
     }
-    let value_non_zero_in_static = evm.value.message.value.is_static.value * (
+    let value_non_zero_and_is_static = evm.value.message.value.is_static.value * (
         1 - is_value_zero.value
     );
-    if (value_non_zero_in_static != 0) {
+    if (value_non_zero_and_is_static != 0) {
         EvmImpl.set_stack(stack);
         EnvImpl.set_state{env=env}(state);
         EvmImpl.set_env(env);
@@ -399,9 +396,7 @@ func call_{
     }
 
     let memory = evm.value.memory;
-    with memory {
-        expand_by(extend_memory.value.expand_by);
-    }
+    expand_by{memory=memory}(extend_memory.value.expand_by);
     EvmImpl.set_memory(memory);
 
     let sender_address = evm.value.message.value.current_target;
