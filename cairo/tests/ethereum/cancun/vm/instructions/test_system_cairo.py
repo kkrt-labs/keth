@@ -1,5 +1,5 @@
 from ethereum_types.numeric import U256, Uint
-from hypothesis import given, reproduce_failure
+from hypothesis import given
 
 from ethereum.cancun.fork_types import Address
 from ethereum.cancun.vm.instructions.system import (
@@ -185,9 +185,6 @@ class TestSystem:
         )
         assert evm == cairo_evm
 
-    @reproduce_failure(
-        "6.124.3", b"AAFBYQFCWvEBQwD3rQFDAJdcAUEAAUEBAUFNAGblygjY18JDAOD1QQE="
-    )
     @given(evm=evm_stack_memory_gas)
     def test_call(self, cairo_run, evm: Evm):
         try:
