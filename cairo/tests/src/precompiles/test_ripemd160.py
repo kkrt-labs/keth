@@ -1,9 +1,9 @@
 import pytest
-from cairo_addons.testing.hints import insert_hint
 from Crypto.Hash import RIPEMD160
 from hypothesis import example, given, settings
 from hypothesis.strategies import binary
 
+from cairo_addons.testing.hints import insert_hint
 from tests.utils.errors import cairo_error
 
 pytestmark = pytest.mark.python_vm

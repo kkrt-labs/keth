@@ -73,9 +73,6 @@ from typing import (
     get_origin,
 )
 
-from cairo_addons.vm import DictTracker as RustDictTracker
-from cairo_addons.vm import MemorySegmentManager as RustMemorySegmentManager
-from cairo_addons.vm import Relocatable as RustRelocatable
 from ethereum_types.bytes import (
     Bytes,
     Bytes0,
@@ -104,6 +101,9 @@ from starkware.cairo.lang.vm.crypto import poseidon_hash_many
 from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 from starkware.cairo.lang.vm.relocatable import RelocatableValue
 
+from cairo_addons.vm import DictTracker as RustDictTracker
+from cairo_addons.vm import MemorySegmentManager as RustMemorySegmentManager
+from cairo_addons.vm import Relocatable as RustRelocatable
 from ethereum.cancun.blocks import Header, Log, Receipt, Withdrawal
 from ethereum.cancun.fork_types import Account, Address, Bloom, Root, VersionedHash
 from ethereum.cancun.state import State, TransientStorage

@@ -165,7 +165,7 @@ norecursedirs = ".* tests/ef_tests/test_data"
 [tool.isort]
 profile = "black"
 src_paths = ["cairo/src", "cairo/tests"]
-known_third_party = ["cairo_ec", "cairo_core", "cairo_addons"]
+known_first_party = ["cairo_ec", "cairo_core", "cairo_addons"]
 
 [tool.autoflake]
 in_place = true

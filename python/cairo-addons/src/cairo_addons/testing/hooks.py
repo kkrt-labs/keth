@@ -8,6 +8,7 @@ import starkware.cairo.lang.instances as LAYOUTS
 import xdist
 import xxhash
 from _pytest.mark import deselect_by_keyword, deselect_by_mark
+
 from cairo_addons.testing.caching import CACHED_TESTS_FILE, file_hash, program_hash
 from cairo_addons.testing.compiler import (
     get_cairo_file,
@@ -131,7 +132,7 @@ def pytest_runtest_makereport(item, call):
 def get_dump_path(session, fspath):
     dump_path = session.build_dir / session.cairo_files[fspath].relative_to(
         Path().cwd()
-    ).with_suffix(".json")
+    ).with_suffix(".pickle")
     dump_path.parent.mkdir(parents=True, exist_ok=True)
     return dump_path
 
