@@ -263,7 +263,7 @@ transient_storage = st.sets(
                 for address in addresses
             }
         ),
-        _snapshots=st.just([]),  # Start with empty snapshots list
+        _snapshots=st.builds(list, st.just([])),  # Start with empty snapshots list
     ).map(
         # Create the original snapshot using copies of the tries
         lambda storage: TransientStorage(
@@ -369,14 +369,27 @@ account_strategy = st.builds(Account, nonce=uint, balance=uint256, code=code)
 # A strategy for an empty state - the tries have no data.
 empty_state = st.builds(
     State,
-    _main_trie=st.just(
-        Trie[Address, Optional[Account]](secured=True, default=None, _data={})
+    _main_trie=st.builds(
+        Trie[Address, Optional[Account]],
+        secured=st.just(True),
+        default=st.none(),
+        _data=st.builds(dict, st.just({})),
     ),
-    _storage_tries=st.just({}),
-    _snapshots=st.just(
-        [(Trie[Address, Optional[Account]](secured=True, default=None, _data={}), {})]
+    _storage_tries=st.builds(dict, st.just({})),
+    _snapshots=st.lists(
+        st.tuples(
+            st.builds(
+                Trie[Address, Optional[Account]],
+                secured=st.just(True),
+                default=st.none(),
+                _data=st.builds(dict, st.just({})),
+            ),
+            st.builds(dict, st.just({})),
+        ),
+        min_size=1,
+        max_size=1,
     ),
-    created_accounts=st.just(set()),
+    created_accounts=st.builds(set, st.just(set())),
 )
 
 
@@ -401,7 +414,7 @@ state = st.lists(address, max_size=MAX_ADDRESS_SET_SIZE, unique=True).flatmap(
                 }
             )
         ),
-        _snapshots=st.just([]),
+        _snapshots=st.builds(list, st.just([])),
         created_accounts=st.sets(address, max_size=10),
     ).map(
         # Create the original state snapshot using copies of the tries
