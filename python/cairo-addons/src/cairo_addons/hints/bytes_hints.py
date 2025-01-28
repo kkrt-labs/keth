@@ -4,10 +4,11 @@ This file contains hints for the bytes.cairo file.
 Added the _hint suffix to the hints to avoid conflicts with the bytes python object.
 """
 
-from cairo_addons.hints.decorator import register_hint
 from starkware.cairo.lang.vm.memory_dict import MemoryDict
 from starkware.cairo.lang.vm.relocatable import RelocatableValue
 from starkware.cairo.lang.vm.vm_consts import VmConsts
+
+from cairo_addons.hints.decorator import register_hint
 
 
 @register_hint
