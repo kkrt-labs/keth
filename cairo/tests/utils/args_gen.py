@@ -432,7 +432,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "cancun", "fork_types", "TupleVersionedHash"): Tuple[
         VersionedHash, ...
     ],
-    ("ethereum", "cancun", "transactions", "To"): Union[Bytes0, Address],
+    ("ethereum", "cancun", "transactions_types", "To"): Union[Bytes0, Address],
     ("ethereum", "cancun", "fork_types", "TupleAddressBytes32"): Tuple[
         Address, Bytes32
     ],
@@ -441,25 +441,35 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ],
     ("ethereum_types", "others", "TupleU256U256"): Tuple[U256, U256],
     ("ethereum_types", "others", "ListTupleU256U256"): List[Tuple[U256, U256]],
-    ("ethereum", "cancun", "transactions", "LegacyTransaction"): LegacyTransaction,
     (
         "ethereum",
         "cancun",
-        "transactions",
+        "transactions_types",
+        "LegacyTransaction",
+    ): LegacyTransaction,
+    (
+        "ethereum",
+        "cancun",
+        "transactions_types",
         "AccessListTransaction",
     ): AccessListTransaction,
     (
         "ethereum",
         "cancun",
-        "transactions",
+        "transactions_types",
         "FeeMarketTransaction",
     ): FeeMarketTransaction,
-    ("ethereum", "cancun", "transactions", "BlobTransaction"): BlobTransaction,
-    ("ethereum", "cancun", "transactions", "Transaction"): Transaction,
-    ("ethereum", "cancun", "transactions", "TupleAccessList"): Tuple[
+    (
+        "ethereum",
+        "cancun",
+        "transactions_types",
+        "BlobTransaction",
+    ): BlobTransaction,
+    ("ethereum", "cancun", "transactions_types", "Transaction"): Transaction,
+    ("ethereum", "cancun", "transactions_types", "TupleAccessList"): Tuple[
         Tuple[Address, Tuple[Bytes32, ...]], ...
     ],
-    ("ethereum", "cancun", "transactions", "AccessList"): Tuple[
+    ("ethereum", "cancun", "transactions_types", "AccessList"): Tuple[
         Address, Tuple[Bytes32, ...]
     ],
     ("ethereum", "cancun", "vm", "gas", "MessageCallGas"): MessageCallGas,
