@@ -196,6 +196,9 @@ class TestSystem:
 
     @given(evm=evm_call)
     def test_call(self, cairo_run, evm: Evm):
+        # Set depth to 1024 to avoid entering into generic_call, but only testing call logic
+        # TODO: remove this once we have all opcodes implemented
+        evm.message.depth = Uint(1024)
         try:
             cairo_result = cairo_run("test_call", evm)
         except Exception as cairo_error:
