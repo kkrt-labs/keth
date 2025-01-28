@@ -31,6 +31,7 @@ from ethereum_types.numeric import U256, U256Struct, Uint, bool, UnionUintU256, 
 from ethereum.exceptions import EthereumException
 from ethereum.cancun.utils.constants import STACK_DEPTH_LIMIT, MAX_CODE_SIZE
 from ethereum.cancun.fork_types import (
+    OptionalAddress,
     Address,
     SetAddress,
     SetAddressStruct,
@@ -149,6 +150,7 @@ func generic_call{
         ),
     );
 
+    tempvar maybe_address = OptionalAddress(&code_address);
     tempvar child_message = Message(
         new MessageStruct(
             caller=caller,
@@ -157,7 +159,7 @@ func generic_call{
             gas=gas,
             value=value,
             data=calldata,
-            code_address=&code_address,
+            code_address=maybe_address,
             code=code,
             depth=Uint(evm.value.message.value.depth.value + 1),
             should_transfer_value=should_transfer_value,
@@ -683,7 +685,7 @@ func generic_create{
             gas=create_message_gas,
             value=endowment,
             data=empty_data_bytes,
-            code_address=cast(0, Address*),
+            code_address=OptionalAddress(cast(0, felt*)),
             code=call_data,
             depth=Uint(evm.value.message.value.depth.value + 1),
             should_transfer_value=bool(1),

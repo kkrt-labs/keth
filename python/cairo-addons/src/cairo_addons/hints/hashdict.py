@@ -116,3 +116,18 @@ def _get_preimage_for_hashed_key(
         key for key in dict_tracker.data.keys() if poseidon_hash_many(key) == hashed_key
     )
     return preimage
+
+
+@register_hint
+def track_precompiles(
+    dict_manager: DictManager,
+    ids: VmConsts,
+):
+    from ethereum.cancun.vm.precompiled_contracts.mapping import PRE_COMPILED_CONTRACTS
+
+    dict_tracker = dict_manager.get_tracker(ids.dict_ptr)
+    for key in PRE_COMPILED_CONTRACTS.keys():
+        preimage = (int.from_bytes(key, "little"),)
+        dict_tracker.data[preimage] = 1
+
+    dict_tracker.current_ptr += len(PRE_COMPILED_CONTRACTS) * ids.DictAccess.SIZE

@@ -179,8 +179,10 @@ class Serde(SerdeProtocol):
             value_ptr = self.serialize_pointers(path, ptr)["value"]
             if value_ptr is None:
                 return None
-            python_cls = get_args(python_cls)[0]
-            origin_cls = get_origin(python_cls)
+            non_optional_path = full_path[:-1] + (
+                full_path[-1].removeprefix("Optional"),
+            )
+            return self.serialize_type(non_optional_path, value_ptr)
 
         if origin_cls is Union:
             value_ptr = self.serialize_pointers(path, ptr)["value"]
