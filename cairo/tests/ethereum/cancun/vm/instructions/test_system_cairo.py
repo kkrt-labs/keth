@@ -27,7 +27,15 @@ local_strategy = (
 )
 
 evm_stack_memory_gas = EvmBuilder().with_stack().with_memory().with_gas_left().build()
-evm_call = EvmBuilder().with_stack().with_env().with_message().with_memory().with_gas_left().build()
+evm_call = (
+    EvmBuilder()
+    .with_stack()
+    .with_env()
+    .with_message()
+    .with_memory()
+    .with_gas_left()
+    .build()
+)
 
 
 class TestSystem:
