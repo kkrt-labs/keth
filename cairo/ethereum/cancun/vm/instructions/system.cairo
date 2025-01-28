@@ -307,12 +307,10 @@ func call_{
         }
     }
 
-    // Avoid overflows in gas calculations by limiting gas to 2**64, bound at which we
+    // Avoid overflows in gas calculations by limiting gas to 2**128, bound at which we
     // saturate in gas calculations.
     let high_not_zero = is_not_zero(_gas.value.high);
-    let low_too_big = is_le(2 ** 64, _gas.value.low);
-    let gas_oog = high_not_zero + low_too_big;
-    if (gas_oog != 0) {
+    if (high_not_zero != 0) {
         EvmImpl.set_stack(stack);
         tempvar err = new EthereumException(OutOfGasError);
         return err;
