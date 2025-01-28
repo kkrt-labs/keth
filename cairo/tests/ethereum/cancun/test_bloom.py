@@ -18,5 +18,4 @@ class TestBloom:
     def test_logs_bloom(self, cairo_run, logs: Tuple[Log, ...]):
         cairo_bloom = cairo_run("logs_bloom", logs)
         bloom = logs_bloom(logs)
-        print([hex(b) for b in bloom])
         assert cairo_bloom == bloom
