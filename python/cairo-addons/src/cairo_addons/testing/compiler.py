@@ -20,7 +20,8 @@ from typing import Optional, Union
 from starkware.cairo.lang.compiler.program import Program
 from starkware.cairo.lang.compiler.scoped_name import ScopedName
 
-from cairo_addons.compiler import cairo_compile, implement_hints
+# Had an issue with isort and trunk, solved with relative import. Not sure where it went from.
+from ..compiler import cairo_compile, implement_hints
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
