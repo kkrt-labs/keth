@@ -7,6 +7,8 @@ requires-python = ">=3.10"
 
 dependencies = [
   "cairo-addons",
+  "cairo-ec",
+  "cairo-core",
   "cairo-lang>=0.13.2",
   "ethereum",
   "marshmallow-dataclass>=8.6.1",
@@ -39,6 +41,8 @@ dev-dependencies = [
 ethereum = { git = "https://github.com/kkrt-labs/execution-specs.git", rev = "53fbc954b8e9e7dd86060814dfbf836791a22f4c" }
 garaga = { git = "https://github.com/keep-starknet-strange/garaga.git", rev = "hydra_upd" }
 cairo-addons = { workspace = true }
+cairo-ec = { workspace = true }
+cairo-core = { workspace = true }
 
 [tool.uv.workspace]
 members = ["python/*"]
@@ -161,6 +165,7 @@ norecursedirs = ".* tests/ef_tests/test_data"
 [tool.isort]
 profile = "black"
 src_paths = ["cairo/src", "cairo/tests"]
+known_third_party = ["cairo_ec", "cairo_core", "cairo_addons"]
 
 [tool.autoflake]
 in_place = true
@@ -184,7 +189,5 @@ build-backend = "hatchling.build"
 packages = ["cairo/src", "cairo/tests", "cairo/scripts"]
 
 [project.scripts]
-compile_os = "src.utils.compile_cairo:compile_os"
-compile_fibonacci = "src.utils.compile_cairo:compile_fibonacci"
-transpile = "scripts.convert_py_to_cairo:main"
-generate-tests = "scripts.generate_tests:main"
+compile_os = "scripts.compile_cairo:compile_os"
+compile_fibonacci = "scripts.compile_cairo:compile_fibonacci"

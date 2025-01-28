@@ -19,7 +19,7 @@ from src.utils.utils import Helpers
 from src.utils.array import slice
 from src.utils.bytes import keccak, felt_to_bytes, felt_to_bytes20, uint256_to_bytes32
 from src.utils.uint256 import uint256_to_uint160, uint256_eq
-from src.utils.maths import unsigned_div_rem
+from cairo_core.maths import unsigned_div_rem
 
 using bool = felt;
 

@@ -31,7 +31,7 @@ from src.gas import Gas, GAS_INIT_CODE_WORD_COST
 from src.utils.utils import Helpers
 from src.utils.array import count_not_zero
 from src.utils.uint256 import uint256_sub, uint256_add
-from src.utils.maths import unsigned_div_rem
+from cairo_core.maths import unsigned_div_rem
 
 // @title EVM instructions processing.
 // @notice This file contains functions related to the processing of EVM instructions.

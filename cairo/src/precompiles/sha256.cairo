@@ -15,7 +15,7 @@ from src.utils.sha_256.packed_sha256 import (
     get_round_constants,
 )
 from src.utils.utils import Helpers
-from src.utils.maths import unsigned_div_rem
+from cairo_core.maths import unsigned_div_rem
 
 // @title SHA2-256 Precompile related functions.
 // @notice This file contains the logic required to run the SHA2-256 precompile

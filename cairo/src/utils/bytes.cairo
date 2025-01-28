@@ -8,7 +8,7 @@ from starkware.cairo.common.memset import memset
 from starkware.cairo.common.registers import get_label_location
 
 from src.utils.array import reverse
-from src.utils.maths import unsigned_div_rem
+from cairo_core.maths import unsigned_div_rem
 
 func felt_to_ascii{range_check_ptr}(dst: felt*, n: felt) -> felt {
     alloc_locals;

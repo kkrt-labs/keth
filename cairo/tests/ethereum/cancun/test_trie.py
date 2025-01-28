@@ -1,6 +1,7 @@
 from typing import Mapping, Optional, Tuple
 
 import pytest
+from cairo_addons.testing.hints import patch_hint
 from ethereum_types.bytes import Bytes, Bytes32
 from ethereum_types.numeric import U256, Uint
 from hypothesis import assume, given, settings
@@ -23,7 +24,6 @@ from ethereum.cancun.trie import (
 )
 from tests.utils.assertion import sequence_equal
 from tests.utils.errors import cairo_error
-from tests.utils.hints import patch_hint
 from tests.utils.strategies import bytes32, nibble, uint4
 
 

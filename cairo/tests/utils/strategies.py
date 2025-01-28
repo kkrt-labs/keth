@@ -3,9 +3,11 @@
 import os
 from typing import (
     ForwardRef,
+    Generic,
     Optional,
     Sequence,
     TypeAlias,
+    TypeVar,
     Union,
     get_args,
     get_origin,
@@ -178,8 +180,6 @@ def stack_strategy(thing):
         lambda x: Stack[value_type](x)
     )
 
-
-from typing import Generic, TypeVar
 
 T1 = TypeVar("T1")
 T2 = TypeVar("T2")

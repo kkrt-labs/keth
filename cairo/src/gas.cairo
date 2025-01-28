@@ -6,7 +6,7 @@ from starkware.cairo.common.uint256 import Uint256, uint256_lt, uint256_add
 from src.model import model
 from src.utils.uint256 import uint256_eq
 from src.utils.utils import Helpers
-from src.utils.maths import unsigned_div_rem, ceil32
+from cairo_core.maths import unsigned_div_rem, ceil32
 
 const GAS_INIT_CODE_WORD_COST = 2;
 

@@ -4,6 +4,8 @@ requires-python = ">=3.10"
 [manifest]
 members = [
     "cairo-addons",
+    "cairo-core",
+    "cairo-ec",
     "keth",
 ]
 
@@ -376,6 +378,8 @@ source = { editable = "python/cairo-addons" }
 dependencies = [
     { name = "cairo-lang" },
     { name = "maturin" },
+    { name = "polars" },
+    { name = "xxhash" },
 ]
 
 [package.dev-dependencies]
@@ -390,12 +394,76 @@ dev = [
 requires-dist = [
     { name = "cairo-lang", specifier = ">=0.13.3" },
     { name = "maturin", specifier = ">=1.8.1" },
+    { name = "polars", specifier = ">=1.18.0" },
+    { name = "xxhash", specifier = ">=3.5.0" },
 ]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "cairo-lang", specifier = ">=0.13.0" },
-    { name = "hypothesis", specifier = ">=6.122.3" },
+    { name = "hypothesis", specifier = ">=6.124.3" },
+    { name = "jupyter", specifier = ">=1.1.1" },
+    { name = "pytest", specifier = ">=7.0" },
+]
+
+[[package]]
+name = "cairo-core"
+version = "0.1.0"
+source = { editable = "python/cairo-core" }
+dependencies = [
+    { name = "cairo-addons" },
+    { name = "cairo-lang" },
+    { name = "garaga" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "hypothesis" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "cairo-addons", editable = "python/cairo-addons" },
+    { name = "cairo-lang", specifier = ">=0.13.3" },
+    { name = "garaga", git = "https://github.com/keep-starknet-strange/garaga.git?rev=hydra_upd" },
+]
+
+[package.metadata.requires-dev]
+dev = [{ name = "hypothesis", specifier = ">=6.124.3" }]
+
+[[package]]
+name = "cairo-ec"
+version = "0.1.0"
+source = { editable = "python/cairo-ec" }
+dependencies = [
+    { name = "cairo-addons" },
+    { name = "cairo-core" },
+    { name = "cairo-lang" },
+    { name = "maturin" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "cairo-lang" },
+    { name = "ethereum" },
+    { name = "hypothesis" },
+    { name = "jupyter" },
+    { name = "pytest" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "cairo-addons", editable = "python/cairo-addons" },
+    { name = "cairo-core", editable = "python/cairo-core" },
+    { name = "cairo-lang", specifier = ">=0.13.3" },
+    { name = "maturin", specifier = ">=1.8.1" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "cairo-lang", specifier = ">=0.13.0" },
+    { name = "ethereum", git = "https://github.com/kkrt-labs/execution-specs.git?rev=53fbc954b8e9e7dd86060814dfbf836791a22f4c" },
+    { name = "hypothesis", specifier = ">=6.124.3" },
     { name = "jupyter", specifier = ">=1.1.1" },
     { name = "pytest", specifier = ">=7.0" },
 ]
@@ -1620,6 +1688,8 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "cairo-addons" },
+    { name = "cairo-core" },
+    { name = "cairo-ec" },
     { name = "cairo-lang" },
     { name = "ethereum" },
     { name = "garaga" },
@@ -1651,6 +1721,8 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "cairo-addons", editable = "python/cairo-addons" },
+    { name = "cairo-core", editable = "python/cairo-core" },
+    { name = "cairo-ec", editable = "python/cairo-ec" },
     { name = "cairo-lang", specifier = ">=0.13.2" },
     { name = "ethereum", git = "https://github.com/kkrt-labs/execution-specs.git?rev=53fbc954b8e9e7dd86060814dfbf836791a22f4c" },
     { name = "garaga", git = "https://github.com/keep-starknet-strange/garaga.git?rev=hydra_upd" },
