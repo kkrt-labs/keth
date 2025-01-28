@@ -452,7 +452,6 @@ func callcode{
     let fp_and_pc = get_fp_and_pc();
     local __fp__: felt* = fp_and_pc.fp_val;
 
-    // STACK
     let stack = evm.value.stack;
     with stack {
         let (_gas, err) = pop();
@@ -492,7 +491,6 @@ func callcode{
         }
     }
 
-    // Calculate memory expansion cost
     let (data: TupleU256U256*) = alloc();
     assert data[0] = TupleU256U256(
         new TupleU256U256Struct(memory_input_start_position, memory_input_size)
@@ -563,11 +561,8 @@ func callcode{
         return err;
     }
 
-    // OPERATION
     let memory = evm.value.memory;
-    with memory {
-        expand_by(extend_memory.value.expand_by);
-    }
+    expand_by{memory=memory}(extend_memory.value.expand_by);
     EvmImpl.set_memory(memory);
 
     let env = evm.value.env;
@@ -629,7 +624,6 @@ func delegatecall{
     let fp_and_pc = get_fp_and_pc();
     local __fp__: felt* = fp_and_pc.fp_val;
 
-    // STACK
     let stack = evm.value.stack;
     with stack {
         let (_gas, err) = pop();
@@ -664,8 +658,6 @@ func delegatecall{
         }
     }
 
-    // GAS
-    // Calculate memory expansion cost
     let (data: TupleU256U256*) = alloc();
     assert data[0] = TupleU256U256(
         new TupleU256U256Struct(memory_input_start_position, memory_input_size)
@@ -731,11 +723,8 @@ func delegatecall{
         return err;
     }
 
-    // OPERATION
     let memory = evm.value.memory;
-    with memory {
-        expand_by(extend_memory.value.expand_by);
-    }
+    expand_by{memory=memory}(extend_memory.value.expand_by);
     EvmImpl.set_memory(memory);
     EvmImpl.set_stack(stack);
 
@@ -807,8 +796,6 @@ func staticcall{
         }
     }
 
-    // GAS
-    // Calculate memory expansion cost
     let (data: TupleU256U256*) = alloc();
     assert data[0] = TupleU256U256(
         new TupleU256U256Struct(memory_input_start_position, memory_input_size)
@@ -873,11 +860,8 @@ func staticcall{
         return err;
     }
 
-    // OPERATION
     let memory = evm.value.memory;
-    with memory {
-        expand_by(extend_memory.value.expand_by);
-    }
+    expand_by{memory=memory}(extend_memory.value.expand_by);
     EvmImpl.set_memory(memory);
 
     let err = generic_call(
