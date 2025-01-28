@@ -308,7 +308,17 @@ func call_{
         }
     }
 
-    let gas = U256_to_Uint(_gas);
+    // Avoid overflows in gas calculations by limiting gas to 2**64, bound at which we
+    // saturate in gas calculations.
+    let high_not_zero = is_not_zero(_gas.value.high);
+    let low_too_big = is_le(2 ** 64, _gas.value.low);
+    let gas_oog = high_not_zero + low_too_big;
+    if (gas_oog != 0) {
+        EvmImpl.set_stack(stack);
+        tempvar err = new EthereumException(OutOfGasError);
+        return err;
+    }
+    let gas = Uint(_gas.value.low);
 
     // Calculate memory expansion cost
     let (data: TupleU256U256*) = alloc();
@@ -401,44 +411,37 @@ func call_{
     let sender_balance = sender.value.balance;
     let sender_has_enough_balance = U256_le(value, sender_balance);
     if (sender_has_enough_balance.value == 0) {
-        push{stack=stack}(U256(new U256Struct(0, 0)));
+        let err = push{stack=stack}(U256(new U256Struct(0, 0)));
         EvmImpl.set_stack(stack);
+        if (cast(err, felt) != 0) {
+            return err;
+        }
         let (empty_data: felt*) = alloc();
         tempvar empty_data_bytes = Bytes(new BytesStruct(empty_data, 0));
         EvmImpl.set_return_data(empty_data_bytes);
         let gas_left = Uint(evm.value.gas_left.value + message_call_gas.value.stipend.value);
         EvmImpl.set_gas_left(gas_left);
-        tempvar process_message_label = process_message_label;
-        tempvar range_check_ptr = range_check_ptr;
-        tempvar bitwise_ptr = bitwise_ptr;
-        tempvar poseidon_ptr = poseidon_ptr;
-        tempvar keccak_ptr = keccak_ptr;
-        tempvar evm = evm;
-        tempvar stack = evm.value.stack;
-    } else {
-        EvmImpl.set_stack(stack);
-        generic_call(
-            message_call_gas.value.stipend,
-            value,
-            evm.value.message.value.current_target,
-            [to],
-            [to],
-            bool(1),
-            bool(0),
-            memory_input_start_position,
-            memory_input_size,
-            memory_output_start_position,
-            memory_output_size,
-        );
-        tempvar process_message_label = process_message_label;
-        tempvar range_check_ptr = range_check_ptr;
-        tempvar bitwise_ptr = bitwise_ptr;
-        tempvar poseidon_ptr = poseidon_ptr;
-        tempvar keccak_ptr = keccak_ptr;
-        tempvar evm = evm;
-        tempvar stack = evm.value.stack;
+        EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
+        let ok = cast(0, EthereumException*);
+        return ok;
     }
-
+    EvmImpl.set_stack(stack);
+    let err = generic_call(
+        message_call_gas.value.stipend,
+        value,
+        evm.value.message.value.current_target,
+        [to],
+        [to],
+        bool(1),
+        bool(0),
+        memory_input_start_position,
+        memory_input_size,
+        memory_output_start_position,
+        memory_output_size,
+    );
+    if (cast(err, felt) != 0) {
+        return err;
+    }
     EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
     let ok = cast(0, EthereumException*);
     return ok;

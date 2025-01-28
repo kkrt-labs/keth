@@ -3,10 +3,10 @@ from hypothesis import given, reproduce_failure
 
 from ethereum.cancun.fork_types import Address
 from ethereum.cancun.vm.instructions.system import (
+    call,
     create,
     create2,
     generic_call,
-    call,
     generic_create,
 )
 from tests.utils.args_gen import Evm
@@ -185,7 +185,9 @@ class TestSystem:
         )
         assert evm == cairo_evm
 
-    @reproduce_failure('6.124.3', b'AAFBYQFCWvEBQwD3rQFDAJdcAUEAAUEBAUFNAGblygjY18JDAOD1QQE=')
+    @reproduce_failure(
+        "6.124.3", b"AAFBYQFCWvEBQwD3rQFDAJdcAUEAAUEBAUFNAGblygjY18JDAOD1QQE="
+    )
     @given(evm=evm_stack_memory_gas)
     def test_call(self, cairo_run, evm: Evm):
         try:
