@@ -1,5 +1,5 @@
 from ethereum_types.numeric import U256, Uint
-from hypothesis import given, reproduce_failure
+from hypothesis import given
 
 from ethereum.cancun.fork_types import Address
 from ethereum.cancun.vm.instructions.system import (
@@ -9,7 +9,6 @@ from ethereum.cancun.vm.instructions.system import (
     create2,
     delegatecall,
     generic_call,
-    call,
     generic_create,
     staticcall,
 )

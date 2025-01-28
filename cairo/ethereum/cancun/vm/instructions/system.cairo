@@ -542,9 +542,7 @@ func callcode{
     let gas = Uint(_gas.value.low);
 
     let is_value_zero = U256__eq__(value, U256(new U256Struct(0, 0)));
-    tempvar transfer_gas_cost = Uint(
-        (1 - is_value_zero.value) * GasConstants.GAS_CALL_VALUE
-    );
+    tempvar transfer_gas_cost = Uint((1 - is_value_zero.value) * GasConstants.GAS_CALL_VALUE);
 
     let message_call_gas = calculate_message_call_gas(
         value,
