@@ -1,15 +1,19 @@
+from typing import Optional, Tuple
+
 import pytest
 from ethereum_types.numeric import Uint
 from hypothesis import assume, given
 
-from ethereum.cancun.blocks import Header
+from ethereum.cancun.blocks import Header, Log
 from ethereum.cancun.fork import (
     GAS_LIMIT_ADJUSTMENT_FACTOR,
     calculate_base_fee_per_gas,
     check_gas_limit,
+    make_receipt,
     validate_header,
 )
-from ethereum.exceptions import InvalidBlock
+from ethereum.cancun.transactions import Transaction
+from ethereum.exceptions import EthereumException, InvalidBlock
 from tests.utils.errors import cairo_error
 
 pytestmark = pytest.mark.python_vm
@@ -80,4 +84,17 @@ class TestFork:
         )
         assert check_gas_limit(gas_limit, parent_gas_limit) == cairo_run(
             "check_gas_limit", gas_limit, parent_gas_limit
+        )
+
+    @given(tx=..., error=..., cumulative_gas_used=..., logs=...)
+    def test_make_receipt(
+        self,
+        cairo_run,
+        tx: Transaction,
+        error: Optional[EthereumException],
+        cumulative_gas_used: Uint,
+        logs: Tuple[Log, ...],
+    ):
+        assert make_receipt(tx, error, cumulative_gas_used, logs) == cairo_run(
+            "make_receipt", tx, error, cumulative_gas_used, logs
         )
