@@ -116,6 +116,22 @@ class TestRlp:
         def test_encode_withdrawal(self, cairo_run, withdrawal: Withdrawal):
             assert encode(withdrawal) == cairo_run("encode_withdrawal", withdrawal)
 
+        @given(tuple_access_list=...)
+        def test_encode_tuple_access_list(
+            self,
+            cairo_run,
+            tuple_access_list: Tuple[Tuple[Address, Tuple[Bytes32, ...]], ...],
+        ):
+            assert encode(tuple_access_list) == cairo_run(
+                "encode_tuple_access_list", tuple_access_list
+            )
+
+        @given(access_list=...)
+        def test_encode_access_list(
+            self, cairo_run, access_list: Tuple[Address, Tuple[Bytes32, ...]]
+        ):
+            assert encode(access_list) == cairo_run("encode_access_list", access_list)
+
     class TestDecode:
         @given(raw_data=...)
         def test_decode(self, cairo_run, raw_data: Extended):
