@@ -2,9 +2,9 @@ from collections import defaultdict
 from dataclasses import asdict, is_dataclass
 from typing import Dict, Iterable, Tuple, Union
 
-from cairo_addons.vm import Relocatable
 from starkware.cairo.common.dict import DictTracker
 
+from cairo_addons.vm import Relocatable
 from ethereum.cancun.vm.instructions import Ops
 from tests.utils.helpers import flatten
 

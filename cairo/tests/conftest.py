@@ -3,10 +3,10 @@ import os
 from dataclasses import fields
 
 import pytest
-from cairo_addons.testing.runner import run_python_vm, run_rust_vm
 from dotenv import load_dotenv
 from hypothesis import HealthCheck, Phase, Verbosity, settings
 
+from cairo_addons.testing.runner import run_python_vm, run_rust_vm
 from tests.utils.args_gen import gen_arg as gen_arg_builder
 from tests.utils.args_gen import to_cairo_type, to_python_type
 from tests.utils.hints import get_op

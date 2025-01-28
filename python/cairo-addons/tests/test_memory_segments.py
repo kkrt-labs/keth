@@ -1,6 +1,7 @@
 import pytest
-from cairo_addons.vm import CairoRunner, Felt, Relocatable
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
+
+from cairo_addons.vm import CairoRunner, Felt, Relocatable
 
 
 @pytest.fixture

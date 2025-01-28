@@ -20,13 +20,6 @@ from typing import Callable, Optional, Tuple, Type
 
 import polars as pl
 import starkware.cairo.lang.instances as LAYOUTS
-from cairo_addons.profiler import profile_from_tracer_data
-from cairo_addons.testing.hints import debug_info, oracle
-from cairo_addons.testing.serde import Serde, SerdeProtocol
-from cairo_addons.testing.utils import flatten
-from cairo_addons.vm import CairoRunner as RustCairoRunner
-from cairo_addons.vm import Program as RustProgram
-from cairo_addons.vm import RunResources as RustRunResources
 from pytest import FixtureRequest
 from starkware.cairo.common.dict import DictManager
 from starkware.cairo.lang.builtins.all_builtins import ALL_BUILTINS
@@ -53,6 +46,14 @@ from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 from starkware.cairo.lang.vm.security import verify_secure_runner
 from starkware.cairo.lang.vm.utils import RunResources
 from starkware.cairo.lang.vm.vm import VirtualMachine
+
+from cairo_addons.profiler import profile_from_tracer_data
+from cairo_addons.testing.hints import debug_info, oracle
+from cairo_addons.testing.serde import Serde, SerdeProtocol
+from cairo_addons.testing.utils import flatten
+from cairo_addons.vm import CairoRunner as RustCairoRunner
+from cairo_addons.vm import Program as RustProgram
+from cairo_addons.vm import RunResources as RustRunResources
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"

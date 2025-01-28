@@ -1,7 +1,7 @@
 import pytest
+
 from cairo_addons.utils.uint256 import uint256_to_int
 from cairo_addons.utils.uint384 import uint384_to_int
-
 from ethereum.crypto.alt_bn128 import ALT_BN128_CURVE_ORDER as AltBn128N
 from ethereum.crypto.alt_bn128 import BNF as AltBn128P
 from ethereum.crypto.alt_bn128 import BNP as AltBn128

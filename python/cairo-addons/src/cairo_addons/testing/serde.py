@@ -2,7 +2,6 @@ from itertools import accumulate
 from pathlib import Path
 from typing import Any, List, Optional, Protocol, Tuple, Union
 
-from cairo_addons.vm import MemorySegmentManager as RustMemorySegmentManager
 from starkware.cairo.lang.compiler.ast.cairo_types import (
     CairoType,
     TypeFelt,
@@ -19,6 +18,8 @@ from starkware.cairo.lang.compiler.identifier_manager import MissingIdentifierEr
 from starkware.cairo.lang.compiler.scoped_name import ScopedName
 from starkware.cairo.lang.vm.memory_dict import UnknownMemoryError
 from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
+
+from cairo_addons.vm import MemorySegmentManager as RustMemorySegmentManager
 
 # Sentinel object for indicating no error in exception handling
 NO_ERROR_FLAG = object()

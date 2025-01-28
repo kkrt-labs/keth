@@ -1,12 +1,12 @@
 from typing import Mapping, Optional, Tuple
 
 import pytest
-from cairo_addons.testing.hints import patch_hint
 from ethereum_types.bytes import Bytes, Bytes32
 from ethereum_types.numeric import U256, Uint
 from hypothesis import assume, given, settings
 from hypothesis import strategies as st
 
+from cairo_addons.testing.hints import patch_hint
 from ethereum.cancun.fork_types import Account, Address
 from ethereum.cancun.trie import (
     InternalNode,

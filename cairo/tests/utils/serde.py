@@ -37,8 +37,6 @@ from typing import (
     get_origin,
 )
 
-from cairo_addons.testing.serde import SerdeProtocol
-from cairo_addons.vm import MemorySegmentManager as RustMemorySegmentManager
 from eth_utils.address import to_checksum_address
 from ethereum_types.bytes import (
     Bytes,
@@ -69,6 +67,8 @@ from starkware.cairo.lang.vm.crypto import poseidon_hash_many
 from starkware.cairo.lang.vm.memory_dict import UnknownMemoryError
 from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 
+from cairo_addons.testing.serde import SerdeProtocol
+from cairo_addons.vm import MemorySegmentManager as RustMemorySegmentManager
 from ethereum.cancun.fork_types import Address
 from ethereum.cancun.state import State, TransientStorage
 from ethereum.cancun.trie import Trie
