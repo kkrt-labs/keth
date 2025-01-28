@@ -66,6 +66,7 @@ from starkware.cairo.lang.compiler.scoped_name import ScopedName
 from starkware.cairo.lang.vm.crypto import poseidon_hash_many
 from starkware.cairo.lang.vm.memory_dict import UnknownMemoryError
 from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
+from starkware.cairo.lang.vm.relocatable import RelocatableValue
 
 from cairo_addons.testing.serde import SerdeProtocol
 from cairo_addons.vm import MemorySegmentManager as RustMemorySegmentManager
@@ -182,7 +183,9 @@ class Serde(SerdeProtocol):
             non_optional_path = full_path[:-1] + (
                 full_path[-1].removeprefix("Optional"),
             )
-            return self.serialize_type(non_optional_path, value_ptr)
+            if isinstance(value_ptr, RelocatableValue):
+                return self.serialize_type(non_optional_path, value_ptr)
+            return self.serialize_type(non_optional_path, ptr)
 
         if origin_cls is Union:
             value_ptr = self.serialize_pointers(path, ptr)["value"]
