@@ -11,13 +11,12 @@ Automatic Test File Resolution is implemented as follows:
      c) Follows project directory structure for test organization
 """
 
-import json
 import logging
+import pickle
 from pathlib import Path
 from time import perf_counter
 from typing import Optional, Union
 
-from starkware.cairo.lang.compiler.program import Program
 from starkware.cairo.lang.compiler.scoped_name import ScopedName
 
 # Had an issue with isort and trunk, solved with relative import. Not sure where it went from.
@@ -64,15 +63,15 @@ def get_cairo_program(cairo_file: Path, main_path, dump_path: Optional[Path] = N
     start = perf_counter()
     if dump_path is not None and dump_path.is_file():
         logger.info(f"Loading program from {dump_path}")
-        program = Program.load(data=json.loads(dump_path.read_text()))
+        with dump_path.open("rb") as f:
+            program = pickle.load(f)
     else:
         logger.info(f"Compiling {cairo_file}")
         program = cairo_compile(str(cairo_file), debug_info=True, proof_mode=False)
         if dump_path is not None:
             dump_path.parent.mkdir(parents=True, exist_ok=True)
-            dump_path.with_suffix(".lock").write_text(
-                json.dumps(program.Schema().dump(program), indent=4, sort_keys=True)
-            )
+            with dump_path.with_suffix(".lock").open("wb") as f:
+                pickle.dump(program, f)
             dump_path.with_suffix(".lock").rename(dump_path)
 
     program.hints = implement_hints(program)
