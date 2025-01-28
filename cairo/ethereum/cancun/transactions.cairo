@@ -144,8 +144,8 @@ func validate_transaction{range_check_ptr}(tx: Transaction) -> bool {
         return res;
     }
 
-    let is_nonce_out_of_range = U256_le(U256(new U256Struct(2 ** 64 - 1, 0)), tx_nonce);
-    if (is_nonce_out_of_range.value != FALSE) {
+    let is_nonce_out_of_range = is_le_felt(2 ** 64 - 1, tx_nonce.value.low);
+    if (is_nonce_out_of_range + tx_nonce.value.high != FALSE) {
         tempvar res = bool(FALSE);
         return res;
     }
