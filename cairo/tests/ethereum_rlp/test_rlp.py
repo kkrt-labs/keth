@@ -162,8 +162,6 @@ class TestRlp:
         def test_encode_eip155_transaction(
             self, cairo_run, tx: LegacyTransaction, chain_id: U64
         ):
-            """Test encoding of EIP-155 transaction (with chain ID)"""
-            # Compare with Python reference implementation
             assert encode(
                 (
                     tx.nonce,
