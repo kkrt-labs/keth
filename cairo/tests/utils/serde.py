@@ -80,6 +80,7 @@ from tests.utils.args_gen import (
     FlatState,
     FlatTransientStorage,
     Memory,
+    MutableBloom,
     Stack,
     to_python_type,
     vm_exception_classes,
@@ -216,7 +217,7 @@ class Serde(SerdeProtocol):
 
             return self._serialize(variant.cairo_type, value_ptr + variant.offset)
 
-        if python_cls is Memory or origin_cls is Stack:
+        if python_cls in (MutableBloom, Memory) or origin_cls is Stack:
             mapping_struct_ptr = self.serialize_pointers(path, ptr)["value"]
             mapping_struct_path = (
                 get_struct_definition(self.program, path)
@@ -249,6 +250,11 @@ class Serde(SerdeProtocol):
                 return Memory(
                     int.from_bytes(dict_repr.get(i, b"\x00"), "little")
                     for i in range(data_len)
+                )
+
+            if python_cls is MutableBloom:
+                return MutableBloom(
+                    int.from_bytes(dict_repr[i], "little") for i in range(data_len)
                 )
 
             return [dict_repr[i] for i in range(data_len)]
@@ -347,8 +353,8 @@ class Serde(SerdeProtocol):
             base_ptr = self.memory.get(ptr)
             data = b"".join(
                 [
-                    self.memory.get(base_ptr + i).to_bytes(16, "little")
-                    for i in range(16)
+                    self.memory.get(base_ptr + i).to_bytes(1, "little")
+                    for i in range(256)
                 ]
             )
             return Bytes256(data)

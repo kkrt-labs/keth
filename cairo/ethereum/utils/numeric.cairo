@@ -1,7 +1,7 @@
 from starkware.cairo.common.math_cmp import is_le, is_not_zero
 from starkware.cairo.common.uint256 import uint256_reverse_endian
 from ethereum_types.numeric import Uint, U256, U256Struct, bool
-from ethereum_types.bytes import Bytes32, Bytes32Struct, Bytes20
+from ethereum_types.bytes import Bytes32, Bytes32Struct, Bytes20, Bytes
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 
@@ -9,6 +9,7 @@ from starkware.cairo.common.math import split_felt
 from starkware.cairo.common.uint256 import word_reverse_endian, Uint256, uint256_le, uint256_mul
 from src.utils.uint256 import uint256_add, uint256_sub
 from src.utils.utils import Helpers
+from src.utils.bytes import bytes_to_felt
 
 func min{range_check_ptr}(a: felt, b: felt) -> felt {
     alloc_locals;
@@ -215,8 +216,12 @@ func U256_mul{range_check_ptr}(a: U256, b: U256) -> U256 {
     return result;
 }
 
-func U256_to_Uint{range_check_ptr}(value: U256) -> Uint {
-    let _res = Helpers.uint256_to_felt([value.value]);
-    let res = Uint(_res);
+func Uint_from_be_bytes{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(bytes: Bytes) -> Uint {
+    with_attr error_message("OverflowError") {
+        assert [range_check_ptr] = 8 - bytes.value.len;
+        let range_check_ptr = range_check_ptr + 1;
+    }
+    let value = bytes_to_felt(bytes.value.len, bytes.value.data);
+    tempvar res = Uint(value);
     return res;
 }

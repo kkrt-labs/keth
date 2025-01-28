@@ -28,6 +28,7 @@ from tests.utils.args_gen import (
     Evm,
     Memory,
     Message,
+    MutableBloom,
     Stack,
     State,
     TransientStorage,
@@ -515,3 +516,4 @@ def register_type_strategies():
     st.register_type_strategy(tuple, tuple_strategy)
     st.register_type_strategy(State, state)
     st.register_type_strategy(TransientStorage, transient_storage)
+    st.register_type_strategy(MutableBloom, bloom.map(MutableBloom))
