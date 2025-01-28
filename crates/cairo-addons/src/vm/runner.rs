@@ -12,7 +12,6 @@ use cairo_vm::{
         runners::{builtin_runner::BuiltinRunner, cairo_runner::CairoRunner as RustCairoRunner},
         security::verify_secure_runner,
     },
-    Felt252,
 };
 use pyo3::prelude::*;
 

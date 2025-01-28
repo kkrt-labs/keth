@@ -1,10 +1,10 @@
 import pytest
+from cairo_addons.testing.hints import insert_hint
 from Crypto.Hash import RIPEMD160
 from hypothesis import example, given, settings
 from hypothesis.strategies import binary
 
 from tests.utils.errors import cairo_error
-from tests.utils.hints import insert_hint
 
 pytestmark = pytest.mark.python_vm
 

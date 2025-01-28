@@ -1,6 +1,6 @@
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.dict_access import DictAccess
-from src.utils.maths import unsigned_div_rem
+from cairo_core.maths import unsigned_div_rem
 
 func dict_keys{range_check_ptr}(dict_start: DictAccess*, dict_end: DictAccess*) -> (
     keys_len: felt, keys: felt*

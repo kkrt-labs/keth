@@ -1,11 +1,16 @@
 [project]
 name = "cairo-addons"
 version = "0.1.0"
-description = "Add your description here"
+description = "Tooling for Cairo"
 readme = "README.md"
 authors = [{ name = "Clément Walter", email = "clement0walter@gmail.com" }]
 requires-python = ">=3.10"
-dependencies = ["cairo-lang>=0.13.3", "maturin>=1.8.1"]
+dependencies = [
+  "cairo-lang>=0.13.3",
+  "maturin>=1.8.1",
+  "polars>=1.18.0",
+  "xxhash>=3.5.0",
+]
 
 [tool.maturin]
 module-name = "cairo_addons.vm"
@@ -21,6 +26,13 @@ build-backend = "maturin"
 dev-dependencies = [
   "pytest>=7.0",
   "cairo-lang>=0.13.0",
-  "hypothesis>=6.122.3",
+  "hypothesis>=6.124.3",
   "jupyter>=1.1.1",
 ]
+
+[tool.isort]
+profile = "black"
+known_first_party = ["cairo_addons"]
+
+[project.entry-points."pytest11"]
+cairo_hooks = "cairo_addons.testing.hooks"

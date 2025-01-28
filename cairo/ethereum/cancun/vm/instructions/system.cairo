@@ -43,7 +43,12 @@ from ethereum_types.others import (
     TupleU256U256,
     TupleU256U256Struct,
 )
-from ethereum.cancun.state import get_account, account_has_code_or_nonce, increment_nonce
+from ethereum.cancun.state import (
+    get_account,
+    account_has_code_or_nonce,
+    account_has_storage,
+    increment_nonce,
+)
 from ethereum_types.bytes import Bytes, BytesStruct, Bytes0
 from ethereum.cancun.transactions import To, ToStruct
 from ethereum.utils.numeric import (
@@ -437,7 +442,10 @@ func generic_create{
     }
 
     let account_has_code_or_nonce_ = account_has_code_or_nonce{state=state}(contract_address);
-    if (account_has_code_or_nonce_.value != 0) {
+    let account_has_storage_ = account_has_storage{poseidon_ptr=poseidon_ptr, state=state}(
+        contract_address
+    );
+    if (account_has_code_or_nonce_.value + account_has_storage_.value != 0) {
         increment_nonce{state=state}(evm.value.message.value.current_target);
         tempvar zero = U256(new U256Struct(0, 0));
         let stack = evm.value.stack;

@@ -27,8 +27,8 @@ class MessageBuilder:
         self._depth = st.just(Uint(0))
         self._should_transfer_value = st.just(False)
         self._is_static = st.just(False)
-        self._accessed_addresses = st.just(set())
-        self._accessed_storage_keys = st.just(set())
+        self._accessed_addresses = st.builds(set, st.just(set()))
+        self._accessed_storage_keys = st.builds(set, st.just(set()))
         self._parent_evm = st.none()
 
     def with_caller(self, strategy=st.from_type(Address)):

@@ -11,7 +11,7 @@ from starkware.cairo.common.uint256 import (
 from starkware.cairo.common.bool import FALSE
 from starkware.cairo.common.math_cmp import is_nn
 
-from src.utils.maths import unsigned_div_rem
+from cairo_core.maths import unsigned_div_rem
 
 using UInt256 = Uint256;
 

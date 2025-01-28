@@ -1,12 +1,13 @@
 from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin, KeccakBuiltin
 from starkware.cairo.common.alloc import alloc
 
-from src.curve.alt_bn128 import alt_bn128
-from src.curve.g1_point import G1Point
-from src.curve.ec_ops import ec_mul
+from cairo_ec.curve.alt_bn128 import alt_bn128
+from cairo_ec.curve.g1_point import G1Point
+from cairo_ec.ec_ops import ec_mul
+
 from src.utils.utils import Helpers
 from src.utils.bytes import uint256_to_bytes32
-from src.utils.uint384 import UInt384, uint256_to_uint384, uint384_to_uint256
+from cairo_ec.uint384 import UInt384, uint256_to_uint384, uint384_to_uint256
 
 namespace PrecompileEcMul {
     const PRECOMPILE_ADDRESS = 0x07;

@@ -29,6 +29,41 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 Moreover, the project uses [rust](https://www.rust-lang.org/) to manage rust
 dependencies.
 
+### Installation
+
+Everything is managed by uv, see [the uv docs](https://docs.astral.sh/uv/) for
+the full documentation.
+
+Apart from `uv`, you just need to copy the `.env.example` file to `.env`, making
+sure to set the `CAIRO_PATH` environment variable to the path to the cairo
+libraries. To have cairo-ls working, you need to `source .env` before even
+opening your IDE. To avoid doing this manually, you can add the following to
+your shell's rc file:
+
+```bash
+cd() {
+    builtin cd "$@" || return
+
+    if [ -f "$PWD/.env" ]; then
+        echo "Loading environment variables from $PWD/.env"
+        source "$PWD/.env"
+    fi
+}
+```
+
+This will automatically source the `.env` file when you `cd` into a directory
+containing it. You can also update this to load only when you enter the keth
+directory.
+
+### Running tests
+
+```bash
+uv run pytest <optional pytest args>
+```
+
+Some tests require to compile solidity code, which requires `forge` to be
+installed, and `foundry` to be in the path, and to run `forge build`.
+
 ### Updating Rust dependencies
 
 Any changes to the rust code requires a re-build and re-install of the python

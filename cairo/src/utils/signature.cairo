@@ -13,11 +13,11 @@ from starkware.cairo.common.builtin_keccak.keccak import keccak_uint256s_bigend
 from starkware.cairo.common.uint256 import Uint256
 from starkware.cairo.common.alloc import alloc
 
-from src.utils.maths import unsigned_div_rem, scalar_to_epns
+from cairo_core.maths import unsigned_div_rem, scalar_to_epns
 from src.utils.circuit_utils import N_LIMBS, hash_full_transcript
 from src.utils.ecdsa_circuit import get_full_ecip_2P_circuit
 from src.utils.uint256 import assert_uint256_le
-from src.utils.uint384 import (
+from cairo_ec.uint384 import (
     uint384_to_uint256,
     uint256_to_uint384,
     uint384_eq_mod_p,
@@ -26,9 +26,10 @@ from src.utils.uint384 import (
     uint384_neg_mod_p,
     felt_to_uint384,
 )
-from src.curve.secp256k1 import secp256k1, get_generator_point, sign_to_uint384_mod_secp256k1
-from src.curve.ec_ops import ec_add, try_get_point_from_x, get_random_point
-from src.curve.g1_point import G1Point
+
+from cairo_ec.curve.secp256k1 import secp256k1, get_generator_point, sign_to_uint384_mod_secp256k1
+from cairo_ec.curve.g1_point import G1Point
+from cairo_ec.ec_ops import ec_add, try_get_point_from_x, get_random_point
 
 namespace Signature {
     // Assert 1 <= x < N. Assumes valid Uint256.

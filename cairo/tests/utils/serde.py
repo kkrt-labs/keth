@@ -37,6 +37,7 @@ from typing import (
     get_origin,
 )
 
+from cairo_addons.testing.serde import SerdeProtocol
 from cairo_addons.vm import MemorySegmentManager as RustMemorySegmentManager
 from eth_utils.address import to_checksum_address
 from ethereum_types.bytes import (
@@ -108,7 +109,7 @@ def get_struct_definition(program, path: Tuple[str, ...]) -> StructDefinition:
     raise ValueError(f"Expected a struct named {path}, found {identifier}")
 
 
-class Serde:
+class Serde(SerdeProtocol):
     def __init__(
         self,
         segments: Union[MemorySegmentManager, RustMemorySegmentManager],
@@ -1102,3 +1103,7 @@ class Serde:
                     else None
                 )
         return output
+
+    @staticmethod
+    def filter_no_error_flag(output):
+        return [x for x in output if x is not NO_ERROR_FLAG]
