@@ -45,7 +45,7 @@ from tests.utils.strategies import (
 environment_empty_state = st.builds(
     Environment,
     caller=...,
-    block_hashes=st.just([]),
+    block_hashes=st.builds(list, st.just([])),
     origin=...,
     coinbase=...,
     number=...,
