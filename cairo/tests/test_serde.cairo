@@ -32,7 +32,7 @@ from ethereum.cancun.blocks import (
     Receipt,
 )
 
-from ethereum.cancun.transactions import (
+from ethereum.cancun.transactions_types import (
     TupleAccessList,
     Transaction,
     LegacyTransaction,

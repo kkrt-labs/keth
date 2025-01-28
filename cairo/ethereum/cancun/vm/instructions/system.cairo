@@ -53,7 +53,7 @@ from ethereum.cancun.state import (
     is_account_alive,
 )
 from ethereum_types.bytes import Bytes, BytesStruct, Bytes0
-from ethereum.cancun.transactions import To, ToStruct
+from ethereum.cancun.transactions_types import To, ToStruct
 from ethereum.utils.numeric import (
     is_zero,
     U256_from_be_bytes20,

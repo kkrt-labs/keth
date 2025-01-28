@@ -16,7 +16,7 @@ from ethereum_types.bytes import (
 )
 from ethereum.cancun.blocks import Log, TupleLog, Receipt, Withdrawal
 from ethereum.cancun.fork_types import Address, Account, Bloom
-from ethereum.cancun.transactions import (
+from ethereum.cancun.transactions_types import (
     LegacyTransaction,
     To,
     AccessList,
