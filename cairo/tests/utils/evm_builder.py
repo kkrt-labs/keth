@@ -29,7 +29,7 @@ from tests.utils.strategies import (
 empty_environment = st.builds(
     Environment,
     caller=st.just(address_zero),
-    block_hashes=st.just([]),
+    block_hashes=st.builds(list, st.just([])),
     origin=st.just(address_zero),
     coinbase=st.just(address_zero),
     number=st.just(Uint(0)),
@@ -51,23 +51,23 @@ class EvmBuilder:
 
     def __init__(self):
         self._pc = st.just(Uint(0))
-        self._stack = st.just([])
+        self._stack = st.builds(list, st.just([]))
         self._memory = st.just(Memory(b""))
         self._code = st.just(b"")
         self._gas_left = st.just(Uint(0))
         self._env = empty_environment
-        self._valid_jump_destinations = st.just(set())
+        self._valid_jump_destinations = st.builds(set, st.just(set()))
         self._logs = st.just(())
         self._refund_counter = st.just(0)
         self._running = st.just(True)
         self._message = MessageBuilder().build()  # empty message
         self._output = st.just(b"")
-        self._accounts_to_delete = st.just(set())
-        self._touched_accounts = st.just(set())
+        self._accounts_to_delete = st.builds(set, st.just(set()))
+        self._touched_accounts = st.builds(set, st.just(set()))
         self._return_data = st.just(b"")
         self._error = st.none() | st.from_type(EthereumException)
-        self._accessed_addresses = st.just(set())
-        self._accessed_storage_keys = st.just(set())
+        self._accessed_addresses = st.builds(set, st.just(set()))
+        self._accessed_storage_keys = st.builds(set, st.just(set()))
 
     def with_pc(self, strategy=uint):
         self._pc = strategy
