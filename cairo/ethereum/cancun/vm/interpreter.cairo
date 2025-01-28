@@ -447,9 +447,7 @@ func process_message_call{
     // Prepare return values based on error state
     if (cast(evm.value.error, felt) != 0) {
         let msg = create_empty_message_call_output(evm.value.error);
-        with evm {
-            squash_evm();
-        }
+        squash_evm{evm=evm}();
         tempvar err = cast(0, EthereumException*);
         return (msg, err);
     }
@@ -457,9 +455,7 @@ func process_message_call{
     assert [range_check_ptr] = evm.value.refund_counter;
     let range_check_ptr = range_check_ptr + 1;
 
-    with evm {
-        squash_evm();
-    }
+    squash_evm{evm=evm}();
 
     let squashed_evm = evm;
     tempvar msg = MessageCallOutput(
@@ -514,10 +510,9 @@ func create_empty_message_call_output(error: EthereumException*) -> MessageCallO
     return msg;
 }
 
-// @dev Drop an `Evm` struct by squashing all of its fields except for Environment.
+// @dev Finalizes an `Evm` struct by squashing all of its fields except for Environment.
 func squash_evm{range_check_ptr, evm: Evm}() {
     alloc_locals;
-    let evm_struct = cast(evm.value, EvmStruct*);
 
     // Squash stack
     let stack = evm.value.stack;
