@@ -503,7 +503,7 @@ def register_type_strategies():
                     max_size=16,
                 ).map(tuple),
                 # Value in branch nodes is always empty
-                "value": st.builds(bytes, st.just(b"")),
+                "value": st.just(b""),
             }
         ).map(lambda x: BranchNode(**x)),
     )
