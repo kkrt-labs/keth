@@ -16,7 +16,14 @@ from ethereum_types.bytes import (
 )
 from ethereum.cancun.blocks import Log, TupleLog, Receipt, Withdrawal
 from ethereum.cancun.fork_types import Address, Account, Bloom
-from ethereum.cancun.transactions import LegacyTransaction, To
+from ethereum.cancun.transactions import (
+    LegacyTransaction,
+    To,
+    AccessList,
+    AccessListStruct,
+    TupleAccessList,
+    AccessListTransaction,
+)
 from ethereum.crypto.hash import keccak256, Hash32
 from ethereum.utils.numeric import is_zero
 from src.utils.array import reverse
@@ -418,6 +425,32 @@ func encode_withdrawal{range_check_ptr}(raw_withdrawal: Withdrawal) -> Bytes {
     let body_ptr = body_ptr + address_len;
     let amount_len = _encode_u256(body_ptr, raw_withdrawal.value.amount);
     let body_ptr = body_ptr + amount_len;
+
+    let body_len = body_ptr - dst - PREFIX_LEN_MAX;
+    let body_ptr = dst + PREFIX_LEN_MAX;
+    let prefix_len = _encode_prefix_len(body_ptr, body_len);
+
+    tempvar result = Bytes(new BytesStruct(body_ptr - prefix_len, prefix_len + body_len));
+    return result;
+}
+
+func encode_tuple_access_list{range_check_ptr}(raw_tuple_access_list: TupleAccessList) -> Bytes {
+    alloc_locals;
+    let (local dst) = alloc();
+    let len = _encode_tuple_access_list(dst, raw_tuple_access_list);
+    tempvar result = Bytes(new BytesStruct(dst, len));
+    return result;
+}
+
+func encode_access_list{range_check_ptr}(raw_access_list: AccessList) -> Bytes {
+    alloc_locals;
+    let (local dst) = alloc();
+    let body_ptr = dst + PREFIX_LEN_MAX;
+
+    let address_len = _encode_address(body_ptr, raw_access_list.value.address);
+    let body_ptr = body_ptr + address_len;
+    let storage_keys_len = _encode_tuple_bytes32(body_ptr, raw_access_list.value.storage_keys);
+    let body_ptr = body_ptr + storage_keys_len;
 
     let body_len = body_ptr - dst - PREFIX_LEN_MAX;
     let body_ptr = dst + PREFIX_LEN_MAX;
@@ -831,6 +864,47 @@ func _encode_tuple_log_inner{range_check_ptr}(dst: felt*, len: felt, raw_tuple_l
     );
 
     return log_encoded.value.len + remaining_len;
+}
+
+func _encode_tuple_access_list_inner{range_check_ptr}(
+    dst: felt*, len: felt, raw_tuple_access_list: AccessList*
+) -> felt {
+    alloc_locals;
+    if (len == 0) {
+        return 0;
+    }
+
+    // Encode current item
+    let access_list_encoded = encode_access_list(raw_tuple_access_list[0]);
+    memcpy(dst, access_list_encoded.value.data, access_list_encoded.value.len);
+
+    // Recursively encode remaining items
+    let remaining_len = _encode_tuple_access_list_inner(
+        dst + access_list_encoded.value.len, len - 1, raw_tuple_access_list + 1
+    );
+
+    return access_list_encoded.value.len + remaining_len;
+}
+
+func _encode_tuple_access_list{range_check_ptr}(
+    dst: felt*, tuple_access_list: TupleAccessList
+) -> felt {
+    alloc_locals;
+    if (tuple_access_list.value.len == 0) {
+        assert [dst] = 0xc0;
+        return 1;
+    }
+
+    let (local tmp) = alloc();
+    let body_ptr = tmp + PREFIX_LEN_MAX;
+    let body_len = _encode_tuple_access_list_inner(
+        body_ptr, tuple_access_list.value.len, tuple_access_list.value.data
+    );
+    let prefix_len = _encode_prefix_len(body_ptr, body_len);
+
+    memcpy(dst, body_ptr - prefix_len, prefix_len + body_len);
+
+    return prefix_len + body_len;
 }
 
 func _encode_bloom{range_check_ptr}(dst: felt*, raw_bloom: Bloom) -> felt {
