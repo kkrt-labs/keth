@@ -34,7 +34,7 @@ def cairo_compile(
 ) -> Program:
     module_reader = get_module_reader(
         cairo_path=[
-            str(Path(__file__).parents[2]),
+            str(Path(__file__).parents[4] / "cairo"),
             *os.getenv(LIBS_DIR_ENVVAR, "").split(":"),
         ]
     )
