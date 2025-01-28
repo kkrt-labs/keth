@@ -243,8 +243,8 @@ message_lite = st.builds(
     depth=uint,
     should_transfer_value=st.booleans(),
     is_static=st.booleans(),
-    accessed_addresses=st.just(set()),
-    accessed_storage_keys=st.just(set()),
+    accessed_addresses=st.builds(set, st.just(set())),
+    accessed_storage_keys=st.builds(set, st.just(set())),
     parent_evm=st.none(),
 )
 
