@@ -12,6 +12,7 @@ from ethereum.cancun.transactions import (
     BlobTransaction,
     FeeMarketTransaction,
     LegacyTransaction,
+    Transaction,
     encode_transaction,
 )
 from ethereum_rlp.rlp import (
@@ -175,6 +176,14 @@ class TestRlp:
                     Uint(0),
                 )
             ) == cairo_run("encode_eip155_transaction", tx, chain_id)
+
+        @given(tx=...)
+        def test_encode_transaction(self, cairo_run, tx: Transaction):
+            # encode_transaction(legacy_tx) return tx and not RLP encoded bytes
+            if isinstance(tx, LegacyTransaction):
+                assert encode(tx) == cairo_run("encode_transaction", tx)
+            else:
+                assert encode_transaction(tx) == cairo_run("encode_transaction", tx)
 
     class TestDecode:
         @given(raw_data=...)

@@ -26,6 +26,7 @@ from ethereum.cancun.transactions import (
     AccessListTransaction,
     FeeMarketTransaction,
     BlobTransaction,
+    Transaction,
 )
 from ethereum.crypto.hash import keccak256, Hash32
 from ethereum.utils.numeric import is_zero
@@ -679,6 +680,38 @@ func encode_eip155_transaction{range_check_ptr}(
 
     tempvar result = Bytes(new BytesStruct(body_ptr - prefix_len, prefix_len + body_len));
     return result;
+}
+
+func encode_transaction{range_check_ptr}(transaction: Transaction) -> Bytes {
+    alloc_locals;
+
+    // Check which transaction type is non-null
+    if (cast(transaction.value.legacy_transaction.value, felt) != 0) {
+        // Legacy transaction - no type byte prefix
+        return encode_legacy_transaction(transaction.value.legacy_transaction);
+    }
+
+    if (cast(transaction.value.access_list_transaction.value, felt) != 0) {
+        // EIP-2930 transaction - type 0x01
+        return encode_access_list_transaction(transaction.value.access_list_transaction);
+    }
+
+    if (cast(transaction.value.fee_market_transaction.value, felt) != 0) {
+        // EIP-1559 transaction - type 0x02
+        return encode_fee_market_transaction(transaction.value.fee_market_transaction);
+    }
+
+    if (cast(transaction.value.blob_transaction.value, felt) != 0) {
+        // EIP-4844 transaction - type 0x03
+        return encode_blob_transaction(transaction.value.blob_transaction);
+    }
+
+    // Should never happen - one pointer must be non-null
+    with_attr error_message("Invalid transaction type - no valid pointer") {
+        assert 0 = 1;
+        tempvar result = Bytes(cast(0, BytesStruct*));
+        return result;
+    }
 }
 
 //
