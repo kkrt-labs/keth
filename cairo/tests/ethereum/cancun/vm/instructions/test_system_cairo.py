@@ -27,6 +27,7 @@ local_strategy = (
 )
 
 evm_stack_memory_gas = EvmBuilder().with_stack().with_memory().with_gas_left().build()
+evm_call = EvmBuilder().with_stack().with_env().with_message().with_memory().with_gas_left().build()
 
 
 class TestSystem:
@@ -185,7 +186,7 @@ class TestSystem:
         )
         assert evm == cairo_evm
 
-    @given(evm=evm_stack_memory_gas)
+    @given(evm=evm_call)
     def test_call(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("test_call", evm)

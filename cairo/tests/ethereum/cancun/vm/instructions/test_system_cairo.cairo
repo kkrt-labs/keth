@@ -102,6 +102,6 @@ func test_call{
     evm: Evm,
 }() -> EthereumException* {
     let (process_message_label) = get_label_location(process_message);
-    let res = call_{process_message_label=process_message_label, evm=evm}();
-    return res;
+    let result = call_{process_message_label=process_message_label, evm=evm}();
+    return result;
 }
