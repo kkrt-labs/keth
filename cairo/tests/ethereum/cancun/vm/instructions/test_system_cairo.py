@@ -7,7 +7,6 @@ from ethereum.cancun.vm.instructions.system import (
     create,
     create2,
     generic_call,
-    call,
     generic_create,
 )
 from tests.utils.args_gen import Evm
