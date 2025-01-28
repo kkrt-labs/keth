@@ -8,6 +8,7 @@ from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 from starkware.cairo.common.math import split_felt
 from starkware.cairo.common.uint256 import word_reverse_endian, Uint256, uint256_le, uint256_mul
 from src.utils.uint256 import uint256_add, uint256_sub
+from src.utils.utils import Helpers
 
 func min{range_check_ptr}(a: felt, b: felt) -> felt {
     alloc_locals;

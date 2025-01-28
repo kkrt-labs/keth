@@ -3,6 +3,7 @@ from hypothesis import given
 
 from ethereum.cancun.fork_types import Address
 from ethereum.cancun.vm.instructions.system import (
+    call,
     create,
     create2,
     generic_call,
@@ -26,6 +27,15 @@ local_strategy = (
 )
 
 evm_stack_memory_gas = EvmBuilder().with_stack().with_memory().with_gas_left().build()
+evm_call = (
+    EvmBuilder()
+    .with_stack()
+    .with_env()
+    .with_message()
+    .with_memory()
+    .with_gas_left()
+    .build()
+)
 
 
 class TestSystem:
@@ -183,3 +193,18 @@ class TestSystem:
             memory_output_size,
         )
         assert evm == cairo_evm
+
+    @given(evm=evm_call)
+    def test_call(self, cairo_run, evm: Evm):
+        # Set depth to 1024 to avoid triggering regular execution flow when entering into generic_call
+        # TODO: remove this once we have all opcodes implemented
+        evm.message.depth = Uint(1024)
+        try:
+            cairo_result = cairo_run("test_call", evm)
+        except Exception as cairo_error:
+            with strict_raises(type(cairo_error)):
+                call(evm)
+            return
+
+        call(evm)
+        assert evm == cairo_result
