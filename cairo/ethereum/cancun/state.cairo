@@ -7,6 +7,7 @@ from src.utils.uint256 import uint256_add, uint256_sub
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.squash_dict import squash_dict
 from starkware.cairo.common.memcpy import memcpy
+from starkware.cairo.common.math_cmp import is_not_zero
 
 from ethereum.cancun.fork_types import (
     Address,
@@ -494,6 +495,22 @@ func account_has_code_or_nonce{poseidon_ptr: PoseidonBuiltin*, state: State}(
     }
 
     tempvar res = bool(0);
+    return res;
+}
+
+func account_has_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Address) -> bool {
+    alloc_locals;
+
+    let fp_and_pc = get_fp_and_pc();
+    local __fp__: felt* = fp_and_pc.fp_val;
+
+    let storage_tries = state.value.original_storage_tries;
+    let prefix_len = 1;
+    let prefix = &address.value;
+    tempvar dict_ptr = cast(storage_tries.value._data.value.dict_ptr, DictAccess*);
+    let keys = get_keys_for_address_prefix{dict_ptr=dict_ptr}(prefix_len, prefix);
+    let has_storage = is_not_zero(keys.value.len);
+    tempvar res = bool(has_storage);
     return res;
 }
 

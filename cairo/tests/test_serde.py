@@ -41,6 +41,7 @@ from tests.utils.args_gen import (
     Evm,
     Memory,
     Message,
+    MessageCallOutput,
     Stack,
     _cairo_struct_to_python_type,
 )
@@ -254,6 +255,7 @@ class TestSerde:
             Message,
             List[Tuple[U256, U256]],
             ExtendMemory,
+            MessageCallOutput,
         ],
     ):
         assume(no_empty_sequence(b))
