@@ -6,11 +6,8 @@ from tests.utils.args_gen import Evm
 from tests.utils.errors import strict_raises
 from tests.utils.strategies import uint8
 
-# TODO: remove when implemented
-unimplemented_opcodes = [0xF0, 0xF1, 0xF2, 0xF3, 0xF4, 0xF5, 0xFA, 0xFF]
 
-
-@given(evm=..., opcode=uint8.filter(lambda x: x not in unimplemented_opcodes))
+@given(evm=..., opcode=uint8)
 def test_op_implementation(cairo_run, evm: Evm, opcode):
     try:
         cairo_evm = cairo_run("test_op_implementation", evm, opcode)

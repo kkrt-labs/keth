@@ -47,6 +47,11 @@ from ethereum_types.others import (
     TupleU256U256Struct,
 )
 from ethereum.cancun.state import (
+    State,
+    StateStruct,
+    account_exists_and_is_empty,
+    move_ether,
+    set_account_balance,
     get_account,
     account_has_code_or_nonce,
     account_has_storage,
@@ -1368,6 +1373,179 @@ func create2{
     // PROGRAM COUNTER
     let pc = evm.value.pc;
     EvmImpl.set_pc(Uint(pc.value + 1));
+
+    let ok = cast(0, EthereumException*);
+    return ok;
+}
+
+// @notice Halt execution and register account for later deletion
+func selfdestruct{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    alloc_locals;
+    let fp_and_pc = get_fp_and_pc();
+    local __fp__: felt* = fp_and_pc.fp_val;
+
+    // STACK
+    let stack = evm.value.stack;
+    with stack {
+        let (beneficiary_u256, err) = pop();
+        if (cast(err, felt) != 0) {
+            EvmImpl.set_stack(stack);
+            return err;
+        }
+    }
+
+    // Convert beneficiary to address
+    tempvar beneficiary_u256_ = UnionUintU256(
+        new UnionUintU256Enum(cast(0, Uint*), beneficiary_u256)
+    );
+    let beneficiary_ = to_address(beneficiary_u256_);
+    tempvar beneficiary = new Address(beneficiary_.value);
+
+    // GAS
+    // Calculate gas cost based on access and account status
+    let accessed_addresses = evm.value.accessed_addresses;
+    let accessed_addresses_end = cast(accessed_addresses.value.dict_ptr, DictAccess*);
+    let (is_warm) = hashdict_read{dict_ptr=accessed_addresses_end}(1, &beneficiary.value);
+
+    tempvar base_gas_cost = Uint(GasConstants.GAS_SELF_DESTRUCT);
+
+    // Add cold access cost if beneficiary not in accessed_addresses
+    if (is_warm != 0) {
+        tempvar gas_cost = base_gas_cost;
+        tempvar accessed_addresses_end = accessed_addresses_end;
+        tempvar poseidon_ptr = poseidon_ptr;
+    } else {
+        hashdict_write{dict_ptr=accessed_addresses_end}(1, &beneficiary.value, 1);
+        tempvar gas_cost = Uint(base_gas_cost.value + GasConstants.GAS_COLD_ACCOUNT_ACCESS);
+        tempvar accessed_addresses_end = accessed_addresses_end;
+        tempvar poseidon_ptr = poseidon_ptr;
+    }
+    let gas_cost = Uint([ap - 3]);
+
+    tempvar new_accessed_addresses = SetAddress(
+        new SetAddressStruct(
+            accessed_addresses.value.dict_ptr_start,
+            cast(accessed_addresses_end, SetAddressDictAccess*),
+        ),
+    );
+    EvmImpl.set_accessed_addresses(new_accessed_addresses);
+
+    // Check if beneficiary account is alive and originator has balance
+    let env = evm.value.env;
+    let state = env.value.state;
+    let originator = evm.value.message.value.current_target;
+    let originator_account = get_account{state=state}(originator);
+    let originator_balance = originator_account.value.balance;
+    let originator_balance_zero_low = is_zero(originator_balance.value.low);
+    let originator_balance_zero_high = is_zero(originator_balance.value.high);
+    let originator_balance_zero = originator_balance_zero_low * originator_balance_zero_high;
+    let beneficiary_is_alive = is_account_alive{state=state}([beneficiary]);
+
+    // Add additional gas cost if beneficiary not alive and originator has balance
+    let is_new_account = (1 - beneficiary_is_alive.value) * (1 - originator_balance_zero);
+    if (is_new_account != 0) {
+        // Wont't overflow as all components are < 25k
+        tempvar final_gas_cost = Uint(gas_cost.value + GasConstants.GAS_SELF_DESTRUCT_NEW_ACCOUNT);
+    } else {
+        tempvar final_gas_cost = gas_cost;
+    }
+
+    let err = charge_gas(final_gas_cost);
+    if (cast(err, felt) != 0) {
+        EnvImpl.set_state{env=env}(state);
+        EvmImpl.set_env(env);
+        EvmImpl.set_stack(stack);
+        return err;
+    }
+
+    // OPERATION
+    if (evm.value.message.value.is_static.value != 0) {
+        EnvImpl.set_state{env=env}(state);
+        EvmImpl.set_env(env);
+        EvmImpl.set_stack(stack);
+        tempvar err = new EthereumException(WriteInStaticContext);
+        return err;
+    }
+
+    move_ether{state=state}(originator, [beneficiary], originator_balance);
+
+    // Register account for deletion if created in same transaction
+    let created_accounts = env.value.state.value.created_accounts;
+    let created_accounts_end = cast(created_accounts.value.dict_ptr, DictAccess*);
+    let (is_created) = hashdict_read{dict_ptr=created_accounts_end}(1, &originator);
+    tempvar new_created_accounts = SetAddress(
+        new SetAddressStruct(
+            created_accounts.value.dict_ptr_start, cast(created_accounts_end, SetAddressDictAccess*)
+        ),
+    );
+    tempvar state = State(
+        new StateStruct(
+            _main_trie=state.value._main_trie,
+            _storage_tries=state.value._storage_tries,
+            created_accounts=new_created_accounts,
+            original_storage_tries=state.value.original_storage_tries,
+        ),
+    );
+
+    if (is_created != 0) {
+        // Set originator balance to 0
+        tempvar zero_balance = U256(new U256Struct(0, 0));
+        set_account_balance{state=state}(originator, zero_balance);
+
+        // Add to accounts to delete
+        let accounts_to_delete = evm.value.accounts_to_delete;
+        let accounts_to_delete_end = cast(accounts_to_delete.value.dict_ptr, DictAccess*);
+        hashdict_write{dict_ptr=accounts_to_delete_end}(1, &originator, 1);
+        tempvar new_accounts_to_delete = SetAddress(
+            new SetAddressStruct(
+                accounts_to_delete.value.dict_ptr_start,
+                cast(accounts_to_delete_end, SetAddressDictAccess*),
+            ),
+        );
+        EvmImpl.set_accounts_to_delete(new_accounts_to_delete);
+        tempvar evm = evm;
+        tempvar state = state;
+        tempvar poseidon_ptr = poseidon_ptr;
+    } else {
+        tempvar evm = evm;
+        tempvar state = state;
+        tempvar poseidon_ptr = poseidon_ptr;
+    }
+    let evm = Evm(cast([ap - 3], EvmStruct*));
+
+    // Mark beneficiary as touched if empty
+    let is_empty = account_exists_and_is_empty{state=state}([beneficiary]);
+    if (is_empty.value != 0) {
+        let touched_accounts = evm.value.touched_accounts;
+        let touched_accounts_end = cast(touched_accounts.value.dict_ptr, DictAccess*);
+        hashdict_write{dict_ptr=touched_accounts_end}(1, &beneficiary.value, 1);
+        tempvar new_touched_accounts = SetAddress(
+            new SetAddressStruct(
+                touched_accounts.value.dict_ptr_start,
+                cast(touched_accounts_end, SetAddressDictAccess*),
+            ),
+        );
+        EvmImpl.set_touched_accounts(new_touched_accounts);
+        tempvar evm = evm;
+        tempvar state = state;
+        tempvar poseidon_ptr = poseidon_ptr;
+    } else {
+        tempvar evm = evm;
+        tempvar state = state;
+        tempvar poseidon_ptr = poseidon_ptr;
+    }
+
+    // Stop execution
+    EvmImpl.set_running(bool(0));
+    EnvImpl.set_state{env=env}(state);
+    EvmImpl.set_env(env);
+    EvmImpl.set_stack(stack);
 
     let ok = cast(0, EthereumException*);
     return ok;
