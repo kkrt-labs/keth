@@ -21,7 +21,7 @@ class TestEllipticCurve:
         v = U256(signature.v)
 
         x, y = cairo_run(
-            "secp256k1_recover",
+            "secp256k1_recover_uint256_bigends",
             r=r,
             s=s,
             v=v,

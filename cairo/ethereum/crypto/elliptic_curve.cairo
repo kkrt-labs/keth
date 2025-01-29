@@ -21,7 +21,7 @@ from ethereum.crypto.hash import Hash32
 // @param v The v value of the signature.
 // @param msg_hash Hash of the message being recovered.
 // @return x, y The recovered public key points in U256 format to simplify subsequent cairo hashing.
-func secp256k1_recover{
+func secp256k1_recover_uint256_bigends{
     range_check_ptr,
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
