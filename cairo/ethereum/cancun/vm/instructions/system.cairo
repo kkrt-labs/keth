@@ -584,6 +584,7 @@ func callcode{
         return ok;
     }
 
+    EvmImpl.set_stack(stack);
     let err = generic_call(
         message_call_gas.value.stipend,
         value,
@@ -851,6 +852,7 @@ func staticcall{
     let memory = evm.value.memory;
     expand_by{memory=memory}(extend_memory.value.expand_by);
     EvmImpl.set_memory(memory);
+    EvmImpl.set_stack(stack);
 
     let err = generic_call(
         message_call_gas.value.stipend,
