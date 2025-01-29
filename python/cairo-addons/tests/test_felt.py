@@ -1,7 +1,8 @@
-from cairo_addons.vm import Felt
 from hypothesis import given
 from hypothesis import strategies as st
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
+
+from cairo_addons.vm import Felt
 
 felt = st.integers(min_value=0, max_value=DEFAULT_PRIME - 1)
 

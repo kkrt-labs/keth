@@ -1,9 +1,10 @@
 import pytest
+from starkware.cairo.common.dict import DictManager, DictTracker
+
 from cairo_addons.vm import CairoRunner
 from cairo_addons.vm import DictManager as RustDictManager
 from cairo_addons.vm import DictTracker as RustDictTracker
 from cairo_addons.vm import Relocatable as RustRelocatable
-from starkware.cairo.common.dict import DictManager, DictTracker
 
 
 @pytest.fixture

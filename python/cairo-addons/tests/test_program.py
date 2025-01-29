@@ -1,4 +1,5 @@
 import pytest
+
 from cairo_addons.vm import Program as RustProgram
 
 

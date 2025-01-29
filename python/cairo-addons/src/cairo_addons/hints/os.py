@@ -1,7 +1,8 @@
-from cairo_addons.hints.decorator import register_hint
 from starkware.cairo.common.dict import DictManager
 from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 from starkware.cairo.lang.vm.vm_consts import VmConsts
+
+from cairo_addons.hints.decorator import register_hint
 
 
 @register_hint
