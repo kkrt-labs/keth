@@ -1,10 +1,10 @@
 import pytest
 from hypothesis import assume, given, settings
 from hypothesis.strategies import integers
-from src.utils.uint256 import int_to_uint256
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 
 from cairo_addons.testing.strategies import felt, uint128
+from src.utils.uint256 import int_to_uint256
 
 pytestmark = pytest.mark.python_vm
 
