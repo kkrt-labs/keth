@@ -2,12 +2,19 @@ from typing import Sequence, Tuple, Union
 
 import pytest
 from ethereum_types.bytes import Bytes, Bytes0, Bytes32
-from ethereum_types.numeric import U256, Uint
+from ethereum_types.numeric import U64, U256, Uint
 from hypothesis import assume, given
 
 from ethereum.cancun.blocks import Log, Receipt, Withdrawal
 from ethereum.cancun.fork_types import Account, Address, Bloom, encode_account
-from ethereum.cancun.transactions import LegacyTransaction
+from ethereum.cancun.transactions import (
+    AccessListTransaction,
+    BlobTransaction,
+    FeeMarketTransaction,
+    LegacyTransaction,
+    Transaction,
+    encode_transaction,
+)
 from ethereum_rlp.rlp import (
     Extended,
     decode,
@@ -131,6 +138,52 @@ class TestRlp:
             self, cairo_run, access_list: Tuple[Address, Tuple[Bytes32, ...]]
         ):
             assert encode(access_list) == cairo_run("encode_access_list", access_list)
+
+        @given(tx=...)
+        def test_encode_access_list_transaction(
+            self, cairo_run, tx: AccessListTransaction
+        ):
+            assert encode_transaction(tx) == cairo_run(
+                "encode_access_list_transaction", tx
+            )
+
+        @given(tx=...)
+        def test_encode_fee_market_transaction(
+            self, cairo_run, tx: FeeMarketTransaction
+        ):
+            assert encode_transaction(tx) == cairo_run(
+                "encode_fee_market_transaction", tx
+            )
+
+        @given(tx=...)
+        def test_encode_blob_transaction(self, cairo_run, tx: BlobTransaction):
+            assert encode_transaction(tx) == cairo_run("encode_blob_transaction", tx)
+
+        @given(tx=..., chain_id=...)
+        def test_encode_eip155_transaction(
+            self, cairo_run, tx: LegacyTransaction, chain_id: U64
+        ):
+            assert encode(
+                (
+                    tx.nonce,
+                    tx.gas_price,
+                    tx.gas,
+                    tx.to,
+                    tx.value,
+                    tx.data,
+                    chain_id,
+                    Uint(0),
+                    Uint(0),
+                )
+            ) == cairo_run("encode_eip155_transaction", tx, chain_id)
+
+        @given(tx=...)
+        def test_encode_transaction(self, cairo_run, tx: Transaction):
+            # encode_transaction(legacy_tx) return tx and not RLP encoded bytes
+            if isinstance(tx, LegacyTransaction):
+                assert encode(tx) == cairo_run("encode_transaction", tx)
+            else:
+                assert encode_transaction(tx) == cairo_run("encode_transaction", tx)
 
     class TestDecode:
         @given(raw_data=...)
