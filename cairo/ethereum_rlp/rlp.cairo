@@ -21,7 +21,6 @@ from ethereum.cancun.transactions_types import (
     LegacyTransaction,
     To,
     AccessList,
-    AccessListStruct,
     TupleAccessList,
     AccessListTransaction,
     FeeMarketTransaction,
