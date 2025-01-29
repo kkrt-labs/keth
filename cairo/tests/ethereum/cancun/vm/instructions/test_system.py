@@ -2,7 +2,7 @@ from hypothesis import given
 from hypothesis import strategies as st
 from hypothesis.strategies import composite
 
-from ethereum.cancun.vm.instructions.system import return_, revert
+from ethereum.cancun.vm.instructions.system import return_, revert, selfdestruct
 from ethereum.cancun.vm.stack import push
 from tests.utils.args_gen import Evm
 from tests.utils.errors import strict_raises
@@ -11,7 +11,7 @@ from tests.utils.strategies import memory_lite_access_size, memory_lite_start_po
 
 
 @composite
-def system_strategy(draw):
+def revert_return_strategy(draw):
     """Generate test cases for system instructions (revert/return).
 
     This strategy generates an EVM instance and the required parameters.
@@ -31,8 +31,12 @@ def system_strategy(draw):
     return evm
 
 
+# @composite
+# def beneficiary_from_satte
+
+
 class TestSystem:
-    @given(evm=system_strategy())
+    @given(evm=revert_return_strategy())
     def test_revert(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("revert", evm)
@@ -44,7 +48,7 @@ class TestSystem:
         revert(evm)
         assert evm == cairo_result
 
-    @given(evm=system_strategy())
+    @given(evm=revert_return_strategy())
     def test_return(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("return_", evm)
@@ -54,4 +58,28 @@ class TestSystem:
             return
 
         return_(evm)
+        assert evm == cairo_result
+
+    @given(
+        evm=EvmBuilder()
+        .with_env()
+        .with_message()
+        .with_stack()
+        .with_gas_left()
+        .with_running()
+        .with_accessed_addresses()
+        .with_accessed_storage_keys()
+        .with_accounts_to_delete()
+        .with_touched_accounts()
+        .build()
+    )
+    def test_selfdestruct(self, cairo_run, evm: Evm):
+        try:
+            cairo_result = cairo_run("selfdestruct", evm)
+        except Exception as cairo_error:
+            with strict_raises(type(cairo_error)):
+                selfdestruct(evm)
+            return
+
+        selfdestruct(evm)
         assert evm == cairo_result

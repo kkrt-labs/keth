@@ -89,6 +89,10 @@ from tests.utils.models import Account
 NO_ERROR_FLAG = object()
 
 
+class DictConsistencyError(Exception):
+    pass
+
+
 def get_struct_definition(program, path: Tuple[str, ...]) -> StructDefinition:
     """
     Resolves and returns the struct definition for a given path in the Cairo program.
@@ -525,11 +529,8 @@ class Serde(SerdeProtocol):
         # Invariant Testing:
         # We need to ensure that the last dict_ptr points properly
         # since they might have been updated by reading the `original_storage_trie` field of the state.
-        assert (
-            self.memory.get(pointers["dict_ptr"]) is None
-            if check_dict_consistency
-            else True
-        )
+        if check_dict_consistency and self.memory.get(pointers["dict_ptr"]) is not None:
+            raise DictConsistencyError()
 
         dict_segment_data = {
             self._serialize(cairo_key_type, dict_ptr + i): self._serialize(
@@ -1092,6 +1093,10 @@ class Serde(SerdeProtocol):
             # encounter an error.
             except UnknownMemoryError:
                 break
+            except DictConsistencyError as e:
+                raise DictConsistencyError(
+                    f"Dict consistency error in {item_path}"
+                ) from e
             except Exception:
                 # TODO: handle this better as only UnknownMemoryError is expected
                 # when accessing invalid memory
