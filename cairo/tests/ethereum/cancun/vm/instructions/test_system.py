@@ -1,7 +1,9 @@
+from ethereum_types.numeric import U256
 from hypothesis import given
 from hypothesis import strategies as st
 from hypothesis.strategies import composite
 
+from ethereum.cancun.fork_types import Address
 from ethereum.cancun.vm.instructions.system import return_, revert, selfdestruct
 from ethereum.cancun.vm.stack import push
 from tests.utils.args_gen import Evm
@@ -31,8 +33,41 @@ def revert_return_strategy(draw):
     return evm
 
 
-# @composite
-# def beneficiary_from_satte
+@composite
+def beneficiary_from_state(draw):
+    """Generate test cases for selfdestruct instruction.
+
+    This strategy generates an EVM instance with a beneficiary address on the stack:
+    - 80% chance: address from state (existing accounts)
+    - 20% chance: random address
+    - Always pushes the address to the stack
+    """
+    evm = draw(
+        EvmBuilder()
+        .with_env()
+        .with_message()
+        .with_stack()
+        .with_gas_left()
+        .with_running()
+        .with_accessed_addresses()
+        .with_accessed_storage_keys()
+        .with_accounts_to_delete()
+        .with_touched_accounts()
+        .build()
+    )
+
+    # Choose between state address (80%) or random address (20%)
+    use_state_address = draw(st.integers(0, 99)) < 80
+
+    if use_state_address and evm.env.state._main_trie._data:
+        # Get address from state if av
+        beneficiary = draw(st.sampled_from(list(evm.env.state._main_trie._data.keys())))
+    else:
+        beneficiary = draw(st.from_type(Address))
+
+    push(evm.stack, U256.from_be_bytes(beneficiary))
+
+    return evm
 
 
 class TestSystem:
@@ -60,19 +95,7 @@ class TestSystem:
         return_(evm)
         assert evm == cairo_result
 
-    @given(
-        evm=EvmBuilder()
-        .with_env()
-        .with_message()
-        .with_stack()
-        .with_gas_left()
-        .with_running()
-        .with_accessed_addresses()
-        .with_accessed_storage_keys()
-        .with_accounts_to_delete()
-        .with_touched_accounts()
-        .build()
-    )
+    @given(evm=beneficiary_from_state())
     def test_selfdestruct(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("selfdestruct", evm)
