@@ -8,6 +8,7 @@ import starkware.cairo.lang.instances as LAYOUTS
 import xdist
 import xxhash
 from _pytest.mark import deselect_by_keyword, deselect_by_mark
+from starkware.cairo.lang.compiler.cairo_compile import DEFAULT_PRIME
 
 from cairo_addons.testing.caching import CACHED_TESTS_FILE, file_hash, program_hash
 from cairo_addons.testing.compiler import (
@@ -30,6 +31,13 @@ def pytest_addoption(parser):
         action="store_true",
         default=False,
         help="compute and dump TracerData for the VM runner: True or False",
+    )
+    parser.addoption(
+        "--prime",
+        action="store",
+        type=int,
+        default=DEFAULT_PRIME,
+        help="prime to use for the tests",
     )
     parser.addoption(
         "--proof-mode",
@@ -169,6 +177,8 @@ def pytest_collection_modifyitems(session, config, items):
         )
     ]
 
+    logger.info(f"Using prime: 0x{config.getoption('prime'):x}")
+
     # Distribute compilation using modulo
     worker_count = getattr(config, "workerinput", {}).get("workercount", 1)
     worker_id = getattr(config, "workerinput", {}).get("workerid", "master")
@@ -182,6 +192,7 @@ def pytest_collection_modifyitems(session, config, items):
             session.cairo_files[fspath],
             session.main_paths[fspath],
             dump_path,
+            config.getoption("prime"),
         )
 
     # Wait for all workers to finish
@@ -201,6 +212,7 @@ def pytest_collection_modifyitems(session, config, items):
                         session.cairo_files[fspath],
                         session.main_paths[fspath],
                         dump_path,
+                        config.getoption("prime"),
                     )
                 else:
                     missing_new.add(fspath)
