@@ -225,23 +225,21 @@ def run_python_vm(
                 output_ptr = stack[-1]
 
         # Handle other args, (implicit, explicit)
-        gen_arg = None
-        if gen_arg_builder is not None:
-            gen_arg = gen_arg_builder(dict_manager, runner.segments)
-            for i, (arg_name, python_type) in enumerate(
-                [(k, v["python_type"]) for k, v in {**_implicit_args, **_args}.items()]
-            ):
-                if arg_name == "output_ptr":
-                    add_output = True
-                    output_ptr = runner.segments.add()
-                    stack.append(output_ptr)
-                else:
-                    arg_value = kwargs[arg_name] if arg_name in kwargs else args[i]
-                    stack.append(gen_arg(python_type, arg_value))
-        else:
-            if {**_implicit_args, **_args}:
-                raise ValueError("No gen_arg builder provided")
-
+        gen_arg = (
+            gen_arg_builder(dict_manager, runner.segments)
+            if gen_arg_builder is not None
+            else lambda _python_type, _value: runner.segments.gen_arg(_value)
+        )
+        for i, (arg_name, python_type) in enumerate(
+            [(k, v["python_type"]) for k, v in {**_implicit_args, **_args}.items()]
+        ):
+            if arg_name == "output_ptr":
+                add_output = True
+                output_ptr = runner.segments.add()
+                stack.append(output_ptr)
+            else:
+                arg_value = kwargs[arg_name] if arg_name in kwargs else args[i]
+                stack.append(gen_arg(python_type, arg_value))
         return_fp = runner.execution_base + 2
         # Return to the jmp rel 0 instruction added previously
         end = runner.program_base + len(runner.program.data) - 2
