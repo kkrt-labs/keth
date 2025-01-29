@@ -5,7 +5,7 @@ from starkware.cairo.common.cairo_builtins import (
     ModBuiltin,
     PoseidonBuiltin,
 )
-from starkware.cairo.common.uint256 import Uint256
+from starkware.cairo.common.uint256 import Uint256, uint256_reverse_endian
 from ethereum_types.bytes import Bytes, Bytes32, BytesStruct
 from cairo_ec.curve.secp256k1 import try_recover_public_key, secp256k1
 from cairo_ec.uint384 import uint256_to_uint384, uint384_to_uint256
@@ -31,16 +31,17 @@ func secp256k1_recover_uint256_bigends{
     poseidon_ptr: PoseidonBuiltin*,
 }(r: U256, s: U256, v: U256, msg_hash: Hash32) -> (x: U256, y: U256) {
     alloc_locals;
-    let r_uint256 = [r.value];
-    let s_uint256 = [s.value];
+
+    // reverse endianness of msg_hash
+    let (msg_hash_reversed) = uint256_reverse_endian([msg_hash.value]);
 
     // Convert inputs to UInt384 for try_recover_public_key
-    let r_uint384 = uint256_to_uint384(r_uint256);
-    let s_uint384 = uint256_to_uint384(s_uint256);
+    let r_uint384 = uint256_to_uint384([r.value]);
+    let s_uint384 = uint256_to_uint384([s.value]);
     // parameter `v` MUST be a `U256` with `low` value equal to y parity and high value equal to 0
     // see: <https://github.com/ethereum/execution-specs/blob/master/src/ethereum/cancun/transactions.py#L199>
     let y_parity = v.value.low;
-    let msg_hash_uint384 = uint256_to_uint384(Uint256(msg_hash.value.low, msg_hash.value.high));
+    let msg_hash_uint384 = uint256_to_uint384(msg_hash_reversed);
 
     let (public_key_point, success) = try_recover_public_key(
         msg_hash=msg_hash_uint384, r=r_uint384, s=s_uint384, y_parity=y_parity

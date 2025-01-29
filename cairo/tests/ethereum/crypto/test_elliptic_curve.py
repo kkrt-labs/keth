@@ -18,7 +18,6 @@ class TestEllipticCurve:
         r = U256(signature.r)
         s = U256(signature.s)
         v = U256(signature.v)
-
         x, y = cairo_run(
             "secp256k1_recover_uint256_bigends",
             r=r,
@@ -26,6 +25,7 @@ class TestEllipticCurve:
             v=v,
             msg_hash=message,
         )
+
         result = secp256k1_recover(r, s, v, message)
         assert x == U256.from_be_bytes(result[0:32])
         assert y == U256.from_be_bytes(result[32:64])
