@@ -8,6 +8,12 @@ from ethereum.utils.numeric import is_zero
 
 using Address = Bytes20;
 
+struct OptionalAddress {
+    // If `value` is the null ptr, the address is treated as None, else, treat `value` as a felt
+    // that represents the underlying address
+    value: felt*,
+}
+
 struct SetAddressDictAccess {
     key: Address,
     prev_value: bool,

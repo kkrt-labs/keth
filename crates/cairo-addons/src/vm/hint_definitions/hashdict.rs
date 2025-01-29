@@ -22,6 +22,7 @@ use cairo_vm::{
     },
     Felt252,
 };
+use revm::precompile::Precompiles;
 use starknet_crypto::poseidon_hash_many;
 
 use crate::vm::hints::Hint;
@@ -34,6 +35,7 @@ pub const HINTS: &[fn() -> Hint] = &[
     get_preimage_for_key,
     copy_hashdict_tracker_entry,
     get_keys_for_address_prefix,
+    track_precompiles,
 ];
 
 pub fn hashdict_read() -> Hint {
@@ -348,6 +350,36 @@ pub fn copy_hashdict_tracker_entry() -> Hint {
             let dest_tracker = dict.get_tracker_mut(dest_ptr)?;
             dest_tracker.current_ptr.offset += DICT_ACCESS_SIZE;
             dest_tracker.insert_value(&preimage, &value.clone());
+
+            Ok(())
+        },
+    )
+}
+
+pub fn track_precompiles() -> Hint {
+    Hint::new(
+        String::from("track_precompiles"),
+        |vm: &mut VirtualMachine,
+         exec_scopes: &mut ExecutionScopes,
+         ids_data: &HashMap<String, HintReference>,
+         ap_tracking: &ApTracking,
+         _constants: &HashMap<String, Felt252>|
+         -> Result<(), HintError> {
+            // Get dictionary pointer and setup tracker
+            let dict_ptr = get_ptr_from_var_name("dict_ptr", vm, ids_data, ap_tracking)?;
+            let dict_manager_ref = exec_scopes.get_dict_manager()?;
+            let mut dict = dict_manager_ref.borrow_mut();
+            let tracker = dict.get_tracker_mut(dict_ptr)?;
+
+            let precompiles = Precompiles::cancun().addresses().collect::<Vec<_>>();
+            for address in &precompiles {
+                let preimage =
+                    vec![MaybeRelocatable::Int(Felt252::from_bytes_le_slice(&address.0 .0))];
+                tracker
+                    .insert_value(&DictKey::Compound(preimage), &MaybeRelocatable::Int(1.into()));
+            }
+
+            tracker.current_ptr.offset += precompiles.len() * DICT_ACCESS_SIZE;
 
             Ok(())
         },

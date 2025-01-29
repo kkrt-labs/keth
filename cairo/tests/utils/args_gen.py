@@ -333,7 +333,13 @@ class Message(
         namespace={"__doc__": MessageBase.__doc__},
     )
 ):
-    pass
+    def __eq__(self, other):
+        common_fields = all(
+            getattr(self, field.name) == getattr(other, field.name)
+            for field in fields(self)
+            if field.name != "parent_evm"
+        )
+        return common_fields and self.parent_evm == other.parent_evm
 
 
 _field_mapping = {
@@ -427,6 +433,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "cancun", "fork_types", "Root"): Root,
     ("ethereum", "cancun", "fork_types", "Account"): Account,
     ("ethereum", "cancun", "fork_types", "OptionalAccount"): Optional[Account],
+    ("ethereum", "cancun", "fork_types", "OptionalAddress"): Optional[Address],
     ("ethereum", "cancun", "fork_types", "Bloom"): Bloom,
     ("ethereum", "cancun", "fork_types", "VersionedHash"): VersionedHash,
     ("ethereum", "cancun", "fork_types", "TupleVersionedHash"): Tuple[

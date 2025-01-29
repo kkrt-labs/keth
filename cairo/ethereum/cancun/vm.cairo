@@ -2,6 +2,7 @@ from starkware.cairo.common.cairo_builtins import PoseidonBuiltin
 from ethereum.cancun.blocks import Log, TupleLog, TupleLogStruct
 from ethereum.cancun.fork_types import (
     Address,
+    OptionalAddress,
     ListHash32,
     SetAddress,
     SetAddressStruct,
@@ -35,7 +36,6 @@ from starkware.cairo.common.dict import DictAccess
 
 using OptionalEthereumException = EthereumException*;
 using OptionalEvm = Evm;
-using OptionalAddress = Address*;
 
 struct EnvironmentStruct {
     caller: Address,
