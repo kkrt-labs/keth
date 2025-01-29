@@ -21,3 +21,9 @@
 struct EthereumException {
     value: felt,
 }
+
+// Same purpose as the above struct, only meant to be used in entrypoints.
+// required for args_gen and serde in when used in entrypoints. Equivalent to EthereumException*.
+struct OptionalEthereumException {
+    value: felt*,
+}

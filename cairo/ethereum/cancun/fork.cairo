@@ -1,10 +1,12 @@
+from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin
 from starkware.cairo.common.bool import TRUE, FALSE
 from starkware.cairo.common.math_cmp import is_le
 from starkware.cairo.common.math import assert_not_zero
+from starkware.cairo.common.alloc import alloc
 from ethereum_types.numeric import Uint, bool
-from ethereum_types.bytes import Bytes, Bytes0
+from ethereum_types.bytes import Bytes, Bytes0, BytesStruct
 from ethereum.utils.numeric import divmod
-from ethereum.cancun.blocks import Header
+from ethereum.cancun.blocks import Header, Receipt, ReceiptStruct, TupleLog
 from ethereum.cancun.transactions_types import (
     TX_ACCESS_LIST_ADDRESS_COST,
     TX_ACCESS_LIST_STORAGE_KEY_COST,
@@ -19,6 +21,13 @@ from ethereum.cancun.transactions_types import (
 )
 from ethereum.cancun.fork_types import Address
 from ethereum.crypto.hash import keccak256
+from ethereum.cancun.vm.gas import init_code_cost
+from ethereum.exceptions import OptionalEthereumException
+from ethereum.cancun.bloom import logs_bloom
+
+from ethereum_rlp.rlp import Extended, ExtendedImpl, encode_receipt_to_buffer
+
+from src.utils.array import count_not_zero
 
 const ELASTICITY_MULTIPLIER = 2;
 const BASE_FEE_MAX_CHANGE_DENOMINATOR = 8;
@@ -122,4 +131,67 @@ func check_gas_limit{range_check_ptr}(gas_limit: Uint, parent_gas_limit: Uint) -
 
     tempvar value = bool(TRUE);
     return value;
+}
+
+struct UnionBytesReceiptEnum {
+    bytes: Bytes,
+    receipt: Receipt,
+}
+
+struct UnionBytesReceipt {
+    value: UnionBytesReceiptEnum*,
+}
+
+func make_receipt{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*}(
+    tx: Transaction, error: OptionalEthereumException, cumulative_gas_used: Uint, logs: TupleLog
+) -> UnionBytesReceipt {
+    alloc_locals;
+    if (cast(error.value, felt) != 0) {
+        [ap] = 0, ap++;
+    } else {
+        [ap] = 1, ap++;
+    }
+    let succeeded = bool([ap - 1]);
+
+    let bloom = logs_bloom(logs);
+    tempvar receipt = Receipt(
+        new ReceiptStruct(
+            succeeded=succeeded, cumulative_gas_used=cumulative_gas_used, bloom=bloom, logs=logs
+        ),
+    );
+
+    if (cast(tx.value.access_list_transaction.value, felt) != 0) {
+        let (buffer: felt*) = alloc();
+        assert [buffer] = 1;
+        let encoding = encode_receipt_to_buffer(1, buffer + 1, receipt);
+        tempvar res = UnionBytesReceipt(
+            new UnionBytesReceiptEnum(bytes=encoding, receipt=Receipt(cast(0, ReceiptStruct*)))
+        );
+        return res;
+    }
+
+    if (cast(tx.value.fee_market_transaction.value, felt) != 0) {
+        let (buffer: felt*) = alloc();
+        assert [buffer] = 2;
+        let encoding = encode_receipt_to_buffer(1, buffer + 1, receipt);
+        tempvar res = UnionBytesReceipt(
+            new UnionBytesReceiptEnum(bytes=encoding, receipt=Receipt(cast(0, ReceiptStruct*)))
+        );
+        return res;
+    }
+
+    if (cast(tx.value.blob_transaction.value, felt) != 0) {
+        let (buffer: felt*) = alloc();
+        assert [buffer] = 3;
+        let encoding = encode_receipt_to_buffer(1, buffer + 1, receipt);
+        tempvar res = UnionBytesReceipt(
+            new UnionBytesReceiptEnum(bytes=encoding, receipt=Receipt(cast(0, ReceiptStruct*)))
+        );
+        return res;
+    }
+
+    tempvar res = UnionBytesReceipt(
+        new UnionBytesReceiptEnum(bytes=Bytes(cast(0, BytesStruct*)), receipt=receipt)
+    );
+    return res;
 }

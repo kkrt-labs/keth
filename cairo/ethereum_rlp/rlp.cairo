@@ -391,10 +391,11 @@ func encode_bloom{range_check_ptr}(raw_bloom: Bloom) -> Bytes {
     return result;
 }
 
-func encode_receipt{range_check_ptr}(raw_receipt: Receipt) -> Bytes {
+func encode_receipt_to_buffer{range_check_ptr}(
+    dst_len: felt, dst: felt*, raw_receipt: Receipt
+) -> Bytes {
     alloc_locals;
-    let (local dst) = alloc();
-    let body_ptr = dst + PREFIX_LEN_MAX;
+    let body_ptr = dst + dst_len + PREFIX_LEN_MAX;
 
     let succeeded_len = _encode_uint(body_ptr, raw_receipt.value.succeeded.value);
     let body_ptr = body_ptr + succeeded_len;
@@ -407,12 +408,23 @@ func encode_receipt{range_check_ptr}(raw_receipt: Receipt) -> Bytes {
     let logs_len = _encode_tuple_log(body_ptr, raw_receipt.value.logs);
     let body_ptr = body_ptr + logs_len;
 
-    let body_len = body_ptr - dst - PREFIX_LEN_MAX;
-    let body_ptr = dst + PREFIX_LEN_MAX;
+    let body_len = body_ptr - dst - PREFIX_LEN_MAX - dst_len;
+    let body_ptr = dst + dst_len + PREFIX_LEN_MAX;
     let prefix_len = _encode_prefix_len(body_ptr, body_len);
 
-    tempvar result = Bytes(new BytesStruct(body_ptr - prefix_len, prefix_len + body_len));
+    // Copy the original dst buffer data right before the prefix
+    let src_ptr = dst - dst_len;
+    let dst_ptr = body_ptr - prefix_len - dst_len;
+    memcpy(dst_ptr, src_ptr, dst_len);
+
+    tempvar result = Bytes(new BytesStruct(dst_ptr, prefix_len + body_len + dst_len));
     return result;
+}
+
+func encode_receipt{range_check_ptr}(raw_receipt: Receipt) -> Bytes {
+    alloc_locals;
+    let (local dst) = alloc();
+    return encode_receipt_to_buffer(0, dst, raw_receipt);
 }
 
 func encode_withdrawal{range_check_ptr}(raw_withdrawal: Withdrawal) -> Bytes {
