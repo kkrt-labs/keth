@@ -393,16 +393,3 @@ func uint256_eq(a: Uint256, b: Uint256) -> (res: felt) {
     }
     return (res=1);
 }
-
-// @notice Assert that a is less than or equal to b.
-// @dev Uint256 are supposed to be well formed
-func assert_uint256_le{range_check_ptr}(a: Uint256, b: Uint256) {
-    assert [range_check_ptr + 0] = b.high - a.high;
-    if (b.high != a.high) {
-        let range_check_ptr = range_check_ptr + 1;
-        return ();
-    }
-    assert [range_check_ptr + 1] = b.low - a.low;
-    let range_check_ptr = range_check_ptr + 2;
-    return ();
-}
