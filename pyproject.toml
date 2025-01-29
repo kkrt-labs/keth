@@ -47,6 +47,9 @@ cairo-core = { workspace = true }
 [tool.uv.workspace]
 members = ["python/*"]
 
+[project.entry-points."hypothesis"]
+_ = "tests.utils.strategies:register_type_strategies"
+
 [tool.pytest.ini_options]
 filterwarnings = [
   "ignore:Using or importing the ABCs:DeprecationWarning",                                # from frozendict

@@ -1,72 +1,15 @@
-import logging
-import os
 from dataclasses import fields
 
 import pytest
 from dotenv import load_dotenv
-from hypothesis import HealthCheck, Phase, Verbosity, settings
 
 from cairo_addons.testing.runner import run_python_vm, run_rust_vm
 from tests.utils.args_gen import gen_arg as gen_arg_builder
 from tests.utils.args_gen import to_cairo_type, to_python_type
 from tests.utils.hints import get_op
 from tests.utils.serde import Serde
-from tests.utils.strategies import register_type_strategies
 
 load_dotenv()
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
-logger = logging.getLogger()
-
-
-@pytest.fixture(autouse=True, scope="session")
-def seed(request):
-    if request.config.getoption("seed") is not None:
-        import random
-
-        logger.info(f"Setting seed to {request.config.getoption('seed')}")
-
-        random.seed(request.config.getoption("seed"))
-
-
-register_type_strategies()
-settings.register_profile(
-    "nightly",
-    deadline=None,
-    max_examples=2000,
-    phases=[Phase.explicit, Phase.reuse, Phase.generate, Phase.target],
-    report_multiple_bugs=True,
-    print_blob=True,
-    suppress_health_check=[HealthCheck.too_slow],
-)
-settings.register_profile(
-    "ci",
-    deadline=None,
-    max_examples=300,
-    phases=[Phase.explicit, Phase.reuse, Phase.generate, Phase.target],
-    print_blob=True,
-    derandomize=True,
-)
-settings.register_profile(
-    "dev",
-    deadline=None,
-    max_examples=100,
-    phases=[Phase.explicit, Phase.reuse, Phase.generate, Phase.target],
-    derandomize=True,
-    print_blob=True,
-    verbosity=Verbosity.quiet,
-)
-settings.register_profile(
-    "debug",
-    max_examples=100,
-    verbosity=Verbosity.verbose,
-    phases=[Phase.explicit, Phase.reuse, Phase.generate, Phase.target],
-    derandomize=True,
-    print_blob=True,
-)
-settings.load_profile(os.getenv("HYPOTHESIS_PROFILE", "default"))
-logger.info(f"Using Hypothesis profile: {os.getenv('HYPOTHESIS_PROFILE', 'default')}")
 
 
 @pytest.fixture(scope="module")
