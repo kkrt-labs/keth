@@ -1,7 +1,7 @@
 import pytest
 from eth_keys.datatypes import PrivateKey
 from ethereum_types.numeric import U256
-from hypothesis import given, reproduce_failure
+from hypothesis import given
 
 from ethereum.crypto.elliptic_curve import secp256k1_recover
 from ethereum.crypto.hash import Hash32
@@ -10,7 +10,6 @@ pytestmark = pytest.mark.python_vm
 
 
 class TestEllipticCurve:
-    @reproduce_failure("6.124.3", b"AEMAgfZDANR1")
     @given(private_key=..., message=...)
     def test_secp256k1_recover(
         self, cairo_run, private_key: PrivateKey, message: Hash32
