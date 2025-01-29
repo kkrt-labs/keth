@@ -37,6 +37,7 @@ from ethereum.cancun.vm.exceptions import (
     AddressCollision,
 )
 
+from ethereum.cancun.vm.precompiled_contracts.mapping import precompile_table_lookup
 from ethereum.cancun.vm.instructions import op_implementation
 from ethereum.cancun.vm.memory import Memory, MemoryStruct, Bytes1DictAccess
 from ethereum.cancun.vm.runtime import get_valid_jump_destinations
@@ -307,6 +308,23 @@ func execute_code{
     );
 
     // TODO: Handle precompiled contracts
+
+    // code_address is always non-optional at this point.
+    let (precompile_address, precompile_fn) = precompile_table_lookup(
+        [evm.value.message.value.code_address.value]
+    );
+    // Addresses that are not precompiles return 0.
+    if (precompile_address != 0) {
+        // Prepare arguments
+        [ap] = range_check_ptr, ap++;
+        [ap] = range_check_ptr, ap++;
+        [ap] = bitwise_ptr, ap++;
+        [ap] = keccak_ptr, ap++;
+        [ap] = evm.value, ap++;
+
+        call abs precompile_fn;
+        ret;
+    }
 
     // Execute bytecode recursively
     let (process_create_message_label) = get_label_location(process_create_message);

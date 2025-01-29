@@ -457,11 +457,13 @@ name = "cairo_addons"
 version = "0.1.0"
 dependencies = [
  "cairo-vm",
+ "lazy_static",
  "num-bigint",
  "num-traits",
  "pyo3",
  "pyo3-build-config",
  "revm",
+ "revm-precompile",
  "starknet-crypto",
 ]
 
