@@ -17,7 +17,7 @@ from ethereum.cancun.state import State, TransientStorage
 from ethereum.exceptions import EthereumException
 from ethereum_types.bytes import Bytes, Bytes0, Bytes32
 from ethereum_types.numeric import U64, U256, Uint, bool, SetUint
-from ethereum.cancun.transactions import To
+from ethereum.cancun.transactions_types import To
 from ethereum.cancun.vm.stack import Stack
 from ethereum.cancun.state import account_exists_and_is_empty
 from ethereum.cancun.vm.memory import Memory

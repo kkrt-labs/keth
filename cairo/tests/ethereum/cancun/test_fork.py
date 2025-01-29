@@ -6,11 +6,9 @@ from ethereum.cancun.blocks import Header
 from ethereum.cancun.fork import (
     GAS_LIMIT_ADJUSTMENT_FACTOR,
     calculate_base_fee_per_gas,
-    calculate_intrinsic_cost,
     check_gas_limit,
     validate_header,
 )
-from ethereum.cancun.transactions import Transaction
 from ethereum.exceptions import InvalidBlock
 from tests.utils.errors import cairo_error
 
@@ -73,10 +71,6 @@ class TestFork:
                 cairo_run("validate_header", header, parent_header)
         else:
             cairo_run("validate_header", header, parent_header)
-
-    @given(tx=...)
-    def test_calculate_intrinsic_cost(self, cairo_run, tx: Transaction):
-        assert calculate_intrinsic_cost(tx) == cairo_run("calculate_intrinsic_cost", tx)
 
     @given(gas_limit=..., parent_gas_limit=...)
     def test_check_gas_limit(self, cairo_run, gas_limit: Uint, parent_gas_limit: Uint):

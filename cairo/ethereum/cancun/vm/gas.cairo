@@ -2,7 +2,7 @@ from ethereum_types.numeric import U256, Uint, U64, U256Struct
 from ethereum.utils.numeric import is_zero, divmod, taylor_exponential, min, ceil32
 from ethereum_types.bytes import BytesStruct
 from ethereum.cancun.blocks import Header
-from ethereum.cancun.transactions import Transaction
+from ethereum.cancun.transactions_types import Transaction
 from ethereum_types.others import ListTupleU256U256, TupleU256U256
 from ethereum.cancun.vm import Evm, EvmStruct, EvmImpl
 from ethereum.exceptions import EthereumException

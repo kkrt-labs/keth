@@ -42,7 +42,7 @@ from ethereum.cancun.fork_types import (
     MappingTupleAddressBytes32U256,
     MappingTupleAddressBytes32U256Struct,
 )
-from ethereum.cancun.transactions import LegacyTransaction
+from ethereum.cancun.transactions_types import LegacyTransaction
 from ethereum_rlp.rlp import (
     Extended,
     SequenceExtended,

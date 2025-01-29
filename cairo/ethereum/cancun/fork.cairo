@@ -5,7 +5,7 @@ from ethereum_types.numeric import Uint, bool
 from ethereum_types.bytes import Bytes, Bytes0
 from ethereum.utils.numeric import divmod
 from ethereum.cancun.blocks import Header
-from ethereum.cancun.transactions import (
+from ethereum.cancun.transactions_types import (
     TX_ACCESS_LIST_ADDRESS_COST,
     TX_ACCESS_LIST_STORAGE_KEY_COST,
     TX_BASE_COST,
@@ -19,9 +19,6 @@ from ethereum.cancun.transactions import (
 )
 from ethereum.cancun.fork_types import Address
 from ethereum.crypto.hash import keccak256
-from ethereum.cancun.vm.gas import init_code_cost
-
-from src.utils.array import count_not_zero
 
 const ELASTICITY_MULTIPLIER = 2;
 const BASE_FEE_MAX_CHANGE_DENOMINATOR = 8;
@@ -102,86 +99,6 @@ func validate_header{range_check_ptr}(header: Header, parent_header: Header) {
     // let block_parent_hash = keccak256(rlp.encode(parent_header));
     // assert header.value.parent_hash = block_parent_hash;
     return ();
-}
-
-func calculate_intrinsic_cost{range_check_ptr}(tx: Transaction) -> Uint {
-    alloc_locals;
-
-    if (tx.value.legacy_transaction.value != 0) {
-        let legacy_tx = tx.value.legacy_transaction;
-        let cost_data_and_create = _calculate_data_and_create_cost(
-            legacy_tx.value.data, legacy_tx.value.to
-        );
-        let cost = Uint(TX_BASE_COST + cost_data_and_create);
-        return cost;
-    }
-
-    if (tx.value.access_list_transaction.value != 0) {
-        let access_list_tx = tx.value.access_list_transaction;
-        let cost_data_and_create = _calculate_data_and_create_cost(
-            access_list_tx.value.data, access_list_tx.value.to
-        );
-        let cost_access_list = _calculate_access_list_cost(
-            [access_list_tx.value.access_list.value]
-        );
-        let cost = Uint(TX_BASE_COST + cost_data_and_create + cost_access_list);
-        return cost;
-    }
-
-    if (tx.value.fee_market_transaction.value != 0) {
-        let fee_market_tx = tx.value.fee_market_transaction;
-        let cost_data_and_create = _calculate_data_and_create_cost(
-            fee_market_tx.value.data, fee_market_tx.value.to
-        );
-        let cost_access_list = _calculate_access_list_cost([fee_market_tx.value.access_list.value]);
-        let cost = Uint(TX_BASE_COST + cost_data_and_create + cost_access_list);
-        return cost;
-    }
-
-    if (tx.value.blob_transaction.value != 0) {
-        let blob_tx = tx.value.blob_transaction;
-        tempvar to = new ToStruct(bytes0=cast(0, Bytes0*), address=&blob_tx.value.to);
-        let cost_data_and_create = _calculate_data_and_create_cost(blob_tx.value.data, To(to));
-        let cost_access_list = _calculate_access_list_cost([blob_tx.value.access_list.value]);
-        let cost = Uint(TX_BASE_COST + cost_data_and_create + cost_access_list);
-        return cost;
-    }
-
-    with_attr error_message("InvalidTransaction") {
-        assert 0 = 1;
-    }
-
-    let cost = Uint(0);
-    return cost;
-}
-
-func _calculate_data_and_create_cost{range_check_ptr}(data: Bytes, to: To) -> felt {
-    alloc_locals;
-    let count = count_not_zero(data.value.len, data.value.data);
-    let zeroes = data.value.len - count;
-    let data_cost = zeroes * TX_DATA_COST_PER_ZERO + count * TX_DATA_COST_PER_NON_ZERO;
-
-    if (cast(to.value.address, felt) != 0) {
-        return data_cost;
-    }
-
-    let cost = init_code_cost(Uint(data.value.len));
-    return data_cost + TX_CREATE_COST + cost.value;
-}
-
-func _calculate_access_list_cost{range_check_ptr}(access_list: TupleAccessListStruct) -> felt {
-    alloc_locals;
-    if (access_list.len == 0) {
-        return 0;
-    }
-
-    let current_list = access_list.data[access_list.len - 1];
-    let current_cost = TX_ACCESS_LIST_ADDRESS_COST + current_list.value.storage_keys.value.len *
-        TX_ACCESS_LIST_STORAGE_KEY_COST;
-    let access_list = TupleAccessListStruct(data=access_list.data, len=access_list.len - 1);
-    let cum_gas_cost = _calculate_access_list_cost(access_list);
-    let cost = current_cost + cum_gas_cost;
-    return cost;
 }
 
 func check_gas_limit{range_check_ptr}(gas_limit: Uint, parent_gas_limit: Uint) -> bool {
