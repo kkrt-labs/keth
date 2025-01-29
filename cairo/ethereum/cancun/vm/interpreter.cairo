@@ -37,7 +37,6 @@ from ethereum.cancun.vm.exceptions import (
     AddressCollision,
 )
 
-from ethereum.cancun.vm import OptionalEthereumException
 from ethereum.cancun.vm.instructions import op_implementation
 from ethereum.cancun.vm.memory import Memory, MemoryStruct, Bytes1DictAccess
 from ethereum.cancun.vm.runtime import get_valid_jump_destinations
@@ -71,7 +70,7 @@ struct MessageCallOutputStruct {
     logs: TupleLog,
     accounts_to_delete: SetAddress,
     touched_accounts: SetAddress,
-    error: OptionalEthereumException,
+    error: EthereumException*,
 }
 
 func process_create_message{

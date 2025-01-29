@@ -22,7 +22,7 @@ from ethereum.cancun.transactions_types import (
 from ethereum.cancun.fork_types import Address
 from ethereum.crypto.hash import keccak256
 from ethereum.cancun.vm.gas import init_code_cost
-from ethereum.cancun.vm import OptionalEthereumException
+from ethereum.exceptions import OptionalEthereumException
 from ethereum.cancun.bloom import logs_bloom
 
 from ethereum_rlp.rlp import Extended, ExtendedImpl, encode_receipt_to_buffer

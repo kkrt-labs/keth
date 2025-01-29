@@ -413,9 +413,12 @@ func encode_receipt_to_buffer{range_check_ptr}(
     let body_ptr = dst + dst_len + PREFIX_LEN_MAX;
     let prefix_len = _encode_prefix_len(body_ptr, body_len);
 
-    tempvar result = Bytes(
-        new BytesStruct(body_ptr - prefix_len - dst_len, prefix_len + body_len + dst_len)
-    );
+    // Copy the original dst buffer data right before the prefix
+    let src_ptr = dst - dst_len;
+    let dst_ptr = body_ptr - prefix_len - dst_len;
+    memcpy(dst_ptr, src_ptr, dst_len);
+
+    tempvar result = Bytes(new BytesStruct(dst_ptr, prefix_len + body_len + dst_len));
     return result;
 }
 

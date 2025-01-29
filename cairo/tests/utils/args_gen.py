@@ -438,7 +438,11 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "cancun", "fork_types", "Account"): Account,
     ("ethereum", "cancun", "fork_types", "OptionalAccount"): Optional[Account],
     ("ethereum", "cancun", "fork_types", "OptionalAddress"): Optional[Address],
+    ("ethereum", "exceptions", "OptionalEthereumException"): Optional[
+        EthereumException
+    ],
     ("ethereum", "cancun", "fork_types", "Bloom"): Bloom,
+    ("ethereum", "cancun", "fork", "UnionBytesReceipt"): Union[Bytes, Receipt],
     ("ethereum", "cancun", "bloom", "MutableBloom"): MutableBloom,
     ("ethereum", "cancun", "fork_types", "VersionedHash"): VersionedHash,
     ("ethereum", "cancun", "fork_types", "TupleVersionedHash"): Tuple[

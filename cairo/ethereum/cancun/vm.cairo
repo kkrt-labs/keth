@@ -34,7 +34,6 @@ from src.utils.dict import (
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.cairo.common.dict import DictAccess
 
-using OptionalEthereumException = EthereumException*;
 using OptionalEvm = Evm;
 
 struct EnvironmentStruct {
@@ -79,7 +78,7 @@ struct EvmStruct {
     accounts_to_delete: SetAddress,
     touched_accounts: SetAddress,
     return_data: Bytes,
-    error: OptionalEthereumException,
+    error: EthereumException*,
     accessed_addresses: SetAddress,
     accessed_storage_keys: SetTupleAddressBytes32,
 }
@@ -810,7 +809,7 @@ namespace EvmImpl {
         return ();
     }
 
-    func set_error{evm: Evm}(new_error: OptionalEthereumException) {
+    func set_error{evm: Evm}(new_error: EthereumException*) {
         tempvar evm = Evm(
             new EvmStruct(
                 pc=evm.value.pc,
