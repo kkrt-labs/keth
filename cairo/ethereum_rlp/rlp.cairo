@@ -1170,23 +1170,7 @@ func _encode_bloom{range_check_ptr}(dst: felt*, raw_bloom: Bloom) -> felt {
     assert [dst + 2] = 0;
     let dst = dst + 3;
 
-    // Bloom is 256 bytes encoded as 16 u128 little endian
-    felt_to_bytes16_little(dst, raw_bloom.value[0].value);
-    felt_to_bytes16_little(dst + 16, raw_bloom.value[1].value);
-    felt_to_bytes16_little(dst + 32, raw_bloom.value[2].value);
-    felt_to_bytes16_little(dst + 48, raw_bloom.value[3].value);
-    felt_to_bytes16_little(dst + 64, raw_bloom.value[4].value);
-    felt_to_bytes16_little(dst + 80, raw_bloom.value[5].value);
-    felt_to_bytes16_little(dst + 96, raw_bloom.value[6].value);
-    felt_to_bytes16_little(dst + 112, raw_bloom.value[7].value);
-    felt_to_bytes16_little(dst + 128, raw_bloom.value[8].value);
-    felt_to_bytes16_little(dst + 144, raw_bloom.value[9].value);
-    felt_to_bytes16_little(dst + 160, raw_bloom.value[10].value);
-    felt_to_bytes16_little(dst + 176, raw_bloom.value[11].value);
-    felt_to_bytes16_little(dst + 192, raw_bloom.value[12].value);
-    felt_to_bytes16_little(dst + 208, raw_bloom.value[13].value);
-    felt_to_bytes16_little(dst + 224, raw_bloom.value[14].value);
-    felt_to_bytes16_little(dst + 240, raw_bloom.value[15].value);
+    memcpy(dst, raw_bloom.value, 256);
 
     return 3 + 256;
 }

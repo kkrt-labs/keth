@@ -152,6 +152,10 @@ class Memory(bytearray):
     pass
 
 
+class MutableBloom(bytearray):
+    pass
+
+
 T = TypeVar("T")
 
 
@@ -435,6 +439,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "cancun", "fork_types", "OptionalAccount"): Optional[Account],
     ("ethereum", "cancun", "fork_types", "OptionalAddress"): Optional[Address],
     ("ethereum", "cancun", "fork_types", "Bloom"): Bloom,
+    ("ethereum", "cancun", "bloom", "MutableBloom"): MutableBloom,
     ("ethereum", "cancun", "fork_types", "VersionedHash"): VersionedHash,
     ("ethereum", "cancun", "fork_types", "TupleVersionedHash"): Tuple[
         VersionedHash, ...
@@ -649,7 +654,7 @@ def _gen_arg(
         segments.load_data(struct_ptr, data)
         return struct_ptr
 
-    if arg_type_origin in (Stack, Memory):
+    if arg_type_origin in (Stack, Memory, MutableBloom):
         # Collection types are represented as a Dict[felt, V] along with a length field.
         # Get the concrete type parameter. For bytearray, the value type is int.
         value_type = next(iter(get_args(arg_type)), int)
@@ -761,7 +766,7 @@ def _gen_arg(
                 )
         return struct_ptr
 
-    if arg_type in (U256, Hash32, Bytes32, Bytes256):
+    if arg_type in (U256, Hash32, Bytes32):
         if isinstance_with_generic(arg, U256):
             arg = arg.to_be_bytes32()[::-1]
 
@@ -775,6 +780,14 @@ def _gen_arg(
         base = segments.add()
         segments.load_data(base, felt_values)
         return base
+
+    if arg_type is Bytes256:
+        if hash_mode:
+            return tuple(list(arg))
+
+        struct_ptr = segments.add()
+        segments.load_data(struct_ptr, arg)
+        return struct_ptr
 
     if arg_type in (Bytes, bytes, bytearray, str):
         if arg is None:

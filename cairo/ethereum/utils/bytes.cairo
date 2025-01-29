@@ -1,7 +1,13 @@
-from ethereum_types.bytes import Bytes, BytesStruct
+from ethereum_types.bytes import Bytes, BytesStruct, Bytes20, Bytes32
 from ethereum_types.numeric import bool
 from ethereum.utils.numeric import is_zero
+from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.math import assert_not_equal
+from src.utils.bytes import (
+    felt_to_bytes20_little,
+    uint256_to_bytes_little,
+    uint256_to_bytes32_little,
+)
 
 func Bytes__eq__(_self: Bytes, other: Bytes) -> bool {
     if (_self.value.len != other.value.len) {
@@ -45,5 +51,23 @@ func Bytes__eq__(_self: Bytes, other: Bytes) -> bool {
 
     end:
     let res = bool([ap - 1]);
+    return res;
+}
+
+func Bytes20_to_Bytes{range_check_ptr}(src: Bytes20) -> Bytes {
+    alloc_locals;
+    let (buffer: felt*) = alloc();
+    felt_to_bytes20_little(buffer, src.value);
+
+    tempvar res = Bytes(new BytesStruct(data=buffer, len=20));
+    return res;
+}
+
+func Bytes32_to_Bytes{range_check_ptr}(src: Bytes32) -> Bytes {
+    alloc_locals;
+    let (buffer: felt*) = alloc();
+    uint256_to_bytes32_little(buffer, [src.value]);
+
+    tempvar res = Bytes(new BytesStruct(data=buffer, len=32));
     return res;
 }
