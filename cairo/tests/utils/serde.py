@@ -66,11 +66,9 @@ from starkware.cairo.lang.compiler.scoped_name import ScopedName
 from starkware.cairo.lang.vm.crypto import poseidon_hash_many
 from starkware.cairo.lang.vm.memory_dict import UnknownMemoryError
 from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
-from starkware.cairo.lang.vm.relocatable import RelocatableValue
 
 from cairo_addons.testing.serde import SerdeProtocol
 from cairo_addons.vm import MemorySegmentManager as RustMemorySegmentManager
-from cairo_addons.vm import Relocatable as RustRelocatable
 from ethereum.cancun.fork_types import Address
 from ethereum.cancun.state import State, TransientStorage
 from ethereum.cancun.trie import Trie
@@ -185,10 +183,17 @@ class Serde(SerdeProtocol):
             non_optional_path = full_path[:-1] + (
                 full_path[-1].removeprefix("Optional"),
             )
-            if isinstance(value_ptr, RelocatableValue) or isinstance(
-                value_ptr, RustRelocatable
-            ):
+            inner_type = (
+                get_struct_definition(self.program, path)
+                .members["value"]
+                .cairo_type.pointee
+            )
+            if isinstance(inner_type, TypeFelt):
+                # Optional felt values are represented as a struct with a pointer to the felt value.
+                # Dereference the pointer to get the felt value.
                 return self.serialize_type(non_optional_path, value_ptr)
+                # Optional struct are a pointer to the InnerStruct type, so just serialize it as the
+                # non-optional type
             return self.serialize_type(non_optional_path, ptr)
 
         if origin_cls is Union:
