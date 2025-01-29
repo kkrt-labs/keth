@@ -26,11 +26,11 @@ from ethereum.cancun.transactions_types import (
 
 from ethereum.crypto.hash import keccak256, Hash32
 from ethereum_rlp.rlp import (
-    encode_legacy_transaction,
-    encode_eip155_transaction,
-    encode_access_list_transaction,
-    encode_fee_market_transaction,
-    encode_blob_transaction,
+    encode_legacy_transaction_for_signing,
+    encode_eip155_transaction_for_signing,
+    encode_access_list_transaction_for_signing,
+    encode_fee_market_transaction_for_signing,
+    encode_blob_transaction_for_signing,
 )
 
 from ethereum.cancun.utils.constants import MAX_CODE_SIZE
@@ -179,7 +179,7 @@ func validate_transaction{range_check_ptr}(tx: Transaction) -> bool {
 func signing_hash_pre155{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*}(
     tx: LegacyTransaction
 ) -> Hash32 {
-    let encoded_tx = encode_legacy_transaction(tx);
+    let encoded_tx = encode_legacy_transaction_for_signing(tx);
     let hash = keccak256(encoded_tx);
     return hash;
 }
@@ -187,7 +187,7 @@ func signing_hash_pre155{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_p
 func signing_hash_155{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*}(
     tx: LegacyTransaction, chain_id: U64
 ) -> Hash32 {
-    let encoded_tx = encode_eip155_transaction(tx, chain_id);
+    let encoded_tx = encode_eip155_transaction_for_signing(tx, chain_id);
     let hash = keccak256(encoded_tx);
     return hash;
 }
@@ -195,7 +195,7 @@ func signing_hash_155{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr:
 func signing_hash_2930{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*}(
     tx: AccessListTransaction
 ) -> Hash32 {
-    let encoded_tx = encode_access_list_transaction(tx);
+    let encoded_tx = encode_access_list_transaction_for_signing(tx);
     let hash = keccak256(encoded_tx);
     return hash;
 }
@@ -203,7 +203,7 @@ func signing_hash_2930{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr
 func signing_hash_1559{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*}(
     tx: FeeMarketTransaction
 ) -> Hash32 {
-    let encoded_tx = encode_fee_market_transaction(tx);
+    let encoded_tx = encode_fee_market_transaction_for_signing(tx);
     let hash = keccak256(encoded_tx);
     return hash;
 }
@@ -211,7 +211,7 @@ func signing_hash_1559{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr
 func signing_hash_4844{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*}(
     tx: BlobTransaction
 ) -> Hash32 {
-    let encoded_tx = encode_blob_transaction(tx);
+    let encoded_tx = encode_blob_transaction_for_signing(tx);
     let hash = keccak256(encoded_tx);
     return hash;
 }
