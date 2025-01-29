@@ -16,7 +16,6 @@ from tests.utils.strategies import environment_lite
 
 # TODO: enable execution of these precompiles
 unimplemented_precompiles = [
-    0,
     1,
     2,
     3,

@@ -2,10 +2,12 @@ from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin,
 from starkware.cairo.common.registers import get_label_location
 from starkware.cairo.common.math_cmp import is_le_felt
 from ethereum.cancun.vm import Evm
+from starkware.cairo.common.math import split_felt
+from ethereum.utils.numeric import divmod
 
 // currently 10 precompiles.
 const N_PRECOMPILES = 10;
-const HIGHEST_PRECOMPILE = 0x0a;
+const HIGHEST_PRECOMPILE_LEADING_BYTE = 0x0a;
 
 // count 3 steps per index: precompile_address, call, precompile_fn
 const MAX_OFFSET = N_PRECOMPILES * 3;
@@ -20,15 +22,22 @@ func precompile_table_lookup{range_check_ptr}(address: felt) -> (felt, felt) {
     alloc_locals;
 
     // Check if address is a valid precompile
-    if (address == 0) {
+    // Addresses are little-endian, we want easy comparison to 0x1-0xa value, take the leading byte
+    let (address_high, address_low) = split_felt(address);
+    if (address_low != 0) {
         return (0, 0);
     }
-    let addr_too_high = is_le_felt(HIGHEST_PRECOMPILE + 1, address);
+    let (leading_byte, _) = divmod(address_high, 2 ** (3 * 8));
+    if (leading_byte == 0) {
+        return (0, 0);
+    }
+    let addr_too_high = is_le_felt(HIGHEST_PRECOMPILE_LEADING_BYTE + 1, leading_byte);
     if (addr_too_high != 0) {
         return (0, 0);
     }
 
     // Provided the address is a valid precompile, get its index from the precompile table
+    // This enables non-sequential precompile addresses for the future...
     let (local precompiled_contracts_location: felt*) = get_label_location(PRE_COMPILED_CONTRACTS);
 
     tempvar index;
