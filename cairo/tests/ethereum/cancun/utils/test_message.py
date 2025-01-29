@@ -39,7 +39,7 @@ class TestMessage:
     )
     def test_prepare_message(
         self,
-        cairo_run_py,
+        cairo_run,
         caller_and_env: Tuple[Address, Environment],
         target: Union[Bytes0, Address],
         value: U256,
@@ -52,7 +52,7 @@ class TestMessage:
         preaccessed_storage_keys: Set[Tuple[Address, Bytes32]],
     ):
         caller, env = caller_and_env
-        cairo_message = cairo_run_py(
+        cairo_message = cairo_run(
             "prepare_message",
             caller,
             target,
