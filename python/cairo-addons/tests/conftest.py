@@ -1,7 +1,6 @@
 import json
 
 import pytest
-from cairo_addons.vm import Program as RustProgram
 from hypothesis import strategies as st
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 from starkware.cairo.lang.compiler.cairo_compile import compile_cairo, get_module_reader
@@ -10,6 +9,8 @@ from starkware.cairo.lang.compiler.preprocessor.default_pass_manager import (
 )
 from starkware.cairo.lang.compiler.program import Program as SWProgram
 from starkware.cairo.lang.vm.relocatable import RelocatableValue
+
+from cairo_addons.vm import Program as RustProgram
 
 st.register_type_strategy(
     RelocatableValue,
