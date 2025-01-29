@@ -66,7 +66,7 @@ func _add_bloom_index{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, bloom: Muta
 
     // Calculate 1 << (7 - bit_position) using multiplication
     // This is equivalent to 2^bit_shift where bit_shift = 7 - bit_position
-    let (_, bit_shift_value) = divmod(7 - bit_position, 8);
+    let bit_shift_value = 7 - bit_position;
     let (bit_value) = pow2(bit_shift_value);
 
     // Read current byte value
