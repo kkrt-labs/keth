@@ -44,8 +44,10 @@ using Bytes32Struct = Uint256;
 struct Bytes32 {
     value: Bytes32Struct*,
 }
+
+// 256 individual bytes, unpacked.
 struct Bytes256 {
-    value: U128*,
+    value: felt*,
 }
 
 // Iterables types

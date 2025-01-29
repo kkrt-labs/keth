@@ -781,7 +781,15 @@ def _gen_arg(
         segments.load_data(base, felt_values)
         return base
 
-    if arg_type in (Bytes, Bytes256, bytes, bytearray, str):
+    if arg_type is Bytes256:
+        if hash_mode:
+            return tuple(list(arg))
+
+        struct_ptr = segments.add()
+        segments.load_data(struct_ptr, arg)
+        return struct_ptr
+
+    if arg_type in (Bytes, bytes, bytearray, str):
         if arg is None:
             return 0
         if isinstance(arg, str):
