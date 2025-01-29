@@ -171,6 +171,7 @@ class TestRlp:
         def test_encode_legacy_transaction_for_signing(
             self, cairo_run, tx: LegacyTransaction
         ):
+            # <https://github.com/ethereum/execution-specs/blob/master/src/ethereum/cancun/transactions.py#L298>
             result = encode(
                 (
                     tx.nonce,
@@ -187,6 +188,7 @@ class TestRlp:
         def test_encode_eip155_transaction_for_signing(
             self, cairo_run, tx: LegacyTransaction, chain_id: U64
         ):
+            # <https://github.com/ethereum/execution-specs/blob/master/src/ethereum/cancun/transactions.py#L326>
             assert encode(
                 (
                     tx.nonce,
@@ -205,6 +207,7 @@ class TestRlp:
         def test_encode_access_list_transaction_for_signing(
             self, cairo_run, tx: AccessListTransaction
         ):
+            # <https://github.com/ethereum/execution-specs/blob/master/src/ethereum/cancun/transactions.py#L359>
             result = b"\x01" + encode(
                 (
                     tx.chain_id,
@@ -223,6 +226,7 @@ class TestRlp:
         def test_encode_fee_market_transaction_for_signing(
             self, cairo_run, tx: FeeMarketTransaction
         ):
+            # <https://github.com/ethereum/execution-specs/blob/master/src/ethereum/cancun/transactions.py#L390>
             result = b"\x02" + encode(
                 (
                     tx.chain_id,
@@ -242,6 +246,7 @@ class TestRlp:
         def test_encode_blob_transaction_for_signing(
             self, cairo_run, tx: BlobTransaction
         ):
+            # <https://github.com/ethereum/execution-specs/blob/master/src/ethereum/cancun/transactions.py#L422>
             result = b"\x03" + encode(
                 (
                     tx.chain_id,
