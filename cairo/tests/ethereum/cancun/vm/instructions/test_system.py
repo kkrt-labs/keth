@@ -53,6 +53,7 @@ def beneficiary_from_state(draw):
         .with_accessed_storage_keys()
         .with_accounts_to_delete()
         .with_touched_accounts()
+        .with_env()
         .build()
     )
 
@@ -66,6 +67,11 @@ def beneficiary_from_state(draw):
         beneficiary = draw(st.from_type(Address))
 
     push(evm.stack, U256.from_be_bytes(beneficiary))
+
+    # 20% chance to set beneficiary to originator
+    beneficiary_is_originator = draw(st.integers(0, 99)) < 20
+    if beneficiary_is_originator:
+        evm.message.current_target = beneficiary
 
     return evm
 
