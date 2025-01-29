@@ -32,14 +32,14 @@ func secp256k1_recover_uint256_bigends{
 }(r: U256, s: U256, v: U256, msg_hash: Hash32) -> (x: U256, y: U256) {
     alloc_locals;
 
-    // reverse endianness of msg_hash
+    // reverse endianness of msg_hash since bytes are little endian in the codebase
     let (msg_hash_reversed) = uint256_reverse_endian([msg_hash.value]);
 
     // Convert inputs to UInt384 for try_recover_public_key
     let r_uint384 = uint256_to_uint384([r.value]);
     let s_uint384 = uint256_to_uint384([s.value]);
     // parameter `v` MUST be a `U256` with `low` value equal to y parity and high value equal to 0
-    // see: <https://github.com/ethereum/execution-specs/blob/master/src/ethereum/cancun/transactions.py#L199>
+    // see: <https://github.com/ethereum/execution-specs/blob/master/src/ethereum/crypto/elliptic_curve.py#L49>
     let y_parity = v.value.low;
     let msg_hash_uint384 = uint256_to_uint384(msg_hash_reversed);
 
@@ -47,10 +47,10 @@ func secp256k1_recover_uint256_bigends{
         msg_hash=msg_hash_uint384, r=r_uint384, s=s_uint384, y_parity=y_parity
     );
 
-    if (success == 0) {
-        tempvar zero = U256(new U256Struct(0, 0));
-        return (x=zero, y=zero);
+    with_attr error_message("ValueError") {
+        assert success = 1;
     }
+
     let max_value = Uint256(secp256k1.P_LOW_128 - 1, secp256k1.P_HIGH_128);
     let x_uint256 = uint384_to_uint256(public_key_point.x);
     assert_uint256_le(x_uint256, max_value);

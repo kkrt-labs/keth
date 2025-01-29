@@ -95,7 +95,7 @@ func sign_to_uint384_mod_secp256k1(sign: felt) -> UInt384 {
 
 // @notice Similar to `recover_public_key`, but handles the case where 'x' does not correspond to a point on the
 // curve gracefully.
-// @param msg_hash The signed message hash.
+// @param msg_hash The signed message hash, big-endian.
 // @param r The r value of the signature.
 // @param s The s value of the signature.
 // @param y_parity The y parity value of the signature. true if odd, false if even.
