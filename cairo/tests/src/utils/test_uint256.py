@@ -39,22 +39,3 @@ class TestUint256:
                 "test__uint256_sub", a=int_to_uint256(a), b=int_to_uint256(b)
             )
             assert res["low"] + res["high"] * 2**128 == (a - b) % 2**256
-
-    class TestAssertUint256Le:
-        @given(
-            a=integers(min_value=0, max_value=2**256 - 1),
-            b=integers(min_value=0, max_value=2**256 - 1),
-        )
-        @settings(max_examples=50)
-        def test_assert_uint256_le(self, cairo_run, a, b):
-            if a > b:
-                with pytest.raises(Exception):
-                    cairo_run(
-                        "test__assert_uint256_le",
-                        a=int_to_uint256(a),
-                        b=int_to_uint256(b),
-                    )
-            else:
-                cairo_run(
-                    "test__assert_uint256_le", a=int_to_uint256(a), b=int_to_uint256(b)
-                )

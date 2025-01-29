@@ -1,5 +1,6 @@
 from starkware.cairo.common.math import assert_le_felt
 from starkware.cairo.common.registers import get_label_location
+from starkware.cairo.common.uint256 import Uint256
 
 // @dev Inlined version of unsigned_div_rem
 // Returns q and r such that:
@@ -404,4 +405,17 @@ func pow2(i: felt) -> (res: felt) {
     dw 2 ** 249;
     dw 2 ** 250;
     dw 2 ** 251;
+}
+
+// @notice Assert that a is less than or equal to b.
+// @dev Uint256 are supposed to be well formed
+func assert_uint256_le{range_check_ptr}(a: Uint256, b: Uint256) {
+    assert [range_check_ptr + 0] = b.high - a.high;
+    if (b.high != a.high) {
+        let range_check_ptr = range_check_ptr + 1;
+        return ();
+    }
+    assert [range_check_ptr + 1] = b.low - a.low;
+    let range_check_ptr = range_check_ptr + 2;
+    return ();
 }
