@@ -1,8 +1,18 @@
+from ethereum_types.numeric import U64
 from hypothesis import given
 
 from ethereum.cancun.transactions import (
+    AccessListTransaction,
+    BlobTransaction,
+    FeeMarketTransaction,
+    LegacyTransaction,
     Transaction,
     calculate_intrinsic_cost,
+    signing_hash_155,
+    signing_hash_1559,
+    signing_hash_2930,
+    signing_hash_4844,
+    signing_hash_pre155,
     validate_transaction,
 )
 from tests.utils.errors import strict_raises
@@ -23,3 +33,28 @@ class TestTransactions:
             return
 
         assert result_cairo == validate_transaction(tx)
+
+    @given(tx=...)
+    def test_signing_hash_pre155(self, cairo_run, tx: LegacyTransaction):
+        cairo_result = cairo_run("signing_hash_pre155", tx)
+        assert signing_hash_pre155(tx) == cairo_result
+
+    @given(tx=..., chain_id=...)
+    def test_signing_hash_155(self, cairo_run, tx: LegacyTransaction, chain_id: U64):
+        cairo_result = cairo_run("signing_hash_155", tx, chain_id)
+        assert signing_hash_155(tx, chain_id) == cairo_result
+
+    @given(tx=...)
+    def test_signing_hash_2930(self, cairo_run, tx: AccessListTransaction):
+        cairo_result = cairo_run("signing_hash_2930", tx)
+        assert signing_hash_2930(tx) == cairo_result
+
+    @given(tx=...)
+    def test_signing_hash_1559(self, cairo_run, tx: FeeMarketTransaction):
+        cairo_result = cairo_run("signing_hash_1559", tx)
+        assert signing_hash_1559(tx) == cairo_result
+
+    @given(tx=...)
+    def test_signing_hash_4844(self, cairo_run, tx: BlobTransaction):
+        cairo_result = cairo_run("signing_hash_4844", tx)
+        assert signing_hash_4844(tx) == cairo_result

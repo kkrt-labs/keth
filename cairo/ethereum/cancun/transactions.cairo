@@ -1,12 +1,18 @@
 from starkware.cairo.common.math_cmp import is_le_felt, is_not_zero
 from starkware.cairo.common.bool import FALSE, TRUE
+from starkware.cairo.common.cairo_builtins import KeccakBuiltin
+from starkware.cairo.common.bitwise import BitwiseBuiltin
 
 from ethereum_types.bytes import Bytes, Bytes0
-from ethereum_types.numeric import Uint, bool, U256, U256Struct
+from ethereum_types.numeric import Uint, bool, U256, U256Struct, U64
 from ethereum.cancun.fork_types import Address
 from ethereum.cancun.vm.gas import init_code_cost
 from ethereum.cancun.transactions_types import (
     Transaction,
+    LegacyTransaction,
+    AccessListTransaction,
+    FeeMarketTransaction,
+    BlobTransaction,
     To,
     ToStruct,
     TupleAccessListStruct,
@@ -17,8 +23,17 @@ from ethereum.cancun.transactions_types import (
     TX_ACCESS_LIST_ADDRESS_COST,
     TX_ACCESS_LIST_STORAGE_KEY_COST,
 )
+
+from ethereum.crypto.hash import keccak256, Hash32
+from ethereum_rlp.rlp import (
+    encode_legacy_transaction_for_signing,
+    encode_eip155_transaction_for_signing,
+    encode_access_list_transaction_for_signing,
+    encode_fee_market_transaction_for_signing,
+    encode_blob_transaction_for_signing,
+)
+
 from ethereum.cancun.utils.constants import MAX_CODE_SIZE
-from ethereum.utils.numeric import U256_le
 from src.utils.array import count_not_zero
 
 func calculate_intrinsic_cost{range_check_ptr}(tx: Transaction) -> Uint {
@@ -159,4 +174,44 @@ func validate_transaction{range_check_ptr}(tx: Transaction) -> bool {
 
     tempvar res = bool(TRUE);
     return res;
+}
+
+func signing_hash_pre155{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*}(
+    tx: LegacyTransaction
+) -> Hash32 {
+    let encoded_tx = encode_legacy_transaction_for_signing(tx);
+    let hash = keccak256(encoded_tx);
+    return hash;
+}
+
+func signing_hash_155{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*}(
+    tx: LegacyTransaction, chain_id: U64
+) -> Hash32 {
+    let encoded_tx = encode_eip155_transaction_for_signing(tx, chain_id);
+    let hash = keccak256(encoded_tx);
+    return hash;
+}
+
+func signing_hash_2930{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*}(
+    tx: AccessListTransaction
+) -> Hash32 {
+    let encoded_tx = encode_access_list_transaction_for_signing(tx);
+    let hash = keccak256(encoded_tx);
+    return hash;
+}
+
+func signing_hash_1559{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*}(
+    tx: FeeMarketTransaction
+) -> Hash32 {
+    let encoded_tx = encode_fee_market_transaction_for_signing(tx);
+    let hash = keccak256(encoded_tx);
+    return hash;
+}
+
+func signing_hash_4844{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*}(
+    tx: BlobTransaction
+) -> Hash32 {
+    let encoded_tx = encode_blob_transaction_for_signing(tx);
+    let hash = keccak256(encoded_tx);
+    return hash;
 }

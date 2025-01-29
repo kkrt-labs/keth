@@ -159,10 +159,36 @@ class TestRlp:
         def test_encode_blob_transaction(self, cairo_run, tx: BlobTransaction):
             assert encode_transaction(tx) == cairo_run("encode_blob_transaction", tx)
 
+        @given(tx=...)
+        def test_encode_transaction(self, cairo_run, tx: Transaction):
+            # encode_transaction(legacy_tx) return tx and not RLP encoded bytes
+            if isinstance(tx, LegacyTransaction):
+                assert encode(tx) == cairo_run("encode_transaction", tx)
+            else:
+                assert encode_transaction(tx) == cairo_run("encode_transaction", tx)
+
+        @given(tx=...)
+        def test_encode_legacy_transaction_for_signing(
+            self, cairo_run, tx: LegacyTransaction
+        ):
+            # <https://github.com/ethereum/execution-specs/blob/master/src/ethereum/cancun/transactions.py#L298>
+            result = encode(
+                (
+                    tx.nonce,
+                    tx.gas_price,
+                    tx.gas,
+                    tx.to,
+                    tx.value,
+                    tx.data,
+                )
+            )
+            assert result == cairo_run("encode_legacy_transaction_for_signing", tx)
+
         @given(tx=..., chain_id=...)
-        def test_encode_eip155_transaction(
+        def test_encode_eip155_transaction_for_signing(
             self, cairo_run, tx: LegacyTransaction, chain_id: U64
         ):
+            # <https://github.com/ethereum/execution-specs/blob/master/src/ethereum/cancun/transactions.py#L326>
             assert encode(
                 (
                     tx.nonce,
@@ -175,15 +201,68 @@ class TestRlp:
                     Uint(0),
                     Uint(0),
                 )
-            ) == cairo_run("encode_eip155_transaction", tx, chain_id)
+            ) == cairo_run("encode_eip155_transaction_for_signing", tx, chain_id)
 
         @given(tx=...)
-        def test_encode_transaction(self, cairo_run, tx: Transaction):
-            # encode_transaction(legacy_tx) return tx and not RLP encoded bytes
-            if isinstance(tx, LegacyTransaction):
-                assert encode(tx) == cairo_run("encode_transaction", tx)
-            else:
-                assert encode_transaction(tx) == cairo_run("encode_transaction", tx)
+        def test_encode_access_list_transaction_for_signing(
+            self, cairo_run, tx: AccessListTransaction
+        ):
+            # <https://github.com/ethereum/execution-specs/blob/master/src/ethereum/cancun/transactions.py#L359>
+            result = b"\x01" + encode(
+                (
+                    tx.chain_id,
+                    tx.nonce,
+                    tx.gas_price,
+                    tx.gas,
+                    tx.to,
+                    tx.value,
+                    tx.data,
+                    tx.access_list,
+                )
+            )
+            assert result == cairo_run("encode_access_list_transaction_for_signing", tx)
+
+        @given(tx=...)
+        def test_encode_fee_market_transaction_for_signing(
+            self, cairo_run, tx: FeeMarketTransaction
+        ):
+            # <https://github.com/ethereum/execution-specs/blob/master/src/ethereum/cancun/transactions.py#L390>
+            result = b"\x02" + encode(
+                (
+                    tx.chain_id,
+                    tx.nonce,
+                    tx.max_priority_fee_per_gas,
+                    tx.max_fee_per_gas,
+                    tx.gas,
+                    tx.to,
+                    tx.value,
+                    tx.data,
+                    tx.access_list,
+                )
+            )
+            assert result == cairo_run("encode_fee_market_transaction_for_signing", tx)
+
+        @given(tx=...)
+        def test_encode_blob_transaction_for_signing(
+            self, cairo_run, tx: BlobTransaction
+        ):
+            # <https://github.com/ethereum/execution-specs/blob/master/src/ethereum/cancun/transactions.py#L422>
+            result = b"\x03" + encode(
+                (
+                    tx.chain_id,
+                    tx.nonce,
+                    tx.max_priority_fee_per_gas,
+                    tx.max_fee_per_gas,
+                    tx.gas,
+                    tx.to,
+                    tx.value,
+                    tx.data,
+                    tx.access_list,
+                    tx.max_fee_per_blob_gas,
+                    tx.blob_versioned_hashes,
+                )
+            )
+            assert result == cairo_run("encode_blob_transaction_for_signing", tx)
 
     class TestDecode:
         @given(raw_data=...)
