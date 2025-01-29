@@ -1,8 +1,12 @@
+import re
 from typing import Optional, Tuple
 
 import pytest
+from ethereum_types.bytes import Bytes
 from ethereum_types.numeric import Uint
 from hypothesis import assume, given
+from hypothesis import strategies as st
+from hypothesis.strategies import composite
 
 from ethereum.cancun.blocks import Header, Log
 from ethereum.cancun.fork import (
@@ -10,13 +14,59 @@ from ethereum.cancun.fork import (
     calculate_base_fee_per_gas,
     check_gas_limit,
     make_receipt,
+    process_transaction,
     validate_header,
 )
-from ethereum.cancun.transactions import Transaction
+from ethereum.cancun.transactions import (
+    AccessListTransaction,
+    BlobTransaction,
+    FeeMarketTransaction,
+    LegacyTransaction,
+    Transaction,
+)
+from ethereum.cancun.vm import Environment
 from ethereum.exceptions import EthereumException, InvalidBlock
 from tests.utils.errors import cairo_error
+from tests.utils.strategies import address, bytes32
 
 pytestmark = pytest.mark.python_vm
+
+
+@composite
+def tx_without_code(draw):
+    # Generate access list
+    access_list_entries = draw(
+        st.lists(st.tuples(address, st.lists(bytes32, max_size=2)), max_size=3)
+    )
+    access_list = tuple(
+        (addr, tuple(storage_keys)) for addr, storage_keys in access_list_entries
+    )
+
+    # Define strategies for each transaction type
+    legacy_tx = st.builds(LegacyTransaction, data=st.just(Bytes(bytes.fromhex("6060"))))
+
+    access_list_tx = st.builds(
+        AccessListTransaction,
+        data=st.just(Bytes(bytes.fromhex("6060"))),
+        access_list=st.just(access_list),
+    )
+
+    fee_market_tx = st.builds(
+        FeeMarketTransaction,
+        data=st.just(Bytes(bytes.fromhex("6060"))),
+        access_list=st.just(access_list),
+    )
+
+    blob_tx = st.builds(
+        BlobTransaction,
+        data=st.just(Bytes(bytes.fromhex("6060"))),
+        access_list=st.just(access_list),
+    )
+
+    # Choose one transaction type
+    tx = draw(st.one_of(legacy_tx, access_list_tx, fee_market_tx, blob_tx))
+
+    return tx
 
 
 class TestFork:
@@ -98,3 +148,23 @@ class TestFork:
         assert make_receipt(tx, error, cumulative_gas_used, logs) == cairo_run(
             "make_receipt", tx, error, cumulative_gas_used, logs
         )
+
+    @given(env=..., tx=tx_without_code())
+    def test_process_transaction(self, cairo_run, tx: Transaction, env: Environment):
+        try:
+            gas_used_cairo, logs_cairo, error_cairo = cairo_run(
+                "process_transaction", env, tx
+            )
+        except Exception as cairo_exception:
+            try:
+                process_transaction(env, tx)
+            except Exception as python_exception:
+                error = re.search(r"Error message: (.*)", str(cairo_exception))
+                error_type = error.group(1) if error else type(cairo_exception).__name__
+                assert type(python_exception).__name__ == error_type
+            return
+
+        gas_used, logs, error = process_transaction(env, tx)
+        assert gas_used_cairo == gas_used
+        assert logs_cairo == logs
+        assert error_cairo == error
