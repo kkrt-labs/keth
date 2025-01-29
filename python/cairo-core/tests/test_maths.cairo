@@ -1,4 +1,5 @@
 from cairo_core.maths import scalar_to_epns, sign, assert_uint256_le
+from starkware.cairo.common.uint256 import Uint256
 from starkware.cairo.common.alloc import alloc
 
 func test__sign{range_check_ptr}() -> felt {
