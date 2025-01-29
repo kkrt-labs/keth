@@ -15,9 +15,6 @@ class TestTransactions:
 
     @given(tx=...)
     def test_validate_transaction(self, cairo_run_py, tx: Transaction):
-        """
-        Test that transaction validation in Cairo matches Python implementation
-        """
         try:
             result_cairo = cairo_run_py("validate_transaction", tx)
         except Exception as cairo_error:
