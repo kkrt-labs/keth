@@ -308,12 +308,13 @@ func call_{
     }
 
     let high_not_zero = is_not_zero(_gas.value.high);
-    if (high_not_zero != 0) {
+    let low_too_high = is_le(2 ** 64, _gas.value.low);
+    if (high_not_zero + low_too_high != 0) {
         tempvar gas = Uint(2 ** 64 - 1);
     } else {
         tempvar gas = Uint(_gas.value.low);
     }
-    let gas = Uint([ap - 1]);
+    let gas = gas;
 
     // Calculate memory expansion cost
     let (data: TupleU256U256*) = alloc();
@@ -528,12 +529,13 @@ func callcode{
     EvmImpl.set_accessed_addresses(new_accessed_addresses);
 
     let high_not_zero = is_not_zero(_gas.value.high);
-    if (high_not_zero != 0) {
+    let low_too_high = is_le(2 ** 64, _gas.value.low);
+    if (high_not_zero + low_too_high != 0) {
         tempvar gas = Uint(2 ** 64 - 1);
     } else {
         tempvar gas = Uint(_gas.value.low);
     }
-    let gas = Uint([ap - 1]);
+    let gas = gas;
 
     let is_value_zero = U256__eq__(value, U256(new U256Struct(0, 0)));
     tempvar transfer_gas_cost = Uint((1 - is_value_zero.value) * GasConstants.GAS_CALL_VALUE);
@@ -689,12 +691,13 @@ func delegatecall{
     EvmImpl.set_accessed_addresses(new_accessed_addresses);
 
     let high_not_zero = is_not_zero(_gas.value.high);
-    if (high_not_zero != 0) {
+    let low_too_high = is_le(2 ** 64, _gas.value.low);
+    if (high_not_zero + low_too_high != 0) {
         tempvar gas = Uint(2 ** 64 - 1);
     } else {
         tempvar gas = Uint(_gas.value.low);
     }
-    let gas = Uint([ap - 1]);
+    let gas = gas;
 
     let message_call_gas = calculate_message_call_gas(
         U256(new U256Struct(0, 0)),
@@ -822,12 +825,13 @@ func staticcall{
     EvmImpl.set_accessed_addresses(new_accessed_addresses);
 
     let high_not_zero = is_not_zero(_gas.value.high);
-    if (high_not_zero != 0) {
+    let low_too_high = is_le(2 ** 64, _gas.value.low);
+    if (high_not_zero + low_too_high != 0) {
         tempvar gas = Uint(2 ** 64 - 1);
     } else {
         tempvar gas = Uint(_gas.value.low);
     }
-    let gas = Uint([ap - 1]);
+    let gas = gas;
 
     let message_call_gas = calculate_message_call_gas(
         U256(new U256Struct(0, 0)),
