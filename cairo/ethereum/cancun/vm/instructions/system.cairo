@@ -940,7 +940,13 @@ func revert{
 }
 
 // @notice Return operation - stop execution and return data from memory
-func return_{range_check_ptr, evm: Evm}() -> EthereumException* {
+func return_{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     // STACK
     let stack = evm.value.stack;
