@@ -7,7 +7,7 @@ from starkware.cairo.common.cairo_builtins import (
 )
 from starkware.cairo.common.uint256 import Uint256, uint256_reverse_endian
 from ethereum_types.bytes import Bytes, Bytes32, BytesStruct
-from ethereum.cancun.fork_types import Address, Address_from_felt
+from ethereum.cancun.fork_types import Address, Address_from_felt_be
 from cairo_ec.curve.secp256k1 import (
     try_recover_public_key,
     secp256k1,
@@ -70,7 +70,7 @@ func public_key_point_to_eth_address{
 }(x: U256, y: U256) -> Address {
     let eth_address_felt = _public_key_point_to_eth_address(x=[x.value], y=[y.value]);
 
-    let eth_address = Address_from_felt(eth_address_felt);
+    let eth_address = Address_from_felt_be(eth_address_felt);
 
     return eth_address;
 }

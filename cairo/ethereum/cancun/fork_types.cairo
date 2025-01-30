@@ -184,7 +184,7 @@ func Account__eq__(a: OptionalAccount, b: OptionalAccount) -> bool {
     return code_eq;
 }
 
-func Address_from_felt{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(value: felt) -> Address {
+func Address_from_felt_be{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(value: felt) -> Address {
     let (high, low) = split_felt(value);
     tempvar value_u256 = U256(new U256Struct(low, high));
     let address = U256_to_be_bytes20(value_u256);
