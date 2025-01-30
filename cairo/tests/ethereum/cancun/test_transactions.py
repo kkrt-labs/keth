@@ -1,4 +1,3 @@
-import pytest
 from ethereum_types.numeric import U64
 from hypothesis import given
 
@@ -18,8 +17,6 @@ from ethereum.cancun.transactions import (
     validate_transaction,
 )
 from tests.utils.errors import strict_raises
-
-pytestmark = pytest.mark.python_vm
 
 
 class TestTransactions:
@@ -64,9 +61,10 @@ class TestTransactions:
         assert signing_hash_4844(tx) == cairo_result
 
     @given(chain_id=..., tx=...)
-    def test_recover_sender(self, cairo_run, chain_id: U64, tx: Transaction):
+    def test_recover_sender(self, cairo_run_py, chain_id: U64, tx: Transaction):
         try:
-            cairo_result = cairo_run("recover_sender", chain_id, tx)
+            # TODO: replace cairo_run_py by cairo_run once garaga hints are implemented in Rust
+            cairo_result = cairo_run_py("recover_sender", chain_id, tx)
         except Exception as cairo_error:
             with strict_raises(type(cairo_error)):
                 recover_sender(chain_id, tx)

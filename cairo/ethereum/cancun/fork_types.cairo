@@ -1,5 +1,5 @@
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.uint256 import felt_to_uint256
+from starkware.cairo.common.math import split_felt
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.cairo.common.bitwise import BitwiseBuiltin
 from ethereum_types.bytes import Bytes20, Bytes32, Bytes256, Bytes, BytesStruct, HashedBytes32
@@ -185,8 +185,8 @@ func Account__eq__(a: OptionalAccount, b: OptionalAccount) -> bool {
 }
 
 func Address_from_felt{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(value: felt) -> Address {
-    let value_u256 = felt_to_uint256(value);
-    tempvar value_U256 = U256(new U256Struct(value_u256.low, value_u256.high));
-    let address = U256_to_be_bytes20(value_U256);
+    let (high, low) = split_felt(value);
+    tempvar value_u256 = U256(new U256Struct(low, high));
+    let address = U256_to_be_bytes20(value_u256);
     return address;
 }
