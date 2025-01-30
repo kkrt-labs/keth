@@ -237,7 +237,7 @@ func recover_sender{
     alloc_locals;
     tempvar SECP256K1N = U256(new U256Struct(low=secp256k1.N_LOW_128, high=secp256k1.N_HIGH_128));
     tempvar SECP256K1N_DIVIDED_BY_2 = U256(
-        new U256Struct(low=secp256k1.N_DIVIDED_BY_2_LOW_128, high=secp256k1.N_DIVID_BY_2_HIGH_128)
+        new U256Struct(low=secp256k1.N_DIVIDED_BY_2_LOW_128, high=secp256k1.N_DIVIDED_BY_2_HIGH_128)
     );
     tempvar zero = U256(new U256Struct(low=0, high=0));
 
