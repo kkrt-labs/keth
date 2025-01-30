@@ -1,8 +1,16 @@
 from starkware.cairo.common.math_cmp import is_le_felt, is_not_zero
 from starkware.cairo.common.bool import FALSE, TRUE
-from starkware.cairo.common.cairo_builtins import KeccakBuiltin
-from starkware.cairo.common.bitwise import BitwiseBuiltin
+from starkware.cairo.common.cairo_builtins import (
+    BitwiseBuiltin,
+    KeccakBuiltin,
+    ModBuiltin,
+    PoseidonBuiltin,
+)
+from cairo_ec.curve.secp256k1 import secp256k1
+from ethereum.crypto.elliptic_curve import secp256k1_recover_uint256_bigends
 
+from src.utils.signature import public_key_point_to_eth_address
+from ethereum.utils.numeric import U256_le, U256__eq__
 from ethereum_types.bytes import Bytes, Bytes0
 from ethereum_types.numeric import Uint, bool, U256, U256Struct, U64
 from ethereum.cancun.fork_types import Address
@@ -214,4 +222,148 @@ func signing_hash_4844{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr
     let encoded_tx = encode_blob_transaction_for_signing(tx);
     let hash = keccak256(encoded_tx);
     return hash;
+}
+
+func recover_sender{
+    range_check_ptr,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+}(chain_id: U64, tx: Transaction) -> Address {
+    alloc_locals;
+    tempvar SECP256K1N = U256(new U256Struct(low=secp256k1.N_LOW_128, high=secp256k1.N_HIGH_128));
+    tempvar SECP256K1N_DIVIDED_BY_2 = U256(
+        new U256Struct(low=secp256k1.N_DIVIDED_BY_2_LOW_128, high=secp256k1.N_DIVID_BY_2_HIGH_128)
+    );
+    tempvar zero = U256(new U256Struct(low=0, high=0));
+
+    if (cast(tx.value.legacy_transaction.value, felt) != 0) {
+        let r = tx.value.legacy_transaction.value.r;
+        let s = tx.value.legacy_transaction.value.s;
+
+        let r_is_zero = U256__eq__(r, zero);
+        let r_is_out_of_range = U256_le(SECP256K1N, r);
+
+        let s_is_zero = U256__eq__(s, zero);
+        let s_is_within_range = U256_le(s, SECP256K1N_DIVIDED_BY_2);
+
+        let error = r_is_zero.value + r_is_out_of_range.value + s_is_zero.value + (
+            1 - s_is_within_range.value
+        );
+        with_attr error_message("InvalidSignatureError") {
+            assert error = 0;
+        }
+
+        let v_u256 = tx.value.legacy_transaction.value.v;
+        with_attr error_message("InvalidSignatureError") {
+            assert v_u256.value.high = 0;
+        }
+        let v = v_u256.value.low;
+        let tx_is_not_pre155 = (v - 27) * (v - 28);
+        if (tx_is_not_pre155 == FALSE) {
+            let y_parity_felt = v - 27;
+            tempvar y_parity = U256(new U256Struct(low=y_parity_felt, high=0));
+            let hash = signing_hash_pre155(tx.value.legacy_transaction);
+            let (x, y) = secp256k1_recover_uint256_bigends(r, s, y_parity, hash);
+            let sender = public_key_point_to_eth_address([x.value], [y.value]);
+            return sender;
+        } else {
+            let bad_v = (v - 35 - chain_id.value * 2) * (v - 36 - chain_id.value * 2);
+            with_attr error_message("InvalidSignatureError") {
+                assert bad_v = 0;
+            }
+            let hash = signing_hash_155(tx.value.legacy_transaction, chain_id);
+            let y_parity_felt = v - 35 - chain_id.value * 2;
+            tempvar y_parity = U256(new U256Struct(low=y_parity_felt, high=0));
+            let (x, y) = secp256k1_recover_uint256_bigends(r, s, y_parity, hash);
+            let sender = public_key_point_to_eth_address([x.value], [y.value]);
+            return sender;
+        }
+    }
+
+    if (cast(tx.value.access_list_transaction.value, felt) != 0) {
+        let r = tx.value.access_list_transaction.value.r;
+        let s = tx.value.access_list_transaction.value.s;
+
+        let r_is_zero = U256__eq__(r, zero);
+        let r_is_out_of_range = U256_le(SECP256K1N, r);
+
+        let s_is_zero = U256__eq__(s, zero);
+        let s_is_within_range = U256_le(s, SECP256K1N_DIVIDED_BY_2);
+
+        let error = r_is_zero.value + r_is_out_of_range.value + s_is_zero.value + (
+            1 - s_is_within_range.value
+        );
+        with_attr error_message("InvalidSignatureError") {
+            assert error = 0;
+        }
+
+        let hash = signing_hash_2930(tx.value.access_list_transaction);
+        let (x, y) = secp256k1_recover_uint256_bigends(
+            r, s, tx.value.access_list_transaction.value.y_parity, hash
+        );
+        let sender = public_key_point_to_eth_address([x.value], [y.value]);
+        return sender;
+    }
+
+    if (cast(tx.value.fee_market_transaction.value, felt) != 0) {
+        let r = tx.value.fee_market_transaction.value.r;
+        let s = tx.value.fee_market_transaction.value.s;
+
+        let r_is_zero = U256__eq__(r, zero);
+        let r_is_out_of_range = U256_le(SECP256K1N, r);
+
+        let s_is_zero = U256__eq__(s, zero);
+        let s_is_within_range = U256_le(s, SECP256K1N_DIVIDED_BY_2);
+
+        let error = r_is_zero.value + r_is_out_of_range.value + s_is_zero.value + (
+            1 - s_is_within_range.value
+        );
+        with_attr error_message("InvalidSignatureError") {
+            assert error = 0;
+        }
+
+        let hash = signing_hash_1559(tx.value.fee_market_transaction);
+        let (x, y) = secp256k1_recover_uint256_bigends(
+            r, s, tx.value.fee_market_transaction.value.y_parity, hash
+        );
+        let sender = public_key_point_to_eth_address([x.value], [y.value]);
+        return sender;
+    }
+
+    if (cast(tx.value.blob_transaction.value, felt) != 0) {
+        let r = tx.value.blob_transaction.value.r;
+        let s = tx.value.blob_transaction.value.s;
+
+        let r_is_zero = U256__eq__(r, zero);
+        let r_is_out_of_range = U256_le(SECP256K1N, r);
+
+        let s_is_zero = U256__eq__(s, zero);
+        let s_is_within_range = U256_le(s, SECP256K1N_DIVIDED_BY_2);
+
+        let error = r_is_zero.value + r_is_out_of_range.value + s_is_zero.value + (
+            1 - s_is_within_range.value
+        );
+        with_attr error_message("InvalidSignatureError") {
+            assert error = 0;
+        }
+
+        let hash = signing_hash_4844(tx.value.blob_transaction);
+        let (x, y) = secp256k1_recover_uint256_bigends(
+            r, s, tx.value.blob_transaction.value.y_parity, hash
+        );
+        let sender = public_key_point_to_eth_address([x.value], [y.value]);
+        return sender;
+    }
+
+    // Invariant: at least one of the transaction types is non-zero.
+    with_attr error_message("InvalidTransaction") {
+        assert 0 = 1;
+    }
+    // unreachable
+    tempvar res = Address(0);
+    return res;
 }

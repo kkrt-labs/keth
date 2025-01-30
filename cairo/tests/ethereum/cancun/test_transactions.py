@@ -8,6 +8,7 @@ from ethereum.cancun.transactions import (
     LegacyTransaction,
     Transaction,
     calculate_intrinsic_cost,
+    recover_sender,
     signing_hash_155,
     signing_hash_1559,
     signing_hash_2930,
@@ -58,3 +59,14 @@ class TestTransactions:
     def test_signing_hash_4844(self, cairo_run, tx: BlobTransaction):
         cairo_result = cairo_run("signing_hash_4844", tx)
         assert signing_hash_4844(tx) == cairo_result
+
+    @given(chain_id=..., tx=...)
+    def test_recover_sender(self, cairo_run, chain_id: U64, tx: Transaction):
+        try:
+            cairo_result = cairo_run("recover_sender", chain_id, tx)
+        except Exception as cairo_error:
+            with strict_raises(type(cairo_error)):
+                recover_sender(chain_id, tx)
+            return
+
+        assert recover_sender(chain_id, tx) == cairo_result
