@@ -1,3 +1,4 @@
+import pytest
 from ethereum_types.numeric import U64
 from hypothesis import given
 
@@ -17,6 +18,8 @@ from ethereum.cancun.transactions import (
     validate_transaction,
 )
 from tests.utils.errors import strict_raises
+
+pytestmark = pytest.mark.python_vm
 
 
 class TestTransactions:

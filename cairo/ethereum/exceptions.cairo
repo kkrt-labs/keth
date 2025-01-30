@@ -27,3 +27,6 @@ struct EthereumException {
 struct OptionalEthereumException {
     value: felt*,
 }
+
+const InvalidTransaction = 'InvalidTransaction';
+const InvalidSignatureError = 'InvalidSignatureError';

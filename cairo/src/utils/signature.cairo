@@ -107,6 +107,6 @@ namespace Signature {
         let y_uint256 = uint384_to_uint256(public_key_point.y);
         assert_uint256_le(y_uint256, max_value);
         let address = public_key_point_to_eth_address(x=x_uint256, y=y_uint256);
-        return (success=success, address=address.value);
+        return (success=success, address=address);
     }
 }

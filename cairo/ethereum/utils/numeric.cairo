@@ -170,6 +170,26 @@ func U256_from_be_bytes20{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(bytes20
     return res;
 }
 
+func U256_to_le_bytes20{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(value: U256) -> Bytes20 {
+    let high = value.value.high;
+    let is_within_bounds = is_le(high, 2 ** 32 - 1);
+    with_attr error_message("OverflowError") {
+        assert is_within_bounds = 1;
+    }
+    let (high_reversed) = word_reverse_endian(high);
+    let (low_reversed) = word_reverse_endian(value.value.low);
+    let (high_reversed_shifted, _) = divmod(high_reversed, 2 ** 96);
+    let res_felt = high_reversed_shifted + low_reversed * 2 ** 32;
+    tempvar res = Bytes20(res_felt);
+    return res;
+}
+
+func U256_from_felt{range_check_ptr}(value: felt) -> U256 {
+    let (high, low) = split_felt(value);
+    tempvar res = U256(new U256Struct(low, high));
+    return res;
+}
+
 // @dev Panics if overflow
 func U256_add{range_check_ptr}(a: U256, b: U256) -> U256 {
     alloc_locals;

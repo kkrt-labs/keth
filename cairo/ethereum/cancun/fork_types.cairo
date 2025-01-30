@@ -1,10 +1,12 @@
 from starkware.cairo.common.alloc import alloc
+from starkware.cairo.common.uint256 import felt_to_uint256
+from starkware.cairo.common.registers import get_fp_and_pc
 
 from ethereum_types.bytes import Bytes20, Bytes32, Bytes256, Bytes, BytesStruct, HashedBytes32
 from ethereum.utils.bytes import Bytes__eq__
 from ethereum_types.numeric import Uint, U256, U256Struct, bool
 from ethereum.crypto.hash import Hash32
-from ethereum.utils.numeric import is_zero
+from ethereum.utils.numeric import is_zero, U256_to_le_bytes20
 
 using Address = Bytes20;
 
@@ -180,4 +182,14 @@ func Account__eq__(a: OptionalAccount, b: OptionalAccount) -> bool {
     let code_eq = Bytes__eq__(a.value.code, b.value.code);
 
     return code_eq;
+}
+
+func Address_from_felt(value: felt) -> Address {
+    let fp_and_pc = get_fp_and_pc();
+    local __fp__: felt* = fp_and_pc.fp_val;
+
+    let value_u256 = felt_to_uint256(value);
+    let value_U256 = U256(cast(&value_u256, U256Struct*));
+    let address = U256_to_le_bytes20(value_U256);
+    return address;
 }

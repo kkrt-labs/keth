@@ -10,14 +10,13 @@ from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.registers import get_label_location
 from starkware.cairo.common.modulo import run_mod_p_circuit
-from starkware.cairo.common.uint256 import Uint256
+from starkware.cairo.common.uint256 import Uint256, word_reverse_endian
 from starkware.cairo.common.poseidon_state import PoseidonBuiltinState
-from src.utils.circuit_utils import N_LIMBS, hash_full_transcript
 from starkware.cairo.common.builtin_keccak.keccak import keccak_uint256s_bigend
-from ethereum.cancun.fork_types import Address
 
 from cairo_core.maths import unsigned_div_rem, scalar_to_epns, assert_uint256_le
 from cairo_ec.curve.g1_point import G1Point
+from cairo_ec.circuit_utils import N_LIMBS, hash_full_transcript
 from cairo_ec.curve.ids import CurveID
 from cairo_ec.ec_ops import ec_add, try_get_point_from_x, get_random_point
 from cairo_ec.uint384 import (
@@ -378,7 +377,7 @@ func try_recover_public_key{
 // @return The Ethereum address.
 func public_key_point_to_eth_address{
     range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*
-}(x: Uint256, y: Uint256) -> Address {
+}(x: Uint256, y: Uint256) -> felt {
     alloc_locals;
     let (local elements: Uint256*) = alloc();
     assert elements[0] = x;
@@ -388,6 +387,5 @@ func public_key_point_to_eth_address{
     // The Ethereum address is the 20 least significant bytes of the keccak of the public key.
     let (_, high_low) = unsigned_div_rem(point_hash.high, 2 ** 32);
     let eth_address = point_hash.low + RC_BOUND * high_low;
-    tempvar res = Address(eth_address);
-    return res;
+    return eth_address;
 }

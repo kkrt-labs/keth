@@ -35,7 +35,11 @@ from ethereum.cancun.vm.exceptions import (
 )
 from ethereum.cancun.vm.gas import ExtendMemory, MessageCallGas
 from ethereum.crypto.hash import Hash32
-from ethereum.exceptions import EthereumException
+from ethereum.exceptions import (
+    EthereumException,
+    InvalidSignatureError,
+    InvalidTransaction,
+)
 from tests.utils.args_gen import (
     Environment,
     Evm,
@@ -278,6 +282,8 @@ class TestSerde:
             StackOverflowError,
             StackUnderflowError,
             InvalidOpcode,
+            InvalidSignatureError,
+            InvalidTransaction,
         ],
     ):
         base = segments.gen_arg([gen_arg(type(err), err)])
