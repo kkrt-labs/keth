@@ -6,7 +6,7 @@ from ethereum_types.bytes import Bytes20, Bytes32, Bytes256, Bytes, BytesStruct,
 from ethereum.utils.bytes import Bytes__eq__
 from ethereum_types.numeric import Uint, U256, U256Struct, bool
 from ethereum.crypto.hash import Hash32
-from ethereum.utils.numeric import is_zero, U256_to_le_bytes20
+from ethereum.utils.numeric import is_zero, U256_to_be_bytes20
 
 using Address = Bytes20;
 

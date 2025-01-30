@@ -15,8 +15,6 @@ from cairo_ec.curve.secp256k1 import (
 )
 from cairo_ec.uint384 import uint256_to_uint384, uint384_to_uint256
 from cairo_core.maths import assert_uint256_le
-from ethereum.utils.numeric import U256_to_be_bytes, U256_from_felt, U256_to_le_bytes20
-from ethereum.utils.bytes import Bytes32_to_Bytes
 from ethereum_types.numeric import U256, U256Struct
 from ethereum.crypto.hash import Hash32
 
