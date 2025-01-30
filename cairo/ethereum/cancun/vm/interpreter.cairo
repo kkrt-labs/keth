@@ -326,9 +326,8 @@ func execute_code{
             let range_check_ptr = [ap - 5];
             let bitwise_ptr = cast([ap - 4], BitwiseBuiltin*);
             let keccak_ptr = cast([ap - 3], KeccakBuiltin*);
-            let evm_ = cast([ap - 2], EvmStruct*);
+            let evm = Evm(cast([ap - 2], EvmStruct*));
             let err = cast([ap - 1], EthereumException*);
-            tempvar evm = Evm(evm_);
 
             if (cast(err, felt) != 0) {
                 EvmImpl.set_gas_left{evm=evm}(Uint(0));
