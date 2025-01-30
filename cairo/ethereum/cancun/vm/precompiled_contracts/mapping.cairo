@@ -4,6 +4,7 @@ from starkware.cairo.common.math_cmp import is_le_felt
 from ethereum.cancun.vm import Evm
 from starkware.cairo.common.math import split_felt
 from ethereum.utils.numeric import divmod
+from ethereum.cancun.vm.precompiled_contracts.identity import identity
 
 // currently 10 precompiles.
 const N_PRECOMPILES = 10;
@@ -77,7 +78,7 @@ func precompile_table_lookup{range_check_ptr}(address: felt) -> (felt, felt) {
     dw 0x300000000000000000000000000000000000000;
     call invalid_precompile;  // RIPEMD160
     dw 0x400000000000000000000000000000000000000;
-    call invalid_precompile;  // IDENTITY
+    call identity;  // IDENTITY
     dw 0x500000000000000000000000000000000000000;
     call invalid_precompile;  // MODEXP
     dw 0x600000000000000000000000000000000000000;
