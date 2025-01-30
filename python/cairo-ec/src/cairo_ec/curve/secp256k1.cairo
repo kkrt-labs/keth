@@ -1,10 +1,20 @@
-from starkware.cairo.common.cairo_builtins import UInt384, ModBuiltin, PoseidonBuiltin
+from starkware.cairo.common.cairo_builtins import (
+    UInt384,
+    ModBuiltin,
+    PoseidonBuiltin,
+    BitwiseBuiltin,
+    KeccakBuiltin,
+)
+from starkware.cairo.common.math_cmp import RC_BOUND
 from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
+from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.registers import get_label_location
 from starkware.cairo.common.modulo import run_mod_p_circuit
 from starkware.cairo.common.uint256 import Uint256
 from starkware.cairo.common.poseidon_state import PoseidonBuiltinState
 from src.utils.circuit_utils import N_LIMBS, hash_full_transcript
+from starkware.cairo.common.builtin_keccak.keccak import keccak_uint256s_bigend
+from ethereum.cancun.fork_types import Address
 
 from cairo_core.maths import unsigned_div_rem, scalar_to_epns, assert_uint256_le
 from cairo_ec.curve.g1_point import G1Point
@@ -19,7 +29,7 @@ from cairo_ec.uint384 import (
     uint384_neg_mod_p,
     felt_to_uint384,
 )
-from src.utils.ecdsa_circuit import get_full_ecip_2P_circuit
+from cairo_ec.ecdsa_circuit import get_full_ecip_2P_circuit
 
 namespace secp256k1 {
     const CURVE_ID = CurveID.SECP256K1;
@@ -35,6 +45,9 @@ namespace secp256k1 {
     const N3 = 0x0;
     const N_LOW_128 = 0xbaaedce6af48a03bbfd25e8cd0364141;
     const N_HIGH_128 = 0xfffffffffffffffffffffffffffffffe;
+    // Used in <https://github.com/ethereum/execution-specs/blob/master/src/ethereum/cancun/transactions.py#L263>
+    const N_DIVIDED_BY_2_LOW_128 = 0x5d576e7357a4501ddfe92f46681b20a0;
+    const N_DIVID_BY_2_HIGH_128 = 0x7fffffffffffffffffffffffffffffff;
     const A0 = 0x0;
     const A1 = 0x0;
     const A2 = 0x0;
@@ -358,4 +371,23 @@ func try_recover_public_key{
         p,
     );
     return (public_key_point=res, success=1);
+}
+// @notice Converts a public key point to the corresponding Ethereum address.
+// @param x The x coordinate of the public key point.
+// @param y The y coordinate of the public key point.
+// @return The Ethereum address.
+func public_key_point_to_eth_address{
+    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*
+}(x: Uint256, y: Uint256) -> Address {
+    alloc_locals;
+    let (local elements: Uint256*) = alloc();
+    assert elements[0] = x;
+    assert elements[1] = y;
+    let (point_hash: Uint256) = keccak_uint256s_bigend(n_elements=2, elements=elements);
+
+    // The Ethereum address is the 20 least significant bytes of the keccak of the public key.
+    let (_, high_low) = unsigned_div_rem(point_hash.high, 2 ** 32);
+    let eth_address = point_hash.low + RC_BOUND * high_low;
+    tempvar res = Address(eth_address);
+    return res;
 }

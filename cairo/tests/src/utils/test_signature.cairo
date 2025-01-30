@@ -11,11 +11,12 @@ from starkware.cairo.common.cairo_secp.bigint import uint256_to_bigint
 from src.utils.signature import Signature
 from src.utils.uint256 import uint256_eq
 from cairo_ec.uint384 import uint256_to_uint384
+from cairo_ec.curve.secp256k1 import public_key_point_to_eth_address
 
 func test__public_key_point_to_eth_address{
     range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*
 }(x: U256, y: U256) -> felt {
-    let eth_address = Signature.public_key_point_to_eth_address(x=[x.value], y=[y.value]);
+    let eth_address = public_key_point_to_eth_address(x=[x.value], y=[y.value]);
 
     return eth_address;
 }
