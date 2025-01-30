@@ -1,9 +1,9 @@
 from typing import Optional, Tuple
 
 import pytest
-from ethereum_types.bytes import Bytes
+from ethereum_types.bytes import Bytes, Bytes20
 from ethereum_types.numeric import Uint
-from hypothesis import assume, given
+from hypothesis import assume, given, settings
 from hypothesis import strategies as st
 from hypothesis.strategies import composite
 
@@ -16,6 +16,7 @@ from ethereum.cancun.fork import (
     process_transaction,
     validate_header,
 )
+from ethereum.cancun.fork_types import Address
 from ethereum.cancun.transactions import (
     AccessListTransaction,
     BlobTransaction,
@@ -25,6 +26,7 @@ from ethereum.cancun.transactions import (
 )
 from ethereum.cancun.vm import Environment
 from ethereum.exceptions import EthereumException
+from tests.ethereum.cancun.vm.test_interpreter import unimplemented_precompiles
 from tests.utils.errors import strict_raises
 from tests.utils.strategies import address, bytes32
 
@@ -41,25 +43,37 @@ def tx_without_code(draw):
         (addr, tuple(storage_keys)) for addr, storage_keys in access_list_entries
     )
 
+    to = (
+        st.integers(min_value=0, max_value=2**160 - 1)
+        .filter(lambda x: x not in unimplemented_precompiles)
+        .map(lambda x: Bytes20(x.to_bytes(20, "little")))
+        .map(Address)
+    )
+
     # Define strategies for each transaction type
-    legacy_tx = st.builds(LegacyTransaction, data=st.just(Bytes(bytes.fromhex("6060"))))
+    legacy_tx = st.builds(
+        LegacyTransaction, data=st.just(Bytes(bytes.fromhex("6060"))), to=to
+    )
 
     access_list_tx = st.builds(
         AccessListTransaction,
         data=st.just(Bytes(bytes.fromhex("6060"))),
         access_list=st.just(access_list),
+        to=to,
     )
 
     fee_market_tx = st.builds(
         FeeMarketTransaction,
         data=st.just(Bytes(bytes.fromhex("6060"))),
         access_list=st.just(access_list),
+        to=to,
     )
 
     blob_tx = st.builds(
         BlobTransaction,
         data=st.just(Bytes(bytes.fromhex("6060"))),
         access_list=st.just(access_list),
+        to=to,
     )
 
     # Choose one transaction type
@@ -143,7 +157,8 @@ class TestFork:
         )
 
     @given(env=..., tx=tx_without_code())
-    def test_process_transaction(self, cairo_run, tx: Transaction, env: Environment):
+    @settings(max_examples=100)
+    def test_process_transaction(self, cairo_run, env: Environment, tx: Transaction):
         try:
             gas_used_cairo, logs_cairo, error_cairo = cairo_run(
                 "process_transaction", env, tx
