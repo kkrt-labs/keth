@@ -14,10 +14,25 @@ from tests.utils.errors import strict_raises
 from tests.utils.message_builder import MessageBuilder
 from tests.utils.strategies import environment_lite
 
+# TODO: enable execution of these precompiles
+unimplemented_precompiles = [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+]
+
 message_without_precompile = (
     MessageBuilder()
     .with_current_target(
-        st.integers(min_value=11, max_value=2**160 - 1)
+        st.integers(min_value=0, max_value=2**160 - 1)
+        .filter(lambda x: x not in unimplemented_precompiles)
         .map(lambda x: Bytes20(x.to_bytes(20, "little")))
         .map(Address)
     )
@@ -25,7 +40,7 @@ message_without_precompile = (
     .with_gas()
     .with_value()
     .with_data()
-    .with_code_address()
+    .with_code_address(st.from_type(Address))
     .with_depth()
     .with_code(
         strategy=st.just(Bytes(bytes.fromhex("6060")))

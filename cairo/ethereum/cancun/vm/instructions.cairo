@@ -165,7 +165,7 @@ func op_implementation{
     process_create_message_label: felt*, process_message_label: felt*, opcode: felt
 ) -> EthereumException* {
     // call opcode
-    // count 1 for "next line" and 4 steps per opcode: call, opcode, ret
+    // count 1 for "next line" and 3 steps per opcode: call, opcode, ret
     tempvar offset = opcode * 3 + 1;
 
     // Prepare arguments

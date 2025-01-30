@@ -1,3 +1,4 @@
+use lazy_static::lazy_static;
 use std::collections::HashMap;
 
 use cairo_vm::{
@@ -17,9 +18,36 @@ use cairo_vm::{
 };
 
 use crate::vm::hints::Hint;
+use revm_precompile::{
+    blake2, bn128, hash, identity, kzg_point_evaluation, modexp, secp256k1, Address,
+};
 
-pub const HINTS: &[fn() -> Hint] =
-    &[bytes__eq__, b_le_a, fp_plus_2_or_0, nibble_remainder, print_maybe_relocatable];
+pub const HINTS: &[fn() -> Hint] = &[
+    bytes__eq__,
+    b_le_a,
+    fp_plus_2_or_0,
+    nibble_remainder,
+    print_maybe_relocatable,
+    precompile_index_from_address,
+];
+
+lazy_static! {
+    static ref PRECOMPILE_INDICES: HashMap<Address, Felt252> = {
+        let mut map = HashMap::new();
+        // Using the imported precompiles, multiply index by 3 as per previous logic
+        map.insert(secp256k1::ECRECOVER.0, Felt252::from(0));     // index 0
+        map.insert(hash::SHA256.0, Felt252::from(3));             // index 1
+        map.insert(hash::RIPEMD160.0, Felt252::from(2 * 3));          // index 2
+        map.insert(identity::FUN.0, Felt252::from(3 * 3));       // index 3
+        map.insert(modexp::BYZANTIUM.0, Felt252::from(4 * 3));          // index 4
+        map.insert(bn128::add::BYZANTIUM.0, Felt252::from(5 * 3));              // index 5
+        map.insert(bn128::mul::BYZANTIUM.0, Felt252::from(6 * 3));              // index 6
+        map.insert(bn128::pair::ADDRESS, Felt252::from(7 * 3));          // index 7
+        map.insert(blake2::FUN.0, Felt252::from(8 * 3));         // index 8
+        map.insert(kzg_point_evaluation::ADDRESS, Felt252::from(9 * 3));    // index 10
+        map
+    };
+}
 
 #[allow(non_snake_case)]
 pub fn bytes__eq__() -> Hint {
@@ -173,6 +201,40 @@ pub fn print_maybe_relocatable() -> Hint {
             let maybe_relocatable =
                 get_maybe_relocatable_from_var_name("x", vm, ids_data, ap_tracking)?;
             println!("maybe_relocatable: {:?}", maybe_relocatable);
+            Ok(())
+        },
+    )
+}
+
+pub fn precompile_index_from_address() -> Hint {
+    Hint::new(
+        String::from("precompile_index_from_address"),
+        |vm: &mut VirtualMachine,
+         _exec_scopes: &mut ExecutionScopes,
+         ids_data: &HashMap<String, HintReference>,
+         ap_tracking: &ApTracking,
+         _constants: &HashMap<String, Felt252>|
+         -> Result<(), HintError> {
+            let address_felt = get_integer_from_var_name("address", vm, ids_data, ap_tracking)?;
+
+            let address = Address::from({
+                let bytes = address_felt.to_bytes_le();
+                let mut address_bytes = [0u8; 20];
+                address_bytes.copy_from_slice(&bytes[..20]);
+                address_bytes
+            });
+
+            let index = PRECOMPILE_INDICES.get(&address).ok_or(HintError::CustomHint(
+                Box::from(format!("Invalid precompile address: {:?}", address)),
+            ))?;
+
+            insert_value_from_var_name(
+                "index",
+                MaybeRelocatable::from(*index),
+                vm,
+                ids_data,
+                ap_tracking,
+            )?;
             Ok(())
         },
     )

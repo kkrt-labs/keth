@@ -37,6 +37,7 @@ from ethereum.cancun.vm.exceptions import (
     AddressCollision,
 )
 
+from ethereum.cancun.vm.precompiled_contracts.mapping import precompile_table_lookup
 from ethereum.cancun.vm.instructions import op_implementation
 from ethereum.cancun.vm.memory import Memory, MemoryStruct, Bytes1DictAccess
 from ethereum.cancun.vm.runtime import get_valid_jump_destinations
@@ -306,7 +307,42 @@ func execute_code{
         ),
     );
 
-    // TODO: Handle precompiled contracts
+    // code_address might be optional in create scenarios at this point.
+    if (cast(evm.value.message.value.code_address.value, felt) != 0) {
+        let (precompile_address, precompile_fn) = precompile_table_lookup(
+            [evm.value.message.value.code_address.value]
+        );
+        // Addresses that are not precompiles return 0.
+        if (precompile_address != 0) {
+            // Prepare arguments
+            [ap] = range_check_ptr, ap++;
+            [ap] = range_check_ptr, ap++;
+            [ap] = bitwise_ptr, ap++;
+            [ap] = keccak_ptr, ap++;
+            [ap] = evm.value, ap++;
+
+            call abs precompile_fn;
+
+            let range_check_ptr = [ap - 5];
+            let bitwise_ptr = cast([ap - 4], BitwiseBuiltin*);
+            let keccak_ptr = cast([ap - 3], KeccakBuiltin*);
+            let evm = Evm(cast([ap - 2], EvmStruct*));
+            let err = cast([ap - 1], EthereumException*);
+
+            if (cast(err, felt) != 0) {
+                EvmImpl.set_gas_left{evm=evm}(Uint(0));
+                let (output_bytes: felt*) = alloc();
+                tempvar output = Bytes(new BytesStruct(output_bytes, 0));
+                EvmImpl.set_output{evm=evm}(output);
+                EvmImpl.set_error{evm=evm}(err);
+                return evm;
+            }
+            return evm;
+        }
+        tempvar range_check_ptr = range_check_ptr;
+    } else {
+        tempvar range_check_ptr = range_check_ptr;
+    }
 
     // Execute bytecode recursively
     let (process_create_message_label) = get_label_location(process_create_message);

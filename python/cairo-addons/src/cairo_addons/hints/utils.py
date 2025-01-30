@@ -77,3 +77,39 @@ def print_maybe_relocatable(
 ):
     maybe_relocatable = ids.x
     print(f"maybe_relocatable: {maybe_relocatable}")
+
+
+@register_hint
+def precompile_index_from_address(
+    ids: VmConsts,
+):
+
+    from ethereum.cancun.vm.precompiled_contracts import (
+        ALT_BN128_ADD_ADDRESS,
+        ALT_BN128_MUL_ADDRESS,
+        ALT_BN128_PAIRING_CHECK_ADDRESS,
+        BLAKE2F_ADDRESS,
+        ECRECOVER_ADDRESS,
+        IDENTITY_ADDRESS,
+        MODEXP_ADDRESS,
+        POINT_EVALUATION_ADDRESS,
+        RIPEMD160_ADDRESS,
+        SHA256_ADDRESS,
+    )
+
+    # The index associated to the precompile can be anything, provided it matches the location
+    # of the precompile in the precompile table.
+    ADDRESS_TO_INDEX = {
+        ECRECOVER_ADDRESS: 0 * 3,
+        SHA256_ADDRESS: 1 * 3,
+        RIPEMD160_ADDRESS: 2 * 3,
+        IDENTITY_ADDRESS: 3 * 3,
+        MODEXP_ADDRESS: 4 * 3,
+        ALT_BN128_ADD_ADDRESS: 5 * 3,
+        ALT_BN128_MUL_ADDRESS: 6 * 3,
+        ALT_BN128_PAIRING_CHECK_ADDRESS: 7 * 3,
+        BLAKE2F_ADDRESS: 8 * 3,
+        POINT_EVALUATION_ADDRESS: 9 * 3,
+    }
+
+    ids.index = ADDRESS_TO_INDEX[ids.address.to_bytes(20, "little")]
