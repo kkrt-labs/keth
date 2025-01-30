@@ -100,14 +100,9 @@ def build_entrypoint(
     main_path: Tuple[str, ...],
     to_python_type: Callable = to_python_type,
 ):
-    if not isinstance(
-        identifier := cairo_program.identifiers.get_by_full_name(
-            ScopedName(path=("__main__", entrypoint, "ImplicitArgs"))
-        ),
-        StructDefinition,
-    ):
-        raise ValueError(f"ImplicitArgs not found for {entrypoint}")
-    implicit_args = identifier.members
+    implicit_args = cairo_program.get_identifier(
+        f"{entrypoint}.ImplicitArgs", StructDefinition
+    ).members
 
     # Split implicit args into builtins and other implicit args
     _builtins = [
@@ -116,50 +111,30 @@ def build_entrypoint(
         if any(builtin in k.replace("_ptr", "") for builtin in ALL_BUILTINS)
     ]
 
-    if to_python_type is not None:
-        _implicit_args = {
-            k: {
-                "python_type": to_python_type(
-                    resolve_main_path(main_path)(v.cairo_type)
-                ),
-                "cairo_type": v.cairo_type,
-            }
-            for k, v in implicit_args.items()
-            if not any(builtin in k.replace("_ptr", "") for builtin in ALL_BUILTINS)
+    _implicit_args = {
+        k: {
+            "python_type": to_python_type(resolve_main_path(main_path)(v.cairo_type)),
+            "cairo_type": v.cairo_type,
         }
-    else:
-        _implicit_args = {}
+        for k, v in implicit_args.items()
+        if not any(builtin in k.replace("_ptr", "") for builtin in ALL_BUILTINS)
+    }
 
-    if not isinstance(
-        identifier := cairo_program.identifiers.get_by_full_name(
-            ScopedName(path=("__main__", entrypoint, "Args"))
-        ),
-        StructDefinition,
-    ):
-        raise ValueError(f"Args not found for {entrypoint}")
-    entrypoint_args = identifier.members
+    entrypoint_args = cairo_program.get_identifier(
+        f"{entrypoint}.Args", StructDefinition
+    ).members
 
-    if to_python_type is not None:
-        _args = {
-            k: {
-                "python_type": to_python_type(
-                    resolve_main_path(main_path)(v.cairo_type)
-                ),
-                "cairo_type": v.cairo_type,
-            }
-            for k, v in entrypoint_args.items()
+    _args = {
+        k: {
+            "python_type": to_python_type(resolve_main_path(main_path)(v.cairo_type)),
+            "cairo_type": v.cairo_type,
         }
-    else:
-        _args = {}
+        for k, v in entrypoint_args.items()
+    }
 
-    if not isinstance(
-        identifier := cairo_program.identifiers.get_by_full_name(
-            ScopedName(path=("__main__", entrypoint, "Return"))
-        ),
-        TypeDefinition,
-    ):
-        raise ValueError(f"Return not found for {entrypoint}")
-    explicit_return_data = identifier.cairo_type
+    explicit_return_data = cairo_program.get_identifier(
+        f"{entrypoint}.Return", TypeDefinition
+    ).cairo_type
 
     return_data_types = [
         *(arg["cairo_type"] for arg in _implicit_args.values()),
