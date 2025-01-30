@@ -16,3 +16,5 @@ const InvalidParameter = 'InvalidParameter';
 const InvalidContractPrefix = 'InvalidContractPrefix';
 const AddressCollision = 'AddressCollision';
 const KZGProofError = 'KZGProofError';
+
+const InvalidBlock = 'InvalidBlock';

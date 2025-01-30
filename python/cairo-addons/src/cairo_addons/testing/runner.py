@@ -546,12 +546,17 @@ def run_rust_vm(
 
 
 def map_to_python_exception(e: Exception):
+    import ethereum.exceptions as eth_exceptions
+
     error_str = str(e)
 
     # Throw a specialized python exception from the error message, if possible
     error = re.search(r"Error message: (.*)", error_str)
     error_type = error.group(1) if error else error_str
-    exception_class = __builtins__.get(error_type)
+    # Get the exception class from python's builtins or ethereum's exceptions
+    exception_class = __builtins__.get(
+        error_type, getattr(eth_exceptions, error_type, None)
+    )
     if isinstance(exception_class, type) and issubclass(exception_class, Exception):
         raise exception_class() from e
 

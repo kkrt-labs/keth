@@ -467,10 +467,18 @@ def register_type_strategies():
     st.register_type_strategy(Header, st.builds(Header))
     st.register_type_strategy(Log, st.builds(Log))
     st.register_type_strategy(Receipt, st.builds(Receipt))
-    st.register_type_strategy(LegacyTransaction, st.builds(LegacyTransaction))
-    st.register_type_strategy(AccessListTransaction, st.builds(AccessListTransaction))
-    st.register_type_strategy(FeeMarketTransaction, st.builds(FeeMarketTransaction))
-    st.register_type_strategy(BlobTransaction, st.builds(BlobTransaction))
+    st.register_type_strategy(
+        LegacyTransaction, st.builds(LegacyTransaction, data=small_bytes)
+    )
+    st.register_type_strategy(
+        AccessListTransaction, st.builds(AccessListTransaction, data=small_bytes)
+    )
+    st.register_type_strategy(
+        FeeMarketTransaction, st.builds(FeeMarketTransaction, data=small_bytes)
+    )
+    st.register_type_strategy(
+        BlobTransaction, st.builds(BlobTransaction, data=small_bytes)
+    )
     # See https://github.com/ethereum/execution-specs/issues/1043
     st.register_type_strategy(
         LeafNode,
@@ -517,3 +525,4 @@ def register_type_strategies():
     st.register_type_strategy(State, state)
     st.register_type_strategy(TransientStorage, transient_storage)
     st.register_type_strategy(MutableBloom, bloom.map(MutableBloom))
+    st.register_type_strategy(Environment, environment_lite)

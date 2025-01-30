@@ -1,8 +1,10 @@
 from typing import Optional, Tuple
 
-import pytest
+from ethereum_types.bytes import Bytes, Bytes20
 from ethereum_types.numeric import Uint
-from hypothesis import assume, given
+from hypothesis import assume, given, settings
+from hypothesis import strategies as st
+from hypothesis.strategies import composite
 
 from ethereum.cancun.blocks import Header, Log
 from ethereum.cancun.fork import (
@@ -10,13 +12,71 @@ from ethereum.cancun.fork import (
     calculate_base_fee_per_gas,
     check_gas_limit,
     make_receipt,
+    process_transaction,
     validate_header,
 )
-from ethereum.cancun.transactions import Transaction
-from ethereum.exceptions import EthereumException, InvalidBlock
-from tests.utils.errors import cairo_error
+from ethereum.cancun.fork_types import Address
+from ethereum.cancun.transactions import (
+    AccessListTransaction,
+    BlobTransaction,
+    FeeMarketTransaction,
+    LegacyTransaction,
+    Transaction,
+)
+from ethereum.cancun.vm import Environment
+from ethereum.exceptions import EthereumException
+from tests.ethereum.cancun.vm.test_interpreter import unimplemented_precompiles
+from tests.utils.errors import strict_raises
+from tests.utils.strategies import address, bytes32
 
-pytestmark = pytest.mark.python_vm
+
+@composite
+def tx_without_code(draw):
+    # Generate access list
+    access_list_entries = draw(
+        st.lists(st.tuples(address, st.lists(bytes32, max_size=2)), max_size=3)
+    )
+    access_list = tuple(
+        (addr, tuple(storage_keys)) for addr, storage_keys in access_list_entries
+    )
+
+    to = (
+        st.integers(min_value=0, max_value=2**160 - 1)
+        .filter(lambda x: x not in unimplemented_precompiles)
+        .map(lambda x: Bytes20(x.to_bytes(20, "little")))
+        .map(Address)
+    )
+
+    # Define strategies for each transaction type
+    legacy_tx = st.builds(
+        LegacyTransaction, data=st.just(Bytes(bytes.fromhex("6060"))), to=to
+    )
+
+    access_list_tx = st.builds(
+        AccessListTransaction,
+        data=st.just(Bytes(bytes.fromhex("6060"))),
+        access_list=st.just(access_list),
+        to=to,
+    )
+
+    fee_market_tx = st.builds(
+        FeeMarketTransaction,
+        data=st.just(Bytes(bytes.fromhex("6060"))),
+        access_list=st.just(access_list),
+        to=to,
+    )
+
+    blob_tx = st.builds(
+        BlobTransaction,
+        data=st.just(Bytes(bytes.fromhex("6060"))),
+        access_list=st.just(access_list),
+        to=to,
+    )
+
+    # Choose one transaction type
+    tx = draw(st.one_of(legacy_tx, access_list_tx, fee_market_tx, blob_tx))
+
+    return tx
 
 
 class TestFork:
@@ -35,46 +95,40 @@ class TestFork:
         parent_base_fee_per_gas: Uint,
     ):
         try:
-            expected = calculate_base_fee_per_gas(
-                block_gas_limit,
-                parent_gas_limit,
-                parent_gas_used,
-                parent_base_fee_per_gas,
-            )
-        except InvalidBlock:
-            expected = None
-
-        if expected is not None:
-            assert expected == cairo_run(
+            cairo_result = cairo_run(
                 "calculate_base_fee_per_gas",
                 block_gas_limit,
                 parent_gas_limit,
                 parent_gas_used,
                 parent_base_fee_per_gas,
             )
-        else:
-            with cairo_error("InvalidBlock"):
-                cairo_run(
-                    "calculate_base_fee_per_gas",
+        except Exception as e:
+            with strict_raises(type(e)):
+                calculate_base_fee_per_gas(
                     block_gas_limit,
                     parent_gas_limit,
                     parent_gas_used,
                     parent_base_fee_per_gas,
                 )
+            return
+
+        assert cairo_result == calculate_base_fee_per_gas(
+            block_gas_limit,
+            parent_gas_limit,
+            parent_gas_used,
+            parent_base_fee_per_gas,
+        )
 
     @given(header=..., parent_header=...)
     def test_validate_header(self, cairo_run, header: Header, parent_header: Header):
-        error = None
         try:
-            validate_header(header, parent_header)
-        except InvalidBlock as e:
-            error = e
-
-        if error is not None:
-            with cairo_error("InvalidBlock"):
-                cairo_run("validate_header", header, parent_header)
-        else:
             cairo_run("validate_header", header, parent_header)
+        except Exception as e:
+            with strict_raises(type(e)):
+                validate_header(header, parent_header)
+            return
+
+        validate_header(header, parent_header)
 
     @given(gas_limit=..., parent_gas_limit=...)
     def test_check_gas_limit(self, cairo_run, gas_limit: Uint, parent_gas_limit: Uint):
@@ -98,3 +152,20 @@ class TestFork:
         assert make_receipt(tx, error, cumulative_gas_used, logs) == cairo_run(
             "make_receipt", tx, error, cumulative_gas_used, logs
         )
+
+    @given(env=..., tx=tx_without_code())
+    @settings(max_examples=100)
+    def test_process_transaction(self, cairo_run, env: Environment, tx: Transaction):
+        try:
+            gas_used_cairo, logs_cairo, error_cairo = cairo_run(
+                "process_transaction", env, tx
+            )
+        except Exception as e:
+            with strict_raises(type(e)):
+                process_transaction(env, tx)
+            return
+
+        gas_used, logs, error = process_transaction(env, tx)
+        assert gas_used_cairo == gas_used
+        assert logs_cairo == logs
+        assert error_cairo == error
