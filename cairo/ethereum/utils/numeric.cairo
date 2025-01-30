@@ -170,7 +170,7 @@ func U256_from_be_bytes20{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(bytes20
     return res;
 }
 
-func U256_to_le_bytes20{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(value: U256) -> Bytes20 {
+func U256_to_be_bytes20{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(value: U256) -> Bytes20 {
     let high = value.value.high;
     let is_within_bounds = is_le(high, 2 ** 32 - 1);
     with_attr error_message("OverflowError") {

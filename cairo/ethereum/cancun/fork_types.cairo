@@ -187,6 +187,6 @@ func Account__eq__(a: OptionalAccount, b: OptionalAccount) -> bool {
 func Address_from_felt{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(value: felt) -> Address {
     let value_u256 = felt_to_uint256(value);
     tempvar value_U256 = U256(new U256Struct(value_u256.low, value_u256.high));
-    let address = U256_to_le_bytes20(value_U256);
+    let address = U256_to_be_bytes20(value_U256);
     return address;
 }
