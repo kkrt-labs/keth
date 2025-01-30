@@ -307,8 +307,6 @@ func execute_code{
         ),
     );
 
-    // TODO: Handle precompiled contracts
-
     // code_address might be optional in create scenarios at this point.
     if (cast(evm.value.message.value.code_address.value, felt) != 0) {
         let (precompile_address, precompile_fn) = precompile_table_lookup(
@@ -324,7 +322,23 @@ func execute_code{
             [ap] = evm.value, ap++;
 
             call abs precompile_fn;
-            ret;
+
+            let range_check_ptr = [ap - 5];
+            let bitwise_ptr = cast([ap - 4], BitwiseBuiltin*);
+            let keccak_ptr = cast([ap - 3], KeccakBuiltin*);
+            let evm_ = cast([ap - 2], EvmStruct*);
+            let err = cast([ap - 1], EthereumException*);
+            tempvar evm = Evm(evm_);
+
+            if (cast(err, felt) != 0) {
+                EvmImpl.set_gas_left{evm=evm}(Uint(0));
+                let (output_bytes: felt*) = alloc();
+                tempvar output = Bytes(new BytesStruct(output_bytes, 0));
+                EvmImpl.set_output{evm=evm}(output);
+                EvmImpl.set_error{evm=evm}(err);
+                return evm;
+            }
+            return evm;
         }
         tempvar range_check_ptr = range_check_ptr;
     } else {

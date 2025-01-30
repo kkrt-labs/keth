@@ -5,6 +5,8 @@ from unittest.mock import patch
 
 from starkware.cairo.lang.compiler.program import CairoHint, Program
 
+from cairo_addons.hints import implementations
+
 
 def debug_info(program: Program):
     def _debug_info(pc):
@@ -74,7 +76,6 @@ def patch_hint(program: Program, hint: str, new_hint: str, scope: Optional[str] 
             return match.group(1), match.group(2).strip()
         return None, None
 
-    # Determine if we're dealing with nondet hints
     orig_nondet_arg = get_nondet_arg(hint)
     new_nondet_arg = get_nondet_arg(new_hint)
 
@@ -102,7 +103,9 @@ def patch_hint(program: Program, hint: str, new_hint: str, scope: Optional[str] 
                     new_hints.append(hint_)
             else:
                 # Handle regular hint patching
-                if hint_.code.strip() == hint.strip():
+                if hint_.code.strip() == implementations.get(
+                    hint.strip(), hint.strip()
+                ):
                     new_hints.append(
                         CairoHint(
                             accessible_scopes=hint_.accessible_scopes,

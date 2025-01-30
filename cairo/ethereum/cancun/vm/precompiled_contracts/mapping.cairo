@@ -37,7 +37,7 @@ func precompile_table_lookup{range_check_ptr}(address: felt) -> (felt, felt) {
     }
 
     // Provided the address is a valid precompile, get its index from the precompile table
-    // This enables non-sequential precompile addresses for the future...
+    // This enables non-sequential precompile addresses for the future
     let (local precompiled_contracts_location: felt*) = get_label_location(PRE_COMPILED_CONTRACTS);
 
     tempvar index;
