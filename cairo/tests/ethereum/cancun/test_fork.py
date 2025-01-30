@@ -1,4 +1,3 @@
-import re
 from typing import Optional, Tuple
 
 import pytest
@@ -25,8 +24,8 @@ from ethereum.cancun.transactions import (
     Transaction,
 )
 from ethereum.cancun.vm import Environment
-from ethereum.exceptions import EthereumException, InvalidBlock
-from tests.utils.errors import cairo_error
+from ethereum.exceptions import EthereumException
+from tests.utils.errors import strict_raises
 from tests.utils.strategies import address, bytes32
 
 pytestmark = pytest.mark.python_vm
@@ -85,46 +84,40 @@ class TestFork:
         parent_base_fee_per_gas: Uint,
     ):
         try:
-            expected = calculate_base_fee_per_gas(
-                block_gas_limit,
-                parent_gas_limit,
-                parent_gas_used,
-                parent_base_fee_per_gas,
-            )
-        except InvalidBlock:
-            expected = None
-
-        if expected is not None:
-            assert expected == cairo_run(
+            cairo_result = cairo_run(
                 "calculate_base_fee_per_gas",
                 block_gas_limit,
                 parent_gas_limit,
                 parent_gas_used,
                 parent_base_fee_per_gas,
             )
-        else:
-            with cairo_error("InvalidBlock"):
-                cairo_run(
-                    "calculate_base_fee_per_gas",
+        except Exception as e:
+            with strict_raises(type(e)):
+                calculate_base_fee_per_gas(
                     block_gas_limit,
                     parent_gas_limit,
                     parent_gas_used,
                     parent_base_fee_per_gas,
                 )
+            return
+
+        assert cairo_result == calculate_base_fee_per_gas(
+            block_gas_limit,
+            parent_gas_limit,
+            parent_gas_used,
+            parent_base_fee_per_gas,
+        )
 
     @given(header=..., parent_header=...)
     def test_validate_header(self, cairo_run, header: Header, parent_header: Header):
-        error = None
         try:
-            validate_header(header, parent_header)
-        except InvalidBlock as e:
-            error = e
-
-        if error is not None:
-            with cairo_error("InvalidBlock"):
-                cairo_run("validate_header", header, parent_header)
-        else:
             cairo_run("validate_header", header, parent_header)
+        except Exception as e:
+            with strict_raises(type(e)):
+                validate_header(header, parent_header)
+            return
+
+        validate_header(header, parent_header)
 
     @given(gas_limit=..., parent_gas_limit=...)
     def test_check_gas_limit(self, cairo_run, gas_limit: Uint, parent_gas_limit: Uint):
@@ -155,13 +148,9 @@ class TestFork:
             gas_used_cairo, logs_cairo, error_cairo = cairo_run(
                 "process_transaction", env, tx
             )
-        except Exception as cairo_exception:
-            try:
+        except Exception as e:
+            with strict_raises(type(e)):
                 process_transaction(env, tx)
-            except Exception as python_exception:
-                error = re.search(r"Error message: (.*)", str(cairo_exception))
-                error_type = error.group(1) if error else type(cairo_exception).__name__
-                assert type(python_exception).__name__ == error_type
             return
 
         gas_used, logs, error = process_transaction(env, tx)
