@@ -1,6 +1,5 @@
 from typing import Optional, Tuple
 
-import pytest
 from ethereum_types.bytes import Bytes, Bytes20
 from ethereum_types.numeric import Uint
 from hypothesis import assume, given, settings
@@ -29,8 +28,6 @@ from ethereum.exceptions import EthereumException
 from tests.ethereum.cancun.vm.test_interpreter import unimplemented_precompiles
 from tests.utils.errors import strict_raises
 from tests.utils.strategies import address, bytes32
-
-pytestmark = pytest.mark.python_vm
 
 
 @composite
