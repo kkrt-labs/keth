@@ -321,9 +321,11 @@ class Environment(
         namespace={"__doc__": EnvironmentBase.__doc__},
     )
 ):
-    """A version of Environment that excludes the traces field, which is not used during execution."""
-
-    pass
+    def __eq__(self, other):
+        return all(
+            getattr(self, field.name) == getattr(other, field.name)
+            for field in fields(self)
+        )
 
 
 @dataclass

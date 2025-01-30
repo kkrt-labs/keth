@@ -52,14 +52,14 @@ class TestMessage:
         preaccessed_storage_keys: Set[Tuple[Address, Bytes32]],
     ):
         caller, env = caller_and_env
-        cairo_message = cairo_run(
+        cairo_env, cairo_message = cairo_run(
             "prepare_message",
+            env,
             caller,
             target,
             value,
             data,
             gas,
-            env,
             code_address,
             should_transfer_value,
             is_static,
@@ -80,3 +80,4 @@ class TestMessage:
             preaccessed_storage_keys,
         )
         assert cairo_message == evm_message
+        assert cairo_env == env
