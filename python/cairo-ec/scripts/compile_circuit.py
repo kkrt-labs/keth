@@ -1,3 +1,37 @@
+"""Circuit Compiler for Cairo Arithmetic Operations.
+
+This script compiles Cairo functions into arithmetic circuits that can be
+efficiently executed using the ModBuiltin operations. It is particularly useful for
+cryptographic operations that involve heavy modular arithmetic.
+
+The compilation process:
+1. Takes a Cairo source file containing functions with UInt384 operations
+2. Extracts the arithmetic operations (see compiler.py)
+3. Outputs the compiled circuits in a new Cairo file
+
+Key features:
+- Supports selective compilation of specific functions
+- Handles both addition and multiplication modulo operations
+- Preserves function signatures and argument types
+
+Usage:
+    # Compile all functions in a file
+    python compile_circuit.py input.cairo
+
+    # Compile specific functions
+    python compile_circuit.py input.cairo -fn func1 -fn func2
+
+    # Print output to terminal instead of file
+    python compile_circuit.py input.cairo -fn func1 -e
+
+    # Use custom prime field
+    python compile_circuit.py input.cairo -p 0x7b
+
+Requirements:
+    - Cairo source file with felt arithmetic operations
+    - Functions must use standard argument and return type patterns
+"""
+
 import subprocess
 from pathlib import Path
 
