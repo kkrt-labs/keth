@@ -17,7 +17,7 @@ from src.utils.bytes import (
     uint256_to_bytes_little,
     uint256_to_bytes32_little,
 )
-from cairo_core.maths import unsigned_div_rem, felt252_to_bytes
+from cairo_core.maths import unsigned_div_rem, felt252_to_bytes_le
 from cairo_core.comparison import is_zero
 
 func Bytes__eq__(_self: Bytes, other: Bytes) -> bool {
@@ -129,7 +129,7 @@ func _ListBytes4_be_to_bytes_inner{
         tempvar res = Bytes(new BytesStruct(data=output_start, len=src.value.len * 4));
         return res;
     }
-    felt252_to_bytes(src.value.data[idx].value, 4, output_start + idx * 4);
+    felt252_to_bytes_le(src.value.data[idx].value, 4, output_start + idx * 4);
     return _ListBytes4_be_to_bytes_inner(idx + 1);
 }
 

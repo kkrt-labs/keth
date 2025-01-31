@@ -466,20 +466,20 @@ func assert_uint256_le{range_check_ptr}(a: Uint256, b: Uint256) {
 // @notice Splits a felt252 into `len` bytes, little-endian, and outputs to `dst`.
 // @dev Can only split up to 31 bytes included.
 // @dev Panics if the length is 0.
-func felt252_to_bytes{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
+func felt252_to_bytes_le{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     value: felt, len: felt, dst: felt*
 ) {
     if (len == 0) {
         return ();
     }
-    with_attr error_message("len must be < 32") {
+    with_attr error_message("felt252_to_bytes_le: len must be < 32") {
         assert [range_check_ptr] = 31 - len;
         let range_check_ptr = range_check_ptr + 1;
     }
     let output = &dst[0];
     let base = 256;
     let bound = 256;
-    %{ felt252_to_bytes %}
+    %{ felt252_to_bytes_le %}
 
     tempvar idx = 0;
     tempvar acc = 0;
@@ -505,7 +505,7 @@ func felt252_to_bytes{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     let acc = [ap - 5];
 
     if (idx == 31) {
-        with_attr error_message("felt252_to_bytes: bad output") {
+        with_attr error_message("felt252_to_bytes_le: bad output") {
             assert acc = value;
         }
         return ();
@@ -518,7 +518,70 @@ func felt252_to_bytes{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     tempvar value_masked = bitwise_ptr.x_and_y;
     let bitwise_ptr = bitwise_ptr + BitwiseBuiltin.SIZE;
 
-    with_attr error_message("felt252_to_bytes: bad output") {
+    with_attr error_message("felt252_to_bytes_le: bad output") {
+        assert acc = value_masked;
+    }
+
+    return ();
+}
+
+// @notice Splits a felt252 into `len` bytes, big-endian, and outputs to `dst`.
+// @dev Can only split up to 31 bytes included.
+// @dev Panics if the length is 0.
+func felt252_to_bytes_be{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
+    value: felt, len: felt, dst: felt*
+) {
+    alloc_locals;
+    if (len == 0) {
+        return ();
+    }
+    with_attr error_message("felt252_to_bytes_be: len must be < 32") {
+        assert [range_check_ptr] = 31 - len;
+        let range_check_ptr = range_check_ptr + 1;
+    }
+    let output = &dst[0];
+    let base = 256;
+    let bound = 256;
+    %{ felt252_to_bytes_be %}
+
+    tempvar idx = 0;
+    tempvar acc = 0;
+
+    loop:
+    let idx = [ap - 2];
+    let acc = [ap - 1];
+    let is_done = is_zero(len - idx);
+
+    static_assert idx == [ap - 6];
+    static_assert acc == [ap - 5];
+    jmp end if is_done != 0;
+
+    let pow256_idx = pow256(len - 1 - idx);
+    tempvar current_value = output[idx] * pow256_idx;
+
+    tempvar idx = idx + 1;
+    tempvar acc = acc + current_value;
+    jmp loop;
+
+    end:
+    let idx = [ap - 6];
+    let acc = [ap - 5];
+
+    if (idx == 31) {
+        with_attr error_message("felt252_to_bytes_be: bad output") {
+            assert acc = value;
+        }
+        return ();
+    }
+
+    // Case not full length of a felt: apply a mask on the value to verify
+    tempvar mask = pow256(idx) - 1;
+    assert bitwise_ptr.x = value;
+    assert bitwise_ptr.y = mask;
+    tempvar value_masked = bitwise_ptr.x_and_y;
+    let bitwise_ptr = bitwise_ptr + BitwiseBuiltin.SIZE;
+
+    with_attr error_message("felt252_to_bytes_be: bad output") {
         assert acc = value_masked;
     }
 

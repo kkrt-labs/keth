@@ -15,11 +15,11 @@ use cairo_vm::{
 
 use crate::vm::hints::Hint;
 
-pub const HINTS: &[fn() -> Hint] = &[felt252_to_bytes];
+pub const HINTS: &[fn() -> Hint] = &[felt252_to_bytes_le, felt252_to_bytes_be];
 
-pub fn felt252_to_bytes() -> Hint {
+pub fn felt252_to_bytes_le() -> Hint {
     Hint::new(
-        String::from("felt252_to_bytes"),
+        String::from("felt252_to_bytes_le"),
         |vm: &mut VirtualMachine,
          _exec_scopes: &mut ExecutionScopes,
          ids_data: &HashMap<String, HintReference>,
@@ -42,7 +42,46 @@ pub fn felt252_to_bytes() -> Hint {
                 let res_i = current_value.mod_floor(&base.try_into().unwrap());
                 if res_i >= bound {
                     return Err(HintError::CustomHint(Box::from(format!(
-                        "felt252_to_bytes: Limb {} is out of range.",
+                        "felt252_to_bytes_le: Limb {} is out of range.",
+                        res_i
+                    ))));
+                }
+                vm.insert_value((output_ptr + i)?, MaybeRelocatable::from(res_i))?;
+                current_value = current_value.floor_div(&base.try_into().unwrap());
+            }
+
+            Ok(())
+        },
+    )
+}
+
+pub fn felt252_to_bytes_be() -> Hint {
+    Hint::new(
+        String::from("felt252_to_bytes_be"),
+        |vm: &mut VirtualMachine,
+         _exec_scopes: &mut ExecutionScopes,
+         ids_data: &HashMap<String, HintReference>,
+         ap_tracking: &ApTracking,
+         _constants: &HashMap<String, Felt252>|
+         -> Result<(), HintError> {
+            // Get input values from Cairo
+            let value = get_integer_from_var_name("value", vm, ids_data, ap_tracking)?;
+            let len = get_integer_from_var_name("len", vm, ids_data, ap_tracking)?;
+            let base = get_integer_from_var_name("base", vm, ids_data, ap_tracking)?;
+            let bound = get_integer_from_var_name("bound", vm, ids_data, ap_tracking)?;
+            let output_ptr = get_ptr_from_var_name("output", vm, ids_data, ap_tracking)?;
+
+            let len: usize =
+                len.try_into().map_err(|_| MathError::Felt252ToUsizeConversion(Box::new(len)))?;
+
+            let mut current_value = value;
+
+            // Main difference is iterating in reverse order for big-endian
+            for i in (0..len).rev() {
+                let res_i = current_value.mod_floor(&base.try_into().unwrap());
+                if res_i >= bound {
+                    return Err(HintError::CustomHint(Box::from(format!(
+                        "felt252_to_bytes_be: Limb {} is out of range.",
                         res_i
                     ))));
                 }

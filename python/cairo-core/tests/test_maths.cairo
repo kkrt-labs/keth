@@ -1,5 +1,13 @@
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
-from cairo_core.maths import scalar_to_epns, sign, assert_uint256_le, pow2, pow256, felt252_to_bytes
+from cairo_core.maths import (
+    scalar_to_epns,
+    sign,
+    assert_uint256_le,
+    pow2,
+    pow256,
+    felt252_to_bytes_le,
+    felt252_to_bytes_be,
+)
 from starkware.cairo.common.uint256 import Uint256
 from starkware.cairo.common.alloc import alloc
 
@@ -44,13 +52,24 @@ func test__pow256{range_check_ptr}() -> felt {
     return res;
 }
 
-func test__felt252_to_bytes{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}() -> felt* {
+func test__felt252_to_bytes_le{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}() -> felt* {
     alloc_locals;
     let (dst) = alloc();
     tempvar value;
     tempvar len;
     %{ ids.value = program_input["value"] %}
     %{ ids.len = program_input["len"] %}
-    let res = felt252_to_bytes(value, len, dst);
+    let res = felt252_to_bytes_le(value, len, dst);
+    return dst;
+}
+
+func test__felt252_to_bytes_be{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}() -> felt* {
+    alloc_locals;
+    let (dst) = alloc();
+    tempvar value;
+    tempvar len;
+    %{ ids.value = program_input["value"] %}
+    %{ ids.len = program_input["len"] %}
+    let res = felt252_to_bytes_be(value, len, dst);
     return dst;
 }
