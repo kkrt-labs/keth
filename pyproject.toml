@@ -10,13 +10,13 @@ dependencies = [
   "cairo-ec",
   "cairo-core",
   "cairo-lang>=0.13.2",
-  "ethereum",
   "marshmallow-dataclass>=8.6.1",
   "python-dotenv>=1.0.1",
   "toml>=0.10.2",
   "web3>=7.2.0",
   "xxhash>=3.5.0",
   "garaga",
+  "ethereum",
 ]
 
 [tool.uv]
@@ -38,11 +38,11 @@ dev-dependencies = [
 ]
 
 [tool.uv.sources]
-ethereum = { git = "https://github.com/kkrt-labs/execution-specs.git", rev = "53fbc954b8e9e7dd86060814dfbf836791a22f4c" }
 garaga = { git = "https://github.com/keep-starknet-strange/garaga.git", rev = "hydra_upd" }
 cairo-addons = { workspace = true }
 cairo-ec = { workspace = true }
 cairo-core = { workspace = true }
+ethereum = { git = "https://github.com/ethereum/execution-specs.git" }
 
 [tool.uv.workspace]
 members = ["python/*"]
