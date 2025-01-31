@@ -1,8 +1,8 @@
-from ethereum_types.bytes import Bytes, BytesStruct, Bytes20, Bytes32
+from ethereum_types.bytes import Bytes, Bytes8, BytesStruct, Bytes20, Bytes32
 from ethereum_types.numeric import bool
 from ethereum.utils.numeric import is_zero
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.math import assert_not_equal
+from starkware.cairo.common.math import assert_not_equal, split_int
 from src.utils.bytes import (
     felt_to_bytes20_little,
     uint256_to_bytes_little,
@@ -69,5 +69,16 @@ func Bytes32_to_Bytes{range_check_ptr}(src: Bytes32) -> Bytes {
     uint256_to_bytes32_little(buffer, [src.value]);
 
     tempvar res = Bytes(new BytesStruct(data=buffer, len=32));
+    return res;
+}
+
+func Bytes8_to_Bytes{range_check_ptr}(src: Bytes8) -> Bytes {
+    alloc_locals;
+    let (buffer: felt*) = alloc();
+
+    // Split the felt into 8 bytes, little endian
+    split_int(src.value, 8, 256, 256, buffer);
+
+    tempvar res = Bytes(new BytesStruct(data=buffer, len=8));
     return res;
 }

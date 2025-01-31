@@ -416,12 +416,20 @@ dependencies = [
     { name = "garaga" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "hypothesis" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "cairo-addons", editable = "python/cairo-addons" },
     { name = "cairo-lang", specifier = ">=0.13.3" },
     { name = "garaga", git = "https://github.com/keep-starknet-strange/garaga.git?rev=hydra_upd" },
 ]
+
+[package.metadata.requires-dev]
+dev = [{ name = "hypothesis", specifier = ">=6.124.3" }]
 
 [[package]]
 name = "cairo-ec"
@@ -454,7 +462,7 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "cairo-lang", specifier = ">=0.13.0" },
-    { name = "ethereum", git = "https://github.com/kkrt-labs/execution-specs.git?rev=53fbc954b8e9e7dd86060814dfbf836791a22f4c" },
+    { name = "ethereum", git = "https://github.com/ethereum/execution-specs.git" },
     { name = "hypothesis", specifier = ">=6.124.3" },
     { name = "jupyter", specifier = ">=1.1.1" },
     { name = "pytest", specifier = ">=7.0" },
@@ -1039,7 +1047,7 @@ wheels = [
 [[package]]
 name = "ethereum"
 version = "0.1.0"
-source = { git = "https://github.com/kkrt-labs/execution-specs.git?rev=53fbc954b8e9e7dd86060814dfbf836791a22f4c#53fbc954b8e9e7dd86060814dfbf836791a22f4c" }
+source = { git = "https://github.com/ethereum/execution-specs.git#9923823367b5586228e590537d47aa9cc4c6a206" }
 dependencies = [
     { name = "coincurve" },
     { name = "ethereum-rlp" },
@@ -1716,7 +1724,7 @@ requires-dist = [
     { name = "cairo-core", editable = "python/cairo-core" },
     { name = "cairo-ec", editable = "python/cairo-ec" },
     { name = "cairo-lang", specifier = ">=0.13.2" },
-    { name = "ethereum", git = "https://github.com/kkrt-labs/execution-specs.git?rev=53fbc954b8e9e7dd86060814dfbf836791a22f4c" },
+    { name = "ethereum", git = "https://github.com/ethereum/execution-specs.git" },
     { name = "garaga", git = "https://github.com/keep-starknet-strange/garaga.git?rev=hydra_upd" },
     { name = "marshmallow-dataclass", specifier = ">=8.6.1" },
     { name = "python-dotenv", specifier = ">=1.0.1" },
