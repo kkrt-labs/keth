@@ -39,6 +39,6 @@ profile = "black"
 known_first_party = ["cairo_addons", "cairo_core"]
 
 [tool.uv.sources]
-ethereum = { git = "https://github.com/kkrt-labs/execution-specs.git", rev = "53fbc954b8e9e7dd86060814dfbf836791a22f4c" }
+ethereum = { git = "https://github.com/ethereum/execution-specs.git" }
 cairo-addons = { workspace = true }
 cairo-core = { workspace = true }
