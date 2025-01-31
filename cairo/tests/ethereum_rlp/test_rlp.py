@@ -1,11 +1,11 @@
 from typing import Sequence, Tuple, Union
 
 import pytest
-from ethereum_types.bytes import Bytes, Bytes0, Bytes32
+from ethereum_types.bytes import Bytes, Bytes0, Bytes8, Bytes32
 from ethereum_types.numeric import U64, U256, Uint
 from hypothesis import assume, given
 
-from ethereum.cancun.blocks import Log, Receipt, Withdrawal
+from ethereum.cancun.blocks import Header, Log, Receipt, Withdrawal
 from ethereum.cancun.fork_types import Account, Address, Bloom, encode_account
 from ethereum.cancun.transactions import (
     AccessListTransaction,
@@ -263,6 +263,14 @@ class TestRlp:
                 )
             )
             assert result == cairo_run("encode_blob_transaction_for_signing", tx)
+
+        @given(bytes8=...)
+        def test_encode_bytes8(self, cairo_run, bytes8: Bytes8):
+            assert encode(bytes8) == cairo_run("encode_bytes8", bytes8)
+
+        @given(header=...)
+        def test_encode_header(self, cairo_run, header: Header):
+            assert encode(header) == cairo_run("encode_header", header)
 
     class TestDecode:
         @given(raw_data=...)

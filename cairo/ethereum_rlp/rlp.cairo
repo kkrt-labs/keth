@@ -1,13 +1,14 @@
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin
 from starkware.cairo.common.math_cmp import is_le, is_not_zero
-from starkware.cairo.common.math import assert_not_zero
+from starkware.cairo.common.math import assert_not_zero, split_int
 from starkware.cairo.common.memcpy import memcpy
 
 from ethereum_types.numeric import Bool, U256, Uint, U64
 from ethereum_types.bytes import (
     Bytes,
     BytesStruct,
+    Bytes8,
     Bytes32,
     TupleBytes,
     String,
@@ -15,7 +16,7 @@ from ethereum_types.bytes import (
     TupleBytes32,
     TupleBytes32Struct,
 )
-from ethereum.cancun.blocks import Log, TupleLog, Receipt, Withdrawal
+from ethereum.cancun.blocks import Log, TupleLog, Receipt, Withdrawal, Header
 from ethereum.cancun.fork_types import Address, Account, Bloom
 from ethereum.cancun.transactions_types import (
     LegacyTransaction,
@@ -29,6 +30,7 @@ from ethereum.cancun.transactions_types import (
 )
 from ethereum.crypto.hash import keccak256, Hash32
 from ethereum.utils.numeric import is_zero
+from ethereum.utils.bytes import Bytes8_to_Bytes
 from src.utils.array import reverse
 from src.utils.bytes import (
     felt_to_bytes,
@@ -289,6 +291,14 @@ func encode_address{range_check_ptr}(address: Address) -> Bytes {
     alloc_locals;
     let (dst) = alloc();
     let len = _encode_address(dst, address);
+    tempvar result = Bytes(new BytesStruct(dst, len));
+    return result;
+}
+
+func encode_bytes8{range_check_ptr}(raw_bytes8: Bytes8) -> Bytes {
+    alloc_locals;
+    let (dst) = alloc();
+    let len = _encode_bytes8(dst, raw_bytes8);
     tempvar result = Bytes(new BytesStruct(dst, len));
     return result;
 }
@@ -1162,6 +1172,12 @@ func _encode_prefix_len{range_check_ptr}(dst: felt*, len: felt) -> felt {
     return 1 + len_be_len;
 }
 
+func _encode_bytes8{range_check_ptr}(dst: felt*, raw_bytes8: Bytes8) -> felt {
+    alloc_locals;
+    let bytes = Bytes8_to_Bytes(raw_bytes8);
+    return _encode_bytes(dst, bytes);
+}
+
 //
 // RLP Decode Helper Functions
 //
@@ -1416,6 +1432,83 @@ func encode_eip155_transaction_for_signing{range_check_ptr}(
 
     let zero_len = _encode_uint(body_ptr, 0);
     let body_ptr = body_ptr + zero_len;
+
+    // Calculate body length and encode prefix
+    let body_len = body_ptr - dst - PREFIX_LEN_MAX;
+    let body_ptr = dst + PREFIX_LEN_MAX;
+    let prefix_len = _encode_prefix_len(body_ptr, body_len);
+
+    tempvar result = Bytes(new BytesStruct(body_ptr - prefix_len, prefix_len + body_len));
+    return result;
+}
+
+func encode_header{range_check_ptr}(header: Header) -> Bytes {
+    alloc_locals;
+    let (local dst) = alloc();
+    let body_ptr = dst + PREFIX_LEN_MAX;  // Leave space for prefix
+
+    // Encode all fields as a sequence
+    let parent_hash_len = _encode_bytes32(body_ptr, header.value.parent_hash);
+    let body_ptr = body_ptr + parent_hash_len;
+
+    let ommers_hash_len = _encode_bytes32(body_ptr, header.value.ommers_hash);
+    let body_ptr = body_ptr + ommers_hash_len;
+
+    let coinbase_len = _encode_address(body_ptr, header.value.coinbase);
+    let body_ptr = body_ptr + coinbase_len;
+
+    let state_root_len = _encode_bytes32(body_ptr, header.value.state_root);
+    let body_ptr = body_ptr + state_root_len;
+
+    let transactions_root_len = _encode_bytes32(body_ptr, header.value.transactions_root);
+    let body_ptr = body_ptr + transactions_root_len;
+
+    let receipt_root_len = _encode_bytes32(body_ptr, header.value.receipt_root);
+    let body_ptr = body_ptr + receipt_root_len;
+
+    let bloom_len = _encode_bloom(body_ptr, header.value.bloom);
+    let body_ptr = body_ptr + bloom_len;
+
+    let difficulty_len = _encode_uint(body_ptr, header.value.difficulty.value);
+    let body_ptr = body_ptr + difficulty_len;
+
+    let number_len = _encode_uint(body_ptr, header.value.number.value);
+    let body_ptr = body_ptr + number_len;
+
+    let gas_limit_len = _encode_uint(body_ptr, header.value.gas_limit.value);
+    let body_ptr = body_ptr + gas_limit_len;
+
+    let gas_used_len = _encode_uint(body_ptr, header.value.gas_used.value);
+    let body_ptr = body_ptr + gas_used_len;
+
+    let timestamp_len = _encode_u256(body_ptr, header.value.timestamp);
+    let body_ptr = body_ptr + timestamp_len;
+
+    let extra_data_len = _encode_bytes(body_ptr, header.value.extra_data);
+    let body_ptr = body_ptr + extra_data_len;
+
+    let prev_randao_len = _encode_bytes32(body_ptr, header.value.prev_randao);
+    let body_ptr = body_ptr + prev_randao_len;
+
+    let nonce_len = _encode_bytes8(body_ptr, header.value.nonce);
+    let body_ptr = body_ptr + nonce_len;
+
+    let base_fee_per_gas_len = _encode_uint(body_ptr, header.value.base_fee_per_gas.value);
+    let body_ptr = body_ptr + base_fee_per_gas_len;
+
+    let withdrawals_root_len = _encode_bytes32(body_ptr, header.value.withdrawals_root);
+    let body_ptr = body_ptr + withdrawals_root_len;
+
+    let blob_gas_used_len = _encode_uint(body_ptr, header.value.blob_gas_used.value);
+    let body_ptr = body_ptr + blob_gas_used_len;
+
+    let excess_blob_gas_len = _encode_uint(body_ptr, header.value.excess_blob_gas.value);
+    let body_ptr = body_ptr + excess_blob_gas_len;
+
+    let parent_beacon_block_root_len = _encode_bytes32(
+        body_ptr, header.value.parent_beacon_block_root
+    );
+    let body_ptr = body_ptr + parent_beacon_block_root_len;
 
     // Calculate body length and encode prefix
     let body_len = body_ptr - dst - PREFIX_LEN_MAX;

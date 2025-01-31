@@ -1,4 +1,4 @@
-from ethereum_types.bytes import Bytes, Bytes20, Bytes32
+from ethereum_types.bytes import Bytes, Bytes8, Bytes20, Bytes32
 from hypothesis import given
 
 
@@ -14,3 +14,7 @@ class TestBytes:
     @given(a=...)
     def test_Bytes32_to_Bytes(self, cairo_run, a: Bytes32):
         assert cairo_run("Bytes32_to_Bytes", a) == Bytes(a)
+
+    @given(a=...)
+    def test_Bytes8_to_Bytes(self, cairo_run, a: Bytes8):
+        assert cairo_run("Bytes8_to_Bytes", a) == Bytes(a)
