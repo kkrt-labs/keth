@@ -81,6 +81,16 @@ struct TupleVersionedHash {
     value: TupleVersionedHashStruct*,
 }
 
+struct TupleAddressUintTupleVersionedHashStruct {
+    address: Address,
+    uint: Uint,
+    tuple_versioned_hash: TupleVersionedHash,
+}
+
+struct TupleAddressUintTupleVersionedHash {
+    value: TupleAddressUintTupleVersionedHashStruct*,
+}
+
 using Bloom = Bytes256;
 
 struct AccountStruct {

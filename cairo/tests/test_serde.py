@@ -213,6 +213,7 @@ class TestSerde:
             Bloom,
             VersionedHash,
             Tuple[VersionedHash, ...],
+            Tuple[Address, Uint, Tuple[VersionedHash, ...]],
             Union[Bytes0, Address],
             LegacyTransaction,
             AccessListTransaction,

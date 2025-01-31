@@ -1,6 +1,11 @@
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bool import TRUE, FALSE
-from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin, PoseidonBuiltin
+from starkware.cairo.common.cairo_builtins import (
+    BitwiseBuiltin,
+    KeccakBuiltin,
+    PoseidonBuiltin,
+    ModBuiltin,
+)
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.math import assert_not_zero, split_felt, assert_le_felt
 from starkware.cairo.common.math_cmp import is_le
@@ -8,7 +13,7 @@ from starkware.cairo.common.registers import get_fp_and_pc
 
 from ethereum_rlp.rlp import Extended, ExtendedImpl, encode_receipt_to_buffer
 from ethereum_types.bytes import Bytes, Bytes0, BytesStruct, TupleBytes32
-from ethereum_types.numeric import Uint, bool, U256, U256Struct
+from ethereum_types.numeric import Uint, bool, U256, U256Struct, U64
 from ethereum.cancun.blocks import Header, Receipt, ReceiptStruct, TupleLog, Log, TupleLogStruct
 from ethereum.cancun.bloom import logs_bloom
 from ethereum.cancun.fork_types import (
@@ -20,6 +25,11 @@ from ethereum.cancun.fork_types import (
     SetTupleAddressBytes32,
     SetTupleAddressBytes32Struct,
     SetTupleAddressBytes32DictAccess,
+    TupleAddressUintTupleVersionedHash,
+    TupleAddressUintTupleVersionedHashStruct,
+    TupleVersionedHash,
+    TupleVersionedHashStruct,
+    VersionedHash,
 )
 from ethereum.cancun.state import (
     account_exists_and_is_empty,
@@ -38,6 +48,8 @@ from ethereum.cancun.transactions_types import (
     TX_DATA_COST_PER_NON_ZERO,
     TX_DATA_COST_PER_ZERO,
     Transaction,
+    TransactionImpl,
+    TransactionType,
     TupleAccessList,
     To,
     ToStruct,
@@ -46,11 +58,25 @@ from ethereum.cancun.transactions import calculate_intrinsic_cost, validate_tran
 from ethereum.cancun.utils.message import prepare_message
 from ethereum.cancun.vm import Environment, EnvImpl
 from ethereum.cancun.vm.exceptions import EthereumException, InvalidBlock
-from ethereum.cancun.vm.gas import calculate_data_fee, init_code_cost
+from ethereum.cancun.vm.gas import (
+    calculate_data_fee,
+    init_code_cost,
+    calculate_total_blob_gas,
+    calculate_blob_gas_price,
+)
 from ethereum.cancun.vm.interpreter import process_message_call, MessageCallOutput
 from ethereum.crypto.hash import keccak256
 from ethereum.exceptions import OptionalEthereumException
-from ethereum.utils.numeric import divmod, min, U256_add, U256__eq__
+from ethereum.utils.numeric import (
+    divmod,
+    min,
+    U256_add,
+    U256__eq__,
+    U256_from_felt,
+    U256_le,
+    U256_to_Uint,
+)
+from ethereum.cancun.transactions import recover_sender
 
 from src.utils.array import count_not_zero
 from src.utils.dict import dict_new_empty, hashdict_write
@@ -61,6 +87,7 @@ const GAS_LIMIT_ADJUSTMENT_FACTOR = 1024;
 const GAS_LIMIT_MINIMUM = 5000;
 const EMPTY_OMMER_HASH_LOW = 0xd312451b948a7413f0a142fd40d49347;
 const EMPTY_OMMER_HASH_HIGH = 0x1dcc4de8dec75d7aab85b567b6ccd41a;
+const VERSIONED_HASH_VERSION_KZG = 0x01;
 
 func calculate_base_fee_per_gas{range_check_ptr}(
     block_gas_limit: Uint,
@@ -539,4 +566,152 @@ func process_storage_keys{
 
     // Process next key
     return process_storage_keys(storage_keys_data, len, index + 1, address);
+}
+
+func check_transaction{
+    range_check_ptr,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    state: State,
+}(
+    tx: Transaction,
+    gas_available: Uint,
+    chain_id: U64,
+    base_fee_per_gas: Uint,
+    excess_blob_gas: U64,
+) -> TupleAddressUintTupleVersionedHash {
+    alloc_locals;
+    let gas = TransactionImpl.get_gas(tx);
+    let tx_gas_within_bounds = is_le(gas.value, gas_available.value);
+    with_attr error_message("InvalidBlock") {
+        assert tx_gas_within_bounds = 1;
+    }
+    let sender_address = recover_sender(chain_id, tx);
+    let sender_account = get_account{state=state}(sender_address);
+    let transaction_type = TransactionImpl._get_transaction_type(tx);
+    let is_not_blob_or_fee_transaction = (TransactionType.BLOB - transaction_type) * (
+        TransactionType.FEE_MARKET - transaction_type
+    );
+    // Case where transaction is blob or fee transaction
+    if (is_not_blob_or_fee_transaction == FALSE) {
+        let max_fee_per_gas = TransactionImpl.get_max_fee_per_gas(tx);
+        let max_priority_fee_per_gas = TransactionImpl.get_max_priority_fee_per_gas(tx);
+        let max_fee_per_gas_valid = is_le(base_fee_per_gas.value, max_fee_per_gas.value);
+        let max_priority_fee_per_gas_valid = is_le(
+            max_priority_fee_per_gas.value, max_fee_per_gas.value
+        );
+        let is_coherent_fee = max_fee_per_gas_valid * max_priority_fee_per_gas_valid;
+        with_attr error_message("InvalidBlock") {
+            assert is_coherent_fee = 1;
+        }
+        let priority_fee_per_gas = min(
+            max_priority_fee_per_gas.value, max_fee_per_gas.value - base_fee_per_gas.value
+        );
+        tempvar effective_gas_price = Uint(base_fee_per_gas.value + priority_fee_per_gas);
+        tempvar max_gas_fee = Uint(gas.value * max_fee_per_gas.value);
+    } else {
+        let gas_price = TransactionImpl.get_gas_price(tx);
+        let gas_price_valid = is_le(base_fee_per_gas.value, gas_price.value);
+        with_attr error_message("InvalidBlock") {
+            assert gas_price_valid = 1;
+        }
+        tempvar effective_gas_price = gas_price;
+        tempvar max_gas_fee = Uint(gas.value * gas_price.value);
+    }
+    let effective_gas_price = effective_gas_price;
+    let max_gas_fee = max_gas_fee;
+    if (transaction_type == TransactionType.BLOB) {
+        let len = tx.value.blob_transaction.value.blob_versioned_hashes.value.len;
+        with_attr error_message("InvalidBlock") {
+            assert_not_zero(len);
+        }
+        // Check that each versioned hash has the correct version, i.e. that blob_versioned_hash[0:1] == VERSIONED_HASH_VERSION_KZG
+        // for each versioned_hash in blob_versioned_hashes
+        tempvar index = len;
+        tempvar range_check_ptr = range_check_ptr;
+
+        loop:
+        let index = [ap - 2];
+        let range_check_ptr = [ap - 1];
+        let versioned_hash = tx.value.blob_transaction.value.blob_versioned_hashes.value.data[
+            index - 1
+        ];
+        // Since versioned_hash are hash32 which are little endian, we need to check that the least significant byte is 0x01
+        let (first_byte, _) = divmod(versioned_hash.value.low, 2 ** 120);
+        with_attr error_message("InvalidBlock") {
+            assert first_byte = VERSIONED_HASH_VERSION_KZG;
+        }
+        tempvar index = index - 1;
+        tempvar range_check_ptr = range_check_ptr;
+
+        static_assert index == [ap - 2];
+        static_assert range_check_ptr == [ap - 1];
+
+        jmp loop if index != 0;
+
+        static_assert index == [ap - 2];
+        static_assert range_check_ptr == [ap - 1];
+
+        let blob_gas_price = calculate_blob_gas_price(excess_blob_gas);
+        let max_fee_per_blob_gas_u256 = tx.value.blob_transaction.value.max_fee_per_blob_gas;
+        let max_fee_per_blob_gas_uint = U256_to_Uint(max_fee_per_blob_gas_u256);
+        let blob_gas_price_valid = is_le(blob_gas_price.value, max_fee_per_blob_gas_uint.value);
+        with_attr error_message("InvalidBlock") {
+            assert blob_gas_price_valid = 1;
+        }
+        let total_blob_gas = calculate_total_blob_gas(tx);
+        tempvar max_gas_fee = Uint(
+            max_gas_fee.value + total_blob_gas.value * max_fee_per_blob_gas_uint.value
+        );
+        let blob_versioned_hashes = tx.value.blob_transaction.value.blob_versioned_hashes;
+        tempvar blob_versioned_hashes_ptr = blob_versioned_hashes.value;
+        tempvar range_check_ptr = range_check_ptr;
+        tempvar max_gas_fee_value = max_gas_fee.value;
+    } else {
+        let (empty_data: felt*) = alloc();
+        tempvar blob_versioned_hashes_ptr = new TupleVersionedHashStruct(
+            data=cast(empty_data, VersionedHash*), len=0
+        );
+        tempvar range_check_ptr = range_check_ptr;
+        tempvar max_gas_fee_value = max_gas_fee.value;
+    }
+    let blob_versioned_hashes = TupleVersionedHash(cast([ap - 3], TupleVersionedHashStruct*));
+    let range_check_ptr = [ap - 2];
+    let max_gas_fee = Uint([ap - 1]);
+    // Nonce check
+    let sender_account_nonce = sender_account.value.nonce;
+    let tx_nonce = TransactionImpl.get_nonce(tx);
+    let tx_nonce_uint = U256_to_Uint(tx_nonce);
+    with_attr error_message("InvalidBlock") {
+        assert tx_nonce_uint.value = sender_account_nonce.value;
+    }
+
+    // Balance check
+    let sender_account_balance = sender_account.value.balance;
+    let tx_value = TransactionImpl.get_value(tx);
+    let max_gas_fee_u256 = U256_from_felt(max_gas_fee.value);
+    let tx_total_spent = U256_add(tx_value, max_gas_fee_u256);
+    let is_sender_balance_enough = U256_le(tx_total_spent, sender_account_balance);
+    with_attr error_message("InvalidBlock") {
+        assert is_sender_balance_enough.value = 1;
+    }
+
+    // Empty code check for EOA
+    let sender_code = sender_account.value.code;
+    with_attr error_message("InvalidBlock") {
+        assert sender_code.value.len = 0;
+    }
+
+    tempvar res = TupleAddressUintTupleVersionedHash(
+        new TupleAddressUintTupleVersionedHashStruct(
+            address=sender_address,
+            uint=effective_gas_price,
+            tuple_versioned_hash=blob_versioned_hashes,
+        ),
+    );
+    return res;
 }
