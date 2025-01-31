@@ -10,7 +10,12 @@ dependencies = [
   "cairo-core",
   "cairo-lang>=0.13.3",
   "maturin>=1.8.1",
+  "click>=8.1.7",
 ]
+
+[project.scripts]
+compile_circuit = "scripts.compile_circuit:main"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
@@ -19,6 +24,7 @@ build-backend = "hatchling.build"
 include = [
   "src/**/*.cairo", # Include all .cairo files in src directory
 ]
+packages = ["src/cairo_ec", "scripts"]
 
 [tool.hatch.build]
 artifacts = [
