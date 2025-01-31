@@ -57,7 +57,19 @@ def setup_jinja_env():
     default=DEFAULT_PRIME,
     help="Prime number to use (can be decimal like 123 or hex like 0x7b)",
 )
-def main(file_path: Path | None, prime: int):
+@click.option(
+    "--function",
+    "-fn",
+    multiple=True,
+    help="Name of the function to compile. Can be specified multiple times. If not specified, all functions will be compiled.",
+)
+@click.option(
+    "--echo",
+    "-e",
+    is_flag=True,
+    help="echo the output to terminal instead of writing to a file",
+)
+def main(file_path: Path | None, prime: int, function: list[str], echo: bool):
     """Compile a Cairo file_path and extract its circuits."""
     if file_path is None:
         raise click.UsageError("File path is required (either as argument or with -f)")
@@ -71,38 +83,63 @@ def main(file_path: Path | None, prime: int):
 
     # Compile the Cairo file
     program = cairo_compile(file_path, proof_mode=False, prime=prime)
-    functions = [
-        k.path[-1]
+
+    # Get all functions or filter by provided names
+    available_functions = {
+        k.path[-1]: k.path[-1]
         for k, v in program.identifiers.as_dict().items()
         if isinstance(v, FunctionDefinition)
-    ]
-    if not functions:
+    }
+
+    if not available_functions:
         raise click.UsageError("No functions found in the file")
+
+    # If no functions specified, use all available ones
+    functions_to_compile = function or available_functions.keys()
+
+    # Validate requested functions exist
+    unknown_functions = set(functions_to_compile) - set(available_functions)
+    if unknown_functions:
+        raise click.UsageError(
+            f"Unknown functions: {', '.join(unknown_functions)}. "
+            f"Available functions are: {', '.join(available_functions)}"
+        )
 
     # Generate output code
     output_parts = [header_template.render()]
 
     # Process each function
-    for function in functions:
-        circuit = circuit_compile(program, function)
-        click.echo(f"Circuit {function}: {circuit}")
+    for function_name in functions_to_compile:
+        circuit = circuit_compile(program, function_name)
+        click.echo(f"Circuit {function_name}: {circuit}")
 
         # Render template with all necessary data
         circuit_code = circuit_template.render(
-            name=function,
-            args_struct=program.get_identifier(f"{function}.Args", StructDefinition),
+            name=function_name,
+            args_struct=program.get_identifier(
+                f"{function_name}.Args", StructDefinition
+            ),
             circuit=circuit,
         )
         output_parts.append(circuit_code)
 
-    # Write all circuits to output file
-    output_path = file_path.parent / f"{file_path.stem}_compiled.cairo"
-    output_path.write_text("\n\n".join(output_parts))
+    # Join all parts with double newlines
+    output = "\n\n".join(output_parts)
 
-    subprocess.run(
-        ["trunk", "fmt", str(output_path)], check=False, capture_output=True, text=True
-    )
-    click.echo(f"Generated circuit file: {output_path}")
+    if echo:
+        # echo to terminal
+        click.echo(output)
+    else:
+        # Write to file and format
+        output_path = file_path.parent / f"{file_path.stem}_compiled.cairo"
+        output_path.write_text(output)
+        subprocess.run(
+            ["trunk", "fmt", str(output_path)],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        click.echo(f"Generated circuit file: {output_path}")
 
 
 if __name__ == "__main__":
