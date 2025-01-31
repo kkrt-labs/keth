@@ -17,6 +17,7 @@ from pathlib import Path
 from time import perf_counter
 from typing import Optional, Union
 
+from starkware.cairo.lang.compiler.cairo_compile import DEFAULT_PRIME
 from starkware.cairo.lang.compiler.scoped_name import ScopedName
 
 from cairo_addons.compiler import cairo_compile, implement_hints
@@ -58,7 +59,12 @@ def get_main_path(cairo_file):
     )
 
 
-def get_cairo_program(cairo_file: Path, main_path, dump_path: Optional[Path] = None):
+def get_cairo_program(
+    cairo_file: Path,
+    main_path,
+    dump_path: Optional[Path] = None,
+    prime: int = DEFAULT_PRIME,
+):
     start = perf_counter()
     if dump_path is not None and dump_path.is_file():
         logger.info(f"Loading program from {dump_path}")
@@ -66,7 +72,9 @@ def get_cairo_program(cairo_file: Path, main_path, dump_path: Optional[Path] = N
             program = pickle.load(f)
     else:
         logger.info(f"Compiling {cairo_file}")
-        program = cairo_compile(str(cairo_file), debug_info=True, proof_mode=False)
+        program = cairo_compile(
+            str(cairo_file), debug_info=True, proof_mode=False, prime=prime
+        )
         if dump_path is not None:
             dump_path.parent.mkdir(parents=True, exist_ok=True)
             with dump_path.with_suffix(".lock").open("wb") as f:

@@ -439,6 +439,7 @@ dependencies = [
     { name = "cairo-addons" },
     { name = "cairo-core" },
     { name = "cairo-lang" },
+    { name = "click" },
     { name = "maturin" },
 ]
 
@@ -456,6 +457,7 @@ requires-dist = [
     { name = "cairo-addons", editable = "python/cairo-addons" },
     { name = "cairo-core", editable = "python/cairo-core" },
     { name = "cairo-lang", specifier = ">=0.13.3" },
+    { name = "click", specifier = ">=8.1.7" },
     { name = "maturin", specifier = ">=1.8.1" },
 ]
 
