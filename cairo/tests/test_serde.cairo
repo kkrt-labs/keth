@@ -30,6 +30,7 @@ from ethereum.cancun.blocks import (
     Log,
     TupleLog,
     Receipt,
+    ListBlock,
 )
 
 from ethereum.cancun.transactions_types import (
@@ -48,3 +49,4 @@ from ethereum.exceptions import EthereumException
 from ethereum.cancun.state import TransientStorage
 from ethereum.cancun.vm import Environment
 from ethereum.cancun.vm.interpreter import MessageCallOutput
+from ethereum.cancun.fork import BlockChain

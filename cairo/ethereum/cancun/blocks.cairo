@@ -2,7 +2,7 @@ from ethereum_types.numeric import U64, U256, Uint, bool
 from ethereum_types.bytes import Bytes, Bytes8, Bytes32, TupleBytes, TupleBytes32
 from ethereum.cancun.fork_types import Address, Bloom, Root
 from ethereum.crypto.hash import Hash32
-
+from ethereum.cancun.transactions_types import LegacyTransaction
 struct WithdrawalStruct {
     index: U64,
     validator_index: U64,
@@ -87,4 +87,42 @@ struct ReceiptStruct {
 
 struct Receipt {
     value: ReceiptStruct*,
+}
+
+struct UnionBytesLegacyTransactionEnum {
+    bytes: Bytes,
+    legacy: LegacyTransaction,
+}
+
+struct UnionBytesLegacyTransaction {
+    value: UnionBytesLegacyTransactionEnum*,
+}
+
+struct TupleUnionBytesLegacyTransactionStruct {
+    data: UnionBytesLegacyTransaction*,
+    len: felt,
+}
+
+struct TupleUnionBytesLegacyTransaction {
+    value: TupleUnionBytesLegacyTransactionStruct*,
+}
+
+struct BlockStruct {
+    header: Header,
+    transactions: TupleUnionBytesLegacyTransaction,
+    ommers: TupleHeader,
+    withdrawals: TupleWithdrawal,
+}
+
+struct Block {
+    value: BlockStruct*,
+}
+
+struct ListBlockStruct {
+    data: Block*,
+    len: felt,
+}
+
+struct ListBlock {
+    value: ListBlockStruct*,
 }

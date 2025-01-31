@@ -9,7 +9,8 @@ from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 from starkware.cairo.lang.vm.memory_dict import MemoryDict
 from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 
-from ethereum.cancun.blocks import Header, Log, Receipt, Withdrawal
+from ethereum.cancun.blocks import Block, Header, Log, Receipt, Withdrawal
+from ethereum.cancun.fork import BlockChain
 from ethereum.cancun.fork_types import Account, Address, Bloom, Root, VersionedHash
 from ethereum.cancun.state import State, TransientStorage
 from ethereum.cancun.transactions import (
@@ -261,6 +262,11 @@ class TestSerde:
             List[Tuple[U256, U256]],
             ExtendMemory,
             MessageCallOutput,
+            Union[Bytes, LegacyTransaction],
+            Tuple[Union[Bytes, LegacyTransaction], ...],
+            Block,
+            List[Block],
+            BlockChain,
         ],
     ):
         assume(no_empty_sequence(b))
