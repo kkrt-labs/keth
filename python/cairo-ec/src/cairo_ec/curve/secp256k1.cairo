@@ -374,8 +374,8 @@ func try_recover_public_key{
 // @notice Converts a public key point to the corresponding Ethereum address.
 // @param x The x coordinate of the public key point.
 // @param y The y coordinate of the public key point.
-// @return The Ethereum address.
-func public_key_point_to_eth_address{
+// @return The Ethereum address, interpreted as a 20-byte big-endian value.
+func public_key_point_to_eth_address_be{
     range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*
 }(x: Uint256, y: Uint256) -> felt {
     alloc_locals;

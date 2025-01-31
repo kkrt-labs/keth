@@ -11,7 +11,7 @@ from ethereum.cancun.fork_types import Address, Address_from_felt_be
 from cairo_ec.curve.secp256k1 import (
     try_recover_public_key,
     secp256k1,
-    public_key_point_to_eth_address as _public_key_point_to_eth_address,
+    public_key_point_to_eth_address_be,
 )
 from cairo_ec.uint384 import uint256_to_uint384, uint384_to_uint256
 from cairo_core.maths import assert_uint256_le
@@ -68,9 +68,7 @@ func secp256k1_recover_uint256_bigends{
 func public_key_point_to_eth_address{
     range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*
 }(x: U256, y: U256) -> Address {
-    let eth_address_felt = _public_key_point_to_eth_address(x=[x.value], y=[y.value]);
-
-    let eth_address = Address_from_felt_be(eth_address_felt);
-
+    let eth_address_felt_be = public_key_point_to_eth_address_be(x=[x.value], y=[y.value]);
+    let eth_address = Address_from_felt_be(eth_address_felt_be);
     return eth_address;
 }

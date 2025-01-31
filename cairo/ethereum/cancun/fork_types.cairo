@@ -184,9 +184,12 @@ func Account__eq__(a: OptionalAccount, b: OptionalAccount) -> bool {
     return code_eq;
 }
 
+// @notice Converts a 20-byte big-endian value into an Address.
+// @dev Panics if the value does not fit in 20 bytes.
 func Address_from_felt_be{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(value: felt) -> Address {
     let (high, low) = split_felt(value);
     tempvar value_u256 = U256(new U256Struct(low, high));
+    // The input being a 20-byte big-endian value, the output will be a 20-byte little-endian value.
     let address = U256_to_be_bytes20(value_u256);
     return address;
 }

@@ -18,7 +18,7 @@ from cairo_ec.uint384 import uint384_to_uint256, uint256_to_uint384
 from cairo_ec.curve.secp256k1 import (
     secp256k1,
     try_recover_public_key,
-    public_key_point_to_eth_address,
+    public_key_point_to_eth_address_be,
 )
 
 namespace Signature {
@@ -106,7 +106,7 @@ namespace Signature {
         assert_uint256_le(x_uint256, max_value);
         let y_uint256 = uint384_to_uint256(public_key_point.y);
         assert_uint256_le(y_uint256, max_value);
-        let address = public_key_point_to_eth_address(x=x_uint256, y=y_uint256);
+        let address = public_key_point_to_eth_address_be(x=x_uint256, y=y_uint256);
         return (success=success, address=address);
     }
 }
