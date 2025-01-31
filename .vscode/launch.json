@@ -11,6 +11,16 @@
       "program": "${file}",
       "console": "integratedTerminal",
       "justMyCode": false
+    },
+    {
+      "name": "Python Debugger: Compile Circuit",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/python/cairo-ec/scripts/compile_circuit.py",
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "cwd": "${workspaceFolder}",
+      "args": ["python/cairo-ec/src/cairo_ec/circuits.cairo"]
     }
   ]
 }
