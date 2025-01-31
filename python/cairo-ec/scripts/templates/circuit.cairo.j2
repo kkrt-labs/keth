@@ -1,4 +1,4 @@
-{%- set return_values = ["UInt384*"] * (return_data_size // 4) %}
+{%- set return_values = ["UInt384*"] * (circuit.return_data_size // 4) %}
 {%- set return_type = "" if not return_values else
     "-> " + (("(" if return_values|length > 1 else "") +
     return_values|join(", ") +
@@ -7,7 +7,7 @@
 {%- set return_data = "()" %}
 {%- if return_values %}
     {%- set return_exprs = [] %}
-    {%- for i in range(return_data_size // 4)|reverse %}
+    {%- for i in range(circuit.return_data_size // 4)|reverse %}
         {%- set offset = 4 * (i + 1) %}
         {%- set _ = return_exprs.append("cast(range_check96_ptr - " ~ offset ~ ", UInt384*)") %}
     {%- endfor %}

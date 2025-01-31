@@ -1,3 +1,4 @@
+import subprocess
 from pathlib import Path
 
 import click
@@ -29,17 +30,11 @@ class IntParamType(click.ParamType):
 INT = IntParamType()
 
 
-def format_return_value(i: int) -> str:
-    """Format a return value for the template."""
-    return f"cast(range_check96_ptr - {4 * (i + 1)}, UInt384*)"
-
-
 def setup_jinja_env():
     """Set up the Jinja environment with the templates directory."""
     templates_dir = Path(__file__).parent / "templates"
     templates_dir.mkdir(parents=True, exist_ok=True)
     env = Environment(loader=FileSystemLoader(templates_dir))
-    env.filters["format_return_value"] = format_return_value
     return env
 
 
@@ -96,7 +91,6 @@ def main(file_path: Path | None, prime: int):
         circuit_code = circuit_template.render(
             name=function,
             args_struct=program.get_identifier(f"{function}.Args", StructDefinition),
-            return_data_size=circuit["return_data_size"],
             circuit=circuit,
         )
         output_parts.append(circuit_code)
@@ -104,6 +98,10 @@ def main(file_path: Path | None, prime: int):
     # Write all circuits to output file
     output_path = file_path.parent / f"{file_path.stem}_compiled.cairo"
     output_path.write_text("\n\n".join(output_parts))
+
+    subprocess.run(
+        ["trunk", "fmt", str(output_path)], check=False, capture_output=True, text=True
+    )
     click.echo(f"Generated circuit file: {output_path}")
 
 
