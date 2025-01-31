@@ -129,7 +129,7 @@ namespace TransactionType {
 }
 
 namespace TransactionImpl {
-    func _get_transaction_type(tx: Transaction) -> felt {
+    func get_transaction_type(tx: Transaction) -> felt {
         if (cast(tx.value.legacy_transaction.value, felt) != 0) {
             return TransactionType.LEGACY;
         }
@@ -148,7 +148,7 @@ namespace TransactionImpl {
         }
     }
     func get_gas(tx: Transaction) -> Uint {
-        let tx_type = _get_transaction_type(tx);
+        let tx_type = get_transaction_type(tx);
         if (tx_type == TransactionType.LEGACY) {
             return tx.value.legacy_transaction.value.gas;
         }
@@ -168,7 +168,7 @@ namespace TransactionImpl {
         }
     }
     func get_r(tx: Transaction) -> U256 {
-        let tx_type = _get_transaction_type(tx);
+        let tx_type = get_transaction_type(tx);
         if (tx_type == TransactionType.LEGACY) {
             return tx.value.legacy_transaction.value.r;
         }
@@ -188,7 +188,7 @@ namespace TransactionImpl {
         }
     }
     func get_s(tx: Transaction) -> U256 {
-        let tx_type = _get_transaction_type(tx);
+        let tx_type = get_transaction_type(tx);
         if (tx_type == TransactionType.LEGACY) {
             return tx.value.legacy_transaction.value.s;
         }
@@ -208,7 +208,7 @@ namespace TransactionImpl {
         }
     }
     func get_max_fee_per_gas(tx: Transaction) -> Uint {
-        let tx_type = _get_transaction_type(tx);
+        let tx_type = get_transaction_type(tx);
         if (tx_type == TransactionType.FEE_MARKET) {
             return tx.value.fee_market_transaction.value.max_fee_per_gas;
         }
@@ -222,7 +222,7 @@ namespace TransactionImpl {
         }
     }
     func get_max_priority_fee_per_gas(tx: Transaction) -> Uint {
-        let tx_type = _get_transaction_type(tx);
+        let tx_type = get_transaction_type(tx);
         if (tx_type == TransactionType.FEE_MARKET) {
             return tx.value.fee_market_transaction.value.max_priority_fee_per_gas;
         }
@@ -236,7 +236,7 @@ namespace TransactionImpl {
         }
     }
     func get_gas_price(tx: Transaction) -> Uint {
-        let tx_type = _get_transaction_type(tx);
+        let tx_type = get_transaction_type(tx);
         if (tx_type == TransactionType.LEGACY) {
             return tx.value.legacy_transaction.value.gas_price;
         }
@@ -250,7 +250,7 @@ namespace TransactionImpl {
         }
     }
     func get_nonce(tx: Transaction) -> U256 {
-        let tx_type = _get_transaction_type(tx);
+        let tx_type = get_transaction_type(tx);
         if (tx_type == TransactionType.LEGACY) {
             return tx.value.legacy_transaction.value.nonce;
         }
@@ -270,7 +270,7 @@ namespace TransactionImpl {
         }
     }
     func get_value(tx: Transaction) -> U256 {
-        let tx_type = _get_transaction_type(tx);
+        let tx_type = get_transaction_type(tx);
         if (tx_type == TransactionType.LEGACY) {
             return tx.value.legacy_transaction.value.value;
         }

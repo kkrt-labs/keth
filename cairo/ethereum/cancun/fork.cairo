@@ -592,7 +592,7 @@ func check_transaction{
     }
     let sender_address = recover_sender(chain_id, tx);
     let sender_account = get_account{state=state}(sender_address);
-    let transaction_type = TransactionImpl._get_transaction_type(tx);
+    let transaction_type = TransactionImpl.get_transaction_type(tx);
     let is_not_blob_or_fee_transaction = (TransactionType.BLOB - transaction_type) * (
         TransactionType.FEE_MARKET - transaction_type
     );
