@@ -15,7 +15,11 @@ from starkware.cairo.common.alloc import alloc
 from cairo_core.maths import unsigned_div_rem, assert_uint256_le
 from cairo_ec.uint384 import uint384_to_uint256, uint256_to_uint384
 
-from cairo_ec.curve.secp256k1 import secp256k1, try_recover_public_key
+from cairo_ec.curve.secp256k1 import (
+    secp256k1,
+    try_recover_public_key,
+    public_key_point_to_eth_address_be,
+)
 
 namespace Signature {
     // Assert 1 <= x < N. Assumes valid Uint256.
@@ -73,25 +77,6 @@ namespace Signature {
         return ();
     }
 
-    // @notice Converts a public key point to the corresponding Ethereum address.
-    // @param x The x coordinate of the public key point.
-    // @param y The y coordinate of the public key point.
-    // @return The Ethereum address.
-    func public_key_point_to_eth_address{
-        range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*
-    }(x: Uint256, y: Uint256) -> felt {
-        alloc_locals;
-        let (local elements: Uint256*) = alloc();
-        assert elements[0] = x;
-        assert elements[1] = y;
-        let (point_hash: Uint256) = keccak_uint256s_bigend(n_elements=2, elements=elements);
-
-        // The Ethereum address is the 20 least significant bytes of the keccak of the public key.
-        let (_, high_low) = unsigned_div_rem(point_hash.high, 2 ** 32);
-        let eth_address = point_hash.low + RC_BOUND * high_low;
-        return eth_address;
-    }
-
     // @notice Recovers the Ethereum address from a signature.
     // @dev If the public key point is not on the curve, the function returns success=0.
     // @dev: This function does not validate the r, s values.
@@ -121,7 +106,7 @@ namespace Signature {
         assert_uint256_le(x_uint256, max_value);
         let y_uint256 = uint384_to_uint256(public_key_point.y);
         assert_uint256_le(y_uint256, max_value);
-        let address = public_key_point_to_eth_address(x=x_uint256, y=y_uint256);
+        let address = public_key_point_to_eth_address_be(x=x_uint256, y=y_uint256);
         return (success=success, address=address);
     }
 }

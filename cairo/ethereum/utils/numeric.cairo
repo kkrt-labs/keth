@@ -156,6 +156,25 @@ func U256__eq__(a: U256, b: U256) -> bool {
     return res;
 }
 
+// / Converts a 20-byte big-endian value into a U256 in little-endian representation.
+// / If the input is a 20-byte value in little-endian, then the output will be a U256 in big-endian.
+// / The algorithm works in steps:
+// / 1. Split the 20-byte value into high and low parts:
+// /    [b0, b1, ..., b19] -> high=[b0,...,b3], low=[b4,...,b19]
+// /
+// / 2. Reverse endianness of both parts using word_reverse_endian:
+// /    high: [b0,b1,b2,b3] -> [b3,b2,b1,b0]
+// /    low:  [b4,...,b19] -> [b19,...,b4]
+// /
+// / 3. Construct final U256 value:
+// /    - high field: first 4 bytes [b3,b2,b1,b0]
+// /    - low field: remaining 16 bytes [b19,...,b4]
+// /
+// / Example for input 0x0102...1314:
+// / Initial:     [01,02,...,13,14]
+// / Split:       high=[01,02,03,04], low=[05,...,13,14]
+// / Reversed:    high=[04,03,02,01], low=[14,13,...,05]
+// / Final U256:  high=0x04030201, low=0x14130C0B...0605
 func U256_from_be_bytes20{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(bytes20: Bytes20) -> U256 {
     // 1. Splits the 20-byte value into high and low parts
     let (bytes20_high, bytes20_low) = split_felt(bytes20.value);
@@ -167,6 +186,44 @@ func U256_from_be_bytes20{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(bytes20
     let (low_low, _) = divmod(rev_high, 2 ** 96);
     let low = low_low + remainder * 2 ** 32;
     tempvar res = U256(new U256Struct(low=low, high=high));
+    return res;
+}
+
+// / Converts a U256 in little-endian representation to a 20-byte value in big-endian format.
+// / If the input is a U256 in big-endian, then the output will be a 20-byte value in little-endian.
+// / The algorithm works in steps:
+// / 1. Verify the high field fits in 4 bytes (must be <= 2^32 - 1)
+// /
+// / 2. Reverse endianness of both fields:
+// /    high: [b3,b2,b1,b0] -> [b0,b1,b2,b3]
+// /    low:  [b19,...,b4] -> [b4,...,b19]
+// /
+// / 3. Combine into 20-byte big-endian result:
+// /    [b0,b1,b2,b3,b4,...,b19]
+// /
+// / Example for input U256{high: 0x04030201, low: 0x14130C0B...0605}:
+// / Initial:     high=[04,03,02,01], low=[14,13,...,05]
+// / Reversed:    high=[01,02,03,04], low=[05,...,13,14]
+// / Combined:    [01,02,...,13,14]
+// /
+// / Panics with "OverflowError" if high field > 2^32 - 1
+func U256_to_be_bytes20{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(value: U256) -> Bytes20 {
+    let high = value.value.high;
+    let is_within_bounds = is_le(high, 2 ** 32 - 1);
+    with_attr error_message("OverflowError") {
+        assert is_within_bounds = 1;
+    }
+    let (high_reversed) = word_reverse_endian(high);
+    let (low_reversed) = word_reverse_endian(value.value.low);
+    let (high_reversed_shifted, _) = divmod(high_reversed, 2 ** 96);
+    let res_felt = high_reversed_shifted + low_reversed * 2 ** 32;
+    tempvar res = Bytes20(res_felt);
+    return res;
+}
+
+func U256_from_felt{range_check_ptr}(value: felt) -> U256 {
+    let (high, low) = split_felt(value);
+    tempvar res = U256(new U256Struct(low, high));
     return res;
 }
 

@@ -7,11 +7,14 @@ from starkware.cairo.common.cairo_builtins import (
 )
 from starkware.cairo.common.uint256 import Uint256, uint256_reverse_endian
 from ethereum_types.bytes import Bytes, Bytes32, BytesStruct
-from cairo_ec.curve.secp256k1 import try_recover_public_key, secp256k1
+from ethereum.cancun.fork_types import Address, Address_from_felt_be
+from cairo_ec.curve.secp256k1 import (
+    try_recover_public_key,
+    secp256k1,
+    public_key_point_to_eth_address_be,
+)
 from cairo_ec.uint384 import uint256_to_uint384, uint384_to_uint256
 from cairo_core.maths import assert_uint256_le
-from ethereum.utils.numeric import U256_to_be_bytes
-from ethereum.utils.bytes import Bytes32_to_Bytes
 from ethereum_types.numeric import U256, U256Struct
 from ethereum.crypto.hash import Hash32
 
@@ -60,4 +63,12 @@ func secp256k1_recover_uint256_bigends{
     tempvar x = U256(new U256Struct(x_uint256.low, x_uint256.high));
     tempvar y = U256(new U256Struct(y_uint256.low, y_uint256.high));
     return (x=x, y=y);
+}
+
+func public_key_point_to_eth_address{
+    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*
+}(x: U256, y: U256) -> Address {
+    let eth_address_felt_be = public_key_point_to_eth_address_be(x=[x.value], y=[y.value]);
+    let eth_address = Address_from_felt_be(eth_address_felt_be);
+    return eth_address;
 }

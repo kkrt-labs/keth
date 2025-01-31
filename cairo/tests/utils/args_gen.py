@@ -405,6 +405,20 @@ vm_exception_mappings = {
     for name, cls in vm_exception_classes
 }
 
+ethereum_exception_classes = inspect.getmembers(
+    sys.modules["ethereum.exceptions"],
+    lambda x: inspect.isclass(x) and issubclass(x, EthereumException),
+)
+
+ethereum_exception_mappings = {
+    (
+        "ethereum",
+        "exceptions",
+        f"{name}",
+    ): cls
+    for name, cls in ethereum_exception_classes
+}
+
 _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum_types", "others", "None"): type(None),
     ("ethereum_types", "numeric", "bool"): bool,
@@ -547,6 +561,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "cancun", "vm", "gas", "ExtendMemory"): ExtendMemory,
     ("ethereum", "cancun", "vm", "interpreter", "MessageCallOutput"): MessageCallOutput,
     **vm_exception_mappings,
+    **ethereum_exception_mappings,
     # For tests only
     ("tests", "src", "utils", "test_dict", "MappingUintUint"): Mapping[Uint, Uint],
 }

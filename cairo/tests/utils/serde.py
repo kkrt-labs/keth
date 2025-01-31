@@ -80,6 +80,7 @@ from tests.utils.args_gen import (
     Memory,
     MutableBloom,
     Stack,
+    ethereum_exception_classes,
     to_python_type,
     vm_exception_classes,
 )
@@ -348,7 +349,12 @@ class Serde(SerdeProtocol):
             error_bytes = error_value.to_bytes(32, "big")
             ascii_value = error_bytes.decode().strip("\x00")
             actual_error_cls = next(
-                (cls for name, cls in vm_exception_classes if name == ascii_value), None
+                (
+                    cls
+                    for name, cls in vm_exception_classes + ethereum_exception_classes
+                    if name == ascii_value
+                ),
+                None,
             )
             if actual_error_cls is InvalidOpcode:
                 return actual_error_cls(

@@ -1,10 +1,12 @@
 from starkware.cairo.common.alloc import alloc
-
+from starkware.cairo.common.math import split_felt
+from starkware.cairo.common.registers import get_fp_and_pc
+from starkware.cairo.common.bitwise import BitwiseBuiltin
 from ethereum_types.bytes import Bytes20, Bytes32, Bytes256, Bytes, BytesStruct, HashedBytes32
 from ethereum.utils.bytes import Bytes__eq__
 from ethereum_types.numeric import Uint, U256, U256Struct, bool
 from ethereum.crypto.hash import Hash32
-from ethereum.utils.numeric import is_zero
+from ethereum.utils.numeric import is_zero, U256_to_be_bytes20
 
 using Address = Bytes20;
 
@@ -180,4 +182,14 @@ func Account__eq__(a: OptionalAccount, b: OptionalAccount) -> bool {
     let code_eq = Bytes__eq__(a.value.code, b.value.code);
 
     return code_eq;
+}
+
+// @notice Converts a 20-byte big-endian value into an Address.
+// @dev Panics if the value does not fit in 20 bytes.
+func Address_from_felt_be{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(value: felt) -> Address {
+    let (high, low) = split_felt(value);
+    tempvar value_u256 = U256(new U256Struct(low, high));
+    // The input being a 20-byte big-endian value, the output will be a 20-byte little-endian value.
+    let address = U256_to_be_bytes20(value_u256);
+    return address;
 }
