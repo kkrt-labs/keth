@@ -34,6 +34,9 @@ struct Bytes0 {
 struct Bytes1 {
     value: felt,
 }
+struct Bytes4 {
+    value: felt,
+}
 struct Bytes8 {
     value: felt,
 }
@@ -145,4 +148,13 @@ struct Bytes1DictAccess {
     key: felt,
     prev_value: Bytes1,
     new_value: Bytes1,
+}
+
+struct ListBytes4Struct {
+    data: Bytes4*,
+    len: felt,
+}
+
+struct ListBytes4 {
+    value: ListBytes4Struct*,
 }

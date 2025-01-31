@@ -8,9 +8,10 @@ from ethereum.exceptions import EthereumException
 from ethereum.cancun.vm.exceptions import StackUnderflowError
 from ethereum.cancun.vm.gas import charge_gas, GasConstants
 from ethereum_types.numeric import Uint, U256, U256Struct
-from ethereum.utils.numeric import is_zero
 from ethereum.cancun.vm.memory import buffer_read
 from src.utils.utils import Helpers
+
+from cairo_core.comparison import is_zero
 
 // @notice Pushes a value to the stack
 func push_n{range_check_ptr, evm: Evm}(num_bytes: Uint) -> EthereumException* {

@@ -12,7 +12,7 @@ from starkware.cairo.common.memcpy import memcpy
 from src.utils.bytes import uint256_to_bytes32_little
 from src.utils.dict import hashdict_read, hashdict_write, dict_new_empty
 from ethereum.crypto.hash import keccak256
-from ethereum.utils.numeric import min, is_zero
+from ethereum.utils.numeric import min
 from ethereum_rlp.rlp import encode, _encode_bytes, _encode
 from ethereum.utils.numeric import U256__eq__
 from ethereum_types.numeric import U256, Uint, bool, U256Struct
@@ -56,8 +56,9 @@ from ethereum_rlp.rlp import (
     encode_uint,
     encode_u256,
 )
-
 from ethereum.utils.numeric import divmod
+
+from cairo_core.comparison import is_zero
 
 struct LeafNodeStruct {
     rest_of_key: Bytes,

@@ -77,6 +77,7 @@ from ethereum_types.bytes import (
     Bytes,
     Bytes0,
     Bytes1,
+    Bytes4,
     Bytes8,
     Bytes20,
     Bytes32,
@@ -430,6 +431,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum_types", "numeric", "UnionUintU256"): Union[Uint, U256],
     ("ethereum_types", "bytes", "Bytes0"): Bytes0,
     ("ethereum_types", "bytes", "Bytes1"): Bytes1,
+    ("ethereum_types", "bytes", "Bytes4"): Bytes4,
     ("ethereum_types", "bytes", "Bytes8"): Bytes8,
     ("ethereum_types", "bytes", "Bytes20"): Bytes20,
     ("ethereum_types", "bytes", "Bytes32"): Bytes32,
@@ -442,6 +444,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum_types", "bytes", "TupleMappingBytesBytes"): Tuple[
         Mapping[Bytes, Bytes], ...
     ],
+    ("ethereum_types", "bytes", "ListBytes4"): List[Bytes4],
     ("ethereum", "cancun", "blocks", "Header"): Header,
     ("ethereum", "cancun", "blocks", "TupleHeader"): Tuple[Header, ...],
     ("ethereum", "cancun", "blocks", "Withdrawal"): Withdrawal,
@@ -838,7 +841,7 @@ def _gen_arg(
         segments.load_data(struct_ptr, [bytes_ptr, len(arg)])
         return struct_ptr
 
-    if arg_type in (int, bool, U64, Uint, Bytes0, Bytes8, Bytes20):
+    if arg_type in (int, bool, U64, Uint, Bytes0, Bytes4, Bytes8, Bytes20):
         if arg_type is int and arg < 0:
             ret_value = arg + DEFAULT_PRIME
             return tuple([ret_value]) if hash_mode else ret_value

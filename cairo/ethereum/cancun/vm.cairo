@@ -22,7 +22,7 @@ from ethereum.cancun.transactions_types import To
 from ethereum.cancun.vm.stack import Stack
 from ethereum.cancun.state import account_exists_and_is_empty
 from ethereum.cancun.vm.memory import Memory
-from ethereum.utils.numeric import is_zero
+from cairo_core.comparison import is_zero
 from starkware.cairo.common.memcpy import memcpy
 from src.utils.dict import (
     hashdict_write,

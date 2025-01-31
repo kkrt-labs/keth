@@ -1,5 +1,5 @@
 from ethereum_types.numeric import U256, Uint, U64, U256Struct
-from ethereum.utils.numeric import is_zero, divmod, taylor_exponential, min, ceil32
+from ethereum.utils.numeric import divmod, taylor_exponential, min, ceil32
 from ethereum_types.bytes import BytesStruct
 from ethereum.cancun.blocks import Header
 from ethereum.cancun.transactions_types import Transaction
@@ -15,6 +15,8 @@ from starkware.cairo.common.uint256 import ALL_ONES, uint256_eq, uint256_le
 
 from src.utils.uint256 import uint256_add
 from src.constants import Constants
+
+from cairo_core.comparison import is_zero
 
 namespace GasConstants {
     const GAS_JUMPDEST = 1;

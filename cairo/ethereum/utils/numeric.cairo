@@ -41,15 +41,6 @@ func max{range_check_ptr}(a: felt, b: felt) -> felt {
     return b;
 }
 
-@known_ap_change
-func is_zero(value) -> felt {
-    if (value == 0) {
-        return 1;
-    }
-
-    return 0;
-}
-
 // @dev Inlined version of unsigned_div_rem
 // Returns q and r such that:
 //  0 <= q < rc_bound, 0 <= r < div and value = q * div + r.

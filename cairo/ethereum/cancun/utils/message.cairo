@@ -12,7 +12,7 @@ from ethereum_types.numeric import U256, Uint, bool
 from ethereum.cancun.state import get_account, State, StateStruct
 from ethereum.cancun.utils.address import compute_contract_address
 from ethereum.cancun.transactions import To
-from ethereum.utils.numeric import is_zero
+from cairo_core.comparison import is_zero
 
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin, PoseidonBuiltin

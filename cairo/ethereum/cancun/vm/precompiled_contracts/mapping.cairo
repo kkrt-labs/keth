@@ -1,10 +1,11 @@
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin, PoseidonBuiltin
 from starkware.cairo.common.registers import get_label_location
 from starkware.cairo.common.math_cmp import is_le_felt
-from ethereum.cancun.vm import Evm
 from starkware.cairo.common.math import split_felt
+from ethereum.cancun.vm import Evm
 from ethereum.utils.numeric import divmod
 from ethereum.cancun.vm.precompiled_contracts.identity import identity
+from ethereum.cancun.vm.precompiled_contracts.sha256 import sha256
 
 // currently 10 precompiles.
 const N_PRECOMPILES = 10;
@@ -74,7 +75,7 @@ func precompile_table_lookup{range_check_ptr}(address: felt) -> (felt, felt) {
     dw 0x100000000000000000000000000000000000000;
     call invalid_precompile;  // ECRECOVER
     dw 0x200000000000000000000000000000000000000;
-    call invalid_precompile;  // SHA256
+    call sha256;  // SHA256
     dw 0x300000000000000000000000000000000000000;
     call invalid_precompile;  // RIPEMD160
     dw 0x400000000000000000000000000000000000000;

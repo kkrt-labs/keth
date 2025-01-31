@@ -17,7 +17,7 @@ use cairo_vm::{
 use std::{collections::HashMap, fmt, rc::Rc};
 
 use super::{
-    hint_definitions::{BYTES_HINTS, DICT_HINTS, HASHDICT_HINTS, UTILS_HINTS},
+    hint_definitions::{BYTES_HINTS, DICT_HINTS, HASHDICT_HINTS, MATHS_HINTS, UTILS_HINTS},
     hint_loader::load_python_hints,
 };
 
@@ -90,6 +90,7 @@ impl Default for HintProcessor {
         hints.extend_from_slice(HASHDICT_HINTS);
         hints.extend_from_slice(UTILS_HINTS);
         hints.extend_from_slice(BYTES_HINTS);
+        hints.extend_from_slice(MATHS_HINTS);
         Self::new(RunResources::default()).with_hints(hints)
     }
 }
