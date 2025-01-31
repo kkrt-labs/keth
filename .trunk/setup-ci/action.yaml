@@ -1,0 +1,25 @@
+name: Trunk Code Quality setup
+description: Set up dependencies for Trunk Code Quality
+
+runs:
+  using: composite
+  steps:
+    - run: rustup update
+      shell: bash
+
+    - name: Rust cache
+      uses: Swatinem/rust-cache@v2
+      with:
+        cache-on-failure: "true"
+
+    - name: Set up Python 3.10.14
+      uses: actions/setup-python@v5
+      with:
+        python-version: 3.10.14
+        cache: pip
+
+    - run: pip install cairo-lang==0.13.2 sympy==1.11.1
+      shell: bash
+
+    - name: Install Foundry
+      uses: foundry-rs/foundry-toolchain@v1
