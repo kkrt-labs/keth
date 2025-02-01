@@ -183,7 +183,7 @@ namespace TransactionImpl {
         }
         with_attr error_message("InvalidTransaction") {
             assert 0 = 1;
-            let res = U256(new U256Struct(0, 0));
+            tempvar res = U256(new U256Struct(0, 0));
             return res;
         }
     }
@@ -203,7 +203,7 @@ namespace TransactionImpl {
         }
         with_attr error_message("InvalidTransaction") {
             assert 0 = 1;
-            let res = U256(new U256Struct(0, 0));
+            tempvar res = U256(new U256Struct(0, 0));
             return res;
         }
     }
