@@ -629,33 +629,12 @@ func check_transaction{
         with_attr error_message("InvalidBlock") {
             assert_not_zero(len);
         }
-        // Check that each versioned hash has the correct version, i.e. that blob_versioned_hash[0:1] == VERSIONED_HASH_VERSION_KZG
-        // for each versioned_hash in blob_versioned_hashes
-        tempvar index = len;
-        tempvar range_check_ptr = range_check_ptr;
 
-        loop:
-        let index = [ap - 2];
-        let range_check_ptr = [ap - 1];
-        let versioned_hash = tx.value.blob_transaction.value.blob_versioned_hashes.value.data[
-            index - 1
-        ];
-        // Since versioned_hash are hash32 which are little endian, we need to check that the least significant byte is 0x01
-        let (first_byte, _) = divmod(versioned_hash.value.low, 2 ** 120);
-        with_attr error_message("InvalidBlock") {
-            assert first_byte = VERSIONED_HASH_VERSION_KZG;
-        }
-        tempvar index = index - 1;
-        tempvar range_check_ptr = range_check_ptr;
+        _check_versioned_hashes_version{range_check_ptr=range_check_ptr}(
+            tx.value.blob_transaction.value.blob_versioned_hashes.value.data, len
+        );
 
-        static_assert index == [ap - 2];
-        static_assert range_check_ptr == [ap - 1];
-
-        jmp loop if index != 0;
-
-        static_assert index == [ap - 2];
-        static_assert range_check_ptr == [ap - 1];
-
+        // Check blob gas price is valid
         let blob_gas_price = calculate_blob_gas_price(excess_blob_gas);
         let max_fee_per_blob_gas_u256 = tx.value.blob_transaction.value.max_fee_per_blob_gas;
         let max_fee_per_blob_gas_uint = U256_to_Uint(max_fee_per_blob_gas_u256);
@@ -663,10 +642,16 @@ func check_transaction{
         with_attr error_message("InvalidBlock") {
             assert blob_gas_price_valid = 1;
         }
+
+        // Compute total blob gas
         let total_blob_gas = calculate_total_blob_gas(tx);
+
+        // Increment max gas fee by the blob gas fee
         tempvar max_gas_fee = Uint(
             max_gas_fee.value + total_blob_gas.value * max_fee_per_blob_gas_uint.value
         );
+
+        // Rebind values
         let blob_versioned_hashes = tx.value.blob_transaction.value.blob_versioned_hashes;
         tempvar blob_versioned_hashes_ptr = blob_versioned_hashes.value;
         tempvar range_check_ptr = range_check_ptr;
@@ -682,6 +667,7 @@ func check_transaction{
     let blob_versioned_hashes = TupleVersionedHash(cast([ap - 3], TupleVersionedHashStruct*));
     let range_check_ptr = [ap - 2];
     let max_gas_fee = Uint([ap - 1]);
+
     // Nonce check
     let sender_account_nonce = sender_account.value.nonce;
     let tx_nonce = TransactionImpl.get_nonce(tx);
@@ -714,4 +700,35 @@ func check_transaction{
         ),
     );
     return res;
+}
+
+func _check_versioned_hashes_version{range_check_ptr}(
+    versioned_hashes: VersionedHash*, index: felt
+) {
+    // Check that each versioned hash has the correct version, i.e. that blob_versioned_hash[0:1] == VERSIONED_HASH_VERSION_KZG
+    // for each versioned_hash in blob_versioned_hashes
+    tempvar index = index;
+    tempvar range_check_ptr = range_check_ptr;
+
+    loop:
+    let index = [ap - 2];
+    let range_check_ptr = [ap - 1];
+    let versioned_hash = versioned_hashes[index - 1];
+    // Since versioned_hash are hash32 which are little endian, we need to check that the least significant byte is 0x01
+    let (first_byte, _) = divmod(versioned_hash.value.low, 2 ** 120);
+    with_attr error_message("InvalidBlock") {
+        assert first_byte = VERSIONED_HASH_VERSION_KZG;
+    }
+    tempvar index = index - 1;
+    tempvar range_check_ptr = range_check_ptr;
+
+    static_assert index == [ap - 2];
+    static_assert range_check_ptr == [ap - 1];
+
+    jmp loop if index != 0;
+
+    static_assert index == [ap - 2];
+    static_assert range_check_ptr == [ap - 1];
+
+    return ();
 }
