@@ -3,6 +3,7 @@ from hypothesis import assume, given
 from hypothesis import strategies as st
 from sympy.core.numbers import mod_inverse
 
+from cairo_addons.testing.utils import flatten
 from cairo_addons.utils.uint384 import int_to_uint384, uint384_to_int
 from cairo_ec.compiler import circuit_compile
 
@@ -233,6 +234,45 @@ class TestCircuits:
             uint384_to_int(
                 **cairo_run(
                     "sum_ratio_compiled",
+                    **{k: int_to_uint384(v) for k, v in inputs.items()},
+                    p=int_to_uint384(prime),
+                )
+            )
+            % prime
+        )
+        assert (
+            cairo_output == circuit_output == compiled_circuit_output == expected_output
+        )
+
+    @given(data=st.data())
+    def test_inv(self, cairo_program, cairo_run, prime, data):
+        inputs = {
+            "x": data.draw(st.integers(min_value=1, max_value=prime - 1)),
+        }
+        compiled_circuit = circuit_compile(cairo_program, "inv")
+        values_ptr = flatten(
+            compiled_circuit["constants"]
+            + [limb for v in inputs.values() for limb in int_to_uint384(v)]
+        )
+
+        expected_output = mod_inverse(inputs["x"], prime)
+        cairo_output = cairo_run("inv", **inputs) % prime
+        circuit_output = (
+            uint384_to_int(
+                *cairo_run(
+                    "test__circuit",
+                    values_ptr=values_ptr,
+                    values_ptr_len=len(values_ptr),
+                    p=int_to_uint384(prime),
+                    **compiled_circuit,
+                )[-compiled_circuit["return_data_size"] :]
+            )
+            % prime
+        )
+        compiled_circuit_output = (
+            uint384_to_int(
+                **cairo_run(
+                    "inv_compiled",
                     **{k: int_to_uint384(v) for k, v in inputs.items()},
                     p=int_to_uint384(prime),
                 )

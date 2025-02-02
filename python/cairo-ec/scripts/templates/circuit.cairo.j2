@@ -15,7 +15,7 @@
 {%- endif %}
 
 func {{name}}{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
-    {%- for member_name in args_struct.members -%}
+    {%- for member_name in circuit.args -%}
     {{ member_name }}: UInt384*{{ ", " if not loop.last else "" }}
     {%- endfor -%}, p: UInt384*
 ) {{return_type}} {
@@ -25,12 +25,21 @@ func {{name}}{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: M
     let add_offsets_ptr = pc + (add_offsets - pc_label);
     let mul_offsets_ptr = pc + (mul_offsets - pc_label);
 
-    {%- for member_name in args_struct.members %}
-    assert [range_check96_ptr + {{loop.index0 * 4}}] = {{member_name}}.d0;
-    assert [range_check96_ptr + {{loop.index0 * 4 + 1}}] = {{member_name}}.d1;
-    assert [range_check96_ptr + {{loop.index0 * 4 + 2}}] = {{member_name}}.d2;
-    assert [range_check96_ptr + {{loop.index0 * 4 + 3}}] = {{member_name}}.d3;
-    {% endfor %}
+    {# First iterate over constants #}
+    {%- for value in circuit.constants %}
+    assert [range_check96_ptr + {{loop.index0 * 4}}] = {{value[0]}};
+    assert [range_check96_ptr + {{loop.index0 * 4 + 1}}] = {{value[1]}};
+    assert [range_check96_ptr + {{loop.index0 * 4 + 2}}] = {{value[2]}};
+    assert [range_check96_ptr + {{loop.index0 * 4 + 3}}] = {{value[3]}};
+    {%- endfor %}
+
+    {# Then iterate over arguments #}
+    {%- for member_name in circuit.args %}
+    assert [range_check96_ptr + {{(circuit.constants|length + loop.index0) * 4}}] = {{member_name}}.d0;
+    assert [range_check96_ptr + {{(circuit.constants|length + loop.index0) * 4 + 1}}] = {{member_name}}.d1;
+    assert [range_check96_ptr + {{(circuit.constants|length + loop.index0) * 4 + 2}}] = {{member_name}}.d2;
+    assert [range_check96_ptr + {{(circuit.constants|length + loop.index0) * 4 + 3}}] = {{member_name}}.d3;
+    {%- endfor %}
 
     {%- if circuit.add_mod_n > 0 %}
     assert add_mod_ptr[0] = ModBuiltin(

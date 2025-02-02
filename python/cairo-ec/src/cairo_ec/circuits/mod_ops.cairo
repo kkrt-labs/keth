@@ -33,3 +33,9 @@ func sum_ratio(x: felt, y: felt) -> felt {
 
     end:
 }
+
+func inv(x: felt) -> felt {
+    return 1 / x;
+
+    end:
+}

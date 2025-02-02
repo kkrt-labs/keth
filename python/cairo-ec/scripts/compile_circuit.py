@@ -38,10 +38,7 @@ from pathlib import Path
 import click
 from jinja2 import Environment, FileSystemLoader
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
-from starkware.cairo.lang.compiler.identifier_definition import (
-    FunctionDefinition,
-    StructDefinition,
-)
+from starkware.cairo.lang.compiler.identifier_definition import FunctionDefinition
 
 from cairo_addons.compiler import cairo_compile
 from cairo_ec.compiler import circuit_compile
@@ -148,13 +145,7 @@ def main(file_path: Path | None, prime: int, function: list[str], echo: bool):
         click.echo(f"Circuit {function_name}: {circuit}")
 
         # Render template with all necessary data
-        circuit_code = circuit_template.render(
-            name=function_name,
-            args_struct=program.get_identifier(
-                f"{function_name}.Args", StructDefinition
-            ),
-            circuit=circuit,
-        )
+        circuit_code = circuit_template.render(name=function_name, circuit=circuit)
         output_parts.append(circuit_code)
 
     # Join all parts with double newlines

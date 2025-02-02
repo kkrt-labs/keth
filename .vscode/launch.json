@@ -20,7 +20,7 @@
       "console": "integratedTerminal",
       "justMyCode": false,
       "cwd": "${workspaceFolder}",
-      "args": ["python/cairo-ec/src/cairo_ec/circuits.cairo"]
+      "args": ["python/cairo-ec/src/cairo_ec/circuits/ec_ops.cairo"]
     }
   ]
 }

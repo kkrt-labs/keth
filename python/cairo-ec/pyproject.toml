@@ -42,7 +42,7 @@ dev-dependencies = [
 
 [tool.isort]
 profile = "black"
-known_first_party = ["cairo_addons", "cairo_core"]
+known_first_party = ["cairo_addons", "cairo_core", "cairo_ec"]
 
 [tool.uv.sources]
 ethereum = { git = "https://github.com/ethereum/execution-specs.git" }

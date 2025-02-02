@@ -3,14 +3,15 @@ from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.memcpy import memcpy
 from starkware.cairo.common.modulo import run_mod_p_circuit
 
-from cairo_ec.circuits import add, sub, mul, div, diff_ratio, sum_ratio
-from cairo_ec.circuits_compiled import (
+from cairo_ec.circuits.mod_ops import add, sub, mul, div, diff_ratio, sum_ratio, inv
+from cairo_ec.circuits.mod_ops_compiled import (
     add as add_compiled,
     sub as sub_compiled,
     mul as mul_compiled,
     div as div_compiled,
     diff_ratio as diff_ratio_compiled,
     sum_ratio as sum_ratio_compiled,
+    inv as inv_compiled,
 )
 
 func test__circuit{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(

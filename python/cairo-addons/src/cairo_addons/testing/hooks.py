@@ -25,6 +25,15 @@ logger = logging.getLogger()
 pytest_plugins = ["cairo_addons.testing.fixtures"]
 
 
+def parse_int(value):
+    """Parse integer from decimal or hex string."""
+    if isinstance(value, int):
+        return value
+    if value.startswith("0x"):
+        return int(value, 16)
+    return int(value, 10)
+
+
 def pytest_addoption(parser):
     parser.addoption(
         "--profile-cairo",
@@ -35,7 +44,7 @@ def pytest_addoption(parser):
     parser.addoption(
         "--prime",
         action="store",
-        type=int,
+        type=parse_int,
         default=DEFAULT_PRIME,
         help="prime to use for the tests",
     )
