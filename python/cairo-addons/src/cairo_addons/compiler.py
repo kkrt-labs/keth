@@ -30,7 +30,10 @@ def implement_hints(program: Program):
 
 
 def cairo_compile(
-    path: Union[str, Path], debug_info: bool = False, proof_mode: bool = True
+    path: Union[str, Path],
+    debug_info: bool = False,
+    proof_mode: bool = True,
+    prime: int = DEFAULT_PRIME,
 ) -> Program:
     module_reader = get_module_reader(
         cairo_path=[
@@ -39,9 +42,7 @@ def cairo_compile(
         ]
     )
 
-    pass_manager = default_pass_manager(
-        prime=DEFAULT_PRIME, read_module=module_reader.read
-    )
+    pass_manager = default_pass_manager(prime=prime, read_module=module_reader.read)
 
     return compile_cairo(
         Path(path).read_text(),

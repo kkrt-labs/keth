@@ -25,6 +25,8 @@ from starkware.cairo.common.dict import DictManager
 from starkware.cairo.lang.builtins.all_builtins import ALL_BUILTINS
 from starkware.cairo.lang.compiler.ast.cairo_types import (
     CairoType,
+    TypeFelt,
+    TypePointer,
     TypeStruct,
     TypeTuple,
 )
@@ -43,6 +45,7 @@ from starkware.cairo.lang.vm.cairo_runner import CairoRunner
 from starkware.cairo.lang.vm.memory_dict import MemoryDict
 from starkware.cairo.lang.vm.memory_segments import FIRST_MEMORY_ADDR as PROGRAM_BASE
 from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
+from starkware.cairo.lang.vm.relocatable import RelocatableValue
 from starkware.cairo.lang.vm.security import verify_secure_runner
 from starkware.cairo.lang.vm.utils import RunResources
 from starkware.cairo.lang.vm.vm import VirtualMachine
@@ -59,6 +62,17 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger()
+
+
+def to_python_type(cairo_type: CairoType):
+    if isinstance(cairo_type, TypeFelt):
+        return int
+
+    if isinstance(cairo_type, TypeTuple):
+        return tuple
+
+    if isinstance(cairo_type, TypePointer):
+        return RelocatableValue
 
 
 def resolve_main_path(main_path: Tuple[str, ...]):
@@ -83,17 +97,12 @@ def resolve_main_path(main_path: Tuple[str, ...]):
 def build_entrypoint(
     cairo_program: Program,
     entrypoint: str,
-    to_python_type: Optional[Callable],
     main_path: Tuple[str, ...],
+    to_python_type: Callable = to_python_type,
 ):
-    if not isinstance(
-        identifier := cairo_program.identifiers.get_by_full_name(
-            ScopedName(path=("__main__", entrypoint, "ImplicitArgs"))
-        ),
-        StructDefinition,
-    ):
-        raise ValueError(f"ImplicitArgs not found for {entrypoint}")
-    implicit_args = identifier.members
+    implicit_args = cairo_program.get_identifier(
+        f"{entrypoint}.ImplicitArgs", StructDefinition
+    ).members
 
     # Split implicit args into builtins and other implicit args
     _builtins = [
@@ -102,50 +111,30 @@ def build_entrypoint(
         if any(builtin in k.replace("_ptr", "") for builtin in ALL_BUILTINS)
     ]
 
-    if to_python_type is not None:
-        _implicit_args = {
-            k: {
-                "python_type": to_python_type(
-                    resolve_main_path(main_path)(v.cairo_type)
-                ),
-                "cairo_type": v.cairo_type,
-            }
-            for k, v in implicit_args.items()
-            if not any(builtin in k.replace("_ptr", "") for builtin in ALL_BUILTINS)
+    _implicit_args = {
+        k: {
+            "python_type": to_python_type(resolve_main_path(main_path)(v.cairo_type)),
+            "cairo_type": v.cairo_type,
         }
-    else:
-        _implicit_args = {}
+        for k, v in implicit_args.items()
+        if not any(builtin in k.replace("_ptr", "") for builtin in ALL_BUILTINS)
+    }
 
-    if not isinstance(
-        identifier := cairo_program.identifiers.get_by_full_name(
-            ScopedName(path=("__main__", entrypoint, "Args"))
-        ),
-        StructDefinition,
-    ):
-        raise ValueError(f"Args not found for {entrypoint}")
-    entrypoint_args = identifier.members
+    entrypoint_args = cairo_program.get_identifier(
+        f"{entrypoint}.Args", StructDefinition
+    ).members
 
-    if to_python_type is not None:
-        _args = {
-            k: {
-                "python_type": to_python_type(
-                    resolve_main_path(main_path)(v.cairo_type)
-                ),
-                "cairo_type": v.cairo_type,
-            }
-            for k, v in entrypoint_args.items()
+    _args = {
+        k: {
+            "python_type": to_python_type(resolve_main_path(main_path)(v.cairo_type)),
+            "cairo_type": v.cairo_type,
         }
-    else:
-        _args = {}
+        for k, v in entrypoint_args.items()
+    }
 
-    if not isinstance(
-        identifier := cairo_program.identifiers.get_by_full_name(
-            ScopedName(path=("__main__", entrypoint, "Return"))
-        ),
-        TypeDefinition,
-    ):
-        raise ValueError(f"Return not found for {entrypoint}")
-    explicit_return_data = identifier.cairo_type
+    explicit_return_data = cairo_program.get_identifier(
+        f"{entrypoint}.Return", TypeDefinition
+    ).cairo_type
 
     return_data_types = [
         *(arg["cairo_type"] for arg in _implicit_args.values()),
@@ -178,7 +167,7 @@ def run_python_vm(
     gen_arg_builder: Optional[
         Callable[[DictManager, MemorySegmentManager], Callable]
     ] = None,
-    to_python_type: Optional[Callable] = None,
+    to_python_type: Callable = to_python_type,
     to_cairo_type: Optional[Callable] = None,
     serde_cls: Type[SerdeProtocol] = Serde,
     hint_locals: Optional[dict] = None,
@@ -188,7 +177,7 @@ def run_python_vm(
 
     def _run(entrypoint, *args, **kwargs):
         _builtins, _implicit_args, _args, return_data_types = build_entrypoint(
-            cairo_program, entrypoint, to_python_type, main_path
+            cairo_program, entrypoint, main_path, to_python_type
         )
 
         # Add a jmp rel 0 instruction to be able to loop in proof mode and avoid the proof-mode at compile time
@@ -225,23 +214,21 @@ def run_python_vm(
                 output_ptr = stack[-1]
 
         # Handle other args, (implicit, explicit)
-        gen_arg = None
-        if gen_arg_builder is not None:
-            gen_arg = gen_arg_builder(dict_manager, runner.segments)
-            for i, (arg_name, python_type) in enumerate(
-                [(k, v["python_type"]) for k, v in {**_implicit_args, **_args}.items()]
-            ):
-                if arg_name == "output_ptr":
-                    add_output = True
-                    output_ptr = runner.segments.add()
-                    stack.append(output_ptr)
-                else:
-                    arg_value = kwargs[arg_name] if arg_name in kwargs else args[i]
-                    stack.append(gen_arg(python_type, arg_value))
-        else:
-            if {**_implicit_args, **_args}:
-                raise ValueError("No gen_arg builder provided")
-
+        gen_arg = (
+            gen_arg_builder(dict_manager, runner.segments)
+            if gen_arg_builder is not None
+            else lambda _python_type, _value: runner.segments.gen_arg(_value)
+        )
+        for i, (arg_name, python_type) in enumerate(
+            [(k, v["python_type"]) for k, v in {**_implicit_args, **_args}.items()]
+        ):
+            if arg_name == "output_ptr":
+                add_output = True
+                output_ptr = runner.segments.add()
+                stack.append(output_ptr)
+            else:
+                arg_value = kwargs[arg_name] if arg_name in kwargs else args[i]
+                stack.append(gen_arg(python_type, arg_value))
         return_fp = runner.execution_base + 2
         # Return to the jmp rel 0 instruction added previously
         end = runner.program_base + len(runner.program.data) - 2
@@ -421,14 +408,14 @@ def run_rust_vm(
     gen_arg_builder: Optional[
         Callable[[DictManager, MemorySegmentManager], Callable]
     ] = None,
-    to_python_type: Optional[Callable] = None,
+    to_python_type: Callable = to_python_type,
     serde_cls: Type[SerdeProtocol] = Serde,
 ):
     """Helper function containing Rust VM implementation"""
 
     def _run(entrypoint, *args, **kwargs):
         _builtins, _implicit_args, _args, return_data_types = build_entrypoint(
-            cairo_program, entrypoint, to_python_type, main_path
+            cairo_program, entrypoint, main_path, to_python_type
         )
 
         # Set program builtins based on the implicit args
