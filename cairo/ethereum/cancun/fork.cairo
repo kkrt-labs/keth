@@ -795,13 +795,11 @@ func get_last_256_block_hashes{
 }
 
 // Helper function to get parent hashes using a loop
-func _get_parent_hashes{range_check_ptr, hashes: Hash32*}(blocks: Block*, len: felt, idx: felt) {
+func _get_parent_hashes{hashes: Hash32*}(blocks: Block*, len: felt, idx: felt) {
     tempvar idx = idx;
-    tempvar range_check_ptr = range_check_ptr;
 
     loop:
-    let idx = [ap - 2];
-    let range_check_ptr = [ap - 1];
+    let idx = [ap - 1];
 
     let end_loop = is_zero(idx - len);
     jmp end if end_loop != 0;
@@ -811,7 +809,6 @@ func _get_parent_hashes{range_check_ptr, hashes: Hash32*}(blocks: Block*, len: f
     assert hashes[idx] = block.value.header.value.parent_hash;
 
     tempvar idx = idx + 1;
-    tempvar range_check_ptr = range_check_ptr;
 
     jmp loop;
 
