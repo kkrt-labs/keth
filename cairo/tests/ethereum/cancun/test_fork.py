@@ -8,18 +8,20 @@ from hypothesis import assume, given, settings
 from hypothesis import strategies as st
 from hypothesis.strategies import composite, integers
 
-from ethereum.cancun.blocks import Header, Log
+from ethereum.cancun.blocks import Block, Header, Log
 from ethereum.cancun.fork import (
     GAS_LIMIT_ADJUSTMENT_FACTOR,
+    BlockChain,
     calculate_base_fee_per_gas,
     check_gas_limit,
     check_transaction,
+    get_last_256_block_hashes,
     make_receipt,
     process_transaction,
     validate_header,
 )
 from ethereum.cancun.fork_types import Address
-from ethereum.cancun.state import set_account
+from ethereum.cancun.state import State, set_account
 from ethereum.cancun.transactions import (
     AccessListTransaction,
     BlobTransaction,
@@ -259,3 +261,12 @@ class TestFork:
             state, tx, gas_available, chain_id, base_fee_per_gas, excess_blob_gas
         )
         assert cairo_state == state
+
+    @given(blocks=st.lists(st.builds(Block), max_size=300))
+    def test_get_last_256_block_hashes(self, cairo_run, blocks):
+        chain = BlockChain(blocks=blocks, state=State(), chain_id=U64(1))
+
+        py_result = get_last_256_block_hashes(chain)
+        cairo_result = cairo_run("get_last_256_block_hashes", chain)
+
+        assert py_result == cairo_result

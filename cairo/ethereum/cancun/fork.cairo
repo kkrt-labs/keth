@@ -8,16 +8,28 @@ from starkware.cairo.common.cairo_builtins import (
 )
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.math import assert_not_zero, split_felt, assert_le_felt
-from starkware.cairo.common.math_cmp import is_le
+from starkware.cairo.common.math_cmp import is_le, is_le_felt
 from starkware.cairo.common.registers import get_fp_and_pc
 
-from ethereum_rlp.rlp import Extended, ExtendedImpl, encode_receipt_to_buffer
+from ethereum_rlp.rlp import Extended, ExtendedImpl, encode_receipt_to_buffer, encode_header
 from ethereum_types.bytes import Bytes, Bytes0, BytesStruct, TupleBytes32
 from ethereum_types.numeric import Uint, bool, U256, U256Struct, U64
-from ethereum.cancun.blocks import Header, Receipt, ReceiptStruct, TupleLog, Log, TupleLogStruct
+from ethereum.cancun.blocks import (
+    Header,
+    Receipt,
+    ReceiptStruct,
+    TupleLog,
+    Log,
+    TupleLogStruct,
+    Block,
+    ListBlock,
+    TupleHeader,
+)
 from ethereum.cancun.bloom import logs_bloom
 from ethereum.cancun.fork_types import (
     Address,
+    ListHash32,
+    ListHash32Struct,
     OptionalAddress,
     SetAddress,
     SetAddressStruct,
@@ -65,11 +77,12 @@ from ethereum.cancun.vm.gas import (
     calculate_blob_gas_price,
 )
 from ethereum.cancun.vm.interpreter import process_message_call, MessageCallOutput
-from ethereum.crypto.hash import keccak256
+from ethereum.crypto.hash import keccak256, Hash32
 from ethereum.exceptions import OptionalEthereumException
 from ethereum.utils.numeric import (
     divmod,
     min,
+    is_zero,
     U256_add,
     U256__eq__,
     U256_from_felt,
@@ -88,6 +101,16 @@ const GAS_LIMIT_MINIMUM = 5000;
 const EMPTY_OMMER_HASH_LOW = 0xd312451b948a7413f0a142fd40d49347;
 const EMPTY_OMMER_HASH_HIGH = 0x1dcc4de8dec75d7aab85b567b6ccd41a;
 const VERSIONED_HASH_VERSION_KZG = 0x01;
+
+struct BlockChainStruct {
+    blocks: ListBlock,
+    state: State,
+    chain_id: U64,
+}
+
+struct BlockChain {
+    value: BlockChainStruct*,
+}
 
 func calculate_base_fee_per_gas{range_check_ptr}(
     block_gas_limit: Uint,
@@ -731,4 +754,75 @@ func _check_versioned_hashes_version{range_check_ptr}(
     static_assert range_check_ptr == [ap - 1];
 
     return ();
+}
+
+func get_last_256_block_hashes{
+    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*
+}(chain: BlockChain) -> ListHash32 {
+    alloc_locals;
+
+    // If no blocks, return empty array
+    if (chain.value.blocks.value.len == 0) {
+        let (empty_hashes_alloc: Hash32*) = alloc();
+        tempvar empty_hashes = ListHash32(new ListHash32Struct(data=empty_hashes_alloc, len=0));
+        return empty_hashes;
+    }
+
+    // Get last 255 blocks or all blocks if less than 255
+    let is_le_255 = is_le(chain.value.blocks.value.len, 255);
+    if (is_le_255 != FALSE) {
+        tempvar start_idx = 0;
+    } else {
+        tempvar start_idx = chain.value.blocks.value.len - 255;
+    }
+    tempvar recent_blocks_len = chain.value.blocks.value.len - start_idx;
+
+    // Allocate list for hashes
+    let (hashes: Hash32*) = alloc();
+
+    // Get parent hashes from recent blocks
+    _get_parent_hashes{hashes=hashes}(
+        chain.value.blocks.value.data + start_idx, recent_blocks_len, 0
+    );
+
+    // Add hash of most recent block
+    let most_recent_block: Block* = chain.value.blocks.value.data + chain.value.blocks.value.len -
+        1;
+    let most_recent_hash = keccak256_header(most_recent_block.value.header);
+    assert hashes[recent_blocks_len] = most_recent_hash;
+    tempvar list_hash_32 = ListHash32(new ListHash32Struct(data=hashes, len=recent_blocks_len + 1));
+    return list_hash_32;
+}
+
+// Helper function to get parent hashes using a loop
+func _get_parent_hashes{hashes: Hash32*}(blocks: Block*, len: felt, idx: felt) {
+    tempvar idx = idx;
+
+    loop:
+    let idx = [ap - 1];
+
+    let end_loop = is_zero(idx - len);
+    jmp end if end_loop != 0;
+
+    // Get block at current index and store parent hash
+    let block: Block* = blocks + idx;
+    assert hashes[idx] = block.value.header.value.parent_hash;
+
+    tempvar idx = idx + 1;
+
+    jmp loop;
+
+    end:
+    return ();
+}
+
+// Helper to compute header hash
+func keccak256_header{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*}(
+    header: Header
+) -> Hash32 {
+    // First RLP encode the header
+    let encoded_header = encode_header(header);
+
+    // Then compute keccak256 of the encoded bytes
+    return keccak256(encoded_header);
 }

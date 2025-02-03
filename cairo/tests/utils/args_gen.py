@@ -104,7 +104,8 @@ from starkware.cairo.lang.vm.relocatable import RelocatableValue
 from cairo_addons.vm import DictTracker as RustDictTracker
 from cairo_addons.vm import MemorySegmentManager as RustMemorySegmentManager
 from cairo_addons.vm import Relocatable as RustRelocatable
-from ethereum.cancun.blocks import Header, Log, Receipt, Withdrawal
+from ethereum.cancun.blocks import Block, Header, Log, Receipt, Withdrawal
+from ethereum.cancun.fork import BlockChain
 from ethereum.cancun.fork_types import Account, Address, Bloom, Root, VersionedHash
 from ethereum.cancun.state import State, TransientStorage
 from ethereum.cancun.transactions import (
@@ -448,6 +449,15 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "cancun", "blocks", "Log"): Log,
     ("ethereum", "cancun", "blocks", "TupleLog"): Tuple[Log, ...],
     ("ethereum", "cancun", "blocks", "Receipt"): Receipt,
+    ("ethereum", "cancun", "blocks", "UnionBytesLegacyTransaction"): Union[
+        Bytes, LegacyTransaction
+    ],
+    ("ethereum", "cancun", "blocks", "TupleUnionBytesLegacyTransaction"): Tuple[
+        Union[Bytes, LegacyTransaction], ...
+    ],
+    ("ethereum", "cancun", "blocks", "Block"): Block,
+    ("ethereum", "cancun", "blocks", "ListBlock"): List[Block],
+    ("ethereum", "cancun", "fork", "BlockChain"): BlockChain,
     ("ethereum", "cancun", "fork_types", "Address"): Address,
     ("ethereum", "cancun", "fork_types", "SetAddress"): Set[Address],
     ("ethereum", "cancun", "fork_types", "Root"): Root,
