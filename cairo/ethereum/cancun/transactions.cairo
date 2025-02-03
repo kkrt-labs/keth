@@ -28,7 +28,6 @@ from ethereum.cancun.transactions_types import (
     FeeMarketTransactionStruct,
     BlobTransaction,
     BlobTransactionStruct,
-    UnionLegacyTransactionBytes,
     To,
     ToStruct,
     TransactionImpl,
@@ -53,6 +52,7 @@ from ethereum_rlp.rlp import (
     decode_to_blob_transaction,
 )
 
+from ethereum.cancun.blocks import UnionBytesLegacyTransaction
 from ethereum.cancun.utils.constants import MAX_CODE_SIZE
 from src.utils.array import count_not_zero
 
@@ -345,7 +345,7 @@ func recover_sender{
 }
 
 func decode_transaction{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
-    tx: UnionLegacyTransactionBytes
+    tx: UnionBytesLegacyTransaction
 ) -> Transaction {
     if (cast(tx.value.bytes.value, felt) != 0) {
         let bytes = tx.value.bytes.value;

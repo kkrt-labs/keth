@@ -91,7 +91,7 @@ struct Receipt {
 
 struct UnionBytesLegacyTransactionEnum {
     bytes: Bytes,
-    legacy: LegacyTransaction,
+    legacy_transaction: LegacyTransaction,
 }
 
 struct UnionBytesLegacyTransaction {

@@ -690,16 +690,16 @@ func encode_blob_transaction{range_check_ptr}(transaction: BlobTransaction) -> B
     return result;
 }
 
-func encode_transaction{range_check_ptr}(transaction: Transaction) -> UnionLegacyTransactionBytes {
+func encode_transaction{range_check_ptr}(transaction: Transaction) -> UnionBytesLegacyTransaction {
     alloc_locals;
 
     // Check which transaction type is non-null
     if (cast(transaction.value.legacy_transaction.value, felt) != 0) {
         // Legacy transaction - no type byte prefix
-        tempvar result = UnionLegacyTransactionBytes(
+        tempvar result = UnionBytesLegacyTransaction(
             new UnionBytesLegacyTransactionEnum(
-                legacy_transaction=transaction.value.legacy_transaction,
                 bytes=Bytes(cast(0, BytesStruct*)),
+                legacy_transaction=transaction.value.legacy_transaction,
             ),
         );
         return result;
@@ -709,10 +709,10 @@ func encode_transaction{range_check_ptr}(transaction: Transaction) -> UnionLegac
         let encoded_access_list_transaction = encode_access_list_transaction(
             transaction.value.access_list_transaction
         );
-        tempvar result = UnionLegacyTransactionBytes(
+        tempvar result = UnionBytesLegacyTransaction(
             new UnionBytesLegacyTransactionEnum(
-                legacy_transaction=LegacyTransaction(cast(0, LegacyTransactionStruct*)),
                 bytes=encoded_access_list_transaction,
+                legacy_transaction=LegacyTransaction(cast(0, LegacyTransactionStruct*)),
             ),
         );
         return result;
@@ -722,10 +722,10 @@ func encode_transaction{range_check_ptr}(transaction: Transaction) -> UnionLegac
         let encoded_fee_market_transaction = encode_fee_market_transaction(
             transaction.value.fee_market_transaction
         );
-        tempvar result = UnionLegacyTransactionBytes(
+        tempvar result = UnionBytesLegacyTransaction(
             new UnionBytesLegacyTransactionEnum(
-                legacy_transaction=LegacyTransaction(cast(0, LegacyTransactionStruct*)),
                 bytes=encoded_fee_market_transaction,
+                legacy_transaction=LegacyTransaction(cast(0, LegacyTransactionStruct*)),
             ),
         );
         return result;
@@ -733,10 +733,10 @@ func encode_transaction{range_check_ptr}(transaction: Transaction) -> UnionLegac
 
     if (cast(transaction.value.blob_transaction.value, felt) != 0) {
         let encoded_blob_transaction = encode_blob_transaction(transaction.value.blob_transaction);
-        tempvar result = UnionLegacyTransactionBytes(
+        tempvar result = UnionBytesLegacyTransaction(
             new UnionBytesLegacyTransactionEnum(
-                legacy_transaction=LegacyTransaction(cast(0, LegacyTransactionStruct*)),
                 bytes=encoded_blob_transaction,
+                legacy_transaction=LegacyTransaction(cast(0, LegacyTransactionStruct*)),
             ),
         );
         return result;
@@ -745,10 +745,10 @@ func encode_transaction{range_check_ptr}(transaction: Transaction) -> UnionLegac
     // Should never happen - one pointer must be non-null
     with_attr error_message("Invalid transaction type - no valid pointer") {
         assert 0 = 1;
-        tempvar result = UnionLegacyTransactionBytes(
+        tempvar result = UnionBytesLegacyTransaction(
             new UnionBytesLegacyTransactionEnum(
-                legacy_transaction=LegacyTransaction(cast(0, LegacyTransactionStruct*)),
                 bytes=Bytes(cast(0, BytesStruct*)),
+                legacy_transaction=LegacyTransaction(cast(0, LegacyTransactionStruct*)),
             ),
         );
         return result;
