@@ -75,12 +75,6 @@ class TestTransactions:
 
     @given(tx=...)
     def test_decode_transaction(self, cairo_run, tx: Transaction):
-        """Test decoding all transaction types from their RLP encoded form"""
-        # First encode the transaction
         encoded_tx = encode_transaction(tx)
-
-        # Decode using Cairo implementation
         decoded_tx = cairo_run("decode_transaction", encoded_tx)
-
-        # Verify the decoded transaction matches the original
         assert decoded_tx == tx

@@ -418,16 +418,6 @@ func decode_transaction{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     with_attr error_message("TransactionTypeError") {
         assert 0 = 1;
         // unreachable
-        tempvar res = Transaction(
-            new TransactionStruct(
-                legacy_transaction=LegacyTransaction(cast(0, LegacyTransactionStruct*)),
-                access_list_transaction=AccessListTransaction(
-                    cast(0, AccessListTransactionStruct*)
-                ),
-                fee_market_transaction=FeeMarketTransaction(cast(0, FeeMarketTransactionStruct*)),
-                blob_transaction=BlobTransaction(cast(0, BlobTransactionStruct*)),
-            ),
-        );
-        return res;
+       ret;
     }
 }
