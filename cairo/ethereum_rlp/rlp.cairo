@@ -54,7 +54,6 @@ from ethereum.cancun.transactions_types import (
 )
 from ethereum.crypto.hash import keccak256, Hash32
 from ethereum.utils.numeric import (
-    is_zero,
     U256_from_be_bytes,
     Bytes32_from_be_bytes,
     Uint_from_be_bytes,
