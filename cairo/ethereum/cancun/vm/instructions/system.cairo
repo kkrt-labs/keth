@@ -1185,7 +1185,7 @@ func generic_create{
     incorporate_child_on_success(child_evm);
     EvmImpl.set_return_data(empty_data_bytes);
     let stack = evm.value.stack;
-    let to_push = U256_from_be_bytes20(child_evm.value.message.value.current_target);
+    let to_push = U256_from_be_bytes3220(child_evm.value.message.value.current_target);
     let err = push{stack=stack}(to_push);
     EvmImpl.set_stack(stack);
     if (cast(err, felt) != 0) {

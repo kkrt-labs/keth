@@ -4,12 +4,14 @@ from starkware.cairo.common.math_cmp import is_le, is_not_zero
 from starkware.cairo.common.math import assert_not_zero, split_int
 from starkware.cairo.common.memcpy import memcpy
 
-from ethereum_types.numeric import Bool, U256, Uint, U64
+from ethereum_types.numeric import Bool, U256, Uint, U64, U256Struct
 from ethereum_types.bytes import (
     Bytes,
+    Bytes0,
     BytesStruct,
     Bytes8,
     Bytes32,
+    Bytes32Struct,
     TupleBytes,
     String,
     StringStruct,
@@ -17,18 +19,28 @@ from ethereum_types.bytes import (
     TupleBytes32Struct,
 )
 from ethereum.cancun.blocks import Log, TupleLog, Receipt, Withdrawal, Header
-from ethereum.cancun.fork_types import Address, Account, Bloom
+from ethereum.cancun.fork_types import Address, Account, Bloom, Address_from_felt_be
 from ethereum.cancun.transactions_types import (
     LegacyTransaction,
     To,
     AccessList,
+    ToStruct,
     TupleAccessList,
     AccessListTransaction,
     FeeMarketTransaction,
     BlobTransaction,
     Transaction,
+    TupleAccessListStruct,
+    AccessListStruct,
+    UnionLegacyTransactionBytes,
+    LegacyTransactionStruct,
+    AccessListTransactionStruct,
+    FeeMarketTransactionStruct,
+    BlobTransactionStruct,
+    UnionLegacyTransactionBytesEnum,
 )
 from ethereum.crypto.hash import keccak256, Hash32
+from ethereum.utils.numeric import is_zero, U256_from_be_bytes, Bytes32_from_be_bytes
 from ethereum.utils.bytes import Bytes8_to_Bytes
 from cairo_core.comparison import is_zero
 from src.utils.array import reverse
@@ -41,6 +53,7 @@ from src.utils.bytes import (
     uint256_to_bytes_little,
     uint256_to_bytes,
     felt_to_bytes16_little,
+    bytes_be_to_uint256,
 )
 
 struct SequenceSimple {
@@ -658,34 +671,67 @@ func encode_blob_transaction{range_check_ptr}(transaction: BlobTransaction) -> B
     return result;
 }
 
-func encode_transaction{range_check_ptr}(transaction: Transaction) -> Bytes {
+func encode_transaction{range_check_ptr}(transaction: Transaction) -> UnionLegacyTransactionBytes {
     alloc_locals;
 
     // Check which transaction type is non-null
     if (cast(transaction.value.legacy_transaction.value, felt) != 0) {
         // Legacy transaction - no type byte prefix
-        return encode_legacy_transaction(transaction.value.legacy_transaction);
+        tempvar result = UnionLegacyTransactionBytes(
+            new UnionLegacyTransactionBytesEnum(
+                legacy_transaction=transaction.value.legacy_transaction,
+                bytes=Bytes(cast(0, BytesStruct*)),
+            ),
+        );
+        return result;
     }
 
     if (cast(transaction.value.access_list_transaction.value, felt) != 0) {
-        // EIP-2930 transaction - type 0x01
-        return encode_access_list_transaction(transaction.value.access_list_transaction);
+        let encoded_access_list_transaction = encode_access_list_transaction(
+            transaction.value.access_list_transaction
+        );
+        tempvar result = UnionLegacyTransactionBytes(
+            new UnionLegacyTransactionBytesEnum(
+                legacy_transaction=LegacyTransaction(cast(0, LegacyTransactionStruct*)),
+                bytes=encoded_access_list_transaction,
+            ),
+        );
+        return result;
     }
 
     if (cast(transaction.value.fee_market_transaction.value, felt) != 0) {
-        // EIP-1559 transaction - type 0x02
-        return encode_fee_market_transaction(transaction.value.fee_market_transaction);
+        let encoded_fee_market_transaction = encode_fee_market_transaction(
+            transaction.value.fee_market_transaction
+        );
+        tempvar result = UnionLegacyTransactionBytes(
+            new UnionLegacyTransactionBytesEnum(
+                legacy_transaction=LegacyTransaction(cast(0, LegacyTransactionStruct*)),
+                bytes=encoded_fee_market_transaction,
+            ),
+        );
+        return result;
     }
 
     if (cast(transaction.value.blob_transaction.value, felt) != 0) {
-        // EIP-4844 transaction - type 0x03
-        return encode_blob_transaction(transaction.value.blob_transaction);
+        let encoded_blob_transaction = encode_blob_transaction(transaction.value.blob_transaction);
+        tempvar result = UnionLegacyTransactionBytes(
+            new UnionLegacyTransactionBytesEnum(
+                legacy_transaction=LegacyTransaction(cast(0, LegacyTransactionStruct*)),
+                bytes=encoded_blob_transaction,
+            ),
+        );
+        return result;
     }
 
     // Should never happen - one pointer must be non-null
     with_attr error_message("Invalid transaction type - no valid pointer") {
         assert 0 = 1;
-        tempvar result = Bytes(cast(0, BytesStruct*));
+        tempvar result = UnionLegacyTransactionBytes(
+            new UnionLegacyTransactionBytesEnum(
+                legacy_transaction=LegacyTransaction(cast(0, LegacyTransactionStruct*)),
+                bytes=Bytes(cast(0, BytesStruct*)),
+            ),
+        );
         return result;
     }
 }
@@ -855,6 +901,233 @@ func decode_item_length{range_check_ptr}(encoded_data: Bytes) -> felt {
     assert_not_zero(encoded_data.value.data[1]);
     let decoded_data_length = bytes_to_felt(length_length, encoded_data.value.data + 1);
     return 1 + length_length + decoded_data_length;
+}
+
+func decode_to_access_list_transaction{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
+    encoded_data: Bytes
+) -> AccessListTransaction {
+    alloc_locals;
+    // Get the decoded sequence using decode() which returns Simple
+    let decoded = decode(encoded_data);
+
+    // Verify it's a sequence and get its data
+    with_attr error_message("Invalid access list transaction: expected sequence") {
+        assert cast(decoded.value.bytes.value, felt) = 0;
+    }
+    let items_len = decoded.value.sequence.value.len;
+    let items = decoded.value.sequence.value.data;
+
+    // EIP-2930 transactions must have 11 fields (8 transaction fields + 3 signature fields)
+    with_attr error_message("Invalid access list transaction: wrong number of fields") {
+        assert items_len = 11;
+    }
+
+    // Decode chain_id (first field)
+    with_attr error_message("Invalid chain_id: expected bytes") {
+        assert cast(items[0].value.sequence.value, felt) = 0;
+    }
+    let chain_id_felt = bytes_to_felt(
+        items[0].value.bytes.value.len, items[0].value.bytes.value.data
+    );
+    let chain_id = U64(chain_id_felt);
+
+    // Decode nonce (second field)
+    with_attr error_message("Invalid nonce: expected bytes") {
+        assert cast(items[1].value.sequence.value, felt) = 0;
+    }
+    let nonce = U256_from_be_bytes(items[1].value.bytes.value.len, items[1].value.bytes.value.data);
+
+    // Decode gas_price (third field)
+    with_attr error_message("Invalid gas_price: expected bytes") {
+        assert cast(items[2].value.sequence.value, felt) = 0;
+    }
+    let gas_price_felt = bytes_to_felt(
+        items[2].value.bytes.value.len, items[2].value.bytes.value.data
+    );
+    let gas_price = Uint(gas_price_felt);
+
+    // Decode gas (fourth field)
+    with_attr error_message("Invalid gas: expected bytes") {
+        assert cast(items[3].value.sequence.value, felt) = 0;
+    }
+    let gas_felt = bytes_to_felt(items[3].value.bytes.value.len, items[3].value.bytes.value.data);
+    let gas = Uint(gas_felt);
+
+    // Decode to (fifth field)
+    with_attr error_message("Invalid to: expected bytes") {
+        assert cast(items[4].value.sequence.value, felt) = 0;
+    }
+    let to = _decode_to(items[4].value.bytes);
+
+    // Decode value (sixth field)
+    with_attr error_message("Invalid value: expected bytes") {
+        assert cast(items[5].value.sequence.value, felt) = 0;
+    }
+    let value = U256_from_be_bytes(items[5].value.bytes.value.len, items[5].value.bytes.value.data);
+
+    // Decode data (seventh field)
+    with_attr error_message("Invalid data: expected bytes") {
+        assert cast(items[6].value.sequence.value, felt) = 0;
+    }
+    let data = items[6].value.bytes;
+
+    // Decode access_list (eighth field)
+    with_attr error_message("Invalid access_list: expected sequence") {
+        assert cast(items[7].value.bytes.value, felt) = 0;
+    }
+    let access_list = _decode_access_list(items[7].value.sequence);
+
+    // Decode y_parity (ninth field)
+    with_attr error_message("Invalid y_parity: expected bytes") {
+        assert cast(items[8].value.sequence.value, felt) = 0;
+    }
+    let y_parity = U256_from_be_bytes(
+        items[8].value.bytes.value.len, items[8].value.bytes.value.data
+    );
+
+    // Decode r (tenth field)
+    with_attr error_message("Invalid r: expected bytes") {
+        assert cast(items[9].value.sequence.value, felt) = 0;
+    }
+    let r = U256_from_be_bytes(items[9].value.bytes.value.len, items[9].value.bytes.value.data);
+
+    // Decode s (eleventh field)
+    with_attr error_message("Invalid s: expected bytes") {
+        assert cast(items[10].value.sequence.value, felt) = 0;
+    }
+    let s = U256_from_be_bytes(items[10].value.bytes.value.len, items[10].value.bytes.value.data);
+
+    // Create and return the AccessListTransaction
+    tempvar tx = AccessListTransaction(
+        new AccessListTransactionStruct(
+            chain_id=chain_id,
+            nonce=nonce,
+            gas_price=gas_price,
+            gas=gas,
+            to=to,
+            value=value,
+            data=data,
+            access_list=access_list,
+            y_parity=y_parity,
+            r=r,
+            s=s,
+        ),
+    );
+    return tx;
+}
+
+// Helper function to decode To type
+func _decode_to{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(bytes: Bytes) -> To {
+    if (bytes.value.len == 0) {
+        tempvar to = To(new ToStruct(bytes0=new Bytes0(value=0), address=cast(0, Address*)));
+        return to;
+    }
+
+    let address_felt = bytes_to_felt(bytes.value.len, bytes.value.data);
+    let address_ = Address_from_felt_be(address_felt);
+    tempvar address = new Address(address_.value);
+    tempvar to = To(new ToStruct(bytes0=cast(0, Bytes0*), address=address));
+    return to;
+}
+
+// Helper function to decode AccessList
+func _decode_access_list{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
+    sequence: SequenceSimple
+) -> TupleAccessList {
+    alloc_locals;
+    let (access_list: AccessList*) = alloc();
+    let access_list_len = _decode_access_list_inner(
+        access_list, sequence.value.len, sequence.value.data
+    );
+
+    tempvar tuple_access_list = TupleAccessList(
+        new TupleAccessListStruct(data=access_list, len=access_list_len)
+    );
+    return tuple_access_list;
+}
+
+func _decode_access_list_inner{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
+    access_list: AccessList*, len: felt, items: Simple*
+) -> felt {
+    alloc_locals;
+    if (len == 0) {
+        return 0;
+    }
+
+    // Each item should be a sequence of [address, storage_keys]
+    with_attr error_message("Invalid access list entry: expected sequence") {
+        assert cast(items[0].value.bytes.value, felt) = 0;
+    }
+    let entry = items[0].value.sequence;
+
+    // Entry should have exactly 2 items (address and storage_keys)
+    with_attr error_message("Invalid access list entry: wrong number of fields") {
+        assert entry.value.len = 2;
+    }
+
+    // First item should be the address (20 bytes)
+    with_attr error_message("Invalid address: expected bytes") {
+        assert cast(entry.value.data[0].value.sequence.value, felt) = 0;
+    }
+    let address_felt = bytes_to_felt(
+        entry.value.data[0].value.bytes.value.len, entry.value.data[0].value.bytes.value.data
+    );
+    let address = Address_from_felt_be(address_felt);
+
+    // Second item should be sequence of storage keys
+    with_attr error_message("Invalid storage keys: expected sequence") {
+        assert cast(entry.value.data[1].value.bytes.value, felt) = 0;
+    }
+    let storage_keys = _decode_storage_keys(entry.value.data[1].value.sequence);
+
+    // Create AccessList entry
+    assert [access_list] = AccessList(
+        new AccessListStruct(address=address, storage_keys=storage_keys)
+    );
+
+    // Process next entry
+    let remaining_len = _decode_access_list_inner(
+        access_list + AccessList.SIZE, len - 1, items + Simple.SIZE
+    );
+    return 1 + remaining_len;
+}
+
+func _decode_storage_keys{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
+    sequence: SequenceSimple
+) -> TupleBytes32 {
+    alloc_locals;
+    let (storage_keys: Bytes32*) = alloc();
+    let storage_keys_len = _decode_storage_keys_inner(
+        storage_keys, sequence.value.len, sequence.value.data
+    );
+
+    tempvar tuple_storage_keys = TupleBytes32(
+        new TupleBytes32Struct(data=storage_keys, len=storage_keys_len)
+    );
+    return tuple_storage_keys;
+}
+
+func _decode_storage_keys_inner{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
+    storage_keys: Bytes32*, len: felt, items: Simple*
+) -> felt {
+    if (len == 0) {
+        return 0;
+    }
+
+    with_attr error_message("Invalid storage key: expected bytes") {
+        assert cast(items[0].value.sequence.value, felt) = 0;
+    }
+
+    let key = Bytes32_from_be_bytes(
+        items[0].value.bytes.value.len, items[0].value.bytes.value.data
+    );
+    assert [storage_keys] = key;
+
+    // Process next storage key
+    let remaining_len = _decode_storage_keys_inner(
+        storage_keys + Bytes32.SIZE, len - 1, items + Simple.SIZE
+    );
+    return 1 + remaining_len;
 }
 
 //
@@ -1328,7 +1601,7 @@ func encode_blob_transaction_for_signing{range_check_ptr}(transaction: BlobTrans
     let gas_len = _encode_uint(body_ptr, transaction.value.gas.value);
     let body_ptr = body_ptr + gas_len;
 
-    let to_len = _encode_address(body_ptr, transaction.value.to);  // Note: BlobTransaction uses Address not To
+    let to_len = _encode_address(body_ptr, transaction.value.to);
     let body_ptr = body_ptr + to_len;
 
     let value_len = _encode_u256(body_ptr, transaction.value.value);

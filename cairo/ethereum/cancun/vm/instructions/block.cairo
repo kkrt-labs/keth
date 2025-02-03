@@ -8,7 +8,7 @@ from ethereum.cancun.vm import Evm, EvmImpl
 from ethereum.exceptions import EthereumException
 from ethereum.cancun.vm.gas import charge_gas, GasConstants
 from ethereum.cancun.vm.stack import Stack, pop, push
-from ethereum.utils.numeric import U256_from_be_bytes
+from ethereum.utils.numeric import U256_from_be_bytes32
 from src.utils.bytes import felt_to_bytes20_little
 from src.utils.utils import Helpers
 
@@ -176,7 +176,7 @@ func prev_randao{
     }
 
     // OPERATION
-    let prev_randao_uint256 = U256_from_be_bytes(evm.value.env.value.prev_randao);
+    let prev_randao_uint256 = U256_from_be_bytes32(evm.value.env.value.prev_randao);
     with stack {
         let err = push(prev_randao_uint256);
         if (cast(err, felt) != 0) {

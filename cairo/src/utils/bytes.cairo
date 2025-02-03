@@ -2,10 +2,12 @@ from starkware.cairo.common.cairo_builtins import HashBuiltin, KeccakBuiltin, Bi
 from starkware.cairo.common.builtin_keccak.keccak import keccak_bigend
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.math import split_int, split_felt, assert_le_felt, assert_nn_le
+from starkware.cairo.common.math_cmp import is_le_felt
 from starkware.cairo.common.uint256 import Uint256
 from starkware.cairo.common.memcpy import memcpy
 from starkware.cairo.common.memset import memset
 from starkware.cairo.common.registers import get_label_location
+from starkware.cairo.common.uint256 import uint256_reverse_endian
 
 from src.utils.array import reverse
 from cairo_core.maths import unsigned_div_rem
@@ -428,4 +430,38 @@ func keccak{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBui
 
     let (code_hash) = keccak_bigend(dst, code_len);
     return code_hash;
+}
+
+// @notice Converts a sequence of bytes to a Uint256 value (little endian)
+// @param len: number of bytes
+// @param ptr: pointer to bytes array
+// @return: Uint256 value
+func bytes_be_to_uint256{range_check_ptr}(len: felt, ptr: felt*) -> Uint256 {
+    alloc_locals;
+
+    // Handle empty input
+    if (len == 0) {
+        let res = Uint256(0, 0);
+        return res;
+    }
+
+    // Ensure input is not too large
+    with_attr error_message("bytes_to_uint256: input exceeds 32 bytes") {
+        assert_le_felt(len, 32);
+    }
+
+    // If length <= 16, all bytes fit in low
+    let only_low = is_le_felt(len, 16);
+    if (only_low != 0) {
+        let low = bytes_to_felt(len, ptr);
+        let res = Uint256(low, 0);
+        return res;
+    }
+
+    // Split bytes between low and high parts
+    let high = bytes_to_felt(len - 16, ptr);  // First (len-16) bytes go to high
+    let low = bytes_to_felt(16, ptr + len - 16);  // Last 16 bytes go to low
+
+    let res = Uint256(low, high);
+    return res;
 }

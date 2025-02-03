@@ -9,7 +9,7 @@ from starkware.cairo.common.math import split_felt
 from starkware.cairo.common.uint256 import word_reverse_endian, Uint256, uint256_le, uint256_mul
 from src.utils.uint256 import uint256_add, uint256_sub
 from src.utils.utils import Helpers
-from src.utils.bytes import bytes_to_felt
+from src.utils.bytes import bytes_to_felt, bytes_be_to_uint256
 
 func min{range_check_ptr}(a: felt, b: felt) -> felt {
     alloc_locals;
@@ -115,7 +115,7 @@ func _taylor_exponential{range_check_ptr}(
     return _taylor_exponential(output, i, numerator_accumulated, numerator, denominator);
 }
 
-func U256_from_be_bytes{bitwise_ptr: BitwiseBuiltin*}(bytes: Bytes32) -> U256 {
+func U256_from_be_bytes32{bitwise_ptr: BitwiseBuiltin*}(bytes: Bytes32) -> U256 {
     // All bytes in the repository are expected to be in little endian so we need to reverse them
     let (value) = uint256_reverse_endian([bytes.value]);
     tempvar res = U256(new U256Struct(value.low, value.high));
@@ -166,7 +166,9 @@ func U256__eq__(a: U256, b: U256) -> bool {
 // / Split:       high=[01,02,03,04], low=[05,...,13,14]
 // / Reversed:    high=[04,03,02,01], low=[14,13,...,05]
 // / Final U256:  high=0x04030201, low=0x14130C0B...0605
-func U256_from_be_bytes20{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(bytes20: Bytes20) -> U256 {
+func U256_from_be_bytes3220{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
+    bytes20: Bytes20
+) -> U256 {
     // 1. Splits the 20-byte value into high and low parts
     let (bytes20_high, bytes20_low) = split_felt(bytes20.value);
     // 2. Reverses the endianness of both parts
@@ -280,4 +282,21 @@ func U256_to_Uint{range_check_ptr}(value: U256) -> Uint {
     let range_check_ptr = range_check_ptr + 2;
     let res = Uint(value.value.low + value.value.high * 2 ** 128);
     return res;
+}
+
+func U256_from_be_bytes{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
+    len: felt, ptr: felt*
+) -> U256 {
+    let res = bytes_be_to_uint256(len, ptr);
+    tempvar res_u256 = U256(new U256Struct(res.low, res.high));
+    return res_u256;
+}
+
+func Bytes32_from_be_bytes{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
+    len: felt, ptr: felt*
+) -> Bytes32 {
+    let res = bytes_be_to_uint256(len, ptr);
+    let (res_reversed) = uint256_reverse_endian(res);
+    tempvar res_bytes32 = Bytes32(new Bytes32Struct(res_reversed.low, res_reversed.high));
+    return res_bytes32;
 }
