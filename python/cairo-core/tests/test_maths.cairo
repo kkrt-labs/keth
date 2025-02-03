@@ -11,17 +11,13 @@ from cairo_core.maths import (
 from starkware.cairo.common.uint256 import Uint256
 from starkware.cairo.common.alloc import alloc
 
-func test__sign{range_check_ptr}() -> felt {
-    tempvar value;
-    %{ ids.value = program_input["value"] %}
+func test__sign{range_check_ptr}(value: felt) -> felt {
     return sign(value);
 }
 
-func test__scalar_to_epns{range_check_ptr}() -> (
+func test__scalar_to_epns{range_check_ptr}(scalar: felt) -> (
     sum_p: felt, sum_n: felt, p_sign: felt, n_sign: felt
 ) {
-    tempvar scalar;
-    %{ ids.scalar = program_input["scalar"] %}
     return scalar_to_epns(scalar);
 }
 
@@ -38,38 +34,30 @@ func test__assert_uint256_le{range_check_ptr}() {
     return ();
 }
 
-func test__pow2{range_check_ptr}() -> felt {
-    tempvar i;
-    %{ ids.i = program_input["i"] %}
+func test__pow2{range_check_ptr}(i: felt) -> felt {
     let res = pow2(i);
     return res;
 }
 
-func test__pow256{range_check_ptr}() -> felt {
-    tempvar i;
-    %{ ids.i = program_input["i"] %}
+func test__pow256{range_check_ptr}(i: felt) -> felt {
     let res = pow256(i);
     return res;
 }
 
-func test__felt252_to_bytes_le{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}() -> felt* {
+func test__felt252_to_bytes_le{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
+    value: felt, len: felt
+) -> felt* {
     alloc_locals;
     let (dst) = alloc();
-    tempvar value;
-    tempvar len;
-    %{ ids.value = program_input["value"] %}
-    %{ ids.len = program_input["len"] %}
     let res = felt252_to_bytes_le(value, len, dst);
     return dst;
 }
 
-func test__felt252_to_bytes_be{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}() -> felt* {
+func test__felt252_to_bytes_be{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
+    value: felt, len: felt
+) -> felt* {
     alloc_locals;
     let (dst) = alloc();
-    tempvar value;
-    tempvar len;
-    %{ ids.value = program_input["value"] %}
-    %{ ids.len = program_input["len"] %}
     let res = felt252_to_bytes_be(value, len, dst);
     return dst;
 }

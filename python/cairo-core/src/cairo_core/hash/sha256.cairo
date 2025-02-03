@@ -219,7 +219,8 @@ func _sha256_input{range_check_ptr, sha256_ptr: felt*}(
 }
 
 // Handles n blocks of BLOCK_SIZE SHA256 instances.
-// Taken from: https://github.com/starkware-libs/cairo-examples/blob/0d88b41bffe3de112d98986b8b0afa795f9d67a0/sha256/sha256.cairo#L102
+// Originally taken from the starkware repositories, which no longer exists, but available here:
+// <https://github.com/lambdaclass/cairo-vm/blob/df12864e7a1ae5fe4aceb51954b03017ad508fb3/cairo_programs/sha256.cairo#L203>
 func _finalize_sha256_inner{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     sha256_ptr: felt*, n: felt, round_constants: felt*
 ) {
