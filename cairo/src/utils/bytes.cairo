@@ -2,7 +2,7 @@ from starkware.cairo.common.cairo_builtins import HashBuiltin, KeccakBuiltin, Bi
 from starkware.cairo.common.builtin_keccak.keccak import keccak_bigend
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.math import split_int, split_felt, assert_le_felt, assert_nn_le
-from starkware.cairo.common.math_cmp import is_le_felt
+from starkware.cairo.common.math_cmp import is_le
 from starkware.cairo.common.uint256 import Uint256
 from starkware.cairo.common.memcpy import memcpy
 from starkware.cairo.common.memset import memset
@@ -447,7 +447,7 @@ func uint256_from_bytes_be{range_check_ptr}(len: felt, ptr: felt*) -> Uint256 {
     }
 
     // If length <= 16, all bytes fit in low
-    let only_low = is_le_felt(len, 16);
+    let only_low = is_le(len, 16);
     if (only_low != 0) {
         let low = bytes_to_felt(len, ptr);
         let res = Uint256(low, 0);
