@@ -9,7 +9,7 @@ from starkware.cairo.common.math import split_felt
 from starkware.cairo.common.uint256 import word_reverse_endian, Uint256, uint256_le, uint256_mul
 from src.utils.uint256 import uint256_add, uint256_sub
 from src.utils.utils import Helpers
-from src.utils.bytes import bytes_to_felt, bytes_be_to_uint256
+from src.utils.bytes import bytes_to_felt, uint256_from_bytes_be
 
 func min{range_check_ptr}(a: felt, b: felt) -> felt {
     alloc_locals;
@@ -301,7 +301,7 @@ func U256_to_Uint{range_check_ptr}(value: U256) -> Uint {
 func U256_from_be_bytes{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     len: felt, ptr: felt*
 ) -> U256 {
-    let res = bytes_be_to_uint256(len, ptr);
+    let res = uint256_from_bytes_be(len, ptr);
     tempvar res_u256 = U256(new U256Struct(res.low, res.high));
     return res_u256;
 }
@@ -309,7 +309,7 @@ func U256_from_be_bytes{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
 func Bytes32_from_be_bytes{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     len: felt, ptr: felt*
 ) -> Bytes32 {
-    let res = bytes_be_to_uint256(len, ptr);
+    let res = uint256_from_bytes_be(len, ptr);
     let (res_reversed) = uint256_reverse_endian(res);
     tempvar res_bytes32 = Bytes32(new Bytes32Struct(res_reversed.low, res_reversed.high));
     return res_bytes32;

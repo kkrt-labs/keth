@@ -436,7 +436,7 @@ func keccak{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBui
 // @param len: number of bytes
 // @param ptr: pointer to bytes array
 // @return: Uint256 value
-func bytes_be_to_uint256{range_check_ptr}(len: felt, ptr: felt*) -> Uint256 {
+func uint256_from_bytes_be{range_check_ptr}(len: felt, ptr: felt*) -> Uint256 {
     alloc_locals;
 
     // Handle empty input

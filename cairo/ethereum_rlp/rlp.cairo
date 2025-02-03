@@ -66,7 +66,7 @@ from src.utils.bytes import (
     uint256_to_bytes_little,
     uint256_to_bytes,
     felt_to_bytes16_little,
-    bytes_be_to_uint256,
+    uint256_from_bytes_be,
 )
 
 struct SequenceSimple {
