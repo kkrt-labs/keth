@@ -416,12 +416,20 @@ dependencies = [
     { name = "garaga" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "hypothesis" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "cairo-addons", editable = "python/cairo-addons" },
     { name = "cairo-lang", specifier = ">=0.13.3" },
     { name = "garaga", git = "https://github.com/keep-starknet-strange/garaga.git?rev=hydra_upd" },
 ]
+
+[package.metadata.requires-dev]
+dev = [{ name = "hypothesis", specifier = ">=6.124.3" }]
 
 [[package]]
 name = "cairo-ec"

@@ -10,6 +10,12 @@ pub struct PyMemorySegmentManager {
     pub(crate) runner: *mut RustCairoRunner,
 }
 
+#[derive(FromPyObject)]
+enum GenArgInput {
+    Single(PyMaybeRelocatable),
+    Multiple(Vec<PyMaybeRelocatable>),
+}
+
 /// Enables syntax `segments.memory.<op>`
 #[pyclass(name = "MemoryWrapper", unsendable)]
 pub struct PyMemoryWrapper {
@@ -68,10 +74,25 @@ impl PyMemorySegmentManager {
         unsafe { (*self.runner).vm.segments.compute_effective_sizes().clone() }
     }
 
-    fn gen_arg(&self, arg: PyMaybeRelocatable) -> PyResult<PyMaybeRelocatable> {
-        let arg: MaybeRelocatable = arg.into();
-        let result: Result<MaybeRelocatable, cairo_vm::vm::errors::memory_errors::MemoryError> =
-            unsafe { (*self.runner).vm.segments.gen_arg(&arg) };
+    fn gen_arg(&self, arg: GenArgInput) -> PyResult<PyMaybeRelocatable> {
+        let result = match arg {
+            GenArgInput::Single(arg) => {
+                let arg: MaybeRelocatable = arg.into();
+                let result: Result<
+                    MaybeRelocatable,
+                    cairo_vm::vm::errors::memory_errors::MemoryError,
+                > = unsafe { (*self.runner).vm.segments.gen_arg(&arg) };
+                result
+            }
+            GenArgInput::Multiple(arg) => {
+                let arg: Vec<MaybeRelocatable> = arg.into_iter().map(|x| x.into()).collect();
+                let result: Result<
+                    MaybeRelocatable,
+                    cairo_vm::vm::errors::memory_errors::MemoryError,
+                > = unsafe { (*self.runner).vm.segments.gen_arg(&arg) };
+                result
+            }
+        };
         match result {
             Ok(value) => Ok(value.into()),
             Err(e) => Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string())),

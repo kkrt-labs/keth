@@ -22,8 +22,8 @@ func {{name}}{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: M
     let (_, pc) = get_fp_and_pc();
 
     pc_label:
-    let add_offsets_ptr = pc + (add_offsets - pc_label);
-    let mul_offsets_ptr = pc + (mul_offsets - pc_label);
+    let add_mod_offsets_ptr = pc + (add_offsets - pc_label);
+    let mul_mod_offsets_ptr = pc + (mul_offsets - pc_label);
 
     {# First iterate over constants #}
     {%- for value in circuit.constants %}
@@ -41,47 +41,17 @@ func {{name}}{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: M
     assert [range_check96_ptr + {{(circuit.constants|length + loop.index0) * 4 + 3}}] = {{member_name}}.d3;
     {%- endfor %}
 
-    {%- if circuit.add_mod_n > 0 %}
-    assert add_mod_ptr[0] = ModBuiltin(
+    run_mod_p_circuit(
         p=[p],
         values_ptr=cast(range_check96_ptr, UInt384*),
-        offsets_ptr=add_offsets_ptr,
-        n={{circuit.add_mod_n}},
+        add_mod_offsets_ptr=add_mod_offsets_ptr,
+        add_mod_n={{circuit.add_mod_n}},
+        mul_mod_offsets_ptr=mul_mod_offsets_ptr,
+        mul_mod_n={{circuit.mul_mod_n}},
     );
-    {%- endif %}
-
-    {%- if circuit.mul_mod_n > 0 %}
-    assert mul_mod_ptr[0] = ModBuiltin(
-        p=[p],
-        values_ptr=cast(range_check96_ptr, UInt384*),
-        offsets_ptr=mul_offsets_ptr,
-        n={{circuit.mul_mod_n}},
-    );
-    {%- endif %}
-
-    %{
-        from starkware.cairo.lang.builtins.modulo.mod_builtin_runner import ModBuiltinRunner
-        {% if circuit.add_mod_n > 0 %}
-        assert builtin_runners["add_mod_builtin"].instance_def.batch_size == 1
-        {%- endif -%}
-        {% if circuit.mul_mod_n > 0 %}
-        assert builtin_runners["mul_mod_builtin"].instance_def.batch_size == 1
-        {%- endif %}
-
-        ModBuiltinRunner.fill_memory(
-            memory=memory,
-            add_mod={{ "(ids.add_mod_ptr.address_, builtin_runners['add_mod_builtin'], " + circuit.add_mod_n|string + ")" if circuit.add_mod_n > 0 else "None" }},
-            mul_mod={{ "(ids.mul_mod_ptr.address_, builtin_runners['mul_mod_builtin'], " + circuit.mul_mod_n|string + ")" if circuit.mul_mod_n > 0 else "None" }},
-        )
-    %}
 
     let range_check96_ptr = range_check96_ptr + {{circuit.total_offset}};
-    {% if circuit.add_mod_n > 0 %}
-    let add_mod_ptr = add_mod_ptr + ModBuiltin.SIZE * {{circuit.add_mod_n}};
-    {% endif %}
-    {%- if circuit.mul_mod_n > 0 -%}
-    let mul_mod_ptr = mul_mod_ptr + ModBuiltin.SIZE * {{circuit.mul_mod_n}};
-    {% endif %}
+
     return {{return_data}};
 
     add_offsets:

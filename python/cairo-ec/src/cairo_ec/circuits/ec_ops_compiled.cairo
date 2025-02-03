@@ -1,4 +1,5 @@
 from starkware.cairo.common.cairo_builtins import UInt384, ModBuiltin
+from starkware.cairo.common.modulo import run_mod_p_circuit
 from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
 
 func ec_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
@@ -7,8 +8,8 @@ func ec_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: Mod
     let (_, pc) = get_fp_and_pc();
 
     pc_label:
-    let add_offsets_ptr = pc + (add_offsets - pc_label);
-    let mul_offsets_ptr = pc + (mul_offsets - pc_label);
+    let add_mod_offsets_ptr = pc + (add_offsets - pc_label);
+    let mul_mod_offsets_ptr = pc + (mul_offsets - pc_label);
 
     assert [range_check96_ptr + 0] = 0;
     assert [range_check96_ptr + 1] = 0;
@@ -31,30 +32,17 @@ func ec_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: Mod
     assert [range_check96_ptr + 17] = y1.d1;
     assert [range_check96_ptr + 18] = y1.d2;
     assert [range_check96_ptr + 19] = y1.d3;
-    assert add_mod_ptr[0] = ModBuiltin(
-        p=[p], values_ptr=cast(range_check96_ptr, UInt384*), offsets_ptr=add_offsets_ptr, n=8
+
+    run_mod_p_circuit(
+        p=[p],
+        values_ptr=cast(range_check96_ptr, UInt384*),
+        add_mod_offsets_ptr=add_mod_offsets_ptr,
+        add_mod_n=8,
+        mul_mod_offsets_ptr=mul_mod_offsets_ptr,
+        mul_mod_n=3,
     );
-    assert mul_mod_ptr[0] = ModBuiltin(
-        p=[p], values_ptr=cast(range_check96_ptr, UInt384*), offsets_ptr=mul_offsets_ptr, n=3
-    );
-
-    %{
-        from starkware.cairo.lang.builtins.modulo.mod_builtin_runner import ModBuiltinRunner
-
-        assert builtin_runners["add_mod_builtin"].instance_def.batch_size == 1
-        assert builtin_runners["mul_mod_builtin"].instance_def.batch_size == 1
-
-        ModBuiltinRunner.fill_memory(
-            memory=memory,
-            add_mod=(ids.add_mod_ptr.address_, builtin_runners['add_mod_builtin'], 8),
-            mul_mod=(ids.mul_mod_ptr.address_, builtin_runners['mul_mod_builtin'], 3),
-        )
-    %}
 
     let range_check96_ptr = range_check96_ptr + 64;
-
-    let add_mod_ptr = add_mod_ptr + ModBuiltin.SIZE * 8;
-    let mul_mod_ptr = mul_mod_ptr + ModBuiltin.SIZE * 3;
 
     return (cast(range_check96_ptr - 8, UInt384*), cast(range_check96_ptr - 4, UInt384*));
 
@@ -102,8 +90,8 @@ func ec_double{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: 
     let (_, pc) = get_fp_and_pc();
 
     pc_label:
-    let add_offsets_ptr = pc + (add_offsets - pc_label);
-    let mul_offsets_ptr = pc + (mul_offsets - pc_label);
+    let add_mod_offsets_ptr = pc + (add_offsets - pc_label);
+    let mul_mod_offsets_ptr = pc + (mul_offsets - pc_label);
 
     assert [range_check96_ptr + 0] = 3;
     assert [range_check96_ptr + 1] = 0;
@@ -130,30 +118,17 @@ func ec_double{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: 
     assert [range_check96_ptr + 21] = a.d1;
     assert [range_check96_ptr + 22] = a.d2;
     assert [range_check96_ptr + 23] = a.d3;
-    assert add_mod_ptr[0] = ModBuiltin(
-        p=[p], values_ptr=cast(range_check96_ptr, UInt384*), offsets_ptr=add_offsets_ptr, n=9
+
+    run_mod_p_circuit(
+        p=[p],
+        values_ptr=cast(range_check96_ptr, UInt384*),
+        add_mod_offsets_ptr=add_mod_offsets_ptr,
+        add_mod_n=9,
+        mul_mod_offsets_ptr=mul_mod_offsets_ptr,
+        mul_mod_n=6,
     );
-    assert mul_mod_ptr[0] = ModBuiltin(
-        p=[p], values_ptr=cast(range_check96_ptr, UInt384*), offsets_ptr=mul_offsets_ptr, n=6
-    );
-
-    %{
-        from starkware.cairo.lang.builtins.modulo.mod_builtin_runner import ModBuiltinRunner
-
-        assert builtin_runners["add_mod_builtin"].instance_def.batch_size == 1
-        assert builtin_runners["mul_mod_builtin"].instance_def.batch_size == 1
-
-        ModBuiltinRunner.fill_memory(
-            memory=memory,
-            add_mod=(ids.add_mod_ptr.address_, builtin_runners['add_mod_builtin'], 9),
-            mul_mod=(ids.mul_mod_ptr.address_, builtin_runners['mul_mod_builtin'], 6),
-        )
-    %}
 
     let range_check96_ptr = range_check96_ptr + 84;
-
-    let add_mod_ptr = add_mod_ptr + ModBuiltin.SIZE * 9;
-    let mul_mod_ptr = mul_mod_ptr + ModBuiltin.SIZE * 6;
 
     return (cast(range_check96_ptr - 8, UInt384*), cast(range_check96_ptr - 4, UInt384*));
 
