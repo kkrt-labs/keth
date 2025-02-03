@@ -362,21 +362,21 @@ class TestCircuits:
                 p=int_to_uint384(curve.FIELD.PRIME),
                 **compiled_circuit,
             )[-compiled_circuit["return_data_size"] :]
-            circuit_output = (
+            circuit_output = [
                 uint384_to_int(*r[:4]) % curve.FIELD.PRIME,
                 uint384_to_int(*r[4:]) % curve.FIELD.PRIME,
-            )
-            compiled_circuit_output = (
+            ]
+            compiled_circuit_output = [
                 uint384_to_int(**coord) % curve.FIELD.PRIME
                 for coord in cairo_run(
                     "ec_add_compiled",
                     **{k: int_to_uint384(v) for k, v in inputs.items()},
                     p=int_to_uint384(curve.FIELD.PRIME),
-                ).values()
-            )
+                )
+            ]
             assert (
                 cairo_output
                 == circuit_output
                 == compiled_circuit_output
-                == expected_output
+                == [expected_output.x, expected_output.y]
             )

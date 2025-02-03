@@ -12,6 +12,11 @@ from sympy import sqrt_mod
 
 
 class ECBase(EllipticCurve):
+
+    A: PrimeField
+    B: PrimeField
+    G: PrimeField
+
     def __init__(self, x: Union[int, F], y: Union[int, F]):
         """
         Just making sure that coordinates are Field instances.
@@ -46,6 +51,8 @@ class ECBase(EllipticCurve):
                 if randint(0, 1):
                     y = -y
                 return cls(cls.FIELD(x), cls.FIELD(y))
+            else:
+                x = cls.G * x
 
 
 class Secp256k1P(PrimeField):
