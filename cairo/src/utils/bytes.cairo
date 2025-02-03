@@ -432,10 +432,6 @@ func keccak{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBui
     return code_hash;
 }
 
-// @notice Converts a sequence of bytes to a Uint256 value (little endian)
-// @param len: number of bytes
-// @param ptr: pointer to bytes array
-// @return: Uint256 value
 func uint256_from_bytes_be{range_check_ptr}(len: felt, ptr: felt*) -> Uint256 {
     alloc_locals;
 
