@@ -82,6 +82,7 @@ from ethereum.exceptions import OptionalEthereumException
 from ethereum.utils.numeric import (
     divmod,
     min,
+    is_zero,
     U256_add,
     U256__eq__,
     U256_from_felt,
@@ -768,8 +769,8 @@ func get_last_256_block_hashes{
     }
 
     // Get last 255 blocks or all blocks if less than 255
-    let less_than_255 = is_le_felt(chain.value.blocks.value.len, 255);
-    if (less_than_255 != FALSE) {
+    let is_le_255 = is_le(chain.value.blocks.value.len, 255);
+    if (is_le_255 != FALSE) {
         tempvar start_idx = 0;
     } else {
         tempvar start_idx = chain.value.blocks.value.len - 255;
@@ -793,18 +794,29 @@ func get_last_256_block_hashes{
     return list_hash_32;
 }
 
-// Helper function to recursively get parent hashes
+// Helper function to get parent hashes using a loop
 func _get_parent_hashes{range_check_ptr, hashes: Hash32*}(blocks: Block*, len: felt, idx: felt) {
-    if (idx == len) {
-        return ();
-    }
+    tempvar idx = idx;
+    tempvar range_check_ptr = range_check_ptr;
 
-    // Get block at current index
+    loop:
+    let idx = [ap - 2];
+    let range_check_ptr = [ap - 1];
+
+    let end_loop = is_zero(idx - len);
+    jmp end if end_loop != 0;
+
+    // Get block at current index and store parent hash
     let block: Block* = blocks + idx;
-    // Store parent hash
     assert hashes[idx] = block.value.header.value.parent_hash;
 
-    return _get_parent_hashes(blocks, len, idx + 1);
+    tempvar idx = idx + 1;
+    tempvar range_check_ptr = range_check_ptr;
+
+    jmp loop;
+
+    end:
+    return ();
 }
 
 // Helper to compute header hash
