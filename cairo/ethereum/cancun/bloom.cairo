@@ -11,7 +11,7 @@ from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin
 
 from ethereum_types.bytes import Bytes, BytesStruct, Bytes1DictAccess, Bytes32, TupleBytes32
 from ethereum_types.numeric import U256, Uint, U128
-from ethereum.utils.numeric import max, Uint_from_be_bytes, divmod
+from ethereum.utils.numeric import max, Uint64_from_be_bytes, divmod
 from ethereum.utils.bytes import Bytes20_to_Bytes, Bytes32_to_Bytes
 from ethereum.crypto.hash import keccak256
 from ethereum.cancun.blocks import TupleLog
@@ -54,7 +54,7 @@ func _add_bloom_index{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, bloom: Muta
 ) {
     alloc_locals;
     tempvar hash_subset = Bytes(new BytesStruct(bloom_entry_hash.value.data + index, 2));
-    let hash_subset_uint = Uint_from_be_bytes(hash_subset);
+    let hash_subset_uint = Uint64_from_be_bytes(hash_subset);
 
     assert bitwise_ptr.x = hash_subset_uint.value;
     assert bitwise_ptr.y = BIT_MASK_11_BITS;

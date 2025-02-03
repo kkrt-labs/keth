@@ -343,3 +343,31 @@ class TestRlp:
             )
 
             assert decoded_tx == tx
+
+        @given(tx=...)
+        def test_decode_to_fee_market_transaction(
+            self, cairo_run, tx: FeeMarketTransaction
+        ):
+            encoded_tx = encode_transaction(tx)
+
+            # Remove the type byte (0x02) since decode_to_fee_market_transaction expects only the RLP part
+            encoded_tx_without_type = encoded_tx[1:]
+
+            decoded_tx = cairo_run(
+                "decode_to_fee_market_transaction", encoded_tx_without_type
+            )
+
+            assert decoded_tx == tx
+
+        @given(tx=...)
+        def test_decode_to_blob_transaction(self, cairo_run, tx: BlobTransaction):
+            encoded_tx = encode_transaction(tx)
+
+            # Remove the type byte (0x03) since decode_to_blob_transaction expects only the RLP part
+            encoded_tx_without_type = encoded_tx[1:]
+
+            decoded_tx = cairo_run(
+                "decode_to_blob_transaction", encoded_tx_without_type
+            )
+
+            assert decoded_tx == tx

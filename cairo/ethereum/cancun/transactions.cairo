@@ -18,10 +18,16 @@ from ethereum.cancun.fork_types import Address
 from ethereum.cancun.vm.gas import init_code_cost
 from ethereum.cancun.transactions_types import (
     Transaction,
+    TransactionType,
+    TransactionStruct,
     LegacyTransaction,
+    LegacyTransactionStruct,
     AccessListTransaction,
+    AccessListTransactionStruct,
     FeeMarketTransaction,
+    FeeMarketTransactionStruct,
     BlobTransaction,
+    BlobTransactionStruct,
     UnionLegacyTransactionBytes,
     To,
     ToStruct,
@@ -43,6 +49,8 @@ from ethereum_rlp.rlp import (
     encode_fee_market_transaction_for_signing,
     encode_blob_transaction_for_signing,
     decode_to_access_list_transaction,
+    decode_to_fee_market_transaction,
+    decode_to_blob_transaction,
 )
 
 from ethereum.cancun.utils.constants import MAX_CODE_SIZE
@@ -336,7 +344,9 @@ func recover_sender{
     return res;
 }
 
-func decode_transaction{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(tx: UnionLegacyTransactionBytes) -> Transaction {
+func decode_transaction{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
+    tx: UnionLegacyTransactionBytes
+) -> Transaction {
     if (cast(tx.value.bytes.value, felt) != 0) {
         let bytes = tx.value.bytes.value;
         let bytes_len = bytes.len;
@@ -344,15 +354,80 @@ func decode_transaction{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(tx: Union
             assert_not_zero(bytes_len);
         }
         let transaction_type = bytes.data[0];
-        if (transaction_type == 1) {
+        if (transaction_type == TransactionType.ACCESS_LIST) {
             tempvar new_bytes = Bytes(new BytesStruct(data=bytes.data + 1, len=bytes_len - 1));
             let access_list_transaction = decode_to_access_list_transaction(new_bytes);
+            tempvar res = Transaction(
+                new TransactionStruct(
+                    legacy_transaction=LegacyTransaction(cast(0, LegacyTransactionStruct*)),
+                    access_list_transaction=access_list_transaction,
+                    fee_market_transaction=FeeMarketTransaction(
+                        cast(0, FeeMarketTransactionStruct*)
+                    ),
+                    blob_transaction=BlobTransaction(cast(0, BlobTransactionStruct*)),
+                ),
+            );
+            return res;
+        }
+        if (transaction_type == TransactionType.FEE_MARKET) {
+            tempvar new_bytes = Bytes(new BytesStruct(data=bytes.data + 1, len=bytes_len - 1));
+            let fee_market_transaction = decode_to_fee_market_transaction(new_bytes);
+            tempvar res = Transaction(
+                new TransactionStruct(
+                    legacy_transaction=LegacyTransaction(cast(0, LegacyTransactionStruct*)),
+                    access_list_transaction=AccessListTransaction(
+                        cast(0, AccessListTransactionStruct*)
+                    ),
+                    fee_market_transaction=fee_market_transaction,
+                    blob_transaction=BlobTransaction(cast(0, BlobTransactionStruct*)),
+                ),
+            );
+            return res;
+        }
+        if (transaction_type == TransactionType.BLOB) {
+            tempvar new_bytes = Bytes(new BytesStruct(data=bytes.data + 1, len=bytes_len - 1));
+            let blob_transaction = decode_to_blob_transaction(new_bytes);
+            tempvar res = Transaction(
+                new TransactionStruct(
+                    legacy_transaction=LegacyTransaction(cast(0, LegacyTransactionStruct*)),
+                    access_list_transaction=AccessListTransaction(
+                        cast(0, AccessListTransactionStruct*)
+                    ),
+                    fee_market_transaction=FeeMarketTransaction(
+                        cast(0, FeeMarketTransactionStruct*)
+                    ),
+                    blob_transaction=blob_transaction,
+                ),
+            );
+            return res;
         }
     }
     if (cast(tx.value.legacy_transaction.value, felt) != 0) {
-        assert 0 = 1;
+        tempvar res = Transaction(
+            new TransactionStruct(
+                legacy_transaction=tx.value.legacy_transaction,
+                access_list_transaction=AccessListTransaction(
+                    cast(0, AccessListTransactionStruct*)
+                ),
+                fee_market_transaction=FeeMarketTransaction(cast(0, FeeMarketTransactionStruct*)),
+                blob_transaction=BlobTransaction(cast(0, BlobTransactionStruct*)),
+            ),
+        );
+        return res;
     }
     with_attr error_message("TransactionTypeError") {
         assert 0 = 1;
+        // unreachable
+        tempvar res = Transaction(
+            new TransactionStruct(
+                legacy_transaction=LegacyTransaction(cast(0, LegacyTransactionStruct*)),
+                access_list_transaction=AccessListTransaction(
+                    cast(0, AccessListTransactionStruct*)
+                ),
+                fee_market_transaction=FeeMarketTransaction(cast(0, FeeMarketTransactionStruct*)),
+                blob_transaction=BlobTransaction(cast(0, BlobTransactionStruct*)),
+            ),
+        );
+        return res;
     }
 }

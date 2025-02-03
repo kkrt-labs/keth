@@ -1,6 +1,6 @@
 from starkware.cairo.common.math_cmp import is_le, is_not_zero
 from starkware.cairo.common.uint256 import uint256_reverse_endian
-from ethereum_types.numeric import Uint, U256, U256Struct, bool
+from ethereum_types.numeric import Uint, U256, U256Struct, bool, U64
 from ethereum_types.bytes import Bytes32, Bytes32Struct, Bytes20, Bytes
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
@@ -264,9 +264,25 @@ func U256_mul{range_check_ptr}(a: U256, b: U256) -> U256 {
     return result;
 }
 
-func Uint_from_be_bytes{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(bytes: Bytes) -> Uint {
+func Uint64_from_be_bytes{range_check_ptr}(bytes: Bytes) -> Uint {
     with_attr error_message("OverflowError") {
         assert [range_check_ptr] = 8 - bytes.value.len;
+        let range_check_ptr = range_check_ptr + 1;
+    }
+    let value = bytes_to_felt(bytes.value.len, bytes.value.data);
+    tempvar res = Uint(value);
+    return res;
+}
+
+func U64_from_be_bytes{range_check_ptr}(bytes: Bytes) -> U64 {
+    let _res = Uint64_from_be_bytes(bytes);
+    let res = U64(_res.value);
+    return res;
+}
+
+func Uint_from_be_bytes{range_check_ptr}(bytes: Bytes) -> Uint {
+    with_attr error_message("OverflowError") {
+        assert [range_check_ptr] = 31 - bytes.value.len;
         let range_check_ptr = range_check_ptr + 1;
     }
     let value = bytes_to_felt(bytes.value.len, bytes.value.data);
