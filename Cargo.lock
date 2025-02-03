@@ -465,6 +465,7 @@ dependencies = [
  "revm",
  "revm-precompile",
  "starknet-crypto",
+ "starknet-types-core",
 ]
 
 [[package]]

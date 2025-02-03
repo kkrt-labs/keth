@@ -1,11 +1,11 @@
 import pytest
 from hypothesis import assume, given, settings
 from hypothesis import strategies as st
-from src.utils.uint256 import int_to_uint256
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 
 from cairo_addons.testing.hints import patch_hint
 from cairo_addons.testing.strategies import felt, uint128
+from src.utils.uint256 import int_to_uint256
 from tests.utils.errors import cairo_error
 
 pytestmark = pytest.mark.python_vm
@@ -99,11 +99,9 @@ class TestMaths:
             cairo_program,
             "felt252_to_bytes_le",
             """
-from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
-current_value = ids.value
-for i in range(0, ids.len):
-    memory[ids.output + i] = res_i = (int(current_value - 1) % DEFAULT_PRIME) % ids.base
-    current_value= current_value // ids.base
+mask = (1 << (ids.len * 8)) - 1
+truncated_value = ids.value & mask
+segments.write_arg(ids.output, [int(b)+1 for b in truncated_value.to_bytes(length=ids.len, byteorder='little')])
             """,
         ), cairo_error(message="felt252_to_bytes_le: bad output"):
             cairo_run("test__felt252_to_bytes_le", value=value, len=len_)
@@ -145,13 +143,9 @@ for i in range(0, ids.len):
             cairo_program,
             "felt252_to_bytes_be",
             """
-from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
-
-current_value = ids.value
-for i in range(ids.len - 1, -1, -1):
-    memory[ids.output + i] = res_i = (int(current_value - 1) % DEFAULT_PRIME) % ids.base
-    assert res_i < ids.bound, f"felt_to_bytes: Limb {res_i} is out of range."
-    current_value = current_value // ids.base
-""",
+mask = (1 << (ids.len * 8)) - 1
+truncated_value = ids.value & mask
+segments.write_arg(ids.output, [int(b) + 1 for b in truncated_value.to_bytes(length=ids.len, byteorder='big')])
+            """,
         ), cairo_error(message="felt252_to_bytes_be: bad output"):
             cairo_run("test__felt252_to_bytes_be", value=value, len=len_)

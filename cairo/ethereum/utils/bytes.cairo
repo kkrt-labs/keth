@@ -11,13 +11,15 @@ from ethereum_types.bytes import (
 from ethereum_types.numeric import bool
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.math import assert_not_equal, split_int
+from starkware.cairo.common.memcpy import memcpy
+from starkware.cairo.common.memset import memset
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 from src.utils.bytes import (
     felt_to_bytes20_little,
     uint256_to_bytes_little,
     uint256_to_bytes32_little,
 )
-from cairo_core.maths import unsigned_div_rem, felt252_to_bytes_le
+from cairo_core.maths import unsigned_div_rem, felt252_to_bytes_le, felt252_to_bytes_be
 from cairo_core.comparison import is_zero
 
 func Bytes__eq__(_self: Bytes, other: Bytes) -> bool {
@@ -66,7 +68,7 @@ func Bytes__eq__(_self: Bytes, other: Bytes) -> bool {
 }
 
 // @notice Packs the input bytes 4-by-4, big-endian.
-// @dev Expects the input len to be a multiple of 4.
+// If the input length is not a multiple of 4, the last word is padded with zeroes.
 func Bytes_to_be_ListBytes4{range_check_ptr}(input: Bytes) -> ListBytes4 {
     alloc_locals;
     let (local output_start: Bytes4*) = alloc();
@@ -75,38 +77,71 @@ func Bytes_to_be_ListBytes4{range_check_ptr}(input: Bytes) -> ListBytes4 {
         return res;
     }
 
-    let (local output_len, r) = unsigned_div_rem(input.value.len, 4);
-    local range_check_ptr = range_check_ptr;
-    with_attr error_message("IndexError") {
-        assert r = 0;
+    // Pad the last word if it's not 4-bytes.
+    let (local n_full_words, n_pending_bytes) = unsigned_div_rem(input.value.len, 4);
+    // %{print(ids.last_word_bytes)%}
+    local output_len;
+    local padding_len;
+    if (n_pending_bytes == 0) {
+        assert output_len = n_full_words;
+        assert padding_len = 0;
+    } else {
+        assert output_len = n_full_words + 1;
+        assert padding_len = 4 - n_pending_bytes;
+    }
+    // Copy the last word to a separate segment, padded with zeroes.
+    let (local last_word: felt*) = alloc();
+    if (n_pending_bytes == 0) {
+        // For full words, copy directly from input
+        memcpy(last_word, input.value.data + input.value.len - 4, 4);
+    } else {
+        // For partial words, pad with zeros then copy remaining bytes
+        memset(last_word + n_pending_bytes, 0, padding_len);
+        memcpy(last_word, input.value.data + input.value.len - n_pending_bytes, n_pending_bytes);
+    }
+    if (output_len == 1) {
+        // A single word
+        tempvar current = last_word[3] + last_word[2] * 2 ** 8 + last_word[1] * 2 ** 16 + last_word[
+            0
+        ] * 2 ** 24;
+        assert output_start[0].value = current;
+        tempvar res = ListBytes4(new ListBytes4Struct(output_start, output_len));
+        return res;
     }
 
+    local range_check_ptr = range_check_ptr;
     tempvar input_ptr = input.value.data;
     tempvar idx = 0;
-    ap += 4;
+    ap += 5;
 
     loop:
-    let input_ptr = cast([ap - 6], felt*);
-    let idx = [ap - 5];
+    let input_ptr = cast([ap - 7], felt*);
+    let idx = [ap - 6];
 
-    tempvar current = input_ptr[0] + input_ptr[1] * 2 ** 8 + input_ptr[2] * 2 ** 16 + input_ptr[2] *
-        2 ** 24 + input_ptr[3] * 2 ** 32;
+    tempvar current = input_ptr[3] + input_ptr[2] * 2 ** 8 + input_ptr[1] * 2 ** 16 + input_ptr[0] *
+        2 ** 24;
     assert output_start[idx].value = current;
 
     tempvar input_ptr = input_ptr + 4;
     tempvar idx = idx + 1;
-    let is_done = is_zero(output_len - idx);
-    jmp end if is_done != 0;
 
-    static_assert input_ptr == [ap - 6];
-    static_assert idx == [ap - 5];
+    let is_last_word = is_zero((output_len - 1) - idx);
+    jmp loop_last_word if is_last_word != 0;
+
+    static_assert input_ptr == [ap - 7];
+    static_assert idx == [ap - 6];
     jmp loop;
 
-    end:
+    loop_last_word:
+    let last_word_ptr = last_word;
+    tempvar current = last_word_ptr[3] + last_word_ptr[2] * 2 ** 8 + last_word_ptr[1] * 2 ** 16 +
+        last_word_ptr[0] * 2 ** 24;
+    assert output_start[output_len - 1].value = current;
     tempvar res = ListBytes4(new ListBytes4Struct(output_start, output_len));
     return res;
 }
 
+// @notice Converts a list of 4-byte words, where each inner word is in big-endian representation, to a bytes object.
 func ListBytes4_be_to_bytes{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     src: ListBytes4
 ) -> Bytes {
@@ -118,19 +153,19 @@ func ListBytes4_be_to_bytes{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
         return res;
     }
 
-    let res = _ListBytes4_be_to_bytes_inner{src=src, output_start=buffer}(0);
+    let res = _ListBytes4_be_to_bytes_inner{src=src, output_start=buffer}(src.value.len - 1);
     return res;
 }
 
 func _ListBytes4_be_to_bytes_inner{
     range_check_ptr, bitwise_ptr: BitwiseBuiltin*, src: ListBytes4, output_start: felt*
 }(idx: felt) -> Bytes {
-    if (idx == src.value.len) {
+    felt252_to_bytes_be(src.value.data[idx].value, 4, output_start + idx * 4);
+    if (idx == 0) {
         tempvar res = Bytes(new BytesStruct(data=output_start, len=src.value.len * 4));
         return res;
     }
-    felt252_to_bytes_le(src.value.data[idx].value, 4, output_start + idx * 4);
-    return _ListBytes4_be_to_bytes_inner(idx + 1);
+    return _ListBytes4_be_to_bytes_inner(idx - 1);
 }
 
 func Bytes20_to_Bytes{range_check_ptr}(src: Bytes20) -> Bytes {

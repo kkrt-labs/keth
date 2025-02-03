@@ -473,8 +473,9 @@ func felt252_to_bytes_le{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
         return ();
     }
     with_attr error_message("felt252_to_bytes_le: len must be < 32") {
-        assert [range_check_ptr] = 31 - len;
-        let range_check_ptr = range_check_ptr + 1;
+        assert [range_check_ptr] = len;
+        assert [range_check_ptr + 1] = 31 - len;
+        let range_check_ptr = range_check_ptr + 2;
     }
     let output = &dst[0];
     let base = 256;
@@ -536,8 +537,9 @@ func felt252_to_bytes_be{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
         return ();
     }
     with_attr error_message("felt252_to_bytes_be: len must be < 32") {
-        assert [range_check_ptr] = 31 - len;
-        let range_check_ptr = range_check_ptr + 1;
+        assert [range_check_ptr] = len;
+        assert [range_check_ptr + 1] = 31 - len;
+        let range_check_ptr = range_check_ptr + 2;
     }
     let output = &dst[0];
     let base = 256;

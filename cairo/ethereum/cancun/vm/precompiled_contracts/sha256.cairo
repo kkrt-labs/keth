@@ -35,29 +35,10 @@ func sha256{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBui
         return err;
     }
 
-    // A precompile execution is the only operation made in a call frame.
-    // Thus the data segment can only be used once in this frame, and we can
-    // add padding zeroes without risking later accesses to the same memory cells.
-
-    // Zero-pad bytes array to a multiple of 4.
-    // Appending to the same segment as the message data is not an issue
-    // as it's never appended in the regular flow.
-    // ex. 'rld\x00'
-    let (q: felt, r: felt) = unsigned_div_rem(data.value.len, 4);
-    if (r != 0) {
-        // Append zero elements at the end of array
-        memset(data.value.data + data.value.len, 0, 4 - r);
-        tempvar padded_data_len = (q + 1) * 4;
-    } else {
-        tempvar padded_data_len = q * 4;
-    }
-
-    // Prepare input bytes array to words of 32 bits (big endian).
-    tempvar padded_input = Bytes(new BytesStruct(data.value.data, padded_data_len));
-    let prepared_input = Bytes_to_be_ListBytes4(padded_input);
+    let list_bytes4_be = Bytes_to_be_ListBytes4(data);
 
     // The numbero of bytes to hash is taken from the original input
-    let hash = sha256_be_output(prepared_input.value.data, data.value.len);
+    let hash = sha256_be_output(list_bytes4_be.value.data, data.value.len);
     tempvar hash_bytes4 = ListBytes4(new ListBytes4Struct(cast(hash, Bytes4*), 8));
 
     // Split words and return bytes hash code.

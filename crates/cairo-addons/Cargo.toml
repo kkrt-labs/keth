@@ -24,6 +24,7 @@ starknet-crypto = "0.7.4"
 revm = "19.4.0"
 revm-precompile = "16.0.0"
 lazy_static = "1.5.0"
+starknet-types-core = "0.1.7"
 
 [build-dependencies]
 pyo3-build-config = "0.22.4" # Should match pyo3 version
