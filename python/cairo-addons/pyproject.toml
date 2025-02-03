@@ -32,6 +32,7 @@ dev-dependencies = [
 
 [tool.isort]
 profile = "black"
+known_first_party = ["cairo_addons", "cairo_core", "cairo_ec"]
 
 [project.entry-points."pytest11"]
 cairo_hooks = "cairo_addons.testing.hooks"

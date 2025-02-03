@@ -40,11 +40,6 @@ def circuit_compile(cairo_program: Program, circuit: str):
 
     instructions = [decode_instruction(d, imm) for d, imm in zip(data, data[1:] + [0])]
 
-    # Arguments of a function are always at fp - 2 - n where n is the number of arguments
-    args = list(
-        cairo_program.get_identifier(f"{circuit}.Args", StructDefinition).members.keys()
-    )
-    free_fp_offset_for_args = 3 + len(args)
     if not instructions[-1].pc_update == Instruction.PcUpdate.JUMP:
         raise ValueError("The circuit should end with a return instruction")
     instructions.pop()
@@ -57,6 +52,12 @@ def circuit_compile(cairo_program: Program, circuit: str):
     if any(i.res == Instruction.Res.OP1 for i in instructions):
         constants.add(0)
     constants = list(constants)
+    # Arguments of a function are always at fp - 3 - n where n is the index of the argument
+    args = list(
+        cairo_program.get_identifier(f"{circuit}.Args", StructDefinition).members.keys()
+    )
+    # We put the constants before the args, so the initial offset is 3 + len(args)
+    constants_offset = 3 + len(args)
 
     instruction_compiled = []
     while instructions:
@@ -64,20 +65,18 @@ def circuit_compile(cairo_program: Program, circuit: str):
 
         # Update res = Res.OP1 to res = 0 + op1
         if i.res == Instruction.Res.OP1:
-            i.off1 = -free_fp_offset_for_args - constants.index(0)
+            i.off1 = -constants_offset - constants.index(0)
             i.op0_register = Register.FP
             i.res = Instruction.Res.ADD
-            free_fp_offset_for_args += 1
 
         # Use added input constant for immediate value
         if i.op1_addr == Instruction.Op1Addr.IMM:
             i.op1_addr = Instruction.Op1Addr.FP
-            i.off2 = -free_fp_offset_for_args - constants.index(i.imm)
+            i.off2 = -constants_offset - constants.index(i.imm)
             i.ap_update = Instruction.ApUpdate.ADD1
             i.imm = None
             # pop the next instruction which is the imm value
             instructions.pop(0)
-            free_fp_offset_for_args += 1
 
         instruction_compiled.append(i)
 

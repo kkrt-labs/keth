@@ -13,6 +13,11 @@ from cairo_ec.circuits.mod_ops_compiled import (
     sum_ratio as sum_ratio_compiled,
     inv as inv_compiled,
 )
+from cairo_ec.circuits.ec_ops import ec_add, ec_double
+from cairo_ec.circuits.ec_ops_compiled import (
+    ec_add as ec_add_compiled,
+    ec_double as ec_double_compiled,
+)
 
 func test__circuit{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
     values_ptr: felt*,
