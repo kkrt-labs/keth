@@ -282,3 +282,11 @@ func Uint_from_be_bytes{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(bytes: By
     tempvar res = Uint(value);
     return res;
 }
+
+func U256_to_Uint{range_check_ptr}(value: U256) -> Uint {
+    assert [range_check_ptr] = value.value.low;
+    assert [range_check_ptr + 1] = value.value.high;
+    let range_check_ptr = range_check_ptr + 2;
+    let res = Uint(value.value.low + value.value.high * 2 ** 128);
+    return res;
+}

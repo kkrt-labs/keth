@@ -23,6 +23,7 @@ from ethereum.cancun.transactions_types import (
     BlobTransaction,
     To,
     ToStruct,
+    TransactionImpl,
     TupleAccessListStruct,
     TX_BASE_COST,
     TX_DATA_COST_PER_NON_ZERO,
@@ -240,23 +241,23 @@ func recover_sender{
     );
     tempvar zero = U256(new U256Struct(low=0, high=0));
 
+    let r = TransactionImpl.get_r(tx);
+    let s = TransactionImpl.get_s(tx);
+
+    let r_is_zero = U256__eq__(r, zero);
+    let r_is_out_of_range = U256_le(SECP256K1N, r);
+
+    let s_is_zero = U256__eq__(s, zero);
+    let s_is_within_range = U256_le(s, SECP256K1N_DIVIDED_BY_2);
+
+    let error = r_is_zero.value + r_is_out_of_range.value + s_is_zero.value + (
+        1 - s_is_within_range.value
+    );
+    with_attr error_message("InvalidSignatureError") {
+        assert error = 0;
+    }
+
     if (cast(tx.value.legacy_transaction.value, felt) != 0) {
-        let r = tx.value.legacy_transaction.value.r;
-        let s = tx.value.legacy_transaction.value.s;
-
-        let r_is_zero = U256__eq__(r, zero);
-        let r_is_out_of_range = U256_le(SECP256K1N, r);
-
-        let s_is_zero = U256__eq__(s, zero);
-        let s_is_within_range = U256_le(s, SECP256K1N_DIVIDED_BY_2);
-
-        let error = r_is_zero.value + r_is_out_of_range.value + s_is_zero.value + (
-            1 - s_is_within_range.value
-        );
-        with_attr error_message("InvalidSignatureError") {
-            assert error = 0;
-        }
-
         let v_u256 = tx.value.legacy_transaction.value.v;
         with_attr error_message("InvalidSignatureError") {
             assert v_u256.value.high = 0;
@@ -285,22 +286,6 @@ func recover_sender{
     }
 
     if (cast(tx.value.access_list_transaction.value, felt) != 0) {
-        let r = tx.value.access_list_transaction.value.r;
-        let s = tx.value.access_list_transaction.value.s;
-
-        let r_is_zero = U256__eq__(r, zero);
-        let r_is_out_of_range = U256_le(SECP256K1N, r);
-
-        let s_is_zero = U256__eq__(s, zero);
-        let s_is_within_range = U256_le(s, SECP256K1N_DIVIDED_BY_2);
-
-        let error = r_is_zero.value + r_is_out_of_range.value + s_is_zero.value + (
-            1 - s_is_within_range.value
-        );
-        with_attr error_message("InvalidSignatureError") {
-            assert error = 0;
-        }
-
         let y_parity = tx.value.access_list_transaction.value.y_parity;
         let y_parity_is_zero = U256__eq__(y_parity, zero);
         let y_parity_is_one = U256__eq__(y_parity, U256(new U256Struct(low=1, high=0)));
@@ -314,21 +299,6 @@ func recover_sender{
     }
 
     if (cast(tx.value.fee_market_transaction.value, felt) != 0) {
-        let r = tx.value.fee_market_transaction.value.r;
-        let s = tx.value.fee_market_transaction.value.s;
-
-        let r_is_zero = U256__eq__(r, zero);
-        let r_is_out_of_range = U256_le(SECP256K1N, r);
-
-        let s_is_zero = U256__eq__(s, zero);
-        let s_is_within_range = U256_le(s, SECP256K1N_DIVIDED_BY_2);
-
-        let error = r_is_zero.value + r_is_out_of_range.value + s_is_zero.value + (
-            1 - s_is_within_range.value
-        );
-        with_attr error_message("InvalidSignatureError") {
-            assert error = 0;
-        }
         let y_parity = tx.value.fee_market_transaction.value.y_parity;
         let y_parity_is_zero = U256__eq__(y_parity, zero);
         let y_parity_is_one = U256__eq__(y_parity, U256(new U256Struct(low=1, high=0)));
@@ -343,21 +313,6 @@ func recover_sender{
     }
 
     if (cast(tx.value.blob_transaction.value, felt) != 0) {
-        let r = tx.value.blob_transaction.value.r;
-        let s = tx.value.blob_transaction.value.s;
-
-        let r_is_zero = U256__eq__(r, zero);
-        let r_is_out_of_range = U256_le(SECP256K1N, r);
-
-        let s_is_zero = U256__eq__(s, zero);
-        let s_is_within_range = U256_le(s, SECP256K1N_DIVIDED_BY_2);
-
-        let error = r_is_zero.value + r_is_out_of_range.value + s_is_zero.value + (
-            1 - s_is_within_range.value
-        );
-        with_attr error_message("InvalidSignatureError") {
-            assert error = 0;
-        }
         let y_parity = tx.value.blob_transaction.value.y_parity;
         let y_parity_is_zero = U256__eq__(y_parity, zero);
         let y_parity_is_one = U256__eq__(y_parity, U256(new U256Struct(low=1, high=0)));

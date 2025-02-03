@@ -1,33 +1,41 @@
+from dataclasses import replace
 from typing import Optional, Tuple
 
+from eth_keys.datatypes import PrivateKey
 from ethereum_types.bytes import Bytes, Bytes20
-from ethereum_types.numeric import Uint
+from ethereum_types.numeric import U64, U256, Uint
 from hypothesis import assume, given, settings
 from hypothesis import strategies as st
-from hypothesis.strategies import composite
+from hypothesis.strategies import composite, integers
 
 from ethereum.cancun.blocks import Header, Log
 from ethereum.cancun.fork import (
     GAS_LIMIT_ADJUSTMENT_FACTOR,
     calculate_base_fee_per_gas,
     check_gas_limit,
+    check_transaction,
     make_receipt,
     process_transaction,
     validate_header,
 )
 from ethereum.cancun.fork_types import Address
+from ethereum.cancun.state import set_account
 from ethereum.cancun.transactions import (
     AccessListTransaction,
     BlobTransaction,
     FeeMarketTransaction,
     LegacyTransaction,
     Transaction,
+    signing_hash_155,
+    signing_hash_1559,
+    signing_hash_2930,
+    signing_hash_4844,
 )
 from ethereum.cancun.vm import Environment
 from ethereum.exceptions import EthereumException
 from tests.ethereum.cancun.vm.test_interpreter import unimplemented_precompiles
 from tests.utils.errors import strict_raises
-from tests.utils.strategies import address, bytes32
+from tests.utils.strategies import account_strategy, address, bytes32, state
 
 
 @composite
@@ -77,6 +85,44 @@ def tx_without_code(draw):
     tx = draw(st.one_of(legacy_tx, access_list_tx, fee_market_tx, blob_tx))
 
     return tx
+
+
+@composite
+def tx_with_sender_in_state(
+    draw, state_strategy=state, account_strategy=account_strategy
+):
+    state = draw(state_strategy)
+    chain_id = draw(st.from_type(U64))
+    tx = draw(st.from_type(Transaction))
+    private_key = draw(st.from_type(PrivateKey))
+    expected_address = int(private_key.public_key.to_address(), 16)
+    if isinstance(tx, LegacyTransaction):
+        signature = private_key.sign_msg_hash(signing_hash_155(tx, chain_id))
+    elif isinstance(tx, AccessListTransaction):
+        signature = private_key.sign_msg_hash(signing_hash_2930(tx))
+    elif isinstance(tx, FeeMarketTransaction):
+        signature = private_key.sign_msg_hash(signing_hash_1559(tx))
+    elif isinstance(tx, BlobTransaction):
+        signature = private_key.sign_msg_hash(signing_hash_4844(tx))
+    else:
+        raise ValueError(f"Unsupported transaction type: {type(tx)}")
+
+    # Overwrite r and s with valid values
+    v_or_y_parity = {}
+    if isinstance(tx, LegacyTransaction):
+        v_or_y_parity["v"] = U256(signature.v)
+    else:
+        v_or_y_parity["y_parity"] = U256(signature.v)
+    tx = replace(tx, r=U256(signature.r), s=U256(signature.s), **v_or_y_parity)
+
+    should_add_sender_to_state = draw(integers(0, 99)) < 80
+    if should_add_sender_to_state:
+        sender = Address(int(expected_address).to_bytes(20, "little"))
+        account = draw(account_strategy)
+        set_account(state, sender, account)
+        return tx, state
+    else:
+        return tx, state
 
 
 class TestFork:
@@ -169,3 +215,47 @@ class TestFork:
         assert gas_used_cairo == gas_used
         assert logs_cairo == logs
         assert error_cairo == error
+
+    @given(
+        data=tx_with_sender_in_state(),
+        gas_available=...,
+        chain_id=...,
+        base_fee_per_gas=...,
+        excess_blob_gas=...,
+    )
+    def test_check_transaction(
+        self,
+        cairo_run_py,
+        data,
+        gas_available: Uint,
+        chain_id: U64,
+        base_fee_per_gas: Uint,
+        excess_blob_gas: U64,
+    ):
+        tx, state = data
+        try:
+            cairo_state, cairo_result = cairo_run_py(
+                "check_transaction",
+                state,
+                tx,
+                gas_available,
+                chain_id,
+                base_fee_per_gas,
+                excess_blob_gas,
+            )
+        except Exception as e:
+            with strict_raises(type(e)):
+                check_transaction(
+                    state,
+                    tx,
+                    gas_available,
+                    chain_id,
+                    base_fee_per_gas,
+                    excess_blob_gas,
+                )
+            return
+
+        assert cairo_result == check_transaction(
+            state, tx, gas_available, chain_id, base_fee_per_gas, excess_blob_gas
+        )
+        assert cairo_state == state
