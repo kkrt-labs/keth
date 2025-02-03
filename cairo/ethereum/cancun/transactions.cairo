@@ -336,7 +336,7 @@ func recover_sender{
     return res;
 }
 
-func decode_transaction(tx: UnionLegacyTransactionBytes) -> Transaction {
+func decode_transaction{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(tx: UnionLegacyTransactionBytes) -> Transaction {
     if (cast(tx.value.bytes.value, felt) != 0) {
         let bytes = tx.value.bytes.value;
         let bytes_len = bytes.len;

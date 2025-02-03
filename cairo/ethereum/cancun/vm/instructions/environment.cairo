@@ -38,7 +38,13 @@ from ethereum.cancun.utils.address import to_address
 
 from ethereum.crypto.hash import keccak256
 
-from ethereum.utils.numeric import U256_from_be_bytes32, ceil32, divmod, U256_to_be_bytes
+from ethereum.utils.numeric import (
+    U256_from_be_bytes32,
+    ceil32,
+    divmod,
+    U256_to_be_bytes,
+    U256_from_be_bytes20,
+)
 
 from src.utils.bytes import felt_to_bytes20_little
 from src.utils.dict import hashdict_read, hashdict_write
@@ -64,7 +70,7 @@ func address{
 
     // OPERATION
     with stack {
-        let address_u256 = U256_from_be_bytes3220(evm.value.message.value.current_target);
+        let address_u256 = U256_from_be_bytes20(evm.value.message.value.current_target);
         let err = push(address_u256);
         if (cast(err, felt) != 0) {
             EvmImpl.set_stack(stack);
@@ -173,7 +179,7 @@ func origin{
 
     // OPERATION
     with stack {
-        let origin_u256 = U256_from_be_bytes3220(evm.value.env.value.origin);
+        let origin_u256 = U256_from_be_bytes20(evm.value.env.value.origin);
 
         let err = push(origin_u256);
         if (cast(err, felt) != 0) {
@@ -208,7 +214,7 @@ func caller{
 
     // OPERATION
     with stack {
-        let caller_u256 = U256_from_be_bytes3220(evm.value.message.value.caller);
+        let caller_u256 = U256_from_be_bytes20(evm.value.message.value.caller);
         let err = push(caller_u256);
         if (cast(err, felt) != 0) {
             EvmImpl.set_stack(stack);

@@ -73,10 +73,8 @@ class TestNumeric:
         assert (a == b) == cairo_run("U256__eq__", a, b)
 
     @given(address=...)
-    def test_U256_from_be_bytes3220(self, cairo_run, address: Address):
-        assert U256.from_be_bytes(address) == cairo_run(
-            "U256_from_be_bytes3220", address
-        )
+    def test_U256_from_be_bytes20(self, cairo_run, address: Address):
+        assert U256.from_be_bytes(address) == cairo_run("U256_from_be_bytes20", address)
 
     @given(value=st.integers(min_value=0, max_value=2**160 - 1).map(U256))
     def test_U256_to_be_bytes20(self, cairo_run, value: U256):

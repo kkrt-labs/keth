@@ -166,9 +166,7 @@ func U256__eq__(a: U256, b: U256) -> bool {
 // / Split:       high=[01,02,03,04], low=[05,...,13,14]
 // / Reversed:    high=[04,03,02,01], low=[14,13,...,05]
 // / Final U256:  high=0x04030201, low=0x14130C0B...0605
-func U256_from_be_bytes3220{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
-    bytes20: Bytes20
-) -> U256 {
+func U256_from_be_bytes20{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(bytes20: Bytes20) -> U256 {
     // 1. Splits the 20-byte value into high and low parts
     let (bytes20_high, bytes20_low) = split_felt(bytes20.value);
     // 2. Reverses the endianness of both parts
