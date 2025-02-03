@@ -18,7 +18,15 @@ from ethereum_types.bytes import (
     TupleBytes32,
     TupleBytes32Struct,
 )
-from ethereum.cancun.blocks import Log, TupleLog, Receipt, Withdrawal, Header
+from ethereum.cancun.blocks import (
+    Log,
+    TupleLog,
+    Receipt,
+    Withdrawal,
+    Header,
+    UnionBytesLegacyTransactionEnum,
+    UnionBytesLegacyTransaction,
+)
 from ethereum.cancun.fork_types import (
     Address,
     Account,
@@ -39,12 +47,10 @@ from ethereum.cancun.transactions_types import (
     Transaction,
     TupleAccessListStruct,
     AccessListStruct,
-    UnionLegacyTransactionBytes,
     LegacyTransactionStruct,
     AccessListTransactionStruct,
     FeeMarketTransactionStruct,
     BlobTransactionStruct,
-    UnionLegacyTransactionBytesEnum,
 )
 from ethereum.crypto.hash import keccak256, Hash32
 from ethereum.utils.numeric import (
@@ -691,7 +697,7 @@ func encode_transaction{range_check_ptr}(transaction: Transaction) -> UnionLegac
     if (cast(transaction.value.legacy_transaction.value, felt) != 0) {
         // Legacy transaction - no type byte prefix
         tempvar result = UnionLegacyTransactionBytes(
-            new UnionLegacyTransactionBytesEnum(
+            new UnionBytesLegacyTransactionEnum(
                 legacy_transaction=transaction.value.legacy_transaction,
                 bytes=Bytes(cast(0, BytesStruct*)),
             ),
@@ -704,7 +710,7 @@ func encode_transaction{range_check_ptr}(transaction: Transaction) -> UnionLegac
             transaction.value.access_list_transaction
         );
         tempvar result = UnionLegacyTransactionBytes(
-            new UnionLegacyTransactionBytesEnum(
+            new UnionBytesLegacyTransactionEnum(
                 legacy_transaction=LegacyTransaction(cast(0, LegacyTransactionStruct*)),
                 bytes=encoded_access_list_transaction,
             ),
@@ -717,7 +723,7 @@ func encode_transaction{range_check_ptr}(transaction: Transaction) -> UnionLegac
             transaction.value.fee_market_transaction
         );
         tempvar result = UnionLegacyTransactionBytes(
-            new UnionLegacyTransactionBytesEnum(
+            new UnionBytesLegacyTransactionEnum(
                 legacy_transaction=LegacyTransaction(cast(0, LegacyTransactionStruct*)),
                 bytes=encoded_fee_market_transaction,
             ),
@@ -728,7 +734,7 @@ func encode_transaction{range_check_ptr}(transaction: Transaction) -> UnionLegac
     if (cast(transaction.value.blob_transaction.value, felt) != 0) {
         let encoded_blob_transaction = encode_blob_transaction(transaction.value.blob_transaction);
         tempvar result = UnionLegacyTransactionBytes(
-            new UnionLegacyTransactionBytesEnum(
+            new UnionBytesLegacyTransactionEnum(
                 legacy_transaction=LegacyTransaction(cast(0, LegacyTransactionStruct*)),
                 bytes=encoded_blob_transaction,
             ),
@@ -740,7 +746,7 @@ func encode_transaction{range_check_ptr}(transaction: Transaction) -> UnionLegac
     with_attr error_message("Invalid transaction type - no valid pointer") {
         assert 0 = 1;
         tempvar result = UnionLegacyTransactionBytes(
-            new UnionLegacyTransactionBytesEnum(
+            new UnionBytesLegacyTransactionEnum(
                 legacy_transaction=LegacyTransaction(cast(0, LegacyTransactionStruct*)),
                 bytes=Bytes(cast(0, BytesStruct*)),
             ),

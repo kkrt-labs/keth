@@ -418,6 +418,6 @@ func decode_transaction{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     with_attr error_message("TransactionTypeError") {
         assert 0 = 1;
         // unreachable
-       ret;
+        ret;
     }
 }

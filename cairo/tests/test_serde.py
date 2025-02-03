@@ -216,7 +216,6 @@ class TestSerde:
             Tuple[VersionedHash, ...],
             Tuple[Address, Uint, Tuple[VersionedHash, ...]],
             Union[Bytes0, Address],
-            Union[LegacyTransaction, Bytes],
             LegacyTransaction,
             AccessListTransaction,
             FeeMarketTransaction,

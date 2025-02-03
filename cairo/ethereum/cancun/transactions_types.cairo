@@ -290,12 +290,3 @@ namespace TransactionImpl {
         }
     }
 }
-
-struct UnionLegacyTransactionBytesEnum {
-    legacy_transaction: LegacyTransaction,
-    bytes: Bytes,
-}
-
-struct UnionLegacyTransactionBytes {
-    value: UnionLegacyTransactionBytesEnum*,
-}
