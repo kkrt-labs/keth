@@ -79,7 +79,6 @@ func Bytes_to_be_ListBytes4{range_check_ptr}(input: Bytes) -> ListBytes4 {
 
     // Pad the last word if it's not 4-bytes.
     let (local n_full_words, n_pending_bytes) = unsigned_div_rem(input.value.len, 4);
-    // %{print(ids.last_word_bytes)%}
     local output_len;
     local padding_len;
     if (n_pending_bytes == 0) {

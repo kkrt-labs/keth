@@ -67,4 +67,14 @@ impl PyMemorySegmentManager {
     fn compute_effective_sizes(&mut self) -> Vec<usize> {
         unsafe { (*self.runner).vm.segments.compute_effective_sizes().clone() }
     }
+
+    fn gen_arg(&self, arg: PyMaybeRelocatable) -> PyResult<PyMaybeRelocatable> {
+        let arg: MaybeRelocatable = arg.into();
+        let result: Result<MaybeRelocatable, cairo_vm::vm::errors::memory_errors::MemoryError> =
+            unsafe { (*self.runner).vm.segments.gen_arg(&arg) };
+        match result {
+            Ok(value) => Ok(value.into()),
+            Err(e) => Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string())),
+        }
+    }
 }

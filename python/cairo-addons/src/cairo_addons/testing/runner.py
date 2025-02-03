@@ -441,14 +441,17 @@ def run_rust_vm(
             runner.segments, cairo_program, runner.dict_manager, cairo_file
         )
         stack = []
-        gen_arg = None
-        if gen_arg_builder is not None:
-            gen_arg = gen_arg_builder(runner.dict_manager, runner.segments)
-            for i, (arg_name, python_type) in enumerate(
-                [(k, v["python_type"]) for k, v in {**_implicit_args, **_args}.items()]
-            ):
-                arg_value = kwargs[arg_name] if arg_name in kwargs else args[i]
-                stack.append(gen_arg(python_type, arg_value))
+        # Handle other args, (implicit, explicit)
+        gen_arg = (
+            gen_arg_builder(runner.dict_manager, runner.segments)
+            if gen_arg_builder is not None
+            else lambda _python_type, _value: runner.segments.gen_arg(_value)
+        )
+        for i, (arg_name, python_type) in enumerate(
+            [(k, v["python_type"]) for k, v in {**_implicit_args, **_args}.items()]
+        ):
+            arg_value = kwargs[arg_name] if arg_name in kwargs else args[i]
+            stack.append(gen_arg(python_type, arg_value))
 
         # Initialize runner
         end = runner.initialize_vm(
