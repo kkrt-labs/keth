@@ -11,7 +11,7 @@ from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin
 
 from ethereum_types.bytes import Bytes, BytesStruct, Bytes1DictAccess, Bytes32, TupleBytes32
 from ethereum_types.numeric import U256, Uint, U128
-from ethereum.utils.numeric import max, Uint_from_be_bytes, divmod, is_zero
+from ethereum.utils.numeric import max, Uint_from_be_bytes, divmod
 from ethereum.utils.bytes import Bytes20_to_Bytes, Bytes32_to_Bytes
 from ethereum.crypto.hash import keccak256
 from ethereum.cancun.blocks import TupleLog
@@ -20,7 +20,7 @@ from ethereum.cancun.fork_types import Bloom
 from src.utils.bytes import uint256_to_bytes32, felt_to_bytes16_little
 from src.utils.dict import dict_squash
 from cairo_core.maths import pow2
-
+from cairo_core.comparison import is_zero
 const BIT_MASK_11_BITS = 0x07FF;
 
 struct MutableBloomStruct {
@@ -67,7 +67,7 @@ func _add_bloom_index{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, bloom: Muta
     // Calculate 1 << (7 - bit_position) using multiplication
     // This is equivalent to 2^bit_shift where bit_shift = 7 - bit_position
     let bit_shift_value = 7 - bit_position;
-    let (bit_value) = pow2(bit_shift_value);
+    let bit_value = pow2(bit_shift_value);
 
     // Read current byte value
     let bloom_ptr = cast(bloom.value.dict_ptr, DictAccess*);

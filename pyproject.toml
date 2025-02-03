@@ -163,6 +163,10 @@ markers = [
   "slow",
 ]
 norecursedirs = ".* tests/ef_tests/test_data"
+addopts = [
+  # Allow test files to have the same name in different directories.
+  "--import-mode=importlib",
+]
 
 
 [tool.isort]

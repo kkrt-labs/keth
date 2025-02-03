@@ -15,7 +15,7 @@ from typing import (
 from unittest.mock import patch
 
 from eth_keys.datatypes import PrivateKey
-from ethereum_types.bytes import Bytes0, Bytes8, Bytes20, Bytes32, Bytes256
+from ethereum_types.bytes import Bytes0, Bytes4, Bytes8, Bytes20, Bytes32, Bytes256
 from ethereum_types.numeric import U64, U256, FixedUnsigned, Uint
 from hypothesis import strategies as st
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
@@ -68,6 +68,9 @@ uint256 = st.integers(min_value=0, max_value=2**256 - 1).map(U256)
 nibble = st.lists(uint4, max_size=64).map(bytes)
 
 bytes0 = st.binary(min_size=0, max_size=0).map(Bytes0)
+bytes4 = st.integers(min_value=0, max_value=2**32 - 1).map(
+    lambda x: Bytes4(x.to_bytes(4, "little"))
+)
 bytes8 = st.integers(min_value=0, max_value=2**64 - 1).map(
     lambda x: Bytes8(x.to_bytes(8, "little"))
 )
@@ -452,6 +455,7 @@ def register_type_strategies():
     st.register_type_strategy(FixedUnsigned, uint)
     st.register_type_strategy(U256, uint256)
     st.register_type_strategy(Bytes0, bytes0)
+    st.register_type_strategy(Bytes4, bytes4)
     st.register_type_strategy(Bytes8, bytes8)
     st.register_type_strategy(Bytes20, bytes20)
     st.register_type_strategy(Address, address)

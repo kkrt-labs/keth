@@ -42,6 +42,7 @@ from ethereum_types.bytes import (
     Bytes,
     Bytes0,
     Bytes1,
+    Bytes4,
     Bytes8,
     Bytes20,
     Bytes32,
@@ -402,7 +403,7 @@ class Serde(SerdeProtocol):
                 return U256(value)
             return python_cls(value.to_bytes(32, "little"))
 
-        if python_cls in (Bytes0, Bytes1, Bytes8, Bytes20):
+        if python_cls in (Bytes0, Bytes1, Bytes4, Bytes8, Bytes20):
             return python_cls(value.to_bytes(python_cls.LENGTH, "little"))
 
         # Because some types are wrapped in a value field, e.g. Account{ value: AccountStruct }

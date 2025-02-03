@@ -3,6 +3,7 @@ use cairo_vm::{
         builtin_hint_processor::{
             builtin_hint_processor_definition::{BuiltinHintProcessor, HintFunc},
             memcpy_hint_utils::add_segment,
+            sha256_utils::sha256_finalize,
         },
         hint_processor_definition::HintReference,
     },
@@ -17,7 +18,7 @@ use cairo_vm::{
 use std::{collections::HashMap, fmt, rc::Rc};
 
 use super::{
-    hint_definitions::{BYTES_HINTS, DICT_HINTS, HASHDICT_HINTS, UTILS_HINTS},
+    hint_definitions::{BYTES_HINTS, DICT_HINTS, HASHDICT_HINTS, MATHS_HINTS, UTILS_HINTS},
     hint_loader::load_python_hints,
 };
 
@@ -85,11 +86,12 @@ impl HintProcessor {
 
 impl Default for HintProcessor {
     fn default() -> Self {
-        let mut hints: Vec<fn() -> Hint> = vec![add_segment_hint];
+        let mut hints: Vec<fn() -> Hint> = vec![add_segment_hint, finalize_sha256_hint];
         hints.extend_from_slice(DICT_HINTS);
         hints.extend_from_slice(HASHDICT_HINTS);
         hints.extend_from_slice(UTILS_HINTS);
         hints.extend_from_slice(BYTES_HINTS);
+        hints.extend_from_slice(MATHS_HINTS);
         Self::new(RunResources::default()).with_hints(hints)
     }
 }
@@ -112,5 +114,37 @@ pub fn add_segment_hint() -> Hint {
          _ap_tracking: &ApTracking,
          _constants: &HashMap<String, Felt252>|
          -> Result<(), HintError> { add_segment(vm) },
+    )
+}
+
+// A patch of the LambdaClass CairoVM Rust hint, because the one in cairo-lang 0.13a is _slightly_
+// different.
+pub const SHA256_FINALIZE: &str = r#"# Add dummy pairs of input and output.
+from starkware.cairo.common.cairo_sha256.sha256_utils import (
+    IV,
+    compute_message_schedule,
+    sha2_compress_function,
+)
+
+number_of_missing_blocks = (-ids.n) % ids.BATCH_SIZE
+assert 0 <= number_of_missing_blocks < 20
+_sha256_input_chunk_size_felts = ids.SHA256_INPUT_CHUNK_SIZE_FELTS
+assert 0 <= _sha256_input_chunk_size_felts < 100
+
+message = [0] * _sha256_input_chunk_size_felts
+w = compute_message_schedule(message)
+output = sha2_compress_function(IV, w)
+padding = (message + IV + output) * number_of_missing_blocks
+segments.write_arg(ids.sha256_ptr_end, padding)"#;
+
+pub fn finalize_sha256_hint() -> Hint {
+    Hint::new(
+        String::from(SHA256_FINALIZE),
+        |vm: &mut VirtualMachine,
+         _exec_scopes: &mut ExecutionScopes,
+         ids_data: &HashMap<String, HintReference>,
+         ap_tracking: &ApTracking,
+         _constants: &HashMap<String, Felt252>|
+         -> Result<(), HintError> { sha256_finalize(vm, ids_data, ap_tracking) },
     )
 }

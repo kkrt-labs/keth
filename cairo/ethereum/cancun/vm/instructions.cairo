@@ -23,7 +23,6 @@ from ethereum.cancun.vm.instructions.comparison import (
     signed_less_than,
     signed_greater_than,
     equal,
-    is_zero,
 )
 from ethereum.cancun.vm.instructions.bitwise import (
     bitwise_and,
@@ -154,6 +153,7 @@ from ethereum.cancun.vm.instructions.environment import (
     blob_hash,
     blob_base_fee,
 )
+from cairo_core.comparison import is_zero
 
 func op_implementation{
     range_check_ptr,

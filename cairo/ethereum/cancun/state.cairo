@@ -45,7 +45,8 @@ from ethereum.cancun.trie import (
 from ethereum.cancun.blocks import Withdrawal
 from ethereum_types.bytes import Bytes, Bytes32
 from ethereum_types.numeric import U256, U256Struct, Bool, bool, Uint
-from ethereum.utils.numeric import is_zero, U256_le, U256_sub, U256_add, U256_mul
+from ethereum.utils.numeric import U256_le, U256_sub, U256_add, U256_mul
+from cairo_core.comparison import is_zero
 
 from src.utils.dict import (
     hashdict_read,

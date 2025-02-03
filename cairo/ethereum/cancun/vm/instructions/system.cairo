@@ -61,7 +61,6 @@ from ethereum.cancun.state import (
 from ethereum_types.bytes import Bytes, BytesStruct, Bytes0
 from ethereum.cancun.transactions_types import To, ToStruct
 from ethereum.utils.numeric import (
-    is_zero,
     U256_from_be_bytes20,
     is_not_zero,
     ceil32,
@@ -74,6 +73,7 @@ from src.utils.dict import hashdict_write, dict_copy
 from starkware.cairo.common.uint256 import uint256_lt
 from starkware.cairo.common.alloc import alloc
 from src.utils.dict import hashdict_read
+from cairo_core.comparison import is_zero
 
 func generic_call{
     process_message_label: felt*,

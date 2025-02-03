@@ -82,7 +82,6 @@ from ethereum.exceptions import OptionalEthereumException
 from ethereum.utils.numeric import (
     divmod,
     min,
-    is_zero,
     U256_add,
     U256__eq__,
     U256_from_felt,
@@ -90,6 +89,7 @@ from ethereum.utils.numeric import (
     U256_to_Uint,
 )
 from ethereum.cancun.transactions import recover_sender
+from cairo_core.comparison import is_zero
 
 from src.utils.array import count_not_zero
 from src.utils.dict import dict_new_empty, hashdict_write

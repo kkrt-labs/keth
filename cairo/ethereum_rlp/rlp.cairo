@@ -29,8 +29,8 @@ from ethereum.cancun.transactions_types import (
     Transaction,
 )
 from ethereum.crypto.hash import keccak256, Hash32
-from ethereum.utils.numeric import is_zero
 from ethereum.utils.bytes import Bytes8_to_Bytes
+from cairo_core.comparison import is_zero
 from src.utils.array import reverse
 from src.utils.bytes import (
     felt_to_bytes,

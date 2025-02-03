@@ -8,7 +8,8 @@ from starkware.cairo.common.squash_dict import squash_dict
 from starkware.cairo.common.uint256 import Uint256
 from ethereum_types.numeric import U256, U256Struct
 from ethereum_types.bytes import Bytes32
-from ethereum.utils.numeric import U256__eq__, is_not_zero, is_zero
+from ethereum.utils.numeric import U256__eq__
+from cairo_core.comparison import is_zero, is_not_zero
 from ethereum.cancun.fork_types import (
     Address,
     Account,
