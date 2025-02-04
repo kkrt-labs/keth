@@ -4,6 +4,7 @@ import pytest
 from ethereum.crypto.finite_field import PrimeField
 from hypothesis import assume, given
 from hypothesis import strategies as st
+from sympy import sqrt_mod
 from sympy.core.numbers import mod_inverse
 
 from cairo_addons.testing.utils import flatten
@@ -310,6 +311,39 @@ class TestCircuits:
                 == expected_output
             )
 
+        @given(data=st.data())
+        def test_assert_is_quad_residue(
+            self, cairo_program, cairo_run, curve, data, st_prime
+        ):
+            x = data.draw(st_prime)
+            root = sqrt_mod(x, curve.FIELD.PRIME)
+            is_quad_residue = root is not None
+            root = root or sqrt_mod(x * curve.G, curve.FIELD.PRIME)
+            inputs = {
+                "x": x,
+                "root": root,
+                "g": int(curve.G),
+                "is_quad_residue": is_quad_residue,
+            }
+            compiled_circuit = circuit_compile(cairo_program, "assert_is_quad_residue")
+            values_ptr = flatten(compiled_circuit["constants"]) + [
+                limb for v in inputs.values() for limb in int_to_uint384(v)
+            ]
+
+            cairo_run("assert_is_quad_residue", **inputs)
+            cairo_run(
+                "test__circuit",
+                values_ptr=values_ptr,
+                values_ptr_len=len(values_ptr),
+                p=int_to_uint384(curve.FIELD.PRIME),
+                **compiled_circuit,
+            )
+            cairo_run(
+                "assert_is_quad_residue_compiled",
+                **{k: int_to_uint384(v) for k, v in inputs.items()},
+                p=int_to_uint384(curve.FIELD.PRIME),
+            )
+
     class TestEcOps:
         @given(data=st.data())
         def test_ec_add(self, cairo_program, cairo_run, curve, data, st_prime):
@@ -393,131 +427,93 @@ class TestCircuits:
             )
 
         @given(data=st.data())
-        def test_assert_on_curve_should_pass(
-            self, cairo_program, cairo_run, curve, data, st_prime
-        ):
-            seed_p = data.draw(st_prime)
-            p = curve.random_point(x=seed_p)
-            inputs = {
-                "x": int(p.x),
-                "y": int(p.y),
-                "a": int(curve.A),
-                "b": int(curve.B),
-            }
-            cairo_run("assert_on_curve", **inputs)
+        def test_assert_on_curve(self, cairo_program, cairo_run, curve, data, st_prime):
+            x = data.draw(st_prime)
+            rhs = x**3 + curve.A * x + curve.B
+            y = sqrt_mod(rhs, curve.FIELD.PRIME)
+            is_on_curve = y is not None
+            y = y or sqrt_mod(rhs * curve.G, curve.FIELD.PRIME)
+
             compiled_circuit = circuit_compile(cairo_program, "assert_on_curve")
+            inputs = {"x": x, "y": y, "a": int(curve.A), "b": int(curve.B)}
             values_ptr = flatten(compiled_circuit["constants"]) + [
                 limb for v in inputs.values() for limb in int_to_uint384(v)
             ]
-            cairo_run(
-                "test__circuit",
-                values_ptr=values_ptr,
-                values_ptr_len=len(values_ptr),
-                p=int_to_uint384(curve.FIELD.PRIME),
-                **compiled_circuit,
-            )[-compiled_circuit["return_data_size"] :]
-            cairo_run(
-                "assert_on_curve_compiled",
-                **{k: int_to_uint384(v) for k, v in inputs.items()},
-                p=int_to_uint384(curve.FIELD.PRIME),
-            )
 
-        @given(data=st.data())
-        def test_assert_on_curve_should_fail(
-            self, cairo_program, cairo_run, curve, data, st_prime
-        ):
-            seed_p = data.draw(st_prime)
-            p = curve.random_point(x=seed_p)
-            inputs = {
-                "x": int(p.x - 1),
-                "y": int(p.y),
-                "a": int(curve.A),
-                "b": int(curve.B),
-            }
-            with pytest.raises(ValueError, match="Point not on curve"):
-                curve(inputs["x"], inputs["y"])
-            with pytest.raises(AssertionError):
+            if is_on_curve:
                 cairo_run("assert_on_curve", **inputs)
-
-            compiled_circuit = circuit_compile(cairo_program, "assert_on_curve")
-            values_ptr = flatten(compiled_circuit["constants"]) + [
-                limb for v in inputs.values() for limb in int_to_uint384(v)
-            ]
-            with pytest.raises(Exception):
                 cairo_run(
                     "test__circuit",
                     values_ptr=values_ptr,
                     values_ptr_len=len(values_ptr),
                     p=int_to_uint384(curve.FIELD.PRIME),
                     **compiled_circuit,
-                )[-compiled_circuit["return_data_size"] :]
-            with pytest.raises(Exception):
+                )
                 cairo_run(
                     "assert_on_curve_compiled",
                     **{k: int_to_uint384(v) for k, v in inputs.items()},
                     p=int_to_uint384(curve.FIELD.PRIME),
                 )
+            else:
+                with pytest.raises(Exception):
+                    cairo_run("assert_on_curve", **inputs)
+                with pytest.raises(Exception):
+                    cairo_run(
+                        "test__circuit",
+                        values_ptr=values_ptr,
+                        values_ptr_len=len(values_ptr),
+                        p=int_to_uint384(curve.FIELD.PRIME),
+                        **compiled_circuit,
+                    )
+                with pytest.raises(Exception):
+                    cairo_run(
+                        "assert_on_curve_compiled",
+                        **{k: int_to_uint384(v) for k, v in inputs.items()},
+                        p=int_to_uint384(curve.FIELD.PRIME),
+                    )
 
         @given(data=st.data())
-        def test_assert_not_on_curve_should_pass(
+        def test_assert_not_on_curve(
             self, cairo_program, cairo_run, curve, data, st_prime
         ):
-            seed_p = data.draw(st_prime)
-            p = curve.random_point(x=seed_p)
-            inputs = {
-                "x": int(p.x - 1),
-                "y": int(p.y),
-                "a": int(curve.A),
-                "b": int(curve.B),
-            }
-            with pytest.raises(ValueError, match="Point not on curve"):
-                curve(inputs["x"], inputs["y"])
-            cairo_run("assert_not_on_curve", **inputs)
+            x = data.draw(st_prime)
+            rhs = x**3 + curve.A * x + curve.B
+            y = sqrt_mod(rhs, curve.FIELD.PRIME)
+            is_on_curve = y is not None
+            y = y or sqrt_mod(rhs * curve.G, curve.FIELD.PRIME)
+
             compiled_circuit = circuit_compile(cairo_program, "assert_not_on_curve")
+            inputs = {"x": x, "y": y, "a": int(curve.A), "b": int(curve.B)}
             values_ptr = flatten(compiled_circuit["constants"]) + [
                 limb for v in inputs.values() for limb in int_to_uint384(v)
             ]
-            cairo_run(
-                "test__circuit",
-                values_ptr=values_ptr,
-                values_ptr_len=len(values_ptr),
-                p=int_to_uint384(curve.FIELD.PRIME),
-                **compiled_circuit,
-            )[-compiled_circuit["return_data_size"] :]
-            cairo_run(
-                "assert_not_on_curve_compiled",
-                **{k: int_to_uint384(v) for k, v in inputs.items()},
-                p=int_to_uint384(curve.FIELD.PRIME),
-            )
 
-        @given(data=st.data())
-        def test_assert_not_on_curve_should_fail(
-            self, cairo_program, cairo_run, curve, data, st_prime
-        ):
-            seed_p = data.draw(st_prime)
-            p = curve.random_point(x=seed_p)
-            inputs = {
-                "x": int(p.x),
-                "y": int(p.y),
-                "a": int(curve.A),
-                "b": int(curve.B),
-            }
-            with pytest.raises(Exception):
+            if is_on_curve:
+                with pytest.raises(Exception):
+                    cairo_run("assert_not_on_curve", **inputs)
+                with pytest.raises(Exception):
+                    cairo_run(
+                        "test__circuit",
+                        values_ptr=values_ptr,
+                        values_ptr_len=len(values_ptr),
+                        p=int_to_uint384(curve.FIELD.PRIME),
+                        **compiled_circuit,
+                    )
+                with pytest.raises(Exception):
+                    cairo_run(
+                        "assert_not_on_curve_compiled",
+                        **{k: int_to_uint384(v) for k, v in inputs.items()},
+                        p=int_to_uint384(curve.FIELD.PRIME),
+                    )
+            else:
                 cairo_run("assert_not_on_curve", **inputs)
-
-            compiled_circuit = circuit_compile(cairo_program, "assert_not_on_curve")
-            values_ptr = flatten(compiled_circuit["constants"]) + [
-                limb for v in inputs.values() for limb in int_to_uint384(v)
-            ]
-            with pytest.raises(Exception):
                 cairo_run(
                     "test__circuit",
                     values_ptr=values_ptr,
                     values_ptr_len=len(values_ptr),
                     p=int_to_uint384(curve.FIELD.PRIME),
                     **compiled_circuit,
-                )[-compiled_circuit["return_data_size"] :]
-            with pytest.raises(Exception):
+                )
                 cairo_run(
                     "assert_not_on_curve_compiled",
                     **{k: int_to_uint384(v) for k, v in inputs.items()},
