@@ -98,6 +98,10 @@ struct UnionBytesLegacyTransaction {
     value: UnionBytesLegacyTransactionEnum*,
 }
 
+struct OptionalUnionBytesLegacyTransaction {
+    value: UnionBytesLegacyTransactionEnum*,
+}
+
 struct TupleUnionBytesLegacyTransactionStruct {
     data: UnionBytesLegacyTransaction*,
     len: felt,

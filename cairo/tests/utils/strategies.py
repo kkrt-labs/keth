@@ -140,8 +140,7 @@ def trie_strategy(thing, min_size=0):
     value_type_origin = get_origin(value_type) or value_type
 
     # If the value_type is Optional[T], then the default value is _always_ None in our context
-    # (Trie[Address, Optional[Account]]).
-    if value_type_origin is Union and get_args(value_type)[1] is type(None):
+    if value_type_origin is Union and type(None) in get_args(value_type):
         default_strategy = st.none()
     elif value_type is U256:
         default_strategy = st.just(U256(0))
@@ -152,8 +151,9 @@ def trie_strategy(thing, min_size=0):
     def non_default_strategy(default):
         if default is None:
             # For Optional types, just use the base type strategy (which won't generate None)
-            base_type = get_args(value_type)[0]
-            return st.from_type(base_type)
+            defined_types = [t for t in get_args(value_type) if t is not type(None)]
+            # random choice of the defined types
+            return st.one_of(*(st.from_type(t) for t in defined_types))
         elif value_type is U256:
             # For U256, we don't want to generate 0 as default value
             return st.integers(min_value=1, max_value=2**256 - 1).map(U256)

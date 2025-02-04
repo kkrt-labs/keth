@@ -179,8 +179,8 @@ class Serde(SerdeProtocol):
             python_cls, *annotations = get_args(python_cls)
             origin_cls = get_origin(python_cls)
 
-        # arg_type = Optional[T] <=> arg_type_origin = Union[T, None]
-        if origin_cls is Union and get_args(python_cls)[1] is type(None):
+        # arg_type = Optional[T, U] <=> arg_type_origin = Union[T, U, None]
+        if origin_cls is Union and get_args(python_cls)[-1] is type(None):
             # Get the value pointer: if it's zero, return None.
             # Otherwise, consider this the non-optional type:
             value_ptr = self.serialize_pointers(path, ptr)["value"]
@@ -599,7 +599,8 @@ class Serde(SerdeProtocol):
                         serialized_dict[preimage] = value
 
                 elif python_key_type == Bytes:
-                    hashed_key = poseidon_hash_many(key)
+                    hashed_key = poseidon_hash_many(key) if len(key) != 1 else key[0]
+                    # hashed_key = poseidon_hash_many(key)
                     preimage = bytes(list(key))
                     value = dict_segment_data.get(
                         hashed_key, serialized_original.get(preimage)

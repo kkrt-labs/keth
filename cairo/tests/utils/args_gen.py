@@ -455,6 +455,9 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "cancun", "blocks", "UnionBytesLegacyTransaction"): Union[
         Bytes, LegacyTransaction
     ],
+    ("ethereum", "cancun", "blocks", "OptionalUnionBytesLegacyTransaction"): Optional[
+        Union[Bytes, LegacyTransaction]
+    ],
     ("ethereum", "cancun", "blocks", "TupleUnionBytesLegacyTransaction"): Tuple[
         Union[Bytes, LegacyTransaction], ...
     ],
@@ -536,6 +539,18 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "cancun", "trie", "TrieTupleAddressBytes32U256"): Trie[
         Tuple[Address, Bytes32], U256
     ],
+    (
+        "ethereum",
+        "cancun",
+        "trie",
+        "MappingBytesOptionalUnionBytesLegacyTransaction",
+    ): Mapping[Bytes, Optional[Union[Bytes, LegacyTransaction]]],
+    (
+        "ethereum",
+        "cancun",
+        "trie",
+        "TrieBytesOptionalUnionBytesLegacyTransaction",
+    ): Trie[Bytes, Optional[Union[Bytes, LegacyTransaction]]],
     ("ethereum", "cancun", "fork_types", "MappingAddressAccount"): Mapping[
         Address, Account
     ],
@@ -646,11 +661,13 @@ def _gen_arg(
         arg_type = arg_type_origin._evaluate(globals(), locals(), frozenset())
         arg_type_origin = get_origin(arg_type) or arg_type
 
-    # arg_type = Optional[T] <=> arg_type_origin = Union[T, None]
-    if arg_type_origin is Union and get_args(arg_type)[1] is type(None):
+    # arg_type = Optional[T, U] <=> arg_type_origin = Union[T, U, None]
+    if arg_type_origin is Union and get_args(arg_type)[-1] is type(None):
         if arg is None:
             return 0
-        value = _gen_arg(dict_manager, segments, get_args(arg_type)[0], arg)
+        args = get_args(arg_type)[:-1]  # Remove None type
+        defined_types = Union[args] if len(args) > 1 else args[0]
+        value = _gen_arg(dict_manager, segments, defined_types, arg)
         if isinstance(value, RustRelocatable) or isinstance(value, RelocatableValue):
             # struct SomeClassStruct1 {
             #     maybe_bytes: BytesStruct*
@@ -1040,7 +1057,11 @@ def generate_dict_arg(
     initial_data = flatten(
         [
             (
-                (poseidon_hash_many(k) if get_args(arg_type)[0] in HASHED_TYPES else k),
+                (
+                    poseidon_hash_many(k)
+                    if (get_args(arg_type)[0] in HASHED_TYPES and len(k) != 1)
+                    else k
+                ),
                 (
                     dict_manager.get_tracker(parent_dict_end_ptr).data.get(k, v)
                     if parent_dict_end_ptr
