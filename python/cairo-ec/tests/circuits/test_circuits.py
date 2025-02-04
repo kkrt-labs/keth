@@ -11,8 +11,6 @@ from cairo_addons.utils.uint384 import int_to_uint384, uint384_to_int
 from cairo_ec.compiler import circuit_compile
 from cairo_ec.curve import ECBase
 
-pytestmark = pytest.mark.python_vm
-
 
 @pytest.fixture(scope="module")
 def prime(request):

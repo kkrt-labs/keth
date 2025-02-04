@@ -50,6 +50,7 @@ impl PyCairoRunner {
             None, // dynamic_layout_params
             proof_mode,
             true, // trace_enabled
+            true, // disable_trace_padding
         )
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
 
