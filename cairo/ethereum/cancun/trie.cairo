@@ -475,7 +475,7 @@ func trie_get_TrieTupleAddressBytes32U256{
 
 func trie_get_TrieBytesOptionalUnionBytesLegacyTransaction{
     poseidon_ptr: PoseidonBuiltin*, trie: TrieBytesOptionalUnionBytesLegacyTransaction
-}(key: Bytes) -> UnionBytesLegacyTransaction {
+}(key: Bytes) -> OptionalUnionBytesLegacyTransaction {
     let dict_ptr = cast(trie.value._data.value.dict_ptr, DictAccess*);
 
     with dict_ptr {
@@ -493,7 +493,9 @@ func trie_get_TrieBytesOptionalUnionBytesLegacyTransaction{
             trie.value.secured, trie.value.default, mapping
         ),
     );
-    tempvar res = UnionBytesLegacyTransaction(cast(pointer, UnionBytesLegacyTransactionEnum*));
+    tempvar res = OptionalUnionBytesLegacyTransaction(
+        cast(pointer, UnionBytesLegacyTransactionEnum*)
+    );
     return res;
 }
 
@@ -502,12 +504,11 @@ func trie_set_TrieAddressOptionalAccount{
 }(key: Address, value: OptionalAccount) {
     let dict_ptr = cast(trie.value._data.value.dict_ptr, DictAccess*);
 
-    let is_default = Account__eq__(value, trie.value.default);
-
     let (keys) = alloc();
     assert [keys] = key.value;
 
-    if (is_default.value != 0) {
+    // Compare to the null pointer, as the default is _always_ an optional account.
+    if (cast(value.value, felt) == 0) {
         hashdict_write{dict_ptr=dict_ptr}(1, keys, 0);
         tempvar dict_ptr = dict_ptr;
         tempvar poseidon_ptr = poseidon_ptr;
@@ -563,18 +564,11 @@ func trie_set_TrieTupleAddressBytes32U256{
 
 func trie_set_TrieBytesOptionalUnionBytesLegacyTransaction{
     poseidon_ptr: PoseidonBuiltin*, trie: TrieBytesOptionalUnionBytesLegacyTransaction
-}(key: Bytes, value: UnionBytesLegacyTransaction) {
+}(key: Bytes, value: OptionalUnionBytesLegacyTransaction) {
     alloc_locals;
     let dict_ptr = cast(trie.value._data.value.dict_ptr, DictAccess*);
 
-    local is_default;
-    if (value.value == trie.value.default.value) {
-        assert is_default = 1;
-    } else {
-        assert is_default = 0;
-    }
-
-    if (is_default != 0) {
+    if (cast(value.value, felt) == 0) {
         hashdict_write{dict_ptr=dict_ptr}(key.value.len, key.value.data, 0);
         tempvar dict_ptr = dict_ptr;
         tempvar poseidon_ptr = poseidon_ptr;
