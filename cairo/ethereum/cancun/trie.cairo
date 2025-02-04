@@ -38,6 +38,9 @@ from ethereum.cancun.blocks import (
     UnionBytesReceipt,
     UnionBytesReceiptEnum,
     OptionalUnionBytesReceipt,
+    UnionBytesWithdrawal,
+    UnionBytesWithdrawalEnum,
+    OptionalUnionBytesWithdrawal,
 )
 from ethereum.cancun.fork_types import (
     Account,
@@ -249,6 +252,32 @@ struct TrieBytesOptionalUnionBytesReceiptStruct {
 
 struct TrieBytesOptionalUnionBytesReceipt {
     value: TrieBytesOptionalUnionBytesReceiptStruct*,
+}
+
+struct BytesOptionalUnionBytesWithdrawalDictAccess {
+    key: HashedBytes,
+    prev_value: OptionalUnionBytesWithdrawal,
+    new_value: OptionalUnionBytesWithdrawal,
+}
+
+struct MappingBytesOptionalUnionBytesWithdrawalStruct {
+    dict_ptr_start: BytesOptionalUnionBytesWithdrawalDictAccess*,
+    dict_ptr: BytesOptionalUnionBytesWithdrawalDictAccess*,
+    parent_dict: MappingBytesOptionalUnionBytesWithdrawalStruct*,
+}
+
+struct MappingBytesOptionalUnionBytesWithdrawal {
+    value: MappingBytesOptionalUnionBytesWithdrawalStruct*,
+}
+
+struct TrieBytesOptionalUnionBytesWithdrawalStruct {
+    secured: bool,
+    default: OptionalUnionBytesWithdrawal,
+    _data: MappingBytesOptionalUnionBytesWithdrawal,
+}
+
+struct TrieBytesOptionalUnionBytesWithdrawal {
+    value: TrieBytesOptionalUnionBytesWithdrawalStruct*,
 }
 
 func encode_internal_node{
@@ -550,6 +579,28 @@ func trie_get_TrieBytesOptionalUnionBytesReceipt{
     return res;
 }
 
+func trie_get_TrieBytesOptionalUnionBytesWithdrawal{
+    poseidon_ptr: PoseidonBuiltin*, trie: TrieBytesOptionalUnionBytesWithdrawal
+}(key: Bytes) -> OptionalUnionBytesWithdrawal {
+    let dict_ptr = cast(trie.value._data.value.dict_ptr, DictAccess*);
+
+    let (pointer) = hashdict_read{dict_ptr=dict_ptr}(key.value.len, key.value.data);
+    let new_dict_ptr = cast(dict_ptr, BytesOptionalUnionBytesWithdrawalDictAccess*);
+    let parent_dict = trie.value._data.value.parent_dict;
+    tempvar mapping = MappingBytesOptionalUnionBytesWithdrawal(
+        new MappingBytesOptionalUnionBytesWithdrawalStruct(
+            trie.value._data.value.dict_ptr_start, new_dict_ptr, parent_dict
+        ),
+    );
+    tempvar trie = TrieBytesOptionalUnionBytesWithdrawal(
+        new TrieBytesOptionalUnionBytesWithdrawalStruct(
+            trie.value.secured, trie.value.default, mapping
+        ),
+    );
+    tempvar res = OptionalUnionBytesWithdrawal(cast(pointer, UnionBytesWithdrawalEnum*));
+    return res;
+}
+
 func trie_set_TrieAddressOptionalAccount{
     poseidon_ptr: PoseidonBuiltin*, trie: TrieAddressOptionalAccount
 }(key: Address, value: OptionalAccount) {
@@ -558,16 +609,9 @@ func trie_set_TrieAddressOptionalAccount{
     let (keys) = alloc();
     assert [keys] = key.value;
 
-    // Compare to the null pointer, as the default is _always_ an optional account.
-    if (cast(value.value, felt) == 0) {
-        hashdict_write{dict_ptr=dict_ptr}(1, keys, 0);
-        tempvar dict_ptr = dict_ptr;
-        tempvar poseidon_ptr = poseidon_ptr;
-    } else {
-        hashdict_write{dict_ptr=dict_ptr}(1, keys, cast(value.value, felt));
-        tempvar dict_ptr = dict_ptr;
-        tempvar poseidon_ptr = poseidon_ptr;
-    }
+    // Writes 0 if value.value is the null ptr
+    hashdict_write{dict_ptr=dict_ptr}(1, keys, cast(value.value, felt));
+
     let new_dict_ptr = cast(dict_ptr, AddressAccountDictAccess*);
     tempvar mapping = MappingAddressAccount(
         new MappingAddressAccountStruct(
@@ -594,12 +638,8 @@ func trie_set_TrieTupleAddressBytes32U256{
 
     if (is_default.value != 0) {
         hashdict_write{dict_ptr=dict_ptr}(3, keys, 0);
-        tempvar dict_ptr = dict_ptr;
-        tempvar poseidon_ptr = poseidon_ptr;
     } else {
         hashdict_write{dict_ptr=dict_ptr}(3, keys, cast(value.value, felt));
-        tempvar dict_ptr = dict_ptr;
-        tempvar poseidon_ptr = poseidon_ptr;
     }
     let new_dict_ptr = cast(dict_ptr, TupleAddressBytes32U256DictAccess*);
     tempvar mapping = MappingTupleAddressBytes32U256(
@@ -619,15 +659,9 @@ func trie_set_TrieBytesOptionalUnionBytesLegacyTransaction{
     alloc_locals;
     let dict_ptr = cast(trie.value._data.value.dict_ptr, DictAccess*);
 
-    if (cast(value.value, felt) == 0) {
-        hashdict_write{dict_ptr=dict_ptr}(key.value.len, key.value.data, 0);
-        tempvar dict_ptr = dict_ptr;
-        tempvar poseidon_ptr = poseidon_ptr;
-    } else {
-        hashdict_write{dict_ptr=dict_ptr}(key.value.len, key.value.data, cast(value.value, felt));
-        tempvar dict_ptr = dict_ptr;
-        tempvar poseidon_ptr = poseidon_ptr;
-    }
+    // Writes 0 if value.value is the null ptr
+    hashdict_write{dict_ptr=dict_ptr}(key.value.len, key.value.data, cast(value.value, felt));
+
     let new_dict_ptr = cast(dict_ptr, BytesOptionalUnionBytesLegacyTransactionDictAccess*);
     tempvar mapping = MappingBytesOptionalUnionBytesLegacyTransaction(
         new MappingBytesOptionalUnionBytesLegacyTransactionStruct(
@@ -648,15 +682,8 @@ func trie_set_TrieBytesOptionalUnionBytesReceipt{
     alloc_locals;
     let dict_ptr = cast(trie.value._data.value.dict_ptr, DictAccess*);
 
-    if (cast(value.value, felt) == 0) {
-        hashdict_write{dict_ptr=dict_ptr}(key.value.len, key.value.data, 0);
-        tempvar dict_ptr = dict_ptr;
-        tempvar poseidon_ptr = poseidon_ptr;
-    } else {
-        hashdict_write{dict_ptr=dict_ptr}(key.value.len, key.value.data, cast(value.value, felt));
-        tempvar dict_ptr = dict_ptr;
-        tempvar poseidon_ptr = poseidon_ptr;
-    }
+    // Writes 0 if value.value is the null ptr
+    hashdict_write{dict_ptr=dict_ptr}(key.value.len, key.value.data, cast(value.value, felt));
 
     let new_dict_ptr = cast(dict_ptr, BytesOptionalUnionBytesReceiptDictAccess*);
     tempvar mapping = MappingBytesOptionalUnionBytesReceipt(
@@ -667,6 +694,30 @@ func trie_set_TrieBytesOptionalUnionBytesReceipt{
 
     tempvar trie = TrieBytesOptionalUnionBytesReceipt(
         new TrieBytesOptionalUnionBytesReceiptStruct(
+            trie.value.secured, trie.value.default, mapping
+        ),
+    );
+    return ();
+}
+
+func trie_set_TrieBytesOptionalUnionBytesWithdrawal{
+    poseidon_ptr: PoseidonBuiltin*, trie: TrieBytesOptionalUnionBytesWithdrawal
+}(key: Bytes, value: OptionalUnionBytesWithdrawal) {
+    alloc_locals;
+    let dict_ptr = cast(trie.value._data.value.dict_ptr, DictAccess*);
+
+    // Writes 0 if value.value is the null ptr
+    hashdict_write{dict_ptr=dict_ptr}(key.value.len, key.value.data, cast(value.value, felt));
+
+    let new_dict_ptr = cast(dict_ptr, BytesOptionalUnionBytesWithdrawalDictAccess*);
+    tempvar mapping = MappingBytesOptionalUnionBytesWithdrawal(
+        new MappingBytesOptionalUnionBytesWithdrawalStruct(
+            trie.value._data.value.dict_ptr_start, new_dict_ptr, trie.value._data.value.parent_dict
+        ),
+    );
+
+    tempvar trie = TrieBytesOptionalUnionBytesWithdrawal(
+        new TrieBytesOptionalUnionBytesWithdrawalStruct(
             trie.value.secured, trie.value.default, mapping
         ),
     );

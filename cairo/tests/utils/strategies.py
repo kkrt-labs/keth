@@ -1,6 +1,7 @@
 # ruff: noqa: E402
 
 import os
+from collections import ChainMap
 from typing import (
     ForwardRef,
     Generic,
@@ -205,6 +206,24 @@ def tuple_strategy(thing):
 
     return st.tuples(*(st.from_type(t) for t in types)).map(
         lambda x: TypedTuple[tuple(types)](x)
+    )
+
+
+K = TypeVar("K")
+V = TypeVar("V")
+
+
+class TypedDict(dict, Generic[K, V]):
+    """A dict that maintains its type information."""
+
+    def __new__(cls, values):
+        return super(TypedDict, cls).__new__(cls, values)
+
+
+def dict_strategy(thing):
+    key_type, value_type = thing.__args__
+    return st.dictionaries(st.from_type(key_type), st.from_type(value_type)).map(
+        lambda x: TypedDict[key_type, value_type](x)
     )
 
 
@@ -524,6 +543,8 @@ def register_type_strategies():
     st.register_type_strategy(Memory, memory)
     st.register_type_strategy(Evm, evm)
     st.register_type_strategy(tuple, tuple_strategy)
+    st.register_type_strategy(dict, dict_strategy)
+    st.register_type_strategy(ChainMap, dict_strategy)
     st.register_type_strategy(State, state)
     st.register_type_strategy(TransientStorage, transient_storage)
     st.register_type_strategy(MutableBloom, bloom.map(MutableBloom))
