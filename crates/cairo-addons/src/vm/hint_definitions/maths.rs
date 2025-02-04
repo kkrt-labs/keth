@@ -2,7 +2,9 @@ use std::collections::HashMap;
 
 use cairo_vm::{
     hint_processor::{
-        builtin_hint_processor::hint_utils::{get_integer_from_var_name, get_ptr_from_var_name},
+        builtin_hint_processor::hint_utils::{
+            get_integer_from_var_name, get_ptr_from_var_name, insert_value_from_var_name,
+        },
         hint_processor_definition::HintReference,
     },
     serde::deserialize_program::ApTracking,
@@ -15,7 +17,7 @@ use cairo_vm::{
 
 use crate::vm::hints::Hint;
 
-pub const HINTS: &[fn() -> Hint] = &[felt252_to_bytes_le, felt252_to_bytes_be];
+pub const HINTS: &[fn() -> Hint] = &[felt252_to_bytes_le, felt252_to_bytes_be, value_len_mod_two];
 
 pub fn felt252_to_bytes_le() -> Hint {
     Hint::new(
@@ -91,6 +93,27 @@ pub fn felt252_to_bytes_be() -> Hint {
                 .collect::<Vec<MaybeRelocatable>>();
             vm.segments.write_arg(output_ptr, &bytes)?;
 
+            Ok(())
+        },
+    )
+}
+
+fn value_len_mod_two() -> Hint {
+    Hint::new(
+        String::from("value_len_mod_two"),
+        |vm: &mut VirtualMachine,
+         _exec_scopes: &mut ExecutionScopes,
+         ids_data: &HashMap<String, HintReference>,
+         ap_tracking: &ApTracking,
+         _constants: &HashMap<String, Felt252>|
+         -> Result<(), HintError> {
+            let len = get_integer_from_var_name("len", vm, ids_data, ap_tracking)?;
+
+            let len: usize =
+                len.try_into().map_err(|_| MathError::Felt252ToUsizeConversion(Box::new(len)))?;
+
+            let remainder = len % 2;
+            insert_value_from_var_name("remainder", remainder, vm, ids_data, ap_tracking)?;
             Ok(())
         },
     )

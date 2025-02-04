@@ -552,8 +552,9 @@ func nibble_list_to_compact{range_check_ptr: felt}(x: Bytes, is_leaf: bool) -> B
     alloc_locals;
     let (local compact) = alloc();
     local range_check_ptr_end;
+    let len = x.value.len;
 
-    if (x.value.len == 0) {
+    if (len == 0) {
         assert [compact] = 16 * (2 * is_leaf.value);
         tempvar result = Bytes(new BytesStruct(compact, 1));
         return result;

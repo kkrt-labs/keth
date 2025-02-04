@@ -17,7 +17,7 @@ use cairo_vm::{
     Felt252,
 };
 
-use crate::vm::hints::Hint;
+use crate::vm::{hint_utils::serialize_sequence, hints::Hint};
 use revm_precompile::{
     blake2, bn128, hash, identity, kzg_point_evaluation, modexp, secp256k1, Address,
 };
@@ -59,34 +59,11 @@ pub fn bytes__eq__() -> Hint {
          ap_tracking: &ApTracking,
          _constants: &HashMap<String, Felt252>|
          -> Result<(), HintError> {
-            let get_bytes_params = |name: &str| -> Result<
-                (usize, cairo_vm::types::relocatable::Relocatable),
-                HintError,
-            > {
-                let ptr = get_ptr_from_var_name(name, vm, ids_data, ap_tracking)?;
-                let len_addr = (ptr + 1)?;
+            let self_bytes = serialize_sequence("_self", vm, ids_data, ap_tracking)?;
+            let other_bytes = serialize_sequence("other", vm, ids_data, ap_tracking)?;
 
-                let len_felt = vm.get_integer(len_addr)?.into_owned();
-                let len = len_felt
-                    .try_into()
-                    .map_err(|_| MathError::Felt252ToUsizeConversion(Box::new(len_felt)))?;
-
-                let data = vm.get_relocatable(ptr)?;
-
-                Ok((len, data))
-            };
-
-            let (self_len, self_data) = get_bytes_params("_self")?;
-            let (other_len, other_data) = get_bytes_params("other")?;
-
-            // Compare bytes until we find a difference
-            for i in 0..std::cmp::min(self_len, other_len) {
-                let self_byte = vm.get_integer((self_data + i)?)?.into_owned();
-
-                let other_byte = vm.get_integer((other_data + i)?)?.into_owned();
-
-                if self_byte != other_byte {
-                    // Found difference - set is_diff=1 and diff_index=i
+            for i in 0..std::cmp::min(self_bytes.len(), other_bytes.len()) {
+                if self_bytes[i] != other_bytes[i] {
                     insert_value_from_var_name(
                         "is_diff",
                         MaybeRelocatable::from(1),

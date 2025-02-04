@@ -5,6 +5,7 @@ mod dict_manager;
 mod felt;
 mod hint_definitions;
 mod hint_loader;
+mod hint_utils;
 mod hints;
 mod layout;
 mod maybe_relocatable;

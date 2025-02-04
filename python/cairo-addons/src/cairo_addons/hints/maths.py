@@ -36,4 +36,4 @@ def is_positive_hint(ids: VmConsts):
 
 @register_hint
 def value_len_mod_two(ids: VmConsts):
-    ids.remainder = ids.value.len % 2
+    ids.remainder = ids.len % 2
