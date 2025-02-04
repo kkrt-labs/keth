@@ -635,6 +635,17 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "cancun", "vm", "Stack"): Stack[U256],
     ("ethereum", "cancun", "vm", "gas", "ExtendMemory"): ExtendMemory,
     ("ethereum", "cancun", "vm", "interpreter", "MessageCallOutput"): MessageCallOutput,
+    # Union of all possible trie types as defined in the ethereum spec.
+    # Does not take into account our internal trie where we merged accounts and storage.
+    # ! Order matters here.
+    ("ethereum", "cancun", "trie", "UnionEthereumTries"): Union[
+        Trie[Address, Optional[Account]],
+        Trie[Bytes32, U256],
+        Trie[Bytes, Optional[Union[Bytes, LegacyTransaction]]],
+        Trie[Bytes, Optional[Union[Bytes, Receipt]]],
+        Trie[Bytes, Optional[Union[Bytes, Withdrawal]]],
+    ],
+    ("ethereum", "cancun", "trie", "TrieBytes32U256"): Trie[Bytes32, U256],
     **vm_exception_mappings,
     **ethereum_exception_mappings,
     # For tests only
@@ -663,6 +674,10 @@ def isinstance_with_generic(obj, type_hint):
     # Sequence should be _real_ Sequence, not bytes or str
     if origin is abc.Sequence:
         return type(obj) in (list, tuple)
+
+    if origin is Trie:
+        key_type, value_type = obj.__orig_class__.__args__
+        return origin[key_type, value_type] == type_hint
 
     return isinstance(obj, origin)
 

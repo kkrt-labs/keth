@@ -11,6 +11,7 @@ from ethereum.cancun.trie import (
     LeafNode,
     Node,
     Trie,
+    _prepare_trie,
     bytes_to_nibble_list,
     common_prefix_length,
     copy_trie,
@@ -164,6 +165,37 @@ class TestTrie:
     def test_internal_node_branch_node(self, cairo_run, branch_node: BranchNode):
         result = cairo_run("InternalNodeImpl.branch_node", branch_node)
         assert result == branch_node
+
+    @given(trie=...)
+    def test_prepare_trie(
+        self,
+        cairo_run,
+        trie: Union[
+            Trie[Bytes, Optional[Union[Bytes, Withdrawal]]],  # Withdrawal Trie
+            Trie[Bytes, Optional[Union[Bytes, LegacyTransaction]]],  # Transaction Trie
+            Trie[Bytes, Optional[Union[Bytes, Receipt]]],  # Receipt Trie
+            Trie[Address, Optional[Account]],  # Account Trie
+            Trie[Bytes32, U256],  # Storage Trie
+        ],
+    ):
+        # TODO: compute storage root
+        key_type, _ = trie.__orig_class__.__args__
+        if key_type is Address:
+
+            def get_storage_root(_address):
+                return b""
+
+        else:
+            get_storage_root = None
+
+        try:
+            result_cairo = cairo_run("_prepare_trie", trie, get_storage_root)
+        except Exception as e:
+            with strict_raises(type(e)):
+                _prepare_trie(trie, get_storage_root)
+            return
+
+        assert result_cairo == _prepare_trie(trie, get_storage_root)
 
 
 class TestTrieOperations:
