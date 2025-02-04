@@ -49,6 +49,7 @@ def circuit_compile(cairo_program: Program, circuit: str):
     # Extract immediate values (constants added by the compiler) to put them as inputs
     # First get the unique list of the required constants
     constants = {i.imm for i in instructions if i.op1_addr == Instruction.Op1Addr.IMM}
+    # There may be something better to do but for now we just change res = Res.OP1 to res = 0 + op1
     if any(i.res == Instruction.Res.OP1 for i in instructions):
         constants.add(0)
     constants = list(constants)
