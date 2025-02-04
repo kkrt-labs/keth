@@ -87,6 +87,7 @@ from ethereum.utils.numeric import (
     U256_from_felt,
     U256_le,
     U256_to_Uint,
+    U256_add_with_carry,
 )
 from ethereum.cancun.transactions import recover_sender
 from cairo_core.comparison import is_zero
@@ -703,7 +704,10 @@ func check_transaction{
     let sender_account_balance = sender_account.value.balance;
     let tx_value = TransactionImpl.get_value(tx);
     let max_gas_fee_u256 = U256_from_felt(max_gas_fee.value);
-    let tx_total_spent = U256_add(tx_value, max_gas_fee_u256);
+    let (tx_total_spent, carry) = U256_add_with_carry(tx_value, max_gas_fee_u256);
+    with_attr error_message("InvalidBlock") {
+        assert carry = 0;
+    }
     let is_sender_balance_enough = U256_le(tx_total_spent, sender_account_balance);
     with_attr error_message("InvalidBlock") {
         assert is_sender_balance_enough.value = 1;

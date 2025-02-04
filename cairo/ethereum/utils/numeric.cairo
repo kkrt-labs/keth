@@ -231,6 +231,13 @@ func U256_add{range_check_ptr}(a: U256, b: U256) -> U256 {
     return result;
 }
 
+func U256_add_with_carry{range_check_ptr}(a: U256, b: U256) -> (U256, felt) {
+    alloc_locals;
+    let (res, carry) = uint256_add([a.value], [b.value]);
+    tempvar result = U256(new U256Struct(res.low, res.high));
+    return (result, carry);
+}
+
 // @dev Panics if underflow with OverflowError
 func U256_sub{range_check_ptr}(a: U256, b: U256) -> U256 {
     alloc_locals;
