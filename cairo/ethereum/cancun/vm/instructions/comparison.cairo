@@ -244,7 +244,7 @@ func equal{
 }
 
 // @notice Checks if the top element is equal to zero
-func is_zero{
+func is_zero_opcode{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,

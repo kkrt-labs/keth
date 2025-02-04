@@ -80,7 +80,7 @@ class TestComparison:
     @given(evm=comparison_tests_strategy)
     def test_is_zero(self, cairo_run, evm: Evm):
         try:
-            cairo_result = cairo_run("is_zero", evm)
+            cairo_result = cairo_run("is_zero_opcode", evm)
         except EthereumException as cairo_error:
             with strict_raises(type(cairo_error)):
                 is_zero(evm)
