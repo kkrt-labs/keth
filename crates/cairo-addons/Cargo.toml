@@ -25,6 +25,7 @@ revm = "19.4.0"
 revm-precompile = "16.0.0"
 lazy_static = "1.5.0"
 starknet-types-core = "0.1.7"
+nybbles = "0.3.4"
 
 [build-dependencies]
 pyo3-build-config = "0.22.4" # Should match pyo3 version

@@ -3,7 +3,7 @@ from typing import Mapping, Optional, Tuple, Union
 import pytest
 from ethereum_types.bytes import Bytes, Bytes32
 from ethereum_types.numeric import U256, Uint
-from hypothesis import assume, given, settings
+from hypothesis import assume, given
 from hypothesis import strategies as st
 
 from cairo_addons.testing.hints import patch_hint
@@ -46,30 +46,32 @@ class TestTrie:
 
     @given(node=...)
     def test_encode_account_should_fail_without_storage_root(
-        self, cairo_run_py, node: Account
+        self, cairo_run, node: Account
     ):
         with pytest.raises(AssertionError):
             encode_node(node, None)
         with cairo_error(message="encode_node"):
-            cairo_run_py("encode_node", node, None)
+            cairo_run("encode_node", node, None)
 
     @given(a=..., b=...)
-    def test_common_prefix_length(self, cairo_run_py, a: Bytes, b: Bytes):
-        assert common_prefix_length(a, b) == cairo_run_py("common_prefix_length", a, b)
+    def test_common_prefix_length(self, cairo_run, a: Bytes, b: Bytes):
+        assert common_prefix_length(a, b) == cairo_run("common_prefix_length", a, b)
 
     @given(a=..., b=...)
     def test_common_prefix_length_should_fail(
-        self, cairo_program, cairo_run, a: Bytes, b: Bytes
+        self, cairo_program, cairo_run_py, a: Bytes, b: Bytes
     ):
         with (
             patch_hint(
                 cairo_program,
-                'memory[fp] = oracle(ids, reference="ethereum.cancun.trie.common_prefix_length")',
+                "common_prefix_length_hint",
                 "import random; memory[fp] = random.randint(0, 100)",
             ),
             cairo_error(message="common_prefix_length"),
         ):
-            assert common_prefix_length(a, b) == cairo_run("common_prefix_length", a, b)
+            assert common_prefix_length(a, b) == cairo_run_py(
+                "common_prefix_length", a, b
+            )
 
     @given(x=nibble, is_leaf=...)
     def test_nibble_list_to_compact(self, cairo_run, x, is_leaf: bool):
@@ -84,8 +86,8 @@ class TestTrie:
         with (
             patch_hint(
                 cairo_program,
-                "nondet %{ ids.x.value.len % 2 %};",
-                "nondet %{ not (ids.x.value.len % 2) %};",
+                "value_len_mod_two",
+                "ids.remainder = not (ids.len % 2)",
             ),
             cairo_error(message="nibble_list_to_compact: invalid remainder"),
         ):
@@ -93,10 +95,8 @@ class TestTrie:
             cairo_run_py("nibble_list_to_compact", x, is_leaf)
 
     @given(bytes_=...)
-    def test_bytes_to_nibble_list(self, cairo_run_py, bytes_: Bytes):
-        assert bytes_to_nibble_list(bytes_) == cairo_run_py(
-            "bytes_to_nibble_list", bytes_
-        )
+    def test_bytes_to_nibble_list(self, cairo_run, bytes_: Bytes):
+        assert bytes_to_nibble_list(bytes_) == cairo_run("bytes_to_nibble_list", bytes_)
 
     # def test_root(self, cairo_run, trie, get_storage_root):
     #     assert root(trie, get_storage_root) == cairo_run("root", trie, get_storage_root)
@@ -136,10 +136,9 @@ class TestTrie:
         assert value == obj.get(level, b"")
 
     @pytest.mark.slow
-    @settings(max_examples=20)
     @given(obj=st.dictionaries(nibble, bytes32, max_size=100))
-    def test_patricialize(self, cairo_run_py, obj: Mapping[Bytes, Bytes]):
-        assert patricialize(obj, Uint(0)) == cairo_run_py("patricialize", obj, Uint(0))
+    def test_patricialize(self, cairo_run, obj: Mapping[Bytes, Bytes]):
+        assert patricialize(obj, Uint(0)) == cairo_run("patricialize", obj, Uint(0))
 
 
 class TestTrieOperations:

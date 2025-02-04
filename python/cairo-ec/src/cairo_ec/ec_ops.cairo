@@ -21,31 +21,7 @@ func try_get_point_from_x{
 
     local is_on_curve: felt;
     local y_try: UInt384;
-    %{
-        from starkware.python.math_utils import is_quad_residue
-        from sympy import sqrt_mod
-
-        from cairo_addons.utils.uint384 import uint384_to_int, int_to_uint384
-
-        a = uint384_to_int(ids.a.d0, ids.a.d1, ids.a.d2, ids.a.d3)
-        b = uint384_to_int(ids.b.d0, ids.b.d1, ids.b.d2, ids.b.d3)
-        p = uint384_to_int(ids.p.d0, ids.p.d1, ids.p.d2, ids.p.d3)
-        g = uint384_to_int(ids.g.d0, ids.g.d1, ids.g.d2, ids.g.d3)
-        x = uint384_to_int(ids.x.d0, ids.x.d1, ids.x.d2, ids.x.d3)
-        rhs = (x**3 + a*x + b) % p
-
-        ids.is_on_curve = is_quad_residue(rhs, p)
-        if ids.is_on_curve == 1:
-            square_root = sqrt_mod(rhs, p)
-            if ids.v % 2 == square_root % 2:
-                pass
-            else:
-                square_root = - square_root % p
-        else:
-            square_root = sqrt_mod(rhs*g, p)
-
-        segments.load_data(ids.y_try.address_, int_to_uint384(square_root))
-    %}
+    %{ compute_y_from_x_hint %}
 
     assert 0 = is_on_curve * (1 - is_on_curve);  // assert it's a bool
     let input: UInt384* = cast(range_check96_ptr, UInt384*);
