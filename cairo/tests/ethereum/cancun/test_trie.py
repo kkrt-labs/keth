@@ -7,7 +7,7 @@ from hypothesis import assume, given
 from hypothesis import strategies as st
 
 from cairo_addons.testing.hints import patch_hint
-from ethereum.cancun.blocks import LegacyTransaction
+from ethereum.cancun.blocks import LegacyTransaction, Receipt
 from ethereum.cancun.fork_types import Account, Address
 from ethereum.cancun.trie import (
     InternalNode,
@@ -183,6 +183,20 @@ class TestTrieOperations:
             assert result_cairo == result_py
             assert trie_cairo == trie
 
+        @given(trie=..., key=...)
+        def test_trie_get_TrieBytesOptionalUnionBytesReceipt(
+            self,
+            cairo_run,
+            trie: Trie[Bytes, Optional[Union[Bytes, Receipt]]],
+            key: Bytes,
+        ):
+            trie_cairo, result_cairo = cairo_run(
+                "trie_get_TrieBytesOptionalUnionBytesReceipt", trie, key
+            )
+            result_py = trie_get(trie, key)
+            assert result_cairo == result_py
+            assert trie_cairo == trie
+
     class TestSet:
         @given(trie=..., key=..., value=...)
         def test_trie_set_TrieAddressOptionalAccount(
@@ -226,6 +240,20 @@ class TestTrieOperations:
                 trie,
                 key,
                 value,
+            )
+            trie_set(trie, key, value)
+            assert cairo_trie == trie
+
+        @given(trie=..., key=..., value=...)
+        def test_trie_set_TrieBytesOptionalUnionBytesReceipt(
+            self,
+            cairo_run,
+            trie: Trie[Bytes, Optional[Union[Bytes, Receipt]]],
+            key: Bytes,
+            value: Union[Bytes, Receipt],
+        ):
+            cairo_trie = cairo_run(
+                "trie_set_TrieBytesOptionalUnionBytesReceipt", trie, key, value
             )
             trie_set(trie, key, value)
             assert cairo_trie == trie

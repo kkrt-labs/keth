@@ -263,11 +263,15 @@ class TestSerde:
             ExtendMemory,
             MessageCallOutput,
             Union[Bytes, LegacyTransaction],
+            Union[Bytes, Receipt],
+            Optional[Union[Bytes, LegacyTransaction]],
+            Optional[Union[Bytes, Receipt]],
             Tuple[Union[Bytes, LegacyTransaction], ...],
             Block,
             List[Block],
             BlockChain,
             Trie[Bytes, Optional[Union[Bytes, LegacyTransaction]]],
+            Trie[Bytes, Optional[Union[Bytes, Receipt]]],
         ],
     ):
         assume(no_empty_sequence(b))
