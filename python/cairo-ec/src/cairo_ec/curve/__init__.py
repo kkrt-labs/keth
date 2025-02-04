@@ -54,6 +54,11 @@ class ECBase(EllipticCurve):
             else:
                 x = cls.G * x
 
+    @classmethod
+    def is_on_curve(cls, x: Union[int, F], y: Union[int, F]) -> bool:
+        """Check if a point is on the curve."""
+        return y**2 == x**3 + cls.A * x + cls.B
+
 
 class Secp256k1P(PrimeField):
     PRIME = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F

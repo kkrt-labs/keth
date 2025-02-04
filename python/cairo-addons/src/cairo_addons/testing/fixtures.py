@@ -12,6 +12,7 @@ import json
 import logging
 
 import pytest
+from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 from starkware.cairo.lang.compiler.program import Program
 
 from cairo_addons.testing.runner import run_python_vm, run_rust_vm
@@ -39,8 +40,18 @@ def main_path(request):
 
 
 @pytest.fixture(scope="module")
-def rust_program(request, cairo_program: Program) -> RustProgram:
-    if request.node.get_closest_marker("python_vm"):
+def python_vm(request):
+    return (
+        request.node.get_closest_marker("python_vm")
+        # The Rust VM currently only supports the default prime
+        # see https://github.com/lambdaclass/cairo-vm/issues/1910
+        or request.config.getoption("prime") != DEFAULT_PRIME
+    )
+
+
+@pytest.fixture(scope="module")
+def rust_program(cairo_program: Program, python_vm: bool) -> RustProgram:
+    if python_vm:
         return None
 
     return RustProgram.from_bytes(
@@ -55,7 +66,9 @@ def cairo_run_py(cairo_program, cairo_file, main_path, request):
 
 
 @pytest.fixture(scope="module")
-def cairo_run(cairo_program, rust_program, cairo_file, main_path, request):
+def cairo_run(
+    cairo_program, rust_program, cairo_file, main_path, request, python_vm: bool
+):
     """
     Run the cairo program corresponding to the python test file at a given entrypoint with given program inputs as kwargs.
     Returns the output of the cairo program put in the output memory segment.
@@ -73,7 +86,7 @@ def cairo_run(cairo_program, rust_program, cairo_file, main_path, request):
     Returns:
         The function's return value, converted back to Python types
     """
-    if request.node.get_closest_marker("python_vm"):
+    if python_vm:
         return run_python_vm(cairo_program, cairo_file, main_path, request)
 
     return run_rust_vm(cairo_program, rust_program, cairo_file, main_path, request)

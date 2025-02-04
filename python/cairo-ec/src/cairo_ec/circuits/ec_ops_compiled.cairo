@@ -181,3 +181,145 @@ func ec_double{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: 
     dw 64;
     dw 68;
 }
+
+func assert_on_curve{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
+    x: UInt384*, y: UInt384*, a: UInt384*, b: UInt384*, p: UInt384*
+) {
+    let (_, pc) = get_fp_and_pc();
+
+    pc_label:
+    let add_mod_offsets_ptr = pc + (add_offsets - pc_label);
+    let mul_mod_offsets_ptr = pc + (mul_offsets - pc_label);
+
+    assert [range_check96_ptr + 0] = x.d0;
+    assert [range_check96_ptr + 1] = x.d1;
+    assert [range_check96_ptr + 2] = x.d2;
+    assert [range_check96_ptr + 3] = x.d3;
+    assert [range_check96_ptr + 4] = y.d0;
+    assert [range_check96_ptr + 5] = y.d1;
+    assert [range_check96_ptr + 6] = y.d2;
+    assert [range_check96_ptr + 7] = y.d3;
+    assert [range_check96_ptr + 8] = a.d0;
+    assert [range_check96_ptr + 9] = a.d1;
+    assert [range_check96_ptr + 10] = a.d2;
+    assert [range_check96_ptr + 11] = a.d3;
+    assert [range_check96_ptr + 12] = b.d0;
+    assert [range_check96_ptr + 13] = b.d1;
+    assert [range_check96_ptr + 14] = b.d2;
+    assert [range_check96_ptr + 15] = b.d3;
+
+    run_mod_p_circuit(
+        p=[p],
+        values_ptr=cast(range_check96_ptr, UInt384*),
+        add_mod_offsets_ptr=add_mod_offsets_ptr,
+        add_mod_n=2,
+        mul_mod_offsets_ptr=mul_mod_offsets_ptr,
+        mul_mod_n=4,
+    );
+
+    let range_check96_ptr = range_check96_ptr + 36;
+
+    return ();
+
+    add_offsets:
+    dw 20;
+    dw 24;
+    dw 28;
+    dw 28;
+    dw 12;
+    dw 32;
+
+    mul_offsets:
+    dw 0;
+    dw 0;
+    dw 16;
+    dw 16;
+    dw 0;
+    dw 20;
+    dw 8;
+    dw 0;
+    dw 24;
+    dw 4;
+    dw 4;
+    dw 32;
+}
+
+func assert_not_on_curve{
+    range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
+}(x: UInt384*, y: UInt384*, a: UInt384*, b: UInt384*, p: UInt384*) -> UInt384* {
+    let (_, pc) = get_fp_and_pc();
+
+    pc_label:
+    let add_mod_offsets_ptr = pc + (add_offsets - pc_label);
+    let mul_mod_offsets_ptr = pc + (mul_offsets - pc_label);
+
+    assert [range_check96_ptr + 0] = 1;
+    assert [range_check96_ptr + 1] = 0;
+    assert [range_check96_ptr + 2] = 0;
+    assert [range_check96_ptr + 3] = 0;
+    assert [range_check96_ptr + 4] = 0;
+    assert [range_check96_ptr + 5] = 0;
+    assert [range_check96_ptr + 6] = 0;
+    assert [range_check96_ptr + 7] = 0;
+
+    assert [range_check96_ptr + 8] = x.d0;
+    assert [range_check96_ptr + 9] = x.d1;
+    assert [range_check96_ptr + 10] = x.d2;
+    assert [range_check96_ptr + 11] = x.d3;
+    assert [range_check96_ptr + 12] = y.d0;
+    assert [range_check96_ptr + 13] = y.d1;
+    assert [range_check96_ptr + 14] = y.d2;
+    assert [range_check96_ptr + 15] = y.d3;
+    assert [range_check96_ptr + 16] = a.d0;
+    assert [range_check96_ptr + 17] = a.d1;
+    assert [range_check96_ptr + 18] = a.d2;
+    assert [range_check96_ptr + 19] = a.d3;
+    assert [range_check96_ptr + 20] = b.d0;
+    assert [range_check96_ptr + 21] = b.d1;
+    assert [range_check96_ptr + 22] = b.d2;
+    assert [range_check96_ptr + 23] = b.d3;
+
+    run_mod_p_circuit(
+        p=[p],
+        values_ptr=cast(range_check96_ptr, UInt384*),
+        add_mod_offsets_ptr=add_mod_offsets_ptr,
+        add_mod_n=4,
+        mul_mod_offsets_ptr=mul_mod_offsets_ptr,
+        mul_mod_n=5,
+    );
+
+    let range_check96_ptr = range_check96_ptr + 60;
+
+    return cast(range_check96_ptr - 4, UInt384*);
+
+    add_offsets:
+    dw 32;
+    dw 36;
+    dw 40;
+    dw 40;
+    dw 20;
+    dw 44;
+    dw 48;
+    dw 44;
+    dw 24;
+    dw 4;
+    dw 0;
+    dw 52;
+
+    mul_offsets:
+    dw 12;
+    dw 12;
+    dw 24;
+    dw 8;
+    dw 8;
+    dw 28;
+    dw 28;
+    dw 8;
+    dw 32;
+    dw 16;
+    dw 8;
+    dw 36;
+    dw 56;
+    dw 48;
+    dw 52;
+}
