@@ -35,6 +35,9 @@ from ethereum.cancun.blocks import (
     UnionBytesLegacyTransaction,
     UnionBytesLegacyTransactionEnum,
     OptionalUnionBytesLegacyTransaction,
+    UnionBytesReceipt,
+    UnionBytesReceiptEnum,
+    OptionalUnionBytesReceipt,
 )
 from ethereum.cancun.fork_types import (
     Account,
@@ -220,6 +223,32 @@ struct TrieBytesOptionalUnionBytesLegacyTransactionStruct {
 
 struct TrieBytesOptionalUnionBytesLegacyTransaction {
     value: TrieBytesOptionalUnionBytesLegacyTransactionStruct*,
+}
+
+struct BytesOptionalUnionBytesReceiptDictAccess {
+    key: HashedBytes,
+    prev_value: OptionalUnionBytesReceipt,
+    new_value: OptionalUnionBytesReceipt,
+}
+
+struct MappingBytesOptionalUnionBytesReceiptStruct {
+    dict_ptr_start: BytesOptionalUnionBytesReceiptDictAccess*,
+    dict_ptr: BytesOptionalUnionBytesReceiptDictAccess*,
+    parent_dict: MappingBytesOptionalUnionBytesReceiptStruct*,
+}
+
+struct MappingBytesOptionalUnionBytesReceipt {
+    value: MappingBytesOptionalUnionBytesReceiptStruct*,
+}
+
+struct TrieBytesOptionalUnionBytesReceiptStruct {
+    secured: bool,
+    default: OptionalUnionBytesReceipt,
+    _data: MappingBytesOptionalUnionBytesReceipt,
+}
+
+struct TrieBytesOptionalUnionBytesReceipt {
+    value: TrieBytesOptionalUnionBytesReceiptStruct*,
 }
 
 func encode_internal_node{
@@ -499,6 +528,28 @@ func trie_get_TrieBytesOptionalUnionBytesLegacyTransaction{
     return res;
 }
 
+func trie_get_TrieBytesOptionalUnionBytesReceipt{
+    poseidon_ptr: PoseidonBuiltin*, trie: TrieBytesOptionalUnionBytesReceipt
+}(key: Bytes) -> OptionalUnionBytesReceipt {
+    let dict_ptr = cast(trie.value._data.value.dict_ptr, DictAccess*);
+
+    let (pointer) = hashdict_read{dict_ptr=dict_ptr}(key.value.len, key.value.data);
+    let new_dict_ptr = cast(dict_ptr, BytesOptionalUnionBytesReceiptDictAccess*);
+    let parent_dict = trie.value._data.value.parent_dict;
+    tempvar mapping = MappingBytesOptionalUnionBytesReceipt(
+        new MappingBytesOptionalUnionBytesReceiptStruct(
+            trie.value._data.value.dict_ptr_start, new_dict_ptr, parent_dict
+        ),
+    );
+    tempvar trie = TrieBytesOptionalUnionBytesReceipt(
+        new TrieBytesOptionalUnionBytesReceiptStruct(
+            trie.value.secured, trie.value.default, mapping
+        ),
+    );
+    tempvar res = OptionalUnionBytesReceipt(cast(pointer, UnionBytesReceiptEnum*));
+    return res;
+}
+
 func trie_set_TrieAddressOptionalAccount{
     poseidon_ptr: PoseidonBuiltin*, trie: TrieAddressOptionalAccount
 }(key: Address, value: OptionalAccount) {
@@ -585,6 +636,44 @@ func trie_set_TrieBytesOptionalUnionBytesLegacyTransaction{
     );
     tempvar trie = TrieBytesOptionalUnionBytesLegacyTransaction(
         new TrieBytesOptionalUnionBytesLegacyTransactionStruct(
+            trie.value.secured, trie.value.default, mapping
+        ),
+    );
+    return ();
+}
+
+func trie_set_TrieBytesOptionalUnionBytesReceipt{
+    poseidon_ptr: PoseidonBuiltin*, trie: TrieBytesOptionalUnionBytesReceipt
+}(key: Bytes, value: OptionalUnionBytesReceipt) {
+    alloc_locals;
+    let dict_ptr = cast(trie.value._data.value.dict_ptr, DictAccess*);
+
+    local is_default;
+    if (value.value == trie.value.default.value) {
+        assert is_default = 1;
+    } else {
+        assert is_default = 0;
+    }
+
+    if (is_default != 0) {
+        hashdict_write{dict_ptr=dict_ptr}(key.value.len, key.value.data, 0);
+        tempvar dict_ptr = dict_ptr;
+        tempvar poseidon_ptr = poseidon_ptr;
+    } else {
+        hashdict_write{dict_ptr=dict_ptr}(key.value.len, key.value.data, cast(value.value, felt));
+        tempvar dict_ptr = dict_ptr;
+        tempvar poseidon_ptr = poseidon_ptr;
+    }
+
+    let new_dict_ptr = cast(dict_ptr, BytesOptionalUnionBytesReceiptDictAccess*);
+    tempvar mapping = MappingBytesOptionalUnionBytesReceipt(
+        new MappingBytesOptionalUnionBytesReceiptStruct(
+            trie.value._data.value.dict_ptr_start, new_dict_ptr, trie.value._data.value.parent_dict
+        ),
+    );
+
+    tempvar trie = TrieBytesOptionalUnionBytesReceipt(
+        new TrieBytesOptionalUnionBytesReceiptStruct(
             trie.value.secured, trie.value.default, mapping
         ),
     );

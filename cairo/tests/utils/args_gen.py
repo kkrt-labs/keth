@@ -461,6 +461,10 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "cancun", "blocks", "TupleUnionBytesLegacyTransaction"): Tuple[
         Union[Bytes, LegacyTransaction], ...
     ],
+    ("ethereum", "cancun", "blocks", "UnionBytesReceipt"): Union[Bytes, Receipt],
+    ("ethereum", "cancun", "blocks", "OptionalUnionBytesReceipt"): Optional[
+        Union[Bytes, Receipt]
+    ],
     ("ethereum", "cancun", "blocks", "Block"): Block,
     ("ethereum", "cancun", "blocks", "ListBlock"): List[Block],
     ("ethereum", "cancun", "fork", "BlockChain"): BlockChain,
@@ -551,6 +555,18 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
         "trie",
         "TrieBytesOptionalUnionBytesLegacyTransaction",
     ): Trie[Bytes, Optional[Union[Bytes, LegacyTransaction]]],
+    (
+        "ethereum",
+        "cancun",
+        "trie",
+        "MappingBytesOptionalUnionBytesReceipt",
+    ): Mapping[Bytes, Optional[Union[Bytes, Receipt]]],
+    (
+        "ethereum",
+        "cancun",
+        "trie",
+        "TrieBytesOptionalUnionBytesReceipt",
+    ): Trie[Bytes, Optional[Union[Bytes, Receipt]]],
     ("ethereum", "cancun", "fork_types", "MappingAddressAccount"): Mapping[
         Address, Account
     ],

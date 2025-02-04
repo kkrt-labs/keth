@@ -111,6 +111,19 @@ struct TupleUnionBytesLegacyTransaction {
     value: TupleUnionBytesLegacyTransactionStruct*,
 }
 
+struct UnionBytesReceiptEnum {
+    bytes: Bytes,
+    receipt: Receipt,
+}
+
+struct UnionBytesReceipt {
+    value: UnionBytesReceiptEnum*,
+}
+
+struct OptionalUnionBytesReceipt {
+    value: UnionBytesReceiptEnum*,
+}
+
 struct BlockStruct {
     header: Header,
     transactions: TupleUnionBytesLegacyTransaction,
