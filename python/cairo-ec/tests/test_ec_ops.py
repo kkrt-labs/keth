@@ -5,26 +5,10 @@ from sympy import sqrt_mod
 
 from cairo_addons.testing.strategies import felt
 from cairo_addons.utils.uint384 import int_to_uint384, uint384_to_int
-from ethereum.crypto.alt_bn128 import BNF as AltBn128P
-from ethereum.crypto.alt_bn128 import BNP as AltBn128
-from ethereum.crypto.elliptic_curve import EllipticCurve
-from ethereum.crypto.finite_field import PrimeField
+from cairo_ec.curve import AltBn128, Secp256k1
 
 pytestmark = pytest.mark.python_vm
 
-
-class Secp256k1P(PrimeField):
-    PRIME = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
-
-
-class Secp256k1(EllipticCurve):
-    FIELD = Secp256k1P
-    A = Secp256k1P(0)
-    B = Secp256k1P(7)
-    G = Secp256k1P(3)
-
-
-setattr(AltBn128, "G", AltBn128P(3))
 
 uint384 = st.integers(min_value=0, max_value=2**384 - 1)
 curve = st.one_of(st.just(Secp256k1), st.just(AltBn128))
@@ -140,79 +124,18 @@ class TestEcOps:
             )
 
     class TestEcAdd:
-        @given(seed=felt, curve=curve)
-        def test_ec_add(self, cairo_run, seed, curve):
-            p = cairo_run(
-                "test__get_random_point",
-                seed=seed,
-                a=int_to_uint384(int(curve.A)),
-                b=int_to_uint384(int(curve.B)),
-                g=int_to_uint384(int(curve.G)),
-                p=int_to_uint384(int(curve.FIELD.PRIME)),
-            )
-            q = cairo_run(
-                "test__get_random_point",
-                seed=p["x"]["d0"],
-                a=int_to_uint384(int(curve.A)),
-                b=int_to_uint384(int(curve.B)),
-                g=int_to_uint384(int(curve.G)),
-                p=int_to_uint384(int(curve.FIELD.PRIME)),
-            )
+        @given(curve=curve)
+        def test_ec_add(self, cairo_run, curve):
+            p = curve.random_point()
+            q = curve.random_point()
             res = cairo_run(
                 "test__ec_add",
-                p=(
-                    p["x"]["d0"],
-                    p["x"]["d1"],
-                    p["x"]["d2"],
-                    p["x"]["d3"],
-                    p["y"]["d0"],
-                    p["y"]["d1"],
-                    p["y"]["d2"],
-                    p["y"]["d3"],
-                ),
-                q=(
-                    q["x"]["d0"],
-                    q["x"]["d1"],
-                    q["x"]["d2"],
-                    q["x"]["d3"],
-                    q["y"]["d0"],
-                    q["y"]["d1"],
-                    q["y"]["d2"],
-                    q["y"]["d3"],
-                ),
+                p=[*int_to_uint384(int(p.x)), *int_to_uint384(int(p.y))],
+                q=[*int_to_uint384(int(q.x)), *int_to_uint384(int(q.y))],
                 a=int_to_uint384(int(curve.A)),
                 g=int_to_uint384(int(curve.G)),
                 modulus=int_to_uint384(int(curve.FIELD.PRIME)),
             )
-            assert curve(
-                curve.FIELD(
-                    uint384_to_int(
-                        p["x"]["d0"], p["x"]["d1"], p["x"]["d2"], p["x"]["d3"]
-                    )
-                ),
-                curve.FIELD(
-                    uint384_to_int(
-                        p["y"]["d0"], p["y"]["d1"], p["y"]["d2"], p["y"]["d3"]
-                    )
-                ),
-            ) + (
-                curve(
-                    curve.FIELD(
-                        uint384_to_int(
-                            q["x"]["d0"], q["x"]["d1"], q["x"]["d2"], q["x"]["d3"]
-                        )
-                    ),
-                    curve.FIELD(
-                        uint384_to_int(
-                            q["y"]["d0"], q["y"]["d1"], q["y"]["d2"], q["y"]["d3"]
-                        )
-                    ),
-                )
-            ) == curve(
-                uint384_to_int(
-                    res["x"]["d0"], res["x"]["d1"], res["x"]["d2"], res["x"]["d3"]
-                ),
-                uint384_to_int(
-                    res["y"]["d0"], res["y"]["d1"], res["y"]["d2"], res["y"]["d3"]
-                ),
+            assert p + q == curve(
+                *[curve.FIELD(uint384_to_int(**i)) for i in res.values()]
             )

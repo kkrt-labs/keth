@@ -14,7 +14,7 @@ dependencies = [
 ]
 
 [project.scripts]
-compile_circuit = "scripts.compile_circuit:main"
+compile_circuit = "cairo_ec.scripts.compile_circuit:main"
 
 [build-system]
 requires = ["hatchling"]
@@ -24,7 +24,7 @@ build-backend = "hatchling.build"
 include = [
   "src/**/*.cairo", # Include all .cairo files in src directory
 ]
-packages = ["src/cairo_ec", "scripts"]
+packages = ["src/cairo_ec", "tests"]
 
 [tool.hatch.build]
 artifacts = [
@@ -42,7 +42,7 @@ dev-dependencies = [
 
 [tool.isort]
 profile = "black"
-known_first_party = ["cairo_addons", "cairo_core"]
+known_first_party = ["cairo_addons", "cairo_core", "cairo_ec"]
 
 [tool.uv.sources]
 ethereum = { git = "https://github.com/ethereum/execution-specs.git" }

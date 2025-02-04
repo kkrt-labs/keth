@@ -1,9 +1,13 @@
 from starkware.cairo.lang.compiler.encode import decode_instruction
-from starkware.cairo.lang.compiler.identifier_definition import TypeDefinition
+from starkware.cairo.lang.compiler.identifier_definition import (
+    StructDefinition,
+    TypeDefinition,
+)
 from starkware.cairo.lang.compiler.instruction import Instruction, Register
 from starkware.cairo.lang.compiler.program import Program
 
 from cairo_addons.testing.utils import flatten
+from cairo_addons.utils.uint384 import int_to_uint384
 
 
 def circuit_compile(cairo_program: Program, circuit: str):
@@ -36,24 +40,50 @@ def circuit_compile(cairo_program: Program, circuit: str):
 
     instructions = [decode_instruction(d, imm) for d, imm in zip(data, data[1:] + [0])]
 
-    if any(i.op1_addr == Instruction.Op1Addr.IMM for i in instructions):
-        raise ValueError(
-            "ModBuiltin circuits don't support constants. To use a constant, add an input "
-            "to the circuit, e.g. write\n\n"
-            "```cairo\n"
-            "func inv(x: felt, k: felt) -> felt {\n"
-            "    return k / x;\n"
-            "    end:\n"
-            "}\n"
-            "```\n\n"
-            "instead of\n\n"
-            "```cairo\n"
-            "func inv(x: felt) -> felt {\n"
-            "    return 1 / x;\n"
-            "    end:\n"
-            "}\n"
-            "```"
-        )
+    if not instructions[-1].pc_update == Instruction.PcUpdate.JUMP:
+        raise ValueError("The circuit should end with a return instruction")
+    instructions.pop()
+    if any(i.pc_update == Instruction.PcUpdate.JUMP for i in instructions):
+        raise ValueError("The circuit should not contain any jump instruction")
+
+    # Extract immediate values (constants added by the compiler) to put them as inputs
+    # First get the unique list of the required constants
+    constants = {i.imm for i in instructions if i.op1_addr == Instruction.Op1Addr.IMM}
+    # There may be something better to do but for now we just change res = Res.OP1 to res = 0 + op1
+    if any(i.res == Instruction.Res.OP1 for i in instructions):
+        constants.add(0)
+    constants = list(constants)
+    # Arguments of a function are always at fp - 3 - n where n is the index of the argument
+    args = list(
+        cairo_program.get_identifier(f"{circuit}.Args", StructDefinition).members.keys()
+    )
+    # We put the constants before the args, so the initial offset is 3 + len(args)
+    constants_offset = 3 + len(args)
+
+    instruction_compiled = []
+    while instructions:
+        i = instructions.pop(0)
+
+        # Update res = Res.OP1 to res = 0 + op1
+        if i.res == Instruction.Res.OP1:
+            i.off1 = -constants_offset - constants.index(0)
+            i.op0_register = Register.FP
+            i.res = Instruction.Res.ADD
+
+        # Use added input constant for immediate value
+        if i.op1_addr == Instruction.Op1Addr.IMM:
+            i.op1_addr = Instruction.Op1Addr.FP
+            i.off2 = -constants_offset - constants.index(i.imm)
+            i.ap_update = Instruction.ApUpdate.ADD1
+            i.imm = None
+            # pop the next instruction which is the imm value
+            instructions.pop(0)
+
+        instruction_compiled.append(i)
+
+    # Reverse the constants because they are read backwards.
+    # This list needs then to be prepended to the function arguments.
+    constants.reverse()
 
     # Each instruction is of the form dst = op0 +/* op1 where op0, op1 and dst are
     # defined as offsets relative to the application pointer (ap).
@@ -65,7 +95,7 @@ def circuit_compile(cairo_program: Program, circuit: str):
             Instruction.ApUpdate.ADD2: 2,
             Instruction.ApUpdate.REGULAR: 0,
         }.get(i.ap_update, i.imm or 0)
-        for i in instructions
+        for i in instruction_compiled
     ]
     ap = [sum(ap_updates[:i]) for i in range(len(ap_updates))]
 
@@ -79,16 +109,21 @@ def circuit_compile(cairo_program: Program, circuit: str):
             i.off2 + (_ap if i.op1_addr == Instruction.Op1Addr.AP else 0),
             i.off0 + ((_ap if i.dst_register == Register.AP else 0)),
         )
-        for i, _ap in zip(instructions, ap)
+        for i, _ap in zip(instruction_compiled, ap)
     ]
 
     # Extract the offsets of the add and mul instructions
     add = flatten(
-        [op for op, i in zip(ops, instructions) if i.res == Instruction.Res.ADD]
+        [op for op, i in zip(ops, instruction_compiled) if i.res == Instruction.Res.ADD]
     )
     mul = flatten(
-        [op for op, i in zip(ops, instructions) if i.res == Instruction.Res.MUL]
+        [op for op, i in zip(ops, instruction_compiled) if i.res == Instruction.Res.MUL]
     )
+
+    if len(add) + len(mul) != 3 * len(ops):
+        raise ValueError(
+            "Extracting add and mul instructions led to an inconsistent number of instructions"
+        )
 
     # Reindex to start from 0 and to avoid memory holes
     # Happens when using values from fp (available at [fp - 3 + i]).
@@ -107,6 +142,8 @@ def circuit_compile(cairo_program: Program, circuit: str):
         )
     )
     return {
+        "constants": [int_to_uint384(c) for c in constants],
+        "args": args,
         "add_mod_offsets_ptr": [mapping[offset] * 4 for offset in add],
         "add_mod_n": len(add) // 3,
         "mul_mod_offsets_ptr": [mapping[offset] * 4 for offset in mul],

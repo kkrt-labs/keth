@@ -1,9 +1,9 @@
 import pytest
+from ethereum.crypto.elliptic_curve import SECP256K1N, EllipticCurve
+from ethereum.crypto.finite_field import PrimeField
 
 from cairo_addons.utils.uint256 import uint256_to_int
 from cairo_addons.utils.uint384 import uint384_to_int
-from ethereum.crypto.elliptic_curve import SECP256K1N, EllipticCurve
-from ethereum.crypto.finite_field import PrimeField
 
 pytestmark = pytest.mark.python_vm
 
