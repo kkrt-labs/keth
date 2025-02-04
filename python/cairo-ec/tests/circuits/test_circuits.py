@@ -380,3 +380,44 @@ class TestCircuits:
                 == compiled_circuit_output
                 == [expected_output.x, expected_output.y]
             )
+
+        @given(data=st.data())
+        def test_ec_double(self, cairo_program, cairo_run, curve, data):
+            seed_p = data.draw(
+                st.integers(min_value=0, max_value=curve.FIELD.PRIME - 1)
+            )
+            p = curve.random_point(x=seed_p)
+            assume(p.y != 0)
+            inputs = {"x0": int(p.x), "y0": int(p.y), "a": int(curve.A)}
+            expected_output = p.double()
+
+            cairo_output = cairo_run("ec_double", **inputs)
+            compiled_circuit = circuit_compile(cairo_program, "ec_double")
+            values_ptr = flatten(compiled_circuit["constants"]) + [
+                limb for v in inputs.values() for limb in int_to_uint384(v)
+            ]
+            r = cairo_run(
+                "test__circuit",
+                values_ptr=values_ptr,
+                values_ptr_len=len(values_ptr),
+                p=int_to_uint384(curve.FIELD.PRIME),
+                **compiled_circuit,
+            )[-compiled_circuit["return_data_size"] :]
+            circuit_output = [
+                uint384_to_int(*r[:4]) % curve.FIELD.PRIME,
+                uint384_to_int(*r[4:]) % curve.FIELD.PRIME,
+            ]
+            compiled_circuit_output = [
+                uint384_to_int(**coord) % curve.FIELD.PRIME
+                for coord in cairo_run(
+                    "ec_double_compiled",
+                    **{k: int_to_uint384(v) for k, v in inputs.items()},
+                    p=int_to_uint384(curve.FIELD.PRIME),
+                )
+            ]
+            assert (
+                cairo_output
+                == circuit_output
+                == compiled_circuit_output
+                == [expected_output.x, expected_output.y]
+            )
