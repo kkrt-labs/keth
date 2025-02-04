@@ -7,6 +7,7 @@ from ethereum_types.bytes import (
     Bytes4,
     ListBytes4,
     ListBytes4Struct,
+    Bytes32Struct,
 )
 from ethereum_types.numeric import bool
 from starkware.cairo.common.alloc import alloc
@@ -19,8 +20,10 @@ from legacy.utils.bytes import (
     uint256_to_bytes_little,
     uint256_to_bytes32_little,
 )
-from cairo_core.maths import unsigned_div_rem, felt252_to_bytes_le, felt252_to_bytes_be
+from cairo_core.maths import unsigned_div_rem, felt252_to_bytes_le, felt252_to_bytes_be, pow2
 from cairo_core.comparison import is_zero
+from ethereum.utils.numeric import min
+from legacy.utils.bytes import bytes_to_felt_le
 
 func Bytes__eq__(_self: Bytes, other: Bytes) -> bool {
     if (_self.value.len != other.value.len) {
@@ -193,5 +196,20 @@ func Bytes8_to_Bytes{range_check_ptr}(src: Bytes8) -> Bytes {
     split_int(src.value, 8, 256, 256, buffer);
 
     tempvar res = Bytes(new BytesStruct(data=buffer, len=8));
+    return res;
+}
+
+func Bytes_to_Bytes32{range_check_ptr}(src: Bytes) -> Bytes32 {
+    alloc_locals;
+    let (buffer: felt*) = alloc();
+    let low_len = min(src.value.len, 16);
+    let low = bytes_to_felt_le(low_len, src.value.data);
+    if (low_len != 16) {
+        tempvar res = Bytes32(new Bytes32Struct(low=low, high=0));
+        return res;
+    }
+    let high_len = src.value.len - 16;
+    let high = bytes_to_felt_le(high_len, src.value.data + 16);
+    tempvar res = Bytes32(new Bytes32Struct(low=low, high=high));
     return res;
 }

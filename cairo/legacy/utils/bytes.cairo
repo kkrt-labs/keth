@@ -184,6 +184,34 @@ func bytes_to_felt(len: felt, ptr: felt*) -> felt {
     return current;
 }
 
+// @notice Loads a sequence of bytes into a single felt in little-endian.
+// @param len: number of bytes.
+// @param ptr: pointer to bytes array.
+// @return: packed felt.
+func bytes_to_felt_le(len: felt, ptr: felt*) -> felt {
+    if (len == 0) {
+        return 0;
+    }
+    tempvar current = 0;
+
+    // len, ptr, ?, ?, current
+    // ?, ? are intermediate steps created by the compiler to unfold the
+    // complex expression.
+    loop:
+    let len = [ap - 5];
+    let ptr = cast([fp - 3], felt*);
+    let current = [ap - 1];
+
+    tempvar len = len - 1;
+    tempvar current = current * 256 + [ptr + len];
+
+    static_assert len == [ap - 5];
+    static_assert current == [ap - 1];
+    jmp loop if len != 0;
+
+    return current;
+}
+
 // @notice Split a felt into an array of 20 bytes, little endian
 // @dev Truncate the high 12 bytes
 func felt_to_bytes20_little{range_check_ptr}(dst: felt*, value: felt) {
