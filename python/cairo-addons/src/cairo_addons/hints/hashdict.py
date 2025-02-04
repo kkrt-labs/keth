@@ -113,7 +113,13 @@ def _get_preimage_for_hashed_key(
 
     # Get the key in the dict that matches the hashed value
     preimage = next(
-        key for key in dict_tracker.data.keys() if poseidon_hash_many(key) == hashed_key
+        key
+        for key in dict_tracker.data.keys()
+        if (
+            key[0] == hashed_key
+            if len(key) == 1
+            else poseidon_hash_many(key) == hashed_key
+        )
     )
     return preimage
 

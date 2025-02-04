@@ -1,4 +1,4 @@
-from typing import Mapping, Optional, Tuple
+from typing import Mapping, Optional, Tuple, Union
 
 import pytest
 from ethereum_types.bytes import Bytes, Bytes32
@@ -7,6 +7,7 @@ from hypothesis import assume, given
 from hypothesis import strategies as st
 
 from cairo_addons.testing.hints import patch_hint
+from ethereum.cancun.blocks import LegacyTransaction
 from ethereum.cancun.fork_types import Account, Address
 from ethereum.cancun.trie import (
     InternalNode,
@@ -168,6 +169,20 @@ class TestTrieOperations:
             assert result_cairo == result_py
             assert trie_cairo == trie
 
+        @given(trie=..., key=...)
+        def test_trie_get_TrieBytesOptionalUnionBytesLegacyTransaction(
+            self,
+            cairo_run,
+            trie: Trie[Bytes, Optional[Union[Bytes, LegacyTransaction]]],
+            key: Bytes,
+        ):
+            trie_cairo, result_cairo = cairo_run(
+                "trie_get_TrieBytesOptionalUnionBytesLegacyTransaction", trie, key
+            )
+            result_py = trie_get(trie, key)
+            assert result_cairo == result_py
+            assert trie_cairo == trie
+
     class TestSet:
         @given(trie=..., key=..., value=...)
         def test_trie_set_TrieAddressOptionalAccount(
@@ -196,6 +211,23 @@ class TestTrieOperations:
                 "trie_set_TrieTupleAddressBytes32U256", trie, address, key, value
             )
             trie_set(trie, key_tuple, value)
+            assert cairo_trie == trie
+
+        @given(trie=..., key=..., value=...)
+        def test_trie_set_TrieBytesOptionalUnionBytesLegacyTransaction(
+            self,
+            cairo_run,
+            trie: Trie[Bytes, Optional[Union[Bytes, LegacyTransaction]]],
+            key: Bytes,
+            value: Union[Bytes, LegacyTransaction],
+        ):
+            cairo_trie = cairo_run(
+                "trie_set_TrieBytesOptionalUnionBytesLegacyTransaction",
+                trie,
+                key,
+                value,
+            )
+            trie_set(trie, key, value)
             assert cairo_trie == trie
 
     class TestCopy:

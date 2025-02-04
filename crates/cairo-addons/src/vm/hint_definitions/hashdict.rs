@@ -413,7 +413,11 @@ fn _get_preimage_for_hashed_key(
         .find(|key| match key {
             DictKey::Compound(values) => {
                 let felt_values: Vec<Felt252> = values.iter().filter_map(|v| v.get_int()).collect();
-                poseidon_hash_many(felt_values.iter()) == hashed_key
+                if felt_values.len() == 1 {
+                    felt_values[0] == hashed_key
+                } else {
+                    poseidon_hash_many(felt_values.iter()) == hashed_key
+                }
             }
             _ => false,
         })

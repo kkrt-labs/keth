@@ -267,6 +267,7 @@ class TestSerde:
             Block,
             List[Block],
             BlockChain,
+            Trie[Bytes, Optional[Union[Bytes, LegacyTransaction]]],
         ],
     ):
         assume(no_empty_sequence(b))
