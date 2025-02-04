@@ -1067,6 +1067,15 @@ func _get_preimage_for_key{poseidon_ptr: PoseidonBuiltin*}(
     %{ get_preimage_for_key %}
 
     // Verify preimage
+    if (preimage_len == 1) {
+        // Compare without hashing
+        with_attr error_message("preimage_hash != key") {
+            assert preimage_data[0] = key;
+        }
+        tempvar res = Bytes(new BytesStruct(preimage_data, preimage_len));
+        return res;
+    }
+
     let (preimage_hash) = poseidon_hash_many(preimage_len, preimage_data);
     with_attr error_message("preimage_hash != key") {
         assert preimage_hash = key;

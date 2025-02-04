@@ -3,7 +3,7 @@ from typing import Annotated, Any, List, Mapping, Optional, Set, Tuple, Type, Un
 import pytest
 from ethereum_types.bytes import Bytes, Bytes0, Bytes8, Bytes20, Bytes32, Bytes256
 from ethereum_types.numeric import U64, U256, Uint
-from hypothesis import HealthCheck, assume, given, reproduce_failure, settings
+from hypothesis import HealthCheck, assume, given, settings
 from starkware.cairo.common.dict import DictManager
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 from starkware.cairo.lang.vm.memory_dict import MemoryDict
@@ -177,10 +177,6 @@ class TestSerde:
     @given(b=...)
     # 20 examples per type
     # Cannot build a type object from the dict until we upgrade to python 3.12
-    @reproduce_failure(
-        "6.124.3",
-        b"AXiccxRhzCpvjpB8/bzayC7WkSHxYyBDa6L2olb+3UYzPGXaS/d7ezkxTHdmuMzhyJDgzPCHy9HMqaTIKXs1Y66N86NNcy+ULHl8IvzsH0eGjM3n5lecviy6xInVxJmh282TYdEBJy4v58tPwDpPxDtxpjqqOUYypt1gbzUoLHJkTJRhTHBkyLJQmMq0of72t3kfAhmev4xmSOOqPLo3pifgb7a1gzPDphceQYefuM9N/xnryOhU/N6Z4VSUM0NHvRPDOqfEu4zJ90wvODKk/jk5uWqGSwafu5wnw38ocOG9ND0fqEc4Ip5BES6KCwQytH/qMNvpb+e5MGiDoQj3eh7HDEdGxuTN1V6OjCk3ahZmMwAArBKMIQ==",
-    )
     @settings(
         max_examples=20 * len(_cairo_struct_to_python_type),
         suppress_health_check=[HealthCheck.data_too_large, HealthCheck.filter_too_much],
@@ -271,7 +267,7 @@ class TestSerde:
             Block,
             List[Block],
             BlockChain,
-            Trie[Bytes, Optional[Union[Bytes, LegacyTransaction]]],  # fails
+            Trie[Bytes, Optional[Union[Bytes, LegacyTransaction]]],
         ],
     ):
         assume(no_empty_sequence(b))

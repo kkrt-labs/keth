@@ -217,12 +217,12 @@ class TestTrieOperations:
         @given(trie=..., key=..., value=...)
         def test_trie_set_TrieBytesOptionalUnionBytesLegacyTransaction(
             self,
-            cairo_run_py,
+            cairo_run,
             trie: Trie[Bytes, Optional[Union[Bytes, LegacyTransaction]]],
             key: Bytes,
             value: Union[Bytes, LegacyTransaction],
         ):
-            cairo_trie = cairo_run_py(
+            cairo_trie = cairo_run(
                 "trie_set_TrieBytesOptionalUnionBytesLegacyTransaction",
                 trie,
                 key,
