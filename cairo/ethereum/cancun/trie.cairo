@@ -518,7 +518,7 @@ func common_prefix_length(a: Bytes, b: Bytes) -> felt {
     alloc_locals;
     local result;
 
-    %{ memory[fp] = oracle(ids, reference="ethereum.cancun.trie.common_prefix_length") %}
+    %{ common_prefix_length_hint %}
 
     jmp common if result != 0;
     jmp diff;
@@ -559,7 +559,8 @@ func nibble_list_to_compact{range_check_ptr: felt}(x: Bytes, is_leaf: bool) -> B
         return result;
     }
 
-    local remainder = nondet %{ ids.x.value.len % 2 %};
+    local remainder;
+    %{ value_len_mod_two %}
     with_attr error_message("nibble_list_to_compact: invalid remainder") {
         assert remainder * (1 - remainder) = 0;
         tempvar underflow_check = (x.value.len - remainder) / 2;
@@ -602,7 +603,7 @@ func bytes_to_nibble_list{bitwise_ptr: BitwiseBuiltin*}(bytes_: Bytes) -> Bytes 
     alloc_locals;
     local result: Bytes;
 
-    %{ memory[ap - 1] = oracle(ids, reference="ethereum.cancun.trie.bytes_to_nibble_list") %}
+    %{ bytes_to_nibble_list_hint %}
 
     assert result.value.len = 2 * bytes_.value.len;
 
