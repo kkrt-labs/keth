@@ -9,7 +9,7 @@ from ethereum.cancun.vm.memory import memory_read_bytes, expand_by
 from ethereum.cancun.vm.gas import calculate_gas_extend_memory, charge_gas, GasConstants
 from ethereum_types.numeric import U256, U256Struct, Uint
 from ethereum.crypto.hash import keccak256
-from ethereum.utils.numeric import ceil32, divmod, U256_from_be_bytes
+from ethereum.utils.numeric import ceil32, divmod, U256_from_be_bytes32
 from ethereum_types.others import (
     ListTupleU256U256,
     ListTupleU256U256Struct,
@@ -78,7 +78,7 @@ func keccak{
 
     // Push result to stack
     with stack {
-        let value = U256_from_be_bytes(hash);
+        let value = U256_from_be_bytes32(hash);
         let err = push(value);
         if (cast(err, felt) != 0) {
             EvmImpl.set_stack(stack);

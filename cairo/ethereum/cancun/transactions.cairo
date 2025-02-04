@@ -1,5 +1,6 @@
 from starkware.cairo.common.math_cmp import is_le_felt, is_not_zero
 from starkware.cairo.common.bool import FALSE, TRUE
+from starkware.cairo.common.math import assert_not_zero
 from starkware.cairo.common.cairo_builtins import (
     BitwiseBuiltin,
     KeccakBuiltin,
@@ -11,16 +12,22 @@ from ethereum.crypto.elliptic_curve import secp256k1_recover_uint256_bigends
 
 from ethereum.crypto.elliptic_curve import public_key_point_to_eth_address
 from ethereum.utils.numeric import U256_le, U256__eq__
-from ethereum_types.bytes import Bytes, Bytes0
+from ethereum_types.bytes import Bytes, Bytes0, BytesStruct
 from ethereum_types.numeric import Uint, bool, U256, U256Struct, U64
 from ethereum.cancun.fork_types import Address
 from ethereum.cancun.vm.gas import init_code_cost
 from ethereum.cancun.transactions_types import (
     Transaction,
+    TransactionType,
+    TransactionStruct,
     LegacyTransaction,
+    LegacyTransactionStruct,
     AccessListTransaction,
+    AccessListTransactionStruct,
     FeeMarketTransaction,
+    FeeMarketTransactionStruct,
     BlobTransaction,
+    BlobTransactionStruct,
     To,
     ToStruct,
     TransactionImpl,
@@ -40,8 +47,12 @@ from ethereum_rlp.rlp import (
     encode_access_list_transaction_for_signing,
     encode_fee_market_transaction_for_signing,
     encode_blob_transaction_for_signing,
+    decode_to_access_list_transaction,
+    decode_to_fee_market_transaction,
+    decode_to_blob_transaction,
 )
 
+from ethereum.cancun.blocks import UnionBytesLegacyTransaction
 from ethereum.cancun.utils.constants import MAX_CODE_SIZE
 from src.utils.array import count_not_zero
 
@@ -331,4 +342,82 @@ func recover_sender{
     }
     tempvar res = Address(0);
     return res;
+}
+
+func decode_transaction{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
+    tx: UnionBytesLegacyTransaction
+) -> Transaction {
+    if (cast(tx.value.bytes.value, felt) != 0) {
+        let bytes = tx.value.bytes.value;
+        let bytes_len = bytes.len;
+        with_attr error_message("TransactionTypeError") {
+            assert_not_zero(bytes_len);
+        }
+        let transaction_type = bytes.data[0];
+        if (transaction_type == TransactionType.ACCESS_LIST) {
+            tempvar new_bytes = Bytes(new BytesStruct(data=bytes.data + 1, len=bytes_len - 1));
+            let access_list_transaction = decode_to_access_list_transaction(new_bytes);
+            tempvar res = Transaction(
+                new TransactionStruct(
+                    legacy_transaction=LegacyTransaction(cast(0, LegacyTransactionStruct*)),
+                    access_list_transaction=access_list_transaction,
+                    fee_market_transaction=FeeMarketTransaction(
+                        cast(0, FeeMarketTransactionStruct*)
+                    ),
+                    blob_transaction=BlobTransaction(cast(0, BlobTransactionStruct*)),
+                ),
+            );
+            return res;
+        }
+        if (transaction_type == TransactionType.FEE_MARKET) {
+            tempvar new_bytes = Bytes(new BytesStruct(data=bytes.data + 1, len=bytes_len - 1));
+            let fee_market_transaction = decode_to_fee_market_transaction(new_bytes);
+            tempvar res = Transaction(
+                new TransactionStruct(
+                    legacy_transaction=LegacyTransaction(cast(0, LegacyTransactionStruct*)),
+                    access_list_transaction=AccessListTransaction(
+                        cast(0, AccessListTransactionStruct*)
+                    ),
+                    fee_market_transaction=fee_market_transaction,
+                    blob_transaction=BlobTransaction(cast(0, BlobTransactionStruct*)),
+                ),
+            );
+            return res;
+        }
+        if (transaction_type == TransactionType.BLOB) {
+            tempvar new_bytes = Bytes(new BytesStruct(data=bytes.data + 1, len=bytes_len - 1));
+            let blob_transaction = decode_to_blob_transaction(new_bytes);
+            tempvar res = Transaction(
+                new TransactionStruct(
+                    legacy_transaction=LegacyTransaction(cast(0, LegacyTransactionStruct*)),
+                    access_list_transaction=AccessListTransaction(
+                        cast(0, AccessListTransactionStruct*)
+                    ),
+                    fee_market_transaction=FeeMarketTransaction(
+                        cast(0, FeeMarketTransactionStruct*)
+                    ),
+                    blob_transaction=blob_transaction,
+                ),
+            );
+            return res;
+        }
+    }
+    if (cast(tx.value.legacy_transaction.value, felt) != 0) {
+        tempvar res = Transaction(
+            new TransactionStruct(
+                legacy_transaction=tx.value.legacy_transaction,
+                access_list_transaction=AccessListTransaction(
+                    cast(0, AccessListTransactionStruct*)
+                ),
+                fee_market_transaction=FeeMarketTransaction(cast(0, FeeMarketTransactionStruct*)),
+                blob_transaction=BlobTransaction(cast(0, BlobTransactionStruct*)),
+            ),
+        );
+        return res;
+    }
+    with_attr error_message("TransactionTypeError") {
+        assert 0 = 1;
+        // unreachable
+        ret;
+    }
 }

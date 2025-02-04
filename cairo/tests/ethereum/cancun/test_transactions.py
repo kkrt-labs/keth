@@ -8,6 +8,7 @@ from ethereum.cancun.transactions import (
     LegacyTransaction,
     Transaction,
     calculate_intrinsic_cost,
+    encode_transaction,
     recover_sender,
     signing_hash_155,
     signing_hash_1559,
@@ -71,3 +72,9 @@ class TestTransactions:
             return
 
         assert recover_sender(chain_id, tx) == cairo_result
+
+    @given(tx=...)
+    def test_decode_transaction(self, cairo_run, tx: Transaction):
+        encoded_tx = encode_transaction(tx)
+        decoded_tx = cairo_run("decode_transaction", encoded_tx)
+        assert decoded_tx == tx

@@ -39,11 +39,11 @@ from ethereum.cancun.utils.address import to_address
 from ethereum.crypto.hash import keccak256
 
 from ethereum.utils.numeric import (
-    U256_from_be_bytes,
-    U256_from_be_bytes20,
+    U256_from_be_bytes32,
     ceil32,
     divmod,
     U256_to_be_bytes,
+    U256_from_be_bytes20,
 )
 
 from src.utils.bytes import felt_to_bytes20_little
@@ -560,7 +560,7 @@ func blob_hash{
     }
 
     // Push result to stack
-    let res = U256_from_be_bytes(blob_hash);
+    let res = U256_from_be_bytes32(blob_hash);
     with stack {
         let err = push(res);
         if (cast(err, felt) != 0) {

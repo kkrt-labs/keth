@@ -45,9 +45,9 @@ class TestNumeric:
         )
 
     @given(bytes=...)
-    def test_U256_from_be_bytes(self, cairo_run, bytes: Bytes32):
+    def test_U256_from_be_bytes32(self, cairo_run, bytes: Bytes32):
         expected = U256.from_be_bytes(bytes)
-        result = cairo_run("U256_from_be_bytes", bytes)
+        result = cairo_run("U256_from_be_bytes32", bytes)
         assert result == expected
 
     @given(bytes=...)
