@@ -12,7 +12,10 @@ func hash_full_transcript{poseidon_ptr: PoseidonBuiltin*}(limbs_ptr: felt*, n: f
     tempvar pos_ptr = cast(poseidon_ptr, felt*);
 
     loop:
-    if (nondet %{ ids.elements_end - ids.elements >= 6*ids.N_LIMBS %} != 0) {
+    tempvar has_six_uint384_remaining;
+    %{ has_six_uint384_remaining_hint %}
+    ap += 1;
+    if (has_six_uint384_remaining != 0) {
         assert [pos_ptr + 0] = [pos_ptr - 3] + elements[0] + (BASE) * elements[1];
         assert [pos_ptr + 1] = [pos_ptr - 2] + elements[2];
         assert [pos_ptr + 2] = [pos_ptr - 1];
@@ -43,7 +46,10 @@ func hash_full_transcript{poseidon_ptr: PoseidonBuiltin*}(limbs_ptr: felt*, n: f
         jmp loop;
     }
 
-    if (nondet %{ ids.elements_end - ids.elements >= ids.N_LIMBS %} != 0) {
+    tempvar has_one_uint384_remaining;
+    %{ has_one_uint384_remaining_hint %}
+    ap += 1;
+    if (has_one_uint384_remaining != 0) {
         assert [pos_ptr + 0] = [pos_ptr - 3] + elements[0] + (BASE) * elements[1];
         assert [pos_ptr + 1] = [pos_ptr - 2] + elements[2];
         assert [pos_ptr + 2] = [pos_ptr - 1];

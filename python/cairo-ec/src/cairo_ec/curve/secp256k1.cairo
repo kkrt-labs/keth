@@ -14,7 +14,8 @@ from starkware.cairo.common.uint256 import Uint256, word_reverse_endian
 from starkware.cairo.common.poseidon_state import PoseidonBuiltinState
 from starkware.cairo.common.builtin_keccak.keccak import keccak_uint256s_bigend
 
-from cairo_core.maths import unsigned_div_rem, scalar_to_epns, assert_uint256_le
+from cairo_core.maths import unsigned_div_rem, assert_uint256_le
+from cairo_ec.curve_utils import scalar_to_epns
 from cairo_ec.curve.g1_point import G1Point
 from cairo_ec.circuit_utils import N_LIMBS, hash_full_transcript
 from cairo_ec.curve.ids import CurveID
@@ -179,56 +180,7 @@ func try_recover_public_key{
     let sp2_high_384 = sign_to_uint384_mod_secp256k1(sp2_high);
     let sn2_high_384 = sign_to_uint384_mod_secp256k1(sn2_high);
 
-    %{
-        from garaga.hints.io import pack_bigint_ptr, pack_felt_ptr, fill_sum_dlog_div, fill_g1_point, bigint_split
-        from garaga.starknet.tests_and_calldata_generators.msm import MSMCalldataBuilder
-        from garaga.definitions import G1Point
-        from garaga.definitions import CurveID
-        from garaga.hints.io import bigint_pack, bigint_fill
-        import time
-
-        curve_id = CurveID.SECP256K1
-        r_point = (bigint_pack(ids.r_point.x, 4, 2**96), bigint_pack(ids.r_point.y, 4, 2**96))
-        points = [G1Point.get_nG(curve_id, 1), G1Point(r_point[0], r_point[1], curve_id)]
-        scalars = [ids.u1.low + 2**128*ids.u1.high, ids.u2.low + 2**128*ids.u2.high]
-        builder = MSMCalldataBuilder(curve_id, points, scalars)
-        (msm_hint, derive_point_from_x_hint) = builder.build_msm_hints()
-        Q_low, Q_high, Q_high_shifted, RLCSumDlogDiv = msm_hint.elmts
-
-        def fill_elmt_at_index(
-            x, ptr: object, memory: object, index: int, static_offset: int = 0
-        ):
-            limbs = bigint_split(x, 4, 2**96)
-            for i in range(4):
-                memory[ptr + index * 4 + i + static_offset] = limbs[i]
-            return
-
-
-        def fill_elmts_at_index(
-            x,
-            ptr: object,
-            memory: object,
-            index: int,
-            static_offset: int = 0,
-        ):
-            for i in range(len(x)):
-                fill_elmt_at_index(x[i], ptr + i * 4, memory, index, static_offset)
-            return
-
-        rlc_sum_dlog_div_coeffs = RLCSumDlogDiv.a_num + RLCSumDlogDiv.a_den + RLCSumDlogDiv.b_num + RLCSumDlogDiv.b_den
-        assert len(rlc_sum_dlog_div_coeffs) == 18 + 4*2, f"len(rlc_sum_dlog_div_coeffs) == {len(rlc_sum_dlog_div_coeffs)} != {18 + 4*2}"
-
-
-        offset = 4
-        fill_elmts_at_index(rlc_sum_dlog_div_coeffs, ids.range_check96_ptr, memory, 4, offset)
-
-        fill_elmt_at_index(Q_low[0], ids.range_check96_ptr, memory, 50, offset)
-        fill_elmt_at_index(Q_low[1], ids.range_check96_ptr, memory, 51, offset)
-        fill_elmt_at_index(Q_high[0], ids.range_check96_ptr, memory, 52, offset)
-        fill_elmt_at_index(Q_high[1], ids.range_check96_ptr, memory, 53, offset)
-        fill_elmt_at_index(Q_high_shifted[0], ids.range_check96_ptr, memory, 54, offset)
-        fill_elmt_at_index(Q_high_shifted[1], ids.range_check96_ptr, memory, 55, offset)
-    %}
+    %{ build_msm_hints_and_fill_memory %}
 
     // Interaction with Poseidon, protocol is roughly a sequence of hashing:
     // - initial constant 'MSM_G1'

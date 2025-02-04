@@ -10,12 +10,7 @@ func felt_to_uint384{range_check96_ptr: felt*}(x: felt) -> UInt384 {
     let d0 = [range_check96_ptr];
     let d1 = [range_check96_ptr + 1];
     let d2 = [range_check96_ptr + 2];
-    %{
-        from garaga.hints.io import bigint_split
-        limbs = bigint_split(ids.x, 4, 2 ** 96)
-        assert limbs[3] == 0
-        ids.d0, ids.d1, ids.d2 = limbs[0], limbs[1], limbs[2]
-    %}
+    %{ felt_to_uint384_split_hint %}
     assert [range_check96_ptr + 3] = STARK_MIN_ONE_D2 - d2;
     assert x = d0 + d1 * 2 ** 96 + d2 * 2 ** 192;
 
@@ -193,14 +188,10 @@ func uint384_assert_neq_mod_p{
 func uint384_eq_mod_p{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
     x: UInt384, y: UInt384, p: UInt384
 ) -> felt {
-    %{
-        from garaga.hints.io import bigint_pack
-        x = bigint_pack(ids.x, 4, 2**96)
-        y = bigint_pack(ids.y, 4, 2**96)
-        p = bigint_pack(ids.p, 4, 2**96)
-    %}
+    tempvar x_mod_p_eq_y_mod_p;
+    %{ x_mod_p_eq_y_mod_p_hint %}
 
-    if (nondet %{ x % p == y % p %} != 0) {
+    if (x_mod_p_eq_y_mod_p != 0) {
         uint384_assert_eq_mod_p(x, y, p);
         return 1;
     } else {
@@ -324,13 +315,9 @@ func uint384_assert_not_neg_mod_p{
 func uint384_is_neg_mod_p{
     range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
 }(x: UInt384, y: UInt384, p: UInt384) -> felt {
-    %{
-        from garaga.hints.io import bigint_pack
-        x = bigint_pack(ids.x, 4, 2**96)
-        y = bigint_pack(ids.y, 4, 2**96)
-        p = bigint_pack(ids.p, 4, 2**96)
-    %}
-    if (nondet %{ x % p == -y % p %} != 0) {
+    tempvar x_is_neg_y_mod_p;
+    %{ x_is_neg_y_mod_p_hint %}
+    if (x_is_neg_y_mod_p != 0) {
         uint384_assert_neg_mod_p(x, y, p);
         return 1;
     } else {
