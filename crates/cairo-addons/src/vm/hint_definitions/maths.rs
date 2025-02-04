@@ -113,8 +113,7 @@ fn value_len_mod_two() -> Hint {
                 len.try_into().map_err(|_| MathError::Felt252ToUsizeConversion(Box::new(len)))?;
 
             let remainder = len % 2;
-            insert_value_from_var_name("remainder", remainder, vm, ids_data, ap_tracking)?;
-            Ok(())
+            insert_value_from_var_name("remainder", remainder, vm, ids_data, ap_tracking)
         },
     )
 }

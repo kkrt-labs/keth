@@ -28,14 +28,13 @@ pub fn serialize_sequence(
 
     let data = vm.get_relocatable(ptr)?;
 
-    let mut bytes = Vec::new();
-    for i in 0..len {
-        let byte_addr = (data + i)?;
-        let byte = vm.get_integer(byte_addr)?.into_owned();
-        bytes.push(byte);
-    }
-
-    Ok(bytes)
+    let bytes = (0..len)
+        .map(|i| {
+            let byte_addr = (data + i)?;
+            vm.get_integer(byte_addr).map(|b| b.into_owned())
+        })
+        .collect::<Result<Vec<_>, _>>();
+    bytes.map_err(|_| HintError::CustomHint(Box::from("Could not serialize sequence")))
 }
 
 pub fn deserialize_sequence<T>(

@@ -9,14 +9,14 @@ from cairo_addons.hints.decorator import register_hint
 def has_six_uint384_remaining_hint(
     ids: VmConsts, memory: MemoryDict, ap: RelocatableValue
 ):
-    memory[ap] = ids.elements_end - ids.elements >= 6 * ids.N_LIMBS
+    memory[ap - 1] = ids.elements_end - ids.elements >= 6 * ids.N_LIMBS
 
 
 @register_hint
 def has_one_uint384_remaining_hint(
     ids: VmConsts, memory: MemoryDict, ap: RelocatableValue
 ):
-    memory[ap] = ids.elements_end - ids.elements >= ids.N_LIMBS
+    memory[ap - 1] = ids.elements_end - ids.elements >= ids.N_LIMBS
 
 
 @register_hint
