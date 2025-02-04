@@ -648,14 +648,7 @@ func trie_set_TrieBytesOptionalUnionBytesReceipt{
     alloc_locals;
     let dict_ptr = cast(trie.value._data.value.dict_ptr, DictAccess*);
 
-    local is_default;
-    if (value.value == trie.value.default.value) {
-        assert is_default = 1;
-    } else {
-        assert is_default = 0;
-    }
-
-    if (is_default != 0) {
+    if (cast(value.value, felt) == 0) {
         hashdict_write{dict_ptr=dict_ptr}(key.value.len, key.value.data, 0);
         tempvar dict_ptr = dict_ptr;
         tempvar poseidon_ptr = poseidon_ptr;

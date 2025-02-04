@@ -264,6 +264,8 @@ class TestSerde:
             MessageCallOutput,
             Union[Bytes, LegacyTransaction],
             Union[Bytes, Receipt],
+            Optional[Union[Bytes, LegacyTransaction]],
+            Optional[Union[Bytes, Receipt]],
             Tuple[Union[Bytes, LegacyTransaction], ...],
             Block,
             List[Block],
