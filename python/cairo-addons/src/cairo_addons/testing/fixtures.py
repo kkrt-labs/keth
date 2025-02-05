@@ -76,15 +76,31 @@ def coverage(cairo_program: Program, cairo_file: Path, worker_id: str):
     if not reports:
         return
 
+    all_statements = pl.DataFrame(
+        [
+            {
+                "filename": instruction.inst.input_file.filename,
+                "line_number": i,
+            }
+            for instruction in cairo_program.debug_info.instruction_locations.values()
+            for i in range(instruction.inst.start_line, instruction.inst.end_line + 1)
+        ]
+    ).with_columns(
+        filename=(
+            pl.when(pl.col("filename") == "")
+            .then(pl.lit(str(cairo_file)))
+            .otherwise(pl.col("filename"))
+        ),
+        count=pl.lit(0, dtype=pl.UInt32),
+    )
     all_coverages = (
-        pl.concat(reports)
+        pl.concat([all_statements, pl.concat(reports)])
         .group_by(pl.col("filename"), pl.col("line_number"))
         .agg(pl.col("count").sum())
         .group_by("filename")
         .agg(pl.col("line_number"), pl.col("count"))
         .to_dict(as_series=False)
     )
-
     dump_path = (
         Path("coverage")
         / worker_id
