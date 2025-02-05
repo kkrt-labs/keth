@@ -19,7 +19,7 @@ from ethereum.cancun.fork import (
     validate_header,
 )
 from ethereum.cancun.fork_types import Account, Address
-from ethereum.cancun.state import State, set_account, set_storage
+from ethereum.cancun.state import State, set_account
 from ethereum.cancun.transactions import (
     AccessListTransaction,
     BlobTransaction,
@@ -43,6 +43,7 @@ from hypothesis import strategies as st
 from hypothesis.strategies import composite, integers
 
 from tests.ethereum.cancun.vm.test_interpreter import unimplemented_precompiles
+from tests.utils.args_gen import Environment
 from tests.utils.constants import COINBASE, OTHER, OWNER, TRANSACTION_GAS_LIMIT, signers
 from tests.utils.errors import strict_raises
 from tests.utils.strategies import account_strategy, address, bytes32, state, uint
@@ -428,8 +429,30 @@ class TestFork:
         cairo_run_py,
         data,
     ):
+        accounts, storage_tries = _create_erc20_data()
+        # Create constant state
+        state = State(
+            _main_trie=Trie(
+                secured=True,
+                default=None,
+                _data=dict(accounts),
+            ),
+            _storage_tries=dict(storage_tries),
+            _snapshots=[
+                (
+                    Trie(
+                        secured=True,
+                        default=None,
+                        _data=dict(accounts),
+                    ),
+                    {k: copy_trie(v) for k, v in storage_tries.items()},
+                )
+            ],
+            created_accounts=set(),
+        )
+
         withdrawals = ()  # Empty withdrawals for now
-        kwargs = {**data, "withdrawals": withdrawals}
+        kwargs = {**data, "withdrawals": withdrawals, "state": state}
 
         try:
             # TODO: Use cairo_run and Rust CairoVM
@@ -453,94 +476,43 @@ class TestFork:
         assert cairo_state == data["state"]
 
 
-def _create_test_erc20_state(
-    state: State = State(),
-    amount: int = int(1e18),
-    owner: Address = Address(bytes.fromhex(OWNER[2:])),
-    other: Address = Address(bytes.fromhex(OTHER[2:])),
-    coinbase: Address = Address(bytes.fromhex(COINBASE[2:])),
-) -> State:
-    """
-    Creates a test state for ERC20 transfer tests that matches the interface from state.py
-    while preserving the test values from test_os.py
-    """
+def _create_erc20_data():
+    """Helper to create the fixed ERC20 data structures"""
     erc20_contract = get_contract("ERC20", "KethToken")
+    erc20_address = Address(bytes.fromhex(erc20_contract.address[2:]))
 
-    # Create ERC20 contract account
-    erc20_account = Account(
-        balance=U256(0),
-        nonce=Uint(0),
-        code=bytes(erc20_contract.bytecode_runtime),
-    )
-    address = Address(bytes.fromhex(erc20_contract.address[2:]))
-    set_account(state, address, erc20_account)
+    accounts = {
+        erc20_address: Account(
+            balance=U256(0),
+            nonce=Uint(0),
+            code=bytes(erc20_contract.bytecode_runtime),
+        ),
+        Address(bytes.fromhex(OTHER[2:])): Account(
+            balance=U256(int(1e18)), nonce=Uint(0), code=bytes()
+        ),
+        Address(bytes.fromhex(OWNER[2:])): Account(
+            balance=U256(int(1e18)), nonce=Uint(0), code=bytes()
+        ),
+        Address(bytes.fromhex(COINBASE[2:])): Account(
+            balance=U256(int(1e18)), nonce=Uint(0), code=bytes()
+        ),
+    }
 
-    # Set ERC20 storage
-    # name = "KethToken" (9 bytes)
-    # For strings < 32 bytes:
-    # - string data is stored in the lower bytes
-    # - length * 2 is stored in the last byte
-    name_bytes = b"KethToken"
-    name_storage = name_bytes.ljust(31, b"\x00") + bytes([len(name_bytes) * 2])
-    set_storage(
-        state,
-        address,
-        U256(0).to_be_bytes32(),
-        U256.from_be_bytes(name_storage),
-    )
+    storage_data = {
+        Bytes32(U256(0).to_be_bytes32()): U256.from_be_bytes(
+            b"KethToken".ljust(31, b"\x00") + bytes([len(b"KethToken") * 2])
+        ),
+        Bytes32(U256(1).to_be_bytes32()): U256.from_be_bytes(
+            b"KETH".ljust(31, b"\x00") + bytes([len(b"KETH") * 2])
+        ),
+        Bytes32(U256(2).to_be_bytes32()): U256(int(1e18)),
+        Bytes32(keccak256(encode(["address", "uint8"], [OWNER[2:], 3]))): U256(
+            int(1e18)
+        ),
+    }
 
-    # symbol = "KETH" (4 bytes)
-    symbol_bytes = b"KETH"
-    symbol_storage = symbol_bytes.ljust(31, b"\x00") + bytes([len(symbol_bytes) * 2])
-    set_storage(
-        state,
-        address,
-        U256(1).to_be_bytes32(),
-        U256.from_be_bytes(symbol_storage),
-    )
+    storage_tries = {
+        erc20_address: Trie(secured=True, default=U256(0), _data=dict(storage_data))
+    }
 
-    # totalSupply = amount
-    set_storage(
-        state,
-        address,
-        U256(2).to_be_bytes32(),
-        U256(amount),
-    )
-
-    # balanceOf[OWNER]
-    # Here we do use encode() because we're creating a storage key
-    balance_key = Bytes32(keccak256(encode(["address", "uint8"], [owner, 3])))
-    set_storage(state, address, balance_key, U256(amount))
-
-    # Create other accounts
-    other_account = Account(
-        balance=U256(int(1e18)),
-        nonce=Uint(0),
-        code=bytes(),
-    )
-    set_account(state, other, other_account)
-
-    owner_account = Account(
-        balance=U256(int(1e18)),
-        nonce=Uint(0),
-        code=bytes(),
-    )
-    set_account(state, owner, owner_account)
-
-    coinbase_account = Account(
-        balance=U256(int(1e18)),
-        nonce=Uint(0),
-        code=bytes(),
-    )
-    set_account(state, coinbase, coinbase_account)
-
-    # Create deep copies of the tries for the snapshot,
-    # because otherwise mutating the main trie will also mutate the snapshot
-    state._snapshots = [
-        (
-            copy_trie(state._main_trie),
-            {addr: copy_trie(trie) for addr, trie in state._storage_tries.items()},
-        )
-    ]
-
-    return state
+    return accounts, storage_tries

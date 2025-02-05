@@ -351,7 +351,6 @@ func get_storage_original{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, state
     }
 
     let new_original_storage_tries = state.value.original_storage_tries;
-    %{ breakpoint() %}
     let value = trie_get_TrieTupleAddressBytes32U256{trie=new_original_storage_tries}(address, key);
 
     // Update state
