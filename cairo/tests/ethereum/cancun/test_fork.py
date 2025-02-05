@@ -30,7 +30,7 @@ from ethereum.cancun.transactions import (
 from ethereum.cancun.vm import Environment
 from ethereum.cancun.vm.gas import TARGET_BLOB_GAS_PER_BLOCK
 from ethereum.exceptions import EthereumException
-from ethereum_types.bytes import Bytes, Bytes20
+from ethereum_types.bytes import Bytes, Bytes0, Bytes20
 from ethereum_types.numeric import U64, U256, Uint
 from hypothesis import assume, given
 from hypothesis import strategies as st
@@ -38,11 +38,13 @@ from hypothesis.strategies import composite, integers
 
 from tests.ethereum.cancun.vm.test_interpreter import unimplemented_precompiles
 from tests.utils.errors import strict_raises
-from tests.utils.strategies import account_strategy, address, bytes32, state
+from tests.utils.strategies import account_strategy, address, bytes32, state, uint
+
+MIN_BASE_FEE = 1_000
 
 
 @composite
-def tx_without_code(draw):
+def tx_with_small_data(draw, gas_strategy=uint, gas_price_strategy=uint):
     # Generate access list
     access_list_entries = draw(
         st.lists(st.tuples(address, st.lists(bytes32, max_size=2)), max_size=3)
@@ -51,16 +53,22 @@ def tx_without_code(draw):
         (addr, tuple(storage_keys)) for addr, storage_keys in access_list_entries
     )
 
-    to = (
+    addr = (
         st.integers(min_value=0, max_value=2**160 - 1)
         .filter(lambda x: x not in unimplemented_precompiles)
         .map(lambda x: Bytes20(x.to_bytes(20, "little")))
         .map(Address)
     )
 
+    to = st.one_of(addr, st.just(Bytes0()))
+
     # Define strategies for each transaction type
     legacy_tx = st.builds(
-        LegacyTransaction, data=st.just(Bytes(bytes.fromhex("6060"))), to=to
+        LegacyTransaction,
+        data=st.just(Bytes(bytes.fromhex("6060"))),
+        to=to,
+        gas=gas_strategy,
+        gas_price=gas_price_strategy,
     )
 
     access_list_tx = st.builds(
@@ -68,20 +76,32 @@ def tx_without_code(draw):
         data=st.just(Bytes(bytes.fromhex("6060"))),
         access_list=st.just(access_list),
         to=to,
+        gas=gas_strategy,
+        gas_price=gas_price_strategy,
     )
+
+    base_fee_per_gas = draw(gas_price_strategy)
+    max_priority_fee_per_gas = draw(gas_price_strategy)
+    max_fee_per_gas = max_priority_fee_per_gas + base_fee_per_gas
 
     fee_market_tx = st.builds(
         FeeMarketTransaction,
         data=st.just(Bytes(bytes.fromhex("6060"))),
         access_list=st.just(access_list),
         to=to,
+        gas=gas_strategy,
+        max_priority_fee_per_gas=st.just(max_priority_fee_per_gas),
+        max_fee_per_gas=st.just(max_fee_per_gas),
     )
 
     blob_tx = st.builds(
         BlobTransaction,
         data=st.just(Bytes(bytes.fromhex("6060"))),
         access_list=st.just(access_list),
-        to=to,
+        to=addr,
+        gas=gas_strategy,
+        max_priority_fee_per_gas=st.just(max_priority_fee_per_gas),
+        max_fee_per_gas=st.just(max_fee_per_gas),
     )
 
     # Choose one transaction type
@@ -92,11 +112,29 @@ def tx_without_code(draw):
 
 @composite
 def tx_with_sender_in_state(
-    draw, state_strategy=state, account_strategy=account_strategy
+    draw,
+    # We need to set a high tx gas so that tx.gas > intrinsic cost and base_fee < gas_price
+    tx_strategy=tx_with_small_data(
+        gas_strategy=st.integers(min_value=2**16, max_value=2**26 - 1).map(Uint),
+        gas_price_strategy=st.integers(
+            min_value=MIN_BASE_FEE - 1, max_value=2**64
+        ).map(Uint),
+    ),
+    state_strategy=state,
+    account_strategy=account_strategy,
 ):
     state = draw(state_strategy)
-    chain_id = draw(st.from_type(U64))
-    tx = draw(st.from_type(Transaction))
+    account = draw(account_strategy)
+    # 2 * chain_id + 35 + v must be less than 2^64 for the signature of a legacy transaction to be valid
+    chain_id = draw(st.integers(min_value=1, max_value=(2**64 - 37) // 2).map(U64))
+    tx = draw(tx_strategy)
+    nonce = U256(account.nonce)
+    # To avoid useless failures, set nonce of the transaction to the nonce of the sender account
+    tx = (
+        replace(tx, chain_id=chain_id, nonce=nonce)
+        if not isinstance(tx, LegacyTransaction)
+        else replace(tx, nonce=nonce)
+    )
     private_key = draw(st.from_type(PrivateKey))
     expected_address = int(private_key.public_key.to_address(), 16)
     if isinstance(tx, LegacyTransaction):
@@ -113,7 +151,7 @@ def tx_with_sender_in_state(
     # Overwrite r and s with valid values
     v_or_y_parity = {}
     if isinstance(tx, LegacyTransaction):
-        v_or_y_parity["v"] = U256(signature.v)
+        v_or_y_parity["v"] = U256(U64(2) * chain_id + U64(35) + U64(signature.v))
     else:
         v_or_y_parity["y_parity"] = U256(signature.v)
     tx = replace(tx, r=U256(signature.r), s=U256(signature.s), **v_or_y_parity)
@@ -121,11 +159,8 @@ def tx_with_sender_in_state(
     should_add_sender_to_state = draw(integers(0, 99)) < 80
     if should_add_sender_to_state:
         sender = Address(int(expected_address).to_bytes(20, "little"))
-        account = draw(account_strategy)
         set_account(state, sender, account)
-        return tx, state
-    else:
-        return tx, state
+    return tx, state, chain_id
 
 
 @composite
@@ -218,12 +253,15 @@ class TestFork:
             "make_receipt", tx, error, cumulative_gas_used, logs
         )
 
-    @given(env=env_with_valid_gas_price(), tx=tx_without_code())
-    def test_process_transaction(self, cairo_run, env: Environment, tx: Transaction):
+    @given(env=env_with_valid_gas_price(), data=tx_with_sender_in_state())
+    def test_process_transaction(
+        self, cairo_run, env: Environment, data: Tuple[Transaction, State, U64]
+    ):
         # The Cairo Runner will raise if an exception is in the return values OR if
         # an assert expression fails (e.g. InvalidBlock)
+        tx, __, _ = data
         try:
-            env_cairo, gas_cairo, logs_cairo = cairo_run("process_transaction", env, tx)
+            env_cairo, cairo_result = cairo_run("process_transaction", env, tx)
         except Exception as cairo_e:
             # 1. Handle exceptions thrown
             try:
@@ -233,23 +271,23 @@ class TestFork:
                 return
 
             # 2. Handle exceptions in return values
-            assert env_cairo == env
-            assert gas_cairo == output_py[0]
-            assert logs_cairo == output_py[1]
+            # Never reached with the current strategy and 300 examples
+            # For that, it would be necessary to send a tx with correct data
+            # that would raise inside execute_code
             with strict_raises(type(cairo_e)):
                 if len(output_py) == 3:
                     raise output_py[2]
             return
 
-        gas_used, logs = process_transaction(env, tx)
+        gas_used, logs, error = process_transaction(env, tx)
         assert env_cairo == env
-        assert gas_used == gas_cairo
-        assert logs == logs_cairo
+        assert gas_used == cairo_result[0]
+        assert logs == cairo_result[1]
+        assert error == cairo_result[2]
 
     @given(
         data=tx_with_sender_in_state(),
         gas_available=...,
-        chain_id=...,
         base_fee_per_gas=...,
         excess_blob_gas=...,
     )
@@ -258,11 +296,10 @@ class TestFork:
         cairo_run_py,
         data,
         gas_available: Uint,
-        chain_id: U64,
         base_fee_per_gas: Uint,
         excess_blob_gas: U64,
     ):
-        tx, state = data
+        tx, state, chain_id = data
         try:
             cairo_state, cairo_result = cairo_run_py(
                 "check_transaction",
