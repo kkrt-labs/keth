@@ -368,6 +368,7 @@ func _execute_code{
     if (evm.value.running.value == FALSE) {
         return evm;
     }
+
     let is_pc_ge_code_len = is_nn(evm.value.pc.value - evm.value.code.value.len);
     if (is_pc_ge_code_len != FALSE) {
         return evm;
