@@ -1,10 +1,10 @@
+from ethereum.cancun.vm import Evm
 from ethereum.cancun.vm.instructions.memory import mcopy, mload, msize, mstore, mstore8
 from ethereum.cancun.vm.stack import push
 from ethereum.exceptions import EthereumException
 from ethereum_types.numeric import U256
 from hypothesis import given
 
-from tests.utils.args_gen import Evm
 from tests.utils.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder
 from tests.utils.strategies import (

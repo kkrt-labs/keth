@@ -2,6 +2,7 @@ from typing import List, Tuple
 
 from ethereum.cancun.blocks import Header
 from ethereum.cancun.transactions import BlobTransaction
+from ethereum.cancun.vm import Evm
 from ethereum.cancun.vm.gas import (
     GAS_CALL_STIPEND,
     calculate_blob_gas_price,
@@ -21,7 +22,7 @@ from hypothesis import assume, given
 from hypothesis import strategies as st
 from hypothesis.strategies import composite
 
-from tests.utils.args_gen import Evm, Memory
+from tests.utils.args_gen import Memory
 from tests.utils.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder
 from tests.utils.strategies import excess_blob_gas

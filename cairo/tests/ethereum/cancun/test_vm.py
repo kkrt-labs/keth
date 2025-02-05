@@ -1,7 +1,10 @@
-from ethereum.cancun.vm import incorporate_child_on_error, incorporate_child_on_success
+from ethereum.cancun.vm import (
+    Evm,
+    incorporate_child_on_error,
+    incorporate_child_on_success,
+)
 from hypothesis import given
 
-from tests.utils.args_gen import Evm
 from tests.utils.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder
 

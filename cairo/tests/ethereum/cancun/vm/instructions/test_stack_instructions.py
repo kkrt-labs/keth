@@ -1,9 +1,9 @@
 import ethereum.cancun.vm.instructions.stack as stack
 import pytest
+from ethereum.cancun.vm import Evm
 from ethereum.exceptions import EthereumException
 from hypothesis import given
 
-from tests.utils.args_gen import Evm
 from tests.utils.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder
 

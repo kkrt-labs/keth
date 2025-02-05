@@ -1,4 +1,5 @@
 from ethereum.cancun.fork_types import Address
+from ethereum.cancun.vm import Evm
 from ethereum.cancun.vm.instructions.system import (
     call,
     callcode,
@@ -12,7 +13,6 @@ from ethereum.cancun.vm.instructions.system import (
 from ethereum_types.numeric import U256, Uint
 from hypothesis import given
 
-from tests.utils.args_gen import Evm
 from tests.utils.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder
 from tests.utils.strategies import MAX_MEMORY_SIZE, bounded_u256_strategy

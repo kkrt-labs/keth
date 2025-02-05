@@ -20,6 +20,7 @@ from ethereum.cancun.trie import (
     Node,
     Trie,
 )
+from ethereum.cancun.vm import Environment, Evm, Message
 from ethereum.cancun.vm.exceptions import (
     InvalidOpcode,
     Revert,
@@ -27,6 +28,7 @@ from ethereum.cancun.vm.exceptions import (
     StackUnderflowError,
 )
 from ethereum.cancun.vm.gas import ExtendMemory, MessageCallGas
+from ethereum.cancun.vm.interpreter import MessageCallOutput
 from ethereum.crypto.hash import Hash32
 from ethereum.exceptions import (
     EthereumException,
@@ -41,15 +43,7 @@ from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 from starkware.cairo.lang.vm.memory_dict import MemoryDict
 from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 
-from tests.utils.args_gen import (
-    Environment,
-    Evm,
-    Memory,
-    Message,
-    MessageCallOutput,
-    Stack,
-    _cairo_struct_to_python_type,
-)
+from tests.utils.args_gen import Memory, Stack, _cairo_struct_to_python_type
 from tests.utils.args_gen import gen_arg as _gen_arg
 from tests.utils.args_gen import to_cairo_type as _to_cairo_type
 from tests.utils.serde import Serde
