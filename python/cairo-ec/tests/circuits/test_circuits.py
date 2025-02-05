@@ -4,6 +4,7 @@ import pytest
 from ethereum.crypto.finite_field import PrimeField
 from hypothesis import assume, given
 from hypothesis import strategies as st
+from sympy import sqrt_mod
 from sympy.core.numbers import mod_inverse
 
 from cairo_addons.testing.utils import flatten
@@ -308,6 +309,39 @@ class TestCircuits:
                 == circuit_output
                 == compiled_circuit_output
                 == expected_output
+            )
+
+        @given(data=st.data())
+        def test_assert_is_quad_residue(
+            self, cairo_program, cairo_run, curve, data, st_prime
+        ):
+            x = data.draw(st_prime)
+            root = sqrt_mod(x, curve.FIELD.PRIME)
+            is_quad_residue = root is not None
+            root = root or sqrt_mod(x * curve.G, curve.FIELD.PRIME)
+            inputs = {
+                "x": x,
+                "root": root,
+                "g": int(curve.G),
+                "is_quad_residue": is_quad_residue,
+            }
+            compiled_circuit = circuit_compile(cairo_program, "assert_is_quad_residue")
+            values_ptr = flatten(compiled_circuit["constants"]) + [
+                limb for v in inputs.values() for limb in int_to_uint384(v)
+            ]
+
+            cairo_run("assert_is_quad_residue", **inputs)
+            cairo_run(
+                "test__circuit",
+                values_ptr=values_ptr,
+                values_ptr_len=len(values_ptr),
+                p=int_to_uint384(curve.FIELD.PRIME),
+                **compiled_circuit,
+            )
+            cairo_run(
+                "assert_is_quad_residue_compiled",
+                **{k: int_to_uint384(v) for k, v in inputs.items()},
+                p=int_to_uint384(curve.FIELD.PRIME),
             )
 
     class TestEcOps:

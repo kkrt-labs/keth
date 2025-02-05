@@ -3,7 +3,16 @@ from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.memcpy import memcpy
 from starkware.cairo.common.modulo import run_mod_p_circuit
 
-from cairo_ec.circuits.mod_ops import add, sub, mul, div, diff_ratio, sum_ratio, inv
+from cairo_ec.circuits.mod_ops import (
+    add,
+    sub,
+    mul,
+    div,
+    diff_ratio,
+    sum_ratio,
+    inv,
+    assert_is_quad_residue,
+)
 from cairo_ec.circuits.mod_ops_compiled import (
     add as add_compiled,
     sub as sub_compiled,
@@ -12,6 +21,7 @@ from cairo_ec.circuits.mod_ops_compiled import (
     diff_ratio as diff_ratio_compiled,
     sum_ratio as sum_ratio_compiled,
     inv as inv_compiled,
+    assert_is_quad_residue as assert_is_quad_residue_compiled,
 )
 from cairo_ec.circuits.ec_ops import ec_add, ec_double
 from cairo_ec.circuits.ec_ops_compiled import (
