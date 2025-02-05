@@ -936,6 +936,7 @@ func revert{
     // Raise revert
     tempvar revert = new EthereumException(Revert);
     EvmImpl.set_stack(stack);
+    EvmImpl.set_memory(memory);
     return revert;
 }
 

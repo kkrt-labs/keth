@@ -184,6 +184,7 @@ func mload{
         let err = push(U256(new U256Struct(value.low, value.high)));
         if (cast(err, felt) != 0) {
             EvmImpl.set_stack(stack);
+            EvmImpl.set_memory(memory);
             return err;
         }
     }

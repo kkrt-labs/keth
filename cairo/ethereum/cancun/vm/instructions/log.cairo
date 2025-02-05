@@ -88,6 +88,7 @@ func log0{
     // Check for static context
     if (evm.value.message.value.is_static.value != 0) {
         EvmImpl.set_stack(stack);
+        EvmImpl.set_memory(memory);
         tempvar err = new EthereumException(WriteInStaticContext);
         return err;
     }
@@ -181,6 +182,7 @@ func log1{
     // Check for static context
     if (evm.value.message.value.is_static.value != 0) {
         EvmImpl.set_stack(stack);
+        EvmImpl.set_memory(memory);
         tempvar err = new EthereumException(WriteInStaticContext);
         return err;
     }
@@ -282,6 +284,7 @@ func log2{
     // Check for static context
     if (evm.value.message.value.is_static.value != 0) {
         EvmImpl.set_stack(stack);
+        EvmImpl.set_memory(memory);
         tempvar err = new EthereumException(WriteInStaticContext);
         return err;
     }
@@ -390,6 +393,7 @@ func log3{
     // Check for static context
     if (evm.value.message.value.is_static.value != 0) {
         EvmImpl.set_stack(stack);
+        EvmImpl.set_memory(memory);
         tempvar err = new EthereumException(WriteInStaticContext);
         return err;
     }
@@ -505,6 +509,7 @@ func log4{
     // Check for static context
     if (evm.value.message.value.is_static.value != 0) {
         EvmImpl.set_stack(stack);
+        EvmImpl.set_memory(memory);
         tempvar err = new EthereumException(WriteInStaticContext);
         return err;
     }

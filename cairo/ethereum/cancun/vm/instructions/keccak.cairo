@@ -82,6 +82,7 @@ func keccak{
         let err = push(value);
         if (cast(err, felt) != 0) {
             EvmImpl.set_stack(stack);
+            EvmImpl.set_memory(memory);
             return err;
         }
     }
