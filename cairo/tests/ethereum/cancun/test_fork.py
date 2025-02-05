@@ -423,6 +423,7 @@ class TestFork:
 
         assert py_result == cairo_result
 
+    @reproduce_failure("6.124.3", b"AXicY3BkQEAACrcBhw==")
     @given(data=apply_body_data())
     def test_apply_body(
         self,
