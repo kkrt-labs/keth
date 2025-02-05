@@ -990,22 +990,16 @@ func empty_transient_storage{range_check_ptr}() -> TransientStorage {
             dict_ptr_start=dict_start,
             dict_ptr=dict_start,
             parent_dict=cast(0, MappingTupleAddressBytes32U256Struct*),
-        )
+        ),
     );
 
     tempvar tries = TrieTupleAddressBytes32U256(
         new TrieTupleAddressBytes32U256Struct(
-            secured=bool(1),
-            default=U256(new U256Struct(0, 0)),
-            _data=mapping,
-        )
+            secured=bool(1), default=U256(new U256Struct(0, 0)), _data=mapping
+        ),
     );
 
-    tempvar transient_storage = TransientStorage(
-        new TransientStorageStruct(
-            _tries=tries,
-        )
-    );
+    tempvar transient_storage = TransientStorage(new TransientStorageStruct(_tries=tries));
 
     return transient_storage;
 }
