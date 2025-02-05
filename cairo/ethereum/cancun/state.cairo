@@ -51,7 +51,6 @@ from cairo_core.comparison import is_zero
 from src.utils.dict import (
     hashdict_read,
     hashdict_write,
-    hashdict_get,
     dict_new_empty,
     get_keys_for_address_prefix,
     dict_update,
