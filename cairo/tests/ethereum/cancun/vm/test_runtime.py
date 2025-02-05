@@ -4,8 +4,8 @@ from hypothesis import given
 
 
 class TestRuntime:
-    @given(code=...)
+    @given(code=contract_code_strategy())
     def test_get_valid_jump_destinations(self, cairo_run, code: Bytes):
-        assert get_valid_jump_destinations(code) == cairo_run(
-            "get_valid_jump_destinations", code
-        )
+
+        cairo_result = cairo_run("get_valid_jump_destinations", code)
+        assert get_valid_jump_destinations(code) == cairo_result
