@@ -1,8 +1,8 @@
 from ethereum.cancun.fork_types import Address
+from ethereum.cancun.vm import Message
 from ethereum_types.numeric import U256, Optional, Uint
 from hypothesis import strategies as st
 
-from tests.utils.args_gen import Message
 from tests.utils.strategies import (
     accessed_addresses,
     accessed_storage_keys,

@@ -315,6 +315,7 @@ class FlatTransientStorage:
         return ts
 
 
+# All these classes are auto-patched in test imports in cairo/tests/conftests.py
 @dataclass
 class Environment(
     make_dataclass(

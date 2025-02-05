@@ -1,4 +1,6 @@
+from ethereum.cancun.fork_types import VersionedHash
 from ethereum.cancun.state import TransientStorage
+from ethereum.cancun.vm import Environment, Evm
 from ethereum.cancun.vm.instructions.environment import (
     address,
     balance,
@@ -28,7 +30,6 @@ from hypothesis import given
 from hypothesis import strategies as st
 from hypothesis.strategies import composite, integers
 
-from tests.utils.args_gen import Environment, Evm, VersionedHash
 from tests.utils.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder
 from tests.utils.message_builder import MessageBuilder

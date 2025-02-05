@@ -16,6 +16,7 @@ from unittest.mock import patch
 
 from eth_keys.datatypes import PrivateKey
 from ethereum.cancun.trie import copy_trie
+from ethereum.cancun.vm import Environment, Evm, Message
 from ethereum.crypto.elliptic_curve import SECP256K1N
 from ethereum.exceptions import EthereumException
 from ethereum_types.bytes import Bytes0, Bytes4, Bytes8, Bytes20, Bytes32, Bytes256
@@ -24,10 +25,7 @@ from hypothesis import strategies as st
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 
 from tests.utils.args_gen import (
-    Environment,
-    Evm,
     Memory,
-    Message,
     MutableBloom,
     Stack,
     State,

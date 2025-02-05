@@ -28,6 +28,34 @@ def cairo_run_py(request, cairo_program, cairo_file, main_path):
     )
 
 
+def pytest_configure(config):
+    """
+    Global test configuration for patching core classes.
+
+    How it works:
+    1. pytest runs this hook during test collection, before any tests execute
+    2. We directly replace the class definitions in the original modules
+    3. All subsequent imports of these modules will see our patched versions
+
+    This effectively "rewrites" the module contents at the source, so whether code does:
+        from ethereum.cancun.vm import Evm
+    or:
+        import ethereum.cancun.vm
+        evm = ethereum.cancun.vm.Evm
+
+    They both get our mock version, because the module itself has been modified.
+    """
+    import ethereum
+
+    from tests.utils.args_gen import Environment, Evm, Message, MessageCallOutput
+
+    # Apply patches at module level before any tests run
+    ethereum.cancun.vm.Evm = Evm
+    ethereum.cancun.vm.Message = Message
+    ethereum.cancun.vm.Environment = Environment
+    ethereum.cancun.vm.interpreter.MessageCallOutput = MessageCallOutput
+
+
 @pytest.fixture(scope="module")
 def cairo_run(request, cairo_program, rust_program, cairo_file, main_path):
     """

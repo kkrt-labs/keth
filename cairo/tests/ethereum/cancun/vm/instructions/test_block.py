@@ -1,3 +1,5 @@
+from ethereum.cancun.state import TransientStorage
+from ethereum.cancun.vm import Environment, Evm
 from ethereum.cancun.vm.instructions.block import (
     block_hash,
     chain_id,
@@ -12,7 +14,6 @@ from ethereum_types.numeric import U64, Uint
 from hypothesis import given
 from hypothesis import strategies as st
 
-from tests.utils.args_gen import Environment, Evm, TransientStorage
 from tests.utils.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder, address_zero
 from tests.utils.strategies import (
