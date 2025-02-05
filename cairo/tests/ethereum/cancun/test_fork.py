@@ -32,6 +32,7 @@ from ethereum.cancun.transactions import (
     signing_hash_2930,
     signing_hash_4844,
 )
+from ethereum.cancun.trie import copy_trie
 from ethereum.cancun.vm import Environment
 from ethereum.cancun.vm.gas import TARGET_BLOB_GAS_PER_BLOCK
 from ethereum.exceptions import EthereumException
@@ -52,7 +53,7 @@ MIN_BASE_FEE = 1_000
 @composite
 def apply_body_data(draw, excess_blob_gas_strategy=excess_blob_gas):
     """Creates test data for apply_body including ERC20 transfer transactions"""
-    state = _create_test_erc20_state()
+    state = draw(erc20_state)
 
     # Get ERC20 contract
     erc20 = get_contract("ERC20", "KethToken")
@@ -112,20 +113,20 @@ def apply_body_data(draw, excess_blob_gas_strategy=excess_blob_gas):
     excess_blob_gas = draw(excess_blob_gas_strategy)
     chain_id = draw(uint64)
 
-    return (
-        transactions,
-        state,
-        chain_id,
-        block_hashes,
-        coinbase,
-        block_number,
-        base_fee_per_gas,
-        block_gas_limit,
-        block_time,
-        prev_randao,
-        parent_beacon_block_root,
-        excess_blob_gas,
-    )
+    return {
+        "state": state,
+        "block_hashes": block_hashes,
+        "coinbase": coinbase,
+        "block_number": block_number,
+        "base_fee_per_gas": base_fee_per_gas,
+        "block_gas_limit": block_gas_limit,
+        "block_time": block_time,
+        "prev_randao": prev_randao,
+        "transactions": transactions,
+        "chain_id": chain_id,
+        "parent_beacon_block_root": parent_beacon_block_root,
+        "excess_blob_gas": excess_blob_gas,
+    }
 
 
 @composite
@@ -427,58 +428,16 @@ class TestFork:
         cairo_run_py,
         data,
     ):
-        (
-            transactions,
-            state,
-            chain_id,
-            block_hashes,
-            coinbase,
-            block_number,
-            base_fee_per_gas,
-            block_gas_limit,
-            block_time,
-            prev_randao,
-            parent_beacon_block_root,
-            excess_blob_gas,
-        ) = data
         withdrawals = ()  # Empty withdrawals for now
+        kwargs = {**data, "withdrawals": withdrawals}
 
         try:
             # TODO: Use cairo_run and Rust CairoVM
-            cairo_state, cairo_result = cairo_run_py(
-                "apply_body",
-                state,
-                block_hashes,
-                coinbase,
-                block_number,
-                base_fee_per_gas,
-                block_gas_limit,
-                block_time,
-                prev_randao,
-                transactions,
-                chain_id,
-                withdrawals,
-                parent_beacon_block_root,
-                excess_blob_gas,
-            )
+            cairo_state, cairo_result = cairo_run_py("apply_body", **kwargs)
         except Exception as e:
             # If Cairo implementation raises an error, Python implementation should too
             with strict_raises(type(e)):
-                apply_body(
-                    state,
-                    block_hashes,
-                    coinbase,
-                    block_number,
-                    base_fee_per_gas,
-                    block_gas_limit,
-                    block_time,
-                    prev_randao,
-                    transactions,
-                    chain_id,
-                    withdrawals,
-                    parent_beacon_block_root,
-                    excess_blob_gas,
-                )
+                apply_body(**kwargs)
             return
         dummy_root = Hash32(int(0).to_bytes(32, "big"))
         assert cairo_result.transactions_root == dummy_root
@@ -486,26 +445,12 @@ class TestFork:
         assert cairo_result.state_root == dummy_root
         assert cairo_result.withdrawals_root == dummy_root
 
-        output = apply_body(
-            state,
-            block_hashes,
-            coinbase,
-            block_number,
-            base_fee_per_gas,
-            block_gas_limit,
-            block_time,
-            prev_randao,
-            transactions,
-            chain_id,
-            withdrawals,
-            parent_beacon_block_root,
-            excess_blob_gas,
-        )
+        output = apply_body(**kwargs)
 
         assert cairo_result.block_gas_used == output.block_gas_used
         assert cairo_result.blob_gas_used == output.blob_gas_used
         assert cairo_result.block_logs_bloom == output.block_logs_bloom
-        assert cairo_state == state
+        assert cairo_state == data["state"]
 
 
 def _create_test_erc20_state(
@@ -588,5 +533,14 @@ def _create_test_erc20_state(
         code=bytes(),
     )
     set_account(state, coinbase, coinbase_account)
+
+    # Create deep copies of the tries for the snapshot,
+    # because otherwise mutating the main trie will also mutate the snapshot
+    state._snapshots = [
+        (
+            copy_trie(state._main_trie),
+            {addr: copy_trie(trie) for addr, trie in state._storage_tries.items()},
+        )
+    ]
 
     return state

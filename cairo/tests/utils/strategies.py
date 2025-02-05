@@ -15,10 +15,12 @@ from typing import (
 )
 from unittest.mock import patch
 
+from eth_abi.abi import encode
 from eth_keys.datatypes import PrivateKey
 from ethereum.cancun.trie import copy_trie
 from ethereum.cancun.vm import Environment, Evm, Message
 from ethereum.crypto.elliptic_curve import SECP256K1N
+from ethereum.crypto.hash import keccak256
 from ethereum.exceptions import EthereumException
 from ethereum_types.bytes import Bytes0, Bytes4, Bytes8, Bytes20, Bytes32, Bytes256
 from ethereum_types.numeric import U64, U256, FixedUnsigned, Uint
@@ -33,7 +35,14 @@ from tests.utils.args_gen import (
     TransientStorage,
     VersionedHash,
 )
-from tests.utils.constants import BLOCK_GAS_LIMIT, MAX_BLOB_GAS_PER_BLOCK
+from tests.utils.constants import (
+    BLOCK_GAS_LIMIT,
+    COINBASE,
+    MAX_BLOB_GAS_PER_BLOCK,
+    OTHER,
+    OWNER,
+)
+from tests.utils.solidity import get_contract
 
 # Mock the Extended type because hypothesis cannot handle the RLP Protocol
 # Needs to be done before importing the types from ethereum.cancun.trie
@@ -448,22 +457,88 @@ state = st.lists(address, max_size=MAX_ADDRESS_SET_SIZE, unique=True).flatmap(
             _storage_tries=state._storage_tries,
             # Create deep copies of the tries for the snapshot,
             # because otherwise mutating the main trie will also mutate the snapshot
-            _snapshots=(
-                [
-                    (
-                        copy_trie(state._main_trie),
-                        {
-                            addr: copy_trie(trie)
-                            for addr, trie in state._storage_tries.items()
-                        },
-                    )
-                ]
-                if state._main_trie._data or state._storage_tries
-                else []
-            ),
+            _snapshots=[
+                (
+                    copy_trie(state._main_trie),
+                    {
+                        addr: copy_trie(trie)
+                        for addr, trie in state._storage_tries.items()
+                    },
+                )
+            ],
             created_accounts=state.created_accounts,
         )
     ),
+)
+
+
+def _create_erc20_data():
+    """Helper to create the fixed ERC20 data structures"""
+    erc20_contract = get_contract("ERC20", "KethToken")
+    erc20_address = Address(bytes.fromhex(erc20_contract.address[2:]))
+
+    accounts = {
+        erc20_address: Account(
+            balance=U256(0),
+            nonce=Uint(0),
+            code=bytes(erc20_contract.bytecode_runtime),
+        ),
+        Address(bytes.fromhex(OTHER[2:])): Account(
+            balance=U256(int(1e18)), nonce=Uint(0), code=bytes()
+        ),
+        Address(bytes.fromhex(OWNER[2:])): Account(
+            balance=U256(int(1e18)), nonce=Uint(0), code=bytes()
+        ),
+        Address(bytes.fromhex(COINBASE[2:])): Account(
+            balance=U256(int(1e18)), nonce=Uint(0), code=bytes()
+        ),
+    }
+
+    storage_data = {
+        Bytes32(U256(0).to_be_bytes32()): U256.from_be_bytes(
+            b"KethToken".ljust(31, b"\x00") + bytes([len(b"KethToken") * 2])
+        ),
+        Bytes32(U256(1).to_be_bytes32()): U256.from_be_bytes(
+            b"KETH".ljust(31, b"\x00") + bytes([len(b"KETH") * 2])
+        ),
+        Bytes32(U256(2).to_be_bytes32()): U256(int(1e18)),
+        Bytes32(keccak256(encode(["address", "uint8"], [OWNER[2:], 3]))): U256(
+            int(1e18)
+        ),
+    }
+
+    storage_tries = {
+        erc20_address: Trie(secured=True, default=U256(0), _data=storage_data)
+    }
+
+    return accounts, storage_tries
+
+
+# Create fixed data once
+_ERC20_ACCOUNTS, _ERC20_STORAGE = _create_erc20_data()
+erc20_state = st.builds(
+    State,
+    _main_trie=st.builds(
+        Trie,
+        secured=st.just(True),
+        default=st.none(),
+        _data=st.just(_ERC20_ACCOUNTS),
+    ),
+    _storage_tries=st.builds(
+        Trie,
+        secured=st.just(True),
+        default=st.just(U256(0)),
+        _data=st.just(_ERC20_STORAGE),
+    ),
+    _snapshots=st.just(
+        [
+            (
+                copy_trie(Trie(secured=True, default=None, _data=_ERC20_ACCOUNTS)),
+                {k: copy_trie(v) for k, v in _ERC20_STORAGE.items()},
+            )
+        ]
+    ),
+    created_accounts=st.just(set()),
 )
 
 
