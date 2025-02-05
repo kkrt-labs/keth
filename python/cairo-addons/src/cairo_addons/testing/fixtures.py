@@ -95,6 +95,8 @@ def coverage(cairo_program: Program, cairo_file: Path, worker_id: str):
     )
     all_coverages = (
         pl.concat([all_statements, pl.concat(reports)])
+        .filter(~pl.col("filename").str.contains(".venv"))
+        .filter(~pl.col("filename").str.contains("test_"))
         .group_by(pl.col("filename"), pl.col("line_number"))
         .agg(pl.col("count").sum())
         .group_by("filename")
