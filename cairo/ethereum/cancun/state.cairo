@@ -8,7 +8,7 @@ from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.squash_dict import squash_dict
 from starkware.cairo.common.memcpy import memcpy
 from starkware.cairo.common.math_cmp import is_not_zero
-
+from starkware.cairo.common.default_dict import default_dict_new
 from ethereum.cancun.fork_types import (
     Address,
     Account,
@@ -751,7 +751,7 @@ func close_transaction{
     let is_root_state = is_zero(cast(new_main_trie.value._data.value.parent_dict, felt));
     if (is_root_state != 0) {
         // Clear created accounts
-        let (new_created_accounts_ptr) = dict_new_empty();
+        let (new_created_accounts_ptr) = default_dict_new(0);
         tempvar new_created_accounts = SetAddress(
             new SetAddressStruct(
                 dict_ptr_start=cast(new_created_accounts_ptr, SetAddressDictAccess*),
@@ -982,7 +982,7 @@ func destroy_touched_empty_accounts{poseidon_ptr: PoseidonBuiltin*, state: State
 }
 
 func empty_transient_storage{range_check_ptr}() -> TransientStorage {
-    let (dict_ptr) = dict_new_empty();
+    let (dict_ptr) = default_dict_new(0);
     let dict_start = cast(dict_ptr, TupleAddressBytes32U256DictAccess*);
 
     tempvar mapping = MappingTupleAddressBytes32U256(
