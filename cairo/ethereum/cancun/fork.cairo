@@ -482,6 +482,7 @@ func process_transaction{
     let total_gas_used = gas_used - gas_refund;
 
     // Refund gas to sender
+    let state = env.value.state;
     let sender_account = get_account{state=state}(sender);
     let (high, low) = split_felt(gas_refund_amount);
     tempvar gas_refund_amount_u256 = U256(new U256Struct(low, high));

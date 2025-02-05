@@ -73,7 +73,7 @@ func jump{
     // Check if jump destination is valid by looking it up in valid_jump_destinations
     let valid_jump_destinations_ptr = evm.value.valid_jump_destinations.value.dict_ptr;
     let dict_ptr = cast(valid_jump_destinations_ptr, DictAccess*);
-    let (is_valid_dest) = hashdict_read{dict_ptr=dict_ptr}(1, &jump_dest.value.low);
+    let (is_valid_dest) = dict_read{dict_ptr=dict_ptr}(jump_dest.value.low);
 
     let set_dict_ptr = cast(dict_ptr, SetUintDictAccess*);
     tempvar valid_jumpdests_set = SetUint(
@@ -134,7 +134,7 @@ func jumpi{
 
     let valid_jump_destinations_ptr = evm.value.valid_jump_destinations.value.dict_ptr;
     let dict_ptr = cast(valid_jump_destinations_ptr, DictAccess*);
-    let (is_valid_dest) = hashdict_read{dict_ptr=dict_ptr}(1, &jump_dest.value.low);
+    let (is_valid_dest) = dict_read{dict_ptr=dict_ptr}(jump_dest.value.low);
 
     let set_dict_ptr = cast(dict_ptr, SetUintDictAccess*);
     tempvar valid_jumpdests_set = SetUint(
