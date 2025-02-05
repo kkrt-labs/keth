@@ -93,12 +93,14 @@ def coverage(cairo_program: Program, cairo_file: Path, worker_id: str):
     dump_path.parent.mkdir(parents=True, exist_ok=True)
     json.dump(
         {
-            filename: dict(zip(line_number, count))
-            for filename, line_number, count in zip(
-                all_coverages["filename"],
-                all_coverages["line_number"],
-                all_coverages["count"],
-            )
+            "coverage": {
+                filename: dict(zip(line_number, count))
+                for filename, line_number, count in zip(
+                    all_coverages["filename"],
+                    all_coverages["line_number"],
+                    all_coverages["count"],
+                )
+            }
         },
         open(dump_path, "w"),
     )

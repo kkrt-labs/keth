@@ -50,3 +50,10 @@ jobs:
         with:
           path: .pytest_cache
           key: ${{ runner.os }}-pytest-cache-${{ github.run_id }}
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          directory: ./coverage/
+          verbose: true
