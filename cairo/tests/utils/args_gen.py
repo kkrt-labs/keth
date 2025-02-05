@@ -650,7 +650,7 @@ def _gen_arg(
     arg_type: Type,
     arg: Any,
     annotations: Optional[Any] = None,
-    hash_mode: Optional[bool] = None,
+    for_dict_key: Optional[bool] = None,
 ):
     """
     Generate a Cairo argument from a Python argument.
@@ -662,6 +662,7 @@ def _gen_arg(
         segments: Cairo memory segments
         arg_type: Python type to convert from
         arg: Python value to convert
+        for_dict_key: Whether the argument is meant to be used as a key in a dict. In that case, it's returned as a tuple.
 
     Returns:
         Cairo memory pointer or value
@@ -730,9 +731,13 @@ def _gen_arg(
         # Get the concrete type parameter. For bytearray, the value type is int.
         value_type = next(iter(get_args(arg_type)), int)
         data = defaultdict(int, {k: v for k, v in enumerate(arg)})
-        # Use regular, non-hashed dict entries for stack and memory.
-        base = _gen_arg(
-            dict_manager, segments, Dict[Uint, value_type], data, hash_mode=False
+        base = generate_dict_arg(
+            dict_manager,
+            segments,
+            Dict[Uint, value_type],
+            arg_type_origin,
+            data,
+            for_dict_key=True,
         )
         segments.load_data(base + 2, [len(arg)])
         return base
@@ -760,11 +765,15 @@ def _gen_arg(
             struct_ptr = segments.add()
             data = [
                 _gen_arg(
-                    dict_manager, segments, element_type, value, hash_mode=hash_mode
+                    dict_manager,
+                    segments,
+                    element_type,
+                    value,
+                    for_dict_key=for_dict_key,
                 )
                 for element_type, value in zip(element_types, arg)
             ]
-            if hash_mode:
+            if for_dict_key:
                 return tuple(flatten(data))
             segments.load_data(struct_ptr, data)
             return struct_ptr
@@ -773,11 +782,15 @@ def _gen_arg(
         instances_ptr = segments.add()
         data = [
             _gen_arg(
-                dict_manager, segments, get_args(arg_type)[0], x, hash_mode=hash_mode
+                dict_manager,
+                segments,
+                get_args(arg_type)[0],
+                x,
+                for_dict_key=for_dict_key,
             )
             for x in arg
         ]
-        if hash_mode:
+        if for_dict_key:
             return tuple(flatten(data))
         segments.load_data(instances_ptr, data)
         struct_ptr = segments.add()
@@ -786,7 +799,12 @@ def _gen_arg(
 
     if arg_type_origin in (dict, ChainMap, abc.Mapping, set):
         return generate_dict_arg(
-            dict_manager, segments, arg_type, arg_type_origin, arg, hash_mode=hash_mode
+            dict_manager,
+            segments,
+            arg_type,
+            arg_type_origin,
+            arg,
+            for_dict_key=for_dict_key,
         )
 
     if arg_type in (Union[int, RustRelocatable], Union[int, RelocatableValue]):
@@ -845,7 +863,7 @@ def _gen_arg(
             int.from_bytes(arg[i : i + 16], "little") for i in range(0, len(arg), 16)
         ]
 
-        if hash_mode:
+        if for_dict_key:
             return tuple(felt_values)
 
         base = segments.add()
@@ -853,7 +871,7 @@ def _gen_arg(
         return base
 
     if arg_type is Bytes256:
-        if hash_mode:
+        if for_dict_key:
             return tuple(list(arg))
 
         struct_ptr = segments.add()
@@ -866,7 +884,7 @@ def _gen_arg(
         if isinstance(arg, str):
             arg = arg.encode()
 
-        if hash_mode:
+        if for_dict_key:
             return tuple(list(arg))
 
         bytes_ptr = segments.add()
@@ -878,7 +896,7 @@ def _gen_arg(
     if arg_type in (int, bool, U64, Uint, Bytes0, Bytes4, Bytes8, Bytes20):
         if arg_type is int and arg < 0:
             ret_value = arg + DEFAULT_PRIME
-            return tuple([ret_value]) if hash_mode else ret_value
+            return tuple([ret_value]) if for_dict_key else ret_value
 
         ret_value = (
             int(arg)
@@ -886,7 +904,7 @@ def _gen_arg(
             else int.from_bytes(arg, "little")
         )
 
-        return tuple([ret_value]) if hash_mode else ret_value
+        return tuple([ret_value]) if for_dict_key else ret_value
 
     if isinstance(arg_type, type) and issubclass(arg_type, Exception):
         # For exceptions, we either return 0 (no error) or the ascii representation of the error message
@@ -1040,7 +1058,7 @@ def generate_dict_arg(
     arg_type: Type,
     arg_type_origin: Type,
     arg: Any,
-    hash_mode: Optional[bool] = None,
+    for_dict_key: Optional[bool] = None,
     parent_ptr: Optional[RelocatableValue] = None,
 ):
 
@@ -1056,7 +1074,7 @@ def generate_dict_arg(
             segments,
             get_args(arg_type)[0],
             k,
-            hash_mode=hash_mode in (True, None),
+            for_dict_key=for_dict_key in (True, None),
         ): _gen_arg(dict_manager, segments, get_args(arg_type)[1], v)
         for k, v in arg.items()
     }
@@ -1111,12 +1129,11 @@ def generate_dict_arg(
 
     # The last element is the original_segment_stop pointer.
     # Because this is a new dict, this is 0 (null ptr).
-    # This does not apply to stack and memory (hash_mode=False), in which case there's only 2 elements.
-    data_to_load = (
-        [dict_ptr, current_ptr, parent_ptr or 0]
-        if (hash_mode is not False)
-        else [dict_ptr, current_ptr]
-    )
+    # This does not apply to Stack, Memory and MutableBloom, in which case there's only 2 elements.
+    if arg_type_origin in (Stack, Memory, MutableBloom):
+        data_to_load = [dict_ptr, current_ptr]
+    else:
+        data_to_load = [dict_ptr, current_ptr, parent_ptr or 0]
     segments.load_data(base, data_to_load)
     return base
 

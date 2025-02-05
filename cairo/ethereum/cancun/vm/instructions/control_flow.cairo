@@ -1,6 +1,7 @@
 from starkware.cairo.common.bool import TRUE, FALSE
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin, PoseidonBuiltin
-from starkware.cairo.common.dict import dict_read, DictAccess
+from starkware.cairo.common.dict import DictAccess
+from src.utils.dict import dict_read
 
 from ethereum_types.numeric import (
     U256,

@@ -4,6 +4,7 @@ from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.bool import FALSE
 from starkware.cairo.common.memcpy import memcpy
+from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
 from starkware.cairo.common.squash_dict import squash_dict
 from starkware.cairo.common.uint256 import Uint256
 from ethereum_types.numeric import U256, U256Struct
@@ -27,6 +28,34 @@ func dict_new_empty() -> (res: DictAccess*) {
     %{ dict_new_empty %}
     ap += 1;
     return (res=cast([ap - 1], DictAccess*));
+}
+
+// Reads a value from the dictionary and returns the result.
+// @dev The key is as a tuple of size 1 in the tracker.
+func dict_read{dict_ptr: DictAccess*}(key_: felt) -> (value: felt) {
+    alloc_locals;
+    let (__fp__, _) = get_fp_and_pc();
+    let key_len = 1;
+    let key = &key_;
+    local value;
+    %{ hashdict_read %}
+    dict_ptr.key = key_;
+    dict_ptr.prev_value = value;
+    dict_ptr.new_value = value;
+    let dict_ptr = dict_ptr + DictAccess.SIZE;
+    return (value=value);
+}
+
+// Writes a value to the dictionary, overriding the existing value.
+// @dev The key is as a tuple of size 1 in the tracker.
+func dict_write{dict_ptr: DictAccess*}(key_: felt, new_value: felt) {
+    let key_len = 1;
+    let key = &key_;
+    %{ hashdict_write %}
+    dict_ptr.key = key_;
+    dict_ptr.new_value = new_value;
+    let dict_ptr = dict_ptr + DictAccess.SIZE;
+    return ();
 }
 
 func dict_copy{range_check_ptr}(dict_start: DictAccess*, dict_end: DictAccess*) -> (
@@ -86,35 +115,6 @@ func hashdict_read{poseidon_ptr: PoseidonBuiltin*, dict_ptr: DictAccess*}(
 
     local value;
     %{ hashdict_read %}
-    dict_ptr.key = felt_key;
-    dict_ptr.prev_value = value;
-    dict_ptr.new_value = value;
-    let dict_ptr = dict_ptr + DictAccess.SIZE;
-    return (value=value);
-}
-
-// A wrapper around dict_read that hashes the key before accessing the dictionary if the key
-// does not fit in a felt.
-// @dev This version returns 0, if the key is not found and the dict is NOT a defaultdict.
-// @param key_len: The readnumber of felt values used to represent the key.
-// @param key: The key to access the dictionary.
-// TODO: write the associated squash function.
-func hashdict_get{poseidon_ptr: PoseidonBuiltin*, dict_ptr: DictAccess*}(
-    key_len: felt, key: felt*
-) -> (value: felt) {
-    alloc_locals;
-    local felt_key;
-    if (key_len == 1) {
-        assert felt_key = key[0];
-        tempvar poseidon_ptr = poseidon_ptr;
-    } else {
-        let (felt_key_) = poseidon_hash_many(key_len, key);
-        assert felt_key = felt_key_;
-        tempvar poseidon_ptr = poseidon_ptr;
-    }
-
-    local value;
-    %{ hashdict_get %}
     dict_ptr.key = felt_key;
     dict_ptr.prev_value = value;
     dict_ptr.new_value = value;

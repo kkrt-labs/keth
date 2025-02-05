@@ -12,7 +12,11 @@ def hashdict_read(dict_manager: DictManager, ids: VmConsts, memory: MemoryDict):
     dict_tracker.current_ptr += ids.DictAccess.SIZE
     preimage = tuple([memory[ids.key + i] for i in range(ids.key_len)])
     # Not using [] here because it will register the value for that key in the tracker.
-    ids.value = dict_tracker.data.get(preimage, dict_tracker.data.default_factory())
+    value = dict_tracker.data.get(preimage)
+    if value:
+        ids.value = value
+    else:
+        ids.value = dict_tracker.data.default_factory()
 
 
 @register_hint
@@ -32,29 +36,15 @@ def hashdict_read_from_key(
 
 
 @register_hint
-def hashdict_get(dict_manager: DictManager, ids: VmConsts, memory: MemoryDict) -> int:
-    from collections import defaultdict
-
-    dict_tracker = dict_manager.get_tracker(ids.dict_ptr)
-    dict_tracker.current_ptr += ids.DictAccess.SIZE
-    preimage = tuple([memory[ids.key + i] for i in range(ids.key_len)])
-    if isinstance(dict_tracker.data, defaultdict):
-        ids.value = dict_tracker.data[preimage]
-    else:
-        ids.value = dict_tracker.data.get(preimage, 0)
-
-
-@register_hint
 def hashdict_write(dict_manager: DictManager, ids: VmConsts, memory: MemoryDict):
-    from collections import defaultdict
-
     dict_tracker = dict_manager.get_tracker(ids.dict_ptr)
     dict_tracker.current_ptr += ids.DictAccess.SIZE
     preimage = tuple([memory[ids.key + i] for i in range(ids.key_len)])
-    if isinstance(dict_tracker.data, defaultdict):
-        ids.dict_ptr.prev_value = dict_tracker.data[preimage]
+    prev_value = dict_tracker.data.get(preimage)
+    if prev_value:
+        ids.prev_value = prev_value
     else:
-        ids.dict_ptr.prev_value = 0
+        ids.prev_value = dict_tracker.data.default_factory()
     dict_tracker.data[preimage] = ids.new_value
 
 
