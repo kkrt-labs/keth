@@ -1,6 +1,6 @@
 from ethereum.cancun.fork_types import Address
 from ethereum.cancun.vm.gas import BLOB_GASPRICE_UPDATE_FRACTION, MIN_BLOB_GASPRICE
-from ethereum.utils.numeric import ceil32, taylor_exponential
+from ethereum.utils.numeric import ceil32
 from ethereum_types.bytes import Bytes32
 from ethereum_types.numeric import U256, Uint
 from hypothesis import given
@@ -9,6 +9,24 @@ from starkware.cairo.lang.instances import PRIME
 
 from tests.utils.errors import strict_raises
 from tests.utils.strategies import uint128
+
+
+def taylor_exponential_limited(
+    factor: Uint, numerator: Uint, denominator: Uint
+) -> Uint:
+    """Limited version of taylor_exponential that saturates when `numerator_accumulated * numerator` is greater than 2**128 - 1"""
+    i = Uint(1)
+    output = Uint(0)
+    numerator_accumulated = factor * denominator
+    while numerator_accumulated > Uint(0):
+        output += numerator_accumulated
+        value = numerator_accumulated * numerator
+        div = denominator * i
+        if value > Uint(2**128 - 1):
+            return output // denominator
+        numerator_accumulated = value // div
+        i += Uint(1)
+    return output // denominator
 
 
 class TestNumeric:
@@ -34,13 +52,14 @@ class TestNumeric:
 
     @given(
         factor=st.just(MIN_BLOB_GASPRICE),
-        numerator=st.integers(min_value=1, max_value=100_000).map(Uint),
+        numerator=st.integers(min_value=1, max_value=100_000_000_000_000_000).map(Uint),
         denominator=st.just(BLOB_GASPRICE_UPDATE_FRACTION),
     )
     def test_taylor_exponential(
         self, cairo_run, factor: Uint, numerator: Uint, denominator: Uint
     ):
-        assert taylor_exponential(factor, numerator, denominator) == cairo_run(
+        """Compares to our limited version of taylor_exponential that saturates when `numerator_accumulated * numerator` is greater than 2**128 - 1"""
+        assert taylor_exponential_limited(factor, numerator, denominator) == cairo_run(
             "taylor_exponential", factor, numerator, denominator
         )
 

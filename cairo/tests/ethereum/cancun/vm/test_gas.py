@@ -126,13 +126,19 @@ class TestGas:
 
     @given(excess_blob_gas=excess_blob_gas)
     def test_calculate_blob_gas_price(self, cairo_run, excess_blob_gas):
-        assert calculate_blob_gas_price(excess_blob_gas) == cairo_run(
+        """Saturates at 2**64 - 1"""
+        blob_gas_price_py = min(
+            calculate_blob_gas_price(excess_blob_gas), Uint(2**64 - 1)
+        )
+        assert blob_gas_price_py == cairo_run(
             "calculate_blob_gas_price", excess_blob_gas
         )
 
     @given(excess_blob_gas=excess_blob_gas, tx=...)
     def test_calculate_data_fee(self, cairo_run, excess_blob_gas, tx: BlobTransaction):
+        """Saturates at (2**64 - 1)**2"""
         assume(len(tx.blob_versioned_hashes) > 0)
-        assert calculate_data_fee(excess_blob_gas, tx) == cairo_run(
-            "calculate_data_fee", excess_blob_gas, tx
+        data_fee_py = min(
+            calculate_data_fee(excess_blob_gas, tx), Uint((2**64 - 1) ** 2)
         )
+        assert data_fee_py == cairo_run("calculate_data_fee", excess_blob_gas, tx)
