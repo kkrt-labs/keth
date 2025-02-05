@@ -41,3 +41,4 @@ prof
 *.prof
 *.csv
 *.so
+codecov

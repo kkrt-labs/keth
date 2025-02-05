@@ -40,9 +40,15 @@ jobs:
         id: tests
         continue-on-error: true # To send a notification if the tests fail
         run: |
-          cd cairo
-          uv run compile_os
-          uv run pytest tests -n logical --durations=0 -v --no-skip-cached-tests
+          uv run --reinstall pytest -n logical --durations=0 -v -s --log-cli-level=DEBUG --no-skip-cached-tests
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          directory: ./coverage/
+          verbose: true
+          files: "**/*.json"
 
       - name: Notify Slack on Failure
         if: steps.tests.outcome == 'failure'

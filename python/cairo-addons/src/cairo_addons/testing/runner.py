@@ -50,7 +50,7 @@ from starkware.cairo.lang.vm.security import verify_secure_runner
 from starkware.cairo.lang.vm.utils import RunResources
 from starkware.cairo.lang.vm.vm import VirtualMachine
 
-from cairo_addons.profiler import profile_from_tracer_data
+from cairo_addons.profiler import profile_from_trace
 from cairo_addons.testing.hints import debug_info, oracle
 from cairo_addons.testing.serde import Serde, SerdeProtocol
 from cairo_addons.testing.utils import flatten
@@ -161,7 +161,7 @@ def build_entrypoint(
 
 def run_python_vm(
     cairo_program: Program,
-    cairo_file: Optional[Path],
+    cairo_file: Path,
     main_path: Tuple[str, ...],
     request: FixtureRequest,
     gen_arg_builder: Optional[
@@ -172,6 +172,7 @@ def run_python_vm(
     serde_cls: Type[SerdeProtocol] = Serde,
     hint_locals: Optional[dict] = None,
     static_locals: Optional[dict] = None,
+    coverage: Optional[Callable[[pl.DataFrame, int], pl.DataFrame]] = None,
 ):
     """Helper function containing Python VM implementation"""
 
@@ -313,11 +314,13 @@ def run_python_vm(
         output_stem = Path(
             f"{output_stem[:160]}_{int(time_ns())}_{md5(output_stem.encode()).digest().hex()[:8]}"
         )
+        trace = pl.DataFrame(
+            [{"pc": x.pc, "ap": x.ap, "fp": x.fp} for x in runner.relocated_trace]
+        )
+        if coverage is not None:
+            coverage(trace, PROGRAM_BASE)
         if request.config.getoption("profile_cairo"):
-            trace = pl.DataFrame(
-                [{"pc": x.pc, "ap": x.ap, "fp": x.fp} for x in runner.relocated_trace]
-            )
-            stats, prof_dict = profile_from_tracer_data(
+            stats, prof_dict = profile_from_trace(
                 program=cairo_program, trace=trace, program_base=PROGRAM_BASE
             )
             stats = stats[
@@ -402,7 +405,7 @@ def run_python_vm(
 def run_rust_vm(
     cairo_program: Program,
     rust_program: RustProgram,
-    cairo_file: Optional[Path],
+    cairo_file: Path,
     main_path: Tuple[str, ...],
     request: FixtureRequest,
     gen_arg_builder: Optional[
@@ -410,6 +413,7 @@ def run_rust_vm(
     ] = None,
     to_python_type: Callable = to_python_type,
     serde_cls: Type[SerdeProtocol] = Serde,
+    coverage: Optional[Callable[[pl.DataFrame, int], pl.DataFrame]] = None,
 ):
     """Helper function containing Rust VM implementation"""
 
@@ -490,11 +494,13 @@ def run_rust_vm(
         output_stem = Path(
             f"{output_stem[:160]}_{int(time_ns())}_{md5(output_stem.encode()).digest().hex()[:8]}"
         )
+        trace = pl.DataFrame(
+            [{"pc": x.pc, "ap": x.ap, "fp": x.fp} for x in runner.relocated_trace]
+        )
+        if coverage is not None:
+            coverage(trace, PROGRAM_BASE)
         if request.config.getoption("profile_cairo"):
-            trace = pl.DataFrame(
-                [{"pc": x.pc, "ap": x.ap, "fp": x.fp} for x in runner.relocated_trace]
-            )
-            stats, prof_dict = profile_from_tracer_data(
+            stats, prof_dict = profile_from_trace(
                 program=cairo_program, trace=trace, program_base=PROGRAM_BASE
             )
             stats = stats[

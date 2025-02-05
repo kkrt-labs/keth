@@ -1,0 +1,24 @@
+coverage:
+  status:
+    project: #add everything under here, more options at https://docs.codecov.com/docs/commit-status
+      default:
+        target: auto
+        threshold: 0%
+      ethereum:
+        paths:
+          - cairo/ethereum
+      ethereum_rlp:
+        paths:
+          - cairo/ethereum_rlp
+      ethereum_types:
+        paths:
+          - cairo/ethereum_types
+      cairo_addons:
+        paths:
+          - python/cairo-addons
+      cairo_ec:
+        paths:
+          - python/cairo-ec
+      cairo_core:
+        paths:
+          - python/cairo-core

@@ -10,11 +10,14 @@ The runner works with args_gen.py and serde.py for automatic type conversion.
 
 import json
 import logging
+from pathlib import Path
 
+import polars as pl
 import pytest
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 from starkware.cairo.lang.compiler.program import Program
 
+from cairo_addons.testing.coverage import coverage_from_trace
 from cairo_addons.testing.runner import run_python_vm, run_rust_vm
 from cairo_addons.vm import Program as RustProgram
 
@@ -60,14 +63,84 @@ def rust_program(cairo_program: Program, python_vm: bool) -> RustProgram:
 
 
 @pytest.fixture(scope="module")
-def cairo_run_py(cairo_program, cairo_file, main_path, request):
+def coverage(cairo_program: Program, cairo_file: Path, worker_id: str):
+    """
+    Fixture to collect coverage from all tests, then merge and dump it as a json file for codecov.
+    """
+    reports = []
+
+    yield coverage_from_trace(cairo_program, cairo_file, reports)
+
+    # If no coverage is collected, don't dump anything
+    # This can happen if the all the tests raise Cairo exceptions
+    if not reports:
+        return
+
+    all_statements = pl.DataFrame(
+        [
+            {
+                "filename": instruction.inst.input_file.filename,
+                "line_number": i,
+            }
+            for instruction in cairo_program.debug_info.instruction_locations.values()
+            for i in range(instruction.inst.start_line, instruction.inst.end_line + 1)
+        ]
+    ).with_columns(
+        filename=(
+            pl.when(pl.col("filename") == "")
+            .then(pl.lit(str(cairo_file)))
+            .otherwise(pl.col("filename"))
+        ),
+        count=pl.lit(0, dtype=pl.UInt32),
+    )
+    all_coverages = (
+        pl.concat([all_statements, pl.concat(reports)])
+        .filter(~pl.col("filename").str.contains(".venv"))
+        .filter(~pl.col("filename").str.contains("test_"))
+        .group_by(pl.col("filename"), pl.col("line_number"))
+        .agg(pl.col("count").sum())
+        .group_by("filename")
+        .agg(pl.col("line_number"), pl.col("count"))
+        .to_dict(as_series=False)
+    )
+    dump_path = (
+        Path("coverage")
+        / worker_id
+        / cairo_file.relative_to(Path().cwd()).with_suffix(".json")
+    )
+    dump_path.parent.mkdir(parents=True, exist_ok=True)
+    json.dump(
+        {
+            "coverage": {
+                filename: dict(zip(line_number, count))
+                for filename, line_number, count in zip(
+                    all_coverages["filename"],
+                    all_coverages["line_number"],
+                    all_coverages["count"],
+                )
+            }
+        },
+        open(dump_path, "w"),
+    )
+
+    return reports
+
+
+@pytest.fixture(scope="module")
+def cairo_run_py(cairo_program, cairo_file, main_path, request, coverage):
     """Run the cairo program using Python VM."""
-    return run_python_vm(cairo_program, cairo_file, main_path, request)
+    return run_python_vm(cairo_program, cairo_file, main_path, request, coverage)
 
 
 @pytest.fixture(scope="module")
 def cairo_run(
-    cairo_program, rust_program, cairo_file, main_path, request, python_vm: bool
+    cairo_program,
+    rust_program,
+    cairo_file,
+    main_path,
+    request,
+    python_vm: bool,
+    coverage,
 ):
     """
     Run the cairo program corresponding to the python test file at a given entrypoint with given program inputs as kwargs.
@@ -87,6 +160,10 @@ def cairo_run(
         The function's return value, converted back to Python types
     """
     if python_vm:
-        return run_python_vm(cairo_program, cairo_file, main_path, request)
+        return run_python_vm(
+            cairo_program, cairo_file, main_path, request, coverage=coverage
+        )
 
-    return run_rust_vm(cairo_program, rust_program, cairo_file, main_path, request)
+    return run_rust_vm(
+        cairo_program, rust_program, cairo_file, main_path, request, coverage=coverage
+    )
