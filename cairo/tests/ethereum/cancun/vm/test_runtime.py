@@ -1,7 +1,6 @@
+from ethereum.cancun.vm.runtime import get_valid_jump_destinations
 from ethereum_types.bytes import Bytes
 from hypothesis import given
-
-from ethereum.cancun.vm.runtime import get_valid_jump_destinations
 
 
 class TestRuntime:

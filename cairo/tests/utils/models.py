@@ -5,6 +5,8 @@ from typing import Annotated, DefaultDict, Tuple, Union
 
 from eth_hash.auto import keccak
 from eth_utils.address import to_checksum_address
+from ethereum.crypto.elliptic_curve import secp256k1_recover
+from ethereum.crypto.hash import Hash32
 from ethereum_types.numeric import U256
 from pydantic import (
     AliasChoices,
@@ -18,8 +20,6 @@ from pydantic import (
 from pydantic.alias_generators import to_camel, to_snake
 from starkware.cairo.lang.vm.crypto import pedersen_hash
 
-from ethereum.crypto.elliptic_curve import secp256k1_recover
-from ethereum.crypto.hash import Hash32
 from src.utils.uint256 import int_to_uint256
 from tests.utils.helpers import flatten, rlp_encode_signed_data
 from tests.utils.parsers import address, bytes_, to_bytes, to_int, uint, uint64, uint128

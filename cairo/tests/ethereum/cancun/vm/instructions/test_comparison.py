@@ -1,5 +1,3 @@
-from hypothesis import given
-
 from ethereum.cancun.vm.instructions.comparison import (
     equal,
     greater_than,
@@ -9,6 +7,8 @@ from ethereum.cancun.vm.instructions.comparison import (
     signed_less_than,
 )
 from ethereum.exceptions import EthereumException
+from hypothesis import given
+
 from tests.utils.args_gen import Evm
 from tests.utils.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder

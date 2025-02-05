@@ -1,6 +1,7 @@
 from collections import defaultdict
 from typing import List, Mapping, Tuple
 
+from ethereum.cancun.fork_types import Address
 from ethereum_types.bytes import Bytes32
 from ethereum_types.numeric import U256, Uint
 from hypothesis import given
@@ -12,7 +13,6 @@ from starkware.cairo.lang.vm.relocatable import RelocatableValue
 from starkware.cairo.lang.vm.vm_consts import VmConsts
 
 from cairo_addons.hints.decorator import register_hint
-from ethereum.cancun.fork_types import Address
 from tests.utils.strategies import felt
 
 

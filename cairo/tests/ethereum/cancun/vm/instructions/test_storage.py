@@ -1,13 +1,13 @@
 from typing import Tuple
 
+from ethereum.cancun.vm.instructions.storage import sload, sstore, tload, tstore
+from ethereum.cancun.vm.stack import push
 from ethereum_types.bytes import Bytes20, Bytes32
 from ethereum_types.numeric import U256
 from hypothesis import given
 from hypothesis import strategies as st
 from hypothesis.strategies import composite
 
-from ethereum.cancun.vm.instructions.storage import sload, sstore, tload, tstore
-from ethereum.cancun.vm.stack import push
 from tests.utils.args_gen import Evm
 from tests.utils.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder

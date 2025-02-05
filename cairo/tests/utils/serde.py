@@ -38,6 +38,11 @@ from typing import (
 )
 
 from eth_utils.address import to_checksum_address
+from ethereum.cancun.fork_types import Address
+from ethereum.cancun.state import State, TransientStorage
+from ethereum.cancun.trie import Trie
+from ethereum.cancun.vm.exceptions import InvalidOpcode
+from ethereum.crypto.hash import Hash32
 from ethereum_types.bytes import (
     Bytes,
     Bytes0,
@@ -70,11 +75,6 @@ from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 
 from cairo_addons.testing.serde import SerdeProtocol
 from cairo_addons.vm import MemorySegmentManager as RustMemorySegmentManager
-from ethereum.cancun.fork_types import Address
-from ethereum.cancun.state import State, TransientStorage
-from ethereum.cancun.trie import Trie
-from ethereum.cancun.vm.exceptions import InvalidOpcode
-from ethereum.crypto.hash import Hash32
 from tests.utils.args_gen import (
     FlatState,
     FlatTransientStorage,

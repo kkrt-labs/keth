@@ -1,8 +1,3 @@
-from ethereum_types.numeric import U256
-from hypothesis import given
-from hypothesis import strategies as st
-from hypothesis.strategies import composite, integers
-
 from ethereum.cancun.state import TransientStorage
 from ethereum.cancun.vm.instructions.environment import (
     address,
@@ -28,6 +23,11 @@ from ethereum.cancun.vm.instructions.environment import (
 )
 from ethereum.cancun.vm.stack import push
 from ethereum.exceptions import EthereumException
+from ethereum_types.numeric import U256
+from hypothesis import given
+from hypothesis import strategies as st
+from hypothesis.strategies import composite, integers
+
 from tests.utils.args_gen import Environment, Evm, VersionedHash
 from tests.utils.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder

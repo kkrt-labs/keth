@@ -2,12 +2,6 @@ from dataclasses import replace
 from typing import Optional, Tuple
 
 from eth_keys.datatypes import PrivateKey
-from ethereum_types.bytes import Bytes, Bytes20
-from ethereum_types.numeric import U64, U256, Uint
-from hypothesis import assume, given, settings
-from hypothesis import strategies as st
-from hypothesis.strategies import composite, integers
-
 from ethereum.cancun.blocks import Block, Header, Log
 from ethereum.cancun.fork import (
     GAS_LIMIT_ADJUSTMENT_FACTOR,
@@ -35,6 +29,12 @@ from ethereum.cancun.transactions import (
 )
 from ethereum.cancun.vm import Environment
 from ethereum.exceptions import EthereumException
+from ethereum_types.bytes import Bytes, Bytes20
+from ethereum_types.numeric import U64, U256, Uint
+from hypothesis import assume, given, settings
+from hypothesis import strategies as st
+from hypothesis.strategies import composite, integers
+
 from tests.ethereum.cancun.vm.test_interpreter import unimplemented_precompiles
 from tests.utils.errors import strict_raises
 from tests.utils.strategies import account_strategy, address, bytes32, state

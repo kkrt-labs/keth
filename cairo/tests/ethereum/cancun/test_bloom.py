@@ -1,9 +1,9 @@
 from typing import Tuple
 
-from hypothesis import given
-
 from ethereum.cancun.blocks import Log
 from ethereum.cancun.bloom import add_to_bloom, logs_bloom
+from hypothesis import given
+
 from tests.utils.args_gen import MutableBloom
 
 

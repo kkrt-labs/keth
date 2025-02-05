@@ -73,6 +73,35 @@ from typing import (
     get_origin,
 )
 
+from ethereum.cancun.blocks import Block, Header, Log, Receipt, Withdrawal
+from ethereum.cancun.fork import BlockChain
+from ethereum.cancun.fork_types import Account, Address, Bloom, Root, VersionedHash
+from ethereum.cancun.state import State, TransientStorage
+from ethereum.cancun.transactions import (
+    AccessListTransaction,
+    BlobTransaction,
+    FeeMarketTransaction,
+    LegacyTransaction,
+    Transaction,
+)
+from ethereum.cancun.trie import (
+    BranchNode,
+    ExtensionNode,
+    InternalNode,
+    LeafNode,
+    Node,
+    Trie,
+    trie_get,
+    trie_set,
+)
+from ethereum.cancun.vm import Environment as EnvironmentBase
+from ethereum.cancun.vm import Evm as EvmBase
+from ethereum.cancun.vm import Message as MessageBase
+from ethereum.cancun.vm.gas import ExtendMemory, MessageCallGas
+from ethereum.cancun.vm.interpreter import MessageCallOutput as MessageCallOutputBase
+from ethereum.crypto.hash import Hash32
+from ethereum.exceptions import EthereumException
+from ethereum_rlp.rlp import Extended, Simple
 from ethereum_types.bytes import (
     Bytes,
     Bytes0,
@@ -105,35 +134,6 @@ from starkware.cairo.lang.vm.relocatable import RelocatableValue
 from cairo_addons.vm import DictTracker as RustDictTracker
 from cairo_addons.vm import MemorySegmentManager as RustMemorySegmentManager
 from cairo_addons.vm import Relocatable as RustRelocatable
-from ethereum.cancun.blocks import Block, Header, Log, Receipt, Withdrawal
-from ethereum.cancun.fork import BlockChain
-from ethereum.cancun.fork_types import Account, Address, Bloom, Root, VersionedHash
-from ethereum.cancun.state import State, TransientStorage
-from ethereum.cancun.transactions import (
-    AccessListTransaction,
-    BlobTransaction,
-    FeeMarketTransaction,
-    LegacyTransaction,
-    Transaction,
-)
-from ethereum.cancun.trie import (
-    BranchNode,
-    ExtensionNode,
-    InternalNode,
-    LeafNode,
-    Node,
-    Trie,
-    trie_get,
-    trie_set,
-)
-from ethereum.cancun.vm import Environment as EnvironmentBase
-from ethereum.cancun.vm import Evm as EvmBase
-from ethereum.cancun.vm import Message as MessageBase
-from ethereum.cancun.vm.gas import ExtendMemory, MessageCallGas
-from ethereum.cancun.vm.interpreter import MessageCallOutput as MessageCallOutputBase
-from ethereum.crypto.hash import Hash32
-from ethereum.exceptions import EthereumException
-from ethereum_rlp.rlp import Extended, Simple
 from tests.utils.helpers import flatten
 
 HASHED_TYPES = [

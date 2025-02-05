@@ -26,6 +26,7 @@ garaga = { git = "https://github.com/keep-starknet-strange/garaga.git", rev = "h
 
 [tool.isort]
 profile = "black"
+known_third_party = ["ethereum", "ethereum_rlp", "ethereum_types"]
 known_first_party = ["cairo_addons", "cairo_core", "cairo_ec"]
 
 [dependency-groups]

@@ -1,12 +1,12 @@
 import pytest
 from eth_keys.datatypes import PrivateKey
+from ethereum.crypto.elliptic_curve import SECP256K1N
 from ethereum_types.bytes import Bytes32
 from ethereum_types.numeric import U256
 from hypothesis import given
 from hypothesis import strategies as st
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 
-from ethereum.crypto.elliptic_curve import SECP256K1N
 from tests.utils.errors import cairo_error
 from tests.utils.strategies import felt
 

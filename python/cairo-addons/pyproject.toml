@@ -32,6 +32,7 @@ dev-dependencies = [
 
 [tool.isort]
 profile = "black"
+known_third_party = ["ethereum", "ethereum_rlp", "ethereum_types"]
 known_first_party = ["cairo_addons", "cairo_core", "cairo_ec"]
 
 [project.entry-points."pytest11"]

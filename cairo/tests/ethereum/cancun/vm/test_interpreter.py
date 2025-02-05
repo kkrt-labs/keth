@@ -1,7 +1,3 @@
-from ethereum_types.bytes import Bytes, Bytes20
-from hypothesis import given
-from hypothesis import strategies as st
-
 from ethereum.cancun.fork_types import Address
 from ethereum.cancun.vm import Environment, Message
 from ethereum.cancun.vm.interpreter import (
@@ -10,6 +6,10 @@ from ethereum.cancun.vm.interpreter import (
     process_message,
     process_message_call,
 )
+from ethereum_types.bytes import Bytes, Bytes20
+from hypothesis import given
+from hypothesis import strategies as st
+
 from tests.utils.errors import strict_raises
 from tests.utils.message_builder import MessageBuilder
 from tests.utils.strategies import environment_lite

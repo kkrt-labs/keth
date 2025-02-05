@@ -1,7 +1,7 @@
+from ethereum.cancun.fork_types import Address
 from ethereum_types.numeric import U256, Optional, Uint
 from hypothesis import strategies as st
 
-from ethereum.cancun.fork_types import Address
 from tests.utils.args_gen import Message
 from tests.utils.strategies import (
     accessed_addresses,

@@ -15,14 +15,14 @@ from typing import (
 from unittest.mock import patch
 
 from eth_keys.datatypes import PrivateKey
+from ethereum.cancun.trie import copy_trie
+from ethereum.crypto.elliptic_curve import SECP256K1N
+from ethereum.exceptions import EthereumException
 from ethereum_types.bytes import Bytes0, Bytes4, Bytes8, Bytes20, Bytes32, Bytes256
 from ethereum_types.numeric import U64, U256, FixedUnsigned, Uint
 from hypothesis import strategies as st
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 
-from ethereum.cancun.trie import copy_trie
-from ethereum.crypto.elliptic_curve import SECP256K1N
-from ethereum.exceptions import EthereumException
 from tests.utils.args_gen import (
     Environment,
     Evm,

@@ -1,14 +1,6 @@
 from typing import Annotated, Any, List, Mapping, Optional, Set, Tuple, Type, Union
 
 import pytest
-from ethereum_types.bytes import Bytes, Bytes0, Bytes8, Bytes20, Bytes32, Bytes256
-from ethereum_types.numeric import U64, U256, Uint
-from hypothesis import HealthCheck, assume, given, settings
-from starkware.cairo.common.dict import DictManager
-from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
-from starkware.cairo.lang.vm.memory_dict import MemoryDict
-from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
-
 from ethereum.cancun.blocks import Block, Header, Log, Receipt, Withdrawal
 from ethereum.cancun.fork import BlockChain
 from ethereum.cancun.fork_types import Account, Address, Bloom, Root, VersionedHash
@@ -41,6 +33,14 @@ from ethereum.exceptions import (
     InvalidSignatureError,
     InvalidTransaction,
 )
+from ethereum_types.bytes import Bytes, Bytes0, Bytes8, Bytes20, Bytes32, Bytes256
+from ethereum_types.numeric import U64, U256, Uint
+from hypothesis import HealthCheck, assume, given, settings
+from starkware.cairo.common.dict import DictManager
+from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
+from starkware.cairo.lang.vm.memory_dict import MemoryDict
+from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
+
 from tests.utils.args_gen import (
     Environment,
     Evm,
