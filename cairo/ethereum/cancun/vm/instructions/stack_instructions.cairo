@@ -1,6 +1,7 @@
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin, PoseidonBuiltin
 from starkware.cairo.common.math_cmp import is_le
-from starkware.cairo.common.dict import DictAccess, dict_read, dict_write
+from starkware.cairo.common.dict import DictAccess
+from src.utils.dict import dict_read, dict_write
 
 from ethereum.cancun.vm.stack import push, StackDictAccess, Stack, StackStruct, pop as stack_pop
 from ethereum.cancun.vm import Evm, EvmImpl

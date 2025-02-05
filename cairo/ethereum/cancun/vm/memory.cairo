@@ -2,7 +2,7 @@
 
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bool import FALSE, TRUE
-from starkware.cairo.common.dict import DictAccess, dict_read, dict_write
+from starkware.cairo.common.dict import DictAccess
 from starkware.cairo.common.memset import memset
 from starkware.cairo.common.memcpy import memcpy
 from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
@@ -13,6 +13,7 @@ from ethereum_types.bytes import Bytes, BytesStruct, Bytes1DictAccess
 from ethereum_types.numeric import U256, Uint
 from ethereum.utils.numeric import max
 from src.utils.bytes import uint256_to_bytes32
+from src.utils.dict import dict_read, dict_write
 
 struct MemoryStruct {
     dict_ptr_start: Bytes1DictAccess*,

@@ -1,12 +1,12 @@
 from starkware.cairo.common.bool import TRUE, FALSE
 from starkware.cairo.common.default_dict import default_dict_new
-from starkware.cairo.common.dict import dict_write
 from starkware.cairo.common.dict_access import DictAccess
 
 from ethereum_types.bytes import Bytes, BytesStruct
 from ethereum_types.numeric import SetUint, SetUintStruct, SetUintDictAccess
 
 from src.utils.utils import Helpers
+from src.utils.dict import dict_write
 
 func get_valid_jump_destinations{range_check_ptr}(code: Bytes) -> SetUint {
     alloc_locals;

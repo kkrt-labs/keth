@@ -1,6 +1,6 @@
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bool import FALSE, TRUE
-from starkware.cairo.common.dict import DictAccess, dict_read, dict_write
+from starkware.cairo.common.dict import DictAccess
 from starkware.cairo.common.default_dict import default_dict_new
 from starkware.cairo.common.memset import memset
 from starkware.cairo.common.memcpy import memcpy
@@ -18,7 +18,7 @@ from ethereum.cancun.blocks import TupleLog
 from ethereum.cancun.fork_types import Bloom
 
 from src.utils.bytes import uint256_to_bytes32, felt_to_bytes16_little
-from src.utils.dict import dict_squash
+from src.utils.dict import dict_squash, dict_read, dict_write
 from cairo_core.maths import pow2
 from cairo_core.comparison import is_zero
 const BIT_MASK_11_BITS = 0x07FF;
