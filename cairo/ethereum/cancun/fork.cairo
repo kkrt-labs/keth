@@ -646,7 +646,7 @@ func check_transaction{
 ) -> TupleAddressUintTupleVersionedHash {
     alloc_locals;
     let gas = TransactionImpl.get_gas(tx);
-    let tx_gas_within_bounds = is_le(gas.value, gas_available.value);
+    let tx_gas_within_bounds = is_le_felt(gas.value, gas_available.value);
     with_attr error_message("InvalidBlock") {
         assert tx_gas_within_bounds = 1;
     }
@@ -956,7 +956,7 @@ func apply_body{
     //     system_tx_env.state, system_tx_output.touched_accounts
     // )
 
-    let (blob_gas_used, gas_available, block_logs) = _apply_body_inner(
+    let (blob_gas_used, gas_available, block_logs) = _apply_body_inner{state=state}(
         0,
         transactions.value.len,
         transactions,

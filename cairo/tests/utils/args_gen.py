@@ -75,7 +75,7 @@ from typing import (
 )
 
 from ethereum.cancun.blocks import Block, Header, Log, Receipt, Withdrawal
-from ethereum.cancun.fork import BlockChain
+from ethereum.cancun.fork import ApplyBodyOutput, BlockChain
 from ethereum.cancun.fork_types import Account, Address, Bloom, Root, VersionedHash
 from ethereum.cancun.state import State, TransientStorage
 from ethereum.cancun.transactions import (
@@ -635,6 +635,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "cancun", "vm", "Stack"): Stack[U256],
     ("ethereum", "cancun", "vm", "gas", "ExtendMemory"): ExtendMemory,
     ("ethereum", "cancun", "vm", "interpreter", "MessageCallOutput"): MessageCallOutput,
+    ("ethereum", "cancun", "fork", "ApplyBodyOutput"): ApplyBodyOutput,
     **vm_exception_mappings,
     **ethereum_exception_mappings,
     # For tests only

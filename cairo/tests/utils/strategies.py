@@ -448,15 +448,19 @@ state = st.lists(address, max_size=MAX_ADDRESS_SET_SIZE, unique=True).flatmap(
             _storage_tries=state._storage_tries,
             # Create deep copies of the tries for the snapshot,
             # because otherwise mutating the main trie will also mutate the snapshot
-            _snapshots=[
-                (
-                    copy_trie(state._main_trie),
-                    {
-                        addr: copy_trie(trie)
-                        for addr, trie in state._storage_tries.items()
-                    },
-                )
-            ],
+            _snapshots=(
+                [
+                    (
+                        copy_trie(state._main_trie),
+                        {
+                            addr: copy_trie(trie)
+                            for addr, trie in state._storage_tries.items()
+                        },
+                    )
+                ]
+                if state._main_trie._data or state._storage_tries
+                else []
+            ),
             created_accounts=state.created_accounts,
         )
     ),
