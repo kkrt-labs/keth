@@ -8,7 +8,7 @@ logging.basicConfig(format="%(levelname)-8s %(message)s")
 logger = logging.getLogger("timer")
 
 
-def profile_from_tracer_data(program: Program, trace: pl.DataFrame, program_base: int):
+def profile_from_trace(program: Program, trace: pl.DataFrame, program_base: int):
 
     if program.debug_info is None:
         raise ValueError("Program debug info is not available")

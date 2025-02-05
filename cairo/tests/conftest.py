@@ -13,7 +13,7 @@ load_dotenv()
 
 
 @pytest.fixture(scope="module")
-def cairo_run_py(request, cairo_program, cairo_file, main_path):
+def cairo_run_py(request, cairo_program, cairo_file, main_path, coverage):
     """Run the cairo program using Python VM."""
     return run_python_vm(
         cairo_program,
@@ -25,6 +25,7 @@ def cairo_run_py(request, cairo_program, cairo_file, main_path):
         to_python_type=to_python_type,
         to_cairo_type=to_cairo_type,
         hint_locals={"get_op": get_op},
+        coverage=coverage,
     )
 
 
@@ -57,7 +58,15 @@ def pytest_configure(config):
 
 
 @pytest.fixture(scope="module")
-def cairo_run(request, cairo_program, rust_program, cairo_file, main_path):
+def cairo_run(
+    request,
+    cairo_program,
+    rust_program,
+    cairo_file,
+    main_path,
+    coverage,
+    python_vm,
+):
     """
     Run the cairo program corresponding to the python test file at a given entrypoint with given program inputs as kwargs.
     Returns the output of the cairo program put in the output memory segment.
@@ -75,7 +84,7 @@ def cairo_run(request, cairo_program, rust_program, cairo_file, main_path):
     Returns:
         The function's return value, converted back to Python types
     """
-    if request.node.get_closest_marker("python_vm"):
+    if python_vm:
         return run_python_vm(
             cairo_program,
             cairo_file,
@@ -86,6 +95,7 @@ def cairo_run(request, cairo_program, rust_program, cairo_file, main_path):
             to_python_type=to_python_type,
             to_cairo_type=to_cairo_type,
             hint_locals={"get_op": get_op},
+            coverage=coverage,
         )
 
     return run_rust_vm(
@@ -97,6 +107,7 @@ def cairo_run(request, cairo_program, rust_program, cairo_file, main_path):
         gen_arg_builder=gen_arg_builder,
         serde_cls=Serde,
         to_python_type=to_python_type,
+        coverage=coverage,
     )
 
 
