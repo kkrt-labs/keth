@@ -4,4 +4,21 @@ coverage:
       default:
         target: auto
         threshold: 0%
-        base: auto
+      ethereum:
+        paths:
+          - cairo/ethereum
+      ethereum_rlp:
+        paths:
+          - cairo/ethereum_rlp
+      ethereum_types:
+        paths:
+          - cairo/ethereum_types
+      cairo_addons:
+        paths:
+          - python/cairo-addons
+      cairo_ec:
+        paths:
+          - python/cairo-ec
+      cairo_core:
+        paths:
+          - python/cairo-core

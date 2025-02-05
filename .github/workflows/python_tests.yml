@@ -57,3 +57,4 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           directory: ./coverage/
           verbose: true
+          files: "**/*.json"
