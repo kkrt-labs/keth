@@ -1,12 +1,6 @@
 from typing import Mapping, Optional, Tuple, Union
 
 import pytest
-from ethereum_types.bytes import Bytes, Bytes32
-from ethereum_types.numeric import U256, Uint
-from hypothesis import assume, given
-from hypothesis import strategies as st
-
-from cairo_addons.testing.hints import patch_hint
 from ethereum.cancun.blocks import LegacyTransaction, Receipt
 from ethereum.cancun.fork_types import Account, Address
 from ethereum.cancun.trie import (
@@ -23,6 +17,12 @@ from ethereum.cancun.trie import (
     trie_get,
     trie_set,
 )
+from ethereum_types.bytes import Bytes, Bytes32
+from ethereum_types.numeric import U256, Uint
+from hypothesis import assume, given
+from hypothesis import strategies as st
+
+from cairo_addons.testing.hints import patch_hint
 from tests.utils.assertion import sequence_equal
 from tests.utils.errors import cairo_error
 from tests.utils.strategies import bytes32, nibble, uint4

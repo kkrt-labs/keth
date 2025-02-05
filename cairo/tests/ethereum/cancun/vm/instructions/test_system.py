@@ -1,11 +1,11 @@
+from ethereum.cancun.fork_types import Address
+from ethereum.cancun.vm.instructions.system import return_, revert, selfdestruct
+from ethereum.cancun.vm.stack import push
 from ethereum_types.numeric import U256
 from hypothesis import given
 from hypothesis import strategies as st
 from hypothesis.strategies import composite
 
-from ethereum.cancun.fork_types import Address
-from ethereum.cancun.vm.instructions.system import return_, revert, selfdestruct
-from ethereum.cancun.vm.stack import push
 from tests.utils.args_gen import Evm
 from tests.utils.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder

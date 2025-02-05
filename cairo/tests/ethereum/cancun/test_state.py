@@ -2,12 +2,6 @@ import copy
 from typing import Optional
 
 import pytest
-from ethereum_types.bytes import Bytes32
-from ethereum_types.numeric import U256
-from hypothesis import given, settings
-from hypothesis import strategies as st
-from hypothesis.strategies import composite
-
 from ethereum.cancun.fork_types import Account, Address
 from ethereum.cancun.state import (
     account_exists,
@@ -39,6 +33,12 @@ from ethereum.cancun.state import (
     touch_account,
 )
 from ethereum.cancun.trie import Trie, copy_trie
+from ethereum_types.bytes import Bytes32
+from ethereum_types.numeric import U256
+from hypothesis import given, settings
+from hypothesis import strategies as st
+from hypothesis.strategies import composite
+
 from tests.utils.args_gen import State, TransientStorage, Withdrawal
 from tests.utils.errors import strict_raises
 from tests.utils.strategies import (

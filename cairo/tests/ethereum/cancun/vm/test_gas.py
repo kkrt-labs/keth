@@ -1,10 +1,5 @@
 from typing import List, Tuple
 
-from ethereum_types.numeric import U256, Uint
-from hypothesis import assume, given
-from hypothesis import strategies as st
-from hypothesis.strategies import composite
-
 from ethereum.cancun.blocks import Header
 from ethereum.cancun.transactions import BlobTransaction
 from ethereum.cancun.vm.gas import (
@@ -21,6 +16,11 @@ from ethereum.cancun.vm.gas import (
     max_message_call_gas,
 )
 from ethereum.exceptions import EthereumException
+from ethereum_types.numeric import U256, Uint
+from hypothesis import assume, given
+from hypothesis import strategies as st
+from hypothesis.strategies import composite
+
 from tests.utils.args_gen import Evm, Memory
 from tests.utils.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder

@@ -1,7 +1,6 @@
+from ethereum.crypto.hash import keccak256
 from ethereum_types.bytes import Bytes
 from hypothesis import assume, given
-
-from ethereum.crypto.hash import keccak256
 
 
 class TestHash:

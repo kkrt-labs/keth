@@ -1,6 +1,5 @@
-from hypothesis import given
-
 from ethereum.cancun.fork_types import EMPTY_ACCOUNT, Account
+from hypothesis import given
 
 
 class TestForkTypes:

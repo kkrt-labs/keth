@@ -1,11 +1,11 @@
 import pytest
+from ethereum.crypto.elliptic_curve import SECP256K1N, secp256k1_recover
+from ethereum.crypto.hash import Hash32, keccak256
+from ethereum.utils.byte import left_pad_zero_bytes
 from ethereum_types.numeric import U256
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from ethereum.crypto.elliptic_curve import SECP256K1N, secp256k1_recover
-from ethereum.crypto.hash import Hash32, keccak256
-from ethereum.utils.byte import left_pad_zero_bytes
 from tests.utils.helpers import ec_sign, generate_random_private_key
 
 pytestmark = pytest.mark.python_vm

@@ -1,6 +1,3 @@
-from ethereum_types.numeric import U64
-from hypothesis import given
-
 from ethereum.cancun.transactions import (
     AccessListTransaction,
     BlobTransaction,
@@ -17,6 +14,9 @@ from ethereum.cancun.transactions import (
     signing_hash_pre155,
     validate_transaction,
 )
+from ethereum_types.numeric import U64
+from hypothesis import given
+
 from tests.utils.errors import strict_raises
 
 

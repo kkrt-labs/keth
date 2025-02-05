@@ -4,13 +4,13 @@ from pathlib import Path
 
 import pytest
 from eth_abi.abi import encode
+from ethereum.crypto.elliptic_curve import SECP256K1N
+from ethereum.crypto.hash import keccak256
 from ethereum_types.numeric import U256
 from hexbytes import HexBytes
 from hypothesis import given, settings
 from hypothesis.strategies import integers
 
-from ethereum.crypto.elliptic_curve import SECP256K1N
-from ethereum.crypto.hash import keccak256
 from src.utils.uint256 import int_to_uint256
 from tests.utils.constants import COINBASE, OTHER, OWNER
 from tests.utils.data import block

@@ -1,11 +1,10 @@
 from typing import List
 
 import pytest
-from ethereum_types.numeric import U256
-from hypothesis import assume, given
-
 from ethereum.cancun.vm.exceptions import StackOverflowError, StackUnderflowError
 from ethereum.cancun.vm.stack import pop, push
+from ethereum_types.numeric import U256
+from hypothesis import assume, given
 
 
 class TestStack:

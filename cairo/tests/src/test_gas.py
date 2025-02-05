@@ -1,12 +1,12 @@
 import pytest
-from ethereum_types.numeric import U256, Uint
-from hypothesis import example, given
-from hypothesis.strategies import integers
-
 from ethereum.cancun.vm.gas import (
     calculate_gas_extend_memory,
     calculate_memory_gas_cost,
 )
+from ethereum_types.numeric import U256, Uint
+from hypothesis import example, given
+from hypothesis.strategies import integers
+
 from tests.utils.strategies import uint128
 
 pytestmark = pytest.mark.python_vm

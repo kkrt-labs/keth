@@ -1,7 +1,7 @@
-from hypothesis import given
-
 from ethereum.cancun.vm.precompiled_contracts.identity import identity
 from ethereum.exceptions import EthereumException
+from hypothesis import given
+
 from tests.utils.args_gen import Evm
 from tests.utils.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder

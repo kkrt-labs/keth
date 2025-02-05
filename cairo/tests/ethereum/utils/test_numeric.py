@@ -1,12 +1,12 @@
+from ethereum.cancun.fork_types import Address
+from ethereum.cancun.vm.gas import BLOB_GASPRICE_UPDATE_FRACTION, MIN_BLOB_GASPRICE
+from ethereum.utils.numeric import ceil32, taylor_exponential
 from ethereum_types.bytes import Bytes32
 from ethereum_types.numeric import U256, Uint
 from hypothesis import given
 from hypothesis import strategies as st
 from starkware.cairo.lang.instances import PRIME
 
-from ethereum.cancun.fork_types import Address
-from ethereum.cancun.vm.gas import BLOB_GASPRICE_UPDATE_FRACTION, MIN_BLOB_GASPRICE
-from ethereum.utils.numeric import ceil32, taylor_exponential
 from tests.utils.errors import strict_raises
 from tests.utils.strategies import uint128
 

@@ -1,15 +1,14 @@
 from typing import Union
 
-from ethereum_types.bytes import Bytes32
-from ethereum_types.numeric import U256, Uint
-from hypothesis import given
-
 from ethereum.cancun.fork_types import Address
 from ethereum.cancun.utils.address import (
     compute_contract_address,
     compute_create2_contract_address,
     to_address,
 )
+from ethereum_types.bytes import Bytes32
+from ethereum_types.numeric import U256, Uint
+from hypothesis import given
 
 
 class TestAddress:

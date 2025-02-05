@@ -1,12 +1,12 @@
 from typing import Tuple
 
-from ethereum_types.numeric import U64, U256, Bytes32, Uint
-from hypothesis import strategies as st
-
 from ethereum.cancun.blocks import Log
 from ethereum.cancun.fork_types import Address
 from ethereum.cancun.state import TransientStorage
 from ethereum.exceptions import EthereumException
+from ethereum_types.numeric import U64, U256, Bytes32, Uint
+from hypothesis import strategies as st
+
 from tests.utils.args_gen import Environment, Evm, Stack
 from tests.utils.message_builder import MessageBuilder
 from tests.utils.strategies import (

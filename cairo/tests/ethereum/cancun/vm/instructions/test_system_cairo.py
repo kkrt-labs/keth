@@ -1,6 +1,3 @@
-from ethereum_types.numeric import U256, Uint
-from hypothesis import given
-
 from ethereum.cancun.fork_types import Address
 from ethereum.cancun.vm.instructions.system import (
     call,
@@ -12,6 +9,9 @@ from ethereum.cancun.vm.instructions.system import (
     generic_create,
     staticcall,
 )
+from ethereum_types.numeric import U256, Uint
+from hypothesis import given
+
 from tests.utils.args_gen import Evm
 from tests.utils.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder
