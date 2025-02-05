@@ -6,6 +6,7 @@ from starkware.cairo.common.cairo_builtins import (
     PoseidonBuiltin,
     ModBuiltin,
 )
+from starkware.cairo.common.default_dict import default_dict_new
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.default_dict import default_dict_new
 from starkware.cairo.common.math import assert_not_zero, split_felt, assert_le_felt
