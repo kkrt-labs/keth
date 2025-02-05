@@ -7,6 +7,7 @@ from starkware.cairo.common.cairo_builtins import (
     ModBuiltin,
 )
 from starkware.cairo.common.dict_access import DictAccess
+from starkware.cairo.common.default_dict import default_dict_new
 from starkware.cairo.common.math import assert_not_zero, split_felt, assert_le_felt
 from starkware.cairo.common.math_cmp import is_le, is_le_felt
 from starkware.cairo.common.registers import get_fp_and_pc
@@ -93,7 +94,7 @@ from ethereum.cancun.transactions import recover_sender
 from cairo_core.comparison import is_zero
 
 from src.utils.array import count_not_zero
-from src.utils.dict import dict_new_empty, hashdict_write
+from src.utils.dict import hashdict_write
 
 const ELASTICITY_MULTIPLIER = 2;
 const BASE_FEE_MAX_CHANGE_DENOMINATOR = 8;
@@ -369,7 +370,7 @@ func process_transaction{
     EnvImpl.set_state{env=env}(state);
 
     // Create preaccessed addresses and write coinbase
-    let (preaccessed_addresses_ptr) = dict_new_empty();
+    let (preaccessed_addresses_ptr) = default_dict_new(0);
     tempvar preaccessed_addresses_ptr_start = preaccessed_addresses_ptr;
     let address = env.value.coinbase;
     hashdict_write{dict_ptr=preaccessed_addresses_ptr}(1, &address.value, 1);
@@ -380,7 +381,7 @@ func process_transaction{
         ),
     );
     // Create preaccessed storage keys
-    let (preaccessed_storage_keys_ptr) = dict_new_empty();
+    let (preaccessed_storage_keys_ptr) = default_dict_new(0);
     tempvar preaccessed_storage_keys = SetTupleAddressBytes32(
         new SetTupleAddressBytes32Struct(
             dict_ptr_start=cast(preaccessed_storage_keys_ptr, SetTupleAddressBytes32DictAccess*),
@@ -429,6 +430,8 @@ func process_transaction{
         preaccessed_storage_keys,
     );
     let output = process_message_call{env=env}(message);
+    // Rebind env's state modified in `process_message_call`
+    let state = env.value.state;
 
     // Calculate gas refund
     with_attr error_message("OverflowError") {

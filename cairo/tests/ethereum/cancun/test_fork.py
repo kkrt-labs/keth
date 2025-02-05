@@ -127,6 +127,22 @@ def tx_with_sender_in_state(
         return tx, state
 
 
+@composite
+def env_with_valid_gas_price(draw):
+    env = draw(st.from_type(Environment))
+    # env.gas_price >= env.base_fee_per_gas is validated in `check_transaction`
+    if env.gas_price < env.base_fee_per_gas:
+        env = replace(
+            env,
+            gas_price=draw(
+                st.integers(
+                    min_value=int(env.base_fee_per_gas), max_value=2**64 - 1
+                ).map(Uint)
+            ),
+        )
+    return env
+
+
 class TestFork:
     @given(
         block_gas_limit=...,
@@ -201,7 +217,7 @@ class TestFork:
             "make_receipt", tx, error, cumulative_gas_used, logs
         )
 
-    @given(env=..., tx=tx_without_code())
+    @given(env=env_with_valid_gas_price(), tx=tx_without_code())
     @settings(max_examples=100)
     def test_process_transaction(self, cairo_run, env: Environment, tx: Transaction):
         try:

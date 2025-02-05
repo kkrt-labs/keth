@@ -42,9 +42,9 @@ def hashdict_write(dict_manager: DictManager, ids: VmConsts, memory: MemoryDict)
     preimage = tuple([memory[ids.key + i] for i in range(ids.key_len)])
     prev_value = dict_tracker.data.get(preimage)
     if prev_value:
-        ids.prev_value = prev_value
+        ids.dict_ptr.prev_value = prev_value
     else:
-        ids.prev_value = dict_tracker.data.default_factory()
+        ids.dict_ptr.prev_value = dict_tracker.data.default_factory()
     dict_tracker.data[preimage] = ids.new_value
 
 
