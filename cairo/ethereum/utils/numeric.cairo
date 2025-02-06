@@ -280,24 +280,20 @@ func U256_mul{range_check_ptr}(a: U256, b: U256) -> U256 {
     return result;
 }
 
-func Uint64_from_be_bytes{range_check_ptr}(bytes: Bytes) -> Uint {
-    with_attr error_message("OverflowError") {
+func U64_from_be_bytes{range_check_ptr}(bytes: Bytes) -> U64 {
+    with_attr error_message("ValueError") {
         assert [range_check_ptr] = 8 - bytes.value.len;
         let range_check_ptr = range_check_ptr + 1;
     }
     let value = bytes_to_felt(bytes.value.len, bytes.value.data);
-    tempvar res = Uint(value);
+    let res = U64(value);
     return res;
 }
 
-func U64_from_be_bytes{range_check_ptr}(bytes: Bytes) -> U64 {
-    let _res = Uint64_from_be_bytes(bytes);
-    let res = U64(_res.value);
-    return res;
-}
-
+// @dev Panics if len(bytes) > 31
+// @dev Note Uint type from EELS is unbounded.
 func Uint_from_be_bytes{range_check_ptr}(bytes: Bytes) -> Uint {
-    with_attr error_message("OverflowError") {
+    with_attr error_message("ValueError") {
         assert [range_check_ptr] = 31 - bytes.value.len;
         let range_check_ptr = range_check_ptr + 1;
     }
