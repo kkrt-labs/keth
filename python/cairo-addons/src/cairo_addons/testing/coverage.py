@@ -1,13 +1,8 @@
-import logging
 from pathlib import Path
-from time import perf_counter
 from typing import List
 
 import polars as pl
 from starkware.cairo.lang.compiler.program import Program
-
-logging.basicConfig(format="%(levelname)-8s %(message)s")
-logger = logging.getLogger("timer")
 
 
 def coverage_from_trace(
@@ -18,8 +13,6 @@ def coverage_from_trace(
         if program.debug_info is None:
             raise ValueError("Program debug info is not available")
 
-        logger.info("Begin coverage")
-        start = perf_counter()
         coverage = (
             pl.DataFrame(
                 {
@@ -50,8 +43,6 @@ def coverage_from_trace(
         )
 
         report.append(coverage)
-
-        logger.info(f"Building coverage took {perf_counter() - start} seconds")
 
         return coverage
 
