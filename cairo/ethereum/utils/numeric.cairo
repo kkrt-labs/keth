@@ -4,6 +4,7 @@ from ethereum_types.numeric import Uint, U256, U256Struct, bool, U64
 from ethereum_types.bytes import Bytes32, Bytes32Struct, Bytes20, Bytes
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
+from starkware.cairo.common.math import assert_le_felt
 
 from starkware.cairo.common.math import split_felt
 from starkware.cairo.common.uint256 import word_reverse_endian, Uint256, uint256_le, uint256_mul
@@ -221,8 +222,8 @@ func U256_to_be_bytes20{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(value: U2
     return res;
 }
 
-func U256_from_felt{range_check_ptr}(value: felt) -> U256 {
-    let (high, low) = split_felt(value);
+func U256_from_Uint{range_check_ptr}(value: Uint) -> U256 {
+    let (high, low) = split_felt(value.value);
     tempvar res = U256(new U256Struct(low, high));
     return res;
 }
@@ -303,25 +304,24 @@ func Uint_from_be_bytes{range_check_ptr}(bytes: Bytes) -> Uint {
 }
 
 func U256_to_Uint{range_check_ptr}(value: U256) -> Uint {
-    assert [range_check_ptr] = value.value.low;
-    assert [range_check_ptr + 1] = value.value.high;
-    let range_check_ptr = range_check_ptr + 2;
+    with_attr error_message("ValueError") {
+        // 0x8000000000000110000000000000000 is the high 128 bits of DEFAULT_PRIME
+        assert_le_felt(value.value.high, 0x8000000000000110000000000000000);
+        assert [range_check_ptr] = value.value.low;
+        let range_check_ptr = range_check_ptr + 1;
+    }
     let res = Uint(value.value.low + value.value.high * 2 ** 128);
     return res;
 }
 
-func U256_from_be_bytes{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
-    len: felt, ptr: felt*
-) -> U256 {
-    let res = uint256_from_bytes_be(len, ptr);
+func U256_from_be_bytes{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(bytes: Bytes) -> U256 {
+    let res = uint256_from_bytes_be(bytes.value.len, bytes.value.data);
     tempvar res_u256 = U256(new U256Struct(res.low, res.high));
     return res_u256;
 }
 
-func Bytes32_from_be_bytes{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
-    len: felt, ptr: felt*
-) -> Bytes32 {
-    let res = uint256_from_bytes_be(len, ptr);
+func Bytes32_from_be_bytes{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(bytes: Bytes) -> Bytes32 {
+    let res = uint256_from_bytes_be(bytes.value.len, bytes.value.data);
     let (res_reversed) = uint256_reverse_endian(res);
     tempvar res_bytes32 = Bytes32(new Bytes32Struct(res_reversed.low, res_reversed.high));
     return res_bytes32;

@@ -442,7 +442,7 @@ func uint256_from_bytes_be{range_check_ptr}(len: felt, ptr: felt*) -> Uint256 {
     }
 
     // Ensure input is not too large
-    with_attr error_message("bytes_to_uint256: input exceeds 32 bytes") {
+    with_attr error_message("ValueError") {
         assert_le_felt(len, 32);
     }
 
