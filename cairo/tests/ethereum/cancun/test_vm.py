@@ -84,35 +84,35 @@ class TestVm:
         evm=local_strategy_with_env,
         child_evm=local_strategy_with_env,
     )
-    def test_incorporate_child_on_success_with_ripemd_target_exists_and_is_empty(
+    def test_incorporate_child_on_error_with_ripemd_target_exists_and_is_empty(
         self, cairo_run, evm: Evm, child_evm: Evm
     ):
         child_evm.message.current_target = RIPEMD160_ADDRESS
         set_account(evm.env.state, child_evm.message.current_target, EMPTY_ACCOUNT)
         try:
-            evm_cairo = cairo_run("incorporate_child_on_success", evm, child_evm)
+            evm_cairo = cairo_run("incorporate_child_on_error", evm, child_evm)
         except Exception as e:
             with strict_raises(type(e)):
-                incorporate_child_on_success(evm, child_evm)
+                incorporate_child_on_error(evm, child_evm)
             return
 
-        incorporate_child_on_success(evm, child_evm)
+        incorporate_child_on_error(evm, child_evm)
         assert evm_cairo == evm
 
     @given(
         evm=local_strategy_with_env,
         child_evm=local_strategy_with_env,
     )
-    def test_incorporate_child_on_success_with_ripemd_target(
+    def test_incorporate_child_on_error_with_ripemd_target(
         self, cairo_run, evm: Evm, child_evm: Evm
     ):
         child_evm.message.current_target = RIPEMD160_ADDRESS
         try:
-            evm_cairo = cairo_run("incorporate_child_on_success", evm, child_evm)
+            evm_cairo = cairo_run("incorporate_child_on_error", evm, child_evm)
         except Exception as e:
             with strict_raises(type(e)):
-                incorporate_child_on_success(evm, child_evm)
+                incorporate_child_on_error(evm, child_evm)
             return
 
-        incorporate_child_on_success(evm, child_evm)
+        incorporate_child_on_error(evm, child_evm)
         assert evm_cairo == evm
