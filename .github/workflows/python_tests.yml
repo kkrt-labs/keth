@@ -44,7 +44,7 @@ jobs:
 
       - name: Run tests with caching
         run: |
-          uv run --reinstall pytest cairo/tests/ethereum/utils/test_numeric.py -s --no-skip-cached-tests
+          uv run --reinstall pytest cairo/tests/ethereum/utils/test_numeric.py -n logical -s --no-skip-cached-tests
           ls -la ./coverage/
           pwd
 
