@@ -220,17 +220,25 @@ class TestFork:
 
     @given(env=env_with_valid_gas_price(), tx=tx_without_code())
     def test_process_transaction(self, cairo_run, env: Environment, tx: Transaction):
+        # The Cairo Runner will raise if an exception is in the return values OR if
+        # an assert expression fails (e.g. InvalidBlock)
         try:
             env_cairo, gas_cairo, logs_cairo = cairo_run("process_transaction", env, tx)
-        except Exception as e:
-            with strict_raises(type(e)):
+        except Exception as cairo_e:
+            # 1. Handle exceptions thrown
+            try:
                 output_py = process_transaction(env, tx)
-                # The Cairo Runner will raise if an exception is in the return values.
+            except Exception as thrown_exception:
+                assert type(cairo_e) is type(thrown_exception)
+                return
+
+            # 2. Handle exceptions in return values
+            assert env_cairo == env
+            assert gas_cairo == output_py[0]
+            assert logs_cairo == output_py[1]
+            with strict_raises(type(cairo_e)):
                 if len(output_py) == 3:
                     raise output_py[2]
-                assert env_cairo == env
-                assert gas_cairo == output_py[0]
-                assert logs_cairo == output_py[1]
             return
 
         gas_used, logs = process_transaction(env, tx)
