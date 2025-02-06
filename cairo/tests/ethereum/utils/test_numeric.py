@@ -5,14 +5,14 @@ from ethereum.cancun.vm.gas import (
     TARGET_BLOB_GAS_PER_BLOCK,
 )
 from ethereum.utils.numeric import ceil32, taylor_exponential
-from ethereum_types.bytes import Bytes32
-from ethereum_types.numeric import U256, Uint
+from ethereum_types.bytes import Bytes, Bytes32
+from ethereum_types.numeric import U64, U256, Uint
 from hypothesis import given
 from hypothesis import strategies as st
 from starkware.cairo.lang.instances import PRIME
 
 from tests.utils.errors import strict_raises
-from tests.utils.strategies import uint128
+from tests.utils.strategies import small_bytes, uint128
 
 
 def taylor_exponential_limited(
@@ -152,3 +152,14 @@ class TestNumeric:
                 a * b
             return
         assert cairo_result == a * b
+
+    @given(bytes=small_bytes)
+    def test_U64_from_be_bytes(self, cairo_run, bytes: Bytes):
+        try:
+            result = cairo_run("U64_from_be_bytes", bytes)
+        except Exception as e:
+            with strict_raises(type(e)):
+                U64.from_be_bytes(bytes)
+            return
+        expected = U64.from_be_bytes(bytes)
+        assert result == expected
