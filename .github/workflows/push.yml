@@ -17,5 +17,41 @@ jobs:
     uses: ./.github/workflows/rust_tests.yml
 
   python_tests:
-    name: Tests
-    uses: ./.github/workflows/python_tests.yml
+    name: Python
+    runs-on: ubuntu-latest-64-cores
+    env:
+      HYPOTHESIS_PROFILE: ci
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      CAIRO_PATH: cairo:tests:python/cairo-ec/src:python/cairo-addons/src:python/cairo-core/src
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: .python-version
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Install forge deps
+        run: forge install
+
+      - name: Build solidity contracts
+        run: forge build
+
+      - name: Run tests
+        run: |
+          uv run --reinstall pytest -n logical --durations=0 -v -s --no-skip-cached-tests --log-cli-level=DEBUG
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          directory: ./coverage/
+          verbose: true
+          files: "**/*.json"
