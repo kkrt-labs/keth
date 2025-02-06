@@ -132,19 +132,15 @@ def tx_with_sender_in_state(
 def env_with_valid_gas_price(draw):
     env = draw(st.from_type(Environment))
     if env.gas_price < env.base_fee_per_gas:
-        env = replace(
-            env,
-            # env.gas_price >= env.base_fee_per_gas is validated in `check_transaction`
-            gas_price=draw(
-                st.integers(
-                    min_value=int(env.base_fee_per_gas), max_value=2**64 - 1
-                ).map(Uint)
-            ),
-            # Values too high would cause taylor_exponential to run indefinitely.
-            excess_blob_gas=draw(
-                st.integers(0, 10 * int(TARGET_BLOB_GAS_PER_BLOCK)).map(U64)
-            ),
+        env.gas_price = draw(
+            st.integers(min_value=int(env.base_fee_per_gas), max_value=2**64 - 1).map(
+                Uint
+            )
         )
+    # Values too high would cause taylor_exponential to run indefinitely.
+    env.excess_blob_gas = draw(
+        st.integers(0, 10 * int(TARGET_BLOB_GAS_PER_BLOCK)).map(U64)
+    )
     return env
 
 
