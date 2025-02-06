@@ -49,6 +49,7 @@ When adding new types, you must:
 - Add the test generation strategy to strategies.py if it's a new type (not required when only doing composition of existing types, e.g. `Union[U256, bool]`)
 """
 
+import functools
 import inspect
 import sys
 from collections import ChainMap, abc, defaultdict
@@ -330,6 +331,16 @@ class Environment(
             for field in fields(self)
         )
 
+    @functools.wraps(EnvironmentBase.__init__)
+    def __init__(self, *args, **kwargs):
+        if "traces" in kwargs:
+            del kwargs["traces"]
+        super().__init__(*args, **kwargs)
+
+    @property
+    def traces(self):
+        return []
+
 
 @dataclass
 class Message(
@@ -453,6 +464,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "cancun", "blocks", "Log"): Log,
     ("ethereum", "cancun", "blocks", "TupleLog"): Tuple[Log, ...],
     ("ethereum", "cancun", "blocks", "Receipt"): Receipt,
+    ("ethereum", "cancun", "fork", "UnionBytesReceipt"): Union[Bytes, Receipt],
     ("ethereum", "cancun", "blocks", "UnionBytesLegacyTransaction"): Union[
         Bytes, LegacyTransaction
     ],
@@ -465,6 +477,10 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "cancun", "blocks", "UnionBytesReceipt"): Union[Bytes, Receipt],
     ("ethereum", "cancun", "blocks", "OptionalUnionBytesReceipt"): Optional[
         Union[Bytes, Receipt]
+    ],
+    ("ethereum", "cancun", "blocks", "UnionBytesWithdrawal"): Union[Bytes, Withdrawal],
+    ("ethereum", "cancun", "blocks", "OptionalUnionBytesWithdrawal"): Optional[
+        Union[Bytes, Withdrawal]
     ],
     ("ethereum", "cancun", "blocks", "Block"): Block,
     ("ethereum", "cancun", "blocks", "ListBlock"): List[Block],
@@ -479,7 +495,6 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
         EthereumException
     ],
     ("ethereum", "cancun", "fork_types", "Bloom"): Bloom,
-    ("ethereum", "cancun", "fork", "UnionBytesReceipt"): Union[Bytes, Receipt],
     ("ethereum", "cancun", "bloom", "MutableBloom"): MutableBloom,
     ("ethereum", "cancun", "fork_types", "VersionedHash"): VersionedHash,
     ("ethereum", "cancun", "fork_types", "TupleAddressUintTupleVersionedHash"): Tuple[
@@ -568,6 +583,18 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
         "trie",
         "TrieBytesOptionalUnionBytesReceipt",
     ): Trie[Bytes, Optional[Union[Bytes, Receipt]]],
+    (
+        "ethereum",
+        "cancun",
+        "trie",
+        "MappingBytesOptionalUnionBytesWithdrawal",
+    ): Mapping[Bytes, Optional[Union[Bytes, Withdrawal]]],
+    (
+        "ethereum",
+        "cancun",
+        "trie",
+        "TrieBytesOptionalUnionBytesWithdrawal",
+    ): Trie[Bytes, Optional[Union[Bytes, Withdrawal]]],
     ("ethereum", "cancun", "fork_types", "MappingAddressAccount"): Mapping[
         Address, Account
     ],

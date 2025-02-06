@@ -1,7 +1,7 @@
 from typing import Mapping, Optional, Tuple, Union
 
 import pytest
-from ethereum.cancun.blocks import LegacyTransaction, Receipt
+from ethereum.cancun.blocks import LegacyTransaction, Receipt, Withdrawal
 from ethereum.cancun.fork_types import Account, Address
 from ethereum.cancun.trie import (
     InternalNode,
@@ -197,6 +197,19 @@ class TestTrieOperations:
             assert result_cairo == result_py
             assert trie_cairo == trie
 
+        @given(trie=..., key=...)
+        def test_trie_get_TrieBytesOptionalUnionBytesWithdrawal(
+            self,
+            cairo_run,
+            trie: Trie[Bytes, Optional[Union[Bytes, Withdrawal]]],
+            key: Bytes,
+        ):
+            trie_cairo, result_cairo = cairo_run(
+                "trie_get_TrieBytesOptionalUnionBytesWithdrawal", trie, key
+            )
+            assert result_cairo == trie_get(trie, key)
+            assert trie_cairo == trie
+
     class TestSet:
         @given(trie=..., key=..., value=...)
         def test_trie_set_TrieAddressOptionalAccount(
@@ -254,6 +267,20 @@ class TestTrieOperations:
         ):
             cairo_trie = cairo_run(
                 "trie_set_TrieBytesOptionalUnionBytesReceipt", trie, key, value
+            )
+            trie_set(trie, key, value)
+            assert cairo_trie == trie
+
+        @given(trie=..., key=..., value=...)
+        def test_trie_set_TrieBytesOptionalUnionBytesWithdrawal(
+            self,
+            cairo_run,
+            trie: Trie[Bytes, Optional[Union[Bytes, Withdrawal]]],
+            key: Bytes,
+            value: Union[Bytes, Withdrawal],
+        ):
+            cairo_trie = cairo_run(
+                "trie_set_TrieBytesOptionalUnionBytesWithdrawal", trie, key, value
             )
             trie_set(trie, key, value)
             assert cairo_trie == trie
