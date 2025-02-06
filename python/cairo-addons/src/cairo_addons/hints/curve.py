@@ -80,20 +80,18 @@ def build_msm_hints_and_fill_memory(ids: VmConsts, memory: MemoryDict):
     """
     Builds MSM hints and fills memory with curve point data for SECP256K1.
     """
-    from garaga.definitions import CurveID, G1Point
+    from garaga.definitions import CurveID, G1Point, N_LIMBS, BASE
     from garaga.hints.io import bigint_pack, bigint_split, fill_felt_ptr
     from garaga.starknet.tests_and_calldata_generators.msm import MSMCalldataBuilder
 
     curve_id = CurveID.SECP256K1
     r_point = (
-        bigint_pack(ids.r_point.x, 4, 2**96),
-        bigint_pack(ids.r_point.y, 4, 2**96),
+        bigint_pack(ids.r_point.x, N_LIMBS, BASE),
+        bigint_pack(ids.r_point.y, N_LIMBS, BASE),
     )
     points = [G1Point.get_nG(curve_id, 1), G1Point(r_point[0], r_point[1], curve_id)]
     scalars = [ids.u1.low + 2**128 * ids.u1.high, ids.u2.low + 2**128 * ids.u2.high]
     builder = MSMCalldataBuilder(curve_id, points, scalars)
-    (msm_hint, derive_point_from_x_hint) = builder.build_msm_hints()
-    Q_low, Q_high, Q_high_shifted, RLCSumDlogDiv = msm_hint.elmts
 
     calldata = builder.serialize_to_calldata(
         include_digits_decomposition=False,
@@ -104,50 +102,33 @@ def build_msm_hints_and_fill_memory(ids: VmConsts, memory: MemoryDict):
         1:
     ]  # Skip Option.
 
-    Q_low_high_high_shifted = calldata[0 : 3 * 4 * 2]
+    points_offset = 3 * 2 * N_LIMBS  # 3 pts, 2 coordinates, 4 limbs.
+    Q_low_high_high_shifted = calldata[0:points_offset]
 
-    # def pack_u384_from_limbs(limbs: list[int]) -> int:
-    #     return limbs[0] + (limbs[1] << 96) + (limbs[2] << 192) + (limbs[3] << 288)
+    calldata_rest = calldata[points_offset:]
 
-    # print(f"Q_low_high_high_shifted: {Q_low_high_high_shifted}")
-    # print(f"Q_low_x_spliited : {bigint_split(Q_low[0])}")
-    # print(f"Q_low_y_spliited : {bigint_split(Q_low[1])}")
-    # print(f"Q_high_x_spliited : {bigint_split(Q_high[0])}")
-    # print(f"Q_high_y_spliited : {bigint_split(Q_high[1])}")
-    # print(f"Q_high_shifted_x_spliited : {bigint_split(Q_high_shifted[0])}")
-    # print(f"Q_high_shifted_y_spliited : {bigint_split(Q_high_shifted[1])}")
+    rlc_sum_dlog_div_flat_splitted = []
 
-    def fill_elmt_at_index(
-        x, ptr: object, memory: object, index: int, static_offset: int = 0
-    ):
-        limbs = bigint_split(x, 4, 2**96)
-        for i in range(4):
-            memory[ptr + index * 4 + i + static_offset] = limbs[i]
+    # Deserialize RLCSumDlogDiv
+    for _ in range(4):
+        array_len = calldata_rest.pop(0)  # Remove and get array length
+        array = calldata_rest[: array_len * N_LIMBS]  # Get array
+        rlc_sum_dlog_div_flat_splitted.extend(array)  # Append array
+        calldata_rest = calldata_rest[
+            array_len * N_LIMBS :
+        ]  # Remove array from rest and go forward
 
-    def fill_elmts_at_index(
-        x,
-        ptr: object,
-        memory: object,
-        index: int,
-        static_offset: int = 0,
-    ):
-        for i in range(len(x)):
-            fill_elmt_at_index(x[i], ptr + i * 4, memory, index, static_offset)
-
-    rlc_sum_dlog_div_coeffs = (
-        RLCSumDlogDiv.a_num
-        + RLCSumDlogDiv.a_den
-        + RLCSumDlogDiv.b_num
-        + RLCSumDlogDiv.b_den
-    )
     assert (
-        len(rlc_sum_dlog_div_coeffs) == 18 + 4 * 2
-    ), f"len(rlc_sum_dlog_div_coeffs) == {len(rlc_sum_dlog_div_coeffs)} != {18 + 4*2}"
+        len(rlc_sum_dlog_div_flat_splitted) == (18 + 4 * 2) * 4
+    ), f"len(rlc_sum_dlog_div_coeffs) == {len(rlc_sum_dlog_div_flat_splitted)} != {(18 + 4*2) * 4}"
 
     offset = 4
-    fill_elmts_at_index(
-        rlc_sum_dlog_div_coeffs, ids.range_check96_ptr, memory, 4, offset
+
+    fill_felt_ptr(
+        rlc_sum_dlog_div_flat_splitted,
+        memory,
+        ids.range_check96_ptr + 4 * N_LIMBS + offset,
     )
     fill_felt_ptr(
-        Q_low_high_high_shifted, memory, ids.range_check96_ptr + 50 * 4 + offset
+        Q_low_high_high_shifted, memory, ids.range_check96_ptr + 50 * N_LIMBS + offset
     )
