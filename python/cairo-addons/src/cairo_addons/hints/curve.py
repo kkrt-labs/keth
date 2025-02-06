@@ -81,7 +81,7 @@ def build_msm_hints_and_fill_memory(ids: VmConsts, memory: MemoryDict):
     Builds MSM hints and fills memory with curve point data for SECP256K1.
     """
     from garaga.definitions import CurveID, G1Point
-    from garaga.hints.io import bigint_pack, bigint_split
+    from garaga.hints.io import bigint_pack, bigint_split, fill_felt_ptr
     from garaga.starknet.tests_and_calldata_generators.msm import MSMCalldataBuilder
 
     curve_id = CurveID.SECP256K1
@@ -94,6 +94,28 @@ def build_msm_hints_and_fill_memory(ids: VmConsts, memory: MemoryDict):
     builder = MSMCalldataBuilder(curve_id, points, scalars)
     (msm_hint, derive_point_from_x_hint) = builder.build_msm_hints()
     Q_low, Q_high, Q_high_shifted, RLCSumDlogDiv = msm_hint.elmts
+
+    calldata = builder.serialize_to_calldata(
+        include_digits_decomposition=False,
+        include_points_and_scalars=False,
+        serialize_as_pure_felt252_array=False,
+        use_rust=True,
+    )[
+        1:
+    ]  # Skip Option.
+
+    Q_low_high_high_shifted = calldata[0 : 3 * 4 * 2]
+
+    # def pack_u384_from_limbs(limbs: list[int]) -> int:
+    #     return limbs[0] + (limbs[1] << 96) + (limbs[2] << 192) + (limbs[3] << 288)
+
+    # print(f"Q_low_high_high_shifted: {Q_low_high_high_shifted}")
+    # print(f"Q_low_x_spliited : {bigint_split(Q_low[0])}")
+    # print(f"Q_low_y_spliited : {bigint_split(Q_low[1])}")
+    # print(f"Q_high_x_spliited : {bigint_split(Q_high[0])}")
+    # print(f"Q_high_y_spliited : {bigint_split(Q_high[1])}")
+    # print(f"Q_high_shifted_x_spliited : {bigint_split(Q_high_shifted[0])}")
+    # print(f"Q_high_shifted_y_spliited : {bigint_split(Q_high_shifted[1])}")
 
     def fill_elmt_at_index(
         x, ptr: object, memory: object, index: int, static_offset: int = 0
@@ -126,10 +148,6 @@ def build_msm_hints_and_fill_memory(ids: VmConsts, memory: MemoryDict):
     fill_elmts_at_index(
         rlc_sum_dlog_div_coeffs, ids.range_check96_ptr, memory, 4, offset
     )
-
-    fill_elmt_at_index(Q_low[0], ids.range_check96_ptr, memory, 50, offset)
-    fill_elmt_at_index(Q_low[1], ids.range_check96_ptr, memory, 51, offset)
-    fill_elmt_at_index(Q_high[0], ids.range_check96_ptr, memory, 52, offset)
-    fill_elmt_at_index(Q_high[1], ids.range_check96_ptr, memory, 53, offset)
-    fill_elmt_at_index(Q_high_shifted[0], ids.range_check96_ptr, memory, 54, offset)
-    fill_elmt_at_index(Q_high_shifted[1], ids.range_check96_ptr, memory, 55, offset)
+    fill_felt_ptr(
+        Q_low_high_high_shifted, memory, ids.range_check96_ptr + 50 * 4 + offset
+    )
