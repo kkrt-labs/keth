@@ -315,7 +315,7 @@ func process_transaction{
         assert tx_value = tx.value.blob_transaction.value.value;
         let blob_gas_fee_res = calculate_data_fee(env.value.excess_blob_gas, tx);
         assert blob_gas_fee = blob_gas_fee_res;
-        assert access_lists = TupleAccessList(cast(0, TupleAccessListStruct*));
+        assert access_lists = tx.value.blob_transaction.value.access_list;
         tempvar range_check_ptr = range_check_ptr;
     } else {
         tempvar range_check_ptr = range_check_ptr;
