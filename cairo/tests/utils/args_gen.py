@@ -49,6 +49,7 @@ When adding new types, you must:
 - Add the test generation strategy to strategies.py if it's a new type (not required when only doing composition of existing types, e.g. `Union[U256, bool]`)
 """
 
+import functools
 import inspect
 import sys
 from collections import ChainMap, abc, defaultdict
@@ -330,6 +331,7 @@ class Environment(
             for field in fields(self)
         )
 
+    @functools.wraps(EnvironmentBase.__init__)
     def __init__(self, *args, **kwargs):
         if "traces" in kwargs:
             del kwargs["traces"]
