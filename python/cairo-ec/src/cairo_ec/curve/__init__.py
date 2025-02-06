@@ -24,15 +24,18 @@ class ECBase(EllipticCurve):
         super().__init__(self.FIELD(x), self.FIELD(y))
 
     @classmethod
-    def random_point(cls, x=None) -> "EllipticCurve":
-        """Generate a random point on the curve.
+    def random_point(cls, x=None, retry=True) -> "EllipticCurve":
+        """Generate a random point.
 
-        Returns a random point (x,y) satisfying y² = x³ + ax + b.
+        If retry is True, the returned point is guaranteed to be on the curve.
+        Otherwise, it just returns the first point it finds, which might not be on the curve.
+
         Uses try-and-increment method:
         1. Pick random x
         2. Compute x³ + ax + b
         3. If it's a quadratic residue, compute y
-        4. If not, try another x
+        4. If not, and retry is True, try another x
+        5. If not, and retry is False, return (x, sqrt(x³ + ax + b) * g)
         """
         while True:
             # Random x in the field
@@ -50,9 +53,19 @@ class ECBase(EllipticCurve):
                 # Randomly choose between y and -y
                 if randint(0, 1):
                     y = -y
-                return cls(cls.FIELD(x), cls.FIELD(y))
-            else:
-                x = cls.G * x
+                return cls.__new__(cls, cls.FIELD(x), cls.FIELD(y))
+            if not retry:
+                y = sqrt_mod(rhs * cls.G, cls.FIELD.PRIME)
+                return cls.__new__(cls, cls.FIELD(x), cls.FIELD(y))
+
+            x = cls.G * x
+
+    @classmethod
+    def is_on_curve(cls, x: int, y: int) -> bool:
+        """Check if a point is on the curve."""
+        y = cls.FIELD(y)
+        x = cls.FIELD(x)
+        return y**2 == x**3 + cls.A * x + cls.B
 
 
 class Secp256k1P(PrimeField):

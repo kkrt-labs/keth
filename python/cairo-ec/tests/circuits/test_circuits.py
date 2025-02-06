@@ -425,3 +425,36 @@ class TestCircuits:
                 == compiled_circuit_output
                 == [expected_output.x, expected_output.y]
             )
+
+        @given(data=st.data())
+        def test_assert_is_on_curve(
+            self, cairo_program, cairo_run, curve, data, st_prime
+        ):
+            seed_p = data.draw(st_prime)
+            p = curve.random_point(x=seed_p, retry=False)
+            inputs = {
+                "x": int(p.x),
+                "y": int(p.y),
+                "a": int(curve.A),
+                "b": int(curve.B),
+                "g": int(curve.G),
+                "is_on_curve": curve.is_on_curve(p.x, p.y),
+            }
+
+            cairo_run("assert_is_on_curve", **inputs)
+            compiled_circuit = circuit_compile(cairo_program, "assert_is_on_curve")
+            values_ptr = flatten(compiled_circuit["constants"]) + [
+                limb for v in inputs.values() for limb in int_to_uint384(v)
+            ]
+            cairo_run(
+                "test__circuit",
+                values_ptr=values_ptr,
+                values_ptr_len=len(values_ptr),
+                p=int_to_uint384(curve.FIELD.PRIME),
+                **compiled_circuit,
+            )
+            cairo_run(
+                "assert_is_on_curve_compiled",
+                **{k: int_to_uint384(v) for k, v in inputs.items()},
+                p=int_to_uint384(curve.FIELD.PRIME),
+            )
