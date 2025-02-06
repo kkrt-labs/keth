@@ -290,8 +290,10 @@ func U64_from_be_bytes{range_check_ptr}(bytes: Bytes) -> U64 {
     return res;
 }
 
+// @dev Panics if len(bytes) > 31
+// @dev Note Uint type from EELS is unbounded.
 func Uint_from_be_bytes{range_check_ptr}(bytes: Bytes) -> Uint {
-    with_attr error_message("OverflowError") {
+    with_attr error_message("ValueError") {
         assert [range_check_ptr] = 31 - bytes.value.len;
         let range_check_ptr = range_check_ptr + 1;
     }

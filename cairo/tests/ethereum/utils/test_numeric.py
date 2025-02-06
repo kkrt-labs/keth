@@ -163,3 +163,9 @@ class TestNumeric:
             return
         expected = U64.from_be_bytes(bytes)
         assert result == expected
+
+    # @dev Note Uint type from EELS is unbounded.
+    # But Uint_from_be_bytes panics if len(bytes) > 31
+    @given(bytes=st.binary(min_size=0, max_size=31))
+    def test_Uint_from_be_bytes(self, cairo_run, bytes: Bytes):
+        assert Uint.from_be_bytes(bytes) == cairo_run("Uint_from_be_bytes", bytes)
