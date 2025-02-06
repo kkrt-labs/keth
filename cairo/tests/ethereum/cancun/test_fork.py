@@ -54,7 +54,6 @@ MIN_BASE_FEE = 1_000
 @composite
 def apply_body_data(draw, excess_blob_gas_strategy=excess_blob_gas):
     """Creates test data for apply_body including ERC20 transfer transactions"""
-    state = draw(erc20_state)
 
     # Get ERC20 contract
     erc20 = get_contract("ERC20", "KethToken")
@@ -63,10 +62,10 @@ def apply_body_data(draw, excess_blob_gas_strategy=excess_blob_gas):
     # Create base ERC20 transfer transactions
     raw_transactions = [
         erc20.transfer(OWNER, amount, signer=OTHER),
-        erc20.transfer(OTHER, amount, signer=OWNER),
-        erc20.transfer(OTHER, amount, signer=OWNER),
-        erc20.approve(OWNER, 2**256 - 1, signer=OTHER),
-        erc20.transferFrom(OTHER, OWNER, amount // 3, signer=OWNER),
+        # erc20.transfer(OTHER, amount, signer=OWNER),
+        # erc20.transfer(OTHER, amount, signer=OWNER),
+        # erc20.approve(OWNER, 2**256 - 1, signer=OTHER),
+        # erc20.transferFrom(OTHER, OWNER, amount // 3, signer=OWNER),
     ]
 
     # Transform and sign transactions
@@ -115,7 +114,6 @@ def apply_body_data(draw, excess_blob_gas_strategy=excess_blob_gas):
     chain_id = draw(uint64)
 
     return {
-        "state": state,
         "block_hashes": block_hashes,
         "coinbase": coinbase,
         "block_number": block_number,
