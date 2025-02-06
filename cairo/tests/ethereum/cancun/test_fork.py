@@ -28,10 +28,11 @@ from ethereum.cancun.transactions import (
     signing_hash_4844,
 )
 from ethereum.cancun.vm import Environment
+from ethereum.cancun.vm.gas import TARGET_BLOB_GAS_PER_BLOCK
 from ethereum.exceptions import EthereumException
 from ethereum_types.bytes import Bytes, Bytes20
 from ethereum_types.numeric import U64, U256, Uint
-from hypothesis import assume, given, settings
+from hypothesis import assume, given
 from hypothesis import strategies as st
 from hypothesis.strategies import composite, integers
 
@@ -130,14 +131,18 @@ def tx_with_sender_in_state(
 @composite
 def env_with_valid_gas_price(draw):
     env = draw(st.from_type(Environment))
-    # env.gas_price >= env.base_fee_per_gas is validated in `check_transaction`
     if env.gas_price < env.base_fee_per_gas:
         env = replace(
             env,
+            # env.gas_price >= env.base_fee_per_gas is validated in `check_transaction`
             gas_price=draw(
                 st.integers(
                     min_value=int(env.base_fee_per_gas), max_value=2**64 - 1
                 ).map(Uint)
+            ),
+            # Values too high would cause taylor_exponential to run indefinitely.
+            excess_blob_gas=draw(
+                st.integers(0, 10 * int(TARGET_BLOB_GAS_PER_BLOCK)).map(U64)
             ),
         )
     return env
@@ -218,21 +223,24 @@ class TestFork:
         )
 
     @given(env=env_with_valid_gas_price(), tx=tx_without_code())
-    @settings(max_examples=100)
     def test_process_transaction(self, cairo_run, env: Environment, tx: Transaction):
         try:
-            gas_used_cairo, logs_cairo, error_cairo = cairo_run(
-                "process_transaction", env, tx
-            )
+            env_cairo, gas_cairo, logs_cairo = cairo_run("process_transaction", env, tx)
         except Exception as e:
             with strict_raises(type(e)):
-                process_transaction(env, tx)
+                output_py = process_transaction(env, tx)
+                # The Cairo Runner will raise if an exception is in the return values.
+                if len(output_py) == 3:
+                    raise output_py[2]
+                assert env_cairo == env
+                assert gas_cairo == output_py[0]
+                assert logs_cairo == output_py[1]
             return
 
-        gas_used, logs, error = process_transaction(env, tx)
-        assert gas_used_cairo == gas_used
-        assert logs_cairo == logs
-        assert error_cairo == error
+        gas_used, logs = process_transaction(env, tx)
+        assert env_cairo == env
+        assert gas_used == gas_cairo
+        assert logs == logs_cairo
 
     @given(
         data=tx_with_sender_in_state(),

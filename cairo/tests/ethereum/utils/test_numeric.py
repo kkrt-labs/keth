@@ -1,6 +1,10 @@
 from ethereum.cancun.fork_types import Address
-from ethereum.cancun.vm.gas import BLOB_GASPRICE_UPDATE_FRACTION, MIN_BLOB_GASPRICE
-from ethereum.utils.numeric import ceil32
+from ethereum.cancun.vm.gas import (
+    BLOB_GASPRICE_UPDATE_FRACTION,
+    MIN_BLOB_GASPRICE,
+    TARGET_BLOB_GAS_PER_BLOCK,
+)
+from ethereum.utils.numeric import ceil32, taylor_exponential
 from ethereum_types.bytes import Bytes32
 from ethereum_types.numeric import U256, Uint
 from hypothesis import given
@@ -52,10 +56,24 @@ class TestNumeric:
 
     @given(
         factor=st.just(MIN_BLOB_GASPRICE),
-        numerator=st.integers(min_value=1, max_value=100_000_000_000_000_000).map(Uint),
+        numerator=st.integers(
+            min_value=1, max_value=10 * int(TARGET_BLOB_GAS_PER_BLOCK)
+        ).map(Uint),
         denominator=st.just(BLOB_GASPRICE_UPDATE_FRACTION),
     )
     def test_taylor_exponential(
+        self, cairo_run, factor: Uint, numerator: Uint, denominator: Uint
+    ):
+        assert taylor_exponential(factor, numerator, denominator) == cairo_run(
+            "taylor_exponential", factor, numerator, denominator
+        )
+
+    @given(
+        factor=st.just(MIN_BLOB_GASPRICE),
+        numerator=st.integers(min_value=1, max_value=100_000_000_000_000_000).map(Uint),
+        denominator=st.just(BLOB_GASPRICE_UPDATE_FRACTION),
+    )
+    def test_taylor_exponential_limited(
         self, cairo_run, factor: Uint, numerator: Uint, denominator: Uint
     ):
         """Compares to our limited version of taylor_exponential that saturates when `numerator_accumulated * numerator` is greater than 2**128 - 1"""
