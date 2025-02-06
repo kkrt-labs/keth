@@ -64,6 +64,7 @@ from ethereum.cancun.transactions_types import (
     TransactionImpl,
     TransactionType,
     TupleAccessList,
+    TupleAccessListStruct,
     To,
     ToStruct,
 )
@@ -84,6 +85,7 @@ from ethereum.utils.numeric import (
     divmod,
     min,
     U256_add,
+    U256_sub,
     U256__eq__,
     U256_from_felt,
     U256_le,
@@ -303,6 +305,7 @@ func process_transaction{
     local tx_to: To;
     local tx_value: U256;
     local blob_gas_fee: Uint;
+    local access_lists: TupleAccessList;
     if (tx.value.blob_transaction.value != 0) {
         assert tx_gas = tx.value.blob_transaction.value.gas;
         assert tx_data = tx.value.blob_transaction.value.data;
@@ -312,6 +315,7 @@ func process_transaction{
         assert tx_value = tx.value.blob_transaction.value.value;
         let blob_gas_fee_res = calculate_data_fee(env.value.excess_blob_gas, tx);
         assert blob_gas_fee = blob_gas_fee_res;
+        assert access_lists = tx.value.blob_transaction.value.access_list;
         tempvar range_check_ptr = range_check_ptr;
     } else {
         tempvar range_check_ptr = range_check_ptr;
@@ -325,6 +329,7 @@ func process_transaction{
         assert tx_to = tx.value.fee_market_transaction.value.to;
         assert tx_value = tx.value.fee_market_transaction.value.value;
         assert blob_gas_fee = Uint(0);
+        assert access_lists = tx.value.fee_market_transaction.value.access_list;
     }
 
     if (tx.value.legacy_transaction.value != 0) {
@@ -333,6 +338,7 @@ func process_transaction{
         assert tx_to = tx.value.legacy_transaction.value.to;
         assert tx_value = tx.value.legacy_transaction.value.value;
         assert blob_gas_fee = Uint(0);
+        assert access_lists = TupleAccessList(cast(0, TupleAccessListStruct*));
     }
 
     if (tx.value.access_list_transaction.value != 0) {
@@ -341,6 +347,7 @@ func process_transaction{
         assert tx_to = tx.value.access_list_transaction.value.to;
         assert tx_value = tx.value.access_list_transaction.value.value;
         assert blob_gas_fee = Uint(0);
+        assert access_lists = tx.value.access_list_transaction.value.access_list;
     }
 
     let effective_gas_fee = tx_gas.value * env.value.gas_price.value;
@@ -353,18 +360,13 @@ func process_transaction{
     increment_nonce{state=state}(sender);
 
     // Deduct gas fee from sender
-    with_attr error_message("OverflowError") {
-        assert sender_account.value.balance.value.high = 0;  // emulate the cast to Uint
-        assert_le_felt(
-            sender_account.value.balance.value.low, effective_gas_fee + blob_gas_fee.value
-        );
-        let sender_balance_after_gas_fee = sender_account.value.balance.value.low -
-            effective_gas_fee - blob_gas_fee.value;
-        assert [range_check_ptr] = sender_balance_after_gas_fee;
-        let range_check_ptr = range_check_ptr + 1;
-    }
-    tempvar sender_balance_after_gas_fee_u256 = U256(
-        new U256Struct(sender_balance_after_gas_fee, 0)
+    tempvar effective_gas_fee_u256 = U256(new U256Struct(effective_gas_fee, 0));
+    tempvar blob_gas_fee_u256 = U256(new U256Struct(blob_gas_fee.value, 0));
+    let sender_balance_after_gas_fee = U256_sub(
+        sender_account.value.balance, effective_gas_fee_u256
+    );
+    let sender_balance_after_gas_fee_u256 = U256_sub(
+        sender_balance_after_gas_fee, blob_gas_fee_u256
     );
     set_account_balance{state=state}(sender, sender_balance_after_gas_fee_u256);
     EnvImpl.set_state{env=env}(state);
@@ -390,11 +392,10 @@ func process_transaction{
     );
 
     if (tx.value.legacy_transaction.value == 0) {
-        let access_list = tx.value.access_list_transaction.value.access_list;
         process_access_list{
             preaccessed_addresses=preaccessed_addresses,
             preaccessed_storage_keys=preaccessed_storage_keys,
-        }(access_list, access_list.value.len, 0);
+        }(access_lists, access_lists.value.len, 0);
         tempvar keccak_ptr = keccak_ptr;
         tempvar bitwise_ptr = bitwise_ptr;
         tempvar poseidon_ptr = poseidon_ptr;
@@ -436,6 +437,7 @@ func process_transaction{
     // Calculate gas refund
     with_attr error_message("OverflowError") {
         assert output.value.refund_counter.value.high = 0;
+        assert_le_felt(env.value.base_fee_per_gas.value, env.value.gas_price.value);
     }
     let gas_used = tx_gas.value - output.value.gas_left.value;
     let (gas_refund_div_5, _) = divmod(gas_used, 5);
@@ -665,7 +667,7 @@ func check_transaction{
         let blob_gas_price = calculate_blob_gas_price(excess_blob_gas);
         let max_fee_per_blob_gas_u256 = tx.value.blob_transaction.value.max_fee_per_blob_gas;
         let max_fee_per_blob_gas_uint = U256_to_Uint(max_fee_per_blob_gas_u256);
-        let blob_gas_price_valid = is_le(blob_gas_price.value, max_fee_per_blob_gas_uint.value);
+        let blob_gas_price_valid = is_le(max_fee_per_blob_gas_uint.value, blob_gas_price.value - 1);
         with_attr error_message("InvalidBlock") {
             assert blob_gas_price_valid = 1;
         }
