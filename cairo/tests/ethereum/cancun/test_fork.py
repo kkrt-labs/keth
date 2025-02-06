@@ -32,21 +32,30 @@ from ethereum.cancun.transactions import (
     signing_hash_2930,
     signing_hash_4844,
 )
-from ethereum.cancun.trie import copy_trie
+from ethereum.cancun.trie import Trie, copy_trie
 from ethereum.cancun.vm import Environment
 from ethereum.cancun.vm.gas import TARGET_BLOB_GAS_PER_BLOCK
+from ethereum.crypto.hash import Hash32, keccak256
 from ethereum.exceptions import EthereumException
-from ethereum_types.bytes import Bytes, Bytes0, Bytes20
+from ethereum_types.bytes import Bytes, Bytes0, Bytes20, Bytes32
 from ethereum_types.numeric import U64, U256, Uint
 from hypothesis import assume, given
 from hypothesis import strategies as st
 from hypothesis.strategies import composite, integers
 
 from tests.ethereum.cancun.vm.test_interpreter import unimplemented_precompiles
-from tests.utils.args_gen import Environment
 from tests.utils.constants import COINBASE, OTHER, OWNER, TRANSACTION_GAS_LIMIT, signers
 from tests.utils.errors import strict_raises
-from tests.utils.strategies import account_strategy, address, bytes32, state, uint
+from tests.utils.solidity import get_contract
+from tests.utils.strategies import (
+    account_strategy,
+    address,
+    bytes32,
+    excess_blob_gas,
+    state,
+    uint,
+    uint64,
+)
 
 MIN_BASE_FEE = 1_000
 
@@ -207,6 +216,7 @@ def tx_with_sender_in_state(
     ),
     state_strategy=state,
     account_strategy=account_strategy,
+    probabilities=85,
 ):
     state = draw(state_strategy)
     account = draw(account_strategy)
@@ -421,7 +431,6 @@ class TestFork:
 
         assert py_result == cairo_result
 
-    @reproduce_failure("6.124.3", b"AXicY3BkQEAACrcBhw==")
     @given(data=apply_body_data())
     def test_apply_body(
         self,
