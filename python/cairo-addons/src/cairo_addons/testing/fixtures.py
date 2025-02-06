@@ -99,7 +99,22 @@ def coverage(cairo_program: Program, cairo_file: Path, worker_id: str):
         .filter(~pl.col("filename").str.contains("test_"))
         .group_by(pl.col("filename"), pl.col("line_number"))
         .agg(pl.col("count").sum())
-        .group_by("filename")
+    )
+    with pl.Config() as cfg:
+        cfg.set_tbl_rows(100)
+        cfg.set_fmt_str_lengths(50)
+        print(
+            all_coverages.filter(pl.col("filename") == str(cairo_file))
+            .with_columns(pl.col("filename").str.replace(str(Path().cwd()) + "/", ""))
+            .filter(pl.col("count") == 0)
+            .sort("line_number", descending=False)
+            .with_columns(
+                pl.col("filename") + ":" + pl.col("line_number").cast(pl.String)
+            )
+            .drop("line_number")
+        )
+    all_coverages = (
+        all_coverages.group_by("filename")
         .agg(pl.col("line_number"), pl.col("count"))
         .to_dict(as_series=False)
     )
