@@ -105,7 +105,6 @@ class TestRlp:
         def test_encode_log(self, cairo_run, log: Log):
             assert encode(log) == cairo_run("encode_log", log)
 
-        @pytest.mark.slow
         @given(tuple_log=...)
         def test_encode_tuple_log(self, cairo_run, tuple_log: Tuple[Log, ...]):
             assert encode(tuple_log) == cairo_run("encode_tuple_log", tuple_log)

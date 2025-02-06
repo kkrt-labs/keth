@@ -7,6 +7,7 @@ from typing import (
     Generic,
     Optional,
     Sequence,
+    Tuple,
     TypeAlias,
     TypeVar,
     Union,
@@ -113,8 +114,7 @@ MAX_ACCOUNTS_TO_DELETE_SIZE = int(
     os.getenv("HYPOTHESIS_MAX_ACCOUNTS_TO_DELETE_SIZE", 10)
 )
 MAX_TOUCHED_ACCOUNTS_SIZE = int(os.getenv("HYPOTHESIS_MAX_TOUCHED_ACCOUNTS_SIZE", 10))
-MAX_LOGS_SIZE = int(os.getenv("HYPOTHESIS_MAX_LOGS_SIZE", 10))
-
+MAX_TUPLE_SIZE = int(os.getenv("HYPOTHESIS_MAX_TUPLE_SIZE", 20))
 
 small_bytes = st.binary(min_size=0, max_size=256)
 code = st.binary(min_size=0, max_size=MAX_CODE_SIZE)
@@ -200,12 +200,14 @@ def tuple_strategy(thing):
 
     # Handle ellipsis tuples
     if len(types) == 2 and types[1] == Ellipsis:
-        return st.tuples(st.from_type(types[0]), st.from_type(types[0])).map(
-            lambda x: TypedTuple[types[0], Ellipsis](x)
+        return (
+            st.lists(st.from_type(types[0]), max_size=MAX_TUPLE_SIZE)
+            .map(tuple)
+            .map(lambda x: TypedTuple[types](x))
         )
 
     return st.tuples(*(st.from_type(t) for t in types)).map(
-        lambda x: TypedTuple[tuple(types)](x)
+        lambda x: TypedTuple[types](x)
     )
 
 
@@ -374,7 +376,7 @@ evm = st.builds(
     gas_left=gas_left,
     env=st.from_type(Environment),
     valid_jump_destinations=st.sets(st.from_type(Uint)),
-    logs=st.tuples(st.from_type(Log)),
+    logs=st.from_type(Tuple[Log, ...]),
     refund_counter=st.integers(min_value=0),
     running=st.booleans(),
     message=message,

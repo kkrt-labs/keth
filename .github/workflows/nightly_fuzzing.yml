@@ -46,9 +46,8 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          directory: ./coverage/
           verbose: true
-          files: "**/*.json"
+          files: ./coverage/**/*.json
 
       - name: Notify Slack on Failure
         if: steps.tests.outcome == 'failure'
