@@ -111,7 +111,7 @@ def build_msm_hints_and_fill_memory(ids: VmConsts, memory: MemoryDict):
         use_rust=True,
     )[
         1:
-    ]  # Skip Option
+    ] 
 
     # Split calldata into points and remaining data
     points_offset = 3 * 2 * N_LIMBS  # 3 points × 2 coordinates × N_LIMBS
