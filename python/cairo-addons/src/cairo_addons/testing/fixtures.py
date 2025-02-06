@@ -102,7 +102,7 @@ def coverage(cairo_program: Program, cairo_file: Path, worker_id: str):
     )
     with pl.Config() as cfg:
         cfg.set_tbl_rows(100)
-        cfg.set_fmt_str_lengths(50)
+        cfg.set_fmt_str_lengths(90)
         missed = (
             all_coverages.filter(pl.col("filename") == str(cairo_file))
             .with_columns(pl.col("filename").str.replace(str(Path().cwd()) + "/", ""))
