@@ -124,6 +124,19 @@ struct OptionalUnionBytesReceipt {
     value: UnionBytesReceiptEnum*,
 }
 
+struct UnionBytesWithdrawalEnum {
+    bytes: Bytes,
+    withdrawal: Withdrawal,
+}
+
+struct UnionBytesWithdrawal {
+    value: UnionBytesWithdrawalEnum*,
+}
+
+struct OptionalUnionBytesWithdrawal {
+    value: UnionBytesWithdrawalEnum*,
+}
+
 struct BlockStruct {
     header: Header,
     transactions: TupleUnionBytesLegacyTransaction,

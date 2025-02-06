@@ -3,11 +3,12 @@ from typing import Optional, Set, Tuple, Union
 from ethereum.cancun.fork_types import Account, Address
 from ethereum.cancun.state import set_account
 from ethereum.cancun.utils.message import prepare_message
-from ethereum.cancun.vm import Environment
 from ethereum_types.bytes import Bytes, Bytes0, Bytes32
 from ethereum_types.numeric import U256, Uint
 from hypothesis import given
 from hypothesis import strategies as st
+
+from tests.utils.args_gen import Environment
 
 
 @st.composite
