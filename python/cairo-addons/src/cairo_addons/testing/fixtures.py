@@ -111,7 +111,7 @@ def coverage(cairo_program: Program, cairo_file: Path, worker_id: str):
             .with_columns(
                 pl.col("filename") + ":" + pl.col("line_number").cast(pl.String)
             )
-            .drop("line_number")
+            .drop("line_number", "count")
         )
     all_coverages = (
         all_coverages.group_by("filename")
