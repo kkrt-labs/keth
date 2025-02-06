@@ -12,7 +12,7 @@ from hypothesis import strategies as st
 from starkware.cairo.lang.instances import PRIME
 
 from tests.utils.errors import strict_raises
-from tests.utils.strategies import small_bytes, uint128
+from tests.utils.strategies import small_bytes, uint128, uint256
 
 
 def taylor_exponential_limited(
@@ -166,6 +166,58 @@ class TestNumeric:
 
     # @dev Note Uint type from EELS is unbounded.
     # But Uint_from_be_bytes panics if len(bytes) > 31
-    @given(bytes=st.binary(min_size=0, max_size=31))
+    @given(bytes=small_bytes)
     def test_Uint_from_be_bytes(self, cairo_run, bytes: Bytes):
-        assert Uint.from_be_bytes(bytes) == cairo_run("Uint_from_be_bytes", bytes)
+        try:
+            assert Uint.from_be_bytes(bytes) == cairo_run("Uint_from_be_bytes", bytes)
+        except Exception:
+            assert len(bytes) > 31
+
+    @given(
+        a=uint256,
+        b=st.integers(min_value=2**256 - 1000, max_value=2**256 - 1).map(U256),
+    )
+    def test_U256_add_with_carry(self, cairo_run, a: U256, b: U256):
+        result, carry = cairo_run("U256_add_with_carry", a, b)
+        total = int(a) + int(b)
+        cairo_total = int(result) + int(carry) * 2**256
+        assert total == cairo_total
+
+    # @dev Note Uint type from EELS is unbounded.
+    # But U256_to_Uint panics if value > STONE_PRIME - 1
+    @given(value=...)
+    def test_U256_to_Uint(self, cairo_run, value: U256):
+        try:
+            assert Uint(value) == cairo_run("U256_to_Uint", value)
+        except Exception:
+            assert int(value) > PRIME - 1
+
+    @given(bytes=small_bytes)
+    def test_U256_from_be_bytes(self, cairo_run, bytes: Bytes):
+        try:
+            result = cairo_run("U256_from_be_bytes", bytes)
+        except Exception as e:
+            with strict_raises(type(e)):
+                U256.from_be_bytes(bytes)
+            return
+        assert result == U256.from_be_bytes(bytes)
+
+    @given(bytes=small_bytes)
+    def test_Bytes32_from_be_bytes(self, cairo_run, bytes: Bytes):
+        try:
+            result = cairo_run("Bytes32_from_be_bytes", bytes)
+        except Exception as e:
+            with strict_raises(type(e)):
+                Bytes32(bytes)
+            return
+        bytes = (
+            int.from_bytes(bytes, "big").to_bytes(32, "big")
+            if len(bytes) < 32
+            else bytes
+        )
+        assert result == Bytes32(bytes)
+
+    @given(value=st.integers(min_value=0, max_value=PRIME - 1).map(Uint))
+    def test_U256_from_felt(self, cairo_run, value: Uint):
+        result = cairo_run("U256_from_Uint", value)
+        assert result == U256(value)

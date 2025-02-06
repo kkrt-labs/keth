@@ -87,7 +87,7 @@ from ethereum.utils.numeric import (
     U256_add,
     U256_sub,
     U256__eq__,
-    U256_from_felt,
+    U256_from_Uint,
     U256_le,
     U256_to_Uint,
     U256_add_with_carry,
@@ -708,7 +708,7 @@ func check_transaction{
     // Balance check
     let sender_account_balance = sender_account.value.balance;
     let tx_value = TransactionImpl.get_value(tx);
-    let max_gas_fee_u256 = U256_from_felt(max_gas_fee.value);
+    let max_gas_fee_u256 = U256_from_Uint(max_gas_fee);
     let (tx_total_spent, carry) = U256_add_with_carry(tx_value, max_gas_fee_u256);
     with_attr error_message("InvalidBlock") {
         assert carry = 0;
