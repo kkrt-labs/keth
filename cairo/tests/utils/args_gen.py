@@ -320,7 +320,7 @@ class FlatTransientStorage:
 class Environment(
     make_dataclass(
         "Environment",
-        [(f.name, f.type, f) for f in fields(EnvironmentBase)],
+        [(f.name, f.type, f) for f in fields(EnvironmentBase) if f.name != "traces"],
         namespace={"__doc__": EnvironmentBase.__doc__},
     )
 ):
@@ -330,11 +330,14 @@ class Environment(
             for field in fields(self)
         )
 
-    def __init__(self, *args, traces: List[dict] = [], **kwargs):
-        # Initialize all fields from kwargs
-        for k, v in kwargs.items():
-            setattr(self, k, v)
-        self.traces = traces
+    def __init__(self, *args, **kwargs):
+        if "traces" in kwargs:
+            del kwargs["traces"]
+        super().__init__(*args, **kwargs)
+
+    @property
+    def traces(self):
+        return []
 
 
 @dataclass
