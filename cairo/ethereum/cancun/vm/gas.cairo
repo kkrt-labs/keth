@@ -258,31 +258,46 @@ func calculate_excess_blob_gas{range_check_ptr}(parent_header: Header) -> U64 {
     return excess_blob_gas;
 }
 
+// @dev: Saturates at 2**64 - 1
 func calculate_total_blob_gas{range_check_ptr}(tx: Transaction) -> Uint {
     if (tx.value.blob_transaction.value != 0) {
-        let total_blob_gas = Uint(
+        tempvar total_blob_gas = Uint(
             GasConstants.GAS_PER_BLOB *
             tx.value.blob_transaction.value.blob_versioned_hashes.value.len,
         );
+        let saturate = is_le_felt(2 ** 64, total_blob_gas.value);
+        if (saturate != 0) {
+            tempvar res = Uint(2 ** 64 - 1);
+            return res;
+        }
         return total_blob_gas;
     }
     let total_blob_gas = Uint(0);
     return total_blob_gas;
 }
 
+// @dev: Saturates at 2**64 - 1
 func calculate_blob_gas_price{range_check_ptr}(excess_blob_gas: U64) -> Uint {
     let blob_gas_price = taylor_exponential(
         Uint(GasConstants.MIN_BLOB_GASPRICE),
         Uint(excess_blob_gas.value),
         Uint(GasConstants.BLOB_GASPRICE_UPDATE_FRACTION),
     );
+    let saturate = is_le_felt(2 ** 64, blob_gas_price.value);
+    if (saturate != 0) {
+        tempvar res = Uint(2 ** 64 - 1);
+        return res;
+    }
     return blob_gas_price;
 }
 
 func calculate_data_fee{range_check_ptr}(excess_blob_gas: U64, tx: Transaction) -> Uint {
     alloc_locals;
+    // saturate at 2**64 - 1
     let total_blob_gas = calculate_total_blob_gas(tx);
+    // saturate at 2**64 - 1
     let blob_gas_price = calculate_blob_gas_price(excess_blob_gas);
+    // fits in (2**128-1)
     let data_fee = Uint(total_blob_gas.value * blob_gas_price.value);
     return data_fee;
 }

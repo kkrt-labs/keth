@@ -59,7 +59,7 @@ from ethereum.cancun.state import (
     touch_account,
 )
 
-from src.utils.dict import dict_new_empty, hashdict_write, dict_squash
+from src.utils.dict import hashdict_write, dict_squash
 
 struct MessageCallOutput {
     value: MessageCallOutputStruct*,
