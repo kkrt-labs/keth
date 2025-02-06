@@ -221,10 +221,14 @@ class TypedDict(dict, Generic[K, V]):
 
 
 def dict_strategy(thing):
-    key_type, value_type = thing.__args__
-    return st.dictionaries(st.from_type(key_type), st.from_type(value_type)).map(
-        lambda x: TypedDict[key_type, value_type](x)
-    )
+    if hasattr(thing, "__args__"):
+        # If the thing contains type information, use it
+        key_type, value_type = thing.__args__
+        return st.dictionaries(st.from_type(key_type), st.from_type(value_type)).map(
+            lambda x: TypedDict[key_type, value_type](x)
+        )
+    else:
+        return st.dictionaries()
 
 
 gas_left = st.integers(min_value=0, max_value=BLOCK_GAS_LIMIT).map(Uint)
