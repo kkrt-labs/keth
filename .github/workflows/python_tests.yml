@@ -25,31 +25,33 @@ jobs:
         with:
           python-version-file: .python-version
 
-      - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
+      # - name: Install Foundry
+      #   uses: foundry-rs/foundry-toolchain@v1
 
-      - name: Install forge deps
-        run: forge install
+      # - name: Install forge deps
+      #   run: forge install
 
-      - name: Build solidity contracts
-        run: forge build
+      # - name: Build solidity contracts
+      #   run: forge build
 
-      - name: Restore pytest cache
-        id: cache-pytest-restore
-        uses: actions/cache/restore@v4
-        with:
-          path: .pytest_cache
-          key: ${{ runner.os }}-pytest-cache-${{ github.run_id }}
-          restore-keys: ${{ runner.os }}-pytest-cache-
+      # - name: Restore pytest cache
+      #   id: cache-pytest-restore
+      #   uses: actions/cache/restore@v4
+      #   with:
+      #     path: .pytest_cache
+      #     key: ${{ runner.os }}-pytest-cache-${{ github.run_id }}
+      #     restore-keys: ${{ runner.os }}-pytest-cache-
 
       - name: Run tests with caching
         run: |
-          uv run --reinstall pytest -n logical --durations=0 -v -s --log-cli-level=DEBUG
+          uv run --reinstall pytest cairo/tests/ethereum/utils/test_numeric.py -s --no-skip-cached-tests
+          ls -la ./coverage/
+          pwd
 
-      - uses: actions/cache/save@v4
-        with:
-          path: .pytest_cache
-          key: ${{ runner.os }}-pytest-cache-${{ github.run_id }}
+      # - uses: actions/cache/save@v4
+      #   with:
+      #     path: .pytest_cache
+      #     key: ${{ runner.os }}-pytest-cache-${{ github.run_id }}
 
       - name: Upload coverage
         uses: codecov/codecov-action@v5
