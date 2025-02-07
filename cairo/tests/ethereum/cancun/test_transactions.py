@@ -14,8 +14,9 @@ from ethereum.cancun.transactions import (
     signing_hash_pre155,
     validate_transaction,
 )
-from ethereum_types.numeric import U64
-from hypothesis import given
+from ethereum_types.bytes import Bytes0
+from ethereum_types.numeric import U64, U256, Uint
+from hypothesis import example, given
 
 from tests.utils.errors import strict_raises
 
@@ -26,6 +27,20 @@ class TestTransactions:
         assert calculate_intrinsic_cost(tx) == cairo_run("calculate_intrinsic_cost", tx)
 
     @given(tx=...)
+    # Test case where contract creation code size is not valid
+    @example(
+        tx=LegacyTransaction(
+            value=U256(0),
+            nonce=U256(0),
+            data=bytes(b"0" * 49153),
+            to=Bytes0(),
+            gas=Uint(50_000),
+            gas_price=Uint(0),
+            v=U256(0),
+            r=U256(0),
+            s=U256(0),
+        )
+    )
     def test_validate_transaction(self, cairo_run_py, tx: Transaction):
         try:
             result_cairo = cairo_run_py("validate_transaction", tx)
