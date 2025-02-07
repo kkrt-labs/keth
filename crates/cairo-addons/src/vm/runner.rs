@@ -180,6 +180,14 @@ impl PyCairoRunner {
         Ok(())
     }
 
+    fn relocate(&mut self) -> PyResult<()> {
+        self.inner
+            .relocate(true)
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+
+        Ok(())
+    }
+
     #[getter]
     fn relocated_trace(&self) -> PyResult<Vec<PyRelocatedTraceEntry>> {
         Ok(self
