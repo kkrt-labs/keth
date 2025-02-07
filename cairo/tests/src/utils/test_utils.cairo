@@ -10,7 +10,6 @@ from starkware.cairo.common.dict_access import DictAccess
 from src.utils.dict import dict_squash
 from src.utils.utils import Helpers
 from src.constants import Constants
-from tests.utils.dict import dict_keys
 
 func test__bytes_to_uint256{range_check_ptr}() -> Uint256 {
     alloc_locals;
