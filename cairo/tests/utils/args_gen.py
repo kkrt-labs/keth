@@ -638,7 +638,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     **vm_exception_mappings,
     **ethereum_exception_mappings,
     # For tests only
-    ("tests", "src", "utils", "test_dict", "MappingUintUint"): Mapping[Uint, Uint],
+    ("tests", "legacy", "utils", "test_dict", "MappingUintUint"): Mapping[Uint, Uint],
 }
 
 # In the EELS, some functions are annotated with Sequence while it's actually just Bytes.
