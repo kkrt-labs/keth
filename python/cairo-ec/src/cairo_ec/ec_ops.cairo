@@ -3,6 +3,7 @@ from starkware.cairo.common.registers import get_label_location
 from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
 
 from cairo_ec.curve.g1_point import G1Point
+from cairo_ec.circuits.ec_ops_compiled import ec_add as ec_add_unchecked, ec_double
 from cairo_ec.uint384 import uint384_is_neg_mod_p, uint384_eq_mod_p, felt_to_uint384
 from cairo_ec.circuits.ec_ops_compiled import assert_is_on_curve
 
@@ -57,96 +58,13 @@ func get_random_point{
     return get_random_point(seed=seed, a=a, b=b, g=g, p=p);
 }
 
-// Add Double an EC point. Doesn't check if the input is on curve nor if it's the point at infinity.
-func ec_double{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
-    p: G1Point, g: UInt384, a: UInt384, modulus: UInt384
-) -> G1Point {
-    alloc_locals;
-
-    let add_mod_n = 6;
-    let (add_offsets_ptr) = get_label_location(ec_double_add_offsets_label);
-    let mul_mod_n = 5;
-    let (mul_offsets_ptr) = get_label_location(ec_double_mul_offsets_label);
-
-    let input: UInt384* = cast(range_check96_ptr, UInt384*);
-    assert input[0] = g;
-    assert input[1] = p.x;
-    assert input[2] = p.y;
-    assert input[3] = a;
-
-    assert add_mod_ptr[0] = ModBuiltin(
-        p=modulus, values_ptr=input, offsets_ptr=add_offsets_ptr, n=add_mod_n
-    );
-    assert mul_mod_ptr[0] = ModBuiltin(
-        p=modulus, values_ptr=input, offsets_ptr=mul_offsets_ptr, n=mul_mod_n
-    );
-
-    %{
-        from starkware.cairo.lang.builtins.modulo.mod_builtin_runner import ModBuiltinRunner
-        assert builtin_runners["add_mod_builtin"].instance_def.batch_size == 1
-        assert builtin_runners["mul_mod_builtin"].instance_def.batch_size == 1
-
-        ModBuiltinRunner.fill_memory(
-            memory=memory,
-            add_mod=(ids.add_mod_ptr.address_, builtin_runners["add_mod_builtin"], ids.add_mod_n),
-            mul_mod=(ids.mul_mod_ptr.address_, builtin_runners["mul_mod_builtin"], ids.mul_mod_n),
-        )
-    %}
-
-    let add_mod_ptr = &add_mod_ptr[add_mod_n];
-    let mul_mod_ptr = &mul_mod_ptr[mul_mod_n];
-    let res = G1Point(
-        x=[cast(range_check96_ptr + 44, UInt384*)], y=[cast(range_check96_ptr + 56, UInt384*)]
-    );
-    let range_check96_ptr = range_check96_ptr + 60;  // 56 is the last start index in the offset_ptr array
-
-    return res;
-
-    ec_double_add_offsets_label:
-    dw 20;
-    dw 12;
-    dw 24;
-    dw 8;
-    dw 8;
-    dw 28;
-    dw 4;
-    dw 40;
-    dw 36;
-    dw 4;
-    dw 44;
-    dw 40;
-    dw 44;
-    dw 48;
-    dw 4;
-    dw 8;
-    dw 56;
-    dw 52;
-
-    ec_double_mul_offsets_label:
-    dw 4;
-    dw 4;
-    dw 16;
-    dw 0;
-    dw 16;
-    dw 20;
-    dw 28;
-    dw 32;
-    dw 24;
-    dw 32;
-    dw 32;
-    dw 36;
-    dw 32;
-    dw 48;
-    dw 52;
-}
-
 // Add two EC points. Doesn't check if the inputs are on curve nor if they are the point at infinity.
 func ec_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
     p: G1Point, q: G1Point, g: UInt384, a: UInt384, modulus: UInt384
 ) -> G1Point {
     alloc_locals;
     let same_x = uint384_eq_mod_p(p.x, q.x, modulus);
-
+    let (__fp__, __pc__) = get_fp_and_pc();
     if (same_x != 0) {
         let opposite_y = uint384_is_neg_mod_p(p.y, q.y, modulus);
         if (opposite_y != 0) {
@@ -155,77 +73,16 @@ func ec_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: Mod
             return res;
         }
 
-        return ec_double(p, g, a, modulus);
+
+        let (res_x, res_y) = ec_double(&p.x, &p.y, &a, &modulus);
+        let res = G1Point(x=[res_x], y=[res_y]);
+        return res;
     }
 
-    let add_mod_n = 6;
-    let (add_offsets_ptr) = get_label_location(ec_add_add_offsets_label);
-    let mul_mod_n = 3;
-    let (mul_offsets_ptr) = get_label_location(ec_add_mul_offsets_label);
-    let input: UInt384* = cast(range_check96_ptr, UInt384*);
-    assert input[0] = p.x;
-    assert input[1] = p.y;
-    assert input[2] = q.x;
-    assert input[3] = q.y;
-
-    assert add_mod_ptr[0] = ModBuiltin(
-        p=modulus, values_ptr=input, offsets_ptr=add_offsets_ptr, n=add_mod_n
-    );
-    assert mul_mod_ptr[0] = ModBuiltin(
-        p=modulus, values_ptr=input, offsets_ptr=mul_offsets_ptr, n=mul_mod_n
-    );
-
-    %{
-        from starkware.cairo.lang.builtins.modulo.mod_builtin_runner import ModBuiltinRunner
-        assert builtin_runners["add_mod_builtin"].instance_def.batch_size == 1
-        assert builtin_runners["mul_mod_builtin"].instance_def.batch_size == 1
-
-        ModBuiltinRunner.fill_memory(
-            memory=memory,
-            add_mod=(ids.add_mod_ptr.address_, builtin_runners["add_mod_builtin"], ids.add_mod_n),
-            mul_mod=(ids.mul_mod_ptr.address_, builtin_runners["mul_mod_builtin"], ids.mul_mod_n),
-        )
-    %}
-
-    let add_mod_ptr = &add_mod_ptr[add_mod_n];
-    let mul_mod_ptr = &mul_mod_ptr[mul_mod_n];
-    let range_check96_ptr = range_check96_ptr + 52;  // 48 is the last start index in the offset_ptr array
-
-    let res = G1Point(
-        x=[cast(cast(input, felt*) + 36, UInt384*)], y=[cast(cast(input, felt*) + 48, UInt384*)]
-    );
+    let (res_x, res_y) = ec_add_unchecked(&p.x, &p.y, &q.x, &q.y, &modulus);
+    let res = G1Point(x=[res_x], y=[res_y]);
     return res;
 
-    ec_add_add_offsets_label:
-    dw 12;
-    dw 16;
-    dw 4;
-    dw 8;
-    dw 20;
-    dw 0;
-    dw 0;
-    dw 32;
-    dw 28;
-    dw 8;
-    dw 36;
-    dw 32;
-    dw 36;
-    dw 40;
-    dw 0;
-    dw 4;
-    dw 48;
-    dw 44;
-
-    ec_add_mul_offsets_label:
-    dw 20;
-    dw 24;
-    dw 16;
-    dw 24;
-    dw 24;
-    dw 28;
-    dw 24;
-    dw 40;
-    dw 44;
 }
 
 // Multiply an EC point by a scalar. Doesn't check if the input is on curve nor if it's the point at infinity.
