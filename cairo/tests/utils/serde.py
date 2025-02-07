@@ -69,6 +69,7 @@ from starkware.cairo.lang.compiler.identifier_definition import (
 from starkware.cairo.lang.compiler.identifier_manager import MissingIdentifierError
 from starkware.cairo.lang.compiler.scoped_name import ScopedName
 from starkware.cairo.lang.vm.crypto import poseidon_hash_many
+from starkware.cairo.lang.vm.memory_dict import UnknownMemoryError
 from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 
 from cairo_addons.testing.serde import SerdeProtocol
