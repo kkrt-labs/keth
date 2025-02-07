@@ -14,7 +14,6 @@ from starkware.cairo.common.alloc import alloc
 
 from cairo_core.maths import unsigned_div_rem, assert_uint256_le
 from cairo_ec.uint384 import uint384_to_uint256, uint256_to_uint384
-
 from cairo_ec.curve.secp256k1 import (
     secp256k1,
     try_recover_public_key,

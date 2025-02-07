@@ -61,8 +61,8 @@ def compute_y_from_x_hint(ids: VmConsts, segments: MemorySegmentManager):
     x = uint384_to_int(ids.x.d0, ids.x.d1, ids.x.d2, ids.x.d3)
     rhs = (x**3 + a * x + b) % p
 
-    ids.is_on_curve = is_quad_residue(rhs, p)
-    if ids.is_on_curve == 1:
+    is_on_curve = is_quad_residue(rhs, p)
+    if is_on_curve == 1:
         square_root = sqrt_mod(rhs, p)
         if ids.v % 2 == square_root % 2:
             pass
@@ -72,6 +72,7 @@ def compute_y_from_x_hint(ids: VmConsts, segments: MemorySegmentManager):
         square_root = sqrt_mod(rhs * g, p)
 
     segments.load_data(ids.y_try.address_, int_to_uint384(square_root))
+    segments.load_data(ids.is_on_curve.address_, int_to_uint384(is_on_curve))
 
 
 @register_hint

@@ -21,3 +21,20 @@ func ec_double(x0: felt, y0: felt, a: felt) -> (felt, felt) {
 
     end:
 }
+
+// @dev Assert that a point is, or is not, on the curve by checking that either y is actually the square root of rhs
+//      (is_on_curve = True => y^2 = rhs) or y is the square root of rhs * g (is_on_curve = False => y^2 = rhs * g),
+//      which mean that rhs is not a quadratic residue because g * rhs is, and so that x is not on the curve.
+// @param x The x coordinate of the point
+// @param y The y coordinate of the point
+// @param g The generator point
+// @param is_on_curve True if the point is on the curve, False otherwise
+func assert_is_on_curve(x: felt, y: felt, a: felt, b: felt, g: felt, is_on_curve: felt) {
+    assert is_on_curve * (1 - is_on_curve) = 0;
+    tempvar rhs = x * x * x + a * x + b;
+    assert y * y = rhs * is_on_curve + g * rhs * (1 - is_on_curve);
+
+    return ();
+
+    end:
+}

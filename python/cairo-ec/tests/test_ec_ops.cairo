@@ -24,7 +24,7 @@ func test__try_get_point_from_x{
         segments.write_arg(ids.p_ptr.address_, program_input["p"])
     %}
 
-    let (y, is_on_curve) = try_get_point_from_x(x=[x_ptr], v=v, a=a_ptr, b=b_ptr, g=g_ptr, p=p_ptr);
+    let (y, is_on_curve) = try_get_point_from_x(x=x_ptr, v=v, a=a_ptr, b=b_ptr, g=g_ptr, p=p_ptr);
     // serde doesn't handle non pointer types in tuples
     tempvar y_ptr = new UInt384(y.d0, y.d1, y.d2, y.d3);
     return (y_ptr, is_on_curve);

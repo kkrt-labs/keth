@@ -135,11 +135,11 @@ func try_recover_public_key{
     local g: UInt384 = UInt384(secp256k1.G0, secp256k1.G1, secp256k1.G2, secp256k1.G3);
     local p: UInt384 = UInt384(secp256k1.P0, secp256k1.P1, secp256k1.P2, secp256k1.P3);
 
-    let (y, is_on_curve) = try_get_point_from_x(x=r, v=y_parity, a=&a, b=&b, g=&g, p=&p);
+    let (y, is_on_curve) = try_get_point_from_x(x=&r, v=y_parity, a=&a, b=&b, g=&g, p=&p);
     if (is_on_curve == 0) {
         return (public_key_point=G1Point(x=UInt384(0, 0, 0, 0), y=UInt384(0, 0, 0, 0)), success=0);
     }
-    let r_point = G1Point(x=r, y=y);
+    let r_point = G1Point(x=r, y=[y]);
     // The result is given by
     //   -(msg_hash / r) * gen + (s / r) * r_point
     // where the division by r is modulo N.
