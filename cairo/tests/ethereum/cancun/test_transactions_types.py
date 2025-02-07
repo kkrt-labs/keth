@@ -32,7 +32,7 @@ class TestTransactionImpl:
         result_cairo = cairo_run("get_gas", tx)
         assert result_cairo == gas
 
-    @given(tx=...)  # TODO: Add transaction strategy
+    @given(tx=...)
     def test_get_r(self, cairo_run, tx: Transaction):
         r = tx.r
         result_cairo = cairo_run("get_r", tx)
@@ -46,7 +46,6 @@ class TestTransactionImpl:
 
     @given(tx=...)
     def test_get_max_fee_per_gas(self, cairo_run, tx: Transaction):
-
         assume(isinstance(tx, FeeMarketTransaction) or isinstance(tx, BlobTransaction))
         max_fee_per_gas = tx.max_fee_per_gas
         result_cairo = cairo_run("get_max_fee_per_gas", tx)
@@ -68,7 +67,7 @@ class TestTransactionImpl:
         result_cairo = cairo_run("get_gas_price", tx)
         assert result_cairo == gas_price
 
-    @given(tx=...)  # TODO: Add transaction strategy
+    @given(tx=...)
     def test_get_nonce(self, cairo_run, tx: Transaction):
         nonce = tx.nonce
         result_cairo = cairo_run("get_nonce", tx)
