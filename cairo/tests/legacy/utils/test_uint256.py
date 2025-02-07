@@ -2,7 +2,7 @@ import pytest
 from hypothesis import given, settings
 from hypothesis.strategies import integers
 
-from legacy.utils.uint256 import int_to_uint256, uint256_to_int
+from cairo_addons.utils.uint256 import int_to_uint256, uint256_to_int
 
 pytestmark = pytest.mark.python_vm
 

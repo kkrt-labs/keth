@@ -11,7 +11,7 @@ from eth_utils.hexadecimal import decode_hex
 from ethereum_types.numeric import U256
 from starkware.cairo.lang.vm.crypto import pedersen_hash
 
-from legacy.utils.uint256 import int_to_uint256
+from cairo_addons.utils.uint256 import int_to_uint256
 from tests.utils.parsers import to_bytes, to_int
 
 
