@@ -54,13 +54,8 @@ func add{
 
     // OPERATION
     let (result, _) = uint256_add([x.value], [y.value]);
-    with stack {
-        let err4 = push(U256(new U256Struct(result.low, result.high)));
-        if (cast(err4, felt) != 0) {
-            EvmImpl.set_stack(stack);
-            return err4;
-        }
-    }
+    // cannot fail with StackOverflowError, 2 elements were popped
+    push{stack=stack}(U256(new U256Struct(result.low, result.high)));
 
     // PROGRAM COUNTER
     EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
@@ -101,13 +96,8 @@ func sub{
 
     // OPERATION
     let (result) = uint256_sub([x.value], [y.value]);
-    with stack {
-        let err4 = push(U256(new U256Struct(result.low, result.high)));
-        if (cast(err4, felt) != 0) {
-            EvmImpl.set_stack(stack);
-            return err4;
-        }
-    }
+    // cannot fail with StackOverflowError, 2 elements were popped
+    push{stack=stack}(U256(new U256Struct(result.low, result.high)));
 
     // PROGRAM COUNTER
     EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
@@ -148,13 +138,8 @@ func mul{
 
     // OPERATION
     let (result, _) = uint256_mul([x.value], [y.value]);
-    with stack {
-        let err4 = push(U256(new U256Struct(result.low, result.high)));
-        if (cast(err4, felt) != 0) {
-            EvmImpl.set_stack(stack);
-            return err4;
-        }
-    }
+    // cannot fail with StackOverflowError, 2 elements were popped
+    push{stack=stack}(U256(new U256Struct(result.low, result.high)));
 
     // PROGRAM COUNTER
     EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
@@ -197,19 +182,13 @@ func div{
     with stack {
         let (is_zero) = uint256_eq([y.value], U256Struct(0, 0));
         if (is_zero != 0) {
-            let err4 = push(U256(new U256Struct(0, 0)));
-            if (cast(err4, felt) != 0) {
-                EvmImpl.set_stack(stack);
-                return err4;
-            }
+            // cannot fail with StackOverflowError, 2 elements were popped
+            push{stack=stack}(U256(new U256Struct(0, 0)));
             tempvar range_check_ptr = range_check_ptr;
         } else {
             let (result, _) = uint256_unsigned_div_rem([x.value], [y.value]);
-            let err4 = push(U256(new U256Struct(result.low, result.high)));
-            if (cast(err4, felt) != 0) {
-                EvmImpl.set_stack(stack);
-                return err4;
-            }
+            // cannot fail with StackOverflowError, 2 elements were popped
+            push{stack=stack}(U256(new U256Struct(result.low, result.high)));
             tempvar range_check_ptr = range_check_ptr;
         }
     }
@@ -253,13 +232,8 @@ func sdiv{
 
     // OPERATION
     let (result, _) = uint256_signed_div_rem([x.value], [y.value]);
-    with stack {
-        let err4 = push(U256(new U256Struct(result.low, result.high)));
-        if (cast(err4, felt) != 0) {
-            EvmImpl.set_stack(stack);
-            return err4;
-        }
-    }
+    // cannot fail with StackOverflowError, 2 elements were popped
+    push{stack=stack}(U256(new U256Struct(result.low, result.high)));
 
     // PROGRAM COUNTER
     EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
@@ -302,19 +276,13 @@ func mod{
     with stack {
         let (is_zero) = uint256_eq([y.value], U256Struct(0, 0));
         if (is_zero != 0) {
-            let err4 = push(U256(new U256Struct(0, 0)));
-            if (cast(err4, felt) != 0) {
-                EvmImpl.set_stack(stack);
-                return err4;
-            }
+            // cannot fail with StackOverflowError, 2 elements were popped
+            push{stack=stack}(U256(new U256Struct(0, 0)));
             tempvar range_check_ptr = range_check_ptr;
         } else {
             let (_, remainder) = uint256_unsigned_div_rem([x.value], [y.value]);
-            let err4 = push(U256(new U256Struct(remainder.low, remainder.high)));
-            if (cast(err4, felt) != 0) {
-                EvmImpl.set_stack(stack);
-                return err4;
-            }
+            // cannot fail with StackOverflowError, 2 elements were popped
+            push{stack=stack}(U256(new U256Struct(remainder.low, remainder.high)));
             tempvar range_check_ptr = range_check_ptr;
         }
     }
@@ -360,19 +328,13 @@ func smod{
     with stack {
         let (is_zero) = uint256_eq([y.value], U256Struct(0, 0));
         if (is_zero != 0) {
-            let err4 = push(U256(new U256Struct(0, 0)));
-            if (cast(err4, felt) != 0) {
-                EvmImpl.set_stack(stack);
-                return err4;
-            }
+            // cannot fail with StackOverflowError, 2 elements were popped
+            push{stack=stack}(U256(new U256Struct(0, 0)));
             tempvar range_check_ptr = range_check_ptr;
         } else {
             let (_, remainder) = uint256_signed_div_rem([x.value], [y.value]);
-            let err4 = push(U256(new U256Struct(remainder.low, remainder.high)));
-            if (cast(err4, felt) != 0) {
-                EvmImpl.set_stack(stack);
-                return err4;
-            }
+            // cannot fail with StackOverflowError, 2 elements were popped
+            push{stack=stack}(U256(new U256Struct(remainder.low, remainder.high)));
             tempvar range_check_ptr = range_check_ptr;
         }
     }
@@ -422,13 +384,8 @@ func addmod{
     // OPERATION
     let (is_zero) = uint256_eq([n.value], U256Struct(0, 0));
     if (is_zero != 0) {
-        with stack {
-            let err5 = push(U256(new U256Struct(0, 0)));
-            if (cast(err5, felt) != 0) {
-                EvmImpl.set_stack(stack);
-                return err5;
-            }
-        }
+        // cannot fail with StackOverflowError, 3 elements were popped
+        push{stack=stack}(U256(new U256Struct(0, 0)));
         // early return if n is zero
         EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
         let ok = cast(0, EthereumException*);
@@ -450,13 +407,8 @@ func addmod{
         let (overflown_part) = uint256_sub([n.value], sum);
         let (to_remove) = uint256_sub(overflown_part, U256Struct(1, 0));
         let (result) = uint256_sub(max_u256, to_remove);
-        with stack {
-            let err6 = push(U256(new U256Struct(result.low, result.high)));
-            if (cast(err6, felt) != 0) {
-                EvmImpl.set_stack(stack);
-                return err6;
-            }
-        }
+        // cannot fail with StackOverflowError, 3 elements were popped
+        push{stack=stack}(U256(new U256Struct(result.low, result.high)));
         EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
         let ok = cast(0, EthereumException*);
         return ok;
@@ -464,27 +416,16 @@ func addmod{
 
     let (is_sum_lt_n) = uint256_lt(sum, [n.value]);
     if (is_sum_lt_n != 0) {
-        with stack {
-            let err7 = push(U256(new U256Struct(sum.low, sum.high)));
-            if (cast(err7, felt) != 0) {
-                EvmImpl.set_stack(stack);
-                return err7;
-            }
-        }
-        EvmImpl.set_stack(stack);
-        EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
+        // cannot fail with StackOverflowError, 3 elements were popped
+        push{stack=stack}(U256(new U256Struct(sum.low, sum.high)));
+        EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
         let ok = cast(0, EthereumException*);
         return ok;
     }
 
     let (result) = uint256_sub(sum, [n.value]);
-    with stack {
-        let err8 = push(U256(new U256Struct(result.low, result.high)));
-        if (cast(err8, felt) != 0) {
-            EvmImpl.set_stack(stack);
-            return err8;
-        }
-    }
+    // cannot fail with StackOverflowError, 3 elements were popped
+    push{stack=stack}(U256(new U256Struct(result.low, result.high)));
     EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
     let ok = cast(0, EthereumException*);
     return ok;
@@ -529,28 +470,16 @@ func mulmod{
     // OPERATION
     let (is_zero) = uint256_eq([n.value], U256Struct(0, 0));
     if (is_zero != 0) {
-        with stack {
-            let err5 = push(U256(new U256Struct(0, 0)));
-            if (cast(err5, felt) != 0) {
-                EvmImpl.set_stack(stack);
-                return err5;
-            }
-        }
-
-        // PROGRAM COUNTER
+        // cannot fail with StackOverflowError, 3 elements were popped
+        push{stack=stack}(U256(new U256Struct(0, 0)));
         EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
         let ok = cast(0, EthereumException*);
         return ok;
     }
 
     let (_, _, result) = uint256_mul_div_mod([a.value], [b.value], [n.value]);
-    with stack {
-        let err6 = push(U256(new U256Struct(result.low, result.high)));
-        if (cast(err6, felt) != 0) {
-            EvmImpl.set_stack(stack);
-            return err6;
-        }
-    }
+    // cannot fail with StackOverflowError, 3 elements were popped
+    push{stack=stack}(U256(new U256Struct(result.low, result.high)));
 
     // PROGRAM COUNTER
     EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
@@ -606,13 +535,8 @@ func exp{
 
     // OPERATION
     let result = uint256_fast_exp([base.value], [exponent.value]);
-    with stack {
-        let err4 = push(U256(new U256Struct(result.low, result.high)));
-        if (cast(err4, felt) != 0) {
-            EvmImpl.set_stack(stack);
-            return err4;
-        }
-    }
+    // cannot fail with StackOverflowError, 2 elements were popped
+    push{stack=stack}(U256(new U256Struct(result.low, result.high)));
 
     // PROGRAM COUNTER
     EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
@@ -653,13 +577,8 @@ func signextend{
 
     // OPERATION
     let result = uint256_signextend([value.value], [byte_num.value]);
-    with stack {
-        let err4 = push(U256(new U256Struct(result.low, result.high)));
-        if (cast(err4, felt) != 0) {
-            EvmImpl.set_stack(stack);
-            return err4;
-        }
-    }
+    // cannot fail with StackOverflowError, 2 elements were popped
+    push{stack=stack}(U256(new U256Struct(result.low, result.high)));
 
     // PROGRAM COUNTER
     let ok = cast(0, EthereumException*);
