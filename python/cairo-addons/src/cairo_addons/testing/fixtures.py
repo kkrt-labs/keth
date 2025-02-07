@@ -83,6 +83,8 @@ def coverage(cairo_program: Program, cairo_file: Path, worker_id: str):
                 "line_number": i,
             }
             for instruction in cairo_program.debug_info.instruction_locations.values()
+            # No scope other than the global scope means that it's a dw instruction
+            if len(instruction.accessible_scopes) > 1
             for i in range(instruction.inst.start_line, instruction.inst.end_line + 1)
         ]
     ).with_columns(
