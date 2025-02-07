@@ -2,7 +2,7 @@ import copy
 from typing import Optional
 
 import pytest
-from ethereum.cancun.fork_types import Account, Address
+from ethereum.cancun.fork_types import EMPTY_ACCOUNT, Account, Address
 from ethereum.cancun.state import (
     account_exists,
     account_exists_and_is_empty,
@@ -377,6 +377,19 @@ class TestStateAccounts:
     @given(data=touched_accounts_strategy())
     def test_destroy_touched_empty_accounts(self, cairo_run, data):
         state, touched_accounts = data
+        state_cairo = cairo_run(
+            "destroy_touched_empty_accounts", state, touched_accounts
+        )
+        destroy_touched_empty_accounts(state, touched_accounts)
+        assert state_cairo == state
+
+    @given(data=touched_accounts_strategy(), address=...)
+    def test_destroy_touched_empty_accounts_with_empty_account(
+        self, cairo_run, data, address: Address
+    ):
+        state, touched_accounts = data
+        touched_accounts.add(address)
+        set_account(state, address, EMPTY_ACCOUNT)
         state_cairo = cairo_run(
             "destroy_touched_empty_accounts", state, touched_accounts
         )
