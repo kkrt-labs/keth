@@ -30,7 +30,6 @@ from ethereum.cancun.transactions_types import (
     BlobTransactionStruct,
     To,
     ToStruct,
-    TransactionImpl,
     TupleAccessListStruct,
     TX_BASE_COST,
     TX_DATA_COST_PER_NON_ZERO,
@@ -38,6 +37,8 @@ from ethereum.cancun.transactions_types import (
     TX_CREATE_COST,
     TX_ACCESS_LIST_ADDRESS_COST,
     TX_ACCESS_LIST_STORAGE_KEY_COST,
+    get_r,
+    get_s,
 )
 
 from ethereum.crypto.hash import keccak256, Hash32
@@ -250,8 +251,8 @@ func recover_sender{
     );
     tempvar zero = U256(new U256Struct(low=0, high=0));
 
-    let r = TransactionImpl.get_r(tx);
-    let s = TransactionImpl.get_s(tx);
+    let r = get_r(tx);
+    let s = get_s(tx);
 
     let r_is_zero = U256__eq__(r, zero);
     let r_is_out_of_range = U256_le(SECP256K1N, r);

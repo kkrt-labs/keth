@@ -128,6 +128,164 @@ namespace TransactionType {
     const BLOB = 3;
 }
 
+func get_transaction_type(tx: Transaction) -> felt {
+    if (cast(tx.value.legacy_transaction.value, felt) != 0) {
+        return TransactionType.LEGACY;
+    }
+    if (cast(tx.value.access_list_transaction.value, felt) != 0) {
+        return TransactionType.ACCESS_LIST;
+    }
+    if (cast(tx.value.fee_market_transaction.value, felt) != 0) {
+        return TransactionType.FEE_MARKET;
+    }
+    if (cast(tx.value.blob_transaction.value, felt) != 0) {
+        return TransactionType.BLOB;
+    }
+    with_attr error_message("InvalidTransaction") {
+        assert 0 = 1;
+        return 0;
+    }
+}
+func get_gas(tx: Transaction) -> Uint {
+    let tx_type = get_transaction_type(tx);
+    if (tx_type == TransactionType.LEGACY) {
+        return tx.value.legacy_transaction.value.gas;
+    }
+    if (tx_type == TransactionType.ACCESS_LIST) {
+        return tx.value.access_list_transaction.value.gas;
+    }
+    if (tx_type == TransactionType.FEE_MARKET) {
+        return tx.value.fee_market_transaction.value.gas;
+    }
+    if (tx_type == TransactionType.BLOB) {
+        return tx.value.blob_transaction.value.gas;
+    }
+    with_attr error_message("InvalidTransaction") {
+        assert 0 = 1;
+        let res = Uint(0);
+        return res;
+    }
+}
+func get_r(tx: Transaction) -> U256 {
+    let tx_type = get_transaction_type(tx);
+    if (tx_type == TransactionType.LEGACY) {
+        return tx.value.legacy_transaction.value.r;
+    }
+    if (tx_type == TransactionType.ACCESS_LIST) {
+        return tx.value.access_list_transaction.value.r;
+    }
+    if (tx_type == TransactionType.FEE_MARKET) {
+        return tx.value.fee_market_transaction.value.r;
+    }
+    if (tx_type == TransactionType.BLOB) {
+        return tx.value.blob_transaction.value.r;
+    }
+    with_attr error_message("InvalidTransaction") {
+        assert 0 = 1;
+        tempvar res = U256(new U256Struct(0, 0));
+        return res;
+    }
+}
+func get_s(tx: Transaction) -> U256 {
+    let tx_type = get_transaction_type(tx);
+    if (tx_type == TransactionType.LEGACY) {
+        return tx.value.legacy_transaction.value.s;
+    }
+    if (tx_type == TransactionType.ACCESS_LIST) {
+        return tx.value.access_list_transaction.value.s;
+    }
+    if (tx_type == TransactionType.FEE_MARKET) {
+        return tx.value.fee_market_transaction.value.s;
+    }
+    if (tx_type == TransactionType.BLOB) {
+        return tx.value.blob_transaction.value.s;
+    }
+    with_attr error_message("InvalidTransaction") {
+        assert 0 = 1;
+        tempvar res = U256(new U256Struct(0, 0));
+        return res;
+    }
+}
+func get_max_fee_per_gas(tx: Transaction) -> Uint {
+    let tx_type = get_transaction_type(tx);
+    if (tx_type == TransactionType.FEE_MARKET) {
+        return tx.value.fee_market_transaction.value.max_fee_per_gas;
+    }
+    if (tx_type == TransactionType.BLOB) {
+        return tx.value.blob_transaction.value.max_fee_per_gas;
+    }
+    with_attr error_message("InvalidTransaction") {
+        assert 0 = 1;
+        let res = Uint(0);
+        return res;
+    }
+}
+func get_max_priority_fee_per_gas(tx: Transaction) -> Uint {
+    let tx_type = get_transaction_type(tx);
+    if (tx_type == TransactionType.FEE_MARKET) {
+        return tx.value.fee_market_transaction.value.max_priority_fee_per_gas;
+    }
+    if (tx_type == TransactionType.BLOB) {
+        return tx.value.blob_transaction.value.max_priority_fee_per_gas;
+    }
+    with_attr error_message("InvalidTransaction") {
+        assert 0 = 1;
+        let res = Uint(0);
+        return res;
+    }
+}
+func get_gas_price(tx: Transaction) -> Uint {
+    let tx_type = get_transaction_type(tx);
+    if (tx_type == TransactionType.LEGACY) {
+        return tx.value.legacy_transaction.value.gas_price;
+    }
+    if (tx_type == TransactionType.ACCESS_LIST) {
+        return tx.value.access_list_transaction.value.gas_price;
+    }
+    with_attr error_message("InvalidTransaction") {
+        assert 0 = 1;
+        let res = Uint(0);
+        return res;
+    }
+}
+func get_nonce(tx: Transaction) -> U256 {
+    let tx_type = get_transaction_type(tx);
+    if (tx_type == TransactionType.LEGACY) {
+        return tx.value.legacy_transaction.value.nonce;
+    }
+    if (tx_type == TransactionType.ACCESS_LIST) {
+        return tx.value.access_list_transaction.value.nonce;
+    }
+    if (tx_type == TransactionType.FEE_MARKET) {
+        return tx.value.fee_market_transaction.value.nonce;
+    }
+    if (tx_type == TransactionType.BLOB) {
+        return tx.value.blob_transaction.value.nonce;
+    }
+    with_attr error_message("InvalidTransaction") {
+        assert 0 = 1;
+        tempvar res = U256(new U256Struct(0, 0));
+        return res;
+    }
+}
+func get_value(tx: Transaction) -> U256 {
+    let tx_type = get_transaction_type(tx);
+    if (tx_type == TransactionType.LEGACY) {
+        return tx.value.legacy_transaction.value.value;
+    }
+    if (tx_type == TransactionType.ACCESS_LIST) {
+        return tx.value.access_list_transaction.value.value;
+    }
+    if (tx_type == TransactionType.FEE_MARKET) {
+        return tx.value.fee_market_transaction.value.value;
+    }
+    if (tx_type == TransactionType.BLOB) {
+        return tx.value.blob_transaction.value.value;
+    }
+    with_attr error_message("InvalidTransaction") {
+        assert 0 = 1;
+        tempvar res = U256(new U256Struct(0, 0));
+        return res;
 namespace TransactionImpl {
     func get_transaction_type(tx: Transaction) -> felt {
         if (cast(tx.value.legacy_transaction.value, felt) != 0) {
