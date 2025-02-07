@@ -4,10 +4,11 @@ from ethereum.cancun.vm.instructions import Ops, op_implementation
 from hypothesis import given
 
 from tests.utils.errors import strict_raises
+from tests.utils.evm_builder import EvmBuilder
 from tests.utils.strategies import uint8
 
 
-@given(evm=..., opcode=uint8)
+@given(evm=EvmBuilder().with_stack().with_gas_left().build(), opcode=uint8)
 def test_op_implementation(cairo_run, evm: Evm, opcode):
     try:
         cairo_evm = cairo_run("test_op_implementation", evm, opcode)
