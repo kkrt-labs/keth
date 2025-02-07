@@ -13,9 +13,9 @@ from ethereum.cancun.vm.instructions.arithmetic import (
     sub,
 )
 from ethereum.cancun.vm.stack import push
+from ethereum_types.numeric import U256
 from hypothesis import given
 
-from ethereum_types.numeric import U256
 from tests.utils.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder
 
