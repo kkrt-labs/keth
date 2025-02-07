@@ -167,7 +167,9 @@ func calculate_base_fee_per_gas{range_check_ptr}(
     return base_fee_per_gas;
 }
 
-func validate_header{range_check_ptr}(header: Header, parent_header: Header) {
+func validate_header{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*}(
+    header: Header, parent_header: Header
+) {
     with_attr error_message("InvalidBlock") {
         assert [range_check_ptr] = header.value.gas_limit.value - header.value.gas_used.value;
         let range_check_ptr = range_check_ptr + 1;
@@ -180,21 +182,19 @@ func validate_header{range_check_ptr}(header: Header, parent_header: Header) {
         );
 
         assert expected_base_fee_per_gas = header.value.base_fee_per_gas;
-        assert [range_check_ptr] = header.value.timestamp.value -
-            parent_header.value.timestamp.value - 1;
+        U256_sub(header.value.timestamp, parent_header.value.timestamp);
         assert [range_check_ptr + 1] = header.value.number.value -
             parent_header.value.number.value - 1;
         assert [range_check_ptr + 2] = 32 - header.value.extra_data.value.len;
-        let range_check_ptr = range_check_ptr + 3;
+        let range_check_ptr = range_check_ptr + 2;
         assert header.value.difficulty.value = 0;
         assert header.value.nonce.value = 0;
         assert header.value.ommers_hash.value.low = EMPTY_OMMER_HASH_LOW;
         assert header.value.ommers_hash.value.high = EMPTY_OMMER_HASH_HIGH;
     }
 
-    // TODO: Implement block header hash check
-    // let block_parent_hash = keccak256(rlp.encode(parent_header));
-    // assert header.value.parent_hash = block_parent_hash;
+    let parent_block_hash = keccak256_header(parent_header);
+    assert header.value.parent_hash = parent_block_hash;
     return ();
 }
 

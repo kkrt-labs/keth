@@ -29,8 +29,10 @@ from ethereum.cancun.transactions import (
 )
 from ethereum.cancun.vm import Environment
 from ethereum.cancun.vm.gas import TARGET_BLOB_GAS_PER_BLOCK
+from ethereum.crypto.hash import Hash32, keccak256
 from ethereum.exceptions import EthereumException
-from ethereum_types.bytes import Bytes, Bytes0, Bytes20
+from ethereum_rlp import rlp
+from ethereum_types.bytes import Bytes, Bytes0, Bytes8, Bytes20
 from ethereum_types.numeric import U64, U256, Uint
 from hypothesis import assume, given
 from hypothesis import strategies as st
@@ -38,7 +40,16 @@ from hypothesis.strategies import composite, integers
 
 from cairo_addons.testing.errors import strict_raises
 from tests.ethereum.cancun.vm.test_interpreter import unimplemented_precompiles
-from tests.utils.strategies import account_strategy, address, bytes32, state, uint
+from tests.utils.constants import OMMER_HASH
+from tests.utils.errors import strict_raises
+from tests.utils.strategies import (
+    account_strategy,
+    address,
+    bytes32,
+    small_bytes,
+    state,
+    uint,
+)
 
 MIN_BASE_FEE = 1_000
 
@@ -108,6 +119,60 @@ def tx_with_small_data(draw, gas_strategy=uint, gas_price_strategy=uint):
     tx = draw(st.one_of(legacy_tx, access_list_tx, fee_market_tx, blob_tx))
 
     return tx
+
+
+@composite
+def headers(draw):
+    parent_header = draw(
+        st.builds(
+            Header,
+            difficulty=st.just(0).map(Uint),
+            nonce=st.just(int(0).to_bytes(8, "big")).map(Bytes8),
+            ommers_hash=st.just(OMMER_HASH).map(Hash32),
+            gas_limit=st.integers(min_value=21_000, max_value=2**64 - 1).map(Uint),
+            prev_randao=bytes32,
+            withdrawals_root=bytes32,
+            parent_beacon_block_root=bytes32,
+            transactions_root=bytes32,
+            receipt_root=bytes32,
+        )
+    )
+    correct_base_fee = calculate_base_fee_per_gas(
+        parent_header.gas_limit,
+        parent_header.gas_limit,
+        parent_header.gas_used,
+        parent_header.base_fee_per_gas,
+    )
+    header = draw(
+        st.builds(
+            Header,
+            parent_hash=st.one_of(
+                st.just(keccak256(rlp.encode(parent_header))), st.from_type(Hash32)
+            ),
+            gas_limit=st.just(parent_header.gas_limit),
+            gas_used=st.one_of(uint, st.just(parent_header.gas_limit // Uint(2))),
+            base_fee_per_gas=st.one_of(
+                st.just(correct_base_fee),
+                st.integers(min_value=int(correct_base_fee), max_value=2**64 - 1).map(
+                    Uint
+                ),
+            ),
+            extra_data=small_bytes,
+            difficulty=st.just(0).map(Uint),
+            ommers_hash=st.just(OMMER_HASH).map(Hash32),
+            nonce=st.just(int(0).to_bytes(8, "big")).map(Bytes8),
+            number=st.one_of(
+                st.just(parent_header.number + Uint(1)),
+                uint,
+            ),
+            prev_randao=bytes32,
+            withdrawals_root=bytes32,
+            parent_beacon_block_root=bytes32,
+            transactions_root=bytes32,
+            receipt_root=bytes32,
+        )
+    )
+    return parent_header, header
 
 
 @composite
@@ -219,8 +284,9 @@ class TestFork:
             parent_base_fee_per_gas,
         )
 
-    @given(header=..., parent_header=...)
-    def test_validate_header(self, cairo_run, header: Header, parent_header: Header):
+    @given(headers=headers())
+    def test_validate_header(self, cairo_run, headers: Tuple[Header, Header]):
+        parent_header, header = headers
         try:
             cairo_run("validate_header", header, parent_header)
         except Exception as e:
