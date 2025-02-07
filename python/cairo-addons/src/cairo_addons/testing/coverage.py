@@ -18,17 +18,23 @@ def coverage_from_trace(
                 {
                     "pc": key + program_base,
                     "instruction": str(instruction_location.inst),
+                    "line_number": list(
+                        range(
+                            instruction_location.inst.start_line,
+                            instruction_location.inst.end_line + 1,
+                        )
+                    ),
                 }
                 for key, instruction_location in program.debug_info.instruction_locations.items()
             )
             .with_columns(
                 pl.col("instruction")
-                .str.split_exact(":", 2)
-                .struct.rename_fields(["filename", "line_number", "col"]),
+                .str.split_exact(":", 1)
+                .struct.rename_fields(["filename", "position"]),
             )
             .unnest("instruction")
-            .with_columns(pl.col("line_number").str.to_integer())
-            .drop("col")
+            .drop("position")
+            .explode("line_number")
             .join(trace["pc"].value_counts(), how="right", on="pc")
             .drop("pc")
             .with_columns(

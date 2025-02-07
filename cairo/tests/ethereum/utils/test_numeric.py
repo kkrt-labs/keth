@@ -18,7 +18,10 @@ from tests.utils.strategies import small_bytes, uint128, uint256
 def taylor_exponential_limited(
     factor: Uint, numerator: Uint, denominator: Uint
 ) -> Uint:
-    """Limited version of taylor_exponential that saturates when `numerator_accumulated * numerator` is greater than 2**128 - 1"""
+    """
+    Limited version of taylor_exponential that saturates when
+    `numerator_accumulated * numerator` is greater than 2**128 - 1
+    """
     i = Uint(1)
     output = Uint(0)
     numerator_accumulated = factor * denominator
@@ -76,7 +79,10 @@ class TestNumeric:
     def test_taylor_exponential_limited(
         self, cairo_run, factor: Uint, numerator: Uint, denominator: Uint
     ):
-        """Compares to our limited version of taylor_exponential that saturates when `numerator_accumulated * numerator` is greater than 2**128 - 1"""
+        """
+        Compares to our limited version of taylor_exponential that saturates
+        when `numerator_accumulated * numerator` is greater than 2**128 - 1
+        """
         assert taylor_exponential_limited(factor, numerator, denominator) == cairo_run(
             "taylor_exponential", factor, numerator, denominator
         )

@@ -103,7 +103,7 @@ def coverage(cairo_program: Program, cairo_file: Path, worker_id: str):
     with pl.Config() as cfg:
         cfg.set_tbl_rows(100)
         cfg.set_fmt_str_lengths(50)
-        print(
+        missed = (
             all_coverages.filter(pl.col("filename") == str(cairo_file))
             .with_columns(pl.col("filename").str.replace(str(Path().cwd()) + "/", ""))
             .filter(pl.col("count") == 0)
@@ -113,6 +113,10 @@ def coverage(cairo_program: Program, cairo_file: Path, worker_id: str):
             )
             .drop("line_number", "count")
         )
+        if missed.height > 0:
+            print(missed)
+        else:
+            logger.info(f"{str(cairo_file)}: 100% coverage ✅")
     all_coverages = (
         all_coverages.group_by("filename")
         .agg(pl.col("line_number"), pl.col("count"))
