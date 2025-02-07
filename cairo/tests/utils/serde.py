@@ -37,7 +37,7 @@ from typing import (
     get_origin,
 )
 
-from ethereum.cancun.fork_types import Address
+from ethereum.cancun.fork_types import Account, Address
 from ethereum.cancun.state import State, TransientStorage
 from ethereum.cancun.trie import Trie
 from ethereum.cancun.vm.exceptions import InvalidOpcode
@@ -84,7 +84,6 @@ from tests.utils.args_gen import (
     to_python_type,
     vm_exception_classes,
 )
-from tests.utils.models import Account
 
 # Sentinel object for indicating no error in exception handling
 NO_ERROR_FLAG = object()
