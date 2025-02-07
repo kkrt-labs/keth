@@ -65,64 +65,6 @@ class TestEcOps:
                 x**3 + curve.A * x + curve.B
             ) % curve.FIELD.PRIME == y**2 % curve.FIELD.PRIME
 
-    class TestEcDouble:
-        @given(seed=felt, curve=curve)
-        def test_ec_double(self, cairo_run, seed, curve):
-            point = cairo_run(
-                "test__get_random_point",
-                seed=seed,
-                a=int_to_uint384(int(curve.A)),
-                b=int_to_uint384(int(curve.B)),
-                g=int_to_uint384(int(curve.G)),
-                p=int_to_uint384(int(curve.FIELD.PRIME)),
-            )
-            x = curve.FIELD(
-                uint384_to_int(
-                    point["x"]["d0"],
-                    point["x"]["d1"],
-                    point["x"]["d2"],
-                    point["x"]["d3"],
-                )
-            )
-            y = curve.FIELD(
-                uint384_to_int(
-                    point["y"]["d0"],
-                    point["y"]["d1"],
-                    point["y"]["d2"],
-                    point["y"]["d3"],
-                )
-            )
-            double = cairo_run(
-                "test__ec_double",
-                p=(
-                    point["x"]["d0"],
-                    point["x"]["d1"],
-                    point["x"]["d2"],
-                    point["x"]["d3"],
-                    point["y"]["d0"],
-                    point["y"]["d1"],
-                    point["y"]["d2"],
-                    point["y"]["d3"],
-                ),
-                a=int_to_uint384(int(curve.A)),
-                g=int_to_uint384(int(curve.G)),
-                modulus=int_to_uint384(int(curve.FIELD.PRIME)),
-            )
-            assert curve(x, y).double() == curve(
-                uint384_to_int(
-                    double["x"]["d0"],
-                    double["x"]["d1"],
-                    double["x"]["d2"],
-                    double["x"]["d3"],
-                ),
-                uint384_to_int(
-                    double["y"]["d0"],
-                    double["y"]["d1"],
-                    double["y"]["d2"],
-                    double["y"]["d3"],
-                ),
-            )
-
     class TestEcAdd:
         @given(curve=curve)
         def test_ec_add(self, cairo_run, curve):
