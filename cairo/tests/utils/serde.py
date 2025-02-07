@@ -437,23 +437,6 @@ class Serde(SerdeProtocol):
         return python_cls(value)
 
     def serialize_scope(self, scope, scope_ptr):
-        # TODO: Remove these once EELS like migration is implemented
-        if scope.path == ("src", "model", "model", "State"):
-            return self.serialize_state_old(scope_ptr)
-        if scope.path == ("src", "model", "model", "Account"):
-            return self.serialize_kakarot_account(scope_ptr)
-        if scope.path == ("src", "model", "model", "Stack"):
-            return self.serialize_stack(scope_ptr)
-        if scope.path == ("src", "model", "model", "Memory"):
-            return self.serialize_memory(scope_ptr)
-        if scope.path == ("src", "model", "model", "Message"):
-            return self.serialize_message(scope_ptr)
-        if scope.path == ("src", "model", "model", "EVM"):
-            return self.serialize_evm(scope_ptr)
-        if scope.path == ("src", "model", "model", "Block"):
-            return self.serialize_block_kakarot(scope_ptr)
-        if scope.path == ("src", "model", "model", "Option"):
-            return self.serialize_option(scope_ptr)
         try:
             return self.serialize_type(scope.path, scope_ptr)
         except MissingIdentifierError:
