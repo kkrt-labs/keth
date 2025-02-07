@@ -61,7 +61,15 @@ from ethereum.cancun.transactions_types import (
     TX_DATA_COST_PER_NON_ZERO,
     TX_DATA_COST_PER_ZERO,
     Transaction,
-    TransactionImpl,
+    get_transaction_type,
+    get_gas,
+    get_r,
+    get_s,
+    get_max_fee_per_gas,
+    get_max_priority_fee_per_gas,
+    get_gas_price,
+    get_nonce,
+    get_value,
     TransactionType,
     TupleAccessList,
     TupleAccessListStruct,
@@ -614,21 +622,21 @@ func check_transaction{
     excess_blob_gas: U64,
 ) -> TupleAddressUintTupleVersionedHash {
     alloc_locals;
-    let gas = TransactionImpl.get_gas(tx);
+    let gas = get_gas(tx);
     let tx_gas_within_bounds = is_le(gas.value, gas_available.value);
     with_attr error_message("InvalidBlock") {
         assert tx_gas_within_bounds = 1;
     }
     let sender_address = recover_sender(chain_id, tx);
     let sender_account = get_account{state=state}(sender_address);
-    let transaction_type = TransactionImpl.get_transaction_type(tx);
+    let transaction_type = get_transaction_type(tx);
     let is_not_blob_or_fee_transaction = (TransactionType.BLOB - transaction_type) * (
         TransactionType.FEE_MARKET - transaction_type
     );
     // Case where transaction is blob or fee transaction
     if (is_not_blob_or_fee_transaction == FALSE) {
-        let max_fee_per_gas = TransactionImpl.get_max_fee_per_gas(tx);
-        let max_priority_fee_per_gas = TransactionImpl.get_max_priority_fee_per_gas(tx);
+        let max_fee_per_gas = get_max_fee_per_gas(tx);
+        let max_priority_fee_per_gas = get_max_priority_fee_per_gas(tx);
         let max_fee_per_gas_valid = is_le(base_fee_per_gas.value, max_fee_per_gas.value);
         let max_priority_fee_per_gas_valid = is_le(
             max_priority_fee_per_gas.value, max_fee_per_gas.value
@@ -643,7 +651,7 @@ func check_transaction{
         tempvar effective_gas_price = Uint(base_fee_per_gas.value + priority_fee_per_gas);
         tempvar max_gas_fee = Uint(gas.value * max_fee_per_gas.value);
     } else {
-        let gas_price = TransactionImpl.get_gas_price(tx);
+        let gas_price = get_gas_price(tx);
         let gas_price_valid = is_le(base_fee_per_gas.value, gas_price.value);
         with_attr error_message("InvalidBlock") {
             assert gas_price_valid = 1;
@@ -699,7 +707,7 @@ func check_transaction{
 
     // Nonce check
     let sender_account_nonce = sender_account.value.nonce;
-    let tx_nonce = TransactionImpl.get_nonce(tx);
+    let tx_nonce = get_nonce(tx);
     let tx_nonce_uint = U256_to_Uint(tx_nonce);
     with_attr error_message("InvalidBlock") {
         assert tx_nonce_uint.value = sender_account_nonce.value;
@@ -707,7 +715,7 @@ func check_transaction{
 
     // Balance check
     let sender_account_balance = sender_account.value.balance;
-    let tx_value = TransactionImpl.get_value(tx);
+    let tx_value = get_value(tx);
     let max_gas_fee_u256 = U256_from_Uint(max_gas_fee);
     let (tx_total_spent, carry) = U256_add_with_carry(tx_value, max_gas_fee_u256);
     with_attr error_message("InvalidBlock") {
