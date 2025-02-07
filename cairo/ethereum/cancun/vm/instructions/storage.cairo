@@ -103,11 +103,8 @@ func sload{
         EnvImpl.set_state{env=env}(state);
         EvmImpl.set_env(env);
 
-        let err = push(value);
-        if (cast(err, felt) != 0) {
-            EvmImpl.set_stack(stack);
-            return err;
-        }
+        // Push cannot fail with StackOverflowError, 1 element was popped
+        push(value);
     }
 
     // PROGRAM COUNTER
@@ -308,14 +305,8 @@ func tload{
     let value = get_transient_storage{transient_storage=transient_storage}(
         evm.value.message.value.current_target, key_bytes32
     );
-    let err = push{stack=stack}(value);
-    if (cast(err, felt) != 0) {
-        let env = evm.value.env;
-        EnvImpl.set_transient_storage{env=env}(transient_storage);
-        EvmImpl.set_env(env);
-        EvmImpl.set_stack(stack);
-        return err;
-    }
+    // Push cannot fail with StackOverflowError, 1 element was popped
+    push{stack=stack}(value);
 
     // PROGRAM COUNTER
     let env = evm.value.env;
