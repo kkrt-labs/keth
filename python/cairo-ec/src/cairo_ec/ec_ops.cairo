@@ -73,7 +73,6 @@ func ec_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: Mod
             return res;
         }
 
-
         let (res_x, res_y) = ec_double(&p.x, &p.y, &a, &modulus);
         let res = G1Point(x=[res_x], y=[res_y]);
         return res;
@@ -82,7 +81,6 @@ func ec_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: Mod
     let (res_x, res_y) = ec_add_unchecked(&p.x, &p.y, &q.x, &q.y, &modulus);
     let res = G1Point(x=[res_x], y=[res_y]);
     return res;
-
 }
 
 // Multiply an EC point by a scalar. Doesn't check if the input is on curve nor if it's the point at infinity.
