@@ -387,14 +387,14 @@ func encode_node{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: Kecc
     // None defined for type Node but actually not supported in the EELS
     with_attr error_message("encode_node: node cannot be None") {
         assert 0 = 1;
+        ret;
     }
-    tempvar result = Bytes(new BytesStruct(cast(0, felt*), 0));
-    return result;
 
     account:
     if (cast(storage_root.value, felt) == 0) {
         with_attr error_message("encode_node: account without storage root") {
             assert 0 = 1;
+            ret;
         }
     }
     let encoded = encode_account(node.value.account, storage_root);

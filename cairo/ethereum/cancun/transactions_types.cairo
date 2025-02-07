@@ -144,7 +144,7 @@ namespace TransactionImpl {
         }
         with_attr error_message("InvalidTransaction") {
             assert 0 = 1;
-            return 0;
+            ret;
         }
     }
     func get_gas(tx: Transaction) -> Uint {
@@ -163,8 +163,7 @@ namespace TransactionImpl {
         }
         with_attr error_message("InvalidTransaction") {
             assert 0 = 1;
-            let res = Uint(0);
-            return res;
+            ret;
         }
     }
     func get_r(tx: Transaction) -> U256 {
@@ -183,8 +182,7 @@ namespace TransactionImpl {
         }
         with_attr error_message("InvalidTransaction") {
             assert 0 = 1;
-            tempvar res = U256(new U256Struct(0, 0));
-            return res;
+            ret;
         }
     }
     func get_s(tx: Transaction) -> U256 {
@@ -203,8 +201,7 @@ namespace TransactionImpl {
         }
         with_attr error_message("InvalidTransaction") {
             assert 0 = 1;
-            tempvar res = U256(new U256Struct(0, 0));
-            return res;
+            ret;
         }
     }
     func get_max_fee_per_gas(tx: Transaction) -> Uint {
@@ -217,8 +214,7 @@ namespace TransactionImpl {
         }
         with_attr error_message("InvalidTransaction") {
             assert 0 = 1;
-            let res = Uint(0);
-            return res;
+            ret;
         }
     }
     func get_max_priority_fee_per_gas(tx: Transaction) -> Uint {
@@ -231,8 +227,7 @@ namespace TransactionImpl {
         }
         with_attr error_message("InvalidTransaction") {
             assert 0 = 1;
-            let res = Uint(0);
-            return res;
+            ret;
         }
     }
     func get_gas_price(tx: Transaction) -> Uint {
@@ -245,8 +240,7 @@ namespace TransactionImpl {
         }
         with_attr error_message("InvalidTransaction") {
             assert 0 = 1;
-            let res = Uint(0);
-            return res;
+            ret;
         }
     }
     func get_nonce(tx: Transaction) -> U256 {
@@ -265,8 +259,7 @@ namespace TransactionImpl {
         }
         with_attr error_message("InvalidTransaction") {
             assert 0 = 1;
-            tempvar res = U256(new U256Struct(0, 0));
-            return res;
+            ret;
         }
     }
     func get_value(tx: Transaction) -> U256 {
@@ -285,8 +278,7 @@ namespace TransactionImpl {
         }
         with_attr error_message("InvalidTransaction") {
             assert 0 = 1;
-            tempvar res = U256(new U256Struct(0, 0));
-            return res;
+            ret;
         }
     }
 }

@@ -101,10 +101,8 @@ func calculate_intrinsic_cost{range_check_ptr}(tx: Transaction) -> Uint {
 
     with_attr error_message("InvalidTransaction") {
         assert 0 = 1;
+        ret;
     }
-
-    let cost = Uint(0);
-    return cost;
 }
 
 func _calculate_data_and_create_cost{range_check_ptr}(data: Bytes, to: To) -> felt {
@@ -339,9 +337,8 @@ func recover_sender{
     // Invariant: at least one of the transaction types is non-zero.
     with_attr error_message("InvalidTransaction") {
         assert 0 = 1;
+        ret;
     }
-    tempvar res = Address(0);
-    return res;
 }
 
 func decode_transaction{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
