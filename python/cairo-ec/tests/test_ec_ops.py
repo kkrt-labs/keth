@@ -81,3 +81,35 @@ class TestEcOps:
             assert p + q == curve(
                 *[curve.FIELD(uint384_to_int(**i)) for i in res.values()]
             )
+
+        @given(curve=curve)
+        def test_ec_add_equal(self, cairo_run, curve):
+            p = curve.random_point()
+            q = curve(p.x, p.y)
+            res = cairo_run(
+                "test__ec_add",
+                p=[*int_to_uint384(int(p.x)), *int_to_uint384(int(p.y))],
+                q=[*int_to_uint384(int(q.x)), *int_to_uint384(int(q.y))],
+                a=int_to_uint384(int(curve.A)),
+                g=int_to_uint384(int(curve.G)),
+                modulus=int_to_uint384(int(curve.FIELD.PRIME)),
+            )
+            assert p + q == curve(
+                *[curve.FIELD(uint384_to_int(**i)) for i in res.values()]
+            )
+
+        @given(curve=curve)
+        def test_ec_add_opposite(self, cairo_run, curve):
+            p = curve.random_point()
+            q = curve(p.x, -p.y)
+            res = cairo_run(
+                "test__ec_add",
+                p=[*int_to_uint384(int(p.x)), *int_to_uint384(int(p.y))],
+                q=[*int_to_uint384(int(q.x)), *int_to_uint384(int(q.y))],
+                a=int_to_uint384(int(curve.A)),
+                g=int_to_uint384(int(curve.G)),
+                modulus=int_to_uint384(int(curve.FIELD.PRIME)),
+            )
+            assert p + q == curve(
+                *[curve.FIELD(uint384_to_int(**i)) for i in res.values()]
+            )
