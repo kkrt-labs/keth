@@ -15,7 +15,7 @@ from ethereum.cancun.vm.instructions.arithmetic import (
 from ethereum.cancun.vm.stack import push
 from hypothesis import given
 
-from tests.utils.args_gen import U256
+from ethereum_types.numeric import U256
 from tests.utils.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder
 
@@ -109,9 +109,9 @@ class TestArithmetic:
         assert evm == cairo_result
 
     @given(evm=arithmetic_tests_strategy)
-    def test_addmod(self, cairo_run_py, evm: Evm):
+    def test_addmod(self, cairo_run, evm: Evm):
         try:
-            cairo_result = cairo_run_py("addmod", evm)
+            cairo_result = cairo_run("addmod", evm)
         except Exception as cairo_error:
             with strict_raises(type(cairo_error)):
                 addmod(evm)
