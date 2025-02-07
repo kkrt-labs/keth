@@ -865,6 +865,52 @@ class Serde(SerdeProtocol):
         length = length if length is not None else shift
         return self._serialize(cairo_type, base_ptr - shift, length)
 
+    def serialize_list(
+        self, segment_ptr, item_path: Optional[Tuple[str, ...]] = None, list_len=None
+    ):
+        item_identifier = (
+            get_struct_definition(self.program, item_path)
+            if item_path is not None
+            else None
+        )
+        item_type = (
+            TypeStruct(item_identifier.full_name)
+            if item_identifier is not None
+            else TypeFelt()
+        )
+        item_size = item_identifier.size if item_identifier is not None else 1
+        try:
+            list_len = (
+                list_len * item_size
+                if list_len is not None
+                else self.segments.get_segment_size(segment_ptr.segment_index)
+            )
+        except AssertionError as e:
+            if (
+                "compute_effective_sizes must be called before get_segment_used_size."
+                in str(e)
+            ):
+                list_len = 1
+            else:
+                raise e
+        output = []
+        for i in range(0, list_len, item_size):
+            try:
+                output.append(self._serialize(item_type, segment_ptr + i))
+            # Because there is no way to know for sure the length of the list, we stop when we
+            # encounter an error.
+            except UnknownMemoryError:
+                break
+            except DictConsistencyError as e:
+                raise DictConsistencyError(
+                    f"Dict consistency error in {item_path}"
+                ) from e
+            except Exception:
+                # TODO: handle this better as only UnknownMemoryError is expected
+                # when accessing invalid memory
+                break
+        return output
+
     @staticmethod
     def filter_no_error_flag(output):
         return [x for x in output if x is not NO_ERROR_FLAG]
