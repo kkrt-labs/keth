@@ -41,25 +41,15 @@ func get_random_point{
     let (__fp__, __pc__) = get_fp_and_pc();
     let x_384 = felt_to_uint384(seed);
     tempvar x = new x_384;
+    let (y, is_on_curve) = try_get_point_from_x(x=x, v=0, a=a, b=b, g=g, p=p);
 
-    local is_on_curve: UInt384;
-    local y_try: UInt384;
-    tempvar v = 0;
-    %{ compute_y_from_x_hint %}
-
-    assert_is_on_curve(x=x, y=&y_try, a=a, b=b, g=g, is_on_curve=&is_on_curve, p=p);
-
-    assert is_on_curve.d3 = 0;
-    assert is_on_curve.d2 = 0;
-    assert is_on_curve.d1 = 0;
-
-    if (is_on_curve.d0 != 0) {
-        let point = G1Point(x=x_384, y=y_try);
+    if (is_on_curve != 0) {
+        let point = G1Point(x=x_384, y=[y]);
         return point;
     }
 
     assert poseidon_ptr[0].input.s0 = seed;
-    assert poseidon_ptr[0].input.s1 = y_try.d0;  // salt
+    assert poseidon_ptr[0].input.s1 = y.d0;  // salt
     assert poseidon_ptr[0].input.s2 = 2;
     let seed = poseidon_ptr[0].output.s0;
     tempvar poseidon_ptr = poseidon_ptr + PoseidonBuiltin.SIZE;
