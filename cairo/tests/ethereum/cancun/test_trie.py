@@ -22,7 +22,7 @@ from ethereum.cancun.trie import (
 )
 from ethereum_types.bytes import Bytes, Bytes32
 from ethereum_types.numeric import U256, Uint
-from hypothesis import given
+from hypothesis import example, given
 from hypothesis import strategies as st
 
 from cairo_addons.testing.hints import patch_hint
@@ -39,6 +39,8 @@ class TestTrie:
         )
 
     @given(node=..., storage_root=...)
+    @example(node=None, storage_root=None)
+    @example(node=Uint(145), storage_root=None)
     def test_encode_node(self, cairo_run, node: Node, storage_root: Optional[Bytes]):
         try:
             cairo_result = cairo_run("encode_node", node, storage_root)

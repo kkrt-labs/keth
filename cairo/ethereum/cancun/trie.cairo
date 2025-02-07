@@ -415,7 +415,8 @@ func encode_node{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: Kecc
     return encoded;
 
     uint:
-    // Uint defined for type Node but actually not supported in the EELS
+    // Node is Union[Account, Bytes, LegacyTransaction, Receipt, Uint, U256, Withdrawal, None]
+    // but encode_node(Uint) will raise AssertionError in EELS
     with_attr error_message("AssertionError") {
         assert 0 = 1;
     }
