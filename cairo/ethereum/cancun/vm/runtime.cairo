@@ -5,8 +5,8 @@ from starkware.cairo.common.dict_access import DictAccess
 from ethereum_types.bytes import Bytes, BytesStruct
 from ethereum_types.numeric import SetUint, SetUintStruct, SetUintDictAccess
 
-from src.utils.utils import Helpers
-from src.utils.dict import dict_write
+from cairo_core.comparison import is_le_unchecked
+from legacy.utils.dict import dict_write
 
 func get_valid_jump_destinations{range_check_ptr}(code: Bytes) -> SetUint {
     alloc_locals;
@@ -32,8 +32,8 @@ func get_valid_jump_destinations{range_check_ptr}(code: Bytes) -> SetUint {
     let range_check_ptr = range_check_ptr + 1;
 
     tempvar opcode = [bytecode.data + i];
-    let is_opcode_ge_0x5f = Helpers.is_le_unchecked(0x5f, opcode);
-    let is_opcode_le_0x7f = Helpers.is_le_unchecked(opcode, 0x7f);
+    let is_opcode_ge_0x5f = is_le_unchecked(0x5f, opcode);
+    let is_opcode_le_0x7f = is_le_unchecked(opcode, 0x7f);
     let is_push_opcode = is_opcode_ge_0x5f * is_opcode_le_0x7f;
     let next_i = i + 1 + is_push_opcode * (opcode - 0x5f);  // 0x5f is the first PUSHN opcode, opcode - 0x5f is the number of arguments.
 
@@ -65,7 +65,7 @@ func get_valid_jump_destinations{range_check_ptr}(code: Bytes) -> SetUint {
     let range_check_ptr = [ap - 3];
     let i = [ap - 1];
     // Verify that i >= bytecode_len to ensure loop terminated correctly.
-    let check = Helpers.is_le_unchecked(code.value.len, i);
+    let check = is_le_unchecked(code.value.len, i);
     assert check = 1;
 
     let dict_ptr_start = cast(valid_jumpdests_start, SetUintDictAccess*);

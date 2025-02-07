@@ -1,7 +1,7 @@
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin, PoseidonBuiltin
 from starkware.cairo.common.math_cmp import is_le
 from starkware.cairo.common.dict import DictAccess
-from src.utils.dict import dict_read, dict_write
+from legacy.utils.dict import dict_read, dict_write
 
 from ethereum.cancun.vm.stack import push, StackDictAccess, Stack, StackStruct, pop as stack_pop
 from ethereum.cancun.vm import Evm, EvmImpl
@@ -10,7 +10,7 @@ from ethereum.cancun.vm.exceptions import StackUnderflowError
 from ethereum.cancun.vm.gas import charge_gas, GasConstants
 from ethereum_types.numeric import Uint, U256, U256Struct
 from ethereum.cancun.vm.memory import buffer_read
-from src.utils.utils import Helpers
+from legacy.utils.utils import Helpers
 
 from cairo_core.comparison import is_zero
 

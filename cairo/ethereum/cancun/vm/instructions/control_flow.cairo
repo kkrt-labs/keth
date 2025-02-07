@@ -1,7 +1,7 @@
 from starkware.cairo.common.bool import TRUE, FALSE
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin, PoseidonBuiltin
 from starkware.cairo.common.dict import DictAccess
-from src.utils.dict import dict_read
+from legacy.utils.dict import dict_read
 
 from ethereum_types.numeric import (
     U256,
@@ -19,7 +19,7 @@ from ethereum.cancun.vm.exceptions import InvalidJumpDestError
 from ethereum.cancun.vm.gas import charge_gas, GasConstants
 from ethereum.cancun.vm.stack import Stack, pop, push
 
-from src.utils.dict import hashdict_read
+from legacy.utils.dict import hashdict_read
 
 // @notice Stop further execution of EVM code
 func stop{

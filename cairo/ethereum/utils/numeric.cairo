@@ -8,9 +8,9 @@ from starkware.cairo.common.math import assert_le_felt
 
 from starkware.cairo.common.math import split_felt
 from starkware.cairo.common.uint256 import word_reverse_endian, Uint256, uint256_le, uint256_mul
-from src.utils.uint256 import uint256_add, uint256_sub
-from src.utils.utils import Helpers
-from src.utils.bytes import bytes_to_felt, uint256_from_bytes_be
+from legacy.utils.uint256 import uint256_add, uint256_sub
+from legacy.utils.utils import Helpers
+from legacy.utils.bytes import bytes_to_felt, uint256_from_bytes_be
 
 func min{range_check_ptr}(a: felt, b: felt) -> felt {
     alloc_locals;

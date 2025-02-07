@@ -13,7 +13,7 @@ from programs.os import os
 from src.model import model
 from src.account import Internals, Account
 from src.state import State
-from src.utils.transaction import Transaction
+from legacy.utils.transaction import Transaction
 
 func test_os{
     output_ptr: felt*,

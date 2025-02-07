@@ -3,7 +3,7 @@ from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.cairo.common.math import assert_not_zero
 from starkware.cairo.common.uint256 import Uint256
-from src.utils.uint256 import uint256_add, uint256_sub
+from legacy.utils.uint256 import uint256_add, uint256_sub
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.squash_dict import squash_dict
 from starkware.cairo.common.memcpy import memcpy
@@ -48,7 +48,7 @@ from ethereum_types.numeric import U256, U256Struct, Bool, bool, Uint
 from ethereum.utils.numeric import U256_le, U256_sub, U256_add, U256_mul
 from cairo_core.comparison import is_zero
 
-from src.utils.dict import (
+from legacy.utils.dict import (
     hashdict_read,
     hashdict_write,
     dict_new_empty,

@@ -9,7 +9,7 @@ from ethereum.cancun.fork_types import Address
 from ethereum.crypto.hash import keccak256
 from ethereum.utils.numeric import divmod
 
-from src.utils.bytes import (
+from legacy.utils.bytes import (
     felt_to_bytes20_little,
     bytes_to_felt,
     felt_to_bytes,

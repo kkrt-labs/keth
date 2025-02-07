@@ -54,7 +54,7 @@ from ethereum_rlp.rlp import (
 
 from ethereum.cancun.blocks import UnionBytesLegacyTransaction
 from ethereum.cancun.utils.constants import MAX_CODE_SIZE
-from src.utils.array import count_not_zero
+from legacy.utils.array import count_not_zero
 
 func calculate_intrinsic_cost{range_check_ptr}(tx: Transaction) -> Uint {
     alloc_locals;

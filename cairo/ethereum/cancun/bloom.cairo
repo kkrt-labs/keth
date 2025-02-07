@@ -17,8 +17,8 @@ from ethereum.crypto.hash import keccak256
 from ethereum.cancun.blocks import TupleLog
 from ethereum.cancun.fork_types import Bloom
 
-from src.utils.bytes import uint256_to_bytes32, felt_to_bytes16_little
-from src.utils.dict import dict_squash, dict_read, dict_write
+from legacy.utils.bytes import uint256_to_bytes32, felt_to_bytes16_little
+from legacy.utils.dict import dict_squash, dict_read, dict_write
 from cairo_core.maths import pow2
 from cairo_core.comparison import is_zero
 const BIT_MASK_11_BITS = 0x07FF;

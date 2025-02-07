@@ -11,7 +11,7 @@ from ethereum.cancun.vm.gas import GasConstants, charge_gas
 from ethereum_types.numeric import Uint
 from ethereum_types.bytes import Bytes, BytesStruct, ListBytes4, ListBytes4Struct
 
-from src.utils.utils import Helpers
+from legacy.utils.utils import Helpers
 from cairo_core.hash.sha256 import sha256_be_output
 from cairo_core.maths import unsigned_div_rem
 

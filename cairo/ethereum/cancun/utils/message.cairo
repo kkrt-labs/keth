@@ -20,7 +20,7 @@ from starkware.cairo.common.registers import get_fp_and_pc, get_label_location
 from starkware.cairo.common.memcpy import memcpy
 from starkware.cairo.common.dict_access import DictAccess
 
-from src.utils.dict import hashdict_write
+from legacy.utils.dict import hashdict_write
 
 const PRECOMPILED_ADDRESSES_SIZE = 10;
 

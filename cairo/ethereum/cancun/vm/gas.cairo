@@ -13,8 +13,7 @@ from starkware.cairo.common.math_cmp import is_le, is_not_zero, RC_BOUND, is_le_
 from starkware.cairo.common.math import assert_le_felt
 from starkware.cairo.common.uint256 import ALL_ONES, uint256_eq, uint256_le
 
-from src.utils.uint256 import uint256_add
-from src.constants import Constants
+from legacy.utils.uint256 import uint256_add
 
 from cairo_core.comparison import is_zero
 

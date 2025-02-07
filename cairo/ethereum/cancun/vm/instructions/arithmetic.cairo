@@ -1,7 +1,7 @@
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin, PoseidonBuiltin
 from starkware.cairo.common.uint256 import uint256_mul, ALL_ONES, uint256_lt
 
-from src.utils.uint256 import (
+from legacy.utils.uint256 import (
     uint256_eq,
     uint256_fast_exp,
     uint256_signextend,
@@ -11,7 +11,7 @@ from src.utils.uint256 import (
     uint256_signed_div_rem,
     uint256_mul_div_mod,
 )
-from src.utils.utils import Helpers
+from legacy.utils.utils import Helpers
 from ethereum.cancun.vm.stack import Stack, pop, push
 from ethereum.cancun.vm import Evm, EvmImpl
 from ethereum.exceptions import EthereumException

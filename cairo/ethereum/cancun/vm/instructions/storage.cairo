@@ -22,8 +22,8 @@ from ethereum.cancun.fork_types import (
 from ethereum_types.bytes import Bytes32
 from ethereum_types.numeric import Uint, U256, U256Struct
 from ethereum.utils.numeric import U256_to_be_bytes
-from src.utils.dict import hashdict_read, hashdict_write
-from src.utils.utils import Helpers
+from legacy.utils.dict import hashdict_read, hashdict_write
+from legacy.utils.utils import Helpers
 
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin, PoseidonBuiltin
 from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc

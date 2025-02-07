@@ -20,7 +20,7 @@ from pydantic import (
 from pydantic.alias_generators import to_camel, to_snake
 from starkware.cairo.lang.vm.crypto import pedersen_hash
 
-from src.utils.uint256 import int_to_uint256
+from legacy.utils.uint256 import int_to_uint256
 from tests.utils.helpers import flatten, rlp_encode_signed_data
 from tests.utils.parsers import address, bytes_, to_bytes, to_int, uint, uint64, uint128
 

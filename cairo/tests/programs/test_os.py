@@ -11,7 +11,7 @@ from hexbytes import HexBytes
 from hypothesis import given, settings
 from hypothesis.strategies import integers
 
-from src.utils.uint256 import int_to_uint256
+from legacy.utils.uint256 import int_to_uint256
 from tests.utils.constants import COINBASE, OTHER, OWNER
 from tests.utils.data import block
 from tests.utils.errors import cairo_error

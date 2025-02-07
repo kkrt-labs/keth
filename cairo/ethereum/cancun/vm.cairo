@@ -24,7 +24,7 @@ from ethereum.cancun.state import account_exists_and_is_empty
 from ethereum.cancun.vm.memory import Memory
 from cairo_core.comparison import is_zero
 from starkware.cairo.common.memcpy import memcpy
-from src.utils.dict import (
+from legacy.utils.dict import (
     hashdict_write,
     hashdict_read,
     dict_update,
