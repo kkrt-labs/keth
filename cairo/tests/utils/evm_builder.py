@@ -51,7 +51,7 @@ class EvmBuilder:
 
     def __init__(self):
         self._pc = st.just(Uint(0))
-        self._stack = st.builds(list, st.just([]))
+        self._stack = st.builds(list, st.just([])).map(lambda x: Stack[U256](x))
         self._memory = st.builds(Memory, st.just(b""))
         self._code = st.just(b"")
         self._gas_left = st.just(Uint(0))

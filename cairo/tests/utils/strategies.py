@@ -177,9 +177,9 @@ def trie_strategy(thing, min_size=0):
     )
 
 
-def stack_strategy(thing):
+def stack_strategy(thing, max_size=1024):
     value_type = thing.__args__[0]
-    return st.lists(st.from_type(value_type), min_size=0, max_size=1024).map(
+    return st.lists(st.from_type(value_type), min_size=0, max_size=max_size).map(
         lambda x: Stack[value_type](x)
     )
 
