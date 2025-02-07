@@ -36,8 +36,7 @@ func to_address{range_check_ptr}(data: UnionUintU256) -> Address {
 
     with_attr error_message("Type not valid") {
         assert 0 = 1;
-        tempvar address = Address(0);
-        return address;
+        ret;
     }
 }
 

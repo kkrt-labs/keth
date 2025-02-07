@@ -744,13 +744,7 @@ func encode_transaction{range_check_ptr}(transaction: Transaction) -> UnionBytes
     // Should never happen - one pointer must be non-null
     with_attr error_message("Invalid transaction type - no valid pointer") {
         assert 0 = 1;
-        tempvar result = UnionBytesLegacyTransaction(
-            new UnionBytesLegacyTransactionEnum(
-                bytes=Bytes(cast(0, BytesStruct*)),
-                legacy_transaction=LegacyTransaction(cast(0, LegacyTransactionStruct*)),
-            ),
-        );
-        return result;
+        ret;
     }
 }
 
@@ -1444,7 +1438,7 @@ func _encode{range_check_ptr}(dst: felt*, raw_data: Extended) -> felt {
 
     with_attr error_message("RLP Encoding type is not supported") {
         assert 0 = 1;
-        return 0;
+        ret;
     }
 }
 

@@ -362,6 +362,9 @@ func encode_node{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: Kecc
 ) -> Bytes {
     alloc_locals;
 
+    tempvar is_none = is_zero(cast(node.value, felt));
+    jmp none if is_none != 0;
+
     tempvar is_account = cast(node.value.account.value, felt);
     jmp account if is_account != 0;
 
@@ -385,16 +388,16 @@ func encode_node{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: Kecc
 
     none:
     // None defined for type Node but actually not supported in the EELS
-    with_attr error_message("encode_node: node cannot be None") {
+    with_attr error_message("AssertionError") {
         assert 0 = 1;
+        ret;
     }
-    tempvar result = Bytes(new BytesStruct(cast(0, felt*), 0));
-    return result;
 
     account:
     if (cast(storage_root.value, felt) == 0) {
         with_attr error_message("encode_node: account without storage root") {
             assert 0 = 1;
+            ret;
         }
     }
     let encoded = encode_account(node.value.account, storage_root);
@@ -412,8 +415,15 @@ func encode_node{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: Kecc
     return encoded;
 
     uint:
-    let encoded = encode_uint([node.value.uint]);
-    return encoded;
+    // Node is Union[Account, Bytes, LegacyTransaction, Receipt, Uint, U256, Withdrawal, None]
+    // but encode_node(Uint) will raise AssertionError in EELS
+    with_attr error_message("AssertionError") {
+        assert 0 = 1;
+    }
+    ret;
+    // TODO: use this code once Uint is supported in the EELS
+    // let encoded = encode_uint([node.value.uint]);
+    // return encoded;
 
     u256:
     let encoded = encode_u256(node.value.u256);

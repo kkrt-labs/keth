@@ -4,7 +4,10 @@ import pytest
 from ethereum.cancun.blocks import LegacyTransaction, Receipt, Withdrawal
 from ethereum.cancun.fork_types import Account, Address
 from ethereum.cancun.trie import (
+    BranchNode,
+    ExtensionNode,
     InternalNode,
+    LeafNode,
     Node,
     Trie,
     bytes_to_nibble_list,
@@ -19,12 +22,12 @@ from ethereum.cancun.trie import (
 )
 from ethereum_types.bytes import Bytes, Bytes32
 from ethereum_types.numeric import U256, Uint
-from hypothesis import assume, given
+from hypothesis import example, given
 from hypothesis import strategies as st
 
 from cairo_addons.testing.hints import patch_hint
 from tests.utils.assertion import sequence_equal
-from tests.utils.errors import cairo_error
+from tests.utils.errors import cairo_error, strict_raises
 from tests.utils.strategies import bytes32, nibble, uint4
 
 
@@ -36,13 +39,17 @@ class TestTrie:
         )
 
     @given(node=..., storage_root=...)
+    @example(node=None, storage_root=None)
+    @example(node=Uint(145), storage_root=None)
     def test_encode_node(self, cairo_run, node: Node, storage_root: Optional[Bytes]):
-        assume(node is not None)
-        assume(not isinstance(node, Uint))
-        assume(not (isinstance(node, Account) and storage_root is None))
-        assert encode_node(node, storage_root) == cairo_run(
-            "encode_node", node, storage_root
-        )
+        try:
+            cairo_result = cairo_run("encode_node", node, storage_root)
+        except Exception as cairo_error:
+            with strict_raises(type(cairo_error)):
+                encode_node(node, storage_root)
+            return
+        result = encode_node(node, storage_root)
+        assert cairo_result == result
 
     @given(node=...)
     def test_encode_account_should_fail_without_storage_root(
@@ -139,6 +146,23 @@ class TestTrie:
     @given(obj=st.dictionaries(nibble, bytes32, max_size=100))
     def test_patricialize(self, cairo_run, obj: Mapping[Bytes, Bytes]):
         assert patricialize(obj, Uint(0)) == cairo_run("patricialize", obj, Uint(0))
+
+    @given(leaf_node=...)
+    def test_internal_node_leaf_node(self, cairo_run, leaf_node: LeafNode):
+        result = cairo_run("InternalNodeImpl.leaf_node", leaf_node)
+        assert result == leaf_node
+
+    @given(extension_node=...)
+    def test_internal_node_extension_node(
+        self, cairo_run, extension_node: ExtensionNode
+    ):
+        result = cairo_run("InternalNodeImpl.extension_node", extension_node)
+        assert result == extension_node
+
+    @given(branch_node=...)
+    def test_internal_node_branch_node(self, cairo_run, branch_node: BranchNode):
+        result = cairo_run("InternalNodeImpl.branch_node", branch_node)
+        assert result == branch_node
 
 
 class TestTrieOperations:

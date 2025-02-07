@@ -686,6 +686,7 @@ func close_transaction{
         tempvar parent_main_trie_ptr = cast(parent_main_trie, felt);
         if (cast(parent_main_trie_ptr, felt) == 0) {
             assert 0 = 1;
+            ret;
         }
     }
     let parent_trie_start = parent_main_trie.dict_ptr_start;
@@ -782,6 +783,7 @@ func close_transaction{
         tempvar parent_transient_storage_tries_ptr = cast(parent_transient_storage_tries, felt);
         if (cast(parent_transient_storage_tries_ptr, felt) == 0) {
             assert 0 = 1;
+            ret;
         }
     }
     let parent_transient_storage_tries_start = parent_transient_storage_tries.dict_ptr_start;
