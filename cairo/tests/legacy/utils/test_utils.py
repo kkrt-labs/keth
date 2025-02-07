@@ -7,7 +7,7 @@ from ethereum_types.numeric import Uint
 from hypothesis import example, given, settings
 from hypothesis import strategies as st
 
-from tests.utils.errors import cairo_error
+from cairo_addons.testing.errors import cairo_error
 from tests.utils.solidity import get_contract
 
 pytestmark = pytest.mark.python_vm

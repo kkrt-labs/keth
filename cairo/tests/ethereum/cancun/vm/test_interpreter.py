@@ -10,7 +10,7 @@ from ethereum_types.bytes import Bytes, Bytes20
 from hypothesis import given
 from hypothesis import strategies as st
 
-from tests.utils.errors import strict_raises
+from cairo_addons.testing.errors import strict_raises
 from tests.utils.message_builder import MessageBuilder
 from tests.utils.strategies import environment_lite
 

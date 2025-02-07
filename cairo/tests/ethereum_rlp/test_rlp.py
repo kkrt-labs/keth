@@ -27,7 +27,7 @@ from ethereum_types.bytes import Bytes, Bytes0, Bytes8, Bytes32
 from ethereum_types.numeric import U64, U256, Uint
 from hypothesis import assume, given
 
-from tests.utils.errors import cairo_error
+from cairo_addons.testing.errors import cairo_error
 
 
 class TestRlp:

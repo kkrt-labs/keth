@@ -6,8 +6,8 @@ from ethereum_types.numeric import U256
 from hypothesis import given
 from hypothesis.strategies import composite, integers
 
+from cairo_addons.testing.errors import strict_raises
 from tests.utils.args_gen import Stack
-from tests.utils.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder
 from tests.utils.message_builder import MessageBuilder
 from tests.utils.strategies import (

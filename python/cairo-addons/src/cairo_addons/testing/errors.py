@@ -1,6 +1,6 @@
 import re
 from contextlib import contextmanager
-from typing import Type
+from typing import Optional, Type
 
 import pytest
 
@@ -20,7 +20,7 @@ def cairo_error(message=None):
 
 
 @contextmanager
-def strict_raises(expected_exception: Type[Exception], match: str = None):
+def strict_raises(expected_exception: Type[Exception], match: Optional[str] = None):
     """
     Context manager that extends pytest.raises to enforce strict exception type matching.
     Unlike pytest.raises, this doesn't allow subclass exceptions to match.

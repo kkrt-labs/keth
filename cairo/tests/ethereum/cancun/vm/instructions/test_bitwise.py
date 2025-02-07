@@ -12,7 +12,7 @@ from ethereum.cancun.vm.instructions.bitwise import (
 from ethereum.exceptions import EthereumException
 from hypothesis import given
 
-from tests.utils.errors import strict_raises
+from cairo_addons.testing.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder
 
 bitwise_tests_strategy = EvmBuilder().with_stack().with_gas_left().build()

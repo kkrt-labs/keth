@@ -22,8 +22,8 @@ from hypothesis import assume, given
 from hypothesis import strategies as st
 from hypothesis.strategies import composite
 
+from cairo_addons.testing.errors import strict_raises
 from tests.utils.args_gen import Memory
-from tests.utils.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder
 from tests.utils.strategies import excess_blob_gas
 

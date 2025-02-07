@@ -18,7 +18,7 @@ from ethereum_types.bytes import Bytes0
 from ethereum_types.numeric import U64, U256, Uint
 from hypothesis import example, given
 
-from tests.utils.errors import strict_raises
+from cairo_addons.testing.errors import strict_raises
 
 
 class TestTransactions:
