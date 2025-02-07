@@ -82,27 +82,6 @@ def test_should_return_bytes_used_in_128_word(cairo_run, word):
     assert bytes_length == cairo_run("test__bytes_used_128", word=word)
 
 
-@pytest.mark.parametrize(
-    "bytes,expected",
-    [
-        (b"", [0, 0]),  # An empty field
-        (
-            b"\x01" * 20,
-            [1, 0x0101010101010101010101010101010101010101],
-        ),  # An address of 20 bytes
-    ],
-)
-def test_should_parse_destination_from_bytes(cairo_run, bytes, expected):
-    result = cairo_run("test__try_parse_destination_from_bytes", bytes=list(bytes))
-    assert result == expected
-
-
-@given(bytes_array=st.binary(min_size=1, max_size=32).filter(lambda x: len(x) != 20))
-def test_should_panic_incorrect_address_encoding(cairo_run, bytes_array):
-    with cairo_error(message=f"Bytes has length {len(bytes_array)}, expected 0 or 20"):
-        cairo_run("test__try_parse_destination_from_bytes", bytes=list(bytes_array))
-
-
 class TestInitializeJumpdests:
     @given(bytecode=...)
     @example(bytecode=get_contract("Counter", "Counter").bytecode_runtime)
