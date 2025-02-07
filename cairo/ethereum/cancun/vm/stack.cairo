@@ -3,7 +3,7 @@ from ethereum_types.bytes import BytesStruct, Bytes
 from starkware.cairo.common.dict import DictAccess
 from ethereum.exceptions import EthereumException
 from ethereum.cancun.vm.exceptions import StackOverflowError, StackUnderflowError
-from src.utils.dict import dict_read, dict_write
+from legacy.utils.dict import dict_read, dict_write
 
 struct Stack {
     value: StackStruct*,

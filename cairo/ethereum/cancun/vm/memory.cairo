@@ -12,8 +12,8 @@ from starkware.cairo.common.math_cmp import is_le, is_not_zero
 from ethereum_types.bytes import Bytes, BytesStruct, Bytes1DictAccess
 from ethereum_types.numeric import U256, Uint
 from ethereum.utils.numeric import max
-from src.utils.bytes import uint256_to_bytes32
-from src.utils.dict import dict_read, dict_write
+from legacy.utils.bytes import uint256_to_bytes32
+from legacy.utils.dict import dict_read, dict_write
 
 struct MemoryStruct {
     dict_ptr_start: Bytes1DictAccess*,

@@ -61,8 +61,8 @@ from ethereum.utils.numeric import (
 )
 from ethereum.utils.bytes import Bytes8_to_Bytes
 from cairo_core.comparison import is_zero
-from src.utils.array import reverse
-from src.utils.bytes import (
+from legacy.utils.array import reverse
+from legacy.utils.bytes import (
     felt_to_bytes,
     felt_to_bytes_little,
     bytes_to_felt,

@@ -9,8 +9,8 @@ from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
 from starkware.cairo.common.cairo_builtins import KeccakBuiltin
 from starkware.cairo.common.memcpy import memcpy
 
-from src.utils.bytes import uint256_to_bytes32_little
-from src.utils.dict import hashdict_read, hashdict_write, dict_new_empty
+from legacy.utils.bytes import uint256_to_bytes32_little
+from legacy.utils.dict import hashdict_read, hashdict_write, dict_new_empty
 from ethereum.crypto.hash import keccak256
 from ethereum.utils.numeric import min
 from ethereum_rlp.rlp import encode, _encode_bytes, _encode

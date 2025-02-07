@@ -10,7 +10,7 @@ from starkware.cairo.common.uint256 import (
     Uint256,
 )
 
-from src.utils.uint256 import uint256_lt
+from legacy.utils.uint256 import uint256_lt
 from ethereum.cancun.vm.stack import Stack, pop, push
 from ethereum.cancun.vm import Evm, EvmImpl
 from ethereum.exceptions import EthereumException

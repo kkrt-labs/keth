@@ -9,8 +9,8 @@ from ethereum.exceptions import EthereumException
 from ethereum.cancun.vm.gas import charge_gas, GasConstants
 from ethereum.cancun.vm.stack import Stack, pop, push
 from ethereum.utils.numeric import U256_from_be_bytes32
-from src.utils.bytes import felt_to_bytes20_little
-from src.utils.utils import Helpers
+from legacy.utils.bytes import felt_to_bytes20_little
+from legacy.utils.utils import Helpers
 
 // @notice Get the hash of one of the 256 most recent complete blocks
 func block_hash{

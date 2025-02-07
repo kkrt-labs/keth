@@ -14,7 +14,7 @@ from starkware.cairo.common.math import assert_not_equal, split_int
 from starkware.cairo.common.memcpy import memcpy
 from starkware.cairo.common.memset import memset
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
-from src.utils.bytes import (
+from legacy.utils.bytes import (
     felt_to_bytes20_little,
     uint256_to_bytes_little,
     uint256_to_bytes32_little,

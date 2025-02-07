@@ -1,5 +1,5 @@
 from ethereum_types.bytes import Bytes32, Bytes
-from src.utils.bytes import bytes_to_bytes8_little_endian
+from legacy.utils.bytes import bytes_to_bytes8_little_endian
 from starkware.cairo.common.builtin_keccak.keccak import keccak
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin
 from starkware.cairo.common.uint256 import Uint256

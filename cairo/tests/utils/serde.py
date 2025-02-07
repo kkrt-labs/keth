@@ -37,8 +37,7 @@ from typing import (
     get_origin,
 )
 
-from eth_utils.address import to_checksum_address
-from ethereum.cancun.fork_types import Address
+from ethereum.cancun.fork_types import Account, Address
 from ethereum.cancun.state import State, TransientStorage
 from ethereum.cancun.trie import Trie
 from ethereum.cancun.vm.exceptions import InvalidOpcode
@@ -85,7 +84,6 @@ from tests.utils.args_gen import (
     to_python_type,
     vm_exception_classes,
 )
-from tests.utils.models import Account
 
 # Sentinel object for indicating no error in exception handling
 NO_ERROR_FLAG = object()
@@ -439,23 +437,6 @@ class Serde(SerdeProtocol):
         return python_cls(value)
 
     def serialize_scope(self, scope, scope_ptr):
-        # TODO: Remove these once EELS like migration is implemented
-        if scope.path == ("src", "model", "model", "State"):
-            return self.serialize_state_old(scope_ptr)
-        if scope.path == ("src", "model", "model", "Account"):
-            return self.serialize_kakarot_account(scope_ptr)
-        if scope.path == ("src", "model", "model", "Stack"):
-            return self.serialize_stack(scope_ptr)
-        if scope.path == ("src", "model", "model", "Memory"):
-            return self.serialize_memory(scope_ptr)
-        if scope.path == ("src", "model", "model", "Message"):
-            return self.serialize_message(scope_ptr)
-        if scope.path == ("src", "model", "model", "EVM"):
-            return self.serialize_evm(scope_ptr)
-        if scope.path == ("src", "model", "model", "Block"):
-            return self.serialize_block_kakarot(scope_ptr)
-        if scope.path == ("src", "model", "model", "Option"):
-            return self.serialize_option(scope_ptr)
         try:
             return self.serialize_type(scope.path, scope_ptr)
         except MissingIdentifierError:
@@ -884,187 +865,6 @@ class Serde(SerdeProtocol):
         length = length if length is not None else shift
         return self._serialize(cairo_type, base_ptr - shift, length)
 
-    # TODO: below functions are deprecated and should be removed
-    def serialize_uint256(self, ptr):
-        raw = self.serialize_pointers(
-            ("starkware", "cairo", "common", "uint256", "Uint256"), ptr
-        )
-        return raw["low"] + raw["high"] * 2**128
-
-    def serialize_kakarot_account(self, ptr):
-        raw = self.serialize_pointers(("src", "model", "model", "Account"), ptr)
-        return {
-            "code": bytes(self.serialize_list(raw["code"], list_len=raw["code_len"])),
-            "code_hash": self.serialize_uint256(raw["code_hash"]),
-            "storage": self.serialize_dict(
-                raw["storage_start"],
-                ("starkware", "cairo", "common", "uint256", "Uint256"),
-            ),
-            "transient_storage": self.serialize_dict(
-                raw["transient_storage_start"],
-                ("starkware", "cairo", "common", "uint256", "Uint256"),
-            ),
-            "valid_jumpdests": self.serialize_dict(raw["valid_jumpdests_start"]),
-            "nonce": raw["nonce"],
-            "balance": self.serialize_uint256(raw["balance"]),
-            "selfdestruct": raw["selfdestruct"],
-            "created": raw["created"],
-        }
-
-    def serialize_state_old(self, ptr):
-        raw = self.serialize_pointers(("src", "model", "model", "State"), ptr)
-        return {
-            "accounts": {
-                to_checksum_address(f"{key:040x}"): value
-                for key, value in self.serialize_dict(
-                    raw["accounts_start"], ("src", "model", "model", "Account")
-                ).items()
-            },
-            "events": self.serialize_list(
-                raw["events"],
-                ("src", "model", "model", "Event"),
-                list_len=raw["events_len"],
-            ),
-        }
-
-    def serialize_eth_transaction(self, ptr):
-        raw = self.serialize_type(("src", "model", "model", "Transaction"), ptr)
-        return {
-            "signer_nonce": raw["signer_nonce"],
-            "gas_limit": raw["gas_limit"],
-            "max_priority_fee_per_gas": raw["max_priority_fee_per_gas"],
-            "max_fee_per_gas": raw["max_fee_per_gas"],
-            "destination": (
-                to_checksum_address(f'0x{raw["destination"]:040x}')
-                if raw["destination"]
-                else None
-            ),
-            "amount": raw["amount"],
-            "payload": ("0x" + bytes(raw["payload"][: raw["payload_len"]]).hex()),
-            "access_list": (
-                raw["access_list"][: raw["access_list_len"]]
-                if raw["access_list"] is not None
-                else []
-            ),
-            "chain_id": raw["chain_id"],
-        }
-
-    def serialize_message(self, ptr):
-        raw = self.serialize_pointers(("src", "model", "model", "Message"), ptr)
-        return {
-            "bytecode": self.serialize_list(
-                raw["bytecode"], list_len=raw["bytecode_len"]
-            ),
-            "valid_jumpdest": list(
-                self.serialize_dict(raw["valid_jumpdests_start"]).keys()
-            ),
-            "calldata": self.serialize_list(
-                raw["calldata"], list_len=raw["calldata_len"]
-            ),
-            "caller": to_checksum_address(f'{raw["caller"]:040x}'),
-            "value": self.serialize_uint256(raw["value"]),
-            "parent": self.serialize_type(
-                ("src", "model", "model", "Parent"), raw["parent"]
-            ),
-            "address": to_checksum_address(f'{raw["address"]:040x}'),
-            "code_address": to_checksum_address(f'{raw["code_address"]:040x}'),
-            "read_only": bool(raw["read_only"]),
-            "is_create": bool(raw["is_create"]),
-            "depth": raw["depth"],
-            "env": self.serialize_type(
-                ("src", "model", "model", "Environment"), raw["env"]
-            ),
-        }
-
-    def serialize_evm(self, ptr):
-        evm = self.serialize_type(("src", "model", "model", "EVM"), ptr)
-        return {
-            "message": evm["message"],
-            "return_data": evm["return_data"][: evm["return_data_len"]],
-            "program_counter": evm["program_counter"],
-            "stopped": bool(evm["stopped"]),
-            "gas_left": evm["gas_left"],
-            "gas_refund": evm["gas_refund"],
-            "reverted": evm["reverted"],
-        }
-
-    def serialize_stack(self, ptr):
-        raw = self.serialize_pointers(("src", "model", "model", "Stack"), ptr)
-        stack_dict = self.serialize_dict(
-            raw["dict_ptr_start"],
-            ("starkware", "cairo", "common", "uint256", "Uint256"),
-            raw["dict_ptr"] - raw["dict_ptr_start"],
-        )
-        return [
-            stack_dict[i]["low"] + stack_dict[i]["high"] * 2**128
-            for i in range(raw["size"])
-        ]
-
-    def serialize_memory(self, ptr):
-        raw = self.serialize_pointers(("src", "model", "model", "Memory"), ptr)
-        memory_dict = self.serialize_dict(
-            raw["word_dict_start"], dict_size=raw["word_dict"] - raw["word_dict_start"]
-        )
-        return "".join(
-            [f"{memory_dict.get(i, 0):032x}" for i in range(raw["words_len"] * 2)]
-        )
-
-    def serialize_rlp_item(self, ptr):
-        raw = self.serialize_list(ptr)
-        items = []
-        for i in range(0, len(raw), 3):
-            data_len = raw[i]
-            data_ptr = raw[i + 1]
-            is_list = raw[i + 2]
-            if not is_list:
-                items += [bytes(self.serialize_list(data_ptr)[:data_len])]
-            else:
-                items += [self.serialize_rlp_item(data_ptr)]
-        return items
-
-    def serialize_block_kakarot(self, ptr):
-        raw = self.serialize_pointers(("src", "model", "model", "Block"), ptr)
-        header = self.serialize_type(
-            ("src", "model", "model", "BlockHeader"), raw["block_header"]
-        )
-        if header is None:
-            raise ValueError("Block header is None")
-        header = {
-            **header,
-            "withdrawals_root": (
-                self.serialize_uint256(header["withdrawals_root"])
-                if header["withdrawals_root"] is not None
-                else None
-            ),
-            "parent_beacon_block_root": (
-                self.serialize_uint256(header["parent_beacon_block_root"])
-                if header["parent_beacon_block_root"] is not None
-                else None
-            ),
-            "requests_root": (
-                self.serialize_uint256(header["requests_root"])
-                if header["requests_root"] is not None
-                else None
-            ),
-            "extra_data": bytes(header["extra_data"][: header["extra_data_len"]]),
-            "bloom": bytes.fromhex("".join(f"{b:032x}" for b in header["bloom"])),
-        }
-        del header["extra_data_len"]
-        return {
-            "block_header": header,
-            "transactions": self.serialize_list(
-                raw["transactions"],
-                ("src", "model", "model", "TransactionEncoded"),
-                list_len=raw["transactions_len"],
-            ),
-        }
-
-    def serialize_option(self, ptr):
-        raw = self.serialize_pointers(("src", "model", "model", "Option"), ptr)
-        if raw["is_some"] == 0:
-            return None
-        return raw["value"]
-
     def serialize_list(
         self, segment_ptr, item_path: Optional[Tuple[str, ...]] = None, list_len=None
     ):
@@ -1109,31 +909,6 @@ class Serde(SerdeProtocol):
                 # TODO: handle this better as only UnknownMemoryError is expected
                 # when accessing invalid memory
                 break
-        return output
-
-    def serialize_dict(self, dict_ptr, value_scope=None, dict_size=None):
-        """
-        Serialize a dict.
-        """
-        if dict_size is None:
-            dict_size = self.segments.get_segment_size(dict_ptr.segment_index)
-        output = {}
-        value_scope = (
-            get_struct_definition(self.program, value_scope).full_name
-            if value_scope is not None
-            else None
-        )
-        for dict_index in range(0, dict_size, 3):
-            key = self.memory.get(dict_ptr + dict_index)
-            value_ptr = self.memory.get(dict_ptr + dict_index + 2)
-            if value_scope is None:
-                output[key] = value_ptr
-            else:
-                output[key] = (
-                    self.serialize_scope(value_scope, value_ptr)
-                    if value_ptr != 0
-                    else None
-                )
         return output
 
     @staticmethod

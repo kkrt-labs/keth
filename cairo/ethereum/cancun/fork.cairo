@@ -103,8 +103,8 @@ from ethereum.utils.numeric import (
 from ethereum.cancun.transactions import recover_sender
 from cairo_core.comparison import is_zero
 
-from src.utils.array import count_not_zero
-from src.utils.dict import hashdict_write
+from legacy.utils.array import count_not_zero
+from legacy.utils.dict import hashdict_write
 
 const ELASTICITY_MULTIPLIER = 2;
 const BASE_FEE_MAX_CHANGE_DENOMINATOR = 8;

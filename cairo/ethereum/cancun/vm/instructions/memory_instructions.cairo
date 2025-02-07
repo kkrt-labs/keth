@@ -23,8 +23,8 @@ from ethereum_types.others import (
     TupleU256U256,
     TupleU256U256Struct,
 )
-from src.utils.bytes import uint256_to_bytes32
-from src.utils.utils import Helpers
+from legacy.utils.bytes import uint256_to_bytes32
+from legacy.utils.utils import Helpers
 
 // @notice Stores a word to memory
 func mstore{

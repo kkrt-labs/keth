@@ -46,9 +46,9 @@ from ethereum.utils.numeric import (
     U256_from_be_bytes20,
 )
 
-from src.utils.bytes import felt_to_bytes20_little
-from src.utils.dict import hashdict_read, hashdict_write
-from src.utils.utils import Helpers
+from legacy.utils.bytes import felt_to_bytes20_little
+from legacy.utils.dict import hashdict_read, hashdict_write
+from legacy.utils.utils import Helpers
 
 // @notice Pushes the address of the current executing account to the stack.
 func address{
