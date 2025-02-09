@@ -410,12 +410,13 @@ func felt252_to_bytes_le{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     jmp end if is_done != 0;
 
     with_attr error_message("felt252_to_bytes_le: byte not in bounds") {
-        assert [range_check_ptr] = 255 - output[idx];
+        assert [range_check_ptr] = output[idx];
+        assert [range_check_ptr + 1] = 255 - output[idx];
     }
     let pow256_idx = pow256(idx);
     tempvar current_value = output[idx] * pow256_idx;
 
-    tempvar range_check_ptr = range_check_ptr + 1;
+    tempvar range_check_ptr = range_check_ptr + 2;
     tempvar idx = idx + 1;
     tempvar acc = acc + current_value;
     jmp loop;
@@ -478,12 +479,13 @@ func felt252_to_bytes_be{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     jmp end if is_done != 0;
 
     with_attr error_message("felt252_to_bytes_be: byte not in bounds") {
-        assert [range_check_ptr] = 255 - output[idx];
+        assert [range_check_ptr] = output[idx];
+        assert [range_check_ptr + 1] = 255 - output[idx];
     }
     let pow256_idx = pow256(len - 1 - idx);
     tempvar current_value = output[idx] * pow256_idx;
 
-    tempvar range_check_ptr = range_check_ptr + 1;
+    tempvar range_check_ptr = range_check_ptr + 2;
     tempvar idx = idx + 1;
     tempvar acc = acc + current_value;
     jmp loop;
