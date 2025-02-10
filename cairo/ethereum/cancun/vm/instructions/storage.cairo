@@ -20,7 +20,7 @@ from ethereum.cancun.fork_types import (
     Address,
 )
 from ethereum_types.bytes import Bytes32
-from ethereum_types.numeric import Uint, U256, U256Struct
+from ethereum_types.numeric import Uint, U256, U256Struct, bool
 from ethereum.utils.numeric import U256_to_be_bytes
 from legacy.utils.dict import hashdict_read, hashdict_write
 from legacy.utils.utils import Helpers
@@ -208,27 +208,22 @@ func sstore{
     }
     let gas_cost = [ap - 1];
 
-    tempvar refund_counter = evm.value.refund_counter;
-    let is_original_eq_new = U256__eq__(original_value, new_value);
+    local current_refund_counter = evm.value.refund_counter;
+    local refund_counter;
     // Refund calculation
     if (is_current_eq_new.value == 0) {
-        let is_current_zero = U256__eq__(current_value, zero_u256);
-        let is_new_zero = U256__eq__(new_value, zero_u256);
-        if (is_original_zero.value == 0 and is_current_zero.value == 0 and is_new_zero.value != 0) {
-            refund_counter = refund_counter + GasConstants.GAS_STORAGE_CLEAR_REFUND;
-        }
-        if (is_original_zero.value == 0 and is_current_zero.value != 0) {
-            refund_counter = refund_counter - GasConstants.GAS_STORAGE_CLEAR_REFUND;
-        }
-        if (is_original_eq_new.value != 0) {
-            if (is_original_zero.value != 0) {
-                refund_counter = refund_counter +
-                    (GasConstants.GAS_STORAGE_SET - GasConstants.GAS_WARM_ACCESS);
-            } else {
-                refund_counter = refund_counter +
-                    (GasConstants.GAS_STORAGE_UPDATE - GasConstants.GAS_COLD_SLOAD - GasConstants.GAS_WARM_ACCESS);
-            }
-        }
+        let refund_counter_res = _calculate_refund_counter_current_eq_new(
+            is_original_zero,
+            is_original_eq_current,
+            current_refund_counter,
+            original_value,
+            current_value,
+            new_value,
+            zero_u256,
+        );
+        assert refund_counter = refund_counter_res;
+    } else {
+        assert refund_counter = current_refund_counter;
     }
 
     // Charge gas
@@ -270,6 +265,55 @@ func sstore{
     EvmImpl.set_accessed_storage_keys(new_accessed_storage_keys);
     let ok = cast(0, EthereumException*);
     return ok;
+}
+
+// @notice Calculates the refund counter for sstore.
+func _calculate_refund_counter_current_eq_new(
+    is_original_zero: bool,
+    is_original_eq_current: bool,
+    current_refund_counter: felt,
+    original_value: U256,
+    current_value: U256,
+    new_value: U256,
+    zero_u256: U256,
+) -> felt {
+    alloc_locals;
+
+    local refund_counter;
+    let is_original_eq_new = U256__eq__(original_value, new_value);
+    let is_current_zero = U256__eq__(current_value, zero_u256);
+    let is_new_zero = U256__eq__(new_value, zero_u256);
+
+    if (is_original_zero.value == 0 and is_current_zero.value == 0 and is_new_zero.value != 0) {
+        assert refund_counter = current_refund_counter + GasConstants.GAS_STORAGE_CLEAR_REFUND;
+        return refund_counter;
+    }
+
+    local temp_refund_counter;
+    if (is_original_zero.value == 0) {
+        if (is_current_zero.value != 0) {
+            assert temp_refund_counter = current_refund_counter -
+                GasConstants.GAS_STORAGE_CLEAR_REFUND;
+        }
+    } else {
+        assert temp_refund_counter = 0;
+    }
+    if (is_original_eq_new.value != 0) {
+        if (is_original_zero.value != 0) {
+            assert refund_counter = temp_refund_counter + current_refund_counter + (
+                GasConstants.GAS_STORAGE_SET - GasConstants.GAS_WARM_ACCESS
+            );
+        } else {
+            assert refund_counter = temp_refund_counter + current_refund_counter + (
+                GasConstants.GAS_STORAGE_UPDATE -
+                GasConstants.GAS_COLD_SLOAD -
+                GasConstants.GAS_WARM_ACCESS
+            );
+        }
+    } else {
+        assert refund_counter = current_refund_counter + temp_refund_counter;
+    }
+    return refund_counter;
 }
 
 // @notice Loads to the stack the value corresponding to a certain key from the
