@@ -129,8 +129,13 @@ def headers(draw):
             difficulty=uint,
             nonce=st.from_type(Bytes8),
             ommers_hash=st.just(OMMER_HASH).map(Hash32),
+            # Gas limit is in the order of magnitude of millions today,
+            # 2**32 is a safe upper bound and 21_000 is the minimum amount of gas in a transaction.
             gas_limit=st.integers(min_value=21_000, max_value=2**32 - 1).map(Uint),
+            # Gas used is between 0 and gas_limit,
             gas_used=st.integers(min_value=0, max_value=2**32 - 1).map(Uint),
+            # Base fee per gas is in the order of magnitude of the GWEI today which is 10^9,
+            # 2**48 is a safe upper bound with good slack.
             base_fee_per_gas=st.integers(min_value=0, max_value=2**48 - 1).map(Uint),
             prev_randao=bytes32,
             withdrawals_root=bytes32,
