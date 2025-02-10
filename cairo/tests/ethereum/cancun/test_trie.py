@@ -29,7 +29,7 @@ from hypothesis import strategies as st
 
 from cairo_addons.testing.errors import cairo_error, strict_raises
 from cairo_addons.testing.hints import patch_hint
-from tests.utils.args_gen import UnionEthereumTries
+from tests.utils.args_gen import EthereumTries
 from tests.utils.assertion import sequence_equal
 from tests.utils.strategies import bytes32, nibble, trie_strategy, uint4
 
@@ -37,7 +37,7 @@ from tests.utils.strategies import bytes32, nibble, trie_strategy, uint4
 @st.composite
 def prepare_trie_strategy(draw):
     key_type, value_type = draw(
-        st.sampled_from([t.__args__ for t in UnionEthereumTries.__args__])
+        st.sampled_from([t.__args__ for t in EthereumTries.__args__])
     )
     return draw(trie_strategy(thing=Trie[key_type, value_type], include_none=True))
 
@@ -176,7 +176,7 @@ class TestTrie:
         assert result == branch_node
 
     @given(trie_with_none=prepare_trie_strategy())
-    def test_prepare_trie(self, cairo_run, trie_with_none: UnionEthereumTries):
+    def test_prepare_trie(self, cairo_run, trie_with_none: EthereumTries):
         key_type, _ = trie_with_none.__orig_class__.__args__
 
         # Python expects tries not to have None values (as writing the default None suppresses the key)

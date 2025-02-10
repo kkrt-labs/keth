@@ -436,7 +436,7 @@ ethereum_exception_mappings = {
 # Union of all possible trie types as defined in the ethereum spec.
 # Does not take into account our internal trie where we merged accounts and storage.
 # ! Order matters here.
-UnionEthereumTries = Union[
+EthereumTries = Union[
     Trie[Address, Optional[Account]],  # Account Trie
     Trie[Bytes32, U256],  # Storage Trie
     Trie[Bytes, Optional[Union[Bytes, LegacyTransaction]]],  # Transaction Trie
@@ -646,7 +646,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "cancun", "vm", "Stack"): Stack[U256],
     ("ethereum", "cancun", "vm", "gas", "ExtendMemory"): ExtendMemory,
     ("ethereum", "cancun", "vm", "interpreter", "MessageCallOutput"): MessageCallOutput,
-    ("ethereum", "cancun", "trie", "UnionEthereumTries"): UnionEthereumTries,
+    ("ethereum", "cancun", "trie", "EthereumTries"): EthereumTries,
     ("ethereum", "cancun", "trie", "TrieBytes32U256"): Trie[Bytes32, U256],
     **vm_exception_mappings,
     **ethereum_exception_mappings,

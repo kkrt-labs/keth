@@ -305,11 +305,11 @@ struct TrieBytesOptionalUnionBytesWithdrawal {
     value: TrieBytesOptionalUnionBytesWithdrawalStruct*,
 }
 
-struct UnionEthereumTries {
-    value: UnionEthereumTriesEnum*,
+struct EthereumTries {
+    value: EthereumTriesEnum*,
 }
 
-struct UnionEthereumTriesEnum {
+struct EthereumTriesEnum {
     account: TrieAddressOptionalAccount,
     storage: TrieBytes32U256,
     transaction: TrieBytesOptionalUnionBytesLegacyTransaction,
@@ -901,7 +901,7 @@ func _prepare_trie{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
-}(trie_union: UnionEthereumTries) -> MappingBytesBytes {
+}(trie_union: EthereumTries) -> MappingBytesBytes {
     alloc_locals;
 
     let (local mapping_ptr_start: BytesBytesDictAccess*) = default_dict_new(0);
@@ -991,7 +991,7 @@ func _prepare_trie_inner_account{
         return mapping_ptr_end;
     }
 
-    // Skip all None values
+    // Skip all None values, which are deleted trie entries
     if (cast(dict_ptr.new_value.value, felt) == 0) {
         return _prepare_trie_inner_account(
             trie, dict_ptr + AddressAccountDictAccess.SIZE, mapping_ptr_end
@@ -1139,7 +1139,7 @@ func _prepare_trie_inner_transaction{
     );
     let value = dict_ptr.new_value;
 
-    // Skip all None values
+    // Skip all None values, which are deleted trie entries
     if (cast(dict_ptr.new_value.value, felt) == 0) {
         return _prepare_trie_inner_transaction(
             trie,
@@ -1233,7 +1233,7 @@ func _prepare_trie_inner_receipt{
     );
     let value = dict_ptr.new_value;
 
-    // Skip all None values
+    // Skip all None values, which are deleted trie entries
     if (cast(dict_ptr.new_value.value, felt) == 0) {
         return _prepare_trie_inner_receipt(
             trie, dict_ptr + BytesOptionalUnionBytesReceiptDictAccess.SIZE, mapping_ptr_end
@@ -1325,7 +1325,7 @@ func _prepare_trie_inner_withdrawal{
     );
     let value = dict_ptr.new_value;
 
-    // Skip all None values
+    // Skip all None values, which are deleted trie entries
     if (cast(dict_ptr.new_value.value, felt) == 0) {
         return _prepare_trie_inner_withdrawal(
             trie, dict_ptr + BytesOptionalUnionBytesWithdrawalDictAccess.SIZE, mapping_ptr_end
@@ -1783,10 +1783,8 @@ func _get_bytes32_preimage_for_key{poseidon_ptr: PoseidonBuiltin*}(
     %{ get_preimage_for_key %}
 
     // Verify preimage
-    if (preimage_len != 2) {
-        with_attr error_message("_get_bytes32_preimage_for_key: preimage_len != 2") {
-            assert 0 = 1;
-        }
+    with_attr error_message("_get_bytes32_preimage_for_key: preimage_len != 2") {
+        assert preimage_len = 2;
     }
 
     let (preimage_hash) = poseidon_hash_many(preimage_len, preimage_data);
