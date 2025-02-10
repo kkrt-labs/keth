@@ -26,6 +26,7 @@ from ethereum.cancun.transactions import (
     signing_hash_1559,
     signing_hash_2930,
     signing_hash_4844,
+    signing_hash_pre155,
 )
 from ethereum.cancun.vm import Environment
 from ethereum.cancun.vm.gas import TARGET_BLOB_GAS_PER_BLOCK
@@ -137,8 +138,13 @@ def tx_with_sender_in_state(
     )
     private_key = draw(st.from_type(PrivateKey))
     expected_address = int(private_key.public_key.to_address(), 16)
+
+    pre_155 = draw(integers(0, 99)) < 50
     if isinstance(tx, LegacyTransaction):
-        signature = private_key.sign_msg_hash(signing_hash_155(tx, chain_id))
+        if pre_155:
+            signature = private_key.sign_msg_hash(signing_hash_pre155(tx))
+        else:
+            signature = private_key.sign_msg_hash(signing_hash_155(tx, chain_id))
     elif isinstance(tx, AccessListTransaction):
         signature = private_key.sign_msg_hash(signing_hash_2930(tx))
     elif isinstance(tx, FeeMarketTransaction):
@@ -151,7 +157,10 @@ def tx_with_sender_in_state(
     # Overwrite r and s with valid values
     v_or_y_parity = {}
     if isinstance(tx, LegacyTransaction):
-        v_or_y_parity["v"] = U256(U64(2) * chain_id + U64(35) + U64(signature.v))
+        if pre_155:
+            v_or_y_parity["v"] = U256(signature.v)
+        else:
+            v_or_y_parity["v"] = U256(U64(2) * chain_id + U64(35) + U64(signature.v))
     else:
         v_or_y_parity["y_parity"] = U256(signature.v)
     tx = replace(tx, r=U256(signature.r), s=U256(signature.s), **v_or_y_parity)
