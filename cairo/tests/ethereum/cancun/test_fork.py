@@ -41,7 +41,6 @@ from hypothesis.strategies import composite, integers
 from cairo_addons.testing.errors import strict_raises
 from tests.ethereum.cancun.vm.test_interpreter import unimplemented_precompiles
 from tests.utils.constants import OMMER_HASH
-from tests.utils.errors import strict_raises
 from tests.utils.strategies import account_strategy, address, bytes32, small_bytes, uint
 
 MIN_BASE_FEE = 1_000
