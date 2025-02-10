@@ -53,7 +53,10 @@ from tests.utils.strategies import (
 
 @composite
 def state_and_address_and_optional_key(
-    draw, state_strategy=state, address_strategy=address, key_strategy=None
+    draw,
+    state_strategy=state,
+    address_strategy=address,
+    key_strategy=None,
 ):
     state = draw(state_strategy)
 
@@ -296,6 +299,26 @@ class TestStateAccounts:
         assert result_cairo == account_has_code_or_nonce(state, address)
         assert state_cairo == state
 
+    @given(
+        data=state_and_address_and_optional_key(),
+        code=st.binary(min_size=1, max_size=256),
+    )
+    def test_account_has_code_or_nonce_with_code_non_empty(
+        self, cairo_run, data, code: bytes
+    ):
+        state, address = data
+        account = get_account(state, address)
+        set_account(
+            state,
+            address,
+            Account(balance=account.balance, code=code, nonce=account.nonce),
+        )
+        state_cairo, result_cairo = cairo_run(
+            "account_has_code_or_nonce", state, address
+        )
+        assert result_cairo == account_has_code_or_nonce(state, address)
+        assert state_cairo == state
+
     @given(data=state_and_address_and_optional_key())
     def test_account_has_storage(self, cairo_run, data):
         state, address = data
@@ -313,6 +336,14 @@ class TestStateAccounts:
     @given(data=state_and_address_and_optional_key())
     def test_is_account_empty(self, cairo_run, data):
         state, address = data
+        state_cairo, result_cairo = cairo_run("is_account_empty", state, address)
+        assert result_cairo == is_account_empty(state, address)
+        assert state_cairo == state
+
+    @given(data=state_and_address_and_optional_key())
+    def test_is_account_empty_high_balance(self, cairo_run, data):
+        state, address = data
+        set_account_balance(state, address, U256(2**128))
         state_cairo, result_cairo = cairo_run("is_account_empty", state, address)
         assert result_cairo == is_account_empty(state, address)
         assert state_cairo == state
