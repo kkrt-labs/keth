@@ -921,9 +921,7 @@ func _prepare_trie{
     tempvar is_withdrawal = cast(trie_union.value.withdrawal.value, felt);
     jmp withdrawal if is_withdrawal != 0;
 
-    with_attr error_message("Invalid trie union") {
-        assert 0 = 1;
-    }
+    raise('Invalid trie union');
 
     account:
     let account_trie = trie_union.value.account;
@@ -1019,9 +1017,7 @@ func _prepare_trie_inner_account{
     let encoded_value = encode_node(node, storage_root);
 
     if (encoded_value.value.len == 0) {
-        with_attr error_message("AssertionError") {
-            assert 0 = 1;
-        }
+        raise('AssertionError');
     }
 
     // TODO: Common part, factorise.
@@ -1091,9 +1087,7 @@ func _prepare_trie_inner_storage{
 
     // TODO: Common part, factorise.
     if (encoded_value.value.len == 0) {
-        with_attr error_message("AssertionError") {
-            assert 0 = 1;
-        }
+        raise('AssertionError');
     }
 
     if (trie.value.secured.value != 0) {
@@ -1185,9 +1179,7 @@ func _prepare_trie_inner_transaction{
     let encoded_value = encode_node(node, Bytes(cast(0, BytesStruct*)));
 
     if (encoded_value.value.len == 0) {
-        with_attr error_message("AssertionError") {
-            assert 0 = 1;
-        }
+        raise('AssertionError');
     }
 
     if (trie.value.secured.value != 0) {
@@ -1279,9 +1271,7 @@ func _prepare_trie_inner_receipt{
     let encoded_value = encode_node(node, Bytes(cast(0, BytesStruct*)));
 
     if (encoded_value.value.len == 0) {
-        with_attr error_message("AssertionError") {
-            assert 0 = 1;
-        }
+        raise('AssertionError');
     }
 
     if (trie.value.secured.value != 0) {
@@ -1372,9 +1362,7 @@ func _prepare_trie_inner_withdrawal{
     let encoded_value = encode_node(node, Bytes(cast(0, BytesStruct*)));
 
     if (encoded_value.value.len == 0) {
-        with_attr error_message("AssertionError") {
-            assert 0 = 1;
-        }
+        raise('AssertionError');
     }
 
     if (trie.value.secured.value != 0) {
