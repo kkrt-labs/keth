@@ -47,6 +47,7 @@ from ethereum_types.bytes import Bytes, Bytes32
 from ethereum_types.numeric import U256, U256Struct, Bool, bool, Uint
 from ethereum.utils.numeric import U256_le, U256_sub, U256_add, U256_mul
 from cairo_core.comparison import is_zero
+from cairo_core.control_flow import raise
 
 from legacy.utils.dict import (
     hashdict_read,
@@ -295,11 +296,7 @@ func set_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(
     // Assert that the account exists
     let account = get_account_optional(address);
     if (cast(account.value, felt) == 0) {
-        // TODO: think about which cases lead to this error and decide on the correct type of exception to raise
-        // perhaps AssertionError
-        with_attr error_message("Cannot set storage on non-existent account") {
-            assert 0 = 1;
-        }
+        raise('AssertionError');
     }
     let storage_trie = state.value._storage_tries;
     trie_set_TrieTupleAddressBytes32U256{poseidon_ptr=poseidon_ptr, trie=storage_trie}(
@@ -682,13 +679,11 @@ func close_transaction{
     let main_trie_end = main_trie.value._data.value.dict_ptr;
     let parent_main_trie = main_trie.value._data.value.parent_dict;
 
-    with_attr error_message("IndexError") {
-        tempvar parent_main_trie_ptr = cast(parent_main_trie, felt);
-        if (cast(parent_main_trie_ptr, felt) == 0) {
-            assert 0 = 1;
-            ret;
-        }
+    tempvar parent_main_trie_ptr = cast(parent_main_trie, felt);
+    if (cast(parent_main_trie_ptr, felt) == 0) {
+        raise('IndexError');
     }
+
     let parent_trie_start = parent_main_trie.dict_ptr_start;
     let parent_trie_end = parent_main_trie.dict_ptr;
 
@@ -779,13 +774,11 @@ func close_transaction{
     let transient_storage_tries_end = transient_storage_tries.value._data.value.dict_ptr;
     let parent_transient_storage_tries = transient_storage_tries.value._data.value.parent_dict;
 
-    with_attr error_message("IndexError") {
-        tempvar parent_transient_storage_tries_ptr = cast(parent_transient_storage_tries, felt);
-        if (cast(parent_transient_storage_tries_ptr, felt) == 0) {
-            assert 0 = 1;
-            ret;
-        }
+    tempvar parent_transient_storage_tries_ptr = cast(parent_transient_storage_tries, felt);
+    if (cast(parent_transient_storage_tries_ptr, felt) == 0) {
+        raise('IndexError');
     }
+
     let parent_transient_storage_tries_start = parent_transient_storage_tries.dict_ptr_start;
     let parent_transient_storage_tries_end = parent_transient_storage_tries.dict_ptr;
     let (

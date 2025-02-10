@@ -1,6 +1,7 @@
 from ethereum_types.bytes import Bytes, Bytes0, TupleBytes32
 from ethereum_types.numeric import Uint, U256, U64, bool, U256Struct
 from ethereum.cancun.fork_types import Address, TupleVersionedHash
+from cairo_core.control_flow import raise
 
 const TX_BASE_COST = 21000;
 const TX_DATA_COST_PER_NON_ZERO = 16;
@@ -142,10 +143,10 @@ func get_transaction_type(tx: Transaction) -> felt {
         return TransactionType.BLOB;
     }
     with_attr error_message("InvalidTransaction") {
-        assert 0 = 1;
-        ret;
+        jmp raise.raise_label;
     }
 }
+
 func get_gas(tx: Transaction) -> Uint {
     let tx_type = get_transaction_type(tx);
     if (tx_type == TransactionType.LEGACY) {
@@ -161,10 +162,10 @@ func get_gas(tx: Transaction) -> Uint {
         return tx.value.blob_transaction.value.gas;
     }
     with_attr error_message("InvalidTransaction") {
-        assert 0 = 1;
-        ret;
+        jmp raise.raise_label;
     }
 }
+
 func get_r(tx: Transaction) -> U256 {
     let tx_type = get_transaction_type(tx);
     if (tx_type == TransactionType.LEGACY) {
@@ -180,10 +181,10 @@ func get_r(tx: Transaction) -> U256 {
         return tx.value.blob_transaction.value.r;
     }
     with_attr error_message("InvalidTransaction") {
-        assert 0 = 1;
-        ret;
+        jmp raise.raise_label;
     }
 }
+
 func get_s(tx: Transaction) -> U256 {
     let tx_type = get_transaction_type(tx);
     if (tx_type == TransactionType.LEGACY) {
@@ -199,10 +200,10 @@ func get_s(tx: Transaction) -> U256 {
         return tx.value.blob_transaction.value.s;
     }
     with_attr error_message("InvalidTransaction") {
-        assert 0 = 1;
-        ret;
+        jmp raise.raise_label;
     }
 }
+
 func get_max_fee_per_gas(tx: Transaction) -> Uint {
     let tx_type = get_transaction_type(tx);
     if (tx_type == TransactionType.FEE_MARKET) {
@@ -212,10 +213,10 @@ func get_max_fee_per_gas(tx: Transaction) -> Uint {
         return tx.value.blob_transaction.value.max_fee_per_gas;
     }
     with_attr error_message("InvalidTransaction") {
-        assert 0 = 1;
-        ret;
+        jmp raise.raise_label;
     }
 }
+
 func get_max_priority_fee_per_gas(tx: Transaction) -> Uint {
     let tx_type = get_transaction_type(tx);
     if (tx_type == TransactionType.FEE_MARKET) {
@@ -225,10 +226,10 @@ func get_max_priority_fee_per_gas(tx: Transaction) -> Uint {
         return tx.value.blob_transaction.value.max_priority_fee_per_gas;
     }
     with_attr error_message("InvalidTransaction") {
-        assert 0 = 1;
-        ret;
+        jmp raise.raise_label;
     }
 }
+
 func get_gas_price(tx: Transaction) -> Uint {
     let tx_type = get_transaction_type(tx);
     if (tx_type == TransactionType.LEGACY) {
@@ -238,10 +239,10 @@ func get_gas_price(tx: Transaction) -> Uint {
         return tx.value.access_list_transaction.value.gas_price;
     }
     with_attr error_message("InvalidTransaction") {
-        assert 0 = 1;
-        ret;
+        jmp raise.raise_label;
     }
 }
+
 func get_nonce(tx: Transaction) -> U256 {
     let tx_type = get_transaction_type(tx);
     if (tx_type == TransactionType.LEGACY) {
@@ -257,10 +258,10 @@ func get_nonce(tx: Transaction) -> U256 {
         return tx.value.blob_transaction.value.nonce;
     }
     with_attr error_message("InvalidTransaction") {
-        assert 0 = 1;
-        ret;
+        jmp raise.raise_label;
     }
 }
+
 func get_value(tx: Transaction) -> U256 {
     let tx_type = get_transaction_type(tx);
     if (tx_type == TransactionType.LEGACY) {
@@ -276,7 +277,6 @@ func get_value(tx: Transaction) -> U256 {
         return tx.value.blob_transaction.value.value;
     }
     with_attr error_message("InvalidTransaction") {
-        assert 0 = 1;
-        ret;
+        jmp raise.raise_label;
     }
 }

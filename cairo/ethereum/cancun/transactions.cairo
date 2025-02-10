@@ -7,10 +7,10 @@ from starkware.cairo.common.cairo_builtins import (
     ModBuiltin,
     PoseidonBuiltin,
 )
-from cairo_ec.curve.secp256k1 import secp256k1
-from ethereum.crypto.elliptic_curve import secp256k1_recover_uint256_bigends
-
-from ethereum.crypto.elliptic_curve import public_key_point_to_eth_address
+from ethereum.crypto.elliptic_curve import (
+    secp256k1_recover_uint256_bigends,
+    public_key_point_to_eth_address,
+)
 from ethereum.utils.numeric import U256_le, U256__eq__
 from ethereum_types.bytes import Bytes, Bytes0, BytesStruct
 from ethereum_types.numeric import Uint, bool, U256, U256Struct, U64
@@ -40,7 +40,6 @@ from ethereum.cancun.transactions_types import (
     get_r,
     get_s,
 )
-
 from ethereum.crypto.hash import keccak256, Hash32
 from ethereum_rlp.rlp import (
     encode_legacy_transaction_for_signing,
@@ -52,9 +51,11 @@ from ethereum_rlp.rlp import (
     decode_to_fee_market_transaction,
     decode_to_blob_transaction,
 )
-
 from ethereum.cancun.blocks import UnionBytesLegacyTransaction
 from ethereum.cancun.utils.constants import MAX_CODE_SIZE
+
+from cairo_core.control_flow import raise
+from cairo_ec.curve.secp256k1 import secp256k1
 from legacy.utils.array import count_not_zero
 
 func calculate_intrinsic_cost{range_check_ptr}(tx: Transaction) -> Uint {
@@ -101,8 +102,7 @@ func calculate_intrinsic_cost{range_check_ptr}(tx: Transaction) -> Uint {
     }
 
     with_attr error_message("InvalidTransaction") {
-        assert 0 = 1;
-        ret;
+        jmp raise.raise_label;
     }
 }
 
@@ -337,8 +337,7 @@ func recover_sender{
 
     // Invariant: at least one of the transaction types is non-zero.
     with_attr error_message("InvalidTransaction") {
-        assert 0 = 1;
-        ret;
+        jmp raise.raise_label;
     }
 }
 
@@ -414,8 +413,6 @@ func decode_transaction{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
         return res;
     }
     with_attr error_message("TransactionTypeError") {
-        assert 0 = 1;
-        // unreachable
-        ret;
+        jmp raise.raise_label;
     }
 }

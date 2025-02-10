@@ -73,6 +73,7 @@ from legacy.utils.bytes import (
     felt_to_bytes16_little,
     uint256_from_bytes_be,
 )
+from cairo_core.control_flow import raise
 
 struct SequenceSimple {
     value: SequenceSimpleStruct*,
@@ -742,9 +743,8 @@ func encode_transaction{range_check_ptr}(transaction: Transaction) -> UnionBytes
     }
 
     // Should never happen - one pointer must be non-null
-    with_attr error_message("Invalid transaction type - no valid pointer") {
-        assert 0 = 1;
-        ret;
+    with_attr error_message("InvalidTransactionType") {
+        jmp raise.raise_label;
     }
 }
 
@@ -1436,9 +1436,8 @@ func _encode{range_check_ptr}(dst: felt*, raw_data: Extended) -> felt {
         return _encode_uint(dst, raw_data.value.bool.value);
     }
 
-    with_attr error_message("RLP Encoding type is not supported") {
-        assert 0 = 1;
-        ret;
+    with_attr error_message("RLPEncodeInvalidType") {
+        jmp raise.raise_label;
     }
 }
 
