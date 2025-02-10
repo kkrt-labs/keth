@@ -993,6 +993,13 @@ func _prepare_trie_inner_account{
         return mapping_ptr_end;
     }
 
+    // Skip all None values
+    if (cast(dict_ptr.new_value.value, felt) == 0) {
+        return _prepare_trie_inner_account(
+            trie, dict_ptr + AddressAccountDictAccess.SIZE, mapping_ptr_end
+        );
+    }
+
     let preimage = Bytes20_to_Bytes(dict_ptr.key);
     let value = dict_ptr.new_value;
     // TODO: get storage root
