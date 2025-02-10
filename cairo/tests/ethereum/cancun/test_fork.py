@@ -14,7 +14,7 @@ from ethereum.cancun.fork import (
     process_transaction,
     validate_header,
 )
-from ethereum.cancun.fork_types import Address
+from ethereum.cancun.fork_types import Address, VersionedHash
 from ethereum.cancun.state import State, set_account
 from ethereum.cancun.transactions import (
     AccessListTransaction,
@@ -30,8 +30,10 @@ from ethereum.cancun.transactions import (
 )
 from ethereum.cancun.vm import Environment
 from ethereum.cancun.vm.gas import TARGET_BLOB_GAS_PER_BLOCK
+from ethereum.crypto.hash import Hash32, keccak256
 from ethereum.exceptions import EthereumException
-from ethereum_types.bytes import Bytes, Bytes0, Bytes20
+from ethereum_rlp import rlp
+from ethereum_types.bytes import Bytes, Bytes0, Bytes8, Bytes20
 from ethereum_types.numeric import U64, U256, Uint
 from hypothesis import assume, given
 from hypothesis import strategies as st
@@ -39,19 +41,18 @@ from hypothesis.strategies import composite, integers
 
 from cairo_addons.testing.errors import strict_raises
 from tests.ethereum.cancun.vm.test_interpreter import unimplemented_precompiles
-from tests.utils.strategies import account_strategy, address, bytes32, state, uint
+from tests.utils.constants import OMMER_HASH
+from tests.utils.strategies import account_strategy, address, bytes32, small_bytes, uint
 
 MIN_BASE_FEE = 1_000
 
 
 @composite
 def tx_with_small_data(draw, gas_strategy=uint, gas_price_strategy=uint):
-    # Generate access list
-    access_list_entries = draw(
-        st.lists(st.tuples(address, st.lists(bytes32, max_size=2)), max_size=3)
-    )
-    access_list = tuple(
-        (addr, tuple(storage_keys)) for addr, storage_keys in access_list_entries
+    access_list = draw(
+        st.lists(
+            st.tuples(address, st.lists(bytes32, max_size=3).map(tuple)), max_size=3
+        ).map(tuple)
     )
 
     addr = (
@@ -103,12 +104,79 @@ def tx_with_small_data(draw, gas_strategy=uint, gas_price_strategy=uint):
         gas=gas_strategy,
         max_priority_fee_per_gas=st.just(max_priority_fee_per_gas),
         max_fee_per_gas=st.just(max_fee_per_gas),
+        blob_versioned_hashes=st.lists(st.from_type(VersionedHash), max_size=3).map(
+            tuple
+        ),
     )
 
     # Choose one transaction type
     tx = draw(st.one_of(legacy_tx, access_list_tx, fee_market_tx, blob_tx))
 
     return tx
+
+
+@composite
+def headers(draw):
+    # Gas limit is in the order of magnitude of millions today,
+    # 2**32 is a safe upper bound and 21_000 is the minimum amount of gas in a transaction.
+    gas_limit = draw(st.integers(min_value=21_000, max_value=2**32 - 1).map(Uint))
+    parent_header = draw(
+        st.builds(
+            Header,
+            difficulty=uint,
+            number=uint,
+            nonce=st.from_type(Bytes8),
+            ommers_hash=st.just(OMMER_HASH).map(Hash32),
+            gas_limit=st.just(gas_limit),
+            gas_used=st.one_of(uint, st.just(gas_limit // Uint(2))),
+            # Base fee per gas is in the order of magnitude of the GWEI today which is 10^9,
+            # 2**48 is a safe upper bound with good slack.
+            base_fee_per_gas=st.integers(min_value=0, max_value=2**48 - 1).map(Uint),
+            prev_randao=bytes32,
+            withdrawals_root=bytes32,
+            parent_beacon_block_root=bytes32,
+            transactions_root=bytes32,
+            receipt_root=bytes32,
+            parent_hash=bytes32,
+        )
+    )
+    correct_base_fee = calculate_base_fee_per_gas(
+        parent_header.gas_limit,
+        parent_header.gas_limit,
+        parent_header.gas_used,
+        parent_header.base_fee_per_gas,
+    )
+    header = draw(
+        st.builds(
+            Header,
+            parent_hash=st.one_of(
+                st.just(keccak256(rlp.encode(parent_header))), st.from_type(Hash32)
+            ),
+            gas_limit=st.just(parent_header.gas_limit),
+            gas_used=st.one_of(uint, st.just(parent_header.gas_limit // Uint(2))),
+            base_fee_per_gas=st.one_of(
+                st.just(correct_base_fee),
+                st.integers(min_value=0, max_value=2**48 - 1).map(Uint),
+            ),
+            extra_data=st.one_of(small_bytes, bytes32.map(Bytes)),
+            difficulty=st.one_of(uint, st.just(Uint(0))),
+            ommers_hash=st.just(OMMER_HASH).map(Hash32),
+            nonce=st.one_of(
+                st.from_type(Bytes8),
+                st.just(Bytes8(int(0).to_bytes(8, "big"))),
+            ),
+            number=st.one_of(
+                st.just(parent_header.number + Uint(1)),
+                uint,
+            ),
+            prev_randao=bytes32,
+            withdrawals_root=bytes32,
+            parent_beacon_block_root=bytes32,
+            transactions_root=bytes32,
+            receipt_root=bytes32,
+        )
+    )
+    return parent_header, header
 
 
 @composite
@@ -121,10 +189,23 @@ def tx_with_sender_in_state(
             min_value=MIN_BASE_FEE - 1, max_value=2**64
         ).map(Uint),
     ),
-    state_strategy=state,
     account_strategy=account_strategy,
 ):
-    state = draw(state_strategy)
+    env = draw(st.from_type(Environment))
+    if env.gas_price < env.base_fee_per_gas:
+        env.gas_price = draw(
+            st.one_of(
+                st.integers(
+                    min_value=int(env.base_fee_per_gas), max_value=2**64 - 1
+                ).map(Uint),
+                st.just(env.base_fee_per_gas),
+            )
+        )
+    # Values too high would cause taylor_exponential to run indefinitely.
+    env.excess_blob_gas = draw(
+        st.integers(0, 10 * int(TARGET_BLOB_GAS_PER_BLOCK)).map(U64)
+    )
+    state = env.state
     account = draw(account_strategy)
     # 2 * chain_id + 35 + v must be less than 2^64 for the signature of a legacy transaction to be valid
     chain_id = draw(st.integers(min_value=1, max_value=(2**64 - 37) // 2).map(U64))
@@ -169,23 +250,7 @@ def tx_with_sender_in_state(
     if should_add_sender_to_state:
         sender = Address(int(expected_address).to_bytes(20, "little"))
         set_account(state, sender, account)
-    return tx, state, chain_id
-
-
-@composite
-def env_with_valid_gas_price(draw):
-    env = draw(st.from_type(Environment))
-    if env.gas_price < env.base_fee_per_gas:
-        env.gas_price = draw(
-            st.integers(min_value=int(env.base_fee_per_gas), max_value=2**64 - 1).map(
-                Uint
-            )
-        )
-    # Values too high would cause taylor_exponential to run indefinitely.
-    env.excess_blob_gas = draw(
-        st.integers(0, 10 * int(TARGET_BLOB_GAS_PER_BLOCK)).map(U64)
-    )
-    return env
+    return tx, env, chain_id
 
 
 class TestFork:
@@ -228,8 +293,9 @@ class TestFork:
             parent_base_fee_per_gas,
         )
 
-    @given(header=..., parent_header=...)
-    def test_validate_header(self, cairo_run, header: Header, parent_header: Header):
+    @given(headers=headers())
+    def test_validate_header(self, cairo_run, headers: Tuple[Header, Header]):
+        parent_header, header = headers
         try:
             cairo_run("validate_header", header, parent_header)
         except Exception as e:
@@ -262,13 +328,13 @@ class TestFork:
             "make_receipt", tx, error, cumulative_gas_used, logs
         )
 
-    @given(env=env_with_valid_gas_price(), data=tx_with_sender_in_state())
+    @given(data=tx_with_sender_in_state())
     def test_process_transaction(
-        self, cairo_run, env: Environment, data: Tuple[Transaction, State, U64]
+        self, cairo_run, data: Tuple[Transaction, Environment, U64]
     ):
         # The Cairo Runner will raise if an exception is in the return values OR if
         # an assert expression fails (e.g. InvalidBlock)
-        tx, __, _ = data
+        tx, env, _ = data
         try:
             env_cairo, cairo_result = cairo_run("process_transaction", env, tx)
         except Exception as cairo_e:
@@ -308,11 +374,11 @@ class TestFork:
         base_fee_per_gas: Uint,
         excess_blob_gas: U64,
     ):
-        tx, state, chain_id = data
+        tx, env, chain_id = data
         try:
             cairo_state, cairo_result = cairo_run_py(
                 "check_transaction",
-                state,
+                env.state,
                 tx,
                 gas_available,
                 chain_id,
@@ -322,7 +388,7 @@ class TestFork:
         except Exception as e:
             with strict_raises(type(e)):
                 check_transaction(
-                    state,
+                    env.state,
                     tx,
                     gas_available,
                     chain_id,
@@ -332,9 +398,9 @@ class TestFork:
             return
 
         assert cairo_result == check_transaction(
-            state, tx, gas_available, chain_id, base_fee_per_gas, excess_blob_gas
+            env.state, tx, gas_available, chain_id, base_fee_per_gas, excess_blob_gas
         )
-        assert cairo_state == state
+        assert cairo_state == env.state
 
     @given(blocks=st.lists(st.builds(Block), max_size=300))
     def test_get_last_256_block_hashes(self, cairo_run, blocks):
@@ -344,3 +410,14 @@ class TestFork:
         cairo_result = cairo_run("get_last_256_block_hashes", chain)
 
         assert py_result == cairo_result
+
+    @given(header=...)
+    def test_keccak256_header(self, cairo_run, header: Header):
+        try:
+            cairo_result = cairo_run("keccak256_header", header)
+        except Exception as cairo_error:
+            with strict_raises(type(cairo_error)):
+                keccak256(rlp.encode(header))
+            return
+
+        assert cairo_result == keccak256(rlp.encode(header))
