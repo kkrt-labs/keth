@@ -129,12 +129,15 @@ def headers(draw):
             difficulty=st.just(0).map(Uint),
             nonce=st.just(int(0).to_bytes(8, "big")).map(Bytes8),
             ommers_hash=st.just(OMMER_HASH).map(Hash32),
-            gas_limit=st.integers(min_value=21_000, max_value=2**64 - 1).map(Uint),
+            gas_limit=st.integers(min_value=21_000, max_value=2**32 - 1).map(Uint),
+            gas_used=st.integers(min_value=0, max_value=2**32 - 1).map(Uint),
+            base_fee_per_gas=st.integers(min_value=0, max_value=2**48 - 1).map(Uint),
             prev_randao=bytes32,
             withdrawals_root=bytes32,
             parent_beacon_block_root=bytes32,
             transactions_root=bytes32,
             receipt_root=bytes32,
+            parent_hash=bytes32,
         )
     )
     correct_base_fee = calculate_base_fee_per_gas(
