@@ -401,3 +401,14 @@ class TestFork:
         cairo_result = cairo_run("get_last_256_block_hashes", chain)
 
         assert py_result == cairo_result
+
+    @given(header=...)
+    def test_keccak256_header(self, cairo_run, header: Header):
+        try:
+            cairo_result = cairo_run("keccak256_header", header)
+        except Exception as cairo_error:
+            with strict_raises(type(cairo_error)):
+                keccak256(rlp.encode(header))
+            return
+
+        assert cairo_result == keccak256(rlp.encode(header))
