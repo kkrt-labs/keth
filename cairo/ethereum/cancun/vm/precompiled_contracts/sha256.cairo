@@ -36,7 +36,7 @@ func sha256{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBui
     }
 
     let list_bytes4_be = Bytes_to_be_ListBytes4(data);
-    // The numbero of bytes to hash is taken from the original input
+    // The number of bytes to hash is taken from the original input
     let hash = sha256_be_output(list_bytes4_be.value.data, data.value.len);
     tempvar hash_bytes4 = ListBytes4(new ListBytes4Struct(cast(hash, Bytes4*), 8));
     // Split words and return bytes hash code.

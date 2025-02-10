@@ -14,6 +14,10 @@ def cairo_error(message=None):
             return
         error = re.search(r"Error message: (.*)", str(e.value))
         error = error.group(1) if error else str(e.value)
+        try:
+            error = int(error).to_bytes(31, "big").lstrip(b"\x00").decode()
+        except Exception:
+            pass
         assert message in error, f"Expected {message}, got {error}"
     finally:
         pass
@@ -47,3 +51,27 @@ def strict_raises(expected_exception: Type[Exception], match: Optional[str] = No
     if match is not None:
         error_msg = str(exc_info.value)
         assert match in error_msg, f"Expected '{match}' in '{error_msg}'"
+
+
+def map_to_python_exception(e: Exception):
+    import ethereum.exceptions as eth_exceptions
+
+    error_str = str(e)
+
+    # Throw a specialized python exception from the error message, if possible
+    error = re.search(r"Error message: (.*)", error_str)
+    error_type = error.group(1) if error else error_str
+    try:
+        error_type = int(error_type).to_bytes(31, "big").lstrip(b"\x00").decode()
+    except Exception:
+        pass
+
+    # Get the exception class from python's builtins or ethereum's exceptions
+    exception_class = __builtins__.get(
+        error_type, getattr(eth_exceptions, error_type, None)
+    )
+    if isinstance(exception_class, type) and issubclass(exception_class, Exception):
+        raise exception_class() from e
+
+    # Fallback to generic exception
+    raise Exception(error_str) from e

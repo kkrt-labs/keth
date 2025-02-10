@@ -4,7 +4,7 @@
 //      at the end of the function, which would then not be covered.
 func raise(message: felt) {
     with_attr error_message("{message}") {
-        raise_jmp:
+        raise_label:
         [ap] = 0, ap++;
         [ap] = 1, ap++;
         dw 0x40127ffe7fff7fff;

@@ -72,6 +72,7 @@ from ethereum_rlp.rlp import (
 from ethereum.utils.numeric import divmod
 
 from cairo_core.comparison import is_zero
+from cairo_core.control_flow import raise
 
 struct LeafNodeStruct {
     rest_of_key: Bytes,
@@ -388,17 +389,11 @@ func encode_node{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: Kecc
 
     none:
     // None defined for type Node but actually not supported in the EELS
-    with_attr error_message("AssertionError") {
-        assert 0 = 1;
-        ret;
-    }
+    raise('AssertionError');
 
     account:
     if (cast(storage_root.value, felt) == 0) {
-        with_attr error_message("encode_node: account without storage root") {
-            assert 0 = 1;
-            ret;
-        }
+        raise('AssertionError');
     }
     let encoded = encode_account(node.value.account, storage_root);
     return encoded;
@@ -417,10 +412,8 @@ func encode_node{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: Kecc
     uint:
     // Node is Union[Account, Bytes, LegacyTransaction, Receipt, Uint, U256, Withdrawal, None]
     // but encode_node(Uint) will raise AssertionError in EELS
-    with_attr error_message("AssertionError") {
-        assert 0 = 1;
-    }
-    ret;
+    raise('AssertionError');
+
     // TODO: use this code once Uint is supported in the EELS
     // let encoded = encode_uint([node.value.uint]);
     // return encoded;

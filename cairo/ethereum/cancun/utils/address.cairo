@@ -15,6 +15,7 @@ from legacy.utils.bytes import (
     felt_to_bytes,
     uint256_to_bytes32_little,
 )
+from cairo_core.control_flow import raise
 
 func to_address{range_check_ptr}(data: UnionUintU256) -> Address {
     alloc_locals;
@@ -35,8 +36,7 @@ func to_address{range_check_ptr}(data: UnionUintU256) -> Address {
     }
 
     with_attr error_message("Type not valid") {
-        assert 0 = 1;
-        ret;
+        jmp raise.raise_label;
     }
 }
 

@@ -1,8 +1,9 @@
 from typing import Mapping, Optional, Tuple, Union
 
 import pytest
-from ethereum.cancun.blocks import LegacyTransaction, Receipt, Withdrawal
+from ethereum.cancun.blocks import Receipt, Withdrawal
 from ethereum.cancun.fork_types import Account, Address
+from ethereum.cancun.transactions import LegacyTransaction
 from ethereum.cancun.trie import (
     BranchNode,
     ExtensionNode,
@@ -57,7 +58,7 @@ class TestTrie:
     ):
         with pytest.raises(AssertionError):
             encode_node(node, None)
-        with cairo_error(message="encode_node"):
+        with cairo_error(message="AccountNoRoot"):
             cairo_run("encode_node", node, None)
 
     @given(a=..., b=...)
