@@ -393,14 +393,14 @@ func felt252_to_bytes_le{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
         let range_check_ptr = range_check_ptr + 2;
     }
     let output = &dst[0];
-    let base = 256;
-    let bound = 256;
     %{ felt252_to_bytes_le %}
 
+    tempvar range_check_ptr = range_check_ptr;
     tempvar idx = 0;
     tempvar acc = 0;
 
     loop:
+    let range_check_ptr = [ap - 3];
     let idx = [ap - 2];
     let acc = [ap - 1];
     let is_done = is_zero(len - idx);
@@ -409,9 +409,14 @@ func felt252_to_bytes_le{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     static_assert acc == [ap - 5];
     jmp end if is_done != 0;
 
+    with_attr error_message("felt252_to_bytes_le: byte not in bounds") {
+        assert [range_check_ptr] = output[idx];
+        assert [range_check_ptr + 1] = 255 - output[idx];
+    }
     let pow256_idx = pow256(idx);
     tempvar current_value = output[idx] * pow256_idx;
 
+    tempvar range_check_ptr = range_check_ptr + 2;
     tempvar idx = idx + 1;
     tempvar acc = acc + current_value;
     jmp loop;
@@ -457,14 +462,14 @@ func felt252_to_bytes_be{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
         let range_check_ptr = range_check_ptr + 2;
     }
     let output = &dst[0];
-    let base = 256;
-    let bound = 256;
     %{ felt252_to_bytes_be %}
 
+    tempvar range_check_ptr = range_check_ptr;
     tempvar idx = 0;
     tempvar acc = 0;
 
     loop:
+    let range_check_ptr = [ap - 3];
     let idx = [ap - 2];
     let acc = [ap - 1];
     let is_done = is_zero(len - idx);
@@ -473,9 +478,14 @@ func felt252_to_bytes_be{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     static_assert acc == [ap - 5];
     jmp end if is_done != 0;
 
+    with_attr error_message("felt252_to_bytes_be: byte not in bounds") {
+        assert [range_check_ptr] = output[idx];
+        assert [range_check_ptr + 1] = 255 - output[idx];
+    }
     let pow256_idx = pow256(len - 1 - idx);
     tempvar current_value = output[idx] * pow256_idx;
 
+    tempvar range_check_ptr = range_check_ptr + 2;
     tempvar idx = idx + 1;
     tempvar acc = acc + current_value;
     jmp loop;
