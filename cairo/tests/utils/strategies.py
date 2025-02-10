@@ -464,6 +464,26 @@ state = st.lists(address, max_size=MAX_ADDRESS_SET_SIZE, unique=True).flatmap(
     ),
 )
 
+header = st.builds(
+    Header,
+    parent_hash=hash32,
+    ommers_hash=hash32,
+    coinbase=address,
+    state_root=root,
+    transactions_root=root,
+    receipt_root=root,
+    bloom=bloom,
+    difficulty=uint,
+    number=uint,
+    gas_limit=uint,
+    gas_used=uint,
+    timestamp=uint256,
+    extra_data=small_bytes,
+    prev_randao=bytes32,
+    nonce=bytes8,
+    base_fee_per_gas=uint,
+)
+
 
 private_key = (
     st.integers(min_value=1, max_value=int(SECP256K1N) - 1)
@@ -555,3 +575,4 @@ def register_type_strategies():
     st.register_type_strategy(TransientStorage, transient_storage)
     st.register_type_strategy(MutableBloom, bloom.map(MutableBloom))
     st.register_type_strategy(Environment, environment_lite)
+    st.register_type_strategy(Header, header)

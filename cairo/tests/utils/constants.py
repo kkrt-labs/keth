@@ -25,6 +25,9 @@ BLOCK_GAS_LIMIT = 30_000_000
 # Source: <https://eips.ethereum.org/EIPS/eip-4844#specification>
 MAX_BLOB_GAS_PER_BLOCK = 786432
 COINBASE = "0x2adc25665018aa1fe0e6bc666dac8fc2697ff9ba"
+OMMER_HASH = int(
+    0x1DCC4DE8DEC75D7AAB85B567B6CCD41AD312451B948A7413F0A142FD40D49347
+).to_bytes(32, "little")
 BASE_FEE_PER_GAS = 1_000
 signers = {
     keys.PrivateKey(
