@@ -123,17 +123,17 @@ def tx_with_small_data(draw, gas_strategy=uint, gas_price_strategy=uint):
 
 @composite
 def headers(draw):
+    # Gas limit is in the order of magnitude of millions today,
+    # 2**32 is a safe upper bound and 21_000 is the minimum amount of gas in a transaction.
+    gas_limit = draw(st.integers(min_value=21_000, max_value=2**32 - 1).map(Uint))
     parent_header = draw(
         st.builds(
             Header,
             difficulty=uint,
             nonce=st.from_type(Bytes8),
             ommers_hash=st.just(OMMER_HASH).map(Hash32),
-            # Gas limit is in the order of magnitude of millions today,
-            # 2**32 is a safe upper bound and 21_000 is the minimum amount of gas in a transaction.
-            gas_limit=st.integers(min_value=21_000, max_value=2**32 - 1).map(Uint),
-            # Gas used is between 0 and gas_limit,
-            gas_used=st.integers(min_value=0, max_value=2**32 - 1).map(Uint),
+            gas_limit=st.just(gas_limit),
+            gas_used=st.one_of(uint, st.just(gas_limit // Uint(2))),
             # Base fee per gas is in the order of magnitude of the GWEI today which is 10^9,
             # 2**48 is a safe upper bound with good slack.
             base_fee_per_gas=st.integers(min_value=0, max_value=2**48 - 1).map(Uint),
@@ -165,7 +165,7 @@ def headers(draw):
                     Uint
                 ),
             ),
-            extra_data=small_bytes,
+            extra_data=st.one_of(small_bytes, bytes32.map(Bytes)),
             difficulty=uint,
             ommers_hash=st.just(OMMER_HASH).map(Hash32),
             nonce=st.from_type(Bytes8),
