@@ -1783,8 +1783,8 @@ func _get_bytes32_preimage_for_key{poseidon_ptr: PoseidonBuiltin*}(
     %{ get_preimage_for_key %}
 
     // Verify preimage
-    with_attr error_message("_get_bytes32_preimage_for_key: preimage_len != 2") {
-        assert preimage_len = 2;
+    if (preimage_len != 2) {
+        raise('preimage_len != 2');
     }
 
     let (preimage_hash) = poseidon_hash_many(preimage_len, preimage_data);
