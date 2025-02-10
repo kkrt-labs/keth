@@ -82,7 +82,7 @@ class TestMaths:
         len_=st.integers(min_value=1, max_value=31),
     )
     def test_felt252_to_bytes_le_should_panic_on_wrong_output(
-        self, cairo_programs, cairo_run_py, value, len_
+        self, cairo_programs, cairo_run, value, len_
     ):
         with patch_hint(
             cairo_programs,
@@ -93,7 +93,7 @@ truncated_value = ids.value & mask
 segments.write_arg(ids.output, [int(b)+1 if b < 255 else 0 for b in truncated_value.to_bytes(length=ids.len, byteorder='little')])
             """,
         ), cairo_error(message="felt252_to_bytes_le: bad output"):
-            cairo_run_py("test__felt252_to_bytes_le", value=value, len=len_)
+            cairo_run("test__felt252_to_bytes_le", value=value, len=len_)
 
     def test_felt252_to_bytes_le_should_panic_on_wrong_output_noncanonical(
         self, cairo_program, cairo_run

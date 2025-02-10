@@ -224,21 +224,23 @@ def pytest_collection_modifyitems(session, config, items):
                 ]
             if fspath not in session.cairo_programs:
                 dump_paths = get_dump_paths(session, fspath)
-                for path in dump_paths:
-                    if path.exists():
-                        cairo_files = session.cairo_files[fspath]
-                        main_paths = session.main_paths[fspath]
-                        session.cairo_programs[fspath] = [
-                            get_cairo_program(
-                                cairo_file,
-                                main_path,
-                                path,
-                                config.getoption("prime"),
-                            )
-                            for cairo_file, main_path in zip(cairo_files, main_paths)
-                        ]
-                    else:
-                        missing_new.add(fspath)
+                # Only proceed when all dump paths exist
+                if all(path.exists() for path in dump_paths):
+                    cairo_files = session.cairo_files[fspath]
+                    main_paths = session.main_paths[fspath]
+                    session.cairo_programs[fspath] = [
+                        get_cairo_program(
+                            cairo_file,
+                            main_path,
+                            dump_path,
+                            config.getoption("prime"),
+                        )
+                        for cairo_file, main_path, dump_path in zip(
+                            cairo_files, main_paths, dump_paths
+                        )
+                    ]
+                else:
+                    missing_new.add(fspath)
         missing = missing_new
         time.sleep(0.25)
 
