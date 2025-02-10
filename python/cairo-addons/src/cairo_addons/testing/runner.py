@@ -12,7 +12,6 @@ import json
 import logging
 import marshal
 import math
-import re
 from hashlib import md5
 from pathlib import Path
 from time import time_ns
@@ -51,6 +50,7 @@ from starkware.cairo.lang.vm.utils import RunResources
 from starkware.cairo.lang.vm.vm import VirtualMachine
 
 from cairo_addons.profiler import profile_from_trace
+from cairo_addons.testing.errors import map_to_python_exception
 from cairo_addons.testing.hints import debug_info, oracle
 from cairo_addons.testing.serde import Serde, SerdeProtocol
 from cairo_addons.testing.utils import flatten
@@ -552,24 +552,3 @@ def run_rust_vm(
         return final_output[0] if len(final_output) == 1 else final_output
 
     return _run
-
-
-def map_to_python_exception(e: Exception):
-    import ethereum.exceptions as eth_exceptions
-
-    error_str = str(e)
-
-    # Throw a specialized python exception from the error message, if possible
-    error = re.search(r"Error message: (.*)", error_str)
-    error_type = error.group(1) if error else error_str
-    # Get the exception class from python's builtins or ethereum's exceptions
-    exception_class = __builtins__.get(
-        error_type, getattr(eth_exceptions, error_type, None)
-    )
-    if isinstance(exception_class, type) and issubclass(exception_class, Exception):
-        raise exception_class() from e
-
-    # Fallback to generic exception
-    if "An ASSERT_EQ instruction failed" in error_str:
-        raise AssertionError(e) from e
-    raise Exception(error_str) from e

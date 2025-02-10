@@ -3,9 +3,9 @@ from hypothesis import given
 from hypothesis.strategies import binary, integers
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 
+from cairo_addons.testing.errors import cairo_error
 from cairo_addons.testing.hints import patch_hint
 from cairo_addons.utils.uint256 import int_to_uint256
-from tests.utils.errors import cairo_error
 
 pytestmark = pytest.mark.python_vm
 

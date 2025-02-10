@@ -8,7 +8,7 @@ from ethereum.cancun.vm import (
 from ethereum.cancun.vm.precompiled_contracts import RIPEMD160_ADDRESS
 from hypothesis import given
 
-from tests.utils.errors import strict_raises
+from cairo_addons.testing.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder
 
 local_strategy = (

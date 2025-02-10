@@ -16,7 +16,7 @@ from ethereum.cancun.vm.stack import push
 from ethereum_types.numeric import U256
 from hypothesis import given
 
-from tests.utils.errors import strict_raises
+from cairo_addons.testing.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder
 
 arithmetic_tests_strategy = EvmBuilder().with_stack().with_gas_left().build()

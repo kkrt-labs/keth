@@ -3,7 +3,7 @@ from ethereum.cancun.vm.exceptions import InvalidOpcode
 from ethereum.cancun.vm.instructions import Ops, op_implementation
 from hypothesis import given
 
-from tests.utils.errors import strict_raises
+from cairo_addons.testing.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder
 from tests.utils.strategies import uint8
 

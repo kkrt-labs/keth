@@ -1,8 +1,9 @@
 from typing import Mapping, Optional, Tuple, Union
 
 import pytest
-from ethereum.cancun.blocks import LegacyTransaction, Receipt, Withdrawal
+from ethereum.cancun.blocks import Receipt, Withdrawal
 from ethereum.cancun.fork_types import Account, Address
+from ethereum.cancun.transactions import LegacyTransaction
 from ethereum.cancun.trie import (
     BranchNode,
     ExtensionNode,
@@ -25,9 +26,9 @@ from ethereum_types.numeric import U256, Uint
 from hypothesis import example, given
 from hypothesis import strategies as st
 
+from cairo_addons.testing.errors import cairo_error, strict_raises
 from cairo_addons.testing.hints import patch_hint
 from tests.utils.assertion import sequence_equal
-from tests.utils.errors import cairo_error, strict_raises
 from tests.utils.strategies import bytes32, nibble, uint4
 
 
@@ -57,7 +58,7 @@ class TestTrie:
     ):
         with pytest.raises(AssertionError):
             encode_node(node, None)
-        with cairo_error(message="encode_node"):
+        with pytest.raises(AssertionError):
             cairo_run("encode_node", node, None)
 
     @given(a=..., b=...)

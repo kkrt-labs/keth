@@ -5,8 +5,8 @@ from ethereum.cancun.vm.precompiled_contracts.mapping import (
 from hypothesis import example, given
 from hypothesis import strategies as st
 
+from cairo_addons.testing.errors import cairo_error
 from cairo_addons.testing.hints import patch_hint
-from tests.utils.errors import cairo_error
 
 
 class TestPrecompileMapping:

@@ -6,6 +6,7 @@ from ethereum.cancun.vm import Evm
 from ethereum.utils.numeric import divmod
 from ethereum.cancun.vm.precompiled_contracts.identity import identity
 from ethereum.cancun.vm.precompiled_contracts.sha256 import sha256
+from cairo_core.control_flow import raise
 
 // currently 10 precompiles.
 const N_PRECOMPILES = 10;
@@ -58,7 +59,7 @@ func precompile_table_lookup{range_check_ptr}(address: felt) -> (felt, felt) {
     }
 
     // To get the absolute fn ptr:
-    // - get the fn ptr relative to the current isntruction (precompiled_contracts_location[index + 2])
+    // - get the fn ptr relative to the current instruction (precompiled_contracts_location[index + 2])
     // - add the absolute address of the current instruction (precompiled_contracts_location + index + 1) to the relative fn ptr
     let table_fn = cast(
         precompiled_contracts_location + index + 1 + precompiled_contracts_location[index + 2], felt
@@ -97,8 +98,7 @@ func precompile_table_lookup{range_check_ptr}(address: felt) -> (felt, felt) {
 }
 
 func invalid_precompile() {
-    with_attr error_message("invalid_precompile") {
-        assert 0 = 1;
+    with_attr error_message("InvalidPrecompile") {
+        jmp raise.raise_label;
     }
-    return ();
 }

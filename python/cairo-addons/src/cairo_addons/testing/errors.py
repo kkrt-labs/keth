@@ -1,6 +1,6 @@
 import re
 from contextlib import contextmanager
-from typing import Type
+from typing import Optional, Type
 
 import pytest
 
@@ -13,14 +13,21 @@ def cairo_error(message=None):
         if message is None:
             return
         error = re.search(r"Error message: (.*)", str(e.value))
-        error = error.group(1) if error else str(e.value)
+        if error:
+            error = error.group(1)
+            try:
+                error = int(error).to_bytes(31, "big").lstrip(b"\x00").decode()
+            except Exception:
+                pass
+        else:
+            error = str(e.value)
         assert message in error, f"Expected {message}, got {error}"
     finally:
         pass
 
 
 @contextmanager
-def strict_raises(expected_exception: Type[Exception], match: str = None):
+def strict_raises(expected_exception: Type[Exception], match: Optional[str] = None):
     """
     Context manager that extends pytest.raises to enforce strict exception type matching.
     Unlike pytest.raises, this doesn't allow subclass exceptions to match.
@@ -47,3 +54,27 @@ def strict_raises(expected_exception: Type[Exception], match: str = None):
     if match is not None:
         error_msg = str(exc_info.value)
         assert match in error_msg, f"Expected '{match}' in '{error_msg}'"
+
+
+def map_to_python_exception(e: Exception):
+    import ethereum.exceptions as eth_exceptions
+
+    error_str = str(e)
+
+    # Throw a specialized python exception from the error message, if possible
+    error = re.search(r"Error message: (.*)", error_str)
+    error_type = error.group(1) if error else error_str
+    try:
+        error_type = int(error_type).to_bytes(31, "big").lstrip(b"\x00").decode()
+    except Exception:
+        pass
+
+    # Get the exception class from python's builtins or ethereum's exceptions
+    exception_class = __builtins__.get(
+        error_type, getattr(eth_exceptions, error_type, None)
+    )
+    if isinstance(exception_class, type) and issubclass(exception_class, Exception):
+        raise exception_class() from e
+
+    # Fallback to generic exception
+    raise Exception(error_type) from e

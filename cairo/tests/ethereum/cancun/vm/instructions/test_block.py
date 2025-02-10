@@ -14,7 +14,7 @@ from ethereum_types.numeric import U64, Uint
 from hypothesis import given
 from hypothesis import strategies as st
 
-from tests.utils.errors import strict_raises
+from cairo_addons.testing.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder, address_zero
 from tests.utils.strategies import (
     BLOCK_HASHES_LIST,
