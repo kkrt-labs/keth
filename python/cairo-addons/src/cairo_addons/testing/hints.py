@@ -1,3 +1,4 @@
+import contextlib
 from contextlib import contextmanager
 from importlib import import_module
 from typing import List, Optional
@@ -81,7 +82,9 @@ def patch_hint(
     orig_nondet_arg = get_nondet_arg(hint)
     new_nondet_arg = get_nondet_arg(new_hint)
 
-    for program in programs:
+    patched_programs_hints = [{} for _ in programs]
+
+    for i, program in enumerate(programs):
         patched_hints = {}
         for k, hint_list in program.hints.items():
             new_hints = []
@@ -120,13 +123,19 @@ def patch_hint(
                         new_hints.append(hint_)
             patched_hints[k] = new_hints
 
-        if patched_hints == program.hints:
-            raise ValueError(f"Hint\n\n{hint}\n\nnot found in program hints.")
+            if patched_hints == program.hints:
+                raise ValueError(f"Hint\n\n{hint}\n\nnot found in program hints.")
 
-        with patch.object(program, "hints", new=patched_hints):
-            yield
+            patched_programs_hints[i] = patched_hints
+
+    # Create context managers for all programs
+    with contextlib.ExitStack() as stack:
+        for program, patched_hints in zip(programs, patched_programs_hints):
+            stack.enter_context(patch.object(program, "hints", new=patched_hints))
+        yield
 
 
+@contextmanager
 @contextmanager
 def insert_hint(program, location: str, hint):
     """
