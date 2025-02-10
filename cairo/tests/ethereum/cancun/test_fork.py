@@ -126,7 +126,7 @@ def headers(draw):
     parent_header = draw(
         st.builds(
             Header,
-            difficulty=st.from_type(Uint),
+            difficulty=uint,
             nonce=st.from_type(Bytes8),
             ommers_hash=st.just(OMMER_HASH).map(Hash32),
             gas_limit=st.integers(min_value=21_000, max_value=2**32 - 1).map(Uint),
@@ -161,7 +161,7 @@ def headers(draw):
                 ),
             ),
             extra_data=small_bytes,
-            difficulty=st.from_type(Uint),
+            difficulty=uint,
             ommers_hash=st.just(OMMER_HASH).map(Hash32),
             nonce=st.from_type(Bytes8),
             number=st.one_of(
