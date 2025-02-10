@@ -58,7 +58,7 @@ class TestTrie:
     ):
         with pytest.raises(AssertionError):
             encode_node(node, None)
-        with cairo_error(message="AccountNoRoot"):
+        with pytest.raises(AssertionError):
             cairo_run("encode_node", node, None)
 
     @given(a=..., b=...)

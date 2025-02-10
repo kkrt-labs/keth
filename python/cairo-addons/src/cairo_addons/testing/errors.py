@@ -13,11 +13,14 @@ def cairo_error(message=None):
         if message is None:
             return
         error = re.search(r"Error message: (.*)", str(e.value))
-        error = error.group(1) if error else str(e.value)
-        try:
-            error = int(error).to_bytes(31, "big").lstrip(b"\x00").decode()
-        except Exception:
-            pass
+        if error:
+            error = error.group(1)
+            try:
+                error = int(error).to_bytes(31, "big").lstrip(b"\x00").decode()
+            except Exception:
+                pass
+        else:
+            error = str(e.value)
         assert message in error, f"Expected {message}, got {error}"
     finally:
         pass
@@ -74,4 +77,4 @@ def map_to_python_exception(e: Exception):
         raise exception_class() from e
 
     # Fallback to generic exception
-    raise Exception(error_str) from e
+    raise Exception(error_type) from e
