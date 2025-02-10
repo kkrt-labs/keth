@@ -14,7 +14,7 @@ from ethereum.cancun.fork import (
     process_transaction,
     validate_header,
 )
-from ethereum.cancun.fork_types import Address
+from ethereum.cancun.fork_types import Address, VersionedHash
 from ethereum.cancun.state import State, set_account
 from ethereum.cancun.transactions import (
     AccessListTransaction,
@@ -48,13 +48,11 @@ MIN_BASE_FEE = 1_000
 
 @composite
 def tx_with_small_data(draw, gas_strategy=uint, gas_price_strategy=uint):
-    # Generate access list
-    access_list_entries = draw(
-        st.lists(st.tuples(address, st.lists(bytes32, max_size=2)), max_size=3)
-    )
-    access_list = tuple(
-        (addr, tuple(storage_keys)) for addr, storage_keys in access_list_entries
-    )
+    access_list = draw(
+        st.lists(
+            st.tuples(address, st.lists(bytes32, max_size=3).map(tuple)), max_size=3
+        )
+    ).map(tuple)
 
     addr = (
         st.integers(min_value=0, max_value=2**160 - 1)
@@ -105,6 +103,9 @@ def tx_with_small_data(draw, gas_strategy=uint, gas_price_strategy=uint):
         gas=gas_strategy,
         max_priority_fee_per_gas=st.just(max_priority_fee_per_gas),
         max_fee_per_gas=st.just(max_fee_per_gas),
+        blob_versioned_hashes=st.lists(st.from_type(VersionedHash), max_size=3).map(
+            tuple
+        ),
     )
 
     # Choose one transaction type
@@ -159,7 +160,10 @@ def headers(draw):
             extra_data=st.one_of(small_bytes, bytes32.map(Bytes)),
             difficulty=st.one_of(uint, st.just(Uint(0))),
             ommers_hash=st.just(OMMER_HASH).map(Hash32),
-            nonce=st.from_type(Bytes8),
+            nonce=st.one_of(
+                st.from_type(Bytes8),
+                st.just(Bytes8(int(0).to_bytes(8, "big"))),
+            ),
             number=st.one_of(
                 st.just(parent_header.number + Uint(1)),
                 uint,

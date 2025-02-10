@@ -555,3 +555,4 @@ def register_type_strategies():
     st.register_type_strategy(TransientStorage, transient_storage)
     st.register_type_strategy(MutableBloom, bloom.map(MutableBloom))
     st.register_type_strategy(Environment, environment_lite)
+    st.register_type_strategy(VersionedHash, st.lists(bytes32, max_size=3).map(tuple))
