@@ -42,14 +42,7 @@ from cairo_addons.testing.errors import strict_raises
 from tests.ethereum.cancun.vm.test_interpreter import unimplemented_precompiles
 from tests.utils.constants import OMMER_HASH
 from tests.utils.errors import strict_raises
-from tests.utils.strategies import (
-    account_strategy,
-    address,
-    bytes32,
-    small_bytes,
-    state,
-    uint,
-)
+from tests.utils.strategies import account_strategy, address, bytes32, small_bytes, uint
 
 MIN_BASE_FEE = 1_000
 
@@ -130,6 +123,7 @@ def headers(draw):
         st.builds(
             Header,
             difficulty=uint,
+            number=uint,
             nonce=st.from_type(Bytes8),
             ommers_hash=st.just(OMMER_HASH).map(Hash32),
             gas_limit=st.just(gas_limit),
@@ -164,7 +158,7 @@ def headers(draw):
                 st.integers(min_value=0, max_value=2**48 - 1).map(Uint),
             ),
             extra_data=st.one_of(small_bytes, bytes32.map(Bytes)),
-            difficulty=uint,
+            difficulty=st.one_of(uint, st.just(Uint(0))),
             ommers_hash=st.just(OMMER_HASH).map(Hash32),
             nonce=st.from_type(Bytes8),
             number=st.one_of(
@@ -191,10 +185,23 @@ def tx_with_sender_in_state(
             min_value=MIN_BASE_FEE - 1, max_value=2**64
         ).map(Uint),
     ),
-    state_strategy=state,
     account_strategy=account_strategy,
 ):
-    state = draw(state_strategy)
+    env = draw(st.from_type(Environment))
+    if env.gas_price < env.base_fee_per_gas:
+        env.gas_price = draw(
+            st.one_of(
+                st.integers(
+                    min_value=int(env.base_fee_per_gas), max_value=2**64 - 1
+                ).map(Uint),
+                st.just(env.base_fee_per_gas),
+            )
+        )
+    # Values too high would cause taylor_exponential to run indefinitely.
+    env.excess_blob_gas = draw(
+        st.integers(0, 10 * int(TARGET_BLOB_GAS_PER_BLOCK)).map(U64)
+    )
+    state = env.state
     account = draw(account_strategy)
     # 2 * chain_id + 35 + v must be less than 2^64 for the signature of a legacy transaction to be valid
     chain_id = draw(st.integers(min_value=1, max_value=(2**64 - 37) // 2).map(U64))
@@ -231,23 +238,7 @@ def tx_with_sender_in_state(
     if should_add_sender_to_state:
         sender = Address(int(expected_address).to_bytes(20, "little"))
         set_account(state, sender, account)
-    return tx, state, chain_id
-
-
-@composite
-def env_with_valid_gas_price(draw):
-    env = draw(st.from_type(Environment))
-    if env.gas_price < env.base_fee_per_gas:
-        env.gas_price = draw(
-            st.integers(min_value=int(env.base_fee_per_gas), max_value=2**64 - 1).map(
-                Uint
-            )
-        )
-    # Values too high would cause taylor_exponential to run indefinitely.
-    env.excess_blob_gas = draw(
-        st.integers(0, 10 * int(TARGET_BLOB_GAS_PER_BLOCK)).map(U64)
-    )
-    return env
+    return tx, env, chain_id
 
 
 class TestFork:
@@ -325,13 +316,13 @@ class TestFork:
             "make_receipt", tx, error, cumulative_gas_used, logs
         )
 
-    @given(env=env_with_valid_gas_price(), data=tx_with_sender_in_state())
+    @given(data=tx_with_sender_in_state())
     def test_process_transaction(
-        self, cairo_run, env: Environment, data: Tuple[Transaction, State, U64]
+        self, cairo_run, data: Tuple[Transaction, Environment, U64]
     ):
         # The Cairo Runner will raise if an exception is in the return values OR if
         # an assert expression fails (e.g. InvalidBlock)
-        tx, __, _ = data
+        tx, env, _ = data
         try:
             env_cairo, cairo_result = cairo_run("process_transaction", env, tx)
         except Exception as cairo_e:
@@ -371,11 +362,11 @@ class TestFork:
         base_fee_per_gas: Uint,
         excess_blob_gas: U64,
     ):
-        tx, state, chain_id = data
+        tx, env, chain_id = data
         try:
             cairo_state, cairo_result = cairo_run_py(
                 "check_transaction",
-                state,
+                env.state,
                 tx,
                 gas_available,
                 chain_id,
@@ -385,7 +376,7 @@ class TestFork:
         except Exception as e:
             with strict_raises(type(e)):
                 check_transaction(
-                    state,
+                    env.state,
                     tx,
                     gas_available,
                     chain_id,
@@ -395,9 +386,9 @@ class TestFork:
             return
 
         assert cairo_result == check_transaction(
-            state, tx, gas_available, chain_id, base_fee_per_gas, excess_blob_gas
+            env.state, tx, gas_available, chain_id, base_fee_per_gas, excess_blob_gas
         )
-        assert cairo_state == state
+        assert cairo_state == env.state
 
     @given(blocks=st.lists(st.builds(Block), max_size=300))
     def test_get_last_256_block_hashes(self, cairo_run, blocks):
