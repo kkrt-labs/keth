@@ -161,9 +161,7 @@ def headers(draw):
             gas_used=st.one_of(uint, st.just(parent_header.gas_limit // Uint(2))),
             base_fee_per_gas=st.one_of(
                 st.just(correct_base_fee),
-                st.integers(min_value=int(correct_base_fee), max_value=2**64 - 1).map(
-                    Uint
-                ),
+                st.integers(min_value=0, max_value=2**48 - 1).map(Uint),
             ),
             extra_data=st.one_of(small_bytes, bytes32.map(Bytes)),
             difficulty=uint,
