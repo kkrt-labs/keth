@@ -51,8 +51,8 @@ def tx_with_small_data(draw, gas_strategy=uint, gas_price_strategy=uint):
     access_list = draw(
         st.lists(
             st.tuples(address, st.lists(bytes32, max_size=3).map(tuple)), max_size=3
-        )
-    ).map(tuple)
+        ).map(tuple)
+    )
 
     addr = (
         st.integers(min_value=0, max_value=2**160 - 1)
