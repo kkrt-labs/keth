@@ -182,9 +182,10 @@ def pytest_collection_modifyitems(session, config, items):
             hasattr(item, "fixturenames")
             and set(item.fixturenames)
             & {
-                "cairo_file",
-                "main_path",
-                "cairo_program",
+                "cairo_files",
+                "main_paths",
+                "cairo_programs",
+                "src_program",
                 "cairo_run",
             }
         )
