@@ -39,7 +39,7 @@ def cairo_programs(request) -> List[Program]:
 
 
 @pytest.fixture(scope="module")
-def source_programs(request) -> List[Program]:
+def src_program(request) -> List[Program]:
     return request.session.cairo_programs[request.node.fspath][0]
 
 
@@ -181,6 +181,7 @@ def cairo_run_py(
 @pytest.fixture(scope="module")
 def cairo_run(
     cairo_programs,
+    rust_programs,
     cairo_files,
     main_paths,
     request,
