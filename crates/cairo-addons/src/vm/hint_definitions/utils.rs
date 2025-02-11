@@ -231,7 +231,35 @@ pub fn initialize_jumpdests() -> Hint {
          _constants: &HashMap<String, Felt252>|
          -> Result<(), HintError> {
             // Get bytecode pointer and length
-            let bytecode_ptr = get_ptr_from_var_name("bytecode", vm, ids_data, ap_tracking)?;
+            let bytecode =
+                get_maybe_relocatable_from_var_name("bytecode", vm, ids_data, ap_tracking)?;
+            let bytecode_ptr = match bytecode {
+                MaybeRelocatable::RelocatableValue(ptr) => ptr,
+                MaybeRelocatable::Int(value) if value == Felt252::ZERO => {
+                    // Handle empty bytecode case
+                    let base = vm.add_memory_segment();
+
+                    // Get dict manager and create empty dictionary
+                    let dict_manager_ref = _exec_scopes.get_dict_manager()?;
+                    let mut dict_manager = dict_manager_ref.borrow_mut();
+
+                    // Create and insert empty DictTracker
+                    dict_manager.trackers.insert(
+                        base.segment_index,
+                        DictTracker::new_default_dict(
+                            base,
+                            &MaybeRelocatable::from(Felt252::ZERO),
+                            Some(HashMap::new()),
+                        ),
+                    );
+
+                    // Store base address in ap and return
+                    insert_value_into_ap(vm, base)?;
+                    return Ok(());
+                }
+                _ => return Err(HintError::CustomHint(Box::from("Invalid bytecode value"))),
+            };
+
             let bytecode_len =
                 get_integer_from_var_name("bytecode_len", vm, ids_data, ap_tracking)?;
             let len: usize = bytecode_len

@@ -14,6 +14,9 @@ from legacy.utils.dict import dict_write
 // finalize_jumpdests function.
 func get_valid_jump_destinations{range_check_ptr}(code: Bytes) -> SetUint {
     alloc_locals;
+    let bytecode = code.value.data;
+    let bytecode_len = code.value.len;
+
     %{ initialize_jumpdests %}
     ap += 1;
     let valid_jumpdests_start = cast([ap - 1], DictAccess*);

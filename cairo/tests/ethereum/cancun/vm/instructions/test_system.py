@@ -159,7 +159,7 @@ class TestSystemCairoFile:
         evm=local_strategy,
         endowment=...,
         contract_address=...,
-        # Restricting to 2** to avoid OOG errors which would be caught by the calling function
+        # Restricting to MAX_MEMORY_SIZE to avoid OOG errors which would be caught by the calling function
         memory_start_position=bounded_u256_strategy(max_value=MAX_MEMORY_SIZE),
         memory_size=bounded_u256_strategy(max_value=MAX_MEMORY_SIZE),
         init_code_gas=...,
