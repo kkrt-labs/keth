@@ -55,3 +55,14 @@ zellic
 callcode
 delegatecall
 staticcall
+ripemd160
+modexp
+ecadd
+ecmul
+ecpairing
+blake2f
+pointevaluation
+identity
+modexp
+ecrecover
+ripemd160

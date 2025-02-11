@@ -66,35 +66,6 @@ func precompile_table_lookup{range_check_ptr}(address: felt) -> (felt, felt) {
     );
 
     return (table_address, table_fn);
-
-    // In the following table:
-    // - index i is the address of the precompiled contract
-    // - index i+1 is the call instruction, a hack that allows us to get the function pointer of the
-    // precompiled contract at compile time
-    // - index i+2 is the function pointer of the precompiled contract
-    PRE_COMPILED_CONTRACTS:
-    dw 0x100000000000000000000000000000000000000;
-    call invalid_precompile;  // ECRECOVER
-    dw 0x200000000000000000000000000000000000000;
-    call sha256;  // SHA256
-    dw 0x300000000000000000000000000000000000000;
-    call invalid_precompile;  // RIPEMD160
-    dw 0x400000000000000000000000000000000000000;
-    call identity;  // IDENTITY
-    dw 0x500000000000000000000000000000000000000;
-    call invalid_precompile;  // MODEXP
-    dw 0x600000000000000000000000000000000000000;
-    call invalid_precompile;  // ECADD
-    dw 0x700000000000000000000000000000000000000;
-    call invalid_precompile;  // ECMUL
-    dw 0x800000000000000000000000000000000000000;
-    call invalid_precompile;  // ECPAIRING
-    dw 0x900000000000000000000000000000000000000;
-    call invalid_precompile;  // BLAKE2F
-    dw 0xa00000000000000000000000000000000000000;
-    call invalid_precompile;  // POINT_EVALUATION
-    // not reached.
-    ret;
 }
 
 func invalid_precompile() {
@@ -102,3 +73,30 @@ func invalid_precompile() {
         jmp raise.raise_label;
     }
 }
+
+// In the following table:
+// - index i is the address of the precompiled contract
+// - index i+1 is the call instruction, a hack that allows us to get the function pointer of the
+// precompiled contract at compile time
+// - index i+2 is the function pointer of the precompiled contract
+PRE_COMPILED_CONTRACTS:
+dw 0x100000000000000000000000000000000000000;
+call invalid_precompile;  // ECRECOVER
+dw 0x200000000000000000000000000000000000000;
+call sha256;  // SHA256
+dw 0x300000000000000000000000000000000000000;
+call invalid_precompile;  // RIPEMD160
+dw 0x400000000000000000000000000000000000000;
+call identity;  // IDENTITY
+dw 0x500000000000000000000000000000000000000;
+call invalid_precompile;  // MODEXP
+dw 0x600000000000000000000000000000000000000;
+call invalid_precompile;  // ECADD
+dw 0x700000000000000000000000000000000000000;
+call invalid_precompile;  // ECMUL
+dw 0x800000000000000000000000000000000000000;
+call invalid_precompile;  // ECPAIRING
+dw 0x900000000000000000000000000000000000000;
+call invalid_precompile;  // BLAKE2F
+dw 0xa00000000000000000000000000000000000000;
+call invalid_precompile;  // POINT_EVALUATION
