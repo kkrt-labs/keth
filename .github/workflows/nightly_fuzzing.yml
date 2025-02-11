@@ -48,6 +48,7 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           verbose: true
           files: ./coverage/**/*.json
+          flags: nightly
 
       - name: Notify Slack on Failure
         if: steps.tests.outcome == 'failure'
