@@ -134,7 +134,7 @@ extended = st.recursive(
 )
 
 
-def trie_strategy(thing, min_size=0):
+def trie_strategy(thing, min_size=0, include_none=False):
     key_type, value_type = thing.__args__
     value_type_origin = get_origin(value_type) or value_type
 
@@ -148,11 +148,13 @@ def trie_strategy(thing, min_size=0):
 
     # Create a strategy for non-default values
     def non_default_strategy(default):
-        if default is None:
+        if default is None and not include_none:
             # For Optional types, just use the base type strategy (which won't generate None)
             defined_types = [t for t in get_args(value_type) if t is not type(None)]
             # random choice of the defined types
             return st.one_of(*(st.from_type(t) for t in defined_types))
+        elif default is None and include_none:
+            return st.from_type(value_type)
         elif value_type is U256:
             # For U256, we don't want to generate 0 as default value
             return st.integers(min_value=1, max_value=2**256 - 1).map(U256)

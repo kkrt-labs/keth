@@ -77,7 +77,7 @@ def get_preimage_for_key(
 ):
     from cairo_addons.hints.hashdict import _get_preimage_for_hashed_key
 
-    preimage = bytes(
+    preimage = list(
         _get_preimage_for_hashed_key(
             ids.key, dict_manager.get_tracker(ids.dict_ptr_stop)
         )

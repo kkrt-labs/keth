@@ -11,6 +11,7 @@ from ethereum.cancun.trie import (
     LeafNode,
     Node,
     Trie,
+    _prepare_trie,
     bytes_to_nibble_list,
     common_prefix_length,
     copy_trie,
@@ -28,8 +29,17 @@ from hypothesis import strategies as st
 
 from cairo_addons.testing.errors import cairo_error, strict_raises
 from cairo_addons.testing.hints import patch_hint
+from tests.utils.args_gen import EthereumTries
 from tests.utils.assertion import sequence_equal
-from tests.utils.strategies import bytes32, nibble, uint4
+from tests.utils.strategies import bytes32, nibble, trie_strategy, uint4
+
+
+@st.composite
+def prepare_trie_strategy(draw):
+    key_type, value_type = draw(
+        st.sampled_from([t.__args__ for t in EthereumTries.__args__])
+    )
+    return draw(trie_strategy(thing=Trie[key_type, value_type], include_none=True))
 
 
 class TestTrie:
@@ -164,6 +174,37 @@ class TestTrie:
     def test_internal_node_branch_node(self, cairo_run, branch_node: BranchNode):
         result = cairo_run("InternalNodeImpl.branch_node", branch_node)
         assert result == branch_node
+
+    @given(trie_with_none=prepare_trie_strategy())
+    def test_prepare_trie(self, cairo_run, trie_with_none: EthereumTries):
+        key_type, _ = trie_with_none.__orig_class__.__args__
+
+        # Python expects tries not to have None values (as writing the default None suppresses the key)
+        # In Cairo, the filtering is done in `prepare_trie` where they're filtered out of the output
+        # Mapping during iteration over dict entries.
+        trie = Trie(
+            secured=trie_with_none.secured,
+            default=trie_with_none.default,
+            _data={k: v for k, v in trie_with_none._data.items() if v is not None},
+        )
+
+        # TODO: compute storage root
+        if key_type is Address:
+
+            def get_storage_root(_address):
+                return b""
+
+        else:
+            get_storage_root = None
+
+        try:
+            result_cairo = cairo_run("_prepare_trie", trie_with_none, get_storage_root)
+        except Exception as e:
+            with strict_raises(type(e)):
+                _prepare_trie(trie, get_storage_root)
+            return
+
+        assert result_cairo == _prepare_trie(trie, get_storage_root)
 
 
 class TestTrieOperations:
