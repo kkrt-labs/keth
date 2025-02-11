@@ -62,8 +62,8 @@ def dict_manager():
 
 
 @pytest.fixture(scope="module")
-def serde(src_program, segments, dict_manager):
-    return Serde(segments, src_program, dict_manager)
+def serde(cairo_program, segments, dict_manager):
+    return Serde(segments, cairo_program, dict_manager)
 
 
 @pytest.fixture(scope="module")
@@ -72,9 +72,9 @@ def gen_arg(dict_manager, segments):
 
 
 @pytest.fixture(scope="module")
-def to_cairo_type(src_program):
+def to_cairo_type(cairo_program):
     def _factory(type_name: Type):
-        return _to_cairo_type(src_program, type_name)
+        return _to_cairo_type(cairo_program, type_name)
 
     return _factory
 

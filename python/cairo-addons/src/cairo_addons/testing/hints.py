@@ -136,7 +136,6 @@ def patch_hint(
 
 
 @contextmanager
-@contextmanager
 def insert_hint(program, location: str, hint):
     """
     Insert a hint at a given location in the program.

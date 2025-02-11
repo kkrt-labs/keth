@@ -49,10 +49,10 @@ def curve(prime_cls: Type[PrimeField]):
 class TestCircuits:
     class TestModOps:
         @given(data=st.data())
-        def test_add(self, src_program, cairo_run, prime_cls, st_prime, data):
+        def test_add(self, cairo_program, cairo_run, prime_cls, st_prime, data):
             inputs = {"x": data.draw(st_prime), "y": data.draw(st_prime)}
             values_ptr = [limb for v in inputs.values() for limb in int_to_uint384(v)]
-            compiled_circuit = circuit_compile(src_program, "add")
+            compiled_circuit = circuit_compile(cairo_program, "add")
 
             expected_output = prime_cls(inputs["x"]) + prime_cls(inputs["y"])
             cairo_output = prime_cls(cairo_run("add", **inputs))
@@ -84,10 +84,10 @@ class TestCircuits:
             )
 
         @given(data=st.data())
-        def test_sub(self, src_program, cairo_run, prime_cls, st_prime, data):
+        def test_sub(self, cairo_program, cairo_run, prime_cls, st_prime, data):
             inputs = {"x": data.draw(st_prime), "y": data.draw(st_prime)}
             values_ptr = [limb for v in inputs.values() for limb in int_to_uint384(v)]
-            compiled_circuit = circuit_compile(src_program, "sub")
+            compiled_circuit = circuit_compile(cairo_program, "sub")
 
             expected_output = prime_cls(inputs["x"]) - prime_cls(inputs["y"])
             cairo_output = prime_cls(cairo_run("sub", **inputs))
@@ -119,10 +119,10 @@ class TestCircuits:
             )
 
         @given(data=st.data())
-        def test_mul(self, src_program, cairo_run, prime_cls, st_prime, data):
+        def test_mul(self, cairo_program, cairo_run, prime_cls, st_prime, data):
             inputs = {"x": data.draw(st_prime), "y": data.draw(st_prime)}
             values_ptr = [limb for v in inputs.values() for limb in int_to_uint384(v)]
-            compiled_circuit = circuit_compile(src_program, "mul")
+            compiled_circuit = circuit_compile(cairo_program, "mul")
 
             expected_output = prime_cls(inputs["x"]) * prime_cls(inputs["y"])
             cairo_output = prime_cls(cairo_run("mul", **inputs))
@@ -154,13 +154,13 @@ class TestCircuits:
             )
 
         @given(data=st.data())
-        def test_div(self, src_program, cairo_run, prime, data, prime_cls):
+        def test_div(self, cairo_program, cairo_run, prime, data, prime_cls):
             inputs = {
                 "x": data.draw(st.integers(min_value=0, max_value=prime - 1)),
                 "y": data.draw(st.integers(min_value=1, max_value=prime - 1)),
             }
             values_ptr = [limb for v in inputs.values() for limb in int_to_uint384(v)]
-            compiled_circuit = circuit_compile(src_program, "div")
+            compiled_circuit = circuit_compile(cairo_program, "div")
 
             expected_output = prime_cls(inputs["x"]) * prime_cls(
                 mod_inverse(prime_cls(inputs["y"]), prime_cls.PRIME)
@@ -194,11 +194,11 @@ class TestCircuits:
             )
 
         @given(data=st.data())
-        def test_diff_ratio(self, src_program, cairo_run, prime_cls, st_prime, data):
+        def test_diff_ratio(self, cairo_program, cairo_run, prime_cls, st_prime, data):
             inputs = {"x": data.draw(st_prime), "y": data.draw(st_prime)}
             assume(inputs["x"] != inputs["y"])
             values_ptr = [limb for v in inputs.values() for limb in int_to_uint384(v)]
-            compiled_circuit = circuit_compile(src_program, "diff_ratio")
+            compiled_circuit = circuit_compile(cairo_program, "diff_ratio")
 
             expected_output = prime_cls(
                 (inputs["x"] - inputs["y"])
@@ -233,11 +233,11 @@ class TestCircuits:
             )
 
         @given(data=st.data())
-        def test_sum_ratio(self, src_program, cairo_run, prime_cls, st_prime, data):
+        def test_sum_ratio(self, cairo_program, cairo_run, prime_cls, st_prime, data):
             inputs = {"x": data.draw(st_prime), "y": data.draw(st_prime)}
             assume(inputs["x"] != -inputs["y"])
             values_ptr = [limb for v in inputs.values() for limb in int_to_uint384(v)]
-            compiled_circuit = circuit_compile(src_program, "sum_ratio")
+            compiled_circuit = circuit_compile(cairo_program, "sum_ratio")
 
             expected_output = prime_cls(
                 (inputs["x"] + inputs["y"])
@@ -272,11 +272,11 @@ class TestCircuits:
             )
 
         @given(data=st.data())
-        def test_inv(self, src_program, cairo_run, prime, data, prime_cls):
+        def test_inv(self, cairo_program, cairo_run, prime, data, prime_cls):
             inputs = {
                 "x": data.draw(st.integers(min_value=1, max_value=prime - 1)),
             }
-            compiled_circuit = circuit_compile(src_program, "inv")
+            compiled_circuit = circuit_compile(cairo_program, "inv")
             values_ptr = flatten(
                 compiled_circuit["constants"]
                 + [limb for v in inputs.values() for limb in int_to_uint384(v)]
@@ -313,7 +313,7 @@ class TestCircuits:
 
         @given(data=st.data())
         def test_assert_is_quad_residue(
-            self, src_program, cairo_run, curve, data, st_prime
+            self, cairo_program, cairo_run, curve, data, st_prime
         ):
             x = data.draw(st_prime)
             root = sqrt_mod(x, curve.FIELD.PRIME)
@@ -325,7 +325,7 @@ class TestCircuits:
                 "g": int(curve.G),
                 "is_quad_residue": is_quad_residue,
             }
-            compiled_circuit = circuit_compile(src_program, "assert_is_quad_residue")
+            compiled_circuit = circuit_compile(cairo_program, "assert_is_quad_residue")
             values_ptr = flatten(compiled_circuit["constants"]) + [
                 limb for v in inputs.values() for limb in int_to_uint384(v)
             ]
@@ -346,7 +346,7 @@ class TestCircuits:
 
     class TestEcOps:
         @given(data=st.data())
-        def test_ec_add(self, src_program, cairo_run, curve, data, st_prime):
+        def test_ec_add(self, cairo_program, cairo_run, curve, data, st_prime):
             seed_p = data.draw(st_prime)
             seed_q = data.draw(st_prime)
             assume(seed_p != seed_q)
@@ -357,7 +357,7 @@ class TestCircuits:
             expected_output = p + q
 
             cairo_output = cairo_run("ec_add", **inputs)
-            compiled_circuit = circuit_compile(src_program, "ec_add")
+            compiled_circuit = circuit_compile(cairo_program, "ec_add")
             values_ptr = flatten(compiled_circuit["constants"]) + [
                 limb for v in inputs.values() for limb in int_to_uint384(v)
             ]
@@ -388,7 +388,7 @@ class TestCircuits:
             )
 
         @given(data=st.data())
-        def test_ec_double(self, src_program, cairo_run, curve, data, st_prime):
+        def test_ec_double(self, cairo_program, cairo_run, curve, data, st_prime):
             seed_p = data.draw(st_prime)
             p = curve.random_point(x=seed_p)
             assume(p.y != 0)
@@ -396,7 +396,7 @@ class TestCircuits:
             expected_output = p.double()
 
             cairo_output = cairo_run("ec_double", **inputs)
-            compiled_circuit = circuit_compile(src_program, "ec_double")
+            compiled_circuit = circuit_compile(cairo_program, "ec_double")
             values_ptr = flatten(compiled_circuit["constants"]) + [
                 limb for v in inputs.values() for limb in int_to_uint384(v)
             ]
@@ -428,7 +428,7 @@ class TestCircuits:
 
         @given(data=st.data())
         def test_assert_is_on_curve(
-            self, src_program, cairo_run, curve, data, st_prime
+            self, cairo_program, cairo_run, curve, data, st_prime
         ):
             seed_p = data.draw(st_prime)
             p = curve.random_point(x=seed_p, retry=False)
@@ -442,7 +442,7 @@ class TestCircuits:
             }
 
             cairo_run("assert_is_on_curve", **inputs)
-            compiled_circuit = circuit_compile(src_program, "assert_is_on_curve")
+            compiled_circuit = circuit_compile(cairo_program, "assert_is_on_curve")
             values_ptr = flatten(compiled_circuit["constants"]) + [
                 limb for v in inputs.values() for limb in int_to_uint384(v)
             ]

@@ -185,7 +185,7 @@ def pytest_collection_modifyitems(session, config, items):
                 "cairo_files",
                 "main_paths",
                 "cairo_programs",
-                "src_program",
+                "cairo_program",
                 "cairo_run",
             }
         )

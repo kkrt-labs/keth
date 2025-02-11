@@ -39,7 +39,11 @@ def cairo_programs(request) -> List[Program]:
 
 
 @pytest.fixture(scope="module")
-def src_program(request) -> List[Program]:
+def cairo_program(request) -> List[Program]:
+    """Returns the first cairo program in the session.
+    If there is both a src.cairo and a test_src.cairo program, returns the src program (always compiled first).
+    Otherwise, returns the test program.
+    """
     return request.session.cairo_programs[request.node.fspath][0]
 
 
