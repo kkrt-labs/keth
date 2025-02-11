@@ -591,10 +591,7 @@ func begin_transaction{
     // Set original storage tries if not already set
     if (cast(state.value.original_storage_tries.value, felt) == 0) {
         let storage_tries = state.value._storage_tries;
-        // cast in dict access type
-        let dict_ptr_start = cast(storage_tries.value._data.value.dict_ptr_start, DictAccess*);
-        let dict_ptr_end = cast(storage_tries.value._data.value.dict_ptr, DictAccess*);
-        let (new_dict_ptr_start, new_dict_ptr_end) = dict_copy(dict_ptr_start, dict_ptr_end);
+        let (new_dict_ptr_start, new_dict_ptr_end) = dict_copy( cast(storage_tries.value._data.value.dict_ptr_start, DictAccess*), cast(storage_tries.value._data.value.dict_ptr, DictAccess*));
         tempvar original_storage_tries_data = MappingTupleAddressBytes32U256(
             new MappingTupleAddressBytes32U256Struct(
                 dict_ptr_start=cast(new_dict_ptr_start, TupleAddressBytes32U256DictAccess*),
