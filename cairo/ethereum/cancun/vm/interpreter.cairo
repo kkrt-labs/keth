@@ -595,8 +595,8 @@ func squash_evm{range_check_ptr, evm: Evm}() {
     ) = dict_squash(cast(valid_jump_destinations_start, DictAccess*), valid_jump_destinations_end);
     finalize_jumpdests(
         0,
-        cast(squashed_valid_jump_destinations_start, DictAccess*),
-        cast(squashed_valid_jump_destinations_end, DictAccess*),
+        squashed_valid_jump_destinations_start,
+        squashed_valid_jump_destinations_end,
         evm.value.message.value.code.value.data,
     );
     tempvar new_valid_jump_destinations = SetUint(
