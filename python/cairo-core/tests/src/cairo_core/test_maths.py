@@ -16,7 +16,7 @@ class TestMaths:
         @given(value=felt)
         def test_sign(self, cairo_run, value):
             assume(value != 0)
-            sign = cairo_run("test__sign", value=value)
+            sign = cairo_run("sign", value=value)
             assert (
                 sign % DEFAULT_PRIME
                 == (2 * (0 <= value < DEFAULT_PRIME // 2) - 1) % DEFAULT_PRIME
@@ -43,12 +43,12 @@ class TestMaths:
 
     @given(i=st.integers(min_value=0, max_value=251))
     def test_pow2(self, cairo_run, i):
-        res = cairo_run("test__pow2", i=i)
+        res = cairo_run("pow2", i=i)
         assert res == 2**i
 
     @given(i=st.integers(min_value=0, max_value=31))
     def test_pow256(self, cairo_run, i):
-        res = cairo_run("test__pow256", i=i)
+        res = cairo_run("pow256", i=i)
         assert res == 256**i
 
     @given(
@@ -82,10 +82,10 @@ class TestMaths:
         len_=st.integers(min_value=1, max_value=31),
     )
     def test_felt252_to_bytes_le_should_panic_on_wrong_output(
-        self, cairo_program, cairo_run, value, len_
+        self, cairo_programs, cairo_run, value, len_
     ):
         with patch_hint(
-            cairo_program,
+            cairo_programs,
             "felt252_to_bytes_le",
             """
 mask = (1 << (ids.len * 8)) - 1
@@ -96,12 +96,12 @@ segments.write_arg(ids.output, [int(b)+1 if b < 255 else 0 for b in truncated_va
             cairo_run("test__felt252_to_bytes_le", value=value, len=len_)
 
     def test_felt252_to_bytes_le_should_panic_on_wrong_output_noncanonical(
-        self, cairo_program, cairo_run
+        self, cairo_programs, cairo_run
     ):
         value = 0xAABB
         len_ = 2
         with patch_hint(
-            cairo_program,
+            cairo_programs,
             "felt252_to_bytes_le",
             """
 mask = (1 << (ids.len * 8)) - 1
@@ -149,10 +149,10 @@ segments.write_arg(ids.output, bad)
         len_=st.integers(min_value=1, max_value=31),
     )
     def test_felt252_to_bytes_be_should_panic_on_wrong_output(
-        self, cairo_program, cairo_run, value, len_
+        self, cairo_programs, cairo_run, value, len_
     ):
         with patch_hint(
-            cairo_program,
+            cairo_programs,
             "felt252_to_bytes_be",
             """
 mask = (1 << (ids.len * 8)) - 1
@@ -163,12 +163,12 @@ segments.write_arg(ids.output, [int(b) + 1 if b < 255 else 0 for b in truncated_
             cairo_run("test__felt252_to_bytes_be", value=value, len=len_)
 
     def test_felt252_to_bytes_be_should_panic_on_wrong_output_noncanonical(
-        self, cairo_program, cairo_run
+        self, cairo_programs, cairo_run
     ):
         value = 0xAABB
         len_ = 2
         with patch_hint(
-            cairo_program,
+            cairo_programs,
             "felt252_to_bytes_be",
             """
 mask = (1 << (ids.len * 8)) - 1
