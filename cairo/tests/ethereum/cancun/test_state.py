@@ -30,6 +30,7 @@ from ethereum.cancun.state import (
     set_code,
     set_storage,
     set_transient_storage,
+    storage_root,
     touch_account,
 )
 from ethereum.cancun.trie import Trie, copy_trie
@@ -561,3 +562,17 @@ class TestBeginTransaction:
         commit_transaction(state, transient_storage)
         assert state_cairo == state
         assert transient_storage_cairo == transient_storage
+
+
+class TestStorageRoots:
+    @given(state=...)
+    def test_storage_root(self, cairo_run, state: State):
+        # The state from the strategy contains a snapshot. Remove it
+        state._snapshots = []
+        storage_roots = cairo_run("storage_roots", state)
+
+        storage_roots_py = {}
+        for addr in state._storage_tries.keys():
+            storage_roots_py[addr] = storage_root(state, addr)
+
+        assert storage_roots == storage_roots_py

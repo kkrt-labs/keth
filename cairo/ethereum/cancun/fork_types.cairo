@@ -126,6 +126,23 @@ struct MappingAddressAccount {
     value: MappingAddressAccountStruct*,
 }
 
+struct AddressBytes32DictAccess {
+    key: Address,
+    prev_value: Bytes32,
+    new_value: Bytes32,
+}
+
+struct MappingAddressBytes32Struct {
+    dict_ptr_start: AddressBytes32DictAccess*,
+    dict_ptr: AddressBytes32DictAccess*,
+    // Unused
+    parent_dict: MappingAddressBytes32Struct*,
+}
+
+struct MappingAddressBytes32 {
+    value: MappingAddressBytes32Struct*,
+}
+
 struct ListTupleAddressBytes32 {
     value: ListTupleAddressBytes32Struct*,
 }

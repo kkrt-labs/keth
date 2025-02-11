@@ -54,6 +54,8 @@ from ethereum.cancun.fork_types import (
     AccountStruct,
     Address,
     OptionalAccount,
+    TupleAddressBytes32,
+    TupleAddressBytes32Struct,
     TupleAddressBytes32U256DictAccess,
     MappingAddressAccount,
     MappingAddressAccountStruct,
@@ -585,6 +587,32 @@ func trie_get_TrieTupleAddressBytes32U256{
     return res;
 }
 
+func trie_get_TrieBytes32U256{poseidon_ptr: PoseidonBuiltin*, trie: TrieBytes32U256}(
+    key: Bytes32
+) -> U256 {
+    let dict_ptr = cast(trie.value._data.value.dict_ptr, DictAccess*);
+
+    let (keys) = alloc();
+    assert keys[0] = key.value.low;
+    assert keys[1] = key.value.high;
+
+    with dict_ptr {
+        let (pointer) = hashdict_read(2, keys);
+    }
+    let new_dict_ptr = cast(dict_ptr, Bytes32U256DictAccess*);
+    let parent_dict = trie.value._data.value.parent_dict;
+    tempvar mapping = MappingBytes32U256(
+        new MappingBytes32U256Struct(
+            trie.value._data.value.dict_ptr_start, new_dict_ptr, parent_dict
+        ),
+    );
+    tempvar trie = TrieBytes32U256(
+        new TrieBytes32U256Struct(trie.value.secured, trie.value.default, mapping)
+    );
+    tempvar res = U256(cast(pointer, U256Struct*));
+    return res;
+}
+
 func trie_get_TrieBytesOptionalUnionBytesLegacyTransaction{
     poseidon_ptr: PoseidonBuiltin*, trie: TrieBytesOptionalUnionBytesLegacyTransaction
 }(key: Bytes) -> OptionalUnionBytesLegacyTransaction {
@@ -707,6 +735,35 @@ func trie_set_TrieTupleAddressBytes32U256{
     return ();
 }
 
+func trie_set_TrieBytes32U256{poseidon_ptr: PoseidonBuiltin*, trie: TrieBytes32U256}(
+    key: Bytes32, value: U256
+) {
+    alloc_locals;
+    let dict_ptr = cast(trie.value._data.value.dict_ptr, DictAccess*);
+
+    let is_default = U256__eq__(value, trie.value.default);
+
+    let (keys) = alloc();
+    assert keys[0] = key.value.low;
+    assert keys[1] = key.value.high;
+
+    if (is_default.value != 0) {
+        hashdict_write{dict_ptr=dict_ptr}(2, keys, 0);
+    } else {
+        hashdict_write{dict_ptr=dict_ptr}(2, keys, cast(value.value, felt));
+    }
+
+    let new_dict_ptr = cast(dict_ptr, Bytes32U256DictAccess*);
+    tempvar mapping = MappingBytes32U256(
+        new MappingBytes32U256Struct(
+            trie.value._data.value.dict_ptr_start, new_dict_ptr, trie.value._data.value.parent_dict
+        ),
+    );
+    tempvar trie = TrieBytes32U256(
+        new TrieBytes32U256Struct(trie.value.secured, trie.value.default, mapping)
+    );
+    return ();
+}
 func trie_set_TrieBytesOptionalUnionBytesLegacyTransaction{
     poseidon_ptr: PoseidonBuiltin*, trie: TrieBytesOptionalUnionBytesLegacyTransaction
 }(key: Bytes, value: OptionalUnionBytesLegacyTransaction) {
@@ -1762,6 +1819,35 @@ func _get_bytes32_preimage_for_key{poseidon_ptr: PoseidonBuiltin*}(
     }
 
     tempvar res = Bytes32(new Bytes32Struct(preimage_data[0], preimage_data[1]));
+    return res;
+}
+
+func get_tuple_address_bytes32_preimage_for_key{poseidon_ptr: PoseidonBuiltin*}(
+    key: felt, dict_ptr_stop: DictAccess*
+) -> TupleAddressBytes32 {
+    alloc_locals;
+
+    // Get preimage data
+    let (local preimage_data: felt*) = alloc();
+    local preimage_len;
+    %{ get_preimage_for_key %}
+
+    // Verify preimage
+    if (preimage_len != 3) {
+        raise('preimage_len != 3');
+    }
+
+    let (preimage_hash) = poseidon_hash_many(preimage_len, preimage_data);
+    with_attr error_message("preimage_hash != key") {
+        assert preimage_hash = key;
+    }
+
+    tempvar res = TupleAddressBytes32(
+        new TupleAddressBytes32Struct(
+            address=Address(preimage_data[0]),
+            bytes32=Bytes32(new Bytes32Struct(preimage_data[1], preimage_data[2])),
+        ),
+    );
     return res;
 }
 

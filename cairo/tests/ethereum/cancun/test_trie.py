@@ -248,6 +248,15 @@ class TestTrieOperations:
             assert result_cairo == result_py
             assert trie_cairo == trie
 
+        @given(trie=..., key=...)
+        def test_trie_get_TrieBytes32U256(
+            self, cairo_run, trie: Trie[Bytes32, U256], key: Bytes32
+        ):
+            trie_cairo, result_cairo = cairo_run("trie_get_TrieBytes32U256", trie, key)
+            result_py = trie_get(trie, key)
+            assert result_cairo == result_py
+            assert trie_cairo == trie
+
         @given(trie=..., key_tuple=...)
         def test_trie_get_TrieTupleAddressBytes32U256(
             self,
@@ -316,6 +325,14 @@ class TestTrieOperations:
             cairo_trie = cairo_run(
                 "trie_set_TrieAddressOptionalAccount", trie, key, value
             )
+            trie_set(trie, key, value)
+            assert cairo_trie == trie
+
+        @given(trie=..., key=..., value=...)
+        def test_trie_set_TrieBytes32U256(
+            self, cairo_run, trie: Trie[Bytes32, U256], key: Bytes32, value: U256
+        ):
+            cairo_trie = cairo_run("trie_set_TrieBytes32U256", trie, key, value)
             trie_set(trie, key, value)
             assert cairo_trie == trie
 
