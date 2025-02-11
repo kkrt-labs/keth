@@ -229,14 +229,16 @@ func incorporate_child_on_success{range_check_ptr, poseidon_ptr: PoseidonBuiltin
         cast(child_evm.value.memory.value.dict_ptr, DictAccess*),
     );
 
-    dict_squash(
+    let (
+        squashed_valid_jump_destinations_start, squashed_valid_jump_destinations_end
+    ) = dict_squash(
         cast(child_evm.value.valid_jump_destinations.value.dict_ptr_start, DictAccess*),
         cast(child_evm.value.valid_jump_destinations.value.dict_ptr, DictAccess*),
     );
     Helpers.finalize_jumpdests(
         0,
-        cast(child_evm.value.valid_jump_destinations.value.dict_ptr_start, DictAccess*),
-        cast(child_evm.value.valid_jump_destinations.value.dict_ptr, DictAccess*),
+        cast(squashed_valid_jump_destinations_start, DictAccess*),
+        cast(squashed_valid_jump_destinations_end, DictAccess*),
         child_evm.value.message.value.code.value.data,
     );
 
@@ -337,11 +339,13 @@ func incorporate_child_on_error{range_check_ptr, poseidon_ptr: PoseidonBuiltin*,
     let valid_jump_destinations = child_evm.value.valid_jump_destinations;
     let valid_jump_destinations_start = valid_jump_destinations.value.dict_ptr_start;
     let valid_jump_destinations_end = cast(valid_jump_destinations.value.dict_ptr, DictAccess*);
-    dict_squash(cast(valid_jump_destinations_start, DictAccess*), valid_jump_destinations_end);
+    let (
+        squashed_valid_jump_destinations_start, squashed_valid_jump_destinations_end
+    ) = dict_squash(cast(valid_jump_destinations_start, DictAccess*), valid_jump_destinations_end);
     Helpers.finalize_jumpdests(
         0,
-        cast(valid_jump_destinations_start, DictAccess*),
-        cast(valid_jump_destinations_end, DictAccess*),
+        cast(squashed_valid_jump_destinations_start, DictAccess*),
+        cast(squashed_valid_jump_destinations_end, DictAccess*),
         child_evm.value.message.value.code.value.data,
     );
 

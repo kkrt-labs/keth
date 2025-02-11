@@ -82,16 +82,6 @@ def test_should_return_bytes_used_in_128_word(cairo_run, word):
     assert bytes_length == cairo_run("test__bytes_used_128", word=word)
 
 
-class TestInitializeJumpdests:
-    @given(bytecode=...)
-    @example(bytecode=get_contract("Counter", "Counter").bytecode_runtime)
-    def test_should_return_same_as_execution_specs(self, cairo_run, bytecode: Bytes):
-        output = cairo_run("test__initialize_jumpdests", bytecode=bytecode)
-        assert set(
-            map(Uint, output if isinstance(output, list) else [output])
-        ) == get_valid_jump_destinations(bytecode)
-
-
 class TestFinalizeJumpdests:
     @given(bytecode=...)
     @example(bytecode=get_contract("Counter", "Counter").bytecode_runtime)

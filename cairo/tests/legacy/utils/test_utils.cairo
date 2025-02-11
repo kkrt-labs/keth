@@ -91,26 +91,6 @@ func test__bytes_used_128{range_check_ptr}(output_ptr: felt*) {
     return ();
 }
 
-func test__initialize_jumpdests{range_check_ptr}(output_ptr: felt*) {
-    alloc_locals;
-
-    tempvar bytecode_len;
-    let (bytecode) = alloc();
-
-    %{
-        ids.bytecode_len = len(program_input["bytecode"])
-        segments.write_arg(ids.bytecode, program_input["bytecode"])
-    %}
-
-    let (valid_jumpdests_start, valid_jumpdests) = Helpers.initialize_jumpdests(
-        bytecode_len, bytecode
-    );
-
-    %{ segments.write_arg(ids.output_ptr, __dict_manager.get_dict(ids.valid_jumpdests)) %}
-
-    return ();
-}
-
 func test__finalize_jumpdests{range_check_ptr}() {
     alloc_locals;
 

@@ -242,15 +242,7 @@ func execute_code{
     alloc_locals;
 
     // Get valid jump destinations
-    let (valid_jumpdests_start, valid_jumpdests_end) = Helpers.initialize_jumpdests(
-        message.value.code.value.len, message.value.code.value.data
-    );
-    tempvar valid_jump_destinations = SetUint(
-        new SetUintStruct(
-            cast(valid_jumpdests_start, SetUintDictAccess*),
-            cast(valid_jumpdests_end, SetUintDictAccess*),
-        ),
-    );
+    let valid_jump_destinations = get_valid_jump_destinations(message.value.code);
 
     // Create empty stack
     let (dict_start: DictAccess*) = default_dict_new(0);
@@ -599,19 +591,19 @@ func squash_evm{range_check_ptr, evm: Evm}() {
     let valid_jump_destinations = evm.value.valid_jump_destinations;
     let valid_jump_destinations_start = valid_jump_destinations.value.dict_ptr_start;
     let valid_jump_destinations_end = cast(valid_jump_destinations.value.dict_ptr, DictAccess*);
-    let (new_valid_jump_destinations_start, new_valid_jump_destinations_end) = dict_squash(
-        cast(valid_jump_destinations_start, DictAccess*), valid_jump_destinations_end
-    );
+    let (
+        squashed_valid_jump_destinations_start, squashed_valid_jump_destinations_end
+    ) = dict_squash(cast(valid_jump_destinations_start, DictAccess*), valid_jump_destinations_end);
     Helpers.finalize_jumpdests(
         0,
-        cast(new_valid_jump_destinations_start, DictAccess*),
-        cast(new_valid_jump_destinations_end, DictAccess*),
+        cast(squashed_valid_jump_destinations_start, DictAccess*),
+        cast(squashed_valid_jump_destinations_end, DictAccess*),
         evm.value.message.value.code.value.data,
     );
     tempvar new_valid_jump_destinations = SetUint(
         new SetUintStruct(
-            cast(new_valid_jump_destinations_start, SetUintDictAccess*),
-            cast(new_valid_jump_destinations_end, SetUintDictAccess*),
+            cast(squashed_valid_jump_destinations_start, SetUintDictAccess*),
+            cast(squashed_valid_jump_destinations_end, SetUintDictAccess*),
         ),
     );
 

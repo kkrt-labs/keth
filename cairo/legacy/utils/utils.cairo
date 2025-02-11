@@ -744,24 +744,6 @@ namespace Helpers {
         );
     }
 
-    // @notice Initializes a dictionary of valid jump destinations in EVM bytecode.
-    // @param bytecode_len The length of the bytecode.
-    // @param bytecode The EVM bytecode to analyze.
-    // @return (valid_jumpdests_start, valid_jumpdests) The starting and ending pointers of the valid jump destinations.
-    //
-    // @dev This function is an oracle and doesn't enforce anything. During the EVM execution, the prover
-    // commits to the valid or invalid jumpdest responses, and the verifier checks the response in the
-    // finalize_jumpdests function.
-    func initialize_jumpdests{range_check_ptr}(bytecode_len: felt, bytecode: felt*) -> (
-        valid_jumpdests_start: DictAccess*, valid_jumpdests: DictAccess*
-    ) {
-        alloc_locals;
-        %{ initialize_jumpdests %}
-        ap += 1;
-        let valid_jumpdests_start = cast([ap - 1], DictAccess*);
-        return (valid_jumpdests_start, valid_jumpdests_start);
-    }
-
     // @notice Assert that the dictionary of valid jump destinations in EVM bytecode is valid.
     // @dev Iterate over the list of DictAccesses and assert that
     //       - the prev_value is equal to the new_value (no dict_writes)
