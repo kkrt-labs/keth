@@ -37,3 +37,7 @@ class TestBytes:
         # Cairo serializes the bytes4 in little-endian form. Thus the comparison we must make is
         # between the reversed bytes and the input.
         assert cairo_run("ListBytes4_be_to_bytes", a) == b"".join([b[::-1] for b in a])
+
+    @given(a=...)
+    def test_Bytes_to_Bytes32(self, cairo_run_py, a: Bytes):
+        assert cairo_run_py("Bytes_to_Bytes32", a) == Bytes32(a.ljust(32, b"\x00"))

@@ -52,6 +52,7 @@ tempvar
 unexisting
 VERIF
 zellic
+patricialized
 callcode
 delegatecall
 staticcall

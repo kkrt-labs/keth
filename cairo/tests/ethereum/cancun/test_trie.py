@@ -19,6 +19,7 @@ from ethereum.cancun.trie import (
     encode_node,
     nibble_list_to_compact,
     patricialize,
+    root,
     trie_get,
     trie_set,
 )
@@ -116,9 +117,6 @@ class TestTrie:
     def test_bytes_to_nibble_list(self, cairo_run, bytes_: Bytes):
         assert bytes_to_nibble_list(bytes_) == cairo_run("bytes_to_nibble_list", bytes_)
 
-    # def test_root(self, cairo_run, trie, get_storage_root):
-    #     assert root(trie, get_storage_root) == cairo_run("root", trie, get_storage_root)
-
     @given(
         obj=st.dictionaries(nibble, bytes32).filter(
             lambda x: len(x) > 0 and all(len(k) > 0 for k in x)
@@ -205,6 +203,36 @@ class TestTrie:
             return
 
         assert result_cairo == _prepare_trie(trie, get_storage_root)
+
+    @given(trie_with_none=prepare_trie_strategy())
+    def test_root(self, cairo_run, trie_with_none: EthereumTries):
+        key_type, _ = trie_with_none.__orig_class__.__args__
+
+        # Python expects tries not to have None values (as writing the default None suppresses the key)
+        # In Cairo, the filtering is done in `prepare_trie` where they're filtered out of the output
+        # Mapping during iteration over dict entries.
+        trie = Trie(
+            secured=trie_with_none.secured,
+            default=trie_with_none.default,
+            _data={k: v for k, v in trie_with_none._data.items() if v is not None},
+        )
+
+        # TODO: compute storage root
+        if key_type is Address:
+
+            def get_storage_root(_address):
+                return b""
+
+        else:
+            get_storage_root = None
+
+        try:
+            result_cairo = cairo_run("root", trie_with_none, get_storage_root)
+        except Exception as e:
+            with strict_raises(type(e)):
+                root(trie, get_storage_root)
+            return
+        assert result_cairo == root(trie, get_storage_root)
 
 
 class TestTrieOperations:
