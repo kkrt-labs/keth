@@ -34,6 +34,8 @@ from legacy.utils.dict import (
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.cairo.common.dict import DictAccess
 
+from legacy.utils.utils import Helpers
+
 using OptionalEvm = Evm;
 
 struct EnvironmentStruct {
@@ -231,6 +233,12 @@ func incorporate_child_on_success{range_check_ptr, poseidon_ptr: PoseidonBuiltin
         cast(child_evm.value.valid_jump_destinations.value.dict_ptr_start, DictAccess*),
         cast(child_evm.value.valid_jump_destinations.value.dict_ptr, DictAccess*),
     );
+    Helpers.finalize_jumpdests(
+        0,
+        cast(child_evm.value.valid_jump_destinations.value.dict_ptr_start, DictAccess*),
+        cast(child_evm.value.valid_jump_destinations.value.dict_ptr, DictAccess*),
+        child_evm.value.message.value.code.value.data,
+    );
 
     // No need to squash the message's `accessed_addresses` and `accessed_storage_keys` because
     // they were moved into the Evm, which we just squashed.
@@ -330,6 +338,12 @@ func incorporate_child_on_error{range_check_ptr, poseidon_ptr: PoseidonBuiltin*,
     let valid_jump_destinations_start = valid_jump_destinations.value.dict_ptr_start;
     let valid_jump_destinations_end = cast(valid_jump_destinations.value.dict_ptr, DictAccess*);
     dict_squash(cast(valid_jump_destinations_start, DictAccess*), valid_jump_destinations_end);
+    Helpers.finalize_jumpdests(
+        0,
+        cast(valid_jump_destinations_start, DictAccess*),
+        cast(valid_jump_destinations_end, DictAccess*),
+        child_evm.value.message.value.code.value.data,
+    );
 
     let stack = child_evm.value.stack;
     let stack_start = stack.value.dict_ptr_start;

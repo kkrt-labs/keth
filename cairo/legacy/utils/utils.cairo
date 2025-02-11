@@ -756,22 +756,7 @@ namespace Helpers {
         valid_jumpdests_start: DictAccess*, valid_jumpdests: DictAccess*
     ) {
         alloc_locals;
-        %{
-            from ethereum.cancun.vm.runtime import get_valid_jump_destinations
-            from starkware.cairo.common.dict import DictTracker
-            from collections import defaultdict
-
-            bytecode = bytes([memory[ids.bytecode + i] for i in range(ids.bytecode_len)])
-            valid_jumpdest = get_valid_jump_destinations(bytecode)
-
-            data = defaultdict(int, {int(dest): 1 for dest in valid_jumpdest})
-            base = segments.add()
-            assert base.segment_index not in __dict_manager.trackers
-            __dict_manager.trackers[base.segment_index] = DictTracker(
-                data=data, current_ptr=base
-            )
-            memory[ap] = base
-        %}
+        %{ initialize_jumpdests %}
         ap += 1;
         let valid_jumpdests_start = cast([ap - 1], DictAccess*);
         return (valid_jumpdests_start, valid_jumpdests_start);

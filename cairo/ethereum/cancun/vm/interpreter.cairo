@@ -60,6 +60,7 @@ from ethereum.cancun.state import (
 )
 
 from legacy.utils.dict import hashdict_write, dict_squash
+from legacy.utils.utils import Helpers
 
 struct MessageCallOutput {
     value: MessageCallOutputStruct*,
@@ -241,7 +242,16 @@ func execute_code{
     alloc_locals;
 
     // Get valid jump destinations
-    let valid_jumpdests = get_valid_jump_destinations(message.value.code);
+    let (valid_jumpdests_start, valid_jumpdests_end) = Helpers.initialize_jumpdests(
+        message.value.code.value.len, message.value.code.value.data
+    );
+    tempvar valid_jump_destinations = SetUint(
+        new SetUintStruct(
+            cast(valid_jumpdests_start, SetUintDictAccess*),
+            cast(valid_jumpdests_end, SetUintDictAccess*),
+        ),
+    );
+
     // Create empty stack
     let (dict_start: DictAccess*) = default_dict_new(0);
     let dict_ptr = dict_start;
@@ -292,7 +302,7 @@ func execute_code{
             code=message.value.code,
             gas_left=message.value.gas,
             env=env,
-            valid_jump_destinations=valid_jumpdests,
+            valid_jump_destinations=valid_jump_destinations,
             logs=tuple_log_struct,
             refund_counter=0,
             running=bool(1),
@@ -591,6 +601,12 @@ func squash_evm{range_check_ptr, evm: Evm}() {
     let valid_jump_destinations_end = cast(valid_jump_destinations.value.dict_ptr, DictAccess*);
     let (new_valid_jump_destinations_start, new_valid_jump_destinations_end) = dict_squash(
         cast(valid_jump_destinations_start, DictAccess*), valid_jump_destinations_end
+    );
+    Helpers.finalize_jumpdests(
+        0,
+        cast(new_valid_jump_destinations_start, DictAccess*),
+        cast(new_valid_jump_destinations_end, DictAccess*),
+        evm.value.message.value.code.value.data,
     );
     tempvar new_valid_jump_destinations = SetUint(
         new SetUintStruct(
