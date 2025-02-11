@@ -40,7 +40,7 @@ from ethereum.cancun.vm.exceptions import (
 from ethereum.cancun.vm.precompiled_contracts.mapping import precompile_table_lookup
 from ethereum.cancun.vm.instructions import op_implementation
 from ethereum.cancun.vm.memory import Memory, MemoryStruct, Bytes1DictAccess
-from ethereum.cancun.vm.runtime import get_valid_jump_destinations
+from ethereum.cancun.vm.runtime import get_valid_jump_destinations, finalize_jumpdests
 from ethereum.cancun.vm.stack import Stack, StackStruct, StackDictAccess
 from ethereum.utils.numeric import U256, U256Struct, U256__eq__
 from ethereum.cancun.state import (
@@ -60,7 +60,6 @@ from ethereum.cancun.state import (
 )
 
 from legacy.utils.dict import hashdict_write, dict_squash
-from legacy.utils.utils import Helpers
 
 struct MessageCallOutput {
     value: MessageCallOutputStruct*,
@@ -594,7 +593,7 @@ func squash_evm{range_check_ptr, evm: Evm}() {
     let (
         squashed_valid_jump_destinations_start, squashed_valid_jump_destinations_end
     ) = dict_squash(cast(valid_jump_destinations_start, DictAccess*), valid_jump_destinations_end);
-    Helpers.finalize_jumpdests(
+    finalize_jumpdests(
         0,
         cast(squashed_valid_jump_destinations_start, DictAccess*),
         cast(squashed_valid_jump_destinations_end, DictAccess*),
