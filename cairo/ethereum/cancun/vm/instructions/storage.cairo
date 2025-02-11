@@ -96,7 +96,7 @@ func sload{
     // OPERATION
     let state = evm.value.env.value.state;
     with state, stack {
-        let value = get_storage(evm.value.message.value.current_target, Bytes32(key.value));
+        let value = get_storage(evm.value.message.value.current_target, key_bytes32);
 
         // Rebind state, env, stack, and accessed_storage_keys since it's the last time they are used
         let env = evm.value.env;
