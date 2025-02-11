@@ -570,6 +570,8 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "cancun", "trie", "BranchNode"): BranchNode,
     ("ethereum", "cancun", "trie", "InternalNode"): InternalNode,
     ("ethereum", "cancun", "trie", "Node"): Node,
+    ("ethereum", "cancun", "trie", "MappingBytes32U256"): Mapping[Bytes32, U256],
+    ("ethereum", "cancun", "trie", "TrieBytes32U256"): Trie[Bytes32, U256],
     ("ethereum", "cancun", "trie", "TrieAddressOptionalAccount"): Trie[
         Address, Optional[Account]
     ],
@@ -653,7 +655,6 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "cancun", "vm", "gas", "ExtendMemory"): ExtendMemory,
     ("ethereum", "cancun", "vm", "interpreter", "MessageCallOutput"): MessageCallOutput,
     ("ethereum", "cancun", "trie", "EthereumTries"): EthereumTries,
-    ("ethereum", "cancun", "trie", "TrieBytes32U256"): Trie[Bytes32, U256],
     **vm_exception_mappings,
     **ethereum_exception_mappings,
     # For tests only

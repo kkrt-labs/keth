@@ -566,7 +566,7 @@ class TestBeginTransaction:
 
 class TestStorageRoots:
     @given(state=...)
-    def test_storage_root(self, cairo_run, state: State):
+    def test_storage_roots(self, cairo_run, state: State):
         # The state from the strategy contains a snapshot. Remove it
         state._snapshots = []
         storage_roots = cairo_run("storage_roots", state)

@@ -948,7 +948,7 @@ func storage_roots{
     );
 
     // Create a Mapping[Address, Trie[Bytes32, U256]] that will contain the "flat" tries, where we
-    // will the storage trie of each address
+    // will get the storage trie of each address
     let (map_addr_storage_start) = default_dict_new(0);
     tempvar map_addr_storage = MappingAddressTrieBytes32U256(
         new MappingAddressTrieBytes32U256Struct(
