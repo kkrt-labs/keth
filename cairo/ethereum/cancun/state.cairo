@@ -55,6 +55,7 @@ from legacy.utils.dict import (
     dict_new_empty,
     get_keys_for_address_prefix,
     dict_update,
+    dict_copy,
 )
 
 struct TupleTrieAddressOptionalAccountTrieTupleAddressBytes32U256Struct {
@@ -221,47 +222,18 @@ func get_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(
     address: Address, key: Bytes32
 ) -> U256 {
     alloc_locals;
-    let storage_tries_data = state.value._storage_tries.value._data;
-
-    let fp_and_pc = get_fp_and_pc();
-    local __fp__: felt* = fp_and_pc.fp_val;
-
-    let storage_data_dict_ptr = cast(storage_tries_data.value.dict_ptr, DictAccess*);
-
-    let (keys) = alloc();
-    assert keys[0] = address.value;
-    assert keys[1] = key.value.low;
-    assert keys[2] = key.value.high;
-    let (value_ptr) = hashdict_read{poseidon_ptr=poseidon_ptr, dict_ptr=storage_data_dict_ptr}(
-        3, keys
-    );
-
-    let new_storage_data_dict_ptr = cast(storage_data_dict_ptr, TupleAddressBytes32U256DictAccess*);
-    tempvar new_storage_data = MappingTupleAddressBytes32U256(
-        new MappingTupleAddressBytes32U256Struct(
-            dict_ptr_start=storage_tries_data.value.dict_ptr_start,
-            dict_ptr=new_storage_data_dict_ptr,
-            parent_dict=storage_tries_data.value.parent_dict,
-        ),
-    );
-    tempvar new_storage_tries = TrieTupleAddressBytes32U256(
-        new TrieTupleAddressBytes32U256Struct(
-            secured=state.value._storage_tries.value.secured,
-            default=state.value._storage_tries.value.default,
-            _data=new_storage_data,
-        ),
-    );
+    let storage_tries = state.value._storage_tries;
+    let value = trie_get_TrieTupleAddressBytes32U256{trie=storage_tries}(address, key);
     tempvar state = State(
         new StateStruct(
             _main_trie=state.value._main_trie,
-            _storage_tries=new_storage_tries,
+            _storage_tries=storage_tries,
             created_accounts=state.value.created_accounts,
             original_storage_tries=state.value.original_storage_tries,
         ),
     );
 
-    tempvar res = U256(cast(value_ptr, U256Struct*));
-    return res;
+    return value;
 }
 
 func destroy_account{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Address) {
@@ -616,6 +588,33 @@ func begin_transaction{
     let fp_and_pc = get_fp_and_pc();
     local __fp__: felt* = fp_and_pc.fp_val;
 
+    // Set original storage tries if not already set
+    if (cast(state.value.original_storage_tries.value, felt) == 0) {
+        let storage_tries = state.value._storage_tries;
+        // cast in dict access type
+        let dict_ptr_start = cast(storage_tries.value._data.value.dict_ptr_start, DictAccess*);
+        let dict_ptr_end = cast(storage_tries.value._data.value.dict_ptr, DictAccess*);
+        let (new_dict_ptr_start, new_dict_ptr_end) = dict_copy(dict_ptr_start, dict_ptr_end);
+        tempvar original_storage_tries_data = MappingTupleAddressBytes32U256(
+            new MappingTupleAddressBytes32U256Struct(
+                dict_ptr_start=cast(new_dict_ptr_start, TupleAddressBytes32U256DictAccess*),
+                dict_ptr=cast(new_dict_ptr_end, TupleAddressBytes32U256DictAccess*),
+                parent_dict=cast(0, MappingTupleAddressBytes32U256Struct*),
+            ),
+        );
+        tempvar original_storage_tries = TrieTupleAddressBytes32U256(
+            new TrieTupleAddressBytes32U256Struct(
+                secured=storage_tries.value.secured,
+                default=storage_tries.value.default,
+                _data=original_storage_tries_data,
+            ),
+        );
+        tempvar range_check_ptr = range_check_ptr;
+    } else {
+        tempvar original_storage_tries = state.value.original_storage_tries;
+        tempvar range_check_ptr = range_check_ptr;
+    }
+
     // Copy the main trie
     let trie = state.value._main_trie;
     let copied_main_trie = copy_TrieAddressOptionalAccount{trie=trie}();
@@ -629,7 +628,7 @@ func begin_transaction{
             _main_trie=copied_main_trie,
             _storage_tries=copied_storage_tries,
             created_accounts=state.value.created_accounts,
-            original_storage_tries=state.value.original_storage_tries,
+            original_storage_tries=original_storage_tries,
         ),
     );
 
