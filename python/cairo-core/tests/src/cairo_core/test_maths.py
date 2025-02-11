@@ -96,12 +96,12 @@ segments.write_arg(ids.output, [int(b)+1 if b < 255 else 0 for b in truncated_va
             cairo_run("test__felt252_to_bytes_le", value=value, len=len_)
 
     def test_felt252_to_bytes_le_should_panic_on_wrong_output_noncanonical(
-        self, cairo_program, cairo_run
+        self, cairo_programs, cairo_run
     ):
         value = 0xAABB
         len_ = 2
         with patch_hint(
-            cairo_program,
+            cairo_programs,
             "felt252_to_bytes_le",
             """
 mask = (1 << (ids.len * 8)) - 1
@@ -163,12 +163,12 @@ segments.write_arg(ids.output, [int(b) + 1 if b < 255 else 0 for b in truncated_
             cairo_run("test__felt252_to_bytes_be", value=value, len=len_)
 
     def test_felt252_to_bytes_be_should_panic_on_wrong_output_noncanonical(
-        self, cairo_program, cairo_run
+        self, cairo_programs, cairo_run
     ):
         value = 0xAABB
         len_ = 2
         with patch_hint(
-            cairo_program,
+            cairo_programs,
             "felt252_to_bytes_be",
             """
 mask = (1 << (ids.len * 8)) - 1
