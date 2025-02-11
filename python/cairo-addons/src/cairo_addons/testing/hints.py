@@ -1,6 +1,7 @@
+import contextlib
 from contextlib import contextmanager
 from importlib import import_module
-from typing import Optional
+from typing import List, Optional
 from unittest.mock import patch
 
 from starkware.cairo.lang.compiler.program import CairoHint, Program
@@ -26,7 +27,9 @@ def debug_info(program: Program):
 
 
 @contextmanager
-def patch_hint(program: Program, hint: str, new_hint: str, scope: Optional[str] = None):
+def patch_hint(
+    programs: List[Program], hint: str, new_hint: str, scope: Optional[str] = None
+):
     """
     Temporarily patches a Cairo hint in a program with a new hint code.
 
@@ -79,48 +82,56 @@ def patch_hint(program: Program, hint: str, new_hint: str, scope: Optional[str] 
     orig_nondet_arg = get_nondet_arg(hint)
     new_nondet_arg = get_nondet_arg(new_hint)
 
-    patched_hints = {}
-    for k, hint_list in program.hints.items():
-        new_hints = []
-        for hint_ in hint_list:
-            # Skip hints not in specified scope
-            if scope is not None and scope not in str(hint_.accessible_scopes[-1]):
-                new_hints.append(hint_)
-                continue
+    patched_programs_hints = [{} for _ in programs]
 
-            if orig_nondet_arg:
-                # Handle nondet hint patching
-                mem_loc, arg = parse_fp_assignment_hint(hint_.code)
-                if arg == orig_nondet_arg:
-                    new_hints.append(
-                        CairoHint(
-                            accessible_scopes=hint_.accessible_scopes,
-                            flow_tracking_data=hint_.flow_tracking_data,
-                            code=f"memory[{mem_loc}] = to_felt_or_relocatable({new_nondet_arg})",
-                        )
-                    )
-                else:
+    for i, program in enumerate(programs):
+        patched_hints = {}
+        for k, hint_list in program.hints.items():
+            new_hints = []
+            for hint_ in hint_list:
+                # Skip hints not in specified scope
+                if scope is not None and scope not in str(hint_.accessible_scopes[-1]):
                     new_hints.append(hint_)
-            else:
-                # Handle regular hint patching
-                if hint_.code.strip() == implementations.get(
-                    hint.strip(), hint.strip()
-                ):
-                    new_hints.append(
-                        CairoHint(
-                            accessible_scopes=hint_.accessible_scopes,
-                            flow_tracking_data=hint_.flow_tracking_data,
-                            code=new_hint,
+                    continue
+
+                if orig_nondet_arg:
+                    # Handle nondet hint patching
+                    mem_loc, arg = parse_fp_assignment_hint(hint_.code)
+                    if arg == orig_nondet_arg:
+                        new_hints.append(
+                            CairoHint(
+                                accessible_scopes=hint_.accessible_scopes,
+                                flow_tracking_data=hint_.flow_tracking_data,
+                                code=f"memory[{mem_loc}] = to_felt_or_relocatable({new_nondet_arg})",
+                            )
                         )
-                    )
+                    else:
+                        new_hints.append(hint_)
                 else:
-                    new_hints.append(hint_)
-        patched_hints[k] = new_hints
+                    # Handle regular hint patching
+                    if hint_.code.strip() == implementations.get(
+                        hint.strip(), hint.strip()
+                    ):
+                        new_hints.append(
+                            CairoHint(
+                                accessible_scopes=hint_.accessible_scopes,
+                                flow_tracking_data=hint_.flow_tracking_data,
+                                code=new_hint,
+                            )
+                        )
+                    else:
+                        new_hints.append(hint_)
+            patched_hints[k] = new_hints
 
-    if patched_hints == program.hints:
-        raise ValueError(f"Hint\n\n{hint}\n\nnot found in program hints.")
+            if patched_hints == program.hints:
+                raise ValueError(f"Hint\n\n{hint}\n\nnot found in program hints.")
 
-    with patch.object(program, "hints", new=patched_hints):
+            patched_programs_hints[i] = patched_hints
+
+    # Create context managers for all programs
+    with contextlib.ExitStack() as stack:
+        for program, patched_hints in zip(programs, patched_programs_hints):
+            stack.enter_context(patch.object(program, "hints", new=patched_hints))
         yield
 
 

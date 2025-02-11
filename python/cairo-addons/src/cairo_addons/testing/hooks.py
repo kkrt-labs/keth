@@ -12,7 +12,7 @@ from starkware.cairo.lang.compiler.cairo_compile import DEFAULT_PRIME
 
 from cairo_addons.testing.caching import CACHED_TESTS_FILE, file_hash, program_hash
 from cairo_addons.testing.compiler import (
-    get_cairo_file,
+    get_cairo_files,
     get_cairo_program,
     get_main_path,
 )
@@ -146,12 +146,16 @@ def pytest_runtest_makereport(item, call):
         item.session.results[item] = result
 
 
-def get_dump_path(session, fspath):
-    dump_path = session.build_dir / session.cairo_files[fspath].relative_to(
-        Path().cwd()
-    ).with_suffix(".pickle")
-    dump_path.parent.mkdir(parents=True, exist_ok=True)
-    return dump_path
+def get_dump_paths(session, fspath):
+    files = session.cairo_files[fspath]
+    dump_paths = []
+    for file in files:
+        dump_path = session.build_dir / file.relative_to(Path().cwd()).with_suffix(
+            ".pickle"
+        )
+        dump_path.parent.mkdir(parents=True, exist_ok=True)
+        dump_paths.append(dump_path)
+    return dump_paths
 
 
 @pytest.hookimpl(wrapper=True)
@@ -178,8 +182,9 @@ def pytest_collection_modifyitems(session, config, items):
             hasattr(item, "fixturenames")
             and set(item.fixturenames)
             & {
-                "cairo_file",
-                "main_path",
+                "cairo_files",
+                "main_paths",
+                "cairo_programs",
                 "cairo_program",
                 "cairo_run",
             }
@@ -193,16 +198,18 @@ def pytest_collection_modifyitems(session, config, items):
     worker_id = getattr(config, "workerinput", {}).get("workerid", "master")
     worker_index = int(worker_id[2:]) if worker_id != "master" else 0
     fspaths = sorted(list({item.fspath for item in cairo_items}))
+
     for fspath in fspaths[worker_index::worker_count]:
-        session.cairo_files[fspath] = get_cairo_file(fspath)
-        session.main_paths[fspath] = get_main_path(session.cairo_files[fspath])
-        dump_path = get_dump_path(session, fspath)
-        session.cairo_programs[fspath] = get_cairo_program(
-            session.cairo_files[fspath],
-            session.main_paths[fspath],
-            dump_path,
-            config.getoption("prime"),
-        )
+        files = get_cairo_files(fspath)
+        session.cairo_files[fspath] = files
+        main_paths = [get_main_path(file) for file in files]
+        session.main_paths[fspath] = main_paths
+        dump_paths = get_dump_paths(session, fspath)
+        cairo_programs = [
+            get_cairo_program(file, main_path, dump_path, config.getoption("prime"))
+            for file, main_path, dump_path in zip(files, main_paths, dump_paths)
+        ]
+        session.cairo_programs[fspath] = cairo_programs
 
     # Wait for all workers to finish
     missing = set(fspaths) - set(fspaths[worker_index::worker_count])
@@ -211,18 +218,28 @@ def pytest_collection_modifyitems(session, config, items):
         missing_new = set()
         for fspath in missing:
             if fspath not in session.cairo_files:
-                session.cairo_files[fspath] = get_cairo_file(fspath)
+                session.cairo_files[fspath] = get_cairo_files(fspath)
             if fspath not in session.main_paths:
-                session.main_paths[fspath] = get_main_path(session.cairo_files[fspath])
+                session.main_paths[fspath] = [
+                    get_main_path(file) for file in session.cairo_files[fspath]
+                ]
             if fspath not in session.cairo_programs:
-                dump_path = get_dump_path(session, fspath)
-                if dump_path.exists():
-                    session.cairo_programs[fspath] = get_cairo_program(
-                        session.cairo_files[fspath],
-                        session.main_paths[fspath],
-                        dump_path,
-                        config.getoption("prime"),
-                    )
+                dump_paths = get_dump_paths(session, fspath)
+                # Only proceed when all dump paths exist
+                if all(path.exists() for path in dump_paths):
+                    cairo_files = session.cairo_files[fspath]
+                    main_paths = session.main_paths[fspath]
+                    session.cairo_programs[fspath] = [
+                        get_cairo_program(
+                            cairo_file,
+                            main_path,
+                            dump_path,
+                            config.getoption("prime"),
+                        )
+                        for cairo_file, main_path, dump_path in zip(
+                            cairo_files, main_paths, dump_paths
+                        )
+                    ]
                 else:
                     missing_new.add(fspath)
         missing = missing_new
@@ -230,9 +247,15 @@ def pytest_collection_modifyitems(session, config, items):
 
     # Select tests
     for item in cairo_items:
-        cairo_program = session.cairo_programs[item.fspath]
+        # Hash both main and test programs if they exist
+        program_hashes = [
+            hash_
+            for program in session.cairo_programs[item.fspath]
+            for hash_ in program_hash(program)
+        ]
+
         test_hash = xxhash.xxh64(
-            program_hash(cairo_program)
+            bytes(program_hashes)
             + file_hash(item.fspath)
             + item.nodeid.encode()
             + file_hash(Path(__file__).parent / "runner.py")

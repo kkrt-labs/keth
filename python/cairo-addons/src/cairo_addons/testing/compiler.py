@@ -15,7 +15,7 @@ import logging
 import pickle
 from pathlib import Path
 from time import perf_counter
-from typing import Optional, Union
+from typing import List, Optional, Tuple, Union
 
 from starkware.cairo.lang.compiler.cairo_compile import DEFAULT_PRIME
 from starkware.cairo.lang.compiler.scoped_name import ScopedName
@@ -28,30 +28,39 @@ logging.basicConfig(
 logger = logging.getLogger()
 
 
-def get_cairo_file(location: Union[str, Path]) -> Path:
+def get_cairo_files(location: Union[str, Path]) -> List[Path]:
     """
     Locate the Cairo file corresponding to a Python test file.
 
     Resolution Strategy:
-    1. Look for test_xxx.cairo in tests/
-    2. If not found, look for xxx.cairo in main codebase
-    3. Raise error if neither exists
+    1. Look for xxx.cairo in main codebase
+    2. Look for test_xxx.cairo in main codebase
+    3. Raise if none found
+    4. Return files found, starting with the source file
 
     This allows writing Python tests without creating Cairo test files,
     leveraging the automatic type conversion system.
     """
-    cairo_file = Path(location).with_suffix(".cairo")
-    if not cairo_file.exists():
-        cairo_file = Path(str(cairo_file).replace("/tests", "").replace("/test_", "/"))
-    if not cairo_file.exists():
-        raise ValueError(f"Missing cairo file: {cairo_file}")
-    return cairo_file
+    output = []
+    test_cairo_file = Path(location).with_suffix(".cairo")
+    main_cairo_file = Path(
+        str(test_cairo_file).replace("/tests", "").replace("/test_", "/")
+    )
+    if main_cairo_file.exists():
+        output.append(main_cairo_file)
+    if test_cairo_file.exists():
+        output.append(test_cairo_file)
+    if not output:
+        raise ValueError(f"Missing cairo file: {main_cairo_file}")
+    return output
 
 
-def get_main_path(cairo_file):
+def get_main_path(cairo_file: Optional[str]) -> Optional[Tuple[str]]:
     """
     Resolve the __main__ part of the cairo scope path.
     """
+    if not cairo_file:
+        return None
     return tuple(
         "/".join(cairo_file.relative_to(Path.cwd()).with_suffix("").parts)
         .replace("cairo/", "")

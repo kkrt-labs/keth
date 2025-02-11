@@ -15,7 +15,7 @@ import math
 from hashlib import md5
 from pathlib import Path
 from time import time_ns
-from typing import Callable, Optional, Tuple, Type
+from typing import Callable, List, Optional, Tuple, Type
 
 import polars as pl
 import starkware.cairo.lang.instances as LAYOUTS
@@ -160,9 +160,9 @@ def build_entrypoint(
 
 
 def run_python_vm(
-    cairo_program: Program,
-    cairo_file: Path,
-    main_path: Tuple[str, ...],
+    cairo_programs: List[Program],
+    cairo_files: List[Path],
+    main_paths: List[Tuple[str, ...]],
     request: FixtureRequest,
     gen_arg_builder: Optional[
         Callable[[DictManager, MemorySegmentManager], Callable]
@@ -177,6 +177,17 @@ def run_python_vm(
     """Helper function containing Python VM implementation"""
 
     def _run(entrypoint, *args, **kwargs):
+        cairo_program = cairo_programs[0]
+        cairo_file = cairo_files[0]
+        main_path = main_paths[0]
+        try:
+            cairo_program.get_label(entrypoint)
+        except Exception:
+            # Entrypoint not found - try test program
+            cairo_program = cairo_programs[1]
+            cairo_file = cairo_files[1]
+            main_path = main_paths[1]
+
         _builtins, _implicit_args, _args, return_data_types = build_entrypoint(
             cairo_program, entrypoint, main_path, to_python_type
         )
@@ -410,10 +421,10 @@ def run_python_vm(
 
 
 def run_rust_vm(
-    cairo_program: Program,
-    rust_program: RustProgram,
-    cairo_file: Path,
-    main_path: Tuple[str, ...],
+    cairo_programs: List[Program],
+    rust_programs: List[RustProgram],
+    cairo_files: List[Path],
+    main_paths: List[Tuple[str, ...]],
     request: FixtureRequest,
     gen_arg_builder: Optional[
         Callable[[DictManager, MemorySegmentManager], Callable]
@@ -425,6 +436,19 @@ def run_rust_vm(
     """Helper function containing Rust VM implementation"""
 
     def _run(entrypoint, *args, **kwargs):
+        cairo_program = cairo_programs[0]
+        rust_program = rust_programs[0]
+        cairo_file = cairo_files[0]
+        main_path = main_paths[0]
+        try:
+            cairo_program.get_label(entrypoint)
+        except Exception:
+            # Entrypoint not found - try test program
+            cairo_program = cairo_programs[1]
+            rust_program = rust_programs[1]
+            cairo_file = cairo_files[1]
+            main_path = main_paths[1]
+
         _builtins, _implicit_args, _args, return_data_types = build_entrypoint(
             cairo_program, entrypoint, main_path, to_python_type
         )

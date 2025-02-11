@@ -40,11 +40,11 @@ class TestBytes:
         # All values up to 256 will have the same decomposition if the it is removed
         @given(n=integers(min_value=256, max_value=2**248 - 1))
         def test_should_raise_when_byte_value_not_modulo_base(
-            self, cairo_program, cairo_run, n
+            self, cairo_programs, cairo_run, n
         ):
             with (
                 patch_hint(
-                    cairo_program,
+                    cairo_programs,
                     "memory[ids.output] = res = (int(ids.value) % PRIME) % ids.base\nassert res < ids.bound, f'split_int(): Limb {res} is out of range.'",
                     "memory[ids.output] = (int(ids.value) % PRIME)\n",
                 ),
@@ -64,11 +64,11 @@ class TestBytes:
             )
         )
         def test_should_raise_when_bytes_len_is_not_minimal(
-            self, cairo_program, cairo_run, n
+            self, cairo_programs, cairo_run, n
         ):
             with (
                 patch_hint(
-                    cairo_program,
+                    cairo_programs,
                     "memory[ids.output] = res = (int(ids.value) % PRIME) % ids.base\nassert res < ids.bound, f'split_int(): Limb {res} is out of range.'",
                     f"if ids.value == {n} and ids.bytes_len == 0:\n    memory[ids.output] = 0\nelse:\n    memory[ids.output] = (int(ids.value) % PRIME) % ids.base",
                 ),
@@ -77,11 +77,11 @@ class TestBytes:
                 cairo_run("test__felt_to_bytes_little", n=n)
 
         def test_should_raise_when_bytes_len_is_greater_than_31(
-            self, cairo_program, cairo_run
+            self, cairo_programs, cairo_run
         ):
             with (
                 patch_hint(
-                    cairo_program,
+                    cairo_programs,
                     "memory[ids.output] = res = (int(ids.value) % PRIME) % ids.base\nassert res < ids.bound, f'split_int(): Limb {res} is out of range.'",
                     "memory[ids.output] = 2 if ids.bytes_len < 3 else (int(ids.value) % PRIME) % ids.base\nprint(f'[DEBUG] Byte value: {memory[ids.output]}')",
                 ),

@@ -13,12 +13,18 @@ load_dotenv()
 
 
 @pytest.fixture(scope="module")
-def cairo_run_py(request, cairo_program, cairo_file, main_path, coverage):
+def cairo_run_py(
+    request,
+    cairo_programs,
+    cairo_files,
+    main_paths,
+    coverage,
+):
     """Run the cairo program using Python VM."""
     return run_python_vm(
-        cairo_program,
-        cairo_file,
-        main_path,
+        cairo_programs,
+        cairo_files,
+        main_paths,
         request,
         gen_arg_builder=gen_arg_builder,
         serde_cls=Serde,
@@ -60,10 +66,10 @@ def pytest_configure(config):
 @pytest.fixture(scope="module")
 def cairo_run(
     request,
-    cairo_program,
-    rust_program,
-    cairo_file,
-    main_path,
+    cairo_programs,
+    rust_programs,
+    cairo_files,
+    main_paths,
     coverage,
     python_vm,
 ):
@@ -86,9 +92,9 @@ def cairo_run(
     """
     if python_vm:
         return run_python_vm(
-            cairo_program,
-            cairo_file,
-            main_path,
+            cairo_programs,
+            cairo_files,
+            main_paths,
             request,
             gen_arg_builder=gen_arg_builder,
             serde_cls=Serde,
@@ -99,10 +105,10 @@ def cairo_run(
         )
 
     return run_rust_vm(
-        cairo_program,
-        rust_program,
-        cairo_file,
-        main_path,
+        cairo_programs,
+        rust_programs,
+        cairo_files,
+        main_paths,
         request,
         gen_arg_builder=gen_arg_builder,
         serde_cls=Serde,
