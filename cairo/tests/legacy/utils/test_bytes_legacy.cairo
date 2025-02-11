@@ -13,6 +13,7 @@ from legacy.utils.bytes import (
     uint256_to_bytes32,
     bytes_to_bytes8_little_endian,
     bytes_to_felt,
+    bytes_to_felt_le,
 )
 
 func test__felt_to_ascii{range_check_ptr}(output_ptr: felt*) {
@@ -111,5 +112,17 @@ func test__bytes_to_felt() -> felt {
         segments.write_arg(ids.ptr, program_input["data"])
     %}
     let res = bytes_to_felt(len, ptr);
+    return res;
+}
+
+func test__bytes_to_felt_le() -> felt {
+    alloc_locals;
+    tempvar len;
+    let (ptr) = alloc();
+    %{
+        ids.len = len(program_input["data"])
+        segments.write_arg(ids.ptr, program_input["data"])
+    %}
+    let res = bytes_to_felt_le(len, ptr);
     return res;
 }

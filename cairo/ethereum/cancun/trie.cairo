@@ -60,6 +60,7 @@ from ethereum.cancun.fork_types import (
     AddressAccountDictAccess,
     MappingTupleAddressBytes32U256,
     MappingTupleAddressBytes32U256Struct,
+    Root,
 )
 from ethereum.cancun.transactions_types import LegacyTransaction, LegacyTransactionStruct
 from ethereum_rlp.rlp import (
@@ -76,7 +77,7 @@ from ethereum_rlp.rlp import (
     encode_u256,
 )
 from ethereum.utils.numeric import divmod
-from ethereum.utils.bytes import Bytes32_to_Bytes, Bytes20_to_Bytes
+from ethereum.utils.bytes import Bytes32_to_Bytes, Bytes20_to_Bytes, Bytes_to_Bytes32
 
 from cairo_core.comparison import is_zero
 from cairo_core.control_flow import raise
@@ -1395,64 +1396,32 @@ func _prepare_trie_inner_withdrawal{
     );
 }
 
-// func _prepare_trie(trie: Trie[K, V], get_storage_root: Callable[List(elts=[Name(id='Address', ctx=Load())], ctx=Load()), Root]) -> Mapping[Bytes, Bytes] {
-//     // Implementation:
-//     // mapped: MutableMapping[Bytes, Bytes] = {}
-//     // for (preimage, value) in trie._data.items():
-//     // if isinstance(value, Account):
-//     // assert get_storage_root is not None
-//     // address = Address(preimage)
-//     // encoded_value = encode_node(value, get_storage_root(address))
-//     // else:
-//     // encoded_value = encode_node(value)
-//     // if encoded_value == b'':
-//     // raise AssertionError
-//     // key: Bytes
-//     // if trie.secured:
-//     // key = keccak256(preimage)
-//     // else:
-//     // key = preimage
-//     // mapped[bytes_to_nibble_list(key)] = encoded_value
-//         // if isinstance(value, Account):
-//         // assert get_storage_root is not None
-//         // address = Address(preimage)
-//         // encoded_value = encode_node(value, get_storage_root(address))
-//         // else:
-//         // encoded_value = encode_node(value)
-//             // assert get_storage_root is not None
-//             // address = Address(preimage)
-//             // encoded_value = encode_node(value, get_storage_root(address))
-//         // else:
-//             // encoded_value = encode_node(value)
-//         // if encoded_value == b'':
-//         // raise AssertionError
-//             // raise AssertionError
-//         // key: Bytes
-//         // if trie.secured:
-//         // key = keccak256(preimage)
-//         // else:
-//         // key = preimage
-//             // key = keccak256(preimage)
-//         // else:
-//             // key = preimage
-//         // mapped[bytes_to_nibble_list(key)] = encoded_value
-//     // return mapped
-// }
+func root{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+}(trie_union: EthereumTries) -> Root {
+    alloc_locals;
 
-// func root(trie: Trie[K, V], get_storage_root: Callable[List(elts=[Name(id='Address', ctx=Load())], ctx=Load()), Root]) -> Root {
-//     // Implementation:
-//     // obj = _prepare_trie(trie, get_storage_root)
-//     // root_node = encode_internal_node(patricialize(obj, Uint(0)))
-//     // if len(encode(root_node)) < 32:
-//     // return keccak256(encode(root_node))
-//     // else:
-//     // assert isinstance(root_node, Bytes)
-//     // return Root(root_node)
-//         // return keccak256(encode(root_node))
-//     // else:
-//         // assert isinstance(root_node, Bytes)
-//         // return Root(root_node)
-// }
+    // TODO: get_storage_root
+    let obj = _prepare_trie(trie_union);
+    let patricialized = patricialize(obj, Uint(0));
+    let root_node = encode_internal_node(patricialized);
+    let rlp_encoded_root_node = encode(root_node);
+
+    let is_encoding_lt_32 = is_le(rlp_encoded_root_node.value.len, 31);
+    if (is_encoding_lt_32 != 0) {
+        let root_hash = keccak256(rlp_encoded_root_node);
+        return root_hash;
+    }
+
+    if (cast(root_node.value.bytes.value, felt) == 0) {
+        raise('AssertionError');
+    }
+    let root_b32 = Bytes_to_Bytes32(root_node.value.bytes);
+    return root_b32;
+}
 
 // Finds the maximum length of common prefix among all keys in a trie at a given level.
 //

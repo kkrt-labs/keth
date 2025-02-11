@@ -146,3 +146,8 @@ class TestBytes:
         def test_should_convert_bytes_to_felt_with_overflow(self, cairo_run, data):
             output = cairo_run("test__bytes_to_felt", data=list(data))
             assert output == int.from_bytes(data, byteorder="big") % DEFAULT_PRIME
+
+        @given(data=binary(min_size=0, max_size=35))
+        def test_should_convert_bytes_to_felt_le(self, cairo_run, data):
+            output = cairo_run("test__bytes_to_felt_le", data=list(data))
+            assert output == int.from_bytes(data, byteorder="little") % DEFAULT_PRIME
