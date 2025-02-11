@@ -3,7 +3,6 @@ from math import ceil
 import pytest
 from ethereum.cancun.vm.runtime import get_valid_jump_destinations
 from ethereum_types.bytes import Bytes
-from ethereum_types.numeric import Uint
 from hypothesis import example, given, settings
 from hypothesis import strategies as st
 
