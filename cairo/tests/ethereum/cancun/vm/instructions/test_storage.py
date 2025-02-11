@@ -65,6 +65,26 @@ class TestStorage:
         sload(evm)
         assert evm == cairo_evm
 
+    @given(evm=evm_storage_strategy, address=..., key=..., value=...)
+    def test_sload_on_filled_storage(
+        self, cairo_run, evm: Evm, address: Address, key: Bytes32, value: U256
+    ):
+        """
+        This test ensures that sload won't be used on an empty storage.
+        """
+        state = evm.env.state
+        set_account(state, address, Account(balance=U256(1), nonce=U256(2), code=b""))
+        set_storage(state, address, key, value)
+        push(evm.stack, U256.from_be_bytes(key))
+        try:
+            cairo_evm = cairo_run("sload", evm)
+        except Exception as cairo_error:
+            with strict_raises(type(cairo_error)):
+                sload(evm)
+            return
+        sload(evm)
+        assert evm == cairo_evm
+
     @given(evm=sstore_strategy())
     def test_sstore(self, cairo_run, evm: Evm):
         try:
