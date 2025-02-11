@@ -155,6 +155,7 @@ func felt_to_bytes{range_check_ptr}(dst: felt*, value: felt) -> felt {
 }
 
 // @notice Loads a sequence of bytes into a single felt in big-endian.
+// @dev: Only up to 31 bytes can be packed.
 // @param len: number of bytes.
 // @param ptr: pointer to bytes array.
 // @return: packed felt.
@@ -185,6 +186,7 @@ func bytes_to_felt(len: felt, ptr: felt*) -> felt {
 }
 
 // @notice Loads a sequence of bytes into a single felt in little-endian.
+// @dev: Only up to 31 bytes can be packed.
 // @param len: number of bytes.
 // @param ptr: pointer to bytes array.
 // @return: packed felt.
