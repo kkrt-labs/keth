@@ -1,5 +1,5 @@
 import copy
-from typing import Optional
+from typing import Mapping, Optional
 
 import pytest
 from ethereum.cancun.fork_types import EMPTY_ACCOUNT, Account, Address
@@ -594,15 +594,20 @@ class TestRoot:
 class TestStorageRoots:
     @given(state=state_maybe_snapshot())
     def test_storage_roots(self, cairo_run, state: State):
+        def storage_roots(state) -> Mapping[Address, Bytes32]:
+            # This assertion is made in each individual storage_root in python -
+            # but in Cairo we can only perform it once.
+            assert not state._snapshots
+            storage_roots_py = {}
+            for addr in state._storage_tries.keys():
+                storage_roots_py[addr] = storage_root(state, addr)
+            return storage_roots_py
+
         try:
-            storage_roots = cairo_run("storage_roots", state)
+            storage_roots_cairo = cairo_run("storage_roots", state)
         except Exception as e:
             with strict_raises(type(e)):
-                storage_root(state)
+                storage_roots(state)
             return
 
-        storage_roots_py = {}
-        for addr in state._storage_tries.keys():
-            storage_roots_py[addr] = storage_root(state, addr)
-
-        assert storage_roots == storage_roots_py
+        assert storage_roots_cairo == storage_roots(state)
