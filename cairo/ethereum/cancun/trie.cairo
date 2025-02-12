@@ -1808,11 +1808,6 @@ func _get_bytes32_preimage_for_key{poseidon_ptr: PoseidonBuiltin*}(
     local preimage_len;
     %{ get_preimage_for_key %}
 
-    // Verify preimage
-    if (preimage_len != 2) {
-        raise('preimage_len != 2');
-    }
-
     let (preimage_hash) = poseidon_hash_many(preimage_len, preimage_data);
     with_attr error_message("preimage_hash != key") {
         assert preimage_hash = key;
@@ -1831,11 +1826,6 @@ func get_tuple_address_bytes32_preimage_for_key{poseidon_ptr: PoseidonBuiltin*}(
     let (local preimage_data: felt*) = alloc();
     local preimage_len;
     %{ get_preimage_for_key %}
-
-    // Verify preimage
-    if (preimage_len != 3) {
-        raise('preimage_len != 3');
-    }
 
     let (preimage_hash) = poseidon_hash_many(preimage_len, preimage_data);
     with_attr error_message("preimage_hash != key") {
