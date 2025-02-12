@@ -1,4 +1,5 @@
 from starkware.cairo.common.cairo_builtins import PoseidonBuiltin, BitwiseBuiltin, KeccakBuiltin
+from starkware.cairo.common.registers import get_label_location
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.default_dict import default_dict_new
 from starkware.cairo.common.registers import get_fp_and_pc
@@ -82,8 +83,9 @@ from legacy.utils.dict import (
     dict_squash,
 )
 
-const EMPTY_ROOT_LOW = 0x6ef8c092e64583ffa655cc1b171fe856;
-const EMPTY_ROOT_HIGH = 0x21b463e3b52f6201c0ad6c991be0485b;
+EMPTY_ROOT:
+dw 0x6ef8c092e64583ffa655cc1b171fe856;  // low
+dw 0x21b463e3b52f6201c0ad6c991be0485b;  // high
 
 struct AddressTrieBytes32U256DictAccess {
     key: Address,
@@ -986,8 +988,8 @@ func storage_roots{
 
     // Create a Mapping[Address, Bytes32] that will contain the storage root of each address's
     // storage trie
-    tempvar EMPTY_ROOT_PTR = new Bytes32Struct(EMPTY_ROOT_LOW, EMPTY_ROOT_HIGH);
-    let (map_addr_storage_root_start) = default_dict_new(cast(EMPTY_ROOT_PTR, felt));
+    let (empty_root_ptr) = get_label_location(EMPTY_ROOT);
+    let (map_addr_storage_root_start) = default_dict_new(cast(empty_root_ptr, felt));
     tempvar map_addr_storage_root = MappingAddressBytes32(
         new MappingAddressBytes32Struct(
             dict_ptr_start=cast(map_addr_storage_root_start, AddressBytes32DictAccess*),

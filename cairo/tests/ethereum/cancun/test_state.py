@@ -598,7 +598,7 @@ class TestStorageRoots:
             storage_roots = cairo_run("storage_roots", state)
         except Exception as e:
             with strict_raises(type(e)):
-                storage_roots(state)
+                storage_root(state)
             return
 
         storage_roots_py = {}

@@ -197,7 +197,10 @@ class TestTrie:
             # Cairo expects a Dict[Address, Root] as storage_roots - not a callable function
             storage_roots = defaultdict(
                 lambda: U256.from_le_bytes(EMPTY_TRIE_ROOT),
-                {address: root(storage_tries[address]) for address in storage_tries},
+                {
+                    address: U256.from_le_bytes(root(storage_tries[address]))
+                    for address in storage_tries
+                },
             )
 
             def get_storage_root(address: Address) -> Root:
@@ -238,7 +241,10 @@ class TestTrie:
             # Cairo expects a Dict[Address, Root] as storage_roots - not a callable function
             storage_roots = defaultdict(
                 lambda: U256.from_le_bytes(EMPTY_TRIE_ROOT),
-                {address: root(storage_tries[address]) for address in storage_tries},
+                {
+                    address: U256.from_le_bytes(root(storage_tries[address]))
+                    for address in storage_tries
+                },
             )
 
             def get_storage_root(address: Address) -> Root:
