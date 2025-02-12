@@ -3,9 +3,12 @@ use std::collections::HashMap;
 
 use cairo_vm::{
     hint_processor::{
-        builtin_hint_processor::hint_utils::{
-            get_integer_from_var_name, get_maybe_relocatable_from_var_name, get_ptr_from_var_name,
-            insert_value_from_var_name,
+        builtin_hint_processor::{
+            dict_manager::DictTracker,
+            hint_utils::{
+                get_integer_from_var_name, get_maybe_relocatable_from_var_name,
+                get_ptr_from_var_name, insert_value_from_var_name, insert_value_into_ap,
+            },
         },
         hint_processor_definition::HintReference,
     },
@@ -29,6 +32,7 @@ pub const HINTS: &[fn() -> Hint] = &[
     nibble_remainder,
     print_maybe_relocatable,
     precompile_index_from_address,
+    initialize_jumpdests,
 ];
 
 lazy_static! {
@@ -215,4 +219,120 @@ pub fn precompile_index_from_address() -> Hint {
             Ok(())
         },
     )
+}
+
+pub fn initialize_jumpdests() -> Hint {
+    Hint::new(
+        String::from("initialize_jumpdests"),
+        |vm: &mut VirtualMachine,
+         _exec_scopes: &mut ExecutionScopes,
+         ids_data: &HashMap<String, HintReference>,
+         ap_tracking: &ApTracking,
+         _constants: &HashMap<String, Felt252>|
+         -> Result<(), HintError> {
+            // Get bytecode pointer and length
+            let bytecode =
+                get_maybe_relocatable_from_var_name("bytecode", vm, ids_data, ap_tracking)?;
+            let bytecode_ptr = match bytecode {
+                MaybeRelocatable::RelocatableValue(ptr) => ptr,
+                MaybeRelocatable::Int(value) if value == Felt252::ZERO => {
+                    // Handle empty bytecode case
+                    let base = vm.add_memory_segment();
+
+                    // Get dict manager and create empty dictionary
+                    let dict_manager_ref = _exec_scopes.get_dict_manager()?;
+                    let mut dict_manager = dict_manager_ref.borrow_mut();
+
+                    // Create and insert empty DictTracker
+                    dict_manager.trackers.insert(
+                        base.segment_index,
+                        DictTracker::new_default_dict(
+                            base,
+                            &MaybeRelocatable::from(Felt252::ZERO),
+                            Some(HashMap::new()),
+                        ),
+                    );
+
+                    // Store base address in ap and return
+                    insert_value_into_ap(vm, base)?;
+                    return Ok(());
+                }
+                _ => return Err(HintError::CustomHint(Box::from("Invalid bytecode value"))),
+            };
+
+            let bytecode_len =
+                get_integer_from_var_name("bytecode_len", vm, ids_data, ap_tracking)?;
+            let len: usize = bytecode_len
+                .try_into()
+                .map_err(|_| MathError::Felt252ToUsizeConversion(Box::new(bytecode_len)))?;
+
+            // Read bytecode from memory
+            let mut bytecode = Vec::with_capacity(len);
+            for i in 0..len {
+                let value = vm.get_integer((bytecode_ptr + i)?)?.into_owned();
+                bytecode.push(value.to_bytes_be()[31]); // Get least significant byte
+            }
+
+            // Get valid jump destinations
+            let valid_jumpdest = get_valid_jump_destinations(&bytecode);
+
+            // Create dictionary data with valid jump destinations
+            let mut data = HashMap::new();
+            for dest in valid_jumpdest {
+                data.insert(Felt252::from(dest).into(), Felt252::ONE.into());
+            }
+
+            // Create new segment for the dictionary
+            let base = vm.add_memory_segment();
+
+            // Get dict manager and verify segment doesn't exist
+            let dict_manager_ref = _exec_scopes.get_dict_manager()?;
+            let mut dict_manager = dict_manager_ref.borrow_mut();
+            if dict_manager.trackers.contains_key(&base.segment_index) {
+                return Err(HintError::CustomHint(Box::from(
+                    "Segment already exists in dict_manager.trackers",
+                )));
+            }
+
+            // Create and insert DictTracker
+            dict_manager.trackers.insert(
+                base.segment_index,
+                DictTracker::new_default_dict(
+                    base,
+                    &MaybeRelocatable::from(Felt252::ZERO),
+                    Some(data),
+                ),
+            );
+
+            // Store base address in ap
+            insert_value_into_ap(vm, base)?;
+
+            Ok(())
+        },
+    )
+}
+
+fn get_valid_jump_destinations(code: &[u8]) -> Vec<usize> {
+    let mut valid_jumpdest = Vec::new();
+    let mut i = 0;
+
+    while i < code.len() {
+        if code[i] == 0x5b {
+            // JUMPDEST opcode
+            valid_jumpdest.push(i);
+            i += 1;
+            continue;
+        }
+
+        // Skip push data
+        if code[i] >= 0x60 && code[i] <= 0x7f {
+            let n = (code[i] - 0x60 + 1) as usize;
+            i += n + 1;
+            continue;
+        }
+
+        i += 1;
+    }
+
+    valid_jumpdest
 }

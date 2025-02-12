@@ -1,4 +1,6 @@
 from starkware.cairo.common.cairo_builtins import PoseidonBuiltin
+from starkware.cairo.common.dict import DictAccess
+from starkware.cairo.common.registers import get_fp_and_pc
 from ethereum.cancun.blocks import Log, TupleLog, TupleLogStruct
 from ethereum.cancun.fork_types import (
     Address,
@@ -14,10 +16,11 @@ from ethereum.cancun.fork_types import (
     TupleVersionedHash,
     VersionedHash,
 )
-from ethereum.cancun.state import State, TransientStorage
 from ethereum.exceptions import EthereumException
 from ethereum_types.bytes import Bytes, Bytes0, Bytes32
 from ethereum_types.numeric import U64, U256, Uint, bool, SetUint
+from ethereum.cancun.state import State, TransientStorage
+from ethereum.cancun.vm.runtime import finalize_jumpdests
 from ethereum.cancun.transactions_types import To
 from ethereum.cancun.vm.stack import Stack
 from ethereum.cancun.state import account_exists_and_is_empty
@@ -31,8 +34,6 @@ from legacy.utils.dict import (
     squash_and_update,
     dict_squash,
 )
-from starkware.cairo.common.registers import get_fp_and_pc
-from starkware.cairo.common.dict import DictAccess
 
 using OptionalEvm = Evm;
 
@@ -227,9 +228,17 @@ func incorporate_child_on_success{range_check_ptr, poseidon_ptr: PoseidonBuiltin
         cast(child_evm.value.memory.value.dict_ptr, DictAccess*),
     );
 
-    dict_squash(
+    let (
+        squashed_valid_jump_destinations_start, squashed_valid_jump_destinations_end
+    ) = dict_squash(
         cast(child_evm.value.valid_jump_destinations.value.dict_ptr_start, DictAccess*),
         cast(child_evm.value.valid_jump_destinations.value.dict_ptr, DictAccess*),
+    );
+    finalize_jumpdests(
+        0,
+        squashed_valid_jump_destinations_start,
+        squashed_valid_jump_destinations_end,
+        child_evm.value.message.value.code.value.data,
     );
 
     // No need to squash the message's `accessed_addresses` and `accessed_storage_keys` because
@@ -329,7 +338,15 @@ func incorporate_child_on_error{range_check_ptr, poseidon_ptr: PoseidonBuiltin*,
     let valid_jump_destinations = child_evm.value.valid_jump_destinations;
     let valid_jump_destinations_start = valid_jump_destinations.value.dict_ptr_start;
     let valid_jump_destinations_end = cast(valid_jump_destinations.value.dict_ptr, DictAccess*);
-    dict_squash(cast(valid_jump_destinations_start, DictAccess*), valid_jump_destinations_end);
+    let (
+        squashed_valid_jump_destinations_start, squashed_valid_jump_destinations_end
+    ) = dict_squash(cast(valid_jump_destinations_start, DictAccess*), valid_jump_destinations_end);
+    finalize_jumpdests(
+        0,
+        squashed_valid_jump_destinations_start,
+        squashed_valid_jump_destinations_end,
+        child_evm.value.message.value.code.value.data,
+    );
 
     let stack = child_evm.value.stack;
     let stack_start = stack.value.dict_ptr_start;

@@ -113,3 +113,26 @@ def precompile_index_from_address(
     }
 
     ids.index = ADDRESS_TO_INDEX[ids.address.to_bytes(20, "little")]
+
+
+@register_hint
+def initialize_jumpdests(
+    dict_manager: DictManager,
+    ids: VmConsts,
+    segments: MemorySegmentManager,
+    memory: MemoryDict,
+    ap: RelocatableValue,
+):
+    from collections import defaultdict
+
+    from ethereum.cancun.vm.runtime import get_valid_jump_destinations
+    from starkware.cairo.common.dict import DictTracker
+
+    bytecode = bytes([memory[ids.bytecode + i] for i in range(ids.bytecode_len)])
+    valid_jumpdest = get_valid_jump_destinations(bytecode)
+
+    data = defaultdict(int, {int(dest): 1 for dest in valid_jumpdest})
+    base = segments.add()
+    assert base.segment_index not in dict_manager.trackers
+    dict_manager.trackers[base.segment_index] = DictTracker(data=data, current_ptr=base)
+    memory[ap] = base

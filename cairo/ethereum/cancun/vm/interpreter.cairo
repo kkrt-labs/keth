@@ -40,7 +40,7 @@ from ethereum.cancun.vm.exceptions import (
 from ethereum.cancun.vm.precompiled_contracts.mapping import precompile_table_lookup
 from ethereum.cancun.vm.instructions import op_implementation
 from ethereum.cancun.vm.memory import Memory, MemoryStruct, Bytes1DictAccess
-from ethereum.cancun.vm.runtime import get_valid_jump_destinations
+from ethereum.cancun.vm.runtime import get_valid_jump_destinations, finalize_jumpdests
 from ethereum.cancun.vm.stack import Stack, StackStruct, StackDictAccess
 from ethereum.utils.numeric import U256, U256Struct, U256__eq__
 from ethereum.cancun.state import (
@@ -241,7 +241,8 @@ func execute_code{
     alloc_locals;
 
     // Get valid jump destinations
-    let valid_jumpdests = get_valid_jump_destinations(message.value.code);
+    let valid_jump_destinations = get_valid_jump_destinations(message.value.code);
+
     // Create empty stack
     let (dict_start: DictAccess*) = default_dict_new(0);
     let dict_ptr = dict_start;
@@ -292,7 +293,7 @@ func execute_code{
             code=message.value.code,
             gas_left=message.value.gas,
             env=env,
-            valid_jump_destinations=valid_jumpdests,
+            valid_jump_destinations=valid_jump_destinations,
             logs=tuple_log_struct,
             refund_counter=0,
             running=bool(1),
@@ -589,13 +590,19 @@ func squash_evm{range_check_ptr, evm: Evm}() {
     let valid_jump_destinations = evm.value.valid_jump_destinations;
     let valid_jump_destinations_start = valid_jump_destinations.value.dict_ptr_start;
     let valid_jump_destinations_end = cast(valid_jump_destinations.value.dict_ptr, DictAccess*);
-    let (new_valid_jump_destinations_start, new_valid_jump_destinations_end) = dict_squash(
-        cast(valid_jump_destinations_start, DictAccess*), valid_jump_destinations_end
+    let (
+        squashed_valid_jump_destinations_start, squashed_valid_jump_destinations_end
+    ) = dict_squash(cast(valid_jump_destinations_start, DictAccess*), valid_jump_destinations_end);
+    finalize_jumpdests(
+        0,
+        squashed_valid_jump_destinations_start,
+        squashed_valid_jump_destinations_end,
+        evm.value.message.value.code.value.data,
     );
     tempvar new_valid_jump_destinations = SetUint(
         new SetUintStruct(
-            cast(new_valid_jump_destinations_start, SetUintDictAccess*),
-            cast(new_valid_jump_destinations_end, SetUintDictAccess*),
+            cast(squashed_valid_jump_destinations_start, SetUintDictAccess*),
+            cast(squashed_valid_jump_destinations_end, SetUintDictAccess*),
         ),
     );
 
