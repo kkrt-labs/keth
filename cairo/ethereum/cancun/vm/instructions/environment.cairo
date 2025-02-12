@@ -398,7 +398,7 @@ func returndatacopy{
     }
 
     let ceil32_size = ceil32(Uint(size.value.low));
-    let (words, _) = divmod(ceil32_size.value, 32);
+    let words = ceil32_size.value / 32;
     let return_data_copy_gas_cost = GasConstants.GAS_RETURN_DATA_COPY * words;
     // Calculate memory expansion cost
     tempvar extensions_tuple = new TupleU256U256(new TupleU256U256Struct(memory_start_index, size));
@@ -612,7 +612,7 @@ func codecopy{
         return err;
     }
     let ceil32_size = ceil32(Uint(size.value.low));
-    let (words, _) = divmod(ceil32_size.value, 32);
+    let words = ceil32_size.value / 32;
     let copy_gas_cost = GasConstants.GAS_COPY * words;
     // Calculate memory expansion cost
     tempvar extensions_tuple = new TupleU256U256(new TupleU256U256Struct(memory_start_index, size));
@@ -762,7 +762,7 @@ func extcodecopy{
         return err;
     }
     let ceil32_size = ceil32(Uint(size.value.low));
-    let (words, _) = divmod(ceil32_size.value, 32);
+    let words = ceil32_size.value / 32;
     let copy_gas_cost = GasConstants.GAS_COPY * words;
 
     // Calculate memory expansion cost
@@ -1049,7 +1049,7 @@ func calldatacopy{
     }
 
     let ceil32_size = ceil32(Uint(size.value.low));
-    let (words, _) = divmod(ceil32_size.value, 32);
+    let words = ceil32_size.value / 32;
     let copy_gas_cost = GasConstants.GAS_COPY * words;
 
     // Calculate memory expansion cost

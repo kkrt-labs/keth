@@ -266,7 +266,7 @@ func mcopy{
     }
 
     let length_ceil32 = ceil32(Uint(length.value.low));
-    let (words, _) = divmod(length_ceil32.value, 32);
+    let words = length_ceil32.value / 32;
     let copy_gas_cost = GasConstants.GAS_COPY * words;
 
     let (mem_access_tuples: TupleU256U256*) = alloc();

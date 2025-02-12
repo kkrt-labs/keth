@@ -49,7 +49,7 @@ func keccak{
         return err;
     }
     let ceil32_size = ceil32(Uint(size.value.low));
-    let (words, _) = divmod(ceil32_size.value, 32);
+    let words = ceil32_size.value / 32;
     let word_gas_cost = GasConstants.GAS_KECCAK256_WORD * words;
 
     tempvar mem_access_tuple = new TupleU256U256(new TupleU256U256Struct(memory_start_index, size));
