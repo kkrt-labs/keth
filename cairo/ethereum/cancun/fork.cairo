@@ -112,6 +112,7 @@ from ethereum.utils.numeric import (
     U256_add_with_carry,
 )
 from ethereum.cancun.transactions import recover_sender
+from ethereum.cancun.vm.instructions.block import _append_logs
 from cairo_core.comparison import is_zero
 
 from legacy.utils.array import count_not_zero
@@ -1106,7 +1107,8 @@ func _apply_body_inner{
     //         receipt,
     //     )
 
-    // TODO: append logs to block_logs
+    let new_logs = receipt.value.receipt.value.logs;
+    _append_logs{logs=block_logs}(new_logs);
     let tx_blob_gas = calculate_total_blob_gas(tx);
     tempvar blob_gas_used = Uint(blob_gas_used.value + tx_blob_gas.value);
 

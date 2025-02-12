@@ -683,6 +683,7 @@ class TestFork:
 
         assert cairo_result.block_gas_used == output.block_gas_used
         assert cairo_result.blob_gas_used == output.blob_gas_used
+        assert cairo_result.block_logs_bloom == output.block_logs_bloom
         assert cairo_state == state
 
 
