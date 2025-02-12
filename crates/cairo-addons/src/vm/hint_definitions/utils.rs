@@ -279,7 +279,7 @@ pub fn initialize_jumpdests() -> Hint {
             // Create dictionary data with valid jump destinations
             let mut data = HashMap::new();
             for dest in valid_jumpdest {
-                data.insert(Felt252::from(dest).into(), Felt252::ONE.into());
+                data.insert((Felt252::from(dest).into(),), Felt252::ONE.into());
             }
 
             // Create new segment for the dictionary
