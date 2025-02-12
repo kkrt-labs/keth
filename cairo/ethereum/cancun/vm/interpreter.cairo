@@ -512,7 +512,9 @@ func process_message_call{
     return msg;
 }
 
-func create_empty_message_call_output(gas_left: Uint, error: EthereumException*) -> MessageCallOutput {
+func create_empty_message_call_output(
+    gas_left: Uint, error: EthereumException*
+) -> MessageCallOutput {
     alloc_locals;
     let (empty_logs: Log*) = alloc();
     tempvar empty_tuple_log = TupleLog(new TupleLogStruct(data=empty_logs, len=0));
