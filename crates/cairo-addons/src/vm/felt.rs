@@ -83,3 +83,9 @@ impl From<Felt252> for PyFelt {
         Self { inner: felt }
     }
 }
+
+impl From<PyFelt> for Felt252 {
+    fn from(felt: PyFelt) -> Self {
+        felt.inner
+    }
+}

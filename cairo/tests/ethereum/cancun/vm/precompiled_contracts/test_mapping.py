@@ -2,7 +2,7 @@ from ethereum.cancun.vm.precompiled_contracts.mapping import (
     ECRECOVER_ADDRESS,
     PRE_COMPILED_CONTRACTS,
 )
-from hypothesis import example, given
+from hypothesis import Verbosity, example, given, settings
 from hypothesis import strategies as st
 
 from cairo_addons.testing.errors import cairo_error
@@ -27,6 +27,7 @@ class TestPrecompileMapping:
         assert table_address == 0
 
     @given(address=st.sampled_from(list(PRE_COMPILED_CONTRACTS.keys())))
+    @settings(verbosity=Verbosity.quiet)
     def test_precompile_table_lookup_hint_index_out_of_bounds(
         self, cairo_programs, cairo_run_py, address
     ):
@@ -42,6 +43,7 @@ class TestPrecompileMapping:
             cairo_run_py("precompile_table_lookup", address_int)
 
     @given(address=st.sampled_from(list(PRE_COMPILED_CONTRACTS.keys())))
+    @settings(verbosity=Verbosity.quiet)
     def test_precompile_table_lookup_hint_index_different_address(
         self, cairo_programs, cairo_run_py, address
     ):

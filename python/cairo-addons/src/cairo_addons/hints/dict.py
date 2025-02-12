@@ -68,13 +68,13 @@ def copy_dict_segment(
         # Same as new_dict but supports a default value
         base = segments.add()
         assert base.segment_index not in dict_manager.trackers
+        copied_data = {
+            key: segments.gen_arg(value) for key, value in current_tracker.data.items()
+        }
         dict_manager.trackers[base.segment_index] = DictTracker(
             data=defaultdict(
                 current_tracker.data.default_factory,
-                {
-                    key: segments.gen_arg(value)
-                    for key, value in current_tracker.data.items()
-                },
+                copied_data,
             ),
             current_ptr=base,
         )

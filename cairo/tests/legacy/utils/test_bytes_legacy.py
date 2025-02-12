@@ -1,5 +1,5 @@
 import pytest
-from hypothesis import given
+from hypothesis import Verbosity, given, settings
 from hypothesis.strategies import binary, integers
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 
@@ -39,6 +39,7 @@ class TestBytes:
         # This test checks the function fails if the % base is removed from the hint
         # All values up to 256 will have the same decomposition if the it is removed
         @given(n=integers(min_value=256, max_value=2**248 - 1))
+        @settings(verbosity=Verbosity.quiet)
         def test_should_raise_when_byte_value_not_modulo_base(
             self, cairo_programs, cairo_run, n
         ):
@@ -63,6 +64,7 @@ class TestBytes:
                 != 0
             )
         )
+        @settings(verbosity=Verbosity.quiet)
         def test_should_raise_when_bytes_len_is_not_minimal(
             self, cairo_programs, cairo_run, n
         ):
@@ -76,6 +78,7 @@ class TestBytes:
             ):
                 cairo_run("test__felt_to_bytes_little", n=n)
 
+        @settings(verbosity=Verbosity.quiet)
         def test_should_raise_when_bytes_len_is_greater_than_31(
             self, cairo_programs, cairo_run
         ):
