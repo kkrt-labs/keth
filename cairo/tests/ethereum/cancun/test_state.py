@@ -37,7 +37,7 @@ from ethereum.cancun.state import (
 from ethereum.cancun.trie import Trie, copy_trie
 from ethereum_types.bytes import Bytes32
 from ethereum_types.numeric import U256
-from hypothesis import HealthCheck, given, settings
+from hypothesis import given, settings
 from hypothesis import strategies as st
 from hypothesis.strategies import composite
 
@@ -565,23 +565,41 @@ class TestBeginTransaction:
         assert transient_storage_cairo == transient_storage
 
 
+@composite
+def state_maybe_snapshot(draw):
+    """
+    Draw a state that has a 80% chance of not containing snapshots.
+    """
+    state_ = draw(state)
+    probability = draw(st.floats(min_value=0, max_value=1))
+    if probability < 0.8:
+        state_._snapshots = []
+        return state_
+    return state_
+
+
 class TestRoot:
-    @given(state=...)
-    @settings(max_examples=1, suppress_health_check=[HealthCheck.filter_too_much])
+    @given(state=state_maybe_snapshot())
     def test_state_root(self, cairo_run, state: State):
-        # The state from the strategy contains a snapshot. Remove it
-        state._snapshots = []
-        state_root_cairo = cairo_run("state_root", state)
+        try:
+            state_root_cairo = cairo_run("state_root", state)
+        except Exception as e:
+            with strict_raises(type(e)):
+                state_root(state)
+            return
         state_root_py = state_root(state)
         assert state_root_cairo == state_root_py
 
 
 class TestStorageRoots:
-    @given(state=...)
+    @given(state=state_maybe_snapshot())
     def test_storage_roots(self, cairo_run, state: State):
-        # The state from the strategy contains a snapshot. Remove it
-        state._snapshots = []
-        storage_roots = cairo_run("storage_roots", state)
+        try:
+            storage_roots = cairo_run("storage_roots", state)
+        except Exception as e:
+            with strict_raises(type(e)):
+                storage_roots(state)
+            return
 
         storage_roots_py = {}
         for addr in state._storage_tries.keys():

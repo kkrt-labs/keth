@@ -942,6 +942,10 @@ func storage_roots{
 }(state: State) -> MappingAddressBytes32 {
     alloc_locals;
 
+    if (cast(state.value._main_trie.value._data.value.parent_dict, felt) != 0) {
+        raise('AssertionError');
+    }
+
     // Get the Trie[Tuple[Address, Bytes32], U256] storage tries, and squash them for unique keys
     let storage_tries = state.value._storage_tries;
     let storage_tries_start = cast(storage_tries.value._data.value.dict_ptr_start, DictAccess*);
@@ -1154,7 +1158,9 @@ func state_root{
 }(state: State) -> Bytes32 {
     alloc_locals;
 
-    // TODO: assert the state is empty
+    if (cast(state.value._main_trie.value._data.value.parent_dict, felt) != 0) {
+        raise('AssertionError');
+    }
 
     let storage_roots_ = storage_roots(state);
 
