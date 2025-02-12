@@ -634,8 +634,9 @@ func begin_transaction{
     let fp_and_pc = get_fp_and_pc();
     local __fp__: felt* = fp_and_pc.fp_val;
 
-    // Set original storage tries if not already set
-    if (cast(state.value.original_storage_tries.value, felt) == 0) {
+    // Set original storage tries if in root transaction - indicated by a main trie with no parent
+    // dict
+    if (cast(state.value._main_trie.value._data.value.parent_dict, felt) == 0) {
         let storage_tries = state.value._storage_tries;
         let (new_dict_ptr_start, new_dict_ptr_end) = dict_copy(
             cast(storage_tries.value._data.value.dict_ptr_start, DictAccess*),
