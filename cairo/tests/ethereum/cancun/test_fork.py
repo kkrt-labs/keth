@@ -15,19 +15,21 @@ from ethereum.cancun.fork import (
     validate_header,
 )
 from ethereum.cancun.fork_types import Address, VersionedHash
-from ethereum.cancun.state import State, set_account
+from ethereum.cancun.state import State, set_account, set_account_balance
 from ethereum.cancun.transactions import (
     AccessListTransaction,
     BlobTransaction,
     FeeMarketTransaction,
     LegacyTransaction,
     Transaction,
+    calculate_intrinsic_cost,
     signing_hash_155,
     signing_hash_1559,
     signing_hash_2930,
     signing_hash_4844,
     signing_hash_pre155,
 )
+from ethereum.cancun.utils.address import to_address
 from ethereum.cancun.vm import Environment
 from ethereum.cancun.vm.gas import TARGET_BLOB_GAS_PER_BLOCK
 from ethereum.crypto.hash import Hash32, keccak256
@@ -42,7 +44,14 @@ from hypothesis.strategies import composite, integers
 from cairo_addons.testing.errors import strict_raises
 from tests.ethereum.cancun.vm.test_interpreter import unimplemented_precompiles
 from tests.utils.constants import OMMER_HASH
-from tests.utils.strategies import account_strategy, address, bytes32, small_bytes, uint
+from tests.utils.strategies import (
+    account_strategy,
+    address,
+    bounded_u256_strategy,
+    bytes32,
+    small_bytes,
+    uint,
+)
 
 MIN_BASE_FEE = 1_000
 
@@ -71,6 +80,7 @@ def tx_with_small_data(draw, gas_strategy=uint, gas_price_strategy=uint):
         to=to,
         gas=gas_strategy,
         gas_price=gas_price_strategy,
+        value=bounded_u256_strategy(max_value=2**128 - 1),
     )
 
     access_list_tx = st.builds(
@@ -80,6 +90,7 @@ def tx_with_small_data(draw, gas_strategy=uint, gas_price_strategy=uint):
         to=to,
         gas=gas_strategy,
         gas_price=gas_price_strategy,
+        value=bounded_u256_strategy(max_value=2**128 - 1),
     )
 
     base_fee_per_gas = draw(gas_price_strategy)
@@ -94,6 +105,7 @@ def tx_with_small_data(draw, gas_strategy=uint, gas_price_strategy=uint):
         gas=gas_strategy,
         max_priority_fee_per_gas=st.just(max_priority_fee_per_gas),
         max_fee_per_gas=st.just(max_fee_per_gas),
+        value=bounded_u256_strategy(max_value=2**128 - 1),
     )
 
     blob_tx = st.builds(
@@ -107,6 +119,7 @@ def tx_with_small_data(draw, gas_strategy=uint, gas_price_strategy=uint):
         blob_versioned_hashes=st.lists(st.from_type(VersionedHash), max_size=3).map(
             tuple
         ),
+        value=bounded_u256_strategy(max_value=2**128 - 1),
     )
 
     # Choose one transaction type
@@ -194,11 +207,8 @@ def tx_with_sender_in_state(
     env = draw(st.from_type(Environment))
     if env.gas_price < env.base_fee_per_gas:
         env.gas_price = draw(
-            st.one_of(
-                st.integers(
-                    min_value=int(env.base_fee_per_gas), max_value=2**64 - 1
-                ).map(Uint),
-                st.just(env.base_fee_per_gas),
+            st.integers(min_value=int(env.base_fee_per_gas), max_value=2**64 - 1).map(
+                Uint
             )
         )
     # Values too high would cause taylor_exponential to run indefinitely.
@@ -206,10 +216,27 @@ def tx_with_sender_in_state(
         st.integers(0, 10 * int(TARGET_BLOB_GAS_PER_BLOCK)).map(U64)
     )
     state = env.state
+    tx = draw(tx_strategy)
     account = draw(account_strategy)
+    private_key = draw(st.from_type(PrivateKey))
+    expected_address = int(private_key.public_key.to_address(), 16)
+    if draw(integers(0, 99)) < 80:
+        # to ensure the account has enough balance and tx.gas > intrinsic_cost
+        env.origin = to_address(Uint(expected_address))
+        if calculate_intrinsic_cost(tx) > tx.gas:
+            tx = replace(tx, gas=(calculate_intrinsic_cost(tx) + Uint(10000)))
+        if Uint(account.balance) < Uint(tx.value) * Uint(env.gas_price) + Uint(
+            env.excess_blob_gas
+        ):
+            set_account_balance(
+                state,
+                to_address(Uint(expected_address)),
+                U256(tx.value) * U256(env.gas_price)
+                + U256(env.excess_blob_gas)
+                + U256(10000),
+            )
     # 2 * chain_id + 35 + v must be less than 2^64 for the signature of a legacy transaction to be valid
     chain_id = draw(st.integers(min_value=1, max_value=(2**64 - 37) // 2).map(U64))
-    tx = draw(tx_strategy)
     nonce = U256(account.nonce)
     # To avoid useless failures, set nonce of the transaction to the nonce of the sender account
     tx = (
@@ -217,8 +244,6 @@ def tx_with_sender_in_state(
         if not isinstance(tx, LegacyTransaction)
         else replace(tx, nonce=nonce)
     )
-    private_key = draw(st.from_type(PrivateKey))
-    expected_address = int(private_key.public_key.to_address(), 16)
 
     pre_155 = draw(integers(0, 99)) < 50
     if isinstance(tx, LegacyTransaction):
