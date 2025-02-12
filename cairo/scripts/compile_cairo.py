@@ -23,14 +23,6 @@ def compile_cairo(file_name, should_implement_hints=True):
         json.dump(program.Schema().dump(program), f, indent=4, sort_keys=True)
 
 
-def compile_os():
-    compile_cairo(Path(__file__).parents[1] / "programs" / "os.cairo")
-
-
-def compile_fibonacci():
-    compile_cairo(Path(__file__).parents[1] / "programs" / "fibonacci.cairo")
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Compile Cairo program")
     parser.add_argument("file_name", help="The Cairo file to compile")
