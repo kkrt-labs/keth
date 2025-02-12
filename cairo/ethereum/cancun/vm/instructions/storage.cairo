@@ -213,13 +213,7 @@ func sstore{
     // Refund calculation
     if (is_current_eq_new.value == 0) {
         let refund_counter_res = _calculate_refund_counter_current_eq_new(
-            is_original_zero,
-            is_original_eq_current,
-            current_refund_counter,
-            original_value,
-            current_value,
-            new_value,
-            zero_u256,
+            current_refund_counter, original_value, current_value, new_value, zero_u256
         );
         assert refund_counter = refund_counter_res;
     } else {
@@ -267,10 +261,8 @@ func sstore{
     return ok;
 }
 
-// @notice Calculates the refund counter for sstore.
+// # see https://github.com/ethereum/execution-specs/blob/6e652281164025f1f4227f6e5b0036c1bbd27347/src/ethereum/cancun/vm/instructions/storage.py#L104
 func _calculate_refund_counter_current_eq_new(
-    is_original_zero: bool,
-    is_original_eq_current: bool,
     current_refund_counter: felt,
     original_value: U256,
     current_value: U256,
@@ -280,6 +272,7 @@ func _calculate_refund_counter_current_eq_new(
     alloc_locals;
 
     local refund_counter;
+    let is_original_zero = U256__eq__(original_value, zero_u256);
     let is_original_eq_new = U256__eq__(original_value, new_value);
     let is_current_zero = U256__eq__(current_value, zero_u256);
     let is_new_zero = U256__eq__(new_value, zero_u256);
@@ -294,24 +287,26 @@ func _calculate_refund_counter_current_eq_new(
         if (is_current_zero.value != 0) {
             assert temp_refund_counter = current_refund_counter -
                 GasConstants.GAS_STORAGE_CLEAR_REFUND;
+        } else {
+            assert temp_refund_counter = current_refund_counter;
         }
     } else {
-        assert temp_refund_counter = 0;
+        assert temp_refund_counter = current_refund_counter;
     }
     if (is_original_eq_new.value != 0) {
         if (is_original_zero.value != 0) {
-            assert refund_counter = temp_refund_counter + current_refund_counter + (
+            assert refund_counter = temp_refund_counter + (
                 GasConstants.GAS_STORAGE_SET - GasConstants.GAS_WARM_ACCESS
             );
         } else {
-            assert refund_counter = temp_refund_counter + current_refund_counter + (
+            assert refund_counter = temp_refund_counter + (
                 GasConstants.GAS_STORAGE_UPDATE -
                 GasConstants.GAS_COLD_SLOAD -
                 GasConstants.GAS_WARM_ACCESS
             );
         }
     } else {
-        assert refund_counter = current_refund_counter + temp_refund_counter;
+        assert refund_counter = temp_refund_counter;
     }
     return refund_counter;
 }
