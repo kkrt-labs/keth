@@ -422,7 +422,7 @@ func process_message_call{
         if (has_collision.value + has_storage.value != FALSE) {
             // Return early with collision error
             tempvar collision_error = new EthereumException(AddressCollision);
-            let msg = create_empty_message_call_output(collision_error);
+            let msg = create_empty_message_call_output(Uint(0), collision_error);
             return msg;
         }
 
@@ -488,8 +488,8 @@ func process_message_call{
 
     // Prepare return values based on error state
     if (cast(evm.value.error, felt) != 0) {
-        let msg = create_empty_message_call_output(evm.value.error);
         squash_evm{evm=evm}();
+        let msg = create_empty_message_call_output(evm.value.gas_left, evm.value.error);
         return msg;
     }
 
@@ -512,7 +512,7 @@ func process_message_call{
     return msg;
 }
 
-func create_empty_message_call_output(error: EthereumException*) -> MessageCallOutput {
+func create_empty_message_call_output(gas_left: Uint, error: EthereumException*) -> MessageCallOutput {
     alloc_locals;
     let (empty_logs: Log*) = alloc();
     tempvar empty_tuple_log = TupleLog(new TupleLogStruct(data=empty_logs, len=0));
@@ -539,7 +539,7 @@ func create_empty_message_call_output(error: EthereumException*) -> MessageCallO
 
     tempvar msg = MessageCallOutput(
         new MessageCallOutputStruct(
-            gas_left=Uint(0),
+            gas_left=gas_left,
             refund_counter=U256(new U256Struct(0, 0)),
             logs=empty_tuple_log,
             accounts_to_delete=empty_set1,
