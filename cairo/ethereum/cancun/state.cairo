@@ -970,8 +970,8 @@ func storage_roots{
     );
 
     build_map_addr_storage_trie{
-        map_addr_storage=map_addr_storage, storage_tries_ptr_end=storage_tries_end
-    }(storage_tries_start);
+        map_addr_storage=map_addr_storage, storage_tries_ptr_end=squashed_storage_tries_end
+    }(squashed_storage_tries_start);
 
     // Squash the Mapping[address, trie[bytes32, u256]] to iterate over each address
     let (squashed_map_addr_storage_start, squashed_map_addr_storage_end) = dict_squash(
@@ -1090,6 +1090,12 @@ func build_map_addr_storage_trie{
 
     if (storage_tries_ptr == storage_tries_ptr_end) {
         return ();
+    }
+
+    // Skip all None values, which are deleted trie entries. We don't need them to compute
+    // the storage roots.
+    if (cast(storage_tries_ptr.new_value, felt) == 0) {
+        return build_map_addr_storage_trie(storage_tries_ptr + DictAccess.SIZE);
     }
 
     let tup_address_b32 = get_tuple_address_bytes32_preimage_for_key(
