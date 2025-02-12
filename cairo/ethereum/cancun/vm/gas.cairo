@@ -144,7 +144,7 @@ const MAX_MEMORY_SIZE = 2 ** 64 - 32;
 // @dev: max output value given this saturation is MAX_MEMORY_COST
 func calculate_memory_gas_cost{range_check_ptr}(size_in_bytes: Uint) -> Uint {
     let size = ceil32(size_in_bytes);
-    let (size_in_words, _) = divmod(size.value, 32);
+    let size_in_words = size.value / 32;
     let linear_cost = size_in_words * GasConstants.GAS_MEMORY;
     let quadratic_cost = size_in_words * size_in_words;
     let (quadratic_cost, _) = divmod(quadratic_cost, 512);
@@ -240,7 +240,7 @@ func max_message_call_gas{range_check_ptr}(gas: Uint) -> Uint {
 
 func init_code_cost{range_check_ptr}(init_code_length: Uint) -> Uint {
     let length = ceil32(init_code_length);
-    let (words, _) = divmod(length.value, 32);
+    let words = length.value / 32;
     let cost = Uint(GasConstants.GAS_INIT_CODE_WORD_COST * words);
     return cost;
 }

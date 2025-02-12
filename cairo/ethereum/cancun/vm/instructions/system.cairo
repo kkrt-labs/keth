@@ -1340,7 +1340,7 @@ func create2{
 
     let init_code_gas = init_code_cost(Uint(memory_size.value.low));
     let ceiled_memory_size = ceil32(Uint(memory_size.value.low));
-    let (call_data_words, _) = divmod(ceiled_memory_size.value, 32);
+    let call_data_words = ceiled_memory_size.value / 32;
     let keccak_cost = GasConstants.GAS_KECCAK256_WORD * call_data_words;
 
     // Charge gas for CREATE2 operation
