@@ -1193,7 +1193,7 @@ func _apply_body_inner{
     let encoded_tx = encode_transaction(tx);
 
     trie_set_TrieBytesOptionalUnionBytesLegacyTransaction{trie=transactions_trie}(
-        encoded_index, encoded_tx
+        encoded_index, OptionalUnionBytesLegacyTransaction(encoded_tx.value)
     );
 
     let tuple_address_uint_tuple_versioned_hash = check_transaction{state=state}(
@@ -1234,8 +1234,9 @@ func _apply_body_inner{
     tempvar receipt_gas = Uint(block_gas_limit.value - gas_available.value);
     let receipt = make_receipt(tx, error, receipt_gas, logs);
 
-    let encoded_receipt = encode_receipt(receipt);
-    trie_set_TrieBytesOptionalUnionBytesReceipt{trie=receipts_trie}(encoded_index, encoded_receipt);
+    trie_set_TrieBytesOptionalUnionBytesReceipt{trie=receipts_trie}(
+        encoded_index, OptionalUnionBytesReceipt(receipt.value)
+    );
 
     let new_logs = receipt.value.receipt.value.logs;
     _append_logs{logs=block_logs}(new_logs);
