@@ -673,17 +673,10 @@ class TestFork:
             with strict_raises(type(e)):
                 apply_body(**kwargs)
             return
-        dummy_root = Hash32(int(0).to_bytes(32, "big"))
-        assert cairo_result.transactions_root == dummy_root
-        assert cairo_result.receipt_root == dummy_root
-        assert cairo_result.state_root == dummy_root
-        assert cairo_result.withdrawals_root == dummy_root
 
         output = apply_body(**kwargs)
 
-        assert cairo_result.block_gas_used == output.block_gas_used
-        assert cairo_result.blob_gas_used == output.blob_gas_used
-        assert cairo_result.block_logs_bloom == output.block_logs_bloom
+        assert cairo_result == output
         assert cairo_state == state
 
 
