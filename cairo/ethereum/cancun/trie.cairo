@@ -1147,6 +1147,13 @@ func _prepare_trie_inner_storage{
         return mapping_ptr_end;
     }
 
+    // Skip all None values, which are deleted trie entries
+    if (dict_ptr.new_value.value == 0) {
+        return _prepare_trie_inner_storage(
+            trie, dict_ptr + Bytes32U256DictAccess.SIZE, mapping_ptr_end
+        );
+    }
+
     let preimage_b32 = _get_bytes32_preimage_for_key(
         dict_ptr.key.value, cast(trie.value._data.value.dict_ptr, DictAccess*)
     );
