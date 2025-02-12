@@ -30,13 +30,14 @@ from ethereum.cancun.state import (
     set_code,
     set_storage,
     set_transient_storage,
+    state_root,
     storage_root,
     touch_account,
 )
 from ethereum.cancun.trie import Trie, copy_trie
 from ethereum_types.bytes import Bytes32
 from ethereum_types.numeric import U256
-from hypothesis import given, settings
+from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 from hypothesis.strategies import composite
 
@@ -562,6 +563,17 @@ class TestBeginTransaction:
         commit_transaction(state, transient_storage)
         assert state_cairo == state
         assert transient_storage_cairo == transient_storage
+
+
+class TestRoot:
+    @given(state=...)
+    @settings(max_examples=1, suppress_health_check=[HealthCheck.filter_too_much])
+    def test_state_root(self, cairo_run, state: State):
+        # The state from the strategy contains a snapshot. Remove it
+        state._snapshots = []
+        state_root_cairo = cairo_run("state_root", state)
+        state_root_py = state_root(state)
+        assert state_root_cairo == state_root_py
 
 
 class TestStorageRoots:

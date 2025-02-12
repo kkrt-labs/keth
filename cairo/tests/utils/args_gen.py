@@ -499,6 +499,9 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "cancun", "fork_types", "MappingAddressBytes32"): Mapping[
         Address, Bytes32
     ],
+    ("ethereum", "cancun", "fork_types", "OptionalMappingAddressBytes32"): Optional[
+        Mapping[Address, Bytes32]
+    ],
     ("ethereum", "cancun", "fork_types", "Address"): Address,
     ("ethereum", "cancun", "fork_types", "SetAddress"): Set[Address],
     ("ethereum", "cancun", "fork_types", "Root"): Root,
@@ -1131,7 +1134,17 @@ def generate_dict_arg(
     }
 
     if isinstance_with_generic(arg, defaultdict):
-        data = defaultdict(arg.default_factory, data)
+        default_value = _gen_arg(
+            dict_manager,
+            segments,
+            type(arg.default_factory()),
+            arg.default_factory(),
+        )
+
+        def default_factory():
+            return default_value
+
+        data = defaultdict(default_factory, data)
 
     # This is required for tests where we read data from DictAccess segments while no dict method has been used.
     # Equivalent to doing an initial dict_read of all keys.

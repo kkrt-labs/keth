@@ -17,6 +17,7 @@ from ethereum.cancun.fork_types import (
     MappingAddressAccountStruct,
     AddressAccountDictAccess,
     MappingAddressBytes32,
+    OptionalMappingAddressBytes32,
     MappingAddressBytes32Struct,
     AddressBytes32DictAccess,
     SetAddress,
@@ -63,7 +64,7 @@ from ethereum.cancun.trie import (
     copy_TrieTupleAddressBytes32U256,
 )
 from ethereum.cancun.blocks import Withdrawal
-from ethereum_types.bytes import Bytes, Bytes32
+from ethereum_types.bytes import Bytes, Bytes32, Bytes32Struct
 from ethereum_types.numeric import U256, U256Struct, Bool, bool, Uint
 from ethereum.utils.numeric import U256_le, U256_sub, U256_add, U256_mul
 from cairo_core.comparison import is_zero
@@ -80,6 +81,9 @@ from legacy.utils.dict import (
     dict_copy,
     dict_squash,
 )
+
+const EMPTY_ROOT_LOW = 0x6ef8c092e64583ffa655cc1b171fe856;
+const EMPTY_ROOT_HIGH = 0x21b463e3b52f6201c0ad6c991be0485b;
 
 struct AddressTrieBytes32U256DictAccess {
     key: Address,
@@ -978,7 +982,8 @@ func storage_roots{
 
     // Create a Mapping[Address, Bytes32] that will contain the storage root of each address's
     // storage trie
-    let (map_addr_storage_root_start) = default_dict_new(0);
+    tempvar EMPTY_ROOT_PTR = new Bytes32Struct(EMPTY_ROOT_LOW, EMPTY_ROOT_HIGH);
+    let (map_addr_storage_root_start) = default_dict_new(cast(EMPTY_ROOT_PTR, felt));
     tempvar map_addr_storage_root = MappingAddressBytes32(
         new MappingAddressBytes32Struct(
             dict_ptr_start=cast(map_addr_storage_root_start, AddressBytes32DictAccess*),
@@ -1040,7 +1045,9 @@ func build_map_addr_storage_root{
         ),
     );
 
-    let storage_root = root(union_trie);
+    let storage_root = root(
+        union_trie, OptionalMappingAddressBytes32(cast(0, MappingAddressBytes32Struct*))
+    );
 
     let dict_ptr = cast(map_addr_storage_root.value.dict_ptr, DictAccess*);
     dict_write{dict_ptr=dict_ptr}(address.value, cast(storage_root.value, felt));
@@ -1137,4 +1144,36 @@ func build_storage_trie_for_address{
     );
 
     return ();
+}
+
+func state_root{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+}(state: State) -> Bytes32 {
+    alloc_locals;
+
+    // TODO: assert the state is empty
+
+    let storage_roots_ = storage_roots(state);
+
+    tempvar trie_union = EthereumTries(
+        new EthereumTriesEnum(
+            account=state.value._main_trie,
+            storage=TrieBytes32U256(cast(0, TrieBytes32U256Struct*)),
+            transaction=TrieBytesOptionalUnionBytesLegacyTransaction(
+                cast(0, TrieBytesOptionalUnionBytesLegacyTransactionStruct*)
+            ),
+            receipt=TrieBytesOptionalUnionBytesReceipt(
+                cast(0, TrieBytesOptionalUnionBytesReceiptStruct*)
+            ),
+            withdrawal=TrieBytesOptionalUnionBytesWithdrawal(
+                cast(0, TrieBytesOptionalUnionBytesWithdrawalStruct*)
+            ),
+        ),
+    );
+
+    let state_root = root(trie_union, OptionalMappingAddressBytes32(storage_roots_.value));
+    return state_root;
 }

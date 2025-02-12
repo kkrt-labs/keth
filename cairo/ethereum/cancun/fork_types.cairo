@@ -143,6 +143,10 @@ struct MappingAddressBytes32 {
     value: MappingAddressBytes32Struct*,
 }
 
+struct OptionalMappingAddressBytes32 {
+    value: MappingAddressBytes32Struct*,
+}
+
 struct ListTupleAddressBytes32 {
     value: ListTupleAddressBytes32Struct*,
 }

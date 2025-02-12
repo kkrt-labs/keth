@@ -1,8 +1,10 @@
+from collections import defaultdict
 from typing import Mapping, Optional, Tuple, Union
 
 import pytest
 from ethereum.cancun.blocks import Receipt, Withdrawal
-from ethereum.cancun.fork_types import Account, Address
+from ethereum.cancun.fork_types import Account, Address, Root
+from ethereum.cancun.state import EMPTY_TRIE_ROOT
 from ethereum.cancun.transactions import LegacyTransaction
 from ethereum.cancun.trie import (
     BranchNode,
@@ -173,8 +175,13 @@ class TestTrie:
         result = cairo_run("InternalNodeImpl.branch_node", branch_node)
         assert result == branch_node
 
-    @given(trie_with_none=prepare_trie_strategy())
-    def test_prepare_trie(self, cairo_run, trie_with_none: EthereumTries):
+    @given(trie_with_none=prepare_trie_strategy(), storage_tries=...)
+    def test_prepare_trie(
+        self,
+        cairo_run,
+        trie_with_none: EthereumTries,
+        storage_tries: Mapping[Address, Trie[Bytes32, U256]],
+    ):
         key_type, _ = trie_with_none.__orig_class__.__args__
 
         # Python expects tries not to have None values (as writing the default None suppresses the key)
@@ -186,17 +193,22 @@ class TestTrie:
             _data={k: v for k, v in trie_with_none._data.items() if v is not None},
         )
 
-        # TODO: compute storage root
         if key_type is Address:
+            # Cairo expects a Dict[Address, Root] as storage_roots - not a callable function
+            storage_roots = defaultdict(
+                lambda: U256.from_le_bytes(EMPTY_TRIE_ROOT),
+                {address: root(storage_tries[address]) for address in storage_tries},
+            )
 
-            def get_storage_root(_address):
-                return b""
+            def get_storage_root(address: Address) -> Root:
+                return storage_roots[address].to_le_bytes32()
 
         else:
+            storage_roots = None
             get_storage_root = None
 
         try:
-            result_cairo = cairo_run("_prepare_trie", trie_with_none, get_storage_root)
+            result_cairo = cairo_run("_prepare_trie", trie_with_none, storage_roots)
         except Exception as e:
             with strict_raises(type(e)):
                 _prepare_trie(trie, get_storage_root)
@@ -204,8 +216,13 @@ class TestTrie:
 
         assert result_cairo == _prepare_trie(trie, get_storage_root)
 
-    @given(trie_with_none=prepare_trie_strategy())
-    def test_root(self, cairo_run, trie_with_none: EthereumTries):
+    @given(trie_with_none=prepare_trie_strategy(), storage_tries=...)
+    def test_root(
+        self,
+        cairo_run,
+        trie_with_none: EthereumTries,
+        storage_tries: Mapping[Address, Trie[Bytes32, U256]],
+    ):
         key_type, _ = trie_with_none.__orig_class__.__args__
 
         # Python expects tries not to have None values (as writing the default None suppresses the key)
@@ -217,17 +234,22 @@ class TestTrie:
             _data={k: v for k, v in trie_with_none._data.items() if v is not None},
         )
 
-        # TODO: compute storage root
         if key_type is Address:
+            # Cairo expects a Dict[Address, Root] as storage_roots - not a callable function
+            storage_roots = defaultdict(
+                lambda: U256.from_le_bytes(EMPTY_TRIE_ROOT),
+                {address: root(storage_tries[address]) for address in storage_tries},
+            )
 
-            def get_storage_root(_address):
-                return b""
+            def get_storage_root(address: Address) -> Root:
+                return storage_roots[address].to_le_bytes32()
 
         else:
+            storage_roots = None
             get_storage_root = None
 
         try:
-            result_cairo = cairo_run("root", trie_with_none, get_storage_root)
+            result_cairo = cairo_run("root", trie_with_none, storage_roots)
         except Exception as e:
             with strict_raises(type(e)):
                 root(trie, get_storage_root)
