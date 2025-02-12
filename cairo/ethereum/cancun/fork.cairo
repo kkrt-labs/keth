@@ -12,7 +12,16 @@ from starkware.cairo.common.math import assert_not_zero, split_felt, assert_le_f
 from starkware.cairo.common.math_cmp import is_le, is_le_felt
 from starkware.cairo.common.registers import get_fp_and_pc
 
-from ethereum_rlp.rlp import Extended, ExtendedImpl, encode_receipt_to_buffer, encode_header
+from ethereum_rlp.rlp import (
+    Extended,
+    ExtendedImpl,
+    encode_receipt_to_buffer,
+    encode_receipt,
+    encode_header,
+    encode_uint,
+    encode_withdrawal,
+    encode_transaction,
+)
 from ethereum_types.bytes import Bytes, Bytes0, BytesStruct, TupleBytes32, Bytes32, Bytes32Struct
 from ethereum_types.numeric import Uint, bool, U256, U256Struct, U64
 from ethereum.cancun.blocks import (
@@ -27,9 +36,46 @@ from ethereum.cancun.blocks import (
     TupleHeader,
     TupleUnionBytesLegacyTransaction,
     TupleWithdrawal,
+    Withdrawal,
+    WithdrawalStruct,
 )
 from ethereum.cancun.bloom import logs_bloom
-from ethereum.cancun.trie import TrieTupleAddressBytes32U256Struct, TrieTupleAddressBytes32U256
+from ethereum.cancun.trie import (
+    trie_set_TrieBytesOptionalUnionBytesLegacyTransaction,
+    TrieAddressOptionalAccountStruct,
+    root,
+    EthereumTries,
+    EthereumTriesEnum,
+    TrieAddressOptionalAccount,
+    TrieBytes32U256,
+    TrieTupleAddressBytes32U256Struct,
+    trie_set_TrieBytesOptionalUnionBytesReceipt,
+    TrieTupleAddressBytes32U256,
+    BytesOptionalUnionBytesLegacyTransactionDictAccess,
+    MappingBytesOptionalUnionBytesLegacyTransaction,
+    MappingBytesOptionalUnionBytesLegacyTransactionStruct,
+    TrieBytesOptionalUnionBytesLegacyTransaction,
+    TrieBytesOptionalUnionBytesLegacyTransactionStruct,
+    BytesOptionalUnionBytesReceiptDictAccess,
+    MappingBytesOptionalUnionBytesReceipt,
+    MappingBytesOptionalUnionBytesReceiptStruct,
+    TrieBytesOptionalUnionBytesReceipt,
+    TrieBytesOptionalUnionBytesReceiptStruct,
+    BytesOptionalUnionBytesWithdrawalDictAccess,
+    MappingBytesOptionalUnionBytesWithdrawal,
+    MappingBytesOptionalUnionBytesWithdrawalStruct,
+    TrieBytesOptionalUnionBytesWithdrawal,
+    TrieBytesOptionalUnionBytesWithdrawalStruct,
+    OptionalUnionBytesLegacyTransaction,
+    OptionalUnionBytesWithdrawal,
+    UnionBytesWithdrawalEnum,
+    UnionBytesLegacyTransactionEnum,
+    OptionalUnionBytesReceipt,
+    trie_set_TrieBytesOptionalUnionBytesWithdrawal,
+    UnionBytesReceiptEnum,
+    UnionBytesReceipt,
+    TrieBytes32U256Struct,
+)
 from ethereum.cancun.fork_types import (
     Address,
     ListHash32,
@@ -47,6 +93,8 @@ from ethereum.cancun.fork_types import (
     TupleVersionedHashStruct,
     VersionedHash,
     Bloom,
+    OptionalMappingAddressBytes32,
+    MappingAddressBytes32Struct,
 )
 from ethereum.cancun.state import (
     account_exists_and_is_empty,
@@ -59,6 +107,8 @@ from ethereum.cancun.state import (
     TransientStorage,
     TransientStorageStruct,
     empty_transient_storage,
+    process_withdrawal,
+    state_root,
 )
 from ethereum.cancun.transactions_types import (
     TX_ACCESS_LIST_ADDRESS_COST,
@@ -258,15 +308,6 @@ func check_gas_limit{range_check_ptr}(gas_limit: Uint, parent_gas_limit: Uint) -
 
     tempvar value = bool(TRUE);
     return value;
-}
-
-struct UnionBytesReceiptEnum {
-    bytes: Bytes,
-    receipt: Receipt,
-}
-
-struct UnionBytesReceipt {
-    value: UnionBytesReceiptEnum*,
 }
 
 func make_receipt{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*}(
@@ -917,16 +958,64 @@ func apply_body{
     tempvar blob_gas_used = Uint(0);
     let gas_available = block_gas_limit;
 
-    // TODO: Implement transactions_trie, receipts_trie and withdrawals_trie
     // transactions_trie: Trie[
     //     Bytes, Optional[Union[Bytes, LegacyTransaction]]
     // ] = Trie(secured=False, default=None)
+    let (transaction_ptr) = default_dict_new(0);
+    tempvar transactions_trie_data = MappingBytesOptionalUnionBytesLegacyTransaction(
+        new MappingBytesOptionalUnionBytesLegacyTransactionStruct(
+            dict_ptr_start=cast(
+                transaction_ptr, BytesOptionalUnionBytesLegacyTransactionDictAccess*
+            ),
+            dict_ptr=cast(transaction_ptr, BytesOptionalUnionBytesLegacyTransactionDictAccess*),
+            parent_dict=cast(0, MappingBytesOptionalUnionBytesLegacyTransactionStruct*),
+        ),
+    );
+    tempvar transactions_trie = TrieBytesOptionalUnionBytesLegacyTransaction(
+        new TrieBytesOptionalUnionBytesLegacyTransactionStruct(
+            secured=bool(0),
+            default=OptionalUnionBytesLegacyTransaction(cast(0, UnionBytesLegacyTransactionEnum*)),
+            _data=transactions_trie_data,
+        ),
+    );
+
     // receipts_trie: Trie[Bytes, Optional[Union[Bytes, Receipt]]] = Trie(
     //     secured=False, default=None
     // )
+    let (receipt_ptr) = default_dict_new(0);
+    tempvar receipts_trie_data = MappingBytesOptionalUnionBytesReceipt(
+        new MappingBytesOptionalUnionBytesReceiptStruct(
+            dict_ptr_start=cast(receipt_ptr, BytesOptionalUnionBytesReceiptDictAccess*),
+            dict_ptr=cast(receipt_ptr, BytesOptionalUnionBytesReceiptDictAccess*),
+            parent_dict=cast(0, MappingBytesOptionalUnionBytesReceiptStruct*),
+        ),
+    );
+    tempvar receipts_trie = TrieBytesOptionalUnionBytesReceipt(
+        new TrieBytesOptionalUnionBytesReceiptStruct(
+            secured=bool(0),
+            default=OptionalUnionBytesReceipt(cast(0, UnionBytesReceiptEnum*)),
+            _data=receipts_trie_data,
+        ),
+    );
+
     // withdrawals_trie: Trie[Bytes, Optional[Union[Bytes, Withdrawal]]] = Trie(
     //     secured=False, default=None
     // )
+    let (withdrawals_ptr) = default_dict_new(0);
+    tempvar withdrawals_trie_data = MappingBytesOptionalUnionBytesWithdrawal(
+        new MappingBytesOptionalUnionBytesWithdrawalStruct(
+            dict_ptr_start=cast(withdrawals_ptr, BytesOptionalUnionBytesWithdrawalDictAccess*),
+            dict_ptr=cast(withdrawals_ptr, BytesOptionalUnionBytesWithdrawalDictAccess*),
+            parent_dict=cast(0, MappingBytesOptionalUnionBytesWithdrawalStruct*),
+        ),
+    );
+    tempvar withdrawals_trie = TrieBytesOptionalUnionBytesWithdrawal(
+        new TrieBytesOptionalUnionBytesWithdrawalStruct(
+            secured=bool(0),
+            default=OptionalUnionBytesWithdrawal(cast(0, UnionBytesWithdrawalEnum*)),
+            _data=withdrawals_trie_data,
+        ),
+    );
 
     let (logs: Log*) = alloc();
     tempvar block_logs = TupleLog(new TupleLogStruct(data=logs, len=0));
@@ -978,7 +1067,9 @@ func apply_body{
     //     system_tx_env.state, system_tx_output.touched_accounts
     // )
 
-    let (blob_gas_used, gas_available, block_logs) = _apply_body_inner{state=state}(
+    let (blob_gas_used, gas_available, block_logs) = _apply_body_inner{
+        state=state, transactions_trie=transactions_trie, receipts_trie=receipts_trie
+    }(
         0,
         transactions.value.len,
         transactions,
@@ -999,25 +1090,65 @@ func apply_body{
     tempvar block_gas_used = Uint(block_gas_limit.value - gas_available.value);
     let block_logs_bloom = logs_bloom(block_logs);
 
-    // TODO: process withdrawals
-    // for i, wd in enumerate(withdrawals):
-    //     trie_set(withdrawals_trie, rlp.encode(Uint(i)), rlp.encode(wd))
+    _process_withdrawals_inner{state=state, trie=withdrawals_trie}(0, withdrawals);
 
-    // process_withdrawal(state, wd)
+    // Compute all roots
+    tempvar transaction_eth_trie = EthereumTries(
+        new EthereumTriesEnum(
+            account=TrieAddressOptionalAccount(cast(0, TrieAddressOptionalAccountStruct*)),
+            storage=TrieBytes32U256(cast(0, TrieBytes32U256Struct*)),
+            transaction=transactions_trie,
+            receipt=TrieBytesOptionalUnionBytesReceipt(
+                cast(0, TrieBytesOptionalUnionBytesReceiptStruct*)
+            ),
+            withdrawal=TrieBytesOptionalUnionBytesWithdrawal(
+                cast(0, TrieBytesOptionalUnionBytesWithdrawalStruct*)
+            ),
+        ),
+    );
+    let none_storage_roots = OptionalMappingAddressBytes32(cast(0, MappingAddressBytes32Struct*));
+    let transactions_root = root(transaction_eth_trie, none_storage_roots);
 
-    // if account_exists_and_is_empty(state, wd.address):
-    //         destroy_account(state, wd.address)
+    tempvar receipt_eth_trie = EthereumTries(
+        new EthereumTriesEnum(
+            account=TrieAddressOptionalAccount(cast(0, TrieAddressOptionalAccountStruct*)),
+            storage=TrieBytes32U256(cast(0, TrieBytes32U256Struct*)),
+            transaction=TrieBytesOptionalUnionBytesLegacyTransaction(
+                cast(0, TrieBytesOptionalUnionBytesLegacyTransactionStruct*)
+            ),
+            receipt=receipts_trie,
+            withdrawal=TrieBytesOptionalUnionBytesWithdrawal(
+                cast(0, TrieBytesOptionalUnionBytesWithdrawalStruct*)
+            ),
+        ),
+    );
+    let receipts_root = root(receipt_eth_trie, none_storage_roots);
 
-    tempvar dummy_root = Root(new Bytes32Struct(0, 0));
+    tempvar withdrawals_eth_trie = EthereumTries(
+        new EthereumTriesEnum(
+            account=TrieAddressOptionalAccount(cast(0, TrieAddressOptionalAccountStruct*)),
+            storage=TrieBytes32U256(cast(0, TrieBytes32U256Struct*)),
+            transaction=TrieBytesOptionalUnionBytesLegacyTransaction(
+                cast(0, TrieBytesOptionalUnionBytesLegacyTransactionStruct*)
+            ),
+            receipt=TrieBytesOptionalUnionBytesReceipt(
+                cast(0, TrieBytesOptionalUnionBytesReceiptStruct*)
+            ),
+            withdrawal=withdrawals_trie,
+        ),
+    );
+    let withdrawals_root = root(withdrawals_eth_trie, none_storage_roots);
+
+    let state_root_ = state_root(state);
 
     tempvar output = ApplyBodyOutput(
         new ApplyBodyOutputStruct(
             block_gas_used=block_gas_used,
-            transactions_root=dummy_root,
-            receipt_root=dummy_root,
+            transactions_root=transactions_root,
+            receipt_root=receipts_root,
             block_logs_bloom=block_logs_bloom,
-            state_root=dummy_root,
-            withdrawals_root=dummy_root,
+            state_root=state_root_,
+            withdrawals_root=withdrawals_root,
             blob_gas_used=blob_gas_used,
         ),
     );
@@ -1033,6 +1164,8 @@ func _apply_body_inner{
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
     state: State,
+    transactions_trie: TrieBytesOptionalUnionBytesLegacyTransaction,
+    receipts_trie: TrieBytesOptionalUnionBytesReceipt,
 }(
     index: felt,
     len: felt,
@@ -1056,11 +1189,12 @@ func _apply_body_inner{
     }
 
     let tx = decode_transaction(transactions.value.data[index]);
+    let encoded_index = encode_uint(Uint(index));
+    let encoded_tx = encode_transaction(tx);
 
-    // TODO: call transactions_trie_set
-    // trie_set(
-    //         transactions_trie, rlp.encode(Uint(i)), encode_transaction(tx)
-    //     )
+    trie_set_TrieBytesOptionalUnionBytesLegacyTransaction{trie=transactions_trie}(
+        encoded_index, encoded_tx
+    );
 
     let tuple_address_uint_tuple_versioned_hash = check_transaction{state=state}(
         tx, gas_available, chain_id, base_fee_per_gas, excess_blob_gas
@@ -1100,12 +1234,8 @@ func _apply_body_inner{
     tempvar receipt_gas = Uint(block_gas_limit.value - gas_available.value);
     let receipt = make_receipt(tx, error, receipt_gas, logs);
 
-    // TODO: call transactions_trie_set
-    // trie_set(
-    //         receipts_trie,
-    //         rlp.encode(Uint(i)),
-    //         receipt,
-    //     )
+    let encoded_receipt = encode_receipt(receipt);
+    trie_set_TrieBytesOptionalUnionBytesReceipt{trie=receipts_trie}(encoded_index, encoded_receipt);
 
     let new_logs = receipt.value.receipt.value.logs;
     _append_logs{logs=block_logs}(new_logs);
@@ -1134,4 +1264,40 @@ func _apply_body_inner{
         prev_randao,
         blob_gas_used,
     );
+}
+
+func _process_withdrawals_inner{
+    range_check_ptr,
+    poseidon_ptr: PoseidonBuiltin*,
+    state: State,
+    trie: TrieBytesOptionalUnionBytesWithdrawal,
+}(index: felt, withdrawals: TupleWithdrawal) {
+    alloc_locals;
+    if (index == withdrawals.value.len) {
+        return ();
+    }
+
+    let withdrawal = withdrawals.value.data[index];
+    let index_bytes = encode_uint(Uint(index));
+    let withdrawal_bytes = encode_withdrawal(withdrawal);
+    tempvar value = OptionalUnionBytesWithdrawal(
+        new UnionBytesWithdrawalEnum(
+            bytes=withdrawal_bytes, withdrawal=Withdrawal(cast(0, WithdrawalStruct*))
+        ),
+    );
+    trie_set_TrieBytesOptionalUnionBytesWithdrawal{trie=trie}(index_bytes, value);
+
+    process_withdrawal{state=state}(withdrawal);
+
+    let cond = account_exists_and_is_empty(withdrawal.value.address);
+    if (cond.value != 0) {
+        destroy_account{poseidon_ptr=poseidon_ptr, state=state}(withdrawal.value.address);
+        tempvar state = state;
+        tempvar poseidon_ptr = poseidon_ptr;
+    } else {
+        tempvar state = state;
+        tempvar poseidon_ptr = poseidon_ptr;
+    }
+
+    return _process_withdrawals_inner{state=state, trie=trie}(index + 1, withdrawals);
 }
