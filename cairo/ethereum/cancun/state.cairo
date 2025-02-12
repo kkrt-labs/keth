@@ -9,7 +9,6 @@ from legacy.utils.uint256 import uint256_add, uint256_sub
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.memcpy import memcpy
 from starkware.cairo.common.math_cmp import is_not_zero
-from starkware.cairo.common.default_dict import default_dict_new
 from ethereum.cancun.fork_types import (
     Address,
     Account,
