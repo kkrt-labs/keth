@@ -78,6 +78,7 @@ class TestBytes:
             ):
                 cairo_run("test__felt_to_bytes_little", n=n)
 
+        @settings(verbosity=Verbosity.quiet)
         def test_should_raise_when_bytes_len_is_greater_than_31(
             self, cairo_programs, cairo_run
         ):
