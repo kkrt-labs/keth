@@ -1708,102 +1708,135 @@ func _get_branches{poseidon_ptr: PoseidonBuiltin*}(obj: MappingBytesBytes, level
     alloc_locals;
 
     let (local branches: MappingBytesBytes*) = alloc();
+    let src_dict_end = obj.value.dict_ptr;
 
     local value: Bytes;
     local value_set: felt;
 
     let (branches_0, value_0) = _get_branch_for_nibble_at_level(obj, 0, level.value);
     assert branches[0] = branches_0;
+    let dst_dict_end = branches_0.value.dict_ptr;
+    %{ copy_preimages %}
     if (value_0.value.len != 0) {
         assert value = value_0;
         assert value_set = 1;
     }
     let (branches_1, value_1) = _get_branch_for_nibble_at_level(obj, 1, level.value);
     assert branches[1] = branches_1;
+    let dst_dict_end = branches_1.value.dict_ptr;
+    %{ copy_preimages %}
     if (value_1.value.len != 0) {
         assert value = value_1;
         assert value_set = 1;
     }
     let (branches_2, value_2) = _get_branch_for_nibble_at_level(obj, 2, level.value);
     assert branches[2] = branches_2;
+    let dst_dict_end = branches_2.value.dict_ptr;
+    %{ copy_preimages %}
     if (value_2.value.len != 0) {
         assert value = value_2;
         assert value_set = 1;
     }
     let (branches_3, value_3) = _get_branch_for_nibble_at_level(obj, 3, level.value);
     assert branches[3] = branches_3;
+    let dst_dict_end = branches_3.value.dict_ptr;
+    %{ copy_preimages %}
     if (value_3.value.len != 0) {
         assert value = value_3;
         assert value_set = 1;
     }
     let (branches_4, value_4) = _get_branch_for_nibble_at_level(obj, 4, level.value);
     assert branches[4] = branches_4;
+    let dst_dict_end = branches_4.value.dict_ptr;
+    %{ copy_preimages %}
     if (value_4.value.len != 0) {
         assert value = value_4;
         assert value_set = 1;
     }
     let (branches_5, value_5) = _get_branch_for_nibble_at_level(obj, 5, level.value);
     assert branches[5] = branches_5;
+    let dst_dict_end = branches_5.value.dict_ptr;
+    %{ copy_preimages %}
     if (value_5.value.len != 0) {
         assert value = value_5;
         assert value_set = 1;
     }
     let (branches_6, value_6) = _get_branch_for_nibble_at_level(obj, 6, level.value);
     assert branches[6] = branches_6;
+    let dst_dict_end = branches_6.value.dict_ptr;
+    %{ copy_preimages %}
     if (value_6.value.len != 0) {
         assert value = value_6;
         assert value_set = 1;
     }
     let (branches_7, value_7) = _get_branch_for_nibble_at_level(obj, 7, level.value);
     assert branches[7] = branches_7;
+    let dst_dict_end = branches_7.value.dict_ptr;
+    %{ copy_preimages %}
     if (value_7.value.len != 0) {
         assert value = value_7;
         assert value_set = 1;
     }
     let (branches_8, value_8) = _get_branch_for_nibble_at_level(obj, 8, level.value);
     assert branches[8] = branches_8;
+    let dst_dict_end = branches_8.value.dict_ptr;
+    %{ copy_preimages %}
     if (value_8.value.len != 0) {
         assert value = value_8;
         assert value_set = 1;
     }
     let (branches_9, value_9) = _get_branch_for_nibble_at_level(obj, 9, level.value);
     assert branches[9] = branches_9;
+    let dst_dict_end = branches_9.value.dict_ptr;
+    %{ copy_preimages %}
     if (value_9.value.len != 0) {
         assert value = value_9;
         assert value_set = 1;
     }
     let (branches_10, value_10) = _get_branch_for_nibble_at_level(obj, 10, level.value);
     assert branches[10] = branches_10;
+    let dst_dict_end = branches_10.value.dict_ptr;
+    %{ copy_preimages %}
     if (value_10.value.len != 0) {
         assert value = value_10;
         assert value_set = 1;
     }
     let (branches_11, value_11) = _get_branch_for_nibble_at_level(obj, 11, level.value);
     assert branches[11] = branches_11;
+    let dst_dict_end = branches_11.value.dict_ptr;
+    %{ copy_preimages %}
     if (value_11.value.len != 0) {
         assert value = value_11;
         assert value_set = 1;
     }
     let (branches_12, value_12) = _get_branch_for_nibble_at_level(obj, 12, level.value);
     assert branches[12] = branches_12;
+    let dst_dict_end = branches_12.value.dict_ptr;
+    %{ copy_preimages %}
     if (value_12.value.len != 0) {
         assert value = value_12;
         assert value_set = 1;
     }
     let (branches_13, value_13) = _get_branch_for_nibble_at_level(obj, 13, level.value);
     assert branches[13] = branches_13;
+    let dst_dict_end = branches_13.value.dict_ptr;
+    %{ copy_preimages %}
     if (value_13.value.len != 0) {
         assert value = value_13;
         assert value_set = 1;
     }
     let (branches_14, value_14) = _get_branch_for_nibble_at_level(obj, 14, level.value);
     assert branches[14] = branches_14;
+    let dst_dict_end = branches_14.value.dict_ptr;
+    %{ copy_preimages %}
     if (value_14.value.len != 0) {
         assert value = value_14;
         assert value_set = 1;
     }
     let (branches_15, value_15) = _get_branch_for_nibble_at_level(obj, 15, level.value);
     assert branches[15] = branches_15;
+    let dst_dict_end = branches_15.value.dict_ptr;
+    %{ copy_preimages %}
     if (value_15.value.len != 0) {
         assert value = value_15;
         assert value_set = 1;
