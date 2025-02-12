@@ -38,7 +38,13 @@ def circuit_compile(cairo_program: Program, circuit: str):
     stop = cairo_program.get_label(f"{circuit}.end")
     data = cairo_program.data[start:stop]
 
-    instructions = [decode_instruction(d, imm) for d, imm in zip(data, data[1:] + [0])]
+    instructions = []
+    offset_bits = 16
+    n_flags = 15
+    for d, imm in zip(data, data[1:] + [0]):
+        if d < 0 or d >= 2 ** (3 * offset_bits + n_flags):
+            continue
+        instructions.append(decode_instruction(d, imm))
 
     if not instructions[-1].pc_update == Instruction.PcUpdate.JUMP:
         raise ValueError("The circuit should end with a return instruction")
