@@ -496,6 +496,9 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "cancun", "blocks", "Block"): Block,
     ("ethereum", "cancun", "blocks", "ListBlock"): List[Block],
     ("ethereum", "cancun", "fork", "BlockChain"): BlockChain,
+    ("ethereum", "cancun", "fork_types", "MappingAddressBytes32"): Mapping[
+        Address, Bytes32
+    ],
     ("ethereum", "cancun", "fork_types", "Address"): Address,
     ("ethereum", "cancun", "fork_types", "SetAddress"): Set[Address],
     ("ethereum", "cancun", "fork_types", "Root"): Root,
@@ -559,11 +562,16 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum_rlp", "rlp", "Extended"): Extended,
     ("ethereum_rlp", "rlp", "SequenceSimple"): Sequence[Simple],
     ("ethereum_rlp", "rlp", "SequenceExtended"): Sequence[Extended],
+    ("ethereum", "cancun", "trie", "MappingAddressTrieBytes32U256"): Mapping[
+        Address, Trie[Bytes32, U256]
+    ],
     ("ethereum", "cancun", "trie", "LeafNode"): LeafNode,
     ("ethereum", "cancun", "trie", "ExtensionNode"): ExtensionNode,
     ("ethereum", "cancun", "trie", "BranchNode"): BranchNode,
     ("ethereum", "cancun", "trie", "InternalNode"): InternalNode,
     ("ethereum", "cancun", "trie", "Node"): Node,
+    ("ethereum", "cancun", "trie", "MappingBytes32U256"): Mapping[Bytes32, U256],
+    ("ethereum", "cancun", "trie", "TrieBytes32U256"): Trie[Bytes32, U256],
     ("ethereum", "cancun", "trie", "TrieAddressOptionalAccount"): Trie[
         Address, Optional[Account]
     ],
@@ -647,7 +655,6 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "cancun", "vm", "gas", "ExtendMemory"): ExtendMemory,
     ("ethereum", "cancun", "vm", "interpreter", "MessageCallOutput"): MessageCallOutput,
     ("ethereum", "cancun", "trie", "EthereumTries"): EthereumTries,
-    ("ethereum", "cancun", "trie", "TrieBytes32U256"): Trie[Bytes32, U256],
     **vm_exception_mappings,
     **ethereum_exception_mappings,
     # For tests only

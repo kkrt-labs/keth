@@ -1,11 +1,11 @@
-from starkware.cairo.common.cairo_builtins import PoseidonBuiltin
+from starkware.cairo.common.cairo_builtins import PoseidonBuiltin, BitwiseBuiltin, KeccakBuiltin
 from starkware.cairo.common.dict_access import DictAccess
+from starkware.cairo.common.default_dict import default_dict_new
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.cairo.common.math import assert_not_zero
 from starkware.cairo.common.uint256 import Uint256
 from legacy.utils.uint256 import uint256_add, uint256_sub
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.squash_dict import squash_dict
 from starkware.cairo.common.memcpy import memcpy
 from starkware.cairo.common.math_cmp import is_not_zero
 
@@ -16,6 +16,9 @@ from ethereum.cancun.fork_types import (
     MappingAddressAccount,
     MappingAddressAccountStruct,
     AddressAccountDictAccess,
+    MappingAddressBytes32,
+    MappingAddressBytes32Struct,
+    AddressBytes32DictAccess,
     SetAddress,
     SetAddressStruct,
     SetAddressDictAccess,
@@ -30,15 +33,32 @@ from ethereum.cancun.fork_types import (
     ListTupleAddressBytes32Struct,
 )
 from ethereum.cancun.trie import (
+    get_tuple_address_bytes32_preimage_for_key,
+    root,
+    EthereumTries,
+    EthereumTriesEnum,
     TrieTupleAddressBytes32U256,
+    TrieTupleAddressBytes32U256Struct,
     TrieAddressOptionalAccount,
+    TrieAddressOptionalAccountStruct,
+    TrieBytesOptionalUnionBytesLegacyTransaction,
+    TrieBytesOptionalUnionBytesLegacyTransactionStruct,
+    TrieBytesOptionalUnionBytesReceipt,
+    TrieBytesOptionalUnionBytesReceiptStruct,
+    TrieBytesOptionalUnionBytesWithdrawal,
+    TrieBytesOptionalUnionBytesWithdrawalStruct,
+    TrieBytes32U256,
+    TrieBytes32U256Struct,
+    Bytes32U256DictAccess,
+    MappingBytes32U256,
+    MappingBytes32U256Struct,
+    trie_get_TrieBytes32U256,
+    trie_set_TrieBytes32U256,
     trie_get_TrieAddressOptionalAccount,
     trie_set_TrieAddressOptionalAccount,
     trie_get_TrieTupleAddressBytes32U256,
     trie_set_TrieTupleAddressBytes32U256,
     AccountStruct,
-    TrieTupleAddressBytes32U256Struct,
-    TrieAddressOptionalAccountStruct,
     copy_TrieAddressOptionalAccount,
     copy_TrieTupleAddressBytes32U256,
 )
@@ -50,13 +70,33 @@ from cairo_core.comparison import is_zero
 from cairo_core.control_flow import raise
 
 from legacy.utils.dict import (
+    dict_read,
     hashdict_read,
+    dict_write,
     hashdict_write,
     dict_new_empty,
     get_keys_for_address_prefix,
     dict_update,
     dict_copy,
+    dict_squash,
 )
+
+struct AddressTrieBytes32U256DictAccess {
+    key: Address,
+    prev_value: TrieBytes32U256,
+    new_value: TrieBytes32U256,
+}
+
+struct MappingAddressTrieBytes32U256Struct {
+    dict_ptr_start: AddressTrieBytes32U256DictAccess*,
+    dict_ptr: AddressTrieBytes32U256DictAccess*,
+    // Unused
+    parent_dict: MappingAddressTrieBytes32U256Struct*,
+}
+
+struct MappingAddressTrieBytes32U256 {
+    value: MappingAddressTrieBytes32U256Struct*,
+}
 
 struct TupleTrieAddressOptionalAccountTrieTupleAddressBytes32U256Struct {
     trie_address_account: TrieAddressOptionalAccount,
@@ -888,4 +928,213 @@ func destroy_touched_empty_accounts{poseidon_ptr: PoseidonBuiltin*, state: State
             ),
         ),
     );
+}
+
+func storage_roots{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+}(state: State) -> MappingAddressBytes32 {
+    alloc_locals;
+
+    // Get the Trie[Tuple[Address, Bytes32], U256] storage tries, and squash them for unique keys
+    let storage_tries = state.value._storage_tries;
+    let storage_tries_start = cast(storage_tries.value._data.value.dict_ptr_start, DictAccess*);
+    let storage_tries_end = cast(storage_tries.value._data.value.dict_ptr, DictAccess*);
+
+    let (squashed_storage_tries_start, squashed_storage_tries_end) = dict_squash(
+        storage_tries_start, storage_tries_end
+    );
+
+    // Create a Mapping[Address, Trie[Bytes32, U256]] that will contain the "flat" tries, where we
+    // will get the storage trie of each address
+    let (map_addr_storage_start) = default_dict_new(0);
+    tempvar map_addr_storage = MappingAddressTrieBytes32U256(
+        new MappingAddressTrieBytes32U256Struct(
+            dict_ptr_start=cast(map_addr_storage_start, AddressTrieBytes32U256DictAccess*),
+            dict_ptr=cast(map_addr_storage_start, AddressTrieBytes32U256DictAccess*),
+            parent_dict=cast(0, MappingAddressTrieBytes32U256Struct*),
+        ),
+    );
+
+    build_map_addr_storage_trie{
+        map_addr_storage=map_addr_storage, storage_tries_ptr_end=storage_tries_end
+    }(storage_tries_start);
+
+    // Squash the Mapping[address, trie[bytes32, u256]] to iterate over each address
+    let (squashed_map_addr_storage_start, squashed_map_addr_storage_end) = dict_squash(
+        cast(map_addr_storage.value.dict_ptr_start, DictAccess*),
+        cast(map_addr_storage.value.dict_ptr, DictAccess*),
+    );
+
+    tempvar map_addr_storage = MappingAddressTrieBytes32U256(
+        new MappingAddressTrieBytes32U256Struct(
+            dict_ptr_start=cast(squashed_map_addr_storage_start, AddressTrieBytes32U256DictAccess*),
+            dict_ptr=cast(squashed_map_addr_storage_end, AddressTrieBytes32U256DictAccess*),
+            parent_dict=cast(0, MappingAddressTrieBytes32U256Struct*),
+        ),
+    );
+
+    // Create a Mapping[Address, Bytes32] that will contain the storage root of each address's
+    // storage trie
+    let (map_addr_storage_root_start) = default_dict_new(0);
+    tempvar map_addr_storage_root = MappingAddressBytes32(
+        new MappingAddressBytes32Struct(
+            dict_ptr_start=cast(map_addr_storage_root_start, AddressBytes32DictAccess*),
+            dict_ptr=cast(map_addr_storage_root_start, AddressBytes32DictAccess*),
+            parent_dict=cast(0, MappingAddressBytes32Struct*),
+        ),
+    );
+
+    // Iterate over each address, and get the root of its storage trie
+    let map_addr_storage_ptr = cast(
+        squashed_map_addr_storage_start, AddressTrieBytes32U256DictAccess*
+    );
+    let map_addr_storage_ptr_end = cast(
+        squashed_map_addr_storage_end, AddressTrieBytes32U256DictAccess*
+    );
+    build_map_addr_storage_root{
+        map_addr_storage_root=map_addr_storage_root,
+        map_addr_storage_ptr_end=map_addr_storage_ptr_end,
+    }(map_addr_storage_ptr);
+
+    return map_addr_storage_root;
+}
+
+// @notice Builds a Mapping[Address, Bytes32] that contains the storage root of each address's
+// storage trie
+// @param map_addr_storage_root The mapping to write to
+// @param map_addr_storage_ptr The pointer to the current address in the Mapping[Address, Trie[Bytes32, U256]]
+// @param map_addr_storage_ptr_end The end of the Mapping[Address, Trie[Bytes32, U256]]
+func build_map_addr_storage_root{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    map_addr_storage_root: MappingAddressBytes32,
+    map_addr_storage_ptr_end: AddressTrieBytes32U256DictAccess*,
+}(map_addr_storage_ptr: AddressTrieBytes32U256DictAccess*) {
+    alloc_locals;
+
+    if (map_addr_storage_ptr == map_addr_storage_ptr_end) {
+        return ();
+    }
+
+    let address = map_addr_storage_ptr.key;
+    let storage_trie = map_addr_storage_ptr.new_value;
+
+    tempvar union_trie = EthereumTries(
+        new EthereumTriesEnum(
+            account=TrieAddressOptionalAccount(cast(0, TrieAddressOptionalAccountStruct*)),
+            storage=storage_trie,
+            transaction=TrieBytesOptionalUnionBytesLegacyTransaction(
+                cast(0, TrieBytesOptionalUnionBytesLegacyTransactionStruct*)
+            ),
+            receipt=TrieBytesOptionalUnionBytesReceipt(
+                cast(0, TrieBytesOptionalUnionBytesReceiptStruct*)
+            ),
+            withdrawal=TrieBytesOptionalUnionBytesWithdrawal(
+                cast(0, TrieBytesOptionalUnionBytesWithdrawalStruct*)
+            ),
+        ),
+    );
+
+    let storage_root = root(union_trie);
+
+    let dict_ptr = cast(map_addr_storage_root.value.dict_ptr, DictAccess*);
+    dict_write{dict_ptr=dict_ptr}(address.value, cast(storage_root.value, felt));
+
+    tempvar map_addr_storage_root = MappingAddressBytes32(
+        new MappingAddressBytes32Struct(
+            dict_ptr_start=map_addr_storage_root.value.dict_ptr_start,
+            dict_ptr=cast(dict_ptr, AddressBytes32DictAccess*),
+            parent_dict=map_addr_storage_root.value.parent_dict,
+        ),
+    );
+
+    // Squash the Trie[Bytes32, U256] - it won't ever be used again.
+    let trie_ptr_start = storage_trie.value._data.value.dict_ptr_start;
+    let trie_ptr_end = storage_trie.value._data.value.dict_ptr;
+    dict_squash(cast(trie_ptr_start, DictAccess*), cast(trie_ptr_end, DictAccess*));
+
+    return build_map_addr_storage_root(map_addr_storage_ptr + DictAccess.SIZE);
+}
+
+// @notice Builds a Mapping[Address, Trie[Bytes32, U256]] that contains the storage trie of each
+// address
+// @param map_addr_storage The mapping to write to
+// @param storage_tries_ptr The pointer to the current entry in the Trie[Tuple[Address, Bytes32], U256]
+// @param storage_tries_ptr_end The end of the Trie[Tuple[Address, Bytes32], U256]
+func build_map_addr_storage_trie{
+    range_check_ptr,
+    poseidon_ptr: PoseidonBuiltin*,
+    map_addr_storage: MappingAddressTrieBytes32U256,
+    storage_tries_ptr_end: DictAccess*,
+}(storage_tries_ptr: DictAccess*) {
+    alloc_locals;
+
+    if (storage_tries_ptr == storage_tries_ptr_end) {
+        return ();
+    }
+
+    let tup_address_b32 = get_tuple_address_bytes32_preimage_for_key(
+        storage_tries_ptr.key, storage_tries_ptr_end
+    );
+    build_storage_trie_for_address(
+        tup_address_b32.value.address,
+        tup_address_b32.value.bytes32,
+        U256(cast(storage_tries_ptr.new_value, U256Struct*)),
+    );
+
+    return build_map_addr_storage_trie(storage_tries_ptr + DictAccess.SIZE);
+}
+
+// @notice Modifies a Trie[Bytes32, U256], the storage trie of an address, and adds it to the
+// Mapping[Address, Trie[Bytes32, U256]]
+// @param address The address to build the storage trie for
+// @param key The key to add to the storage trie
+// @param value The value to add to the storage trie
+func build_storage_trie_for_address{
+    range_check_ptr, poseidon_ptr: PoseidonBuiltin*, map_addr_storage: MappingAddressTrieBytes32U256
+}(address: Address, key: Bytes32, value: U256) {
+    alloc_locals;
+
+    let dict_ptr = cast(map_addr_storage.value.dict_ptr, DictAccess*);
+
+    // Get storage trie for address
+    let (trie_ptr_) = dict_read{dict_ptr=dict_ptr}(address.value);
+    if (cast(trie_ptr_, felt) == 0) {
+        let (segment_start) = default_dict_new(0);
+        tempvar default = new U256Struct(0, 0);
+        tempvar trie_ptr = new TrieBytes32U256Struct(
+            secured=bool(1),
+            default=U256(default),
+            _data=MappingBytes32U256(
+                new MappingBytes32U256Struct(
+                    dict_ptr_start=cast(segment_start, Bytes32U256DictAccess*),
+                    dict_ptr=cast(segment_start, Bytes32U256DictAccess*),
+                    parent_dict=cast(0, MappingBytes32U256Struct*),
+                ),
+            ),
+        );
+    } else {
+        tempvar trie_ptr = cast(trie_ptr_, TrieBytes32U256Struct*);
+    }
+
+    // Modify storage trie for address
+    let trie = TrieBytes32U256(trie_ptr);
+    trie_set_TrieBytes32U256{poseidon_ptr=poseidon_ptr, trie=trie}(key, value);
+
+    // Update the mapping address -> trie
+    dict_write{dict_ptr=dict_ptr}(address.value, cast(trie.value, felt));
+    tempvar map_addr_storage = MappingAddressTrieBytes32U256(
+        new MappingAddressTrieBytes32U256Struct(
+            dict_ptr_start=map_addr_storage.value.dict_ptr_start,
+            dict_ptr=cast(dict_ptr, AddressTrieBytes32U256DictAccess*),
+            parent_dict=map_addr_storage.value.parent_dict,
+        ),
+    );
+
+    return ();
 }
