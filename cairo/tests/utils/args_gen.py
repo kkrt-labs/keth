@@ -163,7 +163,17 @@ T = TypeVar("T")
 
 
 class Stack(List[T]):
-    pass
+    MAX_SIZE = 1024
+
+    def push_or_replace(self, value: T):
+        if len(self) >= self.MAX_SIZE:
+            self.pop()
+        self.append(value)
+
+    def push_or_replace_many(self, values: List[T]):
+        if len(self) + len(values) > self.MAX_SIZE:
+            del self[self.MAX_SIZE - len(values) :]
+        self.extend(values)
 
 
 @dataclass

@@ -1,6 +1,5 @@
 from ethereum.cancun.vm import Evm
 from ethereum.cancun.vm.instructions.log import log0, log1, log2, log3, log4
-from ethereum.cancun.vm.stack import push
 from ethereum.exceptions import EthereumException
 from ethereum_types.numeric import U256
 from hypothesis import given
@@ -44,10 +43,9 @@ def log_strategy(draw, num_topics: int):
     # 80% chance to push valid values onto stack
     should_push = draw(integers(0, 99)) < 80
     if should_push:
-        push(evm.stack, start_index)
-        push(evm.stack, size)
+        evm.stack.push_or_replace_many([start_index, size])
         for topic in reversed(topics):
-            push(evm.stack, topic)
+            evm.stack.push_or_replace(topic)
 
     return evm
 

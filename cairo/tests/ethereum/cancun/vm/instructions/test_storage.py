@@ -12,7 +12,6 @@ from ethereum.cancun.vm.gas import (
     GAS_WARM_ACCESS,
 )
 from ethereum.cancun.vm.instructions.storage import sload, sstore, tload, tstore
-from ethereum.cancun.vm.stack import push
 from ethereum_types.bytes import Bytes32
 from ethereum_types.numeric import U256, Uint
 from hypothesis import given
@@ -82,7 +81,7 @@ class TestStorage:
         state = evm.env.state
         set_account(state, address, Account(balance=U256(1), nonce=U256(2), code=b""))
         set_storage(state, address, key, value)
-        push(evm.stack, U256.from_be_bytes(key))
+        evm.stack.push_or_replace(U256.from_be_bytes(key))
         try:
             cairo_evm = cairo_run("sload", evm)
         except Exception as cairo_error:
@@ -158,8 +157,7 @@ class TestStorage:
             current_value,
         )
         # Push the new value and the key to the stack
-        push(evm.stack, new_value)
-        push(evm.stack, U256.from_be_bytes(key))
+        evm.stack.push_or_replace_many([new_value, U256.from_be_bytes(key)])
 
         try:
             cairo_evm = cairo_run("sstore", evm)
