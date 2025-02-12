@@ -19,6 +19,7 @@ from cairo_core.numeric import U256, U256Struct
 from cairo_ec.curve_utils import scalar_to_epns
 from cairo_ec.curve.g1_point import G1Point
 from cairo_ec.circuit_utils import N_LIMBS, hash_full_transcript
+from cairo_ec.circuits.ec_ops_compiled import ecip_2P
 from cairo_ec.curve.ids import CurveID
 from cairo_ec.ec_ops import ec_add, try_get_point_from_x, get_random_point
 from cairo_ec.circuits.mod_ops_compiled import div, neg
@@ -215,7 +216,7 @@ func try_recover_public_key{
     hash_full_transcript(cast(generator_point, felt*), 2);
     hash_full_transcript(cast(&r_point, felt*), 2);
     // Q_low, Q_high, Q_high_shifted (filled by prover) (50 - 55).
-    hash_full_transcript(range_check96_ptr + 4 + 50 * N_LIMBS, 3 * 2);
+    hash_full_transcript(range_check96_ptr + 4 + 56 * N_LIMBS, 3 * 2);
     let _s0 = [cast(poseidon_ptr, felt*) - 3];
     let _s1 = [cast(poseidon_ptr, felt*) - 2];
     let _s2 = [cast(poseidon_ptr, felt*) - 1];
@@ -232,20 +233,17 @@ func try_recover_public_key{
     let rlc_coeff_u384 = felt_to_uint384(rlc_coeff);
 
     // Hash SumDlogDiv 2 points : (4-29)
-    hash_full_transcript(range_check96_ptr + 4 * N_LIMBS, 26);
+    hash_full_transcript(range_check96_ptr + 10 * N_LIMBS, 26);
     tempvar range_check96_ptr_init = range_check96_ptr;
-    tempvar range_check96_ptr_after_circuit = range_check96_ptr + 224 + (4 + 117 + 108 - 1) *
-        N_LIMBS;
+    tempvar range_check96_ptr_after_circuit = range_check96_ptr + 5052;
     let random_point = get_random_point{range_check96_ptr=range_check96_ptr_after_circuit}(
         seed=[cast(poseidon_ptr, felt*) - 3], a=&a, b=&b, g=&g, p=&p
     );
-
-    tempvar range_check96_ptr_final = range_check96_ptr_after_circuit;
     let range_check96_ptr = range_check96_ptr_init;
 
     // Circuits inputs
 
-    let ecip_input: UInt384* = cast(range_check96_ptr, UInt384*);
+    let ecip_input: UInt384* = cast(range_check96_ptr + 6 * N_LIMBS, UInt384*);
     // Constants (0-3)
     assert ecip_input[0] = g;
     assert ecip_input[1] = UInt384(0, 0, 0, 0);
