@@ -4,6 +4,13 @@ from ethereum.cancun.fork_types import Account, Address
 from ethereum.cancun.state import set_account, set_storage
 from ethereum.cancun.trie import copy_trie
 from ethereum.cancun.vm import Evm
+from ethereum.cancun.vm.gas import (
+    GAS_COLD_SLOAD,
+    GAS_STORAGE_CLEAR_REFUND,
+    GAS_STORAGE_SET,
+    GAS_STORAGE_UPDATE,
+    GAS_WARM_ACCESS,
+)
 from ethereum.cancun.vm.instructions.storage import sload, sstore, tload, tstore
 from ethereum.cancun.vm.stack import push
 from ethereum_types.bytes import Bytes32
@@ -15,7 +22,7 @@ from hypothesis.strategies import composite
 from cairo_addons.testing.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder
 from tests.utils.message_builder import MessageBuilder
-from tests.utils.strategies import account_strategy
+from tests.utils.strategies import account_strategy, felt
 
 evm_storage_strategy = (
     EvmBuilder()
@@ -185,3 +192,62 @@ class TestStorage:
             return
         tstore(evm)
         assert evm == cairo_evm
+
+    @given(
+        current_refund_counter=felt,
+        original_value=...,
+        current_value=...,
+        new_value=...,
+    )
+    def test_calculate_refund_counter_current_eq_new(
+        self,
+        cairo_run_py,
+        current_refund_counter,
+        original_value: U256,
+        current_value: U256,
+        new_value: U256,
+    ):
+        res_cairo = cairo_run_py(
+            "_calculate_refund_counter_current_eq_new",
+            current_refund_counter,
+            original_value,
+            current_value,
+            new_value,
+            U256(0),
+        )
+        res = _calculate_refund_counter_current_eq_new(
+            current_refund_counter,
+            original_value,
+            current_value,
+            new_value,
+        )
+        assert res == res_cairo
+
+
+# see https://github.com/ethereum/execution-specs/blob/6e652281164025f1f4227f6e5b0036c1bbd27347/src/ethereum/cancun/vm/instructions/storage.py#L104
+def _calculate_refund_counter_current_eq_new(
+    current_refund_counter: Uint,
+    original_value: U256,
+    current_value: U256,
+    new_value: U256,
+):
+    if original_value != 0 and current_value != 0 and new_value == 0:
+        # Storage is cleared for the first time in the transaction
+        current_refund_counter += int(GAS_STORAGE_CLEAR_REFUND)
+
+    if original_value != 0 and current_value == 0:
+        # Gas refund issued earlier to be reversed
+        current_refund_counter -= int(GAS_STORAGE_CLEAR_REFUND)
+
+    if original_value == new_value:
+        # Storage slot being restored to its original value
+        if original_value == 0:
+            # Slot was originally empty and was SET earlier
+            current_refund_counter += int(GAS_STORAGE_SET - GAS_WARM_ACCESS)
+        else:
+            # Slot was originally non-empty and was UPDATED earlier
+            current_refund_counter += int(
+                GAS_STORAGE_UPDATE - GAS_COLD_SLOAD - GAS_WARM_ACCESS
+            )
+
+    return current_refund_counter
