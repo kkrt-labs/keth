@@ -26,7 +26,7 @@ dependencies and run commands. To install uv:
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-Moreover, the project uses [rust](https://www.rust-lang.org/) to manage rust
+Moreover, the project uses [cargo](https://github.com/rust-lang/cargo) to manage rust
 dependencies.
 
 ### Installation
