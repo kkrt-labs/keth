@@ -937,7 +937,8 @@ func destroy_touched_empty_accounts{poseidon_ptr: PoseidonBuiltin*, state: State
 }
 
 func empty_transient_storage{range_check_ptr}() -> TransientStorage {
-    let (dict_ptr) = default_dict_new(0);
+    tempvar default_value = new U256Struct(0, 0);
+    let (dict_ptr) = default_dict_new(cast(default_value, felt));
     let dict_start = cast(dict_ptr, TupleAddressBytes32U256DictAccess*);
 
     tempvar mapping = MappingTupleAddressBytes32U256(
