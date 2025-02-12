@@ -1165,11 +1165,34 @@ func state_root{
         raise('AssertionError');
     }
 
+    // Squash the main trie for unique keys
+    let main_trie = state.value._main_trie;
+    let main_trie_start = cast(main_trie.value._data.value.dict_ptr_start, DictAccess*);
+    let main_trie_end = cast(main_trie.value._data.value.dict_ptr, DictAccess*);
+
+    let (squashed_main_trie_start, squashed_main_trie_end) = dict_squash(
+        main_trie_start, main_trie_end
+    );
+
+    tempvar squashed_main_trie = TrieAddressOptionalAccount(
+        new TrieAddressOptionalAccountStruct(
+            secured=bool(1),
+            default=OptionalAccount(cast(0, AccountStruct*)),
+            _data=MappingAddressAccount(
+                new MappingAddressAccountStruct(
+                    dict_ptr_start=cast(squashed_main_trie_start, AddressAccountDictAccess*),
+                    dict_ptr=cast(squashed_main_trie_end, AddressAccountDictAccess*),
+                    parent_dict=cast(0, MappingAddressAccountStruct*),
+                ),
+            ),
+        ),
+    );
+
     let storage_roots_ = storage_roots(state);
 
     tempvar trie_union = EthereumTries(
         new EthereumTriesEnum(
-            account=state.value._main_trie,
+            account=squashed_main_trie,
             storage=TrieBytes32U256(cast(0, TrieBytes32U256Struct*)),
             transaction=TrieBytesOptionalUnionBytesLegacyTransaction(
                 cast(0, TrieBytesOptionalUnionBytesLegacyTransactionStruct*)
