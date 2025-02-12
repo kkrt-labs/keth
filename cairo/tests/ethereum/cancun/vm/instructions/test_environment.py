@@ -23,7 +23,6 @@ from ethereum.cancun.vm.instructions.environment import (
     returndatasize,
     self_balance,
 )
-from ethereum.cancun.vm.stack import push
 from ethereum.exceptions import EthereumException
 from ethereum_types.numeric import U256
 from hypothesis import given
@@ -95,9 +94,7 @@ def codecopy_strategy(draw):
     # 80% chance to push valid values onto stack
     should_push = draw(integers(0, 99)) < 80
     if should_push:
-        push(evm.stack, size)
-        push(evm.stack, code_start_index)
-        push(evm.stack, memory_start_index)
+        evm.stack.push_or_replace_many([size, code_start_index, memory_start_index])
 
     return evm
 
@@ -126,9 +123,7 @@ def calldatacopy_strategy(draw):
     # 80% chance to push valid values onto stack
     should_push = draw(integers(0, 99)) < 80
     if should_push:
-        push(evm.stack, size)
-        push(evm.stack, data_start_index)
-        push(evm.stack, memory_start_index)
+        evm.stack.push_or_replace_many([size, data_start_index, memory_start_index])
 
     return evm
 
@@ -155,7 +150,7 @@ def evm_accessed_addresses_strategy(draw):
 
     # Draw an address from one of the available options
     address = draw(st.one_of(*address_options))
-    push(evm.stack, U256.from_be_bytes(address))
+    evm.stack.push_or_replace(U256.from_be_bytes(address))
 
     return evm
 

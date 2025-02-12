@@ -12,7 +12,6 @@ from ethereum.cancun.vm.instructions.arithmetic import (
     smod,
     sub,
 )
-from ethereum.cancun.vm.stack import push
 from ethereum_types.numeric import U256
 from hypothesis import given
 
@@ -122,9 +121,9 @@ class TestArithmetic:
 
     @given(evm=arithmetic_tests_strategy)
     def test_addmod_overflow_u256_cairo(self, cairo_run_py, evm: Evm):
-        push(evm.stack, U256(2**256 - 1))
-        push(evm.stack, U256(2**256 - 2))
-        push(evm.stack, U256(2**256 - 2))
+        evm.stack.push_or_replace_many(
+            [U256(2**256 - 1), U256(2**256 - 2), U256(2**256 - 2)]
+        )
         try:
             cairo_result = cairo_run_py("addmod", evm)
         except Exception as cairo_error:

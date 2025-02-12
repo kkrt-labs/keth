@@ -13,7 +13,6 @@ from ethereum.cancun.vm.instructions.system import (
     selfdestruct,
     staticcall,
 )
-from ethereum.cancun.vm.stack import push
 from ethereum_types.numeric import U256, Uint
 from hypothesis import given
 from hypothesis import strategies as st
@@ -67,8 +66,7 @@ def revert_return_strategy(draw):
     # 80% chance to push valid values onto stack
     should_push = draw(st.integers(0, 99)) < 80
     if should_push:
-        push(evm.stack, size)
-        push(evm.stack, memory_start)
+        evm.stack.push_or_replace_many([size, memory_start])
 
     return evm
 
@@ -106,7 +104,7 @@ def beneficiary_from_state(draw):
     else:
         beneficiary = draw(st.from_type(Address))
 
-    push(evm.stack, U256.from_be_bytes(beneficiary))
+    evm.stack.push_or_replace(U256.from_be_bytes(beneficiary))
 
     # 20% chance to set beneficiary to originator
     beneficiary_is_originator = draw(st.integers(0, 99)) < 20

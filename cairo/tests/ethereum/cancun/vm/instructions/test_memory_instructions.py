@@ -1,6 +1,5 @@
 from ethereum.cancun.vm import Evm
 from ethereum.cancun.vm.instructions.memory import mcopy, mload, msize, mstore, mstore8
-from ethereum.cancun.vm.stack import push
 from ethereum.exceptions import EthereumException
 from ethereum_types.numeric import U256
 from hypothesis import given
@@ -27,8 +26,7 @@ class TestMemory:
         self, cairo_run, evm: Evm, start_position: U256, size: U256, push_on_stack: bool
     ):
         if push_on_stack:  # to ensure valid cases are generated
-            push(evm.stack, start_position)
-            push(evm.stack, size)
+            evm.stack.push_or_replace_many([start_position, size])
         try:
             cairo_result = cairo_run("mstore", evm)
         except EthereumException as cairo_error:
@@ -49,8 +47,7 @@ class TestMemory:
         self, cairo_run, evm: Evm, start_position: U256, size: U256, push_on_stack: bool
     ):
         if push_on_stack:  # to ensure valid cases are generated
-            push(evm.stack, start_position)
-            push(evm.stack, size)
+            evm.stack.push_or_replace_many([start_position, size])
 
         try:
             cairo_result = cairo_run("mstore8", evm)
@@ -71,7 +68,7 @@ class TestMemory:
         self, cairo_run, evm: Evm, start_position: U256, push_on_stack: bool
     ):
         if push_on_stack:  # to ensure valid cases are generated
-            push(evm.stack, start_position)
+            evm.stack.push_or_replace(start_position)
 
         try:
             cairo_result = cairo_run("mload", evm)
@@ -112,9 +109,7 @@ class TestMemory:
         push_on_stack: bool,
     ):
         if push_on_stack:  # to ensure valid cases are generated
-            push(evm.stack, size)
-            push(evm.stack, start_position)
-            push(evm.stack, destination)
+            evm.stack.push_or_replace_many([size, start_position, destination])
         try:
             cairo_result = cairo_run("mcopy", evm)
         except EthereumException as cairo_error:
