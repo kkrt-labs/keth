@@ -514,7 +514,7 @@ def register_type_strategies():
     st.register_type_strategy(Account, account_strategy)
     st.register_type_strategy(Withdrawal, st.builds(Withdrawal))
     st.register_type_strategy(Header, st.builds(Header))
-    st.register_type_strategy(Log, st.builds(Log))
+    st.register_type_strategy(Log, st.builds(Log, data=small_bytes))
     st.register_type_strategy(Receipt, st.builds(Receipt))
     st.register_type_strategy(
         LegacyTransaction, st.builds(LegacyTransaction, data=small_bytes)
