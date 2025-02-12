@@ -9,7 +9,7 @@ from legacy.utils.uint256 import uint256_add, uint256_sub
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.memcpy import memcpy
 from starkware.cairo.common.math_cmp import is_not_zero
-
+from starkware.cairo.common.default_dict import default_dict_new
 from ethereum.cancun.fork_types import (
     Address,
     Account,
@@ -793,7 +793,7 @@ func close_transaction{
     let is_root_state = is_zero(cast(new_main_trie.value._data.value.parent_dict, felt));
     if (is_root_state != 0) {
         // Clear created accounts
-        let (new_created_accounts_ptr) = dict_new_empty();
+        let (new_created_accounts_ptr) = default_dict_new(0);
         tempvar new_created_accounts = SetAddress(
             new SetAddressStruct(
                 dict_ptr_start=cast(new_created_accounts_ptr, SetAddressDictAccess*),
@@ -935,6 +935,29 @@ func destroy_touched_empty_accounts{poseidon_ptr: PoseidonBuiltin*, state: State
             ),
         ),
     );
+}
+
+func empty_transient_storage{range_check_ptr}() -> TransientStorage {
+    let (dict_ptr) = default_dict_new(0);
+    let dict_start = cast(dict_ptr, TupleAddressBytes32U256DictAccess*);
+
+    tempvar mapping = MappingTupleAddressBytes32U256(
+        new MappingTupleAddressBytes32U256Struct(
+            dict_ptr_start=dict_start,
+            dict_ptr=dict_start,
+            parent_dict=cast(0, MappingTupleAddressBytes32U256Struct*),
+        ),
+    );
+
+    tempvar tries = TrieTupleAddressBytes32U256(
+        new TrieTupleAddressBytes32U256Struct(
+            secured=bool(1), default=U256(new U256Struct(0, 0)), _data=mapping
+        ),
+    );
+
+    tempvar transient_storage = TransientStorage(new TransientStorageStruct(_tries=tries));
+
+    return transient_storage;
 }
 
 func storage_roots{

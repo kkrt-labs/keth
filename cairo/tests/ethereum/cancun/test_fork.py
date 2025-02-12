@@ -1,11 +1,15 @@
+from collections import defaultdict
 from dataclasses import replace
 from typing import Optional, Tuple
 
+from eth_abi.abi import encode
+from eth_account import Account as EthAccount
 from eth_keys.datatypes import PrivateKey
 from ethereum.cancun.blocks import Block, Header, Log
 from ethereum.cancun.fork import (
     GAS_LIMIT_ADJUSTMENT_FACTOR,
     BlockChain,
+    apply_body,
     calculate_base_fee_per_gas,
     check_gas_limit,
     check_transaction,
@@ -23,12 +27,14 @@ from ethereum.cancun.transactions import (
     LegacyTransaction,
     Transaction,
     calculate_intrinsic_cost,
+    encode_transaction,
     signing_hash_155,
     signing_hash_1559,
     signing_hash_2930,
     signing_hash_4844,
     signing_hash_pre155,
 )
+from ethereum.cancun.trie import Trie
 from ethereum.cancun.utils.address import to_address
 from ethereum.cancun.vm import Environment
 from ethereum.cancun.vm.gas import TARGET_BLOB_GAS_PER_BLOCK
@@ -43,18 +49,105 @@ from hypothesis.strategies import composite, integers
 
 from cairo_addons.testing.errors import strict_raises
 from tests.ethereum.cancun.vm.test_interpreter import unimplemented_precompiles
-from tests.utils.constants import OMMER_HASH
+from tests.utils.constants import (
+    COINBASE,
+    OMMER_HASH,
+    OTHER,
+    OWNER,
+    TRANSACTION_GAS_LIMIT,
+    signers,
+)
+from tests.utils.solidity import get_contract
 from tests.utils.strategies import (
     account_strategy,
     address,
     address_zero,
     bounded_u256_strategy,
     bytes32,
+    excess_blob_gas,
     small_bytes,
     uint,
 )
 
 MIN_BASE_FEE = 1_000
+
+
+@composite
+def apply_body_data(draw, excess_blob_gas_strategy=excess_blob_gas):
+    """Creates test data for apply_body including ERC20 transfer transactions"""
+
+    # Get ERC20 contract
+    erc20 = get_contract("ERC20", "KethToken")
+    amount = int(1e18)
+
+    # Create base ERC20 transfer transactions
+    raw_transactions = [
+        # erc20.transfer(OWNER, amount, signer=OTHER),
+        erc20.transfer(OTHER, amount, signer=OWNER),
+        # erc20.transfer(OTHER, amount, signer=OWNER),
+        # erc20.approve(OWNER, 2**256 - 1, signer=OTHER),
+        # erc20.transferFrom(OTHER, OWNER, amount // 3, signer=OWNER),
+    ]
+
+    # Transform and sign transactions
+    nonces = defaultdict(int)
+    erc20_transactions = []
+    chain_id = 1
+
+    for tx in raw_transactions:
+        signer = tx.pop("signer")
+
+        # Add required transaction fields
+        tx["gas"] = TRANSACTION_GAS_LIMIT
+        tx["gasPrice"] = MIN_BASE_FEE
+        tx["nonce"] = nonces[signer]
+        tx["chainId"] = chain_id
+        nonces[signer] += 1
+
+        # Sign transaction
+        signed_tx = EthAccount.sign_transaction(tx, signers[signer])
+
+        # Create LegacyTransaction with signed values
+        legacy_tx = LegacyTransaction(
+            nonce=U256(tx["nonce"]),
+            gas_price=Uint(tx["gasPrice"]),
+            gas=Uint(tx["gas"]),
+            to=Address(bytes.fromhex(erc20.address[2:])),
+            value=U256(tx.get("value", 0)),
+            data=Bytes(bytes.fromhex(tx["data"][2:])),
+            v=U256(signed_tx.v),
+            r=U256(signed_tx.r),
+            s=U256(signed_tx.s),
+        )
+        erc20_transactions.append(legacy_tx)
+
+    # Convert transactions to RLP format
+    transactions = tuple(encode_transaction(tx) for tx in erc20_transactions)
+
+    # Rest of the test data generation
+    block_hashes = draw(st.lists(bytes32, max_size=256))
+    coinbase = Address(bytes.fromhex(COINBASE[2:]))
+    block_number = draw(st.from_type(Uint))
+    base_fee_per_gas = Uint(MIN_BASE_FEE)
+    block_gas_limit = Uint(30_000_000)
+    block_time = draw(st.from_type(U256))
+    prev_randao = draw(bytes32)
+    parent_beacon_block_root = draw(bytes32)
+    excess_blob_gas = draw(excess_blob_gas_strategy)
+
+    return {
+        "block_hashes": block_hashes,
+        "coinbase": coinbase,
+        "block_number": block_number,
+        "base_fee_per_gas": base_fee_per_gas,
+        "block_gas_limit": block_gas_limit,
+        "block_time": block_time,
+        "prev_randao": prev_randao,
+        "transactions": transactions,
+        "chain_id": U64(chain_id),
+        "parent_beacon_block_root": parent_beacon_block_root,
+        "excess_blob_gas": excess_blob_gas,
+    }
 
 
 def get_blob_tx_with_tx_sender_in_state():
@@ -367,7 +460,7 @@ def tx_with_sender_in_state(
         v_or_y_parity["y_parity"] = U256(signature.v)
     tx = replace(tx, r=U256(signature.r), s=U256(signature.s), **v_or_y_parity)
 
-    should_add_sender_to_state = draw(integers(0, 99)) < 80
+    should_add_sender_to_state = draw(integers(0, 99)) < 85
     if should_add_sender_to_state:
         sender = Address(int(expected_address).to_bytes(20, "little"))
         set_account(state, sender, account)
@@ -548,3 +641,88 @@ class TestFork:
             return
 
         assert cairo_result == keccak256(rlp.encode(header))
+
+    @given(data=apply_body_data())
+    @settings(max_examples=1)
+    def test_apply_body(
+        self,
+        cairo_run_py,
+        data,
+    ):
+        accounts, storage_tries = _create_erc20_data()
+        # Create constant state
+        state = State(
+            _main_trie=Trie(
+                secured=True,
+                default=None,
+                _data=dict(accounts),
+            ),
+            _storage_tries=dict(storage_tries),
+            _snapshots=[],
+            created_accounts=set(),
+        )
+
+        withdrawals = ()  # Empty withdrawals for now
+        kwargs = {**data, "withdrawals": withdrawals, "state": state}
+
+        try:
+            # TODO: Use cairo_run and Rust CairoVM
+            cairo_state, cairo_result = cairo_run_py("apply_body", **kwargs)
+        except Exception as e:
+            # If Cairo implementation raises an error, Python implementation should too
+            with strict_raises(type(e)):
+                apply_body(**kwargs)
+            return
+        dummy_root = Hash32(int(0).to_bytes(32, "big"))
+        assert cairo_result.transactions_root == dummy_root
+        assert cairo_result.receipt_root == dummy_root
+        assert cairo_result.state_root == dummy_root
+        assert cairo_result.withdrawals_root == dummy_root
+
+        output = apply_body(**kwargs)
+
+        assert cairo_result.block_gas_used == output.block_gas_used
+        assert cairo_result.blob_gas_used == output.blob_gas_used
+        assert cairo_state == state
+
+
+def _create_erc20_data():
+    """Helper to create the fixed ERC20 data structures"""
+    erc20_contract = get_contract("ERC20", "KethToken")
+    erc20_address = Address(bytes.fromhex(erc20_contract.address[2:]))
+
+    accounts = {
+        erc20_address: Account(
+            balance=U256(0),
+            nonce=Uint(0),
+            code=bytes(erc20_contract.bytecode_runtime),
+        ),
+        Address(bytes.fromhex(OTHER[2:])): Account(
+            balance=U256(int(1e18)), nonce=Uint(0), code=bytes()
+        ),
+        Address(bytes.fromhex(OWNER[2:])): Account(
+            balance=U256(int(1e18)), nonce=Uint(0), code=bytes()
+        ),
+        Address(bytes.fromhex(COINBASE[2:])): Account(
+            balance=U256(int(1e18)), nonce=Uint(0), code=bytes()
+        ),
+    }
+
+    storage_data = {
+        Bytes32(U256(0).to_be_bytes32()): U256.from_be_bytes(
+            b"KethToken".ljust(31, b"\x00") + bytes([len(b"KethToken") * 2])
+        ),
+        Bytes32(U256(1).to_be_bytes32()): U256.from_be_bytes(
+            b"KETH".ljust(31, b"\x00") + bytes([len(b"KETH") * 2])
+        ),
+        Bytes32(U256(2).to_be_bytes32()): U256(int(1e18)),
+        Bytes32(keccak256(encode(["address", "uint8"], [OWNER[2:], 3]))): U256(
+            int(1e18)
+        ),
+    }
+
+    storage_tries = {
+        erc20_address: Trie(secured=True, default=U256(0), _data=dict(storage_data))
+    }
+
+    return accounts, storage_tries
