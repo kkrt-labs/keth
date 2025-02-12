@@ -11,7 +11,7 @@ from starkware.cairo.common.cairo_builtins import KeccakBuiltin
 from starkware.cairo.common.memcpy import memcpy
 
 from legacy.utils.bytes import uint256_to_bytes32_little
-from legacy.utils.dict import hashdict_read, hashdict_write, dict_new_empty, dict_squash
+from legacy.utils.dict import hashdict_read, hashdict_write, dict_new_empty, dict_squash, dict_read
 from ethereum.crypto.hash import keccak256
 from ethereum.utils.numeric import min
 from ethereum_rlp.rlp import encode, _encode_bytes, _encode
@@ -62,6 +62,10 @@ from ethereum.cancun.fork_types import (
     AddressAccountDictAccess,
     MappingTupleAddressBytes32U256,
     MappingTupleAddressBytes32U256Struct,
+    OptionalMappingAddressBytes32,
+    MappingAddressBytes32,
+    MappingAddressBytes32Struct,
+    AddressBytes32DictAccess,
     Root,
 )
 from ethereum.cancun.transactions_types import LegacyTransaction, LegacyTransactionStruct
@@ -959,7 +963,7 @@ func _prepare_trie{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
-}(trie_union: EthereumTries) -> MappingBytesBytes {
+}(trie_union: EthereumTries, storage_roots_: OptionalMappingAddressBytes32) -> MappingBytesBytes {
     alloc_locals;
 
     let (local mapping_ptr_start: BytesBytesDictAccess*) = default_dict_new(0);
@@ -982,9 +986,15 @@ func _prepare_trie{
     raise('Invalid trie union');
 
     account:
+    if (cast(storage_roots_.value, felt) == 0) {
+        raise('Missing Storage Roots');
+    }
     let account_trie = trie_union.value.account;
     _prepare_trie_inner_account(
-        account_trie, account_trie.value._data.value.dict_ptr_start, mapping_ptr_start
+        account_trie,
+        account_trie.value._data.value.dict_ptr_start,
+        mapping_ptr_start,
+        MappingAddressBytes32(storage_roots_.value),
     );
     jmp end;
 
@@ -1042,6 +1052,7 @@ func _prepare_trie_inner_account{
     trie: TrieAddressOptionalAccount,
     dict_ptr: AddressAccountDictAccess*,
     mapping_ptr_end: BytesBytesDictAccess*,
+    storage_roots_: MappingAddressBytes32,
 ) -> BytesBytesDictAccess* {
     alloc_locals;
 
@@ -1052,15 +1063,26 @@ func _prepare_trie_inner_account{
     // Skip all None values, which are deleted trie entries
     if (cast(dict_ptr.new_value.value, felt) == 0) {
         return _prepare_trie_inner_account(
-            trie, dict_ptr + AddressAccountDictAccess.SIZE, mapping_ptr_end
+            trie, dict_ptr + AddressAccountDictAccess.SIZE, mapping_ptr_end, storage_roots_
         );
     }
 
+    let storage_roots_ptr = cast(storage_roots_.value.dict_ptr, DictAccess*);
+    let (storage_root_ptr) = dict_read{dict_ptr=storage_roots_ptr}(dict_ptr.key.value);
+    let storage_root_b32 = Bytes32(cast(storage_root_ptr, Bytes32Struct*));
+    tempvar storage_roots_ = MappingAddressBytes32(
+        new MappingAddressBytes32Struct(
+            storage_roots_.value.dict_ptr_start,
+            cast(storage_roots_ptr, AddressBytes32DictAccess*),
+            storage_roots_.value.parent_dict,
+        ),
+    );
+    let storage_root = Bytes32_to_Bytes(storage_root_b32);
+
     let preimage = Bytes20_to_Bytes(dict_ptr.key);
     let value = dict_ptr.new_value;
-    // TODO: get storage root
+
     let (buffer: felt*) = alloc();
-    tempvar storage_root = Bytes(new BytesStruct(buffer, 0));
     tempvar node = Node(
         new NodeEnum(
             account=value,
@@ -1107,6 +1129,7 @@ func _prepare_trie_inner_account{
         trie,
         dict_ptr + AddressAccountDictAccess.SIZE,
         cast(mapping_dict_ptr, BytesBytesDictAccess*),
+        storage_roots_,
     );
 }
 
@@ -1458,11 +1481,10 @@ func root{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
-}(trie_union: EthereumTries) -> Root {
+}(trie_union: EthereumTries, storage_roots_: OptionalMappingAddressBytes32) -> Root {
     alloc_locals;
 
-    // TODO: get_storage_root
-    let obj = _prepare_trie(trie_union);
+    let obj = _prepare_trie(trie_union, storage_roots_);
     let patricialized = patricialize(obj, Uint(0));
     let root_node = encode_internal_node(patricialized);
     let rlp_encoded_root_node = encode(root_node);
