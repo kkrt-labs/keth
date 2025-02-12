@@ -5,12 +5,14 @@ from starkware.cairo.common.math_cmp import is_nn, is_in_range
 
 from ethereum_types.numeric import U256, U256Struct, Uint
 from ethereum.cancun.vm import Evm, EvmImpl
+from ethereum.cancun.blocks import TupleLog, TupleLogStruct
 from ethereum.exceptions import EthereumException
 from ethereum.cancun.vm.gas import charge_gas, GasConstants
 from ethereum.cancun.vm.stack import Stack, pop, push
 from ethereum.utils.numeric import U256_from_be_bytes32
 from legacy.utils.bytes import felt_to_bytes20_little
 from legacy.utils.utils import Helpers
+from starkware.cairo.common.memcpy import memcpy
 
 // @notice Get the hash of one of the 256 most recent complete blocks
 func block_hash{
@@ -302,4 +304,17 @@ namespace Internals {
         let ok = cast(0, EthereumException*);
         return ok;
     }
+}
+
+func _append_logs{logs: TupleLog}(new_logs: TupleLog) {
+    let src_len = new_logs.value.len;
+    if (src_len == 0) {
+        return ();
+    }
+    let len = logs.value.len;
+    let dst = logs.value.data + len;
+    let src = new_logs.value.data;
+    memcpy(dst, src, src_len);
+    tempvar logs = TupleLog(new TupleLogStruct(data=logs.value.data, len=len + src_len));
+    return ();
 }
