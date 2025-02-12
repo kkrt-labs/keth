@@ -578,3 +578,7 @@ def register_type_strategies():
     st.register_type_strategy(MutableBloom, bloom.map(MutableBloom))
     st.register_type_strategy(Environment, environment_lite)
     st.register_type_strategy(Header, header)
+    st.register_type_strategy(
+        VersionedHash,
+        st.binary(min_size=31, max_size=31).map(lambda x: VersionedHash(b"\x01" + x)),
+    )

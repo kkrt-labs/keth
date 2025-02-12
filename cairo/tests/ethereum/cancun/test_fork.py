@@ -15,7 +15,7 @@ from ethereum.cancun.fork import (
     validate_header,
 )
 from ethereum.cancun.fork_types import Address, VersionedHash
-from ethereum.cancun.state import State, set_account, set_account_balance
+from ethereum.cancun.state import Account, State, set_account
 from ethereum.cancun.transactions import (
     AccessListTransaction,
     BlobTransaction,
@@ -222,19 +222,22 @@ def tx_with_sender_in_state(
     expected_address = int(private_key.public_key.to_address(), 16)
     if draw(integers(0, 99)) < 80:
         # to ensure the account has enough balance and tx.gas > intrinsic_cost
+        # also that the code is empty
         env.origin = to_address(Uint(expected_address))
         if calculate_intrinsic_cost(tx) > tx.gas:
             tx = replace(tx, gas=(calculate_intrinsic_cost(tx) + Uint(10000)))
-        if Uint(account.balance) < Uint(tx.value) * Uint(env.gas_price) + Uint(
-            env.excess_blob_gas
-        ):
-            set_account_balance(
-                state,
-                to_address(Uint(expected_address)),
-                U256(tx.value) * U256(env.gas_price)
+
+        set_account(
+            state,
+            to_address(Uint(expected_address)),
+            Account(
+                balance=U256(tx.value) * U256(env.gas_price)
                 + U256(env.excess_blob_gas)
                 + U256(10000),
-            )
+                nonce=account.nonce,
+                code=bytes(),
+            ),
+        )
     # 2 * chain_id + 35 + v must be less than 2^64 for the signature of a legacy transaction to be valid
     chain_id = draw(st.integers(min_value=1, max_value=(2**64 - 37) // 2).map(U64))
     nonce = U256(account.nonce)
