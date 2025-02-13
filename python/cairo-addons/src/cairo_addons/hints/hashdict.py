@@ -101,13 +101,6 @@ def copy_hashdict_tracker_entry(dict_manager: DictManager, ids: VmConsts):
     dict_tracker.data[preimage] = obj_tracker.data[preimage]
 
 
-@register_hint
-def copy_preimages(dict_manager: DictManager, ids: VmConsts):
-    src_tracker = dict_manager.get_tracker(ids.src_dict_end.address_)
-    dst_tracker = dict_manager.get_tracker(ids.dst_dict_end.address_)
-    dst_tracker.data["preimages"] = src_tracker.data["preimages"].copy()
-
-
 def _get_preimage_for_hashed_key(
     hashed_key: int,
     dict_manager: DictManager,
