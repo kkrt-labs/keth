@@ -26,7 +26,7 @@ func test__get_valid_jump_destinations{range_check_ptr}(output_ptr: felt*) {
     let valid_jumpdests = get_valid_jump_destinations(code);
     let valid_jumpdests_ptr = valid_jumpdests.value.dict_ptr;
 
-    %{ segments.write_arg(ids.output_ptr, __dict_manager.get_dict(ids.valid_jumpdests_ptr)) %}
+    %{ segments.write_arg(ids.output_ptr, {k[0]: v for k, v in __dict_manager.get_dict(ids.valid_jumpdests_ptr).items()}) %}
 
     return ();
 }

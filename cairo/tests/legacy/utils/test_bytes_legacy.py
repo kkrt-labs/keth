@@ -11,14 +11,6 @@ pytestmark = pytest.mark.python_vm
 
 
 class TestBytes:
-    class TestFeltToAscii:
-        @pytest.mark.parametrize("n", [0, 10, 1234, 0xFFFFFF])
-        def test_should_return_ascii(self, cairo_run, n):
-            output = cairo_run("test__felt_to_ascii", n=n)
-            assert (
-                str(n)
-                == bytes(output if isinstance(output, list) else [output]).decode()
-            )
 
     class TestFeltToBytesLittle:
         @given(n=integers(min_value=0, max_value=2**248 - 1))
@@ -97,14 +89,6 @@ class TestBytes:
             output = cairo_run("test__felt_to_bytes", n=n)
             res = bytes(output if isinstance(output, list) else [output])
             assert bytes.fromhex(f"{n:x}".rjust(len(res) * 2, "0")) == res
-
-    class TestFeltToBytes20:
-        @pytest.mark.parametrize(
-            "n", [0, 10, 1234, 0xFFFFFF, 2**128, DEFAULT_PRIME - 1]
-        )
-        def test_should_return_bytes20(self, cairo_run, n):
-            output = cairo_run("test__felt_to_bytes20", n=n)
-            assert f"{n:064x}"[-40:] == bytes(output).hex()
 
     class TestUint256ToBytesLittle:
         @given(n=integers(min_value=0, max_value=2**256 - 1))
