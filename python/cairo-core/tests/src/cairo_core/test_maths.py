@@ -96,7 +96,6 @@ segments.write_arg(ids.output, [int(b)+1 if b < 255 else 0 for b in truncated_va
         ), cairo_error(message="felt252_to_bytes_le: bad output"):
             cairo_run("test__felt252_to_bytes_le", value=value, len=len_)
 
-    @settings(verbosity=Verbosity.quiet)
     def test_felt252_to_bytes_le_should_panic_on_wrong_output_noncanonical(
         self, cairo_programs, cairo_run
     ):
@@ -165,7 +164,6 @@ segments.write_arg(ids.output, [int(b) + 1 if b < 255 else 0 for b in truncated_
         ), cairo_error(message="felt252_to_bytes_be: bad output"):
             cairo_run("test__felt252_to_bytes_be", value=value, len=len_)
 
-    @settings(verbosity=Verbosity.quiet)
     def test_felt252_to_bytes_be_should_panic_on_wrong_output_noncanonical(
         self, cairo_programs, cairo_run
     ):
