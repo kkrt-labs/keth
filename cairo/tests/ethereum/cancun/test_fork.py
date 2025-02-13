@@ -460,7 +460,7 @@ def tx_with_sender_in_state(
         v_or_y_parity["y_parity"] = U256(signature.v)
     tx = replace(tx, r=U256(signature.r), s=U256(signature.s), **v_or_y_parity)
 
-    should_add_sender_to_state = draw(integers(0, 99)) < 85
+    should_add_sender_to_state = draw(integers(0, 99)) < 80
     if should_add_sender_to_state:
         sender = Address(int(expected_address).to_bytes(20, "little"))
         set_account(state, sender, account)
@@ -662,8 +662,6 @@ class TestFork:
             _snapshots=[],
             created_accounts=set(),
         )
-
-        print(withdrawals)
 
         kwargs = {**data, "withdrawals": withdrawals, "state": state}
 
