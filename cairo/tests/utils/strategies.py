@@ -423,8 +423,24 @@ empty_state = st.builds(
     created_accounts=st.builds(set, st.just(set())),
 )
 
+# Constants for the special addresses
+SYSTEM_ADDRESS = Address(bytes.fromhex("fffffffffffffffffffffffffffffffffffffffe"))
+BEACON_ROOTS_ADDRESS = Address(
+    bytes.fromhex("000F3df6D732807Ef1319fB7B8bB8522d0Beac02")
+)
+BEACON_ROOTS_CODE = bytes.fromhex(
+    "3373fffffffffffffffffffffffffffffffffffffffe14604d57602036146024575f5ffd5b5f35801560495762001fff810690815414603c575f5ffd5b62001fff01545f5260205ff35b5f5ffd5b62001fff42064281555f359062001fff015500"
+)
 
-state = st.lists(address, max_size=MAX_ADDRESS_SET_SIZE, unique=True).flatmap(
+# Create the special accounts
+SYSTEM_ACCOUNT = Account(balance=U256(0), nonce=Uint(0), code=bytes())
+BEACON_ROOTS_ACCOUNT = Account(balance=U256(0), nonce=Uint(1), code=BEACON_ROOTS_CODE)
+
+state = st.lists(
+    address.filter(lambda x: x not in [SYSTEM_ADDRESS, BEACON_ROOTS_ADDRESS]),
+    max_size=MAX_ADDRESS_SET_SIZE - 2,  # Reduce by 2 to account for special addresses
+    unique=True,
+).flatmap(
     lambda addresses: st.builds(
         State,
         _main_trie=st.builds(
@@ -432,7 +448,11 @@ state = st.lists(address, max_size=MAX_ADDRESS_SET_SIZE, unique=True).flatmap(
             secured=st.just(True),
             default=st.none(),
             _data=st.fixed_dictionaries(
-                {address: st.from_type(Account) for address in addresses},
+                {
+                    **{address: st.from_type(Account) for address in addresses},
+                    SYSTEM_ADDRESS: st.just(SYSTEM_ACCOUNT),
+                    BEACON_ROOTS_ADDRESS: st.just(BEACON_ROOTS_ACCOUNT),
+                }
             ).map(lambda x: defaultdict(lambda: None, x)),
         ),
         # Storage tries are not always present for existing accounts
@@ -446,7 +466,10 @@ state = st.lists(address, max_size=MAX_ADDRESS_SET_SIZE, unique=True).flatmap(
             )
         ),
         _snapshots=st.builds(list, st.just([])),
-        created_accounts=st.sets(address, max_size=10),
+        created_accounts=st.sets(
+            address.filter(lambda x: x not in [SYSTEM_ADDRESS, BEACON_ROOTS_ADDRESS]),
+            max_size=10,
+        ),
     ).map(
         # Create the original state snapshot using copies of the tries
         lambda state: State(

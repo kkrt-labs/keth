@@ -126,7 +126,7 @@ def apply_body_data(draw, excess_blob_gas_strategy=excess_blob_gas):
     transactions = tuple(encode_transaction(tx) for tx in erc20_transactions)
 
     # Rest of the test data generation
-    block_hashes = draw(st.lists(bytes32, max_size=256))
+    block_hashes = draw(st.lists(bytes32, max_size=256, unique=True))
     coinbase = Address(bytes.fromhex(COINBASE[2:]))
     block_number = draw(st.from_type(Uint))
     base_fee_per_gas = Uint(MIN_BASE_FEE)
@@ -662,6 +662,25 @@ class TestFork:
             _storage_tries=dict(storage_tries),
             _snapshots=[],
             created_accounts=set(),
+        )
+        # Add the system address
+        set_account(
+            state,
+            Address(bytes.fromhex("fffffffffffffffffffffffffffffffffffffffe")),
+            Account(balance=U256(0), nonce=Uint(0), code=bytes()),
+        )
+
+        # Add the beacon roots contract
+        set_account(
+            state,
+            Address(bytes.fromhex("000F3df6D732807Ef1319fB7B8bB8522d0Beac02")),
+            Account(
+                balance=U256(0),
+                nonce=Uint(1),
+                code=bytes.fromhex(
+                    "3373fffffffffffffffffffffffffffffffffffffffe14604d57602036146024575f5ffd5b5f35801560495762001fff810690815414603c575f5ffd5b62001fff01545f5260205ff35b5f5ffd5b62001fff42064281555f359062001fff015500"
+                ),
+            ),
         )
 
         kwargs = {**data, "withdrawals": withdrawals, "state": state}
