@@ -7,21 +7,12 @@ from starkware.cairo.common.memcpy import memcpy
 from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
 from starkware.cairo.common.squash_dict import squash_dict
 from starkware.cairo.common.uint256 import Uint256
-from ethereum_types.numeric import U256, U256Struct
-from ethereum_types.bytes import Bytes32
-from ethereum.utils.numeric import U256__eq__
 from cairo_core.comparison import is_zero, is_not_zero
 from ethereum.cancun.fork_types import (
-    Address,
-    Account,
-    AccountStruct,
-    Account__eq__,
     ListTupleAddressBytes32,
     ListTupleAddressBytes32Struct,
     TupleAddressBytes32,
 )
-
-from cairo_core.maths import unsigned_div_rem
 
 // @ notice: Creates a new, empty dict, does not require an `initial_dict` argument.
 func dict_new_empty() -> (res: DictAccess*) {

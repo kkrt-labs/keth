@@ -1,4 +1,4 @@
-from starkware.cairo.common.cairo_builtins import HashBuiltin, KeccakBuiltin, BitwiseBuiltin
+from starkware.cairo.common.cairo_builtins import KeccakBuiltin, BitwiseBuiltin
 from starkware.cairo.common.builtin_keccak.keccak import keccak_bigend
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.math import split_int, split_felt, assert_le_felt, assert_nn_le
@@ -7,42 +7,9 @@ from starkware.cairo.common.uint256 import Uint256
 from starkware.cairo.common.memcpy import memcpy
 from starkware.cairo.common.memset import memset
 from starkware.cairo.common.registers import get_label_location
-from starkware.cairo.common.uint256 import uint256_reverse_endian
 
 from legacy.utils.array import reverse
 from cairo_core.maths import unsigned_div_rem
-
-func felt_to_ascii{range_check_ptr}(dst: felt*, n: felt) -> felt {
-    alloc_locals;
-    let (local ascii: felt*) = alloc();
-
-    tempvar range_check_ptr = range_check_ptr;
-    tempvar n = n;
-    tempvar ascii_len = 0;
-
-    body:
-    let ascii = cast([fp], felt*);
-    let range_check_ptr = [ap - 3];
-    let n = [ap - 2];
-    let ascii_len = [ap - 1];
-
-    let (n, chunk) = unsigned_div_rem(n, 10);
-    assert [ascii + ascii_len] = chunk + '0';
-
-    tempvar range_check_ptr = range_check_ptr;
-    tempvar n = n;
-    tempvar ascii_len = ascii_len + 1;
-
-    jmp body if n != 0;
-
-    let range_check_ptr = [ap - 3];
-    let ascii_len = [ap - 1];
-    let ascii = cast([fp], felt*);
-
-    reverse(dst, ascii_len, ascii);
-
-    return ascii_len;
-}
 
 // @notice Split a felt into an array of bytes little endian
 // @dev Use a hint from split_int: the value must be lower than 248 bits
@@ -235,29 +202,11 @@ func felt_to_bytes16_little{range_check_ptr}(dst: felt*, value: felt) {
     return ();
 }
 
-// @notice Split a felt into an array of 20 bytes, big endian
-// @dev Truncate the high 12 bytes
-func felt_to_bytes20{range_check_ptr}(dst: felt*, value: felt) {
-    alloc_locals;
-    let (bytes20: felt*) = alloc();
-    felt_to_bytes20_little(bytes20, value);
-    reverse(dst, 20, bytes20);
-    return ();
-}
-
 func felt_to_bytes32_little{range_check_ptr}(dst: felt*, value: felt) {
     alloc_locals;
     let (high, low) = split_felt(value);
     split_int(low, 16, 256, 256, dst);
     split_int(high, 16, 256, 256, dst + 16);
-    return ();
-}
-
-func felt_to_bytes32{range_check_ptr}(dst: felt*, value: felt) {
-    alloc_locals;
-    let (bytes32: felt*) = alloc();
-    felt_to_bytes32_little(bytes32, value);
-    reverse(dst, 32, bytes32);
     return ();
 }
 

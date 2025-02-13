@@ -11,8 +11,6 @@ from starkware.cairo.common.uint256 import (
 from starkware.cairo.common.bool import FALSE
 from starkware.cairo.common.math_cmp import is_nn
 
-from cairo_core.maths import unsigned_div_rem
-
 using UInt256 = Uint256;
 
 // Adds two integers. Returns the result as a 256-bit integer and the (1-bit) carry.
@@ -283,33 +281,7 @@ func uint256_signed_div_rem{range_check_ptr}(a: Uint256, div: Uint256) -> (
     return (quot=quot_neg, rem=rem);
 }
 
-// Computes the logical right shift of a uint256 integer.
-func uint256_shr{range_check_ptr}(a: Uint256, b: Uint256) -> (res: Uint256) {
-    let (c) = uint256_pow2(b);
-    let (res, _) = uint256_unsigned_div_rem(a, c);
-    return (res=res);
-}
-
 // ! End of functions taken from starkware's cairo common library
-
-// @notice Internal exponentiation of two 256-bit integers.
-// @dev The result is modulo 2^256.
-// @param value - The base.
-// @param exponent - The exponent.
-// @return The result of the exponentiation.
-func uint256_exp{range_check_ptr}(value: Uint256, exponent: Uint256) -> Uint256 {
-    let one = Uint256(1, 0);
-    let zero = Uint256(0, 0);
-
-    let (exponent_is_zero) = uint256_eq(exponent, zero);
-    if (exponent_is_zero != FALSE) {
-        return one;
-    }
-    let (exponent_minus_one) = uint256_sub(exponent, one);
-    let pow = uint256_exp(value, exponent_minus_one);
-    let (res, _) = uint256_mul(value, pow);
-    return res;
-}
 
 // @notice Extend a signed number which fits in N bytes to 32 bytes.
 // @param x The number to be sign extended.
@@ -371,15 +343,6 @@ func uint256_fast_exp{range_check_ptr}(value: Uint256, exponent: Uint256) -> Uin
 
     let (res, _) = uint256_mul(pow, pow);
     return res;
-}
-
-// @notice Converts a 256-bit unsigned integer to a 160-bit unsigned integer.
-// @dev The result is modulo 2^160.
-// @param x The 256-bit unsigned integer.
-// @return The 160-bit unsigned integer.
-func uint256_to_uint160{range_check_ptr}(x: Uint256) -> felt {
-    let (_, high) = unsigned_div_rem(x.high, 2 ** 32);
-    return x.low + high * 2 ** 128;
 }
 
 // @notice Return true if both integers are equal.

@@ -4,10 +4,8 @@ from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.uint256 import Uint256
 
 from legacy.utils.bytes import (
-    felt_to_ascii,
     felt_to_bytes_little,
     felt_to_bytes,
-    felt_to_bytes20,
     uint256_to_bytes_little,
     uint256_to_bytes,
     uint256_to_bytes32,
@@ -15,15 +13,6 @@ from legacy.utils.bytes import (
     bytes_to_felt,
     bytes_to_felt_le,
 )
-
-func test__felt_to_ascii{range_check_ptr}(output_ptr: felt*) {
-    alloc_locals;
-    tempvar n: felt;
-    %{ ids.n = program_input["n"] %}
-
-    felt_to_ascii(output_ptr, n);
-    return ();
-}
 
 func test__felt_to_bytes_little{range_check_ptr}() -> felt* {
     alloc_locals;
@@ -41,15 +30,6 @@ func test__felt_to_bytes{range_check_ptr}(output_ptr: felt*) {
     %{ ids.n = program_input["n"] %}
 
     felt_to_bytes(output_ptr, n);
-    return ();
-}
-
-func test__felt_to_bytes20{range_check_ptr}(output_ptr: felt*) {
-    alloc_locals;
-    tempvar n: felt;
-    %{ ids.n = program_input["n"] %}
-
-    felt_to_bytes20(output_ptr, n);
     return ();
 }
 
