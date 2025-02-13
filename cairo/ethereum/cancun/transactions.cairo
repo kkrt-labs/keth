@@ -299,7 +299,7 @@ func recover_sender{
         let y_parity = tx.value.access_list_transaction.value.y_parity;
         let y_parity_is_zero = U256__eq__(y_parity, zero);
         let y_parity_is_one = U256__eq__(y_parity, U256(new U256Struct(low=1, high=0)));
-        with_attr error_message("ValueError") {
+        with_attr error_message("InvalidSignatureError") {
             assert (1 - y_parity_is_zero.value) * (1 - y_parity_is_one.value) = 0;
         }
         let hash = signing_hash_2930(tx.value.access_list_transaction);
@@ -312,7 +312,7 @@ func recover_sender{
         let y_parity = tx.value.fee_market_transaction.value.y_parity;
         let y_parity_is_zero = U256__eq__(y_parity, zero);
         let y_parity_is_one = U256__eq__(y_parity, U256(new U256Struct(low=1, high=0)));
-        with_attr error_message("ValueError") {
+        with_attr error_message("InvalidSignatureError") {
             assert (1 - y_parity_is_zero.value) * (1 - y_parity_is_one.value) = 0;
         }
 
@@ -326,7 +326,7 @@ func recover_sender{
         let y_parity = tx.value.blob_transaction.value.y_parity;
         let y_parity_is_zero = U256__eq__(y_parity, zero);
         let y_parity_is_one = U256__eq__(y_parity, U256(new U256Struct(low=1, high=0)));
-        with_attr error_message("ValueError") {
+        with_attr error_message("InvalidSignatureError") {
             assert (1 - y_parity_is_zero.value) * (1 - y_parity_is_one.value) = 0;
         }
         let hash = signing_hash_4844(tx.value.blob_transaction);
