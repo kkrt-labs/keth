@@ -951,7 +951,7 @@ func empty_transient_storage{range_check_ptr}() -> TransientStorage {
 
     tempvar tries = TrieTupleAddressBytes32U256(
         new TrieTupleAddressBytes32U256Struct(
-            secured=bool(1), default=U256(new U256Struct(0, 0)), _data=mapping
+            secured=bool(1), default=U256(default_value), _data=mapping
         ),
     );
 

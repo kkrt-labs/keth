@@ -956,9 +956,6 @@ func apply_body{
     tempvar blob_gas_used = Uint(0);
     let gas_available = block_gas_limit;
 
-    // transactions_trie: Trie[
-    //     Bytes, Optional[Union[Bytes, LegacyTransaction]]
-    // ] = Trie(secured=False, default=None)
     let (transaction_ptr) = default_dict_new(0);
     tempvar transactions_trie_data = MappingBytesOptionalUnionBytesLegacyTransaction(
         new MappingBytesOptionalUnionBytesLegacyTransactionStruct(
@@ -977,9 +974,6 @@ func apply_body{
         ),
     );
 
-    // receipts_trie: Trie[Bytes, Optional[Union[Bytes, Receipt]]] = Trie(
-    //     secured=False, default=None
-    // )
     let (receipt_ptr) = default_dict_new(0);
     tempvar receipts_trie_data = MappingBytesOptionalUnionBytesReceipt(
         new MappingBytesOptionalUnionBytesReceiptStruct(
@@ -996,9 +990,6 @@ func apply_body{
         ),
     );
 
-    // withdrawals_trie: Trie[Bytes, Optional[Union[Bytes, Withdrawal]]] = Trie(
-    //     secured=False, default=None
-    // )
     let (withdrawals_ptr) = default_dict_new(0);
     tempvar withdrawals_trie_data = MappingBytesOptionalUnionBytesWithdrawal(
         new MappingBytesOptionalUnionBytesWithdrawalStruct(
