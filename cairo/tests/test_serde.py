@@ -3,7 +3,7 @@ from typing import Annotated, Any, List, Mapping, Optional, Set, Tuple, Type, Un
 
 import pytest
 from ethereum.cancun.blocks import Block, Header, Log, Receipt, Withdrawal
-from ethereum.cancun.fork import BlockChain
+from ethereum.cancun.fork import ApplyBodyOutput, BlockChain
 from ethereum.cancun.fork_types import Account, Address, Bloom, Root, VersionedHash
 from ethereum.cancun.state import State, TransientStorage
 from ethereum.cancun.transactions import (
@@ -283,6 +283,7 @@ class TestSerde:
             Trie[Bytes, Optional[Union[Bytes, LegacyTransaction]]],
             Trie[Bytes, Optional[Union[Bytes, Receipt]]],
             Trie[Bytes, Optional[Union[Bytes, Withdrawal]]],
+            ApplyBodyOutput,
         ],
     ):
         assume(no_empty_sequence(b))

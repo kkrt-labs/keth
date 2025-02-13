@@ -131,7 +131,7 @@ def initialize_jumpdests(
     bytecode = bytes([memory[ids.bytecode + i] for i in range(ids.bytecode_len)])
     valid_jumpdest = get_valid_jump_destinations(bytecode)
 
-    data = defaultdict(int, {int(dest): 1 for dest in valid_jumpdest})
+    data = defaultdict(int, {(int(dest),): 1 for dest in valid_jumpdest})
     base = segments.add()
     assert base.segment_index not in dict_manager.trackers
     dict_manager.trackers[base.segment_index] = DictTracker(data=data, current_ptr=base)
