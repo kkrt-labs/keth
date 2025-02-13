@@ -547,8 +547,11 @@ func trie_get_TrieAddressOptionalAccount{
     let fp_and_pc = get_fp_and_pc();
     local __fp__: felt* = fp_and_pc.fp_val;
 
-    with dict_ptr {
-        let (pointer) = hashdict_read(1, &key.value);
+    let (pointer) = hashdict_read{dict_ptr=dict_ptr}(1, &key.value);
+    if (pointer == 0) {
+        tempvar pointer = cast(trie.value.default.value, felt);
+    } else {
+        tempvar pointer = pointer;
     }
     let new_dict_ptr = cast(dict_ptr, AddressAccountDictAccess*);
     let parent_dict = trie.value._data.value.parent_dict;
@@ -567,6 +570,7 @@ func trie_get_TrieAddressOptionalAccount{
 func trie_get_TrieTupleAddressBytes32U256{
     poseidon_ptr: PoseidonBuiltin*, trie: TrieTupleAddressBytes32U256
 }(address: Address, key: Bytes32) -> U256 {
+    alloc_locals;
     let dict_ptr = cast(trie.value._data.value.dict_ptr, DictAccess*);
 
     let (keys) = alloc();
@@ -574,8 +578,11 @@ func trie_get_TrieTupleAddressBytes32U256{
     assert keys[1] = key.value.low;
     assert keys[2] = key.value.high;
 
-    with dict_ptr {
-        let (pointer) = hashdict_read(3, keys);
+    let (pointer) = hashdict_read{dict_ptr=dict_ptr}(3, keys);
+    if (pointer == 0) {
+        tempvar pointer = cast(trie.value.default.value, felt);
+    } else {
+        tempvar pointer = pointer;
     }
     let new_dict_ptr = cast(dict_ptr, TupleAddressBytes32U256DictAccess*);
     let parent_dict = trie.value._data.value.parent_dict;
@@ -594,14 +601,18 @@ func trie_get_TrieTupleAddressBytes32U256{
 func trie_get_TrieBytes32U256{poseidon_ptr: PoseidonBuiltin*, trie: TrieBytes32U256}(
     key: Bytes32
 ) -> U256 {
+    alloc_locals;
     let dict_ptr = cast(trie.value._data.value.dict_ptr, DictAccess*);
 
     let (keys) = alloc();
     assert keys[0] = key.value.low;
     assert keys[1] = key.value.high;
 
-    with dict_ptr {
-        let (pointer) = hashdict_read(2, keys);
+    let (pointer) = hashdict_read{dict_ptr=dict_ptr}(2, keys);
+    if (pointer == 0) {
+        tempvar pointer = cast(trie.value.default.value, felt);
+    } else {
+        tempvar pointer = pointer;
     }
     let new_dict_ptr = cast(dict_ptr, Bytes32U256DictAccess*);
     let parent_dict = trie.value._data.value.parent_dict;
@@ -620,10 +631,14 @@ func trie_get_TrieBytes32U256{poseidon_ptr: PoseidonBuiltin*, trie: TrieBytes32U
 func trie_get_TrieBytesOptionalUnionBytesLegacyTransaction{
     poseidon_ptr: PoseidonBuiltin*, trie: TrieBytesOptionalUnionBytesLegacyTransaction
 }(key: Bytes) -> OptionalUnionBytesLegacyTransaction {
+    alloc_locals;
     let dict_ptr = cast(trie.value._data.value.dict_ptr, DictAccess*);
 
-    with dict_ptr {
-        let (pointer) = hashdict_read(key.value.len, key.value.data);
+    let (pointer) = hashdict_read{dict_ptr=dict_ptr}(key.value.len, key.value.data);
+    if (pointer == 0) {
+        tempvar pointer = cast(trie.value.default.value, felt);
+    } else {
+        tempvar pointer = pointer;
     }
     let new_dict_ptr = cast(dict_ptr, BytesOptionalUnionBytesLegacyTransactionDictAccess*);
     let parent_dict = trie.value._data.value.parent_dict;
@@ -646,9 +661,15 @@ func trie_get_TrieBytesOptionalUnionBytesLegacyTransaction{
 func trie_get_TrieBytesOptionalUnionBytesReceipt{
     poseidon_ptr: PoseidonBuiltin*, trie: TrieBytesOptionalUnionBytesReceipt
 }(key: Bytes) -> OptionalUnionBytesReceipt {
+    alloc_locals;
     let dict_ptr = cast(trie.value._data.value.dict_ptr, DictAccess*);
 
     let (pointer) = hashdict_read{dict_ptr=dict_ptr}(key.value.len, key.value.data);
+    if (pointer == 0) {
+        tempvar pointer = cast(trie.value.default.value, felt);
+    } else {
+        tempvar pointer = pointer;
+    }
     let new_dict_ptr = cast(dict_ptr, BytesOptionalUnionBytesReceiptDictAccess*);
     let parent_dict = trie.value._data.value.parent_dict;
     tempvar mapping = MappingBytesOptionalUnionBytesReceipt(
@@ -668,9 +689,15 @@ func trie_get_TrieBytesOptionalUnionBytesReceipt{
 func trie_get_TrieBytesOptionalUnionBytesWithdrawal{
     poseidon_ptr: PoseidonBuiltin*, trie: TrieBytesOptionalUnionBytesWithdrawal
 }(key: Bytes) -> OptionalUnionBytesWithdrawal {
+    alloc_locals;
     let dict_ptr = cast(trie.value._data.value.dict_ptr, DictAccess*);
 
     let (pointer) = hashdict_read{dict_ptr=dict_ptr}(key.value.len, key.value.data);
+    if (pointer == 0) {
+        tempvar pointer = cast(trie.value.default.value, felt);
+    } else {
+        tempvar pointer = pointer;
+    }
     let new_dict_ptr = cast(dict_ptr, BytesOptionalUnionBytesWithdrawalDictAccess*);
     let parent_dict = trie.value._data.value.parent_dict;
     tempvar mapping = MappingBytesOptionalUnionBytesWithdrawal(

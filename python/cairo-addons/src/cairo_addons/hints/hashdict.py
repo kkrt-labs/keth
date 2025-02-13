@@ -13,7 +13,7 @@ def hashdict_read(dict_manager: DictManager, ids: VmConsts, memory: MemoryDict):
     preimage = tuple([memory[ids.key + i] for i in range(ids.key_len)])
     # Not using [] here because it will register the value for that key in the tracker.
     value = dict_tracker.data.get(preimage)
-    if value:
+    if value is not None:
         ids.value = value
     else:
         ids.value = dict_tracker.data.default_factory()
@@ -41,7 +41,7 @@ def hashdict_write(dict_manager: DictManager, ids: VmConsts, memory: MemoryDict)
     dict_tracker.current_ptr += ids.DictAccess.SIZE
     preimage = tuple([memory[ids.key + i] for i in range(ids.key_len)])
     prev_value = dict_tracker.data.get(preimage)
-    if prev_value:
+    if prev_value is not None:
         ids.dict_ptr.prev_value = prev_value
     else:
         ids.dict_ptr.prev_value = dict_tracker.data.default_factory()
