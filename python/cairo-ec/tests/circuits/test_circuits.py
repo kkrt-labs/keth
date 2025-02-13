@@ -2,6 +2,10 @@ from typing import Type
 
 import pytest
 from ethereum.crypto.finite_field import PrimeField
+from garaga.definitions import CurveID, G1Point
+from garaga.hints.ecip import verify_ecip, zk_ecip_hint
+from garaga.hints.neg_3 import scalar_to_base_neg3_le
+from garaga.starknet.tests_and_calldata_generators.msm import MSMCalldataBuilder
 from hypothesis import Verbosity, assume, given, settings
 from hypothesis import strategies as st
 from sympy import sqrt_mod
@@ -680,3 +684,102 @@ class TestCircuits:
                 **{k: int_to_uint384(v) for k, v in inputs.items()},
                 p=int_to_uint384(curve.FIELD.PRIME),
             )
+
+        @given(data=st.data())
+        def test_ecip_2P(self, cairo_program, cairo_run, curve, data, st_prime):
+            pts = [
+                G1Point.get_nG(CurveID.SECP256K1, 1),
+                G1Point(
+                    x=111354266934415748707439662129962068258185897787462436790090135304890680225071,
+                    y=7955571364956903103447762143713116749685657035734622395391095226875188998922,
+                    curve_id=CurveID.SECP256K1,
+                ),
+            ]
+            scalars = [
+                0xF6F935191273414ADA91071ED97A8A31347F85D5FAC890148FDAC827E0426B68,
+                0x4FDA889C1E0B2F466819231FBF731EBFF91B507CC44A0C810B0DECDEAA99B7D2,
+            ]
+            builder = MSMCalldataBuilder(CurveID.SECP256K1, pts, scalars)
+            msm_hint, _ = builder.build_msm_hints()
+            scalars_low, scalars_high = builder.scalars_split()
+            epns_low, epns_high = [scalar_to_base_neg3_le(s) for s in scalars_low], [
+                scalar_to_base_neg3_le(s) for s in scalars_high
+            ]
+
+            Q_low, Q_high, Q_high_shifted, RLCSumDlogDiv = msm_hint.elmts
+
+            a0 = G1Point(
+                0xDA670C8C69A8CE0A64D4B065B3EDE27CF9FB9E5C393DEAD57BC85A6E9BB44A70,
+                0x3F10D670DC3297C2C0DEB0B56FB251E8FB5D0A8D789872895AD7121175BD78F8,
+                CurveID.SECP256K1,
+            )
+            base_rlc = builder.transcript.s1
+
+            Q, sum_dlog = zk_ecip_hint(pts, scalars, use_rust=False)
+            verify_ecip(pts, scalars, Q, sum_dlog, a0, use_rust=False)
+
+            assert pts[0].is_on_curve()
+            assert pts[1].is_on_curve()
+            assert a0.is_on_curve()
+
+            inputs = {
+                "div_a_coeff_0": int(RLCSumDlogDiv.a_num[0].value),
+                "div_a_coeff_1": int(RLCSumDlogDiv.a_num[1].value),
+                "div_a_coeff_2": int(RLCSumDlogDiv.a_num[2].value),
+                "div_a_coeff_3": int(RLCSumDlogDiv.a_num[3].value),
+                "div_a_coeff_4": int(RLCSumDlogDiv.a_num[4].value),
+                "div_b_coeff_0": int(RLCSumDlogDiv.a_den[0].value),
+                "div_b_coeff_1": int(RLCSumDlogDiv.a_den[1].value),
+                "div_b_coeff_2": int(RLCSumDlogDiv.a_den[2].value),
+                "div_b_coeff_3": int(RLCSumDlogDiv.a_den[3].value),
+                "div_b_coeff_4": int(RLCSumDlogDiv.a_den[4].value),
+                "div_b_coeff_5": int(RLCSumDlogDiv.a_den[5].value),
+                "div_c_coeff_0": int(RLCSumDlogDiv.b_num[0].value),
+                "div_c_coeff_1": int(RLCSumDlogDiv.b_num[1].value),
+                "div_c_coeff_2": int(RLCSumDlogDiv.b_num[2].value),
+                "div_c_coeff_3": int(RLCSumDlogDiv.b_num[3].value),
+                "div_c_coeff_4": int(RLCSumDlogDiv.b_num[4].value),
+                "div_c_coeff_5": int(RLCSumDlogDiv.b_num[5].value),
+                "div_d_coeff_0": int(RLCSumDlogDiv.b_den[0].value),
+                "div_d_coeff_1": int(RLCSumDlogDiv.b_den[1].value),
+                "div_d_coeff_2": int(RLCSumDlogDiv.b_den[2].value),
+                "div_d_coeff_3": int(RLCSumDlogDiv.b_den[3].value),
+                "div_d_coeff_4": int(RLCSumDlogDiv.b_den[4].value),
+                "div_d_coeff_5": int(RLCSumDlogDiv.b_den[5].value),
+                "div_d_coeff_6": int(RLCSumDlogDiv.b_den[6].value),
+                "div_d_coeff_7": int(RLCSumDlogDiv.b_den[7].value),
+                "div_d_coeff_8": int(RLCSumDlogDiv.b_den[8].value),
+                "x_g": int(pts[0].x),
+                "y_g": int(pts[0].y),
+                "x_r": int(pts[1].x),
+                "y_r": int(pts[1].y),
+                "ep1_low": int(epns_low[0][0]),
+                "en1_low": int(epns_low[0][1]),
+                "sp1_low": int(epns_low[0][2] % curve.FIELD.PRIME),
+                "sn1_low": int(epns_low[0][3] % curve.FIELD.PRIME),
+                "ep2_low": int(epns_low[1][0]),
+                "en2_low": int(epns_low[1][1]),
+                "sp2_low": int(epns_low[1][2] % curve.FIELD.PRIME),
+                "sn2_low": int(epns_low[1][3] % curve.FIELD.PRIME),
+                "ep1_high": int(epns_high[0][0]),
+                "en1_high": int(epns_high[0][1]),
+                "sp1_high": int(epns_high[0][2] % curve.FIELD.PRIME),
+                "sn1_high": int(epns_high[0][3] % curve.FIELD.PRIME),
+                "ep2_high": int(epns_high[1][0]),
+                "en2_high": int(epns_high[1][1]),
+                "sp2_high": int(epns_high[1][2] % curve.FIELD.PRIME),
+                "sn2_high": int(epns_high[1][3] % curve.FIELD.PRIME),
+                "x_q_low": int(Q_low.elmts[0].value),
+                "y_q_low": int(Q_low.elmts[1].value),
+                "x_q_high": int(Q_high.elmts[0].value),
+                "y_q_high": int(Q_high.elmts[1].value),
+                "x_q_high_shifted": int(Q_high_shifted.elmts[0].value),
+                "y_q_high_shifted": int(Q_high_shifted.elmts[1].value),
+                "x_a0": int(a0.x),
+                "y_a0": int(a0.y),
+                "a": curve.A,
+                "b": curve.B,
+                "base_rlc": int(base_rlc),
+            }
+
+            cairo_run("ecip_2P", **inputs)
