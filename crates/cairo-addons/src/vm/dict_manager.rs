@@ -7,6 +7,7 @@ use cairo_vm::{
 use pyo3::{
     prelude::*,
     types::{PyDict, PyTuple},
+    IntoPyObjectExt,
 };
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
@@ -20,16 +21,24 @@ pub enum PyDictKey {
     Compound(Vec<PyMaybeRelocatable>),
 }
 
-impl IntoPy<PyObject> for PyDictKey {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        match self {
-            PyDictKey::Simple(val) => val.into_py(py),
+impl<'py> IntoPyObject<'py> for PyDictKey {
+    type Target = PyAny;
+    type Output = Bound<'py, Self::Target>;
+    type Error = std::convert::Infallible;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        let res = match self {
+            PyDictKey::Simple(val) => val.into_bound_py_any(py),
             PyDictKey::Compound(vals) => {
                 // Convert Vec to tuple
-                let elements: Vec<PyObject> = vals.into_iter().map(|v| v.into_py(py)).collect();
-                PyTuple::new_bound(py, elements).into()
+                let elements: Vec<Bound<'py, PyAny>> =
+                    vals.into_iter().map(|v| v.into_bound_py_any(py).unwrap()).collect();
+                let x = PyTuple::new(py, elements).map(|op| op.into_bound_py_any(py).unwrap());
+                x
             }
-        }
+        };
+
+        Ok(res.unwrap())
     }
 }
 

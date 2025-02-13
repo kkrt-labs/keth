@@ -224,3 +224,5 @@ workerinput
 xdist
 xxhash
 zellic
+rustflags
+pyobject

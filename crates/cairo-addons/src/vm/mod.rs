@@ -2,7 +2,6 @@ use pyo3::prelude::*;
 
 mod builtins;
 mod dict_manager;
-mod felt;
 mod hint_definitions;
 mod hint_loader;
 mod hint_utils;
@@ -18,7 +17,6 @@ mod runner;
 mod stripped_program;
 
 use dict_manager::{PyDictManager, PyDictTracker};
-use felt::PyFelt;
 use memory_segments::PyMemorySegmentManager;
 use program::PyProgram;
 use relocatable::PyRelocatable;
@@ -32,7 +30,6 @@ fn vm(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<PyProgram>()?;
     module.add_class::<PyCairoRunner>()?;
     module.add_class::<PyRelocatable>()?;
-    module.add_class::<PyFelt>()?;
     module.add_class::<PyMemorySegmentManager>()?;
     module.add_class::<PyRunResources>()?;
     module.add_class::<PyRelocatedTraceEntry>()?;
