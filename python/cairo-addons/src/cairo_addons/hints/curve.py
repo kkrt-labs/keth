@@ -78,58 +78,65 @@ def compute_y_from_x_hint(ids: VmConsts, segments: MemorySegmentManager):
 @register_hint
 def build_msm_hints_and_fill_memory(ids: VmConsts, memory: MemoryDict):
     """
-    Builds MSM hints and fills memory with curve point data for SECP256K1.
+    Builds Multi-Scalar Multiplication (MSM) hints and fills memory with SECP256K1 curve point data.
+
+    This function:
+    1. Constructs curve points and scalars for SECP256K1
+    2. Serializes the data using MSMCalldataBuilder
+    3. Processes the calldata into two parts: points and RLC sum components
+    4. Fills the memory with the processed data
     """
-    from garaga.definitions import CurveID, G1Point
-    from garaga.hints.io import bigint_pack, bigint_split
+    from garaga.definitions import CurveID, G1Point, N_LIMBS, BASE
+    from garaga.hints.io import bigint_pack, fill_felt_ptr
     from garaga.starknet.tests_and_calldata_generators.msm import MSMCalldataBuilder
 
+    # Initialize curve points and scalars
     curve_id = CurveID.SECP256K1
     r_point = (
-        bigint_pack(ids.r_point.x, 4, 2**96),
-        bigint_pack(ids.r_point.y, 4, 2**96),
+        bigint_pack(ids.r_point.x, N_LIMBS, BASE),
+        bigint_pack(ids.r_point.y, N_LIMBS, BASE),
     )
-    points = [G1Point.get_nG(curve_id, 1), G1Point(r_point[0], r_point[1], curve_id)]
+    points = [
+        G1Point.get_nG(curve_id, 1),  # Generator point
+        G1Point(r_point[0], r_point[1], curve_id),  # Signature point
+    ]
     scalars = [ids.u1.low + 2**128 * ids.u1.high, ids.u2.low + 2**128 * ids.u2.high]
+
+    # Generate and process calldata
     builder = MSMCalldataBuilder(curve_id, points, scalars)
-    (msm_hint, derive_point_from_x_hint) = builder.build_msm_hints()
-    Q_low, Q_high, Q_high_shifted, RLCSumDlogDiv = msm_hint.elmts
+    calldata = builder.serialize_to_calldata(
+        include_digits_decomposition=False,
+        include_points_and_scalars=False,
+        serialize_as_pure_felt252_array=False,
+        use_rust=True,
+    )[1:]
 
-    def fill_elmt_at_index(
-        x, ptr: object, memory: object, index: int, static_offset: int = 0
-    ):
-        limbs = bigint_split(x, 4, 2**96)
-        for i in range(4):
-            memory[ptr + index * 4 + i + static_offset] = limbs[i]
+    # Split calldata into points and remaining data
+    points_offset = 3 * 2 * N_LIMBS  # 3 points × 2 coordinates × N_LIMBS
+    Q_low_high_high_shifted = calldata[:points_offset]
+    calldata_rest = calldata[points_offset:]
 
-    def fill_elmts_at_index(
-        x,
-        ptr: object,
-        memory: object,
-        index: int,
-        static_offset: int = 0,
-    ):
-        for i in range(len(x)):
-            fill_elmt_at_index(x[i], ptr + i * 4, memory, index, static_offset)
+    # Process RLC sum dlog div components
+    rlc_components = []
+    for _ in range(4):
+        array_len = calldata_rest.pop(0)
+        array = calldata_rest[: array_len * N_LIMBS]
+        rlc_components.extend(array)
+        calldata_rest = calldata_rest[array_len * N_LIMBS :]
 
-    rlc_sum_dlog_div_coeffs = (
-        RLCSumDlogDiv.a_num
-        + RLCSumDlogDiv.a_den
-        + RLCSumDlogDiv.b_num
-        + RLCSumDlogDiv.b_den
-    )
+    # Verify RLC components length
+    expected_len = (18 + 4 * 2) * N_LIMBS
     assert (
-        len(rlc_sum_dlog_div_coeffs) == 18 + 4 * 2
-    ), f"len(rlc_sum_dlog_div_coeffs) == {len(rlc_sum_dlog_div_coeffs)} != {18 + 4*2}"
+        len(rlc_components) == expected_len
+    ), f"Invalid RLC components length: {len(rlc_components)}"
 
-    offset = 4
-    fill_elmts_at_index(
-        rlc_sum_dlog_div_coeffs, ids.range_check96_ptr, memory, 4, offset
+    # Fill memory with processed data
+    memory_offset = 4
+    fill_felt_ptr(
+        rlc_components, memory, ids.range_check96_ptr + 4 * N_LIMBS + memory_offset
     )
-
-    fill_elmt_at_index(Q_low[0], ids.range_check96_ptr, memory, 50, offset)
-    fill_elmt_at_index(Q_low[1], ids.range_check96_ptr, memory, 51, offset)
-    fill_elmt_at_index(Q_high[0], ids.range_check96_ptr, memory, 52, offset)
-    fill_elmt_at_index(Q_high[1], ids.range_check96_ptr, memory, 53, offset)
-    fill_elmt_at_index(Q_high_shifted[0], ids.range_check96_ptr, memory, 54, offset)
-    fill_elmt_at_index(Q_high_shifted[1], ids.range_check96_ptr, memory, 55, offset)
+    fill_felt_ptr(
+        Q_low_high_high_shifted,
+        memory,
+        ids.range_check96_ptr + 50 * N_LIMBS + memory_offset,
+    )
