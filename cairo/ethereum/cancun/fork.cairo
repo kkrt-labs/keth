@@ -687,9 +687,11 @@ func check_transaction{
         let blob_gas_price = calculate_blob_gas_price(excess_blob_gas);
         let max_fee_per_blob_gas_u256 = tx.value.blob_transaction.value.max_fee_per_blob_gas;
         let max_fee_per_blob_gas_uint = U256_to_Uint(max_fee_per_blob_gas_u256);
-        let blob_gas_price_valid = is_le(max_fee_per_blob_gas_uint.value, blob_gas_price.value - 1);
+        let blob_gas_price_invalid = is_le(
+            max_fee_per_blob_gas_uint.value, blob_gas_price.value - 1
+        );
         with_attr error_message("InvalidBlock") {
-            assert blob_gas_price_valid = 1;
+            assert blob_gas_price_invalid = 0;
         }
 
         // Compute total blob gas
@@ -767,7 +769,7 @@ func _check_versioned_hashes_version{range_check_ptr}(
     let range_check_ptr = [ap - 1];
     let versioned_hash = versioned_hashes[index - 1];
     // Since versioned_hash are hash32 which are little endian, we need to check that the least significant byte is 0x01
-    let (first_byte, _) = divmod(versioned_hash.value.low, 2 ** 120);
+    let (_, first_byte) = divmod(versioned_hash.value.low, 256);
     with_attr error_message("InvalidBlock") {
         assert first_byte = VERSIONED_HASH_VERSION_KZG;
     }

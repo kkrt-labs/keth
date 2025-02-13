@@ -15,7 +15,7 @@ from ethereum.cancun.fork import (
     validate_header,
 )
 from ethereum.cancun.fork_types import Address, VersionedHash
-from ethereum.cancun.state import Account, State, set_account
+from ethereum.cancun.state import Account, State, TransientStorage, set_account
 from ethereum.cancun.transactions import (
     AccessListTransaction,
     BlobTransaction,
@@ -35,9 +35,9 @@ from ethereum.cancun.vm.gas import TARGET_BLOB_GAS_PER_BLOCK
 from ethereum.crypto.hash import Hash32, keccak256
 from ethereum.exceptions import EthereumException
 from ethereum_rlp import rlp
-from ethereum_types.bytes import Bytes, Bytes0, Bytes8, Bytes20
+from ethereum_types.bytes import Bytes, Bytes0, Bytes8, Bytes20, Bytes32
 from ethereum_types.numeric import U64, U256, Uint
-from hypothesis import assume, given
+from hypothesis import assume, example, given
 from hypothesis import strategies as st
 from hypothesis.strategies import composite, integers
 
@@ -47,6 +47,7 @@ from tests.utils.constants import OMMER_HASH
 from tests.utils.strategies import (
     account_strategy,
     address,
+    address_zero,
     bounded_u256_strategy,
     bytes32,
     small_bytes,
@@ -54,6 +55,98 @@ from tests.utils.strategies import (
 )
 
 MIN_BASE_FEE = 1_000
+
+
+def get_blob_tx_with_tx_sender_in_state():
+    chain_id = U64(1)
+    # from ethereum tx with hash: 0x8686183fd3a0a2b22ee6616cea79ca95f2e1da3044132687858671115cb61ded
+    tx = BlobTransaction(
+        data=Bytes(b""),
+        access_list=(),
+        to=to_address(Uint(int("0xff00000000000000000000000000000000000480", 16))),
+        gas=Uint(int("0x5208", 16)),
+        max_priority_fee_per_gas=Uint(int("0x12a9e8880", 16)),
+        max_fee_per_gas=Uint(int("0x37fdb9980", 16)),
+        value=U256(int("0x0", 16)),
+        nonce=U256(int("0x1bfec", 16)),
+        chain_id=chain_id,
+        blob_versioned_hashes=(
+            VersionedHash(
+                bytes.fromhex(
+                    "012349ab976176f8e442ddf213adf04de969a2e698b5fe2b630d96563eacd977"
+                )
+            ),
+            VersionedHash(
+                bytes.fromhex(
+                    "01b24f1b540c49ce5af19385c1e9b512a34f2d19115d21386ba90c9da85ae85c"
+                )
+            ),
+            VersionedHash(
+                bytes.fromhex(
+                    "01247acd4e3b79241271ff98e449e7c4db539c92f08a89166192d8b79346cd4b"
+                )
+            ),
+        ),
+        max_fee_per_blob_gas=U256(int("0x111aace52", 16)),
+        # Signature fields
+        r=U256(
+            int(
+                "0x1acaed4cc56f5e0f8a53c87ce7257e460aa2df421271f39271e5d4cd8af21ee4", 16
+            )
+        ),
+        s=U256(
+            int(
+                "0x35c0c6ab54af28f3ef37daec92e6c128a5415a9e15495d7f248027d9c8f5da03", 16
+            )
+        ),
+        y_parity=U256(int("0x1", 16)),
+    )
+
+    # created to ensure the tx will pass check_transaction
+    sender = to_address(Uint(int("0xdbbe3d8c2d2b22a2611c5a94a9a12c2fcd49eb29", 16)))
+    sender_account = Account(
+        balance=U256(int("0x1000000000000000000", 16)),
+        nonce=U256(int("0x1bfec", 16)),
+        code=bytearray(),
+    )
+    state = State()
+    set_account(state, sender, sender_account)
+    env = Environment(
+        caller=sender,
+        block_hashes=[],
+        origin=sender,
+        coinbase=address_zero,
+        number=Uint(0),
+        gas_limit=Uint(int("0x1000000", 16)),
+        gas_price=Uint(0),
+        time=U256(0),
+        prev_randao=Bytes32(b"\x00" * 32),
+        state=state,
+        chain_id=chain_id,
+        traces=[],
+        base_fee_per_gas=Uint(int("0x100000", 16)),
+        excess_blob_gas=U64(0),
+        blob_versioned_hashes=(
+            VersionedHash(
+                bytes.fromhex(
+                    "012349ab976176f8e442ddf213adf04de969a2e698b5fe2b630d96563eacd977"
+                )
+            ),
+            VersionedHash(
+                bytes.fromhex(
+                    "01b24f1b540c49ce5af19385c1e9b512a34f2d19115d21386ba90c9da85ae85c"
+                )
+            ),
+            VersionedHash(
+                bytes.fromhex(
+                    "01247acd4e3b79241271ff98e449e7c4db539c92f08a89166192d8b79346cd4b"
+                )
+            ),
+        ),
+        transient_storage=TransientStorage(),
+    )
+
+    return tx, env, chain_id
 
 
 @composite
@@ -393,6 +486,12 @@ class TestFork:
         gas_available=...,
         base_fee_per_gas=...,
         excess_blob_gas=...,
+    )
+    @example(
+        data=get_blob_tx_with_tx_sender_in_state(),
+        gas_available=Uint(int("0x1000000", 16)),
+        base_fee_per_gas=Uint(int("0x100000", 16)),
+        excess_blob_gas=U64(0),
     )
     def test_check_transaction(
         self,
