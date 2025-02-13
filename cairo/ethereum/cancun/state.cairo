@@ -1125,8 +1125,8 @@ func build_storage_trie_for_address{
     // Get storage trie for address
     let (trie_ptr_) = dict_read{dict_ptr=dict_ptr}(address.value);
     if (cast(trie_ptr_, felt) == 0) {
-        let (segment_start) = default_dict_new(0);
         tempvar default = new U256Struct(0, 0);
+        let (segment_start) = default_dict_new(cast(default, felt));
         tempvar trie_ptr = new TrieBytes32U256Struct(
             secured=bool(1),
             default=U256(default),
