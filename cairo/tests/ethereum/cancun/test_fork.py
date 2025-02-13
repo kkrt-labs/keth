@@ -83,10 +83,10 @@ def apply_body_data(draw, excess_blob_gas_strategy=excess_blob_gas):
     # Create base ERC20 transfer transactions
     raw_transactions = [
         erc20.transfer(OTHER, amount, signer=OWNER),
-        # erc20.transfer(OWNER, amount, signer=OTHER),
-        # erc20.transfer(OTHER, amount, signer=OWNER),
-        # erc20.approve(OWNER, 2**256 - 1, signer=OTHER),
-        # erc20.transferFrom(OTHER, OWNER, amount // 3, signer=OWNER),
+        erc20.transfer(OWNER, amount, signer=OTHER),
+        erc20.transfer(OTHER, amount, signer=OWNER),
+        erc20.approve(OWNER, 2**256 - 1, signer=OTHER),
+        erc20.transferFrom(OTHER, OWNER, amount // 3, signer=OWNER),
     ]
 
     # Transform and sign transactions
