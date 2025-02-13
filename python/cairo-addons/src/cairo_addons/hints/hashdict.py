@@ -1,4 +1,4 @@
-from starkware.cairo.common.dict import DictManager, DictTracker
+from starkware.cairo.common.dict import DictManager
 from starkware.cairo.lang.vm.memory_dict import MemoryDict
 from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 from starkware.cairo.lang.vm.vm_consts import VmConsts
@@ -8,6 +8,8 @@ from cairo_addons.hints.decorator import register_hint
 
 @register_hint
 def hashdict_read(dict_manager: DictManager, ids: VmConsts, memory: MemoryDict):
+    from starkware.cairo.lang.vm.crypto import poseidon_hash_many
+
     dict_tracker = dict_manager.get_tracker(ids.dict_ptr)
     dict_tracker.current_ptr += ids.DictAccess.SIZE
     preimage = tuple([memory[ids.key + i] for i in range(ids.key_len)])
@@ -17,6 +19,9 @@ def hashdict_read(dict_manager: DictManager, ids: VmConsts, memory: MemoryDict):
         ids.value = value
     else:
         ids.value = dict_tracker.data.default_factory()
+
+    hashed_key = poseidon_hash_many(preimage) if len(preimage) != 1 else preimage[0]
+    dict_manager.preimages[hashed_key] = preimage
 
 
 @register_hint
@@ -28,7 +33,7 @@ def hashdict_read_from_key(
 
     dict_tracker = dict_manager.get_tracker(ids.dict_ptr_stop)
     try:
-        preimage = _get_preimage_for_hashed_key(ids.key, dict_tracker) or ids.key
+        preimage = _get_preimage_for_hashed_key(ids.key, dict_manager) or ids.key
     except Exception:
         ids.value = dict_tracker.data.default_factory()
     else:
@@ -37,6 +42,8 @@ def hashdict_read_from_key(
 
 @register_hint
 def hashdict_write(dict_manager: DictManager, ids: VmConsts, memory: MemoryDict):
+    from starkware.cairo.lang.vm.crypto import poseidon_hash_many
+
     dict_tracker = dict_manager.get_tracker(ids.dict_ptr)
     dict_tracker.current_ptr += ids.DictAccess.SIZE
     preimage = tuple([memory[ids.key + i] for i in range(ids.key_len)])
@@ -46,6 +53,9 @@ def hashdict_write(dict_manager: DictManager, ids: VmConsts, memory: MemoryDict)
     else:
         ids.dict_ptr.prev_value = dict_tracker.data.default_factory()
     dict_tracker.data[preimage] = ids.new_value
+
+    hashed_key = poseidon_hash_many(preimage) if len(preimage) != 1 else preimage[0]
+    dict_manager.preimages[hashed_key] = preimage
 
 
 @register_hint
@@ -77,11 +87,7 @@ def get_preimage_for_key(
 ):
     from cairo_addons.hints.hashdict import _get_preimage_for_hashed_key
 
-    preimage = list(
-        _get_preimage_for_hashed_key(
-            ids.key, dict_manager.get_tracker(ids.dict_ptr_stop)
-        )
-    )
+    preimage = list(_get_preimage_for_hashed_key(ids.key, dict_manager))
     segments.write_arg(ids.preimage_data, preimage)
     ids.preimage_len = len(preimage)
 
@@ -89,7 +95,7 @@ def get_preimage_for_key(
 @register_hint
 def copy_hashdict_tracker_entry(dict_manager: DictManager, ids: VmConsts):
     obj_tracker = dict_manager.get_tracker(ids.dict_ptr_stop.address_)
-    preimage = _get_preimage_for_hashed_key(ids.dict_ptr.key.value, obj_tracker)
+    preimage = _get_preimage_for_hashed_key(ids.dict_ptr.key.value, dict_manager)
     dict_tracker = dict_manager.get_tracker(ids.branch_ptr.address_)
     dict_tracker.current_ptr += ids.DictAccess.SIZE
     dict_tracker.data[preimage] = obj_tracker.data[preimage]
@@ -97,20 +103,11 @@ def copy_hashdict_tracker_entry(dict_manager: DictManager, ids: VmConsts):
 
 def _get_preimage_for_hashed_key(
     hashed_key: int,
-    dict_tracker: DictTracker,
+    dict_manager: DictManager,
 ) -> tuple:
-    from starkware.cairo.lang.vm.crypto import poseidon_hash_many
-
-    # Get the key in the dict that matches the hashed value
-    preimage = next(
-        key
-        for key in dict_tracker.data.keys()
-        if (
-            key[0] == hashed_key
-            if len(key) == 1
-            else poseidon_hash_many(key) == hashed_key
-        )
-    )
+    if hashed_key not in dict_manager.preimages:
+        raise Exception("No preimage found for hashed key")
+    preimage = dict_manager.preimages[hashed_key]
     return preimage
 
 
@@ -125,5 +122,6 @@ def track_precompiles(
     for key in PRE_COMPILED_CONTRACTS.keys():
         preimage = (int.from_bytes(key, "little"),)
         dict_tracker.data[preimage] = 1
+        dict_manager.preimages[preimage[0]] = preimage
 
     dict_tracker.current_ptr += len(PRE_COMPILED_CONTRACTS) * ids.DictAccess.SIZE

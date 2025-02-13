@@ -27,7 +27,7 @@ from ethereum.cancun.trie import (
 )
 from ethereum_types.bytes import Bytes, Bytes32
 from ethereum_types.numeric import U256, Uint
-from hypothesis import example, given
+from hypothesis import Verbosity, example, given, settings
 from hypothesis import strategies as st
 
 from cairo_addons.testing.errors import cairo_error, strict_raises
@@ -79,6 +79,7 @@ class TestTrie:
         assert common_prefix_length(a, b) == cairo_run("common_prefix_length", a, b)
 
     @given(a=..., b=...)
+    @settings(verbosity=Verbosity.quiet)
     def test_common_prefix_length_should_fail(
         self, cairo_programs, cairo_run_py, a: Bytes, b: Bytes
     ):
@@ -101,6 +102,7 @@ class TestTrie:
         )
 
     @given(x=nibble.filter(lambda x: len(x) != 0), is_leaf=...)
+    @settings(verbosity=Verbosity.quiet)
     def test_nibble_list_to_compact_should_raise_when_wrong_remainder(
         self, cairo_programs, cairo_run_py, x, is_leaf: bool
     ):

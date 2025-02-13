@@ -1,5 +1,5 @@
 import pytest
-from hypothesis import assume, given, settings
+from hypothesis import Verbosity, assume, given, settings
 from hypothesis import strategies as st
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 
@@ -81,6 +81,7 @@ class TestMaths:
         value=st.integers(min_value=1, max_value=2**248 - 1),
         len_=st.integers(min_value=1, max_value=31),
     )
+    @settings(verbosity=Verbosity.quiet)
     def test_felt252_to_bytes_le_should_panic_on_wrong_output(
         self, cairo_programs, cairo_run, value, len_
     ):
@@ -148,6 +149,7 @@ segments.write_arg(ids.output, bad)
         value=st.integers(min_value=1, max_value=2**248 - 1),
         len_=st.integers(min_value=1, max_value=31),
     )
+    @settings(verbosity=Verbosity.quiet)
     def test_felt252_to_bytes_be_should_panic_on_wrong_output(
         self, cairo_programs, cairo_run, value, len_
     ):

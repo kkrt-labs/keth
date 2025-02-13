@@ -178,7 +178,7 @@ def cairo_run_py(
         cairo_files,
         main_paths,
         request,
-        coverage,
+        coverage=coverage,
     )
 
 
