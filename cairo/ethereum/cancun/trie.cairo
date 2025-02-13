@@ -631,6 +631,7 @@ func trie_get_TrieBytes32U256{poseidon_ptr: PoseidonBuiltin*, trie: TrieBytes32U
 func trie_get_TrieBytesOptionalUnionBytesLegacyTransaction{
     poseidon_ptr: PoseidonBuiltin*, trie: TrieBytesOptionalUnionBytesLegacyTransaction
 }(key: Bytes) -> OptionalUnionBytesLegacyTransaction {
+    alloc_locals;
     let dict_ptr = cast(trie.value._data.value.dict_ptr, DictAccess*);
 
     let (pointer) = hashdict_read{dict_ptr=dict_ptr}(key.value.len, key.value.data);
@@ -660,6 +661,7 @@ func trie_get_TrieBytesOptionalUnionBytesLegacyTransaction{
 func trie_get_TrieBytesOptionalUnionBytesReceipt{
     poseidon_ptr: PoseidonBuiltin*, trie: TrieBytesOptionalUnionBytesReceipt
 }(key: Bytes) -> OptionalUnionBytesReceipt {
+    alloc_locals;
     let dict_ptr = cast(trie.value._data.value.dict_ptr, DictAccess*);
 
     let (pointer) = hashdict_read{dict_ptr=dict_ptr}(key.value.len, key.value.data);
@@ -687,6 +689,7 @@ func trie_get_TrieBytesOptionalUnionBytesReceipt{
 func trie_get_TrieBytesOptionalUnionBytesWithdrawal{
     poseidon_ptr: PoseidonBuiltin*, trie: TrieBytesOptionalUnionBytesWithdrawal
 }(key: Bytes) -> OptionalUnionBytesWithdrawal {
+    alloc_locals;
     let dict_ptr = cast(trie.value._data.value.dict_ptr, DictAccess*);
 
     let (pointer) = hashdict_read{dict_ptr=dict_ptr}(key.value.len, key.value.data);
