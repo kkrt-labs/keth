@@ -1175,6 +1175,8 @@ func _prepare_trie_inner_storage{
     }
 
     // Skip all None values, which are deleted trie entries
+    // Note: Considering that the given trie was built from the state._storage_tries of type
+    // Trie[Tuple[Address, Bytes32], U256], there should not be any None values remaining.
     if (dict_ptr.new_value.value == 0) {
         return _prepare_trie_inner_storage(
             trie, dict_ptr + Bytes32U256DictAccess.SIZE, mapping_ptr_end
