@@ -1,7 +1,7 @@
 import pytest
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 
-from cairo_addons.vm import CairoRunner, Felt, Relocatable
+from cairo_addons.vm import CairoRunner, Relocatable
 
 
 @pytest.fixture
@@ -22,14 +22,6 @@ class TestMemorySegmentManager:
         assert ptr.segment_index == -1
         assert ptr.offset == 0
 
-    def test_load_data_felt(self, runner):
-        ptr = runner.segments.add()
-        data = [Felt(1), Felt(2), Felt(3), Felt(4)]
-        next_ptr = runner.segments.load_data(ptr, data)
-        assert isinstance(next_ptr, Relocatable)
-        assert next_ptr.segment_index == ptr.segment_index
-        assert next_ptr.offset == 4
-
     def test_load_data_int(self, runner):
         ptr = runner.segments.add()
         data = [1, 2, 3, 4]
@@ -48,7 +40,7 @@ class TestMemorySegmentManager:
 
     def test_compute_effective_sizes(self, runner):
         ptr = runner.segments.add()
-        data = [Felt(1), Felt(2), Felt(3), Felt(4)]
+        data = [1, 2, 3, 4]
         runner.segments.load_data(ptr, data)
         sizes = runner.segments.compute_effective_sizes()
         assert sizes == [4]
@@ -57,5 +49,5 @@ class TestMemorySegmentManager:
 
     def test_memory_wrapper(self, runner):
         ptr = runner.segments.add()
-        runner.segments.load_data(ptr, [Felt(1), Felt(2), Felt(3), Felt(4)])
+        runner.segments.load_data(ptr, [1, 2, 3, 4])
         assert runner.segments.memory.get(ptr) == 1
