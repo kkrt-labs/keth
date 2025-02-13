@@ -43,7 +43,7 @@ from ethereum.exceptions import EthereumException
 from ethereum_rlp import rlp
 from ethereum_types.bytes import Bytes, Bytes0, Bytes8, Bytes20, Bytes32
 from ethereum_types.numeric import U64, U256, Uint
-from hypothesis import assume, example, given
+from hypothesis import assume, example, given, settings
 from hypothesis import strategies as st
 from hypothesis.strategies import composite, integers
 
