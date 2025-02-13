@@ -669,7 +669,6 @@ class TestFork:
             # TODO: Use cairo_run and Rust CairoVM
             cairo_state, cairo_result = cairo_run_py("apply_body", **kwargs)
         except Exception as e:
-            # If Cairo implementation raises an error, Python implementation should too
             with strict_raises(type(e)):
                 apply_body(**kwargs)
             return
