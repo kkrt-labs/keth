@@ -5,7 +5,7 @@ from typing import Optional, Tuple
 from eth_abi.abi import encode
 from eth_account import Account as EthAccount
 from eth_keys.datatypes import PrivateKey
-from ethereum.cancun.blocks import Block, Header, Log
+from ethereum.cancun.blocks import Block, Header, Log, Withdrawal
 from ethereum.cancun.fork import (
     GAS_LIMIT_ADJUSTMENT_FACTOR,
     BlockChain,
@@ -642,12 +642,13 @@ class TestFork:
 
         assert cairo_result == keccak256(rlp.encode(header))
 
-    @given(data=apply_body_data())
-    @settings(max_examples=1)
+    @given(data=apply_body_data(), withdrawals=...)
+    @settings(max_examples=3)
     def test_apply_body(
         self,
         cairo_run_py,
         data,
+        withdrawals: Tuple[Withdrawal, ...],
     ):
         accounts, storage_tries = _create_erc20_data()
         # Create constant state
@@ -662,7 +663,8 @@ class TestFork:
             created_accounts=set(),
         )
 
-        withdrawals = ()  # Empty withdrawals for now
+        print(withdrawals)
+
         kwargs = {**data, "withdrawals": withdrawals, "state": state}
 
         try:
