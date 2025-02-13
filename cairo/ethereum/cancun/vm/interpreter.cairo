@@ -59,7 +59,7 @@ from ethereum.cancun.state import (
     touch_account,
 )
 
-from legacy.utils.dict import hashdict_write, dict_squash
+from legacy.utils.dict import hashdict_write, default_dict_finalize, dict_squash
 
 struct MessageCallOutput {
     value: MessageCallOutputStruct*,
@@ -560,8 +560,8 @@ func squash_evm{range_check_ptr, evm: Evm}() {
     let stack = evm.value.stack;
     let stack_start = stack.value.dict_ptr_start;
     let stack_end = cast(stack.value.dict_ptr, DictAccess*);
-    let (new_stack_start, new_stack_end) = dict_squash(
-        cast(stack_start, DictAccess*), cast(stack_end, DictAccess*)
+    let (new_stack_start, new_stack_end) = default_dict_finalize(
+        cast(stack_start, DictAccess*), cast(stack_end, DictAccess*), 0
     );
     tempvar new_stack = Stack(
         new StackStruct(
@@ -575,8 +575,8 @@ func squash_evm{range_check_ptr, evm: Evm}() {
     let memory = evm.value.memory;
     let memory_start = memory.value.dict_ptr_start;
     let memory_end = cast(memory.value.dict_ptr, DictAccess*);
-    let (new_memory_start, new_memory_end) = dict_squash(
-        cast(memory_start, DictAccess*), cast(memory_end, DictAccess*)
+    let (new_memory_start, new_memory_end) = default_dict_finalize(
+        cast(memory_start, DictAccess*), cast(memory_end, DictAccess*), 0
     );
     tempvar new_memory = Memory(
         new MemoryStruct(
@@ -612,8 +612,8 @@ func squash_evm{range_check_ptr, evm: Evm}() {
     let accounts_to_delete = evm.value.accounts_to_delete;
     let accounts_to_delete_start = accounts_to_delete.value.dict_ptr_start;
     let accounts_to_delete_end = cast(accounts_to_delete.value.dict_ptr, DictAccess*);
-    let (new_accounts_to_delete_start, new_accounts_to_delete_end) = dict_squash(
-        cast(accounts_to_delete_start, DictAccess*), accounts_to_delete_end
+    let (new_accounts_to_delete_start, new_accounts_to_delete_end) = default_dict_finalize(
+        cast(accounts_to_delete_start, DictAccess*), accounts_to_delete_end, 0
     );
     tempvar new_accounts_to_delete = SetAddress(
         new SetAddressStruct(
@@ -626,8 +626,8 @@ func squash_evm{range_check_ptr, evm: Evm}() {
     let touched_accounts = evm.value.touched_accounts;
     let touched_accounts_start = touched_accounts.value.dict_ptr_start;
     let touched_accounts_end = cast(touched_accounts.value.dict_ptr, DictAccess*);
-    let (new_touched_accounts_start, new_touched_accounts_end) = dict_squash(
-        cast(touched_accounts_start, DictAccess*), cast(touched_accounts_end, DictAccess*)
+    let (new_touched_accounts_start, new_touched_accounts_end) = default_dict_finalize(
+        cast(touched_accounts_start, DictAccess*), cast(touched_accounts_end, DictAccess*), 0
     );
     tempvar new_touched_accounts = SetAddress(
         new SetAddressStruct(
@@ -640,8 +640,8 @@ func squash_evm{range_check_ptr, evm: Evm}() {
     let accessed_addresses = evm.value.accessed_addresses;
     let accessed_addresses_start = accessed_addresses.value.dict_ptr_start;
     let accessed_addresses_end = cast(accessed_addresses.value.dict_ptr, DictAccess*);
-    let (new_accessed_addresses_start, new_accessed_addresses_end) = dict_squash(
-        cast(accessed_addresses_start, DictAccess*), accessed_addresses_end
+    let (new_accessed_addresses_start, new_accessed_addresses_end) = default_dict_finalize(
+        cast(accessed_addresses_start, DictAccess*), accessed_addresses_end, 0
     );
     tempvar new_accessed_addresses = SetAddress(
         new SetAddressStruct(
@@ -654,8 +654,10 @@ func squash_evm{range_check_ptr, evm: Evm}() {
     let accessed_storage_keys = evm.value.accessed_storage_keys;
     let accessed_storage_keys_start = accessed_storage_keys.value.dict_ptr_start;
     let accessed_storage_keys_end = cast(accessed_storage_keys.value.dict_ptr, DictAccess*);
-    let (new_accessed_storage_keys_start, new_accessed_storage_keys_end) = dict_squash(
-        cast(accessed_storage_keys_start, DictAccess*), cast(accessed_storage_keys_end, DictAccess*)
+    let (new_accessed_storage_keys_start, new_accessed_storage_keys_end) = default_dict_finalize(
+        cast(accessed_storage_keys_start, DictAccess*),
+        cast(accessed_storage_keys_end, DictAccess*),
+        0,
     );
     tempvar new_accessed_storage_keys = SetTupleAddressBytes32(
         new SetTupleAddressBytes32Struct(

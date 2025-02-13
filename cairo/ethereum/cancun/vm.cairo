@@ -32,6 +32,7 @@ from legacy.utils.dict import (
     hashdict_read,
     dict_update,
     squash_and_update,
+    default_dict_finalize,
     dict_squash,
 )
 
@@ -218,14 +219,16 @@ func incorporate_child_on_success{range_check_ptr, poseidon_ptr: PoseidonBuiltin
     );
 
     // Squash dropped dicts
-    dict_squash(
+    default_dict_finalize(
         cast(child_evm.value.stack.value.dict_ptr_start, DictAccess*),
         cast(child_evm.value.stack.value.dict_ptr, DictAccess*),
+        0,
     );
 
-    dict_squash(
+    default_dict_finalize(
         cast(child_evm.value.memory.value.dict_ptr_start, DictAccess*),
         cast(child_evm.value.memory.value.dict_ptr, DictAccess*),
+        0,
     );
 
     let (
@@ -310,30 +313,34 @@ func incorporate_child_on_error{range_check_ptr, poseidon_ptr: PoseidonBuiltin*,
     // Soundness requirement: squash all child dicts - including ones from message and env.
 
     // EVM //
-    dict_squash(
+    default_dict_finalize(
         cast(child_touched_accounts_start, DictAccess*),
         cast(child_touched_accounts_end, DictAccess*),
+        0,
     );
 
     let child_accessed_addresses = child_evm.value.accessed_addresses;
     let child_accessed_addresses_start = child_accessed_addresses.value.dict_ptr_start;
     let child_accessed_addresses_end = cast(child_accessed_addresses.value.dict_ptr, DictAccess*);
-    dict_squash(cast(child_accessed_addresses_start, DictAccess*), child_accessed_addresses_end);
+    default_dict_finalize(
+        cast(child_accessed_addresses_start, DictAccess*), child_accessed_addresses_end, 0
+    );
 
     let child_accessed_storage_keys = child_evm.value.accessed_storage_keys;
     let child_accessed_storage_keys_start = child_accessed_storage_keys.value.dict_ptr_start;
     let child_accessed_storage_keys_end = cast(
         child_accessed_storage_keys.value.dict_ptr, DictAccess*
     );
-    dict_squash(
+    default_dict_finalize(
         cast(child_accessed_storage_keys_start, DictAccess*),
         cast(child_accessed_storage_keys_end, DictAccess*),
+        0,
     );
 
     let accounts_to_delete = child_evm.value.accounts_to_delete;
     let accounts_to_delete_start = accounts_to_delete.value.dict_ptr_start;
     let accounts_to_delete_end = cast(accounts_to_delete.value.dict_ptr, DictAccess*);
-    dict_squash(cast(accounts_to_delete_start, DictAccess*), accounts_to_delete_end);
+    default_dict_finalize(cast(accounts_to_delete_start, DictAccess*), accounts_to_delete_end, 0);
 
     let valid_jump_destinations = child_evm.value.valid_jump_destinations;
     let valid_jump_destinations_start = valid_jump_destinations.value.dict_ptr_start;
@@ -351,12 +358,12 @@ func incorporate_child_on_error{range_check_ptr, poseidon_ptr: PoseidonBuiltin*,
     let stack = child_evm.value.stack;
     let stack_start = stack.value.dict_ptr_start;
     let stack_end = cast(stack.value.dict_ptr, DictAccess*);
-    dict_squash(cast(stack_start, DictAccess*), cast(stack_end, DictAccess*));
+    default_dict_finalize(cast(stack_start, DictAccess*), cast(stack_end, DictAccess*), 0);
 
     let memory = child_evm.value.memory;
     let memory_start = memory.value.dict_ptr_start;
     let memory_end = cast(memory.value.dict_ptr, DictAccess*);
-    dict_squash(cast(memory_start, DictAccess*), cast(memory_end, DictAccess*));
+    default_dict_finalize(cast(memory_start, DictAccess*), cast(memory_end, DictAccess*), 0);
 
     // No need to squash the message's `accessed_addresses` and `accessed_storage_keys` because
     // they are the same segments as the ones in the EVM, which we just squashed.

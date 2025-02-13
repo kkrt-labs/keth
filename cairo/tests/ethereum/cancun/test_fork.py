@@ -64,6 +64,7 @@ from tests.utils.strategies import (
     address_zero,
     bounded_u256_strategy,
     bytes32,
+    empty_state,
     excess_blob_gas,
     small_bytes,
     uint,
@@ -622,9 +623,9 @@ class TestFork:
         )
         assert cairo_state == env.state
 
-    @given(blocks=st.lists(st.builds(Block), max_size=300))
-    def test_get_last_256_block_hashes(self, cairo_run, blocks):
-        chain = BlockChain(blocks=blocks, state=State(), chain_id=U64(1))
+    @given(blocks=st.lists(st.builds(Block), max_size=300), empty_state=empty_state)
+    def test_get_last_256_block_hashes(self, cairo_run, blocks, empty_state: State):
+        chain = BlockChain(blocks=blocks, state=empty_state, chain_id=U64(1))
 
         py_result = get_last_256_block_hashes(chain)
         cairo_result = cairo_run("get_last_256_block_hashes", chain)
@@ -656,7 +657,7 @@ class TestFork:
             _main_trie=Trie(
                 secured=True,
                 default=None,
-                _data=dict(accounts),
+                _data=defaultdict(lambda: None, accounts),
             ),
             _storage_tries=dict(storage_tries),
             _snapshots=[],
@@ -715,7 +716,11 @@ def _create_erc20_data():
     }
 
     storage_tries = {
-        erc20_address: Trie(secured=True, default=U256(0), _data=dict(storage_data))
+        erc20_address: Trie(
+            secured=True,
+            default=U256(0),
+            _data=defaultdict(lambda: U256(0), storage_data),
+        )
     }
 
     return accounts, storage_tries

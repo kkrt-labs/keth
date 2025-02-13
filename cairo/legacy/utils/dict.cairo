@@ -1,4 +1,5 @@
 from starkware.cairo.common.cairo_builtins import PoseidonBuiltin
+from starkware.cairo.common.default_dict import default_dict_finalize_inner
 from starkware.cairo.common.builtin_poseidon.poseidon import poseidon_hash, poseidon_hash_many
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.dict_access import DictAccess
@@ -82,6 +83,24 @@ func dict_squash{range_check_ptr}(
         __dict_manager.get_tracker(ids.squashed_dict_start).current_ptr = \
             ids.squashed_dict_end.address_
     %}
+    return (squashed_dict_start=squashed_dict_start, squashed_dict_end=squashed_dict_end);
+}
+
+// @dev Copied from the standard library and using the updated dict_squash function.
+func default_dict_finalize{range_check_ptr}(
+    dict_accesses_start: DictAccess*, dict_accesses_end: DictAccess*, default_value: felt
+) -> (squashed_dict_start: DictAccess*, squashed_dict_end: DictAccess*) {
+    alloc_locals;
+    let (local squashed_dict_start, local squashed_dict_end) = dict_squash(
+        dict_accesses_start, dict_accesses_end
+    );
+    local range_check_ptr = range_check_ptr;
+
+    default_dict_finalize_inner(
+        dict_accesses_start=squashed_dict_start,
+        n_accesses=(squashed_dict_end - squashed_dict_start) / DictAccess.SIZE,
+        default_value=default_value,
+    );
     return (squashed_dict_start=squashed_dict_start, squashed_dict_end=squashed_dict_end);
 }
 

@@ -1,7 +1,7 @@
 # ruff: noqa: E402
 
 import os
-from collections import ChainMap
+from collections import ChainMap, defaultdict
 from typing import (
     ForwardRef,
     Generic,
@@ -174,7 +174,7 @@ def trie_strategy(thing, min_size=0, include_none=False):
                 non_default_strategy(default),
                 min_size=min_size,
                 max_size=15,
-            ),
+            ).map(lambda x: defaultdict(lambda: default, x)),
         )
     )
 
@@ -402,7 +402,7 @@ empty_state = st.builds(
         Trie[Address, Optional[Account]],
         secured=st.just(True),
         default=st.none(),
-        _data=st.builds(dict, st.just({})),
+        _data=st.builds(dict, st.just({})).map(lambda x: defaultdict(lambda: None, x)),
     ),
     _storage_tries=st.builds(dict, st.just({})),
     _snapshots=st.lists(
@@ -411,9 +411,11 @@ empty_state = st.builds(
                 Trie[Address, Optional[Account]],
                 secured=st.just(True),
                 default=st.none(),
-                _data=st.builds(dict, st.just({})),
+                _data=st.builds(dict, st.just({})).map(
+                    lambda x: defaultdict(lambda: None, x)
+                ),
             ),
-            st.builds(dict, st.just({})),
+            st.builds(dict, st.just({})).map(lambda x: defaultdict(lambda: U256(0), x)),
         ),
         min_size=1,
         max_size=1,
@@ -430,8 +432,8 @@ state = st.lists(address, max_size=MAX_ADDRESS_SET_SIZE, unique=True).flatmap(
             secured=st.just(True),
             default=st.none(),
             _data=st.fixed_dictionaries(
-                {address: st.from_type(Account) for address in addresses}
-            ),
+                {address: st.from_type(Account) for address in addresses},
+            ).map(lambda x: defaultdict(lambda: None, x)),
         ),
         # Storage tries are not always present for existing accounts
         # Thus we generate a subset of addresses from the existing accounts

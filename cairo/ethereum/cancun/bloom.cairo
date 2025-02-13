@@ -18,7 +18,7 @@ from ethereum.cancun.blocks import TupleLog
 from ethereum.cancun.fork_types import Bloom
 
 from legacy.utils.bytes import uint256_to_bytes32, felt_to_bytes16_little
-from legacy.utils.dict import dict_squash, dict_read, dict_write
+from legacy.utils.dict import dict_read, dict_write, default_dict_finalize
 from cairo_core.maths import pow2
 from cairo_core.comparison import is_zero
 const BIT_MASK_11_BITS = 0x07FF;
@@ -135,7 +135,7 @@ func logs_bloom{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: Kecca
 
     done:
     let dict_ptr = cast([ap - 1], DictAccess*);
-    dict_squash(mutable_bloom_start, dict_ptr);
+    default_dict_finalize(mutable_bloom_start, dict_ptr, 0);
 
     tempvar bloom = Bloom(cast(bloom_buffer, U128*));
     return bloom;
