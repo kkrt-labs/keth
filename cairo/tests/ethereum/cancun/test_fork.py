@@ -203,7 +203,7 @@ def get_blob_tx_with_tx_sender_in_state():
         nonce=U256(int("0x1bfec", 16)),
         code=bytearray(),
     )
-    state = State()
+    state = empty_state.example()
     set_account(state, sender, sender_account)
     env = Environment(
         caller=sender,
