@@ -59,10 +59,10 @@ from tests.utils.constants import (
 )
 from tests.utils.solidity import get_contract
 from tests.utils.strategies import (
-    SYSTEM_ACCOUNT,
     BEACON_ROOTS_ACCOUNT,
-    SYSTEM_ADDRESS,
     BEACON_ROOTS_ADDRESS,
+    SYSTEM_ACCOUNT,
+    SYSTEM_ADDRESS,
     account_strategy,
     address,
     address_zero,

@@ -424,7 +424,9 @@ empty_state = st.builds(
 )
 
 # Constants for the special addresses
-SYSTEM_ADDRESS = Address(bytes.fromhex("fffffffffffffffffffffffffffffffffffffffe"))
+SYSTEM_ADDRESS = Address(
+    bytes.fromhex("fffffffffffffffffffffffffffffffffffffffe")  # cspell:disable-line
+)
 BEACON_ROOTS_ADDRESS = Address(
     bytes.fromhex("000F3df6D732807Ef1319fB7B8bB8522d0Beac02")
 )
