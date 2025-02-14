@@ -28,7 +28,7 @@ from cairo_ec.circuits.ec_ops_compiled import (
     ec_add as ec_add_compiled,
     ec_double as ec_double_compiled,
     assert_is_on_curve as assert_is_on_curve_compiled,
-    ecip_2P as ecip_2P_compiled
+    ecip_2P as ecip_2P_compiled,
 )
 
 func test__circuit{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
