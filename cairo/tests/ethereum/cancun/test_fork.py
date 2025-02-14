@@ -59,6 +59,10 @@ from tests.utils.constants import (
 )
 from tests.utils.solidity import get_contract
 from tests.utils.strategies import (
+    SYSTEM_ACCOUNT,
+    BEACON_ROOTS_ACCOUNT,
+    SYSTEM_ADDRESS,
+    BEACON_ROOTS_ADDRESS,
     account_strategy,
     address,
     address_zero,
@@ -666,21 +670,15 @@ class TestFork:
         # Add the system address
         set_account(
             state,
-            Address(bytes.fromhex("fffffffffffffffffffffffffffffffffffffffe")),
-            Account(balance=U256(0), nonce=Uint(0), code=bytes()),
+            SYSTEM_ADDRESS,
+            SYSTEM_ACCOUNT,
         )
 
         # Add the beacon roots contract
         set_account(
             state,
-            Address(bytes.fromhex("000F3df6D732807Ef1319fB7B8bB8522d0Beac02")),
-            Account(
-                balance=U256(0),
-                nonce=Uint(1),
-                code=bytes.fromhex(
-                    "3373fffffffffffffffffffffffffffffffffffffffe14604d57602036146024575f5ffd5b5f35801560495762001fff810690815414603c575f5ffd5b62001fff01545f5260205ff35b5f5ffd5b62001fff42064281555f359062001fff015500"
-                ),
-            ),
+            BEACON_ROOTS_ADDRESS,
+            BEACON_ROOTS_ACCOUNT,
         )
 
         kwargs = {**data, "withdrawals": withdrawals, "state": state}
