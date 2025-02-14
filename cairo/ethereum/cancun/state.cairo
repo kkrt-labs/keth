@@ -79,12 +79,16 @@ from legacy.utils.dict import (
     get_keys_for_address_prefix,
     dict_update,
     dict_copy,
-    dict_squash,
+    default_dict_finalize,
 )
 
 EMPTY_ROOT:
 dw 0x6ef8c092e64583ffa655cc1b171fe856;  // low
 dw 0x21b463e3b52f6201c0ad6c991be0485b;  // high
+
+U256_ZERO:
+dw 0;
+dw 0;
 
 struct AddressTrieBytes32U256DictAccess {
     key: Address,
@@ -937,7 +941,7 @@ func destroy_touched_empty_accounts{poseidon_ptr: PoseidonBuiltin*, state: State
 }
 
 func empty_transient_storage{range_check_ptr}() -> TransientStorage {
-    tempvar default_value = new U256Struct(0, 0);
+    let (default_value) = get_label_location(U256_ZERO);
     let (dict_ptr) = default_dict_new(cast(default_value, felt));
     let dict_start = cast(dict_ptr, TupleAddressBytes32U256DictAccess*);
 
@@ -951,7 +955,7 @@ func empty_transient_storage{range_check_ptr}() -> TransientStorage {
 
     tempvar tries = TrieTupleAddressBytes32U256(
         new TrieTupleAddressBytes32U256Struct(
-            secured=bool(1), default=U256(default_value), _data=mapping
+            secured=bool(1), default=U256(cast(default_value, U256Struct*)), _data=mapping
         ),
     );
 
@@ -977,8 +981,8 @@ func storage_roots{
     let storage_tries_start = cast(storage_tries.value._data.value.dict_ptr_start, DictAccess*);
     let storage_tries_end = cast(storage_tries.value._data.value.dict_ptr, DictAccess*);
 
-    let (squashed_storage_tries_start, squashed_storage_tries_end) = dict_squash(
-        storage_tries_start, storage_tries_end
+    let (squashed_storage_tries_start, squashed_storage_tries_end) = default_dict_finalize(
+        storage_tries_start, storage_tries_end, cast(storage_tries.value.default.value, felt)
     );
 
     // Create a Mapping[Address, Trie[Bytes32, U256]] that will contain the "flat" tries, where we
@@ -997,9 +1001,10 @@ func storage_roots{
     }(squashed_storage_tries_start);
 
     // Squash the Mapping[address, trie[bytes32, u256]] to iterate over each address
-    let (squashed_map_addr_storage_start, squashed_map_addr_storage_end) = dict_squash(
+    let (squashed_map_addr_storage_start, squashed_map_addr_storage_end) = default_dict_finalize(
         cast(map_addr_storage.value.dict_ptr_start, DictAccess*),
         cast(map_addr_storage.value.dict_ptr, DictAccess*),
+        0,
     );
 
     tempvar map_addr_storage = MappingAddressTrieBytes32U256(
@@ -1093,7 +1098,11 @@ func build_map_addr_storage_root{
     // Squash the Trie[Bytes32, U256] - it won't ever be used again.
     let trie_ptr_start = storage_trie.value._data.value.dict_ptr_start;
     let trie_ptr_end = storage_trie.value._data.value.dict_ptr;
-    dict_squash(cast(trie_ptr_start, DictAccess*), cast(trie_ptr_end, DictAccess*));
+    default_dict_finalize(
+        cast(trie_ptr_start, DictAccess*),
+        cast(trie_ptr_end, DictAccess*),
+        cast(storage_trie.value.default.value, felt),
+    );
 
     return build_map_addr_storage_root(map_addr_storage_ptr + DictAccess.SIZE);
 }
@@ -1199,8 +1208,8 @@ func state_root{
     let main_trie_start = cast(main_trie.value._data.value.dict_ptr_start, DictAccess*);
     let main_trie_end = cast(main_trie.value._data.value.dict_ptr, DictAccess*);
 
-    let (squashed_main_trie_start, squashed_main_trie_end) = dict_squash(
-        main_trie_start, main_trie_end
+    let (squashed_main_trie_start, squashed_main_trie_end) = default_dict_finalize(
+        main_trie_start, main_trie_end, cast(main_trie.value.default.value, felt)
     );
 
     tempvar squashed_main_trie = TrieAddressOptionalAccount(

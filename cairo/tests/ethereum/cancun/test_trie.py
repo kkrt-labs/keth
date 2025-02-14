@@ -192,7 +192,10 @@ class TestTrie:
         trie = Trie(
             secured=trie_with_none.secured,
             default=trie_with_none.default,
-            _data={k: v for k, v in trie_with_none._data.items() if v is not None},
+            _data=defaultdict(
+                trie_with_none._data.default_factory,
+                {k: v for k, v in trie_with_none._data.items() if v is not None},
+            ),
         )
 
         if key_type is Address:

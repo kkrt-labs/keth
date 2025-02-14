@@ -208,6 +208,15 @@ impl PyDictManager {
             .clone();
         Ok(value.into())
     }
+
+    fn get_default_value(&self, segment_index: isize) -> PyResult<PyMaybeRelocatable> {
+        let dict_manager = self.inner.borrow();
+        let tracker = dict_manager.trackers.get(&segment_index).unwrap();
+        let default_value = tracker.get_default_value().cloned().ok_or_else(|| {
+            PyErr::new::<pyo3::exceptions::PyValueError, _>("Default value not found")
+        })?;
+        Ok(default_value.into())
+    }
 }
 
 #[pyclass(name = "DictTracker")]

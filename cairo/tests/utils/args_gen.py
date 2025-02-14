@@ -194,7 +194,11 @@ class FlatState:
         """Convert a State object to a FlatState object."""
         flat_state = cls(
             _main_trie=state._main_trie,
-            _storage_tries=Trie(secured=True, default=U256(0), _data={}),
+            _storage_tries=Trie(
+                secured=True,
+                default=U256(0),
+                _data=defaultdict(lambda: U256(0), {}),
+            ),
             _snapshots=[],
             created_accounts=state.created_accounts,
         )
@@ -209,7 +213,9 @@ class FlatState:
         for snapshot in state._snapshots:
             snapshot_main_trie = snapshot[0]
             snapshot_storage_tries = Trie(
-                flat_state._storage_tries.secured, flat_state._storage_tries.default, {}
+                flat_state._storage_tries.secured,
+                flat_state._storage_tries.default,
+                defaultdict(lambda: U256(0), {}),
             )
             for address, storage_trie in snapshot[1].items():
                 for key in storage_trie._data.keys():
@@ -271,7 +277,11 @@ class FlatTransientStorage:
     def from_transient_storage(cls, ts: TransientStorage) -> "FlatTransientStorage":
         """Convert a TransientStorage object to a FlatTransientStorage object."""
         flat_ts = cls(
-            _tries=Trie(secured=True, default=U256(0), _data={}),
+            _tries=Trie(
+                secured=True,
+                default=U256(0),
+                _data=defaultdict(lambda: U256(0), {}),
+            ),
             _snapshots=[],
         )
 
@@ -283,7 +293,11 @@ class FlatTransientStorage:
 
         # Flatten snapshots
         for snapshot in ts._snapshots:
-            snapshot_tries = Trie(flat_ts._tries.secured, flat_ts._tries.default, {})
+            snapshot_tries = Trie(
+                flat_ts._tries.secured,
+                flat_ts._tries.default,
+                defaultdict(lambda: U256(0), {}),
+            )
             for address, storage_trie in snapshot.items():
                 for key in storage_trie._data.keys():
                     value = trie_get(storage_trie, key)
@@ -990,7 +1004,6 @@ def generate_trie_arg(
     parent_trie_data: Optional[RelocatableValue] = None,
 ):
     secured = _gen_arg(dict_manager, segments, type(arg.secured), arg.secured)
-    default = _gen_arg(dict_manager, segments, type(arg.default), arg.default)
     data = generate_dict_arg(
         dict_manager,
         segments,
@@ -1000,22 +1013,17 @@ def generate_trie_arg(
         parent_ptr=parent_trie_data,
     )
     base = segments.add()
-    segments.load_data(base, [secured, default, data])
 
-    # In case of a Trie, we need the dict to be a defaultdict with the trie.default as the default value.
+    # In case of a Trie, we need the trie.default to be the default value of the dict.
     dict_ptr = segments.memory.get(data)
-    current_ptr = segments.memory.get(data + 1)
 
     if isinstance(dict_manager, DictManager):
-        dict_manager.trackers[dict_ptr.segment_index].data = defaultdict(
-            lambda: default, dict_manager.trackers[dict_ptr.segment_index].data
-        )
+        default_value = dict_manager.trackers[
+            dict_ptr.segment_index
+        ].data.default_factory()
     else:
-        dict_manager.trackers[dict_ptr.segment_index] = RustDictTracker(
-            data=dict_manager.trackers[dict_ptr.segment_index].data,
-            current_ptr=current_ptr,
-            default_value=default,
-        )
+        default_value = dict_manager.get_default_value(dict_ptr.segment_index)
+    segments.load_data(base, [secured, default_value, data])
 
     return base
 
@@ -1175,7 +1183,9 @@ def generate_dict_arg(
                 (
                     dict_manager.get_tracker(parent_dict_end_ptr).data.get(k, v)
                     if parent_dict_end_ptr
-                    else v
+                    else (
+                        data.default_factory() if isinstance(data, defaultdict) else v
+                    )
                 ),
                 v,
             )
