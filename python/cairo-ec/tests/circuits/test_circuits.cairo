@@ -47,7 +47,7 @@ from cairo_ec.circuits.ec_ops_compiled import (
     assert_x_is_on_curve as assert_x_is_on_curve_compiled,
     assert_not_on_curve as assert_not_on_curve_compiled,
     assert_on_curve as assert_on_curve_compiled,
-    ecip_2P as ecip_2P_compiled
+    ecip_2P as ecip_2P_compiled,
 )
 
 func test__circuit{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
