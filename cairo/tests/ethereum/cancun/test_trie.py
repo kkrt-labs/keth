@@ -131,10 +131,10 @@ class TestTrie:
     def test_get_branch_for_nibble_at_level(self, cairo_run, obj, nibble, level):
         prefix = (b"prefix" * 3)[:level]
         obj = {(prefix + k)[:64]: v for k, v in obj.items()}
-        branche, value = cairo_run(
+        branch, value = cairo_run(
             "_get_branch_for_nibble_at_level", obj, nibble, level
         )
-        assert branche == {
+        assert branch == {
             k: v for k, v in obj.items() if k[level] == nibble and len(k) > level
         }
         assert value == obj.get(level, b"")
