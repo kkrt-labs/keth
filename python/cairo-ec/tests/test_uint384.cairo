@@ -99,7 +99,9 @@ func test__uint384_eq_mod_p{
     return res;
 }
 
-func test__uint384_assert_neg_mod_p{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*}() {
+func test__uint384_assert_neg_mod_p{
+    range_check96_ptr: felt*, mul_mod_ptr: ModBuiltin*, add_mod_ptr: ModBuiltin*
+}() {
     alloc_locals;
     let (x_ptr) = alloc();
     let (y_ptr) = alloc();
@@ -151,7 +153,9 @@ func test__uint384_is_neg_mod_p{
     return res;
 }
 
-func test__uint384_div_mod_p{range_check96_ptr: felt*, mul_mod_ptr: ModBuiltin*}() -> UInt384 {
+func test__uint384_div_mod_p{
+    range_check96_ptr: felt*, mul_mod_ptr: ModBuiltin*, add_mod_ptr: ModBuiltin*
+}() -> UInt384 {
     alloc_locals;
     let (x_ptr) = alloc();
     let (y_ptr) = alloc();
@@ -167,7 +171,9 @@ func test__uint384_div_mod_p{range_check96_ptr: felt*, mul_mod_ptr: ModBuiltin*}
     return res;
 }
 
-func test__uint384_neg_mod_p{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*}() -> UInt384 {
+func test__uint384_neg_mod_p{
+    range_check96_ptr: felt*, mul_mod_ptr: ModBuiltin*, add_mod_ptr: ModBuiltin*
+}() -> UInt384 {
     alloc_locals;
     let (y_ptr) = alloc();
     let (p_ptr) = alloc();
