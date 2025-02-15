@@ -6,12 +6,13 @@ func hash_full_transcript{poseidon_ptr: PoseidonBuiltin*}(limbs_ptr: felt*, n: f
     alloc_locals;
     local BASE = 2 ** 96;
 
-    let elements_end = &limbs_ptr[n * N_LIMBS];
+    local elements_end: felt* = limbs_ptr + (n * N_LIMBS);
 
     tempvar elements = limbs_ptr;
     tempvar pos_ptr = cast(poseidon_ptr, felt*);
 
     loop:
+    let N_LIMBS_ = N_LIMBS;
     tempvar has_six_uint384_remaining;
     %{ has_six_uint384_remaining_hint %}
     ap += 1;

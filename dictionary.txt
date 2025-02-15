@@ -226,3 +226,5 @@ xxhash
 zellic
 rustflags
 pyobject
+modpow
+bitmask

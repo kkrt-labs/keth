@@ -199,13 +199,13 @@ class TestStorage:
     )
     def test_calculate_refund_counter_current_eq_new(
         self,
-        cairo_run_py,
+        cairo_run,
         current_refund_counter,
         original_value: U256,
         current_value: U256,
         new_value: U256,
     ):
-        res_cairo = cairo_run_py(
+        res_cairo = cairo_run(
             "_calculate_refund_counter_current_eq_new",
             current_refund_counter,
             original_value,

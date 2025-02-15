@@ -30,9 +30,12 @@ pub const HINTS: &[fn() -> Hint] = &[
     b_le_a,
     fp_plus_2_or_0,
     nibble_remainder,
-    print_maybe_relocatable,
     precompile_index_from_address,
     initialize_jumpdests,
+    print_maybe_relocatable_hint,
+    check_push_last_32_bytes,
+    continue_general_case,
+    continue_no_push_case,
 ];
 
 lazy_static! {
@@ -170,23 +173,6 @@ pub fn nibble_remainder() -> Hint {
     )
 }
 
-pub fn print_maybe_relocatable() -> Hint {
-    Hint::new(
-        String::from("print_maybe_relocatable"),
-        |vm: &mut VirtualMachine,
-         _exec_scopes: &mut ExecutionScopes,
-         ids_data: &HashMap<String, HintReference>,
-         ap_tracking: &ApTracking,
-         _constants: &HashMap<String, Felt252>|
-         -> Result<(), HintError> {
-            let maybe_relocatable =
-                get_maybe_relocatable_from_var_name("x", vm, ids_data, ap_tracking)?;
-            println!("maybe_relocatable: {:?}", maybe_relocatable);
-            Ok(())
-        },
-    )
-}
-
 pub fn precompile_index_from_address() -> Hint {
     Hint::new(
         String::from("precompile_index_from_address"),
@@ -312,6 +298,23 @@ pub fn initialize_jumpdests() -> Hint {
     )
 }
 
+pub fn print_maybe_relocatable_hint() -> Hint {
+    Hint::new(
+        String::from("print_maybe_relocatable_hint"),
+        |vm: &mut VirtualMachine,
+         _exec_scopes: &mut ExecutionScopes,
+         ids_data: &HashMap<String, HintReference>,
+         ap_tracking: &ApTracking,
+         _constants: &HashMap<String, Felt252>|
+         -> Result<(), HintError> {
+            let maybe_relocatable =
+                get_maybe_relocatable_from_var_name("x", vm, ids_data, ap_tracking)?;
+            println!("maybe_relocatable: {:?}", maybe_relocatable);
+            Ok(())
+        },
+    )
+}
+
 fn get_valid_jump_destinations(code: &[u8]) -> Vec<usize> {
     let mut valid_jumpdest = Vec::new();
     let mut i = 0;
@@ -335,4 +338,111 @@ fn get_valid_jump_destinations(code: &[u8]) -> Vec<usize> {
     }
 
     valid_jumpdest
+}
+
+// @register_hint
+// def check_push_last_32_bytes(
+//     ids: VmConsts, memory: MemoryDict
+// ):
+//     # Get the 32 previous bytes
+//     bytecode = [memory[ids.bytecode + ids.valid_jumpdest.key - i - 1] for i in
+// range(min(ids.valid_jumpdest.key, 32))][::-1]     # Check if any PUSH may prevent this to be a
+// JUMPDEST     ids.is_no_push_case = int(not any([0x60 + i <= byte <= 0x7f for i, byte in
+// enumerate(bytecode[::-1])]))
+
+pub fn check_push_last_32_bytes() -> Hint {
+    Hint::new(
+        String::from("check_push_last_32_bytes"),
+        |vm: &mut VirtualMachine,
+         _exec_scopes: &mut ExecutionScopes,
+         ids_data: &HashMap<String, HintReference>,
+         ap_tracking: &ApTracking,
+         _constants: &HashMap<String, Felt252>|
+         -> Result<(), HintError> {
+            let bytecode_ptr = get_ptr_from_var_name("bytecode", vm, ids_data, ap_tracking)?;
+            let valid_jumpdest_addr =
+                get_ptr_from_var_name("valid_jumpdest", vm, ids_data, ap_tracking)?;
+            let valid_jumpdest_key: usize =
+                vm.get_integer(valid_jumpdest_addr)?.into_owned().try_into().unwrap();
+            let max_len = std::cmp::min(valid_jumpdest_key, 32);
+
+            // Get the previous 32 bytes (or less) before the potential jumpdest
+            let mut bytecode = Vec::with_capacity(max_len);
+            for i in 0..max_len {
+                let offset = valid_jumpdest_key - i - 1;
+                let value = vm.get_integer((bytecode_ptr + offset)?)?.into_owned();
+                let value_u8: u8 = value.try_into().unwrap();
+                bytecode.push(value_u8);
+            }
+
+            // Check if any PUSH may prevent this to be a JUMPDEST
+            let is_no_push_case = !bytecode.iter().enumerate().any(|(i, &byte)| {
+                // Check if the byte is within the PUSH opcode range for its position (0x60 + i to
+                // 0x7f)
+                (0x60 + i as u8) <= byte && byte <= 0x7f
+            });
+
+            insert_value_from_var_name(
+                "is_no_push_case",
+                Felt252::from(is_no_push_case),
+                vm,
+                ids_data,
+                ap_tracking,
+            )?;
+            Ok(())
+        },
+    )
+}
+
+pub fn continue_general_case() -> Hint {
+    Hint::new(
+        String::from("continue_general_case"),
+        |vm: &mut VirtualMachine,
+         _exec_scopes: &mut ExecutionScopes,
+         ids_data: &HashMap<String, HintReference>,
+         ap_tracking: &ApTracking,
+         _constants: &HashMap<String, Felt252>|
+         -> Result<(), HintError> {
+            let i = get_integer_from_var_name("i", vm, ids_data, ap_tracking)?;
+            let valid_jumpdest_addr =
+                get_ptr_from_var_name("valid_jumpdest", vm, ids_data, ap_tracking)?;
+            let valid_jumpdest_key = vm.get_integer(valid_jumpdest_addr)?.into_owned();
+            let cond = if i < valid_jumpdest_key { 1 } else { 0 };
+            insert_value_from_var_name(
+                "cond",
+                MaybeRelocatable::from(cond),
+                vm,
+                ids_data,
+                ap_tracking,
+            )?;
+            Ok(())
+        },
+    )
+}
+
+pub fn continue_no_push_case() -> Hint {
+    Hint::new(
+        String::from("continue_no_push_case"),
+        |vm: &mut VirtualMachine,
+         _exec_scopes: &mut ExecutionScopes,
+         ids_data: &HashMap<String, HintReference>,
+         ap_tracking: &ApTracking,
+         _constants: &HashMap<String, Felt252>|
+         -> Result<(), HintError> {
+            let offset = get_integer_from_var_name("offset", vm, ids_data, ap_tracking)?;
+            let valid_jumpdest_addr =
+                get_ptr_from_var_name("valid_jumpdest", vm, ids_data, ap_tracking)?;
+            let valid_jumpdest_key = vm.get_integer(valid_jumpdest_addr)?.into_owned();
+            let cond =
+                if offset > Felt252::from(32) || valid_jumpdest_key < offset { 0 } else { 1 };
+            insert_value_from_var_name(
+                "cond",
+                MaybeRelocatable::from(cond),
+                vm,
+                ids_data,
+                ap_tracking,
+            )?;
+            Ok(())
+        },
+    )
 }

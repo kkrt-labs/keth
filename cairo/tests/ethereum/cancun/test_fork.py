@@ -589,7 +589,7 @@ class TestFork:
     )
     def test_check_transaction(
         self,
-        cairo_run_py,
+        cairo_run,
         data,
         gas_available: Uint,
         base_fee_per_gas: Uint,
@@ -597,7 +597,7 @@ class TestFork:
     ):
         tx, env, chain_id = data
         try:
-            cairo_state, cairo_result = cairo_run_py(
+            cairo_state, cairo_result = cairo_run(
                 "check_transaction",
                 env.state,
                 tx,
@@ -647,7 +647,7 @@ class TestFork:
     @settings(max_examples=3)
     def test_apply_body(
         self,
-        cairo_run_py,
+        cairo_run,
         data,
         withdrawals: Tuple[Withdrawal, ...],
     ):
@@ -667,8 +667,7 @@ class TestFork:
         kwargs = {**data, "withdrawals": withdrawals, "state": state}
 
         try:
-            # TODO: Use cairo_run and Rust CairoVM
-            cairo_state, cairo_result = cairo_run_py("apply_body", **kwargs)
+            cairo_state, cairo_result = cairo_run("apply_body", **kwargs)
         except Exception as e:
             with strict_raises(type(e)):
                 apply_body(**kwargs)

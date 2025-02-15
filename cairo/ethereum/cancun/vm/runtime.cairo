@@ -94,12 +94,7 @@ func assert_valid_jumpdest{range_check_ptr}(
     }
 
     tempvar is_no_push_case;
-    %{
-        # Get the 32 previous bytes
-        bytecode = [memory[ids.bytecode + ids.valid_jumpdest.key - i - 1] for i in range(min(ids.valid_jumpdest.key, 32))][::-1]
-        # Check if any PUSH may prevent this to be a JUMPDEST
-        memory[ap - 1] = int(not any([0x60 + i <= byte <= 0x7f for i, byte in enumerate(bytecode[::-1])]))
-    %}
+    %{ check_push_last_32_bytes %}
     jmp no_push_case if is_no_push_case != 0;
 
     general_case:
@@ -118,7 +113,7 @@ func assert_valid_jumpdest{range_check_ptr}(
     tempvar cond;
     tempvar range_check_ptr = range_check_ptr;
     tempvar i = next_i;
-    %{ ids.cond = 1 if ids.i < ids.valid_jumpdest.key else 0 %}
+    %{ continue_general_case %}
     jmp body_general_case if cond != 0;
 
     let range_check_ptr = [ap - 2];
@@ -156,7 +151,7 @@ func assert_valid_jumpdest{range_check_ptr}(
 
     static_assert offset == [ap - 2];
     static_assert range_check_ptr == [ap - 1];
-    %{ ids.cond = 0 if ids.offset > 32 or ids.valid_jumpdest.key < ids.offset else 1 %}
+    %{ continue_no_push_case %}
     jmp body_no_push_case if cond != 0;
 
     let offset = [ap - 2];

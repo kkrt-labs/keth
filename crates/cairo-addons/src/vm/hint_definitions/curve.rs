@@ -1,0 +1,270 @@
+use std::{cmp::min, collections::HashMap};
+
+use cairo_vm::{
+    hint_processor::{
+        builtin_hint_processor::hint_utils::{
+            get_integer_from_var_name, get_ptr_from_var_name, get_relocatable_from_var_name,
+            insert_value_from_var_name,
+        },
+        hint_processor_definition::HintReference,
+    },
+    math_utils::pow2_const,
+    serde::deserialize_program::ApTracking,
+    types::exec_scope::ExecutionScopes,
+    vm::{errors::hint_errors::HintError, vm_core::VirtualMachine},
+    Felt252,
+};
+use garaga_rs::{
+    calldata::msm_calldata::msm_calldata_builder,
+    definitions::{CurveID, CurveParamsProvider, FieldElement, SECP256K1PrimeField},
+    ecip::core::neg_3_base_le,
+    io::element_to_biguint,
+};
+use num_bigint::BigUint;
+use num_traits::{pow, One, Zero};
+
+use crate::vm::{
+    hint_utils::{
+        write_collection_from_var_name, write_collection_to_addr, write_result_to_ap, Uint256,
+        Uint384,
+    },
+    hints::Hint,
+};
+
+pub const HINTS: &[fn() -> Hint] = &[
+    build_msm_hints_and_fill_memory,
+    compute_y_from_x_hint,
+    fill_add_mod_mul_mod_builtin_batch_one,
+    decompose_scalar_to_neg3_base,
+    fill_add_mod_mul_mod_builtin_batch_117_108,
+];
+
+pub fn build_msm_hints_and_fill_memory() -> Hint {
+    Hint::new(
+        String::from("build_msm_hints_and_fill_memory"),
+        |vm: &mut VirtualMachine,
+         _exec_scopes: &mut ExecutionScopes,
+         ids_data: &HashMap<String, HintReference>,
+         ap_tracking: &ApTracking,
+         _constants: &HashMap<String, Felt252>|
+         -> Result<(), HintError> {
+            const N_LIMBS: usize = 4;
+            let r_point_addr = get_relocatable_from_var_name("r_point", vm, ids_data, ap_tracking)?;
+            let x = Uint384::from_base_addr(r_point_addr, "r_point.x", vm)?.pack();
+            let y =
+                Uint384::from_base_addr((r_point_addr + N_LIMBS).unwrap(), "r_point.y", vm)?.pack();
+
+            let g_x = element_to_biguint(&SECP256K1PrimeField::get_curve_params().g_x);
+            let g_y = element_to_biguint(&SECP256K1PrimeField::get_curve_params().g_y);
+
+            let u1 = Uint256::from_var_name("u1", vm, ids_data, ap_tracking)?.pack();
+            let u2 = Uint256::from_var_name("u2", vm, ids_data, ap_tracking)?.pack();
+
+            let values = vec![g_x, g_y, x, y];
+            let scalars = vec![u1, u2];
+
+            let curve_id = CurveID::SECP256K1;
+            let calldata_w_len = msm_calldata_builder(
+                &values,
+                &scalars,
+                curve_id as usize,
+                false,
+                false,
+                false,
+                false,
+            )
+            .map_err(|e| {
+                HintError::CustomHint(format!("Error building MSM calldata: {}", e).into())
+            })?;
+            let calldata = calldata_w_len[1..].to_vec();
+
+            let points_offset = 3 * 2 * N_LIMBS;
+            let q_low_high_high_shifted = calldata[..points_offset].to_vec();
+            let mut calldata_rest = calldata[points_offset..].to_vec();
+
+            let mut rlc_components = Vec::<BigUint>::new();
+            for _ in 0..4 {
+                let array_len: usize = calldata_rest.remove(0).try_into().unwrap(); // Remove the length we just read
+
+                // Get slice of length array_len * N_LIMBS, bounded by remaining length
+                let array = calldata_rest[..min(array_len * N_LIMBS, calldata_rest.len())].to_vec();
+                rlc_components.extend(array);
+
+                // Update calldata_rest to remove processed elements
+                calldata_rest =
+                    calldata_rest[min(array_len * N_LIMBS, calldata_rest.len())..].to_vec();
+            }
+
+            let expected_len = (18 + 4 * 2) * N_LIMBS;
+            if rlc_components.len() != expected_len {
+                return Err(HintError::CustomHint(
+                    format!("Invalid RLC components length: {}", rlc_components.len()).into(),
+                ));
+            }
+
+            // Fill memory
+            let range_check96_ptr =
+                get_ptr_from_var_name("range_check96_ptr", vm, ids_data, ap_tracking)?;
+            let memory_offset = 4;
+
+            let offset = range_check96_ptr + (4 * N_LIMBS + memory_offset);
+            write_collection_to_addr(offset.unwrap(), &rlc_components, vm)?;
+
+            let offset = range_check96_ptr + (50 * N_LIMBS + memory_offset);
+            write_collection_to_addr(offset.unwrap(), &q_low_high_high_shifted, vm)?;
+            Ok(())
+        },
+    )
+}
+
+pub fn compute_y_from_x_hint() -> Hint {
+    Hint::new(
+        String::from("compute_y_from_x_hint"),
+        |vm: &mut VirtualMachine,
+         _exec_scopes: &mut ExecutionScopes,
+         ids_data: &HashMap<String, HintReference>,
+         ap_tracking: &ApTracking,
+         _constants: &HashMap<String, Felt252>|
+         -> Result<(), HintError> {
+            let a = Uint384::from_var_name("a", vm, ids_data, ap_tracking)?.pack();
+            let b = Uint384::from_var_name("b", vm, ids_data, ap_tracking)?.pack();
+            let p = Uint384::from_var_name("p", vm, ids_data, ap_tracking)?.pack();
+            let g = Uint384::from_var_name("g", vm, ids_data, ap_tracking)?.pack();
+            let x = Uint384::from_var_name("x", vm, ids_data, ap_tracking)?.pack();
+
+            let v = get_integer_from_var_name("v", vm, ids_data, ap_tracking)?.to_biguint();
+
+            // TODO: support more fields
+            // currently only secp256k1 field is supported
+            // if p.into() != SECP256K1_PRIME_FIELD_ORDER {
+            //     panic!("p is not secp256k1 field")
+            // }
+
+            let rhs = (pow(x.clone(), 3) + a * x + b) % p.clone();
+            let rhs_felt =
+                FieldElement::<SECP256K1PrimeField>::from_hex_unchecked(&rhs.to_str_radix(16));
+            let g_felt =
+                FieldElement::<SECP256K1PrimeField>::from_hex_unchecked(&g.to_str_radix(16));
+
+            let is_on_curve = is_quad_residue(&rhs, &p);
+            let square_root = if is_on_curve {
+                let sq_rt = rhs_felt.sqrt().unwrap().0;
+                let element_to_biguint = element_to_biguint(&sq_rt);
+                let is_v_even = v % BigUint::from(2_u32) == BigUint::from(0_u32);
+                let is_sq_rt_even =
+                    element_to_biguint % BigUint::from(2_u32) == BigUint::from(0_u32);
+                if is_v_even == is_sq_rt_even {
+                    sq_rt
+                } else {
+                    -sq_rt
+                }
+            } else {
+                (rhs_felt * g_felt).sqrt().unwrap().0
+            };
+
+            //TODO improve this
+            let sqrt_b = square_root.representative();
+            let mut sqrt_bytes = vec![];
+            for limb in sqrt_b.limbs {
+                sqrt_bytes.extend(limb.to_be_bytes());
+            }
+            let sqrt_biguint = BigUint::from_bytes_be(&sqrt_bytes);
+
+            Uint384::split(&sqrt_biguint).insert_from_var_name(
+                "y_try",
+                vm,
+                ids_data,
+                ap_tracking,
+            )?;
+            write_collection_from_var_name(
+                "is_on_curve",
+                &[is_on_curve.into(), Felt252::ZERO, Felt252::ZERO, Felt252::ZERO],
+                vm,
+                ids_data,
+                ap_tracking,
+            )?;
+            Ok(())
+        },
+    )
+}
+
+// Adapted from sympy implementation
+// Conditions:
+// * a >= 0 < prime (other cases omitted)
+fn is_quad_residue(a: &BigUint, p: &BigUint) -> bool {
+    a.is_zero() || a.is_one() || a.modpow(&(p / 2_u32), p).is_one()
+}
+
+pub fn fill_add_mod_mul_mod_builtin_batch_one() -> Hint {
+    Hint::new(
+        String::from("fill_add_mod_mul_mod_builtin_batch_one"),
+        |vm: &mut VirtualMachine,
+         _exec_scopes: &mut ExecutionScopes,
+         ids_data: &HashMap<String, HintReference>,
+         ap_tracking: &ApTracking,
+         _constants: &HashMap<String, Felt252>|
+         -> Result<(), HintError> {
+            // Get pointers, converting Result to Option
+            let add_mod_ptr = get_ptr_from_var_name("add_mod_ptr", vm, ids_data, ap_tracking)
+                .ok()
+                .map(|ptr| (ptr, 1));
+
+            let mul_mod_ptr = get_ptr_from_var_name("mul_mod_ptr", vm, ids_data, ap_tracking)
+                .ok()
+                .map(|ptr| (ptr, 1));
+
+            // Fill memory with mod builtin values
+            vm.mod_builtin_fill_memory(add_mod_ptr, mul_mod_ptr, Some(1))
+                .map_err(HintError::Internal)
+        },
+    )
+}
+
+pub fn fill_add_mod_mul_mod_builtin_batch_117_108() -> Hint {
+    Hint::new(
+        String::from("fill_add_mod_mul_mod_builtin_batch_117_108"),
+        |vm: &mut VirtualMachine,
+         _exec_scopes: &mut ExecutionScopes,
+         ids_data: &HashMap<String, HintReference>,
+         ap_tracking: &ApTracking,
+         _constants: &HashMap<String, Felt252>|
+         -> Result<(), HintError> {
+            // Get pointers, converting Result to Option
+            let add_mod_ptr = get_ptr_from_var_name("add_mod_ptr", vm, ids_data, ap_tracking)
+                .ok()
+                .map(|ptr| (ptr, 117));
+
+            let mul_mod_ptr = get_ptr_from_var_name("mul_mod_ptr", vm, ids_data, ap_tracking)
+                .ok()
+                .map(|ptr| (ptr, 108));
+
+            // Fill memory with mod builtin values
+            vm.mod_builtin_fill_memory(add_mod_ptr, mul_mod_ptr, Some(1))
+                .map_err(HintError::Internal)
+        },
+    )
+}
+
+pub fn decompose_scalar_to_neg3_base() -> Hint {
+    Hint::new(
+        String::from("decompose_scalar_to_neg3_base"),
+        |vm: &mut VirtualMachine,
+         _exec_scopes: &mut ExecutionScopes,
+         ids_data: &HashMap<String, HintReference>,
+         ap_tracking: &ApTracking,
+         _constants: &HashMap<String, Felt252>|
+         -> Result<(), HintError> {
+            let scalar = get_integer_from_var_name("scalar", vm, ids_data, ap_tracking)?;
+            assert!(Felt252::ZERO <= scalar && scalar < pow2_const(128));
+            let mut digits = neg_3_base_le(&scalar.to_biguint());
+            digits.extend(vec![0; 82 - digits.len()]);
+
+            write_collection_from_var_name("digits", &digits, vm, ids_data, ap_tracking)?;
+            insert_value_from_var_name("d0", Felt252::from(digits[0]), vm, ids_data, ap_tracking)?;
+
+            write_result_to_ap(true, 0, vm)?;
+
+            Ok(())
+        },
+    )
+}

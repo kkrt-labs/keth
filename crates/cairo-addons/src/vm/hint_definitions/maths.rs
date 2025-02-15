@@ -14,10 +14,17 @@ use cairo_vm::{
     vm::{errors::hint_errors::HintError, vm_core::VirtualMachine},
     Felt252,
 };
+use num_bigint::BigUint;
 
 use crate::vm::hints::Hint;
 
-pub const HINTS: &[fn() -> Hint] = &[felt252_to_bytes_le, felt252_to_bytes_be, value_len_mod_two];
+pub const HINTS: &[fn() -> Hint] = &[
+    felt252_to_bytes_le,
+    felt252_to_bytes_be,
+    value_len_mod_two,
+    is_positive_hint,
+    value_len_mod_two,
+];
 
 pub fn felt252_to_bytes_le() -> Hint {
     Hint::new(
@@ -98,7 +105,34 @@ pub fn felt252_to_bytes_be() -> Hint {
     )
 }
 
-fn value_len_mod_two() -> Hint {
+// @register_hint
+// def is_positive_hint(ids: VmConsts):
+//     from starkware.cairo.common.math_utils import as_int
+//     from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
+
+//     ids.is_positive = 1 if as_int(ids.value, DEFAULT_PRIME) >= 0 else 0
+
+// @register_hint
+// def value_len_mod_two(ids: VmConsts):
+//     ids.remainder = ids.len % 2
+
+pub fn is_positive_hint() -> Hint {
+    Hint::new(
+        String::from("is_positive_hint"),
+        |vm: &mut VirtualMachine,
+         _exec_scopes: &mut ExecutionScopes,
+         ids_data: &HashMap<String, HintReference>,
+         ap_tracking: &ApTracking,
+         _constants: &HashMap<String, Felt252>|
+         -> Result<(), HintError> {
+            let value = get_integer_from_var_name("value", vm, ids_data, ap_tracking)?;
+            let is_positive = if value <= Felt252::from(u128::MAX) { 1 } else { 0 };
+            insert_value_from_var_name("is_positive", is_positive, vm, ids_data, ap_tracking)
+        },
+    )
+}
+
+pub fn value_len_mod_two() -> Hint {
     Hint::new(
         String::from("value_len_mod_two"),
         |vm: &mut VirtualMachine,
@@ -108,12 +142,15 @@ fn value_len_mod_two() -> Hint {
          _constants: &HashMap<String, Felt252>|
          -> Result<(), HintError> {
             let len = get_integer_from_var_name("len", vm, ids_data, ap_tracking)?;
-
-            let len: usize =
-                len.try_into().map_err(|_| MathError::Felt252ToUsizeConversion(Box::new(len)))?;
-
-            let remainder = len % 2;
-            insert_value_from_var_name("remainder", remainder, vm, ids_data, ap_tracking)
+            let len_biguint = len.to_biguint();
+            let remainder = len_biguint % BigUint::from(2u64);
+            insert_value_from_var_name(
+                "remainder",
+                Felt252::from(remainder),
+                vm,
+                ids_data,
+                ap_tracking,
+            )
         },
     )
 }
