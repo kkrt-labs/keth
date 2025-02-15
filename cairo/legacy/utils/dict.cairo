@@ -206,7 +206,7 @@ func dict_update{range_check_ptr}(
 }
 
 // @notice Given a dict segment (start and end), returns a new dict segment with (key, prev_value, prev_value) for each key.
-// @dev Expectes the given dict to be squashed, with one DictAccess instance per key, to avoid creating useless entries.
+// @dev Expects the given dict to be squashed, with one DictAccess instance per key, to avoid creating useless entries.
 // @param dict_ptr_start: The start of the dict segment.
 // @param dict_ptr_stop: The end of the dict segment.
 // @return prev_values_start: The start of the new dict segment.
