@@ -33,9 +33,9 @@ pub const HINTS: &[fn() -> Hint] = &[
     precompile_index_from_address,
     initialize_jumpdests,
     print_maybe_relocatable_hint,
-    check_push_last_32_bytes,
-    continue_general_case,
-    continue_no_push_case,
+    jumpdest_check_push_last_32_bytes,
+    jumpdest_continue_general_case,
+    jumpdest_continue_no_push_case,
 ];
 
 lazy_static! {
@@ -340,19 +340,9 @@ fn get_valid_jump_destinations(code: &[u8]) -> Vec<usize> {
     valid_jumpdest
 }
 
-// @register_hint
-// def check_push_last_32_bytes(
-//     ids: VmConsts, memory: MemoryDict
-// ):
-//     # Get the 32 previous bytes
-//     bytecode = [memory[ids.bytecode + ids.valid_jumpdest.key - i - 1] for i in
-// range(min(ids.valid_jumpdest.key, 32))][::-1]     # Check if any PUSH may prevent this to be a
-// JUMPDEST     ids.is_no_push_case = int(not any([0x60 + i <= byte <= 0x7f for i, byte in
-// enumerate(bytecode[::-1])]))
-
-pub fn check_push_last_32_bytes() -> Hint {
+pub fn jumpdest_check_push_last_32_bytes() -> Hint {
     Hint::new(
-        String::from("check_push_last_32_bytes"),
+        String::from("jumpdest_check_push_last_32_bytes"),
         |vm: &mut VirtualMachine,
          _exec_scopes: &mut ExecutionScopes,
          ids_data: &HashMap<String, HintReference>,
@@ -394,9 +384,9 @@ pub fn check_push_last_32_bytes() -> Hint {
     )
 }
 
-pub fn continue_general_case() -> Hint {
+pub fn jumpdest_continue_general_case() -> Hint {
     Hint::new(
-        String::from("continue_general_case"),
+        String::from("jumpdest_continue_general_case"),
         |vm: &mut VirtualMachine,
          _exec_scopes: &mut ExecutionScopes,
          ids_data: &HashMap<String, HintReference>,
@@ -420,9 +410,9 @@ pub fn continue_general_case() -> Hint {
     )
 }
 
-pub fn continue_no_push_case() -> Hint {
+pub fn jumpdest_continue_no_push_case() -> Hint {
     Hint::new(
-        String::from("continue_no_push_case"),
+        String::from("jumpdest_continue_no_push_case"),
         |vm: &mut VirtualMachine,
          _exec_scopes: &mut ExecutionScopes,
          ids_data: &HashMap<String, HintReference>,

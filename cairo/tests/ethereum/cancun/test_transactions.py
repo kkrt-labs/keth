@@ -79,7 +79,6 @@ class TestTransactions:
     @given(chain_id=..., tx=...)
     def test_recover_sender(self, cairo_run, chain_id: U64, tx: Transaction):
         try:
-            # TODO: replace cairo_run by cairo_run once garaga hints are implemented in Rust
             cairo_result = cairo_run("recover_sender", chain_id, tx)
         except Exception as cairo_error:
             with strict_raises(type(cairo_error)):

@@ -43,7 +43,7 @@ pub fn has_six_uint384_remaining_hint() -> Hint {
                     return write_result_to_ap(false, 1, vm);
                 }
             };
-            let n_limbs = get_integer_from_var_name("N_LIMBS_", vm, ids_data, ap_tracking)?;
+            let n_limbs = get_integer_from_var_name("N_LIMBS_HINT", vm, ids_data, ap_tracking)?;
             let has_six_uint384_remaining =
                 Felt252::from(elements_len) >= Felt252::from(6) * n_limbs;
             write_result_to_ap(has_six_uint384_remaining, 1, vm)
@@ -68,7 +68,7 @@ pub fn has_one_uint384_remaining_hint() -> Hint {
                     return write_result_to_ap(false, 1, vm);
                 }
             };
-            let n_limbs = get_integer_from_var_name("N_LIMBS_", vm, ids_data, ap_tracking)?;
+            let n_limbs = get_integer_from_var_name("N_LIMBS_HINT", vm, ids_data, ap_tracking)?;
             let has_one_uint384_remaining = Felt252::from(elements_len) >= n_limbs;
             write_result_to_ap(has_one_uint384_remaining, 1, vm)
         },

@@ -139,7 +139,7 @@ def initialize_jumpdests(
 
 
 @register_hint
-def check_push_last_32_bytes(ids: VmConsts, memory: MemoryDict):
+def jumpdest_check_push_last_32_bytes(ids: VmConsts, memory: MemoryDict):
     # Get the 32 previous bytes
     bytecode = [
         memory[ids.bytecode + ids.valid_jumpdest.key - i - 1]
@@ -152,14 +152,14 @@ def check_push_last_32_bytes(ids: VmConsts, memory: MemoryDict):
 
 
 @register_hint
-def continue_general_case(
+def jumpdest_continue_general_case(
     ids: VmConsts,
 ):
     ids.cond = 1 if ids.i < ids.valid_jumpdest.key else 0
 
 
 @register_hint
-def continue_no_push_case(
+def jumpdest_continue_no_push_case(
     ids: VmConsts,
 ):
     ids.cond = 0 if ids.offset > 32 or ids.valid_jumpdest.key < ids.offset else 1

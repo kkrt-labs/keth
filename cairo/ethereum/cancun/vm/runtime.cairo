@@ -94,7 +94,7 @@ func assert_valid_jumpdest{range_check_ptr}(
     }
 
     tempvar is_no_push_case;
-    %{ check_push_last_32_bytes %}
+    %{ jumpdest_check_push_last_32_bytes %}
     jmp no_push_case if is_no_push_case != 0;
 
     general_case:
@@ -113,7 +113,7 @@ func assert_valid_jumpdest{range_check_ptr}(
     tempvar cond;
     tempvar range_check_ptr = range_check_ptr;
     tempvar i = next_i;
-    %{ continue_general_case %}
+    %{ jumpdest_continue_general_case %}
     jmp body_general_case if cond != 0;
 
     let range_check_ptr = [ap - 2];
@@ -151,7 +151,7 @@ func assert_valid_jumpdest{range_check_ptr}(
 
     static_assert offset == [ap - 2];
     static_assert range_check_ptr == [ap - 1];
-    %{ continue_no_push_case %}
+    %{ jumpdest_continue_no_push_case %}
     jmp body_no_push_case if cond != 0;
 
     let offset = [ap - 2];

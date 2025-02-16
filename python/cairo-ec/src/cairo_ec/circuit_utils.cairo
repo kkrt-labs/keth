@@ -12,7 +12,7 @@ func hash_full_transcript{poseidon_ptr: PoseidonBuiltin*}(limbs_ptr: felt*, n: f
     tempvar pos_ptr = cast(poseidon_ptr, felt*);
 
     loop:
-    let N_LIMBS_ = N_LIMBS;
+    let N_LIMBS_HINT = N_LIMBS;
     tempvar has_six_uint384_remaining;
     %{ has_six_uint384_remaining_hint %}
     ap += 1;
