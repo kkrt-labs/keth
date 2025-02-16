@@ -16,7 +16,10 @@ use cairo_vm::{
 };
 use garaga_rs::{
     calldata::msm_calldata::msm_calldata_builder,
-    definitions::{CurveID, CurveParamsProvider, FieldElement, SECP256K1PrimeField},
+    definitions::{
+        CurveID, CurveParamsProvider, FieldElement, SECP256K1PrimeField,
+        SECP256K1_PRIME_FIELD_ORDER,
+    },
     ecip::core::neg_3_base_le,
     io::element_to_biguint,
 };
@@ -82,23 +85,26 @@ pub fn build_msm_hints_and_fill_memory() -> Hint {
             let q_low_high_high_shifted = calldata[..points_offset].to_vec();
             let mut calldata_rest = calldata[points_offset..].to_vec();
 
-            let mut rlc_components = Vec::<BigUint>::new();
+            // Process 4 arrays of RLC components
+            let mut rlc_components = Vec::<BigUint>::with_capacity((18 + 4 * 2) * N_LIMBS);
             for _ in 0..4 {
-                let array_len: usize = calldata_rest.remove(0).try_into().unwrap(); // Remove the length we just read
-
-                // Get slice of length array_len * N_LIMBS, bounded by remaining length
-                let array = calldata_rest[..min(array_len * N_LIMBS, calldata_rest.len())].to_vec();
-                rlc_components.extend(array);
-
-                // Update calldata_rest to remove processed elements
-                calldata_rest =
-                    calldata_rest[min(array_len * N_LIMBS, calldata_rest.len())..].to_vec();
+                let array_len: usize = calldata_rest.remove(0).try_into().map_err(|_| {
+                    HintError::CustomHint("Failed to convert array length to usize".into())
+                })?;
+                let slice_len = min(array_len * N_LIMBS, calldata_rest.len());
+                rlc_components.extend(calldata_rest[..slice_len].iter().cloned());
+                calldata_rest = calldata_rest[slice_len..].to_vec();
             }
 
-            let expected_len = (18 + 4 * 2) * N_LIMBS;
-            if rlc_components.len() != expected_len {
+            const EXPECTED_LEN: usize = (18 + 4 * 2) * N_LIMBS;
+            if rlc_components.len() != EXPECTED_LEN {
                 return Err(HintError::CustomHint(
-                    format!("Invalid RLC components length: {}", rlc_components.len()).into(),
+                    format!(
+                        "Invalid RLC components length: expected {}, got {}",
+                        EXPECTED_LEN,
+                        rlc_components.len()
+                    )
+                    .into(),
                 ));
             }
 
@@ -131,45 +137,37 @@ pub fn compute_y_from_x_hint() -> Hint {
             let p = Uint384::from_var_name("p", vm, ids_data, ap_tracking)?.pack();
             let g = Uint384::from_var_name("g", vm, ids_data, ap_tracking)?.pack();
             let x = Uint384::from_var_name("x", vm, ids_data, ap_tracking)?.pack();
-
             let v = get_integer_from_var_name("v", vm, ids_data, ap_tracking)?.to_biguint();
 
-            // TODO: support more fields
-            // currently only secp256k1 field is supported
-            // if p.into() != SECP256K1_PRIME_FIELD_ORDER {
-            //     panic!("p is not secp256k1 field")
-            // }
-
             let rhs = (pow(x.clone(), 3) + a * x + b) % p.clone();
-            let rhs_felt =
-                FieldElement::<SECP256K1PrimeField>::from_hex_unchecked(&rhs.to_str_radix(16));
-            let g_felt =
-                FieldElement::<SECP256K1PrimeField>::from_hex_unchecked(&g.to_str_radix(16));
+
+            // Currently, only the secp256k1 field is supported
+            let (rhs_felt, g_felt) = if p.to_str_radix(16).to_uppercase() ==
+                SECP256K1_PRIME_FIELD_ORDER.to_hex()
+            {
+                let rhs_felt =
+                    FieldElement::<SECP256K1PrimeField>::from_hex_unchecked(&rhs.to_str_radix(16));
+                let g_felt =
+                    FieldElement::<SECP256K1PrimeField>::from_hex_unchecked(&g.to_str_radix(16));
+                (rhs_felt, g_felt)
+            } else {
+                panic!("Unsupported field: {}", p.to_str_radix(16).to_uppercase());
+            };
 
             let is_on_curve = is_quad_residue(&rhs, &p);
             let square_root = if is_on_curve {
-                let sq_rt = rhs_felt.sqrt().unwrap().0;
-                let element_to_biguint = element_to_biguint(&sq_rt);
-                let is_v_even = v % BigUint::from(2_u32) == BigUint::from(0_u32);
-                let is_sq_rt_even =
-                    element_to_biguint % BigUint::from(2_u32) == BigUint::from(0_u32);
-                if is_v_even == is_sq_rt_even {
-                    sq_rt
+                let sqrt_felt = rhs_felt.sqrt().unwrap().0;
+                let has_same_parity = (v % 2_u32) == (element_to_biguint(&sqrt_felt) % 2_u32);
+                if has_same_parity {
+                    sqrt_felt
                 } else {
-                    -sq_rt
+                    -sqrt_felt
                 }
             } else {
                 (rhs_felt * g_felt).sqrt().unwrap().0
             };
 
-            //TODO improve this
-            let sqrt_b = square_root.representative();
-            let mut sqrt_bytes = vec![];
-            for limb in sqrt_b.limbs {
-                sqrt_bytes.extend(limb.to_be_bytes());
-            }
-            let sqrt_biguint = BigUint::from_bytes_be(&sqrt_bytes);
-
+            let sqrt_biguint = element_to_biguint(&square_root);
             Uint384::split(&sqrt_biguint).insert_from_var_name(
                 "y_try",
                 vm,
