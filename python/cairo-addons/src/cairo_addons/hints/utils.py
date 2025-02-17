@@ -68,7 +68,7 @@ def fp_plus_2_or_0(
 
 
 @register_hint
-def print_maybe_relocatable(
+def print_maybe_relocatable_hint(
     dict_manager: DictManager,
     ids: VmConsts,
     segments: MemorySegmentManager,
@@ -136,3 +136,30 @@ def initialize_jumpdests(
     assert base.segment_index not in dict_manager.trackers
     dict_manager.trackers[base.segment_index] = DictTracker(data=data, current_ptr=base)
     memory[ap] = base
+
+
+@register_hint
+def jumpdest_check_push_last_32_bytes(ids: VmConsts, memory: MemoryDict):
+    # Get the 32 previous bytes
+    bytecode = [
+        memory[ids.bytecode + ids.valid_jumpdest.key - i - 1]
+        for i in range(min(ids.valid_jumpdest.key, 32))
+    ]
+    # Check if any PUSH may prevent this to be a JUMPDEST
+    ids.is_no_push_case = int(
+        not any([0x60 + i <= byte <= 0x7F for i, byte in enumerate(bytecode)])
+    )
+
+
+@register_hint
+def jumpdest_continue_general_case(
+    ids: VmConsts,
+):
+    ids.cond = 1 if ids.i < ids.valid_jumpdest.key else 0
+
+
+@register_hint
+def jumpdest_continue_no_push_case(
+    ids: VmConsts,
+):
+    ids.cond = 0 if ids.offset > 32 or ids.valid_jumpdest.key < ids.offset else 1

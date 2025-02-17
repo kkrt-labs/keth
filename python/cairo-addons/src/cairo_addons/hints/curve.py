@@ -7,7 +7,12 @@ from cairo_addons.hints.decorator import register_hint
 
 
 @register_hint
-def decompose_scalar_to_neg3_base(ids: VmConsts):
+def decompose_scalar_to_neg3_base(
+    ids: VmConsts,
+    memory: MemoryDict,
+    ap: RelocatableValue,
+    segments: MemorySegmentManager,
+):
     from garaga.hints.neg_3 import neg_3_base_le
 
     assert 0 <= ids.scalar < 2**128
@@ -15,7 +20,9 @@ def decompose_scalar_to_neg3_base(ids: VmConsts):
     digits = digits + [0] * (82 - len(digits))
     # ruff: noqa: F821
     # ruff: noqa: F841
-    i = 1  # Loop init
+    segments.write_arg(ids.digits, digits)
+    ids.d0 = digits[0]
+    i = memory[ap] = 1  # Loop init
 
 
 @register_hint
@@ -59,6 +66,7 @@ def compute_y_from_x_hint(ids: VmConsts, segments: MemorySegmentManager):
     p = uint384_to_int(ids.p.d0, ids.p.d1, ids.p.d2, ids.p.d3)
     g = uint384_to_int(ids.g.d0, ids.g.d1, ids.g.d2, ids.g.d3)
     x = uint384_to_int(ids.x.d0, ids.x.d1, ids.x.d2, ids.x.d3)
+
     rhs = (x**3 + a * x + b) % p
 
     is_on_curve = is_quad_residue(rhs, p)
@@ -86,7 +94,7 @@ def build_msm_hints_and_fill_memory(ids: VmConsts, memory: MemoryDict):
     3. Processes the calldata into two parts: points and RLC sum components
     4. Fills the memory with the processed data
     """
-    from garaga.definitions import CurveID, G1Point, N_LIMBS, BASE
+    from garaga.definitions import BASE, N_LIMBS, CurveID, G1Point
     from garaga.hints.io import bigint_pack, fill_felt_ptr
     from garaga.starknet.tests_and_calldata_generators.msm import MSMCalldataBuilder
 
@@ -139,4 +147,48 @@ def build_msm_hints_and_fill_memory(ids: VmConsts, memory: MemoryDict):
         Q_low_high_high_shifted,
         memory,
         ids.range_check96_ptr + 50 * N_LIMBS + memory_offset,
+    )
+
+
+@register_hint
+def fill_add_mod_mul_mod_builtin_batch_one(
+    ids: VmConsts, memory: MemoryDict, builtin_runners: dict
+):
+    from starkware.cairo.lang.builtins.modulo.mod_builtin_runner import ModBuiltinRunner
+
+    assert builtin_runners["add_mod_builtin"].instance_def.batch_size == 1
+    assert builtin_runners["mul_mod_builtin"].instance_def.batch_size == 1
+
+    add_mod = None
+    try:
+        add_mod = (ids.add_mod_ptr.address_, builtin_runners["add_mod_builtin"], 1)
+    except Exception:
+        add_mod = None
+
+    mul_mod = None
+    try:
+        mul_mod = (ids.mul_mod_ptr.address_, builtin_runners["mul_mod_builtin"], 1)
+    except Exception:
+        mul_mod = None
+
+    ModBuiltinRunner.fill_memory(
+        memory=memory,
+        add_mod=add_mod,
+        mul_mod=mul_mod,
+    )
+
+
+@register_hint
+def fill_add_mod_mul_mod_builtin_batch_117_108(
+    ids: VmConsts, memory: MemoryDict, builtin_runners: dict
+):
+    from starkware.cairo.lang.builtins.modulo.mod_builtin_runner import ModBuiltinRunner
+
+    assert builtin_runners["add_mod_builtin"].instance_def.batch_size == 1
+    assert builtin_runners["mul_mod_builtin"].instance_def.batch_size == 1
+
+    ModBuiltinRunner.fill_memory(
+        memory=memory,
+        add_mod=(ids.add_mod_ptr.address_, builtin_runners["add_mod_builtin"], 117),
+        mul_mod=(ids.mul_mod_ptr.address_, builtin_runners["mul_mod_builtin"], 108),
     )

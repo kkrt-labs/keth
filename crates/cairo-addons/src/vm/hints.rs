@@ -19,7 +19,8 @@ use std::{collections::HashMap, fmt, rc::Rc};
 
 use super::{
     hint_definitions::{
-        BYTES_HINTS, DICT_HINTS, ETHEREUM_HINTS, HASHDICT_HINTS, MATHS_HINTS, UTILS_HINTS,
+        BYTES_HINTS, CIRCUITS_HINTS, CURVE_HINTS, DICT_HINTS, ETHEREUM_HINTS, HASHDICT_HINTS,
+        MATHS_HINTS, UTILS_HINTS,
     },
     hint_loader::load_python_hints,
 };
@@ -95,6 +96,8 @@ impl Default for HintProcessor {
         hints.extend_from_slice(BYTES_HINTS);
         hints.extend_from_slice(MATHS_HINTS);
         hints.extend_from_slice(ETHEREUM_HINTS);
+        hints.extend_from_slice(CURVE_HINTS);
+        hints.extend_from_slice(CIRCUITS_HINTS);
         Self::new(RunResources::default()).with_hints(hints)
     }
 }

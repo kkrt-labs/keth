@@ -1,11 +1,14 @@
 mod bytes_hints;
+mod circuits;
+mod curve;
 mod dict;
 mod ethereum;
 mod hashdict;
 mod maths;
 mod utils;
-
 pub use bytes_hints::HINTS as BYTES_HINTS;
+pub use circuits::HINTS as CIRCUITS_HINTS;
+pub use curve::HINTS as CURVE_HINTS;
 pub use dict::HINTS as DICT_HINTS;
 pub use ethereum::HINTS as ETHEREUM_HINTS;
 pub use hashdict::HINTS as HASHDICT_HINTS;

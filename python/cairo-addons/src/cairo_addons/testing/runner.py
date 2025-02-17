@@ -257,6 +257,7 @@ def run_python_vm(
         runner.initialize_vm(
             hint_locals={
                 "program_input": kwargs,
+                "builtin_runners": runner.builtin_runners,
                 "__dict_manager": dict_manager,
                 "dict_manager": dict_manager,
                 "serde": serde,

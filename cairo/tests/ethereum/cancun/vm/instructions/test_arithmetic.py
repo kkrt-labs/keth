@@ -120,12 +120,12 @@ class TestArithmetic:
         assert evm == cairo_result
 
     @given(evm=arithmetic_tests_strategy)
-    def test_addmod_overflow_u256_cairo(self, cairo_run_py, evm: Evm):
+    def test_addmod_overflow_u256_cairo(self, cairo_run, evm: Evm):
         evm.stack.push_or_replace_many(
             [U256(2**256 - 1), U256(2**256 - 2), U256(2**256 - 2)]
         )
         try:
-            cairo_result = cairo_run_py("addmod", evm)
+            cairo_result = cairo_run("addmod", evm)
         except Exception as cairo_error:
             with strict_raises(type(cairo_error)):
                 addmod(evm)

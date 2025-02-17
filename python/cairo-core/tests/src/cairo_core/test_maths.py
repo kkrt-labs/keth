@@ -83,7 +83,7 @@ class TestMaths:
     )
     @settings(verbosity=Verbosity.quiet)
     def test_felt252_to_bytes_le_should_panic_on_wrong_output(
-        self, cairo_programs, cairo_run, value, len_
+        self, cairo_programs, cairo_run_py, value, len_
     ):
         with patch_hint(
             cairo_programs,
@@ -94,10 +94,10 @@ truncated_value = ids.value & mask
 segments.write_arg(ids.output, [int(b)+1 if b < 255 else 0 for b in truncated_value.to_bytes(length=ids.len, byteorder='little')])
             """,
         ), cairo_error(message="felt252_to_bytes_le: bad output"):
-            cairo_run("test__felt252_to_bytes_le", value=value, len=len_)
+            cairo_run_py("test__felt252_to_bytes_le", value=value, len=len_)
 
     def test_felt252_to_bytes_le_should_panic_on_wrong_output_noncanonical(
-        self, cairo_programs, cairo_run
+        self, cairo_programs, cairo_run_py
     ):
         value = 0xAABB
         len_ = 2
@@ -117,7 +117,7 @@ if ids.len > 1 and canonical[1] > 0:
 segments.write_arg(ids.output, bad)
             """,
         ), cairo_error(message="felt252_to_bytes_le: byte not in bounds"):
-            cairo_run("test__felt252_to_bytes_le", value=value, len=len_)
+            cairo_run_py("test__felt252_to_bytes_le", value=value, len=len_)
 
     @given(
         value=st.integers(min_value=256, max_value=2**248 - 1),
@@ -151,7 +151,7 @@ segments.write_arg(ids.output, bad)
     )
     @settings(verbosity=Verbosity.quiet)
     def test_felt252_to_bytes_be_should_panic_on_wrong_output(
-        self, cairo_programs, cairo_run, value, len_
+        self, cairo_programs, cairo_run_py, value, len_
     ):
         with patch_hint(
             cairo_programs,
@@ -162,10 +162,10 @@ truncated_value = ids.value & mask
 segments.write_arg(ids.output, [int(b) + 1 if b < 255 else 0 for b in truncated_value.to_bytes(length=ids.len, byteorder='big')])
             """,
         ), cairo_error(message="felt252_to_bytes_be: bad output"):
-            cairo_run("test__felt252_to_bytes_be", value=value, len=len_)
+            cairo_run_py("test__felt252_to_bytes_be", value=value, len=len_)
 
     def test_felt252_to_bytes_be_should_panic_on_wrong_output_noncanonical(
-        self, cairo_programs, cairo_run
+        self, cairo_programs, cairo_run_py
     ):
         value = 0xAABB
         len_ = 2
@@ -185,4 +185,4 @@ if ids.len > 1 and canonical[-2] > 0:
 segments.write_arg(ids.output, bad)
             """,
         ), cairo_error(message="felt252_to_bytes_be: byte not in bounds"):
-            cairo_run("test__felt252_to_bytes_be", value=value, len=len_)
+            cairo_run_py("test__felt252_to_bytes_be", value=value, len=len_)

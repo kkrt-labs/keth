@@ -17,6 +17,7 @@ from ethereum_types.numeric import U256, Uint
 from hypothesis import given
 from hypothesis import strategies as st
 from hypothesis.strategies import composite
+from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 
 from cairo_addons.testing.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder
@@ -199,13 +200,13 @@ class TestStorage:
     )
     def test_calculate_refund_counter_current_eq_new(
         self,
-        cairo_run_py,
+        cairo_run,
         current_refund_counter,
         original_value: U256,
         current_value: U256,
         new_value: U256,
     ):
-        res_cairo = cairo_run_py(
+        res_cairo = cairo_run(
             "_calculate_refund_counter_current_eq_new",
             current_refund_counter,
             original_value,
@@ -219,7 +220,7 @@ class TestStorage:
             current_value,
             new_value,
         )
-        assert res == res_cairo
+        assert res % DEFAULT_PRIME == res_cairo
 
 
 # see https://github.com/ethereum/execution-specs/blob/6e652281164025f1f4227f6e5b0036c1bbd27347/src/ethereum/cancun/vm/instructions/storage.py#L104

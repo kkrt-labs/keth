@@ -157,17 +157,7 @@ func uint384_assert_neq_mod_p{
     assert mul_mod_ptr[0] = ModBuiltin(
         p=p, values_ptr=cast(range_check96_ptr, UInt384*), offsets_ptr=mul_offsets_ptr, n=1
     );
-    %{
-        from starkware.cairo.lang.builtins.modulo.mod_builtin_runner import ModBuiltinRunner
-        assert builtin_runners["add_mod_builtin"].instance_def.batch_size == 1
-        assert builtin_runners["mul_mod_builtin"].instance_def.batch_size == 1
-
-        ModBuiltinRunner.fill_memory(
-            memory=memory,
-            add_mod=(ids.add_mod_ptr.address_, builtin_runners["add_mod_builtin"], 1),
-            mul_mod=(ids.mul_mod_ptr.address_, builtin_runners["mul_mod_builtin"], 1),
-        )
-    %}
+    %{ fill_add_mod_mul_mod_builtin_batch_one %}
     let range_check96_ptr = range_check96_ptr + 20;
     let add_mod_ptr = add_mod_ptr + ModBuiltin.SIZE;
     let mul_mod_ptr = mul_mod_ptr + ModBuiltin.SIZE;
@@ -228,16 +218,7 @@ func uint384_assert_neg_mod_p{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*
     assert add_mod_ptr[0] = ModBuiltin(
         p=p, values_ptr=cast(range_check96_ptr, UInt384*), offsets_ptr=add_offsets_ptr, n=1
     );
-    %{
-        from starkware.cairo.lang.builtins.modulo.mod_builtin_runner import ModBuiltinRunner
-        assert builtin_runners["add_mod_builtin"].instance_def.batch_size == 1
-
-        ModBuiltinRunner.fill_memory(
-            memory=memory,
-            add_mod=(ids.add_mod_ptr.address_, builtin_runners["add_mod_builtin"], 1),
-            mul_mod=None,
-        )
-    %}
+    %{ fill_add_mod_mul_mod_builtin_batch_one %}
 
     let range_check96_ptr = range_check96_ptr + 12;
     let add_mod_ptr = add_mod_ptr + ModBuiltin.SIZE;
@@ -284,17 +265,7 @@ func uint384_assert_not_neg_mod_p{
     assert mul_mod_ptr[0] = ModBuiltin(
         p=p, values_ptr=cast(range_check96_ptr, UInt384*), offsets_ptr=mul_offsets_ptr, n=1
     );
-    %{
-        from starkware.cairo.lang.builtins.modulo.mod_builtin_runner import ModBuiltinRunner
-        assert builtin_runners["add_mod_builtin"].instance_def.batch_size == 1
-        assert builtin_runners["mul_mod_builtin"].instance_def.batch_size == 1
-
-        ModBuiltinRunner.fill_memory(
-            memory=memory,
-            add_mod=(ids.add_mod_ptr.address_, builtin_runners["add_mod_builtin"], 1),
-            mul_mod=(ids.mul_mod_ptr.address_, builtin_runners["mul_mod_builtin"], 1),
-        )
-    %}
+    %{ fill_add_mod_mul_mod_builtin_batch_one %}
     let range_check96_ptr = range_check96_ptr + 20;
     let add_mod_ptr = add_mod_ptr + ModBuiltin.SIZE;
     let mul_mod_ptr = mul_mod_ptr + ModBuiltin.SIZE;
@@ -349,16 +320,7 @@ func uint384_div_mod_p{range_check96_ptr: felt*, mul_mod_ptr: ModBuiltin*}(
     assert mul_mod_ptr[0] = ModBuiltin(
         p=p, values_ptr=cast(range_check96_ptr, UInt384*), offsets_ptr=mul_offsets_ptr, n=1
     );
-    %{
-        from starkware.cairo.lang.builtins.modulo.mod_builtin_runner import ModBuiltinRunner
-        assert builtin_runners["mul_mod_builtin"].instance_def.batch_size == 1
-
-        ModBuiltinRunner.fill_memory(
-            memory=memory,
-            add_mod=None,
-            mul_mod=(ids.mul_mod_ptr.address_, builtin_runners["mul_mod_builtin"], 1),
-        )
-    %}
+    %{ fill_add_mod_mul_mod_builtin_batch_one %}
 
     let range_check96_ptr = range_check96_ptr + 12;
     let mul_mod_ptr = mul_mod_ptr + ModBuiltin.SIZE;
@@ -393,16 +355,7 @@ func uint384_neg_mod_p{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*}(
     assert add_mod_ptr[0] = ModBuiltin(
         p=p, values_ptr=cast(range_check96_ptr, UInt384*), offsets_ptr=add_offsets_ptr, n=1
     );
-    %{
-        from starkware.cairo.lang.builtins.modulo.mod_builtin_runner import ModBuiltinRunner
-        assert builtin_runners["add_mod_builtin"].instance_def.batch_size == 1
-
-        ModBuiltinRunner.fill_memory(
-            memory=memory,
-            add_mod=(ids.add_mod_ptr.address_, builtin_runners["add_mod_builtin"], 1),
-            mul_mod=None,
-        )
-    %}
+    %{ fill_add_mod_mul_mod_builtin_batch_one %}
 
     let range_check96_ptr = range_check96_ptr + 12;
     let add_mod_ptr = add_mod_ptr + ModBuiltin.SIZE;
