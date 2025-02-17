@@ -7,6 +7,7 @@ from eth_account import Account as EthAccount
 from eth_keys.datatypes import PrivateKey
 from ethereum.cancun.blocks import Block, Header, Log, Withdrawal
 from ethereum.cancun.fork import (
+    EMPTY_OMMER_HASH,
     GAS_LIMIT_ADJUSTMENT_FACTOR,
     BlockChain,
     apply_body,
@@ -16,6 +17,7 @@ from ethereum.cancun.fork import (
     get_last_256_block_hashes,
     make_receipt,
     process_transaction,
+    state_transition,
     validate_header,
 )
 from ethereum.cancun.fork_types import Address, VersionedHash
@@ -72,6 +74,7 @@ from tests.utils.strategies import (
     excess_blob_gas,
     small_bytes,
     uint,
+    uint64,
 )
 
 MIN_BASE_FEE = 1_000
@@ -487,6 +490,114 @@ def tx_with_sender_in_state(
     return tx, env, chain_id
 
 
+@composite
+def block_strategy(draw, parent_header: Optional[Header] = None):
+    if parent_header is None:
+        # Generate both headers if no parent provided
+        parent_header, header = draw(headers())
+        # Set parent timestamp to 1 and child to 13 (12 seconds later)
+        parent_header = replace(parent_header, timestamp=U256(1))
+        header = replace(
+            header,
+            timestamp=U256(13),  # parent timestamp + 12
+            number=parent_header.number + Uint(1),
+            parent_hash=keccak256(rlp.encode(parent_header)),
+        )
+    else:
+        # Generate header based on parent
+        gas_limit = parent_header.gas_limit
+        correct_base_fee = calculate_base_fee_per_gas(
+            gas_limit,
+            parent_header.gas_limit,
+            parent_header.gas_used,
+            parent_header.base_fee_per_gas,
+        )
+
+        # Set timestamp to parent timestamp + 12 seconds
+        timestamp = U256(int(parent_header.timestamp) + 12)
+
+        header = draw(
+            st.builds(
+                Header,
+                parent_hash=st.just(keccak256(rlp.encode(parent_header))),
+                gas_limit=st.just(gas_limit),
+                gas_used=st.just(gas_limit // Uint(2)),
+                base_fee_per_gas=st.just(correct_base_fee),
+                number=st.just(parent_header.number + Uint(1)),
+                timestamp=st.just(timestamp),
+                difficulty=st.just(Uint(0)),
+                ommers_hash=st.just(EMPTY_OMMER_HASH),
+                nonce=st.just(Bytes8(int(0).to_bytes(8, "big"))),
+                prev_randao=bytes32,
+                withdrawals_root=bytes32,
+                parent_beacon_block_root=bytes32,
+                transactions_root=bytes32,
+                receipt_root=bytes32,
+                extra_data=st.binary(max_size=32).map(Bytes),
+            )
+        )
+
+    # Calculate safe gas limits for transactions
+    max_tx_gas = min(int(header.gas_limit) // 2, 2**32 - 1)
+    min_tx_gas = min(21_000, max_tx_gas)  # Ensure min doesn't exceed max
+
+    # Generate transactions with valid gas limits
+    transactions = draw(
+        st.lists(
+            tx_with_small_data(
+                gas_strategy=st.integers(
+                    min_value=min_tx_gas, max_value=max_tx_gas
+                ).map(Uint)
+            ),
+            max_size=5,
+        ).map(tuple)
+    )
+
+    # Generate withdrawals
+    withdrawals = draw(
+        st.lists(
+            st.builds(
+                Withdrawal,
+                index=uint64,
+                validator_index=uint64,
+                address=address,
+                amount=st.integers(min_value=1, max_value=2**64 - 1).map(U256),
+            ),
+            max_size=5,
+        ).map(tuple)
+    )
+
+    return Block(
+        header=header,
+        transactions=transactions,
+        withdrawals=withdrawals,
+        ommers=(),  # Empty post-merge
+    )
+
+
+@composite
+def blockchain_strategy(draw):
+    """Strategy to generate valid BlockChain instances"""
+    # Generate a reasonable number of blocks for testing
+    num_blocks = draw(st.integers(min_value=1, max_value=10))
+
+    # Generate initial block
+    first_block = draw(block_strategy())
+    blocks = [first_block]
+
+    # Generate subsequent blocks ensuring proper chain continuity
+    for _ in range(num_blocks - 1):
+        parent_block = blocks[-1]
+        next_block = draw(block_strategy(parent_header=parent_block.header))
+        blocks.append(next_block)
+
+    # Generate state and chain_id
+    state = draw(empty_state)
+    chain_id = draw(st.integers(min_value=1, max_value=(2**64 - 37) // 2).map(U64))
+
+    return BlockChain(blocks=tuple(blocks), state=state, chain_id=chain_id)
+
+
 class TestFork:
     @given(
         block_gas_limit=...,
@@ -709,6 +820,23 @@ class TestFork:
 
         assert cairo_result == output
         assert cairo_state == state
+
+    @given(chain=blockchain_strategy(), block=block_strategy())
+    def test_state_transition(self, cairo_run, chain: BlockChain, block: Block):
+        # Run both implementations
+        try:
+            cairo_chain = cairo_run("state_transition", chain, block)
+        except Exception as cairo_e:
+            with strict_raises(type(cairo_e)):
+                state_transition(chain, block)
+            return
+
+        state_transition(chain, block)
+
+        assert len(chain.blocks) == len(cairo_chain.blocks)
+        assert all(a == b for a, b in zip(chain.blocks, cairo_chain.blocks))
+        assert chain.state == cairo_chain.state
+        assert chain.chain_id == cairo_chain.chain_id
 
 
 def _create_erc20_data():
