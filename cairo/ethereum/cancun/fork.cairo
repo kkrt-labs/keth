@@ -41,6 +41,7 @@ from ethereum.cancun.blocks import (
     TupleLogStruct,
     Block,
     ListBlock,
+    ListBlockStruct,
     TupleHeader,
     TupleUnionBytesLegacyTransaction,
     TupleWithdrawal,
@@ -162,6 +163,7 @@ from ethereum.cancun.vm.gas import (
     init_code_cost,
     calculate_total_blob_gas,
     calculate_blob_gas_price,
+    calculate_excess_blob_gas,
 )
 from ethereum.cancun.vm.interpreter import process_message_call, MessageCallOutput
 from ethereum.crypto.hash import keccak256, Hash32
@@ -169,6 +171,7 @@ from ethereum.exceptions import OptionalEthereumException
 from ethereum.utils.numeric import (
     divmod,
     min,
+    max,
     U256_add,
     U256_sub,
     U256__eq__,
@@ -1340,4 +1343,78 @@ func _process_withdrawals_inner{
     }
 
     return _process_withdrawals_inner{state=state, trie=trie}(index + 1, withdrawals);
+}
+
+func state_transition{
+    range_check_ptr,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    chain: BlockChain,
+}(block: Block) {
+    alloc_locals;
+
+    let parent_header = chain.value.blocks.value.data[
+        chain.value.blocks.value.len - 1
+    ].value.header;
+
+    let excess_blob_gas = calculate_excess_blob_gas(parent_header);
+    with_attr error_message("InvalidBlock") {
+        assert block.value.header.value.excess_blob_gas = excess_blob_gas;
+    }
+
+    validate_header(block.value.header, parent_header);
+
+    with_attr error_message("InvalidBlock") {
+        assert block.value.ommers.value.len = 0;
+    }
+
+    let state = chain.value.state;
+    let block_hashes = get_last_256_block_hashes(chain);
+    let output = apply_body{state=state}(
+        block_hashes,
+        block.value.header.value.coinbase,
+        block.value.header.value.number,
+        block.value.header.value.base_fee_per_gas,
+        block.value.header.value.gas_limit,
+        block.value.header.value.timestamp,
+        block.value.header.value.prev_randao,
+        block.value.transactions,
+        chain.value.chain_id,
+        block.value.withdrawals,
+        block.value.header.value.parent_beacon_block_root,
+        excess_blob_gas,
+    );
+
+    with_attr error_message("InvalidBlock") {
+        assert output.value.block_gas_used = block.value.header.value.gas_used;
+        assert output.value.transactions_root = block.value.header.value.transactions_root;
+        assert output.value.state_root = block.value.header.value.state_root;
+        assert output.value.receipt_root = block.value.header.value.receipt_root;
+        assert output.value.block_logs_bloom = block.value.header.value.bloom;
+        assert output.value.withdrawals_root = block.value.header.value.withdrawals_root;
+        assert output.value.blob_gas_used.value = block.value.header.value.blob_gas_used.value;
+    }
+
+    _append_block{chain=chain}(block);
+
+    return ();
+}
+
+func _append_block{range_check_ptr, chain: BlockChain}(block: Block) {
+    assert chain.value.blocks.value.data[chain.value.blocks.value.len] = block;
+    tempvar chain = BlockChain(
+        new BlockChainStruct(
+            blocks=ListBlock(new ListBlockStruct(
+                data=chain.value.blocks.value.data,
+                len=chain.value.blocks.value.len + 1
+            )),
+            state=chain.value.state,
+            chain_id=chain.value.chain_id,
+        ),
+    );
+    return ();
 }
