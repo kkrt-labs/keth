@@ -115,7 +115,8 @@ pub fn is_positive_hint() -> Hint {
          _constants: &HashMap<String, Felt252>|
          -> Result<(), HintError> {
             let value = get_integer_from_var_name("value", vm, ids_data, ap_tracking)?;
-            let is_positive = if value <= Felt252::from(u128::MAX) { 1 } else { 0 };
+            let is_positive =
+                if value <= Felt252::from(Felt252::MAX.to_biguint() / 2_u32) { 1 } else { 0 };
             insert_value_from_var_name("is_positive", is_positive, vm, ids_data, ap_tracking)
         },
     )

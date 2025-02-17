@@ -232,8 +232,6 @@ func try_recover_public_key{
     tempvar range_check96_ptr_init = range_check96_ptr;
     tempvar range_check96_ptr_after_circuit = range_check96_ptr + 224 + (4 + 117 + 108 - 1) *
         N_LIMBS;
-    let x = cast(poseidon_ptr, felt*) - 3;
-    // %{print_maybe_relocatable_hint%}
     let random_point = get_random_point{range_check96_ptr=range_check96_ptr_after_circuit}(
         seed=[cast(poseidon_ptr, felt*) - 3], a=&a, b=&b, g=&g, p=&p
     );

@@ -42,6 +42,35 @@ pub const HINTS: &[fn() -> Hint] = &[
     fill_add_mod_mul_mod_builtin_batch_117_108,
 ];
 
+/// Builds Multi-Scalar Multiplication (MSM) hints and fills memory for elliptic curve operations.
+///
+/// This function processes point coordinates and scalar values to prepare data for MSM operations
+/// on the secp256k1 curve. It:
+///
+/// 1. Extracts point coordinates (x,y) and scalar values (u1,u2)
+/// 2. Builds MSM calldata using the curve generator point G(g_x,g_y) and input point R(x,y)
+/// 3. Processes the calldata into:
+///    - q_low_high_high_shifted components for point arithmetic
+///    - RLC (Random Linear Combination) components for efficient computation
+/// 4. Fills the VM memory at specific offsets with the processed components
+///
+/// # Arguments
+/// * r_point - A point R on the curve with coordinates (x,y)
+/// * u1 - First scalar value for multiplication
+/// * u2 - Second scalar value for multiplication
+/// * range_check96_ptr - Pointer to range check memory region
+///
+/// # Memory Layout
+/// The function writes to two main memory regions:
+/// 1. RLC components: Written at range_check96_ptr + (4 * N_LIMBS + 4)
+/// 2. Q components: Written at range_check96_ptr + (50 * N_LIMBS + 4)
+///
+/// # Errors
+/// Returns an error if:
+/// - Cannot extract point coordinates or scalar values
+/// - MSM calldata building fails
+/// - RLC components have invalid length
+/// - Memory writing operations fail
 pub fn build_msm_hints_and_fill_memory() -> Hint {
     Hint::new(
         String::from("build_msm_hints_and_fill_memory"),
@@ -186,7 +215,7 @@ pub fn compute_y_from_x_hint() -> Hint {
     )
 }
 
-// Adapted from sympy implementation
+// Implementation adapted from lambdaclass' CairoVM
 // Conditions:
 // * a >= 0 < prime (other cases omitted)
 fn is_quad_residue(a: &BigUint, p: &BigUint) -> bool {
