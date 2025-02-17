@@ -423,7 +423,7 @@ empty_state = st.builds(
     created_accounts=st.builds(set, st.just(set())),
 )
 
-# Constants for the special addresses
+# https://github.com/ethereum/EIPs/blob/master/EIPS/eip-4788.md
 SYSTEM_ADDRESS = Address(
     bytes.fromhex("fffffffffffffffffffffffffffffffffffffffe")  # cspell:disable-line
 )
@@ -468,10 +468,7 @@ state = st.lists(
             )
         ),
         _snapshots=st.builds(list, st.just([])),
-        created_accounts=st.sets(
-            address.filter(lambda x: x not in [SYSTEM_ADDRESS, BEACON_ROOTS_ADDRESS]),
-            max_size=10,
-        ),
+        created_accounts=st.sets(address, max_size=10),
     ).map(
         # Create the original state snapshot using copies of the tries
         lambda state: State(
