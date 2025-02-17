@@ -1034,13 +1034,12 @@ func apply_body{
     tempvar block_logs = TupleLog(new TupleLogStruct(data=logs, len=0));
 
     tempvar beacon_roots_address = Address(BEACON_ROOTS_ADDRESS);
-    let beacon_roots_account = get_account{state=state}(beacon_roots_address);
+    let beacon_roots_account = get_account(beacon_roots_address);
     let beacon_block_roots_contract_code = beacon_roots_account.value.code;
 
     let data = Bytes32_to_Bytes(parent_beacon_block_root);
     let code_address = OptionalAddress(&beacon_roots_address);
 
-    // empty access addresses with default_dict_new(0)
     let (empty_data_ptr) = default_dict_new(0);
     tempvar accessed_addresses = SetAddress(
         new SetAddressStruct(
@@ -1049,7 +1048,6 @@ func apply_body{
         ),
     );
 
-    // empty access storage keys with default_dict_new(0)
     let (empty_data_ptr) = default_dict_new(0);
     tempvar accessed_storage_keys = SetTupleAddressBytes32(
         new SetTupleAddressBytes32Struct(
@@ -1076,9 +1074,7 @@ func apply_body{
         ),
     );
 
-    // empty transient storage with empty_transient_storage()
     let transient_storage = empty_transient_storage();
-    // empty blob_versioned_hashes
     let (empty_blob_versioned_hashes: VersionedHash*) = alloc();
     tempvar blob_versioned_hashes_ptr = TupleVersionedHash(
         new TupleVersionedHashStruct(data=cast(empty_blob_versioned_hashes, VersionedHash*), len=0)
@@ -1106,7 +1102,7 @@ func apply_body{
     let system_tx_output = process_message_call{env=system_tx_env}(system_tx_message);
 
     let state = system_tx_env.value.state;
-    destroy_touched_empty_accounts{state=state}(system_tx_output.value.touched_accounts);
+    destroy_touched_empty_accounts(system_tx_output.value.touched_accounts);
 
     let (blob_gas_used, gas_available, block_logs) = _apply_body_inner{
         state=state, transactions_trie=transactions_trie, receipts_trie=receipts_trie
