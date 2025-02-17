@@ -71,7 +71,7 @@ biguint
 binop
 bitlength
 blockhash
-branche
+branch
 bytearray
 bytecodelen
 callcode
@@ -159,7 +159,7 @@ nodeid
 noncanonical
 nondet
 norecursedirs
-notive
+notice
 numprocesses
 ommers
 patricialization
