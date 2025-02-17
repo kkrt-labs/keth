@@ -16,8 +16,8 @@ class TestEllipticCurve:
         r = U256(signature.r)
         s = U256(signature.s)
         v = U256(signature.v)
-        x, y = cairo_run(
-            "secp256k1_recover_uint256_bigends",
+        (x, y) = cairo_run(
+            "secp256k1_recover",
             r=r,
             s=s,
             v=v,
@@ -25,8 +25,8 @@ class TestEllipticCurve:
         )
 
         result = secp256k1_recover(r, s, v, message)
-        assert x == U256.from_be_bytes(result[0:32])
-        assert y == U256.from_be_bytes(result[32:64])
+        assert x == result[0:32]
+        assert y == result[32:64]
 
     @given(private_key=..., message=..., v=...)
     def test_secp256k1_recover_should_fail_with_invalid_signature(
@@ -37,7 +37,7 @@ class TestEllipticCurve:
         s = U256(signature.s)
         try:
             cairo_run(
-                "secp256k1_recover_uint256_bigends",
+                "secp256k1_recover",
                 r=r,
                 s=s,
                 v=v,
