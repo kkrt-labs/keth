@@ -776,3 +776,19 @@ class TestCircuits:
             }
 
             cairo_run("ecip_2p", **inputs)
+            compiled_circuit = circuit_compile(cairo_program, "ecip_2p")
+            values_ptr = flatten(compiled_circuit["constants"]) + [
+                limb for v in inputs.values() for limb in int_to_uint384(v)
+            ]
+            cairo_run(
+                "test__circuit",
+                values_ptr=values_ptr,
+                values_ptr_len=len(values_ptr),
+                p=int_to_uint384(curve.FIELD.PRIME),
+                **compiled_circuit,
+            )
+            cairo_run(
+                "ecip_2p_compiled",
+                **{k: int_to_uint384(v) for k, v in inputs.items()},
+                p=int_to_uint384(curve.FIELD.PRIME),
+            )
