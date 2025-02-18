@@ -7,10 +7,7 @@ from starkware.cairo.common.cairo_builtins import (
     ModBuiltin,
     PoseidonBuiltin,
 )
-from ethereum.crypto.elliptic_curve import (
-    secp256k1_recover_uint256_bigends,
-    public_key_point_to_eth_address,
-)
+from ethereum.crypto.elliptic_curve import secp256k1_recover, public_key_point_to_eth_address
 from ethereum.utils.numeric import U256_le, U256__eq__
 from ethereum_types.bytes import Bytes, Bytes0, BytesStruct
 from ethereum_types.numeric import Uint, bool, U256, U256Struct, U64
@@ -278,8 +275,8 @@ func recover_sender{
             let y_parity_felt = v - 27;
             tempvar y_parity = U256(new U256Struct(low=y_parity_felt, high=0));
             let hash = signing_hash_pre155(tx.value.legacy_transaction);
-            let (x, y) = secp256k1_recover_uint256_bigends(r, s, y_parity, hash);
-            let sender = public_key_point_to_eth_address(x, y);
+            let (public_key_x, public_key_y) = secp256k1_recover(r, s, y_parity, hash);
+            let sender = public_key_point_to_eth_address(public_key_x, public_key_y);
             return sender;
         } else {
             let bad_v = (v - 35 - chain_id.value * 2) * (v - 36 - chain_id.value * 2);
@@ -289,8 +286,8 @@ func recover_sender{
             let hash = signing_hash_155(tx.value.legacy_transaction, chain_id);
             let y_parity_felt = v - 35 - chain_id.value * 2;
             tempvar y_parity = U256(new U256Struct(low=y_parity_felt, high=0));
-            let (x, y) = secp256k1_recover_uint256_bigends(r, s, y_parity, hash);
-            let sender = public_key_point_to_eth_address(x, y);
+            let (public_key_x, public_key_y) = secp256k1_recover(r, s, y_parity, hash);
+            let sender = public_key_point_to_eth_address(public_key_x, public_key_y);
             return sender;
         }
     }
@@ -303,8 +300,8 @@ func recover_sender{
             assert (1 - y_parity_is_zero.value) * (1 - y_parity_is_one.value) = 0;
         }
         let hash = signing_hash_2930(tx.value.access_list_transaction);
-        let (x, y) = secp256k1_recover_uint256_bigends(r, s, y_parity, hash);
-        let sender = public_key_point_to_eth_address(x, y);
+        let (public_key_x, public_key_y) = secp256k1_recover(r, s, y_parity, hash);
+        let sender = public_key_point_to_eth_address(public_key_x, public_key_y);
         return sender;
     }
 
@@ -317,8 +314,8 @@ func recover_sender{
         }
 
         let hash = signing_hash_1559(tx.value.fee_market_transaction);
-        let (x, y) = secp256k1_recover_uint256_bigends(r, s, y_parity, hash);
-        let sender = public_key_point_to_eth_address(x, y);
+        let (public_key_x, public_key_y) = secp256k1_recover(r, s, y_parity, hash);
+        let sender = public_key_point_to_eth_address(public_key_x, public_key_y);
         return sender;
     }
 
@@ -330,8 +327,8 @@ func recover_sender{
             assert (1 - y_parity_is_zero.value) * (1 - y_parity_is_one.value) = 0;
         }
         let hash = signing_hash_4844(tx.value.blob_transaction);
-        let (x, y) = secp256k1_recover_uint256_bigends(r, s, y_parity, hash);
-        let sender = public_key_point_to_eth_address(x, y);
+        let (public_key_x, public_key_y) = secp256k1_recover(r, s, y_parity, hash);
+        let sender = public_key_point_to_eth_address(public_key_x, public_key_y);
         return sender;
     }
 
