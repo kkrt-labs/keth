@@ -438,11 +438,7 @@ BEACON_ROOTS_CODE = bytes.fromhex(
 SYSTEM_ACCOUNT = Account(balance=U256(0), nonce=Uint(0), code=bytes())
 BEACON_ROOTS_ACCOUNT = Account(balance=U256(0), nonce=Uint(1), code=BEACON_ROOTS_CODE)
 
-state = st.lists(
-    address.filter(lambda x: x not in [SYSTEM_ADDRESS, BEACON_ROOTS_ADDRESS]),
-    max_size=MAX_ADDRESS_SET_SIZE - 2,  # Reduce by 2 to account for special addresses
-    unique=True,
-).flatmap(
+state = st.lists(address, max_size=MAX_ADDRESS_SET_SIZE, unique=True).flatmap(
     lambda addresses: st.builds(
         State,
         _main_trie=st.builds(
@@ -450,11 +446,7 @@ state = st.lists(
             secured=st.just(True),
             default=st.none(),
             _data=st.fixed_dictionaries(
-                {
-                    **{address: st.from_type(Account) for address in addresses},
-                    SYSTEM_ADDRESS: st.just(SYSTEM_ACCOUNT),
-                    BEACON_ROOTS_ADDRESS: st.just(BEACON_ROOTS_ACCOUNT),
-                }
+                {address: st.from_type(Account) for address in addresses}
             ).map(lambda x: defaultdict(lambda: None, x)),
         ),
         # Storage tries are not always present for existing accounts
@@ -468,10 +460,7 @@ state = st.lists(
             )
         ),
         _snapshots=st.builds(list, st.just([])),
-        created_accounts=st.sets(
-            address.filter(lambda x: x not in [SYSTEM_ADDRESS, BEACON_ROOTS_ADDRESS]),
-            max_size=10,
-        ),
+        created_accounts=st.sets(address, max_size=10),
     ).map(
         # Create the original state snapshot using copies of the tries
         lambda state: State(
