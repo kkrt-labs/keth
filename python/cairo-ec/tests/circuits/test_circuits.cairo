@@ -23,12 +23,12 @@ from cairo_ec.circuits.mod_ops_compiled import (
     inv as inv_compiled,
     assert_is_quad_residue as assert_is_quad_residue_compiled,
 )
-from cairo_ec.circuits.ec_ops import ec_add, ec_double, assert_is_on_curve, ecip_2P
+from cairo_ec.circuits.ec_ops import ec_add, ec_double, assert_is_on_curve, ecip_2p
 from cairo_ec.circuits.ec_ops_compiled import (
     ec_add as ec_add_compiled,
     ec_double as ec_double_compiled,
     assert_is_on_curve as assert_is_on_curve_compiled,
-    ecip_2P as ecip_2P_compiled,
+    ecip_2p as ecip_2p_compiled,
 )
 
 func test__circuit{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(

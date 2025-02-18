@@ -299,7 +299,7 @@ func assert_is_on_curve{
     dw 84;
 }
 
-func ecip_2P{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
+func ecip_2p{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
     div_a_coeff_0: UInt384*,
     div_a_coeff_1: UInt384*,
     div_a_coeff_2: UInt384*,
