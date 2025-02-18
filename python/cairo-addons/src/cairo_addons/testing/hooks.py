@@ -1,4 +1,6 @@
 import logging
+import os
+import threading
 import shutil
 import time
 from pathlib import Path
@@ -271,3 +273,38 @@ def pytest_collection_modifyitems(session, config, items):
             item.add_marker(pytest.mark.skip(reason="Cached results"))
 
     yield
+
+def monitor_test_duration(item, threshold=300, stop_event=None):
+    """Monitor the test duration and print a warning if it exceeds the threshold."""
+    start_time = time.time()
+    pid = os.getpid()  # Get current process ID for logging
+    while not stop_event.is_set():
+        elapsed = time.time() - start_time
+        if elapsed > threshold:
+            logger.warning(
+                f"[Process {pid}] Test {item.name} is taking too long: {elapsed:.2f} seconds."
+            )
+            break
+        stop_event.wait(timeout=1)
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_call(item):
+    # Each process gets its own Event instance
+    stop_event = threading.Event()
+
+    # Create thread with process-specific name
+    monitor_thread = threading.Thread(
+        target=monitor_test_duration,
+        args=(item, 300, stop_event),
+        name=f"monitor-{os.getpid()}-{item.name}"
+    )
+    monitor_thread.daemon = True
+    monitor_thread.start()
+
+    try:
+        yield  # Run the test
+    finally:
+        # Clean up in the same process that created the thread
+        stop_event.set()
+        monitor_thread.join(timeout=1)
