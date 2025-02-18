@@ -37,7 +37,7 @@ settings.register_profile(
     max_examples=300,
     phases=[Phase.explicit, Phase.reuse, Phase.generate, Phase.target],
     print_blob=True,
-    derandomize=True,
+    derandomize=False,
 )
 settings.register_profile(
     "dev",
