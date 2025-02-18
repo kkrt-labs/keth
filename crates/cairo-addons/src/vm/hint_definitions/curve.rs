@@ -141,12 +141,13 @@ pub fn build_msm_hints_and_fill_memory() -> Hint {
             // Fill memory
             let range_check96_ptr =
                 get_ptr_from_var_name("range_check96_ptr", vm, ids_data, ap_tracking)?;
-            let memory_offset = 4;
+            let memory_offset = 28;
 
-            let offset = range_check96_ptr + (4 * N_LIMBS + memory_offset);
-            write_collection_to_addr(offset.unwrap(), &rlc_components, vm)?;
+            let offset =
+                (range_check96_ptr.segment_index, range_check96_ptr.offset + memory_offset).into();
+            write_collection_to_addr(offset, &rlc_components, vm)?;
 
-            let offset = range_check96_ptr + (50 * N_LIMBS + memory_offset);
+            let offset = range_check96_ptr + (46 * N_LIMBS + memory_offset);
             write_collection_to_addr(offset.unwrap(), &q_low_high_high_shifted, vm)?;
             Ok(())
         },
