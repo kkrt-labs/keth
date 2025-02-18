@@ -71,9 +71,9 @@ func public_key_point_to_eth_address{
     assert elements[1] = [public_key_y.value];
     let (point_hash: Uint256) = keccak_uint256s(n_elements=2, elements=elements);
 
-    // The point_hash is a 32-byte value, in little endian, we want the 20 least significant bytes.
-    let (high_low, _) = unsigned_div_rem(point_hash.high, 2 ** 96);
-    let eth_address = point_hash.low + RC_BOUND * high_low;
+    // The point_hash is a 32-byte value, in little endian, we want the 20 most significant bytes.
+    let (low_high, _) = unsigned_div_rem(point_hash.low, 2 ** 96);
+    let eth_address = low_high + 2 ** 32 * point_hash.high;
     tempvar res = Address(eth_address);
     return res;
 }
