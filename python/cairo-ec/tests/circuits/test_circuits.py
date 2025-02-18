@@ -685,7 +685,7 @@ class TestCircuits:
             )
 
         @given(data=st.data())
-        def test_ecip_2P(self, cairo_program, cairo_run, curve, data, st_prime):
+        def test_ecip_2p(self, cairo_program, cairo_run, curve, data, st_prime):
             seed_g = data.draw(
                 st.integers(min_value=1, max_value=curve.FIELD.PRIME - 1)
             )
@@ -775,4 +775,4 @@ class TestCircuits:
                 "base_rlc": int(rlc_coeff),
             }
 
-            cairo_run("ecip_2P", **inputs)
+            cairo_run("ecip_2p", **inputs)

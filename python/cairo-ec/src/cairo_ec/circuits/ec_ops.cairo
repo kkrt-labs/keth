@@ -80,7 +80,7 @@ func assert_not_on_curve(x: felt, y: felt, a: felt, b: felt) -> felt {
 // "Zero Knowledge Proofs of Elliptic Curve Inner Products
 // from Principal Divisors and Weil Reciprocity", by Liam Eagen
 // (source: https://eprint.iacr.org/2022/596.pdf, p.9) holds.
-func ecip_2P(
+func ecip_2p(
     div_a_coeff_0: felt,
     div_a_coeff_1: felt,
     div_a_coeff_2: felt,
