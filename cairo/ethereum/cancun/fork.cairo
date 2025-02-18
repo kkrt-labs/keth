@@ -829,6 +829,9 @@ func check_transaction{
 func _check_versioned_hashes_version{range_check_ptr}(
     versioned_hashes: VersionedHash*, index: felt
 ) {
+    if (index == 0) {
+        return ();
+    }
     // Check that each versioned hash has the correct version, i.e. that blob_versioned_hash[0:1] == VERSIONED_HASH_VERSION_KZG
     // for each versioned_hash in blob_versioned_hashes
     tempvar index = index;
