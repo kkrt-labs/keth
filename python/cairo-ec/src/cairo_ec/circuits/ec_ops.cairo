@@ -237,17 +237,17 @@ func ecip_2P(
     tempvar den_tmp_g = m_a0 * x_g + b_a0;
     tempvar den_pos_g = y_g - den_tmp_g;
     tempvar den_neg_g = (-y_g) - den_tmp_g;
-    tempvar eval_pos_low_g = ep1_low * num_g / den_pos_g;
-    tempvar eval_neg_low_g = en1_low * num_g / den_neg_g;
-    tempvar eval_low_g = eval_pos_low_g - eval_neg_low_g;
+    tempvar eval_pos_low_g = sp1_low * ep1_low * num_g / den_pos_g;
+    tempvar eval_neg_low_g = sn1_low * en1_low * num_g / den_neg_g;
+    tempvar eval_low_g = eval_pos_low_g + eval_neg_low_g;
 
     tempvar num_r = x_a0 - x_r;
     tempvar den_tmp_r = m_a0 * x_r + b_a0;
     tempvar den_pos_r = y_r - den_tmp_r;
     tempvar den_neg_r = (-y_r) - den_tmp_r;
-    tempvar eval_pos_low_r = ep2_low * num_r / den_pos_r;
-    tempvar eval_neg_low_r = en2_low * num_r / den_neg_r;
-    tempvar eval_low_r = eval_pos_low_r - eval_neg_low_r;
+    tempvar eval_pos_low_r = sp2_low * ep2_low * num_r / den_pos_r;
+    tempvar eval_neg_low_r = sn2_low * en2_low * num_r / den_neg_r;
+    tempvar eval_low_r = eval_pos_low_r + eval_neg_low_r;
 
     tempvar num_q_low = x_a0 - x_q_low;
     tempvar den_tmp_q_low = m_a0 * x_q_low + b_a0;
@@ -257,13 +257,13 @@ func ecip_2P(
     tempvar rhs_low = eval_low_g + eval_low_r + eval_q_low;
 
     // base_rhs_high
-    tempvar eval_pos_high_g = ep1_high * num_g / den_pos_g;
-    tempvar eval_neg_high_g = en1_high * num_g / den_neg_g;
-    tempvar eval_high_g = eval_pos_high_g - eval_neg_high_g;
+    tempvar eval_pos_high_g = sp1_high * ep1_high * num_g / den_pos_g;
+    tempvar eval_neg_high_g = sn1_high * en1_high * num_g / den_neg_g;
+    tempvar eval_high_g = eval_pos_high_g + eval_neg_high_g;
 
-    tempvar eval_pos_high_r = ep2_high * num_r / den_pos_r;
-    tempvar eval_neg_high_r = en2_high * num_r / den_neg_r;
-    tempvar eval_high_r = eval_pos_high_r - eval_neg_high_r;
+    tempvar eval_pos_high_r = sp2_high * ep2_high * num_r / den_pos_r;
+    tempvar eval_neg_high_r = sn2_high * en2_high * num_r / den_neg_r;
+    tempvar eval_high_r = eval_pos_high_r + eval_neg_high_r;
 
     tempvar num_q_high = x_a0 - x_q_high;
     tempvar den_tmp_q_high = m_a0 * x_q_high + b_a0;
