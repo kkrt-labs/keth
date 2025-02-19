@@ -61,7 +61,7 @@ func secp256k1_recover{
 // @notice Converts a public key point to the corresponding Ethereum address.
 // @param x The x coordinate of the public key point.
 // @param y The y coordinate of the public key point.
-// @return The Ethereum address, interpreted as a 20-byte big-endian value.
+// @return The Ethereum address, interpreted as a 20-byte little-endian value.
 func public_key_point_to_eth_address{
     range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*
 }(public_key_x: Bytes32, public_key_y: Bytes32) -> Address {
