@@ -22,7 +22,15 @@ from ethereum_rlp.rlp import (
     encode_withdrawal,
     encode_transaction,
 )
-from ethereum_types.bytes import Bytes, Bytes0, BytesStruct, TupleBytes32, Bytes32, Bytes32Struct
+from ethereum_types.bytes import (
+    Bytes,
+    Bytes0,
+    Bytes20,
+    BytesStruct,
+    TupleBytes32,
+    Bytes32,
+    Bytes32Struct,
+)
 from ethereum_types.numeric import Uint, bool, U256, U256Struct, U64
 from ethereum.cancun.blocks import (
     Header,
@@ -139,7 +147,15 @@ from ethereum.cancun.transactions import (
     decode_transaction,
 )
 from ethereum.cancun.utils.message import prepare_message
-from ethereum.cancun.vm import Environment, EnvImpl, EnvironmentStruct
+from ethereum.cancun.vm import (
+    Environment,
+    EnvImpl,
+    EnvironmentStruct,
+    Message,
+    MessageStruct,
+    EvmStruct,
+    OptionalEvm,
+)
 from ethereum.cancun.vm.exceptions import EthereumException, InvalidBlock
 from ethereum.cancun.vm.gas import (
     calculate_data_fee,
@@ -163,6 +179,7 @@ from ethereum.utils.numeric import (
 )
 from ethereum.cancun.transactions import recover_sender
 from ethereum.cancun.vm.instructions.block import _append_logs
+from ethereum.utils.bytes import Bytes32_to_Bytes
 from cairo_core.comparison import is_zero
 
 from legacy.utils.array import count_not_zero
@@ -175,6 +192,10 @@ const GAS_LIMIT_MINIMUM = 5000;
 const EMPTY_OMMER_HASH_LOW = 0xd312451b948a7413f0a142fd40d49347;
 const EMPTY_OMMER_HASH_HIGH = 0x1dcc4de8dec75d7aab85b567b6ccd41a;
 const VERSIONED_HASH_VERSION_KZG = 0x01;
+// https://github.com/ethereum/EIPs/blob/master/EIPS/eip-4788.md
+const SYSTEM_ADDRESS = 0xFEFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
+const BEACON_ROOTS_ADDRESS = 0x2ACBED02285BBB8B79F31F17E8032D7F63D0F00;
+const SYSTEM_TRANSACTION_GAS = 30000000;
 
 struct BlockChainStruct {
     blocks: ListBlock,
@@ -953,6 +974,9 @@ func apply_body{
 ) -> ApplyBodyOutput {
     alloc_locals;
 
+    let fp_and_pc = get_fp_and_pc();
+    local __fp__: felt* = fp_and_pc.fp_val;
+
     tempvar blob_gas_used = Uint(0);
     let gas_available = block_gas_limit;
 
@@ -1009,52 +1033,76 @@ func apply_body{
     let (logs: Log*) = alloc();
     tempvar block_logs = TupleLog(new TupleLogStruct(data=logs, len=0));
 
-    // TODO: Implement System message call
-    // beacon_block_roots_contract_code = get_account(
-    //     state, BEACON_ROOTS_ADDRESS
-    // ).code
+    tempvar beacon_roots_address = Address(BEACON_ROOTS_ADDRESS);
+    let beacon_roots_account = get_account(beacon_roots_address);
+    let beacon_block_roots_contract_code = beacon_roots_account.value.code;
 
-    // system_tx_message = Message(
-    //     caller=SYSTEM_ADDRESS,
-    //     target=BEACON_ROOTS_ADDRESS,
-    //     gas=SYSTEM_TRANSACTION_GAS,
-    //     value=U256(0),
-    //     data=parent_beacon_block_root,
-    //     code=beacon_block_roots_contract_code,
-    //     depth=Uint(0),
-    //     current_target=BEACON_ROOTS_ADDRESS,
-    //     code_address=BEACON_ROOTS_ADDRESS,
-    //     should_transfer_value=False,
-    //     is_static=False,
-    //     accessed_addresses=set(),
-    //     accessed_storage_keys=set(),
-    //     parent_evm=None,
-    // )
+    let data = Bytes32_to_Bytes(parent_beacon_block_root);
+    let code_address = OptionalAddress(&beacon_roots_address);
 
-    // system_tx_env = vm.Environment(
-    //     caller=SYSTEM_ADDRESS,
-    //     origin=SYSTEM_ADDRESS,
-    //     block_hashes=block_hashes,
-    //     coinbase=coinbase,
-    //     number=block_number,
-    //     gas_limit=block_gas_limit,
-    //     base_fee_per_gas=base_fee_per_gas,
-    //     gas_price=base_fee_per_gas,
-    //     time=block_time,
-    //     prev_randao=prev_randao,
-    //     state=state,
-    //     chain_id=chain_id,
-    //     traces=[],
-    //     excess_blob_gas=excess_blob_gas,
-    //     blob_versioned_hashes=(),
-    //     transient_storage=TransientStorage(),
-    // )
+    let (empty_data_ptr) = default_dict_new(0);
+    tempvar accessed_addresses = SetAddress(
+        new SetAddressStruct(
+            dict_ptr_start=cast(empty_data_ptr, SetAddressDictAccess*),
+            dict_ptr=cast(empty_data_ptr, SetAddressDictAccess*),
+        ),
+    );
 
-    // system_tx_output = process_message_call(system_tx_message, system_tx_env)
+    let (empty_data_ptr) = default_dict_new(0);
+    tempvar accessed_storage_keys = SetTupleAddressBytes32(
+        new SetTupleAddressBytes32Struct(
+            dict_ptr_start=cast(empty_data_ptr, SetTupleAddressBytes32DictAccess*),
+            dict_ptr=cast(empty_data_ptr, SetTupleAddressBytes32DictAccess*),
+        ),
+    );
+    tempvar system_tx_message = Message(
+        new MessageStruct(
+            caller=Address(SYSTEM_ADDRESS),
+            target=To(new ToStruct(bytes0=cast(0, Bytes0*), address=&beacon_roots_address)),
+            current_target=beacon_roots_address,
+            gas=Uint(SYSTEM_TRANSACTION_GAS),
+            value=U256(new U256Struct(0, 0)),
+            data=data,
+            code_address=code_address,
+            code=beacon_block_roots_contract_code,
+            depth=Uint(0),
+            should_transfer_value=bool(0),
+            is_static=bool(0),
+            accessed_addresses=accessed_addresses,
+            accessed_storage_keys=accessed_storage_keys,
+            parent_evm=OptionalEvm(cast(0, EvmStruct*)),
+        ),
+    );
 
-    // destroy_touched_empty_accounts(
-    //     system_tx_env.state, system_tx_output.touched_accounts
-    // )
+    let transient_storage = empty_transient_storage();
+    let (empty_blob_versioned_hashes: VersionedHash*) = alloc();
+    tempvar blob_versioned_hashes_ptr = TupleVersionedHash(
+        new TupleVersionedHashStruct(data=cast(empty_blob_versioned_hashes, VersionedHash*), len=0)
+    );
+    tempvar system_tx_env = Environment(
+        new EnvironmentStruct(
+            caller=Address(SYSTEM_ADDRESS),
+            block_hashes=block_hashes,
+            origin=Address(SYSTEM_ADDRESS),
+            coinbase=coinbase,
+            number=block_number,
+            base_fee_per_gas=base_fee_per_gas,
+            gas_limit=block_gas_limit,
+            gas_price=base_fee_per_gas,
+            time=block_time,
+            prev_randao=prev_randao,
+            state=state,
+            chain_id=chain_id,
+            excess_blob_gas=excess_blob_gas,
+            blob_versioned_hashes=blob_versioned_hashes_ptr,
+            transient_storage=transient_storage,
+        ),
+    );
+
+    let system_tx_output = process_message_call{env=system_tx_env}(system_tx_message);
+
+    let state = system_tx_env.value.state;
+    destroy_touched_empty_accounts(system_tx_output.value.touched_accounts);
 
     let (blob_gas_used, gas_available, block_logs) = _apply_body_inner{
         state=state, transactions_trie=transactions_trie, receipts_trie=receipts_trie
