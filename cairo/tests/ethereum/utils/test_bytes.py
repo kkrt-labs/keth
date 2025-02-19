@@ -46,6 +46,8 @@ class TestBytes:
     def test_Bytes32__eq__(self, cairo_run, a: Bytes32, b: Bytes32):
         assert (a == b) == cairo_run("Bytes32__eq__", a, b)
 
-    @given(a=st.binary(min_size=256, max_size=256), b=st.binary(min_size=256, max_size=256))
+    @given(
+        a=st.binary(min_size=256, max_size=256), b=st.binary(min_size=256, max_size=256)
+    )
     def test_Bytes256__eq__(self, cairo_run, a: Bytes256, b: Bytes256):
         assert (a == b) == cairo_run("Bytes256__eq__", a, b)
