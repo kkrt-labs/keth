@@ -1390,6 +1390,11 @@ func state_transition{
         excess_blob_gas,
     );
 
+    // rebind state
+    tempvar chain = BlockChain(
+        new BlockChainStruct(blocks=chain.value.blocks, state=state, chain_id=chain.value.chain_id)
+    );
+
     with_attr error_message("InvalidBlock") {
         assert output.value.block_gas_used = block.value.header.value.gas_used;
 
