@@ -39,12 +39,26 @@ def circuit_compile(cairo_program: Program, circuit: str):
     data = cairo_program.data[start:stop]
 
     instructions = []
-    offset_bits = 16
-    n_flags = 15
-    for d, imm in zip(data, data[1:] + [0]):
-        if d < 0 or d >= 2 ** (3 * offset_bits + n_flags):
-            continue
-        instructions.append(decode_instruction(d, imm))
+    idx = 0
+    # Decode instructions
+    while idx < len(data):
+        if idx + 1 < len(data):
+            inst = decode_instruction(data[idx], data[idx + 1])
+            instructions.append(inst)
+            if inst.op1_addr == Instruction.Op1Addr.IMM:
+                idx += 2
+            else:
+                idx += 1
+        # Last instruction
+        else:
+            inst = decode_instruction(data[idx], 0)
+            instructions.append(inst)
+            if inst.op1_addr == Instruction.Op1Addr.IMM:
+                raise ValueError(
+                    f"Last instruction on a single-word at {idx} cannot use an immediate value."
+                )
+            else:
+                idx += 1
 
     if not instructions[-1].pc_update == Instruction.PcUpdate.JUMP:
         raise ValueError("The circuit should end with a return instruction")
@@ -82,8 +96,6 @@ def circuit_compile(cairo_program: Program, circuit: str):
             i.off2 = -constants_offset - constants.index(i.imm)
             i.ap_update = Instruction.ApUpdate.ADD1
             i.imm = None
-            # pop the next instruction which is the imm value
-            instructions.pop(0)
 
         instruction_compiled.append(i)
 
