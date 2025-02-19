@@ -434,6 +434,20 @@ empty_state = st.builds(
     created_accounts=st.builds(set, st.just(set())),
 )
 
+# https://github.com/ethereum/EIPs/blob/master/EIPS/eip-4788.md
+SYSTEM_ADDRESS = Address(
+    bytes.fromhex("fffffffffffffffffffffffffffffffffffffffe")  # cspell:disable-line
+)
+BEACON_ROOTS_ADDRESS = Address(
+    bytes.fromhex("000F3df6D732807Ef1319fB7B8bB8522d0Beac02")
+)
+BEACON_ROOTS_CODE = bytes.fromhex(
+    "3373fffffffffffffffffffffffffffffffffffffffe14604d57602036146024575f5ffd5b5f35801560495762001fff810690815414603c575f5ffd5b62001fff01545f5260205ff35b5f5ffd5b62001fff42064281555f359062001fff015500"
+)
+
+# Create the special accounts
+SYSTEM_ACCOUNT = Account(balance=U256(0), nonce=Uint(0), code=bytes())
+BEACON_ROOTS_ACCOUNT = Account(balance=U256(0), nonce=Uint(1), code=BEACON_ROOTS_CODE)
 
 state = st.lists(address, max_size=MAX_ADDRESS_SET_SIZE, unique=True).flatmap(
     lambda addresses: st.builds(
@@ -443,7 +457,7 @@ state = st.lists(address, max_size=MAX_ADDRESS_SET_SIZE, unique=True).flatmap(
             secured=st.just(True),
             default=st.none(),
             _data=st.fixed_dictionaries(
-                {address: st.from_type(Account) for address in addresses},
+                {address: st.from_type(Account) for address in addresses}
             ).map(lambda x: defaultdict(lambda: None, x)),
         ),
         # Storage tries are not always present for existing accounts

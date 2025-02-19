@@ -59,6 +59,10 @@ from tests.utils.constants import (
 )
 from tests.utils.solidity import get_contract
 from tests.utils.strategies import (
+    BEACON_ROOTS_ACCOUNT,
+    BEACON_ROOTS_ADDRESS,
+    SYSTEM_ACCOUNT,
+    SYSTEM_ADDRESS,
     account_strategy,
     address,
     address_zero,
@@ -126,7 +130,7 @@ def apply_body_data(draw, excess_blob_gas_strategy=excess_blob_gas):
     transactions = tuple(encode_transaction(tx) for tx in erc20_transactions)
 
     # Rest of the test data generation
-    block_hashes = draw(st.lists(bytes32, max_size=256))
+    block_hashes = draw(st.lists(bytes32, max_size=256, unique=True))
     coinbase = Address(bytes.fromhex(COINBASE[2:]))
     block_number = draw(st.from_type(Uint))
     base_fee_per_gas = Uint(MIN_BASE_FEE)
@@ -203,7 +207,22 @@ def get_blob_tx_with_tx_sender_in_state():
         nonce=U256(int("0x1bfec", 16)),
         code=bytearray(),
     )
-    state = empty_state.example()
+    # Empty state
+    state = State(
+        _main_trie=Trie[Address, Optional[Account]](
+            secured=True, default=None, _data=defaultdict(lambda: None, {})
+        ),
+        _storage_tries=defaultdict(lambda: None, {}),
+        _snapshots=[
+            (
+                Trie[Address, Optional[Account]](
+                    secured=True, default=None, _data=defaultdict(lambda: None, {})
+                ),
+                defaultdict(lambda: U256(0), {}),
+            )
+        ],
+        created_accounts=set(),
+    )
     set_account(state, sender, sender_account)
     env = Environment(
         caller=sender,
@@ -662,6 +681,19 @@ class TestFork:
             _storage_tries=dict(storage_tries),
             _snapshots=[],
             created_accounts=set(),
+        )
+        # Add the system address
+        set_account(
+            state,
+            SYSTEM_ADDRESS,
+            SYSTEM_ACCOUNT,
+        )
+
+        # Add the beacon roots contract
+        set_account(
+            state,
+            BEACON_ROOTS_ADDRESS,
+            BEACON_ROOTS_ACCOUNT,
         )
 
         kwargs = {**data, "withdrawals": withdrawals, "state": state}
