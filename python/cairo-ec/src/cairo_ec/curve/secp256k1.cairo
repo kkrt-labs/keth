@@ -216,7 +216,7 @@ func try_recover_public_key{
     hash_full_transcript(cast(generator_point, felt*), 2);
     hash_full_transcript(cast(&r_point, felt*), 2);
     // Q_low, Q_high, Q_high_shifted (filled by prover) (46 - 51).
-    hash_full_transcript(range_check96_ptr + 4 + 52 * N_LIMBS, 3 * 2);
+    hash_full_transcript(range_check96_ptr + 4 + 51 * N_LIMBS, 3 * 2);
     let _s0 = [cast(poseidon_ptr, felt*) - 3];
     let _s1 = [cast(poseidon_ptr, felt*) - 2];
     let _s2 = [cast(poseidon_ptr, felt*) - 1];
@@ -233,9 +233,9 @@ func try_recover_public_key{
     let rlc_coeff_u384 = felt_to_uint384(rlc_coeff);
 
     // Hash SumDlogDiv 2 points : (0-25)
-    hash_full_transcript(range_check96_ptr + 6 * N_LIMBS, 26);
+    hash_full_transcript(range_check96_ptr + 5 * N_LIMBS, 26);
     tempvar range_check96_ptr_init = range_check96_ptr;
-    tempvar range_check96_ptr_after_circuit = range_check96_ptr + 1136;
+    tempvar range_check96_ptr_after_circuit = range_check96_ptr + 1204;
     let random_point = get_random_point{range_check96_ptr=range_check96_ptr_after_circuit}(
         seed=[cast(poseidon_ptr, felt*) - 3], a=&a, b=&b, g=&g, p=&p
     );
@@ -243,7 +243,7 @@ func try_recover_public_key{
 
     // Circuits inputs
 
-    let ecip_input: UInt384* = cast(range_check96_ptr + 6 * N_LIMBS, UInt384*);
+    let ecip_input: UInt384* = cast(range_check96_ptr + 5 * N_LIMBS, UInt384*);
 
     // Random Linear Combination Sum of Discrete Logarithm Division
     // RLCSumDlogDiv for 2 points: n_coeffs = 18 + 4 * 2 = 26 (0-25)
