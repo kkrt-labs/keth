@@ -4,7 +4,7 @@ use cairo_vm::{
     hint_processor::{
         builtin_hint_processor::{
             dict_hint_utils::DICT_ACCESS_SIZE,
-            dict_manager::{DictKey, DictTracker},
+            dict_manager::DictKey,
             hint_utils::{
                 get_integer_from_var_name, get_maybe_relocatable_from_var_name,
                 get_ptr_from_var_name, insert_value_from_var_name,
