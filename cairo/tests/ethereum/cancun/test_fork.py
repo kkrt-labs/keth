@@ -733,10 +733,10 @@ class TestFork:
         assert cairo_result == output
         assert cairo_state == state
 
-    def test_state_transition(self, cairo_run):
+    def test_state_transition(self, cairo_run_py):
         chain, block = get_valid_chain_and_block()
         try:
-            cairo_chain = cairo_run("state_transition", chain, block)
+            cairo_chain = cairo_run_py("state_transition", chain, block)
         except Exception as cairo_e:
             with strict_raises(type(cairo_e)):
                 state_transition(chain, block)

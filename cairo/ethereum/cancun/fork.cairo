@@ -182,7 +182,7 @@ from ethereum.utils.numeric import (
 )
 from ethereum.cancun.transactions import recover_sender
 from ethereum.cancun.vm.instructions.block import _append_logs
-from ethereum.utils.bytes import Bytes32_to_Bytes
+from ethereum.utils.bytes import Bytes32_to_Bytes, Bytes32__eq__, Bytes256__eq__
 from cairo_core.comparison import is_zero
 
 from legacy.utils.array import count_not_zero
@@ -192,8 +192,8 @@ const ELASTICITY_MULTIPLIER = 2;
 const BASE_FEE_MAX_CHANGE_DENOMINATOR = 8;
 const GAS_LIMIT_ADJUSTMENT_FACTOR = 1024;
 const GAS_LIMIT_MINIMUM = 5000;
-const EMPTY_OMMER_HASH_LOW = 0xd312451b948a7413f0a142fd40d49347;
-const EMPTY_OMMER_HASH_HIGH = 0x1dcc4de8dec75d7aab85b567b6ccd41a;
+const EMPTY_OMMER_HASH_LOW = 0x1ad4ccb667b585ab7a5dc7dee84dcc1d;
+const EMPTY_OMMER_HASH_HIGH = 0x4793d440fd42a1f013748a941b4512d3;
 const VERSIONED_HASH_VERSION_KZG = 0x01;
 // https://github.com/ethereum/EIPs/blob/master/EIPS/eip-4788.md
 const SYSTEM_ADDRESS = 0xFEFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
@@ -274,6 +274,7 @@ func calculate_base_fee_per_gas{range_check_ptr}(
 func validate_header{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*}(
     header: Header, parent_header: Header
 ) {
+    alloc_locals;
     with_attr error_message("InvalidBlock") {
         assert [range_check_ptr] = header.value.gas_limit.value - header.value.gas_used.value;
         let range_check_ptr = range_check_ptr + 1;
@@ -295,7 +296,7 @@ func validate_header{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: 
         );
         assert number_is_valid = 1;
 
-        let extra_data_is_valid = is_zero(32 - header.value.extra_data.value.len);
+        let extra_data_is_valid = is_le_felt(header.value.extra_data.value.len, 32);
         assert extra_data_is_valid = 1;
 
         assert header.value.difficulty.value = 0;
@@ -306,7 +307,8 @@ func validate_header{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: 
         assert header.value.ommers_hash.value.high = EMPTY_OMMER_HASH_HIGH;
 
         let parent_block_hash = keccak256_header(parent_header);
-        assert header.value.parent_hash = parent_block_hash;
+        let are_equal = Bytes32__eq__(header.value.parent_hash, parent_block_hash);
+        assert are_equal.value = 1;
     }
     return ();
 }
@@ -1278,8 +1280,7 @@ func _apply_body_inner{
         encoded_index, OptionalUnionBytesReceipt(receipt.value)
     );
 
-    let new_logs = receipt.value.receipt.value.logs;
-    _append_logs{logs=block_logs}(new_logs);
+    _append_logs{logs=block_logs}(logs);
     let tx_blob_gas = calculate_total_blob_gas(tx);
     tempvar blob_gas_used = Uint(blob_gas_used.value + tx_blob_gas.value);
 
@@ -1391,11 +1392,22 @@ func state_transition{
 
     with_attr error_message("InvalidBlock") {
         assert output.value.block_gas_used = block.value.header.value.gas_used;
-        assert output.value.transactions_root = block.value.header.value.transactions_root;
-        assert output.value.state_root = block.value.header.value.state_root;
-        assert output.value.receipt_root = block.value.header.value.receipt_root;
-        assert output.value.block_logs_bloom = block.value.header.value.bloom;
-        assert output.value.withdrawals_root = block.value.header.value.withdrawals_root;
+
+        let transactions_root_equal = Bytes32__eq__(output.value.transactions_root, block.value.header.value.transactions_root);
+        assert transactions_root_equal.value = 1;
+
+        let state_root_equal = Bytes32__eq__(output.value.state_root, block.value.header.value.state_root);
+        assert state_root_equal.value = 1;
+
+        let receipt_root_equal = Bytes32__eq__(output.value.receipt_root, block.value.header.value.receipt_root);
+        assert receipt_root_equal.value = 1;
+
+        let logs_bloom_equal = Bytes256__eq__(output.value.block_logs_bloom, block.value.header.value.bloom);
+        assert logs_bloom_equal.value = 1;
+
+        let withdrawals_root_equal = Bytes32__eq__(output.value.withdrawals_root, block.value.header.value.withdrawals_root);
+        assert withdrawals_root_equal.value = 1;
+
         assert output.value.blob_gas_used.value = block.value.header.value.blob_gas_used.value;
     }
 

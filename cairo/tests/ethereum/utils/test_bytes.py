@@ -1,6 +1,6 @@
 from typing import List
 
-from ethereum_types.bytes import Bytes, Bytes4, Bytes8, Bytes20, Bytes32
+from ethereum_types.bytes import Bytes, Bytes4, Bytes8, Bytes20, Bytes32, Bytes256
 from hypothesis import given
 from hypothesis import strategies as st
 
@@ -41,3 +41,11 @@ class TestBytes:
     @given(a=st.binary(min_size=0, max_size=32))
     def test_Bytes_to_Bytes32(self, cairo_run, a: Bytes):
         assert cairo_run("Bytes_to_Bytes32", a) == Bytes32(a.ljust(32, b"\x00"))
+
+    @given(a=st.binary(min_size=32, max_size=32), b=st.binary(min_size=32, max_size=32))
+    def test_Bytes32__eq__(self, cairo_run, a: Bytes32, b: Bytes32):
+        assert (a == b) == cairo_run("Bytes32__eq__", a, b)
+
+    @given(a=st.binary(min_size=256, max_size=256), b=st.binary(min_size=256, max_size=256))
+    def test_Bytes256__eq__(self, cairo_run, a: Bytes256, b: Bytes256):
+        assert (a == b) == cairo_run("Bytes256__eq__", a, b)
