@@ -296,7 +296,7 @@ func validate_header{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: 
         );
         assert number_is_valid = 1;
 
-        let extra_data_is_valid = is_le_felt(header.value.extra_data.value.len, 32);
+        let extra_data_is_valid = is_le(header.value.extra_data.value.len, 32);
         assert extra_data_is_valid = 1;
 
         assert header.value.difficulty.value = 0;
