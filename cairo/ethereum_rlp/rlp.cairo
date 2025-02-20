@@ -756,7 +756,9 @@ func decode{range_check_ptr}(encoded_data: Bytes) -> Simple {
     alloc_locals;
     assert [range_check_ptr] = encoded_data.value.len;
     let range_check_ptr = range_check_ptr + 1;
-    assert_not_zero(encoded_data.value.len);
+    with_attr error_message("DecodingError") {
+        assert_not_zero(encoded_data.value.len);
+    }
 
     let cond = is_le(encoded_data.value.data[0], 0xbf);
     if (cond != 0) {
@@ -918,9 +920,11 @@ func decode_item_length{range_check_ptr}(encoded_data: Bytes) -> felt {
     let cond = is_le(first_rlp_byte, 0xBF);
     if (cond != 0) {
         let length_length = first_rlp_byte - 0xB7;
-        assert [range_check_ptr] = encoded_data.value.len - length_length - 1;
-        let range_check_ptr = range_check_ptr + 1;
-        assert_not_zero(encoded_data.value.data[1]);
+        with_attr error_message("DecodingError") {
+            assert [range_check_ptr] = encoded_data.value.len - length_length - 1;
+            let range_check_ptr = range_check_ptr + 1;
+            assert_not_zero(encoded_data.value.data[1]);
+        }
         let decoded_data_length = bytes_to_felt(length_length, encoded_data.value.data + 1);
         return 1 + length_length + decoded_data_length;
     }
@@ -932,9 +936,11 @@ func decode_item_length{range_check_ptr}(encoded_data: Bytes) -> felt {
     }
 
     let length_length = first_rlp_byte - 0xF7;
-    assert [range_check_ptr] = encoded_data.value.len - length_length - 1;
-    let range_check_ptr = range_check_ptr + 1;
-    assert_not_zero(encoded_data.value.data[1]);
+    with_attr error_message("DecodingError") {
+        assert [range_check_ptr] = encoded_data.value.len - length_length - 1;
+        let range_check_ptr = range_check_ptr + 1;
+        assert_not_zero(encoded_data.value.data[1]);
+    }
     let decoded_data_length = bytes_to_felt(length_length, encoded_data.value.data + 1);
     return 1 + length_length + decoded_data_length;
 }
