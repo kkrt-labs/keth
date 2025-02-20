@@ -1,3 +1,4 @@
+import json
 from collections import defaultdict
 from dataclasses import replace
 from typing import Optional, Tuple
@@ -38,10 +39,12 @@ from ethereum.cancun.transactions import (
 from ethereum.cancun.trie import Trie
 from ethereum.cancun.utils.address import to_address
 from ethereum.cancun.vm import Environment
-from ethereum.cancun.vm.gas import TARGET_BLOB_GAS_PER_BLOCK
+from ethereum.cancun.vm.gas import TARGET_BLOB_GAS_PER_BLOCK, calculate_excess_blob_gas
 from ethereum.crypto.hash import Hash32, keccak256
-from ethereum.exceptions import EthereumException
+from ethereum.exceptions import EthereumException, InvalidBlock
+from ethereum.utils.hexadecimal import hex_to_bytes, hex_to_u256, hex_to_uint
 from ethereum_rlp import rlp
+from ethereum_spec_tools.evm_tools.loaders.fixture_loader import Load
 from ethereum_types.bytes import Bytes, Bytes0, Bytes8, Bytes20, Bytes32
 from ethereum_types.numeric import U64, U256, Uint
 from hypothesis import assume, example, given, settings
@@ -881,6 +884,86 @@ class TestFork:
         assert chain.state == cairo_chain.state
         assert chain.chain_id == cairo_chain.chain_id
 
+    def test_state_transition_zkpi(self, cairo_run):
+        with open("cairo/scripts/data/eels/21872325.json", "r") as f:
+            fixture = json.load(f)
+
+        load = Load("Cancun", "cancun")
+        # Sanity checks
+        block = Block(
+            header=load.json_to_header(fixture["newBlockParameters"]["blockHeader"]),
+            transactions=tuple(
+                (
+                    LegacyTransaction(
+                        nonce=hex_to_u256(tx["nonce"]),
+                        gas_price=hex_to_uint(tx["gasPrice"]),
+                        gas=hex_to_uint(tx["gas"]),
+                        to=Address(hex_to_bytes(tx["to"])) if tx["to"] else Bytes0(),
+                        value=hex_to_u256(tx["value"]),
+                        data=Bytes(hex_to_bytes(tx["data"])),
+                        v=hex_to_u256(tx["v"]),
+                        r=hex_to_u256(tx["r"]),
+                        s=hex_to_u256(tx["s"]),
+                    )
+                    if isinstance(tx, dict)
+                    else Bytes(hex_to_bytes(tx))
+                )  # Non-legacy txs are hex strings
+                for tx in fixture["newBlockParameters"]["transactions"]
+            ),
+            ommers=(),
+            withdrawals=tuple(
+                Withdrawal(
+                    index=U64(int(w["index"], 16)),
+                    validator_index=U64(int(w["validatorIndex"], 16)),
+                    address=Address(hex_to_bytes(w["address"])),
+                    amount=U256(int(w["amount"], 16)),
+                )
+                for w in fixture["newBlockParameters"]["withdrawals"]
+            ),
+        )
+        genesis_block = Block(
+            header=load.json_to_header(fixture["genesisBlockHeader"]),
+            transactions=(),
+            ommers=(),
+            withdrawals=(),
+        )
+        chain = BlockChain(
+            blocks=[genesis_block],
+            state=load.json_to_state(fixture["pre"]),
+            chain_id=U64(fixture["chainId"]),
+        )
+        parent_header = chain.blocks[-1].header
+
+        excess_blob_gas = calculate_excess_blob_gas(parent_header)
+        if block.header.excess_blob_gas != excess_blob_gas:
+            raise InvalidBlock
+
+        validate_header(block.header, parent_header)
+        if block.ommers != ():
+            raise InvalidBlock
+        apply_body_output = apply_body(
+            chain.state,
+            get_last_256_block_hashes(chain),
+            block.header.coinbase,
+            block.header.number,
+            block.header.base_fee_per_gas,
+            block.header.gas_limit,
+            block.header.timestamp,
+            block.header.prev_randao,
+            block.transactions,
+            chain.chain_id,
+            block.withdrawals,
+            block.header.parent_beacon_block_root,
+            excess_blob_gas,
+        )
+        assert apply_body_output.block_gas_used == block.header.gas_used
+        assert apply_body_output.transactions_root == block.header.transactions_root
+        assert apply_body_output.state_root == block.header.state_root
+        assert apply_body_output.receipt_root == block.header.receipt_root
+        assert apply_body_output.block_logs_bloom == block.header.bloom
+        assert apply_body_output.withdrawals_root == block.header.withdrawals_root
+        assert apply_body_output.blob_gas_used == block.header.blob_gas_used
+
 
 def _create_erc20_data():
     """Helper to create the fixed ERC20 data structures"""
@@ -924,7 +1007,5 @@ def _create_erc20_data():
             _data=defaultdict(lambda: U256(0), storage_data),
         )
     }
-
-    return accounts, storage_tries
 
     return accounts, storage_tries
