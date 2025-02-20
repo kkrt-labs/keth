@@ -51,16 +51,15 @@ pub fn modexp_gas() -> Hint {
             let exp_len = exp_length.low.as_ref().to_biguint();
             let exp_head_val = exp_head.pack();
 
-            let iteration_count = if &exp_len <= &BigUint::from(MAX_EXP_LEN) &&
-                exp_head_val.is_zero()
+            let iteration_count = if exp_len <= BigUint::from(MAX_EXP_LEN) && exp_head_val.is_zero()
             {
                 BigUint::zero()
-            } else if &exp_len <= &BigUint::from(MAX_EXP_LEN) {
+            } else if exp_len <= BigUint::from(MAX_EXP_LEN) {
                 exp_head_val.bits().checked_sub(1).map(BigUint::from).unwrap_or_else(BigUint::zero)
             } else {
                 let length_part =
                     &BigUint::from(WORD_SIZE) * (&exp_len - BigUint::from(MAX_EXP_LEN));
-                let bits_part = exp_head_val.bits().checked_sub(1).unwrap_or(0);
+                let bits_part = exp_head_val.bits().saturating_sub(1);
                 &length_part + bits_part
             };
 

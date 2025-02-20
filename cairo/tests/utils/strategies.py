@@ -563,7 +563,7 @@ def register_type_strategies():
         st.fixed_dictionaries(
             {
                 "key_segment": nibble,
-                "subnode": bounded_bytes_strategy(max_size=2**256 - 1).map(
+                "subnode": st.integers(min_value=0, max_value=2**256 - 1).map(
                     lambda x: x.to_bytes(32, "little")
                 ),
             }
