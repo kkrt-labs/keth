@@ -789,14 +789,20 @@ func decode_to_bytes{range_check_ptr}(encoded_bytes: Bytes) -> Bytes {
     let cond = is_le(encoded_bytes.value.data[0], 0xB7);
     if (cond != 0) {
         let len_raw_data = encoded_bytes.value.data[0] - 0x80;
-        assert [range_check_ptr] = len_raw_data;
-        let range_check_ptr = range_check_ptr + 1;
-        assert [range_check_ptr] = encoded_bytes.value.len - len_raw_data;
-        let range_check_ptr = range_check_ptr + 1;
+        with_attr error_message("DecodingError") {
+            assert [range_check_ptr] = len_raw_data;
+            let range_check_ptr = range_check_ptr + 1;
+        }
+        with_attr error_message("DecodingError") {
+            assert [range_check_ptr] = encoded_bytes.value.len - (len_raw_data + 1);
+            let range_check_ptr = range_check_ptr + 1;
+        }
         let raw_data = encoded_bytes.value.data + 1;
         if (len_raw_data == 1) {
-            assert [range_check_ptr] = raw_data[0] - 0x80;
-            tempvar range_check_ptr = range_check_ptr + 1;
+            with_attr error_message("DecodingError") {
+                assert [range_check_ptr] = raw_data[0] - 0x80;
+                tempvar range_check_ptr = range_check_ptr + 1;
+            }
         } else {
             tempvar range_check_ptr = range_check_ptr;
         }
@@ -807,16 +813,24 @@ func decode_to_bytes{range_check_ptr}(encoded_bytes: Bytes) -> Bytes {
     }
 
     let decoded_data_start_idx = 1 + encoded_bytes.value.data[0] - 0xB7;
-    assert [range_check_ptr] = encoded_bytes.value.len - decoded_data_start_idx;
-    let range_check_ptr = range_check_ptr + 1;
-    assert_not_zero(encoded_bytes.value.data[1]);
+    with_attr error_message("DecodingError") {
+        assert [range_check_ptr] = encoded_bytes.value.len - decoded_data_start_idx;
+        let range_check_ptr = range_check_ptr + 1;
+    }
+    with_attr error_message("DecodingError") {
+        assert_not_zero(encoded_bytes.value.data[1]);
+    }
     let len_decoded_data = bytes_to_felt(decoded_data_start_idx - 1, encoded_bytes.value.data + 1);
-    assert [range_check_ptr] = len_decoded_data - 0x38;
-    let range_check_ptr = range_check_ptr + 1;
+    with_attr error_message("DecodingError") {
+        assert [range_check_ptr] = len_decoded_data - 0x38;
+        let range_check_ptr = range_check_ptr + 1;
+    }
 
     let decoded_data_end_idx = decoded_data_start_idx + len_decoded_data;
-    assert [range_check_ptr] = encoded_bytes.value.len - decoded_data_end_idx;
-    let range_check_ptr = range_check_ptr + 1;
+    with_attr error_message("DecodingError") {
+        assert [range_check_ptr] = encoded_bytes.value.len - decoded_data_end_idx;
+        let range_check_ptr = range_check_ptr + 1;
+    }
 
     let raw_data = encoded_bytes.value.data + decoded_data_start_idx;
     tempvar value = new BytesStruct(raw_data, decoded_data_end_idx - decoded_data_start_idx);
@@ -831,10 +845,14 @@ func decode_to_sequence{range_check_ptr}(encoded_sequence: Bytes) -> SequenceSim
     let cond = is_le(encoded_sequence.value.data[0], 0xF7);
     if (cond == 1) {
         let len_joined_encodings = encoded_sequence.value.data[0] - 0xC0;
-        assert [range_check_ptr] = len_joined_encodings;
-        let range_check_ptr = range_check_ptr + 1;
-        assert [range_check_ptr] = encoded_sequence.value.len - len_joined_encodings - 1;
-        let range_check_ptr = range_check_ptr + 1;
+        with_attr error_message("DecodingError") {
+            assert [range_check_ptr] = len_joined_encodings;
+            let range_check_ptr = range_check_ptr + 1;
+        }
+        with_attr error_message("DecodingError") {
+            assert [range_check_ptr] = encoded_sequence.value.len - len_joined_encodings - 1;
+            let range_check_ptr = range_check_ptr + 1;
+        }
 
         tempvar value = new BytesStruct(encoded_sequence.value.data + 1, len_joined_encodings);
         let joined_encodings = Bytes(value);
@@ -844,17 +862,23 @@ func decode_to_sequence{range_check_ptr}(encoded_sequence: Bytes) -> SequenceSim
     let joined_encodings_start_idx = 1 + encoded_sequence.value.data[0] - 0xF7;
     assert [range_check_ptr] = encoded_sequence.value.len - joined_encodings_start_idx;
     let range_check_ptr = range_check_ptr + 1;
-    assert_not_zero(encoded_sequence.value.data[1]);
+    with_attr error_message("DecodingError") {
+        assert_not_zero(encoded_sequence.value.data[1]);
+    }
 
     let len_joined_encodings = bytes_to_felt(
         joined_encodings_start_idx - 1, encoded_sequence.value.data + 1
     );
-    assert [range_check_ptr] = len_joined_encodings - 0x38;
-    let range_check_ptr = range_check_ptr + 1;
+    with_attr error_message("DecodingError") {
+        assert [range_check_ptr] = len_joined_encodings - 0x38;
+        let range_check_ptr = range_check_ptr + 1;
+    }
 
     let joined_encodings_end_idx = joined_encodings_start_idx + len_joined_encodings;
-    assert [range_check_ptr] = encoded_sequence.value.len - joined_encodings_end_idx;
-    let range_check_ptr = range_check_ptr + 1;
+    with_attr error_message("DecodingError") {
+        assert [range_check_ptr] = encoded_sequence.value.len - joined_encodings_end_idx;
+        let range_check_ptr = range_check_ptr + 1;
+    }
 
     tempvar value = new BytesStruct(
         encoded_sequence.value.data + joined_encodings_start_idx,
