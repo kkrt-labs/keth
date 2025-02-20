@@ -1,9 +1,11 @@
 """
-This script converts a zkpi preflight JSON file to a JSON that can be loaded
-to test state transition with real L1 data.
+This script converts zkpi preflight JSON files to JSON that can be loaded
+to test state transition with real L1 data. It can process a single file
+or all JSON files in the zkpi directory.
 """
 
 import json
+import sys
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -236,13 +238,18 @@ def _state_transition(chain: BlockChain, block: Block) -> ApplyBodyOutput:
     return apply_body_output
 
 
-def main():
-    load = Load("Cancun", "cancun")
-    # Get the directory containing this script
-    script_dir = Path(__file__).parent
+def process_zkpi_file(zkpi_file: Path, script_dir: Path) -> None:
+    """
+    Process a single ZKPI file and convert it to EELS format.
 
-    # Path to the ZKPI JSON file
-    zkpi_file = script_dir / "data" / "zkpi" / "21872325.json"
+    Parameters
+    ----------
+    zkpi_file : Path
+        Path to the ZKPI JSON file to process
+    script_dir : Path
+        Path to the script directory
+    """
+    print(f"Processing {zkpi_file.name}...")
 
     # Load the ZKPI JSON
     zkpi_data = load_zkpi_json(str(zkpi_file))
@@ -252,13 +259,14 @@ def main():
 
     # Convert accounts using the code mapping
     pre_state = convert_accounts(zkpi_data, codes_mapping)
+
+    load = Load("Cancun", "cancun")
     # Adding partial state root
     pre_state_root = state_root(load.json_to_state(pre_state))
 
     # Generate genesis block header
     parent_block = zkpi_data["ancestors"][0]
     # Modify parent state root to be the state root of the pre-state (partial)
-    # instead of the entire MPT L1 MPT state root
     parent_block["stateRoot"] = "0x" + pre_state_root.hex()
 
     # Convert block parameters
@@ -316,7 +324,6 @@ def main():
         withdrawals=(),
     )
 
-    # TODO: Add all ancestors in the chain so as to be able to query the 256 previous block hashes
     blockchain = BlockChain(
         blocks=[genesis_block],
         state=load.json_to_state(fixture["pre"]),
@@ -325,22 +332,50 @@ def main():
 
     # Apply state root to get partial MPT state root
     apply_body_output = _state_transition(blockchain, block)
-    print(apply_body_output)
+    print(f"State root: 0x{apply_body_output.state_root.hex()}")
+    print(f"Transactions root: 0x{apply_body_output.transactions_root.hex()}")
+    print(f"Receipts root: 0x{apply_body_output.receipt_root.hex()}")
 
     post_state_root = state_root(blockchain.state)
     fixture["newBlockParameters"]["blockHeader"]["stateRoot"] = (
         "0x" + post_state_root.hex()
     )
 
-    # Write the fixture to a file
-    # Write the fixture to a file
-    output_file = script_dir / "data" / "eels" / "21872325.json"
+    # Create output file path with same name in eels directory
+    output_file = script_dir / "data" / "eels" / zkpi_file.name
     output_file.parent.mkdir(parents=True, exist_ok=True)
 
     with open(output_file, "w") as f:
         json.dump(fixture, f, indent=2)
 
     print(f"Created EELS fixture at {output_file}")
+
+
+def main():
+    # Get the directory containing this script
+    script_dir = Path(__file__).parent
+    zkpi_dir = script_dir / "data" / "zkpi"
+
+    # Check if a specific file was provided as argument
+    if len(sys.argv) > 1:
+        filename = sys.argv[1]
+        zkpi_file = zkpi_dir / filename
+        if not zkpi_file.exists():
+            print(f"Error: File {filename} not found in {zkpi_dir}")
+            sys.exit(1)
+        process_zkpi_file(zkpi_file, script_dir)
+    else:
+        # Process all JSON files in the zkpi directory
+        json_files = list(zkpi_dir.glob("*.json"))
+        if not json_files:
+            print(f"No JSON files found in {zkpi_dir}")
+            sys.exit(1)
+
+        print(f"Found {len(json_files)} JSON files to process")
+        for zkpi_file in json_files:
+            process_zkpi_file(zkpi_file, script_dir)
+
+        print("Finished processing all files")
 
 
 if __name__ == "__main__":

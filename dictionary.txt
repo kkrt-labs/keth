@@ -246,3 +246,4 @@ ethtest
 mult
 altbn
 zkpi
+ethash
