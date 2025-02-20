@@ -51,36 +51,9 @@ def load_zkpi_json(file_path: str) -> Dict[str, Any]:
         return json.load(f)
 
 
-def create_code_hash_to_code_map(zkpi_data: Dict[str, Any]) -> Dict[str, str]:
-    """
-    Create a map of code hashes to code from the ZKPI data.
-    First hashes all codes in the "codes" array to create a reverse mapping.
-
-    Parameters
-    ----------
-    zkpi_data : Dict[str, Any]
-        The ZKPI data containing a "codes" array
-
-    Returns
-    -------
-    Dict[str, str]
-        Mapping from code hash (hex string) to code (hex string)
-    """
-    code_hash_to_code = {}
-
-    # First create mapping from all codes in the codes array
-    for code in zkpi_data["codes"]:
-        # Convert hex string to bytes, hash it, and convert hash back to hex string
-        code_bytes = hex_to_bytes(code)
-        code_hash = "0x" + keccak256(code_bytes).hex()
-        code_hash_to_code[code_hash] = code
-
-    return code_hash_to_code
-
-
 def convert_accounts(
     zkpi_data: Dict[str, Any],
-    code_hash_to_code: Dict[str, str],
+    code_hashes: Dict[str, str],
 ) -> Dict[str, Any]:
     """
     Convert ZKPI accounts to the format expected by json_to_state.
@@ -109,7 +82,7 @@ def convert_accounts(
 
         # Get the code using codeHash
         code_hash = account_proof["codeHash"]
-        code = code_hash_to_code.get(code_hash, "0x")
+        code = code_hashes.get(code_hash, "0x")
 
         # Initialize account state
         account_state = {
@@ -251,14 +224,16 @@ def process_zkpi_file(zkpi_file: Path, script_dir: Path) -> None:
     """
     print(f"Processing {zkpi_file.name}...")
 
-    # Load the ZKPI JSON
-    zkpi_data = load_zkpi_json(str(zkpi_file))
+    with open(str(zkpi_file), "r") as f:
+        zkpi_data = json.load(f)
 
-    # Create code hash to code mapping
-    codes_mapping = create_code_hash_to_code_map(zkpi_data)
+    code_hashes = {
+        "0x" + keccak256(hex_to_bytes(code)).hex(): code
+        for code in zkpi_data["codes"]
+    }
 
     # Convert accounts using the code mapping
-    pre_state = convert_accounts(zkpi_data, codes_mapping)
+    pre_state = convert_accounts(zkpi_data, code_hashes)
 
     load = Load("Cancun", "cancun")
     # Adding partial state root
@@ -266,15 +241,9 @@ def process_zkpi_file(zkpi_file: Path, script_dir: Path) -> None:
 
     # Generate genesis block header
     parent_block = zkpi_data["ancestors"][0]
-    # Modify parent state root to be the state root of the pre-state (partial)
-    parent_block["stateRoot"] = "0x" + pre_state_root.hex()
 
     # Convert block parameters
     block_parameters = create_eels_block_parameters(zkpi_data["block"])
-    # We modify parent hash to be the hash of the modified parent block
-    block_parameters["blockHeader"]["parentHash"] = (
-        "0x" + keccak256(rlp.encode(load.json_to_header(parent_block))).hex()
-    )
 
     # Create the final fixture format
     fixture = {
@@ -336,7 +305,7 @@ def process_zkpi_file(zkpi_file: Path, script_dir: Path) -> None:
     # Format output to match cast block display
     print(f"baseFeePerGas        {int(block.header.base_fee_per_gas)}")
     print(f"difficulty           {int(block.header.difficulty)}")
-    print(f"extraData           {block.header.extra_data}")  # Already a hex string
+    print(f"extraData           {block.header.extra_data.decode()}")  # Convert hex string to bytes
     print(f"gasLimit            {int(block.header.gas_limit)}")
     print(f"gasUsed             {apply_body_output.block_gas_used}")
     print(f"logsBloom           0x{apply_body_output.block_logs_bloom.hex()}")
