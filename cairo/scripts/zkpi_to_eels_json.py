@@ -332,9 +332,23 @@ def process_zkpi_file(zkpi_file: Path, script_dir: Path) -> None:
 
     # Apply state root to get partial MPT state root
     apply_body_output = _state_transition(blockchain, block)
-    print(f"State root: 0x{apply_body_output.state_root.hex()}")
-    print(f"Transactions root: 0x{apply_body_output.transactions_root.hex()}")
-    print(f"Receipts root: 0x{apply_body_output.receipt_root.hex()}")
+
+    # Format output to match cast block display
+    print(f"baseFeePerGas        {int(block.header.base_fee_per_gas)}")
+    print(f"difficulty           {int(block.header.difficulty)}")
+    print(f"extraData           {block.header.extra_data}")  # Already a hex string
+    print(f"gasLimit            {int(block.header.gas_limit)}")
+    print(f"gasUsed             {apply_body_output.block_gas_used}")
+    print(f"logsBloom           0x{apply_body_output.block_logs_bloom.hex()}")
+    print(f"miner               0x{block.header.coinbase.hex()}")
+    print(f"nonce               0x{block.header.nonce.hex()}")
+    print(f"number              {int(block.header.number)}")
+    print(f"parentHash          0x{block.header.parent_hash.hex()}")
+    print(f"parentBeaconRoot    0x{block.header.parent_beacon_block_root.hex()}")
+    print(f"transactionsRoot    0x{apply_body_output.transactions_root.hex()}")
+    print(f"receiptsRoot        0x{apply_body_output.receipt_root.hex()}")
+    print(f"sha3Uncles          0x{block.header.ommers_hash.hex()}")
+    print(f"withdrawalsRoot     0x{apply_body_output.withdrawals_root.hex()}")
 
     post_state_root = state_root(blockchain.state)
     fixture["newBlockParameters"]["blockHeader"]["stateRoot"] = (
