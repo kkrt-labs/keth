@@ -229,3 +229,17 @@ pyobject
 modpow
 bitmask
 lambdaclass
+idfn
+Statetest
+Gafter
+ethash
+argparsing
+tfile
+hexsha
+jsons
+bigmem
+rlptest
+fixturedef
+getfixturedefs
+fixturemanager
+ethtest

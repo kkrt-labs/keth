@@ -6,20 +6,26 @@ from typing import (
     ForwardRef,
     Generic,
     Optional,
-    Sequence,
     Tuple,
-    TypeAlias,
     TypeVar,
     Union,
     get_args,
     get_origin,
 )
-from unittest.mock import patch
 
 from eth_keys.datatypes import PrivateKey
-from ethereum.cancun.trie import copy_trie
+from ethereum.cancun.blocks import Header, Log, Receipt, Withdrawal
+from ethereum.cancun.fork_types import Account, Address, Bloom, Root
+from ethereum.cancun.transactions import (
+    AccessListTransaction,
+    BlobTransaction,
+    FeeMarketTransaction,
+    LegacyTransaction,
+)
+from ethereum.cancun.trie import BranchNode, ExtensionNode, LeafNode, Trie, copy_trie
 from ethereum.cancun.vm import Environment, Evm, Message
 from ethereum.crypto.elliptic_curve import SECP256K1N
+from ethereum.crypto.hash import Hash32
 from ethereum.exceptions import EthereumException
 from ethereum_types.bytes import Bytes0, Bytes4, Bytes8, Bytes20, Bytes32, Bytes256
 from ethereum_types.numeric import U64, U256, FixedUnsigned, Uint
@@ -35,23 +41,6 @@ from tests.utils.args_gen import (
     VersionedHash,
 )
 from tests.utils.constants import BLOCK_GAS_LIMIT, MAX_BLOB_GAS_PER_BLOCK
-
-# Mock the Extended type because hypothesis cannot handle the RLP Protocol
-# Needs to be done before importing the types from ethereum.cancun.trie
-# trunk-ignore(ruff/F821)
-MockExtended: TypeAlias = Union[Sequence["Extended"], bytearray, bytes, Uint, FixedUnsigned, str, bool]  # type: ignore
-patch("ethereum_rlp.rlp.Extended", MockExtended).start()
-
-from ethereum.cancun.blocks import Header, Log, Receipt, Withdrawal
-from ethereum.cancun.fork_types import Account, Address, Bloom, Root
-from ethereum.cancun.transactions import (
-    AccessListTransaction,
-    BlobTransaction,
-    FeeMarketTransaction,
-    LegacyTransaction,
-)
-from ethereum.cancun.trie import BranchNode, ExtensionNode, LeafNode, Trie
-from ethereum.crypto.hash import Hash32
 
 # Base types
 # The EELS uses a Uint type different from U64, but Reth uses U64.

@@ -11,7 +11,7 @@ from filelock import SoftFileLock
 from git.exc import GitCommandError, InvalidGitRepositoryError
 from pytest import Session
 
-from tests.helpers import TEST_FIXTURES
+from tests.ef_tests.helpers import TEST_FIXTURES
 
 
 def pytest_addoption(parser: Parser) -> None:
@@ -106,8 +106,6 @@ def pytest_sessionstart(session: Session) -> None:
             pass
 
         if "commit_hash" in props:
-            git_clone_fixtures(
-                props["url"], props["commit_hash"], fixture_path
-            )
+            git_clone_fixtures(props["url"], props["commit_hash"], fixture_path)
         else:
             download_fixtures(props["url"], fixture_path)

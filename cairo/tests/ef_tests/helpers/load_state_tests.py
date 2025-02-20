@@ -1,21 +1,36 @@
-import importlib
 import json
 import os.path
 import re
+from collections import defaultdict
 from glob import glob
 from typing import Any, Dict, Generator, Tuple, Union
-from unittest.mock import call, patch
 
 import pytest
 from _pytest.mark.structures import ParameterSet
-from ethereum_rlp import rlp
-from ethereum_rlp.exceptions import RLPException
-from ethereum_types.numeric import U64
-
 from ethereum.crypto.hash import keccak256
 from ethereum.exceptions import EthereumException
 from ethereum.utils.hexadecimal import hex_to_bytes
+from ethereum_rlp import rlp
+from ethereum_rlp.exceptions import RLPException
 from ethereum_spec_tools.evm_tools.loaders.fixture_loader import Load
+from ethereum_types.numeric import U64, U256
+
+
+def convert_defaultdict(state):
+    for address in state._storage_tries:
+        state._storage_tries[address]._data = defaultdict(
+            lambda: defaultdict(lambda: U256(0)), state._storage_tries[address]._data
+        )
+    state._main_trie._data = defaultdict(lambda: None, state._main_trie._data)
+
+    for snap in state._snapshots:
+        for address in snap._storage_tries:
+            snap._storage_tries[address]._data = defaultdict(
+                lambda: defaultdict(lambda: U256(0)), snap._storage_tries[address]._data
+            )
+        snap._main_trie._data = defaultdict(lambda: None, snap._main_trie._data)
+
+    return state
 
 
 class NoTestsFound(Exception):
@@ -25,7 +40,7 @@ class NoTestsFound(Exception):
     """
 
 
-def run_blockchain_st_test(test_case: Dict, load: Load) -> None:
+def run_blockchain_st_test(test_case: Dict, load: Load, cairo_run) -> None:
     test_file = test_case["test_file"]
     test_key = test_case["test_key"]
 
@@ -59,9 +74,7 @@ def run_blockchain_st_test(test_case: Dict, load: Load) -> None:
         chain_id=U64(json_data["genesisBlockHeader"].get("chainId", 1)),
     )
 
-    mock_pow = (
-        json_data["sealEngine"] == "NoProof" and not load.fork.proof_of_stake
-    )
+    mock_pow = json_data["sealEngine"] == "NoProof" and not load.fork.proof_of_stake
 
     for json_block in json_data["blocks"]:
         block_exception = None
@@ -70,15 +83,16 @@ def run_blockchain_st_test(test_case: Dict, load: Load) -> None:
                 block_exception = value
                 break
 
+        chain.state = convert_defaultdict(chain.state)
         if block_exception:
             # TODO: Once all the specific exception types are thrown,
             #       only `pytest.raises` the correct exception type instead of
             #       all of them.
             with pytest.raises((EthereumException, RLPException)):
-                add_block_to_chain(chain, json_block, load, mock_pow)
+                add_block_to_chain(chain, json_block, load, mock_pow, cairo_run)
             return
         else:
-            add_block_to_chain(chain, json_block, load, mock_pow)
+            add_block_to_chain(chain, json_block, load, mock_pow, cairo_run)
 
     last_block_hash = hex_to_bytes(json_data["lastblockhash"])
     assert keccak256(rlp.encode(chain.blocks[-1].header)) == last_block_hash
@@ -90,7 +104,7 @@ def run_blockchain_st_test(test_case: Dict, load: Load) -> None:
 
 
 def add_block_to_chain(
-    chain: Any, json_block: Any, load: Load, mock_pow: bool
+    chain: Any, json_block: Any, load: Load, mock_pow: bool, cairo_run
 ) -> None:
     (
         block,
@@ -101,22 +115,9 @@ def add_block_to_chain(
     assert keccak256(rlp.encode(block.header)) == block_header_hash
     assert rlp.encode(block) == block_rlp
 
-    if not mock_pow:
-        load.fork.state_transition(chain, block)
-    else:
-        fork_module = importlib.import_module(
-            f"ethereum.{load.fork.fork_module}.fork"
-        )
-        with patch.object(
-            fork_module,
-            "validate_proof_of_work",
-            autospec=True,
-        ) as mocked_pow_validator:
-            load.fork.state_transition(chain, block)
-            mocked_pow_validator.assert_has_calls(
-                [call(block.header)],
-                any_order=False,
-            )
+    cairo_chain = cairo_run("state_transition", chain, block)
+    chain.blocks = cairo_chain.blocks
+    chain.state = cairo_chain.state
 
 
 # Functions that fetch individual test cases
@@ -169,9 +170,7 @@ def fetch_state_test_files(
     else:
         # If there isn't a custom list, iterate over the test_dir
         all_jsons = [
-            y
-            for x in os.walk(test_dir)
-            for y in glob(os.path.join(x[0], "*.json"))
+            y for x in os.walk(test_dir) for y in glob(os.path.join(x[0], "*.json"))
         ]
 
         for full_path in all_jsons:
@@ -187,11 +186,7 @@ def fetch_state_test_files(
                 # _identifier could identify files, folders through test_file
                 #  individual cases through test_key
                 _identifier = (
-                    "("
-                    + _test_case["test_file"]
-                    + "|"
-                    + _test_case["test_key"]
-                    + ")"
+                    "(" + _test_case["test_file"] + "|" + _test_case["test_key"] + ")"
                 )
                 if any(x.search(_identifier) for x in all_ignore):
                     continue

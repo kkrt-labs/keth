@@ -1,10 +1,11 @@
 from functools import partial
+from pathlib import Path
 from typing import Dict
 
 import pytest
 
-from tests.helpers import TEST_FIXTURES
-from tests.helpers.load_state_tests import (
+from tests.ef_tests.helpers import TEST_FIXTURES
+from tests.ef_tests.helpers.load_state_tests import (
     Load,
     fetch_state_test_files,
     idfn,
@@ -15,14 +16,8 @@ fetch_cancun_tests = partial(fetch_state_test_files, network="Cancun")
 
 FIXTURES_LOADER = Load("Cancun", "cancun")
 
-run_cancun_blockchain_st_tests = partial(
-    run_blockchain_st_test, load=FIXTURES_LOADER
-)
-
 ETHEREUM_TESTS_PATH = TEST_FIXTURES["ethereum_tests"]["fixture_path"]
-ETHEREUM_SPEC_TESTS_PATH = TEST_FIXTURES["execution_spec_tests"][
-    "fixture_path"
-]
+ETHEREUM_SPEC_TESTS_PATH = TEST_FIXTURES["execution_spec_tests"]["fixture_path"]
 
 
 # Run state tests
@@ -83,13 +78,25 @@ fetch_state_tests = partial(
 )
 
 
+@pytest.fixture(scope="module")
+def cairo_filepath():
+    return Path(f"{Path().cwd()}/cairo/ethereum/cancun/fork.cairo")
+
+
+@pytest.fixture(scope="module")
+def cairo_state_transition(cairo_run_ethereum_tests):
+    return partial(
+        run_blockchain_st_test, load=FIXTURES_LOADER, cairo_run=cairo_run_ethereum_tests
+    )
+
+
 @pytest.mark.parametrize(
     "test_case",
     fetch_state_tests(),
     ids=idfn,
 )
-def test_general_state_tests(test_case: Dict) -> None:
-    run_cancun_blockchain_st_tests(test_case)
+def test_general_state_tests(test_case: Dict, cairo_state_transition) -> None:
+    cairo_state_transition(test_case)
 
 
 # Run execution-spec-generated-tests
@@ -101,5 +108,7 @@ test_dir = f"{ETHEREUM_SPEC_TESTS_PATH}/fixtures/withdrawals"
     fetch_cancun_tests(test_dir),
     ids=idfn,
 )
-def test_execution_specs_generated_tests(test_case: Dict) -> None:
-    run_cancun_blockchain_st_tests(test_case)
+def test_execution_specs_generated_tests(
+    test_case: Dict, cairo_filepath, cairo_state_transition
+) -> None:
+    cairo_state_transition(test_case)
