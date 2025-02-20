@@ -267,8 +267,8 @@ func call_{
     process_message_label: felt*,
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
-    poseidon_ptr: PoseidonBuiltin*,
     keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
     evm: Evm,
 }() -> EthereumException* {
     alloc_locals;
