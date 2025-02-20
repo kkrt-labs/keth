@@ -2,7 +2,11 @@
 # newer/other tests
 TEST_FIXTURES = {
     "execution_spec_tests": {
+<<<<<<< HEAD
         "url": "https://github.com/ethereum/execution-spec-tests/releases/download/v4.0.0/fixtures_stable.tar.gz",
+=======
+        "url": "https://github.com/ethereum/execution-spec-tests/releases/download/v0.2.5/fixtures.tar.gz",
+>>>>>>> 9d137a14 (feat: transalte zkpi to eels compatible json)
         "fixture_path": "cairo/tests/ef_tests/fixtures/execution_spec_tests",
     },
     "evm_tools_testdata": {

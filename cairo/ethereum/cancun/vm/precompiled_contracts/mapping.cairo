@@ -80,25 +80,37 @@ func precompile_table_lookup{range_check_ptr}(address: felt) -> (felt, felt) {
     // - index i+2 is the function pointer of the precompiled contract
     PRE_COMPILED_CONTRACTS:
     dw 0x100000000000000000000000000000000000000;
+<<<<<<< HEAD
     call ecrecover;  // ECRECOVER
+=======
+    call identity;  // ECRECOVER
+>>>>>>> 9d137a14 (feat: transalte zkpi to eels compatible json)
     dw 0x200000000000000000000000000000000000000;
     call sha256;  // SHA256
     dw 0x300000000000000000000000000000000000000;
-    call invalid_precompile;  // RIPEMD160
+    call identity;  // RIPEMD160
     dw 0x400000000000000000000000000000000000000;
     call identity;  // IDENTITY
     dw 0x500000000000000000000000000000000000000;
     call modexp;  // MODEXP
     dw 0x600000000000000000000000000000000000000;
+<<<<<<< HEAD
     call alt_bn128_add;  // ECADD
     dw 0x700000000000000000000000000000000000000;
     call alt_bn128_mul;  // ECMUL
     dw 0x800000000000000000000000000000000000000;
     call alt_bn128_pairing_check;  // ECPAIRING
+=======
+    call identity;  // ECADD
+    dw 0x700000000000000000000000000000000000000;
+    call identity;  // ECMUL
+    dw 0x800000000000000000000000000000000000000;
+    call identity;  // ECPAIRING
+>>>>>>> 9d137a14 (feat: transalte zkpi to eels compatible json)
     dw 0x900000000000000000000000000000000000000;
-    call invalid_precompile;  // BLAKE2F
+    call identity;  // BLAKE2F
     dw 0xa00000000000000000000000000000000000000;
-    call invalid_precompile;  // POINT_EVALUATION
+    call identity;  // POINT_EVALUATION
     // not reached.
     ret;
 }

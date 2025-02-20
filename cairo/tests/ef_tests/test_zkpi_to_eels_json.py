@@ -4,10 +4,12 @@ to test state transition with real L1 data. It can process a single file
 or all JSON files in the zkpi directory.
 """
 
+from functools import partial
 import json
 import sys
 from pathlib import Path
 from typing import Any, Dict, Optional
+from venv import logger
 
 from ethereum.cancun.blocks import Withdrawal
 from ethereum.cancun.fork import (
@@ -31,6 +33,7 @@ from ethereum_spec_tools.evm_tools.loaders.fork_loader import ForkLoad
 from ethereum_spec_tools.evm_tools.loaders.transaction_loader import TransactionLoad
 from ethereum_types.bytes import Bytes, Bytes0
 from ethereum_types.numeric import U64, U256
+import pytest
 from tests.ef_tests.helpers.load_state_tests import convert_defaultdict
 
 
@@ -212,7 +215,7 @@ def _state_transition(chain: BlockChain, block: Block) -> ApplyBodyOutput:
     return apply_body_output
 
 
-def process_zkpi_file(zkpi_file: Path, script_dir: Path) -> None:
+def process_zkpi_file(zkpi_file: Path, script_dir: Path, cairo_run) -> None:
     """
     Process a single ZKPI file and convert it to EELS format.
 
@@ -300,8 +303,11 @@ def process_zkpi_file(zkpi_file: Path, script_dir: Path) -> None:
         chain_id=U64(fixture["chainId"]),
     )
 
-    # Apply state root to get partial MPT state root
-    apply_body_output = _state_transition(blockchain, block)
+    logger.info(f"Running state transition")
+    apply_body_output = cairo_run("state_transition", blockchain, block)
+
+    # # Apply state root to get partial MPT state root
+    # apply_body_output = _state_transition(blockchain, block)
 
     # Format output to match cast block display
     print(f"baseFeePerGas        {int(block.header.base_fee_per_gas)}")
@@ -364,3 +370,20 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+from tests.conftest import cairo_run as cairo_run_ethereum_tests
+
+@pytest.fixture(scope="module")
+def cairo_filepath():
+    return Path(f"{Path().cwd()}/cairo/ethereum/cancun/fork.cairo")
+
+
+@pytest.fixture(scope="module")
+def cairo_zkpi(cairo_run_ethereum_tests):
+
+    return partial(
+        process_zkpi_file, zkpi_file=Path("cairo/scripts/data/zkpi/21872325.json"), script_dir=Path("cairo/scripts/"), cairo_run=cairo_run_ethereum_tests
+    )
+
+def test_zkpi_to_eels_json(cairo_filepath, cairo_zkpi):
+    cairo_zkpi()

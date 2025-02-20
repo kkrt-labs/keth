@@ -106,6 +106,9 @@ def pytest_sessionstart(session: Session) -> None:
             pass
 
         if "commit_hash" in props:
-            git_clone_fixtures(props["url"], props["commit_hash"], fixture_path)
+            # git_clone_fixtures(props["url"], props["commit_hash"], fixture_path)
+            pass
         else:
-            download_fixtures(props["url"], fixture_path)
+            pass
+            # breakpoint()
+            # download_fixtures(props["url"], fixture_path)
