@@ -117,12 +117,8 @@ MAX_TOUCHED_ACCOUNTS_SIZE = int(os.getenv("HYPOTHESIS_MAX_TOUCHED_ACCOUNTS_SIZE"
 MAX_TUPLE_SIZE = int(os.getenv("HYPOTHESIS_MAX_TUPLE_SIZE", 20))
 
 
-def bounded_bytes_strategy(min_size: int = 0, max_size: int = 2**256 - 1):
-    return st.binary(min_size=min_size, max_size=max_size)
-
-
-small_bytes = bounded_bytes_strategy(max_size=256)
-code = bounded_bytes_strategy(max_size=MAX_CODE_SIZE)
+small_bytes = st.binary(max_size=256)
+code = st.binary(max_size=MAX_CODE_SIZE)
 pc = st.integers(min_value=0, max_value=MAX_CODE_SIZE * 2).map(Uint)
 
 # See ethereum_rlp.rlp.Simple and ethereum_rlp.rlp.Extended for the definition of Simple and Extended
@@ -249,7 +245,7 @@ accessed_storage_keys = st.sets(
 # Versions strategies with less data in collections
 memory_lite_size = 512
 memory_lite = (
-    bounded_bytes_strategy(max_size=memory_lite_size)
+    st.binary(max_size=memory_lite_size)
     .map(lambda x: x + b"\x00" * ((32 - len(x) % 32) % 32))
     .map(Memory)
 )
@@ -346,7 +342,7 @@ valid_jump_destinations_lite = st.sets(uint, max_size=MAX_JUMP_DESTINATIONS_SET_
 # memory size must be a multiple of 32
 memory_size = 2**13
 memory = (
-    bounded_bytes_strategy(max_size=memory_size)
+    st.binary(max_size=memory_size)
     .map(lambda x: x + b"\x00" * ((32 - len(x) % 32) % 32))
     .map(Memory)
 )
@@ -554,7 +550,7 @@ def register_type_strategies():
         LeafNode,
         st.fixed_dictionaries(
             # Value is either storage value or RLP encoded account
-            {"rest_of_key": nibble, "value": bounded_bytes_strategy(max_size=32 * 4)}
+            {"rest_of_key": nibble, "value": st.binary(max_size=32 * 4)}
         ).map(lambda x: LeafNode(**x)),
     )
     # See https://github.com/ethereum/execution-specs/issues/1043
@@ -601,7 +597,5 @@ def register_type_strategies():
     st.register_type_strategy(Header, header)
     st.register_type_strategy(
         VersionedHash,
-        bounded_bytes_strategy(min_size=31, max_size=31).map(
-            lambda x: VersionedHash(b"\x01" + x)
-        ),
+        st.binary(min_size=31, max_size=31).map(lambda x: VersionedHash(b"\x01" + x)),
     )

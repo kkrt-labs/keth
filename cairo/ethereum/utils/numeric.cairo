@@ -1,5 +1,4 @@
 from starkware.cairo.common.math_cmp import is_le, is_not_zero, is_le_felt
-from starkware.cairo.common.math import safe_mult
 from starkware.cairo.common.uint256 import uint256_reverse_endian
 from ethereum_types.numeric import Uint, U256, U256Struct, bool, U64
 from ethereum_types.bytes import Bytes32, Bytes32Struct, Bytes20, Bytes

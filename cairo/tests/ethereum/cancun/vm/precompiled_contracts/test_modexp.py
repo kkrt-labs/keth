@@ -1,3 +1,4 @@
+import hypothesis.strategies as st
 from ethereum.cancun.vm import Evm
 from ethereum.cancun.vm.precompiled_contracts.modexp import modexp
 from ethereum_types.bytes import Bytes
@@ -6,14 +7,13 @@ from hypothesis import given
 from cairo_addons.testing.errors import strict_raises
 from tests.utils.evm_builder import EvmBuilder
 from tests.utils.message_builder import MessageBuilder
-from tests.utils.strategies import bounded_bytes_strategy
 
 
 class TestModexp:
     @given(
-        base=bounded_bytes_strategy(max_size=2048),
-        exp=bounded_bytes_strategy(max_size=2048),
-        mod=bounded_bytes_strategy(max_size=2048),
+        base=st.binary(max_size=2048),
+        exp=st.binary(max_size=2048),
+        mod=st.binary(max_size=2048),
         evm=EvmBuilder()
         .with_gas_left()
         .with_message(MessageBuilder().with_data().build())
@@ -35,5 +35,4 @@ class TestModexp:
             return
 
         modexp(evm)
-        assert evm.gas_left == evm_cairo.gas_left
-        assert evm.output == evm_cairo.output
+        assert evm == evm_cairo

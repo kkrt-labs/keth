@@ -35,31 +35,27 @@ pub fn modexp_gas() -> Hint {
          ap_tracking: &ApTracking,
          _constants: &HashMap<String, Felt252>|
          -> Result<(), HintError> {
-            let base_length = Uint256::from_var_name("base_length", vm, ids_data, ap_tracking)?;
-            let exp_length = Uint256::from_var_name("exp_length", vm, ids_data, ap_tracking)?;
+            let base_length =
+                Uint256::from_var_name("base_length", vm, ids_data, ap_tracking)?.pack();
+            let exp_length =
+                Uint256::from_var_name("exp_length", vm, ids_data, ap_tracking)?.pack();
             let modulus_length =
-                Uint256::from_var_name("modulus_length", vm, ids_data, ap_tracking)?;
-            let exp_head = Uint256::from_var_name("exp_head", vm, ids_data, ap_tracking)?;
+                Uint256::from_var_name("modulus_length", vm, ids_data, ap_tracking)?.pack();
+            let exp_head = Uint256::from_var_name("exp_head", vm, ids_data, ap_tracking)?.pack();
 
-            let max_length = std::cmp::max(
-                base_length.low.as_ref().to_biguint(),
-                modulus_length.low.as_ref().to_biguint(),
-            );
+            let max_length = std::cmp::max(base_length, modulus_length);
             let words = (&max_length + BigUint::from(WORD_SIZE - 1)) / BigUint::from(WORD_SIZE);
             let multiplication_complexity = &words * &words;
 
-            let exp_len = exp_length.low.as_ref().to_biguint();
-            let exp_head_val = exp_head.pack();
-
-            let iteration_count = if exp_len <= BigUint::from(MAX_EXP_LEN) && exp_head_val.is_zero()
+            let iteration_count = if exp_length <= BigUint::from(MAX_EXP_LEN) && exp_head.is_zero()
             {
                 BigUint::zero()
-            } else if exp_len <= BigUint::from(MAX_EXP_LEN) {
-                exp_head_val.bits().checked_sub(1).map(BigUint::from).unwrap_or_else(BigUint::zero)
+            } else if exp_length <= BigUint::from(MAX_EXP_LEN) {
+                exp_head.bits().checked_sub(1).map(BigUint::from).unwrap_or_else(BigUint::zero)
             } else {
                 let length_part =
-                    &BigUint::from(WORD_SIZE) * (&exp_len - BigUint::from(MAX_EXP_LEN));
-                let bits_part = exp_head_val.bits().saturating_sub(1);
+                    &BigUint::from(WORD_SIZE) * (&exp_length - BigUint::from(MAX_EXP_LEN));
+                let bits_part = exp_head.bits().saturating_sub(1);
                 &length_part + bits_part
             };
 
