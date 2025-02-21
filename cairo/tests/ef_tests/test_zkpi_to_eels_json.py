@@ -373,10 +373,7 @@ if __name__ == "__main__":
 
 from tests.conftest import cairo_run as cairo_run_ethereum_tests
 
-@pytest.fixture(scope="module")
-def cairo_filepath():
-    return Path(f"{Path().cwd()}/cairo/ethereum/cancun/fork.cairo")
-
+pytestmark = pytest.mark.cairo_file(f"{Path().cwd()}/cairo/ethereum/cancun/fork.cairo")
 
 @pytest.fixture(scope="module")
 def cairo_zkpi(cairo_run_ethereum_tests):
@@ -385,5 +382,5 @@ def cairo_zkpi(cairo_run_ethereum_tests):
         process_zkpi_file, zkpi_file=Path("cairo/scripts/data/zkpi/21872325.json"), script_dir=Path("cairo/scripts/"), cairo_run=cairo_run_ethereum_tests
     )
 
-def test_zkpi_to_eels_json(cairo_filepath, cairo_zkpi):
+def test_zkpi_to_eels_json(cairo_zkpi):
     cairo_zkpi()

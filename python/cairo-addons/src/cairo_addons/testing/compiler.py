@@ -102,67 +102,6 @@ def resolve_cairo_file(
     return files
 
 
-def resolve_cairo_file(
-    fspath: Path,
-    fixture_manager,
-    item: pytest.Item,
-) -> List[Path]:
-    """
-    Try to resolve Cairo source files first by consulting the 'cairo_filepath' fixture,
-    then falling back to the default resolution of get_cairo_files.
-
-    Args:
-        fspath: The path to the test file
-        fixture_manager: pytest's fixture manager
-        item: The test item being processed
-
-    Returns:
-        List of resolved Cairo file paths
-
-    This function centralizes the file resolution logic by:
-    1. Attempting to use the cairo_filepath fixture if available
-    2. Falling back to standard file resolution if the fixture is not available or fails
-    3. Providing clear error messages and logging for debugging
-    """
-    files = []
-
-    try:
-        fixturedef = fixture_manager.getfixturedefs("cairo_filepath", item)
-        if fixturedef:
-            # Call the fixture function explicitly
-            fixture_func = fixturedef[0].func
-            path = fixture_func()
-
-            if not isinstance(path, Path):
-                raise TypeError(
-                    f"cairo_filepath fixture must return a pathlib.Path, got {type(path)}"
-                )
-
-            if not path.exists():
-                raise FileNotFoundError(
-                    f"cairo_filepath fixture returned non-existent path: {path}"
-                )
-
-            files.append(path)
-
-    except Exception as exc:
-        logger.warning(
-            f"Failed to resolve Cairo path using fixture for {fspath} ({exc}), "
-            "falling back to standard resolution."
-        )
-
-    if not files:
-        try:
-            files = get_cairo_files(fspath)
-        except ValueError as exc:
-            raise ValueError(
-                f"Could not resolve Cairo files for {fspath}. "
-                f"Fixture resolution failed and standard resolution failed: {exc}"
-            ) from exc
-
-    return files
-
-
 def get_main_path(cairo_file: Optional[str]) -> Optional[Tuple[str]]:
     """
     Resolve the __main__ part of the cairo scope path.
