@@ -1,5 +1,5 @@
 from ethereum.cancun.vm import Evm
-from ethereum.cancun.vm.precompiled_contracts.identity import identity
+from ethereum.cancun.vm.precompiled_contracts.ecrecover import ecrecover
 from ethereum.exceptions import EthereumException
 from hypothesis import given
 
@@ -14,13 +14,13 @@ from tests.utils.message_builder import MessageBuilder
     .with_message(MessageBuilder().with_data().build())
     .build()
 )
-def test_identity(cairo_run, evm: Evm):
+def test_ecrecover(cairo_run, evm: Evm):
     try:
-        cairo_evm = cairo_run("identity", evm)
+        cairo_evm = cairo_run("ecrecover", evm)
     except EthereumException as e:
         with strict_raises(type(e)):
-            identity(evm)
+            ecrecover(evm)
         return
 
-    identity(evm)
+    ecrecover(evm)
     assert cairo_evm == evm
