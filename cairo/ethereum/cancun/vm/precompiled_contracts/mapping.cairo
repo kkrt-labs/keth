@@ -10,6 +10,7 @@ from ethereum.cancun.vm.precompiled_contracts.modexp import modexp
 from ethereum.cancun.vm.precompiled_contracts.alt_bn128 import (
     alt_bn128_pairing_check,
     alt_bn128_add,
+    alt_bn128_mul,
 )
 from cairo_core.control_flow import raise
 // currently 10 precompiles.
@@ -90,7 +91,7 @@ func precompile_table_lookup{range_check_ptr}(address: felt) -> (felt, felt) {
     dw 0x600000000000000000000000000000000000000;
     call alt_bn128_add;  // ECADD
     dw 0x700000000000000000000000000000000000000;
-    call invalid_precompile;  // ECMUL
+    call alt_bn128_mul;  // ECMUL
     dw 0x800000000000000000000000000000000000000;
     call alt_bn128_pairing_check;  // ECPAIRING
     dw 0x900000000000000000000000000000000000000;

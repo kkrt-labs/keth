@@ -1,6 +1,7 @@
 from ethereum.cancun.vm import Evm
 from ethereum.cancun.vm.precompiled_contracts.alt_bn128 import (
     alt_bn128_add,
+    alt_bn128_mul,
     alt_bn128_pairing_check,
 )
 from ethereum_types.bytes import Bytes
@@ -54,4 +55,21 @@ class TestAltbn128:
             return
 
         alt_bn128_add(evm)
+        assert evm == evm_cairo
+
+    @given(
+        evm=EvmBuilder().with_gas_left().build(),
+        data=data_strategy(),
+    )
+    def test_alt_bn128_mul(self, cairo_run, evm: Evm, data: Bytes):
+        evm.message.data = data
+
+        try:
+            evm_cairo = cairo_run("alt_bn128_mul", evm=evm)
+        except Exception as e:
+            with strict_raises(type(e)):
+                alt_bn128_mul(evm)
+            return
+
+        alt_bn128_mul(evm)
         assert evm == evm_cairo

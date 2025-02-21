@@ -197,3 +197,53 @@ def alt_bn128_add_hint(
         memory[ap - 1] = bytes_ptr
 
     inner()
+
+
+@register_hint
+def alt_bn128_mul_hint(
+    ids: VmConsts,
+    memory: MemoryDict,
+    ap: RelocatableValue,
+    segments: MemorySegmentManager,
+):
+    from ethereum.cancun.vm.exceptions import OutOfGasError
+    from ethereum.crypto.alt_bn128 import ALT_BN128_PRIME, BNF, BNP
+
+    from cairo_addons.utils.uint256 import uint256_to_int
+
+    def inner():
+        x0_value = uint256_to_int(ids.x0_value.value.low, ids.x0_value.value.high)
+        y0_value = uint256_to_int(ids.y0_value.value.low, ids.y0_value.value.high)
+        n_value = uint256_to_int(ids.n_value.value.low, ids.n_value.value.high)
+
+        error = None
+        for i in (x0_value, y0_value):
+            if i >= ALT_BN128_PRIME:
+                error = OutOfGasError
+                break
+
+        try:
+            p0 = BNP(BNF(x0_value), BNF(y0_value))
+        except ValueError:
+            error = OutOfGasError
+
+        if error:
+            error_int = int.from_bytes(error.__name__.encode("ascii"), "big")
+            data_ptr = segments.add()
+            segments.write_arg(data_ptr, [error_int])
+            memory[ap - 2] = data_ptr
+            return
+        else:
+            memory[ap - 2] = 0
+
+        p = p0.mul_by(n_value)
+
+        output = p.x.to_be_bytes32() + p.y.to_be_bytes32()
+
+        data_ptr = segments.add()
+        segments.write_arg(data_ptr, output)
+        bytes_ptr = segments.add()
+        segments.write_arg(bytes_ptr, [data_ptr, len(output)])
+        memory[ap - 1] = bytes_ptr
+
+    inner()

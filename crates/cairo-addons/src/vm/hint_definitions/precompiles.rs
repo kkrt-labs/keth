@@ -15,15 +15,20 @@ use cairo_vm::{
 };
 use num_bigint::BigUint;
 use num_traits::{ToPrimitive, Zero};
-use revm_precompile::bn128::{pair, run_add, run_pair};
+use revm_precompile::bn128::{pair, run_add, run_mul, run_pair};
 
 use crate::vm::{
     hint_utils::{serialize_sequence, Uint256},
     hints::Hint,
 };
 
-pub const HINTS: &[fn() -> Hint] =
-    &[modexp_gas, modexp_output, alt_bn128_pairing_check_hint, alt_bn128_add_hint];
+pub const HINTS: &[fn() -> Hint] = &[
+    modexp_gas,
+    modexp_output,
+    alt_bn128_pairing_check_hint,
+    alt_bn128_add_hint,
+    alt_bn128_mul_hint,
+];
 
 const WORD_SIZE: u32 = 8;
 const MAX_EXP_LEN: u32 = 32;
@@ -196,53 +201,40 @@ pub fn alt_bn128_add_hint() -> Hint {
     )
 }
 
-// @register_hint
-// def alt_bn128_add_hint(
-//     ids: VmConsts,
-//     memory: MemoryDict,
-//     ap: RelocatableValue,
-//     segments: MemorySegmentManager,
-// ):
-//     from ethereum.cancun.vm.exceptions import OutOfGasError
-//     from ethereum.crypto.alt_bn128 import ALT_BN128_PRIME, BNF, BNP
+pub fn alt_bn128_mul_hint() -> Hint {
+    Hint::new(
+        String::from("alt_bn128_mul_hint"),
+        |vm: &mut VirtualMachine,
+         _exec_scopes: &mut ExecutionScopes,
+         ids_data: &HashMap<String, HintReference>,
+         ap_tracking: &ApTracking,
+         _constants: &HashMap<String, Felt252>|
+         -> Result<(), HintError> {
+            let gas_cost = get_integer_from_var_name("gas_cost", vm, ids_data, ap_tracking)?
+                .try_into()
+                .unwrap();
+            let data: Vec<u8> = serialize_sequence("data", vm, ids_data, ap_tracking)?
+                .iter()
+                .filter_map(|x| x.to_u8())
+                .collect();
 
-//     from cairo_addons.utils.uint256 import uint256_to_int
-
-//     def inner():
-//         x0_value = uint256_to_int(ids.x0_value.value.low, ids.x0_value.value.high)
-//         y0_value = uint256_to_int(ids.y0_value.value.low, ids.y0_value.value.high)
-//         x1_value = uint256_to_int(ids.x1_value.value.low, ids.x1_value.value.high)
-//         y1_value = uint256_to_int(ids.y1_value.value.low, ids.y1_value.value.high)
-
-//         error = None
-//         for i in (x0_value, y0_value, x1_value, y1_value):
-//             if i >= ALT_BN128_PRIME:
-//                 error = OutOfGasError
-//                 break
-
-//         try:
-//             p0 = BNP(BNF(x0_value), BNF(y0_value))
-//             p1 = BNP(BNF(x1_value), BNF(y1_value))
-//         except ValueError:
-//             error = OutOfGasError
-
-//         if error:
-//             error_int = int.from_bytes(error.__name__.encode("ascii"), "big")
-//             data_ptr = segments.add()
-//             segments.write_arg(data_ptr, [error_int])
-//             memory[ap - 2] = data_ptr
-//             return
-//         else:
-//             memory[ap - 2] = 0
-
-//         p = p0 + p1
-
-//         output = p.x.to_be_bytes32() + p.y.to_be_bytes32()
-
-//         data_ptr = segments.add()
-//         segments.write_arg(data_ptr, output)
-//         bytes_ptr = segments.add()
-//         segments.write_arg(bytes_ptr, [data_ptr, len(output)])
-//         memory[ap - 1] = bytes_ptr
-
-//     inner()
+            // Gas is handled in cairo before calling this hint.
+            match run_mul(&data, gas_cost, 2u64.pow(64) - 1) {
+                Ok(output) => {
+                    insert_value_from_var_name("error", 0, vm, ids_data, ap_tracking)?;
+                    let output = deserialize_sequence(output.bytes.to_vec(), vm)?;
+                    insert_value_from_var_name("output", output, vm, ids_data, ap_tracking)
+                }
+                Err(_e) => {
+                    // Any error gets converted to OutOfGasError in EELS
+                    let error_string = "OutOfGasError";
+                    let error_bytes = error_string.as_bytes();
+                    let error_ascii = Felt252::from_bytes_be_slice(error_bytes);
+                    let error_ptr = vm.add_memory_segment();
+                    vm.insert_value(error_ptr, error_ascii)?;
+                    insert_value_from_var_name("error", error_ptr, vm, ids_data, ap_tracking)
+                }
+            }
+        },
+    )
+}

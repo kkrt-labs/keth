@@ -58,6 +58,49 @@ func alt_bn128_add{
     return ok;
 }
 
+func alt_bn128_mul{
+    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*, evm: Evm
+}() -> EthereumException* {
+    alloc_locals;
+    let data = evm.value.message.value.data;
+
+    tempvar u256_zero = U256(new U256Struct(0, 0));
+    tempvar u256_thirty_two = U256(new U256Struct(32, 0));
+    tempvar u256_sixty_four = U256(new U256Struct(64, 0));
+
+    let x0_bytes = buffer_read(data, u256_zero, u256_thirty_two);
+    let y0_bytes = buffer_read(data, u256_thirty_two, u256_thirty_two);
+    let n_bytes = buffer_read(data, u256_sixty_four, u256_thirty_two);
+
+    let x0_value = U256_from_be_bytes(x0_bytes);
+    let y0_value = U256_from_be_bytes(y0_bytes);
+    let n_value = U256_from_be_bytes(n_bytes);
+
+    let gas_cost = Uint(6000);
+    let err = charge_gas(gas_cost);
+    if (cast(err, felt) != 0) {
+        return err;
+    }
+
+    tempvar x0_value = x0_value;
+    tempvar y0_value = y0_value;
+    tempvar n_value = n_value;
+
+    tempvar data = data;
+    tempvar error: EthereumException*;
+    tempvar output: Bytes;
+
+    %{ alt_bn128_mul_hint %}
+
+    if (cast(error, felt) != 0) {
+        return error;
+    }
+
+    EvmImpl.set_output(output);
+    tempvar ok = cast(0, EthereumException*);
+    return ok;
+}
+
 // @notice Writes the message data to the output
 func alt_bn128_pairing_check{
     range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*, evm: Evm
