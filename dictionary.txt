@@ -250,3 +250,5 @@ keyid
 signingkey
 gpgsign
 pkey
+filelock
+gitpython

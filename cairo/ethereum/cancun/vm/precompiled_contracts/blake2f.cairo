@@ -14,6 +14,7 @@ from ethereum.utils.numeric import divmod
 from ethereum_types.numeric import Uint
 
 from legacy.utils.utils import Helpers
+from legacy.utils.bytes import felt_to_bytes_little, bytes_to_felt
 
 func blake2f{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*, evm: Evm}(
     ) -> EthereumException* {
@@ -34,7 +35,7 @@ func blake2f{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBu
         return err;
     }
 
-    let rounds = Helpers.bytes_to_felt(rounds_bytes_len, input);
+    let rounds = bytes_to_felt(rounds_bytes_len, input);
     let err = charge_gas(Uint(GasConstants.GAS_BLAKE2_PER_ROUND * rounds));
     if (err != cast(0, EthereumException*)) {
         return err;

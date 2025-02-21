@@ -64,7 +64,6 @@ from cairo_core.comparison import is_zero
 from legacy.utils.array import reverse
 from legacy.utils.bytes import (
     felt_to_bytes,
-    felt_to_bytes_little,
     bytes_to_felt,
     uint256_to_bytes32_little,
     felt_to_bytes20_little,
