@@ -1,7 +1,5 @@
 from ethereum.cancun.vm import Evm
 from ethereum.cancun.vm.precompiled_contracts.blake2f import blake2f
-from ethereum_types.bytes import Bytes
-from ethereum_types.numeric import Uint
 from hypothesis import given
 from hypothesis import strategies as st
 from hypothesis.strategies import composite
