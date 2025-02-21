@@ -29,7 +29,7 @@ settings.register_profile(
     phases=[Phase.explicit, Phase.reuse, Phase.generate, Phase.target],
     report_multiple_bugs=True,
     print_blob=True,
-    suppress_health_check=[HealthCheck.too_slow],
+    derandomize=True,
 )
 settings.register_profile(
     "ci",
