@@ -3,7 +3,9 @@ use std::collections::HashMap;
 use crate::vm::hint_utils::deserialize_sequence;
 use cairo_vm::{
     hint_processor::{
-        builtin_hint_processor::hint_utils::insert_value_from_var_name,
+        builtin_hint_processor::hint_utils::{
+            get_integer_from_var_name, insert_value_from_var_name,
+        },
         hint_processor_definition::HintReference,
     },
     serde::deserialize_program::ApTracking,
@@ -13,13 +15,20 @@ use cairo_vm::{
 };
 use num_bigint::BigUint;
 use num_traits::{ToPrimitive, Zero};
+use revm_precompile::bn128::{pair, run_add, run_mul, run_pair};
 
 use crate::vm::{
     hint_utils::{serialize_sequence, Uint256},
     hints::Hint,
 };
 
-pub const HINTS: &[fn() -> Hint] = &[modexp_gas, modexp_output];
+pub const HINTS: &[fn() -> Hint] = &[
+    modexp_gas,
+    modexp_output,
+    alt_bn128_pairing_check_hint,
+    alt_bn128_add_hint,
+    alt_bn128_mul_hint,
+];
 
 const WORD_SIZE: u32 = 8;
 const MAX_EXP_LEN: u32 = 32;
@@ -111,6 +120,122 @@ pub fn modexp_output() -> Hint {
 
             let base = deserialize_sequence(result, vm)?;
             insert_value_from_var_name("result", base, vm, ids_data, ap_tracking)
+        },
+    )
+}
+
+pub fn alt_bn128_pairing_check_hint() -> Hint {
+    Hint::new(
+        String::from("alt_bn128_pairing_check_hint"),
+        |vm: &mut VirtualMachine,
+         _exec_scopes: &mut ExecutionScopes,
+         ids_data: &HashMap<String, HintReference>,
+         ap_tracking: &ApTracking,
+         _constants: &HashMap<String, Felt252>|
+         -> Result<(), HintError> {
+            let data: Vec<u8> = serialize_sequence("data", vm, ids_data, ap_tracking)?
+                .iter()
+                .filter_map(|x| x.to_u8())
+                .collect();
+
+            // Give virtually infinite gas as we checked this in cairo before.
+            match run_pair(
+                &data,
+                pair::ISTANBUL_PAIR_PER_POINT,
+                pair::ISTANBUL_PAIR_BASE,
+                2u64.pow(64) - 1,
+            ) {
+                Ok(output) => {
+                    insert_value_from_var_name("error", 0, vm, ids_data, ap_tracking)?;
+                    let output = deserialize_sequence(output.bytes.to_vec(), vm)?;
+                    insert_value_from_var_name("output", output, vm, ids_data, ap_tracking)
+                }
+                Err(_e) => {
+                    // Any error gets converted to OutOfGasError in EELS
+                    let error_string = "OutOfGasError";
+                    let error_bytes = error_string.as_bytes();
+                    let error_ascii = Felt252::from_bytes_be_slice(error_bytes);
+                    let error_ptr = vm.add_memory_segment();
+                    vm.insert_value(error_ptr, error_ascii)?;
+                    insert_value_from_var_name("error", error_ptr, vm, ids_data, ap_tracking)
+                }
+            }
+        },
+    )
+}
+
+pub fn alt_bn128_add_hint() -> Hint {
+    Hint::new(
+        String::from("alt_bn128_add_hint"),
+        |vm: &mut VirtualMachine,
+         _exec_scopes: &mut ExecutionScopes,
+         ids_data: &HashMap<String, HintReference>,
+         ap_tracking: &ApTracking,
+         _constants: &HashMap<String, Felt252>|
+         -> Result<(), HintError> {
+            let gas_cost = get_integer_from_var_name("gas_cost", vm, ids_data, ap_tracking)?
+                .try_into()
+                .unwrap();
+            let data: Vec<u8> = serialize_sequence("data", vm, ids_data, ap_tracking)?
+                .iter()
+                .filter_map(|x| x.to_u8())
+                .collect();
+
+            // Gas is handled in cairo before calling this hint.
+            match run_add(&data, gas_cost, 2u64.pow(64) - 1) {
+                Ok(output) => {
+                    insert_value_from_var_name("error", 0, vm, ids_data, ap_tracking)?;
+                    let output = deserialize_sequence(output.bytes.to_vec(), vm)?;
+                    insert_value_from_var_name("output", output, vm, ids_data, ap_tracking)
+                }
+                Err(_e) => {
+                    // Any error gets converted to OutOfGasError in EELS
+                    let error_string = "OutOfGasError";
+                    let error_bytes = error_string.as_bytes();
+                    let error_ascii = Felt252::from_bytes_be_slice(error_bytes);
+                    let error_ptr = vm.add_memory_segment();
+                    vm.insert_value(error_ptr, error_ascii)?;
+                    insert_value_from_var_name("error", error_ptr, vm, ids_data, ap_tracking)
+                }
+            }
+        },
+    )
+}
+
+pub fn alt_bn128_mul_hint() -> Hint {
+    Hint::new(
+        String::from("alt_bn128_mul_hint"),
+        |vm: &mut VirtualMachine,
+         _exec_scopes: &mut ExecutionScopes,
+         ids_data: &HashMap<String, HintReference>,
+         ap_tracking: &ApTracking,
+         _constants: &HashMap<String, Felt252>|
+         -> Result<(), HintError> {
+            let gas_cost = get_integer_from_var_name("gas_cost", vm, ids_data, ap_tracking)?
+                .try_into()
+                .unwrap();
+            let data: Vec<u8> = serialize_sequence("data", vm, ids_data, ap_tracking)?
+                .iter()
+                .filter_map(|x| x.to_u8())
+                .collect();
+
+            // Gas is handled in cairo before calling this hint.
+            match run_mul(&data, gas_cost, 2u64.pow(64) - 1) {
+                Ok(output) => {
+                    insert_value_from_var_name("error", 0, vm, ids_data, ap_tracking)?;
+                    let output = deserialize_sequence(output.bytes.to_vec(), vm)?;
+                    insert_value_from_var_name("output", output, vm, ids_data, ap_tracking)
+                }
+                Err(_e) => {
+                    // Any error gets converted to OutOfGasError in EELS
+                    let error_string = "OutOfGasError";
+                    let error_bytes = error_string.as_bytes();
+                    let error_ascii = Felt252::from_bytes_be_slice(error_bytes);
+                    let error_ptr = vm.add_memory_segment();
+                    vm.insert_value(error_ptr, error_ascii)?;
+                    insert_value_from_var_name("error", error_ptr, vm, ids_data, ap_tracking)
+                }
+            }
         },
     )
 }
