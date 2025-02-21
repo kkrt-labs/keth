@@ -74,8 +74,6 @@ def run_blockchain_st_test(test_case: Dict, load: Load, cairo_run) -> None:
         chain_id=U64(json_data["genesisBlockHeader"].get("chainId", 1)),
     )
 
-    mock_pow = json_data["sealEngine"] == "NoProof" and not load.fork.proof_of_stake
-
     for json_block in json_data["blocks"]:
         block_exception = None
         for key, value in json_block.items():
@@ -89,10 +87,10 @@ def run_blockchain_st_test(test_case: Dict, load: Load, cairo_run) -> None:
             #       only `pytest.raises` the correct exception type instead of
             #       all of them.
             with pytest.raises((EthereumException, RLPException)):
-                add_block_to_chain(chain, json_block, load, mock_pow, cairo_run)
+                add_block_to_chain(chain, json_block, load, cairo_run)
             return
         else:
-            add_block_to_chain(chain, json_block, load, mock_pow, cairo_run)
+            add_block_to_chain(chain, json_block, load, cairo_run)
 
     last_block_hash = hex_to_bytes(json_data["lastblockhash"])
     assert keccak256(rlp.encode(chain.blocks[-1].header)) == last_block_hash
@@ -103,9 +101,7 @@ def run_blockchain_st_test(test_case: Dict, load: Load, cairo_run) -> None:
     load.fork.close_state(expected_post_state)
 
 
-def add_block_to_chain(
-    chain: Any, json_block: Any, load: Load, mock_pow: bool, cairo_run
-) -> None:
+def add_block_to_chain(chain: Any, json_block: Any, load: Load, cairo_run) -> None:
     (
         block,
         block_header_hash,

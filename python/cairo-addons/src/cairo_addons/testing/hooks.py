@@ -193,7 +193,6 @@ def pytest_collection_modifyitems(session, config, items):
                 "cairo_programs",
                 "cairo_program",
                 "cairo_run",
-                "cairo_filepath",
             }
         )
     ]
@@ -206,11 +205,9 @@ def pytest_collection_modifyitems(session, config, items):
     worker_index = int(worker_id[2:]) if worker_id != "master" else 0
     fspaths = sorted(list({item.fspath for item in cairo_items}))
 
-    fm = session._fixturemanager
-
     for fspath in fspaths[worker_index::worker_count]:
         file_items = [item for item in cairo_items if item.fspath == fspath]
-        files = resolve_cairo_file(fspath, fm, file_items[0])
+        files = resolve_cairo_file(fspath, file_items[0])
         session.cairo_files[fspath] = files
         main_paths = [get_main_path(file) for file in files]
         session.main_paths[fspath] = main_paths
@@ -229,7 +226,7 @@ def pytest_collection_modifyitems(session, config, items):
         for fspath in missing:
             if fspath not in session.cairo_files:
                 file_items = [item for item in cairo_items if item.fspath == fspath]
-                files = resolve_cairo_file(fspath, fm, file_items[0])
+                files = resolve_cairo_file(fspath, file_items[0])
                 session.cairo_files[fspath] = files
 
             if fspath not in session.main_paths:

@@ -4,6 +4,7 @@ from typing import Dict
 
 import pytest
 
+from tests.conftest import cairo_run as cairo_run_ethereum_tests  # noqa
 from tests.ef_tests.helpers import TEST_FIXTURES
 from tests.ef_tests.helpers.load_state_tests import (
     Load,
@@ -11,6 +12,8 @@ from tests.ef_tests.helpers.load_state_tests import (
     idfn,
     run_blockchain_st_test,
 )
+
+pytestmark = pytest.mark.cairo_file(f"{Path().cwd()}/cairo/ethereum/cancun/fork.cairo")
 
 fetch_cancun_tests = partial(fetch_state_test_files, network="Cancun")
 
@@ -79,12 +82,7 @@ fetch_state_tests = partial(
 
 
 @pytest.fixture(scope="module")
-def cairo_filepath():
-    return Path(f"{Path().cwd()}/cairo/ethereum/cancun/fork.cairo")
-
-
-@pytest.fixture(scope="module")
-def cairo_state_transition(cairo_run_ethereum_tests):
+def cairo_state_transition(cairo_run_ethereum_tests):  # noqa
     return partial(
         run_blockchain_st_test, load=FIXTURES_LOADER, cairo_run=cairo_run_ethereum_tests
     )
@@ -109,6 +107,6 @@ test_dir = f"{ETHEREUM_SPEC_TESTS_PATH}/fixtures/withdrawals"
     ids=idfn,
 )
 def test_execution_specs_generated_tests(
-    test_case: Dict, cairo_filepath, cairo_state_transition
+    test_case: Dict, cairo_state_transition
 ) -> None:
     cairo_state_transition(test_case)

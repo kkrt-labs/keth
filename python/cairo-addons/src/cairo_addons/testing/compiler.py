@@ -15,7 +15,7 @@ import logging
 import pickle
 from pathlib import Path
 from time import perf_counter
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple
 
 import pytest
 from starkware.cairo.lang.compiler.cairo_compile import DEFAULT_PRIME
@@ -29,11 +29,15 @@ logging.basicConfig(
 logger = logging.getLogger()
 
 
-def get_cairo_files(location: Union[str, Path]) -> List[Path]:
+def resolve_cairo_file(
+    fspath: Path,
+    item: pytest.Item,
+) -> List[Path]:
     """
-    Locate the Cairo file corresponding to a Python test file.
+    Resolve Cairo source files by checking for a cairo_file marker,
+    then falling back to the default resolution.
 
-    Resolution Strategy:
+    Default Resolution Strategy:
     1. Look for xxx.cairo in main codebase
     2. Look for test_xxx.cairo in main codebase
     3. Raise if none found
@@ -41,77 +45,58 @@ def get_cairo_files(location: Union[str, Path]) -> List[Path]:
 
     This allows writing Python tests without creating Cairo test files,
     leveraging the automatic type conversion system.
-    """
-    output = []
-    test_cairo_file = Path(location).with_suffix(".cairo")
-    main_cairo_file = Path(
-        str(test_cairo_file).replace("/tests", "").replace("/test_", "/")
-    )
-    if main_cairo_file.exists():
-        output.append(main_cairo_file)
-    if test_cairo_file.exists():
-        output.append(test_cairo_file)
-    if not output:
-        raise ValueError(f"Missing cairo file: {main_cairo_file}")
-    return output
-
-
-def resolve_cairo_file(
-    fspath: Path,
-    fixture_manager,
-    item: pytest.Item,
-) -> List[Path]:
-    """
-    Try to resolve Cairo source files first by consulting the 'cairo_filepath' fixture,
-    then falling back to the default resolution of get_cairo_files.
 
     Args:
         fspath: The path to the test file
-        fixture_manager: pytest's fixture manager
         item: The test item being processed
 
     Returns:
         List of resolved Cairo file paths
-
-    This function centralizes the file resolution logic by:
-    1. Attempting to use the cairo_filepath fixture if available
-    2. Falling back to standard file resolution if the fixture is not available or fails
-    3. Providing clear error messages and logging for debugging
     """
     files = []
 
-    try:
-        fixturedef = fixture_manager.getfixturedefs("cairo_filepath", item)
-        if fixturedef:
-            # Call the fixture function explicitly
-            fixture_func = fixturedef[0].func
-            path = fixture_func()
-
+    # Check for cairo_file marker
+    marker = item.get_closest_marker("cairo_file")
+    if marker:
+        try:
+            path = Path(marker.args[0])
             if not isinstance(path, Path):
-                raise TypeError(
-                    f"cairo_filepath fixture must return a pathlib.Path, got {type(path)}"
-                )
+                path = Path(path)
+
+            if not path.is_absolute():
+                path = Path.cwd() / path
 
             if not path.exists():
                 raise FileNotFoundError(
-                    f"cairo_filepath fixture returned non-existent path: {path}"
+                    f"cairo_file marker points to non-existent path: {path}"
                 )
 
             files.append(path)
 
-    except Exception as exc:
-        logger.warning(
-            f"Failed to resolve Cairo path using fixture for {fspath} ({exc}), "
-            "falling back to standard resolution."
-        )
+        except Exception as exc:
+            logger.warning(
+                f"Failed to resolve Cairo path using marker for {fspath} ({exc}), "
+                "falling back to standard resolution."
+            )
 
+    # Fall back to standard resolution if marker not found or invalid
     if not files:
         try:
-            files = get_cairo_files(fspath)
+            test_cairo_file = Path(fspath).with_suffix(".cairo")
+            main_cairo_file = Path(
+                str(test_cairo_file).replace("/tests", "").replace("/test_", "/")
+            )
+            if main_cairo_file.exists():
+                files.append(main_cairo_file)
+            if test_cairo_file.exists():
+                files.append(test_cairo_file)
+            if not files:
+                raise ValueError(f"Missing cairo file: {main_cairo_file}")
+            return files
         except ValueError as exc:
             raise ValueError(
                 f"Could not resolve Cairo files for {fspath}. "
-                f"Fixture resolution failed and standard resolution failed: {exc}"
+                f"Marker resolution failed and standard resolution failed: {exc}"
             ) from exc
 
     return files

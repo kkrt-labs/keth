@@ -8,9 +8,12 @@ from ethereum.frontier.fork_types import Bytes, Uint
 from ethereum.utils.hexadecimal import hex_to_bytes
 from ethereum_rlp import Extended, rlp
 
+from tests.conftest import cairo_run as cairo_run_ethereum_tests  # noqa
 from tests.ef_tests.helpers import TEST_FIXTURES
 
 ETHEREUM_TESTS_PATH = TEST_FIXTURES["ethereum_tests"]["fixture_path"]
+
+pytestmark = pytest.mark.cairo_file(f"{Path().cwd()}/cairo/ethereum_rlp/rlp.cairo")
 
 
 #
@@ -53,11 +56,6 @@ def ethtest_fixtures_as_pytest_fixtures(
     return pytest_fixtures
 
 
-@pytest.fixture(scope="module")
-def cairo_filepath():
-    return Path(f"{Path().cwd()}/cairo/ethereum_rlp/rlp.cairo")
-
-
 @pytest.mark.parametrize(
     "raw_data, expected_encoded_data",
     ethtest_fixtures_as_pytest_fixtures("rlptest.json"),
@@ -65,8 +63,7 @@ def cairo_filepath():
 def test_ethtest_fixtures_for_rlp_encoding(
     raw_data: Extended,
     expected_encoded_data: Bytes,
-    cairo_filepath,
-    cairo_run_ethereum_tests,
+    cairo_run_ethereum_tests,  # noqa
 ) -> None:
     # We don't support inputs bigger than 2**248
     if isinstance(raw_data, Uint) and raw_data > Uint(2**248):
@@ -79,7 +76,7 @@ def test_ethtest_fixtures_for_rlp_encoding(
     ethtest_fixtures_as_pytest_fixtures("RandomRLPTests/example.json"),
 )
 def test_ethtest_fixtures_for_successfully_rlp_decoding(
-    raw_data: Bytes, encoded_data: Bytes, cairo_filepath, cairo_run_ethereum_tests
+    raw_data, encoded_data: Bytes, cairo_run_ethereum_tests  # noqa
 ) -> None:
     decoded_data = cairo_run_ethereum_tests("decode", encoded_data)
     assert cairo_run_ethereum_tests("encode", decoded_data) == encoded_data
@@ -90,7 +87,7 @@ def test_ethtest_fixtures_for_successfully_rlp_decoding(
     ethtest_fixtures_as_pytest_fixtures("invalidRLPTest.json"),
 )
 def test_ethtest_fixtures_for_fails_in_rlp_decoding(
-    raw_data: Bytes, encoded_data: Bytes, cairo_filepath, cairo_run_ethereum_tests
+    raw_data, encoded_data: Bytes, cairo_run_ethereum_tests  # noqa
 ) -> None:
     with pytest.raises(rlp.DecodingError):
         cairo_run_ethereum_tests("decode", encoded_data)

@@ -163,6 +163,7 @@ markers = [
   "SLOAD",
   "NoCI",
   "slow",
+  "cairo_file(path): mark test with cairo source file path to compile",
 ]
 norecursedirs = ".* tests/ef_tests/test_data"
 addopts = [
