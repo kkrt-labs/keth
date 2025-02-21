@@ -116,8 +116,9 @@ MAX_ACCOUNTS_TO_DELETE_SIZE = int(
 MAX_TOUCHED_ACCOUNTS_SIZE = int(os.getenv("HYPOTHESIS_MAX_TOUCHED_ACCOUNTS_SIZE", 10))
 MAX_TUPLE_SIZE = int(os.getenv("HYPOTHESIS_MAX_TUPLE_SIZE", 20))
 
-small_bytes = st.binary(min_size=0, max_size=256)
-code = st.binary(min_size=0, max_size=MAX_CODE_SIZE)
+
+small_bytes = st.binary(max_size=256)
+code = st.binary(max_size=MAX_CODE_SIZE)
 pc = st.integers(min_value=0, max_value=MAX_CODE_SIZE * 2).map(Uint)
 
 # See ethereum_rlp.rlp.Simple and ethereum_rlp.rlp.Extended for the definition of Simple and Extended
@@ -244,7 +245,7 @@ accessed_storage_keys = st.sets(
 # Versions strategies with less data in collections
 memory_lite_size = 512
 memory_lite = (
-    st.binary(min_size=0, max_size=memory_lite_size)
+    st.binary(max_size=memory_lite_size)
     .map(lambda x: x + b"\x00" * ((32 - len(x) % 32) % 32))
     .map(Memory)
 )
@@ -341,7 +342,7 @@ valid_jump_destinations_lite = st.sets(uint, max_size=MAX_JUMP_DESTINATIONS_SET_
 # memory size must be a multiple of 32
 memory_size = 2**13
 memory = (
-    st.binary(min_size=0, max_size=memory_size)
+    st.binary(max_size=memory_size)
     .map(lambda x: x + b"\x00" * ((32 - len(x) % 32) % 32))
     .map(Memory)
 )

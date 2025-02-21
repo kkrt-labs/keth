@@ -1,6 +1,6 @@
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin, PoseidonBuiltin
 from starkware.cairo.common.alloc import alloc
-from ethereum.cancun.vm import Evm, EvmStruct, EvmImpl
+from ethereum.cancun.vm.evm_impl import EvmImpl, Evm
 from ethereum.cancun.vm.exceptions import Revert, EthereumException, InvalidOpcode
 from ethereum_types.numeric import Uint
 from ethereum_types.bytes import Bytes, BytesStruct

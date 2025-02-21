@@ -4,7 +4,8 @@ from ethereum_types.bytes import BytesStruct
 from ethereum.cancun.blocks import Header
 from ethereum.cancun.transactions_types import Transaction
 from ethereum_types.others import ListTupleU256U256, TupleU256U256
-from ethereum.cancun.vm import Evm, EvmStruct, EvmImpl
+from ethereum.cancun.vm.evm_impl import Evm, EvmStruct
+from ethereum.cancun.vm.evm_impl import EvmImpl
 from ethereum.exceptions import EthereumException
 from ethereum.cancun.vm.exceptions import OutOfGasError
 from ethereum.cancun.vm.memory import Memory

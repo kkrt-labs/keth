@@ -281,6 +281,15 @@ func U256_mul{range_check_ptr}(a: U256, b: U256) -> U256 {
     return result;
 }
 
+// Returns the minimum of two U256 values
+func U256_min{range_check_ptr}(a: U256, b: U256) -> U256 {
+    let is_b_le = U256_le(b, a);
+    if (is_b_le.value == 1) {
+        return b;
+    }
+    return a;
+}
+
 func U64_from_be_bytes{range_check_ptr}(bytes: Bytes) -> U64 {
     with_attr error_message("ValueError") {
         assert [range_check_ptr] = 8 - bytes.value.len;

@@ -229,3 +229,4 @@ pyobject
 modpow
 bitmask
 lambdaclass
+mult

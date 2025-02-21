@@ -2,10 +2,11 @@ from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin,
 from starkware.cairo.common.registers import get_label_location
 from starkware.cairo.common.math_cmp import is_le_felt
 from starkware.cairo.common.math import split_felt
-from ethereum.cancun.vm import Evm
+from ethereum.cancun.vm.evm_impl import Evm
 from ethereum.utils.numeric import divmod
 from ethereum.cancun.vm.precompiled_contracts.identity import identity
 from ethereum.cancun.vm.precompiled_contracts.sha256 import sha256
+from ethereum.cancun.vm.precompiled_contracts.modexp import modexp
 from cairo_core.control_flow import raise
 
 // currently 10 precompiles.
@@ -82,7 +83,7 @@ func precompile_table_lookup{range_check_ptr}(address: felt) -> (felt, felt) {
     dw 0x400000000000000000000000000000000000000;
     call identity;  // IDENTITY
     dw 0x500000000000000000000000000000000000000;
-    call invalid_precompile;  // MODEXP
+    call modexp;  // MODEXP
     dw 0x600000000000000000000000000000000000000;
     call invalid_precompile;  // ECADD
     dw 0x700000000000000000000000000000000000000;
