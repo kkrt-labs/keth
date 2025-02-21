@@ -48,8 +48,6 @@ func alt_bn128_add{
 
     %{ alt_bn128_add_hint %}
     if (cast(error, felt) != 0) {
-        let x = error.value;
-        %{ print(ids.x) %}
         return error;
     }
 
