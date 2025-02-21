@@ -125,9 +125,9 @@ def alt_bn128_pairing_check_hint(
                 result = result * pairing(q, p)
 
         if error:
-            error_int = int.from_bytes(error.__name__.encode("ascii"), "little")
+            error_int = int.from_bytes(error.__name__.encode("ascii"), "big")
             data_ptr = segments.add()
-            memory[data_ptr] = error_int
+            segments.write_arg(data_ptr, [error_int])
             memory[ap - 2] = data_ptr
             return
         else:
@@ -146,6 +146,7 @@ def alt_bn128_pairing_check_hint(
 
     inner()
 
+
 @register_hint
 def alt_bn128_add_hint(
     ids: VmConsts,
@@ -154,13 +155,9 @@ def alt_bn128_add_hint(
     segments: MemorySegmentManager,
 ):
     from ethereum.cancun.vm.exceptions import OutOfGasError
-    from ethereum.crypto.alt_bn128 import (
-        ALT_BN128_PRIME,
-        BNF,
-        BNP,
-    )
+    from ethereum.crypto.alt_bn128 import ALT_BN128_PRIME, BNF, BNP
+
     from cairo_addons.utils.uint256 import uint256_to_int
-    from ethereum_types.numeric import U256
 
     def inner():
         x0_value = uint256_to_int(ids.x0_value.value.low, ids.x0_value.value.high)
@@ -181,9 +178,9 @@ def alt_bn128_add_hint(
             error = OutOfGasError
 
         if error:
-            error_int = int.from_bytes(error.__name__.encode("ascii"), "little")
+            error_int = int.from_bytes(error.__name__.encode("ascii"), "big")
             data_ptr = segments.add()
-            memory[data_ptr] = error_int
+            segments.write_arg(data_ptr, [error_int])
             memory[ap - 2] = data_ptr
             return
         else:

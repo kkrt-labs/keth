@@ -550,7 +550,7 @@ def register_type_strategies():
         LeafNode,
         st.fixed_dictionaries(
             # Value is either storage value or RLP encoded account
-            {"rest_of_key": nibble, "value": bounded_bytes_strategy(max_size=32 * 4)}
+            {"rest_of_key": nibble, "value": st.binary(max_size=32 * 4)}
         ).map(lambda x: LeafNode(**x)),
     )
     # See https://github.com/ethereum/execution-specs/issues/1043
@@ -597,7 +597,5 @@ def register_type_strategies():
     st.register_type_strategy(Header, header)
     st.register_type_strategy(
         VersionedHash,
-        bounded_bytes_strategy(min_size=31, max_size=31).map(
-            lambda x: VersionedHash(b"\x01" + x)
-        ),
+        st.binary(min_size=31, max_size=31).map(lambda x: VersionedHash(b"\x01" + x)),
     )

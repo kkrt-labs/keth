@@ -1,7 +1,10 @@
 from ethereum.cancun.vm import Evm
-from ethereum.cancun.vm.precompiled_contracts.alt_bn128 import alt_bn128_pairing_check, alt_bn128_add
+from ethereum.cancun.vm.precompiled_contracts.alt_bn128 import (
+    alt_bn128_add,
+    alt_bn128_pairing_check,
+)
 from ethereum_types.bytes import Bytes
-from hypothesis import given, reproduce_failure
+from hypothesis import given
 from hypothesis import strategies as st
 
 from cairo_addons.testing.errors import strict_raises
@@ -40,7 +43,6 @@ class TestAltbn128:
         evm=EvmBuilder().with_gas_left().build(),
         data=data_strategy(),
     )
-    @reproduce_failure('6.124.3', b'AEIAtQBBAQFBdGTohtZi')
     def test_alt_bn128_add(self, cairo_run_py, evm: Evm, data: Bytes):
         evm.message.data = data
 

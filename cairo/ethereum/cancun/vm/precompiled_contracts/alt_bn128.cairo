@@ -9,7 +9,9 @@ from ethereum_types.numeric import Uint, U256, U256Struct
 from ethereum_types.bytes import Bytes
 from ethereum.cancun.vm.memory import buffer_read
 
-func alt_bn128_add{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*, evm: Evm}() -> EthereumException* {
+func alt_bn128_add{
+    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*, evm: Evm
+}() -> EthereumException* {
     alloc_locals;
     let data = evm.value.message.value.data;
 
@@ -51,7 +53,6 @@ func alt_bn128_add{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: Ke
     tempvar ok = cast(0, EthereumException*);
     return ok;
 }
-
 
 // @notice Writes the message data to the output
 func alt_bn128_pairing_check{
