@@ -1,89 +1,78 @@
 // SPDX-License-Identifier: MIT
 
-%lang starknet
-
-// Starkware dependencies
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.cairo_builtins import HashBuiltin
-from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
+from starkware.cairo.common.cairo_builtins import HashBuiltin, KeccakBuiltin, BitwiseBuiltin
 from starkware.cairo.common.registers import get_fp_and_pc, get_label_location
-from starkware.cairo.common.math_cmp import is_nn
 from starkware.cairo.common.bool import FALSE
+from ethereum.exceptions import EthereumException
+from ethereum.cancun.vm.exceptions import InvalidParameter
+from ethereum.cancun.vm.gas import charge_gas, GasConstants
+from ethereum.cancun.vm.evm_impl import Evm
+from ethereum_types.bytes import Bytes, BytesStruct
+from ethereum.cancun.vm.evm_impl import EvmImpl
+from ethereum.utils.numeric import divmod
+from ethereum_types.numeric import Uint
 
-// Internal dependencies
-from kakarot.errors import Errors
-from utils.utils import Helpers
-from utils.maths import unsigned_div_rem
+from legacy.utils.utils import Helpers
 
-// @title Blake2f Precompile related functions.
-// @notice This file contains the logic required to run the blake2f precompile
-// @author @greged93
-// @custom:namespace PrecompileBlake2f
-namespace PrecompileBlake2f {
-    const PRECOMPILE_ADDRESS = 0x09;
-    const GAS_COST_BLAKE2F = 0;
+func blake2f{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*, evm: Evm}(
+    ) -> EthereumException* {
+    alloc_locals;
+    const rounds_bytes_len = 4;
+    const word_bytes_len = 8;
+    const h_bytes_offset = 4;
+    const m_bytes_offset = 68;
+    const t_bytes_offset = 196;
+    const f_bytes_offset = 212;
 
-    // @notice Run the precompile.
-    // @param input_len The length of input array.
-    // @param input The input array.
-    // @return output_len The output length.
-    // @return output The output array.
-    // @return gas_used The gas usage of precompile.
-    func run{
-        syscall_ptr: felt*,
-        pedersen_ptr: HashBuiltin*,
-        range_check_ptr,
-        bitwise_ptr: BitwiseBuiltin*,
-    }(_address: felt, input_len: felt, input: felt*) -> (
-        output_len: felt, output: felt*, gas_used: felt, reverted: felt
-    ) {
-        alloc_locals;
-        local rounds_bytes_len = 4;
-        local word_bytes_len = 8;
-        local h_bytes_offset = 4;
-        local m_bytes_offset = 68;
-        local t_bytes_offset = 196;
-        local f_bytes_offset = 212;
+    let input = evm.value.message.value.data.value.data;
+    let input_len = evm.value.message.value.data.value.len;
 
-        // Check input length
-        if (input_len != 213) {
-            let (revert_reason_len, revert_reason) = Errors.precompileInputError();
-            return (revert_reason_len, revert_reason, 0, Errors.EXCEPTIONAL_HALT);
-        }
-
-        // Check the flag
-        tempvar f = input[f_bytes_offset];
-        if (f != f * f) {
-            let (revert_reason_len, revert_reason) = Errors.precompileFlagError();
-            return (revert_reason_len, revert_reason, 0, Errors.EXCEPTIONAL_HALT);
-        }
-
-        let rounds = Helpers.bytes_to_felt(rounds_bytes_len, input);
-
-        let (local h: felt*) = alloc();
-        Helpers.load_64_bits_array(8, input + h_bytes_offset, h);
-
-        let (m: felt*) = alloc();
-        Helpers.load_64_bits_array(16, input + m_bytes_offset, m);
-
-        let t0 = Helpers.bytes_to_64_bits_little_felt(input + t_bytes_offset);
-        let t1 = Helpers.bytes_to_64_bits_little_felt(input + t_bytes_offset + 8);
-
-        // Perform Blake2f compression
-        let (compressed) = Blake2.F(rounds, h, m, t0, t1, f);
-
-        let (output: felt*) = alloc();
-        Helpers.split_word_little(compressed[0], word_bytes_len, output);
-        Helpers.split_word_little(compressed[1], word_bytes_len, output + word_bytes_len);
-        Helpers.split_word_little(compressed[2], word_bytes_len, output + 2 * word_bytes_len);
-        Helpers.split_word_little(compressed[3], word_bytes_len, output + 3 * word_bytes_len);
-        Helpers.split_word_little(compressed[4], word_bytes_len, output + 4 * word_bytes_len);
-        Helpers.split_word_little(compressed[5], word_bytes_len, output + 5 * word_bytes_len);
-        Helpers.split_word_little(compressed[6], word_bytes_len, output + 6 * word_bytes_len);
-        Helpers.split_word_little(compressed[7], word_bytes_len, output + 7 * word_bytes_len);
-
-        return (word_bytes_len * 8, output, rounds, 0);
+    // Check input length
+    if (input_len != 213) {
+        tempvar err = new EthereumException(InvalidParameter);
+        return err;
     }
+
+    let rounds = Helpers.bytes_to_felt(rounds_bytes_len, input);
+    let err = charge_gas(Uint(GasConstants.GAS_BLAKE2_PER_ROUND * rounds));
+    if (err != cast(0, EthereumException*)) {
+        return err;
+    }
+
+    // Check the flag
+    tempvar f = input[f_bytes_offset];
+    if (f != f * f) {
+        tempvar err = new EthereumException(InvalidParameter);
+        return err;
+    }
+
+    let (local h: felt*) = alloc();
+    Helpers.load_64_bits_array(8, input + h_bytes_offset, h);
+
+    let (m: felt*) = alloc();
+    Helpers.load_64_bits_array(16, input + m_bytes_offset, m);
+
+    let t0 = Helpers.bytes_to_64_bits_little_felt(input + t_bytes_offset);
+    let t1 = Helpers.bytes_to_64_bits_little_felt(input + t_bytes_offset + 8);
+
+    // Perform Blake2f compression
+    let (compressed) = Blake2.F(rounds, h, m, t0, t1, f);
+
+    let (data: felt*) = alloc();
+    Helpers.split_word_little(compressed[0], word_bytes_len, data);
+    Helpers.split_word_little(compressed[1], word_bytes_len, data + word_bytes_len);
+    Helpers.split_word_little(compressed[2], word_bytes_len, data + 2 * word_bytes_len);
+    Helpers.split_word_little(compressed[3], word_bytes_len, data + 3 * word_bytes_len);
+    Helpers.split_word_little(compressed[4], word_bytes_len, data + 4 * word_bytes_len);
+    Helpers.split_word_little(compressed[5], word_bytes_len, data + 5 * word_bytes_len);
+    Helpers.split_word_little(compressed[6], word_bytes_len, data + 6 * word_bytes_len);
+    Helpers.split_word_little(compressed[7], word_bytes_len, data + 7 * word_bytes_len);
+
+    tempvar output = Bytes(new BytesStruct(data, word_bytes_len * 8));
+    EvmImpl.set_output(output);
+    let ok = cast(0, EthereumException*);
+    return ok;
 }
 
 namespace Blake2 {
@@ -96,12 +85,9 @@ namespace Blake2 {
     // @param t The message byte offset.
     // @param f The flag indicating the last block.
     // @return output The final state of the compression.
-    func F{
-        syscall_ptr: felt*,
-        pedersen_ptr: HashBuiltin*,
-        range_check_ptr,
-        bitwise_ptr: BitwiseBuiltin*,
-    }(rounds: felt, h: felt*, m: felt*, t0: felt, t1: felt, f: felt) -> (output: felt*) {
+    func F{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
+        rounds: felt, h: felt*, m: felt*, t0: felt, t1: felt, f: felt
+    ) -> (output: felt*) {
         alloc_locals;
         let (__fp__, _) = get_fp_and_pc();
 
@@ -155,8 +141,6 @@ namespace Blake2 {
         tempvar new_h = output;
         tempvar bitwise_ptr = bitwise_ptr;
         tempvar range_check_ptr = range_check_ptr;
-        tempvar pedersen_ptr = pedersen_ptr;
-        tempvar syscall_ptr = syscall_ptr;
         tempvar n = 8;
 
         loop:
@@ -170,8 +154,6 @@ namespace Blake2 {
         tempvar new_h = new_h + 1;
         tempvar bitwise_ptr = bitwise_ptr + 2 * BitwiseBuiltin.SIZE;
         tempvar range_check_ptr = range_check_ptr;
-        tempvar pedersen_ptr = pedersen_ptr;
-        tempvar syscall_ptr = syscall_ptr;
         tempvar n = n - 1;
         jmp loop if n != 0;
 
@@ -348,16 +330,13 @@ namespace Blake2 {
     // @param m The sixteen words of a single message.
     // @param sigma The message schedule.
     // @return final_h The final hash.
-    func blake_rounds{
-        syscall_ptr: felt*,
-        pedersen_ptr: HashBuiltin*,
-        range_check_ptr,
-        bitwise_ptr: BitwiseBuiltin*,
-    }(rounds: felt, i: felt, h: felt*, m: felt*, sigma: felt*) -> (final_h: felt*) {
+    func blake_rounds{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
+        rounds: felt, i: felt, h: felt*, m: felt*, sigma: felt*
+    ) -> (final_h: felt*) {
         if (rounds == 0) {
             return (final_h=h);
         }
-        let (_, r) = unsigned_div_rem(i, 10);
+        let (_, r) = divmod(i, 10);
         let (h_new) = blake_round(h, m, sigma + r * 16);
 
         return blake_rounds(rounds - 1, i + 1, h_new, m, sigma);
@@ -368,12 +347,9 @@ namespace Blake2 {
     // @param message The sixteen words of a single message.
     // @param sigma The message schedule.
     // @return new_state The new state of the compression function.
-    func blake_round{
-        syscall_ptr: felt*,
-        pedersen_ptr: HashBuiltin*,
-        range_check_ptr,
-        bitwise_ptr: BitwiseBuiltin*,
-    }(state: felt*, message: felt*, sigma: felt*) -> (new_state: felt*) {
+    func blake_round{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
+        state: felt*, message: felt*, sigma: felt*
+    ) -> (new_state: felt*) {
         alloc_locals;
 
         let (state0, state4, state8, state12) = mix_one(
@@ -459,16 +435,13 @@ namespace Blake2 {
     // @return b The new second state word.
     // @return c The new third state word.
     // @return d The new fourth state word.
-    func mix_one{
-        syscall_ptr: felt*,
-        pedersen_ptr: HashBuiltin*,
-        range_check_ptr,
-        bitwise_ptr: BitwiseBuiltin*,
-    }(a: felt, b: felt, c: felt, d: felt, m: felt) -> (a: felt, b: felt, c: felt, d: felt) {
+    func mix_one{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
+        a: felt, b: felt, c: felt, d: felt, m: felt
+    ) -> (a: felt, b: felt, c: felt, d: felt) {
         alloc_locals;
 
         // a = (a + b + m) % 2**64
-        let (_, a) = unsigned_div_rem(a + b + m, MASK_ONES_64);
+        let (_, a) = divmod(a + b + m, MASK_ONES_64);
 
         // d = right_rot((d ^ a), 32).
         assert bitwise_ptr[0].x = a;
@@ -482,7 +455,7 @@ namespace Blake2 {
         let bitwise_ptr = bitwise_ptr + 2 * BitwiseBuiltin.SIZE;
 
         // c = (c + d) % 2**64
-        let (_, c) = unsigned_div_rem(c + d, MASK_ONES_64);
+        let (_, c) = divmod(c + d, MASK_ONES_64);
 
         // b = right_rot((b ^ c), 24).
         assert bitwise_ptr[0].x = b;
@@ -508,16 +481,13 @@ namespace Blake2 {
     // @return b The new second state word.
     // @return c The new third state word.
     // @return d The new fourth state word.
-    func mix_two{
-        syscall_ptr: felt*,
-        pedersen_ptr: HashBuiltin*,
-        range_check_ptr,
-        bitwise_ptr: BitwiseBuiltin*,
-    }(a: felt, b: felt, c: felt, d: felt, m: felt) -> (a: felt, b: felt, c: felt, d: felt) {
+    func mix_two{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
+        a: felt, b: felt, c: felt, d: felt, m: felt
+    ) -> (a: felt, b: felt, c: felt, d: felt) {
         alloc_locals;
 
         // a = (a + b + m) % 2**64
-        let (_, a) = unsigned_div_rem(a + b + m, MASK_ONES_64);
+        let (_, a) = divmod(a + b + m, MASK_ONES_64);
 
         // d = right_rot((d ^ a), 16).
         assert bitwise_ptr[0].x = d;
@@ -531,7 +501,7 @@ namespace Blake2 {
         let bitwise_ptr = bitwise_ptr + 2 * BitwiseBuiltin.SIZE;
 
         // c = (c + d) % 2**64
-        let (_, c) = unsigned_div_rem(c + d, MASK_ONES_64);
+        let (_, c) = divmod(c + d, MASK_ONES_64);
 
         // b = right_rot((b ^ c), 63).
         assert bitwise_ptr[0].x = b;

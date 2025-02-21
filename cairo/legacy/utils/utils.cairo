@@ -1,7 +1,8 @@
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.math_cmp import is_nn
+from starkware.cairo.common.math import assert_nn_le
 from starkware.cairo.common.memcpy import memcpy
-from starkware.cairo.common.bool import FALSE
+from starkware.cairo.common.bool import FALSE, TRUE
 from starkware.cairo.common.uint256 import Uint256
 from starkware.cairo.common.registers import get_label_location
 
@@ -178,5 +179,56 @@ namespace Helpers {
             return 1;
         }
         return 0;
+    }
+
+    // @notice Load sequences of 8 bytes little endian into an array of felts
+    // @param len: final length of the output.
+    // @param input: pointer to bytes array input.
+    // @param output: pointer to bytes array output.
+    func load_64_bits_array(len: felt, input: felt*, output: felt*) {
+        if (len == 0) {
+            return ();
+        }
+        let loaded = bytes_to_64_bits_little_felt(input);
+        assert [output] = loaded;
+        return load_64_bits_array(len - 1, input + 8, output + 1);
+    }
+
+    // @notice This function is used to convert a sequence of 8 bytes to a felt.
+    // @param val: pointer to the first byte.
+    // @return: felt representation of the input.
+    func bytes_to_64_bits_little_felt(bytes: felt*) -> felt {
+        let res = [bytes + 7] * 256 ** 7;
+        let res = res + [bytes + 6] * 256 ** 6;
+        let res = res + [bytes + 5] * 256 ** 5;
+        let res = res + [bytes + 4] * 256 ** 4;
+        let res = res + [bytes + 3] * 256 ** 3;
+        let res = res + [bytes + 2] * 256 ** 2;
+        let res = res + [bytes + 1] * 256;
+        let res = res + [bytes];
+        return res;
+    }
+
+    // @notice Splits a felt into `len` bytes, little-endian, and outputs to `dst`.
+    func split_word_little{range_check_ptr}(value: felt, len: felt, dst: felt*) {
+        if (len == 0) {
+            with_attr error_message("value not empty") {
+                assert value = 0;
+            }
+            return ();
+        }
+        with_attr error_message("len must be < 32") {
+            assert is_nn(31 - len) = TRUE;
+        }
+        let output = &dst[0];
+        let base = 256;
+        let bound = 256;
+        %{
+            memory[ids.output] = res = (int(ids.value) % PRIME) % ids.base
+            assert res < ids.bound, f'split_int(): Limb {res} is out of range.'
+        %}
+        tempvar low_part = [output];
+        assert_nn_le(low_part, 255);
+        return split_word_little((value - low_part) / 256, len - 1, dst + 1);
     }
 }
