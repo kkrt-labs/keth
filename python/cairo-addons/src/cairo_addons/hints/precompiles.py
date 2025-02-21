@@ -125,9 +125,9 @@ def alt_bn128_pairing_check_hint(
                 result = result * pairing(q, p)
 
         if error:
-            error_str_ascii = str(error).encode("ascii")
+            error_int = int.from_bytes(error.__name__.encode("ascii"), "little")
             data_ptr = segments.add()
-            segments.write_arg(data_ptr, error_str_ascii)
+            memory[data_ptr] = error_int
             memory[ap - 2] = data_ptr
             return
         else:
@@ -137,6 +137,61 @@ def alt_bn128_pairing_check_hint(
             output = U256(1).to_be_bytes32()
         else:
             output = U256(0).to_be_bytes32()
+
+        data_ptr = segments.add()
+        segments.write_arg(data_ptr, output)
+        bytes_ptr = segments.add()
+        segments.write_arg(bytes_ptr, [data_ptr, len(output)])
+        memory[ap - 1] = bytes_ptr
+
+    inner()
+
+@register_hint
+def alt_bn128_add_hint(
+    ids: VmConsts,
+    memory: MemoryDict,
+    ap: RelocatableValue,
+    segments: MemorySegmentManager,
+):
+    from ethereum.cancun.vm.exceptions import OutOfGasError
+    from ethereum.crypto.alt_bn128 import (
+        ALT_BN128_PRIME,
+        BNF,
+        BNP,
+    )
+    from cairo_addons.utils.uint256 import uint256_to_int
+    from ethereum_types.numeric import U256
+
+    def inner():
+        x0_value = uint256_to_int(ids.x0_value.value.low, ids.x0_value.value.high)
+        y0_value = uint256_to_int(ids.y0_value.value.low, ids.y0_value.value.high)
+        x1_value = uint256_to_int(ids.x1_value.value.low, ids.x1_value.value.high)
+        y1_value = uint256_to_int(ids.y1_value.value.low, ids.y1_value.value.high)
+
+        error = None
+        for i in (x0_value, y0_value, x1_value, y1_value):
+            if i >= ALT_BN128_PRIME:
+                error = OutOfGasError
+                break
+
+        try:
+            p0 = BNP(BNF(x0_value), BNF(y0_value))
+            p1 = BNP(BNF(x1_value), BNF(y1_value))
+        except ValueError:
+            error = OutOfGasError
+
+        if error:
+            error_int = int.from_bytes(error.__name__.encode("ascii"), "little")
+            data_ptr = segments.add()
+            memory[data_ptr] = error_int
+            memory[ap - 2] = data_ptr
+            return
+        else:
+            memory[ap - 2] = 0
+
+        p = p0 + p1
+
+        output = p.x.to_be_bytes32() + p.y.to_be_bytes32()
 
         data_ptr = segments.add()
         segments.write_arg(data_ptr, output)
