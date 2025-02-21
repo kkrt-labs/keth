@@ -327,6 +327,7 @@ func execute_code{
         // Addresses that are not precompiles return 0.
         if (precompile_address != 0) {
             // Prepare arguments
+            // MARK: args assignment
             [ap] = range_check_ptr, ap++;
             [ap] = bitwise_ptr, ap++;
             [ap] = keccak_ptr, ap++;
