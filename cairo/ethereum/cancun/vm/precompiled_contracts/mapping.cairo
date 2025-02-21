@@ -7,7 +7,10 @@ from ethereum.utils.numeric import divmod
 from ethereum.cancun.vm.precompiled_contracts.identity import identity
 from ethereum.cancun.vm.precompiled_contracts.sha256 import sha256
 from ethereum.cancun.vm.precompiled_contracts.modexp import modexp
-from ethereum.cancun.vm.precompiled_contracts.alt_bn128 import alt_bn128_pairing_check
+from ethereum.cancun.vm.precompiled_contracts.alt_bn128 import (
+    alt_bn128_pairing_check,
+    alt_bn128_add,
+)
 from cairo_core.control_flow import raise
 // currently 10 precompiles.
 const N_PRECOMPILES = 10;
@@ -85,7 +88,7 @@ func precompile_table_lookup{range_check_ptr}(address: felt) -> (felt, felt) {
     dw 0x500000000000000000000000000000000000000;
     call modexp;  // MODEXP
     dw 0x600000000000000000000000000000000000000;
-    call invalid_precompile;  // ECADD
+    call alt_bn128_add;  // ECADD
     dw 0x700000000000000000000000000000000000000;
     call invalid_precompile;  // ECMUL
     dw 0x800000000000000000000000000000000000000;

@@ -16,7 +16,8 @@ func alt_bn128_add{
     let data = evm.value.message.value.data;
 
     // Gas
-    let err = charge_gas(Uint(150));
+    let gas_cost = Uint(150);
+    let err = charge_gas(gas_cost);
     if (cast(err, felt) != 0) {
         return err;
     }
@@ -41,11 +42,14 @@ func alt_bn128_add{
     tempvar x1_value = x1_value;
     tempvar y1_value = y1_value;
 
+    tempvar data = data;  // Required for rust hint
     tempvar error: EthereumException*;
     tempvar output: Bytes;
 
     %{ alt_bn128_add_hint %}
     if (cast(error, felt) != 0) {
+        let x = error.value;
+        %{ print(ids.x) %}
         return error;
     }
 
