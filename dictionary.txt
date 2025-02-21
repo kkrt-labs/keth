@@ -243,3 +243,4 @@ fixturedef
 getfixturedefs
 fixturemanager
 ethtest
+mult

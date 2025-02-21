@@ -1,4 +1,5 @@
-from ethereum.cancun.vm import Message, Environment, MessageStruct, EvmStruct, Evm, EnvImpl
+from ethereum.cancun.vm.evm_impl import Message, MessageStruct, EvmStruct, Evm
+from ethereum.cancun.vm.env_impl import Environment, EnvImpl
 from ethereum.cancun.fork_types import (
     Address,
     OptionalAddress,

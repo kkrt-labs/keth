@@ -1,5 +1,6 @@
 from ethereum.cancun.vm.stack import pop, push
-from ethereum.cancun.vm import Evm, EvmImpl, Environment, EnvImpl
+from ethereum.cancun.vm.evm_impl import Evm, EvmImpl
+from ethereum.cancun.vm.env_impl import Environment, EnvImpl
 from ethereum.exceptions import EthereumException
 from ethereum.cancun.vm.exceptions import WriteInStaticContext, OutOfGasError
 from ethereum.cancun.vm.gas import charge_gas, GasConstants

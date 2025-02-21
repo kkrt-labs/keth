@@ -117,7 +117,7 @@ func buffer_read{range_check_ptr}(buffer: Bytes, start_position: U256, size: U25
 
     // Early return if nothing to read
     if (size_felt == 0) {
-        tempvar result = Bytes(new BytesStruct(cast(0, felt*), 0));
+        tempvar result = Bytes(new BytesStruct(output, 0));
         return result;
     }
 

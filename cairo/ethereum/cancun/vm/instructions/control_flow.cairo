@@ -13,7 +13,7 @@ from ethereum_types.numeric import (
     SetUintDictAccess,
 )
 
-from ethereum.cancun.vm import Evm, EvmImpl
+from ethereum.cancun.vm.evm_impl import Evm, EvmImpl
 from ethereum.exceptions import EthereumException
 from ethereum.cancun.vm.exceptions import InvalidJumpDestError
 from ethereum.cancun.vm.gas import charge_gas, GasConstants
