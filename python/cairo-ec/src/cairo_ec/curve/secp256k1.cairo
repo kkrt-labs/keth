@@ -123,11 +123,11 @@ func sign_to_uint384_mod_secp256k1(sign: felt) -> UInt384 {
 // @dev * All the limbs of r are in the range (-2 ** 124.99, 2 ** 124.99).
 func try_recover_public_key{
     range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
-    bitwise_ptr: BitwiseBuiltin*,
 }(msg_hash: UInt384, r: UInt384, s: UInt384, y_parity: felt) -> (
     public_key_x: Bytes32, public_key_y: Bytes32, success: felt
 ) {

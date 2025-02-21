@@ -1,4 +1,9 @@
-from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin
+from starkware.cairo.common.cairo_builtins import (
+    BitwiseBuiltin,
+    KeccakBuiltin,
+    ModBuiltin,
+    PoseidonBuiltin,
+)
 from starkware.cairo.common.math_cmp import is_le_felt
 from ethereum.cancun.vm import Evm, EvmImpl
 from ethereum.exceptions import EthereumException
@@ -10,7 +15,14 @@ from ethereum_types.bytes import Bytes
 from ethereum.cancun.vm.memory import buffer_read
 
 func alt_bn128_add{
-    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*, evm: Evm
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
+    evm: Evm,
 }() -> EthereumException* {
     alloc_locals;
     let data = evm.value.message.value.data;
@@ -57,7 +69,14 @@ func alt_bn128_add{
 }
 
 func alt_bn128_mul{
-    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*, evm: Evm
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
+    evm: Evm,
 }() -> EthereumException* {
     alloc_locals;
     let data = evm.value.message.value.data;
@@ -103,7 +122,14 @@ func alt_bn128_mul{
 
 // @notice Writes the message data to the output
 func alt_bn128_pairing_check{
-    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*, evm: Evm
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
+    evm: Evm,
 }() -> EthereumException* {
     alloc_locals;
     let data = evm.value.message.value.data;
