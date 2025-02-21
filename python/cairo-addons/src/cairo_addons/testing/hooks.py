@@ -1,3 +1,9 @@
+"""
+Cairo Test System - pytest Hooks
+
+This module provides pytest hooks for the Cairo test system.
+"""
+
 import logging
 import shutil
 import time
@@ -12,9 +18,9 @@ from starkware.cairo.lang.compiler.cairo_compile import DEFAULT_PRIME
 
 from cairo_addons.testing.caching import CACHED_TESTS_FILE, file_hash, program_hash
 from cairo_addons.testing.compiler import (
-    get_cairo_files,
     get_cairo_program,
     get_main_path,
+    resolve_cairo_file,
 )
 
 logging.basicConfig(
@@ -200,7 +206,8 @@ def pytest_collection_modifyitems(session, config, items):
     fspaths = sorted(list({item.fspath for item in cairo_items}))
 
     for fspath in fspaths[worker_index::worker_count]:
-        files = get_cairo_files(fspath)
+        file_items = [item for item in cairo_items if item.fspath == fspath]
+        files = resolve_cairo_file(fspath, file_items[0])
         session.cairo_files[fspath] = files
         main_paths = [get_main_path(file) for file in files]
         session.main_paths[fspath] = main_paths
@@ -218,7 +225,10 @@ def pytest_collection_modifyitems(session, config, items):
         missing_new = set()
         for fspath in missing:
             if fspath not in session.cairo_files:
-                session.cairo_files[fspath] = get_cairo_files(fspath)
+                file_items = [item for item in cairo_items if item.fspath == fspath]
+                files = resolve_cairo_file(fspath, file_items[0])
+                session.cairo_files[fspath] = files
+
             if fspath not in session.main_paths:
                 session.main_paths[fspath] = [
                     get_main_path(file) for file in session.cairo_files[fspath]

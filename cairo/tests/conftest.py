@@ -52,7 +52,11 @@ def pytest_configure(config):
 
     They both get our mock version, because the module itself has been modified.
     """
+    from typing import Sequence, Union
+
     import ethereum
+    import ethereum_rlp
+    from ethereum_types.numeric import FixedUnsigned, Uint
 
     from tests.utils.args_gen import Environment, Evm, Message, MessageCallOutput
 
@@ -61,6 +65,11 @@ def pytest_configure(config):
     ethereum.cancun.vm.Message = Message
     ethereum.cancun.vm.Environment = Environment
     ethereum.cancun.vm.interpreter.MessageCallOutput = MessageCallOutput
+
+    # Mock the Extended type because hypothesis cannot handle the RLP Protocol
+    # Needs to be done before importing the types from ethereum.cancun.trie
+    # trunk-ignore(ruff/F821)
+    ethereum_rlp.rlp.Extended = Union[Sequence["Extended"], bytearray, bytes, Uint, FixedUnsigned, str, bool]  # type: ignore
 
 
 @pytest.fixture(scope="module")
