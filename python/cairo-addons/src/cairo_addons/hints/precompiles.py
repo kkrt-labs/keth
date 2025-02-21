@@ -41,6 +41,8 @@ def modexp_output(
 ):
     from ethereum_types.numeric import Uint
 
+    from cairo_addons.hints.precompiles import write_output
+
     base = Uint.from_be_bytes(
         bytes(
             [memory[ids.base.value.data + i] for i in range(ids.base_length.value.low)]
@@ -63,11 +65,7 @@ def modexp_output(
     else:
         result_bytes = result.to_bytes(ids.modulus_length.value.low, "big")
 
-    data_ptr = segments.add()
-    segments.write_arg(data_ptr, result_bytes)
-    bytes_ptr = segments.add()
-    segments.write_arg(bytes_ptr, [data_ptr, len(result_bytes)])
-    memory[ap - 1] = bytes_ptr
+    write_output(memory, ap, segments, result_bytes)
 
 
 @register_hint
@@ -91,12 +89,13 @@ def alt_bn128_pairing_check_hint(
     )
     from ethereum_types.numeric import U256
 
-    def inner():
+    from cairo_addons.hints.precompiles import write_error, write_output
 
+    def inner():
         data = [memory[ids.data.value.data + i] for i in range(ids.data.value.len)]
 
         # Adapted execution specs
-        error = None
+        # <https://github.com/ethereum/execution-specs/blob/78fb726158c69d8fa164e28f195fabf6ab59b915/src/ethereum/paris/vm/precompiled_contracts/alt_bn128.py#L33>
         result = BNF12.from_int(1)
         for i in range(len(data) // 192):
             values = []
@@ -105,44 +104,33 @@ def alt_bn128_pairing_check_hint(
                     U256.from_be_bytes(data[i * 192 + 32 * j : i * 192 + 32 * (j + 1)])
                 )
                 if value >= ALT_BN128_PRIME:
-                    error = OutOfGasError
-                    break
+                    write_error(memory, ap, segments, OutOfGasError)
+                    return
                 values.append(value)
 
             try:
                 p = BNP(BNF(values[0]), BNF(values[1]))
                 q = BNP2(BNF2((values[3], values[2])), BNF2((values[5], values[4])))
             except ValueError:
-                error = OutOfGasError
-                break
+                write_error(memory, ap, segments, OutOfGasError)
+                return
             if p.mul_by(ALT_BN128_CURVE_ORDER) != BNP.point_at_infinity():
-                error = OutOfGasError
-                break
+                write_error(memory, ap, segments, OutOfGasError)
+                return
             if q.mul_by(ALT_BN128_CURVE_ORDER) != BNP2.point_at_infinity():
-                error = OutOfGasError
-                break
+                write_error(memory, ap, segments, OutOfGasError)
+                return
             if p != BNP.point_at_infinity() and q != BNP2.point_at_infinity():
                 result = result * pairing(q, p)
-
-        if error:
-            error_int = int.from_bytes(error.__name__.encode("ascii"), "big")
-            data_ptr = segments.add()
-            segments.write_arg(data_ptr, [error_int])
-            memory[ap - 2] = data_ptr
-            return
-        else:
-            memory[ap - 2] = 0
 
         if result == BNF12.from_int(1):
             output = U256(1).to_be_bytes32()
         else:
             output = U256(0).to_be_bytes32()
 
-        data_ptr = segments.add()
-        segments.write_arg(data_ptr, output)
-        bytes_ptr = segments.add()
-        segments.write_arg(bytes_ptr, [data_ptr, len(output)])
-        memory[ap - 1] = bytes_ptr
+        # No error
+        memory[ap - 2] = 0
+        write_output(memory, ap, segments, output)
 
     inner()
 
@@ -157,6 +145,7 @@ def alt_bn128_add_hint(
     from ethereum.cancun.vm.exceptions import OutOfGasError
     from ethereum.crypto.alt_bn128 import ALT_BN128_PRIME, BNF, BNP
 
+    from cairo_addons.hints.precompiles import write_error, write_output
     from cairo_addons.utils.uint256 import uint256_to_int
 
     def inner():
@@ -165,36 +154,27 @@ def alt_bn128_add_hint(
         x1_value = uint256_to_int(ids.x1_value.value.low, ids.x1_value.value.high)
         y1_value = uint256_to_int(ids.y1_value.value.low, ids.y1_value.value.high)
 
-        error = None
+        # Adapted execution specs
+        # <https://github.com/ethereum/execution-specs/blob/78fb726158c69d8fa164e28f195fabf6ab59b915/src/ethereum/paris/vm/precompiled_contracts/alt_bn128.py#L33>
         for i in (x0_value, y0_value, x1_value, y1_value):
             if i >= ALT_BN128_PRIME:
-                error = OutOfGasError
-                break
+                write_error(memory, ap, segments, OutOfGasError)
+                return
 
         try:
             p0 = BNP(BNF(x0_value), BNF(y0_value))
             p1 = BNP(BNF(x1_value), BNF(y1_value))
         except ValueError:
-            error = OutOfGasError
-
-        if error:
-            error_int = int.from_bytes(error.__name__.encode("ascii"), "big")
-            data_ptr = segments.add()
-            segments.write_arg(data_ptr, [error_int])
-            memory[ap - 2] = data_ptr
+            write_error(memory, ap, segments, OutOfGasError)
             return
-        else:
-            memory[ap - 2] = 0
 
         p = p0 + p1
 
         output = p.x.to_be_bytes32() + p.y.to_be_bytes32()
 
-        data_ptr = segments.add()
-        segments.write_arg(data_ptr, output)
-        bytes_ptr = segments.add()
-        segments.write_arg(bytes_ptr, [data_ptr, len(output)])
-        memory[ap - 1] = bytes_ptr
+        # No error
+        memory[ap - 2] = 0
+        write_output(memory, ap, segments, output)
 
     inner()
 
@@ -209,6 +189,7 @@ def alt_bn128_mul_hint(
     from ethereum.cancun.vm.exceptions import OutOfGasError
     from ethereum.crypto.alt_bn128 import ALT_BN128_PRIME, BNF, BNP
 
+    from cairo_addons.hints.precompiles import write_error, write_output
     from cairo_addons.utils.uint256 import uint256_to_int
 
     def inner():
@@ -216,34 +197,51 @@ def alt_bn128_mul_hint(
         y0_value = uint256_to_int(ids.y0_value.value.low, ids.y0_value.value.high)
         n_value = uint256_to_int(ids.n_value.value.low, ids.n_value.value.high)
 
-        error = None
+        # Adapted execution specs
+        # <https://github.com/ethereum/execution-specs/blob/78fb726158c69d8fa164e28f195fabf6ab59b915/src/ethereum/paris/vm/precompiled_contracts/alt_bn128.py#L33>
         for i in (x0_value, y0_value):
             if i >= ALT_BN128_PRIME:
-                error = OutOfGasError
-                break
+                write_error(memory, ap, segments, OutOfGasError)
+                return
 
         try:
             p0 = BNP(BNF(x0_value), BNF(y0_value))
         except ValueError:
-            error = OutOfGasError
-
-        if error:
-            error_int = int.from_bytes(error.__name__.encode("ascii"), "big")
-            data_ptr = segments.add()
-            segments.write_arg(data_ptr, [error_int])
-            memory[ap - 2] = data_ptr
+            write_error(memory, ap, segments, OutOfGasError)
             return
-        else:
-            memory[ap - 2] = 0
 
         p = p0.mul_by(n_value)
 
         output = p.x.to_be_bytes32() + p.y.to_be_bytes32()
 
-        data_ptr = segments.add()
-        segments.write_arg(data_ptr, output)
-        bytes_ptr = segments.add()
-        segments.write_arg(bytes_ptr, [data_ptr, len(output)])
-        memory[ap - 1] = bytes_ptr
+        # No error
+        memory[ap - 2] = 0
+        write_output(memory, ap, segments, output)
 
     inner()
+
+
+def write_error(
+    memory: MemoryDict,
+    ap: RelocatableValue,
+    segments: MemorySegmentManager,
+    error: Exception,
+):
+    error_int = int.from_bytes(error.__name__.encode("ascii"), "big")
+    data_ptr = segments.add()
+    segments.write_arg(data_ptr, [error_int])
+    memory[ap - 2] = data_ptr
+    return
+
+
+def write_output(
+    memory: MemoryDict,
+    ap: RelocatableValue,
+    segments: MemorySegmentManager,
+    output: bytes,
+):
+    data_ptr = segments.add()
+    segments.write_arg(data_ptr, output)
+    bytes_ptr = segments.add()
+    segments.write_arg(bytes_ptr, [data_ptr, len(output)])
+    memory[ap - 1] = bytes_ptr

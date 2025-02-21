@@ -1,5 +1,7 @@
 from ethereum.cancun.vm import Evm
+from ethereum.cancun.vm.exceptions import OutOfGasError
 from ethereum.cancun.vm.precompiled_contracts.alt_bn128 import (
+    ALT_BN128_PRIME,
     alt_bn128_add,
     alt_bn128_mul,
     alt_bn128_pairing_check,
@@ -14,9 +16,11 @@ from tests.utils.evm_builder import EvmBuilder
 
 @st.composite
 def data_strategy(draw):
-    is_mul_192 = draw(st.booleans())
+    # ecpairing requires the data to be a multiple of 192 to run.
+    # we test both cases.
+    probability = draw(st.integers(min_value=0, max_value=100))
     base = draw(st.integers(min_value=0, max_value=192))
-    if is_mul_192:
+    if probability < 80:  # 80% chance of being True
         return draw(st.binary(min_size=0, max_size=base * 192))
     else:
         return draw(st.binary(min_size=0, max_size=base * 193))
@@ -39,6 +43,12 @@ class TestAltbn128:
 
         alt_bn128_pairing_check(evm)
         assert evm == evm_cairo
+
+    @given(evm=EvmBuilder().with_gas_left().build())
+    def test_alt_bn128_pairing_check_invalid_input(self, cairo_run, evm: Evm):
+        evm.message.data = (ALT_BN128_PRIME + 1).to_bytes(32, "big") * 6
+        with strict_raises(OutOfGasError):
+            cairo_run("alt_bn128_pairing_check", evm=evm)
 
     @given(
         evm=EvmBuilder().with_gas_left().build(),

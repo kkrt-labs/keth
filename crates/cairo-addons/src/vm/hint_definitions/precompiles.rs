@@ -147,13 +147,14 @@ pub fn alt_bn128_pairing_check_hint() -> Hint {
             ) {
                 Ok(output) => {
                     insert_value_from_var_name("error", 0, vm, ids_data, ap_tracking)?;
-
                     let output = deserialize_sequence(output.bytes.to_vec(), vm)?;
                     insert_value_from_var_name("output", output, vm, ids_data, ap_tracking)
                 }
-                Err(e) => {
-                    let error_string = e.to_string();
-                    let error_ascii = Felt252::from_bytes_le_slice(error_string.as_bytes());
+                Err(_e) => {
+                    // Any error gets converted to OutOfGasError in EELS
+                    let error_string = "OutOfGasError";
+                    let error_bytes = error_string.as_bytes();
+                    let error_ascii = Felt252::from_bytes_be_slice(error_bytes);
                     let error_ptr = vm.add_memory_segment();
                     vm.insert_value(error_ptr, error_ascii)?;
                     insert_value_from_var_name("error", error_ptr, vm, ids_data, ap_tracking)

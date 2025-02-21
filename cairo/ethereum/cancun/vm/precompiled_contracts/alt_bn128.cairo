@@ -74,12 +74,14 @@ func alt_bn128_mul{
     let y0_value = U256_from_be_bytes(y0_bytes);
     let n_value = U256_from_be_bytes(n_bytes);
 
+    // Gas
     let gas_cost = Uint(6000);
     let err = charge_gas(gas_cost);
     if (cast(err, felt) != 0) {
         return err;
     }
 
+    // Operation
     tempvar x0_value = x0_value;
     tempvar y0_value = y0_value;
     tempvar n_value = n_value;
