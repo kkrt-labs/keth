@@ -1,4 +1,4 @@
-from starkware.cairo.common.bitwise import BitwiseBuiltin
+from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.uint256 import uint256_to_felt
 from starkware.cairo.common.math_cmp import is_le, is_le_felt
@@ -17,15 +17,16 @@ from ethereum.utils.numeric import (
     U256_sub,
     divmod,
 )
-from ethereum.cancun.vm import Evm
-from ethereum.cancun.vm.interpreter import EvmImpl
+from ethereum.cancun.vm.evm_impl import Evm
+from ethereum.cancun.vm.evm_impl import EvmImpl
 from ethereum.cancun.vm.gas import charge_gas
 from ethereum.cancun.vm.memory import buffer_read
 from ethereum.exceptions import EthereumException
 from ethereum.cancun.vm.exceptions import OutOfGasError
 from legacy.utils.uint256 import uint256_unsigned_div_rem
 
-func modexp{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, evm: Evm}() -> EthereumException* {
+func modexp{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*, evm: Evm}(
+    ) -> EthereumException* {
     alloc_locals;
     let data = evm.value.message.value.data;
     tempvar u256_zero = U256(new U256Struct(0, 0));

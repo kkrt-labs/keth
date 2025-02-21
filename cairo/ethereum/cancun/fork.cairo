@@ -148,15 +148,8 @@ from ethereum.cancun.transactions import (
     decode_transaction,
 )
 from ethereum.cancun.utils.message import prepare_message
-from ethereum.cancun.vm import (
-    Environment,
-    EnvImpl,
-    EnvironmentStruct,
-    Message,
-    MessageStruct,
-    EvmStruct,
-    OptionalEvm,
-)
+from ethereum.cancun.vm.evm_impl import Evm, EvmStruct, Message, MessageStruct, OptionalEvm
+from ethereum.cancun.vm.env_impl import Environment, EnvironmentStruct, EnvImpl
 from ethereum.cancun.vm.exceptions import EthereumException, InvalidBlock
 from ethereum.cancun.vm.gas import (
     calculate_data_fee,

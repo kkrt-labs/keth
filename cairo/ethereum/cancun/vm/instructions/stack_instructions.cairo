@@ -4,7 +4,7 @@ from starkware.cairo.common.dict import DictAccess
 from legacy.utils.dict import dict_read, dict_write
 
 from ethereum.cancun.vm.stack import push, StackDictAccess, Stack, StackStruct, pop as stack_pop
-from ethereum.cancun.vm import Evm, EvmImpl
+from ethereum.cancun.vm.evm_impl import Evm, EvmImpl
 from ethereum.exceptions import EthereumException
 from ethereum.cancun.vm.exceptions import StackUnderflowError
 from ethereum.cancun.vm.gas import charge_gas, GasConstants

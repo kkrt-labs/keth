@@ -4,16 +4,9 @@ from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin,
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.cairo.common.math_cmp import is_le
 from ethereum.cancun.vm.stack import pop, push
-from ethereum.cancun.vm import (
-    Evm,
-    EvmImpl,
-    EvmStruct,
-    EnvImpl,
-    Message,
-    MessageStruct,
-    incorporate_child_on_error,
-    incorporate_child_on_success,
-)
+from ethereum.cancun.vm import incorporate_child_on_error, incorporate_child_on_success
+from ethereum.cancun.vm.evm_impl import Evm, EvmStruct, EvmImpl, Message, MessageStruct
+from ethereum.cancun.vm.env_impl import Environment, EnvironmentStruct, EnvImpl
 from ethereum.cancun.utils.address import to_address
 from starkware.cairo.common.dict_access import DictAccess
 from ethereum.cancun.vm.exceptions import Revert, OutOfGasError, WriteInStaticContext

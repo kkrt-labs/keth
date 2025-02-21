@@ -4,7 +4,7 @@ from starkware.cairo.common.registers import get_label_location
 from ethereum.cancun.vm.instructions import op_implementation
 from ethereum.cancun.vm.interpreter import process_create_message, process_message
 from ethereum.cancun.vm.exceptions import EthereumException
-from ethereum.cancun.vm import Evm
+from ethereum.cancun.vm.evm_impl import Evm
 
 func test_op_implementation{
     range_check_ptr,
