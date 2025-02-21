@@ -9,7 +9,7 @@ permissions: read-all
 
 jobs:
   tests-unit:
-    runs-on: ubuntu-latest-16-cores
+    runs-on: ubuntu-latest-64-cores
     timeout-minutes: 1440
     env:
       HYPOTHESIS_PROFILE: nightly
