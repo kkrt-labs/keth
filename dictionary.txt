@@ -230,3 +230,4 @@ modpow
 bitmask
 lambdaclass
 mult
+altbn

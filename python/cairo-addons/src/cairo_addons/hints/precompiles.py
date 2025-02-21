@@ -68,3 +68,80 @@ def modexp_output(
     bytes_ptr = segments.add()
     segments.write_arg(bytes_ptr, [data_ptr, len(result_bytes)])
     memory[ap - 1] = bytes_ptr
+
+
+@register_hint
+def alt_bn128_pairing_check_hint(
+    ids: VmConsts,
+    memory: MemoryDict,
+    ap: RelocatableValue,
+    segments: MemorySegmentManager,
+):
+
+    from ethereum.cancun.vm.exceptions import OutOfGasError
+    from ethereum.crypto.alt_bn128 import (
+        ALT_BN128_CURVE_ORDER,
+        ALT_BN128_PRIME,
+        BNF,
+        BNF2,
+        BNF12,
+        BNP,
+        BNP2,
+        pairing,
+    )
+    from ethereum_types.numeric import U256
+
+    def inner():
+
+        data = [memory[ids.data.value.data + i] for i in range(ids.data.value.len)]
+
+        # Adapted execution specs
+        error = None
+        result = BNF12.from_int(1)
+        for i in range(len(data) // 192):
+            values = []
+            for j in range(6):
+                value = int(
+                    U256.from_be_bytes(data[i * 192 + 32 * j : i * 192 + 32 * (j + 1)])
+                )
+                if value >= ALT_BN128_PRIME:
+                    error = OutOfGasError
+                    break
+                values.append(value)
+
+            try:
+                p = BNP(BNF(values[0]), BNF(values[1]))
+                q = BNP2(BNF2((values[3], values[2])), BNF2((values[5], values[4])))
+            except ValueError:
+                error = OutOfGasError
+                break
+            if p.mul_by(ALT_BN128_CURVE_ORDER) != BNP.point_at_infinity():
+                error = OutOfGasError
+                break
+            if q.mul_by(ALT_BN128_CURVE_ORDER) != BNP2.point_at_infinity():
+                error = OutOfGasError
+                break
+            if p != BNP.point_at_infinity() and q != BNP2.point_at_infinity():
+                result = result * pairing(q, p)
+
+        if error:
+            error_str_ascii = str(error).encode("ascii")
+            data_ptr = segments.add()
+            segments.write_arg(data_ptr, error_str_ascii)
+            memory[ap - 2] = data_ptr
+            return
+        else:
+            memory[ap - 2] = 0
+
+        if result == BNF12.from_int(1):
+            output = U256(1).to_be_bytes32()
+        else:
+            output = U256(0).to_be_bytes32()
+
+        data_ptr = segments.add()
+        segments.write_arg(data_ptr, output)
+        bytes_ptr = segments.add()
+        segments.write_arg(bytes_ptr, [data_ptr, len(output)])
+        memory[ap - 1] = bytes_ptr
+
+    inner()
