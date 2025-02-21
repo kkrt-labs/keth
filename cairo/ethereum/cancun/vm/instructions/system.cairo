@@ -190,10 +190,13 @@ func generic_call{
 
     call abs process_message_label;
 
-    let range_check_ptr = [ap - 5];
-    let bitwise_ptr = cast([ap - 4], BitwiseBuiltin*);
-    let keccak_ptr = cast([ap - 3], KeccakBuiltin*);
-    let poseidon_ptr = cast([ap - 2], PoseidonBuiltin*);
+    let range_check_ptr = [ap - 8];
+    let bitwise_ptr = cast([ap - 7], BitwiseBuiltin*);
+    let keccak_ptr = cast([ap - 6], KeccakBuiltin*);
+    let poseidon_ptr = cast([ap - 5], PoseidonBuiltin*);
+    let range_check96_ptr = cast([ap - 4], felt*);
+    let add_mod_ptr = cast([ap - 3], ModBuiltin*);
+    let mul_mod_ptr = cast([ap - 2], ModBuiltin*);
     let child_evm_ = cast([ap - 1], EvmStruct*);
     tempvar child_evm = Evm(child_evm_);
 
@@ -1183,10 +1186,13 @@ func generic_create{
 
     call abs process_create_message_label;
 
-    let range_check_ptr = [ap - 5];
-    let bitwise_ptr = cast([ap - 4], BitwiseBuiltin*);
-    let keccak_ptr = cast([ap - 3], KeccakBuiltin*);
-    let poseidon_ptr = cast([ap - 2], PoseidonBuiltin*);
+    let range_check_ptr = [ap - 8];
+    let bitwise_ptr = cast([ap - 7], BitwiseBuiltin*);
+    let keccak_ptr = cast([ap - 6], KeccakBuiltin*);
+    let poseidon_ptr = cast([ap - 5], PoseidonBuiltin*);
+    let range_check96_ptr = cast([ap - 4], felt*);
+    let add_mod_ptr = cast([ap - 3], ModBuiltin*);
+    let mul_mod_ptr = cast([ap - 2], ModBuiltin*);
     let child_evm_ = cast([ap - 1], EvmStruct*);
     tempvar child_evm = Evm(child_evm_);
 
@@ -1229,6 +1235,7 @@ func generic_create{
 // @notice Creates a new account with associated code
 func create{
     process_create_message_label: felt*,
+    process_message_label: felt*,
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
@@ -1320,6 +1327,7 @@ func create{
 // Similar to CREATE but the address depends on the init_code instead of sender nonce
 func create2{
     process_create_message_label: felt*,
+    process_message_label: felt*,
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,

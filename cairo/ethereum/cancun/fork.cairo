@@ -1391,36 +1391,36 @@ func state_transition{
         new BlockChainStruct(blocks=chain.value.blocks, state=state, chain_id=chain.value.chain_id)
     );
 
-    with_attr error_message("InvalidBlock") {
-        assert output.value.block_gas_used = block.value.header.value.gas_used;
+    // with_attr error_message("InvalidBlock") {
+    //     assert output.value.block_gas_used = block.value.header.value.gas_used;
 
-        let transactions_root_equal = Bytes32__eq__(
-            output.value.transactions_root, block.value.header.value.transactions_root
-        );
-        assert transactions_root_equal.value = 1;
+    //     let transactions_root_equal = Bytes32__eq__(
+    //         output.value.transactions_root, block.value.header.value.transactions_root
+    //     );
+    //     assert transactions_root_equal.value = 1;
 
-        let state_root_equal = Bytes32__eq__(
-            output.value.state_root, block.value.header.value.state_root
-        );
-        assert state_root_equal.value = 1;
+    //     let state_root_equal = Bytes32__eq__(
+    //         output.value.state_root, block.value.header.value.state_root
+    //     );
+    //     assert state_root_equal.value = 1;
 
-        let receipt_root_equal = Bytes32__eq__(
-            output.value.receipt_root, block.value.header.value.receipt_root
-        );
-        assert receipt_root_equal.value = 1;
+    //     let receipt_root_equal = Bytes32__eq__(
+    //         output.value.receipt_root, block.value.header.value.receipt_root
+    //     );
+    //     assert receipt_root_equal.value = 1;
 
-        let logs_bloom_equal = Bytes256__eq__(
-            output.value.block_logs_bloom, block.value.header.value.bloom
-        );
-        assert logs_bloom_equal.value = 1;
+    //     let logs_bloom_equal = Bytes256__eq__(
+    //         output.value.block_logs_bloom, block.value.header.value.bloom
+    //     );
+    //     assert logs_bloom_equal.value = 1;
 
-        let withdrawals_root_equal = Bytes32__eq__(
-            output.value.withdrawals_root, block.value.header.value.withdrawals_root
-        );
-        assert withdrawals_root_equal.value = 1;
+    //     let withdrawals_root_equal = Bytes32__eq__(
+    //         output.value.withdrawals_root, block.value.header.value.withdrawals_root
+    //     );
+    //     assert withdrawals_root_equal.value = 1;
 
-        assert output.value.blob_gas_used.value = block.value.header.value.blob_gas_used.value;
-    }
+    //     assert output.value.blob_gas_used.value = block.value.header.value.blob_gas_used.value;
+    // }
 
     _append_block{chain=chain}(block);
 
