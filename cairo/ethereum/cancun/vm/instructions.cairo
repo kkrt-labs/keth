@@ -177,6 +177,7 @@ func op_implementation{
     tempvar offset = opcode * 3 + 1;
 
     // Prepare arguments
+    // MARK: args assignment
     [ap] = process_create_message_label, ap++;
     [ap] = process_message_label, ap++;
     [ap] = range_check_ptr, ap++;
@@ -708,6 +709,9 @@ func unknown_opcode{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
     evm: Evm,
 }() -> EthereumException* {
     tempvar err = new EthereumException(InvalidOpcode);
