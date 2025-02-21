@@ -10,11 +10,12 @@ from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.registers import get_label_location
 from starkware.cairo.common.modulo import run_mod_p_circuit
-from starkware.cairo.common.uint256 import Uint256, word_reverse_endian
+from starkware.cairo.common.uint256 import Uint256, word_reverse_endian, uint256_reverse_endian
+
 from starkware.cairo.common.poseidon_state import PoseidonBuiltinState
-from starkware.cairo.common.builtin_keccak.keccak import keccak_uint256s_bigend
 
 from cairo_core.maths import unsigned_div_rem, assert_uint256_le
+from cairo_core.numeric import U256, U256Struct
 from cairo_ec.curve_utils import scalar_to_epns
 from cairo_ec.curve.g1_point import G1Point
 from cairo_ec.circuit_utils import N_LIMBS, hash_full_transcript
@@ -30,6 +31,8 @@ from cairo_ec.uint384 import (
     felt_to_uint384,
 )
 from cairo_ec.ecdsa_circuit import get_full_ecip_2P_circuit
+from cairo_core.bytes import Bytes32, Bytes32Struct
+from ethereum.cancun.fork_types import Address
 
 namespace secp256k1 {
     const CURVE_ID = CurveID.SECP256K1;
@@ -124,8 +127,9 @@ func try_recover_public_key{
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    bitwise_ptr: BitwiseBuiltin*,
 }(msg_hash: UInt384, r: UInt384, s: UInt384, y_parity: felt) -> (
-    public_key_point: G1Point, success: felt
+    public_key_x: Bytes32, public_key_y: Bytes32, success: felt
 ) {
     alloc_locals;
     let (__fp__, _) = get_fp_and_pc();
@@ -137,7 +141,9 @@ func try_recover_public_key{
 
     let (y, is_on_curve) = try_get_point_from_x(x=&r, v=y_parity, a=&a, b=&b, g=&g, p=&p);
     if (is_on_curve == 0) {
-        return (public_key_point=G1Point(x=UInt384(0, 0, 0, 0), y=UInt384(0, 0, 0, 0)), success=0);
+        tempvar public_key_x = Bytes32(new Bytes32Struct(0, 0));
+        tempvar public_key_y = Bytes32(new Bytes32Struct(0, 0));
+        return (public_key_x=public_key_x, public_key_y=public_key_y, success=0);
     }
 
     tempvar r_point = G1Point(x=r, y=[y]);
@@ -313,23 +319,17 @@ func try_recover_public_key{
         a,
         p,
     );
-    return (public_key_point=res, success=1);
-}
-// @notice Converts a public key point to the corresponding Ethereum address.
-// @param x The x coordinate of the public key point.
-// @param y The y coordinate of the public key point.
-// @return The Ethereum address, interpreted as a 20-byte big-endian value.
-func public_key_point_to_eth_address_be{
-    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*
-}(x: Uint256, y: Uint256) -> felt {
-    alloc_locals;
-    let (local elements: Uint256*) = alloc();
-    assert elements[0] = x;
-    assert elements[1] = y;
-    let (point_hash: Uint256) = keccak_uint256s_bigend(n_elements=2, elements=elements);
 
-    // The Ethereum address is the 20 least significant bytes of the keccak of the public key.
-    let (_, high_low) = unsigned_div_rem(point_hash.high, 2 ** 32);
-    let eth_address = point_hash.low + RC_BOUND * high_low;
-    return eth_address;
+    let max_value = Uint256(secp256k1.P_LOW_128 - 1, secp256k1.P_HIGH_128);
+    let x_uint256 = uint384_to_uint256(res.x);
+    assert_uint256_le(x_uint256, max_value);
+    let y_uint256 = uint384_to_uint256(res.y);
+    assert_uint256_le(y_uint256, max_value);
+
+    let (x_reversed) = uint256_reverse_endian(x_uint256);
+    let (y_reversed) = uint256_reverse_endian(y_uint256);
+
+    tempvar public_key_x = Bytes32(new Bytes32Struct(x_reversed.low, x_reversed.high));
+    tempvar public_key_y = Bytes32(new Bytes32Struct(y_reversed.low, y_reversed.high));
+    return (public_key_x=public_key_x, public_key_y=public_key_y, success=1);
 }

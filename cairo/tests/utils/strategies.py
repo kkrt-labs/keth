@@ -27,7 +27,15 @@ from ethereum.cancun.vm import Environment, Evm, Message
 from ethereum.crypto.elliptic_curve import SECP256K1N
 from ethereum.crypto.hash import Hash32
 from ethereum.exceptions import EthereumException
-from ethereum_types.bytes import Bytes0, Bytes4, Bytes8, Bytes20, Bytes32, Bytes256
+from ethereum_types.bytes import (
+    Bytes0,
+    Bytes4,
+    Bytes8,
+    Bytes20,
+    Bytes32,
+    Bytes64,
+    Bytes256,
+)
 from ethereum_types.numeric import U64, U256, FixedUnsigned, Uint
 from hypothesis import strategies as st
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
@@ -65,6 +73,9 @@ bytes8 = st.integers(min_value=0, max_value=2**64 - 1).map(
 )
 bytes20 = st.integers(min_value=0, max_value=2**160 - 1).map(
     lambda x: Bytes20(x.to_bytes(20, "little"))
+)
+bytes64 = st.integers(min_value=0, max_value=2**512 - 1).map(
+    lambda x: Bytes64(x.to_bytes(64, "little"))
 )
 address = bytes20.map(Address)
 address_zero = Bytes20(b"\x00" * 20)
@@ -511,6 +522,7 @@ def register_type_strategies():
     st.register_type_strategy(Bytes20, bytes20)
     st.register_type_strategy(Address, address)
     st.register_type_strategy(Bytes32, bytes32)
+    st.register_type_strategy(Bytes64, bytes64)
     st.register_type_strategy(Hash32, hash32)
     st.register_type_strategy(Root, root)
     st.register_type_strategy(Bytes256, bytes256)
