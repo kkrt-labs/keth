@@ -15,8 +15,9 @@ import logging
 import pickle
 from pathlib import Path
 from time import perf_counter
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple
 
+import pytest
 from starkware.cairo.lang.compiler.cairo_compile import DEFAULT_PRIME
 from starkware.cairo.lang.compiler.scoped_name import ScopedName
 
@@ -28,11 +29,15 @@ logging.basicConfig(
 logger = logging.getLogger()
 
 
-def get_cairo_files(location: Union[str, Path]) -> List[Path]:
+def resolve_cairo_file(
+    fspath: Path,
+    item: pytest.Item,
+) -> List[Path]:
     """
-    Locate the Cairo file corresponding to a Python test file.
+    Resolve Cairo source files by checking for a cairo_file marker,
+    then falling back to the default resolution.
 
-    Resolution Strategy:
+    Default Resolution Strategy:
     1. Look for xxx.cairo in main codebase
     2. Look for test_xxx.cairo in main codebase
     3. Raise if none found
@@ -40,19 +45,61 @@ def get_cairo_files(location: Union[str, Path]) -> List[Path]:
 
     This allows writing Python tests without creating Cairo test files,
     leveraging the automatic type conversion system.
+
+    Args:
+        fspath: The path to the test file
+        item: The test item being processed
+
+    Returns:
+        List of resolved Cairo file paths
     """
-    output = []
-    test_cairo_file = Path(location).with_suffix(".cairo")
-    main_cairo_file = Path(
-        str(test_cairo_file).replace("/tests", "").replace("/test_", "/")
-    )
-    if main_cairo_file.exists():
-        output.append(main_cairo_file)
-    if test_cairo_file.exists():
-        output.append(test_cairo_file)
-    if not output:
-        raise ValueError(f"Missing cairo file: {main_cairo_file}")
-    return output
+    files = []
+
+    # Check for cairo_file marker
+    marker = item.get_closest_marker("cairo_file")
+    if marker:
+        try:
+            path = Path(marker.args[0])
+            if not isinstance(path, Path):
+                path = Path(path)
+
+            if not path.is_absolute():
+                path = Path.cwd() / path
+
+            if not path.exists():
+                raise FileNotFoundError(
+                    f"cairo_file marker points to non-existent path: {path}"
+                )
+
+            files.append(path)
+
+        except Exception as exc:
+            logger.warning(
+                f"Failed to resolve Cairo path using marker for {fspath} ({exc}), "
+                "falling back to standard resolution."
+            )
+
+    # Fall back to standard resolution if marker not found or invalid
+    if not files:
+        try:
+            test_cairo_file = Path(fspath).with_suffix(".cairo")
+            main_cairo_file = Path(
+                str(test_cairo_file).replace("/tests", "").replace("/test_", "/")
+            )
+            if main_cairo_file.exists():
+                files.append(main_cairo_file)
+            if test_cairo_file.exists():
+                files.append(test_cairo_file)
+            if not files:
+                raise ValueError(f"Missing cairo file: {main_cairo_file}")
+            return files
+        except ValueError as exc:
+            raise ValueError(
+                f"Could not resolve Cairo files for {fspath}. "
+                f"Marker resolution failed and standard resolution failed: {exc}"
+            ) from exc
+
+    return files
 
 
 def get_main_path(cairo_file: Optional[str]) -> Optional[Tuple[str]]:

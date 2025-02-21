@@ -8,6 +8,7 @@ from ethereum_types.bytes import (
     ListBytes4,
     ListBytes4Struct,
     Bytes32Struct,
+    Bytes256,
 )
 from ethereum_types.numeric import bool
 from starkware.cairo.common.alloc import alloc
@@ -188,6 +189,15 @@ func Bytes32_to_Bytes{range_check_ptr}(src: Bytes32) -> Bytes {
     return res;
 }
 
+func Bytes32__eq__(a: Bytes32, b: Bytes32) -> bool {
+    if (a.value.low == b.value.low and a.value.high == b.value.high) {
+        tempvar res = bool(1);
+        return res;
+    }
+    tempvar res = bool(0);
+    return res;
+}
+
 func Bytes8_to_Bytes{range_check_ptr}(src: Bytes8) -> Bytes {
     alloc_locals;
     let (buffer: felt*) = alloc();
@@ -212,4 +222,10 @@ func Bytes_to_Bytes32{range_check_ptr}(src: Bytes) -> Bytes32 {
     let high = bytes_to_felt_le(high_len, src.value.data + 16);
     tempvar res = Bytes32(new Bytes32Struct(low=low, high=high));
     return res;
+}
+
+func Bytes256__eq__(a: Bytes256, b: Bytes256) -> bool {
+    tempvar a_bytes = Bytes(new BytesStruct(data=a.value, len=256));
+    tempvar b_bytes = Bytes(new BytesStruct(data=b.value, len=256));
+    return Bytes__eq__(a_bytes, b_bytes);
 }

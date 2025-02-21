@@ -41,6 +41,7 @@ from ethereum.cancun.blocks import (
     TupleLogStruct,
     Block,
     ListBlock,
+    ListBlockStruct,
     TupleHeader,
     TupleUnionBytesLegacyTransaction,
     TupleWithdrawal,
@@ -147,21 +148,15 @@ from ethereum.cancun.transactions import (
     decode_transaction,
 )
 from ethereum.cancun.utils.message import prepare_message
-from ethereum.cancun.vm import (
-    Environment,
-    EnvImpl,
-    EnvironmentStruct,
-    Message,
-    MessageStruct,
-    EvmStruct,
-    OptionalEvm,
-)
+from ethereum.cancun.vm.evm_impl import Evm, EvmStruct, Message, MessageStruct, OptionalEvm
+from ethereum.cancun.vm.env_impl import Environment, EnvironmentStruct, EnvImpl
 from ethereum.cancun.vm.exceptions import EthereumException, InvalidBlock
 from ethereum.cancun.vm.gas import (
     calculate_data_fee,
     init_code_cost,
     calculate_total_blob_gas,
     calculate_blob_gas_price,
+    calculate_excess_blob_gas,
 )
 from ethereum.cancun.vm.interpreter import process_message_call, MessageCallOutput
 from ethereum.crypto.hash import keccak256, Hash32
@@ -169,6 +164,7 @@ from ethereum.exceptions import OptionalEthereumException
 from ethereum.utils.numeric import (
     divmod,
     min,
+    max,
     U256_add,
     U256_sub,
     U256__eq__,
@@ -179,7 +175,7 @@ from ethereum.utils.numeric import (
 )
 from ethereum.cancun.transactions import recover_sender
 from ethereum.cancun.vm.instructions.block import _append_logs
-from ethereum.utils.bytes import Bytes32_to_Bytes
+from ethereum.utils.bytes import Bytes32_to_Bytes, Bytes32__eq__, Bytes256__eq__
 from cairo_core.comparison import is_zero
 
 from legacy.utils.array import count_not_zero
@@ -189,8 +185,8 @@ const ELASTICITY_MULTIPLIER = 2;
 const BASE_FEE_MAX_CHANGE_DENOMINATOR = 8;
 const GAS_LIMIT_ADJUSTMENT_FACTOR = 1024;
 const GAS_LIMIT_MINIMUM = 5000;
-const EMPTY_OMMER_HASH_LOW = 0xd312451b948a7413f0a142fd40d49347;
-const EMPTY_OMMER_HASH_HIGH = 0x1dcc4de8dec75d7aab85b567b6ccd41a;
+const EMPTY_OMMER_HASH_LOW = 0x1ad4ccb667b585ab7a5dc7dee84dcc1d;
+const EMPTY_OMMER_HASH_HIGH = 0x4793d440fd42a1f013748a941b4512d3;
 const VERSIONED_HASH_VERSION_KZG = 0x01;
 // https://github.com/ethereum/EIPs/blob/master/EIPS/eip-4788.md
 const SYSTEM_ADDRESS = 0xFEFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
@@ -271,6 +267,7 @@ func calculate_base_fee_per_gas{range_check_ptr}(
 func validate_header{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*}(
     header: Header, parent_header: Header
 ) {
+    alloc_locals;
     with_attr error_message("InvalidBlock") {
         assert [range_check_ptr] = header.value.gas_limit.value - header.value.gas_used.value;
         let range_check_ptr = range_check_ptr + 1;
@@ -292,7 +289,7 @@ func validate_header{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: 
         );
         assert number_is_valid = 1;
 
-        let extra_data_is_valid = is_zero(32 - header.value.extra_data.value.len);
+        let extra_data_is_valid = is_le(header.value.extra_data.value.len, 32);
         assert extra_data_is_valid = 1;
 
         assert header.value.difficulty.value = 0;
@@ -303,7 +300,8 @@ func validate_header{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: 
         assert header.value.ommers_hash.value.high = EMPTY_OMMER_HASH_HIGH;
 
         let parent_block_hash = keccak256_header(parent_header);
-        assert header.value.parent_hash = parent_block_hash;
+        let are_equal = Bytes32__eq__(header.value.parent_hash, parent_block_hash);
+        assert are_equal.value = 1;
     }
     return ();
 }
@@ -1275,8 +1273,7 @@ func _apply_body_inner{
         encoded_index, OptionalUnionBytesReceipt(receipt.value)
     );
 
-    let new_logs = receipt.value.receipt.value.logs;
-    _append_logs{logs=block_logs}(new_logs);
+    _append_logs{logs=block_logs}(logs);
     let tx_blob_gas = calculate_total_blob_gas(tx);
     tempvar blob_gas_used = Uint(blob_gas_used.value + tx_blob_gas.value);
 
@@ -1340,4 +1337,105 @@ func _process_withdrawals_inner{
     }
 
     return _process_withdrawals_inner{state=state, trie=trie}(index + 1, withdrawals);
+}
+
+func state_transition{
+    range_check_ptr,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    chain: BlockChain,
+}(block: Block) {
+    alloc_locals;
+
+    let parent_header = chain.value.blocks.value.data[
+        chain.value.blocks.value.len - 1
+    ].value.header;
+
+    let excess_blob_gas = calculate_excess_blob_gas(parent_header);
+    with_attr error_message("InvalidBlock") {
+        assert block.value.header.value.excess_blob_gas = excess_blob_gas;
+    }
+
+    validate_header(block.value.header, parent_header);
+
+    with_attr error_message("InvalidBlock") {
+        assert block.value.ommers.value.len = 0;
+    }
+
+    let state = chain.value.state;
+    let block_hashes = get_last_256_block_hashes(chain);
+    let output = apply_body{state=state}(
+        block_hashes,
+        block.value.header.value.coinbase,
+        block.value.header.value.number,
+        block.value.header.value.base_fee_per_gas,
+        block.value.header.value.gas_limit,
+        block.value.header.value.timestamp,
+        block.value.header.value.prev_randao,
+        block.value.transactions,
+        chain.value.chain_id,
+        block.value.withdrawals,
+        block.value.header.value.parent_beacon_block_root,
+        excess_blob_gas,
+    );
+
+    // rebind state
+    tempvar chain = BlockChain(
+        new BlockChainStruct(blocks=chain.value.blocks, state=state, chain_id=chain.value.chain_id)
+    );
+
+    with_attr error_message("InvalidBlock") {
+        assert output.value.block_gas_used = block.value.header.value.gas_used;
+
+        let transactions_root_equal = Bytes32__eq__(
+            output.value.transactions_root, block.value.header.value.transactions_root
+        );
+        assert transactions_root_equal.value = 1;
+
+        let state_root_equal = Bytes32__eq__(
+            output.value.state_root, block.value.header.value.state_root
+        );
+        assert state_root_equal.value = 1;
+
+        let receipt_root_equal = Bytes32__eq__(
+            output.value.receipt_root, block.value.header.value.receipt_root
+        );
+        assert receipt_root_equal.value = 1;
+
+        let logs_bloom_equal = Bytes256__eq__(
+            output.value.block_logs_bloom, block.value.header.value.bloom
+        );
+        assert logs_bloom_equal.value = 1;
+
+        let withdrawals_root_equal = Bytes32__eq__(
+            output.value.withdrawals_root, block.value.header.value.withdrawals_root
+        );
+        assert withdrawals_root_equal.value = 1;
+
+        assert output.value.blob_gas_used.value = block.value.header.value.blob_gas_used.value;
+    }
+
+    _append_block{chain=chain}(block);
+
+    return ();
+}
+
+func _append_block{range_check_ptr, chain: BlockChain}(block: Block) {
+    assert chain.value.blocks.value.data[chain.value.blocks.value.len] = block;
+    tempvar chain = BlockChain(
+        new BlockChainStruct(
+            blocks=ListBlock(
+                new ListBlockStruct(
+                    data=chain.value.blocks.value.data, len=chain.value.blocks.value.len + 1
+                ),
+            ),
+            state=chain.value.state,
+            chain_id=chain.value.chain_id,
+        ),
+    );
+    return ();
 }

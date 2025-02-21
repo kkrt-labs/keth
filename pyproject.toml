@@ -35,6 +35,8 @@ dev-dependencies = [
   "pydantic>=2.9.1",
   "polars>=1.18.0",
   "pyinstrument>=5.0.0",
+  "gitpython>=3.1.44",
+  "filelock>=3.17.0",
 ]
 
 [tool.uv.sources]
@@ -161,6 +163,7 @@ markers = [
   "SLOAD",
   "NoCI",
   "slow",
+  "cairo_file(path): mark test with cairo source file path to compile",
 ]
 norecursedirs = ".* tests/ef_tests/test_data"
 addopts = [

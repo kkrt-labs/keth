@@ -227,3 +227,9 @@ class TestNumeric:
     def test_U256_from_felt(self, cairo_run, value: Uint):
         result = cairo_run("U256_from_Uint", value)
         assert result == U256(value)
+
+    @given(a=uint256, b=uint256)
+    def test_u256_min(self, cairo_run, a: U256, b: U256):
+        result = cairo_run("U256_min", a, b)
+        expected = min(a, b)
+        assert result == expected

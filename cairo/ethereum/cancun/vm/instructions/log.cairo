@@ -2,7 +2,7 @@ from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin, PoseidonBuiltin
 
 from ethereum.cancun.vm.stack import pop
-from ethereum.cancun.vm import Evm, EvmImpl
+from ethereum.cancun.vm.evm_impl import Evm, EvmImpl
 from ethereum.exceptions import EthereumException
 from ethereum.cancun.vm.exceptions import WriteInStaticContext, OutOfGasError
 from ethereum.cancun.vm.memory import memory_read_bytes, expand_by
