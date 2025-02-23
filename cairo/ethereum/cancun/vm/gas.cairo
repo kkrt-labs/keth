@@ -4,7 +4,8 @@ from ethereum_types.bytes import BytesStruct
 from ethereum.cancun.blocks import Header
 from ethereum.cancun.transactions_types import Transaction
 from ethereum_types.others import ListTupleU256U256, TupleU256U256
-from ethereum.cancun.vm import Evm, EvmStruct, EvmImpl
+from ethereum.cancun.vm.evm_impl import Evm, EvmStruct
+from ethereum.cancun.vm.evm_impl import EvmImpl
 from ethereum.exceptions import EthereumException
 from ethereum.cancun.vm.exceptions import OutOfGasError
 from ethereum.cancun.vm.memory import Memory
@@ -248,6 +249,10 @@ func init_code_cost{range_check_ptr}(init_code_length: Uint) -> Uint {
 func calculate_excess_blob_gas{range_check_ptr}(parent_header: Header) -> U64 {
     let parent_blob_gas = parent_header.value.excess_blob_gas.value +
         parent_header.value.blob_gas_used.value;
+    let is_within_bounds = is_le(parent_blob_gas, 2 ** 64 - 1);
+    with_attr error_message("OverflowError") {
+        assert is_within_bounds = 1;
+    }
     let cond = is_le(parent_blob_gas, GasConstants.TARGET_BLOB_GAS_PER_BLOCK - 1);
     if (cond == 1) {
         let excess_blob_gas = U64(0);

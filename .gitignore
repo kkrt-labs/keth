@@ -42,3 +42,6 @@ prof
 *.csv
 *.so
 codecov
+
+# EF-Tests fixtures
+cairo/tests/ef_tests/fixtures/

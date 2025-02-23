@@ -15,7 +15,7 @@ from ethereum.cancun.vm.interpreter import process_create_message, process_messa
 from ethereum_types.numeric import U256, Uint, bool
 from ethereum.cancun.fork_types import Address
 from ethereum.cancun.vm.exceptions import EthereumException
-from ethereum.cancun.vm import Evm
+from ethereum.cancun.vm.evm_impl import Evm
 
 func test_generic_create{
     range_check_ptr,

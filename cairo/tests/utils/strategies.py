@@ -6,22 +6,36 @@ from typing import (
     ForwardRef,
     Generic,
     Optional,
-    Sequence,
     Tuple,
-    TypeAlias,
     TypeVar,
     Union,
     get_args,
     get_origin,
 )
-from unittest.mock import patch
 
 from eth_keys.datatypes import PrivateKey
-from ethereum.cancun.trie import copy_trie
+from ethereum.cancun.blocks import Header, Log, Receipt, Withdrawal
+from ethereum.cancun.fork_types import Account, Address, Bloom, Root
+from ethereum.cancun.transactions import (
+    AccessListTransaction,
+    BlobTransaction,
+    FeeMarketTransaction,
+    LegacyTransaction,
+)
+from ethereum.cancun.trie import BranchNode, ExtensionNode, LeafNode, Trie, copy_trie
 from ethereum.cancun.vm import Environment, Evm, Message
 from ethereum.crypto.elliptic_curve import SECP256K1N
+from ethereum.crypto.hash import Hash32
 from ethereum.exceptions import EthereumException
-from ethereum_types.bytes import Bytes0, Bytes4, Bytes8, Bytes20, Bytes32, Bytes256
+from ethereum_types.bytes import (
+    Bytes0,
+    Bytes4,
+    Bytes8,
+    Bytes20,
+    Bytes32,
+    Bytes64,
+    Bytes256,
+)
 from ethereum_types.numeric import U64, U256, FixedUnsigned, Uint
 from hypothesis import strategies as st
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
@@ -35,23 +49,6 @@ from tests.utils.args_gen import (
     VersionedHash,
 )
 from tests.utils.constants import BLOCK_GAS_LIMIT, MAX_BLOB_GAS_PER_BLOCK
-
-# Mock the Extended type because hypothesis cannot handle the RLP Protocol
-# Needs to be done before importing the types from ethereum.cancun.trie
-# trunk-ignore(ruff/F821)
-MockExtended: TypeAlias = Union[Sequence["Extended"], bytearray, bytes, Uint, FixedUnsigned, str, bool]  # type: ignore
-patch("ethereum_rlp.rlp.Extended", MockExtended).start()
-
-from ethereum.cancun.blocks import Header, Log, Receipt, Withdrawal
-from ethereum.cancun.fork_types import Account, Address, Bloom, Root
-from ethereum.cancun.transactions import (
-    AccessListTransaction,
-    BlobTransaction,
-    FeeMarketTransaction,
-    LegacyTransaction,
-)
-from ethereum.cancun.trie import BranchNode, ExtensionNode, LeafNode, Trie
-from ethereum.crypto.hash import Hash32
 
 # Base types
 # The EELS uses a Uint type different from U64, but Reth uses U64.
@@ -76,6 +73,9 @@ bytes8 = st.integers(min_value=0, max_value=2**64 - 1).map(
 )
 bytes20 = st.integers(min_value=0, max_value=2**160 - 1).map(
     lambda x: Bytes20(x.to_bytes(20, "little"))
+)
+bytes64 = st.integers(min_value=0, max_value=2**512 - 1).map(
+    lambda x: Bytes64(x.to_bytes(64, "little"))
 )
 address = bytes20.map(Address)
 address_zero = Bytes20(b"\x00" * 20)
@@ -116,8 +116,9 @@ MAX_ACCOUNTS_TO_DELETE_SIZE = int(
 MAX_TOUCHED_ACCOUNTS_SIZE = int(os.getenv("HYPOTHESIS_MAX_TOUCHED_ACCOUNTS_SIZE", 10))
 MAX_TUPLE_SIZE = int(os.getenv("HYPOTHESIS_MAX_TUPLE_SIZE", 20))
 
-small_bytes = st.binary(min_size=0, max_size=256)
-code = st.binary(min_size=0, max_size=MAX_CODE_SIZE)
+
+small_bytes = st.binary(max_size=256)
+code = st.binary(max_size=MAX_CODE_SIZE)
 pc = st.integers(min_value=0, max_value=MAX_CODE_SIZE * 2).map(Uint)
 
 # See ethereum_rlp.rlp.Simple and ethereum_rlp.rlp.Extended for the definition of Simple and Extended
@@ -244,7 +245,7 @@ accessed_storage_keys = st.sets(
 # Versions strategies with less data in collections
 memory_lite_size = 512
 memory_lite = (
-    st.binary(min_size=0, max_size=memory_lite_size)
+    st.binary(max_size=memory_lite_size)
     .map(lambda x: x + b"\x00" * ((32 - len(x) % 32) % 32))
     .map(Memory)
 )
@@ -341,7 +342,7 @@ valid_jump_destinations_lite = st.sets(uint, max_size=MAX_JUMP_DESTINATIONS_SET_
 # memory size must be a multiple of 32
 memory_size = 2**13
 memory = (
-    st.binary(min_size=0, max_size=memory_size)
+    st.binary(max_size=memory_size)
     .map(lambda x: x + b"\x00" * ((32 - len(x) % 32) % 32))
     .map(Memory)
 )
@@ -423,6 +424,20 @@ empty_state = st.builds(
     created_accounts=st.builds(set, st.just(set())),
 )
 
+# https://github.com/ethereum/EIPs/blob/master/EIPS/eip-4788.md
+SYSTEM_ADDRESS = Address(
+    bytes.fromhex("fffffffffffffffffffffffffffffffffffffffe")  # cspell:disable-line
+)
+BEACON_ROOTS_ADDRESS = Address(
+    bytes.fromhex("000F3df6D732807Ef1319fB7B8bB8522d0Beac02")
+)
+BEACON_ROOTS_CODE = bytes.fromhex(
+    "3373fffffffffffffffffffffffffffffffffffffffe14604d57602036146024575f5ffd5b5f35801560495762001fff810690815414603c575f5ffd5b62001fff01545f5260205ff35b5f5ffd5b62001fff42064281555f359062001fff015500"
+)
+
+# Create the special accounts
+SYSTEM_ACCOUNT = Account(balance=U256(0), nonce=Uint(0), code=bytes())
+BEACON_ROOTS_ACCOUNT = Account(balance=U256(0), nonce=Uint(1), code=BEACON_ROOTS_CODE)
 
 state = st.lists(address, max_size=MAX_ADDRESS_SET_SIZE, unique=True).flatmap(
     lambda addresses: st.builds(
@@ -432,7 +447,7 @@ state = st.lists(address, max_size=MAX_ADDRESS_SET_SIZE, unique=True).flatmap(
             secured=st.just(True),
             default=st.none(),
             _data=st.fixed_dictionaries(
-                {address: st.from_type(Account) for address in addresses},
+                {address: st.from_type(Account) for address in addresses}
             ).map(lambda x: defaultdict(lambda: None, x)),
         ),
         # Storage tries are not always present for existing accounts
@@ -507,6 +522,7 @@ def register_type_strategies():
     st.register_type_strategy(Bytes20, bytes20)
     st.register_type_strategy(Address, address)
     st.register_type_strategy(Bytes32, bytes32)
+    st.register_type_strategy(Bytes64, bytes64)
     st.register_type_strategy(Hash32, hash32)
     st.register_type_strategy(Root, root)
     st.register_type_strategy(Bytes256, bytes256)

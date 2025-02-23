@@ -64,6 +64,18 @@ uv run pytest <optional pytest args>
 Some tests require to compile solidity code, which requires `forge` to be
 installed, and `foundry` to be in the path, and to run `forge build`.
 
+#### Ethereum Tests
+
+We adapted the testing framework from the
+[Ethereum Execution Specs](https://github.com/ethereum/execution-specs) to be
+able to run on Keth. These tests are located in the `cairo/tests/ef_tests`
+directory. For now, only the State Transition tests are implemented. You can run
+them with:
+
+```bash
+uv run pytest cairo/tests/ef_tests/cancun/test_state_transition.py
+```
+
 ### Updating Rust dependencies
 
 Any changes to the rust code requires a re-build and re-install of the python
@@ -91,3 +103,5 @@ Coming soon 🏗️.
 ## Acknowledgements
 
 - Herodotus: thanks to Herodotus team for SHARP SDK libraries.
+- Ethereum Foundation: We are grateful to the Ethereum Foundation for the python
+  execution specs and tests.

@@ -46,7 +46,7 @@ jobs:
 
       - name: Run tests
         run: |
-          uv run --reinstall pytest -n logical --durations=0 -v -s --no-skip-cached-tests --log-cli-level=DEBUG
+          uv run --reinstall pytest -n logical --durations=0 -v -s --no-skip-cached-tests --log-cli-level=DEBUG --ignore-glob=cairo/tests/ef_tests/*
 
       - name: Upload coverage
         uses: codecov/codecov-action@v5

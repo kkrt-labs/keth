@@ -58,6 +58,7 @@ def strict_raises(expected_exception: Type[Exception], match: Optional[str] = No
 
 def map_to_python_exception(e: Exception):
     import ethereum.exceptions as eth_exceptions
+    import ethereum_rlp.exceptions as rlp_exceptions
 
     error_str = str(e)
 
@@ -71,7 +72,9 @@ def map_to_python_exception(e: Exception):
 
     # Get the exception class from python's builtins or ethereum's exceptions
     exception_class = __builtins__.get(
-        error_type, getattr(eth_exceptions, error_type, None)
+        error_type,
+        getattr(eth_exceptions, error_type, None)
+        or getattr(rlp_exceptions, error_type, None),
     )
     if isinstance(exception_class, type) and issubclass(exception_class, Exception):
         raise exception_class() from e
