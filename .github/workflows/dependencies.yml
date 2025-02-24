@@ -41,14 +41,34 @@ jobs:
         run: |
           git config --global user.name "kkrt-bot"
           git config --global user.email "kkrt-bot@users.noreply.github.com"
-          echo "${{ secrets.KAKAROT_BOT_GPG_KEY }}" | gpg --import
-          git config --global user.signingkey $(gpg --list-secret-keys --keyid-format LONG | grep -oP '(?<=sec\s+rsa\d+\/)[A-Z0-9]+' | head -1)
+          # Check if the secret is empty
+          if [ -z "${{ secrets.KAKAROT_BOT_GPG_KEY }}" ]; then
+            echo "Error: KAKAROT_BOT_GPG_KEY is empty or not set"
+            exit 1
+          fi
+          # Debug: Print the first few lines of the key
+          echo "${{ secrets.KAKAROT_BOT_GPG_KEY }}" | head -n 5
+          # Import the GPG key
+          echo "${{ secrets.KAKAROT_BOT_GPG_KEY }}" | gpg --import --batch --yes --verbose || {
+            echo "Error: GPG key import failed"
+            gpg --version
+            exit 1
+          }
+          # List imported keys for debugging
+          gpg --list-secret-keys --keyid-format LONG
+          # Extract the signing key ID using awk
+          SIGNING_KEY=$(gpg --list-secret-keys --keyid-format LONG | awk '/^sec/{print $2}' | cut -d'/' -f2 | head -1)
+          if [ -z "$SIGNING_KEY" ]; then
+            echo "Error: No valid signing key found"
+            exit 1
+          fi
+          git config --global user.signingkey "$SIGNING_KEY"
           git config --global commit.gpgsign true
+          echo "Git configured with signing key: $SIGNING_KEY"
 
       - uses: dtolnay/rust-toolchain@nightly
 
       - name: Cargo update
-        # Remove first line that always just says "Updating crates.io index"
         run: |
           cargo update --color never 2>&1 | sed '/crates.io index/d' | tee -a cargo_update.log
 
@@ -56,11 +76,9 @@ jobs:
         id: msg
         run: |
           export cargo_update_log="$(cat cargo_update.log)"
-
           echo "commit_message<<EOF" >> $GITHUB_OUTPUT
           printf "$TITLE\n\n$cargo_update_log\n" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
-
           echo "body<<EOF" >> $GITHUB_OUTPUT
           echo "$BODY" | envsubst >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
@@ -82,7 +100,6 @@ jobs:
           body: ${{ steps.msg.outputs.body }}
           branch: ${{ env.BRANCH }}
           delete-branch: true
-          author: "kkrt-bot <kkrt-bot@users.noreply.github.com>"
 
   update-python-deps:
     name: Update Python Dependencies
@@ -110,9 +127,30 @@ jobs:
         run: |
           git config --global user.name "kkrt-bot"
           git config --global user.email "kkrt-bot@users.noreply.github.com"
-          echo "${{ secrets.KAKAROT_BOT_GPG_KEY }}" | gpg --import
-          git config --global user.signingkey $(gpg --list-secret-keys --keyid-format LONG | grep -oP '(?<=sec\s+rsa\d+\/)[A-Z0-9]+' | head -1)
+          # Check if the secret is empty
+          if [ -z "${{ secrets.KAKAROT_BOT_GPG_KEY }}" ]; then
+            echo "Error: KAKAROT_BOT_GPG_KEY is empty or not set"
+            exit 1
+          fi
+          # Debug: Print the first few lines of the key
+          echo "${{ secrets.KAKAROT_BOT_GPG_KEY }}" | head -n 5
+          # Import the GPG key
+          echo "${{ secrets.KAKAROT_BOT_GPG_KEY }}" | gpg --import --batch --yes --verbose || {
+            echo "Error: GPG key import failed"
+            gpg --version
+            exit 1
+          }
+          # List imported keys for debugging
+          gpg --list-secret-keys --keyid-format LONG
+          # Extract the signing key ID using awk
+          SIGNING_KEY=$(gpg --list-secret-keys --keyid-format LONG | awk '/^sec/{print $2}' | cut -d'/' -f2 | head -1)
+          if [ -z "$SIGNING_KEY" ]; then
+            echo "Error: No valid signing key found"
+            exit 1
+          fi
+          git config --global user.signingkey "$SIGNING_KEY"
           git config --global commit.gpgsign true
+          echo "Git configured with signing key: $SIGNING_KEY"
 
       - uses: astral-sh/setup-uv@v3
         with:
@@ -130,11 +168,9 @@ jobs:
         id: msg
         run: |
           export uv_update_log="$(cat uv_update.log)"
-
           echo "commit_message<<EOF" >> $GITHUB_OUTPUT
           printf "chore(deps): update ethereum execution-specs\n\n$uv_update_log\n" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
-
           echo "body<<EOF" >> $GITHUB_OUTPUT
           echo "Automation to keep ethereum execution-specs dependency current.
 
@@ -167,4 +203,3 @@ jobs:
           branch: "${{ env.BRANCH }}"
           labels: dependencies
           delete-branch: true
-          author: "kkrt-bot <kkrt-bot@users.noreply.github.com>"
