@@ -90,7 +90,7 @@ jobs:
           body: ${{ steps.msg.outputs.body }}
           branch: ${{ env.BRANCH }}
           delete-branch: true
-          author: "kkrt-bot <kkrt-bot@users.noreply.github.com>"
+          author: kkrt-bot <kkrt-bot@users.noreply.github.com>
 
   update-python-deps:
     name: Update Python Dependencies
@@ -184,4 +184,4 @@ jobs:
           branch: "${{ env.BRANCH }}"
           labels: dependencies
           delete-branch: true
-          author: "kkrt-bot <kkrt-bot@users.noreply.github.com>"
+          author: kkrt-bot <kkrt-bot@users.noreply.github.com>
