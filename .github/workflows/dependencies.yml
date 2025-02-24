@@ -1,4 +1,4 @@
-# Runs `cargo update` periodically.
+# Runs `cargo update` and Python dependency updates periodically.
 
 name: Update Dependencies
 
@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   update-rust-deps:
-    name: Update
+    name: Update Rust Dependencies
     runs-on: ubuntu-latest
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -36,10 +36,29 @@ jobs:
         </details>
     steps:
       - uses: actions/checkout@v4
+
+      - name: Configure Git for kkrt-bot
+        run: |
+          git config --global user.name "kkrt-bot"
+          git config --global user.email "kkrt-bot@users.noreply.github.com"
+          # Create and secure .gnupg directory
+          mkdir -p ~/.gnupg
+          chmod 700 ~/.gnupg
+          # Configure GPG for non-interactive use
+          echo "no-tty" > ~/.gnupg/gpg.conf
+          echo "batch" >> ~/.gnupg/gpg.conf
+          echo "pinentry-mode loopback" >> ~/.gnupg/gpg.conf
+          # Import the GPG key
+          echo "${{ secrets.KAKAROT_BOT_GPG_KEY }}" | gpg --import --batch --yes
+          # Extract the signing key ID
+          SIGNING_KEY=$(gpg --list-secret-keys --keyid-format LONG | awk '/^sec/{print $2}' | cut -d'/' -f2 | head -1)
+          git config --global user.signingkey "$SIGNING_KEY"
+          git config --global commit.gpgsign true
+          echo "Git configured with signing key: $SIGNING_KEY"
+
       - uses: dtolnay/rust-toolchain@nightly
 
       - name: Cargo update
-        # Remove first line that always just says "Updating crates.io index"
         run: |
           cargo update --color never 2>&1 | sed '/crates.io index/d' | tee -a cargo_update.log
 
@@ -47,11 +66,9 @@ jobs:
         id: msg
         run: |
           export cargo_update_log="$(cat cargo_update.log)"
-
           echo "commit_message<<EOF" >> $GITHUB_OUTPUT
           printf "$TITLE\n\n$cargo_update_log\n" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
-
           echo "body<<EOF" >> $GITHUB_OUTPUT
           echo "$BODY" | envsubst >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
@@ -73,9 +90,10 @@ jobs:
           body: ${{ steps.msg.outputs.body }}
           branch: ${{ env.BRANCH }}
           delete-branch: true
+          author: kkrt-bot <kkrt-bot@users.noreply.github.com>
 
   update-python-deps:
-    name: Update
+    name: Update Python Dependencies
     runs-on: ubuntu-latest
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -96,6 +114,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Configure Git for kkrt-bot
+        run: |
+          git config --global user.name "kkrt-bot"
+          git config --global user.email "kkrt-bot@users.noreply.github.com"
+          # Create and secure .gnupg directory
+          mkdir -p ~/.gnupg
+          chmod 700 ~/.gnupg
+          # Configure GPG for non-interactive use
+          echo "no-tty" > ~/.gnupg/gpg.conf
+          echo "batch" >> ~/.gnupg/gpg.conf
+          echo "pinentry-mode loopback" >> ~/.gnupg/gpg.conf
+          # Import the GPG key
+          echo "${{ secrets.KAKAROT_BOT_GPG_KEY }}" | gpg --import --batch --yes
+          # Extract the signing key ID
+          SIGNING_KEY=$(gpg --list-secret-keys --keyid-format LONG | awk '/^sec/{print $2}' | cut -d'/' -f2 | head -1)
+          git config --global user.signingkey "$SIGNING_KEY"
+          git config --global commit.gpgsign true
+          echo "Git configured with signing key: $SIGNING_KEY"
+
       - uses: astral-sh/setup-uv@v3
         with:
           enable-cache: true
@@ -112,11 +149,9 @@ jobs:
         id: msg
         run: |
           export uv_update_log="$(cat uv_update.log)"
-
           echo "commit_message<<EOF" >> $GITHUB_OUTPUT
           printf "chore(deps): update ethereum execution-specs\n\n$uv_update_log\n" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
-
           echo "body<<EOF" >> $GITHUB_OUTPUT
           echo "Automation to keep ethereum execution-specs dependency current.
 
@@ -149,3 +184,4 @@ jobs:
           branch: "${{ env.BRANCH }}"
           labels: dependencies
           delete-branch: true
+          author: kkrt-bot <kkrt-bot@users.noreply.github.com>

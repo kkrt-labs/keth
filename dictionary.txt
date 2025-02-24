@@ -245,3 +245,7 @@ fixturemanager
 ethtest
 mult
 altbn
+pinentry
+keyid
+signingkey
+gpgsign
