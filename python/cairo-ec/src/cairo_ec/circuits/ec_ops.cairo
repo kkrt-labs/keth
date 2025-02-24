@@ -299,3 +299,200 @@ func ecip_2p(
 
     end:
 }
+
+// @dev Verify that Q = k*P
+// It verifies that the equation (3) from the paper
+// "Zero Knowledge Proofs of Elliptic Curve Inner Products
+// from Principal Divisors and Weil Reciprocity", by Liam Eagen
+// (source: https://eprint.iacr.org/2022/596.pdf, p.9) holds.
+func ecip_1p(
+    div_a_coeff_0: felt,
+    div_a_coeff_1: felt,
+    div_a_coeff_2: felt,
+    div_a_coeff_3: felt,
+    div_b_coeff_0: felt,
+    div_b_coeff_1: felt,
+    div_b_coeff_2: felt,
+    div_b_coeff_3: felt,
+    div_b_coeff_4: felt,
+    div_c_coeff_0: felt,
+    div_c_coeff_1: felt,
+    div_c_coeff_2: felt,
+    div_c_coeff_3: felt,
+    div_c_coeff_4: felt,
+    div_d_coeff_0: felt,
+    div_d_coeff_1: felt,
+    div_d_coeff_2: felt,
+    div_d_coeff_3: felt,
+    div_d_coeff_4: felt,
+    div_d_coeff_5: felt,
+    div_d_coeff_6: felt,
+    div_d_coeff_7: felt,
+    x_g: felt,
+    y_g: felt,
+    ep1_low: felt,
+    en1_low: felt,
+    sp1_low: felt,
+    sn1_low: felt,
+    ep1_high: felt,
+    en1_high: felt,
+    sp1_high: felt,
+    sn1_high: felt,
+    x_q_low: felt,
+    y_q_low: felt,
+    x_q_high: felt,
+    y_q_high: felt,
+    x_q_high_shifted: felt,
+    y_q_high_shifted: felt,
+    x_a0: felt,
+    y_a0: felt,
+    a: felt,
+    b: felt,
+    base_rlc: felt,
+) {
+    // Assert (x_g, y_g) is on curve
+    assert y_g * y_g = x_g * x_g * x_g + a * x_g + b;
+    // Assert (x_a0, y_a0) is on curve
+    assert y_a0 * y_a0 = x_a0 * x_a0 * x_a0 + a * x_a0 + b;
+
+    // slope a0, a0
+    tempvar m_a0 = (3 * x_a0 * x_a0 + a) / (2 * y_a0);
+    // intercept a0
+    tempvar b_a0 = y_a0 - x_a0 * m_a0;
+    tempvar x_a2 = m_a0 * m_a0 - 2 * x_a0;
+    tempvar y_a2 = 0 - (m_a0 * (x_a0 - x_a2) - y_a0);
+    // Slope a0, a2
+    tempvar m_a0a2 = (y_a2 - y_a0) / (x_a2 - x_a0);
+    tempvar coeff2 = (2 * y_a2 * (x_a0 - x_a2)) / (3 * x_a2 * x_a2 + a - 2 * m_a0a2 * y_a2);
+    tempvar coeff0 = coeff2 + 2 * m_a0a2;
+
+    // LHS = coeff0 * f(a0) - coeff2 * f(a2), with f(x, y) = a(x) + y*b(x)
+    // f(a0)
+    tempvar eval_log_div_a_num_x_a0 = div_a_coeff_0 + x_a0 * (
+        div_a_coeff_1 + x_a0 * (div_a_coeff_2 + x_a0 * (div_a_coeff_3))
+    );
+    tempvar eval_log_div_a_den_x_a0 = div_b_coeff_0 + x_a0 * (
+        div_b_coeff_1 +
+        x_a0 * (
+            div_b_coeff_2 + x_a0 * (div_b_coeff_3 + x_a0 * (div_b_coeff_4))
+        )
+    );
+    tempvar eval_log_div_b_num_x_a0 = div_c_coeff_0 + x_a0 * (
+        div_c_coeff_1 +
+        x_a0 * (
+            div_c_coeff_2 + x_a0 * (div_c_coeff_3 + x_a0 * (div_c_coeff_4))
+        )
+    );
+    tempvar eval_log_div_b_den_x_a0 = div_d_coeff_0 + x_a0 * (
+        div_d_coeff_1 +
+        x_a0 * (
+            div_d_coeff_2 +
+            x_a0 * (
+                div_d_coeff_3 +
+                x_a0 * (
+                    div_d_coeff_4 +
+                    x_a0 * (
+                        div_d_coeff_5 +
+                        x_a0 * (div_d_coeff_6 + x_a0 * (div_d_coeff_7))
+                    )
+                )
+            )
+        )
+    );
+
+    tempvar f_a0 = eval_log_div_a_num_x_a0 / eval_log_div_a_den_x_a0 + y_a0 *
+        eval_log_div_b_num_x_a0 / eval_log_div_b_den_x_a0;
+
+    // f(a2)
+    tempvar eval_log_div_a_num_x_a2 = div_a_coeff_0 + x_a2 * (
+        div_a_coeff_1 + x_a2 * (div_a_coeff_2 + x_a2 * (div_a_coeff_3))
+    );
+    tempvar eval_log_div_a_den_x_a2 = div_b_coeff_0 + x_a2 * (
+        div_b_coeff_1 +
+        x_a2 * (
+            div_b_coeff_2 + x_a2 * (div_b_coeff_3 + x_a2 * (div_b_coeff_4))
+        )
+    );
+    tempvar eval_log_div_b_num_x_a2 = div_c_coeff_0 + x_a2 * (
+        div_c_coeff_1 +
+        x_a2 * (
+            div_c_coeff_2 + x_a2 * (div_c_coeff_3 + x_a2 * (div_c_coeff_4))
+        )
+    );
+    tempvar eval_log_div_b_den_x_a2 = div_d_coeff_0 + x_a2 * (
+        div_d_coeff_1 +
+        x_a2 * (
+            div_d_coeff_2 +
+            x_a2 * (
+                div_d_coeff_3 +
+                x_a2 * (
+                    div_d_coeff_4 +
+                    x_a2 * (
+                        div_d_coeff_5 +
+                        x_a2 * (div_d_coeff_6 + x_a2 * (div_d_coeff_7))
+                    )
+                )
+            )
+        )
+    );
+    tempvar f_a2 = eval_log_div_a_num_x_a2 / eval_log_div_a_den_x_a2 + y_a2 *
+        eval_log_div_b_num_x_a2 / eval_log_div_b_den_x_a2;
+
+    // Compute LHS
+    tempvar lhs = coeff0 * f_a0 - coeff2 * f_a2;
+
+    // base_rhs_low
+    tempvar num_g = x_a0 - x_g;
+    tempvar den_tmp_g = m_a0 * x_g + b_a0;
+    tempvar den_pos_g = y_g - den_tmp_g;
+    tempvar den_neg_g = (0 - y_g) - den_tmp_g;
+    tempvar eval_pos_low_g = sp1_low * ep1_low * num_g / den_pos_g;
+    tempvar eval_neg_low_g = sn1_low * en1_low * num_g / den_neg_g;
+    tempvar eval_low_g = eval_pos_low_g + eval_neg_low_g;
+
+    tempvar num_q_low = x_a0 - x_q_low;
+    tempvar den_tmp_q_low = m_a0 * x_q_low + b_a0;
+    tempvar den_neg_q_low = (0 - y_q_low) - den_tmp_q_low;
+    tempvar eval_q_low = num_q_low / den_neg_q_low;
+
+    tempvar rhs_low = eval_low_g + eval_q_low;
+
+    // base_rhs_high
+    tempvar eval_pos_high_g = sp1_high * ep1_high * num_g / den_pos_g;
+    tempvar eval_neg_high_g = sn1_high * en1_high * num_g / den_neg_g;
+    tempvar eval_high_g = eval_pos_high_g + eval_neg_high_g;
+
+    tempvar num_q_high = x_a0 - x_q_high;
+    tempvar den_tmp_q_high = m_a0 * x_q_high + b_a0;
+    tempvar den_neg_q_high = (0 - y_q_high) - den_tmp_q_high;
+    tempvar eval_q_high = num_q_high / den_neg_q_high;
+
+    tempvar rhs_high = eval_high_g + eval_q_high;
+
+    // base_rhs_high_shifted
+    // decomposition of 2^128 in base -3
+    tempvar ep_high_shifted = 5279154705627724249993186093248666011;
+    tempvar en_high_shifted = 345561521626566187713367793525016877467;
+    tempvar den_pos_q_high = y_q_high - den_tmp_q_high;
+    tempvar eval_pos_q_high_shifted = (0 - ep_high_shifted) * num_q_high / den_pos_q_high;
+    tempvar eval_neg_q_high_shifted = (0 - en_high_shifted) * num_q_high / den_neg_q_high;
+
+    tempvar num_q_high_shifted = x_a0 - x_q_high_shifted;
+    tempvar den_tmp_q_high_shifted = m_a0 * x_q_high_shifted + b_a0;
+    tempvar den_neg_q_high_shifted = (0 - y_q_high_shifted) - den_tmp_q_high_shifted;
+    tempvar eval_q_high_shifted = num_q_high_shifted / den_neg_q_high_shifted;
+
+    tempvar rhs_high_shifted = eval_pos_q_high_shifted + eval_neg_q_high_shifted +
+        eval_q_high_shifted;
+
+    tempvar c1 = base_rlc * base_rlc;
+    tempvar c2 = c1 * base_rlc;
+
+    tempvar rhs = base_rlc * rhs_low + c1 * rhs_high + c2 * rhs_high_shifted;
+
+    assert lhs = rhs;
+
+    return ();
+
+    end:
+}

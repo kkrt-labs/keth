@@ -792,3 +792,91 @@ class TestCircuits:
                 **{k: int_to_uint384(v) for k, v in inputs.items()},
                 p=int_to_uint384(curve.FIELD.PRIME),
             )
+
+        @given(data=st.data())
+        def test_ecip_1p(self, cairo_program, cairo_run, curve, data, st_prime):
+            seed_g = data.draw(
+                st.integers(min_value=1, max_value=curve.FIELD.PRIME - 1)
+            )
+            g = curve.random_point(x=seed_g)
+            points = [
+                G1Point(g.x, g.y, CurveID.SECP256K1),
+            ]
+
+            # n is the order of the SECP256K1 elliptic curve
+            n = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
+            u1 = data.draw(st.integers(min_value=2**128 + 1, max_value=n))
+            scalars = [u1]
+
+            builder = MSMCalldataBuilder(CurveID.SECP256K1, points, scalars)
+            (msm_hint, _, a0, rlc_coeff) = builder.build_msm_hints()
+            scalars_low, scalars_high = builder.scalars_split()
+            epns_low, epns_high = [scalar_to_base_neg3_le(s) for s in scalars_low], [
+                scalar_to_base_neg3_le(s) for s in scalars_high
+            ]
+
+            Q_low, Q_high, Q_high_shifted, RLCSumDlogDiv = msm_hint.elmts
+
+            inputs = {
+                "div_a_coeff_0": int(RLCSumDlogDiv.a_num[0].value),
+                "div_a_coeff_1": int(RLCSumDlogDiv.a_num[1].value),
+                "div_a_coeff_2": int(RLCSumDlogDiv.a_num[2].value),
+                "div_a_coeff_3": int(RLCSumDlogDiv.a_num[3].value),
+                "div_b_coeff_0": int(RLCSumDlogDiv.a_den[0].value),
+                "div_b_coeff_1": int(RLCSumDlogDiv.a_den[1].value),
+                "div_b_coeff_2": int(RLCSumDlogDiv.a_den[2].value),
+                "div_b_coeff_3": int(RLCSumDlogDiv.a_den[3].value),
+                "div_b_coeff_4": int(RLCSumDlogDiv.a_den[4].value),
+                "div_c_coeff_0": int(RLCSumDlogDiv.b_num[0].value),
+                "div_c_coeff_1": int(RLCSumDlogDiv.b_num[1].value),
+                "div_c_coeff_2": int(RLCSumDlogDiv.b_num[2].value),
+                "div_c_coeff_3": int(RLCSumDlogDiv.b_num[3].value),
+                "div_c_coeff_4": int(RLCSumDlogDiv.b_num[4].value),
+                "div_d_coeff_0": int(RLCSumDlogDiv.b_den[0].value),
+                "div_d_coeff_1": int(RLCSumDlogDiv.b_den[1].value),
+                "div_d_coeff_2": int(RLCSumDlogDiv.b_den[2].value),
+                "div_d_coeff_3": int(RLCSumDlogDiv.b_den[3].value),
+                "div_d_coeff_4": int(RLCSumDlogDiv.b_den[4].value),
+                "div_d_coeff_5": int(RLCSumDlogDiv.b_den[5].value),
+                "div_d_coeff_6": int(RLCSumDlogDiv.b_den[6].value),
+                "div_d_coeff_7": int(RLCSumDlogDiv.b_den[7].value),
+                "x_g": int(points[0].x),
+                "y_g": int(points[0].y),
+                "ep1_low": int(epns_low[0][0]),
+                "en1_low": int(epns_low[0][1]),
+                "sp1_low": int(epns_low[0][2] % curve.FIELD.PRIME),
+                "sn1_low": int(epns_low[0][3] % curve.FIELD.PRIME),
+                "ep1_high": int(epns_high[0][0]),
+                "en1_high": int(epns_high[0][1]),
+                "sp1_high": int(epns_high[0][2] % curve.FIELD.PRIME),
+                "sn1_high": int(epns_high[0][3] % curve.FIELD.PRIME),
+                "x_q_low": int(Q_low.elmts[0].value),
+                "y_q_low": int(Q_low.elmts[1].value),
+                "x_q_high": int(Q_high.elmts[0].value),
+                "y_q_high": int(Q_high.elmts[1].value),
+                "x_q_high_shifted": int(Q_high_shifted.elmts[0].value),
+                "y_q_high_shifted": int(Q_high_shifted.elmts[1].value),
+                "x_a0": int(a0.x),
+                "y_a0": int(a0.y),
+                "a": int(curve.A),
+                "b": int(curve.B),
+                "base_rlc": int(rlc_coeff),
+            }
+
+            cairo_run("ecip_1p", **inputs)
+            compiled_circuit = circuit_compile(cairo_program, "ecip_1p")
+            values_ptr = flatten(compiled_circuit["constants"]) + [
+                limb for v in inputs.values() for limb in int_to_uint384(v)
+            ]
+            cairo_run(
+                "test__circuit",
+                values_ptr=values_ptr,
+                values_ptr_len=len(values_ptr),
+                p=int_to_uint384(curve.FIELD.PRIME),
+                **compiled_circuit,
+            )
+            cairo_run(
+                "ecip_1p_compiled",
+                **{k: int_to_uint384(v) for k, v in inputs.items()},
+                p=int_to_uint384(curve.FIELD.PRIME),
+            )
