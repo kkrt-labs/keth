@@ -12,6 +12,7 @@ from ethereum.cancun.vm.precompiled_contracts.alt_bn128 import (
     alt_bn128_add,
     alt_bn128_mul,
 )
+from ethereum.cancun.vm.precompiled_contracts.ecrecover import ecrecover
 from cairo_core.control_flow import raise
 // currently 10 precompiles.
 const N_PRECOMPILES = 10;
@@ -79,7 +80,7 @@ func precompile_table_lookup{range_check_ptr}(address: felt) -> (felt, felt) {
     // - index i+2 is the function pointer of the precompiled contract
     PRE_COMPILED_CONTRACTS:
     dw 0x100000000000000000000000000000000000000;
-    call invalid_precompile;  // ECRECOVER
+    call ecrecover;  // ECRECOVER
     dw 0x200000000000000000000000000000000000000;
     call sha256;  // SHA256
     dw 0x300000000000000000000000000000000000000;

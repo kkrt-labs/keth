@@ -18,6 +18,7 @@ from ethereum.utils.numeric import U256_to_le_bytes
 from starkware.cairo.common.builtin_keccak.keccak import keccak_uint256s
 from cairo_core.maths import unsigned_div_rem
 from starkware.cairo.common.math_cmp import RC_BOUND
+from ethereum.exceptions import EthereumException, ValueError
 
 // @notice Recovers the public key from a given signature.
 // @param r The r value of the signature.
@@ -27,13 +28,15 @@ from starkware.cairo.common.math_cmp import RC_BOUND
 // @return x, y The recovered public key points in U256 format to simplify subsequent cairo hashing.
 func secp256k1_recover{
     range_check_ptr,
-    range_check96_ptr: felt*,
-    add_mod_ptr: ModBuiltin*,
-    mul_mod_ptr: ModBuiltin*,
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
-}(r: U256, s: U256, v: U256, msg_hash: Hash32) -> (public_key_x: Bytes32, public_key_y: Bytes32) {
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
+}(r: U256, s: U256, v: U256, msg_hash: Hash32) -> (
+    public_key_x: Bytes32, public_key_y: Bytes32, error: EthereumException*
+) {
     alloc_locals;
 
     // reverse endianness of msg_hash since bytes are little endian in the codebase
@@ -51,11 +54,12 @@ func secp256k1_recover{
         msg_hash=msg_hash_uint384, r=r_uint384, s=s_uint384, y_parity=y_parity
     );
 
-    with_attr error_message("ValueError") {
-        assert success = 1;
+    if (success != 1) {
+        tempvar err = new EthereumException(ValueError);
+        return (public_key_point_x, public_key_point_y, err);
     }
 
-    return (public_key_point_x, public_key_point_y);
+    return (public_key_point_x, public_key_point_y, cast(0, EthereumException*));
 }
 
 // @notice Converts a public key point to the corresponding Ethereum address.

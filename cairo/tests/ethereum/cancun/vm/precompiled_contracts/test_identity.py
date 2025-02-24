@@ -14,7 +14,7 @@ from tests.utils.message_builder import MessageBuilder
     .with_message(MessageBuilder().with_data().build())
     .build()
 )
-def test_sha256(cairo_run, evm: Evm):
+def test_identity(cairo_run, evm: Evm):
     try:
         cairo_evm = cairo_run("identity", evm)
     except EthereumException as e:

@@ -27,3 +27,5 @@ struct EthereumException {
 struct OptionalEthereumException {
     value: felt*,
 }
+
+const ValueError = 'ValueError';

@@ -388,6 +388,9 @@ func process_transaction{
     poseidon_ptr: PoseidonBuiltin*,
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
     env: Environment,
 }(tx: Transaction) -> (Uint, TupleLog, OptionalEthereumException) {
     alloc_locals;
@@ -949,12 +952,12 @@ func keccak256_header{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr:
 
 func apply_body{
     range_check_ptr,
-    range_check96_ptr: felt*,
-    add_mod_ptr: ModBuiltin*,
-    mul_mod_ptr: ModBuiltin*,
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
     state: State,
 }(
     block_hashes: ListHash32,
@@ -1191,16 +1194,16 @@ func apply_body{
 }
 
 func _apply_body_inner{
-    range_check_ptr,
-    range_check96_ptr: felt*,
-    add_mod_ptr: ModBuiltin*,
-    mul_mod_ptr: ModBuiltin*,
-    bitwise_ptr: BitwiseBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
-    poseidon_ptr: PoseidonBuiltin*,
     state: State,
     transactions_trie: TrieBytesOptionalUnionBytesLegacyTransaction,
     receipts_trie: TrieBytesOptionalUnionBytesReceipt,
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
 }(
     index: felt,
     len: felt,
@@ -1341,12 +1344,12 @@ func _process_withdrawals_inner{
 
 func state_transition{
     range_check_ptr,
-    range_check96_ptr: felt*,
-    add_mod_ptr: ModBuiltin*,
-    mul_mod_ptr: ModBuiltin*,
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
     chain: BlockChain,
 }(block: Block) {
     alloc_locals;

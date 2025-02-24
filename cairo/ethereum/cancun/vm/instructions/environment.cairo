@@ -1,4 +1,9 @@
-from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin, PoseidonBuiltin
+from starkware.cairo.common.cairo_builtins import (
+    BitwiseBuiltin,
+    KeccakBuiltin,
+    PoseidonBuiltin,
+    ModBuiltin,
+)
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.math import split_felt
@@ -57,6 +62,9 @@ func address{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
     evm: Evm,
 }() -> EthereumException* {
     alloc_locals;
@@ -90,6 +98,9 @@ func balance{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
     evm: Evm,
 }() -> EthereumException* {
     alloc_locals;
@@ -166,6 +177,9 @@ func origin{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
     evm: Evm,
 }() -> EthereumException* {
     alloc_locals;
@@ -201,6 +215,9 @@ func caller{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
     evm: Evm,
 }() -> EthereumException* {
     alloc_locals;
@@ -235,6 +252,9 @@ func callvalue{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
     evm: Evm,
 }() -> EthereumException* {
     alloc_locals;
@@ -268,6 +288,9 @@ func codesize{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
     evm: Evm,
 }() -> EthereumException* {
     alloc_locals;
@@ -303,6 +326,9 @@ func gasprice{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
     evm: Evm,
 }() -> EthereumException* {
     alloc_locals;
@@ -338,6 +364,9 @@ func returndatasize{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
     evm: Evm,
 }() -> EthereumException* {
     alloc_locals;
@@ -371,6 +400,9 @@ func returndatacopy{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
     evm: Evm,
 }() -> EthereumException* {
     alloc_locals;
@@ -453,6 +485,9 @@ func self_balance{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
     evm: Evm,
 }() -> EthereumException* {
     alloc_locals;
@@ -492,6 +527,9 @@ func base_fee{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
     evm: Evm,
 }() -> EthereumException* {
     alloc_locals;
@@ -527,6 +565,9 @@ func blob_hash{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
     evm: Evm,
 }() -> EthereumException* {
     alloc_locals;
@@ -581,6 +622,9 @@ func codecopy{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
     evm: Evm,
 }() -> EthereumException* {
     alloc_locals;
@@ -649,6 +693,9 @@ func extcodesize{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
     evm: Evm,
 }() -> EthereumException* {
     alloc_locals;
@@ -726,6 +773,9 @@ func extcodecopy{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
     evm: Evm,
 }() -> EthereumException* {
     alloc_locals;
@@ -833,6 +883,9 @@ func extcodehash{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
     evm: Evm,
 }() -> EthereumException* {
     alloc_locals;
@@ -937,6 +990,9 @@ func blob_base_fee{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
     evm: Evm,
 }() -> EthereumException* {
     alloc_locals;
@@ -970,6 +1026,9 @@ func calldataload{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
     evm: Evm,
 }() -> EthereumException* {
     alloc_locals;
@@ -1017,6 +1076,9 @@ func calldatacopy{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
     evm: Evm,
 }() -> EthereumException* {
     alloc_locals;
@@ -1085,6 +1147,9 @@ func calldatasize{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
     evm: Evm,
 }() -> EthereumException* {
     alloc_locals;

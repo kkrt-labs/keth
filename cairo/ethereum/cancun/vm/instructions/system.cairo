@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: MIT
 
-from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin, PoseidonBuiltin
+from starkware.cairo.common.cairo_builtins import (
+    BitwiseBuiltin,
+    KeccakBuiltin,
+    PoseidonBuiltin,
+    ModBuiltin,
+)
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.cairo.common.math_cmp import is_le
 from ethereum.cancun.vm.stack import pop, push
@@ -74,6 +79,9 @@ func generic_call{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
     evm: Evm,
 }(
     gas: Uint,
@@ -169,19 +177,26 @@ func generic_call{
     );
 
     // prepare arguments to jump to process_message
+    // MARK: args assignment
     [ap] = range_check_ptr, ap++;
     [ap] = bitwise_ptr, ap++;
     [ap] = keccak_ptr, ap++;
     [ap] = poseidon_ptr, ap++;
+    [ap] = range_check96_ptr, ap++;
+    [ap] = add_mod_ptr, ap++;
+    [ap] = mul_mod_ptr, ap++;
     [ap] = child_message.value, ap++;
     [ap] = env.value, ap++;
 
     call abs process_message_label;
 
-    let range_check_ptr = [ap - 5];
-    let bitwise_ptr = cast([ap - 4], BitwiseBuiltin*);
-    let keccak_ptr = cast([ap - 3], KeccakBuiltin*);
-    let poseidon_ptr = cast([ap - 2], PoseidonBuiltin*);
+    let range_check_ptr = [ap - 8];
+    let bitwise_ptr = cast([ap - 7], BitwiseBuiltin*);
+    let keccak_ptr = cast([ap - 6], KeccakBuiltin*);
+    let poseidon_ptr = cast([ap - 5], PoseidonBuiltin*);
+    let range_check96_ptr = cast([ap - 4], felt*);
+    let add_mod_ptr = cast([ap - 3], ModBuiltin*);
+    let mul_mod_ptr = cast([ap - 2], ModBuiltin*);
     let child_evm_ = cast([ap - 1], EvmStruct*);
     tempvar child_evm = Evm(child_evm_);
 
@@ -262,6 +277,9 @@ func call_{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
     evm: Evm,
 }() -> EthereumException* {
     alloc_locals;
@@ -445,6 +463,9 @@ func callcode{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
     evm: Evm,
 }() -> EthereumException* {
     alloc_locals;
@@ -613,6 +634,9 @@ func delegatecall{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
     evm: Evm,
 }() -> EthereumException* {
     alloc_locals;
@@ -748,6 +772,9 @@ func staticcall{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
     evm: Evm,
 }() -> EthereumException* {
     alloc_locals;
@@ -882,6 +909,9 @@ func revert{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
     evm: Evm,
 }() -> EthereumException* {
     alloc_locals;
@@ -939,6 +969,9 @@ func return_{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
     evm: Evm,
 }() -> EthereumException* {
     alloc_locals;
@@ -1000,6 +1033,9 @@ func generic_create{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
     evm: Evm,
 }(
     endowment: U256,
@@ -1137,19 +1173,26 @@ func generic_create{
         ),
     );
 
+    // MARK: args assignment
     [ap] = range_check_ptr, ap++;
     [ap] = bitwise_ptr, ap++;
     [ap] = keccak_ptr, ap++;
     [ap] = poseidon_ptr, ap++;
+    [ap] = range_check96_ptr, ap++;
+    [ap] = add_mod_ptr, ap++;
+    [ap] = mul_mod_ptr, ap++;
     [ap] = child_message.value, ap++;
     [ap] = env.value, ap++;
 
     call abs process_create_message_label;
 
-    let range_check_ptr = [ap - 5];
-    let bitwise_ptr = cast([ap - 4], BitwiseBuiltin*);
-    let keccak_ptr = cast([ap - 3], KeccakBuiltin*);
-    let poseidon_ptr = cast([ap - 2], PoseidonBuiltin*);
+    let range_check_ptr = [ap - 8];
+    let bitwise_ptr = cast([ap - 7], BitwiseBuiltin*);
+    let keccak_ptr = cast([ap - 6], KeccakBuiltin*);
+    let poseidon_ptr = cast([ap - 5], PoseidonBuiltin*);
+    let range_check96_ptr = cast([ap - 4], felt*);
+    let add_mod_ptr = cast([ap - 3], ModBuiltin*);
+    let mul_mod_ptr = cast([ap - 2], ModBuiltin*);
     let child_evm_ = cast([ap - 1], EvmStruct*);
     tempvar child_evm = Evm(child_evm_);
 
@@ -1192,10 +1235,14 @@ func generic_create{
 // @notice Creates a new account with associated code
 func create{
     process_create_message_label: felt*,
+    process_message_label: felt*,
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
     evm: Evm,
 }() -> EthereumException* {
     alloc_locals;
@@ -1261,7 +1308,7 @@ func create{
     EvmImpl.set_env(env);
     let contract_address = compute_contract_address(current_target, sender.value.nonce);
 
-    let err = generic_create{process_create_message_label=process_create_message_label}(
+    let err = generic_create(
         endowment, contract_address, memory_start_position, memory_size, init_code_gas
     );
     if (cast(err, felt) != 0) {
@@ -1280,10 +1327,14 @@ func create{
 // Similar to CREATE but the address depends on the init_code instead of sender nonce
 func create2{
     process_create_message_label: felt*,
+    process_message_label: felt*,
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
     evm: Evm,
 }() -> EthereumException* {
     alloc_locals;
@@ -1363,7 +1414,7 @@ func create2{
         current_target, salt_bytes32, call_data
     );
 
-    let err = generic_create{process_create_message_label=process_create_message_label}(
+    let err = generic_create(
         endowment, contract_address, memory_start_position, memory_size, init_code_gas
     );
     if (cast(err, felt) != 0) {
@@ -1384,6 +1435,9 @@ func selfdestruct{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
     evm: Evm,
 }() -> EthereumException* {
     alloc_locals;

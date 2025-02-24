@@ -249,3 +249,4 @@ pinentry
 keyid
 signingkey
 gpgsign
+pkey

@@ -1,4 +1,9 @@
-from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin, PoseidonBuiltin
+from starkware.cairo.common.cairo_builtins import (
+    BitwiseBuiltin,
+    KeccakBuiltin,
+    PoseidonBuiltin,
+    ModBuiltin,
+)
 from starkware.cairo.common.uint256 import uint256_eq, Uint256, uint256_and
 from starkware.cairo.common.math_cmp import is_le_felt
 
@@ -32,6 +37,9 @@ func mstore{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
     evm: Evm,
 }() -> EthereumException* {
     alloc_locals;
@@ -88,6 +96,9 @@ func mstore8{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
     evm: Evm,
 }() -> EthereumException* {
     alloc_locals;
@@ -146,6 +157,9 @@ func mload{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
     evm: Evm,
 }() -> EthereumException* {
     alloc_locals;
@@ -201,6 +215,9 @@ func msize{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
     evm: Evm,
 }() -> EthereumException* {
     alloc_locals;
@@ -234,6 +251,9 @@ func mcopy{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
     evm: Evm,
 }() -> EthereumException* {
     alloc_locals;

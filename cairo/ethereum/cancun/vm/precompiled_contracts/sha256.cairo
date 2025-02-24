@@ -1,5 +1,10 @@
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin
+from starkware.cairo.common.cairo_builtins import (
+    BitwiseBuiltin,
+    KeccakBuiltin,
+    PoseidonBuiltin,
+    ModBuiltin,
+)
 from starkware.cairo.common.math_cmp import is_le_felt
 from starkware.cairo.common.memset import memset
 from ethereum.cancun.vm.evm_impl import Evm, EvmImpl
@@ -16,8 +21,16 @@ from cairo_core.hash.sha256 import sha256_be_output
 from cairo_core.maths import unsigned_div_rem
 
 // @notice Writes the sha256 hash to output.
-func sha256{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*, evm: Evm}(
-    ) -> EthereumException* {
+func sha256{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     let data = evm.value.message.value.data;
 

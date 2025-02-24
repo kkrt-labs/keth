@@ -257,11 +257,11 @@ func recover_sender{
     let s_is_zero = U256__eq__(s, zero);
     let s_is_within_range = U256_le(s, SECP256K1N_DIVIDED_BY_2);
 
-    let error = r_is_zero.value + r_is_out_of_range.value + s_is_zero.value + (
+    let is_error = r_is_zero.value + r_is_out_of_range.value + s_is_zero.value + (
         1 - s_is_within_range.value
     );
     with_attr error_message("InvalidSignatureError") {
-        assert error = 0;
+        assert is_error = 0;
     }
 
     if (cast(tx.value.legacy_transaction.value, felt) != 0) {
@@ -275,7 +275,10 @@ func recover_sender{
             let y_parity_felt = v - 27;
             tempvar y_parity = U256(new U256Struct(low=y_parity_felt, high=0));
             let hash = signing_hash_pre155(tx.value.legacy_transaction);
-            let (public_key_x, public_key_y) = secp256k1_recover(r, s, y_parity, hash);
+            let (public_key_x, public_key_y, error) = secp256k1_recover(r, s, y_parity, hash);
+            if (cast(error, felt) != 0) {
+                raise('ValueError');
+            }
             let sender = public_key_point_to_eth_address(public_key_x, public_key_y);
             return sender;
         } else {
@@ -286,7 +289,10 @@ func recover_sender{
             let hash = signing_hash_155(tx.value.legacy_transaction, chain_id);
             let y_parity_felt = v - 35 - chain_id.value * 2;
             tempvar y_parity = U256(new U256Struct(low=y_parity_felt, high=0));
-            let (public_key_x, public_key_y) = secp256k1_recover(r, s, y_parity, hash);
+            let (public_key_x, public_key_y, error) = secp256k1_recover(r, s, y_parity, hash);
+            if (cast(error, felt) != 0) {
+                raise('ValueError');
+            }
             let sender = public_key_point_to_eth_address(public_key_x, public_key_y);
             return sender;
         }
@@ -300,7 +306,10 @@ func recover_sender{
             assert (1 - y_parity_is_zero.value) * (1 - y_parity_is_one.value) = 0;
         }
         let hash = signing_hash_2930(tx.value.access_list_transaction);
-        let (public_key_x, public_key_y) = secp256k1_recover(r, s, y_parity, hash);
+        let (public_key_x, public_key_y, error) = secp256k1_recover(r, s, y_parity, hash);
+        if (cast(error, felt) != 0) {
+            raise('ValueError');
+        }
         let sender = public_key_point_to_eth_address(public_key_x, public_key_y);
         return sender;
     }
@@ -314,7 +323,10 @@ func recover_sender{
         }
 
         let hash = signing_hash_1559(tx.value.fee_market_transaction);
-        let (public_key_x, public_key_y) = secp256k1_recover(r, s, y_parity, hash);
+        let (public_key_x, public_key_y, error) = secp256k1_recover(r, s, y_parity, hash);
+        if (cast(error, felt) != 0) {
+            raise('ValueError');
+        }
         let sender = public_key_point_to_eth_address(public_key_x, public_key_y);
         return sender;
     }
@@ -327,7 +339,10 @@ func recover_sender{
             assert (1 - y_parity_is_zero.value) * (1 - y_parity_is_one.value) = 0;
         }
         let hash = signing_hash_4844(tx.value.blob_transaction);
-        let (public_key_x, public_key_y) = secp256k1_recover(r, s, y_parity, hash);
+        let (public_key_x, public_key_y, error) = secp256k1_recover(r, s, y_parity, hash);
+        if (cast(error, felt) != 0) {
+            raise('ValueError');
+        }
         let sender = public_key_point_to_eth_address(public_key_x, public_key_y);
         return sender;
     }

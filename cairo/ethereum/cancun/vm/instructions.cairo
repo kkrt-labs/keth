@@ -1,4 +1,9 @@
-from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin, PoseidonBuiltin
+from starkware.cairo.common.cairo_builtins import (
+    BitwiseBuiltin,
+    KeccakBuiltin,
+    PoseidonBuiltin,
+    ModBuiltin,
+)
 from starkware.cairo.common.alloc import alloc
 from ethereum.cancun.vm.evm_impl import EvmImpl, Evm
 from ethereum.cancun.vm.exceptions import Revert, EthereumException, InvalidOpcode
@@ -160,6 +165,9 @@ func op_implementation{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
     evm: Evm,
 }(
     process_create_message_label: felt*, process_message_label: felt*, opcode: felt
@@ -169,12 +177,16 @@ func op_implementation{
     tempvar offset = opcode * 3 + 1;
 
     // Prepare arguments
+    // MARK: args assignment
     [ap] = process_create_message_label, ap++;
     [ap] = process_message_label, ap++;
     [ap] = range_check_ptr, ap++;
     [ap] = bitwise_ptr, ap++;
     [ap] = keccak_ptr, ap++;
     [ap] = poseidon_ptr, ap++;
+    [ap] = range_check96_ptr, ap++;
+    [ap] = add_mod_ptr, ap++;
+    [ap] = mul_mod_ptr, ap++;
     [ap] = evm.value, ap++;
 
     jmp rel offset;
@@ -697,6 +709,9 @@ func unknown_opcode{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
     evm: Evm,
 }() -> EthereumException* {
     tempvar err = new EthereumException(InvalidOpcode);
