@@ -5,7 +5,6 @@ import tempfile
 import urllib.request
 
 import git
-from _pytest.config import Config
 from _pytest.config.argparsing import Parser
 from filelock import SoftFileLock
 from git.exc import GitCommandError, InvalidGitRepositoryError
@@ -15,27 +14,13 @@ from tests.ef_tests.helpers import TEST_FIXTURES
 
 
 def pytest_addoption(parser: Parser) -> None:
-    """
-    Accept --evm-trace option in pytest.
-    """
+    """Add custom command-line options to pytest."""
     parser.addoption(
-        "--optimized",
-        dest="optimized",
-        default=False,
-        action="store_const",
-        const=True,
-        help="Use optimized state and ethash",
+        "--max-tests",
+        action="store",
+        type=int,
+        help="Maximum number of EF tests to run in sampled mode.",
     )
-
-
-def pytest_configure(config: Config) -> None:
-    """
-    Configure the ethereum module and log levels to output evm trace.
-    """
-    if config.getoption("optimized"):
-        import ethereum_optimized
-
-        ethereum_optimized.monkey_patch(None)
 
 
 def download_fixtures(url: str, location: str) -> None:

@@ -2,6 +2,10 @@ name: Python CI
 
 on:
   workflow_call:
+    inputs:
+      max-tests:
+        required: true
+        type: number
 
 permissions: read-all
 
@@ -71,4 +75,5 @@ jobs:
           python-version-file: .python-version
       - name: Run sampled EF tests
         run: |
-          uv run --reinstall pytest -n logical --durations=0 -v -s --log-cli-level=DEBUG --max-tests=2000 --randomly-seed=$GITHUB_RUN_ID cairo/tests/ef_tests/ --ignore-glob='cairo/tests/ef_tests/fixtures/*'
+          # Runs up to ${{ inputs.max-tests }} tests, randomly sampled using the GITHUB_RUN_ID seed
+          uv run --reinstall pytest -n logical --durations=0 -v -s --log-cli-level=DEBUG --max-tests=${{ inputs.max-tests }} --randomly-seed=$GITHUB_RUN_ID cairo/tests/ef_tests/ --ignore-glob='cairo/tests/ef_tests/fixtures/*'

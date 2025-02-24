@@ -19,6 +19,7 @@ dependencies = [
   "ethereum",
   "colorama>=0.4.6",
   "pytest-timeout>=2.3.1",
+  "pytest-randomly>=3.16.0",
 ]
 
 [tool.uv]
