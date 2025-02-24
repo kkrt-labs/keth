@@ -145,12 +145,13 @@ func ecip_2p(
     assert y_r * y_r = x_r * x_r * x_r + a + a * x_r + b;
     // Assert (x_a0, y_a0) is on curve
     assert y_a0 * y_a0 = x_a0 * x_a0 * x_a0 + a * x_a0 + b;
-     // Assert (x_q_low, y_q_low) is on curve
+    // Assert (x_q_low, y_q_low) is on curve
     assert y_q_low * y_q_low = x_q_low * x_q_low * x_q_low + a * x_q_low + b;
     // Assert (x_q_high, y_q_high) is on curve
     assert y_q_high * y_q_high = x_q_high * x_q_high * x_q_high + a * x_q_high + b;
     // Assert (x_q_high_shifted, y_q_high_shifted) is on curve
-    assert y_q_high_shifted * y_q_high_shifted = x_q_high_shifted * x_q_high_shifted * x_q_high_shifted + a * x_q_high_shifted + b;
+    assert y_q_high_shifted * y_q_high_shifted = x_q_high_shifted * x_q_high_shifted *
+        x_q_high_shifted + a * x_q_high_shifted + b;
 
     // slope a0, a0
     tempvar m_a0 = (3 * x_a0 * x_a0 + a) / (2 * y_a0);
@@ -360,12 +361,13 @@ func ecip_1p(
     assert y_g * y_g = x_g * x_g * x_g + a * x_g + b;
     // Assert (x_a0, y_a0) is on curve
     assert y_a0 * y_a0 = x_a0 * x_a0 * x_a0 + a * x_a0 + b;
-     // Assert (x_q_low, y_q_low) is on curve
+    // Assert (x_q_low, y_q_low) is on curve
     assert y_q_low * y_q_low = x_q_low * x_q_low * x_q_low + a * x_q_low + b;
     // Assert (x_q_high, y_q_high) is on curve
     assert y_q_high * y_q_high = x_q_high * x_q_high * x_q_high + a * x_q_high + b;
     // Assert (x_q_high_shifted, y_q_high_shifted) is on curve
-    assert y_q_high_shifted * y_q_high_shifted = x_q_high_shifted * x_q_high_shifted * x_q_high_shifted + a * x_q_high_shifted + b;
+    assert y_q_high_shifted * y_q_high_shifted = x_q_high_shifted * x_q_high_shifted *
+        x_q_high_shifted + a * x_q_high_shifted + b;
 
     // slope a0, a0
     tempvar m_a0 = (3 * x_a0 * x_a0 + a) / (2 * y_a0);
@@ -384,16 +386,10 @@ func ecip_1p(
         div_a_coeff_1 + x_a0 * (div_a_coeff_2 + x_a0 * (div_a_coeff_3))
     );
     tempvar eval_log_div_a_den_x_a0 = div_b_coeff_0 + x_a0 * (
-        div_b_coeff_1 +
-        x_a0 * (
-            div_b_coeff_2 + x_a0 * (div_b_coeff_3 + x_a0 * (div_b_coeff_4))
-        )
+        div_b_coeff_1 + x_a0 * (div_b_coeff_2 + x_a0 * (div_b_coeff_3 + x_a0 * (div_b_coeff_4)))
     );
     tempvar eval_log_div_b_num_x_a0 = div_c_coeff_0 + x_a0 * (
-        div_c_coeff_1 +
-        x_a0 * (
-            div_c_coeff_2 + x_a0 * (div_c_coeff_3 + x_a0 * (div_c_coeff_4))
-        )
+        div_c_coeff_1 + x_a0 * (div_c_coeff_2 + x_a0 * (div_c_coeff_3 + x_a0 * (div_c_coeff_4)))
     );
     tempvar eval_log_div_b_den_x_a0 = div_d_coeff_0 + x_a0 * (
         div_d_coeff_1 +
@@ -403,10 +399,7 @@ func ecip_1p(
                 div_d_coeff_3 +
                 x_a0 * (
                     div_d_coeff_4 +
-                    x_a0 * (
-                        div_d_coeff_5 +
-                        x_a0 * (div_d_coeff_6 + x_a0 * (div_d_coeff_7))
-                    )
+                    x_a0 * (div_d_coeff_5 + x_a0 * (div_d_coeff_6 + x_a0 * (div_d_coeff_7)))
                 )
             )
         )
@@ -420,16 +413,10 @@ func ecip_1p(
         div_a_coeff_1 + x_a2 * (div_a_coeff_2 + x_a2 * (div_a_coeff_3))
     );
     tempvar eval_log_div_a_den_x_a2 = div_b_coeff_0 + x_a2 * (
-        div_b_coeff_1 +
-        x_a2 * (
-            div_b_coeff_2 + x_a2 * (div_b_coeff_3 + x_a2 * (div_b_coeff_4))
-        )
+        div_b_coeff_1 + x_a2 * (div_b_coeff_2 + x_a2 * (div_b_coeff_3 + x_a2 * (div_b_coeff_4)))
     );
     tempvar eval_log_div_b_num_x_a2 = div_c_coeff_0 + x_a2 * (
-        div_c_coeff_1 +
-        x_a2 * (
-            div_c_coeff_2 + x_a2 * (div_c_coeff_3 + x_a2 * (div_c_coeff_4))
-        )
+        div_c_coeff_1 + x_a2 * (div_c_coeff_2 + x_a2 * (div_c_coeff_3 + x_a2 * (div_c_coeff_4)))
     );
     tempvar eval_log_div_b_den_x_a2 = div_d_coeff_0 + x_a2 * (
         div_d_coeff_1 +
@@ -439,10 +426,7 @@ func ecip_1p(
                 div_d_coeff_3 +
                 x_a2 * (
                     div_d_coeff_4 +
-                    x_a2 * (
-                        div_d_coeff_5 +
-                        x_a2 * (div_d_coeff_6 + x_a2 * (div_d_coeff_7))
-                    )
+                    x_a2 * (div_d_coeff_5 + x_a2 * (div_d_coeff_6 + x_a2 * (div_d_coeff_7)))
                 )
             )
         )
