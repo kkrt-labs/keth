@@ -235,7 +235,7 @@ func try_recover_public_key{
     // Hash SumDlogDiv 2 points : (0-25)
     hash_full_transcript(range_check96_ptr + 5 * N_LIMBS, 26);
     tempvar range_check96_ptr_init = range_check96_ptr;
-    tempvar range_check96_ptr_after_circuit = range_check96_ptr + 1204;
+    tempvar range_check96_ptr_after_circuit = range_check96_ptr + 1264;
     let random_point = get_random_point{range_check96_ptr=range_check96_ptr_after_circuit}(
         seed=[cast(poseidon_ptr, felt*) - 3], a=&a, b=&b, g=&g, p=&p
     );

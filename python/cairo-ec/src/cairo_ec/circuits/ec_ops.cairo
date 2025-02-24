@@ -145,6 +145,12 @@ func ecip_2p(
     assert y_r * y_r = x_r * x_r * x_r + a + a * x_r + b;
     // Assert (x_a0, y_a0) is on curve
     assert y_a0 * y_a0 = x_a0 * x_a0 * x_a0 + a * x_a0 + b;
+     // Assert (x_q_low, y_q_low) is on curve
+    assert y_q_low * y_q_low = x_q_low * x_q_low * x_q_low + a * x_q_low + b;
+    // Assert (x_q_high, y_q_high) is on curve
+    assert y_q_high * y_q_high = x_q_high * x_q_high * x_q_high + a * x_q_high + b;
+    // Assert (x_q_high_shifted, y_q_high_shifted) is on curve
+    assert y_q_high_shifted * y_q_high_shifted = x_q_high_shifted * x_q_high_shifted * x_q_high_shifted + a * x_q_high_shifted + b;
 
     // slope a0, a0
     tempvar m_a0 = (3 * x_a0 * x_a0 + a) / (2 * y_a0);
@@ -354,6 +360,12 @@ func ecip_1p(
     assert y_g * y_g = x_g * x_g * x_g + a * x_g + b;
     // Assert (x_a0, y_a0) is on curve
     assert y_a0 * y_a0 = x_a0 * x_a0 * x_a0 + a * x_a0 + b;
+     // Assert (x_q_low, y_q_low) is on curve
+    assert y_q_low * y_q_low = x_q_low * x_q_low * x_q_low + a * x_q_low + b;
+    // Assert (x_q_high, y_q_high) is on curve
+    assert y_q_high * y_q_high = x_q_high * x_q_high * x_q_high + a * x_q_high + b;
+    // Assert (x_q_high_shifted, y_q_high_shifted) is on curve
+    assert y_q_high_shifted * y_q_high_shifted = x_q_high_shifted * x_q_high_shifted * x_q_high_shifted + a * x_q_high_shifted + b;
 
     // slope a0, a0
     tempvar m_a0 = (3 * x_a0 * x_a0 + a) / (2 * y_a0);
