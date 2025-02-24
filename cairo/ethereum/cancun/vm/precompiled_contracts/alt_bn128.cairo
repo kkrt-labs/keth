@@ -3,16 +3,25 @@ from starkware.cairo.common.cairo_builtins import (
     KeccakBuiltin,
     ModBuiltin,
     PoseidonBuiltin,
+    UInt384,
 )
 from starkware.cairo.common.math_cmp import is_le_felt
+from starkware.cairo.common.alloc import alloc
 from ethereum.cancun.vm import Evm, EvmImpl
 from ethereum.exceptions import EthereumException
 from ethereum.cancun.vm.exceptions import OutOfGasError
-from ethereum.utils.numeric import ceil32, divmod, U256_from_be_bytes
+from ethereum.utils.numeric import ceil32, divmod, U256_from_be_bytes, U256_le
 from ethereum.cancun.vm.gas import GasConstants, charge_gas
 from ethereum_types.numeric import Uint, U256, U256Struct
-from ethereum_types.bytes import Bytes
+from ethereum_types.bytes import Bytes, BytesStruct
 from ethereum.cancun.vm.memory import buffer_read
+from cairo_ec.curve.alt_bn128 import alt_bn128
+from cairo_ec.ec_ops import ec_add
+from cairo_ec.curve.g1_point import G1Point, G1Point__eq__
+from cairo_ec.circuits.ec_ops_compiled import assert_is_on_curve, assert_not_on_curve
+from cairo_ec.uint384 import uint256_to_uint384
+from cairo_core.maths import felt252_to_bytes_be
+from starkware.cairo.common.registers import get_fp_and_pc
 
 func alt_bn128_add{
     range_check_ptr,
@@ -49,20 +58,83 @@ func alt_bn128_add{
     let x1_value = U256_from_be_bytes(x1_bytes);
     let y1_value = U256_from_be_bytes(y1_bytes);
 
-    tempvar x0_value = x0_value;
-    tempvar y0_value = y0_value;
-    tempvar x1_value = x1_value;
-    tempvar y1_value = y1_value;
-
-    tempvar data = data;  // Required for rust hint
-    tempvar error: EthereumException*;
-    tempvar output: Bytes;
-
-    %{ alt_bn128_add_hint %}
-    if (cast(error, felt) != 0) {
-        return error;
+    tempvar ALT_BN128_PRIME = U256(new U256Struct(alt_bn128.P0, alt_bn128.P1));
+    tempvar oog_err = new EthereumException(OutOfGasError);
+    let is_x0_in_range = U256_le(ALT_BN128_PRIME, x0_value);
+    if (is_x0_in_range.value != 0) {
+        return oog_err;
+    }
+    let is_y0_in_range = U256_le(ALT_BN128_PRIME, y0_value);
+    if (is_y0_in_range.value != 0) {
+        return oog_err;
+    }
+    let is_x1_in_range = U256_le(ALT_BN128_PRIME, x1_value);
+    if (is_x1_in_range.value != 0) {
+        return oog_err;
+    }
+    let is_y1_in_range = U256_le(ALT_BN128_PRIME, y1_value);
+    if (is_y1_in_range.value != 0) {
+        return oog_err;
     }
 
+    // Checks that point are on the curve
+    let x0_uint384 = uint256_to_uint384([x0_value.value]);
+    let y0_uint384 = uint256_to_uint384([y0_value.value]);
+    let x1_uint384 = uint256_to_uint384([x1_value.value]);
+    let y1_uint384 = uint256_to_uint384([y1_value.value]);
+    let p0 = G1Point(x=x0_uint384, y=y0_uint384);
+    let p1 = G1Point(x=x1_uint384, y=y1_uint384);
+    tempvar a = UInt384(alt_bn128.A0, alt_bn128.A1, alt_bn128.A2, alt_bn128.A3);
+    tempvar b = UInt384(alt_bn128.B0, alt_bn128.B1, alt_bn128.B2, alt_bn128.B3);
+    tempvar modulus = UInt384(alt_bn128.P0, alt_bn128.P1, alt_bn128.P2, alt_bn128.P3);
+    tempvar g = UInt384(alt_bn128.G0, alt_bn128.G1, alt_bn128.G2, alt_bn128.G3);
+
+    // Checks verifying the points are on the curve.
+    let point_inf = G1Point(x=UInt384(0, 0, 0, 0), y=UInt384(0, 0, 0, 0));
+    let is_p0_zero = G1Point__eq__(p0, point_inf);
+    let is_p1_zero = G1Point__eq__(p1, point_inf);
+
+    let pair_is_zero = is_p0_zero.value * is_p1_zero.value;
+    if (pair_is_zero == 0) {
+        tempvar b_ = b;
+        tempvar is_on_curve;
+        tempvar point = p0;
+        %{ is_point_on_curve %}
+        tempvar is_p0_on_curve_uint384 = UInt384(is_on_curve, 0, 0, 0);
+        if (is_on_curve == 0) {
+            assert_not_on_curve(new point.x, new point.y, new a, new b, new modulus);
+            tempvar err = new EthereumException(OutOfGasError);
+            return err;
+        }
+        assert_is_on_curve(
+            new point.x, new point.y, new a, new b, new g, new is_p0_on_curve_uint384, new modulus
+        );
+
+        tempvar is_on_curve;
+        tempvar point = p1;
+        %{ is_point_on_curve %}
+        tempvar is_p1_on_curve_uint384 = UInt384(is_on_curve, 0, 0, 0);
+
+        if (is_on_curve == 0) {
+            assert_not_on_curve(new point.x, new point.y, new a, new b, new modulus);
+            tempvar err = new EthereumException(OutOfGasError);
+            return err;
+        }
+        assert_is_on_curve(
+            new point.x, new point.y, new a, new b, new g, new is_p1_on_curve_uint384, new modulus
+        );
+        tempvar range_check96_ptr = range_check96_ptr;
+        tempvar add_mod_ptr = add_mod_ptr;
+        tempvar mul_mod_ptr = mul_mod_ptr;
+    } else {
+        tempvar range_check96_ptr = range_check96_ptr;
+        tempvar add_mod_ptr = add_mod_ptr;
+        tempvar mul_mod_ptr = mul_mod_ptr;
+    }
+
+    let res = ec_add(p0, p1, a, modulus);
+
+    let output = alt_bn128_G1Point__to_Bytes_be(res);
     EvmImpl.set_output(output);
     tempvar ok = cast(0, EthereumException*);
     return ok;
@@ -160,4 +232,25 @@ func alt_bn128_pairing_check{
     EvmImpl.set_output(output);
     tempvar ok = cast(0, EthereumException*);
     return ok;
+}
+
+func alt_bn128_G1Point__to_Bytes_be{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
+    point: G1Point
+) -> Bytes {
+    alloc_locals;
+    let (buffer: felt*) = alloc();
+    felt252_to_bytes_be(point.x.d0, 12, buffer);
+    felt252_to_bytes_be(point.x.d1, 12, buffer + 12);
+    felt252_to_bytes_be(point.x.d2, 8, buffer + 24);
+    with_attr error_message("alt_bn128_G1Point__to_Bytes_le: point.x.d3 != 0") {
+        assert point.x.d3 = 0;
+    }
+    felt252_to_bytes_be(point.y.d0, 12, buffer + 32);
+    felt252_to_bytes_be(point.y.d1, 12, buffer + 44);
+    felt252_to_bytes_be(point.y.d2, 8, buffer + 56);
+    with_attr error_message("alt_bn128_G1Point__to_Bytes_le: point.y.d3 != 0") {
+        assert point.y.d3 = 0;
+    }
+    tempvar res = Bytes(new BytesStruct(data=buffer, len=64));
+    return res;
 }

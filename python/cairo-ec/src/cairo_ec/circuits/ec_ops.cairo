@@ -38,3 +38,17 @@ func assert_is_on_curve(x: felt, y: felt, a: felt, b: felt, g: felt, is_on_curve
 
     end:
 }
+
+// @notice Asserts that a point is not on the curve by checking that either y is not the square root
+// of rhs.  The check is done by returning 1 / (y^2 - rhs), which is 0 if y^2 = rhs and would panic.
+// @param x The x coordinate of the point
+// @param y The y coordinate of the point
+// @param a The a coefficient of the curve
+// @param b The b coefficient of the curve
+func assert_not_on_curve(x: felt, y: felt, a: felt, b: felt) -> felt {
+    tempvar rhs = x * x * x + a * x + b;
+    // Fails if y^2 = rhs
+    return 1 / (y * y - rhs);
+
+    end:
+}

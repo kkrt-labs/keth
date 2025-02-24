@@ -102,16 +102,7 @@ func uint384_assert_eq_mod_p{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*}
     assert add_mod_ptr[0] = ModBuiltin(
         p=p, values_ptr=cast(range_check96_ptr, UInt384*), offsets_ptr=add_offsets_ptr, n=1
     );
-    %{
-        from starkware.cairo.lang.builtins.modulo.mod_builtin_runner import ModBuiltinRunner
-        assert builtin_runners["add_mod_builtin"].instance_def.batch_size == 1
-
-        ModBuiltinRunner.fill_memory(
-            memory=memory,
-            add_mod=(ids.add_mod_ptr.address_, builtin_runners["add_mod_builtin"], 1),
-            mul_mod=None,
-        )
-    %}
+    %{ fill_add_mod_mul_mod_builtin_batch_one %}
     let range_check96_ptr = range_check96_ptr + 12;
     let add_mod_ptr = add_mod_ptr + ModBuiltin.SIZE;
     return ();
