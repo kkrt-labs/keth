@@ -30,7 +30,12 @@ def evm_test_strategy(draw):
     input_bytes = rounds_bytes + h_bytes + m_bytes + t_0_bytes + t_1_bytes + f_bytes
 
     # Create message with data
-    message = MessageBuilder().with_data(st.just(input_bytes)).build()
+    # Send valid input bytes 80% of the time
+    if draw(st.floats(min_value=0, max_value=1)) < 0.8:
+        message = MessageBuilder().with_data(st.just(input_bytes)).build()
+    else:
+        input_bytes = draw(st.binary(min_size=1, max_size=1024))
+        message = MessageBuilder().with_data(st.just(input_bytes)).build()
 
     # Build and return EVM instance
     return draw(EvmBuilder().with_gas_left().with_message(message).build())
