@@ -18,7 +18,7 @@ from ethereum.cancun.vm.memory import buffer_read
 from cairo_ec.curve.alt_bn128 import alt_bn128
 from cairo_ec.ec_ops import ec_add
 from cairo_ec.curve.g1_point import G1Point, G1Point__eq__
-from cairo_ec.circuits.ec_ops_compiled import assert_is_on_curve, assert_not_on_curve
+from cairo_ec.circuits.ec_ops_compiled import assert_is_on_curve_or_fallback, assert_not_on_curve
 from cairo_ec.uint384 import uint256_to_uint384
 from cairo_core.maths import felt252_to_bytes_be
 from starkware.cairo.common.registers import get_fp_and_pc
@@ -106,7 +106,7 @@ func alt_bn128_add{
             tempvar err = new EthereumException(OutOfGasError);
             return err;
         }
-        assert_is_on_curve(
+        assert_is_on_curve_or_fallback(
             new point.x, new point.y, new a, new b, new g, new is_p0_on_curve_uint384, new modulus
         );
 
@@ -120,7 +120,7 @@ func alt_bn128_add{
             tempvar err = new EthereumException(OutOfGasError);
             return err;
         }
-        assert_is_on_curve(
+        assert_is_on_curve_or_fallback(
             new point.x, new point.y, new a, new b, new g, new is_p1_on_curve_uint384, new modulus
         );
         tempvar range_check96_ptr = range_check96_ptr;

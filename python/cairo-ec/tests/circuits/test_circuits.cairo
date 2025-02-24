@@ -23,11 +23,16 @@ from cairo_ec.circuits.mod_ops_compiled import (
     inv as inv_compiled,
     assert_is_quad_residue as assert_is_quad_residue_compiled,
 )
-from cairo_ec.circuits.ec_ops import ec_add, ec_double, assert_is_on_curve, assert_not_on_curve
+from cairo_ec.circuits.ec_ops import (
+    ec_add,
+    ec_double,
+    assert_is_on_curve_or_fallback,
+    assert_not_on_curve,
+)
 from cairo_ec.circuits.ec_ops_compiled import (
     ec_add as ec_add_compiled,
     ec_double as ec_double_compiled,
-    assert_is_on_curve as assert_is_on_curve_compiled,
+    assert_is_on_curve_or_fallback as assert_is_on_curve_or_fallback_compiled,
     assert_not_on_curve as assert_not_on_curve_compiled,
 )
 

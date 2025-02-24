@@ -156,18 +156,17 @@ def fill_add_mod_mul_mod_builtin_batch_one(
 ):
     from starkware.cairo.lang.builtins.modulo.mod_builtin_runner import ModBuiltinRunner
 
-    assert builtin_runners["add_mod_builtin"].instance_def.batch_size == 1
-    assert builtin_runners["mul_mod_builtin"].instance_def.batch_size == 1
-
     add_mod = None
     try:
         add_mod = (ids.add_mod_ptr.address_, builtin_runners["add_mod_builtin"], 1)
+        assert builtin_runners["add_mod_builtin"].instance_def.batch_size == 1
     except Exception:
         add_mod = None
 
     mul_mod = None
     try:
         mul_mod = (ids.mul_mod_ptr.address_, builtin_runners["mul_mod_builtin"], 1)
+        assert builtin_runners["mul_mod_builtin"].instance_def.batch_size == 1
     except Exception:
         mul_mod = None
 

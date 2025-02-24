@@ -438,7 +438,7 @@ class TestCircuits:
 
         @given(data=st.data())
         @settings(verbosity=Verbosity.quiet)
-        def test_assert_is_on_curve(
+        def test_assert_is_on_curve_or_fallback(
             self, cairo_program, cairo_run, curve, data, st_prime
         ):
             seed_p = data.draw(st_prime)
@@ -452,8 +452,10 @@ class TestCircuits:
                 "is_on_curve": curve.is_on_curve(p.x, p.y),
             }
 
-            cairo_run("assert_is_on_curve", **inputs)
-            compiled_circuit = circuit_compile(cairo_program, "assert_is_on_curve")
+            cairo_run("assert_is_on_curve_or_fallback", **inputs)
+            compiled_circuit = circuit_compile(
+                cairo_program, "assert_is_on_curve_or_fallback"
+            )
             values_ptr = flatten(compiled_circuit["constants"]) + [
                 limb for v in inputs.values() for limb in int_to_uint384(v)
             ]
@@ -465,7 +467,7 @@ class TestCircuits:
                 **compiled_circuit,
             )
             cairo_run(
-                "assert_is_on_curve_compiled",
+                "assert_is_on_curve_or_fallback_compiled",
                 **{k: int_to_uint384(v) for k, v in inputs.items()},
                 p=int_to_uint384(curve.FIELD.PRIME),
             )

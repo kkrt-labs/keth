@@ -22,15 +22,22 @@ func ec_double(x0: felt, y0: felt, a: felt) -> (felt, felt) {
     end:
 }
 
-// @dev Assert that a point is, or is not, on the curve by checking that either y is actually the square root of rhs
-//      (is_on_curve = True => y^2 = rhs) or y is the square root of rhs * g (is_on_curve = False => y^2 = rhs * g),
-//      which mean that rhs is not a quadratic residue because g * rhs is, and so that x is not on the curve.
+// @notice Verifies that a point (x, y) satisfies a specific elliptic curve condition based on is_on_curve.
+// @dev If is_on_curve = 1, asserts y^2 = x^3 + ax + b, confirming the point is on the curve.
+//      If is_on_curve = 0, asserts y^2 = g * (x^3 + ax + b), typically used to verify a point satisfies
+//      a modified condition (e.g., a twisted curve), not to reject points off the curve.
+//      Use this when you need to prove a point meets one of these equations, not to fail on invalid points.
+//      For explicit rejection of on-curve points, see assert_not_on_curve.
 // @param x The x coordinate of the point
 // @param y The y coordinate of the point
-// @param g The generator point
-// @param is_on_curve True if the point is on the curve, False otherwise
-func assert_is_on_curve(x: felt, y: felt, a: felt, b: felt, g: felt, is_on_curve: felt) {
-    assert is_on_curve * (1 - is_on_curve) = 0;
+// @param a The a coefficient of the curve
+// @param b The b coefficient of the curve
+// @param g A scalar used when is_on_curve = 0
+// @param is_on_curve Flag (0 or 1) indicating which condition to verify
+func assert_is_on_curve_or_fallback(
+    x: felt, y: felt, a: felt, b: felt, g: felt, is_on_curve: felt
+) {
+    assert is_on_curve * (1 - is_on_curve) = 0;  // Ensures is_on_curve is boolean (0 or 1)
     tempvar rhs = x * x * x + a * x + b;
     assert y * y = rhs * is_on_curve + g * rhs * (1 - is_on_curve);
 
@@ -39,15 +46,19 @@ func assert_is_on_curve(x: felt, y: felt, a: felt, b: felt, g: felt, is_on_curve
     end:
 }
 
-// @notice Asserts that a point is not on the curve by checking that either y is not the square root
-// of rhs.  The check is done by returning 1 / (y^2 - rhs), which is 0 if y^2 = rhs and would panic.
+// @notice Asserts that a point (x, y) is not on the elliptic curve by failing if y^2 = x^3 + ax + b.
+// @dev Computes rhs = x^3 + ax + b and returns 1 / (y^2 - rhs). This succeeds if the point is off the curve
+//      (y^2 ≠ rhs) and fails (division by zero) if the point is on the curve (y^2 = rhs).
+//      Use this to explicitly reject points that are on the curve when they shouldn’t be (e.g., invalid inputs).
+//      Unlike assert_is_on_curve_or_fallback with is_on_curve = 0, this forces failure for on-curve points.
 // @param x The x coordinate of the point
 // @param y The y coordinate of the point
 // @param a The a coefficient of the curve
 // @param b The b coefficient of the curve
+// @return felt A value (1 / (y^2 - rhs)) if the point is off the curve; fails otherwise
 func assert_not_on_curve(x: felt, y: felt, a: felt, b: felt) -> felt {
     tempvar rhs = x * x * x + a * x + b;
-    // Fails if y^2 = rhs
+    // Fails if y^2 = rhs (point is on the curve)
     return 1 / (y * y - rhs);
 
     end:
