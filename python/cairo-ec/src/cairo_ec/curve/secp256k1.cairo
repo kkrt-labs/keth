@@ -315,7 +315,6 @@ func try_recover_public_key{
     let res = ec_add(
         G1Point(x=ecip_input[50], y=ecip_input[51]),
         G1Point(x=ecip_input[54], y=ecip_input[55]),
-        g,
         a,
         p,
     );
