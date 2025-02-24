@@ -41,30 +41,15 @@ jobs:
         run: |
           git config --global user.name "kkrt-bot"
           git config --global user.email "kkrt-bot@users.noreply.github.com"
-          # Ensure GPG runs non-interactively
+          # Create and secure .gnupg directory
           mkdir -p ~/.gnupg
-          echo "no-tty" > ~/.gnupg/gpg.conf
-          echo "batch" >> ~/.gnupg/gpg.conf
-          echo "pinentry-mode loopback" > ~/.gnupg/gpg-agent.conf
+          chmod 700 ~/.gnupg
           # Import the GPG key
-          if [ -z "${{ secrets.KAKAROT_BOT_GPG_KEY }}" ]; then
-            echo "Error: KAKAROT_BOT_GPG_KEY is empty or not set"
-            exit 1
-          fi
-          echo "${{ secrets.KAKAROT_BOT_GPG_KEY }}" | gpg --import --batch --yes --verbose || {
-            echo "Error: GPG key import failed"
-            exit 1
-          }
+          echo "${{ secrets.KAKAROT_BOT_GPG_KEY }}" | gpg --import --batch --yes
           # Extract the signing key ID
           SIGNING_KEY=$(gpg --list-secret-keys --keyid-format LONG | awk '/^sec/{print $2}' | cut -d'/' -f2 | head -1)
-          if [ -z "$SIGNING_KEY" ]; then
-            echo "Error: No valid signing key found"
-            gpg --list-secret-keys --keyid-format LONG
-            exit 1
-          fi
           git config --global user.signingkey "$SIGNING_KEY"
           git config --global commit.gpgsign true
-          echo "Git configured with signing key: $SIGNING_KEY"
 
       - uses: dtolnay/rust-toolchain@nightly
 
@@ -128,30 +113,15 @@ jobs:
         run: |
           git config --global user.name "kkrt-bot"
           git config --global user.email "kkrt-bot@users.noreply.github.com"
-          # Ensure GPG runs non-interactively
+          # Create and secure .gnupg directory
           mkdir -p ~/.gnupg
-          echo "no-tty" > ~/.gnupg/gpg.conf
-          echo "batch" >> ~/.gnupg/gpg.conf
-          echo "pinentry-mode loopback" > ~/.gnupg/gpg-agent.conf
+          chmod 700 ~/.gnupg
           # Import the GPG key
-          if [ -z "${{ secrets.KAKAROT_BOT_GPG_KEY }}" ]; then
-            echo "Error: KAKAROT_BOT_GPG_KEY is empty or not set"
-            exit 1
-          fi
-          echo "${{ secrets.KAKAROT_BOT_GPG_KEY }}" | gpg --import --batch --yes --verbose || {
-            echo "Error: GPG key import failed"
-            exit 1
-          }
+          echo "${{ secrets.KAKAROT_BOT_GPG_KEY }}" | gpg --import --batch --yes
           # Extract the signing key ID
           SIGNING_KEY=$(gpg --list-secret-keys --keyid-format LONG | awk '/^sec/{print $2}' | cut -d'/' -f2 | head -1)
-          if [ -z "$SIGNING_KEY" ]; then
-            echo "Error: No valid signing key found"
-            gpg --list-secret-keys --keyid-format LONG
-            exit 1
-          fi
           git config --global user.signingkey "$SIGNING_KEY"
           git config --global commit.gpgsign true
-          echo "Git configured with signing key: $SIGNING_KEY"
 
       - uses: astral-sh/setup-uv@v3
         with:
