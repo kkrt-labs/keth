@@ -5,6 +5,8 @@ from starkware.cairo.common.cairo_builtins import (
     PoseidonBuiltin,
 )
 from starkware.cairo.common.math_cmp import is_le_felt
+from starkware.cairo.common.alloc import alloc
+from starkware.cairo.common.memset import memset
 from ethereum.cancun.vm.evm_impl import Evm, EvmImpl
 from ethereum.exceptions import EthereumException
 from ethereum.cancun.vm.exceptions import OutOfGasError
@@ -12,10 +14,11 @@ from ethereum.utils.numeric import ceil32
 from ethereum.cancun.vm.gas import GasConstants, charge_gas
 from ethereum_types.numeric import Uint, U256, U256Struct
 from ethereum.cancun.vm.memory import buffer_read
-from ethereum.utils.bytes import Bytes_to_Bytes32, Bytes20_to_Bytes
+from ethereum.utils.bytes import Bytes_to_Bytes32, Bytes20_to_Bytes, Bytes, BytesStruct
 from ethereum.utils.numeric import U256_from_be_bytes, U256__eq__, U256_le
 from cairo_ec.curve.secp256k1 import secp256k1
 from ethereum.crypto.elliptic_curve import secp256k1_recover, public_key_point_to_eth_address
+from legacy.utils.bytes import felt_to_bytes20_little
 
 func ecrecover{
     range_check_ptr,
@@ -56,10 +59,12 @@ func ecrecover{
 
     let is_v_valid = is_v_27.value + is_v_28.value;
 
-    if (is_v_valid != 0) {
+    if (is_v_valid == 0) {
         tempvar ok = cast(0, EthereumException*);
         return ok;
     }
+
+    tempvar y_parity = U256(new U256Struct(v.value.low - 27, 0));
 
     tempvar SECP256K1N = U256(new U256Struct(low=secp256k1.N_LOW_128, high=secp256k1.N_HIGH_128));
 
@@ -75,7 +80,7 @@ func ecrecover{
         return ok;
     }
 
-    let (public_key_x, public_key_y, error) = secp256k1_recover(r, s, v, message_hash);
+    let (public_key_x, public_key_y, error) = secp256k1_recover(r, s, y_parity, message_hash);
     if (cast(error, felt) != 0) {
         tempvar ok = cast(0, EthereumException*);
         return ok;
@@ -83,7 +88,10 @@ func ecrecover{
 
     let sender = public_key_point_to_eth_address(public_key_x, public_key_y);
 
-    let output = Bytes20_to_Bytes(sender);
+    let (buffer: felt*) = alloc();
+    memset(buffer, 0, 12);
+    felt_to_bytes20_little(buffer + 12, sender.value);
+    tempvar output = Bytes(new BytesStruct(data=buffer, len=32));
     EvmImpl.set_output(output);
     tempvar ok = cast(0, EthereumException*);
     return ok;
