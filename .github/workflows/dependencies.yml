@@ -1,4 +1,4 @@
-# Runs `cargo update` periodically.
+# Runs `cargo update` and Python dependency updates periodically.
 
 name: Update Dependencies
 
@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   update-rust-deps:
-    name: Update
+    name: Update Rust Dependencies
     runs-on: ubuntu-latest
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -36,6 +36,15 @@ jobs:
         </details>
     steps:
       - uses: actions/checkout@v4
+
+      - name: Configure Git for kkrt-bot
+        run: |
+          git config --global user.name "kkrt-bot"
+          git config --global user.email "kkrt-bot@users.noreply.github.com"
+          echo "${{ secrets.BOT_GPG_KEY }}" | gpg --import
+          git config --global user.signingkey $(gpg --list-secret-keys --keyid-format LONG | grep -oP '(?<=sec\s+rsa\d+\/)[A-Z0-9]+' | head -1)
+          git config --global commit.gpgsign true
+
       - uses: dtolnay/rust-toolchain@nightly
 
       - name: Cargo update
@@ -73,9 +82,10 @@ jobs:
           body: ${{ steps.msg.outputs.body }}
           branch: ${{ env.BRANCH }}
           delete-branch: true
+          author: "kkrt-bot <kkrt-bot@users.noreply.github.com>"
 
   update-python-deps:
-    name: Update
+    name: Update Python Dependencies
     runs-on: ubuntu-latest
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -95,6 +105,14 @@ jobs:
         </details>
     steps:
       - uses: actions/checkout@v4
+
+      - name: Configure Git for kkrt-bot
+        run: |
+          git config --global user.name "kkrt-bot"
+          git config --global user.email "kkrt-bot@users.noreply.github.com"
+          echo "${{ secrets.BOT_GPG_KEY }}" | gpg --import
+          git config --global user.signingkey $(gpg --list-secret-keys --keyid-format LONG | grep -oP '(?<=sec\s+rsa\d+\/)[A-Z0-9]+' | head -1)
+          git config --global commit.gpgsign true
 
       - uses: astral-sh/setup-uv@v3
         with:
@@ -149,3 +167,4 @@ jobs:
           branch: "${{ env.BRANCH }}"
           labels: dependencies
           delete-branch: true
+          author: "kkrt-bot <kkrt-bot@users.noreply.github.com>"
