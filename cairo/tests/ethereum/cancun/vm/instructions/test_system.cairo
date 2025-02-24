@@ -56,7 +56,11 @@ func test_create{
     evm: Evm,
 }() -> EthereumException* {
     let (process_create_message_label) = get_label_location(process_create_message);
-    let res = create{process_create_message_label=process_create_message_label}();
+    let (process_message_label) = get_label_location(process_message);
+    let res = create{
+        process_create_message_label=process_create_message_label,
+        process_message_label=process_message_label,
+    }();
     return res;
 }
 
@@ -71,7 +75,11 @@ func test_create2{
     evm: Evm,
 }() -> EthereumException* {
     let (process_create_message_label) = get_label_location(process_create_message);
-    let res = create2{process_create_message_label=process_create_message_label, evm=evm}();
+    let (process_message_label) = get_label_location(process_message);
+    let res = create2{
+        process_create_message_label=process_create_message_label,
+        process_message_label=process_message_label,
+    }();
     return res;
 }
 
