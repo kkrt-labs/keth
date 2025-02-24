@@ -22,7 +22,8 @@ from ethereum.cancun.fork_types import (
     SetAddressStruct,
     SetAddressDictAccess,
 )
-from ethereum.cancun.vm import Evm, EvmImpl, EnvImpl
+from ethereum.cancun.vm.evm_impl import Evm, EvmImpl
+from ethereum.cancun.vm.env_impl import EnvImpl
 from ethereum.exceptions import EthereumException
 from ethereum.cancun.vm.exceptions import OutOfGasError, OutOfBoundsRead
 from ethereum.cancun.vm.gas import (

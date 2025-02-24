@@ -18,15 +18,10 @@ from ethereum.cancun.fork_types import (
     SetAddressDictAccess,
     SetTupleAddressBytes32DictAccess,
 )
-from ethereum.cancun.vm import (
-    Evm,
-    EvmStruct,
-    Message,
-    Environment,
-    EnvironmentStruct,
-    EvmImpl,
-    EnvImpl,
-)
+
+from ethereum.cancun.vm.evm_impl import Evm, EvmStruct, Message
+from ethereum.cancun.vm.env_impl import Environment, EnvironmentStruct, EnvImpl
+
 from ethereum.cancun.utils.constants import STACK_DEPTH_LIMIT, MAX_CODE_SIZE
 from ethereum.cancun.vm.exceptions import (
     EthereumException,
@@ -58,6 +53,8 @@ from ethereum.cancun.state import (
     State,
     touch_account,
 )
+
+from ethereum.cancun.vm.evm_impl import EvmImpl
 
 from legacy.utils.dict import hashdict_write, default_dict_finalize, dict_squash
 

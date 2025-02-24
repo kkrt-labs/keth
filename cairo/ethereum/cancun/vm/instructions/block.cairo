@@ -4,7 +4,7 @@ from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin,
 from starkware.cairo.common.math_cmp import is_nn, is_in_range
 
 from ethereum_types.numeric import U256, U256Struct, Uint
-from ethereum.cancun.vm import Evm, EvmImpl
+from ethereum.cancun.vm.evm_impl import Evm, EvmImpl
 from ethereum.cancun.blocks import TupleLog, TupleLogStruct
 from ethereum.exceptions import EthereumException
 from ethereum.cancun.vm.gas import charge_gas, GasConstants

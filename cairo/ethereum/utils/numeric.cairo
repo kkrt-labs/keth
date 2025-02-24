@@ -1,4 +1,5 @@
 from starkware.cairo.common.math_cmp import is_le, is_not_zero, is_le_felt
+from starkware.cairo.common.math import safe_mult
 from starkware.cairo.common.uint256 import uint256_reverse_endian
 from ethereum_types.numeric import Uint, U256, U256Struct, bool, U64
 from ethereum_types.bytes import Bytes32, Bytes32Struct, Bytes20, Bytes
@@ -279,6 +280,15 @@ func U256_mul{range_check_ptr}(a: U256, b: U256) -> U256 {
     }
     tempvar result = U256(&low);
     return result;
+}
+
+// Returns the minimum of two U256 values
+func U256_min{range_check_ptr}(a: U256, b: U256) -> U256 {
+    let is_b_le = U256_le(b, a);
+    if (is_b_le.value == 1) {
+        return b;
+    }
+    return a;
 }
 
 func U64_from_be_bytes{range_check_ptr}(bytes: Bytes) -> U64 {

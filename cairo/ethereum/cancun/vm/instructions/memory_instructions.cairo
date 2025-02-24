@@ -3,7 +3,7 @@ from starkware.cairo.common.uint256 import uint256_eq, Uint256, uint256_and
 from starkware.cairo.common.math_cmp import is_le_felt
 
 from ethereum.cancun.vm.stack import Stack, pop, push
-from ethereum.cancun.vm import Evm, EvmImpl, EvmStruct
+from ethereum.cancun.vm.evm_impl import Evm, EvmImpl, EvmStruct
 from ethereum.exceptions import EthereumException
 from ethereum.cancun.vm.exceptions import OutOfGasError
 from ethereum_types.numeric import U256, U256Struct, Uint
