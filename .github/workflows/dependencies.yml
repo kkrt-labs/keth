@@ -44,12 +44,17 @@ jobs:
           # Create and secure .gnupg directory
           mkdir -p ~/.gnupg
           chmod 700 ~/.gnupg
+          # Configure GPG for non-interactive use
+          echo "no-tty" > ~/.gnupg/gpg.conf
+          echo "batch" >> ~/.gnupg/gpg.conf
+          echo "pinentry-mode loopback" >> ~/.gnupg/gpg.conf
           # Import the GPG key
           echo "${{ secrets.KAKAROT_BOT_GPG_KEY }}" | gpg --import --batch --yes
           # Extract the signing key ID
           SIGNING_KEY=$(gpg --list-secret-keys --keyid-format LONG | awk '/^sec/{print $2}' | cut -d'/' -f2 | head -1)
           git config --global user.signingkey "$SIGNING_KEY"
           git config --global commit.gpgsign true
+          echo "Git configured with signing key: $SIGNING_KEY"
 
       - uses: dtolnay/rust-toolchain@nightly
 
@@ -116,12 +121,17 @@ jobs:
           # Create and secure .gnupg directory
           mkdir -p ~/.gnupg
           chmod 700 ~/.gnupg
+          # Configure GPG for non-interactive use
+          echo "no-tty" > ~/.gnupg/gpg.conf
+          echo "batch" >> ~/.gnupg/gpg.conf
+          echo "pinentry-mode loopback" >> ~/.gnupg/gpg.conf
           # Import the GPG key
           echo "${{ secrets.KAKAROT_BOT_GPG_KEY }}" | gpg --import --batch --yes
           # Extract the signing key ID
           SIGNING_KEY=$(gpg --list-secret-keys --keyid-format LONG | awk '/^sec/{print $2}' | cut -d'/' -f2 | head -1)
           git config --global user.signingkey "$SIGNING_KEY"
           git config --global commit.gpgsign true
+          echo "Git configured with signing key: $SIGNING_KEY"
 
       - uses: astral-sh/setup-uv@v3
         with:
