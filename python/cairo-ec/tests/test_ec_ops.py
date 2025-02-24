@@ -75,7 +75,6 @@ class TestEcOps:
                 p=[*int_to_uint384(int(p.x)), *int_to_uint384(int(p.y))],
                 q=[*int_to_uint384(int(q.x)), *int_to_uint384(int(q.y))],
                 a=int_to_uint384(int(curve.A)),
-                g=int_to_uint384(int(curve.G)),
                 modulus=int_to_uint384(int(curve.FIELD.PRIME)),
             )
             assert p + q == curve(
@@ -91,7 +90,6 @@ class TestEcOps:
                 p=[*int_to_uint384(int(p.x)), *int_to_uint384(int(p.y))],
                 q=[*int_to_uint384(int(q.x)), *int_to_uint384(int(q.y))],
                 a=int_to_uint384(int(curve.A)),
-                g=int_to_uint384(int(curve.G)),
                 modulus=int_to_uint384(int(curve.FIELD.PRIME)),
             )
             assert p + q == curve(
@@ -107,7 +105,6 @@ class TestEcOps:
                 p=[*int_to_uint384(int(p.x)), *int_to_uint384(int(p.y))],
                 q=[*int_to_uint384(int(q.x)), *int_to_uint384(int(q.y))],
                 a=int_to_uint384(int(curve.A)),
-                g=int_to_uint384(int(curve.G)),
                 modulus=int_to_uint384(int(curve.FIELD.PRIME)),
             )
             assert p + q == curve(

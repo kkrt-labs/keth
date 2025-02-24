@@ -65,17 +65,15 @@ func test__ec_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_pt
     let (p_ptr: G1Point*) = alloc();
     let (q_ptr: G1Point*) = alloc();
     let (a_ptr: UInt384*) = alloc();
-    let (g_ptr: UInt384*) = alloc();
     let (modulus_ptr: UInt384*) = alloc();
     %{
         segments.write_arg(ids.p_ptr.address_, program_input["p"])
         segments.write_arg(ids.q_ptr.address_, program_input["q"])
         segments.write_arg(ids.a_ptr.address_, program_input["a"])
-        segments.write_arg(ids.g_ptr.address_, program_input["g"])
         segments.write_arg(ids.modulus_ptr.address_, program_input["modulus"])
     %}
 
-    let res = ec_add([p_ptr], [q_ptr], [g_ptr], [a_ptr], [modulus_ptr]);
+    let res = ec_add([p_ptr], [q_ptr], [a_ptr], [modulus_ptr]);
 
     tempvar res_ptr = new G1Point(
         UInt384(res.x.d0, res.x.d1, res.x.d2, res.x.d3),

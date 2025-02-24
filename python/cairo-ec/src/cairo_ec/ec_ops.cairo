@@ -60,7 +60,7 @@ func get_random_point{
 
 // Add two EC points. Doesn't check if the inputs are on curve nor if they are the point at infinity.
 func ec_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
-    p: G1Point, q: G1Point, g: UInt384, a: UInt384, modulus: UInt384
+    p: G1Point, q: G1Point, a: UInt384, modulus: UInt384
 ) -> G1Point {
     alloc_locals;
     let same_x = uint384_eq_mod_p(p.x, q.x, modulus);
