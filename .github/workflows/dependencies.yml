@@ -41,7 +41,7 @@ jobs:
         run: |
           git config --global user.name "kkrt-bot"
           git config --global user.email "kkrt-bot@users.noreply.github.com"
-          echo "${{ secrets.BOT_GPG_KEY }}" | gpg --import
+          echo "${{ secrets.KAKAROT_BOT_GPG_KEY }}" | gpg --import
           git config --global user.signingkey $(gpg --list-secret-keys --keyid-format LONG | grep -oP '(?<=sec\s+rsa\d+\/)[A-Z0-9]+' | head -1)
           git config --global commit.gpgsign true
 
@@ -110,7 +110,7 @@ jobs:
         run: |
           git config --global user.name "kkrt-bot"
           git config --global user.email "kkrt-bot@users.noreply.github.com"
-          echo "${{ secrets.BOT_GPG_KEY }}" | gpg --import
+          echo "${{ secrets.KAKAROT_BOT_GPG_KEY }}" | gpg --import
           git config --global user.signingkey $(gpg --list-secret-keys --keyid-format LONG | grep -oP '(?<=sec\s+rsa\d+\/)[A-Z0-9]+' | head -1)
           git config --global commit.gpgsign true
 
