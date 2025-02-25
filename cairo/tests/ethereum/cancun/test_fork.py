@@ -994,9 +994,9 @@ class TestFork:
     @pytest.mark.parametrize(
         "zkpi_path",
         list(Path("data/1/eels").glob("*.json")),
-        ids=lambda x: x.stem,
+        ids=[x.stem for x in Path("data/1/eels").glob("*.json")],
     )
-    def test_state_transition_zkpi(self, cairo_run, zkpi_fixture):
+    def test_state_transition_eth_mainnet(self, cairo_run, zkpi_fixture):
         chain, block = zkpi_fixture
         cairo_chain = cairo_run("state_transition", chain, block)
         state_transition(chain, block)
