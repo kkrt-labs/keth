@@ -24,8 +24,7 @@ func ec_double(x0: felt, y0: felt, a: felt) -> (felt, felt) {
 
 // @notice Verifies that a point (x, y) satisfies a specific elliptic curve condition based on is_on_curve.
 // @dev If is_on_curve = 1, asserts y^2 = x^3 + ax + b, confirming the point is on the curve.
-//      If is_on_curve = 0, asserts y^2 = g * (x^3 + ax + b), typically used to verify a point satisfies
-//      a modified condition (e.g., a twisted curve), not to reject points off the curve.
+//      If is_on_curve = 0, asserts y^2 = g * (x^3 + ax + b), verifying that no `y` satisfies the curve equation for the given `x`.
 //      Use this when you need to prove a point meets one of these equations, not to fail on invalid points.
 //      For explicit rejection of on-curve points, see assert_not_on_curve.
 // @param x The x coordinate of the point

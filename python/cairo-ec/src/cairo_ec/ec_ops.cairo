@@ -2,7 +2,7 @@ from starkware.cairo.common.cairo_builtins import UInt384, ModBuiltin, PoseidonB
 from starkware.cairo.common.registers import get_label_location
 from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
 
-from cairo_ec.curve.g1_point import G1Point
+from cairo_ec.curve.g1_point import G1Point, G1Point__eq__
 from cairo_ec.circuits.ec_ops_compiled import ec_add as ec_add_unchecked, ec_double
 from cairo_ec.uint384 import uint384_is_neg_mod_p, uint384_eq_mod_p, felt_to_uint384, uint384_eq
 from cairo_ec.circuits.ec_ops_compiled import assert_x_is_on_curve
@@ -82,17 +82,13 @@ func ec_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: Mod
     p: G1Point, q: G1Point, a: UInt384, modulus: UInt384
 ) -> G1Point {
     alloc_locals;
-    tempvar uint384_zero = UInt384(0, 0, 0, 0);
-    let px_is_zero = uint384_eq(p.x, uint384_zero);
-    let py_is_zero = uint384_eq(p.y, uint384_zero);
-    let p_is_zero = px_is_zero * py_is_zero;
-    if (p_is_zero != 0) {
+    tempvar inf_point = G1Point(UInt384(0, 0, 0, 0), UInt384(0, 0, 0, 0));
+    let p_is_inf = G1Point__eq__(p, inf_point);
+    if (p_is_inf.value != 0) {
         return q;
     }
-    let qx_is_zero = uint384_eq(q.x, uint384_zero);
-    let qy_is_zero = uint384_eq(q.y, uint384_zero);
-    let q_is_zero = qx_is_zero * qy_is_zero;
-    if (q_is_zero != 0) {
+    let q_is_inf = G1Point__eq__(q, inf_point);
+    if (q_is_inf.value != 0) {
         return p;
     }
     let same_x = uint384_eq_mod_p(p.x, q.x, modulus);
