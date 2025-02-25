@@ -67,7 +67,7 @@ func dict_copy{range_check_ptr}(dict_start: DictAccess*, dict_end: DictAccess*) 
     // Update the DictTracker's current_ptr to point to the end of the copied dict.
     let current_tracker_ptr = new_dict_ptr;
     let new_tracker_ptr = new_end;
-    %{update_dict_tracker%}
+    %{ update_dict_tracker %}
     return (new_dict_ptr, new_end);
 }
 
