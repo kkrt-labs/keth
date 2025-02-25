@@ -37,8 +37,12 @@ func precompile_table_lookup{range_check_ptr}(address: felt) -> (felt, felt) {
     if (address_low != 0) {
         return (0, 0);
     }
-    let (leading_byte, _) = divmod(address_high, 2 ** (3 * 8));
+    let (leading_byte, remaining) = divmod(address_high, 2 ** (3 * 8));
+    // Only the leading byte should be non-zero
     if (leading_byte == 0) {
+        return (0, 0);
+    }
+    if (remaining != 0) {
         return (0, 0);
     }
     let addr_too_high = is_le_felt(HIGHEST_PRECOMPILE_LEADING_BYTE + 1, leading_byte);
