@@ -165,7 +165,7 @@ markers = [
   "slow",
   "cairo_file(path): mark test with cairo source file path to compile",
 ]
-norecursedirs = ".* tests/ef_tests/test_data"
+norecursedirs = ".* cairo/tests/ef_tests/fixtures"
 addopts = [
   # Allow test files to have the same name in different directories.
   "--import-mode=importlib",
@@ -202,3 +202,4 @@ packages = ["cairo/src", "cairo/tests", "cairo/scripts"]
 [project.scripts]
 compile_os = "scripts.compile_cairo:compile_os"
 compile_fibonacci = "scripts.compile_cairo:compile_fibonacci"
+zkpi_to_eels = "scripts.zkpi_to_eels:main"
