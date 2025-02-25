@@ -1,0 +1,32 @@
+---
+description: Project Instructions
+globs: 
+---
+# Project Instructions
+
+## Overview
+- Keth is an open-source proving backend for the Ethereum Execution Layer built with Kakarot Core EVM and Cairo.
+- Purpose: To prove Ethereum state transitions asynchronously by pulling pre-state, executing transactions, and computing post-state.
+
+## Architecture
+- Bridges Python and Cairo through three components:
+  - Type Generation (`args_gen.py`): Converts Python values to Cairo memory layout
+  - Serialization (`serde.py`): Converts values in Cairo memory to Python types
+  - Test Runner (`runner.py`): Orchestrates program execution and manages memory segments
+
+- Implements the Ethereum Virtual Machine (EVM) in Cairo Zero
+  - Core EVM components in `cairo/ethereum/cancun/`
+  - Type system in `cairo/ethereum_types/`
+  - Test framework adapted from Ethereum Execution Specs
+
+## Goals
+- Implement a complete EVM in Cairo for provable execution
+- Maintain strict compatibility with Ethereum's execution semantics
+- Optimize for provability while maintaining readability
+- Support the Cancun fork of Ethereum
+
+## AI Guidance
+- For type system questions, focus on both the Cairo implementation and Python bridging, refer to patterns in @common_patterns.mdc
+- For generic Cairo questions, refer to @coding_standards.mdc and @common_patterns.mdc
+- For EVM logic, refer to the Ethereum execution specs and the Cairo implementation
+- When implementing new features, follow the established patterns for error handling, type wrapping, and testing

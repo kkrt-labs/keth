@@ -1,0 +1,109 @@
+---
+description: Common Pattern
+globs: *.cairo
+---
+# Common Patterns
+
+
+## Type Wrapping Pattern
+- Complex types use pointer-based structures to keep an internal size-1 type.
+- Map Cairo types to Python types in `_cairo_struct_to_python_type` in `args_gen.py`
+- Use descriptive type names that match Ethereum specification concepts
+- Two main variants:
+  - Simple wrapper (fixed-size): `struct Bytes0 { value: felt }`
+  - Complex wrapper (variable-size):
+Examples from [bytes.cairo](mdc:cairo/ethereum_types/bytes.cairo):
+```cairo
+struct Bytes {
+    value: BytesStruct*,
+}
+
+struct BytesStruct {
+    data: felt*,
+    len: felt,
+}
+```
+
+## OOP Features
+- We use a rust-like approach where we define a type (e.g. `Evm`) and an "impl" (e.g. EvmImpl)
+- The "impl" is simply a `namespace EvmImpl` with a collections of functions associated to the type.
+- Avoid manipulating low-level Cairo: Use methods and types as much as possible
+
+Example in @evm_impl.cairo:
+```cairo
+struct Evm {...}
+
+namespace EvmImpl {
+    func set_pc{evm: Evm}(new_pc: Uint) {
+        tempvar evm = Evm(
+            new EvmStruct(
+                pc=new_pc,
+                stack=evm.value.stack,
+                memory=evm.value.memory,
+                ...etc
+            ))
+    }
+}
+```
+
+## Error Handling
+- Define error types in `exceptions.cairo` files
+Examples from [exceptions.cairo](mdc:cairo/ethereum/exceptions.cairo):
+```cairo
+struct EthereumException {
+    value: felt,
+}
+```
+- When raising an exception, the exception is a valid pointer. Otherwise, the pointer is `0`. When
+  checking for an exception, a simple cast(maybe_exception, felt) != 0 is enough to check if the
+  function raised.
+- The internal value is the ASCII-encoding of the error string; e.g: 'tempvar err = new EthereumException('OutOfGasError');`
+- Return `cast(0, ErrorType*)` for success cases
+- Create appropriate error objects with messages for failure cases
+
+## Function Structure
+- Use implicit arguments for mutable structures
+  - Example: `func push{stack: Stack}(value: U256) -> EthereumException* {`
+- Return error types for operations that can fail
+  - For functions that only signal errors: `func operation() -> EthereumException*`
+  - For functions that return values and may fail: `func operation() -> (Result, EthereumException*)`
+All error types returned are of type EthereumException* (if null - no error).
+- Document function behavior with natspec-compliant documentation. Minimize comments inside the function body.
+- Some functions require __builtins__ to operate: pass them as implicit args `func
+felt252_to_bytes_le{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}`
+- Examples in [stack.cairo](mdc:cairo/ethereum/cancun/vm/stack.cairo)
+
+## Memory Management
+- Cairo has a single memory split in segments.
+- Use `alloc()` to allocate a new memory allocation
+- Follow Cairo's write-once memory model: a cell cannot be modified once written
+- Implement mutable collections using dictionary patterns, examples: `struct Stack`, `struct Memory`, `struct SetUint`.
+
+
+## Mutable Collections Pattern
+- Two-pointer dictionary structure for state tracking:
+```cairo
+struct MutableCollection {
+    value: CollectionStruct*,
+}
+
+struct CollectionStruct {
+    dict_ptr_start: CollectionDictAccess*,
+    dict_ptr: CollectionDictAccess*,
+    len: felt,
+}
+```
+
+## Copying mutable data structures
+- When copying mutable data structures implemented with a dict, we use the
+%{ copy_tracker_to_new_ptr %} hint that allocates a new empty memory segment, but 
+the underlying tracker has the copied data
+- When this new memory segment is disposed, we MUST merge it to the parent segment with `dict_update`
+- Examples in [vm.cairo](mdc:cairo/ethereum/cancun/vm.cairo)
+
+## Optional Values Pattern
+- Null values implemented using pointer semantics
+- Simple types: A null value is represented by a pointer with value 0
+- Complex types: A null value is represented by the inner struct pointer being 0
+- Use type aliases for clarity: `using OptionalAddress = Address*`
+- Examples in [trie.cairo](mdc:cairo/ethereum/cancun/trie.cairo)
