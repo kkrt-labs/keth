@@ -749,12 +749,6 @@ class TestFork:
         assert logs == cairo_result[1]
         assert error == cairo_result[2]
 
-    @given(
-        data=tx_with_sender_in_state(),
-        gas_available=...,
-        base_fee_per_gas=...,
-        excess_blob_gas=...,
-    )
     @example(
         data=get_blob_tx_with_tx_sender_in_state(),
         gas_available=Uint(int("0x1000000", 16)),
