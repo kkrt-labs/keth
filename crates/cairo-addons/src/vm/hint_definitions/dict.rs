@@ -19,8 +19,7 @@ use crate::vm::hints::Hint;
 pub const HINTS: &[fn() -> Hint] = &[
     dict_new_empty,
     dict_squash,
-    dict_copy,
-    copy_dict_segment,
+    copy_tracker_to_new_ptr,
     merge_dict_tracker_with_parent,
     update_dict_tracker,
 ];
@@ -69,55 +68,9 @@ pub fn dict_squash() -> Hint {
     )
 }
 
-pub fn dict_copy() -> Hint {
+pub fn copy_tracker_to_new_ptr() -> Hint {
     Hint::new(
-        String::from("dict_copy"),
-        |vm: &mut VirtualMachine,
-         exec_scopes: &mut ExecutionScopes,
-         ids_data: &HashMap<String, HintReference>,
-         ap_tracking: &ApTracking,
-         _constants: &HashMap<String, Felt252>|
-         -> Result<(), HintError> {
-            // Get the new_start and dict_start pointers from ids
-            let new_start = get_ptr_from_var_name("new_start", vm, ids_data, ap_tracking)?;
-            let dict_start = get_ptr_from_var_name("dict_start", vm, ids_data, ap_tracking)?;
-            let new_end = get_ptr_from_var_name("new_end", vm, ids_data, ap_tracking)?;
-
-            let dict_manager_ref = exec_scopes.get_dict_manager()?;
-            let mut dict_manager = dict_manager_ref.borrow_mut();
-
-            // Check if new segment already exists in trackers
-            // Get and copy data from the source dictionary
-            let source_tracker = dict_manager.trackers.get(&dict_start.segment_index).ok_or(
-                HintError::CustomHint(Box::from(format!(
-                    "Segment {} already exists in dict_manager.trackers",
-                    new_start.segment_index
-                ))),
-            )?;
-            let copied_data = source_tracker.get_dictionary_copy();
-            let default_value = source_tracker.get_default_value().cloned();
-
-            // Create new tracker with copied data
-            if let Some(default_value) = default_value {
-                dict_manager.trackers.insert(
-                    new_end.segment_index,
-                    DictTracker::new_default_dict(new_end, &default_value, Some(copied_data)),
-                );
-            } else {
-                dict_manager.trackers.insert(
-                    new_end.segment_index,
-                    DictTracker::new_with_initial(new_end, copied_data),
-                );
-            }
-
-            Ok(())
-        },
-    )
-}
-
-pub fn copy_dict_segment() -> Hint {
-    Hint::new(
-        String::from("copy_dict_segment"),
+        String::from("copy_tracker_to_new_ptr"),
         |vm: &mut VirtualMachine,
          exec_scopes: &mut ExecutionScopes,
          ids_data: &HashMap<String, HintReference>,
@@ -125,8 +78,8 @@ pub fn copy_dict_segment() -> Hint {
          _constants: &HashMap<String, Felt252>|
          -> Result<(), HintError> {
             // Get original dict pointer
-            let parent_dict_ptr = get_ptr_from_var_name("parent_dict", vm, ids_data, ap_tracking)?;
-            let original_dict_ptr = vm.get_relocatable((parent_dict_ptr + 1)?)?;
+            let original_dict_ptr =
+                get_ptr_from_var_name("parent_dict_end", vm, ids_data, ap_tracking)?;
 
             // Get tracker and copy its data
             let dict_manager_ref = exec_scopes.get_dict_manager()?;

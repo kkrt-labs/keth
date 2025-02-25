@@ -19,22 +19,6 @@ def dict_new_empty(
 
 
 @register_hint
-def dict_copy(dict_manager: DictManager, ids: VmConsts):
-    from starkware.cairo.common.dict import DictTracker
-
-    if ids.new_start.address_.segment_index in dict_manager.trackers:
-        raise ValueError(
-            f"Segment {ids.new_start.address_.segment_index} already exists in dict_manager.trackers"
-        )
-
-    data = dict_manager.trackers[ids.dict_start.address_.segment_index].data.copy()
-    dict_manager.trackers[ids.new_start.address_.segment_index] = DictTracker(
-        data=data,
-        current_ptr=ids.new_end.address_,
-    )
-
-
-@register_hint
 def dict_squash(
     dict_manager: DictManager,
     ids: VmConsts,
@@ -52,18 +36,29 @@ def dict_squash(
 
 
 @register_hint
-def copy_dict_segment(
+def copy_tracker_to_new_ptr(
     dict_manager: DictManager,
     ids: VmConsts,
     segments: MemorySegmentManager,
     memory: MemoryDict,
     ap: RelocatableValue,
 ):
+    """
+    Creates a new, empty dictionary segment with a copy of the tracker of the parent dictionary.
+
+    This can be used in two ways:
+    1. By copying the memory segment data in the new dict segment, which is expensive.
+    2. By using a "fork" mechanism, in which the new dict segment is empty but associated with the
+       tracker of the parent dictionary. When the forked dictionary is no longer needed, it should be properly disposed by either:
+        a. Squashing and appending to the parent dictionary (to discard updates)
+        b. Merging with the parent dictionary (to preserve updates)
+
+    """
     from collections import defaultdict
 
     from starkware.cairo.common.dict import DictTracker
 
-    current_tracker = dict_manager.get_tracker(ids.parent_dict.dict_ptr)
+    current_tracker = dict_manager.get_tracker(ids.parent_dict_end)
     if isinstance(current_tracker.data, defaultdict):
         # Same as new_dict but supports a default value
         base = segments.add()

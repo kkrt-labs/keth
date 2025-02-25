@@ -50,16 +50,25 @@ func dict_write{dict_ptr: DictAccess*}(key_: felt, new_value: felt) {
     return ();
 }
 
+// @notice Copies a dict segment
+// @dev The tracker values of the original segment are copied to the new segment in hints.
+// @dev In most cases, prefer using the fork mechanism from "copy_tracker_to_new_ptr" without
+// copying the segment data.
 func dict_copy{range_check_ptr}(dict_start: DictAccess*, dict_end: DictAccess*) -> (
     DictAccess*, DictAccess*
 ) {
     alloc_locals;
-    let (local new_start: DictAccess*) = alloc();
-    tempvar new_end = new_start + (dict_end - dict_start);
-    memcpy(new_start, dict_start, dict_end - dict_start);
-    // Register the segment as a dict in the DictManager.
-    %{ dict_copy %}
-    return (new_start, new_end);
+    let parent_dict_end = dict_end;
+    local new_dict_ptr: DictAccess*;
+    %{ copy_tracker_to_new_ptr %}
+    tempvar new_end = new_dict_ptr + (dict_end - dict_start);
+    memcpy(new_dict_ptr, dict_start, dict_end - dict_start);
+
+    // Update the DictTracker's current_ptr to point to the end of the copied dict.
+    let current_tracker_ptr = new_dict_ptr;
+    let new_tracker_ptr = new_end;
+    %{ update_dict_tracker %}
+    return (new_dict_ptr, new_end);
 }
 
 // @dev Copied from the standard library with an updated dict_new() implementation.

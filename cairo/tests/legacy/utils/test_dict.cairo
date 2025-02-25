@@ -56,8 +56,8 @@ func test_dict_update{range_check_ptr}(
 
     local new_dict_ptr: UintDictAccess*;
     let modified_dict_start = new_dict_ptr;
-    let parent_dict = input_mapping.value;
-    %{ copy_dict_segment %}
+    let parent_dict_end = input_mapping.value.dict_ptr;
+    %{ copy_tracker_to_new_ptr %}
 
     tempvar modified_dict_end: UintDictAccess*;
     %{ dict_update_test_hint %}

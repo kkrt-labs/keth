@@ -134,25 +134,27 @@ func generic_call{
 
     let is_static = bool(is_staticcall.value + evm.value.message.value.is_static.value);
 
-    // TODO: this could be optimized using a non-copy mechanism.
-    let (accessed_addresses_copy_start, accessed_addresses_copy) = dict_copy(
-        cast(evm.value.accessed_addresses.value.dict_ptr_start, DictAccess*),
-        cast(evm.value.accessed_addresses.value.dict_ptr, DictAccess*),
-    );
-    let (accessed_storage_keys_copy_start, accessed_storage_keys_copy) = dict_copy(
-        cast(evm.value.accessed_storage_keys.value.dict_ptr_start, DictAccess*),
-        cast(evm.value.accessed_storage_keys.value.dict_ptr, DictAccess*),
-    );
+    // Fork the accessed_addresses dict segment
+    local new_dict_ptr: DictAccess*;
+    tempvar parent_dict_end = cast(evm.value.accessed_addresses.value.dict_ptr, DictAccess*);
+    %{ copy_tracker_to_new_ptr %}
     tempvar child_accessed_addresses = SetAddress(
         new SetAddressStruct(
-            cast(accessed_addresses_copy_start, SetAddressDictAccess*),
-            cast(accessed_addresses_copy, SetAddressDictAccess*),
+            cast(new_dict_ptr, SetAddressDictAccess*), cast(new_dict_ptr, SetAddressDictAccess*)
         ),
     );
+
+    // Fork the accessed_storage_keys dict segment
+    local new_dict_ptr: DictAccess*;
+    // TODO(refactor): remove the requirement for a cast
+    // explicit cast because our named variables must always be of the same type as previous
+    // variables
+    tempvar parent_dict_end = cast(evm.value.accessed_storage_keys.value.dict_ptr, DictAccess*);
+    %{ copy_tracker_to_new_ptr %}
     tempvar child_accessed_storage_keys = SetTupleAddressBytes32(
         new SetTupleAddressBytes32Struct(
-            cast(accessed_storage_keys_copy_start, SetTupleAddressBytes32DictAccess*),
-            cast(accessed_storage_keys_copy, SetTupleAddressBytes32DictAccess*),
+            cast(new_dict_ptr, SetTupleAddressBytes32DictAccess*),
+            cast(new_dict_ptr, SetTupleAddressBytes32DictAccess*),
         ),
     );
 
@@ -1132,27 +1134,30 @@ func generic_create{
     EnvImpl.set_state{env=env}(state);
     EvmImpl.set_env(env);
 
-    // TODO: this could be optimized using a non-copy mechanism.
-    let (accessed_addresses_copy_start, accessed_addresses_copy) = dict_copy(
-        cast(evm.value.accessed_addresses.value.dict_ptr_start, DictAccess*),
-        cast(evm.value.accessed_addresses.value.dict_ptr, DictAccess*),
-    );
-    let (accessed_storage_keys_copy_start, accessed_storage_keys_copy) = dict_copy(
-        cast(evm.value.accessed_storage_keys.value.dict_ptr_start, DictAccess*),
-        cast(evm.value.accessed_storage_keys.value.dict_ptr, DictAccess*),
-    );
+    // Fork the accessed_addresses dict segment
+    local new_dict_ptr: DictAccess*;
+    tempvar parent_dict_end = cast(evm.value.accessed_addresses.value.dict_ptr, DictAccess*);
+    %{ copy_tracker_to_new_ptr %}
     tempvar child_accessed_addresses = SetAddress(
         new SetAddressStruct(
-            cast(accessed_addresses_copy_start, SetAddressDictAccess*),
-            cast(accessed_addresses_copy, SetAddressDictAccess*),
+            cast(new_dict_ptr, SetAddressDictAccess*), cast(new_dict_ptr, SetAddressDictAccess*)
         ),
     );
+
+    // Fork the accessed_storage_keys dict segment
+    local new_dict_ptr: DictAccess*;
+    // TODO(refactor): remove the requirement for a cast
+    // explicit cast because our named variables must always be of the same type as previous
+    // variables
+    tempvar parent_dict_end = cast(evm.value.accessed_storage_keys.value.dict_ptr, DictAccess*);
+    %{ copy_tracker_to_new_ptr %}
     tempvar child_accessed_storage_keys = SetTupleAddressBytes32(
         new SetTupleAddressBytes32Struct(
-            cast(accessed_storage_keys_copy_start, SetTupleAddressBytes32DictAccess*),
-            cast(accessed_storage_keys_copy, SetTupleAddressBytes32DictAccess*),
+            cast(new_dict_ptr, SetTupleAddressBytes32DictAccess*),
+            cast(new_dict_ptr, SetTupleAddressBytes32DictAccess*),
         ),
     );
+
     tempvar to = To(new ToStruct(new Bytes0(0), cast(0, Address*)));
     tempvar child_message = Message(
         new MessageStruct(
