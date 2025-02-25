@@ -64,7 +64,7 @@ uv run pytest <optional pytest args>
 Some tests require to compile solidity code, which requires `forge` to be
 installed, and `foundry` to be in the path, and to run `forge build`.
 
-#### Ethereum Tests
+#### Ethereum Foundation Tests
 
 We adapted the testing framework from the
 [Ethereum Execution Specs](https://github.com/ethereum/execution-specs) to be
@@ -74,6 +74,32 @@ them with:
 
 ```bash
 uv run pytest cairo/tests/ef_tests/cancun/test_state_transition.py
+```
+
+#### Ethereum Mainnet Tests
+
+To run the `state_transition` function against a given Ethereum Mainnet block,
+you'll need first to generate the Prover Input (ZK-PI) for this block using
+[ZK-PIG](https://github.com/kkrt-labs/zk-pig):
+
+```bash
+zkpig generate
+```
+
+This will generate the ZK-PI for the given block and save it in the `data/1/`
+directory. Then, you'll need to run
+
+```bash
+uv run zkpi_to_eels data/1/preflight/
+```
+
+to convert the ZK-PI to the EELS format, actually generating data in the
+`data/1/eels` directory.
+
+Then, you can run the tests with:
+
+```bash
+uv run pytest cairo/tests/ethereum/cancun/test_fork.py -k "test_state_transition_eth_mainnet"
 ```
 
 ### Updating Rust dependencies
@@ -102,6 +128,5 @@ Coming soon 🏗️.
 
 ## Acknowledgements
 
-- Herodotus: thanks to Herodotus team for SHARP SDK libraries.
 - Ethereum Foundation: We are grateful to the Ethereum Foundation for the python
   execution specs and tests.
