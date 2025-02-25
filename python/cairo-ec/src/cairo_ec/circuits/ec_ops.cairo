@@ -142,9 +142,7 @@ func ecip_2p(
     // Sanity check as the current implementation only works for scalars above 2^128
     alloc_locals;
     local x_q_high_is_zero;
-    %{
-        ids.x_q_high_is_zero = 1 if ids.x_q_high == 0 else 0
-    %}
+    %{ ids.x_q_high_is_zero = 1 if ids.x_q_high == 0 else 0 %}
 
     assert x_q_high_is_zero = 0;
 
@@ -369,9 +367,7 @@ func ecip_1p(
     // Sanity check as the current implementation only works for scalars above 2^128
     alloc_locals;
     local x_q_high_is_zero;
-    %{
-        ids.x_q_high_is_zero = 1 if ids.x_q_high == 0 else 0
-    %}
+    %{ ids.x_q_high_is_zero = 1 if ids.x_q_high == 0 else 0 %}
 
     assert x_q_high_is_zero = 0;
 
