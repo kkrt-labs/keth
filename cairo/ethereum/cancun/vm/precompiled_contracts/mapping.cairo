@@ -14,6 +14,7 @@ from ethereum.cancun.vm.precompiled_contracts.alt_bn128 import (
 )
 from ethereum.cancun.vm.precompiled_contracts.ecrecover import ecrecover
 from ethereum.cancun.vm.precompiled_contracts.blake2f import blake2f
+from ethereum.cancun.vm.precompiled_contracts.point_evaluation import point_evaluation
 from cairo_core.control_flow import raise
 // currently 10 precompiles.
 const N_PRECOMPILES = 10;
@@ -103,7 +104,7 @@ func precompile_table_lookup{range_check_ptr}(address: felt) -> (felt, felt) {
     dw 0x900000000000000000000000000000000000000;
     call blake2f;  // BLAKE2F
     dw 0xa00000000000000000000000000000000000000;
-    call invalid_precompile;  // POINT_EVALUATION
+    call point_evaluation;  // POINT_EVALUATION
     // not reached.
     ret;
 }

@@ -15,7 +15,11 @@ use cairo_vm::{
 };
 use num_bigint::BigUint;
 use num_traits::{ToPrimitive, Zero};
-use revm_precompile::bn128::{pair, run_add, run_mul, run_pair};
+use revm_precompile::{
+    bn128::{pair, run_add, run_mul, run_pair},
+    kzg_point_evaluation::run,
+    Bytes,
+};
 
 use crate::vm::{
     hint_utils::{serialize_sequence, Uint256},
@@ -28,6 +32,7 @@ pub const HINTS: &[fn() -> Hint] = &[
     alt_bn128_pairing_check_hint,
     alt_bn128_add_hint,
     alt_bn128_mul_hint,
+    point_evaluation_hint,
 ];
 
 const WORD_SIZE: u32 = 8;
@@ -229,6 +234,42 @@ pub fn alt_bn128_mul_hint() -> Hint {
                 Err(_e) => {
                     // Any error gets converted to OutOfGasError in EELS
                     let error_string = "OutOfGasError";
+                    let error_bytes = error_string.as_bytes();
+                    let error_ascii = Felt252::from_bytes_be_slice(error_bytes);
+                    let error_ptr = vm.add_memory_segment();
+                    vm.insert_value(error_ptr, error_ascii)?;
+                    insert_value_from_var_name("error", error_ptr, vm, ids_data, ap_tracking)
+                }
+            }
+        },
+    )
+}
+
+pub fn point_evaluation_hint() -> Hint {
+    Hint::new(
+        String::from("point_evaluation_hint"),
+        |vm: &mut VirtualMachine,
+         _exec_scopes: &mut ExecutionScopes,
+         ids_data: &HashMap<String, HintReference>,
+         ap_tracking: &ApTracking,
+         _constants: &HashMap<String, Felt252>|
+         -> Result<(), HintError> {
+            let data_vec: Vec<u8> = serialize_sequence("data", vm, ids_data, ap_tracking)?
+                .iter()
+                .filter_map(|x| x.to_u8())
+                .collect();
+            let data = Bytes::from(data_vec);
+
+            // Use REVM's point evaluation function directly
+            // Gas is handled in Cairo before calling this hint
+            match run(&data, 2u64.pow(64) - 1) {
+                Ok(output) => {
+                    insert_value_from_var_name("error", 0, vm, ids_data, ap_tracking)?;
+                    let output = deserialize_sequence(output.bytes.to_vec(), vm)?;
+                    insert_value_from_var_name("output", output, vm, ids_data, ap_tracking)
+                }
+                Err(_e) => {
+                    let error_string = "KZGProofError";
                     let error_bytes = error_string.as_bytes();
                     let error_ascii = Felt252::from_bytes_be_slice(error_bytes);
                     let error_ptr = vm.add_memory_segment();
