@@ -6,6 +6,7 @@ from ethereum.cancun.vm.precompiled_contracts.alt_bn128 import (
     alt_bn128_mul,
     alt_bn128_pairing_check,
 )
+from ethereum.crypto.alt_bn128 import BNF, BNP
 from ethereum_types.bytes import Bytes
 from hypothesis import given
 from hypothesis import strategies as st
@@ -28,51 +29,82 @@ def pairing_check_strategy(draw):
 
 @st.composite
 def add_strategy(draw):
-    # Check failure cases for:
-    # - x0, y0, x1, y1 >= ALT_BN128_PRIME
-    # - Point is not on curve
-    # - Point at infinity
+    """
+    Strategy for generating test cases for the alt_bn128_add precompiled contract.
+    Covers:
+    - Valid points on the ALT_BN128 curve (including point at infinity).
+    - Invalid inputs: coordinates >= ALT_BN128_PRIME or points not on the curve.
+    """
+    case_type = draw(
+        st.sampled_from(
+            [
+                "both_valid",
+                "first_infinity",
+                "second_infinity",
+                "out_of_range",
+                "invalid_point",
+            ]
+        )
+    )
 
-    x0 = draw(st.integers(min_value=0, max_value=ALT_BN128_PRIME))
-    y0 = draw(st.integers(min_value=0, max_value=ALT_BN128_PRIME))
-    x1 = draw(st.integers(min_value=0, max_value=ALT_BN128_PRIME))
-    y1 = draw(st.integers(min_value=0, max_value=ALT_BN128_PRIME))
+    def generate_valid_point():
+        generator_point = BNP(BNF(1), BNF(2))
+        scalar = draw(st.integers(min_value=0, max_value=ALT_BN128_PRIME - 1))
+        point = generator_point.mul_by(scalar)
+        return int(point.x), int(point.y)
 
-    error_case = draw(st.booleans())
-    if error_case:
-        error_case_type = draw(
-            st.integers(min_value=0, max_value=8)
-        )  # each has 5% chance being true
-        if error_case_type == 0:
-            x0 = ALT_BN128_PRIME + 1
-        elif error_case_type == 1:
-            y0 = ALT_BN128_PRIME + 1
-        elif error_case_type == 2:
-            x1 = ALT_BN128_PRIME + 1
-        elif error_case_type == 3:
-            y1 = ALT_BN128_PRIME + 1
+    if case_type == "both_valid":
+        x0, y0 = generate_valid_point()
+        x1, y1 = generate_valid_point()
 
-        if error_case_type == 5:
-            x0 = 0
-            y0 = 0
+    elif case_type == "first_infinity":
+        x0, y0 = 0, 0
+        x1, y1 = generate_valid_point()
 
-        if error_case_type == 6:
-            x1 = 0
-            y1 = 0
+    elif case_type == "second_infinity":
+        x0, y0 = generate_valid_point()
+        x1, y1 = 0, 0
 
-        if error_case_type == 7:
-            x0 = 1
-            y0 = 2
-            x1 = 3
-            y1 = 4
+    elif case_type == "out_of_range":
+        # Generate coordinates, ensuring at least one is >= ALT_BN128_PRIME
+        x0 = draw(st.integers(min_value=0, max_value=ALT_BN128_PRIME + 100))
+        y0 = draw(st.integers(min_value=0, max_value=ALT_BN128_PRIME + 100))
+        x1 = draw(st.integers(min_value=0, max_value=ALT_BN128_PRIME + 100))
+        y1 = draw(st.integers(min_value=0, max_value=ALT_BN128_PRIME + 100))
+        if max(x0, y0, x1, y1) < ALT_BN128_PRIME:
+            coord = draw(st.sampled_from(["x0", "y0", "x1", "y1"]))
+            if coord == "x0":
+                x0 = ALT_BN128_PRIME + draw(st.integers(min_value=0, max_value=100))
+            elif coord == "y0":
+                y0 = ALT_BN128_PRIME + draw(st.integers(min_value=0, max_value=100))
+            elif coord == "x1":
+                x1 = ALT_BN128_PRIME + draw(st.integers(min_value=0, max_value=100))
+            else:
+                y1 = ALT_BN128_PRIME + draw(st.integers(min_value=0, max_value=100))
 
-    res = (
+    else:  # invalid_point
+        # At least one point is invalid
+        while True:
+            x0 = draw(st.integers(min_value=1, max_value=ALT_BN128_PRIME - 1))
+            y0 = draw(st.integers(min_value=1, max_value=ALT_BN128_PRIME - 1))
+            x1 = draw(st.integers(min_value=1, max_value=ALT_BN128_PRIME - 1))
+            y1 = draw(st.integers(min_value=1, max_value=ALT_BN128_PRIME - 1))
+            try:
+                p0 = BNP(BNF(x0), BNF(y0))
+                p1 = BNP(BNF(x1), BNF(y1))
+                # If both points are valid, try again
+                if p0 != BNP.point_at_infinity() and p1 != BNP.point_at_infinity():
+                    continue
+            except ValueError:
+                # At least one point is invalid, which is what we want
+                break
+
+    return (
         x0.to_bytes(32, "big")
         + y0.to_bytes(32, "big")
         + x1.to_bytes(32, "big")
         + y1.to_bytes(32, "big")
     )
-    return res
 
 
 class TestAltbn128:

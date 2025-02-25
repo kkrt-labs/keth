@@ -165,6 +165,14 @@ func uint384_assert_neq_mod_p{
     dw 12;  // a * b = 1
 }
 
+// Returns 1 if X == Y, 0 otherwise.
+func uint384_eq{range_check96_ptr: felt*}(x: UInt384, y: UInt384) -> felt {
+    if (x.d0 == y.d0 and x.d1 == y.d1 and x.d2 == y.d2 and x.d3 == y.d3) {
+        return 1;
+    }
+    return 0;
+}
+
 // Returns 1 if X == Y mod p, 0 otherwise.
 func uint384_eq_mod_p{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
     x: UInt384, y: UInt384, p: UInt384

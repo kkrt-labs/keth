@@ -182,7 +182,7 @@ func ec_double{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: 
     dw 68;
 }
 
-func assert_is_on_curve_or_fallback{
+func assert_x_is_on_curve{
     range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
 }(
     x: UInt384*,

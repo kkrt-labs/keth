@@ -4,15 +4,15 @@ from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
 
 from cairo_ec.curve.g1_point import G1Point
 from cairo_ec.circuits.ec_ops_compiled import ec_add as ec_add_unchecked, ec_double
-from cairo_ec.uint384 import uint384_is_neg_mod_p, uint384_eq_mod_p, felt_to_uint384
-from cairo_ec.circuits.ec_ops_compiled import assert_is_on_curve_or_fallback
+from cairo_ec.uint384 import uint384_is_neg_mod_p, uint384_eq_mod_p, felt_to_uint384, uint384_eq
+from cairo_ec.circuits.ec_ops_compiled import assert_x_is_on_curve
 
 // @notice Attempts to derive a y-coordinate for a given x on an elliptic curve.
 // @return y A candidate y-coordinate; if is_on_curve = 1, (x, y) is on the curve; if 0, y is a fallback value.
 // @return is_on_curve 1 if (x, y) lies on the curve, 0 if not.
 // @dev Given x, computes y such that y^2 = x^3 + ax + b mod p when is_on_curve = 1, confirming (x, y) is on the curve.
-//      If is_on_curve = 0, y^2 = g * (x^3 + ax + b) mod p, where g is a scalar tweak (not a point),
-//      s.t it satisfies assert_is_on_curve_or_fallback. This y is a fallback and may not be used directly;
+//      If is_on_curve = 0, y^2 = g * (x^3 + ax + b) mod p, where g is generator of the group,
+//      s.t it satisfies assert_x_is_on_curve. This y is a fallback and may not be used directly;
 //      e.g., get_random_point retries with a new seed instead, but is used to ensure the operation is sound.
 // @param x The x-coordinate to test (UInt384)
 // @param v Unused flag (TODO: clarify purpose)
@@ -32,7 +32,7 @@ func try_get_point_from_x{
     local y_try: UInt384;
     %{ compute_y_from_x_hint %}
 
-    assert_is_on_curve_or_fallback(x=x, y=&y_try, a=a, b=b, g=g, is_on_curve=&is_on_curve, p=p);
+    assert_x_is_on_curve(x=x, y=&y_try, a=a, b=b, g=g, is_on_curve=&is_on_curve, p=p);
     assert is_on_curve.d3 = 0;
     assert is_on_curve.d2 = 0;
     assert is_on_curve.d1 = 0;
@@ -68,11 +68,33 @@ func get_random_point{
     return get_random_point(seed=seed, a=a, b=b, g=g, p=p);
 }
 
-// Add two EC points. Doesn't check if the inputs are on curve nor if they are the point at infinity.
+// / @notice Adds two EC points on the ALT_BN128 curve.
+// / @dev Handles the point at infinity (0, 0) by returning the other point if either input is infinity.
+// /      For points with the same x-coordinate modulo modulus, returns infinity if they are inverses (p.y + q.y = 0 mod P),
+// /      or doubles the point if they are equal. Otherwise, performs standard addition for distinct points.
+// /      Does not check if inputs lie on the curve; this is the caller's responsibility.
+// / @param p The first elliptic curve point as a G1Point struct.
+// / @param q The second elliptic curve point as a G1Point struct.
+// / @param a The curve coefficient 'a' as a UInt384.
+// / @param modulus The prime modulus of the field as a UInt384.
+// / @return The resulting point from p + q on the ALT_BN128 curve as a G1Point.
 func ec_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
     p: G1Point, q: G1Point, a: UInt384, modulus: UInt384
 ) -> G1Point {
     alloc_locals;
+    tempvar uint384_zero = UInt384(0, 0, 0, 0);
+    let px_is_zero = uint384_eq(p.x, uint384_zero);
+    let py_is_zero = uint384_eq(p.y, uint384_zero);
+    let p_is_zero = px_is_zero * py_is_zero;
+    if (p_is_zero != 0) {
+        return q;
+    }
+    let qx_is_zero = uint384_eq(q.x, uint384_zero);
+    let qy_is_zero = uint384_eq(q.y, uint384_zero);
+    let q_is_zero = qx_is_zero * qy_is_zero;
+    if (q_is_zero != 0) {
+        return p;
+    }
     let same_x = uint384_eq_mod_p(p.x, q.x, modulus);
     let (__fp__, __pc__) = get_fp_and_pc();
     if (same_x != 0) {

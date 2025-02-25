@@ -34,9 +34,7 @@ func ec_double(x0: felt, y0: felt, a: felt) -> (felt, felt) {
 // @param b The b coefficient of the curve
 // @param g A scalar used when is_on_curve = 0
 // @param is_on_curve Flag (0 or 1) indicating which condition to verify
-func assert_is_on_curve_or_fallback(
-    x: felt, y: felt, a: felt, b: felt, g: felt, is_on_curve: felt
-) {
+func assert_x_is_on_curve(x: felt, y: felt, a: felt, b: felt, g: felt, is_on_curve: felt) {
     assert is_on_curve * (1 - is_on_curve) = 0;  // Ensures is_on_curve is boolean (0 or 1)
     tempvar rhs = x * x * x + a * x + b;
     assert y * y = rhs * is_on_curve + g * rhs * (1 - is_on_curve);
@@ -50,7 +48,7 @@ func assert_is_on_curve_or_fallback(
 // @dev Computes rhs = x^3 + ax + b and returns 1 / (y^2 - rhs). This succeeds if the point is off the curve
 //      (y^2 ≠ rhs) and fails (division by zero) if the point is on the curve (y^2 = rhs).
 //      Use this to explicitly reject points that are on the curve when they shouldn’t be (e.g., invalid inputs).
-//      Unlike assert_is_on_curve_or_fallback with is_on_curve = 0, this forces failure for on-curve points.
+//      Unlike assert_x_is_on_curve with is_on_curve = 0, this forces failure for on-curve points.
 // @param x The x coordinate of the point
 // @param y The y coordinate of the point
 // @param a The a coefficient of the curve
