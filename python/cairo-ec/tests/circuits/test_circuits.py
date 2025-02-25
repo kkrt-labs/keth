@@ -3,7 +3,7 @@ from typing import Type
 import pytest
 from ethereum.crypto.finite_field import PrimeField
 from garaga.algebra import FunctionFelt
-from garaga.definitions import CurveID, G1Point
+from garaga.definitions import CURVES, CurveID, G1Point
 from garaga.hints.ecip import derive_ec_point_from_X, zk_ecip_hint
 from garaga.hints.neg_3 import scalar_to_base_neg3_le
 from garaga.starknet.tests_and_calldata_generators.msm import MSMCalldataBuilder
@@ -687,28 +687,18 @@ class TestCircuits:
             )
 
         @given(data=st.data())
-        def test_ecip_2p(self, cairo_program, cairo_run, curve, data, st_prime):
-            seed_g = data.draw(
-                st.integers(min_value=1, max_value=curve.FIELD.PRIME - 1)
-            )
-            seed_r = data.draw(
-                st.integers(min_value=1, max_value=curve.FIELD.PRIME - 1)
-            )
-            assume(seed_g != seed_r)
-            g = curve.random_point(x=seed_g)
-            r = curve.random_point(x=seed_r)
-            points = [
-                G1Point(g.x, g.y, CurveID.SECP256K1),
-                G1Point(r.x, r.y, CurveID.SECP256K1),
-            ]
+        def test_ecip_2p(self, cairo_program, cairo_run, data, prime):
+            curve_id = CurveID.from_str("secp256k1")
+            curve = CURVES[curve_id.value]
+            g = G1Point.gen_random_point(curve_id)
+            r = G1Point.gen_random_point(curve_id)
+            points = [g, r]
 
-            # n is the order of the SECP256K1 elliptic curve
-            n = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
-            u1 = data.draw(st.integers(min_value=2**128 + 1, max_value=n))
-            u2 = data.draw(st.integers(min_value=2**128 + 1, max_value=n))
+            u1 = data.draw(st.integers(min_value=2**128 + 1, max_value=curve.n))
+            u2 = data.draw(st.integers(min_value=2**128 + 1, max_value=curve.n))
             scalars = [u1, u2]
 
-            builder = MSMCalldataBuilder(CurveID.SECP256K1, points, scalars)
+            builder = MSMCalldataBuilder(curve_id, points, scalars)
             (q_low, q_high, q_high_shifted, rlcSumDlogDiv, a0, rlc_coeff) = (
                 build_msm_hints(msm=builder)
             )
@@ -750,20 +740,20 @@ class TestCircuits:
                 "y_r": int(points[1].y),
                 "ep1_low": int(epns_low[0][0]),
                 "en1_low": int(epns_low[0][1]),
-                "sp1_low": int(epns_low[0][2] % curve.FIELD.PRIME),
-                "sn1_low": int(epns_low[0][3] % curve.FIELD.PRIME),
+                "sp1_low": int(epns_low[0][2] % curve.p),
+                "sn1_low": int(epns_low[0][3] % curve.p),
                 "ep2_low": int(epns_low[1][0]),
                 "en2_low": int(epns_low[1][1]),
-                "sp2_low": int(epns_low[1][2] % curve.FIELD.PRIME),
-                "sn2_low": int(epns_low[1][3] % curve.FIELD.PRIME),
+                "sp2_low": int(epns_low[1][2] % curve.p),
+                "sn2_low": int(epns_low[1][3] % curve.p),
                 "ep1_high": int(epns_high[0][0]),
                 "en1_high": int(epns_high[0][1]),
-                "sp1_high": int(epns_high[0][2] % curve.FIELD.PRIME),
-                "sn1_high": int(epns_high[0][3] % curve.FIELD.PRIME),
+                "sp1_high": int(epns_high[0][2] % curve.p),
+                "sn1_high": int(epns_high[0][3] % curve.p),
                 "ep2_high": int(epns_high[1][0]),
                 "en2_high": int(epns_high[1][1]),
-                "sp2_high": int(epns_high[1][2] % curve.FIELD.PRIME),
-                "sn2_high": int(epns_high[1][3] % curve.FIELD.PRIME),
+                "sp2_high": int(epns_high[1][2] % curve.p),
+                "sn2_high": int(epns_high[1][3] % curve.p),
                 "x_q_low": int(q_low.x),
                 "y_q_low": int(q_low.y),
                 "x_q_high": int(q_high.x),
@@ -772,45 +762,41 @@ class TestCircuits:
                 "y_q_high_shifted": int(q_high_shifted.y),
                 "x_a0": int(a0.x),
                 "y_a0": int(a0.y),
-                "a": int(curve.A),
-                "b": int(curve.B),
+                "a": int(curve.a),
+                "b": int(curve.b),
                 "base_rlc": int(rlc_coeff),
             }
 
-            cairo_run("ecip_2p", **inputs)
-            compiled_circuit = circuit_compile(cairo_program, "ecip_2p")
-            values_ptr = flatten(compiled_circuit["constants"]) + [
-                limb for v in inputs.values() for limb in int_to_uint384(v)
-            ]
-            cairo_run(
-                "test__circuit",
-                values_ptr=values_ptr,
-                values_ptr_len=len(values_ptr),
-                p=int_to_uint384(curve.FIELD.PRIME),
-                **compiled_circuit,
-            )
-            cairo_run(
-                "ecip_2p_compiled",
-                **{k: int_to_uint384(v) for k, v in inputs.items()},
-                p=int_to_uint384(curve.FIELD.PRIME),
-            )
+            if prime == curve.p:
+                cairo_run("ecip_2p", **inputs)
+                compiled_circuit = circuit_compile(cairo_program, "ecip_2p")
+                values_ptr = flatten(compiled_circuit["constants"]) + [
+                    limb for v in inputs.values() for limb in int_to_uint384(v)
+                ]
+                cairo_run(
+                    "test__circuit",
+                    values_ptr=values_ptr,
+                    values_ptr_len=len(values_ptr),
+                    p=int_to_uint384(curve.p),
+                    **compiled_circuit,
+                )
+                cairo_run(
+                    "ecip_2p_compiled",
+                    **{k: int_to_uint384(v) for k, v in inputs.items()},
+                    p=int_to_uint384(curve.p),
+                )
 
         @given(data=st.data())
-        def test_ecip_1p(self, cairo_program, cairo_run, curve, data, st_prime):
-            seed_g = data.draw(
-                st.integers(min_value=1, max_value=curve.FIELD.PRIME - 1)
-            )
-            g = curve.random_point(x=seed_g)
-            points = [
-                G1Point(g.x, g.y, CurveID.SECP256K1),
-            ]
+        def test_ecip_1p(self, cairo_program, cairo_run, data, prime):
+            curve_id = CurveID.from_str("secp256k1")
+            curve = CURVES[curve_id.value]
+            g = G1Point.gen_random_point(curve_id)
+            points = [g]
 
-            # n is the order of the SECP256K1 elliptic curve
-            n = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
-            u1 = data.draw(st.integers(min_value=2**128 + 1, max_value=n))
+            u1 = data.draw(st.integers(min_value=2**128 + 1, max_value=curve.n))
             scalars = [u1]
 
-            builder = MSMCalldataBuilder(CurveID.SECP256K1, points, scalars)
+            builder = MSMCalldataBuilder(curve_id, points, scalars)
             (q_low, q_high, q_high_shifted, rlcSumDlogDiv, a0, rlc_coeff) = (
                 build_msm_hints(msm=builder)
             )
@@ -846,12 +832,12 @@ class TestCircuits:
                 "y_g": int(points[0].y),
                 "ep1_low": int(epns_low[0][0]),
                 "en1_low": int(epns_low[0][1]),
-                "sp1_low": int(epns_low[0][2] % curve.FIELD.PRIME),
-                "sn1_low": int(epns_low[0][3] % curve.FIELD.PRIME),
+                "sp1_low": int(epns_low[0][2] % curve.p),
+                "sn1_low": int(epns_low[0][3] % curve.p),
                 "ep1_high": int(epns_high[0][0]),
                 "en1_high": int(epns_high[0][1]),
-                "sp1_high": int(epns_high[0][2] % curve.FIELD.PRIME),
-                "sn1_high": int(epns_high[0][3] % curve.FIELD.PRIME),
+                "sp1_high": int(epns_high[0][2] % curve.p),
+                "sn1_high": int(epns_high[0][3] % curve.p),
                 "x_q_low": int(q_low.x),
                 "y_q_low": int(q_low.y),
                 "x_q_high": int(q_high.x),
@@ -860,28 +846,29 @@ class TestCircuits:
                 "y_q_high_shifted": int(q_high_shifted.y),
                 "x_a0": int(a0.x),
                 "y_a0": int(a0.y),
-                "a": int(curve.A),
-                "b": int(curve.B),
+                "a": int(curve.a),
+                "b": int(curve.b),
                 "base_rlc": int(rlc_coeff),
             }
 
-            cairo_run("ecip_1p", **inputs)
-            compiled_circuit = circuit_compile(cairo_program, "ecip_1p")
-            values_ptr = flatten(compiled_circuit["constants"]) + [
-                limb for v in inputs.values() for limb in int_to_uint384(v)
-            ]
-            cairo_run(
-                "test__circuit",
-                values_ptr=values_ptr,
-                values_ptr_len=len(values_ptr),
-                p=int_to_uint384(curve.FIELD.PRIME),
-                **compiled_circuit,
-            )
-            cairo_run(
-                "ecip_1p_compiled",
-                **{k: int_to_uint384(v) for k, v in inputs.items()},
-                p=int_to_uint384(curve.FIELD.PRIME),
-            )
+            if prime == curve.p:
+                cairo_run("ecip_1p", **inputs)
+                compiled_circuit = circuit_compile(cairo_program, "ecip_1p")
+                values_ptr = flatten(compiled_circuit["constants"]) + [
+                    limb for v in inputs.values() for limb in int_to_uint384(v)
+                ]
+                cairo_run(
+                    "test__circuit",
+                    values_ptr=values_ptr,
+                    values_ptr_len=len(values_ptr),
+                    p=int_to_uint384(curve.p),
+                    **compiled_circuit,
+                )
+                cairo_run(
+                    "ecip_1p_compiled",
+                    **{k: int_to_uint384(v) for k, v in inputs.items()},
+                    p=int_to_uint384(curve.p),
+                )
 
 
 def build_msm_hints(
