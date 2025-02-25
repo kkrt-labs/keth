@@ -50,7 +50,7 @@ func dict_write{dict_ptr: DictAccess*}(key_: felt, new_value: felt) {
     return ();
 }
 
-// @notice Copies a dict segment from the dict_start to the new_end.
+// @notice Copies a dict segment
 // @dev The tracker values of the original segment are copied to the new segment in hints.
 // @dev In most cases, prefer using the fork mechanism from "copy_tracker_to_new_ptr" without
 // copying the segment data.
