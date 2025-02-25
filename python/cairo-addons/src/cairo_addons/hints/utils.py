@@ -8,13 +8,7 @@ from cairo_addons.hints.decorator import register_hint
 
 
 @register_hint
-def Bytes__eq__(
-    dict_manager: DictManager,
-    ids: VmConsts,
-    segments: MemorySegmentManager,
-    memory: MemoryDict,
-    ap: RelocatableValue,
-):
+def Bytes__eq__(ids: VmConsts, memory: MemoryDict):
     self_bytes = b"".join(
         [
             memory[ids._self.value.data + i].to_bytes(1, "little")
@@ -45,44 +39,23 @@ def Bytes__eq__(
 
 
 @register_hint
-def b_le_a(
-    dict_manager: DictManager,
-    ids: VmConsts,
-    segments: MemorySegmentManager,
-    memory: MemoryDict,
-    ap: RelocatableValue,
-):
+def b_le_a(ids: VmConsts):
     ids.is_min_b = 1 if ids.b <= ids.a else 0
 
 
 @register_hint
-def fp_plus_2_or_0(
-    dict_manager: DictManager,
-    ids: VmConsts,
-    segments: MemorySegmentManager,
-    memory: MemoryDict,
-    ap: RelocatableValue,
-    fp: RelocatableValue,
-):
+def fp_plus_2_or_0(ids: VmConsts, memory: MemoryDict, fp: RelocatableValue):
     ids.value_set = memory.get(fp + 2) or 0
 
 
 @register_hint
-def print_maybe_relocatable_hint(
-    dict_manager: DictManager,
-    ids: VmConsts,
-    segments: MemorySegmentManager,
-    memory: MemoryDict,
-    ap: RelocatableValue,
-):
+def print_maybe_relocatable_hint(ids: VmConsts):
     maybe_relocatable = ids.x
     print(f"maybe_relocatable: {maybe_relocatable}")
 
 
 @register_hint
-def precompile_index_from_address(
-    ids: VmConsts,
-):
+def precompile_index_from_address(ids: VmConsts):
 
     from ethereum.cancun.vm.precompiled_contracts import (
         ALT_BN128_ADD_ADDRESS,
