@@ -30,18 +30,6 @@ def convert_accounts(
     """
     Convert ZKPI accounts to the format expected by json_to_state.
     Uses preStateProofs to reconstruct account states, and maps codeHashes to their codes.
-
-    Parameters
-    ----------
-    zkpi_data : Dict[str, Any]
-        The ZKPI data containing preStateProofs and storage proofs
-    code_hash_to_code : Dict[str, str]
-        Mapping from code hash to code
-
-    Returns
-    -------
-    Dict[str, Any]
-        Account data in the format expected by json_to_state
     """
     EMPTY_STORAGE_ROOT = (
         "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"
@@ -70,16 +58,6 @@ def convert_accounts(
 def normalize_transaction(tx: Dict[str, Any]) -> Dict[str, Any]:
     """
     Normalize transaction fields to match what TransactionLoad expects.
-
-    Parameters
-    ----------
-    tx : Dict[str, Any]
-        Raw transaction from ZKPI
-
-    Returns
-    -------
-    Dict[str, Any]
-        Transaction with normalized field names
     """
     tx["gasLimit"] = tx.pop("gas")
     tx["data"] = tx.pop("input")
@@ -145,13 +123,6 @@ def create_eels_block_parameters(block: Any) -> Dict[str, Any]:
 def process_zkpi_file(zkpi_file: Path) -> None:
     """
     Process a single ZKPI file and convert it to EELS format.
-
-    Parameters
-    ----------
-    zkpi_file : Path
-        Path to the ZKPI JSON file to process
-    script_dir : Path
-        Path to the script directory
     """
     logger.info(f"Processing {zkpi_file.name}...")
 
