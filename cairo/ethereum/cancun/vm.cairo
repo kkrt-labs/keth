@@ -262,6 +262,12 @@ func incorporate_child_on_error{range_check_ptr, poseidon_ptr: PoseidonBuiltin*,
         cast(parent_accessed_addresses.value.dict_ptr, DictAccess*),
         drop=1,
     );
+    tempvar new_accessed_addresses = SetAddress(
+        new SetAddressStruct(
+            dict_ptr_start=cast(new_accessed_addresses_start, SetAddressDictAccess*),
+            dict_ptr=cast(new_accessed_addresses_end, SetAddressDictAccess*),
+        ),
+    );
 
     // Drop child's accessed_storage_keys
     tempvar parent_accessed_storage_keys = evm.value.accessed_storage_keys;
@@ -273,6 +279,12 @@ func incorporate_child_on_error{range_check_ptr, poseidon_ptr: PoseidonBuiltin*,
         cast(parent_accessed_storage_keys.value.dict_ptr_start, DictAccess*),
         cast(parent_accessed_storage_keys.value.dict_ptr, DictAccess*),
         drop=1,
+    );
+    tempvar new_accessed_storage_keys = SetTupleAddressBytes32(
+        new SetTupleAddressBytes32Struct(
+            dict_ptr_start=cast(new_accessed_storage_keys_start, SetTupleAddressBytes32DictAccess*),
+            dict_ptr=cast(new_accessed_storage_keys_end, SetTupleAddressBytes32DictAccess*),
+        ),
     );
 
     let accounts_to_delete = child_evm.value.accounts_to_delete;
@@ -372,8 +384,8 @@ func incorporate_child_on_error{range_check_ptr, poseidon_ptr: PoseidonBuiltin*,
             touched_accounts=new_touched_accounts,
             return_data=evm.value.return_data,
             error=evm.value.error,
-            accessed_addresses=evm.value.accessed_addresses,
-            accessed_storage_keys=evm.value.accessed_storage_keys,
+            accessed_addresses=new_accessed_addresses,
+            accessed_storage_keys=new_accessed_storage_keys,
         ),
     );
 
