@@ -41,8 +41,10 @@ def add_strategy(draw):
                 "both_valid",
                 "first_infinity",
                 "second_infinity",
+                "both_infinity",
                 "out_of_range",
-                "invalid_point",
+                "invalid_p0",
+                "invalid_p1",
             ]
         )
     )
@@ -56,6 +58,11 @@ def add_strategy(draw):
     elif case_type == "first_infinity":
         p0 = BNP.point_at_infinity()
         p1 = AltBn128.random_point(retry=True)
+        x0, y0, x1, y1 = p0.x, p0.y, p1.x, p1.y
+
+    elif case_type == "both_infinity":
+        p0 = BNP.point_at_infinity()
+        p1 = BNP.point_at_infinity()
         x0, y0, x1, y1 = p0.x, p0.y, p1.x, p1.y
 
     elif case_type == "second_infinity":
@@ -80,12 +87,16 @@ def add_strategy(draw):
             else:
                 y1 = ALT_BN128_PRIME + draw(st.integers(min_value=0, max_value=100))
 
-    else:  # invalid_point
-        # At least one point is invalid
+    elif case_type == "invalid_p0":
         p0 = AltBn128.random_point(retry=False)
-        p1 = AltBn128.random_point(retry=False)
-        while AltBn128.is_on_curve(p0.x, p0.y) and AltBn128.is_on_curve(p1.x, p1.y):
+        p1 = AltBn128.random_point(retry=True)
+        while AltBn128.is_on_curve(p0.x, p0.y):
             p0 = AltBn128.random_point(retry=False)
+
+    elif case_type == "invalid_p1":
+        p0 = AltBn128.random_point(retry=True)
+        p1 = AltBn128.random_point(retry=False)
+        while AltBn128.is_on_curve(p1.x, p1.y):
             p1 = AltBn128.random_point(retry=False)
 
         x0, y0, x1, y1 = p0.x, p0.y, p1.x, p1.y
