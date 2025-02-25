@@ -229,6 +229,8 @@ pyobject
 modpow
 bitmask
 lambdaclass
+zkpi
+ethash
 idfn
 Statetest
 Gafter
