@@ -116,36 +116,36 @@ func incorporate_child_on_success{range_check_ptr, poseidon_ptr: PoseidonBuiltin
         ),
     );
 
-    // Squash & update accessed_addresses into parent
-    let accessed_addresses = evm.value.accessed_addresses;
-    let accessed_addresses_start = accessed_addresses.value.dict_ptr_start;
-    let accessed_addresses_end = accessed_addresses.value.dict_ptr;
-    let new_accessed_addresses_end = squash_and_update(
+    // Merge child's accessed_addresses into parent
+    tempvar parent_accessed_addresses = evm.value.accessed_addresses;
+    let (new_accessed_addresses_start, new_accessed_addresses_end) = dict_update(
         cast(child_evm.value.accessed_addresses.value.dict_ptr_start, DictAccess*),
         cast(child_evm.value.accessed_addresses.value.dict_ptr, DictAccess*),
-        cast(accessed_addresses_end, DictAccess*),
+        cast(parent_accessed_addresses.value.dict_ptr_start, DictAccess*),
+        cast(parent_accessed_addresses.value.dict_ptr, DictAccess*),
+        drop=0,
     );
 
     tempvar new_accessed_addresses = SetAddress(
         new SetAddressStruct(
-            dict_ptr_start=cast(accessed_addresses_start, SetAddressDictAccess*),
+            dict_ptr_start=cast(new_accessed_addresses_start, SetAddressDictAccess*),
             dict_ptr=cast(new_accessed_addresses_end, SetAddressDictAccess*),
         ),
     );
 
-    // Squash & update accessed_storage_keys into parent
-    let accessed_storage_keys = evm.value.accessed_storage_keys;
-    let accessed_storage_keys_start = accessed_storage_keys.value.dict_ptr_start;
-    let accessed_storage_keys_end = accessed_storage_keys.value.dict_ptr;
-    let new_accessed_storage_keys_end = squash_and_update(
+    // Merge child's accessed_storage_keys into parent
+    let parent_accessed_storage_keys = evm.value.accessed_storage_keys;
+    let (new_accessed_storage_keys_start, new_accessed_storage_keys_end) = dict_update(
         cast(child_evm.value.accessed_storage_keys.value.dict_ptr_start, DictAccess*),
         cast(child_evm.value.accessed_storage_keys.value.dict_ptr, DictAccess*),
-        cast(accessed_storage_keys_end, DictAccess*),
+        cast(parent_accessed_storage_keys.value.dict_ptr_start, DictAccess*),
+        cast(parent_accessed_storage_keys.value.dict_ptr, DictAccess*),
+        drop=0,
     );
 
     tempvar new_accessed_storage_keys = SetTupleAddressBytes32(
         new SetTupleAddressBytes32Struct(
-            dict_ptr_start=cast(accessed_storage_keys_start, SetTupleAddressBytes32DictAccess*),
+            dict_ptr_start=cast(new_accessed_storage_keys_start, SetTupleAddressBytes32DictAccess*),
             dict_ptr=cast(new_accessed_storage_keys_end, SetTupleAddressBytes32DictAccess*),
         ),
     );
@@ -251,22 +251,28 @@ func incorporate_child_on_error{range_check_ptr, poseidon_ptr: PoseidonBuiltin*,
         0,
     );
 
-    let child_accessed_addresses = child_evm.value.accessed_addresses;
-    let child_accessed_addresses_start = child_accessed_addresses.value.dict_ptr_start;
-    let child_accessed_addresses_end = cast(child_accessed_addresses.value.dict_ptr, DictAccess*);
-    default_dict_finalize(
-        cast(child_accessed_addresses_start, DictAccess*), child_accessed_addresses_end, 0
+    // Drop child's accessed_addresses
+    tempvar parent_accessed_addresses = evm.value.accessed_addresses;
+    let child_accessed_addresses_start = child_evm.value.accessed_addresses.value.dict_ptr_start;
+    let child_accessed_addresses_end = child_evm.value.accessed_addresses.value.dict_ptr;
+    let (new_accessed_addresses_start, new_accessed_addresses_end) = dict_update(
+        cast(child_accessed_addresses_start, DictAccess*),
+        cast(child_accessed_addresses_end, DictAccess*),
+        cast(parent_accessed_addresses.value.dict_ptr_start, DictAccess*),
+        cast(parent_accessed_addresses.value.dict_ptr, DictAccess*),
+        drop=1,
     );
 
-    let child_accessed_storage_keys = child_evm.value.accessed_storage_keys;
-    let child_accessed_storage_keys_start = child_accessed_storage_keys.value.dict_ptr_start;
-    let child_accessed_storage_keys_end = cast(
-        child_accessed_storage_keys.value.dict_ptr, DictAccess*
-    );
-    default_dict_finalize(
+    // Drop child's accessed_storage_keys
+    tempvar parent_accessed_storage_keys = evm.value.accessed_storage_keys;
+    let child_accessed_storage_keys_start = child_evm.value.accessed_storage_keys.value.dict_ptr_start;
+    let child_accessed_storage_keys_end = child_evm.value.accessed_storage_keys.value.dict_ptr;
+    let (new_accessed_storage_keys_start, new_accessed_storage_keys_end) = dict_update(
         cast(child_accessed_storage_keys_start, DictAccess*),
         cast(child_accessed_storage_keys_end, DictAccess*),
-        0,
+        cast(parent_accessed_storage_keys.value.dict_ptr_start, DictAccess*),
+        cast(parent_accessed_storage_keys.value.dict_ptr, DictAccess*),
+        drop=1,
     );
 
     let accounts_to_delete = child_evm.value.accounts_to_delete;
