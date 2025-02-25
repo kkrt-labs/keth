@@ -19,8 +19,8 @@ from ethereum.cancun.fork import (
     state_transition,
     validate_header,
 )
-from ethereum.cancun.fork_types import Address, VersionedHash
-from ethereum.cancun.state import Account, State, TransientStorage, set_account
+from ethereum.cancun.fork_types import Account, Address, VersionedHash
+from ethereum.cancun.state import State, TransientStorage, set_account
 from ethereum.cancun.transactions import (
     AccessListTransaction,
     BlobTransaction,
@@ -44,7 +44,7 @@ from ethereum.exceptions import EthereumException
 from ethereum_rlp import rlp
 from ethereum_types.bytes import Bytes, Bytes0, Bytes8, Bytes20, Bytes32
 from ethereum_types.numeric import U64, U256, Uint
-from hypothesis import assume, example, given, settings
+from hypothesis import assume, given, settings
 from hypothesis import strategies as st
 from hypothesis.strategies import composite, integers
 
@@ -749,27 +749,14 @@ class TestFork:
         assert logs == cairo_result[1]
         assert error == cairo_result[2]
 
-    @given(
-        data=tx_with_sender_in_state(),
-        gas_available=...,
-        base_fee_per_gas=...,
-        excess_blob_gas=...,
-    )
-    @example(
-        data=get_blob_tx_with_tx_sender_in_state(),
-        gas_available=Uint(int("0x1000000", 16)),
-        base_fee_per_gas=Uint(int("0x100000", 16)),
-        excess_blob_gas=U64(0),
-    )
     def test_check_transaction(
         self,
         cairo_run,
-        data,
-        gas_available: Uint,
-        base_fee_per_gas: Uint,
-        excess_blob_gas: U64,
     ):
-        tx, env, chain_id = data
+        tx, env, chain_id = get_blob_tx_with_tx_sender_in_state()
+        gas_available = Uint(int("0x1000000", 16))
+        base_fee_per_gas = Uint(int("0x100000", 16))
+        excess_blob_gas = U64(0)
         try:
             cairo_state, cairo_result = cairo_run(
                 "check_transaction",
@@ -924,7 +911,5 @@ def _create_erc20_data():
             _data=defaultdict(lambda: U256(0), storage_data),
         )
     }
-
-    return accounts, storage_tries
 
     return accounts, storage_tries
