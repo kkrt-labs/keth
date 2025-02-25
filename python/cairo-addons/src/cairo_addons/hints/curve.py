@@ -139,7 +139,7 @@ def build_msm_hints_and_fill_memory(ids: VmConsts, memory: MemoryDict):
     ), f"Invalid RLC components length: {len(rlc_components)}"
 
     # Fill memory with processed data
-    memory_offset = 24
+    memory_offset = 28
     fill_felt_ptr(rlc_components, memory, ids.range_check96_ptr + memory_offset)
     fill_felt_ptr(
         Q_low_high_high_shifted,

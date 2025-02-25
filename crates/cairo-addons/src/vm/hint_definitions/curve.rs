@@ -141,7 +141,7 @@ pub fn build_msm_hints_and_fill_memory() -> Hint {
             // Fill memory
             let range_check96_ptr =
                 get_ptr_from_var_name("range_check96_ptr", vm, ids_data, ap_tracking)?;
-            let memory_offset = 24;
+            let memory_offset = 28;
 
             let offset =
                 (range_check96_ptr.segment_index, range_check96_ptr.offset + memory_offset).into();
@@ -173,8 +173,8 @@ pub fn compute_y_from_x_hint() -> Hint {
             let rhs = (pow(x.clone(), 3) + a * x + b) % p.clone();
 
             // Currently, only the secp256k1 field is supported
-            let (rhs_felt, g_felt) = if p.to_str_radix(16).to_uppercase() ==
-                SECP256K1_PRIME_FIELD_ORDER.to_hex()
+            let (rhs_felt, g_felt) = if p.to_str_radix(16).to_uppercase()
+                == SECP256K1_PRIME_FIELD_ORDER.to_hex()
             {
                 let rhs_felt =
                     FieldElement::<SECP256K1PrimeField>::from_hex_unchecked(&rhs.to_str_radix(16));
