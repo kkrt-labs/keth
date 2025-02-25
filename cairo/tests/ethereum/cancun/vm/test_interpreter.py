@@ -18,7 +18,6 @@ from tests.utils.strategies import environment_lite
 unimplemented_precompiles = [
     1,
     8,
-    10,
 ]
 
 message_without_precompile = (
