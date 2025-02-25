@@ -22,6 +22,7 @@ class TestPrecompileMapping:
         )
     )
     @example(address_int=0x0B00000000000000000000000000000000000000)
+    @example(address_int=0x0110000000000000000000000000000000000000)
     def test_precompile_table_lookup_invalid_addresses(self, cairo_run, address_int):
         table_address, _fn_ptr = cairo_run("precompile_table_lookup", address_int)
         assert table_address == 0
