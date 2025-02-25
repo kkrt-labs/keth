@@ -139,13 +139,6 @@ func ecip_2p(
     b: felt,
     base_rlc: felt,
 ) {
-    // Sanity check as the current implementation only works for scalars above 2^128
-    alloc_locals;
-    local x_q_high_is_zero;
-    %{ ids.x_q_high_is_zero = 1 if ids.x_q_high == 0 else 0 %}
-
-    assert x_q_high_is_zero = 0;
-
     // Assert (x_g, y_g) is on curve
     assert y_g * y_g = x_g * x_g * x_g + a * x_g + b;
     // Assert (x_r, y_r) is on curve
@@ -364,13 +357,6 @@ func ecip_1p(
     b: felt,
     base_rlc: felt,
 ) {
-    // Sanity check as the current implementation only works for scalars above 2^128
-    alloc_locals;
-    local x_q_high_is_zero;
-    %{ ids.x_q_high_is_zero = 1 if ids.x_q_high == 0 else 0 %}
-
-    assert x_q_high_is_zero = 0;
-
     // Assert (x_g, y_g) is on curve
     assert y_g * y_g = x_g * x_g * x_g + a * x_g + b;
     // Assert (x_a0, y_a0) is on curve
