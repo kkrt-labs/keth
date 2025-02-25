@@ -26,9 +26,9 @@ def invalid_data():
 
 class TestPointEvaluation:
     @given(evm=invalid_data())
-    def test_invalid_length(self, cairo_run_py, evm):
+    def test_invalid_length(self, cairo_run, evm):
         with strict_raises(KZGProofError):
-            cairo_run_py("point_evaluation", evm=evm)
+            cairo_run("point_evaluation", evm=evm)
 
         with strict_raises(KZGProofError):
             point_evaluation(evm)
