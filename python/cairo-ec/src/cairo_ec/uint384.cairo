@@ -3,6 +3,14 @@ from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
 from starkware.cairo.common.uint256 import Uint256
 
 from cairo_core.maths import unsigned_div_rem
+from cairo_ec.circuits.mod_ops_compiled import (
+    assert_eq,
+    assert_neq,
+    neg,
+    assert_neg,
+    assert_not_neg,
+    div,
+)
 
 const STARK_MIN_ONE_D2 = 0x800000000000011;
 
@@ -75,94 +83,21 @@ func uint384_assert_le{range_check96_ptr: felt*}(a: UInt384, b: UInt384) {
 }
 
 // Assert X == Y mod p by asserting X + 0 == Y
-func uint384_assert_eq_mod_p{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*}(
-    x: UInt384, y: UInt384, p: UInt384
-) {
-    let (_, pc) = get_fp_and_pc();
-
-    pc_label:
-    let add_offsets_ptr = pc + (add_offsets - pc_label);
-
-    // 0 (4)
-    assert [range_check96_ptr + 0] = 0;
-    assert [range_check96_ptr + 1] = 0;
-    assert [range_check96_ptr + 2] = 0;
-    assert [range_check96_ptr + 3] = 0;
-    // X limbs (4)
-    assert [range_check96_ptr + 4] = x.d0;
-    assert [range_check96_ptr + 5] = x.d1;
-    assert [range_check96_ptr + 6] = x.d2;
-    assert [range_check96_ptr + 7] = x.d3;
-    // Y limbs (8)
-    assert [range_check96_ptr + 8] = y.d0;
-    assert [range_check96_ptr + 9] = y.d1;
-    assert [range_check96_ptr + 10] = y.d2;
-    assert [range_check96_ptr + 11] = y.d3;
-
-    assert add_mod_ptr[0] = ModBuiltin(
-        p=p, values_ptr=cast(range_check96_ptr, UInt384*), offsets_ptr=add_offsets_ptr, n=1
-    );
-    %{ fill_add_mod_mul_mod_builtin_batch_one %}
-    let range_check96_ptr = range_check96_ptr + 12;
-    let add_mod_ptr = add_mod_ptr + ModBuiltin.SIZE;
+func uint384_assert_eq_mod_p{
+    range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
+}(x: UInt384, y: UInt384, p: UInt384) {
+    assert_eq(new x, new y, new p);
+    // No need for add_mod_ptr increment as we're not using it anymore
     return ();
-
-    add_offsets:
-    dw 0;  // X
-    dw 4;  // 0
-    dw 8;  // X + 0 = Y
 }
 
 // @notice assert X != Y mod p by asserting (X-Y) != 0
-// @dev Uses the add_mod builtin to compute X-Y % P, then mul_mod builtin to compute (X-Y)^-1 % P
+// @dev Uses the assert_neq circuit to verify that X != Y mod p
 func uint384_assert_neq_mod_p{
     range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
 }(x: UInt384, y: UInt384, p: UInt384) {
-    let (_, pc) = get_fp_and_pc();
-
-    pc_label:
-    let add_offsets_ptr = pc + (add_offsets - pc_label);
-    let mul_offsets_ptr = pc + (mul_offsets - pc_label);
-    // X limbs. (0)
-    assert [range_check96_ptr + 0] = x.d0;
-    assert [range_check96_ptr + 1] = x.d1;
-    assert [range_check96_ptr + 2] = x.d2;
-    assert [range_check96_ptr + 3] = x.d3;
-    // Y limbs. (4)
-    assert [range_check96_ptr + 4] = y.d0;
-    assert [range_check96_ptr + 5] = y.d1;
-    assert [range_check96_ptr + 6] = y.d2;
-    assert [range_check96_ptr + 7] = y.d3;
-    // X-Y % P (8)
-
-    // 1 (12)
-    assert [range_check96_ptr + 12] = 1;
-    assert [range_check96_ptr + 13] = 0;
-    assert [range_check96_ptr + 14] = 0;
-    assert [range_check96_ptr + 15] = 0;
-    // [X-Y]^-1 (16)
-
-    assert add_mod_ptr[0] = ModBuiltin(
-        p=p, values_ptr=cast(range_check96_ptr, UInt384*), offsets_ptr=add_offsets_ptr, n=1
-    );
-    assert mul_mod_ptr[0] = ModBuiltin(
-        p=p, values_ptr=cast(range_check96_ptr, UInt384*), offsets_ptr=mul_offsets_ptr, n=1
-    );
-    %{ fill_add_mod_mul_mod_builtin_batch_one %}
-    let range_check96_ptr = range_check96_ptr + 20;
-    let add_mod_ptr = add_mod_ptr + ModBuiltin.SIZE;
-    let mul_mod_ptr = mul_mod_ptr + ModBuiltin.SIZE;
+    assert_neq(new x, new y, new p);
     return ();
-
-    add_offsets:
-    dw 4;  // a = Y
-    dw 8;  // b = X - Y
-    dw 0;  // a + b = X
-
-    mul_offsets:
-    dw 8;  // a = X-Y
-    dw 16;  // b = (X-Y)^-1
-    dw 12;  // a * b = 1
 }
 
 // Returns 1 if X == Y, 0 otherwise.
@@ -190,95 +125,21 @@ func uint384_eq_mod_p{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mo
 }
 
 // Assert X == - Y mod p by asserting X + Y == 0
-func uint384_assert_neg_mod_p{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*}(
-    x: UInt384, y: UInt384, p: UInt384
-) {
-    let (_, pc) = get_fp_and_pc();
-
-    pc_label:
-    let add_offsets_ptr = pc + (add_offsets - pc_label);
-
-    // X limbs.
-    assert [range_check96_ptr + 0] = x.d0;
-    assert [range_check96_ptr + 1] = x.d1;
-    assert [range_check96_ptr + 2] = x.d2;
-    assert [range_check96_ptr + 3] = x.d3;
-    // Y limbs.
-    assert [range_check96_ptr + 4] = y.d0;
-    assert [range_check96_ptr + 5] = y.d1;
-    assert [range_check96_ptr + 6] = y.d2;
-    assert [range_check96_ptr + 7] = y.d3;
-    // 0
-    assert [range_check96_ptr + 8] = 0;
-    assert [range_check96_ptr + 9] = 0;
-    assert [range_check96_ptr + 10] = 0;
-    assert [range_check96_ptr + 11] = 0;
-
-    assert add_mod_ptr[0] = ModBuiltin(
-        p=p, values_ptr=cast(range_check96_ptr, UInt384*), offsets_ptr=add_offsets_ptr, n=1
-    );
-    %{ fill_add_mod_mul_mod_builtin_batch_one %}
-
-    let range_check96_ptr = range_check96_ptr + 12;
-    let add_mod_ptr = add_mod_ptr + ModBuiltin.SIZE;
+// @dev Uses the assert_neg circuit to verify that X == -Y mod p
+func uint384_assert_neg_mod_p{
+    range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
+}(x: UInt384, y: UInt384, p: UInt384) {
+    assert_neg(new x, new y, new p);
     return ();
-
-    add_offsets:
-    dw 0;  // X
-    dw 4;  // Y
-    dw 8;  // 0
 }
 
 // assert X != -Y mod p by asserting X + Y != 0
+// @dev Uses the assert_not_neg circuit to verify that X != -Y mod p
 func uint384_assert_not_neg_mod_p{
     range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
 }(x: UInt384, y: UInt384, p: UInt384) {
-    let (_, pc) = get_fp_and_pc();
-
-    pc_label:
-    let add_offsets_ptr = pc + (add_offsets - pc_label);
-    let mul_offsets_ptr = pc + (mul_offsets - pc_label);
-
-    // X limbs. (0)
-    assert [range_check96_ptr + 0] = x.d0;
-    assert [range_check96_ptr + 1] = x.d1;
-    assert [range_check96_ptr + 2] = x.d2;
-    assert [range_check96_ptr + 3] = x.d3;
-    // Y limbs. (4)
-    assert [range_check96_ptr + 4] = y.d0;
-    assert [range_check96_ptr + 5] = y.d1;
-    assert [range_check96_ptr + 6] = y.d2;
-    assert [range_check96_ptr + 7] = y.d3;
-    // X + Y (8)
-    // [X+Y]^-1 (12)
-
-    // 1 (16)
-    assert [range_check96_ptr + 16] = 1;
-    assert [range_check96_ptr + 17] = 0;
-    assert [range_check96_ptr + 18] = 0;
-    assert [range_check96_ptr + 19] = 0;
-
-    assert add_mod_ptr[0] = ModBuiltin(
-        p=p, values_ptr=cast(range_check96_ptr, UInt384*), offsets_ptr=add_offsets_ptr, n=1
-    );
-    assert mul_mod_ptr[0] = ModBuiltin(
-        p=p, values_ptr=cast(range_check96_ptr, UInt384*), offsets_ptr=mul_offsets_ptr, n=1
-    );
-    %{ fill_add_mod_mul_mod_builtin_batch_one %}
-    let range_check96_ptr = range_check96_ptr + 20;
-    let add_mod_ptr = add_mod_ptr + ModBuiltin.SIZE;
-    let mul_mod_ptr = mul_mod_ptr + ModBuiltin.SIZE;
+    assert_not_neg(new x, new y, new p);
     return ();
-
-    add_offsets:
-    dw 0;  // X
-    dw 4;  // Y
-    dw 8;  // X + Y
-
-    mul_offsets:
-    dw 8;  // X + Y
-    dw 12;  // [X+Y]^-1
-    dw 16;  // 1
 }
 
 // Returns 1 if X == -Y mod p, 0 otherwise.
@@ -297,71 +158,19 @@ func uint384_is_neg_mod_p{
 }
 
 // Compute X / Y mod p.
-func uint384_div_mod_p{range_check96_ptr: felt*, mul_mod_ptr: ModBuiltin*}(
-    x: UInt384, y: UInt384, p: UInt384
-) -> UInt384 {
-    let (_, pc) = get_fp_and_pc();
-
-    pc_label:
-    let mul_offsets_ptr = pc + (mul_offsets - pc_label);
-
-    // X limbs (offset 0)
-    assert [range_check96_ptr + 0] = x.d0;
-    assert [range_check96_ptr + 1] = x.d1;
-    assert [range_check96_ptr + 2] = x.d2;
-    assert [range_check96_ptr + 3] = x.d3;
-    // Y limbs (offset 4)
-    assert [range_check96_ptr + 4] = y.d0;
-    assert [range_check96_ptr + 5] = y.d1;
-    assert [range_check96_ptr + 6] = y.d2;
-    assert [range_check96_ptr + 7] = y.d3;
-
-    assert mul_mod_ptr[0] = ModBuiltin(
-        p=p, values_ptr=cast(range_check96_ptr, UInt384*), offsets_ptr=mul_offsets_ptr, n=1
-    );
-    %{ fill_add_mod_mul_mod_builtin_batch_one %}
-
-    let range_check96_ptr = range_check96_ptr + 12;
-    let mul_mod_ptr = mul_mod_ptr + ModBuiltin.SIZE;
-    return [cast(range_check96_ptr - 4, UInt384*)];
-
-    mul_offsets:
-    dw 4;  // Y
-    dw 8;  // X/Y
-    dw 0;  // X
+// @dev Uses the div circuit to compute X/Y mod p
+func uint384_div_mod_p{
+    range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
+}(x: UInt384, y: UInt384, p: UInt384) -> UInt384 {
+    let result = div(new x, new y, new p);
+    return [result];
 }
 
 // Compute - Y mod p.
-func uint384_neg_mod_p{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*}(
-    y: UInt384, p: UInt384
-) -> UInt384 {
-    let (_, pc) = get_fp_and_pc();
-
-    pc_label:
-    let add_offsets_ptr = pc + (add_offsets - pc_label);
-
-    // X limbs (offset 0)
-    assert [range_check96_ptr] = 0;
-    assert [range_check96_ptr + 1] = 0;
-    assert [range_check96_ptr + 2] = 0;
-    assert [range_check96_ptr + 3] = 0;
-    // Y limbs (offset 4)
-    assert [range_check96_ptr + 4] = y.d0;
-    assert [range_check96_ptr + 5] = y.d1;
-    assert [range_check96_ptr + 6] = y.d2;
-    assert [range_check96_ptr + 7] = y.d3;
-
-    assert add_mod_ptr[0] = ModBuiltin(
-        p=p, values_ptr=cast(range_check96_ptr, UInt384*), offsets_ptr=add_offsets_ptr, n=1
-    );
-    %{ fill_add_mod_mul_mod_builtin_batch_one %}
-
-    let range_check96_ptr = range_check96_ptr + 12;
-    let add_mod_ptr = add_mod_ptr + ModBuiltin.SIZE;
-    return [cast(range_check96_ptr - 4, UInt384*)];
-
-    add_offsets:
-    dw 4;  // Y
-    dw 8;  // -Y
-    dw 0;  // 0
+// @dev Uses the neg circuit to compute -Y mod p
+func uint384_neg_mod_p{
+    range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
+}(y: UInt384, p: UInt384) -> UInt384 {
+    let result = neg(new y, new p);
+    return [result];
 }

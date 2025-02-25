@@ -47,7 +47,9 @@ func test__uint384_assert_le{range_check96_ptr: felt*}() {
     return ();
 }
 
-func test__uint384_assert_eq_mod_p{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*}() {
+func test__uint384_assert_eq_mod_p{
+    range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
+}() {
     alloc_locals;
     let (x_ptr) = alloc();
     let (y_ptr) = alloc();
