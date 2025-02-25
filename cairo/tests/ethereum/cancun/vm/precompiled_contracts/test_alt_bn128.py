@@ -95,16 +95,15 @@ def add_strategy(draw):
         y0 = draw(st.integers(min_value=0, max_value=ALT_BN128_PRIME - 1))
         x1 = draw(st.integers(min_value=0, max_value=ALT_BN128_PRIME - 1))
         y1 = draw(st.integers(min_value=0, max_value=ALT_BN128_PRIME - 1))
-        if max(x0, y0, x1, y1) < ALT_BN128_PRIME:
-            coord = draw(st.sampled_from(["x0", "y0", "x1", "y1"]))
-            if coord == "x0":
-                x0 = ALT_BN128_PRIME
-            elif coord == "y0":
-                y0 = ALT_BN128_PRIME
-            elif coord == "x1":
-                x1 = ALT_BN128_PRIME
-            else:
-                y1 = ALT_BN128_PRIME
+        coord = draw(st.sampled_from(["x0", "y0", "x1", "y1"]))
+        if coord == "x0":
+            x0 = ALT_BN128_PRIME
+        elif coord == "y0":
+            y0 = ALT_BN128_PRIME
+        elif coord == "x1":
+            x1 = ALT_BN128_PRIME
+        else:
+            y1 = ALT_BN128_PRIME
         return (
             x0.to_bytes(32, "big")
             + y0.to_bytes(32, "big")
