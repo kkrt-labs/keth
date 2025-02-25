@@ -49,26 +49,45 @@ def add_strategy(draw):
         )
     )
 
-    x0, y0, x1, y1 = 0, 0, 0, 0
     if case_type == "both_valid":
         p0 = AltBn128.random_point(retry=True)
         p1 = AltBn128.random_point(retry=True)
-        x0, y0, x1, y1 = p0.x, p0.y, p1.x, p1.y
+        return (
+            p0.x.to_bytes(32, "big")
+            + p0.y.to_bytes(32, "big")
+            + p1.x.to_bytes(32, "big")
+            + p1.y.to_bytes(32, "big")
+        )
 
     elif case_type == "first_infinity":
         p0 = BNP.point_at_infinity()
         p1 = AltBn128.random_point(retry=True)
-        x0, y0, x1, y1 = p0.x, p0.y, p1.x, p1.y
+        return (
+            p0.x.to_bytes(32, "big")
+            + p0.y.to_bytes(32, "big")
+            + p1.x.to_bytes(32, "big")
+            + p1.y.to_bytes(32, "big")
+        )
 
     elif case_type == "both_infinity":
         p0 = BNP.point_at_infinity()
         p1 = BNP.point_at_infinity()
-        x0, y0, x1, y1 = p0.x, p0.y, p1.x, p1.y
+        return (
+            p0.x.to_bytes(32, "big")
+            + p0.y.to_bytes(32, "big")
+            + p1.x.to_bytes(32, "big")
+            + p1.y.to_bytes(32, "big")
+        )
 
     elif case_type == "second_infinity":
         p0 = AltBn128.random_point(retry=True)
         p1 = BNP.point_at_infinity()
-        x0, y0, x1, y1 = p0.x, p0.y, p1.x, p1.y
+        return (
+            p0.x.to_bytes(32, "big")
+            + p0.y.to_bytes(32, "big")
+            + p1.x.to_bytes(32, "big")
+            + p1.y.to_bytes(32, "big")
+        )
 
     elif case_type == "out_of_range":
         # Generate coordinates, ensuring at least one is >= ALT_BN128_PRIME
@@ -86,27 +105,36 @@ def add_strategy(draw):
                 x1 = ALT_BN128_PRIME + draw(st.integers(min_value=0, max_value=100))
             else:
                 y1 = ALT_BN128_PRIME + draw(st.integers(min_value=0, max_value=100))
+        return (
+            x0.to_bytes(32, "big")
+            + y0.to_bytes(32, "big")
+            + x1.to_bytes(32, "big")
+            + y1.to_bytes(32, "big")
+        )
 
     elif case_type == "invalid_p0":
         p0 = AltBn128.random_point(retry=False)
         p1 = AltBn128.random_point(retry=True)
         while AltBn128.is_on_curve(p0.x, p0.y):
             p0 = AltBn128.random_point(retry=False)
+        return (
+            p0.x.to_bytes(32, "big")
+            + p0.y.to_bytes(32, "big")
+            + p1.x.to_bytes(32, "big")
+            + p1.y.to_bytes(32, "big")
+        )
 
     elif case_type == "invalid_p1":
         p0 = AltBn128.random_point(retry=True)
         p1 = AltBn128.random_point(retry=False)
         while AltBn128.is_on_curve(p1.x, p1.y):
             p1 = AltBn128.random_point(retry=False)
-
-        x0, y0, x1, y1 = p0.x, p0.y, p1.x, p1.y
-
-    return (
-        x0.to_bytes(32, "big")
-        + y0.to_bytes(32, "big")
-        + x1.to_bytes(32, "big")
-        + y1.to_bytes(32, "big")
-    )
+        return (
+            p0.x.to_bytes(32, "big")
+            + p0.y.to_bytes(32, "big")
+            + p1.x.to_bytes(32, "big")
+            + p1.y.to_bytes(32, "big")
+        )
 
 
 class TestAltbn128:
