@@ -59,11 +59,15 @@ func dict_copy{range_check_ptr}(dict_start: DictAccess*, dict_end: DictAccess*) 
 ) {
     alloc_locals;
     let parent_dict_end = dict_end;
-    tempvar new_dict_ptr: DictAccess*;
+    local new_dict_ptr: DictAccess*;
     %{ copy_tracker_to_new_ptr %}
     tempvar new_end = new_dict_ptr + (dict_end - dict_start);
     memcpy(new_dict_ptr, dict_start, dict_end - dict_start);
-    // Register the segment as a dict in the DictManager.
+
+    // Update the DictTracker's current_ptr to point to the end of the copied dict.
+    let current_tracker_ptr = new_dict_ptr;
+    let new_tracker_ptr = new_end;
+    %{update_dict_tracker%}
     return (new_dict_ptr, new_end);
 }
 
