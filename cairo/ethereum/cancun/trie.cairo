@@ -502,15 +502,15 @@ func copy_TrieAddressOptionalAccount{range_check_ptr, trie: TrieAddressOptionalA
     //  - This ensures that when squashing the main segment, we ensure that the data read in the new segment matched the data from the main segment.
 
     local new_dict_ptr: AddressAccountDictAccess*;
-    tempvar parent_dict = trie.value._data.value;
-    %{ copy_dict_segment %}
+    tempvar parent_dict_end = trie.value._data.value.dict_ptr;
+    %{ copy_tracker_to_new_ptr %}
 
     tempvar res = TrieAddressOptionalAccount(
         new TrieAddressOptionalAccountStruct(
             trie.value.secured,
             trie.value.default,
             MappingAddressAccount(
-                new MappingAddressAccountStruct(new_dict_ptr, new_dict_ptr, parent_dict)
+                new MappingAddressAccountStruct(new_dict_ptr, new_dict_ptr, trie.value._data.value)
             ),
         ),
     );
@@ -523,15 +523,17 @@ func copy_TrieTupleAddressBytes32U256{range_check_ptr, trie: TrieTupleAddressByt
     // TODO: same as above
 
     local new_dict_ptr: TupleAddressBytes32U256DictAccess*;
-    tempvar parent_dict = trie.value._data.value;
-    %{ copy_dict_segment %}
+    tempvar parent_dict_end = trie.value._data.value.dict_ptr;
+    %{ copy_tracker_to_new_ptr %}
 
     tempvar res = TrieTupleAddressBytes32U256(
         new TrieTupleAddressBytes32U256Struct(
             trie.value.secured,
             trie.value.default,
             MappingTupleAddressBytes32U256(
-                new MappingTupleAddressBytes32U256Struct(new_dict_ptr, new_dict_ptr, parent_dict)
+                new MappingTupleAddressBytes32U256Struct(
+                    new_dict_ptr, new_dict_ptr, trie.value._data.value
+                ),
             ),
         ),
     );

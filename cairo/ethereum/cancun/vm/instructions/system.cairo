@@ -136,8 +136,8 @@ func generic_call{
 
     // Fork the accessed_addresses dict segment
     local new_dict_ptr: DictAccess*;
-    tempvar parent_dict = evm.value.accessed_addresses.value;
-    %{ copy_dict_segment %}
+    tempvar parent_dict_end = cast(evm.value.accessed_addresses.value.dict_ptr, DictAccess*);
+    %{ copy_tracker_to_new_ptr %}
     tempvar child_accessed_addresses = SetAddress(
         new SetAddressStruct(
             cast(new_dict_ptr, SetAddressDictAccess*), cast(new_dict_ptr, SetAddressDictAccess*)
@@ -149,8 +149,8 @@ func generic_call{
     // TODO(refactor): remove the requirement for a cast
     // explicit cast because our named variables must always be of the same type as previous
     // variables
-    tempvar parent_dict = cast(evm.value.accessed_storage_keys.value, SetAddressStruct*);
-    %{ copy_dict_segment %}
+    tempvar parent_dict_end = cast(evm.value.accessed_storage_keys.value.dict_ptr, DictAccess*);
+    %{ copy_tracker_to_new_ptr %}
     tempvar child_accessed_storage_keys = SetTupleAddressBytes32(
         new SetTupleAddressBytes32Struct(
             cast(new_dict_ptr, SetTupleAddressBytes32DictAccess*),
@@ -1136,8 +1136,8 @@ func generic_create{
 
     // Fork the accessed_addresses dict segment
     local new_dict_ptr: DictAccess*;
-    tempvar parent_dict = evm.value.accessed_addresses.value;
-    %{ copy_dict_segment %}
+    tempvar parent_dict_end = cast(evm.value.accessed_addresses.value.dict_ptr, DictAccess*);
+    %{ copy_tracker_to_new_ptr %}
     tempvar child_accessed_addresses = SetAddress(
         new SetAddressStruct(
             cast(new_dict_ptr, SetAddressDictAccess*), cast(new_dict_ptr, SetAddressDictAccess*)
@@ -1149,8 +1149,8 @@ func generic_create{
     // TODO(refactor): remove the requirement for a cast
     // explicit cast because our named variables must always be of the same type as previous
     // variables
-    tempvar parent_dict = cast(evm.value.accessed_storage_keys.value, SetAddressStruct*);
-    %{ copy_dict_segment %}
+    tempvar parent_dict_end = cast(evm.value.accessed_storage_keys.value.dict_ptr, DictAccess*);
+    %{ copy_tracker_to_new_ptr %}
     tempvar child_accessed_storage_keys = SetTupleAddressBytes32(
         new SetTupleAddressBytes32Struct(
             cast(new_dict_ptr, SetTupleAddressBytes32DictAccess*),
