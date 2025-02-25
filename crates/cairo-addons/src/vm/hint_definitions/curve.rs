@@ -141,13 +141,16 @@ pub fn build_msm_hints_and_fill_memory() -> Hint {
             // Fill memory
             let range_check96_ptr =
                 get_ptr_from_var_name("range_check96_ptr", vm, ids_data, ap_tracking)?;
-            let memory_offset = 24;
+            let rlc_coeff_u384_cast_offset = 4;
+            let ecip_circuit_constants_offset = 20;
+            let memory_offset = rlc_coeff_u384_cast_offset + ecip_circuit_constants_offset;
+            let ecip_circuit_q_offset = 46 * N_LIMBS;
 
             let offset =
                 (range_check96_ptr.segment_index, range_check96_ptr.offset + memory_offset).into();
             write_collection_to_addr(offset, &rlc_components, vm)?;
 
-            let offset = range_check96_ptr + (46 * N_LIMBS + memory_offset);
+            let offset = range_check96_ptr + (memory_offset + ecip_circuit_q_offset);
             write_collection_to_addr(offset.unwrap(), &q_low_high_high_shifted, vm)?;
             Ok(())
         },
@@ -173,8 +176,8 @@ pub fn compute_y_from_x_hint() -> Hint {
             let rhs = (pow(x.clone(), 3) + a * x + b) % p.clone();
 
             // Currently, only the secp256k1 field is supported
-            let (rhs_felt, g_felt) = if p.to_str_radix(16).to_uppercase() ==
-                SECP256K1_PRIME_FIELD_ORDER.to_hex()
+            let (rhs_felt, g_felt) = if p.to_str_radix(16).to_uppercase()
+                == SECP256K1_PRIME_FIELD_ORDER.to_hex()
             {
                 let rhs_felt =
                     FieldElement::<SECP256K1PrimeField>::from_hex_unchecked(&rhs.to_str_radix(16));
