@@ -2,7 +2,9 @@ from typing import Type
 
 import pytest
 from ethereum.crypto.finite_field import PrimeField
+from garaga.algebra import FunctionFelt
 from garaga.definitions import CurveID, G1Point
+from garaga.hints.ecip import derive_ec_point_from_X, zk_ecip_hint
 from garaga.hints.neg_3 import scalar_to_base_neg3_le
 from garaga.starknet.tests_and_calldata_generators.msm import MSMCalldataBuilder
 from hypothesis import Verbosity, assume, given, settings
@@ -707,41 +709,41 @@ class TestCircuits:
             scalars = [u1, u2]
 
             builder = MSMCalldataBuilder(CurveID.SECP256K1, points, scalars)
-            (msm_hint, _, a0, rlc_coeff) = builder.build_msm_hints()
+            (q_low, q_high, q_high_shifted, rlcSumDlogDiv, a0, rlc_coeff) = (
+                build_msm_hints(msm=builder)
+            )
             scalars_low, scalars_high = builder.scalars_split()
             epns_low, epns_high = [scalar_to_base_neg3_le(s) for s in scalars_low], [
                 scalar_to_base_neg3_le(s) for s in scalars_high
             ]
 
-            Q_low, Q_high, Q_high_shifted, RLCSumDlogDiv = msm_hint.elmts
-
             inputs = {
-                "div_a_coeff_0": int(RLCSumDlogDiv.a_num[0].value),
-                "div_a_coeff_1": int(RLCSumDlogDiv.a_num[1].value),
-                "div_a_coeff_2": int(RLCSumDlogDiv.a_num[2].value),
-                "div_a_coeff_3": int(RLCSumDlogDiv.a_num[3].value),
-                "div_a_coeff_4": int(RLCSumDlogDiv.a_num[4].value),
-                "div_b_coeff_0": int(RLCSumDlogDiv.a_den[0].value),
-                "div_b_coeff_1": int(RLCSumDlogDiv.a_den[1].value),
-                "div_b_coeff_2": int(RLCSumDlogDiv.a_den[2].value),
-                "div_b_coeff_3": int(RLCSumDlogDiv.a_den[3].value),
-                "div_b_coeff_4": int(RLCSumDlogDiv.a_den[4].value),
-                "div_b_coeff_5": int(RLCSumDlogDiv.a_den[5].value),
-                "div_c_coeff_0": int(RLCSumDlogDiv.b_num[0].value),
-                "div_c_coeff_1": int(RLCSumDlogDiv.b_num[1].value),
-                "div_c_coeff_2": int(RLCSumDlogDiv.b_num[2].value),
-                "div_c_coeff_3": int(RLCSumDlogDiv.b_num[3].value),
-                "div_c_coeff_4": int(RLCSumDlogDiv.b_num[4].value),
-                "div_c_coeff_5": int(RLCSumDlogDiv.b_num[5].value),
-                "div_d_coeff_0": int(RLCSumDlogDiv.b_den[0].value),
-                "div_d_coeff_1": int(RLCSumDlogDiv.b_den[1].value),
-                "div_d_coeff_2": int(RLCSumDlogDiv.b_den[2].value),
-                "div_d_coeff_3": int(RLCSumDlogDiv.b_den[3].value),
-                "div_d_coeff_4": int(RLCSumDlogDiv.b_den[4].value),
-                "div_d_coeff_5": int(RLCSumDlogDiv.b_den[5].value),
-                "div_d_coeff_6": int(RLCSumDlogDiv.b_den[6].value),
-                "div_d_coeff_7": int(RLCSumDlogDiv.b_den[7].value),
-                "div_d_coeff_8": int(RLCSumDlogDiv.b_den[8].value),
+                "div_a_coeff_0": int(rlcSumDlogDiv.a.numerator[0].value),
+                "div_a_coeff_1": int(rlcSumDlogDiv.a.numerator[1].value),
+                "div_a_coeff_2": int(rlcSumDlogDiv.a.numerator[2].value),
+                "div_a_coeff_3": int(rlcSumDlogDiv.a.numerator[3].value),
+                "div_a_coeff_4": int(rlcSumDlogDiv.a.numerator[4].value),
+                "div_b_coeff_0": int(rlcSumDlogDiv.a.denominator[0].value),
+                "div_b_coeff_1": int(rlcSumDlogDiv.a.denominator[1].value),
+                "div_b_coeff_2": int(rlcSumDlogDiv.a.denominator[2].value),
+                "div_b_coeff_3": int(rlcSumDlogDiv.a.denominator[3].value),
+                "div_b_coeff_4": int(rlcSumDlogDiv.a.denominator[4].value),
+                "div_b_coeff_5": int(rlcSumDlogDiv.a.denominator[5].value),
+                "div_c_coeff_0": int(rlcSumDlogDiv.b.numerator[0].value),
+                "div_c_coeff_1": int(rlcSumDlogDiv.b.numerator[1].value),
+                "div_c_coeff_2": int(rlcSumDlogDiv.b.numerator[2].value),
+                "div_c_coeff_3": int(rlcSumDlogDiv.b.numerator[3].value),
+                "div_c_coeff_4": int(rlcSumDlogDiv.b.numerator[4].value),
+                "div_c_coeff_5": int(rlcSumDlogDiv.b.numerator[5].value),
+                "div_d_coeff_0": int(rlcSumDlogDiv.b.denominator[0].value),
+                "div_d_coeff_1": int(rlcSumDlogDiv.b.denominator[1].value),
+                "div_d_coeff_2": int(rlcSumDlogDiv.b.denominator[2].value),
+                "div_d_coeff_3": int(rlcSumDlogDiv.b.denominator[3].value),
+                "div_d_coeff_4": int(rlcSumDlogDiv.b.denominator[4].value),
+                "div_d_coeff_5": int(rlcSumDlogDiv.b.denominator[5].value),
+                "div_d_coeff_6": int(rlcSumDlogDiv.b.denominator[6].value),
+                "div_d_coeff_7": int(rlcSumDlogDiv.b.denominator[7].value),
+                "div_d_coeff_8": int(rlcSumDlogDiv.b.denominator[8].value),
                 "x_g": int(points[0].x),
                 "y_g": int(points[0].y),
                 "x_r": int(points[1].x),
@@ -762,12 +764,12 @@ class TestCircuits:
                 "en2_high": int(epns_high[1][1]),
                 "sp2_high": int(epns_high[1][2] % curve.FIELD.PRIME),
                 "sn2_high": int(epns_high[1][3] % curve.FIELD.PRIME),
-                "x_q_low": int(Q_low.elmts[0].value),
-                "y_q_low": int(Q_low.elmts[1].value),
-                "x_q_high": int(Q_high.elmts[0].value),
-                "y_q_high": int(Q_high.elmts[1].value),
-                "x_q_high_shifted": int(Q_high_shifted.elmts[0].value),
-                "y_q_high_shifted": int(Q_high_shifted.elmts[1].value),
+                "x_q_low": int(q_low.x),
+                "y_q_low": int(q_low.y),
+                "x_q_high": int(q_high.x),
+                "y_q_high": int(q_high.y),
+                "x_q_high_shifted": int(q_high_shifted.x),
+                "y_q_high_shifted": int(q_high_shifted.y),
                 "x_a0": int(a0.x),
                 "y_a0": int(a0.y),
                 "a": int(curve.A),
@@ -809,37 +811,37 @@ class TestCircuits:
             scalars = [u1]
 
             builder = MSMCalldataBuilder(CurveID.SECP256K1, points, scalars)
-            (msm_hint, _, a0, rlc_coeff) = builder.build_msm_hints()
+            (q_low, q_high, q_high_shifted, rlcSumDlogDiv, a0, rlc_coeff) = (
+                build_msm_hints(msm=builder)
+            )
             scalars_low, scalars_high = builder.scalars_split()
             epns_low, epns_high = [scalar_to_base_neg3_le(s) for s in scalars_low], [
                 scalar_to_base_neg3_le(s) for s in scalars_high
             ]
 
-            Q_low, Q_high, Q_high_shifted, RLCSumDlogDiv = msm_hint.elmts
-
             inputs = {
-                "div_a_coeff_0": int(RLCSumDlogDiv.a_num[0].value),
-                "div_a_coeff_1": int(RLCSumDlogDiv.a_num[1].value),
-                "div_a_coeff_2": int(RLCSumDlogDiv.a_num[2].value),
-                "div_a_coeff_3": int(RLCSumDlogDiv.a_num[3].value),
-                "div_b_coeff_0": int(RLCSumDlogDiv.a_den[0].value),
-                "div_b_coeff_1": int(RLCSumDlogDiv.a_den[1].value),
-                "div_b_coeff_2": int(RLCSumDlogDiv.a_den[2].value),
-                "div_b_coeff_3": int(RLCSumDlogDiv.a_den[3].value),
-                "div_b_coeff_4": int(RLCSumDlogDiv.a_den[4].value),
-                "div_c_coeff_0": int(RLCSumDlogDiv.b_num[0].value),
-                "div_c_coeff_1": int(RLCSumDlogDiv.b_num[1].value),
-                "div_c_coeff_2": int(RLCSumDlogDiv.b_num[2].value),
-                "div_c_coeff_3": int(RLCSumDlogDiv.b_num[3].value),
-                "div_c_coeff_4": int(RLCSumDlogDiv.b_num[4].value),
-                "div_d_coeff_0": int(RLCSumDlogDiv.b_den[0].value),
-                "div_d_coeff_1": int(RLCSumDlogDiv.b_den[1].value),
-                "div_d_coeff_2": int(RLCSumDlogDiv.b_den[2].value),
-                "div_d_coeff_3": int(RLCSumDlogDiv.b_den[3].value),
-                "div_d_coeff_4": int(RLCSumDlogDiv.b_den[4].value),
-                "div_d_coeff_5": int(RLCSumDlogDiv.b_den[5].value),
-                "div_d_coeff_6": int(RLCSumDlogDiv.b_den[6].value),
-                "div_d_coeff_7": int(RLCSumDlogDiv.b_den[7].value),
+                "div_a_coeff_0": int(rlcSumDlogDiv.a.numerator[0].value),
+                "div_a_coeff_1": int(rlcSumDlogDiv.a.numerator[1].value),
+                "div_a_coeff_2": int(rlcSumDlogDiv.a.numerator[2].value),
+                "div_a_coeff_3": int(rlcSumDlogDiv.a.numerator[3].value),
+                "div_b_coeff_0": int(rlcSumDlogDiv.a.denominator[0].value),
+                "div_b_coeff_1": int(rlcSumDlogDiv.a.denominator[1].value),
+                "div_b_coeff_2": int(rlcSumDlogDiv.a.denominator[2].value),
+                "div_b_coeff_3": int(rlcSumDlogDiv.a.denominator[3].value),
+                "div_b_coeff_4": int(rlcSumDlogDiv.a.denominator[4].value),
+                "div_c_coeff_0": int(rlcSumDlogDiv.b.numerator[0].value),
+                "div_c_coeff_1": int(rlcSumDlogDiv.b.numerator[1].value),
+                "div_c_coeff_2": int(rlcSumDlogDiv.b.numerator[2].value),
+                "div_c_coeff_3": int(rlcSumDlogDiv.b.numerator[3].value),
+                "div_c_coeff_4": int(rlcSumDlogDiv.b.numerator[4].value),
+                "div_d_coeff_0": int(rlcSumDlogDiv.b.denominator[0].value),
+                "div_d_coeff_1": int(rlcSumDlogDiv.b.denominator[1].value),
+                "div_d_coeff_2": int(rlcSumDlogDiv.b.denominator[2].value),
+                "div_d_coeff_3": int(rlcSumDlogDiv.b.denominator[3].value),
+                "div_d_coeff_4": int(rlcSumDlogDiv.b.denominator[4].value),
+                "div_d_coeff_5": int(rlcSumDlogDiv.b.denominator[5].value),
+                "div_d_coeff_6": int(rlcSumDlogDiv.b.denominator[6].value),
+                "div_d_coeff_7": int(rlcSumDlogDiv.b.denominator[7].value),
                 "x_g": int(points[0].x),
                 "y_g": int(points[0].y),
                 "ep1_low": int(epns_low[0][0]),
@@ -850,12 +852,12 @@ class TestCircuits:
                 "en1_high": int(epns_high[0][1]),
                 "sp1_high": int(epns_high[0][2] % curve.FIELD.PRIME),
                 "sn1_high": int(epns_high[0][3] % curve.FIELD.PRIME),
-                "x_q_low": int(Q_low.elmts[0].value),
-                "y_q_low": int(Q_low.elmts[1].value),
-                "x_q_high": int(Q_high.elmts[0].value),
-                "y_q_high": int(Q_high.elmts[1].value),
-                "x_q_high_shifted": int(Q_high_shifted.elmts[0].value),
-                "y_q_high_shifted": int(Q_high_shifted.elmts[1].value),
+                "x_q_low": int(q_low.x),
+                "y_q_low": int(q_low.y),
+                "x_q_high": int(q_high.x),
+                "y_q_high": int(q_high.y),
+                "x_q_high_shifted": int(q_high_shifted.x),
+                "y_q_high_shifted": int(q_high_shifted.y),
                 "x_a0": int(a0.x),
                 "y_a0": int(a0.y),
                 "a": int(curve.A),
@@ -880,3 +882,40 @@ class TestCircuits:
                 **{k: int_to_uint384(v) for k, v in inputs.items()},
                 p=int_to_uint384(curve.FIELD.PRIME),
             )
+
+
+def build_msm_hints(
+    msm: MSMCalldataBuilder,
+) -> tuple[G1Point, G1Point, G1Point, FunctionFelt, G1Point, int]:
+    """
+    Returns the MSMHint
+    """
+    scalars_low, scalars_high = msm.scalars_split()
+
+    q_low, sumDlogDivLow = zk_ecip_hint(msm.points, scalars_low)
+    sumDlogDivLow.validate_degrees(msm_size=msm.msm_size, batched=True)
+
+    q_high, sumDlogDivHigh = zk_ecip_hint(msm.points, scalars_high)
+    sumDlogDivHigh.validate_degrees(msm_size=msm.msm_size, batched=True)
+
+    q_high_shifted, sumDlogDivHighShifted = zk_ecip_hint([q_high], [2**128])
+    sumDlogDivHighShifted.validate_degrees(msm_size=1, batched=True)
+
+    msm._hash_inputs_points_scalars_and_result_points(
+        q_low,
+        q_high,
+        q_high_shifted,
+    )
+
+    rlc_coeff = msm.transcript.s1
+    sum_dlog_div_maybe_batched = (
+        sumDlogDivLow * rlc_coeff
+        + sumDlogDivHigh * (rlc_coeff * rlc_coeff)
+        + sumDlogDivHighShifted * (rlc_coeff * rlc_coeff * rlc_coeff)
+    )
+
+    _x_coordinate = msm._retrieve_random_x_coordinate(sum_dlog_div_maybe_batched)
+    _x, _y, _ = derive_ec_point_from_X(_x_coordinate, msm.curve_id)
+    a0 = G1Point(curve_id=msm.curve_id, x=_x.value, y=_y.value)
+
+    return (q_low, q_high, q_high_shifted, sum_dlog_div_maybe_batched, a0, rlc_coeff)
