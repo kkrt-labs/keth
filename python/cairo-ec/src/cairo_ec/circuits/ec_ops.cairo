@@ -157,11 +157,11 @@ func ecip_2p(
     tempvar m_a0 = (3 * a0_x * a0_x + a) / (2 * a0_y);
     // intercept a0
     tempvar b_a0 = a0_y - a0_x * m_a0;
-    tempvar x_a2 = m_a0 * m_a0 - 2 * a0_x;
-    tempvar y_a2 = a0_y - m_a0 * (a0_x - x_a2);
+    tempvar a2_x = m_a0 * m_a0 - 2 * a0_x;
+    tempvar a2_y = a0_y - m_a0 * (a0_x - a2_x);
     // Slope a0, a2
-    tempvar m_a0a2 = (y_a2 - a0_y) / (x_a2 - a0_x);
-    tempvar coeff2 = (2 * y_a2 * (a0_x - x_a2)) / (3 * x_a2 * x_a2 + a - 2 * m_a0a2 * y_a2);
+    tempvar m_a0a2 = (a2_y - a0_y) / (a2_x - a0_x);
+    tempvar coeff2 = (2 * a2_y * (a0_x - a2_x)) / (3 * a2_x * a2_x + a - 2 * m_a0a2 * a2_y);
     tempvar coeff0 = coeff2 + 2 * m_a0a2;
 
     // LHS = coeff0 * f(a0) - coeff2 * f(a2), with f(x, y) = a(x) + y*b(x)
@@ -202,39 +202,39 @@ func ecip_2p(
         eval_log_div_b_num_a0_x / eval_log_div_b_den_a0_x;
 
     // f(a2)
-    tempvar eval_log_div_a_num_x_a2 = div_a_coeff_0 + x_a2 * (
-        div_a_coeff_1 + x_a2 * (div_a_coeff_2 + x_a2 * (div_a_coeff_3 + x_a2 * div_a_coeff_4))
+    tempvar eval_log_div_a_num_a2_x = div_a_coeff_0 + a2_x * (
+        div_a_coeff_1 + a2_x * (div_a_coeff_2 + a2_x * (div_a_coeff_3 + a2_x * div_a_coeff_4))
     );
-    tempvar eval_log_div_a_den_x_a2 = div_b_coeff_0 + x_a2 * (
+    tempvar eval_log_div_a_den_a2_x = div_b_coeff_0 + a2_x * (
         div_b_coeff_1 +
-        x_a2 * (
-            div_b_coeff_2 + x_a2 * (div_b_coeff_3 + x_a2 * (div_b_coeff_4 + x_a2 * div_b_coeff_5))
+        a2_x * (
+            div_b_coeff_2 + a2_x * (div_b_coeff_3 + a2_x * (div_b_coeff_4 + a2_x * div_b_coeff_5))
         )
     );
-    tempvar eval_log_div_b_num_x_a2 = div_c_coeff_0 + x_a2 * (
+    tempvar eval_log_div_b_num_a2_x = div_c_coeff_0 + a2_x * (
         div_c_coeff_1 +
-        x_a2 * (
-            div_c_coeff_2 + x_a2 * (div_c_coeff_3 + x_a2 * (div_c_coeff_4 + x_a2 * div_c_coeff_5))
+        a2_x * (
+            div_c_coeff_2 + a2_x * (div_c_coeff_3 + a2_x * (div_c_coeff_4 + a2_x * div_c_coeff_5))
         )
     );
-    tempvar eval_log_div_b_den_x_a2 = div_d_coeff_0 + x_a2 * (
+    tempvar eval_log_div_b_den_a2_x = div_d_coeff_0 + a2_x * (
         div_d_coeff_1 +
-        x_a2 * (
+        a2_x * (
             div_d_coeff_2 +
-            x_a2 * (
+            a2_x * (
                 div_d_coeff_3 +
-                x_a2 * (
+                a2_x * (
                     div_d_coeff_4 +
-                    x_a2 * (
+                    a2_x * (
                         div_d_coeff_5 +
-                        x_a2 * (div_d_coeff_6 + x_a2 * (div_d_coeff_7 + x_a2 * div_d_coeff_8))
+                        a2_x * (div_d_coeff_6 + a2_x * (div_d_coeff_7 + a2_x * div_d_coeff_8))
                     )
                 )
             )
         )
     );
-    tempvar f_a2 = eval_log_div_a_num_x_a2 / eval_log_div_a_den_x_a2 + y_a2 *
-        eval_log_div_b_num_x_a2 / eval_log_div_b_den_x_a2;
+    tempvar f_a2 = eval_log_div_a_num_a2_x / eval_log_div_a_den_a2_x + a2_y *
+        eval_log_div_b_num_a2_x / eval_log_div_b_den_a2_x;
 
     // Compute LHS
     tempvar lhs = coeff0 * f_a0 - coeff2 * f_a2;
@@ -369,15 +369,15 @@ func ecip_1p(
     assert q_high_shifted_y * q_high_shifted_y = q_high_shifted_x * q_high_shifted_x *
         q_high_shifted_x + a * q_high_shifted_x + b;
 
-    // slope a0, a0
+    // slope a0
     tempvar m_a0 = (3 * a0_x * a0_x + a) / (2 * a0_y);
     // intercept a0
     tempvar b_a0 = a0_y - a0_x * m_a0;
-    tempvar x_a2 = m_a0 * m_a0 - 2 * a0_x;
-    tempvar y_a2 = a0_y - m_a0 * (a0_x - x_a2);
+    tempvar a2_x = m_a0 * m_a0 - 2 * a0_x;
+    tempvar a2_y = a0_y - m_a0 * (a0_x - a2_x);
     // Slope a0, a2
-    tempvar m_a0a2 = (y_a2 - a0_y) / (x_a2 - a0_x);
-    tempvar coeff2 = (2 * y_a2 * (a0_x - x_a2)) / (3 * x_a2 * x_a2 + a - 2 * m_a0a2 * y_a2);
+    tempvar m_a0a2 = (a2_y - a0_y) / (a2_x - a0_x);
+    tempvar coeff2 = (2 * a2_y * (a0_x - a2_x)) / (3 * a2_x * a2_x + a - 2 * m_a0a2 * a2_y);
     tempvar coeff0 = coeff2 + 2 * m_a0a2;
 
     // LHS = coeff0 * f(a0) - coeff2 * f(a2), with f(x, y) = a(x) + y*b(x)
@@ -409,30 +409,30 @@ func ecip_1p(
         eval_log_div_b_num_a0_x / eval_log_div_b_den_a0_x;
 
     // f(a2)
-    tempvar eval_log_div_a_num_x_a2 = div_a_coeff_0 + x_a2 * (
-        div_a_coeff_1 + x_a2 * (div_a_coeff_2 + x_a2 * div_a_coeff_3)
+    tempvar eval_log_div_a_num_a2_x = div_a_coeff_0 + a2_x * (
+        div_a_coeff_1 + a2_x * (div_a_coeff_2 + a2_x * div_a_coeff_3)
     );
-    tempvar eval_log_div_a_den_x_a2 = div_b_coeff_0 + x_a2 * (
-        div_b_coeff_1 + x_a2 * (div_b_coeff_2 + x_a2 * (div_b_coeff_3 + x_a2 * div_b_coeff_4))
+    tempvar eval_log_div_a_den_a2_x = div_b_coeff_0 + a2_x * (
+        div_b_coeff_1 + a2_x * (div_b_coeff_2 + a2_x * (div_b_coeff_3 + a2_x * div_b_coeff_4))
     );
-    tempvar eval_log_div_b_num_x_a2 = div_c_coeff_0 + x_a2 * (
-        div_c_coeff_1 + x_a2 * (div_c_coeff_2 + x_a2 * (div_c_coeff_3 + x_a2 * div_c_coeff_4))
+    tempvar eval_log_div_b_num_a2_x = div_c_coeff_0 + a2_x * (
+        div_c_coeff_1 + a2_x * (div_c_coeff_2 + a2_x * (div_c_coeff_3 + a2_x * div_c_coeff_4))
     );
-    tempvar eval_log_div_b_den_x_a2 = div_d_coeff_0 + x_a2 * (
+    tempvar eval_log_div_b_den_a2_x = div_d_coeff_0 + a2_x * (
         div_d_coeff_1 +
-        x_a2 * (
+        a2_x * (
             div_d_coeff_2 +
-            x_a2 * (
+            a2_x * (
                 div_d_coeff_3 +
-                x_a2 * (
+                a2_x * (
                     div_d_coeff_4 +
-                    x_a2 * (div_d_coeff_5 + x_a2 * (div_d_coeff_6 + x_a2 * div_d_coeff_7))
+                    a2_x * (div_d_coeff_5 + a2_x * (div_d_coeff_6 + a2_x * div_d_coeff_7))
                 )
             )
         )
     );
-    tempvar f_a2 = eval_log_div_a_num_x_a2 / eval_log_div_a_den_x_a2 + y_a2 *
-        eval_log_div_b_num_x_a2 / eval_log_div_b_den_x_a2;
+    tempvar f_a2 = eval_log_div_a_num_a2_x / eval_log_div_a_den_a2_x + a2_y *
+        eval_log_div_b_num_a2_x / eval_log_div_b_den_a2_x;
 
     // Compute LHS
     tempvar lhs = coeff0 * f_a0 - coeff2 * f_a2;
