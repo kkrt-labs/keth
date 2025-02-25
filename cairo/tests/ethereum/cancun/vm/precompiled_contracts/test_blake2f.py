@@ -34,7 +34,15 @@ def evm_test_strategy(draw):
     if draw(st.floats(min_value=0, max_value=1)) < 0.8:
         message = MessageBuilder().with_data(st.just(input_bytes)).build()
     else:
-        input_bytes = draw(st.binary(min_size=1, max_size=1024))
+        input_bytes = draw(
+            st.one_of(
+                st.binary(min_size=1, max_size=1024),
+                st.just(
+                    input_bytes[:-1]
+                    + bytes([draw(st.integers(min_value=2, max_value=255))])
+                ),
+            )
+        )
         message = MessageBuilder().with_data(st.just(input_bytes)).build()
 
     # Build and return EVM instance
