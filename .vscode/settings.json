@@ -72,7 +72,8 @@
     "workercount",
     "workerid",
     "workerinput",
-    "xxhash"
+    "xxhash",
+    "zkpig"
   ],
   "python.testing.pytestArgs": ["."],
   "python.testing.unittestEnabled": false,

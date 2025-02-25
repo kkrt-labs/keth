@@ -7,6 +7,7 @@ from typing import Any, Dict, Generator, Tuple, Union
 
 import pytest
 from _pytest.mark.structures import ParameterSet
+from ethereum.cancun.state import State
 from ethereum.crypto.hash import keccak256
 from ethereum.exceptions import EthereumException
 from ethereum.utils.hexadecimal import hex_to_bytes
@@ -16,7 +17,7 @@ from ethereum_spec_tools.evm_tools.loaders.fixture_loader import Load
 from ethereum_types.numeric import U64, U256
 
 
-def convert_defaultdict(state):
+def convert_defaultdict(state: State) -> State:
     for address in state._storage_tries:
         state._storage_tries[address]._data = defaultdict(
             lambda: defaultdict(lambda: U256(0)), state._storage_tries[address]._data
