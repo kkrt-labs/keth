@@ -43,6 +43,20 @@ func assert_x_is_on_curve(x: felt, y: felt, a: felt, b: felt, g: felt, is_on_cur
     end:
 }
 
+// @notice Verifies that a point (x, y) is on the elliptic curve.
+// @param x The x coordinate of the point
+// @param y The y coordinate of the point
+// @param a The a coefficient of the curve
+// @param b The b coefficient of the curve
+func assert_on_curve(x: felt, y: felt, a: felt, b: felt) {
+    tempvar rhs = x * x * x + a * x + b;
+    assert y * y = rhs;
+
+    return ();
+
+    end:
+}
+
 // @notice Asserts that a point (x, y) is not on the elliptic curve by failing if y^2 = x^3 + ax + b.
 // @dev Computes rhs = x^3 + ax + b and returns 1 / (y^2 - rhs). This succeeds if the point is off the curve
 //      (y^2 ≠ rhs) and fails (division by zero) if the point is on the curve (y^2 = rhs).

@@ -1,17 +1,17 @@
 from ethereum.cancun.vm import Evm
 from ethereum.cancun.vm.exceptions import OutOfGasError
 from ethereum.cancun.vm.precompiled_contracts.alt_bn128 import (
-    ALT_BN128_PRIME,
     alt_bn128_add,
     alt_bn128_mul,
     alt_bn128_pairing_check,
 )
-from ethereum.crypto.alt_bn128 import BNF, BNP
+from ethereum.crypto.alt_bn128 import ALT_BN128_PRIME, BNP
 from ethereum_types.bytes import Bytes
 from hypothesis import given
 from hypothesis import strategies as st
 
 from cairo_addons.testing.errors import strict_raises
+from cairo_ec.curve import AltBn128
 from tests.utils.evm_builder import EvmBuilder
 
 
@@ -47,23 +47,21 @@ def add_strategy(draw):
         )
     )
 
-    def generate_valid_point():
-        generator_point = BNP(BNF(1), BNF(2))
-        scalar = draw(st.integers(min_value=0, max_value=ALT_BN128_PRIME - 1))
-        point = generator_point.mul_by(scalar)
-        return int(point.x), int(point.y)
-
+    x0, y0, x1, y1 = 0, 0, 0, 0
     if case_type == "both_valid":
-        x0, y0 = generate_valid_point()
-        x1, y1 = generate_valid_point()
+        p0 = AltBn128.random_point(retry=True)
+        p1 = AltBn128.random_point(retry=True)
+        x0, y0, x1, y1 = p0.x, p0.y, p1.x, p1.y
 
     elif case_type == "first_infinity":
-        x0, y0 = 0, 0
-        x1, y1 = generate_valid_point()
+        p0 = BNP.point_at_infinity()
+        p1 = AltBn128.random_point(retry=True)
+        x0, y0, x1, y1 = p0.x, p0.y, p1.x, p1.y
 
     elif case_type == "second_infinity":
-        x0, y0 = generate_valid_point()
-        x1, y1 = 0, 0
+        p0 = AltBn128.random_point(retry=True)
+        p1 = BNP.point_at_infinity()
+        x0, y0, x1, y1 = p0.x, p0.y, p1.x, p1.y
 
     elif case_type == "out_of_range":
         # Generate coordinates, ensuring at least one is >= ALT_BN128_PRIME
@@ -84,20 +82,13 @@ def add_strategy(draw):
 
     else:  # invalid_point
         # At least one point is invalid
-        while True:
-            x0 = draw(st.integers(min_value=1, max_value=ALT_BN128_PRIME - 1))
-            y0 = draw(st.integers(min_value=1, max_value=ALT_BN128_PRIME - 1))
-            x1 = draw(st.integers(min_value=1, max_value=ALT_BN128_PRIME - 1))
-            y1 = draw(st.integers(min_value=1, max_value=ALT_BN128_PRIME - 1))
-            try:
-                p0 = BNP(BNF(x0), BNF(y0))
-                p1 = BNP(BNF(x1), BNF(y1))
-                # If both points are valid, try again
-                if p0 != BNP.point_at_infinity() and p1 != BNP.point_at_infinity():
-                    continue
-            except ValueError:
-                # At least one point is invalid, which is what we want
-                break
+        p0 = AltBn128.random_point(retry=False)
+        p1 = AltBn128.random_point(retry=False)
+        while AltBn128.is_on_curve(p0.x, p0.y) and AltBn128.is_on_curve(p1.x, p1.y):
+            p0 = AltBn128.random_point(retry=False)
+            p1 = AltBn128.random_point(retry=False)
+
+        x0, y0, x1, y1 = p0.x, p0.y, p1.x, p1.y
 
     return (
         x0.to_bytes(32, "big")

@@ -19,7 +19,11 @@ from ethereum.cancun.vm.memory import buffer_read
 from cairo_ec.curve.alt_bn128 import alt_bn128
 from cairo_ec.ec_ops import ec_add
 from cairo_ec.curve.g1_point import G1Point, G1Point__eq__
-from cairo_ec.circuits.ec_ops_compiled import assert_x_is_on_curve, assert_not_on_curve
+from cairo_ec.circuits.ec_ops_compiled import (
+    assert_x_is_on_curve,
+    assert_not_on_curve,
+    assert_on_curve,
+)
 from cairo_ec.uint384 import uint256_to_uint384
 from cairo_core.maths import felt252_to_bytes_be
 from starkware.cairo.common.registers import get_fp_and_pc
@@ -98,8 +102,8 @@ func alt_bn128_add{
     let pair_is_zero = is_p0_zero.value * is_p1_zero.value;
     if (pair_is_zero != 0) {
         let (buffer: felt*) = alloc();
-        memset(buffer, 0, 32);
-        tempvar output = Bytes(new BytesStruct(data=buffer, len=32));
+        memset(buffer, 0, 64);
+        tempvar output = Bytes(new BytesStruct(data=buffer, len=64));
         EvmImpl.set_output(output);
         tempvar ok = cast(0, EthereumException*);
         return ok;
@@ -116,7 +120,7 @@ func alt_bn128_add{
     }
 
     if (is_p0_zero.value == 0) {
-        assert_x_is_on_curve(new p0.x, new p0.y, a, b, g, new is_p0_on_curve_uint384, modulus);
+        assert_on_curve(new p0.x, new p0.y, a, b, modulus);
         tempvar range_check96_ptr = range_check96_ptr;
         tempvar add_mod_ptr = add_mod_ptr;
         tempvar mul_mod_ptr = mul_mod_ptr;
@@ -139,7 +143,7 @@ func alt_bn128_add{
     }
 
     if (is_p1_zero.value == 0) {
-        assert_x_is_on_curve(new p1.x, new p1.y, a, b, g, new is_p1_on_curve_uint384, modulus);
+        assert_on_curve(new p1.x, new p1.y, a, b, modulus);
     } else {
         // Point at infinity
         tempvar range_check96_ptr = range_check96_ptr;
