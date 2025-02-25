@@ -468,10 +468,10 @@ func ecip_2p{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: Mo
     div_d_coeff_6: UInt384*,
     div_d_coeff_7: UInt384*,
     div_d_coeff_8: UInt384*,
-    x_g: UInt384*,
-    y_g: UInt384*,
-    x_r: UInt384*,
-    y_r: UInt384*,
+    g_x: UInt384*,
+    g_y: UInt384*,
+    r_x: UInt384*,
+    r_y: UInt384*,
     ep1_low: UInt384*,
     en1_low: UInt384*,
     sp1_low: UInt384*,
@@ -488,14 +488,14 @@ func ecip_2p{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: Mo
     en2_high: UInt384*,
     sp2_high: UInt384*,
     sn2_high: UInt384*,
-    x_q_low: UInt384*,
-    y_q_low: UInt384*,
-    x_q_high: UInt384*,
-    y_q_high: UInt384*,
-    x_q_high_shifted: UInt384*,
-    y_q_high_shifted: UInt384*,
-    x_a0: UInt384*,
-    y_a0: UInt384*,
+    q_low_x: UInt384*,
+    q_low_y: UInt384*,
+    q_high_x: UInt384*,
+    q_high_y: UInt384*,
+    q_high_shifted_x: UInt384*,
+    q_high_shifted_y: UInt384*,
+    a0_x: UInt384*,
+    a0_y: UInt384*,
     a: UInt384*,
     b: UInt384*,
     base_rlc: UInt384*,
@@ -632,22 +632,22 @@ func ecip_2p{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: Mo
     assert [range_check96_ptr + 121] = div_d_coeff_8.d1;
     assert [range_check96_ptr + 122] = div_d_coeff_8.d2;
     assert [range_check96_ptr + 123] = div_d_coeff_8.d3;
-    assert [range_check96_ptr + 124] = x_g.d0;
-    assert [range_check96_ptr + 125] = x_g.d1;
-    assert [range_check96_ptr + 126] = x_g.d2;
-    assert [range_check96_ptr + 127] = x_g.d3;
-    assert [range_check96_ptr + 128] = y_g.d0;
-    assert [range_check96_ptr + 129] = y_g.d1;
-    assert [range_check96_ptr + 130] = y_g.d2;
-    assert [range_check96_ptr + 131] = y_g.d3;
-    assert [range_check96_ptr + 132] = x_r.d0;
-    assert [range_check96_ptr + 133] = x_r.d1;
-    assert [range_check96_ptr + 134] = x_r.d2;
-    assert [range_check96_ptr + 135] = x_r.d3;
-    assert [range_check96_ptr + 136] = y_r.d0;
-    assert [range_check96_ptr + 137] = y_r.d1;
-    assert [range_check96_ptr + 138] = y_r.d2;
-    assert [range_check96_ptr + 139] = y_r.d3;
+    assert [range_check96_ptr + 124] = g_x.d0;
+    assert [range_check96_ptr + 125] = g_x.d1;
+    assert [range_check96_ptr + 126] = g_x.d2;
+    assert [range_check96_ptr + 127] = g_x.d3;
+    assert [range_check96_ptr + 128] = g_y.d0;
+    assert [range_check96_ptr + 129] = g_y.d1;
+    assert [range_check96_ptr + 130] = g_y.d2;
+    assert [range_check96_ptr + 131] = g_y.d3;
+    assert [range_check96_ptr + 132] = r_x.d0;
+    assert [range_check96_ptr + 133] = r_x.d1;
+    assert [range_check96_ptr + 134] = r_x.d2;
+    assert [range_check96_ptr + 135] = r_x.d3;
+    assert [range_check96_ptr + 136] = r_y.d0;
+    assert [range_check96_ptr + 137] = r_y.d1;
+    assert [range_check96_ptr + 138] = r_y.d2;
+    assert [range_check96_ptr + 139] = r_y.d3;
     assert [range_check96_ptr + 140] = ep1_low.d0;
     assert [range_check96_ptr + 141] = ep1_low.d1;
     assert [range_check96_ptr + 142] = ep1_low.d2;
@@ -712,38 +712,38 @@ func ecip_2p{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: Mo
     assert [range_check96_ptr + 201] = sn2_high.d1;
     assert [range_check96_ptr + 202] = sn2_high.d2;
     assert [range_check96_ptr + 203] = sn2_high.d3;
-    assert [range_check96_ptr + 204] = x_q_low.d0;
-    assert [range_check96_ptr + 205] = x_q_low.d1;
-    assert [range_check96_ptr + 206] = x_q_low.d2;
-    assert [range_check96_ptr + 207] = x_q_low.d3;
-    assert [range_check96_ptr + 208] = y_q_low.d0;
-    assert [range_check96_ptr + 209] = y_q_low.d1;
-    assert [range_check96_ptr + 210] = y_q_low.d2;
-    assert [range_check96_ptr + 211] = y_q_low.d3;
-    assert [range_check96_ptr + 212] = x_q_high.d0;
-    assert [range_check96_ptr + 213] = x_q_high.d1;
-    assert [range_check96_ptr + 214] = x_q_high.d2;
-    assert [range_check96_ptr + 215] = x_q_high.d3;
-    assert [range_check96_ptr + 216] = y_q_high.d0;
-    assert [range_check96_ptr + 217] = y_q_high.d1;
-    assert [range_check96_ptr + 218] = y_q_high.d2;
-    assert [range_check96_ptr + 219] = y_q_high.d3;
-    assert [range_check96_ptr + 220] = x_q_high_shifted.d0;
-    assert [range_check96_ptr + 221] = x_q_high_shifted.d1;
-    assert [range_check96_ptr + 222] = x_q_high_shifted.d2;
-    assert [range_check96_ptr + 223] = x_q_high_shifted.d3;
-    assert [range_check96_ptr + 224] = y_q_high_shifted.d0;
-    assert [range_check96_ptr + 225] = y_q_high_shifted.d1;
-    assert [range_check96_ptr + 226] = y_q_high_shifted.d2;
-    assert [range_check96_ptr + 227] = y_q_high_shifted.d3;
-    assert [range_check96_ptr + 228] = x_a0.d0;
-    assert [range_check96_ptr + 229] = x_a0.d1;
-    assert [range_check96_ptr + 230] = x_a0.d2;
-    assert [range_check96_ptr + 231] = x_a0.d3;
-    assert [range_check96_ptr + 232] = y_a0.d0;
-    assert [range_check96_ptr + 233] = y_a0.d1;
-    assert [range_check96_ptr + 234] = y_a0.d2;
-    assert [range_check96_ptr + 235] = y_a0.d3;
+    assert [range_check96_ptr + 204] = q_low_x.d0;
+    assert [range_check96_ptr + 205] = q_low_x.d1;
+    assert [range_check96_ptr + 206] = q_low_x.d2;
+    assert [range_check96_ptr + 207] = q_low_x.d3;
+    assert [range_check96_ptr + 208] = q_low_y.d0;
+    assert [range_check96_ptr + 209] = q_low_y.d1;
+    assert [range_check96_ptr + 210] = q_low_y.d2;
+    assert [range_check96_ptr + 211] = q_low_y.d3;
+    assert [range_check96_ptr + 212] = q_high_x.d0;
+    assert [range_check96_ptr + 213] = q_high_x.d1;
+    assert [range_check96_ptr + 214] = q_high_x.d2;
+    assert [range_check96_ptr + 215] = q_high_x.d3;
+    assert [range_check96_ptr + 216] = q_high_y.d0;
+    assert [range_check96_ptr + 217] = q_high_y.d1;
+    assert [range_check96_ptr + 218] = q_high_y.d2;
+    assert [range_check96_ptr + 219] = q_high_y.d3;
+    assert [range_check96_ptr + 220] = q_high_shifted_x.d0;
+    assert [range_check96_ptr + 221] = q_high_shifted_x.d1;
+    assert [range_check96_ptr + 222] = q_high_shifted_x.d2;
+    assert [range_check96_ptr + 223] = q_high_shifted_x.d3;
+    assert [range_check96_ptr + 224] = q_high_shifted_y.d0;
+    assert [range_check96_ptr + 225] = q_high_shifted_y.d1;
+    assert [range_check96_ptr + 226] = q_high_shifted_y.d2;
+    assert [range_check96_ptr + 227] = q_high_shifted_y.d3;
+    assert [range_check96_ptr + 228] = a0_x.d0;
+    assert [range_check96_ptr + 229] = a0_x.d1;
+    assert [range_check96_ptr + 230] = a0_x.d2;
+    assert [range_check96_ptr + 231] = a0_x.d3;
+    assert [range_check96_ptr + 232] = a0_y.d0;
+    assert [range_check96_ptr + 233] = a0_y.d1;
+    assert [range_check96_ptr + 234] = a0_y.d2;
+    assert [range_check96_ptr + 235] = a0_y.d3;
     assert [range_check96_ptr + 236] = a.d0;
     assert [range_check96_ptr + 237] = a.d1;
     assert [range_check96_ptr + 238] = a.d2;
@@ -1581,8 +1581,8 @@ func ecip_1p{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: Mo
     div_d_coeff_5: UInt384*,
     div_d_coeff_6: UInt384*,
     div_d_coeff_7: UInt384*,
-    x_g: UInt384*,
-    y_g: UInt384*,
+    g_x: UInt384*,
+    g_y: UInt384*,
     ep1_low: UInt384*,
     en1_low: UInt384*,
     sp1_low: UInt384*,
@@ -1591,14 +1591,14 @@ func ecip_1p{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: Mo
     en1_high: UInt384*,
     sp1_high: UInt384*,
     sn1_high: UInt384*,
-    x_q_low: UInt384*,
-    y_q_low: UInt384*,
-    x_q_high: UInt384*,
-    y_q_high: UInt384*,
-    x_q_high_shifted: UInt384*,
-    y_q_high_shifted: UInt384*,
-    x_a0: UInt384*,
-    y_a0: UInt384*,
+    q_low_x: UInt384*,
+    q_low_y: UInt384*,
+    q_high_x: UInt384*,
+    q_high_y: UInt384*,
+    q_high_shifted_x: UInt384*,
+    q_high_shifted_y: UInt384*,
+    a0_x: UInt384*,
+    a0_y: UInt384*,
     a: UInt384*,
     b: UInt384*,
     base_rlc: UInt384*,
@@ -1719,14 +1719,14 @@ func ecip_1p{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: Mo
     assert [range_check96_ptr + 105] = div_d_coeff_7.d1;
     assert [range_check96_ptr + 106] = div_d_coeff_7.d2;
     assert [range_check96_ptr + 107] = div_d_coeff_7.d3;
-    assert [range_check96_ptr + 108] = x_g.d0;
-    assert [range_check96_ptr + 109] = x_g.d1;
-    assert [range_check96_ptr + 110] = x_g.d2;
-    assert [range_check96_ptr + 111] = x_g.d3;
-    assert [range_check96_ptr + 112] = y_g.d0;
-    assert [range_check96_ptr + 113] = y_g.d1;
-    assert [range_check96_ptr + 114] = y_g.d2;
-    assert [range_check96_ptr + 115] = y_g.d3;
+    assert [range_check96_ptr + 108] = g_x.d0;
+    assert [range_check96_ptr + 109] = g_x.d1;
+    assert [range_check96_ptr + 110] = g_x.d2;
+    assert [range_check96_ptr + 111] = g_x.d3;
+    assert [range_check96_ptr + 112] = g_y.d0;
+    assert [range_check96_ptr + 113] = g_y.d1;
+    assert [range_check96_ptr + 114] = g_y.d2;
+    assert [range_check96_ptr + 115] = g_y.d3;
     assert [range_check96_ptr + 116] = ep1_low.d0;
     assert [range_check96_ptr + 117] = ep1_low.d1;
     assert [range_check96_ptr + 118] = ep1_low.d2;
@@ -1759,38 +1759,38 @@ func ecip_1p{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: Mo
     assert [range_check96_ptr + 145] = sn1_high.d1;
     assert [range_check96_ptr + 146] = sn1_high.d2;
     assert [range_check96_ptr + 147] = sn1_high.d3;
-    assert [range_check96_ptr + 148] = x_q_low.d0;
-    assert [range_check96_ptr + 149] = x_q_low.d1;
-    assert [range_check96_ptr + 150] = x_q_low.d2;
-    assert [range_check96_ptr + 151] = x_q_low.d3;
-    assert [range_check96_ptr + 152] = y_q_low.d0;
-    assert [range_check96_ptr + 153] = y_q_low.d1;
-    assert [range_check96_ptr + 154] = y_q_low.d2;
-    assert [range_check96_ptr + 155] = y_q_low.d3;
-    assert [range_check96_ptr + 156] = x_q_high.d0;
-    assert [range_check96_ptr + 157] = x_q_high.d1;
-    assert [range_check96_ptr + 158] = x_q_high.d2;
-    assert [range_check96_ptr + 159] = x_q_high.d3;
-    assert [range_check96_ptr + 160] = y_q_high.d0;
-    assert [range_check96_ptr + 161] = y_q_high.d1;
-    assert [range_check96_ptr + 162] = y_q_high.d2;
-    assert [range_check96_ptr + 163] = y_q_high.d3;
-    assert [range_check96_ptr + 164] = x_q_high_shifted.d0;
-    assert [range_check96_ptr + 165] = x_q_high_shifted.d1;
-    assert [range_check96_ptr + 166] = x_q_high_shifted.d2;
-    assert [range_check96_ptr + 167] = x_q_high_shifted.d3;
-    assert [range_check96_ptr + 168] = y_q_high_shifted.d0;
-    assert [range_check96_ptr + 169] = y_q_high_shifted.d1;
-    assert [range_check96_ptr + 170] = y_q_high_shifted.d2;
-    assert [range_check96_ptr + 171] = y_q_high_shifted.d3;
-    assert [range_check96_ptr + 172] = x_a0.d0;
-    assert [range_check96_ptr + 173] = x_a0.d1;
-    assert [range_check96_ptr + 174] = x_a0.d2;
-    assert [range_check96_ptr + 175] = x_a0.d3;
-    assert [range_check96_ptr + 176] = y_a0.d0;
-    assert [range_check96_ptr + 177] = y_a0.d1;
-    assert [range_check96_ptr + 178] = y_a0.d2;
-    assert [range_check96_ptr + 179] = y_a0.d3;
+    assert [range_check96_ptr + 148] = q_low_x.d0;
+    assert [range_check96_ptr + 149] = q_low_x.d1;
+    assert [range_check96_ptr + 150] = q_low_x.d2;
+    assert [range_check96_ptr + 151] = q_low_x.d3;
+    assert [range_check96_ptr + 152] = q_low_y.d0;
+    assert [range_check96_ptr + 153] = q_low_y.d1;
+    assert [range_check96_ptr + 154] = q_low_y.d2;
+    assert [range_check96_ptr + 155] = q_low_y.d3;
+    assert [range_check96_ptr + 156] = q_high_x.d0;
+    assert [range_check96_ptr + 157] = q_high_x.d1;
+    assert [range_check96_ptr + 158] = q_high_x.d2;
+    assert [range_check96_ptr + 159] = q_high_x.d3;
+    assert [range_check96_ptr + 160] = q_high_y.d0;
+    assert [range_check96_ptr + 161] = q_high_y.d1;
+    assert [range_check96_ptr + 162] = q_high_y.d2;
+    assert [range_check96_ptr + 163] = q_high_y.d3;
+    assert [range_check96_ptr + 164] = q_high_shifted_x.d0;
+    assert [range_check96_ptr + 165] = q_high_shifted_x.d1;
+    assert [range_check96_ptr + 166] = q_high_shifted_x.d2;
+    assert [range_check96_ptr + 167] = q_high_shifted_x.d3;
+    assert [range_check96_ptr + 168] = q_high_shifted_y.d0;
+    assert [range_check96_ptr + 169] = q_high_shifted_y.d1;
+    assert [range_check96_ptr + 170] = q_high_shifted_y.d2;
+    assert [range_check96_ptr + 171] = q_high_shifted_y.d3;
+    assert [range_check96_ptr + 172] = a0_x.d0;
+    assert [range_check96_ptr + 173] = a0_x.d1;
+    assert [range_check96_ptr + 174] = a0_x.d2;
+    assert [range_check96_ptr + 175] = a0_x.d3;
+    assert [range_check96_ptr + 176] = a0_y.d0;
+    assert [range_check96_ptr + 177] = a0_y.d1;
+    assert [range_check96_ptr + 178] = a0_y.d2;
+    assert [range_check96_ptr + 179] = a0_y.d3;
     assert [range_check96_ptr + 180] = a.d0;
     assert [range_check96_ptr + 181] = a.d1;
     assert [range_check96_ptr + 182] = a.d2;
