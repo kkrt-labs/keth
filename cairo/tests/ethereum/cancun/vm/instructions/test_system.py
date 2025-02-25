@@ -244,7 +244,7 @@ class TestSystemCairoFile:
     )
     def test_generic_call(
         self,
-        cairo_run_py,
+        cairo_run,
         evm: Evm,
         gas: Uint,
         value: U256,
@@ -259,7 +259,7 @@ class TestSystemCairoFile:
         memory_output_size: U256,
     ):
         try:
-            cairo_evm = cairo_run_py(
+            cairo_evm = cairo_run(
                 "test_generic_call",
                 evm,
                 gas,
