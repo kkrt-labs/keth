@@ -245,3 +245,57 @@ def write_output(
     bytes_ptr = segments.add()
     segments.write_arg(bytes_ptr, [data_ptr, len(output)])
     memory[ap - 1] = bytes_ptr
+
+
+@register_hint
+def point_evaluation_hint(
+    ids: VmConsts,
+    memory: MemoryDict,
+    ap: RelocatableValue,
+    segments: MemorySegmentManager,
+):
+    from ethereum.cancun.vm.exceptions import KZGProofError
+    from ethereum.crypto.kzg import (
+        KZGCommitment,
+        kzg_commitment_to_versioned_hash,
+        verify_kzg_proof,
+    )
+    from ethereum_types.bytes import Bytes, Bytes32, Bytes48
+    from ethereum_types.numeric import U256
+
+    from cairo_addons.hints.precompiles import write_error, write_output
+
+    def inner():
+        data = [memory[ids.data.value.data + i] for i in range(ids.data.value.len)]
+
+        versioned_hash = Bytes32(Bytes(bytes(data[:32])))
+        z = Bytes32(Bytes(bytes(data[32:64])))
+        y = Bytes32(Bytes(bytes(data[64:96])))
+        commitment = KZGCommitment(Bytes48(Bytes(bytes(data[96:144]))))
+        proof = Bytes48(Bytes(bytes(data[144:192])))
+
+        try:
+            if kzg_commitment_to_versioned_hash(commitment) != versioned_hash:
+                write_error(memory, ap, segments, KZGProofError)
+                return
+
+            if not verify_kzg_proof(commitment, z, y, proof):
+                write_error(memory, ap, segments, KZGProofError)
+                return
+
+            FIELD_ELEMENTS_PER_BLOB = 4096
+            BLS_MODULUS = 52435875175126190479447740508185965837690552500527637822603658699938581184513
+
+            output_bytes = (
+                U256(FIELD_ELEMENTS_PER_BLOB).to_be_bytes32()
+                + U256(BLS_MODULUS).to_be_bytes32()
+            )
+
+            memory[ap - 2] = 0
+            write_output(memory, ap, segments, output_bytes)
+
+        except Exception:
+            write_error(memory, ap, segments, KZGProofError)
+            return
+
+    inner()
