@@ -158,7 +158,7 @@ func ecip_2p(
     // intercept a0
     tempvar b_a0 = a0_y - a0_x * m_a0;
     tempvar x_a2 = m_a0 * m_a0 - 2 * a0_x;
-    tempvar y_a2 = 0 - (m_a0 * (a0_x - x_a2) - a0_y);
+    tempvar y_a2 = a0_y - m_a0 * (a0_x - x_a2);
     // Slope a0, a2
     tempvar m_a0a2 = (y_a2 - a0_y) / (x_a2 - a0_x);
     tempvar coeff2 = (2 * y_a2 * (a0_x - x_a2)) / (3 * x_a2 * x_a2 + a - 2 * m_a0a2 * y_a2);
@@ -243,56 +243,56 @@ func ecip_2p(
     tempvar num_g = a0_x - g_x;
     tempvar den_tmp_g = m_a0 * g_x + b_a0;
     tempvar den_pos_g = g_y - den_tmp_g;
-    tempvar den_neg_g = (0 - g_y) - den_tmp_g;
+    tempvar den_neg_g = g_y + den_tmp_g;
     tempvar eval_pos_low_g = sp1_low * ep1_low * num_g / den_pos_g;
     tempvar eval_neg_low_g = sn1_low * en1_low * num_g / den_neg_g;
-    tempvar eval_low_g = eval_pos_low_g + eval_neg_low_g;
+    tempvar eval_low_g = eval_pos_low_g - eval_neg_low_g;
 
     tempvar num_r = a0_x - r_x;
     tempvar den_tmp_r = m_a0 * r_x + b_a0;
     tempvar den_pos_r = r_y - den_tmp_r;
-    tempvar den_neg_r = (0 - r_y) - den_tmp_r;
+    tempvar den_neg_r = r_y + den_tmp_r;
     tempvar eval_pos_low_r = sp2_low * ep2_low * num_r / den_pos_r;
     tempvar eval_neg_low_r = sn2_low * en2_low * num_r / den_neg_r;
-    tempvar eval_low_r = eval_pos_low_r + eval_neg_low_r;
+    tempvar eval_low_r = eval_pos_low_r - eval_neg_low_r;
 
     tempvar num_q_low = a0_x - q_low_x;
     tempvar den_tmp_q_low = m_a0 * q_low_x + b_a0;
-    tempvar den_neg_q_low = (0 - q_low_y) - den_tmp_q_low;
+    tempvar den_neg_q_low = q_low_y + den_tmp_q_low;
     tempvar eval_q_low = num_q_low / den_neg_q_low;
 
-    tempvar rhs_low = eval_low_g + eval_low_r + eval_q_low;
+    tempvar rhs_low = eval_low_g + eval_low_r - eval_q_low;
 
     // base_rhs_high
     tempvar eval_pos_high_g = sp1_high * ep1_high * num_g / den_pos_g;
     tempvar eval_neg_high_g = sn1_high * en1_high * num_g / den_neg_g;
-    tempvar eval_high_g = eval_pos_high_g + eval_neg_high_g;
+    tempvar eval_high_g = eval_pos_high_g - eval_neg_high_g;
 
     tempvar eval_pos_high_r = sp2_high * ep2_high * num_r / den_pos_r;
     tempvar eval_neg_high_r = sn2_high * en2_high * num_r / den_neg_r;
-    tempvar eval_high_r = eval_pos_high_r + eval_neg_high_r;
+    tempvar eval_high_r = eval_pos_high_r - eval_neg_high_r;
 
     tempvar num_q_high = a0_x - q_high_x;
     tempvar den_tmp_q_high = m_a0 * q_high_x + b_a0;
-    tempvar den_neg_q_high = (0 - q_high_y) - den_tmp_q_high;
+    tempvar den_neg_q_high = q_high_y + den_tmp_q_high;
     tempvar eval_q_high = num_q_high / den_neg_q_high;
 
-    tempvar rhs_high = eval_high_g + eval_high_r + eval_q_high;
+    tempvar rhs_high = eval_high_g + eval_high_r - eval_q_high;
 
     // base_rhs_high_shifted
     // decomposition of 2^128 in base -3
     tempvar ep_high_shifted = 5279154705627724249993186093248666011;
     tempvar en_high_shifted = 345561521626566187713367793525016877467;
     tempvar den_pos_q_high = q_high_y - den_tmp_q_high;
-    tempvar eval_pos_q_high_shifted = (0 - ep_high_shifted) * num_q_high / den_pos_q_high;
-    tempvar eval_neg_q_high_shifted = (0 - en_high_shifted) * num_q_high / den_neg_q_high;
+    tempvar eval_pos_q_high_shifted = ep_high_shifted * num_q_high / den_pos_q_high;
+    tempvar eval_neg_q_high_shifted = en_high_shifted * num_q_high / den_neg_q_high;
 
     tempvar num_q_high_shifted = a0_x - q_high_shifted_x;
     tempvar den_tmp_q_high_shifted = m_a0 * q_high_shifted_x + b_a0;
-    tempvar den_neg_q_high_shifted = (0 - q_high_shifted_y) - den_tmp_q_high_shifted;
+    tempvar den_neg_q_high_shifted = q_high_shifted_y + den_tmp_q_high_shifted;
     tempvar eval_q_high_shifted = num_q_high_shifted / den_neg_q_high_shifted;
 
-    tempvar rhs_high_shifted = eval_pos_q_high_shifted + eval_neg_q_high_shifted +
+    tempvar rhs_high_shifted = eval_neg_q_high_shifted - eval_pos_q_high_shifted -
         eval_q_high_shifted;
 
     tempvar c1 = base_rlc * base_rlc;
@@ -374,7 +374,7 @@ func ecip_1p(
     // intercept a0
     tempvar b_a0 = a0_y - a0_x * m_a0;
     tempvar x_a2 = m_a0 * m_a0 - 2 * a0_x;
-    tempvar y_a2 = 0 - (m_a0 * (a0_x - x_a2) - a0_y);
+    tempvar y_a2 = a0_y - m_a0 * (a0_x - x_a2);
     // Slope a0, a2
     tempvar m_a0a2 = (y_a2 - a0_y) / (x_a2 - a0_x);
     tempvar coeff2 = (2 * y_a2 * (a0_x - x_a2)) / (3 * x_a2 * x_a2 + a - 2 * m_a0a2 * y_a2);
@@ -441,44 +441,44 @@ func ecip_1p(
     tempvar num_g = a0_x - g_x;
     tempvar den_tmp_g = m_a0 * g_x + b_a0;
     tempvar den_pos_g = g_y - den_tmp_g;
-    tempvar den_neg_g = (0 - g_y) - den_tmp_g;
+    tempvar den_neg_g = g_y + den_tmp_g;
     tempvar eval_pos_low_g = sp1_low * ep1_low * num_g / den_pos_g;
     tempvar eval_neg_low_g = sn1_low * en1_low * num_g / den_neg_g;
-    tempvar eval_low_g = eval_pos_low_g + eval_neg_low_g;
+    tempvar eval_low_g = eval_pos_low_g - eval_neg_low_g;
 
     tempvar num_q_low = a0_x - q_low_x;
     tempvar den_tmp_q_low = m_a0 * q_low_x + b_a0;
-    tempvar den_neg_q_low = (0 - q_low_y) - den_tmp_q_low;
+    tempvar den_neg_q_low = q_low_y + den_tmp_q_low;
     tempvar eval_q_low = num_q_low / den_neg_q_low;
 
-    tempvar rhs_low = eval_low_g + eval_q_low;
+    tempvar rhs_low = eval_low_g - eval_q_low;
 
     // base_rhs_high
     tempvar eval_pos_high_g = sp1_high * ep1_high * num_g / den_pos_g;
     tempvar eval_neg_high_g = sn1_high * en1_high * num_g / den_neg_g;
-    tempvar eval_high_g = eval_pos_high_g + eval_neg_high_g;
+    tempvar eval_high_g = eval_pos_high_g - eval_neg_high_g;
 
     tempvar num_q_high = a0_x - q_high_x;
     tempvar den_tmp_q_high = m_a0 * q_high_x + b_a0;
-    tempvar den_neg_q_high = (0 - q_high_y) - den_tmp_q_high;
+    tempvar den_neg_q_high = q_high_y + den_tmp_q_high;
     tempvar eval_q_high = num_q_high / den_neg_q_high;
 
-    tempvar rhs_high = eval_high_g + eval_q_high;
+    tempvar rhs_high = eval_high_g - eval_q_high;
 
     // base_rhs_high_shifted
     // decomposition of 2^128 in base -3
     tempvar ep_high_shifted = 5279154705627724249993186093248666011;
     tempvar en_high_shifted = 345561521626566187713367793525016877467;
     tempvar den_pos_q_high = q_high_y - den_tmp_q_high;
-    tempvar eval_pos_q_high_shifted = (0 - ep_high_shifted) * num_q_high / den_pos_q_high;
-    tempvar eval_neg_q_high_shifted = (0 - en_high_shifted) * num_q_high / den_neg_q_high;
+    tempvar eval_pos_q_high_shifted = ep_high_shifted * num_q_high / den_pos_q_high;
+    tempvar eval_neg_q_high_shifted = en_high_shifted * num_q_high / den_neg_q_high;
 
     tempvar num_q_high_shifted = a0_x - q_high_shifted_x;
     tempvar den_tmp_q_high_shifted = m_a0 * q_high_shifted_x + b_a0;
-    tempvar den_neg_q_high_shifted = (0 - q_high_shifted_y) - den_tmp_q_high_shifted;
+    tempvar den_neg_q_high_shifted = q_high_shifted_y + den_tmp_q_high_shifted;
     tempvar eval_q_high_shifted = num_q_high_shifted / den_neg_q_high_shifted;
 
-    tempvar rhs_high_shifted = eval_pos_q_high_shifted + eval_neg_q_high_shifted +
+    tempvar rhs_high_shifted = eval_neg_q_high_shifted - eval_pos_q_high_shifted -
         eval_q_high_shifted;
 
     tempvar c1 = base_rlc * base_rlc;
