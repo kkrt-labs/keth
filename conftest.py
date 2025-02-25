@@ -11,6 +11,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger()
 
+collect_ignore_glob = ["cairo/tests/ef_tests/fixtures/*"]
+
 
 @pytest.fixture(autouse=True, scope="session")
 def seed(request):
