@@ -43,7 +43,11 @@ def profile_from_trace(program: Program, trace: pl.DataFrame, program_base: int)
         .rle()
         .struct.unnest()
         .rename({"value": "fp"})
-        .with_columns(prev_fp=pl.col("fp").shift(), steps=pl.col("len").cum_sum())
+        .with_columns(
+            prev_fp=pl.col("fp").shift(),
+            steps=pl.col("len").cum_sum(),
+            max_fp=pl.col("fp").cum_max(),
+        )
         .group_by(["fp"], maintain_order=True)
         .agg(
             parent=pl.col("prev_fp").first(),
@@ -51,6 +55,7 @@ def profile_from_trace(program: Program, trace: pl.DataFrame, program_base: int)
             cumulative_cost=(
                 pl.col("steps").last() - pl.col("steps").first() + pl.col("len").first()
             ),
+            max_fp=pl.col("max_fp").max(),
         )
         .select(["parent", pl.all().exclude("parent")])
         .join(debug_info["fp", "scope"], how="left", on="fp")
@@ -64,6 +69,21 @@ def profile_from_trace(program: Program, trace: pl.DataFrame, program_base: int)
         )
         .with_columns(
             primitive_call=(pl.col("scope") != pl.col("scope_parent")).fill_null(True),
+        )
+    )
+    cumulative_cost = (
+        frames.with_columns(
+            # this is the max fp reached by previous frames of the same scope
+            cum_max_fp=pl.col("max_fp")
+            .shift()
+            .cum_max()
+            .over("scope"),
+        )
+        # filter out frames with fp lower than max child from previous frames
+        .filter(pl.col("cum_max_fp") < pl.col("fp"))
+        .group_by(["scope"])
+        .agg(
+            cumulative_cost=pl.col("cumulative_cost").sum(),
         )
     )
     scopes = (
@@ -94,6 +114,12 @@ def profile_from_trace(program: Program, trace: pl.DataFrame, program_base: int)
             total_cost=pl.col("total_cost").sum(),
             cumulative_cost=pl.col("cumulative_cost").sum(),
             parents=pl.col("parent").flatten(),
+        )
+        .join(cumulative_cost, how="left", on="scope", suffix="_global")
+        .with_columns(
+            cumulative_cost=pl.col("cumulative_cost_global").fill_null(
+                pl.col("cumulative_cost")
+            ),
         )
         .join(
             debug_info["scope", "filename", "line_number", "function"].unique(),
