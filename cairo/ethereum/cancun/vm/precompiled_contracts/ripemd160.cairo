@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: MIT
-// original code from: https://github.com/EulerSmile/ripemd160-cairo
+// https://github.com/kkrt-labs/kakarot/blob/563af42d5fe9888f8f49cf22003d2085612bf42c/cairo_zero/kakarot/precompiles/ripemd160.cairo
 
-%lang starknet
-
-// Starkware dependencies
-from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, HashBuiltin
+from starkware.cairo.common.cairo_builtins import (
+    BitwiseBuiltin,
+    HashBuiltin,
+    KeccakBuiltin,
+    PoseidonBuiltin,
+    ModBuiltin,
+)
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.math import assert_nn_le
+from starkware.cairo.common.math import assert_nn_le, unsigned_div_rem
 from starkware.cairo.common.math_cmp import is_nn_le, is_nn
 from starkware.cairo.common.bitwise import bitwise_and, bitwise_xor, bitwise_or
 from starkware.cairo.common.dict_access import DictAccess
@@ -15,71 +18,84 @@ from starkware.cairo.common.dict import dict_read, dict_write
 from starkware.cairo.common.registers import get_label_location
 from starkware.cairo.common.bool import FALSE
 from starkware.cairo.common.memset import memset
+from starkware.cairo.common.memcpy import memcpy
 
-// Internal dependencies
-from kakarot.model import model
-from kakarot.memory import Memory
-from kakarot.evm import EVM
-from utils.utils import Helpers
-from utils.maths import unsigned_div_rem
+from legacy.utils.utils import Helpers
+
+from ethereum.exceptions import EthereumException
+from ethereum.cancun.vm.exceptions import InvalidParameter
+from ethereum.cancun.vm.gas import charge_gas
+from ethereum.cancun.vm.evm_impl import Evm, EvmImpl
+from ethereum_types.bytes import Bytes, BytesStruct
+from ethereum_types.numeric import Uint
 
 // @title RIPEMD-160 precompile
 // @custom:precompile
 // @custom:address 0x03
 // @notice This precompile serves to hash data with RIPEMD-160
 // @author @TurcFort07
-// @custom:namespace PrecompileRIPEMD160
-namespace PrecompileRIPEMD160 {
-    const PRECOMPILE_ADDRESS = 0x03;
-    const GAS_COST_RIPEMD160 = 600;
+func ripemd160{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
+    alloc_locals;
 
-    // @notice Run the precompile.
-    // @param input_len The length of input array.
-    // @param input The input array.
-    // @return output_len The output length.
-    // @return output The output array.
-    // @return gas_used The gas usage of precompile.
-    func run{
-        syscall_ptr: felt*,
-        pedersen_ptr: HashBuiltin*,
-        range_check_ptr,
-        bitwise_ptr: BitwiseBuiltin*,
-    }(_address: felt, input_len: felt, input: felt*) -> (
-        output_len: felt, output: felt*, gas_used: felt, reverted: felt
-    ) {
-        alloc_locals;
-        let (local buf: felt*) = alloc();
-        let (local arr_x: felt*) = alloc();
+    let input = evm.value.message.value.data;
+    let input_len = input.value.len;
 
-        // before starting fill arr_x with  0s to align on 32 bytes (hash length is 20bytes so 12 bytes to fill)
-        memset(arr_x, 0, 12);
-        let arr_x: felt* = arr_x + 12;
-
-        // 1. init magic constants
-        init(buf, 5);
-
-        // 2. compress data
-        let (x) = default_dict_new(0);
-        let start = x;
-        let (res, rsize, new_msg) = compress_data{dict_ptr=x, bitwise_ptr=bitwise_ptr}(
-            buf, 5, input_len, input
-        );
-        default_dict_finalize(start, x, 0);
-
-        // 3. finish hash
-        let (res, _) = finish(res, rsize, new_msg, input_len, 0);
-
-        // 4. [optional]convert words to bytes
-        let (hash) = default_dict_new(0);
-        let h0 = hash;
-        buf2hash{dict_ptr=hash, bitwise_ptr=bitwise_ptr}(res, 0);
-        dict_to_array{dict_ptr=hash}(arr_x, 20);
-        default_dict_finalize(h0, hash, 0);
-
-        // 5. return bytes hash code.
-        let (minimum_word_size) = Helpers.minimum_word_count(input_len);
-        return (32, arr_x - 12, 120 * minimum_word_size + GAS_COST_RIPEMD160, 0);
+    // Calculate gas cost
+    let (minimum_word_size, _) = unsigned_div_rem(input_len + 31, 32);
+    let gas_cost = 120 * minimum_word_size + 600;  // GAS_RIPEMD160_WORD * word_count + GAS_RIPEMD160
+    let err = charge_gas(Uint(gas_cost));
+    if (err != cast(0, EthereumException*)) {
+        return err;
     }
+
+    let (local buf: felt*) = alloc();
+    let (local arr_x: felt*) = alloc();
+
+    // Before starting fill arr_x with 0s to align on 32 bytes (hash length is 20bytes so 12 bytes to fill)
+    memset(arr_x, 0, 12);
+    let arr_x: felt* = arr_x + 12;
+
+    // 1. Init magic constants
+    init(buf, 5);
+
+    // 2. Compress data
+    let (x) = default_dict_new(0);
+    let start = x;
+    let (res, rsize, new_msg) = compress_data{dict_ptr=x, bitwise_ptr=bitwise_ptr}(
+        buf, 5, input_len, input.value.data
+    );
+    default_dict_finalize(start, x, 0);
+
+    // 3. Finish hash
+    let (res, _) = finish(res, rsize, new_msg, input_len, 0);
+
+    // 4. Convert words to bytes
+    let (hash) = default_dict_new(0);
+    let h0 = hash;
+    buf2hash{dict_ptr=hash, bitwise_ptr=bitwise_ptr}(res, 0);
+    dict_to_array{dict_ptr=hash}(arr_x, 20);
+    default_dict_finalize(h0, hash, 0);
+
+    // 5. Create output Bytes object
+    let (output_data: felt*) = alloc();
+    // Copy the 20 bytes of hash data to output and pad to 32 bytes
+    memset(output_data, 0, 12);  // First 12 bytes are zeros (padding)
+    memcpy(output_data + 12, arr_x, 20);  // Copy the 20-byte hash
+
+    // Create the output Bytes struct (32 bytes total)
+    tempvar output = Bytes(new BytesStruct(output_data, 32));
+    EvmImpl.set_output(output);
+
+    return cast(0, EthereumException*);
 }
 
 const MAX_32_BIT = 2 ** 32;
