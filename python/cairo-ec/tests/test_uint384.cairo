@@ -6,14 +6,8 @@ from cairo_ec.uint384 import (
     uint384_assert_le,
     uint384_to_uint256,
     uint256_to_uint384,
-    uint384_assert_neq_mod_p,
-    uint384_assert_eq_mod_p,
     uint384_eq_mod_p,
-    uint384_assert_neg_mod_p,
-    uint384_assert_not_neg_mod_p,
     uint384_is_neg_mod_p,
-    uint384_div_mod_p,
-    uint384_neg_mod_p,
     felt_to_uint384,
 )
 
@@ -47,42 +41,6 @@ func test__uint384_assert_le{range_check96_ptr: felt*}() {
     return ();
 }
 
-func test__uint384_assert_eq_mod_p{
-    range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
-}() {
-    alloc_locals;
-    let (x_ptr) = alloc();
-    let (y_ptr) = alloc();
-    let (p_ptr) = alloc();
-    %{
-        segments.write_arg(ids.x_ptr, program_input["x"])
-        segments.write_arg(ids.y_ptr, program_input["y"])
-        segments.write_arg(ids.p_ptr, program_input["p"])
-    %}
-    uint384_assert_eq_mod_p(
-        [cast(x_ptr, UInt384*)], [cast(y_ptr, UInt384*)], [cast(p_ptr, UInt384*)]
-    );
-    return ();
-}
-
-func test__uint384_assert_neq_mod_p{
-    range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
-}() {
-    alloc_locals;
-    let (x_ptr) = alloc();
-    let (y_ptr) = alloc();
-    let (p_ptr) = alloc();
-    %{
-        segments.write_arg(ids.x_ptr, program_input["x"])
-        segments.write_arg(ids.y_ptr, program_input["y"])
-        segments.write_arg(ids.p_ptr, program_input["p"])
-    %}
-    uint384_assert_neq_mod_p(
-        [cast(x_ptr, UInt384*)], [cast(y_ptr, UInt384*)], [cast(p_ptr, UInt384*)]
-    );
-    return ();
-}
-
 func test__uint384_eq_mod_p{
     range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
 }() -> felt {
@@ -101,42 +59,6 @@ func test__uint384_eq_mod_p{
     return res;
 }
 
-func test__uint384_assert_neg_mod_p{
-    range_check96_ptr: felt*, mul_mod_ptr: ModBuiltin*, add_mod_ptr: ModBuiltin*
-}() {
-    alloc_locals;
-    let (x_ptr) = alloc();
-    let (y_ptr) = alloc();
-    let (p_ptr) = alloc();
-    %{
-        segments.write_arg(ids.x_ptr, program_input["x"])
-        segments.write_arg(ids.y_ptr, program_input["y"])
-        segments.write_arg(ids.p_ptr, program_input["p"])
-    %}
-    uint384_assert_neg_mod_p(
-        [cast(x_ptr, UInt384*)], [cast(y_ptr, UInt384*)], [cast(p_ptr, UInt384*)]
-    );
-    return ();
-}
-
-func test__uint384_assert_not_neg_mod_p{
-    range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
-}() {
-    alloc_locals;
-    let (x_ptr) = alloc();
-    let (y_ptr) = alloc();
-    let (p_ptr) = alloc();
-    %{
-        segments.write_arg(ids.x_ptr, program_input["x"])
-        segments.write_arg(ids.y_ptr, program_input["y"])
-        segments.write_arg(ids.p_ptr, program_input["p"])
-    %}
-    uint384_assert_not_neg_mod_p(
-        [cast(x_ptr, UInt384*)], [cast(y_ptr, UInt384*)], [cast(p_ptr, UInt384*)]
-    );
-    return ();
-}
-
 func test__uint384_is_neg_mod_p{
     range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
 }() -> felt {
@@ -152,38 +74,6 @@ func test__uint384_is_neg_mod_p{
     let res = uint384_is_neg_mod_p(
         [cast(x_ptr, UInt384*)], [cast(y_ptr, UInt384*)], [cast(p_ptr, UInt384*)]
     );
-    return res;
-}
-
-func test__uint384_div_mod_p{
-    range_check96_ptr: felt*, mul_mod_ptr: ModBuiltin*, add_mod_ptr: ModBuiltin*
-}() -> UInt384 {
-    alloc_locals;
-    let (x_ptr) = alloc();
-    let (y_ptr) = alloc();
-    let (p_ptr) = alloc();
-    %{
-        segments.write_arg(ids.x_ptr, program_input["x"])
-        segments.write_arg(ids.y_ptr, program_input["y"])
-        segments.write_arg(ids.p_ptr, program_input["p"])
-    %}
-    let res = uint384_div_mod_p(
-        [cast(x_ptr, UInt384*)], [cast(y_ptr, UInt384*)], [cast(p_ptr, UInt384*)]
-    );
-    return res;
-}
-
-func test__uint384_neg_mod_p{
-    range_check96_ptr: felt*, mul_mod_ptr: ModBuiltin*, add_mod_ptr: ModBuiltin*
-}() -> UInt384 {
-    alloc_locals;
-    let (y_ptr) = alloc();
-    let (p_ptr) = alloc();
-    %{
-        segments.write_arg(ids.y_ptr, program_input["y"])
-        segments.write_arg(ids.p_ptr, program_input["p"])
-    %}
-    let res = uint384_neg_mod_p([cast(y_ptr, UInt384*)], [cast(p_ptr, UInt384*)]);
     return res;
 }
 

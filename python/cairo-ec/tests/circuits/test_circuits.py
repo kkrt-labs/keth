@@ -354,13 +354,17 @@ class TestCircuits:
 
         @given(data=st.data())
         @settings(verbosity=Verbosity.quiet)
-        def test_assert_eq(self, cairo_program, cairo_run, prime_cls, st_prime, data):
-            inputs = {"x": data.draw(st_prime), "y": data.draw(st_prime)}
-            assume(inputs["x"] == inputs["y"])
-            values_ptr = [limb for v in inputs.values() for limb in int_to_uint384(v)]
+        def test_assert_eq(self, cairo_program, cairo_run, prime, prime_cls, data):
+            value = data.draw(st.integers(min_value=0, max_value=prime - 1))
+            inputs = {
+                "x": value,
+                "y": value,
+            }
             compiled_circuit = circuit_compile(cairo_program, "assert_eq")
+            values_ptr = flatten(compiled_circuit["constants"]) + [
+                limb for v in inputs.values() for limb in int_to_uint384(v)
+            ]
 
-            # No return value, just checking that it doesn't fail
             cairo_run("assert_eq", **inputs)
             cairo_run(
                 "test__circuit",
@@ -377,13 +381,17 @@ class TestCircuits:
 
         @given(data=st.data())
         @settings(verbosity=Verbosity.quiet)
-        def test_assert_neq(self, cairo_program, cairo_run, prime_cls, st_prime, data):
-            inputs = {"x": data.draw(st_prime), "y": data.draw(st_prime)}
+        def test_assert_neq(self, cairo_program, cairo_run, prime, prime_cls, data):
+            inputs = {
+                "x": data.draw(st.integers(min_value=0, max_value=prime - 1)),
+                "y": data.draw(st.integers(min_value=0, max_value=prime - 1)),
+            }
             assume(inputs["x"] != inputs["y"])
-            values_ptr = [limb for v in inputs.values() for limb in int_to_uint384(v)]
             compiled_circuit = circuit_compile(cairo_program, "assert_neq")
+            values_ptr = flatten(compiled_circuit["constants"]) + [
+                limb for v in inputs.values() for limb in int_to_uint384(v)
+            ]
 
-            # No return value, just checking that it doesn't fail
             cairo_run("assert_neq", **inputs)
             cairo_run(
                 "test__circuit",
@@ -404,6 +412,9 @@ class TestCircuits:
             inputs = {"y": data.draw(st_prime)}
             values_ptr = [limb for v in inputs.values() for limb in int_to_uint384(v)]
             compiled_circuit = circuit_compile(cairo_program, "neg")
+            values_ptr = flatten(compiled_circuit["constants"]) + [
+                limb for v in inputs.values() for limb in int_to_uint384(v)
+            ]
 
             expected_output = prime_cls(-inputs["y"])
             cairo_output = prime_cls(cairo_run("neg", **inputs))
@@ -440,8 +451,10 @@ class TestCircuits:
             y = data.draw(st_prime)
             x = prime_cls(-y)
             inputs = {"x": int(x), "y": y}
-            values_ptr = [limb for v in inputs.values() for limb in int_to_uint384(v)]
             compiled_circuit = circuit_compile(cairo_program, "assert_neg")
+            values_ptr = flatten(compiled_circuit["constants"]) + [
+                limb for v in inputs.values() for limb in int_to_uint384(v)
+            ]
 
             # No return value, just checking that it doesn't fail
             cairo_run("assert_neg", **inputs)
@@ -467,8 +480,10 @@ class TestCircuits:
             x = data.draw(st_prime)
             assume(x != prime_cls(-y))
             inputs = {"x": int(x), "y": y}
-            values_ptr = [limb for v in inputs.values() for limb in int_to_uint384(v)]
             compiled_circuit = circuit_compile(cairo_program, "assert_not_neg")
+            values_ptr = flatten(compiled_circuit["constants"]) + [
+                limb for v in inputs.values() for limb in int_to_uint384(v)
+            ]
 
             # No return value, just checking that it doesn't fail
             cairo_run("assert_not_neg", **inputs)

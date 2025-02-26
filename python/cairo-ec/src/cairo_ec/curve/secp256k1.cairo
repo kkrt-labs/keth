@@ -21,13 +21,11 @@ from cairo_ec.curve.g1_point import G1Point
 from cairo_ec.circuit_utils import N_LIMBS, hash_full_transcript
 from cairo_ec.curve.ids import CurveID
 from cairo_ec.ec_ops import ec_add, try_get_point_from_x, get_random_point
+from cairo_ec.circuits.mod_ops_compiled import div, neg
 from cairo_ec.uint384 import (
     uint384_to_uint256,
     uint256_to_uint384,
     uint384_eq_mod_p,
-    uint384_is_neg_mod_p,
-    uint384_div_mod_p,
-    uint384_neg_mod_p,
     felt_to_uint384,
 )
 from cairo_ec.ecdsa_circuit import get_full_ecip_2P_circuit
@@ -155,13 +153,13 @@ func try_recover_public_key{
     let N = UInt384(secp256k1.N0, secp256k1.N1, secp256k1.N2, secp256k1.N3);
     let N_min_one = Uint256(secp256k1.N_LOW_128 - 1, secp256k1.N_HIGH_128);
 
-    let _u1 = uint384_div_mod_p(msg_hash, r, N);
-    let _u1 = uint384_neg_mod_p(_u1, N);
-    let _u2 = uint384_div_mod_p(s, r, N);
+    let _u1 = div(new msg_hash, new r, new N);
+    let _u1 = neg(_u1, new N);
+    let _u2 = div(new s, new r, new N);
 
-    let u1 = uint384_to_uint256(_u1);
+    let u1 = uint384_to_uint256([_u1]);
     assert_uint256_le(u1, N_min_one);
-    let u2 = uint384_to_uint256(_u2);
+    let u2 = uint384_to_uint256([_u2]);
     assert_uint256_le(u2, N_min_one);
 
     let (ep1_low, en1_low, sp1_low, sn1_low) = scalar_to_epns(u1.low);

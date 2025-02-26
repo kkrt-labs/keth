@@ -82,24 +82,6 @@ func uint384_assert_le{range_check96_ptr: felt*}(a: UInt384, b: UInt384) {
     return ();
 }
 
-// Assert X == Y mod p by asserting X + 0 == Y
-func uint384_assert_eq_mod_p{
-    range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
-}(x: UInt384, y: UInt384, p: UInt384) {
-    assert_eq(new x, new y, new p);
-    // No need for add_mod_ptr increment as we're not using it anymore
-    return ();
-}
-
-// @notice assert X != Y mod p by asserting (X-Y) != 0
-// @dev Uses the assert_neq circuit to verify that X != Y mod p
-func uint384_assert_neq_mod_p{
-    range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
-}(x: UInt384, y: UInt384, p: UInt384) {
-    assert_neq(new x, new y, new p);
-    return ();
-}
-
 // Returns 1 if X == Y, 0 otherwise.
 func uint384_eq{range_check96_ptr: felt*}(x: UInt384, y: UInt384) -> felt {
     if (x.d0 == y.d0 and x.d1 == y.d1 and x.d2 == y.d2 and x.d3 == y.d3) {
@@ -116,30 +98,12 @@ func uint384_eq_mod_p{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mo
     %{ x_mod_p_eq_y_mod_p_hint %}
 
     if (x_mod_p_eq_y_mod_p != 0) {
-        uint384_assert_eq_mod_p(x, y, p);
+        assert_eq(new x, new y, new p);
         return 1;
     } else {
-        uint384_assert_neq_mod_p(x, y, p);
+        assert_neq(new x, new y, new p);
         return 0;
     }
-}
-
-// Assert X == - Y mod p by asserting X + Y == 0
-// @dev Uses the assert_neg circuit to verify that X == -Y mod p
-func uint384_assert_neg_mod_p{
-    range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
-}(x: UInt384, y: UInt384, p: UInt384) {
-    assert_neg(new x, new y, new p);
-    return ();
-}
-
-// assert X != -Y mod p by asserting X + Y != 0
-// @dev Uses the assert_not_neg circuit to verify that X != -Y mod p
-func uint384_assert_not_neg_mod_p{
-    range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
-}(x: UInt384, y: UInt384, p: UInt384) {
-    assert_not_neg(new x, new y, new p);
-    return ();
 }
 
 // Returns 1 if X == -Y mod p, 0 otherwise.
@@ -149,28 +113,10 @@ func uint384_is_neg_mod_p{
     tempvar x_is_neg_y_mod_p;
     %{ x_is_neg_y_mod_p_hint %}
     if (x_is_neg_y_mod_p != 0) {
-        uint384_assert_neg_mod_p(x, y, p);
+        assert_neg(new x, new y, new p);
         return 1;
     } else {
-        uint384_assert_not_neg_mod_p(x, y, p);
+        assert_not_neg(new x, new y, new p);
         return 0;
     }
-}
-
-// Compute X / Y mod p.
-// @dev Uses the div circuit to compute X/Y mod p
-func uint384_div_mod_p{
-    range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
-}(x: UInt384, y: UInt384, p: UInt384) -> UInt384 {
-    let result = div(new x, new y, new p);
-    return [result];
-}
-
-// Compute - Y mod p.
-// @dev Uses the neg circuit to compute -Y mod p
-func uint384_neg_mod_p{
-    range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
-}(y: UInt384, p: UInt384) -> UInt384 {
-    let result = neg(new y, new p);
-    return [result];
 }
