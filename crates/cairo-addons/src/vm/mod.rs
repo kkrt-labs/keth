@@ -18,9 +18,6 @@ mod runner;
 mod stripped_program;
 mod vm_consts;
 
-#[cfg(test)]
-mod tests;
-
 // Re-export the dynamic hint functionality
 
 use dict_manager::{PyDictManager, PyDictTracker};

@@ -11,7 +11,7 @@
 ///   original Cairo VmConsts implementation
 use cairo_vm::{
     hint_processor::hint_processor_definition::HintReference,
-    serde::deserialize_program::ApTracking,
+    serde::deserialize_program::{ApTracking, Identifier},
     types::exec_scope::ExecutionScopes,
     vm::{errors::hint_errors::HintError, vm_core::VirtualMachine},
     Felt252,
@@ -117,7 +117,7 @@ impl DynamicPythonHintExecutor {
         &mut self,
         hint_code: &str,
         vm: &mut VirtualMachine,
-        _exec_scopes: &mut ExecutionScopes,
+        exec_scopes: &mut ExecutionScopes,
         ids_data: &HashMap<String, HintReference>,
         ap_tracking: &ApTracking,
     ) -> Result<(), HintError> {
@@ -138,8 +138,19 @@ impl DynamicPythonHintExecutor {
                 .set_item("memory", &memory)
                 .map_err(|e| DynamicHintError::PyDictSet(e.to_string()))?;
 
+            let program_identifiers = match exec_scopes.get_ref::<HashMap<String, Identifier>>("__program_identifiers__") {
+                Ok(identifiers) => identifiers.clone(),
+                Err(e) => {
+                    return Err(HintError::CustomHint(Box::from(format!(
+                        "No program identifiers found in execution scope: {:?}",
+                        e
+                    ))))
+                }
+            };
+
+
             // Create VmConstsDict using the new implementation
-            let py_ids_dict = create_vm_consts_dict(vm, ids_data, ap_tracking, py)
+            let py_ids_dict = create_vm_consts_dict(vm, &program_identifiers, ids_data, ap_tracking, py)
                 .map_err(|e| DynamicHintError::PyObjectCreation(e.to_string()))?;
 
             // Add the ids dictionary to locals

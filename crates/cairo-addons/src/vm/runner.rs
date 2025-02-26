@@ -2,16 +2,14 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::vm::program::PyProgram;
 use cairo_vm::{
-    hint_processor::builtin_hint_processor::dict_manager::DictManager,
-    types::{
+    hint_processor::builtin_hint_processor::dict_manager::DictManager, serde::deserialize_program::Identifier, types::{
         builtin_name::BuiltinName,
         relocatable::{MaybeRelocatable, Relocatable},
-    },
-    vm::{
+    }, vm::{
         errors::vm_exception::VmException,
         runners::{builtin_runner::BuiltinRunner, cairo_runner::CairoRunner as RustCairoRunner},
         security::verify_secure_runner,
-    },
+    }
 };
 use polars::prelude::*;
 use pyo3::prelude::*;
@@ -58,6 +56,8 @@ impl PyCairoRunner {
 
         let dict_manager = DictManager::new();
         inner.exec_scopes.insert_value("dict_manager", Rc::new(RefCell::new(dict_manager)));
+        let identifiers = program.inner.iter_identifiers().map(|(name, identifier)| (name.to_string(), identifier.clone())).collect::<HashMap<String, Identifier>>();
+        inner.exec_scopes.insert_value("__program_identifiers__", identifiers);
         // TODO: Insert the program identifiers in the exec_scopes, so that we're able to pull identifier data when executing hints
 
         Ok(Self {
