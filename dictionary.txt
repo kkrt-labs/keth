@@ -257,3 +257,7 @@ zkpi
 zkpig
 natspec
 conftest
+ROLASE
+mswlen
+xlen
+Turc

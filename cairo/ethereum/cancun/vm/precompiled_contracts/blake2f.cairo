@@ -1,7 +1,13 @@
 // SPDX-License-Identifier: MIT
 
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.cairo_builtins import HashBuiltin, KeccakBuiltin, BitwiseBuiltin
+from starkware.cairo.common.cairo_builtins import (
+    HashBuiltin,
+    KeccakBuiltin,
+    BitwiseBuiltin,
+    PoseidonBuiltin,
+    ModBuiltin,
+)
 from starkware.cairo.common.registers import get_fp_and_pc, get_label_location
 from starkware.cairo.common.bool import FALSE
 from ethereum.exceptions import EthereumException
@@ -16,8 +22,16 @@ from ethereum_types.numeric import Uint
 from legacy.utils.utils import Helpers
 from legacy.utils.bytes import felt_to_bytes_little, bytes_to_felt
 
-func blake2f{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*, evm: Evm}(
-    ) -> EthereumException* {
+func blake2f{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
+    evm: Evm,
+}() -> EthereumException* {
     alloc_locals;
     const rounds_bytes_len = 4;
     const word_bytes_len = 8;
