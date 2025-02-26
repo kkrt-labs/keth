@@ -29,6 +29,8 @@ nybbles = "0.3.4"
 garaga_rs = { git = "https://github.com/keep-starknet-strange/garaga.git", tag = "v0.15.3", features = [
   "python",
 ] }
+polars = { version = "0.46" }
+pyo3-polars = "0.20.0"
 
 [build-dependencies]
 pyo3-build-config = "0.23.3" # Should match pyo3 version

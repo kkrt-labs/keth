@@ -503,11 +503,8 @@ def run_rust_vm(
             runner.run_until_pc(end, RustRunResources())
         except Exception as e:
             runner.relocate()
-            trace = pl.DataFrame(
-                [{"pc": x.pc, "ap": x.ap, "fp": x.fp} for x in runner.relocated_trace]
-            )
             if coverage is not None:
-                coverage(trace, PROGRAM_BASE)
+                coverage(runner.trace_df, PROGRAM_BASE)
             map_to_python_exception(e)
 
         cumulative_retdata_offsets = serde.get_offsets(return_data_types)
@@ -515,11 +512,8 @@ def run_rust_vm(
             cumulative_retdata_offsets[0] if cumulative_retdata_offsets else 0
         )
         runner.verify_and_relocate(offset=first_return_data_offset)
-        trace = pl.DataFrame(
-            [{"pc": x.pc, "ap": x.ap, "fp": x.fp} for x in runner.relocated_trace]
-        )
         if coverage is not None:
-            coverage(trace, PROGRAM_BASE)
+            coverage(runner.trace_df, PROGRAM_BASE)
 
         # Create a unique output stem for the given test by using the test file name, the entrypoint and the kwargs
         displayed_args = ""
@@ -539,7 +533,7 @@ def run_rust_vm(
         )
         if request.config.getoption("profile_cairo"):
             stats, prof_dict = profile_from_trace(
-                program=cairo_program, trace=trace, program_base=PROGRAM_BASE
+                program=cairo_program, trace=runner.trace_df, program_base=PROGRAM_BASE
             )
             stats = stats[
                 "scope",

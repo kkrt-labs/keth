@@ -49,8 +49,10 @@ codespellignore
 coeff
 coeffs
 collectonly
+conftest
 conftests
 dataclass
+dataframe
 defaultdict
 delegatecall
 derandomize
@@ -147,9 +149,11 @@ msize
 MSIZE
 mstore
 MSVC
+mswlen
 mulmod
 MULMOD
 mult
+natspec
 nbits
 negone
 negthree
@@ -199,6 +203,7 @@ revm
 ripemd
 RIPEMD
 rlptest
+ROLASE
 ROLLUP
 rustc
 rustdoc
@@ -240,6 +245,7 @@ TLOAD
 tryfirst
 tstore
 TSTORE
+Turc
 unexisting
 unfinalized
 Unflatten
@@ -251,13 +257,8 @@ workercount
 workerid
 workerinput
 xdist
+xlen
 xxhash
 zellic
 zkpi
 zkpig
-natspec
-conftest
-ROLASE
-mswlen
-xlen
-Turc
