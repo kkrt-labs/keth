@@ -82,6 +82,7 @@ from legacy.utils.dict import (
     default_dict_finalize,
 )
 from ethereum.utils.dicts import mapping_address_bytes32_write
+
 EMPTY_ROOT:
 dw 0x6ef8c092e64583ffa655cc1b171fe856;  // low
 dw 0x21b463e3b52f6201c0ad6c991be0485b;  // high
@@ -206,7 +207,6 @@ func mapping_address_trie_bytes32_u256_write{
     );
     return ();
 }
-
 
 namespace StateImpl {
     func set_created_accounts{state: State}(new_created_accounts: SetAddress) {

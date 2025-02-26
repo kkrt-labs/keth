@@ -1,6 +1,10 @@
 from ethereum_types.bytes import Bytes, Bytes32, Bytes32Struct
 from ethereum.cancun.fork_types import Address
-from ethereum.cancun.fork_types import MappingAddressBytes32, MappingAddressBytes32Struct, AddressBytes32DictAccess
+from ethereum.cancun.fork_types import (
+    MappingAddressBytes32,
+    MappingAddressBytes32Struct,
+    AddressBytes32DictAccess,
+)
 from starkware.cairo.common.dict import DictAccess
 from ethereum_types.numeric import SetUint, SetUintStruct, SetUintDictAccess
 
@@ -47,8 +51,7 @@ func set_uint_read{range_check_ptr, set: SetUint}(key: felt) -> felt {
     let (value) = dict_read{dict_ptr=dict_ptr}(key);
     tempvar set = SetUint(
         new SetUintStruct(
-            dict_ptr_start=set.value.dict_ptr_start,
-            dict_ptr=cast(dict_ptr, SetUintDictAccess*),
+            dict_ptr_start=set.value.dict_ptr_start, dict_ptr=cast(dict_ptr, SetUintDictAccess*)
         ),
     );
     return value;
