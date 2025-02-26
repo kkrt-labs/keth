@@ -4,7 +4,7 @@ from ethereum.cancun.fork_types import MappingAddressBytes32, MappingAddressByte
 from starkware.cairo.common.dict import DictAccess
 
 
-from legacy.utils.dict import dict_read
+from legacy.utils.dict import dict_read, dict_write
 from ethereum.utils.bytes import Bytes32_to_Bytes
 
 func mapping_address_bytes32_read{range_check_ptr, mapping: MappingAddressBytes32}(
@@ -22,4 +22,21 @@ func mapping_address_bytes32_read{range_check_ptr, mapping: MappingAddressBytes3
         ),
     );
     return value;
+}
+
+func mapping_address_bytes32_write{range_check_ptr, mapping: MappingAddressBytes32}(
+    key: Address, value: Bytes32
+) {
+    alloc_locals;
+    let dict_ptr = cast(mapping.value.dict_ptr, DictAccess*);
+    let value_felt = cast(value.value, felt);
+    dict_write{dict_ptr=dict_ptr}(key.value, value_felt);
+    tempvar mapping = MappingAddressBytes32(
+        new MappingAddressBytes32Struct(
+            dict_ptr_start=mapping.value.dict_ptr_start,
+            dict_ptr=cast(dict_ptr, AddressBytes32DictAccess*),
+            parent_dict=mapping.value.parent_dict,
+        ),
+    );
+    return ();
 }

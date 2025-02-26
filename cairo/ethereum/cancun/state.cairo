@@ -81,7 +81,7 @@ from legacy.utils.dict import (
     dict_copy,
     default_dict_finalize,
 )
-
+from ethereum.utils.dicts import mapping_address_bytes32_write
 EMPTY_ROOT:
 dw 0x6ef8c092e64583ffa655cc1b171fe856;  // low
 dw 0x21b463e3b52f6201c0ad6c991be0485b;  // high
@@ -1084,15 +1084,7 @@ func build_map_addr_storage_root{
         union_trie, OptionalMappingAddressBytes32(cast(0, MappingAddressBytes32Struct*))
     );
 
-    let dict_ptr = cast(map_addr_storage_root.value.dict_ptr, DictAccess*);
-    dict_write{dict_ptr=dict_ptr}(address.value, cast(storage_root.value, felt));
-    tempvar map_addr_storage_root = MappingAddressBytes32(
-        new MappingAddressBytes32Struct(
-            dict_ptr_start=map_addr_storage_root.value.dict_ptr_start,
-            dict_ptr=cast(dict_ptr, AddressBytes32DictAccess*),
-            parent_dict=map_addr_storage_root.value.parent_dict,
-        ),
-    );
+    mapping_address_bytes32_write{mapping=map_addr_storage_root}(address, storage_root);
 
     // Squash the Trie[Bytes32, U256] - it won't ever be used again.
     let trie_ptr_start = storage_trie.value._data.value.dict_ptr_start;
