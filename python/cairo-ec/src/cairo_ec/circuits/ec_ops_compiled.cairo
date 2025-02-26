@@ -1535,14 +1535,14 @@ func ecip_1p{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: Mo
     div_d_coeff_7: UInt384*,
     g_x: UInt384*,
     g_y: UInt384*,
-    ep1_low: UInt384*,
-    en1_low: UInt384*,
-    sp1_low: UInt384*,
-    sn1_low: UInt384*,
-    ep1_high: UInt384*,
-    en1_high: UInt384*,
-    sp1_high: UInt384*,
-    sn1_high: UInt384*,
+    ep_low: UInt384*,
+    en_low: UInt384*,
+    sp_low: UInt384*,
+    sn_low: UInt384*,
+    ep_high: UInt384*,
+    en_high: UInt384*,
+    sp_high: UInt384*,
+    sn_high: UInt384*,
     q_low_x: UInt384*,
     q_low_y: UInt384*,
     q_high_x: UInt384*,
@@ -1679,38 +1679,38 @@ func ecip_1p{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: Mo
     assert [range_check96_ptr + 113] = g_y.d1;
     assert [range_check96_ptr + 114] = g_y.d2;
     assert [range_check96_ptr + 115] = g_y.d3;
-    assert [range_check96_ptr + 116] = ep1_low.d0;
-    assert [range_check96_ptr + 117] = ep1_low.d1;
-    assert [range_check96_ptr + 118] = ep1_low.d2;
-    assert [range_check96_ptr + 119] = ep1_low.d3;
-    assert [range_check96_ptr + 120] = en1_low.d0;
-    assert [range_check96_ptr + 121] = en1_low.d1;
-    assert [range_check96_ptr + 122] = en1_low.d2;
-    assert [range_check96_ptr + 123] = en1_low.d3;
-    assert [range_check96_ptr + 124] = sp1_low.d0;
-    assert [range_check96_ptr + 125] = sp1_low.d1;
-    assert [range_check96_ptr + 126] = sp1_low.d2;
-    assert [range_check96_ptr + 127] = sp1_low.d3;
-    assert [range_check96_ptr + 128] = sn1_low.d0;
-    assert [range_check96_ptr + 129] = sn1_low.d1;
-    assert [range_check96_ptr + 130] = sn1_low.d2;
-    assert [range_check96_ptr + 131] = sn1_low.d3;
-    assert [range_check96_ptr + 132] = ep1_high.d0;
-    assert [range_check96_ptr + 133] = ep1_high.d1;
-    assert [range_check96_ptr + 134] = ep1_high.d2;
-    assert [range_check96_ptr + 135] = ep1_high.d3;
-    assert [range_check96_ptr + 136] = en1_high.d0;
-    assert [range_check96_ptr + 137] = en1_high.d1;
-    assert [range_check96_ptr + 138] = en1_high.d2;
-    assert [range_check96_ptr + 139] = en1_high.d3;
-    assert [range_check96_ptr + 140] = sp1_high.d0;
-    assert [range_check96_ptr + 141] = sp1_high.d1;
-    assert [range_check96_ptr + 142] = sp1_high.d2;
-    assert [range_check96_ptr + 143] = sp1_high.d3;
-    assert [range_check96_ptr + 144] = sn1_high.d0;
-    assert [range_check96_ptr + 145] = sn1_high.d1;
-    assert [range_check96_ptr + 146] = sn1_high.d2;
-    assert [range_check96_ptr + 147] = sn1_high.d3;
+    assert [range_check96_ptr + 116] = ep_low.d0;
+    assert [range_check96_ptr + 117] = ep_low.d1;
+    assert [range_check96_ptr + 118] = ep_low.d2;
+    assert [range_check96_ptr + 119] = ep_low.d3;
+    assert [range_check96_ptr + 120] = en_low.d0;
+    assert [range_check96_ptr + 121] = en_low.d1;
+    assert [range_check96_ptr + 122] = en_low.d2;
+    assert [range_check96_ptr + 123] = en_low.d3;
+    assert [range_check96_ptr + 124] = sp_low.d0;
+    assert [range_check96_ptr + 125] = sp_low.d1;
+    assert [range_check96_ptr + 126] = sp_low.d2;
+    assert [range_check96_ptr + 127] = sp_low.d3;
+    assert [range_check96_ptr + 128] = sn_low.d0;
+    assert [range_check96_ptr + 129] = sn_low.d1;
+    assert [range_check96_ptr + 130] = sn_low.d2;
+    assert [range_check96_ptr + 131] = sn_low.d3;
+    assert [range_check96_ptr + 132] = ep_high.d0;
+    assert [range_check96_ptr + 133] = ep_high.d1;
+    assert [range_check96_ptr + 134] = ep_high.d2;
+    assert [range_check96_ptr + 135] = ep_high.d3;
+    assert [range_check96_ptr + 136] = en_high.d0;
+    assert [range_check96_ptr + 137] = en_high.d1;
+    assert [range_check96_ptr + 138] = en_high.d2;
+    assert [range_check96_ptr + 139] = en_high.d3;
+    assert [range_check96_ptr + 140] = sp_high.d0;
+    assert [range_check96_ptr + 141] = sp_high.d1;
+    assert [range_check96_ptr + 142] = sp_high.d2;
+    assert [range_check96_ptr + 143] = sp_high.d3;
+    assert [range_check96_ptr + 144] = sn_high.d0;
+    assert [range_check96_ptr + 145] = sn_high.d1;
+    assert [range_check96_ptr + 146] = sn_high.d2;
+    assert [range_check96_ptr + 147] = sn_high.d3;
     assert [range_check96_ptr + 148] = q_low_x.d0;
     assert [range_check96_ptr + 149] = q_low_x.d1;
     assert [range_check96_ptr + 150] = q_low_x.d2;

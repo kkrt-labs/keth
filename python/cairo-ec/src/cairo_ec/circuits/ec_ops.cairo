@@ -498,14 +498,14 @@ func ecip_1p(
     div_d_coeff_7: felt,
     g_x: felt,
     g_y: felt,
-    ep1_low: felt,
-    en1_low: felt,
-    sp1_low: felt,
-    sn1_low: felt,
-    ep1_high: felt,
-    en1_high: felt,
-    sp1_high: felt,
-    sn1_high: felt,
+    ep_low: felt,
+    en_low: felt,
+    sp_low: felt,
+    sn_low: felt,
+    ep_high: felt,
+    en_high: felt,
+    sp_high: felt,
+    sn_high: felt,
     q_low_x: felt,
     q_low_y: felt,
     q_high_x: felt,
@@ -605,8 +605,8 @@ func ecip_1p(
     tempvar den_tmp_g = m_a0 * g_x + b_a0;
     tempvar den_pos_g = g_y - den_tmp_g;
     tempvar den_neg_g = g_y + den_tmp_g;
-    tempvar eval_pos_low_g = sp1_low * ep1_low * num_g / den_pos_g;
-    tempvar eval_neg_low_g = sn1_low * en1_low * num_g / den_neg_g;
+    tempvar eval_pos_low_g = sp_low * ep_low * num_g / den_pos_g;
+    tempvar eval_neg_low_g = sn_low * en_low * num_g / den_neg_g;
     tempvar eval_low_g = eval_pos_low_g - eval_neg_low_g;
 
     tempvar num_q_low = a0_x - q_low_x;
@@ -617,8 +617,8 @@ func ecip_1p(
     tempvar rhs_low = eval_low_g - eval_q_low;
 
     // base_rhs_high
-    tempvar eval_pos_high_g = sp1_high * ep1_high * num_g / den_pos_g;
-    tempvar eval_neg_high_g = sn1_high * en1_high * num_g / den_neg_g;
+    tempvar eval_pos_high_g = sp_high * ep_high * num_g / den_pos_g;
+    tempvar eval_neg_high_g = sn_high * en_high * num_g / den_neg_g;
     tempvar eval_high_g = eval_pos_high_g - eval_neg_high_g;
 
     tempvar num_q_high = a0_x - q_high_x;
