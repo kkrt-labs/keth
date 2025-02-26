@@ -153,6 +153,61 @@ struct State {
     value: StateStruct*,
 }
 
+func mapping_address_trie_bytes32_u256_read{
+    range_check_ptr, mapping: MappingAddressTrieBytes32U256
+}(key: Address) -> TrieBytes32U256 {
+    alloc_locals;
+    let dict_ptr = cast(mapping.value.dict_ptr, DictAccess*);
+    let (value_ptr) = dict_read{dict_ptr=dict_ptr}(key.value);
+
+    if (cast(value_ptr, felt) == 0) {
+        tempvar default = new U256Struct(0, 0);
+        let (segment_start) = default_dict_new(cast(default, felt));
+        tempvar trie_ptr = new TrieBytes32U256Struct(
+            secured=bool(1),
+            default=U256(default),
+            _data=MappingBytes32U256(
+                new MappingBytes32U256Struct(
+                    dict_ptr_start=cast(segment_start, Bytes32U256DictAccess*),
+                    dict_ptr=cast(segment_start, Bytes32U256DictAccess*),
+                    parent_dict=cast(0, MappingBytes32U256Struct*),
+                ),
+            ),
+        );
+    } else {
+        tempvar trie_ptr = cast(value_ptr, TrieBytes32U256Struct*);
+    }
+
+    tempvar mapping = MappingAddressTrieBytes32U256(
+        new MappingAddressTrieBytes32U256Struct(
+            dict_ptr_start=mapping.value.dict_ptr_start,
+            dict_ptr=cast(dict_ptr, AddressTrieBytes32U256DictAccess*),
+            parent_dict=mapping.value.parent_dict,
+        ),
+    );
+    let trie = TrieBytes32U256(trie_ptr);
+    return trie;
+}
+
+func mapping_address_trie_bytes32_u256_write{
+    range_check_ptr, mapping: MappingAddressTrieBytes32U256
+}(key: Address, value: TrieBytes32U256) {
+    alloc_locals;
+    let dict_ptr = cast(mapping.value.dict_ptr, DictAccess*);
+    let value_felt = cast(value.value, felt);
+    dict_write{dict_ptr=dict_ptr}(key.value, value_felt);
+
+    tempvar mapping = MappingAddressTrieBytes32U256(
+        new MappingAddressTrieBytes32U256Struct(
+            dict_ptr_start=mapping.value.dict_ptr_start,
+            dict_ptr=cast(dict_ptr, AddressTrieBytes32U256DictAccess*),
+            parent_dict=mapping.value.parent_dict,
+        ),
+    );
+    return ();
+}
+
+
 namespace StateImpl {
     func set_created_accounts{state: State}(new_created_accounts: SetAddress) {
         tempvar state = State(
@@ -1146,38 +1201,13 @@ func build_storage_trie_for_address{
     let dict_ptr = cast(map_addr_storage.value.dict_ptr, DictAccess*);
 
     // Get storage trie for address
-    let (trie_ptr_) = dict_read{dict_ptr=dict_ptr}(address.value);
-    if (cast(trie_ptr_, felt) == 0) {
-        tempvar default = new U256Struct(0, 0);
-        let (segment_start) = default_dict_new(cast(default, felt));
-        tempvar trie_ptr = new TrieBytes32U256Struct(
-            secured=bool(1),
-            default=U256(default),
-            _data=MappingBytes32U256(
-                new MappingBytes32U256Struct(
-                    dict_ptr_start=cast(segment_start, Bytes32U256DictAccess*),
-                    dict_ptr=cast(segment_start, Bytes32U256DictAccess*),
-                    parent_dict=cast(0, MappingBytes32U256Struct*),
-                ),
-            ),
-        );
-    } else {
-        tempvar trie_ptr = cast(trie_ptr_, TrieBytes32U256Struct*);
-    }
+    let trie = mapping_address_trie_bytes32_u256_read{mapping=map_addr_storage}(address);
 
     // Modify storage trie for address
-    let trie = TrieBytes32U256(trie_ptr);
     trie_set_TrieBytes32U256{poseidon_ptr=poseidon_ptr, trie=trie}(key, value);
 
     // Update the mapping address -> trie
-    dict_write{dict_ptr=dict_ptr}(address.value, cast(trie.value, felt));
-    tempvar map_addr_storage = MappingAddressTrieBytes32U256(
-        new MappingAddressTrieBytes32U256Struct(
-            dict_ptr_start=map_addr_storage.value.dict_ptr_start,
-            dict_ptr=cast(dict_ptr, AddressTrieBytes32U256DictAccess*),
-            parent_dict=map_addr_storage.value.parent_dict,
-        ),
-    );
+    mapping_address_trie_bytes32_u256_write{mapping=map_addr_storage}(address, trie);
 
     return ();
 }
