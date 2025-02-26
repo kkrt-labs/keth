@@ -255,3 +255,5 @@ xxhash
 zellic
 zkpi
 zkpig
+natspec
+conftest
