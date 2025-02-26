@@ -12,6 +12,11 @@ from cairo_ec.circuits.mod_ops import (
     sum_ratio,
     inv,
     assert_is_quad_residue,
+    assert_eq,
+    assert_neq,
+    neg,
+    assert_neg,
+    assert_not_neg,
 )
 from cairo_ec.circuits.mod_ops_compiled import (
     add as add_compiled,
@@ -22,6 +27,11 @@ from cairo_ec.circuits.mod_ops_compiled import (
     sum_ratio as sum_ratio_compiled,
     inv as inv_compiled,
     assert_is_quad_residue as assert_is_quad_residue_compiled,
+    assert_eq as assert_eq_compiled,
+    assert_neq as assert_neq_compiled,
+    neg as neg_compiled,
+    assert_neg as assert_neg_compiled,
+    assert_not_neg as assert_not_neg_compiled,
 )
 from cairo_ec.circuits.ec_ops import (
     ec_add,

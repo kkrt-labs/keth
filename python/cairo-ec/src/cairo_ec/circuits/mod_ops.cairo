@@ -55,3 +55,56 @@ func assert_is_quad_residue(x: felt, root: felt, g: felt, is_quad_residue: felt)
 
     end:
 }
+
+// @dev Assert that two values are equal
+// @param x The first value
+// @param y The second value
+func assert_eq(x: felt, y: felt) {
+    assert x = y;
+
+    return ();
+
+    end:
+}
+
+// @dev Assert that two values are not equal
+// @param x The first value
+// @param y The second value
+func assert_neq(x: felt, y: felt) {
+    tempvar inv_diff = 1 / (x - y);  // Will fail if x == y
+
+    return ();
+
+    end:
+}
+
+// @dev Compute the negation of a value
+// @param y The value to negate
+// @return The negation of y
+func neg(y: felt) -> felt {
+    return 0 - y;
+
+    end:
+}
+
+// @dev Assert that one value is the negation of another
+// @param x The first value
+// @param y The second value
+func assert_neg(x: felt, y: felt) {
+    assert x + y = 0;
+
+    return ();
+
+    end:
+}
+
+// @dev Assert that one value is not the negation of another
+// @param x The first value
+// @param y The second value
+func assert_not_neg(x: felt, y: felt) {
+    tempvar inv_sum = 1 / (x + y);  // Will fail if x + y == 0
+
+    return ();
+
+    end:
+}
