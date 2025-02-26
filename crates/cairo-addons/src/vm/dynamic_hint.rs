@@ -7,32 +7,35 @@
 /// # Main components:
 ///
 /// - `DynamicPythonHintExecutor`: Executes Python hints with access to VM memory
-/// - `PyVarWrapper`: Wraps Cairo variables for Python access
-/// - `PyIdsDict`: A Python-accessible dictionary of Cairo variables
+/// - `vm_consts`: Module for accessing Cairo variables from Python in a way that mimics
+///   the original Cairo VmConsts implementation
 use cairo_vm::{
     hint_processor::{
-        builtin_hint_processor::hint_utils::{
-            get_maybe_relocatable_from_var_name, get_relocatable_from_var_name,
-        },
+        builtin_hint_processor::hint_utils::get_relocatable_from_var_name,
         hint_processor_definition::HintReference,
     },
     serde::deserialize_program::ApTracking,
-    types::{exec_scope::ExecutionScopes, relocatable::MaybeRelocatable},
+    types::exec_scope::ExecutionScopes,
     vm::{errors::hint_errors::HintError, vm_core::VirtualMachine},
     Felt252,
 };
 use pyo3::{
     prelude::*,
     types::{PyDict, PyList},
-    IntoPyObjectExt,
 };
 use std::{
     collections::HashMap,
     ffi::{CStr, CString},
+    path::PathBuf,
 };
 use thiserror::Error;
 
-use super::{hints::Hint, memory_segments::PyMemoryWrapper, relocatable::PyRelocatable};
+use super::{
+    hints::Hint,
+    memory_segments::PyMemoryWrapper,
+    relocatable::PyRelocatable,
+    vm_consts::{create_vm_consts_dict, CairoVar, CairoVarType, PyVmConst},
+};
 
 /// Error type for dynamic Python hint operations
 ///
@@ -70,104 +73,6 @@ impl From<PyErr> for DynamicHintError {
     }
 }
 
-/// A Python-accessible wrapper for Cairo variables
-///
-/// This wrapper allows accessing both the value and memory address of a Cairo variable.
-/// Cairo relocatable values are accessible through the `address_` attribute.
-#[pyclass]
-pub struct PyVarWrapper {
-    value: PyObject,
-    address: PyRelocatable,
-}
-
-#[pymethods]
-impl PyVarWrapper {
-    /// Get the address of the variable as a Python object
-    #[getter]
-    fn address_(&self, py: Python<'_>) -> PyResult<PyObject> {
-        Ok(Py::new(py, self.address.clone())?.into_bound_py_any(py)?.into())
-    }
-
-    /// Get attribute from the variable
-    fn __getattr__(&self, name: &str, py: Python<'_>) -> PyResult<PyObject> {
-        // If the attribute is "address_", return the address
-        if name == "address_" {
-            return self.address_(py);
-        }
-
-        // For other attributes, return the value itself
-        Ok(self.value.clone_ref(py))
-    }
-
-    /// String representation of the variable
-    fn __str__(&self, py: Python<'_>) -> PyResult<String> {
-        let value_str = if let Ok(s) = self.value.extract::<String>(py) {
-            s
-        } else if let Ok(i) = self.value.extract::<i64>(py) {
-            i.to_string()
-        } else {
-            // Fallback for other types
-            format!("{:?}", self.value)
-        };
-
-        Ok(format!("Variable(value={}, address={})", value_str, self.address.inner))
-    }
-
-    /// String representation for debugging
-    fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
-        self.__str__(py)
-    }
-
-    /// Get item from the variable (for dict-like access)
-    fn __getitem__(&self, key: &str, py: Python<'_>) -> PyResult<PyObject> {
-        self.__getattr__(key, py)
-    }
-}
-
-/// A Python dictionary-like object for accessing Cairo variables
-///
-/// This provides attribute-style access (`ids.x`) and dictionary-style access (`ids["x"]`)
-/// to Cairo variables, mimicking the behavior in native Cairo hints.
-#[pyclass]
-struct PyIdsDict {
-    items: HashMap<String, Py<PyVarWrapper>>,
-}
-
-#[pymethods]
-impl PyIdsDict {
-    #[new]
-    fn new() -> Self {
-        Self { items: HashMap::new() }
-    }
-
-    fn __getattr__(&self, name: &str, py: Python<'_>) -> PyResult<PyObject> {
-        match self.items.get(name) {
-            Some(wrapper) => Ok(wrapper.clone_ref(py).into_bound_py_any(py)?.into()),
-            None => Err(PyErr::new::<pyo3::exceptions::PyAttributeError, _>(format!(
-                "'PyIdsDict' object has no attribute '{}'",
-                name
-            ))),
-        }
-    }
-
-    fn __getitem__(&self, key: &str, py: Python<'_>) -> PyResult<PyObject> {
-        self.__getattr__(key, py)
-    }
-
-    fn set_item(&mut self, key: &str, value: Py<PyVarWrapper>) {
-        self.items.insert(key.to_string(), value);
-    }
-
-    fn keys(&self, py: Python<'_>) -> PyResult<PyObject> {
-        let keys = PyList::new(py, self.items.keys().map(|k| k.as_str()))?;
-        Ok(keys.into())
-    }
-
-    fn __dir__(&self, py: Python<'_>) -> PyResult<PyObject> {
-        self.keys(py)
-    }
-}
-
 /// A Python hint executor that executes dynamic Python hints with access to Cairo VM memory
 ///
 /// This executor allows running Python code with access to Cairo VM memory and variables.
@@ -177,7 +82,7 @@ pub struct DynamicPythonHintExecutor {
     /// Whether the Python interpreter has been initialized
     initialized: bool,
     /// Optional Python path to add during initialization
-    python_path: Option<String>,
+    python_path: Option<PathBuf>,
 }
 
 impl Default for DynamicPythonHintExecutor {
@@ -244,63 +149,8 @@ impl DynamicPythonHintExecutor {
                 .set_item("memory", &memory)
                 .map_err(|e| DynamicHintError::PyDictSet(e.to_string()))?;
 
-            // Create a PyIdsDict instance
-            let mut ids_dict = PyIdsDict::new();
-
-            // Populate the ids dictionary with values from ids_data
-            for (name, _reference) in ids_data {
-                // Get the address of the variable
-                let maybe_relocatable =
-                    match get_maybe_relocatable_from_var_name(name, vm, ids_data, ap_tracking) {
-                        Ok(addr) => addr,
-                        Err(_e) => continue, // Skip if we can't get the address
-                    };
-
-                // Create the Python object for the value
-                let (value, address) = match maybe_relocatable {
-                    MaybeRelocatable::Int(felt) => {
-                        // Get the address of the variable
-                        let address =
-                            get_relocatable_from_var_name(name, vm, ids_data, ap_tracking)
-                                .map_err(|e| DynamicHintError::VariableAccess(e.to_string()))?;
-                        let py_address = PyRelocatable { inner: address };
-
-                        // For integers, create a Python int
-                        let py_value = felt
-                            .to_biguint()
-                            .into_bound_py_any(py)
-                            .map_err(|e| DynamicHintError::PyObjectCreation(e.to_string()))?
-                            .into();
-
-                        (py_value, py_address)
-                    }
-                    MaybeRelocatable::RelocatableValue(rel) => {
-                        // For relocatable values, use the relocatable value itself
-                        // Create a PyRelocatable from the inner relocatable
-                        let py_rel = PyRelocatable { inner: rel };
-
-                        let py_value = "NOT_AVAILABLE, USE .address_"
-                            .into_bound_py_any(py)
-                            .map_err(|e| DynamicHintError::PyObjectCreation(e.to_string()))?
-                            .into();
-
-                        (py_value, py_rel)
-                    }
-                };
-
-                // Create a variable wrapper
-                let var_wrapper = PyVarWrapper { value, address };
-
-                // Add the wrapped variable to ids
-                let py_var_wrapper = Py::new(py, var_wrapper)
-                    .map_err(|e| DynamicHintError::PyObjectCreation(e.to_string()))?;
-
-                // Add to the ids dictionary
-                ids_dict.set_item(name, py_var_wrapper);
-            }
-
-            // Add the ids dictionary to locals
-            let py_ids_dict = Py::new(py, ids_dict)
+            // Create VmConstsDict using the new implementation
+            let py_ids_dict = create_vm_consts_dict(vm, ids_data, ap_tracking, py)
                 .map_err(|e| DynamicHintError::PyObjectCreation(e.to_string()))?;
 
             // Add the ids dictionary to locals

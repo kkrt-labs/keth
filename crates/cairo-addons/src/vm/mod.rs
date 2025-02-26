@@ -16,6 +16,10 @@ mod relocated_trace;
 mod run_resources;
 mod runner;
 mod stripped_program;
+mod vm_consts;
+
+#[cfg(test)]
+mod tests;
 
 // Re-export the dynamic hint functionality
 
@@ -27,6 +31,7 @@ use relocated_trace::PyRelocatedTraceEntry;
 use run_resources::PyRunResources;
 use runner::PyCairoRunner;
 use stripped_program::PyStrippedProgram;
+use vm_consts::{PyVmConst, PyVmConstsDict};
 
 #[pymodule]
 fn vm(module: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -39,5 +44,7 @@ fn vm(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<PyStrippedProgram>()?;
     module.add_class::<PyDictManager>()?;
     module.add_class::<PyDictTracker>()?;
+    module.add_class::<PyVmConst>()?;
+    module.add_class::<PyVmConstsDict>()?;
     Ok(())
 }

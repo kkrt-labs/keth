@@ -42,6 +42,7 @@ func alt_bn128_add{
     tempvar data = evm.value.message.value.data;
 
     tempvar x = 3;
+    let (pointertype: felt*) = alloc();
     %{ breakpoint() %}
     %{
         print(f"ids: {ids}")
