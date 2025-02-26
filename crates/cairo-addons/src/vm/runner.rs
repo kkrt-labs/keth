@@ -58,6 +58,7 @@ impl PyCairoRunner {
 
         let dict_manager = DictManager::new();
         inner.exec_scopes.insert_value("dict_manager", Rc::new(RefCell::new(dict_manager)));
+        // TODO: Insert the program identifiers in the exec_scopes, so that we're able to pull identifier data when executing hints
 
         Ok(Self {
             inner,
