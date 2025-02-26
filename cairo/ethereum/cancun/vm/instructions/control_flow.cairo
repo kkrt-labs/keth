@@ -81,6 +81,12 @@ func jump{
     }
 
     // OPERATION
+    if (jump_dest.value.high != 0) {
+        EvmImpl.set_stack(stack);
+        tempvar err = new EthereumException(InvalidJumpDestError);
+        return err;
+    }
+
     // Check if jump destination is valid by looking it up in valid_jump_destinations
     let valid_jump_destinations_ptr = evm.value.valid_jump_destinations.value.dict_ptr;
     let dict_ptr = cast(valid_jump_destinations_ptr, DictAccess*);
@@ -139,6 +145,12 @@ func jumpi{
     }
 
     // OPERATION
+    if (jump_dest.value.high != 0) {
+        EvmImpl.set_stack(stack);
+        tempvar err = new EthereumException(InvalidJumpDestError);
+        return err;
+    }
+
     if (condition.value.low == 0 and condition.value.high == 0) {
         // If condition is false, just increment PC
         EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
