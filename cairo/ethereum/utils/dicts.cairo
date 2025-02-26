@@ -2,7 +2,7 @@ from ethereum_types.bytes import Bytes, Bytes32, Bytes32Struct
 from ethereum.cancun.fork_types import Address
 from ethereum.cancun.fork_types import MappingAddressBytes32, MappingAddressBytes32Struct, AddressBytes32DictAccess
 from starkware.cairo.common.dict import DictAccess
-
+from ethereum_types.numeric import SetUint, SetUintStruct, SetUintDictAccess
 
 from legacy.utils.dict import dict_read, dict_write
 from ethereum.utils.bytes import Bytes32_to_Bytes
@@ -39,4 +39,17 @@ func mapping_address_bytes32_write{range_check_ptr, mapping: MappingAddressBytes
         ),
     );
     return ();
+}
+
+func set_uint_read{range_check_ptr, set: SetUint}(key: felt) -> felt {
+    alloc_locals;
+    let dict_ptr = cast(set.value.dict_ptr, DictAccess*);
+    let (value) = dict_read{dict_ptr=dict_ptr}(key);
+    tempvar set = SetUint(
+        new SetUintStruct(
+            dict_ptr_start=set.value.dict_ptr_start,
+            dict_ptr=cast(dict_ptr, SetUintDictAccess*),
+        ),
+    );
+    return value;
 }
