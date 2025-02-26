@@ -139,17 +139,17 @@ func ecip_2p(
     b: felt,
     base_rlc: felt,
 ) {
-    // Assert (g_x, g_y) is on curve
+    // Assert g is on curve
     assert g_y * g_y = g_x * g_x * g_x + a * g_x + b;
-    // Assert (r_x, r_y) is on curve
+    // Assert r is on curve
     assert r_y * r_y = r_x * r_x * r_x + a + a * r_x + b;
-    // Assert (a0_x, a0_y) is on curve
+    // Assert a0 is on curve
     assert a0_y * a0_y = a0_x * a0_x * a0_x + a * a0_x + b;
-    // Assert (q_low_x, q_low_y) is on curve
+    // Assert q_low is on curve
     assert q_low_y * q_low_y = q_low_x * q_low_x * q_low_x + a * q_low_x + b;
-    // Assert (q_high_x, q_high_y) is on curve
+    // Assert q_high is on curve
     assert q_high_y * q_high_y = q_high_x * q_high_x * q_high_x + a * q_high_x + b;
-    // Assert (q_high_shifted_x, q_high_shifted_y) is on curve
+    // Assert q_high_shifted is on curve
     assert q_high_shifted_y * q_high_shifted_y = q_high_shifted_x * q_high_shifted_x *
         q_high_shifted_x + a * q_high_shifted_x + b;
 
@@ -357,15 +357,15 @@ func ecip_1p(
     b: felt,
     base_rlc: felt,
 ) {
-    // Assert (g_x, g_y) is on curve
+    // Assert g is on curve
     assert g_y * g_y = g_x * g_x * g_x + a * g_x + b;
-    // Assert (a0_x, a0_y) is on curve
+    // Assert a0 is on curve
     assert a0_y * a0_y = a0_x * a0_x * a0_x + a * a0_x + b;
-    // Assert (q_low_x, q_low_y) is on curve
+    // Assert q_low is on curve
     assert q_low_y * q_low_y = q_low_x * q_low_x * q_low_x + a * q_low_x + b;
-    // Assert (q_high_x, q_high_y) is on curve
+    // Assert q_high is on curve
     assert q_high_y * q_high_y = q_high_x * q_high_x * q_high_x + a * q_high_x + b;
-    // Assert (q_high_shifted_x, q_high_shifted_y) is on curve
+    // Assert q_high_shifted is on curve
     assert q_high_shifted_y * q_high_shifted_y = q_high_shifted_x * q_high_shifted_x *
         q_high_shifted_x + a * q_high_shifted_x + b;
 
