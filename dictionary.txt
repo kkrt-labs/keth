@@ -61,6 +61,7 @@ docstrings
 dotenv
 dragan
 dtolnay
+Eagen
 ECADD
 ecip
 ECMUL
@@ -247,6 +248,7 @@ unhashed
 unrequired
 unsendable
 VERIF
+Weil
 workercount
 workerid
 workerinput
