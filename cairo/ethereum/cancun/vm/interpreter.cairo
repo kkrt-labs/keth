@@ -142,7 +142,7 @@ func process_create_message{
         _process_create_message_error{evm=evm}(err);
         return evm;
     }
-    let is_max_code_size_exceeded = is_nn(contract_code.value.len - MAX_CODE_SIZE);
+    let is_max_code_size_exceeded = is_nn(contract_code.value.len - (MAX_CODE_SIZE + 1));
     if (is_max_code_size_exceeded != FALSE) {
         tempvar err = new EthereumException(OutOfGasError);
         _process_create_message_error{evm=evm}(err);
