@@ -3,7 +3,6 @@ import hashlib
 from ethereum.cancun.vm import Evm
 from ethereum.cancun.vm.precompiled_contracts.ripemd160 import ripemd160
 from ethereum.utils.byte import left_pad_zero_bytes
-from ethereum_types.numeric import Uint
 from hypothesis import given
 from hypothesis import strategies as st
 from hypothesis.strategies import composite
