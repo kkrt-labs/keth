@@ -520,8 +520,7 @@ dependencies = [
 
 [[package]]
 name = "cairo-vm"
-version = "2.0.0-rc4"
-source = "git+https://github.com/kkrt-labs/cairo-vm?rev=7e0e13708d2265fadc913692709737b50908b97c#7e0e13708d2265fadc913692709737b50908b97c"
+version = "2.0.0-rc5"
 dependencies = [
  "anyhow",
  "arbitrary",
@@ -530,6 +529,7 @@ dependencies = [
  "generic-array",
  "hashbrown 0.15.2",
  "hex",
+ "indoc",
  "keccak",
  "lazy_static",
  "nom",
@@ -3694,3 +3694,8 @@ dependencies = [
  "crossbeam-utils",
  "flate2",
 ]
+
+[[patch.unused]]
+name = "cairo-vm"
+version = "2.0.0-rc4"
+source = "git+https://github.com/kkrt-labs/cairo-vm?rev=7e0e13708d2265fadc913692709737b50908b97c#7e0e13708d2265fadc913692709737b50908b97c"
