@@ -25,7 +25,7 @@ from ethereum.cancun.vm.gas import charge_gas, GasConstants
 from ethereum.cancun.vm.stack import Stack, pop, push
 
 from legacy.utils.dict import hashdict_read
-
+from ethereum.utils.dicts import set_uint_read
 // @notice Stop further execution of EVM code
 func stop{
     range_check_ptr,
@@ -88,15 +88,9 @@ func jump{
     }
 
     // Check if jump destination is valid by looking it up in valid_jump_destinations
-    let valid_jump_destinations_ptr = evm.value.valid_jump_destinations.value.dict_ptr;
-    let dict_ptr = cast(valid_jump_destinations_ptr, DictAccess*);
-    let (is_valid_dest) = dict_read{dict_ptr=dict_ptr}(jump_dest.value.low);
-
-    let set_dict_ptr = cast(dict_ptr, SetUintDictAccess*);
-    tempvar valid_jumpdests_set = SetUint(
-        new SetUintStruct(evm.value.valid_jump_destinations.value.dict_ptr_start, set_dict_ptr)
-    );
-    EvmImpl.set_valid_jump_destinations(valid_jumpdests_set);
+    let valid_jump_destinations = evm.value.valid_jump_destinations;
+    let is_valid_dest = set_uint_read{set=valid_jump_destinations}(jump_dest.value.low);
+    EvmImpl.set_valid_jump_destinations(valid_jump_destinations);
 
     if (is_valid_dest == FALSE) {
         EvmImpl.set_stack(stack);
@@ -158,15 +152,9 @@ func jumpi{
         return ok;
     }
 
-    let valid_jump_destinations_ptr = evm.value.valid_jump_destinations.value.dict_ptr;
-    let dict_ptr = cast(valid_jump_destinations_ptr, DictAccess*);
-    let (is_valid_dest) = dict_read{dict_ptr=dict_ptr}(jump_dest.value.low);
-
-    let set_dict_ptr = cast(dict_ptr, SetUintDictAccess*);
-    tempvar valid_jumpdests_set = SetUint(
-        new SetUintStruct(evm.value.valid_jump_destinations.value.dict_ptr_start, set_dict_ptr)
-    );
-    EvmImpl.set_valid_jump_destinations(valid_jumpdests_set);
+    let valid_jump_destinations = evm.value.valid_jump_destinations;
+    let is_valid_dest = set_uint_read{set=valid_jump_destinations}(jump_dest.value.low);
+    EvmImpl.set_valid_jump_destinations(valid_jump_destinations);
 
     if (is_valid_dest == FALSE) {
         EvmImpl.set_stack(stack);
