@@ -1086,7 +1086,6 @@ func build_map_addr_storage_root{
 
     let dict_ptr = cast(map_addr_storage_root.value.dict_ptr, DictAccess*);
     dict_write{dict_ptr=dict_ptr}(address.value, cast(storage_root.value, felt));
-
     tempvar map_addr_storage_root = MappingAddressBytes32(
         new MappingAddressBytes32Struct(
             dict_ptr_start=map_addr_storage_root.value.dict_ptr_start,

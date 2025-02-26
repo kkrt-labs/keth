@@ -11,7 +11,7 @@ from starkware.cairo.common.cairo_builtins import KeccakBuiltin
 from starkware.cairo.common.memcpy import memcpy
 
 from legacy.utils.bytes import uint256_to_bytes32_little
-from legacy.utils.dict import hashdict_read, hashdict_write, dict_new_empty, dict_read
+from legacy.utils.dict import hashdict_read, hashdict_write, dict_new_empty
 from ethereum.crypto.hash import keccak256
 from ethereum.utils.numeric import min
 from ethereum_rlp.rlp import encode, _encode_bytes, _encode
@@ -84,6 +84,8 @@ from ethereum_rlp.rlp import (
 )
 from ethereum.utils.numeric import divmod
 from ethereum.utils.bytes import Bytes32_to_Bytes, Bytes20_to_Bytes, Bytes_to_Bytes32
+
+from ethereum.utils.dicts import mapping_address_bytes32_read
 
 from cairo_core.comparison import is_zero
 from cairo_core.control_flow import raise
@@ -1096,18 +1098,7 @@ func _prepare_trie_inner_account{
         );
     }
 
-    let storage_roots_ptr = cast(storage_roots_.value.dict_ptr, DictAccess*);
-    let (storage_root_ptr) = dict_read{dict_ptr=storage_roots_ptr}(dict_ptr.key.value);
-    let storage_root_b32 = Bytes32(cast(storage_root_ptr, Bytes32Struct*));
-    tempvar storage_roots_ = MappingAddressBytes32(
-        new MappingAddressBytes32Struct(
-            storage_roots_.value.dict_ptr_start,
-            cast(storage_roots_ptr, AddressBytes32DictAccess*),
-            storage_roots_.value.parent_dict,
-        ),
-    );
-    let storage_root = Bytes32_to_Bytes(storage_root_b32);
-
+    let storage_root = mapping_address_bytes32_read{mapping=storage_roots_}(dict_ptr.key);
     let preimage = Bytes20_to_Bytes(dict_ptr.key);
     let value = dict_ptr.new_value;
 
@@ -1123,7 +1114,8 @@ func _prepare_trie_inner_account{
             withdrawal=Withdrawal(cast(0, WithdrawalStruct*)),
         ),
     );
-    let encoded_value = encode_node(node, storage_root);
+    let storage_root_bytes = Bytes32_to_Bytes(storage_root);
+    let encoded_value = encode_node(node, storage_root_bytes);
 
     if (encoded_value.value.len == 0) {
         raise('AssertionError');
