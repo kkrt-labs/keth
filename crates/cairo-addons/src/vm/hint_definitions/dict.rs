@@ -2,9 +2,8 @@ use std::collections::HashMap;
 
 use cairo_vm::{
     hint_processor::{
-        builtin_hint_processor::{
-            dict_manager::DictTracker,
-            hint_utils::{get_ptr_from_var_name, insert_value_from_var_name, insert_value_into_ap},
+        builtin_hint_processor::hint_utils::{
+            get_ptr_from_var_name, insert_value_from_var_name, insert_value_into_ap,
         },
         hint_processor_definition::HintReference,
     },
