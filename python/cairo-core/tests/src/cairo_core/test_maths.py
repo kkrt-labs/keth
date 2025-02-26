@@ -1,5 +1,5 @@
 import pytest
-from hypothesis import Verbosity, assume, given, settings
+from hypothesis import Verbosity, given, settings
 from hypothesis import strategies as st
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 
@@ -15,7 +15,6 @@ class TestMaths:
     class TestSign:
         @given(value=felt)
         def test_sign(self, cairo_run, value):
-            assume(value != 0)
             sign = cairo_run("sign", value=value)
             assert (
                 sign % DEFAULT_PRIME

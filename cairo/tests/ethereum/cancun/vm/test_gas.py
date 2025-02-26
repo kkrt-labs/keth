@@ -1,7 +1,7 @@
 from typing import List, Tuple
 
 from ethereum.cancun.blocks import Header
-from ethereum.cancun.transactions import BlobTransaction
+from ethereum.cancun.transactions import BlobTransaction, Transaction
 from ethereum.cancun.vm import Evm
 from ethereum.cancun.vm.gas import (
     GAS_CALL_STIPEND,
@@ -120,8 +120,7 @@ class TestGas:
         )
 
     @given(tx=...)
-    def test_calculate_total_blob_gas(self, cairo_run, tx: BlobTransaction):
-        assume(len(tx.blob_versioned_hashes) > 0)
+    def test_calculate_total_blob_gas(self, cairo_run, tx: Transaction):
         assert calculate_total_blob_gas(tx) == cairo_run("calculate_total_blob_gas", tx)
 
     @given(excess_blob_gas=excess_blob_gas)
@@ -137,7 +136,6 @@ class TestGas:
     @given(excess_blob_gas=excess_blob_gas, tx=...)
     def test_calculate_data_fee(self, cairo_run, excess_blob_gas, tx: BlobTransaction):
         """Saturates at (2**64 - 1)**2"""
-        assume(len(tx.blob_versioned_hashes) > 0)
         data_fee_py = min(
             calculate_data_fee(excess_blob_gas, tx), Uint((2**64 - 1) ** 2)
         )
