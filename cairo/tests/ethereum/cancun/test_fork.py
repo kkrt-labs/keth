@@ -821,7 +821,7 @@ class TestFork:
     def test_check_gas_limit(self, cairo_run, gas_limit: Uint, parent_gas_limit: Uint):
         assume(
             parent_gas_limit + parent_gas_limit // GAS_LIMIT_ADJUSTMENT_FACTOR
-            < Uint(2**64)
+            < Uint(2**128)
         )
         assert check_gas_limit(gas_limit, parent_gas_limit) == cairo_run(
             "check_gas_limit", gas_limit, parent_gas_limit
