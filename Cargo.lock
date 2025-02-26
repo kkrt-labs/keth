@@ -521,6 +521,7 @@ dependencies = [
 [[package]]
 name = "cairo-vm"
 version = "2.0.0-rc5"
+source = "git+https://github.com/kkrt-labs/cairo-vm?rev=016fc91e5c45f2baa7250e908593588f8bd900c2#016fc91e5c45f2baa7250e908593588f8bd900c2"
 dependencies = [
  "anyhow",
  "arbitrary",
@@ -3694,8 +3695,3 @@ dependencies = [
  "crossbeam-utils",
  "flate2",
 ]
-
-[[patch.unused]]
-name = "cairo-vm"
-version = "2.0.0-rc4"
-source = "git+https://github.com/kkrt-labs/cairo-vm?rev=7e0e13708d2265fadc913692709737b50908b97c#7e0e13708d2265fadc913692709737b50908b97c"
