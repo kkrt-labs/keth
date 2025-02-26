@@ -285,7 +285,6 @@ func ecip_2p(
             )
         )
     );
-
     tempvar f_a0 = eval_log_div_a_num_a0_x / eval_log_div_a_den_a0_x + a0_y *
         eval_log_div_b_num_a0_x / eval_log_div_b_den_a0_x;
 
@@ -329,7 +328,6 @@ func ecip_2p(
 
     // RHS = base_rlc * base_rhs_low + base_rlc * base_rlc * base_rhs_high +
     //  base_rlc * base_rlc * base_rlc * base_rhs_high_shifted
-
     // base_rhs_low
     tempvar num_g = a0_x - g_x;
     tempvar den_tmp_g = m_a0 * g_x + b_a0;
@@ -398,11 +396,83 @@ func ecip_2p(
     end:
 }
 
-// @dev Verify that Q = k*P
-// It verifies that the equation (3) from the paper
+// @dev Verify that Q = k*G.
+// In other terms, it verifies that a point Q on the curve
+// is the scalar multiplication of G by k (linear combination with a single point).
+//
+// It verifies that the equation (3) holds ; from the paper
 // "Zero Knowledge Proofs of Elliptic Curve Inner Products
 // from Principal Divisors and Weil Reciprocity", by Liam Eagen
-// (source: https://eprint.iacr.org/2022/596.pdf, p.9) holds.
+// (source: https://eprint.iacr.org/2022/596.pdf, p.9).
+//
+// @dev The scalar k is split in low and high 128-bits,
+// and then represented in base -3.
+// k = k_low + 2**128 * k_high
+// k_low = sp_low * ep_low - sn_low * en_high
+
+// Hence, we have Q = Q_low + Q_high + Q_high_shifted,
+// where Q_low = k_low * G, Q_high = k_high * G, and
+// Q_high_shifted = 2**128 * Q_high.
+//
+// The point A0, and the base_rlc coefficient are previously obtained through
+// a non-interactive challenge: hashing the public inputs (point and scalar),
+// and the prover info (Qs and div_coeffs).
+//
+// The left-hand side (LHS) is computed by evaluating the function field expressed by the div_coeffs
+// on the two points of the non-interactive challenge, A0 and A2, multiplied by two coefficients coeff_0 and coeff_2.
+// LHS = coeff_0 * f(a0) - coeff_2 * f(a2)
+// with coeff_0 = coeff_2 + 2 * slope_a0_a2.
+// This formula can be found by comparing equation (2) p.7 with equation (3).
+// A2 is derived from A0.
+// The function field f is of the form f(x, y) = a(x) + y * b(x), where a and b are both rational functions.
+// The Cell#14 of the sage implementation from Liam Eagen can also be of help
+// https://gist.github.com/Liam-Eagen/666d0771f4968adccd6087465b8c5bd4
+//
+//
+// @param div_a_coeff_0 The degree-0 coefficient of the numerator of rational function a.
+// @param div_a_coeff_1 The degree-1 coefficient of the numerator of rational function a.
+// @param div_a_coeff_2 The degree-2 coefficient of the numerator of rational function a.
+// @param div_a_coeff_3 The degree-3 coefficient of the numerator of rational function a.
+// @param div_b_coeff_0 The degree-0 coefficient of the denominator of rational function a.
+// @param div_b_coeff_1 The degree-1 coefficient of the denominator of rational function a.
+// @param div_b_coeff_2 The degree-2 coefficient of the denominator of rational function a.
+// @param div_b_coeff_3 The degree-3 coefficient of the denominator of rational function a.
+// @param div_b_coeff_4 The degree-4 coefficient of the denominator of rational function a.
+// @param div_c_coeff_0 The degree-0 coefficient of the numerator of rational function b.
+// @param div_c_coeff_1 The degree-1 coefficient of the numerator of rational function b.
+// @param div_c_coeff_2 The degree-2 coefficient of the numerator of rational function b.
+// @param div_c_coeff_3 The degree-3 coefficient of the numerator of rational function b.
+// @param div_c_coeff_4 The degree-4 coefficient of the numerator of rational function b.
+// @param div_d_coeff_0 The degree-0 coefficient of the denominator of rational function b.
+// @param div_d_coeff_1 The degree-1 coefficient of the denominator of rational function b.
+// @param div_d_coeff_2 The degree-2 coefficient of the denominator of rational function b.
+// @param div_d_coeff_3 The degree-3 coefficient of the denominator of rational function b.
+// @param div_d_coeff_4 The degree-4 coefficient of the denominator of rational function b.
+// @param div_d_coeff_5 The degree-5 coefficient of the denominator of rational function b.
+// @param div_d_coeff_6 The degree-6 coefficient of the denominator of rational function b.
+// @param div_d_coeff_7 The degree-7 coefficient of the denominator of rational function b.
+// @param g_x The x-coordinate of the point G.
+// @param g_y The y-coordinate of the point G.
+// @param ep_low The positive multiplicities for the low 128-bits of k1 in base -3.
+// @param en_low The negative multiplicities for the low 128-bits of k1 in base -3.
+// @param sp_low The sign for the positive multiplicities of the low 128-bits of k1 in base -3.
+// @param sn_low The sign for the negative multiplicities of the low 128-bits of k1 in base -3.
+// @param ep_high The positive multiplicities for the high 128-bits of k1 in base -3.
+// @param en_high The negative multiplicities for the high 128-bits of k1 in base -3.
+// @param sp_high The sign for the positive multiplicities of the high 128-bits of k1 in base -3.
+// @param sn_high The sign for the negative multiplicities of the high 128-bits of k1 in base -3.
+// @param q_low_x The x-coordinate of the point Q_low.
+// @param q_low_y The y-coordinate of the point Q_low.
+// @param q_high_x The x-coordinate of the point Q_high.
+// @param q_high_y The y-coordinate of the point Q_high.
+// @param q_high_shifted_x The x-coordinate of the point Q_high_shifted.
+// @param q_high_shifted_y The y-coordinate of the point Q_high_shifted.
+// @param a0_x The x-coordinate of the random point A0, obtained from the non-interactive challenge.
+// @param a0_y The y-coordinate of the random challenge point A0, obtained from the non-interactive challenge.
+// @param a The parameter a of the Weierstrass curve.
+// @param b The parameter b of the Weierstrass curve.
+// @param base_rlc The Random Linear Combination (RLC) coefficient obtained from the non-interactive challenge.
+// @param p The field characteristic on which the curve is defined.
 func ecip_1p(
     div_a_coeff_0: felt,
     div_a_coeff_1: felt,
@@ -473,6 +543,7 @@ func ecip_1p(
 
     // LHS = coeff0 * f(a0) - coeff2 * f(a2), with f(x, y) = a(x) + y*b(x)
     // f(a0)
+    // Use Horner's method to evaluate a polynomial on a given point.
     tempvar eval_log_div_a_num_a0_x = div_a_coeff_0 + a0_x * (
         div_a_coeff_1 + a0_x * (div_a_coeff_2 + a0_x * div_a_coeff_3)
     );
@@ -495,7 +566,6 @@ func ecip_1p(
             )
         )
     );
-
     tempvar f_a0 = eval_log_div_a_num_a0_x / eval_log_div_a_den_a0_x + a0_y *
         eval_log_div_b_num_a0_x / eval_log_div_b_den_a0_x;
 
@@ -528,6 +598,8 @@ func ecip_1p(
     // Compute LHS
     tempvar lhs = coeff0 * f_a0 - coeff2 * f_a2;
 
+    // RHS = base_rlc * base_rhs_low + base_rlc * base_rlc * base_rhs_high +
+    //  base_rlc * base_rlc * base_rlc * base_rhs_high_shifted
     // base_rhs_low
     tempvar num_g = a0_x - g_x;
     tempvar den_tmp_g = m_a0 * g_x + b_a0;
