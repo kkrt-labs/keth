@@ -164,28 +164,28 @@ func try_recover_public_key{
     assert_uint256_le(u2, N_min_one);
 
     let (ep1_low, en1_low, sp1_low, sn1_low) = scalar_to_epns(u1.low);
-    let ep1_low_384 = felt_to_uint384(ep1_low);
-    let en1_low_384 = felt_to_uint384(en1_low);
-    let sp1_low_384 = sign_to_uint384_mod_secp256k1(sp1_low);
-    let sn1_low_384 = sign_to_uint384_mod_secp256k1(sn1_low);
+    let ep1_low_u384 = felt_to_uint384(ep1_low);
+    let en1_low_u384 = felt_to_uint384(en1_low);
+    let sp1_low_u384 = sign_to_uint384_mod_secp256k1(sp1_low);
+    let sn1_low_u384 = sign_to_uint384_mod_secp256k1(sn1_low);
 
     let (ep1_high, en1_high, sp1_high, sn1_high) = scalar_to_epns(u1.high);
-    let ep1_high_384 = felt_to_uint384(ep1_high);
-    let en1_high_384 = felt_to_uint384(en1_high);
-    let sp1_high_384 = sign_to_uint384_mod_secp256k1(sp1_high);
-    let sn1_high_384 = sign_to_uint384_mod_secp256k1(sn1_high);
+    let ep1_high_u384 = felt_to_uint384(ep1_high);
+    let en1_high_u384 = felt_to_uint384(en1_high);
+    let sp1_high_u384 = sign_to_uint384_mod_secp256k1(sp1_high);
+    let sn1_high_u384 = sign_to_uint384_mod_secp256k1(sn1_high);
 
     let (ep2_low, en2_low, sp2_low, sn2_low) = scalar_to_epns(u2.low);
-    let ep2_low_384 = felt_to_uint384(ep2_low);
-    let en2_low_384 = felt_to_uint384(en2_low);
-    let sp2_low_384 = sign_to_uint384_mod_secp256k1(sp2_low);
-    let sn2_low_384 = sign_to_uint384_mod_secp256k1(sn2_low);
+    let ep2_low_u384 = felt_to_uint384(ep2_low);
+    let en2_low_u384 = felt_to_uint384(en2_low);
+    let sp2_low_u384 = sign_to_uint384_mod_secp256k1(sp2_low);
+    let sn2_low_u384 = sign_to_uint384_mod_secp256k1(sn2_low);
 
     let (ep2_high, en2_high, sp2_high, sn2_high) = scalar_to_epns(u2.high);
-    let ep2_high_384 = felt_to_uint384(ep2_high);
-    let en2_high_384 = felt_to_uint384(en2_high);
-    let sp2_high_384 = sign_to_uint384_mod_secp256k1(sp2_high);
-    let sn2_high_384 = sign_to_uint384_mod_secp256k1(sn2_high);
+    let ep2_high_u384 = felt_to_uint384(ep2_high);
+    let en2_high_u384 = felt_to_uint384(en2_high);
+    let sp2_high_u384 = sign_to_uint384_mod_secp256k1(sp2_high);
+    let sn2_high_u384 = sign_to_uint384_mod_secp256k1(sn2_high);
 
     %{ build_msm_hints_and_fill_memory %}
 
@@ -241,7 +241,7 @@ func try_recover_public_key{
     let poseidon_ptr = poseidon_ptr + 2 * PoseidonBuiltin.SIZE;
     let rlc_coeff_u384 = felt_to_uint384(rlc_coeff);
 
-    // Hash SumDlogDiv 2 points : (0-25)
+    // Hash sum_dlog_div 2 points : (0-25)
     hash_full_transcript(range_check96_ptr + ecip_circuit_constants_offset, 26);
     tempvar range_check96_ptr_init = range_check96_ptr;
     tempvar range_check96_ptr_after_circuit = range_check96_ptr + 1200;
@@ -255,7 +255,7 @@ func try_recover_public_key{
     let ecip_input: UInt384* = cast(range_check96_ptr + ecip_circuit_constants_offset, UInt384*);
 
     // Random Linear Combination Sum of Discrete Logarithm Division
-    // RLCSumDlogDiv for 2 points: n_coeffs = 18 + 4 * 2 = 26 (0-25)
+    // rlc_sum_dlog_div for 2 points: n_coeffs = 18 + 4 * 2 = 26 (0-25)
 
     // Generator point, same as in get_generator_point()
     assert ecip_input[26] = UInt384(
@@ -265,41 +265,10 @@ func try_recover_public_key{
         0xa68554199c47d08ffb10d4b8, 0x5da4fbfc0e1108a8fd17b448, 0x483ada7726a3c465, 0x0
     );
 
-    // R point
-    assert ecip_input[28] = r_point.x;
-    assert ecip_input[29] = r_point.y;
-
-    assert ecip_input[30] = ep1_low_384;
-    assert ecip_input[31] = en1_low_384;
-    assert ecip_input[32] = sp1_low_384;
-    assert ecip_input[33] = sn1_low_384;
-
-    assert ecip_input[34] = ep2_low_384;
-    assert ecip_input[35] = en2_low_384;
-    assert ecip_input[36] = sp2_low_384;
-    assert ecip_input[37] = sn2_low_384;
-
-    assert ecip_input[38] = ep1_high_384;
-    assert ecip_input[39] = en1_high_384;
-    assert ecip_input[40] = sp1_high_384;
-    assert ecip_input[41] = sn1_high_384;
-
-    assert ecip_input[42] = ep2_high_384;
-    assert ecip_input[43] = en2_high_384;
-    assert ecip_input[44] = sp2_high_384;
-    assert ecip_input[45] = sn2_high_384;
-
-    // Q_low / Q_high / Q_high_shifted (filled by prover) (46 - 51).
+    // q_low, q_high, q_high_shifted (46 - 51)
 
     assert ecip_input[52] = random_point.x;
     assert ecip_input[53] = random_point.y;
-
-    // a_Weierstrass
-    assert ecip_input[54] = a;
-    // b_Weierstrass
-    assert ecip_input[55] = b;
-    // base_rlc
-    assert ecip_input[56] = rlc_coeff_u384;
 
     ecip_2p(
         &ecip_input[0],
@@ -330,24 +299,24 @@ func try_recover_public_key{
         &ecip_input[25],
         &ecip_input[26],
         &ecip_input[27],
-        &ecip_input[28],
-        &ecip_input[29],
-        &ecip_input[30],
-        &ecip_input[31],
-        &ecip_input[32],
-        &ecip_input[33],
-        &ecip_input[34],
-        &ecip_input[35],
-        &ecip_input[36],
-        &ecip_input[37],
-        &ecip_input[38],
-        &ecip_input[39],
-        &ecip_input[40],
-        &ecip_input[41],
-        &ecip_input[42],
-        &ecip_input[43],
-        &ecip_input[44],
-        &ecip_input[45],
+        &r_point.x,
+        &r_point.y,
+        &ep1_low_u384,
+        &en1_low_u384,
+        &sp1_low_u384,
+        &sn1_low_u384,
+        &ep2_low_u384,
+        &en2_low_u384,
+        &sp2_low_u384,
+        &sn2_low_u384,
+        &ep1_high_u384,
+        &en1_high_u384,
+        &sp1_high_u384,
+        &sn1_high_u384,
+        &ep2_high_u384,
+        &en2_high_u384,
+        &sp2_high_u384,
+        &sn2_high_u384,
         &ecip_input[46],
         &ecip_input[47],
         &ecip_input[48],
@@ -356,9 +325,9 @@ func try_recover_public_key{
         &ecip_input[51],
         &ecip_input[52],
         &ecip_input[53],
-        &ecip_input[54],
-        &ecip_input[55],
-        &ecip_input[56],
+        &a,
+        &b,
+        &rlc_coeff_u384,
         &p,
     );
 
