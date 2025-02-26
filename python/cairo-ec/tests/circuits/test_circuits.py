@@ -699,7 +699,7 @@ class TestCircuits:
             scalars = [u1, u2]
 
             builder = MSMCalldataBuilder(curve_id, points, scalars)
-            (q_low, q_high, q_high_shifted, rlcSumDlogDiv, a0, rlc_coeff) = (
+            (q_low, q_high, q_high_shifted, rlc_sum_dlog_div, a0, rlc_coeff) = (
                 build_msm_hints(msm=builder)
             )
             scalars_low, scalars_high = builder.scalars_split()
@@ -708,32 +708,32 @@ class TestCircuits:
             ]
 
             inputs = {
-                "div_a_coeff_0": int(rlcSumDlogDiv.a.numerator[0].value),
-                "div_a_coeff_1": int(rlcSumDlogDiv.a.numerator[1].value),
-                "div_a_coeff_2": int(rlcSumDlogDiv.a.numerator[2].value),
-                "div_a_coeff_3": int(rlcSumDlogDiv.a.numerator[3].value),
-                "div_a_coeff_4": int(rlcSumDlogDiv.a.numerator[4].value),
-                "div_b_coeff_0": int(rlcSumDlogDiv.a.denominator[0].value),
-                "div_b_coeff_1": int(rlcSumDlogDiv.a.denominator[1].value),
-                "div_b_coeff_2": int(rlcSumDlogDiv.a.denominator[2].value),
-                "div_b_coeff_3": int(rlcSumDlogDiv.a.denominator[3].value),
-                "div_b_coeff_4": int(rlcSumDlogDiv.a.denominator[4].value),
-                "div_b_coeff_5": int(rlcSumDlogDiv.a.denominator[5].value),
-                "div_c_coeff_0": int(rlcSumDlogDiv.b.numerator[0].value),
-                "div_c_coeff_1": int(rlcSumDlogDiv.b.numerator[1].value),
-                "div_c_coeff_2": int(rlcSumDlogDiv.b.numerator[2].value),
-                "div_c_coeff_3": int(rlcSumDlogDiv.b.numerator[3].value),
-                "div_c_coeff_4": int(rlcSumDlogDiv.b.numerator[4].value),
-                "div_c_coeff_5": int(rlcSumDlogDiv.b.numerator[5].value),
-                "div_d_coeff_0": int(rlcSumDlogDiv.b.denominator[0].value),
-                "div_d_coeff_1": int(rlcSumDlogDiv.b.denominator[1].value),
-                "div_d_coeff_2": int(rlcSumDlogDiv.b.denominator[2].value),
-                "div_d_coeff_3": int(rlcSumDlogDiv.b.denominator[3].value),
-                "div_d_coeff_4": int(rlcSumDlogDiv.b.denominator[4].value),
-                "div_d_coeff_5": int(rlcSumDlogDiv.b.denominator[5].value),
-                "div_d_coeff_6": int(rlcSumDlogDiv.b.denominator[6].value),
-                "div_d_coeff_7": int(rlcSumDlogDiv.b.denominator[7].value),
-                "div_d_coeff_8": int(rlcSumDlogDiv.b.denominator[8].value),
+                "div_a_coeff_0": int(rlc_sum_dlog_div.a.numerator[0].value),
+                "div_a_coeff_1": int(rlc_sum_dlog_div.a.numerator[1].value),
+                "div_a_coeff_2": int(rlc_sum_dlog_div.a.numerator[2].value),
+                "div_a_coeff_3": int(rlc_sum_dlog_div.a.numerator[3].value),
+                "div_a_coeff_4": int(rlc_sum_dlog_div.a.numerator[4].value),
+                "div_b_coeff_0": int(rlc_sum_dlog_div.a.denominator[0].value),
+                "div_b_coeff_1": int(rlc_sum_dlog_div.a.denominator[1].value),
+                "div_b_coeff_2": int(rlc_sum_dlog_div.a.denominator[2].value),
+                "div_b_coeff_3": int(rlc_sum_dlog_div.a.denominator[3].value),
+                "div_b_coeff_4": int(rlc_sum_dlog_div.a.denominator[4].value),
+                "div_b_coeff_5": int(rlc_sum_dlog_div.a.denominator[5].value),
+                "div_c_coeff_0": int(rlc_sum_dlog_div.b.numerator[0].value),
+                "div_c_coeff_1": int(rlc_sum_dlog_div.b.numerator[1].value),
+                "div_c_coeff_2": int(rlc_sum_dlog_div.b.numerator[2].value),
+                "div_c_coeff_3": int(rlc_sum_dlog_div.b.numerator[3].value),
+                "div_c_coeff_4": int(rlc_sum_dlog_div.b.numerator[4].value),
+                "div_c_coeff_5": int(rlc_sum_dlog_div.b.numerator[5].value),
+                "div_d_coeff_0": int(rlc_sum_dlog_div.b.denominator[0].value),
+                "div_d_coeff_1": int(rlc_sum_dlog_div.b.denominator[1].value),
+                "div_d_coeff_2": int(rlc_sum_dlog_div.b.denominator[2].value),
+                "div_d_coeff_3": int(rlc_sum_dlog_div.b.denominator[3].value),
+                "div_d_coeff_4": int(rlc_sum_dlog_div.b.denominator[4].value),
+                "div_d_coeff_5": int(rlc_sum_dlog_div.b.denominator[5].value),
+                "div_d_coeff_6": int(rlc_sum_dlog_div.b.denominator[6].value),
+                "div_d_coeff_7": int(rlc_sum_dlog_div.b.denominator[7].value),
+                "div_d_coeff_8": int(rlc_sum_dlog_div.b.denominator[8].value),
                 "g_x": int(points[0].x),
                 "g_y": int(points[0].y),
                 "r_x": int(points[1].x),
@@ -769,22 +769,22 @@ class TestCircuits:
 
             if prime == curve.p:
                 cairo_run("ecip_2p", **inputs)
-                compiled_circuit = circuit_compile(cairo_program, "ecip_2p")
-                values_ptr = flatten(compiled_circuit["constants"]) + [
-                    limb for v in inputs.values() for limb in int_to_uint384(v)
-                ]
-                cairo_run(
-                    "test__circuit",
-                    values_ptr=values_ptr,
-                    values_ptr_len=len(values_ptr),
-                    p=int_to_uint384(curve.p),
-                    **compiled_circuit,
-                )
-                cairo_run(
-                    "ecip_2p_compiled",
-                    **{k: int_to_uint384(v) for k, v in inputs.items()},
-                    p=int_to_uint384(curve.p),
-                )
+            compiled_circuit = circuit_compile(cairo_program, "ecip_2p")
+            values_ptr = flatten(compiled_circuit["constants"]) + [
+                limb for v in inputs.values() for limb in int_to_uint384(v)
+            ]
+            cairo_run(
+                "test__circuit",
+                values_ptr=values_ptr,
+                values_ptr_len=len(values_ptr),
+                p=int_to_uint384(curve.p),
+                **compiled_circuit,
+            )
+            cairo_run(
+                "ecip_2p_compiled",
+                **{k: int_to_uint384(v) for k, v in inputs.items()},
+                p=int_to_uint384(curve.p),
+            )
 
         @given(data=st.data())
         def test_ecip_1p(self, cairo_program, cairo_run, data, prime):
@@ -797,7 +797,7 @@ class TestCircuits:
             scalars = [u1]
 
             builder = MSMCalldataBuilder(curve_id, points, scalars)
-            (q_low, q_high, q_high_shifted, rlcSumDlogDiv, a0, rlc_coeff) = (
+            (q_low, q_high, q_high_shifted, rlc_sum_dlog_div, a0, rlc_coeff) = (
                 build_msm_hints(msm=builder)
             )
             scalars_low, scalars_high = builder.scalars_split()
@@ -806,28 +806,28 @@ class TestCircuits:
             ]
 
             inputs = {
-                "div_a_coeff_0": int(rlcSumDlogDiv.a.numerator[0].value),
-                "div_a_coeff_1": int(rlcSumDlogDiv.a.numerator[1].value),
-                "div_a_coeff_2": int(rlcSumDlogDiv.a.numerator[2].value),
-                "div_a_coeff_3": int(rlcSumDlogDiv.a.numerator[3].value),
-                "div_b_coeff_0": int(rlcSumDlogDiv.a.denominator[0].value),
-                "div_b_coeff_1": int(rlcSumDlogDiv.a.denominator[1].value),
-                "div_b_coeff_2": int(rlcSumDlogDiv.a.denominator[2].value),
-                "div_b_coeff_3": int(rlcSumDlogDiv.a.denominator[3].value),
-                "div_b_coeff_4": int(rlcSumDlogDiv.a.denominator[4].value),
-                "div_c_coeff_0": int(rlcSumDlogDiv.b.numerator[0].value),
-                "div_c_coeff_1": int(rlcSumDlogDiv.b.numerator[1].value),
-                "div_c_coeff_2": int(rlcSumDlogDiv.b.numerator[2].value),
-                "div_c_coeff_3": int(rlcSumDlogDiv.b.numerator[3].value),
-                "div_c_coeff_4": int(rlcSumDlogDiv.b.numerator[4].value),
-                "div_d_coeff_0": int(rlcSumDlogDiv.b.denominator[0].value),
-                "div_d_coeff_1": int(rlcSumDlogDiv.b.denominator[1].value),
-                "div_d_coeff_2": int(rlcSumDlogDiv.b.denominator[2].value),
-                "div_d_coeff_3": int(rlcSumDlogDiv.b.denominator[3].value),
-                "div_d_coeff_4": int(rlcSumDlogDiv.b.denominator[4].value),
-                "div_d_coeff_5": int(rlcSumDlogDiv.b.denominator[5].value),
-                "div_d_coeff_6": int(rlcSumDlogDiv.b.denominator[6].value),
-                "div_d_coeff_7": int(rlcSumDlogDiv.b.denominator[7].value),
+                "div_a_coeff_0": int(rlc_sum_dlog_div.a.numerator[0].value),
+                "div_a_coeff_1": int(rlc_sum_dlog_div.a.numerator[1].value),
+                "div_a_coeff_2": int(rlc_sum_dlog_div.a.numerator[2].value),
+                "div_a_coeff_3": int(rlc_sum_dlog_div.a.numerator[3].value),
+                "div_b_coeff_0": int(rlc_sum_dlog_div.a.denominator[0].value),
+                "div_b_coeff_1": int(rlc_sum_dlog_div.a.denominator[1].value),
+                "div_b_coeff_2": int(rlc_sum_dlog_div.a.denominator[2].value),
+                "div_b_coeff_3": int(rlc_sum_dlog_div.a.denominator[3].value),
+                "div_b_coeff_4": int(rlc_sum_dlog_div.a.denominator[4].value),
+                "div_c_coeff_0": int(rlc_sum_dlog_div.b.numerator[0].value),
+                "div_c_coeff_1": int(rlc_sum_dlog_div.b.numerator[1].value),
+                "div_c_coeff_2": int(rlc_sum_dlog_div.b.numerator[2].value),
+                "div_c_coeff_3": int(rlc_sum_dlog_div.b.numerator[3].value),
+                "div_c_coeff_4": int(rlc_sum_dlog_div.b.numerator[4].value),
+                "div_d_coeff_0": int(rlc_sum_dlog_div.b.denominator[0].value),
+                "div_d_coeff_1": int(rlc_sum_dlog_div.b.denominator[1].value),
+                "div_d_coeff_2": int(rlc_sum_dlog_div.b.denominator[2].value),
+                "div_d_coeff_3": int(rlc_sum_dlog_div.b.denominator[3].value),
+                "div_d_coeff_4": int(rlc_sum_dlog_div.b.denominator[4].value),
+                "div_d_coeff_5": int(rlc_sum_dlog_div.b.denominator[5].value),
+                "div_d_coeff_6": int(rlc_sum_dlog_div.b.denominator[6].value),
+                "div_d_coeff_7": int(rlc_sum_dlog_div.b.denominator[7].value),
                 "g_x": int(points[0].x),
                 "g_y": int(points[0].y),
                 "ep1_low": int(epns_low[0][0]),
@@ -853,22 +853,22 @@ class TestCircuits:
 
             if prime == curve.p:
                 cairo_run("ecip_1p", **inputs)
-                compiled_circuit = circuit_compile(cairo_program, "ecip_1p")
-                values_ptr = flatten(compiled_circuit["constants"]) + [
-                    limb for v in inputs.values() for limb in int_to_uint384(v)
-                ]
-                cairo_run(
-                    "test__circuit",
-                    values_ptr=values_ptr,
-                    values_ptr_len=len(values_ptr),
-                    p=int_to_uint384(curve.p),
-                    **compiled_circuit,
-                )
-                cairo_run(
-                    "ecip_1p_compiled",
-                    **{k: int_to_uint384(v) for k, v in inputs.items()},
-                    p=int_to_uint384(curve.p),
-                )
+            compiled_circuit = circuit_compile(cairo_program, "ecip_1p")
+            values_ptr = flatten(compiled_circuit["constants"]) + [
+                limb for v in inputs.values() for limb in int_to_uint384(v)
+            ]
+            cairo_run(
+                "test__circuit",
+                values_ptr=values_ptr,
+                values_ptr_len=len(values_ptr),
+                p=int_to_uint384(curve.p),
+                **compiled_circuit,
+            )
+            cairo_run(
+                "ecip_1p_compiled",
+                **{k: int_to_uint384(v) for k, v in inputs.items()},
+                p=int_to_uint384(curve.p),
+            )
 
 
 def build_msm_hints(
