@@ -7,22 +7,16 @@
 /// # Main components:
 ///
 /// - `DynamicPythonHintExecutor`: Executes Python hints with access to VM memory
-/// - `vm_consts`: Module for accessing Cairo variables from Python in a way that mimics
-///   the original Cairo VmConsts implementation
+/// - `vm_consts`: Module for accessing Cairo variables from Python in a way that mimics the
+///   original Cairo VmConsts implementation
 use cairo_vm::{
-    hint_processor::{
-        builtin_hint_processor::hint_utils::get_relocatable_from_var_name,
-        hint_processor_definition::HintReference,
-    },
+    hint_processor::hint_processor_definition::HintReference,
     serde::deserialize_program::ApTracking,
     types::exec_scope::ExecutionScopes,
     vm::{errors::hint_errors::HintError, vm_core::VirtualMachine},
     Felt252,
 };
-use pyo3::{
-    prelude::*,
-    types::{PyDict, PyList},
-};
+use pyo3::{prelude::*, types::PyDict};
 use std::{
     collections::HashMap,
     ffi::{CStr, CString},
@@ -30,12 +24,7 @@ use std::{
 };
 use thiserror::Error;
 
-use super::{
-    hints::Hint,
-    memory_segments::PyMemoryWrapper,
-    relocatable::PyRelocatable,
-    vm_consts::{create_vm_consts_dict, CairoVar, CairoVarType, PyVmConst},
-};
+use super::{hints::Hint, memory_segments::PyMemoryWrapper, vm_consts::create_vm_consts_dict};
 
 /// Error type for dynamic Python hint operations
 ///

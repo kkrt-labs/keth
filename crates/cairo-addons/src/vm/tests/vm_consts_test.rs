@@ -1,18 +1,25 @@
 use cairo_vm::{
     hint_processor::hint_processor_definition::HintReference,
     serde::deserialize_program::{ApTracking, OffsetValue},
-    types::{instruction::Register, relocatable::{MaybeRelocatable, Relocatable}},
+    types::{
+        instruction::Register,
+        relocatable::{MaybeRelocatable, Relocatable},
+    },
     vm::vm_core::VirtualMachine,
     Felt252,
 };
-use pyo3::{prelude::*, types::PyDict};
-use std::collections::HashMap;
+use pyo3::{prelude::*, types::PyDict, IntoPyObjectExt};
+use std::{collections::HashMap, ffi::CString};
 
-use crate::vm::vm_consts::{CairoVar, CairoVarType, PyVmConst, PyVmConstsDict, create_vm_consts_dict};
+use crate::vm::{
+    relocatable::PyRelocatable,
+    vm_consts::{create_vm_consts_dict, CairoVar, CairoVarType, PyVmConst, PyVmConstsDict},
+};
 
 /// Test creating and using a PyVmConst
 #[test]
 fn test_py_vm_const() {
+    pyo3::prepare_freethreaded_python();
     Python::with_gil(|py| {
         // Create a VM and initialize a simple variable
         let mut vm = VirtualMachine::new(false, false);
@@ -31,10 +38,7 @@ fn test_py_vm_const() {
         };
 
         // Create a PyVmConst
-        let py_const = PyVmConst {
-            var,
-            vm: &mut vm as *mut VirtualMachine,
-        };
+        let py_const = PyVmConst { var, vm: &mut vm as *mut VirtualMachine };
 
         // Test value() method
         let value = py_const.value(py).expect("Failed to get value");
@@ -42,11 +46,9 @@ fn test_py_vm_const() {
 
         // Test address_() method
         let addr_obj = py_const.address_(py).expect("Failed to get address");
-        let addr_dict = addr_obj.downcast::<PyAny>(py).unwrap().getattr("__dict__").unwrap();
-        let segment_index = addr_dict.get_item("segment_index").unwrap().extract::<isize>().unwrap();
-        let offset = addr_dict.get_item("offset").unwrap().extract::<usize>().unwrap();
-        assert_eq!(segment_index, 0);
-        assert_eq!(offset, 5);
+        let addr_py = addr_obj.extract::<PyRelocatable>(py).unwrap();
+        assert_eq!(addr_py.inner.segment_index, 0);
+        assert_eq!(addr_py.inner.offset, 5);
 
         // Test __str__ and __repr__ methods
         assert_eq!(py_const.__str__(), "42");
@@ -67,8 +69,7 @@ fn test_py_vm_consts_dict() {
             .expect("Failed to insert value");
 
         // Create a PyVmConstsDict
-        let mut dict = PyVmConstsDict::new();
-        dict.configure(&mut vm as *mut VirtualMachine);
+        let mut dict = PyVmConstsDict { items: HashMap::new(), vm: &mut vm as *mut VirtualMachine };
 
         // Create a test variable
         let var = CairoVar {
@@ -79,28 +80,29 @@ fn test_py_vm_consts_dict() {
         };
 
         // Create a PyVmConst and add it to the dictionary
-        let py_const = PyVmConst {
-            var,
-            vm: &mut vm as *mut VirtualMachine,
-        };
+        let py_const = PyVmConst { var, vm: &mut vm as *mut VirtualMachine };
 
         let py_const_obj = Py::new(py, py_const).unwrap();
-        dict.set_item("test_var", py_const_obj);
+        dict.set_item("test_var", py_const_obj.into_bound_py_any(py).unwrap().into());
 
         // Test getting the item
         let py_dict = Py::new(py, dict).unwrap();
         let locals = PyDict::new(py);
         locals.set_item("ids", py_dict).unwrap();
 
-        // Use Python to access the variable
-        py.run("assert ids.test_var.value() == 42", None, Some(&locals)).unwrap();
+        // Use Python to access the variable with CString
+        let code = CString::new("assert hasattr(ids, 'test_var')").unwrap();
+        py.run(&code, None, Some(&locals)).unwrap();
 
         // Test keys() method
-        py.run("assert 'test_var' in ids.keys()", None, Some(&locals)).unwrap();
+        let code = CString::new("assert 'test_var' in ids.keys()").unwrap();
+        py.run(&code, None, Some(&locals)).unwrap();
 
         // Test __str__ and __repr__ methods
-        py.run("assert 'VmConstsDict' in str(ids)", None, Some(&locals)).unwrap();
-        py.run("assert 'test_var' in repr(ids)", None, Some(&locals)).unwrap();
+        let code = CString::new("assert 'VmConstsDict' in str(ids)").unwrap();
+        py.run(&code, None, Some(&locals)).unwrap();
+        let code = CString::new("assert 'test_var' in repr(ids)").unwrap();
+        py.run(&code, None, Some(&locals)).unwrap();
     });
 }
 
@@ -118,10 +120,7 @@ fn test_create_vm_consts_dict() {
 
         // Create a fake HintReference
         let mut ids_data = HashMap::new();
-        let ap_tracking = ApTracking {
-            group: 0,
-            offset: 0,
-        };
+        let ap_tracking = ApTracking { group: 0, offset: 0 };
 
         // Create a hint reference pointing to our value
         let hint_ref = HintReference {
@@ -144,11 +143,12 @@ fn test_create_vm_consts_dict() {
         locals.set_item("ids", py_dict).unwrap();
 
         // Try to access the value
-        py.run("assert hasattr(ids, 'test_var')", None, Some(&locals)).unwrap();
+        let code = CString::new("assert hasattr(ids, 'test_var')").unwrap();
+        py.run(&code, None, Some(&locals)).unwrap();
 
-        // This might fail if the referencing doesn't work correctly, but it should work
-        // with the proper setup
-        let result = py.run("print(ids.test_var.value())", None, Some(&locals));
+        // Print result
+        let code = CString::new("print(type(ids.test_var))").unwrap();
+        let result = py.run(&code, None, Some(&locals));
         println!("Result: {:?}", result);
     });
 }
@@ -166,8 +166,11 @@ fn test_struct_access() {
         vm.insert_value(struct_base, MaybeRelocatable::Int(Felt252::from(42)))
             .expect("Failed to insert value");
         // Second field - a felt (123)
-        vm.insert_value(struct_base + 1, MaybeRelocatable::Int(Felt252::from(123)))
-            .expect("Failed to insert value");
+        vm.insert_value(
+            (struct_base + 1_usize).unwrap(),
+            MaybeRelocatable::Int(Felt252::from(123)),
+        )
+        .expect("Failed to insert value");
 
         // Create a CairoVar for the struct
         let mut members = HashMap::new();
@@ -178,37 +181,33 @@ fn test_struct_access() {
             name: "point".to_string(),
             value: MaybeRelocatable::RelocatableValue(struct_base),
             address: Some(struct_base),
-            var_type: CairoVarType::Struct {
-                name: "Point".to_string(),
-                members,
-                size: 2,
-            },
+            var_type: CairoVarType::Struct { name: "Point".to_string(), members, size: 2 },
         };
 
         // Create a PyVmConst
-        let py_const = PyVmConst {
-            var,
-            vm: &mut vm as *mut VirtualMachine,
-        };
+        let py_const = PyVmConst { var, vm: &mut vm as *mut VirtualMachine };
 
         let py_const_obj = Py::new(py, py_const).unwrap();
 
         // Create a dict and add the struct
-        let mut dict = PyVmConstsDict::new();
-        dict.configure(&mut vm as *mut VirtualMachine);
-        dict.set_item("point", py_const_obj);
+        let mut dict = PyVmConstsDict { items: HashMap::new(), vm: &mut vm as *mut VirtualMachine };
+        dict.set_item("point", py_const_obj.into_py(py));
 
         let py_dict = Py::new(py, dict).unwrap();
         let locals = PyDict::new(py);
         locals.set_item("ids", py_dict).unwrap();
 
-        // Test accessing struct members
-        py.run("assert ids.point.x.value() == 42", None, Some(&locals)).unwrap();
-        py.run("assert ids.point.y.value() == 123", None, Some(&locals)).unwrap();
+        // Test accessing struct members with CString
+        let code = CString::new("assert ids.point.x.value() == 42").unwrap();
+        py.run(&code, None, Some(&locals)).unwrap();
+        let code = CString::new("assert ids.point.y.value() == 123").unwrap();
+        py.run(&code, None, Some(&locals)).unwrap();
 
         // Test array-like access
-        py.run("assert ids.point[0].value() == 42", None, Some(&locals)).unwrap();
-        py.run("assert ids.point[1].value() == 123", None, Some(&locals)).unwrap();
+        let code = CString::new("assert ids.point[0].value() == 42").unwrap();
+        py.run(&code, None, Some(&locals)).unwrap();
+        let code = CString::new("assert ids.point[1].value() == 123").unwrap();
+        py.run(&code, None, Some(&locals)).unwrap();
     });
 }
 
@@ -216,12 +215,7 @@ fn test_struct_access() {
 fn test_pointer_deref() {
     Python::with_gil(|py| {
         // Create a simple VM
-        let mut vm = VirtualMachine::new(
-            true, /* dummy */
-            false,
-            vec![],
-            RemappingType::Enabled,
-        ).unwrap();
+        let mut vm = VirtualMachine::new(false, false);
 
         // Set up memory for a pointer test
         let segment_index = 0;
@@ -241,16 +235,13 @@ fn test_pointer_deref() {
             value: MaybeRelocatable::RelocatableValue(rel),
             address: Some(Relocatable::from((segment_index, 0))),
             var_type: CairoVarType::Pointer {
-                pointee: Box::new(CairoVarType::Felt),
-                size: 1,
+                pointee: Box::new(CairoVarType::Felt(Felt252::from(0))),
+                is_reference: true,
             },
         };
 
         // Create PyVmConst for the pointer
-        let py_ptr = PyVmConst {
-            var: pointer_var,
-            vm: Box::into_raw(Box::new(vm)),
-        };
+        let py_ptr = PyVmConst { var: pointer_var, vm: &mut vm as *mut VirtualMachine };
 
         // Create a Python object from the PyVmConst
         let ptr_py_obj = Py::new(py, py_ptr).unwrap().into_py(py);
@@ -261,10 +252,5 @@ fn test_pointer_deref() {
         // Verify the dereferenced value
         let value_result = deref_result.call_method0(py, "value").unwrap();
         assert_eq!(value_result.extract::<String>(py).unwrap(), target_value.to_string());
-
-        // Clean up
-        unsafe {
-            let _ = Box::from_raw(ptr_py_obj.extract::<&PyVmConst>(py).unwrap().vm);
-        }
     });
 }

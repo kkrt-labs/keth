@@ -1,20 +1,24 @@
 use std::collections::HashMap;
-use std::fmt;
 
 use cairo_vm::{
-    hint_processor::{builtin_hint_processor::hint_utils::{get_ptr_from_var_name, get_relocatable_from_var_name}, hint_processor_definition::HintReference},
+    hint_processor::{
+        builtin_hint_processor::hint_utils::{
+            get_ptr_from_var_name, get_relocatable_from_var_name,
+        },
+        hint_processor_definition::HintReference,
+    },
     serde::deserialize_program::ApTracking,
     types::relocatable::{MaybeRelocatable, Relocatable},
     vm::vm_core::VirtualMachine,
     Felt252,
 };
-use pyo3::{prelude::*, types::{PyDict, PyList}, IntoPyObjectExt};
-
-use super::{
-    dynamic_hint::DynamicHintError,
-    memory_segments::PyMemoryWrapper,
-    relocatable::PyRelocatable,
+use pyo3::{
+    prelude::*,
+    types::{PyDict, PyList},
+    IntoPyObjectExt,
 };
+
+use super::{dynamic_hint::DynamicHintError, relocatable::PyRelocatable};
 
 /// Represents the different types of Cairo variables that can be accessed
 #[derive(Debug, Clone)]
@@ -74,11 +78,9 @@ impl PyVmConst {
                 let py_addr = PyRelocatable { inner: addr };
                 Ok(Py::new(py, py_addr)?.into_bound_py_any(py)?.into())
             }
-            None => {
-                Err(PyErr::new::<pyo3::exceptions::PyAttributeError, _>(
-                    "This variable does not have an address"
-                ))
-            }
+            None => Err(PyErr::new::<pyo3::exceptions::PyAttributeError, _>(
+                "This variable does not have an address",
+            )),
         }
     }
 
@@ -161,13 +163,14 @@ impl PyVmConst {
                             let py_member = PyVmConst { var: member_var, vm: self.vm };
                             Ok(Py::new(py, py_member)?.into_bound_py_any(py)?.into())
                         } else {
-                            Err(PyErr::new::<pyo3::exceptions::PyAttributeError, _>(
-                                format!("Member '{}' not found in memory", name)
-                            ))
+                            Err(PyErr::new::<pyo3::exceptions::PyAttributeError, _>(format!(
+                                "Member '{}' not found in memory",
+                                name
+                            )))
                         }
                     } else {
                         Err(PyErr::new::<pyo3::exceptions::PyAttributeError, _>(
-                            "Struct does not have an address"
+                            "Struct does not have an address",
                         ))
                     }
                 } else if name == "SIZE" {
@@ -176,13 +179,14 @@ impl PyVmConst {
                         Ok(size.into_bound_py_any(py)?.into())
                     } else {
                         Err(PyErr::new::<pyo3::exceptions::PyAttributeError, _>(
-                            "SIZE is only available for struct types"
+                            "SIZE is only available for struct types",
                         ))
                     }
                 } else {
-                    Err(PyErr::new::<pyo3::exceptions::PyAttributeError, _>(
-                        format!("'{}' is not a member of struct", name)
-                    ))
+                    Err(PyErr::new::<pyo3::exceptions::PyAttributeError, _>(format!(
+                        "'{}' is not a member of struct",
+                        name
+                    )))
                 }
             }
             CairoVarType::Pointer { pointee, .. } => {
@@ -195,43 +199,48 @@ impl PyVmConst {
 
                             // Try to get the struct member
                             if let Ok(struct_addr) = vm.get_relocatable(rel) {
-                                match pointee.as_ref() {
-                                    CairoVarType::Struct { members, .. } => {
-                                        if let Some(&offset) = members.get(name) {
-                                            let member_addr = (struct_addr + offset).map_err(|e| {
-                                                PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string())
-                                            })?;
+                                if let CairoVarType::Struct { members, .. } = pointee.as_ref() {
+                                    if let Some(&offset) = members.get(name) {
+                                        let member_addr = (struct_addr + offset).map_err(|e| {
+                                            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(
+                                                e.to_string(),
+                                            )
+                                        })?;
 
-                                            if let Some(value) = vm.get_maybe(&member_addr) {
-                                                // Create a new CairoVar for the member
-                                                let member_var = CairoVar {
-                                                    name: format!("(*{}).{}", self.var.name, name),
-                                                    value,
-                                                    address: Some(member_addr),
-                                                    var_type: CairoVarType::Felt(Felt252::from(0)),
-                                                };
+                                        if let Some(value) = vm.get_maybe(&member_addr) {
+                                            // Create a new CairoVar for the member
+                                            let member_var = CairoVar {
+                                                name: format!("(*{}).{}", self.var.name, name),
+                                                value,
+                                                address: Some(member_addr),
+                                                var_type: CairoVarType::Felt(Felt252::from(0)),
+                                            };
 
-                                                let py_member = PyVmConst { var: member_var, vm: self.vm };
-                                                return Ok(Py::new(py, py_member)?.into_bound_py_any(py)?.into());
-                                            }
+                                            let py_member =
+                                                PyVmConst { var: member_var, vm: self.vm };
+                                            return Ok(Py::new(py, py_member)?
+                                                .into_bound_py_any(py)?
+                                                .into());
                                         }
                                     }
-                                    _ => {}
                                 }
                             }
                         }
-                        Err(PyErr::new::<pyo3::exceptions::PyAttributeError, _>(
-                            format!("Unable to access member '{}' through pointer", name)
-                        ))
+                        Err(PyErr::new::<pyo3::exceptions::PyAttributeError, _>(format!(
+                            "Unable to access member '{}' through pointer",
+                            name
+                        )))
                     }
-                    _ => Err(PyErr::new::<pyo3::exceptions::PyAttributeError, _>(
-                        format!("'{}' is not a member pointer does not point to a struct", name)
-                    )),
+                    _ => Err(PyErr::new::<pyo3::exceptions::PyAttributeError, _>(format!(
+                        "'{}' is not a member pointer does not point to a struct",
+                        name
+                    ))),
                 }
             }
-            _ => Err(PyErr::new::<pyo3::exceptions::PyAttributeError, _>(
-                format!("'{}' has no attribute '{}'", self.var.name, name)
-            )),
+            _ => Err(PyErr::new::<pyo3::exceptions::PyAttributeError, _>(format!(
+                "'{}' has no attribute '{}'",
+                self.var.name, name
+            ))),
         }
     }
 
@@ -260,7 +269,7 @@ impl PyVmConst {
                     Ok(Py::new(py, py_item)?.into_bound_py_any(py)?.into())
                 } else {
                     Err(PyErr::new::<pyo3::exceptions::PyAttributeError, _>(
-                        "Cannot index a variable without an address"
+                        "Cannot index a variable without an address",
                     ))
                 }
             }
@@ -286,27 +295,33 @@ impl PyVmConst {
                             Ok(Py::new(py, py_item)?.into_bound_py_any(py)?.into())
                         }
                         _ => Err(PyErr::new::<pyo3::exceptions::PyAttributeError, _>(
-                            "Cannot index a pointer to a non-struct type"
+                            "Cannot index a pointer to a non-struct type",
                         )),
                     }
                 } else {
                     Err(PyErr::new::<pyo3::exceptions::PyAttributeError, _>(
-                        "Cannot index a non-pointer value"
+                        "Cannot index a non-pointer value",
                     ))
                 }
             }
-            _ => Err(PyErr::new::<pyo3::exceptions::PyAttributeError, _>(
-                format!("'{}' object is not subscriptable", self.var.name)
-            )),
+            _ => Err(PyErr::new::<pyo3::exceptions::PyAttributeError, _>(format!(
+                "'{}' object is not subscriptable",
+                self.var.name
+            ))),
         }
     }
 
     /// Set the value of the variable
-    pub fn __setattr__(&self, name: &str, value: &Bound<'_, PyAny>, py: Python<'_>) -> PyResult<()> {
+    pub fn __setattr__(
+        &self,
+        name: &str,
+        value: &Bound<'_, PyAny>,
+        py: Python<'_>,
+    ) -> PyResult<()> {
         // Don't allow setting special attributes
         if name == "address_" {
             return Err(PyErr::new::<pyo3::exceptions::PyAttributeError, _>(
-                "Cannot modify address_ attribute"
+                "Cannot modify address_ attribute",
             ));
         }
 
@@ -327,7 +342,7 @@ impl PyVmConst {
                             MaybeRelocatable::RelocatableValue(relocatable.inner)
                         } else {
                             return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
-                                "Value must be a number or a Relocatable"
+                                "Value must be a number or a Relocatable",
                             ));
                         };
 
@@ -339,18 +354,20 @@ impl PyVmConst {
                         Ok(())
                     } else {
                         Err(PyErr::new::<pyo3::exceptions::PyAttributeError, _>(
-                            "Struct does not have an address"
+                            "Struct does not have an address",
                         ))
                     }
                 } else {
-                    Err(PyErr::new::<pyo3::exceptions::PyAttributeError, _>(
-                        format!("'{}' is not a member of struct", name)
-                    ))
+                    Err(PyErr::new::<pyo3::exceptions::PyAttributeError, _>(format!(
+                        "'{}' is not a member of struct",
+                        name
+                    )))
                 }
             }
-            _ => Err(PyErr::new::<pyo3::exceptions::PyAttributeError, _>(
-                format!("'{}' object has no attribute '{}'", self.var.name, name)
-            )),
+            _ => Err(PyErr::new::<pyo3::exceptions::PyAttributeError, _>(format!(
+                "'{}' object has no attribute '{}'",
+                self.var.name, name
+            ))),
         }
     }
 
@@ -373,14 +390,12 @@ impl PyVmConst {
             CairoVarType::Felt(_) => "felt".to_string(),
             CairoVarType::Relocatable(_) => "relocatable".to_string(),
             CairoVarType::Struct { name, .. } => name.clone(),
-            CairoVarType::Pointer { pointee, .. } => {
-                match &**pointee {
-                    CairoVarType::Felt(_) => "felt*".to_string(),
-                    CairoVarType::Relocatable(_) => "relocatable*".to_string(),
-                    CairoVarType::Struct { name, .. } => format!("{}*", name),
-                    CairoVarType::Pointer { .. } => "pointer*".to_string(),
-                }
-            }
+            CairoVarType::Pointer { pointee, .. } => match &**pointee {
+                CairoVarType::Felt(_) => "felt*".to_string(),
+                CairoVarType::Relocatable(_) => "relocatable*".to_string(),
+                CairoVarType::Struct { name, .. } => format!("{}*", name),
+                CairoVarType::Pointer { .. } => "pointer*".to_string(),
+            },
         }
     }
 
@@ -390,17 +405,15 @@ impl PyVmConst {
             CairoVarType::Struct { name, .. } => {
                 format!("{}({})", name, self.var.name)
             }
-            CairoVarType::Pointer { pointee, .. } => {
-                match &**pointee {
-                    CairoVarType::Struct { name, .. } => {
-                        format!("{}*({})", name, self.var.name)
-                    }
-                    _ => match &self.var.value {
-                        MaybeRelocatable::Int(felt) => format!("{}", felt),
-                        MaybeRelocatable::RelocatableValue(rel) => format!("{}", rel),
-                    },
+            CairoVarType::Pointer { pointee, .. } => match &**pointee {
+                CairoVarType::Struct { name, .. } => {
+                    format!("{}*({})", name, self.var.name)
                 }
-            }
+                _ => match &self.var.value {
+                    MaybeRelocatable::Int(felt) => format!("{}", felt),
+                    MaybeRelocatable::RelocatableValue(rel) => format!("{}", rel),
+                },
+            },
             _ => match &self.var.value {
                 MaybeRelocatable::Int(felt) => format!("{}", felt),
                 MaybeRelocatable::RelocatableValue(rel) => format!("{}", rel),
@@ -410,7 +423,8 @@ impl PyVmConst {
 
     /// Repr string
     pub fn __repr__(&self) -> String {
-        format!("VmConst(name='{}', type={}, value={}, address={:?})",
+        format!(
+            "VmConst(name='{}', type={}, value={}, address={:?})",
             self.var.name,
             self.type_name(),
             self.__str__(),
@@ -439,16 +453,18 @@ impl PyVmConst {
                     let py_deref = PyVmConst { var: deref_var, vm: self.vm };
                     return Ok(Py::new(py, py_deref)?.into_bound_py_any(py)?.into());
                 } else {
-                    return Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(
-                        format!("Could not dereference pointer: no value at address {}", rel)
-                    ));
+                    return Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+                        "Could not dereference pointer: no value at address {}",
+                        rel
+                    )));
                 }
             }
         }
 
-        Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
-            format!("Cannot dereference non-pointer value: {}", self.var.name)
-        ))
+        Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
+            "Cannot dereference non-pointer value: {}",
+            self.var.name
+        )))
     }
 }
 
@@ -456,9 +472,9 @@ impl PyVmConst {
 #[pyclass(name = "VmConstsDict", unsendable)]
 pub struct PyVmConstsDict {
     /// Map of variable names to VmConst objects
-    items: HashMap<String, Py<PyVmConst>>,
+    pub(crate) items: HashMap<String, Py<PyAny>>,
     /// Reference to the VM
-    vm: *mut VirtualMachine,
+    pub(crate) vm: *mut VirtualMachine,
 }
 
 #[pymethods]
@@ -466,10 +482,15 @@ impl PyVmConstsDict {
     /// Get a variable by name
     pub fn __getattr__(&self, name: &str, py: Python<'_>) -> PyResult<PyObject> {
         match self.items.get(name) {
-            Some(var) => Ok(var.clone_ref(py).into_bound_py_any(py)?.into()),
-            None => Err(PyErr::new::<pyo3::exceptions::PyAttributeError, _>(
-                format!("'VmConstsDict' object has no attribute '{}'", name)
-            )),
+            Some(var) => {
+                // Extract the Python object - this could be a PyVmConst or a native Python type
+                // like int
+                Ok(var.clone_ref(py).into_bound_py_any(py)?.into())
+            }
+            None => Err(PyErr::new::<pyo3::exceptions::PyAttributeError, _>(format!(
+                "'VmConstsDict' object has no attribute '{}'",
+                name
+            ))),
         }
     }
 
@@ -478,8 +499,8 @@ impl PyVmConstsDict {
         self.__getattr__(name, py)
     }
 
-    /// Add or update a variable
-    pub fn set_item(&mut self, key: &str, value: Py<PyVmConst>) {
+    /// Add or update a variable - accepts any Python object
+    pub fn set_item(&mut self, key: &str, value: Py<PyAny>) {
         self.items.insert(key.to_string(), value);
     }
 
@@ -512,10 +533,7 @@ pub fn create_vm_consts_dict(
     ap_tracking: &ApTracking,
     py: Python<'_>,
 ) -> Result<Py<PyVmConstsDict>, DynamicHintError> {
-    let ids_dict = PyVmConstsDict {
-        items: HashMap::new(),
-        vm: vm as *mut VirtualMachine,
-    };
+    let ids_dict = PyVmConstsDict { items: HashMap::new(), vm: vm as *mut VirtualMachine };
 
     let py_ids_dict = Py::new(py, ids_dict)?;
 
@@ -524,85 +542,118 @@ pub fn create_vm_consts_dict(
         let cairo_type = reference.cairo_type.clone();
 
         // Get the address and value using the existing hint_utils functions
-        if let Ok(var_addr) = get_relocatable_from_var_name(
-            name, vm, ids_data, ap_tracking
-        ) {
+        if let Ok(var_addr) = get_relocatable_from_var_name(name, vm, ids_data, ap_tracking) {
             if let Some(value) = vm.get_maybe(&var_addr) {
-                // Determine the appropriate CairoVarType based on the cairo_type and value
-                let (var_type, address) = if let Some(type_str) = cairo_type {
+                // Based on the cairo_type and value, return different Python objects
+                // to match the original Python VmConsts behavior
+
+                // Add to dictionary based on type
+                if let Some(type_str) = cairo_type {
                     if type_str == "felt" {
-                        // It's a felt
-                        let address = var_addr.clone();
+                        // It's a felt - return Python int directly
                         match &value {
-                            MaybeRelocatable::Int(felt) => (CairoVarType::Felt(felt.clone()), address),
+                            MaybeRelocatable::Int(felt) => {
+                                // Convert to Python int
+                                let py_int = felt.to_biguint().into_bound_py_any(py)?.into();
+                                py_ids_dict.borrow_mut(py).items.insert(name.clone(), py_int);
+                            }
                             MaybeRelocatable::RelocatableValue(rel) => {
-                                // Special case for variables that are relocatable, but their type is `felt`.
-                                // This is known to happen for `range_check_ptr` and some internal `_temp` variables.
-                                // Perhaps a mistake in the language design...
-                                (CairoVarType::Relocatable(rel.clone()), address)
+                                // Special case for relocatable value with felt type
+                                // Return the relocatable
+                                let py_rel = PyRelocatable { inner: *rel };
+                                let py_rel_obj = Py::new(py, py_rel)?.into_bound_py_any(py)?.into();
+                                py_ids_dict.borrow_mut(py).items.insert(name.clone(), py_rel_obj);
                             }
                         }
                     } else if type_str.ends_with('*') {
                         // It's a pointer
-                        let address = get_ptr_from_var_name(name, vm, ids_data, ap_tracking).unwrap();
+                        let address =
+                            get_ptr_from_var_name(name, vm, ids_data, ap_tracking).unwrap();
                         let base_type = type_str.trim_end_matches('*');
-                        let (pointee, address) = if base_type == "felt" {
-                            // Pointer to a felt
-                            (Box::new(CairoVarType::Felt(Felt252::from(0))), address)
-                        } else {
-                            // Pointer to a struct
-                            (Box::new(CairoVarType::Struct {
-                                name: base_type.to_string(),
-                                members: HashMap::new(), // Empty for now
-                                size: 1,                // TODO: Determine struct size properly
-                            }), address)
-                        };
 
-                        (CairoVarType::Pointer {
-                            pointee,
-                            is_reference: true,
-                        }, address)
+                        if base_type == "felt" {
+                            // Pointer to a felt - return PyRelocatable directly
+                            match &value {
+                                MaybeRelocatable::RelocatableValue(rel) => {
+                                    let py_rel = PyRelocatable { inner: *rel };
+                                    let py_rel_obj =
+                                        Py::new(py, py_rel)?.into_bound_py_any(py)?.into();
+                                    py_ids_dict
+                                        .borrow_mut(py)
+                                        .items
+                                        .insert(name.clone(), py_rel_obj);
+                                }
+                                _ => {
+                                    // Unexpected case, but handle it by creating a PyVmConst
+                                    let var = CairoVar {
+                                        name: name.clone(),
+                                        value: value.clone(),
+                                        address: Some(address),
+                                        var_type: CairoVarType::Pointer {
+                                            pointee: Box::new(CairoVarType::Felt(Felt252::from(0))),
+                                            is_reference: true,
+                                        },
+                                    };
+                                    let py_var = PyVmConst { var, vm: vm as *mut VirtualMachine };
+                                    let py_var_obj =
+                                        Py::new(py, py_var)?.into_bound_py_any(py)?.into();
+                                    py_ids_dict.borrow_mut(py).set_item(name, py_var_obj);
+                                }
+                            }
+                        } else {
+                            // Pointer to a struct - use PyVmConst to match VmConstsReference
+                            // behavior
+                            let var = CairoVar {
+                                name: name.clone(),
+                                value: value.clone(),
+                                address: Some(address),
+                                var_type: CairoVarType::Pointer {
+                                    pointee: Box::new(CairoVarType::Struct {
+                                        name: base_type.to_string(),
+                                        members: HashMap::new(), // Empty for now
+                                        size: 1,                 // Default size
+                                    }),
+                                    is_reference: true,
+                                },
+                            };
+                            let py_var = PyVmConst { var, vm: vm as *mut VirtualMachine };
+                            let py_var_obj = Py::new(py, py_var)?.into_bound_py_any(py)?.into();
+                            py_ids_dict.borrow_mut(py).set_item(name, py_var_obj);
+                        }
                     } else {
-                        // It's a struct
-                        let address = get_ptr_from_var_name(name, vm, ids_data, ap_tracking).unwrap();
-                        (CairoVarType::Struct {
-                            name: type_str.to_string(),
-                            members: HashMap::new(), // Empty for now
-                            size: 1,                // TODO: Determine struct size properly
-                        }, address)
+                        // It's a struct - use PyVmConst to match VmConstsReference behavior
+                        let address =
+                            get_ptr_from_var_name(name, vm, ids_data, ap_tracking).unwrap();
+                        let var = CairoVar {
+                            name: name.clone(),
+                            value: value.clone(),
+                            address: Some(address),
+                            var_type: CairoVarType::Struct {
+                                name: type_str.to_string(),
+                                members: HashMap::new(), // Empty for now
+                                size: 1,                 // Default size
+                            },
+                        };
+                        let py_var = PyVmConst { var, vm: vm as *mut VirtualMachine };
+                        let py_var_obj = Py::new(py, py_var)?.into_bound_py_any(py)?.into();
+                        py_ids_dict.borrow_mut(py).set_item(name, py_var_obj);
                     }
                 } else {
                     // No type information, infer from value
                     match &value {
                         MaybeRelocatable::Int(felt) => {
-                            let address = var_addr.clone();
-                            (CairoVarType::Felt(felt.clone()), address)
-                        },
-                        MaybeRelocatable::RelocatableValue(_) => {
-                            let address = get_ptr_from_var_name(name, vm, ids_data, ap_tracking).unwrap();
-                            // Default to pointer to felt if we don't know the type
-                            (CairoVarType::Pointer {
-                                pointee: Box::new(CairoVarType::Felt(Felt252::from(0))),
-                                is_reference: true,
-                            }, address)
+                            // Convert to Python int
+                            let py_int = felt.to_biguint().into_bound_py_any(py)?.into();
+                            py_ids_dict.borrow_mut(py).items.insert(name.clone(), py_int);
+                        }
+                        MaybeRelocatable::RelocatableValue(rel) => {
+                            // Return PyRelocatable directly
+                            let py_rel = PyRelocatable { inner: *rel };
+                            let py_rel_obj = Py::new(py, py_rel)?.into_bound_py_any(py)?.into();
+                            py_ids_dict.borrow_mut(py).items.insert(name.clone(), py_rel_obj);
                         }
                     }
-                };
-
-                // Create a variable with the appropriate type
-                let var = CairoVar {
-                    name: name.clone(),
-                    value,
-                    address: Some(address),
-                    var_type,
-                };
-
-                // Create a PyVmConst for this variable
-                let py_var = PyVmConst { var, vm: vm as *mut VirtualMachine };
-                let py_var_obj = Py::new(py, py_var)?;
-
-                // Add to the dictionary
-                py_ids_dict.borrow_mut(py).set_item(name, py_var_obj);
+                }
             }
         }
     }

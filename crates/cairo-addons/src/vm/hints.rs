@@ -113,8 +113,9 @@ impl HintProcessor {
     }
 }
 
-impl HintProcessorLogic for HintProcessor{
-    /// Executes a hint. If the hint is not found, it will try to execute the hint as Python code using the dynamic hint executor.
+impl HintProcessorLogic for HintProcessor {
+    /// Executes a hint. If the hint is not found, it will try to execute the hint as Python code
+    /// using the dynamic hint executor.
     fn execute_hint(
         &mut self,
         vm: &mut VirtualMachine,
