@@ -136,7 +136,7 @@ impl PyCairoRunner {
 
     #[getter]
     fn segments(&mut self) -> PyMemorySegmentManager {
-        PyMemorySegmentManager { runner: &mut self.inner }
+        PyMemorySegmentManager { vm: &mut self.inner.vm }
     }
 
     #[getter]

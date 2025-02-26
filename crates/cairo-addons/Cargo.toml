@@ -31,6 +31,7 @@ garaga_rs = { git = "https://github.com/keep-starknet-strange/garaga.git", tag =
 ] }
 polars = { version = "0.46" }
 pyo3-polars = "0.20.0"
+thiserror = "2.0"
 
 [build-dependencies]
 pyo3-build-config = "0.23.3" # Should match pyo3 version
