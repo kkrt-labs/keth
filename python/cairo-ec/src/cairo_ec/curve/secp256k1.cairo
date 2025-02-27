@@ -257,14 +257,6 @@ func try_recover_public_key{
     // Random Linear Combination Sum of Discrete Logarithm Division
     // rlc_sum_dlog_div for 2 points: n_coeffs = 18 + 4 * 2 = 26 (0-25)
 
-    // Generator point, same as in get_generator_point()
-    assert ecip_input[26] = UInt384(
-        0x2dce28d959f2815b16f81798, 0x55a06295ce870b07029bfcdb, 0x79be667ef9dcbbac, 0x0
-    );
-    assert ecip_input[27] = UInt384(
-        0xa68554199c47d08ffb10d4b8, 0x5da4fbfc0e1108a8fd17b448, 0x483ada7726a3c465, 0x0
-    );
-
     // q_low, q_high, q_high_shifted (46 - 51)
 
     assert ecip_input[52] = random_point.x;
@@ -297,8 +289,8 @@ func try_recover_public_key{
         &ecip_input[23],
         &ecip_input[24],
         &ecip_input[25],
-        &ecip_input[26],
-        &ecip_input[27],
+        &generator_point.x,
+        &generator_point.y,
         &r_point.x,
         &r_point.y,
         &ep1_low_u384,
