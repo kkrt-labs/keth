@@ -96,7 +96,7 @@ func assert_not_on_curve(x: felt, y: felt, a: felt, b: felt) -> felt {
 //
 // The point A0, and the base_rlc coefficient are previously obtained through
 // a non-interactive challenge: hashing the public inputs (points and scalars),
-// and the prover info (Qs and div_coeffs).
+// and the prover info (Q_low, Q_high, Q_high_shifted and the div_coeffs).
 //
 // The left-hand side (LHS) is computed by evaluating the function field expressed by the div_coeffs
 // on the two points of the non-interactive challenge, A0 and A2, multiplied by two coefficients coeff_0 and coeff_2.
@@ -416,7 +416,7 @@ func ecip_2p(
 //
 // The point A0, and the base_rlc coefficient are previously obtained through
 // a non-interactive challenge: hashing the public inputs (point and scalar),
-// and the prover info (Qs and div_coeffs).
+// and the prover info (Q_low, Q_high, Q_high_shifted and the div_coeffs).
 //
 // The left-hand side (LHS) is computed by evaluating the function field expressed by the div_coeffs
 // on the two points of the non-interactive challenge, A0 and A2, multiplied by two coefficients coeff_0 and coeff_2.
