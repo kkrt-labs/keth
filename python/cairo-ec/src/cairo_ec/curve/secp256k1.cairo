@@ -18,10 +18,7 @@ from cairo_ec.curve.g1_point import G1Point
 from cairo_ec.curve.ids import CurveID
 from cairo_ec.ec_ops import ec_add, try_get_point_from_x, get_random_point
 from cairo_ec.circuits.mod_ops_compiled import div, neg
-from cairo_ec.uint384 import (
-    uint384_to_uint256,
-    felt_to_uint384,
-)
+from cairo_ec.uint384 import uint384_to_uint256, felt_to_uint384
 
 namespace secp256k1 {
     const CURVE_ID = CurveID.SECP256K1;
