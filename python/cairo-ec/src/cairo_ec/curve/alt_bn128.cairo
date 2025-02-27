@@ -1,4 +1,5 @@
 from cairo_ec.curve.ids import CurveID
+from starkware.cairo.common.cairo_builtins import UInt384
 
 namespace alt_bn128 {
     const CURVE_ID = CurveID.ALT_BN254;
@@ -30,4 +31,20 @@ namespace alt_bn128 {
     const P_MIN_ONE_D1 = 0xb85045b68181585d97816a91;
     const P_MIN_ONE_D2 = 0x30644e72e131a029;
     const P_MIN_ONE_D3 = 0x0;
+}
+
+@known_ap_change
+func sign_to_uint384_mod_alt_bn128(sign: felt) -> UInt384 {
+    if (sign == -1) {
+        let res = UInt384(
+            alt_bn128.P_MIN_ONE_D0,
+            alt_bn128.P_MIN_ONE_D1,
+            alt_bn128.P_MIN_ONE_D2,
+            alt_bn128.P_MIN_ONE_D3,
+        );
+        return res;
+    } else {
+        let res = UInt384(1, 0, 0, 0);
+        return res;
+    }
 }

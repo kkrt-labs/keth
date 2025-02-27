@@ -1,11 +1,24 @@
 from starkware.cairo.common.cairo_builtins import UInt384, ModBuiltin, PoseidonBuiltin
 from starkware.cairo.common.registers import get_label_location
 from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
+from starkware.cairo.common.uint256 import Uint256
+from starkware.cairo.common.poseidon_state import PoseidonBuiltinState
+from cairo_core.maths import assert_uint256_le
 
+from cairo_ec.circuits.ec_ops_compiled import ec_add as ec_add_unchecked, ec_double, assert_x_is_on_curve, ecip_1p
+from cairo_ec.circuits.mod_ops_compiled import add, mul
+from cairo_ec.circuit_utils import N_LIMBS, hash_full_transcript
+from cairo_ec.curve.alt_bn128 import alt_bn128, sign_to_uint384_mod_alt_bn128
 from cairo_ec.curve.g1_point import G1Point, G1Point__eq__
-from cairo_ec.circuits.ec_ops_compiled import ec_add as ec_add_unchecked, ec_double
-from cairo_ec.uint384 import uint384_is_neg_mod_p, uint384_eq_mod_p, felt_to_uint384, uint384_eq
-from cairo_ec.circuits.ec_ops_compiled import assert_x_is_on_curve
+from cairo_ec.uint384 import (
+    felt_to_uint384,
+    uint256_to_uint384,
+    uint384_eq,
+    uint384_eq_mod_p,
+    uint384_is_neg_mod_p,
+    uint384_to_uint256,
+)
+from cairo_ec.curve_utils import scalar_to_epns
 
 // @notice Attempts to derive a y-coordinate for a given x on an elliptic curve.
 // @return y A candidate y-coordinate; if is_on_curve = 1, (x, y) is on the curve; if 0, y is a fallback value.
@@ -112,10 +125,190 @@ func ec_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: Mod
 }
 
 // Multiply an EC point by a scalar. Doesn't check if the input is on curve nor if it's the point at infinity.
-func ec_mul{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
-    p: G1Point, scalar: UInt384, g: UInt384, a: UInt384, modulus: UInt384
+// Different cases
+// - Scalar = 0 --> Return O (point at infinity)
+// - G1Point is point at infinity --> Return O (point at infinity) (handled whatever the scalar is ? just useless computation..
+// - compute the msm hints, a0 etc.
+func ec_mul{
+    range_check_ptr,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+}(
+    p: G1Point, k: UInt384, modulus: UInt384
 ) -> G1Point {
-    // TODO: Implement this function.
-    let res = G1Point(UInt384(0, 0, 0, 0), UInt384(0, 0, 0, 0));
+ alloc_locals;
+    let (__fp__, _) = get_fp_and_pc();
+
+    local a: UInt384 = UInt384(alt_bn128.A0, alt_bn128.A1, alt_bn128.A2, alt_bn128.A3);
+    local b: UInt384 = UInt384(alt_bn128.B0, alt_bn128.B1, alt_bn128.B2, alt_bn128.B3);
+    local g: UInt384 = UInt384(alt_bn128.G0, alt_bn128.G1, alt_bn128.G2, alt_bn128.G3);
+    local n: UInt384 = UInt384(alt_bn128.N0, alt_bn128.N1, alt_bn128.N2, alt_bn128.N3);
+    let n_min_one = Uint256(alt_bn128.N_LOW_128 - 1, alt_bn128.N_HIGH_128);
+
+    tempvar zero_u384 = UInt384(0, 0, 0, 0);
+    let scalar_is_zero = uint384_eq_mod_p(k, zero_u384, modulus);
+    if (scalar_is_zero != 0) {
+        let point_at_infinity = G1Point(UInt384(0, 0, 0, 0), UInt384(0, 0, 0, 0));
+        return point_at_infinity;
+    }
+
+    tempvar _scalar = add(&k, &zero_u384, &n);
+    let scalar = uint384_to_uint256([_scalar]);
+    assert_uint256_le(scalar, n_min_one);
+
+    let (ep_low, en_low, sp_low, sn_low) = scalar_to_epns(scalar.low);
+    let ep_low_u384 = felt_to_uint384(ep_low);
+    let en_low_u384 = felt_to_uint384(en_low);
+    let sp_low_u384 = sign_to_uint384_mod_alt_bn128(sp_low);
+    let sn_low_u384 = sign_to_uint384_mod_alt_bn128(sn_low);
+
+    let (ep_high, en_high, sp_high, sn_high) = scalar_to_epns(scalar.high);
+    let ep_high_u384 = felt_to_uint384(ep_high);
+    let en_high_u384 = felt_to_uint384(en_high);
+    let sp_high_u384 = sign_to_uint384_mod_alt_bn128(sp_high);
+    let sn_high_u384 = sign_to_uint384_mod_alt_bn128(sn_high);
+
+    %{ ec_mul_msm_hints_and_fill_memory %}
+
+    // Interaction with Poseidon, protocol is roughly a sequence of hashing:
+    // - initial constant 'MSM_G1'
+    // - curve ID
+    // - user input P point
+    //
+    // ==> interaction
+    //
+    // > get random linear combination coefficients
+    //
+    // ==> interaction
+    // > get seed for random point
+
+    // rlc_coeff is casted to Uint384 after hashing the values of Q (which is used to compute rlc_coeff)
+    tempvar rlc_coeff_u384_cast_offset = 4;
+    tempvar ecip_circuit_constants_offset = 5 * N_LIMBS;
+    tempvar ecip_circuit_q_offset = 33 * N_LIMBS;
+
+    assert poseidon_ptr[0].input = PoseidonBuiltinState(s0='MSM_G1', s1=0, s2=1);
+    assert poseidon_ptr[1].input = PoseidonBuiltinState(
+        s0=alt_bn128.CURVE_ID + poseidon_ptr[0].output.s0,
+        s1=2 + poseidon_ptr[0].output.s1,
+        s2=poseidon_ptr[0].output.s2,
+    );
+    let poseidon_ptr = poseidon_ptr + 2 * PoseidonBuiltin.SIZE;
+
+    hash_full_transcript(cast(&p, felt*), 2);
+
+    // Q_low, Q_high, Q_high_shifted (filled by prover) (32 - 37).
+    hash_full_transcript(
+        range_check96_ptr + rlc_coeff_u384_cast_offset + ecip_circuit_constants_offset +
+        ecip_circuit_q_offset,
+        3 * 2,
+    );
+    let _s0 = [cast(poseidon_ptr, felt*) - 3];
+    let _s1 = [cast(poseidon_ptr, felt*) - 2];
+    let _s2 = [cast(poseidon_ptr, felt*) - 1];
+
+    // scalar k
+    assert poseidon_ptr[0].input = PoseidonBuiltinState(s0=_s0 + scalar.low, s1=_s1 + scalar.high, s2=_s2);
+    tempvar rlc_coeff = poseidon_ptr[0].output.s1;
+    let poseidon_ptr = poseidon_ptr + PoseidonBuiltin.SIZE;
+    let rlc_coeff_u384 = felt_to_uint384(rlc_coeff);
+
+    // Hash sum_dlog_div 2 points : (0-21)
+    hash_full_transcript(range_check96_ptr + ecip_circuit_constants_offset, 22);
+    tempvar range_check96_ptr_init = range_check96_ptr;
+    tempvar range_check96_ptr_after_circuit = range_check96_ptr + 1076;
+    let random_point = get_random_point{range_check96_ptr=range_check96_ptr_after_circuit}(
+        seed=[cast(poseidon_ptr, felt*) - 3], a=&a, b=&b, g=&g, p=&modulus
+    );
+    let range_check96_ptr = range_check96_ptr_init;
+
+    // Circuits inputs
+
+    let ecip_input: UInt384* = cast(range_check96_ptr + ecip_circuit_constants_offset, UInt384*);
+
+    // Random Linear Combination Sum of Discrete Logarithm Division
+    // rlc_sum_dlog_div for 2 points: n_coeffs = 14 + 4 * 2 = 22 (0-21)
+
+    // q_low, q_high, q_high_shifted (32 - 37)
+
+    tempvar random_point_x = new random_point.x;
+    tempvar random_point_y = new random_point.y;
+
+    let q_low_x = ecip_input[32];
+    let q_low_y = ecip_input[33];
+    let q_high_x = ecip_input[34];
+    let q_high_y = ecip_input[35];
+    let q_high_shifted_x = ecip_input[36];
+    let q_high_shifted_y = ecip_input[37];
+
+    // Compute flag is_on_curve_q_low
+    tempvar is_on_curve_q_low = new zero_u384;
+    // Compute flag is_on_curve_q_high
+    tempvar is_on_curve_q_high = new zero_u384;
+
+    ecip_1p(
+        &ecip_input[0],
+        &ecip_input[1],
+        &ecip_input[2],
+        &ecip_input[3],
+        &ecip_input[4],
+        &ecip_input[5],
+        &ecip_input[6],
+        &ecip_input[7],
+        &ecip_input[8],
+        &ecip_input[9],
+        &ecip_input[10],
+        &ecip_input[11],
+        &ecip_input[12],
+        &ecip_input[13],
+        &ecip_input[14],
+        &ecip_input[15],
+        &ecip_input[16],
+        &ecip_input[17],
+        &ecip_input[18],
+        &ecip_input[19],
+        &ecip_input[20],
+        &ecip_input[21],
+        &p.x,
+        &p.y,
+        &ep_low_u384,
+        &en_low_u384,
+        &sp_low_u384,
+        &sn_low_u384,
+        &ep_high_u384,
+        &en_high_u384,
+        &sp_high_u384,
+        &sn_high_u384,
+        &q_low_x,
+        &q_low_y,
+        &q_high_x,
+        &q_high_y,
+        &q_high_shifted_x,
+        &q_high_shifted_y,
+        random_point_x,
+        random_point_y,
+        &a,
+        &b,
+        &rlc_coeff_u384,
+        &modulus,
+        is_on_curve_q_low,
+        is_on_curve_q_high,
+    );
+
+    let res = ec_add(
+        G1Point(x=ecip_input[46], y=ecip_input[47]),
+        G1Point(x=ecip_input[50], y=ecip_input[51]),
+        a,
+        modulus,
+    );
+
+    let max_value = Uint256(alt_bn128.P_LOW_128 - 1, alt_bn128.P_HIGH_128);
+    let x_uint256 = uint384_to_uint256(res.x);
+    assert_uint256_le(x_uint256, max_value);
+    let y_uint256 = uint384_to_uint256(res.y);
+    assert_uint256_le(y_uint256, max_value);
+
     return res;
 }

@@ -36,6 +36,7 @@ use crate::vm::{
 
 pub const HINTS: &[fn() -> Hint] = &[
     build_msm_hints_and_fill_memory,
+    ec_mul_msm_hints_and_fill_memory,
     compute_y_from_x_hint,
     fill_add_mod_mul_mod_builtin_batch_one,
     decompose_scalar_to_neg3_base,
@@ -145,6 +146,114 @@ pub fn build_msm_hints_and_fill_memory() -> Hint {
             let ecip_circuit_constants_offset = 20;
             let memory_offset = rlc_coeff_u384_cast_offset + ecip_circuit_constants_offset;
             let ecip_circuit_q_offset = 46 * N_LIMBS;
+
+            let offset =
+                (range_check96_ptr.segment_index, range_check96_ptr.offset + memory_offset).into();
+            write_collection_to_addr(offset, &rlc_components, vm)?;
+
+            let offset = range_check96_ptr + (memory_offset + ecip_circuit_q_offset);
+            write_collection_to_addr(offset.unwrap(), &q_low_high_high_shifted, vm)?;
+            Ok(())
+        },
+    )
+}
+
+/// Builds Multi-Scalar Multiplication (MSM) hints and fills memory for elliptic curve operations.
+///
+/// This function processes point coordinates and scalar values to prepare data for MSM operations
+/// on the alt_bn128 curve. It:
+///
+/// 1. Extracts point coordinates (x,y) and scalar values ()
+/// 2. Builds MSM calldata using the curve generator point G(g_x,g_y) and input point R(x,y)
+/// 3. Processes the calldata into:
+///    - q_low_high_high_shifted components for point arithmetic
+///    - RLC (Random Linear Combination) components for efficient computation
+/// 4. Fills the VM memory at specific offsets with the processed components
+///
+/// # Arguments
+/// * p - A point P on the curve with coordinates (x,y)
+/// * k - Scalar value for multiplication
+/// * range_check96_ptr - Pointer to range check memory region
+///
+/// # Memory Layout
+/// The function writes to two main memory regions:
+/// 1. RLC components: Written at range_check96_ptr + (4 * N_LIMBS + 4)
+/// 2. Q components: Written at range_check96_ptr + (33 * N_LIMBS + 4)
+///
+/// # Errors
+/// Returns an error if:
+/// - Cannot extract point coordinates or scalar values
+/// - MSM calldata building fails
+/// - RLC components have invalid length
+/// - Memory writing operations fail
+pub fn ec_mul_msm_hints_and_fill_memory() -> Hint {
+    Hint::new(
+        String::from("ec_mul_msm_hints_and_fill_memory"),
+        |vm: &mut VirtualMachine,
+         _exec_scopes: &mut ExecutionScopes,
+         ids_data: &HashMap<String, HintReference>,
+         ap_tracking: &ApTracking,
+         _constants: &HashMap<String, Felt252>|
+         -> Result<(), HintError> {
+            const N_LIMBS: usize = 4;
+            let p_addr = get_relocatable_from_var_name("p", vm, ids_data, ap_tracking)?;
+            let x = Uint384::from_base_addr(p_addr, "p.x", vm)?.pack();
+            let y = Uint384::from_base_addr((p_addr + N_LIMBS).unwrap(), "p.y", vm)?.pack();
+
+            let k = Uint256::from_var_name("k", vm, ids_data, ap_tracking)?.pack();
+
+            let values = vec![x, y];
+            let scalar = vec![k];
+
+            let curve_id = CurveID::BN254;
+            let calldata_w_len = msm_calldata_builder(
+                &values,
+                &scalar,
+                curve_id as usize,
+                false,
+                false,
+                false,
+                false,
+            )
+            .map_err(|e| {
+                HintError::CustomHint(format!("Error building MSM calldata: {}", e).into())
+            })?;
+            let calldata = calldata_w_len[1..].to_vec();
+
+            let points_offset = 3 * 2 * N_LIMBS;
+            let q_low_high_high_shifted = calldata[..points_offset].to_vec();
+            let mut calldata_rest = calldata[points_offset..].to_vec();
+
+            // Process 4 arrays of RLC components
+            let mut rlc_components = Vec::<BigUint>::with_capacity((14 + 4 * 2) * N_LIMBS);
+            for _ in 0..4 {
+                let array_len: usize = calldata_rest.remove(0).try_into().map_err(|_| {
+                    HintError::CustomHint("Failed to convert array length to usize".into())
+                })?;
+                let slice_len = min(array_len * N_LIMBS, calldata_rest.len());
+                rlc_components.extend(calldata_rest[..slice_len].iter().cloned());
+                calldata_rest = calldata_rest[slice_len..].to_vec();
+            }
+
+            const EXPECTED_LEN: usize = (14 + 4 * 2) * N_LIMBS;
+            if rlc_components.len() != EXPECTED_LEN {
+                return Err(HintError::CustomHint(
+                    format!(
+                        "Invalid RLC components length: expected {}, got {}",
+                        EXPECTED_LEN,
+                        rlc_components.len()
+                    )
+                    .into(),
+                ));
+            }
+
+            // Fill memory
+            let range_check96_ptr =
+                get_ptr_from_var_name("range_check96_ptr", vm, ids_data, ap_tracking)?;
+            let rlc_coeff_u384_cast_offset = 4;
+            let ecip_circuit_constants_offset = 20;
+            let memory_offset = rlc_coeff_u384_cast_offset + ecip_circuit_constants_offset;
+            let ecip_circuit_q_offset = 33 * N_LIMBS;
 
             let offset =
                 (range_check96_ptr.segment_index, range_check96_ptr.offset + memory_offset).into();

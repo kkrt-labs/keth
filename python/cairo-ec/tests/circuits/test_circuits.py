@@ -793,7 +793,7 @@ class TestCircuits:
             g = G1Point.gen_random_point(curve_id)
             points = [g]
 
-            u1 = data.draw(st.integers(min_value=2**128 + 1, max_value=curve.n))
+            u1 = data.draw(st.integers(min_value=0, max_value=curve.n))
             scalars = [u1]
 
             builder = MSMCalldataBuilder(curve_id, points, scalars)
@@ -804,6 +804,8 @@ class TestCircuits:
             epns_low, epns_high = [scalar_to_base_neg3_le(s) for s in scalars_low], [
                 scalar_to_base_neg3_le(s) for s in scalars_high
             ]
+            is_on_curve_q_low = q_low.is_on_curve()
+            is_on_curve_q_high = q_high.is_on_curve()
 
             inputs = {
                 "div_a_coeff_0": int(rlc_sum_dlog_div.a.numerator[0].value),
@@ -849,6 +851,8 @@ class TestCircuits:
                 "a": int(curve.a),
                 "b": int(curve.b),
                 "base_rlc": int(rlc_coeff),
+                "is_on_curve_q_low": int(is_on_curve_q_low),
+                "is_on_curve_q_high": int(is_on_curve_q_high),
             }
 
             if prime == curve.p:
