@@ -59,8 +59,10 @@ def normalize_transaction(tx: Dict[str, Any]) -> Dict[str, Any]:
     """
     Normalize transaction fields to match what TransactionLoad expects.
     """
+    tx = tx.copy()
     tx["gasLimit"] = tx.pop("gas")
     tx["data"] = tx.pop("input")
+    tx["to"] = tx["to"] if tx["to"] is not None else ""
     return tx
 
 
