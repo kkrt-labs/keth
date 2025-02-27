@@ -79,17 +79,11 @@ use super::{dynamic_hint::DynamicHintError, relocatable::PyRelocatable};
 /// Represents the different types of Cairo variables that can be accessed
 #[derive(Debug, Clone)]
 pub enum CairoVarType {
-    /// A basic Cairo felt value
     Felt(Felt252),
-    /// A relocatable value (memory address)
     Relocatable(Relocatable),
-    /// A struct that has members
     Struct {
-        /// The name of the struct
         name: String,
-        /// Member names mapped to their offsets and types
         members: HashMap<String, Member>,
-        /// The total size of the struct
         size: usize,
     },
     /// A pointer to another type
@@ -104,13 +98,9 @@ pub enum CairoVarType {
 /// Holds information about a Cairo variable's name, value, and address
 #[derive(Debug, Clone)]
 pub struct CairoVar {
-    /// The name of the variable
     pub name: String,
-    /// The value of the variable
     pub value: MaybeRelocatable,
-    /// The address of the variable in memory
     pub address: Option<Relocatable>,
-    /// The type of the variable
     pub var_type: CairoVarType,
 }
 

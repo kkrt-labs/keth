@@ -30,17 +30,14 @@ impl PyMemoryWrapper {
 
     fn __getitem__(&self, key: PyRelocatable) -> PyResult<PyMaybeRelocatable> {
         let vm = unsafe { &mut *self.vm };
-
-        match vm.get_maybe(&key.inner) {
-            Some(value) => {
-                let py_value = PyMaybeRelocatable::from(value);
-                Ok(py_value)
-            }
-            None => Err(PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!(
+        
+        vm.get_maybe(&key.inner)
+            .map(PyMaybeRelocatable::from)
+            .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!(
                 "Memory address not found: {}",
                 key.inner
-            ))),
-        }
+            )))
+    }
     }
 }
 
