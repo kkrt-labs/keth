@@ -83,8 +83,6 @@ pub enum CairoVarType {
     Pointer {
         /// The type being pointed to
         pointee: Box<CairoVarType>,
-        /// Whether this is a reference (T*) or a pointer (T**)
-        is_reference: bool,
     },
 }
 
@@ -146,8 +144,7 @@ fn create_var_type(type_name: &str, identifiers: &HashMap<String, Identifier>) -
 
         // Add pointer layers
         for _ in 0..asterisks_count {
-            inner_type =
-                CairoVarType::Pointer { pointee: Box::new(inner_type), is_reference: true };
+            inner_type = CairoVarType::Pointer { pointee: Box::new(inner_type) };
         }
 
         return inner_type;
@@ -174,6 +171,7 @@ pub struct PyVmConst {
     pub(crate) identifiers: Option<*const HashMap<String, Identifier>>,
 }
 
+// Non-Python methods
 impl PyVmConst {
     /// Helper method to lazily load struct members from identifiers if needed
     /// Returns a new var_type with the loaded members if successful
@@ -203,10 +201,10 @@ impl PyVmConst {
                 // Return the original if we couldn't load members
                 CairoVarType::Struct { name: name.clone(), members: members.clone(), size: *size }
             }
-            CairoVarType::Pointer { pointee, is_reference } => {
+            CairoVarType::Pointer { pointee } => {
                 // If it's a pointer to a struct, try to load the struct members
                 let new_pointee = Box::new(self.load_struct_members(pointee));
-                CairoVarType::Pointer { pointee: new_pointee, is_reference: *is_reference }
+                CairoVarType::Pointer { pointee: new_pointee }
             }
             // For other types, just return a clone
             _ => var_type.clone(),
@@ -266,18 +264,10 @@ impl PyVmConst {
                                 let py_rel = PyRelocatable { inner: *rel };
                                 Ok(Py::new(py, py_rel)?.into_bound_py_any(py)?.into())
                             }
-                            _ => {
-                                // Unexpected case, fall back to PyVmConst
-                                let var = CairoVar {
-                                    name: format!("{}.{}", parent_name, member_name),
-                                    value,
-                                    address: Some(member_addr),
-                                    var_type: member_type,
-                                };
-                                let py_member =
-                                    PyVmConst { var, vm: self.vm, identifiers: self.identifiers };
-                                Ok(Py::new(py, py_member)?.into_bound_py_any(py)?.into())
-                            }
+                            _ => Err(PyErr::new::<pyo3::exceptions::PyAttributeError, _>(format!(
+                                "Expected relocatable value, got {}",
+                                value
+                            ))),
                         }
                     }
                     _ => {
@@ -325,7 +315,9 @@ impl PyVmConst {
             return self.address_(py);
         }
 
-        // Create a possibly updated var_type with lazily loaded members
+        // // Create a possibly updated var_type with lazily loaded members
+        // TODO: come back to this and see whether we can avoid loading the members here - having
+        // them already available
         let var_type = self.load_struct_members(&self.var.var_type);
 
         // Handle different types
@@ -587,7 +579,7 @@ impl PyVmConstsDict {
     }
 }
 
-/// Creates a VmConstsDict from IDs data and VM
+/// Creates a VmConstsDict from the variable accessible from the hint in `ids_data`.
 pub fn create_vm_consts_dict(
     vm: &mut VirtualMachine,
     identifiers: &HashMap<String, Identifier>,
@@ -713,21 +705,6 @@ pub fn create_vm_consts_dict(
                         py_ids_dict.borrow_mut(py).set_item(name, py_var_obj);
                     }
                 } else {
-                    // // Case 4: No type information, infer from value
-                    // This can happen for __temp variables, which don't have a type.
-                    // match &value {
-                    //     MaybeRelocatable::Int(felt) => {
-                    //         // Convert to Python int
-                    //         let py_int = felt.to_biguint().into_bound_py_any(py)?.into();
-                    //         py_ids_dict.borrow_mut(py).items.insert(name.clone(), py_int);
-                    //     }
-                    //     MaybeRelocatable::RelocatableValue(rel) => {
-                    //         // Return PyRelocatable directly
-                    //         let py_rel = PyRelocatable { inner: *rel };
-                    //         let py_rel_obj = Py::new(py, py_rel)?.into_bound_py_any(py)?.into();
-                    //         py_ids_dict.borrow_mut(py).items.insert(name.clone(), py_rel_obj);
-                    //     }
-                    // }
                     return Err(DynamicHintError::UnknownVariableType(name.clone()));
                 }
             }
