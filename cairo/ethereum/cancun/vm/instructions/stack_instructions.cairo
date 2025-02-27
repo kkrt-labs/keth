@@ -7,14 +7,20 @@ from starkware.cairo.common.cairo_builtins import (
 from starkware.cairo.common.math_cmp import is_le
 from starkware.cairo.common.dict import DictAccess
 
-from ethereum.cancun.vm.stack import push, StackDictAccess, Stack, StackStruct, pop as stack_pop
+from ethereum.cancun.vm.stack import (
+    StackImpl,
+    push,
+    StackDictAccess,
+    Stack,
+    StackStruct,
+    pop as stack_pop,
+)
 from ethereum.cancun.vm.evm_impl import Evm, EvmImpl
 from ethereum.exceptions import EthereumException
 from ethereum.cancun.vm.exceptions import StackUnderflowError
 from ethereum.cancun.vm.gas import charge_gas, GasConstants
 from ethereum_types.numeric import Uint, U256, U256Struct
 from ethereum.cancun.vm.memory import buffer_read
-from ethereum.utils.dicts import stack_read, stack_write
 
 from cairo_core.comparison import is_zero
 from legacy.utils.utils import Helpers
@@ -71,10 +77,10 @@ func swap_n{range_check_ptr, evm: Evm}(n: Uint) -> EthereumException* {
     }
 
     with stack {
-        let stack_top = stack_read(len - 1);
-        let swap_with = stack_read(len - n.value - 1);
-        stack_write(len - n.value - 1, stack_top);
-        stack_write(len - 1, swap_with);
+        let stack_top = StackImpl.peek(len - 1);
+        let swap_with = StackImpl.peek(len - n.value - 1);
+        StackImpl.set_at(len - n.value - 1, stack_top);
+        StackImpl.set_at(len - 1, swap_with);
     }
 
     EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
@@ -97,7 +103,7 @@ func dup_n{range_check_ptr, evm: Evm}(item_number: Uint) -> EthereumException* {
         return err;
     }
 
-    let value_to_dup = stack_read{stack=stack}(len - 1 - item_number.value);
+    let value_to_dup = StackImpl.peek{stack=stack}(len - 1 - item_number.value);
 
     tempvar value_to_push = U256(cast(value_to_dup, U256Struct*));
     with stack {

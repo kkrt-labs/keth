@@ -23,6 +23,36 @@ struct StackDictAccess {
 
 const STACK_MAX_SIZE = 1024;
 
+namespace StackImpl {
+    func peek{range_check_ptr, stack: Stack}(index: felt) -> felt {
+        alloc_locals;
+        let dict_ptr = cast(stack.value.dict_ptr, DictAccess*);
+        let (value) = dict_read{dict_ptr=dict_ptr}(index);
+        tempvar stack = Stack(
+            new StackStruct(
+                dict_ptr_start=stack.value.dict_ptr_start,
+                dict_ptr=cast(dict_ptr, StackDictAccess*),
+                len=stack.value.len,
+            ),
+        );
+        return value;
+    }
+
+    func set_at{range_check_ptr, stack: Stack}(index: felt, value: felt) {
+        alloc_locals;
+        let dict_ptr = cast(stack.value.dict_ptr, DictAccess*);
+        dict_write{dict_ptr=dict_ptr}(index, value);
+        tempvar stack = Stack(
+            new StackStruct(
+                dict_ptr_start=stack.value.dict_ptr_start,
+                dict_ptr=cast(dict_ptr, StackDictAccess*),
+                len=stack.value.len,
+            ),
+        );
+        return ();
+    }
+}
+
 func pop{stack: Stack}() -> (U256, EthereumException*) {
     alloc_locals;
     let len = stack.value.len;
