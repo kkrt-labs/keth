@@ -1,37 +1,24 @@
+from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_builtins import (
     UInt384,
     ModBuiltin,
     PoseidonBuiltin,
     BitwiseBuiltin,
-    KeccakBuiltin,
 )
-from starkware.cairo.common.math_cmp import RC_BOUND
-from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
-from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.registers import get_label_location
-from starkware.cairo.common.modulo import run_mod_p_circuit
-from starkware.cairo.common.uint256 import Uint256, word_reverse_endian, uint256_reverse_endian
-
+from starkware.cairo.common.uint256 import Uint256, uint256_reverse_endian
 from starkware.cairo.common.poseidon_state import PoseidonBuiltinState
+from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
 
-from cairo_core.maths import unsigned_div_rem, assert_uint256_le
-from cairo_core.numeric import U256, U256Struct
-from cairo_ec.curve_utils import scalar_to_epns
-from cairo_ec.curve.g1_point import G1Point
+from cairo_core.bytes import Bytes32, Bytes32Struct
+from cairo_core.maths import assert_uint256_le
 from cairo_ec.circuit_utils import N_LIMBS, hash_full_transcript
 from cairo_ec.circuits.ec_ops_compiled import ecip_2p
+from cairo_ec.curve_utils import scalar_to_epns
+from cairo_ec.curve.g1_point import G1Point
 from cairo_ec.curve.ids import CurveID
 from cairo_ec.ec_ops import ec_add, try_get_point_from_x, get_random_point
 from cairo_ec.circuits.mod_ops_compiled import div, neg
-from cairo_ec.uint384 import (
-    uint384_to_uint256,
-    uint256_to_uint384,
-    uint384_eq_mod_p,
-    felt_to_uint384,
-)
-from cairo_ec.ecdsa_circuit import get_full_ecip_2P_circuit
-from cairo_core.bytes import Bytes32, Bytes32Struct
-from ethereum.cancun.fork_types import Address
+from cairo_ec.uint384 import uint384_to_uint256, felt_to_uint384
 
 namespace secp256k1 {
     const CURVE_ID = CurveID.SECP256K1;
