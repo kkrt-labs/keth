@@ -19,6 +19,7 @@ from cairo_core.numeric import U256, U256Struct
 from cairo_ec.curve_utils import scalar_to_epns
 from cairo_ec.curve.g1_point import G1Point
 from cairo_ec.circuit_utils import N_LIMBS, hash_full_transcript
+from cairo_ec.circuits.ec_ops_compiled import ecip_2p
 from cairo_ec.curve.ids import CurveID
 from cairo_ec.ec_ops import ec_add, try_get_point_from_x, get_random_point
 from cairo_ec.circuits.mod_ops_compiled import div, neg
@@ -163,28 +164,28 @@ func try_recover_public_key{
     assert_uint256_le(u2, N_min_one);
 
     let (ep1_low, en1_low, sp1_low, sn1_low) = scalar_to_epns(u1.low);
-    let ep1_low_384 = felt_to_uint384(ep1_low);
-    let en1_low_384 = felt_to_uint384(en1_low);
-    let sp1_low_384 = sign_to_uint384_mod_secp256k1(sp1_low);
-    let sn1_low_384 = sign_to_uint384_mod_secp256k1(sn1_low);
+    let ep1_low_u384 = felt_to_uint384(ep1_low);
+    let en1_low_u384 = felt_to_uint384(en1_low);
+    let sp1_low_u384 = sign_to_uint384_mod_secp256k1(sp1_low);
+    let sn1_low_u384 = sign_to_uint384_mod_secp256k1(sn1_low);
 
     let (ep1_high, en1_high, sp1_high, sn1_high) = scalar_to_epns(u1.high);
-    let ep1_high_384 = felt_to_uint384(ep1_high);
-    let en1_high_384 = felt_to_uint384(en1_high);
-    let sp1_high_384 = sign_to_uint384_mod_secp256k1(sp1_high);
-    let sn1_high_384 = sign_to_uint384_mod_secp256k1(sn1_high);
+    let ep1_high_u384 = felt_to_uint384(ep1_high);
+    let en1_high_u384 = felt_to_uint384(en1_high);
+    let sp1_high_u384 = sign_to_uint384_mod_secp256k1(sp1_high);
+    let sn1_high_u384 = sign_to_uint384_mod_secp256k1(sn1_high);
 
     let (ep2_low, en2_low, sp2_low, sn2_low) = scalar_to_epns(u2.low);
-    let ep2_low_384 = felt_to_uint384(ep2_low);
-    let en2_low_384 = felt_to_uint384(en2_low);
-    let sp2_low_384 = sign_to_uint384_mod_secp256k1(sp2_low);
-    let sn2_low_384 = sign_to_uint384_mod_secp256k1(sn2_low);
+    let ep2_low_u384 = felt_to_uint384(ep2_low);
+    let en2_low_u384 = felt_to_uint384(en2_low);
+    let sp2_low_u384 = sign_to_uint384_mod_secp256k1(sp2_low);
+    let sn2_low_u384 = sign_to_uint384_mod_secp256k1(sn2_low);
 
     let (ep2_high, en2_high, sp2_high, sn2_high) = scalar_to_epns(u2.high);
-    let ep2_high_384 = felt_to_uint384(ep2_high);
-    let en2_high_384 = felt_to_uint384(en2_high);
-    let sp2_high_384 = sign_to_uint384_mod_secp256k1(sp2_high);
-    let sn2_high_384 = sign_to_uint384_mod_secp256k1(sn2_high);
+    let ep2_high_u384 = felt_to_uint384(ep2_high);
+    let en2_high_u384 = felt_to_uint384(en2_high);
+    let sp2_high_u384 = sign_to_uint384_mod_secp256k1(sp2_high);
+    let sn2_high_u384 = sign_to_uint384_mod_secp256k1(sn2_high);
 
     %{ build_msm_hints_and_fill_memory %}
 
@@ -203,6 +204,11 @@ func try_recover_public_key{
     // ==> interaction
     // > get seed for random point
 
+    // rlc_coeff is casted to Uint384 after hashing the values of Q (which is used to compute rlc_coeff)
+    tempvar rlc_coeff_u384_cast_offset = 4;
+    tempvar ecip_circuit_constants_offset = 5 * N_LIMBS;
+    tempvar ecip_circuit_q_offset = 46 * N_LIMBS;
+
     assert poseidon_ptr[0].input = PoseidonBuiltinState(s0='MSM_G1', s1=0, s2=1);
     assert poseidon_ptr[1].input = PoseidonBuiltinState(
         s0=secp256k1.CURVE_ID + poseidon_ptr[0].output.s0,
@@ -214,8 +220,12 @@ func try_recover_public_key{
     let generator_point = get_generator_point();
     hash_full_transcript(cast(generator_point, felt*), 2);
     hash_full_transcript(cast(&r_point, felt*), 2);
-    // Q_low, Q_high, Q_high_shifted (filled by prover) (50 - 55).
-    hash_full_transcript(range_check96_ptr + 4 + 50 * N_LIMBS, 3 * 2);
+    // Q_low, Q_high, Q_high_shifted (filled by prover) (46 - 51).
+    hash_full_transcript(
+        range_check96_ptr + rlc_coeff_u384_cast_offset + ecip_circuit_constants_offset +
+        ecip_circuit_q_offset,
+        3 * 2,
+    );
     let _s0 = [cast(poseidon_ptr, felt*) - 3];
     let _s1 = [cast(poseidon_ptr, felt*) - 2];
     let _s2 = [cast(poseidon_ptr, felt*) - 1];
@@ -231,88 +241,93 @@ func try_recover_public_key{
     let poseidon_ptr = poseidon_ptr + 2 * PoseidonBuiltin.SIZE;
     let rlc_coeff_u384 = felt_to_uint384(rlc_coeff);
 
-    // Hash SumDlogDiv 2 points : (4-29)
-    hash_full_transcript(range_check96_ptr + 4 * N_LIMBS, 26);
+    // Hash sum_dlog_div 2 points : (0-25)
+    hash_full_transcript(range_check96_ptr + ecip_circuit_constants_offset, 26);
     tempvar range_check96_ptr_init = range_check96_ptr;
-    tempvar range_check96_ptr_after_circuit = range_check96_ptr + 224 + (4 + 117 + 108 - 1) *
-        N_LIMBS;
+    tempvar range_check96_ptr_after_circuit = range_check96_ptr + 1200;
     let random_point = get_random_point{range_check96_ptr=range_check96_ptr_after_circuit}(
         seed=[cast(poseidon_ptr, felt*) - 3], a=&a, b=&b, g=&g, p=&p
     );
-
-    tempvar range_check96_ptr_final = range_check96_ptr_after_circuit;
     let range_check96_ptr = range_check96_ptr_init;
 
     // Circuits inputs
 
-    let ecip_input: UInt384* = cast(range_check96_ptr, UInt384*);
-    // Constants (0-3)
-    assert ecip_input[0] = g;
-    assert ecip_input[1] = UInt384(0, 0, 0, 0);
-    assert ecip_input[2] = UInt384(12528508628158887531275213211, 66632300, 0, 0);
-    assert ecip_input[3] = UInt384(12528508628158887531275213211, 4361599596, 0, 0);
+    let ecip_input: UInt384* = cast(range_check96_ptr + ecip_circuit_constants_offset, UInt384*);
 
     // Random Linear Combination Sum of Discrete Logarithm Division
-    // RLCSumDlogDiv for 2 points: n_coeffs = 18 + 4 * 2 = 26 (4-29)
+    // rlc_sum_dlog_div for 2 points: n_coeffs = 18 + 4 * 2 = 26 (0-25)
 
-    // Generator point, same as in get_generator_point()
-    assert ecip_input[30] = UInt384(
-        0x2dce28d959f2815b16f81798, 0x55a06295ce870b07029bfcdb, 0x79be667ef9dcbbac, 0x0
+    // q_low, q_high, q_high_shifted (46 - 51)
+
+    tempvar random_point_x = new random_point.x;
+    tempvar random_point_y = new random_point.y;
+
+    ecip_2p(
+        &ecip_input[0],
+        &ecip_input[1],
+        &ecip_input[2],
+        &ecip_input[3],
+        &ecip_input[4],
+        &ecip_input[5],
+        &ecip_input[6],
+        &ecip_input[7],
+        &ecip_input[8],
+        &ecip_input[9],
+        &ecip_input[10],
+        &ecip_input[11],
+        &ecip_input[12],
+        &ecip_input[13],
+        &ecip_input[14],
+        &ecip_input[15],
+        &ecip_input[16],
+        &ecip_input[17],
+        &ecip_input[18],
+        &ecip_input[19],
+        &ecip_input[20],
+        &ecip_input[21],
+        &ecip_input[22],
+        &ecip_input[23],
+        &ecip_input[24],
+        &ecip_input[25],
+        &generator_point.x,
+        &generator_point.y,
+        &r_point.x,
+        &r_point.y,
+        &ep1_low_u384,
+        &en1_low_u384,
+        &sp1_low_u384,
+        &sn1_low_u384,
+        &ep2_low_u384,
+        &en2_low_u384,
+        &sp2_low_u384,
+        &sn2_low_u384,
+        &ep1_high_u384,
+        &en1_high_u384,
+        &sp1_high_u384,
+        &sn1_high_u384,
+        &ep2_high_u384,
+        &en2_high_u384,
+        &sp2_high_u384,
+        &sn2_high_u384,
+        &ecip_input[46],
+        &ecip_input[47],
+        &ecip_input[48],
+        &ecip_input[49],
+        &ecip_input[50],
+        &ecip_input[51],
+        random_point_x,
+        random_point_y,
+        &a,
+        &b,
+        &rlc_coeff_u384,
+        &p,
     );
-    assert ecip_input[31] = UInt384(
-        0xa68554199c47d08ffb10d4b8, 0x5da4fbfc0e1108a8fd17b448, 0x483ada7726a3c465, 0x0
-    );
 
-    // R point
-    assert ecip_input[32] = r_point.x;
-    assert ecip_input[33] = r_point.y;
+    let range_check96_ptr = range_check96_ptr_after_circuit;
 
-    assert ecip_input[34] = ep1_low_384;
-    assert ecip_input[35] = en1_low_384;
-    assert ecip_input[36] = sp1_low_384;
-    assert ecip_input[37] = sn1_low_384;
-
-    assert ecip_input[38] = ep2_low_384;
-    assert ecip_input[39] = en2_low_384;
-    assert ecip_input[40] = sp2_low_384;
-    assert ecip_input[41] = sn2_low_384;
-
-    assert ecip_input[42] = ep1_high_384;
-    assert ecip_input[43] = en1_high_384;
-    assert ecip_input[44] = sp1_high_384;
-    assert ecip_input[45] = sn1_high_384;
-
-    assert ecip_input[46] = ep2_high_384;
-    assert ecip_input[47] = en2_high_384;
-    assert ecip_input[48] = sp2_high_384;
-    assert ecip_input[49] = sn2_high_384;
-
-    // Q_low / Q_high / Q_high_shifted (filled by prover) (50 - 55).
-
-    assert ecip_input[56] = random_point.x;
-    assert ecip_input[57] = random_point.y;
-
-    // a_Weierstrass
-    assert ecip_input[58] = a;
-    // base_rlc
-    assert ecip_input[59] = rlc_coeff_u384;
-
-    let (add_offsets_ptr, mul_offsets_ptr) = get_full_ecip_2P_circuit();
-    assert add_mod_ptr[0] = ModBuiltin(
-        p=p, values_ptr=cast(range_check96_ptr, UInt384*), offsets_ptr=add_offsets_ptr, n=117
-    );
-    assert mul_mod_ptr[0] = ModBuiltin(
-        p=p, values_ptr=cast(range_check96_ptr, UInt384*), offsets_ptr=mul_offsets_ptr, n=108
-    );
-
-    %{ fill_add_mod_mul_mod_builtin_batch_117_108 %}
-
-    tempvar range_check96_ptr = range_check96_ptr_final;
-    let add_mod_ptr = add_mod_ptr + 117 * ModBuiltin.SIZE;
-    let mul_mod_ptr = mul_mod_ptr + 108 * ModBuiltin.SIZE;
     let res = ec_add(
+        G1Point(x=ecip_input[46], y=ecip_input[47]),
         G1Point(x=ecip_input[50], y=ecip_input[51]),
-        G1Point(x=ecip_input[54], y=ecip_input[55]),
         a,
         p,
     );
