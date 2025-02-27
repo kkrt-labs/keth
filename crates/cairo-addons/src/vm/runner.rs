@@ -13,7 +13,9 @@ use cairo_vm::{
         security::verify_secure_runner,
     },
 };
+use polars::prelude::*;
 use pyo3::prelude::*;
+use pyo3_polars::PyDataFrame;
 
 use crate::vm::{
     layout::PyLayout, maybe_relocatable::PyMaybeRelocatable, relocatable::PyRelocatable,
@@ -198,6 +200,26 @@ impl PyCairoRunner {
             .into_iter()
             .map(PyRelocatedTraceEntry::from)
             .collect())
+    }
+
+    #[getter]
+    fn trace_df(&self) -> PyResult<PyDataFrame> {
+        let relocated_trace = self.inner.relocated_trace.clone().unwrap_or_default();
+        let trace_len = relocated_trace.len();
+        let mut pc_values = Vec::with_capacity(trace_len);
+        let mut ap_values = Vec::with_capacity(trace_len);
+        let mut fp_values = Vec::with_capacity(trace_len);
+
+        for entry in relocated_trace.iter() {
+            pc_values.push(entry.pc as u64);
+            ap_values.push(entry.ap as u64);
+            fp_values.push(entry.fp as u64);
+        }
+
+        let df = df!("pc" => pc_values, "ap" => ap_values, "fp" => fp_values)
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+
+        Ok(PyDataFrame(df))
     }
 }
 
