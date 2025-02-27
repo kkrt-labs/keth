@@ -1,3 +1,4 @@
+#![cfg(feature = "dynamic-hints")]
 //! # Cairo VM Constants and Variable Access
 //!
 //! This module provides a bridge between Cairo variables in the Rust VM and Python code.
@@ -123,9 +124,12 @@ fn get_struct_info_from_identifiers(
 }
 
 /// Create a CairoVarType instance based on the type name and identifiers
-fn create_var_type(type_name: &str, identifiers: &HashMap<String, Identifier>) -> CairoVarType {
+fn create_var_type(
+    type_name: &str,
+    identifiers: &HashMap<String, Identifier>,
+) -> Result<CairoVarType, DynamicHintError> {
     if type_name == "felt" {
-        return CairoVarType::Felt;
+        return Ok(CairoVarType::Felt);
     }
 
     // Handle pointer types
@@ -135,11 +139,20 @@ fn create_var_type(type_name: &str, identifiers: &HashMap<String, Identifier>) -
 
         // Create the innermost type
         let mut inner_type = if base_type == "felt" {
-            return CairoVarType::Relocatable;
+            CairoVarType::Relocatable
         } else {
             // For struct pointers, create a struct type
-            let (members, size) = get_struct_info_from_identifiers(identifiers, base_type).unwrap();
-            CairoVarType::Struct { name: base_type.to_string(), members, size }
+            match get_struct_info_from_identifiers(identifiers, base_type) {
+                Some((members, size)) => {
+                    CairoVarType::Struct { name: base_type.to_string(), members, size }
+                }
+                None => {
+                    return Err(DynamicHintError::UnknownVariableType(format!(
+                        "Could not get struct info for type '{}'",
+                        base_type
+                    )));
+                }
+            }
         };
 
         // Add pointer layers
@@ -147,15 +160,15 @@ fn create_var_type(type_name: &str, identifiers: &HashMap<String, Identifier>) -
             inner_type = CairoVarType::Pointer { pointee: Box::new(inner_type) };
         }
 
-        return inner_type;
+        return Ok(inner_type);
     }
 
     // It's a struct
-    CairoVarType::Struct {
+    Ok(CairoVarType::Struct {
         name: type_name.to_string(),
         members: HashMap::new(), // Empty, will be lazy loaded
         size: 1,                 // Default size
-    }
+    })
 }
 
 /// Python-accessible wrapper for Cairo variables that provides a behavior similar to
@@ -238,7 +251,10 @@ impl PyVmConst {
             // Try to get the value from memory
             if let Some(value) = vm.get_maybe(&member_addr) {
                 // Get member type from the member definition
-                let member_type = create_var_type(member.cairo_type.as_ref(), identifiers);
+                let member_type = create_var_type(member.cairo_type.as_ref(), identifiers)
+                    .map_err(|e| {
+                        PyErr::new::<pyo3::exceptions::PyAttributeError, _>(e.to_string())
+                    })?;
 
                 // Based on the type, return different Python objects
                 match &member_type {
@@ -628,7 +644,9 @@ pub fn create_vm_consts_dict(
                             .unwrap_or(var_addr);
 
                         // Create a CairoVarType based on the type_str
-                        let var_type = create_var_type(type_str, identifiers);
+                        let var_type = create_var_type(type_str, identifiers).map_err(|e| {
+                            PyErr::new::<pyo3::exceptions::PyAttributeError, _>(e.to_string())
+                        })?;
 
                         // Case 2.1: The pointer is to a felt
                         if type_str == "felt*" {
@@ -688,7 +706,9 @@ pub fn create_vm_consts_dict(
                             .unwrap_or(var_addr);
 
                         // Create a CairoVarType based on the type_str
-                        let var_type = create_var_type(type_str, identifiers);
+                        let var_type = create_var_type(type_str, identifiers).map_err(|e| {
+                            PyErr::new::<pyo3::exceptions::PyAttributeError, _>(e.to_string())
+                        })?;
 
                         let var = CairoVar {
                             name: name.clone(),

@@ -200,7 +200,8 @@ impl DynamicPythonHintExecutor {
                 .map_err(|e| DynamicHintError::PyDictSet(e.to_string()))?;
 
             // Execute the Python code
-            let hint_code_c_string = CString::new(hint_code).unwrap();
+            let hint_code_c_string = CString::new(hint_code)
+                .map_err(|e| DynamicHintError::CStringConversion(e.to_string()))?;
             py.run(&hint_code_c_string, None, Some(&locals))
                 .map_err(|e| DynamicHintError::PythonExecution(e.to_string()))?;
 

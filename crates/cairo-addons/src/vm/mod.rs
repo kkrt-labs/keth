@@ -2,6 +2,7 @@ use pyo3::prelude::*;
 
 mod builtins;
 mod dict_manager;
+#[cfg(feature = "dynamic-hints")]
 mod dynamic_hint;
 mod hint_definitions;
 mod hint_loader;
@@ -28,6 +29,7 @@ use relocated_trace::PyRelocatedTraceEntry;
 use run_resources::PyRunResources;
 use runner::PyCairoRunner;
 use stripped_program::PyStrippedProgram;
+#[cfg(feature = "dynamic-hints")]
 use vm_consts::{PyVmConst, PyVmConstsDict};
 
 #[pymodule]
@@ -41,7 +43,9 @@ fn vm(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<PyStrippedProgram>()?;
     module.add_class::<PyDictManager>()?;
     module.add_class::<PyDictTracker>()?;
+    #[cfg(feature = "dynamic-hints")]
     module.add_class::<PyVmConst>()?;
+    #[cfg(feature = "dynamic-hints")]
     module.add_class::<PyVmConstsDict>()?;
     Ok(())
 }
