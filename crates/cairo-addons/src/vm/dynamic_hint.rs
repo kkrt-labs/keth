@@ -1,3 +1,42 @@
+//! # Dynamic Python Hint Execution System for Cairo VM
+//!
+//! This module provides a dynamic Python hint execution system for Cairo VM that allows
+//! arbitrary Python code to be executed within Cairo hints. It bridges Rust memory and
+//! Cairo variables to Python, enabling a more flexible and powerful hint system without
+//! requiring pre-registration of all possible hints.
+//!
+//! ## Usage in Hint Processor
+//!
+//! The dynamic hint executor is integrated with the hint processor as a fallback mechanism.
+//! When a hint is not found in the pre-registered hint registry, the system attempts to
+//! execute it as Python code using the dynamic executor.
+//!
+//! ## Example
+//!
+//! In a Cairo program:
+//!
+//! ```cairo
+//! %{
+//!     # This Python code will be executed dynamically
+//!     print(f"Value of x: {ids.x}")
+//!     print(f"Address of x: {ids.x.address_}")
+//!
+//!     # Access struct members
+//!     if hasattr(ids, 'my_struct'):
+//!         print(f"Struct member: {ids.my_struct.member}")
+//!
+//!     # Use breakpoint for debugging
+//!     # breakpoint()
+//! %}
+//! ```
+//!
+//! ## Limitations
+//!
+//! - Direct mutation of `ids` variables is not supported, though memory can be modified
+//! - Direct mutation of `memory` is not supported, though memory can be modified
+//! - Performance is slower than native Rust hints, but suitable for debugging
+//! - Requires program identifiers to be available in the execution scope for full type support
+
 /// This module provides a dynamic Python hint execution system for Cairo VM.
 /// It allows Python hints to access Rust memory and variables.
 ///
@@ -138,7 +177,10 @@ impl DynamicPythonHintExecutor {
                 .set_item("memory", &memory)
                 .map_err(|e| DynamicHintError::PyDictSet(e.to_string()))?;
 
-            let program_identifiers = match exec_scopes.get_ref::<HashMap<String, Identifier>>("__program_identifiers__") {
+            // Get the program identifiers that we inserted into the execution scope upon runner initialization
+            let program_identifiers = match exec_scopes
+                .get_ref::<HashMap<String, Identifier>>("__program_identifiers__")
+            {
                 Ok(identifiers) => identifiers.clone(),
                 Err(e) => {
                     return Err(HintError::CustomHint(Box::from(format!(
@@ -148,10 +190,11 @@ impl DynamicPythonHintExecutor {
                 }
             };
 
-
             // Create VmConstsDict using the new implementation
-            let py_ids_dict = create_vm_consts_dict(vm, &program_identifiers, ids_data, ap_tracking, py)
-                .map_err(|e| DynamicHintError::PyObjectCreation(e.to_string()))?;
+            let py_ids_dict =
+                create_vm_consts_dict(vm, &program_identifiers, ids_data, ap_tracking, py)
+                    .map_err(|e| DynamicHintError::PyObjectCreation(e.to_string()))?;
+
 
             // Add the ids dictionary to locals
             locals

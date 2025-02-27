@@ -39,19 +39,7 @@ func alt_bn128_add{
     evm: Evm,
 }() -> EthereumException* {
     alloc_locals;
-    tempvar data = evm.value.message.value.data;
-
-    tempvar x = 3;
-    let (pointertype: felt*) = alloc();
-    %{ breakpoint() %}
-    %{
-        print(f"ids: {ids}")
-        print(f"""ids.data: {ids["data"]}""")
-        print(f"ids.data.value: {ids.data.value}")
-        print(f"ids.data.value.len: {ids.data.value.len}")
-    %}
-
-    %{ print("hello, world!") %}
+    let data = evm.value.message.value.data;
 
     // Gas
     let gas_cost = Uint(150);
