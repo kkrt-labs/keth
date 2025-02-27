@@ -77,14 +77,14 @@ impl PyCairoRunner {
         // all hints.
         // This enables us to only serialize the pythonic identifiers once, and then reuse them
         // throughout the execution of hints.
+        //TODO: this will cause the identifiers to be extracted each program run, which takes too much time.
+        // we need to find another way.
         Python::with_gil(|py| {
             let context = PyDict::new(py);
             let json_program_bytes: Vec<u8> = json_program.to_vec();
-            //todo: handle unwrap
             context
                 .set_item("__program_json__", json_program_bytes)
-                .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))
-                .unwrap();
+                .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
 
             // Import and run the initialization code from the injected module
             let setup_code = r#"
@@ -96,7 +96,7 @@ except Exception as e:
 "#;
 
             // Run the initialization code
-            py.run(&CString::new(setup_code).unwrap(), Some(&context), None).map_err(|e| {
+            py.run(&CString::new(setup_code)?, Some(&context), None).map_err(|e| {
                 PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
                     "Failed to initialize Python globals: {}",
                     e
@@ -105,7 +105,7 @@ except Exception as e:
 
             // Store the context object, modified in the initialization code, in the exec_scopes
             // to access it throughout the execution of hints
-            let unbounded_context: Py<PyDict> = context.into_py_dict(py).unwrap().into();
+            let unbounded_context: Py<PyDict> = context.into_py_dict(py)?.into();
             inner.exec_scopes.insert_value("__context__", unbounded_context);
             Ok::<(), PyErr>(())
         })?;
