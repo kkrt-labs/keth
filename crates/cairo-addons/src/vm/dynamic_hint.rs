@@ -37,6 +37,15 @@
 //! %}
 //! ```
 //!
+//! Serialize a variable from `ids` using the `serialize` function.
+//! This uses the factory function `serialize` that is injected into the execution scope in
+//! runner.rs.
+//!
+//! ```cairo
+//! tempvar evm = Evm(...)
+//! %{ serialize(ids.evm) %}
+//! ```
+//!
 //! ## Limitations
 //!
 //! - Direct mutation of `ids` variables is not supported.
@@ -167,16 +176,18 @@ impl DynamicPythonHintExecutor {
         self.ensure_initialized().map_err(|e| DynamicHintError::PythonInit(e.to_string()))?;
 
         Python::with_gil(|py| {
-            // Create a Python dict for the locals
-            let locals = PyDict::new(py);
-            let globals = PyDict::new(py);
+            // Load the context object - see runner.rs for more details
+            let context: &Py<PyDict> = exec_scopes
+                .get_ref::<Py<PyDict>>("__context__")
+                .map_err(|e| DynamicHintError::PyObjectCreation(e.to_string()))?;
+            let bounded_context = context.bind(py);
 
             // Create a memory wrapper using the existing PyMemoryWrapper
             let memory_wrapper = PyMemoryWrapper { vm };
             let memory = Py::new(py, memory_wrapper)
                 .map_err(|e| DynamicHintError::PyObjectCreation(e.to_string()))?;
-            // Add the memory wrapper to locals
-            locals
+            // Add the memory wrapper to context
+            bounded_context
                 .set_item("memory", &memory)
                 .map_err(|e| DynamicHintError::PyDictSet(e.to_string()))?;
 
@@ -184,11 +195,8 @@ impl DynamicPythonHintExecutor {
             let segments_wrapper = PyMemorySegmentManager { vm };
             let segments = Py::new(py, segments_wrapper)
                 .map_err(|e| DynamicHintError::PyObjectCreation(e.to_string()))?;
-            // Add the segments wrapper to locals
-            locals
-                .set_item("segments", &segments)
-                .map_err(|e| DynamicHintError::PyDictSet(e.to_string()))?;
-            globals
+            // Add the segments wrapper to context
+            bounded_context
                 .set_item("segments", &segments)
                 .map_err(|e| DynamicHintError::PyDictSet(e.to_string()))?;
 
@@ -199,12 +207,8 @@ impl DynamicPythonHintExecutor {
             let py_dict_manager = PyDictManager { inner: dict_manager };
             let py_dict_manager_wrapper = Py::new(py, py_dict_manager)
                 .map_err(|e| DynamicHintError::PyObjectCreation(e.to_string()))?;
-            // Add the dict manager wrapper to locals
-            locals
-                .set_item("dict_manager", &py_dict_manager_wrapper)
-                .map_err(|e| DynamicHintError::PyDictSet(e.to_string()))?;
-
-            globals
+            // Add the dict manager wrapper to context
+            bounded_context
                 .set_item("dict_manager", &py_dict_manager_wrapper)
                 .map_err(|e| DynamicHintError::PyDictSet(e.to_string()))?;
 
@@ -221,95 +225,27 @@ impl DynamicPythonHintExecutor {
                     ))))
                 }
             };
-
             // Create VmConstsDict using the new implementation
             let py_ids_dict =
                 create_vm_consts_dict(vm, &program_identifiers, ids_data, ap_tracking, py)
                     .map_err(|e| DynamicHintError::PyObjectCreation(e.to_string()))?;
 
-            // Add the ids dictionary to locals
-            locals
+            // Add the ids dictionary to context
+            bounded_context
                 .set_item("ids", py_ids_dict)
                 .map_err(|e| DynamicHintError::PyDictSet(e.to_string()))?;
 
-            // Get the program JSON if it exists
-            let full_hint_code =
-                if let Ok(program_json) = exec_scopes.get_ref::<Vec<u8>>("__program_json__") {
-                    // Add the program_json to locals as a string
-                    locals
-                        .set_item("__program_json__", program_json)
-                        .map_err(|e| DynamicHintError::PyDictSet(e.to_string()))?;
+            let injected_py_code = r#"
+from functools import partial
 
-                    globals
-                        .set_item("__program_json__", program_json)
-                        .map_err(|e| DynamicHintError::PyDictSet(e.to_string()))?;
-
-                    // Import needed modules for Program deserialization
-                    let injected_py_code = r#"
-import json
-import sys
-import io
-from starkware.cairo.lang.compiler.program import Program
-from pathlib import Path
-
-# Try to import Serde, with fallback to empty class if not available
-try:
-    from cairo_addons.testing.serde import Serde
-except ImportError:
-    class Serde:
-        def __init__(self, *args, **kwargs):
-            raise ImportError("cairo_addons.testing.serde not found")
-
-
-def get_serde():
-    """
-    Create a Serde instance with the program identifiers from the deserialized program.
-
-    Args:
-        segments: A segments manager instance (required)
-        dict_manager: A dict manager instance (required)
-        cairo_file: Optional path to the Cairo file
-
-    Returns:
-        A Serde instance initialized with the program identifiers
-    """
-    if segments is None or dict_manager is None:
-        raise ValueError("Both segments and dict_manager must be available in the execution scope")
-
-    from starkware.cairo.lang.compiler.program import Program
-    from tests.utils.serde import Serde
-    program = Program.Schema().loads(__program_json__)
-
-    return Serde(
-        segments=segments,
-        program_identifiers=program.identifiers,
-        dict_manager=dict_manager,
-    )
-
-def serialize(variable):
-    from starkware.cairo.lang.compiler.program import Program
-    from tests.utils.serde import Serde
-    program = Program.Schema().loads(__program_json__)
-
-    serde = Serde(
-        segments=segments,
-        program_identifiers=program.identifiers,
-        dict_manager=dict_manager,
-    )
-
-    if type
-
+serialize = partial(globals()["serialize"], segments=globals()["segments"], program_identifiers=globals()["py_identifiers"], dict_manager=globals()["dict_manager"])
 "#;
 
-                    format!("{}\n{}", injected_py_code, hint_code)
-                } else {
-                    hint_code.to_string()
-                };
-
+            let full_hint_code = format!("{}\n{}", injected_py_code, hint_code);
             // Execute the Python code
             let hint_code_c_string = CString::new(full_hint_code)
                 .map_err(|e| DynamicHintError::CStringConversion(e.to_string()))?;
-            py.run(&hint_code_c_string, Some(&globals), Some(&locals))
+            py.run(&hint_code_c_string, Some(bounded_context), None)
                 .map_err(|e| DynamicHintError::PythonExecution(e.to_string()))?;
 
             Ok(())

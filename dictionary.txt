@@ -272,3 +272,4 @@ hasattr
 pathlib
 kwargs
 pythonic
+functools

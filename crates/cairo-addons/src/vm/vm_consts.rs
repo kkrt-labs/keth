@@ -420,6 +420,27 @@ impl PyVmConst {
         }
     }
 
+    /// Returns the path to the type of the variable
+    #[getter]
+    pub fn type_path(&self) -> Option<Vec<String>> {
+        match &self.var.var_type {
+            CairoVarType::Struct { name, .. } => {
+                Some(name.clone().split(".").map(|s| s.to_string()).collect())
+            }
+            CairoVarType::Pointer { pointee, .. } => match &**pointee {
+                CairoVarType::Struct { name, .. } => {
+                    Some(name.clone().split(".").map(|s| s.to_string()).collect())
+                }
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+
+    fn is_pointer(&self) -> bool {
+        matches!(self.var.var_type, CairoVarType::Pointer { .. })
+    }
+
     /// Get the type name of the variable
     pub fn type_name(&self) -> String {
         match &self.var.var_type {
@@ -460,10 +481,9 @@ impl PyVmConst {
     /// Repr string
     pub fn __repr__(&self) -> String {
         format!(
-            "VmConst(name='{}', type={}, value={}, address={:?})",
+            "VmConst(name='{}', path={:?}, address={:?})",
             self.var.name,
-            self.type_name(),
-            self.__str__(),
+            self.type_path(),
             self.var.address
         )
     }

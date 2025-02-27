@@ -1,6 +1,10 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-use crate::vm::program::PyProgram;
+use crate::vm::{
+    layout::PyLayout, maybe_relocatable::PyMaybeRelocatable, program::PyProgram,
+    relocatable::PyRelocatable, relocated_trace::PyRelocatedTraceEntry,
+    run_resources::PyRunResources,
+};
 use cairo_vm::{
     hint_processor::builtin_hint_processor::dict_manager::DictManager,
     serde::deserialize_program::Identifier,
@@ -14,15 +18,14 @@ use cairo_vm::{
         security::verify_secure_runner,
     },
 };
-use polars::prelude::*;
-use pyo3::prelude::*;
-use pyo3_polars::PyDataFrame;
-
-use crate::vm::{
-    layout::PyLayout, maybe_relocatable::PyMaybeRelocatable, relocatable::PyRelocatable,
-    relocated_trace::PyRelocatedTraceEntry, run_resources::PyRunResources,
-};
 use num_traits::Zero;
+use polars::prelude::*;
+use pyo3::{
+    prelude::*,
+    types::{IntoPyDict, PyDict},
+};
+use pyo3_polars::PyDataFrame;
+use std::ffi::CString;
 
 use super::{
     dict_manager::PyDictManager, hints::HintProcessor, memory_segments::PyMemorySegmentManager,
@@ -70,10 +73,42 @@ impl PyCairoRunner {
         // data when executing hints
         inner.exec_scopes.insert_value("__program_identifiers__", identifiers);
 
-        // Store the program JSON in the exec_scopes, so that we're able to pull pythonic identifier
-        // data when executing hints to instantiate Serde
-        let json_program_bytes: Vec<u8> = json_program.to_vec();
-        inner.exec_scopes.insert_value("__program_json__", json_program_bytes);
+        // Initialize a python context object that will be accessible throughout the execution of
+        // all hints.
+        // This enables us to only serialize the pythonic identifiers once, and then reuse them
+        // throughout the execution of hints.
+        Python::with_gil(|py| {
+            let context = PyDict::new(py);
+            let json_program_bytes: Vec<u8> = json_program.to_vec();
+            //todo: handle unwrap
+            context
+                .set_item("__program_json__", json_program_bytes)
+                .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))
+                .unwrap();
+
+            // Import and run the initialization code from the injected module
+            let setup_code = r#"
+try:
+    from cairo_addons.hints.injected import initialize_hint_environment
+    initialize_hint_environment(lambda: globals())
+except Exception as e:
+    print(f"Warning: Error during initialization: {e}")
+"#;
+
+            // Run the initialization code
+            py.run(&CString::new(setup_code).unwrap(), Some(&context), None).map_err(|e| {
+                PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+                    "Failed to initialize Python globals: {}",
+                    e
+                ))
+            })?;
+
+            // Store the context object, modified in the initialization code, in the exec_scopes
+            // to access it throughout the execution of hints
+            let unbounded_context: Py<PyDict> = context.into_py_dict(py).unwrap().into();
+            inner.exec_scopes.insert_value("__context__", unbounded_context);
+            Ok::<(), PyErr>(())
+        })?;
 
         Ok(Self {
             inner,
