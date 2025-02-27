@@ -671,6 +671,7 @@ dependencies = [
  "revm-precompile 17.0.0-alpha.1",
  "starknet-crypto",
  "starknet-types-core",
+ "thiserror 2.0.11",
 ]
 
 [[package]]

@@ -3,6 +3,7 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc};
 use crate::vm::program::PyProgram;
 use cairo_vm::{
     hint_processor::builtin_hint_processor::dict_manager::DictManager,
+    serde::deserialize_program::Identifier,
     types::{
         builtin_name::BuiltinName,
         relocatable::{MaybeRelocatable, Relocatable},
@@ -58,6 +59,15 @@ impl PyCairoRunner {
 
         let dict_manager = DictManager::new();
         inner.exec_scopes.insert_value("dict_manager", Rc::new(RefCell::new(dict_manager)));
+        let identifiers = program
+            .inner
+            .iter_identifiers()
+            .map(|(name, identifier)| (name.to_string(), identifier.clone()))
+            .collect::<HashMap<String, Identifier>>();
+
+        // Insert the program identifiers in the exec_scopes, so that we're able to pull identifier
+        // data when executing hints
+        inner.exec_scopes.insert_value("__program_identifiers__", identifiers);
 
         Ok(Self {
             inner,
@@ -136,7 +146,7 @@ impl PyCairoRunner {
 
     #[getter]
     fn segments(&mut self) -> PyMemorySegmentManager {
-        PyMemorySegmentManager { runner: &mut self.inner }
+        PyMemorySegmentManager { vm: &mut self.inner.vm }
     }
 
     #[getter]

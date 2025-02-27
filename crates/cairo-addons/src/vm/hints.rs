@@ -5,12 +5,13 @@ use cairo_vm::{
             memcpy_hint_utils::add_segment,
             sha256_utils::sha256_finalize,
         },
-        hint_processor_definition::HintReference,
+        hint_processor_definition::{HintProcessorLogic, HintReference},
     },
     serde::deserialize_program::ApTracking,
     types::exec_scope::ExecutionScopes,
     vm::{
-        errors::hint_errors::HintError, runners::cairo_runner::RunResources,
+        errors::hint_errors::HintError,
+        runners::cairo_runner::{ResourceTracker, RunResources},
         vm_core::VirtualMachine,
     },
     Felt252,
@@ -25,12 +26,17 @@ use super::{
     hint_loader::load_python_hints,
 };
 
+#[cfg(feature = "dynamic-hints")]
+use super::dynamic_hint::generic_python_hint;
+#[cfg(feature = "dynamic-hints")]
+use cairo_vm::hint_processor::builtin_hint_processor::builtin_hint_processor_definition::HintProcessorData;
+
 /// A struct representing a hint.
 pub struct Hint {
     /// The hint id, ie the raw string written in the Cairo code in between `%{` and `%}`.
     id: String,
     /// The hint function.
-    func: Rc<HintFunc>,
+    pub func: Rc<HintFunc>,
 }
 
 impl Hint {
@@ -53,13 +59,27 @@ impl Hint {
 /// A wrapper around [`BuiltinHintProcessor`] to manage hint registration.
 pub struct HintProcessor {
     inner: BuiltinHintProcessor,
+    /// A map of hint IDs to their corresponding hint code.
     python_hints: HashMap<String, String>,
+    /// A fallback function that will be used if the hint is not found
+    /// and will interpret the hint code as Python code.
+    #[cfg(feature = "dynamic-hints")]
+    dynamic_hint_executor: Option<Rc<HintFunc>>,
+    #[cfg(not(feature = "dynamic-hints"))]
+    dynamic_hint_executor: Option<()>,
 }
 
 impl HintProcessor {
     pub fn new(run_resources: RunResources) -> Self {
-        let python_hints = load_python_hints().unwrap();
-        Self { inner: BuiltinHintProcessor::new(HashMap::new(), run_resources), python_hints }
+        let python_hints = load_python_hints().unwrap_or_else(|_| {
+            eprintln!("Warning: Failed to load Python hints, falling back to empty map");
+            HashMap::new()
+        });
+        Self {
+            inner: BuiltinHintProcessor::new(HashMap::new(), run_resources),
+            python_hints,
+            dynamic_hint_executor: None,
+        }
     }
 
     #[must_use]
@@ -79,11 +99,110 @@ impl HintProcessor {
         Self {
             inner: BuiltinHintProcessor::new(self.inner.extra_hints, run_resources),
             python_hints: self.python_hints,
+            dynamic_hint_executor: self.dynamic_hint_executor,
         }
     }
 
-    pub fn build(self) -> BuiltinHintProcessor {
-        self.inner
+    /// Add support for dynamic Python hints
+    #[cfg(feature = "dynamic-hints")]
+    #[must_use]
+    pub fn with_dynamic_python_hints(mut self) -> Self {
+        // Store the generic Python hint executor for fallback
+        self.dynamic_hint_executor = Some(generic_python_hint().func.clone());
+        self
+    }
+
+    /// No-op version for when dynamic hints are disabled
+    #[cfg(not(feature = "dynamic-hints"))]
+    #[must_use]
+    pub fn with_dynamic_python_hints(self) -> Self {
+        self
+    }
+
+    /// Build the hint processor
+    pub fn build(self) -> HintProcessor {
+        HintProcessor {
+            inner: self.inner,
+            python_hints: self.python_hints,
+            dynamic_hint_executor: self.dynamic_hint_executor,
+        }
+    }
+}
+
+impl HintProcessorLogic for HintProcessor {
+    /// Executes a hint. If the hint is not found, it will try to execute the hint as Python code
+    /// using the dynamic hint executor.
+    fn execute_hint(
+        &mut self,
+        vm: &mut VirtualMachine,
+        exec_scopes: &mut ExecutionScopes,
+        hint_data: &Box<dyn std::any::Any>,
+        constants: &HashMap<String, Felt252>,
+    ) -> Result<(), HintError> {
+        // Try to execute the hint with the inner processor
+        let result = self.inner.execute_hint(vm, exec_scopes, hint_data, constants);
+
+        match result {
+            Ok(_) => Ok(()),
+            #[cfg(feature = "dynamic-hints")]
+            Err(HintError::UnknownHint(_hint_str)) => {
+                // If the hint is unknown, try the dynamic hint executor
+                if let Some(dynamic_hint_func) = &self.dynamic_hint_executor {
+                    // Extract the hint code from the hint_data
+                    let hint_data = match hint_data.downcast_ref::<HintProcessorData>() {
+                        Some(data) => data,
+                        None => {
+                            return Err(HintError::CustomHint(Box::from(
+                                "Failed to downcast hint_data to HintProcessorData".to_string(),
+                            )))
+                        }
+                    };
+                    let hint_code = hint_data.code.clone();
+                    exec_scopes.assign_or_update_variable("__hint_code__", Box::new(hint_code));
+
+                    // Execute the dynamic hint
+                    let dynamic_hint_func = dynamic_hint_func.0.as_ref();
+                    let dynamic_result = dynamic_hint_func(
+                        vm,
+                        exec_scopes,
+                        &hint_data.ids_data,
+                        &hint_data.ap_tracking,
+                        constants,
+                    );
+
+                    dynamic_result.map_err(|e| {
+                        // Wrap the error with context about which hint failed
+                        HintError::CustomHint(Box::from(format!(
+                            "Dynamic hint execution failed for hint: '{}'. Error: {}",
+                            hint_data.code, e
+                        )))
+                    })
+                } else {
+                    // If no dynamic hint executor is available, return the original error
+                    let hint_data = match hint_data.downcast_ref::<HintProcessorData>() {
+                        Some(data) => data,
+                        None => {
+                            return Err(HintError::CustomHint(Box::from(
+                                "Failed to downcast hint_data to HintProcessorData".to_string(),
+                            )))
+                        }
+                    };
+                    Err(HintError::UnknownHint(hint_data.code.clone().into_boxed_str()))
+                }
+            }
+            #[cfg(not(feature = "dynamic-hints"))]
+            Err(HintError::UnknownHint(hint_str)) => {
+                // When dynamic hints are disabled, just return the original error
+                Err(HintError::UnknownHint(hint_str))
+            }
+            Err(err) => Err(err),
+        }
+    }
+}
+
+impl ResourceTracker for HintProcessor {
+    fn consumed(&self) -> bool {
+        self.inner.consumed()
     }
 }
 
@@ -99,7 +218,7 @@ impl Default for HintProcessor {
         hints.extend_from_slice(CURVE_HINTS);
         hints.extend_from_slice(CIRCUITS_HINTS);
         hints.extend_from_slice(PRECOMPILES_HINTS);
-        Self::new(RunResources::default()).with_hints(hints)
+        Self::new(RunResources::default()).with_hints(hints).with_dynamic_python_hints()
     }
 }
 
