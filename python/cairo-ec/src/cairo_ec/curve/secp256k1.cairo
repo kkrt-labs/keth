@@ -259,8 +259,8 @@ func try_recover_public_key{
 
     // q_low, q_high, q_high_shifted (46 - 51)
 
-    assert ecip_input[52] = random_point.x;
-    assert ecip_input[53] = random_point.y;
+    tempvar random_point_x = new random_point.x;
+    tempvar random_point_y = new random_point.y;
 
     ecip_2p(
         &ecip_input[0],
@@ -315,8 +315,8 @@ func try_recover_public_key{
         &ecip_input[49],
         &ecip_input[50],
         &ecip_input[51],
-        &ecip_input[52],
-        &ecip_input[53],
+        random_point_x,
+        random_point_y,
         &a,
         &b,
         &rlc_coeff_u384,
