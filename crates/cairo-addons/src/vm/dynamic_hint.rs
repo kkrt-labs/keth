@@ -10,7 +10,7 @@
 //! - Access to the `memory` object
 //! - Access to the `ids` object
 //! - Access to Cairo variables with full type information (e.g. struct members, pointer
-//! dereferencing) through the `ids` object
+//!   dereferencing) through the `ids` object
 //!
 //! ## Usage in Hint Processor
 //!
