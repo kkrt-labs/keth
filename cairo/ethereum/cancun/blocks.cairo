@@ -1,4 +1,4 @@
-from ethereum_types.numeric import U64, U256, Uint, bool
+from ethereum_types.numeric import U64, U256, Uint
 from ethereum_types.bytes import Bytes, Bytes8, Bytes32, TupleBytes, TupleBytes32
 from ethereum.cancun.fork_types import Address, Bloom, Root
 from ethereum.crypto.hash import Hash32
