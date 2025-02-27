@@ -20,7 +20,6 @@ from cairo_core.comparison import is_zero
 from legacy.utils.utils import Helpers
 from legacy.utils.dict import dict_read, dict_write
 
-
 // @notice Pushes a value to the stack
 func push_n{range_check_ptr, evm: Evm}(num_bytes: Uint) -> EthereumException* {
     alloc_locals;

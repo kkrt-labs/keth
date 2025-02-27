@@ -82,6 +82,7 @@ from legacy.utils.dict import (
     default_dict_finalize,
 )
 from ethereum.utils.dicts import mapping_address_bytes32_write
+from ethereum.utils.hash_dicts import set_address_read
 
 EMPTY_ROOT:
 dw 0x6ef8c092e64583ffa655cc1b171fe856;  // low
@@ -405,16 +406,9 @@ func get_storage_original{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, state
     let fp_and_pc = get_fp_and_pc();
     local __fp__: felt* = fp_and_pc.fp_val;
 
-    let created_accounts_ptr = cast(state.value.created_accounts.value.dict_ptr, DictAccess*);
-    let (is_created) = hashdict_read{dict_ptr=created_accounts_ptr}(1, &address.value);
-    let new_created_accounts_ptr = cast(created_accounts_ptr, SetAddressDictAccess*);
-    tempvar new_created_accounts = SetAddress(
-        new SetAddressStruct(
-            dict_ptr_start=state.value.created_accounts.value.dict_ptr_start,
-            dict_ptr=new_created_accounts_ptr,
-        ),
-    );
-    StateImpl.set_created_accounts(new_created_accounts);
+    let created_accounts = state.value.created_accounts;
+    let is_created = set_address_read{set=created_accounts}(address);
+    StateImpl.set_created_accounts(created_accounts);
 
     // In the transaction where an account is created, its preexisting storage
     // is ignored.
