@@ -10,6 +10,7 @@ from ethereum_types.numeric import SetUint, SetUintStruct, SetUintDictAccess
 
 from legacy.utils.dict import dict_read, dict_write
 from ethereum.utils.bytes import Bytes32_to_Bytes
+from ethereum.cancun.vm.stack import Stack, StackStruct, StackDictAccess
 
 func mapping_address_bytes32_read{range_check_ptr, mapping: MappingAddressBytes32}(
     key: Address
@@ -52,6 +53,20 @@ func set_uint_read{range_check_ptr, set: SetUint}(key: felt) -> felt {
     tempvar set = SetUint(
         new SetUintStruct(
             dict_ptr_start=set.value.dict_ptr_start, dict_ptr=cast(dict_ptr, SetUintDictAccess*)
+        ),
+    );
+    return value;
+}
+
+func stack_read{range_check_ptr, stack: Stack}(index: felt) -> felt {
+    alloc_locals;
+    let dict_ptr = cast(stack.value.dict_ptr, DictAccess*);
+    let (value) = dict_read{dict_ptr=dict_ptr}(index);
+    tempvar stack = Stack(
+        new StackStruct(
+            dict_ptr_start=stack.value.dict_ptr_start,
+            dict_ptr=cast(dict_ptr, StackDictAccess*),
+            len=stack.value.len,
         ),
     );
     return value;

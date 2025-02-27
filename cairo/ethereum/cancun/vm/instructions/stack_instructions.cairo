@@ -6,7 +6,6 @@ from starkware.cairo.common.cairo_builtins import (
 )
 from starkware.cairo.common.math_cmp import is_le
 from starkware.cairo.common.dict import DictAccess
-from legacy.utils.dict import dict_read, dict_write
 
 from ethereum.cancun.vm.stack import push, StackDictAccess, Stack, StackStruct, pop as stack_pop
 from ethereum.cancun.vm.evm_impl import Evm, EvmImpl
@@ -15,9 +14,12 @@ from ethereum.cancun.vm.exceptions import StackUnderflowError
 from ethereum.cancun.vm.gas import charge_gas, GasConstants
 from ethereum_types.numeric import Uint, U256, U256Struct
 from ethereum.cancun.vm.memory import buffer_read
-from legacy.utils.utils import Helpers
+from ethereum.utils.dicts import stack_read
 
 from cairo_core.comparison import is_zero
+from legacy.utils.utils import Helpers
+from legacy.utils.dict import dict_read, dict_write
+
 
 // @notice Pushes a value to the stack
 func push_n{range_check_ptr, evm: Evm}(num_bytes: Uint) -> EthereumException* {
@@ -99,12 +101,7 @@ func dup_n{range_check_ptr, evm: Evm}(item_number: Uint) -> EthereumException* {
         return err;
     }
 
-    let dict_ptr = cast(stack.value.dict_ptr, DictAccess*);
-    with dict_ptr {
-        let (value_to_dup) = dict_read(len - 1 - item_number.value);
-    }
-    let new_dict_ptr = cast(dict_ptr, StackDictAccess*);
-    tempvar stack = Stack(new StackStruct(stack.value.dict_ptr_start, new_dict_ptr, len));
+    let value_to_dup = stack_read{stack=stack}(len - 1 - item_number.value);
 
     tempvar value_to_push = U256(cast(value_to_dup, U256Struct*));
     with stack {
