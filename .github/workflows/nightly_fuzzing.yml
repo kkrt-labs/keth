@@ -16,6 +16,10 @@ jobs:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set up Rust toolchain
+        run: rustup show
+
       - uses: astral-sh/setup-uv@v2
         with:
           enable-cache: true

@@ -16,6 +16,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set up Rust toolchain
+        run: rustup show
+
       - uses: astral-sh/setup-uv@v3
         with:
           enable-cache: true
