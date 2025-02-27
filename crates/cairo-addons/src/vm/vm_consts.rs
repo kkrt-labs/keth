@@ -2,24 +2,22 @@
 //!
 //! This module provides a bridge between Cairo variables in the Rust VM and Python code.
 //! It implements a type-aware variable access system that mimics the behavior of the original
-//! Python implementation of Cairo VM, allowing Python hints to access Cairo variables with
-//! their full type information.
+//! Python implementation of Cairo VM (VmConsts), allowing Python hints to access Cairo variables
+//! with their full type information.
 //!
-//! ## Design Philosophy
+//! Upon execution of a hint, the `ids` object is created and populated with the variables defined
+//! in the hint using `create_vm_consts_dict`. The `ids` object is then used to access the variables
+//! in the hint.
 //!
-//! The design of this module is guided by several principles:
+//! There are four different types of variables:
 //!
-//! 1. **Type Awareness**: Variables should carry their type information to enable proper access to
-//!    struct members, pointer dereferencing, and array indexing.
+//! - Felt: Basic numeric values
+//! - Relocatable: Memory addresses
+//! - Struct: Composite types with named members
+//! - Pointer: References to other types
 //!
-//! 2. **Lazy Loading**: Struct member information is loaded lazily from program identifiers to
-//!    avoid unnecessary overhead when accessing simple variables.
-//!
-//! 3. **Python Compatibility**: The interface should match the original Python implementation as
-//!    closely as possible to ensure compatibility with existing hint code.
-//!
-//! 4. **Memory Safety**: All operations on VM memory are performed safely, with proper error
-//!    handling and bounds checking.
+//! Struct and Pointer types can be dereferenced to access their members. The members are lazily
+//! loaded from the program identifiers when the variable is accessed for efficiency.
 //!
 //! ## Key Components
 //!
@@ -46,18 +44,14 @@
 //! # Dereference a pointer and access the value it points to
 //! deref_value = ids.my_pointer.value
 //!
-//! # Access an array element
-//! array_element = memory[ids.my_array + 3]
-//!
 //! # Get the address of a variable
 //! address = ids.my_var.address_
 //! ```
 //!
 //! ## Limitations
 //!
-//! - Direct mutation of `ids` variables is not supported, though memory can be modified through
-//!   struct member assignment.
-//! - Relocatable values require using the `.address_` attribute to access them properly.
+//! - Mutation of `ids` variables is not supported
+
 use std::collections::HashMap;
 
 use cairo_vm::{
@@ -79,8 +73,8 @@ use super::{dynamic_hint::DynamicHintError, relocatable::PyRelocatable};
 /// Represents the different types of Cairo variables that can be accessed
 #[derive(Debug, Clone)]
 pub enum CairoVarType {
-    Felt(Felt252),
-    Relocatable(Relocatable),
+    Felt,
+    Relocatable,
     Struct {
         name: String,
         members: HashMap<String, Member>,
@@ -105,6 +99,10 @@ pub struct CairoVar {
 }
 
 /// Extracts struct information from identifiers and returns member details
+/// # Returns
+/// A tuple containing:
+/// - A HashMap of member names to their definitions
+/// - The size of the struct
 fn get_struct_info_from_identifiers(
     identifiers: &HashMap<String, Identifier>,
     type_name: &str,
@@ -130,7 +128,7 @@ fn get_struct_info_from_identifiers(
 /// Create a CairoVarType instance based on the type name and identifiers
 fn create_var_type(type_name: &str) -> CairoVarType {
     if type_name == "felt" {
-        return CairoVarType::Felt(Felt252::from(0));
+        return CairoVarType::Felt;
     }
 
     // Handle pointer types
@@ -140,7 +138,7 @@ fn create_var_type(type_name: &str) -> CairoVarType {
 
         // Create the innermost type
         let mut inner_type = if base_type == "felt" {
-            CairoVarType::Felt(Felt252::from(0))
+            return CairoVarType::Relocatable;
         } else {
             // For struct pointers, create a struct type
             CairoVarType::Struct {
@@ -170,53 +168,11 @@ fn create_var_type(type_name: &str) -> CairoVarType {
 /// Python-accessible wrapper for Cairo variables that provides a behavior similar to
 /// the original Python VmConsts implementation
 ///
-/// This class is the core of the type-aware variable access system. It wraps a Cairo
-/// variable and provides Python-accessible methods for:
-///
-/// - Accessing the variable's value
-/// - Accessing the variable's memory address
-/// - Accessing struct members with dot notation
-/// - Dereferencing pointers
-/// - Indexing arrays
-/// - Modifying memory through struct member assignment
-///
-/// # Type System
-///
-/// The type system is based on the Cairo variable types and supports:
-///
-/// - **Felt**: Basic numeric values
-/// - **Relocatable**: Memory addresses
-/// - **Struct**: Composite types with named members
-/// - **Pointer**: References to other types
-///
-/// # Lazy Loading
-///
-/// Struct member information is loaded lazily from program identifiers when needed.
-/// This avoids the overhead of loading all struct definitions upfront and allows
-/// for more efficient memory usage.
-///
-/// # Usage in Python
-///
-/// In Python hints, this class is used through the `ids` dictionary:
-///
-/// ```python
-/// # Access a struct member
-/// value = ids.my_struct.member_name
-///
-/// # Get the address of a variable
-/// address = ids.my_var.address_
-///
-/// # Dereference a pointer
-/// deref_value = ids.my_pointer.deref()
-///
-/// # Access an array element
-/// array_element = ids.my_array[3]
-/// ```
+/// See module-level documentation for usage examples.
 #[pyclass(name = "VmConst", unsendable)]
 pub struct PyVmConst {
     /// The variable information
     pub(crate) var: CairoVar,
-    /// Reference to the VM
     pub(crate) vm: *mut VirtualMachine,
     /// Reference to program identifiers for struct member resolution
     pub(crate) identifiers: Option<*const HashMap<String, Identifier>>,
@@ -279,7 +235,7 @@ impl PyVmConst {
 
                 // Based on the type, return different Python objects
                 match &member_type {
-                    CairoVarType::Felt(_) => {
+                    CairoVarType::Felt => {
                         // For felt types, return a Python int directly
                         match &value {
                             MaybeRelocatable::Int(felt) => {
@@ -294,7 +250,7 @@ impl PyVmConst {
                             }
                         }
                     }
-                    CairoVarType::Relocatable(_) => {
+                    CairoVarType::Relocatable => {
                         // For relocatable types, return a PyRelocatable directly
                         match &value {
                             MaybeRelocatable::RelocatableValue(rel) => {
@@ -587,12 +543,12 @@ impl PyVmConst {
     #[getter]
     pub fn type_name(&self) -> String {
         match &self.var.var_type {
-            CairoVarType::Felt(_) => "felt".to_string(),
-            CairoVarType::Relocatable(_) => "relocatable".to_string(),
+            CairoVarType::Felt => "felt".to_string(),
+            CairoVarType::Relocatable => "relocatable".to_string(),
             CairoVarType::Struct { name, .. } => name.clone(),
             CairoVarType::Pointer { pointee, .. } => match &**pointee {
-                CairoVarType::Felt(_) => "felt*".to_string(),
-                CairoVarType::Relocatable(_) => "relocatable*".to_string(),
+                CairoVarType::Felt => "felt*".to_string(),
+                CairoVarType::Relocatable => "relocatable*".to_string(),
                 CairoVarType::Struct { name, .. } => format!("{}*", name),
                 CairoVarType::Pointer { .. } => "pointer*".to_string(),
             },
@@ -675,14 +631,6 @@ impl PyVmConst {
 /// Cairo variables. It is the main entry point for Python hints to access Cairo
 /// variables through the `ids` object.
 ///
-/// # Features
-///
-/// - **Attribute Access**: Variables can be accessed using dot notation (`ids.variable_name`)
-/// - **Type-Aware Access**: Variables are wrapped in `PyVmConst` objects that provide type-aware
-///   access to struct members, pointers, and arrays
-/// - **Introspection**: The dictionary supports Python's `dir()` function to list available
-///   variables
-///
 /// # Implementation Details
 ///
 /// The dictionary stores Python objects rather than raw Cairo variables to support
@@ -711,6 +659,7 @@ impl PyVmConst {
 /// if hasattr(ids, 'my_var'):
 ///     print(f"my_var exists: {ids.my_var}")
 /// ```
+/// See module-level documentation for more usage examples.
 #[pyclass(name = "VmConstsDict", unsendable)]
 pub struct PyVmConstsDict {
     /// Map of variable names to Python objects
@@ -778,17 +727,20 @@ pub fn create_vm_consts_dict(
 
     let py_ids_dict = Py::new(py, ids_dict)?;
 
-    // Extract variables from ids_data
+    // Extract variables from ids_data. We basically just iterate over the ids_data and add the
+    // variables to the dictionary - after properly handling the different types.
+    // This function is not recursive, so it does not handle the inner members of structs. Instead,
+    // these will be loaded lazily when the variable is accessed.
     for (name, reference) in ids_data {
         let cairo_type = reference.cairo_type.clone();
 
-        // Get the address and value using the existing hint_utils functions
+        // Get the address for the variable - we don't know its type yet.
         if let Ok(var_addr) = get_relocatable_from_var_name(name, vm, ids_data, ap_tracking) {
             if let Some(value) = vm.get_maybe(&var_addr) {
                 // Based on the cairo_type and value, return different Python objects
-                // to match the original Python VmConsts behavior
+                // to match the original Python VmConsts behavior.
 
-                // Add to dictionary based on type
+                // Case 1: The variable is a felt
                 if let Some(ref type_str) = cairo_type {
                     if type_str == "felt" {
                         // It's a felt - return Python int directly
@@ -807,13 +759,14 @@ pub fn create_vm_consts_dict(
                             }
                         }
                     } else if type_str.ends_with('*') {
-                        // It's a pointer
+                        // Case 2: The variable is a pointer
                         let address = get_ptr_from_var_name(name, vm, ids_data, ap_tracking)
                             .unwrap_or(var_addr);
 
                         // Create a CairoVarType based on the type_str
                         let var_type = create_var_type(type_str);
 
+                        // Case 2.1: The pointer is to a felt
                         if type_str == "felt*" {
                             // Pointer to a felt - return PyRelocatable directly
                             match &value {
@@ -847,7 +800,7 @@ pub fn create_vm_consts_dict(
                                 }
                             }
                         } else {
-                            // Pointer to a non-felt type - use PyVmConst
+                            // Case 2.2: The pointer is to a non-felt type
                             let var = CairoVar {
                                 name: name.clone(),
                                 value: value.clone(),
@@ -865,7 +818,8 @@ pub fn create_vm_consts_dict(
                             py_ids_dict.borrow_mut(py).set_item(name, py_var_obj);
                         }
                     } else {
-                        // It's a struct - use PyVmConst
+                        // Case 3: The variable is a struct. In that case we return a PyVmConst
+                        // that will load the struct members lazily when the variable is accessed.
                         let address = get_ptr_from_var_name(name, vm, ids_data, ap_tracking)
                             .unwrap_or(var_addr);
 
@@ -887,20 +841,22 @@ pub fn create_vm_consts_dict(
                         py_ids_dict.borrow_mut(py).set_item(name, py_var_obj);
                     }
                 } else {
-                    // No type information, infer from value
-                    match &value {
-                        MaybeRelocatable::Int(felt) => {
-                            // Convert to Python int
-                            let py_int = felt.to_biguint().into_bound_py_any(py)?.into();
-                            py_ids_dict.borrow_mut(py).items.insert(name.clone(), py_int);
-                        }
-                        MaybeRelocatable::RelocatableValue(rel) => {
-                            // Return PyRelocatable directly
-                            let py_rel = PyRelocatable { inner: *rel };
-                            let py_rel_obj = Py::new(py, py_rel)?.into_bound_py_any(py)?.into();
-                            py_ids_dict.borrow_mut(py).items.insert(name.clone(), py_rel_obj);
-                        }
-                    }
+                    // // Case 4: No type information, infer from value
+                    // This can happen for __temp variables, which don't have a type.
+                    // match &value {
+                    //     MaybeRelocatable::Int(felt) => {
+                    //         // Convert to Python int
+                    //         let py_int = felt.to_biguint().into_bound_py_any(py)?.into();
+                    //         py_ids_dict.borrow_mut(py).items.insert(name.clone(), py_int);
+                    //     }
+                    //     MaybeRelocatable::RelocatableValue(rel) => {
+                    //         // Return PyRelocatable directly
+                    //         let py_rel = PyRelocatable { inner: *rel };
+                    //         let py_rel_obj = Py::new(py, py_rel)?.into_bound_py_any(py)?.into();
+                    //         py_ids_dict.borrow_mut(py).items.insert(name.clone(), py_rel_obj);
+                    //     }
+                    // }
+                    return Err(DynamicHintError::UnknownVariableType(name.clone()));
                 }
             }
         }

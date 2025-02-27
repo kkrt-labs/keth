@@ -2,8 +2,15 @@
 //!
 //! This module provides a dynamic Python hint execution system for Cairo VM that allows
 //! arbitrary Python code to be executed within Cairo hints. It bridges Rust memory and
-//! Cairo variables to Python, enabling a more flexible and powerful hint system without
+//! Cairo variables to Python, enabling a more flexible hint system without
 //! requiring pre-registration of all possible hints.
+//!
+//! ## Implemented Features
+//!
+//! - Access to the `memory` object
+//! - Access to the `ids` object
+//! - Access to Cairo variables with full type information (e.g. struct members, pointer
+//! dereferencing) through the `ids` object
 //!
 //! ## Usage in Hint Processor
 //!
@@ -32,22 +39,11 @@
 //!
 //! ## Limitations
 //!
-//! - Direct mutation of `ids` variables is not supported, though memory can be modified
-//! - Direct mutation of `memory` is not supported, though memory can be modified
+//! - Direct mutation of `ids` variables is not supported.
+//! - Direct mutation of `memory` is not supported.
+//! - Access to `segments` is not implemented.
 //! - Performance is slower than native Rust hints, but suitable for debugging
-//! - Requires program identifiers to be available in the execution scope for full type support
 
-/// This module provides a dynamic Python hint execution system for Cairo VM.
-/// It allows Python hints to access Rust memory and variables.
-///
-/// One limitation is that it does not allow mutation of `ids` variables - but allows mutation
-/// of `memory`.
-///
-/// # Main components:
-///
-/// - `DynamicPythonHintExecutor`: Executes Python hints with access to VM memory
-/// - `vm_consts`: Module for accessing Cairo variables from Python in a way that mimics the
-///   original Cairo VmConsts implementation
 use cairo_vm::{
     hint_processor::hint_processor_definition::HintReference,
     serde::deserialize_program::{ApTracking, Identifier},
@@ -56,11 +52,7 @@ use cairo_vm::{
     Felt252,
 };
 use pyo3::{prelude::*, types::PyDict};
-use std::{
-    collections::HashMap,
-    ffi::{CStr, CString},
-    path::PathBuf,
-};
+use std::{collections::HashMap, ffi::CString, path::PathBuf};
 use thiserror::Error;
 
 use super::{hints::Hint, memory_segments::PyMemoryWrapper, vm_consts::create_vm_consts_dict};
@@ -87,6 +79,12 @@ pub enum DynamicHintError {
 
     #[error("Python execution error: {0}")]
     PythonExecution(String),
+
+    #[error("Failed to convert hint code to CString: {0}")]
+    CStringConversion(String),
+
+    #[error("Unknown variable type: {0}")]
+    UnknownVariableType(String),
 }
 
 impl From<DynamicHintError> for HintError {
@@ -177,7 +175,8 @@ impl DynamicPythonHintExecutor {
                 .set_item("memory", &memory)
                 .map_err(|e| DynamicHintError::PyDictSet(e.to_string()))?;
 
-            // Get the program identifiers that we inserted into the execution scope upon runner initialization
+            // Get the program identifiers that we inserted into the execution scope upon runner
+            // initialization
             let program_identifiers = match exec_scopes
                 .get_ref::<HashMap<String, Identifier>>("__program_identifiers__")
             {
@@ -195,7 +194,6 @@ impl DynamicPythonHintExecutor {
                 create_vm_consts_dict(vm, &program_identifiers, ids_data, ap_tracking, py)
                     .map_err(|e| DynamicHintError::PyObjectCreation(e.to_string()))?;
 
-
             // Add the ids dictionary to locals
             locals
                 .set_item("ids", py_ids_dict)
@@ -203,9 +201,7 @@ impl DynamicPythonHintExecutor {
 
             // Execute the Python code
             let hint_code_c_string = CString::new(hint_code).unwrap();
-            let hint_code_c_str =
-                unsafe { CStr::from_bytes_with_nul_unchecked(hint_code_c_string.as_bytes()) };
-            py.run(hint_code_c_str, None, Some(&locals))
+            py.run(&hint_code_c_string, None, Some(&locals))
                 .map_err(|e| DynamicHintError::PythonExecution(e.to_string()))?;
 
             Ok(())
