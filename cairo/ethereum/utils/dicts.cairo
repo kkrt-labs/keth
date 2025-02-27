@@ -71,3 +71,17 @@ func stack_read{range_check_ptr, stack: Stack}(index: felt) -> felt {
     );
     return value;
 }
+
+func stack_write{range_check_ptr, stack: Stack}(index: felt, value: felt) {
+    alloc_locals;
+    let dict_ptr = cast(stack.value.dict_ptr, DictAccess*);
+    dict_write{dict_ptr=dict_ptr}(index, value);
+    tempvar stack = Stack(
+        new StackStruct(
+            dict_ptr_start=stack.value.dict_ptr_start,
+            dict_ptr=cast(dict_ptr, StackDictAccess*),
+            len=stack.value.len,
+        ),
+    );
+    return ();
+}

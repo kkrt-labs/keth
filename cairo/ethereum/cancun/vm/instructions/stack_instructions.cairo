@@ -14,7 +14,7 @@ from ethereum.cancun.vm.exceptions import StackUnderflowError
 from ethereum.cancun.vm.gas import charge_gas, GasConstants
 from ethereum_types.numeric import Uint, U256, U256Struct
 from ethereum.cancun.vm.memory import buffer_read
-from ethereum.utils.dicts import stack_read
+from ethereum.utils.dicts import stack_read, stack_write
 
 from cairo_core.comparison import is_zero
 from legacy.utils.utils import Helpers
@@ -71,15 +71,12 @@ func swap_n{range_check_ptr, evm: Evm}(n: Uint) -> EthereumException* {
         return err;
     }
 
-    let dict_ptr = cast(stack.value.dict_ptr, DictAccess*);
-    with dict_ptr {
-        let (stack_top) = dict_read(len - 1);
-        let (swap_with) = dict_read(len - n.value - 1);
-        dict_write(len - n.value - 1, stack_top);
-        dict_write(len - 1, swap_with);
+    with stack {
+        let stack_top = stack_read(len - 1);
+        let swap_with = stack_read(len - n.value - 1);
+        stack_write(len - n.value - 1, stack_top);
+        stack_write(len - 1, swap_with);
     }
-    let new_dict_ptr = cast(dict_ptr, StackDictAccess*);
-    tempvar stack = Stack(new StackStruct(stack.value.dict_ptr_start, new_dict_ptr, len));
 
     EvmImpl.set_pc_stack(Uint(evm.value.pc.value + 1), stack);
     let ok = cast(0, EthereumException*);
