@@ -174,21 +174,33 @@ impl PyCairoRunner {
         Ok(())
     }
 
-    fn verify_and_relocate(&mut self, offset: usize) -> PyResult<()> {
+    fn verify_auto_deductions(&mut self) -> PyResult<()> {
         self.inner
             .vm
             .verify_auto_deductions()
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
 
-        self.read_return_values(offset)?;
+        Ok(())
+    }
 
+    fn read_return_values(&mut self, offset: usize) -> PyResult<()> {
+        self._read_return_values(offset)?;
+
+        Ok(())
+    }
+
+    fn verify_secure_runner(&mut self) -> PyResult<()> {
         verify_secure_runner(&self.inner, true, None)
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
 
-        self.inner
-            .relocate(true)
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+        Ok(())
+    }
 
+    fn verify_and_relocate(&mut self, offset: usize) -> PyResult<()> {
+        self.verify_auto_deductions()?;
+        self.read_return_values(offset)?;
+        self.verify_secure_runner()?;
+        self.relocate()?;
         Ok(())
     }
 
@@ -270,7 +282,7 @@ impl PyCairoRunner {
 
     /// Mainly like `CairoRunner::read_return_values` but with an `offset` parameter and some checks
     /// that I needed to remove.
-    fn read_return_values(&mut self, offset: usize) -> PyResult<()> {
+    fn _read_return_values(&mut self, offset: usize) -> PyResult<()> {
         let mut pointer = (self.inner.vm.get_ap() - offset).unwrap();
         for builtin_name in self.builtins.iter().rev() {
             if let Some(builtin_runner) =

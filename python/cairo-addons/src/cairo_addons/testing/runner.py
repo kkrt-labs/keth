@@ -511,7 +511,12 @@ def run_rust_vm(
         first_return_data_offset = (
             cumulative_retdata_offsets[0] if cumulative_retdata_offsets else 0
         )
-        runner.verify_and_relocate(offset=first_return_data_offset)
+        runner.verify_auto_deductions()
+        runner.read_return_values(first_return_data_offset)
+        runner.verify_secure_runner()
+        runner.relocate()
+        print(len(runner.trace_df))
+
         if coverage is not None:
             coverage(runner.trace_df, PROGRAM_BASE)
 
