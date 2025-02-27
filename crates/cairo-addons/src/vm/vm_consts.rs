@@ -702,8 +702,9 @@ pub fn create_vm_consts_dict(
                     } else {
                         // Case 3: The variable is a struct. In that case we return a PyVmConst
                         // that will load the struct members lazily when the variable is accessed.
-                        let address = get_ptr_from_var_name(name, vm, ids_data, ap_tracking)
-                            .unwrap_or(var_addr);
+                        let address =
+                            get_relocatable_from_var_name(name, vm, ids_data, ap_tracking)
+                                .unwrap_or(var_addr);
 
                         // Create a CairoVarType based on the type_str
                         let var_type = create_var_type(type_str, identifiers).map_err(|e| {

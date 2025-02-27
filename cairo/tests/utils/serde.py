@@ -66,7 +66,10 @@ from starkware.cairo.lang.compiler.identifier_definition import (
     StructDefinition,
     TypeDefinition,
 )
-from starkware.cairo.lang.compiler.identifier_manager import MissingIdentifierError
+from starkware.cairo.lang.compiler.identifier_manager import (
+    IdentifierManager,
+    MissingIdentifierError,
+)
 from starkware.cairo.lang.compiler.scoped_name import ScopedName
 from starkware.cairo.lang.vm.crypto import poseidon_hash_many
 from starkware.cairo.lang.vm.memory_dict import UnknownMemoryError
@@ -93,7 +96,9 @@ class DictConsistencyError(Exception):
     pass
 
 
-def get_struct_definition(program, path: Tuple[str, ...]) -> StructDefinition:
+def get_struct_definition(
+    program_identifiers: IdentifierManager, path: Tuple[str, ...]
+) -> StructDefinition:
     """
     Resolves and returns the struct definition for a given path in the Cairo program.
     If the path is an alias (`import T from ...`), it resolves the alias to the actual struct definition.
@@ -101,16 +106,18 @@ def get_struct_definition(program, path: Tuple[str, ...]) -> StructDefinition:
     Otherwise, it returns the struct definition directly.
     """
     scope = ScopedName(path)
-    identifier = program.identifiers.as_dict()[scope]
+    identifier = program_identifiers.as_dict()[scope]
     if isinstance(identifier, StructDefinition):
         return identifier
     if isinstance(identifier, TypeDefinition) and isinstance(
         identifier.cairo_type, TypeStruct
     ):
-        return get_struct_definition(program, identifier.cairo_type.scope.path)
+        return get_struct_definition(
+            program_identifiers, identifier.cairo_type.scope.path
+        )
     if isinstance(identifier, AliasDefinition):
         destination = identifier.destination.path
-        return get_struct_definition(program, destination)
+        return get_struct_definition(program_identifiers, destination)
     raise ValueError(f"Expected a struct named {path}, found {identifier}")
 
 
@@ -118,13 +125,13 @@ class Serde(SerdeProtocol):
     def __init__(
         self,
         segments: Union[MemorySegmentManager, RustMemorySegmentManager],
-        program,
+        program_identifiers: IdentifierManager,
         dict_manager,
         cairo_file=None,
     ):
         self.segments = segments
         self.memory = segments.memory
-        self.program = program
+        self.program_identifiers = program_identifiers
         self.dict_manager = dict_manager
         self.cairo_file = cairo_file or Path()
 
@@ -142,7 +149,7 @@ class Serde(SerdeProtocol):
 
         Note: 0 value for pointers types are interpreted as None.
         """
-        members = get_struct_definition(self.program, path).members
+        members = get_struct_definition(self.program_identifiers, path).members
         output = {}
         for name, member in members.items():
             member_ptr = self.memory.get(ptr + member.offset)
@@ -153,7 +160,7 @@ class Serde(SerdeProtocol):
 
     def is_pointer_wrapper(self, path: Tuple[str, ...]) -> bool:
         """Returns whether the type is a wrapper to a pointer."""
-        members = get_struct_definition(self.program, path).members
+        members = get_struct_definition(self.program_identifiers, path).members
         if len(members) != 1:
             return False
         return isinstance(list(members.values())[0].cairo_type, TypePointer)
@@ -188,7 +195,7 @@ class Serde(SerdeProtocol):
                 full_path[-1].removeprefix("Optional"),
             )
             inner_type = (
-                get_struct_definition(self.program, path)
+                get_struct_definition(self.program_identifiers, path)
                 .members["value"]
                 .cairo_type.pointee
             )
@@ -205,7 +212,7 @@ class Serde(SerdeProtocol):
             if value_ptr is None:
                 return None
             value_path = (
-                get_struct_definition(self.program, path)
+                get_struct_definition(self.program_identifiers, path)
                 .members["value"]
                 .cairo_type.pointee.scope.path
             )
@@ -220,26 +227,26 @@ class Serde(SerdeProtocol):
                     f"Expected 1 item only to be relocatable in enum, got {len(variant_keys)}"
                 )
             variant_key = list(variant_keys)[0]
-            variant = get_struct_definition(self.program, value_path).members[
-                variant_key
-            ]
+            variant = get_struct_definition(
+                self.program_identifiers, value_path
+            ).members[variant_key]
 
             return self._serialize(variant.cairo_type, value_ptr + variant.offset)
 
         if python_cls in (MutableBloom, Memory) or origin_cls is Stack:
             mapping_struct_ptr = self.serialize_pointers(path, ptr)["value"]
             mapping_struct_path = (
-                get_struct_definition(self.program, path)
+                get_struct_definition(self.program_identifiers, path)
                 .members["value"]
                 .cairo_type.pointee.scope.path
             )
             dict_access_path = (
-                get_struct_definition(self.program, mapping_struct_path)
+                get_struct_definition(self.program_identifiers, mapping_struct_path)
                 .members["dict_ptr"]
                 .cairo_type.pointee.scope.path
             )
             dict_access_types = get_struct_definition(
-                self.program, dict_access_path
+                self.program_identifiers, dict_access_path
             ).members
             key_type = dict_access_types["key"].cairo_type
             value_type = dict_access_types["new_value"].cairo_type
@@ -276,11 +283,13 @@ class Serde(SerdeProtocol):
             # We don't use this property here for simplicity, each item has consequently its own pointer.
             tuple_struct_ptr = self.serialize_pointers(path, ptr)["value"]
             tuple_struct_path = (
-                get_struct_definition(self.program, path)
+                get_struct_definition(self.program_identifiers, path)
                 .members["value"]
                 .cairo_type.pointee.scope.path
             )
-            members = get_struct_definition(self.program, tuple_struct_path).members
+            members = get_struct_definition(
+                self.program_identifiers, tuple_struct_path
+            ).members
             if origin_cls is tuple and (
                 (Ellipsis not in get_args(python_cls))
                 or (Ellipsis in get_args(python_cls) and len(annotations) == 1)
@@ -316,7 +325,7 @@ class Serde(SerdeProtocol):
         if origin_cls in (Mapping, abc.Mapping, set):
             mapping_struct_ptr = self.serialize_pointers(path, ptr)["value"]
             mapping_struct_path = (
-                get_struct_definition(self.program, path)
+                get_struct_definition(self.program_identifiers, path)
                 .members["value"]
                 .cairo_type.pointee.scope.path
             )
@@ -381,7 +390,7 @@ class Serde(SerdeProtocol):
         if python_cls is TransientStorage:
             return self.serialize_transient_storage(ptr)
 
-        members = get_struct_definition(self.program, path).members
+        members = get_struct_definition(self.program_identifiers, path).members
         kwargs = {
             name: self._serialize(member.cairo_type, ptr + member.offset)
             for name, member in members.items()
@@ -492,12 +501,12 @@ class Serde(SerdeProtocol):
         check_dict_consistency=True,
     ):
         dict_access_path = (
-            get_struct_definition(self.program, mapping_struct_path)
+            get_struct_definition(self.program_identifiers, mapping_struct_path)
             .members["dict_ptr"]
             .cairo_type.pointee.scope.path
         )
         dict_access_types = get_struct_definition(
-            self.program, dict_access_path
+            self.program_identifiers, dict_access_path
         ).members
 
         python_key_type = to_python_type(dict_access_types["key"].cairo_type)
@@ -840,7 +849,7 @@ class Serde(SerdeProtocol):
 
     def get_cairo_type_from_path(self, path: Tuple[str, ...]) -> CairoType:
         scope = ScopedName(path)
-        identifier = self.program.identifiers.as_dict()[scope]
+        identifier = self.program_identifiers.as_dict()[scope]
         if isinstance(identifier, TypeDefinition):
             return identifier.cairo_type
         return TypeStruct(scope=identifier.full_name, location=identifier.location)
@@ -850,7 +859,9 @@ class Serde(SerdeProtocol):
             return len(cairo_type.members)
         else:
             try:
-                identifier = get_struct_definition(self.program, cairo_type.scope.path)
+                identifier = get_struct_definition(
+                    self.program_identifiers, cairo_type.scope.path
+                )
                 return len(identifier.members)
             except (ValueError, AttributeError):
                 return 1
@@ -869,7 +880,7 @@ class Serde(SerdeProtocol):
         self, segment_ptr, item_path: Optional[Tuple[str, ...]] = None, list_len=None
     ):
         item_identifier = (
-            get_struct_definition(self.program, item_path)
+            get_struct_definition(self.program_identifiers, item_path)
             if item_path is not None
             else None
         )

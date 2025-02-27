@@ -63,7 +63,7 @@ def dict_manager():
 
 @pytest.fixture(scope="module")
 def serde(cairo_program, segments, dict_manager):
-    return Serde(segments, cairo_program, dict_manager)
+    return Serde(segments, cairo_program.identifiers, dict_manager)
 
 
 @pytest.fixture(scope="module")

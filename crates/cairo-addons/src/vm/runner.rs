@@ -38,9 +38,10 @@ pub struct PyCairoRunner {
 #[pymethods]
 impl PyCairoRunner {
     #[new]
-    #[pyo3(signature = (program, layout=None, proof_mode=false, allow_missing_builtins=false))]
+    #[pyo3(signature = (program, json_program, layout=None, proof_mode=false, allow_missing_builtins=false))]
     fn new(
         program: &PyProgram,
+        json_program: &[u8],
         layout: Option<PyLayout>,
         proof_mode: bool,
         allow_missing_builtins: bool,
@@ -68,6 +69,11 @@ impl PyCairoRunner {
         // Insert the program identifiers in the exec_scopes, so that we're able to pull identifier
         // data when executing hints
         inner.exec_scopes.insert_value("__program_identifiers__", identifiers);
+
+        // Store the program JSON in the exec_scopes, so that we're able to pull pythonic identifier
+        // data when executing hints to instantiate Serde
+        let json_program_bytes: Vec<u8> = json_program.to_vec();
+        inner.exec_scopes.insert_value("__program_json__", json_program_bytes);
 
         Ok(Self {
             inner,
