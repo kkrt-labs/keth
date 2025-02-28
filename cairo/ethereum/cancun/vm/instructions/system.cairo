@@ -73,7 +73,7 @@ from starkware.cairo.common.alloc import alloc
 from legacy.utils.dict import hashdict_read
 from cairo_core.comparison import is_zero
 
-from ethereum.utils.hash_dicts import set_address_contains
+from ethereum.utils.hash_dicts import set_address_contains, set_address_contains_or_add
 
 func generic_call{
     process_message_label: felt*,
@@ -350,35 +350,20 @@ func call_{
     let extend_memory = calculate_gas_extend_memory(evm.value.memory, extensions_list);
 
     tempvar address_u256_ = UnionUintU256(new UnionUintU256Enum(cast(0, Uint*), _to));
-    let address_ = to_address(address_u256_);
-    tempvar to = new Address(address_.value);
-
+    let to = to_address(address_u256_);
     let accessed_addresses = evm.value.accessed_addresses;
-    let accessed_addresses_end = cast(accessed_addresses.value.dict_ptr, DictAccess*);
-    let (is_warm) = hashdict_read{dict_ptr=accessed_addresses_end}(1, &to.value);
+    let is_warm = set_address_contains_or_add{set_address=accessed_addresses}(to);
     if (is_warm != 0) {
         tempvar access_gas_cost = Uint(GasConstants.GAS_WARM_ACCESS);
-        tempvar accessed_addresses_end = accessed_addresses_end;
-        tempvar poseidon_ptr = poseidon_ptr;
     } else {
-        hashdict_write{dict_ptr=accessed_addresses_end}(1, &to.value, 1);
         tempvar access_gas_cost = Uint(GasConstants.GAS_COLD_ACCOUNT_ACCESS);
-        tempvar accessed_addresses_end = accessed_addresses_end;
-        tempvar poseidon_ptr = poseidon_ptr;
     }
     let access_gas_cost = access_gas_cost;
-
-    tempvar new_accessed_addresses = SetAddress(
-        new SetAddressStruct(
-            accessed_addresses.value.dict_ptr_start,
-            cast(accessed_addresses_end, SetAddressDictAccess*),
-        ),
-    );
-    EvmImpl.set_accessed_addresses(new_accessed_addresses);
+    EvmImpl.set_accessed_addresses(accessed_addresses);
 
     let env = evm.value.env;
     let state = env.value.state;
-    let _is_account_alive = is_account_alive{state=state}([to]);
+    let _is_account_alive = is_account_alive{state=state}(to);
     let is_value_zero = U256__eq__(value, U256(new U256Struct(0, 0)));
     let is_account_alive_or_value_zero = _is_account_alive.value + is_value_zero.value;
     if (is_account_alive_or_value_zero != 0) {
@@ -444,8 +429,8 @@ func call_{
         message_call_gas.value.stipend,
         value,
         evm.value.message.value.current_target,
-        [to],
-        [to],
+        to,
+        to,
         bool(1),
         bool(0),
         memory_input_start_position,
@@ -526,32 +511,16 @@ func callcode{
     let extend_memory = calculate_gas_extend_memory(evm.value.memory, extensions_list);
 
     tempvar address_u256_ = UnionUintU256(new UnionUintU256Enum(cast(0, Uint*), _code_address));
-    let code_address_ = to_address(address_u256_);
-    tempvar code_address = new Address(code_address_.value);
-
+    let code_address = to_address(address_u256_);
     let accessed_addresses = evm.value.accessed_addresses;
-    let accessed_addresses_end = cast(accessed_addresses.value.dict_ptr, DictAccess*);
-    let (is_warm) = hashdict_read{dict_ptr=accessed_addresses_end}(1, &code_address.value);
+    let is_warm = set_address_contains_or_add{set_address=accessed_addresses}(code_address);
     if (is_warm != 0) {
         tempvar access_gas_cost = Uint(GasConstants.GAS_WARM_ACCESS);
-        tempvar accessed_addresses_end = accessed_addresses_end;
-        tempvar poseidon_ptr = poseidon_ptr;
     } else {
-        hashdict_write{dict_ptr=accessed_addresses_end}(1, &code_address.value, 1);
         tempvar access_gas_cost = Uint(GasConstants.GAS_COLD_ACCOUNT_ACCESS);
-        tempvar accessed_addresses_end = accessed_addresses_end;
-        tempvar poseidon_ptr = poseidon_ptr;
     }
     let access_gas_cost = access_gas_cost;
-    let poseidon_ptr = poseidon_ptr;
-
-    tempvar new_accessed_addresses = SetAddress(
-        new SetAddressStruct(
-            accessed_addresses.value.dict_ptr_start,
-            cast(accessed_addresses_end, SetAddressDictAccess*),
-        ),
-    );
-    EvmImpl.set_accessed_addresses(new_accessed_addresses);
+    EvmImpl.set_accessed_addresses(accessed_addresses);
 
     let high_not_zero = is_not_zero(_gas.value.high);
     let low_too_high = is_le(2 ** 64, _gas.value.low);
@@ -615,7 +584,7 @@ func callcode{
         value,
         sender_address,
         sender_address,
-        [code_address],
+        code_address,
         bool(1),
         bool(0),
         memory_input_start_position,
@@ -692,32 +661,16 @@ func delegatecall{
     let extend_memory = calculate_gas_extend_memory(evm.value.memory, extensions_list);
 
     tempvar address_u256_ = UnionUintU256(new UnionUintU256Enum(cast(0, Uint*), _code_address));
-    let code_address_ = to_address(address_u256_);
-    tempvar code_address = new Address(code_address_.value);
-
+    let code_address = to_address(address_u256_);
     let accessed_addresses = evm.value.accessed_addresses;
-    let accessed_addresses_end = cast(accessed_addresses.value.dict_ptr, DictAccess*);
-    let (is_warm) = hashdict_read{dict_ptr=accessed_addresses_end}(1, &code_address.value);
+    let is_warm = set_address_contains_or_add{set_address=accessed_addresses}(code_address);
     if (is_warm != 0) {
         tempvar access_gas_cost = Uint(GasConstants.GAS_WARM_ACCESS);
-        tempvar accessed_addresses_end = accessed_addresses_end;
-        tempvar poseidon_ptr = poseidon_ptr;
     } else {
-        hashdict_write{dict_ptr=accessed_addresses_end}(1, &code_address.value, 1);
         tempvar access_gas_cost = Uint(GasConstants.GAS_COLD_ACCOUNT_ACCESS);
-        tempvar accessed_addresses_end = accessed_addresses_end;
-        tempvar poseidon_ptr = poseidon_ptr;
     }
     let access_gas_cost = access_gas_cost;
-    let poseidon_ptr = poseidon_ptr;
-
-    tempvar new_accessed_addresses = SetAddress(
-        new SetAddressStruct(
-            accessed_addresses.value.dict_ptr_start,
-            cast(accessed_addresses_end, SetAddressDictAccess*),
-        ),
-    );
-    EvmImpl.set_accessed_addresses(new_accessed_addresses);
+    EvmImpl.set_accessed_addresses(accessed_addresses);
 
     let high_not_zero = is_not_zero(_gas.value.high);
     let low_too_high = is_le(2 ** 64, _gas.value.low);
@@ -753,7 +706,7 @@ func delegatecall{
         evm.value.message.value.value,
         evm.value.message.value.caller,
         evm.value.message.value.current_target,
-        [code_address],
+        code_address,
         bool(0),
         bool(0),
         memory_input_start_position,
@@ -830,31 +783,16 @@ func staticcall{
     let extend_memory = calculate_gas_extend_memory(evm.value.memory, extensions_list);
 
     tempvar address_u256_ = UnionUintU256(new UnionUintU256Enum(cast(0, Uint*), _to));
-    let to_ = to_address(address_u256_);
-    tempvar to = new Address(to_.value);
-
+    let to = to_address(address_u256_);
     let accessed_addresses = evm.value.accessed_addresses;
-    let accessed_addresses_end = cast(accessed_addresses.value.dict_ptr, DictAccess*);
-    let (is_warm) = hashdict_read{dict_ptr=accessed_addresses_end}(1, &to.value);
+    let is_warm = set_address_contains_or_add{set_address=accessed_addresses}(to);
     if (is_warm != 0) {
         tempvar access_gas_cost = Uint(GasConstants.GAS_WARM_ACCESS);
-        tempvar accessed_addresses_end = accessed_addresses_end;
-        tempvar poseidon_ptr = poseidon_ptr;
     } else {
-        hashdict_write{dict_ptr=accessed_addresses_end}(1, &to.value, 1);
         tempvar access_gas_cost = Uint(GasConstants.GAS_COLD_ACCOUNT_ACCESS);
-        tempvar accessed_addresses_end = accessed_addresses_end;
-        tempvar poseidon_ptr = poseidon_ptr;
     }
     let access_gas_cost = access_gas_cost;
-    let poseidon_ptr = poseidon_ptr;
-    tempvar new_accessed_addresses = SetAddress(
-        new SetAddressStruct(
-            accessed_addresses.value.dict_ptr_start,
-            cast(accessed_addresses_end, SetAddressDictAccess*),
-        ),
-    );
-    EvmImpl.set_accessed_addresses(new_accessed_addresses);
+    EvmImpl.set_accessed_addresses(accessed_addresses);
 
     let high_not_zero = is_not_zero(_gas.value.high);
     let low_too_high = is_le(2 ** 64, _gas.value.low);
@@ -889,8 +827,8 @@ func staticcall{
         message_call_gas.value.stipend,
         U256(new U256Struct(0, 0)),
         evm.value.message.value.current_target,
-        [to],
-        [to],
+        to,
+        to,
         bool(1),
         bool(1),
         memory_input_start_position,
@@ -1461,41 +1399,21 @@ func selfdestruct{
         }
     }
 
-    // Convert beneficiary to address
+    // GAS
     tempvar beneficiary_u256_ = UnionUintU256(
         new UnionUintU256Enum(cast(0, Uint*), beneficiary_u256)
     );
-    let beneficiary_ = to_address(beneficiary_u256_);
-    tempvar beneficiary = new Address(beneficiary_.value);
-
-    // GAS
-    // Calculate gas cost based on access and account status
+    let beneficiary = to_address(beneficiary_u256_);
     let accessed_addresses = evm.value.accessed_addresses;
-    let accessed_addresses_end = cast(accessed_addresses.value.dict_ptr, DictAccess*);
-    let (is_warm) = hashdict_read{dict_ptr=accessed_addresses_end}(1, &beneficiary.value);
-
+    let is_warm = set_address_contains_or_add{set_address=accessed_addresses}(beneficiary);
     tempvar base_gas_cost = Uint(GasConstants.GAS_SELF_DESTRUCT);
-
-    // Add cold access cost if beneficiary not in accessed_addresses
     if (is_warm != 0) {
         tempvar gas_cost = base_gas_cost;
-        tempvar accessed_addresses_end = accessed_addresses_end;
-        tempvar poseidon_ptr = poseidon_ptr;
     } else {
-        hashdict_write{dict_ptr=accessed_addresses_end}(1, &beneficiary.value, 1);
         tempvar gas_cost = Uint(base_gas_cost.value + GasConstants.GAS_COLD_ACCOUNT_ACCESS);
-        tempvar accessed_addresses_end = accessed_addresses_end;
-        tempvar poseidon_ptr = poseidon_ptr;
     }
-    let gas_cost = Uint([ap - 3]);
-
-    tempvar new_accessed_addresses = SetAddress(
-        new SetAddressStruct(
-            accessed_addresses.value.dict_ptr_start,
-            cast(accessed_addresses_end, SetAddressDictAccess*),
-        ),
-    );
-    EvmImpl.set_accessed_addresses(new_accessed_addresses);
+    let gas_cost = gas_cost;
+    EvmImpl.set_accessed_addresses(accessed_addresses);
 
     // Check if beneficiary account is alive and originator has balance
     let env = evm.value.env;
@@ -1506,7 +1424,7 @@ func selfdestruct{
     let originator_balance_zero_low = is_zero(originator_balance.value.low);
     let originator_balance_zero_high = is_zero(originator_balance.value.high);
     let originator_balance_zero = originator_balance_zero_low * originator_balance_zero_high;
-    let beneficiary_is_alive = is_account_alive{state=state}([beneficiary]);
+    let beneficiary_is_alive = is_account_alive{state=state}(beneficiary);
 
     // Add additional gas cost if beneficiary not alive and originator has balance
     let is_new_account = (1 - beneficiary_is_alive.value) * (1 - originator_balance_zero);
@@ -1534,7 +1452,7 @@ func selfdestruct{
         return err;
     }
 
-    move_ether{state=state}(originator, [beneficiary], originator_balance);
+    move_ether{state=state}(originator, beneficiary, originator_balance);
 
     // Register account for deletion if created in same transaction
     let created_accounts = env.value.state.value.created_accounts;
@@ -1575,7 +1493,7 @@ func selfdestruct{
     let evm = Evm(cast([ap - 3], EvmStruct*));
 
     // Mark beneficiary as touched if empty
-    let is_empty = account_exists_and_is_empty{state=state}([beneficiary]);
+    let is_empty = account_exists_and_is_empty{state=state}(beneficiary);
     if (is_empty.value != 0) {
         let touched_accounts = evm.value.touched_accounts;
         let touched_accounts_end = cast(touched_accounts.value.dict_ptr, DictAccess*);
