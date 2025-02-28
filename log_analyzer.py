@@ -3,7 +3,6 @@ import os
 import re
 import subprocess
 import sys
-from collections import defaultdict
 from datetime import datetime
 
 
@@ -64,54 +63,8 @@ def parse_opcode(log_line):
     return None
 
 
-def group_logs_by_operation(logs):
-    """Group logs by operation (OpStart, OpEnd, etc.)."""
-    grouped_logs = defaultdict(list)
-
-    for log in logs:
-        if "OpStart:" in log:
-            opcode = parse_opcode(log)
-            if opcode:
-                grouped_logs["OpStart"].append((log, opcode))
-        elif "OpEnd:" in log:
-            opcode = parse_opcode(log)
-            if opcode:
-                grouped_logs["OpEnd"].append((log, opcode))
-        elif "charge_gas:" in log:
-            grouped_logs["charge_gas"].append((log, None))
-        elif "EvmStop" in log:
-            grouped_logs["EvmStop"].append((log, None))
-        elif "Revert:" in log:
-            grouped_logs["Revert"].append((log, None))
-        elif "OpException:" in log:
-            grouped_logs["OpException"].append((log, None))
-        elif "PrecompileStart:" in log:
-            grouped_logs["PrecompileStart"].append((log, None))
-        elif "PrecompileEnd:" in log:
-            grouped_logs["PrecompileEnd"].append((log, None))
-
-    return grouped_logs
-
-
 def generate_markdown_table(cairo_logs, eels_logs):
     """Generate a markdown table comparing CAIRO and EELS logs."""
-    # Group logs by operation type
-    cairo_grouped = group_logs_by_operation(cairo_logs)
-    eels_grouped = group_logs_by_operation(eels_logs)
-
-    # Create a mapping of opcodes to track which ones have been matched
-    cairo_opcodes = {}
-    eels_opcodes = {}
-
-    # Build opcode maps for OpStart and OpEnd
-    for op_type in ["OpStart", "OpEnd"]:
-        cairo_opcodes[op_type] = {
-            opcode: log for log, opcode in cairo_grouped.get(op_type, [])
-        }
-        eels_opcodes[op_type] = {
-            opcode: log for log, opcode in eels_grouped.get(op_type, [])
-        }
-
     # Generate the table
     table = "| CAIRO | EELS | VALID |\n"
     table += "|-------|------|-------|\n"
@@ -122,7 +75,6 @@ def generate_markdown_table(cairo_logs, eels_logs):
         "total_eels": len(eels_logs),
         "matched": 0,
         "unmatched_cairo": 0,
-        "unmatched_eels": 0,
     }
 
     # Process all CAIRO logs
@@ -140,20 +92,12 @@ def generate_markdown_table(cairo_logs, eels_logs):
 
         table += f"| {cairo_log} | {eels_log} | {valid} |\n"
 
-    # Add any unmatched EELS logs
-    for op_type in eels_opcodes:
-        for opcode, eels_log in eels_opcodes[op_type].items():
-            if op_type in ["OpStart", "OpEnd"]:
-                table += f"| | {eels_log} | ❌ |\n"
-                stats["unmatched_eels"] += 1
-
     # Add summary statistics to the table
     table += "\n## Summary\n\n"
     table += f"- Total CAIRO logs: {stats['total_cairo']}\n"
     table += f"- Total EELS logs: {stats['total_eels']}\n"
     table += f"- Matched operations: {stats['matched']}\n"
     table += f"- Unmatched CAIRO logs: {stats['unmatched_cairo']}\n"
-    table += f"- Unmatched EELS logs: {stats['unmatched_eels']}\n"
 
     # Calculate match percentage
     total_ops = stats["total_cairo"] + stats["total_eels"] - stats["matched"]

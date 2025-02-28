@@ -1,6 +1,5 @@
 from dataclasses import fields
 
-import ethereum.trace
 import pytest
 from dotenv import load_dotenv
 from ethereum.trace import (
@@ -36,7 +35,6 @@ def evm_trace(
     """
     Log the event.
     """
-    print(f"[EELS] {event}")
     if isinstance(event, TransactionStart):
         pass
     elif isinstance(event, TransactionEnd):
@@ -46,14 +44,14 @@ def evm_trace(
     elif isinstance(event, PrecompileEnd):
         print(f"[EELS] PrecompileEnd: {evm.message.code_address}")
     elif isinstance(event, OpStart):
-        op = event.op.value
-        print(f"[EELS] OpStart: {str(op)}")
+        op = event.op
+        print(f"[EELS] OpStart: {hex(op.value)}")
     elif isinstance(event, OpEnd):
-        print(f"[EELS] OpEnd: {str(op)}")
+        print("[EELS] OpEnd")
     elif isinstance(event, OpException):
-        print(f"[EELS] OpException: {event.error}")
+        print(f"[EELS] OpException: {event.error.__class__.__name__}")
     elif isinstance(event, EvmStop):
-        print(f"[EELS] EvmStop")
+        print("[EELS] EvmStop")
     elif isinstance(event, GasAndRefund):
         print(f"[EELS] GasAndRefund: {event.gas_cost}")
 
@@ -89,14 +87,6 @@ def pytest_configure(config):
     1. pytest runs this hook during test collection, before any tests execute
     2. We directly replace the class definitions in the original modules
     3. All subsequent imports of these modules will see our patched versions
-
-    This effectively "rewrites" the module contents at the source, so whether code does:
-        from ethereum.cancun.vm import Evm
-    or:
-        import ethereum.cancun.vm
-        evm = ethereum.cancun.vm.Evm
-
-    They both get our mock version, because the module itself has been modified.
     """
     from typing import Sequence, Union
 
@@ -111,12 +101,21 @@ def pytest_configure(config):
     ethereum.cancun.vm.Message = Message
     ethereum.cancun.vm.Environment = Environment
     ethereum.cancun.vm.interpreter.MessageCallOutput = MessageCallOutput
-    ethereum.trace.evm_trace = evm_trace
 
-    # Mock the Extended type because hypothesis cannot handle the RLP Protocol
-    # Needs to be done before importing the types from ethereum.cancun.trie
-    # trunk-ignore(ruff/F821)
-    ethereum_rlp.rlp.Extended = Union[Sequence["Extended"], bytearray, bytes, Uint, FixedUnsigned, str, bool]  # type: ignore
+    # Mock the Extended type
+    ethereum_rlp.rlp.Extended = Union[Sequence["Extended"], bytearray, bytes, Uint, FixedUnsigned, str, bool]  # type: ignore # noqa: F821
+
+    # Patching evm_trace:
+    # - Problem: Global patches of `ethereum.trace.evm_trace` are not reflected in places where `evm_trace` is imported in EELS.
+    # - Cause: `ethereum.cancun.vm.interpreter` (and other modules) imports `evm_trace` locally (e.g., `from ethereum.trace import evm_trace`)
+    #   at module load time, caching the original `discard_evm_trace`. Patching `ethereum.trace.evm_trace` later didn’t
+    #   update this local reference due to Python’s import caching.
+    # - Solution: Explicitly patch both `ethereum.trace.evm_trace` globally and
+    #   `ethereum.cancun.vm.interpreter.evm_trace` locally (and other places where `evm_trace` is imported).
+    import ethereum.cancun.vm.interpreter
+
+    setattr(ethereum.cancun.vm.interpreter, "evm_trace", evm_trace)
+    setattr(ethereum.cancun.vm.gas, "evm_trace", evm_trace)
 
 
 @pytest.fixture(scope="module")
