@@ -374,10 +374,17 @@ impl PyVmConst {
                 if let CairoVarType::Struct { members, .. } = pointee.as_ref() {
                     // Check if the member exists in the struct
                     let vm = unsafe { &mut *self.vm };
-                    if let (Some(member), Some(ptr_addr)) = (members.get(name), self.var.address) {
+
+                    if let (Some(member), Some(var_address)) = (members.get(name), self.var.address)
+                    {
                         // For pointers, we need to:
                         // 1. Get the address the pointer points to
                         // 2. Calculate the member address by adding the offset to the pointer
+
+                        let ptr_addr = vm.get_relocatable(var_address).map_err(|e| {
+                            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string())
+                        })?;
+
                         let offset_value = member.offset;
                         let member_addr = (ptr_addr + offset_value).map_err(|e| {
                             PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string())

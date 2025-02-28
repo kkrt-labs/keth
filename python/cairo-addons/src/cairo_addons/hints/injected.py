@@ -23,6 +23,9 @@ def create_serializer(context: Callable[[], dict]):
 
         from tests.utils.serde import Serde
 
+        if isinstance(variable, int):
+            return variable
+
         # Create Serde instance
         serde_cls = Serde(
             segments=segments,
