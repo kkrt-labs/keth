@@ -2,30 +2,15 @@ import json
 import os.path
 import re
 from collections import defaultdict
-from functools import partial
 from glob import glob
 from typing import Any, Dict, Generator, Tuple, Union
 
 import pytest
 from _pytest.mark.structures import ParameterSet
-from ethereum import trace
 from ethereum.cancun.fork import state_transition
 from ethereum.cancun.state import State
-from ethereum.cancun.vm import Evm
 from ethereum.crypto.hash import keccak256
 from ethereum.exceptions import EthereumException
-from ethereum.trace import (
-    EvmStop,
-    GasAndRefund,
-    OpEnd,
-    OpException,
-    OpStart,
-    PrecompileEnd,
-    PrecompileStart,
-    TraceEvent,
-    TransactionEnd,
-    TransactionStart,
-)
 from ethereum.utils.hexadecimal import hex_to_bytes
 from ethereum_rlp import rlp
 from ethereum_rlp.exceptions import RLPException

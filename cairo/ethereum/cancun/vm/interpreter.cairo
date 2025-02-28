@@ -415,7 +415,10 @@ func _execute_code{
             process_message_label=process_message_label,
             opcode=opcode,
         );
-        %{ print(f"[CAIRO] OpEnd: {hex(ids.opcode_hex)}") %}
+        %{
+            if memory[ids.err.address_] == 0:
+                print(f"[CAIRO] OpEnd")
+        %}
         if (cast(err, felt) != 0) {
             if (err.value == Revert) {
                 %{ print(f"[CAIRO] Revert: {serialize(ids.err)}") %}
@@ -423,7 +426,11 @@ func _execute_code{
                 return evm;
             }
 
-            %{ print(f"[CAIRO] OpException: {serialize(ids.err)}") %}
+            %{
+                error_bytes = memory[ids.err.address_].to_bytes(32, "big")
+                ascii_value = error_bytes.decode().strip("\x00")
+                print(f"[CAIRO] OpException: {ascii_value}")
+            %}
             EvmImpl.set_gas_left(Uint(0));
             let (output_bytes: felt*) = alloc();
             tempvar output = Bytes(new BytesStruct(output_bytes, 0));
