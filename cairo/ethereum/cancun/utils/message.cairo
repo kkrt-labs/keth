@@ -21,42 +21,9 @@ from starkware.cairo.common.registers import get_fp_and_pc, get_label_location
 from starkware.cairo.common.memcpy import memcpy
 from starkware.cairo.common.dict_access import DictAccess
 
-from legacy.utils.dict import hashdict_write
+from legacy.utils.dict import hashdict_write, dict_write
 
 const PRECOMPILED_ADDRESSES_SIZE = 10;
-
-// A sequence of (key, prev, new) for the precompiled addresses set
-precompiled_addresses_set:
-dw 0x100000000000000000000000000000000000000;
-dw 0;
-dw 1;
-dw 0x200000000000000000000000000000000000000;
-dw 0;
-dw 1;
-dw 0x300000000000000000000000000000000000000;
-dw 0;
-dw 1;
-dw 0x400000000000000000000000000000000000000;
-dw 0;
-dw 1;
-dw 0x500000000000000000000000000000000000000;
-dw 0;
-dw 1;
-dw 0x600000000000000000000000000000000000000;
-dw 0;
-dw 1;
-dw 0x700000000000000000000000000000000000000;
-dw 0;
-dw 1;
-dw 0x800000000000000000000000000000000000000;
-dw 0;
-dw 1;
-dw 0x900000000000000000000000000000000000000;
-dw 0;
-dw 1;
-dw 0xa00000000000000000000000000000000000000;
-dw 0;
-dw 1;
 
 func prepare_message{
     range_check_ptr,
@@ -140,16 +107,12 @@ func prepare_message{
     hashdict_write{dict_ptr=preaccessed_addresses_ptr}(1, current_target_, 1);
     hashdict_write{dict_ptr=preaccessed_addresses_ptr}(1, &caller.value, 1);
 
-    let dict_ptr = preaccessed_addresses_ptr;
-    %{ track_precompiles %}
-    let (precompiled_addresses_ptr) = get_label_location(precompiled_addresses_set);
-    let len = PRECOMPILED_ADDRESSES_SIZE * DictAccess.SIZE;
-    memcpy(dst=preaccessed_addresses_ptr, src=precompiled_addresses_ptr, len=len);
-    let accessed_addresses_ptr = preaccessed_addresses_ptr + len;
+    track_precompiles{dict_ptr=preaccessed_addresses_ptr}();
+
     tempvar accessed_addresses = SetAddress(
         new SetAddressStruct(
             dict_ptr_start=cast(preaccessed_addresses_start, SetAddressDictAccess*),
-            dict_ptr=cast(accessed_addresses_ptr, SetAddressDictAccess*),
+            dict_ptr=cast(preaccessed_addresses_ptr, SetAddressDictAccess*),
         ),
     );
 
@@ -173,4 +136,18 @@ func prepare_message{
     );
 
     return res;
+}
+
+func track_precompiles{dict_ptr: DictAccess*}() {
+    dict_write(0x100000000000000000000000000000000000000, 1);
+    dict_write(0x200000000000000000000000000000000000000, 1);
+    dict_write(0x300000000000000000000000000000000000000, 1);
+    dict_write(0x400000000000000000000000000000000000000, 1);
+    dict_write(0x500000000000000000000000000000000000000, 1);
+    dict_write(0x600000000000000000000000000000000000000, 1);
+    dict_write(0x700000000000000000000000000000000000000, 1);
+    dict_write(0x800000000000000000000000000000000000000, 1);
+    dict_write(0x900000000000000000000000000000000000000, 1);
+    dict_write(0xa00000000000000000000000000000000000000, 1);
+    return ();
 }
