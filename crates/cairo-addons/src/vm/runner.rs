@@ -40,11 +40,18 @@ pub struct PyCairoRunner {
 
 #[pymethods]
 impl PyCairoRunner {
+    /// Initialize the runner with the given program and identifiers.
+    /// # Arguments
+    /// * `program` - The _rust_ program to run.
+    /// * `py_identifiers` - The _pythonic_ identifiers for this program.
+    /// * `layout` - The layout to use for the runner.
+    /// * `proof_mode` - Whether to run in proof mode.
+    /// * `allow_missing_builtins` - Whether to allow missing builtins.
     #[new]
-    #[pyo3(signature = (program, json_program, layout=None, proof_mode=false, allow_missing_builtins=false))]
+    #[pyo3(signature = (program, py_identifiers, layout=None, proof_mode=false, allow_missing_builtins=false))]
     fn new(
         program: &PyProgram,
-        json_program: &[u8],
+        py_identifiers: PyObject,
         layout: Option<PyLayout>,
         proof_mode: bool,
         allow_missing_builtins: bool,
@@ -69,28 +76,27 @@ impl PyCairoRunner {
             .map(|(name, identifier)| (name.to_string(), identifier.clone()))
             .collect::<HashMap<String, Identifier>>();
 
-        // Insert the program identifiers in the exec_scopes, so that we're able to pull identifier
-        // data when executing hints
+        // Insert the _rust_ program_identifiers in the exec_scopes, so that we're able to pull
+        // identifier data when executing hints to build VmConsts.
         inner.exec_scopes.insert_value("__program_identifiers__", identifiers);
 
         // Initialize a python context object that will be accessible throughout the execution of
         // all hints.
-        // This enables us to only serialize the pythonic identifiers once, and then reuse them
-        // throughout the execution of hints.
-        //TODO: this will cause the identifiers to be extracted each program run, which takes too much time.
-        // we need to find another way.
+        // This enables us to directly use the Python identifiers passed in, avoiding the need to
+        // serialize and deserialize the program JSON.
         Python::with_gil(|py| {
             let context = PyDict::new(py);
-            let json_program_bytes: Vec<u8> = json_program.to_vec();
+
+            // Store the Python identifiers directly in the context
             context
-                .set_item("__program_json__", json_program_bytes)
+                .set_item("py_identifiers", py_identifiers)
                 .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
 
             // Import and run the initialization code from the injected module
             let setup_code = r#"
 try:
-    from cairo_addons.hints.injected import initialize_hint_environment
-    initialize_hint_environment(lambda: globals())
+    from cairo_addons.hints.injected import create_serializer
+    create_serializer(lambda: globals())
 except Exception as e:
     print(f"Warning: Error during initialization: {e}")
 "#;

@@ -77,7 +77,6 @@ def cairo_run(
     request,
     cairo_programs,
     rust_programs,
-    json_programs,
     cairo_files,
     main_paths,
     coverage,
@@ -117,7 +116,6 @@ def cairo_run(
     return run_rust_vm(
         cairo_programs,
         rust_programs,
-        json_programs,
         cairo_files,
         main_paths,
         request,

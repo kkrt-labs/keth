@@ -426,7 +426,6 @@ def run_python_vm(
 def run_rust_vm(
     cairo_programs: List[Program],
     rust_programs: List[RustProgram],
-    json_programs: List[bytes],
     cairo_files: List[Path],
     main_paths: List[Tuple[str, ...]],
     request: FixtureRequest,
@@ -442,7 +441,6 @@ def run_rust_vm(
     def _run(entrypoint, *args, **kwargs):
         cairo_program = cairo_programs[0]
         rust_program = rust_programs[0]
-        json_program = json_programs[0]
         cairo_file = cairo_files[0]
         main_path = main_paths[0]
         try:
@@ -451,7 +449,6 @@ def run_rust_vm(
             # Entrypoint not found - try test program
             cairo_program = cairo_programs[1]
             rust_program = rust_programs[1]
-            json_program = json_programs[1]
             cairo_file = cairo_files[1]
             main_path = main_paths[1]
 
@@ -469,7 +466,7 @@ def run_rust_vm(
         # Create runner
         runner = RustCairoRunner(
             program=rust_program,
-            json_program=json_program,
+            py_identifiers=cairo_program.identifiers,
             layout=getattr(LAYOUTS, request.config.getoption("layout")).layout_name,
             proof_mode=False,
             allow_missing_builtins=False,

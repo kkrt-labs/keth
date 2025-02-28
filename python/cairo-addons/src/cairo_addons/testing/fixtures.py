@@ -76,14 +76,6 @@ def rust_programs(cairo_programs: List[Program], python_vm: bool) -> List[RustPr
 
 
 @pytest.fixture(scope="module")
-def json_programs(cairo_programs: List[Program]) -> List[bytes]:
-    return [
-        json.dumps(cairo_program.Schema().dump(cairo_program)).encode()
-        for cairo_program in cairo_programs
-    ]
-
-
-@pytest.fixture(scope="module")
 def coverage(cairo_programs: List[Program], cairo_files: List[Path], worker_id: str):
     """
     Fixture to collect coverage from all tests, then merge and dump it as a json file for codecov.
@@ -194,7 +186,6 @@ def cairo_run_py(
 def cairo_run(
     cairo_programs,
     rust_programs,
-    json_programs,
     cairo_files,
     main_paths,
     request,
@@ -229,7 +220,6 @@ def cairo_run(
 
     return run_rust_vm(
         cairo_programs,
-        json_programs,
         rust_programs,
         cairo_files,
         main_paths,
