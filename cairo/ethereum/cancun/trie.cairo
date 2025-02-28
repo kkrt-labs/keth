@@ -1096,18 +1096,7 @@ func _prepare_trie_inner_account{
         );
     }
 
-    let storage_roots_ptr = cast(storage_roots_.value.dict_ptr, DictAccess*);
-    let (storage_root_ptr) = dict_read{dict_ptr=storage_roots_ptr}(dict_ptr.key.value);
-    let storage_root_b32 = Bytes32(cast(storage_root_ptr, Bytes32Struct*));
-    tempvar storage_roots_ = MappingAddressBytes32(
-        new MappingAddressBytes32Struct(
-            storage_roots_.value.dict_ptr_start,
-            cast(storage_roots_ptr, AddressBytes32DictAccess*),
-            storage_roots_.value.parent_dict,
-        ),
-    );
-    let storage_root = Bytes32_to_Bytes(storage_root_b32);
-
+    let storage_root = mapping_address_bytes32_read{mapping=storage_roots_}(dict_ptr.key);
     let preimage = Bytes20_to_Bytes(dict_ptr.key);
     let value = dict_ptr.new_value;
 
@@ -1123,7 +1112,8 @@ func _prepare_trie_inner_account{
             withdrawal=Withdrawal(cast(0, WithdrawalStruct*)),
         ),
     );
-    let encoded_value = encode_node(node, storage_root);
+    let storage_root_bytes = Bytes32_to_Bytes(storage_root);
+    let encoded_value = encode_node(node, storage_root_bytes);
 
     if (encoded_value.value.len == 0) {
         raise('AssertionError');
@@ -2012,4 +2002,22 @@ func patricialize{
     let internal_node = InternalNodeImpl.branch_node(branch_node);
 
     return internal_node;
+}
+
+// Utils function, porting this to a module would incur a lot of refactoring due to circular imports
+func mapping_address_bytes32_read{range_check_ptr, mapping: MappingAddressBytes32}(
+    key: Address
+) -> Bytes32 {
+    alloc_locals;
+    let dict_ptr = cast(mapping.value.dict_ptr, DictAccess*);
+    let (value_ptr) = dict_read{dict_ptr=dict_ptr}(key.value);
+    let value = Bytes32(cast(value_ptr, Bytes32Struct*));
+    tempvar mapping = MappingAddressBytes32(
+        new MappingAddressBytes32Struct(
+            mapping.value.dict_ptr_start,
+            cast(dict_ptr, AddressBytes32DictAccess*),
+            mapping.value.parent_dict,
+        ),
+    );
+    return value;
 }

@@ -88,15 +88,9 @@ func jump{
     }
 
     // Check if jump destination is valid by looking it up in valid_jump_destinations
-    let valid_jump_destinations_ptr = evm.value.valid_jump_destinations.value.dict_ptr;
-    let dict_ptr = cast(valid_jump_destinations_ptr, DictAccess*);
-    let (is_valid_dest) = dict_read{dict_ptr=dict_ptr}(jump_dest.value.low);
-
-    let set_dict_ptr = cast(dict_ptr, SetUintDictAccess*);
-    tempvar valid_jumpdests_set = SetUint(
-        new SetUintStruct(evm.value.valid_jump_destinations.value.dict_ptr_start, set_dict_ptr)
-    );
-    EvmImpl.set_valid_jump_destinations(valid_jumpdests_set);
+    let valid_jump_destinations = evm.value.valid_jump_destinations;
+    let is_valid_dest = set_uint_contains{set=valid_jump_destinations}(jump_dest.value.low);
+    EvmImpl.set_valid_jump_destinations(valid_jump_destinations);
 
     if (is_valid_dest == FALSE) {
         EvmImpl.set_stack(stack);
@@ -158,15 +152,9 @@ func jumpi{
         return ok;
     }
 
-    let valid_jump_destinations_ptr = evm.value.valid_jump_destinations.value.dict_ptr;
-    let dict_ptr = cast(valid_jump_destinations_ptr, DictAccess*);
-    let (is_valid_dest) = dict_read{dict_ptr=dict_ptr}(jump_dest.value.low);
-
-    let set_dict_ptr = cast(dict_ptr, SetUintDictAccess*);
-    tempvar valid_jumpdests_set = SetUint(
-        new SetUintStruct(evm.value.valid_jump_destinations.value.dict_ptr_start, set_dict_ptr)
-    );
-    EvmImpl.set_valid_jump_destinations(valid_jumpdests_set);
+    let valid_jump_destinations = evm.value.valid_jump_destinations;
+    let is_valid_dest = set_uint_contains{set=valid_jump_destinations}(jump_dest.value.low);
+    EvmImpl.set_valid_jump_destinations(valid_jump_destinations);
 
     if (is_valid_dest == FALSE) {
         EvmImpl.set_stack(stack);
@@ -278,4 +266,17 @@ func jumpdest{
     EvmImpl.set_pc(Uint(evm.value.pc.value + 1));
     let ok = cast(0, EthereumException*);
     return ok;
+}
+
+// Utils function, porting this to a module would incur a lot of refactoring due to circular imports
+func set_uint_contains{range_check_ptr, set: SetUint}(key: felt) -> felt {
+    alloc_locals;
+    let dict_ptr = cast(set.value.dict_ptr, DictAccess*);
+    let (value) = dict_read{dict_ptr=dict_ptr}(key);
+    tempvar set = SetUint(
+        new SetUintStruct(
+            dict_ptr_start=set.value.dict_ptr_start, dict_ptr=cast(dict_ptr, SetUintDictAccess*)
+        ),
+    );
+    return value;
 }
