@@ -173,7 +173,7 @@ func incorporate_child_on_success{range_check_ptr, poseidon_ptr: PoseidonBuiltin
         0,
         squashed_valid_jump_destinations_start,
         squashed_valid_jump_destinations_end,
-        child_evm.value.message.value.code.value.data,
+        child_evm.value.message.value.code,
     );
 
     // No need to squash the message's `accessed_addresses` and `accessed_storage_keys` because
@@ -302,7 +302,7 @@ func incorporate_child_on_error{range_check_ptr, poseidon_ptr: PoseidonBuiltin*,
         0,
         squashed_valid_jump_destinations_start,
         squashed_valid_jump_destinations_end,
-        child_evm.value.message.value.code.value.data,
+        child_evm.value.message.value.code,
     );
 
     let stack = child_evm.value.stack;

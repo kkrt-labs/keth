@@ -62,3 +62,12 @@ class TestAssertValidJumpdest:
                 bytecode=[push] + (push - 0x5F) * [0x5B],
                 valid_jumpdest=[push - 0x5F, 1, 1],
             )
+
+    @pytest.mark.parametrize("jumpdest", list(range(0x100, 0x110)))
+    def test_should_raise_if_jumpdest_index_oob(self, cairo_run, jumpdest):
+        with cairo_error("assert_valid_jumpdest: invalid jumpdest"):
+            cairo_run(
+                "test__assert_valid_jumpdest",
+                bytecode=[0x5B] * 0x100,
+                valid_jumpdest=[jumpdest, 1, 1],
+            )
