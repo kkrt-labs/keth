@@ -60,7 +60,7 @@ func ripemd160{
     let (local buf: felt*) = alloc();
     let (local arr_x: felt*) = alloc();
 
-    // Before starting fill arr_x with 0s to align on 32 bytes (hash length is 20bytes so 12 bytes to fill)
+    // Before starting fill arr_x with 0s to align on 32 bytes (hash length is 20 bytes so 12 bytes to fill)
     memset(arr_x, 0, 12);
     let arr_x: felt* = arr_x + 12;
 
