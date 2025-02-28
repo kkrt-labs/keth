@@ -70,7 +70,7 @@ func assert_valid_jumpdest{range_check_ptr}(
     assert valid_jumpdest.prev_value = valid_jumpdest.new_value;
 
     // If we tried to jump OOB - valid_jumpdest.key fits in u128, validated in jump{i}
-    let is_in_bounds = is_nn(bytecode.value.len - valid_jumpdest.key);
+    let is_in_bounds = is_nn(bytecode.value.len - (valid_jumpdest.key + 1));
     if (is_in_bounds == 0) {
         with_attr error_message("assert_valid_jumpdest: invalid jumpdest") {
             assert valid_jumpdest.prev_value = 0;
@@ -110,7 +110,7 @@ func assert_valid_jumpdest{range_check_ptr}(
     tempvar i = start_index;
 
     body_general_case:
-    tempvar bytecode = Bytes(cast([fp - 4], BytesStruct*));
+    let bytecode_data = [fp - 4];
     let range_check_ptr = [ap - 2];
     let i = [ap - 1];
 
