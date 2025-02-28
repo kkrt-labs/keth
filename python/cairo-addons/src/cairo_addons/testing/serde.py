@@ -2,6 +2,7 @@ from itertools import accumulate
 from pathlib import Path
 from typing import Any, List, Optional, Protocol, Tuple, Union
 
+from starkware.cairo.common.dict import DictManager
 from starkware.cairo.lang.compiler.ast.cairo_types import (
     CairoType,
     TypeFelt,
@@ -14,11 +15,15 @@ from starkware.cairo.lang.compiler.identifier_definition import (
     StructDefinition,
     TypeDefinition,
 )
-from starkware.cairo.lang.compiler.identifier_manager import MissingIdentifierError
+from starkware.cairo.lang.compiler.identifier_manager import (
+    IdentifierManager,
+    MissingIdentifierError,
+)
 from starkware.cairo.lang.compiler.scoped_name import ScopedName
 from starkware.cairo.lang.vm.memory_dict import UnknownMemoryError
 from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 
+from cairo_addons.vm import DictManager as RustDictManager
 from cairo_addons.vm import MemorySegmentManager as RustMemorySegmentManager
 
 # Sentinel object for indicating no error in exception handling
@@ -29,8 +34,8 @@ class SerdeProtocol(Protocol):
     def __init__(
         self,
         segments: Union[MemorySegmentManager, RustMemorySegmentManager],
-        program: Any,
-        dict_manager: Any,
+        program_identifiers: IdentifierManager,
+        dict_manager: Union[DictManager, RustDictManager],
         cairo_file: Optional[Path] = None,
     ): ...
 
@@ -46,7 +51,9 @@ class SerdeProtocol(Protocol):
     def filter_no_error_flag(output: List[Any]) -> List[Any]: ...
 
 
-def get_struct_definition(program, path: Tuple[str, ...]) -> StructDefinition:
+def get_struct_definition(
+    program_identifiers: IdentifierManager, path: Tuple[str, ...]
+) -> StructDefinition:
     """
     Resolves and returns the struct definition for a given path in the Cairo program.
     If the path is an alias (`import T from ...`), it resolves the alias to the actual struct definition.
@@ -54,16 +61,18 @@ def get_struct_definition(program, path: Tuple[str, ...]) -> StructDefinition:
     Otherwise, it returns the struct definition directly.
     """
     scope = ScopedName(path)
-    identifier = program.identifiers.as_dict()[scope]
+    identifier = program_identifiers.as_dict()[scope]
     if isinstance(identifier, StructDefinition):
         return identifier
     if isinstance(identifier, TypeDefinition) and isinstance(
         identifier.cairo_type, TypeStruct
     ):
-        return get_struct_definition(program, identifier.cairo_type.scope.path)
+        return get_struct_definition(
+            program_identifiers, identifier.cairo_type.scope.path
+        )
     if isinstance(identifier, AliasDefinition):
         destination = identifier.destination.path
-        return get_struct_definition(program, destination)
+        return get_struct_definition(program_identifiers, destination)
     raise ValueError(f"Expected a struct named {path}, found {identifier}")
 
 
@@ -71,13 +80,13 @@ class Serde(SerdeProtocol):
     def __init__(
         self,
         segments: Union[MemorySegmentManager, RustMemorySegmentManager],
-        program,
-        dict_manager,
+        program_identifiers: IdentifierManager,
+        dict_manager: Union[DictManager, RustDictManager],
         cairo_file=None,
     ):
         self.segments = segments
         self.memory = segments.memory
-        self.program = program
+        self.program_identifiers = program_identifiers
         self.dict_manager = dict_manager
         self.cairo_file = cairo_file or Path()
 
@@ -95,7 +104,7 @@ class Serde(SerdeProtocol):
 
         Note: 0 value for pointers types are interpreted as None.
         """
-        members = get_struct_definition(self.program, path).members
+        members = get_struct_definition(self.program_identifiers, path).members
         output = {}
         for name, member in members.items():
             member_ptr = self.memory.get(ptr + member.offset)
@@ -106,7 +115,7 @@ class Serde(SerdeProtocol):
 
     def is_pointer_wrapper(self, path: Tuple[str, ...]) -> bool:
         """Returns whether the type is a wrapper to a pointer."""
-        members = get_struct_definition(self.program, path).members
+        members = get_struct_definition(self.program_identifiers, path).members
         if len(members) != 1:
             return False
         return isinstance(list(members.values())[0].cairo_type, TypePointer)
@@ -123,7 +132,7 @@ class Serde(SerdeProtocol):
         if "__main__" in full_path:
             full_path = self.main_part + full_path[full_path.index("__main__") + 1 :]
 
-        members = get_struct_definition(self.program, path).members
+        members = get_struct_definition(self.program_identifiers, path).members
         return {
             name: self._serialize(member.cairo_type, ptr + member.offset)
             for name, member in members.items()
@@ -174,7 +183,9 @@ class Serde(SerdeProtocol):
             return len(cairo_type.members)
         else:
             try:
-                identifier = get_struct_definition(self.program, cairo_type.scope.path)
+                identifier = get_struct_definition(
+                    self.program_identifiers, cairo_type.scope.path
+                )
                 return len(identifier.members)
             except (ValueError, AttributeError):
                 return 1
@@ -193,7 +204,7 @@ class Serde(SerdeProtocol):
         self, segment_ptr, item_path: Optional[Tuple[str, ...]] = None, list_len=None
     ):
         item_identifier = (
-            get_struct_definition(self.program, item_path)
+            get_struct_definition(self.program_identifiers, item_path)
             if item_path is not None
             else None
         )

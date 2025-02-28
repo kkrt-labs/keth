@@ -271,3 +271,7 @@ mswlen
 xlen
 Turc
 hasattr
+pathlib
+kwargs
+pythonic
+functools

@@ -374,10 +374,17 @@ impl PyVmConst {
                 if let CairoVarType::Struct { members, .. } = pointee.as_ref() {
                     // Check if the member exists in the struct
                     let vm = unsafe { &mut *self.vm };
-                    if let (Some(member), Some(ptr_addr)) = (members.get(name), self.var.address) {
+
+                    if let (Some(member), Some(var_address)) = (members.get(name), self.var.address)
+                    {
                         // For pointers, we need to:
                         // 1. Get the address the pointer points to
                         // 2. Calculate the member address by adding the offset to the pointer
+
+                        let ptr_addr = vm.get_relocatable(var_address).map_err(|e| {
+                            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string())
+                        })?;
+
                         let offset_value = member.offset;
                         let member_addr = (ptr_addr + offset_value).map_err(|e| {
                             PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string())
@@ -420,6 +427,27 @@ impl PyVmConst {
         }
     }
 
+    /// Returns the path to the type of the variable
+    #[getter]
+    pub fn type_path(&self) -> Option<Vec<String>> {
+        match &self.var.var_type {
+            CairoVarType::Struct { name, .. } => {
+                Some(name.clone().split(".").map(|s| s.to_string()).collect())
+            }
+            CairoVarType::Pointer { pointee, .. } => match &**pointee {
+                CairoVarType::Struct { name, .. } => {
+                    Some(name.clone().split(".").map(|s| s.to_string()).collect())
+                }
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+
+    fn is_pointer(&self) -> bool {
+        matches!(self.var.var_type, CairoVarType::Pointer { .. })
+    }
+
     /// Get the type name of the variable
     pub fn type_name(&self) -> String {
         match &self.var.var_type {
@@ -460,10 +488,9 @@ impl PyVmConst {
     /// Repr string
     pub fn __repr__(&self) -> String {
         format!(
-            "VmConst(name='{}', type={}, value={}, address={:?})",
+            "VmConst(name='{}', path={:?}, address={:?})",
             self.var.name,
-            self.type_name(),
-            self.__str__(),
+            self.type_path(),
             self.var.address
         )
     }
@@ -702,8 +729,9 @@ pub fn create_vm_consts_dict(
                     } else {
                         // Case 3: The variable is a struct. In that case we return a PyVmConst
                         // that will load the struct members lazily when the variable is accessed.
-                        let address = get_ptr_from_var_name(name, vm, ids_data, ap_tracking)
-                            .unwrap_or(var_addr);
+                        let address =
+                            get_relocatable_from_var_name(name, vm, ids_data, ap_tracking)
+                                .unwrap_or(var_addr);
 
                         // Create a CairoVarType based on the type_str
                         let var_type = create_var_type(type_str, identifiers).map_err(|e| {

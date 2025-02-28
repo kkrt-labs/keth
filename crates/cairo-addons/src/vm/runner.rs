@@ -1,6 +1,10 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-use crate::vm::program::PyProgram;
+use crate::vm::{
+    layout::PyLayout, maybe_relocatable::PyMaybeRelocatable, program::PyProgram,
+    relocatable::PyRelocatable, relocated_trace::PyRelocatedTraceEntry,
+    run_resources::PyRunResources,
+};
 use cairo_vm::{
     hint_processor::builtin_hint_processor::dict_manager::DictManager,
     serde::deserialize_program::Identifier,
@@ -14,15 +18,14 @@ use cairo_vm::{
         security::verify_secure_runner,
     },
 };
-use polars::prelude::*;
-use pyo3::prelude::*;
-use pyo3_polars::PyDataFrame;
-
-use crate::vm::{
-    layout::PyLayout, maybe_relocatable::PyMaybeRelocatable, relocatable::PyRelocatable,
-    relocated_trace::PyRelocatedTraceEntry, run_resources::PyRunResources,
-};
 use num_traits::Zero;
+use polars::prelude::*;
+use pyo3::{
+    prelude::*,
+    types::{IntoPyDict, PyDict},
+};
+use pyo3_polars::PyDataFrame;
+use std::ffi::CString;
 
 use super::{
     dict_manager::PyDictManager, hints::HintProcessor, memory_segments::PyMemorySegmentManager,
@@ -37,10 +40,18 @@ pub struct PyCairoRunner {
 
 #[pymethods]
 impl PyCairoRunner {
+    /// Initialize the runner with the given program and identifiers.
+    /// # Arguments
+    /// * `program` - The _rust_ program to run.
+    /// * `py_identifiers` - The _pythonic_ identifiers for this program.
+    /// * `layout` - The layout to use for the runner.
+    /// * `proof_mode` - Whether to run in proof mode.
+    /// * `allow_missing_builtins` - Whether to allow missing builtins.
     #[new]
-    #[pyo3(signature = (program, layout=None, proof_mode=false, allow_missing_builtins=false))]
+    #[pyo3(signature = (program, py_identifiers=None, layout=None, proof_mode=false, allow_missing_builtins=false))]
     fn new(
         program: &PyProgram,
+        py_identifiers: Option<PyObject>,
         layout: Option<PyLayout>,
         proof_mode: bool,
         allow_missing_builtins: bool,
@@ -65,9 +76,47 @@ impl PyCairoRunner {
             .map(|(name, identifier)| (name.to_string(), identifier.clone()))
             .collect::<HashMap<String, Identifier>>();
 
-        // Insert the program identifiers in the exec_scopes, so that we're able to pull identifier
-        // data when executing hints
+        // Insert the _rust_ program_identifiers in the exec_scopes, so that we're able to pull
+        // identifier data when executing hints to build VmConsts.
         inner.exec_scopes.insert_value("__program_identifiers__", identifiers);
+
+        // Initialize a python context object that will be accessible throughout the execution of
+        // all hints.
+        // This enables us to directly use the Python identifiers passed in, avoiding the need to
+        // serialize and deserialize the program JSON.
+        Python::with_gil(|py| {
+            let context = PyDict::new(py);
+
+            if let Some(py_identifiers) = py_identifiers {
+                // Store the Python identifiers directly in the context
+                context.set_item("py_identifiers", py_identifiers).map_err(|e| {
+                    PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string())
+                })?;
+            }
+
+            // Import and run the initialization code from the injected module
+            let setup_code = r#"
+try:
+    from cairo_addons.hints.injected import create_serializer
+    create_serializer(lambda: globals())
+except Exception as e:
+    print(f"Warning: Error during initialization: {e}")
+"#;
+
+            // Run the initialization code
+            py.run(&CString::new(setup_code)?, Some(&context), None).map_err(|e| {
+                PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+                    "Failed to initialize Python globals: {}",
+                    e
+                ))
+            })?;
+
+            // Store the context object, modified in the initialization code, in the exec_scopes
+            // to access it throughout the execution of hints
+            let unbounded_context: Py<PyDict> = context.into_py_dict(py)?.into();
+            inner.exec_scopes.insert_value("__context__", unbounded_context);
+            Ok::<(), PyErr>(())
+        })?;
 
         Ok(Self {
             inner,

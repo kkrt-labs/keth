@@ -37,6 +37,15 @@
 //! %}
 //! ```
 //!
+//! Serialize a variable from `ids` using the `serialize` function.
+//! This uses the factory function `serialize` that is injected into the execution scope in
+//! runner.rs.
+//!
+//! ```cairo
+//! tempvar evm = Evm(...)
+//! %{ serialize(ids.evm) %}
+//! ```
+//!
 //! ## Limitations
 //!
 //! - Direct mutation of `ids` variables is not supported.
@@ -55,7 +64,12 @@ use pyo3::{prelude::*, types::PyDict};
 use std::{collections::HashMap, ffi::CString, path::PathBuf};
 use thiserror::Error;
 
-use super::{hints::Hint, memory_segments::PyMemoryWrapper, vm_consts::create_vm_consts_dict};
+use super::{
+    dict_manager::PyDictManager,
+    hints::Hint,
+    memory_segments::{PyMemorySegmentManager, PyMemoryWrapper},
+    vm_consts::create_vm_consts_dict,
+};
 
 /// Error type for dynamic Python hint operations
 ///
@@ -158,25 +172,44 @@ impl DynamicPythonHintExecutor {
         ids_data: &HashMap<String, HintReference>,
         ap_tracking: &ApTracking,
     ) -> Result<(), HintError> {
-        // Ensure Python interpreter is initialized
         self.ensure_initialized().map_err(|e| DynamicHintError::PythonInit(e.to_string()))?;
 
         Python::with_gil(|py| {
-            // Create a Python dict for the locals
-            let locals = PyDict::new(py);
+            // Load the context object - see runner.rs for more details
+            let context: &Py<PyDict> = exec_scopes
+                .get_ref::<Py<PyDict>>("__context__")
+                .map_err(|e| DynamicHintError::PyObjectCreation(e.to_string()))?;
+            let bounded_context = context.bind(py);
 
-            // Create a memory wrapper using the existing PyMemoryWrapper
+            // Add the memory wrapper to context
             let memory_wrapper = PyMemoryWrapper { vm };
             let memory = Py::new(py, memory_wrapper)
                 .map_err(|e| DynamicHintError::PyObjectCreation(e.to_string()))?;
-
-            // Add the memory wrapper to locals
-            locals
+            bounded_context
                 .set_item("memory", &memory)
                 .map_err(|e| DynamicHintError::PyDictSet(e.to_string()))?;
 
-            // Get the program identifiers that we inserted into the execution scope upon runner
-            // initialization
+            // Add the segments wrapper to context
+            let segments_wrapper = PyMemorySegmentManager { vm };
+            let segments = Py::new(py, segments_wrapper)
+                .map_err(|e| DynamicHintError::PyObjectCreation(e.to_string()))?;
+            bounded_context
+                .set_item("segments", &segments)
+                .map_err(|e| DynamicHintError::PyDictSet(e.to_string()))?;
+
+            // Add the dict manager wrapper to context
+            let dict_manager = exec_scopes
+                .get_dict_manager()
+                .map_err(|e| DynamicHintError::PyObjectCreation(e.to_string()))?;
+            let py_dict_manager = PyDictManager { inner: dict_manager };
+            let py_dict_manager_wrapper = Py::new(py, py_dict_manager)
+                .map_err(|e| DynamicHintError::PyObjectCreation(e.to_string()))?;
+            bounded_context
+                .set_item("dict_manager", &py_dict_manager_wrapper)
+                .map_err(|e| DynamicHintError::PyDictSet(e.to_string()))?;
+
+            // Get the _rust_ program identifiers that we inserted into the execution scope upon
+            // runner initialization to initialize VmConsts, and add them to the context
             let program_identifiers = match exec_scopes
                 .get_ref::<HashMap<String, Identifier>>("__program_identifiers__")
             {
@@ -188,21 +221,25 @@ impl DynamicPythonHintExecutor {
                     ))))
                 }
             };
-
-            // Create VmConstsDict using the new implementation
             let py_ids_dict =
                 create_vm_consts_dict(vm, &program_identifiers, ids_data, ap_tracking, py)
                     .map_err(|e| DynamicHintError::PyObjectCreation(e.to_string()))?;
-
-            // Add the ids dictionary to locals
-            locals
+            bounded_context
                 .set_item("ids", py_ids_dict)
                 .map_err(|e| DynamicHintError::PyDictSet(e.to_string()))?;
 
-            // Execute the Python code
-            let hint_code_c_string = CString::new(hint_code)
+            // Inject the serialize function factory into the execution scope
+            let injected_py_code = r#"
+from functools import partial
+
+serialize = partial(serialize, segments=segments, program_identifiers=py_identifiers, dict_manager=dict_manager)
+"#;
+            let full_hint_code = format!("{}\n{}", injected_py_code, hint_code);
+            let hint_code_c_string = CString::new(full_hint_code)
                 .map_err(|e| DynamicHintError::CStringConversion(e.to_string()))?;
-            py.run(&hint_code_c_string, None, Some(&locals))
+
+            // Run the hint code
+            py.run(&hint_code_c_string, Some(bounded_context), None)
                 .map_err(|e| DynamicHintError::PythonExecution(e.to_string()))?;
 
             Ok(())

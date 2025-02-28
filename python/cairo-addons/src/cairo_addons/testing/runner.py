@@ -203,7 +203,9 @@ def run_python_vm(
             allow_missing_builtins=False,
         )
         dict_manager = DictManager()
-        serde = serde_cls(runner.segments, cairo_program, dict_manager, cairo_file)
+        serde = serde_cls(
+            runner.segments, cairo_program.identifiers, dict_manager, cairo_file
+        )
 
         runner.program_base = runner.segments.add()
         runner.execution_base = runner.segments.add()
@@ -464,17 +466,19 @@ def run_rust_vm(
         # Create runner
         runner = RustCairoRunner(
             program=rust_program,
+            py_identifiers=cairo_program.identifiers,
             layout=getattr(LAYOUTS, request.config.getoption("layout")).layout_name,
             proof_mode=False,
             allow_missing_builtins=False,
         )
+
         # Must be done right after runner creation to make sure the execution base is 1
         # See https://github.com/lambdaclass/cairo-vm/issues/1908
         runner.initialize_segments()
 
         # Fill runner's memory for args
         serde = serde_cls(
-            runner.segments, cairo_program, runner.dict_manager, cairo_file
+            runner.segments, cairo_program.identifiers, runner.dict_manager, cairo_file
         )
         stack = []
         # Handle other args, (implicit, explicit)
