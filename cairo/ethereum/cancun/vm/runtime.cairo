@@ -54,7 +54,7 @@ func finalize_jumpdests{range_check_ptr}(
     assert_valid_jumpdest(index, bytecode, valid_jumpdests_start);
 
     return finalize_jumpdests(
-        index=valid_jumpdests_start.key + 1,
+        index=valid_jumpdests_start.key,
         valid_jumpdests_start=valid_jumpdests_start + DictAccess.SIZE,
         valid_jumpdests=valid_jumpdests,
         bytecode=bytecode,
