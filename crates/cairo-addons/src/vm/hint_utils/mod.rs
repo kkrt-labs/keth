@@ -31,6 +31,11 @@ pub fn serialize_sequence(
     let len =
         len_felt.try_into().map_err(|_| MathError::Felt252ToUsizeConversion(Box::new(len_felt)))?;
 
+    // if len == 0 then no memory is allocated for the sequence
+    if len == 0 {
+        return Ok(vec![]);
+    }
+
     let data = vm.get_relocatable(ptr)?;
 
     let values = (0..len)
