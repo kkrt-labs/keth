@@ -217,47 +217,10 @@ pub fn initialize_jumpdests() -> Hint {
          _constants: &HashMap<String, Felt252>|
          -> Result<(), HintError> {
             // Get bytecode pointer and length
-            let bytecode =
-                get_maybe_relocatable_from_var_name("bytecode", vm, ids_data, ap_tracking)?;
-            let bytecode_ptr = match bytecode {
-                MaybeRelocatable::RelocatableValue(ptr) => ptr,
-                MaybeRelocatable::Int(value) if value == Felt252::ZERO => {
-                    // Handle empty bytecode case
-                    let base = vm.add_memory_segment();
-
-                    // Get dict manager and create empty dictionary
-                    let dict_manager_ref = _exec_scopes.get_dict_manager()?;
-                    let mut dict_manager = dict_manager_ref.borrow_mut();
-
-                    // Create and insert empty DictTracker
-                    dict_manager.trackers.insert(
-                        base.segment_index,
-                        DictTracker::new_default_dict(
-                            base,
-                            &MaybeRelocatable::from(Felt252::ZERO),
-                            Some(HashMap::new()),
-                        ),
-                    );
-
-                    // Store base address in ap and return
-                    insert_value_into_ap(vm, base)?;
-                    return Ok(());
-                }
-                _ => return Err(HintError::CustomHint(Box::from("Invalid bytecode value"))),
-            };
-
-            let bytecode_len =
-                get_integer_from_var_name("bytecode_len", vm, ids_data, ap_tracking)?;
-            let len: usize = bytecode_len
-                .try_into()
-                .map_err(|_| MathError::Felt252ToUsizeConversion(Box::new(bytecode_len)))?;
-
-            // Read bytecode from memory
-            let mut bytecode = Vec::with_capacity(len);
-            for i in 0..len {
-                let value = vm.get_integer((bytecode_ptr + i)?)?.into_owned();
-                bytecode.push(value.to_bytes_be()[31]); // Get least significant byte
-            }
+            let bytecode = serialize_sequence("bytecode", vm, ids_data, ap_tracking)?
+                .into_iter()
+                .map(|b| b.try_into().unwrap())
+                .collect::<Vec<u8>>();
 
             // Get valid jump destinations
             let valid_jumpdest = get_valid_jump_destinations(&bytecode);
@@ -349,7 +312,10 @@ pub fn jumpdest_check_push_last_32_bytes() -> Hint {
          ap_tracking: &ApTracking,
          _constants: &HashMap<String, Felt252>|
          -> Result<(), HintError> {
-            let bytecode_ptr = get_ptr_from_var_name("bytecode", vm, ids_data, ap_tracking)?;
+            let bytecode = serialize_sequence("bytecode", vm, ids_data, ap_tracking)?
+                .into_iter()
+                .map(|b| b.try_into().unwrap())
+                .collect::<Vec<u8>>();
             let valid_jumpdest_addr =
                 get_ptr_from_var_name("valid_jumpdest", vm, ids_data, ap_tracking)?;
             let valid_jumpdest_key: usize =
@@ -357,16 +323,12 @@ pub fn jumpdest_check_push_last_32_bytes() -> Hint {
             let max_len = std::cmp::min(valid_jumpdest_key, 32);
 
             // Get the previous 32 bytes (or less) before the potential jumpdest
-            let mut bytecode = Vec::with_capacity(max_len);
-            for i in 0..max_len {
-                let offset = valid_jumpdest_key - i - 1;
-                let value = vm.get_integer((bytecode_ptr + offset)?)?.into_owned();
-                let value_u8: u8 = value.try_into().unwrap();
-                bytecode.push(value_u8);
-            }
+            let mut last_32_bytes =
+                bytecode.as_slice()[valid_jumpdest_key - max_len..valid_jumpdest_key].to_vec();
+            last_32_bytes.reverse();
 
             // Check if any PUSH may prevent this to be a JUMPDEST
-            let is_no_push_case = !bytecode.iter().enumerate().any(|(i, &byte)| {
+            let is_no_push_case = !last_32_bytes.iter().enumerate().any(|(i, &byte)| {
                 // Check if the byte is within the PUSH opcode range for its position (0x60 + i to
                 // 0x7f)
                 (0x60 + i as u8) <= byte && byte <= 0x7f

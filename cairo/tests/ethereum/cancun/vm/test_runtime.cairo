@@ -34,7 +34,8 @@ func test__get_valid_jump_destinations{range_check_ptr}(output_ptr: felt*) {
 func test__finalize_jumpdests{range_check_ptr}() {
     alloc_locals;
 
-    local bytecode: felt*;
+    local bytecode_data: felt*;
+    local bytecode_len: felt;
     local valid_jumpdests_start: DictAccess*;
     local valid_jumpdests: DictAccess*;
     %{
@@ -42,8 +43,9 @@ func test__finalize_jumpdests{range_check_ptr}() {
         from tests.utils.helpers import flatten
         from ethereum.cancun.vm.runtime import get_valid_jump_destinations
 
-        memory[fp] = segments.add()
-        segments.write_arg(memory[fp], program_input["bytecode"])
+        memory[ids.bytecode_data] = segments.add()
+        segments.write_arg(memory[ids.bytecode_data], program_input["bytecode"])
+        ids.bytecode_len = len(program_input["bytecode"])
 
         data = {k: 1 for k in get_valid_jump_destinations(program_input["bytecode"])}
 
@@ -60,6 +62,7 @@ func test__finalize_jumpdests{range_check_ptr}() {
         memory[fp + 2] = base + len(data) * 3
     %}
 
+    tempvar bytecode = Bytes(new BytesStruct(data=bytecode_data, len=bytecode_len));
     let (sorted_keys_start, sorted_keys_end) = dict_squash(valid_jumpdests_start, valid_jumpdests);
 
     finalize_jumpdests(0, sorted_keys_start, sorted_keys_end, bytecode);
@@ -70,13 +73,16 @@ func test__finalize_jumpdests{range_check_ptr}() {
 func test__assert_valid_jumpdest{range_check_ptr}() {
     alloc_locals;
     tempvar bytecode: felt*;
+    tempvar bytecode_len: felt;
     tempvar valid_jumpdest: DictAccess*;
     %{
         ids.bytecode = segments.add()
         segments.write_arg(ids.bytecode, program_input["bytecode"])
+        ids.bytecode_len = len(program_input["bytecode"])
         ids.valid_jumpdest = segments.add()
         segments.write_arg(ids.valid_jumpdest.address_, program_input["valid_jumpdest"])
     %}
+    tempvar bytecode = Bytes(new BytesStruct(data=bytecode_data, len=bytecode_len));
     assert_valid_jumpdest(0, bytecode, valid_jumpdest);
     return ();
 }

@@ -641,7 +641,7 @@ func squash_evm{range_check_ptr, evm: Evm}() {
         0,
         squashed_valid_jump_destinations_start,
         squashed_valid_jump_destinations_end,
-        evm.value.message.value.code.value.data,
+        evm.value.message.value.code,
     );
     tempvar new_valid_jump_destinations = SetUint(
         new SetUintStruct(

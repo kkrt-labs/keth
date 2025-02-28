@@ -1,8 +1,8 @@
 from starkware.cairo.common.bool import TRUE, FALSE
 from starkware.cairo.common.dict_access import DictAccess
-from starkware.cairo.common.math_cmp import is_in_range
+from starkware.cairo.common.math_cmp import is_in_range, is_nn
 
-from ethereum_types.bytes import Bytes
+from ethereum_types.bytes import Bytes, BytesStruct
 from ethereum_types.numeric import SetUint, SetUintStruct, SetUintDictAccess
 
 from cairo_core.maths import unsigned_div_rem
@@ -11,10 +11,8 @@ from cairo_core.maths import unsigned_div_rem
 // @dev This function is an oracle and doesn't enforce anything. During the EVM execution, the prover
 // commits to the valid or invalid jumpdest responses, and the verifier checks the response in the
 // finalize_jumpdests function.
-func get_valid_jump_destinations{range_check_ptr}(code: Bytes) -> SetUint {
+func get_valid_jump_destinations{range_check_ptr}(bytecode: Bytes) -> SetUint {
     alloc_locals;
-    let bytecode = code.value.data;
-    let bytecode_len = code.value.len;
 
     %{ initialize_jumpdests %}
     ap += 1;
@@ -39,7 +37,7 @@ func get_valid_jump_destinations{range_check_ptr}(code: Bytes) -> SetUint {
 // @dev The keys are supposed to be sorted in ascending order, it's not a soundness issue if it's
 //      not the case as the final assert will fail.
 func finalize_jumpdests{range_check_ptr}(
-    index: felt, valid_jumpdests_start: DictAccess*, valid_jumpdests: DictAccess*, bytecode: felt*
+    index: felt, valid_jumpdests_start: DictAccess*, valid_jumpdests: DictAccess*, bytecode: Bytes
 ) {
     alloc_locals;
 
@@ -65,12 +63,22 @@ func finalize_jumpdests{range_check_ptr}(
 // @dev Use a hint to determine if the easy case (no PUSHes before the JUMPDEST) is true
 //      Otherwise, starts back at the given start_index, ie analyse the whole bytecode[start_index:key] segment.
 func assert_valid_jumpdest{range_check_ptr}(
-    start_index: felt, bytecode: felt*, valid_jumpdest: DictAccess*
+    start_index: felt, bytecode: Bytes, valid_jumpdest: DictAccess*
 ) {
     alloc_locals;
     // Assert that the dict access is only read (same prev and new value)
     assert valid_jumpdest.prev_value = valid_jumpdest.new_value;
-    let bytecode_at_jumpdest = [bytecode + valid_jumpdest.key];
+
+    // If we tried to jump OOB - valid_jumpdest.key fits in u128, validated in jump{i}
+    let is_in_bounds = is_nn(bytecode.value.len - valid_jumpdest.key);
+    if (is_in_bounds == 0) {
+        with_attr error_message("assert_valid_jumpdest: invalid jumpdest") {
+            assert valid_jumpdest.prev_value = 0;
+        }
+        return ();
+    }
+
+    let bytecode_at_jumpdest = [bytecode.value.data + valid_jumpdest.key];
 
     if (bytecode_at_jumpdest != 0x5b) {
         with_attr error_message("assert_valid_jumpdest: invalid jumpdest") {
@@ -102,11 +110,11 @@ func assert_valid_jumpdest{range_check_ptr}(
     tempvar i = start_index;
 
     body_general_case:
-    let bytecode = cast([fp - 4], felt*);
+    tempvar bytecode = Bytes(cast([fp - 4], BytesStruct*));
     let range_check_ptr = [ap - 2];
     let i = [ap - 1];
 
-    tempvar opcode = [bytecode + i];
+    let opcode = [bytecode.value.data + i];
     let is_push_opcode = is_in_range(opcode, 0x60, 0x80);
     tempvar next_i = i + 1 + is_push_opcode * (opcode - 0x5f);
 
@@ -137,10 +145,10 @@ func assert_valid_jumpdest{range_check_ptr}(
     body_no_push_case:
     let offset = [ap - 2];
     let range_check_ptr = [ap - 1];
-    let bytecode = cast([fp - 4], felt*);
+    tempvar bytecode = Bytes(cast([fp - 4], BytesStruct*));
     let valid_jumpdest = cast([fp - 3], DictAccess*);
 
-    let opcode = [bytecode + valid_jumpdest.key - offset];
+    let opcode = [bytecode.value.data + valid_jumpdest.key - offset];
     // offset is the distance from the JUMPDEST, so offset = i means that any PUSH_i
     // with i > offset may prevent this to be a JUMPDEST
     let is_push_opcode = is_in_range(opcode, 0x5f + offset, 0x80);

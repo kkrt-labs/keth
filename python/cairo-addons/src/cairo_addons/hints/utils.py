@@ -101,7 +101,9 @@ def initialize_jumpdests(
     from ethereum.cancun.vm.runtime import get_valid_jump_destinations
     from starkware.cairo.common.dict import DictTracker
 
-    bytecode = bytes([memory[ids.bytecode + i] for i in range(ids.bytecode_len)])
+    bytecode = bytes(
+        [memory[ids.bytecode.value.data + i] for i in range(ids.bytecode.value.len)]
+    )
     valid_jumpdest = get_valid_jump_destinations(bytecode)
 
     data = defaultdict(int, {(int(dest),): 1 for dest in valid_jumpdest})
@@ -115,7 +117,7 @@ def initialize_jumpdests(
 def jumpdest_check_push_last_32_bytes(ids: VmConsts, memory: MemoryDict):
     # Get the 32 previous bytes
     bytecode = [
-        memory[ids.bytecode + ids.valid_jumpdest.key - i - 1]
+        memory[ids.bytecode.value.data + ids.valid_jumpdest.key - i - 1]
         for i in range(min(ids.valid_jumpdest.key, 32))
     ]
     # Check if any PUSH may prevent this to be a JUMPDEST
