@@ -1,15 +1,61 @@
 from dataclasses import fields
 
+import ethereum.trace
 import pytest
 from dotenv import load_dotenv
+from ethereum.trace import (
+    EvmStop,
+    GasAndRefund,
+    OpEnd,
+    OpException,
+    OpStart,
+    PrecompileEnd,
+    PrecompileStart,
+    TraceEvent,
+    TransactionEnd,
+    TransactionStart,
+)
 
 from cairo_addons.testing.runner import run_python_vm, run_rust_vm
+from tests.utils.args_gen import Evm
 from tests.utils.args_gen import gen_arg as gen_arg_builder
 from tests.utils.args_gen import to_cairo_type, to_python_type
 from tests.utils.hints import get_op
 from tests.utils.serde import Serde
 
 load_dotenv()
+
+
+def evm_trace(
+    evm: Evm,
+    event: TraceEvent,
+    trace_memory: bool = False,
+    trace_stack: bool = True,
+    trace_return_data: bool = False,
+) -> None:
+    """
+    Log the event.
+    """
+    print(f"[EELS] {event}")
+    if isinstance(event, TransactionStart):
+        pass
+    elif isinstance(event, TransactionEnd):
+        pass
+    elif isinstance(event, PrecompileStart):
+        print(f"[EELS] PrecompileStart: {evm.message.code_address}")
+    elif isinstance(event, PrecompileEnd):
+        print(f"[EELS] PrecompileEnd: {evm.message.code_address}")
+    elif isinstance(event, OpStart):
+        op = event.op.value
+        print(f"[EELS] OpStart: {str(op)}")
+    elif isinstance(event, OpEnd):
+        print(f"[EELS] OpEnd: {str(op)}")
+    elif isinstance(event, OpException):
+        print(f"[EELS] OpException: {event.error}")
+    elif isinstance(event, EvmStop):
+        print(f"[EELS] EvmStop")
+    elif isinstance(event, GasAndRefund):
+        print(f"[EELS] GasAndRefund: {event.gas_cost}")
 
 
 @pytest.fixture(scope="module")
@@ -65,6 +111,7 @@ def pytest_configure(config):
     ethereum.cancun.vm.Message = Message
     ethereum.cancun.vm.Environment = Environment
     ethereum.cancun.vm.interpreter.MessageCallOutput = MessageCallOutput
+    ethereum.trace.evm_trace = evm_trace
 
     # Mock the Extended type because hypothesis cannot handle the RLP Protocol
     # Needs to be done before importing the types from ethereum.cancun.trie
