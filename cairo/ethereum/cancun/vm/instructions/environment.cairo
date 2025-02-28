@@ -55,7 +55,7 @@ from ethereum.utils.numeric import (
 from legacy.utils.bytes import felt_to_bytes20_little
 from legacy.utils.dict import hashdict_read, hashdict_write
 from legacy.utils.utils import Helpers
-
+from ethereum.utils.hash_dicts import set_address_contains_or_add
 // @notice Pushes the address of the current executing account to the stack.
 func address{
     range_check_ptr,
@@ -114,33 +114,12 @@ func balance{
         }
     }
 
-    let fp_and_pc = get_fp_and_pc();
-    local __fp__: felt* = fp_and_pc.fp_val;
-
     // GAS
     let accessed_addresses = evm.value.accessed_addresses;
-    let accessed_addresses_ptr = cast(accessed_addresses.value.dict_ptr, DictAccess*);
     tempvar address_u256_ = UnionUintU256(new UnionUintU256Enum(cast(0, Uint*), address_u256));
-    let address_ = to_address(address_u256_);
-    tempvar address = new Address(address_.value);
-    let (is_present) = hashdict_read{dict_ptr=accessed_addresses_ptr}(1, &address.value);
-    if (is_present == 0) {
-        // If the entry is not in the accessed storage keys, add it
-        hashdict_write{dict_ptr=accessed_addresses_ptr}(1, &address.value, 1);
-        tempvar poseidon_ptr = poseidon_ptr;
-        tempvar accessed_addresses_ptr = accessed_addresses_ptr;
-    } else {
-        tempvar poseidon_ptr = poseidon_ptr;
-        tempvar accessed_addresses_ptr = accessed_addresses_ptr;
-    }
-    let poseidon_ptr = cast([ap - 2], PoseidonBuiltin*);
-    let new_accessed_addresses_ptr = cast([ap - 1], SetAddressDictAccess*);
-    tempvar new_accessed_addresses = SetAddress(
-        new SetAddressStruct(
-            evm.value.accessed_addresses.value.dict_ptr_start, new_accessed_addresses_ptr
-        ),
-    );
-    EvmImpl.set_accessed_addresses(new_accessed_addresses);
+    let address = to_address(address_u256_);
+    let is_present = set_address_contains_or_add{set_address=accessed_addresses}(address);
+    EvmImpl.set_accessed_addresses(accessed_addresses);
 
     let access_gas_cost = (is_present * GasConstants.GAS_WARM_ACCESS) + (1 - is_present) *
         GasConstants.GAS_COLD_ACCOUNT_ACCESS;
@@ -153,7 +132,7 @@ func balance{
     // OPERATION
     // Get the account from state
     let state = evm.value.env.value.state;
-    let account = get_account{state=state}([address]);
+    let account = get_account{state=state}(address);
     let env = evm.value.env;
     EnvImpl.set_state{env=env}(state);
     EvmImpl.set_env(env);
@@ -712,28 +691,10 @@ func extcodesize{
 
     // GAS
     let accessed_addresses = evm.value.accessed_addresses;
-    let accessed_addresses_ptr = cast(accessed_addresses.value.dict_ptr, DictAccess*);
     tempvar address_u256_ = UnionUintU256(new UnionUintU256Enum(cast(0, Uint*), address_u256));
-    let address_ = to_address(address_u256_);
-    tempvar address = new Address(address_.value);
-    let (is_present) = hashdict_read{dict_ptr=accessed_addresses_ptr}(1, &address.value);
-    if (is_present == 0) {
-        // If the entry is not in the accessed storage keys, add it
-        hashdict_write{dict_ptr=accessed_addresses_ptr}(1, &address.value, 1);
-        tempvar poseidon_ptr = poseidon_ptr;
-        tempvar accessed_addresses_ptr = accessed_addresses_ptr;
-    } else {
-        tempvar poseidon_ptr = poseidon_ptr;
-        tempvar accessed_addresses_ptr = accessed_addresses_ptr;
-    }
-    let poseidon_ptr = cast([ap - 2], PoseidonBuiltin*);
-    let new_accessed_addresses_ptr = cast([ap - 1], SetAddressDictAccess*);
-    tempvar new_accessed_addresses = SetAddress(
-        new SetAddressStruct(
-            evm.value.accessed_addresses.value.dict_ptr_start, new_accessed_addresses_ptr
-        ),
-    );
-    EvmImpl.set_accessed_addresses(new_accessed_addresses);
+    let address = to_address(address_u256_);
+    let is_present = set_address_contains_or_add{set_address=accessed_addresses}(address);
+    EvmImpl.set_accessed_addresses(accessed_addresses);
 
     let access_gas_cost = (is_present * GasConstants.GAS_WARM_ACCESS) + (1 - is_present) *
         GasConstants.GAS_COLD_ACCOUNT_ACCESS;
@@ -746,7 +707,7 @@ func extcodesize{
     // OPERATION
     // Get the account from state
     let state = evm.value.env.value.state;
-    let account = get_account{state=state}([address]);
+    let account = get_account{state=state}(address);
     let env = evm.value.env;
     EnvImpl.set_state{env=env}(state);
     EvmImpl.set_env(env);
@@ -823,29 +784,10 @@ func extcodecopy{
 
     // Check if address is in accessed_addresses
     let accessed_addresses = evm.value.accessed_addresses;
-    let accessed_addresses_ptr = cast(accessed_addresses.value.dict_ptr, DictAccess*);
     tempvar address_u256_ = UnionUintU256(new UnionUintU256Enum(cast(0, Uint*), address_u256));
-    let address_ = to_address(address_u256_);
-    tempvar address = new Address(address_.value);
-    let (is_present) = hashdict_read{dict_ptr=accessed_addresses_ptr}(1, &address.value);
-
-    if (is_present == 0) {
-        // If the entry is not in the accessed storage keys, add it
-        hashdict_write{dict_ptr=accessed_addresses_ptr}(1, &address.value, 1);
-        tempvar poseidon_ptr = poseidon_ptr;
-        tempvar accessed_addresses_ptr = accessed_addresses_ptr;
-    } else {
-        tempvar poseidon_ptr = poseidon_ptr;
-        tempvar accessed_addresses_ptr = accessed_addresses_ptr;
-    }
-    let poseidon_ptr = cast([ap - 2], PoseidonBuiltin*);
-    let new_accessed_addresses_ptr = cast([ap - 1], SetAddressDictAccess*);
-    tempvar new_accessed_addresses = SetAddress(
-        new SetAddressStruct(
-            evm.value.accessed_addresses.value.dict_ptr_start, new_accessed_addresses_ptr
-        ),
-    );
-    EvmImpl.set_accessed_addresses(new_accessed_addresses);
+    let address = to_address(address_u256_);
+    let is_present = set_address_contains_or_add{set_address=accessed_addresses}(address);
+    EvmImpl.set_accessed_addresses(accessed_addresses);
 
     let access_gas_cost = (is_present * GasConstants.GAS_WARM_ACCESS) + (1 - is_present) *
         GasConstants.GAS_COLD_ACCOUNT_ACCESS;
@@ -859,7 +801,7 @@ func extcodecopy{
     // OPERATION
     // Get the account code from state
     let state = evm.value.env.value.state;
-    let account = get_account{state=state}([address]);
+    let account = get_account{state=state}(address);
     let env = evm.value.env;
     EnvImpl.set_state{env=env}(state);
     EvmImpl.set_env(env);
@@ -902,28 +844,10 @@ func extcodehash{
 
     // GAS
     let accessed_addresses = evm.value.accessed_addresses;
-    let accessed_addresses_ptr = cast(accessed_addresses.value.dict_ptr, DictAccess*);
     tempvar address_u256_ = UnionUintU256(new UnionUintU256Enum(cast(0, Uint*), address_u256));
-    let address_ = to_address(address_u256_);
-    tempvar address = new Address(address_.value);
-    let (is_present) = hashdict_read{dict_ptr=accessed_addresses_ptr}(1, &address.value);
-    if (is_present == 0) {
-        // If the entry is not in the accessed storage keys, add it
-        hashdict_write{dict_ptr=accessed_addresses_ptr}(1, &address.value, 1);
-        tempvar poseidon_ptr = poseidon_ptr;
-        tempvar accessed_addresses_ptr = accessed_addresses_ptr;
-    } else {
-        tempvar poseidon_ptr = poseidon_ptr;
-        tempvar accessed_addresses_ptr = accessed_addresses_ptr;
-    }
-    let poseidon_ptr = cast([ap - 2], PoseidonBuiltin*);
-    let new_accessed_addresses_ptr = cast([ap - 1], SetAddressDictAccess*);
-    tempvar new_accessed_addresses = SetAddress(
-        new SetAddressStruct(
-            evm.value.accessed_addresses.value.dict_ptr_start, new_accessed_addresses_ptr
-        ),
-    );
-    EvmImpl.set_accessed_addresses(new_accessed_addresses);
+    let address = to_address(address_u256_);
+    let is_present = set_address_contains_or_add{set_address=accessed_addresses}(address);
+    EvmImpl.set_accessed_addresses(accessed_addresses);
 
     let access_gas_cost = (is_present * GasConstants.GAS_WARM_ACCESS) + (1 - is_present) *
         GasConstants.GAS_COLD_ACCOUNT_ACCESS;
@@ -936,7 +860,7 @@ func extcodehash{
     // OPERATION
     // Get the account from state
     let state = evm.value.env.value.state;
-    let account = get_account{state=state}([address]);
+    let account = get_account{state=state}(address);
     let env = evm.value.env;
     EnvImpl.set_state{env=env}(state);
     EvmImpl.set_env(env);
