@@ -5,7 +5,7 @@ from starkware.cairo.common.registers import get_fp_and_pc
 from legacy.utils.dict import hashdict_read
 from ethereum.cancun.fork_types import SetAddress, SetAddressStruct, SetAddressDictAccess, Address
 
-func set_address_read{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, set: SetAddress}(
+func set_address_contains{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, set: SetAddress}(
     address: Address
 ) -> felt {
     alloc_locals;

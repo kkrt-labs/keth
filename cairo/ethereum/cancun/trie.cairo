@@ -11,7 +11,7 @@ from starkware.cairo.common.cairo_builtins import KeccakBuiltin
 from starkware.cairo.common.memcpy import memcpy
 
 from legacy.utils.bytes import uint256_to_bytes32_little
-from legacy.utils.dict import hashdict_read, hashdict_write, dict_new_empty
+from legacy.utils.dict import hashdict_read, hashdict_write, dict_new_empty, dict_read
 from ethereum.crypto.hash import keccak256
 from ethereum.utils.numeric import min
 from ethereum_rlp.rlp import encode, _encode_bytes, _encode
@@ -84,8 +84,6 @@ from ethereum_rlp.rlp import (
 )
 from ethereum.utils.numeric import divmod
 from ethereum.utils.bytes import Bytes32_to_Bytes, Bytes20_to_Bytes, Bytes_to_Bytes32
-
-from ethereum.utils.dicts import mapping_address_bytes32_read
 
 from cairo_core.comparison import is_zero
 from cairo_core.control_flow import raise
@@ -2004,4 +2002,22 @@ func patricialize{
     let internal_node = InternalNodeImpl.branch_node(branch_node);
 
     return internal_node;
+}
+
+// Utils function, porting this to a module would incur a lot of refactoring due to circular imports
+func mapping_address_bytes32_read{range_check_ptr, mapping: MappingAddressBytes32}(
+    key: Address
+) -> Bytes32 {
+    alloc_locals;
+    let dict_ptr = cast(mapping.value.dict_ptr, DictAccess*);
+    let (value_ptr) = dict_read{dict_ptr=dict_ptr}(key.value);
+    let value = Bytes32(cast(value_ptr, Bytes32Struct*));
+    tempvar mapping = MappingAddressBytes32(
+        new MappingAddressBytes32Struct(
+            mapping.value.dict_ptr_start,
+            cast(dict_ptr, AddressBytes32DictAccess*),
+            mapping.value.parent_dict,
+        ),
+    );
+    return value;
 }

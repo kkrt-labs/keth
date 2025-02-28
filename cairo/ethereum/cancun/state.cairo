@@ -81,8 +81,7 @@ from legacy.utils.dict import (
     dict_copy,
     default_dict_finalize,
 )
-from ethereum.utils.dicts import mapping_address_bytes32_write
-from ethereum.utils.hash_dicts import set_address_read
+from ethereum.utils.hash_dicts import set_address_contains
 
 EMPTY_ROOT:
 dw 0x6ef8c092e64583ffa655cc1b171fe856;  // low
@@ -153,60 +152,6 @@ struct StateStruct {
 
 struct State {
     value: StateStruct*,
-}
-
-func mapping_address_trie_bytes32_u256_read{
-    range_check_ptr, mapping: MappingAddressTrieBytes32U256
-}(key: Address) -> TrieBytes32U256 {
-    alloc_locals;
-    let dict_ptr = cast(mapping.value.dict_ptr, DictAccess*);
-    let (value_ptr) = dict_read{dict_ptr=dict_ptr}(key.value);
-
-    if (cast(value_ptr, felt) == 0) {
-        tempvar default = new U256Struct(0, 0);
-        let (segment_start) = default_dict_new(cast(default, felt));
-        tempvar trie_ptr = new TrieBytes32U256Struct(
-            secured=bool(1),
-            default=U256(default),
-            _data=MappingBytes32U256(
-                new MappingBytes32U256Struct(
-                    dict_ptr_start=cast(segment_start, Bytes32U256DictAccess*),
-                    dict_ptr=cast(segment_start, Bytes32U256DictAccess*),
-                    parent_dict=cast(0, MappingBytes32U256Struct*),
-                ),
-            ),
-        );
-    } else {
-        tempvar trie_ptr = cast(value_ptr, TrieBytes32U256Struct*);
-    }
-
-    tempvar mapping = MappingAddressTrieBytes32U256(
-        new MappingAddressTrieBytes32U256Struct(
-            dict_ptr_start=mapping.value.dict_ptr_start,
-            dict_ptr=cast(dict_ptr, AddressTrieBytes32U256DictAccess*),
-            parent_dict=mapping.value.parent_dict,
-        ),
-    );
-    let trie = TrieBytes32U256(trie_ptr);
-    return trie;
-}
-
-func mapping_address_trie_bytes32_u256_write{
-    range_check_ptr, mapping: MappingAddressTrieBytes32U256
-}(key: Address, value: TrieBytes32U256) {
-    alloc_locals;
-    let dict_ptr = cast(mapping.value.dict_ptr, DictAccess*);
-    let value_felt = cast(value.value, felt);
-    dict_write{dict_ptr=dict_ptr}(key.value, value_felt);
-
-    tempvar mapping = MappingAddressTrieBytes32U256(
-        new MappingAddressTrieBytes32U256Struct(
-            dict_ptr_start=mapping.value.dict_ptr_start,
-            dict_ptr=cast(dict_ptr, AddressTrieBytes32U256DictAccess*),
-            parent_dict=mapping.value.parent_dict,
-        ),
-    );
-    return ();
 }
 
 namespace StateImpl {
@@ -407,7 +352,7 @@ func get_storage_original{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, state
     local __fp__: felt* = fp_and_pc.fp_val;
 
     let created_accounts = state.value.created_accounts;
-    let is_created = set_address_read{set=created_accounts}(address);
+    let is_created = set_address_contains{set=created_accounts}(address);
     StateImpl.set_created_accounts(created_accounts);
 
     // In the transaction where an account is created, its preexisting storage
@@ -1261,4 +1206,78 @@ func state_root{
 
     let state_root = root(trie_union, OptionalMappingAddressBytes32(storage_roots_.value));
     return state_root;
+}
+
+// Utils function, porting this to a module would incur a lot of refactoring due to circular imports
+func mapping_address_trie_bytes32_u256_read{
+    range_check_ptr, mapping: MappingAddressTrieBytes32U256
+}(key: Address) -> TrieBytes32U256 {
+    alloc_locals;
+    let dict_ptr = cast(mapping.value.dict_ptr, DictAccess*);
+    let (value_ptr) = dict_read{dict_ptr=dict_ptr}(key.value);
+
+    if (cast(value_ptr, felt) == 0) {
+        tempvar default = new U256Struct(0, 0);
+        let (segment_start) = default_dict_new(cast(default, felt));
+        tempvar trie_ptr = new TrieBytes32U256Struct(
+            secured=bool(1),
+            default=U256(default),
+            _data=MappingBytes32U256(
+                new MappingBytes32U256Struct(
+                    dict_ptr_start=cast(segment_start, Bytes32U256DictAccess*),
+                    dict_ptr=cast(segment_start, Bytes32U256DictAccess*),
+                    parent_dict=cast(0, MappingBytes32U256Struct*),
+                ),
+            ),
+        );
+    } else {
+        tempvar trie_ptr = cast(value_ptr, TrieBytes32U256Struct*);
+    }
+
+    tempvar mapping = MappingAddressTrieBytes32U256(
+        new MappingAddressTrieBytes32U256Struct(
+            dict_ptr_start=mapping.value.dict_ptr_start,
+            dict_ptr=cast(dict_ptr, AddressTrieBytes32U256DictAccess*),
+            parent_dict=mapping.value.parent_dict,
+        ),
+    );
+    let trie = TrieBytes32U256(trie_ptr);
+    return trie;
+}
+
+// Utils function, porting this to a module would incur a lot of refactoring due to circular imports
+func mapping_address_trie_bytes32_u256_write{
+    range_check_ptr, mapping: MappingAddressTrieBytes32U256
+}(key: Address, value: TrieBytes32U256) {
+    alloc_locals;
+    let dict_ptr = cast(mapping.value.dict_ptr, DictAccess*);
+    let value_felt = cast(value.value, felt);
+    dict_write{dict_ptr=dict_ptr}(key.value, value_felt);
+
+    tempvar mapping = MappingAddressTrieBytes32U256(
+        new MappingAddressTrieBytes32U256Struct(
+            dict_ptr_start=mapping.value.dict_ptr_start,
+            dict_ptr=cast(dict_ptr, AddressTrieBytes32U256DictAccess*),
+            parent_dict=mapping.value.parent_dict,
+        ),
+    );
+    return ();
+}
+
+// Utils function, porting this to a module would incur a lot of refactoring due to circular imports
+func mapping_address_bytes32_write{range_check_ptr, mapping: MappingAddressBytes32}(
+    key: Address, value: Bytes32
+) {
+    alloc_locals;
+    let dict_ptr = cast(mapping.value.dict_ptr, DictAccess*);
+    let value_felt = cast(value.value, felt);
+    dict_write{dict_ptr=dict_ptr}(key.value, value_felt);
+    tempvar mapping = MappingAddressBytes32(
+        new MappingAddressBytes32Struct(
+            dict_ptr_start=mapping.value.dict_ptr_start,
+            dict_ptr=cast(dict_ptr, AddressBytes32DictAccess*),
+            parent_dict=mapping.value.parent_dict,
+        ),
+    );
+    return ();
 }

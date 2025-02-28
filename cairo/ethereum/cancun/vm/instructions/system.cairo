@@ -73,7 +73,7 @@ from starkware.cairo.common.alloc import alloc
 from legacy.utils.dict import hashdict_read
 from cairo_core.comparison import is_zero
 
-from ethereum.utils.hash_dicts import set_address_read
+from ethereum.utils.hash_dicts import set_address_contains
 
 func generic_call{
     process_message_label: felt*,
@@ -1538,7 +1538,7 @@ func selfdestruct{
 
     // Register account for deletion if created in same transaction
     let created_accounts = env.value.state.value.created_accounts;
-    let is_created = set_address_read{set=created_accounts}(originator);
+    let is_created = set_address_contains{set=created_accounts}(originator);
     tempvar state = State(
         new StateStruct(
             _main_trie=state.value._main_trie,
