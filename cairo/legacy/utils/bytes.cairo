@@ -400,17 +400,6 @@ func bytes_to_bytes8_little_endian{range_check_ptr}(dst: felt*, bytes_len: felt,
     return ();
 }
 
-func keccak{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*}(
-    code_len: felt, code: felt*
-) -> Uint256 {
-    alloc_locals;
-    let (local dst: felt*) = alloc();
-    bytes_to_bytes8_little_endian(dst, code_len, code);
-
-    let (code_hash) = keccak_bigend(dst, code_len);
-    return code_hash;
-}
-
 func uint256_from_bytes_be{range_check_ptr}(len: felt, ptr: felt*) -> Uint256 {
     alloc_locals;
 
