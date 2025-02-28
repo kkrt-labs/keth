@@ -85,7 +85,7 @@ func prepare_message{
     let state = env.value.state;
     if (cast(target.value.bytes0, felt) != 0) {
         let caller_account = get_account{state=state}(caller);
-        // wont't underflow: the nonce of the caller is always incremented by 1 before `prepare_message`.
+        // won't underflow: the nonce of the caller is always incremented by 1 before `prepare_message`.
         let nonce = Uint(caller_account.value.nonce.value - 1);
         let current_target = compute_contract_address(caller, nonce);
 
