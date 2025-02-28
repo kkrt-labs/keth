@@ -73,7 +73,11 @@ from starkware.cairo.common.alloc import alloc
 from legacy.utils.dict import hashdict_read
 from cairo_core.comparison import is_zero
 
-from ethereum.utils.hash_dicts import set_address_contains, set_address_contains_or_add
+from ethereum.utils.hash_dicts import (
+    set_address_contains,
+    set_address_contains_or_add,
+    set_address_add,
+)
 
 func generic_call{
     process_message_label: felt*,
@@ -1473,15 +1477,8 @@ func selfdestruct{
 
         // Add to accounts to delete
         let accounts_to_delete = evm.value.accounts_to_delete;
-        let accounts_to_delete_end = cast(accounts_to_delete.value.dict_ptr, DictAccess*);
-        hashdict_write{dict_ptr=accounts_to_delete_end}(1, &originator, 1);
-        tempvar new_accounts_to_delete = SetAddress(
-            new SetAddressStruct(
-                accounts_to_delete.value.dict_ptr_start,
-                cast(accounts_to_delete_end, SetAddressDictAccess*),
-            ),
-        );
-        EvmImpl.set_accounts_to_delete(new_accounts_to_delete);
+        set_address_add{set_address=accounts_to_delete}(originator);
+        EvmImpl.set_accounts_to_delete(accounts_to_delete);
         tempvar evm = evm;
         tempvar state = state;
         tempvar poseidon_ptr = poseidon_ptr;
@@ -1496,15 +1493,8 @@ func selfdestruct{
     let is_empty = account_exists_and_is_empty{state=state}(beneficiary);
     if (is_empty.value != 0) {
         let touched_accounts = evm.value.touched_accounts;
-        let touched_accounts_end = cast(touched_accounts.value.dict_ptr, DictAccess*);
-        hashdict_write{dict_ptr=touched_accounts_end}(1, &beneficiary.value, 1);
-        tempvar new_touched_accounts = SetAddress(
-            new SetAddressStruct(
-                touched_accounts.value.dict_ptr_start,
-                cast(touched_accounts_end, SetAddressDictAccess*),
-            ),
-        );
-        EvmImpl.set_touched_accounts(new_touched_accounts);
+        set_address_add{set_address=touched_accounts}(beneficiary);
+        EvmImpl.set_touched_accounts(touched_accounts);
         tempvar evm = evm;
         tempvar state = state;
         tempvar poseidon_ptr = poseidon_ptr;
