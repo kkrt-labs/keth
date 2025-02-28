@@ -48,10 +48,10 @@ impl PyCairoRunner {
     /// * `proof_mode` - Whether to run in proof mode.
     /// * `allow_missing_builtins` - Whether to allow missing builtins.
     #[new]
-    #[pyo3(signature = (program, py_identifiers, layout=None, proof_mode=false, allow_missing_builtins=false))]
+    #[pyo3(signature = (program, py_identifiers=None, layout=None, proof_mode=false, allow_missing_builtins=false))]
     fn new(
         program: &PyProgram,
-        py_identifiers: PyObject,
+        py_identifiers: Option<PyObject>,
         layout: Option<PyLayout>,
         proof_mode: bool,
         allow_missing_builtins: bool,
@@ -87,10 +87,12 @@ impl PyCairoRunner {
         Python::with_gil(|py| {
             let context = PyDict::new(py);
 
-            // Store the Python identifiers directly in the context
-            context
-                .set_item("py_identifiers", py_identifiers)
-                .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+            if let Some(py_identifiers) = py_identifiers {
+                // Store the Python identifiers directly in the context
+                context.set_item("py_identifiers", py_identifiers).map_err(|e| {
+                    PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string())
+                })?;
+            }
 
             // Import and run the initialization code from the injected module
             let setup_code = r#"
