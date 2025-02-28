@@ -33,7 +33,7 @@ func set_address_add{poseidon_ptr: PoseidonBuiltin*, set_address: SetAddress}(ad
 
     let dict_ptr = cast(set_address.value.dict_ptr, DictAccess*);
     hashdict_write{dict_ptr=dict_ptr}(1, &address.value, 1);
-    tempvar new_set_address = SetAddress(
+    tempvar set_address = SetAddress(
         new SetAddressStruct(
             set_address.value.dict_ptr_start, cast(dict_ptr, SetAddressDictAccess*)
         ),
