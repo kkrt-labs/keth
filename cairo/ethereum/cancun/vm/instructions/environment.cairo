@@ -880,9 +880,7 @@ func extcodehash{
     } else {
         // Calculate keccak256 hash of code and push to stack
         let code_hash = keccak256(account.value.code);
-        tempvar code_hash_u256 = U256(new U256Struct(code_hash.value.low, code_hash.value.high));
-        let code_hash_bytes32 = U256_to_be_bytes(code_hash_u256);
-        tempvar code_hash_u256 = U256(code_hash_bytes32.value);
+        let code_hash_u256 = U256_from_be_bytes32(code_hash);
 
         tempvar keccak_ptr = keccak_ptr;
         tempvar poseidon_ptr = poseidon_ptr;
