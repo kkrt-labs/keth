@@ -1509,7 +1509,7 @@ func selfdestruct{
     // Add additional gas cost if beneficiary not alive and originator has balance
     let is_new_account = (1 - beneficiary_is_alive.value) * (1 - originator_balance_zero);
     if (is_new_account != 0) {
-        // Wont't overflow as all components are < 25k
+        // Won't overflow as all components are < 25k
         tempvar final_gas_cost = Uint(gas_cost.value + GasConstants.GAS_SELF_DESTRUCT_NEW_ACCOUNT);
     } else {
         tempvar final_gas_cost = gas_cost;
