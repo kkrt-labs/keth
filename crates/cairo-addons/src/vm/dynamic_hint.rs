@@ -232,7 +232,7 @@ impl DynamicPythonHintExecutor {
             let injected_py_code = r#"
 from functools import partial
 
-serialize = partial(globals()["serialize"], segments=globals()["segments"], program_identifiers=globals()["py_identifiers"], dict_manager=globals()["dict_manager"])
+serialize = partial(serialize, segments=segments, program_identifiers=py_identifiers, dict_manager=dict_manager)
 "#;
             let full_hint_code = format!("{}\n{}", injected_py_code, hint_code);
             let hint_code_c_string = CString::new(full_hint_code)
