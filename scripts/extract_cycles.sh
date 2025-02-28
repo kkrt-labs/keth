@@ -61,7 +61,7 @@ fi
 echo "Starting zkpig generate loop for $((DURATION / 60)) minutes..."
 
 # Run zkpig generate in a loop for the specified duration
-while [ $(date +%s) -lt $END_TIME ]; do
+while [ "$(date +%s)" -lt $END_TIME ]; do
 	echo "Running zkpig generate at $(date)"
 
 	# Run zkpig generate and capture its output
