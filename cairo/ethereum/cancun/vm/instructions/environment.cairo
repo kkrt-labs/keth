@@ -405,6 +405,7 @@ func returndatacopy{
         }
     }
     if (size.value.high != 0) {
+        EvmImpl.set_stack(stack);
         tempvar err = new EthereumException(OutOfGasError);
         return err;
     }
