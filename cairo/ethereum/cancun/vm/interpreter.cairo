@@ -112,10 +112,13 @@ func process_create_message{
     EnvImpl.set_transient_storage{env=env}(transient_storage);
     let evm = process_message(message, env);
 
+    // Rebind variables mutated in environment
+    let env = evm.value.env;
+    let state = env.value.state;
+    let transient_storage = env.value.transient_storage;
+
     if (cast(evm.value.error, felt) != 0) {
         // Error case
-        let env = evm.value.env;
-        let state = env.value.state;
         rollback_transaction{state=state, transient_storage=transient_storage}();
         EnvImpl.set_state{env=env}(state);
         EnvImpl.set_transient_storage{env=env}(transient_storage);
@@ -148,8 +151,6 @@ func process_create_message{
         _process_create_message_error{evm=evm}(err);
         return evm;
     }
-    let env = evm.value.env;
-    let state = env.value.state;
     set_code{state=state}(message.value.current_target, contract_code);
     commit_transaction{state=state, transient_storage=transient_storage}();
     EnvImpl.set_state{env=env}(state);
