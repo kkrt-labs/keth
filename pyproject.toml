@@ -17,6 +17,7 @@ dependencies = [
   "xxhash>=3.5.0",
   "garaga",
   "ethereum",
+  "pytest-randomly>=3.16.0",
 ]
 
 [tool.uv]
