@@ -323,7 +323,6 @@ namespace Internals {
         let block_hashes = evm.value.env.value.block_hashes.value.data[index_from_end];
         with stack {
             let hash_u256 = U256_from_be_bytes32(block_hashes);
-            tempvar hash_u256 = U256(new U256Struct(block_hashes.value.low, block_hashes.value.high));
             let err = push(hash_u256);
             if (cast(err, felt) != 0) {
                 return err;
