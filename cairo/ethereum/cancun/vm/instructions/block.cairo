@@ -286,7 +286,7 @@ func chain_id{
 }
 
 namespace Internals {
-    func blockhash{range_check_ptr, stack: Stack}(
+    func blockhash{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, stack: Stack}(
         evm: Evm, block_number: U256
     ) -> EthereumException* {
         alloc_locals;
@@ -322,7 +322,8 @@ namespace Internals {
             evm.value.env.value.number.value + block_number.value.low;
         let block_hashes = evm.value.env.value.block_hashes.value.data[index_from_end];
         with stack {
-            let err = push(U256(new U256Struct(block_hashes.value.low, block_hashes.value.high)));
+            let hash_u256 = U256_from_be_bytes32(block_hashes);
+            let err = push(hash_u256);
             if (cast(err, felt) != 0) {
                 return err;
             }
