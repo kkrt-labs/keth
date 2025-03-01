@@ -7,6 +7,7 @@ from typing import Any, Dict, Generator, Tuple, Union
 
 import pytest
 from _pytest.mark.structures import ParameterSet
+from ethereum.cancun.fork import state_transition
 from ethereum.cancun.state import State
 from ethereum.crypto.hash import keccak256
 from ethereum.exceptions import EthereumException
@@ -75,6 +76,9 @@ def run_blockchain_st_test(test_case: Dict, load: Load, cairo_run) -> None:
         chain_id=U64(json_data["genesisBlockHeader"].get("chainId", 1)),
     )
 
+    # Enable our custom trace function
+    # trace.evm_trace = partial(evm_trace, trace_memory=False, trace_stack=False, trace_return_data=False)
+
     for json_block in json_data["blocks"]:
         block_exception = None
         for key, value in json_block.items():
@@ -112,9 +116,14 @@ def add_block_to_chain(chain: Any, json_block: Any, load: Load, cairo_run) -> No
     assert keccak256(rlp.encode(block.header)) == block_header_hash
     assert rlp.encode(block) == block_rlp
 
-    cairo_chain = cairo_run("state_transition", chain, block)
-    chain.blocks = cairo_chain.blocks
-    chain.state = cairo_chain.state
+    try:
+        cairo_chain = cairo_run("state_transition", chain, block)
+        state_transition(chain, block)
+        chain.blocks = cairo_chain.blocks
+        chain.state = cairo_chain.state
+    except Exception as e:
+        state_transition(chain, block)
+        raise e
 
 
 # Functions that fetch individual test cases
