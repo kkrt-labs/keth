@@ -1,5 +1,7 @@
 # keth
 
+[![codecov](https://codecov.io/gh/kkrt-labs/keth/branch/main/graph/badge.svg?token=l3KEAeknXB)](https://codecov.io/gh/kkrt-labs/keth)
+
 ## Introduction
 
 Keth is an open-source, proving backend for the Ethereum Execution Layer built
