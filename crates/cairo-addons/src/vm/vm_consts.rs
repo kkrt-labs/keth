@@ -147,6 +147,15 @@ fn create_var_type(
                     CairoVarType::Struct { name: base_type.to_string(), members, size }
                 }
                 None => {
+                    if base_type == "(fp_val: felt, pc_val: felt*)" {
+                        // Manual handling of fp_val and pc_val, which causes issues in both VMs.
+                        // return a dummy value instead.
+                        return Ok(CairoVarType::Struct {
+                            name: base_type.to_string(),
+                            members: HashMap::new(),
+                            size: 2,
+                        });
+                    };
                     return Err(DynamicHintError::UnknownVariableType(format!(
                         "Could not get struct info for type '{}'",
                         base_type

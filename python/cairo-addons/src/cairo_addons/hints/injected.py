@@ -21,6 +21,9 @@ def create_serializer(context: Callable[[], dict]):
     def serialize(variable, segments, program_identifiers, dict_manager):
         """Serialize a Cairo variable using the Serde class."""
 
+        from starkware.cairo.lang.vm.relocatable import RelocatableValue
+
+        from cairo_addons.vm import Relocatable as RustRelocatable
         from tests.utils.serde import Serde
 
         if isinstance(variable, int):
@@ -32,6 +35,12 @@ def create_serializer(context: Callable[[], dict]):
             program_identifiers=program_identifiers,
             dict_manager=dict_manager,
         )
+
+        if isinstance(variable, RelocatableValue) or isinstance(
+            variable, RustRelocatable
+        ):
+            return serde_cls.serialize_list(variable)
+
         if variable.is_pointer():
             return serde_cls.serialize_pointers(
                 tuple(variable.type_path), variable.address_
