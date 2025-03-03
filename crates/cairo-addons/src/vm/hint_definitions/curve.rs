@@ -64,8 +64,8 @@ pub const HINTS: &[fn() -> Hint] = &[
 ///
 /// # Memory Layout
 /// The function writes to two main memory regions:
-/// 1. RLC components: Written at range_check96_ptr + (4 * N_LIMBS + 4)
-/// 2. Q components: Written at range_check96_ptr + (50 * N_LIMBS + 4)
+/// 1. RLC components: Written at range_check96_ptr + (N_LIMBS + 5 * N_LIMBS)
+/// 2. Q components: Written at range_check96_ptr + (N_LIMBS + 5 * N_LIMBS + 46 * N_LIMBS)
 ///
 /// # Errors
 /// Returns an error if:
@@ -142,8 +142,8 @@ pub fn build_msm_hints_and_fill_memory() -> Hint {
             // Fill memory
             let range_check96_ptr =
                 get_ptr_from_var_name("range_check96_ptr", vm, ids_data, ap_tracking)?;
-            let rlc_coeff_u384_cast_offset = 4;
-            let ecip_circuit_constants_offset = 20;
+            let rlc_coeff_u384_cast_offset = N_LIMBS;
+            let ecip_circuit_constants_offset = 5 * N_LIMBS;
             let memory_offset = rlc_coeff_u384_cast_offset + ecip_circuit_constants_offset;
             let ecip_circuit_q_offset = 46 * N_LIMBS;
 
@@ -163,8 +163,8 @@ pub fn build_msm_hints_and_fill_memory() -> Hint {
 /// This function processes point coordinates and scalar values to prepare data for MSM operations
 /// on the alt_bn128 curve. It:
 ///
-/// 1. Extracts point coordinates (x,y) and scalar values ()
-/// 2. Builds MSM calldata using the curve generator point G(g_x,g_y) and input point R(x,y)
+/// 1. Extracts point coordinates (x,y) and scalar values (scalar)
+/// 2. Builds MSM calldata using the input point P(x,y)
 /// 3. Processes the calldata into:
 ///    - q_low_high_high_shifted components for point arithmetic
 ///    - RLC (Random Linear Combination) components for efficient computation
@@ -172,13 +172,14 @@ pub fn build_msm_hints_and_fill_memory() -> Hint {
 ///
 /// # Arguments
 /// * p - A point P on the curve with coordinates (x,y)
-/// * k - Scalar value for multiplication
+/// * scalar - Scalar value for multiplication
 /// * range_check96_ptr - Pointer to range check memory region
 ///
 /// # Memory Layout
 /// The function writes to two main memory regions:
-/// 1. RLC components: Written at range_check96_ptr + (4 * N_LIMBS + 4)
-/// 2. Q components: Written at range_check96_ptr + (32 * N_LIMBS + 4)
+/// 1. RLC components: Written at range_check96_ptr + (N_LIMBS + 2 * N_LIMBS + 6 * N_LIMBS)
+/// 2. Q components: Written at range_check96_ptr + (N_LIMBS + 2 * N_LIMBS + 6 * N_LIMBS + 32 *
+///    N_LIMBS)
 ///
 /// # Errors
 /// Returns an error if:
@@ -250,9 +251,12 @@ pub fn ec_mul_msm_hints_and_fill_memory() -> Hint {
             // Fill memory
             let range_check96_ptr =
                 get_ptr_from_var_name("range_check96_ptr", vm, ids_data, ap_tracking)?;
-            let rlc_coeff_u384_cast_offset = 3 * N_LIMBS;
+            let rlc_coeff_u384_cast_offset = N_LIMBS;
+            let is_on_curve_flags_offset = 2 * N_LIMBS;
             let ecip_circuit_constants_offset = 6 * N_LIMBS;
-            let memory_offset = rlc_coeff_u384_cast_offset + ecip_circuit_constants_offset;
+            let memory_offset = is_on_curve_flags_offset +
+                rlc_coeff_u384_cast_offset +
+                ecip_circuit_constants_offset;
             let ecip_circuit_q_offset = 32 * N_LIMBS;
 
             let offset =
