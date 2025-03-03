@@ -309,9 +309,9 @@ func ec_mul{
         &a,
         &b,
         &rlc_coeff_u384,
-        &modulus,
         new is_on_curve_q_low_u384,
         new is_on_curve_q_high_u384,
+        &modulus,
     );
 
     let res = ec_add(
