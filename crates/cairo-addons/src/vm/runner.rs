@@ -48,13 +48,14 @@ impl PyCairoRunner {
     /// * `proof_mode` - Whether to run in proof mode.
     /// * `allow_missing_builtins` - Whether to allow missing builtins.
     #[new]
-    #[pyo3(signature = (program, py_identifiers=None, layout=None, proof_mode=false, allow_missing_builtins=false))]
+    #[pyo3(signature = (program, py_identifiers=None, layout=None, proof_mode=false, allow_missing_builtins=false, enable_pythonic_hints=false))]
     fn new(
         program: &PyProgram,
         py_identifiers: Option<PyObject>,
         layout: Option<PyLayout>,
         proof_mode: bool,
         allow_missing_builtins: bool,
+        enable_pythonic_hints: bool,
     ) -> PyResult<Self> {
         let layout = layout.unwrap_or_default().into_layout_name()?;
 
@@ -70,6 +71,17 @@ impl PyCairoRunner {
 
         let dict_manager = DictManager::new();
         inner.exec_scopes.insert_value("dict_manager", Rc::new(RefCell::new(dict_manager)));
+
+        if !enable_pythonic_hints {
+            return Ok(Self {
+                inner,
+                allow_missing_builtins,
+                builtins: program.inner.iter_builtins().copied().collect(),
+            });
+        }
+
+        // Add context variables required for pythonic hint execution
+
         let identifiers = program
             .inner
             .iter_identifiers()
@@ -208,9 +220,21 @@ except Exception as e:
         Ok(PyDictManager { inner: dict_manager })
     }
 
-    fn run_until_pc(&mut self, address: PyRelocatable, resources: PyRunResources) -> PyResult<()> {
-        let mut hint_processor =
-            HintProcessor::default().with_run_resources(resources.inner).build();
+    #[pyo3(signature = (address, resources, enable_pythonic_hints=false))]
+    fn run_until_pc(
+        &mut self,
+        address: PyRelocatable,
+        resources: PyRunResources,
+        enable_pythonic_hints: bool,
+    ) -> PyResult<()> {
+        let mut hint_processor = if enable_pythonic_hints {
+            HintProcessor::default()
+                .with_run_resources(resources.inner)
+                .with_dynamic_python_hints()
+                .build()
+        } else {
+            HintProcessor::default().with_run_resources(resources.inner).build()
+        };
 
         self.inner
             .run_until_pc(address.inner, &mut hint_processor)

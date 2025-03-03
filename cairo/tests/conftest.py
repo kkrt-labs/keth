@@ -112,10 +112,11 @@ def pytest_configure(config):
     #   update this local reference due to Python’s import caching.
     # - Solution: Explicitly patch both `ethereum.trace.evm_trace` globally and
     #   `ethereum.cancun.vm.interpreter.evm_trace` locally (and other places where `evm_trace` is imported).
-    import ethereum.cancun.vm.interpreter
+    if config.getoption("log_cli_level") == "DEBUG":
+        import ethereum.cancun.vm.interpreter
 
-    setattr(ethereum.cancun.vm.interpreter, "evm_trace", evm_trace)
-    setattr(ethereum.cancun.vm.gas, "evm_trace", evm_trace)
+        setattr(ethereum.cancun.vm.interpreter, "evm_trace", evm_trace)
+        setattr(ethereum.cancun.vm.gas, "evm_trace", evm_trace)
 
 
 @pytest.fixture(scope="module")

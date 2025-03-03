@@ -1,4 +1,4 @@
-#![cfg(feature = "dynamic-hints")]
+#![cfg(feature = "pythonic-hints")]
 //! # Cairo VM Constants and Variable Access
 //!
 //! This module provides a bridge between Cairo variables in the Rust VM and Python code.
@@ -68,7 +68,7 @@ use cairo_vm::{
 };
 use pyo3::{prelude::*, types::PyList, IntoPyObjectExt};
 
-use super::{dynamic_hint::DynamicHintError, relocatable::PyRelocatable};
+use super::{pythonic_hint::DynamicHintError, relocatable::PyRelocatable};
 
 /// Represents the different types of Cairo variables that can be accessed
 #[derive(Debug, Clone)]

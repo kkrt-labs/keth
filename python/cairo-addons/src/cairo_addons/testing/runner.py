@@ -470,6 +470,8 @@ def run_rust_vm(
             layout=getattr(LAYOUTS, request.config.getoption("layout")).layout_name,
             proof_mode=False,
             allow_missing_builtins=False,
+            enable_pythonic_hints=request.config.getoption("--log-cli-level")
+            == "DEBUG",
         )
 
         # Must be done right after runner creation to make sure the execution base is 1
@@ -504,7 +506,12 @@ def run_rust_vm(
 
         # Bind Cairo's ASSERT_EQ instruction to a Python exception
         try:
-            runner.run_until_pc(end, RustRunResources())
+            runner.run_until_pc(
+                end,
+                RustRunResources(),
+                enable_pythonic_hints=request.config.getoption("--log-cli-level")
+                == "DEBUG",
+            )
         except Exception as e:
             runner.relocate()
             if coverage is not None:
