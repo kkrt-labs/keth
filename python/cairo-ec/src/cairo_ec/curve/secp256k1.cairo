@@ -179,6 +179,7 @@ func try_recover_public_key{
     // Interaction with Poseidon, protocol is roughly a sequence of hashing:
     // - initial constant 'MSM_G1'
     // - curve ID
+    // - Number of scalars in MSM
     // - curve generator G
     // - user input R point
     //
@@ -196,10 +197,11 @@ func try_recover_public_key{
     tempvar ecip_circuit_constants_offset = 5 * N_LIMBS;
     tempvar ecip_circuit_q_offset = 46 * N_LIMBS;
 
+    let msm_size = 2;
     assert poseidon_ptr[0].input = PoseidonBuiltinState(s0='MSM_G1', s1=0, s2=1);
     assert poseidon_ptr[1].input = PoseidonBuiltinState(
         s0=secp256k1.CURVE_ID + poseidon_ptr[0].output.s0,
-        s1=2 + poseidon_ptr[0].output.s1,
+        s1=msm_size + poseidon_ptr[0].output.s1,
         s2=poseidon_ptr[0].output.s2,
     );
     let poseidon_ptr = poseidon_ptr + 2 * PoseidonBuiltin.SIZE;

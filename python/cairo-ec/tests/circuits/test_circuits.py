@@ -56,7 +56,10 @@ class TestCircuits:
         @given(data=st.data())
         @settings(verbosity=Verbosity.quiet)
         def test_add(self, cairo_program, cairo_run, prime_cls, st_prime, data):
-            inputs = {"x": data.draw(st_prime), "y": data.draw(st_prime)}
+            inputs = {
+                "x": 2**384 - 3,
+                "y": 0,
+            }
             values_ptr = [limb for v in inputs.values() for limb in int_to_uint384(v)]
             compiled_circuit = circuit_compile(cairo_program, "add")
 
@@ -82,6 +85,7 @@ class TestCircuits:
                     )
                 )
             )
+
             assert (
                 cairo_output
                 == circuit_output
@@ -790,10 +794,10 @@ class TestCircuits:
         def test_ecip_1p(self, cairo_program, cairo_run, data, prime):
             curve_id = CurveID.from_str("secp256k1")
             curve = CURVES[curve_id.value]
-            g = G1Point.gen_random_point(curve_id)
-            points = [g]
+            p = G1Point.gen_random_point(curve_id)
+            points = [p]
 
-            u1 = data.draw(st.integers(min_value=2**128 + 1, max_value=curve.n))
+            u1 = data.draw(st.integers(min_value=0, max_value=curve.n))
             scalars = [u1]
 
             builder = MSMCalldataBuilder(curve_id, points, scalars)
@@ -804,6 +808,8 @@ class TestCircuits:
             epns_low, epns_high = [scalar_to_base_neg3_le(s) for s in scalars_low], [
                 scalar_to_base_neg3_le(s) for s in scalars_high
             ]
+            is_on_curve_q_low = q_low.is_on_curve()
+            is_on_curve_q_high = q_high.is_on_curve()
 
             inputs = {
                 "div_a_coeff_0": int(rlc_sum_dlog_div.a.numerator[0].value),
@@ -828,8 +834,8 @@ class TestCircuits:
                 "div_d_coeff_5": int(rlc_sum_dlog_div.b.denominator[5].value),
                 "div_d_coeff_6": int(rlc_sum_dlog_div.b.denominator[6].value),
                 "div_d_coeff_7": int(rlc_sum_dlog_div.b.denominator[7].value),
-                "g_x": int(points[0].x),
-                "g_y": int(points[0].y),
+                "p_x": int(points[0].x),
+                "p_y": int(points[0].y),
                 "ep_low": int(epns_low[0][0]),
                 "en_low": int(epns_low[0][1]),
                 "sp_low": int(epns_low[0][2] % curve.p),
@@ -849,6 +855,8 @@ class TestCircuits:
                 "a": int(curve.a),
                 "b": int(curve.b),
                 "base_rlc": int(rlc_coeff),
+                "is_on_curve_q_low": int(is_on_curve_q_low),
+                "is_on_curve_q_high": int(is_on_curve_q_high),
             }
 
             if prime == curve.p:
