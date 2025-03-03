@@ -53,7 +53,7 @@ def get_code(address: str) -> str:
         "id": 1,
     }
 
-    response = requests.post(os.environ["CHAIN_RPC_URL"], json=payload)
+    response = requests.post(os.environ["CHAIN_RPC_URL"], json=payload, timeout=30)
 
     if response.status_code != 200:
         raise Exception(f"Failed to fetch code: HTTP {response.status_code}")
