@@ -11,7 +11,7 @@ from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.math_cmp import is_nn
 from starkware.cairo.common.registers import get_label_location
 
-from ethereum_types.bytes import Bytes, BytesStruct, Bytes20
+from ethereum_types.bytes import Bytes, BytesStruct
 from ethereum_types.numeric import Uint, bool, SetUint, SetUintStruct, SetUintDictAccess
 from ethereum.cancun.blocks import TupleLog, TupleLogStruct, Log
 from ethereum.cancun.vm.gas import GasConstants, charge_gas

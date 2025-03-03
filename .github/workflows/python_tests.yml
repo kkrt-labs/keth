@@ -49,7 +49,7 @@ jobs:
       # <https://github.com/kkrt-labs/keth/issues/694>
       - name: Run tests without caching
         run: |
-          uv run --reinstall pytest -n logical --durations=0 -v -s --no-skip-cached-tests --ignore-glob=cairo/tests/ef_tests/
+          uv run --reinstall pytest -n logical --durations=0 -v -s --log-cli-level=DEBUG --no-skip-cached-tests --ignore-glob=cairo/tests/ef_tests/
 
       - uses: actions/cache/save@v4
         with:

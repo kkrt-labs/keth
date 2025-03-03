@@ -42,7 +42,9 @@ class NoTestsFound(Exception):
     """
 
 
-def run_blockchain_st_test(test_case: Dict, load: Load, cairo_run) -> None:
+def run_blockchain_st_test(
+    test_case: Dict, load: Load, cairo_run, request: pytest.FixtureRequest
+) -> None:
     test_file = test_case["test_file"]
     test_key = test_case["test_key"]
 
@@ -89,10 +91,10 @@ def run_blockchain_st_test(test_case: Dict, load: Load, cairo_run) -> None:
             #       only `pytest.raises` the correct exception type instead of
             #       all of them.
             with pytest.raises((EthereumException, RLPException)):
-                add_block_to_chain(chain, json_block, load, cairo_run)
+                add_block_to_chain(chain, json_block, load, cairo_run, request)
             return
         else:
-            add_block_to_chain(chain, json_block, load, cairo_run)
+            add_block_to_chain(chain, json_block, load, cairo_run, request)
 
     last_block_hash = hex_to_bytes(json_data["lastblockhash"])
     assert keccak256(rlp.encode(chain.blocks[-1].header)) == last_block_hash
@@ -103,7 +105,9 @@ def run_blockchain_st_test(test_case: Dict, load: Load, cairo_run) -> None:
     load.fork.close_state(expected_post_state)
 
 
-def add_block_to_chain(chain: Any, json_block: Any, load: Load, cairo_run) -> None:
+def add_block_to_chain(
+    chain: Any, json_block: Any, load: Load, cairo_run, request: pytest.FixtureRequest
+) -> None:
     (
         block,
         block_header_hash,
@@ -113,14 +117,12 @@ def add_block_to_chain(chain: Any, json_block: Any, load: Load, cairo_run) -> No
     assert keccak256(rlp.encode(block.header)) == block_header_hash
     assert rlp.encode(block) == block_rlp
 
-    try:
-        cairo_chain = cairo_run("state_transition", chain, block)
+    cairo_chain = cairo_run("state_transition", chain, block)
+    if request.config.getoption("--log-cli-level") == "TRACE":
+        # In trace mode, run EELS as well to get a side-by-side comparison
         state_transition(chain, block)
-        chain.blocks = cairo_chain.blocks
-        chain.state = cairo_chain.state
-    except Exception as e:
-        state_transition(chain, block)
-        raise e
+    chain.blocks = cairo_chain.blocks
+    chain.state = cairo_chain.state
 
 
 # Functions that fetch individual test cases
