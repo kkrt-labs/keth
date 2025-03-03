@@ -154,3 +154,19 @@ class TestEcOps:
             result = curve(*[curve.FIELD(uint384_to_int(**i)) for i in res.values()])
 
             assert result == expected
+
+    class TestEcMul:
+        @given(data=st.data())
+        def test_ec_mul(self, cairo_run, data):
+            p = AltBn128.random_point()
+            k = data.draw(uint384)
+            expected = p.mul_by(k)
+            res = cairo_run(
+                "test__ec_mul",
+                p=[*int_to_uint384(int(p.x)), *int_to_uint384(int(p.y))],
+                k=int_to_uint384(k),
+                modulus=int_to_uint384(int(AltBn128.FIELD.PRIME)),
+            )
+            assert expected == AltBn128(
+                *[AltBn128.FIELD(uint384_to_int(**i)) for i in res.values()]
+            )
