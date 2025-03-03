@@ -22,7 +22,7 @@ func to_address{range_check_ptr}(data: UnionUintU256) -> Address {
     let (local bytes_data) = alloc();
 
     if (cast(data.value.uint, felt) != 0) {
-        felt_to_bytes20_little(bytes_data, data.value.uint.value);
+        felt_to_bytes20_little(bytes_data, data.value.uint);
         let res = bytes_to_felt(20, bytes_data);
         tempvar address = Address(res);
         return address;
@@ -47,25 +47,25 @@ func compute_contract_address{
     local message_len;
     let (message: felt*) = alloc();
 
-    assert [message + 1] = 0x80 + 20;
+    assert [message + 1] == 0x80 + 20;
     felt_to_bytes20_little(message + 2, address.value);
     let encode_nonce = is_nn(nonce.value - 0x80);
 
     if (encode_nonce != FALSE) {
         let nonce_len = felt_to_bytes(message + 2 + 20 + 1, nonce.value);
-        assert [message + 2 + 20] = 0x80 + nonce_len;
-        assert message_len = 1 + 1 + 20 + 1 + nonce_len;
+        assert [message + 2 + 20] == 0x80 + nonce_len;
+        assert message_len == 1 + 1 + 20 + 1 + nonce_len;
         tempvar range_check_ptr = range_check_ptr;
     } else {
         let is_nonce_not_zero = is_not_zero(nonce.value);
         let encoded_nonce = nonce.value * is_nonce_not_zero + (1 - is_nonce_not_zero) * 0x80;
-        assert [message + 2 + 20] = encoded_nonce;
-        assert message_len = 1 + 1 + 20 + 1;
+        assert [message + 2 + 20] == encoded_nonce;
+        assert message_len == 1 + 1 + 20 + 1;
         tempvar range_check_ptr = range_check_ptr;
     }
 
     let range_check_ptr = [ap - 1];
-    assert message[0] = message_len + 0xc0 - 1;
+    assert message[0] == message_len + 0xc0 - 1;
     tempvar encoded_bytes = Bytes(new BytesStruct(message, message_len));
     let computed_address = keccak256(encoded_bytes);
     let (low, _) = divmod(computed_address.value.low, 256 ** 12);
@@ -81,7 +81,7 @@ func compute_create2_contract_address{
     alloc_locals;
     let (preimage: felt*) = alloc();
 
-    assert [preimage] = 0xff;
+    assert [preimage] == 0xff;
     felt_to_bytes20_little(preimage + 1, address.value);
     uint256_to_bytes32_little(preimage + 1 + 20, [salt.value]);
     let call_data_hash = keccak256(call_data);
