@@ -8,7 +8,9 @@ from datetime import datetime
 
 def run_test_and_capture_output(test_path):
     """Run the test command and capture its stdout."""
-    command = f"uv run pytest '{test_path}' -s --no-skip-cached-tests"
+    command = (
+        f"uv run pytest '{test_path}' -s --log-cli-level=TRACE --no-skip-cached-tests"
+    )
     process = subprocess.Popen(
         command,
         stdout=subprocess.PIPE,
@@ -78,7 +80,14 @@ def generate_markdown_table(cairo_logs, eels_logs):
     }
 
     # Process all CAIRO logs
-    for cairo_log, eels_log in zip(cairo_logs, eels_logs):
+    from itertools import zip_longest
+
+    for cairo_log, eels_log in zip_longest(cairo_logs, eels_logs):
+        if not cairo_log:
+            cairo_log = "[CAIRO] NONE"
+        if not eels_log:
+            eels_log = "[EELS] NONE"
+
         # Extract the content from the log lines by removing the prefix tags
         cairo_log = cairo_log.split("[CAIRO]")[1].strip()
         eels_log = eels_log.split("[EELS]")[1].strip()
