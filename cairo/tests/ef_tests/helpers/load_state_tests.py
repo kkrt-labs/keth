@@ -76,9 +76,6 @@ def run_blockchain_st_test(test_case: Dict, load: Load, cairo_run) -> None:
         chain_id=U64(json_data["genesisBlockHeader"].get("chainId", 1)),
     )
 
-    # Enable our custom trace function
-    # trace.evm_trace = partial(evm_trace, trace_memory=False, trace_stack=False, trace_return_data=False)
-
     for json_block in json_data["blocks"]:
         block_exception = None
         for key, value in json_block.items():

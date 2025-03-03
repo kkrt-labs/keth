@@ -42,7 +42,10 @@ def evm_trace(
     if isinstance(event, TransactionStart):
         pass
     elif isinstance(event, TransactionEnd):
-        pass
+        error_name = "None" if event.error is None else event.error.__class__.__name__
+        logger.trace(
+            f"[EELS] TransactionEnd: gas_used: {event.gas_used}, output: {event.output}, error: {error_name}"
+        )
     elif isinstance(event, PrecompileStart):
         logger.trace(f"[EELS] PrecompileStart: {evm.message.code_address}")
     elif isinstance(event, PrecompileEnd):
@@ -115,6 +118,13 @@ def pytest_configure(config):
     1. pytest runs this hook during test collection, before any tests execute
     2. We directly replace the class definitions in the original modules
     3. All subsequent imports of these modules will see our patched versions
+
+    This effectively "rewrites" the module contents at the source, so whether code does:
+    from ethereum.cancun.vm import Evm
+    or:
+        import ethereum.cancun.vm
+        evm = ethereum.cancun.vm.Evm
+    They both get our mock version, because the module itself has been modified.
     """
     from typing import Sequence, Union
 

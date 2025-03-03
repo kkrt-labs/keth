@@ -322,13 +322,15 @@ func execute_code{
 
     // code_address might be optional in create scenarios at this point.
     if (cast(evm.value.message.value.code_address.value, felt) != 0) {
-        let (precompile_address, precompile_fn) = precompile_table_lookup(
+        let (local precompile_address, precompile_fn) = precompile_table_lookup(
             [evm.value.message.value.code_address.value]
         );
         // Addresses that are not precompiles return 0.
         if (precompile_address != 0) {
-            local precompile_address_bytes: Bytes20 = Bytes20(precompile_address);
-            %{ logger.trace(f"[CAIRO] PrecompileStart: {serialize(ids.precompile_address_bytes)}") %}
+            %{
+                precompile_address_bytes = ids.precompile_address.to_bytes(20, "little")
+                print(f"[CAIRO] PrecompileStart: {precompile_address_bytes}")
+            %}
             // Prepare arguments
             // MARK: args assignment
             [ap] = range_check_ptr, ap++;
@@ -352,7 +354,10 @@ func execute_code{
             let evm = Evm(cast([ap - 2], EvmStruct*));
             let err = cast([ap - 1], EthereumException*);
 
-            %{ logger.trace(f"[CAIRO] PrecompileEnd: {serialize(ids.precompile_address_bytes)}") %}
+            %{
+                precompile_address_bytes = ids.precompile_address.to_bytes(20, "little")
+                print(f"[CAIRO] PrecompileEnd: {precompile_address_bytes}")
+            %}
 
             if (cast(err, felt) != 0) {
                 %{ logger.trace(f"[CAIRO] OpException: {serialize(ids.err)}") %}
@@ -560,6 +565,20 @@ func process_message_call{
     squash_evm{evm=evm}();
 
     let squashed_evm = evm;
+    %{
+        initial_gas = serialize(ids.message.value.gas)
+        final_gas = serialize(ids.squashed_evm.value.gas_left)
+        output = serialize(ids.squashed_evm.value.output)
+        error_int = serialize(ids.squashed_evm.value.error)["value"]
+        if error_int == 0:
+            error = None
+        else:
+            error_bytes = error_int.to_bytes(32, "big")
+            ascii_value = error_bytes.decode().strip("\x00")
+            error = ascii_value
+        gas_used = initial_gas - final_gas
+        logger.trace(f"[CAIRO] TransactionEnd: gas_used: {gas_used}, output: {output}, error: {error}")
+    %}
     tempvar msg = MessageCallOutput(
         new MessageCallOutputStruct(
             gas_left=squashed_evm.value.gas_left,
