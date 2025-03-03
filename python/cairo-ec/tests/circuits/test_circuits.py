@@ -790,8 +790,8 @@ class TestCircuits:
         def test_ecip_1p(self, cairo_program, cairo_run, data, prime):
             curve_id = CurveID.from_str("secp256k1")
             curve = CURVES[curve_id.value]
-            g = G1Point.gen_random_point(curve_id)
-            points = [g]
+            p = G1Point.gen_random_point(curve_id)
+            points = [p]
 
             u1 = data.draw(st.integers(min_value=0, max_value=curve.n))
             scalars = [u1]
@@ -830,8 +830,8 @@ class TestCircuits:
                 "div_d_coeff_5": int(rlc_sum_dlog_div.b.denominator[5].value),
                 "div_d_coeff_6": int(rlc_sum_dlog_div.b.denominator[6].value),
                 "div_d_coeff_7": int(rlc_sum_dlog_div.b.denominator[7].value),
-                "g_x": int(points[0].x),
-                "g_y": int(points[0].y),
+                "p_x": int(points[0].x),
+                "p_y": int(points[0].y),
                 "ep_low": int(epns_low[0][0]),
                 "en_low": int(epns_low[0][1]),
                 "sp_low": int(epns_low[0][2] % curve.p),

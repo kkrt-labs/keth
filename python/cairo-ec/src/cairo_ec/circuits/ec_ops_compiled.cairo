@@ -1533,8 +1533,8 @@ func ecip_1p{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: Mo
     div_d_coeff_5: UInt384*,
     div_d_coeff_6: UInt384*,
     div_d_coeff_7: UInt384*,
-    g_x: UInt384*,
-    g_y: UInt384*,
+    p_x: UInt384*,
+    p_y: UInt384*,
     ep_low: UInt384*,
     en_low: UInt384*,
     sp_low: UInt384*,
@@ -1677,14 +1677,14 @@ func ecip_1p{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: Mo
     assert [range_check96_ptr + 109] = div_d_coeff_7.d1;
     assert [range_check96_ptr + 110] = div_d_coeff_7.d2;
     assert [range_check96_ptr + 111] = div_d_coeff_7.d3;
-    assert [range_check96_ptr + 112] = g_x.d0;
-    assert [range_check96_ptr + 113] = g_x.d1;
-    assert [range_check96_ptr + 114] = g_x.d2;
-    assert [range_check96_ptr + 115] = g_x.d3;
-    assert [range_check96_ptr + 116] = g_y.d0;
-    assert [range_check96_ptr + 117] = g_y.d1;
-    assert [range_check96_ptr + 118] = g_y.d2;
-    assert [range_check96_ptr + 119] = g_y.d3;
+    assert [range_check96_ptr + 112] = p_x.d0;
+    assert [range_check96_ptr + 113] = p_x.d1;
+    assert [range_check96_ptr + 114] = p_x.d2;
+    assert [range_check96_ptr + 115] = p_x.d3;
+    assert [range_check96_ptr + 116] = p_y.d0;
+    assert [range_check96_ptr + 117] = p_y.d1;
+    assert [range_check96_ptr + 118] = p_y.d2;
+    assert [range_check96_ptr + 119] = p_y.d3;
     assert [range_check96_ptr + 120] = ep_low.d0;
     assert [range_check96_ptr + 121] = ep_low.d1;
     assert [range_check96_ptr + 122] = ep_low.d2;

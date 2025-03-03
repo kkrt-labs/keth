@@ -89,7 +89,7 @@ func assert_not_on_curve(x: felt, y: felt, a: felt, b: felt) -> felt {
 // k1 = k1_low + 2**128 * k1_high
 // k1_low = sp1_low * ep1_low - sn1_low * en1_high
 
-// Hence, we have Q = Q_low + Q_high + Q_high_shifted,
+// Hence, we have Q = Q_low + Q_high_shifted,
 // where Q_low = k1_low * G + k2_low * R,
 // Q_high = k1_high * G + k2_high * R, and
 // Q_high_shifted = 2**128 * Q_high.
@@ -396,9 +396,9 @@ func ecip_2p(
     end:
 }
 
-// @dev Verify that Q = k*G.
+// @dev Verify that Q = k*P.
 // In other terms, it verifies that a point Q on the curve
-// is the scalar multiplication of G by k (linear combination with a single point).
+// is the scalar multiplication of P by k (linear combination with a single point).
 //
 // It verifies that the equation (3) holds ; from the paper
 // "Zero Knowledge Proofs of Elliptic Curve Inner Products
@@ -410,8 +410,8 @@ func ecip_2p(
 // k = k_low + 2**128 * k_high
 // k_low = sp_low * ep_low - sn_low * en_high
 
-// Hence, we have Q = Q_low + Q_high + Q_high_shifted,
-// where Q_low = k_low * G, Q_high = k_high * G, and
+// Hence, we have Q = Q_low + Q_high_shifted,
+// where Q_low = k_low * P, Q_high = k_high * P, and
 // Q_high_shifted = 2**128 * Q_high.
 //
 // The point A0, and the base_rlc coefficient are previously obtained through
@@ -451,8 +451,8 @@ func ecip_2p(
 // @param div_d_coeff_5 The degree-5 coefficient of the denominator of rational function b.
 // @param div_d_coeff_6 The degree-6 coefficient of the denominator of rational function b.
 // @param div_d_coeff_7 The degree-7 coefficient of the denominator of rational function b.
-// @param g_x The x-coordinate of the point G.
-// @param g_y The y-coordinate of the point G.
+// @param p_x The x-coordinate of the point P.
+// @param p_y The y-coordinate of the point P.
 // @param ep_low The positive multiplicities for the low 128-bits of k1 in base -3.
 // @param en_low The negative multiplicities for the low 128-bits of k1 in base -3.
 // @param sp_low The sign for the positive multiplicities of the low 128-bits of k1 in base -3.
@@ -496,8 +496,8 @@ func ecip_1p(
     div_d_coeff_5: felt,
     div_d_coeff_6: felt,
     div_d_coeff_7: felt,
-    g_x: felt,
-    g_y: felt,
+    p_x: felt,
+    p_y: felt,
     ep_low: felt,
     en_low: felt,
     sp_low: felt,
@@ -525,7 +525,7 @@ func ecip_1p(
     // Assert is_on_curve_q_high is a boolean flag
     assert is_on_curve_q_high * (1 - is_on_curve_q_high) = 0;
     // Assert g is on curve
-    assert g_y * g_y = g_x * g_x * g_x + a * g_x + b;
+    assert p_y * p_y = p_x * p_x * p_x + a * p_x + b;
     // Assert a0 is on curve
     assert a0_y * a0_y = a0_x * a0_x * a0_x + a * a0_x + b;
     // Assert q_low is on curve
@@ -616,10 +616,10 @@ func ecip_1p(
     // RHS = base_rlc * base_rhs_low + base_rlc * base_rlc * base_rhs_high +
     //  base_rlc * base_rlc * base_rlc * base_rhs_high_shifted
     // base_rhs_low
-    tempvar num_g = a0_x - g_x;
-    tempvar den_tmp_g = m_a0 * g_x + b_a0;
-    tempvar den_pos_g = g_y - den_tmp_g;
-    tempvar den_neg_g = g_y + den_tmp_g;
+    tempvar num_g = a0_x - p_x;
+    tempvar den_tmp_g = m_a0 * p_x + b_a0;
+    tempvar den_pos_g = p_y - den_tmp_g;
+    tempvar den_neg_g = p_y + den_tmp_g;
     tempvar eval_pos_low_g = sp_low * ep_low * num_g / den_pos_g;
     tempvar eval_neg_low_g = sn_low * en_low * num_g / den_neg_g;
     tempvar eval_low_g = eval_pos_low_g - eval_neg_low_g;
