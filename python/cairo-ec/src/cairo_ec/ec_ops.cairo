@@ -211,15 +211,14 @@ func ec_mul{
     let is_on_curve_q_low = 1 - is_pt_at_inf_q_low.value;
     let is_on_curve_q_low_u384 = felt_to_uint384(is_on_curve_q_low);
     // Compute flag is_on_curve_q_high
-    let pt_at_inf = G1Point(zero_u384, zero_u384);
-    let is_pt_at_inf_q_high = G1Point__eq__(q_low, pt_at_inf);
+    let is_pt_at_inf_q_high = G1Point__eq__(q_high, pt_at_inf);
     let is_on_curve_q_high = 1 - is_pt_at_inf_q_high.value;
     let is_on_curve_q_high_u384 = felt_to_uint384(is_on_curve_q_high);
 
     assert poseidon_ptr[0].input = PoseidonBuiltinState(s0='MSM_G1', s1=0, s2=1);
     assert poseidon_ptr[1].input = PoseidonBuiltinState(
         s0=alt_bn128.CURVE_ID + poseidon_ptr[0].output.s0,
-        s1=2 + poseidon_ptr[0].output.s1,
+        s1=1 + poseidon_ptr[0].output.s1,
         s2=poseidon_ptr[0].output.s2,
     );
     let poseidon_ptr = poseidon_ptr + 2 * PoseidonBuiltin.SIZE;
@@ -314,9 +313,11 @@ func ec_mul{
         &modulus,
     );
 
+    let range_check96_ptr = range_check96_ptr_after_circuit;
+
     let res = ec_add(
         G1Point(x=ecip_input[32], y=ecip_input[33]),
-        G1Point(x=ecip_input[34], y=ecip_input[35]),
+        G1Point(x=ecip_input[36], y=ecip_input[37]),
         a,
         modulus,
     );
