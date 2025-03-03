@@ -178,7 +178,7 @@ pub fn build_msm_hints_and_fill_memory() -> Hint {
 /// # Memory Layout
 /// The function writes to two main memory regions:
 /// 1. RLC components: Written at range_check96_ptr + (4 * N_LIMBS + 4)
-/// 2. Q components: Written at range_check96_ptr + (33 * N_LIMBS + 4)
+/// 2. Q components: Written at range_check96_ptr + (32 * N_LIMBS + 4)
 ///
 /// # Errors
 /// Returns an error if:
@@ -200,10 +200,10 @@ pub fn ec_mul_msm_hints_and_fill_memory() -> Hint {
             let x = Uint384::from_base_addr(p_addr, "p.x", vm)?.pack();
             let y = Uint384::from_base_addr((p_addr + N_LIMBS).unwrap(), "p.y", vm)?.pack();
 
-            let k = Uint256::from_var_name("k", vm, ids_data, ap_tracking)?.pack();
+            let scalar = Uint256::from_var_name("scalar", vm, ids_data, ap_tracking)?.pack();
 
             let values = vec![x, y];
-            let scalar = vec![k];
+            let scalar = vec![scalar];
 
             let curve_id = CurveID::BN254;
             let calldata_w_len = msm_calldata_builder(
@@ -250,10 +250,10 @@ pub fn ec_mul_msm_hints_and_fill_memory() -> Hint {
             // Fill memory
             let range_check96_ptr =
                 get_ptr_from_var_name("range_check96_ptr", vm, ids_data, ap_tracking)?;
-            let rlc_coeff_u384_cast_offset = 4;
-            let ecip_circuit_constants_offset = 20;
+            let rlc_coeff_u384_cast_offset = 3 * N_LIMBS;
+            let ecip_circuit_constants_offset = 6 * N_LIMBS;
             let memory_offset = rlc_coeff_u384_cast_offset + ecip_circuit_constants_offset;
-            let ecip_circuit_q_offset = 33 * N_LIMBS;
+            let ecip_circuit_q_offset = 32 * N_LIMBS;
 
             let offset =
                 (range_check96_ptr.segment_index, range_check96_ptr.offset + memory_offset).into();
