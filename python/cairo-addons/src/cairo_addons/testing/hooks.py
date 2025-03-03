@@ -128,7 +128,6 @@ def pytest_sessionstart(session):
 def pytest_sessionfinish(session):
     if xdist.is_xdist_controller(session):
         logger.info("Controller worker: collecting tests to skip")
-        # Don't clear the build directory to keep compilation artifacts
         tests_to_skip = session.config.cache.get(f"cairo_run/{CACHED_TESTS_FILE}", [])
         for worker_id in range(session.config.option.numprocesses):
             tests_to_skip += session.config.cache.get(
@@ -222,7 +221,6 @@ def pytest_collection_modifyitems(session, config, items):
     worker_id = getattr(config, "workerinput", {}).get("workerid", "master")
     worker_index = int(worker_id[2:]) if worker_id != "master" else 0
     fspaths = sorted(list({item.fspath for item in cairo_items}))
-    logger.info(f"fspaths: {fspaths}")
 
     for fspath in fspaths[worker_index::worker_count]:
         file_items = [item for item in cairo_items if item.fspath == fspath]
