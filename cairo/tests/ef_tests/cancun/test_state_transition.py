@@ -83,8 +83,8 @@ fetch_state_tests = partial(
 
 @pytest.fixture(scope="module")
 def cairo_state_transition(
-    cairo_run_ethereum_tests, request: pytest.FixtureRequest
-):  # noqa
+    cairo_run_ethereum_tests, request: pytest.FixtureRequest  # noqa
+):
     return partial(
         run_blockchain_st_test,
         load=FIXTURES_LOADER,
