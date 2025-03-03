@@ -175,6 +175,7 @@ func ec_mul{
     // Interaction with Poseidon, protocol is roughly a sequence of hashing:
     // - initial constant 'MSM_G1'
     // - curve ID
+    // - Number of scalars in MSM
     // - user input P point
     //
     // ==> interaction
@@ -215,10 +216,11 @@ func ec_mul{
     let is_on_curve_q_high = 1 - is_pt_at_inf_q_high.value;
     let is_on_curve_q_high_u384 = felt_to_uint384(is_on_curve_q_high);
 
+    let msm_size = 1;
     assert poseidon_ptr[0].input = PoseidonBuiltinState(s0='MSM_G1', s1=0, s2=1);
     assert poseidon_ptr[1].input = PoseidonBuiltinState(
         s0=alt_bn128.CURVE_ID + poseidon_ptr[0].output.s0,
-        s1=1 + poseidon_ptr[0].output.s1,
+        s1=msm_size + poseidon_ptr[0].output.s1,
         s2=poseidon_ptr[0].output.s2,
     );
     let poseidon_ptr = poseidon_ptr + 2 * PoseidonBuiltin.SIZE;
