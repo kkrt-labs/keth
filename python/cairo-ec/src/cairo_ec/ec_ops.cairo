@@ -21,6 +21,7 @@ from cairo_ec.uint384 import (
     uint384_eq,
     uint384_eq_mod_p,
     uint384_is_neg_mod_p,
+    uint384_reduce_mod_p,
     uint384_to_uint256,
 )
 from cairo_ec.curve_utils import scalar_to_epns
@@ -154,8 +155,10 @@ func ec_mul{
         return point_at_infinity;
     }
 
-    tempvar _scalar = add(&k, &zero_u384, &n);
-    let scalar = uint384_to_uint256([_scalar]);
+    let _scalar = uint384_reduce_mod_p(k, n);
+    let is_scalar_eq_k_mod_p = uint384_eq_mod_p(k, _scalar, n);
+    assert is_scalar_eq_k_mod_p = 1;
+    let scalar = uint384_to_uint256(_scalar);
     assert_uint256_le(scalar, n_min_one);
 
     let (ep_low, en_low, sp_low, sn_low) = scalar_to_epns(scalar.low);
