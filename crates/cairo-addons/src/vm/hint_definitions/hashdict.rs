@@ -250,17 +250,16 @@ pub fn get_storage_keys_for_address() -> Hint {
                     match key {
                         DictKey::Compound(key_parts) => {
                             // Chain Option methods instead of nested if lets
-                            value
-                                .get_int()
-                                .filter(|&v| v != Zero::zero())
-                                .and_then(|_| {
-                                    // Use if expression instead of if/else with None
-                                    if key_parts.len() >= prefix.len() && key_parts[..prefix.len()] == prefix[..] {
-                                        Some(key_parts)
-                                    } else {
-                                        None
-                                    }
-                                })
+                            value.get_int().filter(|&v| v != Zero::zero()).and_then(|_| {
+                                // Use if expression instead of if/else with None
+                                if key_parts.len() >= prefix.len() &&
+                                    key_parts[..prefix.len()] == prefix[..]
+                                {
+                                    Some(key_parts)
+                                } else {
+                                    None
+                                }
+                            })
                         }
                         _ => None,
                     }
