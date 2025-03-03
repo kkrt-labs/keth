@@ -35,25 +35,29 @@ def evm_trace(
     """
     Log the event.
     """
+    import logging
+
+    logger = logging.getLogger("TRACE")
+
     if isinstance(event, TransactionStart):
         pass
     elif isinstance(event, TransactionEnd):
         pass
     elif isinstance(event, PrecompileStart):
-        print(f"[EELS] PrecompileStart: {evm.message.code_address}")
+        logger.trace(f"[EELS] PrecompileStart: {evm.message.code_address}")
     elif isinstance(event, PrecompileEnd):
-        print(f"[EELS] PrecompileEnd: {evm.message.code_address}")
+        logger.trace(f"[EELS] PrecompileEnd: {evm.message.code_address}")
     elif isinstance(event, OpStart):
         op = event.op
-        print(f"[EELS] OpStart: {hex(op.value)}")
+        logger.trace(f"[EELS] OpStart: {hex(op.value)}")
     elif isinstance(event, OpEnd):
-        print("[EELS] OpEnd")
+        logger.trace("[EELS] OpEnd")
     elif isinstance(event, OpException):
-        print(f"[EELS] OpException: {event.error.__class__.__name__}")
+        logger.trace(f"[EELS] OpException: {event.error.__class__.__name__}")
     elif isinstance(event, EvmStop):
-        print("[EELS] EvmStop")
+        logger.trace("[EELS] EvmStop")
     elif isinstance(event, GasAndRefund):
-        print(f"[EELS] GasAndRefund: {event.gas_cost}")
+        logger.trace(f"[EELS] GasAndRefund: {event.gas_cost}")
 
 
 @pytest.fixture(scope="module")
@@ -79,6 +83,30 @@ def cairo_run_py(
     )
 
 
+def init_tracer():
+    import logging
+
+    from colorama import Fore, Style, init
+
+    init()
+
+    # Define TRACE level
+    TRACE_LEVEL = logging.DEBUG - 5
+    levelName = "TRACE"
+    methodName = levelName.lower()
+    logging.addLevelName(TRACE_LEVEL, levelName)
+
+    # Custom trace method for Logger instances
+    def trace(self, message, *args, **kwargs):
+        if self.isEnabledFor(TRACE_LEVEL):
+            colored_msg = f"{Fore.YELLOW}TRACE{Style.RESET_ALL} {message}"
+            print(colored_msg)
+
+    # Patch the logging module with our new trace method
+    setattr(logging, levelName, TRACE_LEVEL)
+    setattr(logging.getLoggerClass(), methodName, trace)
+
+
 def pytest_configure(config):
     """
     Global test configuration for patching core classes.
@@ -96,6 +124,8 @@ def pytest_configure(config):
 
     from tests.utils.args_gen import Environment, Evm, Message, MessageCallOutput
 
+    init_tracer()
+
     # Apply patches at module level before any tests run
     ethereum.cancun.vm.Evm = Evm
     ethereum.cancun.vm.Message = Message
@@ -112,7 +142,7 @@ def pytest_configure(config):
     #   update this local reference due to Python’s import caching.
     # - Solution: Explicitly patch both `ethereum.trace.evm_trace` globally and
     #   `ethereum.cancun.vm.interpreter.evm_trace` locally (and other places where `evm_trace` is imported).
-    if config.getoption("log_cli_level") == "DEBUG":
+    if config.getoption("log_cli_level") == "TRACE":
         import ethereum.cancun.vm.interpreter
 
         setattr(ethereum.cancun.vm.interpreter, "evm_trace", evm_trace)

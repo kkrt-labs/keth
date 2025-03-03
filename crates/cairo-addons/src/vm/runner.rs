@@ -109,8 +109,8 @@ impl PyCairoRunner {
             // Import and run the initialization code from the injected module
             let setup_code = r#"
 try:
-    from cairo_addons.hints.injected import create_serializer
-    create_serializer(lambda: globals())
+    from cairo_addons.hints.injected import prepare_context
+    prepare_context(lambda: globals())
 except Exception as e:
     print(f"Warning: Error during initialization: {e}")
 "#;

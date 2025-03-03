@@ -471,7 +471,7 @@ def run_rust_vm(
             proof_mode=False,
             allow_missing_builtins=False,
             enable_pythonic_hints=request.config.getoption("--log-cli-level")
-            == "DEBUG",
+            == "TRACE",
         )
 
         # Must be done right after runner creation to make sure the execution base is 1
@@ -510,7 +510,7 @@ def run_rust_vm(
                 end,
                 RustRunResources(),
                 enable_pythonic_hints=request.config.getoption("--log-cli-level")
-                == "DEBUG",
+                == "TRACE",
             )
         except Exception as e:
             runner.relocate()
