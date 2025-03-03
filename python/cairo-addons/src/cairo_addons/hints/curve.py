@@ -204,9 +204,14 @@ def ec_mul_msm_hints_and_fill_memory(ids: VmConsts, memory: MemoryDict):
     ), f"Invalid RLC components length: {len(rlc_components)}"
 
     # Fill memory with processed data
-    rlc_coeff_u384_cast_offset = 3 * N_LIMBS
+    rlc_coeff_u384_cast_offset = N_LIMBS
+    is_on_curve_flags_offset = 2 * N_LIMBS
     ecip_circuit_constants_offset = 6 * N_LIMBS
-    memory_offset = rlc_coeff_u384_cast_offset + ecip_circuit_constants_offset
+    memory_offset = (
+        is_on_curve_flags_offset
+        + rlc_coeff_u384_cast_offset
+        + ecip_circuit_constants_offset
+    )
     ecip_circuit_q_offset = 32 * N_LIMBS
     fill_felt_ptr(rlc_components, memory, ids.range_check96_ptr + memory_offset)
     fill_felt_ptr(
