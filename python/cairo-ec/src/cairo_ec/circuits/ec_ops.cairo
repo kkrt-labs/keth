@@ -528,17 +528,22 @@ func ecip_1p(
     assert g_y * g_y = g_x * g_x * g_x + a * g_x + b;
     // Assert a0 is on curve
     assert a0_y * a0_y = a0_x * a0_x * a0_x + a * a0_x + b;
-    // Assert q_low is on curve or point at infinity
-    assert q_low_y * q_low_y = is_on_curve_q_low * (q_low_x * q_low_x * q_low_x + a * q_low_x + b) +
-        (1 - is_on_curve_q_low) * q_low_x;
+    // Assert q_low is on curve
+    assert q_low_y * q_low_y = is_on_curve_q_low * (q_low_x * q_low_x * q_low_x + a * q_low_x + b);
+    // Assert q_low is point at infinity otherwise
+    assert (1 - is_on_curve_q_low) * q_low_y = 0;
+    assert (1 - is_on_curve_q_low) * q_low_x = 0;
     // Assert q_high is on curve or point at infinity
     assert q_high_y * q_high_y = is_on_curve_q_high * (
         q_high_x * q_high_x * q_high_x + a * q_high_x + b
-    ) + (1 - is_on_curve_q_high) * q_high_x;
+    );
+    // Assert q_high is point at infinity otherwise
+    assert (1 - is_on_curve_q_high) * q_high_y = 0;
+    assert (1 - is_on_curve_q_high) * q_high_x = 0;
     // Assert q_high_shifted is on curve or point at infinity
     assert q_high_shifted_y * q_high_shifted_y = is_on_curve_q_high * (
         q_high_shifted_x * q_high_shifted_x * q_high_shifted_x + a * q_high_shifted_x + b
-    ) + (1 - is_on_curve_q_high) * q_high_shifted_x;
+    );
 
     // slope a0
     tempvar m_a0 = (3 * a0_x * a0_x + a) / (2 * a0_y);
