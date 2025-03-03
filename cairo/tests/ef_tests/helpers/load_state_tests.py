@@ -117,12 +117,19 @@ def add_block_to_chain(
     assert keccak256(rlp.encode(block.header)) == block_header_hash
     assert rlp.encode(block) == block_rlp
 
-    cairo_chain = cairo_run("state_transition", chain, block)
-    if request.config.getoption("--log-cli-level") == "TRACE":
-        # In trace mode, run EELS as well to get a side-by-side comparison
-        state_transition(chain, block)
-    chain.blocks = cairo_chain.blocks
-    chain.state = cairo_chain.state
+    try:
+        cairo_chain = cairo_run("state_transition", chain, block)
+        if request.config.getoption("--log-cli-level") == "TRACE":
+            # In trace mode, run EELS as well to get a side-by-side comparison
+            state_transition(chain, block)
+        chain.blocks = cairo_chain.blocks
+        chain.state = cairo_chain.state
+    except Exception as e:
+        # Run EELS to get its trace, then raise.
+        if request.config.getoption("--log-cli-level") == "TRACE":
+            # In trace mode, run EELS as well to get a side-by-side comparison
+            state_transition(chain, block)
+        raise e
 
 
 # Functions that fetch individual test cases
