@@ -79,7 +79,7 @@ jobs:
         id: ef-tests
         continue-on-error: true
         run: |
-          uv run --reinstall pytest -n logical --durations=0 -v -s --log-cli-level=DEBUG cairo/tests/ef_tests/ -m "not slow"
+          uv run --reinstall pytest -n logical --durations=0 --timeout 300 -v -s --log-cli-level=DEBUG cairo/tests/ef_tests/ -m "not slow"
       - name: Notify Slack on Failure
         if: steps.ef-tests.outcome == 'failure'
         uses: slackapi/slack-github-action@v1.24.0
