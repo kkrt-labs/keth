@@ -118,20 +118,20 @@ impl From<PyErr> for DynamicHintError {
 /// This executor allows running Python code with access to Cairo VM memory and variables.
 /// It provides the `memory` object for accessing VM memory and the `ids` dictionary
 /// for accessing variables defined in the Cairo program.
-pub struct DynamicPythonHintExecutor {
+pub struct PythonicHintExecutor {
     /// Whether the Python interpreter has been initialized
     initialized: bool,
     /// Optional Python path to add during initialization
     python_path: Option<PathBuf>,
 }
 
-impl Default for DynamicPythonHintExecutor {
+impl Default for PythonicHintExecutor {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl DynamicPythonHintExecutor {
+impl PythonicHintExecutor {
     /// Create a new dynamic Python hint executor
     pub fn new() -> Self {
         Self { initialized: false, python_path: None }
@@ -250,9 +250,9 @@ serialize = partial(serialize, segments=segments, program_identifiers=py_identif
 /// A generic hint that can execute arbitrary Python code
 pub fn generic_python_hint() -> Hint {
     // Create a static executor that will be reused
-    static EXECUTOR: std::sync::OnceLock<std::sync::Mutex<DynamicPythonHintExecutor>> =
+    static EXECUTOR: std::sync::OnceLock<std::sync::Mutex<PythonicHintExecutor>> =
         std::sync::OnceLock::new();
-    let executor = EXECUTOR.get_or_init(|| std::sync::Mutex::new(DynamicPythonHintExecutor::new()));
+    let executor = EXECUTOR.get_or_init(|| std::sync::Mutex::new(PythonicHintExecutor::new()));
 
     Hint::new(
         String::from("__dynamic_python_hint__"),

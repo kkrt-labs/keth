@@ -13,7 +13,7 @@ dependencies = [
 ]
 
 [tool.maturin]
-features = ["pyo3/extension-module", "dynamic-hints"]
+features = ["pyo3/extension-module", "pythonic-hints"]
 module-name = "cairo_addons.vm"
 python-packages = ["cairo_addons"]
 python-source = "src"

@@ -26,9 +26,9 @@ use super::{
     hint_loader::load_python_hints,
 };
 
-#[cfg(feature = "dynamic-hints")]
-use super::dynamic_hint::generic_python_hint;
-#[cfg(feature = "dynamic-hints")]
+#[cfg(feature = "pythonic-hints")]
+use super::pythonic_hint::generic_python_hint;
+#[cfg(feature = "pythonic-hints")]
 use cairo_vm::hint_processor::builtin_hint_processor::builtin_hint_processor_definition::HintProcessorData;
 
 /// A struct representing a hint.
@@ -63,10 +63,10 @@ pub struct HintProcessor {
     python_hints: HashMap<String, String>,
     /// A fallback function that will be used if the hint is not found
     /// and will interpret the hint code as Python code.
-    #[cfg(feature = "dynamic-hints")]
-    dynamic_hint_executor: Option<Rc<HintFunc>>,
-    #[cfg(not(feature = "dynamic-hints"))]
-    dynamic_hint_executor: Option<()>,
+    #[cfg(feature = "pythonic-hints")]
+    pythonic_hint_executor: Option<Rc<HintFunc>>,
+    #[cfg(not(feature = "pythonic-hints"))]
+    pythonic_hint_executor: Option<()>,
 }
 
 impl HintProcessor {
@@ -78,7 +78,7 @@ impl HintProcessor {
         Self {
             inner: BuiltinHintProcessor::new(HashMap::new(), run_resources),
             python_hints,
-            dynamic_hint_executor: None,
+            pythonic_hint_executor: None,
         }
     }
 
@@ -99,21 +99,21 @@ impl HintProcessor {
         Self {
             inner: BuiltinHintProcessor::new(self.inner.extra_hints, run_resources),
             python_hints: self.python_hints,
-            dynamic_hint_executor: self.dynamic_hint_executor,
+            pythonic_hint_executor: self.pythonic_hint_executor,
         }
     }
 
     /// Add support for dynamic Python hints
-    #[cfg(feature = "dynamic-hints")]
+    #[cfg(feature = "pythonic-hints")]
     #[must_use]
     pub fn with_dynamic_python_hints(mut self) -> Self {
         // Store the generic Python hint executor for fallback
-        self.dynamic_hint_executor = Some(generic_python_hint().func.clone());
+        self.pythonic_hint_executor = Some(generic_python_hint().func.clone());
         self
     }
 
     /// No-op version for when dynamic hints are disabled
-    #[cfg(not(feature = "dynamic-hints"))]
+    #[cfg(not(feature = "pythonic-hints"))]
     #[must_use]
     pub fn with_dynamic_python_hints(self) -> Self {
         self
@@ -124,14 +124,15 @@ impl HintProcessor {
         HintProcessor {
             inner: self.inner,
             python_hints: self.python_hints,
-            dynamic_hint_executor: self.dynamic_hint_executor,
+            pythonic_hint_executor: self.pythonic_hint_executor,
         }
     }
 }
 
 impl HintProcessorLogic for HintProcessor {
-    /// Executes a hint. If the hint is not found, it will try to execute the hint as Python code
-    /// using the dynamic hint executor.
+    /// Executes a hint. If the hint is not found and dynamic hints are enabled, it will try to
+    /// execute the hint as Python code. If dynamic hints are disabled, it will silently ignore
+    /// unknown hints.
     fn execute_hint(
         &mut self,
         vm: &mut VirtualMachine,
@@ -144,10 +145,10 @@ impl HintProcessorLogic for HintProcessor {
 
         match result {
             Ok(_) => Ok(()),
-            #[cfg(feature = "dynamic-hints")]
+            #[cfg(feature = "pythonic-hints")]
             Err(HintError::UnknownHint(_hint_str)) => {
-                // If the hint is unknown, try the dynamic hint executor
-                if let Some(dynamic_hint_func) = &self.dynamic_hint_executor {
+                // If the hint is unknown and we have a dynamic hint executor, try it
+                if let Some(pythonic_hint_func) = &self.pythonic_hint_executor {
                     // Extract the hint code from the hint_data
                     let hint_data = match hint_data.downcast_ref::<HintProcessorData>() {
                         Some(data) => data,
@@ -161,8 +162,8 @@ impl HintProcessorLogic for HintProcessor {
                     exec_scopes.assign_or_update_variable("__hint_code__", Box::new(hint_code));
 
                     // Execute the dynamic hint
-                    let dynamic_hint_func = dynamic_hint_func.0.as_ref();
-                    let dynamic_result = dynamic_hint_func(
+                    let pythonic_hint_func = pythonic_hint_func.0.as_ref();
+                    let dynamic_result = pythonic_hint_func(
                         vm,
                         exec_scopes,
                         &hint_data.ids_data,
@@ -178,19 +179,11 @@ impl HintProcessorLogic for HintProcessor {
                         )))
                     })
                 } else {
-                    // If no dynamic hint executor is available, return the original error
-                    let hint_data = match hint_data.downcast_ref::<HintProcessorData>() {
-                        Some(data) => data,
-                        None => {
-                            return Err(HintError::CustomHint(Box::from(
-                                "Failed to downcast hint_data to HintProcessorData".to_string(),
-                            )))
-                        }
-                    };
-                    Err(HintError::UnknownHint(hint_data.code.clone().into_boxed_str()))
+                    // If dynamic hints are disabled, silently ignore unknown hints
+                    Ok(())
                 }
             }
-            #[cfg(not(feature = "dynamic-hints"))]
+            #[cfg(not(feature = "pythonic-hints"))]
             Err(HintError::UnknownHint(hint_str)) => {
                 // When dynamic hints are disabled, just return the original error
                 Err(HintError::UnknownHint(hint_str))
@@ -218,7 +211,7 @@ impl Default for HintProcessor {
         hints.extend_from_slice(CURVE_HINTS);
         hints.extend_from_slice(CIRCUITS_HINTS);
         hints.extend_from_slice(PRECOMPILES_HINTS);
-        Self::new(RunResources::default()).with_hints(hints).with_dynamic_python_hints()
+        Self::new(RunResources::default()).with_hints(hints)
     }
 }
 

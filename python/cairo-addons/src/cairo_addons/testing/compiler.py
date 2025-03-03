@@ -102,7 +102,7 @@ def resolve_cairo_file(
     return files
 
 
-def get_main_path(cairo_file: Optional[str]) -> Optional[Tuple[str]]:
+def get_main_path(cairo_file: Optional[Path]) -> Optional[Tuple[str, ...]]:
     """
     Resolve the __main__ part of the cairo scope path.
     """
@@ -127,13 +127,16 @@ def get_cairo_program(
         with dump_path.open("rb") as f:
             program = pickle.load(f)
     else:
+        logger.info(f"dump path was not found for: {cairo_file} at path: {dump_path}")
         logger.info(f"Compiling {cairo_file}")
         program = cairo_compile(
             str(cairo_file), debug_info=True, proof_mode=False, prime=prime
         )
         if dump_path is not None:
             dump_path.parent.mkdir(parents=True, exist_ok=True)
+            logger.info(f"Dumping program to {dump_path}")
             with dump_path.with_suffix(".lock").open("wb") as f:
+                logger.info(f"Dumping program to {dump_path.with_suffix('.lock')}")
                 pickle.dump(program, f)
             dump_path.with_suffix(".lock").rename(dump_path)
 

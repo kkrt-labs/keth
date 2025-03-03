@@ -16,7 +16,13 @@ import xxhash
 from _pytest.mark import deselect_by_keyword, deselect_by_mark
 from starkware.cairo.lang.compiler.cairo_compile import DEFAULT_PRIME
 
-from cairo_addons.testing.caching import CACHED_TESTS_FILE, file_hash, program_hash
+from cairo_addons.testing.caching import (
+    CACHED_TESTS_FILE,
+    CAIRO_DIR_TIMESTAMP_FILE,
+    file_hash,
+    has_cairo_dir_changed,
+    program_hash,
+)
 from cairo_addons.testing.compiler import (
     get_cairo_program,
     get_main_path,
@@ -91,6 +97,12 @@ def pytest_addoption(parser):
         type=int,
         help="The seed to set random with.",
     )
+    parser.addoption(
+        "--disable-pythonic-hints",
+        action="store_true",
+        default=False,
+        help="Disable execution of pythonic hints: True or False",
+    )
 
 
 @pytest.fixture(autouse=True, scope="session")
@@ -107,12 +119,21 @@ def pytest_sessionstart(session):
     session.results = dict()
     session.build_dir = Path("build") / ".pytest_build"
 
+    # Check if any file in the cairo directory has changed since the last run
+    last_timestamp = session.config.cache.get(
+        f"cairo_run/{CAIRO_DIR_TIMESTAMP_FILE}", 0
+    )
+    if has_cairo_dir_changed(timestamp=last_timestamp):
+        logger.info("Cairo files have changed since last run, clearing build directory")
+        shutil.rmtree(session.build_dir, ignore_errors=True)
+
+    # Store current timestamp for next run
+    session.config.cache.set(f"cairo_run/{CAIRO_DIR_TIMESTAMP_FILE}", time.time())
+
 
 def pytest_sessionfinish(session):
-
     if xdist.is_xdist_controller(session):
         logger.info("Controller worker: collecting tests to skip")
-        shutil.rmtree(session.build_dir, ignore_errors=True)
         tests_to_skip = session.config.cache.get(f"cairo_run/{CACHED_TESTS_FILE}", [])
         for worker_id in range(session.config.option.numprocesses):
             tests_to_skip += session.config.cache.get(
@@ -137,7 +158,7 @@ def pytest_sessionfinish(session):
         return
 
     logger.info("Sequential worker: collecting tests to skip")
-    shutil.rmtree(session.build_dir, ignore_errors=True)
+    # Don't clear the build directory to keep compilation artifacts
     tests_to_skip = session.config.cache.get(f"cairo_run/{CACHED_TESTS_FILE}", [])
     tests_to_skip += session_tests_to_skip
     session.config.cache.set(f"cairo_run/{CACHED_TESTS_FILE}", list(set(tests_to_skip)))
@@ -193,6 +214,8 @@ def pytest_collection_modifyitems(session, config, items):
                 "cairo_programs",
                 "cairo_program",
                 "cairo_run",
+                "cairo_state_transition",
+                "cairo_run_ethereum_tests",
             }
         )
     ]

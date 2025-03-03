@@ -1,9 +1,12 @@
+import os
 from pathlib import Path
+from typing import List
 
 import xxhash
 from starkware.cairo.lang.compiler.program import Program
 
 CACHED_TESTS_FILE = "cached_tests.json"
+CAIRO_DIR_TIMESTAMP_FILE = "cairo_dir_timestamp.json"
 
 
 def file_hash(file_path: str | Path) -> bytes:
@@ -39,3 +42,37 @@ def program_hash(program: Program) -> bytes:
         )
     )
     return xxhash.xxh64(bytes_data).digest()
+
+
+def has_cairo_dir_changed(
+    cairo_dirs: List[Path] = [
+        Path("cairo"),
+        Path("python/cairo-ec"),
+        Path("python/cairo-core"),
+    ],
+    timestamp: float = 0,
+) -> bool:
+    """
+    Check if any file in the cairo directory has been modified since the given timestamp.
+
+    Args:
+        cairo_dir: Path to the cairo directory
+        timestamp: Timestamp to compare against
+
+    Returns:
+        True if any file has been modified since the timestamp, False otherwise
+    """
+    for cairo_dir in cairo_dirs:
+        if not cairo_dir.exists():
+            return False
+
+        for root, _, files in os.walk(cairo_dir):
+            for file in files:
+                if not file.endswith(".cairo"):
+                    continue
+
+                file_path = Path(root) / file
+                if os.path.getmtime(file_path) > timestamp:
+                    return True
+
+    return False
