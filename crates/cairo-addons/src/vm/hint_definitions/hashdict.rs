@@ -247,21 +247,17 @@ pub fn get_storage_keys_for_address() -> Hint {
                 .get_dictionary_ref()
                 .iter()
                 .filter_map(|(key, value)| {
-                    match key {
-                        DictKey::Compound(key_parts) => {
-                            // Chain Option methods instead of nested if lets
-                            value.get_int().filter(|&v| v != Zero::zero()).and_then(|_| {
-                                // Use if expression instead of if/else with None
-                                if key_parts.len() >= prefix.len() &&
-                                    key_parts[..prefix.len()] == prefix[..]
-                                {
-                                    Some(key_parts)
-                                } else {
-                                    None
-                                }
-                            })
-                        }
-                        _ => None,
+                    let DictKey::Compound(key_parts) = key else { return None };
+
+                    // Check if key_parts has enough elements and matches the prefix
+                    if key_parts.len() < prefix.len() || key_parts[..prefix.len()] != prefix[..] {
+                        return None;
+                    }
+
+                    // Return None if value is zero integer (deleted storage)
+                    match value.get_int() {
+                        Some(value) if value == Zero::zero() => None,
+                        _ => Some(key_parts),
                     }
                 })
                 .collect();
