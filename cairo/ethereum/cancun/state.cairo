@@ -510,18 +510,38 @@ func account_has_code_or_nonce{poseidon_ptr: PoseidonBuiltin*, state: State}(
     return res;
 }
 
+// @notice Returns all (address, key) pairs for a given address.
+// This is a temporary fix specifically made for the `account_has_storage` function.
+// We need to make a deeper refactor once we have a sound way to handle storage keys.
+func get_storage_keys_for_address{dict_ptr: DictAccess*}(
+    prefix_len: felt, prefix: felt*
+) -> ListTupleAddressBytes32 {
+    alloc_locals;
+
+    local keys_len: felt;
+    local keys: TupleAddressBytes32*;
+    %{ get_storage_keys_for_address %}
+
+    // warning: this is unsound as the prover can return any list of keys.
+    tempvar res = ListTupleAddressBytes32(new ListTupleAddressBytes32Struct(keys, keys_len));
+    return res;
+}
+
 func account_has_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Address) -> bool {
     alloc_locals;
 
     let fp_and_pc = get_fp_and_pc();
     local __fp__: felt* = fp_and_pc.fp_val;
 
-    let storage_tries = state.value.original_storage_tries;
+    let storage_tries = state.value._storage_tries;
     let prefix_len = 1;
     let prefix = &address.value;
     tempvar dict_ptr = cast(storage_tries.value._data.value.dict_ptr, DictAccess*);
-    let keys = get_keys_for_address_prefix{dict_ptr=dict_ptr}(prefix_len, prefix);
+
+    // TODO: this is unsound, see `get_storage_keys_for_address`
+    let keys = get_storage_keys_for_address{dict_ptr=dict_ptr}(prefix_len, prefix);
     let has_storage = is_not_zero(keys.value.len);
+
     tempvar res = bool(has_storage);
     return res;
 }

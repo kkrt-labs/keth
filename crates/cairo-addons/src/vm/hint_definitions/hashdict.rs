@@ -22,6 +22,7 @@ use cairo_vm::{
     },
     Felt252,
 };
+use num_traits::Zero;
 use revm::precompile::Precompiles;
 use starknet_crypto::poseidon_hash_many;
 
@@ -34,6 +35,7 @@ pub const HINTS: &[fn() -> Hint] = &[
     get_preimage_for_key,
     copy_hashdict_tracker_entry,
     get_keys_for_address_prefix,
+    get_storage_keys_for_address,
 ];
 
 pub fn hashdict_read() -> Hint {
@@ -158,6 +160,108 @@ pub fn get_keys_for_address_prefix() -> Hint {
                         // Check if values starts with prefix
                         if values.len() >= prefix.len() && values[..prefix.len()] == prefix[..] {
                             Some(values)
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+
+            // Allocate memory segments and write results
+            let base = vm.add_memory_segment();
+            for (i, preimage) in matching_preimages.iter().enumerate() {
+                let ptr = vm.add_memory_segment();
+                let bytes32_base = vm.add_memory_segment();
+
+                // Write the rest of preimage (excluding first element) to bytes32_base
+                for (j, value) in preimage[1..].iter().enumerate() {
+                    vm.insert_value((bytes32_base + j)?, value.clone())?;
+                }
+
+                // Write [first_element, bytes32_base] to ptr
+                vm.insert_value(ptr, preimage[0].clone())?;
+                vm.insert_value((ptr + 1)?, MaybeRelocatable::from(bytes32_base))?;
+
+                // Write ptr to base[i]
+                vm.insert_value((base + i)?, MaybeRelocatable::from(ptr))?;
+            }
+
+            // Set output values
+            insert_value_from_var_name(
+                "keys_len",
+                Felt252::from(matching_preimages.len()),
+                vm,
+                ids_data,
+                ap_tracking,
+            )?;
+            insert_value_from_var_name(
+                "keys",
+                MaybeRelocatable::from(base),
+                vm,
+                ids_data,
+                ap_tracking,
+            )?;
+
+            Ok(())
+        },
+    )
+}
+
+/// Same as above but skips keys with value 0 (empty storage)
+pub fn get_storage_keys_for_address() -> Hint {
+    Hint::new(
+        String::from("get_storage_keys_for_address"),
+        |vm: &mut VirtualMachine,
+         exec_scopes: &mut ExecutionScopes,
+         ids_data: &HashMap<String, HintReference>,
+         ap_tracking: &ApTracking,
+         _constants: &HashMap<String, Felt252>|
+         -> Result<(), HintError> {
+            // Get dictionary tracker
+            let dict_ptr = get_ptr_from_var_name("dict_ptr", vm, ids_data, ap_tracking)?;
+            let dict_manager_ref = exec_scopes.get_dict_manager()?;
+            let dict = dict_manager_ref.borrow();
+            let tracker = dict.get_tracker(dict_ptr)?;
+
+            // Build prefix from memory
+            let prefix_ptr = get_ptr_from_var_name("prefix", vm, ids_data, ap_tracking)?;
+            let prefix_len_felt: Felt252 =
+                get_integer_from_var_name("prefix_len", vm, ids_data, ap_tracking)?;
+            let prefix_len: usize = prefix_len_felt
+                .try_into()
+                .map_err(|_| MathError::Felt252ToUsizeConversion(Box::new(prefix_len_felt)))?;
+
+            let prefix: Vec<MaybeRelocatable> = (0..prefix_len)
+                .map(|i| {
+                    let addr = (prefix_ptr + i)?;
+                    vm.get_maybe(&addr).ok_or_else(|| {
+                        HintError::Memory(MemoryError::UnknownMemoryCell(Box::new(addr)))
+                    })
+                })
+                .collect::<Result<_, _>>()?;
+
+            // Find matching preimages
+            let matching_preimages: Vec<&Vec<MaybeRelocatable>> = tracker
+                .get_dictionary_ref()
+                .iter()
+                .filter_map(|(key, value)| {
+                    if let DictKey::Compound(key_parts) = key {
+                        let value = value.get_int();
+                        if let Some(value) = value {
+                            if value != Zero::zero() {
+                                // Check if values starts with prefix
+                                if key_parts.len() >= prefix.len() &&
+                                    key_parts[..prefix.len()] == prefix[..]
+                                {
+                                    Some(key_parts)
+                                } else {
+                                    None
+                                }
+                            } else {
+                                None
+                            }
                         } else {
                             None
                         }
