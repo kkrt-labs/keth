@@ -12,6 +12,7 @@ use cairo_vm::{
     vm::{errors::hint_errors::HintError, vm_core::VirtualMachine},
     Felt252,
 };
+use num_traits::Zero;
 
 use crate::vm::{
     hint_utils::{split, write_result_to_ap, Uint384},
@@ -126,9 +127,17 @@ pub fn x_is_neg_y_mod_p_hint() -> Hint {
             let x = Uint384::from_var_name("x", vm, ids_data, ap_tracking)?.pack_bigint();
             let y = Uint384::from_var_name("y", vm, ids_data, ap_tracking)?.pack_bigint();
             let p = Uint384::from_var_name("p", vm, ids_data, ap_tracking)?.pack_bigint();
+
+            // For modular negation, we use the formula: -y mod p = (p - (y mod p)) mod p
             let x_mod_p = x % p.clone();
-            let y_mod_p = y % p;
-            write_result_to_ap(x_mod_p == -y_mod_p, 1, vm)
+            let y_mod_p = y % p.clone();
+            let neg_y_mod_p = if y_mod_p.is_zero() {
+                y_mod_p // If y mod p is 0, then -y mod p is also 0
+            } else {
+                (&p - &y_mod_p) % &p
+            };
+
+            write_result_to_ap(x_mod_p == neg_y_mod_p, 1, vm)
         },
     )
 }
