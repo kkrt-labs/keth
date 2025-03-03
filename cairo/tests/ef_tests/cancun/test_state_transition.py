@@ -43,6 +43,7 @@ SLOW_TESTS = (
     # InvalidBlockTest
     "bcUncleHeaderValidity/nonceWrong.json",
     "bcUncleHeaderValidity/wrongMixHash.json",
+
     # Big loops
     "stStaticCall/static_LoopCallsThenRevert.json",
     "stStaticCall/static_LoopCallsDepthThenRevert.json",
