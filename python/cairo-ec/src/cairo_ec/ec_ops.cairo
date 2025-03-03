@@ -5,7 +5,12 @@ from starkware.cairo.common.uint256 import Uint256
 from starkware.cairo.common.poseidon_state import PoseidonBuiltinState
 from cairo_core.maths import assert_uint256_le
 
-from cairo_ec.circuits.ec_ops_compiled import ec_add as ec_add_unchecked, ec_double, assert_x_is_on_curve, ecip_1p
+from cairo_ec.circuits.ec_ops_compiled import (
+    ec_add as ec_add_unchecked,
+    ec_double,
+    assert_x_is_on_curve,
+    ecip_1p,
+)
 from cairo_ec.circuits.mod_ops_compiled import add, mul
 from cairo_ec.circuit_utils import N_LIMBS, hash_full_transcript
 from cairo_ec.curve.alt_bn128 import alt_bn128, sign_to_uint384_mod_alt_bn128
@@ -126,19 +131,14 @@ func ec_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: Mod
 
 // Multiply an EC point by a scalar. Doesn't check if the input is on curve nor if it's the point at infinity.
 // Different cases
-// - Scalar = 0 --> Return O (point at infinity)
-// - G1Point is point at infinity --> Return O (point at infinity) (handled whatever the scalar is ? just useless computation..
-// - compute the msm hints, a0 etc.
 func ec_mul{
     range_check_ptr,
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
-}(
-    p: G1Point, k: UInt384, modulus: UInt384
-) -> G1Point {
- alloc_locals;
+}(p: G1Point, k: UInt384, modulus: UInt384) -> G1Point {
+    alloc_locals;
     let (__fp__, _) = get_fp_and_pc();
 
     local a: UInt384 = UInt384(alt_bn128.A0, alt_bn128.A1, alt_bn128.A2, alt_bn128.A3);
@@ -185,9 +185,36 @@ func ec_mul{
     // > get seed for random point
 
     // rlc_coeff is casted to Uint384 after hashing the values of Q (which is used to compute rlc_coeff)
-    tempvar rlc_coeff_u384_cast_offset = 4;
-    tempvar ecip_circuit_constants_offset = 5 * N_LIMBS;
-    tempvar ecip_circuit_q_offset = 33 * N_LIMBS;
+    tempvar rlc_coeff_u384_cast_offset = N_LIMBS;
+    tempvar is_on_curve_flags_offset = 2 * N_LIMBS;
+    tempvar ecip_circuit_constants_offset = 6 * N_LIMBS;
+    tempvar ecip_circuit_q_offset = 32 * N_LIMBS;
+
+    let ecip_input: UInt384* = cast(
+        range_check96_ptr + is_on_curve_flags_offset + rlc_coeff_u384_cast_offset +
+        ecip_circuit_constants_offset,
+        UInt384*,
+    );
+
+    let q_low_x = ecip_input[32];
+    let q_low_y = ecip_input[33];
+    let q_high_x = ecip_input[34];
+    let q_high_y = ecip_input[35];
+    let q_high_shifted_x = ecip_input[36];
+    let q_high_shifted_y = ecip_input[37];
+    let q_low = G1Point(q_low_x, q_low_y);
+    let q_high = G1Point(q_high_x, q_high_y);
+
+    // Compute flag is_on_curve_q_low
+    let pt_at_inf = G1Point(zero_u384, zero_u384);
+    let is_pt_at_inf_q_low = G1Point__eq__(q_low, pt_at_inf);
+    let is_on_curve_q_low = 1 - is_pt_at_inf_q_low.value;
+    let is_on_curve_q_low_u384 = felt_to_uint384(is_on_curve_q_low);
+    // Compute flag is_on_curve_q_high
+    let pt_at_inf = G1Point(zero_u384, zero_u384);
+    let is_pt_at_inf_q_high = G1Point__eq__(q_low, pt_at_inf);
+    let is_on_curve_q_high = 1 - is_pt_at_inf_q_high.value;
+    let is_on_curve_q_high_u384 = felt_to_uint384(is_on_curve_q_high);
 
     assert poseidon_ptr[0].input = PoseidonBuiltinState(s0='MSM_G1', s1=0, s2=1);
     assert poseidon_ptr[1].input = PoseidonBuiltinState(
@@ -210,7 +237,9 @@ func ec_mul{
     let _s2 = [cast(poseidon_ptr, felt*) - 1];
 
     // scalar k
-    assert poseidon_ptr[0].input = PoseidonBuiltinState(s0=_s0 + scalar.low, s1=_s1 + scalar.high, s2=_s2);
+    assert poseidon_ptr[0].input = PoseidonBuiltinState(
+        s0=_s0 + scalar.low, s1=_s1 + scalar.high, s2=_s2
+    );
     tempvar rlc_coeff = poseidon_ptr[0].output.s1;
     let poseidon_ptr = poseidon_ptr + PoseidonBuiltin.SIZE;
     let rlc_coeff_u384 = felt_to_uint384(rlc_coeff);
@@ -235,18 +264,6 @@ func ec_mul{
 
     tempvar random_point_x = new random_point.x;
     tempvar random_point_y = new random_point.y;
-
-    let q_low_x = ecip_input[32];
-    let q_low_y = ecip_input[33];
-    let q_high_x = ecip_input[34];
-    let q_high_y = ecip_input[35];
-    let q_high_shifted_x = ecip_input[36];
-    let q_high_shifted_y = ecip_input[37];
-
-    // Compute flag is_on_curve_q_low
-    tempvar is_on_curve_q_low = new zero_u384;
-    // Compute flag is_on_curve_q_high
-    tempvar is_on_curve_q_high = new zero_u384;
 
     ecip_1p(
         &ecip_input[0],
@@ -293,13 +310,13 @@ func ec_mul{
         &b,
         &rlc_coeff_u384,
         &modulus,
-        is_on_curve_q_low,
-        is_on_curve_q_high,
+        new is_on_curve_q_low_u384,
+        new is_on_curve_q_high_u384,
     );
 
     let res = ec_add(
-        G1Point(x=ecip_input[46], y=ecip_input[47]),
-        G1Point(x=ecip_input[50], y=ecip_input[51]),
+        G1Point(x=ecip_input[32], y=ecip_input[33]),
+        G1Point(x=ecip_input[34], y=ecip_input[35]),
         a,
         modulus,
     );
