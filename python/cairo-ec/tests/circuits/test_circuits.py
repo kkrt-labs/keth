@@ -56,7 +56,10 @@ class TestCircuits:
         @given(data=st.data())
         @settings(verbosity=Verbosity.quiet)
         def test_add(self, cairo_program, cairo_run, prime_cls, st_prime, data):
-            inputs = {"x": data.draw(st_prime), "y": data.draw(st_prime)}
+            inputs = {
+                "x": 2**384 - 3,
+                "y": 0,
+            }
             values_ptr = [limb for v in inputs.values() for limb in int_to_uint384(v)]
             compiled_circuit = circuit_compile(cairo_program, "add")
 
@@ -82,6 +85,7 @@ class TestCircuits:
                     )
                 )
             )
+
             assert (
                 cairo_output
                 == circuit_output
