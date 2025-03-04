@@ -18,7 +18,7 @@ from cairo_ec.curve.g1_point import G1Point
 from cairo_ec.curve.ids import CurveID
 from cairo_ec.ec_ops import ec_add, try_get_point_from_x, get_random_point
 from cairo_ec.circuits.mod_ops_compiled import div, neg
-from cairo_ec.uint384 import uint384_to_uint256, felt_to_uint384
+from cairo_ec.uint384 import uint384_to_uint256, felt_to_uint384, uint384_eq
 
 namespace secp256k1 {
     const CURVE_ID = CurveID.SECP256K1;
@@ -318,6 +318,14 @@ func try_recover_public_key{
         a,
         p,
     );
+
+    let point_at_infinity_x = uint384_eq(res.x, UInt384(0, 0, 0, 0));
+    let point_at_infinity_y = uint384_eq(res.y, UInt384(0, 0, 0, 0));
+    if (point_at_infinity_x != 0 and point_at_infinity_y != 0) {
+        tempvar public_key_x = Bytes32(new Bytes32Struct(0, 0));
+        tempvar public_key_y = Bytes32(new Bytes32Struct(0, 0));
+        return (public_key_x=public_key_x, public_key_y=public_key_y, success=0);
+    }
 
     let max_value = Uint256(secp256k1.P_LOW_128 - 1, secp256k1.P_HIGH_128);
     let x_uint256 = uint384_to_uint256(res.x);
