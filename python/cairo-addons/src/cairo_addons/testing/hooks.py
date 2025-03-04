@@ -7,6 +7,7 @@ This module provides pytest hooks for the Cairo test system.
 import logging
 import shutil
 import time
+from multiprocessing import Pool
 from pathlib import Path
 
 import pytest
@@ -17,6 +18,7 @@ from _pytest.mark import deselect_by_keyword, deselect_by_mark
 from starkware.cairo.lang.compiler.cairo_compile import DEFAULT_PRIME
 
 from cairo_addons.testing.caching import (
+    CACHED_TEST_HASH_FILE,
     CACHED_TESTS_FILE,
     CAIRO_DIR_TIMESTAMP_FILE,
     file_hash,
@@ -120,6 +122,7 @@ def pytest_sessionstart(session):
     if has_cairo_dir_changed(timestamp=last_timestamp):
         logger.info("Cairo files have changed since last run, clearing build directory")
         shutil.rmtree(session.build_dir, ignore_errors=True)
+        session.config.cache.set(f"cairo_run/{CACHED_TEST_HASH_FILE}", None)
 
     # Store current timestamp for next run
     session.config.cache.set(f"cairo_run/{CAIRO_DIR_TIMESTAMP_FILE}", time.time())
@@ -272,29 +275,67 @@ def pytest_collection_modifyitems(session, config, items):
         missing = missing_new
         time.sleep(0.25)
 
-    # Select tests
-    for item in cairo_items:
-        # Hash both main and test programs if they exist
-        program_hashes = [
-            hash_
-            for program in session.cairo_programs[item.fspath]
-            for hash_ in program_hash(program)
+    # Only worker0 computes test hashes based on the compiled artifacts
+    if (
+        worker_id == "gw0"
+        or worker_id == "master"
+        and config.cache.get(f"cairo_run/{CACHED_TEST_HASH_FILE}", None) is None
+    ):
+        logger.info(f"Worker {worker_id}: Computing test hashes")
+        runner_path = Path(__file__).parent / "runner.py"
+        args_list = [
+            (
+                str(item.fspath),
+                item.nodeid,
+                session.cairo_programs[item.fspath],
+                str(runner_path),
+            )
+            for item in cairo_items
         ]
+        with Pool() as pool:
+            test_hashes = dict(pool.map(compute_test_hash, args_list))
+        config.cache.set(f"cairo_run/{CACHED_TEST_HASH_FILE}", test_hashes)
+        session.test_hashes = test_hashes
+    else:
+        # Load precomputed hashes
+        session.test_hashes = config.cache.get(
+            f"cairo_run/{CACHED_TEST_HASH_FILE}", None
+        )
+        while session.test_hashes is None:
+            logger.info(f"Worker {worker_id} waiting for test hashes...")
+            time.sleep(1)
+            session.test_hashes = config.cache.get(
+                f"cairo_run/{CACHED_TEST_HASH_FILE}", None
+            )
 
-        test_hash = xxhash.xxh64(
-            bytes(program_hashes)
-            + file_hash(item.fspath)
-            + item.nodeid.encode()
-            + file_hash(Path(__file__).parent / "runner.py")
-        ).hexdigest()
-        session.test_hashes[item.nodeid] = test_hash
-
+    for item in cairo_items:
         if config.getoption("no_skip_mark"):
             item.own_markers = [
                 mark for mark in item.own_markers if mark.name != "skip"
             ]
-
-        if test_hash in tests_to_skip and config.getoption("skip_cached_tests"):
+        if (
+            config.getoption("skip_cached_tests")
+            and session.test_hashes[item.nodeid] in tests_to_skip
+        ):
             item.add_marker(pytest.mark.skip(reason="Cached results"))
 
     yield
+
+
+def compute_test_hash(args):
+    """Compute hash for a single test item using only picklable data"""
+    fspath, nodeid, program_data, runner_path = args
+
+    # Hash both main and test programs
+    program_hashes = [
+        hash_ for program in program_data for hash_ in program_hash(program)
+    ]
+
+    test_hash = xxhash.xxh64(
+        bytes(program_hashes)
+        + file_hash(fspath)
+        + nodeid.encode()
+        + file_hash(runner_path)
+    ).hexdigest()
+
+    return nodeid, test_hash
