@@ -48,6 +48,7 @@ codespell
 codespellignore
 coeff
 coeffs
+colorama
 collectonly
 conftest
 conftests
@@ -104,6 +105,7 @@ getitem
 gitpython
 gpgsign
 gprof
+GQUADDIVISOR
 GRUMPKIN
 hashdict
 HASHDICT

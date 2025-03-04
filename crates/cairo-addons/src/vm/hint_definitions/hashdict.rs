@@ -23,7 +23,6 @@ use cairo_vm::{
     Felt252,
 };
 use num_traits::Zero;
-use revm::precompile::Precompiles;
 use starknet_crypto::poseidon_hash_many;
 
 use crate::vm::hints::Hint;
