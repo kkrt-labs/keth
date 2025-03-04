@@ -42,15 +42,14 @@ pub fn div_rem_hint() -> Hint {
             let (q, r) = x.div_rem(&p);
             let quo_limbs = split(&q, 4, 96);
             let rem_limbs = split(&r, 4, 96);
-            insert_value_from_var_name("q.d0", quo_limbs[0], vm, ids_data, ap_tracking)?;
-            insert_value_from_var_name("q.d1", quo_limbs[1], vm, ids_data, ap_tracking)?;
-            insert_value_from_var_name("q.d2", quo_limbs[2], vm, ids_data, ap_tracking)?;
-            insert_value_from_var_name("q.d3", quo_limbs[3], vm, ids_data, ap_tracking)?;
-            insert_value_from_var_name("r.d0", rem_limbs[0], vm, ids_data, ap_tracking)?;
-            insert_value_from_var_name("r.d1", rem_limbs[1], vm, ids_data, ap_tracking)?;
-            insert_value_from_var_name("r.d2", rem_limbs[2], vm, ids_data, ap_tracking)?;
-            insert_value_from_var_name("r.d3", rem_limbs[3], vm, ids_data, ap_tracking)?;
-            Ok(())
+            write_result_to_ap(quo_limbs[0], 8, vm)?;
+            write_result_to_ap(quo_limbs[1], 7, vm)?;
+            write_result_to_ap(quo_limbs[2], 6, vm)?;
+            write_result_to_ap(rem_limbs[3], 5, vm)?;
+            write_result_to_ap(rem_limbs[0], 4, vm)?;
+            write_result_to_ap(rem_limbs[1], 3, vm)?;
+            write_result_to_ap(rem_limbs[2], 2, vm)?;
+            write_result_to_ap(rem_limbs[3], 1, vm)
         },
     )
 }
