@@ -1,6 +1,5 @@
 import hypothesis.strategies as st
 import pytest
-from garaga.hints.ecip import CURVES, CurveID
 from hypothesis import given
 from sympy import sqrt_mod
 
@@ -161,7 +160,6 @@ class TestEcOps:
         def test_ec_mul(self, cairo_run, data):
             p = AltBn128.random_point()
             k = data.draw(uint384)
-            _k2 = k % CURVES[CurveID.BN254.value].n
             expected = p.mul_by(k)
             res = cairo_run(
                 "test__ec_mul",
