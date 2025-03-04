@@ -484,7 +484,10 @@ class Serde(SerdeProtocol):
             filtered = [x for x in raw if x is not NO_ERROR_FLAG]
             return filtered[0] if len(filtered) == 1 else filtered
         if isinstance(cairo_type, TypeFelt):
-            return self.memory.get(ptr)
+            pointee = self.memory.get(ptr)
+            if pointee is None:
+                raise UnknownMemoryError(f"Unknown memory at {ptr}")
+            return pointee
         if isinstance(cairo_type, TypeStruct):
             return self.serialize_scope(cairo_type.scope, ptr)
         if isinstance(cairo_type, AliasDefinition):
@@ -896,6 +899,9 @@ class Serde(SerdeProtocol):
                 if list_len is not None
                 else self.segments.get_segment_size(segment_ptr.segment_index)
             )
+            if not list_len:
+                # In case we were not able to get the list length, we assume it's an arbitrary high value
+                list_len = 2**32
         except AssertionError as e:
             if (
                 "compute_effective_sizes must be called before get_segment_used_size."

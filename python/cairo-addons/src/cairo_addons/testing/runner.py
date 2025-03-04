@@ -470,6 +470,8 @@ def run_rust_vm(
             layout=getattr(LAYOUTS, request.config.getoption("layout")).layout_name,
             proof_mode=False,
             allow_missing_builtins=False,
+            enable_pythonic_hints=request.config.getoption("--log-cli-level")
+            == "TRACE",
         )
 
         # Must be done right after runner creation to make sure the execution base is 1

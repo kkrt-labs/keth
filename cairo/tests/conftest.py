@@ -2,14 +2,65 @@ from dataclasses import fields
 
 import pytest
 from dotenv import load_dotenv
+from ethereum.trace import (
+    EvmStop,
+    GasAndRefund,
+    OpEnd,
+    OpException,
+    OpStart,
+    PrecompileEnd,
+    PrecompileStart,
+    TraceEvent,
+    TransactionEnd,
+    TransactionStart,
+)
 
 from cairo_addons.testing.runner import run_python_vm, run_rust_vm
+from tests.utils.args_gen import Evm
 from tests.utils.args_gen import gen_arg as gen_arg_builder
 from tests.utils.args_gen import to_cairo_type, to_python_type
 from tests.utils.hints import get_op
 from tests.utils.serde import Serde
 
 load_dotenv()
+
+
+def evm_trace(
+    evm: Evm,
+    event: TraceEvent,
+    trace_memory: bool = False,
+    trace_stack: bool = True,
+    trace_return_data: bool = False,
+) -> None:
+    """
+    Log the event.
+    """
+    import logging
+
+    logger = logging.getLogger("TRACE")
+
+    if isinstance(event, TransactionStart):
+        pass
+    elif isinstance(event, TransactionEnd):
+        error_name = "None" if event.error is None else event.error.__class__.__name__
+        logger.trace(
+            f"[EELS] TransactionEnd: gas_used: {event.gas_used}, output: {event.output}, error: {error_name}"
+        )
+    elif isinstance(event, PrecompileStart):
+        logger.trace(f"[EELS] PrecompileStart: {evm.message.code_address}")
+    elif isinstance(event, PrecompileEnd):
+        logger.trace(f"[EELS] PrecompileEnd: {evm.message.code_address}")
+    elif isinstance(event, OpStart):
+        op = event.op
+        logger.trace(f"[EELS] OpStart: {hex(op.value)}")
+    elif isinstance(event, OpEnd):
+        logger.trace("[EELS] OpEnd")
+    elif isinstance(event, OpException):
+        logger.trace(f"[EELS] OpException: {event.error.__class__.__name__}")
+    elif isinstance(event, EvmStop):
+        logger.trace("[EELS] EvmStop")
+    elif isinstance(event, GasAndRefund):
+        logger.trace(f"[EELS] GasAndRefund: {event.gas_cost}")
 
 
 @pytest.fixture(scope="module")
@@ -35,6 +86,30 @@ def cairo_run_py(
     )
 
 
+def init_tracer():
+    import logging
+
+    from colorama import Fore, Style, init
+
+    init()
+
+    # Define TRACE level
+    TRACE_LEVEL = logging.DEBUG - 5
+    levelName = "TRACE"
+    methodName = levelName.lower()
+    logging.addLevelName(TRACE_LEVEL, levelName)
+
+    # Custom trace method for Logger instances
+    def trace(self, message, *args, **kwargs):
+        if self.isEnabledFor(TRACE_LEVEL):
+            colored_msg = f"{Fore.YELLOW}TRACE{Style.RESET_ALL} {message}"
+            print(colored_msg)
+
+    # Patch the logging module with our new trace method
+    setattr(logging, levelName, TRACE_LEVEL)
+    setattr(logging.getLoggerClass(), methodName, trace)
+
+
 def pytest_configure(config):
     """
     Global test configuration for patching core classes.
@@ -45,11 +120,10 @@ def pytest_configure(config):
     3. All subsequent imports of these modules will see our patched versions
 
     This effectively "rewrites" the module contents at the source, so whether code does:
-        from ethereum.cancun.vm import Evm
+    from ethereum.cancun.vm import Evm
     or:
         import ethereum.cancun.vm
         evm = ethereum.cancun.vm.Evm
-
     They both get our mock version, because the module itself has been modified.
     """
     from typing import Sequence, Union
@@ -60,16 +134,29 @@ def pytest_configure(config):
 
     from tests.utils.args_gen import Environment, Evm, Message, MessageCallOutput
 
+    init_tracer()
+
     # Apply patches at module level before any tests run
     ethereum.cancun.vm.Evm = Evm
     ethereum.cancun.vm.Message = Message
     ethereum.cancun.vm.Environment = Environment
     ethereum.cancun.vm.interpreter.MessageCallOutput = MessageCallOutput
 
-    # Mock the Extended type because hypothesis cannot handle the RLP Protocol
-    # Needs to be done before importing the types from ethereum.cancun.trie
-    # trunk-ignore(ruff/F821)
-    ethereum_rlp.rlp.Extended = Union[Sequence["Extended"], bytearray, bytes, Uint, FixedUnsigned, str, bool]  # type: ignore
+    # Mock the Extended type
+    ethereum_rlp.rlp.Extended = Union[Sequence["Extended"], bytearray, bytes, Uint, FixedUnsigned, str, bool]  # type: ignore # noqa: F821
+
+    # Patching evm_trace:
+    # - Problem: Global patches of `ethereum.trace.evm_trace` are not reflected in places where `evm_trace` is imported in EELS.
+    # - Cause: `ethereum.cancun.vm.interpreter` (and other modules) imports `evm_trace` locally (e.g., `from ethereum.trace import evm_trace`)
+    #   at module load time, caching the original `discard_evm_trace`. Patching `ethereum.trace.evm_trace` later didn’t
+    #   update this local reference due to Python’s import caching.
+    # - Solution: Explicitly patch both `ethereum.trace.evm_trace` globally and
+    #   `ethereum.cancun.vm.interpreter.evm_trace` locally (and other places where `evm_trace` is imported).
+    if config.getoption("log_cli_level") == "TRACE":
+        import ethereum.cancun.vm.interpreter
+
+        setattr(ethereum.cancun.vm.interpreter, "evm_trace", evm_trace)
+        setattr(ethereum.cancun.vm.gas, "evm_trace", evm_trace)
 
 
 @pytest.fixture(scope="module")

@@ -17,6 +17,8 @@ dependencies = [
   "xxhash>=3.5.0",
   "garaga",
   "ethereum",
+  "colorama>=0.4.6",
+  "pytest-timeout>=2.3.1",
 ]
 
 [tool.uv]

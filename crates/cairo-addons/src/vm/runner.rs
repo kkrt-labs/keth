@@ -36,6 +36,7 @@ pub struct PyCairoRunner {
     inner: RustCairoRunner,
     allow_missing_builtins: bool,
     builtins: Vec<BuiltinName>,
+    enable_pythonic_hints: bool,
 }
 
 #[pymethods]
@@ -48,13 +49,14 @@ impl PyCairoRunner {
     /// * `proof_mode` - Whether to run in proof mode.
     /// * `allow_missing_builtins` - Whether to allow missing builtins.
     #[new]
-    #[pyo3(signature = (program, py_identifiers=None, layout=None, proof_mode=false, allow_missing_builtins=false))]
+    #[pyo3(signature = (program, py_identifiers=None, layout=None, proof_mode=false, allow_missing_builtins=false, enable_pythonic_hints=false))]
     fn new(
         program: &PyProgram,
         py_identifiers: Option<PyObject>,
         layout: Option<PyLayout>,
         proof_mode: bool,
         allow_missing_builtins: bool,
+        enable_pythonic_hints: bool,
     ) -> PyResult<Self> {
         let layout = layout.unwrap_or_default().into_layout_name()?;
 
@@ -70,6 +72,18 @@ impl PyCairoRunner {
 
         let dict_manager = DictManager::new();
         inner.exec_scopes.insert_value("dict_manager", Rc::new(RefCell::new(dict_manager)));
+
+        if !enable_pythonic_hints || !cfg!(feature = "pythonic-hints") {
+            return Ok(Self {
+                inner,
+                allow_missing_builtins,
+                builtins: program.inner.iter_builtins().copied().collect(),
+                enable_pythonic_hints,
+            });
+        }
+
+        // Add context variables required for pythonic hint execution
+
         let identifiers = program
             .inner
             .iter_identifiers()
@@ -97,8 +111,8 @@ impl PyCairoRunner {
             // Import and run the initialization code from the injected module
             let setup_code = r#"
 try:
-    from cairo_addons.hints.injected import create_serializer
-    create_serializer(lambda: globals())
+    from cairo_addons.hints.injected import prepare_context
+    prepare_context(lambda: globals())
 except Exception as e:
     print(f"Warning: Error during initialization: {e}")
 "#;
@@ -122,6 +136,7 @@ except Exception as e:
             inner,
             allow_missing_builtins,
             builtins: program.inner.iter_builtins().copied().collect(),
+            enable_pythonic_hints,
         })
     }
 
@@ -208,9 +223,16 @@ except Exception as e:
         Ok(PyDictManager { inner: dict_manager })
     }
 
+    #[pyo3(signature = (address, resources))]
     fn run_until_pc(&mut self, address: PyRelocatable, resources: PyRunResources) -> PyResult<()> {
-        let mut hint_processor =
-            HintProcessor::default().with_run_resources(resources.inner).build();
+        let mut hint_processor = if self.enable_pythonic_hints {
+            HintProcessor::default()
+                .with_run_resources(resources.inner)
+                .with_dynamic_python_hints()
+                .build()
+        } else {
+            HintProcessor::default().with_run_resources(resources.inner).build()
+        };
 
         self.inner
             .run_until_pc(address.inner, &mut hint_processor)

@@ -39,5 +39,5 @@ pyo3-build-config = "0.23.3" # Should match pyo3 version
 [features]
 extension-module = ["pyo3/extension-module"]
 default = ["extension-module", "pyo3/experimental-inspect"]
-# Dynamic hints feature - not enabled by default
-dynamic-hints = []
+# Pythonic hints feature - not enabled by default
+pythonic-hints = []

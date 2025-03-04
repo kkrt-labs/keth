@@ -15,12 +15,18 @@ def set_identifiers(context: Callable[[], dict]):
     context()["py_identifiers"] = program.identifiers
 
 
-def create_serializer(context: Callable[[], dict]):
+def prepare_context(context: Callable[[], dict]):
     """Create and register the serializer function in the provided context object."""
+    import logging
+
+    context()["logger"] = logging.getLogger("TRACE")
 
     def serialize(variable, segments, program_identifiers, dict_manager):
         """Serialize a Cairo variable using the Serde class."""
 
+        from starkware.cairo.lang.vm.relocatable import RelocatableValue
+
+        from cairo_addons.vm import Relocatable as RustRelocatable
         from tests.utils.serde import Serde
 
         if isinstance(variable, int):
@@ -32,6 +38,12 @@ def create_serializer(context: Callable[[], dict]):
             program_identifiers=program_identifiers,
             dict_manager=dict_manager,
         )
+
+        if isinstance(variable, RelocatableValue) or isinstance(
+            variable, RustRelocatable
+        ):
+            return serde_cls.serialize_list(variable)
+
         if variable.is_pointer():
             return serde_cls.serialize_pointers(
                 tuple(variable.type_path), variable.address_
@@ -50,4 +62,4 @@ def initialize_hint_environment(context: Callable[[], dict]):
     # First load identifiers
     set_identifiers(context)
     # Then create and register serializer
-    create_serializer(context)
+    prepare_context(context)

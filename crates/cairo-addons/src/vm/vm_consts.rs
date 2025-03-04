@@ -1,4 +1,4 @@
-#![cfg(feature = "dynamic-hints")]
+#![cfg(feature = "pythonic-hints")]
 //! # Cairo VM Constants and Variable Access
 //!
 //! This module provides a bridge between Cairo variables in the Rust VM and Python code.
@@ -68,7 +68,7 @@ use cairo_vm::{
 };
 use pyo3::{prelude::*, types::PyList, IntoPyObjectExt};
 
-use super::{dynamic_hint::DynamicHintError, relocatable::PyRelocatable};
+use super::{pythonic_hint::DynamicHintError, relocatable::PyRelocatable};
 
 /// Represents the different types of Cairo variables that can be accessed
 #[derive(Debug, Clone)]
@@ -147,6 +147,15 @@ fn create_var_type(
                     CairoVarType::Struct { name: base_type.to_string(), members, size }
                 }
                 None => {
+                    if base_type == "(fp_val: felt, pc_val: felt*)" {
+                        // Manual handling of fp_val and pc_val, which causes issues in both VMs.
+                        // return a dummy value instead.
+                        return Ok(CairoVarType::Struct {
+                            name: base_type.to_string(),
+                            members: HashMap::new(),
+                            size: 2,
+                        });
+                    };
                     return Err(DynamicHintError::UnknownVariableType(format!(
                         "Could not get struct info for type '{}'",
                         base_type

@@ -322,11 +322,15 @@ func execute_code{
 
     // code_address might be optional in create scenarios at this point.
     if (cast(evm.value.message.value.code_address.value, felt) != 0) {
-        let (precompile_address, precompile_fn) = precompile_table_lookup(
+        let (local precompile_address, precompile_fn) = precompile_table_lookup(
             [evm.value.message.value.code_address.value]
         );
         // Addresses that are not precompiles return 0.
         if (precompile_address != 0) {
+            %{
+                precompile_address_bytes = ids.precompile_address.to_bytes(20, "little")
+                print(f"[CAIRO] PrecompileStart: {precompile_address_bytes}")
+            %}
             // Prepare arguments
             // MARK: args assignment
             [ap] = range_check_ptr, ap++;
@@ -350,7 +354,13 @@ func execute_code{
             let evm = Evm(cast([ap - 2], EvmStruct*));
             let err = cast([ap - 1], EthereumException*);
 
+            %{
+                precompile_address_bytes = ids.precompile_address.to_bytes(20, "little")
+                print(f"[CAIRO] PrecompileEnd: {precompile_address_bytes}")
+            %}
+
             if (cast(err, felt) != 0) {
+                %{ logger.trace(f"[CAIRO] OpException: {serialize(ids.err)}") %}
                 EvmImpl.set_gas_left{evm=evm}(Uint(0));
                 let (output_bytes: felt*) = alloc();
                 tempvar output = Bytes(new BytesStruct(output_bytes, 0));
@@ -390,28 +400,42 @@ func _execute_code{
 
     // Base case: EVM not running or PC >= code length
     if (evm.value.running.value == FALSE) {
+        %{ logger.trace(f"[CAIRO] EvmStop") %}
         return evm;
     }
 
     let is_pc_ge_code_len = is_nn(evm.value.pc.value - evm.value.code.value.len);
     if (is_pc_ge_code_len != FALSE) {
+        %{ logger.trace(f"[CAIRO] EvmStop") %}
         return evm;
     }
 
     // Execute the opcode and handle any errors
-    let opcode = [evm.value.code.value.data + evm.value.pc.value];
+    tempvar opcode = [evm.value.code.value.data + evm.value.pc.value];
+    local opcode_hex = opcode;
     with evm {
+        %{ logger.trace(f"[CAIRO] OpStart: {hex(ids.opcode_hex)}") %}
         let err = op_implementation(
             process_create_message_label=process_create_message_label,
             process_message_label=process_message_label,
             opcode=opcode,
         );
+        %{
+            if memory[ids.err.address_] == 0:
+                logger.trace(f"[CAIRO] OpEnd")
+        %}
         if (cast(err, felt) != 0) {
             if (err.value == Revert) {
+                %{ logger.trace(f"[CAIRO] Revert: {serialize(ids.err)}") %}
                 EvmImpl.set_error(err);
                 return evm;
             }
 
+            %{
+                error_bytes = memory[ids.err.address_].to_bytes(32, "big")
+                ascii_value = error_bytes.decode().strip("\x00")
+                logger.trace(f"[CAIRO] OpException: {ascii_value}")
+            %}
             EvmImpl.set_gas_left(Uint(0));
             let (output_bytes: felt*) = alloc();
             tempvar output = Bytes(new BytesStruct(output_bytes, 0));
@@ -541,6 +565,20 @@ func process_message_call{
     squash_evm{evm=evm}();
 
     let squashed_evm = evm;
+    %{
+        initial_gas = serialize(ids.message.value.gas)
+        final_gas = serialize(ids.squashed_evm.value.gas_left)
+        output = serialize(ids.squashed_evm.value.output)
+        error_int = serialize(ids.squashed_evm.value.error)["value"]
+        if error_int == 0:
+            error = None
+        else:
+            error_bytes = error_int.to_bytes(32, "big")
+            ascii_value = error_bytes.decode().strip("\x00")
+            error = ascii_value
+        gas_used = initial_gas - final_gas
+        logger.trace(f"[CAIRO] TransactionEnd: gas_used: {gas_used}, output: {output}, error: {error}")
+    %}
     tempvar msg = MessageCallOutput(
         new MessageCallOutputStruct(
             gas_left=squashed_evm.value.gas_left,
