@@ -121,8 +121,7 @@ func uint384_is_neg_mod_p{
     }
 }
 
-// Returns x % p
-// It does not assert that x is in [0, p), nor if the computed value is effectively equal to x mod p.
+// Returns (q, r) s.t x = q*p + r
 func uint384_div_rem{}(x: UInt384, p: UInt384) -> (UInt384, UInt384) {
     tempvar q: UInt384;
     tempvar r: UInt384;
