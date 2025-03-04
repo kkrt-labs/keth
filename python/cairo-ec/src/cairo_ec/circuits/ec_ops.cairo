@@ -524,7 +524,7 @@ func ecip_1p(
     assert is_on_curve_q_low * (1 - is_on_curve_q_low) = 0;
     // Assert is_on_curve_q_high is a boolean flag
     assert is_on_curve_q_high * (1 - is_on_curve_q_high) = 0;
-    // Assert g is on curve
+    // Assert p is on curve
     assert p_y * p_y = p_x * p_x * p_x + a * p_x + b;
     // Assert a0 is on curve
     assert a0_y * a0_y = a0_x * a0_x * a0_x + a * a0_x + b;
