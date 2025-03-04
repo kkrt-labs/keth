@@ -13,7 +13,10 @@ from tests.ef_tests.helpers.load_state_tests import (
     run_blockchain_st_test,
 )
 
-pytestmark = pytest.mark.cairo_file(f"{Path().cwd()}/cairo/ethereum/cancun/fork.cairo")
+pytestmark = [
+    pytest.mark.cairo_file(f"{Path().cwd()}/cairo/ethereum/cancun/fork.cairo"),
+    pytest.mark.max_steps(200_000_000),
+]
 
 fetch_cancun_tests = partial(fetch_state_test_files, network="Cancun")
 
