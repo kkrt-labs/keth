@@ -1,7 +1,7 @@
 import hypothesis.strategies as st
 import pytest
 from garaga.hints.ecip import CURVES, CurveID
-from hypothesis import given, reproduce_failure
+from hypothesis import given
 from sympy import sqrt_mod
 
 from cairo_addons.testing.strategies import felt
@@ -158,16 +158,12 @@ class TestEcOps:
 
     class TestEcMul:
         @given(data=st.data())
-        @reproduce_failure(
-            "6.124.3",
-            b"AF8AMAL+aCxfgU/o7MxVWPxAxLnMEPDSc97qcioyqtGGonjT3xx0znqjzqFgqRzlu5I+EA==",
-        )
-        def test_ec_mul(self, cairo_run_py, data):
+        def test_ec_mul(self, cairo_run, data):
             p = AltBn128.random_point()
             k = data.draw(uint384)
             _k2 = k % CURVES[CurveID.BN254.value].n
             expected = p.mul_by(k)
-            res = cairo_run_py(
+            res = cairo_run(
                 "test__ec_mul",
                 p=[*int_to_uint384(int(p.x)), *int_to_uint384(int(p.y))],
                 k=int_to_uint384(k),

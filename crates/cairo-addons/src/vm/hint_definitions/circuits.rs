@@ -1,5 +1,9 @@
 use std::collections::HashMap;
 
+use crate::vm::{
+    hint_utils::{split, write_result_to_ap, Uint384},
+    hints::Hint,
+};
 use cairo_vm::{
     hint_processor::{
         builtin_hint_processor::hint_utils::{
@@ -12,21 +16,44 @@ use cairo_vm::{
     vm::{errors::hint_errors::HintError, vm_core::VirtualMachine},
     Felt252,
 };
+use num_integer::Integer;
 use num_traits::Zero;
 
-use crate::vm::{
-    hint_utils::{split, write_result_to_ap, Uint384},
-    hints::Hint,
-};
-
 pub const HINTS: &[fn() -> Hint] = &[
+    div_rem_hint,
     felt_to_uint384_split_hint,
     has_six_uint384_remaining_hint,
     has_one_uint384_remaining_hint,
-    reduce_x_mod_p_hint,
     x_mod_p_eq_y_mod_p_hint,
     x_is_neg_y_mod_p_hint,
 ];
+
+pub fn div_rem_hint() -> Hint {
+    Hint::new(
+        String::from("div_rem_hint"),
+        |vm: &mut VirtualMachine,
+         _exec_scopes: &mut ExecutionScopes,
+         ids_data: &HashMap<String, HintReference>,
+         ap_tracking: &ApTracking,
+         _constants: &HashMap<String, Felt252>|
+         -> Result<(), HintError> {
+            let x = Uint384::from_var_name("x", vm, ids_data, ap_tracking)?.pack();
+            let p = Uint384::from_var_name("p", vm, ids_data, ap_tracking)?.pack();
+            let (q, r) = x.div_rem(&p);
+            let quo_limbs = split(&q, 4, 96);
+            let rem_limbs = split(&r, 4, 96);
+            insert_value_from_var_name("q.d0", quo_limbs[0], vm, ids_data, ap_tracking)?;
+            insert_value_from_var_name("q.d1", quo_limbs[1], vm, ids_data, ap_tracking)?;
+            insert_value_from_var_name("q.d2", quo_limbs[2], vm, ids_data, ap_tracking)?;
+            insert_value_from_var_name("q.d3", quo_limbs[3], vm, ids_data, ap_tracking)?;
+            insert_value_from_var_name("r.d0", rem_limbs[0], vm, ids_data, ap_tracking)?;
+            insert_value_from_var_name("r.d1", rem_limbs[1], vm, ids_data, ap_tracking)?;
+            insert_value_from_var_name("r.d2", rem_limbs[2], vm, ids_data, ap_tracking)?;
+            insert_value_from_var_name("r.d3", rem_limbs[3], vm, ids_data, ap_tracking)?;
+            Ok(())
+        },
+    )
+}
 
 pub fn has_six_uint384_remaining_hint() -> Hint {
     Hint::new(
@@ -112,28 +139,6 @@ pub fn x_mod_p_eq_y_mod_p_hint() -> Hint {
             let x_mod_p = x % p.clone();
             let y_mod_p = y % p;
             write_result_to_ap(x_mod_p == y_mod_p, 1, vm)
-        },
-    )
-}
-
-pub fn reduce_x_mod_p_hint() -> Hint {
-    Hint::new(
-        String::from("reduce_x_mod_p_hint"),
-        |vm: &mut VirtualMachine,
-         _exec_scopes: &mut ExecutionScopes,
-         ids_data: &HashMap<String, HintReference>,
-         ap_tracking: &ApTracking,
-         _constants: &HashMap<String, Felt252>|
-         -> Result<(), HintError> {
-            let x = get_integer_from_var_name("x", vm, ids_data, ap_tracking)?.to_biguint();
-            let p = get_integer_from_var_name("p", vm, ids_data, ap_tracking)?.to_biguint();
-            let x_mod_p = x % p;
-            let limbs = split(&x_mod_p, 4, 96);
-            insert_value_from_var_name("reduce_x_mod_p.d0", limbs[0], vm, ids_data, ap_tracking)?;
-            insert_value_from_var_name("reduce_x_mod_p.d1", limbs[1], vm, ids_data, ap_tracking)?;
-            insert_value_from_var_name("reduce_x_mod_p.d2", limbs[2], vm, ids_data, ap_tracking)?;
-            insert_value_from_var_name("reduce_x_mod_p.d3", limbs[3], vm, ids_data, ap_tracking)?;
-            Ok(())
         },
     )
 }
