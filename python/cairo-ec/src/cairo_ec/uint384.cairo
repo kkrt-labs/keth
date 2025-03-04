@@ -123,11 +123,9 @@ func uint384_is_neg_mod_p{
 
 // Returns x % p
 // It does not assert that x is in [0, p), nor if the computed value is effectively equal to x mod p.
-func uint384_reduce_mod_p{
-    range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
-}(x: UInt384, p: UInt384) -> UInt384 {
-    tempvar reduce_x_mod_p: UInt384;
-    %{ reduce_x_mod_p_hint %}
-    // let is_eq_mod_p = uint384_eq_mod_p(x, reduce_x_mod_p, p);
-    return reduce_x_mod_p;
+func uint384_div_rem{}(x: UInt384, p: UInt384) -> (UInt384, UInt384) {
+    tempvar q: UInt384;
+    tempvar r: UInt384;
+    %{ div_rem_hint %}
+    return (q, r);
 }

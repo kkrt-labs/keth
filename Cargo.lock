@@ -661,6 +661,7 @@ dependencies = [
  "garaga_rs",
  "lazy_static",
  "num-bigint",
+ "num-integer",
  "num-traits",
  "nybbles",
  "polars",

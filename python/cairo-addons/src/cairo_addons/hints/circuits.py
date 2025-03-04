@@ -61,24 +61,34 @@ def x_is_neg_y_mod_p_hint(ids: VmConsts):
 
 
 @register_hint
-def reduce_x_mod_p_hint(ids: VmConsts):
+def div_rem_hint(ids: VmConsts):
     """
-    Reduce a UInt384 `x` modulo `p`.
-    Returns a value in the interval [0, p)
+    Computes the divider and remainder of x mod p.
+    Returns (q, r) such that x = q * p + r
     """
     from garaga.hints.io import bigint_pack, bigint_split
 
     x = bigint_pack(ids.x, 4, 2**96)
     p = bigint_pack(ids.p, 4, 2**96)
-    x_mod_p_limbs = bigint_split(x % p, 4, 2**96)
+    q, r = x.__divmod__(p)
+    quo_limbs = bigint_split(q, 4, 2**96)
+    rem_limbs = bigint_split(r, 4, 2**96)
     (
-        ids.reduce_x_mod_p.d0,
-        ids.reduce_x_mod_p.d1,
-        ids.reduce_x_mod_p.d2,
-        ids.reduce_x_mod_p.d3,
+        ids.q.d0,
+        ids.q.d1,
+        ids.q.d2,
+        ids.q.d3,
+        ids.r.d0,
+        ids.r.d1,
+        ids.r.d2,
+        ids.r.d3,
     ) = (
-        x_mod_p_limbs[0],
-        x_mod_p_limbs[1],
-        x_mod_p_limbs[2],
-        x_mod_p_limbs[3],
+        quo_limbs[0],
+        quo_limbs[1],
+        quo_limbs[2],
+        quo_limbs[3],
+        rem_limbs[0],
+        rem_limbs[1],
+        rem_limbs[2],
+        rem_limbs[3],
     )

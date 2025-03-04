@@ -18,10 +18,10 @@ from cairo_ec.curve.g1_point import G1Point, G1Point__eq__
 from cairo_ec.uint384 import (
     felt_to_uint384,
     uint256_to_uint384,
+    uint384_div_rem,
     uint384_eq,
     uint384_eq_mod_p,
     uint384_is_neg_mod_p,
-    uint384_reduce_mod_p,
     uint384_to_uint256,
 )
 from cairo_ec.curve_utils import scalar_to_epns
@@ -155,10 +155,14 @@ func ec_mul{
         return point_at_infinity;
     }
 
-    let _scalar = uint384_reduce_mod_p(k, n);
-    let is_scalar_eq_k_mod_p = uint384_eq_mod_p(k, _scalar, n);
-    assert is_scalar_eq_k_mod_p = 1;
-    let scalar = uint384_to_uint256(_scalar);
+    // k = quo * n + rem
+    // And scalar = rem, casted as UIn256
+    // We assert that the quotient is a multiple of n,
+    // and that the remainder is lower than n.
+    let (quo, rem) = uint384_div_rem(k, n);
+    let q_mul_n = mul(new quo, &n, &n);
+    uint384_eq_mod_p([q_mul_n], zero_u384, n);
+    let scalar = uint384_to_uint256(rem);
     assert_uint256_le(scalar, n_min_one);
 
     let (ep_low, en_low, sp_low, sn_low) = scalar_to_epns(scalar.low);
