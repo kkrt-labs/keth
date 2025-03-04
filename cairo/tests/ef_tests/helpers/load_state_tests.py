@@ -125,10 +125,12 @@ def add_block_to_chain(
         chain.blocks = cairo_chain.blocks
         chain.state = cairo_chain.state
     except Exception as e:
-        # Run EELS to get its trace, then raise.
+        # In trace mode, run EELS as well to get a side-by-side comparison
         if request.config.getoption("--log-cli-level") == "TRACE":
-            # In trace mode, run EELS as well to get a side-by-side comparison
-            state_transition(chain, block)
+            try:
+                state_transition(chain, block)
+            except Exception:
+                pass
         raise e
 
 

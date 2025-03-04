@@ -927,6 +927,7 @@ func blob_base_fee{
 
     let _blob_base_fee = calculate_blob_gas_price(evm.value.env.value.excess_blob_gas);
 
+    // Result saturated to fit in 128 bits
     tempvar blob_base_fee = U256(new U256Struct(_blob_base_fee.value, 0));
     let stack = evm.value.stack;
     with stack {
