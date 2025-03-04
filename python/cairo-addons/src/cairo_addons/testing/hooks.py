@@ -5,6 +5,7 @@ This module provides pytest hooks for the Cairo test system.
 """
 
 import logging
+import pickle
 import shutil
 import time
 from multiprocessing import Pool
