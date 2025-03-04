@@ -278,6 +278,7 @@ def pytest_collection_modifyitems(session, config, items):
     # Only worker0 computes test hashes based on the compiled artifacts
     if (
         worker_id == "gw0"
+        or worker_id == "master"
         and config.cache.get(f"cairo_run/{CACHED_TEST_HASH_FILE}", None) is None
     ):
         logger.info(f"Worker {worker_id}: Computing test hashes")

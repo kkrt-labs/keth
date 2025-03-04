@@ -7,6 +7,7 @@ from starkware.cairo.lang.compiler.program import Program
 
 CACHED_TESTS_FILE = "cached_tests.json"
 CAIRO_DIR_TIMESTAMP_FILE = "cairo_dir_timestamp.json"
+CACHED_TEST_HASH_FILE = "cached_tests_hashes.json"
 
 
 def file_hash(file_path: str | Path) -> bytes:
