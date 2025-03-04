@@ -414,6 +414,11 @@ func ecip_2p(
 // where Q_low = k_low * P, Q_high = k_high * P, and
 // Q_high_shifted = 2**128 * Q_high.
 //
+// When the scalar k is < 2**128, k_high equals 0, and Q_high and Q_high_shifted should be the point at infinity.
+// When the scalar k is a multiple of 2 >= 2**128, k_low equals 0, and Q_low should be the point at infinity.
+// To handle these cases, two flags is_pt_at_inf_q_low and is_pt_at_inf_q_high are used.
+//
+//
 // The point A0, and the base_rlc coefficient are previously obtained through
 // a non-interactive challenge: hashing the public inputs (point and scalar),
 // and the prover info (Q_low, Q_high, Q_high_shifted and the div_coeffs).
@@ -472,7 +477,8 @@ func ecip_2p(
 // @param a The parameter a of the Weierstrass curve.
 // @param b The parameter b of the Weierstrass curve.
 // @param base_rlc The Random Linear Combination (RLC) coefficient obtained from the non-interactive challenge.
-// @param p The field characteristic on which the curve is defined.
+// @param is_pt_at_inf_q_low The flag to specify if Q_low is expected to be the point at infinity or not.
+// @param is_pt_at_inf_q_high The flag to specify if Q_high and Q_high_shifted are expected to be the point at infinity or not.
 func ecip_1p(
     div_a_coeff_0: felt,
     div_a_coeff_1: felt,
@@ -517,33 +523,38 @@ func ecip_1p(
     a: felt,
     b: felt,
     base_rlc: felt,
-    is_on_curve_q_low: felt,
-    is_on_curve_q_high: felt,
+    is_pt_at_inf_q_low: felt,
+    is_pt_at_inf_q_high: felt,
 ) {
-    // Assert is_on_curve_q_low is a boolean flag
-    assert is_on_curve_q_low * (1 - is_on_curve_q_low) = 0;
-    // Assert is_on_curve_q_high is a boolean flag
-    assert is_on_curve_q_high * (1 - is_on_curve_q_high) = 0;
+    // Assert is_pt_at_inf_q_low is a boolean flag
+    assert is_pt_at_inf_q_low * (1 - is_pt_at_inf_q_low) = 0;
+    // Assert is_pt_at_inf_q_high is a boolean flag
+    assert is_pt_at_inf_q_high * (1 - is_pt_at_inf_q_high) = 0;
     // Assert p is on curve
     assert p_y * p_y = p_x * p_x * p_x + a * p_x + b;
     // Assert a0 is on curve
     assert a0_y * a0_y = a0_x * a0_x * a0_x + a * a0_x + b;
     // Assert q_low is on curve
-    assert q_low_y * q_low_y = is_on_curve_q_low * (q_low_x * q_low_x * q_low_x + a * q_low_x + b);
+    assert q_low_y * q_low_y = (1 - is_pt_at_inf_q_low) * (
+        q_low_x * q_low_x * q_low_x + a * q_low_x + b
+    );
     // Assert q_low is point at infinity otherwise
-    assert (1 - is_on_curve_q_low) * q_low_y = 0;
-    assert (1 - is_on_curve_q_low) * q_low_x = 0;
+    assert is_pt_at_inf_q_low * q_low_y = 0;
+    assert is_pt_at_inf_q_low * q_low_x = 0;
     // Assert q_high is on curve or point at infinity
-    assert q_high_y * q_high_y = is_on_curve_q_high * (
+    assert q_high_y * q_high_y = (1 - is_pt_at_inf_q_high) * (
         q_high_x * q_high_x * q_high_x + a * q_high_x + b
     );
     // Assert q_high is point at infinity otherwise
-    assert (1 - is_on_curve_q_high) * q_high_y = 0;
-    assert (1 - is_on_curve_q_high) * q_high_x = 0;
+    assert is_pt_at_inf_q_high * q_high_y = 0;
+    assert is_pt_at_inf_q_high * q_high_x = 0;
     // Assert q_high_shifted is on curve or point at infinity
-    assert q_high_shifted_y * q_high_shifted_y = is_on_curve_q_high * (
+    assert q_high_shifted_y * q_high_shifted_y = (1 - is_pt_at_inf_q_high) * (
         q_high_shifted_x * q_high_shifted_x * q_high_shifted_x + a * q_high_shifted_x + b
     );
+    // Assert q_high_shifted is point at infinity otherwise
+    assert is_pt_at_inf_q_high * q_high_shifted_y = 0;
+    assert is_pt_at_inf_q_high * q_high_shifted_x = 0;
 
     // slope a0
     tempvar m_a0 = (3 * a0_x * a0_x + a) / (2 * a0_y);
@@ -662,7 +673,7 @@ func ecip_1p(
     tempvar c1 = base_rlc * base_rlc;
     tempvar c2 = c1 * base_rlc;
 
-    tempvar rhs = is_on_curve_q_low * base_rlc * rhs_low + is_on_curve_q_high * (
+    tempvar rhs = (1 - is_pt_at_inf_q_low) * base_rlc * rhs_low + (1 - is_pt_at_inf_q_high) * (
         c1 * rhs_high + c2 * rhs_high_shifted
     );
 

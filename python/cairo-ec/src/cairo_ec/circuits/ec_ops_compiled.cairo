@@ -1554,8 +1554,8 @@ func ecip_1p{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: Mo
     a: UInt384*,
     b: UInt384*,
     base_rlc: UInt384*,
-    is_on_curve_q_low: UInt384*,
-    is_on_curve_q_high: UInt384*,
+    is_pt_at_inf_q_low: UInt384*,
+    is_pt_at_inf_q_high: UInt384*,
     p: UInt384*,
 ) {
     let (_, pc) = get_fp_and_pc();
@@ -1761,25 +1761,25 @@ func ecip_1p{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: Mo
     assert [range_check96_ptr + 193] = base_rlc.d1;
     assert [range_check96_ptr + 194] = base_rlc.d2;
     assert [range_check96_ptr + 195] = base_rlc.d3;
-    assert [range_check96_ptr + 196] = is_on_curve_q_low.d0;
-    assert [range_check96_ptr + 197] = is_on_curve_q_low.d1;
-    assert [range_check96_ptr + 198] = is_on_curve_q_low.d2;
-    assert [range_check96_ptr + 199] = is_on_curve_q_low.d3;
-    assert [range_check96_ptr + 200] = is_on_curve_q_high.d0;
-    assert [range_check96_ptr + 201] = is_on_curve_q_high.d1;
-    assert [range_check96_ptr + 202] = is_on_curve_q_high.d2;
-    assert [range_check96_ptr + 203] = is_on_curve_q_high.d3;
+    assert [range_check96_ptr + 196] = is_pt_at_inf_q_low.d0;
+    assert [range_check96_ptr + 197] = is_pt_at_inf_q_low.d1;
+    assert [range_check96_ptr + 198] = is_pt_at_inf_q_low.d2;
+    assert [range_check96_ptr + 199] = is_pt_at_inf_q_low.d3;
+    assert [range_check96_ptr + 200] = is_pt_at_inf_q_high.d0;
+    assert [range_check96_ptr + 201] = is_pt_at_inf_q_high.d1;
+    assert [range_check96_ptr + 202] = is_pt_at_inf_q_high.d2;
+    assert [range_check96_ptr + 203] = is_pt_at_inf_q_high.d3;
 
     run_mod_p_circuit(
         p=[p],
         values_ptr=cast(range_check96_ptr, UInt384*),
         add_mod_offsets_ptr=add_mod_offsets_ptr,
-        add_mod_n=110,
+        add_mod_n=114,
         mul_mod_offsets_ptr=mul_mod_offsets_ptr,
-        mul_mod_n=120,
+        mul_mod_n=122,
     );
 
-    let range_check96_ptr = range_check96_ptr + 1076;
+    let range_check96_ptr = range_check96_ptr + 1092;
 
     return ();
 
@@ -1814,30 +1814,30 @@ func ecip_1p{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: Mo
     dw 260;
     dw 188;
     dw 264;
-    dw 272;
-    dw 276;
-    dw 280;
-    dw 280;
-    dw 188;
-    dw 284;
     dw 20;
     dw 16;
-    dw 292;
-    dw 296;
+    dw 268;
+    dw 272;
     dw 196;
+    dw 268;
+    dw 280;
+    dw 284;
+    dw 288;
+    dw 288;
+    dw 188;
     dw 292;
     dw 20;
     dw 20;
     dw 300;
     dw 20;
+    dw 20;
+    dw 304;
+    dw 20;
     dw 16;
-    dw 304;
     dw 308;
-    dw 196;
-    dw 304;
-    dw 20;
-    dw 20;
     dw 312;
+    dw 200;
+    dw 308;
     dw 320;
     dw 324;
     dw 328;
@@ -1845,29 +1845,29 @@ func ecip_1p{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: Mo
     dw 188;
     dw 332;
     dw 20;
-    dw 16;
+    dw 20;
     dw 340;
+    dw 20;
+    dw 20;
     dw 344;
-    dw 200;
-    dw 340;
-    dw 20;
-    dw 20;
-    dw 348;
     dw 20;
     dw 16;
+    dw 348;
     dw 352;
-    dw 356;
     dw 200;
-    dw 352;
-    dw 20;
-    dw 20;
+    dw 348;
     dw 360;
+    dw 364;
     dw 368;
-    dw 372;
-    dw 376;
-    dw 376;
+    dw 368;
     dw 188;
+    dw 372;
+    dw 20;
+    dw 20;
     dw 380;
+    dw 20;
+    dw 20;
+    dw 384;
     dw 20;
     dw 8;
     dw 388;
@@ -2105,14 +2105,26 @@ func ecip_1p{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: Mo
     dw 1036;
     dw 1028;
     dw 1032;
-    dw 1056;
-    dw 1060;
-    dw 1064;
-    dw 1052;
-    dw 1068;
-    dw 1072;
     dw 20;
+    dw 16;
+    dw 1048;
+    dw 1052;
+    dw 196;
+    dw 1048;
+    dw 20;
+    dw 16;
+    dw 1064;
+    dw 1068;
+    dw 200;
+    dw 1064;
     dw 1072;
+    dw 1076;
+    dw 1080;
+    dw 1060;
+    dw 1084;
+    dw 1088;
+    dw 20;
+    dw 1088;
     dw 856;
 
     mul_offsets:
@@ -2148,25 +2160,25 @@ func ecip_1p{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: Mo
     dw 264;
     dw 152;
     dw 152;
-    dw 268;
-    dw 268;
+    dw 276;
+    dw 276;
     dw 152;
-    dw 272;
+    dw 280;
     dw 184;
     dw 152;
-    dw 276;
-    dw 196;
     dw 284;
-    dw 288;
-    dw 156;
-    dw 156;
-    dw 288;
+    dw 272;
+    dw 292;
     dw 296;
     dw 156;
+    dw 156;
+    dw 296;
+    dw 196;
+    dw 156;
     dw 300;
-    dw 308;
+    dw 196;
     dw 152;
-    dw 312;
+    dw 304;
     dw 160;
     dw 160;
     dw 316;
@@ -2176,32 +2188,38 @@ func ecip_1p{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: Mo
     dw 184;
     dw 160;
     dw 324;
-    dw 200;
+    dw 312;
     dw 332;
     dw 336;
     dw 164;
     dw 164;
     dw 336;
-    dw 344;
+    dw 200;
     dw 164;
-    dw 348;
-    dw 356;
+    dw 340;
+    dw 200;
     dw 160;
+    dw 344;
+    dw 168;
+    dw 168;
+    dw 356;
+    dw 356;
+    dw 168;
     dw 360;
-    dw 168;
-    dw 168;
-    dw 364;
-    dw 364;
-    dw 168;
-    dw 368;
     dw 184;
     dw 168;
+    dw 364;
+    dw 352;
     dw 372;
+    dw 376;
+    dw 172;
+    dw 172;
+    dw 376;
     dw 200;
+    dw 172;
     dw 380;
-    dw 384;
-    dw 172;
-    dw 172;
+    dw 200;
+    dw 168;
     dw 384;
     dw 388;
     dw 176;
@@ -2461,19 +2479,19 @@ func ecip_1p{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: Mo
     dw 1040;
     dw 192;
     dw 1044;
-    dw 196;
-    dw 192;
-    dw 1048;
-    dw 1048;
-    dw 928;
     dw 1052;
+    dw 192;
+    dw 1056;
+    dw 1056;
+    dw 928;
+    dw 1060;
     dw 1040;
     dw 980;
-    dw 1056;
+    dw 1072;
     dw 1044;
     dw 1036;
-    dw 1060;
-    dw 200;
-    dw 1064;
+    dw 1076;
     dw 1068;
+    dw 1080;
+    dw 1084;
 }
