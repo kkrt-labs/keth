@@ -70,7 +70,7 @@ while [ "$(date +%s)" -lt $END_TIME ]; do
 	echo "zkpig generate completed at $(date)"
 
 	# Extract the block number from the zkpig output
-	block_number=$(echo "$zkpig_output" | grep "Provable execution succeeded" | grep -oE 'block.number": ([0-9]+)' | grep -oE "[0-9]+")
+ 	block_number=$(echo "$zkpig_output" | grep -oE 'block.number": ([0-9]+)' | grep -oE "[0-9]+")
 
 	echo "Detected block number: $block_number"
 
