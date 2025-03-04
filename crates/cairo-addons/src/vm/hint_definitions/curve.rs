@@ -1,4 +1,4 @@
-use std::{cmp::min, collections::HashMap};
+use std::{cmp::min, collections::HashMap, str::FromStr};
 
 use cairo_vm::{
     hint_processor::{
@@ -17,7 +17,7 @@ use cairo_vm::{
 use garaga_rs::{
     calldata::msm_calldata::msm_calldata_builder,
     definitions::{
-        CurveID, CurveParamsProvider, FieldElement, SECP256K1PrimeField,
+        BN254PrimeField, CurveID, CurveParamsProvider, FieldElement, SECP256K1PrimeField,
         SECP256K1_PRIME_FIELD_ORDER,
     },
     ecip::core::neg_3_base_le,
@@ -288,46 +288,87 @@ pub fn compute_y_from_x_hint() -> Hint {
 
             let rhs = (pow(x.clone(), 3) + a * x + b) % p.clone();
 
-            // Currently, only the secp256k1 field is supported
-            let (rhs_felt, g_felt) = if p.to_str_radix(16).to_uppercase() ==
-                SECP256K1_PRIME_FIELD_ORDER.to_hex()
-            {
+            // Currently, only the secp256k1 and bn254 (alt_bn128) fields are supported
+            // The logic must be duplicated for both FieldElement::<F> otherwise the compiler
+            // throws at it's not the same type between the arms of a conditional variable
+            // declaration;
+            // TODO: See if there is a better way to reduce code duplication to handle multiple
+            // fields.
+            // TODO: The BN254_PRIME_FIELD_ORDER is not made public by garaga, when it does for the
+            // other curves
+            let bn254_prime_field_order: String = String::from_str(
+                "30644E72E131A029B85045B68181585D97816A916871CA8D3C208C16D87CFD47",
+            )
+            .unwrap();
+            if p.to_str_radix(16).to_uppercase() == SECP256K1_PRIME_FIELD_ORDER.to_hex() {
                 let rhs_felt =
                     FieldElement::<SECP256K1PrimeField>::from_hex_unchecked(&rhs.to_str_radix(16));
                 let g_felt =
                     FieldElement::<SECP256K1PrimeField>::from_hex_unchecked(&g.to_str_radix(16));
-                (rhs_felt, g_felt)
+
+                let is_on_curve = is_quad_residue(&rhs, &p);
+                let square_root = if is_on_curve {
+                    let sqrt_felt = rhs_felt.sqrt().unwrap().0;
+                    let has_same_parity = (v % 2_u32) == (element_to_biguint(&sqrt_felt) % 2_u32);
+                    if has_same_parity {
+                        sqrt_felt
+                    } else {
+                        -sqrt_felt
+                    }
+                } else {
+                    (rhs_felt * g_felt).sqrt().unwrap().0
+                };
+
+                let sqrt_biguint = element_to_biguint(&square_root);
+                Uint384::split(&sqrt_biguint).insert_from_var_name(
+                    "y_try",
+                    vm,
+                    ids_data,
+                    ap_tracking,
+                )?;
+                write_collection_from_var_name(
+                    "is_on_curve",
+                    &[is_on_curve.into(), Felt252::ZERO, Felt252::ZERO, Felt252::ZERO],
+                    vm,
+                    ids_data,
+                    ap_tracking,
+                )?;
+            } else if p.to_str_radix(16).to_uppercase() == bn254_prime_field_order {
+                let rhs_felt =
+                    FieldElement::<BN254PrimeField>::from_hex_unchecked(&rhs.to_str_radix(16));
+                let g_felt =
+                    FieldElement::<BN254PrimeField>::from_hex_unchecked(&g.to_str_radix(16));
+
+                let is_on_curve = is_quad_residue(&rhs, &p);
+                let square_root = if is_on_curve {
+                    let sqrt_felt = rhs_felt.sqrt().unwrap().0;
+                    let has_same_parity = (v % 2_u32) == (element_to_biguint(&sqrt_felt) % 2_u32);
+                    if has_same_parity {
+                        sqrt_felt
+                    } else {
+                        -sqrt_felt
+                    }
+                } else {
+                    (rhs_felt * g_felt).sqrt().unwrap().0
+                };
+
+                let sqrt_biguint = element_to_biguint(&square_root);
+                Uint384::split(&sqrt_biguint).insert_from_var_name(
+                    "y_try",
+                    vm,
+                    ids_data,
+                    ap_tracking,
+                )?;
+                write_collection_from_var_name(
+                    "is_on_curve",
+                    &[is_on_curve.into(), Felt252::ZERO, Felt252::ZERO, Felt252::ZERO],
+                    vm,
+                    ids_data,
+                    ap_tracking,
+                )?;
             } else {
                 panic!("Unsupported field: {}", p.to_str_radix(16).to_uppercase());
             };
-
-            let is_on_curve = is_quad_residue(&rhs, &p);
-            let square_root = if is_on_curve {
-                let sqrt_felt = rhs_felt.sqrt().unwrap().0;
-                let has_same_parity = (v % 2_u32) == (element_to_biguint(&sqrt_felt) % 2_u32);
-                if has_same_parity {
-                    sqrt_felt
-                } else {
-                    -sqrt_felt
-                }
-            } else {
-                (rhs_felt * g_felt).sqrt().unwrap().0
-            };
-
-            let sqrt_biguint = element_to_biguint(&square_root);
-            Uint384::split(&sqrt_biguint).insert_from_var_name(
-                "y_try",
-                vm,
-                ids_data,
-                ap_tracking,
-            )?;
-            write_collection_from_var_name(
-                "is_on_curve",
-                &[is_on_curve.into(), Felt252::ZERO, Felt252::ZERO, Felt252::ZERO],
-                vm,
-                ids_data,
-                ap_tracking,
-            )?;
             Ok(())
         },
     )
