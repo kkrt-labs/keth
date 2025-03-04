@@ -280,7 +280,9 @@ def run_python_vm(
 
         # Get max_steps from pytest mark if available, otherwise use default
         max_steps = 1_000_000_000
-        if hasattr(request.node, "get_closest_marker") and request.node.get_closest_marker("max_steps"):
+        if hasattr(
+            request.node, "get_closest_marker"
+        ) and request.node.get_closest_marker("max_steps"):
             max_steps = request.node.get_closest_marker("max_steps").args[0]
 
         run_resources = RunResources(n_steps=max_steps)
@@ -511,7 +513,9 @@ def run_rust_vm(
 
         # Bind Cairo's ASSERT_EQ instruction to a Python exception
         max_steps = 1_000_000_000
-        if hasattr(request.node, "get_closest_marker") and request.node.get_closest_marker("max_steps"):
+        if hasattr(
+            request.node, "get_closest_marker"
+        ) and request.node.get_closest_marker("max_steps"):
             max_steps = request.node.get_closest_marker("max_steps").args[0]
         try:
             runner.run_until_pc(end, RustRunResources(max_steps))
