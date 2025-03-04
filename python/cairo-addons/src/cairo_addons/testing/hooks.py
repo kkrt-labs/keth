@@ -97,12 +97,6 @@ def pytest_addoption(parser):
         type=int,
         help="The seed to set random with.",
     )
-    parser.addoption(
-        "--disable-pythonic-hints",
-        action="store_true",
-        default=False,
-        help="Disable execution of pythonic hints: True or False",
-    )
 
 
 @pytest.fixture(autouse=True, scope="session")

@@ -1360,14 +1360,14 @@ func state_transition{
 
     let excess_blob_gas = calculate_excess_blob_gas(parent_header);
     with_attr error_message("InvalidBlock") {
-        %{logger.trace(f"[DEBUG-CAIRO]: excess_blob_gas: {serialize(ids.block.value.header.value.excess_blob_gas)} == {serialize(ids.excess_blob_gas)}")%}
+        %{ logger.trace(f"[DEBUG-CAIRO]: excess_blob_gas: {serialize(ids.block.value.header.value.excess_blob_gas)} == {serialize(ids.excess_blob_gas)}") %}
         assert block.value.header.value.excess_blob_gas = excess_blob_gas;
     }
 
     validate_header(block.value.header, parent_header);
 
     with_attr error_message("InvalidBlock") {
-        %{logger.trace(f"[DEBUG-CAIRO]: block.value.ommers.value.len: {serialize(ids.block.value.ommers.value.len)} == 0")%}
+        %{ logger.trace(f"[DEBUG-CAIRO]: block.value.ommers.value.len: {serialize(ids.block.value.ommers.value.len)} == 0") %}
         assert block.value.ommers.value.len = 0;
     }
 
@@ -1394,40 +1394,40 @@ func state_transition{
     );
 
     with_attr error_message("InvalidBlock") {
-        %{logger.trace(f"[DEBUG-CAIRO]: output.value.block_gas_used: {serialize(ids.output.value.block_gas_used)} == {serialize(ids.block.value.header.value.gas_used)}")%}
+        %{ logger.trace(f"[DEBUG-CAIRO]: output.value.block_gas_used: {serialize(ids.output.value.block_gas_used)} == {serialize(ids.block.value.header.value.gas_used)}") %}
         assert output.value.block_gas_used = block.value.header.value.gas_used;
 
         let transactions_root_equal = Bytes32__eq__(
             output.value.transactions_root, block.value.header.value.transactions_root
         );
-        %{logger.trace(f"[DEBUG-CAIRO]: transactions_root_equal: {serialize(ids.transactions_root_equal)} == 1")%}
+        %{ logger.trace(f"[DEBUG-CAIRO]: transactions_root_equal: {serialize(ids.transactions_root_equal)} == 1") %}
         assert transactions_root_equal.value = 1;
 
         let state_root_equal = Bytes32__eq__(
             output.value.state_root, block.value.header.value.state_root
         );
-        %{logger.trace(f"[DEBUG-CAIRO]: state_root_equal: {serialize(ids.state_root_equal)} == 1")%}
+        %{ logger.trace(f"[DEBUG-CAIRO]: state_root_equal: {serialize(ids.state_root_equal)} == 1") %}
         assert state_root_equal.value = 1;
 
         let receipt_root_equal = Bytes32__eq__(
             output.value.receipt_root, block.value.header.value.receipt_root
         );
-        %{logger.trace(f"[DEBUG-CAIRO]: receipt_root_equal: {serialize(ids.receipt_root_equal)} == 1")%}
+        %{ logger.trace(f"[DEBUG-CAIRO]: receipt_root_equal: {serialize(ids.receipt_root_equal)} == 1") %}
         assert receipt_root_equal.value = 1;
 
         let logs_bloom_equal = Bytes256__eq__(
             output.value.block_logs_bloom, block.value.header.value.bloom
         );
-        %{logger.trace(f"[DEBUG-CAIRO]: logs_bloom_equal: {serialize(ids.logs_bloom_equal)} == 1")%}
+        %{ logger.trace(f"[DEBUG-CAIRO]: logs_bloom_equal: {serialize(ids.logs_bloom_equal)} == 1") %}
         assert logs_bloom_equal.value = 1;
 
         let withdrawals_root_equal = Bytes32__eq__(
             output.value.withdrawals_root, block.value.header.value.withdrawals_root
         );
-        %{logger.trace(f"[DEBUG-CAIRO]: withdrawals_root_equal: {serialize(ids.withdrawals_root_equal)} == 1")%}
+        %{ logger.trace(f"[DEBUG-CAIRO]: withdrawals_root_equal: {serialize(ids.withdrawals_root_equal)} == 1") %}
         assert withdrawals_root_equal.value = 1;
 
-        %{logger.trace(f"[DEBUG-CAIRO]: output.value.blob_gas_used.value: {serialize(ids.output.value.blob_gas_used.value)} == {serialize(ids.block.value.header.value.blob_gas_used.value)}")%}
+        %{ logger.trace(f"[DEBUG-CAIRO]: output.value.blob_gas_used.value: {serialize(ids.output.value.blob_gas_used.value)} == {serialize(ids.block.value.header.value.blob_gas_used.value)}") %}
         assert output.value.blob_gas_used.value = block.value.header.value.blob_gas_used.value;
     }
 

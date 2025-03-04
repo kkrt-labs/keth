@@ -36,6 +36,7 @@ pub struct PyCairoRunner {
     inner: RustCairoRunner,
     allow_missing_builtins: bool,
     builtins: Vec<BuiltinName>,
+    enable_pythonic_hints: bool,
 }
 
 #[pymethods]
@@ -72,11 +73,12 @@ impl PyCairoRunner {
         let dict_manager = DictManager::new();
         inner.exec_scopes.insert_value("dict_manager", Rc::new(RefCell::new(dict_manager)));
 
-        if !enable_pythonic_hints {
+        if !enable_pythonic_hints || !cfg!(feature = "pythonic-hints") {
             return Ok(Self {
                 inner,
                 allow_missing_builtins,
                 builtins: program.inner.iter_builtins().copied().collect(),
+                enable_pythonic_hints,
             });
         }
 
@@ -134,6 +136,7 @@ except Exception as e:
             inner,
             allow_missing_builtins,
             builtins: program.inner.iter_builtins().copied().collect(),
+            enable_pythonic_hints,
         })
     }
 
@@ -220,14 +223,9 @@ except Exception as e:
         Ok(PyDictManager { inner: dict_manager })
     }
 
-    #[pyo3(signature = (address, resources, enable_pythonic_hints=false))]
-    fn run_until_pc(
-        &mut self,
-        address: PyRelocatable,
-        resources: PyRunResources,
-        enable_pythonic_hints: bool,
-    ) -> PyResult<()> {
-        let mut hint_processor = if enable_pythonic_hints {
+    #[pyo3(signature = (address, resources))]
+    fn run_until_pc(&mut self, address: PyRelocatable, resources: PyRunResources) -> PyResult<()> {
+        let mut hint_processor = if self.enable_pythonic_hints {
             HintProcessor::default()
                 .with_run_resources(resources.inner)
                 .with_dynamic_python_hints()

@@ -506,12 +506,7 @@ def run_rust_vm(
 
         # Bind Cairo's ASSERT_EQ instruction to a Python exception
         try:
-            runner.run_until_pc(
-                end,
-                RustRunResources(),
-                enable_pythonic_hints=request.config.getoption("--log-cli-level")
-                == "TRACE",
-            )
+            runner.run_until_pc(end, RustRunResources())
         except Exception as e:
             runner.relocate()
             if coverage is not None:

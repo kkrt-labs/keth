@@ -1,3 +1,27 @@
+"""
+Log Analyzer for CAIRO and EELS Test Outputs
+
+This script analyzes and compares log outputs from CAIRO and EELS test executions.
+It can either run tests directly and capture their output, or analyze existing log files.
+
+Features:
+- Runs pytest commands and captures output in real-time
+- Extracts and compares [CAIRO] and [EELS] tagged log entries
+- Generates markdown tables showing side-by-side comparison
+- Calculates match statistics and percentages
+- Saves analysis results to timestamped files
+
+Usage:
+    Run a test and analyze logs:
+        python log_analyzer.py 'test_path'
+
+    Analyze logs from a file:
+        python log_analyzer.py --file path/to/logfile.txt
+
+    Show help message:
+        python log_analyzer.py --help
+"""
+
 #!/usr/bin/env python3
 import os
 import re
