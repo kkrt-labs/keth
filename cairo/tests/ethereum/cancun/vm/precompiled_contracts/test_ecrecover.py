@@ -22,17 +22,35 @@ def ecrecover_data(draw):
     s = U256(signature.s)
     v = U256(signature.v + 27)
 
-    # test the error cases by changing r, s, v with 10% probability
-    prob_r = draw(st.integers(min_value=0, max_value=9))
-    prob_s = draw(st.integers(min_value=0, max_value=9))
-    prob_v = draw(st.integers(min_value=0, max_value=9))
+    test_case = draw(
+        st.sampled_from(
+            [
+                "valid_signature",  # Normal valid case
+                "invalid_r_overflow",  # r >= SECP256K1N
+                "invalid_r_zero",  # r = 0
+                "invalid_s_overflow",  # s >= SECP256K1N
+                "invalid_s_zero",  # s = 0
+                "invalid_v",  # v not 27 or 28
+            ]
+        )
+    )
 
-    if prob_r == 0:
+    if test_case == "invalid_r_overflow":
         r = U256(SECP256K1N + U256(1))
-    if prob_s == 0:
+    elif test_case == "invalid_r_zero":
+        r = U256(0)
+    elif test_case == "invalid_s_overflow":
         s = U256(SECP256K1N + U256(1))
-    if prob_v == 0:
-        v = U256(1)
+    elif test_case == "invalid_s_zero":
+        s = U256(0)
+    elif test_case == "invalid_v":
+        v = U256(
+            draw(
+                st.integers(min_value=1, max_value=26).filter(
+                    lambda x: x not in [27, 28]
+                )
+            )
+        )
 
     data = message + v.to_be_bytes32() + r.to_be_bytes32() + s.to_be_bytes32()
 

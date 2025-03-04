@@ -68,14 +68,18 @@ func ecrecover{
 
     tempvar SECP256K1N = U256(new U256Struct(low=secp256k1.N_LOW_128, high=secp256k1.N_HIGH_128));
 
-    let is_r_invalid = U256_le(SECP256K1N, r);
-    if (is_r_invalid.value != 0) {
+    let is_r_out_of_range = U256_le(SECP256K1N, r);
+    let is_r_zero = U256__eq__(r, u256_0);
+    let is_r_invalid = is_r_out_of_range.value + is_r_zero.value;
+    if (is_r_invalid != 0) {
         tempvar ok = cast(0, EthereumException*);
         return ok;
     }
 
-    let is_s_invalid = U256_le(SECP256K1N, s);
-    if (is_s_invalid.value != 0) {
+    let is_s_out_of_range = U256_le(SECP256K1N, s);
+    let is_s_zero = U256__eq__(s, u256_0);
+    let is_s_invalid = is_s_out_of_range.value + is_s_zero.value;
+    if (is_s_invalid != 0) {
         tempvar ok = cast(0, EthereumException*);
         return ok;
     }
