@@ -71,24 +71,10 @@ def div_rem_hint(ids: VmConsts):
     x = bigint_pack(ids.x, 4, 2**96)
     p = bigint_pack(ids.p, 4, 2**96)
     q, r = x.__divmod__(p)
-    quo_limbs = bigint_split(q, 4, 2**96)
-    rem_limbs = bigint_split(r, 4, 2**96)
+    (ids.q.d0, ids.q.d1, ids.q.d2, ids.q.d3) = bigint_split(q, 4, 2**96)
     (
-        ids.q.d0,
-        ids.q.d1,
-        ids.q.d2,
-        ids.q.d3,
         ids.r.d0,
         ids.r.d1,
         ids.r.d2,
         ids.r.d3,
-    ) = (
-        quo_limbs[0],
-        quo_limbs[1],
-        quo_limbs[2],
-        quo_limbs[3],
-        rem_limbs[0],
-        rem_limbs[1],
-        rem_limbs[2],
-        rem_limbs[3],
-    )
+    ) = bigint_split(r, 4, 2**96)
