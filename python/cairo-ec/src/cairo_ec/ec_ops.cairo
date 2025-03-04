@@ -216,12 +216,10 @@ func ec_mul{
     // Compute flag is_on_curve_q_low
     let pt_at_inf = G1Point(zero_u384, zero_u384);
     let is_pt_at_inf_q_low = G1Point__eq__(q_low, pt_at_inf);
-    let is_on_curve_q_low = 1 - is_pt_at_inf_q_low.value;
-    let is_on_curve_q_low_u384 = felt_to_uint384(is_on_curve_q_low);
+    let is_pt_at_inf_q_low_u384 = felt_to_uint384(is_pt_at_inf_q_low.value);
     // Compute flag is_on_curve_q_high
     let is_pt_at_inf_q_high = G1Point__eq__(q_high, pt_at_inf);
-    let is_on_curve_q_high = 1 - is_pt_at_inf_q_high.value;
-    let is_on_curve_q_high_u384 = felt_to_uint384(is_on_curve_q_high);
+    let is_pt_at_inf_q_high_u384 = felt_to_uint384(is_pt_at_inf_q_high.value);
 
     let msm_size = 1;
     assert poseidon_ptr[0].input = PoseidonBuiltinState(s0='MSM_G1', s1=0, s2=1);
@@ -255,7 +253,7 @@ func ec_mul{
     // Hash sum_dlog_div 2 points : (0-21)
     hash_full_transcript(range_check96_ptr + ecip_circuit_constants_offset, 22);
     tempvar range_check96_ptr_init = range_check96_ptr;
-    tempvar range_check96_ptr_after_circuit = range_check96_ptr + 1076;
+    tempvar range_check96_ptr_after_circuit = range_check96_ptr + 1092;
     let random_point = get_random_point{range_check96_ptr=range_check96_ptr_after_circuit}(
         seed=[cast(poseidon_ptr, felt*) - 3], a=&a, b=&b, g=&g, p=&modulus
     );
@@ -317,8 +315,8 @@ func ec_mul{
         &a,
         &b,
         &rlc_coeff_u384,
-        new is_on_curve_q_low_u384,
-        new is_on_curve_q_high_u384,
+        new is_pt_at_inf_q_low_u384,
+        new is_pt_at_inf_q_high_u384,
         &modulus,
     );
 
