@@ -36,8 +36,11 @@ func try_get_point_from_x{
     assert is_on_curve.d3 = 0;
     assert is_on_curve.d2 = 0;
     assert is_on_curve.d1 = 0;
-    // TODO: Add a check for v
-
+    if (v != 0) {
+        %{ 
+            raise Exception("v must be zero for now")
+        %}
+    }
     return (y=&y_try, is_on_curve=is_on_curve.d0);
 }
 
