@@ -2,8 +2,6 @@ import pytest
 from ethereum.crypto.alt_bn128 import ALT_BN128_CURVE_ORDER as AltBn128N
 from ethereum.crypto.alt_bn128 import BNF as AltBn128P
 from ethereum.crypto.alt_bn128 import BNP as AltBn128
-from hypothesis import given
-from hypothesis import strategies as st
 
 from cairo_addons.utils.uint256 import uint256_to_int
 from cairo_addons.utils.uint384 import uint384_to_int
@@ -44,15 +42,14 @@ class TestAltBn128:
                 == AltBn128P.PRIME - 1
             )
 
-        @given(scenario=st.sampled_from(["negative", "positive"]))
-        def test_sign_to_uint384_mod_alt_bn128(self, cairo_run, scenario):
-            if scenario == "negative":
-                sign = -1
-                expected = AltBn128P.PRIME - 1
-            if scenario == "positive":
-                sign = 1
-                expected = 1
-
+        @pytest.mark.parametrize(
+            "sign, expected",
+            [
+                (-1, AltBn128P.PRIME - 1),
+                (1, 1),
+            ],
+        )
+        def test_sign_to_uint384_mod_alt_bn128(self, cairo_run, sign, expected):
             res = cairo_run(
                 "test__sign_to_uint384_mod_alt_bn128",
                 sign=sign,
