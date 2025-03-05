@@ -5,11 +5,13 @@ from starkware.cairo.common.uint256 import Uint256
 from cairo_core.maths import unsigned_div_rem
 from cairo_ec.circuits.mod_ops_compiled import (
     assert_eq,
-    assert_neq,
-    neg,
     assert_neg,
+    assert_neq,
     assert_not_neg,
     div,
+    mul,
+    neg,
+    sub,
 )
 
 const STARK_MIN_ONE_D2 = 0x800000000000011;
@@ -122,9 +124,24 @@ func uint384_is_neg_mod_p{
 }
 
 // Returns (q, r) s.t x = q*p + r
-func uint384_div_rem{}(x: UInt384, p: UInt384) -> (UInt384, UInt384) {
-    tempvar q: UInt384;
-    tempvar r: UInt384;
+func uint384_div_rem{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
+    x: UInt384, p: UInt384
+) -> (UInt384, UInt384) {
+    alloc_locals;
+
+    local q: UInt384;
+    local r: UInt384;
+
     %{ div_rem_hint %}
+
+    let q_mul_p = mul(new q, new p, new p);
+    tempvar zero_u384 = UInt384(0, 0, 0, 0);
+    let is_equal = uint384_eq([q_mul_p], zero_u384);
+    assert is_equal = 1;
+
+    let one_u384 = UInt384(1, 0, 0, 0);
+    let p_min_one = sub(new p, new one_u384, new p);
+    uint384_assert_le(r, p);
+
     return (q, r);
 }
