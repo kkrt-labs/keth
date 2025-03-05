@@ -207,7 +207,6 @@ func alt_bn128_mul{
     let x0_uint384 = uint256_to_uint384([x0_value.value]);
     let y0_uint384 = uint256_to_uint384([y0_value.value]);
     let p0 = G1Point(x=x0_uint384, y=y0_uint384);
-    let k_uint384 = uint256_to_uint384([k_value.value]);
 
     let point_inf = G1Point(x=UInt384(0, 0, 0, 0), y=UInt384(0, 0, 0, 0));
     let is_p0_zero = G1Point__eq__(p0, point_inf);
@@ -236,11 +235,9 @@ func alt_bn128_mul{
     }
 
     assert_on_curve(new p0.x, new p0.y, a, b, modulus);
-    tempvar range_check96_ptr = range_check96_ptr;
-    tempvar add_mod_ptr = add_mod_ptr;
-    tempvar mul_mod_ptr = mul_mod_ptr;
 
     // Operation
+    let k_uint384 = uint256_to_uint384([k_value.value]);
     let res = ec_mul(p0, k_uint384, [modulus]);
     let output = alt_bn128_G1Point__to_Bytes_be(res);
     EvmImpl.set_output(output);
