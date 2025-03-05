@@ -526,33 +526,26 @@ func ecip_1p(
     is_pt_at_inf_q_low: felt,
     is_pt_at_inf_q_high: felt,
 ) {
-    // Assert is_pt_at_inf_q_low is a boolean flag
+    // Assert is_pt_at_inf_q_low and is_pt_at_inf_q_high are a boolean flags
     assert is_pt_at_inf_q_low * (1 - is_pt_at_inf_q_low) = 0;
-    // Assert is_pt_at_inf_q_high is a boolean flag
     assert is_pt_at_inf_q_high * (1 - is_pt_at_inf_q_high) = 0;
-    // Assert p is on curve
+    // Assert p, a0, q_low, q_high and q_high_shifted are on curve
     assert p_y * p_y = p_x * p_x * p_x + a * p_x + b;
-    // Assert a0 is on curve
     assert a0_y * a0_y = a0_x * a0_x * a0_x + a * a0_x + b;
-    // Assert q_low is on curve
     assert q_low_y * q_low_y = (1 - is_pt_at_inf_q_low) * (
         q_low_x * q_low_x * q_low_x + a * q_low_x + b
     );
-    // Assert q_low is point at infinity otherwise
-    assert is_pt_at_inf_q_low * q_low_y = 0;
-    assert is_pt_at_inf_q_low * q_low_x = 0;
-    // Assert q_high is on curve or point at infinity
     assert q_high_y * q_high_y = (1 - is_pt_at_inf_q_high) * (
         q_high_x * q_high_x * q_high_x + a * q_high_x + b
     );
-    // Assert q_high is point at infinity otherwise
-    assert is_pt_at_inf_q_high * q_high_y = 0;
-    assert is_pt_at_inf_q_high * q_high_x = 0;
-    // Assert q_high_shifted is on curve or point at infinity
     assert q_high_shifted_y * q_high_shifted_y = (1 - is_pt_at_inf_q_high) * (
         q_high_shifted_x * q_high_shifted_x * q_high_shifted_x + a * q_high_shifted_x + b
     );
-    // Assert q_high_shifted is point at infinity otherwise
+    // Assert q_low, q_high and q_high_shifted are the point at infinity otherwise
+    assert is_pt_at_inf_q_low * q_low_y = 0;
+    assert is_pt_at_inf_q_low * q_low_x = 0;
+    assert is_pt_at_inf_q_high * q_high_y = 0;
+    assert is_pt_at_inf_q_high * q_high_x = 0;
     assert is_pt_at_inf_q_high * q_high_shifted_y = 0;
     assert is_pt_at_inf_q_high * q_high_shifted_x = 0;
 
