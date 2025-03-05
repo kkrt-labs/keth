@@ -360,7 +360,7 @@ func execute_code{
             %}
 
             if (cast(err, felt) != 0) {
-                %{ logger.trace(f"[CAIRO] OpException: {serialize(ids.err)}") %}
+                %{ logger.trace_cairo(f"OpException: {serialize(ids.err)}") %}
                 EvmImpl.set_gas_left{evm=evm}(Uint(0));
                 let (output_bytes: felt*) = alloc();
                 tempvar output = Bytes(new BytesStruct(output_bytes, 0));
@@ -400,13 +400,13 @@ func _execute_code{
 
     // Base case: EVM not running or PC >= code length
     if (evm.value.running.value == FALSE) {
-        %{ logger.trace(f"[CAIRO] EvmStop") %}
+        %{ logger.trace_cairo(f"EvmStop") %}
         return evm;
     }
 
     let is_pc_ge_code_len = is_nn(evm.value.pc.value - evm.value.code.value.len);
     if (is_pc_ge_code_len != FALSE) {
-        %{ logger.trace(f"[CAIRO] EvmStop") %}
+        %{ logger.trace_cairo(f"EvmStop") %}
         return evm;
     }
 
@@ -414,7 +414,7 @@ func _execute_code{
     tempvar opcode = [evm.value.code.value.data + evm.value.pc.value];
     local opcode_hex = opcode;
     with evm {
-        %{ logger.trace(f"[CAIRO] OpStart: {hex(ids.opcode_hex)}") %}
+        %{ logger.trace_cairo(f"OpStart: {hex(ids.opcode_hex)}") %}
         let err = op_implementation(
             process_create_message_label=process_create_message_label,
             process_message_label=process_message_label,
@@ -422,11 +422,11 @@ func _execute_code{
         );
         %{
             if memory[ids.err.address_] == 0:
-                logger.trace(f"[CAIRO] OpEnd")
+                logger.trace_cairo(f"OpEnd")
         %}
         if (cast(err, felt) != 0) {
             if (err.value == Revert) {
-                %{ logger.trace(f"[CAIRO] Revert: {serialize(ids.err)}") %}
+                %{ logger.trace_cairo(f"Revert: {serialize(ids.err)}") %}
                 EvmImpl.set_error(err);
                 return evm;
             }
@@ -434,7 +434,7 @@ func _execute_code{
             %{
                 error_bytes = memory[ids.err.address_].to_bytes(32, "big")
                 ascii_value = error_bytes.decode().strip("\x00")
-                logger.trace(f"[CAIRO] OpException: {ascii_value}")
+                logger.trace_cairo(f"OpException: {ascii_value}")
             %}
             EvmImpl.set_gas_left(Uint(0));
             let (output_bytes: felt*) = alloc();
@@ -577,7 +577,7 @@ func process_message_call{
             ascii_value = error_bytes.decode().strip("\x00")
             error = ascii_value
         gas_used = initial_gas - final_gas
-        logger.trace(f"[CAIRO] TransactionEnd: gas_used: {gas_used}, output: {output}, error: {error}")
+        logger.trace_cairo(f"TransactionEnd: gas_used: {gas_used}, output: {output}, error: {error}")
     %}
     tempvar msg = MessageCallOutput(
         new MessageCallOutputStruct(

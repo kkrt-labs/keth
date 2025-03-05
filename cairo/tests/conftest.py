@@ -43,24 +43,24 @@ def evm_trace(
         pass
     elif isinstance(event, TransactionEnd):
         error_name = "None" if event.error is None else event.error.__class__.__name__
-        logger.trace(
-            f"[EELS] TransactionEnd: gas_used: {event.gas_used}, output: {event.output}, error: {error_name}"
+        logger.trace_eels(
+            f"TransactionEnd: gas_used: {event.gas_used}, output: {event.output}, error: {error_name}"
         )
     elif isinstance(event, PrecompileStart):
-        logger.trace(f"[EELS] PrecompileStart: {evm.message.code_address}")
+        logger.trace_eels(f"PrecompileStart: {evm.message.code_address}")
     elif isinstance(event, PrecompileEnd):
-        logger.trace(f"[EELS] PrecompileEnd: {evm.message.code_address}")
+        logger.trace_eels(f"PrecompileEnd: {evm.message.code_address}")
     elif isinstance(event, OpStart):
         op = event.op
-        logger.trace(f"[EELS] OpStart: {hex(op.value)}")
+        logger.trace_eels(f"OpStart: {hex(op.value)}")
     elif isinstance(event, OpEnd):
-        logger.trace("[EELS] OpEnd")
+        logger.trace_eels("OpEnd")
     elif isinstance(event, OpException):
-        logger.trace(f"[EELS] OpException: {event.error.__class__.__name__}")
+        logger.trace_eels(f"OpException: {event.error.__class__.__name__}")
     elif isinstance(event, EvmStop):
-        logger.trace("[EELS] EvmStop")
+        logger.trace_eels("EvmStop")
     elif isinstance(event, GasAndRefund):
-        logger.trace(f"[EELS] GasAndRefund: {event.gas_cost}")
+        logger.trace_eels(f"GasAndRefund: {event.gas_cost}")
 
 
 @pytest.fixture(scope="module")
@@ -86,28 +86,7 @@ def cairo_run_py(
     )
 
 
-def init_tracer():
-    import logging
-
-    from colorama import Fore, Style, init
-
-    init()
-
-    # Define TRACE level
-    TRACE_LEVEL = logging.DEBUG - 5
-    levelName = "TRACE"
-    methodName = levelName.lower()
-    logging.addLevelName(TRACE_LEVEL, levelName)
-
-    # Custom trace method for Logger instances
-    def trace(self, message, *args, **kwargs):
-        if self.isEnabledFor(TRACE_LEVEL):
-            colored_msg = f"{Fore.YELLOW}TRACE{Style.RESET_ALL} {message}"
-            print(colored_msg)
-
-    # Patch the logging module with our new trace method
-    setattr(logging, levelName, TRACE_LEVEL)
-    setattr(logging.getLoggerClass(), methodName, trace)
+# init_tracer has been moved to the root conftest.py
 
 
 def pytest_configure(config):
@@ -133,8 +112,6 @@ def pytest_configure(config):
     from ethereum_types.numeric import FixedUnsigned, Uint
 
     from tests.utils.args_gen import Environment, Evm, Message, MessageCallOutput
-
-    init_tracer()
 
     # Apply patches at module level before any tests run
     ethereum.cancun.vm.Evm = Evm
