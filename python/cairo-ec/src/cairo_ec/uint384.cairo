@@ -128,19 +128,20 @@ func uint384_div_rem{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod
     x: UInt384, p: UInt384
 ) -> (UInt384, UInt384) {
     alloc_locals;
+    let (__fp__, _) = get_fp_and_pc();
 
     local q: UInt384;
     local r: UInt384;
 
     %{ div_rem_hint %}
 
-    let q_mul_p = mul(new q, new p, new p);
+    let q_mul_p = mul(&q, &p, &p);
     tempvar zero_u384 = UInt384(0, 0, 0, 0);
     let is_equal = uint384_eq([q_mul_p], zero_u384);
     assert is_equal = 1;
 
     let one_u384 = UInt384(1, 0, 0, 0);
-    let p_min_one = sub(new p, new one_u384, new p);
+    let p_min_one = sub(&p, new one_u384, &p);
     uint384_assert_le(r, p);
 
     return (q, r);
