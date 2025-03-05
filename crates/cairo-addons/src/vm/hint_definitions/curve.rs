@@ -1,4 +1,4 @@
-use std::{cmp::min, collections::HashMap, str::FromStr};
+use std::{cmp::min, collections::HashMap};
 
 use cairo_vm::{
     hint_processor::{
@@ -17,8 +17,8 @@ use cairo_vm::{
 use garaga_rs::{
     calldata::msm_calldata::msm_calldata_builder,
     definitions::{
-        BN254PrimeField, CurveID, CurveParamsProvider, FieldElement, SECP256K1PrimeField,
-        SECP256K1_PRIME_FIELD_ORDER,
+        get_modulus_from_curve_id, BN254PrimeField, CurveID, CurveParamsProvider, FieldElement,
+        SECP256K1PrimeField,
     },
     ecip::core::neg_3_base_le,
     io::element_to_biguint,
@@ -294,13 +294,15 @@ pub fn compute_y_from_x_hint() -> Hint {
             // declaration;
             // TODO: See if there is a better way to reduce code duplication to handle multiple
             // fields.
-            // TODO: The BN254_PRIME_FIELD_ORDER is not made public by garaga, when it does for the
-            // other curves
-            let bn254_prime_field_order: String = String::from_str(
-                "30644E72E131A029B85045B68181585D97816A916871CA8D3C208C16D87CFD47",
-            )
-            .unwrap();
-            if p.to_str_radix(16).to_uppercase() == SECP256K1_PRIME_FIELD_ORDER.to_hex() {
+            let secp256k1_prime_field_order = get_modulus_from_curve_id(CurveID::SECP256K1);
+            let bn254_prime_field_order = get_modulus_from_curve_id(CurveID::BN254);
+
+            let is_secp256k1_p = p == secp256k1_prime_field_order;
+            let is_bn254_p = p == bn254_prime_field_order;
+            if !is_secp256k1_p && !is_bn254_p {
+                panic!("Unsupported field: {}", p.to_str_radix(16).to_uppercase());
+            }
+            if is_secp256k1_p {
                 let rhs_felt =
                     FieldElement::<SECP256K1PrimeField>::from_hex_unchecked(&rhs.to_str_radix(16));
                 let g_felt =
@@ -309,7 +311,8 @@ pub fn compute_y_from_x_hint() -> Hint {
                 let is_on_curve = is_quad_residue(&rhs, &p);
                 let square_root = if is_on_curve {
                     let sqrt_felt = rhs_felt.sqrt().unwrap().0;
-                    let has_same_parity = (v % 2_u32) == (element_to_biguint(&sqrt_felt) % 2_u32);
+                    let has_same_parity =
+                        (v.clone() % 2_u32) == (element_to_biguint(&sqrt_felt) % 2_u32);
                     if has_same_parity {
                         sqrt_felt
                     } else {
@@ -333,7 +336,8 @@ pub fn compute_y_from_x_hint() -> Hint {
                     ids_data,
                     ap_tracking,
                 )?;
-            } else if p.to_str_radix(16).to_uppercase() == bn254_prime_field_order {
+            }
+            if is_bn254_p {
                 let rhs_felt =
                     FieldElement::<BN254PrimeField>::from_hex_unchecked(&rhs.to_str_radix(16));
                 let g_felt =
@@ -366,9 +370,7 @@ pub fn compute_y_from_x_hint() -> Hint {
                     ids_data,
                     ap_tracking,
                 )?;
-            } else {
-                panic!("Unsupported field: {}", p.to_str_radix(16).to_uppercase());
-            };
+            }
             Ok(())
         },
     )
