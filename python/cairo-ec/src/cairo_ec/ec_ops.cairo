@@ -149,7 +149,7 @@ func ec_mul{
     tempvar zero_u384 = UInt384(0, 0, 0, 0);
     let scalar_is_zero = uint384_eq_mod_p(k, zero_u384, modulus);
     if (scalar_is_zero != 0) {
-        let point_at_infinity = G1Point(UInt384(0, 0, 0, 0), UInt384(0, 0, 0, 0));
+        let point_at_infinity = G1Point(zero_u384, zero_u384);
         return point_at_infinity;
     }
 
