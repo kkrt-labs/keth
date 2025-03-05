@@ -26,7 +26,7 @@ struct BytesStruct {
 
 ## OOP Features
 - We use a rust-like approach where we define a type (e.g. `Evm`) and an "impl" (e.g. EvmImpl)
-- The "impl" is simply a `namespace EvmImpl` with a collections of functions associated to the type.
+- The "impl" is simply a `namespace EvmImpl` with a collection of functions associated to the type.
 - Avoid manipulating low-level Cairo: Use methods and types as much as possible
 
 Example in @evm_impl.cairo:
