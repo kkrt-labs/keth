@@ -110,7 +110,7 @@ func generic_call{
     tempvar empty_data_bytes = Bytes(new BytesStruct(empty_data, 0));
     EvmImpl.set_return_data(empty_data_bytes);
 
-    let depth_too_deep = is_le(STACK_DEPTH_LIMIT, evm.value.message.value.depth.value);
+    let depth_too_deep = is_zero(evm.value.message.value.depth.value - STACK_DEPTH_LIMIT);
     if (depth_too_deep != 0) {
         let gas = Uint(gas.value + evm.value.gas_left.value);
         EvmImpl.set_gas_left(gas);
@@ -1036,7 +1036,7 @@ func generic_create{
 
     let (sender_balance_not_enough) = uint256_lt([sender.value.balance.value], [endowment.value]);
     let sender_nonce_max = is_zero(sender.value.nonce.value - (2 ** 64 - 1));
-    let is_depth_max = is_zero((evm.value.message.value.depth.value + 1) - STACK_DEPTH_LIMIT);
+    let is_depth_max = is_zero(evm.value.message.value.depth.value - STACK_DEPTH_LIMIT);
 
     let is_invalid = sender_balance_not_enough + sender_nonce_max + is_depth_max;
     if (is_invalid != 0) {
