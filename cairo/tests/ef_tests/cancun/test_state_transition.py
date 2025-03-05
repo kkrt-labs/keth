@@ -52,6 +52,8 @@ SLOW_TESTS = (
     "stStaticCall/static_LoopCallsDepthThenRevert2.json",
     "stStaticCall/static_LoopCallsDepthThenRevert3.json",
     "stStaticCall/LoopDelegateCallsDepthThenRevertFiller.json",
+    # Lots of transactions / blocks
+    "bcWalletTest/walletReorganizeOwners.json",
 )
 
 # These are tests that are considered to be incorrect,

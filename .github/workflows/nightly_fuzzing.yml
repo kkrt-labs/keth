@@ -78,8 +78,9 @@ jobs:
       - name: Run full EF tests
         id: ef-tests
         continue-on-error: true
+        # Running on 48 cores to avoid out of memory issues
         run: |
-          uv run --reinstall pytest -n logical --durations=0 --timeout 300 -v -s --log-cli-level=DEBUG cairo/tests/ef_tests/ -m "not slow"
+          uv run --reinstall pytest -n 48 -m "not slow" --durations=0 -v -s --log-cli-level=DEBUG cairo/tests/ef_tests/ --ignore-glob='cairo/tests/ef_tests/fixtures/*'
       - name: Notify Slack on Failure
         if: steps.ef-tests.outcome == 'failure'
         uses: slackapi/slack-github-action@v1.24.0

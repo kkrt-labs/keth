@@ -4,10 +4,10 @@ Cairo Test System - pytest Hooks
 This module provides pytest hooks for the Cairo test system.
 """
 
+import json
 import logging
 import shutil
 import time
-from multiprocessing import Pool
 from pathlib import Path
 
 import pytest
@@ -198,7 +198,6 @@ def pytest_collection_modifyitems(session, config, items):
     session.cairo_files = {}
     session.cairo_programs = {}
     session.main_paths = {}
-    session.test_hashes = {}
     cairo_items = [
         item
         for item in items
@@ -216,6 +215,15 @@ def pytest_collection_modifyitems(session, config, items):
             }
         )
     ]
+
+    # Handle max-tests option if provided
+    max_tests = getattr(config.option, "max_tests", None)
+    if max_tests is not None and len(cairo_items) > max_tests:
+        logger.info(
+            f"Running {max_tests} tests out of {len(cairo_items)} available tests"
+        )
+        cairo_items = cairo_items[:max_tests]
+        items[:] = cairo_items
 
     logger.info(f"Using prime: 0x{config.getoption('prime'):x}")
 
@@ -275,38 +283,53 @@ def pytest_collection_modifyitems(session, config, items):
         missing = missing_new
         time.sleep(0.25)
 
-    # Only worker0 computes test hashes based on the compiled artifacts
-    if (
-        worker_id == "gw0"
-        or worker_id == "master"
-        and config.cache.get(f"cairo_run/{CACHED_TEST_HASH_FILE}", None) is None
-    ):
-        logger.info(f"Worker {worker_id}: Computing test hashes")
-        runner_path = Path(__file__).parent / "runner.py"
-        args_list = [
-            (
-                str(item.fspath),
-                item.nodeid,
-                session.cairo_programs[item.fspath],
-                str(runner_path),
-            )
-            for item in cairo_items
-        ]
-        with Pool() as pool:
-            test_hashes = dict(pool.map(compute_test_hash, args_list))
-        config.cache.set(f"cairo_run/{CACHED_TEST_HASH_FILE}", test_hashes)
-        session.test_hashes = test_hashes
-    else:
-        # Load precomputed hashes
-        session.test_hashes = config.cache.get(
-            f"cairo_run/{CACHED_TEST_HASH_FILE}", None
+    # Cache file for sharing hashes between workers
+    hash_cache_file = session.build_dir / "test_hashes.json"
+    hash_cache_file.parent.mkdir(parents=True, exist_ok=True)
+
+    session.test_hashes = {}
+    assigned_items = cairo_items[worker_index::worker_count]
+    runner_path = Path(__file__).parent / "runner.py"
+    logger.info(f"{worker_id}: Computing {len(assigned_items)} test hashes")
+    for item in assigned_items:
+        args = (
+            str(item.fspath),
+            item.nodeid,
+            session.cairo_programs[item.fspath],
+            str(runner_path),
         )
-        while session.test_hashes is None:
-            logger.info(f"Worker {worker_id} waiting for test hashes...")
-            time.sleep(1)
-            session.test_hashes = config.cache.get(
-                f"cairo_run/{CACHED_TEST_HASH_FILE}", None
-            )
+        test_hash = compute_test_hash(args)
+        session.test_hashes[item.nodeid] = test_hash
+
+    # Dump worker's hashes to shared cache file
+    if hash_cache_file.exists():
+        with hash_cache_file.open("r") as f:
+            existing_hashes = json.load(f)
+        existing_hashes.update(session.test_hashes)
+        with hash_cache_file.open("w") as f:
+            json.dump(existing_hashes, f)
+    else:
+        with hash_cache_file.open("w") as f:
+            json.dump(session.test_hashes, f)
+
+    # Wait for all workers to finish
+    missing = set(cairo_items) - set(assigned_items)
+    while missing:
+        logger.info(f"{worker_id}: Waiting for {len(missing)} hashes to be computed")
+        missing_new = set()
+
+        # Load hashes from cache file
+        if hash_cache_file.exists():
+            with hash_cache_file.open("r") as f:
+                session.test_hashes.update(json.load(f))
+
+        for item in missing:
+            if item.nodeid not in session.test_hashes:
+                missing_new.add(item)
+        missing = missing_new
+        time.sleep(0.5)
+
+    hash_cache_file.unlink(missing_ok=True)
 
     for item in cairo_items:
         if config.getoption("no_skip_mark"):
@@ -338,4 +361,4 @@ def compute_test_hash(args):
         + file_hash(runner_path)
     ).hexdigest()
 
-    return nodeid, test_hash
+    return test_hash
