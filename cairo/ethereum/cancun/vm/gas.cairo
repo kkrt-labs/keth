@@ -95,7 +95,7 @@ struct MessageCallGas {
 // @param amount The amount of gas the current operation requires.
 // @return EVM The pointer to the updated execution context.
 func charge_gas{range_check_ptr, evm: Evm}(amount: Uint) -> EthereumException* {
-    %{ logger.trace(f"[CAIRO] GasAndRefund: {serialize(ids.amount)}") %}
+    %{ logger.trace_cairo(f"GasAndRefund: {serialize(ids.amount)}") %}
     let is_in_range = is_le_felt(evm.value.gas_left.value, 2 ** 128 - 1);
     if (is_in_range == 0) {
         tempvar err = new EthereumException(OutOfGasError);
