@@ -155,13 +155,7 @@ func ec_mul{
         return point_at_infinity;
     }
 
-    // k = quo * n + rem
-    // And scalar = rem, casted as UIn256
-    // We assert that the quotient is a multiple of n,
-    // and that the remainder is lower than n.
     let (quo, rem) = uint384_div_rem(k, n);
-    let q_mul_n = mul(new quo, &n, &n);
-    uint384_eq_mod_p([q_mul_n], zero_u384, n);
     let scalar = uint384_to_uint256(rem);
     assert_uint256_le(scalar, n_min_one);
 
