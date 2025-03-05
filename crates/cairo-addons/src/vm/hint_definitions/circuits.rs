@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::vm::{
-    hint_utils::{split, write_result_to_ap, Uint384},
+    hint_utils::{split, write_collection_from_var_name, write_result_to_ap, Uint384},
     hints::Hint,
 };
 use cairo_vm::{
@@ -42,14 +42,8 @@ pub fn div_rem_hint() -> Hint {
             let (q, r) = x.div_rem(&p);
             let quo_limbs = split(&q, 4, 96);
             let rem_limbs = split(&r, 4, 96);
-            write_result_to_ap(quo_limbs[0], 8, vm)?;
-            write_result_to_ap(quo_limbs[1], 7, vm)?;
-            write_result_to_ap(quo_limbs[2], 6, vm)?;
-            write_result_to_ap(rem_limbs[3], 5, vm)?;
-            write_result_to_ap(rem_limbs[0], 4, vm)?;
-            write_result_to_ap(rem_limbs[1], 3, vm)?;
-            write_result_to_ap(rem_limbs[2], 2, vm)?;
-            write_result_to_ap(rem_limbs[3], 1, vm)
+            write_collection_from_var_name("q", &quo_limbs, vm, ids_data, ap_tracking)?;
+            write_collection_from_var_name("r", &rem_limbs, vm, ids_data, ap_tracking)
         },
     )
 }
