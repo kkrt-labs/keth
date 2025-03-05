@@ -195,16 +195,17 @@ func alt_bn128_mul{
     let k_value = U256_from_be_bytes(k_bytes);
 
     tempvar ALT_BN128_PRIME = U256(new U256Struct(alt_bn128.P_LOW_128, alt_bn128.P_HIGH_128));
-    tempvar oog_err = new EthereumException(OutOfGasError);
     // Check that x0 is within the interval [0, modulus)
     let is_x0_out_of_range = U256_le(ALT_BN128_PRIME, x0_value);
     if (is_x0_out_of_range.value != 0) {
-        return oog_err;
+        tempvar err = new EthereumException(OutOfGasError);
+        return err;
     }
     // Check that y0 is within the interval [0, modulus)
     let is_y0_out_of_range = U256_le(ALT_BN128_PRIME, y0_value);
     if (is_y0_out_of_range.value != 0) {
-        return oog_err;
+        tempvar err = new EthereumException(OutOfGasError);
+        return err;
     }
 
     // Check that p0 is on curve
