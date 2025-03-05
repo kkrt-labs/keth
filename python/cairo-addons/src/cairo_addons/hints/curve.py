@@ -152,7 +152,7 @@ def build_msm_hints_and_fill_memory(ids: VmConsts, memory: MemoryDict):
 
 
 @register_hint
-def ec_mul_msm_hints_and_fill_memory(ids: VmConsts, memory: MemoryDict):
+def ec_mul_msm_hints_and_fill_memory(ids: VmConsts, segments: MemorySegmentManager):
     """
     Builds Multi-Scalar Multiplication (MSM) hints and fills memory with BN254 curve point data.
 
@@ -163,7 +163,7 @@ def ec_mul_msm_hints_and_fill_memory(ids: VmConsts, memory: MemoryDict):
     4. Fills the memory with the processed data
     """
     from garaga.definitions import BASE, N_LIMBS, CurveID, G1Point
-    from garaga.hints.io import bigint_pack, fill_felt_ptr
+    from garaga.hints.io import bigint_pack
     from garaga.starknet.tests_and_calldata_generators.msm import MSMCalldataBuilder
 
     # Initialize curve points and scalars
@@ -213,11 +213,10 @@ def ec_mul_msm_hints_and_fill_memory(ids: VmConsts, memory: MemoryDict):
         + ecip_circuit_constants_offset
     )
     ecip_circuit_q_offset = 32 * N_LIMBS
-    fill_felt_ptr(rlc_components, memory, ids.range_check96_ptr + memory_offset)
-    fill_felt_ptr(
-        q_low_high_high_shifted,
-        memory,
+    segments.load_data(ids.range_check96_ptr + memory_offset, rlc_components)
+    segments.load_data(
         ids.range_check96_ptr + memory_offset + ecip_circuit_q_offset,
+        q_low_high_high_shifted,
     )
 
 
