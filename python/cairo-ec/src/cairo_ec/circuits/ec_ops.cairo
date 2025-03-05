@@ -617,8 +617,11 @@ func ecip_1p(
     // Compute LHS
     tempvar lhs = coeff0 * f_a0 - coeff2 * f_a2;
 
-    // RHS = base_rlc * base_rhs_low + base_rlc * base_rlc * base_rhs_high +
-    //  base_rlc * base_rlc * base_rlc * base_rhs_high_shifted
+    // RHS = (1 - is_pt_at_inf_q_low) * base_rlc * base_rhs_low + (1 - is_pt_at_inf_q_high) * (base_rlc * base_rlc * base_rhs_high +
+    //  base_rlc * base_rlc * base_rlc * base_rhs_high_shifted)
+    // base_rhs_low is part of RHS only if q_low is a point on the curve.
+    // Similarly, base_rhs_high and base_rhs_high_shifted are part of RHS only if q_high is a point on the curve.
+
     // base_rhs_low
     tempvar num_g = a0_x - p_x;
     tempvar den_tmp_g = m_a0 * p_x + b_a0;
