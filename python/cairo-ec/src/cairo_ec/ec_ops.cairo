@@ -251,14 +251,10 @@ func ec_mul{
     let range_check96_ptr = range_check96_ptr_init;
 
     // Circuits inputs
-
     let ecip_input: UInt384* = cast(range_check96_ptr + ecip_circuit_constants_offset, UInt384*);
-
     // Random Linear Combination Sum of Discrete Logarithm Division
     // rlc_sum_dlog_div for 2 points: n_coeffs = 14 + 4 * 2 = 22 (0-21)
-
     // q_low, q_high, q_high_shifted (32 - 37)
-
     tempvar random_point_x = new random_point.x;
     tempvar random_point_y = new random_point.y;
 
