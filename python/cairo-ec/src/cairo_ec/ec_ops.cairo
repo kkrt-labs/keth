@@ -131,7 +131,6 @@ func ec_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: Mod
 }
 
 // Multiply an EC point by a scalar. Doesn't check if the input is on curve nor if it's the point at infinity.
-// Different cases
 func ec_mul{
     range_check_ptr,
     range_check96_ptr: felt*,
@@ -146,7 +145,6 @@ func ec_mul{
     local b: UInt384 = UInt384(alt_bn128.B0, alt_bn128.B1, alt_bn128.B2, alt_bn128.B3);
     local g: UInt384 = UInt384(alt_bn128.G0, alt_bn128.G1, alt_bn128.G2, alt_bn128.G3);
     local n: UInt384 = UInt384(alt_bn128.N0, alt_bn128.N1, alt_bn128.N2, alt_bn128.N3);
-    let n_min_one = Uint256(alt_bn128.N_LOW_128 - 1, alt_bn128.N_HIGH_128);
 
     tempvar zero_u384 = UInt384(0, 0, 0, 0);
     let scalar_is_zero = uint384_eq_mod_p(k, zero_u384, modulus);
@@ -157,6 +155,7 @@ func ec_mul{
 
     let (quo, rem) = uint384_div_rem(k, n);
     let scalar = uint384_to_uint256(rem);
+    let n_min_one = Uint256(alt_bn128.N_LOW_128 - 1, alt_bn128.N_HIGH_128);
     assert_uint256_le(scalar, n_min_one);
 
     let (ep_low, en_low, sp_low, sn_low) = scalar_to_epns(scalar.low);
