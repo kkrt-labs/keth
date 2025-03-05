@@ -1069,7 +1069,7 @@ func decode_to_blob_transaction{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     let items = decoded.value.sequence.value.data;
 
     // EIP-4844 transactions must have 14 fields (11 transaction fields + 3 signature fields)
-    with_attr error_message("Invalid blob transaction: wrong number of fields") {
+    with_attr error_message("DecodingError") {
         assert items_len = 14;
     }
 

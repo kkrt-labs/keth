@@ -315,7 +315,7 @@ def pytest_collection_modifyitems(session, config, items):
             ]
         if (
             config.getoption("skip_cached_tests")
-            and session.test_hashes[item.nodeid] in tests_to_skip
+            and session.test_hashes.get(item.nodeid) in tests_to_skip
         ):
             item.add_marker(pytest.mark.skip(reason="Cached results"))
 
