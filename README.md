@@ -63,7 +63,7 @@ directory.
 uv run pytest <optional pytest args>
 ```
 
-Some tests require to compile solidity code, which requires `forge` to be
+Some tests require compile solidity code, which requires `forge` to be
 installed, and `foundry` to be in the path, and to run `forge build`.
 
 #### Ethereum Foundation Tests
@@ -118,7 +118,7 @@ uv run --reinstall <command>
 ```
 
 Forgetting the `--reinstall` flag will not re-build the python package and
-consequentially not use any changes to the rust code.
+consequently not use any changes to the rust code.
 
 ## Status
 
