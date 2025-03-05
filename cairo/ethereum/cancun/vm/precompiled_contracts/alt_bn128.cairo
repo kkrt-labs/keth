@@ -178,11 +178,6 @@ func alt_bn128_mul{
         return err;
     }
 
-    local a: UInt384 = UInt384(alt_bn128.A0, alt_bn128.A1, alt_bn128.A2, alt_bn128.A3);
-    local b: UInt384 = UInt384(alt_bn128.B0, alt_bn128.B1, alt_bn128.B2, alt_bn128.B3);
-    local g: UInt384 = UInt384(alt_bn128.G0, alt_bn128.G1, alt_bn128.G2, alt_bn128.G3);
-    local modulus: UInt384 = UInt384(alt_bn128.P0, alt_bn128.P1, alt_bn128.P2, alt_bn128.P3);
-
     tempvar u256_zero = U256(new U256Struct(0, 0));
     tempvar u256_thirty_two = U256(new U256Struct(32, 0));
     tempvar u256_sixty_four = U256(new U256Struct(64, 0));
@@ -226,23 +221,27 @@ func alt_bn128_mul{
         return ok;
     }
 
+    tempvar a = new UInt384(alt_bn128.A0, alt_bn128.A1, alt_bn128.A2, alt_bn128.A3);
+    tempvar b = new UInt384(alt_bn128.B0, alt_bn128.B1, alt_bn128.B2, alt_bn128.B3);
+    tempvar modulus = new UInt384(alt_bn128.P0, alt_bn128.P1, alt_bn128.P2, alt_bn128.P3);
+    tempvar g = new UInt384(alt_bn128.G0, alt_bn128.G1, alt_bn128.G2, alt_bn128.G3);
     tempvar is_on_curve;
     tempvar point = p0;
     %{ is_point_on_curve %}
     tempvar is_p0_on_curve_uint384 = UInt384(is_on_curve, 0, 0, 0);
     if (is_on_curve == 0) {
-        assert_not_on_curve(new p0.x, new p0.y, new a, new b, new modulus);
+        assert_not_on_curve(new p0.x, new p0.y, a, b, modulus);
         tempvar err = new EthereumException(OutOfGasError);
         return err;
     }
 
-    assert_on_curve(new p0.x, new p0.y, new a, new b, new modulus);
+    assert_on_curve(new p0.x, new p0.y, a, b, modulus);
     tempvar range_check96_ptr = range_check96_ptr;
     tempvar add_mod_ptr = add_mod_ptr;
     tempvar mul_mod_ptr = mul_mod_ptr;
 
     // Operation
-    let res = ec_mul(p0, k_uint384, modulus);
+    let res = ec_mul(p0, k_uint384, [modulus]);
     let output = alt_bn128_G1Point__to_Bytes_be(res);
     EvmImpl.set_output(output);
     tempvar ok = cast(0, EthereumException*);
