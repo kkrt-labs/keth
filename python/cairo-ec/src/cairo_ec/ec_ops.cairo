@@ -141,11 +141,6 @@ func ec_mul{
     alloc_locals;
     let (__fp__, _) = get_fp_and_pc();
 
-    local a: UInt384 = UInt384(alt_bn128.A0, alt_bn128.A1, alt_bn128.A2, alt_bn128.A3);
-    local b: UInt384 = UInt384(alt_bn128.B0, alt_bn128.B1, alt_bn128.B2, alt_bn128.B3);
-    local g: UInt384 = UInt384(alt_bn128.G0, alt_bn128.G1, alt_bn128.G2, alt_bn128.G3);
-    local n: UInt384 = UInt384(alt_bn128.N0, alt_bn128.N1, alt_bn128.N2, alt_bn128.N3);
-
     tempvar zero_u384 = UInt384(0, 0, 0, 0);
     let scalar_is_zero = uint384_eq_mod_p(k, zero_u384, modulus);
     if (scalar_is_zero != 0) {
@@ -153,6 +148,7 @@ func ec_mul{
         return point_at_infinity;
     }
 
+    tempvar n = UInt384(alt_bn128.N0, alt_bn128.N1, alt_bn128.N2, alt_bn128.N3);
     let (quo, rem) = uint384_div_rem(k, n);
     let scalar = uint384_to_uint256(rem);
     let n_min_one = Uint256(alt_bn128.N_LOW_128 - 1, alt_bn128.N_HIGH_128);
@@ -206,12 +202,11 @@ func ec_mul{
     let q_low = G1Point(q_low_x, q_low_y);
     let q_high = G1Point(q_high_x, q_high_y);
 
-    // Compute flag is_on_curve_q_low
+    // Compute flag is_on_curve_q_low and is_on_curve_q_high
     let pt_at_inf = G1Point(zero_u384, zero_u384);
     let is_pt_at_inf_q_low = G1Point__eq__(q_low, pt_at_inf);
-    let is_pt_at_inf_q_low_u384 = felt_to_uint384(is_pt_at_inf_q_low.value);
-    // Compute flag is_on_curve_q_high
     let is_pt_at_inf_q_high = G1Point__eq__(q_high, pt_at_inf);
+    let is_pt_at_inf_q_low_u384 = felt_to_uint384(is_pt_at_inf_q_low.value);
     let is_pt_at_inf_q_high_u384 = felt_to_uint384(is_pt_at_inf_q_high.value);
 
     let msm_size = 1;
@@ -244,6 +239,9 @@ func ec_mul{
     let rlc_coeff_u384 = felt_to_uint384(rlc_coeff);
 
     // Hash sum_dlog_div 2 points : (0-21)
+    tempvar a = UInt384(alt_bn128.A0, alt_bn128.A1, alt_bn128.A2, alt_bn128.A3);
+    tempvar b = UInt384(alt_bn128.B0, alt_bn128.B1, alt_bn128.B2, alt_bn128.B3);
+    tempvar g = UInt384(alt_bn128.G0, alt_bn128.G1, alt_bn128.G2, alt_bn128.G3);
     hash_full_transcript(range_check96_ptr + ecip_circuit_constants_offset, 22);
     tempvar range_check96_ptr_init = range_check96_ptr;
     tempvar range_check96_ptr_after_circuit = range_check96_ptr + 1092;
