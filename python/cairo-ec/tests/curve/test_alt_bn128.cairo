@@ -52,9 +52,7 @@ func test__get_P_MIN_ONE() -> UInt384* {
 func test__sign_to_uint384_mod_alt_bn128() -> UInt384* {
     alloc_locals;
     tempvar sign;
-    %{
-        ids.sign = program_input["sign"]
-    %}
+    %{ ids.sign = program_input["sign"] %}
     let res = sign_to_uint384_mod_alt_bn128(sign);
     tempvar res_ptr = new res;
 
