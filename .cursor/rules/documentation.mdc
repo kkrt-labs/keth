@@ -5,9 +5,9 @@ globs:
 # Documentation
 
 ## External Resources
-- Ethereum Execution Specs: [https://github.com/ethereum/execution-specs](mdc:https:/github.com/ethereum/execution-specs)
+- Ethereum Execution Specs: [https://github.com/ethereum/execution-specs]
   - Reference for EVM behavior and state transition functions
-- Cairo Zero Documentation: @https://docs.cairo-lang.org/hello_cairo/index.html
+- Cairo Zero Documentation: [https://docs.cairo-lang.org/hello_cairo/index.html]
   - Details on Cairo Zero language features and patterns
 
 ## Internal Documentation
