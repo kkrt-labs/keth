@@ -20,6 +20,7 @@ pyo3 = { version = "0.23.3", features = [
 cairo-vm = { workspace = true }
 num-traits = "0.2.18"
 num-bigint = "0.4.6"
+num-integer = "0.1"
 starknet-crypto = "0.7.4"
 revm = "19.4.0"
 revm-precompile = "17.0.0-alpha.1"

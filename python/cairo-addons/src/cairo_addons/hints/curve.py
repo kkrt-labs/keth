@@ -152,6 +152,75 @@ def build_msm_hints_and_fill_memory(ids: VmConsts, memory: MemoryDict):
 
 
 @register_hint
+def ec_mul_msm_hints_and_fill_memory(ids: VmConsts, segments: MemorySegmentManager):
+    """
+    Builds Multi-Scalar Multiplication (MSM) hints and fills memory with BN254 curve point data.
+
+    This function:
+    1. Constructs curve points and scalars for BN254
+    2. Serializes the data using MSMCalldataBuilder
+    3. Processes the calldata into two parts: points and RLC sum components
+    4. Fills the memory with the processed data
+    """
+    from garaga.definitions import BASE, N_LIMBS, CurveID, G1Point
+    from garaga.hints.io import bigint_pack
+    from garaga.starknet.tests_and_calldata_generators.msm import MSMCalldataBuilder
+
+    # Initialize curve points and scalars
+    curve_id = CurveID.BN254
+    p = (
+        bigint_pack(ids.p.x, N_LIMBS, BASE),
+        bigint_pack(ids.p.y, N_LIMBS, BASE),
+    )
+    point = [G1Point(p[0], p[1], curve_id)]
+    scalar = [ids.scalar.low + 2**128 * ids.scalar.high]
+
+    # Generate and process calldata
+    builder = MSMCalldataBuilder(curve_id, point, scalar)
+    calldata = builder.serialize_to_calldata(
+        include_digits_decomposition=False,
+        include_points_and_scalars=False,
+        serialize_as_pure_felt252_array=False,
+        use_rust=True,
+    )[1:]
+
+    # Split calldata into points and remaining data
+    points_offset = 3 * 2 * N_LIMBS  # 3 points × 2 coordinates × N_LIMBS
+    q_low_high_high_shifted = calldata[:points_offset]
+    calldata_rest = calldata[points_offset:]
+
+    # Process RLC sum dlog div components
+    rlc_components = []
+    for _ in range(4):
+        array_len = calldata_rest.pop(0)
+        array = calldata_rest[: array_len * N_LIMBS]
+        rlc_components.extend(array)
+        calldata_rest = calldata_rest[array_len * N_LIMBS :]
+
+    # Verify RLC components length
+    expected_len = (14 + 4 * 2) * N_LIMBS
+    assert (
+        len(rlc_components) == expected_len
+    ), f"Invalid RLC components length: {len(rlc_components)}"
+
+    # Fill memory with processed data
+    rlc_coeff_u384_cast_offset = N_LIMBS
+    is_on_curve_flags_offset = 2 * N_LIMBS
+    ecip_circuit_constants_offset = 6 * N_LIMBS
+    memory_offset = (
+        is_on_curve_flags_offset
+        + rlc_coeff_u384_cast_offset
+        + ecip_circuit_constants_offset
+    )
+    ecip_circuit_q_offset = 32 * N_LIMBS
+    segments.load_data(ids.range_check96_ptr + memory_offset, rlc_components)
+    segments.load_data(
+        ids.range_check96_ptr + memory_offset + ecip_circuit_q_offset,
+        q_low_high_high_shifted,
+    )
+
+
+@register_hint
 def fill_add_mod_mul_mod_builtin_batch_one(
     ids: VmConsts, memory: MemoryDict, builtin_runners: dict
 ):

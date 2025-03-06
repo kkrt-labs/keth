@@ -41,3 +41,18 @@ class TestAltBn128:
                 uint384_to_int(*cairo_run("test__get_P_MIN_ONE").values())
                 == AltBn128P.PRIME - 1
             )
+
+        @pytest.mark.parametrize(
+            "sign, expected",
+            [
+                (-1, AltBn128P.PRIME - 1),
+                (1, 1),
+            ],
+        )
+        def test_sign_to_uint384_mod_alt_bn128(self, cairo_run, sign, expected):
+            res = cairo_run(
+                "test__sign_to_uint384_mod_alt_bn128",
+                sign=sign,
+            )
+
+            assert uint384_to_int(*res.values()) == expected

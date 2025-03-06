@@ -17,8 +17,8 @@ use cairo_vm::{
 use garaga_rs::{
     calldata::msm_calldata::msm_calldata_builder,
     definitions::{
-        CurveID, CurveParamsProvider, FieldElement, SECP256K1PrimeField,
-        SECP256K1_PRIME_FIELD_ORDER,
+        get_modulus_from_curve_id, BN254PrimeField, CurveID, CurveParamsProvider, FieldElement,
+        SECP256K1PrimeField,
     },
     ecip::core::neg_3_base_le,
     io::element_to_biguint,
@@ -36,6 +36,7 @@ use crate::vm::{
 
 pub const HINTS: &[fn() -> Hint] = &[
     build_msm_hints_and_fill_memory,
+    ec_mul_msm_hints_and_fill_memory,
     compute_y_from_x_hint,
     fill_add_mod_mul_mod_builtin_batch_one,
     decompose_scalar_to_neg3_base,
@@ -63,8 +64,8 @@ pub const HINTS: &[fn() -> Hint] = &[
 ///
 /// # Memory Layout
 /// The function writes to two main memory regions:
-/// 1. RLC components: Written at range_check96_ptr + (4 * N_LIMBS + 4)
-/// 2. Q components: Written at range_check96_ptr + (50 * N_LIMBS + 4)
+/// 1. RLC components: Written at range_check96_ptr + (N_LIMBS + 5 * N_LIMBS)
+/// 2. Q components: Written at range_check96_ptr + (N_LIMBS + 5 * N_LIMBS + 46 * N_LIMBS)
 ///
 /// # Errors
 /// Returns an error if:
@@ -141,10 +142,122 @@ pub fn build_msm_hints_and_fill_memory() -> Hint {
             // Fill memory
             let range_check96_ptr =
                 get_ptr_from_var_name("range_check96_ptr", vm, ids_data, ap_tracking)?;
-            let rlc_coeff_u384_cast_offset = 4;
-            let ecip_circuit_constants_offset = 20;
+            let rlc_coeff_u384_cast_offset = N_LIMBS;
+            let ecip_circuit_constants_offset = 5 * N_LIMBS;
             let memory_offset = rlc_coeff_u384_cast_offset + ecip_circuit_constants_offset;
             let ecip_circuit_q_offset = 46 * N_LIMBS;
+
+            let offset =
+                (range_check96_ptr.segment_index, range_check96_ptr.offset + memory_offset).into();
+            write_collection_to_addr(offset, &rlc_components, vm)?;
+
+            let offset = range_check96_ptr + (memory_offset + ecip_circuit_q_offset);
+            write_collection_to_addr(offset.unwrap(), &q_low_high_high_shifted, vm)?;
+            Ok(())
+        },
+    )
+}
+
+/// Builds Multi-Scalar Multiplication (MSM) hints and fills memory for elliptic curve operations.
+///
+/// This function processes point coordinates and scalar values to prepare data for MSM operations
+/// on the alt_bn128 curve. It:
+///
+/// 1. Extracts point coordinates (x,y) and scalar values (scalar)
+/// 2. Builds MSM calldata using the input point P(x,y)
+/// 3. Processes the calldata into:
+///    - q_low_high_high_shifted components for point arithmetic
+///    - RLC (Random Linear Combination) components for efficient computation
+/// 4. Fills the VM memory at specific offsets with the processed components
+///
+/// # Arguments
+/// * p - A point P on the curve with coordinates (x,y)
+/// * scalar - Scalar value for multiplication
+/// * range_check96_ptr - Pointer to range check memory region
+///
+/// # Memory Layout
+/// The function writes to two main memory regions:
+/// 1. RLC components: Written at range_check96_ptr + (N_LIMBS + 2 * N_LIMBS + 6 * N_LIMBS)
+/// 2. Q components: Written at range_check96_ptr + (N_LIMBS + 2 * N_LIMBS + 6 * N_LIMBS + 32 *
+///    N_LIMBS)
+///
+/// # Errors
+/// Returns an error if:
+/// - Cannot extract point coordinates or scalar values
+/// - MSM calldata building fails
+/// - RLC components have invalid length
+/// - Memory writing operations fail
+pub fn ec_mul_msm_hints_and_fill_memory() -> Hint {
+    Hint::new(
+        String::from("ec_mul_msm_hints_and_fill_memory"),
+        |vm: &mut VirtualMachine,
+         _exec_scopes: &mut ExecutionScopes,
+         ids_data: &HashMap<String, HintReference>,
+         ap_tracking: &ApTracking,
+         _constants: &HashMap<String, Felt252>|
+         -> Result<(), HintError> {
+            const N_LIMBS: usize = 4;
+            let p_addr = get_relocatable_from_var_name("p", vm, ids_data, ap_tracking)?;
+            let x = Uint384::from_base_addr(p_addr, "p.x", vm)?.pack();
+            let y = Uint384::from_base_addr((p_addr + N_LIMBS).unwrap(), "p.y", vm)?.pack();
+
+            let scalar = Uint256::from_var_name("scalar", vm, ids_data, ap_tracking)?.pack();
+
+            let values = vec![x, y];
+            let scalar = vec![scalar];
+
+            let curve_id = CurveID::BN254;
+            let calldata_w_len = msm_calldata_builder(
+                &values,
+                &scalar,
+                curve_id as usize,
+                false,
+                false,
+                false,
+                false,
+            )
+            .map_err(|e| {
+                HintError::CustomHint(format!("Error building MSM calldata: {}", e).into())
+            })?;
+            let calldata = calldata_w_len[1..].to_vec();
+
+            let points_offset = 3 * 2 * N_LIMBS;
+            let q_low_high_high_shifted = calldata[..points_offset].to_vec();
+            let mut calldata_rest = calldata[points_offset..].to_vec();
+
+            // Process 4 arrays of RLC components
+            let mut rlc_components = Vec::<BigUint>::with_capacity((14 + 4 * 2) * N_LIMBS);
+            for _ in 0..4 {
+                let array_len: usize = calldata_rest.remove(0).try_into().map_err(|_| {
+                    HintError::CustomHint("Failed to convert array length to usize".into())
+                })?;
+                let slice_len = min(array_len * N_LIMBS, calldata_rest.len());
+                rlc_components.extend(calldata_rest[..slice_len].iter().cloned());
+                calldata_rest = calldata_rest[slice_len..].to_vec();
+            }
+
+            const EXPECTED_LEN: usize = (14 + 4 * 2) * N_LIMBS;
+            if rlc_components.len() != EXPECTED_LEN {
+                return Err(HintError::CustomHint(
+                    format!(
+                        "Invalid RLC components length: expected {}, got {}",
+                        EXPECTED_LEN,
+                        rlc_components.len()
+                    )
+                    .into(),
+                ));
+            }
+
+            // Fill memory
+            let range_check96_ptr =
+                get_ptr_from_var_name("range_check96_ptr", vm, ids_data, ap_tracking)?;
+            let rlc_coeff_u384_cast_offset = N_LIMBS;
+            let is_on_curve_flags_offset = 2 * N_LIMBS;
+            let ecip_circuit_constants_offset = 6 * N_LIMBS;
+            let memory_offset = is_on_curve_flags_offset +
+                rlc_coeff_u384_cast_offset +
+                ecip_circuit_constants_offset;
+            let ecip_circuit_q_offset = 32 * N_LIMBS;
 
             let offset =
                 (range_check96_ptr.segment_index, range_check96_ptr.offset + memory_offset).into();
@@ -175,46 +288,89 @@ pub fn compute_y_from_x_hint() -> Hint {
 
             let rhs = (pow(x.clone(), 3) + a * x + b) % p.clone();
 
-            // Currently, only the secp256k1 field is supported
-            let (rhs_felt, g_felt) = if p.to_str_radix(16).to_uppercase() ==
-                SECP256K1_PRIME_FIELD_ORDER.to_hex()
-            {
+            // Currently, only the secp256k1 and bn254 (alt_bn128) fields are supported
+            // The logic must be duplicated for both FieldElement::<F> otherwise the compiler
+            // throws at it's not the same type between the arms of a conditional variable
+            // declaration;
+            // TODO: See if there is a better way to reduce code duplication to handle multiple
+            // fields.
+            let secp256k1_prime_field_order = get_modulus_from_curve_id(CurveID::SECP256K1);
+            let bn254_prime_field_order = get_modulus_from_curve_id(CurveID::BN254);
+
+            let is_secp256k1_p = p == secp256k1_prime_field_order;
+            let is_bn254_p = p == bn254_prime_field_order;
+            if !is_secp256k1_p && !is_bn254_p {
+                panic!("Unsupported field: {}", p.to_str_radix(16).to_uppercase());
+            }
+            if is_secp256k1_p {
                 let rhs_felt =
                     FieldElement::<SECP256K1PrimeField>::from_hex_unchecked(&rhs.to_str_radix(16));
                 let g_felt =
                     FieldElement::<SECP256K1PrimeField>::from_hex_unchecked(&g.to_str_radix(16));
-                (rhs_felt, g_felt)
-            } else {
-                panic!("Unsupported field: {}", p.to_str_radix(16).to_uppercase());
-            };
 
-            let is_on_curve = is_quad_residue(&rhs, &p);
-            let square_root = if is_on_curve {
-                let sqrt_felt = rhs_felt.sqrt().unwrap().0;
-                let has_same_parity = (v % 2_u32) == (element_to_biguint(&sqrt_felt) % 2_u32);
-                if has_same_parity {
-                    sqrt_felt
+                let is_on_curve = is_quad_residue(&rhs, &p);
+                let square_root = if is_on_curve {
+                    let sqrt_felt = rhs_felt.sqrt().unwrap().0;
+                    let has_same_parity =
+                        (v.clone() % 2_u32) == (element_to_biguint(&sqrt_felt) % 2_u32);
+                    if has_same_parity {
+                        sqrt_felt
+                    } else {
+                        -sqrt_felt
+                    }
                 } else {
-                    -sqrt_felt
-                }
-            } else {
-                (rhs_felt * g_felt).sqrt().unwrap().0
-            };
+                    (rhs_felt * g_felt).sqrt().unwrap().0
+                };
 
-            let sqrt_biguint = element_to_biguint(&square_root);
-            Uint384::split(&sqrt_biguint).insert_from_var_name(
-                "y_try",
-                vm,
-                ids_data,
-                ap_tracking,
-            )?;
-            write_collection_from_var_name(
-                "is_on_curve",
-                &[is_on_curve.into(), Felt252::ZERO, Felt252::ZERO, Felt252::ZERO],
-                vm,
-                ids_data,
-                ap_tracking,
-            )?;
+                let sqrt_biguint = element_to_biguint(&square_root);
+                Uint384::split(&sqrt_biguint).insert_from_var_name(
+                    "y_try",
+                    vm,
+                    ids_data,
+                    ap_tracking,
+                )?;
+                write_collection_from_var_name(
+                    "is_on_curve",
+                    &[is_on_curve.into(), Felt252::ZERO, Felt252::ZERO, Felt252::ZERO],
+                    vm,
+                    ids_data,
+                    ap_tracking,
+                )?;
+            }
+            if is_bn254_p {
+                let rhs_felt =
+                    FieldElement::<BN254PrimeField>::from_hex_unchecked(&rhs.to_str_radix(16));
+                let g_felt =
+                    FieldElement::<BN254PrimeField>::from_hex_unchecked(&g.to_str_radix(16));
+
+                let is_on_curve = is_quad_residue(&rhs, &p);
+                let square_root = if is_on_curve {
+                    let sqrt_felt = rhs_felt.sqrt().unwrap().0;
+                    let has_same_parity = (v % 2_u32) == (element_to_biguint(&sqrt_felt) % 2_u32);
+                    if has_same_parity {
+                        sqrt_felt
+                    } else {
+                        -sqrt_felt
+                    }
+                } else {
+                    (rhs_felt * g_felt).sqrt().unwrap().0
+                };
+
+                let sqrt_biguint = element_to_biguint(&square_root);
+                Uint384::split(&sqrt_biguint).insert_from_var_name(
+                    "y_try",
+                    vm,
+                    ids_data,
+                    ap_tracking,
+                )?;
+                write_collection_from_var_name(
+                    "is_on_curve",
+                    &[is_on_curve.into(), Felt252::ZERO, Felt252::ZERO, Felt252::ZERO],
+                    vm,
+                    ids_data,
+                    ap_tracking,
+                )?;
+            }
             Ok(())
         },
     )
