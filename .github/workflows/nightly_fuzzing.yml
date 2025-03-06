@@ -24,25 +24,20 @@ jobs:
         with:
           enable-cache: true
           cache-dependency-glob: uv.lock
-
       - uses: actions/setup-python@v5
         with:
           python-version-file: .python-version
-
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:
           version: nightly
-
       - name: Install forge deps
         run: forge install
-
       - name: Build solidity contracts
         run: forge build
-
-      - name: Run tests
-        id: tests
-        continue-on-error: true # To send a notification if the tests fail
+      - name: Run unit tests
+        id: unit-tests
+        continue-on-error: true
         run: |
           uv run --reinstall pytest -n logical --durations=0 -v -s --log-cli-level=DEBUG --no-skip-cached-tests --ignore-glob=cairo/tests/ef_tests/
 
@@ -52,19 +47,57 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           verbose: true
           files: ./coverage/**/*.json
-          flags: nightly
-
+          flags: nightly-unit
       - name: Notify Slack on Failure
-        if: steps.tests.outcome == 'failure'
+        if: steps.unit-tests.outcome == 'failure'
         uses: slackapi/slack-github-action@v1.24.0
         with:
           payload: |
             {
-              "text": ":rotating_light: *Keth Nightly Fuzzing Failed!*: <@${{ secrets.SLACK_USER_1 }}> <@${{ secrets.SLACK_USER_2 }}>\n"
+              "text": ":rotating_light: *Keth Nightly Unit Tests Failed!*: <@${{ secrets.SLACK_USER_1 }}> <@${{ secrets.SLACK_USER_2 }}>\n"
             }
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-
       - name: Fail workflow if tests failed
-        if: steps.tests.outcome == 'failure'
+        if: steps.unit-tests.outcome == 'failure'
         run: exit 1
+
+  ef-tests-full:
+    runs-on: ubuntu-latest-64-cores
+    env:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v2
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: .python-version
+      - name: Run full EF tests
+        id: ef-tests
+        continue-on-error: true
+        # Running on 48 cores to avoid out of memory issues
+        run: |
+          uv run --reinstall pytest -n 48 -m "not slow" --durations=0 -v -s --log-cli-level=DEBUG cairo/tests/ef_tests/ --ignore-glob='cairo/tests/ef_tests/fixtures/*'
+      - name: Notify Slack on Failure
+        if: steps.ef-tests.outcome == 'failure'
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          payload: |
+            {
+              "text": ":rotating_light: *Keth Nightly EF-Tests Failed!*: <@${{ secrets.SLACK_USER_1 }}> <@${{ secrets.SLACK_USER_2 }}>\n"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      - name: Fail workflow if tests failed
+        if: steps.ef-tests.outcome == 'failure'
+        run: exit 1
+      - name: Upload coverage
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          verbose: true
+          files: ./coverage/**/*.json
+          flags: nightly-ef-tests

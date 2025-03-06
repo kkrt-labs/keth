@@ -125,7 +125,9 @@ def add_block_to_chain(
         chain.blocks = cairo_chain.blocks
         chain.state = cairo_chain.state
     except Exception as e:
-        # In trace mode, run EELS as well to get a side-by-side comparison
+        if "RunResources has no remaining steps" in str(e):
+            raise pytest.skip("Step limit reached")
+        # Run EELS to get its trace, then raise.
         if request.config.getoption("--log-cli-level") == "TRACE":
             try:
                 state_transition(chain, block)

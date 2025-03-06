@@ -278,7 +278,14 @@ def run_python_vm(
         if not isinstance(runner.vm, VirtualMachine):
             raise ValueError("VM is not a VirtualMachine")
 
-        run_resources = RunResources(n_steps=500_000_000)
+        # Get max_steps from pytest mark if available, otherwise use default
+        max_steps = 1_000_000_000
+        if hasattr(
+            request.node, "get_closest_marker"
+        ) and request.node.get_closest_marker("max_steps"):
+            max_steps = request.node.get_closest_marker("max_steps").args[0]
+
+        run_resources = RunResources(n_steps=max_steps)
         try:
             runner.run_until_pc(end, run_resources)
         except Exception as e:
@@ -505,8 +512,13 @@ def run_rust_vm(
         )
 
         # Bind Cairo's ASSERT_EQ instruction to a Python exception
+        max_steps = 1_000_000_000
+        if hasattr(
+            request.node, "get_closest_marker"
+        ) and request.node.get_closest_marker("max_steps"):
+            max_steps = request.node.get_closest_marker("max_steps").args[0]
         try:
-            runner.run_until_pc(end, RustRunResources())
+            runner.run_until_pc(end, RustRunResources(max_steps))
         except Exception as e:
             runner.relocate()
             if coverage is not None:

@@ -197,6 +197,15 @@ impl ResourceTracker for HintProcessor {
     fn consumed(&self) -> bool {
         self.inner.consumed()
     }
+    fn get_n_steps(&self) -> Option<usize> {
+        self.inner.get_n_steps()
+    }
+    fn consume_step(&mut self) {
+        self.inner.consume_step()
+    }
+    fn run_resources(&self) -> &RunResources {
+        self.inner.run_resources()
+    }
 }
 
 impl Default for HintProcessor {

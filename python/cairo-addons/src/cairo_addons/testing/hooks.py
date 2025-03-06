@@ -4,12 +4,14 @@ Cairo Test System - pytest Hooks
 This module provides pytest hooks for the Cairo test system.
 """
 
+import json
 import logging
+import random
 import shutil
 import time
-from multiprocessing import Pool
 from pathlib import Path
 
+import filelock
 import pytest
 import starkware.cairo.lang.instances as LAYOUTS
 import xdist
@@ -114,6 +116,7 @@ def seed(request):
 def pytest_sessionstart(session):
     session.results = dict()
     session.build_dir = Path("build") / ".pytest_build"
+    session.hash_dir = session.build_dir / "hashes"
 
     # Check if any file in the cairo directory has changed since the last run
     last_timestamp = session.config.cache.get(
@@ -126,6 +129,10 @@ def pytest_sessionstart(session):
 
     # Store current timestamp for next run
     session.config.cache.set(f"cairo_run/{CAIRO_DIR_TIMESTAMP_FILE}", time.time())
+
+    # Clear hash directory if it exists
+    if session.hash_dir.exists():
+        shutil.rmtree(session.hash_dir, ignore_errors=True)
 
 
 def pytest_sessionfinish(session):
@@ -159,6 +166,10 @@ def pytest_sessionfinish(session):
     tests_to_skip = session.config.cache.get(f"cairo_run/{CACHED_TESTS_FILE}", [])
     tests_to_skip += session_tests_to_skip
     session.config.cache.set(f"cairo_run/{CACHED_TESTS_FILE}", list(set(tests_to_skip)))
+
+    # Clear hash directory if it exists
+    if session.hash_dir.exists():
+        shutil.rmtree(session.hash_dir, ignore_errors=True)
 
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
@@ -198,7 +209,6 @@ def pytest_collection_modifyitems(session, config, items):
     session.cairo_files = {}
     session.cairo_programs = {}
     session.main_paths = {}
-    session.test_hashes = {}
     cairo_items = [
         item
         for item in items
@@ -216,6 +226,22 @@ def pytest_collection_modifyitems(session, config, items):
             }
         )
     ]
+
+    # Get random seed from CLI arg and shuffle tests
+    seed = getattr(config.option, "randomly_seed", None)
+    if seed is not None:
+        random.seed(seed)
+        random.shuffle(cairo_items)
+        logger.info(f"Shuffling tests with seed {seed}")
+
+    # Handle max-tests option if provided
+    max_tests = getattr(config.option, "max_tests", None)
+    if max_tests is not None and len(cairo_items) > max_tests:
+        logger.info(
+            f"Running {max_tests} tests out of {len(cairo_items)} available tests"
+        )
+        cairo_items = cairo_items[:max_tests]
+        items[:] = cairo_items
 
     logger.info(f"Using prime: 0x{config.getoption('prime'):x}")
 
@@ -275,38 +301,81 @@ def pytest_collection_modifyitems(session, config, items):
         missing = missing_new
         time.sleep(0.25)
 
-    # Only worker0 computes test hashes based on the compiled artifacts
-    if (
-        worker_id == "gw0"
-        or worker_id == "master"
-        and config.cache.get(f"cairo_run/{CACHED_TEST_HASH_FILE}", None) is None
-    ):
-        logger.info(f"Worker {worker_id}: Computing test hashes")
-        runner_path = Path(__file__).parent / "runner.py"
-        args_list = [
-            (
-                str(item.fspath),
-                item.nodeid,
-                session.cairo_programs[item.fspath],
-                str(runner_path),
-            )
-            for item in cairo_items
-        ]
-        with Pool() as pool:
-            test_hashes = dict(pool.map(compute_test_hash, args_list))
-        config.cache.set(f"cairo_run/{CACHED_TEST_HASH_FILE}", test_hashes)
-        session.test_hashes = test_hashes
-    else:
-        # Load precomputed hashes
-        session.test_hashes = config.cache.get(
-            f"cairo_run/{CACHED_TEST_HASH_FILE}", None
+    # Create a shared directory for hash files
+    # Define the single hash file for all workers
+    hash_dir = session.build_dir / "hashes"
+    hash_dir.mkdir(parents=True, exist_ok=True)
+    hash_file = hash_dir / "all_hashes.json"
+    hash_file_lock = filelock.FileLock(str(hash_file) + ".lock")
+
+    # Compute hashes for this worker's assigned items
+    total_items = len(cairo_items)
+    assigned_items = cairo_items[worker_index::worker_count]
+    runner_path = Path(__file__).parent / "runner.py"
+    logger.info(f"{worker_id}: Computing {len(assigned_items)} test hashes")
+
+    worker_hashes = {}
+    for item in assigned_items:
+        args = (
+            str(item.fspath),
+            item.nodeid,
+            session.cairo_programs[item.fspath],
+            str(runner_path),
         )
-        while session.test_hashes is None:
-            logger.info(f"Worker {worker_id} waiting for test hashes...")
-            time.sleep(1)
-            session.test_hashes = config.cache.get(
-                f"cairo_run/{CACHED_TEST_HASH_FILE}", None
-            )
+        test_hash = compute_test_hash(args)
+        worker_hashes[item.nodeid] = test_hash
+
+    # Append this worker's hashes to the shared file with lock
+    with hash_file_lock:
+        all_hashes = {}
+        if hash_file.exists():
+            try:
+                with hash_file.open("r") as f:
+                    all_hashes = json.load(f)
+            except json.JSONDecodeError:
+                logger.error(f"{worker_id}: Error reading hash file, starting fresh")
+                all_hashes = {}
+
+        # Update with this worker's hashes
+        all_hashes.update(worker_hashes)
+
+        # Write back the updated hashes
+        with hash_file.open("w") as f:
+            json.dump(all_hashes, f)
+
+        # Log progress
+        current_hashes = len(all_hashes)
+        logger.info(
+            f"{worker_id}: Added {len(worker_hashes)} hashes, total now {current_hashes}/{total_items}"
+        )
+
+    # Wait until all hashes are computed
+    start_time = time.time()
+    timeout = 300  # 5 minutes timeout
+    while time.time() - start_time < timeout:
+        with hash_file_lock:
+            if hash_file.exists():
+                try:
+                    with hash_file.open("r") as f:
+                        all_hashes = json.load(f)
+                    if len(all_hashes) >= total_items:
+                        logger.info(
+                            f"{worker_id}: All {len(all_hashes)} hashes collected, continuing"
+                        )
+                        break
+                except json.JSONDecodeError:
+                    logger.error(f"{worker_id}: Error reading hash file during wait")
+
+        time.sleep(1)
+
+    # Load all hashes for this session
+    with hash_file_lock:
+        try:
+            with hash_file.open("r") as f:
+                session.test_hashes = json.load(f)
+        except json.JSONDecodeError as e:
+            logger.error(f"{worker_id}: Error reading complete hash file: {e}")
+            session.test_hashes = {}
 
     for item in cairo_items:
         if config.getoption("no_skip_mark"):
@@ -338,4 +407,4 @@ def compute_test_hash(args):
         + file_hash(runner_path)
     ).hexdigest()
 
-    return nodeid, test_hash
+    return test_hash

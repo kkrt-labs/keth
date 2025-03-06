@@ -19,6 +19,8 @@ dependencies = [
   "ethereum",
   "colorama>=0.4.6",
   "pytest-timeout>=2.3.1",
+  "pytest-randomly>=3.16.0",
+  "pytest-timeout>=2.3.1",
 ]
 
 [tool.uv]
@@ -63,6 +65,7 @@ filterwarnings = [
 ]
 asyncio_default_fixture_loop_scope = 'session'
 markers = [
+  "max_steps(n): Run tests with a maximum number of steps",
   "python_vm:      Run tests in the python VM",
   "ArithmeticOperations",
   "ADD:            Opcode Value 0x01 - Addition operation",
