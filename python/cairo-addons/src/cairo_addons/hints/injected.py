@@ -24,6 +24,7 @@ def prepare_context(context: Callable[[], dict]):
     def serialize(variable, segments, program_identifiers, dict_manager):
         """Serialize a Cairo variable using the Serde class."""
 
+        from starkware.cairo.lang.compiler.identifier_manager import IdentifierError
         from starkware.cairo.lang.vm.relocatable import RelocatableValue
 
         from cairo_addons.vm import Relocatable as RustRelocatable
@@ -44,11 +45,23 @@ def prepare_context(context: Callable[[], dict]):
         ):
             return serde_cls.serialize_list(variable)
 
-        if variable.is_pointer():
-            return serde_cls.serialize_pointers(
-                tuple(variable.type_path), variable.address_
-            )
-        return serde_cls.serialize_type(tuple(variable.type_path), variable.address_)
+        try:
+            # Rust
+            if variable.is_pointer():
+                return serde_cls.serialize_pointers(
+                    tuple(variable.type_path), variable.address_
+                )
+        except IdentifierError:
+            pass
+
+        type_path = None
+        try:
+            # Rust
+            type_path = tuple(variable.type_path)
+        except IdentifierError:
+            # Python
+            type_path = variable._struct_definition.full_name.path
+        return serde_cls.serialize_type(type_path, variable.address_)
 
     context()["serialize"] = serialize
 
