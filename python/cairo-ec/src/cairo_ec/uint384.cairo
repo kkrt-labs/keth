@@ -142,7 +142,7 @@ func uint384_div_rem{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod
 
     let one_u384 = UInt384(1, 0, 0, 0);
     let p_min_one = sub(&p, new one_u384, &p);
-    uint384_assert_le(r, p);
+    uint384_assert_le(r, [p_min_one]);
 
     return (q, r);
 }
