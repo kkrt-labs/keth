@@ -62,7 +62,7 @@ jobs:
     name: EF-Tests Sampled
     runs-on: ubuntu-latest-64-cores
     env:
-      HYPOTHESIS_PROFILE: ci
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       CAIRO_PATH: cairo:tests:python/cairo-ec/src:python/cairo-addons/src:python/cairo-core/src
     steps:
       - uses: actions/checkout@v4
@@ -78,3 +78,11 @@ jobs:
           # Runs up to ${{ inputs.max-tests }} tests, randomly sampled using the GITHUB_RUN_ID seed
           # Use only 48 cores to avoid out of memory issues
           uv run --reinstall pytest -n 48 -m "not slow" --timeout 300 --durations=0 -v -s --log-cli-level=DEBUG --max-tests=${{ inputs.max-tests }} --randomly-seed=$GITHUB_RUN_ID cairo/tests/ef_tests/ --ignore-glob='cairo/tests/ef_tests/fixtures/*'
+            - uses: actions/cache/save@v4
+      - name: Upload coverage
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          verbose: true
+          files: ./coverage/**/*.json
+          flags: ci-ef-tests

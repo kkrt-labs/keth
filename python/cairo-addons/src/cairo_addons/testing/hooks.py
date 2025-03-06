@@ -330,10 +330,11 @@ def pytest_collection_modifyitems(session, config, items):
         missing_new = set()
 
         # Load hashes from cache file
-        if hash_cache_file.exists():
-            with filelock.FileLock(lock_file):
+        with filelock.FileLock(lock_file):
+            if hash_cache_file.exists():
                 with hash_cache_file.open("r") as f:
                     session.test_hashes.update(json.load(f))
+
         for item in missing:
             if item.nodeid not in session.test_hashes:
                 missing_new.add(item)
