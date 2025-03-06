@@ -306,7 +306,9 @@ transient_storage = st.sets(
 )
 
 # Fork
-environment_lite = st.integers(min_value=0, max_value=2**64-1).flatmap(  # Generate block number first
+environment_lite = st.integers(
+    min_value=0, max_value=2**64 - 1
+).flatmap(  # Generate block number first
     lambda number: st.builds(
         Environment,
         caller=address,

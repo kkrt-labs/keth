@@ -6,6 +6,7 @@ This module provides pytest hooks for the Cairo test system.
 
 import json
 import logging
+import random
 import shutil
 import time
 from pathlib import Path
@@ -216,6 +217,13 @@ def pytest_collection_modifyitems(session, config, items):
             }
         )
     ]
+
+    # Get random seed from CLI arg and shuffle tests
+    seed = getattr(config.option, "randomly_seed", None)
+    if seed is not None:
+        random.seed(seed)
+        random.shuffle(cairo_items)
+        logger.info(f"Shuffling tests with seed {seed}")
 
     # Handle max-tests option if provided
     max_tests = getattr(config.option, "max_tests", None)
