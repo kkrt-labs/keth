@@ -116,6 +116,7 @@ def seed(request):
 def pytest_sessionstart(session):
     session.results = dict()
     session.build_dir = Path("build") / ".pytest_build"
+    session.hash_dir = session.build_dir / "hashes"
 
     # Check if any file in the cairo directory has changed since the last run
     last_timestamp = session.config.cache.get(
@@ -128,6 +129,10 @@ def pytest_sessionstart(session):
 
     # Store current timestamp for next run
     session.config.cache.set(f"cairo_run/{CAIRO_DIR_TIMESTAMP_FILE}", time.time())
+
+    # Clear hash directory if it exists
+    if session.hash_dir.exists():
+        shutil.rmtree(session.hash_dir, ignore_errors=True)
 
 
 def pytest_sessionfinish(session):
@@ -161,6 +166,10 @@ def pytest_sessionfinish(session):
     tests_to_skip = session.config.cache.get(f"cairo_run/{CACHED_TESTS_FILE}", [])
     tests_to_skip += session_tests_to_skip
     session.config.cache.set(f"cairo_run/{CACHED_TESTS_FILE}", list(set(tests_to_skip)))
+
+    # Clear hash directory if it exists
+    if session.hash_dir.exists():
+        shutil.rmtree(session.hash_dir, ignore_errors=True)
 
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
@@ -292,16 +301,20 @@ def pytest_collection_modifyitems(session, config, items):
         missing = missing_new
         time.sleep(0.25)
 
-    # Cache file for sharing hashes between workers
-    hash_cache_file = session.build_dir / "test_hashes.json"
-    hash_cache_file.parent.mkdir(parents=True, exist_ok=True)
+    # Create a shared directory for hash files
+    # Define the single hash file for all workers
+    hash_dir = session.build_dir / "hashes"
+    hash_dir.mkdir(parents=True, exist_ok=True)
+    hash_file = hash_dir / "all_hashes.json"
+    hash_file_lock = filelock.FileLock(str(hash_file) + ".lock")
 
-    session.test_hashes = {}
+    # Compute hashes for this worker's assigned items
+    total_items = len(cairo_items)
     assigned_items = cairo_items[worker_index::worker_count]
     runner_path = Path(__file__).parent / "runner.py"
     logger.info(f"{worker_id}: Computing {len(assigned_items)} test hashes")
 
-    # Compute hashes for this worker
+    worker_hashes = {}
     for item in assigned_items:
         args = (
             str(item.fspath),
@@ -310,71 +323,60 @@ def pytest_collection_modifyitems(session, config, items):
             str(runner_path),
         )
         test_hash = compute_test_hash(args)
-        session.test_hashes[item.nodeid] = test_hash
+        worker_hashes[item.nodeid] = test_hash
 
-    # Dump hashes computed by this worker
-    lock_file = hash_cache_file.with_suffix(".lock")
-    try:
-        with filelock.FileLock(
-            lock_file, timeout=10
-        ):  # Add timeout to prevent deadlocks
+    # Append this worker's hashes to the shared file with lock
+    with hash_file_lock:
+        all_hashes = {}
+        if hash_file.exists():
             try:
-                if hash_cache_file.exists():
-                    with hash_cache_file.open("r") as f:
-                        try:
-                            existing_hashes = json.load(f)
-                        except json.JSONDecodeError:
-                            logger.warning("Corrupted hash cache file, starting fresh")
-                            existing_hashes = {}
-                    existing_hashes.update(session.test_hashes)
-                else:
-                    existing_hashes = session.test_hashes
+                with hash_file.open("r") as f:
+                    all_hashes = json.load(f)
+            except json.JSONDecodeError:
+                logger.error(f"{worker_id}: Error reading hash file, starting fresh")
+                all_hashes = {}
 
-                with hash_cache_file.open("w") as f:
-                    json.dump(existing_hashes, f)
-            except IOError as e:
-                logger.error(f"Failed to update hash cache: {e}")
-    except filelock.Timeout:
-        logger.error(f"Timeout waiting for lock file {lock_file}")
+        # Update with this worker's hashes
+        all_hashes.update(worker_hashes)
 
-    # Wait for all workers to finish
-    missing = set(cairo_items) - set(assigned_items)
-    while missing:
-        logger.info(f"{worker_id}: Waiting for {len(missing)} hashes to be computed")
-        missing_new = set()
+        # Write back the updated hashes
+        with hash_file.open("w") as f:
+            json.dump(all_hashes, f)
 
+        # Log progress
+        current_hashes = len(all_hashes)
+        logger.info(
+            f"{worker_id}: Added {len(worker_hashes)} hashes, total now {current_hashes}/{total_items}"
+        )
+
+    # Wait until all hashes are computed
+    start_time = time.time()
+    timeout = 300  # 5 minutes timeout
+    while time.time() - start_time < timeout:
+        with hash_file_lock:
+            if hash_file.exists():
+                try:
+                    with hash_file.open("r") as f:
+                        all_hashes = json.load(f)
+                    if len(all_hashes) >= total_items:
+                        logger.info(
+                            f"{worker_id}: All {len(all_hashes)} hashes collected, continuing"
+                        )
+                        break
+                except json.JSONDecodeError:
+                    logger.error(f"{worker_id}: Error reading hash file during wait")
+
+        time.sleep(1)
+
+    # Load all hashes for this session
+    with hash_file_lock:
         try:
-            with filelock.FileLock(lock_file, timeout=5):
-                if hash_cache_file.exists():
-                    with hash_cache_file.open("r") as f:
-                        try:
-                            session.test_hashes.update(json.load(f))
-                        except json.JSONDecodeError:
-                            logger.warning(
-                                "Corrupted hash cache during wait, continuing"
-                            )
+            with hash_file.open("r") as f:
+                session.test_hashes = json.load(f)
+        except json.JSONDecodeError as e:
+            logger.error(f"{worker_id}: Error reading complete hash file: {e}")
+            session.test_hashes = {}
 
-            for item in missing:
-                if item.nodeid not in session.test_hashes:
-                    missing_new.add(item)
-            missing = missing_new
-        except filelock.Timeout:
-            logger.warning("Timeout while waiting for hash updates")
-
-        time.sleep(0.5)
-
-    # Clean up lock file with error handling
-    if lock_file.exists():
-        try:
-            lock_file.unlink()
-        except Exception as e:
-            logger.warning(f"Failed to remove lock file: {e}")
-
-    # Only remove cache file if we're the coordinating worker and all hashes are collected
-    if worker_index == 0 and not missing:
-        hash_cache_file.unlink(missing_ok=True)
-
-    # Apply test skipping logic
     for item in cairo_items:
         if config.getoption("no_skip_mark"):
             item.own_markers = [
