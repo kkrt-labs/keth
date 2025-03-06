@@ -300,6 +300,8 @@ def pytest_collection_modifyitems(session, config, items):
     assigned_items = cairo_items[worker_index::worker_count]
     runner_path = Path(__file__).parent / "runner.py"
     logger.info(f"{worker_id}: Computing {len(assigned_items)} test hashes")
+
+    # Compute hashes for this worker
     for item in assigned_items:
         args = (
             str(item.fspath),
@@ -310,18 +312,30 @@ def pytest_collection_modifyitems(session, config, items):
         test_hash = compute_test_hash(args)
         session.test_hashes[item.nodeid] = test_hash
 
-    # Dump worker's hashes to shared cache file
+    # Dump hashes computed by this worker
     lock_file = hash_cache_file.with_suffix(".lock")
-    with filelock.FileLock(lock_file):
-        if hash_cache_file.exists():
-            with hash_cache_file.open("r") as f:
-                existing_hashes = json.load(f)
-            existing_hashes.update(session.test_hashes)
-        else:
-            existing_hashes = session.test_hashes
+    try:
+        with filelock.FileLock(
+            lock_file, timeout=10
+        ):  # Add timeout to prevent deadlocks
+            try:
+                if hash_cache_file.exists():
+                    with hash_cache_file.open("r") as f:
+                        try:
+                            existing_hashes = json.load(f)
+                        except json.JSONDecodeError:
+                            logger.warning("Corrupted hash cache file, starting fresh")
+                            existing_hashes = {}
+                    existing_hashes.update(session.test_hashes)
+                else:
+                    existing_hashes = session.test_hashes
 
-        with hash_cache_file.open("w") as f:
-            json.dump(existing_hashes, f)
+                with hash_cache_file.open("w") as f:
+                    json.dump(existing_hashes, f)
+            except IOError as e:
+                logger.error(f"Failed to update hash cache: {e}")
+    except filelock.Timeout:
+        logger.error(f"Timeout waiting for lock file {lock_file}")
 
     # Wait for all workers to finish
     missing = set(cairo_items) - set(assigned_items)
@@ -329,26 +343,38 @@ def pytest_collection_modifyitems(session, config, items):
         logger.info(f"{worker_id}: Waiting for {len(missing)} hashes to be computed")
         missing_new = set()
 
-        # Load hashes from cache file
-        with filelock.FileLock(lock_file):
-            if hash_cache_file.exists():
-                with hash_cache_file.open("r") as f:
-                    session.test_hashes.update(json.load(f))
+        try:
+            with filelock.FileLock(lock_file, timeout=5):
+                if hash_cache_file.exists():
+                    with hash_cache_file.open("r") as f:
+                        try:
+                            session.test_hashes.update(json.load(f))
+                        except json.JSONDecodeError:
+                            logger.warning(
+                                "Corrupted hash cache during wait, continuing"
+                            )
 
-        for item in missing:
-            if item.nodeid not in session.test_hashes:
-                missing_new.add(item)
-        missing = missing_new
+            for item in missing:
+                if item.nodeid not in session.test_hashes:
+                    missing_new.add(item)
+            missing = missing_new
+        except filelock.Timeout:
+            logger.warning("Timeout while waiting for hash updates")
+
         time.sleep(0.5)
 
-    # Clean up lock file
+    # Clean up lock file with error handling
     if lock_file.exists():
         try:
             lock_file.unlink()
-        except Exception:
-            pass
-    hash_cache_file.unlink(missing_ok=True)
+        except Exception as e:
+            logger.warning(f"Failed to remove lock file: {e}")
 
+    # Only remove cache file if we're the coordinating worker and all hashes are collected
+    if worker_index == 0 and not missing:
+        hash_cache_file.unlink(missing_ok=True)
+
+    # Apply test skipping logic
     for item in cairo_items:
         if config.getoption("no_skip_mark"):
             item.own_markers = [
