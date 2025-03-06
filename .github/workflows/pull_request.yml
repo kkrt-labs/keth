@@ -18,4 +18,4 @@ jobs:
     name: Tests
     uses: ./.github/workflows/python_tests.yml
     with:
-      max-tests: 2000
+      max-tests: 6000
