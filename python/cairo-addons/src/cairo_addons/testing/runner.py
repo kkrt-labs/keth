@@ -12,6 +12,7 @@ import json
 import logging
 import marshal
 import math
+from functools import partial
 from hashlib import md5
 from pathlib import Path
 from time import time_ns
@@ -175,6 +176,7 @@ def run_python_vm(
     coverage: Optional[Callable[[pl.DataFrame, int], pl.DataFrame]] = None,
 ):
     """Helper function containing Python VM implementation"""
+    from cairo_addons.hints.injected import prepare_context
 
     def _run(entrypoint, *args, **kwargs):
         cairo_program = cairo_programs[0]
@@ -256,6 +258,11 @@ def run_python_vm(
         runner.load_data(runner.execution_base, stack)
         runner.initial_fp = runner.initial_ap = runner.execution_base + len(stack)
         runner.initialize_zero_segment()
+
+        # Initialize hint environment with injected functions, like in Rust (logger, serialize)
+        context = {}
+        prepare_context(lambda: context)
+
         runner.initialize_vm(
             hint_locals={
                 "program_input": kwargs,
@@ -266,11 +273,17 @@ def run_python_vm(
                 "oracle": oracle(
                     cairo_program, serde, main_path, gen_arg, to_cairo_type
                 ),
+                "serialize": partial(
+                    context["serialize"],
+                    segments=runner.segments,
+                    program_identifiers=cairo_program.identifiers,
+                    dict_manager=dict_manager,
+                ),
                 **(hint_locals or {}),
             },
             static_locals={
                 "debug_info": debug_info(cairo_program),
-                "logger": logger,
+                "logger": context["logger"],
                 **(static_locals or {}),
             },
             vm_class=VirtualMachine,
