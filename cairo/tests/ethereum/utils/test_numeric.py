@@ -236,9 +236,9 @@ class TestNumeric:
         assert result == expected
 
     @given(value=st.integers(min_value=0, max_value=PRIME - 1).map(Uint))
-    def test_Uint_bit_length(self, cairo_run_py, value: Uint):
+    def test_Uint_bit_length(self, cairo_run, value: Uint):
         expected = value.bit_length() if int(value) > 0 else 0
-        result = cairo_run_py("Uint_bit_length", value)
+        result = cairo_run("Uint_bit_length", value)
         assert result == expected
 
     @given(bytes=st.binary(max_size=512))
@@ -258,11 +258,17 @@ class TestNumeric:
         assert (a == b) == cairo_run("U384__eq__", a, b)
 
     @given(value=...)
-    def test_is_U384_zero(self, cairo_run, value: U384):
-        cairo_result = cairo_run("is_U384_zero", value)
+    def test_U384_is_zero(self, cairo_run, value: U384):
+        cairo_result = cairo_run("U384_is_zero", value)
         assert cairo_result == 1 if value == U384(0) else cairo_result == 0
 
     @given(value=...)
-    def test_is_U384_one(self, cairo_run, value: U384):
-        cairo_result = cairo_run("is_U384_one", value)
+    def test_U384_is_one(self, cairo_run, value: U384):
+        cairo_result = cairo_run("U384_is_one", value)
         assert cairo_result == 1 if value == U384(1) else cairo_result == 0
+
+    @given(a=..., b=...)
+    def test_U256_max(self, cairo_run, a: U256, b: U256):
+        result = cairo_run("U256_max", a, b)
+        expected = max(a, b)
+        assert result == expected

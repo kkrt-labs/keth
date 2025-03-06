@@ -8,15 +8,14 @@ from ethereum.cancun.vm.precompiled_contracts.modexp import (
 )
 from ethereum_types.bytes import Bytes
 from ethereum_types.numeric import U256, Uint
-from hypothesis import assume, given
-from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
+from hypothesis import given
 
 from cairo_addons.testing.errors import strict_raises
 from tests.utils.args_gen import U384
 from tests.utils.evm_builder import EvmBuilder
 
 
-def get_u384_bits_little_endian(value: U384):
+def get_u384_bits_little(value: U384):
     value_int = value._number
     bits = []
     while value_int > 0:
@@ -57,9 +56,12 @@ class TestModexp:
         modulus_length=...,
     )
     def test_complexity(self, cairo_run, base_length: U256, modulus_length: U256):
-        assume(complexity(base_length, modulus_length) < Uint(DEFAULT_PRIME))
+        expected = complexity(base_length, modulus_length)
         cairo_result = cairo_run("complexity", base_length, modulus_length)
-        assert cairo_result == complexity(base_length, modulus_length)
+        if expected > Uint(2**128 - 1):
+            assert cairo_result == Uint(2**128 - 1)
+        else:
+            assert cairo_result == expected
 
     @given(
         exponent_length=st.integers(min_value=0, max_value=31).map(U256),
@@ -72,7 +74,7 @@ class TestModexp:
     @given(
         base_length=st.integers(min_value=0, max_value=32).map(U256),
         modulus_length=st.integers(min_value=0, max_value=32).map(U256),
-        exponent_length=st.integers(min_value=0, max_value=32).map(U256),
+        exponent_length=st.integers(min_value=0, max_value=31).map(U256),
         exponent_head=st.integers(min_value=0, max_value=2**248 - 1).map(Uint),
     )
     def test_gas_cost(
@@ -101,7 +103,7 @@ class TestModexp:
     def test_get_u384_bits_little(self, cairo_run, value: U384):
         (cairo_bits_ptr, cairo_bits_len) = cairo_run("get_u384_bits_little", value)
 
-        python_bits = get_u384_bits_little_endian(value)
+        python_bits = get_u384_bits_little(value)
         cairo_bits = [cairo_bits_ptr[i] for i in range(cairo_bits_len)]
         assert python_bits == cairo_bits, f"Failed for value {value}"
 

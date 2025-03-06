@@ -9,11 +9,12 @@ from starkware.cairo.common.memcpy import memcpy
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.cairo.common.uint256 import uint256_reverse_endian
 from starkware.cairo.common.uint256 import word_reverse_endian, Uint256, uint256_le, uint256_mul
+from starkware.cairo.common.memset import memset
 
 from ethereum_types.bytes import Bytes32, Bytes32Struct, Bytes20, Bytes, BytesStruct
 from ethereum_types.numeric import Uint, U256, U256Struct, bool, U64, U384
-
-from cairo_core.maths import pow2, unsigned_div_rem
+from cairo_ec.uint384 import uint384_eq
+from cairo_core.maths import pow2, unsigned_div_rem, felt252_to_bytes_be
 from cairo_ec.uint384 import uint256_to_uint384
 from legacy.utils.bytes import bytes_to_felt, uint256_from_bytes_be, felt_to_bytes
 from legacy.utils.uint256 import uint256_add, uint256_sub
@@ -330,32 +331,11 @@ func Uint_bit_length{range_check_ptr}(value: Uint) -> felt {
     tempvar bit_length;
     %{ bit_length_hint %}
 
-    // For values that can be represented as powers of 2 minus 1
-    // we can verify the bit length directly
-    let is_bit_length_le_251 = is_le(bit_length, 251);
-    if (is_bit_length_le_251 == 1) {
-        // Check that 2^(bit_length-1) <= value
-        tempvar exponent = bit_length - 1;
-        let lower_bound = pow2(exponent);
-        let is_ge_lower = is_le_felt(lower_bound, value.value);
-        assert is_ge_lower = 1;
-
-        // Check that value < 2^bit_length
-        tempvar exponent = bit_length;
-        let upper_bound = pow2(exponent);
-        let is_lt_upper = is_le_felt(value.value, upper_bound);
-        assert is_lt_upper = 1;
-        tempvar range_check_ptr = range_check_ptr;
-        tempvar bit_length = bit_length;
-    } else {
-        // For very large values (close to PRIME), we can't use the power of 2 comparison
-        // Instead, we verify the bit length is reasonable for Cairo's field
-        assert_le(bit_length, 252);
-        tempvar range_check_ptr = range_check_ptr;
-        tempvar bit_length = bit_length;
-    }
-    let range_check_ptr = [ap - 2];
-    let bit_length = [ap - 1];
+    assert_le(bit_length, 252);
+    let lower_bound = pow2(bit_length - 1);
+    assert_le_felt(lower_bound, value.value);
+    let upper_bound = pow2(bit_length);
+    assert_le_felt(value.value + 1, upper_bound);
 
     return bit_length;
 }
@@ -377,6 +357,14 @@ func U256_from_be_bytes{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(bytes: By
     return res_u256;
 }
 
+func U256_max{range_check_ptr}(a: U256, b: U256) -> U256 {
+    let is_a_le_b = U256_le(a, b);
+    if (is_a_le_b.value == 1) {
+        return b;
+    }
+    return a;
+}
+
 func Bytes32_from_be_bytes{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(bytes: Bytes) -> Bytes32 {
     let res = uint256_from_bytes_be(bytes.value.len, bytes.value.data);
     let (res_reversed) = uint256_reverse_endian(res);
@@ -384,14 +372,14 @@ func Bytes32_from_be_bytes{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(bytes:
     return res_bytes32;
 }
 
-func is_U384_zero(num: U384) -> felt {
+func U384_is_zero(num: U384) -> felt {
     if (num.value.d0 == 0 and num.value.d1 == 0 and num.value.d2 == 0 and num.value.d3 == 0) {
         return 1;
     }
     return 0;
 }
 
-func is_U384_one(num: U384) -> felt {
+func U384_is_one(num: U384) -> felt {
     if (num.value.d0 == 1 and num.value.d1 == 0 and num.value.d2 == 0 and num.value.d3 == 0) {
         return 1;
     }
@@ -430,34 +418,26 @@ func U384_from_be_bytes{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(bytes: By
     let d2_start = max(0, bytes.value.len - d0_len - d1_len - d2_len);
     let d3_start = 0;  // Most significant bytes start at index 0
 
-    // Create byte slices for each limb
-    tempvar d0_bytes = Bytes(new BytesStruct(data=bytes.value.data + d0_start, len=d0_len));
-    tempvar d1_bytes = Bytes(new BytesStruct(data=bytes.value.data + d1_start, len=d1_len));
-    tempvar d2_bytes = Bytes(new BytesStruct(data=bytes.value.data + d2_start, len=d2_len));
-    tempvar d3_bytes = Bytes(new BytesStruct(data=bytes.value.data + d3_start, len=d3_len));
-
     // Convert each byte slice to a felt
-    let d0 = bytes_to_felt(d0_bytes.value.len, d0_bytes.value.data);
-    let d1 = bytes_to_felt(d1_bytes.value.len, d1_bytes.value.data);
-    let d2 = bytes_to_felt(d2_bytes.value.len, d2_bytes.value.data);
-    let d3 = bytes_to_felt(d3_bytes.value.len, d3_bytes.value.data);
+    let d0 = bytes_to_felt(d0_len, bytes.value.data + d0_start);
+    let d1 = bytes_to_felt(d1_len, bytes.value.data + d1_start);
+    let d2 = bytes_to_felt(d2_len, bytes.value.data + d2_start);
+    let d3 = bytes_to_felt(d3_len, bytes.value.data + d3_start);
 
     // Create the U384 value
     tempvar res = U384(new UInt384(d0=d0, d1=d1, d2=d2, d3=d3));
     return res;
 }
 
-func U384__eq__(a: U384, b: U384) -> bool {
-    if (a.value.d0 == b.value.d0 and a.value.d1 == b.value.d1 and a.value.d2 == b.value.d2 and
-        a.value.d3 == b.value.d3) {
-        tempvar res = bool(1);
-        return res;
-    }
-    tempvar res = bool(0);
-    return res;
+func U384__eq__{range_check96_ptr: felt*}(a: U384, b: U384) -> bool {
+    let res = uint384_eq([a.value], [b.value]);
+    let res_bool = bool(res);
+    return res_bool;
 }
 
-func U384_to_be_bytes{range_check_ptr}(value: U384, length: felt) -> Bytes {
+func U384_to_be_bytes{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
+    value: U384, length: felt
+) -> Bytes {
     alloc_locals;
 
     if (length == 0) {
@@ -467,95 +447,38 @@ func U384_to_be_bytes{range_check_ptr}(value: U384, length: felt) -> Bytes {
 
     let (bytes_ptr) = alloc();
 
-    // Process each limb separately and combine them
-    // U384 has 4 limbs: d0 (96 bits), d1 (96 bits), d2 (96 bits), d3 (96 bits)
-    // Each limb can produce up to 12 bytes
-    // Allocate temporary buffers for each limb and convert each limb to bytes
-    let (d0_bytes) = alloc();
-    let (d1_bytes) = alloc();
-    let (d2_bytes) = alloc();
-    let (d3_bytes) = alloc();
-    let d0_actual_len = felt_to_bytes(d0_bytes, value.value.d0);
-    let d1_actual_len = felt_to_bytes(d1_bytes, value.value.d1);
-    let d2_actual_len = felt_to_bytes(d2_bytes, value.value.d2);
-    let d3_actual_len = felt_to_bytes(d3_bytes, value.value.d3);
-    tempvar range_check_ptr = range_check_ptr;
-
-    let is_length_gt_36 = is_le(36, length);
-    if (is_length_gt_36 != 0) {
-        // Case: mod_len > 12 * 3
-        // Copy limb3 with padding
-        let d3_bytes_len = length - 36;
-        memset_zero(bytes_ptr, d3_bytes_len - d3_actual_len);
-        memcpy(bytes_ptr + d3_bytes_len - d3_actual_len, d3_bytes, d3_actual_len);
-
-        // Copy limb2 with padding to exactly 12 bytes
-        memset_zero(bytes_ptr + d3_bytes_len, 12 - d2_actual_len);
-        memcpy(bytes_ptr + d3_bytes_len + 12 - d2_actual_len, d2_bytes, d2_actual_len);
-
-        // Copy limb1 with padding to exactly 12 bytes
-        memset_zero(bytes_ptr + d3_bytes_len + 12, 12 - d1_actual_len);
-        memcpy(bytes_ptr + d3_bytes_len + 12 + 12 - d1_actual_len, d1_bytes, d1_actual_len);
-
-        // Copy limb0 with padding to exactly 12 bytes
-        memset_zero(bytes_ptr + d3_bytes_len + 24, 12 - d0_actual_len);
-        memcpy(bytes_ptr + d3_bytes_len + 24 + 12 - d0_actual_len, d0_bytes, d0_actual_len);
-
-        tempvar range_check_ptr = range_check_ptr;
-    } else {
-        let is_length_gt_24 = is_le(24, length);
-        if (is_length_gt_24 != 0) {
-            // Case: mod_len > 12 * 2
-            // Copy limb2 with padding
-            let d2_bytes_len = length - 24;
-            memset_zero(bytes_ptr, d2_bytes_len - d2_actual_len);
-            memcpy(bytes_ptr + d2_bytes_len - d2_actual_len, d2_bytes, d2_actual_len);
-
-            // Copy limb1 with padding to exactly 12 bytes
-            memset_zero(bytes_ptr + d2_bytes_len, 12 - d1_actual_len);
-            memcpy(bytes_ptr + d2_bytes_len + 12 - d1_actual_len, d1_bytes, d1_actual_len);
-
-            // Copy limb0 with padding to exactly 12 bytes
-            memset_zero(bytes_ptr + d2_bytes_len + 12, 12 - d0_actual_len);
-            memcpy(bytes_ptr + d2_bytes_len + 12 + 12 - d0_actual_len, d0_bytes, d0_actual_len);
-
-            tempvar range_check_ptr = range_check_ptr;
-        } else {
-            let is_length_gt_12 = is_le(12, length);
-            if (is_length_gt_12 != 0) {
-                // Case: mod_len > 12 * 1
-                // Copy limb1 with padding
-                let d1_bytes_len = length - 12;
-                memset_zero(bytes_ptr, d1_bytes_len - d1_actual_len);
-                memcpy(bytes_ptr + d1_bytes_len - d1_actual_len, d1_bytes, d1_actual_len);
-
-                // Copy limb0 with padding to exactly 12 bytes
-                memset_zero(bytes_ptr + d1_bytes_len, 12 - d0_actual_len);
-                memcpy(bytes_ptr + d1_bytes_len + 12 - d0_actual_len, d0_bytes, d0_actual_len);
-
-                tempvar range_check_ptr = range_check_ptr;
-            } else {
-                // Case: mod_len <= 12
-                // Copy only limb0 with padding
-                memset_zero(bytes_ptr, length - d0_actual_len);
-                memcpy(bytes_ptr + length - d0_actual_len, d0_bytes, d0_actual_len);
-
-                tempvar range_check_ptr = range_check_ptr;
-            }
-        }
+    // Process each limb in big-endian order (d3 to d0)
+    // Each limb is 96 bits (12 bytes)
+    let remaining_len = length;
+    let is_inf_36 = is_le(remaining_len, 35);
+    if (is_inf_36 != 1) {
+        let d3_len = remaining_len - 36;
+        felt252_to_bytes_be(value.value.d3, d3_len, bytes_ptr);
+        felt252_to_bytes_be(value.value.d2, 12, bytes_ptr + d3_len);
+        felt252_to_bytes_be(value.value.d1, 12, bytes_ptr + d3_len + 12);
+        felt252_to_bytes_be(value.value.d0, 12, bytes_ptr + d3_len + 24);
+        tempvar result = Bytes(new BytesStruct(bytes_ptr, length));
+        return result;
     }
+    let is_inf_24 = is_le(remaining_len, 23);
+    if (is_inf_24 != 1) {
+        let d2_len = remaining_len - 24;
+        felt252_to_bytes_be(value.value.d2, d2_len, bytes_ptr);
+        felt252_to_bytes_be(value.value.d1, 12, bytes_ptr + d2_len);
+        felt252_to_bytes_be(value.value.d0, 12, bytes_ptr + d2_len + 12);
+        tempvar result = Bytes(new BytesStruct(bytes_ptr, length));
+        return result;
+    }
+    let is_inf_12 = is_le(remaining_len, 11);
+    if (is_inf_12 != 1) {
+        let d1_len = remaining_len - 12;
+        felt252_to_bytes_be(value.value.d1, d1_len, bytes_ptr);
+        felt252_to_bytes_be(value.value.d0, 12, bytes_ptr + d1_len);
+        tempvar result = Bytes(new BytesStruct(bytes_ptr, length));
+        return result;
+    }
+    felt252_to_bytes_be(value.value.d0, remaining_len, bytes_ptr);
 
     tempvar result = Bytes(new BytesStruct(bytes_ptr, length));
     return result;
-}
-
-func memset_zero{range_check_ptr}(dst: felt*, len: felt) {
-    alloc_locals;
-    let len_not_zero = is_not_zero(len);
-    if (len_not_zero == 0) {
-        return ();
-    }
-
-    assert dst[0] = 0;
-    return memset_zero(dst + 1, len - 1);
 }

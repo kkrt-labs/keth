@@ -968,7 +968,7 @@ def _gen_arg(
         return base
 
     if arg_type is U384:
-        bytes_value = arg.to_be_bytes()[::-1]
+        bytes_value = arg.to_le_bytes()
         felt_values = [
             int.from_bytes(bytes_value[i : i + 12], "little") for i in range(0, 48, 12)
         ]

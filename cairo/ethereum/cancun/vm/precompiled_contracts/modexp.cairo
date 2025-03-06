@@ -5,21 +5,25 @@ from starkware.cairo.common.cairo_builtins import (
     ModBuiltin,
     UInt384,
 )
+from starkware.cairo.common.memset import memset
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.uint256 import uint256_to_felt
+from starkware.cairo.common.uint256 import uint256_mul, uint256_eq, uint256_le
+from starkware.cairo.common.uint256 import uint256_to_felt, Uint256
 from starkware.cairo.common.math_cmp import is_le, is_le_felt, is_not_zero
 from cairo_core.comparison import is_zero
 from ethereum_types.bytes import Bytes, BytesStruct
 from ethereum_types.numeric import U256, U256Struct, Uint, U384
 from ethereum.utils.numeric import (
     divmod,
-    is_U384_zero,
-    is_U384_one,
+    U384_is_zero,
+    U384_is_one,
     U256_from_be_bytes,
     Uint_from_be_bytes,
     U256__eq__,
     U256_add,
+    U256_add_with_carry,
     U256_min,
+    U256_max,
     U256_to_Uint,
     Uint_bit_length,
     U384_from_be_bytes,
@@ -35,7 +39,10 @@ from ethereum.exceptions import EthereumException
 from cairo_core.control_flow import raise
 from cairo_ec.circuits.mod_ops_compiled import mul
 from legacy.utils.bytes import felt_to_bytes
+from legacy.utils.uint256 import uint256_unsigned_div_rem
 from starkware.cairo.common.memcpy import memcpy
+
+from ethereum.cancun.vm.exceptions import OutOfGasError
 
 const GQUADDIVISOR = 3;
 
@@ -108,13 +115,14 @@ func modexp{
         let (zeros_ptr_raw) = alloc();
         let zeros_ptr = cast(zeros_ptr_raw, felt*);
         let zeros_len = uint256_to_felt([modulus_length.value]);
+        memset(zeros_ptr, 0, zeros_len);
         tempvar result = Bytes(new BytesStruct(zeros_ptr, zeros_len));
         EvmImpl.set_output(result);
         tempvar ok = cast(0, EthereumException*);
         return ok;
     }
 
-    // Double-and-add algorithm for modular exponentiation
+    // Square-and-multiply algorithm for modular exponentiation
     let result_uint384 = mod_pow(base_u384, exp_u384, modulus_u384);
 
     let result_bytes_len = uint256_to_felt([modulus_length.value]);
@@ -130,25 +138,25 @@ func mod_pow{
 }(base: U384, exponent: U384, modulus: U384) -> U384 {
     alloc_locals;
 
-    let modulus_is_zero = is_U384_zero(modulus);
+    let modulus_is_zero = U384_is_zero(modulus);
     if (modulus_is_zero == 1) {
         tempvar result = U384(new UInt384(0, 0, 0, 0));
         return result;
     }
 
-    let modulus_is_one = is_U384_one(modulus);
+    let modulus_is_one = U384_is_one(modulus);
     if (modulus_is_one == 1) {
         tempvar result = U384(new UInt384(0, 0, 0, 0));
         return result;
     }
 
-    let exponent_is_zero = is_U384_zero(exponent);
+    let exponent_is_zero = U384_is_zero(exponent);
     if (exponent_is_zero == 1) {
         tempvar result = U384(new UInt384(1, 0, 0, 0));
         return result;
     }
 
-    let base_is_zero = is_U384_zero(base);
+    let base_is_zero = U384_is_zero(base);
     if (base_is_zero == 1) {
         tempvar result = U384(new UInt384(0, 0, 0, 0));
         return result;
@@ -225,10 +233,11 @@ func get_u384_bits_little{range_check_ptr}(num: U384) -> (felt*, felt) {
     // Process limb1 (d1)
     let limb1_not_zero = is_not_zero(num.value.d1);
     if (limb1_not_zero != 0) {
-        // Pad with zeros until we reach 96 bits if needed
-        let (bits_ptr_padded, bits_len_padded) = pad_zeros(bits_ptr_updated, bits_len_updated, 96);
+        // Use memset to pad with zeros until we reach 96 bits if needed
+        let bits_len_padded = 96;
+        memset(bits_ptr_updated + bits_len_updated, 0, bits_len_padded - bits_len_updated);
         let (bits_ptr_updated_1, bits_len_updated_1) = extract_limb_bits(
-            num.value.d1, bits_ptr_padded, bits_len_padded
+            num.value.d1, bits_ptr_updated, bits_len_padded
         );
         tempvar bits_ptr_after_limb1 = bits_ptr_updated_1;
         tempvar bits_len_after_limb1 = bits_len_updated_1;
@@ -241,13 +250,16 @@ func get_u384_bits_little{range_check_ptr}(num: U384) -> (felt*, felt) {
 
     // Process limb2 (d2)
     let limb2_not_zero = is_not_zero(num.value.d2);
+    tempvar bits_ptr_after_limb1 = bits_ptr_after_limb1;
+    tempvar range_check_ptr = range_check_ptr;
     if (limb2_not_zero != 0) {
-        // Pad with zeros until we reach 192 bits if needed
-        let (bits_ptr_padded, bits_len_padded) = pad_zeros(
-            bits_ptr_after_limb1, bits_len_after_limb1, 192
+        // Use memset to pad with zeros until we reach 192 bits if needed
+        let bits_len_padded = 192;
+        memset(
+            bits_ptr_after_limb1 + bits_len_after_limb1, 0, bits_len_padded - bits_len_after_limb1
         );
         let (bits_ptr_updated_2, bits_len_updated_2) = extract_limb_bits(
-            num.value.d2, bits_ptr_padded, bits_len_padded
+            num.value.d2, bits_ptr_after_limb1, bits_len_padded
         );
         tempvar bits_ptr_after_limb2 = bits_ptr_updated_2;
         tempvar bits_len_after_limb2 = bits_len_updated_2;
@@ -260,13 +272,16 @@ func get_u384_bits_little{range_check_ptr}(num: U384) -> (felt*, felt) {
 
     // Process limb3 (d3)
     let limb3_not_zero = is_not_zero(num.value.d3);
+    tempvar bits_ptr_after_limb2 = bits_ptr_after_limb2;
+    tempvar range_check_ptr = range_check_ptr;
     if (limb3_not_zero != 0) {
-        // Pad with zeros until we reach 288 bits if needed
-        let (bits_ptr_padded, bits_len_padded) = pad_zeros(
-            bits_ptr_after_limb2, bits_len_after_limb2, 288
+        // Use memset to pad with zeros until we reach 288 bits if needed
+        let bits_len_padded = 288;
+        memset(
+            bits_ptr_after_limb2 + bits_len_after_limb2, 0, bits_len_padded - bits_len_after_limb2
         );
         let (bits_ptr_updated_3, bits_len_updated_3) = extract_limb_bits(
-            num.value.d3, bits_ptr_padded, bits_len_padded
+            num.value.d3, bits_ptr_after_limb2, bits_len_padded
         );
         return (bits_ptr_updated_3, bits_len_updated_3);
     } else {
@@ -291,37 +306,39 @@ func extract_limb_bits{range_check_ptr}(limb: felt, bits_ptr: felt*, current_len
     return extract_limb_bits(q, bits_ptr, current_len + 1);
 }
 
-func pad_zeros{range_check_ptr}(bits_ptr: felt*, current_len: felt, target_len: felt) -> (
-    felt*, felt
-) {
-    let is_ge = is_le(target_len, current_len);
-    if (is_ge == 1) {
-        return (bits_ptr, current_len);
-    }
-
-    assert bits_ptr[current_len] = 0;
-    return pad_zeros(bits_ptr, current_len + 1, target_len);
-}
-
-// Assumes base_length and modulus_length are less than DEFAULT_PRIME
 // Saturates at 2^128 - 1
 func complexity{range_check_ptr}(base_length: U256, modulus_length: U256) -> Uint {
     alloc_locals;
 
-    let base_length_uint = U256_to_Uint(base_length);
-    let modulus_length_uint = U256_to_Uint(modulus_length);
-    let max_len = max(base_length_uint.value, modulus_length_uint.value);
-
-    let words = max_len + 7;
-
-    let (quotient, _) = divmod(words, 8);
-    let overflow = is_le_felt(2 ** 128 - 1, quotient);
+    let max_len = U256_max(base_length, modulus_length);
+    tempvar seven_u256 = U256(new U256Struct(7, 0));
+    let (words, overflow) = U256_add_with_carry(max_len, seven_u256);
     if (overflow != 0) {
         let result = Uint(2 ** 128 - 1);
         return result;
     }
-    let result = Uint(quotient * quotient);
-    return result;
+
+    tempvar eight_u256 = U256(new U256Struct(8, 0));
+    let (quotient, _) = uint256_unsigned_div_rem([words.value], [eight_u256.value]);
+
+    if (quotient.high != 0) {
+        let result = Uint(2 ** 128 - 1);
+        return result;
+    }
+
+    // PRIME - 1
+    tempvar prime_u256 = new Uint256(0, 0x8000000000000011);
+    let (res, carry) = uint256_mul(quotient, quotient);
+    let (res_inf_prime) = uint256_le(res, [prime_u256]);
+    let (carry_is_zero) = uint256_eq(carry, Uint256(0, 0));
+    if (carry_is_zero + res_inf_prime != 2) {
+        let result = Uint(2 ** 128 - 1);
+        return result;
+    }
+
+    let res_felt = uint256_to_felt(res);
+    let res_uint = Uint(res_felt);
+    return res_uint;
 }
 
 // Diverge from the specs: exponent_head is limited to 31 bytes
@@ -332,14 +349,14 @@ func iterations{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
 
     let exp_len_uint = uint256_to_felt([exponent_length.value]);
 
-    let is_exp_len_le_32 = is_le(exp_len_uint, 32);
+    let is_exp_len_le_31 = is_le(exp_len_uint, 31);
     let is_exp_len_zero = is_zero(exponent_head.value);
 
-    if (is_exp_len_le_32 == 1 and is_exp_len_zero == 1) {
+    if (is_exp_len_le_31 == 1 and is_exp_len_zero == 1) {
         let one = Uint(1);
         return one;
     }
-    if (is_exp_len_le_32 == 1) {
+    if (is_exp_len_le_31 == 1) {
         let bit_length = Uint_bit_length(exponent_head);
 
         let is_bit_length_zero = is_zero(bit_length);
@@ -372,7 +389,12 @@ func gas_cost{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
         let saturated_gas = Uint(2 ** 128 - 1);
         return saturated_gas;
     }
-    let cost = complex.value * iters.value;
+    tempvar cost = complex.value * iters.value;
+    let oog = is_le_felt(2 ** 131, cost);  // 2**128 * 8
+    if (oog == 1) {
+        let saturated_gas = Uint(2 ** 128 - 1);
+        return saturated_gas;
+    }
     let (gas, _) = divmod(cost, GQUADDIVISOR);
     let gas_too_big = is_le_felt(2 ** 128, gas);
     if (gas_too_big == 1) {
