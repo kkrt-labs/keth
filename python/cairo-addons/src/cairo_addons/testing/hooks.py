@@ -10,6 +10,7 @@ import shutil
 import time
 from pathlib import Path
 
+import filelock
 import pytest
 import starkware.cairo.lang.instances as LAYOUTS
 import xdist
@@ -302,15 +303,17 @@ def pytest_collection_modifyitems(session, config, items):
         session.test_hashes[item.nodeid] = test_hash
 
     # Dump worker's hashes to shared cache file
-    if hash_cache_file.exists():
-        with hash_cache_file.open("r") as f:
-            existing_hashes = json.load(f)
-        existing_hashes.update(session.test_hashes)
+    lock_file = hash_cache_file.with_suffix(".lock")
+    with filelock.FileLock(lock_file):
+        if hash_cache_file.exists():
+            with hash_cache_file.open("r") as f:
+                existing_hashes = json.load(f)
+            existing_hashes.update(session.test_hashes)
+        else:
+            existing_hashes = session.test_hashes
+
         with hash_cache_file.open("w") as f:
             json.dump(existing_hashes, f)
-    else:
-        with hash_cache_file.open("w") as f:
-            json.dump(session.test_hashes, f)
 
     # Wait for all workers to finish
     missing = set(cairo_items) - set(assigned_items)
@@ -320,15 +323,21 @@ def pytest_collection_modifyitems(session, config, items):
 
         # Load hashes from cache file
         if hash_cache_file.exists():
-            with hash_cache_file.open("r") as f:
-                session.test_hashes.update(json.load(f))
-
+            with filelock.FileLock(lock_file):
+                with hash_cache_file.open("r") as f:
+                    session.test_hashes.update(json.load(f))
         for item in missing:
             if item.nodeid not in session.test_hashes:
                 missing_new.add(item)
         missing = missing_new
         time.sleep(0.5)
 
+    # Clean up lock file
+    if lock_file.exists():
+        try:
+            lock_file.unlink()
+        except Exception:
+            pass
     hash_cache_file.unlink(missing_ok=True)
 
     for item in cairo_items:
