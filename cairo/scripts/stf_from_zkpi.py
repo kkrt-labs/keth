@@ -2,7 +2,12 @@ import json
 from typing import Dict, List, Optional
 
 from ethereum.cancun.blocks import Block, Withdrawal
-from ethereum.cancun.fork import BlockChain, state_transition
+from ethereum.cancun.fork import (
+    BlockChain,
+    apply_body,
+    calculate_excess_blob_gas,
+    get_last_256_block_hashes,
+)
 from ethereum.cancun.fork_types import Account, Address
 from ethereum.cancun.state import State
 from ethereum.cancun.transactions import LegacyTransaction, encode_transaction
@@ -15,6 +20,7 @@ from ethereum_spec_tools.evm_tools.loaders.fork_loader import ForkLoad
 from ethereum_spec_tools.evm_tools.loaders.transaction_loader import TransactionLoad
 from ethereum_types.bytes import Bytes, Bytes0, Bytes32
 from ethereum_types.numeric import U64, U256, Uint
+from scripts.mpt import encode_resolved_mpt, mpt_from_json
 from scripts.zkpi_to_eels import normalize_transaction
 
 
@@ -362,8 +368,32 @@ def main():
                 ),
             )
 
-            state_transition(blockchain, block)
+            _output = apply_body(
+                state=blockchain.state,
+                block_hashes=get_last_256_block_hashes(blockchain),
+                coinbase=block.header.coinbase,
+                block_number=block.header.number,
+                base_fee_per_gas=block.header.base_fee_per_gas,
+                block_gas_limit=block.header.gas_limit,
+                block_time=block.header.timestamp,
+                prev_randao=block.header.prev_randao,
+                transactions=block.transactions,
+                chain_id=blockchain.chain_id,
+                withdrawals=block.withdrawals,
+                parent_beacon_block_root=block.header.parent_beacon_block_root,
+                excess_blob_gas=calculate_excess_blob_gas(blockchain.blocks[-1].header),
+            )
+
+
+def mpt():
+    mpt = mpt_from_json("data/1/inputs/21872325.json")
+
+    # Get the RLP-encoded MPT bytes directly
+    encoded_mpt = encode_resolved_mpt(mpt)
+
+    # Hash the encoded bytes and print the result
+    print("0x" + keccak256(encoded_mpt).hex())
 
 
 if __name__ == "__main__":
-    main()
+    mpt()
