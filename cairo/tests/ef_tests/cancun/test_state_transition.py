@@ -86,6 +86,8 @@ BIG_MEMORY_TESTS = (
 
 
 # Modexp test that use exponent_head > 31 bytes
+# modexp_d31g0v0_Cancun, modexp_d31g1v0_Cancun, modexp_d31g2v0_Cancun,
+# and modexp_d31g3v0_Cancun overflow mul from mod_ops_compiled
 with open(f"{Path().cwd()}/skip-ef-tests.json", "r") as f:
     SKIPPED_TESTS = tuple(json.load(f))
 
