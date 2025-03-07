@@ -195,13 +195,14 @@ def run_python_vm(
         )
 
         # Add a jmp rel 0 instruction to be able to loop in proof mode and avoid the proof-mode at compile time
+        proof_mode = request.config.getoption("proof_mode")
         cairo_program.data = cairo_program.data + [0x10780017FFF7FFF, 0]
         memory = MemoryDict()
         runner = CairoRunner(
             program=cairo_program,
             layout=getattr(LAYOUTS, request.config.getoption(name="layout")),
             memory=memory,
-            proof_mode=request.config.getoption(name="proof_mode"),
+            proof_mode=proof_mode,
             allow_missing_builtins=False,
         )
         dict_manager = DictManager()
@@ -216,6 +217,16 @@ def run_python_vm(
 
         add_output = False
         stack = []
+
+        # If we're in proof mode, all builtins are enabled by default. However, we don't use them in the entrypoint, nor do we return them at the end of the execution.
+        # Because they're unused, we can simply put them in the stack (no impact on program execution), which is dumped into the execution public memory.
+        # Note: if we tried to pass an included builtin here, it would fail, because we would try to access ptr-1 which is an invalid address. (see final_stack)
+        if proof_mode:
+            missing_builtins = [v for v in runner.builtin_runners.values() if not v.included]
+            for builtin_runner in missing_builtins:
+                builtin_runner.final_stack(runner, builtin_runner.base)
+                stack.append(builtin_runner.base)
+
 
         # Handle builtins
         for builtin_arg in _builtins:
@@ -301,6 +312,9 @@ def run_python_vm(
         run_resources = RunResources(n_steps=max_steps)
         try:
             runner.run_until_pc(end, run_resources)
+            if proof_mode:
+                runner.run_for_steps(1)
+            runner.original_steps = runner.vm.current_step
         except Exception as e:
             runner.end_run(disable_trace_padding=False)
             runner.relocate()
@@ -319,7 +333,8 @@ def run_python_vm(
         if not isinstance(first_return_data_offset, int):
             raise ValueError("First return data offset is not an int")
 
-        pointer = runner.vm.run_context.ap - first_return_data_offset
+        pointer = runner.vm.run_context.ap - first_return_data_offset  # First builtin
+
         for arg in _builtins[::-1]:
             builtin_runner = runner.builtin_runners.get(arg.replace("_ptr", "_builtin"))
             if builtin_runner is not None:
@@ -488,7 +503,7 @@ def run_rust_vm(
             program=rust_program,
             py_identifiers=cairo_program.identifiers,
             layout=getattr(LAYOUTS, request.config.getoption("layout")).layout_name,
-            proof_mode=False,
+            proof_mode=request.config.getoption("proof_mode"),
             allow_missing_builtins=False,
             enable_pythonic_hints=request.config.getoption("--log-cli-level")
             == "TRACE",
