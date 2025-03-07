@@ -148,6 +148,7 @@ modexp
 MODEXP
 modifyitems
 modpow
+modsize
 msize
 MSIZE
 mstore
