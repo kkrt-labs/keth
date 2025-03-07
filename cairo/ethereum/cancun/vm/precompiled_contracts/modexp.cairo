@@ -46,6 +46,7 @@ from starkware.cairo.common.memcpy import memcpy
 from ethereum.cancun.vm.exceptions import OutOfGasError
 
 const GQUADDIVISOR = 3;
+const MAX_EXPONENT_LENGTH = 31;
 
 // Diverge from the specs:
 // The max length for exponent is 31 bytes, hence exp_head will be 31 bytes at most
@@ -64,7 +65,7 @@ func modexp{
 
     let data = evm.value.message.value.data;
     tempvar u256_zero = U256(new U256Struct(0, 0));
-    tempvar u256_thirty_one = U256(new U256Struct(31, 0));
+    tempvar u256_max_exponent_length = U256(new U256Struct(MAX_EXPONENT_LENGTH, 0));
     tempvar u256_thirty_two = U256(new U256Struct(32, 0));
     tempvar u256_sixty_four = U256(new U256Struct(64, 0));
     tempvar u256_ninety_six = U256(new U256Struct(96, 0));
@@ -79,7 +80,7 @@ func modexp{
 
     let res = buffer_read(data, u256_thirty_two, u256_thirty_two);
     let exp_length = U256_from_be_bytes(res);
-    let exp_length_too_big = U256_le(u256_thirty_one, exp_length);
+    let exp_length_too_big = U256_le(u256_max_exponent_length, exp_length);
     if (exp_length_too_big.value != 0) {
         raise('InputError');
     }
@@ -94,7 +95,7 @@ func modexp{
     let exp_start = U256_add(u256_ninety_six, base_length);
 
     // Diverge from the specs: forcing to read max 31 bytes for exponent head
-    let min_len = U256_min(u256_thirty_one, exp_length);
+    let min_len = U256_min(u256_max_exponent_length, exp_length);
     let res = buffer_read(data, exp_start, min_len);
     let exp_head = Uint_from_be_bytes(res);
 
@@ -107,7 +108,7 @@ func modexp{
 
     let base_zero = U256__eq__(base_length, u256_zero);
     let modulus_zero = U256__eq__(modulus_length, u256_zero);
-    if (base_zero.value == 1 and modulus_zero.value == 1) {
+    if (base_zero.value != 0 and modulus_zero.value != 0) {
         tempvar empty_bytes = Bytes(new BytesStruct(cast(0, felt*), 0));
         EvmImpl.set_output(empty_bytes);
         tempvar ok = cast(0, EthereumException*);
@@ -125,9 +126,8 @@ func modexp{
     tempvar u384_zero = U384(new UInt384(0, 0, 0, 0));
 
     let modulus_is_zero = U384__eq__(modulus_u384, u384_zero);
-    if (modulus_is_zero.value == 1) {
-        let (zeros_ptr_raw) = alloc();
-        let zeros_ptr = cast(zeros_ptr_raw, felt*);
+    if (modulus_is_zero.value != 0) {
+        let (zeros_ptr) = alloc();
         let zeros_len = uint256_to_felt([modulus_length.value]);
         memset(zeros_ptr, 0, zeros_len);
         tempvar result = Bytes(new BytesStruct(zeros_ptr, zeros_len));
@@ -153,25 +153,25 @@ func mod_pow{
     alloc_locals;
 
     let modulus_is_zero = U384_is_zero(modulus);
-    if (modulus_is_zero == 1) {
+    if (modulus_is_zero != 0) {
         tempvar result = U384(new UInt384(0, 0, 0, 0));
         return result;
     }
 
     let modulus_is_one = U384_is_one(modulus);
-    if (modulus_is_one == 1) {
+    if (modulus_is_one != 0) {
         tempvar result = U384(new UInt384(0, 0, 0, 0));
         return result;
     }
 
     let exponent_is_zero = U384_is_zero(exponent);
-    if (exponent_is_zero == 1) {
+    if (exponent_is_zero != 0) {
         tempvar result = U384(new UInt384(1, 0, 0, 0));
         return result;
     }
 
     let base_is_zero = U384_is_zero(base);
-    if (base_is_zero == 1) {
+    if (base_is_zero != 0) {
         tempvar result = U384(new UInt384(0, 0, 0, 0));
         return result;
     }
@@ -363,18 +363,18 @@ func iterations{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
 
     let exp_len_uint = uint256_to_felt([exponent_length.value]);
 
-    let is_exp_len_le_31 = is_le(exp_len_uint, 31);
+    let is_exp_len_le_31 = is_le(exp_len_uint, MAX_EXPONENT_LENGTH);
     let is_exp_len_zero = is_zero(exponent_head.value);
 
-    if (is_exp_len_le_31 == 1 and is_exp_len_zero == 1) {
+    if (is_exp_len_le_31 != 0 and is_exp_len_zero != 0) {
         let one = Uint(1);
         return one;
     }
-    if (is_exp_len_le_31 == 1) {
+    if (is_exp_len_le_31 != 0) {
         let bit_length = Uint_bit_length(exponent_head);
 
         let is_bit_length_zero = is_zero(bit_length);
-        if (is_bit_length_zero == 1) {
+        if (is_bit_length_zero != 0) {
             let one = Uint(1);
             return one;
         }
@@ -399,13 +399,13 @@ func gas_cost{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     let iters = iterations(exponent_length, exponent_head);
 
     let complex_too_big = is_le_felt(2 ** 128, complex.value);
-    if (complex_too_big == 1) {
+    if (complex_too_big != 0) {
         let saturated_gas = Uint(2 ** 128 - 1);
         return saturated_gas;
     }
     tempvar cost = complex.value * iters.value;
     let oog = is_le_felt(2 ** 131, cost);  // 2**128 * 8
-    if (oog == 1) {
+    if (oog != 0) {
         let saturated_gas = Uint(2 ** 128 - 1);
         return saturated_gas;
     }
