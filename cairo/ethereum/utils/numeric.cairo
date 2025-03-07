@@ -334,6 +334,9 @@ func Uint_bit_length{range_check_ptr}(value: Uint) -> felt {
     assert_le(bit_length, 252);
     let lower_bound = pow2(bit_length - 1);
     assert_le_felt(lower_bound, value.value);
+    if (bit_length == 252) {
+        return bit_length;
+    }
     let upper_bound = pow2(bit_length);
     assert_le_felt(value.value + 1, upper_bound);
 
