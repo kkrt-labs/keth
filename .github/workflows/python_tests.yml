@@ -77,7 +77,7 @@ jobs:
         run: |
           # Runs up to ${{ inputs.max-tests }} tests, randomly sampled using the GITHUB_RUN_ID seed
           # Use only 48 cores to avoid out of memory issues
-          uv run --reinstall pytest -n 48 -m "not slow" --timeout 300 --durations=0 -v -s --log-cli-level=DEBUG --max-tests=${{ inputs.max-tests }} --randomly-seed=$GITHUB_RUN_ID cairo/tests/ef_tests/ --ignore-glob='cairo/tests/ef_tests/fixtures/*'
+          uv run --reinstall pytest -n 48 -m "not slow" --timeout 300 --durations=0 -v -s --log-cli-level=DEBUG --randomly-seed=$GITHUB_RUN_ID cairo/tests/ef_tests/ --ignore-glob='cairo/tests/ef_tests/fixtures/*'
       - name: Upload coverage
         uses: codecov/codecov-action@v5
         with:
