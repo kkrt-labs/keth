@@ -5,7 +5,9 @@ use crate::vm::{
     relocatable::PyRelocatable, relocated_trace::PyRelocatedTraceEntry,
     run_resources::PyRunResources,
 };
+use bincode::enc::write::SliceWriter;
 use cairo_vm::{
+    cairo_run::write_encoded_trace,
     hint_processor::builtin_hint_processor::dict_manager::DictManager,
     serde::deserialize_program::Identifier,
     types::{
@@ -13,7 +15,7 @@ use cairo_vm::{
         relocatable::{MaybeRelocatable, Relocatable},
     },
     vm::{
-        errors::vm_exception::VmException,
+        errors::{runner_errors::RunnerError, vm_exception::VmException},
         runners::{builtin_runner::BuiltinRunner, cairo_runner::CairoRunner as RustCairoRunner},
         security::verify_secure_runner,
     },
@@ -142,6 +144,7 @@ except Exception as e:
 
     /// Initialize the runner program_base, execution_base and builtins segments.
     pub fn initialize_segments(&mut self) -> PyResult<()> {
+        // Note: in proof mode, this initializes __all__ builtins of the layout.
         self.inner
             .initialize_builtins(self.allow_missing_builtins)
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
@@ -159,13 +162,49 @@ except Exception as e:
         ordered_builtins: Option<Vec<String>>,
     ) -> PyResult<PyRelocatable> {
         let initial_stack = self.builtins_stack(ordered_builtins)?;
-        let stack = initial_stack.into_iter().chain(stack.into_iter().map(|x| x.into())).collect();
+        let stack: Vec<MaybeRelocatable> = initial_stack
+            .into_iter()
+            .chain(stack.into_iter().map(|x| x.into()))
+            .collect::<Vec<_>>();
 
-        let return_fp = self.inner.vm.add_memory_segment();
-        let end = self
-            .inner
-            .initialize_function_entrypoint(entrypoint, stack, return_fp.into())
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+        // canonical offset should be 2 for Cairo 0
+        let target_offset: usize = 2;
+        let execution_base = self.inner.execution_base.ok_or(RunnerError::NoExecBase).unwrap();
+        let return_fp = Into::<MaybeRelocatable>::into((execution_base + target_offset).unwrap());
+        let end = ((self.inner.program_base.unwrap() +
+            self.inner.get_program().shared_program_data.data.len())
+        .unwrap() -
+            2)
+        .unwrap();
+        println!("end: {:?}", end);
+        // stack = [return_fp, end] + stack + [return_fp, end]
+        let mut stack_with_prefix = vec![return_fp.clone(), end.into()];
+        stack_with_prefix.extend(stack.clone());
+        stack_with_prefix.extend(vec![return_fp, end.into()]);
+        self.inner.execution_public_memory = Some(Vec::from_iter(0..stack_with_prefix.len()));
+        println!("stack_with_prefix: {:?}", stack_with_prefix);
+
+        self.inner.initial_pc = Some((self.inner.program_base.unwrap() + entrypoint).unwrap());
+        //TODO: cloning here is bad but i don't know how to do it otherwise
+        let program = self.inner.get_program().shared_program_data.data.clone();
+        self.inner.vm.load_data(self.inner.program_base.unwrap(), &program).unwrap();
+        // // Mark all addresses from the program segment as accessed
+        // for i in 0..self.inner.get_program().shared_program_data.data.len() {
+        //     self.inner.vm.segments.memory.mark_as_accessed((self.inner.program_base.unwrap() +
+        // i).unwrap()); }
+
+        self.inner.vm.load_data(self.inner.execution_base.unwrap(), &stack_with_prefix).unwrap();
+
+        self.inner.initial_fp =
+            Some((self.inner.execution_base.unwrap() + stack_with_prefix.len()).unwrap());
+        self.inner.initial_ap = self.inner.initial_fp;
+        // self.inner.final_pc = Some(end);
+
+        println!(
+            "initial ap, pc, fp: {:?}, {:?}, {:?}",
+            self.inner.initial_ap, self.inner.initial_pc, self.inner.initial_fp
+        );
+        println!("final pc: {:?}", self.inner.final_pc);
 
         for builtin_runner in self.inner.vm.builtin_runners.iter_mut() {
             if let BuiltinRunner::Mod(runner) = builtin_runner {
@@ -254,10 +293,8 @@ except Exception as e:
         Ok(())
     }
 
-    fn read_return_values(&mut self, offset: usize) -> PyResult<()> {
-        self._read_return_values(offset)?;
-
-        Ok(())
+    fn read_return_values(&mut self, offset: usize) -> PyResult<PyRelocatable> {
+        PyResult::Ok(PyRelocatable { inner: self._read_return_values(offset)? })
     }
 
     fn verify_secure_runner(&mut self) -> PyResult<()> {
@@ -314,6 +351,78 @@ except Exception as e:
 
         Ok(PyDataFrame(df))
     }
+
+    #[pyo3(signature = (pointer, first_return_data_offset))]
+    fn update_execution_public_memory(
+        &mut self,
+        pointer: PyRelocatable,
+        first_return_data_offset: usize,
+    ) -> PyResult<()> {
+        let exec_base = self.inner.execution_base.ok_or_else(|| {
+            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>("No execution base available")
+        })?;
+
+        // Calculate the range to add to execution_public_memory
+        let begin = pointer.inner.offset - exec_base.offset;
+        let ap = self.inner.vm.get_ap();
+        let end = ap.offset - first_return_data_offset;
+
+        // Extend execution_public_memory with this range
+        self.inner
+            .execution_public_memory
+            .as_mut()
+            .ok_or_else(|| {
+                PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(
+                    "No execution public memory available",
+                )
+            })?
+            .extend(begin..end);
+
+        Ok(())
+    }
+
+    #[pyo3(signature = (file_path))]
+    fn write_binary_trace(&self, file_path: String) -> PyResult<()> {
+        if let Some(relocated_trace) = &self.inner.relocated_trace {
+            use std::{fs::File, io::Write};
+
+            let mut buffer = Vec::new();
+            let mut writer = SliceWriter::new(&mut buffer);
+            write_encoded_trace(relocated_trace, &mut writer)
+                .map_err(|e| PyErr::new::<pyo3::exceptions::PyIOError, _>(e.to_string()))?;
+            let mut file = File::create(file_path)
+                .map_err(|e| PyErr::new::<pyo3::exceptions::PyIOError, _>(e.to_string()))?;
+            file.write_all(&buffer)
+                .map_err(|e| PyErr::new::<pyo3::exceptions::PyIOError, _>(e.to_string()))?;
+            Ok(())
+        } else {
+            Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>("No relocated trace available"))
+        }
+    }
+
+    #[getter]
+    fn builtin_runners(&self) -> PyResult<PyObject> {
+        Python::with_gil(|py| {
+            let dict = PyDict::new(py);
+
+            for builtin_runner in self.inner.vm.builtin_runners.iter() {
+                let name = builtin_runner.name().to_string();
+                let included = builtin_runner.included();
+                let base = PyRelocatable {
+                    inner: Relocatable { segment_index: builtin_runner.base() as isize, offset: 0 },
+                };
+
+                let runner_dict = PyDict::new(py);
+                runner_dict.set_item("included", included)?;
+                runner_dict.set_item("base", base)?;
+                runner_dict.set_item("name", name.clone())?;
+
+                dict.set_item(name, runner_dict)?;
+            }
+
+            Ok(dict.into())
+        })
+    }
 }
 
 impl PyCairoRunner {
@@ -321,39 +430,41 @@ impl PyCairoRunner {
         &mut self,
         ordered_builtins: Option<Vec<String>>,
     ) -> PyResult<Vec<MaybeRelocatable>> {
-        let mut stack = Vec::new();
-        let builtin_runners =
-            self.inner.vm.builtin_runners.iter().map(|b| (b.name(), b)).collect::<HashMap<_, _>>();
+        let ordered_builtins = ordered_builtins.unwrap_or_default();
 
-        if let Some(names) = ordered_builtins {
-            self.builtins = names
-                .iter()
-                .map(|name| {
-                    BuiltinName::from_str_with_suffix(name).ok_or_else(|| {
-                        PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
-                            "Invalid builtin name: {}",
-                            name
-                        ))
-                    })
-                })
-                .collect::<PyResult<Vec<_>>>()?;
-        };
-        for builtin_name in self.builtins.iter() {
-            if let Some(builtin_runner) = builtin_runners.get(builtin_name) {
-                stack.append(&mut builtin_runner.initial_stack());
+        let mut stack = Vec::new();
+        let mut used_builtins_acc = Vec::new();
+
+        // # If we're in proof mode, all builtins are enabled by default. However, we don't use them
+        // in the entrypoint, nor do we return them at the end of the execution.
+        // # Because they're unused, we can simply put them in the stack (no impact on program
+        // execution), which is dumped into the execution public memory. # Note: if we tried
+        // to pass an included builtin here, it would fail, because we would try to access ptr-1
+        // which is an invalid address. (see final_stack)
+        for builtin_runner in self.inner.vm.builtin_runners.iter_mut() {
+            let runner_base =
+                Relocatable { segment_index: builtin_runner.base() as isize, offset: 0 };
+            let is_included =
+                ordered_builtins.contains(&builtin_runner.name().to_str_with_suffix().to_string());
+            if !is_included {
+                let final_pointer =
+                    builtin_runner.final_stack(&self.inner.vm.segments, runner_base).unwrap();
+                stack.push(final_pointer.into());
             } else {
-                return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
-                    "Builtin runner {} not found",
-                    builtin_name
-                )));
+                used_builtins_acc.push(builtin_runner);
             }
         }
+
+        for builtin_runner in used_builtins_acc.iter() {
+            stack.append(&mut builtin_runner.initial_stack());
+        }
+
         Ok(stack)
     }
 
     /// Mainly like `CairoRunner::read_return_values` but with an `offset` parameter and some checks
     /// that I needed to remove.
-    fn _read_return_values(&mut self, offset: usize) -> PyResult<()> {
+    fn _read_return_values(&mut self, offset: usize) -> PyResult<Relocatable> {
         let mut pointer = (self.inner.vm.get_ap() - offset).unwrap();
         for builtin_name in self.builtins.iter().rev() {
             if let Some(builtin_runner) =
@@ -387,6 +498,6 @@ impl PyCairoRunner {
                 }
             }
         }
-        Ok(())
+        Ok(pointer)
     }
 }

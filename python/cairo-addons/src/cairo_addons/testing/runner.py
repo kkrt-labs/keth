@@ -221,12 +221,14 @@ def run_python_vm(
         # If we're in proof mode, all builtins are enabled by default. However, we don't use them in the entrypoint, nor do we return them at the end of the execution.
         # Because they're unused, we can simply put them in the stack (no impact on program execution), which is dumped into the execution public memory.
         # Note: if we tried to pass an included builtin here, it would fail, because we would try to access ptr-1 which is an invalid address. (see final_stack)
+        # https://github.com/starkware-libs/cairo-lang/blob/8e11b8cc65ae1d0959328b1b4a40b92df8b58595/src/starkware/cairo/lang/vm/cairo_runner.py#L182-L186
         if proof_mode:
-            missing_builtins = [v for v in runner.builtin_runners.values() if not v.included]
+            missing_builtins = [
+                v for v in runner.builtin_runners.values() if not v.included
+            ]
             for builtin_runner in missing_builtins:
                 builtin_runner.final_stack(runner, builtin_runner.base)
                 stack.append(builtin_runner.base)
-
 
         # Handle builtins
         for builtin_arg in _builtins:
@@ -258,10 +260,13 @@ def run_python_vm(
                 stack.append(gen_arg(python_type, arg_value))
         return_fp = runner.execution_base + 2
         # Return to the jmp rel 0 instruction added previously
+        # - 2 because we added 2 instructions at the beginning of the program
         end = runner.program_base + len(runner.program.data) - 2
+        print(f"end: {end}")
         # Proof mode expects the program to start with __start__ and call main
         # Adding [return_fp, end] before and after the stack makes this work both in proof mode and normal mode
         stack = [return_fp, end] + stack + [return_fp, end]
+        print(f"stack: {stack}")
         runner.execution_public_memory = list(range(len(stack)))
 
         runner.initial_pc = runner.program_base + cairo_program.get_label(entrypoint)
@@ -269,6 +274,11 @@ def run_python_vm(
         runner.load_data(runner.execution_base, stack)
         runner.initial_fp = runner.initial_ap = runner.execution_base + len(stack)
         runner.initialize_zero_segment()
+
+        print(
+            f"initial ap, pc, fp: {runner.initial_ap}, {runner.initial_pc}, {runner.initial_fp}"
+        )
+        print(f"final pc: {runner.final_pc}")
 
         # Initialize hint environment with injected functions, like in Rust (logger, serialize)
         context = {}
@@ -499,11 +509,12 @@ def run_rust_vm(
         ]
 
         # Create runner
+        proof_mode = request.config.getoption("proof_mode")
         runner = RustCairoRunner(
             program=rust_program,
             py_identifiers=cairo_program.identifiers,
             layout=getattr(LAYOUTS, request.config.getoption("layout")).layout_name,
-            proof_mode=request.config.getoption("proof_mode"),
+            proof_mode=proof_mode,
             allow_missing_builtins=False,
             enable_pythonic_hints=request.config.getoption("--log-cli-level")
             == "TRACE",
@@ -518,6 +529,7 @@ def run_rust_vm(
             runner.segments, cairo_program.identifiers, runner.dict_manager, cairo_file
         )
         stack = []
+
         # Handle other args, (implicit, explicit)
         gen_arg = (
             gen_arg_builder(runner.dict_manager, runner.segments)
@@ -557,11 +569,20 @@ def run_rust_vm(
         first_return_data_offset = (
             cumulative_retdata_offsets[0] if cumulative_retdata_offsets else 0
         )
+        if not isinstance(first_return_data_offset, int):
+            raise ValueError("First return data offset is not an int")
+
         runner.verify_auto_deductions()
-        runner.read_return_values(first_return_data_offset)
+        pointer = runner.read_return_values(first_return_data_offset)
+
+        if request.config.getoption("proof_mode"):
+            # Update execution_public_memory with the range from pointer to ap - first_return_data_offset
+            # This is the same operation as in the Python VM implementation
+            # This is equivalent to:
+            runner.update_execution_public_memory(pointer, first_return_data_offset)
+
         runner.verify_secure_runner()
         runner.relocate()
-        print(len(runner.trace_df))
 
         if coverage is not None:
             coverage(runner.trace_df, PROGRAM_BASE)
@@ -596,6 +617,52 @@ def run_rust_vm(
             logger.info(stats)
             stats.write_csv(output_stem.with_suffix(".csv"))
             marshal.dump(prof_dict, open(output_stem.with_suffix(".prof"), "wb"))
+
+        # For proof mode, output trace and memory files
+        # if request.config.getoption("proof_mode"):
+        # Call finalize_segments to ensure all segments are properly updated
+        # runner.finalize_segments()
+
+        # Write binary trace
+        # with open(output_stem.with_suffix(".trace"), "wb") as _:
+        # runner.write_binary_trace(str(output_stem.with_suffix(".trace").absolute()))
+
+        # # Write binary memory
+        # with open(output_stem.with_suffix(".memory"), "wb") as _:
+        #     # Get byte_size from prime bit length
+        #     byte_size = math.ceil(cairo_program.prime.bit_length() / 8)
+        #     runner.write_binary_memory(
+        #         str(output_stem.with_suffix(".memory").absolute()),
+        #         byte_size
+        #     )
+
+        # # Get range check limits
+        # rc_min, rc_max = runner.get_perm_range_check_limits()
+
+        # # Write air public input
+        # with open(output_stem.with_suffix(".air_public_input.json"), "w") as fp:
+        #     write_air_public_input(
+        #         layout=request.config.getoption("layout"),
+        #         public_input_file=fp,
+        #         memory=runner.relocated_memory,
+        #         public_memory_addresses=runner.get_public_memory_addresses(),
+        #         memory_segment_addresses=runner.get_memory_segment_addresses(),
+        #         trace=runner.relocated_trace,
+        #         rc_min=rc_min,
+        #         rc_max=rc_max,
+        #     )
+
+        # # Write air private input
+        # with open(output_stem.with_suffix(".air_private_input.json"), "w") as fp:
+        #     json.dump(
+        #         {
+        #             "trace_path": str(output_stem.with_suffix(".trace").absolute()),
+        #             "memory_path": str(output_stem.with_suffix(".memory").absolute()),
+        #             **runner.get_air_private_input(),
+        #         },
+        #         fp,
+        #         indent=4,
+        #     )
 
         final_output = None
         unfiltered_output = [
