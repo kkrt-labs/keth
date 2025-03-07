@@ -21,6 +21,7 @@ from ethereum.utils.numeric import (
     Uint_from_be_bytes,
     U256__eq__,
     U256_add,
+    U256_le,
     U256_add_with_carry,
     U256_min,
     U256_max,
@@ -67,15 +68,28 @@ func modexp{
     tempvar u256_thirty_two = U256(new U256Struct(32, 0));
     tempvar u256_sixty_four = U256(new U256Struct(64, 0));
     tempvar u256_ninety_six = U256(new U256Struct(96, 0));
+    tempvar u256_forty_eight = U256(new U256Struct(48, 0));
 
     let res = buffer_read(data, u256_zero, u256_thirty_two);
     let base_length = U256_from_be_bytes(res);
+    let base_length_too_big = U256_le(u256_forty_eight, base_length);
+    if (base_length_too_big.value != 0) {
+        raise('InputError');
+    }
 
     let res = buffer_read(data, u256_thirty_two, u256_thirty_two);
     let exp_length = U256_from_be_bytes(res);
+    let exp_length_too_big = U256_le(u256_thirty_one, exp_length);
+    if (exp_length_too_big.value != 0) {
+        raise('InputError');
+    }
 
     let res = buffer_read(data, u256_sixty_four, u256_thirty_two);
     let modulus_length = U256_from_be_bytes(res);
+    let modulus_length_too_big = U256_le(u256_forty_eight, modulus_length);
+    if (modulus_length_too_big.value != 0) {
+        raise('InputError');
+    }
 
     let exp_start = U256_add(u256_ninety_six, base_length);
 

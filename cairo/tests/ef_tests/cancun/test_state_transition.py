@@ -1,3 +1,4 @@
+import json
 from functools import partial
 from pathlib import Path
 from typing import Dict
@@ -85,11 +86,9 @@ BIG_MEMORY_TESTS = (
 
 
 # Modexp test that use exponent_head > 31 bytes
-SKIPPED_TESTS = (
-    "fork_Cancun-blockchain_test-EIP-198-case2",
-    "fork_Cancun-blockchain_test-EIP-198-case3-raw-input-out-of-gas",
-    "fork_Cancun-blockchain_test-EIP-198-case1",
-)
+with open(f"{Path().cwd()}/skip-ef-tests.json", "r") as f:
+    SKIPPED_TESTS = tuple(json.load(f))
+
 
 fetch_state_tests = partial(
     fetch_cancun_tests,
