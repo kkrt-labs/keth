@@ -327,7 +327,6 @@ func Uint_bit_length{range_check_ptr}(value: Uint) -> felt {
         return 0;
     }
 
-    // Use the hint to calculate bit length
     tempvar bit_length;
     %{ bit_length_hint %}
 
@@ -392,13 +391,11 @@ func U384_is_one(num: U384) -> felt {
 func U384_from_be_bytes{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(bytes: Bytes) -> U384 {
     alloc_locals;
 
-    // Verify that the bytes length is not greater than 48 (384 bits)
     with_attr error_message("ValueError") {
         assert [range_check_ptr] = 48 - bytes.value.len;
         let range_check_ptr = range_check_ptr + 1;
     }
 
-    // For empty input, return 0
     if (bytes.value.len == 0) {
         tempvar res = U384(new UInt384(d0=0, d1=0, d2=0, d3=0));
         return res;
