@@ -321,34 +321,28 @@ func extract_limb_bits{range_check_ptr}(limb: felt, bits_ptr: felt*, current_len
 }
 
 // Saturates at 2^128 - 1
+// This means words ** 2 <= 2**128 -1
+// words <= 2**64 - 1 hence
+// (max_length + 7) // 8 <= 2**64 - 1
+// max_length <= 8 * 2**64 - 15
+// max_length <= 2**67 - 15
 func complexity{range_check_ptr}(base_length: U256, modulus_length: U256) -> Uint {
     alloc_locals;
 
     let max_len = U256_max(base_length, modulus_length);
     tempvar seven_u256 = U256(new U256Struct(7, 0));
     let (words, overflow) = U256_add_with_carry(max_len, seven_u256);
-    if (overflow != 0) {
+
+    tempvar max_length = new Uint256(2 ** 67 - 14, 0);
+    let (words_too_big) = uint256_le([max_length], [words.value]);
+    if (overflow + words_too_big != 0) {
         let result = Uint(2 ** 128 - 1);
         return result;
     }
 
     tempvar eight_u256 = U256(new U256Struct(8, 0));
     let (quotient, _) = uint256_unsigned_div_rem([words.value], [eight_u256.value]);
-
-    if (quotient.high != 0) {
-        let result = Uint(2 ** 128 - 1);
-        return result;
-    }
-
-    // PRIME - 1
-    tempvar prime_u256 = new Uint256(0, 0x8000000000000011);
-    let (res, carry) = uint256_mul(quotient, quotient);
-    let (res_inf_prime) = uint256_le(res, [prime_u256]);
-    let (carry_is_zero) = uint256_eq(carry, Uint256(0, 0));
-    if (carry_is_zero + res_inf_prime != 2) {
-        let result = Uint(2 ** 128 - 1);
-        return result;
-    }
+    let (res, _) = uint256_mul(quotient, quotient);
 
     let res_felt = uint256_to_felt(res);
     let res_uint = Uint(res_felt);
