@@ -58,6 +58,7 @@ from functools import partial
 from typing import (
     Annotated,
     Any,
+    ClassVar,
     Dict,
     ForwardRef,
     List,
@@ -113,7 +114,7 @@ from ethereum_types.bytes import (
     Bytes32,
     Bytes256,
 )
-from ethereum_types.numeric import U64, U256, Uint
+from ethereum_types.numeric import U64, U256, FixedUnsigned, Uint, _max_value
 from starkware.cairo.common.dict import DictManager, DictTracker
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 from starkware.cairo.lang.compiler.ast.cairo_types import (
@@ -149,6 +150,23 @@ HASHED_TYPES = [
     Tuple[Bytes20, Bytes32],
     tuple[Bytes20, Bytes32],
 ]
+
+
+class U384(FixedUnsigned):
+    """
+    Unsigned integer, which can represent `0` to `2 ** 384 - 1`, inclusive.
+    """
+
+    MAX_VALUE: ClassVar["U384"]
+    """
+    Largest value that can be represented by this integer type.
+    """
+
+    def __init__(self, value) -> None:
+        super().__init__(value)
+
+
+U384.MAX_VALUE = _max_value(U384, 384)
 
 
 class Memory(bytearray):
@@ -476,6 +494,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("cairo_core", "numeric", "U256"): U256,
     ("cairo_core", "numeric", "SetUint"): Set[Uint],
     ("cairo_core", "numeric", "UnionUintU256"): Union[Uint, U256],
+    ("cairo_core", "numeric", "U384"): U384,
     ("cairo_core", "bytes", "Bytes0"): Bytes0,
     ("cairo_core", "bytes", "Bytes1"): Bytes1,
     ("cairo_core", "bytes", "Bytes4"): Bytes4,
@@ -943,6 +962,16 @@ def _gen_arg(
 
         if for_dict_key:
             return tuple(felt_values)
+
+        base = segments.add()
+        segments.load_data(base, felt_values)
+        return base
+
+    if arg_type is U384:
+        bytes_value = arg.to_le_bytes()
+        felt_values = [
+            int.from_bytes(bytes_value[i : i + 12], "little") for i in range(0, 48, 12)
+        ]
 
         base = segments.add()
         segments.load_data(base, felt_values)

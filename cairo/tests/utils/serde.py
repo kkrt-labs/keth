@@ -78,6 +78,7 @@ from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 from cairo_addons.testing.serde import SerdeProtocol
 from cairo_addons.vm import MemorySegmentManager as RustMemorySegmentManager
 from tests.utils.args_gen import (
+    U384,
     FlatState,
     FlatTransientStorage,
     Memory,
@@ -410,6 +411,17 @@ class Serde(SerdeProtocol):
                 return U256(value)
             return python_cls(value.to_bytes(32, "little"))
 
+        if python_cls == U384:
+            # U384 is represented as a struct with 4 fields: d0, d1, d2, d3
+            # Each field is a felt representing 96 bits
+            d0 = value["d0"]
+            d1 = value["d1"]
+            d2 = value["d2"]
+            d3 = value["d3"]
+
+            # Combine the fields to create the full 384-bit integer
+            combined_value = d0 + (d1 << 96) + (d2 << 192) + (d3 << 288)
+            return U384(combined_value)
         if python_cls in (Bytes0, Bytes1, Bytes4, Bytes8, Bytes20):
             return python_cls(value.to_bytes(python_cls.LENGTH, "little"))
 

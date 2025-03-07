@@ -44,7 +44,7 @@ from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 from starkware.cairo.lang.vm.memory_dict import MemoryDict
 from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 
-from tests.utils.args_gen import Memory, Stack, _cairo_struct_to_python_type
+from tests.utils.args_gen import U384, Memory, Stack, _cairo_struct_to_python_type
 from tests.utils.args_gen import gen_arg as _gen_arg
 from tests.utils.args_gen import to_cairo_type as _to_cairo_type
 from tests.utils.serde import Serde
@@ -284,6 +284,7 @@ class TestSerde:
             Trie[Bytes, Optional[Union[Bytes, Receipt]]],
             Trie[Bytes, Optional[Union[Bytes, Withdrawal]]],
             ApplyBodyOutput,
+            U384,
         ],
     ):
         assume(no_empty_sequence(b))
