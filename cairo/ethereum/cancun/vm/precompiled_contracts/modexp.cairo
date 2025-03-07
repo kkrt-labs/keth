@@ -237,79 +237,61 @@ func mod_exp_loop_inner{
 
 func get_u384_bits_little{range_check_ptr}(num: U384) -> (felt*, felt) {
     alloc_locals;
-
     let (bits_ptr) = alloc();
-    let bits_len = 0;
-
     // Process limb0 (d0)
-    let (bits_ptr_updated, bits_len_updated) = extract_limb_bits(num.value.d0, bits_ptr, bits_len);
-
+    let bits_len = extract_limb_bits(num.value.d0, bits_ptr, 0);
     // Process limb1 (d1)
     let limb1_not_zero = is_not_zero(num.value.d1);
     if (limb1_not_zero != 0) {
         // Use memset to pad with zeros until we reach 96 bits if needed
         let bits_len_padded = 96;
-        memset(bits_ptr_updated + bits_len_updated, 0, bits_len_padded - bits_len_updated);
-        let (bits_ptr_updated_1, bits_len_updated_1) = extract_limb_bits(
-            num.value.d1, bits_ptr_updated, bits_len_padded
-        );
-        tempvar bits_ptr_after_limb1 = bits_ptr_updated_1;
-        tempvar bits_len_after_limb1 = bits_len_updated_1;
+        memset(bits_ptr + bits_len, 0, bits_len_padded - bits_len);
+        let bits_len_updated = extract_limb_bits(num.value.d1, bits_ptr, bits_len_padded);
+        tempvar bits_ptr = bits_ptr;
+        tempvar bits_len = bits_len_updated;
         tempvar range_check_ptr = range_check_ptr;
     } else {
-        tempvar bits_ptr_after_limb1 = bits_ptr_updated;
-        tempvar bits_len_after_limb1 = bits_len_updated;
+        tempvar bits_ptr = bits_ptr;
+        tempvar bits_len = bits_len;
         tempvar range_check_ptr = range_check_ptr;
     }
-
     // Process limb2 (d2)
     let limb2_not_zero = is_not_zero(num.value.d2);
-    tempvar bits_ptr_after_limb1 = bits_ptr_after_limb1;
+    tempvar bits_ptr = bits_ptr;
     tempvar range_check_ptr = range_check_ptr;
     if (limb2_not_zero != 0) {
         // Use memset to pad with zeros until we reach 192 bits if needed
         let bits_len_padded = 192;
-        memset(
-            bits_ptr_after_limb1 + bits_len_after_limb1, 0, bits_len_padded - bits_len_after_limb1
-        );
-        let (bits_ptr_updated_2, bits_len_updated_2) = extract_limb_bits(
-            num.value.d2, bits_ptr_after_limb1, bits_len_padded
-        );
-        tempvar bits_ptr_after_limb2 = bits_ptr_updated_2;
-        tempvar bits_len_after_limb2 = bits_len_updated_2;
+        memset(bits_ptr + bits_len, 0, bits_len_padded - bits_len);
+        let bits_len_updated = extract_limb_bits(num.value.d2, bits_ptr, bits_len_padded);
+        tempvar bits_ptr = bits_ptr;
+        tempvar bits_len = bits_len_updated;
         tempvar range_check_ptr = range_check_ptr;
     } else {
-        tempvar bits_ptr_after_limb2 = bits_ptr_after_limb1;
-        tempvar bits_len_after_limb2 = bits_len_after_limb1;
+        tempvar bits_ptr = bits_ptr;
+        tempvar bits_len = bits_len;
         tempvar range_check_ptr = range_check_ptr;
     }
-
     // Process limb3 (d3)
     let limb3_not_zero = is_not_zero(num.value.d3);
-    tempvar bits_ptr_after_limb2 = bits_ptr_after_limb2;
+    tempvar bits_ptr = bits_ptr;
     tempvar range_check_ptr = range_check_ptr;
     if (limb3_not_zero != 0) {
         // Use memset to pad with zeros until we reach 288 bits if needed
         let bits_len_padded = 288;
-        memset(
-            bits_ptr_after_limb2 + bits_len_after_limb2, 0, bits_len_padded - bits_len_after_limb2
-        );
-        let (bits_ptr_updated_3, bits_len_updated_3) = extract_limb_bits(
-            num.value.d3, bits_ptr_after_limb2, bits_len_padded
-        );
-        return (bits_ptr_updated_3, bits_len_updated_3);
+        memset(bits_ptr + bits_len, 0, bits_len_padded - bits_len);
+        let bits_len_updated = extract_limb_bits(num.value.d3, bits_ptr, bits_len_padded);
+        return (bits_ptr, bits_len_updated);
     } else {
-        return (bits_ptr_after_limb2, bits_len_after_limb2);
+        return (bits_ptr, bits_len);
     }
 }
 
-func extract_limb_bits{range_check_ptr}(limb: felt, bits_ptr: felt*, current_len: felt) -> (
-    felt*, felt
-) {
+func extract_limb_bits{range_check_ptr}(limb: felt, bits_ptr: felt*, current_len: felt) -> felt {
     // Check if limb is zero
     let is_limb_zero = is_zero(limb);
     if (is_limb_zero == 1) {
-        return (bits_ptr, current_len);
+        return current_len;
     }
 
     // Extract the least significant bit
