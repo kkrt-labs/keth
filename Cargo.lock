@@ -623,6 +623,7 @@ dependencies = [
 [[package]]
 name = "cairo-vm"
 version = "2.0.0"
+source = "git+https://github.com/kkrt-labs/cairo-vm?rev=af22b7189f3ebf0f225711d58be133d217b0a3d8#af22b7189f3ebf0f225711d58be133d217b0a3d8"
 dependencies = [
  "anyhow",
  "arbitrary",
