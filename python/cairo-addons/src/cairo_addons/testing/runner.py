@@ -50,6 +50,7 @@ from starkware.cairo.lang.vm.security import verify_secure_runner
 from starkware.cairo.lang.vm.utils import RunResources
 from starkware.cairo.lang.vm.vm import VirtualMachine
 
+from cairo_addons.hints.injected import prepare_context
 from cairo_addons.profiler import profile_from_trace
 from cairo_addons.testing.errors import map_to_python_exception
 from cairo_addons.testing.hints import debug_info, oracle
@@ -175,17 +176,20 @@ def run_python_vm(
     static_locals: Optional[dict] = None,
     coverage: Optional[Callable[[pl.DataFrame, int], pl.DataFrame]] = None,
 ):
-    """Helper function containing Python VM implementation"""
-    from cairo_addons.hints.injected import prepare_context
-
     def _run(entrypoint, *args, **kwargs):
+        # ============================================================================
+        # STEP 1: SELECT PROGRAM AND PREPARE ENTRYPOINT METADATA
+        # - Rationale: We need to determine which program contains the entrypoint (main or test)
+        #   and extract its argument/return type metadata for type conversion and execution.
+        #   We also inject the proper-mode jmp rel 0 instruction to enable looping in proof mode,
+        #   as well as overwrite the program's required builtins with those of the entrypoint.
+        # ============================================================================
         cairo_program = cairo_programs[0]
         cairo_file = cairo_files[0]
         main_path = main_paths[0]
         try:
             cairo_program.get_label(entrypoint)
         except Exception:
-            # Entrypoint not found - try test program
             cairo_program = cairo_programs[1]
             cairo_file = cairo_files[1]
             main_path = main_paths[1]
@@ -194,9 +198,14 @@ def run_python_vm(
             cairo_program, entrypoint, main_path, to_python_type
         )
 
-        # Add a jmp rel 0 instruction to be able to loop in proof mode and avoid the proof-mode at compile time
+        # ============================================================================
+        # STEP 2: INITIALIZE RUNNER AND MEMORY ENVIRONMENT
+        # - Rationale: Set up the CairoRunner with the program, layout, and memory.
+        # We append a "jmp rel 0" instruction to enable looping at the end of the program, so that when ran in proof mode,
+        # the number of executed steps can always be a power of two.
+        # ============================================================================
         proof_mode = request.config.getoption("proof_mode")
-        cairo_program.data = cairo_program.data + [0x10780017FFF7FFF, 0]
+        cairo_program.data = cairo_program.data + [0x10780017FFF7FFF, 0]  # jmp rel 0
         memory = MemoryDict()
         runner = CairoRunner(
             program=cairo_program,
@@ -209,28 +218,28 @@ def run_python_vm(
         serde = serde_cls(
             runner.segments, cairo_program.identifiers, dict_manager, cairo_file
         )
-
         runner.program_base = runner.segments.add()
         runner.execution_base = runner.segments.add()
         for builtin_runner in runner.builtin_runners.values():
             builtin_runner.initialize_segments(runner)
 
-        add_output = False
+        # ============================================================================
+        # STEP 3: BUILD INITIAL STACK WITH BUILTINS AND ARGUMENTS
+        # - Rationale: Construct the stack with unused builtins (in proof mode - all builtins of the
+        #   layout must be present) and all input arguments (implicit and explicit). This prepares the
+        #   VM's execution context.
+        # ============================================================================
         stack = []
-
-        # If we're in proof mode, all builtins are enabled by default. However, we don't use them in the entrypoint, nor do we return them at the end of the execution.
-        # Because they're unused, we can simply put them in the stack (no impact on program execution), which is dumped into the execution public memory.
-        # Note: if we tried to pass an included builtin here, it would fail, because we would try to access ptr-1 which is an invalid address. (see final_stack)
-        # https://github.com/starkware-libs/cairo-lang/blob/8e11b8cc65ae1d0959328b1b4a40b92df8b58595/src/starkware/cairo/lang/vm/cairo_runner.py#L182-L186
+        add_output = False
         if proof_mode:
             missing_builtins = [
                 v for v in runner.builtin_runners.values() if not v.included
             ]
             for builtin_runner in missing_builtins:
+                # The builtin will never be used; so we can call final_stack here. This just returns the base pointer.
                 builtin_runner.final_stack(runner, builtin_runner.base)
                 stack.append(builtin_runner.base)
 
-        # Handle builtins
         for builtin_arg in _builtins:
             builtin_runner = runner.builtin_runners.get(
                 builtin_arg.replace("_ptr", "_builtin")
@@ -242,7 +251,6 @@ def run_python_vm(
             if add_output:
                 output_ptr = stack[-1]
 
-        # Handle other args, (implicit, explicit)
         gen_arg = (
             gen_arg_builder(dict_manager, runner.segments)
             if gen_arg_builder is not None
@@ -258,32 +266,45 @@ def run_python_vm(
             else:
                 arg_value = kwargs[arg_name] if arg_name in kwargs else args[i]
                 stack.append(gen_arg(python_type, arg_value))
+
+        # ============================================================================
+        # STEP 4: SET UP EXECUTION CONTEXT AND LOAD MEMORY
+        # - Rationale: Finalize the stack with return pointers, set initial VM registers,
+        #   and load program/data into memory to start execution.
+        # - Add the dummy last fp and pc to the public memory, so that the verifier can enforce
+        #   [fp - 2] = fp.
+        # ============================================================================
         return_fp = runner.execution_base + 2
-        # Return to the jmp rel 0 instruction added previously
-        # - 2 because we added 2 instructions at the beginning of the program
-        end = runner.program_base + len(runner.program.data) - 2
-        print(f"end: {end}")
-        # Proof mode expects the program to start with __start__ and call main
-        # Adding [return_fp, end] before and after the stack makes this work both in proof mode and normal mode
+        end = runner.program_base + len(runner.program.data) - 2  # Points to jmp rel 0
         stack = [return_fp, end] + stack + [return_fp, end]
-        print(f"stack: {stack}")
-        runner.execution_public_memory = list(range(len(stack)))
-
-        runner.initial_pc = runner.program_base + cairo_program.get_label(entrypoint)
-        runner.load_data(runner.program_base, runner.program.data)
-        runner.load_data(runner.execution_base, stack)
-        runner.initial_fp = runner.initial_ap = runner.execution_base + len(stack)
+        runner.execution_public_memory = list(
+            range(len(stack))
+        )  # All elements of the input stack are added to the execution public memory - required for proof mode
+        runner.initial_pc = runner.program_base + cairo_program.get_label(
+            entrypoint
+        )  # Start the run at the offset of the entrypoint
+        runner.load_data(
+            runner.program_base, runner.program.data
+        )  # Load the program into memory
+        runner.load_data(runner.execution_base, stack)  # Load the stack into memory
+        runner.initial_fp = runner.initial_ap = runner.execution_base + len(
+            stack
+        )  # Set the initial frame pointer and argument pointer to the end of the stack
         runner.initialize_zero_segment()
-
+        print(f"end: {end}")
+        print(f"stack: {stack}")
         print(
             f"initial ap, pc, fp: {runner.initial_ap}, {runner.initial_pc}, {runner.initial_fp}"
         )
         print(f"final pc: {runner.final_pc}")
 
-        # Initialize hint environment with injected functions, like in Rust (logger, serialize)
+        # ============================================================================
+        # STEP 5: CONFIGURE VM AND EXECUTE PROGRAM
+        # - Rationale: Initialize the VM with hints, set execution limits, and run until the
+        #   end address. Catch exceptions for debugging or coverage analysis.
+        # ============================================================================
         context = {}
         prepare_context(lambda: context)
-
         runner.initialize_vm(
             hint_locals={
                 "program_input": kwargs,
@@ -312,19 +333,14 @@ def run_python_vm(
         if not isinstance(runner.vm, VirtualMachine):
             raise ValueError("VM is not a VirtualMachine")
 
-        # Get max_steps from pytest mark if available, otherwise use default
         max_steps = 1_000_000_000
         if hasattr(
             request.node, "get_closest_marker"
         ) and request.node.get_closest_marker("max_steps"):
             max_steps = request.node.get_closest_marker("max_steps").args[0]
-
         run_resources = RunResources(n_steps=max_steps)
         try:
             runner.run_until_pc(end, run_resources)
-            if proof_mode:
-                runner.run_for_steps(1)
-            runner.original_steps = runner.vm.current_step
         except Exception as e:
             runner.end_run(disable_trace_padding=False)
             runner.relocate()
@@ -335,6 +351,12 @@ def run_python_vm(
                 coverage(trace, PROGRAM_BASE)
             map_to_python_exception(e)
 
+        # ============================================================================
+        # STEP 6: PROCESS RETURN VALUES AND FINALIZE EXECUTION
+        # - `end_run`: relocates all memory segments and ensures that in proof mode, the number of executed steps is a power of two
+        # - Once the run is over, we extract return data using serde, update the public memory in proof mode by adding the return data offsets to the public memory
+        #   and performs secutiry checks
+        # ============================================================================
         runner.end_run(disable_trace_padding=False)
         cumulative_retdata_offsets = serde.get_offsets(return_data_types)
         first_return_data_offset = (
@@ -343,16 +365,16 @@ def run_python_vm(
         if not isinstance(first_return_data_offset, int):
             raise ValueError("First return data offset is not an int")
 
-        pointer = runner.vm.run_context.ap - first_return_data_offset  # First builtin
-
+        # Pointer to the firsst "builtin" - which are not considered as part of the return data
+        pointer = runner.vm.run_context.ap - first_return_data_offset
         for arg in _builtins[::-1]:
             builtin_runner = runner.builtin_runners.get(arg.replace("_ptr", "_builtin"))
-            if builtin_runner is not None:
+            if builtin_runner:
                 pointer = builtin_runner.final_stack(runner, pointer)
             else:
                 pointer -= 1
 
-        if request.config.getoption("proof_mode"):
+        if proof_mode:
             runner.execution_public_memory += list(
                 range(
                     pointer.offset,
@@ -360,15 +382,18 @@ def run_python_vm(
                 )
             )
             runner.finalize_segments()
-
         verify_secure_runner(runner)
         runner.relocate()
 
+        # ============================================================================
+        # STEP 7: GENERATE OUTPUT FILES AND TRACE (IF REQUESTED)
+        # ============================================================================
         trace = pl.DataFrame(
             [{"pc": x.pc, "ap": x.ap, "fp": x.fp} for x in runner.relocated_trace]
         )
         if coverage is not None:
             coverage(trace, PROGRAM_BASE)
+
         # Create a unique output stem for the given test by using the test file name, the entrypoint and the kwargs
         displayed_args = ""
         if kwargs:
@@ -385,32 +410,27 @@ def run_python_vm(
         output_stem = Path(
             f"{output_stem[:160]}_{int(time_ns())}_{md5(output_stem.encode()).digest().hex()[:8]}"
         )
+
         if request.config.getoption("profile_cairo"):
             stats, prof_dict = profile_from_trace(
                 program=cairo_program, trace=trace, program_base=PROGRAM_BASE
             )
             stats = stats[
-                "scope",
-                "primitive_call",
-                "total_call",
-                "total_cost",
-                "cumulative_cost",
+                "scope", "primitive_call", "total_call", "total_cost", "cumulative_cost"
             ].sort("cumulative_cost", descending=True)
             logger.info(stats)
             stats.write_csv(output_stem.with_suffix(".csv"))
             marshal.dump(prof_dict, open(output_stem.with_suffix(".prof"), "wb"))
 
-        if request.config.getoption("proof_mode"):
+        if proof_mode:
             with open(output_stem.with_suffix(".trace"), "wb") as fp:
                 write_binary_trace(fp, runner.relocated_trace)
-
             with open(output_stem.with_suffix(".memory"), "wb") as fp:
                 write_binary_memory(
                     fp,
                     runner.relocated_memory,
                     math.ceil(cairo_program.prime.bit_length() / 8),
                 )
-
             rc_min, rc_max = runner.get_perm_range_check_limits()
             with open(output_stem.with_suffix(".air_public_input.json"), "w") as fp:
                 write_air_public_input(
@@ -438,10 +458,13 @@ def run_python_vm(
                     indent=4,
                 )
 
-        final_output = None
-        if add_output:
-            final_output = serde.serialize_list(output_ptr)
-
+        # ============================================================================
+        # STEP 8: SERIALIZE AND RETURN OUTPUT
+        #   For test purposes.
+        # - Rationale: Convert Cairo return values to Python types, handle exceptions,
+        #   and format the final output for the caller.
+        # ============================================================================
+        final_output = serde.serialize_list(output_ptr) if add_output else None
         unfiltered_output = [
             serde.serialize(return_data_type, runner.vm.run_context.ap, offset)
             for offset, return_data_type in zip(
