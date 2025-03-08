@@ -35,7 +35,7 @@ func to_address{range_check_ptr}(data: UnionUintU256) -> Address {
         return address;
     }
 
-    with_attr error_message("Type not valid") {
+    with_attr error_message("Invalid type") {
         jmp raise.raise_label;
     }
 }
