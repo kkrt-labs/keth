@@ -3,8 +3,7 @@ use super::{
 };
 use crate::vm::{
     layout::PyLayout, maybe_relocatable::PyMaybeRelocatable, program::PyProgram,
-    relocatable::PyRelocatable, relocated_trace::PyRelocatedTraceEntry,
-    run_resources::PyRunResources,
+    relocatable::PyRelocatable, run_resources::PyRunResources,
 };
 use bincode::enc::write::Writer;
 use cairo_vm::{
@@ -146,7 +145,9 @@ except Exception as e:
         })
     }
 
-    /// Initialize the runner program_base, execution_base and builtins segments.
+    /// Initializes the runner's segments, including program_base, execution_base, and all builtins.
+    /// In proof mode, this initializes all builtins of the layout, even those not used by the
+    /// program.
     pub fn initialize_segments(&mut self) -> PyResult<()> {
         // Note: in proof mode, this initializes __all__ builtins of the layout.
         self.inner
@@ -157,53 +158,9 @@ except Exception as e:
         Ok(())
     }
 
-    /// Initialize the runner with the given stack and entrypoint offset.
-    #[pyo3(signature = (stack, entrypoint))]
-    pub fn initialize_vm(
-        &mut self,
-        stack: Vec<PyMaybeRelocatable>,
-        entrypoint: usize,
-    ) -> PyResult<()> {
-        // let stack: Vec<MaybeRelocatable> = stack.into_iter().map(|x| x.into()).collect();
-
-        // // canonical offset for proof mode in cairo 0
-        // let target_offset: usize = 2;
-        // let execution_base = self
-        //     .inner
-        //     .execution_base
-        //     .ok_or(RunnerError::NoExecBase)
-        //     .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
-        // let return_fp = (execution_base + target_offset).unwrap();
-        // let end = ((self.inner.program_base.unwrap() +
-        //     self.inner.get_program().shared_program_data.data.len())
-        // .unwrap() -
-        //     target_offset)
-        //     .unwrap();
-
-        // let mut stack_with_prefix: Vec<MaybeRelocatable> =
-        //     vec![return_fp.clone().into(), end.into()];
-        // stack_with_prefix.extend(stack);
-        // stack_with_prefix.extend(vec![return_fp.clone().into(), end.into()]);
-        // self.inner.execution_public_memory = Some(Vec::from_iter(0..stack_with_prefix.len()));
-
-        // self.inner.initial_pc = Some((self.inner.program_base.unwrap() + entrypoint).unwrap());
-        // let program = self.inner.get_program().shared_program_data.data.clone();
-        // self.inner
-        //     .vm
-        //     .load_data(self.inner.program_base.unwrap(), &program)
-        //     .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
-        // // // Mark all addresses from the program segment as accessed
-        // // for i in 0..self.inner.get_program().shared_program_data.data.len() {
-        // //     self.inner.vm.segments.memory.mark_as_accessed((self.inner.program_base.unwrap() +
-        // // i).unwrap()); }
-        // self.inner
-        //     .vm
-        //     .load_data(self.inner.execution_base.unwrap(), &stack_with_prefix)
-        //     .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
-
-        // self.inner.initial_fp = Some((execution_base + stack_with_prefix.len()).unwrap());
-        // self.inner.initial_ap = self.inner.initial_fp;
-
+    /// Initializes the VM, preparing it for execution.
+    /// Sets up the zero segment for modulo operations and initializes the VM's internal state.
+    pub fn initialize_vm(&mut self) -> PyResult<()> {
         for builtin_runner in self.inner.vm.builtin_runners.iter_mut() {
             if let BuiltinRunner::Mod(runner) = builtin_runner {
                 runner.initialize_zero_segment(&mut self.inner.vm.segments);
@@ -281,6 +238,11 @@ except Exception as e:
         PyMemorySegmentManager { vm: &mut self.inner.vm }
     }
 
+    /// Loads data into memory at the specified base address.
+    ///
+    /// # Arguments
+    /// * `base` - The base address where data will be loaded
+    /// * `data` - The data to load into memory
     fn load_data(&mut self, base: PyRelocatable, data: Vec<PyMaybeRelocatable>) -> PyResult<()> {
         let data: Vec<MaybeRelocatable> = data.into_iter().map(|x| x.into()).collect();
         self.inner
@@ -290,6 +252,8 @@ except Exception as e:
         Ok(())
     }
 
+    /// Loads the program data into memory at the specified base address.
+    /// Uses a raw pointer to avoid borrow checker issues with the program data.
     fn load_program_data(&mut self, base: PyRelocatable) -> PyResult<()> {
         // Avoid borrow-checker issues by using a raw pointer to the data.
         let program = self.inner.get_program();
@@ -308,11 +272,6 @@ except Exception as e:
     }
 
     #[getter]
-    fn program(&self) -> PyResult<PyProgram> {
-        Ok(PyProgram { inner: self.inner.get_program().clone() })
-    }
-
-    #[getter]
     fn dict_manager(&self) -> PyResult<PyDictManager> {
         let dict_manager = self
             .inner
@@ -321,6 +280,10 @@ except Exception as e:
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
         Ok(PyDictManager { inner: dict_manager })
     }
+
+    /// Returns a dictionary of builtin runners with their state information.
+    /// For each builtin, includes whether it's included in the program, its base address,
+    /// name, initial stack, and final stack (for unused builtins).
     #[getter]
     fn builtin_runners(&mut self) -> PyResult<PyObject> {
         let ap = self.inner.vm.get_ap();
@@ -358,7 +321,16 @@ except Exception as e:
         })
     }
 
-    // Existing run_until_pc (unchanged)
+    /// Runs the VM until the program counter reaches the specified address.
+    ///
+    /// # Arguments
+    /// * `address` - The target address to run until
+    /// * `resources` - Resources limiting the execution (e.g., max steps)
+    ///
+    /// Uses our own hint processor to handle Cairo hints during execution.
+    /// This hint processor can support pythonic hints execution (if enabled).
+    /// Ends the run after reaching the target address. If in proof mode this will loop on `jmp rel
+    /// 0` until the steps is a power of 2.
     #[pyo3(signature = (address, resources))]
     fn run_until_pc(&mut self, address: PyRelocatable, resources: PyRunResources) -> PyResult<()> {
         let mut hint_processor = if self.enable_pythonic_hints {
@@ -379,7 +351,6 @@ except Exception as e:
         Ok(())
     }
 
-    // New methods for post-run processing
     fn verify_auto_deductions(&mut self) -> PyResult<()> {
         self.inner
             .vm
@@ -388,6 +359,8 @@ except Exception as e:
         Ok(())
     }
 
+    /// Reads return values from the stack, starting at the specified offset from ap.
+    /// Processes builtin pointers in reverse order to construct the final return value.
     fn read_return_values(&mut self, offset: usize) -> PyResult<PyRelocatable> {
         let pointer = self._read_return_values(offset)?;
         Ok(PyRelocatable { inner: pointer })
@@ -399,6 +372,8 @@ except Exception as e:
         Ok(())
     }
 
+    /// Relocates all memory segments to their final positions.
+    /// This is required after execution to get the final memory layout.
     fn relocate(&mut self) -> PyResult<()> {
         self.inner
             .relocate(true)
@@ -406,18 +381,8 @@ except Exception as e:
         Ok(())
     }
 
-    #[getter]
-    fn relocated_trace(&self) -> PyResult<Vec<PyRelocatedTraceEntry>> {
-        Ok(self
-            .inner
-            .relocated_trace
-            .clone()
-            .unwrap_or_default()
-            .into_iter()
-            .map(PyRelocatedTraceEntry::from)
-            .collect())
-    }
-
+    /// Returns the execution trace as a Polars DataFrame.
+    /// The DataFrame contains columns for pc, ap, and fp values at each step.
     #[getter]
     fn trace_df(&self) -> PyResult<PyDataFrame> {
         let relocated_trace = self.inner.relocated_trace.clone().unwrap_or_default();
@@ -442,6 +407,13 @@ except Exception as e:
         PyRelocatable { inner: self.inner.vm.get_ap() }
     }
 
+    /// Updates the execution public memory with return data offsets.
+    ///
+    /// # Arguments
+    /// * `pointer` - The pointer to the return data
+    /// * `first_return_data_offset` - The offset of the first return data value
+    ///
+    /// This is required for proof mode to include return values in the public memory.
     #[pyo3(signature = (pointer, first_return_data_offset))]
     fn update_execution_public_memory(
         &mut self,
@@ -473,10 +445,8 @@ except Exception as e:
         Ok(())
     }
 
-    // def write_binary_trace(trace_file: IO[bytes], trace: List[TraceEntry[int]]):
-    // for trace_entry in trace:
-    //     trace_file.write(trace_entry.serialize())
-    // trace_file.flush()
+    /// Writes the execution trace to a binary file.
+    /// Used in proof mode to generate input for the prover.
     fn write_binary_trace(&self, file_path: String) -> PyResult<()> {
         if let Some(trace_entries) = &self.inner.relocated_trace {
             let trace_file = std::fs::File::create(file_path)?;
@@ -491,6 +461,8 @@ except Exception as e:
         }
     }
 
+    /// Writes the memory contents to a binary file.
+    /// Used in proof mode to generate input for the prover.
     fn write_binary_memory(&self, file_path: String, capacity: usize) -> PyResult<()> {
         let memory_file = std::fs::File::create(file_path)?;
         let mut memory_writer =
@@ -504,6 +476,8 @@ except Exception as e:
         Ok(())
     }
 
+    /// Writes the AIR public input to a JSON file.
+    /// Contains public information needed for proof verification.
     fn write_binary_air_public_input(&self, file_path: String) -> PyResult<()> {
         let json = self
             .inner
@@ -516,13 +490,20 @@ except Exception as e:
         Ok(())
     }
 
+    /// Writes the AIR private input to a JSON file.
+    ///
+    /// # Arguments
+    /// * `trace_path` - Path to the trace file
+    /// * `memory_path` - Path to the memory file
+    /// * `file_path` - Path where the AIR private input will be written
+    ///
+    /// Contains private information needed for proof generation.
     fn write_binary_air_private_input(
         &self,
         trace_path: PathBuf,
         memory_path: PathBuf,
         file_path: String,
     ) -> PyResult<()> {
-        // Get absolute paths of trace_file & memory_file
         let trace_path = trace_path
             .as_path()
             .canonicalize()
@@ -546,64 +527,11 @@ except Exception as e:
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyIOError, _>(e.to_string()))?;
         Ok(())
     }
-
-    // fn get_perm_range_check_limits(&self) -> PyResult<(i128, i128)> {
-    //     let (rc_min, rc_max) = self
-    //         .inner
-    //         .get_perm_range_check_limits()
-    //         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
-    //     Ok((rc_min, rc_max))
-    // }
-
-    // #[getter]
-    // fn relocated_memory(&self) -> PyResult<HashMap<usize, PyMaybeRelocatable>> {
-    //     let memory = self.inner.relocated_memory.as_ref().ok_or_else(|| {
-    //         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>("No relocated memory available")
-    //     })?;
-    //     let result =
-    //         memory.iter().map(|(k, v)| (k.clone(),
-    // PyMaybeRelocatable::from(v.clone()))).collect();     Ok(result)
-    // }
-
-    // fn get_public_memory_addresses(&self) -> PyResult<Vec<usize>> {
-    //     let offsets = self
-    //         .inner
-    //         .get_segment_offsets()
-    //         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
-    //     let addresses = self
-    //         .inner
-    //         .segments
-    //         .get_public_memory_addresses(&offsets)
-    //         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
-    //     Ok(addresses)
-    // }
-
-    // fn get_memory_segment_addresses(&self) -> PyResult<HashMap<usize, (usize, usize)>> {
-    //     let addresses = self
-    //         .inner
-    //         .get_memory_segment_addresses()
-    //         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
-    //     Ok(addresses)
-    // }
-
-    // fn get_air_private_input(&self) -> PyResult<HashMap<String, PyObject>> {
-    //     let private_input = self
-    //         .inner
-    //         .get_air_private_input()
-    //         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
-    //     Python::with_gil(|py| {
-    //         let dict = PyDict::new(py);
-    //         for (k, v) in private_input.into_iter() {
-    //             dict.set_item(k, v.to_object(py))?;
-    //         }
-    //         Ok(dict.into())
-    //     })
-    // }
 }
 
 impl PyCairoRunner {
-    /// Mainly like `CairoRunner::read_return_values` but with an `offset` parameter and some checks
-    /// that I needed to remove.
+    /// Internal implementation of read_return_values with additional checks.
+    /// Processes builtin pointers in reverse order and handles missing builtins.
     fn _read_return_values(&mut self, offset: usize) -> PyResult<Relocatable> {
         let mut pointer = (self.inner.vm.get_ap() - offset).unwrap();
         for builtin_name in self.builtins.iter().rev() {

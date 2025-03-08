@@ -56,10 +56,5 @@ cairo-vm = { git = "https://github.com/lambdaclass/cairo-vm.git", tag = "v2.0.0-
   "mod_builtin",
 ] }
 
-# cairo-vm = { path = "../../deps/cairo-vm/vm", features = [
-#   "test_utils",
-#   "mod_builtin",
-# ] }
-
 [patch."https://github.com/lambdaclass/cairo-vm.git"]
 cairo-vm = { git = "https://github.com/kkrt-labs/cairo-vm", rev = "af22b7189f3ebf0f225711d58be133d217b0a3d8" }

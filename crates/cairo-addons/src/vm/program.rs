@@ -7,8 +7,6 @@ use pyo3::prelude::*;
 
 use crate::vm::builtins::PyBuiltinList;
 
-use super::maybe_relocatable::PyMaybeRelocatable;
-
 #[pyclass(name = "Program")]
 pub struct PyProgram {
     pub(crate) inner: RustProgram,
@@ -45,15 +43,5 @@ impl PyProgram {
             .into_builtin_names()
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
         Ok(())
-    }
-
-    #[getter]
-    fn data_length(&self) -> usize {
-        self.inner.shared_program_data.data.len()
-    }
-
-    #[getter]
-    fn data(&self) -> Vec<PyMaybeRelocatable> {
-        self.inner.shared_program_data.data.iter().map(|x| x.clone().into()).collect()
     }
 }

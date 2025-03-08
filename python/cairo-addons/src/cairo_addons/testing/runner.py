@@ -291,14 +291,6 @@ def run_python_vm(
             stack
         )  # Set the initial frame pointer and argument pointer to the end of the stack
         runner.initialize_zero_segment()
-        # Print all attributes of runner
-        print(f"stack: {stack}")
-        print(f"runner.initial_pc: {runner.initial_pc}")
-        print(f"runner.initial_ap: {runner.initial_ap}")
-        print(f"runner.initial_fp: {runner.initial_fp}")
-        print(f"runner.program_base: {runner.program_base}")
-        print(f"runner.execution_base: {runner.execution_base}")
-        print(f"end: {end}")
 
         # ============================================================================
         # STEP 5: CONFIGURE VM AND EXECUTE PROGRAM
@@ -618,23 +610,12 @@ def run_rust_vm(
             entrypoint
         )  # Start the run at the offset of the entrypoint
         runner.load_program_data(runner.program_base)  # Load the program into memory
-        # runner.load_data(runner.program_base, cairo_program.data)  # Load the stack into memory
         runner.load_data(runner.execution_base, stack)  # Load the stack into memory
         runner.initial_fp = runner.initial_ap = runner.execution_base + len(
             stack
         )  # Set the initial frame pointer and argument pointer to the end of the stack
 
-        runner.initialize_vm(stack, cairo_program.get_label(entrypoint))
-        # runner.initialize_zero_segment()
-
-        # Print all attributes of runner
-        print(f"stack: {stack}")
-        print(f"runner.initial_pc: {runner.initial_pc}")
-        print(f"runner.initial_ap: {runner.initial_ap}")
-        print(f"runner.initial_fp: {runner.initial_fp}")
-        print(f"runner.program_base: {runner.program_base}")
-        print(f"runner.execution_base: {runner.execution_base}")
-        print(f"end: {end}")
+        runner.initialize_vm()
 
         # ============================================================================
         # STEP 5: CONFIGURE VM AND EXECUTE PROGRAM
@@ -673,6 +654,7 @@ def run_rust_vm(
         if proof_mode:
             runner.update_execution_public_memory(pointer, first_return_data_offset)
             runner.finalize_segments()
+
         runner.verify_secure_runner()
         runner.relocate()
 
