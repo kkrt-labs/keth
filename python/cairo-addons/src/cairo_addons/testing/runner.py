@@ -181,8 +181,6 @@ def run_python_vm(
         # STEP 1: SELECT PROGRAM AND PREPARE ENTRYPOINT METADATA
         # - Rationale: We need to determine which program contains the entrypoint (main or test)
         #   and extract its argument/return type metadata for type conversion and execution.
-        #   We also inject the proper-mode jmp rel 0 instruction to enable looping in proof mode,
-        #   as well as overwrite the program's required builtins with those of the entrypoint.
         # ============================================================================
         cairo_program = cairo_programs[0]
         cairo_file = cairo_files[0]
@@ -230,7 +228,6 @@ def run_python_vm(
         #   VM's execution context.
         # ============================================================================
         stack = []
-        add_output = False
         if proof_mode:
             missing_builtins = [
                 v for v in runner.builtin_runners.values() if not v.included
@@ -247,9 +244,6 @@ def run_python_vm(
             if builtin_runner is None:
                 raise ValueError(f"Builtin runner {builtin_arg} not found")
             stack.extend(builtin_runner.initial_stack())
-            add_output = "output" in builtin_arg
-            if add_output:
-                output_ptr = stack[-1]
 
         gen_arg = (
             gen_arg_builder(dict_manager, runner.segments)
@@ -259,13 +253,8 @@ def run_python_vm(
         for i, (arg_name, python_type) in enumerate(
             [(k, v["python_type"]) for k, v in {**_implicit_args, **_args}.items()]
         ):
-            if arg_name == "output_ptr":
-                add_output = True
-                output_ptr = runner.segments.add()
-                stack.append(output_ptr)
-            else:
-                arg_value = kwargs[arg_name] if arg_name in kwargs else args[i]
-                stack.append(gen_arg(python_type, arg_value))
+            arg_value = kwargs[arg_name] if arg_name in kwargs else args[i]
+            stack.append(gen_arg(python_type, arg_value))
 
         # ============================================================================
         # STEP 4: SET UP EXECUTION CONTEXT AND LOAD MEMORY
@@ -277,19 +266,15 @@ def run_python_vm(
         return_fp = runner.execution_base + 2
         end = runner.program_base + len(runner.program.data) - 2  # Points to jmp rel 0
         stack = [return_fp, end] + stack + [return_fp, end]
-        runner.execution_public_memory = list(
-            range(len(stack))
-        )  # All elements of the input stack are added to the execution public memory - required for proof mode
-        runner.initial_pc = runner.program_base + cairo_program.get_label(
-            entrypoint
-        )  # Start the run at the offset of the entrypoint
-        runner.load_data(
-            runner.program_base, runner.program.data
-        )  # Load the program into memory
+        # All elements of the input stack are added to the execution public memory - required for proof mode
+        runner.execution_public_memory = list(range(len(stack)))
+        # Start the run at the offset of the entrypoint
+        runner.initial_pc = runner.program_base + cairo_program.get_label(entrypoint)
+        # Load the program into memory
+        runner.load_data(runner.program_base, runner.program.data)
         runner.load_data(runner.execution_base, stack)  # Load the stack into memory
-        runner.initial_fp = runner.initial_ap = runner.execution_base + len(
-            stack
-        )  # Set the initial frame pointer and argument pointer to the end of the stack
+        # Set the initial frame pointer and argument pointer to the end of the stack
+        runner.initial_fp = runner.initial_ap = runner.execution_base + len(stack)
         runner.initialize_zero_segment()
 
         # ============================================================================
@@ -458,7 +443,6 @@ def run_python_vm(
         # - Rationale: Convert Cairo return values to Python types, handle exceptions,
         #   and format the final output for the caller.
         # ============================================================================
-        final_output = serde.serialize_list(output_ptr) if add_output else None
         unfiltered_output = [
             serde.serialize(return_data_type, runner.vm.run_context.ap, offset)
             for offset, return_data_type in zip(
@@ -474,12 +458,7 @@ def run_python_vm(
         if exceptions:
             raise exceptions[0]
 
-        if final_output is not None:
-            if len(function_output) > 0:
-                final_output = (final_output, *function_output)
-        else:
-            final_output = function_output
-
+        final_output = function_output
         return final_output[0] if len(final_output) == 1 else final_output
 
     return _run
@@ -541,6 +520,7 @@ def run_rust_vm(
             allow_missing_builtins=False,
             enable_pythonic_hints=request.config.getoption("--log-cli-level")
             == "TRACE",
+            ordered_builtins=_builtins,
         )
         serde = serde_cls(
             runner.segments, cairo_program.identifiers, runner.dict_manager, cairo_file
@@ -555,7 +535,6 @@ def run_rust_vm(
         #   arguments (implicit and explicit). This prepares the VM's execution context.
         # ============================================================================
         stack = []
-        add_output = False
         if proof_mode:
             # In proof mode, Rust initializes all layout builtins; we mimic Python’s behavior
             builtin_runners = runner.builtin_runners
@@ -573,9 +552,6 @@ def run_rust_vm(
             if builtin_runner is None:
                 raise ValueError(f"Builtin runner {builtin_arg} not found")
             stack.extend(builtin_runner["initial_stack"])
-            add_output = "output" in builtin_arg
-            if add_output:
-                output_ptr = runner.segments.add()
 
         gen_arg = (
             gen_arg_builder(runner.dict_manager, runner.segments)
@@ -585,13 +561,8 @@ def run_rust_vm(
         for i, (arg_name, python_type) in enumerate(
             [(k, v["python_type"]) for k, v in {**_implicit_args, **_args}.items()]
         ):
-            if arg_name == "output_ptr":
-                add_output = True
-                output_ptr = runner.segments.add()
-                stack.append(output_ptr)
-            else:
-                arg_value = kwargs[arg_name] if arg_name in kwargs else args[i]
-                stack.append(gen_arg(python_type, arg_value))
+            arg_value = kwargs[arg_name] if arg_name in kwargs else args[i]
+            stack.append(gen_arg(python_type, arg_value))
 
         # ============================================================================
         # STEP 4: SET UP EXECUTION CONTEXT AND LOAD MEMORY
@@ -716,7 +687,6 @@ def run_rust_vm(
         # - Rationale: Convert Cairo return values to Python types, handle exceptions,
         #   and format the final output for the caller.
         # ============================================================================
-        final_output = serde.serialize_list(output_ptr) if add_output else None
         unfiltered_output = [
             serde.serialize(return_data_type, runner.ap, offset)
             for offset, return_data_type in zip(
@@ -732,11 +702,7 @@ def run_rust_vm(
         if exceptions:
             raise exceptions[0]
 
-        if final_output is not None:
-            if len(function_output) > 0:
-                final_output = (final_output, *function_output)
-        else:
-            final_output = function_output
+        final_output = function_output
 
         return final_output[0] if len(final_output) == 1 else final_output
 

@@ -40,7 +40,8 @@ use std::{
 pub struct PyCairoRunner {
     inner: RustCairoRunner,
     allow_missing_builtins: bool,
-    builtins: Vec<BuiltinName>,
+    /// The builtins, ordered as they're defined in the program entrypoint.
+    ordered_builtins: Vec<BuiltinName>,
     enable_pythonic_hints: bool,
 }
 
@@ -54,7 +55,7 @@ impl PyCairoRunner {
     /// * `proof_mode` - Whether to run in proof mode.
     /// * `allow_missing_builtins` - Whether to allow missing builtins.
     #[new]
-    #[pyo3(signature = (program, py_identifiers=None, layout=None, proof_mode=false, allow_missing_builtins=false, enable_pythonic_hints=false))]
+    #[pyo3(signature = (program, py_identifiers=None, layout=None, proof_mode=false, allow_missing_builtins=false, enable_pythonic_hints=false, ordered_builtins=vec![]))]
     fn new(
         program: &PyProgram,
         py_identifiers: Option<PyObject>,
@@ -62,8 +63,14 @@ impl PyCairoRunner {
         proof_mode: bool,
         allow_missing_builtins: bool,
         enable_pythonic_hints: bool,
+        ordered_builtins: Vec<String>,
     ) -> PyResult<Self> {
         let layout = layout.unwrap_or_default().into_layout_name()?;
+
+        let ordered_builtin_names = ordered_builtins
+            .iter()
+            .map(|name| BuiltinName::from_str(name.strip_suffix("_ptr").unwrap()).unwrap())
+            .collect();
 
         let mut inner = RustCairoRunner::new(
             &program.inner,
@@ -82,7 +89,7 @@ impl PyCairoRunner {
             return Ok(Self {
                 inner,
                 allow_missing_builtins,
-                builtins: program.inner.iter_builtins().copied().collect(),
+                ordered_builtins: ordered_builtin_names,
                 enable_pythonic_hints,
             });
         }
@@ -140,7 +147,7 @@ except Exception as e:
         Ok(Self {
             inner,
             allow_missing_builtins,
-            builtins: program.inner.iter_builtins().copied().collect(),
+            ordered_builtins: ordered_builtin_names,
             enable_pythonic_hints,
         })
     }
@@ -407,6 +414,16 @@ except Exception as e:
         PyRelocatable { inner: self.inner.vm.get_ap() }
     }
 
+    #[getter]
+    fn fp(&self) -> PyRelocatable {
+        PyRelocatable { inner: self.inner.vm.get_fp() }
+    }
+
+    #[getter]
+    fn pc(&self) -> PyRelocatable {
+        PyRelocatable { inner: self.inner.vm.get_pc() }
+    }
+
     /// Updates the execution public memory with return data offsets.
     ///
     /// # Arguments
@@ -534,10 +551,12 @@ impl PyCairoRunner {
     /// Processes builtin pointers in reverse order and handles missing builtins.
     fn _read_return_values(&mut self, offset: usize) -> PyResult<Relocatable> {
         let mut pointer = (self.inner.vm.get_ap() - offset).unwrap();
-        for builtin_name in self.builtins.iter().rev() {
+        println!("Ordered builtins: {:?}", self.ordered_builtins);
+        for builtin_name in self.ordered_builtins.iter().rev() {
             if let Some(builtin_runner) =
                 self.inner.vm.builtin_runners.iter_mut().find(|b| b.name() == *builtin_name)
             {
+                println!("Getting final stack for {}", builtin_name);
                 pointer =
                     builtin_runner.final_stack(&self.inner.vm.segments, pointer).map_err(|e| {
                         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string())
