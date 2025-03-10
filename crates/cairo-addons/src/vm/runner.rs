@@ -7,15 +7,24 @@ use crate::vm::{
 };
 use bincode::enc::write::Writer;
 use cairo_vm::{
-    cairo_run::{write_encoded_memory, write_encoded_trace},
+    air_public_input::PublicInputError,
+    cairo_run::{
+        self, write_encoded_memory, write_encoded_trace, CairoRunConfig, EncodeTraceError,
+    },
     hint_processor::builtin_hint_processor::dict_manager::DictManager,
     serde::deserialize_program::Identifier,
     types::{
         builtin_name::BuiltinName,
+        exec_scope::ExecutionScopes,
+        layout_name::LayoutName,
+        program::Program,
         relocatable::{MaybeRelocatable, Relocatable},
     },
     vm::{
-        errors::vm_exception::VmException,
+        errors::{
+            cairo_run_errors::CairoRunError, trace_errors::TraceError,
+            vm_errors::VirtualMachineError, vm_exception::VmException,
+        },
         runners::{builtin_runner::BuiltinRunner, cairo_runner::CairoRunner as RustCairoRunner},
         security::verify_secure_runner,
     },
@@ -35,6 +44,7 @@ use std::{
     path::PathBuf,
     rc::Rc,
 };
+use thiserror::Error;
 
 #[pyclass(name = "CairoRunner", unsendable)]
 pub struct PyCairoRunner {
@@ -42,6 +52,25 @@ pub struct PyCairoRunner {
     allow_missing_builtins: bool,
     builtins: Vec<BuiltinName>,
     enable_pythonic_hints: bool,
+}
+
+#[derive(Debug, Error)]
+enum Error {
+    #[error("Failed to interact with the file system")]
+    IO(#[from] std::io::Error),
+    #[error("The cairo program execution failed")]
+    Runner(#[from] CairoRunError),
+    #[error(transparent)]
+    EncodeTrace(#[from] EncodeTraceError),
+    #[error(transparent)]
+    VirtualMachine(#[from] VirtualMachineError),
+    #[error(transparent)]
+    Trace(#[from] TraceError),
+    #[error(transparent)]
+    PublicInput(#[from] PublicInputError),
+    #[error(transparent)]
+    #[cfg(feature = "with_tracer")]
+    TraceData(#[from] TraceDataError),
 }
 
 #[pymethods]
@@ -449,9 +478,9 @@ except Exception as e:
     /// Used in proof mode to generate input for the prover.
     fn write_binary_trace(&self, file_path: String) -> PyResult<()> {
         if let Some(trace_entries) = &self.inner.relocated_trace {
-            let trace_file = std::fs::File::create(file_path)?;
+            let trace_path = std::fs::File::create(file_path)?;
             let mut trace_writer =
-                FileWriter::new(io::BufWriter::with_capacity(3 * 1024 * 1024, trace_file));
+                FileWriter::new(io::BufWriter::with_capacity(3 * 1024 * 1024, trace_path));
 
             write_encoded_trace(trace_entries, &mut trace_writer)
                 .map_err(|e| PyErr::new::<pyo3::exceptions::PyIOError, _>(e.to_string()))?;
@@ -464,9 +493,9 @@ except Exception as e:
     /// Writes the memory contents to a binary file.
     /// Used in proof mode to generate input for the prover.
     fn write_binary_memory(&self, file_path: String, capacity: usize) -> PyResult<()> {
-        let memory_file = std::fs::File::create(file_path)?;
+        let memory_path = std::fs::File::create(file_path)?;
         let mut memory_writer =
-            FileWriter::new(io::BufWriter::with_capacity(capacity, memory_file));
+            FileWriter::new(io::BufWriter::with_capacity(capacity, memory_path));
 
         write_encoded_memory(&self.inner.relocated_memory, &mut memory_writer)
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyIOError, _>(e.to_string()))?;
@@ -565,6 +594,113 @@ impl PyCairoRunner {
         }
         Ok(pointer)
     }
+}
+
+/// Runs the Cairo program in proof mode with public and private inputs.
+/// Mimics the behavior of the `run` function from cairo-vm-cli.
+#[pyfunction(signature = (entrypoint, public_inputs, private_inputs, compiled_program_path, output_dir))]
+pub fn run_proof_mode(
+    entrypoint: String,
+    public_inputs: Vec<PyMaybeRelocatable>,
+    private_inputs: PyObject,
+    compiled_program_path: String,
+    output_dir: PathBuf,
+) -> PyResult<()> {
+    let trace_path = output_dir.join("trace.bin");
+    let memory_path = output_dir.join("memory.bin");
+    let air_public_input = output_dir.join("air_public_input.json");
+    let air_private_input = output_dir.join("air_private_input.json");
+
+    let cairo_run_config: CairoRunConfig<'_> = CairoRunConfig {
+        entrypoint: &entrypoint,
+        trace_enabled: true,
+        relocate_mem: true,
+        layout: LayoutName::plain,
+        proof_mode: true,
+        secure_run: Some(true),
+        allow_missing_builtins: Some(false),
+        ..Default::default()
+    };
+
+    // Prepare execution scopes to allow running pythonic hints for args_gen
+    let execution_scopes = ExecutionScopes::new();
+
+
+    let program_content = std::fs::read(compiled_program_path)
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+    let mut hint_processor = HintProcessor::default().with_dynamic_python_hints().build();
+    let program = Program::from_bytes(&program_content, Some(cairo_run_config.entrypoint))
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+    let cairo_runner = match cairo_run::cairo_run_program_with_initial_scope(
+        &program,
+        &cairo_run_config,
+        &mut hint_processor,
+        execution_scopes,
+    ) {
+        Ok(runner) => runner,
+        Err(error) => {
+            eprintln!("{error}");
+            todo!()
+        }
+    };
+
+    // Write outputs
+    let relocated_trace =
+        cairo_runner
+            .relocated_trace
+            .as_ref()
+            .ok_or(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>("Trace not relocated"))?;
+
+    let trace_file = std::fs::File::create(&trace_path)?;
+    let mut trace_writer =
+        FileWriter::new(io::BufWriter::with_capacity(3 * 1024 * 1024, trace_file));
+
+    cairo_run::write_encoded_trace(relocated_trace, &mut trace_writer)
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+    trace_writer.flush()?;
+
+    let memory_file = std::fs::File::create(&memory_path)?;
+    let mut memory_writer =
+        FileWriter::new(io::BufWriter::with_capacity(5 * 1024 * 1024, memory_file));
+    write_encoded_memory(&cairo_runner.relocated_memory, &mut memory_writer)
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+    memory_writer.flush()?;
+
+    let json = cairo_runner
+        .get_air_public_input()
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?
+        .serialize_json()
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+    std::fs::write(&air_public_input, json)
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+
+    let trace_path = trace_path.canonicalize().unwrap_or(trace_path).to_string_lossy().to_string();
+    let memory_path =
+        memory_path.canonicalize().unwrap_or(memory_path).to_string_lossy().to_string();
+    let json = cairo_runner
+        .get_air_private_input()
+        .to_serializable(trace_path.clone(), memory_path.clone())
+        .serialize_json()
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+    std::fs::write(&air_private_input, json)?;
+
+    let json = cairo_runner
+        .get_air_public_input()
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?
+        .serialize_json()
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+    std::fs::write(&air_public_input, json)
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+
+    let json = cairo_runner
+        .get_air_private_input()
+        .to_serializable(trace_path.clone(), memory_path.clone())
+        .serialize_json()
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+    std::fs::write(&air_private_input, json)
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+
+    Ok(())
 }
 
 // From <https://github.com/lambdaclass/cairo-vm/blob/5d7c20880785e1f9edbd73d0d46aeb58d8bced4e/cairo-vm-cli/src/main.rs#L109-L140>

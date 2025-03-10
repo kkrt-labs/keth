@@ -24,6 +24,7 @@ mod vm_consts;
 use dict_manager::{PyDictManager, PyDictTracker};
 use memory_segments::PyMemorySegmentManager;
 use program::PyProgram;
+use pyo3::wrap_pyfunction;
 use relocatable::PyRelocatable;
 use relocated_trace::PyRelocatedTraceEntry;
 use run_resources::PyRunResources;
@@ -43,6 +44,7 @@ fn vm(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<PyStrippedProgram>()?;
     module.add_class::<PyDictManager>()?;
     module.add_class::<PyDictTracker>()?;
+    module.add_function(wrap_pyfunction!(runner::run_proof_mode, module)?).unwrap();
     #[cfg(feature = "pythonic-hints")]
     module.add_class::<PyVmConst>()?;
     #[cfg(feature = "pythonic-hints")]
