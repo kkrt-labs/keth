@@ -666,7 +666,17 @@ def run_rust_vm(
         if coverage is not None:
             coverage(runner.trace_df, PROGRAM_BASE)
 
-        displayed_args = json.dumps(kwargs) if kwargs else ""
+        # Create a unique output stem for the given test by using the test file name, the entrypoint and the kwargs
+        displayed_args = ""
+        if kwargs:
+            try:
+                displayed_args = json.dumps(kwargs)
+            except TypeError as e:
+                logger.debug(f"Failed to serialize kwargs: {e}")
+        output_stem = str(
+            request.node.path.parent
+            / f"{request.node.path.stem}_{entrypoint}_{displayed_args}"
+        )
         output_stem = str(
             request.node.path.parent
             / f"{request.node.path.stem}_{entrypoint}_{displayed_args}"
