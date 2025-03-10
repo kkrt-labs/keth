@@ -213,7 +213,10 @@ impl PyDictManager {
         let dict_manager = self.inner.borrow();
         let tracker = dict_manager.trackers.get(&segment_index).unwrap();
         let default_value = tracker.get_default_value().cloned().ok_or_else(|| {
-            PyErr::new::<pyo3::exceptions::PyValueError, _>("Default value not found")
+            PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                "Default value not found for segment index {}",
+                segment_index
+            ))
         })?;
         Ok(default_value.into())
     }

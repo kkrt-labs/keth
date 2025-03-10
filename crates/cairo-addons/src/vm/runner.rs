@@ -601,7 +601,7 @@ impl PyCairoRunner {
 #[pyfunction(signature = (entrypoint, public_inputs, private_inputs, compiled_program_path, output_dir))]
 pub fn run_proof_mode(
     entrypoint: String,
-    public_inputs: Vec<PyMaybeRelocatable>,
+    public_inputs: PyObject,
     private_inputs: PyObject,
     compiled_program_path: String,
     output_dir: PathBuf,
@@ -615,27 +615,73 @@ pub fn run_proof_mode(
         entrypoint: &entrypoint,
         trace_enabled: true,
         relocate_mem: true,
-        layout: LayoutName::plain,
+        layout: LayoutName::all_cairo,
         proof_mode: true,
         secure_run: Some(true),
         allow_missing_builtins: Some(false),
         ..Default::default()
     };
 
-    // Prepare execution scopes to allow running pythonic hints for args_gen
-    let execution_scopes = ExecutionScopes::new();
-
-
+    //this entrypoint tells which function to run in the cairo program
     let program_content = std::fs::read(compiled_program_path)
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
-    let mut hint_processor = HintProcessor::default().with_dynamic_python_hints().build();
     let program = Program::from_bytes(&program_content, Some(cairo_run_config.entrypoint))
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+
+    // Prepare execution scopes to allow running pythonic hints for args_gen
+    let mut exec_scopes = ExecutionScopes::new();
+    let dict_manager = DictManager::new();
+    exec_scopes.insert_value("dict_manager", Rc::new(RefCell::new(dict_manager)));
+
+        let identifiers = program
+        .iter_identifiers()
+        .map(|(name, identifier)| (name.to_string(), identifier.clone()))
+        .collect::<HashMap<String, Identifier>>();
+
+    // Insert the _rust_ program_identifiers in the exec_scopes, so that we're able to pull
+    // identifier data when executing hints to build VmConsts.
+    exec_scopes.insert_value("__program_identifiers__", identifiers);
+
+    // Initialize a python context object that will be accessible throughout the execution of
+    // all hints.
+    // This enables us to directly use the Python identifiers passed in, avoiding the need to
+    // serialize and deserialize the program JSON.
+    Python::with_gil(|py| {
+        let context = PyDict::new(py);
+
+        context.set_item("public_inputs", public_inputs)?;
+        context.set_item("private_inputs", private_inputs)?;
+
+        // Import and run the initialization code from the injected module
+        let setup_code = r#"
+try:
+    from cairo_addons.hints.injected import prepare_context
+    prepare_context(lambda: globals())
+except Exception as e:
+    print(f"Warning: Error during initialization: {e}")
+"#;
+
+        // Run the initialization code
+        py.run(&CString::new(setup_code)?, Some(&context), None).map_err(|e| {
+            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+                "Failed to initialize Python globals: {}",
+                e
+            ))
+        })?;
+
+        // Store the context object, modified in the initialization code, in the exec_scopes
+        // to access it throughout the execution of hints
+        let unbounded_context: Py<PyDict> = context.into_py_dict(py)?.into();
+        exec_scopes.insert_value("__context__", unbounded_context);
+        Ok::<(), PyErr>(())
+    })?;
+
+    let mut hint_processor = HintProcessor::default().with_dynamic_python_hints().build();
     let cairo_runner = match cairo_run::cairo_run_program_with_initial_scope(
         &program,
         &cairo_run_config,
         &mut hint_processor,
-        execution_scopes,
+        exec_scopes,
     ) {
         Ok(runner) => runner,
         Err(error) => {
