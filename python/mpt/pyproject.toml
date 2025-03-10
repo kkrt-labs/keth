@@ -1,0 +1,11 @@
+[project]
+name = "mpt"
+version = "0.1.0"
+description = "Minimal MPT library implementation for Ethereum designed to work with Ethereum Execution Layer (EELS) Python classes and Keth"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["ethereum"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

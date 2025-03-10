@@ -75,7 +75,9 @@
     "xxhash",
     "zkpig"
   ],
-  "python.testing.pytestArgs": ["."],
+  "python.testing.pytestArgs": [
+    "."
+  ],
   "python.testing.unittestEnabled": false,
   "python.testing.pytestEnabled": true,
   "jupyter.notebookFileRoot": "${workspaceFolder}/cairo",

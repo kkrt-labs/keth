@@ -1,0 +1,1764 @@
+import json
+import logging
+import os
+from typing import Dict, List, Mapping, Optional
+
+import requests
+from ethereum.cancun.fork_types import Account, Address
+from ethereum.cancun.state import State
+from ethereum.cancun.trie import (
+    BranchNode,
+    ExtensionNode,
+    InternalNode,
+    LeafNode,
+    Trie,
+    bytes_to_nibble_list,
+    nibble_list_to_compact,
+    trie_set,
+)
+from ethereum.crypto.hash import Hash32, keccak256
+from ethereum.utils.hexadecimal import hex_to_bytes
+from ethereum_rlp import rlp
+from ethereum_types.bytes import Bytes, Bytes32
+from ethereum_types.numeric import U256, Uint
+
+# Set up logging
+logger = logging.getLogger("mpt")
+logger.propagate = False
+logger.setLevel(logging.DEBUG)
+
+# Check if the logger already has handlers to avoid duplicates
+if not logger.handlers:
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.DEBUG)
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
+    ch.setFormatter(formatter)
+    logger.addHandler(ch)
+
+
+# Root hash of an empty trie
+EMPTY_TRIE_HASH = Hash32(
+    bytes.fromhex("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
+)
+
+EMPTY_CODE_HASH = Hash32(
+    bytes.fromhex("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470")
+)
+
+
+def nibble_path_to_hex(nibble_path: Bytes) -> Bytes:
+    return (
+        "0x"
+        + Bytes(
+            bytes(
+                [
+                    nibble_path[i] * 16 + nibble_path[i + 1]
+                    for i in range(0, len(nibble_path) - 1, 2)
+                ]
+            )
+        ).hex()
+    )
+
+
+class EthereumState:
+    """
+    Represents the (partial) state of the Ethereum blockchain at a given block.
+    Includes all account MPT and storage MPT nodes, codes touched in a block,
+    and the access list.
+    """
+
+    nodes: Mapping[Bytes32, Bytes]
+    codes: Mapping[Bytes32, Bytes]
+    access_list: Mapping[Address, Optional[List[Bytes32]]]
+    state_root: Hash32
+
+    def __init__(
+        self,
+        nodes: Mapping[Bytes32, Bytes],
+        codes: Mapping[Bytes32, Bytes],
+        access_list: Mapping[Address, Optional[List[Bytes32]]],
+        state_root: Hash32,
+    ):
+        self.nodes = nodes
+        self.codes = codes
+        self.access_list = access_list
+        self.state_root = state_root
+        logger.debug(f"Initialized MPT with state root: 0x{state_root.hex()}")
+        logger.debug(f"Number of nodes: {len(nodes)}")
+        logger.debug(f"Number of codes: {len(codes)}")
+        logger.debug(f"Number of addresses in access list: {len(access_list)}")
+
+    def to_state(self) -> State:
+        """
+        Convert the EthereumState to a State object.
+
+        Returns
+        -------
+        State
+            A State object representing the Ethereum state
+        """
+        logger.debug("Converting EthereumState to State object")
+
+        # Step 1: Recursively explore the state trie to get to the leaves
+        _main_trie: Trie[Address, Optional[Account]] = Trie(secured=True, default=None)
+        _storage_tries: Dict[Address, Trie[Bytes32, U256]] = {}
+
+        for address in self.access_list.keys():
+
+            account = self.get(keccak256(address))
+            if account is None:
+                logger.warning(
+                    f"Account not found: {address} - Setting to empty account"
+                )
+                trie_set(
+                    _main_trie,
+                    address,
+                    Account(
+                        nonce=Uint(0),
+                        balance=U256(0),
+                        code=b"",
+                    ),
+                )
+                continue
+
+            decoded = rlp.decode(account)
+            if len(decoded) != 4:
+                raise ValueError(f"Invalid account length: {len(decoded)}")
+
+            if decoded[3] == EMPTY_CODE_HASH:
+                code = b""
+            else:
+                code = self.codes.get(decoded[3], None)
+                # TODO: This is a hack to get the code for codes not present in the EthereumState object
+                # This is due to accessing code only through EXTCODEHASH opcode
+                if code is None:
+                    payload = {
+                        "jsonrpc": "2.0",
+                        "method": "eth_getCode",
+                        "params": [
+                            "0x" + address.hex(),
+                            "latest",
+                        ],
+                        "id": 1,
+                    }
+                    response = requests.post(
+                        os.environ["CHAIN_RPC_URL"], json=payload, timeout=30
+                    )
+
+                    if response.status_code != 200:
+                        raise Exception(
+                            f"Failed to fetch code: HTTP {response.status_code}"
+                        )
+                    logger.debug(
+                        f"Code: {response.json().get('result')} for address: {address}"
+                    )
+                    code = bytes.fromhex(
+                        response.json().get("result")[2:]
+                        if response.json().get("result") is not None
+                        and response.json().get("result").startswith("0x")
+                        else ""
+                    )
+
+            trie_set(
+                _main_trie,
+                address,
+                Account(
+                    nonce=Uint(int.from_bytes(decoded[0], "big")),
+                    balance=U256(int.from_bytes(decoded[1], "big")),
+                    code=code,
+                ),
+            )
+
+            # Process storage for this account if it has storage keys in the access list
+            storage_root = decoded[2]
+            if not storage_root:
+                raise ValueError(f"Storage root is None for address: {address}")
+
+            if self.access_list.get(address) is not None:
+                for key in self.access_list[address]:
+                    value = self.get(keccak256(key), Hash32(storage_root))
+                    if value is None:
+                        logger.warning(
+                            f"Value is None for key: 0x{key.hex()} for address: 0x{address.hex()}"
+                        )
+                        continue
+                    if _storage_tries.get(address) is None:
+                        _storage_tries[address] = Trie(secured=True, default=U256(0))
+                    trie_set(
+                        _storage_tries[address],
+                        key,
+                        U256(int.from_bytes(rlp.decode(value), "big")),
+                    )
+
+        return State(
+            _main_trie=_main_trie,
+            _storage_tries=_storage_tries,
+        )
+
+    @classmethod
+    def from_json(cls, path: str) -> "EthereumState":
+        logger.debug(f"Loading MPT from JSON file: {path}")
+        with open(path, "r") as f:
+            data = json.load(f)
+
+        nodes = {
+            keccak256(hex_to_bytes(node)): (hex_to_bytes(node))
+            for node in data["witness"]["state"]
+        }
+
+        codes = {
+            keccak256(hex_to_bytes(code)): hex_to_bytes(code)
+            for code in data["witness"]["codes"]
+        }
+
+        # Process the access list from the JSON data
+        access_list = {
+            Address(hex_to_bytes(item["address"])): (
+                [Bytes32(hex_to_bytes(key)) for key in item["storageKeys"]]
+                if item["storageKeys"] is not None
+                else None
+            )
+            for item in data.get("accessList", [])
+        }
+
+        state_root = Hash32(hex_to_bytes(data["witness"]["ancestors"][0]["stateRoot"]))
+
+        return cls(
+            nodes=nodes,
+            codes=codes,
+            access_list=access_list,
+            state_root=state_root,
+        )
+
+    def get(self, path: Bytes, root_hash: Optional[Hash32] = None) -> Optional[Bytes]:
+        """
+        Get a value from the trie at the given path.
+
+        Parameters
+        ----------
+        path : Bytes
+            The path to look up
+        root_hash : Hash32, optional
+            The root hash to start from, defaults to the trie's state_root
+
+        Returns
+        -------
+        Optional[Bytes]
+            The value at the path, or None if not found
+        """
+        if root_hash is None:
+            root_hash = self.state_root
+
+        logger.debug(f"Getting value for path: {'0x' + path.hex() if path else 'None'}")
+        logger.debug(f"Starting from root hash: 0x{root_hash.hex()}")
+
+        # Check if the root hash exists in our nodes
+        if root_hash not in self.nodes:
+            logger.error(f"Root hash not found in nodes: {root_hash.hex()}")
+            return None
+
+        # Start traversal from the root
+        nibble_path = bytes_to_nibble_list(path)
+        try:
+            return self._get_node(root_hash, nibble_path)
+        except Exception as e:
+            logger.error(f"Error in get: {str(e)}")
+            return None
+
+    def get_account(self, address: Address) -> Optional[Account]:
+        """
+        Get an account from the trie.
+        """
+        account = self.get(keccak256(address))
+        if account is None:
+            return None
+
+        decoded = rlp.decode(account)
+        if len(decoded) != 4:
+            raise ValueError(f"Invalid account length: {len(decoded)}")
+
+        return Account(
+            nonce=Uint(int.from_bytes(decoded[0], "big")),
+            balance=U256(int.from_bytes(decoded[1], "big")),
+            code=self.codes.get(decoded[3], b""),
+        )
+
+    def _get_node(self, node_hash: Hash32, nibble_path: Bytes) -> Optional[Bytes]:
+        """
+        Recursive helper for get method.
+
+        Parameters
+        ----------
+        node_hash : Hash32
+            The hash of the current node
+        nibble_path : Bytes
+            The remaining path to traverse (in nibbles)
+
+        Returns
+        -------
+        Optional[Bytes]
+            The value at the path, or None if not found
+        """
+        logger.debug(f"Getting node with hash: 0x{node_hash.hex()}")
+        logger.debug(f"Remaining path: {nibble_path_to_hex(nibble_path)}")
+
+        node_data = self.nodes.get(node_hash)
+
+        if node_data is None:
+            raise ValueError(f"Node not found: 0x{node_hash.hex()}")
+
+        # Decode the node
+
+        node = self._decode_node(node_data)
+
+        # Process based on node type
+        if isinstance(node, BranchNode):
+            logger.debug("Processing branch node")
+            # If we've reached the end of the path, return the value
+            if not nibble_path:
+                logger.debug("End of path reached at branch node")
+                raise ValueError(
+                    f"Invariant: trying to access node value 0x{node_hash.hex()}"
+                )
+
+            # Otherwise, follow the path
+            next_nibble = nibble_path[0]
+            logger.debug(f"Next nibble: {next_nibble}")
+
+            if next_nibble >= 16:
+                raise ValueError(f"Invariant: overflow nibble value {next_nibble}")
+
+            next_node = node.subnodes[next_nibble]
+
+            # If the next node is empty, the path doesn't exist
+            if not next_node:
+                raise ValueError(f"Invariant: no subnode at index {next_nibble}")
+
+            # If the next node is a hash reference (bytes), follow it
+            if isinstance(next_node, bytes) and len(next_node) == 32:
+                logger.debug(f"Following hash reference: 0x{next_node.hex()}")
+                return self._get_node(Hash32(next_node), nibble_path[1:])
+
+            return self._process_embedded_node(next_node, nibble_path[1:])
+
+        elif isinstance(node, ExtensionNode):
+            logger.debug("Processing extension node")
+            logger.debug(f"Extension key segment: {node.key_segment}")
+
+            # If the path doesn't match the key segment, the path doesn't exist
+            if len(nibble_path) < len(node.key_segment):
+                raise ValueError(
+                    f"Path too short for extension key segment {node.key_segment}"
+                )
+
+            # Check if the key segment matches the beginning of the path
+            for i in range(len(node.key_segment)):
+                if nibble_path[i] != node.key_segment[i]:
+                    raise ValueError(
+                        f"Path mismatch at index {i}: {nibble_path[i]} != {node.key_segment[i]}"
+                    )
+
+            # Follow the extension to the next node
+            remaining_path = nibble_path[len(node.key_segment) :]
+            logger.debug(f"Remaining path after extension: {remaining_path}")
+
+            # If the subnode is a hash reference, follow it
+            if isinstance(node.subnode, bytes) and len(node.subnode) == 32:
+                logger.debug(f"Following hash reference: 0x{node.subnode.hex()}")
+                return self._get_node(Hash32(node.subnode), remaining_path)
+
+            return self._process_embedded_node(node.subnode, remaining_path)
+
+        elif isinstance(node, LeafNode):
+            logger.debug("Processing leaf node")
+
+            # If the path matches exactly, return the value
+            if nibble_path == node.rest_of_key:
+                logger.debug("Path matches leaf key, returning value")
+                return node.value
+
+            raise ValueError(
+                f"Path does not match leaf key: {nibble_path.hex()} != {node.rest_of_key.hex()}"
+            )
+
+        raise ValueError(f"Unknown node type: {type(node)}")
+
+    def _process_embedded_node(
+        self, node_data: Bytes, nibble_path: Bytes
+    ) -> Optional[Bytes]:
+        """
+        Process an embedded node (not referenced by hash).
+
+        Parameters
+        ----------
+        node_data : Bytes
+            The embedded node data
+        nibble_path : Bytes
+            The remaining path to traverse
+
+        Returns
+        -------
+        Optional[Bytes]
+            The value at the path, or None if not found
+        """
+        logger.debug("Processing embedded node")
+
+        # Decode the embedded node
+
+        node = self._decode_node(node_data)
+        logger.debug(f"Embedded node type: {type(node).__name__}")
+
+        # Process based on node type (similar to _get_node)
+        if isinstance(node, BranchNode):
+            logger.debug("Processing embedded branch node")
+            if not nibble_path:
+                raise ValueError("Invariant: trying to access node value")
+
+            next_nibble = nibble_path[0]
+            logger.debug(f"Next nibble: {next_nibble}")
+
+            if next_nibble >= 16:
+                raise ValueError(f"Invalid nibble value: {next_nibble}")
+
+            next_node = node.subnodes[next_nibble]
+
+            if next_node is None:
+                raise ValueError(f"No subnode at index {next_nibble}")
+
+            if isinstance(next_node, bytes) and len(next_node) == 32:
+                logger.debug(f"Following hash reference: {next_node.hex()}")
+                return self._get_node(Hash32(next_node), bytes(nibble_path[1:]))
+
+            logger.debug("Processing nested embedded node")
+            return self._process_embedded_node(next_node, bytes(nibble_path[1:]))
+
+        elif isinstance(node, ExtensionNode):
+            logger.debug("Processing embedded extension node")
+            key_segment = bytes_to_nibble_list(node.key_segment)
+            logger.debug(f"Extension key segment: {key_segment}")
+
+            if len(nibble_path) < len(key_segment):
+                raise ValueError(
+                    f"Path too short for extension key segment {key_segment}"
+                )
+
+            for i in range(len(key_segment)):
+                if nibble_path[i] != key_segment[i]:
+                    raise ValueError(
+                        f"Path mismatch at index {i} - {nibble_path[i]} != {key_segment[i]}"
+                    )
+
+            remaining_path = nibble_path[len(key_segment) :]
+            logger.debug(
+                f"Remaining path after extension: {nibble_path_to_hex(remaining_path)}"
+            )
+
+            if isinstance(node.subnode, bytes) and len(node.subnode) == 32:
+                logger.debug(f"Following hash reference: {node.subnode.hex()}")
+                return self._get_node(Hash32(node.subnode), bytes(remaining_path))
+
+            logger.debug("Processing nested embedded node")
+            return self._process_embedded_node(node.subnode, bytes(remaining_path))
+
+        elif isinstance(node, LeafNode):
+            logger.debug("Processing embedded leaf node")
+            leaf_key = bytes_to_nibble_list(node.rest_of_key)
+            logger.debug(f"Leaf key: {leaf_key}")
+            logger.debug(f"Current path: {nibble_path_to_hex(nibble_path)}")
+
+            if nibble_path == leaf_key:
+                logger.debug("Path matches leaf key, returning value")
+                return node.value
+
+            raise ValueError(
+                f"Path does not match leaf key: {nibble_path} != {leaf_key}"
+            )
+        raise ValueError(f"Unknown embedded node type: {type(node)}")
+
+    def _decode_node(self, node_data: Bytes) -> InternalNode:
+        """
+        Decode a node from its RLP encoding.
+
+        Parameters
+        ----------
+        node_data : Bytes
+            The RLP encoded node data
+        nibble_path : Bytes
+            The path to the node
+
+        Returns
+        -------
+        InternalNode
+            The decoded node (BranchNode, ExtensionNode, or LeafNode)
+        """
+        return decode_node(node_data)
+
+    def delete(
+        self, path: Bytes, root_hash: Optional[Hash32] = None
+    ) -> Optional[Hash32]:
+        """
+        Delete a value from the trie at the given path.
+
+        Parameters
+        ----------
+        path : Bytes
+            The path to delete
+        root_hash : Hash32, optional
+            The root hash to start from, defaults to the trie's state_root
+
+        Returns
+        -------
+        Optional[Hash32]
+            The new root hash after deletion, or None if the path wasn't found
+        """
+        if root_hash is None:
+            root_hash = self.state_root
+
+        logger.debug(
+            f"Deleting value for path: {'0x' + path.hex() if path else 'None'}"
+        )
+        logger.debug(f"Starting from root hash: 0x{root_hash.hex()}")
+
+        # Check if the root hash exists in our nodes
+        if root_hash not in self.nodes:
+            logger.error(f"Root hash not found in nodes: {root_hash.hex()}")
+            return None
+
+        # Start deletion from the root
+        nibble_path = bytes_to_nibble_list(path)
+        try:
+            new_root_node, deleted = self._delete_node(root_hash, nibble_path)
+            if not deleted:
+                logger.debug("Path not found, nothing deleted")
+                return root_hash
+
+            if new_root_node is None:
+                logger.debug("Trie is now empty")
+                return None
+
+            # Encode and hash the new root node
+            encoded_node = encode_internal_node(new_root_node)
+            new_root_hash = keccak256(encoded_node)
+
+            # Update the nodes mapping with the new root
+            self.nodes[new_root_hash] = encoded_node
+            del self.nodes[root_hash]
+
+            # Update the state root if we were deleting from it
+            if root_hash == self.state_root:
+                self.state_root = new_root_hash
+
+            return new_root_hash
+        except Exception as e:
+            logger.error(f"Error in delete: {str(e)}")
+            return None
+
+    def _delete_node(
+        self, node_hash: Hash32, nibble_path: Bytes
+    ) -> tuple[Optional[Bytes], bool]:
+        """
+        Recursive helper for delete method.
+
+        Parameters
+        ----------
+        node_hash : Hash32
+            The hash of the current node
+        nibble_path : Bytes
+            The remaining path to traverse (in nibbles)
+
+        Returns
+        -------
+        tuple[Optional[Bytes], bool]
+            The new node (or None if deleted) and a boolean indicating if deletion occurred
+        """
+        logger.debug(
+            f"Deleting from node with hash: 0x{node_hash.hex()} - remaining path: {nibble_path_to_hex(nibble_path)}"
+        )
+
+        node_data = self.nodes.get(node_hash)
+        if node_data is None:
+            raise ValueError(f"Node not found: 0x{node_hash.hex()}")
+
+        # Decode the node
+        node = self._decode_node(node_data)
+
+        # Process based on node type
+        if isinstance(node, BranchNode):
+            logger.debug("Processing branch node for deletion")
+
+            if not nibble_path:
+                if node.value:
+                    raise ValueError(
+                        "Invariant: trying to delete a branch node with a value - branch nodes are not supposed to have values"
+                    )
+                return node, False
+
+            # Otherwise, follow the path
+            next_nibble = nibble_path[0]
+            if next_nibble >= 16:
+                raise ValueError(f"Invalid nibble value: {next_nibble}")
+
+            next_node = node.subnodes[next_nibble]
+            if not next_node:
+                return node, False
+
+            # Recursively delete from the child
+            # case 1: next_node is a hash reference
+            if isinstance(next_node, bytes) and len(next_node) == 32:
+                new_child, deleted = self._delete_node(
+                    Hash32(next_node), nibble_path[1:]
+                )
+            # case 2: next_node is an embedded node
+            else:
+                child_node = self._decode_node(next_node)
+                new_child, deleted = self._process_embedded_delete(
+                    child_node, nibble_path[1:]
+                )
+
+            if not deleted:
+                return node, False
+
+            # Update the branch with the new child
+            new_subnodes = list(node.subnodes)
+            if not new_child:
+                new_subnodes[next_nibble] = b""
+            else:
+                encoded_child = encode_internal_node(new_child)
+                if len(encoded_child) >= 32:
+                    child_hash = keccak256(encoded_child)
+                    self.nodes[child_hash] = encoded_child
+                    new_subnodes[next_nibble] = child_hash
+                else:
+                    new_subnodes[next_nibble] = encoded_child
+
+            # Check if the branch now has only one child and no value
+            non_empty_subnodes = [
+                i for i, subnode in enumerate(new_subnodes) if subnode
+            ]
+            if len(non_empty_subnodes) == 1 and not node.value:
+                # Convert to extension or leaf node
+                index = non_empty_subnodes[0]
+                child = new_subnodes[index]
+
+                # If child is a hash reference, resolve it
+                if isinstance(child, bytes) and len(child) == 32:
+                    child_data = self.nodes.get(Hash32(child))
+                    if child_data is None:
+                        raise ValueError(f"Child node not found: 0x{child.hex()}")
+                    child_node = self._decode_node(child_data)
+                else:
+                    child_node = self._decode_node(child)
+
+                # Create a new path segment with the branch index
+                new_segment = bytes([index])
+
+                if isinstance(child_node, LeafNode):
+                    # Combine paths and create a new leaf
+                    combined_path = new_segment + child_node.rest_of_key
+                    return (
+                        LeafNode(rest_of_key=combined_path, value=child_node.value),
+                        True,
+                    )
+                elif isinstance(child_node, ExtensionNode):
+                    # Combine paths and create a new extension
+                    combined_path = new_segment + child_node.key_segment
+                    return (
+                        ExtensionNode(
+                            key_segment=combined_path, subnode=child_node.subnode
+                        ),
+                        True,
+                    )
+                else:
+                    # Create an extension to the branch
+                    return ExtensionNode(key_segment=new_segment, subnode=child), True
+
+            return BranchNode(subnodes=tuple(new_subnodes), value=node.value), True
+
+        elif isinstance(node, ExtensionNode):
+            logger.debug("Processing extension node for deletion")
+            key_segment = node.key_segment
+
+            # Check if the path matches the key segment
+            if len(nibble_path) < len(key_segment):
+                return node, False  # Path too short, nothing to delete
+
+            for i in range(len(key_segment)):
+                if nibble_path[i] != key_segment[i]:
+                    return node, False  # Path mismatch, nothing to delete
+
+            # Path matches, continue with the remaining path
+            remaining_path = nibble_path[len(key_segment) :]
+
+            # Recursively delete from the child
+            if isinstance(node.subnode, bytes) and len(node.subnode) == 32:
+                new_child, deleted = self._delete_node(
+                    Hash32(node.subnode), remaining_path
+                )
+            elif isinstance(node.subnode, bytes) and len(node.subnode) < 32:
+                # Process embedded node
+                child_node = self._decode_node(node.subnode)
+                new_child, deleted = self._process_embedded_delete(
+                    child_node, remaining_path
+                )
+            else:
+                raise ValueError(f"Unknown subnode type: {type(node.subnode)}")
+
+            if not deleted:
+                return node, False
+
+            if new_child is None:
+                return None, True
+
+            # If the child is a leaf or extension, merge the paths
+            if isinstance(new_child, LeafNode):
+                combined_path = key_segment + new_child.rest_of_key
+                return LeafNode(rest_of_key=combined_path, value=new_child.value), True
+            elif isinstance(new_child, ExtensionNode):
+                combined_path = key_segment + new_child.key_segment
+                return (
+                    ExtensionNode(key_segment=combined_path, subnode=new_child.subnode),
+                    True,
+                )
+
+            encoded_child = encode_internal_node(new_child)
+            if len(encoded_child) >= 32:
+                child_hash = keccak256(encoded_child)
+                self.nodes[child_hash] = encoded_child
+                new_child = child_hash
+            else:
+                new_child = encoded_child
+
+            return ExtensionNode(key_segment=key_segment, subnode=new_child), True
+
+        elif isinstance(node, LeafNode):
+            logger.debug("Processing leaf node for deletion")
+
+            # Check if the path matches exactly
+            if nibble_path == node.rest_of_key:
+                logger.debug("Path matches leaf key, deleting leaf")
+                del self.nodes[node_hash]
+                return None, True
+
+            return node, False
+
+        raise ValueError(f"Unknown node type: {type(node)}")
+
+    def _process_embedded_delete(
+        self, node: InternalNode, nibble_path: Bytes
+    ) -> tuple[Optional[InternalNode], bool]:
+        """
+        Process deletion for an embedded node.
+
+        Parameters
+        ----------
+        node : InternalNode
+            The embedded node
+        nibble_path : Bytes
+            The remaining path to traverse
+
+        Returns
+        -------
+        tuple[Optional[InternalNode], bool]
+            The new node (or None if deleted) and a boolean indicating if deletion occurred
+        """
+        logger.debug("Processing embedded node for deletion")
+
+        if isinstance(node, BranchNode):
+            logger.debug("Processing embedded branch node")
+
+            # If we've reached the end of the path, delete the value
+            if not nibble_path:
+                if node.value:
+                    logger.debug("Removing value from branch node")
+                    # Create a new branch node without the value
+                    new_branch = BranchNode(subnodes=node.subnodes, value=b"")
+
+                    # Check if the branch now has only one child
+                    non_empty_subnodes = [
+                        i for i, subnode in enumerate(new_branch.subnodes) if subnode
+                    ]
+                    if len(non_empty_subnodes) == 1:
+                        # Convert to extension or leaf node
+                        index = non_empty_subnodes[0]
+                        child = new_branch.subnodes[index]
+
+                        # If child is a hash reference, resolve it
+                        if isinstance(child, bytes) and len(child) == 32:
+                            child_data = self.nodes.get(Hash32(child))
+                            if child_data is None:
+                                raise ValueError(
+                                    f"Child node not found: 0x{child.hex()}"
+                                )
+                            child_node = self._decode_node(child_data)
+                        else:
+                            child_node = self._decode_node(child)
+
+                        # Create a new path segment with the branch index
+                        new_segment = bytes([index])
+
+                        if isinstance(child_node, LeafNode):
+                            # Combine paths and create a new leaf
+                            combined_path = new_segment + child_node.rest_of_key
+                            return (
+                                LeafNode(
+                                    rest_of_key=combined_path, value=child_node.value
+                                ),
+                                True,
+                            )
+                        elif isinstance(child_node, ExtensionNode):
+                            # Combine paths and create a new extension
+                            combined_path = new_segment + child_node.key_segment
+                            return (
+                                ExtensionNode(
+                                    key_segment=combined_path,
+                                    subnode=child_node.subnode,
+                                ),
+                                True,
+                            )
+                        else:
+                            # Create an extension to the branch
+                            return (
+                                ExtensionNode(key_segment=new_segment, subnode=child),
+                                True,
+                            )
+
+                    return new_branch, True
+                return node, False  # No value to delete
+
+            # Otherwise, follow the path
+            next_nibble = nibble_path[0]
+            if next_nibble >= 16:
+                raise ValueError(f"Invalid nibble value: {next_nibble}")
+
+            next_node = node.subnodes[next_nibble]
+            if not next_node:
+                return node, False  # Path doesn't exist
+
+            # Recursively delete from the child
+            if isinstance(next_node, bytes) and len(next_node) == 32:
+                new_child, deleted = self._delete_node(
+                    Hash32(next_node), nibble_path[1:]
+                )
+            else:
+                # Process embedded node
+                child_node = self._decode_node(next_node)
+                new_child, deleted = self._process_embedded_delete(
+                    child_node, nibble_path[1:]
+                )
+
+            if not deleted:
+                return node, False
+
+            # Update the branch with the new child
+            new_subnodes = list(node.subnodes)
+            if new_child is None:
+                new_subnodes[next_nibble] = b""
+            else:
+                encoded_child = encode_internal_node(new_child)
+                if len(encoded_child) >= 32:
+                    child_hash = keccak256(encoded_child)
+                    self.nodes[child_hash] = encoded_child
+                    new_subnodes[next_nibble] = child_hash
+                else:
+                    new_subnodes[next_nibble] = encoded_child
+
+            # Check if the branch now has only one child and no value
+            non_empty_subnodes = [
+                i for i, subnode in enumerate(new_subnodes) if subnode
+            ]
+            if len(non_empty_subnodes) == 1 and not node.value:
+                # Convert to extension or leaf node
+                index = non_empty_subnodes[0]
+                child = new_subnodes[index]
+
+                # If child is a hash reference, resolve it
+                if isinstance(child, bytes) and len(child) == 32:
+                    child_data = self.nodes.get(Hash32(child))
+                    if child_data is None:
+                        raise ValueError(f"Child node not found: 0x{child.hex()}")
+                    child_node = self._decode_node(child_data)
+                else:
+                    child_node = self._decode_node(child)
+
+                # Create a new path segment with the branch index
+                new_segment = bytes([index])
+
+                if isinstance(child_node, LeafNode):
+                    # Combine paths and create a new leaf
+                    combined_path = new_segment + child_node.rest_of_key
+                    return (
+                        LeafNode(rest_of_key=combined_path, value=child_node.value),
+                        True,
+                    )
+                elif isinstance(child_node, ExtensionNode):
+                    # Combine paths and create a new extension
+                    combined_path = new_segment + child_node.key_segment
+                    return (
+                        ExtensionNode(
+                            key_segment=combined_path, subnode=child_node.subnode
+                        ),
+                        True,
+                    )
+                else:
+                    # Create an extension to the branch
+                    return ExtensionNode(key_segment=new_segment, subnode=child), True
+
+            return BranchNode(subnodes=tuple(new_subnodes), value=node.value), True
+
+        elif isinstance(node, ExtensionNode):
+            logger.debug("Processing embedded extension node")
+            key_segment = bytes_to_nibble_list(node.key_segment)
+
+            # Check if the path matches the key segment
+            if len(nibble_path) < len(key_segment):
+                return node, False  # Path too short, nothing to delete
+
+            for i in range(len(key_segment)):
+                if nibble_path[i] != key_segment[i]:
+                    return node, False  # Path mismatch, nothing to delete
+
+            # Path matches, continue with the remaining path
+            remaining_path = nibble_path[len(key_segment) :]
+
+            # Recursively delete from the child
+            if isinstance(node.subnode, bytes) and len(node.subnode) == 32:
+                new_child, deleted = self._delete_node(
+                    Hash32(node.subnode), remaining_path
+                )
+            else:
+                # Process embedded node
+                child_node = self._decode_node(node.subnode)
+                new_child, deleted = self._process_embedded_delete(
+                    child_node, remaining_path
+                )
+
+            if not deleted:
+                return node, False
+
+            if new_child is None:
+                # Child was completely deleted
+                return None, True
+
+            # If the child is a leaf or extension, merge the paths
+            if isinstance(new_child, LeafNode):
+                combined_path = bytes(key_segment) + new_child.rest_of_key
+                return LeafNode(rest_of_key=combined_path, value=new_child.value), True
+            elif isinstance(new_child, ExtensionNode):
+                combined_path = bytes(key_segment) + new_child.key_segment
+                return (
+                    ExtensionNode(key_segment=combined_path, subnode=new_child.subnode),
+                    True,
+                )
+
+            encoded_child = encode_internal_node(new_child)
+            if len(encoded_child) >= 32:
+                child_hash = keccak256(encoded_child)
+                self.nodes[child_hash] = encoded_child
+                encoded_child = child_hash
+            return (
+                ExtensionNode(key_segment=bytes(key_segment), subnode=encoded_child),
+                True,
+            )
+
+        elif isinstance(node, LeafNode):
+            logger.debug("Processing embedded leaf node")
+            leaf_key = bytes_to_nibble_list(node.rest_of_key)
+
+            # Check if the path matches exactly
+            if nibble_path == leaf_key:
+                logger.debug("Path matches leaf key, deleting leaf")
+                return None, True  # Delete the leaf
+
+            return node, False  # Path doesn't match, nothing to delete
+
+        raise ValueError(f"Unknown embedded node type: {type(node)}")
+
+    def upsert(
+        self, path: Bytes, value: Bytes, root_hash: Optional[Hash32] = None
+    ) -> Hash32:
+        """
+        Insert or update a value in the trie at the given path.
+
+        Parameters
+        ----------
+        path : Bytes
+            The path where the value should be stored
+        value : Bytes
+            The RLP-encoded value to store
+        root_hash : Hash32, optional
+            The root hash to start from, defaults to the trie's state_root
+
+        Returns
+        -------
+        Hash32
+            The new root hash after insertion/update
+        """
+        if root_hash is None:
+            root_hash = self.state_root
+
+        logger.debug(
+            f"Upsert value at path: {'0x' + path.hex() if path else 'None'} - root hash: 0x{root_hash.hex()}"
+        )
+
+        if root_hash not in self.nodes:
+            raise ValueError(f"Root hash not found: {root_hash.hex()}")
+
+        # Start traversal from the root
+        nibble_path = bytes_to_nibble_list(path)
+
+        new_root_node, _ = self._upsert_node(root_hash, nibble_path, value)
+
+        # Encode and hash the new root node
+        encoded_node = encode_internal_node(new_root_node)
+        new_root_hash = keccak256(encoded_node)
+
+        # Update the nodes mapping with the new root
+        self.nodes[new_root_hash] = encoded_node
+
+        if root_hash == self.state_root:
+            self.state_root = new_root_hash
+
+        return new_root_hash
+
+    def _upsert_node(
+        self, node_hash: Hash32, nibble_path: Bytes, value: Bytes
+    ) -> tuple[InternalNode, bool]:
+        """
+        Recursive helper for upsert method.
+
+        Parameters
+        ----------
+        node_hash : Hash32
+            The hash of the current node
+        nibble_path : Bytes
+            The remaining path to traverse (in nibbles)
+        value : Bytes
+            The RLP-encoded value to store
+
+        Returns
+        -------
+        tuple[InternalNode, bool]
+            The new node and a boolean indicating if the node was modified
+        """
+        logger.debug(
+            f"Upsert into node with hash: 0x{node_hash.hex()} - remaining path: {nibble_path_to_hex(nibble_path)}"
+        )
+
+        node_data = self.nodes.get(node_hash)
+        if node_data is None:
+            raise ValueError(f"Node not found: 0x{node_hash.hex()}")
+
+        # Decode the node
+        node = self._decode_node(node_data)
+
+        # Process based on node type
+        if isinstance(node, BranchNode):
+            logger.debug("Processing branch node for upsert")
+
+            # If we've reached the end of the path, update the value
+            if not nibble_path:
+                # TODO: Handle branch node with value
+                raise ValueError(
+                    "Invariant: cannot insert or update a branch node value"
+                )
+
+            # Otherwise, follow the path
+            next_nibble = nibble_path[0]
+            if next_nibble >= 16:
+                raise ValueError(f"Invalid nibble value: {next_nibble}")
+
+            next_node = node.subnodes[next_nibble]
+
+            # If the next node is empty, we are in insert case, create a new leaf
+            if not next_node:
+                logger.debug(
+                    f"Subnode at index {next_nibble} is empty, inserting new leaf node"
+                )
+                leaf_node = LeafNode(rest_of_key=nibble_path[1:], value=value)
+
+                # Update the branch with the new leaf
+                new_subnodes = list(node.subnodes)
+                encoded_subnode = encode_internal_node(leaf_node)
+                if len(encoded_subnode) >= 32:
+                    new_subnodes[next_nibble] = keccak256(encoded_subnode)
+                    self.nodes[new_subnodes[next_nibble]] = encoded_subnode
+                else:
+                    new_subnodes[next_nibble] = encoded_subnode
+                return BranchNode(subnodes=tuple(new_subnodes), value=node.value), True
+
+            # Recursively upsert into the child
+            if isinstance(next_node, bytes) and len(next_node) == 32:
+                logger.debug(
+                    f"Subnode at index {next_nibble} is a hash reference, upsert into child"
+                )
+                new_child, modified = self._upsert_node(
+                    Hash32(next_node), nibble_path[1:], value
+                )
+                if not modified:
+                    return node, False
+
+                new_subnodes = list(node.subnodes)
+                encoded_child = encode_internal_node(new_child)
+                if len(encoded_child) >= 32:
+                    new_subnodes[next_nibble] = keccak256(encoded_child)
+                    self.nodes[new_subnodes[next_nibble]] = encoded_child
+                else:
+                    new_subnodes[next_nibble] = encoded_child
+                return BranchNode(subnodes=tuple(new_subnodes), value=node.value), True
+            elif isinstance(next_node, bytes) and len(next_node) < 32:
+                logger.debug(
+                    f"Subnode at index {next_nibble} is an embedded node, upsert into child"
+                )
+                child_node = self._decode_node(next_node)
+                new_child, modified = self._process_embedded_upsert(
+                    child_node, nibble_path[1:], value
+                )
+                if not modified:
+                    return node, False
+
+                # Update the branch with the new child
+                new_subnodes = list(node.subnodes)
+                encoded_child = encode_internal_node(new_child)
+                if len(encoded_child) >= 32:
+                    new_subnodes[next_nibble] = keccak256(encoded_child)
+                    self.nodes[new_subnodes[next_nibble]] = encoded_child
+                else:
+                    new_subnodes[next_nibble] = encoded_child
+                return BranchNode(subnodes=tuple(new_subnodes), value=node.value), True
+            else:
+                raise ValueError(f"Unknown next node type: {type(next_node)}")
+
+        elif isinstance(node, ExtensionNode):
+            logger.debug("Processing extension node for upsert")
+            key_segment = node.key_segment
+
+            # Find the common prefix length
+            common_prefix_len = 0
+            for i in range(min(len(key_segment), len(nibble_path))):
+                if key_segment[i] != nibble_path[i]:
+                    break
+                common_prefix_len += 1
+
+            # If the paths diverge
+            if common_prefix_len < len(key_segment):
+
+                # Create a branch node at the divergence point
+                branch_node = BranchNode(
+                    subnodes=tuple(b"" for _ in range(16)), value=b""
+                )
+
+                # Add the existing extension's suffix as one branch
+                if common_prefix_len + 1 < len(key_segment):
+                    # Create a new extension node with the remaining segment
+                    new_ext = ExtensionNode(
+                        key_segment=key_segment[common_prefix_len + 1 :],
+                        subnode=node.subnode,
+                    )
+                    encoded_ext = encode_internal_node(new_ext)
+                    branch_subnodes = list(branch_node.subnodes)
+                    if len(encoded_ext) >= 32:
+                        ext_hash = keccak256(encoded_ext)
+                        branch_subnodes[key_segment[common_prefix_len]] = ext_hash
+                        self.nodes[ext_hash] = encoded_ext
+                    else:
+                        branch_subnodes[key_segment[common_prefix_len]] = encoded_ext
+                    branch_node = BranchNode(subnodes=tuple(branch_subnodes), value=b"")
+                else:
+                    # The extension ends at the branch, add its subnode directly
+                    branch_subnodes = list(branch_node.subnodes)
+                    branch_subnodes[key_segment[common_prefix_len]] = node.subnode
+                    branch_node = BranchNode(subnodes=tuple(branch_subnodes), value=b"")
+
+                # Add the new path as another branch
+                if common_prefix_len + 1 < len(nibble_path):
+                    # Create a leaf node for the new path
+                    leaf_node = LeafNode(
+                        rest_of_key=nibble_path[common_prefix_len + 1 :], value=value
+                    )
+
+                    # Add to the branch
+                    branch_subnodes = list(branch_node.subnodes)
+                    encoded_leaf = encode_internal_node(leaf_node)
+                    if len(encoded_leaf) >= 32:
+                        leaf_hash = keccak256(encoded_leaf)
+                        branch_subnodes[nibble_path[common_prefix_len]] = leaf_hash
+                        self.nodes[leaf_hash] = encoded_leaf
+                    else:
+                        branch_subnodes[nibble_path[common_prefix_len]] = encoded_leaf
+                    branch_node = BranchNode(subnodes=tuple(branch_subnodes), value=b"")
+                else:
+                    # TODO: Handle Branch node with value eventually
+                    raise ValueError(
+                        f"Invariant: trying to access node value 0x{node_hash.hex()}"
+                    )
+
+                encoded_branch_node = encode_internal_node(branch_node)
+                if len(encoded_branch_node) >= 32:
+                    encoded_branch_hash = keccak256(encoded_branch_node)
+                    self.nodes[encoded_branch_hash] = encoded_branch_node
+                    # Replace the branch node with its hash
+                    encoded_branch_node = encoded_branch_hash
+
+                # If there's a common prefix, create a new extension node
+                if common_prefix_len > 0:
+                    return (
+                        ExtensionNode(
+                            key_segment=key_segment[:common_prefix_len],
+                            subnode=encoded_branch_node,
+                        ),
+                        True,
+                    )
+                else:
+                    return branch_node, True
+
+            # If the extension's key is a prefix of the path
+            if common_prefix_len == len(key_segment):
+                # Continue with the remaining path
+                remaining_path = nibble_path[common_prefix_len:]
+
+                # Recursively upsert into the child
+                if isinstance(node.subnode, bytes) and len(node.subnode) == 32:
+                    new_child, modified = self._upsert_node(
+                        Hash32(node.subnode), remaining_path, value
+                    )
+                    if not modified:
+                        return node, False
+
+                    encoded_child = encode_internal_node(new_child)
+                    if len(encoded_child) >= 32:
+                        encoded_child_hash = keccak256(encoded_child)
+                        self.nodes[encoded_child_hash] = encoded_child
+                        # Replace the child node with its hash
+                        encoded_child = encoded_child_hash
+
+                    return (
+                        ExtensionNode(key_segment=key_segment, subnode=encoded_child),
+                        True,
+                    )
+                else:
+                    # Process embedded node
+                    child_node = self._decode_node(node.subnode)
+                    new_child, modified = self._process_embedded_upsert(
+                        child_node, remaining_path, value
+                    )
+                    if not modified:
+                        return node, False
+                    if not isinstance(new_child, InternalNode):
+                        raise ValueError(f"Unexpected node type: {type(new_child)}")
+
+                    encoded_child = encode_internal_node(new_child)
+                    if len(encoded_child) >= 32:
+                        encoded_child_hash = keccak256(encoded_child)
+                        self.nodes[encoded_child_hash] = encoded_child
+                        # Replace the child node with its hash
+                        encoded_child = encoded_child_hash
+
+                    return (
+                        ExtensionNode(key_segment=key_segment, subnode=encoded_child),
+                        True,
+                    )
+
+            # Invariant: this case shouldn't happen if the trie is well-formed
+            raise ValueError(
+                f"Unexpected case in extension node processing - key_segment: {key_segment.hex()} - nibble_path: {nibble_path.hex()}"
+            )
+
+        elif isinstance(node, LeafNode):
+            logger.debug("Processing leaf node for upsert")
+
+            # If the path matches exactly, update the value
+            if nibble_path == node.rest_of_key:
+                if node.value == value:
+                    return node, False
+
+                logger.debug(
+                    f"Updating leaf node at path {nibble_path_to_hex(node.rest_of_key)} - Account: Nonce: {int.from_bytes(rlp.decode(value)[0], 'big')} | Balance: {int.from_bytes(rlp.decode(value)[1], 'big')} | Storage Root: 0x{rlp.decode(value)[2].hex()} | CodeHash: 0x{rlp.decode(value)[3].hex()}"
+                )
+                return LeafNode(rest_of_key=node.rest_of_key, value=value), True
+
+            # Paths diverge, need to create a branch
+            # Find the common prefix length
+            common_prefix_len = 0
+            for i in range(min(len(node.rest_of_key), len(nibble_path))):
+                if node.rest_of_key[i] != nibble_path[i]:
+                    break
+                common_prefix_len += 1
+
+            # Create a branch node at the divergence point
+            branch_node = BranchNode(subnodes=tuple(b"" for _ in range(16)), value=b"")
+
+            # Add the existing leaf as one branch
+            if common_prefix_len + 1 < len(node.rest_of_key):
+                # Create a new leaf node with the remaining key
+                new_leaf = LeafNode(
+                    rest_of_key=node.rest_of_key[common_prefix_len + 1 :],
+                    value=node.value,
+                )
+                encoded_leaf = encode_internal_node(new_leaf)
+                branch_subnodes = list(branch_node.subnodes)
+                if len(encoded_leaf) >= 32:
+                    leaf_hash = keccak256(encoded_leaf)
+                    self.nodes[leaf_hash] = encoded_leaf
+                    branch_subnodes[node.rest_of_key[common_prefix_len]] = leaf_hash
+                else:
+                    branch_subnodes[node.rest_of_key[common_prefix_len]] = encoded_leaf
+
+                branch_node = BranchNode(subnodes=tuple(branch_subnodes), value=b"")
+            else:
+                # The leaf ends at the branch, raise an error
+                raise ValueError(
+                    f"Invariant: trying to access node value 0x{node_hash.hex()}"
+                )
+
+            # Add the new path as another branch
+            if common_prefix_len + 1 < len(nibble_path):
+                # Create a leaf node for the new path
+                new_leaf = LeafNode(
+                    rest_of_key=nibble_path[common_prefix_len + 1 :], value=value
+                )
+                logger.debug(
+                    f"Inserting leaf node at path {nibble_path_to_hex(nibble_path)} - Account: Nonce: {int.from_bytes(rlp.decode(value)[0], 'big')} | Balance: {int.from_bytes(rlp.decode(value)[1], 'big')} | Storage Root: 0x{rlp.decode(value)[2].hex()} | CodeHash: 0x{rlp.decode(value)[3].hex()}"
+                )
+
+                # Add to the branch
+                branch_subnodes = list(branch_node.subnodes)
+                encoded_leaf = encode_internal_node(new_leaf)
+                if len(encoded_leaf) >= 32:
+                    leaf_hash = keccak256(encoded_leaf)
+                    branch_subnodes[nibble_path[common_prefix_len]] = leaf_hash
+                    self.nodes[leaf_hash] = encoded_leaf
+                else:
+                    branch_subnodes[nibble_path[common_prefix_len]] = encoded_leaf
+                branch_node = BranchNode(
+                    subnodes=tuple(branch_subnodes), value=branch_node.value
+                )
+            else:
+                raise ValueError(
+                    f"Invariant: trying to access node value 0x{node_hash.hex()}"
+                )
+
+            # Encode the branch node
+            encoded_branch = encode_internal_node(branch_node)
+            if len(encoded_branch) >= 32:
+                branch_hash = keccak256(encoded_branch)
+                self.nodes[branch_hash] = encoded_branch
+                subnode = branch_hash
+            else:
+                subnode = encoded_branch
+
+            # If there's a common prefix, create a new extension node
+            if common_prefix_len > 0:
+                return (
+                    ExtensionNode(
+                        key_segment=nibble_path[:common_prefix_len], subnode=subnode
+                    ),
+                    True,
+                )
+            else:
+                return branch_node, True
+
+        raise ValueError(f"Unknown node type: {type(node)}")
+
+    def _process_embedded_upsert(
+        self, node: InternalNode, nibble_path: Bytes, value: Bytes
+    ) -> tuple[InternalNode, bool]:
+        """
+        Process upsert for an embedded node.
+
+        Parameters
+        ----------
+        node : InternalNode
+            The embedded node
+        nibble_path : Bytes
+            The remaining path to traverse
+        value : Bytes
+            The value to store
+
+        Returns
+        -------
+        tuple[InternalNode, bool]
+            The new node and a boolean indicating if the node was modified
+        """
+        logger.debug("Processing embedded node for upsert")
+
+        if isinstance(node, BranchNode):
+            logger.debug("Processing embedded branch node")
+
+            # If we've reached the end of the path, update the value
+            if not nibble_path:
+                if node.value == value:
+                    return node, False  # No change needed
+
+                # Update the value in the branch node
+                return BranchNode(subnodes=node.subnodes, value=value), True
+
+            # Otherwise, follow the path
+            next_nibble = nibble_path[0]
+            if next_nibble >= 16:
+                raise ValueError(f"Invalid nibble value: {next_nibble}")
+
+            next_node = node.subnodes[next_nibble]
+
+            # If the next node is empty, create a new leaf
+            if not next_node:
+                # Create a new leaf node for the remaining path
+                leaf_node = LeafNode(rest_of_key=nibble_path[1:], value=value)
+
+                # Update the branch with the new leaf
+                new_subnodes = list(node.subnodes)
+                encoded_leaf = encode_internal_node(leaf_node)
+                if len(encoded_leaf) >= 32:
+                    leaf_hash = keccak256(encoded_leaf)
+                    self.nodes[leaf_hash] = encoded_leaf
+                    new_subnodes[next_nibble] = leaf_hash
+                else:
+                    new_subnodes[next_nibble] = encoded_leaf
+                return BranchNode(subnodes=tuple(new_subnodes), value=node.value), True
+
+            # Recursively upsert into the child
+            if isinstance(next_node, bytes) and len(next_node) == 32:
+                new_child, modified = self._upsert_node(
+                    Hash32(next_node), nibble_path[1:], value
+                )
+                if not modified:
+                    return node, False
+
+                # Update the branch with the new child
+                new_subnodes = list(node.subnodes)
+                encoded_child = encode_internal_node(new_child)
+                if len(encoded_child) >= 32:
+                    child_hash = keccak256(encoded_child)
+                    self.nodes[child_hash] = encoded_child
+                    new_subnodes[next_nibble] = child_hash
+                else:
+                    new_subnodes[next_nibble] = encoded_child
+                return BranchNode(subnodes=tuple(new_subnodes), value=node.value), True
+            else:
+                # Process embedded node
+                child_node = self._decode_node(next_node)
+                new_child, modified = self._process_embedded_upsert(
+                    child_node, nibble_path[1:], value
+                )
+                if not modified:
+                    return node, False
+
+                # Update the branch with the new child
+                new_subnodes = list(node.subnodes)
+                encoded_child = encode_internal_node(new_child)
+                if len(encoded_child) >= 32:
+                    child_hash = keccak256(encoded_child)
+                    self.nodes[child_hash] = encoded_child
+                    new_subnodes[next_nibble] = child_hash
+                else:
+                    new_subnodes[next_nibble] = encoded_child
+                return BranchNode(subnodes=tuple(new_subnodes), value=node.value), True
+
+        elif isinstance(node, ExtensionNode):
+            logger.debug("Processing embedded extension node")
+            key_segment = bytes_to_nibble_list(node.key_segment)
+
+            # Find the common prefix length
+            common_prefix_len = 0
+            for i in range(min(len(key_segment), len(nibble_path))):
+                if key_segment[i] != nibble_path[i]:
+                    break
+                common_prefix_len += 1
+
+            # If the paths diverge
+            if common_prefix_len < len(key_segment):
+                # Split the extension node at the divergence point
+
+                # Create a branch node at the divergence point
+                branch_node = BranchNode(
+                    subnodes=tuple(b"" for _ in range(16)), value=b""
+                )
+
+                # Add the existing extension's suffix as one branch
+                if common_prefix_len + 1 < len(key_segment):
+                    # Create a new extension node with the remaining segment
+                    new_ext = ExtensionNode(
+                        key_segment=bytes(key_segment[common_prefix_len + 1 :]),
+                        subnode=node.subnode,
+                    )
+                    encoded_ext = encode_internal_node(new_ext)
+                    branch_subnodes = list(branch_node.subnodes)
+                    if len(encoded_ext) >= 32:
+                        ext_hash = keccak256(encoded_ext)
+                        branch_subnodes[key_segment[common_prefix_len]] = ext_hash
+                        self.nodes[ext_hash] = encoded_ext
+                    else:
+                        branch_subnodes[key_segment[common_prefix_len]] = encoded_ext
+                    branch_node = BranchNode(subnodes=tuple(branch_subnodes), value=b"")
+                else:
+                    # The extension ends at the branch, add its subnode directly
+                    branch_subnodes = list(branch_node.subnodes)
+                    branch_subnodes[key_segment[common_prefix_len]] = node.subnode
+                    branch_node = BranchNode(subnodes=tuple(branch_subnodes), value=b"")
+
+                # Add the new path as another branch
+                if common_prefix_len + 1 < len(nibble_path):
+                    # Create a leaf node for the new path
+                    leaf_node = LeafNode(
+                        rest_of_key=nibble_path[common_prefix_len + 1 :], value=value
+                    )
+
+                    # Add to the branch
+                    branch_subnodes = list(branch_node.subnodes)
+                    encoded_leaf = encode_internal_node(leaf_node)
+                    if len(encoded_leaf) >= 32:
+                        leaf_hash = keccak256(encoded_leaf)
+                        branch_subnodes[nibble_path[common_prefix_len]] = leaf_hash
+                        self.nodes[leaf_hash] = encoded_leaf
+                    else:
+                        branch_subnodes[nibble_path[common_prefix_len]] = encoded_leaf
+                    branch_node = BranchNode(subnodes=tuple(branch_subnodes), value=b"")
+                else:
+                    # TODO: Handle branch node with value
+                    raise ValueError("Invariant: Branch node with value not supported")
+
+                # If there's a common prefix, create a new extension node
+                if common_prefix_len > 0:
+                    encoded_branch = encode_internal_node(branch_node)
+                    if len(encoded_branch) >= 32:
+                        branch_hash = keccak256(encoded_branch)
+                        self.nodes[branch_hash] = encoded_branch
+                        return (
+                            ExtensionNode(
+                                key_segment=bytes(key_segment[:common_prefix_len]),
+                                subnode=branch_hash,
+                            ),
+                            True,
+                        )
+                else:
+                    return branch_node, True
+
+            # If the extension's key is a prefix of the path
+            if common_prefix_len == len(key_segment):
+                # Continue with the remaining path
+                remaining_path = nibble_path[common_prefix_len:]
+
+                # Recursively upsert into the child
+                if isinstance(node.subnode, bytes) and len(node.subnode) == 32:
+                    new_child, modified = self._upsert_node(
+                        Hash32(node.subnode), remaining_path, value
+                    )
+                    if not modified:
+                        return node, False
+
+                    encoded_child = encode_internal_node(new_child)
+                    if len(encoded_child) >= 32:
+                        child_hash = keccak256(encoded_child)
+                        self.nodes[child_hash] = encoded_child
+                        return (
+                            ExtensionNode(
+                                key_segment=bytes(key_segment), subnode=child_hash
+                            ),
+                            True,
+                        )
+                else:
+                    # Process embedded node
+                    child_node = self._decode_node(node.subnode)
+                    new_child, modified = self._process_embedded_upsert(
+                        child_node, remaining_path, value
+                    )
+                    if not modified:
+                        return node, False
+
+                    encoded_child = encode_internal_node(new_child)
+                    if len(encoded_child) >= 32:
+                        child_hash = keccak256(encoded_child)
+                        self.nodes[child_hash] = encoded_child
+                        return (
+                            ExtensionNode(
+                                key_segment=bytes(key_segment), subnode=child_hash
+                            ),
+                            True,
+                        )
+                    else:
+                        return (
+                            ExtensionNode(
+                                key_segment=bytes(key_segment), subnode=new_child
+                            ),
+                            True,
+                        )
+
+            # Invariant: this case shouldn't happen if the trie is well-formed
+            raise ValueError(
+                f"Unexpected case in extension node processing - key_segment: {key_segment.hex()} - nibble_path: {nibble_path.hex()}"
+            )
+
+        elif isinstance(node, LeafNode):
+            logger.debug("Processing embedded leaf node")
+            # Rest of key is already a nibble list
+
+            if nibble_path == node.rest_of_key:
+                if node.value == value:
+                    return node, False
+
+                return LeafNode(rest_of_key=node.rest_of_key, value=value), True
+
+            # Paths diverge, need to create a branch
+            # Find the common prefix length
+            common_prefix_len = 0
+            for i in range(min(len(node.rest_of_key), len(nibble_path))):
+                if node.rest_of_key[i] != nibble_path[i]:
+                    break
+                common_prefix_len += 1
+
+            # Create a branch node at the divergence point
+            branch_node = BranchNode(subnodes=tuple(b"" for _ in range(16)), value=b"")
+
+            # Add the existing leaf as one branch
+            if common_prefix_len + 1 < len(node.rest_of_key):
+                # Create a new leaf node with the remaining key
+                new_leaf = LeafNode(
+                    rest_of_key=bytes(node.rest_of_key[common_prefix_len + 1 :]),
+                    value=node.value,
+                )
+
+                # Add to the branch
+                branch_subnodes = list(branch_node.subnodes)
+                encoded_leaf = encode_internal_node(new_leaf)
+                if len(encoded_leaf) >= 32:
+                    leaf_hash = keccak256(encoded_leaf)
+                    branch_subnodes[node.rest_of_key[common_prefix_len]] = leaf_hash
+                    self.nodes[leaf_hash] = encoded_leaf
+                else:
+                    branch_subnodes[node.rest_of_key[common_prefix_len]] = encoded_leaf
+                branch_node = BranchNode(subnodes=tuple(branch_subnodes), value=b"")
+            else:
+                # The leaf ends at the branch, add its value
+                branch_node = BranchNode(
+                    subnodes=branch_node.subnodes, value=node.value
+                )
+
+            # Add the new path as another branch
+            if common_prefix_len + 1 < len(nibble_path):
+                # Create a leaf node for the new path
+                new_leaf = LeafNode(
+                    rest_of_key=nibble_path[common_prefix_len + 1 :], value=value
+                )
+
+                # Add to the branch
+                branch_subnodes = list(branch_node.subnodes)
+                encoded_leaf = encode_internal_node(new_leaf)
+                if len(encoded_leaf) >= 32:
+                    leaf_hash = keccak256(encoded_leaf)
+                    branch_subnodes[nibble_path[common_prefix_len]] = leaf_hash
+                    self.nodes[leaf_hash] = encoded_leaf
+                else:
+                    branch_subnodes[nibble_path[common_prefix_len]] = encoded_leaf
+                branch_node = BranchNode(
+                    subnodes=tuple(branch_subnodes), value=branch_node.value
+                )
+            else:
+                # TODO: Handle branch node with value
+                raise ValueError("Invariant: Branch node with value not supported")
+
+            # If there's a common prefix, create a new extension node
+            if common_prefix_len > 0:
+                encoded_branch = encode_internal_node(branch_node)
+                if len(encoded_branch) >= 32:
+                    branch_hash = keccak256(encoded_branch)
+                    self.nodes[branch_hash] = encoded_branch
+                    return (
+                        ExtensionNode(
+                            key_segment=bytes(nibble_path[:common_prefix_len]),
+                            subnode=branch_hash,
+                        ),
+                        True,
+                    )
+            else:
+                return branch_node, True
+
+        raise ValueError(f"Unknown embedded node type: {type(node)}")
+
+
+def decode_node(node: Bytes) -> InternalNode:
+    """Decode an RLP encoded node into an InternalNode."""
+
+    decoded = rlp.decode(node)
+
+    if isinstance(decoded, list) and len(decoded) == 17:
+        logger.debug("Decoding as branch node")
+        return BranchNode(subnodes=tuple(decoded[0:16]), value=decoded[16])
+    elif isinstance(decoded, list) and len(decoded) == 2:
+        logger.debug("Decoding as extension or leaf node")
+        prefix = decoded[0]
+        value = decoded[1]
+
+        if not isinstance(prefix, bytes):
+            raise ValueError(f"Invalid prefix type: {type(prefix)}")
+
+        # Determine if it's a leaf or extension node based on first nibble
+        first_nibble = prefix[0] >> 4
+        is_leaf = first_nibble in (2, 3)
+        logger.debug(f"First nibble: {first_nibble}, is_leaf: {is_leaf}")
+
+        # Extract the path from the compact encoding
+        nibbles = []
+        for b in prefix:
+            nibbles.extend([(b >> 4) & 0xF, b & 0xF])
+
+        # Remove the flag nibble and odd padding if present
+        if first_nibble in (1, 3):  # odd length
+            nibbles = nibbles[1:]
+            logger.debug("Odd length, removed first nibble")
+        else:  # even length
+            nibbles = nibbles[2:]
+            logger.debug("Even length, removed first two nibbles")
+
+        current_path = bytes(nibbles)
+        logger.debug(f"Current path: {nibble_path_to_hex(current_path)}")
+
+        if is_leaf:
+            return LeafNode(rest_of_key=current_path, value=value)
+        else:
+            return ExtensionNode(key_segment=current_path, subnode=value)
+    else:
+        raise ValueError(f"Unknown node structure: {type(decoded)}")
+
+
+# Redefinition of encode_internal_node from ethereum.cancun.trie
+# without keccak256 of the RLP encoded node if its length is greater than 32 bytes
+def encode_internal_node(node: Optional[InternalNode]) -> rlp.Extended:
+    """
+    Encodes a Merkle Trie node into its RLP form. The RLP will then be
+    serialized into a `Bytes` and hashed unless it is less that 32 bytes
+    when serialized.
+
+    This function also accepts `None`, representing the absence of a node,
+    which is encoded to `b""`.
+
+    Parameters
+    ----------
+    node : Optional[InternalNode]
+        The node to encode.
+
+    Returns
+    -------
+    encoded : `rlp.Extended`
+        The node encoded as RLP.
+    """
+    unencoded: rlp.Extended
+    if node is None:
+        unencoded = b""
+    elif isinstance(node, LeafNode):
+        unencoded = (
+            nibble_list_to_compact(node.rest_of_key, True),
+            node.value,
+        )
+    elif isinstance(node, ExtensionNode):
+        unencoded = (
+            nibble_list_to_compact(node.key_segment, False),
+            node.subnode,
+        )
+    elif isinstance(node, BranchNode):
+        unencoded = list(node.subnodes) + [node.value]
+    else:
+        raise AssertionError(f"Invalid internal node type {type(node)}!")
+
+    encoded = rlp.encode(unencoded)
+    return encoded
