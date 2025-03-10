@@ -112,7 +112,6 @@ func alt_bn128_add{
     tempvar is_on_curve;
     tempvar point = p0;
     %{ is_point_on_curve %}
-    tempvar is_p0_on_curve_uint384 = UInt384(is_on_curve, 0, 0, 0);
     if (is_on_curve == 0 and is_p0_zero.value == 0) {
         assert_not_on_curve(new p0.x, new p0.y, a, b, modulus);
         tempvar err = new EthereumException(OutOfGasError);
@@ -227,7 +226,6 @@ func alt_bn128_mul{
     tempvar is_on_curve;
     tempvar point = p0;
     %{ is_point_on_curve %}
-    tempvar is_p0_on_curve_uint384 = UInt384(is_on_curve, 0, 0, 0);
     if (is_on_curve == 0) {
         assert_not_on_curve(new p0.x, new p0.y, a, b, modulus);
         tempvar err = new EthereumException(OutOfGasError);
