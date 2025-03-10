@@ -5,29 +5,16 @@ from starkware.cairo.common.uint256 import Uint256
 from starkware.cairo.common.alloc import alloc
 
 from legacy.utils.array import reverse, count_not_zero
+from cairo_core.bytes import Bytes
 
-func test__reverse(output_ptr: felt*) {
+func test__reverse(data: Bytes) -> felt* {
     alloc_locals;
-    tempvar arr_len: felt;
-    let (arr) = alloc();
-    %{
-        ids.arr_len = len(program_input["arr"])
-        segments.write_arg(ids.arr, program_input["arr"])
-    %}
-
-    reverse(output_ptr, arr_len, arr);
-    return ();
+    let (output) = alloc();
+    reverse(output, data.value.len, data.value.data);
+    return output;
 }
 
-func test__count_not_zero(output_ptr: felt*) {
-    tempvar arr_len: felt;
-    let (arr) = alloc();
-    %{
-        ids.arr_len = len(program_input["arr"])
-        segments.write_arg(ids.arr, program_input["arr"])
-    %}
-
-    let count = count_not_zero(arr_len, arr);
-    assert [output_ptr] = count;
-    return ();
+func test__count_not_zero(data: Bytes) -> felt {
+    let count = count_not_zero(data.value.len, data.value.data);
+    return count;
 }

@@ -1,13 +1,11 @@
-import pytest
+from ethereum_types.bytes import Bytes
+from ethereum_types.numeric import U256
 from hypothesis import Verbosity, given, settings
 from hypothesis.strategies import binary, integers
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 
 from cairo_addons.testing.errors import cairo_error
 from cairo_addons.testing.hints import patch_hint
-from cairo_addons.utils.uint256 import int_to_uint256
-
-pytestmark = pytest.mark.python_vm
 
 
 class TestBytes:
@@ -91,33 +89,31 @@ class TestBytes:
             assert bytes.fromhex(f"{n:x}".rjust(len(res) * 2, "0")) == res
 
     class TestUint256ToBytesLittle:
-        @given(n=integers(min_value=0, max_value=2**256 - 1))
-        def test_should_return_bytes(self, cairo_run, n):
-            output = cairo_run("test__uint256_to_bytes_little", n=int_to_uint256(n))
+        @given(n=...)
+        def test_should_return_bytes(self, cairo_run, n: U256):
+            output = cairo_run("test__uint256_to_bytes_little", n=n)
             res = bytes(output if isinstance(output, list) else [output])
-            assert bytes.fromhex(f"{n:x}".rjust(len(res) * 2, "0"))[::-1] == res
+            assert U256.to_le_bytes(n) == res if n != 0 else b"\x00"
 
     class TestUint256ToBytes:
-        @pytest.mark.parametrize(
-            "n", [0, 10, 1234, 0xFFFFFF, 2**128, DEFAULT_PRIME - 1, 2**256 - 1]
-        )
-        def test_should_return_bytes(self, cairo_run, n):
-            output = cairo_run("test__uint256_to_bytes", n=int_to_uint256(n))
+        @given(n=...)
+        def test_should_return_bytes(self, cairo_run, n: U256):
+            output = cairo_run("test__uint256_to_bytes", n=n)
             res = bytes(output if isinstance(output, list) else [output])
-            assert bytes.fromhex(f"{n:x}".rjust(len(res) * 2, "0")) == res
+            assert U256.to_be_bytes(n) == res if n != 0 else b"\x00"
 
     class TestUint256ToBytes32:
-        @given(n=integers(min_value=0, max_value=2**256 - 1))
-        def test_should_return_bytes(self, cairo_run, n):
-            output = cairo_run("test__uint256_to_bytes32", n=int_to_uint256(n))
-            assert bytes.fromhex(f"{n:064x}") == bytes(
+        @given(n=...)
+        def test_should_return_bytes(self, cairo_run, n: U256):
+            output = cairo_run("test__uint256_to_bytes32", n=n)
+            assert U256.to_be_bytes32(n) == bytes(
                 output if isinstance(output, list) else [output]
             )
 
     class TestBytesToBytes8LittleEndian:
 
-        @given(data=binary(max_size=1000))
-        def test_should_return_bytes8(self, cairo_run, data):
+        @given(data=binary(max_size=1000).map(Bytes))
+        def test_should_return_bytes8(self, cairo_run, data: Bytes):
             bytes8_little_endian = [
                 int.from_bytes(bytes(data[i : i + 8]), "little")
                 for i in range(0, len(data), 8)
@@ -128,12 +124,14 @@ class TestBytes:
 
     class TestBytesToFelt:
 
-        @given(data=binary(min_size=0, max_size=35))
-        def test_should_convert_bytes_to_felt_with_overflow(self, cairo_run, data):
-            output = cairo_run("test__bytes_to_felt", data=list(data))
+        @given(data=binary(min_size=0, max_size=35).map(Bytes))
+        def test_should_convert_bytes_to_felt_with_overflow(
+            self, cairo_run, data: Bytes
+        ):
+            output = cairo_run("test__bytes_to_felt", bytes=data)
             assert output == int.from_bytes(data, byteorder="big") % DEFAULT_PRIME
 
-        @given(data=binary(min_size=0, max_size=35))
-        def test_should_convert_bytes_to_felt_le(self, cairo_run, data):
-            output = cairo_run("test__bytes_to_felt_le", data=list(data))
+        @given(data=binary(min_size=0, max_size=35).map(Bytes))
+        def test_should_convert_bytes_to_felt_le(self, cairo_run, data: Bytes):
+            output = cairo_run("test__bytes_to_felt_le", bytes=data)
             assert output == int.from_bytes(data, byteorder="little") % DEFAULT_PRIME

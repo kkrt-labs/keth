@@ -1,4 +1,8 @@
-use cairo_vm::types::program::Program as RustProgram;
+use cairo_vm::{
+    serde::deserialize_program::{deserialize_program_json, parse_program_json, ProgramJson},
+    types::program::Program as RustProgram,
+    Felt252,
+};
 use pyo3::prelude::*;
 
 use crate::vm::builtins::PyBuiltinList;
@@ -13,9 +17,15 @@ impl PyProgram {
     #[staticmethod]
     #[pyo3(signature = (program_bytes, entrypoint=None))]
     fn from_bytes(program_bytes: &[u8], entrypoint: Option<&str>) -> PyResult<Self> {
-        let inner = RustProgram::from_bytes(program_bytes, entrypoint)
+        let mut program_json: ProgramJson = deserialize_program_json(program_bytes)
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
-        Ok(Self { inner })
+        // Manually add proof-mode instructions jmp rel 0 to be able to loop in proof mode and avoid
+        // the proof-mode at compile time
+        program_json.data.push(Felt252::from(0x10780017FFF7FFF_u64).into());
+        program_json.data.push(Felt252::from(0).into());
+        let program = parse_program_json(program_json, entrypoint)
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+        Ok(Self { inner: program })
     }
 
     #[getter]

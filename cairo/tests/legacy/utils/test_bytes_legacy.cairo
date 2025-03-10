@@ -3,6 +3,9 @@
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.uint256 import Uint256
 
+from cairo_core.numeric import U256
+from cairo_core.bytes import Bytes
+
 from legacy.utils.bytes import (
     felt_to_bytes_little,
     felt_to_bytes,
@@ -14,95 +17,58 @@ from legacy.utils.bytes import (
     bytes_to_felt_le,
 )
 
-func test__felt_to_bytes_little{range_check_ptr}() -> felt* {
+func test__felt_to_bytes_little{range_check_ptr}(n: felt) -> felt* {
     alloc_locals;
-    tempvar n: felt;
-    %{ ids.n = program_input["n"] %}
 
     let (output) = alloc();
     felt_to_bytes_little(output, n);
     return output;
 }
 
-func test__felt_to_bytes{range_check_ptr}(output_ptr: felt*) {
+func test__felt_to_bytes{range_check_ptr}(n: felt) -> felt* {
     alloc_locals;
-    tempvar n: felt;
-    %{ ids.n = program_input["n"] %}
-
-    felt_to_bytes(output_ptr, n);
-    return ();
+    let (output) = alloc();
+    felt_to_bytes(output, n);
+    return output;
 }
 
-func test__uint256_to_bytes_little{range_check_ptr}(output_ptr: felt*) {
+func test__uint256_to_bytes_little{range_check_ptr}(n: U256) -> felt* {
     alloc_locals;
-    tempvar n: Uint256;
-    %{
-        ids.n.low = program_input["n"][0]
-        ids.n.high = program_input["n"][1]
-    %}
-
-    uint256_to_bytes_little(output_ptr, n);
-    return ();
+    let (output) = alloc();
+    uint256_to_bytes_little(output, [n.value]);
+    return output;
 }
 
-func test__uint256_to_bytes{range_check_ptr}(output_ptr: felt*) {
+func test__uint256_to_bytes{range_check_ptr}(n: U256) -> felt* {
     alloc_locals;
-    tempvar n: Uint256;
-    %{
-        ids.n.low = program_input["n"][0]
-        ids.n.high = program_input["n"][1]
-    %}
-
-    uint256_to_bytes(output_ptr, n);
-    return ();
+    let (output) = alloc();
+    uint256_to_bytes(output, [n.value]);
+    return output;
 }
 
-func test__uint256_to_bytes32{range_check_ptr}(output_ptr: felt*) {
+func test__uint256_to_bytes32{range_check_ptr}(n: U256) -> felt* {
     alloc_locals;
-    tempvar n: Uint256;
-    %{
-        ids.n.low = program_input["n"][0]
-        ids.n.high = program_input["n"][1]
-    %}
-
-    uint256_to_bytes32(output_ptr, n);
-    return ();
+    let (output) = alloc();
+    uint256_to_bytes32(output, [n.value]);
+    return output;
 }
 
-func test__bytes_to_bytes8_little_endian{range_check_ptr}() -> felt* {
+func test__bytes_to_bytes8_little_endian{range_check_ptr}(bytes: Bytes) -> felt* {
     alloc_locals;
-    tempvar bytes_len: felt;
-    let (bytes) = alloc();
-    %{
-        ids.bytes_len = len(program_input["bytes"])
-        segments.write_arg(ids.bytes, program_input["bytes"])
-    %}
-
     let (bytes8) = alloc();
-    bytes_to_bytes8_little_endian(bytes8, bytes_len, bytes);
+    bytes_to_bytes8_little_endian(bytes8, bytes.value.len, bytes.value.data);
 
     return bytes8;
 }
 
-func test__bytes_to_felt() -> felt {
-    tempvar len;
-    let (ptr) = alloc();
-    %{
-        ids.len = len(program_input["data"])
-        segments.write_arg(ids.ptr, program_input["data"])
-    %}
-    let res = bytes_to_felt(len, ptr);
+func test__bytes_to_felt(bytes: Bytes) -> felt {
+    alloc_locals;
+    let res = bytes_to_felt(bytes.value.len, bytes.value.data);
     return res;
 }
 
-func test__bytes_to_felt_le() -> felt {
+func test__bytes_to_felt_le(bytes: Bytes) -> felt {
     alloc_locals;
-    tempvar len;
-    let (ptr) = alloc();
-    %{
-        ids.len = len(program_input["data"])
-        segments.write_arg(ids.ptr, program_input["data"])
-    %}
-    let res = bytes_to_felt_le(len, ptr);
+    let res = bytes_to_felt_le(bytes.value.len, bytes.value.data);
     return res;
 }
