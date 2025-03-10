@@ -89,7 +89,7 @@ func assert_not_on_curve(x: felt, y: felt, a: felt, b: felt) -> felt {
 // k1 = k1_low + 2**128 * k1_high
 // k1_low = sp1_low * ep1_low - sn1_low * en1_high
 
-// Hence, we have Q = Q_low + Q_high + Q_high_shifted,
+// Hence, we have Q = Q_low + Q_high_shifted,
 // where Q_low = k1_low * G + k2_low * R,
 // Q_high = k1_high * G + k2_high * R, and
 // Q_high_shifted = 2**128 * Q_high.
@@ -396,9 +396,9 @@ func ecip_2p(
     end:
 }
 
-// @dev Verify that Q = k*G.
+// @dev Verify that Q = k*P.
 // In other terms, it verifies that a point Q on the curve
-// is the scalar multiplication of G by k (linear combination with a single point).
+// is the scalar multiplication of P by k (linear combination with a single point).
 //
 // It verifies that the equation (3) holds ; from the paper
 // "Zero Knowledge Proofs of Elliptic Curve Inner Products
@@ -410,9 +410,14 @@ func ecip_2p(
 // k = k_low + 2**128 * k_high
 // k_low = sp_low * ep_low - sn_low * en_high
 
-// Hence, we have Q = Q_low + Q_high + Q_high_shifted,
-// where Q_low = k_low * G, Q_high = k_high * G, and
+// Hence, we have Q = Q_low + Q_high_shifted,
+// where Q_low = k_low * P, Q_high = k_high * P, and
 // Q_high_shifted = 2**128 * Q_high.
+//
+// When the scalar k is < 2**128, k_high equals 0, and Q_high and Q_high_shifted should be the point at infinity.
+// When the scalar k is a multiple of 2 >= 2**128, k_low equals 0, and Q_low should be the point at infinity.
+// To handle these cases, two flags is_pt_at_inf_q_low and is_pt_at_inf_q_high are used.
+//
 //
 // The point A0, and the base_rlc coefficient are previously obtained through
 // a non-interactive challenge: hashing the public inputs (point and scalar),
@@ -451,8 +456,8 @@ func ecip_2p(
 // @param div_d_coeff_5 The degree-5 coefficient of the denominator of rational function b.
 // @param div_d_coeff_6 The degree-6 coefficient of the denominator of rational function b.
 // @param div_d_coeff_7 The degree-7 coefficient of the denominator of rational function b.
-// @param g_x The x-coordinate of the point G.
-// @param g_y The y-coordinate of the point G.
+// @param p_x The x-coordinate of the point P.
+// @param p_y The y-coordinate of the point P.
 // @param ep_low The positive multiplicities for the low 128-bits of k1 in base -3.
 // @param en_low The negative multiplicities for the low 128-bits of k1 in base -3.
 // @param sp_low The sign for the positive multiplicities of the low 128-bits of k1 in base -3.
@@ -472,7 +477,8 @@ func ecip_2p(
 // @param a The parameter a of the Weierstrass curve.
 // @param b The parameter b of the Weierstrass curve.
 // @param base_rlc The Random Linear Combination (RLC) coefficient obtained from the non-interactive challenge.
-// @param p The field characteristic on which the curve is defined.
+// @param is_pt_at_inf_q_low The flag to specify if Q_low is expected to be the point at infinity or not.
+// @param is_pt_at_inf_q_high The flag to specify if Q_high and Q_high_shifted are expected to be the point at infinity or not.
 func ecip_1p(
     div_a_coeff_0: felt,
     div_a_coeff_1: felt,
@@ -496,8 +502,8 @@ func ecip_1p(
     div_d_coeff_5: felt,
     div_d_coeff_6: felt,
     div_d_coeff_7: felt,
-    g_x: felt,
-    g_y: felt,
+    p_x: felt,
+    p_y: felt,
     ep_low: felt,
     en_low: felt,
     sp_low: felt,
@@ -517,18 +523,31 @@ func ecip_1p(
     a: felt,
     b: felt,
     base_rlc: felt,
+    is_pt_at_inf_q_low: felt,
+    is_pt_at_inf_q_high: felt,
 ) {
-    // Assert g is on curve
-    assert g_y * g_y = g_x * g_x * g_x + a * g_x + b;
-    // Assert a0 is on curve
+    // Assert is_pt_at_inf_q_low and is_pt_at_inf_q_high are a boolean flags
+    assert is_pt_at_inf_q_low * (1 - is_pt_at_inf_q_low) = 0;
+    assert is_pt_at_inf_q_high * (1 - is_pt_at_inf_q_high) = 0;
+    // Assert p, a0, q_low, q_high and q_high_shifted are on curve
+    assert p_y * p_y = p_x * p_x * p_x + a * p_x + b;
     assert a0_y * a0_y = a0_x * a0_x * a0_x + a * a0_x + b;
-    // Assert q_low is on curve
-    assert q_low_y * q_low_y = q_low_x * q_low_x * q_low_x + a * q_low_x + b;
-    // Assert q_high is on curve
-    assert q_high_y * q_high_y = q_high_x * q_high_x * q_high_x + a * q_high_x + b;
-    // Assert q_high_shifted is on curve
-    assert q_high_shifted_y * q_high_shifted_y = q_high_shifted_x * q_high_shifted_x *
-        q_high_shifted_x + a * q_high_shifted_x + b;
+    assert q_low_y * q_low_y = (1 - is_pt_at_inf_q_low) * (
+        q_low_x * q_low_x * q_low_x + a * q_low_x + b
+    );
+    assert q_high_y * q_high_y = (1 - is_pt_at_inf_q_high) * (
+        q_high_x * q_high_x * q_high_x + a * q_high_x + b
+    );
+    assert q_high_shifted_y * q_high_shifted_y = (1 - is_pt_at_inf_q_high) * (
+        q_high_shifted_x * q_high_shifted_x * q_high_shifted_x + a * q_high_shifted_x + b
+    );
+    // Assert q_low, q_high and q_high_shifted are the point at infinity otherwise
+    assert is_pt_at_inf_q_low * q_low_y = 0;
+    assert is_pt_at_inf_q_low * q_low_x = 0;
+    assert is_pt_at_inf_q_high * q_high_y = 0;
+    assert is_pt_at_inf_q_high * q_high_x = 0;
+    assert is_pt_at_inf_q_high * q_high_shifted_y = 0;
+    assert is_pt_at_inf_q_high * q_high_shifted_x = 0;
 
     // slope a0
     tempvar m_a0 = (3 * a0_x * a0_x + a) / (2 * a0_y);
@@ -598,13 +617,16 @@ func ecip_1p(
     // Compute LHS
     tempvar lhs = coeff0 * f_a0 - coeff2 * f_a2;
 
-    // RHS = base_rlc * base_rhs_low + base_rlc * base_rlc * base_rhs_high +
-    //  base_rlc * base_rlc * base_rlc * base_rhs_high_shifted
+    // RHS = (1 - is_pt_at_inf_q_low) * base_rlc * base_rhs_low + (1 - is_pt_at_inf_q_high) * (base_rlc * base_rlc * base_rhs_high +
+    //  base_rlc * base_rlc * base_rlc * base_rhs_high_shifted)
+    // base_rhs_low is part of RHS only if q_low is a point on the curve.
+    // Similarly, base_rhs_high and base_rhs_high_shifted are part of RHS only if q_high is a point on the curve.
+
     // base_rhs_low
-    tempvar num_g = a0_x - g_x;
-    tempvar den_tmp_g = m_a0 * g_x + b_a0;
-    tempvar den_pos_g = g_y - den_tmp_g;
-    tempvar den_neg_g = g_y + den_tmp_g;
+    tempvar num_g = a0_x - p_x;
+    tempvar den_tmp_g = m_a0 * p_x + b_a0;
+    tempvar den_pos_g = p_y - den_tmp_g;
+    tempvar den_neg_g = p_y + den_tmp_g;
     tempvar eval_pos_low_g = sp_low * ep_low * num_g / den_pos_g;
     tempvar eval_neg_low_g = sn_low * en_low * num_g / den_neg_g;
     tempvar eval_low_g = eval_pos_low_g - eval_neg_low_g;
@@ -647,7 +669,9 @@ func ecip_1p(
     tempvar c1 = base_rlc * base_rlc;
     tempvar c2 = c1 * base_rlc;
 
-    tempvar rhs = base_rlc * rhs_low + c1 * rhs_high + c2 * rhs_high_shifted;
+    tempvar rhs = (1 - is_pt_at_inf_q_low) * base_rlc * rhs_low + (1 - is_pt_at_inf_q_high) * (
+        c1 * rhs_high + c2 * rhs_high_shifted
+    );
 
     assert lhs = rhs;
 

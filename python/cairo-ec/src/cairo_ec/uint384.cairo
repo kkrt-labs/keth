@@ -4,10 +4,10 @@ from starkware.cairo.common.uint256 import Uint256
 
 from cairo_core.maths import unsigned_div_rem
 from cairo_ec.circuits.mod_ops_compiled import (
+    add,
     assert_eq,
-    assert_neq,
-    neg,
     assert_neg,
+    assert_neq,
     assert_not_neg,
     div,
 )

@@ -2,7 +2,7 @@ from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_builtins import ModBuiltin, PoseidonBuiltin, UInt384
 from starkware.cairo.common.uint256 import Uint256
 
-from cairo_ec.ec_ops import ec_add, try_get_point_from_x, get_random_point
+from cairo_ec.ec_ops import ec_add, ec_mul, try_get_point_from_x, get_random_point
 from cairo_ec.curve.g1_point import G1Point
 
 func test__try_get_point_from_x{
@@ -74,6 +74,32 @@ func test__ec_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_pt
     %}
 
     let res = ec_add([p_ptr], [q_ptr], [a_ptr], [modulus_ptr]);
+
+    tempvar res_ptr = new G1Point(
+        UInt384(res.x.d0, res.x.d1, res.x.d2, res.x.d3),
+        UInt384(res.y.d0, res.y.d1, res.y.d2, res.y.d3),
+    );
+    return res_ptr;
+}
+
+func test__ec_mul{
+    range_check_ptr,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+}() -> G1Point* {
+    alloc_locals;
+    let (p_ptr: G1Point*) = alloc();
+    let (k_ptr: UInt384*) = alloc();
+    let (modulus_ptr: UInt384*) = alloc();
+    %{
+        segments.write_arg(ids.p_ptr.address_, program_input["p"])
+        segments.write_arg(ids.k_ptr.address_, program_input["k"])
+        segments.write_arg(ids.modulus_ptr.address_, program_input["modulus"])
+    %}
+
+    let res = ec_mul([p_ptr], [k_ptr], [modulus_ptr]);
 
     tempvar res_ptr = new G1Point(
         UInt384(res.x.d0, res.x.d1, res.x.d2, res.x.d3),

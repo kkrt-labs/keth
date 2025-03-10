@@ -1,5 +1,9 @@
 use std::collections::HashMap;
 
+use crate::vm::{
+    hint_utils::{split, write_result_to_ap, Uint384},
+    hints::Hint,
+};
 use cairo_vm::{
     hint_processor::{
         builtin_hint_processor::hint_utils::{
@@ -14,15 +18,10 @@ use cairo_vm::{
 };
 use num_traits::Zero;
 
-use crate::vm::{
-    hint_utils::{split, write_result_to_ap, Uint384},
-    hints::Hint,
-};
-
 pub const HINTS: &[fn() -> Hint] = &[
+    felt_to_uint384_split_hint,
     has_six_uint384_remaining_hint,
     has_one_uint384_remaining_hint,
-    felt_to_uint384_split_hint,
     x_mod_p_eq_y_mod_p_hint,
     x_is_neg_y_mod_p_hint,
 ];

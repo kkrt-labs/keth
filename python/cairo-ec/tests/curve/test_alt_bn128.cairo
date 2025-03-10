@@ -1,7 +1,8 @@
+from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_builtins import UInt384
 from starkware.cairo.common.uint256 import Uint256
 
-from cairo_ec.curve.alt_bn128 import alt_bn128
+from cairo_ec.curve.alt_bn128 import alt_bn128, sign_to_uint384_mod_alt_bn128
 
 func test__get_P() -> UInt384* {
     tempvar p_ptr = new UInt384(alt_bn128.P0, alt_bn128.P1, alt_bn128.P2, alt_bn128.P3);
@@ -46,4 +47,14 @@ func test__get_P_MIN_ONE() -> UInt384* {
         alt_bn128.P_MIN_ONE_D3,
     );
     return p_min_one_ptr;
+}
+
+func test__sign_to_uint384_mod_alt_bn128() -> UInt384* {
+    alloc_locals;
+    tempvar sign;
+    %{ ids.sign = program_input["sign"] %}
+    let res = sign_to_uint384_mod_alt_bn128(sign);
+    tempvar res_ptr = new res;
+
+    return res_ptr;
 }
