@@ -66,7 +66,11 @@ use cairo_vm::{
     types::relocatable::{MaybeRelocatable, Relocatable},
     vm::vm_core::VirtualMachine,
 };
-use pyo3::{prelude::*, types::PyList, IntoPyObjectExt};
+use pyo3::{
+    prelude::*,
+    types::{PyList, PyNone},
+    IntoPyObjectExt,
+};
 
 use super::{pythonic_hint::DynamicHintError, relocatable::PyRelocatable};
 
@@ -599,6 +603,28 @@ impl PyVmConstsDict {
         }
     }
 
+    /// Set a variable in the VmConstsDict. If the variable is not a part of the VmConstsDict
+    /// already, it will be added.
+    pub fn __setattr__(&mut self, name: &str, value: Py<PyAny>, py: Python<'_>) -> PyResult<()> {
+        match self.items.get_mut(name) {
+            Some(var) => {
+                if var.downcast_bound::<PyNone>(py).is_ok() {
+                    *var = value;
+                    Ok(())
+                } else {
+                    Err(PyErr::new::<pyo3::exceptions::PyAttributeError, _>(format!(
+                        "Inconsistent memory assignment for variable {}. {} != {}",
+                        name, var, value
+                    )))
+                }
+            }
+            None => Err(PyErr::new::<pyo3::exceptions::PyAttributeError, _>(format!(
+                "'VmConstsDict' object has no attribute '{}'",
+                name
+            ))),
+        }
+    }
+
     /// Get a variable by dictionary access
     pub fn __getitem__(&self, name: &str, py: Python<'_>) -> PyResult<PyObject> {
         self.__getattr__(name, py)
@@ -648,11 +674,14 @@ pub fn create_vm_consts_dict(
     // This function is not recursive, so it does not handle the inner members of structs. Instead,
     // these will be loaded lazily when the variable is accessed.
     for (name, reference) in ids_data {
+        println!("processing variable: {} with reference: {:?}", name, reference);
         let cairo_type = reference.cairo_type.clone();
 
         // Get the address for the variable - we don't know its type yet.
         if let Ok(var_addr) = get_relocatable_from_var_name(name, vm, ids_data, ap_tracking) {
+            println!("var_addr: {:?}", var_addr);
             if let Some(value) = vm.get_maybe(&var_addr) {
+                println!("value: {:?}", value);
                 // Based on the cairo_type and value, return different Python objects
                 // to match the original Python VmConsts behavior.
 
@@ -764,7 +793,15 @@ pub fn create_vm_consts_dict(
                 } else {
                     return Err(DynamicHintError::UnknownVariableType(name.clone()));
                 }
+            } else {
+                println!("No value for variable: {} with reference: {:?}", name, reference);
+                py_ids_dict
+                    .borrow_mut(py)
+                    .set_item(name, PyNone::get(py).into_bound_py_any(py)?.into());
+                println!("py_ids_dict: {:?}", py_ids_dict.borrow(py).items);
             }
+        } else {
+            println!("No address for variable: {} with reference: {:?}", name, reference);
         }
     }
 

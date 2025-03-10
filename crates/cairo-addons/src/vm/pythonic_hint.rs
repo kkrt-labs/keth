@@ -68,6 +68,7 @@ use super::{
     dict_manager::PyDictManager,
     hints::Hint,
     memory_segments::{PyMemorySegmentManager, PyMemoryWrapper},
+    relocatable::PyRelocatable,
     vm_consts::create_vm_consts_dict,
 };
 
@@ -206,6 +207,20 @@ impl PythonicHintExecutor {
                 .map_err(|e| DynamicHintError::PyObjectCreation(e.to_string()))?;
             bounded_context
                 .set_item("dict_manager", &py_dict_manager_wrapper)
+                .map_err(|e| DynamicHintError::PyDictSet(e.to_string()))?;
+
+            // Make ap, pc, fp accessible from the hint
+            let ap: PyRelocatable = vm.get_ap().into();
+            let pc: PyRelocatable = vm.get_pc().into();
+            let fp: PyRelocatable = vm.get_fp().into();
+            bounded_context
+                .set_item("ap", ap)
+                .map_err(|e| DynamicHintError::PyDictSet(e.to_string()))?;
+            bounded_context
+                .set_item("pc", pc)
+                .map_err(|e| DynamicHintError::PyDictSet(e.to_string()))?;
+            bounded_context
+                .set_item("fp", fp)
                 .map_err(|e| DynamicHintError::PyDictSet(e.to_string()))?;
 
             // Get the _rust_ program identifiers that we inserted into the execution scope upon

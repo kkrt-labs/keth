@@ -4,9 +4,9 @@ Fetches zkpi data, converts it to EELS/Keth format, and runs it through the Keth
 """
 
 import argparse
-from dataclasses import dataclass
 import json
 import logging
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Tuple
 
@@ -23,11 +23,8 @@ from ethereum.cancun.transactions import (
 from ethereum.cancun.vm.gas import calculate_excess_blob_gas
 from ethereum.utils.hexadecimal import hex_to_bytes, hex_to_u256, hex_to_uint
 from ethereum_spec_tools.evm_tools.loaders.fixture_loader import Load
-from ethereum_types.bytes import Bytes, Bytes0
+from ethereum_types.bytes import Bytes, Bytes0, Bytes32
 from ethereum_types.numeric import U64, U256
-from scripts.zkpi_to_eels import process_zkpi_file
-
-from ethereum_types.bytes import Bytes32
 
 from cairo_addons.vm import run_proof_mode
 from tests.ef_tests.helpers.load_state_tests import convert_defaultdict
@@ -37,11 +34,51 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+def init_tracer():
+    """Initialize the logger "trace" mode."""
+    import logging
+
+    from colorama import Fore, Style, init
+
+    init()
+
+    # Define TRACE level
+    TRACE_LEVEL = logging.DEBUG - 5
+    logging.addLevelName(TRACE_LEVEL, "TRACE")
+
+    # Custom trace methods for Logger instances
+    def trace(self, message, *args, **kwargs):
+        if self.isEnabledFor(TRACE_LEVEL):
+            colored_msg = f"{Fore.YELLOW}TRACE{Style.RESET_ALL} {message}"
+            print(colored_msg)
+
+    def trace_cairo(self, message, *args, **kwargs):
+        if self.isEnabledFor(TRACE_LEVEL):
+            colored_msg = f"{Fore.YELLOW}TRACE{Style.RESET_ALL} [CAIRO] {message}"
+            print(colored_msg)
+
+    def trace_eels(self, message, *args, **kwargs):
+        if self.isEnabledFor(TRACE_LEVEL):
+            colored_msg = f"{Fore.YELLOW}TRACE{Style.RESET_ALL} [EELS] {message}"
+            print(colored_msg)
+
+    def debug_cairo(self, message, *args, **kwargs):
+        if self.isEnabledFor(logging.DEBUG):
+            colored_msg = f"{Fore.BLUE}DEBUG{Style.RESET_ALL} [DEBUG-CAIRO] {message}"
+            print(colored_msg)
+
+    # Patch the logging module with our new trace methods
+    setattr(logging, "TRACE", TRACE_LEVEL)
+    setattr(logging.getLoggerClass(), "trace", trace)
+    setattr(logging.getLoggerClass(), "trace_cairo", trace_cairo)
+    setattr(logging.getLoggerClass(), "trace_eels", trace_eels)
+    setattr(logging.getLoggerClass(), "debug_cairo", debug_cairo)
+
 
 @dataclass
 class PublicInputs:
-    prestate_root: Bytes32
-    poststate_root: Bytes32
+    pre_state_root: Bytes32
+    post_state_root: Bytes32
     block_hash: Bytes32
 
 
@@ -49,6 +86,7 @@ class PublicInputs:
 class PrivateInputs:
     block: Block
     blockchain: BlockChain
+
 
 def zkpi_fixture(zkpi_path) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     with open(zkpi_path, "r") as f:
@@ -160,9 +198,19 @@ def zkpi_fixture(zkpi_path) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     )
 
     public_inputs = {
-        "prestate_root": Bytes32(bytes.fromhex(fixture["newBlockParameters"]["blockHeader"]["stateRoot"].removeprefix("0x"))),
-        "poststate_root": Bytes32(bytes.fromhex(fixture["ancestors"][-1]["stateRoot"].removeprefix("0x"))),
-        "block_hash": Bytes32(bytes.fromhex(fixture["newBlockHash"].removeprefix("0x"))),
+        "pre_state_root": Bytes32(
+            bytes.fromhex(
+                fixture["newBlockParameters"]["blockHeader"]["stateRoot"].removeprefix(
+                    "0x"
+                )
+            )
+        ),
+        "post_state_root": Bytes32(
+            bytes.fromhex(fixture["ancestors"][-1]["stateRoot"].removeprefix("0x"))
+        ),
+        "block_hash": Bytes32(
+            bytes.fromhex(fixture["newBlockHash"].removeprefix("0x"))
+        ),
     }
     private_inputs = {
         "block": block,
@@ -170,7 +218,9 @@ def zkpi_fixture(zkpi_path) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     }
     return public_inputs, private_inputs
 
+
 def main():
+    init_tracer()
     parser = argparse.ArgumentParser(description="Prove an Ethereum block using Keth")
     parser.add_argument("block_number", type=int, help="Block number to prove")
     parser.add_argument(

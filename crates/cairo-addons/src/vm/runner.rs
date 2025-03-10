@@ -7,10 +7,7 @@ use crate::vm::{
 };
 use bincode::enc::write::Writer;
 use cairo_vm::{
-    air_public_input::PublicInputError,
-    cairo_run::{
-        self, write_encoded_memory, write_encoded_trace, CairoRunConfig, EncodeTraceError,
-    },
+    cairo_run::{self, write_encoded_memory, write_encoded_trace, CairoRunConfig},
     hint_processor::builtin_hint_processor::dict_manager::DictManager,
     serde::deserialize_program::Identifier,
     types::{
@@ -21,10 +18,7 @@ use cairo_vm::{
         relocatable::{MaybeRelocatable, Relocatable},
     },
     vm::{
-        errors::{
-            cairo_run_errors::CairoRunError, trace_errors::TraceError,
-            vm_errors::VirtualMachineError, vm_exception::VmException,
-        },
+        errors::vm_exception::VmException,
         runners::{builtin_runner::BuiltinRunner, cairo_runner::CairoRunner as RustCairoRunner},
         security::verify_secure_runner,
     },
@@ -44,7 +38,6 @@ use std::{
     path::PathBuf,
     rc::Rc,
 };
-use thiserror::Error;
 
 #[pyclass(name = "CairoRunner", unsendable)]
 pub struct PyCairoRunner {
@@ -52,25 +45,6 @@ pub struct PyCairoRunner {
     allow_missing_builtins: bool,
     builtins: Vec<BuiltinName>,
     enable_pythonic_hints: bool,
-}
-
-#[derive(Debug, Error)]
-enum Error {
-    #[error("Failed to interact with the file system")]
-    IO(#[from] std::io::Error),
-    #[error("The cairo program execution failed")]
-    Runner(#[from] CairoRunError),
-    #[error(transparent)]
-    EncodeTrace(#[from] EncodeTraceError),
-    #[error(transparent)]
-    VirtualMachine(#[from] VirtualMachineError),
-    #[error(transparent)]
-    Trace(#[from] TraceError),
-    #[error(transparent)]
-    PublicInput(#[from] PublicInputError),
-    #[error(transparent)]
-    #[cfg(feature = "with_tracer")]
-    TraceData(#[from] TraceDataError),
 }
 
 #[pymethods]
@@ -633,7 +607,7 @@ pub fn run_proof_mode(
     let dict_manager = DictManager::new();
     exec_scopes.insert_value("dict_manager", Rc::new(RefCell::new(dict_manager)));
 
-        let identifiers = program
+    let identifiers = program
         .iter_identifiers()
         .map(|(name, identifier)| (name.to_string(), identifier.clone()))
         .collect::<HashMap<String, Identifier>>();

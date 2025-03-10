@@ -38,6 +38,20 @@ impl PyMemoryWrapper {
             ))
         })
     }
+
+    fn __setitem__(&self, key: PyRelocatable, value: PyMaybeRelocatable) -> PyResult<()> {
+        let vm = unsafe { &mut *self.vm };
+
+        if let Some(value) = vm.get_maybe(&key.inner) {
+            return Err(PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!(
+                "Memory at key {} already has value: {}",
+                key.inner, value
+            )));
+        }
+        vm.insert_value(key.inner, value)
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+        Ok(())
+    }
 }
 
 #[pymethods]
