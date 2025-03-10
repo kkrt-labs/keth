@@ -41,6 +41,7 @@ from hypothesis import strategies as st
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 
 from tests.utils.args_gen import (
+    U384,
     Memory,
     MutableBloom,
     Stack,
@@ -62,6 +63,7 @@ uint = uint64.map(Uint)
 uint128 = st.integers(min_value=0, max_value=2**128 - 1)
 felt = st.integers(min_value=0, max_value=DEFAULT_PRIME - 1)
 uint256 = st.integers(min_value=0, max_value=2**256 - 1).map(U256)
+uint384 = st.integers(min_value=0, max_value=2**384 - 1).map(U384)
 nibble = st.lists(uint4, max_size=64).map(bytes)
 
 bytes0 = st.binary(min_size=0, max_size=0).map(Bytes0)
@@ -518,6 +520,7 @@ def register_type_strategies():
     st.register_type_strategy(Uint, uint)
     st.register_type_strategy(FixedUnsigned, uint)
     st.register_type_strategy(U256, uint256)
+    st.register_type_strategy(U384, uint384)
     st.register_type_strategy(Bytes0, bytes0)
     st.register_type_strategy(Bytes4, bytes4)
     st.register_type_strategy(Bytes8, bytes8)
