@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::vm::{
-    hint_utils::{split, write_collection_from_var_name, write_result_to_ap, Uint384},
+    hint_utils::{split, write_result_to_ap, Uint384},
     hints::Hint,
 };
 use cairo_vm::{
@@ -16,37 +16,15 @@ use cairo_vm::{
     vm::{errors::hint_errors::HintError, vm_core::VirtualMachine},
     Felt252,
 };
-use num_integer::Integer;
 use num_traits::Zero;
 
 pub const HINTS: &[fn() -> Hint] = &[
-    div_rem_hint,
     felt_to_uint384_split_hint,
     has_six_uint384_remaining_hint,
     has_one_uint384_remaining_hint,
     x_mod_p_eq_y_mod_p_hint,
     x_is_neg_y_mod_p_hint,
 ];
-
-pub fn div_rem_hint() -> Hint {
-    Hint::new(
-        String::from("div_rem_hint"),
-        |vm: &mut VirtualMachine,
-         _exec_scopes: &mut ExecutionScopes,
-         ids_data: &HashMap<String, HintReference>,
-         ap_tracking: &ApTracking,
-         _constants: &HashMap<String, Felt252>|
-         -> Result<(), HintError> {
-            let x = Uint384::from_var_name("x", vm, ids_data, ap_tracking)?.pack();
-            let p = Uint384::from_var_name("p", vm, ids_data, ap_tracking)?.pack();
-            let (q, r) = x.div_rem(&p);
-            let quo_limbs = split(&q, 4, 96);
-            let rem_limbs = split(&r, 4, 96);
-            write_collection_from_var_name("q", &quo_limbs, vm, ids_data, ap_tracking)?;
-            write_collection_from_var_name("r", &rem_limbs, vm, ids_data, ap_tracking)
-        },
-    )
-}
 
 pub fn has_six_uint384_remaining_hint() -> Hint {
     Hint::new(

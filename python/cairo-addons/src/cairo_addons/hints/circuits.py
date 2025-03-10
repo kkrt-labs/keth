@@ -58,23 +58,3 @@ def x_is_neg_y_mod_p_hint(ids: VmConsts):
     y = bigint_pack(ids.y, 4, 2**96)
     p = bigint_pack(ids.p, 4, 2**96)
     ids.x_is_neg_y_mod_p = x % p == -y % p
-
-
-@register_hint
-def div_rem_hint(ids: VmConsts):
-    """
-    Computes the divider and remainder of x mod p.
-    Returns (q, r) such that x = q * p + r
-    """
-    from garaga.hints.io import bigint_pack, bigint_split
-
-    x = bigint_pack(ids.x, 4, 2**96)
-    p = bigint_pack(ids.p, 4, 2**96)
-    q, r = x.__divmod__(p)
-    (ids.q.d0, ids.q.d1, ids.q.d2, ids.q.d3) = bigint_split(q, 4, 2**96)
-    (
-        ids.r.d0,
-        ids.r.d1,
-        ids.r.d2,
-        ids.r.d3,
-    ) = bigint_split(r, 4, 2**96)

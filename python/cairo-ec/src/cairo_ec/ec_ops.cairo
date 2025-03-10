@@ -18,7 +18,6 @@ from cairo_ec.curve.g1_point import G1Point, G1Point__eq__
 from cairo_ec.uint384 import (
     felt_to_uint384,
     uint256_to_uint384,
-    uint384_div_rem,
     uint384_eq,
     uint384_eq_mod_p,
     uint384_is_neg_mod_p,
@@ -130,7 +129,9 @@ func ec_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: Mod
     return res;
 }
 
-// Multiply an EC point by a scalar. Doesn't check if the input is on curve nor if it's the point at infinity.
+// Perform scalar multiplication of an EC point of the alt_bn128 curve.
+// Does not early return if input point is point at infinity.
+// Fails if input point is not on alt_bn128 (bn254) curve.
 func ec_mul{
     range_check_ptr,
     range_check96_ptr: felt*,
@@ -148,9 +149,10 @@ func ec_mul{
         return point_at_infinity;
     }
 
+    let one_u384 = UInt384(1, 0, 0, 0);
     tempvar n = UInt384(alt_bn128.N0, alt_bn128.N1, alt_bn128.N2, alt_bn128.N3);
-    let (quo, rem) = uint384_div_rem(k, n);
-    let scalar = uint384_to_uint256(rem);
+    let rem = mul(&k, new one_u384, new n);
+    let scalar = uint384_to_uint256([rem]);
     let n_min_one = Uint256(alt_bn128.N_LOW_128 - 1, alt_bn128.N_HIGH_128);
     assert_uint256_le(scalar, n_min_one);
 
