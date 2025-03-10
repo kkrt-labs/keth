@@ -9,6 +9,7 @@ dependencies = [
   "cairo-addons",
   "cairo-ec",
   "cairo-core",
+  "mpt",
   "cairo-lang>=0.13.2",
   "marshmallow-dataclass>=8.6.1",
   "python-dotenv>=1.0.1",
@@ -44,10 +45,12 @@ dev-dependencies = [
 ]
 
 [tool.uv.sources]
+ethereum = { git = "https://github.com/kkrt-labs/execution-specs.git", branch = "kakarot-changes" }
 garaga = { git = "https://github.com/keep-starknet-strange/garaga.git", rev = "hydra_upd" }
 cairo-addons = { workspace = true }
 cairo-ec = { workspace = true }
 cairo-core = { workspace = true }
+mpt = { workspace = true }
 
 [tool.uv.workspace]
 members = ["python/*"]
@@ -180,7 +183,7 @@ addopts = [
 profile = "black"
 src_paths = ["cairo/src", "cairo/tests"]
 known_third_party = ["ethereum", "ethereum_rlp", "ethereum_types"]
-known_first_party = ["cairo_ec", "cairo_core", "cairo_addons"]
+known_first_party = ["cairo_ec", "cairo_core", "cairo_addons", "mpt"]
 
 [tool.autoflake]
 in_place = true
