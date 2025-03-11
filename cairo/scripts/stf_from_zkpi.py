@@ -8,6 +8,7 @@ from ethereum.cancun.fork import (
     get_last_256_block_hashes,
 )
 from ethereum.cancun.fork_types import Address
+from ethereum.cancun.state import State, copy_trie
 from ethereum.cancun.transactions import LegacyTransaction, encode_transaction
 from ethereum.utils.hexadecimal import hex_to_bytes, hex_to_u256, hex_to_uint
 from ethereum_spec_tools.evm_tools.loaders.fixture_loader import Load
@@ -21,14 +22,23 @@ from ethereum_types.numeric import (
 from scripts.zkpi_to_eels import normalize_transaction
 
 from mpt import EthereumState
+from mpt.state_diff import StateDiff
 
 
 def main():
-    pre_state = EthereumState.from_json("data/1/inputs/22009357.json").to_state()
+    ethereum_state = EthereumState.from_json("data/1/inputs/22009357.json")
+    pre_state = ethereum_state.to_state()
+
+    # We make a deep copy of the State to be able to compute State Diffs
+    pre_state_copy = State(
+        _main_trie=copy_trie(pre_state._main_trie),
+        _storage_tries={k: copy_trie(v) for k, v in pre_state._storage_tries.items()},
+    )
+
     with open("data/1/inputs/22009357.json", "r") as f:
         data = json.load(f)
 
-    # Step 6: Create the Blockchain and Block objects
+    # Create the Blockchain and Block objects
     load = Load("Cancun", "cancun")
     blocks = [
         Block(
@@ -45,7 +55,7 @@ def main():
         chain_id=U64(data["chainConfig"]["chainId"]),
     )
 
-    # Step 7: for each new block in blocks, create a Block object and apply the state transition
+    # For each new block in blocks, create a Block object and apply the state transition
     for block in data["blocks"]:
         transactions = tuple(
             TransactionLoad(normalize_transaction(tx), ForkLoad("cancun")).read()
@@ -118,6 +128,11 @@ def main():
         )
 
         print("0x" + _output.state_root.hex())
+
+        post_state = blockchain.state
+        state_diff = StateDiff.from_pre_post(pre_state_copy, post_state)
+        ethereum_state.update_from_state_diff(state_diff)
+        print("0x" + ethereum_state.state_root.hex())
 
 
 if __name__ == "__main__":

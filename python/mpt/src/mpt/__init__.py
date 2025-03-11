@@ -1,10 +1,10 @@
 import json
 import logging
 import os
-from typing import Dict, List, Mapping, Optional
+from typing import Dict, List, Mapping, Optional, Set, Tuple, Union
 
 import requests
-from ethereum.cancun.fork_types import Account, Address
+from ethereum.cancun.fork_types import Account, Address, encode_account
 from ethereum.cancun.state import State
 from ethereum.cancun.trie import (
     BranchNode,
@@ -21,6 +21,8 @@ from ethereum.utils.hexadecimal import hex_to_bytes
 from ethereum_rlp import rlp
 from ethereum_types.bytes import Bytes, Bytes32
 from ethereum_types.numeric import U256, Uint
+
+from mpt.state_diff import StateDiff
 
 logger = logging.getLogger("mpt")
 logger.propagate = False
@@ -42,6 +44,8 @@ EMPTY_TRIE_ROOT_HASH = Hash32(
 EMPTY_CODE_HASH = Hash32(
     bytes.fromhex("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470")
 )
+
+EMPTY_BYTES_RLP = b"\x80"
 
 
 def nibble_path_to_hex(nibble_path: Bytes) -> Bytes:
@@ -259,6 +263,18 @@ class EthereumState:
         except Exception as e:
             logger.error(f"Error in get: {str(e)}")
             return None
+
+    def get_storage_root(self, address: Address) -> Optional[Hash32]:
+        """
+        Get the storage root for an account.
+        """
+        account = self.get(keccak256(address))
+        if account is None:
+            return EMPTY_TRIE_ROOT_HASH
+        decoded = rlp.decode(account)
+        if len(decoded) != 4:
+            raise ValueError(f"Invalid account length: {len(decoded)}")
+        return Hash32(decoded[2])
 
     def get_account(self, address: Address) -> Optional[Account]:
         """
@@ -478,7 +494,7 @@ class EthereumState:
 
             if new_root_node is None:
                 logger.debug("Trie is now empty")
-                return None
+                return EMPTY_TRIE_ROOT_HASH
 
             # Encode and hash the new root node
             encoded_node = encode_internal_node(new_root_node)
@@ -486,7 +502,6 @@ class EthereumState:
 
             # Update the nodes mapping with the new root
             self.nodes[new_root_hash] = encoded_node
-            del self.nodes[root_hash]
 
             # Update the state root if we were deleting from it
             if root_hash == self.state_root:
@@ -495,6 +510,30 @@ class EthereumState:
             return new_root_hash
         except Exception as e:
             logger.error(f"Error in delete: {str(e)}")
+            return None
+
+    def delete_account(self, address: Address):
+        path = keccak256(address)
+        self.delete(path)
+
+    def delete_storage_key(self, address: Address, key: Bytes32):
+        account = self.get(keccak256(address))
+        if account is None:
+            logger.debug("Account not found, nothing to delete")
+            return
+        decoded = rlp.decode(account)
+        if len(decoded) != 4:
+            raise ValueError(f"Invalid account length: {len(decoded)}")
+        storage_root = Hash32(decoded[2])
+        path = keccak256(key)
+        new_root_hash = self.delete(path, storage_root)
+        if new_root_hash is None:
+            logger.debug("Failed to delete storage key, nothing to update")
+            return
+        else:
+            decoded[2] = new_root_hash
+            encoded = rlp.encode(decoded)
+            self.upsert(keccak256(address), encoded)
             return None
 
     def _delete_node(
@@ -526,6 +565,29 @@ class EthereumState:
         # Decode the node
         node = self._decode_node(node_data)
 
+        # Process the node
+        new_node, deleted = self._process_delete(node, nibble_path)
+
+        return new_node, deleted
+
+    def _process_delete(
+        self, node: InternalNode, nibble_path: Bytes
+    ) -> tuple[Optional[InternalNode], bool]:
+        """
+        Process a node for deletion based on its type.
+
+        Parameters
+        ----------
+        node : InternalNode
+            The node to process (BranchNode, ExtensionNode, or LeafNode)
+        nibble_path : Bytes
+            The remaining path to traverse (in nibbles)
+
+        Returns
+        -------
+        tuple[Optional[InternalNode], bool]
+            The new node (or None if deleted) and a boolean indicating if deletion occurred
+        """
         # Process based on node type
         if isinstance(node, BranchNode):
             logger.debug("Processing branch node for deletion")
@@ -553,11 +615,11 @@ class EthereumState:
                     Hash32(next_node), nibble_path[1:]
                 )
             # case 2: next_node is an embedded node
-            else:
+            elif isinstance(next_node, bytes) and len(next_node) < 32:
                 child_node = self._decode_node(next_node)
-                new_child, deleted = self._process_embedded_delete(
-                    child_node, nibble_path[1:]
-                )
+                new_child, deleted = self._process_delete(child_node, nibble_path[1:])
+            else:
+                raise ValueError(f"Unknown subnode type: {type(next_node)}")
 
             if not deleted:
                 return node, False
@@ -588,7 +650,9 @@ class EthereumState:
                 if isinstance(child, bytes) and len(child) == 32:
                     child_data = self.nodes.get(Hash32(child))
                     if child_data is None:
-                        raise ValueError(f"Child node not found: 0x{child.hex()}")
+                        raise ValueError(
+                            f"Child node not found: 0x{child.hex()} - Nodes that enable branch node reduction MUST be in the witness"
+                        )
                     child_node = self._decode_node(child_data)
                 else:
                     child_node = self._decode_node(child)
@@ -620,7 +684,11 @@ class EthereumState:
 
         elif isinstance(node, ExtensionNode):
             logger.debug("Processing extension node for deletion")
+
+            # Get the key segment in nibble format
             key_segment = node.key_segment
+            if not isinstance(key_segment, bytes):
+                key_segment = bytes_to_nibble_list(key_segment)
 
             # Check if the path matches the key segment
             if len(nibble_path) < len(key_segment):
@@ -641,9 +709,7 @@ class EthereumState:
             elif isinstance(node.subnode, bytes) and len(node.subnode) < 32:
                 # Process embedded node
                 child_node = self._decode_node(node.subnode)
-                new_child, deleted = self._process_embedded_delete(
-                    child_node, remaining_path
-                )
+                new_child, deleted = self._process_delete(child_node, remaining_path)
             else:
                 raise ValueError(f"Unknown subnode type: {type(node.subnode)}")
 
@@ -651,236 +717,6 @@ class EthereumState:
                 return node, False
 
             if new_child is None:
-                return None, True
-
-            # If the child is a leaf or extension, merge the paths
-            if isinstance(new_child, LeafNode):
-                combined_path = key_segment + new_child.rest_of_key
-                return LeafNode(rest_of_key=combined_path, value=new_child.value), True
-            elif isinstance(new_child, ExtensionNode):
-                combined_path = key_segment + new_child.key_segment
-                return (
-                    ExtensionNode(key_segment=combined_path, subnode=new_child.subnode),
-                    True,
-                )
-
-            encoded_child = encode_internal_node(new_child)
-            if len(encoded_child) >= 32:
-                child_hash = keccak256(encoded_child)
-                self.nodes[child_hash] = encoded_child
-                new_child = child_hash
-            else:
-                new_child = encoded_child
-
-            return ExtensionNode(key_segment=key_segment, subnode=new_child), True
-
-        elif isinstance(node, LeafNode):
-            logger.debug("Processing leaf node for deletion")
-
-            # Check if the path matches exactly
-            if nibble_path == node.rest_of_key:
-                logger.debug("Path matches leaf key, deleting leaf")
-                del self.nodes[node_hash]
-                return None, True
-
-            return node, False
-
-        raise ValueError(f"Unknown node type: {type(node)}")
-
-    def _process_embedded_delete(
-        self, node: InternalNode, nibble_path: Bytes
-    ) -> tuple[Optional[InternalNode], bool]:
-        """
-        Process deletion for an embedded node.
-
-        Parameters
-        ----------
-        node : InternalNode
-            The embedded node
-        nibble_path : Bytes
-            The remaining path to traverse
-
-        Returns
-        -------
-        tuple[Optional[InternalNode], bool]
-            The new node (or None if deleted) and a boolean indicating if deletion occurred
-        """
-        logger.debug("Processing embedded node for deletion")
-
-        if isinstance(node, BranchNode):
-            logger.debug("Processing embedded branch node")
-
-            # If we've reached the end of the path, delete the value
-            if not nibble_path:
-                if node.value:
-                    logger.debug("Removing value from branch node")
-                    # Create a new branch node without the value
-                    new_branch = BranchNode(subnodes=node.subnodes, value=b"")
-
-                    # Check if the branch now has only one child
-                    non_empty_subnodes = [
-                        i for i, subnode in enumerate(new_branch.subnodes) if subnode
-                    ]
-                    if len(non_empty_subnodes) == 1:
-                        # Convert to extension or leaf node
-                        index = non_empty_subnodes[0]
-                        child = new_branch.subnodes[index]
-
-                        # If child is a hash reference, resolve it
-                        if isinstance(child, bytes) and len(child) == 32:
-                            child_data = self.nodes.get(Hash32(child))
-                            if child_data is None:
-                                raise ValueError(
-                                    f"Child node not found: 0x{child.hex()}"
-                                )
-                            child_node = self._decode_node(child_data)
-                        else:
-                            child_node = self._decode_node(child)
-
-                        # Create a new path segment with the branch index
-                        new_segment = bytes([index])
-
-                        if isinstance(child_node, LeafNode):
-                            # Combine paths and create a new leaf
-                            combined_path = new_segment + child_node.rest_of_key
-                            return (
-                                LeafNode(
-                                    rest_of_key=combined_path, value=child_node.value
-                                ),
-                                True,
-                            )
-                        elif isinstance(child_node, ExtensionNode):
-                            # Combine paths and create a new extension
-                            combined_path = new_segment + child_node.key_segment
-                            return (
-                                ExtensionNode(
-                                    key_segment=combined_path,
-                                    subnode=child_node.subnode,
-                                ),
-                                True,
-                            )
-                        else:
-                            # Create an extension to the branch
-                            return (
-                                ExtensionNode(key_segment=new_segment, subnode=child),
-                                True,
-                            )
-
-                    return new_branch, True
-                return node, False  # No value to delete
-
-            # Otherwise, follow the path
-            next_nibble = nibble_path[0]
-            if next_nibble >= 16:
-                raise ValueError(f"Invalid nibble value: {next_nibble}")
-
-            next_node = node.subnodes[next_nibble]
-            if not next_node:
-                return node, False  # Path doesn't exist
-
-            # Recursively delete from the child
-            if isinstance(next_node, bytes) and len(next_node) == 32:
-                new_child, deleted = self._delete_node(
-                    Hash32(next_node), nibble_path[1:]
-                )
-            else:
-                # Process embedded node
-                child_node = self._decode_node(next_node)
-                new_child, deleted = self._process_embedded_delete(
-                    child_node, nibble_path[1:]
-                )
-
-            if not deleted:
-                return node, False
-
-            # Update the branch with the new child
-            new_subnodes = list(node.subnodes)
-            if new_child is None:
-                new_subnodes[next_nibble] = b""
-            else:
-                encoded_child = encode_internal_node(new_child)
-                if len(encoded_child) >= 32:
-                    child_hash = keccak256(encoded_child)
-                    self.nodes[child_hash] = encoded_child
-                    new_subnodes[next_nibble] = child_hash
-                else:
-                    new_subnodes[next_nibble] = encoded_child
-
-            # Check if the branch now has only one child and no value
-            non_empty_subnodes = [
-                i for i, subnode in enumerate(new_subnodes) if subnode
-            ]
-            if len(non_empty_subnodes) == 1 and not node.value:
-                # Convert to extension or leaf node
-                index = non_empty_subnodes[0]
-                child = new_subnodes[index]
-
-                # If child is a hash reference, resolve it
-                if isinstance(child, bytes) and len(child) == 32:
-                    child_data = self.nodes.get(Hash32(child))
-                    if child_data is None:
-                        raise ValueError(f"Child node not found: 0x{child.hex()}")
-                    child_node = self._decode_node(child_data)
-                else:
-                    child_node = self._decode_node(child)
-
-                # Create a new path segment with the branch index
-                new_segment = bytes([index])
-
-                if isinstance(child_node, LeafNode):
-                    # Combine paths and create a new leaf
-                    combined_path = new_segment + child_node.rest_of_key
-                    return (
-                        LeafNode(rest_of_key=combined_path, value=child_node.value),
-                        True,
-                    )
-                elif isinstance(child_node, ExtensionNode):
-                    # Combine paths and create a new extension
-                    combined_path = new_segment + child_node.key_segment
-                    return (
-                        ExtensionNode(
-                            key_segment=combined_path, subnode=child_node.subnode
-                        ),
-                        True,
-                    )
-                else:
-                    # Create an extension to the branch
-                    return ExtensionNode(key_segment=new_segment, subnode=child), True
-
-            return BranchNode(subnodes=tuple(new_subnodes), value=node.value), True
-
-        elif isinstance(node, ExtensionNode):
-            logger.debug("Processing embedded extension node")
-            key_segment = bytes_to_nibble_list(node.key_segment)
-
-            # Check if the path matches the key segment
-            if len(nibble_path) < len(key_segment):
-                return node, False  # Path too short, nothing to delete
-
-            for i in range(len(key_segment)):
-                if nibble_path[i] != key_segment[i]:
-                    return node, False  # Path mismatch, nothing to delete
-
-            # Path matches, continue with the remaining path
-            remaining_path = nibble_path[len(key_segment) :]
-
-            # Recursively delete from the child
-            if isinstance(node.subnode, bytes) and len(node.subnode) == 32:
-                new_child, deleted = self._delete_node(
-                    Hash32(node.subnode), remaining_path
-                )
-            else:
-                # Process embedded node
-                child_node = self._decode_node(node.subnode)
-                new_child, deleted = self._process_embedded_delete(
-                    child_node, remaining_path
-                )
-
-            if not deleted:
-                return node, False
-
-            if new_child is None:
-                # Child was completely deleted
                 return None, True
 
             # If the child is a leaf or extension, merge the paths
@@ -898,24 +734,31 @@ class EthereumState:
             if len(encoded_child) >= 32:
                 child_hash = keccak256(encoded_child)
                 self.nodes[child_hash] = encoded_child
-                encoded_child = child_hash
+                new_child = child_hash
+            else:
+                new_child = encoded_child
+
             return (
-                ExtensionNode(key_segment=bytes(key_segment), subnode=encoded_child),
+                ExtensionNode(key_segment=bytes(key_segment), subnode=new_child),
                 True,
             )
 
         elif isinstance(node, LeafNode):
-            logger.debug("Processing embedded leaf node")
-            leaf_key = bytes_to_nibble_list(node.rest_of_key)
+            logger.debug("Processing leaf node for deletion")
+
+            # Get the leaf key in nibble format
+            leaf_key = node.rest_of_key
+            if not isinstance(leaf_key, bytes):
+                leaf_key = bytes_to_nibble_list(leaf_key)
 
             # Check if the path matches exactly
             if nibble_path == leaf_key:
                 logger.debug("Path matches leaf key, deleting leaf")
-                return None, True  # Delete the leaf
+                return None, True
 
-            return node, False  # Path doesn't match, nothing to delete
+            return node, False
 
-        raise ValueError(f"Unknown embedded node type: {type(node)}")
+        raise ValueError(f"Unknown node type: {type(node)}")
 
     def upsert(
         self, path: Bytes, value: Bytes, root_hash: Optional[Hash32] = None
@@ -944,11 +787,21 @@ class EthereumState:
             f"Upsert value at path: {'0x' + path.hex() if path else 'None'} - root hash: 0x{root_hash.hex()}"
         )
 
+        nibble_path = bytes_to_nibble_list(path)
+
+        # If the root hash is the empty trie root hash,
+        # we are instantiating a new trie
+        if root_hash == EMPTY_TRIE_ROOT_HASH:
+            node = LeafNode(rest_of_key=nibble_path, value=value)
+            encoded_node = encode_internal_node(node)
+            new_root_hash = keccak256(encoded_node)
+            self.nodes[new_root_hash] = encoded_node
+            if root_hash == self.state_root:
+                self.state_root = new_root_hash
+            return new_root_hash
+
         if root_hash not in self.nodes:
             raise ValueError(f"Root hash not found: {root_hash.hex()}")
-
-        # Start traversal from the root
-        nibble_path = bytes_to_nibble_list(path)
 
         new_root_node, _ = self._upsert_node(root_hash, nibble_path, value)
 
@@ -963,6 +816,40 @@ class EthereumState:
             self.state_root = new_root_hash
 
         return new_root_hash
+
+    def upsert_storage_key(self, address: Address, key: Bytes32, value: Bytes):
+        account = self.get(keccak256(address))
+        if account is None:
+            logger.error(
+                f"Account not found: {address.hex()} - Failed to upsert storage key"
+            )
+            return
+
+        decoded = rlp.decode(account)
+        if len(decoded) != 4:
+            raise ValueError(f"Invalid account length: {len(decoded)}")
+
+        storage_root = Hash32(decoded[2])
+        path = keccak256(key)
+
+        if storage_root is None:
+            raise ValueError("Invariant: storage root must not be None")
+
+        new_root_hash = self.upsert(path, value, storage_root)
+        if new_root_hash is None:
+            raise ValueError("Invariant: new root hash must not be None")
+
+        if new_root_hash == storage_root:
+            logger.debug("Nothing to update, storage root is the same")
+            return
+        decoded[2] = new_root_hash
+        encoded = rlp.encode(decoded)
+        self.upsert(keccak256(address), encoded)
+        return
+
+    def upsert_account(self, address: Address, value: Bytes) -> None:
+        path = keccak256(address)
+        self.upsert(path, value)
 
     def _upsert_node(
         self, node_hash: Hash32, nibble_path: Bytes, value: Bytes
@@ -1047,8 +934,9 @@ class EthereumState:
                 new_subnodes = list(node.subnodes)
                 encoded_subnode = encode_internal_node(leaf_node)
                 if len(encoded_subnode) >= 32:
-                    new_subnodes[next_nibble] = keccak256(encoded_subnode)
-                    self.nodes[new_subnodes[next_nibble]] = encoded_subnode
+                    node_hash = keccak256(encoded_subnode)
+                    self.nodes[node_hash] = encoded_subnode
+                    new_subnodes[next_nibble] = node_hash
                 else:
                     new_subnodes[next_nibble] = encoded_subnode
                 return BranchNode(subnodes=tuple(new_subnodes), value=node.value), True
@@ -1067,8 +955,9 @@ class EthereumState:
                 new_subnodes = list(node.subnodes)
                 encoded_child = encode_internal_node(new_child)
                 if len(encoded_child) >= 32:
-                    new_subnodes[next_nibble] = keccak256(encoded_child)
-                    self.nodes[new_subnodes[next_nibble]] = encoded_child
+                    node_hash = keccak256(encoded_child)
+                    self.nodes[node_hash] = encoded_child
+                    new_subnodes[next_nibble] = node_hash
                 else:
                     new_subnodes[next_nibble] = encoded_child
                 return BranchNode(subnodes=tuple(new_subnodes), value=node.value), True
@@ -1087,8 +976,9 @@ class EthereumState:
                 new_subnodes = list(node.subnodes)
                 encoded_child = encode_internal_node(new_child)
                 if len(encoded_child) >= 32:
-                    new_subnodes[next_nibble] = keccak256(encoded_child)
-                    self.nodes[new_subnodes[next_nibble]] = encoded_child
+                    node_hash = keccak256(encoded_child)
+                    self.nodes[node_hash] = encoded_child
+                    new_subnodes[next_nibble] = node_hash
                 else:
                     new_subnodes[next_nibble] = encoded_child
                 return BranchNode(subnodes=tuple(new_subnodes), value=node.value), True
@@ -1332,6 +1222,74 @@ class EthereumState:
                 return branch_node, True
 
         raise ValueError(f"Unknown node type: {type(node)}")
+
+    def update_from_state_diff(self, state_diff: StateDiff):
+        updates = self._get_updates_from_state_diff(state_diff)
+        self._process_updates(updates)
+
+    def _get_updates_from_state_diff(
+        self, state_diff: StateDiff
+    ) -> Set[Tuple[Union[Address, Bytes32], rlp.Extended, Optional[Address]]]:
+        """
+        Given a state diff, return a list of updates (upsert and delete operations)
+        to the trie in the form
+        Tuple[Path To The Node in the State or Storage trie, RLP-Encoded Node, optionally the address to get the storage root in case of storage updates]
+        """
+        updates = set()
+        # Process account updates
+        updates.update(
+            [
+                (
+                    address,
+                    encode_account(account, self.state_root),
+                    None,
+                )
+                for address, account in state_diff.updates.items()
+            ]
+        )
+
+        # Process account deletions
+        updates.update(
+            [
+                (
+                    address,
+                    EMPTY_BYTES_RLP,
+                    None,
+                )
+                for address in state_diff.deletions
+            ]
+        )
+
+        # Process storage updates
+        for address, storage_updates in state_diff.storage_updates.items():
+            for key, value in storage_updates.items():
+                updates.add((key, rlp.encode(value), address))
+        # Process storage deletions
+        for address, storage_deletions in state_diff.storage_deletions.items():
+            for key in storage_deletions:
+                updates.add((key, EMPTY_BYTES_RLP, address))
+        logger.debug(f"Updates: {len(updates)}")
+        return updates
+
+    def _process_updates(
+        self,
+        updates: Set[Tuple[Union[Address, Bytes32], rlp.Extended, Optional[Address]]],
+    ):
+        """
+        Process a set of updates to the trie.
+        """
+        logger.debug(f"*** Processing {len(updates)} updates ***")
+        for preimage, value, maybe_storage_address in updates:
+            if value == EMPTY_BYTES_RLP:
+                if maybe_storage_address is not None:
+                    self.delete_storage_key(maybe_storage_address, preimage)
+                else:
+                    self.delete_account(preimage)
+            else:
+                if maybe_storage_address is not None:
+                    self.upsert_storage_key(maybe_storage_address, preimage, value)
+                else:
+                    self.upsert_account(preimage, value)
 
 
 def decode_node(node: Bytes) -> InternalNode:
