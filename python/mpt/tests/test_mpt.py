@@ -4,7 +4,7 @@ from ethereum.cancun.fork_types import Account, Address, encode_account
 from ethereum.crypto.hash import keccak256
 from ethereum_spec_tools.evm_tools.loaders.fixture_loader import Load
 from ethereum_types.numeric import U256, Uint
-from python.mpt.src.mpt import EMPTY_TRIE_HASH, EthereumState
+from python.mpt.src.mpt import EMPTY_TRIE_ROOT_HASH, EthereumState
 
 
 class TestEthereumState:
@@ -68,7 +68,7 @@ class TestEthereumState:
         account = Account(
             nonce=Uint(10), balance=U256(1000), code=bytes.fromhex("deadbeef")
         )
-        encoded_account = encode_account(account, EMPTY_TRIE_HASH)
+        encoded_account = encode_account(account, EMPTY_TRIE_ROOT_HASH)
 
         mpt.upsert(
             keccak256(
