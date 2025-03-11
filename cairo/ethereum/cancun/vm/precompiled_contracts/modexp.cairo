@@ -228,8 +228,14 @@ func mod_exp_loop_inner{
     tempvar add_mod_ptr = add_mod_ptr;
     tempvar mul_mod_ptr = mul_mod_ptr;
 
+    // Reduce the base modulo modulus to avoid overflow of intermediate results in modBuiltin
+    // Use mul(x, 1, p) instead of add(x, 0, p) for modular reduction because:
+    // - AddModBuiltin requires inputs < 2p (k_bound=2)
+    // - MulModBuiltin allows inputs up to 2^384 (k_bound=2^384)
+    tempvar one_u384 = new UInt384(1, 0, 0, 0);
+    let base_reduced_ptr = mul(base.value, one_u384, modulus.value);
     // Square the base for next iteration
-    let base_squared_ptr = mul(base.value, base.value, modulus.value);
+    let base_squared_ptr = mul(base_reduced_ptr, base_reduced_ptr, modulus.value);
     let new_base = U384(base_squared_ptr);
 
     return (new_res, new_base);

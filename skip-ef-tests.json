@@ -174,8 +174,19 @@
   "modexpTests_d98g0v0_Cancun",
   "modexpTests_d99g0v0_Cancun",
   "modexpTests_d9g0v0_Cancun",
-  "modexp_d31g0v0_Cancun",
-  "modexp_d31g1v0_Cancun",
-  "modexp_d31g2v0_Cancun",
-  "modexp_d31g3v0_Cancun"
+  "create2callPrecompiles_d4g0v0_Cancun",
+  "idPrecomps_d4g0v0_Cancun",
+  "StaticcallToPrecompileFromTransaction_d0g0v0_Cancun",
+  "CallcodeToPrecompileFromContractInitialization_d0g0v0_Cancun",
+  "CallWithZeroValueToPrecompileFromCalledContract_d0g0v0_Cancun",
+  "CallcodeToPrecompileFromTransaction_d0g0v0_Cancun",
+  "DelegatecallToPrecompileFromContractInitialization_d0g0v0_Cancun",
+  "DelegatecallToPrecompileFromCalledContract_d0g0v0_Cancun",
+  "DelegatecallToPrecompileFromTransaction_d0g0v0_Cancun",
+  "StaticcallToPrecompileFromCalledContract_d0g0v0_Cancun",
+  "StaticcallToPrecompileFromContractInitialization_d0g0v0_Cancun",
+  "CallWithZeroValueToPrecompileFromContractInitialization_d0g0v0_Cancun",
+  "CallcodeToPrecompileFromCalledContract_d0g0v0_Cancun",
+  "CallWithZeroValueToPrecompileFromTransaction_d0g0v0_Cancun",
+  "randomStatetest650_d0g0v0_Cancun"
 ]

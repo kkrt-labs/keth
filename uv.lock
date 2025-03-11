@@ -1072,7 +1072,7 @@ wheels = [
 [[package]]
 name = "ethereum"
 version = "0.1.0"
-source = { git = "https://github.com/ethereum/execution-specs.git?rev=78fb726158c69d8fa164e28f195fabf6ab59b915#78fb726158c69d8fa164e28f195fabf6ab59b915" }
+source = { git = "https://github.com/ethereum/execution-specs.git#78fb726158c69d8fa164e28f195fabf6ab59b915" }
 dependencies = [
     { name = "coincurve" },
     { name = "ethereum-rlp" },
@@ -1845,7 +1845,7 @@ requires-dist = [
     { name = "cairo-ec", editable = "python/cairo-ec" },
     { name = "cairo-lang", specifier = ">=0.13.2" },
     { name = "colorama", specifier = ">=0.4.6" },
-    { name = "ethereum", git = "https://github.com/ethereum/execution-specs.git?rev=78fb726158c69d8fa164e28f195fabf6ab59b915" },
+    { name = "ethereum", git = "https://github.com/ethereum/execution-specs.git" },
     { name = "garaga", git = "https://github.com/keep-starknet-strange/garaga.git?rev=hydra_upd" },
     { name = "marshmallow-dataclass", specifier = ">=8.6.1" },
     { name = "pytest-randomly", specifier = ">=3.16.0" },
