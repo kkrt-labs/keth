@@ -421,7 +421,7 @@ func _execute_code{
             opcode=opcode,
         );
         %{
-            if memory[ids.err.address_] == 0:
+            if ids.err.value == 0:
                 logger.trace_cairo(f"OpEnd")
         %}
         if (cast(err, felt) != 0) {
