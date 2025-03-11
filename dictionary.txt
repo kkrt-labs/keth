@@ -48,6 +48,7 @@ codespell
 codespellignore
 coeff
 coeffs
+colorama
 collectonly
 conftest
 conftests
@@ -104,6 +105,7 @@ getitem
 gitpython
 gpgsign
 gprof
+GQUADDIVISOR
 GRUMPKIN
 hashdict
 HASHDICT
@@ -146,6 +148,7 @@ modexp
 MODEXP
 modifyitems
 modpow
+modsize
 msize
 MSIZE
 mstore
@@ -175,6 +178,7 @@ pinentry
 pkey
 pointee
 preaccessed
+Precomps
 preimage
 preimages
 PREVRANDAO

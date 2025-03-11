@@ -12,6 +12,7 @@ from hypothesis import strategies as st
 from starkware.cairo.lang.instances import PRIME
 
 from cairo_addons.testing.errors import strict_raises
+from tests.utils.args_gen import U384
 from tests.utils.strategies import small_bytes, uint128, uint256
 
 
@@ -232,4 +233,42 @@ class TestNumeric:
     def test_u256_min(self, cairo_run, a: U256, b: U256):
         result = cairo_run("U256_min", a, b)
         expected = min(a, b)
+        assert result == expected
+
+    @given(value=st.integers(min_value=0, max_value=PRIME - 1).map(Uint))
+    def test_Uint_bit_length(self, cairo_run, value: Uint):
+        expected = value.bit_length() if int(value) > 0 else 0
+        result = cairo_run("Uint_bit_length", value)
+        assert result == expected
+
+    @given(bytes=st.binary(max_size=512))
+    def test_U384_from_be_bytes(self, cairo_run, bytes: Bytes):
+        try:
+            result = cairo_run("U384_from_be_bytes", bytes)
+        except ValueError:
+            assert len(bytes) > 48
+            return
+
+        expected = U384(int.from_bytes(bytes, "big"))
+
+        assert result == expected
+
+    @given(a=..., b=...)
+    def test_U384__eq__(self, cairo_run, a: U384, b: U384):
+        assert (a == b) == cairo_run("U384__eq__", a, b)
+
+    @given(value=...)
+    def test_U384_is_zero(self, cairo_run, value: U384):
+        cairo_result = cairo_run("U384_is_zero", value)
+        assert cairo_result == 1 if value == U384(0) else cairo_result == 0
+
+    @given(value=...)
+    def test_U384_is_one(self, cairo_run, value: U384):
+        cairo_result = cairo_run("U384_is_one", value)
+        assert cairo_result == 1 if value == U384(1) else cairo_result == 0
+
+    @given(a=..., b=...)
+    def test_U256_max(self, cairo_run, a: U256, b: U256):
+        result = cairo_run("U256_max", a, b)
+        expected = max(a, b)
         assert result == expected

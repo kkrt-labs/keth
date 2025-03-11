@@ -131,8 +131,8 @@ def add_block_to_chain(
         if request.config.getoption("--log-cli-level") == "TRACE":
             try:
                 state_transition(chain, block)
-            except Exception:
-                pass
+            except Exception as e2:
+                print(e2)
         raise e
 
 

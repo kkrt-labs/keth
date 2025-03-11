@@ -1,3 +1,4 @@
+import json
 from functools import partial
 from pathlib import Path
 from typing import Dict
@@ -83,10 +84,16 @@ BIG_MEMORY_TESTS = (
     "stStaticCall/",
 )
 
+
+# Modexp test that use exponent_head > 31 bytes
+with open(f"{Path().cwd()}/skip-ef-tests.json", "r") as f:
+    SKIPPED_TESTS = tuple(json.load(f))
+
+
 fetch_state_tests = partial(
     fetch_cancun_tests,
     test_dir,
-    ignore_list=IGNORE_TESTS,
+    ignore_list=IGNORE_TESTS + SKIPPED_TESTS,
     slow_list=SLOW_TESTS,
     big_memory_list=BIG_MEMORY_TESTS,
 )
