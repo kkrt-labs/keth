@@ -250,7 +250,8 @@ impl PythonicHintExecutor {
             let injected_py_code = r#"
 from functools import partial
 
-serialize = partial(serialize, segments=segments, program_identifiers=py_identifiers, dict_manager=dict_manager)
+if globals().get("py_identifiers"):
+    serialize = partial(serialize, segments=segments, program_identifiers=py_identifiers, dict_manager=dict_manager)
 gen_arg = partial(_gen_arg, dict_manager, segments)
 "#;
             let full_hint_code = format!("{}\n{}", injected_py_code, hint_code);

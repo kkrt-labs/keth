@@ -43,6 +43,7 @@ fn vm(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<PyStrippedProgram>()?;
     module.add_class::<PyDictManager>()?;
     module.add_class::<PyDictTracker>()?;
+    module.add_function(wrap_pyfunction!(runner::run_proof_mode, module)?).unwrap();
     #[cfg(feature = "pythonic-hints")]
     module.add_class::<PyVmConst>()?;
     #[cfg(feature = "pythonic-hints")]

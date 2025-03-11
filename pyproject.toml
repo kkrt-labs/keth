@@ -207,3 +207,4 @@ packages = ["cairo/src", "cairo/tests", "cairo/scripts"]
 compile_os = "scripts.compile_cairo:compile_os"
 compile_fibonacci = "scripts.compile_cairo:compile_fibonacci"
 zkpi_to_eels = "scripts.zkpi_to_eels:main"
+prove-block = "scripts.prove_block:main"

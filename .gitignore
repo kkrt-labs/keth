@@ -53,3 +53,5 @@ data
 *.air_public_input.json
 *.air_private_input.json
 *.memory
+*.trace.bin
+*.memory.bin

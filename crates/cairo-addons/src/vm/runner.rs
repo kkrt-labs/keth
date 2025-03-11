@@ -7,11 +7,14 @@ use crate::vm::{
 };
 use bincode::enc::write::Writer;
 use cairo_vm::{
-    cairo_run::{write_encoded_memory, write_encoded_trace},
+    cairo_run::{self, write_encoded_memory, write_encoded_trace, CairoRunConfig},
     hint_processor::builtin_hint_processor::dict_manager::DictManager,
     serde::deserialize_program::Identifier,
     types::{
         builtin_name::BuiltinName,
+        exec_scope::ExecutionScopes,
+        layout_name::LayoutName,
+        program::Program,
         relocatable::{MaybeRelocatable, Relocatable},
     },
     vm::{
@@ -582,6 +585,167 @@ impl PyCairoRunner {
         }
         Ok(pointer)
     }
+}
+
+/// Runs the Cairo program in proof mode with public and private inputs.
+/// Mimics the behavior of the `run` function from cairo-vm-cli.
+#[pyfunction(signature = (entrypoint, public_inputs, private_inputs, compiled_program_path, output_dir))]
+pub fn run_proof_mode(
+    entrypoint: String,
+    public_inputs: PyObject,
+    private_inputs: PyObject,
+    compiled_program_path: String,
+    output_dir: PathBuf,
+) -> PyResult<()> {
+    let trace_path = output_dir.join("trace.bin");
+    let memory_path = output_dir.join("memory.bin");
+    let air_public_input = output_dir.join("air_public_input.json");
+    let air_private_input = output_dir.join("air_private_input.json");
+
+    let cairo_run_config: CairoRunConfig<'_> = CairoRunConfig {
+        entrypoint: &entrypoint,
+        trace_enabled: true,
+        relocate_mem: true,
+        layout: LayoutName::all_cairo,
+        proof_mode: true,
+        secure_run: Some(true),
+        allow_missing_builtins: Some(false),
+        ..Default::default()
+    };
+
+    //this entrypoint tells which function to run in the cairo program
+    let program_content = std::fs::read(compiled_program_path)
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+    let program = Program::from_bytes(&program_content, Some(cairo_run_config.entrypoint))
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+
+    // Prepare execution scopes to allow running pythonic hints for args_gen
+    let mut exec_scopes = ExecutionScopes::new();
+    let dict_manager = DictManager::new();
+    exec_scopes.insert_value("dict_manager", Rc::new(RefCell::new(dict_manager)));
+
+    let identifiers = program
+        .iter_identifiers()
+        .map(|(name, identifier)| (name.to_string(), identifier.clone()))
+        .collect::<HashMap<String, Identifier>>();
+
+    // Insert the _rust_ program_identifiers in the exec_scopes, so that we're able to pull
+    // identifier data when executing hints to build VmConsts.
+    exec_scopes.insert_value("__program_identifiers__", identifiers);
+
+    // Initialize a python context object that will be accessible throughout the execution of
+    // all hints.
+    // This enables us to directly use the Python identifiers passed in, avoiding the need to
+    // serialize and deserialize the program JSON.
+    Python::with_gil(|py| {
+        let context = PyDict::new(py);
+
+        context.set_item("public_inputs", public_inputs)?;
+        context.set_item("private_inputs", private_inputs)?;
+
+        // Import and run the initialization code from the injected module
+        let setup_code = r#"
+try:
+    from cairo_addons.hints.injected import prepare_context
+    prepare_context(lambda: globals())
+    globals()["serialize"] = lambda *args, **kwargs: None
+except Exception as e:
+    print(f"Warning: Error during initialization: {e}")
+"#;
+
+        // Run the initialization code
+        py.run(&CString::new(setup_code)?, Some(&context), None).map_err(|e| {
+            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+                "Failed to initialize Python globals: {}",
+                e
+            ))
+        })?;
+
+        // Store the context object, modified in the initialization code, in the exec_scopes
+        // to access it throughout the execution of hints
+        let unbounded_context: Py<PyDict> = context.into_py_dict(py)?.into();
+        exec_scopes.insert_value("__context__", unbounded_context);
+        Ok::<(), PyErr>(())
+    })?;
+
+    let mut hint_processor =
+        HintProcessor::default_no_python_mapping().with_dynamic_python_hints().build();
+    let cairo_runner: RustCairoRunner = match cairo_run::cairo_run_program_with_initial_scope(
+        &program,
+        &cairo_run_config,
+        &mut hint_processor,
+        exec_scopes,
+    ) {
+        Ok(runner) => runner,
+        Err(error) => {
+            eprintln!("{error}");
+            panic!("Failed to run block, exiting");
+        }
+    };
+
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap();
+    println!("{:?} - INFO - Run finished", now);
+
+    let execution_resources = cairo_runner.get_execution_resources().unwrap();
+    println!("Execution resources: {:?}", execution_resources);
+
+    // Write outputs
+    let relocated_trace =
+        cairo_runner
+            .relocated_trace
+            .as_ref()
+            .ok_or(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>("Trace not relocated"))?;
+
+    let trace_file = std::fs::File::create(&trace_path)?;
+    let mut trace_writer =
+        FileWriter::new(io::BufWriter::with_capacity(3 * 1024 * 1024, trace_file));
+
+    cairo_run::write_encoded_trace(relocated_trace, &mut trace_writer)
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+    trace_writer.flush()?;
+
+    let memory_file = std::fs::File::create(&memory_path)?;
+    let mut memory_writer =
+        FileWriter::new(io::BufWriter::with_capacity(5 * 1024 * 1024, memory_file));
+    write_encoded_memory(&cairo_runner.relocated_memory, &mut memory_writer)
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+    memory_writer.flush()?;
+
+    let json = cairo_runner
+        .get_air_public_input()
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?
+        .serialize_json()
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+    std::fs::write(&air_public_input, json)
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+
+    let trace_path = trace_path.canonicalize().unwrap_or(trace_path).to_string_lossy().to_string();
+    let memory_path =
+        memory_path.canonicalize().unwrap_or(memory_path).to_string_lossy().to_string();
+    let json = cairo_runner
+        .get_air_private_input()
+        .to_serializable(trace_path.clone(), memory_path.clone())
+        .serialize_json()
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+    std::fs::write(&air_private_input, json)?;
+
+    let json = cairo_runner
+        .get_air_public_input()
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?
+        .serialize_json()
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+    std::fs::write(&air_public_input, json)
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+
+    let json = cairo_runner
+        .get_air_private_input()
+        .to_serializable(trace_path.clone(), memory_path.clone())
+        .serialize_json()
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+    std::fs::write(&air_private_input, json)
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+
+    Ok(())
 }
 
 // From <https://github.com/lambdaclass/cairo-vm/blob/5d7c20880785e1f9edbd73d0d46aeb58d8bced4e/cairo-vm-cli/src/main.rs#L109-L140>
