@@ -622,8 +622,8 @@ dependencies = [
 
 [[package]]
 name = "cairo-vm"
-version = "2.0.0-rc5"
-source = "git+https://github.com/kkrt-labs/cairo-vm?rev=016fc91e5c45f2baa7250e908593588f8bd900c2#016fc91e5c45f2baa7250e908593588f8bd900c2"
+version = "2.0.0"
+source = "git+https://github.com/kkrt-labs/cairo-vm?rev=af22b7189f3ebf0f225711d58be133d217b0a3d8#af22b7189f3ebf0f225711d58be133d217b0a3d8"
 dependencies = [
  "anyhow",
  "arbitrary",
@@ -657,6 +657,7 @@ dependencies = [
 name = "cairo_addons"
 version = "0.1.0"
 dependencies = [
+ "bincode",
  "cairo-vm",
  "garaga_rs",
  "lazy_static",

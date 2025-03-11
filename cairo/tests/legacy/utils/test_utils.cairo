@@ -20,14 +20,7 @@ func test__bytes_to_uint256{range_check_ptr}() -> Uint256 {
     return res;
 }
 
-func test__bytes_used_128{range_check_ptr}(output_ptr: felt*) {
-    tempvar word;
-    %{ ids.word = program_input["word"] %}
-
-    // When
+func test__bytes_used_128{range_check_ptr}(word: felt) -> felt {
     let bytes_used = Helpers.bytes_used_128(word);
-
-    // Then
-    assert [output_ptr] = bytes_used;
-    return ();
+    return bytes_used;
 }
