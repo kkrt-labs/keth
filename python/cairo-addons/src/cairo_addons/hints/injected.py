@@ -65,6 +65,10 @@ def prepare_context(context: Callable[[], dict]):
 
     context()["serialize"] = serialize
 
+    from tests.utils.args_gen import _gen_arg
+
+    context()["_gen_arg"] = _gen_arg
+
 
 def initialize_hint_environment(context: Callable[[], dict]):
     """Initialize the hint environment with all necessary components.

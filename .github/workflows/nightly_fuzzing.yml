@@ -39,7 +39,7 @@ jobs:
         id: unit-tests
         continue-on-error: true
         run: |
-          uv run --reinstall pytest -n logical --durations=0 -v -s --log-cli-level=DEBUG --no-skip-cached-tests --ignore-glob=cairo/tests/ef_tests/
+          uv run --reinstall pytest -n logical --durations=0 --disable-pythonic-hints -v -s --log-cli-level=DEBUG --no-skip-cached-tests --ignore-glob=cairo/tests/ef_tests/
 
       - name: Upload coverage
         uses: codecov/codecov-action@v5
@@ -80,7 +80,7 @@ jobs:
         continue-on-error: true
         # Running on 48 cores to avoid out of memory issues
         run: |
-          uv run --reinstall pytest -n 48 -m "not slow" --durations=0 -v -s --log-cli-level=DEBUG cairo/tests/ef_tests/ --ignore-glob='cairo/tests/ef_tests/fixtures/*'
+          uv run --reinstall pytest -n 48 -m "not slow" --disable-pythonic-hints --durations=0 -v -s --log-cli-level=DEBUG cairo/tests/ef_tests/ --ignore-glob='cairo/tests/ef_tests/fixtures/*'
       - name: Notify Slack on Failure
         if: steps.ef-tests.outcome == 'failure'
         uses: slackapi/slack-github-action@v1.24.0
