@@ -300,6 +300,11 @@ def run_python_vm(
                     program_identifiers=cairo_program.identifiers,
                     dict_manager=dict_manager,
                 ),
+                "gen_arg": partial(
+                    context["_gen_arg"],
+                    dict_manager,
+                    runner.segments,
+                ),
                 **(hint_locals or {}),
             },
             static_locals={

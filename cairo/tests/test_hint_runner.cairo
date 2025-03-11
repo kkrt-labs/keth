@@ -1,4 +1,4 @@
-from ethereum_types.numeric import U256
+from ethereum_types.numeric import U256, U256Struct
 
 func test__ap_accessible() {
     tempvar x = 100;
@@ -35,12 +35,10 @@ func test__assign_local_unassigned_variable() {
     ret;
 }
 
-func test__assign_already_assigned_variable() {
+func test__assign_already_assigned_variable_should_fail() {
     alloc_locals;
     local x = 3;
     %{ ids.x = 100; %}
-
-    assert x = 3;
     ret;
 }
 
@@ -52,7 +50,67 @@ func test__assign_memory() {
     ret;
 }
 
+func test__access_struct_members() {
+    tempvar n = U256Struct(100, 200);
+    %{
+        assert ids.n.low == 100, f"ids.n.low: {ids.n.low}";
+        assert ids.n.high == 200, f"ids.n.high: {ids.n.high}";
+    %}
+    ret;
+}
+
+func test__access_struct_members_pointers() {
+    tempvar n = new U256Struct(100, 200);
+    %{
+        assert ids.n.low == 100, f"ids.n.low: {ids.n.low}";
+        assert ids.n.high == 200, f"ids.n.high: {ids.n.high}";
+    %}
+    ret;
+}
+
+func test_access_nested_structs() {
+    tempvar n = U256(new U256Struct(100, 200));
+    %{
+        assert ids.n.value.low == 100, f"ids.n.value.low: {ids.n.value.low}";
+        assert ids.n.value.high == 200, f"ids.n.value.high: {ids.n.value.high}";
+    %}
+    ret;
+}
+
+func test_access_struct_member_address() {
+    tempvar n = U256(new U256Struct(100, 200));
+    %{
+        assert memory[ids.n.value.address_] == 100, f"memory[ids.n.value.address_]: {memory[ids.n.value.address_]}";
+        assert memory[ids.n.value.address_ + 1] == 200, f"memory[ids.n.value.address_ + 1]: {memory[ids.n.value.address_ + 1]}";
+    %}
+    ret;
+}
+
 func test__serialize(n: U256) {
     %{ assert serialize(ids.n) == 100; %}
+    ret;
+}
+
+func test__gen_arg_pointer(n: U256) {
+    tempvar x: U256Struct*;
+    %{
+        from ethereum_types.numeric import U256
+        ids.x = gen_arg(U256, serialize(ids.n));
+    %}
+
+    assert x.low = n.value.low;
+    assert x.high = n.value.high;
+    ret;
+}
+
+func test__gen_arg_struct(n: U256) {
+    tempvar x: U256;
+    %{
+        from ethereum_types.numeric import U256
+        ids.x = gen_arg(U256, serialize(ids.n));
+    %}
+
+    assert x.value.low = n.value.low;
+    assert x.value.high = n.value.high;
     ret;
 }
