@@ -178,6 +178,7 @@ pinentry
 pkey
 pointee
 preaccessed
+Precomps
 preimage
 preimages
 PREVRANDAO
