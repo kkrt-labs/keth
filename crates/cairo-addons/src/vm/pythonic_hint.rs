@@ -68,6 +68,7 @@ use super::{
     dict_manager::PyDictManager,
     hints::Hint,
     memory_segments::{PyMemorySegmentManager, PyMemoryWrapper},
+    relocatable::PyRelocatable,
     vm_consts::create_vm_consts_dict,
 };
 
@@ -208,6 +209,20 @@ impl PythonicHintExecutor {
                 .set_item("dict_manager", &py_dict_manager_wrapper)
                 .map_err(|e| DynamicHintError::PyDictSet(e.to_string()))?;
 
+            // Make ap, pc, fp accessible from the hint
+            let ap: PyRelocatable = vm.get_ap().into();
+            let pc: PyRelocatable = vm.get_pc().into();
+            let fp: PyRelocatable = vm.get_fp().into();
+            bounded_context
+                .set_item("ap", ap)
+                .map_err(|e| DynamicHintError::PyDictSet(e.to_string()))?;
+            bounded_context
+                .set_item("pc", pc)
+                .map_err(|e| DynamicHintError::PyDictSet(e.to_string()))?;
+            bounded_context
+                .set_item("fp", fp)
+                .map_err(|e| DynamicHintError::PyDictSet(e.to_string()))?;
+
             // Get the _rust_ program identifiers that we inserted into the execution scope upon
             // runner initialization to initialize VmConsts, and add them to the context
             let program_identifiers = match exec_scopes
@@ -233,6 +248,7 @@ impl PythonicHintExecutor {
 from functools import partial
 
 serialize = partial(serialize, segments=segments, program_identifiers=py_identifiers, dict_manager=dict_manager)
+gen_arg = partial(_gen_arg, dict_manager, segments)
 "#;
             let full_hint_code = format!("{}\n{}", injected_py_code, hint_code);
             let hint_code_c_string = CString::new(full_hint_code)

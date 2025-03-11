@@ -279,3 +279,5 @@ pathlib
 kwargs
 pythonic
 functools
+setattr
+pyfunction

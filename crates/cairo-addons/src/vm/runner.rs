@@ -556,7 +556,6 @@ impl PyCairoRunner {
             if let Some(builtin_runner) =
                 self.inner.vm.builtin_runners.iter_mut().find(|b| b.name() == *builtin_name)
             {
-                println!("Getting final stack for {}", builtin_name);
                 pointer =
                     builtin_runner.final_stack(&self.inner.vm.segments, pointer).map_err(|e| {
                         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string())
