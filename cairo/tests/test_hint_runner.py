@@ -62,3 +62,11 @@ class TestRunner:
     def test__gen_arg_struct(self, cairo_run):
         cairo_run("test__gen_arg_struct", n=U256(100))
         # Not possible with the Python runner but is a nice addition to the Rust one.
+
+    def test__access_let_felt(self, cairo_run, cairo_run_py):
+        cairo_run("test__access_let_felt")
+        cairo_run_py("test__access_let_felt")
+
+    def test__access_let_relocatable(self, cairo_run, cairo_run_py):
+        cairo_run("test__access_let_relocatable")
+        cairo_run_py("test__access_let_relocatable")

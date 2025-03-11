@@ -1,4 +1,5 @@
 from ethereum_types.numeric import U256, U256Struct
+from starkware.cairo.common.alloc import alloc
 
 func test__ap_accessible() {
     tempvar x = 100;
@@ -112,5 +113,20 @@ func test__gen_arg_struct(n: U256) {
 
     assert x.value.low = n.value.low;
     assert x.value.high = n.value.high;
+    ret;
+}
+
+func test__access_let_felt() {
+    let x = 3;
+    %{ assert ids.x == 3 %}
+    ret;
+}
+
+func test__access_let_relocatable() {
+    let (x) = alloc();
+    %{
+        # simple access
+        ids.x
+    %}
     ret;
 }

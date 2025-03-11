@@ -551,7 +551,6 @@ impl PyCairoRunner {
     /// Processes builtin pointers in reverse order and handles missing builtins.
     fn _read_return_values(&mut self, offset: usize) -> PyResult<Relocatable> {
         let mut pointer = (self.inner.vm.get_ap() - offset).unwrap();
-        println!("Ordered builtins: {:?}", self.ordered_builtins);
         for builtin_name in self.ordered_builtins.iter().rev() {
             if let Some(builtin_runner) =
                 self.inner.vm.builtin_runners.iter_mut().find(|b| b.name() == *builtin_name)

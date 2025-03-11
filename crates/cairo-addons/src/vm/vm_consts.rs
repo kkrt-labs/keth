@@ -51,6 +51,7 @@ use cairo_vm::{
             get_ptr_from_var_name, get_relocatable_from_var_name,
         },
         hint_processor_definition::HintReference,
+        hint_processor_utils::get_maybe_relocatable_from_reference,
     },
     serde::deserialize_program::{ApTracking, Identifier, Member},
     types::relocatable::{MaybeRelocatable, Relocatable},
@@ -685,10 +686,34 @@ pub fn create_vm_consts_dict(
         let var_addr = match get_relocatable_from_var_name(name, vm, ids_data, ap_tracking) {
             Ok(addr) => addr,
             Err(_e) => {
-                //TODO: if this fails, it means we're either accessing __temp variables or
-                // accessing a `let` variable, that does _not_ have an address yet.
-                // We should find a way to handle `let` variables.
-                continue;
+                //If this fails, it means we're either accessing __temp variables or
+                // accessing a `let` variable, that do not have an address yet.
+                // We can use the `ap` (or FP) offset to get the address of the variable.
+                let maybe_relocatable = get_maybe_relocatable_from_reference(
+                    vm,
+                    reference,
+                    ap_tracking,
+                )
+                .ok_or_else(|| {
+                    DynamicHintError::MemoryError(format!("Could not get data for '{}'", name))
+                })?;
+                match maybe_relocatable {
+                    MaybeRelocatable::RelocatableValue(rel) => rel,
+                    MaybeRelocatable::Int(felt) => {
+                        if cairo_type.as_str() == "felt" {
+                            py_ids_dict.borrow_mut(py).items.insert(
+                                name.clone(),
+                                felt.to_biguint().into_bound_py_any(py)?.into(),
+                            );
+                            continue;
+                        } else {
+                            return Err(DynamicHintError::MemoryError(format!(
+                                "Expected felt type for '{}'",
+                                name
+                            )));
+                        }
+                    }
+                }
             }
         };
         // Some variables don't have values yet; e.g.
