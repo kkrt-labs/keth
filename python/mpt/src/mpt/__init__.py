@@ -659,8 +659,17 @@ class EthereumState:
                 if isinstance(child, bytes) and len(child) == 32:
                     child_data = self.nodes.get(Hash32(child))
                     if child_data is None:
-                        raise ValueError(
-                            f"Child node not found: 0x{child.hex()} - Nodes that enable branch node reduction MUST be in the witness"
+                        # SPECIAL CASE: If we are not able to resolve the child node,
+                        # then it SHOULD be that the child node is a branch node
+                        # source: <https://github.com/kkrt-labs/zk-pig/blob/main/docs/modified-mpt.md>
+                        logger.debug(
+                            "Special case: child node not found, returning one-nibble extension node"
+                        )
+                        return (
+                            ExtensionNode(
+                                key_segment=bytes([index]), subnode=Hash32(child)
+                            ),
+                            True,
                         )
                     child_node = self._decode_node(child_data)
                 else:
