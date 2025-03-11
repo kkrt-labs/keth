@@ -682,8 +682,15 @@ pub fn create_vm_consts_dict(
         let cairo_type = reference.cairo_type.as_ref().ok_or_else(|| {
             DynamicHintError::UnknownVariableType(format!("No type for '{}'", name))
         })?;
-        let var_addr = get_relocatable_from_var_name(name, vm, ids_data, ap_tracking)
-            .map_err(|e| DynamicHintError::MemoryError(e.to_string()))?;
+        let var_addr = match get_relocatable_from_var_name(name, vm, ids_data, ap_tracking) {
+            Ok(addr) => addr,
+            Err(_e) => {
+                //TODO: if this fails, it means we're either accessing __temp variables or
+                // accessing a `let` variable, that does _not_ have an address yet.
+                // We should find a way to handle `let` variables.
+                continue;
+            }
+        };
         // Some variables don't have values yet; e.g.
         // ```
         // tempvar x: U256

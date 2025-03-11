@@ -2,7 +2,7 @@ from ethereum_types.numeric import U256, U256Struct
 
 func test__ap_accessible() {
     tempvar x = 100;
-    %{ assert memory[ap-1] == 100; %}
+    %{ assert memory[ap-1] == 100 %}
     ret;
 }
 
@@ -14,13 +14,13 @@ func test__pc_accessible() {
 func test__fp_accessible() {
     alloc_locals;
     local x = 100;
-    %{ assert memory[fp] == 100; %}
+    %{ assert memory[fp] == 100 %}
     ret;
 }
 
 func test__assign_tempvar_ids_variable() {
     tempvar x;
-    %{ ids.x = 100; %}
+    %{ ids.x = 100 %}
 
     assert x = 100;
     ret;
@@ -29,7 +29,7 @@ func test__assign_tempvar_ids_variable() {
 func test__assign_local_unassigned_variable() {
     alloc_locals;
     local x: felt;
-    %{ ids.x = 3; %}
+    %{ ids.x = 3 %}
 
     assert x = 3;
     ret;
@@ -38,13 +38,13 @@ func test__assign_local_unassigned_variable() {
 func test__assign_already_assigned_variable_should_fail() {
     alloc_locals;
     local x = 3;
-    %{ ids.x = 100; %}
+    %{ ids.x = 100 %}
     ret;
 }
 
 func test__assign_memory() {
     tempvar x;
-    %{ memory[ap-1] = 100; %}
+    %{ memory[ap-1] = 100 %}
 
     assert x = 100;
     ret;
@@ -87,7 +87,7 @@ func test_access_struct_member_address() {
 }
 
 func test__serialize(n: U256) {
-    %{ assert serialize(ids.n) == 100; %}
+    %{ assert serialize(ids.n) == ids.n.value.low + ids.n.value.high * 2**128 %}
     ret;
 }
 
