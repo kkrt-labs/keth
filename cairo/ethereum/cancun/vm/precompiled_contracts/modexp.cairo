@@ -40,6 +40,7 @@ from ethereum.cancun.vm.gas import charge_gas
 from ethereum.cancun.vm.memory import buffer_read
 from ethereum.exceptions import EthereumException
 from cairo_core.control_flow import raise
+from cairo_core.maths import felt252_bit_length
 from cairo_ec.circuits.mod_ops_compiled import mul
 from legacy.utils.bytes import felt_to_bytes
 from legacy.utils.uint256 import uint256_unsigned_div_rem
@@ -359,18 +360,16 @@ func iterations{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     if (exp_len_le_32.value != 0) {
         // Get bit length of exponent_head
         let bit_length = U256_bit_length(exponent_head);
-        let bit_length_is_zero = is_zero(bit_length);
 
-        if (bit_length_is_zero == 0) {
+        if (bit_length != 0) {
             // If bit_length > 0, return max(1, bit_length - 1)
             let count = bit_length - 1;
-            let count_is_zero = is_zero(count);
-            if (count_is_zero != 0) {
-                tempvar one = Uint(1);
-                return one;
+            if (count != 0) {
+                tempvar count_uint = Uint(count);
+                return count_uint;
             }
-            tempvar count_uint = Uint(count);
-            return count_uint;
+            tempvar one = Uint(1);
+            return one;
         }
         tempvar one = Uint(1);
         return one;
@@ -382,9 +381,8 @@ func iterations{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
 
         // Calculate bits_part = exponent_head.bit_length()
         let bits_part = U256_bit_length(exponent_head);
-        let bits_part_is_zero = is_zero(bits_part);
 
-        if (bits_part_is_zero == 0) {
+        if (bits_part != 0) {
             // Add length_part + (bits_part - 1)
             tempvar bits_part_minus_1 = U256(new U256Struct(bits_part - 1, 0));
             let total = U256_add(length_part, bits_part_minus_1);

@@ -7,14 +7,14 @@ from starkware.cairo.common.math import split_felt
 from starkware.cairo.common.math_cmp import is_le, is_not_zero, is_le_felt
 from starkware.cairo.common.memcpy import memcpy
 from starkware.cairo.common.registers import get_fp_and_pc
-from starkware.cairo.common.uint256 import uint256_reverse_endian
+from starkware.cairo.common.uint256 import uint256_reverse_endian, uint256_to_felt
 from starkware.cairo.common.uint256 import word_reverse_endian, Uint256, uint256_le, uint256_mul
 from starkware.cairo.common.memset import memset
 
 from ethereum_types.bytes import Bytes32, Bytes32Struct, Bytes20, Bytes, BytesStruct
 from ethereum_types.numeric import Uint, U256, U256Struct, bool, U64, U384
 from cairo_ec.uint384 import uint384_eq
-from cairo_core.maths import pow2, unsigned_div_rem, felt252_to_bytes_be
+from cairo_core.maths import pow2, unsigned_div_rem, felt252_to_bytes_be, felt252_bit_length
 from cairo_core.comparison import is_zero
 from cairo_ec.uint384 import uint256_to_uint384
 from legacy.utils.bytes import bytes_to_felt, uint256_from_bytes_be, felt_to_bytes
@@ -321,28 +321,6 @@ func Uint_from_be_bytes{range_check_ptr}(bytes: Bytes) -> Uint {
     return res;
 }
 
-func _bit_length{range_check_ptr}(value: felt) -> felt {
-    alloc_locals;
-
-    if (value == 0) {
-        return 0;
-    }
-
-    tempvar bit_length;
-    %{ bit_length_hint %}
-
-    assert_le(bit_length, 252);
-    let lower_bound = pow2(bit_length - 1);
-    assert_le_felt(lower_bound, value);
-    if (bit_length == 252) {
-        return bit_length;
-    }
-    let upper_bound = pow2(bit_length);
-    assert_le_felt(value + 1, upper_bound);
-
-    return bit_length;
-}
-
 func U256_bit_length{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(value: U256) -> felt {
     alloc_locals;
 
@@ -352,31 +330,19 @@ func U256_bit_length{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(value: U256)
         return 0;
     }
 
-    let high_is_zero = is_zero(value.value.high);
-    if (high_is_zero == 0) {
-        let high_bit_length = _bit_length(value.value.high);
+    if (value.value.high != 0) {
+        let high_bit_length = felt252_bit_length(value.value.high);
         return high_bit_length + 128;
     } else {
-        let low_bit_length = _bit_length(value.value.low);
+        let low_bit_length = felt252_bit_length(value.value.low);
         return low_bit_length;
     }
 }
 
 func U256_to_Uint{range_check_ptr}(value: U256) -> Uint {
-    with_attr error_message("ValueError") {
-        // 0x8000000000000110000000000000000 is the high 128 bits of DEFAULT_PRIME
-        assert_le_felt(value.value.high, 0x8000000000000110000000000000000);
-        if (value.value.high == 0x8000000000000110000000000000000) {
-            let is_zero_low = is_zero(value.value.low);
-            assert is_zero_low = 1;
-            tempvar range_check_ptr = range_check_ptr;
-        } else {
-            assert [range_check_ptr] = value.value.low;
-            tempvar range_check_ptr = range_check_ptr + 1;
-        }
-    }
-    let res = Uint(value.value.low + value.value.high * 2 ** 128);
-    return res;
+    let res = uint256_to_felt([value.value]);
+    tempvar res_uint = Uint(res);
+    return res_uint;
 }
 
 func U256_from_be_bytes{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(bytes: Bytes) -> U256 {
