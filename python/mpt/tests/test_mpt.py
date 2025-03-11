@@ -1,6 +1,7 @@
 import json
 
 from ethereum.cancun.fork_types import Account, Address, encode_account
+from ethereum.cancun.state import get_account
 from ethereum.crypto.hash import keccak256
 from ethereum_spec_tools.evm_tools.loaders.fixture_loader import Load
 from ethereum_types.numeric import U256, Uint
@@ -41,7 +42,7 @@ class TestEthereumState:
         assert (
             mpt.get(
                 keccak256(
-                    Address(bytes.fromhex("0000000000000000000000000000000000000001"))
+                    Address(bytes.fromhex("30325619135da691a6932b13a19b8928527f8456"))
                 )
             )
             is not None
@@ -49,14 +50,14 @@ class TestEthereumState:
 
         mpt.delete(
             keccak256(
-                Address(bytes.fromhex("0000000000000000000000000000000000000001"))
+                Address(bytes.fromhex("30325619135da691a6932b13a19b8928527f8456"))
             )
         )
 
         assert (
             mpt.get(
                 keccak256(
-                    Address(bytes.fromhex("0000000000000000000000000000000000000001"))
+                    Address(bytes.fromhex("30325619135da691a6932b13a19b8928527f8456"))
                 )
             )
             is None
@@ -109,3 +110,30 @@ class TestEthereumState:
         expected_state = load.json_to_state(fixture["pre"])
 
         assert state == expected_state
+
+    def test_to_state_from_simple_operations(self):
+        mpt = EthereumState.create_empty()
+
+        account = Account(
+            nonce=Uint(10), balance=U256(1000), code=bytes.fromhex("deadbeef")
+        )
+        encoded_account = encode_account(account, EMPTY_TRIE_ROOT_HASH)
+
+        mpt.upsert_account(
+            Address(bytes.fromhex("0000000000000000000000000000000000000001")),
+            encoded_account,
+            account.code,
+        )
+        mpt.access_list[
+            Address(bytes.fromhex("0000000000000000000000000000000000000001"))
+        ] = None
+
+        state = mpt.to_state()
+
+        assert (
+            get_account(
+                state,
+                Address(bytes.fromhex("0000000000000000000000000000000000000001")),
+            )
+            == account
+        )

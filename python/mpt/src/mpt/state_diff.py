@@ -17,10 +17,10 @@ class StateDiff:
     storage_deletions: Dict[Address, Set[Bytes32]]
 
     def __init__(self):
-        self.updates = {}
-        self.deletions = set()
-        self.storage_updates = {}
-        self.storage_deletions = {}
+        self.updates: Dict[Address, Account] = {}
+        self.deletions: Set[Address] = set()
+        self.storage_updates: Dict[Address, Dict[Bytes32, U256]] = {}
+        self.storage_deletions: Dict[Address, Set[Bytes32]] = {}
 
     @classmethod
     def from_pre_post(cls, pre_state: State, post_state: State) -> "StateDiff":

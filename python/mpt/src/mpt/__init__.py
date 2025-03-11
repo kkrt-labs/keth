@@ -74,6 +74,15 @@ class EthereumState:
     access_list: Mapping[Address, Optional[List[Bytes32]]]
     state_root: Hash32
 
+    @classmethod
+    def create_empty(cls) -> "EthereumState":
+        return cls(
+            nodes={},
+            codes={},
+            access_list={},
+            state_root=EMPTY_TRIE_ROOT_HASH,
+        )
+
     def __init__(
         self,
         nodes: Mapping[Bytes32, Bytes],
@@ -847,7 +856,8 @@ class EthereumState:
         self.upsert(keccak256(address), encoded)
         return
 
-    def upsert_account(self, address: Address, value: Bytes) -> None:
+    def upsert_account(self, address: Address, value: Bytes, code: Bytes) -> None:
+        self.codes[keccak256(code)] = code
         path = keccak256(address)
         self.upsert(path, value)
 
@@ -1237,16 +1247,9 @@ class EthereumState:
         """
         updates = set()
         # Process account updates
-        updates.update(
-            [
-                (
-                    address,
-                    encode_account(account, self.state_root),
-                    None,
-                )
-                for address, account in state_diff.updates.items()
-            ]
-        )
+        for address, account in state_diff.updates.items():
+            self.codes[keccak256(account.code)] = account.code
+            updates.add((address, encode_account(account, self.state_root), None))
 
         # Process account deletions
         updates.update(
@@ -1289,7 +1292,7 @@ class EthereumState:
                 if maybe_storage_address is not None:
                     self.upsert_storage_key(maybe_storage_address, preimage, value)
                 else:
-                    self.upsert_account(preimage, value)
+                    self.upsert(keccak256(preimage), value)
 
 
 def decode_node(node: Bytes) -> InternalNode:
