@@ -38,6 +38,8 @@ func main{
         from ethereum.cancun.fork import BlockChain, Block
         from ethereum_types.bytes import Bytes32
 
+        # Note: for efficiency purposes, we don't use the `ids` object to
+        # avoid loading program identifiers into the context.
         memory[fp+2] = gen_arg(Bytes32, public_inputs["pre_state_root"])
         memory[fp+3] = gen_arg(Bytes32, public_inputs["post_state_root"])
         memory[fp+4] = gen_arg(Bytes32, public_inputs["block_hash"])

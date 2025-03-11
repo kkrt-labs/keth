@@ -45,7 +45,8 @@ pub struct PyCairoRunner {
     allow_missing_builtins: bool,
     /// The builtins, ordered as they're defined in the program entrypoint.
     ordered_builtins: Vec<BuiltinName>,
-    enable_pythonic_hints: bool,
+    /// Whether to enable execution of hints containing logger.
+    enable_logger: bool,
 }
 
 #[pymethods]
@@ -53,19 +54,23 @@ impl PyCairoRunner {
     /// Initialize the runner with the given program and identifiers.
     /// # Arguments
     /// * `program` - The _rust_ program to run.
-    /// * `py_identifiers` - The _pythonic_ identifiers for this program.
+    /// * `py_identifiers` - The _pythonic_ identifiers for this program. Only used when
+    ///   enable_logger is true.
     /// * `layout` - The layout to use for the runner.
     /// * `proof_mode` - Whether to run in proof mode.
     /// * `allow_missing_builtins` - Whether to allow missing builtins.
+    /// * `enable_logger` - Whether to enable execution of hints containing logger. When false,
+    ///   Python identifiers and program identifiers are not loaded to save memory and
+    ///   initialization time.
     #[new]
-    #[pyo3(signature = (program, py_identifiers=None, layout=None, proof_mode=false, allow_missing_builtins=false, enable_pythonic_hints=false, ordered_builtins=vec![]))]
+    #[pyo3(signature = (program, py_identifiers=None, layout=None, proof_mode=false, allow_missing_builtins=false, enable_logger=false, ordered_builtins=vec![]))]
     fn new(
         program: &PyProgram,
         py_identifiers: Option<PyObject>,
         layout: Option<PyLayout>,
         proof_mode: bool,
         allow_missing_builtins: bool,
-        enable_pythonic_hints: bool,
+        enable_logger: bool,
         ordered_builtins: Vec<String>,
     ) -> PyResult<Self> {
         let layout = layout.unwrap_or_default().into_layout_name()?;
@@ -88,43 +93,32 @@ impl PyCairoRunner {
         let dict_manager = DictManager::new();
         inner.exec_scopes.insert_value("dict_manager", Rc::new(RefCell::new(dict_manager)));
 
-        if !enable_pythonic_hints || !cfg!(feature = "pythonic-hints") {
-            return Ok(Self {
-                inner,
-                allow_missing_builtins,
-                ordered_builtins: ordered_builtin_names,
-                enable_pythonic_hints,
-            });
-        }
-
-        // Add context variables required for pythonic hint execution
-
-        let identifiers = program
-            .inner
-            .iter_identifiers()
-            .map(|(name, identifier)| (name.to_string(), identifier.clone()))
-            .collect::<HashMap<String, Identifier>>();
-
-        // Insert the _rust_ program_identifiers in the exec_scopes, so that we're able to pull
-        // identifier data when executing hints to build VmConsts.
-        inner.exec_scopes.insert_value("__program_identifiers__", identifiers);
-
         // Initialize a python context object that will be accessible throughout the execution of
-        // all hints.
-        // This enables us to directly use the Python identifiers passed in, avoiding the need to
-        // serialize and deserialize the program JSON.
+        // all hints, but only load identifiers if logger is enabled
         Python::with_gil(|py| {
             let context = PyDict::new(py);
 
-            if let Some(py_identifiers) = py_identifiers {
-                // Store the Python identifiers directly in the context
-                context.set_item("py_identifiers", py_identifiers).map_err(|e| {
-                    PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string())
-                })?;
-            }
+            if enable_logger {
+                // Only load and store identifiers if logger is enabled
+                let identifiers = program
+                    .inner
+                    .iter_identifiers()
+                    .map(|(name, identifier)| (name.to_string(), identifier.clone()))
+                    .collect::<HashMap<String, Identifier>>();
 
-            // Import and run the initialization code from the injected module
-            let setup_code = r#"
+                // Insert the _rust_ program_identifiers in the exec_scopes, so that we're able to
+                // pull identifier data when executing hints to build VmConsts.
+                inner.exec_scopes.insert_value("__program_identifiers__", identifiers);
+
+                if let Some(py_identifiers) = py_identifiers {
+                    // Store the Python identifiers directly in the context
+                    context.set_item("py_identifiers", py_identifiers).map_err(|e| {
+                        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string())
+                    })?;
+                }
+
+                // Import and run the initialization code from the injected module
+                let setup_code = r#"
 try:
     from cairo_addons.hints.injected import prepare_context
     prepare_context(lambda: globals())
@@ -132,16 +126,17 @@ except Exception as e:
     print(f"Warning: Error during initialization: {e}")
 "#;
 
-            // Run the initialization code
-            py.run(&CString::new(setup_code)?, Some(&context), None).map_err(|e| {
-                PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-                    "Failed to initialize Python globals: {}",
-                    e
-                ))
-            })?;
+                // Run the initialization code
+                py.run(&CString::new(setup_code)?, Some(&context), None).map_err(|e| {
+                    PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+                        "Failed to initialize Python globals: {}",
+                        e
+                    ))
+                })?;
+            }
 
-            // Store the context object, modified in the initialization code, in the exec_scopes
-            // to access it throughout the execution of hints
+            // Store the context object in the exec_scopes regardless of logger status
+            // This ensures the pythonic hint executor has a context to work with
             let unbounded_context: Py<PyDict> = context.into_py_dict(py)?.into();
             inner.exec_scopes.insert_value("__context__", unbounded_context);
             Ok::<(), PyErr>(())
@@ -151,7 +146,7 @@ except Exception as e:
             inner,
             allow_missing_builtins,
             ordered_builtins: ordered_builtin_names,
-            enable_pythonic_hints,
+            enable_logger,
         })
     }
 
@@ -338,19 +333,19 @@ except Exception as e:
     /// * `resources` - Resources limiting the execution (e.g., max steps)
     ///
     /// Uses our own hint processor to handle Cairo hints during execution.
-    /// This hint processor can support pythonic hints execution (if enabled).
+    /// This hint processor always supports pythonic hints execution, but will
+    /// skip hints containing "logger" when enable_logger is false for performance reasons.
+    /// When enable_logger is false, Python identifiers and program identifiers are not loaded
+    /// to save memory and initialization time.
     /// Ends the run after reaching the target address. If in proof mode this will loop on `jmp rel
     /// 0` until the steps is a power of 2.
     #[pyo3(signature = (address, resources))]
     fn run_until_pc(&mut self, address: PyRelocatable, resources: PyRunResources) -> PyResult<()> {
-        let mut hint_processor = if self.enable_pythonic_hints {
-            HintProcessor::default()
-                .with_run_resources(resources.inner)
-                .with_dynamic_python_hints()
-                .build()
-        } else {
-            HintProcessor::default().with_run_resources(resources.inner).build()
-        };
+        println!("Running with enable_logger={}", self.enable_logger);
+        let mut hint_processor = HintProcessor::default()
+            .with_run_resources(resources.inner)
+            .with_dynamic_python_hints(self.enable_logger)
+            .build();
         self.inner
             .run_until_pc(address.inner, &mut hint_processor)
             .map_err(|e| VmException::from_vm_error(&self.inner, e))
@@ -648,7 +643,6 @@ pub fn run_proof_mode(
 try:
     from cairo_addons.hints.injected import prepare_context
     prepare_context(lambda: globals())
-    globals()["serialize"] = lambda *args, **kwargs: None
 except Exception as e:
     print(f"Warning: Error during initialization: {e}")
 "#;
@@ -668,8 +662,7 @@ except Exception as e:
         Ok::<(), PyErr>(())
     })?;
 
-    let mut hint_processor =
-        HintProcessor::default_no_python_mapping().with_dynamic_python_hints().build();
+    let mut hint_processor = HintProcessor::default().with_dynamic_python_hints(false).build();
     let cairo_runner: RustCairoRunner = match cairo_run::cairo_run_program_with_initial_scope(
         &program,
         &cairo_run_config,
@@ -683,8 +676,8 @@ except Exception as e:
         }
     };
 
-    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap();
-    println!("{:?} - INFO - Run finished", now);
+    let datetime = chrono::Local::now();
+    println!("{} - INFO - Run finished", datetime.format("%Y-%m-%d %H:%M:%S%.3f"));
 
     let execution_resources = cairo_runner.get_execution_resources().unwrap();
     println!("Execution resources: {:?}", execution_resources);

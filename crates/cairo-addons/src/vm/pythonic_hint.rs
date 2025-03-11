@@ -127,18 +127,20 @@ pub struct PythonicHintExecutor {
     initialized: bool,
     /// Optional Python path to add during initialization
     python_path: Option<PathBuf>,
+    /// Whether to enable logger in the Python interpreter
+    enable_logger: bool,
 }
 
 impl Default for PythonicHintExecutor {
     fn default() -> Self {
-        Self::new()
+        Self::new(false)
     }
 }
 
 impl PythonicHintExecutor {
     /// Create a new dynamic Python hint executor
-    pub fn new() -> Self {
-        Self { initialized: false, python_path: None }
+    pub fn new(enable_logger: bool) -> Self {
+        Self { initialized: false, python_path: None, enable_logger }
     }
 
     /// Initialize the Python interpreter if not already initialized
@@ -226,34 +228,35 @@ impl PythonicHintExecutor {
                 .set_item("fp", fp)
                 .map_err(|e| DynamicHintError::PyDictSet(e.to_string()))?;
 
-            // Get the _rust_ program identifiers that we inserted into the execution scope upon
-            // runner initialization to initialize VmConsts, and add them to the context
-            let program_identifiers = match exec_scopes
-                .get_ref::<HashMap<String, Identifier>>("__program_identifiers__")
-            {
-                Ok(identifiers) => identifiers.clone(),
-                Err(e) => {
-                    return Err(HintError::CustomHint(Box::from(format!(
-                        "No program identifiers found in execution scope: {:?}",
-                        e
-                    ))))
-                }
+            let injected_py_code = if self.enable_logger {
+                // Get the _rust_ program identifiers that we inserted into the execution scope upon
+                // runner initialization to initialize VmConsts, and add them to the context
+                let program_identifiers = match exec_scopes
+                    .get_ref::<HashMap<String, Identifier>>("__program_identifiers__")
+                {
+                    Ok(identifiers) => identifiers.clone(),
+                    Err(e) => {
+                        return Err(HintError::CustomHint(Box::from(format!(
+                            "No program identifiers found in execution scope: {:?}",
+                            e
+                        ))))
+                    }
+                };
+                let py_ids_dict =
+                    create_vm_consts_dict(vm, &program_identifiers, ids_data, ap_tracking, py)
+                        .map_err(|e| DynamicHintError::PyObjectCreation(e.to_string()))?;
+                bounded_context
+                    .set_item("ids", py_ids_dict)
+                    .map_err(|e| DynamicHintError::PyDictSet(e.to_string()))?;
+
+                PythonCodeInjector::new()
+                    .with_base_imports()
+                    .with_serialize()
+                    .with_gen_arg()
+                    .build()
+            } else {
+                PythonCodeInjector::new().with_base_imports().with_gen_arg().build()
             };
-            let py_ids_dict =
-                create_vm_consts_dict(vm, &program_identifiers, ids_data, ap_tracking, py)
-                    .map_err(|e| DynamicHintError::PyObjectCreation(e.to_string()))?;
-            bounded_context
-                .set_item("ids", py_ids_dict)
-                .map_err(|e| DynamicHintError::PyDictSet(e.to_string()))?;
-
-            // Inject the serialize function factory into the execution scope
-            let injected_py_code = r#"
-from functools import partial
-
-if globals().get("py_identifiers"):
-    serialize = partial(serialize, segments=segments, program_identifiers=py_identifiers, dict_manager=dict_manager)
-gen_arg = partial(_gen_arg, dict_manager, segments)
-"#;
             let full_hint_code = format!("{}\n{}", injected_py_code, hint_code);
             let hint_code_c_string = CString::new(full_hint_code)
                 .map_err(|e| DynamicHintError::CStringConversion(e.to_string()))?;
@@ -268,11 +271,12 @@ gen_arg = partial(_gen_arg, dict_manager, segments)
 }
 
 /// A generic hint that can execute arbitrary Python code
-pub fn generic_python_hint() -> Hint {
+pub fn generic_python_hint(enable_logger: bool) -> Hint {
     // Create a static executor that will be reused
     static EXECUTOR: std::sync::OnceLock<std::sync::Mutex<PythonicHintExecutor>> =
         std::sync::OnceLock::new();
-    let executor = EXECUTOR.get_or_init(|| std::sync::Mutex::new(PythonicHintExecutor::new()));
+    let executor =
+        EXECUTOR.get_or_init(|| std::sync::Mutex::new(PythonicHintExecutor::new(enable_logger)));
 
     Hint::new(
         String::from("__dynamic_python_hint__"),
@@ -302,4 +306,41 @@ pub fn generic_python_hint() -> Hint {
             locked_executor.execute_hint(&hint_code, vm, exec_scopes, ids_data, ap_tracking)
         },
     )
+}
+
+/// Builder for constructing Python injection code
+struct PythonCodeInjector {
+    code_parts: Vec<String>,
+}
+
+impl PythonCodeInjector {
+    /// Create a new injector instance
+    fn new() -> Self {
+        Self { code_parts: Vec::new() }
+    }
+
+    /// Add the base imports required for all injections
+    fn with_base_imports(mut self) -> Self {
+        self.code_parts.push("from functools import partial".to_string());
+        self
+    }
+
+    /// Add serialization code (only when logger is enabled)
+    fn with_serialize(mut self) -> Self {
+        self.code_parts.push(r#"
+    serialize = partial(serialize, segments=segments, program_identifiers=py_identifiers, dict_manager=dict_manager)
+"#.trim().to_string());
+        self
+    }
+
+    /// Add gen_arg partial function (always included)
+    fn with_gen_arg(mut self) -> Self {
+        self.code_parts.push("gen_arg = partial(_gen_arg, dict_manager, segments)".to_string());
+        self
+    }
+
+    /// Build the final injected code string
+    fn build(self) -> String {
+        self.code_parts.join("\n")
+    }
 }

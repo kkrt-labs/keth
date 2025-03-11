@@ -35,6 +35,7 @@ thiserror = "2.0"
 bincode = { version = "2.0.0-rc.3", default-features = false, features = [
   "serde",
 ] }
+chrono = "0.4.40"
 
 [build-dependencies]
 pyo3-build-config = "0.23.3" # Should match pyo3 version
@@ -42,5 +43,3 @@ pyo3-build-config = "0.23.3" # Should match pyo3 version
 [features]
 extension-module = ["pyo3/extension-module"]
 default = ["extension-module", "pyo3/experimental-inspect"]
-# Pythonic hints feature - not enabled by default
-pythonic-hints = []

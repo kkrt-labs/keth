@@ -101,12 +101,6 @@ def pytest_addoption(parser):
         type=int,
         help="The seed to set random with.",
     )
-    parser.addoption(
-        "--disable-pythonic-hints",
-        action="store_true",
-        default=False,
-        help="Disable pythonic hints in the RustVM runner",
-    )
 
 
 @pytest.fixture(autouse=True, scope="session")
