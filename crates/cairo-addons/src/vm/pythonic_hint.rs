@@ -100,6 +100,9 @@ pub enum DynamicHintError {
 
     #[error("Unknown variable type: {0}")]
     UnknownVariableType(String),
+
+    #[error("Memory error: {0}")]
+    MemoryError(String),
 }
 
 impl From<DynamicHintError> for HintError {
