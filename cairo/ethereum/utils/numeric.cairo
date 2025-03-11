@@ -366,8 +366,14 @@ func U256_to_Uint{range_check_ptr}(value: U256) -> Uint {
     with_attr error_message("ValueError") {
         // 0x8000000000000110000000000000000 is the high 128 bits of DEFAULT_PRIME
         assert_le_felt(value.value.high, 0x8000000000000110000000000000000);
-        assert [range_check_ptr] = value.value.low;
-        let range_check_ptr = range_check_ptr + 1;
+        if (value.value.high == 0x8000000000000110000000000000000) {
+            let is_zero_low = is_zero(value.value.low);
+            assert is_zero_low = 1;
+            tempvar range_check_ptr = range_check_ptr;
+        } else {
+            assert [range_check_ptr] = value.value.low;
+            tempvar range_check_ptr = range_check_ptr + 1;
+        }
     }
     let res = Uint(value.value.low + value.value.high * 2 ** 128);
     return res;

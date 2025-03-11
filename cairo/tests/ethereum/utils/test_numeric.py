@@ -7,7 +7,7 @@ from ethereum.cancun.vm.gas import (
 from ethereum.utils.numeric import ceil32, taylor_exponential
 from ethereum_types.bytes import Bytes, Bytes32
 from ethereum_types.numeric import U64, U256, Uint
-from hypothesis import given
+from hypothesis import example, given
 from hypothesis import strategies as st
 from starkware.cairo.lang.instances import PRIME
 
@@ -193,10 +193,13 @@ class TestNumeric:
     # @dev Note Uint type from EELS is unbounded.
     # But U256_to_Uint panics if value > STONE_PRIME - 1
     @given(value=...)
+    @example(
+        value=U256(0x80000000000001100000000000000000000000000000000000000000000FFFF)
+    )
     def test_U256_to_Uint(self, cairo_run, value: U256):
         try:
             assert Uint(value) == cairo_run("U256_to_Uint", value)
-        except Exception:
+        except ValueError:
             assert int(value) > PRIME - 1
 
     @given(bytes=small_bytes)
