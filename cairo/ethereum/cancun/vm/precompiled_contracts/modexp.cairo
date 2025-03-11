@@ -22,16 +22,18 @@ from ethereum.utils.numeric import (
     U256__eq__,
     U256_add,
     U256_le,
+    U256_mul,
     U256_add_with_carry,
     U256_min,
     U256_max,
     U256_to_Uint,
-    Uint_bit_length,
     U384_from_be_bytes,
     U384_to_be_bytes,
     U384__eq__,
     max,
     min,
+    U256_sub,
+    U256_bit_length,
 )
 from ethereum.cancun.vm.evm_impl import Evm, EvmImpl
 from ethereum.cancun.vm.gas import charge_gas
@@ -46,11 +48,9 @@ from starkware.cairo.common.memcpy import memcpy
 from ethereum.cancun.vm.exceptions import OutOfGasError
 
 const GQUADDIVISOR = 3;
-const MAX_EXPONENT_LENGTH = 31;
 
 // Diverge from the specs:
-// The max length for exponent is 31 bytes, hence exp_head will be 31 bytes at most
-// The max length for modulus and base is 48 bytes
+// The max length for exponent, modulus and base is 48 bytes
 func modexp{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
@@ -65,7 +65,6 @@ func modexp{
 
     let data = evm.value.message.value.data;
     tempvar u256_zero = U256(new U256Struct(0, 0));
-    tempvar u256_max_exponent_length = U256(new U256Struct(MAX_EXPONENT_LENGTH, 0));
     tempvar u256_thirty_two = U256(new U256Struct(32, 0));
     tempvar u256_sixty_four = U256(new U256Struct(64, 0));
     tempvar u256_ninety_six = U256(new U256Struct(96, 0));
@@ -80,7 +79,7 @@ func modexp{
 
     let res = buffer_read(data, u256_thirty_two, u256_thirty_two);
     let exp_length = U256_from_be_bytes(res);
-    let exp_length_too_big = U256_le(u256_max_exponent_length, exp_length);
+    let exp_length_too_big = U256_le(u256_forty_eight, exp_length);
     if (exp_length_too_big.value != 0) {
         raise('InputError');
     }
@@ -93,11 +92,9 @@ func modexp{
     }
 
     let exp_start = U256_add(u256_ninety_six, base_length);
-
-    // Diverge from the specs: forcing to read max 31 bytes for exponent head
-    let min_len = U256_min(u256_max_exponent_length, exp_length);
+    let min_len = U256_min(u256_thirty_two, exp_length);
     let res = buffer_read(data, exp_start, min_len);
-    let exp_head = Uint_from_be_bytes(res);
+    let exp_head = U256_from_be_bytes(res);
 
     let gas = gas_cost(base_length, modulus_length, exp_length, exp_head);
 
@@ -337,43 +334,82 @@ func complexity{range_check_ptr}(base_length: U256, modulus_length: U256) -> Uin
     return res_uint;
 }
 
-// Diverge from the specs: exponent_head is limited to 31 bytes
+// Diverge from the specs: max iterations is PRIME - 1
 func iterations{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
-    exponent_length: U256, exponent_head: Uint
+    exponent_length: U256, exponent_head: U256
 ) -> Uint {
     alloc_locals;
 
-    let exp_len_uint = uint256_to_felt([exponent_length.value]);
+    // Define constants
+    tempvar u256_zero = U256(new U256Struct(0, 0));
+    tempvar u256_one = U256(new U256Struct(1, 0));
+    tempvar u256_thirty_two = U256(new U256Struct(32, 0));
+    tempvar u256_eight = U256(new U256Struct(8, 0));
 
-    let is_exp_len_le_31 = is_le(exp_len_uint, MAX_EXPONENT_LENGTH);
-    let is_exp_len_zero = is_zero(exponent_head.value);
+    // Check if exponent_length <= 32 and exponent_head == 0
+    let exp_len_le_32 = U256_le(exponent_length, u256_thirty_two);
+    let exp_head_is_zero = U256__eq__(exponent_head, u256_zero);
 
-    if (is_exp_len_le_31 != 0 and is_exp_len_zero != 0) {
-        let one = Uint(1);
+    if (exp_len_le_32.value != 0 and exp_head_is_zero.value != 0) {
+        tempvar one = Uint(1);
         return one;
     }
-    if (is_exp_len_le_31 != 0) {
-        let bit_length = Uint_bit_length(exponent_head);
 
-        let is_bit_length_zero = is_zero(bit_length);
-        if (is_bit_length_zero != 0) {
-            let one = Uint(1);
-            return one;
+    // Check if exponent_length <= 32
+    if (exp_len_le_32.value != 0) {
+        // Get bit length of exponent_head
+        let bit_length = U256_bit_length(exponent_head);
+        let bit_length_is_zero = is_zero(bit_length);
+
+        if (bit_length_is_zero == 0) {
+            // If bit_length > 0, return max(1, bit_length - 1)
+            let count = bit_length - 1;
+            let count_is_zero = is_zero(count);
+            if (count_is_zero != 0) {
+                tempvar one = Uint(1);
+                return one;
+            }
+            tempvar count_uint = Uint(count);
+            return count_uint;
         }
-        let count = bit_length - 1;
-        let res = max(count, 1);
-        let result = Uint(res);
-        return result;
+        tempvar one = Uint(1);
+        return one;
+    } else {
+        // Case where exponent_length > 32
+        // Calculate length_part = 8 * (exponent_length - 32)
+        let exp_len_minus_32 = U256_sub(exponent_length, u256_thirty_two);
+        let length_part = U256_mul(u256_eight, exp_len_minus_32);
+
+        // Calculate bits_part = exponent_head.bit_length()
+        let bits_part = U256_bit_length(exponent_head);
+        let bits_part_is_zero = is_zero(bits_part);
+
+        if (bits_part_is_zero == 0) {
+            // Add length_part + (bits_part - 1)
+            tempvar bits_part_minus_1 = U256(new U256Struct(bits_part - 1, 0));
+            let total = U256_add(length_part, bits_part_minus_1);
+            let total_is_zero = U256__eq__(total, u256_zero);
+            if (total_is_zero.value != 0) {
+                tempvar one = Uint(1);
+                return one;
+            }
+            let total_uint = U256_to_Uint(total);
+            return total_uint;
+        } else {
+            let length_part_is_zero = U256__eq__(length_part, u256_zero);
+            if (length_part_is_zero.value != 0) {
+                tempvar one = Uint(1);
+                return one;
+            }
+            let length_part_uint = U256_to_Uint(length_part);
+            return length_part_uint;
+        }
     }
-    raise('InputError');
-    let zero = Uint(0);
-    return zero;
 }
 
 // Saturated gas cost at 2^128 - 1
-// Assume the exponent is 31 bytes at most
 func gas_cost{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
-    base_length: U256, modulus_length: U256, exponent_length: U256, exponent_head: Uint
+    base_length: U256, modulus_length: U256, exponent_length: U256, exponent_head: U256
 ) -> Uint {
     alloc_locals;
 

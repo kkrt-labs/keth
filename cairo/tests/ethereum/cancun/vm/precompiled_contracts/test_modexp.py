@@ -29,7 +29,7 @@ def get_u384_bits_little(value: U384):
 class TestModexp:
     @given(
         base=st.binary(max_size=48),
-        exp=st.binary(max_size=31),
+        exp=st.binary(max_size=48),
         mod=st.binary(max_size=48),
         evm=EvmBuilder().with_gas_left().with_message().build(),
     )
@@ -64,18 +64,18 @@ class TestModexp:
             assert cairo_result == expected
 
     @given(
-        exponent_length=st.integers(min_value=0, max_value=31).map(U256),
-        exponent_head=st.integers(min_value=0, max_value=2**31 - 1).map(Uint),
+        exponent_length=st.integers(min_value=0, max_value=48).map(U256),
+        exponent_head=...,
     )
-    def test_iterations(self, cairo_run, exponent_length: U256, exponent_head: Uint):
+    def test_iterations(self, cairo_run, exponent_length: U256, exponent_head: U256):
         cairo_result = cairo_run("iterations", exponent_length, exponent_head)
         assert cairo_result == iterations(exponent_length, exponent_head)
 
     @given(
-        base_length=st.integers(min_value=0, max_value=32).map(U256),
-        modulus_length=st.integers(min_value=0, max_value=32).map(U256),
-        exponent_length=st.integers(min_value=0, max_value=31).map(U256),
-        exponent_head=st.integers(min_value=0, max_value=2**248 - 1).map(Uint),
+        base_length=st.integers(min_value=0, max_value=48).map(U256),
+        modulus_length=st.integers(min_value=0, max_value=48).map(U256),
+        exponent_length=st.integers(min_value=0, max_value=48).map(U256),
+        exponent_head=...,
     )
     def test_gas_cost(
         self,
@@ -83,7 +83,7 @@ class TestModexp:
         base_length: U256,
         modulus_length: U256,
         exponent_length: U256,
-        exponent_head: Uint,
+        exponent_head: U256,
     ):
 
         expected_gas_cost = gas_cost(

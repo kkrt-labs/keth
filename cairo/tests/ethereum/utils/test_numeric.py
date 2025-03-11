@@ -235,10 +235,10 @@ class TestNumeric:
         expected = min(a, b)
         assert result == expected
 
-    @given(value=st.integers(min_value=0, max_value=PRIME - 1).map(Uint))
-    def test_Uint_bit_length(self, cairo_run, value: Uint):
-        expected = value.bit_length() if int(value) > 0 else 0
-        result = cairo_run("Uint_bit_length", value)
+    @given(value=...)
+    def test_U256_bit_length(self, cairo_run, value: U256):
+        expected = value.bit_length()
+        result = cairo_run("U256_bit_length", value)
         assert result == expected
 
     @given(bytes=st.binary(max_size=512))

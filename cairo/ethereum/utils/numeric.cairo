@@ -15,6 +15,7 @@ from ethereum_types.bytes import Bytes32, Bytes32Struct, Bytes20, Bytes, BytesSt
 from ethereum_types.numeric import Uint, U256, U256Struct, bool, U64, U384
 from cairo_ec.uint384 import uint384_eq
 from cairo_core.maths import pow2, unsigned_div_rem, felt252_to_bytes_be
+from cairo_core.comparison import is_zero
 from cairo_ec.uint384 import uint256_to_uint384
 from legacy.utils.bytes import bytes_to_felt, uint256_from_bytes_be, felt_to_bytes
 from legacy.utils.uint256 import uint256_add, uint256_sub
@@ -320,10 +321,10 @@ func Uint_from_be_bytes{range_check_ptr}(bytes: Bytes) -> Uint {
     return res;
 }
 
-func Uint_bit_length{range_check_ptr}(value: Uint) -> felt {
+func _bit_length{range_check_ptr}(value: felt) -> felt {
     alloc_locals;
 
-    if (value.value == 0) {
+    if (value == 0) {
         return 0;
     }
 
@@ -332,14 +333,33 @@ func Uint_bit_length{range_check_ptr}(value: Uint) -> felt {
 
     assert_le(bit_length, 252);
     let lower_bound = pow2(bit_length - 1);
-    assert_le_felt(lower_bound, value.value);
+    assert_le_felt(lower_bound, value);
     if (bit_length == 252) {
         return bit_length;
     }
     let upper_bound = pow2(bit_length);
-    assert_le_felt(value.value + 1, upper_bound);
+    assert_le_felt(value + 1, upper_bound);
 
     return bit_length;
+}
+
+func U256_bit_length{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(value: U256) -> felt {
+    alloc_locals;
+
+    tempvar u256_zero = U256(new U256Struct(low=0, high=0));
+    let is_zero_value = U256__eq__(value, u256_zero);
+    if (is_zero_value.value != 0) {
+        return 0;
+    }
+
+    let high_is_zero = is_zero(value.value.high);
+    if (high_is_zero == 0) {
+        let high_bit_length = _bit_length(value.value.high);
+        return high_bit_length + 128;
+    } else {
+        let low_bit_length = _bit_length(value.value.low);
+        return low_bit_length;
+    }
 }
 
 func U256_to_Uint{range_check_ptr}(value: U256) -> Uint {
