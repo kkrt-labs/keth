@@ -1,3 +1,4 @@
+import pytest
 from ethereum.cancun.fork_types import Address
 from ethereum.cancun.vm.gas import (
     BLOB_GASPRICE_UPDATE_FRACTION,
@@ -7,7 +8,7 @@ from ethereum.cancun.vm.gas import (
 from ethereum.utils.numeric import ceil32, taylor_exponential
 from ethereum_types.bytes import Bytes, Bytes32
 from ethereum_types.numeric import U64, U256, Uint
-from hypothesis import given
+from hypothesis import example, given
 from hypothesis import strategies as st
 from starkware.cairo.lang.instances import PRIME
 
@@ -193,11 +194,15 @@ class TestNumeric:
     # @dev Note Uint type from EELS is unbounded.
     # But U256_to_Uint panics if value > STONE_PRIME - 1
     @given(value=...)
+    @example(
+        value=U256(0x80000000000001100000000000000000000000000000000000000000000FFFF)
+    )
     def test_U256_to_Uint(self, cairo_run, value: U256):
-        try:
+        if int(value) > PRIME - 1:
+            with pytest.raises(Exception):
+                cairo_run("U256_to_Uint", value)
+        else:
             assert Uint(value) == cairo_run("U256_to_Uint", value)
-        except Exception:
-            assert int(value) > PRIME - 1
 
     @given(bytes=small_bytes)
     def test_U256_from_be_bytes(self, cairo_run, bytes: Bytes):
@@ -235,10 +240,10 @@ class TestNumeric:
         expected = min(a, b)
         assert result == expected
 
-    @given(value=st.integers(min_value=0, max_value=PRIME - 1).map(Uint))
-    def test_Uint_bit_length(self, cairo_run, value: Uint):
-        expected = value.bit_length() if int(value) > 0 else 0
-        result = cairo_run("Uint_bit_length", value)
+    @given(value=...)
+    def test_U256_bit_length(self, cairo_run, value: U256):
+        expected = value.bit_length()
+        result = cairo_run("U256_bit_length", value)
         assert result == expected
 
     @given(bytes=st.binary(max_size=512))

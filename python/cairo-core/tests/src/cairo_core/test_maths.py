@@ -185,3 +185,8 @@ segments.write_arg(ids.output, bad)
             """,
         ), cairo_error(message="felt252_to_bytes_be: byte not in bounds"):
             cairo_run_py("test__felt252_to_bytes_be", value=value, len=len_)
+
+    @given(value=st.integers(min_value=0, max_value=DEFAULT_PRIME - 1))
+    def test_felt252_bit_length(self, cairo_run, value):
+        res = cairo_run("felt252_bit_length", value=value)
+        assert res == value.bit_length()

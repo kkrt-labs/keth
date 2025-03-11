@@ -1,5 +1,5 @@
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
-from starkware.cairo.common.math import assert_le_felt
+from starkware.cairo.common.math import assert_le_felt, assert_le
 from starkware.cairo.common.registers import get_label_location
 from starkware.cairo.common.uint256 import Uint256
 from cairo_core.comparison import is_zero
@@ -513,4 +513,26 @@ func felt252_to_bytes_be{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     }
 
     return ();
+}
+
+func felt252_bit_length{range_check_ptr}(value: felt) -> felt {
+    alloc_locals;
+
+    if (value == 0) {
+        return 0;
+    }
+
+    tempvar bit_length;
+    %{ bit_length_hint %}
+
+    assert_le(bit_length, 252);
+    let lower_bound = pow2(bit_length - 1);
+    assert_le_felt(lower_bound, value);
+    if (bit_length == 252) {
+        return bit_length;
+    }
+    let upper_bound = pow2(bit_length);
+    assert_le_felt(value + 1, upper_bound);
+
+    return bit_length;
 }

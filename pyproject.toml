@@ -16,11 +16,11 @@ dependencies = [
   "web3>=7.2.0",
   "xxhash>=3.5.0",
   "garaga",
-  "ethereum",
   "colorama>=0.4.6",
   "pytest-timeout>=2.3.1",
   "pytest-randomly>=3.16.0",
   "pytest-timeout>=2.3.1",
+  "ethereum",
 ]
 
 [tool.uv]
@@ -48,7 +48,6 @@ garaga = { git = "https://github.com/keep-starknet-strange/garaga.git", rev = "h
 cairo-addons = { workspace = true }
 cairo-ec = { workspace = true }
 cairo-core = { workspace = true }
-ethereum = { git = "https://github.com/ethereum/execution-specs.git" }
 
 [tool.uv.workspace]
 members = ["python/*"]

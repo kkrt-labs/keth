@@ -303,4 +303,4 @@ def point_evaluation_hint(
 
 @register_hint
 def bit_length_hint(ids: VmConsts, memory: MemoryDict, ap: RelocatableValue):
-    memory[ap - 1] = ids.value.value.bit_length()
+    memory[ap - 1] = ids.value.bit_length()
