@@ -680,23 +680,26 @@ pub fn create_vm_consts_dict(
     let py_ids_dict = Py::new(py, ids_dict)?;
 
     for (name, reference) in ids_data {
+        // Some internal variables, prefixed with `__temp`, that we skip.
+        if name.starts_with("__temp") {
+            continue;
+        }
         let cairo_type = reference.cairo_type.as_ref().ok_or_else(|| {
             DynamicHintError::UnknownVariableType(format!("No type for '{}'", name))
         })?;
         let var_addr = match get_relocatable_from_var_name(name, vm, ids_data, ap_tracking) {
             Ok(addr) => addr,
             Err(_e) => {
-                //If this fails, it means we're either accessing __temp variables or
-                // accessing a `let` variable, that do not have an address yet.
-                // We can use the `ap` (or FP) offset to get the address of the variable.
-                let maybe_relocatable = get_maybe_relocatable_from_reference(
-                    vm,
-                    reference,
-                    ap_tracking,
-                )
-                .ok_or_else(|| {
-                    DynamicHintError::MemoryError(format!("Could not get data for '{}'", name))
-                })?;
+                // If we can't get an address, try to get the value from its ap/fp tracking in the
+                // hint reference.
+                let Some(maybe_relocatable) =
+                    get_maybe_relocatable_from_reference(vm, reference, ap_tracking)
+                else {
+                    // If this fails, it means we're trying an ap-based access on a `let` variable,
+                    // whose tracking has been lost due to an unknown ap-change function call.
+                    // We have no other choice but to skip these variables.
+                    continue;
+                };
                 match maybe_relocatable {
                     MaybeRelocatable::RelocatableValue(rel) => rel,
                     MaybeRelocatable::Int(felt) => {
@@ -707,10 +710,12 @@ pub fn create_vm_consts_dict(
                             );
                             continue;
                         } else {
-                            return Err(DynamicHintError::MemoryError(format!(
-                                "Expected felt type for '{}'",
-                                name
-                            )));
+                            // This means we're accessing a non-felt type (e.g. struct) but it's a
+                            // felt value Typically, Evm(cast([ap-2]),
+                            // EvmStruct*) would be the case as memory[ap-2] = evm.pc = 0
+                            // We return `ap-2` as the address to be used in the `PyVmConst` object
+                            //TODO: We can't get this data for now, this is probably a bug in cairo-vm, see <https://github.com/lambdaclass/cairo-vm/issues/1998>
+                            continue;
                         }
                     }
                 }
