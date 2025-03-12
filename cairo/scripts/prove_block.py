@@ -1,25 +1,19 @@
 """
 Prove an Ethereum block using Keth given a block number.
-Fetches zkpi data, converts it to EELS/Keth format, and runs it through the Keth.
+Fetches zkpi data, converts it to EELS/Keth format, and generates a proof.
 """
 
 import argparse
 import json
 import logging
-from dataclasses import dataclass
+import sys
 from pathlib import Path
-from typing import Any, Dict, Tuple
+from typing import Any, Dict
 
 from ethereum.cancun.blocks import Block, Withdrawal
-from ethereum.cancun.fork import (
-    BlockChain,
-    apply_body,
-    get_last_256_block_hashes,
-)
+from ethereum.cancun.fork import BlockChain, apply_body, get_last_256_block_hashes
 from ethereum.cancun.fork_types import Address
-from ethereum.cancun.transactions import (
-    LegacyTransaction,
-)
+from ethereum.cancun.transactions import LegacyTransaction
 from ethereum.cancun.vm.gas import calculate_excess_blob_gas
 from ethereum.utils.hexadecimal import hex_to_bytes, hex_to_u256, hex_to_uint
 from ethereum_spec_tools.evm_tools.loaders.fixture_loader import Load
@@ -34,66 +28,59 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-
-def init_tracer():
-    """Initialize the logger "trace" mode."""
-    import logging
-
-    from colorama import Fore, Style, init
-
-    init()
-
-    # Define TRACE level
-    TRACE_LEVEL = logging.DEBUG - 5
-    logging.addLevelName(TRACE_LEVEL, "TRACE")
-
-    # Custom trace methods for Logger instances
-    def trace(self, message, *args, **kwargs):
-        if self.isEnabledFor(TRACE_LEVEL):
-            colored_msg = f"{Fore.YELLOW}TRACE{Style.RESET_ALL} {message}"
-            print(colored_msg)
-
-    def trace_cairo(self, message, *args, **kwargs):
-        if self.isEnabledFor(TRACE_LEVEL):
-            colored_msg = f"{Fore.YELLOW}TRACE{Style.RESET_ALL} [CAIRO] {message}"
-            print(colored_msg)
-
-    def trace_eels(self, message, *args, **kwargs):
-        if self.isEnabledFor(TRACE_LEVEL):
-            colored_msg = f"{Fore.YELLOW}TRACE{Style.RESET_ALL} [EELS] {message}"
-            print(colored_msg)
-
-    def debug_cairo(self, message, *args, **kwargs):
-        if self.isEnabledFor(logging.DEBUG):
-            colored_msg = f"{Fore.BLUE}DEBUG{Style.RESET_ALL} [DEBUG-CAIRO] {message}"
-            print(colored_msg)
-
-    # Patch the logging module with our new trace methods
-    setattr(logging, "TRACE", TRACE_LEVEL)
-    setattr(logging.getLoggerClass(), "trace", trace)
-    setattr(logging.getLoggerClass(), "trace_cairo", trace_cairo)
-    setattr(logging.getLoggerClass(), "trace_eels", trace_eels)
-    setattr(logging.getLoggerClass(), "debug_cairo", debug_cairo)
+CANCUN_FORK_BLOCK = 19426587  # First Cancun block
 
 
-@dataclass
-class PublicInputs:
-    pre_state_root: Bytes32
-    post_state_root: Bytes32
-    block_hash: Bytes32
+def parse_args() -> argparse.Namespace:
+    """Parse command-line arguments."""
+    parser = argparse.ArgumentParser(description="Prove an Ethereum block using Keth")
+    parser.add_argument(
+        "block_number",
+        type=int,
+        help="Ethereum block number to prove (Cancun fork or later)",
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=Path("output"),
+        help="Directory to save proof artifacts (default: ./output)",
+    )
+    parser.add_argument(
+        "--data-dir",
+        type=Path,
+        default=Path("data/1/eels"),
+        help="Directory containing ZKPI JSON files (default: ./data/1/eels)",
+    )
+    parser.add_argument(
+        "--compiled-program",
+        type=Path,
+        default=Path("build/main.json"),
+        help="Path to compiled Cairo program (default: ./build/main.json)",
+    )
+    return parser.parse_args()
 
 
-@dataclass
-class PrivateInputs:
-    block: Block
-    blockchain: BlockChain
+def load_zkpi_fixture(zkpi_path: Path) -> Dict[str, Any]:
+    """
+    Load and convert ZKPI fixture to Keth-compatible public inputs.
 
+    Args:
+        zkpi_path: Path to the ZKPI JSON file
 
-def zkpi_fixture(zkpi_path) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+    Returns:
+        Dictionary of public inputs
+
+    Raises:
+        FileNotFoundError: If the ZKPI file doesn't exist
+        ValueError: If JSON is invalid or data conversion fails
+    """
+    logger.debug(f"Loading ZKPI file: {zkpi_path}")
     with open(zkpi_path, "r") as f:
         fixture = json.load(f)
 
     load = Load("Cancun", "cancun")
+
+    # Convert block
     block = Block(
         header=load.json_to_header(fixture["newBlockParameters"]["blockHeader"]),
         transactions=tuple(
@@ -111,7 +98,7 @@ def zkpi_fixture(zkpi_path) -> Tuple[Dict[str, Any], Dict[str, Any]]:
                 )
                 if isinstance(tx, dict)
                 else Bytes(hex_to_bytes(tx))
-            )  # Non-legacy txs are hex strings
+            )
             for tx in fixture["newBlockParameters"]["transactions"]
         ),
         ommers=(),
@@ -125,6 +112,8 @@ def zkpi_fixture(zkpi_path) -> Tuple[Dict[str, Any], Dict[str, Any]]:
             for w in fixture["newBlockParameters"]["withdrawals"]
         ),
     )
+
+    # Convert ancestors
     blocks = [
         Block(
             header=load.json_to_header(ancestor),
@@ -134,13 +123,15 @@ def zkpi_fixture(zkpi_path) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         )
         for ancestor in fixture["ancestors"]
     ]
+
+    # Create blockchain
     chain = BlockChain(
         blocks=blocks,
         state=convert_defaultdict(load.json_to_state(fixture["pre"])),
         chain_id=U64(fixture["chainId"]),
     )
 
-    # TODO: Remove when we have a working partial MPT
+    # TODO: Remove when partial MPT is implemented
     state_root = apply_body(
         chain.state,
         get_last_256_block_hashes(chain),
@@ -156,6 +147,8 @@ def zkpi_fixture(zkpi_path) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         block.header.parent_beacon_block_root,
         calculate_excess_blob_gas(chain.blocks[-1].header),
     ).state_root
+
+    # Recreate block with computed state root
     block = Block(
         header=load.json_to_header(
             {
@@ -163,34 +156,9 @@ def zkpi_fixture(zkpi_path) -> Tuple[Dict[str, Any], Dict[str, Any]]:
                 "stateRoot": "0x" + state_root.hex(),
             }
         ),
-        transactions=tuple(
-            (
-                LegacyTransaction(
-                    nonce=hex_to_u256(tx["nonce"]),
-                    gas_price=hex_to_uint(tx["gasPrice"]),
-                    gas=hex_to_uint(tx["gas"]),
-                    to=Address(hex_to_bytes(tx["to"])) if tx["to"] else Bytes0(),
-                    value=hex_to_u256(tx["value"]),
-                    data=Bytes(hex_to_bytes(tx["data"])),
-                    v=hex_to_u256(tx["v"]),
-                    r=hex_to_u256(tx["r"]),
-                    s=hex_to_u256(tx["s"]),
-                )
-                if isinstance(tx, dict)
-                else Bytes(hex_to_bytes(tx))
-            )  # Non-legacy txs are hex strings
-            for tx in fixture["newBlockParameters"]["transactions"]
-        ),
+        transactions=block.transactions,
         ommers=(),
-        withdrawals=tuple(
-            Withdrawal(
-                index=U64(int(w["index"], 16)),
-                validator_index=U64(int(w["validatorIndex"], 16)),
-                address=Address(hex_to_bytes(w["address"])),
-                amount=U256(int(w["amount"], 16)),
-            )
-            for w in fixture["newBlockParameters"]["withdrawals"]
-        ),
+        withdrawals=block.withdrawals,
     )
     chain = BlockChain(
         blocks=blocks,
@@ -198,57 +166,76 @@ def zkpi_fixture(zkpi_path) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         chain_id=U64(fixture["chainId"]),
     )
 
+    # Prepare inputs
     public_inputs = {
-        "pre_state_root": Bytes32(
-            bytes.fromhex(
-                fixture["newBlockParameters"]["blockHeader"]["stateRoot"].removeprefix(
-                    "0x"
-                )
-            )
-        ),
-        "post_state_root": Bytes32(
-            bytes.fromhex(fixture["ancestors"][-1]["stateRoot"].removeprefix("0x"))
-        ),
+        "block": block,
+        "blockchain": chain,
         "block_hash": Bytes32(
             bytes.fromhex(fixture["newBlockHash"].removeprefix("0x"))
         ),
     }
-    private_inputs = {
-        "block": block,
-        "blockchain": chain,
-    }
-    return public_inputs, private_inputs
+
+    return public_inputs
 
 
-def main():
-    init_tracer()
-    parser = argparse.ArgumentParser(description="Prove an Ethereum block using Keth")
-    parser.add_argument("block_number", type=int, help="Block number to prove")
-    parser.add_argument(
-        "--output-dir", type=Path, default=Path("output"), help="Output directory"
-    )
-    args = parser.parse_args()
-
-    output_dir = args.output_dir
+def run_proof(
+    block_number: int, output_dir: Path, zkpi_path: Path, compiled_program: Path
+) -> None:
+    """Run the proof generation process for the given block."""
+    # Ensure output directory exists
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Fetch zkpi data
-    logger.info(f"Fetching zkpi data for block {args.block_number}")
-    path = Path(f"data/1/eels/{args.block_number}.json")
-    public_inputs, private_inputs = zkpi_fixture(path)
+    # Validate compiled program
+    if not compiled_program.is_file():
+        raise FileNotFoundError(f"Compiled program not found: {compiled_program}")
 
-    # Run Keth
-    logger.info(f"Running Keth for block {args.block_number}")
+    # Load ZKPI data
+    logger.info(f"Fetching ZKPI data for block {block_number}")
+    public_inputs = load_zkpi_fixture(zkpi_path)
+
+    # Generate proof
+    logger.info(f"Running Keth for block {block_number}")
     run_proof_mode(
         entrypoint="main",
         public_inputs=public_inputs,
-        private_inputs=private_inputs,
-        compiled_program_path="./main_compiled.json",
-        output_dir=output_dir,
+        private_inputs={},
+        compiled_program_path=str(compiled_program.absolute()),
+        output_dir=str(output_dir.absolute()),
     )
-
     logger.info(f"Proof artifacts saved to {output_dir}")
 
 
+def main() -> int:
+    """Main entry point for proving an Ethereum block."""
+    args = parse_args()
+
+    if args.block_number < CANCUN_FORK_BLOCK:
+        logger.error(
+            f"Block {args.block_number} is before Cancun fork ({CANCUN_FORK_BLOCK})"
+        )
+        return 1
+
+    zkpi_path = args.data_dir / f"{args.block_number}.json"
+
+    try:
+        run_proof(args.block_number, args.output_dir, zkpi_path, args.compiled_program)
+        return 0
+    except FileNotFoundError as e:
+        logger.error(f"File error: {e}")
+        return 1
+    except json.JSONDecodeError as e:
+        logger.error(f"Invalid JSON in ZKPI file {zkpi_path}: {e}")
+        return 1
+    except (KeyError, ValueError) as e:
+        logger.error(f"Data error: {e}")
+        return 1
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
+        return 1
+    except KeyboardInterrupt:
+        logger.info("Operation cancelled by user")
+        return 130
+
+
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

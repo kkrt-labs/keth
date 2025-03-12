@@ -31,8 +31,6 @@ func main{
 
     local chain: BlockChain;
     local block: Block;
-    local pre_state_root: Bytes32;
-    local post_state_root: Bytes32;
     local block_hash: Bytes32;
     %{
         from ethereum.cancun.fork import BlockChain, Block
@@ -40,15 +38,21 @@ func main{
 
         # Note: for efficiency purposes, we don't use the `ids` object to
         # avoid loading program identifiers into the context.
-        memory[fp+2] = gen_arg(Bytes32, public_inputs["pre_state_root"])
-        memory[fp+3] = gen_arg(Bytes32, public_inputs["post_state_root"])
-        memory[fp+4] = gen_arg(Bytes32, public_inputs["block_hash"])
-
-        memory[fp] = gen_arg(BlockChain, private_inputs["blockchain"])
-        memory[fp+1] = gen_arg(Block, private_inputs["block"])
+        # see: README of cairo-addons crate
+        memory[fp] = gen_arg(BlockChain, public_inputs["blockchain"])
+        memory[fp+1] = gen_arg(Block, public_inputs["block"])
+        memory[fp+2] = gen_arg(Bytes32, public_inputs["block_hash"])
     %}
 
+    let parent_header = chain.value.blocks.value.data[
+        chain.value.blocks.value.len - 1
+    ].value.header;
+    let pre_state_root = parent_header.value.state_root;
+    let post_state_root = block.value.header.value.state_root;
+
     state_transition{chain=chain}(block);
+
+    // TODO: we must ensure that hash of last block = block_hash
 
     assert [output_ptr] = pre_state_root.value.low;
     assert [output_ptr + 1] = pre_state_root.value.high;

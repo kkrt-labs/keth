@@ -62,9 +62,9 @@ pub struct HintProcessor {
     /// A fallback function that will be used if the hint is not found
     /// and will interpret the hint code as Python code.
     pythonic_hint_executor: Option<Rc<HintFunc>>,
-    /// Whether to enable execution of hints containing logger.
+    /// Whether to enable execution of hints containing log traces.
     /// Enabling this considerably slows down the execution speed.
-    enable_logger: bool,
+    enable_traces: bool,
 }
 
 impl HintProcessor {
@@ -77,7 +77,7 @@ impl HintProcessor {
             inner: BuiltinHintProcessor::new(HashMap::new(), run_resources),
             python_hints,
             pythonic_hint_executor: None,
-            enable_logger: false,
+            enable_traces: false,
         }
     }
 
@@ -105,18 +105,18 @@ impl HintProcessor {
             inner: BuiltinHintProcessor::new(self.inner.extra_hints, run_resources),
             python_hints: self.python_hints,
             pythonic_hint_executor: self.pythonic_hint_executor,
-            enable_logger: self.enable_logger,
+            enable_traces: self.enable_traces,
         }
     }
 
     /// Add support for dynamic Python hints
-    /// If enable_logger is true, the hint processor will be able to execute hints with log-specific
-    /// context, like `ids` data, `serialize`, and `logger`.
+    /// If enable_traces is true, the hint processor will be able to execute hints with log-specific
+    /// context, like `ids` data, `serialize`, and `logger.trace`.
     #[must_use]
-    pub fn with_dynamic_python_hints(mut self, enable_logger: bool) -> Self {
+    pub fn with_dynamic_python_hints(mut self, enable_traces: bool) -> Self {
         // Store the generic Python hint executor for fallback
-        self.enable_logger = enable_logger;
-        self.pythonic_hint_executor = Some(generic_python_hint(enable_logger).func.clone());
+        self.enable_traces = enable_traces;
+        self.pythonic_hint_executor = Some(generic_python_hint().func.clone());
         self
     }
 
@@ -126,7 +126,7 @@ impl HintProcessor {
             inner: self.inner,
             python_hints: self.python_hints,
             pythonic_hint_executor: self.pythonic_hint_executor,
-            enable_logger: self.enable_logger,
+            enable_traces: self.enable_traces,
         }
     }
 }
@@ -160,9 +160,9 @@ impl HintProcessorLogic for HintProcessor {
                         }
                     };
                     let hint_code = hint_data.code.clone();
-                    // Skip execution of hints containing logger when logger is disabled
-                    // This significantly improves performance when running in production
-                    if hint_code.contains("logger") && !self.enable_logger {
+                    if hint_code.contains("logger.trace") && !self.enable_traces {
+                        // Skip execution of hints containing log traces
+                        // This significantly improves performance when running in production
                         return Ok(())
                     }
                     exec_scopes.assign_or_update_variable("__hint_code__", Box::new(hint_code));

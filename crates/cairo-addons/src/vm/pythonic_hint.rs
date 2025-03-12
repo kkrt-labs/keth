@@ -127,20 +127,18 @@ pub struct PythonicHintExecutor {
     initialized: bool,
     /// Optional Python path to add during initialization
     python_path: Option<PathBuf>,
-    /// Whether to enable logger in the Python interpreter
-    enable_logger: bool,
 }
 
 impl Default for PythonicHintExecutor {
     fn default() -> Self {
-        Self::new(false)
+        Self::new()
     }
 }
 
 impl PythonicHintExecutor {
     /// Create a new dynamic Python hint executor
-    pub fn new(enable_logger: bool) -> Self {
-        Self { initialized: false, python_path: None, enable_logger }
+    pub fn new() -> Self {
+        Self { initialized: false, python_path: None }
     }
 
     /// Initialize the Python interpreter if not already initialized
@@ -228,35 +226,31 @@ impl PythonicHintExecutor {
                 .set_item("fp", fp)
                 .map_err(|e| DynamicHintError::PyDictSet(e.to_string()))?;
 
-            let injected_py_code = if self.enable_logger {
-                // Get the _rust_ program identifiers that we inserted into the execution scope upon
-                // runner initialization to initialize VmConsts, and add them to the context
-                let program_identifiers = match exec_scopes
-                    .get_ref::<HashMap<String, Identifier>>("__program_identifiers__")
-                {
-                    Ok(identifiers) => identifiers.clone(),
-                    Err(e) => {
-                        return Err(HintError::CustomHint(Box::from(format!(
-                            "No program identifiers found in execution scope: {:?}",
-                            e
-                        ))))
-                    }
-                };
-                let py_ids_dict =
-                    create_vm_consts_dict(vm, &program_identifiers, ids_data, ap_tracking, py)
-                        .map_err(|e| DynamicHintError::PyObjectCreation(e.to_string()))?;
-                bounded_context
-                    .set_item("ids", py_ids_dict)
-                    .map_err(|e| DynamicHintError::PyDictSet(e.to_string()))?;
-
-                PythonCodeInjector::new()
-                    .with_base_imports()
-                    .with_serialize()
-                    .with_gen_arg()
-                    .build()
-            } else {
-                PythonCodeInjector::new().with_base_imports().with_gen_arg().build()
+            // Get the _rust_ program identifiers that we inserted into the execution scope upon
+            // runner initialization to initialize VmConsts, and add them to the context
+            let program_identifiers = match exec_scopes
+                .get_ref::<HashMap<String, Identifier>>("__program_identifiers__")
+            {
+                Ok(identifiers) => identifiers.clone(),
+                Err(e) => {
+                    return Err(HintError::CustomHint(Box::from(format!(
+                        "No program identifiers found in execution scope: {:?}",
+                        e
+                    ))))
+                }
             };
+            let py_ids_dict =
+                create_vm_consts_dict(vm, &program_identifiers, ids_data, ap_tracking, py)
+                    .map_err(|e| DynamicHintError::PyObjectCreation(e.to_string()))?;
+            bounded_context
+                .set_item("ids", py_ids_dict)
+                .map_err(|e| DynamicHintError::PyDictSet(e.to_string()))?;
+
+            let injected_py_code = PythonCodeInjector::new()
+                .with_base_imports()
+                .with_serialize()
+                .with_gen_arg()
+                .build();
             let full_hint_code = format!("{}\n{}", injected_py_code, hint_code);
             let hint_code_c_string = CString::new(full_hint_code)
                 .map_err(|e| DynamicHintError::CStringConversion(e.to_string()))?;
@@ -271,12 +265,11 @@ impl PythonicHintExecutor {
 }
 
 /// A generic hint that can execute arbitrary Python code
-pub fn generic_python_hint(enable_logger: bool) -> Hint {
+pub fn generic_python_hint() -> Hint {
     // Create a static executor that will be reused
     static EXECUTOR: std::sync::OnceLock<std::sync::Mutex<PythonicHintExecutor>> =
         std::sync::OnceLock::new();
-    let executor =
-        EXECUTOR.get_or_init(|| std::sync::Mutex::new(PythonicHintExecutor::new(enable_logger)));
+    let executor = EXECUTOR.get_or_init(|| std::sync::Mutex::new(PythonicHintExecutor::new()));
 
     Hint::new(
         String::from("__dynamic_python_hint__"),
@@ -325,7 +318,7 @@ impl PythonCodeInjector {
         self
     }
 
-    /// Add serialization code (only when logger is enabled)
+    /// Add serialization code
     fn with_serialize(mut self) -> Self {
         self.code_parts.push(r#"
     serialize = partial(serialize, segments=segments, program_identifiers=py_identifiers, dict_manager=dict_manager)

@@ -517,17 +517,14 @@ def run_rust_vm(
         #   Unlike Python VM, we don’t append "jmp rel 0" here as Rust handles proof mode differently.
         # ============================================================================
         proof_mode = request.config.getoption("proof_mode")
-        enable_logger = request.config.getoption("--log-cli-level") == "TRACE"
-        logger.info(
-            f"Running with enable_logger={enable_logger}, proof_mode={proof_mode}"
-        )
+        enable_traces = request.config.getoption("--log-cli-level") == "TRACE"
         runner = RustCairoRunner(
             program=rust_program,
-            py_identifiers=cairo_program.identifiers if enable_logger else None,
+            py_identifiers=cairo_program.identifiers,
             layout=getattr(LAYOUTS, request.config.getoption("layout")).layout_name,
             proof_mode=proof_mode,
             allow_missing_builtins=False,
-            enable_logger=enable_logger,
+            enable_traces=enable_traces,
             ordered_builtins=_builtins,
         )
         serde = serde_cls(

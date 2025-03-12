@@ -46,7 +46,7 @@ pub struct PyCairoRunner {
     /// The builtins, ordered as they're defined in the program entrypoint.
     ordered_builtins: Vec<BuiltinName>,
     /// Whether to enable execution of hints containing logger.
-    enable_logger: bool,
+    enable_traces: bool,
 }
 
 #[pymethods]
@@ -55,22 +55,22 @@ impl PyCairoRunner {
     /// # Arguments
     /// * `program` - The _rust_ program to run.
     /// * `py_identifiers` - The _pythonic_ identifiers for this program. Only used when
-    ///   enable_logger is true.
+    ///   enable_traces is true.
     /// * `layout` - The layout to use for the runner.
     /// * `proof_mode` - Whether to run in proof mode.
     /// * `allow_missing_builtins` - Whether to allow missing builtins.
-    /// * `enable_logger` - Whether to enable execution of hints containing logger. When false,
+    /// * `enable_traces` - Whether to enable execution of hints containing log traces. When false,
     ///   Python identifiers and program identifiers are not loaded to save memory and
     ///   initialization time.
     #[new]
-    #[pyo3(signature = (program, py_identifiers=None, layout=None, proof_mode=false, allow_missing_builtins=false, enable_logger=false, ordered_builtins=vec![]))]
+    #[pyo3(signature = (program, py_identifiers=None, layout=None, proof_mode=false, allow_missing_builtins=false, enable_traces=false, ordered_builtins=vec![]))]
     fn new(
         program: &PyProgram,
         py_identifiers: Option<PyObject>,
         layout: Option<PyLayout>,
         proof_mode: bool,
         allow_missing_builtins: bool,
-        enable_logger: bool,
+        enable_traces: bool,
         ordered_builtins: Vec<String>,
     ) -> PyResult<Self> {
         let layout = layout.unwrap_or_default().into_layout_name()?;
@@ -98,27 +98,25 @@ impl PyCairoRunner {
         Python::with_gil(|py| {
             let context = PyDict::new(py);
 
-            if enable_logger {
-                // Only load and store identifiers if logger is enabled
-                let identifiers = program
-                    .inner
-                    .iter_identifiers()
-                    .map(|(name, identifier)| (name.to_string(), identifier.clone()))
-                    .collect::<HashMap<String, Identifier>>();
+            let identifiers = program
+                .inner
+                .iter_identifiers()
+                .map(|(name, identifier)| (name.to_string(), identifier.clone()))
+                .collect::<HashMap<String, Identifier>>();
 
-                // Insert the _rust_ program_identifiers in the exec_scopes, so that we're able to
-                // pull identifier data when executing hints to build VmConsts.
-                inner.exec_scopes.insert_value("__program_identifiers__", identifiers);
+            // Insert the _rust_ program_identifiers in the exec_scopes, so that we're able to
+            // pull identifier data when executing hints to build VmConsts.
+            inner.exec_scopes.insert_value("__program_identifiers__", identifiers);
 
-                if let Some(py_identifiers) = py_identifiers {
-                    // Store the Python identifiers directly in the context
-                    context.set_item("py_identifiers", py_identifiers).map_err(|e| {
-                        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string())
-                    })?;
-                }
+            if let Some(py_identifiers) = py_identifiers {
+                // Store the Python identifiers directly in the context
+                context.set_item("py_identifiers", py_identifiers).map_err(|e| {
+                    PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string())
+                })?;
+            }
 
-                // Import and run the initialization code from the injected module
-                let setup_code = r#"
+            // Import and run the initialization code from the injected module
+            let setup_code = r#"
 try:
     from cairo_addons.hints.injected import prepare_context
     prepare_context(lambda: globals())
@@ -126,14 +124,13 @@ except Exception as e:
     print(f"Warning: Error during initialization: {e}")
 "#;
 
-                // Run the initialization code
-                py.run(&CString::new(setup_code)?, Some(&context), None).map_err(|e| {
-                    PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-                        "Failed to initialize Python globals: {}",
-                        e
-                    ))
-                })?;
-            }
+            // Run the initialization code
+            py.run(&CString::new(setup_code)?, Some(&context), None).map_err(|e| {
+                PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+                    "Failed to initialize Python globals: {}",
+                    e
+                ))
+            })?;
 
             // Store the context object in the exec_scopes regardless of logger status
             // This ensures the pythonic hint executor has a context to work with
@@ -146,7 +143,7 @@ except Exception as e:
             inner,
             allow_missing_builtins,
             ordered_builtins: ordered_builtin_names,
-            enable_logger,
+            enable_traces,
         })
     }
 
@@ -334,17 +331,16 @@ except Exception as e:
     ///
     /// Uses our own hint processor to handle Cairo hints during execution.
     /// This hint processor always supports pythonic hints execution, but will
-    /// skip hints containing "logger" when enable_logger is false for performance reasons.
-    /// When enable_logger is false, Python identifiers and program identifiers are not loaded
+    /// skip hints containing "logger" when enable_traces is false for performance reasons.
+    /// When enable_traces is false, Python identifiers and program identifiers are not loaded
     /// to save memory and initialization time.
     /// Ends the run after reaching the target address. If in proof mode this will loop on `jmp rel
     /// 0` until the steps is a power of 2.
     #[pyo3(signature = (address, resources))]
     fn run_until_pc(&mut self, address: PyRelocatable, resources: PyRunResources) -> PyResult<()> {
-        println!("Running with enable_logger={}", self.enable_logger);
         let mut hint_processor = HintProcessor::default()
             .with_run_resources(resources.inner)
-            .with_dynamic_python_hints(self.enable_logger)
+            .with_dynamic_python_hints(self.enable_traces)
             .build();
         self.inner
             .run_until_pc(address.inner, &mut hint_processor)
@@ -592,11 +588,6 @@ pub fn run_proof_mode(
     compiled_program_path: String,
     output_dir: PathBuf,
 ) -> PyResult<()> {
-    let trace_path = output_dir.join("trace.bin");
-    let memory_path = output_dir.join("memory.bin");
-    let air_public_input = output_dir.join("air_public_input.json");
-    let air_private_input = output_dir.join("air_private_input.json");
-
     let cairo_run_config: CairoRunConfig<'_> = CairoRunConfig {
         entrypoint: &entrypoint,
         trace_enabled: true,
@@ -619,15 +610,6 @@ pub fn run_proof_mode(
     let dict_manager = DictManager::new();
     exec_scopes.insert_value("dict_manager", Rc::new(RefCell::new(dict_manager)));
 
-    let identifiers = program
-        .iter_identifiers()
-        .map(|(name, identifier)| (name.to_string(), identifier.clone()))
-        .collect::<HashMap<String, Identifier>>();
-
-    // Insert the _rust_ program_identifiers in the exec_scopes, so that we're able to pull
-    // identifier data when executing hints to build VmConsts.
-    exec_scopes.insert_value("__program_identifiers__", identifiers);
-
     // Initialize a python context object that will be accessible throughout the execution of
     // all hints.
     // This enables us to directly use the Python identifiers passed in, avoiding the need to
@@ -637,6 +619,20 @@ pub fn run_proof_mode(
 
         context.set_item("public_inputs", public_inputs)?;
         context.set_item("private_inputs", private_inputs)?;
+
+        let identifiers = program
+            .iter_identifiers()
+            .map(|(name, identifier)| (name.to_string(), identifier.clone()))
+            .collect::<HashMap<String, Identifier>>();
+
+        // Insert the _rust_ program_identifiers in the exec_scopes, so that we're able to
+        // pull identifier data when executing hints to build VmConsts.
+        exec_scopes.insert_value("__program_identifiers__", identifiers);
+
+        // Store empty python identifiers directly in the context
+        context
+            .set_item("py_identifiers", PyDict::new(py))
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
 
         // Import and run the initialization code from the injected module
         let setup_code = r#"
@@ -683,6 +679,11 @@ except Exception as e:
     println!("Execution resources: {:?}", execution_resources);
 
     // Write outputs
+    let trace_path = output_dir.join("trace.bin");
+    let memory_path = output_dir.join("memory.bin");
+    let air_public_input = output_dir.join("air_public_input.json");
+    let air_private_input = output_dir.join("air_private_input.json");
+
     let relocated_trace =
         cairo_runner
             .relocated_trace
