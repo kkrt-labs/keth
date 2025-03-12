@@ -228,3 +228,45 @@ class TestEthereumState:
 
         retrieved_value = original_mpt.get(keccak256(STORAGE_KEYS[0]), storage_root)
         assert retrieved_value == STORAGE_VALUES[0]
+
+    def test_empty_storage_operations(self):
+        """Test operations on empty storage."""
+        mpt = EthereumState.create_empty()
+
+        # Create an account with empty storage
+        encoded_account = encode_account(TEST_ACCOUNT, EMPTY_TRIE_ROOT_HASH)
+        mpt.upsert_account(ADDRESSES[0], encoded_account, TEST_ACCOUNT.code)
+
+        # Try to delete a non-existent storage key
+        mpt.delete_storage_key(ADDRESSES[0], STORAGE_KEYS[0])
+
+        # Verify account still exists
+        assert mpt.get(keccak256(ADDRESSES[0])) is not None
+
+        # Try to get a non-existent storage key
+        account = mpt.get(keccak256(ADDRESSES[0]))
+        decoded = rlp.decode(account)
+        storage_root = Hash32(decoded[2])
+
+        value = mpt.get(keccak256(STORAGE_KEYS[0]), storage_root)
+        assert value is None
+
+    def test_large_storage_values(self):
+        """Test handling of large storage values."""
+        mpt = EthereumState.create_empty()
+
+        # Create an account
+        encoded_account = encode_account(TEST_ACCOUNT, EMPTY_TRIE_ROOT_HASH)
+        mpt.upsert_account(ADDRESSES[0], encoded_account, TEST_ACCOUNT.code)
+
+        large_value = rlp.encode(U256.MAX_VALUE)
+
+        mpt.upsert_storage_key(ADDRESSES[0], STORAGE_KEYS[0], large_value)
+
+        account_after = mpt.get(keccak256(ADDRESSES[0]))
+        decoded = rlp.decode(account_after)
+        storage_root = Hash32(decoded[2])
+        assert storage_root is not EMPTY_TRIE_ROOT_HASH
+
+        retrieved_value = mpt.get(keccak256(STORAGE_KEYS[0]), storage_root)
+        assert retrieved_value == large_value
