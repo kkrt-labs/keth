@@ -2,10 +2,29 @@ import json
 
 from ethereum.cancun.fork_types import Account, Address, encode_account
 from ethereum.cancun.state import get_account
-from ethereum.crypto.hash import keccak256
+from ethereum.crypto.hash import Hash32, keccak256
+from ethereum_rlp import rlp
 from ethereum_spec_tools.evm_tools.loaders.fixture_loader import Load
+from ethereum_types.bytes import Bytes, Bytes32
 from ethereum_types.numeric import U256, Uint
 from python.mpt.src.mpt import EMPTY_TRIE_ROOT_HASH, EthereumState
+
+# A set of encoded storage keys and values for testing
+STORAGE_KEYS: list[Bytes32] = [
+    Bytes32(keccak256(U256(i).to_be_bytes32())) for i in range(1, 6)
+]
+
+STORAGE_VALUES: list[Bytes] = [rlp.encode(U256(i)) for i in range(1, 6)]
+
+ADDRESSES: list[Address] = [
+    Address(bytes.fromhex(f"000000000000000000000000000000000000000{i:x}"))
+    for i in range(1, 6)
+]
+
+# Standard test account
+TEST_ACCOUNT = Account(
+    nonce=Uint(10), balance=U256(1000), code=bytes.fromhex("deadbeef")
+)
 
 
 class TestEthereumState:
@@ -27,9 +46,7 @@ class TestEthereumState:
     def test_get_account(self):
         mpt = EthereumState.from_json("data/1/inputs/22009357.json")
 
-        account = mpt.get_account(
-            Address(bytes.fromhex("0000000000000000000000000000000000000001"))
-        )
+        account = mpt.get_account(ADDRESSES[0])
 
         assert account.nonce == Uint(0)
         # Some people sent money to precompile 0x01 🤷‍♂️
@@ -39,57 +56,30 @@ class TestEthereumState:
     def test_delete(self):
         mpt = EthereumState.from_json("data/1/inputs/22009357.json")
 
-        assert (
-            mpt.get(
-                keccak256(
-                    Address(bytes.fromhex("30325619135da691a6932b13a19b8928527f8456"))
-                )
-            )
-            is not None
+        # Using an address from the JSON file that we know exists
+        test_address = Address(
+            bytes.fromhex("30325619135da691a6932b13a19b8928527f8456")
         )
 
-        mpt.delete(
-            keccak256(
-                Address(bytes.fromhex("30325619135da691a6932b13a19b8928527f8456"))
-            )
-        )
+        assert mpt.get(keccak256(test_address)) is not None
 
-        assert (
-            mpt.get(
-                keccak256(
-                    Address(bytes.fromhex("30325619135da691a6932b13a19b8928527f8456"))
-                )
-            )
-            is None
-        )
+        mpt.delete(keccak256(test_address))
+
+        assert mpt.get(keccak256(test_address)) is None
 
     def test_upsert(self):
         mpt = EthereumState.from_json("data/1/inputs/22009357.json")
 
-        account = Account(
-            nonce=Uint(10), balance=U256(1000), code=bytes.fromhex("deadbeef")
-        )
-        encoded_account = encode_account(account, EMPTY_TRIE_ROOT_HASH)
+        encoded_account = encode_account(TEST_ACCOUNT, EMPTY_TRIE_ROOT_HASH)
 
-        mpt.upsert(
-            keccak256(
-                # Address from data/1/inputs/22009357.json::AccessList[0]
-                # TODO: Use an address from the access list
-                Address(bytes.fromhex("30325619135da691a6932b13a19b8928527f8456"))
-            ),
-            encoded_account,
+        # Using an address from the JSON file
+        test_address = Address(
+            bytes.fromhex("30325619135da691a6932b13a19b8928527f8456")
         )
 
-        assert (
-            mpt.get(
-                keccak256(
-                    # Address from data/1/inputs/22009357.json::AccessList[0]
-                    # TODO: Use an address from the access list
-                    Address(bytes.fromhex("30325619135da691a6932b13a19b8928527f8456"))
-                )
-            )
-            == encoded_account
-        )
+        mpt.upsert(keccak256(test_address), encoded_account)
+
+        assert mpt.get(keccak256(test_address)) == encoded_account
 
     def test_to_state(self):
         mpt = EthereumState.from_json("data/1/inputs/22009357.json")
@@ -114,26 +104,127 @@ class TestEthereumState:
     def test_to_state_from_simple_operations(self):
         mpt = EthereumState.create_empty()
 
-        account = Account(
-            nonce=Uint(10), balance=U256(1000), code=bytes.fromhex("deadbeef")
-        )
-        encoded_account = encode_account(account, EMPTY_TRIE_ROOT_HASH)
+        encoded_account = encode_account(TEST_ACCOUNT, EMPTY_TRIE_ROOT_HASH)
 
-        mpt.upsert_account(
-            Address(bytes.fromhex("0000000000000000000000000000000000000001")),
-            encoded_account,
-            account.code,
-        )
-        mpt.access_list[
-            Address(bytes.fromhex("0000000000000000000000000000000000000001"))
-        ] = None
+        mpt.upsert_account(ADDRESSES[0], encoded_account, TEST_ACCOUNT.code)
+        mpt.access_list[ADDRESSES[0]] = None
 
         state = mpt.to_state()
 
-        assert (
-            get_account(
-                state,
-                Address(bytes.fromhex("0000000000000000000000000000000000000001")),
-            )
-            == account
+        assert get_account(state, ADDRESSES[0]) == TEST_ACCOUNT
+
+    def test_storage_operations(self):
+        """Test that storage operations work correctly with empty and existing storage roots."""
+        mpt = EthereumState.create_empty()
+
+        # Create an account with empty storage
+        encoded_account = encode_account(TEST_ACCOUNT, EMPTY_TRIE_ROOT_HASH)
+
+        mpt.upsert_account(ADDRESSES[0], encoded_account, TEST_ACCOUNT.code)
+        mpt.access_list[ADDRESSES[0]] = [STORAGE_KEYS[0], STORAGE_KEYS[1]]
+
+        # Add a storage value
+        mpt.upsert_storage_key(ADDRESSES[0], STORAGE_KEYS[0], STORAGE_VALUES[0])
+
+        # Add another storage value
+        mpt.upsert_storage_key(ADDRESSES[0], STORAGE_KEYS[1], STORAGE_VALUES[1])
+
+        # Verify both values were stored
+        account_after = mpt.get(keccak256(ADDRESSES[0]))
+        decoded = rlp.decode(account_after)
+        storage_root = Hash32(decoded[2])
+
+        retrieved_value1 = mpt.get(keccak256(STORAGE_KEYS[0]), storage_root)
+        retrieved_value2 = mpt.get(keccak256(STORAGE_KEYS[1]), storage_root)
+
+        assert retrieved_value1 == STORAGE_VALUES[0]
+        assert retrieved_value2 == STORAGE_VALUES[1]
+
+        # Now update the first value
+        new_storage_value = rlp.encode(U256(1001))
+        mpt.upsert_storage_key(ADDRESSES[0], STORAGE_KEYS[0], new_storage_value)
+
+        # Verify the update worked
+        account_updated = mpt.get(keccak256(ADDRESSES[0]))
+        decoded = rlp.decode(account_updated)
+        updated_storage_root = Hash32(decoded[2])
+
+        updated_value = mpt.get(keccak256(STORAGE_KEYS[0]), updated_storage_root)
+        assert updated_value == new_storage_value
+
+    def test_branch_node_reduction(self):
+        """Test that branch node reductions work correctly during deletions."""
+        mpt = EthereumState.create_empty()
+
+        # Create an account with empty storage
+        encoded_account = encode_account(TEST_ACCOUNT, EMPTY_TRIE_ROOT_HASH)
+        mpt.upsert_account(ADDRESSES[0], encoded_account, TEST_ACCOUNT.code)
+
+        # Use the first 5 storage keys and values
+        access_list_keys = STORAGE_KEYS[:5]
+
+        # Add storage values to create branch nodes
+        for i, storage_key in enumerate(access_list_keys):
+            mpt.upsert_storage_key(ADDRESSES[0], storage_key, STORAGE_VALUES[i])
+
+        mpt.access_list[ADDRESSES[0]] = access_list_keys
+
+        # Now delete the storage keys one by one
+        for i, storage_key in enumerate(access_list_keys):
+            mpt.delete_storage_key(ADDRESSES[0], storage_key)
+
+            # After each deletion, verify that the remaining keys still work
+            account_after = mpt.get(keccak256(ADDRESSES[0]))
+            decoded = rlp.decode(account_after)
+            storage_root = Hash32(decoded[2])
+
+            # Check that deleted keys are gone
+            for j in range(i + 1):
+                value = mpt.get(keccak256(access_list_keys[j]), storage_root)
+                assert value is None
+
+            # Check that remaining keys still work
+            for j in range(i + 1, len(access_list_keys)):
+                value = mpt.get(keccak256(access_list_keys[j]), storage_root)
+                assert value is not None
+
+    def test_state_diff_application(self):
+        """Test applying a state diff to an MPT."""
+        # Create two empty MPTs
+        original_mpt = EthereumState.create_empty()
+        modified_mpt = EthereumState.create_empty()
+
+        # Add an account to both
+        encoded_account = encode_account(TEST_ACCOUNT, EMPTY_TRIE_ROOT_HASH)
+
+        original_mpt.upsert_account(ADDRESSES[0], encoded_account, TEST_ACCOUNT.code)
+        modified_mpt.upsert_account(ADDRESSES[0], encoded_account, TEST_ACCOUNT.code)
+
+        # Add a storage value to the modified MPT
+        modified_mpt.upsert_storage_key(
+            ADDRESSES[0], STORAGE_KEYS[0], STORAGE_VALUES[0]
         )
+
+        # Add the access list entries
+        original_mpt.access_list[ADDRESSES[0]] = [STORAGE_KEYS[0]]
+        modified_mpt.access_list[ADDRESSES[0]] = [STORAGE_KEYS[0]]
+
+        # Convert to state objects
+        original_state = original_mpt.to_state()
+        modified_state = modified_mpt.to_state()
+
+        # Generate a state diff
+        from mpt.state_diff import StateDiff
+
+        state_diff = StateDiff.from_pre_post(original_state, modified_state)
+
+        # Apply the state diff to the original MPT
+        original_mpt.update_from_state_diff(state_diff)
+
+        # Verify the storage value was added to the original MPT
+        account_after = original_mpt.get(keccak256(ADDRESSES[0]))
+        decoded = rlp.decode(account_after)
+        storage_root = Hash32(decoded[2])
+
+        retrieved_value = original_mpt.get(keccak256(STORAGE_KEYS[0]), storage_root)
+        assert retrieved_value == STORAGE_VALUES[0]
