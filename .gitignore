@@ -47,7 +47,9 @@ codecov
 cairo/tests/ef_tests/fixtures/
 
 # zk-pig default output directory
-data
+data/*
+!data/1/eels/22009357.json
+!data/1/inputs/22009357.json
 
 # prover input files
 *.trace
