@@ -1,4 +1,4 @@
-from typing import Dict, Set
+from typing import Dict, Optional
 
 from ethereum.cancun.fork_types import Account, Address
 from ethereum.cancun.state import State, get_account
@@ -6,24 +6,48 @@ from ethereum_types.bytes import Bytes32
 from ethereum_types.numeric import U256
 
 
+class AccountDiff:
+    """
+    A class that contains the differences for a single account, including its storage changes.
+    If account is None, it represents a deletion.
+    """
+
+    account: Optional[Account]
+    storage_updates: Dict[Bytes32, U256]
+
+    def __init__(self, account: Optional[Account] = None):
+        self.account = account
+        self.storage_updates = {}
+
+
 class StateDiff:
     """
     A class that contains the differences between two states.
     """
 
-    updates: Dict[Address, Account]
-    deletions: Set[Address]
-    storage_updates: Dict[Address, Dict[Bytes32, U256]]
-    storage_deletions: Dict[Address, Set[Bytes32]]
+    account_diffs: Dict[Address, AccountDiff]
 
     def __init__(self):
-        self.updates: Dict[Address, Account] = {}
-        self.deletions: Set[Address] = set()
-        self.storage_updates: Dict[Address, Dict[Bytes32, U256]] = {}
-        self.storage_deletions: Dict[Address, Set[Bytes32]] = {}
+        self.account_diffs: Dict[Address, AccountDiff] = {}
 
     @classmethod
     def from_pre_post(cls, pre_state: State, post_state: State) -> "StateDiff":
+        """
+        Compute a state diff between two states: a pre_state and a post_state.
+
+        Parameters
+        ----------
+        pre_state : State
+            The state before executing a block
+        post_state : State
+            The state after executing a block
+
+        Returns
+        -------
+        StateDiff
+            A StateDiff object containing:
+            - 'account_diffs': Dict[Address, AccountDiff] - Accounts that were added, modified or deleted with their storage changes
+        """
         return compute_state_diff(pre_state, post_state)
 
 
@@ -42,10 +66,7 @@ def compute_state_diff(pre_state: State, post_state: State) -> StateDiff:
     -------
     StateDiff
         A StateDiff object containing:
-        - 'updates': Dict[Address, Account] - Accounts that were added or modified
-        - 'deletions': Set[Address] - Accounts that were deleted
-        - 'storage_updates': Dict[Address, Dict[Bytes32, U256]] - Storage slots that were added or modified
-        - 'storage_deletions': Dict[Address, Set[Bytes32]] - Storage slots that were deleted
+        - 'account_diffs': Dict[Address, AccountDiff] - Accounts that were added, modified or deleted with their storage changes
     """
 
     diff = StateDiff()
@@ -56,72 +77,28 @@ def compute_state_diff(pre_state: State, post_state: State) -> StateDiff:
     # Find deleted accounts
     deletions = pre_addresses - post_addresses
     for address in deletions:
-        process_storage_changes(pre_state, post_state, address, diff)
-    diff.deletions.update(deletions)
+        # Process deleted account
+        account_diff = compute_account_diff(pre_state, post_state, address)
+        if account_diff is not None:
+            diff.account_diffs[address] = account_diff
 
     # Find added or modified accounts
     for address in post_addresses:
-        post_account = get_account(post_state, address)
-        if address not in pre_addresses:
-            # New account
-            if post_account is not None:
-                diff.updates[address] = post_account
-
-                # Check if the new account has storage
-                if address in post_state._storage_tries:
-                    process_new_account_storage(post_state, address, diff)
-        else:
-            # Account exists in both states, check if it was modified
-            pre_account = get_account(pre_state, address)
-
-            # If the accounts are different, add to updates
-            if post_account != pre_account:
-                if post_account is not None:
-                    diff.updates[address] = post_account
-                else:
-                    # Account was set to None, add to deletions
-                    diff.deletions.add(address)
-
-            # Check for storage changes even if the account itself hasn't changed
-            if post_account is not None:
-                process_storage_changes(pre_state, post_state, address, diff)
+        # Process added or modified account
+        account_diff = compute_account_diff(pre_state, post_state, address)
+        if account_diff is not None:
+            diff.account_diffs[address] = account_diff
 
     return diff
 
 
-def process_new_account_storage(
-    post_state: State, address: Address, diff: StateDiff
-) -> None:
+def compute_account_diff(
+    pre_state: State,
+    post_state: State,
+    address: Address,
+) -> Optional[AccountDiff]:
     """
-    Process storage for a newly created account.
-
-    Parameters
-    ----------
-    post_state : State
-        The state after executing a block
-    address : Address
-        The address of the new account
-    diff : StateDiff
-        The diff dictionary to update
-    """
-    if address not in post_state._storage_tries:
-        return
-
-    storage_trie = post_state._storage_tries[address]
-
-    # Add all non-zero storage values
-    for key, value in storage_trie._data.items():
-        if value != U256(0):
-            if address not in diff.storage_updates:
-                diff.storage_updates[address] = {}
-            diff.storage_updates[address][key] = value
-
-
-def process_storage_changes(
-    pre_state: State, post_state: State, address: Address, diff: StateDiff
-):
-    """
-    Process storage changes for an account that exists in both pre and post states.
+    Process account and storage changes.
 
     Parameters
     ----------
@@ -131,61 +108,72 @@ def process_storage_changes(
         The state after executing a block
     address : Address
         The address of the account
-    diff : StateDiff
-        The diff dictionary to update
+
+    Returns
+    -------
+    Optional[AccountDiff]
+        An AccountDiff object if there were any changes, None otherwise
     """
+    pre_account = (
+        get_account(pre_state, address)
+        if address in pre_state._main_trie._data
+        else None
+    )
+
+    post_account = (
+        get_account(post_state, address)
+        if address in post_state._main_trie._data
+        else None
+    )
+
+    # Check if account changed
+    account_modified = post_account != pre_account
+
+    # Create account diff if account was modified
+    account_diff = AccountDiff(post_account) if account_modified else None
+
     # Check if the account has storage in either state
     has_pre_storage = address in pre_state._storage_tries
     has_post_storage = address in post_state._storage_tries
 
-    # If no storage in either state, nothing to do
+    # If no storage in either state, return account diff (if any)
     if not has_pre_storage and not has_post_storage:
-        return
+        return account_diff
 
-    # If storage only in post state, all are additions
-    if not has_pre_storage and has_post_storage:
-        process_new_account_storage(post_state, address, diff)
-        return
+    # Create account diff if it doesn't exist yet but we have storage to process
+    if account_diff is None:
+        account_diff = AccountDiff(post_account)
 
-    # If storage only in pre state, all are deletions
-    if has_pre_storage and not has_post_storage:
-        pre_storage = pre_state._storage_tries[address]
-        if address not in diff.storage_deletions:
-            diff.storage_deletions[address] = set()
+    # If account is deleted or storage only in pre state, set all pre-storage to zero
+    if post_account is None or (has_pre_storage and not has_post_storage):
+        if has_pre_storage:
+            pre_storage = pre_state._storage_tries[address]
+            for key, value in pre_storage._data.items():
+                if value != U256(0):  # Only record non-zero values being set to zero
+                    account_diff.storage_updates[key] = U256(0)
 
-        for key in pre_storage._data.keys():
-            diff.storage_deletions[address].add(key)
-        return
+    # If storage only in post state, add all post-storage
+    elif not has_pre_storage and has_post_storage:
+        post_storage = post_state._storage_tries[address]
+        for key, value in post_storage._data.items():
+            account_diff.storage_updates[key] = value
 
     # Both states have storage, compare them
-    pre_storage = pre_state._storage_tries[address]
-    post_storage = post_state._storage_tries[address]
+    elif has_pre_storage and has_post_storage:
+        pre_storage = pre_state._storage_tries[address]
+        post_storage = post_state._storage_tries[address]
 
-    pre_keys = set(pre_storage._data.keys())
-    post_keys = set(post_storage._data.keys())
+        all_keys = set(pre_storage._data.keys()).union(set(post_storage._data.keys()))
 
-    # Find deleted storage slots
-    deleted_keys = pre_keys - post_keys
-    if deleted_keys:
-        if address not in diff.storage_deletions:
-            diff.storage_deletions[address] = set()
-        diff.storage_deletions[address].update(deleted_keys)
+        for key in all_keys:
+            pre_value = pre_storage._data.get(key, U256(0))
+            post_value = post_storage._data.get(key, U256(0))
 
-    # Find added or modified storage slots
-    for key in post_keys:
-        post_value = post_storage._data[key]
+            if pre_value != post_value:
+                account_diff.storage_updates[key] = post_value
 
-        # Skip zero values (they're considered deleted)
-        if post_value == U256(0):
-            if key in pre_keys and pre_storage._data[key] != 0:
-                # Value changed from non-zero to zero, mark as deletion
-                if address not in diff.storage_deletions:
-                    diff.storage_deletions[address] = set()
-                diff.storage_deletions[address].add(key)
-            continue
-
-        # Check if key is new or value changed
-        if key not in pre_keys or pre_storage._data[key] != post_value:
-            if address not in diff.storage_updates:
-                diff.storage_updates[address] = {}
-            diff.storage_updates[address][key] = post_value
+    # Return account diff if there were any changes, None otherwise
+    if account_modified or len(account_diff.storage_updates) > 0:
+        return account_diff
+    else:
+        return None

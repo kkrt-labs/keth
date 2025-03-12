@@ -1,7 +1,7 @@
 import json
 import logging
 import os
-from typing import Dict, List, Mapping, Optional, Set, Tuple, Union
+from typing import Dict, List, Mapping, Optional
 
 import requests
 from ethereum.cancun.fork_types import Account, Address, encode_account
@@ -261,7 +261,7 @@ class EthereumState:
         logger.debug(f"Starting from root hash: 0x{root_hash.hex()}")
 
         # Check if the root hash exists in our nodes
-        if root_hash not in self.nodes:
+        if root_hash not in self.nodes and root_hash != EMPTY_TRIE_ROOT_HASH:
             logger.error(f"Root hash not found in nodes: {root_hash.hex()}")
             return None
 
@@ -1243,65 +1243,45 @@ class EthereumState:
         raise ValueError(f"Unknown node type: {type(node)}")
 
     def update_from_state_diff(self, state_diff: StateDiff):
-        updates = self._get_updates_from_state_diff(state_diff)
-        self._process_updates(updates)
-
-    def _get_updates_from_state_diff(
-        self, state_diff: StateDiff
-    ) -> Set[Tuple[Union[Address, Bytes32], rlp.Extended, Optional[Address]]]:
         """
-        Given a state diff, return a list of updates (upsert and delete operations)
-        to the trie in the form
-        Tuple[Path To The Node in the State or Storage trie, RLP-Encoded Node, optionally the address to get the storage root in case of storage updates]
-        """
-        updates = set()
-        # Process account updates
-        for address, account in state_diff.updates.items():
-            self.codes[keccak256(account.code)] = account.code
-            updates.add((address, encode_account(account, self.state_root), None))
+        Update the state based on a state diff.
 
-        # Process account deletions
-        updates.update(
-            [
-                (
-                    address,
-                    EMPTY_BYTES_RLP,
-                    None,
-                )
-                for address in state_diff.deletions
-            ]
+        Processes storage updates first, then account changes to ensure
+        correct storage roots are used when encoding accounts.
+
+        Parameters
+        ----------
+        state_diff : StateDiff
+            The state diff to apply
+        """
+        logger.debug(
+            f"Applying state diff with {len(state_diff.account_diffs)} account changes"
         )
 
-        # Process storage updates
-        for address, storage_updates in state_diff.storage_updates.items():
-            for key, value in storage_updates.items():
-                updates.add((key, rlp.encode(value), address))
-        # Process storage deletions
-        for address, storage_deletions in state_diff.storage_deletions.items():
-            for key in storage_deletions:
-                updates.add((key, EMPTY_BYTES_RLP, address))
-        logger.debug(f"Updates: {len(updates)}")
-        return updates
+        # Process all accounts in the diff
+        for address, account_diff in state_diff.account_diffs.items():
+            # First: Process storage updates
+            for key, value in account_diff.storage_updates.items():
+                if value == U256(0):
+                    self.delete_storage_key(address, key)
+                else:
+                    self.upsert_storage_key(address, key, rlp.encode(value))
 
-    def _process_updates(
-        self,
-        updates: Set[Tuple[Union[Address, Bytes32], rlp.Extended, Optional[Address]]],
-    ):
-        """
-        Process a set of updates to the trie.
-        """
-        logger.debug(f"*** Processing {len(updates)} updates ***")
-        for preimage, value, maybe_storage_address in updates:
-            if value == EMPTY_BYTES_RLP:
-                if maybe_storage_address is not None:
-                    self.delete_storage_key(maybe_storage_address, preimage)
-                else:
-                    self.delete_account(preimage)
+            # Second: Process account update or deletion
+            if account_diff.account is None:
+                self.delete_account(address)
             else:
-                if maybe_storage_address is not None:
-                    self.upsert_storage_key(maybe_storage_address, preimage, value)
-                else:
-                    self.upsert(keccak256(preimage), value)
+                # Store code
+                self.codes[keccak256(account_diff.account.code)] = (
+                    account_diff.account.code
+                )
+
+                # Get current storage root (after storage updates)
+                storage_root = self.get_storage_root(address)
+
+                # Update account with correct storage root
+                encoded_account = encode_account(account_diff.account, storage_root)
+                self.upsert(keccak256(address), encoded_account)
 
 
 def decode_node(node: Bytes) -> InternalNode:

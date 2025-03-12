@@ -68,17 +68,26 @@ class TestStateDiffs:
 
         diff = StateDiff.from_pre_post(pre_state, post_state)
 
-        assert diff.updates[new_post_address] == new_post_account
-        assert diff.updates[pre_address] == modified_post_account
-        assert diff.deletions == {pre_address2}
-        assert diff.storage_updates[pre_address] == {
+        assert diff.account_diffs[new_post_address].account == new_post_account
+        assert diff.account_diffs[pre_address].account == modified_post_account
+        assert (
+            pre_address2 in diff.account_diffs
+            and diff.account_diffs[pre_address2].account is None
+        )
+        assert diff.account_diffs[pre_address].storage_updates == {
             post_storage_key: post_storage_value,
             new_post_storage_key: new_post_storage_value,
         }
-        assert diff.storage_updates[new_post_address] == {
+        assert diff.account_diffs[new_post_address].storage_updates == {
             new_storage_key: new_storage_value
         }
-        assert diff.storage_deletions[pre_address2] == {pre_storage_key2}
+        assert (
+            pre_address2 in diff.account_diffs
+            and pre_storage_key2 in diff.account_diffs[pre_address2].storage_updates
+        )
+        assert diff.account_diffs[pre_address2].storage_updates[
+            pre_storage_key2
+        ] == U256(0)
 
     def test_empty_diff(self):
         """Test that an empty diff is created when pre and post states are identical."""
@@ -88,10 +97,7 @@ class TestStateDiffs:
 
         diff = StateDiff.from_pre_post(state, state)
 
-        assert not diff.updates
-        assert not diff.deletions
-        assert not diff.storage_updates
-        assert not diff.storage_deletions
+        assert not diff.account_diffs
 
     def test_account_only_diff(self):
         """Test a diff with only account changes (no storage changes)."""
@@ -124,11 +130,13 @@ class TestStateDiffs:
 
         diff = StateDiff.from_pre_post(pre_state, post_state)
 
-        assert diff.updates[ADDRESSES[0]] == modified_account
-        assert diff.updates[ADDRESSES[3]] == new_account
-        assert diff.deletions == {ADDRESSES[2]}
-        assert not diff.storage_updates
-        assert not diff.storage_deletions
+        assert diff.account_diffs[ADDRESSES[0]].account == modified_account
+        assert diff.account_diffs[ADDRESSES[3]].account == new_account
+        assert (
+            ADDRESSES[2] in diff.account_diffs
+            and diff.account_diffs[ADDRESSES[2]].account is None
+        )
+        assert not diff.account_diffs[ADDRESSES[0]].storage_updates
 
     def test_storage_only_diff(self):
         """Test a diff with only storage changes (no account changes)."""
@@ -145,13 +153,13 @@ class TestStateDiffs:
 
         diff = StateDiff.from_pre_post(pre_state, post_state)
 
-        assert not diff.updates
-        assert not diff.deletions
-        assert diff.storage_updates[ADDRESSES[0]] == {
+        assert ADDRESSES[0] in diff.account_diffs
+        assert diff.account_diffs[ADDRESSES[0]].account == TEST_ACCOUNT
+        assert diff.account_diffs[ADDRESSES[0]].storage_updates == {
             STORAGE_KEYS[0]: U256(100),
             STORAGE_KEYS[2]: U256(3),
+            STORAGE_KEYS[1]: U256(0),  # Deleted storage is now represented as zero
         }
-        assert diff.storage_deletions[ADDRESSES[0]] == {STORAGE_KEYS[1]}
 
     def test_complex_diff(self):
         """Test a complex diff with multiple accounts and storage changes."""
@@ -246,36 +254,35 @@ class TestStateDiffs:
         diff = StateDiff.from_pre_post(pre_state, post_state)
 
         # Verify account updates
-        assert ADDRESSES[0] not in diff.updates  # Unchanged account
-        assert diff.updates[ADDRESSES[1]] == modified_account
-        assert ADDRESSES[2] not in diff.updates  # Account details unchanged
-        assert diff.updates[ADDRESSES[4]] == new_account
+        assert ADDRESSES[0] not in diff.account_diffs  # No changes
+        assert diff.account_diffs[ADDRESSES[1]].account == modified_account
+        assert ADDRESSES[2] in diff.account_diffs  # Account with storage changes
+        assert diff.account_diffs[ADDRESSES[4]].account == new_account
 
         # Verify account deletions
-        assert diff.deletions == {ADDRESSES[3]}
+        assert ADDRESSES[3] in diff.account_diffs
+        assert diff.account_diffs[ADDRESSES[3]].account is None
 
         # Verify storage updates
-        assert ADDRESSES[0] not in diff.storage_updates  # No storage changes
-        assert ADDRESSES[1] not in diff.storage_updates  # No storage changes
-        assert diff.storage_updates[ADDRESSES[2]] == {
+        assert diff.account_diffs[ADDRESSES[2]].storage_updates == {
             STORAGE_KEYS[4]: U256(100),  # Updated value
             STORAGE_KEYS[0]: U256(200),  # Updated value
+            STORAGE_KEYS[1]: U256(0),  # Deleted value (now represented as zero)
         }
-        assert diff.storage_updates[ADDRESSES[4]] == {
+        assert diff.account_diffs[ADDRESSES[4]].storage_updates == {
             STORAGE_KEYS[1]: U256(888),
             STORAGE_KEYS[3]: U256(999),
         }
 
-        # Verify storage deletions
-        assert ADDRESSES[0] not in diff.storage_deletions
-        assert ADDRESSES[1] not in diff.storage_deletions
-        assert diff.storage_deletions[ADDRESSES[2]] == {
-            STORAGE_KEYS[1]
-        }  # Explicitly deleted key
-
         # Verify deleted account's storage is also deleted
-        assert ADDRESSES[3] in diff.storage_deletions
-        assert diff.storage_deletions[ADDRESSES[3]] == {
-            STORAGE_KEYS[2],
-            STORAGE_KEYS[3],
-        }
+        assert ADDRESSES[3] in diff.account_diffs
+        assert diff.account_diffs[ADDRESSES[3]].account is None
+        # Storage for deleted account should be set to zero
+        assert STORAGE_KEYS[2] in diff.account_diffs[ADDRESSES[3]].storage_updates
+        assert STORAGE_KEYS[3] in diff.account_diffs[ADDRESSES[3]].storage_updates
+        assert diff.account_diffs[ADDRESSES[3]].storage_updates[
+            STORAGE_KEYS[2]
+        ] == U256(0)
+        assert diff.account_diffs[ADDRESSES[3]].storage_updates[
+            STORAGE_KEYS[3]
+        ] == U256(0)

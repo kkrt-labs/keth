@@ -7,7 +7,8 @@ from ethereum_rlp import rlp
 from ethereum_spec_tools.evm_tools.loaders.fixture_loader import Load
 from ethereum_types.bytes import Bytes, Bytes32
 from ethereum_types.numeric import U256, Uint
-from python.mpt.src.mpt import EMPTY_TRIE_ROOT_HASH, EthereumState
+
+from mpt import EMPTY_TRIE_ROOT_HASH, EthereumState
 
 # A set of encoded storage keys and values for testing
 STORAGE_KEYS: list[Bytes32] = [U256(i).to_be_bytes32() for i in range(1, 6)]
