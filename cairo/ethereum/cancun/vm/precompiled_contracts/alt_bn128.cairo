@@ -99,7 +99,7 @@ func alt_bn128_add{
     let is_p0_zero = G1Point__eq__(p0, point_inf);
     let is_p1_zero = G1Point__eq__(p1, point_inf);
 
-    let pair_is_zero = is_p0_zero.value * is_p1_zero.value;
+    let pair_is_zero = is_p0_zero * is_p1_zero;
     if (pair_is_zero != 0) {
         let (buffer: felt*) = alloc();
         memset(buffer, 0, 64);
@@ -112,13 +112,13 @@ func alt_bn128_add{
     tempvar is_on_curve;
     tempvar point = p0;
     %{ is_point_on_curve %}
-    if (is_on_curve == 0 and is_p0_zero.value == 0) {
+    if (is_on_curve == 0 and is_p0_zero == 0) {
         assert_not_on_curve(new p0.x, new p0.y, a, b, modulus);
         tempvar err = new EthereumException(OutOfGasError);
         return err;
     }
 
-    if (is_p0_zero.value == 0) {
+    if (is_p0_zero == 0) {
         assert_on_curve(new p0.x, new p0.y, a, b, modulus);
         tempvar range_check96_ptr = range_check96_ptr;
         tempvar add_mod_ptr = add_mod_ptr;
@@ -135,13 +135,13 @@ func alt_bn128_add{
     %{ is_point_on_curve %}
     tempvar is_p1_on_curve_uint384 = UInt384(is_on_curve, 0, 0, 0);
 
-    if (is_on_curve == 0 and is_p1_zero.value == 0) {
+    if (is_on_curve == 0 and is_p1_zero == 0) {
         assert_not_on_curve(new p1.x, new p1.y, a, b, modulus);
         tempvar err = new EthereumException(OutOfGasError);
         return err;
     }
 
-    if (is_p1_zero.value == 0) {
+    if (is_p1_zero == 0) {
         assert_on_curve(new p1.x, new p1.y, a, b, modulus);
     } else {
         // Point at infinity
@@ -210,7 +210,7 @@ func alt_bn128_mul{
     let point_inf = G1Point(x=UInt384(0, 0, 0, 0), y=UInt384(0, 0, 0, 0));
     let is_p0_zero = G1Point__eq__(p0, point_inf);
     // If P0 is point at infinity, return point at infinity.
-    if (is_p0_zero.value != 0) {
+    if (is_p0_zero != 0) {
         let (buffer: felt*) = alloc();
         memset(buffer, 0, 64);
         tempvar output = Bytes(new BytesStruct(data=buffer, len=64));

@@ -102,11 +102,11 @@ func ec_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: Mod
     alloc_locals;
     tempvar inf_point = G1Point(UInt384(0, 0, 0, 0), UInt384(0, 0, 0, 0));
     let p_is_inf = G1Point__eq__(p, inf_point);
-    if (p_is_inf.value != 0) {
+    if (p_is_inf != 0) {
         return q;
     }
     let q_is_inf = G1Point__eq__(q, inf_point);
-    if (q_is_inf.value != 0) {
+    if (q_is_inf != 0) {
         return p;
     }
     let same_x = uint384_eq_mod_p(p.x, q.x, modulus);
@@ -208,8 +208,8 @@ func ec_mul{
     let pt_at_inf = G1Point(zero_u384, zero_u384);
     let is_pt_at_inf_q_low = G1Point__eq__(q_low, pt_at_inf);
     let is_pt_at_inf_q_high = G1Point__eq__(q_high, pt_at_inf);
-    let is_pt_at_inf_q_low_u384 = felt_to_uint384(is_pt_at_inf_q_low.value);
-    let is_pt_at_inf_q_high_u384 = felt_to_uint384(is_pt_at_inf_q_high.value);
+    let is_pt_at_inf_q_low_u384 = felt_to_uint384(is_pt_at_inf_q_low);
+    let is_pt_at_inf_q_high_u384 = felt_to_uint384(is_pt_at_inf_q_high);
 
     let msm_size = 1;
     assert poseidon_ptr[0].input = PoseidonBuiltinState(s0='MSM_G1', s1=0, s2=1);
