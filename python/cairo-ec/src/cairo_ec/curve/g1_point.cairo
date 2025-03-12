@@ -1,6 +1,8 @@
 from starkware.cairo.common.cairo_builtins import UInt384
 from cairo_core.numeric import bool
 
+// A G1Point is a point on an elliptic curve over a field Fp.
+// Affine coordinates representation.
 struct G1Point {
     x: UInt384,
     y: UInt384,
