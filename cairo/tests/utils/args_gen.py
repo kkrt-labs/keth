@@ -101,6 +101,7 @@ from ethereum.cancun.vm import Evm as EvmBase
 from ethereum.cancun.vm import Message as MessageBase
 from ethereum.cancun.vm.gas import ExtendMemory, MessageCallGas
 from ethereum.cancun.vm.interpreter import MessageCallOutput as MessageCallOutputBase
+from ethereum.crypto.alt_bn128 import BNF12
 from ethereum.crypto.hash import Hash32
 from ethereum.exceptions import EthereumException
 from ethereum_rlp.rlp import Extended, Simple
@@ -133,6 +134,7 @@ from starkware.cairo.lang.vm.crypto import poseidon_hash_many
 from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 from starkware.cairo.lang.vm.relocatable import RelocatableValue
 
+from cairo_addons.utils.uint256 import int_to_uint256
 from cairo_addons.vm import DictTracker as RustDictTracker
 from cairo_addons.vm import MemorySegmentManager as RustMemorySegmentManager
 from cairo_addons.vm import Relocatable as RustRelocatable
@@ -705,6 +707,8 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     **ethereum_exception_mappings,
     # For tests only
     ("tests", "legacy", "utils", "test_dict", "MappingUintUint"): Mapping[Uint, Uint],
+    ("ethereum", "crypto", "alt_bn128", "BNF12"): BNF12,
+    ("ethereum", "crypto", "alt_bn128", "TupleBNF12"): Tuple[BNF12, ...],
 }
 
 # In the EELS, some functions are annotated with Sequence while it's actually just Bytes.
@@ -975,6 +979,14 @@ def _gen_arg(
 
         base = segments.add()
         segments.load_data(base, felt_values)
+        return base
+
+    if arg_type is BNF12:
+        base = segments.add()
+        coeffs = []
+        for coeff in arg:
+            coeffs.extend(int_to_uint256(coeff))
+        segments.load_data(base, coeffs)
         return base
 
     if arg_type is Bytes256:

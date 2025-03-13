@@ -24,6 +24,7 @@ from ethereum.cancun.transactions import (
 )
 from ethereum.cancun.trie import BranchNode, ExtensionNode, LeafNode, Trie, copy_trie
 from ethereum.cancun.vm import Environment, Evm, Message
+from ethereum.crypto.alt_bn128 import BNF12
 from ethereum.crypto.elliptic_curve import SECP256K1N
 from ethereum.crypto.hash import Hash32
 from ethereum.exceptions import EthereumException
@@ -515,6 +516,16 @@ private_key = (
 )
 
 
+bnf12_strategy = st.builds(
+    BNF12,
+    st.lists(
+        st.integers(min_value=0, max_value=BNF12.PRIME - 1),
+        min_size=12,
+        max_size=12,
+    ).map(tuple),
+)
+
+
 def register_type_strategies():
     st.register_type_strategy(U64, uint64)
     st.register_type_strategy(Uint, uint)
@@ -605,3 +616,4 @@ def register_type_strategies():
         VersionedHash,
         st.binary(min_size=31, max_size=31).map(lambda x: VersionedHash(b"\x01" + x)),
     )
+    st.register_type_strategy(BNF12, bnf12_strategy)
