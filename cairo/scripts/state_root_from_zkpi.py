@@ -1,4 +1,5 @@
 import json
+import logging
 
 from ethereum.cancun.blocks import Block, Withdrawal
 from ethereum.cancun.fork import (
@@ -18,11 +19,20 @@ from ethereum_types.bytes import Bytes, Bytes0
 from ethereum_types.numeric import (
     U64,
     U256,
+    Uint,
 )
 from scripts.zkpi_to_eels import normalize_transaction
 
 from mpt import EthereumState
 from mpt.state_diff import StateDiff
+
+
+def configure_logging():
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    )
+    logging.getLogger().setLevel(logging.DEBUG)
 
 
 def main():
@@ -111,7 +121,7 @@ def main():
             ),
         )
 
-        _output = apply_body(
+        output = apply_body(
             state=blockchain.state,
             block_hashes=get_last_256_block_hashes(blockchain),
             coinbase=block.header.coinbase,
@@ -127,13 +137,34 @@ def main():
             excess_blob_gas=calculate_excess_blob_gas(blockchain.blocks[-1].header),
         )
 
-        print("0x" + _output.state_root.hex())
+        print("Output (Partial State Root): 0x" + output.state_root.hex())
+
+        ## Sanity checks against real data
+        assert (
+            output.receipt_root.hex()
+            == "f7408684bd245988eaa30239b78518a2ab31db7b7e23552203aab6f90001095e"
+        )
+        assert (
+            output.transactions_root.hex()
+            == "4d521cdf2019a506274c9e0a84c6841513db1e2775f948bb9f77f9b4a6e0ad9b"
+        )
+        assert (
+            output.withdrawals_root.hex()
+            == "471afe7082598d7e55e23c2ad8ce64324db1dab29afcbb323485320eb5a9e68c"
+        )
+        assert (
+            output.block_logs_bloom.hex()
+            == "fff7ffffffffffffb7fddffffffdffffbfffff7feffffefdfffffefff7fff7bfffffbfffefffffd7ffbbffffafffdffffffffffffffffbff7ffffdffffffffbfffdffffffdffcffffffff7fffffffffffefff7ffffffefedfeffffeffbeffeffffff7ffeaf7f7ffffffffff6feffffeffffffffffffffedffeabffffc3ffddfd7fffef7f7efffffffffdffffdff7dffeffffbff3fffffdffffffffe7ffffffffff7ffdf5fffffffff3fffff7ffffbfff7ffffbfffeffcbffefffffffff9dbffff7ffffeffffffff7ffbfdfffffffbffdbff76bff77ffffffffffffff7ffffefefdf7fffffff7fddffffdffeeeffdfddff7fffffffffdfefdffbdfffffbffffff"
+        )
+        assert output.block_gas_used == Uint(31506905)
+        assert output.blob_gas_used == Uint(655360)
 
         post_state = blockchain.state
         state_diff = StateDiff.from_pre_post(pre_state_copy, post_state)
         ethereum_state.update_from_state_diff(state_diff)
-        print("0x" + ethereum_state.state_root.hex())
+        print("State Root: 0x" + ethereum_state.state_root.hex())
 
 
 if __name__ == "__main__":
+    configure_logging()
     main()

@@ -286,3 +286,240 @@ class TestStateDiffs:
         assert diff.account_diffs[ADDRESSES[3]].storage_updates[
             STORAGE_KEYS[3]
         ] == U256(0)
+
+    def test_account_creation_with_immediate_storage(self):
+        """Test creating an account and immediately adding storage."""
+        pre_state = State()
+        # No accounts in pre-state
+
+        post_state = State()
+        # Create a new account with storage
+        new_account = Account(nonce=Uint(1), balance=U256(1000), code=b"")
+        set_account(post_state, ADDRESSES[0], new_account)
+        # Immediately set storage
+        set_storage(post_state, ADDRESSES[0], STORAGE_KEYS[0], U256(123))
+        set_storage(post_state, ADDRESSES[0], STORAGE_KEYS[1], U256(456))
+
+        diff = StateDiff.from_pre_post(pre_state, post_state)
+
+        # Verify the account was created
+        assert ADDRESSES[0] in diff.account_diffs
+        assert diff.account_diffs[ADDRESSES[0]].account == new_account
+
+        # Verify the storage was created
+        assert len(diff.account_diffs[ADDRESSES[0]].storage_updates) == 2
+        assert diff.account_diffs[ADDRESSES[0]].storage_updates[
+            STORAGE_KEYS[0]
+        ] == U256(123)
+        assert diff.account_diffs[ADDRESSES[0]].storage_updates[
+            STORAGE_KEYS[1]
+        ] == U256(456)
+
+    def test_account_recreated_with_storage(self):
+        """Test deleting and recreating an account with different storage."""
+        pre_state = State()
+
+        # Create initial account with storage
+        account1 = Account(nonce=Uint(1), balance=U256(1000), code=b"code1")
+        set_account(pre_state, ADDRESSES[0], account1)
+        set_storage(pre_state, ADDRESSES[0], STORAGE_KEYS[0], U256(100))
+        set_storage(pre_state, ADDRESSES[0], STORAGE_KEYS[1], U256(200))
+
+        post_state = State()
+        # Create a different account at the same address with different storage
+        account2 = Account(nonce=Uint(1), balance=U256(2000), code=b"code2")
+        set_account(post_state, ADDRESSES[0], account2)
+        set_storage(post_state, ADDRESSES[0], STORAGE_KEYS[0], U256(300))  # Changed
+        set_storage(post_state, ADDRESSES[0], STORAGE_KEYS[2], U256(400))  # New key
+
+        diff = StateDiff.from_pre_post(pre_state, post_state)
+
+        # Verify account change
+        assert ADDRESSES[0] in diff.account_diffs
+        assert diff.account_diffs[ADDRESSES[0]].account == account2
+
+        # Verify storage changes
+        assert diff.account_diffs[ADDRESSES[0]].storage_updates[
+            STORAGE_KEYS[0]
+        ] == U256(300)
+        assert diff.account_diffs[ADDRESSES[0]].storage_updates[
+            STORAGE_KEYS[1]
+        ] == U256(
+            0
+        )  # Should be deleted
+        assert diff.account_diffs[ADDRESSES[0]].storage_updates[
+            STORAGE_KEYS[2]
+        ] == U256(400)
+
+    def test_deleted_account_with_zero_storage(self):
+        """Test deleting an account that has zero storage values."""
+        pre_state = State()
+
+        # Create account with explicit zero storage
+        account = Account(nonce=Uint(1), balance=U256(1000), code=b"code")
+        set_account(pre_state, ADDRESSES[0], account)
+        set_storage(pre_state, ADDRESSES[0], STORAGE_KEYS[0], U256(1))
+        set_storage(pre_state, ADDRESSES[0], STORAGE_KEYS[1], U256(100))
+
+        post_state = State()
+        # Account doesn't exist in post state (deleted)
+
+        diff = StateDiff.from_pre_post(pre_state, post_state)
+
+        # Verify account deletion
+        assert ADDRESSES[0] in diff.account_diffs
+        assert diff.account_diffs[ADDRESSES[0]].account is None
+
+        # Verify all storage is marked for deletion (including the zero value)
+        assert STORAGE_KEYS[0] in diff.account_diffs[ADDRESSES[0]].storage_updates
+        assert STORAGE_KEYS[1] in diff.account_diffs[ADDRESSES[0]].storage_updates
+        assert diff.account_diffs[ADDRESSES[0]].storage_updates[
+            STORAGE_KEYS[0]
+        ] == U256(0)
+        assert diff.account_diffs[ADDRESSES[0]].storage_updates[
+            STORAGE_KEYS[1]
+        ] == U256(0)
+
+    def test_large_storage_changes(self):
+        """Test with many storage changes to ensure all are captured."""
+        pre_state = State()
+        account = Account(nonce=Uint(1), balance=U256(1000), code=b"code")
+        set_account(pre_state, ADDRESSES[0], account)
+
+        # Create many storage entries
+        for i in range(20):
+            key = bytes.fromhex(f"{i:064}")  # Create unique keys
+            set_storage(pre_state, ADDRESSES[0], key, U256(i))
+
+        post_state = State()
+        set_account(post_state, ADDRESSES[0], account)
+
+        # Modify some, delete some, keep some, add some
+        for i in range(30):
+            key = bytes.fromhex(f"{i:064}")
+            if i < 5:  # Keep these the same
+                set_storage(post_state, ADDRESSES[0], key, U256(i))
+            elif i < 10:  # Modify these
+                set_storage(post_state, ADDRESSES[0], key, U256(i + 100))
+            elif i < 15:  # Delete these (don't set)
+                pass
+            elif i < 20:  # Set to zero
+                set_storage(post_state, ADDRESSES[0], key, U256(0))
+            else:  # Add new ones
+                set_storage(post_state, ADDRESSES[0], key, U256(i + 200))
+
+        diff = StateDiff.from_pre_post(pre_state, post_state)
+
+        # Verify no account change
+        assert ADDRESSES[0] in diff.account_diffs
+
+        # Verify correct number of storage changes
+        # 5 modified + 5 deleted + 5 set to zero + 10 new = 25 changes
+        assert len(diff.account_diffs[ADDRESSES[0]].storage_updates) == 25
+
+        for i in range(30):
+            key = bytes.fromhex(f"{i:064}")
+            if i < 5:  # Unchanged, shouldn't be in diff
+                assert key not in diff.account_diffs[ADDRESSES[0]].storage_updates
+            elif i < 10:  # Modified
+                assert diff.account_diffs[ADDRESSES[0]].storage_updates[key] == U256(
+                    i + 100
+                )
+            elif i < 15:  # Deleted
+                assert diff.account_diffs[ADDRESSES[0]].storage_updates[key] == U256(0)
+            elif i < 20:  # Set to zero
+                assert diff.account_diffs[ADDRESSES[0]].storage_updates[key] == U256(0)
+            else:  # New
+                assert diff.account_diffs[ADDRESSES[0]].storage_updates[key] == U256(
+                    i + 200
+                )
+
+    def test_empty_storage_in_pre_state(self):
+        """Test handling accounts with empty storage in pre state."""
+        pre_state = State()
+
+        # Create account with no storage
+        account = Account(nonce=Uint(1), balance=U256(1000), code=b"code")
+        set_account(pre_state, ADDRESSES[0], account)
+        set_storage(pre_state, ADDRESSES[0], STORAGE_KEYS[1], U256(10))
+
+        post_state = State()
+        # Same account
+        set_account(post_state, ADDRESSES[0], account)
+        # Add storage
+        set_storage(post_state, ADDRESSES[0], STORAGE_KEYS[0], U256(100))
+
+        diff = StateDiff.from_pre_post(pre_state, post_state)
+
+        # Verify storage additions
+        assert ADDRESSES[0] in diff.account_diffs
+        assert diff.account_diffs[ADDRESSES[0]].storage_updates[
+            STORAGE_KEYS[0]
+        ] == U256(100)
+        assert diff.account_diffs[ADDRESSES[0]].storage_updates[
+            STORAGE_KEYS[1]
+        ] == U256(0)
+
+    def test_empty_storage_in_post_state(self):
+        """Test handling accounts where all storage is removed."""
+        pre_state = State()
+
+        # Create account with storage
+        account = Account(nonce=Uint(1), balance=U256(1000), code=b"code")
+        set_account(pre_state, ADDRESSES[0], account)
+        set_storage(pre_state, ADDRESSES[0], STORAGE_KEYS[0], U256(100))
+        set_storage(pre_state, ADDRESSES[0], STORAGE_KEYS[1], U256(200))
+
+        post_state = State()
+        # Same account, but no storage
+        set_account(post_state, ADDRESSES[0], account)
+
+        diff = StateDiff.from_pre_post(pre_state, post_state)
+
+        # Verify all storage is deleted
+        assert ADDRESSES[0] in diff.account_diffs
+        assert diff.account_diffs[ADDRESSES[0]].storage_updates[
+            STORAGE_KEYS[0]
+        ] == U256(0)
+        assert diff.account_diffs[ADDRESSES[0]].storage_updates[
+            STORAGE_KEYS[1]
+        ] == U256(0)
+
+    def test_account_deleted_then_new_account_same_address(self):
+        """Test deleting an account and creating a new one at the same address in a different transaction."""
+        # This simulates what might happen across multiple blocks
+
+        # Step 1: Create and delete an account
+        pre_state1 = State()
+        account1 = Account(nonce=Uint(1), balance=U256(1000), code=b"code1")
+        set_account(pre_state1, ADDRESSES[0], account1)
+        set_storage(pre_state1, ADDRESSES[0], STORAGE_KEYS[0], U256(100))
+
+        post_state1 = State()
+        # Account is deleted
+
+        diff1 = StateDiff.from_pre_post(pre_state1, post_state1)
+        assert ADDRESSES[0] in diff1.account_diffs
+        assert diff1.account_diffs[ADDRESSES[0]].account is None
+
+        # Step 2: Create a new account at the same address
+        pre_state2 = post_state1  # Start from previous post state
+
+        post_state2 = State()
+        account2 = Account(nonce=Uint(2), balance=U256(2000), code=b"code2")
+        set_account(post_state2, ADDRESSES[0], account2)
+        set_storage(post_state2, ADDRESSES[0], STORAGE_KEYS[1], U256(200))
+
+        diff2 = StateDiff.from_pre_post(pre_state2, post_state2)
+
+        # Verify new account is created
+        assert ADDRESSES[0] in diff2.account_diffs
+        assert diff2.account_diffs[ADDRESSES[0]].account == account2
+
+        # Verify only the new storage is present
+        assert STORAGE_KEYS[1] in diff2.account_diffs[ADDRESSES[0]].storage_updates
+        assert diff2.account_diffs[ADDRESSES[0]].storage_updates[
+            STORAGE_KEYS[1]
+        ] == U256(200)
+        # The old storage key shouldn't be in the diff since it wasn't in pre_state2
+        assert STORAGE_KEYS[0] not in diff2.account_diffs[ADDRESSES[0]].storage_updates

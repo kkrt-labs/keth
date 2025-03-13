@@ -44,16 +44,6 @@ class TestEthereumState:
 
         assert result is not None
 
-    def test_get_account(self):
-        mpt = EthereumState.from_json("data/1/inputs/22009357.json")
-
-        account = mpt.get_account(ADDRESSES[0])
-
-        assert account.nonce == Uint(0)
-        # Some people sent money to precompile 0x01 🤷‍♂️
-        assert account.balance > U256(0)
-        assert account.code == b""
-
     def test_delete(self):
         mpt = EthereumState.from_json("data/1/inputs/22009357.json")
 

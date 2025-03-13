@@ -25,16 +25,6 @@ from ethereum_types.numeric import U256, Uint
 from mpt.state_diff import StateDiff
 
 logger = logging.getLogger("mpt")
-logger.propagate = False
-logger.setLevel(logging.DEBUG)
-if not logger.handlers:
-    ch = logging.StreamHandler()
-    ch.setLevel(logging.DEBUG)
-    formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    )
-    ch.setFormatter(formatter)
-    logger.addHandler(ch)
 
 
 EMPTY_TRIE_ROOT_HASH = Hash32(
@@ -113,19 +103,13 @@ class EthereumState:
         _main_trie: Trie[Address, Optional[Account]] = Trie(secured=True, default=None)
         _storage_tries: Dict[Address, Trie[Bytes32, U256]] = {}
 
+        logger.debug("Starting to convert EthereumState to State")
         for address in self.access_list.keys():
 
             account = self.get(keccak256(address))
             if account is None:
-                logger.debug(f"Account not found: {address} - Setting to empty account")
-                trie_set(
-                    _main_trie,
-                    address,
-                    Account(
-                        nonce=Uint(0),
-                        balance=U256(0),
-                        code=b"",
-                    ),
+                logger.debug(
+                    f"Account not found: {address} - Considering this an exclusion proof"
                 )
                 continue
 
@@ -186,7 +170,7 @@ class EthereumState:
                 for key in self.access_list[address]:
                     value = self.get(keccak256(key), Hash32(storage_root))
                     if value is None:
-                        logger.debug(
+                        logger.error(
                             f"Value is None for key: 0x{key.hex()} for address: 0x{address.hex()}"
                         )
                         continue
@@ -198,6 +182,7 @@ class EthereumState:
                         U256(int.from_bytes(rlp.decode(value), "big")),
                     )
 
+        logger.debug("Finished converting EthereumState to State")
         return State(
             _main_trie=_main_trie,
             _storage_tries=_storage_tries,
@@ -254,11 +239,15 @@ class EthereumState:
         Optional[Bytes]
             The value at the path, or None if not found
         """
+        is_state_access = False
         if root_hash is None:
             root_hash = self.state_root
+            # Debug flag to indicate that this is a state access
+            is_state_access = True
 
-        logger.debug(f"Getting value for path: {'0x' + path.hex() if path else 'None'}")
-        logger.debug(f"Starting from root hash: 0x{root_hash.hex()}")
+        logger.debug(
+            f"Getting value in {'state' if is_state_access else 'storage'} for path: {'0x' + path.hex() if path else 'None'}"
+        )
 
         # Check if the root hash exists in our nodes
         if root_hash not in self.nodes and root_hash != EMPTY_TRIE_ROOT_HASH:
@@ -270,7 +259,9 @@ class EthereumState:
         try:
             return self._get_node(root_hash, nibble_path)
         except Exception as e:
-            logger.error(f"Error in get: {str(e)}")
+            logger.error(
+                f"Error in {'state' if is_state_access else 'storage'} get: {str(e)}"
+            )
             return None
 
     def get_storage_root(self, address: Address) -> Optional[Hash32]:
@@ -279,30 +270,14 @@ class EthereumState:
         """
         account = self.get(keccak256(address))
         if account is None:
+            logger.debug(
+                f"get_storage_root: Account not found - Returning EMPTY_TRIE_ROOT_HASH - This means the account at address {address} was created in this block"
+            )
             return EMPTY_TRIE_ROOT_HASH
         decoded = rlp.decode(account)
         if len(decoded) != 4:
             raise ValueError(f"Invalid account length: {len(decoded)}")
         return Hash32(decoded[2])
-
-    def get_account(self, address: Address) -> Optional[Account]:
-        """
-        Get an account from the State trie.
-        """
-        account = self.get(keccak256(address))
-        if account is None:
-            return None
-
-        decoded = rlp.decode(account)
-        if len(decoded) != 4:
-            raise ValueError(f"Invalid account length: {len(decoded)}")
-
-        # TODO: Fix situation where code is not present in self.codes
-        return Account(
-            nonce=Uint(int.from_bytes(decoded[0], "big")),
-            balance=U256(int.from_bytes(decoded[1], "big")),
-            code=self.codes.get(decoded[3], b""),
-        )
 
     def _get_node(self, node_hash: Hash32, nibble_path: Bytes) -> Optional[Bytes]:
         """
@@ -415,7 +390,7 @@ class EthereumState:
                 return node.value
 
             raise ValueError(
-                f"Path does not match leaf key: {nibble_path.hex()} != {node.rest_of_key.hex()}"
+                f"Path does not match leaf key: {nibble_path_to_hex(nibble_path)} != {nibble_path_to_hex(node.rest_of_key)}"
             )
 
         raise ValueError(f"Unknown node type: {type(node)}")
@@ -526,6 +501,16 @@ class EthereumState:
         self.delete(path)
 
     def delete_storage_key(self, address: Address, key: Bytes32):
+        """
+        Delete a storage key for an account.
+
+        Parameters
+        ----------
+        address : Address
+            The address of the account
+        key : Bytes32
+            The key to delete
+        """
         account = self.get(keccak256(address))
         if account is None:
             logger.debug("Account not found, nothing to delete")
@@ -543,7 +528,7 @@ class EthereumState:
             decoded[2] = new_root_hash
             encoded = rlp.encode(decoded)
             self.upsert(keccak256(address), encoded)
-            return None
+            return
 
     def _delete_node(
         self, node_hash: Hash32, nibble_path: Bytes
@@ -703,21 +688,17 @@ class EthereumState:
         elif isinstance(node, ExtensionNode):
             logger.debug("Processing extension node for deletion")
 
-            # Get the key segment in nibble format
-            key_segment = node.key_segment
-            if not isinstance(key_segment, bytes):
-                key_segment = bytes_to_nibble_list(key_segment)
-
             # Check if the path matches the key segment
-            if len(nibble_path) < len(key_segment):
-                return node, False  # Path too short, nothing to delete
+            if len(nibble_path) < len(node.key_segment):
+                logger.error("Path too short, nothing to delete")
+                return node, False
 
-            for i in range(len(key_segment)):
-                if nibble_path[i] != key_segment[i]:
-                    return node, False  # Path mismatch, nothing to delete
+            for i in range(len(node.key_segment)):
+                if nibble_path[i] != node.key_segment[i]:
+                    logger.error("Path mismatch, nothing to delete")
+                    return node, False
 
-            # Path matches, continue with the remaining path
-            remaining_path = nibble_path[len(key_segment) :]
+            remaining_path = nibble_path[len(node.key_segment) :]
 
             # Recursively delete from the child
             if isinstance(node.subnode, bytes) and len(node.subnode) == 32:
@@ -725,7 +706,6 @@ class EthereumState:
                     Hash32(node.subnode), remaining_path
                 )
             elif isinstance(node.subnode, bytes) and len(node.subnode) < 32:
-                # Process embedded node
                 child_node = self._decode_node(node.subnode)
                 new_child, deleted = self._process_delete(child_node, remaining_path)
             else:
@@ -739,10 +719,14 @@ class EthereumState:
 
             # If the child is a leaf or extension, merge the paths
             if isinstance(new_child, LeafNode):
-                combined_path = bytes(key_segment) + new_child.rest_of_key
+                combined_path = bytes(node.key_segment) + new_child.rest_of_key
+                # INVARIANT: The combined path should be the same as the remaining path
+                assert combined_path == nibble_path
                 return LeafNode(rest_of_key=combined_path, value=new_child.value), True
             elif isinstance(new_child, ExtensionNode):
-                combined_path = bytes(key_segment) + new_child.key_segment
+                combined_path = bytes(node.key_segment) + new_child.key_segment
+                # INVARIANT: The combined path should be the same as the remaining path
+                assert combined_path == nibble_path
                 return (
                     ExtensionNode(key_segment=combined_path, subnode=new_child.subnode),
                     True,
@@ -757,24 +741,21 @@ class EthereumState:
                 new_child = encoded_child
 
             return (
-                ExtensionNode(key_segment=bytes(key_segment), subnode=new_child),
+                ExtensionNode(key_segment=bytes(node.key_segment), subnode=new_child),
                 True,
             )
 
         elif isinstance(node, LeafNode):
             logger.debug("Processing leaf node for deletion")
 
-            # Get the leaf key in nibble format
-            leaf_key = node.rest_of_key
-            if not isinstance(leaf_key, bytes):
-                leaf_key = bytes_to_nibble_list(leaf_key)
-
             # Check if the path matches exactly
-            if nibble_path == leaf_key:
+            if nibble_path == node.rest_of_key:
                 logger.debug("Path matches leaf key, deleting leaf")
                 return None, True
 
-            return node, False
+            raise ValueError(
+                f"Delete - Path does not match leaf key: {nibble_path_to_hex(nibble_path)} != {nibble_path_to_hex(node.rest_of_key)}"
+            )
 
         raise ValueError(f"Unknown node type: {type(node)}")
 
@@ -821,7 +802,11 @@ class EthereumState:
         if root_hash not in self.nodes:
             raise ValueError(f"Root hash not found: {root_hash.hex()}")
 
-        new_root_node, _ = self._upsert_node(root_hash, nibble_path, value)
+        try:
+            new_root_node, _ = self._upsert_node(root_hash, nibble_path, value)
+        except Exception as e:
+            logger.error(f"Error during upsert node: {e}")
+            raise e
 
         # Encode and hash the new root node
         encoded_node = encode_internal_node(new_root_node)
@@ -836,6 +821,18 @@ class EthereumState:
         return new_root_hash
 
     def upsert_storage_key(self, address: Address, key: Bytes32, value: Bytes):
+        """
+        Upsert a storage key for an account.
+
+        Parameters
+        ----------
+        address : Address
+            The address of the account
+        key : Bytes32
+            The key to upsert
+        value : Bytes
+            The value to upsert (RLP-encoded)
+        """
         account = self.get(keccak256(address))
         if account is None:
             logger.error(
@@ -866,6 +863,18 @@ class EthereumState:
         return
 
     def upsert_account(self, address: Address, value: Bytes, code: Bytes) -> None:
+        """
+        Upsert an account.
+
+        Parameters
+        ----------
+        address : Address
+            The address of the account
+        value : Bytes
+            The value to upsert (RLP-encoded [nonce, balance, storage_root, code_hash])
+        code : Bytes
+            The code to insert in the code store mapping CodeHash -> Code
+        """
         self.codes[keccak256(code)] = code
         path = keccak256(address)
         self.upsert(path, value)
@@ -1149,13 +1158,14 @@ class EthereumState:
             )
 
         elif isinstance(node, LeafNode):
-            logger.debug("Processing embedded leaf node")
+            logger.debug("Processing leaf node")
             # Rest of key is already a nibble list
 
             if nibble_path == node.rest_of_key:
                 if node.value == value:
                     return node, False
 
+                logger.debug(f"Leaf node value changed: {node.value} -> {value}")
                 return LeafNode(rest_of_key=node.rest_of_key, value=value), True
 
             # Paths diverge, need to create a branch
@@ -1165,6 +1175,10 @@ class EthereumState:
                 if node.rest_of_key[i] != nibble_path[i]:
                     break
                 common_prefix_len += 1
+
+            logger.debug(
+                f"Common prefix length: {common_prefix_len} for path {nibble_path.hex()} and {node.rest_of_key.hex()}"
+            )
 
             # Create a branch node at the divergence point
             branch_node = BranchNode(subnodes=tuple(b"" for _ in range(16)), value=b"")
@@ -1187,8 +1201,14 @@ class EthereumState:
                 else:
                     branch_subnodes[node.rest_of_key[common_prefix_len]] = encoded_leaf
                 branch_node = BranchNode(subnodes=tuple(branch_subnodes), value=b"")
+                logger.debug(
+                    f"Created a branch node at divergence point {common_prefix_len} for path {nibble_path.hex()} and {node.rest_of_key.hex()} and a leaf node"
+                )
             else:
                 # The leaf ends at the branch, add its value
+                logger.error(
+                    "Invariant broken: Leaf node ends at the branch, inserting a non-null value in a Branch node"
+                )
                 branch_node = BranchNode(
                     subnodes=branch_node.subnodes, value=node.value
                 )
@@ -1243,45 +1263,40 @@ class EthereumState:
         raise ValueError(f"Unknown node type: {type(node)}")
 
     def update_from_state_diff(self, state_diff: StateDiff):
-        """
-        Update the state based on a state diff.
-
-        Processes storage updates first, then account changes to ensure
-        correct storage roots are used when encoding accounts.
-
-        Parameters
-        ----------
-        state_diff : StateDiff
-            The state diff to apply
-        """
-        logger.debug(
-            f"Applying state diff with {len(state_diff.account_diffs)} account changes"
-        )
-
-        # Process all accounts in the diff
+        """Apply a state diff to the current state."""
+        # First pass: Create or delete accounts
+        logger.debug("Updating from state diff")
         for address, account_diff in state_diff.account_diffs.items():
-            # First: Process storage updates
-            for key, value in account_diff.storage_updates.items():
-                if value == U256(0):
-                    self.delete_storage_key(address, key)
-                else:
-                    self.upsert_storage_key(address, key, rlp.encode(value))
-
-            # Second: Process account update or deletion
             if account_diff.account is None:
+                # Delete account
+                logger.debug(f"Deleting account: {address}")
                 self.delete_account(address)
-            else:
-                # Store code
-                self.codes[keccak256(account_diff.account.code)] = (
-                    account_diff.account.code
+            elif isinstance(account_diff.account, Account):
+                logger.debug(
+                    f"Start updating account: {address} - getting storage root"
                 )
-
-                # Get current storage root (after storage updates)
                 storage_root = self.get_storage_root(address)
+                logger.debug(
+                    f"Storage root: {storage_root.hex() if storage_root != EMPTY_TRIE_ROOT_HASH else 'EMPTY_TRIE_ROOT_HASH'}"
+                )
+                encoded = encode_account(account_diff.account, storage_root)
+                logger.debug(
+                    f"Trying to upsert account: {address} - encoded: {encoded.hex()}"
+                )
+                self.upsert_account(address, encoded, account_diff.account.code)
+                logger.debug(f"Inserted account: {address}")
+                for key, value in account_diff.storage_updates.items():
+                    logger.debug(f"Inserting storage key: {key} - value: {value}")
+                    if value == U256(0):
+                        logger.debug(f"Deleting storage key: {key}")
+                        self.delete_storage_key(address, key)
+                    else:
+                        logger.debug(f"Inserting storage key: {key} - value: {value}")
+                        self.upsert_storage_key(address, key, rlp.encode(value))
 
-                # Update account with correct storage root
-                encoded_account = encode_account(account_diff.account, storage_root)
-                self.upsert(keccak256(address), encoded_account)
+            else:
+                raise ValueError(f"Unknown account type: {type(account_diff.account)}")
+        logger.debug("Finished updating from state diff")
 
 
 def decode_node(node: Bytes) -> InternalNode:
