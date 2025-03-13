@@ -18,6 +18,8 @@ pyo3 = { version = "0.23.3", features = [
   "experimental-inspect",
 ] }
 cairo-vm = { workspace = true }
+stwo-cairo-adapter = { workspace = true }
+stwo_cairo_prover = { workspace = true }
 num-traits = "0.2.18"
 num-bigint = "0.4.6"
 starknet-crypto = "0.7.4"
@@ -36,6 +38,9 @@ bincode = { version = "2.0.0-rc.3", default-features = false, features = [
   "serde",
 ] }
 chrono = "0.4.40"
+serde_json = "1.0"
+tracing-subscriber = "0.3.19"
+tracing = "0.1.41"
 
 [build-dependencies]
 pyo3-build-config = "0.23.3" # Should match pyo3 version

@@ -38,6 +38,14 @@ use std::{
     path::PathBuf,
     rc::Rc,
 };
+use stwo_cairo_prover::{
+    cairo_air::{
+        prover::{default_prod_prover_parameters, prove_cairo, ProverConfig},
+        verifier::verify_cairo,
+    },
+    stwo_prover::core::vcs::blake2_merkle::Blake2sMerkleChannel,
+};
+use tracing_subscriber::fmt::format::FmtSpan;
 
 #[pyclass(name = "CairoRunner", unsendable)]
 pub struct PyCairoRunner {
@@ -580,14 +588,23 @@ impl PyCairoRunner {
 
 /// Runs the Cairo program in proof mode with public and private inputs.
 /// Mimics the behavior of the `run` function from cairo-vm-cli.
-#[pyfunction(signature = (entrypoint, public_inputs, private_inputs, compiled_program_path, output_dir))]
+#[allow(clippy::too_many_arguments)]
+#[pyfunction(signature = (entrypoint, public_inputs, private_inputs, compiled_program_path, output_dir, stwo_proof=false, proof_path=None, verify=false))]
 pub fn run_proof_mode(
     entrypoint: String,
     public_inputs: PyObject,
     private_inputs: PyObject,
     compiled_program_path: String,
     output_dir: PathBuf,
+    stwo_proof: bool,
+    proof_path: Option<PathBuf>,
+    verify: bool,
 ) -> PyResult<()> {
+    tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::DEBUG)
+        .with_span_events(FmtSpan::ENTER | FmtSpan::CLOSE)
+        .init();
+
     let cairo_run_config: CairoRunConfig<'_> = CairoRunConfig {
         entrypoint: &entrypoint,
         trace_enabled: true,
@@ -659,7 +676,7 @@ except Exception as e:
     })?;
 
     let mut hint_processor = HintProcessor::default().with_dynamic_python_hints(false).build();
-    let cairo_runner: RustCairoRunner = match cairo_run::cairo_run_program_with_initial_scope(
+    let cairo_runner = match cairo_run::cairo_run_program_with_initial_scope(
         &program,
         &cairo_run_config,
         &mut hint_processor,
@@ -678,7 +695,35 @@ except Exception as e:
     let execution_resources = cairo_runner.get_execution_resources().unwrap();
     println!("Execution resources: {:?}", execution_resources);
 
-    // Write outputs
+    if stwo_proof {
+        // Convert CairoRunner to Stwo ProverInput
+        let cairo_input = stwo_cairo_adapter::plain::adapt_finished_runner(cairo_runner)
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+
+        let prover_config = ProverConfig { display_components: false };
+        let pcs_config = default_prod_prover_parameters().pcs_config;
+
+        // Generate the proof
+        let proof = prove_cairo::<Blake2sMerkleChannel>(cairo_input, prover_config, pcs_config)
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+
+        let proof_path = proof_path.unwrap_or_else(|| output_dir.join("proof.json"));
+        std::fs::write(
+            &proof_path,
+            serde_json::to_string(&proof)
+                .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?,
+        )?;
+
+        // Optional verification
+        if verify {
+            verify_cairo::<Blake2sMerkleChannel>(proof, pcs_config)
+                .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+            println!("Proof verified successfully");
+        }
+        return Ok(());
+    }
+
+    // Write execution outputs to files.
     let trace_path = output_dir.join("trace.bin");
     let memory_path = output_dir.join("memory.bin");
     let air_public_input = output_dir.join("air_public_input.json");
@@ -722,23 +767,6 @@ except Exception as e:
         .serialize_json()
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
     std::fs::write(&air_private_input, json)?;
-
-    let json = cairo_runner
-        .get_air_public_input()
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?
-        .serialize_json()
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
-    std::fs::write(&air_public_input, json)
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
-
-    let json = cairo_runner
-        .get_air_private_input()
-        .to_serializable(trace_path.clone(), memory_path.clone())
-        .serialize_json()
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
-    std::fs::write(&air_private_input, json)
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
-
     Ok(())
 }
 

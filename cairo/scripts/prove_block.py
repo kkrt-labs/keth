@@ -8,7 +8,7 @@ import json
 import logging
 import sys
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from ethereum.cancun.blocks import Block, Withdrawal
 from ethereum.cancun.fork import BlockChain, apply_body, get_last_256_block_hashes
@@ -56,6 +56,22 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         default=Path("build/main.json"),
         help="Path to compiled Cairo program (default: ./build/main.json)",
+    )
+    parser.add_argument(
+        "--stwo-proof",
+        action="store_true",
+        help="Generate Stwo proof instead of traditional proof artifacts",
+    )
+    parser.add_argument(
+        "--proof-path",
+        type=Path,
+        default=Path("output/proof.json"),
+        help="Path to save the Stwo proof (required when --stwo-proof is used). Default: ./output/proof.json",
+    )
+    parser.add_argument(
+        "--verify",
+        action="store_true",
+        help="Verify the Stwo proof after generation (only used with --stwo-proof)",
     )
     return parser.parse_args()
 
@@ -179,7 +195,13 @@ def load_zkpi_fixture(zkpi_path: Path) -> Dict[str, Any]:
 
 
 def run_proof(
-    block_number: int, output_dir: Path, zkpi_path: Path, compiled_program: Path
+    block_number: int,
+    output_dir: Path,
+    zkpi_path: Path,
+    compiled_program: Path,
+    stwo_proof: bool = False,
+    proof_path: Optional[Path] = None,
+    verify: bool = False,
 ) -> None:
     """Run the proof generation process for the given block."""
     # Ensure output directory exists
@@ -201,8 +223,17 @@ def run_proof(
         private_inputs={},
         compiled_program_path=str(compiled_program.absolute()),
         output_dir=str(output_dir.absolute()),
+        stwo_proof=stwo_proof,
+        proof_path=str(proof_path.absolute()) if proof_path else None,
+        verify=verify,
     )
-    logger.info(f"Proof artifacts saved to {output_dir}")
+
+    if stwo_proof:
+        logger.info(f"Stwo proof saved to {proof_path}")
+        if verify:
+            logger.info("Proof verified successfully")
+    else:
+        logger.info(f"Proof artifacts saved to {output_dir}")
 
 
 def main() -> int:
@@ -218,7 +249,15 @@ def main() -> int:
     zkpi_path = args.data_dir / f"{args.block_number}.json"
 
     try:
-        run_proof(args.block_number, args.output_dir, zkpi_path, args.compiled_program)
+        run_proof(
+            args.block_number,
+            args.output_dir,
+            zkpi_path,
+            args.compiled_program,
+            args.stwo_proof,
+            args.proof_path,
+            args.verify,
+        )
         return 0
     except FileNotFoundError as e:
         logger.error(f"File error: {e}")
