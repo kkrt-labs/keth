@@ -39,7 +39,7 @@ bincode = { version = "2.0.0-rc.3", default-features = false, features = [
 ] }
 chrono = "0.4.40"
 serde_json = "1.0"
-tracing-subscriber = "0.3.19"
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 tracing = "0.1.41"
 
 [build-dependencies]

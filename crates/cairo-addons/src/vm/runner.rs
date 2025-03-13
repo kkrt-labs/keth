@@ -38,6 +38,7 @@ use std::{
     path::PathBuf,
     rc::Rc,
 };
+use stwo_cairo_adapter::ExecutionResources as ProverExecutionResources;
 use stwo_cairo_prover::{
     cairo_air::{
         prover::{default_prod_prover_parameters, prove_cairo, ProverConfig},
@@ -45,7 +46,7 @@ use stwo_cairo_prover::{
     },
     stwo_prover::core::vcs::blake2_merkle::Blake2sMerkleChannel,
 };
-use tracing_subscriber::fmt::format::FmtSpan;
+use tracing_subscriber::{filter::EnvFilter, fmt::format::FmtSpan};
 
 #[pyclass(name = "CairoRunner", unsendable)]
 pub struct PyCairoRunner {
@@ -600,9 +601,12 @@ pub fn run_proof_mode(
     proof_path: Option<PathBuf>,
     verify: bool,
 ) -> PyResult<()> {
+    // Limit tracing to the current module
+    let filter = EnvFilter::new("vm::vm::runner=info,warn");
     tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::DEBUG)
+        .with_max_level(tracing::Level::INFO)
         .with_span_events(FmtSpan::ENTER | FmtSpan::CLOSE)
+        .with_env_filter(filter)
         .init();
 
     let cairo_run_config: CairoRunConfig<'_> = CairoRunConfig {
@@ -676,6 +680,9 @@ except Exception as e:
     })?;
 
     let mut hint_processor = HintProcessor::default().with_dynamic_python_hints(false).build();
+
+    let run_span = tracing::span!(tracing::Level::INFO, "cairo_run_program");
+    let _run_span_guard = run_span.enter();
     let cairo_runner = match cairo_run::cairo_run_program_with_initial_scope(
         &program,
         &cairo_run_config,
@@ -684,21 +691,26 @@ except Exception as e:
     ) {
         Ok(runner) => runner,
         Err(error) => {
-            eprintln!("{error}");
+            tracing::error!("Failed to run program: {}", error);
             panic!("Failed to run block, exiting");
         }
     };
-
-    let datetime = chrono::Local::now();
-    println!("{} - INFO - Run finished", datetime.format("%Y-%m-%d %H:%M:%S%.3f"));
+    drop(_run_span_guard);
 
     let execution_resources = cairo_runner.get_execution_resources().unwrap();
-    println!("Execution resources: {:?}", execution_resources);
+    tracing::info!("Execution resources: {:?}", execution_resources);
 
     if stwo_proof {
+        // Create a performance tracing span for proof generation
+        let proof_span = tracing::span!(tracing::Level::INFO, "stwo_proof_generation");
+        let _proof_span_guard = proof_span.enter();
+
         // Convert CairoRunner to Stwo ProverInput
         let cairo_input = stwo_cairo_adapter::plain::adapt_finished_runner(cairo_runner)
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+
+        let prover_execution_resources = ProverExecutionResources::from_prover_input(&cairo_input);
+        tracing::debug!("Prover Execution resources: {:#?}", prover_execution_resources);
 
         let prover_config = ProverConfig { display_components: false };
         let pcs_config = default_prod_prover_parameters().pcs_config;
@@ -706,6 +718,8 @@ except Exception as e:
         // Generate the proof
         let proof = prove_cairo::<Blake2sMerkleChannel>(cairo_input, prover_config, pcs_config)
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+        drop(_proof_span_guard);
+        tracing::info!("Proof generation completed");
 
         let proof_path = proof_path.unwrap_or_else(|| output_dir.join("proof.json"));
         std::fs::write(
@@ -713,15 +727,24 @@ except Exception as e:
             serde_json::to_string(&proof)
                 .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?,
         )?;
+        tracing::info!("Proof written to {}", proof_path.display());
 
         // Optional verification
         if verify {
+            let verify_span = tracing::span!(tracing::Level::INFO, "proof_verification");
+            let _verify_span_guard = verify_span.enter();
+
             verify_cairo::<Blake2sMerkleChannel>(proof, pcs_config)
                 .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
-            println!("Proof verified successfully");
+            drop(_verify_span_guard);
+            tracing::info!("Proof verified successfully");
         }
         return Ok(());
     }
+
+    // Create a performance tracing span for output writing
+    let output_span = tracing::span!(tracing::Level::INFO, "write_outputs");
+    let _output_span_guard = output_span.enter();
 
     // Write execution outputs to files.
     let trace_path = output_dir.join("trace.bin");
@@ -735,6 +758,7 @@ except Exception as e:
             .as_ref()
             .ok_or(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>("Trace not relocated"))?;
 
+    tracing::info!("Writing trace to {}", trace_path.display());
     let trace_file = std::fs::File::create(&trace_path)?;
     let mut trace_writer =
         FileWriter::new(io::BufWriter::with_capacity(3 * 1024 * 1024, trace_file));
@@ -743,6 +767,7 @@ except Exception as e:
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
     trace_writer.flush()?;
 
+    tracing::info!("Writing memory to {}", memory_path.display());
     let memory_file = std::fs::File::create(&memory_path)?;
     let mut memory_writer =
         FileWriter::new(io::BufWriter::with_capacity(5 * 1024 * 1024, memory_file));
@@ -750,6 +775,7 @@ except Exception as e:
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
     memory_writer.flush()?;
 
+    tracing::info!("Writing air public input to {}", air_public_input.display());
     let json = cairo_runner
         .get_air_public_input()
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?
@@ -758,6 +784,7 @@ except Exception as e:
     std::fs::write(&air_public_input, json)
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
 
+    tracing::info!("Writing air private input to {}", air_private_input.display());
     let trace_path = trace_path.canonicalize().unwrap_or(trace_path).to_string_lossy().to_string();
     let memory_path =
         memory_path.canonicalize().unwrap_or(memory_path).to_string_lossy().to_string();
@@ -767,6 +794,8 @@ except Exception as e:
         .serialize_json()
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
     std::fs::write(&air_private_input, json)?;
+
+    tracing::info!("All outputs written successfully");
     Ok(())
 }
 
