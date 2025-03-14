@@ -24,7 +24,7 @@ from ethereum_types.numeric import (
 )
 from scripts.zkpi_to_eels import normalize_transaction
 
-from mpt import EthereumState
+from mpt import StateTries
 from mpt.state_diff import StateDiff
 
 
@@ -37,7 +37,7 @@ def configure_logging():
 
 
 def main():
-    ethereum_state = EthereumState.from_json("data/1/inputs/22046042.json")
+    ethereum_state = StateTries.from_json("data/1/inputs/22046042.json")
     pre_state = ethereum_state.to_state()
 
     # We make a deep copy of the State to be able to compute State Diffs
@@ -346,13 +346,13 @@ def compare_account_proofs(rpc_proof, state_account, address):
     return matches
 
 
-def check_address_storage(ethereum_state: EthereumState, address, block_number):
+def check_address_storage(ethereum_state: StateTries, address, block_number):
     """
     Check all storage keys for a specific address.
 
     Parameters
     ----------
-    ethereum_state : EthereumState
+    ethereum_state : StateTries
         The state to check against
     address : Address
         The address to check

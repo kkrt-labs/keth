@@ -9,7 +9,7 @@ from ethereum_spec_tools.evm_tools.loaders.fixture_loader import Load
 from ethereum_types.bytes import Bytes, Bytes32
 from ethereum_types.numeric import U256, Uint
 
-from mpt import EMPTY_TRIE_ROOT_HASH, EthereumState
+from mpt import EMPTY_TRIE_ROOT_HASH, StateTries
 
 # A set of encoded storage keys and values for testing
 STORAGE_KEYS: list[Bytes32] = [U256(i).to_be_bytes32() for i in range(1, 6)]
@@ -29,13 +29,13 @@ TEST_ACCOUNT = Account(
 )
 
 
-class TestEthereumState:
+class TestStateTries:
     def test_from_json(self):
-        mpt = EthereumState.from_json("data/1/inputs/22009357.json")
+        mpt = StateTries.from_json("data/1/inputs/22009357.json")
         assert mpt is not None
 
     def test_get(self):
-        mpt = EthereumState.from_json("data/1/inputs/22009357.json")
+        mpt = StateTries.from_json("data/1/inputs/22009357.json")
 
         random_address = list(mpt.access_list.keys())[0]
 
@@ -46,7 +46,7 @@ class TestEthereumState:
         assert result is not None
 
     def test_delete(self):
-        mpt = EthereumState.from_json("data/1/inputs/22009357.json")
+        mpt = StateTries.from_json("data/1/inputs/22009357.json")
 
         # Using an address from the JSON file that we know exists
         test_address = Address(
@@ -60,7 +60,7 @@ class TestEthereumState:
         assert mpt.get(keccak256(test_address)) is None
 
     def test_upsert(self):
-        mpt = EthereumState.from_json("data/1/inputs/22009357.json")
+        mpt = StateTries.from_json("data/1/inputs/22009357.json")
 
         encoded_account = encode_account(TEST_ACCOUNT, EMPTY_TRIE_ROOT_HASH)
 
@@ -74,14 +74,14 @@ class TestEthereumState:
         assert mpt.get(keccak256(test_address)) == encoded_account
 
     def test_to_state(self):
-        mpt = EthereumState.from_json("data/1/inputs/22009357.json")
+        mpt = StateTries.from_json("data/1/inputs/22009357.json")
 
         state = mpt.to_state()
 
         assert state is not None
 
     def test_to_state_with_diff_testing(self):
-        mpt = EthereumState.from_json("data/1/inputs/22009357.json")
+        mpt = StateTries.from_json("data/1/inputs/22009357.json")
 
         with open("data/1/eels/22009357.json", "r") as f:
             fixture = json.load(f)
@@ -94,7 +94,7 @@ class TestEthereumState:
         assert state == expected_state
 
     def test_to_state_from_simple_operations(self):
-        mpt = EthereumState.create_empty()
+        mpt = StateTries.create_empty()
 
         encoded_account = encode_account(TEST_ACCOUNT, EMPTY_TRIE_ROOT_HASH)
 
@@ -107,7 +107,7 @@ class TestEthereumState:
 
     def test_storage_operations(self):
         """Test that storage operations work correctly with empty and existing storage roots."""
-        mpt = EthereumState.create_empty()
+        mpt = StateTries.create_empty()
 
         # Create an account with empty storage
         encoded_account = encode_account(TEST_ACCOUNT, EMPTY_TRIE_ROOT_HASH)
@@ -150,7 +150,7 @@ class TestEthereumState:
 
     def test_branch_node_reduction(self):
         """Test that branch node reductions work correctly during deletions."""
-        mpt = EthereumState.create_empty()
+        mpt = StateTries.create_empty()
 
         # Create an account with empty storage
         encoded_account = encode_account(TEST_ACCOUNT, EMPTY_TRIE_ROOT_HASH)
@@ -187,8 +187,8 @@ class TestEthereumState:
     def test_state_diff_application(self):
         """Test applying a state diff to an MPT."""
         # Create two empty MPTs
-        original_mpt = EthereumState.create_empty()
-        modified_mpt = EthereumState.create_empty()
+        original_mpt = StateTries.create_empty()
+        modified_mpt = StateTries.create_empty()
 
         # Add an account to both
         encoded_account = encode_account(TEST_ACCOUNT, EMPTY_TRIE_ROOT_HASH)
@@ -229,7 +229,7 @@ class TestEthereumState:
 
     def test_empty_storage_operations(self):
         """Test operations on empty storage."""
-        mpt = EthereumState.create_empty()
+        mpt = StateTries.create_empty()
 
         # Create an account with empty storage
         encoded_account = encode_account(TEST_ACCOUNT, EMPTY_TRIE_ROOT_HASH)
@@ -251,7 +251,7 @@ class TestEthereumState:
 
     def RLP_test_large_storage_values(self):
         """Test handling of large storage values."""
-        mpt = EthereumState.create_empty()
+        mpt = StateTries.create_empty()
 
         # Create an account
         encoded_account = encode_account(TEST_ACCOUNT, EMPTY_TRIE_ROOT_HASH)

@@ -51,7 +51,7 @@ def nibble_path_to_hex(nibble_path: Bytes) -> Bytes:
     return "0x" + result.hex()
 
 
-class EthereumState:
+class StateTries:
     """
     Represents the (partial) state of Ethereum for a given block.
     Includes all account MPT leaf nodes and storage MPT leaf nodes and all intermediary nodes touched in a block,
@@ -64,7 +64,7 @@ class EthereumState:
     state_root: Hash32
 
     @classmethod
-    def create_empty(cls) -> "EthereumState":
+    def create_empty(cls) -> "StateTries":
         return cls(
             nodes={},
             codes={},
@@ -90,7 +90,7 @@ class EthereumState:
 
     def to_state(self) -> State:
         """
-        Convert the EthereumState to a State object.
+        Convert the StateTries to a State object.
 
         Returns
         -------
@@ -102,7 +102,7 @@ class EthereumState:
         _main_trie: Trie[Address, Optional[Account]] = Trie(secured=True, default=None)
         _storage_tries: Dict[Address, Trie[Bytes32, U256]] = {}
 
-        logger.debug("Starting to convert EthereumState to State")
+        logger.debug("Starting to convert StateTries to State")
         for address in self.access_list.keys():
 
             account = self.get(keccak256(address))
@@ -121,7 +121,7 @@ class EthereumState:
                 code = b""
             else:
                 code = self.codes.get(decoded[3], None)
-                # TODO: This is a hack to get the code for codes not present in the EthereumState object
+                # TODO: This is a hack to get the code for codes not present in the StateTries object
                 # This is due to accessing code only through EXTCODEHASH opcode
                 if code is None:
                     payload = {
@@ -182,14 +182,14 @@ class EthereumState:
                         U256(int.from_bytes(rlp.decode(value), "big")),
                     )
 
-        logger.error("Finished converting EthereumState to State")
+        logger.error("Finished converting StateTries to State")
         return State(
             _main_trie=_main_trie,
             _storage_tries=_storage_tries,
         )
 
     @classmethod
-    def from_json(cls, path: str) -> "EthereumState":
+    def from_json(cls, path: str) -> "StateTries":
         logger.debug(f"Loading MPT from JSON file: {path}")
         with open(path, "r") as f:
             data = json.load(f)
