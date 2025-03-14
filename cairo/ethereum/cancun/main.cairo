@@ -1,6 +1,4 @@
 %builtins output range_check bitwise keccak poseidon range_check96 add_mod mul_mod
-// In proof mode running with RustVM requires declaring all builtins and taking them as entrypoint
-// This is probably a mis-handling from the RustVM side.
 
 from starkware.cairo.common.cairo_builtins import (
     BitwiseBuiltin,
