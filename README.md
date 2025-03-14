@@ -122,7 +122,7 @@ Requirements:
 - Block must be post-Cancun fork (block number ≥ 19426587)
 - ZKPI data must be available as a JSON file
 - Compiled Cairo program must exist at the specified path (you can run
-  `cairo-compile --proof_mode cairo/ethereum/cancun/main.cairo --cairo_path=cairo --no_debug_info --output build/main.json`
+  `cairo-compile --proof_mode cairo/ethereum/cancun/main.cairo --cairo_path=cairo --no_debug_info --output build/main_compiled.json`
   for that)
 
 The script will load the ZKPI data for the specified block, convert it to the

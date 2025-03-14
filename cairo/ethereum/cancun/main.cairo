@@ -1,4 +1,6 @@
-%builtins output range_check bitwise keccak poseidon range_check96 add_mod mul_mod
+%builtins output pedersen range_check ecdsa bitwise ec_op keccak poseidon range_check96 add_mod mul_mod
+// In proof mode running with RustVM requires declaring all builtins of the layout and taking them as entrypoint
+// see: <https://github.com/lambdaclass/cairo-vm/issues/2004>
 
 from starkware.cairo.common.cairo_builtins import (
     BitwiseBuiltin,
@@ -9,13 +11,16 @@ from starkware.cairo.common.cairo_builtins import (
     SignatureBuiltin,
     EcOpBuiltin,
 )
-from ethereum.cancun.fork import state_transition, BlockChain, Block
+from ethereum.cancun.fork import state_transition, BlockChain, Block, keccak256_header
 from ethereum_types.bytes import Bytes32
 
 func main{
     output_ptr: felt*,
+    pedersen_ptr: HashBuiltin*,
     range_check_ptr,
+    ecdsa_ptr: SignatureBuiltin*,
     bitwise_ptr: BitwiseBuiltin*,
+    ec_op_ptr: EcOpBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
     range_check96_ptr: felt*,
@@ -26,17 +31,12 @@ func main{
 
     local chain: BlockChain;
     local block: Block;
-    local block_hash: Bytes32;
     %{
         from ethereum.cancun.fork import BlockChain, Block
         from ethereum_types.bytes import Bytes32
 
-        # Note: for efficiency purposes, we don't use the `ids` object to
-        # avoid loading program identifiers into the context.
-        # see: README of cairo-addons crate
-        memory[fp] = gen_arg(BlockChain, public_inputs["blockchain"])
-        memory[fp + 1] = gen_arg(Block, public_inputs["block"])
-        memory[fp + 2] = gen_arg(Bytes32, public_inputs["block_hash"])
+        ids.chain = gen_arg(BlockChain, program_inputs["blockchain"])
+        ids.block = gen_arg(Block, program_inputs["block"])
     %}
 
     let parent_header = chain.value.blocks.value.data[
@@ -47,7 +47,7 @@ func main{
 
     state_transition{chain=chain}(block);
 
-    // TODO: we must ensure that hash of last block = block_hash
+    let block_hash = keccak256_header(block.value.header);
 
     assert [output_ptr] = pre_state_root.value.low;
     assert [output_ptr + 1] = pre_state_root.value.high;

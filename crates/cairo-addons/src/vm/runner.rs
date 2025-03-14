@@ -590,11 +590,10 @@ impl PyCairoRunner {
 /// Runs the Cairo program in proof mode with public and private inputs.
 /// Mimics the behavior of the `run` function from cairo-vm-cli.
 #[allow(clippy::too_many_arguments)]
-#[pyfunction(signature = (entrypoint, public_inputs, private_inputs, compiled_program_path, output_dir, stwo_proof=false, proof_path=None, verify=false))]
+#[pyfunction(signature = (entrypoint, program_inputs, compiled_program_path, output_dir, stwo_proof=false, proof_path=None, verify=false))]
 pub fn run_proof_mode(
     entrypoint: String,
-    public_inputs: PyObject,
-    private_inputs: PyObject,
+    program_inputs: PyObject,
     compiled_program_path: String,
     output_dir: PathBuf,
     stwo_proof: bool,
@@ -638,8 +637,7 @@ pub fn run_proof_mode(
     Python::with_gil(|py| {
         let context = PyDict::new(py);
 
-        context.set_item("public_inputs", public_inputs)?;
-        context.set_item("private_inputs", private_inputs)?;
+        context.set_item("program_inputs", program_inputs)?;
 
         let identifiers = program
             .iter_identifiers()

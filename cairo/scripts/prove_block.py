@@ -53,8 +53,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--compiled-program",
         type=Path,
-        default=Path("build/main.json"),
-        help="Path to compiled Cairo program (default: ./build/main.json)",
+        default=Path("build/main_compiled.json"),
+        help="Path to compiled Cairo program (default: ./build/main_compiled.json)",
     )
     parser.add_argument(
         "--stwo-proof",
@@ -182,7 +182,7 @@ def load_zkpi_fixture(zkpi_path: Path) -> Dict[str, Any]:
     )
 
     # Prepare inputs
-    public_inputs = {
+    program_inputs = {
         "block": block,
         "blockchain": chain,
         "block_hash": Bytes32(
@@ -190,7 +190,7 @@ def load_zkpi_fixture(zkpi_path: Path) -> Dict[str, Any]:
         ),
     }
 
-    return public_inputs
+    return program_inputs
 
 
 def prove_block(
@@ -212,14 +212,13 @@ def prove_block(
 
     # Load ZKPI data
     logger.info(f"Fetching ZKPI data for block {block_number}")
-    public_inputs = load_zkpi_fixture(zkpi_path)
+    program_inputs = load_zkpi_fixture(zkpi_path)
 
     # Generate proof
     logger.info(f"Running Keth for block {block_number}")
     run_proof_mode(
         entrypoint="main",
-        public_inputs=public_inputs,
-        private_inputs={},
+        program_inputs=program_inputs,
         compiled_program_path=str(compiled_program.absolute()),
         output_dir=str(output_dir.absolute()),
         stwo_proof=stwo_proof,
