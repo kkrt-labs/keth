@@ -91,6 +91,8 @@ fixturedef
 fixturemanager
 fixturenames
 flatmap
+frob
+Frobenius
 fromhex
 frozendict
 fspath

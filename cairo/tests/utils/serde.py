@@ -41,6 +41,7 @@ from ethereum.cancun.fork_types import Account, Address
 from ethereum.cancun.state import State, TransientStorage
 from ethereum.cancun.trie import Trie
 from ethereum.cancun.vm.exceptions import InvalidOpcode
+from ethereum.crypto.alt_bn128 import BNF12
 from ethereum.crypto.hash import Hash32
 from ethereum_types.bytes import (
     Bytes,
@@ -76,6 +77,7 @@ from starkware.cairo.lang.vm.memory_dict import UnknownMemoryError
 from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 
 from cairo_addons.testing.serde import SerdeProtocol
+from cairo_addons.utils.uint256 import uint256_to_int
 from cairo_addons.vm import MemorySegmentManager as RustMemorySegmentManager
 from tests.utils.args_gen import (
     U384,
@@ -424,6 +426,19 @@ class Serde(SerdeProtocol):
             return U384(combined_value)
         if python_cls in (Bytes0, Bytes1, Bytes4, Bytes8, Bytes20):
             return python_cls(value.to_bytes(python_cls.LENGTH, "little"))
+
+        if python_cls == BNF12:
+            # BNF12 is represented as a struct with 12 Uint256
+            # We need to extract these values and create a BNF12 object
+            if value is None:
+                return None
+
+            coeffs = [
+                uint256_to_int(value[f"c{i}"]["low"], value[f"c{i}"]["high"])
+                for i in range(12)
+            ]
+
+            return BNF12(tuple(coeffs))
 
         # Because some types are wrapped in a value field, e.g. Account{ value: AccountStruct }
         # this may not work, so that we catch the error and try to fallback.
