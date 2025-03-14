@@ -433,12 +433,10 @@ class Serde(SerdeProtocol):
             if value is None:
                 return None
 
-            coeffs = []
-            for i in range(12):
-                low = value[f"c{i}"]["low"]
-                high = value[f"c{i}"]["high"]
-                coeff_value = uint256_to_int(low, high)
-                coeffs.append(coeff_value)
+            coeffs = [
+                uint256_to_int(value[f"c{i}"]["low"], value[f"c{i}"]["high"])
+                for i in range(12)
+            ]
 
             return BNF12(tuple(coeffs))
 
