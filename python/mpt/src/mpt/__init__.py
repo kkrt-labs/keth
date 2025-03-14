@@ -1032,23 +1032,29 @@ class EthereumState:
 
             # Find the common prefix length
             common_prefix_len = common_prefix_length(key_segment, nibble_path)
+            logger.debug(
+                f"Common prefix length: {common_prefix_len} for key_segment: {key_segment.hex()} and nibble_path: {nibble_path.hex()}"
+            )
 
             # If the paths diverge
             if common_prefix_len < len(key_segment):
                 # Create a branch node at the divergence point
-                branch_node = BranchNode(
-                    subnodes=tuple(b"" for _ in range(16)), value=b""
+                logger.debug(
+                    f"Creating branch node at divergence point {common_prefix_len} for key_segment: {key_segment.hex()} and nibble_path: {nibble_path.hex()}"
                 )
+                branch_subnodes = [b"" for _ in range(16)]
 
                 # Add the existing extension's suffix as one branch
                 if common_prefix_len + 1 < len(key_segment):
+                    logger.debug(
+                        f"Adding existing extension's suffix as one branch for key_segment {key_segment[common_prefix_len + 1 :].hex()}"
+                    )
                     # Create a new extension node with the remaining segment
                     new_ext = ExtensionNode(
                         key_segment=key_segment[common_prefix_len + 1 :],
                         subnode=node.subnode,
                     )
                     encoded_ext = encode_internal_node(new_ext)
-                    branch_subnodes = list(branch_node.subnodes)
                     if len(encoded_ext) >= 32:
                         ext_hash = keccak256(encoded_ext)
                         self.nodes[ext_hash] = encoded_ext
@@ -1059,7 +1065,6 @@ class EthereumState:
                     # The extension ends at the branch, add its subnode directly
                     # INVARIANT: The extension must end at the branch
                     assert common_prefix_len + 1 == len(key_segment)
-                    branch_subnodes = list(branch_node.subnodes)
                     branch_subnodes[key_segment[common_prefix_len]] = node.subnode
 
                 # Add the new path as another branch
@@ -1084,6 +1089,9 @@ class EthereumState:
                     raise ValueError(
                         "Invariant: cannot insert or update a branch node value"
                     )
+
+                logger.debug(f"New Branch Node: {branch_subnodes}")
+                branch_node = BranchNode(subnodes=tuple(branch_subnodes), value=b"")
 
                 # If there's a common prefix, create a new extension node
                 if common_prefix_len > 0:
