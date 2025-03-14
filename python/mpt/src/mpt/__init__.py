@@ -271,7 +271,7 @@ class EthereumState:
         account = self.get(keccak256(address))
         if account is None:
             logger.debug(
-                f"get_storage_root: Account not found - This means the account at address 0x{address.hex()} was created in this block"
+                "get_storage_root: Account not found - Return EMPTY_TRIE_ROOT_HASH"
             )
             return EMPTY_TRIE_ROOT_HASH
         decoded = rlp.decode(account)
@@ -390,7 +390,7 @@ class EthereumState:
                 return node.value
 
             raise ValueError(
-                f"(Maybe Exclusion proof or Error) Path does not match leaf key: {nibble_path_to_hex(nibble_path)} != {nibble_path_to_hex(node.rest_of_key)}"
+                f"Path does not match leaf key: {nibble_path_to_hex(nibble_path)} != {nibble_path_to_hex(node.rest_of_key)}"
             )
 
         raise ValueError(f"Unknown node type: {type(node)}")
@@ -491,6 +491,9 @@ class EthereumState:
             if root_hash == self.state_root:
                 self.state_root = new_root_hash
 
+            logger.debug(
+                f"Deleted value for path: {'0x' + path.hex() if path else 'None'} - new root hash: 0x{new_root_hash.hex()}"
+            )
             return new_root_hash
         except Exception as e:
             logger.error(f"Error in delete: {str(e)}")
@@ -519,6 +522,8 @@ class EthereumState:
         if len(decoded) != 4:
             raise ValueError(f"Invalid account length: {len(decoded)}")
         storage_root = Hash32(decoded[2])
+
+        # Delete the storage key
         path = keccak256(key)
         new_root_hash = self.delete(path, storage_root)
         if new_root_hash is None:
@@ -861,6 +866,9 @@ class EthereumState:
         if new_root_hash == storage_root:
             logger.debug("Nothing to update, storage root is the same")
             return
+        logger.debug(
+            f"Updating storage root for account: 0x{address.hex()} - new root hash: 0x{new_root_hash.hex()}"
+        )
         decoded[2] = new_root_hash
         encoded = rlp.encode(decoded)
         self.upsert(keccak256(address), encoded)
@@ -1280,28 +1288,34 @@ class EthereumState:
                     f"Start updating account: 0x{address.hex()} - getting storage root"
                 )
                 storage_root = self.get_storage_root(address)
-                logger.debug(
-                    f"Storage root: {storage_root.hex() if storage_root != EMPTY_TRIE_ROOT_HASH else 'EMPTY_TRIE_ROOT_HASH'}"
-                )
-                encoded = encode_account(account_diff.account, storage_root)
-                logger.debug(
-                    f"Trying to upsert account: 0x{address.hex()} - encoded: {encoded.hex()}"
-                )
-                self.upsert_account(address, encoded, account_diff.account.code)
-                logger.debug(f"Inserted account: 0x{address.hex()}")
                 for key, value in account_diff.storage_updates.items():
-                    if value == U256(0):
-                        logger.debug(f"Deleting storage key: 0x{key.hex()}")
-                        self.delete_storage_key(address, key)
+                    if value != U256(0):
+                        logger.debug(
+                            f"Inserting storage key: 0x{key.hex()} - for address 0x{address.hex()} - value: {value}"
+                        )
+                        storage_root = self.upsert(
+                            keccak256(key), rlp.encode(value), storage_root
+                        )
                     else:
                         logger.debug(
-                            f"Inserting storage key: {key.hex()} - value: {value}"
+                            f"Deleting storage key: 0x{key.hex()} - for address 0x{address.hex()}"
                         )
-                        self.upsert_storage_key(address, key, rlp.encode(value))
+                        storage_root = self.delete(keccak256(key), storage_root)
+
+                if storage_root is not None:
+                    logger.debug(
+                        f"Storage root: 0x{storage_root.hex() if storage_root != EMPTY_TRIE_ROOT_HASH else 'EMPTY_TRIE_ROOT_HASH'}"
+                    )
+                    encoded = encode_account(account_diff.account, storage_root)
+                    logger.debug(
+                        f"Trying to upsert account: 0x{address.hex()} - encoded: {encoded.hex()}"
+                    )
+                    self.upsert_account(address, encoded, account_diff.account.code)
+                    logger.debug(f"Inserted account: 0x{address.hex()}")
 
             else:
                 raise ValueError(f"Unknown account type: {type(account_diff.account)}")
-        logger.error("Finished updating from state diff")
+        logger.debug("Finished updating from state diff")
 
 
 def decode_node(node: Bytes) -> InternalNode:

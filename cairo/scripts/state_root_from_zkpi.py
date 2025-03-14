@@ -11,11 +11,12 @@ from ethereum.cancun.fork import (
 from ethereum.cancun.fork_types import Address
 from ethereum.cancun.state import State, copy_trie
 from ethereum.cancun.transactions import LegacyTransaction, encode_transaction
+from ethereum.crypto.hash import keccak256
 from ethereum.utils.hexadecimal import hex_to_bytes, hex_to_u256, hex_to_uint
 from ethereum_spec_tools.evm_tools.loaders.fixture_loader import Load
 from ethereum_spec_tools.evm_tools.loaders.fork_loader import ForkLoad
 from ethereum_spec_tools.evm_tools.loaders.transaction_loader import TransactionLoad
-from ethereum_types.bytes import Bytes, Bytes0
+from ethereum_types.bytes import Bytes, Bytes0, Bytes32
 from ethereum_types.numeric import (
     U64,
     U256,
@@ -32,11 +33,11 @@ def configure_logging():
         level=logging.DEBUG,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
-    logging.getLogger().setLevel(logging.ERROR)
+    logging.getLogger().setLevel(logging.DEBUG)
 
 
 def main():
-    ethereum_state = EthereumState.from_json("data/1/inputs/22009357.json")
+    ethereum_state = EthereumState.from_json("data/1/inputs/22046042.json")
     pre_state = ethereum_state.to_state()
 
     # We make a deep copy of the State to be able to compute State Diffs
@@ -45,7 +46,7 @@ def main():
         _storage_tries={k: copy_trie(v) for k, v in pre_state._storage_tries.items()},
     )
 
-    with open("data/1/inputs/22009357.json", "r") as f:
+    with open("data/1/inputs/22046042.json", "r") as f:
         data = json.load(f)
 
     # Create the Blockchain and Block objects
@@ -141,30 +142,375 @@ def main():
 
         ## Sanity checks against real data
         assert (
-            output.receipt_root.hex()
-            == "f7408684bd245988eaa30239b78518a2ab31db7b7e23552203aab6f90001095e"
+            output.receipt_root.hex() == data["blocks"][0]["header"]["receiptsRoot"][2:]
         )
         assert (
             output.transactions_root.hex()
-            == "4d521cdf2019a506274c9e0a84c6841513db1e2775f948bb9f77f9b4a6e0ad9b"
+            == data["blocks"][0]["header"]["transactionsRoot"][2:]
         )
         assert (
             output.withdrawals_root.hex()
-            == "471afe7082598d7e55e23c2ad8ce64324db1dab29afcbb323485320eb5a9e68c"
+            == data["blocks"][0]["header"]["withdrawalsRoot"][2:]
         )
         assert (
             output.block_logs_bloom.hex()
-            == "fff7ffffffffffffb7fddffffffdffffbfffff7feffffefdfffffefff7fff7bfffffbfffefffffd7ffbbffffafffdffffffffffffffffbff7ffffdffffffffbfffdffffffdffcffffffff7fffffffffffefff7ffffffefedfeffffeffbeffeffffff7ffeaf7f7ffffffffff6feffffeffffffffffffffedffeabffffc3ffddfd7fffef7f7efffffffffdffffdff7dffeffffbff3fffffdffffffffe7ffffffffff7ffdf5fffffffff3fffff7ffffbfff7ffffbfffeffcbffefffffffff9dbffff7ffffeffffffff7ffbfdfffffffbffdbff76bff77ffffffffffffff7ffffefefdf7fffffff7fddffffdffeeeffdfddff7fffffffffdfefdffbdfffffbffffff"
+            == data["blocks"][0]["header"]["logsBloom"][2:]
         )
-        assert output.block_gas_used == Uint(31506905)
-        assert output.blob_gas_used == Uint(655360)
+        assert output.block_gas_used == Uint(
+            int(data["blocks"][0]["header"]["gasUsed"][2:], 16)
+        )
+        assert output.blob_gas_used == Uint(
+            int(data["blocks"][0]["header"]["blobGasUsed"][2:], 16)
+        )
 
         post_state = blockchain.state
         state_diff = StateDiff.from_pre_post(pre_state_copy, post_state)
         ethereum_state.update_from_state_diff(state_diff)
-        print(
-            f"{'✅' if '0x' + ethereum_state.state_root.hex() == '0x7d0cea43dd56a78b14a0e980a4680a28e496365aeaa55a6981ce1af273cae55b' else '❌'} State Root: 0x{ethereum_state.state_root.hex()} - should be 0x7d0cea43dd56a78b14a0e980a4680a28e496365aeaa55a6981ce1af273cae55b"
+        success = (
+            "✅"
+            if ethereum_state.state_root.hex()
+            == data["blocks"][0]["header"]["stateRoot"][2:]
+            else "❌"
         )
+        print(
+            f"{success} State Root: 0x{ethereum_state.state_root.hex()} - should be 0x{data['blocks'][0]['header']['stateRoot'][2:]}"
+        )
+
+        # # Checksum
+        # if success == "❌":
+        #     for address in ethereum_state.access_list.keys():
+        #         # Get the account from an RPC request at block 22046042
+        #         proof = get_account_proof(address, 22046042)
+
+        #         if proof:
+        #             # Compare with what we have in ethereum_state
+        #             account_in_state = ethereum_state.get(keccak256(address))
+        #             if account_in_state:
+        #                 is_match = compare_account_proofs(
+        #                     proof, account_in_state, address
+        #                 )
+        #                 if not is_match:
+        #                     check_address_storage(ethereum_state, address, 22046042)
+
+
+def get_account_proof(address, block_number):
+    """
+    Get account proof from the Ethereum node using eth_getProof.
+
+    Parameters
+    ----------
+    address : Address
+        The address to get the proof for
+    block_number : int
+        The block number to get the proof at
+
+    Returns
+    -------
+    dict
+        The account proof data or None if there was an error
+    """
+    import logging
+    import os
+
+    import requests
+
+    logger = logging.getLogger("account_checksum")
+
+    # Convert block number to hex
+    block_hex = "0x" + hex(block_number)[2:]
+    addr_hex = "0x" + address.hex()
+
+    # Use eth_getProof with empty storage keys array to get just the account proof
+    proof_payload = {
+        "jsonrpc": "2.0",
+        "method": "eth_getProof",
+        "params": [
+            addr_hex,
+            [],  # Empty array for storage keys - we only want account proof
+            block_hex,
+        ],
+        "id": 1,
+    }
+
+    try:
+        logger.debug(f"Fetching account proof for: {addr_hex} at block {block_hex}")
+        response = requests.post(
+            os.environ["CHAIN_RPC_URL"], json=proof_payload, timeout=30
+        )
+
+        if response.status_code != 200:
+            logger.error(f"Failed to fetch proof: HTTP {response.status_code}")
+            return None
+
+        result = response.json()
+        if "error" in result:
+            logger.error(f"RPC error: {result['error']}")
+            return None
+
+        proof = result.get("result", {})
+
+        # Extract and log account information
+        balance = int(proof.get("balance", "0x0"), 16)
+        nonce = int(proof.get("nonce", "0x0"), 16)
+        storage_hash = proof.get("storageHash", "0x0")
+        code_hash = proof.get("codeHash", "0x0")
+
+        logger.debug(f"Account {addr_hex}:")
+        logger.debug(f"  Balance: {balance}")
+        logger.debug(f"  Nonce: {nonce}")
+        logger.debug(f"  Storage Root: {storage_hash}")
+        logger.debug(f"  Code Hash: {code_hash}")
+
+        return proof
+
+    except Exception as e:
+        logger.error(f"Error fetching proof: {str(e)}")
+        return None
+
+
+def compare_account_proofs(rpc_proof, state_account, address):
+    """
+    Compare account proof from RPC with account in state.
+
+    Parameters
+    ----------
+    rpc_proof : dict
+        The account proof from RPC
+    state_account : Bytes
+        The RLP-encoded account from the state
+    address : Address
+        The address of the account
+
+    Returns
+    -------
+    bool
+        True if the accounts match, False otherwise
+    """
+    import logging
+
+    from ethereum_rlp import rlp
+
+    logger = logging.getLogger("account_checksum")
+
+    addr_hex = "0x" + address.hex()
+
+    # Extract RPC account data
+    balance = int(rpc_proof.get("balance", "0x0"), 16)
+    nonce = int(rpc_proof.get("nonce", "0x0"), 16)
+    storage_hash = rpc_proof.get("storageHash", "0x0").lower()
+    code_hash = rpc_proof.get("codeHash", "0x0").lower()
+
+    # Extract state account data
+    decoded = rlp.decode(state_account)
+    if len(decoded) != 4:
+        logger.error(f"Invalid account format in state for {addr_hex}")
+        return False
+
+    state_nonce = int.from_bytes(decoded[0], "big")
+    state_balance = int.from_bytes(decoded[1], "big")
+    state_storage_root = "0x" + decoded[2].hex()
+    state_code_hash = "0x" + decoded[3].hex()
+
+    # Log comparison
+    logger.debug(f"Comparing account {addr_hex}:")
+    logger.debug(f"  Nonce: {state_nonce} (state) vs {nonce} (RPC)")
+    logger.debug(f"  Balance: {state_balance} (state) vs {balance} (RPC)")
+    logger.debug(
+        f"  Storage Root: {state_storage_root} (state) vs {storage_hash} (RPC)"
+    )
+    logger.debug(f"  Code Hash: {state_code_hash} (state) vs {code_hash} (RPC)")
+
+    # Check for mismatches
+    matches = True
+    if state_nonce != nonce:
+        logger.error(f"❌ Nonce mismatch for {addr_hex}: {state_nonce} vs {nonce}")
+        matches = False
+    if state_balance != balance:
+        logger.error(
+            f"❌ Balance mismatch for {addr_hex}: {state_balance} vs {balance}"
+        )
+        matches = False
+    if state_storage_root.lower() != storage_hash:
+        logger.error(
+            f"❌ Storage root mismatch for {addr_hex} - State: {state_storage_root} | RPC: {storage_hash}"
+        )
+        matches = False
+
+    if state_code_hash.lower() != code_hash:
+        logger.error(f"❌ Code hash mismatch for {addr_hex}!")
+        matches = False
+
+    if matches:
+        logger.debug(f"✅ Account {addr_hex} matches between state and RPC")
+
+    return matches
+
+
+def check_address_storage(ethereum_state: EthereumState, address, block_number):
+    """
+    Check all storage keys for a specific address.
+
+    Parameters
+    ----------
+    ethereum_state : EthereumState
+        The state to check against
+    address : Address
+        The address to check
+    block_number : int
+        The block number to check at
+    """
+    from ethereum_rlp import rlp
+
+    logger = logging.getLogger("account_checksum")
+
+    print(f"\n🔍 Checking storage for address: 0x{address.hex()}")
+
+    # Get storage keys for this address from the access list
+    storage_keys = ethereum_state.access_list.get(address)
+    if not storage_keys:
+        logger.error(f"No storage keys in access list for address: 0x{address.hex()}")
+        return
+
+    # Get storage root for this address
+    storage_root = ethereum_state.get_storage_root(address)
+    if not storage_root:
+        print(f"No storage root found for address: 0x{address.hex()}")
+        return
+
+    print(f"Storage root in state: 0x{storage_root.hex()}")
+
+    # Get account proof with all storage keys
+    storage_keys_hex = ["0x" + key.hex() for key in storage_keys]
+    proof = get_storage_proof(address, block_number, storage_keys_hex)
+
+    if not proof:
+        print(f"Failed to get storage proof for address: 0x{address.hex()}")
+        return
+
+    logger.debug(f"Storage root from RPC: {proof.get('storageHash', 'Not found')}")
+
+    # Compare storage values
+    if "storageProof" not in proof:
+        logger.error("No storage proof in RPC response")
+        return
+
+    print(f"\nChecking {len(proof['storageProof'])} storage keys:")
+    mismatches = 0
+
+    for storage_proof in proof["storageProof"]:
+        key_hex = storage_proof["key"]
+        key_bytes = Bytes32(bytes.fromhex(key_hex[2:]))
+
+        # Get value from RPC
+        rpc_value_hex = storage_proof["value"]
+        rpc_value = int(rpc_value_hex, 16)
+
+        # Get value from our state
+        state_value_bytes = None
+        try:
+            state_value_bytes = ethereum_state.get(keccak256(key_bytes), storage_root)
+        except Exception as e:
+            print(f"  ❌ Error getting storage value for key {key_hex}: {str(e)}")
+            mismatches += 1
+            continue
+
+        if state_value_bytes:
+            try:
+                state_value_decoded = rlp.decode(state_value_bytes)
+                state_value = int.from_bytes(state_value_decoded, "big")
+
+                if state_value != rpc_value:
+                    print(f"  ❌ Storage value mismatch for key {key_hex}:")
+                    print(f"    State: {state_value} (0x{state_value:x})")
+                    print(f"    RPC:   {rpc_value} (0x{rpc_value:x})")
+                    mismatches += 1
+                else:
+                    print(f"  ✅ Storage key {key_hex}: Value matches ({rpc_value})")
+            except Exception as e:
+                print(f"  ❌ Error decoding storage value for key {key_hex}: {str(e)}")
+                mismatches += 1
+        else:
+            if rpc_value != 0:
+                print(
+                    f"  ❌ Storage key {key_hex} not found in state but has value {rpc_value_hex} in RPC"
+                )
+                mismatches += 1
+            else:
+                print(
+                    f"  ✅ Storage key {key_hex}: Both state and RPC have zero/empty value"
+                )
+
+    print(
+        f"\nStorage check complete: {mismatches} mismatches found out of {len(proof['storageProof'])} keys"
+    )
+
+
+def get_storage_proof(address, block_number, storage_keys):
+    """
+    Get storage proof from the Ethereum node using eth_getProof.
+
+    Parameters
+    ----------
+    address : Address
+        The address to get the proof for
+    block_number : int
+        The block number to get the proof at
+    storage_keys : list
+        List of storage keys to include in the proof
+
+    Returns
+    -------
+    dict
+        The storage proof data or None if there was an error
+    """
+    import os
+
+    import requests
+
+    logger = logging.getLogger("account_checksum")
+
+    # Convert block number to hex
+    block_hex = "0x" + hex(block_number)[2:]
+    addr_hex = "0x" + address.hex()
+
+    # Use eth_getProof with storage keys
+    proof_payload = {
+        "jsonrpc": "2.0",
+        "method": "eth_getProof",
+        "params": [
+            addr_hex,
+            storage_keys,
+            block_hex,
+        ],
+        "id": 1,
+    }
+
+    try:
+        logger.info(
+            f"Fetching storage proof for: {addr_hex} with {len(storage_keys)} keys at block {block_hex}"
+        )
+        response = requests.post(
+            os.environ["CHAIN_RPC_URL"], json=proof_payload, timeout=60
+        )
+
+        if response.status_code != 200:
+            logger.error(f"Failed to fetch storage proof: HTTP {response.status_code}")
+            return None
+
+        result = response.json()
+        if "error" in result:
+            logger.error(f"RPC error: {result['error']}")
+            return None
+
+        proof = result.get("result", {})
+        logger.info(
+            f"Received storage proof with {len(proof.get('storageProof', []))} storage values"
+        )
+        return proof
+
+    except Exception as e:
+        logger.error(f"Error fetching storage proof: {str(e)}")
+        return None
 
 
 if __name__ == "__main__":
