@@ -352,3 +352,59 @@ func BNF12_I_PLUS_9() -> BNF12 {
     );
     return BNF12_I_PLUS_9;
 }
+
+func BNF12_ZERO() -> BNF12 {
+    tempvar bnf12_zero = BNF12(
+        new BNF12Struct(
+            Uint256(0, 0),
+            Uint256(0, 0),
+            Uint256(0, 0),
+            Uint256(0, 0),
+            Uint256(0, 0),
+            Uint256(0, 0),
+            Uint256(0, 0),
+            Uint256(0, 0),
+            Uint256(0, 0),
+            Uint256(0, 0),
+            Uint256(0, 0),
+            Uint256(0, 0),
+        ),
+    );
+    return bnf12_zero;
+}
+
+// alt_bn128 curve defined over BNF12
+// BNP12 represents a point on the curve
+struct BNP12Struct {
+    x: BNF12,
+    y: BNF12,
+}
+
+struct BNP12 {
+    value: BNP12Struct*,
+}
+
+func A() -> BNF12 {
+    let bnf12_zero = BNF12_ZERO();
+    return bnf12_zero;
+}
+
+func B() -> BNF12 {
+    tempvar bnf12_three = BNF12(
+        new BNF12Struct(
+            Uint256(3, 0),
+            Uint256(0, 0),
+            Uint256(0, 0),
+            Uint256(0, 0),
+            Uint256(0, 0),
+            Uint256(0, 0),
+            Uint256(0, 0),
+            Uint256(0, 0),
+            Uint256(0, 0),
+            Uint256(0, 0),
+            Uint256(0, 0),
+            Uint256(0, 0),
+        ),
+    );
+    return bnf12_three;
+}

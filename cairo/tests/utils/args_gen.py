@@ -101,7 +101,7 @@ from ethereum.cancun.vm import Evm as EvmBase
 from ethereum.cancun.vm import Message as MessageBase
 from ethereum.cancun.vm.gas import ExtendMemory, MessageCallGas
 from ethereum.cancun.vm.interpreter import MessageCallOutput as MessageCallOutputBase
-from ethereum.crypto.alt_bn128 import BNF12
+from ethereum.crypto.alt_bn128 import BNF12, BNP12
 from ethereum.crypto.hash import Hash32
 from ethereum.exceptions import EthereumException
 from ethereum_rlp.rlp import Extended, Simple
@@ -709,6 +709,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("tests", "legacy", "utils", "test_dict", "MappingUintUint"): Mapping[Uint, Uint],
     ("ethereum", "crypto", "alt_bn128", "BNF12"): BNF12,
     ("ethereum", "crypto", "alt_bn128", "TupleBNF12"): Tuple[BNF12, ...],
+    ("ethereum", "crypto", "alt_bn128", "BNP12"): BNP12,
 }
 
 # In the EELS, some functions are annotated with Sequence while it's actually just Bytes.
@@ -988,6 +989,22 @@ def _gen_arg(
             coeffs.extend(int_to_uint256(coeff))
         segments.load_data(base, coeffs)
         return base
+
+    if arg_type is BNP12:
+        if arg is None:
+            return 0
+
+        struct_ptr = segments.add()
+
+        # Handle the x and y coordinates recursively
+        x_ptr = _gen_arg(dict_manager, segments, BNF12, arg.x)
+        y_ptr = _gen_arg(dict_manager, segments, BNF12, arg.y)
+
+        # Store the coordinates in the struct
+        segments.load_data(struct_ptr, [x_ptr])
+        segments.load_data(struct_ptr + 1, [y_ptr])
+
+        return struct_ptr
 
     if arg_type is Bytes256:
         if for_dict_key:

@@ -1,4 +1,4 @@
-from ethereum.crypto.alt_bn128 import BNF12
+from ethereum.crypto.alt_bn128 import BNF12, BNP12
 
 
 class TestAltBn128:
@@ -23,3 +23,11 @@ class TestAltBn128:
     def test_BNF12_I_PLUS_9(self, cairo_run):
         cairo_i_plus_9 = cairo_run("BNF12_I_PLUS_9")
         assert cairo_i_plus_9 == BNF12.i_plus_9
+
+    def test_A(self, cairo_run):
+        cairo_a = cairo_run("A")
+        assert cairo_a == BNP12.A
+
+    def test_B(self, cairo_run):
+        cairo_b = cairo_run("B")
+        assert cairo_b == BNP12.B

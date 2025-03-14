@@ -24,7 +24,7 @@ from ethereum.cancun.transactions import (
 )
 from ethereum.cancun.trie import BranchNode, ExtensionNode, LeafNode, Trie, copy_trie
 from ethereum.cancun.vm import Environment, Evm, Message
-from ethereum.crypto.alt_bn128 import BNF12
+from ethereum.crypto.alt_bn128 import BNF12, BNP12
 from ethereum.crypto.elliptic_curve import SECP256K1N
 from ethereum.crypto.hash import Hash32
 from ethereum.exceptions import EthereumException
@@ -526,6 +526,63 @@ bnf12_strategy = st.builds(
 )
 
 
+# Point at infinity
+bnp12_infinity = BNP12(
+    BNF12((0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)),
+    BNF12((0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)),
+)
+
+# The altbn128 generator (1, 2)
+bnp12_g1 = BNP12(
+    BNF12((1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)),
+    BNF12((2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)),
+)
+
+
+def compute_sqrt_mod_p(a, p):
+    """
+    Compute the square root of a modulo p using the Tonelli-Shanks algorithm
+    which is simplified for p ≡ 3 (mod 4), case of alt_bn128.
+    For alt_bn128, we can use the formula: sqrt(a) = a^((p+1)/4) mod p
+    Use Euler's criterion to check if a is a quadratic residue.
+    Returns None if a is not one.
+    """
+    if pow(a, (p - 1) // 2, p) != 1:
+        return None
+    return pow(a, (p + 1) // 4, p)
+
+
+def generate_valid_point(x_value):
+    p = BNF12.PRIME
+
+    # Calculate the right side of the curve equation: x³ + 3
+    right_side = (pow(x_value, 3, p) + 3) % p
+
+    # Compute the square root if it exists
+    y_value = compute_sqrt_mod_p(right_side, p)
+
+    if y_value is None:
+        return None  # No valid point for this x value
+
+    # Create the point with the computed coordinates
+    # Only populate the first element of the BNF12 tuples
+    x_coords = (x_value,) + (0,) * 11
+    y_coords = (y_value,) + (0,) * 11
+
+    return BNP12(BNF12(x_coords), BNF12(y_coords))
+
+
+# Strategy for BNP12 points on the curve
+bnp12_strategy = st.one_of(
+    st.just(bnp12_infinity),
+    st.just(bnp12_g1),
+    # Generate points with correctly computed y-coordinates
+    st.integers(min_value=1, max_value=1000)
+    .map(lambda x: generate_valid_point(x))
+    .filter(lambda x: x is not None),
+)
+
+
 def register_type_strategies():
     st.register_type_strategy(U64, uint64)
     st.register_type_strategy(Uint, uint)
@@ -617,3 +674,4 @@ def register_type_strategies():
         st.binary(min_size=31, max_size=31).map(lambda x: VersionedHash(b"\x01" + x)),
     )
     st.register_type_strategy(BNF12, bnf12_strategy)
+    st.register_type_strategy(BNP12, bnp12_strategy)
