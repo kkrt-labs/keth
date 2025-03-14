@@ -167,30 +167,29 @@ def main():
         state_diff = StateDiff.from_pre_post(pre_state_copy, post_state)
         ethereum_state.update_from_state_diff(state_diff)
         success = (
-            "✅"
-            if ethereum_state.state_root.hex()
+            ethereum_state.state_root.hex()
             == data["blocks"][0]["header"]["stateRoot"][2:]
-            else "❌"
         )
-        print(
-            f"{success} State Root: 0x{ethereum_state.state_root.hex()} - should be 0x{data['blocks'][0]['header']['stateRoot'][2:]}"
+        assert (
+            ethereum_state.state_root.hex()
+            == data["blocks"][0]["header"]["stateRoot"][2:]
         )
 
-        # # Checksum
-        # if success == "❌":
-        #     for address in ethereum_state.access_list.keys():
-        #         # Get the account from an RPC request at block 22046042
-        #         proof = get_account_proof(address, 22046042)
+        # Checksum
+        if not success:
+            for address in ethereum_state.access_list.keys():
+                # Get the account from an RPC request at block 22046042
+                proof = get_account_proof(address, 22046042)
 
-        #         if proof:
-        #             # Compare with what we have in ethereum_state
-        #             account_in_state = ethereum_state.get(keccak256(address))
-        #             if account_in_state:
-        #                 is_match = compare_account_proofs(
-        #                     proof, account_in_state, address
-        #                 )
-        #                 if not is_match:
-        #                     check_address_storage(ethereum_state, address, 22046042)
+                if proof:
+                    # Compare with what we have in ethereum_state
+                    account_in_state = ethereum_state.get(keccak256(address))
+                    if account_in_state:
+                        is_match = compare_account_proofs(
+                            proof, account_in_state, address
+                        )
+                        if not is_match:
+                            check_address_storage(ethereum_state, address, 22046042)
 
 
 def get_account_proof(address, block_number):
