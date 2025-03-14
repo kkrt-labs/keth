@@ -204,6 +204,7 @@ build-backend = "hatchling.build"
 packages = ["cairo/src", "cairo/tests", "cairo/scripts"]
 
 [project.scripts]
-compile_os = "scripts.compile_cairo:compile_os"
-compile_fibonacci = "scripts.compile_cairo:compile_fibonacci"
+compile = "scripts.compile_cairo:main"
+compile_keth = "scripts.compile_cairo:compile_keth"
 zkpi_to_eels = "scripts.zkpi_to_eels:main"
+prove-block = "scripts.prove_block:main"

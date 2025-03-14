@@ -196,6 +196,7 @@ def process_zkpi_file(zkpi_file: Path, do_check: bool = False) -> None:
         "newBlockParameters": create_eels_block_parameters(zkpi_data["block"]),
         "pre": convert_accounts(zkpi_data, code_hashes),
         "chainId": zkpi_data["chainConfig"].get("chainId", 1),
+        "newBlockHash": zkpi_data["block"]["hash"],
         "ancestors": zkpi_data["ancestors"][::-1],
     }
 

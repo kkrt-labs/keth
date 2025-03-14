@@ -26,9 +26,7 @@ use super::{
     hint_loader::load_python_hints,
 };
 
-#[cfg(feature = "pythonic-hints")]
 use super::pythonic_hint::generic_python_hint;
-#[cfg(feature = "pythonic-hints")]
 use cairo_vm::hint_processor::builtin_hint_processor::builtin_hint_processor_definition::HintProcessorData;
 
 /// A struct representing a hint.
@@ -63,10 +61,10 @@ pub struct HintProcessor {
     python_hints: HashMap<String, String>,
     /// A fallback function that will be used if the hint is not found
     /// and will interpret the hint code as Python code.
-    #[cfg(feature = "pythonic-hints")]
     pythonic_hint_executor: Option<Rc<HintFunc>>,
-    #[cfg(not(feature = "pythonic-hints"))]
-    pythonic_hint_executor: Option<()>,
+    /// Whether to enable execution of hints containing log traces.
+    /// Enabling this considerably slows down the execution speed.
+    enable_traces: bool,
 }
 
 impl HintProcessor {
@@ -79,17 +77,24 @@ impl HintProcessor {
             inner: BuiltinHintProcessor::new(HashMap::new(), run_resources),
             python_hints,
             pythonic_hint_executor: None,
+            enable_traces: false,
         }
     }
 
+    /// Add hints to the hint processor
+    ///
+    /// If map_python_code is true, the hint code will be mapped to the expanded python code, not
+    /// the id string.
     #[must_use]
     pub fn with_hints(mut self, hints: Vec<fn() -> Hint>) -> Self {
         for fn_hint in hints {
             let hint = fn_hint();
-            self.inner.add_hint(
-                self.python_hints.get(&hint.id).unwrap_or(&hint.id).to_string(),
-                hint.func.clone(),
-            );
+            // map hint_id -> hint_func
+            self.inner.add_hint(hint.id.clone(), hint.func.clone());
+            // map pythonic_hint_code -> hint_func
+            if let Some(hint_code) = self.python_hints.get(&hint.id) {
+                self.inner.add_hint(hint_code.clone(), hint.func.clone());
+            }
         }
         self
     }
@@ -100,22 +105,18 @@ impl HintProcessor {
             inner: BuiltinHintProcessor::new(self.inner.extra_hints, run_resources),
             python_hints: self.python_hints,
             pythonic_hint_executor: self.pythonic_hint_executor,
+            enable_traces: self.enable_traces,
         }
     }
 
     /// Add support for dynamic Python hints
-    #[cfg(feature = "pythonic-hints")]
+    /// If enable_traces is true, the hint processor will be able to execute hints with log-specific
+    /// context, like `ids` data, `serialize`, and `logger.trace`.
     #[must_use]
-    pub fn with_dynamic_python_hints(mut self) -> Self {
+    pub fn with_dynamic_python_hints(mut self, enable_traces: bool) -> Self {
         // Store the generic Python hint executor for fallback
+        self.enable_traces = enable_traces;
         self.pythonic_hint_executor = Some(generic_python_hint().func.clone());
-        self
-    }
-
-    /// No-op version for when dynamic hints are disabled
-    #[cfg(not(feature = "pythonic-hints"))]
-    #[must_use]
-    pub fn with_dynamic_python_hints(self) -> Self {
         self
     }
 
@@ -125,6 +126,7 @@ impl HintProcessor {
             inner: self.inner,
             python_hints: self.python_hints,
             pythonic_hint_executor: self.pythonic_hint_executor,
+            enable_traces: self.enable_traces,
         }
     }
 }
@@ -145,7 +147,6 @@ impl HintProcessorLogic for HintProcessor {
 
         match result {
             Ok(_) => Ok(()),
-            #[cfg(feature = "pythonic-hints")]
             Err(HintError::UnknownHint(_hint_str)) => {
                 // If the hint is unknown and we have a dynamic hint executor, try it
                 if let Some(pythonic_hint_func) = &self.pythonic_hint_executor {
@@ -159,6 +160,11 @@ impl HintProcessorLogic for HintProcessor {
                         }
                     };
                     let hint_code = hint_data.code.clone();
+                    if hint_code.contains("logger.trace") && !self.enable_traces {
+                        // Skip execution of hints containing log traces
+                        // This significantly improves performance when running in production
+                        return Ok(())
+                    }
                     exec_scopes.assign_or_update_variable("__hint_code__", Box::new(hint_code));
 
                     // Execute the dynamic hint
@@ -182,11 +188,6 @@ impl HintProcessorLogic for HintProcessor {
                     // If dynamic hints are disabled, silently ignore unknown hints
                     Ok(())
                 }
-            }
-            #[cfg(not(feature = "pythonic-hints"))]
-            Err(HintError::UnknownHint(hint_str)) => {
-                // When dynamic hints are disabled, just return the original error
-                Err(HintError::UnknownHint(hint_str))
             }
             Err(err) => Err(err),
         }

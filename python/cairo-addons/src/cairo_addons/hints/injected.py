@@ -9,8 +9,8 @@ def set_identifiers(context: Callable[[], dict]):
 
     __program_json__ = context().get("__program_json__")
     if __program_json__ is None:
-        raise ValueError("__program_json__ must be available in the execution scope")
-
+        context()["py_identifiers"] = None
+        return
     program = Program.Schema().loads(__program_json__)
     context()["py_identifiers"] = program.identifiers
 

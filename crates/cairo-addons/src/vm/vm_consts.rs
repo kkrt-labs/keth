@@ -1,4 +1,3 @@
-#![cfg(feature = "pythonic-hints")]
 //! # Cairo VM Constants and Variable Access
 //!
 //! This module provides a bridge between Cairo variables in the Rust VM and Python code.

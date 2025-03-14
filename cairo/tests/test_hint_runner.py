@@ -1,8 +1,6 @@
 import pytest
 from ethereum_types.numeric import U256
 
-pytestmark = pytest.mark.enable_pythonic_hints
-
 
 class TestRunner:
     def test__ap_accessible(self, cairo_run, cairo_run_py):

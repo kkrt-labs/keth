@@ -23,7 +23,7 @@ def compile_cairo(file_name, should_implement_hints=True):
         json.dump(program.Schema().dump(program), f, indent=4, sort_keys=True)
 
 
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser(description="Compile Cairo program")
     parser.add_argument("file_name", help="The Cairo file to compile")
     parser.add_argument(
@@ -36,3 +36,21 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     compile_cairo(args.file_name, args.implement_hints)
+
+
+def compile_keth():
+    keth_main_path = Path("cairo/ethereum/cancun/main.cairo")
+    debug_info = False
+    proof_mode = True
+    output_path = Path("build/main_compiled.json")
+    logger.info(f"Compiling Keth with {debug_info=} and {proof_mode=}")
+    program = cairo_compile(
+        keth_main_path, debug_info=debug_info, proof_mode=proof_mode
+    )
+    with open(output_path, "w") as f:
+        logger.info(f"Writing compiled program to {output_path}")
+        json.dump(program.Schema().dump(program), f, indent=4, sort_keys=True)
+
+
+if __name__ == "__main__":
+    main()

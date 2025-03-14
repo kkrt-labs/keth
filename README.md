@@ -104,6 +104,31 @@ Then, you can run the tests with:
 uv run pytest cairo/tests/ethereum/cancun/test_fork.py -k "test_state_transition_eth_mainnet"
 ```
 
+### Proving a Block
+
+To generate a proof for an Ethereum block, use the `prove_block.py` script:
+
+```bash
+uv run prove-block <BLOCK_NUMBER>
+```
+
+```bash
+usage: prove-block [-h] [--output-dir OUTPUT_DIR] [--data-dir DATA_DIR] [--compiled-program COMPILED_PROGRAM]
+                   block_number
+```
+
+Requirements:
+
+- Block must be post-Cancun fork (block number ≥ 19426587)
+- ZKPI data must be available as a JSON file
+- Compiled Cairo program must exist at the specified path (you can run
+  `cairo-compile --proof_mode cairo/ethereum/cancun/main.cairo --cairo_path=cairo --no_debug_info --output build/main_compiled.json`
+  for that)
+
+The script will load the ZKPI data for the specified block, convert it to the
+format required by Keth, run the proof generation process, and save proof
+artifacts to the output directory.
+
 ### Updating Rust dependencies
 
 Any changes to the rust code requires a re-build and re-install of the python

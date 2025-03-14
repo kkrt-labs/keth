@@ -44,7 +44,7 @@ jobs:
       # <https://github.com/kkrt-labs/keth/issues/694>
       - name: Run unit tests without caching
         run: |
-          uv run --reinstall pytest -n logical --durations=0 --disable-pythonic-hints -v -s --log-cli-level=DEBUG --no-skip-cached-tests --ignore-glob=cairo/tests/ef_tests/
+          uv run --reinstall pytest -n logical --durations=0 -v -s --log-cli-level=DEBUG --no-skip-cached-tests --ignore-glob=cairo/tests/ef_tests/
 
       - uses: actions/cache/save@v4
         with:
@@ -77,7 +77,7 @@ jobs:
         run: |
           # Runs up to ${{ inputs.max-tests }} tests, randomly sampled using the GITHUB_RUN_ID seed
           # Use only 48 cores to avoid out of memory issues
-          uv run --reinstall pytest -n 48 -m "not slow" --disable-pythonic-hints --timeout 300 --durations=0 -v -s --log-cli-level=DEBUG --max-tests=${{ inputs.max-tests }} --randomly-seed=$GITHUB_RUN_ID cairo/tests/ef_tests/ --ignore-glob='cairo/tests/ef_tests/fixtures/*'
+          uv run --reinstall pytest -n 48 -m "not slow" --timeout 300 --durations=0 -v -s --log-cli-level=DEBUG --max-tests=${{ inputs.max-tests }} --randomly-seed=$GITHUB_RUN_ID cairo/tests/ef_tests/ --ignore-glob='cairo/tests/ef_tests/fixtures/*'
       - name: Upload coverage
         uses: codecov/codecov-action@v5
         with:

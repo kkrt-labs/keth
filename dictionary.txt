@@ -281,3 +281,5 @@ pythonic
 functools
 setattr
 pyfunction
+chrono
+stwo

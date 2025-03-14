@@ -10,7 +10,6 @@ mod layout;
 mod maybe_relocatable;
 mod memory_segments;
 mod program;
-#[cfg(feature = "pythonic-hints")]
 mod pythonic_hint;
 mod relocatable;
 mod relocated_trace;
@@ -29,7 +28,6 @@ use relocated_trace::PyRelocatedTraceEntry;
 use run_resources::PyRunResources;
 use runner::PyCairoRunner;
 use stripped_program::PyStrippedProgram;
-#[cfg(feature = "pythonic-hints")]
 use vm_consts::{PyVmConst, PyVmConstsDict};
 
 #[pymodule]
@@ -43,9 +41,8 @@ fn vm(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<PyStrippedProgram>()?;
     module.add_class::<PyDictManager>()?;
     module.add_class::<PyDictTracker>()?;
-    #[cfg(feature = "pythonic-hints")]
+    module.add_function(wrap_pyfunction!(runner::run_proof_mode, module)?).unwrap();
     module.add_class::<PyVmConst>()?;
-    #[cfg(feature = "pythonic-hints")]
     module.add_class::<PyVmConstsDict>()?;
     Ok(())
 }

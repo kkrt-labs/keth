@@ -329,7 +329,7 @@ func execute_code{
         if (precompile_address != 0) {
             %{
                 precompile_address_bytes = ids.precompile_address.to_bytes(20, "little")
-                print(f"[CAIRO] PrecompileStart: {precompile_address_bytes}")
+                logger.trace_cairo(f"PrecompileStart: {precompile_address_bytes}")
             %}
             // Prepare arguments
             // MARK: args assignment
@@ -356,7 +356,7 @@ func execute_code{
 
             %{
                 precompile_address_bytes = ids.precompile_address.to_bytes(20, "little")
-                print(f"[CAIRO] PrecompileEnd: {precompile_address_bytes}")
+                logger.trace_cairo(f"PrecompileEnd: {precompile_address_bytes}")
             %}
 
             if (cast(err, felt) != 0) {

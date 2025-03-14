@@ -246,13 +246,11 @@ impl PythonicHintExecutor {
                 .set_item("ids", py_ids_dict)
                 .map_err(|e| DynamicHintError::PyDictSet(e.to_string()))?;
 
-            // Inject the serialize function factory into the execution scope
-            let injected_py_code = r#"
-from functools import partial
-
-serialize = partial(serialize, segments=segments, program_identifiers=py_identifiers, dict_manager=dict_manager)
-gen_arg = partial(_gen_arg, dict_manager, segments)
-"#;
+            let injected_py_code = PythonCodeInjector::new()
+                .with_base_imports()
+                .with_serialize()
+                .with_gen_arg()
+                .build();
             let full_hint_code = format!("{}\n{}", injected_py_code, hint_code);
             let hint_code_c_string = CString::new(full_hint_code)
                 .map_err(|e| DynamicHintError::CStringConversion(e.to_string()))?;
@@ -301,4 +299,41 @@ pub fn generic_python_hint() -> Hint {
             locked_executor.execute_hint(&hint_code, vm, exec_scopes, ids_data, ap_tracking)
         },
     )
+}
+
+/// Builder for constructing Python injection code
+struct PythonCodeInjector {
+    code_parts: Vec<String>,
+}
+
+impl PythonCodeInjector {
+    /// Create a new injector instance
+    fn new() -> Self {
+        Self { code_parts: Vec::new() }
+    }
+
+    /// Add the base imports required for all injections
+    fn with_base_imports(mut self) -> Self {
+        self.code_parts.push("from functools import partial".to_string());
+        self
+    }
+
+    /// Add serialization code
+    fn with_serialize(mut self) -> Self {
+        self.code_parts.push(r#"
+    serialize = partial(serialize, segments=segments, program_identifiers=py_identifiers, dict_manager=dict_manager)
+"#.trim().to_string());
+        self
+    }
+
+    /// Add gen_arg partial function (always included)
+    fn with_gen_arg(mut self) -> Self {
+        self.code_parts.push("gen_arg = partial(_gen_arg, dict_manager, segments)".to_string());
+        self
+    }
+
+    /// Build the final injected code string
+    fn build(self) -> String {
+        self.code_parts.join("\n")
+    }
 }
