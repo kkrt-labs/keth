@@ -138,8 +138,6 @@ def main():
             excess_blob_gas=calculate_excess_blob_gas(blockchain.blocks[-1].header),
         )
 
-        print("Output (Partial State Root): 0x" + output.state_root.hex())
-
         ## Sanity checks against real data
         assert (
             output.receipt_root.hex() == data["blocks"][0]["header"]["receiptsRoot"][2:]
