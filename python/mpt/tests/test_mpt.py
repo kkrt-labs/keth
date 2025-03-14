@@ -2,6 +2,7 @@ import json
 
 from ethereum.cancun.fork_types import Account, Address, encode_account
 from ethereum.cancun.state import get_account
+from ethereum.cancun.trie import bytes_to_nibble_list, nibble_list_to_compact
 from ethereum.crypto.hash import Hash32, keccak256
 from ethereum_rlp import rlp
 from ethereum_spec_tools.evm_tools.loaders.fixture_loader import Load
@@ -267,3 +268,31 @@ class TestEthereumState:
 
         retrieved_value = mpt.get(keccak256(KECCAK_STORAGE_KEYS[0]), storage_root)
         assert retrieved_value == large_value
+
+    def test_compact_encoding(self):
+        path1 = bytes([1, 2, 3, 4])
+        compact1 = nibble_list_to_compact(path1, True)  # Leaf node
+
+        # Decode it back
+        nibbles1 = bytes_to_nibble_list(compact1)
+        first_nibble1 = compact1[0] >> 4
+        if first_nibble1 in (1, 3):  # odd length
+            decoded1 = nibbles1[1:]
+        else:  # even length
+            decoded1 = nibbles1[2:]
+
+        assert decoded1 == path1
+
+        # Test with an odd-length path
+        path2 = bytes([1, 2, 3, 4, 5])
+        compact2 = nibble_list_to_compact(path2, True)  # Leaf node
+
+        # Decode it back
+        nibbles2 = bytes_to_nibble_list(compact2)
+        first_nibble2 = compact2[0] >> 4
+        if first_nibble2 in (1, 3):  # odd length
+            decoded2 = nibbles2[1:]
+        else:  # even length
+            decoded2 = nibbles2[2:]
+
+        assert decoded2 == path2

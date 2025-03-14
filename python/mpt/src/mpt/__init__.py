@@ -4,7 +4,7 @@ import os
 from typing import Dict, List, Mapping, Optional
 
 import requests
-from ethereum.cancun.fork_types import Account, Address, encode_account
+from ethereum.cancun.fork_types import EMPTY_ACCOUNT, Account, Address, encode_account
 from ethereum.cancun.state import State
 from ethereum.cancun.trie import (
     BranchNode,
@@ -13,6 +13,7 @@ from ethereum.cancun.trie import (
     LeafNode,
     Trie,
     bytes_to_nibble_list,
+    common_prefix_length,
     nibble_list_to_compact,
     trie_set,
 )
@@ -39,17 +40,15 @@ EMPTY_BYTES_RLP = b"\x80"
 
 
 def nibble_path_to_hex(nibble_path: Bytes) -> Bytes:
-    return (
-        "0x"
-        + Bytes(
-            bytes(
-                [
-                    nibble_path[i] * 16 + nibble_path[i + 1]
-                    for i in range(0, len(nibble_path) - 1, 2)
-                ]
-            )
-        ).hex()
+    if len(nibble_path) % 2 != 0:
+        nibble_path = nibble_path + b"\x00"  # Pad with zero if odd
+    result = bytes(
+        [
+            nibble_path[i] * 16 + nibble_path[i + 1]
+            for i in range(0, len(nibble_path), 2)
+        ]
     )
+    return "0x" + result.hex()
 
 
 class EthereumState:
@@ -111,6 +110,7 @@ class EthereumState:
                 logger.debug(
                     f"Account not found: {address} - Considering this an exclusion proof"
                 )
+                trie_set(_main_trie, address, EMPTY_ACCOUNT)
                 continue
 
             decoded = rlp.decode(account)
@@ -182,7 +182,7 @@ class EthereumState:
                         U256(int.from_bytes(rlp.decode(value), "big")),
                     )
 
-        logger.debug("Finished converting EthereumState to State")
+        logger.error("Finished converting EthereumState to State")
         return State(
             _main_trie=_main_trie,
             _storage_tries=_storage_tries,
@@ -271,7 +271,7 @@ class EthereumState:
         account = self.get(keccak256(address))
         if account is None:
             logger.debug(
-                f"get_storage_root: Account not found - Returning EMPTY_TRIE_ROOT_HASH - This means the account at address {address} was created in this block"
+                f"get_storage_root: Account not found - This means the account at address 0x{address.hex()} was created in this block"
             )
             return EMPTY_TRIE_ROOT_HASH
         decoded = rlp.decode(account)
@@ -390,7 +390,7 @@ class EthereumState:
                 return node.value
 
             raise ValueError(
-                f"Path does not match leaf key: {nibble_path_to_hex(nibble_path)} != {nibble_path_to_hex(node.rest_of_key)}"
+                f"(Maybe Exclusion proof or Error) Path does not match leaf key: {nibble_path_to_hex(nibble_path)} != {nibble_path_to_hex(node.rest_of_key)}"
             )
 
         raise ValueError(f"Unknown node type: {type(node)}")
@@ -719,12 +719,12 @@ class EthereumState:
 
             # If the child is a leaf or extension, merge the paths
             if isinstance(new_child, LeafNode):
-                combined_path = bytes(node.key_segment) + new_child.rest_of_key
+                combined_path = node.key_segment + new_child.rest_of_key
                 # INVARIANT: The combined path should be the same as the remaining path
                 assert combined_path == nibble_path
                 return LeafNode(rest_of_key=combined_path, value=new_child.value), True
             elif isinstance(new_child, ExtensionNode):
-                combined_path = bytes(node.key_segment) + new_child.key_segment
+                combined_path = node.key_segment + new_child.key_segment
                 # INVARIANT: The combined path should be the same as the remaining path
                 assert combined_path == nibble_path
                 return (
@@ -741,7 +741,7 @@ class EthereumState:
                 new_child = encoded_child
 
             return (
-                ExtensionNode(key_segment=bytes(node.key_segment), subnode=new_child),
+                ExtensionNode(key_segment=node.key_segment, subnode=new_child),
                 True,
             )
 
@@ -782,6 +782,9 @@ class EthereumState:
         if root_hash is None:
             root_hash = self.state_root
 
+        if path is None or len(path) != 32:
+            raise ValueError(f"Invalid path: {path}")
+
         logger.debug(
             f"Upsert value at path: {'0x' + path.hex() if path else 'None'} - root hash: 0x{root_hash.hex()}"
         )
@@ -791,6 +794,7 @@ class EthereumState:
         # If the root hash is the empty trie root hash,
         # we are instantiating a new trie
         if root_hash == EMPTY_TRIE_ROOT_HASH:
+            logger.debug(f"Inserting 0x{path.hex()} into empty trie")
             node = LeafNode(rest_of_key=nibble_path, value=value)
             encoded_node = encode_internal_node(node)
             new_root_hash = keccak256(encoded_node)
@@ -1019,11 +1023,7 @@ class EthereumState:
             key_segment = node.key_segment
 
             # Find the common prefix length
-            common_prefix_len = 0
-            for i in range(min(len(key_segment), len(nibble_path))):
-                if key_segment[i] != nibble_path[i]:
-                    break
-                common_prefix_len += 1
+            common_prefix_len = common_prefix_length(key_segment, nibble_path)
 
             # If the paths diverge
             if common_prefix_len < len(key_segment):
@@ -1049,11 +1049,17 @@ class EthereumState:
                         branch_subnodes[key_segment[common_prefix_len]] = encoded_ext
                 else:
                     # The extension ends at the branch, add its subnode directly
+                    # INVARIANT: The extension must end at the branch
+                    assert common_prefix_len + 1 == len(key_segment)
                     branch_subnodes = list(branch_node.subnodes)
                     branch_subnodes[key_segment[common_prefix_len]] = node.subnode
 
                 # Add the new path as another branch
                 if common_prefix_len + 1 < len(nibble_path):
+                    # INVARIANT: nibble_path[common_prefix_len] and key_segment[common_prefix_len] are different
+                    assert (
+                        nibble_path[common_prefix_len] != key_segment[common_prefix_len]
+                    ), "Invariant broken: nibble_path[common_prefix_len] and key_segment[common_prefix_len] is defined as the first nibble where paths diverge."
                     # Create a new leaf node with the remaining path
                     leaf_node = LeafNode(
                         rest_of_key=nibble_path[common_prefix_len + 1 :], value=value
@@ -1079,7 +1085,7 @@ class EthereumState:
                         self.nodes[branch_hash] = encoded_branch
                         return (
                             ExtensionNode(
-                                key_segment=bytes(key_segment[:common_prefix_len]),
+                                key_segment=key_segment[:common_prefix_len],
                                 subnode=branch_hash,
                             ),
                             True,
@@ -1087,7 +1093,7 @@ class EthereumState:
                     else:
                         return (
                             ExtensionNode(
-                                key_segment=bytes(key_segment[:common_prefix_len]),
+                                key_segment=key_segment[:common_prefix_len],
                                 subnode=encoded_branch,
                             ),
                             True,
@@ -1113,19 +1119,17 @@ class EthereumState:
                         child_hash = keccak256(encoded_child)
                         self.nodes[child_hash] = encoded_child
                         return (
-                            ExtensionNode(
-                                key_segment=bytes(key_segment), subnode=child_hash
-                            ),
+                            ExtensionNode(key_segment=key_segment, subnode=child_hash),
                             True,
                         )
                     else:
                         return (
                             ExtensionNode(
-                                key_segment=bytes(key_segment), subnode=encoded_child
+                                key_segment=key_segment, subnode=encoded_child
                             ),
                             True,
                         )
-                else:
+                elif isinstance(node.subnode, bytes) and len(node.subnode) < 32:
                     # Process embedded node
                     child_node = self._decode_node(node.subnode)
                     new_child, modified = self._process_upsert(
@@ -1139,18 +1143,20 @@ class EthereumState:
                         child_hash = keccak256(encoded_child)
                         self.nodes[child_hash] = encoded_child
                         return (
-                            ExtensionNode(
-                                key_segment=bytes(key_segment), subnode=child_hash
-                            ),
+                            ExtensionNode(key_segment=key_segment, subnode=child_hash),
                             True,
                         )
                     else:
                         return (
                             ExtensionNode(
-                                key_segment=bytes(key_segment), subnode=encoded_child
+                                key_segment=key_segment, subnode=encoded_child
                             ),
                             True,
                         )
+                else:
+                    raise ValueError(
+                        f"Unexpected case in extension node processing - key_segment: {key_segment.hex()} - nibble_path: {nibble_path.hex()}"
+                    )
 
             # Invariant: this case shouldn't happen if the trie is well-formed
             raise ValueError(
@@ -1159,7 +1165,6 @@ class EthereumState:
 
         elif isinstance(node, LeafNode):
             logger.debug("Processing leaf node")
-            # Rest of key is already a nibble list
 
             if nibble_path == node.rest_of_key:
                 if node.value == value:
@@ -1170,11 +1175,7 @@ class EthereumState:
 
             # Paths diverge, need to create a branch
             # Find the common prefix length
-            common_prefix_len = 0
-            for i in range(min(len(node.rest_of_key), len(nibble_path))):
-                if node.rest_of_key[i] != nibble_path[i]:
-                    break
-                common_prefix_len += 1
+            common_prefix_len = common_prefix_length(node.rest_of_key, nibble_path)
 
             logger.debug(
                 f"Common prefix length: {common_prefix_len} for path {nibble_path.hex()} and {node.rest_of_key.hex()}"
@@ -1187,7 +1188,7 @@ class EthereumState:
             if common_prefix_len + 1 < len(node.rest_of_key):
                 # Create a new leaf node with the remaining key
                 new_leaf = LeafNode(
-                    rest_of_key=bytes(node.rest_of_key[common_prefix_len + 1 :]),
+                    rest_of_key=node.rest_of_key[common_prefix_len + 1 :],
                     value=node.value,
                 )
 
@@ -1205,12 +1206,11 @@ class EthereumState:
                     f"Created a branch node at divergence point {common_prefix_len} for path {nibble_path.hex()} and {node.rest_of_key.hex()} and a leaf node"
                 )
             else:
+                # INVARIANT: The leaf must end at the branch
+                assert common_prefix_len + 1 == len(node.rest_of_key)
                 # The leaf ends at the branch, add its value
-                logger.error(
+                raise ValueError(
                     "Invariant broken: Leaf node ends at the branch, inserting a non-null value in a Branch node"
-                )
-                branch_node = BranchNode(
-                    subnodes=branch_node.subnodes, value=node.value
                 )
 
             # Add the new path as another branch
@@ -1244,18 +1244,22 @@ class EthereumState:
                     self.nodes[branch_hash] = encoded_branch
                     return (
                         ExtensionNode(
-                            key_segment=bytes(nibble_path[:common_prefix_len]),
+                            key_segment=nibble_path[:common_prefix_len],
                             subnode=branch_hash,
                         ),
                         True,
                     )
-                else:
+                elif len(encoded_branch) < 32:
                     return (
                         ExtensionNode(
-                            key_segment=bytes(nibble_path[:common_prefix_len]),
+                            key_segment=nibble_path[:common_prefix_len],
                             subnode=encoded_branch,
                         ),
                         True,
+                    )
+                else:
+                    raise ValueError(
+                        f"Unexpected case in extension node processing - nibble_path: {nibble_path.hex()} - encoded_branch: {encoded_branch.hex()}"
                     )
             else:
                 return branch_node, True
@@ -1267,13 +1271,13 @@ class EthereumState:
         # First pass: Create or delete accounts
         logger.debug("Updating from state diff")
         for address, account_diff in state_diff.account_diffs.items():
-            if account_diff.account is None:
+            if account_diff.account is None or account_diff.account == EMPTY_ACCOUNT:
                 # Delete account
-                logger.debug(f"Deleting account: {address}")
+                logger.debug(f"Deleting account: 0x{address.hex()}")
                 self.delete_account(address)
             elif isinstance(account_diff.account, Account):
                 logger.debug(
-                    f"Start updating account: {address} - getting storage root"
+                    f"Start updating account: 0x{address.hex()} - getting storage root"
                 )
                 storage_root = self.get_storage_root(address)
                 logger.debug(
@@ -1281,22 +1285,23 @@ class EthereumState:
                 )
                 encoded = encode_account(account_diff.account, storage_root)
                 logger.debug(
-                    f"Trying to upsert account: {address} - encoded: {encoded.hex()}"
+                    f"Trying to upsert account: 0x{address.hex()} - encoded: {encoded.hex()}"
                 )
                 self.upsert_account(address, encoded, account_diff.account.code)
-                logger.debug(f"Inserted account: {address}")
+                logger.debug(f"Inserted account: 0x{address.hex()}")
                 for key, value in account_diff.storage_updates.items():
-                    logger.debug(f"Inserting storage key: {key} - value: {value}")
                     if value == U256(0):
-                        logger.debug(f"Deleting storage key: {key}")
+                        logger.debug(f"Deleting storage key: 0x{key.hex()}")
                         self.delete_storage_key(address, key)
                     else:
-                        logger.debug(f"Inserting storage key: {key} - value: {value}")
+                        logger.debug(
+                            f"Inserting storage key: {key.hex()} - value: {value}"
+                        )
                         self.upsert_storage_key(address, key, rlp.encode(value))
 
             else:
                 raise ValueError(f"Unknown account type: {type(account_diff.account)}")
-        logger.debug("Finished updating from state diff")
+        logger.error("Finished updating from state diff")
 
 
 def decode_node(node: Bytes) -> InternalNode:
@@ -1321,9 +1326,7 @@ def decode_node(node: Bytes) -> InternalNode:
         logger.debug(f"First nibble: {first_nibble}, is_leaf: {is_leaf}")
 
         # Extract the path from the compact encoding
-        nibbles = []
-        for b in prefix:
-            nibbles.extend([(b >> 4) & 0xF, b & 0xF])
+        nibbles = bytes_to_nibble_list(prefix)
 
         # Remove the flag nibble and odd padding if present
         if first_nibble in (1, 3):  # odd length
@@ -1333,13 +1336,12 @@ def decode_node(node: Bytes) -> InternalNode:
             nibbles = nibbles[2:]
             logger.debug("Even length, removed first two nibbles")
 
-        current_path = bytes(nibbles)
-        logger.debug(f"Current path: {nibble_path_to_hex(current_path)}")
+        logger.debug(f"Current path {nibble_path_to_hex(nibbles)}")
 
         if is_leaf:
-            return LeafNode(rest_of_key=current_path, value=value)
+            return LeafNode(rest_of_key=nibbles, value=value)
         else:
-            return ExtensionNode(key_segment=current_path, subnode=value)
+            return ExtensionNode(key_segment=nibbles, subnode=value)
     else:
         raise ValueError(f"Unknown node structure: {type(decoded)}")
 

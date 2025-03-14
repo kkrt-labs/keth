@@ -32,7 +32,7 @@ def configure_logging():
         level=logging.DEBUG,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
-    logging.getLogger().setLevel(logging.DEBUG)
+    logging.getLogger().setLevel(logging.ERROR)
 
 
 def main():
@@ -162,7 +162,9 @@ def main():
         post_state = blockchain.state
         state_diff = StateDiff.from_pre_post(pre_state_copy, post_state)
         ethereum_state.update_from_state_diff(state_diff)
-        print("State Root: 0x" + ethereum_state.state_root.hex())
+        print(
+            f"{'✅' if '0x' + ethereum_state.state_root.hex() == '0x7d0cea43dd56a78b14a0e980a4680a28e496365aeaa55a6981ce1af273cae55b' else '❌'} State Root: 0x{ethereum_state.state_root.hex()} - should be 0x7d0cea43dd56a78b14a0e980a4680a28e496365aeaa55a6981ce1af273cae55b"
+        )
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 import logging
 from typing import Dict, Optional
 
-from ethereum.cancun.fork_types import Account, Address
+from ethereum.cancun.fork_types import EMPTY_ACCOUNT, Account, Address
 from ethereum.cancun.state import State, get_account, get_storage
 from ethereum_types.bytes import Bytes32
 from ethereum_types.numeric import U256
@@ -86,13 +86,17 @@ def compute_state_diff(pre_state: State, post_state: State) -> StateDiff:
     deletions = pre_addresses - post_addresses
     if deletions:
         logger.error(
-            "Warning: Since EIP-6780, we should not see any accounts marked for deletion at the level of the block"
+            f"Warning: Since EIP-6780, we should not see any accounts marked for deletion at the level of the block - found {len(deletions)}"
         )
-        logger.debug(f"Found {len(deletions)} accounts marked for deletion")
         for address in deletions:
-            logger.debug(
-                f"Address marked for deletion (not in post state): 0x{address.hex()}"
-            )
+            if get_account(pre_state, address) != EMPTY_ACCOUNT:
+                logger.warning(
+                    f"Address marked for deletion (not in post state): 0x{address.hex()}"
+                )
+            else:
+                logger.debug(
+                    f"✅ Address marked for deletion is an empty account: 0x{address.hex()}"
+                )
             # Process deleted account
             account_diff = compute_account_diff(pre_state, post_state, address)
             if account_diff is not None:
@@ -143,27 +147,6 @@ def compute_account_diff(
     pre_account = get_account(pre_state, address)
     post_account = get_account(post_state, address)
 
-    # Log account details
-    if pre_account is None:
-        logger.debug(f"Pre-account for 0x{address.hex()} is None")
-    else:
-        logger.debug(
-            f"Pre-account for 0x{address.hex()}: nonce={pre_account.nonce}, "
-            f"balance={pre_account.balance}, "
-            f"code_length={len(pre_account.code)}"
-        )
-
-    if post_account is None:
-        logger.debug(
-            f"Post-account for 0x{address.hex()} is None (marked for deletion)"
-        )
-    else:
-        logger.debug(
-            f"Post-account for 0x{address.hex()}: nonce={post_account.nonce}, "
-            f"balance={post_account.balance}, "
-            f"code_length={len(post_account.code)}"
-        )
-
     # Check if account changed
     account_modified = post_account != pre_account
     if account_modified:
@@ -172,20 +155,15 @@ def compute_account_diff(
         )
 
     # Create account diff if account was modified
-    account_diff = AccountDiff(post_account) if account_modified else None
+    account_diff = (
+        AccountDiff(post_account if post_account != EMPTY_ACCOUNT else None)
+        if account_modified
+        else None
+    )
 
     # Check if the account has storage in either state
     has_pre_storage = address in pre_state._storage_tries
     has_post_storage = address in post_state._storage_tries
-
-    if has_pre_storage:
-        logger.debug(
-            f"Account 0x{address.hex()} has pre-storage entries: {len(pre_state._storage_tries[address]._data)}"
-        )
-    if has_post_storage:
-        logger.debug(
-            f"Account 0x{address.hex()} has post-storage entries: {len(post_state._storage_tries[address]._data)}"
-        )
 
     # If no storage in either state, return account diff (if any)
     if not has_pre_storage and not has_post_storage:
@@ -200,19 +178,20 @@ def compute_account_diff(
         logger.debug(
             f"Creating account diff for 0x{address.hex()} due to storage changes"
         )
-        account_diff = AccountDiff(post_account)
+        account_diff = AccountDiff(
+            post_account if post_account != EMPTY_ACCOUNT else None
+        )
 
     # If account is deleted or storage only in pre state, set all pre-storage to zero
-    if post_account is None or (has_pre_storage and not has_post_storage):
+    if post_account == EMPTY_ACCOUNT or (has_pre_storage and not has_post_storage):
         if has_pre_storage:
             pre_storage = pre_state._storage_tries[address]
             storage_changes = 0
             for key, value in pre_storage._data.items():
-                if value != U256(0):  # Only record non-zero values being set to zero
-                    account_diff.storage_updates[key] = U256(0)
-                    storage_changes += 1
+                account_diff.storage_updates[key] = U256(0)
+                storage_changes += 1
             logger.debug(
-                f"Account 0x{address.hex()} {'deleted' if post_account is None else 'lost storage'}: "
+                f"Account 0x{address.hex()} {'deleted' if post_account == EMPTY_ACCOUNT else 'lost storage'}: "
                 f"zeroing {storage_changes} storage entries"
             )
 
