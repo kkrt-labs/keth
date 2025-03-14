@@ -24,6 +24,10 @@ class TestAltBn128:
         cairo_i_plus_9 = cairo_run("BNF12_I_PLUS_9")
         assert cairo_i_plus_9 == BNF12.i_plus_9
 
+    def test_BNF12_ZERO(self, cairo_run):
+        cairo_zero = cairo_run("BNF12_ZERO")
+        assert cairo_zero == BNF12.zero()
+
     def test_A(self, cairo_run):
         cairo_a = cairo_run("A")
         assert cairo_a == BNP12.A
