@@ -6,7 +6,6 @@ Fetches zkpi data, converts it to EELS/Keth format, and generates a proof.
 import argparse
 import json
 import logging
-import sys
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -60,7 +59,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--stwo-proof",
         action="store_true",
-        help="Generate Stwo proof instead of traditional proof artifacts",
+        help="Generate Stwo proof instead of prover inputs",
     )
     parser.add_argument(
         "--proof-path",
@@ -194,7 +193,7 @@ def load_zkpi_fixture(zkpi_path: Path) -> Dict[str, Any]:
     return public_inputs
 
 
-def run_proof(
+def prove_block(
     block_number: int,
     output_dir: Path,
     zkpi_path: Path,
@@ -249,7 +248,7 @@ def main() -> int:
     zkpi_path = args.data_dir / f"{args.block_number}.json"
 
     try:
-        run_proof(
+        prove_block(
             args.block_number,
             args.output_dir,
             zkpi_path,
@@ -277,4 +276,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()

@@ -1,4 +1,4 @@
-%builtins output pedersen range_check ecdsa bitwise ec_op keccak poseidon range_check96 add_mod mul_mod
+%builtins output range_check bitwise keccak poseidon range_check96 add_mod mul_mod
 // In proof mode running with RustVM requires declaring all builtins and taking them as entrypoint
 // This is probably a mis-handling from the RustVM side.
 
@@ -16,11 +16,8 @@ from ethereum_types.bytes import Bytes32
 
 func main{
     output_ptr: felt*,
-    pedersen_ptr: HashBuiltin*,
     range_check_ptr,
-    ecdsa_ptr: SignatureBuiltin*,
     bitwise_ptr: BitwiseBuiltin*,
-    ec_op_ptr: EcOpBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
     range_check96_ptr: felt*,
