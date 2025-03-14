@@ -35,8 +35,8 @@ func main{
         # avoid loading program identifiers into the context.
         # see: README of cairo-addons crate
         memory[fp] = gen_arg(BlockChain, public_inputs["blockchain"])
-        memory[fp+1] = gen_arg(Block, public_inputs["block"])
-        memory[fp+2] = gen_arg(Bytes32, public_inputs["block_hash"])
+        memory[fp + 1] = gen_arg(Block, public_inputs["block"])
+        memory[fp + 2] = gen_arg(Bytes32, public_inputs["block_hash"])
     %}
 
     let parent_header = chain.value.blocks.value.data[
