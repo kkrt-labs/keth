@@ -129,6 +129,31 @@ The script will load the ZKPI data for the specified block, convert it to the
 format required by Keth, run the proof generation process, and save proof
 artifacts to the output directory.
 
+### Running State Transition Function from ZKPI
+
+Execute an Ethereum block stateless in Python. That is: execute and verify the
+Ethereum state transition function in Python (no-proof mode) using a ZK-Prover
+Input (ZKPI) file, use the `stf_from_zkpi.py` script:
+
+```bash
+uv run stf_from_zkpi <BLOCK_NUMBER>
+```
+
+This command loads the ZKPI data for the specified block (it assumes the prover
+inputs for that block were generated previously and stored in
+data/1/inputs/<BLOCK_NUMBER>), executes all transactions in the block, and
+verifies that the computed state root matches the expected state root from the
+block header. The script performs detailed validation. If any discrepancies are
+found, it will attempt to identify the specific accounts and storage keys that
+differ from the expected state.
+
+Requirements:
+
+- Block must be post-Cancun fork (block number ≥ 19426587)
+- ZKPI data must be available at `data/1/inputs/<BLOCK_NUMBER>.json`. To
+  generate prover inputs, visit <https://github.com/kkrt-labs/zk-pig>.
+- `CHAIN_RPC_URL` environment variable must be set to a valid Ethereum node URL
+
 ### Updating Rust dependencies
 
 Any changes to the rust code requires a re-build and re-install of the python

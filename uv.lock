@@ -1806,7 +1806,7 @@ requires-dist = [
     { name = "cairo-ec", editable = "python/cairo-ec" },
     { name = "cairo-lang", specifier = ">=0.13.2" },
     { name = "colorama", specifier = ">=0.4.6" },
-    { name = "ethereum", git = "https://github.com/kkrt-labs/execution-specs.git?branch=kakarot-changes" },
+    { name = "ethereum" },
     { name = "garaga", git = "https://github.com/keep-starknet-strange/garaga.git?rev=hydra_upd" },
     { name = "marshmallow-dataclass", specifier = ">=8.6.1" },
     { name = "mpt", editable = "python/mpt" },
@@ -2041,7 +2041,7 @@ dependencies = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "ethereum", git = "https://github.com/kkrt-labs/execution-specs.git?branch=kakarot-changes" }]
+requires-dist = [{ name = "ethereum" }]
 
 [[package]]
 name = "multidict"
