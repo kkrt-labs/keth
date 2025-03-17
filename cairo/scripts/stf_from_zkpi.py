@@ -403,17 +403,17 @@ def check_address_storage(ethereum_state: StateTries, address, block_number):
     # Get storage root for this address
     storage_root = ethereum_state.get_storage_root(address)
     if not storage_root:
-        print(f"No storage root found for address: 0x{address.hex()}")
+        logger.error(f"No storage root found for address: 0x{address.hex()}")
         return
 
-    print(f"Storage root in state: 0x{storage_root.hex()}")
+    logger.debug(f"Storage root in state: 0x{storage_root.hex()}")
 
     # Get account proof with all storage keys
     storage_keys_hex = ["0x" + key.hex() for key in storage_keys]
     proof = get_storage_proof(address, block_number, storage_keys_hex)
 
     if not proof:
-        print(f"Failed to get storage proof for address: 0x{address.hex()}")
+        logger.error(f"Failed to get storage proof for address: 0x{address.hex()}")
         return
 
     logger.debug(f"Storage root from RPC: {proof.get('storageHash', 'Not found')}")
@@ -423,7 +423,7 @@ def check_address_storage(ethereum_state: StateTries, address, block_number):
         logger.error("No storage proof in RPC response")
         return
 
-    print(f"\nChecking {len(proof['storageProof'])} storage keys:")
+    logger.debug(f"\nChecking {len(proof['storageProof'])} storage keys:")
     mismatches = 0
 
     for storage_proof in proof["storageProof"]:
@@ -439,7 +439,7 @@ def check_address_storage(ethereum_state: StateTries, address, block_number):
         try:
             state_value_bytes = ethereum_state.get(keccak256(key_bytes), storage_root)
         except Exception as e:
-            print(f"  ❌ Error getting storage value for key {key_hex}: {str(e)}")
+            logger.warn(f"  ❌ Error getting storage value for key {key_hex}: {str(e)}")
             mismatches += 1
             continue
 

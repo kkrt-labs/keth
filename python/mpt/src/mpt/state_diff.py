@@ -7,7 +7,7 @@ from ethereum_types.bytes import Bytes32
 from ethereum_types.numeric import U256
 
 # Set up logger
-logger = logging.getLogger("mpt.state_diff")
+logger = logging.getLogger()
 
 
 class AccountDiff:
