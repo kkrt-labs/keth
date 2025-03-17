@@ -90,8 +90,8 @@ def compute_state_diff(pre_state: State, post_state: State) -> StateDiff:
         )
         for address in deletions:
             if get_account(pre_state, address) != EMPTY_ACCOUNT:
-                logger.warning(
-                    f"Address marked for deletion (not in post state): 0x{address.hex()}"
+                raise ValueError(
+                    f"Invariant broken - Address marked for deletion (not in post state): 0x{address.hex()}"
                 )
             else:
                 logger.debug(
