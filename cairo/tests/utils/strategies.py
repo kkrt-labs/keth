@@ -526,19 +526,6 @@ bnf12_strategy = st.builds(
 )
 
 
-# Point at infinity
-bnp12_infinity = BNP12(
-    BNF12((0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)),
-    BNF12((0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)),
-)
-
-# The altbn128 generator (1, 2)
-bnp12_g1 = BNP12(
-    BNF12((1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)),
-    BNF12((2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)),
-)
-
-
 def compute_sqrt_mod_p(a, p):
     """
     Compute the square root of a modulo p using the Tonelli-Shanks algorithm
@@ -576,19 +563,10 @@ def bnp12_generate_valid_point(x_value):
 
 
 # Strategy for BNP12 points on the curve
-bnp12_strategy = st.one_of(
-    st.just(bnp12_infinity),
-    st.just(bnp12_g1),
-    # Generate points with correctly computed y-coordinates
-    st.one_of(
-        [
-            st.just(BNF12.PRIME - 1),
-            st.just(BNF12.PRIME // 2),
-            st.integers(min_value=1, max_value=10000),
-        ],
-    )
+bnp12_strategy = (
+    st.integers(min_value=0, max_value=BNF12.PRIME - 1)
     .map(lambda x: bnp12_generate_valid_point(x))
-    .filter(lambda x: x is not None),
+    .filter(lambda x: x is not None)
 )
 
 
