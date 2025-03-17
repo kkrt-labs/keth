@@ -216,8 +216,10 @@ def stf_from_zkpi(block_number: int):
                         if not is_match:
                             check_address_storage(ethereum_state, address, block_number)
 
-    logging.info(f"Successfully processed block {block_number}")
-    return True
+    logging.info(
+        f"{'✅ Successfully' if success else '❌ Failed'} processed block {block_number}"
+    )
+    return success
 
 
 def get_account_proof(address, block_number):
@@ -540,7 +542,7 @@ def get_storage_proof(address, block_number, storage_keys):
         return None
 
 
-if __name__ == "__main__":
+def main():
     configure_logging()
 
     parser = argparse.ArgumentParser(
@@ -557,3 +559,7 @@ if __name__ == "__main__":
             f"Error processing block {args.block_number}: {e} - Run zk-pig on block {args.block_number} to generate the prover input file in data/1/inputs/{args.block_number}.json"
         )
         sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
