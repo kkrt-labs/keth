@@ -1,104 +1,49 @@
-import json
-
-from ethereum.cancun.fork_types import Account, Address, encode_account
+from ethereum.cancun.fork_types import encode_account
 from ethereum.cancun.state import get_account
 from ethereum.cancun.trie import bytes_to_nibble_list, nibble_list_to_compact
 from ethereum.crypto.hash import Hash32, keccak256
 from ethereum_rlp import rlp
-from ethereum_spec_tools.evm_tools.loaders.fixture_loader import Load
-from ethereum_types.bytes import Bytes, Bytes32
-from ethereum_types.numeric import U256, Uint
+from ethereum_types.numeric import U256
 
 from mpt import EMPTY_TRIE_ROOT_HASH, RLPAccount, StateTries
 
-TEST_PATH = "./data/1"
-SUB_PATH = "inputs"
-FILE_NAME = "22009357.json"
-
-# A set of encoded storage keys and values for testing
-STORAGE_KEYS: list[Bytes32] = [U256(i).to_be_bytes32() for i in range(1, 6)]
-KECCAK_STORAGE_KEYS: list[Bytes32] = [Bytes32(keccak256(key)) for key in STORAGE_KEYS]
-
-STORAGE_VALUES: list[U256] = [U256(i) for i in range(1, 6)]
-RLP_STORAGE_VALUES: list[Bytes] = [rlp.encode(value) for value in STORAGE_VALUES]
-
-ADDRESSES: list[Address] = [
-    Address(bytes.fromhex(f"000000000000000000000000000000000000000{i:x}"))
-    for i in range(1, 6)
-]
-
-# Standard test account
-TEST_ACCOUNT = Account(
-    nonce=Uint(10), balance=U256(1000), code=bytes.fromhex("deadbeef")
-)
+from .conftest import ADDRESSES, KECCAK_STORAGE_KEYS, RLP_STORAGE_VALUES, TEST_ACCOUNT
 
 
 class TestStateTries:
-    def test_from_json(self):
-        mpt = StateTries.from_json(f"{TEST_PATH}/{SUB_PATH}/{FILE_NAME}")
+    def test_from_json(self, test_file_path):
+        mpt = StateTries.from_json(test_file_path)
         assert mpt is not None
 
-    def test_get(self):
-        mpt = StateTries.from_json(f"{TEST_PATH}/{SUB_PATH}/{FILE_NAME}")
-
-        random_address = list(mpt.access_list.keys())[0]
-
+    def test_get(self, mpt_from_json):
+        random_address = list(mpt_from_json.access_list.keys())[0]
         key = keccak256(random_address)
 
-        result = mpt.get(key)
+        result = mpt_from_json.get(key)
         rlp_account = RLPAccount(*rlp.decode(result))
 
         assert rlp_account.to_account(
-            mpt.codes.get(rlp_account.code_hash, b"")
-        ) == get_account(mpt.to_state(), random_address)
+            mpt_from_json.codes.get(rlp_account.code_hash, b"")
+        ) == get_account(mpt_from_json.to_state(), random_address)
 
-    def test_delete(self):
-        mpt = StateTries.from_json(f"{TEST_PATH}/{SUB_PATH}/{FILE_NAME}")
+    def test_delete(self, mpt_from_json, test_address):
+        assert mpt_from_json.get(keccak256(test_address)) is not None
 
-        # Using an address from the JSON file that we know exists
-        test_address = Address(list(mpt.access_list.keys())[0])
+        mpt_from_json.delete(keccak256(test_address))
 
-        assert mpt.get(keccak256(test_address)) is not None
+        assert mpt_from_json.get(keccak256(test_address)) is None
 
-        mpt.delete(keccak256(test_address))
+    def test_upsert(self, mpt_from_json, test_address, encoded_test_account):
+        mpt_from_json.upsert(keccak256(test_address), encoded_test_account)
 
-        assert mpt.get(keccak256(test_address)) is None
+        assert mpt_from_json.get(keccak256(test_address)) == encoded_test_account
 
-    def test_upsert(self):
-        mpt = StateTries.from_json(f"{TEST_PATH}/{SUB_PATH}/{FILE_NAME}")
+    def test_to_state_with_diff_testing(self, mpt_from_json, eels_state):
+        state = mpt_from_json.to_state()
+        assert state == eels_state
 
-        encoded_account = encode_account(TEST_ACCOUNT, EMPTY_TRIE_ROOT_HASH)
-
-        # Using an address from the JSON file
-        test_address = Address(list(mpt.access_list.keys())[0])
-
-        mpt.upsert(keccak256(test_address), encoded_account)
-
-        assert mpt.get(keccak256(test_address)) == encoded_account
-
-    def test_to_state_with_diff_testing(self):
-        mpt = StateTries.from_json(f"{TEST_PATH}/{SUB_PATH}/{FILE_NAME}")
-
-        with open(f"{TEST_PATH}/eels/{FILE_NAME}", "r") as f:
-            fixture = json.load(f)
-
-        state = mpt.to_state()
-
-        load = Load("Cancun", "cancun")
-        expected_state = load.json_to_state(fixture["pre"])
-
-        assert state == expected_state
-
-    def test_to_state_from_simple_operations(self):
-        mpt = StateTries.create_empty()
-
-        encoded_account = encode_account(TEST_ACCOUNT, EMPTY_TRIE_ROOT_HASH)
-
-        mpt.upsert_account(ADDRESSES[0], encoded_account, TEST_ACCOUNT.code)
-        mpt.access_list[ADDRESSES[0]] = None
-
-        state = mpt.to_state()
-
+    def test_to_state_from_simple_operations(self, mpt_with_account):
+        state = mpt_with_account.to_state()
         assert get_account(state, ADDRESSES[0]) == TEST_ACCOUNT
 
     def test_storage_operations(self):
