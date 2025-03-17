@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+from collections import defaultdict
 from typing import Dict, List, Mapping, Optional
 
 import requests
@@ -62,10 +63,13 @@ class StateTries:
     codes: Mapping[Bytes32, Bytes]
     access_list: Mapping[Address, Optional[List[Bytes32]]]
     state_root: Hash32
-    nodes: Mapping[Bytes32, Bytes]        # Stores MPT nodes by their hash
-    codes: Mapping[Bytes32, Bytes]        # Stores contract code by code hash
-    access_list: Mapping[Address, Optional[List[Bytes32]]]  # Tracks accessed addresses and storage
-    state_root: Hash32                    # Root hash of the state trie
+    nodes: Mapping[Bytes32, Bytes]  # Stores MPT nodes by their hash
+    codes: Mapping[Bytes32, Bytes]  # Stores contract code by code hash
+    access_list: Mapping[
+        Address, Optional[List[Bytes32]]
+    ]  # Tracks accessed addresses and storage
+    state_root: Hash32  # Root hash of the state trie
+
     @classmethod
     def create_empty(cls) -> "StateTries":
         return cls(
@@ -102,8 +106,10 @@ class StateTries:
         """
 
         # Step 1: Recursively explore the state trie to get to the leaves
-        _main_trie: Trie[Address, Optional[Account]] = Trie(secured=True, default=None)
-        _main_trie: Trie[Address, Optional[Account]] = Trie(secured=True, default=None, _data=defaultdict(lambda: None))
+        _main_trie: Trie[Address, Optional[Account]] = Trie(
+            secured=True, default=None, _data=defaultdict(lambda: None)
+        )
+        _storage_tries: Dict[Address, Trie[Bytes32, U256]] = dict()
 
         logger.debug("Starting to convert StateTries to State")
         for address in self.access_list.keys():
@@ -801,67 +807,67 @@ class StateTries:
     def upsert(
         self, path: Bytes, value: Bytes, root_hash: Optional[Hash32] = None
     ) -> Hash32:
-    """
-    Insert or update a value in the trie at the given path.
+        """
+        Insert or update a value in the trie at the given path.
 
-    The upsert process in a Merkle Patricia Trie follows these steps:
+        The upsert process in a Merkle Patricia Trie follows these steps:
 
-    1. Special case - Empty trie:
-       - If the trie is empty (root_hash == EMPTY_TRIE_ROOT_HASH)
-       - Create a new leaf node with the entire path and value
-       - No need for complex path splitting or node creation
+        1. Special case - Empty trie:
+        - If the trie is empty (root_hash == EMPTY_TRIE_ROOT_HASH)
+        - Create a new leaf node with the entire path and value
+        - No need for complex path splitting or node creation
 
-    2. Path traversal and node creation:
-       a) At a Branch node:
-          - If path is empty: (not supported in this implementation)
-          - Otherwise: Follow the next nibble
-          - If that branch is empty: Create new leaf node
-          - If branch exists: Recursively upsert into that branch
+        2. Path traversal and node creation:
+        a) At a Branch node:
+            - If path is empty: (not supported in this implementation)
+            - Otherwise: Follow the next nibble
+            - If that branch is empty: Create new leaf node
+            - If branch exists: Recursively upsert into that branch
 
-       b) At an Extension node:
-          - Find common prefix between path and node's key_segment
-          - If paths diverge: Create a branch node at divergence point
-          - If extension is prefix of path: Recursively upsert remaining path
-          - Handle path compression by merging extension nodes when possible
+        b) At an Extension node:
+            - Find common prefix between path and node's key_segment
+            - If paths diverge: Create a branch node at divergence point
+            - If extension is prefix of path: Recursively upsert remaining path
+            - Handle path compression by merging extension nodes when possible
 
-       c) At a Leaf node:
-          - If paths match exactly: Update value
-          - If paths differ: Create branch node at first different nibble
-          - Add both paths (existing and new) to the branch
-          - Create extension node if common prefix exists
+        c) At a Leaf node:
+            - If paths match exactly: Update value
+            - If paths differ: Create branch node at first different nibble
+            - Add both paths (existing and new) to the branch
+            - Create extension node if common prefix exists
 
-    3. Node encoding and storage:
-       - Encode modified nodes using RLP
-       - For nodes ≥ 32 bytes: Store separately and use hash as reference
-       - For nodes < 32 bytes: Store directly in parent node
-       - Update node hashes up to root
+        3. Node encoding and storage:
+        - Encode modified nodes using RLP
+        - For nodes ≥ 32 bytes: Store separately and use hash as reference
+        - For nodes < 32 bytes: Store directly in parent node
+        - Update node hashes up to root
 
-    Example of inserting 'abc':123 into a trie:
-    ```
-    Before:                After:
-    [Root]                [Root]
-      |                     |
-    [Branch]              [Branch]
-      |                   /    \
-     'd'               'ab'    'd'
-      |                 |      |
-    456              'c':123  456
-    ```
+        Example of inserting 'abc':123 into a trie:
+        ```
+        Before:                After:
+        [Root]                [Root]
+        |                     |
+        [Branch]              [Branch]
+        |                   /    \
+        'd'               'ab'    'd'
+        |                 |      |
+        456              'c':123  456
+        ```
 
-    Parameters
-    ----------
-    path : Bytes
-        The path where the value should be stored
-    value : Bytes
-        The RLP-encoded value to store
-    root_hash : Hash32, optional
-        The root hash to start from, defaults to the trie's state_root
+        Parameters
+        ----------
+        path : Bytes
+            The path where the value should be stored
+        value : Bytes
+            The RLP-encoded value to store
+        root_hash : Hash32, optional
+            The root hash to start from, defaults to the trie's state_root
 
-    Returns
-    -------
-    Hash32
-        The new root hash after insertion/update
-    """
+        Returns
+        -------
+        Hash32
+            The new root hash after insertion/update
+        """
         if root_hash is None:
             root_hash = self.state_root
 
