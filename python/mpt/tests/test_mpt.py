@@ -1,13 +1,33 @@
-from ethereum.cancun.fork_types import encode_account
-from ethereum.cancun.state import get_account
+from ethereum.cancun.fork_types import Account, Address, encode_account
+from ethereum.cancun.state import State, get_account, set_account, set_storage
 from ethereum.cancun.trie import bytes_to_nibble_list, nibble_list_to_compact
 from ethereum.crypto.hash import Hash32, keccak256
 from ethereum_rlp import rlp
-from ethereum_types.numeric import U256
+from ethereum_types.numeric import U256, Uint
+from hypothesis import given
+from hypothesis import strategies as st
 
-from mpt import EMPTY_TRIE_ROOT_HASH, RLPAccount, StateTries
+from mpt import EMPTY_TRIE_ROOT_HASH, AccountNode, StateTries
 
-from .conftest import ADDRESSES, KECCAK_STORAGE_KEYS, RLP_STORAGE_VALUES, TEST_ACCOUNT
+# Define Hypothesis strategies for generating test data
+# Simple strategy for addresses - 20 bytes
+address_st = st.binary(min_size=20, max_size=20).map(Address)
+
+# Strategy for accounts
+account_st = st.builds(
+    Account,
+    nonce=st.integers(min_value=0, max_value=2**64 - 1).map(Uint),
+    balance=st.integers(min_value=0, max_value=2**128 - 1).map(U256),
+    code=st.binary(min_size=0, max_size=100),
+)
+
+# Strategy for storage keys
+storage_key_st = st.integers(min_value=1, max_value=2**256 - 1).map(
+    lambda x: U256(x).to_be_bytes32()
+)
+
+# Strategy for storage values
+storage_value_st = st.integers(min_value=1, max_value=2**256 - 1).map(U256)
 
 
 class TestStateTries:
@@ -20,7 +40,7 @@ class TestStateTries:
         key = keccak256(random_address)
 
         result = mpt_from_json.get(key)
-        rlp_account = RLPAccount(*rlp.decode(result))
+        rlp_account = AccountNode(*rlp.decode(result))
 
         assert rlp_account.to_account(
             mpt_from_json.codes.get(rlp_account.code_hash, b"")
@@ -42,172 +62,188 @@ class TestStateTries:
         state = mpt_from_json.to_state()
         assert state == eels_state
 
-    def test_to_state_from_simple_operations(self, mpt_with_account):
-        state = mpt_with_account.to_state()
-        assert get_account(state, ADDRESSES[0]) == TEST_ACCOUNT
-
-    def test_storage_operations(self):
-        """Test that storage operations work correctly with empty and existing storage roots."""
-        mpt = StateTries.create_empty()
-
+    @given(address=address_st, account=account_st)
+    def test_to_state_from_simple_operations(self, empty_mpt, address, account):
         # Create an account with empty storage
-        encoded_account = encode_account(TEST_ACCOUNT, EMPTY_TRIE_ROOT_HASH)
+        encoded_account = encode_account(account, EMPTY_TRIE_ROOT_HASH)
 
-        mpt.upsert_account(ADDRESSES[0], encoded_account, TEST_ACCOUNT.code)
-        mpt.access_list[ADDRESSES[0]] = [KECCAK_STORAGE_KEYS[0], KECCAK_STORAGE_KEYS[1]]
+        # Add the account to the MPT
+        empty_mpt.upsert_account(address, encoded_account, account.code)
+        empty_mpt.access_list[address] = None
 
-        # Add a storage value
-        mpt.upsert_storage_key(
-            ADDRESSES[0], KECCAK_STORAGE_KEYS[0], RLP_STORAGE_VALUES[0]
-        )
+        # Convert to state and verify
+        state = empty_mpt.to_state()
+        assert get_account(state, address) == account
 
-        # Add another storage value
-        mpt.upsert_storage_key(
-            ADDRESSES[0], KECCAK_STORAGE_KEYS[1], RLP_STORAGE_VALUES[1]
-        )
+    @given(
+        address=address_st,
+        account=account_st,
+        storage_keys=st.lists(storage_key_st, min_size=2, max_size=2, unique=True),
+        storage_values=st.lists(storage_value_st, min_size=2, max_size=2),
+    )
+    def test_storage_operations(
+        self, empty_mpt, address, account, storage_keys, storage_values
+    ):
+        """Test that storage operations work correctly with empty and existing storage roots."""
+        # Create an account with empty storage
+        encoded_account = encode_account(account, EMPTY_TRIE_ROOT_HASH)
+
+        # Add the account to the MPT
+        empty_mpt.upsert_account(address, encoded_account, account.code)
+
+        empty_mpt.access_list[address] = storage_keys
+
+        # Encode the storage values
+        rlp_storage_values = [rlp.encode(value) for value in storage_values]
+
+        # Add storage values
+        empty_mpt.upsert_storage_key(address, storage_keys[0], rlp_storage_values[0])
+        empty_mpt.upsert_storage_key(address, storage_keys[1], rlp_storage_values[1])
 
         # Verify both values were stored
-        account_after = mpt.get(keccak256(ADDRESSES[0]))
+        account_after = empty_mpt.get(keccak256(address))
         decoded = rlp.decode(account_after)
         storage_root = Hash32(decoded[2])
 
-        retrieved_value1 = mpt.get(keccak256(KECCAK_STORAGE_KEYS[0]), storage_root)
-        retrieved_value2 = mpt.get(keccak256(KECCAK_STORAGE_KEYS[1]), storage_root)
+        retrieved_value1 = empty_mpt.get(keccak256(storage_keys[0]), storage_root)
+        retrieved_value2 = empty_mpt.get(keccak256(storage_keys[1]), storage_root)
 
-        assert retrieved_value1 == RLP_STORAGE_VALUES[0]
-        assert retrieved_value2 == RLP_STORAGE_VALUES[1]
+        assert retrieved_value1 == rlp_storage_values[0]
+        assert retrieved_value2 == rlp_storage_values[1]
 
         # Now update the first value
         new_storage_value = rlp.encode(U256(1001))
-        mpt.upsert_storage_key(ADDRESSES[0], KECCAK_STORAGE_KEYS[0], new_storage_value)
+        empty_mpt.upsert_storage_key(address, storage_keys[0], new_storage_value)
 
         # Verify the update worked
-        account_updated = mpt.get(keccak256(ADDRESSES[0]))
+        account_updated = empty_mpt.get(keccak256(address))
         decoded = rlp.decode(account_updated)
         updated_storage_root = Hash32(decoded[2])
 
-        updated_value = mpt.get(keccak256(KECCAK_STORAGE_KEYS[0]), updated_storage_root)
+        updated_value = empty_mpt.get(keccak256(storage_keys[0]), updated_storage_root)
         assert updated_value == new_storage_value
 
-    def test_branch_node_reduction(self):
+    @given(
+        address=address_st,
+        account=account_st,
+        storage_keys=st.lists(storage_key_st, min_size=5, max_size=5, unique=True),
+        storage_values=st.lists(storage_value_st, min_size=5, max_size=5, unique=True),
+    )
+    def test_delete_storage_key(
+        self, empty_mpt, address, account, storage_keys, storage_values
+    ):
         """Test that branch node reductions work correctly during deletions."""
-        mpt = StateTries.create_empty()
-
         # Create an account with empty storage
-        encoded_account = encode_account(TEST_ACCOUNT, EMPTY_TRIE_ROOT_HASH)
-        mpt.upsert_account(ADDRESSES[0], encoded_account, TEST_ACCOUNT.code)
+        encoded_account = encode_account(account, EMPTY_TRIE_ROOT_HASH)
+        empty_mpt.upsert_account(address, encoded_account, account.code)
 
-        # Use the first 5 storage keys and values
-        access_list_keys = KECCAK_STORAGE_KEYS[:5]
+        # Set up access list before adding storage values
+        empty_mpt.access_list[address] = storage_keys
+
+        # Encode the storage values
+        rlp_storage_values = [rlp.encode(value) for value in storage_values]
 
         # Add storage values to create branch nodes
-        for i, storage_key in enumerate(access_list_keys):
-            mpt.upsert_storage_key(ADDRESSES[0], storage_key, RLP_STORAGE_VALUES[i])
+        for i, storage_key in enumerate(storage_keys):
+            empty_mpt.upsert_storage_key(address, storage_key, rlp_storage_values[i])
 
-        mpt.access_list[ADDRESSES[0]] = access_list_keys
+        # Now delete the storage keys one by one and verify after each deletion
+        for storage_key in storage_keys:
+            # Delete the key
+            empty_mpt.delete_storage_key(address, storage_key)
 
-        # Now delete the storage keys one by one
-        for i, storage_key in enumerate(access_list_keys):
-            mpt.delete_storage_key(ADDRESSES[0], storage_key)
+            # Get the updated account and storage root
+            account_after = empty_mpt.get(keccak256(address))
+            rlp_account = AccountNode(*rlp.decode(account_after))
+            storage_root = rlp_account.storage_root
 
-            # After each deletion, verify that the remaining keys still work
-            account_after = mpt.get(keccak256(ADDRESSES[0]))
-            decoded = rlp.decode(account_after)
-            storage_root = Hash32(decoded[2])
+            assert empty_mpt.get(keccak256(storage_key), storage_root) is None
 
-            # Check that deleted keys are gone
-            for j in range(i + 1):
-                value = mpt.get(keccak256(access_list_keys[j]), storage_root)
-                assert value is None
-
-            # Check that remaining keys still work
-            for j in range(i + 1, len(access_list_keys)):
-                value = mpt.get(keccak256(access_list_keys[j]), storage_root)
-                assert value is not None
-
-    def test_state_diff_application(self):
+    @given(
+        address=address_st,
+        account=account_st,
+        storage_key=storage_key_st,
+        storage_value=storage_value_st,
+    )
+    def test_state_diff_application(
+        self, empty_mpt, address, account, storage_key, storage_value
+    ):
         """Test applying a state diff to an MPT."""
-        # Create two empty MPTs
-        original_mpt = StateTries.create_empty()
-        modified_mpt = StateTries.create_empty()
+        # Create two empty states
+        original_state = State()
+        modified_state = State()
 
-        # Add an account to both
-        encoded_account = encode_account(TEST_ACCOUNT, EMPTY_TRIE_ROOT_HASH)
+        # Set up the states
+        set_account(original_state, address, account)
+        set_account(modified_state, address, account)
+        set_storage(modified_state, address, storage_key, storage_value)
 
-        original_mpt.upsert_account(ADDRESSES[0], encoded_account, TEST_ACCOUNT.code)
-        modified_mpt.upsert_account(ADDRESSES[0], encoded_account, TEST_ACCOUNT.code)
-
-        # Add a storage value to the modified MPT
-        modified_mpt.upsert_storage_key(
-            ADDRESSES[0], KECCAK_STORAGE_KEYS[0], RLP_STORAGE_VALUES[0]
+        # Add the account to the MPT
+        empty_mpt.upsert_account(
+            address, encode_account(account, EMPTY_TRIE_ROOT_HASH), account.code
         )
-
-        # Add the access list entries
-        original_mpt.access_list[ADDRESSES[0]] = [KECCAK_STORAGE_KEYS[0]]
-        modified_mpt.access_list[ADDRESSES[0]] = [KECCAK_STORAGE_KEYS[0]]
-
-        # Convert to state objects
-        original_state = original_mpt.to_state()
-        modified_state = modified_mpt.to_state()
+        empty_mpt.access_list[address] = [storage_key]
 
         # Generate a state diff
         from mpt.state_diff import StateDiff
 
         state_diff = StateDiff.from_pre_post(original_state, modified_state)
 
-        # Apply the state diff to the original MPT
-        original_mpt.update_from_state_diff(state_diff)
+        empty_mpt.update_from_state_diff(state_diff)
 
-        # Verify the storage value was added to the original MPT
-        account_after = original_mpt.get(keccak256(ADDRESSES[0]))
-        decoded = rlp.decode(account_after)
-        storage_root = Hash32(decoded[2])
+        account_after = empty_mpt.get(keccak256(address))
+        rlp_account = AccountNode(*rlp.decode(account_after))
 
-        retrieved_value = original_mpt.get(
-            keccak256(KECCAK_STORAGE_KEYS[0]), storage_root
+        retrieved_value = empty_mpt.get(
+            keccak256(storage_key), rlp_account.storage_root
         )
-        assert retrieved_value == RLP_STORAGE_VALUES[0]
 
-    def test_empty_storage_operations(self):
+        assert retrieved_value == rlp.encode(storage_value)
+
+    @given(address=address_st, account=account_st, storage_key=storage_key_st)
+    def test_empty_storage_operations(self, empty_mpt, address, account, storage_key):
         """Test operations on empty storage."""
-        mpt = StateTries.create_empty()
-
         # Create an account with empty storage
-        encoded_account = encode_account(TEST_ACCOUNT, EMPTY_TRIE_ROOT_HASH)
-        mpt.upsert_account(ADDRESSES[0], encoded_account, TEST_ACCOUNT.code)
+        encoded_account = encode_account(account, EMPTY_TRIE_ROOT_HASH)
+        empty_mpt.upsert_account(address, encoded_account, account.code)
+
+        # Set up access list
+        empty_mpt.access_list[address] = [storage_key]
 
         # Try to delete a non-existent storage key
-        mpt.delete_storage_key(ADDRESSES[0], KECCAK_STORAGE_KEYS[0])
+        empty_mpt.delete_storage_key(address, storage_key)
 
         # Verify account still exists
-        assert mpt.get(keccak256(ADDRESSES[0])) is not None
+        assert empty_mpt.get(keccak256(address)) is not None
 
         # Try to get a non-existent storage key
-        account = mpt.get(keccak256(ADDRESSES[0]))
-        decoded = rlp.decode(account)
+        account_data = empty_mpt.get(keccak256(address))
+        decoded = rlp.decode(account_data)
         storage_root = Hash32(decoded[2])
 
-        value = mpt.get(keccak256(KECCAK_STORAGE_KEYS[0]), storage_root)
+        value = empty_mpt.get(keccak256(storage_key), storage_root)
         assert value is None
 
-    def RLP_test_large_storage_values(self):
+    @given(address=address_st, account=account_st, storage_key=storage_key_st)
+    def test_large_storage_values(self, empty_mpt, address, account, storage_key):
         """Test handling of large storage values."""
-        mpt = StateTries.create_empty()
+        # Create an account with empty storage
+        encoded_account = encode_account(account, EMPTY_TRIE_ROOT_HASH)
+        empty_mpt.upsert_account(address, encoded_account, account.code)
 
-        # Create an account
-        encoded_account = encode_account(TEST_ACCOUNT, EMPTY_TRIE_ROOT_HASH)
-        mpt.upsert_account(ADDRESSES[0], encoded_account, TEST_ACCOUNT.code)
+        empty_mpt.access_list[address] = [storage_key]
 
+        # Use a large value
         large_value = rlp.encode(U256.MAX_VALUE)
 
-        mpt.upsert_storage_key(ADDRESSES[0], KECCAK_STORAGE_KEYS[0], large_value)
+        empty_mpt.upsert_storage_key(address, storage_key, large_value)
 
-        account_after = mpt.get(keccak256(ADDRESSES[0]))
+        account_after = empty_mpt.get(keccak256(address))
         decoded = rlp.decode(account_after)
         storage_root = Hash32(decoded[2])
-        assert storage_root is not EMPTY_TRIE_ROOT_HASH
+        assert storage_root != EMPTY_TRIE_ROOT_HASH
 
-        retrieved_value = mpt.get(keccak256(KECCAK_STORAGE_KEYS[0]), storage_root)
+        retrieved_value = empty_mpt.get(keccak256(storage_key), storage_root)
         assert retrieved_value == large_value
 
     def test_compact_encoding(self):

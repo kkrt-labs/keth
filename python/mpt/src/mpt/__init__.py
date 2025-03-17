@@ -37,7 +37,7 @@ class ExclusionProof(Exception):
 
 
 @dataclass
-class RLPAccount:
+class AccountNode:
     nonce: bytes
     balance: bytes
     storage_root: Bytes32
@@ -51,7 +51,14 @@ class RLPAccount:
         )
 
     def rlp_encode(self) -> bytes:
-        return rlp.encode([self.nonce, self.balance, self.storage_root, self.code_hash])
+        return rlp.encode(
+            (
+                self.nonce,
+                self.balance,
+                self.storage_root,
+                self.code_hash,
+            )
+        )
 
 
 EMPTY_TRIE_ROOT_HASH = Hash32(
@@ -141,14 +148,15 @@ class StateTries:
                 trie_set(_main_trie, address, EMPTY_ACCOUNT)
                 continue
 
-            rlp_account = RLPAccount(*rlp.decode(account))
+            rlp_account = AccountNode(*rlp.decode(account))
 
             if rlp_account.code_hash == EMPTY_CODE_HASH:
                 code = b""
             else:
                 code = self.codes.get(rlp_account.code_hash, None)
                 # TODO: This is a hack to get the code for codes not present in the StateTries object
-                # This is due to accessing code only through EXTCODEHASH opcode
+                # This is due to the fact that the Account class in EELS
+                # doesn't match the account node structure: the class contains the full code and not only the code hash
                 if code is None:
                     payload = {
                         "jsonrpc": "2.0",
@@ -342,7 +350,7 @@ class StateTries:
             )
             return EMPTY_TRIE_ROOT_HASH
 
-        rlp_account = RLPAccount(*rlp.decode(account))
+        rlp_account = AccountNode(*rlp.decode(account))
         return Hash32(rlp_account.storage_root)
 
     def resolve_node(self, node_hash: Hash32, nibble_path: Bytes) -> Optional[Bytes]:
@@ -620,7 +628,7 @@ class StateTries:
         if account is None:
             logger.debug("Account not found, nothing to delete")
             return
-        rlp_account = RLPAccount(*rlp.decode(account))
+        rlp_account = AccountNode(*rlp.decode(account))
         storage_root = rlp_account.storage_root
 
         # Delete the storage key
@@ -993,7 +1001,7 @@ class StateTries:
             )
             return
 
-        rlp_account = RLPAccount(*rlp.decode(account))
+        rlp_account = AccountNode(*rlp.decode(account))
 
         storage_root = Hash32(rlp_account.storage_root)
         path = keccak256(key)

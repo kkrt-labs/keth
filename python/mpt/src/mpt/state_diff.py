@@ -6,7 +6,7 @@ from ethereum.cancun.state import State, get_account, get_storage
 from ethereum_types.bytes import Bytes32
 from ethereum_types.numeric import U256
 
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 
 
 class AccountDiff:
@@ -29,6 +29,21 @@ class StateDiff:
     """
 
     account_diffs: Dict[Address, AccountDiff]
+
+    def __repr__(self) -> str:
+        result = []
+        for address, account_diff in self.account_diffs.items():
+            storage_updates_str = ", ".join(
+                [
+                    f"{key.hex()}: {value}"
+                    for key, value in account_diff.storage_updates.items()
+                ]
+            )
+            result.append(
+                f"AccountDiff(address={address.hex()}, account={account_diff.account}, "
+                f"storage_updates=[{storage_updates_str}])"
+            )
+        return "\n".join(result) if result else "StateDiff()"
 
     def __init__(self):
         self.account_diffs: Dict[Address, AccountDiff] = {}

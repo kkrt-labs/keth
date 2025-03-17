@@ -2,10 +2,7 @@ import json
 
 import pytest
 from ethereum.cancun.fork_types import Account, Address, encode_account
-from ethereum.crypto.hash import keccak256
-from ethereum_rlp import rlp
 from ethereum_spec_tools.evm_tools.loaders.fixture_loader import Load
-from ethereum_types.bytes import Bytes, Bytes32
 from ethereum_types.numeric import U256, Uint
 
 from mpt import EMPTY_TRIE_ROOT_HASH, StateTries
@@ -15,12 +12,6 @@ TEST_PATH = "./data/1"
 SUB_PATH = "inputs"
 FILE_NAME = "22009357.json"
 
-# A set of encoded storage keys and values for testing
-STORAGE_KEYS: list[Bytes32] = [U256(i).to_be_bytes32() for i in range(1, 6)]
-KECCAK_STORAGE_KEYS: list[Bytes32] = [Bytes32(keccak256(key)) for key in STORAGE_KEYS]
-
-STORAGE_VALUES: list[U256] = [U256(i) for i in range(1, 6)]
-RLP_STORAGE_VALUES: list[Bytes] = [rlp.encode(value) for value in STORAGE_VALUES]
 
 ADDRESSES: list[Address] = [
     Address(bytes.fromhex(f"000000000000000000000000000000000000000{i:x}"))
@@ -43,7 +34,7 @@ def mpt_from_json(test_file_path):
     return StateTries.from_json(test_file_path)
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def empty_mpt():
     return StateTries.create_empty()
 
