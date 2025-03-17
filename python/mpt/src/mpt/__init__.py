@@ -30,6 +30,12 @@ from mpt.state_diff import StateDiff
 logger = logging.getLogger("mpt")
 
 
+class ExclusionProof(Exception):
+    """Exception raised when a key is proven not to exist in the trie."""
+
+    pass
+
+
 @dataclass
 class RLPAccount:
     nonce: bytes
@@ -279,7 +285,12 @@ class StateTries:
         # Start traversal from the root
         nibble_path = bytes_to_nibble_list(path)
         try:
-            return self._get_node(root_hash, nibble_path)
+            return self.resolve_node(root_hash, nibble_path)
+        except ExclusionProof as e:
+            logger.debug(
+                f"Exclusion proof found for path: {'0x' + path.hex() if path else 'None'} - {str(e)}"
+            )
+            return None
         except Exception as e:
             logger.error(
                 f"Error in {'state' if is_state_access else 'storage'} get: {str(e)}"
@@ -300,7 +311,7 @@ class StateTries:
         rlp_account = RLPAccount(*rlp.decode(account))
         return Hash32(rlp_account.storage_root)
 
-    def _get_node(self, node_hash: Hash32, nibble_path: Bytes) -> Optional[Bytes]:
+    def resolve_node(self, node_hash: Hash32, nibble_path: Bytes) -> Optional[Bytes]:
         """
         Recursive helper for get method.
 
@@ -323,7 +334,7 @@ class StateTries:
         node_data = self.nodes.get(node_hash)
 
         if node_data is None:
-            raise ValueError(f"Node not found: 0x{node_hash.hex()}")
+            raise KeyError(f"Node not found: 0x{node_hash.hex()} - Missing Node")
 
         node = self._decode_node(node_data)
         return self._process_node(node, nibble_path)
@@ -359,15 +370,15 @@ class StateTries:
             next_node = node.subnodes[next_nibble]
 
             if not next_node:
-                raise ValueError(f"No subnode at index {next_nibble}")
+                raise ExclusionProof(f"No subnode at index {next_nibble}")
 
             # If the next node is a hash reference (bytes), follow it
             if isinstance(next_node, bytes) and len(next_node) == 32:
                 logger.debug(f"Following hash reference: 0x{next_node.hex()}")
-                return self._get_node(Hash32(next_node), nibble_path[1:])
+                return self.resolve_node(Hash32(next_node), nibble_path[1:])
             elif isinstance(next_node, bytes) and len(next_node) < 32:
                 logger.debug("Next node is embedded")
-                return self._process_embedded_node(next_node, nibble_path[1:])
+                return self.process_embedded_node(next_node, nibble_path[1:])
             else:
                 raise ValueError(f"Unknown node type: {type(next_node)}")
 
@@ -378,14 +389,14 @@ class StateTries:
 
             # If the path doesn't match the key segment, the path doesn't exist
             if len(nibble_path) < len(node.key_segment):
-                raise ValueError(
+                raise KeyError(
                     f"Path too short for extension key segment {node.key_segment}"
                 )
 
             # Check if the key segment matches the beginning of the path
             for i in range(len(node.key_segment)):
                 if nibble_path[i] != node.key_segment[i]:
-                    raise ValueError(
+                    raise ExclusionProof(
                         f"Path mismatch at index {i}: {nibble_path[i]} != {node.key_segment[i]}"
                     )
 
@@ -395,10 +406,10 @@ class StateTries:
             # If the subnode is a hash reference, follow it
             if isinstance(node.subnode, bytes) and len(node.subnode) == 32:
                 logger.debug(f"Following hash reference: 0x{node.subnode.hex()}")
-                return self._get_node(Hash32(node.subnode), remaining_path)
+                return self.resolve_node(Hash32(node.subnode), remaining_path)
             elif isinstance(node.subnode, bytes) and len(node.subnode) < 32:
                 logger.debug("Processing nested embedded node")
-                return self._process_embedded_node(node.subnode, remaining_path)
+                return self.process_embedded_node(node.subnode, remaining_path)
             else:
                 raise ValueError(f"Unknown node type: {type(node.subnode)}")
 
@@ -410,13 +421,13 @@ class StateTries:
                 logger.debug("Path matches leaf key, returning value")
                 return node.value
 
-            raise ValueError(
+            raise ExclusionProof(
                 f"Path does not match leaf key: {nibble_path_to_hex(nibble_path)} != {nibble_path_to_hex(node.rest_of_key)}"
             )
 
         raise ValueError(f"Unknown node type: {type(node)}")
 
-    def _process_embedded_node(
+    def process_embedded_node(
         self, node_data: Bytes, nibble_path: Bytes
     ) -> Optional[Bytes]:
         """

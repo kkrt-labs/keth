@@ -9,7 +9,7 @@ from ethereum_spec_tools.evm_tools.loaders.fixture_loader import Load
 from ethereum_types.bytes import Bytes, Bytes32
 from ethereum_types.numeric import U256, Uint
 
-from mpt import EMPTY_TRIE_ROOT_HASH, StateTries
+from mpt import EMPTY_TRIE_ROOT_HASH, RLPAccount, StateTries
 
 TEST_PATH = "./data/1"
 SUB_PATH = "inputs"
@@ -40,14 +40,18 @@ class TestStateTries:
 
     def test_get(self):
         mpt = StateTries.from_json(f"{TEST_PATH}/{SUB_PATH}/{FILE_NAME}")
+        state = mpt.to_state()
 
         random_address = list(mpt.access_list.keys())[0]
 
         key = keccak256(random_address)
 
         result = mpt.get(key)
+        rlp_account = RLPAccount(*rlp.decode(result))
 
-        assert result is not None
+        assert rlp_account.to_account(
+            mpt.codes.get(rlp_account.code_hash, b"")
+        ) == get_account(state, random_address)
 
     def test_delete(self):
         mpt = StateTries.from_json(f"{TEST_PATH}/{SUB_PATH}/{FILE_NAME}")
@@ -76,13 +80,6 @@ class TestStateTries:
         mpt.upsert(keccak256(test_address), encoded_account)
 
         assert mpt.get(keccak256(test_address)) == encoded_account
-
-    def test_to_state(self):
-        mpt = StateTries.from_json(f"{TEST_PATH}/{SUB_PATH}/{FILE_NAME}")
-
-        state = mpt.to_state()
-
-        assert state is not None
 
     def test_to_state_with_diff_testing(self):
         mpt = StateTries.from_json(f"{TEST_PATH}/{SUB_PATH}/{FILE_NAME}")
