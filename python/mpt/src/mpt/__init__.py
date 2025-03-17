@@ -228,7 +228,7 @@ class StateTries:
             data = json.load(f)
 
         nodes = {
-            keccak256(hex_to_bytes(node)): (hex_to_bytes(node))
+            keccak256(hex_to_bytes(node)): hex_to_bytes(node)
             for node in data["witness"]["state"]
         }
 
