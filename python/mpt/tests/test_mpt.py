@@ -40,7 +40,6 @@ class TestStateTries:
 
     def test_get(self):
         mpt = StateTries.from_json(f"{TEST_PATH}/{SUB_PATH}/{FILE_NAME}")
-        state = mpt.to_state()
 
         random_address = list(mpt.access_list.keys())[0]
 
@@ -51,15 +50,13 @@ class TestStateTries:
 
         assert rlp_account.to_account(
             mpt.codes.get(rlp_account.code_hash, b"")
-        ) == get_account(state, random_address)
+        ) == get_account(mpt.to_state(), random_address)
 
     def test_delete(self):
         mpt = StateTries.from_json(f"{TEST_PATH}/{SUB_PATH}/{FILE_NAME}")
 
         # Using an address from the JSON file that we know exists
-        test_address = Address(
-            bytes.fromhex("30325619135da691a6932b13a19b8928527f8456")
-        )
+        test_address = Address(list(mpt.access_list.keys())[0])
 
         assert mpt.get(keccak256(test_address)) is not None
 
@@ -73,9 +70,7 @@ class TestStateTries:
         encoded_account = encode_account(TEST_ACCOUNT, EMPTY_TRIE_ROOT_HASH)
 
         # Using an address from the JSON file
-        test_address = Address(
-            bytes.fromhex("30325619135da691a6932b13a19b8928527f8456")
-        )
+        test_address = Address(list(mpt.access_list.keys())[0])
 
         mpt.upsert(keccak256(test_address), encoded_account)
 
