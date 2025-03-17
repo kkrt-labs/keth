@@ -562,11 +562,18 @@ def bnp12_generate_valid_point(x_value):
     return BNP12(BNF12(x_coords), BNF12(y_coords))
 
 
+# Point at infinity for BNP12
+bnp12_infinity = BNP12(
+    BNF12((0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)),
+    BNF12((0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)),
+)
+
 # Strategy for BNP12 points on the curve
-bnp12_strategy = (
-    st.integers(min_value=0, max_value=BNF12.PRIME - 1)
+bnp12_strategy = st.one_of(
+    st.integers(min_value=1, max_value=BNF12.PRIME - 1)
     .map(lambda x: bnp12_generate_valid_point(x))
-    .filter(lambda x: x is not None)
+    .filter(lambda x: x is not None),
+    st.just(bnp12_infinity),
 )
 
 
