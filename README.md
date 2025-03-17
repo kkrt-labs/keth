@@ -133,10 +133,10 @@ artifacts to the output directory.
 
 Execute an Ethereum block stateless in Python. That is: execute and verify the
 Ethereum state transition function in Python (no-proof mode) using a ZK-Prover
-Input (ZKPI) file, use the `stf_from_zkpi.py` script:
+Input (ZKPI) file, use the `zkpi_to_stf.py` script:
 
 ```bash
-uv run stf_from_zkpi <BLOCK_NUMBER>
+uv run zkpi_to_stf <BLOCK_NUMBER>
 ```
 
 This command loads the ZKPI data for the specified block (it assumes the prover
