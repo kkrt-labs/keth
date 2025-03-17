@@ -295,7 +295,9 @@ class StateTries:
             logger.error(
                 f"Error in {'state' if is_state_access else 'storage'} get: {str(e)}"
             )
-            return None
+            raise ValueError(
+                f"Error in {'state' if is_state_access else 'storage'} get: {str(e)}"
+            )
 
     def get_storage_root(self, address: Address) -> Optional[Hash32]:
         """
@@ -330,6 +332,9 @@ class StateTries:
         logger.debug(
             f"Getting node with hash: 0x{node_hash.hex()} - remaining path: {nibble_path_to_hex(nibble_path)}"
         )
+
+        if node_hash == EMPTY_TRIE_ROOT_HASH:
+            return None
 
         node_data = self.nodes.get(node_hash)
 
