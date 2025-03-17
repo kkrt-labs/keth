@@ -39,7 +39,7 @@ EMPTY_CODE_HASH = Hash32(
 EMPTY_BYTES_RLP = b"\x80"
 
 
-def nibble_path_to_hex(nibble_path: Bytes) -> Bytes:
+def nibble_path_to_hex(nibble_path: Bytes) -> str:
     if len(nibble_path) % 2 != 0:
         nibble_path = nibble_path + b"\x00"  # Pad with zero if odd
     result = bytes(
@@ -62,7 +62,10 @@ class StateTries:
     codes: Mapping[Bytes32, Bytes]
     access_list: Mapping[Address, Optional[List[Bytes32]]]
     state_root: Hash32
-
+    nodes: Mapping[Bytes32, Bytes]        # Stores MPT nodes by their hash
+    codes: Mapping[Bytes32, Bytes]        # Stores contract code by code hash
+    access_list: Mapping[Address, Optional[List[Bytes32]]]  # Tracks accessed addresses and storage
+    state_root: Hash32                    # Root hash of the state trie
     @classmethod
     def create_empty(cls) -> "StateTries":
         return cls(
@@ -100,7 +103,7 @@ class StateTries:
 
         # Step 1: Recursively explore the state trie to get to the leaves
         _main_trie: Trie[Address, Optional[Account]] = Trie(secured=True, default=None)
-        _storage_tries: Dict[Address, Trie[Bytes32, U256]] = {}
+        _main_trie: Trie[Address, Optional[Account]] = Trie(secured=True, default=None, _data=defaultdict(lambda: None))
 
         logger.debug("Starting to convert StateTries to State")
         for address in self.access_list.keys():
@@ -443,6 +446,36 @@ class StateTries:
         """
         Delete a value from the trie at the given path.
 
+        The deletion process in a Merkle Patricia Trie follows these steps:
+
+        1. Navigate to the target node using the path:
+            - At each branch node, follow the appropriate nibble
+            - At each extension node, verify the shared prefix matches
+            - Continue until reaching a leaf node
+
+        2. When the target node is found:
+            - If it's a leaf node and the path matches exactly, remove it
+            - If it's not found, return without changes
+
+        3. After deletion, restructure the trie to maintain invariants:
+            - If a branch node is left with only one child, convert it to an extension node
+            - If an extension node's child is deleted, remove the extension node
+            - Merge extension nodes with their child extension nodes when possible
+            - Update all affected node hashes up to the root
+
+        For example, if deleting 'abc' from a trie:
+        ```
+        Before:                After:
+        [Root]                [Root]
+          |                     |
+        [Branch]              [Branch]
+         /    \                /    \
+        'ab'   'd'          'ab'   'd'
+          |                   |
+        'c':123             'x':456
+        'x':456
+        ```
+
         Parameters
         ----------
         path : Bytes
@@ -453,7 +486,8 @@ class StateTries:
         Returns
         -------
         Optional[Hash32]
-            The new root hash after deletion, or None if the path wasn't found
+            The new root hash after deletion, or None if the path wasn't found.
+            Returns the original root_hash if no changes were made.
         """
         if root_hash is None:
             root_hash = self.state_root
@@ -767,23 +801,67 @@ class StateTries:
     def upsert(
         self, path: Bytes, value: Bytes, root_hash: Optional[Hash32] = None
     ) -> Hash32:
-        """
-        Insert or update a value in the trie at the given path.
+    """
+    Insert or update a value in the trie at the given path.
 
-        Parameters
-        ----------
-        path : Bytes
-            The path where the value should be stored
-        value : Bytes
-            The RLP-encoded value to store
-        root_hash : Hash32, optional
-            The root hash to start from, defaults to the trie's state_root
+    The upsert process in a Merkle Patricia Trie follows these steps:
 
-        Returns
-        -------
-        Hash32
-            The new root hash after insertion/update
-        """
+    1. Special case - Empty trie:
+       - If the trie is empty (root_hash == EMPTY_TRIE_ROOT_HASH)
+       - Create a new leaf node with the entire path and value
+       - No need for complex path splitting or node creation
+
+    2. Path traversal and node creation:
+       a) At a Branch node:
+          - If path is empty: (not supported in this implementation)
+          - Otherwise: Follow the next nibble
+          - If that branch is empty: Create new leaf node
+          - If branch exists: Recursively upsert into that branch
+
+       b) At an Extension node:
+          - Find common prefix between path and node's key_segment
+          - If paths diverge: Create a branch node at divergence point
+          - If extension is prefix of path: Recursively upsert remaining path
+          - Handle path compression by merging extension nodes when possible
+
+       c) At a Leaf node:
+          - If paths match exactly: Update value
+          - If paths differ: Create branch node at first different nibble
+          - Add both paths (existing and new) to the branch
+          - Create extension node if common prefix exists
+
+    3. Node encoding and storage:
+       - Encode modified nodes using RLP
+       - For nodes ≥ 32 bytes: Store separately and use hash as reference
+       - For nodes < 32 bytes: Store directly in parent node
+       - Update node hashes up to root
+
+    Example of inserting 'abc':123 into a trie:
+    ```
+    Before:                After:
+    [Root]                [Root]
+      |                     |
+    [Branch]              [Branch]
+      |                   /    \
+     'd'               'ab'    'd'
+      |                 |      |
+    456              'c':123  456
+    ```
+
+    Parameters
+    ----------
+    path : Bytes
+        The path where the value should be stored
+    value : Bytes
+        The RLP-encoded value to store
+    root_hash : Hash32, optional
+        The root hash to start from, defaults to the trie's state_root
+
+    Returns
+    -------
+    Hash32
+        The new root hash after insertion/update
+    """
         if root_hash is None:
             root_hash = self.state_root
 
