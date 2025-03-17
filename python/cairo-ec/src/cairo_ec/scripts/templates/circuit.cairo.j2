@@ -1,22 +1,20 @@
-{%- set return_values = ["UInt384*"] * (circuit.return_data_size // 4) %}
-{%- set return_type = "" if not return_values else
-    "-> " + (("(" if return_values|length > 1 else "") +
-    return_values|join(", ") +
-    (")" if return_values|length > 1 else "")) %}
+{%- set return_type = "" if not circuit.return_names|length else
+    "-> " + (("(" if circuit.return_names|length > 1 else "") +
+    circuit.return_names|join("*, ") +
+    ("*)" if circuit.return_names|length > 1 else "*")) %}
 
 {%- set return_data = "()" %}
-{%- if return_values %}
+{%- if circuit.return_offsets %}
     {%- set return_exprs = [] %}
-    {%- for i in range(circuit.return_data_size // 4)|reverse %}
-        {%- set offset = 4 * (i + 1) %}
-        {%- set _ = return_exprs.append("cast(range_check96_ptr - " ~ offset ~ ", UInt384*)") %}
+    {%- for i in range(circuit.return_offsets|length) %}
+        {%- set _ = return_exprs.append("cast(range_check96_ptr - " ~ circuit.return_offsets[circuit.return_offsets|length - 1 - i] ~ ", " ~ circuit.return_names[i] ~ "*)") %}
     {%- endfor %}
-    {%- set return_data = ("(" if return_values|length > 1 else "") ~ return_exprs|join(", ") ~ (")" if return_values|length > 1 else "") %}
+    {%- set return_data = ("(" if circuit.return_offsets|length > 1 else "") ~ return_exprs|join(", ") ~ (")" if circuit.return_offsets|length > 1 else "") %}
 {%- endif %}
 
 func {{name}}{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
-    {%- for member_name in circuit.args -%}
-    {{ member_name }}: UInt384*{{ ", " if not loop.last else "" }}
+    {%- for arg in circuit.args -%}
+    {{ arg.name }}: {{ arg.type }}*{{ ", " if not loop.last else "" }}
     {%- endfor -%}, p: UInt384*
 ) {{return_type}} {
     let (_, pc) = get_fp_and_pc();
@@ -34,11 +32,15 @@ func {{name}}{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: M
     {%- endfor %}
 
     {# Then iterate over arguments #}
-    {%- for member_name in circuit.args %}
-    assert [range_check96_ptr + {{(circuit.constants|length + loop.index0) * 4}}] = {{member_name}}.d0;
-    assert [range_check96_ptr + {{(circuit.constants|length + loop.index0) * 4 + 1}}] = {{member_name}}.d1;
-    assert [range_check96_ptr + {{(circuit.constants|length + loop.index0) * 4 + 2}}] = {{member_name}}.d2;
-    assert [range_check96_ptr + {{(circuit.constants|length + loop.index0) * 4 + 3}}] = {{member_name}}.d3;
+    {%- set count = namespace(value=0) %}
+    {%- for arg in circuit.args %}
+        {%- for path in arg.path %}
+            assert [range_check96_ptr + {{circuit.constants|length * 4 + count.value}}] = {{path}}.d0;
+            assert [range_check96_ptr + {{circuit.constants|length * 4 + count.value + 1}}] = {{path}}.d1;
+            assert [range_check96_ptr + {{circuit.constants|length * 4 + count.value + 2}}] = {{path}}.d2;
+            assert [range_check96_ptr + {{circuit.constants|length * 4 + count.value + 3}}] = {{path}}.d3;
+            {%- set count.value = count.value + 4 %}
+        {%- endfor %}
     {%- endfor %}
 
     run_mod_p_circuit(

@@ -110,6 +110,7 @@ def main(file_path: Path | None, prime: int, function: list[str], echo: bool):
     # Set up Jinja environment
     env = setup_jinja_env()
     header_template = env.get_template("header.cairo.j2")
+    _struct_template = env.get_template("struct.cairo.j2")
     circuit_template = env.get_template("circuit.cairo.j2")
 
     # Compile the Cairo file
@@ -138,15 +139,34 @@ def main(file_path: Path | None, prime: int, function: list[str], echo: bool):
 
     # Generate output code
     output_parts = [header_template.render()]
+    circuit_parts = []
+
+    struct_names = set()
+    structs = []
 
     # Process each function
     for function_name in functions_to_compile:
         circuit = circuit_compile(program, function_name)
         click.echo(f"Circuit {function_name}: {circuit}")
 
+        # Extract only new structs that are not used in previously compiled functions
+        for struct in circuit["structs"]:
+            struct_name = struct["name"]
+            if struct_name not in struct_names:
+                struct_names.add(struct_name)
+                structs.append(struct)
+
         # Render template with all necessary data
         circuit_code = circuit_template.render(name=function_name, circuit=circuit)
-        output_parts.append(circuit_code)
+        circuit_parts.append(circuit_code)
+
+    # Render the structs
+    struct_code = _struct_template.render(structs=structs)
+    output_parts.append(struct_code)
+
+    # Properly order the compiled function
+    # Imports, Structs, Functions
+    output_parts = output_parts + circuit_parts
 
     # Join all parts with double newlines
     output = "\n\n".join(output_parts)
