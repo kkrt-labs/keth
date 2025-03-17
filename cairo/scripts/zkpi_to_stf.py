@@ -23,7 +23,7 @@ from ethereum_rlp import rlp
 from ethereum_spec_tools.evm_tools.loaders.fixture_loader import Load
 from ethereum_spec_tools.evm_tools.loaders.fork_loader import ForkLoad
 from ethereum_spec_tools.evm_tools.loaders.transaction_loader import TransactionLoad
-from ethereum_types.bytes import Bytes, Bytes32
+from ethereum_types.bytes import Bytes32
 from ethereum_types.numeric import (
     U64,
     U256,
@@ -93,11 +93,7 @@ def zkpi_to_stf(block_number: int, path: str):
         block = Block(
             header=load.json_to_header(block["header"]),
             transactions=tuple(
-                (
-                    tx
-                    if isinstance(tx, LegacyTransaction)
-                    else Bytes(hex_to_bytes(encode_transaction(tx).hex()))
-                )
+                (tx if isinstance(tx, LegacyTransaction) else encode_transaction(tx))
                 for tx in transactions
             ),
             ommers=(),

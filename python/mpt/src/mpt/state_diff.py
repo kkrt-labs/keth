@@ -6,7 +6,6 @@ from ethereum.cancun.state import State, get_account, get_storage
 from ethereum_types.bytes import Bytes32
 from ethereum_types.numeric import U256
 
-# Set up logger
 logger = logging.getLogger()
 
 
@@ -34,8 +33,8 @@ class StateDiff:
     def __init__(self):
         self.account_diffs: Dict[Address, AccountDiff] = {}
 
-    @classmethod
-    def from_pre_post(cls, pre_state: State, post_state: State) -> "StateDiff":
+    @staticmethod
+    def from_pre_post(pre_state: State, post_state: State) -> "StateDiff":
         """
         Compute a state diff between two states: a pre_state and a post_state.
 
