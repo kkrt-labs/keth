@@ -1,14 +1,17 @@
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_builtins import UInt384, ModBuiltin
 from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
+from starkware.cairo.common.default_dict import default_dict_new, default_dict_finalize
+from starkware.cairo.common.dict import dict_read, dict_write
+from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.registers import get_label_location
 
-from cairo_core.numeric import U384
+from cairo_core.control_flow import raise
 from cairo_ec.circuits.mod_ops_compiled import add, sub, mul
 from cairo_ec.curve.alt_bn128 import alt_bn128
 
-from ethereum.utils.numeric import U384_ZERO
-
+from ethereum.utils.numeric import divmod, U384_ZERO
+from ethereum_types.numeric import U384
 // BNF12 represents a field element in the BNF12 extension field
 // This is a 12-degree extension of the base field used in alt_bn128 curve
 struct BNF12Struct {
@@ -635,6 +638,309 @@ func bnf12_scalar_mul{
         ),
     );
     return res;
+}
+
+// BNF12_mul implements multiplication for BNF12 elements
+// using dictionaries for intermediate calculations
+func BNF12_mul{
+    range_check_ptr, range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
+}(a: BNF12, b: BNF12) -> BNF12 {
+    alloc_locals;
+
+    tempvar prime = new UInt384(alt_bn128.P0, alt_bn128.P1, alt_bn128.P2, alt_bn128.P3);
+
+    // Step 1: Create a dictionary for polynomial multiplication intermediate value and result
+    let (mul_dict) = default_dict_new(0);
+    let mul_dict_start = mul_dict;
+
+    // Step 2: Perform polynomial multiplication
+    // Compute each product a[i] * b[j] and add it to the appropriate position
+    compute_polynomial_product{dict_ptr=mul_dict}(a, b, prime, 0, 0);
+
+    // Step 3: Apply reduction for coefficients 22 down to 12 (in descending order like Python)
+    reduce_polynomial{mul_dict=mul_dict}(prime);
+
+    // Step 4: Create the result BNF12 element from the reduced coefficients
+    let bnf12_result = create_bnf12_from_dict{mul_dict=mul_dict}();
+
+    // Step 5: Finalize the dictionary
+    default_dict_finalize(mul_dict_start, mul_dict, 0);
+
+    return bnf12_result;
+}
+
+// Apply reductions in descending order (from 22 down to 12)
+func reduce_polynomial{
+    range_check_ptr,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
+    mul_dict: DictAccess*,
+}(prime: UInt384*) {
+    alloc_locals;
+
+    reduce_single_coefficient(prime, 22);
+    reduce_single_coefficient(prime, 21);
+    reduce_single_coefficient(prime, 20);
+    reduce_single_coefficient(prime, 19);
+    reduce_single_coefficient(prime, 18);
+    reduce_single_coefficient(prime, 17);
+    reduce_single_coefficient(prime, 16);
+    reduce_single_coefficient(prime, 15);
+    reduce_single_coefficient(prime, 14);
+    reduce_single_coefficient(prime, 13);
+    reduce_single_coefficient(prime, 12);
+
+    return ();
+}
+
+// Replicate the following python code:
+// mul[i - 6] -= mul[i] * (-18)
+// mul[i - 12] -= mul[i] * 82
+//
+// It is equivalent to:
+// mul[i - 6] += mul[i] * 18
+// mul[i - 12] -= mul[i] * 82
+//
+// In cairo it translates to:
+// intermediate_mul = mul[i] * 18
+// mul[i - 6] = mul[i - 6] + intermediate_mul
+// intermediate_mul = mul[i] * 82
+// mul[i - 12] = mul[i - 12] + intermediate_mul
+func reduce_single_coefficient{
+    range_check_ptr,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
+    mul_dict: DictAccess*,
+}(prime: UInt384*, idx: felt) {
+    alloc_locals;
+
+    // Get the coefficient
+    let (coeff_i_ptr) = dict_read{dict_ptr=mul_dict}(idx);
+    let coeff_i = cast(coeff_i_ptr, UInt384*);
+
+    // Constants for reduction
+    tempvar modulus_coeff_0 = new UInt384(82, 0, 0, 0);
+    tempvar modulus_coeff_6 = new UInt384(18, 0, 0, 0);
+
+    let intermediate_mul = mul(coeff_i, modulus_coeff_6, prime);
+
+    // Update position idx-6: ADD 18 * coeff_i
+    let pos1 = idx - 6;
+    let (current1_ptr) = dict_read{dict_ptr=mul_dict}(pos1);
+
+    // If current value is not present, use zero
+    tempvar zero = new UInt384(0, 0, 0, 0);
+    if (current1_ptr == 0) {
+        tempvar current1 = zero;
+    } else {
+        tempvar current1 = cast(current1_ptr, UInt384*);
+    }
+
+    // ADD intermediate_mul to current value
+    let new_value1 = add(current1, intermediate_mul, prime);
+
+    // Write the new value to the dictionary
+    dict_write{dict_ptr=mul_dict}(pos1, cast(new_value1, felt));
+
+    // Compute 82 * coeff_i
+    let intermediate_mul = mul(coeff_i, modulus_coeff_0, prime);
+
+    // Update position idx-12: subtract 82 * coeff_i
+    let pos2 = idx - 12;
+    let (current2_ptr) = dict_read{dict_ptr=mul_dict}(pos2);
+
+    // If current value is not present, use zero
+    if (current2_ptr == 0) {
+        tempvar current2 = zero;
+    } else {
+        tempvar current2 = cast(current2_ptr, UInt384*);
+    }
+
+    // SUBTRACT intermediate_mul from current value
+    let new_value2 = sub(current2, intermediate_mul, prime);
+
+    // Write the new value to the dictionary
+    dict_write{dict_ptr=mul_dict}(pos2, cast(new_value2, felt));
+
+    return ();
+}
+
+func compute_polynomial_product{
+    range_check_ptr,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
+    dict_ptr: DictAccess*,
+}(a: BNF12, b: BNF12, prime: UInt384*, i: felt, j: felt) {
+    alloc_locals;
+
+    // Base case: we've processed all terms
+    if (i == 12) {
+        return ();
+    }
+
+    // If we've processed all j for current i, move to next i
+    if (j == 12) {
+        return compute_polynomial_product(a, b, prime, i + 1, 0);
+    }
+
+    // Get coefficients as UInt384
+    let a_coeff = _get_bnf12_coeff(a, i);
+    let b_coeff = _get_bnf12_coeff(b, j);
+
+    // Compute product using modular multiplication
+    let product = mul(new a_coeff, new b_coeff, prime);
+
+    // Position in result
+    let pos = i + j;
+
+    // Read current value at this position (default to zero if not present)
+    let (current_ptr) = dict_read{dict_ptr=dict_ptr}(pos);
+    let current = cast(current_ptr, UInt384*);
+
+    // If current is null, use zero
+    tempvar zero = new UInt384(0, 0, 0, 0);
+    if (current == 0) {
+        tempvar current_value = zero;
+    } else {
+        tempvar current_value = current;
+    }
+
+    // Add product to current value using modular addition
+    let new_value = add(current_value, product, prime);
+
+    // Write the new value to the dictionary
+    dict_write{dict_ptr=dict_ptr}(pos, cast(new_value, felt));
+
+    // Continue with next term
+    return compute_polynomial_product(a, b, prime, i, j + 1);
+}
+
+func create_bnf12_from_dict{range_check_ptr, mul_dict: DictAccess*}() -> BNF12 {
+    alloc_locals;
+
+    let (result_struct: BNF12Struct*) = alloc();
+
+    let (c0_ptr) = dict_read{dict_ptr=mul_dict}(0);
+    let (c1_ptr) = dict_read{dict_ptr=mul_dict}(1);
+    let (c2_ptr) = dict_read{dict_ptr=mul_dict}(2);
+    let (c3_ptr) = dict_read{dict_ptr=mul_dict}(3);
+    let (c4_ptr) = dict_read{dict_ptr=mul_dict}(4);
+    let (c5_ptr) = dict_read{dict_ptr=mul_dict}(5);
+    let (c6_ptr) = dict_read{dict_ptr=mul_dict}(6);
+    let (c7_ptr) = dict_read{dict_ptr=mul_dict}(7);
+    let (c8_ptr) = dict_read{dict_ptr=mul_dict}(8);
+    let (c9_ptr) = dict_read{dict_ptr=mul_dict}(9);
+    let (c10_ptr) = dict_read{dict_ptr=mul_dict}(10);
+    let (c11_ptr) = dict_read{dict_ptr=mul_dict}(11);
+
+    tempvar zero = new UInt384(0, 0, 0, 0);
+    let coeff_ptr = cast(c0_ptr, UInt384*);
+    let c0 = _process_coefficient(coeff_ptr, zero);
+    assert result_struct.c0 = c0;
+
+    let coeff_ptr = cast(c1_ptr, UInt384*);
+    let c1 = _process_coefficient(coeff_ptr, zero);
+    assert result_struct.c1 = c1;
+
+    let coeff_ptr = cast(c2_ptr, UInt384*);
+    let c2 = _process_coefficient(coeff_ptr, zero);
+    assert result_struct.c2 = c2;
+
+    let coeff_ptr = cast(c3_ptr, UInt384*);
+    let c3 = _process_coefficient(coeff_ptr, zero);
+    assert result_struct.c3 = c3;
+
+    let coeff_ptr = cast(c4_ptr, UInt384*);
+    let c4 = _process_coefficient(coeff_ptr, zero);
+    assert result_struct.c4 = c4;
+
+    let coeff_ptr = cast(c5_ptr, UInt384*);
+    let c5 = _process_coefficient(coeff_ptr, zero);
+    assert result_struct.c5 = c5;
+
+    let coeff_ptr = cast(c6_ptr, UInt384*);
+    let c6 = _process_coefficient(coeff_ptr, zero);
+    assert result_struct.c6 = c6;
+
+    let coeff_ptr = cast(c7_ptr, UInt384*);
+    let c7 = _process_coefficient(coeff_ptr, zero);
+    assert result_struct.c7 = c7;
+
+    let coeff_ptr = cast(c8_ptr, UInt384*);
+    let c8 = _process_coefficient(coeff_ptr, zero);
+    assert result_struct.c8 = c8;
+
+    let coeff_ptr = cast(c9_ptr, UInt384*);
+    let c9 = _process_coefficient(coeff_ptr, zero);
+    assert result_struct.c9 = c9;
+
+    let coeff_ptr = cast(c10_ptr, UInt384*);
+    let c10 = _process_coefficient(coeff_ptr, zero);
+    assert result_struct.c10 = c10;
+
+    let coeff_ptr = cast(c11_ptr, UInt384*);
+    let c11 = _process_coefficient(coeff_ptr, zero);
+    assert result_struct.c11 = c11;
+
+    tempvar bnf12_result = BNF12(result_struct);
+    return bnf12_result;
+}
+
+func _process_coefficient(coeff_ptr: UInt384*, zero: UInt384*) -> UInt384 {
+    if (coeff_ptr == 0) {
+        tempvar coeff = [zero];
+    } else {
+        let coeff = [cast(coeff_ptr, UInt384*)];
+        tempvar coeff = coeff;
+    }
+    return coeff;
+}
+
+func _get_bnf12_coeff(a: BNF12, i: felt) -> UInt384 {
+    if (i == 0) {
+        return a.value.c0;
+    }
+    if (i == 1) {
+        return a.value.c1;
+    }
+    if (i == 2) {
+        return a.value.c2;
+    }
+    if (i == 3) {
+        return a.value.c3;
+    }
+    if (i == 4) {
+        return a.value.c4;
+    }
+    if (i == 5) {
+        return a.value.c5;
+    }
+    if (i == 6) {
+        return a.value.c6;
+    }
+    if (i == 7) {
+        return a.value.c7;
+    }
+    if (i == 8) {
+        return a.value.c8;
+    }
+    if (i == 9) {
+        return a.value.c9;
+    }
+    if (i == 10) {
+        return a.value.c10;
+    }
+    if (i == 11) {
+        return a.value.c11;
+    }
+
+    // Should never reach here
+    raise('AssertionError');
+    tempvar zero = new UInt384(0, 0, 0, 0);
+    return [zero];
 }
 
 // alt_bn128 curve defined over BNF12
