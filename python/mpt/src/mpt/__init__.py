@@ -3,7 +3,7 @@ import logging
 import os
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Dict, List, Mapping, Optional
+from typing import Any, Dict, List, Mapping, Optional
 
 import requests
 from ethereum.cancun.fork_types import EMPTY_ACCOUNT, Account, Address, encode_account
@@ -219,6 +219,45 @@ class StateTries:
         with open(path, "r") as f:
             data = json.load(f)
 
+        nodes = {
+            keccak256(hex_to_bytes(node)): (hex_to_bytes(node))
+            for node in data["witness"]["state"]
+        }
+
+        codes = {
+            keccak256(hex_to_bytes(code)): hex_to_bytes(code)
+            for code in data["witness"]["codes"]
+        }
+
+        # Process the access list from the JSON data
+        access_list = {
+            Address(hex_to_bytes(item["address"])): (
+                [Bytes32(hex_to_bytes(key)) for key in item["storageKeys"]]
+                if item["storageKeys"] is not None
+                else None
+            )
+            for item in data.get("accessList", [])
+        }
+
+        state_root = Hash32(hex_to_bytes(data["witness"]["ancestors"][0]["stateRoot"]))
+
+        return cls(
+            nodes=nodes,
+            codes=codes,
+            access_list=access_list,
+            state_root=state_root,
+        )
+
+    @classmethod
+    def from_data(cls, data: Dict[str, Any]) -> "StateTries":
+        """
+        Create a StateTries object from a dictionary of data. We expect the data to be the same as `from_json` method.
+
+        Parameters
+        ----------
+        data : Dict[str, Any]
+            The data to create the StateTries object from
+        """
         nodes = {
             keccak256(hex_to_bytes(node)): (hex_to_bytes(node))
             for node in data["witness"]["state"]

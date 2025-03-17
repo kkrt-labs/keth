@@ -50,9 +50,11 @@ def zkpi_to_stf(block_number: int, path: str):
     Requires CHAIN_RPC_URL to be set in the environment variables.
     """
     input_file = f"{path}/{block_number}.json"
+    with open(input_file, "r") as f:
+        data = json.load(f)
 
     try:
-        ethereum_state = StateTries.from_json(input_file)
+        ethereum_state = StateTries.from_data(data)
         pre_state = ethereum_state.to_state()
     except FileNotFoundError:
         logging.error(f"Input file not found: {input_file}")
@@ -63,9 +65,6 @@ def zkpi_to_stf(block_number: int, path: str):
     except Exception as e:
         logging.error(f"Error loading state from file: {e}")
         sys.exit(1)
-
-    with open(input_file, "r") as f:
-        data = json.load(f)
 
     # Create the Blockchain and Block objects
     load = Load("Cancun", "cancun")
@@ -547,7 +546,7 @@ def main():
     args = parser.parse_args()
 
     try:
-        zkpi_to_stf(args.block_number, args.path)
+        zkpi_to_stf(args.block_number, args.data_dir)
     except Exception as e:
         logging.error(
             f"Error processing block {args.block_number}: {e} - Run zk-pig on block {args.block_number} to generate the prover input file in data/1/inputs/{args.block_number}.json"
