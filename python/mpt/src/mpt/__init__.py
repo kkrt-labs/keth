@@ -2,6 +2,7 @@ import json
 import logging
 import os
 from collections import defaultdict
+from dataclasses import dataclass
 from typing import Dict, List, Mapping, Optional
 
 import requests
@@ -27,6 +28,24 @@ from ethereum_types.numeric import U256, Uint
 from mpt.state_diff import StateDiff
 
 logger = logging.getLogger("mpt")
+
+
+@dataclass
+class RLPAccount:
+    nonce: bytes
+    balance: bytes
+    storage_root: Bytes32
+    code_hash: Bytes32
+
+    def to_account(self, code: Optional[bytes] = None) -> Account:
+        return Account(
+            nonce=Uint(int.from_bytes(self.nonce, "big")),
+            balance=U256(int.from_bytes(self.balance, "big")),
+            code=code,
+        )
+
+    def rlp_encode(self) -> bytes:
+        return rlp.encode([self.nonce, self.balance, self.storage_root, self.code_hash])
 
 
 EMPTY_TRIE_ROOT_HASH = Hash32(
@@ -122,14 +141,12 @@ class StateTries:
                 trie_set(_main_trie, address, EMPTY_ACCOUNT)
                 continue
 
-            decoded = rlp.decode(account)
-            if len(decoded) != 4:
-                raise ValueError(f"Invalid account length: {len(decoded)}")
+            rlp_account = RLPAccount(*rlp.decode(account))
 
-            if decoded[3] == EMPTY_CODE_HASH:
+            if rlp_account.code_hash == EMPTY_CODE_HASH:
                 code = b""
             else:
-                code = self.codes.get(decoded[3], None)
+                code = self.codes.get(rlp_account.code_hash, None)
                 # TODO: This is a hack to get the code for codes not present in the StateTries object
                 # This is due to accessing code only through EXTCODEHASH opcode
                 if code is None:
@@ -163,15 +180,11 @@ class StateTries:
             trie_set(
                 _main_trie,
                 address,
-                Account(
-                    nonce=Uint(int.from_bytes(decoded[0], "big")),
-                    balance=U256(int.from_bytes(decoded[1], "big")),
-                    code=code,
-                ),
+                rlp_account.to_account(code),
             )
 
             # Process storage for this account if it has storage keys in the access list
-            storage_root = decoded[2]
+            storage_root = rlp_account.storage_root
             if not storage_root:
                 raise ValueError(f"Storage root is None for address: {address}")
 
@@ -283,10 +296,9 @@ class StateTries:
                 "get_storage_root: Account not found - Return EMPTY_TRIE_ROOT_HASH"
             )
             return EMPTY_TRIE_ROOT_HASH
-        decoded = rlp.decode(account)
-        if len(decoded) != 4:
-            raise ValueError(f"Invalid account length: {len(decoded)}")
-        return Hash32(decoded[2])
+
+        rlp_account = RLPAccount(*rlp.decode(account))
+        return Hash32(rlp_account.storage_root)
 
     def _get_node(self, node_hash: Hash32, nibble_path: Bytes) -> Optional[Bytes]:
         """
@@ -558,10 +570,8 @@ class StateTries:
         if account is None:
             logger.debug("Account not found, nothing to delete")
             return
-        decoded = rlp.decode(account)
-        if len(decoded) != 4:
-            raise ValueError(f"Invalid account length: {len(decoded)}")
-        storage_root = Hash32(decoded[2])
+        rlp_account = RLPAccount(*rlp.decode(account))
+        storage_root = rlp_account.storage_root
 
         # Delete the storage key
         path = keccak256(key)
@@ -570,8 +580,8 @@ class StateTries:
             logger.debug("Failed to delete storage key, nothing to update")
             return
         else:
-            decoded[2] = new_root_hash
-            encoded = rlp.encode(decoded)
+            rlp_account.storage_root = new_root_hash
+            encoded = rlp_account.rlp_encode()
             self.upsert(keccak256(address), encoded)
             return
 
@@ -933,11 +943,9 @@ class StateTries:
             )
             return
 
-        decoded = rlp.decode(account)
-        if len(decoded) != 4:
-            raise ValueError(f"Invalid account length: {len(decoded)}")
+        rlp_account = RLPAccount(*rlp.decode(account))
 
-        storage_root = Hash32(decoded[2])
+        storage_root = Hash32(rlp_account.storage_root)
         path = keccak256(key)
 
         if storage_root is None:
@@ -953,8 +961,8 @@ class StateTries:
         logger.debug(
             f"Updating storage root for account: 0x{address.hex()} - new root hash: 0x{new_root_hash.hex()}"
         )
-        decoded[2] = new_root_hash
-        encoded = rlp.encode(decoded)
+        rlp_account.storage_root = new_root_hash
+        encoded = rlp_account.rlp_encode()
         self.upsert(keccak256(address), encoded)
         return
 
