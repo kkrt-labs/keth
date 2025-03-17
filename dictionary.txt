@@ -250,6 +250,7 @@ tfile
 thiserror
 tload
 TLOAD
+Tonelli
 tryfirst
 tstore
 TSTORE
