@@ -228,7 +228,7 @@ class StateTries:
             data = json.load(f)
 
         nodes = {
-            keccak256(hex_to_bytes(node)): hex_to_bytes(node)
+            keccak256(hex_to_bytes(node)): (hex_to_bytes(node))
             for node in data["witness"]["state"]
         }
 
@@ -834,12 +834,16 @@ class StateTries:
             if isinstance(new_child, LeafNode):
                 combined_path = node.key_segment + new_child.rest_of_key
                 # INVARIANT: The combined path should be the same as the remaining path
-                assert combined_path == nibble_path
+                assert (
+                    combined_path == nibble_path
+                ), f"Invariant broken - Combined path: {nibble_path_to_hex(combined_path)} != {nibble_path_to_hex(nibble_path)}"
                 return LeafNode(rest_of_key=combined_path, value=new_child.value), True
             elif isinstance(new_child, ExtensionNode):
                 combined_path = node.key_segment + new_child.key_segment
                 # INVARIANT: The combined path should be the same as the remaining path
-                assert combined_path == nibble_path
+                assert (
+                    combined_path == nibble_path
+                ), f"Invariant broken - Combined path: {nibble_path_to_hex(combined_path)} != {nibble_path_to_hex(nibble_path)}"
                 return (
                     ExtensionNode(key_segment=combined_path, subnode=new_child.subnode),
                     True,
