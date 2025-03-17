@@ -204,7 +204,7 @@ class StateTries:
                         U256(int.from_bytes(rlp.decode(value), "big")),
                     )
 
-        logger.error("Finished converting StateTries to State")
+        logger.debug("Finished converting StateTries to State")
         return State(
             _main_trie=_main_trie,
             _storage_tries=_storage_tries,
