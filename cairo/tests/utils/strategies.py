@@ -552,7 +552,10 @@ def compute_sqrt_mod_p(a, p):
     return pow(a, (p + 1) // 4, p)
 
 
-def generate_valid_point(x_value):
+def bnp12_generate_valid_point(x_value):
+    """
+    Generate a valid point on the BNP curve extended to BNF12.
+    """
     p = BNF12.PRIME
 
     # Calculate the right side of the curve equation: x³ + 3
@@ -577,8 +580,14 @@ bnp12_strategy = st.one_of(
     st.just(bnp12_infinity),
     st.just(bnp12_g1),
     # Generate points with correctly computed y-coordinates
-    st.integers(min_value=1, max_value=1000)
-    .map(lambda x: generate_valid_point(x))
+    st.one_of(
+        [
+            st.just(BNF12.PRIME - 1),
+            st.just(BNF12.PRIME // 2),
+            st.integers(min_value=1, max_value=10000),
+        ],
+    )
+    .map(lambda x: bnp12_generate_valid_point(x))
     .filter(lambda x: x is not None),
 )
 

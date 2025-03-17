@@ -384,11 +384,15 @@ struct BNP12 {
     value: BNP12Struct*,
 }
 
+// @dev: Coefficient A of the short Weierstrass equation: y^2 = x^3 + Ax + B
+// for alt_bn128: A = 0 and B = 3
 func A() -> BNF12 {
     let bnf12_zero = BNF12_ZERO();
     return bnf12_zero;
 }
 
+// @dev: Coefficient B of the short Weierstrass equation: y^2 = x^3 + Ax + B
+// for alt_bn128: A = 0 and B = 3
 func B() -> BNF12 {
     tempvar bnf12_three = BNF12(
         new BNF12Struct(

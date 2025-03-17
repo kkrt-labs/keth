@@ -991,9 +991,6 @@ def _gen_arg(
         return base
 
     if arg_type is BNP12:
-        if arg is None:
-            return 0
-
         struct_ptr = segments.add()
 
         # Handle the x and y coordinates recursively
