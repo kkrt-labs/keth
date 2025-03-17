@@ -48,6 +48,7 @@ cairo/tests/ef_tests/fixtures/
 
 # zk-pig default output directory
 data/*
+# we need these files for the `python/mpt/tests/test_mpt.py` tests
 !data/1/eels/22009357.json
 !data/1/inputs/22009357.json
 
