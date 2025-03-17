@@ -285,3 +285,4 @@ setattr
 pyfunction
 chrono
 stwo
+lambdaworks

@@ -41,6 +41,8 @@ chrono = "0.4.40"
 serde_json = "1.0"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 tracing = "0.1.41"
+# TODO: Remove this once garaga fixes the dependency
+lambdaworks-math = { git = "https://github.com/lambdaclass/lambdaworks.git", rev = "7e94a19037852cedc16b17922142ece2460a0845" }
 
 [build-dependencies]
 pyo3-build-config = "0.23.3" # Should match pyo3 version

@@ -733,6 +733,7 @@ dependencies = [
  "cairo-vm",
  "chrono",
  "garaga_rs",
+ "lambdaworks-math 0.11.0 (git+https://github.com/lambdaclass/lambdaworks.git?rev=7e94a19037852cedc16b17922142ece2460a0845)",
  "lazy_static",
  "num-bigint",
  "num-traits",
@@ -1455,7 +1456,7 @@ dependencies = [
  "hex",
  "js-sys",
  "lambdaworks-crypto 0.11.0",
- "lambdaworks-math 0.11.0",
+ "lambdaworks-math 0.11.0 (git+https://github.com/lambdaclass/lambdaworks.git)",
  "num-bigint",
  "num-traits",
  "pyo3",
@@ -2048,7 +2049,7 @@ name = "lambdaworks-crypto"
 version = "0.11.0"
 source = "git+https://github.com/lambdaclass/lambdaworks.git#1d572861e24274075b8387cf46d56660853febf0"
 dependencies = [
- "lambdaworks-math 0.11.0",
+ "lambdaworks-math 0.11.0 (git+https://github.com/lambdaclass/lambdaworks.git)",
  "serde",
  "sha2 0.10.8",
  "sha3",
@@ -2067,7 +2068,17 @@ dependencies = [
 [[package]]
 name = "lambdaworks-math"
 version = "0.11.0"
-source = "git+https://github.com/lambdaclass/lambdaworks.git#1d572861e24274075b8387cf46d56660853febf0"
+source = "git+https://github.com/lambdaclass/lambdaworks.git?rev=7e94a19037852cedc16b17922142ece2460a0845#7e94a19037852cedc16b17922142ece2460a0845"
+dependencies = [
+ "rayon",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "lambdaworks-math"
+version = "0.11.0"
+source = "git+https://github.com/lambdaclass/lambdaworks.git#7e94a19037852cedc16b17922142ece2460a0845"
 dependencies = [
  "rayon",
  "serde",
