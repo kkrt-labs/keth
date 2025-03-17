@@ -188,12 +188,15 @@ class StateTries:
             if not storage_root:
                 raise ValueError(f"Storage root is None for address: {address}")
 
-            if self.access_list.get(address) is not None:
+            if (
+                self.access_list.get(address) is not None
+                and storage_root != EMPTY_TRIE_ROOT_HASH
+            ):
                 for key in self.access_list[address]:
                     value = self.get(keccak256(key), Hash32(storage_root))
                     if value is None:
-                        logger.error(
-                            f"Value is None for key: 0x{key.hex()} for address: 0x{address.hex()}"
+                        logger.debug(
+                            f"Exclusion proof found for key: 0x{key.hex()} for address: 0x{address.hex()}"
                         )
                         continue
                     if _storage_tries.get(address) is None:
@@ -273,8 +276,7 @@ class StateTries:
 
         # Check if the root hash exists in our nodes
         if root_hash not in self.nodes and root_hash != EMPTY_TRIE_ROOT_HASH:
-            logger.error(f"Root hash not found in nodes: {root_hash.hex()}")
-            return None
+            raise KeyError(f"Root hash not found in nodes: 0x{root_hash.hex()}")
 
         # Start traversal from the root
         nibble_path = bytes_to_nibble_list(path)
@@ -287,9 +289,6 @@ class StateTries:
             return None
         except Exception as e:
             logger.error(
-                f"Error in {'state' if is_state_access else 'storage'} get: {str(e)}"
-            )
-            raise ValueError(
                 f"Error in {'state' if is_state_access else 'storage'} get: {str(e)}"
             )
 
@@ -333,7 +332,9 @@ class StateTries:
         node_data = self.nodes.get(node_hash)
 
         if node_data is None:
-            raise KeyError(f"Node not found: 0x{node_hash.hex()} - Missing Node")
+            raise KeyError(
+                f"Node not found: 0x{node_hash.hex()} - Missing Node at {nibble_path_to_hex(nibble_path)}"
+            )
 
         node = self._decode_node(node_data)
         return self._process_node(node, nibble_path)
