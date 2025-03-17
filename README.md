@@ -150,7 +150,7 @@ execution.
 Usage:
 
 ```bash
-python cairo/scripts/zkpi_to_stf.py <block_number> [--path <path_to_input_files>]
+python cairo/scripts/zkpi_to_stf.py <block_number> [--data-dir <path_to_input_files>]
 ```
 
 The script requires the `CHAIN_RPC_URL` environment variable to be set to a
@@ -163,8 +163,9 @@ from the RPC node to help identify the source of the discrepancy.
 Requirements:
 
 - Block must be post-Cancun fork (block number ≥ 19426587)
-- ZKPI data must be available at `data/1/inputs/<BLOCK_NUMBER>.json`. To
-  generate prover inputs, visit <https://github.com/kkrt-labs/zk-pig>.
+- ZKPI data must be available at --data-dir, defaulting to:
+  `data/1/inputs/<BLOCK_NUMBER>.json`. To generate prover inputs, visit
+  <https://github.com/kkrt-labs/zk-pig>.
 - `CHAIN_RPC_URL` environment variable must be set to a valid Ethereum node URL
 
 ### Updating Rust dependencies

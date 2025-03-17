@@ -539,7 +539,7 @@ def main():
     )
     parser.add_argument("block_number", type=int, help="Block number to process")
     parser.add_argument(
-        "--path",
+        "--data-dir",
         type=str,
         help="Path to the prover input file",
         default="data/1/inputs",
