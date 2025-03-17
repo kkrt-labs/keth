@@ -279,7 +279,6 @@ def sanity_check_fixture(fixture: Dict[str, Any]) -> None:
         parent_beacon_block_root=block.header.parent_beacon_block_root,
         excess_blob_gas=calculate_excess_blob_gas(chain.blocks[-1].header),
     )
-    logger.info("Patched state root: 0x" + output.state_root.hex())
     block = Block(
         header=load.json_to_header(
             {
