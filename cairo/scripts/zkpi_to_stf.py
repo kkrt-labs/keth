@@ -9,25 +9,30 @@ from ethereum.cancun.fork import (
     apply_body,
     calculate_excess_blob_gas,
     get_last_256_block_hashes,
+    validate_header,
 )
 from ethereum.cancun.fork_types import Address
 from ethereum.cancun.state import State, copy_trie
 from ethereum.cancun.transactions import LegacyTransaction, encode_transaction
 from ethereum.crypto.hash import keccak256
-from ethereum.utils.hexadecimal import hex_to_bytes, hex_to_u256, hex_to_uint
+from ethereum.exceptions import (
+    InvalidBlock,
+)
+from ethereum.utils.hexadecimal import hex_to_bytes
+from ethereum_rlp import rlp
 from ethereum_spec_tools.evm_tools.loaders.fixture_loader import Load
 from ethereum_spec_tools.evm_tools.loaders.fork_loader import ForkLoad
 from ethereum_spec_tools.evm_tools.loaders.transaction_loader import TransactionLoad
-from ethereum_types.bytes import Bytes, Bytes0, Bytes32
+from ethereum_types.bytes import Bytes, Bytes32
 from ethereum_types.numeric import (
     U64,
     U256,
-    Uint,
 )
-from scripts.zkpi_to_eels import normalize_transaction
 
 from mpt import StateTries
 from mpt.state_diff import StateDiff
+
+from .zkpi_to_eels import normalize_transaction
 
 
 def zkpi_to_stf(block_number: int, path: str):
@@ -59,12 +64,6 @@ def zkpi_to_stf(block_number: int, path: str):
         logging.error(f"Error loading state from file: {e}")
         sys.exit(1)
 
-    # We make a deep copy of the State to be able to compute State Diffs
-    pre_state_copy = State(
-        _main_trie=copy_trie(pre_state._main_trie),
-        _storage_tries={k: copy_trie(v) for k, v in pre_state._storage_tries.items()},
-    )
-
     with open(input_file, "r") as f:
         data = json.load(f)
 
@@ -91,43 +90,16 @@ def zkpi_to_stf(block_number: int, path: str):
             TransactionLoad(normalize_transaction(tx), ForkLoad("cancun")).read()
             for tx in block["transaction"]
         )
-        encoded_transactions = tuple(
-            (
-                "0x" + encode_transaction(tx).hex()
-                if not isinstance(tx, LegacyTransaction)
-                else {
-                    "nonce": hex(tx.nonce),
-                    "gasPrice": hex(tx.gas_price),
-                    "gas": hex(tx.gas),
-                    "to": "0x" + tx.to.hex() if tx.to else "",
-                    "value": hex(tx.value),
-                    "data": "0x" + tx.data.hex(),
-                    "v": hex(tx.v),
-                    "r": hex(tx.r),
-                    "s": hex(tx.s),
-                }
-            )
-            for tx in transactions
-        )
+
         block = Block(
             header=load.json_to_header(block["header"]),
             transactions=tuple(
                 (
-                    LegacyTransaction(
-                        nonce=hex_to_u256(tx["nonce"]),
-                        gas_price=hex_to_uint(tx["gasPrice"]),
-                        gas=hex_to_uint(tx["gas"]),
-                        to=(Address(hex_to_bytes(tx["to"])) if tx["to"] else Bytes0()),
-                        value=hex_to_u256(tx["value"]),
-                        data=Bytes(hex_to_bytes(tx["data"])),
-                        v=hex_to_u256(tx["v"]),
-                        r=hex_to_u256(tx["r"]),
-                        s=hex_to_u256(tx["s"]),
-                    )
-                    if isinstance(tx, dict)
-                    else Bytes(hex_to_bytes(tx))
-                )  # Non-legacy txs are hex strings
-                for tx in encoded_transactions
+                    tx
+                    if isinstance(tx, LegacyTransaction)
+                    else Bytes(hex_to_bytes(encode_transaction(tx).hex()))
+                )
+                for tx in transactions
             ),
             ommers=(),
             withdrawals=tuple(
@@ -141,56 +113,15 @@ def zkpi_to_stf(block_number: int, path: str):
             ),
         )
 
-        output = apply_body(
-            state=blockchain.state,
-            block_hashes=get_last_256_block_hashes(blockchain),
-            coinbase=block.header.coinbase,
-            block_number=block.header.number,
-            base_fee_per_gas=block.header.base_fee_per_gas,
-            block_gas_limit=block.header.gas_limit,
-            block_time=block.header.timestamp,
-            prev_randao=block.header.prev_randao,
-            transactions=block.transactions,
-            chain_id=blockchain.chain_id,
-            withdrawals=block.withdrawals,
-            parent_beacon_block_root=block.header.parent_beacon_block_root,
-            excess_blob_gas=calculate_excess_blob_gas(blockchain.blocks[-1].header),
-        )
-
-        ## Sanity checks against real data
-        assert (
-            output.receipt_root.hex() == data["blocks"][0]["header"]["receiptsRoot"][2:]
-        )
-        assert (
-            output.transactions_root.hex()
-            == data["blocks"][0]["header"]["transactionsRoot"][2:]
-        )
-        assert (
-            output.withdrawals_root.hex()
-            == data["blocks"][0]["header"]["withdrawalsRoot"][2:]
-        )
-        assert (
-            output.block_logs_bloom.hex()
-            == data["blocks"][0]["header"]["logsBloom"][2:]
-        )
-        assert output.block_gas_used == Uint(
-            int(data["blocks"][0]["header"]["gasUsed"][2:], 16)
-        )
-        assert output.blob_gas_used == Uint(
-            int(data["blocks"][0]["header"]["blobGasUsed"][2:], 16)
-        )
-
-        post_state = blockchain.state
-        state_diff = StateDiff.from_pre_post(pre_state_copy, post_state)
-        ethereum_state.update_from_state_diff(state_diff)
-        success = (
-            ethereum_state.state_root.hex()
-            == data["blocks"][0]["header"]["stateRoot"][2:]
-        )
-        assert (
-            ethereum_state.state_root.hex()
-            == data["blocks"][0]["header"]["stateRoot"][2:]
-        )
+        try:
+            trie_state_transition(blockchain, block, ethereum_state)
+            success = True
+        except InvalidBlock as e:
+            logging.error(f"❌ Invalid block: {e}")
+            success = False
+        except Exception as e:
+            logging.error(f"❌ Error processing block: {e}")
+            success = False
 
         # Checksum
         if not success:
@@ -309,8 +240,6 @@ def compare_account_proofs(rpc_proof, state_account, address):
     """
     import logging
 
-    from ethereum_rlp import rlp
-
     logger = logging.getLogger("account_checksum")
 
     addr_hex = "0x" + address.hex()
@@ -380,7 +309,6 @@ def check_address_storage(ethereum_state: StateTries, address, block_number):
     block_number : int
         The block number to check at
     """
-    from ethereum_rlp import rlp
 
     logger = logging.getLogger("account_checksum")
 
@@ -532,6 +460,71 @@ def get_storage_proof(address, block_number, storage_keys):
     except Exception as e:
         logger.error(f"Error fetching storage proof: {str(e)}")
         return None
+
+
+def trie_state_transition(
+    chain: BlockChain, block: Block, mpt_tries: StateTries
+) -> None:
+    """
+    Redefinition of ethereum.cancun.fork.state_transition to use the StateTries class instead of State for state_root assertions.
+    """
+    parent_header = chain.blocks[-1].header
+    excess_blob_gas = calculate_excess_blob_gas(parent_header)
+    if block.header.excess_blob_gas != excess_blob_gas:
+        raise InvalidBlock
+
+    # Modification:
+    # We make a deep copy of the State to be able to compute State Diffs
+    pre_state_copy = State(
+        _main_trie=copy_trie(chain.state._main_trie),
+        _storage_tries={k: copy_trie(v) for k, v in chain.state._storage_tries.items()},
+    )
+
+    validate_header(block.header, parent_header)
+    if block.ommers != ():
+        raise InvalidBlock
+    apply_body_output = apply_body(
+        chain.state,
+        get_last_256_block_hashes(chain),
+        block.header.coinbase,
+        block.header.number,
+        block.header.base_fee_per_gas,
+        block.header.gas_limit,
+        block.header.timestamp,
+        block.header.prev_randao,
+        block.transactions,
+        chain.chain_id,
+        block.withdrawals,
+        block.header.parent_beacon_block_root,
+        excess_blob_gas,
+    )
+    if apply_body_output.block_gas_used != block.header.gas_used:
+        raise InvalidBlock(
+            f"{apply_body_output.block_gas_used} != {block.header.gas_used}"
+        )
+    if apply_body_output.transactions_root != block.header.transactions_root:
+        raise InvalidBlock
+
+    if apply_body_output.receipt_root != block.header.receipt_root:
+        raise InvalidBlock
+    if apply_body_output.block_logs_bloom != block.header.bloom:
+        raise InvalidBlock
+    if apply_body_output.withdrawals_root != block.header.withdrawals_root:
+        raise InvalidBlock
+    if apply_body_output.blob_gas_used != block.header.blob_gas_used:
+        raise InvalidBlock
+
+    state_diff = StateDiff.from_pre_post(pre_state_copy, chain.state)
+    mpt_tries.update_from_state_diff(state_diff)
+
+    if mpt_tries.state_root != block.header.state_root:
+        raise InvalidBlock
+
+    chain.blocks.append(block)
+    if len(chain.blocks) > 255:
+        # Real clients have to store more blocks to deal with reorgs, but the
+        # protocol only requires the last 255
+        chain.blocks = chain.blocks[-255:]
 
 
 def main():
