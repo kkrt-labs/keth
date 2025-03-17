@@ -11,6 +11,10 @@ from ethereum_types.numeric import U256, Uint
 
 from mpt import EMPTY_TRIE_ROOT_HASH, StateTries
 
+TEST_PATH = "./data/1"
+SUB_PATH = "inputs"
+FILE_NAME = "22009357.json"
+
 # A set of encoded storage keys and values for testing
 STORAGE_KEYS: list[Bytes32] = [U256(i).to_be_bytes32() for i in range(1, 6)]
 KECCAK_STORAGE_KEYS: list[Bytes32] = [Bytes32(keccak256(key)) for key in STORAGE_KEYS]
@@ -31,11 +35,11 @@ TEST_ACCOUNT = Account(
 
 class TestStateTries:
     def test_from_json(self):
-        mpt = StateTries.from_json("data/1/inputs/22009357.json")
+        mpt = StateTries.from_json(f"{TEST_PATH}/{SUB_PATH}/{FILE_NAME}")
         assert mpt is not None
 
     def test_get(self):
-        mpt = StateTries.from_json("data/1/inputs/22009357.json")
+        mpt = StateTries.from_json(f"{TEST_PATH}/{SUB_PATH}/{FILE_NAME}")
 
         random_address = list(mpt.access_list.keys())[0]
 
@@ -46,7 +50,7 @@ class TestStateTries:
         assert result is not None
 
     def test_delete(self):
-        mpt = StateTries.from_json("data/1/inputs/22009357.json")
+        mpt = StateTries.from_json(f"{TEST_PATH}/{SUB_PATH}/{FILE_NAME}")
 
         # Using an address from the JSON file that we know exists
         test_address = Address(
@@ -60,7 +64,7 @@ class TestStateTries:
         assert mpt.get(keccak256(test_address)) is None
 
     def test_upsert(self):
-        mpt = StateTries.from_json("data/1/inputs/22009357.json")
+        mpt = StateTries.from_json(f"{TEST_PATH}/{SUB_PATH}/{FILE_NAME}")
 
         encoded_account = encode_account(TEST_ACCOUNT, EMPTY_TRIE_ROOT_HASH)
 
@@ -74,16 +78,16 @@ class TestStateTries:
         assert mpt.get(keccak256(test_address)) == encoded_account
 
     def test_to_state(self):
-        mpt = StateTries.from_json("data/1/inputs/22009357.json")
+        mpt = StateTries.from_json(f"{TEST_PATH}/{SUB_PATH}/{FILE_NAME}")
 
         state = mpt.to_state()
 
         assert state is not None
 
     def test_to_state_with_diff_testing(self):
-        mpt = StateTries.from_json("data/1/inputs/22009357.json")
+        mpt = StateTries.from_json(f"{TEST_PATH}/{SUB_PATH}/{FILE_NAME}")
 
-        with open("data/1/eels/22009357.json", "r") as f:
+        with open(f"{TEST_PATH}/eels/{FILE_NAME}", "r") as f:
             fixture = json.load(f)
 
         state = mpt.to_state()
