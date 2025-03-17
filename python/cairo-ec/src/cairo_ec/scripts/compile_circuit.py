@@ -32,6 +32,7 @@ Requirements:
     - Functions must use standard argument and return type patterns
 """
 
+import re
 import subprocess
 from pathlib import Path
 
@@ -116,6 +117,9 @@ def main(file_path: Path | None, prime: int, function: list[str], echo: bool):
     # Compile the Cairo file
     program = cairo_compile(file_path, proof_mode=False, prime=prime)
 
+    # Extract the imports to add them to the output
+    file_imports = extract_imports(file_path)
+
     # Get all functions or filter by provided names
     available_functions = {
         k.path[-1]: k.path[-1]
@@ -138,11 +142,11 @@ def main(file_path: Path | None, prime: int, function: list[str], echo: bool):
         )
 
     # Generate output code
-    output_parts = [header_template.render()]
+    output_parts = [header_template.render(file_imports=file_imports)]
     circuit_parts = []
 
     struct_names = set()
-    structs = []
+    structs_to_render = []
 
     # Process each function
     for function_name in functions_to_compile:
@@ -150,18 +154,22 @@ def main(file_path: Path | None, prime: int, function: list[str], echo: bool):
         click.echo(f"Circuit {function_name}: {circuit}")
 
         # Extract only new structs that are not used in previously compiled functions
+        # and not part of the imports
         for struct in circuit["structs"]:
             struct_name = struct["name"]
-            if struct_name not in struct_names:
+            # Check if struct is not already processed and not in imports
+            if struct_name not in struct_names and not any(
+                struct_name == import_item[1] for import_item in file_imports
+            ):
                 struct_names.add(struct_name)
-                structs.append(struct)
+                structs_to_render.append(struct)
 
         # Render template with all necessary data
         circuit_code = circuit_template.render(name=function_name, circuit=circuit)
         circuit_parts.append(circuit_code)
 
     # Render the structs
-    struct_code = _struct_template.render(structs=structs)
+    struct_code = _struct_template.render(structs=structs_to_render)
     output_parts.append(struct_code)
 
     # Properly order the compiled function
@@ -189,3 +197,13 @@ def main(file_path: Path | None, prime: int, function: list[str], echo: bool):
 
 if __name__ == "__main__":
     main()
+
+
+def extract_imports(file_path: Path) -> list[str]:
+    """Extract the imports from the file."""
+    with file_path.open("r") as f:
+        content = f.read()
+
+    # Extract the imports
+    imports = re.findall(r"from (.*) import (.*)", content)
+    return imports

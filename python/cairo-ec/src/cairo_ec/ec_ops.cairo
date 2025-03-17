@@ -126,10 +126,7 @@ func ec_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: Mod
         return res;
     }
 
-    let (res_x, res_y) = ec_add_unchecked(
-        p.value.x.value, p.value.y.value, q.value.x.value, q.value.y.value, modulus.value
-    );
-    tempvar res = G1Point(new G1PointStruct(U384(res_x), U384(res_y)));
+    let res = ec_add_unchecked(p, q, modulus);
     return res;
 }
 

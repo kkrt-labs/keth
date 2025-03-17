@@ -1,11 +1,18 @@
-// @dev Add two distinct EC points, doesn't make any checks on the inputs.
-func ec_add(x0: felt, y0: felt, x1: felt, y1: felt) -> (felt, felt) {
-    tempvar l = (y1 - y0) / (x1 - x0);
+from cairo_ec.curve.g1_point import G1Point
 
-    tempvar x = l * l - x0 - x1;
-    tempvar y = l * (x0 - x) - y0;
+struct G1PointCircuitInput {
+    x: felt,
+    y: felt,
+}
 
-    return (x, y);
+func ec_add(p0: G1PointCircuitInput, p1: G1PointCircuitInput) -> G1PointCircuitInput {
+    tempvar l = (p1.y - p0.y) / (p1.x - p0.x);
+
+    tempvar x = l * l - p0.x - p1.x;
+    tempvar y = l * (p0.x - x) - p0.y;
+
+    let res = G1PointCircuitInput(x, y);
+    return res;
 
     end:
 }

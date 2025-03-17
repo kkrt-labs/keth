@@ -2,9 +2,11 @@ from starkware.cairo.common.cairo_builtins import UInt384, ModBuiltin
 from starkware.cairo.common.modulo import run_mod_p_circuit
 from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
 
+from cairo_ec.curve.g1_point import G1Point
+
 func ec_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
-    x0: UInt384*, y0: UInt384*, x1: UInt384*, y1: UInt384*, p: UInt384*
-) -> (UInt384*, UInt384*) {
+    p0: G1Point*, p1: G1Point*, p: UInt384*
+) -> G1Point* {
     let (_, pc) = get_fp_and_pc();
 
     pc_label:
@@ -16,22 +18,22 @@ func ec_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: Mod
     assert [range_check96_ptr + 2] = 0;
     assert [range_check96_ptr + 3] = 0;
 
-    assert [range_check96_ptr + 4] = x0.d0;
-    assert [range_check96_ptr + 5] = x0.d1;
-    assert [range_check96_ptr + 6] = x0.d2;
-    assert [range_check96_ptr + 7] = x0.d3;
-    assert [range_check96_ptr + 8] = y0.d0;
-    assert [range_check96_ptr + 9] = y0.d1;
-    assert [range_check96_ptr + 10] = y0.d2;
-    assert [range_check96_ptr + 11] = y0.d3;
-    assert [range_check96_ptr + 12] = x1.d0;
-    assert [range_check96_ptr + 13] = x1.d1;
-    assert [range_check96_ptr + 14] = x1.d2;
-    assert [range_check96_ptr + 15] = x1.d3;
-    assert [range_check96_ptr + 16] = y1.d0;
-    assert [range_check96_ptr + 17] = y1.d1;
-    assert [range_check96_ptr + 18] = y1.d2;
-    assert [range_check96_ptr + 19] = y1.d3;
+    assert [range_check96_ptr + 4] = p0.x.d0;
+    assert [range_check96_ptr + 5] = p0.x.d1;
+    assert [range_check96_ptr + 6] = p0.x.d2;
+    assert [range_check96_ptr + 7] = p0.x.d3;
+    assert [range_check96_ptr + 8] = p0.y.d0;
+    assert [range_check96_ptr + 9] = p0.y.d1;
+    assert [range_check96_ptr + 10] = p0.y.d2;
+    assert [range_check96_ptr + 11] = p0.y.d3;
+    assert [range_check96_ptr + 12] = p1.x.d0;
+    assert [range_check96_ptr + 13] = p1.x.d1;
+    assert [range_check96_ptr + 14] = p1.x.d2;
+    assert [range_check96_ptr + 15] = p1.x.d3;
+    assert [range_check96_ptr + 16] = p1.y.d0;
+    assert [range_check96_ptr + 17] = p1.y.d1;
+    assert [range_check96_ptr + 18] = p1.y.d2;
+    assert [range_check96_ptr + 19] = p1.y.d3;
 
     run_mod_p_circuit(
         p=[p],
@@ -42,46 +44,46 @@ func ec_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: Mod
         mul_mod_n=3,
     );
 
-    let range_check96_ptr = range_check96_ptr + 64;
+    let range_check96_ptr = range_check96_ptr + 60;
 
-    return (cast(range_check96_ptr - 8, UInt384*), cast(range_check96_ptr - 4, UInt384*));
+    return cast(range_check96_ptr - 8, G1Point*);
 
     add_offsets:
-    dw 20;
-    dw 8;
     dw 16;
-    dw 24;
     dw 4;
     dw 12;
+    dw 20;
+    dw 0;
+    dw 8;
+    dw 32;
+    dw 0;
+    dw 28;
     dw 36;
-    dw 4;
+    dw 8;
     dw 32;
     dw 40;
-    dw 12;
     dw 36;
-    dw 44;
-    dw 40;
-    dw 4;
-    dw 52;
-    dw 8;
+    dw 0;
     dw 48;
-    dw 0;
-    dw 40;
-    dw 56;
-    dw 0;
+    dw 4;
+    dw 44;
+    dw 4;
+    dw 36;
     dw 52;
-    dw 60;
+    dw 4;
+    dw 48;
+    dw 56;
 
     mul_offsets:
-    dw 28;
     dw 24;
     dw 20;
+    dw 16;
+    dw 24;
+    dw 24;
     dw 28;
-    dw 28;
-    dw 32;
-    dw 28;
+    dw 24;
+    dw 40;
     dw 44;
-    dw 48;
 }
 
 func ec_double{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(

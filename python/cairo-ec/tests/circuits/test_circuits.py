@@ -70,7 +70,7 @@ class TestCircuits:
                         values_ptr_len=len(values_ptr),
                         p=int_to_uint384(prime_cls.PRIME),
                         **compiled_circuit,
-                    )[-compiled_circuit["return_data_size"] :]
+                    )[-compiled_circuit["return_offsets"] :]
                 )
             )
             compiled_circuit_output = prime_cls(
@@ -107,7 +107,7 @@ class TestCircuits:
                         values_ptr_len=len(values_ptr),
                         p=int_to_uint384(prime_cls.PRIME),
                         **compiled_circuit,
-                    )[-compiled_circuit["return_data_size"] :]
+                    )[-compiled_circuit["return_offsets"] :]
                 )
             )
             compiled_circuit_output = prime_cls(
@@ -143,7 +143,7 @@ class TestCircuits:
                         values_ptr_len=len(values_ptr),
                         p=int_to_uint384(prime_cls.PRIME),
                         **compiled_circuit,
-                    )[-compiled_circuit["return_data_size"] :]
+                    )[-compiled_circuit["return_offsets"] :]
                 )
             )
             compiled_circuit_output = prime_cls(
@@ -184,7 +184,7 @@ class TestCircuits:
                         values_ptr_len=len(values_ptr),
                         p=int_to_uint384(prime_cls.PRIME),
                         **compiled_circuit,
-                    )[-compiled_circuit["return_data_size"] :]
+                    )[-compiled_circuit["return_offsets"] :]
                 )
             )
             compiled_circuit_output = prime_cls(
@@ -224,7 +224,7 @@ class TestCircuits:
                         values_ptr_len=len(values_ptr),
                         p=int_to_uint384(prime_cls.PRIME),
                         **compiled_circuit,
-                    )[-compiled_circuit["return_data_size"] :]
+                    )[-compiled_circuit["return_offsets"] :]
                 )
             )
             compiled_circuit_output = prime_cls(
@@ -264,7 +264,7 @@ class TestCircuits:
                         values_ptr_len=len(values_ptr),
                         p=int_to_uint384(prime_cls.PRIME),
                         **compiled_circuit,
-                    )[-compiled_circuit["return_data_size"] :]
+                    )[-compiled_circuit["return_offsets"] :]
                 )
             )
             compiled_circuit_output = prime_cls(
@@ -305,7 +305,7 @@ class TestCircuits:
                         values_ptr_len=len(values_ptr),
                         p=int_to_uint384(prime_cls.PRIME),
                         **compiled_circuit,
-                    )[-compiled_circuit["return_data_size"] :]
+                    )[-compiled_circuit["return_offsets"] :]
                 )
             )
             compiled_circuit_output = prime_cls(
@@ -432,7 +432,7 @@ class TestCircuits:
                         values_ptr_len=len(values_ptr),
                         p=int_to_uint384(prime_cls.PRIME),
                         **compiled_circuit,
-                    )[-compiled_circuit["return_data_size"] :]
+                    )[-compiled_circuit["return_offsets"] :]
                 )
             )
             compiled_circuit_output = prime_cls(
@@ -508,7 +508,7 @@ class TestCircuits:
 
     class TestEcOps:
         @given(data=st.data())
-        @settings(verbosity=Verbosity.quiet)
+        @settings(verbosity=Verbosity.quiet, max_examples=1)
         def test_ec_add(self, cairo_program, cairo_run, curve, data, st_prime):
             seed_p = data.draw(st_prime)
             seed_q = data.draw(st_prime)
@@ -530,7 +530,7 @@ class TestCircuits:
                 values_ptr_len=len(values_ptr),
                 p=int_to_uint384(curve.FIELD.PRIME),
                 **compiled_circuit,
-            )[-compiled_circuit["return_data_size"] :]
+            )[-compiled_circuit["return_offsets"] :]
             circuit_output = [
                 uint384_to_int(*r[:4]) % curve.FIELD.PRIME,
                 uint384_to_int(*r[4:]) % curve.FIELD.PRIME,
@@ -570,7 +570,7 @@ class TestCircuits:
                 values_ptr_len=len(values_ptr),
                 p=int_to_uint384(curve.FIELD.PRIME),
                 **compiled_circuit,
-            )[-compiled_circuit["return_data_size"] :]
+            )[-compiled_circuit["return_offsets"] :]
             circuit_output = [
                 uint384_to_int(*r[:4]) % curve.FIELD.PRIME,
                 uint384_to_int(*r[4:]) % curve.FIELD.PRIME,

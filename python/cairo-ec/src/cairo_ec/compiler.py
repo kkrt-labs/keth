@@ -1,4 +1,5 @@
 from itertools import accumulate
+from typing import Any, Dict, List, Tuple
 
 from starkware.cairo.lang.compiler.ast.cairo_types import (
     TypeFelt,
@@ -14,6 +15,7 @@ from starkware.cairo.lang.compiler.identifier_definition import (
 from starkware.cairo.lang.compiler.instruction import Instruction, Register
 from starkware.cairo.lang.compiler.program import Program
 
+from cairo_addons.testing.serde import get_struct_definition
 from cairo_addons.testing.utils import flatten
 from cairo_addons.utils.uint384 import int_to_uint384
 
@@ -37,11 +39,6 @@ def circuit_compile(cairo_program: Program, circuit: str):
     operations defined over the memory with addresses described as offsets relative to the
     application pointer (ap) or the frame pointer (fp). Given the fact that fp == ap at the
     beginning of a function, we don't need to distinguish between the two here.
-
-    TODO: Remove that comment ?
-    Because ModBuiltin circuits don't have the possibility to inject constants values, the cairo program
-    should only contain operations between variables. As such, expressions like `a + 1` or `1 / a`
-    are not supported and will raise an error.
     """
     start = cairo_program.get_label(circuit)
     stop = cairo_program.get_label(f"{circuit}.end")
@@ -84,246 +81,7 @@ def circuit_compile(cairo_program: Program, circuit: str):
     constants = list(constants)
 
     # Arguments of a function are always at fp - 3 - n where n is the index of the argument
-    # If it's a felt, the parameter key has a field cairo_type TypeFelt
-    # If it's a struct, the parameter key has a field cairo_type TypeStruct
-    # TypeStruct have a `scope` variable with the path as a list --> the key of the identifier dict !
-    # How to extract the struct ?
-    # A path is given to find the struct within the codebase (e.g. cairo_ec.curve.g1g2pair and last one is the struct name)
-    # the cairo_program maintains a dict of all the identifiers, once you have the name of the structs, if not felt, lookup in the identifiers dict !!
-    # How to create a struct in the file, with same structure but UInt384*
-    # What about nested structs ? --> If a struct has struct members, need to unfold it until we find felt
-    def extract_structs(cairo_program: Program, circuit: str):
-        def extract_struct(
-            cairo_program: Program, member_type, struct_set: set, is_nested: bool
-        ):
-            if isinstance(member_type, TypeFelt):
-                return None
-            elif isinstance(member_type, TypeStruct):
-                member_struct = cairo_program.get_identifier(
-                    member_type.scope, StructDefinition, True
-                )
-                struct_name = member_struct.full_name.path[-1]
-                if struct_name in struct_set and not is_nested:
-                    return None
-                struct_set.add(struct_name)
-                struct_members = []
-                for (
-                    struct_member_key,
-                    struct_member_value,
-                ) in member_struct.members.items():
-                    struct_member_type = (
-                        "felt"
-                        if isinstance(struct_member_value.cairo_type, TypeFelt)
-                        else "struct"
-                    )
-                    nested_struct_member = extract_struct(
-                        cairo_program, struct_member_value.cairo_type, struct_set, True
-                    )
-                    struct_members.append(
-                        {
-                            "name": struct_member_key,
-                            "type": struct_member_type,
-                            "nested": nested_struct_member,
-                        }
-                    )
-                return {"name": struct_name, "members": struct_members}
-            else:
-                raise ValueError(
-                    "Member can only be an instance of TypeFelt or TypeStruct."
-                )
-
-        struct_set = set()
-        return_members = cairo_program.get_identifier(
-            f"{circuit}.Return", TypeDefinition
-        )
-        # Case 2: Return type is a single type
-        # Case 3: Return type is a tuple
-        all_structs = []
-        if isinstance(return_members.cairo_type, TypeStruct):
-            all_structs.append(return_members.cairo_type)
-        elif isinstance(return_members.cairo_type, TypeTuple):
-            for tuple_item in return_members.cairo_type.types:
-                if isinstance(tuple_item, TypeStruct):
-                    all_structs.append(tuple_item)
-
-        for member in cairo_program.get_identifier(
-            f"{circuit}.Args", StructDefinition
-        ).members.values():
-            all_structs.append(member.cairo_type)
-
-        structs = [
-            extract_struct(cairo_program, member_type, struct_set, False)
-            for member_type in all_structs
-        ]
-
-        filtered_structs = [struct for struct in structs if struct is not None]
-
-        flattened_structs = []
-        struct_names = set()
-        for struct in filtered_structs:
-            flattened_structs.append(struct)
-            struct_names.add(struct["name"])
-            for member in struct["members"]:
-                nested = member["nested"]
-                if nested is not None and nested["name"] not in struct_names:
-                    struct_names.add(nested["name"])
-                    filtered_structs.append(member["nested"])
-
-        return flattened_structs
-
-    def extract_args(cairo_program: Program, circuit: str):
-        def extract_full_arg_path(
-            cairo_program,
-            member: MemberDefinition,
-            name: str,
-            arg_path: str,
-            args: list,
-            offset: int,
-        ):
-            if isinstance(member.cairo_type, TypeFelt):
-                args.append(arg_path)
-                return (
-                    arg_path,
-                    offset + 1,
-                )
-            elif isinstance(member.cairo_type, TypeStruct):
-                member_struct = cairo_program.get_identifier(
-                    member.cairo_type.scope, StructDefinition, True
-                )
-                struct_name = member_struct.full_name.path[-1]
-                if struct_name == "UInt384":
-                    args.append(arg_path)
-                    return arg_path, offset + 1
-                for (
-                    struct_member_key,
-                    struct_member_value,
-                ) in member_struct.members.items():
-                    old_path = arg_path
-                    new_path = arg_path + "." + struct_member_key
-                    arg_path, offset = extract_full_arg_path(
-                        cairo_program, struct_member_value, name, new_path, args, offset
-                    )
-                    arg_path = old_path
-                return args, offset
-            else:
-                raise ValueError(
-                    "Member can only be an instance of TypeFelt or TypeStruct."
-                )
-
-        args = list()
-        args_members = cairo_program.get_identifier(
-            f"{circuit}.Args", StructDefinition
-        ).members
-        for name, member in args_members.items():
-            if isinstance(member.cairo_type, TypeFelt):
-                args.append(
-                    {"name": name, "type": "UInt384", "path": [name], "offset": 1}
-                )
-            elif isinstance(member.cairo_type, TypeStruct):
-                member_struct = cairo_program.get_identifier(
-                    member.cairo_type.scope, StructDefinition, True
-                )
-                path, offset = extract_full_arg_path(
-                    cairo_program, member, name, name, [], 0
-                )
-                args.append(
-                    {
-                        "name": name,
-                        "type": member_struct.full_name.path[-1],
-                        "path": path,
-                        "offset": offset,
-                    }
-                )
-                path = []
-        return args
-
-    def extract_return_values(cairo_program: Program, circuit: str):
-        # def extract_return_value_offset(
-        #     cairo_program,
-        #     member: MemberDefinition,
-        #     name: str,
-        #     offset: int,
-        # ):
-        #     if isinstance(member.cairo_type, TypeFelt):
-        #         return offset + 1
-        #     elif isinstance(member.cairo_type, TypeStruct):
-        #         member_struct = cairo_program.get_identifier(
-        #             member.cairo_type.scope, StructDefinition, True
-        #         )
-        #         struct_name = member_struct.full_name.path[-1]
-        #         if struct_name == "UInt384":
-        #             return offset + 1
-        #         for struct_member_value in member_struct.members.values():
-        #             offset = extract_return_value_offset(
-        #                 cairo_program, struct_member_value, name, offset
-        #             )
-        #         return offset
-        #     else:
-        #         raise ValueError(
-        #             "Member can only be an instance of TypeFelt or TypeStruct."
-        #         )
-
-        def extract_return_value_offset(
-            cairo_program: Program, member_type, offset: int
-        ):
-            if isinstance(member_type, TypeFelt):
-                return offset + 4
-            elif isinstance(member_type, TypeStruct):
-                member_struct = cairo_program.get_identifier(
-                    member_type.scope, StructDefinition, True
-                )
-                for struct_member_value in member_struct.members.values():
-                    offset = extract_return_value_offset(
-                        cairo_program, struct_member_value.cairo_type, offset
-                    )
-                return offset
-            else:
-                raise ValueError(
-                    "Member can only be an instance of TypeFelt or TypeStruct."
-                )
-
-        return_values = []
-        return_members = cairo_program.get_identifier(
-            f"{circuit}.Return", TypeDefinition
-        )
-        # Case 2: Return type is a single type
-        # Case 3: Return type is a tuple
-        if isinstance(return_members.cairo_type, TypeFelt):
-            return_values.append(
-                {"name": "UInt384", "member": return_members.cairo_type}
-            )
-        elif isinstance(return_members.cairo_type, TypeStruct):
-            return_values.append(
-                {
-                    "name": return_members.cairo_type.scope.path[-1],
-                    "member": return_members.cairo_type,
-                }
-            )
-        elif isinstance(return_members.cairo_type, TypeTuple):
-            for tuple_item in return_members.cairo_type.types:
-                if isinstance(tuple_item, TypeFelt):
-                    return_values.append({"name": "UInt384", "member": tuple_item})
-                elif isinstance(tuple_item, TypeStruct):
-                    return_values.append(
-                        {"name": tuple_item.scope.path[-1], "member": tuple_item}
-                    )
-
-        return [
-            {
-                "name": return_value["name"],
-                "offset": extract_return_value_offset(
-                    cairo_program, return_value["member"], 0
-                ),
-            }
-            for return_value in return_values
-        ]
-
-    structs = extract_structs(cairo_program, circuit)
     args = extract_args(cairo_program, circuit)
-    return_values = extract_return_values(cairo_program, circuit)
-    return_names = [value["name"] for value in return_values]
-    return_offsets = [value["offset"] for value in return_values]
-    cumul_offsets = list(accumulate(return_offsets))
     # We put the constants before the args, so the initial offset is 3 + len(args)
     constants_offset = 3 + len(args)
 
@@ -395,6 +153,11 @@ def circuit_compile(cairo_program: Program, circuit: str):
     indexes = sorted(set(add + mul))
     mapping = dict(zip(indexes, range(len(indexes))))
 
+    structs = extract_structs(cairo_program, circuit)
+    return_values = extract_return_values(cairo_program, circuit)
+    return_names = [value["name"] for value in return_values]
+    return_offsets = [value["offset"] for value in return_values]
+    cumul_offsets = list(accumulate(return_offsets))
     return {
         "constants": [int_to_uint384(c) for c in constants],
         "args": args,
@@ -407,3 +170,184 @@ def circuit_compile(cairo_program: Program, circuit: str):
         "return_names": return_names,
         "return_offsets": cumul_offsets,
     }
+
+
+def extract_return_values(cairo_program: Program, circuit: str) -> List[Dict[str, int]]:
+    """
+    Extract return value details from a Cairo program circuit's Return type.
+    Returns:
+        List of {name: str, offset: int} containing return value names and their offsets
+    """
+
+    def calculate_offset(member_type: Any, current_offset: int = 0) -> int:
+        """Recursively calculate the offset for a member type."""
+        if isinstance(member_type, TypeFelt):
+            return current_offset + 4
+        if not isinstance(member_type, TypeStruct):
+            raise ValueError("Member type must be TypeFelt or TypeStruct")
+
+        struct_def = get_struct_definition(
+            cairo_program.identifiers, member_type.scope.path
+        )
+
+        for member in struct_def.members.values():
+            current_offset = calculate_offset(member.cairo_type, current_offset)
+        return current_offset
+
+    # Get return type definition
+    return_type = cairo_program.get_identifier(
+        f"{circuit}.Return", TypeDefinition
+    ).cairo_type
+
+    # Collect return values based on type
+    return_values = []
+
+    if isinstance(return_type, TypeFelt):
+        return_values.append({"name": "UInt384", "member": return_type})
+    elif isinstance(return_type, TypeStruct):
+        # Remove the CircuitInput suffix from the struct name if it exists
+        name = return_type.scope.path[-1].removesuffix("CircuitInput")
+        return_values.append({"name": name, "member": return_type})
+    elif isinstance(return_type, TypeTuple):
+        for item in return_type.types:
+            if isinstance(item, TypeFelt):
+                return_values.append({"name": "UInt384", "member": item})
+            elif isinstance(item, TypeStruct):
+                name = item.scope.path[-1].removesuffix("CircuitInput")
+                return_values.append({"name": name, "member": item})
+
+    # Calculate offsets for each return value
+    return [
+        {"name": value["name"], "offset": calculate_offset(value["member"])}
+        for value in return_values
+    ]
+
+
+def extract_args(cairo_program: Program, circuit: str) -> List[Dict[str, Any]]:
+    """
+    Extract argument details from a Cairo program circuit's Args struct.
+    Returns:
+        List of {name: str, type: str, path: List[str], offset: int} containing argument details
+    """
+
+    def process_struct_member(
+        member: MemberDefinition, base_path: str, args_list: List[str]
+    ) -> Tuple[List[str], int]:
+        """Recursively process struct members and build argument paths."""
+        if isinstance(member.cairo_type, TypeFelt):
+            args_list.append(base_path)
+            return args_list
+
+        if not isinstance(member.cairo_type, TypeStruct):
+            raise ValueError("Member type must be TypeFelt or TypeStruct")
+
+        struct_def = get_struct_definition(
+            cairo_program.identifiers, member.cairo_type.scope.path
+        )
+        struct_name = struct_def.full_name.path[-1]
+
+        if struct_name == "UInt384":
+            args_list.append(base_path)
+            return args_list
+
+        for member_name, member_def in struct_def.members.items():
+            new_path = f"{base_path}.{member_name}"
+            args_list = process_struct_member(member_def, new_path, args_list)
+
+        return args_list
+
+    # Get Args struct members
+    args_members = cairo_program.get_identifier(
+        f"{circuit}.Args", StructDefinition
+    ).members
+
+    result = []
+
+    for name, member in args_members.items():
+        if isinstance(member.cairo_type, TypeFelt):
+            result.append({"name": name, "type": "UInt384", "path": [name]})
+        elif isinstance(member.cairo_type, TypeStruct):
+            struct_def = get_struct_definition(
+                cairo_program.identifiers, member.cairo_type.scope.path
+            )
+            struct_name = struct_def.full_name.path[-1].removesuffix("CircuitInput")
+
+            path_list = []
+            path_list = process_struct_member(member, name, path_list)
+
+            result.append({"name": name, "type": struct_name, "path": path_list})
+
+    return result
+
+
+def extract_structs(cairo_program: Program, circuit: str) -> List[Dict[str, Any]]:
+    """
+    Extract and flatten struct definitions from a Cairo program circuit.
+    Returns:
+        List of {name: str, members: List[Dict[str, Any]]} containing struct names and their members
+    """
+
+    def process_struct_type(
+        member_type, processed_structs: set
+    ) -> Dict[str, Any] | None:
+        """Process a single struct type and its nested members recursively."""
+        if isinstance(member_type, TypeFelt):
+            return None
+        if not isinstance(member_type, TypeStruct):
+            raise ValueError("Member type must be TypeFelt or TypeStruct")
+
+        struct_def = get_struct_definition(
+            cairo_program.identifiers, member_type.scope.path
+        )
+        struct_name = struct_def.full_name.path[-1].removesuffix("CircuitInput")
+        processed_structs.add(struct_name)
+
+        members = []
+        for name, member in struct_def.members.items():
+            member_info = {
+                "name": name,
+                "type": (
+                    "felt"
+                    if isinstance(member.cairo_type, TypeFelt)
+                    else member.cairo_type.scope.path[-1]
+                ),
+                "nested": process_struct_type(member.cairo_type, processed_structs),
+            }
+            members.append(member_info)
+
+        return {"name": struct_name, "members": members}
+
+    # Collect all struct types from Args and Return
+    processed_structs = set()
+    struct_types = []
+
+    # Handle return type
+    return_type = cairo_program.get_identifier(
+        f"{circuit}.Return", TypeDefinition
+    ).cairo_type
+    if isinstance(return_type, TypeStruct):
+        struct_types.append(return_type)
+    elif isinstance(return_type, TypeTuple):
+        struct_types.extend(t for t in return_type.types if isinstance(t, TypeStruct))
+
+    # Handle argument types
+    args = cairo_program.get_identifier(f"{circuit}.Args", StructDefinition).members
+    struct_types.extend(m.cairo_type for m in args.values())
+
+    # Process all collected struct types
+    result = []
+    seen_names = set()
+
+    for struct_type in struct_types:
+        struct_data = process_struct_type(struct_type, processed_structs)
+        if struct_data and struct_data["name"] not in seen_names:
+            result.append(struct_data)
+            seen_names.add(struct_data["name"])
+            # Add any new nested structs
+            for member in struct_data["members"]:
+                if nested := member["nested"]:
+                    if nested["name"] not in seen_names:
+                        result.append(nested)
+                        seen_names.add(nested["name"])
+
+    return result
