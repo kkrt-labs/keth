@@ -88,12 +88,6 @@ class StateTries:
     codes: Mapping[Bytes32, Bytes]
     access_list: Mapping[Address, Optional[List[Bytes32]]]
     state_root: Hash32
-    nodes: Mapping[Bytes32, Bytes]  # Stores MPT nodes by their hash
-    codes: Mapping[Bytes32, Bytes]  # Stores contract code by code hash
-    access_list: Mapping[
-        Address, Optional[List[Bytes32]]
-    ]  # Tracks accessed addresses and storage
-    state_root: Hash32  # Root hash of the state trie
 
     @classmethod
     def create_empty(cls) -> "StateTries":
