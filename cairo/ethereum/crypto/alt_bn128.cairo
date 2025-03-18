@@ -408,18 +408,18 @@ func bnf12_add{
 }(a: BNF12, b: BNF12) -> BNF12 {
     tempvar modulus = new UInt384(alt_bn128.P0, alt_bn128.P1, alt_bn128.P2, alt_bn128.P3);
 
-    let res_c0 = add(new a.value.c0, new b.value.c0, modulus);
-    let res_c1 = add(new a.value.c1, new b.value.c1, modulus);
-    let res_c2 = add(new a.value.c2, new b.value.c2, modulus);
-    let res_c3 = add(new a.value.c3, new b.value.c3, modulus);
-    let res_c4 = add(new a.value.c4, new b.value.c4, modulus);
-    let res_c5 = add(new a.value.c5, new b.value.c5, modulus);
-    let res_c6 = add(new a.value.c6, new b.value.c6, modulus);
-    let res_c7 = add(new a.value.c7, new b.value.c7, modulus);
-    let res_c8 = add(new a.value.c8, new b.value.c8, modulus);
-    let res_c9 = add(new a.value.c9, new b.value.c9, modulus);
-    let res_c10 = add(new a.value.c10, new b.value.c10, modulus);
-    let res_c11 = add(new a.value.c11, new b.value.c11, modulus);
+    let res_c0 = add(&a.value.c0, &b.value.c0, modulus);
+    let res_c1 = add(&a.value.c1, &b.value.c1, modulus);
+    let res_c2 = add(&a.value.c2, &b.value.c2, modulus);
+    let res_c3 = add(&a.value.c3, &b.value.c3, modulus);
+    let res_c4 = add(&a.value.c4, &b.value.c4, modulus);
+    let res_c5 = add(&a.value.c5, &b.value.c5, modulus);
+    let res_c6 = add(&a.value.c6, &b.value.c6, modulus);
+    let res_c7 = add(&a.value.c7, &b.value.c7, modulus);
+    let res_c8 = add(&a.value.c8, &b.value.c8, modulus);
+    let res_c9 = add(&a.value.c9, &b.value.c9, modulus);
+    let res_c10 = add(&a.value.c10, &b.value.c10, modulus);
+    let res_c11 = add(&a.value.c11, &b.value.c11, modulus);
 
     tempvar res = BNF12(
         new BNF12Struct(
