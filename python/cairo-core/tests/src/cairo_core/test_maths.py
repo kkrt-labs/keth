@@ -31,7 +31,7 @@ class TestMaths:
                     cairo_run(
                         "test__assert_uint256_le",
                         a=U256(a),
-                        b=U256(b),
+                        b=U256(b)
                     )
             else:
                 cairo_run("test__assert_uint256_le", a=U256(a), b=U256(b))
