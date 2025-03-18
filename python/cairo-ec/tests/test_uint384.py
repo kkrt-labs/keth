@@ -33,11 +33,7 @@ class TestUint384:
         def test_uint384_assert_le(self, cairo_run, a: U384, b: U384):
             if a > b:
                 with pytest.raises(Exception):
-                    cairo_run(
-                        "test__uint384_assert_le",
-                        a=a,
-                        b=b
-                    )
+                    cairo_run("test__uint384_assert_le", a=a, b=b)
             else:
                 cairo_run("test__uint384_assert_le", a=a, b=b)
 

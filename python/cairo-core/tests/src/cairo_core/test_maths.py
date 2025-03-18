@@ -28,11 +28,7 @@ class TestMaths:
         def test_assert_uint256_le(self, cairo_run, a, b):
             if a > b:
                 with pytest.raises(Exception):
-                    cairo_run(
-                        "test__assert_uint256_le",
-                        a=U256(a),
-                        b=U256(b)
-                    )
+                    cairo_run("test__assert_uint256_le", a=U256(a), b=U256(b))
             else:
                 cairo_run("test__assert_uint256_le", a=U256(a), b=U256(b))
 

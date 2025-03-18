@@ -636,8 +636,7 @@ pub fn run_proof_mode(
     // Prepare execution scopes to allow running pythonic hints for args_gen
     let mut exec_scopes = ExecutionScopes::new();
     let dict_manager = DictManager::new();
-    let dict_manager_rc = Rc::new(RefCell::new(dict_manager));
-    exec_scopes.insert_value("dict_manager", dict_manager_rc.clone());
+    exec_scopes.insert_value("dict_manager", Rc::new(RefCell::new(dict_manager)));
 
     // Initialize a python context object that will be accessible throughout the execution of
     // all hints.
