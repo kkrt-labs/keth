@@ -21,10 +21,7 @@ from starkware.cairo.lang.compiler.program import Program
 from cairo_addons.testing.coverage import coverage_from_trace
 from cairo_addons.testing.runner import run_python_vm, run_rust_vm
 from cairo_addons.vm import Program as RustProgram
-from tests.utils.args_gen import gen_arg as gen_arg_builder
-from tests.utils.args_gen import to_cairo_type, to_python_type
 from tests.utils.hints import get_op
-from tests.utils.serde import Serde
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -182,10 +179,6 @@ def cairo_run_py(
         cairo_files,
         main_paths,
         request,
-        gen_arg_builder=gen_arg_builder,
-        serde_cls=Serde,
-        to_python_type=to_python_type,
-        to_cairo_type=to_cairo_type,
         hint_locals={"get_op": get_op},
         coverage=coverage,
     )
@@ -224,10 +217,6 @@ def cairo_run(
             cairo_files,
             main_paths,
             request,
-            gen_arg_builder=gen_arg_builder,
-            serde_cls=Serde,
-            to_python_type=to_python_type,
-            to_cairo_type=to_cairo_type,
             hint_locals={"get_op": get_op},
             coverage=coverage,
         )
@@ -238,8 +227,5 @@ def cairo_run(
         cairo_files,
         main_paths,
         request,
-        gen_arg_builder=gen_arg_builder,
-        serde_cls=Serde,
-        to_python_type=to_python_type,
         coverage=coverage,
     )

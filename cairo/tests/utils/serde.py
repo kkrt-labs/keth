@@ -76,7 +76,6 @@ from starkware.cairo.lang.vm.crypto import poseidon_hash_many
 from starkware.cairo.lang.vm.memory_dict import UnknownMemoryError
 from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 
-from cairo_addons.testing.serde import SerdeProtocol
 from cairo_addons.utils.uint384 import uint384_to_int
 from cairo_addons.vm import MemorySegmentManager as RustMemorySegmentManager
 from tests.utils.args_gen import (
@@ -124,7 +123,7 @@ def get_struct_definition(
     raise ValueError(f"Expected a struct named {path}, found {identifier}")
 
 
-class Serde(SerdeProtocol):
+class Serde:
     def __init__(
         self,
         segments: Union[MemorySegmentManager, RustMemorySegmentManager],
