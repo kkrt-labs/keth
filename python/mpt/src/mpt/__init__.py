@@ -196,7 +196,10 @@ class StateTries:
             if not storage_root:
                 raise ValueError(f"Storage root is None for address: {address}")
 
-            if address in self.access_list and storage_root != EMPTY_TRIE_ROOT_HASH:
+            if (
+                self.access_list.get(address) is not None
+                and storage_root != EMPTY_TRIE_ROOT_HASH
+            ):
                 for key in self.access_list[address]:
                     value = self.get(keccak256(key), Hash32(storage_root))
                     if value is None:
@@ -317,10 +320,6 @@ class StateTries:
         logger.debug(
             f"Getting value in {'state' if is_state_access else 'storage'} for path: {'0x' + path.hex() if path else 'None'}"
         )
-
-        # Check if the root hash exists in our nodes
-        if root_hash not in self.nodes and root_hash != EMPTY_TRIE_ROOT_HASH:
-            raise KeyError(f"Root hash not found in nodes: 0x{root_hash.hex()}")
 
         # Start traversal from the root
         nibble_path = bytes_to_nibble_list(path)
