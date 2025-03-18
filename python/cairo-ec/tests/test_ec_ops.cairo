@@ -48,10 +48,20 @@ func test__get_random_point{
 }
 
 func test__ec_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
-    p: G1Point, q: G1Point, a: U384, modulus: U384
-) -> G1Point* {
+    ) -> G1Point* {
     alloc_locals;
-    let res = ec_add(p, q, [a.value], [modulus.value]);
+    let (p_ptr: G1Point*) = alloc();
+    let (q_ptr: G1Point*) = alloc();
+    let (a_ptr: UInt384*) = alloc();
+    let (modulus_ptr: UInt384*) = alloc();
+    %{
+        segments.load_data(ids.p_ptr.address_, program_input["p"])
+        segments.load_data(ids.q_ptr.address_, program_input["q"])
+        segments.load_data(ids.a_ptr.address_, program_input["a"])
+        segments.load_data(ids.modulus_ptr.address_, program_input["modulus"])
+    %}
+
+    let res = ec_add([p_ptr], [q_ptr], [a_ptr], [modulus_ptr]);
 
     tempvar res_ptr = new G1Point(
         UInt384(res.x.d0, res.x.d1, res.x.d2, res.x.d3),
