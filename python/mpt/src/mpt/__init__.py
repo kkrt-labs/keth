@@ -351,21 +351,6 @@ class StateTries:
         return Hash32(rlp_account.storage_root)
 
     def resolve_node(self, node_hash: Hash32, nibble_path: Bytes) -> Optional[Bytes]:
-        """
-        Recursive helper for get method.
-
-        Parameters
-        ----------
-        node_hash : Hash32
-            The hash of the current node
-        nibble_path : Bytes
-            The remaining path to traverse (in nibbles)
-
-        Returns
-        -------
-        Optional[Bytes]
-            The value at the path, or None if not found
-        """
         logger.debug(
             f"Getting node with hash: 0x{node_hash.hex()} - remaining path: {nibble_path_to_hex(nibble_path)}"
         )
@@ -595,21 +580,6 @@ class StateTries:
     def delete_node_hash(
         self, node_hash: Hash32, nibble_path: Bytes
     ) -> tuple[Optional[Bytes], bool]:
-        """
-        Recursive helper for delete method.
-
-        Parameters
-        ----------
-        node_hash : Hash32
-            The hash of the current node
-        nibble_path : Bytes
-            The remaining path to traverse (in nibbles)
-
-        Returns
-        -------
-        tuple[Optional[Bytes], bool]
-            The new node (or None if deleted) and a boolean indicating if deletion occurred
-        """
         logger.debug(
             f"Deleting from node with hash: 0x{node_hash.hex()} - remaining path: {nibble_path_to_hex(nibble_path)}"
         )
@@ -618,7 +588,6 @@ class StateTries:
         if node_data is None:
             raise KeyError(f"Node not found: 0x{node_hash.hex()}")
 
-        # Process the node
         new_node, deleted = self.delete_node(decode_node(node_data), nibble_path)
 
         return new_node, deleted
