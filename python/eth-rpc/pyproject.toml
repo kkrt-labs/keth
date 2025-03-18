@@ -10,6 +10,3 @@ dependencies = ["ethereum"]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-[tool.isort]
-profile = "black"
-known_third_party = ["ethereum", "ethereum_rlp", "ethereum_types"]
