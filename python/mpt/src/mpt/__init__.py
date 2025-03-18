@@ -827,7 +827,7 @@ class StateTries:
         self, path: Bytes, value: Bytes, root_hash: Optional[Hash32] = None
     ) -> Hash32:
         """
-        Insert or update a value in the trie at the given path.
+        Update or insert a value in the trie at the given path.
 
         The upsert process in a Merkle Patricia Trie follows these steps:
 
