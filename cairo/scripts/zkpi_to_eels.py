@@ -10,7 +10,6 @@ import logging
 from pathlib import Path
 from typing import Any, Dict
 
-from eth_rpc import EthereumRPC
 from ethereum.cancun.blocks import Block, Withdrawal
 from ethereum.cancun.fork import (
     BlockChain,
@@ -28,6 +27,8 @@ from ethereum_spec_tools.evm_tools.loaders.fork_loader import ForkLoad
 from ethereum_spec_tools.evm_tools.loaders.transaction_loader import TransactionLoad
 from ethereum_types.bytes import Bytes, Bytes0
 from ethereum_types.numeric import U64, U256
+
+from eth_rpc import EthereumRPC
 
 logging.basicConfig(
     level=logging.INFO,

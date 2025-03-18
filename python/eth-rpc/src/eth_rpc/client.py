@@ -74,7 +74,6 @@ class EthereumRPC:
                     else block_number
                 ),
             ],
-            "id": 1,
         }
         response = requests.post(self.url, json=payload)
         result = response.json()["result"]

@@ -19,16 +19,16 @@ from ethereum.cancun.fork_types import Address, Bytes32, U64
 eth = EthereumRPC("https://mainnet.infura.io/v3/YOUR_API_KEY")
 
 # Get an account's code
-code: Bytes = eth.get_code(Address(bytes.fromhex("0x00...00abcde")[2:]), U64(123))
+code: Bytes = eth.get_code(Address(bytes.fromhex(f"{123:040x}")), U64(123))
 
 # Get account & storage proofs
-address = Address.fromhex("0x00...00abcde")[2:]
-storage_keys = [Bytes32.fromhex("0x01...23456")[2:]]
+address = Address.fromhex(f"{123:040x}")
+storage_keys = [Bytes32.fromhex(f"{123:040x}")]
 block_number = U64(123)  # Optional
 account_proof = eth.get_proof(
     address=address,
     storage_keys=storage_keys,
-    block_number=block_number
+    block_number=block_number,
 )
 ```
 
