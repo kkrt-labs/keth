@@ -642,12 +642,12 @@ func bnf12_scalar_mul{
 
 // BNF12_mul implements multiplication for BNF12 elements
 // using dictionaries for intermediate calculations
-func BNF12_mul{
+func bnf12_mul{
     range_check_ptr, range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
 }(a: BNF12, b: BNF12) -> BNF12 {
     alloc_locals;
 
-    tempvar prime = new UInt384(alt_bn128.P0, alt_bn128.P1, alt_bn128.P2, alt_bn128.P3);
+    tempvar modulus = new UInt384(alt_bn128.P0, alt_bn128.P1, alt_bn128.P2, alt_bn128.P3);
 
     // Step 1: Create a dictionary for polynomial multiplication intermediate value and result
     let (mul_dict) = default_dict_new(0);
@@ -655,10 +655,10 @@ func BNF12_mul{
 
     // Step 2: Perform polynomial multiplication
     // Compute each product a[i] * b[j] and add it to the appropriate position
-    compute_polynomial_product{dict_ptr=mul_dict}(a, b, prime, 0, 0);
+    compute_polynomial_product{dict_ptr=mul_dict}(a, b, modulus, 0, 0);
 
     // Step 3: Apply reduction for coefficients 22 down to 12 (in descending order like Python)
-    reduce_polynomial{mul_dict=mul_dict}(prime);
+    reduce_polynomial{mul_dict=mul_dict}(modulus);
 
     // Step 4: Create the result BNF12 element from the reduced coefficients
     let bnf12_result = create_bnf12_from_dict{mul_dict=mul_dict}();
@@ -669,121 +669,22 @@ func BNF12_mul{
     return bnf12_result;
 }
 
-// Apply reductions in descending order (from 22 down to 12)
-func reduce_polynomial{
-    range_check_ptr,
-    range_check96_ptr: felt*,
-    add_mod_ptr: ModBuiltin*,
-    mul_mod_ptr: ModBuiltin*,
-    mul_dict: DictAccess*,
-}(prime: UInt384*) {
-    alloc_locals;
-
-    reduce_single_coefficient(prime, 22);
-    reduce_single_coefficient(prime, 21);
-    reduce_single_coefficient(prime, 20);
-    reduce_single_coefficient(prime, 19);
-    reduce_single_coefficient(prime, 18);
-    reduce_single_coefficient(prime, 17);
-    reduce_single_coefficient(prime, 16);
-    reduce_single_coefficient(prime, 15);
-    reduce_single_coefficient(prime, 14);
-    reduce_single_coefficient(prime, 13);
-    reduce_single_coefficient(prime, 12);
-
-    return ();
-}
-
-// Replicate the following python code:
-// mul[i - 6] -= mul[i] * (-18)
-// mul[i - 12] -= mul[i] * 82
-//
-// It is equivalent to:
-// mul[i - 6] += mul[i] * 18
-// mul[i - 12] -= mul[i] * 82
-//
-// In cairo it translates to:
-// intermediate_mul = mul[i] * 18
-// mul[i - 6] = mul[i - 6] + intermediate_mul
-// intermediate_mul = mul[i] * 82
-// mul[i - 12] = mul[i - 12] + intermediate_mul
-func reduce_single_coefficient{
-    range_check_ptr,
-    range_check96_ptr: felt*,
-    add_mod_ptr: ModBuiltin*,
-    mul_mod_ptr: ModBuiltin*,
-    mul_dict: DictAccess*,
-}(prime: UInt384*, idx: felt) {
-    alloc_locals;
-
-    // Get the coefficient
-    let (coeff_i_ptr) = dict_read{dict_ptr=mul_dict}(idx);
-    let coeff_i = cast(coeff_i_ptr, UInt384*);
-
-    // Constants for reduction
-    tempvar modulus_coeff_0 = new UInt384(82, 0, 0, 0);
-    tempvar modulus_coeff_6 = new UInt384(18, 0, 0, 0);
-
-    let intermediate_mul = mul(coeff_i, modulus_coeff_6, prime);
-
-    // Update position idx-6: ADD 18 * coeff_i
-    let pos1 = idx - 6;
-    let (current1_ptr) = dict_read{dict_ptr=mul_dict}(pos1);
-
-    // If current value is not present, use zero
-    tempvar zero = new UInt384(0, 0, 0, 0);
-    if (current1_ptr == 0) {
-        tempvar current1 = zero;
-    } else {
-        tempvar current1 = cast(current1_ptr, UInt384*);
-    }
-
-    // ADD intermediate_mul to current value
-    let new_value1 = add(current1, intermediate_mul, prime);
-
-    // Write the new value to the dictionary
-    dict_write{dict_ptr=mul_dict}(pos1, cast(new_value1, felt));
-
-    // Compute 82 * coeff_i
-    let intermediate_mul = mul(coeff_i, modulus_coeff_0, prime);
-
-    // Update position idx-12: subtract 82 * coeff_i
-    let pos2 = idx - 12;
-    let (current2_ptr) = dict_read{dict_ptr=mul_dict}(pos2);
-
-    // If current value is not present, use zero
-    if (current2_ptr == 0) {
-        tempvar current2 = zero;
-    } else {
-        tempvar current2 = cast(current2_ptr, UInt384*);
-    }
-
-    // SUBTRACT intermediate_mul from current value
-    let new_value2 = sub(current2, intermediate_mul, prime);
-
-    // Write the new value to the dictionary
-    dict_write{dict_ptr=mul_dict}(pos2, cast(new_value2, felt));
-
-    return ();
-}
-
 func compute_polynomial_product{
     range_check_ptr,
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,
     dict_ptr: DictAccess*,
-}(a: BNF12, b: BNF12, prime: UInt384*, i: felt, j: felt) {
+}(a: BNF12, b: BNF12, modulus: UInt384*, i: felt, j: felt) {
     alloc_locals;
 
     // Base case: we've processed all terms
     if (i == 12) {
         return ();
     }
-
     // If we've processed all j for current i, move to next i
     if (j == 12) {
-        return compute_polynomial_product(a, b, prime, i + 1, 0);
+        return compute_polynomial_product(a, b, modulus, i + 1, 0);
     }
 
     // Get coefficients as UInt384
@@ -791,7 +692,7 @@ func compute_polynomial_product{
     let b_coeff = _get_bnf12_coeff(b, j);
 
     // Compute product using modular multiplication
-    let product = mul(new a_coeff, new b_coeff, prime);
+    let product = mul(new a_coeff, new b_coeff, modulus);
 
     // Position in result
     let pos = i + j;
@@ -809,13 +710,148 @@ func compute_polynomial_product{
     }
 
     // Add product to current value using modular addition
-    let new_value = add(current_value, product, prime);
+    let new_value = add(current_value, product, modulus);
 
     // Write the new value to the dictionary
     dict_write{dict_ptr=dict_ptr}(pos, cast(new_value, felt));
 
     // Continue with next term
-    return compute_polynomial_product(a, b, prime, i, j + 1);
+    return compute_polynomial_product(a, b, modulus, i, j + 1);
+}
+
+func _get_bnf12_coeff(a: BNF12, i: felt) -> UInt384 {
+    if (i == 0) {
+        return a.value.c0;
+    }
+    if (i == 1) {
+        return a.value.c1;
+    }
+    if (i == 2) {
+        return a.value.c2;
+    }
+    if (i == 3) {
+        return a.value.c3;
+    }
+    if (i == 4) {
+        return a.value.c4;
+    }
+    if (i == 5) {
+        return a.value.c5;
+    }
+    if (i == 6) {
+        return a.value.c6;
+    }
+    if (i == 7) {
+        return a.value.c7;
+    }
+    if (i == 8) {
+        return a.value.c8;
+    }
+    if (i == 9) {
+        return a.value.c9;
+    }
+    if (i == 10) {
+        return a.value.c10;
+    }
+    if (i == 11) {
+        return a.value.c11;
+    }
+
+    // Should never reach here
+    raise('AssertionError');
+    tempvar zero = UInt384(0, 0, 0, 0);
+    return zero;
+}
+
+// Apply reductions in descending order (from 22 down to 12)
+func reduce_polynomial{
+    range_check_ptr,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
+    mul_dict: DictAccess*,
+}(modulus: UInt384*) {
+    alloc_locals;
+
+    _reduce_single_coefficient(modulus, 22);
+    _reduce_single_coefficient(modulus, 21);
+    _reduce_single_coefficient(modulus, 20);
+    _reduce_single_coefficient(modulus, 19);
+    _reduce_single_coefficient(modulus, 18);
+    _reduce_single_coefficient(modulus, 17);
+    _reduce_single_coefficient(modulus, 16);
+    _reduce_single_coefficient(modulus, 15);
+    _reduce_single_coefficient(modulus, 14);
+    _reduce_single_coefficient(modulus, 13);
+    _reduce_single_coefficient(modulus, 12);
+
+    return ();
+}
+
+// Replicate the following python code:
+// mul[i - 6] -= mul[i] * (-18)
+// mul[i - 12] -= mul[i] * 82
+//
+// It is equivalent to:
+// mul[i - 6] += mul[i] * 18
+// mul[i - 12] -= mul[i] * 82
+//
+// In cairo it translates to:
+// intermediate_mul = mul[i] * 18
+// mul[i - 6] = mul[i - 6] + intermediate_mul
+// intermediate_mul = mul[i] * 82
+// mul[i - 12] = mul[i - 12] - intermediate_mul
+func _reduce_single_coefficient{
+    range_check_ptr,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
+    mul_dict: DictAccess*,
+}(modulus: UInt384*, idx: felt) {
+    alloc_locals;
+
+    // Get the coefficient
+    let (coeff_i_ptr) = dict_read{dict_ptr=mul_dict}(idx);
+    let coeff_i = cast(coeff_i_ptr, UInt384*);
+
+    // Constants for reduction
+    tempvar modulus_coeff_0 = new UInt384(82, 0, 0, 0);
+    tempvar modulus_coeff_6 = new UInt384(18, 0, 0, 0);
+
+    // Compute mul[i] * 18
+    let intermediate_mul = mul(coeff_i, modulus_coeff_6, modulus);
+    // Update position idx - 6
+    let pos1 = idx - 6;
+    let (current1_ptr) = dict_read{dict_ptr=mul_dict}(pos1);
+    // If current value is not present, use zero
+    tempvar zero = new UInt384(0, 0, 0, 0);
+    if (current1_ptr == 0) {
+        tempvar current1 = zero;
+    } else {
+        tempvar current1 = cast(current1_ptr, UInt384*);
+    }
+    // Add intermediate_mul to current value
+    let new_value1 = add(current1, intermediate_mul, modulus);
+    // Write the new value to the dictionary
+    dict_write{dict_ptr=mul_dict}(pos1, cast(new_value1, felt));
+
+    // Compute mul[i] * 82
+    let intermediate_mul = mul(coeff_i, modulus_coeff_0, modulus);
+    // Update position idx - 12
+    let pos2 = idx - 12;
+    let (current2_ptr) = dict_read{dict_ptr=mul_dict}(pos2);
+    // If current value is not present, use zero
+    if (current2_ptr == 0) {
+        tempvar current2 = zero;
+    } else {
+        tempvar current2 = cast(current2_ptr, UInt384*);
+    }
+    // Subtract intermediate_mul from current value
+    let new_value2 = sub(current2, intermediate_mul, modulus);
+    // Write the new value to the dictionary
+    dict_write{dict_ptr=mul_dict}(pos2, cast(new_value2, felt));
+
+    return ();
 }
 
 func create_bnf12_from_dict{range_check_ptr, mul_dict: DictAccess*}() -> BNF12 {
@@ -897,50 +933,6 @@ func _process_coefficient(coeff_ptr: UInt384*, zero: UInt384*) -> UInt384 {
         tempvar coeff = coeff;
     }
     return coeff;
-}
-
-func _get_bnf12_coeff(a: BNF12, i: felt) -> UInt384 {
-    if (i == 0) {
-        return a.value.c0;
-    }
-    if (i == 1) {
-        return a.value.c1;
-    }
-    if (i == 2) {
-        return a.value.c2;
-    }
-    if (i == 3) {
-        return a.value.c3;
-    }
-    if (i == 4) {
-        return a.value.c4;
-    }
-    if (i == 5) {
-        return a.value.c5;
-    }
-    if (i == 6) {
-        return a.value.c6;
-    }
-    if (i == 7) {
-        return a.value.c7;
-    }
-    if (i == 8) {
-        return a.value.c8;
-    }
-    if (i == 9) {
-        return a.value.c9;
-    }
-    if (i == 10) {
-        return a.value.c10;
-    }
-    if (i == 11) {
-        return a.value.c11;
-    }
-
-    // Should never reach here
-    raise('AssertionError');
-    tempvar zero = new UInt384(0, 0, 0, 0);
-    return [zero];
 }
 
 // alt_bn128 curve defined over BNF12
