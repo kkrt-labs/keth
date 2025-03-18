@@ -380,10 +380,12 @@ class StateTries:
                 f"Node not found: 0x{node_hash.hex()} - Missing Node at {nibble_path_to_hex(nibble_path)}"
             )
 
-        node = self._decode_node(node_data)
-        return self._process_node(node, nibble_path)
+        node = decode_node(node_data)
+        return self.resolve_node_path(node, nibble_path)
 
-    def _process_node(self, node: InternalNode, nibble_path: Bytes) -> Optional[Bytes]:
+    def resolve_node_path(
+        self, node: InternalNode, nibble_path: Bytes
+    ) -> Optional[Bytes]:
         """
         Process a node based on its type and traverse the trie.
 
@@ -422,8 +424,8 @@ class StateTries:
                 return self.resolve_node(Hash32(next_node), nibble_path[1:])
             elif isinstance(next_node, bytes) and len(next_node) < 32:
                 logger.debug("Next node is embedded")
-                decoded = self._decode_node(next_node)
-                return self._process_node(decoded, nibble_path[1:])
+                decoded = decode_node(next_node)
+                return self.resolve_node_path(decoded, nibble_path[1:])
 
             else:
                 raise ValueError(f"Unknown node type: {type(next_node)}")
@@ -442,6 +444,9 @@ class StateTries:
             # Check if the key segment matches the beginning of the path
             for i in range(len(node.key_segment)):
                 if nibble_path[i] != node.key_segment[i]:
+                    # If the key segment is not a prefix of the path, then the path doesn't exist
+                    # If it existed, this extension node would have been a branch node, hence
+                    # we can raise an exclusion proof
                     raise ExclusionProof(
                         f"Path mismatch at index {i}: {nibble_path[i]} != {node.key_segment[i]}"
                     )
@@ -455,8 +460,8 @@ class StateTries:
                 return self.resolve_node(Hash32(node.subnode), remaining_path)
             elif isinstance(node.subnode, bytes) and len(node.subnode) < 32:
                 logger.debug("Processing nested embedded node")
-                decoded = self._decode_node(node.subnode)
-                return self._process_node(decoded, remaining_path)
+                decoded = decode_node(node.subnode)
+                return self.resolve_node_path(decoded, remaining_path)
             else:
                 raise ValueError(f"Unknown node type: {type(node.subnode)}")
 
@@ -473,22 +478,6 @@ class StateTries:
             )
 
         raise ValueError(f"Unknown node type: {type(node)}")
-
-    def _decode_node(self, node_data: Bytes) -> InternalNode:
-        """
-        Decode a node from its RLP encoding.
-
-        Parameters
-        ----------
-        node_data : Bytes
-            The RLP encoded node data
-
-        Returns
-        -------
-        InternalNode
-            The decoded node (BranchNode, ExtensionNode, or LeafNode)
-        """
-        return decode_node(node_data)
 
     def delete(
         self, path: Bytes, root_hash: Optional[Hash32] = None
@@ -543,19 +532,18 @@ class StateTries:
             root_hash = self.state_root
 
         logger.debug(
-            f"Deleting value for path: {'0x' + path.hex() if path else 'None'}"
+            f"Deleting value for path: {'0x' + path.hex() if path else 'None'} - starting from root hash: 0x{root_hash.hex()}"
         )
-        logger.debug(f"Starting from root hash: 0x{root_hash.hex()}")
 
         # Check if the root hash exists in our nodes
-        if root_hash not in self.nodes:
+        if root_hash not in self.nodes or root_hash == EMPTY_TRIE_ROOT_HASH:
             logger.error(f"Root hash not found in nodes: {root_hash.hex()}")
             return None
 
         # Start deletion from the root
         nibble_path = bytes_to_nibble_list(path)
         try:
-            new_root_node, deleted = self._delete_node(root_hash, nibble_path)
+            new_root_node, deleted = self.delete_node_hash(root_hash, nibble_path)
             if not deleted:
                 logger.debug("Path not found, nothing deleted")
                 return root_hash
@@ -617,7 +605,7 @@ class StateTries:
             self.upsert(keccak256(address), encoded)
             return
 
-    def _delete_node(
+    def delete_node_hash(
         self, node_hash: Hash32, nibble_path: Bytes
     ) -> tuple[Optional[Bytes], bool]:
         """
@@ -641,17 +629,14 @@ class StateTries:
 
         node_data = self.nodes.get(node_hash)
         if node_data is None:
-            raise ValueError(f"Node not found: 0x{node_hash.hex()}")
-
-        # Decode the node
-        node = self._decode_node(node_data)
+            raise KeyError(f"Node not found: 0x{node_hash.hex()}")
 
         # Process the node
-        new_node, deleted = self._process_delete(node, nibble_path)
+        new_node, deleted = self.delete_node(decode_node(node_data), nibble_path)
 
         return new_node, deleted
 
-    def _process_delete(
+    def delete_node(
         self, node: InternalNode, nibble_path: Bytes
     ) -> tuple[Optional[InternalNode], bool]:
         """
@@ -687,18 +672,19 @@ class StateTries:
 
             next_node = node.subnodes[next_nibble]
             if not next_node:
+                logger.debug("Subnode not found, nothing to delete")
                 return node, False
 
             # Recursively delete from the child
             # case 1: next_node is a hash reference
             if isinstance(next_node, bytes) and len(next_node) == 32:
-                new_child, deleted = self._delete_node(
+                new_child, deleted = self.delete_node_hash(
                     Hash32(next_node), nibble_path[1:]
                 )
             # case 2: next_node is an embedded node
             elif isinstance(next_node, bytes) and len(next_node) < 32:
-                child_node = self._decode_node(next_node)
-                new_child, deleted = self._process_delete(child_node, nibble_path[1:])
+                child_node = decode_node(next_node)
+                new_child, deleted = self.delete_node(child_node, nibble_path[1:])
             else:
                 raise ValueError(f"Unknown subnode type: {type(next_node)}")
 
@@ -743,9 +729,9 @@ class StateTries:
                             ),
                             True,
                         )
-                    child_node = self._decode_node(child_data)
+                    child_node = decode_node(child_data)
                 else:
-                    child_node = self._decode_node(child)
+                    child_node = decode_node(child)
 
                 # Create a new path segment with the branch index
                 new_segment = bytes([index])
@@ -789,12 +775,12 @@ class StateTries:
 
             # Recursively delete from the child
             if isinstance(node.subnode, bytes) and len(node.subnode) == 32:
-                new_child, deleted = self._delete_node(
+                new_child, deleted = self.delete_node_hash(
                     Hash32(node.subnode), remaining_path
                 )
             elif isinstance(node.subnode, bytes) and len(node.subnode) < 32:
-                child_node = self._decode_node(node.subnode)
-                new_child, deleted = self._process_delete(child_node, remaining_path)
+                child_node = decode_node(node.subnode)
+                new_child, deleted = self.delete_node(child_node, remaining_path)
             else:
                 raise ValueError(f"Unknown subnode type: {type(node.subnode)}")
 
@@ -921,7 +907,7 @@ class StateTries:
             raise ValueError(f"Invalid path: {path}")
 
         logger.debug(
-            f"Upsert value at path: {'0x' + path.hex() if path else 'None'} - root hash: 0x{root_hash.hex()}"
+            f"Upsert value at path: {'0x' + path.hex()} - root hash: 0x{root_hash.hex()}"
         )
 
         nibble_path = bytes_to_nibble_list(path)
@@ -1048,7 +1034,7 @@ class StateTries:
             raise ValueError(f"Node not found: 0x{node_hash.hex()}")
 
         # Decode the node
-        node = self._decode_node(node_data)
+        node = decode_node(node_data)
 
         # Process the node
         return self._process_upsert(node, nibble_path, value)
@@ -1133,7 +1119,7 @@ class StateTries:
                 logger.debug(
                     f"Subnode at index {next_nibble} is an embedded node, upsert into child"
                 )
-                child_node = self._decode_node(next_node)
+                child_node = decode_node(next_node)
                 new_child, modified = self._process_upsert(
                     child_node, nibble_path[1:], value
                 )
@@ -1275,7 +1261,7 @@ class StateTries:
                         )
                 elif isinstance(node.subnode, bytes) and len(node.subnode) < 32:
                     # Process embedded node
-                    child_node = self._decode_node(node.subnode)
+                    child_node = decode_node(node.subnode)
                     new_child, modified = self._process_upsert(
                         child_node, remaining_path, value
                     )
@@ -1454,48 +1440,6 @@ class StateTries:
         logger.debug("Finished updating from state diff")
 
 
-def decode_node(node: Bytes) -> InternalNode:
-    """Decode an RLP encoded node into an InternalNode."""
-
-    decoded = rlp.decode(node)
-
-    if isinstance(decoded, list) and len(decoded) == 17:
-        logger.debug("Decoding as branch node")
-        return BranchNode(subnodes=tuple(decoded[0:16]), value=decoded[16])
-    elif isinstance(decoded, list) and len(decoded) == 2:
-        logger.debug("Decoding as extension or leaf node")
-        prefix = decoded[0]
-        value = decoded[1]
-
-        if not isinstance(prefix, bytes):
-            raise ValueError(f"Invalid prefix type: {type(prefix)}")
-
-        # Determine if it's a leaf or extension node based on first nibble
-        first_nibble = prefix[0] >> 4
-        is_leaf = first_nibble in (2, 3)
-        logger.debug(f"First nibble: {first_nibble}, is_leaf: {is_leaf}")
-
-        # Extract the path from the compact encoding
-        nibbles = bytes_to_nibble_list(prefix)
-
-        # Remove the flag nibble and odd padding if present
-        if first_nibble in (1, 3):  # odd length
-            nibbles = nibbles[1:]
-            logger.debug("Odd length, removed first nibble")
-        else:  # even length
-            nibbles = nibbles[2:]
-            logger.debug("Even length, removed first two nibbles")
-
-        logger.debug(f"Current path {nibble_path_to_hex(nibbles)}")
-
-        if is_leaf:
-            return LeafNode(rest_of_key=nibbles, value=value)
-        else:
-            return ExtensionNode(key_segment=nibbles, subnode=value)
-    else:
-        raise ValueError(f"Unknown node structure: {type(decoded)}")
-
-
 # Redefinition of encode_internal_node from ethereum.cancun.trie
 # without keccak256 of the RLP encoded node if its length is greater than 32 bytes
 def encode_internal_node(node: Optional[InternalNode]) -> rlp.Extended:
@@ -1537,3 +1481,58 @@ def encode_internal_node(node: Optional[InternalNode]) -> rlp.Extended:
 
     encoded = rlp.encode(unencoded)
     return encoded
+
+
+def decode_node(node: Bytes) -> InternalNode:
+    """
+    Decode a node from its RLP encoding.
+
+    Parameters
+    ----------
+    node_data : Bytes
+        The RLP encoded node data
+
+    Returns
+    -------
+    InternalNode
+        The decoded node (BranchNode, ExtensionNode, or LeafNode)
+    """
+    """Decode an RLP encoded node into an InternalNode."""
+
+    decoded = rlp.decode(node)
+
+    if isinstance(decoded, list) and len(decoded) == 17:
+        logger.debug("Decoding as branch node")
+        return BranchNode(subnodes=tuple(decoded[0:16]), value=decoded[16])
+    elif isinstance(decoded, list) and len(decoded) == 2:
+        logger.debug("Decoding as extension or leaf node")
+        prefix = decoded[0]
+        value = decoded[1]
+
+        if not isinstance(prefix, bytes):
+            raise ValueError(f"Invalid prefix type: {type(prefix)}")
+
+        # Determine if it's a leaf or extension node based on first nibble
+        first_nibble = prefix[0] >> 4
+        is_leaf = first_nibble in (2, 3)
+        logger.debug(f"First nibble: {first_nibble}, is_leaf: {is_leaf}")
+
+        # Extract the path from the compact encoding
+        nibbles = bytes_to_nibble_list(prefix)
+
+        # Remove the flag nibble and odd padding if present
+        if first_nibble in (1, 3):  # odd length
+            nibbles = nibbles[1:]
+            logger.debug("Odd length, removed first nibble")
+        else:  # even length
+            nibbles = nibbles[2:]
+            logger.debug("Even length, removed first two nibbles")
+
+        logger.debug(f"Current path {nibble_path_to_hex(nibbles)}")
+
+        if is_leaf:
+            return LeafNode(rest_of_key=nibbles, value=value)
+        else:
+            return ExtensionNode(key_segment=nibbles, subnode=value)
+    else:
+        raise ValueError(f"Unknown node structure: {type(decoded)}")
