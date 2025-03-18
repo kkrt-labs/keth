@@ -1,6 +1,5 @@
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_builtins import UInt384, ModBuiltin
-from starkware.cairo.common.uint256 import Uint256
 
 from cairo_ec.circuits.mod_ops_compiled import add
 from cairo_ec.curve.alt_bn128 import alt_bn128
