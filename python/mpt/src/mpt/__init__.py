@@ -196,10 +196,7 @@ class StateTries:
             if not storage_root:
                 raise ValueError(f"Storage root is None for address: {address}")
 
-            if (
-                self.access_list.get(address) is not None
-                and storage_root != EMPTY_TRIE_ROOT_HASH
-            ):
+            if address in self.access_list and storage_root != EMPTY_TRIE_ROOT_HASH:
                 for key in self.access_list[address]:
                     value = self.get(keccak256(key), Hash32(storage_root))
                     if value is None:
@@ -207,7 +204,7 @@ class StateTries:
                             f"Exclusion proof found for key: 0x{key.hex()} for address: 0x{address.hex()}"
                         )
                         continue
-                    if _storage_tries.get(address) is None:
+                    if address not in _storage_tries:
                         _storage_tries[address] = Trie(secured=True, default=U256(0))
                     trie_set(
                         _storage_tries[address],
@@ -425,7 +422,9 @@ class StateTries:
                 return self.resolve_node(Hash32(next_node), nibble_path[1:])
             elif isinstance(next_node, bytes) and len(next_node) < 32:
                 logger.debug("Next node is embedded")
-                return self.process_embedded_node(next_node, nibble_path[1:])
+                decoded = self._decode_node(next_node)
+                return self._process_node(decoded, nibble_path[1:])
+
             else:
                 raise ValueError(f"Unknown node type: {type(next_node)}")
 
@@ -456,7 +455,8 @@ class StateTries:
                 return self.resolve_node(Hash32(node.subnode), remaining_path)
             elif isinstance(node.subnode, bytes) and len(node.subnode) < 32:
                 logger.debug("Processing nested embedded node")
-                return self.process_embedded_node(node.subnode, remaining_path)
+                decoded = self._decode_node(node.subnode)
+                return self._process_node(decoded, remaining_path)
             else:
                 raise ValueError(f"Unknown node type: {type(node.subnode)}")
 
@@ -473,32 +473,6 @@ class StateTries:
             )
 
         raise ValueError(f"Unknown node type: {type(node)}")
-
-    def process_embedded_node(
-        self, node_data: Bytes, nibble_path: Bytes
-    ) -> Optional[Bytes]:
-        """
-        Process an embedded node (not referenced by hash).
-
-        Parameters
-        ----------
-        node_data : Bytes
-            The embedded node data
-        nibble_path : Bytes
-            The remaining path to traverse
-
-        Returns
-        -------
-        Optional[Bytes]
-            The value at the path, or None if not found
-        """
-        logger.debug("Processing embedded node")
-
-        # Decode the embedded node
-        node = self._decode_node(node_data)
-        logger.debug(f"Embedded node type: {type(node).__name__}")
-
-        return self._process_node(node, nibble_path)
 
     def _decode_node(self, node_data: Bytes) -> InternalNode:
         """
