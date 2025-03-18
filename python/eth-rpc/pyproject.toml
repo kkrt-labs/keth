@@ -1,0 +1,15 @@
+[project]
+name = "eth-rpc"
+version = "0.1.0"
+description = "Minimal Ethereum JSON-RPC library"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["ethereum"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.isort]
+profile = "black"
+known_third_party = ["ethereum", "ethereum_rlp", "ethereum_types"]
