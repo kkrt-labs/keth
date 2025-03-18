@@ -1,4 +1,5 @@
 import pytest
+from ethereum_types.numeric import U256
 from hypothesis import Verbosity, given, settings
 from hypothesis import strategies as st
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
@@ -6,9 +7,6 @@ from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 from cairo_addons.testing.errors import cairo_error
 from cairo_addons.testing.hints import patch_hint
 from cairo_addons.testing.strategies import felt
-from cairo_addons.utils.uint256 import int_to_uint256
-
-pytestmark = pytest.mark.python_vm
 
 
 class TestMaths:
@@ -32,13 +30,11 @@ class TestMaths:
                 with pytest.raises(Exception):
                     cairo_run(
                         "test__assert_uint256_le",
-                        a=int_to_uint256(a),
-                        b=int_to_uint256(b),
+                        a=U256(a),
+                        b=U256(b),
                     )
             else:
-                cairo_run(
-                    "test__assert_uint256_le", a=int_to_uint256(a), b=int_to_uint256(b)
-                )
+                cairo_run("test__assert_uint256_le", a=U256(a), b=U256(b))
 
     @given(i=st.integers(min_value=0, max_value=251))
     def test_pow2(self, cairo_run, i):

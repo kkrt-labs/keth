@@ -185,6 +185,7 @@ fn create_var_type(
 ///
 /// Provides attribute access, dereferencing, and type-aware behavior for structs and pointers.
 #[pyclass(name = "VmConst", unsendable)]
+#[derive(Debug, Clone)]
 pub struct PyVmConst {
     /// The underlying Cairo variable data.
     pub(crate) var: CairoVar,
@@ -303,7 +304,7 @@ impl PyVmConst {
     }
 
     /// Gets the effective address of the variable, dereferencing pointers if applicable.
-    fn get_address(&self) -> PyResult<Option<Relocatable>> {
+    pub fn get_address(&self) -> PyResult<Option<Relocatable>> {
         let vm = unsafe { &mut *self.vm };
         match &self.var.var_type {
             CairoVarType::Pointer { .. } => {
@@ -500,7 +501,7 @@ impl PyVmConst {
             "VmConst(name='{}', path={:?}, address={:?})",
             self.var.name,
             self.type_path(),
-            self.var.address
+            self.get_address().expect("PyVmConst does not have an address").unwrap()
         )
     }
 

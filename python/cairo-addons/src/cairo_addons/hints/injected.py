@@ -15,6 +15,15 @@ def set_identifiers(context: Callable[[], dict]):
     context()["py_identifiers"] = program.identifiers
 
 
+def set_program_input(context: Callable[[], dict]):
+    """Load program input from JSON and store it in the provided context object."""
+    program_input = context().get("program_input")
+    if program_input is None:
+        context()["program_input"] = None
+        return
+    context()["program_input"] = program_input
+
+
 def prepare_context(context: Callable[[], dict]):
     """Create and register the serializer function in the provided context object."""
     import logging
@@ -78,5 +87,7 @@ def initialize_hint_environment(context: Callable[[], dict]):
     """
     # First load identifiers
     set_identifiers(context)
+    # Then load program input
+    set_program_input(context)
     # Then create and register serializer
     prepare_context(context)

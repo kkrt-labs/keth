@@ -6,12 +6,14 @@ use cairo_vm::{
 };
 use pyo3::{
     prelude::*,
-    types::{PyDict, PyTuple},
+    types::{IntoPyDict, PyDict, PyTuple},
     IntoPyObjectExt,
 };
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-use super::{maybe_relocatable::PyMaybeRelocatable, relocatable::PyRelocatable};
+use super::{
+    maybe_relocatable::PyMaybeRelocatable, relocatable::PyRelocatable, vm_consts::PyVmConst,
+};
 
 #[derive(FromPyObject, Eq, PartialEq, Hash, Debug)]
 pub enum PyDictKey {
@@ -169,19 +171,54 @@ impl PyDictManager {
         Ok(())
     }
 
-    fn get_tracker(&self, ptr: PyRelocatable) -> PyResult<PyDictTracker> {
-        self.inner
-            .borrow()
-            .trackers
-            .get(&ptr.inner.segment_index)
-            .cloned()
-            .map(|tracker| PyDictTracker { inner: tracker })
-            .ok_or_else(|| {
-                PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!(
-                    "segment_index {} not found",
-                    ptr.inner.segment_index
-                ))
-            })
+    fn get_tracker(&self, obj: Py<PyAny>, py: Python) -> PyResult<PyDictTracker> {
+        // Try to extract PyRelocatable directly
+        if let Ok(rel) = obj.extract::<PyRelocatable>(py) {
+            return self
+                .inner
+                .borrow()
+                .trackers
+                .get(&rel.inner.segment_index)
+                .cloned()
+                .map(|tracker| PyDictTracker { inner: tracker })
+                .ok_or_else(|| {
+                    PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!(
+                        "segment_index {} not found",
+                        rel.inner.segment_index
+                    ))
+                });
+        }
+
+        // Try to extract PyVmConst and get its address
+        if let Ok(vm_const) = obj.extract::<PyVmConst>(py) {
+            // Get the address from the PyVmConst
+            if let Ok(Some(addr)) = vm_const.get_address() {
+                return self
+                    .inner
+                    .borrow()
+                    .trackers
+                    .get(&addr.segment_index)
+                    .cloned()
+                    .map(|tracker| PyDictTracker { inner: tracker })
+                    .ok_or_else(|| {
+                        PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!(
+                            "segment_index {} not found",
+                            addr.segment_index
+                        ))
+                    });
+            }
+        }
+
+        // If we can't get a relocatable address, return an error
+        Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+            "Expected PyRelocatable or PyVmConst with valid address",
+        ))
+    }
+
+    fn get_dict(&self, dict_ptr: Py<PyAny>, py: Python) -> PyResult<Py<PyDict>> {
+        let tracker = self.get_tracker(dict_ptr, py)?;
+        let dict = tracker.data();
+        Ok(dict.into_py_dict(py).unwrap().unbind())
     }
 
     fn insert(&mut self, segment_index: isize, value: &PyDictTracker) -> PyResult<()> {
@@ -253,6 +290,11 @@ impl PyDictTracker {
     #[getter]
     fn current_ptr(&self) -> PyRelocatable {
         PyRelocatable { inner: self.inner.current_ptr }
+    }
+
+    #[setter]
+    fn set_current_ptr(&mut self, value: PyRelocatable) {
+        self.inner.current_ptr = value.inner;
     }
 
     #[getter]

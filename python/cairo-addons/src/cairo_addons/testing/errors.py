@@ -70,6 +70,9 @@ def map_to_python_exception(e: Exception):
     except Exception:
         pass
 
+    if "An ASSERT_EQ instruction failed" in error_type:
+        raise AssertionError(error_str) from e
+
     # Get the exception class from python's builtins or ethereum's exceptions
     exception_class = __builtins__.get(
         error_type,

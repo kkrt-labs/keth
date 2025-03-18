@@ -521,6 +521,7 @@ def run_rust_vm(
         runner = RustCairoRunner(
             program=rust_program,
             py_identifiers=cairo_program.identifiers,
+            program_input=kwargs,
             layout=getattr(LAYOUTS, request.config.getoption("layout")).layout_name,
             proof_mode=proof_mode,
             allow_missing_builtins=False,

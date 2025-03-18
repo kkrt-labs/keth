@@ -7,17 +7,13 @@ from hypothesis import example, given
 from cairo_addons.testing.errors import cairo_error
 from tests.utils.solidity import get_contract
 
-pytestmark = pytest.mark.python_vm
-
 
 class TestRuntime:
     @given(code=...)
     @example(code=get_contract("Counter", "Counter").bytecode_runtime)
     @example(code=get_contract("ERC20", "KethToken").bytecode_runtime)
     def test_get_valid_jump_destinations(self, cairo_run, code: Bytes):
-        output_cairo = cairo_run(
-            "test__get_valid_jump_destinations", bytecode=list(code)
-        )
+        output_cairo = cairo_run("test__get_valid_jump_destinations", code=code)
 
         output_cairo = [output_cairo] if isinstance(output_cairo, int) else output_cairo
         assert get_valid_jump_destinations(code) == set(map(Uint, output_cairo))
@@ -29,7 +25,7 @@ class TestFinalizeJumpdests:
     def test_should_pass(self, cairo_run, bytecode: Bytes):
         cairo_run(
             "test__finalize_jumpdests",
-            bytecode=list(bytecode),
+            bytecode=bytecode,
             valid_jumpdests=get_valid_jump_destinations(bytecode),
         )
 
@@ -44,7 +40,7 @@ class TestAssertValidJumpdest:
     def test_should_pass_on_valid_jumpdest(self, cairo_run, jumpdest):
         cairo_run(
             "test__assert_valid_jumpdest",
-            bytecode=list(get_contract("Counter", "Counter").bytecode_runtime),
+            bytecode=get_contract("Counter", "Counter").bytecode_runtime,
             valid_jumpdest=[int(jumpdest), 1, 1],
         )
 
