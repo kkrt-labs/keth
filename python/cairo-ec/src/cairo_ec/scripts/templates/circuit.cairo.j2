@@ -35,10 +35,10 @@ func {{name}}{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: M
     {%- set count = namespace(value=0) %}
     {%- for arg in circuit.args %}
         {%- for path in arg.path %}
-            assert [range_check96_ptr + {{circuit.constants|length * 4 + count.value}}] = {{path}}.d0;
-            assert [range_check96_ptr + {{circuit.constants|length * 4 + count.value + 1}}] = {{path}}.d1;
-            assert [range_check96_ptr + {{circuit.constants|length * 4 + count.value + 2}}] = {{path}}.d2;
-            assert [range_check96_ptr + {{circuit.constants|length * 4 + count.value + 3}}] = {{path}}.d3;
+    assert [range_check96_ptr + {{circuit.constants|length * 4 + count.value}}] = {{path}}.d0;
+    assert [range_check96_ptr + {{circuit.constants|length * 4 + count.value + 1}}] = {{path}}.d1;
+    assert [range_check96_ptr + {{circuit.constants|length * 4 + count.value + 2}}] = {{path}}.d2;
+    assert [range_check96_ptr + {{circuit.constants|length * 4 + count.value + 3}}] = {{path}}.d3;
             {%- set count.value = count.value + 4 %}
         {%- endfor %}
     {%- endfor %}
