@@ -36,7 +36,7 @@ class TestUint384:
                     cairo_run(
                         "test__uint384_assert_le",
                         a=a,
-                        b=b,
+                        b=b
                     )
             else:
                 cairo_run("test__uint384_assert_le", a=a, b=b)
