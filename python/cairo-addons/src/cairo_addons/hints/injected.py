@@ -17,11 +17,7 @@ def set_identifiers(context: Callable[[], dict]):
 
 def set_program_input(context: Callable[[], dict]):
     """Load program input from JSON and store it in the provided context object."""
-    program_input = context().get("program_input")
-    if program_input is None:
-        context()["program_input"] = None
-        return
-    context()["program_input"] = program_input
+    context()["program_input"] = context().get("program_input")
 
 
 def prepare_context(context: Callable[[], dict]):
