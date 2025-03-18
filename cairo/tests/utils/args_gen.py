@@ -134,7 +134,7 @@ from starkware.cairo.lang.vm.crypto import poseidon_hash_many
 from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 from starkware.cairo.lang.vm.relocatable import RelocatableValue
 
-from cairo_addons.utils.uint256 import int_to_uint256
+from cairo_addons.utils.uint384 import int_to_uint384
 from cairo_addons.vm import DictTracker as RustDictTracker
 from cairo_addons.vm import MemorySegmentManager as RustMemorySegmentManager
 from cairo_addons.vm import Relocatable as RustRelocatable
@@ -986,7 +986,7 @@ def _gen_arg(
         base = segments.add()
         coeffs = []
         for coeff in arg:
-            coeffs.extend(int_to_uint256(coeff))
+            coeffs.extend(int_to_uint384(coeff))
         segments.load_data(base, coeffs)
         return base
 
