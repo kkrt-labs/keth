@@ -4,7 +4,6 @@ from starkware.cairo.common.uint256 import Uint256
 
 from cairo_ec.circuits.mod_ops_compiled import add
 from cairo_ec.curve.alt_bn128 import alt_bn128
-from cairo_ec.uint384 import uint256_to_uint384, uint384_to_uint256
 
 // BNF12 represents a field element in the BNF12 extension field
 // This is a 12-degree extension of the base field used in alt_bn128 curve
