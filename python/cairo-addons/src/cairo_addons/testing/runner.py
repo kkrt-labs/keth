@@ -58,6 +58,7 @@ from cairo_addons.testing.serde import Serde, SerdeProtocol
 from cairo_addons.testing.utils import flatten
 from cairo_addons.vm import CairoRunner as RustCairoRunner
 from cairo_addons.vm import Program as RustProgram
+from cairo_addons.vm import Relocatable as RustRelocatable
 from cairo_addons.vm import RunResources as RustRunResources
 
 logging.basicConfig(
@@ -568,7 +569,11 @@ def run_rust_vm(
             [(k, v["python_type"]) for k, v in {**_implicit_args, **_args}.items()]
         ):
             arg_value = kwargs[arg_name] if arg_name in kwargs else args[i]
-            stack.append(gen_arg(python_type, arg_value))
+            # If the arg is a RelocatableValue, we simply dump the values in a segment
+            if python_type is RelocatableValue or python_type is RustRelocatable:
+                stack.append(runner.segments.gen_arg(arg_value))
+            else:
+                stack.append(gen_arg(python_type, arg_value))
 
         # ============================================================================
         # STEP 4: SET UP EXECUTION CONTEXT AND LOAD MEMORY
