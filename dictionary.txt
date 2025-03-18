@@ -286,3 +286,4 @@ setattr
 pyfunction
 chrono
 stwo
+modelcontextprotocol
