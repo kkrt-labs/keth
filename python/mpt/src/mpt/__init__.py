@@ -872,7 +872,7 @@ class StateTries:
             raise ValueError(f"Root hash not found: {root_hash.hex()}")
 
         try:
-            new_root_node, _ = self._upsert_node(root_hash, nibble_path, value)
+            new_root_node, _ = self.upsert_node_hash(root_hash, nibble_path, value)
         except Exception as e:
             logger.error(f"Error during upsert node: {e}")
             raise e
@@ -949,26 +949,9 @@ class StateTries:
         path = keccak256(address)
         self.upsert(path, value)
 
-    def _upsert_node(
+    def upsert_node_hash(
         self, node_hash: Hash32, nibble_path: Bytes, value: Bytes
     ) -> tuple[InternalNode, bool]:
-        """
-        Recursive helper for upsert method.
-
-        Parameters
-        ----------
-        node_hash : Hash32
-            The hash of the current node
-        nibble_path : Bytes
-            The remaining path to traverse (in nibbles)
-        value : Bytes
-            The RLP-encoded value to store
-
-        Returns
-        -------
-        tuple[InternalNode, bool]
-            The new node and a boolean indicating if the node was modified
-        """
         logger.debug(
             f"Upsert into node with hash: 0x{node_hash.hex()} - remaining path: {nibble_path_to_hex(nibble_path)}"
         )
@@ -981,9 +964,9 @@ class StateTries:
         node = decode_node(node_data)
 
         # Process the node
-        return self._process_upsert(node, nibble_path, value)
+        return self.upsert_node(node, nibble_path, value)
 
-    def _process_upsert(
+    def upsert_node(
         self, node: InternalNode, nibble_path: Bytes, value: Bytes
     ) -> tuple[InternalNode, bool]:
         """
@@ -1044,7 +1027,7 @@ class StateTries:
                 logger.debug(
                     f"Subnode at index {next_nibble} is a hash reference, upsert into child"
                 )
-                new_child, modified = self._upsert_node(
+                new_child, modified = self.upsert_node_hash(
                     Hash32(next_node), nibble_path[1:], value
                 )
                 if not modified:
@@ -1064,7 +1047,7 @@ class StateTries:
                     f"Subnode at index {next_nibble} is an embedded node, upsert into child"
                 )
                 child_node = decode_node(next_node)
-                new_child, modified = self._process_upsert(
+                new_child, modified = self.upsert_node(
                     child_node, nibble_path[1:], value
                 )
                 if not modified:
@@ -1182,7 +1165,7 @@ class StateTries:
 
                 # Recursively upsert into the child
                 if isinstance(node.subnode, bytes) and len(node.subnode) == 32:
-                    new_child, modified = self._upsert_node(
+                    new_child, modified = self.upsert_node_hash(
                         Hash32(node.subnode), remaining_path, value
                     )
                     if not modified:
@@ -1206,7 +1189,7 @@ class StateTries:
                 elif isinstance(node.subnode, bytes) and len(node.subnode) < 32:
                     # Process embedded node
                     child_node = decode_node(node.subnode)
-                    new_child, modified = self._process_upsert(
+                    new_child, modified = self.upsert_node(
                         child_node, remaining_path, value
                     )
                     if not modified:
