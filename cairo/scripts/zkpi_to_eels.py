@@ -7,12 +7,9 @@ or all JSON files in the zkpi directory.
 import argparse
 import json
 import logging
-import os
 from pathlib import Path
 from typing import Any, Dict
 
-import requests
-from dotenv import load_dotenv
 from ethereum.cancun.blocks import Block, Withdrawal
 from ethereum.cancun.fork import (
     BlockChain,
@@ -31,7 +28,7 @@ from ethereum_spec_tools.evm_tools.loaders.transaction_loader import Transaction
 from ethereum_types.bytes import Bytes, Bytes0
 from ethereum_types.numeric import U64, U256
 
-load_dotenv()
+from eth_rpc import EthereumRPC
 
 logging.basicConfig(
     level=logging.INFO,
@@ -39,30 +36,6 @@ logging.basicConfig(
     handlers=[logging.StreamHandler()],
 )
 logger = logging.getLogger(__name__)
-
-
-def get_code(address: str) -> str:
-    """
-    Fetch the code for an address from an Ethereum node.
-    """
-
-    payload = {
-        "jsonrpc": "2.0",
-        "method": "eth_getCode",
-        "params": [address, "latest"],
-        "id": 1,
-    }
-
-    response = requests.post(os.environ["CHAIN_RPC_URL"], json=payload, timeout=30)
-
-    if response.status_code != 200:
-        raise Exception(f"Failed to fetch code: HTTP {response.status_code}")
-
-    result = response.json().get("result")
-    if not result or result == "0x":
-        raise Exception(f"No code returned from node for address {address}")
-
-    return result
 
 
 def convert_accounts(
@@ -77,7 +50,7 @@ def convert_accounts(
     )
     EMPTY_CODE_HASH = "0x" + keccak256(b"").hex()
     state = {}
-
+    eth = EthereumRPC.from_env()
     for account_proof in zkpi_data["preStateProofs"]:
         code = code_hashes.get(account_proof["codeHash"], "0x")
         if code == "0x" and account_proof["codeHash"] not in (
@@ -87,7 +60,9 @@ def convert_accounts(
             logger.info(
                 f"Code hash {account_proof['codeHash']} not found in zkpi data for address {account_proof['address']}, fetching from node"
             )
-            code = get_code(account_proof["address"])
+            code = (
+                "0x" + eth.get_code(Address.fromhex(account_proof["address"][2:])).hex()
+            )
             code_hashes[account_proof["codeHash"]] = code
 
         account_state = {
