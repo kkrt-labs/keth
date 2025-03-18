@@ -516,7 +516,7 @@ class TestCircuits:
 
             p = curve.random_point(x=seed_p)
             q = curve.random_point(x=seed_q)
-            inputs = {"x0": int(p.x), "y0": int(p.y), "x1": int(q.x), "y1": int(q.y)}
+            inputs = {"p0": p, "p1": q}
             expected_output = p + q
 
             cairo_output = cairo_run("ec_add", **inputs)
