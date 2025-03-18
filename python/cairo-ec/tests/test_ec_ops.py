@@ -1,5 +1,4 @@
 import hypothesis.strategies as st
-import pytest
 from hypothesis import given
 from sympy import sqrt_mod
 
@@ -8,8 +7,6 @@ from cairo_addons.utils.uint384 import int_to_uint384, uint384_to_int
 from cairo_ec.curve import AltBn128, Secp256k1
 from tests.utils.args_gen import U384
 from tests.utils.strategies import uint384
-
-pytestmark = pytest.mark.python_vm
 
 curve = st.one_of(st.just(Secp256k1), st.just(AltBn128))
 
@@ -162,7 +159,7 @@ class TestEcOps:
         @given(data=st.data())
         def test_ec_mul(self, cairo_run, data):
             p = AltBn128.random_point()
-            k = data.draw(uint384)
+            k = int(data.draw(uint384))
             expected = p.mul_by(k)
             res = cairo_run(
                 "test__ec_mul",

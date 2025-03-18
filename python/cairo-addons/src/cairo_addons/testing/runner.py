@@ -42,7 +42,6 @@ from starkware.cairo.lang.vm.cairo_run import (
 from starkware.cairo.lang.vm.cairo_runner import CairoRunner
 from starkware.cairo.lang.vm.memory_dict import MemoryDict
 from starkware.cairo.lang.vm.memory_segments import FIRST_MEMORY_ADDR as PROGRAM_BASE
-from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 from starkware.cairo.lang.vm.relocatable import RelocatableValue
 from starkware.cairo.lang.vm.security import verify_secure_runner
 from starkware.cairo.lang.vm.utils import RunResources

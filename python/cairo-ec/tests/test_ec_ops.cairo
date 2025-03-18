@@ -32,10 +32,10 @@ func test__get_random_point{
     let (p_ptr: UInt384*) = alloc();
     %{
         ids.seed =  program_input["seed"]
-        segments.write_arg(ids.a_ptr.address_, program_input["a"])
-        segments.write_arg(ids.b_ptr.address_, program_input["b"])
-        segments.write_arg(ids.g_ptr.address_, program_input["g"])
-        segments.write_arg(ids.p_ptr.address_, program_input["p"])
+        segments.load_data(ids.a_ptr, program_input["a"])
+        segments.load_data(ids.b_ptr, program_input["b"])
+        segments.load_data(ids.g_ptr, program_input["g"])
+        segments.load_data(ids.p_ptr, program_input["p"])
     %}
 
     let point = get_random_point(seed, a_ptr, b_ptr, g_ptr, p_ptr);
@@ -72,9 +72,9 @@ func test__ec_mul{
     let (k_ptr: UInt384*) = alloc();
     let (modulus_ptr: UInt384*) = alloc();
     %{
-        segments.write_arg(ids.p_ptr.address_, program_input["p"])
-        segments.write_arg(ids.k_ptr.address_, program_input["k"])
-        segments.write_arg(ids.modulus_ptr.address_, program_input["modulus"])
+        segments.load_data(ids.p_ptr, program_input["p"])
+        segments.load_data(ids.k_ptr, program_input["k"])
+        segments.load_data(ids.modulus_ptr, program_input["modulus"])
     %}
 
     let res = ec_mul([p_ptr], [k_ptr], [modulus_ptr]);
