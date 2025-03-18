@@ -1,6 +1,6 @@
 # ETH-RPC Library
 
-A lightweight Python library for interacting with Ethereum JSON-RPC APIs.
+A lightweight Python Ethereum JSON-RPC client.
 
 ## Overview
 
@@ -23,8 +23,8 @@ code: Bytes = eth.get_code(Address(bytes.fromhex("0x00...00abcde")[2:]), U64(123
 
 
 # Get account & storage proofs
-address = Address(bytes.fromhex("0x00...00abcde")[2:])
-storage_keys = [Bytes32(bytes.fromhex("0x01...23456")[2:])]
+address = Address.fromhex("0x00...00abcde")[2:]
+storage_keys = [Bytes32.fromhex("0x01...23456")[2:]]
 block_number = U64(123)  # Optional
 account_proof = eth.get_proof(
     address=address,
@@ -33,14 +33,6 @@ account_proof = eth.get_proof(
 )
 
 ```
-
-## Features
-
-- Simple, intuitive API for Ethereum RPC methods
-- Automatic handling of JSON-RPC formatting
-- Type conversions between Python and Ethereum data types
-- Support for websocket connections
-- Batch request support
 
 ## License
 
