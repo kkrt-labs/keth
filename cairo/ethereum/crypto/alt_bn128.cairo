@@ -1,7 +1,7 @@
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_builtins import UInt384, ModBuiltin
 
-from cairo_ec.circuits.mod_ops_compiled import add
+from cairo_ec.circuits.mod_ops_compiled import add, sub
 from cairo_ec.curve.alt_bn128 import alt_bn128
 
 // BNF12 represents a field element in the BNF12 extension field
@@ -447,6 +447,48 @@ struct BNP12Struct {
 
 struct BNP12 {
     value: BNP12Struct*,
+}
+
+
+// Subtraction between two BNF12 elements.
+func bnf12_sub{
+    range_check_ptr: felt,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
+}(a: BNF12, b: BNF12) -> BNF12 {
+    tempvar modulus = new UInt384(alt_bn128.P0, alt_bn128.P1, alt_bn128.P2, alt_bn128.P3);
+
+    let res_c0 = sub(&a.value.c0, &b.value.c0, modulus);
+    let res_c1 = sub(&a.value.c1, &b.value.c1, modulus);
+    let res_c2 = sub(&a.value.c2, &b.value.c2, modulus);
+    let res_c3 = sub(&a.value.c3, &b.value.c3, modulus);
+    let res_c4 = sub(&a.value.c4, &b.value.c4, modulus);
+    let res_c5 = sub(&a.value.c5, &b.value.c5, modulus);
+    let res_c6 = sub(&a.value.c6, &b.value.c6, modulus);
+    let res_c7 = sub(&a.value.c7, &b.value.c7, modulus);
+    let res_c8 = sub(&a.value.c8, &b.value.c8, modulus);
+    let res_c9 = sub(&a.value.c9, &b.value.c9, modulus);
+    let res_c10 = sub(&a.value.c10, &b.value.c10, modulus);
+    let res_c11 = sub(&a.value.c11, &b.value.c11, modulus);
+
+    tempvar res = BNF12(
+        new BNF12Struct(
+            [res_c0],
+            [res_c1],
+            [res_c2],
+            [res_c3],
+            [res_c4],
+            [res_c5],
+            [res_c6],
+            [res_c7],
+            [res_c8],
+            [res_c9],
+            [res_c10],
+            [res_c11],
+        ),
+    );
+    return res;
 }
 
 // @dev: Coefficient A of the short Weierstrass equation: y^2 = x^3 + Ax + B

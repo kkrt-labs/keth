@@ -33,6 +33,10 @@ class TestAltBn128:
     def test_bnf12_add(self, cairo_run, a: BNF12, b: BNF12):
         assert cairo_run("bnf12_add", a, b) == a + b
 
+    @given(a=..., b=...)
+    def test_bnf12_sub(self, cairo_run, a: BNF12, b: BNF12):
+        assert cairo_run("bnf12_sub", a, b) == a - b
+
     def test_A(self, cairo_run):
         cairo_a = cairo_run("A")
         assert cairo_a == BNP12.A
