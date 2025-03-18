@@ -158,6 +158,8 @@ def circuit_compile(cairo_program: Program, circuit: str):
     return_names = [value["name"] for value in return_values]
     return_offsets = [value["offset"] for value in return_values]
     cumul_offsets = list(accumulate(return_offsets))
+    cumul_offsets.reverse()
+
     return {
         "constants": [int_to_uint384(c) for c in constants],
         "args": args,

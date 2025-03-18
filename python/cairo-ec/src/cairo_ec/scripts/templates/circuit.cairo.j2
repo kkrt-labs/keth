@@ -7,7 +7,7 @@
 {%- if circuit.return_offsets %}
     {%- set return_exprs = [] %}
     {%- for i in range(circuit.return_offsets|length) %}
-        {%- set _ = return_exprs.append("cast(range_check96_ptr - " ~ circuit.return_offsets[circuit.return_offsets|length - 1 - i] ~ ", " ~ circuit.return_names[i] ~ "*)") %}
+        {%- set _ = return_exprs.append("cast(range_check96_ptr - " ~ circuit.return_offsets[i] ~ ", " ~ circuit.return_names[i] ~ "*)") %}
     {%- endfor %}
     {%- set return_data = ("(" if circuit.return_offsets|length > 1 else "") ~ return_exprs|join(", ") ~ (")" if circuit.return_offsets|length > 1 else "") %}
 {%- endif %}
