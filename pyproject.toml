@@ -182,7 +182,7 @@ addopts = [
 profile = "black"
 src_paths = ["cairo/src", "cairo/tests"]
 known_third_party = ["ethereum", "ethereum_rlp", "ethereum_types"]
-known_first_party = ["cairo_ec", "cairo_core", "cairo_addons", "eth-rpc"]
+known_first_party = ["cairo_ec", "cairo_core", "cairo_addons", "eth_rpc"]
 
 [tool.autoflake]
 in_place = true
