@@ -77,7 +77,7 @@ from starkware.cairo.lang.vm.memory_dict import UnknownMemoryError
 from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 
 from cairo_addons.testing.serde import SerdeProtocol
-from cairo_addons.utils.uint256 import uint256_to_int
+from cairo_addons.utils.uint384 import uint384_to_int
 from cairo_addons.vm import MemorySegmentManager as RustMemorySegmentManager
 from tests.utils.args_gen import (
     U384,
@@ -428,13 +428,18 @@ class Serde(SerdeProtocol):
             return python_cls(value.to_bytes(python_cls.LENGTH, "little"))
 
         if python_cls == BNF12:
-            # BNF12 is represented as a struct with 12 Uint256
+            # BNF12 is represented as a struct with 12 UInt384
             # We need to extract these values and create a BNF12 object
             if value is None:
                 return None
 
             coeffs = [
-                uint256_to_int(value[f"c{i}"]["low"], value[f"c{i}"]["high"])
+                uint384_to_int(
+                    value[f"c{i}"]["d0"],
+                    value[f"c{i}"]["d1"],
+                    value[f"c{i}"]["d2"],
+                    value[f"c{i}"]["d3"],
+                )
                 for i in range(12)
             ]
 
