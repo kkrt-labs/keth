@@ -1,5 +1,11 @@
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.cairo_builtins import UInt384
+from starkware.cairo.common.cairo_builtins import UInt384, ModBuiltin
+from starkware.cairo.common.uint256 import Uint256
+
+from cairo_ec.circuits.mod_ops_compiled import add
+from cairo_ec.curve.alt_bn128 import alt_bn128
+from cairo_ec.uint384 import uint256_to_uint384, uint384_to_uint256
+
 // BNF12 represents a field element in the BNF12 extension field
 // This is a 12-degree extension of the base field used in alt_bn128 curve
 struct BNF12Struct {
@@ -391,6 +397,47 @@ func BNF12_ZERO() -> BNF12 {
         ),
     );
     return bnf12_zero;
+}
+
+// Addition between two BNF12 elements.
+func bnf12_add{
+    range_check_ptr: felt,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
+}(a: BNF12, b: BNF12) -> BNF12 {
+    tempvar modulus = new UInt384(alt_bn128.P0, alt_bn128.P1, alt_bn128.P2, alt_bn128.P3);
+
+    let res_c0 = add(new a.value.c0, new b.value.c0, modulus);
+    let res_c1 = add(new a.value.c1, new b.value.c1, modulus);
+    let res_c2 = add(new a.value.c2, new b.value.c2, modulus);
+    let res_c3 = add(new a.value.c3, new b.value.c3, modulus);
+    let res_c4 = add(new a.value.c4, new b.value.c4, modulus);
+    let res_c5 = add(new a.value.c5, new b.value.c5, modulus);
+    let res_c6 = add(new a.value.c6, new b.value.c6, modulus);
+    let res_c7 = add(new a.value.c7, new b.value.c7, modulus);
+    let res_c8 = add(new a.value.c8, new b.value.c8, modulus);
+    let res_c9 = add(new a.value.c9, new b.value.c9, modulus);
+    let res_c10 = add(new a.value.c10, new b.value.c10, modulus);
+    let res_c11 = add(new a.value.c11, new b.value.c11, modulus);
+
+    tempvar res = BNF12(
+        new BNF12Struct(
+            [res_c0],
+            [res_c1],
+            [res_c2],
+            [res_c3],
+            [res_c4],
+            [res_c5],
+            [res_c6],
+            [res_c7],
+            [res_c8],
+            [res_c9],
+            [res_c10],
+            [res_c11],
+        ),
+    );
+    return res;
 }
 
 // alt_bn128 curve defined over BNF12
