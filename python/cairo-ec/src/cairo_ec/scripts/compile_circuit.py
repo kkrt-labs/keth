@@ -195,10 +195,6 @@ def main(file_path: Path | None, prime: int, function: list[str], echo: bool):
         click.echo(f"Generated circuit file: {output_path}")
 
 
-if __name__ == "__main__":
-    main()
-
-
 def extract_imports(file_path: Path) -> list[str]:
     """Extract the imports from the file."""
     with file_path.open("r") as f:
@@ -207,3 +203,7 @@ def extract_imports(file_path: Path) -> list[str]:
     # Extract the imports
     imports = re.findall(r"from (.*) import (.*)", content)
     return imports
+
+
+if __name__ == "__main__":
+    main()
