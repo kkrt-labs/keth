@@ -502,19 +502,6 @@ class StateTries:
             - Merge extension nodes with their child extension nodes when possible
             - Update all affected node hashes up to the root
 
-        For example, if deleting 'abc' from a trie:
-        ```
-        Before:                After:
-        [Root]                [Root]
-          |                     |
-        [Branch]              [Branch]
-         /    \                /    \
-        'ab'   'd'          'ab'   'd'
-          |                   |
-        'c':123             'x':456
-        'x':456
-        ```
-
         Parameters
         ----------
         path : Bytes
@@ -873,18 +860,6 @@ class StateTries:
         - For nodes ≥ 32 bytes: Store separately and use hash as reference
         - For nodes < 32 bytes: Store directly in parent node
         - Update node hashes up to root
-
-        Example of inserting 'abc':123 into a trie:
-        ```
-        Before:                After:
-        [Root]                [Root]
-        |                     |
-        [Branch]              [Branch]
-        |                   /    \
-        'd'               'ab'    'd'
-        |                 |      |
-        456              'c':123  456
-        ```
 
         Parameters
         ----------
