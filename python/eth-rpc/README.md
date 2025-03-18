@@ -14,13 +14,12 @@ codebase as much as possible.
 ```python
 from eth_rpc import EthereumRPC
 from ethereum.cancun.fork_types import Address, Bytes32, U64
+
 # Connect to a node
 eth = EthereumRPC("https://mainnet.infura.io/v3/YOUR_API_KEY")
 
-
 # Get an account's code
 code: Bytes = eth.get_code(Address(bytes.fromhex("0x00...00abcde")[2:]), U64(123))
-
 
 # Get account & storage proofs
 address = Address.fromhex("0x00...00abcde")[2:]
@@ -31,7 +30,6 @@ account_proof = eth.get_proof(
     storage_keys=storage_keys,
     block_number=block_number
 )
-
 ```
 
 ## License
