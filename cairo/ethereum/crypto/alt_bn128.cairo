@@ -449,7 +449,6 @@ struct BNP12 {
     value: BNP12Struct*,
 }
 
-
 // Subtraction between two BNF12 elements.
 func bnf12_sub{
     range_check_ptr: felt,
