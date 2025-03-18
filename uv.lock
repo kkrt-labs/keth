@@ -10,6 +10,7 @@ members = [
     "cairo-addons",
     "cairo-core",
     "cairo-ec",
+    "eth-rpc",
     "keth",
 ]
 
@@ -1043,6 +1044,17 @@ wheels = [
 ]
 
 [[package]]
+name = "eth-rpc"
+version = "0.1.0"
+source = { editable = "python/eth-rpc" }
+dependencies = [
+    { name = "ethereum" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "ethereum" }]
+
+[[package]]
 name = "eth-typing"
 version = "5.2.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1807,6 +1819,7 @@ dependencies = [
     { name = "cairo-ec" },
     { name = "cairo-lang" },
     { name = "colorama" },
+    { name = "eth-rpc" },
     { name = "ethereum" },
     { name = "garaga" },
     { name = "marshmallow-dataclass" },
@@ -1845,6 +1858,7 @@ requires-dist = [
     { name = "cairo-ec", editable = "python/cairo-ec" },
     { name = "cairo-lang", specifier = ">=0.13.2" },
     { name = "colorama", specifier = ">=0.4.6" },
+    { name = "eth-rpc", editable = "python/eth-rpc" },
     { name = "ethereum" },
     { name = "garaga", git = "https://github.com/keep-starknet-strange/garaga.git?rev=hydra_upd" },
     { name = "marshmallow-dataclass", specifier = ">=8.6.1" },
