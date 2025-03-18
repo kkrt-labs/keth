@@ -38,10 +38,9 @@ class TestEcOps:
                 ) == y_try
 
     class TestGetRandomPoint:
-        # TODO: refactoring this requires more refactor on the G1Point struct definition and use.
         @given(seed=felt, curve=curve)
-        def test_should_return_a_point_on_the_curve(self, cairo_run_py, seed, curve):
-            point = cairo_run_py(
+        def test_should_return_a_point_on_the_curve(self, cairo_run, seed, curve):
+            point = cairo_run(
                 "test__get_random_point",
                 seed=seed,
                 a=int_to_uint384(int(curve.A)),

@@ -57,15 +57,15 @@ def prev_values_test_hint(
     flattened_entries = [
         item for sublist in program_input["dict_entries"] for item in sublist
     ]
-    segments.write_arg(ids.dict_ptr_start.address_, flattened_entries)
+    segments.load_data(ids.dict_ptr_start.address_, flattened_entries)
     ids.dict_ptr_stop = ids.dict_ptr_start.address_ + 3 * len(
         program_input["dict_entries"]
     )
 
 
 @given(dict_entries=st.lists(st.tuples(felt, felt, felt)))
-def test_prev_values(cairo_run_py, dict_entries: List[Tuple[int, int, int]]):
-    prev_values = cairo_run_py("test_prev_values", dict_entries=dict_entries)
+def test_prev_values(cairo_run, dict_entries: List[Tuple[int, int, int]]):
+    prev_values = cairo_run("test_prev_values", dict_entries=dict_entries)
 
     assert all(
         prev_values[i * 3 : i * 3 + 3] == [key, prev, prev]
