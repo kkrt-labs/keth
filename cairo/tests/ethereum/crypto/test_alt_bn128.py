@@ -1,6 +1,8 @@
 from ethereum.crypto.alt_bn128 import BNF12, BNP12
 from hypothesis import given
 
+from tests.utils.args_gen import U384
+
 
 class TestAltBn128:
     def test_FROBENIUS_COEFFICIENTS(self, cairo_run):
@@ -36,6 +38,10 @@ class TestAltBn128:
     @given(a=..., b=...)
     def test_bnf12_sub(self, cairo_run, a: BNF12, b: BNF12):
         assert cairo_run("bnf12_sub", a, b) == a - b
+
+    @given(a=..., x=...)
+    def test_bnf12_scalar_mul(self, cairo_run, a: BNF12, x: U384):
+        assert cairo_run("bnf12_scalar_mul", a, x) == a.scalar_mul(int(x))
 
     def test_A(self, cairo_run):
         cairo_a = cairo_run("A")

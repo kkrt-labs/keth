@@ -1,7 +1,9 @@
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_builtins import UInt384, ModBuiltin
+from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
 
-from cairo_ec.circuits.mod_ops_compiled import add, sub
+from cairo_core.numeric import U384
+from cairo_ec.circuits.mod_ops_compiled import add, sub, mul
 from cairo_ec.curve.alt_bn128 import alt_bn128
 
 // BNF12 represents a field element in the BNF12 extension field
@@ -418,6 +420,48 @@ func bnf12_add{
     let res_c9 = add(&a.value.c9, &b.value.c9, modulus);
     let res_c10 = add(&a.value.c10, &b.value.c10, modulus);
     let res_c11 = add(&a.value.c11, &b.value.c11, modulus);
+
+    tempvar res = BNF12(
+        new BNF12Struct(
+            [res_c0],
+            [res_c1],
+            [res_c2],
+            [res_c3],
+            [res_c4],
+            [res_c5],
+            [res_c6],
+            [res_c7],
+            [res_c8],
+            [res_c9],
+            [res_c10],
+            [res_c11],
+        ),
+    );
+    return res;
+}
+
+// Scalar multiplication of one BNF12 element.
+func bnf12_scalar_mul{
+    range_check_ptr: felt,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
+}(a: BNF12, x: U384) -> BNF12 {
+    let (__fp__, _) = get_fp_and_pc();
+    tempvar modulus = new UInt384(alt_bn128.P0, alt_bn128.P1, alt_bn128.P2, alt_bn128.P3);
+
+    let res_c0 = mul(&a.value.c0, x.value, modulus);
+    let res_c1 = mul(&a.value.c1, x.value, modulus);
+    let res_c2 = mul(&a.value.c2, x.value, modulus);
+    let res_c3 = mul(&a.value.c3, x.value, modulus);
+    let res_c4 = mul(&a.value.c4, x.value, modulus);
+    let res_c5 = mul(&a.value.c5, x.value, modulus);
+    let res_c6 = mul(&a.value.c6, x.value, modulus);
+    let res_c7 = mul(&a.value.c7, x.value, modulus);
+    let res_c8 = mul(&a.value.c8, x.value, modulus);
+    let res_c9 = mul(&a.value.c9, x.value, modulus);
+    let res_c10 = mul(&a.value.c10, x.value, modulus);
+    let res_c11 = mul(&a.value.c11, x.value, modulus);
 
     tempvar res = BNF12(
         new BNF12Struct(
