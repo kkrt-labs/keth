@@ -1,5 +1,3 @@
-// from cairo_ec.curve.g1g2pair import G1G2Pair
-
 struct Point {
     x: felt,
     y: felt,
