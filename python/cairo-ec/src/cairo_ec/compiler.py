@@ -81,9 +81,9 @@ def circuit_compile(cairo_program: Program, circuit: str):
     constants = list(constants)
 
     # Arguments of a function are always at fp - 3 - n where n is the index of the argument
-    args = extract_args(cairo_program, circuit)
+    args, args_size = extract_args(cairo_program, circuit)
     # We put the constants before the args, so the initial offset is 3 + len(args)
-    constants_offset = 3 + len(args)
+    constants_offset = 3 + args_size
 
     instruction_compiled = []
     while instructions:
@@ -259,13 +259,11 @@ def extract_args(cairo_program: Program, circuit: str) -> List[Dict[str, Any]]:
         return args_list
 
     # Get Args struct members
-    args_members = cairo_program.get_identifier(
-        f"{circuit}.Args", StructDefinition
-    ).members
+    args = cairo_program.get_identifier(f"{circuit}.Args", StructDefinition)
 
     result = []
 
-    for name, member in args_members.items():
+    for name, member in args.members.items():
         if isinstance(member.cairo_type, TypeFelt):
             result.append({"name": name, "type": "UInt384", "path": [name]})
         elif isinstance(member.cairo_type, TypeStruct):
@@ -279,7 +277,7 @@ def extract_args(cairo_program: Program, circuit: str) -> List[Dict[str, Any]]:
 
             result.append({"name": name, "type": struct_name, "path": path_list})
 
-    return result
+    return result, args.size
 
 
 def extract_structs(cairo_program: Program, circuit: str) -> List[Dict[str, Any]]:

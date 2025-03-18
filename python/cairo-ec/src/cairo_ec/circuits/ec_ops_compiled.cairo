@@ -44,46 +44,46 @@ func ec_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: Mod
         mul_mod_n=3,
     );
 
-    let range_check96_ptr = range_check96_ptr + 60;
+    let range_check96_ptr = range_check96_ptr + 64;
 
     return cast(range_check96_ptr - 8, G1Point*);
 
     add_offsets:
+    dw 20;
+    dw 8;
     dw 16;
+    dw 24;
     dw 4;
     dw 12;
-    dw 20;
-    dw 0;
-    dw 8;
-    dw 32;
-    dw 0;
-    dw 28;
     dw 36;
-    dw 8;
+    dw 4;
     dw 32;
     dw 40;
+    dw 12;
     dw 36;
-    dw 0;
-    dw 48;
-    dw 4;
     dw 44;
+    dw 40;
     dw 4;
-    dw 36;
     dw 52;
-    dw 4;
+    dw 8;
     dw 48;
+    dw 0;
+    dw 40;
     dw 56;
+    dw 0;
+    dw 52;
+    dw 60;
 
     mul_offsets:
-    dw 24;
-    dw 20;
-    dw 16;
-    dw 24;
-    dw 24;
     dw 28;
     dw 24;
-    dw 40;
+    dw 20;
+    dw 28;
+    dw 28;
+    dw 32;
+    dw 28;
     dw 44;
+    dw 48;
 }
 
 func ec_double{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(

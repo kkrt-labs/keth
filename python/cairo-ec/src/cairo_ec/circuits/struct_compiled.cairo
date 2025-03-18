@@ -56,7 +56,7 @@ func return_tuple_same_struct_params{
         mul_mod_n=3,
     );
 
-    let range_check96_ptr = range_check96_ptr + 76;
+    let range_check96_ptr = range_check96_ptr + 84;
 
     return (
         cast(range_check96_ptr - 24, Point*),
@@ -65,53 +65,53 @@ func return_tuple_same_struct_params{
     );
 
     add_offsets:
-    dw 16;
-    dw 4;
+    dw 24;
     dw 12;
     dw 20;
-    dw 0;
-    dw 8;
-    dw 32;
-    dw 0;
     dw 28;
-    dw 36;
     dw 8;
-    dw 32;
+    dw 16;
     dw 40;
+    dw 8;
     dw 36;
-    dw 0;
-    dw 48;
-    dw 4;
     dw 44;
-    dw 4;
-    dw 36;
+    dw 16;
+    dw 40;
+    dw 48;
+    dw 44;
+    dw 8;
+    dw 56;
+    dw 12;
     dw 52;
     dw 4;
-    dw 48;
-    dw 56;
-    dw 4;
-    dw 0;
+    dw 44;
     dw 60;
     dw 4;
-    dw 36;
+    dw 56;
     dw 64;
     dw 4;
-    dw 48;
+    dw 0;
     dw 68;
     dw 4;
-    dw 36;
+    dw 44;
     dw 72;
+    dw 4;
+    dw 56;
+    dw 76;
+    dw 4;
+    dw 44;
+    dw 80;
 
     mul_offsets:
-    dw 24;
-    dw 20;
-    dw 16;
-    dw 24;
-    dw 24;
+    dw 32;
     dw 28;
     dw 24;
-    dw 40;
-    dw 44;
+    dw 32;
+    dw 32;
+    dw 36;
+    dw 32;
+    dw 48;
+    dw 52;
 }
 
 func return_single_same_struct_params{
@@ -154,46 +154,46 @@ func return_single_same_struct_params{
         mul_mod_n=3,
     );
 
-    let range_check96_ptr = range_check96_ptr + 60;
+    let range_check96_ptr = range_check96_ptr + 64;
 
     return cast(range_check96_ptr - 8, Point*);
 
     add_offsets:
+    dw 20;
+    dw 8;
     dw 16;
+    dw 24;
     dw 4;
     dw 12;
-    dw 20;
-    dw 0;
-    dw 8;
-    dw 32;
-    dw 0;
-    dw 28;
     dw 36;
-    dw 8;
+    dw 4;
     dw 32;
     dw 40;
+    dw 12;
     dw 36;
-    dw 0;
-    dw 48;
-    dw 4;
     dw 44;
+    dw 40;
     dw 4;
-    dw 36;
     dw 52;
-    dw 4;
+    dw 8;
     dw 48;
+    dw 0;
+    dw 40;
     dw 56;
+    dw 0;
+    dw 52;
+    dw 60;
 
     mul_offsets:
-    dw 24;
-    dw 20;
-    dw 16;
-    dw 24;
-    dw 24;
     dw 28;
     dw 24;
-    dw 40;
+    dw 20;
+    dw 28;
+    dw 28;
+    dw 32;
+    dw 28;
     dw 44;
+    dw 48;
 }
 
 func return_single_nested_struct_params{
@@ -236,49 +236,49 @@ func return_single_nested_struct_params{
         mul_mod_n=3,
     );
 
-    let range_check96_ptr = range_check96_ptr + 64;
+    let range_check96_ptr = range_check96_ptr + 68;
 
     return cast(range_check96_ptr - 12, ReturnPoint*);
 
     add_offsets:
+    dw 20;
+    dw 8;
     dw 16;
+    dw 24;
     dw 4;
     dw 12;
-    dw 20;
-    dw 0;
-    dw 8;
-    dw 32;
-    dw 0;
-    dw 28;
     dw 36;
-    dw 8;
+    dw 4;
     dw 32;
     dw 40;
+    dw 12;
     dw 36;
-    dw 0;
-    dw 48;
-    dw 4;
     dw 44;
+    dw 40;
     dw 4;
-    dw 36;
     dw 52;
-    dw 4;
+    dw 8;
     dw 48;
+    dw 0;
+    dw 40;
     dw 56;
-    dw 4;
-    dw 36;
+    dw 0;
+    dw 52;
     dw 60;
+    dw 0;
+    dw 40;
+    dw 64;
 
     mul_offsets:
-    dw 24;
-    dw 20;
-    dw 16;
-    dw 24;
-    dw 24;
     dw 28;
     dw 24;
-    dw 40;
+    dw 20;
+    dw 28;
+    dw 28;
+    dw 32;
+    dw 28;
     dw 44;
+    dw 48;
 }
 
 func ec_add_struct{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
@@ -321,44 +321,44 @@ func ec_add_struct{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_p
         mul_mod_n=3,
     );
 
-    let range_check96_ptr = range_check96_ptr + 60;
+    let range_check96_ptr = range_check96_ptr + 64;
 
     return cast(range_check96_ptr - 8, Point*);
 
     add_offsets:
+    dw 20;
+    dw 8;
     dw 16;
+    dw 24;
     dw 4;
     dw 12;
-    dw 20;
-    dw 0;
-    dw 8;
-    dw 32;
-    dw 0;
-    dw 28;
     dw 36;
-    dw 8;
+    dw 4;
     dw 32;
     dw 40;
+    dw 12;
     dw 36;
-    dw 0;
-    dw 48;
-    dw 4;
     dw 44;
+    dw 40;
     dw 4;
-    dw 36;
     dw 52;
-    dw 4;
+    dw 8;
     dw 48;
+    dw 0;
+    dw 40;
     dw 56;
+    dw 0;
+    dw 52;
+    dw 60;
 
     mul_offsets:
-    dw 24;
-    dw 20;
-    dw 16;
-    dw 24;
-    dw 24;
     dw 28;
     dw 24;
-    dw 40;
+    dw 20;
+    dw 28;
+    dw 28;
+    dw 32;
+    dw 28;
     dw 44;
+    dw 48;
 }
