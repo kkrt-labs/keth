@@ -126,8 +126,8 @@ func ec_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: Mod
         return res;
     }
 
-    let res = ec_add_unchecked(p, q, modulus);
-    return res;
+    let res_ptr = ec_add_unchecked(&p, &q, &modulus);
+    return [res_ptr];
 }
 
 // Perform scalar multiplication of an EC point of the alt_bn128 curve.
