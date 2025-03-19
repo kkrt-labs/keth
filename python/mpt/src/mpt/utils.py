@@ -24,6 +24,7 @@ def decode_node(node: Bytes) -> InternalNode:
     if len(decoded) == 17:
         logger.debug("Decoding as branch node")
         return BranchNode(subnodes=tuple(decoded[0:16]), value=decoded[16])
+
     if len(decoded) == 2:
         logger.debug("Decoding as extension or leaf node")
         prefix = decoded[0]
