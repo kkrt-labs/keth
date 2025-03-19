@@ -12,7 +12,7 @@ from starkware.cairo.common.uint256 import word_reverse_endian, Uint256, uint256
 from starkware.cairo.common.memset import memset
 
 from ethereum_types.bytes import Bytes32, Bytes32Struct, Bytes20, Bytes, BytesStruct
-from ethereum_types.numeric import Uint, U256, U256Struct, bool, U64, U384
+from ethereum_types.numeric import Uint, U256, U256Struct, bool, U64, U384, U384Struct
 from cairo_ec.uint384 import uint384_eq
 from cairo_core.maths import pow2, unsigned_div_rem, felt252_to_bytes_be, felt252_bit_length
 from cairo_core.comparison import is_zero
@@ -370,6 +370,11 @@ func Bytes32_from_be_bytes{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(bytes:
     let (res_reversed) = uint256_reverse_endian(res);
     tempvar res_bytes32 = Bytes32(new Bytes32Struct(res_reversed.low, res_reversed.high));
     return res_bytes32;
+}
+
+func U384_zero() -> U384 {
+    tempvar res = U384(new U384Struct(0, 0, 0, 0));
+    return res;
 }
 
 func U384_is_zero(num: U384) -> felt {

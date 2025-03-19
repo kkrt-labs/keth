@@ -4,6 +4,8 @@ from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
 from starkware.cairo.common.uint256 import Uint256
 from starkware.cairo.common.poseidon_state import PoseidonBuiltinState
 from cairo_core.maths import assert_uint256_le
+from starkware.cairo.common.alloc import alloc
+from starkware.cairo.common.memcpy import memcpy
 
 from cairo_ec.circuits.ec_ops_compiled import (
     ec_add as ec_add_unchecked,
@@ -14,7 +16,7 @@ from cairo_ec.circuits.ec_ops_compiled import (
 from cairo_ec.circuits.mod_ops_compiled import add, mul
 from cairo_ec.circuit_utils import N_LIMBS, hash_full_transcript
 from cairo_ec.curve.alt_bn128 import alt_bn128, sign_to_uint384_mod_alt_bn128
-from cairo_ec.curve.g1_point import G1Point, G1Point__eq__
+from cairo_ec.curve.g1_point import G1Point, G1PointStruct, G1Point__eq__, G1Point_zero
 from cairo_ec.uint384 import (
     felt_to_uint384,
     uint256_to_uint384,
@@ -24,7 +26,7 @@ from cairo_ec.uint384 import (
     uint384_to_uint256,
 )
 from cairo_ec.curve_utils import scalar_to_epns
-
+from cairo_core.numeric import U384, U384Struct
 // @notice Attempts to derive a y-coordinate for a given x on an elliptic curve.
 // @return y A candidate y-coordinate; if is_on_curve = 1, (x, y) is on the curve; if 0, y is a fallback value.
 // @return is_on_curve 1 if (x, y) lies on the curve, 0 if not.
@@ -65,15 +67,17 @@ func get_random_point{
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,
-}(seed: felt, a: UInt384*, b: UInt384*, g: UInt384*, p: UInt384*) -> G1Point {
+}(seed: felt, a: U384, b: U384, g: U384, p: U384) -> G1Point {
     alloc_locals;
     let (__fp__, __pc__) = get_fp_and_pc();
     let x_384 = felt_to_uint384(seed);
     tempvar x = new x_384;
-    let (y, is_on_curve) = try_get_point_from_x(x=x, v=0, a=a, b=b, g=g, p=p);
+    let (y, is_on_curve) = try_get_point_from_x(
+        x=x, v=0, a=a.value, b=b.value, g=g.value, p=p.value
+    );
 
     if (is_on_curve != 0) {
-        let point = G1Point(x=x_384, y=[y]);
+        tempvar point = G1Point(new G1PointStruct(U384(x), U384(y)));
         return point;
     }
 
@@ -97,10 +101,10 @@ func get_random_point{
 // / @param modulus The prime modulus of the field as a UInt384.
 // / @return The resulting point from p + q on the ALT_BN128 curve as a G1Point.
 func ec_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
-    p: G1Point, q: G1Point, a: UInt384, modulus: UInt384
+    p: G1Point, q: G1Point, a: U384, modulus: U384
 ) -> G1Point {
     alloc_locals;
-    tempvar inf_point = G1Point(UInt384(0, 0, 0, 0), UInt384(0, 0, 0, 0));
+    let inf_point = G1Point_zero();
     let p_is_inf = G1Point__eq__(p, inf_point);
     if (p_is_inf.value != 0) {
         return q;
@@ -109,23 +113,24 @@ func ec_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: Mod
     if (q_is_inf.value != 0) {
         return p;
     }
-    let same_x = uint384_eq_mod_p(p.x, q.x, modulus);
+    let same_x = uint384_eq_mod_p(p.value.x, q.value.x, modulus);
     let (__fp__, __pc__) = get_fp_and_pc();
     if (same_x != 0) {
-        let opposite_y = uint384_is_neg_mod_p(p.y, q.y, modulus);
+        let opposite_y = uint384_is_neg_mod_p(p.value.y, q.value.y, modulus);
         if (opposite_y != 0) {
             // p + (-p) = O (point at infinity)
-            let res = G1Point(UInt384(0, 0, 0, 0), UInt384(0, 0, 0, 0));
-            return res;
+            return inf_point;
         }
 
-        let (res_x, res_y) = ec_double(&p.x, &p.y, &a, &modulus);
-        let res = G1Point(x=[res_x], y=[res_y]);
+        let (res_x, res_y) = ec_double(p.value.x.value, p.value.y.value, a.value, modulus.value);
+        tempvar res = G1Point(new G1PointStruct(U384(res_x), U384(res_y)));
         return res;
     }
 
-    let (res_x, res_y) = ec_add_unchecked(&p.x, &p.y, &q.x, &q.y, &modulus);
-    let res = G1Point(x=[res_x], y=[res_y]);
+    let (res_x, res_y) = ec_add_unchecked(
+        p.value.x.value, p.value.y.value, q.value.x.value, q.value.y.value, modulus.value
+    );
+    tempvar res = G1Point(new G1PointStruct(U384(res_x), U384(res_y)));
     return res;
 }
 
@@ -138,20 +143,20 @@ func ec_mul{
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
-}(p: G1Point, k: UInt384, modulus: UInt384) -> G1Point {
+}(p: G1Point, k: U384, modulus: U384) -> G1Point {
     alloc_locals;
     let (__fp__, _) = get_fp_and_pc();
 
-    tempvar zero_u384 = UInt384(0, 0, 0, 0);
+    tempvar zero_u384 = U384(new U384Struct(0, 0, 0, 0));
     let scalar_is_zero = uint384_eq_mod_p(k, zero_u384, modulus);
     if (scalar_is_zero != 0) {
-        let point_at_infinity = G1Point(zero_u384, zero_u384);
+        let point_at_infinity = G1Point_zero();
         return point_at_infinity;
     }
 
-    let one_u384 = UInt384(1, 0, 0, 0);
-    tempvar n = UInt384(alt_bn128.N0, alt_bn128.N1, alt_bn128.N2, alt_bn128.N3);
-    let rem = mul(&k, new one_u384, new n);
+    tempvar one_u384 = U384(new U384Struct(1, 0, 0, 0));
+    tempvar n = U384(new U384Struct(alt_bn128.N0, alt_bn128.N1, alt_bn128.N2, alt_bn128.N3));
+    let rem = mul(k.value, one_u384.value, n.value);
     let scalar = uint384_to_uint256([rem]);
     let n_min_one = Uint256(alt_bn128.N_LOW_128 - 1, alt_bn128.N_HIGH_128);
     assert_uint256_le(scalar, n_min_one);
@@ -189,23 +194,23 @@ func ec_mul{
     tempvar ecip_circuit_constants_offset = 6 * N_LIMBS;
     tempvar ecip_circuit_q_offset = 32 * N_LIMBS;
 
-    let ecip_input: UInt384* = cast(
-        range_check96_ptr + is_on_curve_flags_offset + rlc_coeff_u384_cast_offset +
-        ecip_circuit_constants_offset,
-        UInt384*,
-    );
+    // ! If the offsets are not computed in a tempvar, the range_check96_ptr addition only takes the first member of the addition
+    // ! -> A Relocatable + (sum of felts) is not yielding the correct result
+    tempvar q_limbs_offset = is_on_curve_flags_offset + rlc_coeff_u384_cast_offset +
+        ecip_circuit_constants_offset + ecip_circuit_q_offset;
+    let q_limbs: UInt384* = cast(range_check96_ptr + q_limbs_offset, UInt384*);
 
-    let q_low_x = ecip_input[32];
-    let q_low_y = ecip_input[33];
-    let q_high_x = ecip_input[34];
-    let q_high_y = ecip_input[35];
-    let q_high_shifted_x = ecip_input[36];
-    let q_high_shifted_y = ecip_input[37];
-    let q_low = G1Point(q_low_x, q_low_y);
-    let q_high = G1Point(q_high_x, q_high_y);
+    let q_low_x = &q_limbs[0];
+    let q_low_y = &q_limbs[1];
+    let q_high_x = &q_limbs[2];
+    let q_high_y = &q_limbs[3];
+    let q_high_shifted_x = &q_limbs[4];
+    let q_high_shifted_y = &q_limbs[5];
+    tempvar q_low = G1Point(new G1PointStruct(U384(q_low_x), U384(q_low_y)));
+    tempvar q_high = G1Point(new G1PointStruct(U384(q_high_x), U384(q_high_y)));
 
     // Compute flag is_on_curve_q_low and is_on_curve_q_high
-    let pt_at_inf = G1Point(zero_u384, zero_u384);
+    let pt_at_inf = G1Point_zero();
     let is_pt_at_inf_q_low = G1Point__eq__(q_low, pt_at_inf);
     let is_pt_at_inf_q_high = G1Point__eq__(q_high, pt_at_inf);
     let is_pt_at_inf_q_low_u384 = felt_to_uint384(is_pt_at_inf_q_low.value);
@@ -220,7 +225,11 @@ func ec_mul{
     );
     let poseidon_ptr = poseidon_ptr + 2 * PoseidonBuiltin.SIZE;
 
-    hash_full_transcript(cast(&p, felt*), 2);
+    // TODO: check whether we can simplify this
+    let (p_limbs: felt*) = alloc();
+    memcpy(p_limbs, p.value.x.value, 4);
+    memcpy(p_limbs + 4, p.value.y.value, 4);
+    hash_full_transcript(p_limbs, 2);
 
     // Q_low, Q_high, Q_high_shifted (filled by prover) (32 - 37).
     hash_full_transcript(
@@ -248,7 +257,7 @@ func ec_mul{
     tempvar range_check96_ptr_init = range_check96_ptr;
     tempvar range_check96_ptr_after_circuit = range_check96_ptr + 1092;
     let random_point = get_random_point{range_check96_ptr=range_check96_ptr_after_circuit}(
-        seed=[cast(poseidon_ptr, felt*) - 3], a=&a, b=&b, g=&g, p=&modulus
+        seed=[cast(poseidon_ptr, felt*) - 3], a=U384(&a), b=U384(&b), g=U384(&g), p=modulus
     );
     let range_check96_ptr = range_check96_ptr_init;
 
@@ -257,8 +266,8 @@ func ec_mul{
     // Random Linear Combination Sum of Discrete Logarithm Division
     // rlc_sum_dlog_div for 2 points: n_coeffs = 14 + 4 * 2 = 22 (0-21)
     // q_low, q_high, q_high_shifted (32 - 37)
-    tempvar random_point_x = new random_point.x;
-    tempvar random_point_y = new random_point.y;
+    let random_point_x = random_point.value.x;
+    let random_point_y = random_point.value.y;
 
     ecip_1p(
         &ecip_input[0],
@@ -283,8 +292,8 @@ func ec_mul{
         &ecip_input[19],
         &ecip_input[20],
         &ecip_input[21],
-        &p.x,
-        &p.y,
+        p.value.x.value,
+        p.value.y.value,
         &ep_low_u384,
         &en_low_u384,
         &sp_low_u384,
@@ -293,35 +302,35 @@ func ec_mul{
         &en_high_u384,
         &sp_high_u384,
         &sn_high_u384,
-        &q_low_x,
-        &q_low_y,
-        &q_high_x,
-        &q_high_y,
-        &q_high_shifted_x,
-        &q_high_shifted_y,
-        random_point_x,
-        random_point_y,
+        q_low_x,
+        q_low_y,
+        q_high_x,
+        q_high_y,
+        q_high_shifted_x,
+        q_high_shifted_y,
+        random_point_x.value,
+        random_point_y.value,
         &a,
         &b,
         &rlc_coeff_u384,
         new is_pt_at_inf_q_low_u384,
         new is_pt_at_inf_q_high_u384,
-        &modulus,
+        modulus.value,
     );
 
     let range_check96_ptr = range_check96_ptr_after_circuit;
 
     let res = ec_add(
-        G1Point(x=ecip_input[32], y=ecip_input[33]),
-        G1Point(x=ecip_input[36], y=ecip_input[37]),
-        a,
+        G1Point(new G1PointStruct(U384(q_low_x), U384(q_low_y))),
+        G1Point(new G1PointStruct(U384(q_high_shifted_x), U384(q_high_shifted_y))),
+        U384(&a),
         modulus,
     );
 
     let max_value = Uint256(alt_bn128.P_LOW_128 - 1, alt_bn128.P_HIGH_128);
-    let x_uint256 = uint384_to_uint256(res.x);
+    let x_uint256 = uint384_to_uint256([res.value.x.value]);
     assert_uint256_le(x_uint256, max_value);
-    let y_uint256 = uint384_to_uint256(res.y);
+    let y_uint256 = uint384_to_uint256([res.value.y.value]);
     assert_uint256_le(y_uint256, max_value);
 
     return res;

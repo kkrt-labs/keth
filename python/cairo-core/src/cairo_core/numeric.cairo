@@ -45,6 +45,8 @@ struct SetUint {
     value: SetUintStruct*,
 }
 
+using U384Struct = UInt384;
+
 struct U384 {
-    value: UInt384*,
+    value: U384Struct*,
 }

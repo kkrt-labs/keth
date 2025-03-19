@@ -169,8 +169,8 @@ def ec_mul_msm_hints_and_fill_memory(ids: VmConsts, segments: MemorySegmentManag
     # Initialize curve points and scalars
     curve_id = CurveID.BN254
     p = (
-        bigint_pack(ids.p.x, N_LIMBS, BASE),
-        bigint_pack(ids.p.y, N_LIMBS, BASE),
+        bigint_pack(ids.p.value.x.value, N_LIMBS, BASE),
+        bigint_pack(ids.p.value.y.value, N_LIMBS, BASE),
     )
     point = [G1Point(p[0], p[1], curve_id)]
     scalar = [ids.scalar.low + 2**128 * ids.scalar.high]

@@ -17,11 +17,23 @@ class ECBase(EllipticCurve):
     B: PrimeField
     G: PrimeField
 
+    def __new__(cls, x: Union[int, F], y: Union[int, F]):
+        from tests.utils.args_gen import U384
+
+        # Call the EllipticCurve.__new__ directly to create the object
+        if isinstance(x, U384):
+            x = x._number
+        if isinstance(y, U384):
+            y = y._number
+        return EllipticCurve.__new__(cls, x, y)
+
     def __init__(self, x: Union[int, F], y: Union[int, F]):
         """
-        Just making sure that coordinates are Field instances.
+        Initialize the point without validation checks.
+        This intentionally doesn't call super().__init__() to on-curve point validation.
+        This is used so that we can Serde a point on any Curve.
         """
-        super().__init__(self.FIELD(x), self.FIELD(y))
+        pass  # No validation check
 
     @classmethod
     def random_point(cls, x=None, retry=True) -> "EllipticCurve":

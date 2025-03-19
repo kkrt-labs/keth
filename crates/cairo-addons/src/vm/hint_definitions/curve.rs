@@ -197,9 +197,11 @@ pub fn ec_mul_msm_hints_and_fill_memory() -> Hint {
          _constants: &HashMap<String, Felt252>|
          -> Result<(), HintError> {
             const N_LIMBS: usize = 4;
-            let p_addr = get_relocatable_from_var_name("p", vm, ids_data, ap_tracking)?;
-            let x = Uint384::from_base_addr(p_addr, "p.x", vm)?.pack();
-            let y = Uint384::from_base_addr((p_addr + N_LIMBS).unwrap(), "p.y", vm)?.pack();
+            let p_ptr = get_ptr_from_var_name("p", vm, ids_data, ap_tracking)?;
+            let x_addr = vm.get_relocatable(p_ptr)?;
+            let y_addr = vm.get_relocatable((p_ptr + 1_usize).unwrap())?;
+            let x = Uint384::from_base_addr(x_addr, "p.x", vm)?.pack();
+            let y = Uint384::from_base_addr(y_addr, "p.y", vm)?.pack();
 
             let scalar = Uint256::from_var_name("scalar", vm, ids_data, ap_tracking)?.pack();
 
