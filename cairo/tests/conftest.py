@@ -1,6 +1,5 @@
 from dataclasses import fields
 
-import pytest
 from dotenv import load_dotenv
 from ethereum.trace import (
     EvmStop,
@@ -15,12 +14,7 @@ from ethereum.trace import (
     TransactionStart,
 )
 
-from cairo_addons.testing.runner import run_python_vm, run_rust_vm
 from tests.utils.args_gen import Evm
-from tests.utils.args_gen import gen_arg as gen_arg_builder
-from tests.utils.args_gen import to_cairo_type, to_python_type
-from tests.utils.hints import get_op
-from tests.utils.serde import Serde
 
 load_dotenv()
 
@@ -61,32 +55,6 @@ def evm_trace(
         logger.trace_eels("EvmStop")
     elif isinstance(event, GasAndRefund):
         logger.trace_eels(f"GasAndRefund: {event.gas_cost}")
-
-
-@pytest.fixture(scope="module")
-def cairo_run_py(
-    request,
-    cairo_programs,
-    cairo_files,
-    main_paths,
-    coverage,
-):
-    """Run the cairo program using Python VM."""
-    return run_python_vm(
-        cairo_programs,
-        cairo_files,
-        main_paths,
-        request,
-        gen_arg_builder=gen_arg_builder,
-        serde_cls=Serde,
-        to_python_type=to_python_type,
-        to_cairo_type=to_cairo_type,
-        hint_locals={"get_op": get_op},
-        coverage=coverage,
-    )
-
-
-# init_tracer has been moved to the root conftest.py
 
 
 def pytest_configure(config):
@@ -134,60 +102,6 @@ def pytest_configure(config):
 
         setattr(ethereum.cancun.vm.interpreter, "evm_trace", evm_trace)
         setattr(ethereum.cancun.vm.gas, "evm_trace", evm_trace)
-
-
-@pytest.fixture(scope="module")
-def cairo_run(
-    request,
-    cairo_programs,
-    rust_programs,
-    cairo_files,
-    main_paths,
-    coverage,
-    python_vm,
-):
-    """
-    Run the cairo program corresponding to the python test file at a given entrypoint with given program inputs as kwargs.
-    Returns the output of the cairo program put in the output memory segment.
-
-    When --profile-cairo is passed, the cairo program is run with the tracer enabled and the resulting trace is dumped.
-
-    Logic is mainly taken from starkware.cairo.lang.vm.cairo_run with minor updates, mainly builtins discovery from implicit args.
-
-    Type conversion between Python and Cairo is handled by:
-    - gen_arg: Converts Python arguments to Cairo memory layout when preparing runner inputs
-    - serde: Converts Cairo memory data to Python types by reading into the segments, used to return python types.
-
-    The VM used for the run depends on the presence of a "python_vm" marker in the test.
-
-    Returns:
-        The function's return value, converted back to Python types
-    """
-    if python_vm:
-        return run_python_vm(
-            cairo_programs,
-            cairo_files,
-            main_paths,
-            request,
-            gen_arg_builder=gen_arg_builder,
-            serde_cls=Serde,
-            to_python_type=to_python_type,
-            to_cairo_type=to_cairo_type,
-            hint_locals={"get_op": get_op},
-            coverage=coverage,
-        )
-
-    return run_rust_vm(
-        cairo_programs,
-        rust_programs,
-        cairo_files,
-        main_paths,
-        request,
-        gen_arg_builder=gen_arg_builder,
-        serde_cls=Serde,
-        to_python_type=to_python_type,
-        coverage=coverage,
-    )
 
 
 def pytest_assertrepr_compare(op, left, right):

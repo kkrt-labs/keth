@@ -21,6 +21,7 @@ from starkware.cairo.lang.compiler.program import Program
 from cairo_addons.testing.coverage import coverage_from_trace
 from cairo_addons.testing.runner import run_python_vm, run_rust_vm
 from cairo_addons.vm import Program as RustProgram
+from tests.utils.hints import get_op
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -166,10 +167,10 @@ def coverage(cairo_programs: List[Program], cairo_files: List[Path], worker_id: 
 
 @pytest.fixture(scope="module")
 def cairo_run_py(
+    request,
     cairo_programs,
     cairo_files,
     main_paths,
-    request,
     coverage,
 ):
     """Run the cairo program using Python VM."""
@@ -178,19 +179,20 @@ def cairo_run_py(
         cairo_files,
         main_paths,
         request,
+        hint_locals={"get_op": get_op},
         coverage=coverage,
     )
 
 
 @pytest.fixture(scope="module")
 def cairo_run(
+    request,
     cairo_programs,
     rust_programs,
     cairo_files,
     main_paths,
-    request,
-    python_vm: bool,
     coverage,
+    python_vm,
 ):
     """
     Run the cairo program corresponding to the python test file at a given entrypoint with given program inputs as kwargs.
@@ -215,6 +217,7 @@ def cairo_run(
             cairo_files,
             main_paths,
             request,
+            hint_locals={"get_op": get_op},
             coverage=coverage,
         )
 

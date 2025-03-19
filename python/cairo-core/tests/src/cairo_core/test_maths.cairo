@@ -7,18 +7,12 @@ from cairo_core.maths import (
     felt252_to_bytes_le,
     felt252_to_bytes_be,
 )
-from starkware.cairo.common.uint256 import Uint256
+from cairo_core.numeric import U256
 from starkware.cairo.common.alloc import alloc
 
-func test__assert_uint256_le{range_check_ptr}() {
+func test__assert_uint256_le{range_check_ptr}(a: U256, b: U256) {
     alloc_locals;
-    let (a_ptr) = alloc();
-    let (b_ptr) = alloc();
-    %{
-        segments.write_arg(ids.a_ptr, program_input["a"])
-        segments.write_arg(ids.b_ptr, program_input["b"])
-    %}
-    assert_uint256_le([cast(a_ptr, Uint256*)], [cast(b_ptr, Uint256*)]);
+    assert_uint256_le([a.value], [b.value]);
 
     return ();
 }

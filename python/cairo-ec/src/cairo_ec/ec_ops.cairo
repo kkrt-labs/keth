@@ -61,10 +61,10 @@ func try_get_point_from_x{
 
 // @notice Get a random point from x
 func get_random_point{
+    poseidon_ptr: PoseidonBuiltin*,
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,
-    poseidon_ptr: PoseidonBuiltin*,
 }(seed: felt, a: UInt384*, b: UInt384*, g: UInt384*, p: UInt384*) -> G1Point {
     alloc_locals;
     let (__fp__, __pc__) = get_fp_and_pc();
