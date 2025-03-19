@@ -41,7 +41,7 @@ from ethereum.cancun.fork_types import Account, Address
 from ethereum.cancun.state import State, TransientStorage
 from ethereum.cancun.trie import Trie
 from ethereum.cancun.vm.exceptions import InvalidOpcode
-from ethereum.crypto.alt_bn128 import BNF12, BNP12
+from ethereum.crypto.alt_bn128 import BNF12
 from ethereum.crypto.hash import Hash32
 from ethereum_types.bytes import (
     Bytes,
@@ -433,10 +433,6 @@ class Serde:
             coeffs = [int(value[f"c{i}"]) for i in range(12)]
 
             return BNF12(tuple(coeffs))
-
-        if python_cls == BNP12:
-            # BNP12 is represented as a struct with two BNF12 values (x and y)
-            return BNP12(value["x"], value["y"])
 
         # Because some types are wrapped in a value field, e.g. Account{ value: AccountStruct }
         # this may not work, so that we catch the error and try to fallback.

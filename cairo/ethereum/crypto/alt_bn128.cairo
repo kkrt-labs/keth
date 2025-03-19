@@ -1,10 +1,13 @@
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_builtins import UInt384, ModBuiltin
 from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
+from starkware.cairo.common.registers import get_label_location
 
 from cairo_core.numeric import U384
 from cairo_ec.circuits.mod_ops_compiled import add, sub, mul
 from cairo_ec.curve.alt_bn128 import alt_bn128
+
+from ethereum.utils.numeric import U384_ZERO
 
 // BNF12 represents a field element in the BNF12 extension field
 // This is a 12-degree extension of the base field used in alt_bn128 curve
@@ -43,25 +46,26 @@ struct TupleBNF12 {
 func FROBENIUS_COEFFICIENTS() -> TupleBNF12 {
     let (data: BNF12*) = alloc();
 
+    let (u384_zero) = get_label_location(U384_ZERO);
     tempvar frob_coeff_0 = BNF12(
         new BNF12Struct(
             U384(new UInt384(1, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
         ),
     );
     tempvar frob_coeff_1 = BNF12(
         new BNF12Struct(
-            U384(new UInt384(0, 0, 0, 0)),
+            U384(cast(u384_zero, UInt384*)),
             U384(
                 new UInt384(
                     78578536060309107515104581973,
@@ -70,11 +74,11 @@ func FROBENIUS_COEFFICIENTS() -> TupleBNF12 {
                     0,
                 ),
             ),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
             U384(
                 new UInt384(
                     44235539729515559427878642348,
@@ -83,16 +87,16 @@ func FROBENIUS_COEFFICIENTS() -> TupleBNF12 {
                     0,
                 ),
             ),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
         ),
     );
     tempvar frob_coeff_2 = BNF12(
         new BNF12Struct(
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
             U384(
                 new UInt384(
                     78349051542967260616978669991,
@@ -101,11 +105,11 @@ func FROBENIUS_COEFFICIENTS() -> TupleBNF12 {
                     0,
                 ),
             ),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
             U384(
                 new UInt384(
                     3554987122848029851499088802,
@@ -114,16 +118,16 @@ func FROBENIUS_COEFFICIENTS() -> TupleBNF12 {
                     0,
                 ),
             ),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
         ),
     );
     tempvar frob_coeff_3 = BNF12(
         new BNF12Struct(
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
             U384(
                 new UInt384(
                     34033322189376251481554474477,
@@ -132,11 +136,11 @@ func FROBENIUS_COEFFICIENTS() -> TupleBNF12 {
                     0,
                 ),
             ),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
             U384(
                 new UInt384(
                     44452636005823129879501320419,
@@ -145,16 +149,16 @@ func FROBENIUS_COEFFICIENTS() -> TupleBNF12 {
                     0,
                 ),
             ),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
         ),
     );
     tempvar frob_coeff_4 = BNF12(
         new BNF12Struct(
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
             U384(
                 new UInt384(
                     34584991903128600703749850251,
@@ -163,11 +167,11 @@ func FROBENIUS_COEFFICIENTS() -> TupleBNF12 {
                     0,
                 ),
             ),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
             U384(
                 new UInt384(
                     8625418388212319703725211942,
@@ -176,16 +180,16 @@ func FROBENIUS_COEFFICIENTS() -> TupleBNF12 {
                     0,
                 ),
             ),
-            U384(new UInt384(0, 0, 0, 0)),
+            U384(cast(u384_zero, UInt384*)),
         ),
     );
     tempvar frob_coeff_5 = BNF12(
         new BNF12Struct(
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
             U384(
                 new UInt384(
                     25824796045544905201978036136,
@@ -194,11 +198,11 @@ func FROBENIUS_COEFFICIENTS() -> TupleBNF12 {
                     0,
                 ),
             ),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
             U384(
                 new UInt384(
                     32048825361800970863735745611,
@@ -212,11 +216,11 @@ func FROBENIUS_COEFFICIENTS() -> TupleBNF12 {
     tempvar frob_coeff_6 = BNF12(
         new BNF12Struct(
             U384(new UInt384(18, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
             U384(
                 new UInt384(
                     32324006162389411176778628422,
@@ -225,16 +229,16 @@ func FROBENIUS_COEFFICIENTS() -> TupleBNF12 {
                     0,
                 ),
             ),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
         ),
     );
     tempvar frob_coeff_7 = BNF12(
         new BNF12Struct(
-            U384(new UInt384(0, 0, 0, 0)),
+            U384(cast(u384_zero, UInt384*)),
             U384(
                 new UInt384(
                     20641937728814725449375590170,
@@ -243,11 +247,11 @@ func FROBENIUS_COEFFICIENTS() -> TupleBNF12 {
                     0,
                 ),
             ),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
             U384(
                 new UInt384(
                     32973632616344641255217996786,
@@ -256,16 +260,16 @@ func FROBENIUS_COEFFICIENTS() -> TupleBNF12 {
                     0,
                 ),
             ),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
         ),
     );
     tempvar frob_coeff_8 = BNF12(
         new BNF12Struct(
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
             U384(
                 new UInt384(
                     20943551402699757736052663606,
@@ -274,11 +278,11 @@ func FROBENIUS_COEFFICIENTS() -> TupleBNF12 {
                     0,
                 ),
             ),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
             U384(
                 new UInt384(
                     33203117133686488153343908768,
@@ -287,16 +291,16 @@ func FROBENIUS_COEFFICIENTS() -> TupleBNF12 {
                     0,
                 ),
             ),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
         ),
     );
     tempvar frob_coeff_9 = BNF12(
         new BNF12Struct(
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
             U384(
                 new UInt384(
                     42804809713167380845233239921,
@@ -305,11 +309,11 @@ func FROBENIUS_COEFFICIENTS() -> TupleBNF12 {
                     0,
                 ),
             ),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
             U384(
                 new UInt384(
                     77518846487277497288768104282,
@@ -318,16 +322,16 @@ func FROBENIUS_COEFFICIENTS() -> TupleBNF12 {
                     0,
                 ),
             ),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
         ),
     );
     tempvar frob_coeff_10 = BNF12(
         new BNF12Struct(
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
             U384(
                 new UInt384(
                     52121014111839700750532454325,
@@ -336,11 +340,11 @@ func FROBENIUS_COEFFICIENTS() -> TupleBNF12 {
                     0,
                 ),
             ),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
             U384(
                 new UInt384(
                     76967176773525148066572728508,
@@ -349,16 +353,16 @@ func FROBENIUS_COEFFICIENTS() -> TupleBNF12 {
                     0,
                 ),
             ),
-            U384(new UInt384(0, 0, 0, 0)),
+            U384(cast(u384_zero, UInt384*)),
         ),
     );
     tempvar frob_coeff_11 = BNF12(
         new BNF12Struct(
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
             U384(
                 new UInt384(
                     24546180515706619156045117815,
@@ -367,11 +371,11 @@ func FROBENIUS_COEFFICIENTS() -> TupleBNF12 {
                     0,
                 ),
             ),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
             U384(
                 new UInt384(
                     6499210116844505974800592287,
@@ -401,20 +405,21 @@ func FROBENIUS_COEFFICIENTS() -> TupleBNF12 {
 
 // BNF12_W returns the value of w (omega), which is a 6th root of 9 + i
 func BNF12_W() -> BNF12 {
+    let (u384_zero) = get_label_location(U384_ZERO);
     tempvar bnf12_w = BNF12(
         new BNF12Struct(
-            U384(new UInt384(0, 0, 0, 0)),
+            U384(cast(u384_zero, UInt384*)),
             U384(new UInt384(1, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
         ),
     );
     return bnf12_w;
@@ -422,20 +427,21 @@ func BNF12_W() -> BNF12 {
 
 // BNF12_W_POW_2 returns the value of w^2
 func BNF12_W_POW_2() -> BNF12 {
+    let (u384_zero) = get_label_location(U384_ZERO);
     tempvar bnf12_w_pow_2 = BNF12(
         new BNF12Struct(
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
             U384(new UInt384(1, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
         ),
     );
     return bnf12_w_pow_2;
@@ -443,20 +449,21 @@ func BNF12_W_POW_2() -> BNF12 {
 
 // BNF12_W_POW_3 returns the value of w^3
 func BNF12_W_POW_3() -> BNF12 {
+    let (u384_zero) = get_label_location(U384_ZERO);
     tempvar bnf12_w_pow_3 = BNF12(
         new BNF12Struct(
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
             U384(new UInt384(1, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
         ),
     );
     return bnf12_w_pow_3;
@@ -465,40 +472,42 @@ func BNF12_W_POW_3() -> BNF12 {
 // BNF12_I_PLUS_9 returns the value of i + 9, which is w^6 in the field
 // This corresponds to BNF12.w**6
 func BNF12_I_PLUS_9() -> BNF12 {
+    let (u384_zero) = get_label_location(U384_ZERO);
     tempvar BNF12_I_PLUS_9 = BNF12(
         new BNF12Struct(
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
             U384(new UInt384(1, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
         ),
     );
     return BNF12_I_PLUS_9;
 }
 
 func BNF12_ZERO() -> BNF12 {
+    let (u384_zero) = get_label_location(U384_ZERO);
     tempvar bnf12_zero = BNF12(
         new BNF12Struct(
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
         ),
     );
     return bnf12_zero;
@@ -649,20 +658,21 @@ func A() -> BNF12 {
 // @dev: Coefficient B of the short Weierstrass equation: y^2 = x^3 + Ax + B
 // for alt_bn128: A = 0 and B = 3
 func B() -> BNF12 {
+    let (u384_zero) = get_label_location(U384_ZERO);
     tempvar bnf12_three = BNF12(
         new BNF12Struct(
             U384(new UInt384(3, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
-            U384(new UInt384(0, 0, 0, 0)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
+            U384(cast(u384_zero, UInt384*)),
         ),
     );
     return bnf12_three;
