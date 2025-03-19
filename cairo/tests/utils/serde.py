@@ -427,7 +427,9 @@ class Serde:
 
         if python_cls == BNF12:
             # The BNF12 constructor doesn't accept named tuples
-            return BNF12(value.values())
+            # and values are integers, not U384.
+            values = [int(v) for v in value.values()]
+            return BNF12(tuple(values))
 
         # Because some types are wrapped in a value field, e.g. Account{ value: AccountStruct }
         # this may not work, so that we catch the error and try to fallback.
