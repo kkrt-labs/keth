@@ -83,15 +83,6 @@ func uint384_assert_le{range_check96_ptr: felt*}(a: UInt384, b: UInt384) {
     return ();
 }
 
-// Returns 1 if X == Y, 0 otherwise.
-func uint384_eq{range_check96_ptr: felt*}(x: U384, y: U384) -> felt {
-    if (x.value.d0 == y.value.d0 and x.value.d1 == y.value.d1 and x.value.d2 == y.value.d2 and
-        x.value.d3 == y.value.d3) {
-        return 1;
-    }
-    return 0;
-}
-
 // Returns 1 if X == Y mod p, 0 otherwise.
 func uint384_eq_mod_p{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
     x: U384, y: U384, p: U384

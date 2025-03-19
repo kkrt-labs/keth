@@ -83,10 +83,11 @@ pub fn build_msm_hints_and_fill_memory() -> Hint {
          _constants: &HashMap<String, Felt252>|
          -> Result<(), HintError> {
             const N_LIMBS: usize = 4;
-            let r_point_addr = get_relocatable_from_var_name("r_point", vm, ids_data, ap_tracking)?;
-            let x = Uint384::from_base_addr(r_point_addr, "r_point.x", vm)?.pack();
-            let y =
-                Uint384::from_base_addr((r_point_addr + N_LIMBS).unwrap(), "r_point.y", vm)?.pack();
+            let r_point_addr = get_ptr_from_var_name("r_point", vm, ids_data, ap_tracking)?;
+            let x_addr = vm.get_relocatable(r_point_addr)?;
+            let y_addr = vm.get_relocatable((r_point_addr + 1_usize).unwrap())?;
+            let x = Uint384::from_base_addr(x_addr, "r_point.x", vm)?.pack();
+            let y = Uint384::from_base_addr(y_addr, "r_point.y", vm)?.pack();
 
             let g_x = element_to_biguint(&SECP256K1PrimeField::get_curve_params().g_x);
             let g_y = element_to_biguint(&SECP256K1PrimeField::get_curve_params().g_y);

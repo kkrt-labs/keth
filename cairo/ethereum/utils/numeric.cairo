@@ -13,7 +13,6 @@ from starkware.cairo.common.memset import memset
 
 from ethereum_types.bytes import Bytes32, Bytes32Struct, Bytes20, Bytes, BytesStruct
 from ethereum_types.numeric import Uint, U256, U256Struct, bool, U64, U384, U384Struct
-from cairo_ec.uint384 import uint384_eq
 from cairo_core.maths import pow2, unsigned_div_rem, felt252_to_bytes_be, felt252_bit_length
 from cairo_core.comparison import is_zero
 from cairo_ec.uint384 import uint256_to_uint384
@@ -427,10 +426,14 @@ func U384_from_be_bytes{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(bytes: By
     return res;
 }
 
-func U384__eq__{range_check96_ptr: felt*}(a: U384, b: U384) -> bool {
-    let res = uint384_eq([a.value], [b.value]);
-    let res_bool = bool(res);
-    return res_bool;
+func U384__eq__{range_check96_ptr: felt*}(lhs: U384, rhs: U384) -> bool {
+    if (lhs.value.d0 == rhs.value.d0 and lhs.value.d1 == rhs.value.d1 and
+        lhs.value.d2 == rhs.value.d2 and lhs.value.d3 == rhs.value.d3) {
+        tempvar res = bool(1);
+        return res;
+    }
+    tempvar res = bool(0);
+    return res;
 }
 
 func U384_to_be_bytes{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(

@@ -11,14 +11,18 @@ from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
 
 from cairo_core.bytes import Bytes32, Bytes32Struct
 from cairo_core.maths import assert_uint256_le
+from cairo_core.numeric import U384, U384Struct
 from cairo_ec.circuit_utils import N_LIMBS, hash_full_transcript
 from cairo_ec.circuits.ec_ops_compiled import ecip_2p
 from cairo_ec.curve_utils import scalar_to_epns
-from cairo_ec.curve.g1_point import G1Point
+from cairo_ec.curve.g1_point import G1Point, G1PointStruct
 from cairo_ec.curve.ids import CurveID
 from cairo_ec.ec_ops import ec_add, try_get_point_from_x, get_random_point
 from cairo_ec.circuits.mod_ops_compiled import div, neg
-from cairo_ec.uint384 import uint384_to_uint256, felt_to_uint384, uint384_eq
+from cairo_ec.uint384 import uint384_to_uint256, felt_to_uint384
+from starkware.cairo.common.registers import get_label_location
+from ethereum.utils.numeric import U384__eq__, U384_ZERO
+from starkware.cairo.common.memcpy import memcpy
 
 namespace secp256k1 {
     const CURVE_ID = CurveID.SECP256K1;
@@ -60,13 +64,18 @@ namespace secp256k1 {
 //     0x483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8
 // )
 // @dev Split in 96 bits chunks
-func get_generator_point() -> G1Point* {
+func get_generator_point() -> G1Point {
     let (_, pc) = get_fp_and_pc();
 
     pc_label:
     let generator_ptr = pc + (generator_label - pc_label);
 
-    return cast(generator_ptr, G1Point*);
+    tempvar res = G1Point(
+        new G1PointStruct(
+            x=U384(cast(generator_ptr, U384Struct*)), y=U384(cast(generator_ptr + 4, U384Struct*))
+        ),
+    );
+    return res;
 
     generator_label:
     dw 0x2dce28d959f2815b16f81798;  // x.d0
@@ -132,7 +141,7 @@ func try_recover_public_key{
         return (public_key_x=public_key_x, public_key_y=public_key_y, success=0);
     }
 
-    tempvar r_point = G1Point(x=r, y=[y]);
+    tempvar r_point = G1Point(new G1PointStruct(x=U384(&r), y=U384(y)));
 
     // The result is given by
     //   -(msg_hash / r) * gen + (s / r) * r_point
@@ -207,8 +216,16 @@ func try_recover_public_key{
     let poseidon_ptr = poseidon_ptr + 2 * PoseidonBuiltin.SIZE;
 
     let generator_point = get_generator_point();
-    hash_full_transcript(cast(generator_point, felt*), 2);
-    hash_full_transcript(cast(&r_point, felt*), 2);
+    let (generator_point_limbs: felt*) = alloc();
+    memcpy(generator_point_limbs, generator_point.value.x.value, 4);
+    memcpy(generator_point_limbs + 4, generator_point.value.y.value, 4);
+    hash_full_transcript(generator_point_limbs, 2);
+
+    let (r_limbs: felt*) = alloc();
+    memcpy(r_limbs, r_point.value.x.value, 4);
+    memcpy(r_limbs + 4, r_point.value.y.value, 4);
+    hash_full_transcript(r_limbs, 2);
+
     // Q_low, Q_high, Q_high_shifted (filled by prover) (46 - 51).
     hash_full_transcript(
         range_check96_ptr + rlc_coeff_u384_cast_offset + ecip_circuit_constants_offset +
@@ -235,7 +252,7 @@ func try_recover_public_key{
     tempvar range_check96_ptr_init = range_check96_ptr;
     tempvar range_check96_ptr_after_circuit = range_check96_ptr + 1200;
     let random_point = get_random_point{range_check96_ptr=range_check96_ptr_after_circuit}(
-        seed=[cast(poseidon_ptr, felt*) - 3], a=&a, b=&b, g=&g, p=&p
+        seed=[cast(poseidon_ptr, felt*) - 3], a=U384(&a), b=U384(&b), g=U384(&g), p=U384(&p)
     );
     let range_check96_ptr = range_check96_ptr_init;
 
@@ -247,9 +264,6 @@ func try_recover_public_key{
     // rlc_sum_dlog_div for 2 points: n_coeffs = 18 + 4 * 2 = 26 (0-25)
 
     // q_low, q_high, q_high_shifted (46 - 51)
-
-    tempvar random_point_x = new random_point.x;
-    tempvar random_point_y = new random_point.y;
 
     ecip_2p(
         &ecip_input[0],
@@ -278,10 +292,10 @@ func try_recover_public_key{
         &ecip_input[23],
         &ecip_input[24],
         &ecip_input[25],
-        &generator_point.x,
-        &generator_point.y,
-        &r_point.x,
-        &r_point.y,
+        generator_point.value.x.value,
+        generator_point.value.y.value,
+        r_point.value.x.value,
+        r_point.value.y.value,
         &ep1_low_u384,
         &en1_low_u384,
         &sp1_low_u384,
@@ -304,8 +318,8 @@ func try_recover_public_key{
         &ecip_input[49],
         &ecip_input[50],
         &ecip_input[51],
-        random_point_x,
-        random_point_y,
+        random_point.value.x.value,
+        random_point.value.y.value,
         &a,
         &b,
         &rlc_coeff_u384,
@@ -314,25 +328,24 @@ func try_recover_public_key{
 
     let range_check96_ptr = range_check96_ptr_after_circuit;
 
-    let res = ec_add(
-        G1Point(x=ecip_input[46], y=ecip_input[47]),
-        G1Point(x=ecip_input[50], y=ecip_input[51]),
-        a,
-        p,
-    );
+    tempvar p0 = G1Point(new G1PointStruct(x=U384(&ecip_input[46]), y=U384(&ecip_input[47])));
+    tempvar p1 = G1Point(new G1PointStruct(x=U384(&ecip_input[50]), y=U384(&ecip_input[51])));
 
-    let point_at_infinity_x = uint384_eq(res.x, UInt384(0, 0, 0, 0));
-    let point_at_infinity_y = uint384_eq(res.y, UInt384(0, 0, 0, 0));
-    if (point_at_infinity_x != 0 and point_at_infinity_y != 0) {
+    let res = ec_add(p0, p1, U384(&a), modulus=U384(&p));
+
+    let (u384_zero) = get_label_location(U384_ZERO);
+    let point_at_infinity_x = U384__eq__(res.value.x, U384(cast(u384_zero, U384Struct*)));
+    let point_at_infinity_y = U384__eq__(res.value.y, U384(cast(u384_zero, U384Struct*)));
+    if (point_at_infinity_x.value != 0 and point_at_infinity_y.value != 0) {
         tempvar public_key_x = Bytes32(new Bytes32Struct(0, 0));
         tempvar public_key_y = Bytes32(new Bytes32Struct(0, 0));
         return (public_key_x=public_key_x, public_key_y=public_key_y, success=0);
     }
 
     let max_value = Uint256(secp256k1.P_LOW_128 - 1, secp256k1.P_HIGH_128);
-    let x_uint256 = uint384_to_uint256(res.x);
+    let x_uint256 = uint384_to_uint256([res.value.x.value]);
     assert_uint256_le(x_uint256, max_value);
-    let y_uint256 = uint384_to_uint256(res.y);
+    let y_uint256 = uint384_to_uint256([res.value.y.value]);
     assert_uint256_le(y_uint256, max_value);
 
     let (x_reversed) = uint256_reverse_endian(x_uint256);

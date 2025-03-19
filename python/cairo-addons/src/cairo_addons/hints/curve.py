@@ -101,8 +101,8 @@ def build_msm_hints_and_fill_memory(ids: VmConsts, memory: MemoryDict):
     # Initialize curve points and scalars
     curve_id = CurveID.SECP256K1
     r_point = (
-        bigint_pack(ids.r_point.x, N_LIMBS, BASE),
-        bigint_pack(ids.r_point.y, N_LIMBS, BASE),
+        bigint_pack(ids.r_point.value.x.value, N_LIMBS, BASE),
+        bigint_pack(ids.r_point.value.y.value, N_LIMBS, BASE),
     )
     points = [
         G1Point.get_nG(curve_id, 1),  # Generator point

@@ -20,7 +20,6 @@ from cairo_ec.curve.g1_point import G1Point, G1PointStruct, G1Point__eq__, G1Poi
 from cairo_ec.uint384 import (
     felt_to_uint384,
     uint256_to_uint384,
-    uint384_eq,
     uint384_eq_mod_p,
     uint384_is_neg_mod_p,
     uint384_to_uint256,
@@ -225,7 +224,6 @@ func ec_mul{
     );
     let poseidon_ptr = poseidon_ptr + 2 * PoseidonBuiltin.SIZE;
 
-    // TODO: check whether we can simplify this
     let (p_limbs: felt*) = alloc();
     memcpy(p_limbs, p.value.x.value, 4);
     memcpy(p_limbs + 4, p.value.y.value, 4);

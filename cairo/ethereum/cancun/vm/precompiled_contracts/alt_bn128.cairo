@@ -13,12 +13,12 @@ from ethereum.exceptions import EthereumException
 from ethereum.cancun.vm.exceptions import OutOfGasError
 from ethereum.utils.numeric import ceil32, divmod, U256_from_be_bytes, U256_le
 from ethereum.cancun.vm.gas import GasConstants, charge_gas
-from ethereum_types.numeric import Uint, U256, U256Struct
+from cairo_core.numeric import Uint, U256, U256Struct, U384, U384Struct
 from ethereum_types.bytes import Bytes, BytesStruct
 from ethereum.cancun.vm.memory import buffer_read
 from cairo_ec.curve.alt_bn128 import alt_bn128
 from cairo_ec.ec_ops import ec_add, ec_mul
-from cairo_ec.curve.g1_point import G1Point, G1Point__eq__
+from cairo_ec.curve.g1_point import G1Point, G1PointStruct, G1Point__eq__, G1Point_zero
 from cairo_ec.circuits.ec_ops_compiled import (
     assert_x_is_on_curve,
     assert_not_on_curve,
@@ -40,6 +40,7 @@ func alt_bn128_add{
 }() -> EthereumException* {
     alloc_locals;
     let data = evm.value.message.value.data;
+    let (__fp__, _) = get_fp_and_pc();
 
     // Gas
     let gas_cost = Uint(150);
@@ -87,15 +88,15 @@ func alt_bn128_add{
     let y0_uint384 = uint256_to_uint384([y0_value.value]);
     let x1_uint384 = uint256_to_uint384([x1_value.value]);
     let y1_uint384 = uint256_to_uint384([y1_value.value]);
-    let p0 = G1Point(x=x0_uint384, y=y0_uint384);
-    let p1 = G1Point(x=x1_uint384, y=y1_uint384);
+    tempvar p0 = G1Point(new G1PointStruct(x=U384(new x0_uint384), y=U384(new y0_uint384)));
+    tempvar p1 = G1Point(new G1PointStruct(x=U384(new x1_uint384), y=U384(new y1_uint384)));
     tempvar a = new UInt384(alt_bn128.A0, alt_bn128.A1, alt_bn128.A2, alt_bn128.A3);
     tempvar b = new UInt384(alt_bn128.B0, alt_bn128.B1, alt_bn128.B2, alt_bn128.B3);
     tempvar modulus = new UInt384(alt_bn128.P0, alt_bn128.P1, alt_bn128.P2, alt_bn128.P3);
     tempvar g = new UInt384(alt_bn128.G0, alt_bn128.G1, alt_bn128.G2, alt_bn128.G3);
 
     // Checks verifying the points are on the curve.
-    let point_inf = G1Point(x=UInt384(0, 0, 0, 0), y=UInt384(0, 0, 0, 0));
+    let point_inf = G1Point_zero();
     let is_p0_zero = G1Point__eq__(p0, point_inf);
     let is_p1_zero = G1Point__eq__(p1, point_inf);
 
@@ -113,13 +114,13 @@ func alt_bn128_add{
     tempvar point = p0;
     %{ is_point_on_curve %}
     if (is_on_curve == 0 and is_p0_zero.value == 0) {
-        assert_not_on_curve(new p0.x, new p0.y, a, b, modulus);
+        assert_not_on_curve(p0.value.x.value, p0.value.y.value, a, b, modulus);
         tempvar err = new EthereumException(OutOfGasError);
         return err;
     }
 
     if (is_p0_zero.value == 0) {
-        assert_on_curve(new p0.x, new p0.y, a, b, modulus);
+        assert_on_curve(p0.value.x.value, p0.value.y.value, a, b, modulus);
         tempvar range_check96_ptr = range_check96_ptr;
         tempvar add_mod_ptr = add_mod_ptr;
         tempvar mul_mod_ptr = mul_mod_ptr;
@@ -136,13 +137,13 @@ func alt_bn128_add{
     tempvar is_p1_on_curve_uint384 = UInt384(is_on_curve, 0, 0, 0);
 
     if (is_on_curve == 0 and is_p1_zero.value == 0) {
-        assert_not_on_curve(new p1.x, new p1.y, a, b, modulus);
+        assert_not_on_curve(p1.value.x.value, p1.value.y.value, a, b, modulus);
         tempvar err = new EthereumException(OutOfGasError);
         return err;
     }
 
     if (is_p1_zero.value == 0) {
-        assert_on_curve(new p1.x, new p1.y, a, b, modulus);
+        assert_on_curve(p1.value.x.value, p1.value.y.value, a, b, modulus);
     } else {
         // Point at infinity
         tempvar range_check96_ptr = range_check96_ptr;
@@ -150,7 +151,7 @@ func alt_bn128_add{
         tempvar mul_mod_ptr = mul_mod_ptr;
     }
 
-    let res = ec_add(p0, p1, [a], [modulus]);
+    let res = ec_add(p0, p1, U384(a), U384(modulus));
     let output = alt_bn128_G1Point__to_Bytes_be(res);
     EvmImpl.set_output(output);
     tempvar ok = cast(0, EthereumException*);
@@ -205,9 +206,9 @@ func alt_bn128_mul{
     // Check that p0 is on curve
     let x0_uint384 = uint256_to_uint384([x0_value.value]);
     let y0_uint384 = uint256_to_uint384([y0_value.value]);
-    let p0 = G1Point(x=x0_uint384, y=y0_uint384);
+    tempvar p0 = G1Point(new G1PointStruct(x=U384(new x0_uint384), y=U384(new y0_uint384)));
 
-    let point_inf = G1Point(x=UInt384(0, 0, 0, 0), y=UInt384(0, 0, 0, 0));
+    let point_inf = G1Point_zero();
     let is_p0_zero = G1Point__eq__(p0, point_inf);
     // If P0 is point at infinity, return point at infinity.
     if (is_p0_zero.value != 0) {
@@ -227,16 +228,16 @@ func alt_bn128_mul{
     tempvar point = p0;
     %{ is_point_on_curve %}
     if (is_on_curve == 0) {
-        assert_not_on_curve(new p0.x, new p0.y, a, b, modulus);
+        assert_not_on_curve(p0.value.x.value, p0.value.y.value, a, b, modulus);
         tempvar err = new EthereumException(OutOfGasError);
         return err;
     }
 
-    assert_on_curve(new p0.x, new p0.y, a, b, modulus);
+    assert_on_curve(p0.value.x.value, p0.value.y.value, a, b, modulus);
 
     // Operation
     let k_uint384 = uint256_to_uint384([k_value.value]);
-    let res = ec_mul(p0, k_uint384, [modulus]);
+    let res = ec_mul(p0, U384(new k_uint384), U384(modulus));
     let output = alt_bn128_G1Point__to_Bytes_be(res);
     EvmImpl.set_output(output);
     tempvar ok = cast(0, EthereumException*);
@@ -290,17 +291,17 @@ func alt_bn128_G1Point__to_Bytes_be{range_check_ptr, bitwise_ptr: BitwiseBuiltin
 ) -> Bytes {
     alloc_locals;
     let (buffer: felt*) = alloc();
-    felt252_to_bytes_be(point.x.d2, 8, buffer);
-    felt252_to_bytes_be(point.x.d1, 12, buffer + 8);
-    felt252_to_bytes_be(point.x.d0, 12, buffer + 20);
+    felt252_to_bytes_be(point.value.x.value.d2, 8, buffer);
+    felt252_to_bytes_be(point.value.x.value.d1, 12, buffer + 8);
+    felt252_to_bytes_be(point.value.x.value.d0, 12, buffer + 20);
     with_attr error_message("alt_bn128_G1Point__to_Bytes_le: point.x.d3 != 0") {
-        assert point.x.d3 = 0;
+        assert point.value.x.value.d3 = 0;
     }
-    felt252_to_bytes_be(point.y.d2, 8, buffer + 32);
-    felt252_to_bytes_be(point.y.d1, 12, buffer + 40);
-    felt252_to_bytes_be(point.y.d0, 12, buffer + 52);
+    felt252_to_bytes_be(point.value.y.value.d2, 8, buffer + 32);
+    felt252_to_bytes_be(point.value.y.value.d1, 12, buffer + 40);
+    felt252_to_bytes_be(point.value.y.value.d0, 12, buffer + 52);
     with_attr error_message("alt_bn128_G1Point__to_Bytes_le: point.y.d3 != 0") {
-        assert point.y.d3 = 0;
+        assert point.value.y.value.d3 = 0;
     }
     tempvar res = Bytes(new BytesStruct(data=buffer, len=64));
     return res;
