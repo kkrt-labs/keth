@@ -3,13 +3,13 @@ from starkware.cairo.common.modulo import run_mod_p_circuit
 from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
 
 struct Point {
-    x: UInt384*,
-    y: UInt384*,
+    x: UInt384,
+    y: UInt384,
 }
 
 struct ReturnPoint {
     p1: Point,
-    p2: UInt384*,
+    p2: UInt384,
 }
 
 func return_tuple_same_struct_params{
