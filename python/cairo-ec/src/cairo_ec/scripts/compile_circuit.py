@@ -188,5 +188,6 @@ def main(file_path: Path | None, prime: int, function: list[str], echo: bool):
         )
         click.echo(f"Generated circuit file: {output_path}")
 
+
 if __name__ == "__main__":
     main()

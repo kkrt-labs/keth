@@ -8,7 +8,7 @@ from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.memcpy import memcpy
 
 from cairo_ec.circuits.ec_ops_compiled import (
-    G1Point as G1PointCompiled,
+    G1Point as G1PointCircuitInput,
     ec_add as ec_add_unchecked,
     ec_double,
     assert_x_is_on_curve,
@@ -127,10 +127,12 @@ func ec_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: Mod
         return res;
     }
 
-    let p_compiled = G1PointCompiled(p.x, p.y);
-    let q_compiled = G1PointCompiled(q.x, q.y);
-    let res_ptr_compiled = ec_add_unchecked(new p_compiled, new q_compiled, &modulus);
-    let res_ptr = G1Point(res_ptr_compiled.x, res_ptr_compiled.y);
+    let p_circuit_input = G1PointCircuitInput(p.x, p.y);
+    let q_circuit_input = G1PointCircuitInput(q.x, q.y);
+    let res_ptr_circuit_input = ec_add_unchecked(
+        new p_circuit_input, new q_circuit_input, &modulus
+    );
+    let res_ptr = G1Point(res_ptr_circuit_input.x, res_ptr_circuit_input.y);
     return res_ptr;
 }
 
