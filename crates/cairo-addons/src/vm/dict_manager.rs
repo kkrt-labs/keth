@@ -6,12 +6,14 @@ use cairo_vm::{
 };
 use pyo3::{
     prelude::*,
-    types::{PyDict, PyTuple},
+    types::{IntoPyDict, PyDict, PyTuple},
     IntoPyObjectExt,
 };
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-use super::{maybe_relocatable::PyMaybeRelocatable, relocatable::PyRelocatable};
+use super::{
+    maybe_relocatable::PyMaybeRelocatable, relocatable::PyRelocatable, vm_consts::PyVmConst,
+};
 
 #[derive(FromPyObject, Eq, PartialEq, Hash, Debug)]
 pub enum PyDictKey {
@@ -169,19 +171,43 @@ impl PyDictManager {
         Ok(())
     }
 
-    fn get_tracker(&self, ptr: PyRelocatable) -> PyResult<PyDictTracker> {
+    fn get_tracker(&self, obj: Py<PyAny>, py: Python) -> PyResult<PyDictTracker> {
+        // Extract segment_index from either PyRelocatable or PyVmConst
+        let segment_index = if let Ok(rel) = obj.extract::<PyRelocatable>(py) {
+            rel.inner.segment_index
+        } else if let Ok(vm_const) = obj.extract::<PyVmConst>(py) {
+            if let Ok(Some(addr)) = vm_const.get_address() {
+                addr.segment_index
+            } else {
+                return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                    "PyVmConst doesn't have a valid address",
+                ));
+            }
+        } else {
+            return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                "Expected PyRelocatable or PyVmConst with valid address",
+            ));
+        };
+
+        // Use segment_index to get the tracker
         self.inner
             .borrow()
             .trackers
-            .get(&ptr.inner.segment_index)
+            .get(&segment_index)
             .cloned()
             .map(|tracker| PyDictTracker { inner: tracker })
             .ok_or_else(|| {
                 PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!(
                     "segment_index {} not found",
-                    ptr.inner.segment_index
+                    segment_index
                 ))
             })
+    }
+
+    fn get_dict(&self, dict_ptr: Py<PyAny>, py: Python) -> PyResult<Py<PyDict>> {
+        let tracker = self.get_tracker(dict_ptr, py)?;
+        let dict = tracker.data();
+        Ok(dict.into_py_dict(py).unwrap().unbind())
     }
 
     fn insert(&mut self, segment_index: isize, value: &PyDictTracker) -> PyResult<()> {
@@ -253,6 +279,11 @@ impl PyDictTracker {
     #[getter]
     fn current_ptr(&self) -> PyRelocatable {
         PyRelocatable { inner: self.inner.current_ptr }
+    }
+
+    #[setter]
+    fn set_current_ptr(&mut self, value: PyRelocatable) {
+        self.inner.current_ptr = value.inner;
     }
 
     #[getter]

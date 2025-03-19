@@ -1,10 +1,7 @@
-import pytest
 from hypothesis import given
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 
 from cairo_addons.testing.strategies import uint128
-
-pytestmark = pytest.mark.python_vm
 
 
 class TestScalarToEpns:

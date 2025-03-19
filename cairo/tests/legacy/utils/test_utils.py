@@ -1,10 +1,7 @@
 from math import ceil
 
-import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
-
-pytestmark = pytest.mark.python_vm
 
 
 @given(word=st.integers(min_value=0, max_value=2**256 - 1))

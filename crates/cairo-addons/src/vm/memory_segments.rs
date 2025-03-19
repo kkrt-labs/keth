@@ -5,6 +5,8 @@ use pyo3::prelude::*;
 
 use crate::vm::{maybe_relocatable::PyMaybeRelocatable, relocatable::PyRelocatable};
 
+use super::vm_consts::PyVmConst;
+
 #[pyclass(name = "MemorySegmentManager", unsendable)]
 pub struct PyMemorySegmentManager {
     pub(crate) vm: *mut RustVirtualMachine,
@@ -69,17 +71,34 @@ impl PyMemorySegmentManager {
         unsafe { (*self.vm).segments.add_temporary_segment().into() }
     }
 
+    /// * `obj`: Expected to be a PyRelocatable or PyVmConst
     fn load_data(
         &mut self,
-        ptr: &PyRelocatable,
+        obj: Py<PyAny>,
         data: Vec<PyMaybeRelocatable>,
+        py: Python,
     ) -> PyResult<PyRelocatable> {
+        // Try to extract PyRelocatable directly
+        let ptr_addr = if let Ok(rel) = obj.extract::<PyRelocatable>(py) {
+            rel.inner
+        // Try through PyVmConst
+        } else if let Ok(vm_const) = obj.extract::<PyVmConst>(py) {
+            vm_const
+                .get_address()
+                .expect("Failed to get address from PyVmConst")
+                .expect("No address for PyVmConst")
+        } else {
+            return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                "Expected PyRelocatable or PyVmConst with valid address",
+            ));
+        };
+
         let data: Vec<MaybeRelocatable> = data.into_iter().map(|x| x.into()).collect();
 
         let result = unsafe {
             (*self.vm)
                 .segments
-                .load_data(ptr.inner, &data)
+                .load_data(ptr_addr, &data)
                 .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?
         };
 

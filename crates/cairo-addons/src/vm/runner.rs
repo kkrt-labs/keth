@@ -72,10 +72,11 @@ impl PyCairoRunner {
     ///   Python identifiers and program identifiers are not loaded to save memory and
     ///   initialization time.
     #[new]
-    #[pyo3(signature = (program, py_identifiers=None, layout=None, proof_mode=false, allow_missing_builtins=false, enable_traces=false, ordered_builtins=vec![]))]
+    #[pyo3(signature = (program, py_identifiers=None, program_input=None, layout=None, proof_mode=false, allow_missing_builtins=false, enable_traces=false, ordered_builtins=vec![]))]
     fn new(
         program: &PyProgram,
         py_identifiers: Option<PyObject>,
+        program_input: Option<PyObject>,
         layout: Option<PyLayout>,
         proof_mode: bool,
         allow_missing_builtins: bool,
@@ -120,6 +121,13 @@ impl PyCairoRunner {
             if let Some(py_identifiers) = py_identifiers {
                 // Store the Python identifiers directly in the context
                 context.set_item("py_identifiers", py_identifiers).map_err(|e| {
+                    PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string())
+                })?;
+            }
+
+            if let Some(program_input) = program_input {
+                // Store the Python program input directly in the context
+                context.set_item("program_input", program_input).map_err(|e| {
                     PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string())
                 })?;
             }

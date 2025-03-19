@@ -16,7 +16,7 @@ from functools import partial
 from hashlib import md5
 from pathlib import Path
 from time import time_ns
-from typing import Callable, List, Optional, Tuple, Type
+from typing import Callable, List, Optional, Tuple
 
 import polars as pl
 import starkware.cairo.lang.instances as LAYOUTS
@@ -25,8 +25,6 @@ from starkware.cairo.common.dict import DictManager
 from starkware.cairo.lang.builtins.all_builtins import ALL_BUILTINS
 from starkware.cairo.lang.compiler.ast.cairo_types import (
     CairoType,
-    TypeFelt,
-    TypePointer,
     TypeStruct,
     TypeTuple,
 )
@@ -44,7 +42,6 @@ from starkware.cairo.lang.vm.cairo_run import (
 from starkware.cairo.lang.vm.cairo_runner import CairoRunner
 from starkware.cairo.lang.vm.memory_dict import MemoryDict
 from starkware.cairo.lang.vm.memory_segments import FIRST_MEMORY_ADDR as PROGRAM_BASE
-from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 from starkware.cairo.lang.vm.relocatable import RelocatableValue
 from starkware.cairo.lang.vm.security import verify_secure_runner
 from starkware.cairo.lang.vm.utils import RunResources
@@ -54,27 +51,19 @@ from cairo_addons.hints.injected import prepare_context
 from cairo_addons.profiler import profile_from_trace
 from cairo_addons.testing.errors import map_to_python_exception
 from cairo_addons.testing.hints import debug_info, oracle
-from cairo_addons.testing.serde import Serde, SerdeProtocol
 from cairo_addons.testing.utils import flatten
 from cairo_addons.vm import CairoRunner as RustCairoRunner
 from cairo_addons.vm import Program as RustProgram
+from cairo_addons.vm import Relocatable as RustRelocatable
 from cairo_addons.vm import RunResources as RustRunResources
+from tests.utils.args_gen import gen_arg as gen_arg_builder
+from tests.utils.args_gen import to_cairo_type, to_python_type
+from tests.utils.serde import Serde
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger()
-
-
-def to_python_type(cairo_type: CairoType):
-    if isinstance(cairo_type, TypeFelt):
-        return int
-
-    if isinstance(cairo_type, TypeTuple):
-        return tuple
-
-    if isinstance(cairo_type, TypePointer):
-        return RelocatableValue
 
 
 def resolve_main_path(main_path: Tuple[str, ...]):
@@ -100,7 +89,7 @@ def build_entrypoint(
     cairo_program: Program,
     entrypoint: str,
     main_path: Tuple[str, ...],
-    to_python_type: Callable = to_python_type,
+    to_python_type: Callable,
 ):
     implicit_args = cairo_program.get_identifier(
         f"{entrypoint}.ImplicitArgs", StructDefinition
@@ -166,12 +155,6 @@ def run_python_vm(
     cairo_files: List[Path],
     main_paths: List[Tuple[str, ...]],
     request: FixtureRequest,
-    gen_arg_builder: Optional[
-        Callable[[DictManager, MemorySegmentManager], Callable]
-    ] = None,
-    to_python_type: Callable = to_python_type,
-    to_cairo_type: Optional[Callable] = None,
-    serde_cls: Type[SerdeProtocol] = Serde,
     hint_locals: Optional[dict] = None,
     static_locals: Optional[dict] = None,
     coverage: Optional[Callable[[pl.DataFrame, int], pl.DataFrame]] = None,
@@ -213,7 +196,7 @@ def run_python_vm(
             allow_missing_builtins=False,
         )
         dict_manager = DictManager()
-        serde = serde_cls(
+        serde = Serde(
             runner.segments, cairo_program.identifiers, dict_manager, cairo_file
         )
         runner.program_base = runner.segments.add()
@@ -475,11 +458,6 @@ def run_rust_vm(
     cairo_files: List[Path],
     main_paths: List[Tuple[str, ...]],
     request: FixtureRequest,
-    gen_arg_builder: Optional[
-        Callable[[DictManager, MemorySegmentManager], Callable]
-    ] = None,
-    to_python_type: Callable = to_python_type,
-    serde_cls: Type[SerdeProtocol] = Serde,
     coverage: Optional[Callable[[pl.DataFrame, int], pl.DataFrame]] = None,
 ):
     def _run(entrypoint, *args, **kwargs):
@@ -521,13 +499,14 @@ def run_rust_vm(
         runner = RustCairoRunner(
             program=rust_program,
             py_identifiers=cairo_program.identifiers,
+            program_input=kwargs,
             layout=getattr(LAYOUTS, request.config.getoption("layout")).layout_name,
             proof_mode=proof_mode,
             allow_missing_builtins=False,
             enable_traces=enable_traces,
             ordered_builtins=_builtins,
         )
-        serde = serde_cls(
+        serde = Serde(
             runner.segments, cairo_program.identifiers, runner.dict_manager, cairo_file
         )
         # Must be done right after runner creation to make sure the execution base is 1
@@ -567,7 +546,11 @@ def run_rust_vm(
             [(k, v["python_type"]) for k, v in {**_implicit_args, **_args}.items()]
         ):
             arg_value = kwargs[arg_name] if arg_name in kwargs else args[i]
-            stack.append(gen_arg(python_type, arg_value))
+            # If the arg is a RelocatableValue, we simply dump the values in a segment
+            if python_type is RelocatableValue or python_type is RustRelocatable:
+                stack.append(runner.segments.gen_arg(arg_value))
+            else:
+                stack.append(gen_arg(python_type, arg_value))
 
         # ============================================================================
         # STEP 4: SET UP EXECUTION CONTEXT AND LOAD MEMORY
@@ -698,7 +681,7 @@ def run_rust_vm(
                 cumulative_retdata_offsets, return_data_types
             )
         ]
-        function_output = serde_cls.filter_no_error_flag(unfiltered_output)
+        function_output = Serde.filter_no_error_flag(unfiltered_output)
         exceptions = [
             val
             for val in flatten(function_output)

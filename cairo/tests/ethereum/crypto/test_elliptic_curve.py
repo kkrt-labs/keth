@@ -52,8 +52,8 @@ class TestEllipticCurve:
             return
 
     @given(public_key=bytes64.map(Bytes))
-    def test_public_key_point_to_eth_address(self, cairo_run_py, public_key: Bytes):
-        cairo_result = cairo_run_py(
+    def test_public_key_point_to_eth_address(self, cairo_run, public_key: Bytes):
+        cairo_result = cairo_run(
             "public_key_point_to_eth_address",
             public_key_x=public_key[:32],
             public_key_y=public_key[32:],

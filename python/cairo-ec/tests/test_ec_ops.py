@@ -1,42 +1,41 @@
 import hypothesis.strategies as st
-import pytest
 from hypothesis import given
 from sympy import sqrt_mod
 
 from cairo_addons.testing.strategies import felt
 from cairo_addons.utils.uint384 import int_to_uint384, uint384_to_int
 from cairo_ec.curve import AltBn128, Secp256k1
+from tests.utils.args_gen import U384
+from tests.utils.strategies import uint384
 
-pytestmark = pytest.mark.python_vm
-
-
-uint384 = st.integers(min_value=0, max_value=2**384 - 1)
 curve = st.one_of(st.just(Secp256k1), st.just(AltBn128))
 
 
 class TestEcOps:
 
     class TestTryGetPointFromX:
-        @given(x=uint384, v=felt, curve=curve)
-        def test_try_get_point_from_x(self, cairo_run, x, v, curve):
+        @given(x=..., v=felt, curve=curve)
+        def test_try_get_point_from_x(self, cairo_run, x: U384, v, curve):
             y_try, is_on_curve = cairo_run(
                 "test__try_get_point_from_x",
-                x=int_to_uint384(x % curve.FIELD.PRIME),
+                x=x % U384(curve.FIELD.PRIME),
                 v=v,
-                a=int_to_uint384(int(curve.A)),
-                b=int_to_uint384(int(curve.B)),
-                g=int_to_uint384(int(curve.G)),
-                p=int_to_uint384(int(curve.FIELD.PRIME)),
+                a=U384(curve.A),
+                b=U384(curve.B),
+                g=U384(curve.G),
+                p=U384(curve.FIELD.PRIME),
             )
 
-            square_root = sqrt_mod(x**3 + curve.A * x + curve.B, curve.FIELD.PRIME)
+            square_root = sqrt_mod(
+                int(x) ** 3 + curve.A * int(x) + curve.B, curve.FIELD.PRIME
+            )
             assert (square_root is not None) == is_on_curve
             if square_root is not None:
                 assert (
                     square_root
                     if (v % 2 == square_root % 2)
                     else (-square_root % curve.FIELD.PRIME)
-                ) == uint384_to_int(y_try["d0"], y_try["d1"], y_try["d2"], y_try["d3"])
+                ) == y_try
 
     class TestGetRandomPoint:
         @given(seed=felt, curve=curve)
@@ -159,7 +158,7 @@ class TestEcOps:
         @given(data=st.data())
         def test_ec_mul(self, cairo_run, data):
             p = AltBn128.random_point()
-            k = data.draw(uint384)
+            k = int(data.draw(uint384))
             expected = p.mul_by(k)
             res = cairo_run(
                 "test__ec_mul",
