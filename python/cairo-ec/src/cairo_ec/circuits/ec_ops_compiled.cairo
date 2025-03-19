@@ -2,7 +2,10 @@ from starkware.cairo.common.cairo_builtins import UInt384, ModBuiltin
 from starkware.cairo.common.modulo import run_mod_p_circuit
 from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
 
-from cairo_ec.curve.g1_point import G1Point
+struct G1Point {
+    x: UInt384,
+    y: UInt384,
+}
 
 func ec_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
     p0: G1Point*, p1: G1Point*, p: UInt384*
