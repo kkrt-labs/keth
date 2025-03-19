@@ -43,7 +43,7 @@ class EthereumTries:
 
         # TODO: modify zk-pig to provide directly address preimages
 
-        # We need address & storage key preimages to get an address & storage key given a trie path, which is the keccak(address) & keccak(storage_key) for the Ethereum tries
+        # We need address & storage key preimages to get an address and storage key given a trie path, which is the hash of address and storage_key for the Ethereum tries
         # Because State object from `ethereum` package maps Addresses to Accounts, and Storage Keys to Storage Values.
         # See 👇
         # class State:
