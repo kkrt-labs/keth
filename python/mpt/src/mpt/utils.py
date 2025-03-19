@@ -45,6 +45,9 @@ def decode_node(node: Bytes) -> InternalNode:
 
 
 def nibble_path_to_hex(nibble_path: Bytes) -> str:
+    """
+    Convert a nibble path to a hex string.
+    """
     if len(nibble_path) % 2 != 0:
         nibble_path = nibble_path + b"\x00"
     result = bytes(
@@ -54,3 +57,11 @@ def nibble_path_to_hex(nibble_path: Bytes) -> str:
         ]
     )
     return "0x" + result.hex()
+
+def nibble_path_to_bytes(nibble_path: Bytes) -> Bytes:
+    """
+    Convert a nibble path to a bytes object.
+    """
+    if len(nibble_path) % 2 != 0:
+        nibble_path = nibble_path + b"\x00"
+    return bytes([nibble_path[i] * 16 + nibble_path[i + 1] for i in range(0, len(nibble_path), 2)])
