@@ -167,11 +167,29 @@ class U384(FixedUnsigned):
     def __init__(self, value) -> None:
         super().__init__(value)
 
+    # All these operator overloads are required for instantiation of Curve points with int values;
+    # because we serialize our types as U384, but the curve types expect int values.
+    # We don't return `U384` objects because the pythonic operations assume un-bounded ints - which
+    # has no impact on the Cairo code.
     def __mod__(self, other: Union[int, "U384"]):
-        """Required for instantiation of Curve points with int values."""
         if isinstance(other, U384):
-            return U384(self._number % other._number)
-        return U384(self._number % other)
+            return self._number % other._number
+        return self._number % other
+
+    def __add__(self, other: Union[int, "U384"]):
+        if isinstance(other, U384):
+            return self._number + other._number
+        return self._number + other
+
+    def __mul__(self, other: Union[int, "U384"]):
+        if isinstance(other, U384):
+            return self._number * other._number
+        return self._number * other
+
+    def __sub__(self, other: Union[int, "U384"]):
+        if isinstance(other, U384):
+            return self._number - other._number
+        return self._number - other
 
 
 U384.MAX_VALUE = _max_value(U384, 384)
