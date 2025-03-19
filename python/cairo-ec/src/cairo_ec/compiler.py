@@ -82,7 +82,7 @@ def circuit_compile(cairo_program: Program, circuit: str):
 
     # Arguments of a function are always at fp - 3 - n where n is the index of the argument
     args, args_size = extract_args(cairo_program, circuit)
-    # We put the constants before the args, so the initial offset is 3 + len(args)
+    # We put the constants before the args, so the initial offset is 3 + size of the arguments
     constants_offset = 3 + args_size
 
     instruction_compiled = []
