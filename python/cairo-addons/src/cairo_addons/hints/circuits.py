@@ -40,9 +40,9 @@ def x_mod_p_eq_y_mod_p_hint(ids: VmConsts):
     """
     from garaga.hints.io import bigint_pack
 
-    x = bigint_pack(ids.x, 4, 2**96)
-    y = bigint_pack(ids.y, 4, 2**96)
-    p = bigint_pack(ids.p, 4, 2**96)
+    x = bigint_pack(ids.x.value, 4, 2**96)
+    y = bigint_pack(ids.y.value, 4, 2**96)
+    p = bigint_pack(ids.p.value, 4, 2**96)
     ids.x_mod_p_eq_y_mod_p = x % p == y % p
 
 
@@ -54,7 +54,7 @@ def x_is_neg_y_mod_p_hint(ids: VmConsts):
     """
     from garaga.hints.io import bigint_pack
 
-    x = bigint_pack(ids.x, 4, 2**96)
-    y = bigint_pack(ids.y, 4, 2**96)
-    p = bigint_pack(ids.p, 4, 2**96)
+    x = bigint_pack(ids.x.value, 4, 2**96)
+    y = bigint_pack(ids.y.value, 4, 2**96)
+    p = bigint_pack(ids.p.value, 4, 2**96)
     ids.x_is_neg_y_mod_p = x % p == -y % p

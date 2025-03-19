@@ -3,7 +3,6 @@ from hypothesis import given
 from sympy import sqrt_mod
 
 from cairo_addons.testing.strategies import felt
-from cairo_addons.utils.uint384 import int_to_uint384, uint384_to_int
 from cairo_ec.curve import AltBn128, Secp256k1
 from tests.utils.args_gen import U384
 from tests.utils.strategies import uint384
@@ -43,26 +42,14 @@ class TestEcOps:
             point = cairo_run(
                 "test__get_random_point",
                 seed=seed,
-                a=int_to_uint384(int(curve.A)),
-                b=int_to_uint384(int(curve.B)),
-                g=int_to_uint384(int(curve.G)),
-                p=int_to_uint384(int(curve.FIELD.PRIME)),
-            )
-            x = uint384_to_int(
-                point["x"]["d0"],
-                point["x"]["d1"],
-                point["x"]["d2"],
-                point["x"]["d3"],
-            )
-            y = uint384_to_int(
-                point["y"]["d0"],
-                point["y"]["d1"],
-                point["y"]["d2"],
-                point["y"]["d3"],
+                a=U384(curve.A),
+                b=U384(curve.B),
+                g=U384(curve.G),
+                p=U384(curve.FIELD.PRIME),
             )
             assert (
-                x**3 + curve.A * x + curve.B
-            ) % curve.FIELD.PRIME == y**2 % curve.FIELD.PRIME
+                point.x**3 + curve.A * point.x + curve.B
+            ) % curve.FIELD.PRIME == point.y**2 % curve.FIELD.PRIME
 
     class TestEcAdd:
         @given(curve=curve)
@@ -71,14 +58,12 @@ class TestEcOps:
             q = curve.random_point()
             res = cairo_run(
                 "test__ec_add",
-                p=[*int_to_uint384(int(p.x)), *int_to_uint384(int(p.y))],
-                q=[*int_to_uint384(int(q.x)), *int_to_uint384(int(q.y))],
-                a=int_to_uint384(int(curve.A)),
-                modulus=int_to_uint384(int(curve.FIELD.PRIME)),
+                p=p,
+                q=q,
+                a=U384(curve.A),
+                modulus=U384(curve.FIELD.PRIME),
             )
-            assert p + q == curve(
-                *[curve.FIELD(uint384_to_int(**i)) for i in res.values()]
-            )
+            assert p + q == curve(res.x, res.y)
 
         @given(curve=curve)
         def test_ec_add_equal(self, cairo_run, curve):
@@ -86,14 +71,12 @@ class TestEcOps:
             q = curve(p.x, p.y)
             res = cairo_run(
                 "test__ec_add",
-                p=[*int_to_uint384(int(p.x)), *int_to_uint384(int(p.y))],
-                q=[*int_to_uint384(int(q.x)), *int_to_uint384(int(q.y))],
-                a=int_to_uint384(int(curve.A)),
-                modulus=int_to_uint384(int(curve.FIELD.PRIME)),
+                p=p,
+                q=q,
+                a=U384(curve.A),
+                modulus=U384(curve.FIELD.PRIME),
             )
-            assert p + q == curve(
-                *[curve.FIELD(uint384_to_int(**i)) for i in res.values()]
-            )
+            assert p + q == curve(res.x, res.y)
 
         @given(curve=curve)
         def test_ec_add_opposite(self, cairo_run, curve):
@@ -101,14 +84,12 @@ class TestEcOps:
             q = curve(p.x, -p.y)
             res = cairo_run(
                 "test__ec_add",
-                p=[*int_to_uint384(int(p.x)), *int_to_uint384(int(p.y))],
-                q=[*int_to_uint384(int(q.x)), *int_to_uint384(int(q.y))],
-                a=int_to_uint384(int(curve.A)),
-                modulus=int_to_uint384(int(curve.FIELD.PRIME)),
+                p=p,
+                q=q,
+                a=U384(curve.A),
+                modulus=U384(curve.FIELD.PRIME),
             )
-            assert p + q == curve(
-                *[curve.FIELD(uint384_to_int(**i)) for i in res.values()]
-            )
+            assert p + q == curve(res.x, res.y)
 
         @given(
             curve=curve,
@@ -124,49 +105,41 @@ class TestEcOps:
             p = curve.random_point()
 
             if scenario == "on_curve_plus_infinity":
-                p1, p2 = [*int_to_uint384(int(p.x)), *int_to_uint384(int(p.y))], [
-                    *int_to_uint384(int(0)),
-                    *int_to_uint384(int(0)),
-                ]
+                p1, p2 = p, curve(curve.FIELD(0), curve.FIELD(0))
                 expected = p
             elif scenario == "infinity_plus_on_curve":
-                p1, p2 = [*int_to_uint384(int(0)), *int_to_uint384(int(0))], [
-                    *int_to_uint384(int(p.x)),
-                    *int_to_uint384(int(p.y)),
-                ]
+                p1, p2 = curve(curve.FIELD(0), curve.FIELD(0)), p
                 expected = p
             else:
-                p1, p2 = [*int_to_uint384(int(0)), *int_to_uint384(int(0))], [
-                    *int_to_uint384(int(0)),
-                    *int_to_uint384(int(0)),
-                ]
+                p1, p2 = curve(curve.FIELD(0), curve.FIELD(0)), curve(
+                    curve.FIELD(0), curve.FIELD(0)
+                )
                 expected = curve(curve.FIELD(0), curve.FIELD(0))
 
             res = cairo_run(
                 "test__ec_add",
                 p=p1,
                 q=p2,
-                a=int_to_uint384(int(curve.A)),
-                modulus=int_to_uint384(int(curve.FIELD.PRIME)),
+                a=U384(curve.A),
+                modulus=U384(curve.FIELD.PRIME),
             )
 
-            result = curve(*[curve.FIELD(uint384_to_int(**i)) for i in res.values()])
+            result = curve(res.x, res.y)
 
             assert result == expected
 
     class TestEcMul:
         @given(data=st.data())
         def test_ec_mul(self, cairo_run, data):
+            # the MSM calldata is generated for AltBn128 only
             p = AltBn128.random_point()
-            k = int(data.draw(uint384))
-            expected = p.mul_by(k)
+            k = data.draw(uint384)
+            expected = p.mul_by(int(k))
             res = cairo_run(
                 "test__ec_mul",
-                p=[*int_to_uint384(int(p.x)), *int_to_uint384(int(p.y))],
-                k=int_to_uint384(k),
-                modulus=int_to_uint384(int(AltBn128.FIELD.PRIME)),
+                p=p,
+                k=k,
+                modulus=U384(AltBn128.FIELD.PRIME),
             )
-            res_point = AltBn128(
-                *[AltBn128.FIELD(uint384_to_int(**i)) for i in res.values()]
-            )
+            res_point = AltBn128(res.x, res.y)
             assert expected == res_point

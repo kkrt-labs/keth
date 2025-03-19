@@ -83,10 +83,11 @@ pub fn build_msm_hints_and_fill_memory() -> Hint {
          _constants: &HashMap<String, Felt252>|
          -> Result<(), HintError> {
             const N_LIMBS: usize = 4;
-            let r_point_addr = get_relocatable_from_var_name("r_point", vm, ids_data, ap_tracking)?;
-            let x = Uint384::from_base_addr(r_point_addr, "r_point.x", vm)?.pack();
-            let y =
-                Uint384::from_base_addr((r_point_addr + N_LIMBS).unwrap(), "r_point.y", vm)?.pack();
+            let r_point_addr = get_ptr_from_var_name("r_point", vm, ids_data, ap_tracking)?;
+            let x_addr = vm.get_relocatable(r_point_addr)?;
+            let y_addr = vm.get_relocatable((r_point_addr + 1_usize).unwrap())?;
+            let x = Uint384::from_base_addr(x_addr, "r_point.x", vm)?.pack();
+            let y = Uint384::from_base_addr(y_addr, "r_point.y", vm)?.pack();
 
             let g_x = element_to_biguint(&SECP256K1PrimeField::get_curve_params().g_x);
             let g_y = element_to_biguint(&SECP256K1PrimeField::get_curve_params().g_y);
@@ -197,9 +198,11 @@ pub fn ec_mul_msm_hints_and_fill_memory() -> Hint {
          _constants: &HashMap<String, Felt252>|
          -> Result<(), HintError> {
             const N_LIMBS: usize = 4;
-            let p_addr = get_relocatable_from_var_name("p", vm, ids_data, ap_tracking)?;
-            let x = Uint384::from_base_addr(p_addr, "p.x", vm)?.pack();
-            let y = Uint384::from_base_addr((p_addr + N_LIMBS).unwrap(), "p.y", vm)?.pack();
+            let p_ptr = get_ptr_from_var_name("p", vm, ids_data, ap_tracking)?;
+            let x_addr = vm.get_relocatable(p_ptr)?;
+            let y_addr = vm.get_relocatable((p_ptr + 1_usize).unwrap())?;
+            let x = Uint384::from_base_addr(x_addr, "p.x", vm)?.pack();
+            let y = Uint384::from_base_addr(y_addr, "p.y", vm)?.pack();
 
             let scalar = Uint256::from_var_name("scalar", vm, ids_data, ap_tracking)?.pack();
 
@@ -466,9 +469,11 @@ pub fn is_point_on_curve() -> Hint {
          ap_tracking: &ApTracking,
          _constants: &HashMap<String, Felt252>|
          -> Result<(), HintError> {
-            let point_addr = get_relocatable_from_var_name("point", vm, ids_data, ap_tracking)?;
-            let x = Uint384::from_base_addr(point_addr, "point.x", vm)?.pack();
-            let y = Uint384::from_base_addr((point_addr + 4_usize).unwrap(), "point.y", vm)?.pack();
+            let point_addr = get_ptr_from_var_name("point", vm, ids_data, ap_tracking)?;
+            let x_addr = vm.get_relocatable(point_addr)?;
+            let y_addr = vm.get_relocatable((point_addr + 1_usize).unwrap())?;
+            let x = Uint384::from_base_addr(x_addr, "point.x", vm)?.pack();
+            let y = Uint384::from_base_addr(y_addr, "point.y", vm)?.pack();
             let a = Uint384::from_var_name("a", vm, ids_data, ap_tracking)?.pack();
             let b = Uint384::from_var_name("b", vm, ids_data, ap_tracking)?.pack();
             let modulus = Uint384::from_var_name("modulus", vm, ids_data, ap_tracking)?.pack();

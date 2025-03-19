@@ -23,51 +23,21 @@ func test__get_random_point{
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,
-}() -> G1Point* {
+}(seed: felt, a: U384, b: U384, g: U384, p: U384) -> G1Point {
     alloc_locals;
-    tempvar seed;
-    let (a_ptr: UInt384*) = alloc();
-    let (b_ptr: UInt384*) = alloc();
-    let (g_ptr: UInt384*) = alloc();
-    let (p_ptr: UInt384*) = alloc();
-    %{
-        ids.seed =  program_input["seed"]
-        segments.load_data(ids.a_ptr.address_, program_input["a"])
-        segments.load_data(ids.b_ptr.address_, program_input["b"])
-        segments.load_data(ids.g_ptr.address_, program_input["g"])
-        segments.load_data(ids.p_ptr.address_, program_input["p"])
-    %}
 
-    let point = get_random_point(seed, a_ptr, b_ptr, g_ptr, p_ptr);
+    let point = get_random_point(seed, a, b, g, p);
 
-    tempvar point_ptr = new G1Point(
-        UInt384(point.x.d0, point.x.d1, point.x.d2, point.x.d3),
-        UInt384(point.y.d0, point.y.d1, point.y.d2, point.y.d3),
-    );
-    return point_ptr;
+    return point;
 }
 
 func test__ec_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
-    ) -> G1Point* {
+    p: G1Point, q: G1Point, a: U384, modulus: U384
+) -> G1Point {
     alloc_locals;
-    let (p_ptr: G1Point*) = alloc();
-    let (q_ptr: G1Point*) = alloc();
-    let (a_ptr: UInt384*) = alloc();
-    let (modulus_ptr: UInt384*) = alloc();
-    %{
-        segments.load_data(ids.p_ptr.address_, program_input["p"])
-        segments.load_data(ids.q_ptr.address_, program_input["q"])
-        segments.load_data(ids.a_ptr.address_, program_input["a"])
-        segments.load_data(ids.modulus_ptr.address_, program_input["modulus"])
-    %}
 
-    let res = ec_add([p_ptr], [q_ptr], [a_ptr], [modulus_ptr]);
-
-    tempvar res_ptr = new G1Point(
-        UInt384(res.x.d0, res.x.d1, res.x.d2, res.x.d3),
-        UInt384(res.y.d0, res.y.d1, res.y.d2, res.y.d3),
-    );
-    return res_ptr;
+    let res = ec_add(p, q, a, modulus);
+    return res;
 }
 
 func test__ec_mul{
@@ -76,22 +46,8 @@ func test__ec_mul{
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
-}() -> G1Point* {
+}(p: G1Point, k: U384, modulus: U384) -> G1Point {
     alloc_locals;
-    let (p_ptr: G1Point*) = alloc();
-    let (k_ptr: UInt384*) = alloc();
-    let (modulus_ptr: UInt384*) = alloc();
-    %{
-        segments.load_data(ids.p_ptr.address_, program_input["p"])
-        segments.load_data(ids.k_ptr.address_, program_input["k"])
-        segments.load_data(ids.modulus_ptr.address_, program_input["modulus"])
-    %}
-
-    let res = ec_mul([p_ptr], [k_ptr], [modulus_ptr]);
-
-    tempvar res_ptr = new G1Point(
-        UInt384(res.x.d0, res.x.d1, res.x.d2, res.x.d3),
-        UInt384(res.y.d0, res.y.d1, res.y.d2, res.y.d3),
-    );
-    return res_ptr;
+    let res = ec_mul(p, k, modulus);
+    return res;
 }

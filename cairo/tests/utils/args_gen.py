@@ -137,6 +137,7 @@ from starkware.cairo.lang.vm.relocatable import RelocatableValue
 from cairo_addons.vm import DictTracker as RustDictTracker
 from cairo_addons.vm import MemorySegmentManager as RustMemorySegmentManager
 from cairo_addons.vm import Relocatable as RustRelocatable
+from cairo_ec.curve import ECBase
 from tests.utils.helpers import flatten
 
 HASHED_TYPES = [
@@ -165,6 +166,28 @@ class U384(FixedUnsigned):
 
     def __init__(self, value) -> None:
         super().__init__(value)
+
+    # All these operator overloads are required for instantiation of Curve points with int values;
+    # because we serialize our types as U384, but the curve
+    def __mod__(self, other: Union[int, "U384"]):
+        if isinstance(other, U384):
+            return U384(self._number % other._number)
+        return U384(self._number % other)
+
+    def __add__(self, other: Union[int, "U384"]):
+        if isinstance(other, U384):
+            return U384(self._number + other._number)
+        return U384(self._number + other)
+
+    def __mul__(self, other: Union[int, "U384"]):
+        if isinstance(other, U384):
+            return U384(self._number * other._number)
+        return U384(self._number * other)
+
+    def __sub__(self, other: Union[int, "U384"]):
+        if isinstance(other, U384):
+            return U384(self._number - other._number)
+        return U384(self._number - other)
 
 
 U384.MAX_VALUE = _max_value(U384, 384)
@@ -512,6 +535,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
         Mapping[Bytes, Bytes], ...
     ],
     ("cairo_core", "bytes", "ListBytes4"): List[Bytes4],
+    ("cairo_ec", "curve", "g1_point", "G1Point"): ECBase,
     ("ethereum", "cancun", "blocks", "Header"): Header,
     ("ethereum", "cancun", "blocks", "TupleHeader"): Tuple[Header, ...],
     ("ethereum", "cancun", "blocks", "Withdrawal"): Withdrawal,
@@ -1039,6 +1063,16 @@ def _gen_arg(
         )
 
         return tuple([ret_value]) if for_dict_key else ret_value
+
+    if arg_type is ECBase or (
+        isinstance(arg_type, type) and issubclass(arg_type, ECBase)
+    ):
+        # Any Elliptic Curve class
+        ptr = segments.add()
+        x_ptr = _gen_arg(dict_manager, segments, U384, U384(arg.x))
+        y_ptr = _gen_arg(dict_manager, segments, U384, U384(arg.y))
+        segments.load_data(ptr, [x_ptr, y_ptr])
+        return ptr
 
     if isinstance(arg_type, type) and issubclass(arg_type, Exception):
         # For exceptions, we either return 0 (no error) or the ascii representation of the error message
