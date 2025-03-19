@@ -32,7 +32,6 @@ Requirements:
     - Functions must use standard argument and return type patterns
 """
 
-import re
 import subprocess
 from pathlib import Path
 
@@ -117,9 +116,6 @@ def main(file_path: Path | None, prime: int, function: list[str], echo: bool):
     # Compile the Cairo file
     program = cairo_compile(file_path, proof_mode=False, prime=prime)
 
-    # Extract the imports to add them to the output
-    file_imports = extract_imports(file_path)
-
     # Get all functions or filter by provided names
     available_functions = {
         k.path[-1]: k.path[-1]
@@ -142,7 +138,7 @@ def main(file_path: Path | None, prime: int, function: list[str], echo: bool):
         )
 
     # Generate output code
-    output_parts = [header_template.render(file_imports=file_imports)]
+    output_parts = [header_template.render()]
     circuit_parts = []
 
     struct_names = set()
@@ -158,9 +154,7 @@ def main(file_path: Path | None, prime: int, function: list[str], echo: bool):
         for struct in circuit["structs"]:
             struct_name = struct["name"]
             # Check if struct is not already processed and not in imports
-            if struct_name not in struct_names and not any(
-                struct_name == import_item[1] for import_item in file_imports
-            ):
+            if struct_name not in struct_names:
                 struct_names.add(struct_name)
                 structs_to_render.append(struct)
 
@@ -193,17 +187,6 @@ def main(file_path: Path | None, prime: int, function: list[str], echo: bool):
             text=True,
         )
         click.echo(f"Generated circuit file: {output_path}")
-
-
-def extract_imports(file_path: Path) -> list[str]:
-    """Extract the imports from the file."""
-    with file_path.open("r") as f:
-        content = f.read()
-
-    # Extract the imports
-    imports = re.findall(r"from (.*) import (.*)", content)
-    return imports
-
 
 if __name__ == "__main__":
     main()
