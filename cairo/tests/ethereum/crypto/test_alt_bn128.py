@@ -50,3 +50,8 @@ class TestAltBn128:
     def test_B(self, cairo_run):
         cairo_b = cairo_run("B")
         assert cairo_b == BNP12.B
+
+    @given(a=..., b=...)
+    def test_bnf12_mul(self, cairo_run, a: BNF12, b: BNF12):
+        cairo_result = cairo_run("bnf12_mul", a, b)
+        assert cairo_result == a * b
