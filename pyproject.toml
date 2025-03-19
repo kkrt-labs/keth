@@ -10,6 +10,7 @@ dependencies = [
   "cairo-ec",
   "cairo-core",
   "eth-rpc",
+  "mpt",
   "cairo-lang>=0.13.2",
   "marshmallow-dataclass>=8.6.1",
   "python-dotenv>=1.0.1",
@@ -50,6 +51,7 @@ cairo-addons = { workspace = true }
 cairo-ec = { workspace = true }
 cairo-core = { workspace = true }
 eth-rpc = { workspace = true }
+mpt = { workspace = true }
 
 [tool.uv.workspace]
 members = ["python/*"]
@@ -182,7 +184,7 @@ addopts = [
 profile = "black"
 src_paths = ["cairo/src", "cairo/tests"]
 known_third_party = ["ethereum", "ethereum_rlp", "ethereum_types"]
-known_first_party = ["cairo_ec", "cairo_core", "cairo_addons", "eth_rpc"]
+known_first_party = ["cairo_ec", "cairo_core", "cairo_addons", "eth_rpc", "mpt"]
 
 [tool.autoflake]
 in_place = true

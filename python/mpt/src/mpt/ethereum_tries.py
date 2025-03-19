@@ -1,12 +1,13 @@
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Mapping
+from typing import Any, Dict, Mapping
 
 from ethereum.cancun.fork_types import Address
 from ethereum.cancun.trie import InternalNode
 from ethereum.crypto.hash import Hash32, keccak256
-from ethereum_types.bytes import Bytes, Bytes32
+from ethereum_types.bytes import Bytes, Bytes20, Bytes32
+
 from mpt.utils import decode_node
 
 
@@ -22,29 +23,35 @@ class EthereumTries:
     def from_json(path: Path):
         with open(path, "r") as f:
             data = json.load(f)
+        return EthereumTries.from_data(data)
+
+    @staticmethod
+    def from_data(data: Dict[str, Any]):
         nodes = {
             keccak256(bytes.fromhex(node[2:])): decode_node(bytes.fromhex(node[2:]))
-            for node in data["nodes"]
+            for node in data["witness"]["state"]
         }
-        assert bytes.fromhex(data["stateRoot"][2:]) in nodes
+        state_root = Hash32.fromhex(data["witness"]["ancestors"][0]["stateRoot"][2:])
+        if state_root not in nodes:
+            raise ValueError(f"State root not found in nodes: {state_root}")
         return EthereumTries(
             nodes=nodes,
             codes={
-                keccak256(bytes.fromhex(code[2:])): Bytes.fromhex(code[2:])
-                for code in data["codes"]
+                keccak256(Bytes.fromhex(code[2:])): Bytes.fromhex(code[2:])
+                for code in data["witness"]["codes"]
             },
             address_preimages={
-                keccak256(bytes.fromhex(preimage["address"][2:])): Address.fromhex(
+                keccak256(Bytes20.fromhex(preimage["address"][2:])): Address.fromhex(
                     preimage["address"][2:]
                 )
                 for preimage in data["accessList"]
             },
             storage_key_preimages={
-                keccak256(bytes.fromhex(storage_key[2:])): Bytes32.fromhex(
+                keccak256(Bytes32.fromhex(storage_key[2:])): Bytes32.fromhex(
                     storage_key[2:]
                 )
                 for access in data["accessList"]
-                for storage_key in access["storageKeys"]
+                for storage_key in access["storageKeys"] or []
             },
-            state_root=Hash32.fromhex(data["stateRoot"]),
+            state_root=state_root,
         )
