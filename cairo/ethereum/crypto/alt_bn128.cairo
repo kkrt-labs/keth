@@ -13,6 +13,7 @@ from cairo_ec.curve.alt_bn128 import alt_bn128
 
 from ethereum.utils.numeric import divmod, U384_ZERO
 from ethereum_types.numeric import U384
+
 // BNF12 represents a field element in the BNF12 extension field
 // This is a 12-degree extension of the base field used in alt_bn128 curve
 struct BNF12Struct {
@@ -648,11 +649,12 @@ func bnf12_mul{
 }(a: BNF12, b: BNF12) -> BNF12 {
     alloc_locals;
 
-    tempvar modulus = new UInt384(alt_bn128.P0, alt_bn128.P1, alt_bn128.P2, alt_bn128.P3);
+    tempvar modulus = U384(new UInt384(alt_bn128.P0, alt_bn128.P1, alt_bn128.P2, alt_bn128.P3));
 
     // Step 1: Create a dictionary for polynomial multiplication intermediate value and result
-    tempvar zero = new UInt384(0, 0, 0, 0);
-    let (mul_dict) = default_dict_new(cast(zero, felt));
+    let (zero) = get_label_location(U384_ZERO);
+    let zero_u384 = cast(zero, UInt384*);
+    let (mul_dict) = default_dict_new(cast(zero_u384, felt));
     let mul_dict_start = mul_dict;
 
     // Step 2: Perform polynomial multiplication
@@ -677,7 +679,7 @@ func compute_polynomial_product{
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,
     dict_ptr: DictAccess*,
-}(a: BNF12, b: BNF12, modulus: UInt384*, i: felt, j: felt) {
+}(a: BNF12, b: BNF12, modulus: U384, i: felt, j: felt) {
     alloc_locals;
 
     // Base case: we've processed all terms
@@ -689,14 +691,14 @@ func compute_polynomial_product{
         return compute_polynomial_product(a, b, modulus, i + 1, 0);
     }
 
-    // Get coefficients as UInt384 BNF12 can be seen as a list of UInt384*
-    let a_segment = cast(a.value, UInt384*);
-    let b_segment = cast(b.value, UInt384*);
+    // Get coefficients, BNF12 can be seen as a U384* list
+    let a_segment = cast(a.value, U384*);
+    let b_segment = cast(b.value, U384*);
     let a_coeff = a_segment[i];
     let b_coeff = b_segment[j];
 
     // Compute product using modular multiplication
-    let product = mul(new a_coeff, new b_coeff, modulus);
+    let product = mul(a_coeff.value, b_coeff.value, modulus.value);
 
     // Position in result
     let pos = i + j;
@@ -704,9 +706,8 @@ func compute_polynomial_product{
     // Read current value at this position (default to zero if not present)
     let (current_ptr) = dict_read{dict_ptr=dict_ptr}(pos);
     let current = cast(current_ptr, UInt384*);
-
     // Add product to current value using modular addition
-    let new_value = add(current, product, modulus);
+    let new_value = add(current, product, modulus.value);
 
     // Write the new value to the dictionary
     dict_write{dict_ptr=dict_ptr}(pos, cast(new_value, felt));
@@ -722,7 +723,7 @@ func reduce_polynomial{
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,
     mul_dict: DictAccess*,
-}(modulus: UInt384*) {
+}(modulus: U384) {
     alloc_locals;
 
     _reduce_single_coefficient(modulus, 22);
@@ -759,7 +760,7 @@ func _reduce_single_coefficient{
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,
     mul_dict: DictAccess*,
-}(modulus: UInt384*, idx: felt) {
+}(modulus: U384, idx: felt) {
     alloc_locals;
 
     // Get the coefficient
@@ -767,29 +768,29 @@ func _reduce_single_coefficient{
     let coeff_i = cast(coeff_i_ptr, UInt384*);
 
     // Constants for reduction
-    tempvar modulus_coeff_0 = new UInt384(82, 0, 0, 0);
-    tempvar modulus_coeff_6 = new UInt384(18, 0, 0, 0);
+    tempvar modulus_coeff_0 = U384(new UInt384(82, 0, 0, 0));
+    tempvar modulus_coeff_6 = U384(new UInt384(18, 0, 0, 0));
 
     // Compute mul[i] * 18
-    let intermediate_mul = mul(coeff_i, modulus_coeff_6, modulus);
+    let intermediate_mul = mul(coeff_i, modulus_coeff_6.value, modulus.value);
     // Update position idx - 6
     let pos1 = idx - 6;
     let (current1_ptr) = dict_read{dict_ptr=mul_dict}(pos1);
 
     tempvar current1 = cast(current1_ptr, UInt384*);
     // Add intermediate_mul to current value
-    let new_value1 = add(current1, intermediate_mul, modulus);
+    let new_value1 = add(current1, intermediate_mul, modulus.value);
     // Write the new value to the dictionary
     dict_write{dict_ptr=mul_dict}(pos1, cast(new_value1, felt));
 
     // Compute mul[i] * 82
-    let intermediate_mul = mul(coeff_i, modulus_coeff_0, modulus);
+    let intermediate_mul = mul(coeff_i, modulus_coeff_0.value, modulus.value);
     // Update position idx - 12
     let pos2 = idx - 12;
     let (current2_ptr) = dict_read{dict_ptr=mul_dict}(pos2);
     tempvar current2 = cast(current2_ptr, UInt384*);
     // Subtract intermediate_mul from current value
-    let new_value2 = sub(current2, intermediate_mul, modulus);
+    let new_value2 = sub(current2, intermediate_mul, modulus.value);
     // Write the new value to the dictionary
     dict_write{dict_ptr=mul_dict}(pos2, cast(new_value2, felt));
 
@@ -814,41 +815,41 @@ func create_bnf12_from_dict{range_check_ptr, mul_dict: DictAccess*}() -> BNF12 {
     let (c10_ptr) = dict_read{dict_ptr=mul_dict}(10);
     let (c11_ptr) = dict_read{dict_ptr=mul_dict}(11);
 
-    let coeff_ptr = cast(c0_ptr, UInt384*);
-    assert result_struct.c0 = [coeff_ptr];
+    let coeff_ptr = U384(cast(c0_ptr, UInt384*));
+    assert result_struct.c0 = coeff_ptr;
 
-    let coeff_ptr = cast(c1_ptr, UInt384*);
-    assert result_struct.c1 = [coeff_ptr];
+    let coeff_ptr = U384(cast(c1_ptr, UInt384*));
+    assert result_struct.c1 = coeff_ptr;
 
-    let coeff_ptr = cast(c2_ptr, UInt384*);
-    assert result_struct.c2 = [coeff_ptr];
+    let coeff_ptr = U384(cast(c2_ptr, UInt384*));
+    assert result_struct.c2 = coeff_ptr;
 
-    let coeff_ptr = cast(c3_ptr, UInt384*);
-    assert result_struct.c3 = [coeff_ptr];
+    let coeff_ptr = U384(cast(c3_ptr, UInt384*));
+    assert result_struct.c3 = coeff_ptr;
 
-    let coeff_ptr = cast(c4_ptr, UInt384*);
-    assert result_struct.c4 = [coeff_ptr];
+    let coeff_ptr = U384(cast(c4_ptr, UInt384*));
+    assert result_struct.c4 = coeff_ptr;
 
-    let coeff_ptr = cast(c5_ptr, UInt384*);
-    assert result_struct.c5 = [coeff_ptr];
+    let coeff_ptr = U384(cast(c5_ptr, UInt384*));
+    assert result_struct.c5 = coeff_ptr;
 
-    let coeff_ptr = cast(c6_ptr, UInt384*);
-    assert result_struct.c6 = [coeff_ptr];
+    let coeff_ptr = U384(cast(c6_ptr, UInt384*));
+    assert result_struct.c6 = coeff_ptr;
 
-    let coeff_ptr = cast(c7_ptr, UInt384*);
-    assert result_struct.c7 = [coeff_ptr];
+    let coeff_ptr = U384(cast(c7_ptr, UInt384*));
+    assert result_struct.c7 = coeff_ptr;
 
-    let coeff_ptr = cast(c8_ptr, UInt384*);
-    assert result_struct.c8 = [coeff_ptr];
+    let coeff_ptr = U384(cast(c8_ptr, UInt384*));
+    assert result_struct.c8 = coeff_ptr;
 
-    let coeff_ptr = cast(c9_ptr, UInt384*);
-    assert result_struct.c9 = [coeff_ptr];
+    let coeff_ptr = U384(cast(c9_ptr, UInt384*));
+    assert result_struct.c9 = coeff_ptr;
 
-    let coeff_ptr = cast(c10_ptr, UInt384*);
-    assert result_struct.c10 = [coeff_ptr];
+    let coeff_ptr = U384(cast(c10_ptr, UInt384*));
+    assert result_struct.c10 = coeff_ptr;
 
-    let coeff_ptr = cast(c11_ptr, UInt384*);
-    assert result_struct.c11 = [coeff_ptr];
+    let coeff_ptr = U384(cast(c11_ptr, UInt384*));
+    assert result_struct.c11 = coeff_ptr;
 
     tempvar bnf12_result = BNF12(result_struct);
     return bnf12_result;
