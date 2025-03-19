@@ -31,7 +31,7 @@ class TestEthereumTries:
         ethereum_tries = EthereumTries.from_json(path)
         assert ethereum_tries is not None
 
-    def test_preimages(self, ethereum_tries):
+    def test_preimages(self, ethereum_tries, zkpi):
         access_list = zkpi["accessList"]
         for access in access_list:
             address = Address.fromhex(access["address"][2:])
@@ -42,19 +42,19 @@ class TestEthereumTries:
                 assert ethereum_tries.address_preimages[address_hash] == address
                 assert ethereum_tries.storage_key_preimages[key_hash] == key
 
-    def test_state_root(self, ethereum_tries):
+    def test_state_root(self, ethereum_tries, zkpi):
         assert ethereum_tries.state_root == Hash32.fromhex(
             zkpi["witness"]["ancestors"][0]["stateRoot"][2:]
         )
 
-    def test_nodes(self, ethereum_tries):
+    def test_nodes(self, ethereum_tries, zkpi):
         nodes = zkpi["witness"]["state"]
         for node in nodes:
             node = Bytes.fromhex(node[2:])
             node_hash = keccak256(node)
             assert ethereum_tries.nodes[node_hash] == decode_node(node)
 
-    def test_codes(self, ethereum_tries):
+    def test_codes(self, ethereum_tries, zkpi):
         codes = zkpi["witness"]["codes"]
         for code in codes:
             code = Bytes.fromhex(code[2:])
