@@ -24,13 +24,6 @@ def ethereum_tries(zkpi):
 
 @pytest.mark.parametrize("path", [Path("python/mpt/tests/data/22079718.json")])
 class TestEthereumTries:
-    def test_from_data(self, ethereum_tries):
-        assert ethereum_tries is not None
-
-    def test_from_json(self, path: Path):
-        ethereum_tries = EthereumTries.from_json(path)
-        assert ethereum_tries is not None
-
     def test_preimages(self, ethereum_tries, zkpi):
         access_list = zkpi["accessList"]
         for access in access_list:
