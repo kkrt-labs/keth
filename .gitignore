@@ -48,6 +48,7 @@ cairo/tests/ef_tests/fixtures/
 
 # zk-pig default output directory
 data
+!python/mpt/tests/data
 
 # prover input files
 *.trace
