@@ -518,6 +518,34 @@ func BNF12_ZERO() -> BNF12 {
     return bnf12_zero;
 }
 
+// Int limited to 384 bits
+func bnf12_from_int{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
+    x: U384
+) -> BNF12 {
+    tempvar one_uint384 = new UInt384(1, 0, 0, 0);
+    tempvar modulus = U384(new UInt384(alt_bn128.P0, alt_bn128.P1, alt_bn128.P2, alt_bn128.P3));
+    let x_reduced = mul(x.value, one_uint384, modulus.value);
+    let (u384_zero) = get_label_location(U384_ZERO);
+    let uint384_zero = cast(u384_zero, UInt384*);
+    tempvar bnf12_from_uint = BNF12(
+        new BNF12Struct(
+            U384(x_reduced),
+            U384(uint384_zero),
+            U384(uint384_zero),
+            U384(uint384_zero),
+            U384(uint384_zero),
+            U384(uint384_zero),
+            U384(uint384_zero),
+            U384(uint384_zero),
+            U384(uint384_zero),
+            U384(uint384_zero),
+            U384(uint384_zero),
+            U384(uint384_zero),
+        ),
+    );
+    return bnf12_from_uint;
+}
+
 // Addition between two BNF12 elements.
 func bnf12_add{
     range_check_ptr: felt,

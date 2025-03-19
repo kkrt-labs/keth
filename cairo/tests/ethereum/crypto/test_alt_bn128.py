@@ -51,6 +51,11 @@ class TestAltBn128:
         cairo_b = cairo_run("B")
         assert cairo_b == BNP12.B
 
+    @given(x=...)
+    def test_bnf12_from_int(self, cairo_run, x: U384):
+        cairo_result = cairo_run("bnf12_from_int", x)
+        assert cairo_result == BNF12.from_int(int(x))
+
     @given(a=..., b=...)
     def test_bnf12_mul(self, cairo_run, a: BNF12, b: BNF12):
         cairo_result = cairo_run("bnf12_mul", a, b)
