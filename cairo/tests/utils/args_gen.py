@@ -134,7 +134,6 @@ from starkware.cairo.lang.vm.crypto import poseidon_hash_many
 from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 from starkware.cairo.lang.vm.relocatable import RelocatableValue
 
-from cairo_addons.utils.uint384 import int_to_uint384
 from cairo_addons.vm import DictTracker as RustDictTracker
 from cairo_addons.vm import MemorySegmentManager as RustMemorySegmentManager
 from cairo_addons.vm import Relocatable as RustRelocatable
@@ -984,9 +983,11 @@ def _gen_arg(
 
     if arg_type is BNF12:
         base = segments.add()
-        coeffs = []
-        for coeff in arg:
-            coeffs.extend(int_to_uint384(coeff))
+        # In python, BNF12 is a tuple of 12 int but in cairo it's a struct with 12 U384
+        # Cast int to U384 to be able to serialize
+        coeffs = [
+            _gen_arg(dict_manager, segments, U384, U384(arg[i])) for i in range(12)
+        ]
         segments.load_data(base, coeffs)
         return base
 
