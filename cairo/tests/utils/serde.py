@@ -426,13 +426,8 @@ class Serde:
             return python_cls(value.to_bytes(python_cls.LENGTH, "little"))
 
         if python_cls == BNF12:
-            # BNF12 is represented as a struct with 12 U384
-
-            # In python, BNF12 is a tuple of 12 int but in cairo it's a struct with 12 U384
-            # Cast the U384 to int to be able to serialize
-            coeffs = [int(value[f"c{i}"]) for i in range(12)]
-
-            return BNF12(tuple(coeffs))
+            # The BNF12 constructor doesn't accept named tuples
+            return BNF12(value.values())
 
         # Because some types are wrapped in a value field, e.g. Account{ value: AccountStruct }
         # this may not work, so that we catch the error and try to fallback.
