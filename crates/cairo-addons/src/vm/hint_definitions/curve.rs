@@ -469,9 +469,11 @@ pub fn is_point_on_curve() -> Hint {
          ap_tracking: &ApTracking,
          _constants: &HashMap<String, Felt252>|
          -> Result<(), HintError> {
-            let point_addr = get_relocatable_from_var_name("point", vm, ids_data, ap_tracking)?;
-            let x = Uint384::from_base_addr(point_addr, "point.x", vm)?.pack();
-            let y = Uint384::from_base_addr((point_addr + 4_usize).unwrap(), "point.y", vm)?.pack();
+            let point_addr = get_ptr_from_var_name("point", vm, ids_data, ap_tracking)?;
+            let x_addr = vm.get_relocatable(point_addr)?;
+            let y_addr = vm.get_relocatable((point_addr + 1_usize).unwrap())?;
+            let x = Uint384::from_base_addr(x_addr, "point.x", vm)?.pack();
+            let y = Uint384::from_base_addr(y_addr, "point.y", vm)?.pack();
             let a = Uint384::from_var_name("a", vm, ids_data, ap_tracking)?.pack();
             let b = Uint384::from_var_name("b", vm, ids_data, ap_tracking)?.pack();
             let modulus = Uint384::from_var_name("modulus", vm, ids_data, ap_tracking)?.pack();

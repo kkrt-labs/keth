@@ -38,7 +38,7 @@ func test__uint384_eq_mod_p{
     range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
 }(x: U384, y: U384, p: U384) -> felt {
     alloc_locals;
-    let res = uint384_eq_mod_p([x.value], [y.value], [p.value]);
+    let res = uint384_eq_mod_p(x, y, p);
     return res;
 }
 
@@ -46,7 +46,7 @@ func test__uint384_is_neg_mod_p{
     range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
 }(x: U384, y: U384, p: U384) -> felt {
     alloc_locals;
-    let res = uint384_is_neg_mod_p([x.value], [y.value], [p.value]);
+    let res = uint384_is_neg_mod_p(x, y, p);
     return res;
 }
 

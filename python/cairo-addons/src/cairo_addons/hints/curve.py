@@ -266,16 +266,16 @@ def fill_add_mod_mul_mod_builtin_batch_117_108(
 @register_hint
 def is_point_on_curve(ids: VmConsts):
     x = (
-        ids.point.x.d0
-        + ids.point.x.d1 * 2**96
-        + ids.point.x.d2 * 2**192
-        + ids.point.x.d3 * 2**288
+        ids.point.value.x.value.d0
+        + ids.point.value.x.value.d1 * 2**96
+        + ids.point.value.x.value.d2 * 2**192
+        + ids.point.value.x.value.d3 * 2**288
     )
     y = (
-        ids.point.y.d0
-        + ids.point.y.d1 * 2**96
-        + ids.point.y.d2 * 2**192
-        + ids.point.y.d3 * 2**288
+        ids.point.value.y.value.d0
+        + ids.point.value.y.value.d1 * 2**96
+        + ids.point.value.y.value.d2 * 2**192
+        + ids.point.value.y.value.d3 * 2**288
     )
     a = ids.a.d0 + ids.a.d1 * 2**96 + ids.a.d2 * 2**192 + ids.a.d3 * 2**288
     b = ids.b.d0 + ids.b.d1 * 2**96 + ids.b.d2 * 2**192 + ids.b.d3 * 2**288
