@@ -19,8 +19,12 @@ def zkpi(path: Path):
 
 @pytest.mark.parametrize("path", [Path("python/mpt/tests/data/22079718.json")])
 class TestEthereumTries:
-    def test_from_json(self, zkpi):
+    def test_from_data(self, zkpi):
         ethereum_tries = EthereumTries.from_data(zkpi)
+        assert ethereum_tries is not None
+
+    def test_from_json(self, path: Path):
+        ethereum_tries = EthereumTries.from_json(path)
         assert ethereum_tries is not None
 
     def test_preimages(self, zkpi):
