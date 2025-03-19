@@ -41,7 +41,7 @@ from ethereum.cancun.fork_types import Account, Address
 from ethereum.cancun.state import State, TransientStorage
 from ethereum.cancun.trie import Trie
 from ethereum.cancun.vm.exceptions import InvalidOpcode
-from ethereum.crypto.alt_bn128 import BNF12, BNP12
+from ethereum.crypto.alt_bn128 import BNF12
 from ethereum.crypto.hash import Hash32
 from ethereum_types.bytes import (
     Bytes,
@@ -76,7 +76,6 @@ from starkware.cairo.lang.vm.crypto import poseidon_hash_many
 from starkware.cairo.lang.vm.memory_dict import UnknownMemoryError
 from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 
-from cairo_addons.utils.uint384 import uint384_to_int
 from cairo_addons.vm import MemorySegmentManager as RustMemorySegmentManager
 from tests.utils.args_gen import (
     U384,
@@ -427,29 +426,13 @@ class Serde:
             return python_cls(value.to_bytes(python_cls.LENGTH, "little"))
 
         if python_cls == BNF12:
-            # BNF12 is represented as a struct with 12 UInt384
-            # We need to extract these values and create a BNF12 object
-            if value is None:
-                return None
+            # BNF12 is represented as a struct with 12 U384
 
-            coeffs = [
-                uint384_to_int(
-                    value[f"c{i}"]["d0"],
-                    value[f"c{i}"]["d1"],
-                    value[f"c{i}"]["d2"],
-                    value[f"c{i}"]["d3"],
-                )
-                for i in range(12)
-            ]
+            # In python, BNF12 is a tuple of 12 int but in cairo it's a struct with 12 U384
+            # Cast the U384 to int to be able to serialize
+            coeffs = [int(value[f"c{i}"]) for i in range(12)]
 
             return BNF12(tuple(coeffs))
-
-        if python_cls == BNP12:
-            # BNP12 is represented as a struct with two BNF12 values (x and y)
-            if value is None:
-                return None
-            # Create a new BNP12 point with these coordinates
-            return BNP12(value["x"], value["y"])
 
         # Because some types are wrapped in a value field, e.g. Account{ value: AccountStruct }
         # this may not work, so that we catch the error and try to fallback.
@@ -960,10 +943,10 @@ class Serde:
                 raise DictConsistencyError(
                     f"Dict consistency error in {item_path}"
                 ) from e
-            except Exception:
+            except Exception as e2:
+                raise (e2)
                 # TODO: handle this better as only UnknownMemoryError is expected
                 # when accessing invalid memory
-                break
         return output
 
     @staticmethod

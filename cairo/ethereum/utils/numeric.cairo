@@ -21,6 +21,12 @@ from legacy.utils.bytes import bytes_to_felt, uint256_from_bytes_be, felt_to_byt
 from legacy.utils.uint256 import uint256_add, uint256_sub
 from legacy.utils.utils import Helpers
 
+U384_ZERO:
+dw 0;
+dw 0;
+dw 0;
+dw 0;
+
 func min{range_check_ptr}(a: felt, b: felt) -> felt {
     alloc_locals;
 
