@@ -63,10 +63,6 @@ class TestEcOps:
                 a=U384(curve.A),
                 modulus=U384(curve.FIELD.PRIME),
             )
-            print(
-                f"p.x: {p.x}, p.y: {p.y}, q.x: {q.x}, q.y: {q.y}, (p+q).x: {(p+q).x}, (p+q).y: {(p+q).y}"
-            )
-            print(f"res.x: {res.x}, res.y: {res.y}")
             assert p + q == curve(res.x, res.y)
 
         @given(curve=curve)
@@ -135,6 +131,7 @@ class TestEcOps:
     class TestEcMul:
         @given(data=st.data())
         def test_ec_mul(self, cairo_run, data):
+            # the MSM calldata is generated for AltBn128 only
             p = AltBn128.random_point()
             k = data.draw(uint384)
             expected = p.mul_by(int(k))

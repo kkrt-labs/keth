@@ -372,11 +372,6 @@ func Bytes32_from_be_bytes{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(bytes:
     return res_bytes32;
 }
 
-func U384_zero() -> U384 {
-    tempvar res = U384(new U384Struct(0, 0, 0, 0));
-    return res;
-}
-
 func U384_is_zero(num: U384) -> felt {
     if (num.value.d0 == 0 and num.value.d1 == 0 and num.value.d2 == 0 and num.value.d3 == 0) {
         return 1;

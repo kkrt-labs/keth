@@ -137,7 +137,7 @@ from starkware.cairo.lang.vm.relocatable import RelocatableValue
 from cairo_addons.vm import DictTracker as RustDictTracker
 from cairo_addons.vm import MemorySegmentManager as RustMemorySegmentManager
 from cairo_addons.vm import Relocatable as RustRelocatable
-from cairo_ec.curve import AltBn128, ECBase, Secp256k1
+from cairo_ec.curve import ECBase
 from tests.utils.helpers import flatten
 
 HASHED_TYPES = [
@@ -1048,7 +1048,10 @@ def _gen_arg(
 
         return tuple([ret_value]) if for_dict_key else ret_value
 
-    if arg_type in (Secp256k1, AltBn128, ECBase):
+    if arg_type is ECBase or (
+        isinstance(arg_type, type) and issubclass(arg_type, ECBase)
+    ):
+        # Any Elliptic Curve class
         ptr = segments.add()
         x_ptr = _gen_arg(dict_manager, segments, U384, U384(arg.x))
         y_ptr = _gen_arg(dict_manager, segments, U384, U384(arg.y))
