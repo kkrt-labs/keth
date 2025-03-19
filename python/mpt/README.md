@@ -16,8 +16,9 @@ This library provides the ability to:
 ## Quick Start
 
 ```python
-from mpt.ethereum_tries import EthereumTries
 from pathlib import Path
+
+from mpt.ethereum_tries import EthereumTries
 
 # Load tries from a JSON dump
 tries = EthereumTries.from_json(Path("data/1/inputs/22074629.json"))
