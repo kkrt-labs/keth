@@ -42,7 +42,6 @@ from starkware.cairo.lang.vm.cairo_run import (
 from starkware.cairo.lang.vm.cairo_runner import CairoRunner
 from starkware.cairo.lang.vm.memory_dict import MemoryDict
 from starkware.cairo.lang.vm.memory_segments import FIRST_MEMORY_ADDR as PROGRAM_BASE
-from starkware.cairo.lang.vm.relocatable import RelocatableValue
 from starkware.cairo.lang.vm.security import verify_secure_runner
 from starkware.cairo.lang.vm.utils import RunResources
 from starkware.cairo.lang.vm.vm import VirtualMachine
@@ -54,7 +53,6 @@ from cairo_addons.testing.hints import debug_info, oracle
 from cairo_addons.testing.utils import flatten
 from cairo_addons.vm import CairoRunner as RustCairoRunner
 from cairo_addons.vm import Program as RustProgram
-from cairo_addons.vm import Relocatable as RustRelocatable
 from cairo_addons.vm import RunResources as RustRunResources
 from tests.utils.args_gen import gen_arg as gen_arg_builder
 from tests.utils.args_gen import to_cairo_type, to_python_type
@@ -546,11 +544,7 @@ def run_rust_vm(
             [(k, v["python_type"]) for k, v in {**_implicit_args, **_args}.items()]
         ):
             arg_value = kwargs[arg_name] if arg_name in kwargs else args[i]
-            # If the arg is a RelocatableValue, we simply dump the values in a segment
-            if python_type is RelocatableValue or python_type is RustRelocatable:
-                stack.append(runner.segments.gen_arg(arg_value))
-            else:
-                stack.append(gen_arg(python_type, arg_value))
+            stack.extend(flatten(gen_arg(python_type, arg_value)))
 
         # ============================================================================
         # STEP 4: SET UP EXECUTION CONTEXT AND LOAD MEMORY

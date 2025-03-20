@@ -289,3 +289,4 @@ pyfunction
 chrono
 stwo
 modelcontextprotocol
+equalto

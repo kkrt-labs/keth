@@ -15,9 +15,9 @@ from starkware.cairo.lang.compiler.identifier_definition import (
 from starkware.cairo.lang.compiler.instruction import Instruction, Register
 from starkware.cairo.lang.compiler.program import Program
 
-from cairo_addons.testing.serde import get_struct_definition
 from cairo_addons.testing.utils import flatten
 from cairo_addons.utils.uint384 import int_to_uint384
+from tests.utils.serde import get_struct_definition
 
 
 def circuit_compile(cairo_program: Program, circuit: str):
@@ -205,17 +205,18 @@ def extract_return_values(cairo_program: Program, circuit: str) -> List[Dict[str
     return_values = []
 
     if isinstance(return_type, TypeFelt):
-        return_values.append({"name": "UInt384", "member": return_type})
+        return_values.append({"name": "U384", "member": return_type})
     elif isinstance(return_type, TypeStruct):
-        # Remove the CircuitInput suffix from the struct name if it exists
-        name = return_type.scope.path[-1].removesuffix("CircuitInput")
+        # Replace CircuitInput with Struct in the struct name to match
+        # our codebase's defined structs
+        name = return_type.scope.path[-1].replace("CircuitInput", "Struct")
         return_values.append({"name": name, "member": return_type})
     elif isinstance(return_type, TypeTuple):
         for item in return_type.types:
             if isinstance(item, TypeFelt):
-                return_values.append({"name": "UInt384", "member": item})
+                return_values.append({"name": "U384", "member": item})
             elif isinstance(item, TypeStruct):
-                name = item.scope.path[-1].removesuffix("CircuitInput")
+                name = item.scope.path[-1].replace("CircuitInput", "Struct")
                 return_values.append({"name": name, "member": item})
 
     # Calculate offsets for each return value
@@ -248,7 +249,7 @@ def extract_args(cairo_program: Program, circuit: str) -> List[Dict[str, Any]]:
         )
         struct_name = struct_def.full_name.path[-1]
 
-        if struct_name == "UInt384":
+        if struct_name == "U384":
             args_list.append(base_path)
             return args_list
 
@@ -265,12 +266,14 @@ def extract_args(cairo_program: Program, circuit: str) -> List[Dict[str, Any]]:
 
     for name, member in args.members.items():
         if isinstance(member.cairo_type, TypeFelt):
-            result.append({"name": name, "type": "UInt384", "path": [name]})
+            result.append({"name": name, "type": "U384", "path": [name]})
         elif isinstance(member.cairo_type, TypeStruct):
             struct_def = get_struct_definition(
                 cairo_program.identifiers, member.cairo_type.scope.path
             )
-            struct_name = struct_def.full_name.path[-1].removesuffix("CircuitInput")
+            struct_name = struct_def.full_name.path[-1].replace(
+                "CircuitInput", "Struct"
+            )
 
             path_list = []
             path_list = process_struct_member(member, name, path_list)
@@ -299,11 +302,15 @@ def extract_structs(cairo_program: Program, circuit: str) -> List[Dict[str, Any]
         struct_def = get_struct_definition(
             cairo_program.identifiers, member_type.scope.path
         )
-        struct_name = struct_def.full_name.path[-1].removesuffix("CircuitInput")
+        struct_name = struct_def.full_name.path[-1].replace("CircuitInput", "Struct")
         processed_structs.add(struct_name)
 
         members = []
         for name, member in struct_def.members.items():
+            if not isinstance(member.cairo_type, TypeFelt):
+                raise Exception(
+                    f"Circuit input structs must only contain felt members, got {member.cairo_type}"
+                )
             member_info = {
                 "name": name,
                 "type": (
@@ -340,9 +347,12 @@ def extract_structs(cairo_program: Program, circuit: str) -> List[Dict[str, Any]
 
     for struct_type in struct_types:
         struct_data = process_struct_type(struct_type, processed_structs)
-        if struct_data and struct_data["name"] not in seen_names:
+        if not struct_data:
+            continue
+        struct_name = struct_data["name"].replace("CircuitInput", "Struct")
+        if struct_name not in seen_names:
             result.append(struct_data)
-            seen_names.add(struct_data["name"])
+            seen_names.add(struct_name)
             # Add any new nested structs
             for member in struct_data["members"]:
                 if nested := member["nested"]:

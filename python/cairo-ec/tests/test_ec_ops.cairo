@@ -11,11 +11,8 @@ func test__try_get_point_from_x{
 }(x: U384, v: felt, a: U384, b: U384, g: U384, p: U384) -> (y: U384, is_on_curve: felt) {
     alloc_locals;
 
-    let (y, is_on_curve) = try_get_point_from_x(
-        x=x.value, v=v, a=a.value, b=b.value, g=g.value, p=p.value
-    );
-    tempvar y_ptr = U384(new UInt384(y.d0, y.d1, y.d2, y.d3));
-    return (y_ptr, is_on_curve);
+    let (y, is_on_curve) = try_get_point_from_x(x=x, v=v, a=a, b=b, g=g, p=p);
+    return (y, is_on_curve);
 }
 
 func test__get_random_point{

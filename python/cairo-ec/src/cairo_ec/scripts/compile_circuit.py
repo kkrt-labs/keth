@@ -32,6 +32,7 @@ Requirements:
     - Functions must use standard argument and return type patterns
 """
 
+import re
 import subprocess
 from pathlib import Path
 
@@ -138,7 +139,8 @@ def main(file_path: Path | None, prime: int, function: list[str], echo: bool):
         )
 
     # Generate output code
-    output_parts = [header_template.render()]
+    file_imports = extract_imports(file_path)
+    output_parts = [header_template.render(file_imports=file_imports)]
     circuit_parts = []
 
     struct_names = set()
@@ -154,12 +156,16 @@ def main(file_path: Path | None, prime: int, function: list[str], echo: bool):
         for struct in circuit["structs"]:
             struct_name = struct["name"]
             # Check if struct is not already processed and not in imports
-            if struct_name not in struct_names:
+            if struct_name not in struct_names and not any(
+                struct_name == import_item[1] for import_item in file_imports
+            ):
                 struct_names.add(struct_name)
                 structs_to_render.append(struct)
 
         # Render template with all necessary data
-        circuit_code = circuit_template.render(name=function_name, circuit=circuit)
+        circuit_code = circuit_template.render(
+            name=function_name, circuit=circuit, structs=circuit["structs"]
+        )
         circuit_parts.append(circuit_code)
 
     # Render the structs
@@ -187,6 +193,16 @@ def main(file_path: Path | None, prime: int, function: list[str], echo: bool):
             text=True,
         )
         click.echo(f"Generated circuit file: {output_path}")
+
+
+def extract_imports(file_path: Path) -> list[str]:
+    """Extract the imports from the file."""
+    with file_path.open("r") as f:
+        content = f.read()
+
+    # Extract the imports
+    imports = re.findall(r"from (.*) import (.*)", content)
+    return imports
 
 
 if __name__ == "__main__":

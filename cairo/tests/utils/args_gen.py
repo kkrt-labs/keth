@@ -773,7 +773,7 @@ def gen_arg(dict_manager, segments):
 def _gen_arg(
     dict_manager,
     segments: Union[MemorySegmentManager, RustMemorySegmentManager],
-    arg_type: Type,
+    arg_type: Optional[Type],
     arg: Any,
     annotations: Optional[Any] = None,
     for_dict_key: Optional[bool] = None,
@@ -793,8 +793,55 @@ def _gen_arg(
     Returns:
         Cairo memory pointer or value
     """
-    if arg_type is type(None):
+
+    if arg_type is None:
+        # Cases where no Python Type was provided.
+        # If arg is list, serialize it as a pointer to a struct with a pointer to the elements and the size.
+        if isinstance(arg, list):
+            instances_ptr = segments.add()
+            data = [
+                _gen_arg(dict_manager, segments, get_args(arg_type)[0], x) for x in arg
+            ]
+            return instances_ptr
+        if isinstance(arg, int):
+            return arg
+        # Any structured data ->
+        if isinstance(arg, dict):
+            data = [
+                _gen_arg(dict_manager, segments, type(list(arg.values())[0]), v)
+                for v in arg.values()
+            ]
+            return data
+        raise ValueError(f"Cannot serialize {arg} of type {type(arg)}")
+
+    if arg_type is type(None) and arg is None:
         return 0
+
+    # If the arg_type is a RelocatableValue or RustRelocatable, we simply dump the values in a segment
+    if arg_type is RelocatableValue or arg_type is RustRelocatable:
+        # If arg is list, serialize it as a pointer to a struct with a pointer to the elements and the size.
+        if isinstance(arg, list) or isinstance(arg, tuple):
+            instances_ptr = segments.add()
+            if len(arg) == 0:
+                segments.load_data(instances_ptr, [])
+                return instances_ptr
+            data = [_gen_arg(dict_manager, segments, type(arg[0]), x) for x in arg]
+            segments.load_data(instances_ptr, data)
+            return instances_ptr
+        if isinstance(arg, int):
+            base_ptr = segments.add()
+            segments.load_data(base_ptr, [arg])
+            return base_ptr
+        # Any structured data -> sequentially dump the values in the same segment
+        if isinstance(arg, dict):
+            base_ptr = segments.add()
+            data = [
+                _gen_arg(dict_manager, segments, type(list(arg.values())[0]), v)
+                for v in arg.values()
+            ]
+            segments.load_data(base_ptr, data)
+            return base_ptr
+        return arg
 
     arg_type_origin = get_origin(arg_type) or arg_type
     if arg_type_origin is Annotated:
