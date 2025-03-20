@@ -585,14 +585,14 @@ func BNF12_ZERO() -> BNF12 {
 func bnf12_from_int{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
     x: U384
 ) -> BNF12 {
-    tempvar one_uint384 = new UInt384(1, 0, 0, 0);
+    tempvar one_uint384 = U384(new UInt384(1, 0, 0, 0));
     tempvar modulus = U384(new UInt384(alt_bn128.P0, alt_bn128.P1, alt_bn128.P2, alt_bn128.P3));
-    let x_reduced = mul(x.value, one_uint384, modulus.value);
+    let x_reduced = mul(x, one_uint384, modulus);
     let (u384_zero) = get_label_location(U384_ZERO);
     let uint384_zero = cast(u384_zero, UInt384*);
     tempvar bnf12_from_uint = BNF12(
         new BNF12Struct(
-            U384(x_reduced),
+            x_reduced,
             U384(uint384_zero),
             U384(uint384_zero),
             U384(uint384_zero),
@@ -615,33 +615,33 @@ func bnf12_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: 
 ) -> BNF12 {
     tempvar modulus = U384(new UInt384(alt_bn128.P0, alt_bn128.P1, alt_bn128.P2, alt_bn128.P3));
 
-    let res_c0 = add(a.value.c0.value, b.value.c0.value, modulus.value);
-    let res_c1 = add(a.value.c1.value, b.value.c1.value, modulus.value);
-    let res_c2 = add(a.value.c2.value, b.value.c2.value, modulus.value);
-    let res_c3 = add(a.value.c3.value, b.value.c3.value, modulus.value);
-    let res_c4 = add(a.value.c4.value, b.value.c4.value, modulus.value);
-    let res_c5 = add(a.value.c5.value, b.value.c5.value, modulus.value);
-    let res_c6 = add(a.value.c6.value, b.value.c6.value, modulus.value);
-    let res_c7 = add(a.value.c7.value, b.value.c7.value, modulus.value);
-    let res_c8 = add(a.value.c8.value, b.value.c8.value, modulus.value);
-    let res_c9 = add(a.value.c9.value, b.value.c9.value, modulus.value);
-    let res_c10 = add(a.value.c10.value, b.value.c10.value, modulus.value);
-    let res_c11 = add(a.value.c11.value, b.value.c11.value, modulus.value);
+    let res_c0 = add(a.value.c0, b.value.c0, modulus);
+    let res_c1 = add(a.value.c1, b.value.c1, modulus);
+    let res_c2 = add(a.value.c2, b.value.c2, modulus);
+    let res_c3 = add(a.value.c3, b.value.c3, modulus);
+    let res_c4 = add(a.value.c4, b.value.c4, modulus);
+    let res_c5 = add(a.value.c5, b.value.c5, modulus);
+    let res_c6 = add(a.value.c6, b.value.c6, modulus);
+    let res_c7 = add(a.value.c7, b.value.c7, modulus);
+    let res_c8 = add(a.value.c8, b.value.c8, modulus);
+    let res_c9 = add(a.value.c9, b.value.c9, modulus);
+    let res_c10 = add(a.value.c10, b.value.c10, modulus);
+    let res_c11 = add(a.value.c11, b.value.c11, modulus);
 
     tempvar res = BNF12(
         new BNF12Struct(
-            U384(res_c0),
-            U384(res_c1),
-            U384(res_c2),
-            U384(res_c3),
-            U384(res_c4),
-            U384(res_c5),
-            U384(res_c6),
-            U384(res_c7),
-            U384(res_c8),
-            U384(res_c9),
-            U384(res_c10),
-            U384(res_c11),
+            res_c0,
+            res_c1,
+            res_c2,
+            res_c3,
+            res_c4,
+            res_c5,
+            res_c6,
+            res_c7,
+            res_c8,
+            res_c9,
+            res_c10,
+            res_c11,
         ),
     );
     return res;
@@ -653,33 +653,33 @@ func bnf12_sub{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: 
 ) -> BNF12 {
     tempvar modulus = U384(new UInt384(alt_bn128.P0, alt_bn128.P1, alt_bn128.P2, alt_bn128.P3));
 
-    let res_c0 = sub(a.value.c0.value, b.value.c0.value, modulus.value);
-    let res_c1 = sub(a.value.c1.value, b.value.c1.value, modulus.value);
-    let res_c2 = sub(a.value.c2.value, b.value.c2.value, modulus.value);
-    let res_c3 = sub(a.value.c3.value, b.value.c3.value, modulus.value);
-    let res_c4 = sub(a.value.c4.value, b.value.c4.value, modulus.value);
-    let res_c5 = sub(a.value.c5.value, b.value.c5.value, modulus.value);
-    let res_c6 = sub(a.value.c6.value, b.value.c6.value, modulus.value);
-    let res_c7 = sub(a.value.c7.value, b.value.c7.value, modulus.value);
-    let res_c8 = sub(a.value.c8.value, b.value.c8.value, modulus.value);
-    let res_c9 = sub(a.value.c9.value, b.value.c9.value, modulus.value);
-    let res_c10 = sub(a.value.c10.value, b.value.c10.value, modulus.value);
-    let res_c11 = sub(a.value.c11.value, b.value.c11.value, modulus.value);
+    let res_c0 = sub(a.value.c0, b.value.c0, modulus);
+    let res_c1 = sub(a.value.c1, b.value.c1, modulus);
+    let res_c2 = sub(a.value.c2, b.value.c2, modulus);
+    let res_c3 = sub(a.value.c3, b.value.c3, modulus);
+    let res_c4 = sub(a.value.c4, b.value.c4, modulus);
+    let res_c5 = sub(a.value.c5, b.value.c5, modulus);
+    let res_c6 = sub(a.value.c6, b.value.c6, modulus);
+    let res_c7 = sub(a.value.c7, b.value.c7, modulus);
+    let res_c8 = sub(a.value.c8, b.value.c8, modulus);
+    let res_c9 = sub(a.value.c9, b.value.c9, modulus);
+    let res_c10 = sub(a.value.c10, b.value.c10, modulus);
+    let res_c11 = sub(a.value.c11, b.value.c11, modulus);
 
     tempvar res = BNF12(
         new BNF12Struct(
-            U384(res_c0),
-            U384(res_c1),
-            U384(res_c2),
-            U384(res_c3),
-            U384(res_c4),
-            U384(res_c5),
-            U384(res_c6),
-            U384(res_c7),
-            U384(res_c8),
-            U384(res_c9),
-            U384(res_c10),
-            U384(res_c11),
+            res_c0,
+            res_c1,
+            res_c2,
+            res_c3,
+            res_c4,
+            res_c5,
+            res_c6,
+            res_c7,
+            res_c8,
+            res_c9,
+            res_c10,
+            res_c11,
         ),
     );
     return res;
@@ -692,33 +692,33 @@ func bnf12_scalar_mul{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mo
     let (__fp__, _) = get_fp_and_pc();
     tempvar modulus = U384(new UInt384(alt_bn128.P0, alt_bn128.P1, alt_bn128.P2, alt_bn128.P3));
 
-    let res_c0 = mul(a.value.c0.value, x.value, modulus.value);
-    let res_c1 = mul(a.value.c1.value, x.value, modulus.value);
-    let res_c2 = mul(a.value.c2.value, x.value, modulus.value);
-    let res_c3 = mul(a.value.c3.value, x.value, modulus.value);
-    let res_c4 = mul(a.value.c4.value, x.value, modulus.value);
-    let res_c5 = mul(a.value.c5.value, x.value, modulus.value);
-    let res_c6 = mul(a.value.c6.value, x.value, modulus.value);
-    let res_c7 = mul(a.value.c7.value, x.value, modulus.value);
-    let res_c8 = mul(a.value.c8.value, x.value, modulus.value);
-    let res_c9 = mul(a.value.c9.value, x.value, modulus.value);
-    let res_c10 = mul(a.value.c10.value, x.value, modulus.value);
-    let res_c11 = mul(a.value.c11.value, x.value, modulus.value);
+    let res_c0 = mul(a.value.c0, x, modulus);
+    let res_c1 = mul(a.value.c1, x, modulus);
+    let res_c2 = mul(a.value.c2, x, modulus);
+    let res_c3 = mul(a.value.c3, x, modulus);
+    let res_c4 = mul(a.value.c4, x, modulus);
+    let res_c5 = mul(a.value.c5, x, modulus);
+    let res_c6 = mul(a.value.c6, x, modulus);
+    let res_c7 = mul(a.value.c7, x, modulus);
+    let res_c8 = mul(a.value.c8, x, modulus);
+    let res_c9 = mul(a.value.c9, x, modulus);
+    let res_c10 = mul(a.value.c10, x, modulus);
+    let res_c11 = mul(a.value.c11, x, modulus);
 
     tempvar res = BNF12(
         new BNF12Struct(
-            U384(res_c0),
-            U384(res_c1),
-            U384(res_c2),
-            U384(res_c3),
-            U384(res_c4),
-            U384(res_c5),
-            U384(res_c6),
-            U384(res_c7),
-            U384(res_c8),
-            U384(res_c9),
-            U384(res_c10),
-            U384(res_c11),
+            res_c0,
+            res_c1,
+            res_c2,
+            res_c3,
+            res_c4,
+            res_c5,
+            res_c6,
+            res_c7,
+            res_c8,
+            res_c9,
+            res_c10,
+            res_c11,
         ),
     );
     return res;
@@ -780,7 +780,7 @@ func compute_polynomial_product{
     let b_coeff = b_segment[j];
 
     // Compute product using modular multiplication
-    let product = mul(a_coeff.value, b_coeff.value, modulus.value);
+    let product = mul(a_coeff, b_coeff, modulus);
 
     // Position in result
     let pos = i + j;
@@ -789,10 +789,10 @@ func compute_polynomial_product{
     let (current_ptr) = dict_read{dict_ptr=dict_ptr}(pos);
     let current = cast(current_ptr, UInt384*);
     // Add product to current value using modular addition
-    let new_value = add(current, product, modulus.value);
+    let new_value = add(U384(current), product, modulus);
 
     // Write the new value to the dictionary
-    dict_write{dict_ptr=dict_ptr}(pos, cast(new_value, felt));
+    dict_write{dict_ptr=dict_ptr}(pos, cast(new_value.value, felt));
 
     // Continue with next term
     return compute_polynomial_product(a, b, modulus, i, j + 1);
@@ -854,27 +854,27 @@ func _reduce_single_coefficient{
     tempvar modulus_coeff_6 = U384(new UInt384(18, 0, 0, 0));
 
     // Compute mul[i] * 18
-    let intermediate_mul = mul(coeff_i, modulus_coeff_6.value, modulus.value);
+    let intermediate_mul = mul(U384(coeff_i), modulus_coeff_6, modulus);
     // Update position idx - 6
     let pos1 = idx - 6;
     let (current1_ptr) = dict_read{dict_ptr=mul_dict}(pos1);
 
-    tempvar current1 = cast(current1_ptr, UInt384*);
+    tempvar current1 = U384(cast(current1_ptr, UInt384*));
     // Add intermediate_mul to current value
-    let new_value1 = add(current1, intermediate_mul, modulus.value);
+    let new_value1 = add(current1, intermediate_mul, modulus);
     // Write the new value to the dictionary
-    dict_write{dict_ptr=mul_dict}(pos1, cast(new_value1, felt));
+    dict_write{dict_ptr=mul_dict}(pos1, cast(new_value1.value, felt));
 
     // Compute mul[i] * 82
-    let intermediate_mul = mul(coeff_i, modulus_coeff_0.value, modulus.value);
+    let intermediate_mul = mul(U384(coeff_i), modulus_coeff_0, modulus);
     // Update position idx - 12
     let pos2 = idx - 12;
     let (current2_ptr) = dict_read{dict_ptr=mul_dict}(pos2);
-    tempvar current2 = cast(current2_ptr, UInt384*);
+    tempvar current2 = U384(cast(current2_ptr, UInt384*));
     // Subtract intermediate_mul from current value
-    let new_value2 = sub(current2, intermediate_mul, modulus.value);
+    let new_value2 = sub(current2, intermediate_mul, modulus);
     // Write the new value to the dictionary
-    dict_write{dict_ptr=mul_dict}(pos2, cast(new_value2, felt));
+    dict_write{dict_ptr=mul_dict}(pos2, cast(new_value2.value, felt));
 
     return ();
 }
