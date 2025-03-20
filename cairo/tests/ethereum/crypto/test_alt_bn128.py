@@ -64,3 +64,7 @@ class TestAltBn128:
     @given(a=..., b=...)
     def test_bnf2_add(self, cairo_run, a: BNF2, b: BNF2):
         assert cairo_run("bnf2_add", a, b) == a + b
+
+    @given(a=..., b=...)
+    def test_bnf2_mul(self, cairo_run, a: BNF2, b: BNF2):
+        assert cairo_run("bnf2_mul", a, b) == a * b
