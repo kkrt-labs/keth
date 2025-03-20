@@ -51,11 +51,12 @@ class AccountProof:
 @dataclass
 class EthereumRPC:
     url: str
+    FALLBACK_RPC_URL = "https://eth.llamarpc.com"
 
     @classmethod
     def from_env(cls) -> "EthereumRPC":
         load_dotenv(override=False)
-        rpc_url = os.getenv("CHAIN_RPC_URL", "https://eth.llamarpc.com")
+        rpc_url = os.getenv("CHAIN_RPC_URL", cls.FALLBACK_RPC_URL)
         return cls(rpc_url)
 
     def get_proof(
@@ -64,6 +65,14 @@ class EthereumRPC:
         block_number: Union[U64, str] = "latest",
         storage_keys: List[Bytes32] = [],
     ) -> AccountProof:
+        """
+        Get the proof for an account and a list of storage keys.
+
+        Args:
+            address: The address to get the proof for
+            block_number: The block number to get a proof for
+            storage_keys: The storage keys to get a proof for
+        """
         payload = {
             "jsonrpc": "2.0",
             "method": "eth_getProof",
@@ -103,7 +112,13 @@ class EthereumRPC:
     def get_code(
         self, address: Address, block_number: Union[U64, str] = "latest"
     ) -> Bytes:
-        logger.debug(f"Getting code for 0x{address.hex()}")
+        """
+        Get the code for an address at a given block number.
+
+        Args:
+            address: The address to get the code for
+            block_number: The block number to get the code for
+        """
         payload = {
             "jsonrpc": "2.0",
             "method": "eth_getCode",

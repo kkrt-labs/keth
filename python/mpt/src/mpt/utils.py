@@ -19,6 +19,10 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class AccountNode:
+    """
+    Represents an account node in an Ethereum MPT.
+    """
+
     nonce: Uint
     balance: U256
     code_hash: Hash32
@@ -26,6 +30,9 @@ class AccountNode:
 
     @staticmethod
     def from_rlp(bytes: Bytes) -> "AccountNode":
+        """
+        Decode the RLP encoded representation of an account node.
+        """
         decoded = rlp.decode(bytes)
         return AccountNode(
             nonce=Uint(int.from_bytes(decoded[0], "big")),
@@ -34,7 +41,10 @@ class AccountNode:
             code_hash=Hash32(decoded[3]),
         )
 
-    def to_account(self, code: Bytes) -> Account:
+    def to_eels_account(self, code: Bytes) -> Account:
+        """
+        Converts an "AccountNode" to the "Account" type used in EELS.
+        """
         return Account(
             nonce=self.nonce,
             balance=self.balance,
@@ -61,12 +71,15 @@ def decode_node(node: Bytes) -> InternalNode:
 
         nibbles = bytes_to_nibble_list(prefix)
         first_nibble = nibbles[0]
-        if first_nibble in (1, 3):
+        ODD_LENGTH_PREFIX = (1, 3)
+
+        if first_nibble in ODD_LENGTH_PREFIX:
             nibbles = nibbles[1:]
         else:
             nibbles = nibbles[2:]
 
-        is_leaf = first_nibble in (2, 3)
+        EVEN_LENGTH_PREFIX = (2, 3)
+        is_leaf = first_nibble in EVEN_LENGTH_PREFIX
         if is_leaf:
             return LeafNode(rest_of_key=nibbles, value=value)
         else:
@@ -74,6 +87,9 @@ def decode_node(node: Bytes) -> InternalNode:
 
 
 def nibble_list_to_bytes(nibble_list: Bytes) -> Bytes:
+    """
+    Convert a list of nibbles to bytes by concatenating pairs of nibbles.
+    """
     return bytes(
         [
             (nibble_list[i] & 0x0F) * 16 + (nibble_list[i + 1] & 0x0F)
@@ -83,4 +99,7 @@ def nibble_list_to_bytes(nibble_list: Bytes) -> Bytes:
 
 
 def nibble_path_to_hex(nibble_path: Bytes) -> str:
+    """
+    Convert a nibble path to a hex string.
+    """
     return "0x" + nibble_list_to_bytes(nibble_path).hex()

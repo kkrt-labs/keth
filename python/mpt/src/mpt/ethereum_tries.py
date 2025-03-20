@@ -38,17 +38,33 @@ EMPTY_BYTES_HASH = Hash32.fromhex(
 
 @dataclass
 class EthereumTries:
+    """
+    Represents an Ethereum MPT.
+
+    Attributes:
+        nodes: A mapping of node hashes to the corresponding internal nodes.
+        codes: A mapping of code hashes to the corresponding code.
+        address_preimages: A mapping of MPT path to the corresponding addresses.
+        storage_key_preimages: A mapping of MPT path to the corresponding storage keys.
+        state_root: The root hash of the MPT.
+    """
+
     nodes: Mapping[Hash32, InternalNode]
     codes: Mapping[Hash32, Bytes]
     address_preimages: Mapping[Hash32, Address]
     storage_key_preimages: Mapping[Hash32, Bytes32]
     state_root: Hash32
 
-    # TODO: remove this rpc client once there are no missing codes in zkpi
-    # currently, zkpi does not provide codes of accounts touched only by EXTCODEHASH during a block execution
+    # TODO: remove
+    # Currently, zkpi does not provide codes of accounts touched only by EXTCODEHASH during a block
+    # execution. As such, we fallback on an RPC client to fetch missing codes.
     rpc_client: Optional[EthereumRPC] = None
 
     def get_code(self, code_hash: Hash32, address: Address) -> Bytes:
+        """
+        Get the code corresponding to the given code hash.
+        If no code is found, we fallback on an RPC client to fetch the code.
+        """
         if code_hash == EMPTY_BYTES_HASH:
             return b""
 
@@ -71,6 +87,15 @@ class EthereumTries:
 
     @staticmethod
     def from_data(data: Dict[str, Any]):
+        """
+        Create an EthereumTries object from the ZKPI-provided data.
+
+        Args:
+            data: The ZKPI-provided data.
+
+        Returns:
+            An EthereumTries object.
+        """
         nodes = {
             keccak256(bytes.fromhex(node[2:])): decode_node(bytes.fromhex(node[2:]))
             for node in data["witness"]["state"]
@@ -216,7 +241,10 @@ class EthereumTries:
         node: LeafNode,
         full_path: Bytes,
         state: State,
-    ) -> None:
+    ):
+        """
+        Decode the account contained in the leaf node and set the account in the state.
+        """
         logger.debug(f"Processing account leaf node with path 0x{full_path.hex()}")
         address = self.address_preimages.get(full_path)
         if address is None:
@@ -227,7 +255,7 @@ class EthereumTries:
 
         account_node = AccountNode.from_rlp(node.value)
         account_code = self.get_code(account_node.code_hash, address)
-        account = account_node.to_account(account_code)
+        account = account_node.to_eels_account(account_code)
 
         logger.debug(
             f"Setting account 0x{address.hex()} with nonce {account.nonce}, balance {account.balance}, code hash 0x{keccak256(account.code).hex()}"
@@ -242,12 +270,10 @@ class EthereumTries:
         storage_root_node = self.nodes.get(account_node.storage_root)
         if storage_root_node is None:
             logger.debug(
-                f"Storage root node not found for account 0x{address.hex()}, skipping"
+                f"Storage root node not found for account {address.hex()}, skipping"
             )
             return
-        logger.debug(
-            f"Storage root node found for 0x{address.hex()}, opening storage trie"
-        )
+
         self.traverse_trie_and_process_leaf(
             storage_root_node,
             b"",
@@ -260,7 +286,10 @@ class EthereumTries:
         full_path: Bytes,
         state: State,
         account_address: Address,
-    ) -> None:
+    ):
+        """
+        Decode the storage value contained in the leaf node and set the storage value in the state.
+        """
         logger.debug(f"Processing storage leaf node with path 0x{full_path.hex()}")
         storage_key = self.storage_key_preimages.get(full_path)
         if storage_key is None:
@@ -281,9 +310,7 @@ class EthereumTries:
         """
         state = State()
         root_node = self.nodes[self.state_root]
-        logger.debug("Starting to derive state from root node")
         self.traverse_trie_and_process_leaf(
             root_node, b"", partial(self.set_account_from_leaf, state=state)
         )
-        logger.debug("Finished deriving state object")
         return state
