@@ -43,7 +43,8 @@ class EthereumTries:
     storage_key_preimages: Mapping[Hash32, Bytes32]
     state_root: Hash32
 
-    # TODO: remove this rpc client when we can
+    # TODO: remove this rpc client once there are no missing codes in zkpi
+    # currently, zkpi does not provide codes of accounts touched only by EXTCODEHASH during a block execution
     rpc_client: Optional[EthereumRPC] = None
 
     def get_code(self, code_hash: Hash32, address: Address) -> Bytes:
@@ -114,7 +115,7 @@ class EthereumTries:
             state_root=state_root,
         )
 
-    def traverse_trie(
+    def traverse_trie_and_process_leaf(
         self, node: InternalNode, current_path: Bytes, process_leaf: callable, **kwargs
     ) -> None:
         """
@@ -147,17 +148,21 @@ class EthereumTries:
                 # Handle the next node
                 if len(subnode) > 32:
                     raise ValueError(f"Invalid subnode length: {len(subnode)}")
-                    next_node = self.nodes.get(subnode) if len(subnode) == 32 else decode_node(subnode)
-                    if not next_node:
-                        # If the subnode is not found, we assume this path
-                        # is not needed for block execution
-                        continue
+                next_node = (
+                    self.nodes.get(subnode)
+                    if len(subnode) == 32
+                    else decode_node(subnode)
+                )
+                if not next_node:
+                    # If the subnode is not found, we assume this path
+                    # is not needed for block execution
+                    continue
 
                 if next_node is not None:
                     logger.debug(
                         f"Traversing branch node with current path 0x{nibble_list_to_bytes(current_path + nibble).hex()}"
                     )
-                    self.traverse_trie(
+                    self.traverse_trie_and_process_leaf(
                         next_node, current_path + nibble, process_leaf, **kwargs
                     )
             return
@@ -170,14 +175,20 @@ class EthereumTries:
 
             if len(node.subnode) > 32:
                 raise ValueError(f"Invalid subnode length: {len(node.subnode)}")
-                
+
             # subnode is a hash, so we need to resolve it
-            next_node = self.nodes.get(node.subnode) if len(node.subnode) == 32 else decode_node(node.subnode)
+            next_node = (
+                self.nodes.get(node.subnode)
+                if len(node.subnode) == 32
+                else decode_node(node.subnode)
+            )
             if not next_node:
                 # If the subnode is not found, we assume this path
                 # is not needed for block execution
                 return
-            return self.traverse_trie(next_node, current_path, process_leaf, **kwargs)
+            return self.traverse_trie_and_process_leaf(
+                next_node, current_path, process_leaf, **kwargs
+            )
 
         if isinstance(node, LeafNode):
             logger.debug(
@@ -225,7 +236,13 @@ class EthereumTries:
         logger.debug(
             f"Storage root node found for 0x{address.hex()}, opening storage trie"
         )
-        self.resolve_storage(storage_root_node, b"", state, address)
+        self.traverse_trie_and_process_leaf(
+            storage_root_node,
+            b"",
+            self.set_storage_from_leaf,
+            state=state,
+            account_address=address,
+        )
 
     def set_storage_from_leaf(
         self,
@@ -248,27 +265,6 @@ class EthereumTries:
             state, account_address, storage_key, U256(int.from_bytes(value, "big"))
         )
 
-    def resolve(self, node: InternalNode, current_path: Bytes, state: State) -> None:
-        logger.debug(f"Resolving node at path 0x{current_path.hex()}")
-        return self.traverse_trie(
-            node, current_path, self.process_account_leaf, state=state
-        )
-
-    def resolve_storage(
-        self,
-        node: InternalNode,
-        current_path: Bytes,
-        state: State,
-        account_address: Address,
-    ) -> None:
-        return self.traverse_trie(
-            node,
-            current_path,
-            self.process_storage_leaf,
-            state=state,
-            account_address=account_address,
-        )
-
     def to_state(self) -> State:
         """
         Convert the Ethereum tries to a State object from the `ethereum` package.
@@ -276,6 +272,8 @@ class EthereumTries:
         state = State()
         root_node = self.nodes[self.state_root]
         logger.debug("Starting to derive state from root node")
-        self.resolve(root_node, b"", state)
+        self.traverse_trie_and_process_leaf(
+            root_node, b"", self.set_account_from_leaf, state=state
+        )
         logger.debug("Finished deriving state object")
         return state
