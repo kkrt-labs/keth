@@ -72,6 +72,18 @@ def convert_accounts(
             "storage": {},
         }
 
+        empty_account = {
+            "balance": "0x0",
+            "nonce": "0x0",
+            "code": "0x",
+            "storage": {},
+        }
+        if account_state == empty_account:
+            logger.info(
+                f"empty account for address {account_proof['address']}, skipping"
+            )
+            continue
+
         if account_proof["storageHash"] != EMPTY_STORAGE_ROOT:
             for storage_proof in account_proof.get("storageProof", []):
                 key = storage_proof["key"]

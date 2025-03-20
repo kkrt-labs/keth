@@ -2092,6 +2092,7 @@ name = "mpt"
 version = "0.1.0"
 source = { editable = "python/mpt" }
 dependencies = [
+    { name = "eth-rpc" },
     { name = "ethereum" },
 ]
 
@@ -2101,7 +2102,10 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "ethereum" }]
+requires-dist = [
+    { name = "eth-rpc", editable = "python/eth-rpc" },
+    { name = "ethereum" },
+]
 
 [package.metadata.requires-dev]
 dev = [{ name = "pydantic", specifier = ">=2.9.1" }]

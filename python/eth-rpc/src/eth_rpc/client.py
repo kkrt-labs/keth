@@ -1,3 +1,4 @@
+import logging
 import os
 from dataclasses import dataclass
 from typing import List, Union
@@ -5,9 +6,11 @@ from typing import List, Union
 import requests
 from dotenv import load_dotenv
 from ethereum.cancun.fork_types import Address
-from ethereum.crypto.hash import Hash32
+from ethereum.crypto.hash import Hash32, keccak256
 from ethereum_types.bytes import Bytes, Bytes32
 from ethereum_types.numeric import U64, U256
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -101,6 +104,7 @@ class EthereumRPC:
     def get_code(
         self, address: Address, block_number: Union[U64, str] = "latest"
     ) -> Bytes:
+        logger.debug(f"Getting code for 0x{address.hex()}")
         payload = {
             "jsonrpc": "2.0",
             "method": "eth_getCode",
@@ -115,5 +119,6 @@ class EthereumRPC:
         }
         response = requests.post(self.url, json=payload)
 
-        result = response.json()["result"]
-        return Bytes.fromhex(result[2:])
+        result = Bytes.fromhex(response.json()["result"][2:])
+        logger.debug(f"Code Hash for 0x{address.hex()} is {keccak256(result).hex()}")
+        return result
