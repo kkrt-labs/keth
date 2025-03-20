@@ -7,6 +7,7 @@ from typing import (
     Generic,
     Optional,
     Tuple,
+    Type,
     TypeVar,
     Union,
     get_args,
@@ -24,8 +25,9 @@ from ethereum.cancun.transactions import (
 )
 from ethereum.cancun.trie import BranchNode, ExtensionNode, LeafNode, Trie, copy_trie
 from ethereum.cancun.vm import Environment, Evm, Message
-from ethereum.crypto.alt_bn128 import BNF12, BNP12
+from ethereum.crypto.alt_bn128 import BNF2, BNF12, BNP12
 from ethereum.crypto.elliptic_curve import SECP256K1N
+from ethereum.crypto.finite_field import GaloisField
 from ethereum.crypto.hash import Hash32
 from ethereum.exceptions import EthereumException
 from ethereum_types.bytes import (
@@ -516,14 +518,17 @@ private_key = (
 )
 
 
-bnf12_strategy = st.builds(
-    BNF12,
-    st.lists(
-        st.integers(min_value=0, max_value=BNF12.PRIME - 1),
-        min_size=12,
-        max_size=12,
-    ).map(tuple),
-)
+def bnfN_strategy(field: Type[GaloisField], N: int):
+    return st.builds(
+        field,
+        st.lists(
+            st.integers(min_value=0, max_value=field.PRIME - 1), min_size=N, max_size=N
+        ).map(tuple),
+    )
+
+
+bnf12_strategy = bnfN_strategy(BNF12, 12)
+bnf2_strategy = bnfN_strategy(BNF2, 2)
 
 
 def compute_sqrt_mod_p(a, p):
@@ -669,3 +674,4 @@ def register_type_strategies():
     )
     st.register_type_strategy(BNF12, bnf12_strategy)
     st.register_type_strategy(BNP12, bnp12_strategy)
+    st.register_type_strategy(BNF2, bnf2_strategy)

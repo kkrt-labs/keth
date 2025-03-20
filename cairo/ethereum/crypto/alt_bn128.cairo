@@ -14,6 +14,27 @@ from cairo_ec.curve.alt_bn128 import alt_bn128
 from ethereum.utils.numeric import divmod, U384_ZERO
 from ethereum_types.numeric import U384
 
+struct BNF2Struct {
+    c0: U384,
+    c1: U384,
+}
+
+struct BNF2 {
+    value: BNF2Struct*,
+}
+
+func bnf2_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
+    a: BNF2, b: BNF2
+) -> BNF2 {
+    tempvar modulus = U384(new UInt384(alt_bn128.P0, alt_bn128.P1, alt_bn128.P2, alt_bn128.P3));
+
+    let res_c0 = add(a.value.c0.value, b.value.c0.value, modulus.value);
+    let res_c1 = add(a.value.c1.value, b.value.c1.value, modulus.value);
+
+    tempvar res = BNF2(new BNF2Struct(U384(res_c0), U384(res_c1)));
+    return res;
+}
+
 // BNF12 represents a field element in the BNF12 extension field
 // This is a 12-degree extension of the base field used in alt_bn128 curve
 struct BNF12Struct {
@@ -547,12 +568,9 @@ func bnf12_from_int{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_
 }
 
 // Addition between two BNF12 elements.
-func bnf12_add{
-    range_check_ptr: felt,
-    range_check96_ptr: felt*,
-    add_mod_ptr: ModBuiltin*,
-    mul_mod_ptr: ModBuiltin*,
-}(a: BNF12, b: BNF12) -> BNF12 {
+func bnf12_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
+    a: BNF12, b: BNF12
+) -> BNF12 {
     tempvar modulus = U384(new UInt384(alt_bn128.P0, alt_bn128.P1, alt_bn128.P2, alt_bn128.P3));
 
     let res_c0 = add(a.value.c0.value, b.value.c0.value, modulus.value);
@@ -588,12 +606,9 @@ func bnf12_add{
 }
 
 // Subtraction between two BNF12 elements.
-func bnf12_sub{
-    range_check_ptr: felt,
-    range_check96_ptr: felt*,
-    add_mod_ptr: ModBuiltin*,
-    mul_mod_ptr: ModBuiltin*,
-}(a: BNF12, b: BNF12) -> BNF12 {
+func bnf12_sub{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
+    a: BNF12, b: BNF12
+) -> BNF12 {
     tempvar modulus = U384(new UInt384(alt_bn128.P0, alt_bn128.P1, alt_bn128.P2, alt_bn128.P3));
 
     let res_c0 = sub(a.value.c0.value, b.value.c0.value, modulus.value);
@@ -629,12 +644,9 @@ func bnf12_sub{
 }
 
 // Scalar multiplication of one BNF12 element.
-func bnf12_scalar_mul{
-    range_check_ptr: felt,
-    range_check96_ptr: felt*,
-    add_mod_ptr: ModBuiltin*,
-    mul_mod_ptr: ModBuiltin*,
-}(a: BNF12, x: U384) -> BNF12 {
+func bnf12_scalar_mul{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
+    a: BNF12, x: U384
+) -> BNF12 {
     let (__fp__, _) = get_fp_and_pc();
     tempvar modulus = U384(new UInt384(alt_bn128.P0, alt_bn128.P1, alt_bn128.P2, alt_bn128.P3));
 

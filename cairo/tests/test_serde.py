@@ -30,7 +30,7 @@ from ethereum.cancun.vm.exceptions import (
 )
 from ethereum.cancun.vm.gas import ExtendMemory, MessageCallGas
 from ethereum.cancun.vm.interpreter import MessageCallOutput
-from ethereum.crypto.alt_bn128 import BNF12, BNP12
+from ethereum.crypto.alt_bn128 import BNF2, BNF12, BNP12
 from ethereum.crypto.hash import Hash32
 from ethereum.exceptions import (
     EthereumException,
@@ -105,11 +105,8 @@ def get_type(instance: Any) -> Type:
     if not isinstance(instance, (tuple, list)):
         return type(instance)
 
-    if isinstance(instance, BNF12):
-        return BNF12
-
-    if isinstance(instance, BNP12):
-        return BNP12
+    if isinstance(instance, (BNF12, BNF2, BNP12)):
+        return instance.__class__
 
     # Empty sequence
     if not instance:
@@ -295,6 +292,7 @@ class TestSerde:
             BNF12,
             Tuple[BNF12, ...],
             BNP12,
+            BNF2,
         ],
     ):
         assume(no_empty_sequence(b))

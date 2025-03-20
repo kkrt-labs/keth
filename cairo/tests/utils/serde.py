@@ -41,7 +41,7 @@ from ethereum.cancun.fork_types import Account, Address
 from ethereum.cancun.state import State, TransientStorage
 from ethereum.cancun.trie import Trie
 from ethereum.cancun.vm.exceptions import InvalidOpcode
-from ethereum.crypto.alt_bn128 import BNF12
+from ethereum.crypto.alt_bn128 import BNF2, BNF12
 from ethereum.crypto.hash import Hash32
 from ethereum_types.bytes import (
     Bytes,
@@ -425,11 +425,11 @@ class Serde:
         if python_cls in (Bytes0, Bytes1, Bytes4, Bytes8, Bytes20):
             return python_cls(value.to_bytes(python_cls.LENGTH, "little"))
 
-        if python_cls == BNF12:
-            # The BNF12 constructor doesn't accept named tuples
+        if python_cls in (BNF2, BNF12):
+            # The BNF<N> constructor doesn't accept named tuples
             # and values are integers, not U384.
             values = [int(v) for v in value.values()]
-            return BNF12(tuple(values))
+            return python_cls(tuple(values))
 
         # Because some types are wrapped in a value field, e.g. Account{ value: AccountStruct }
         # this may not work, so that we catch the error and try to fallback.

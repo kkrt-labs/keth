@@ -1,4 +1,4 @@
-from ethereum.crypto.alt_bn128 import BNF12, BNP12
+from ethereum.crypto.alt_bn128 import BNF2, BNF12, BNP12
 from hypothesis import given
 
 from tests.utils.args_gen import U384
@@ -60,3 +60,7 @@ class TestAltBn128:
     def test_bnf12_mul(self, cairo_run, a: BNF12, b: BNF12):
         cairo_result = cairo_run("bnf12_mul", a, b)
         assert cairo_result == a * b
+
+    @given(a=..., b=...)
+    def test_bnf2_add(self, cairo_run, a: BNF2, b: BNF2):
+        assert cairo_run("bnf2_add", a, b) == a + b
