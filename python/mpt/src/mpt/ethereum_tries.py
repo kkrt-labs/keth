@@ -143,14 +143,15 @@ class EthereumTries:
                     f"Traversing branch node with current path 0x{nibble_list_to_bytes(current_path).hex()}"
                 )
                 for i, subnode in enumerate(node.subnodes):
-                    nibble = bytes([i])
                     # We skip empty nodes
                     if not subnode:
                         continue
+                    nibble = bytes([i])
 
                     # Handle the next node
                     if len(subnode) > 32:
                         raise ValueError(f"Invalid subnode length: {len(subnode)}")
+
                     next_node = (
                         self.nodes.get(subnode)
                         if len(subnode) == 32
@@ -190,6 +191,7 @@ class EthereumTries:
                     # If the subnode is not found, we assume this path
                     # is not needed for block execution
                     return
+
                 return self.traverse_trie_and_process_leaf(
                     next_node,
                     current_path,
