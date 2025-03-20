@@ -1,17 +1,19 @@
+import json
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import partial
+from pathlib import Path
 from typing import Any, Callable, Dict, Optional, Tuple
 
 from ethereum.cancun.fork_types import Address
 from ethereum.cancun.trie import BranchNode, ExtensionNode, InternalNode, LeafNode
-from ethereum.crypto.hash import Hash32, keccak256
+from ethereum.crypto.hash import Hash32
 from ethereum_rlp import rlp
-from ethereum_types.bytes import Bytes, Bytes20, Bytes32
+from ethereum_types.bytes import Bytes, Bytes32
 from ethereum_types.numeric import U256, Uint
 
 from mpt import EthereumTrieTransitionDB
-from mpt.utils import AccountNode, decode_node, nibble_path_to_bytes
+from mpt.utils import AccountNode, nibble_path_to_bytes
 
 logger = logging.getLogger(__name__)
 
@@ -22,65 +24,30 @@ class StateDiff:
     Contains all information that is preserved between transactions.
     """
 
-    _main_trie: Dict[Address, Tuple[Optional[AccountNode], Optional[AccountNode]]]
-    _storage_tries: Dict[Address, Tuple[Dict[Bytes32, U256], Dict[Bytes32, U256]]]
+    _main_trie: Dict[Address, Tuple[Optional[AccountNode], Optional[AccountNode]]] = (
+        field(default_factory=dict)
+    )
+    _storage_tries: Dict[
+        Address, Tuple[Dict[Bytes32, Optional[U256]], Dict[Bytes32, Optional[U256]]]
+    ] = field(default_factory=dict)
 
-    _nodes: Dict[Hash32, InternalNode]
-    _address_preimages: Dict[Hash32, Address]
-    _storage_key_preimages: Dict[Hash32, Bytes32]
+    # TODO: remove these from this class. They don't belong here. But it's useful to avoid passing them around.
+    _nodes: Dict[Hash32, InternalNode] = field(default_factory=dict)
+    _address_preimages: Dict[Hash32, Address] = field(default_factory=dict)
+    _storage_key_preimages: Dict[Hash32, Bytes32] = field(default_factory=dict)
 
-    @staticmethod
-    def from_data(data: Dict[str, Any]) -> "StateDiff":
-        pre_nodes = {
-            keccak256(bytes.fromhex(node[2:])): decode_node(bytes.fromhex(node[2:]))
-            for node in data["witness"]["state"]
-        }
+    @classmethod
+    def from_json(cls, path: Path) -> "StateDiff":
+        with open(path, "r") as f:
+            data = json.load(f)
+        return cls.from_data(data)
 
-        pre_state_root = Hash32.fromhex(
-            data["witness"]["ancestors"][0]["stateRoot"][2:]
-        )
-        if pre_state_root not in pre_nodes:
-            raise ValueError(f"State root not found in nodes: {pre_state_root}")
-
-        post_nodes = {
-            keccak256(bytes.fromhex(node[2:])): decode_node(bytes.fromhex(node[2:]))
-            for node in data["extra"]["committed"]
-        }
-
-        post_state_root = Hash32.fromhex(data["blocks"][0]["header"]["stateRoot"][2:])
-        if post_state_root not in post_nodes:
-            raise ValueError(f"State root not found in nodes: {post_state_root}")
-
-        nodes = {**pre_nodes, **post_nodes}
-
-        # TODO: modify zk-pig to provide directly address preimages
-
-        # We need address & storage key preimages to get an address and storage key given a trie path, which is the hash of address and storage_key for the Ethereum tries
-        # Because State object from `ethereum` package maps Addresses to Accounts, and Storage Keys to Storage Values.
-        # See 👇
-        # class State:
-        #     _main_trie: Trie[Address, Optional[Account]]
-        #     _storage_tries: Dict[Address, Trie[Bytes32, U256]]
-        # ...
-        access_list = (
-            data["accessList"] if "accessList" in data else data["extra"]["accessList"]
-        )
-        address_preimages = {
-            keccak256(Bytes20.fromhex(preimage["address"][2:])): Address.fromhex(
-                preimage["address"][2:]
-            )
-            for preimage in access_list
-        }
-        storage_key_preimages = {
-            keccak256(Bytes32.fromhex(storage_key[2:])): Bytes32.fromhex(
-                storage_key[2:]
-            )
-            for access in access_list
-            for storage_key in access["storageKeys"] or []
-        }
-
-        ## Parse state diff for accounts
-        state_diff = StateDiff({}, {}, nodes, address_preimages, storage_key_preimages)
+    @classmethod
+    def from_data(cls, data: Dict[str, Any]) -> "StateDiff":
+        """
+        Parse state diff from ZKPI data.
+        """
+        state_diff = cls()
         for diff in data["extra"]["stateDiffs"]:
             address = Address.fromhex(diff["address"][2:])
             if "preAccount" in diff:
@@ -135,59 +102,11 @@ class StateDiff:
             {}, {}, tries.nodes, tries.address_preimages, tries.storage_key_preimages
         )
 
-        l_root = tries.pre_state_root
+        l_root = tries.state_root
         r_root = tries.post_state_root
 
         diff._compute_diff(l_root, r_root, Bytes(), diff._process_account_diff)
         return diff
-
-    def _process_account_diff(
-        self, path: Bytes32, left: Optional[LeafNode], right: Optional[LeafNode]
-    ):
-        address = self._address_preimages[path]
-        left_account = None if left is None else AccountNode.from_rlp(left.value)
-        right_account = None if right is None else AccountNode.from_rlp(right.value)
-
-        self._main_trie[address] = (left_account, right_account)
-
-        left_storage_root = None if left_account is None else left_account.storage_root
-        right_storage_root = (
-            None if right_account is None else right_account.storage_root
-        )
-
-        self._compute_diff(
-            left_storage_root,
-            right_storage_root,
-            b"",
-            partial(self._process_storage_diff, address=address),
-        )
-
-    def _process_storage_diff(
-        self,
-        path: Bytes32,
-        left: Optional[LeafNode],
-        right: Optional[LeafNode],
-        address: Address,
-    ):
-        key = self._storage_key_preimages[path]
-        left_decoded = (
-            U256(int.from_bytes(rlp.decode(left.value), "big")) if left else None
-        )
-        right_decoded = (
-            U256(int.from_bytes(rlp.decode(right.value), "big")) if right else None
-        )
-        if left is None:
-            if address not in self._storage_tries:
-                self._storage_tries[address] = {}
-            self._storage_tries[address][key] = tuple((None, right_decoded))
-        elif right is None:
-            if address not in self._storage_tries:
-                self._storage_tries[address] = {}
-            self._storage_tries[address][key] = tuple((left_decoded, None))
-        else:
-            if address not in self._storage_tries:
-                self._storage_tries[address] = {}
-            self._storage_tries[address][key] = tuple((left_decoded, right_decoded))
 
     def _compute_diff(
         self,
@@ -419,3 +338,51 @@ class StateDiff:
                 raise ValueError(
                     f"Node types do not match: {type(l_node)} != {type(r_node)}"
                 )
+
+    def _process_account_diff(
+        self, path: Bytes32, left: Optional[LeafNode], right: Optional[LeafNode]
+    ):
+        address = self._address_preimages[path]
+        left_account = None if left is None else AccountNode.from_rlp(left.value)
+        right_account = None if right is None else AccountNode.from_rlp(right.value)
+
+        self._main_trie[address] = (left_account, right_account)
+
+        left_storage_root = None if left_account is None else left_account.storage_root
+        right_storage_root = (
+            None if right_account is None else right_account.storage_root
+        )
+
+        self._compute_diff(
+            left_storage_root,
+            right_storage_root,
+            b"",
+            partial(self._process_storage_diff, address=address),
+        )
+
+    def _process_storage_diff(
+        self,
+        path: Bytes32,
+        left: Optional[LeafNode],
+        right: Optional[LeafNode],
+        address: Address,
+    ):
+        key = self._storage_key_preimages[path]
+        left_decoded = (
+            U256(int.from_bytes(rlp.decode(left.value), "big")) if left else None
+        )
+        right_decoded = (
+            U256(int.from_bytes(rlp.decode(right.value), "big")) if right else None
+        )
+        if left is None:
+            if address not in self._storage_tries:
+                self._storage_tries[address] = {}
+            self._storage_tries[address][key] = tuple((None, right_decoded))
+        elif right is None:
+            if address not in self._storage_tries:
+                self._storage_tries[address] = {}
+            self._storage_tries[address][key] = tuple((left_decoded, None))
+        else:
+            if address not in self._storage_tries:
+                self._storage_tries[address] = {}
+            self._storage_tries[address][key] = tuple((left_decoded, right_decoded))

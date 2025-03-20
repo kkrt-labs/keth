@@ -16,15 +16,10 @@ from ethereum.cancun.trie import (
 from ethereum.crypto.hash import Hash32, keccak256
 from ethereum_rlp import rlp
 from ethereum_types.bytes import Bytes, Bytes20, Bytes32
-from ethereum_types.numeric import U256, Uint
+from ethereum_types.numeric import U256
 
 from eth_rpc import EthereumRPC
-from mpt.utils import (
-    AccountNode,
-    decode_node,
-    nibble_list_to_bytes,
-)
-from mpt.trie_diff import StateDiff
+from mpt.utils import AccountNode, decode_node, nibble_path_to_bytes
 
 logger = logging.getLogger(__name__)
 
@@ -147,103 +142,6 @@ class EthereumTries:
             state_root=pre_state_root,
         )
 
-
-@dataclass
-class EthereumTrieTransitionDB:
-    nodes: Mapping[Hash32, InternalNode]
-    codes: Mapping[Hash32, Bytes]
-    address_preimages: Mapping[Hash32, Address]
-    storage_key_preimages: Mapping[Hash32, Bytes32]
-    pre_state_root: Hash32
-    post_state_root: Hash32
-
-    @staticmethod
-    def from_pre_and_post_tries(pre_trie: EthereumTries, post_trie: EthereumTries):
-        return EthereumTrieTransitionDB(
-            nodes={**pre_trie.nodes, **post_trie.nodes},
-            codes={**pre_trie.codes, **post_trie.codes},
-            address_preimages={
-                **pre_trie.address_preimages,
-                **post_trie.address_preimages,
-            },
-            storage_key_preimages={
-                **pre_trie.storage_key_preimages,
-                **post_trie.storage_key_preimages,
-            },
-            pre_state_root=pre_trie.state_root,
-            post_state_root=post_trie.state_root,
-        )
-
-    @staticmethod
-    def from_json(path: Path):
-        with open(path, "r") as f:
-            data = json.load(f)
-        return EthereumTrieTransitionDB.from_data(data)
-
-    @staticmethod
-    def from_data(data: Dict[str, Any]):
-        pre_nodes = {
-            keccak256(bytes.fromhex(node[2:])): decode_node(bytes.fromhex(node[2:]))
-            for node in data["witness"]["state"]
-        }
-
-        pre_state_root = Hash32.fromhex(
-            data["witness"]["ancestors"][0]["stateRoot"][2:]
-        )
-        if pre_state_root not in pre_nodes:
-            raise ValueError(f"State root not found in nodes: {pre_state_root}")
-
-        post_nodes = {
-            keccak256(bytes.fromhex(node[2:])): decode_node(bytes.fromhex(node[2:]))
-            for node in data["extra"]["committed"]
-        }
-
-        post_state_root = Hash32.fromhex(data["blocks"][0]["header"]["stateRoot"][2:])
-        if post_state_root not in post_nodes:
-            raise ValueError(f"State root not found in nodes: {post_state_root}")
-
-        nodes = {**pre_nodes, **post_nodes}
-
-        codes = {
-            keccak256(Bytes.fromhex(code[2:])): Bytes.fromhex(code[2:])
-            for code in data["witness"]["codes"]
-        }
-
-        # TODO: modify zk-pig to provide directly address preimages
-
-        # We need address & storage key preimages to get an address and storage key given a trie path, which is the hash of address and storage_key for the Ethereum tries
-        # Because State object from `ethereum` package maps Addresses to Accounts, and Storage Keys to Storage Values.
-        # See 👇
-        # class State:
-        #     _main_trie: Trie[Address, Optional[Account]]
-        #     _storage_tries: Dict[Address, Trie[Bytes32, U256]]
-        # ...
-        access_list = (
-            data["accessList"] if "accessList" in data else data["extra"]["accessList"]
-        )
-        address_preimages = {
-            keccak256(Bytes20.fromhex(preimage["address"][2:])): Address.fromhex(
-                preimage["address"][2:]
-            )
-            for preimage in access_list
-        }
-        storage_key_preimages = {
-            keccak256(Bytes32.fromhex(storage_key[2:])): Bytes32.fromhex(
-                storage_key[2:]
-            )
-            for access in access_list
-            for storage_key in access["storageKeys"] or []
-        }
-
-        return EthereumTrieTransitionDB(
-            nodes=nodes,
-            codes=codes,
-            address_preimages=address_preimages,
-            storage_key_preimages=storage_key_preimages,
-            pre_state_root=pre_state_root,
-            post_state_root=post_state_root,
-        )
-
     def traverse_trie_and_process_leaf(
         self,
         node: InternalNode,
@@ -268,7 +166,7 @@ class EthereumTrieTransitionDB:
         match node:
             case BranchNode():
                 logger.debug(
-                    f"Traversing branch node with current path 0x{nibble_list_to_bytes(current_path).hex()}"
+                    f"Traversing branch node with current path 0x{nibble_path_to_bytes(current_path).hex()}"
                 )
                 for i, subnode in enumerate(node.subnodes):
                     # We skip empty nodes
@@ -291,7 +189,7 @@ class EthereumTrieTransitionDB:
                         continue
 
                     logger.debug(
-                        f"Traversing branch node with current path 0x{nibble_list_to_bytes(current_path + nibble).hex()}"
+                        f"Traversing branch node with current path 0x{nibble_path_to_bytes(current_path + nibble).hex()}"
                     )
                     self.traverse_trie_and_process_leaf(
                         next_node,
@@ -302,7 +200,7 @@ class EthereumTrieTransitionDB:
 
             case ExtensionNode():
                 logger.debug(
-                    f"Traversing extension node with current path 0x{nibble_list_to_bytes(current_path + node.key_segment).hex()}"
+                    f"Traversing extension node with current path 0x{nibble_path_to_bytes(current_path + node.key_segment).hex()}"
                 )
                 current_path = current_path + node.key_segment
 
@@ -328,9 +226,9 @@ class EthereumTrieTransitionDB:
 
             case LeafNode():
                 logger.debug(
-                    f"Traversing leaf node with current path 0x{nibble_list_to_bytes(current_path + node.rest_of_key).hex()}"
+                    f"Traversing leaf node with current path 0x{nibble_path_to_bytes(current_path + node.rest_of_key).hex()}"
                 )
-                full_path = nibble_list_to_bytes(current_path + node.rest_of_key)
+                full_path = nibble_path_to_bytes(current_path + node.rest_of_key)
                 return process_leaf(
                     node,
                     full_path,
@@ -413,6 +311,82 @@ class EthereumTrieTransitionDB:
         """
         state = State()
         root_node = self.nodes[self.state_root]
+        self.traverse_trie_and_process_leaf(
+            root_node, b"", partial(self.set_account_from_leaf, state=state)
+        )
+        return state
+
+
+class EthereumTrieTransitionDB(EthereumTries):
+    """
+    Contains nodes of two Ethereum tries:
+     1. The sparse pre-state trie
+     2. The modified nodes in the post-state trie
+
+    We can traverse the entire pre-trie and post-trie from the pre_state_root and post_state_root by
+    looking up the nodes in the nodes mapping.
+
+    We can then compute the trie diff by comparing the pre-trie and post-trie.
+    """
+
+    post_state_root: Hash32
+
+    @staticmethod
+    def from_pre_and_post_tries(pre_trie: EthereumTries, post_trie: EthereumTries):
+        return EthereumTrieTransitionDB(
+            nodes={**pre_trie.nodes, **post_trie.nodes},
+            codes={**pre_trie.codes, **post_trie.codes},
+            address_preimages={
+                **pre_trie.address_preimages,
+                **post_trie.address_preimages,
+            },
+            storage_key_preimages={
+                **pre_trie.storage_key_preimages,
+                **post_trie.storage_key_preimages,
+            },
+            pre_state_root=pre_trie.state_root,
+            post_state_root=post_trie.state_root,
+        )
+
+    @classmethod
+    def from_json(cls, path: Path) -> "EthereumTrieTransitionDB":
+        with open(path, "r") as f:
+            data = json.load(f)
+        return EthereumTrieTransitionDB.from_data(data)
+
+    @classmethod
+    def from_data(cls, data: Dict[str, Any]) -> "EthereumTrieTransitionDB":
+        """
+        Create an EthereumTrieTransitionDB object from the ZKPI-provided data.
+        """
+        pre_trie = EthereumTries.from_data(data)
+
+        post_nodes = {
+            keccak256(bytes.fromhex(node[2:])): decode_node(bytes.fromhex(node[2:]))
+            for node in data["extra"]["committed"]
+        }
+        post_state_root = Hash32.fromhex(data["blocks"][0]["header"]["stateRoot"][2:])
+        if post_state_root not in post_nodes:
+            raise ValueError(f"Post state root not found in nodes: {post_state_root}")
+
+        instance = cls(
+            nodes={**pre_trie.nodes, **post_nodes},
+            codes=pre_trie.codes,
+            address_preimages=pre_trie.address_preimages,
+            storage_key_preimages=pre_trie.storage_key_preimages,
+            state_root=pre_trie.state_root,
+        )
+        instance.post_state_root = post_state_root
+        return instance
+
+    def to_pre_state(self) -> State:
+        """Convert the pre-state trie to a State object."""
+        return self.to_state()
+
+    def to_post_state(self) -> State:
+        """Convert the post-state trie to a State object."""
+        state = State()
+        root_node = self.nodes[self.post_state_root]
         self.traverse_trie_and_process_leaf(
             root_node, b"", partial(self.set_account_from_leaf, state=state)
         )
