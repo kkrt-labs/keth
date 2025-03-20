@@ -10,9 +10,14 @@ from starkware.cairo.common.math_cmp import is_le
 from cairo_core.control_flow import raise
 from cairo_ec.circuits.mod_ops_compiled import add, sub, mul
 from cairo_ec.curve.alt_bn128 import alt_bn128
+from cairo_ec.curve.g1_point import G1Point, G1PointStruct
+from cairo_ec.circuits.ec_ops_compiled import assert_on_curve
 
 from ethereum.utils.numeric import divmod, U384_ZERO
 from ethereum_types.numeric import U384
+
+using BNPStruct = G1PointStruct;
+using BNP = G1Point;
 
 struct BNF2Struct {
     c0: U384,
@@ -935,6 +940,20 @@ func create_bnf12_from_dict{range_check_ptr, mul_dict: DictAccess*}() -> BNF12 {
 
     tempvar bnf12_result = BNF12(result_struct);
     return bnf12_result;
+}
+
+// Returns a BNP (alias of G1Point, which is verified to be on the alt_bn128 curve).
+func bnp_init{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
+    x: U384, y: U384
+) -> BNP {
+    tempvar a = new UInt384(alt_bn128.A0, alt_bn128.A1, alt_bn128.A2, alt_bn128.A3);
+    tempvar b = new UInt384(alt_bn128.B0, alt_bn128.B1, alt_bn128.B2, alt_bn128.B3);
+    tempvar modulus = U384(new UInt384(alt_bn128.P0, alt_bn128.P1, alt_bn128.P2, alt_bn128.P3));
+
+    assert_on_curve(x.value, y.value, a, b, modulus.value);
+
+    tempvar res = BNP(new BNPStruct(x, y));
+    return res;
 }
 
 // alt_bn128 curve defined over BNF12
