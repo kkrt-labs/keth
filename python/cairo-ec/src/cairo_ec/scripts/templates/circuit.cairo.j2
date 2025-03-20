@@ -1,23 +1,39 @@
-{%- set return_values = ["UInt384*"] * (circuit.return_data_size // 4) %}
-{%- set return_type = "" if not return_values else
-    "-> " + (("(" if return_values|length > 1 else "") +
-    return_values|join(", ") +
-    (")" if return_values|length > 1 else "")) %}
+{%- set return_type = "" if not circuit.return_names|length else
+    "-> " + (("(" if circuit.return_names|length > 1 else "") +
+    circuit.return_names|join("*, ")|replace("U384*", "U384") +
+    ("*)" if circuit.return_names|length > 1 else (("*" if circuit.return_names[0] != "U384" else "")))) %}
 
 {%- set return_data = "()" %}
-{%- if return_values %}
-    {%- set return_exprs = [] %}
-    {%- for i in range(circuit.return_data_size // 4)|reverse %}
-        {%- set offset = 4 * (i + 1) %}
-        {%- set _ = return_exprs.append("cast(range_check96_ptr - " ~ offset ~ ", UInt384*)") %}
-    {%- endfor %}
-    {%- set return_data = ("(" if return_values|length > 1 else "") ~ return_exprs|join(", ") ~ (")" if return_values|length > 1 else "") %}
+{%- if circuit.return_offsets %}
+    {# Assume return_names[0] is the struct name and we only return a single struct #}
+    {# TODO: Adapt this to handle multiple structs #}
+    {%- set return_struct_name = circuit.return_names[0] %}
+    {# Find the struct definition in structs #}
+    {%- set return_struct = structs|selectattr("name", "equalto", return_struct_name)|first %}
+    {%- if return_struct %}
+        {%- set max_offset = circuit.max_return_offset if 'max_return_offset' in circuit else circuit.return_offsets|first %}
+        {%- set return_exprs = [] %}
+        {# Iterate over struct members #}
+        {%- for member in return_struct.members %}
+            {%- set offset = max_offset - (4 * loop.index0) %}
+            {%- set member_type = "UInt384*" if member.type == "felt" else member.nested.name %}
+            {%- set _ = return_exprs.append("U384(cast(range_check96_ptr - " ~ offset ~ ", " ~ member_type ~ "))") %}
+        {%- endfor %}
+        {%- set return_data = "new " ~ return_struct_name ~ ("(" if return_struct.members|length > 1 else "") ~ return_exprs|join(", ") ~ (")" if return_struct.members|length > 1 else "") %}
+    {%- else %}
+        {# Fallback if struct not found #}
+        {%- set return_exprs = [] %}
+        {%- for i in range(circuit.return_offsets|length) %}
+            {%- set _ = return_exprs.append("U384(cast(range_check96_ptr - " ~ circuit.return_offsets[i] ~ ", " ~ circuit.return_names[i]|replace("U384", "UInt384") ~ "*))") %}
+        {%- endfor %}
+        {%- set return_data = ("(" if circuit.return_offsets|length > 1 else "") ~ return_exprs|join(", ") ~ (")" if circuit.return_offsets|length > 1 else "") %}
+    {%- endif %}
 {%- endif %}
 
 func {{name}}{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
-    {%- for member_name in circuit.args -%}
-    {{ member_name }}: UInt384*{{ ", " if not loop.last else "" }}
-    {%- endfor -%}, p: UInt384*
+    {%- for arg in circuit.args -%}
+    {{ arg.name }}: {{ arg.type }}{{ "*" if arg.type != "U384" else "" }}{{ ", " if not loop.last else "" }}
+    {%- endfor -%}, modulus: U384
 ) {{return_type}} {
     let (_, pc) = get_fp_and_pc();
 
@@ -34,15 +50,19 @@ func {{name}}{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: M
     {%- endfor %}
 
     {# Then iterate over arguments #}
-    {%- for member_name in circuit.args %}
-    assert [range_check96_ptr + {{(circuit.constants|length + loop.index0) * 4}}] = {{member_name}}.d0;
-    assert [range_check96_ptr + {{(circuit.constants|length + loop.index0) * 4 + 1}}] = {{member_name}}.d1;
-    assert [range_check96_ptr + {{(circuit.constants|length + loop.index0) * 4 + 2}}] = {{member_name}}.d2;
-    assert [range_check96_ptr + {{(circuit.constants|length + loop.index0) * 4 + 3}}] = {{member_name}}.d3;
+    {%- set count = namespace(value=0) %}
+    {%- for arg in circuit.args %}
+        {%- for path in arg.path %}
+    assert [range_check96_ptr + {{circuit.constants|length * 4 + count.value}}] = {{path}}.value.d0;
+    assert [range_check96_ptr + {{circuit.constants|length * 4 + count.value + 1}}] = {{path}}.value.d1;
+    assert [range_check96_ptr + {{circuit.constants|length * 4 + count.value + 2}}] = {{path}}.value.d2;
+    assert [range_check96_ptr + {{circuit.constants|length * 4 + count.value + 3}}] = {{path}}.value.d3;
+            {%- set count.value = count.value + 4 %}
+        {%- endfor %}
     {%- endfor %}
 
     run_mod_p_circuit(
-        p=[p],
+        p=[modulus.value],
         values_ptr=cast(range_check96_ptr, UInt384*),
         add_mod_offsets_ptr=add_mod_offsets_ptr,
         add_mod_n={{circuit.add_mod_n}},
@@ -52,7 +72,8 @@ func {{name}}{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: M
 
     let range_check96_ptr = range_check96_ptr + {{circuit.total_offset}};
 
-    return {{return_data}};
+    tempvar res = {{return_data}};
+    return res;
 
     add_offsets:
     {%- for offset in circuit.add_mod_offsets_ptr %}

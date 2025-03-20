@@ -32,6 +32,7 @@ Requirements:
     - Functions must use standard argument and return type patterns
 """
 
+import re
 import subprocess
 from pathlib import Path
 
@@ -110,6 +111,7 @@ def main(file_path: Path | None, prime: int, function: list[str], echo: bool):
     # Set up Jinja environment
     env = setup_jinja_env()
     header_template = env.get_template("header.cairo.j2")
+    _struct_template = env.get_template("struct.cairo.j2")
     circuit_template = env.get_template("circuit.cairo.j2")
 
     # Compile the Cairo file
@@ -137,16 +139,42 @@ def main(file_path: Path | None, prime: int, function: list[str], echo: bool):
         )
 
     # Generate output code
-    output_parts = [header_template.render()]
+    file_imports = extract_imports(file_path)
+    output_parts = [header_template.render(file_imports=file_imports)]
+    circuit_parts = []
+
+    struct_names = set()
+    structs_to_render = []
 
     # Process each function
     for function_name in functions_to_compile:
         circuit = circuit_compile(program, function_name)
         click.echo(f"Circuit {function_name}: {circuit}")
 
+        # Extract only new structs that are not used in previously compiled functions
+        # and not part of the imports
+        for struct in circuit["structs"]:
+            struct_name = struct["name"]
+            # Check if struct is not already processed and not in imports
+            if struct_name not in struct_names and not any(
+                struct_name == import_item[1] for import_item in file_imports
+            ):
+                struct_names.add(struct_name)
+                structs_to_render.append(struct)
+
         # Render template with all necessary data
-        circuit_code = circuit_template.render(name=function_name, circuit=circuit)
-        output_parts.append(circuit_code)
+        circuit_code = circuit_template.render(
+            name=function_name, circuit=circuit, structs=circuit["structs"]
+        )
+        circuit_parts.append(circuit_code)
+
+    # Render the structs
+    struct_code = _struct_template.render(structs=structs_to_render)
+    output_parts.append(struct_code)
+
+    # Properly order the compiled function
+    # Imports, Structs, Functions
+    output_parts = output_parts + circuit_parts
 
     # Join all parts with double newlines
     output = "\n\n".join(output_parts)
@@ -165,6 +193,16 @@ def main(file_path: Path | None, prime: int, function: list[str], echo: bool):
             text=True,
         )
         click.echo(f"Generated circuit file: {output_path}")
+
+
+def extract_imports(file_path: Path) -> list[str]:
+    """Extract the imports from the file."""
+    with file_path.open("r") as f:
+        content = f.read()
+
+    # Extract the imports
+    imports = re.findall(r"from (.*) import (.*)", content)
+    return imports
 
 
 if __name__ == "__main__":

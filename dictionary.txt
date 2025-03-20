@@ -52,6 +52,7 @@ colorama
 collectonly
 conftest
 conftests
+cumul
 dataclass
 dataframe
 defaultdict
@@ -219,6 +220,7 @@ rustup
 sdiv
 SDIV
 secp
+selectattr
 SELFBALANCE
 selfdestruct
 serde
@@ -287,3 +289,4 @@ pyfunction
 chrono
 stwo
 modelcontextprotocol
+equalto

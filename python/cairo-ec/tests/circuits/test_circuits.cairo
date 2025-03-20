@@ -2,6 +2,8 @@ from starkware.cairo.common.cairo_builtins import ModBuiltin, UInt384
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.memcpy import memcpy
 from starkware.cairo.common.modulo import run_mod_p_circuit
+from cairo_ec.curve.g1_point import G1Point
+from cairo_core.numeric import U384
 
 from cairo_ec.circuits.mod_ops import (
     add,
@@ -55,12 +57,13 @@ from cairo_ec.circuits.ec_ops_compiled import (
 func test__circuit{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
     values_ptr: felt*,
     values_ptr_len: felt,
-    p: UInt384*,
+    modulus: U384,
     add_mod_offsets_ptr: felt*,
     add_mod_n: felt,
     mul_mod_offsets_ptr: felt*,
     mul_mod_n: felt,
     total_offset: felt,
+    return_offset: felt,
 ) -> felt* {
     alloc_locals;
 
@@ -68,7 +71,7 @@ func test__circuit{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_p
     local range_check96_ptr_end: felt* = range_check96_ptr + total_offset;
 
     run_mod_p_circuit(
-        p=[p],
+        p=[modulus.value],
         values_ptr=cast(range_check96_ptr, UInt384*),
         add_mod_offsets_ptr=add_mod_offsets_ptr,
         add_mod_n=add_mod_n,
@@ -78,5 +81,5 @@ func test__circuit{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_p
 
     let range_check96_ptr = range_check96_ptr_end;
 
-    return range_check96_ptr_end - total_offset;
+    return range_check96_ptr_end - return_offset;
 }

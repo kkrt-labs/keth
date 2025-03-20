@@ -1,0 +1,7 @@
+{% for struct in structs if not struct.name == "UInt384" %}
+struct {{ struct.name }} {
+    {% for member in struct.members -%}
+        {{ member.name }}: {{ "UInt384*" if member.type == "felt" else member.nested.name }},
+{% endfor -%}
+}
+{% endfor -%}

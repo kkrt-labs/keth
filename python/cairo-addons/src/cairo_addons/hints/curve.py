@@ -63,21 +63,23 @@ def compute_y_from_x_hint(ids: VmConsts, segments: MemorySegmentManager):
 
     a = uint384_to_int(ids.a.d0, ids.a.d1, ids.a.d2, ids.a.d3)
     b = uint384_to_int(ids.b.d0, ids.b.d1, ids.b.d2, ids.b.d3)
-    p = uint384_to_int(ids.p.d0, ids.p.d1, ids.p.d2, ids.p.d3)
+    modulus = uint384_to_int(
+        ids.modulus.d0, ids.modulus.d1, ids.modulus.d2, ids.modulus.d3
+    )
     g = uint384_to_int(ids.g.d0, ids.g.d1, ids.g.d2, ids.g.d3)
     x = uint384_to_int(ids.x.d0, ids.x.d1, ids.x.d2, ids.x.d3)
 
-    rhs = (x**3 + a * x + b) % p
+    rhs = (x**3 + a * x + b) % modulus
 
-    is_on_curve = is_quad_residue(rhs, p)
+    is_on_curve = is_quad_residue(rhs, modulus)
     if is_on_curve == 1:
-        square_root = sqrt_mod(rhs, p)
+        square_root = sqrt_mod(rhs, modulus)
         if ids.v % 2 == square_root % 2:
             pass
         else:
-            square_root = -square_root % p
+            square_root = -square_root % modulus
     else:
-        square_root = sqrt_mod(rhs * g, p)
+        square_root = sqrt_mod(rhs * g, modulus)
 
     segments.load_data(ids.y_try.address_, int_to_uint384(square_root))
     segments.load_data(ids.is_on_curve.address_, int_to_uint384(is_on_curve))

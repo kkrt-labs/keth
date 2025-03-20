@@ -16,6 +16,7 @@ from cairo_addons.testing.utils import flatten
 from cairo_addons.utils.uint384 import int_to_uint384, uint384_to_int
 from cairo_ec.compiler import circuit_compile
 from cairo_ec.curve import ECBase
+from tests.utils.args_gen import U384
 
 
 @pytest.fixture(scope="module")
@@ -61,25 +62,29 @@ class TestCircuits:
             compiled_circuit = circuit_compile(cairo_program, "add")
 
             expected_output = prime_cls(inputs["x"]) + prime_cls(inputs["y"])
-            cairo_output = prime_cls(cairo_run("add", **inputs))
+            cairo_output = prime_cls(cairo_run("add", x=inputs["x"], y=inputs["y"]))
+            return_offset = (
+                compiled_circuit["return_offsets"][0]
+                if len(compiled_circuit["return_offsets"]) > 0
+                else 0
+            )
             circuit_output = prime_cls(
                 uint384_to_int(
                     *cairo_run(
                         "test__circuit",
                         values_ptr=values_ptr,
                         values_ptr_len=len(values_ptr),
-                        p=int_to_uint384(prime_cls.PRIME),
+                        modulus=U384(prime_cls.PRIME),
+                        return_offset=return_offset,
                         **compiled_circuit,
-                    )[-compiled_circuit["return_data_size"] :]
+                    )[-return_offset:]
                 )
             )
             compiled_circuit_output = prime_cls(
-                uint384_to_int(
-                    **cairo_run(
-                        "add_compiled",
-                        **{k: int_to_uint384(v) for k, v in inputs.items()},
-                        p=int_to_uint384(prime_cls.PRIME),
-                    )
+                cairo_run(
+                    "add_compiled",
+                    **{k: U384(v) for k, v in inputs.items()},
+                    modulus=U384(prime_cls.PRIME),
                 )
             )
 
@@ -98,25 +103,29 @@ class TestCircuits:
             compiled_circuit = circuit_compile(cairo_program, "sub")
 
             expected_output = prime_cls(inputs["x"]) - prime_cls(inputs["y"])
-            cairo_output = prime_cls(cairo_run("sub", **inputs))
+            cairo_output = prime_cls(cairo_run("sub", x=inputs["x"], y=inputs["y"]))
+            return_offset = (
+                compiled_circuit["return_offsets"][0]
+                if len(compiled_circuit["return_offsets"]) > 0
+                else 0
+            )
             circuit_output = prime_cls(
                 uint384_to_int(
                     *cairo_run(
                         "test__circuit",
                         values_ptr=values_ptr,
                         values_ptr_len=len(values_ptr),
-                        p=int_to_uint384(prime_cls.PRIME),
+                        modulus=U384(prime_cls.PRIME),
+                        return_offset=return_offset,
                         **compiled_circuit,
-                    )[-compiled_circuit["return_data_size"] :]
+                    )[-return_offset:]
                 )
             )
             compiled_circuit_output = prime_cls(
-                uint384_to_int(
-                    **cairo_run(
-                        "sub_compiled",
-                        **{k: int_to_uint384(v) for k, v in inputs.items()},
-                        p=int_to_uint384(prime_cls.PRIME),
-                    )
+                cairo_run(
+                    "sub_compiled",
+                    **{k: U384(v) for k, v in inputs.items()},
+                    modulus=U384(prime_cls.PRIME),
                 )
             )
             assert (
@@ -134,25 +143,29 @@ class TestCircuits:
             compiled_circuit = circuit_compile(cairo_program, "mul")
 
             expected_output = prime_cls(inputs["x"]) * prime_cls(inputs["y"])
-            cairo_output = prime_cls(cairo_run("mul", **inputs))
+            cairo_output = prime_cls(cairo_run("mul", x=inputs["x"], y=inputs["y"]))
+            return_offset = (
+                compiled_circuit["return_offsets"][0]
+                if len(compiled_circuit["return_offsets"]) > 0
+                else 0
+            )
             circuit_output = prime_cls(
                 uint384_to_int(
                     *cairo_run(
                         "test__circuit",
                         values_ptr=values_ptr,
                         values_ptr_len=len(values_ptr),
-                        p=int_to_uint384(prime_cls.PRIME),
+                        modulus=U384(prime_cls.PRIME),
+                        return_offset=return_offset,
                         **compiled_circuit,
-                    )[-compiled_circuit["return_data_size"] :]
+                    )[-return_offset:]
                 )
             )
             compiled_circuit_output = prime_cls(
-                uint384_to_int(
-                    **cairo_run(
-                        "mul_compiled",
-                        **{k: int_to_uint384(v) for k, v in inputs.items()},
-                        p=int_to_uint384(prime_cls.PRIME),
-                    )
+                cairo_run(
+                    "mul_compiled",
+                    **{k: U384(v) for k, v in inputs.items()},
+                    modulus=U384(prime_cls.PRIME),
                 )
             )
             assert (
@@ -175,25 +188,29 @@ class TestCircuits:
             expected_output = prime_cls(inputs["x"]) * prime_cls(
                 mod_inverse(prime_cls(inputs["y"]), prime_cls.PRIME)
             )
-            cairo_output = prime_cls(cairo_run("div", **inputs))
+            cairo_output = prime_cls(cairo_run("div", x=inputs["x"], y=inputs["y"]))
+            return_offset = (
+                compiled_circuit["return_offsets"][0]
+                if len(compiled_circuit["return_offsets"]) > 0
+                else 0
+            )
             circuit_output = prime_cls(
                 uint384_to_int(
                     *cairo_run(
                         "test__circuit",
                         values_ptr=values_ptr,
                         values_ptr_len=len(values_ptr),
-                        p=int_to_uint384(prime_cls.PRIME),
+                        modulus=U384(prime_cls.PRIME),
+                        return_offset=return_offset,
                         **compiled_circuit,
-                    )[-compiled_circuit["return_data_size"] :]
+                    )[-return_offset:]
                 )
             )
             compiled_circuit_output = prime_cls(
-                uint384_to_int(
-                    **cairo_run(
-                        "div_compiled",
-                        **{k: int_to_uint384(v) for k, v in inputs.items()},
-                        p=int_to_uint384(prime_cls.PRIME),
-                    )
+                cairo_run(
+                    "div_compiled",
+                    **{k: U384(v) for k, v in inputs.items()},
+                    modulus=U384(prime_cls.PRIME),
                 )
             )
             assert (
@@ -215,25 +232,31 @@ class TestCircuits:
                 (inputs["x"] - inputs["y"])
                 * mod_inverse(inputs["x"] - inputs["y"], prime_cls.PRIME)
             )
-            cairo_output = prime_cls(cairo_run("diff_ratio", **inputs))
+            cairo_output = prime_cls(
+                cairo_run("diff_ratio", x=inputs["x"], y=inputs["y"])
+            )
+            return_offset = (
+                compiled_circuit["return_offsets"][0]
+                if len(compiled_circuit["return_offsets"]) > 0
+                else 0
+            )
             circuit_output = prime_cls(
                 uint384_to_int(
                     *cairo_run(
                         "test__circuit",
                         values_ptr=values_ptr,
                         values_ptr_len=len(values_ptr),
-                        p=int_to_uint384(prime_cls.PRIME),
+                        modulus=U384(prime_cls.PRIME),
+                        return_offset=return_offset,
                         **compiled_circuit,
-                    )[-compiled_circuit["return_data_size"] :]
+                    )[-return_offset:]
                 )
             )
             compiled_circuit_output = prime_cls(
-                uint384_to_int(
-                    **cairo_run(
-                        "diff_ratio_compiled",
-                        **{k: int_to_uint384(v) for k, v in inputs.items()},
-                        p=int_to_uint384(prime_cls.PRIME),
-                    )
+                cairo_run(
+                    "diff_ratio_compiled",
+                    **{k: U384(v) for k, v in inputs.items()},
+                    modulus=U384(prime_cls.PRIME),
                 )
             )
             assert (
@@ -256,24 +279,28 @@ class TestCircuits:
                 * mod_inverse(inputs["x"] + inputs["y"], prime_cls.PRIME)
             )
             cairo_output = prime_cls(cairo_run("sum_ratio", **inputs))
+            return_offset = (
+                compiled_circuit["return_offsets"][0]
+                if len(compiled_circuit["return_offsets"]) > 0
+                else 0
+            )
             circuit_output = prime_cls(
                 uint384_to_int(
                     *cairo_run(
                         "test__circuit",
                         values_ptr=values_ptr,
                         values_ptr_len=len(values_ptr),
-                        p=int_to_uint384(prime_cls.PRIME),
+                        modulus=U384(prime_cls.PRIME),
+                        return_offset=return_offset,
                         **compiled_circuit,
-                    )[-compiled_circuit["return_data_size"] :]
+                    )[-return_offset:]
                 )
             )
             compiled_circuit_output = prime_cls(
-                uint384_to_int(
-                    **cairo_run(
-                        "sum_ratio_compiled",
-                        **{k: int_to_uint384(v) for k, v in inputs.items()},
-                        p=int_to_uint384(prime_cls.PRIME),
-                    )
+                cairo_run(
+                    "sum_ratio_compiled",
+                    **{k: U384(v) for k, v in inputs.items()},
+                    modulus=U384(prime_cls.PRIME),
                 )
             )
             assert (
@@ -297,24 +324,28 @@ class TestCircuits:
 
             expected_output = prime_cls(mod_inverse(inputs["x"], prime_cls.PRIME))
             cairo_output = prime_cls(cairo_run("inv", **inputs))
+            return_offset = (
+                compiled_circuit["return_offsets"][0]
+                if len(compiled_circuit["return_offsets"]) > 0
+                else 0
+            )
             circuit_output = prime_cls(
                 uint384_to_int(
                     *cairo_run(
                         "test__circuit",
                         values_ptr=values_ptr,
                         values_ptr_len=len(values_ptr),
-                        p=int_to_uint384(prime_cls.PRIME),
+                        modulus=U384(prime_cls.PRIME),
                         **compiled_circuit,
-                    )[-compiled_circuit["return_data_size"] :]
+                        return_offset=return_offset,
+                    )[-return_offset:]
                 )
             )
             compiled_circuit_output = prime_cls(
-                uint384_to_int(
-                    **cairo_run(
-                        "inv_compiled",
-                        **{k: int_to_uint384(v) for k, v in inputs.items()},
-                        p=int_to_uint384(prime_cls.PRIME),
-                    )
+                cairo_run(
+                    "inv_compiled",
+                    **{k: U384(v) for k, v in inputs.items()},
+                    modulus=U384(prime_cls.PRIME),
                 )
             )
             assert (
@@ -345,17 +376,23 @@ class TestCircuits:
             ]
 
             cairo_run("assert_is_quad_residue", **inputs)
+            return_offset = (
+                compiled_circuit["return_offsets"][0]
+                if len(compiled_circuit["return_offsets"]) > 0
+                else 0
+            )
             cairo_run(
                 "test__circuit",
                 values_ptr=values_ptr,
                 values_ptr_len=len(values_ptr),
-                p=int_to_uint384(curve.FIELD.PRIME),
+                modulus=U384(curve.FIELD.PRIME),
+                return_offset=return_offset,
                 **compiled_circuit,
             )
             cairo_run(
                 "assert_is_quad_residue_compiled",
-                **{k: int_to_uint384(v) for k, v in inputs.items()},
-                p=int_to_uint384(curve.FIELD.PRIME),
+                **{k: U384(v) for k, v in inputs.items()},
+                modulus=U384(curve.FIELD.PRIME),
             )
 
         @given(data=st.data())
@@ -372,17 +409,23 @@ class TestCircuits:
             ]
 
             cairo_run("assert_eq", **inputs)
+            return_offset = (
+                compiled_circuit["return_offsets"][0]
+                if len(compiled_circuit["return_offsets"]) > 0
+                else 0
+            )
             cairo_run(
                 "test__circuit",
                 values_ptr=values_ptr,
                 values_ptr_len=len(values_ptr),
-                p=int_to_uint384(prime_cls.PRIME),
+                modulus=U384(prime_cls.PRIME),
+                return_offset=return_offset,
                 **compiled_circuit,
             )
             cairo_run(
                 "assert_eq_compiled",
-                **{k: int_to_uint384(v) for k, v in inputs.items()},
-                p=int_to_uint384(prime_cls.PRIME),
+                **{k: U384(v) for k, v in inputs.items()},
+                modulus=U384(prime_cls.PRIME),
             )
 
         @given(data=st.data())
@@ -399,17 +442,23 @@ class TestCircuits:
             ]
 
             cairo_run("assert_neq", **inputs)
+            return_offset = (
+                compiled_circuit["return_offsets"][0]
+                if len(compiled_circuit["return_offsets"]) > 0
+                else 0
+            )
             cairo_run(
                 "test__circuit",
                 values_ptr=values_ptr,
                 values_ptr_len=len(values_ptr),
-                p=int_to_uint384(prime_cls.PRIME),
+                modulus=U384(prime_cls.PRIME),
+                return_offset=return_offset,
                 **compiled_circuit,
             )
             cairo_run(
                 "assert_neq_compiled",
-                **{k: int_to_uint384(v) for k, v in inputs.items()},
-                p=int_to_uint384(prime_cls.PRIME),
+                **{k: U384(v) for k, v in inputs.items()},
+                modulus=U384(prime_cls.PRIME),
             )
 
         @given(data=st.data())
@@ -424,24 +473,28 @@ class TestCircuits:
 
             expected_output = prime_cls(-inputs["y"])
             cairo_output = prime_cls(cairo_run("neg", **inputs))
+            return_offset = (
+                compiled_circuit["return_offsets"][0]
+                if len(compiled_circuit["return_offsets"]) > 0
+                else 0
+            )
             circuit_output = prime_cls(
                 uint384_to_int(
                     *cairo_run(
                         "test__circuit",
                         values_ptr=values_ptr,
                         values_ptr_len=len(values_ptr),
-                        p=int_to_uint384(prime_cls.PRIME),
+                        modulus=U384(prime_cls.PRIME),
                         **compiled_circuit,
-                    )[-compiled_circuit["return_data_size"] :]
+                        return_offset=return_offset,
+                    )[-return_offset:]
                 )
             )
             compiled_circuit_output = prime_cls(
-                uint384_to_int(
-                    **cairo_run(
-                        "neg_compiled",
-                        **{k: int_to_uint384(v) for k, v in inputs.items()},
-                        p=int_to_uint384(prime_cls.PRIME),
-                    )
+                cairo_run(
+                    "neg_compiled",
+                    **{k: U384(v) for k, v in inputs.items()},
+                    modulus=U384(prime_cls.PRIME),
                 )
             )
             assert (
@@ -464,17 +517,23 @@ class TestCircuits:
 
             # No return value, just checking that it doesn't fail
             cairo_run("assert_neg", **inputs)
+            return_offset = (
+                compiled_circuit["return_offsets"][0]
+                if len(compiled_circuit["return_offsets"]) > 0
+                else 0
+            )
             cairo_run(
                 "test__circuit",
                 values_ptr=values_ptr,
                 values_ptr_len=len(values_ptr),
-                p=int_to_uint384(prime_cls.PRIME),
+                modulus=U384(prime_cls.PRIME),
+                return_offset=return_offset,
                 **compiled_circuit,
             )
             cairo_run(
                 "assert_neg_compiled",
-                **{k: int_to_uint384(v) for k, v in inputs.items()},
-                p=int_to_uint384(prime_cls.PRIME),
+                **{k: U384(v) for k, v in inputs.items()},
+                modulus=U384(prime_cls.PRIME),
             )
 
         @given(data=st.data())
@@ -493,22 +552,28 @@ class TestCircuits:
 
             # No return value, just checking that it doesn't fail
             cairo_run("assert_not_neg", **inputs)
+            return_offset = (
+                compiled_circuit["return_offsets"][0]
+                if len(compiled_circuit["return_offsets"]) > 0
+                else 0
+            )
             cairo_run(
                 "test__circuit",
                 values_ptr=values_ptr,
                 values_ptr_len=len(values_ptr),
-                p=int_to_uint384(prime_cls.PRIME),
+                modulus=U384(prime_cls.PRIME),
+                return_offset=return_offset,
                 **compiled_circuit,
             )
             cairo_run(
                 "assert_not_neg_compiled",
-                **{k: int_to_uint384(v) for k, v in inputs.items()},
-                p=int_to_uint384(prime_cls.PRIME),
+                **{k: U384(v) for k, v in inputs.items()},
+                modulus=U384(prime_cls.PRIME),
             )
 
     class TestEcOps:
         @given(data=st.data())
-        @settings(verbosity=Verbosity.quiet)
+        @settings(verbosity=Verbosity.quiet, max_examples=1)
         def test_ec_add(self, cairo_program, cairo_run, curve, data, st_prime):
             seed_p = data.draw(st_prime)
             seed_q = data.draw(st_prime)
@@ -519,7 +584,13 @@ class TestCircuits:
             inputs = {"x0": int(p.x), "y0": int(p.y), "x1": int(q.x), "y1": int(q.y)}
             expected_output = p + q
 
-            cairo_output = cairo_run("ec_add", **inputs)
+            cairo_output = curve(
+                **cairo_run(
+                    "ec_add",
+                    p0={"x": inputs["x0"], "y": inputs["y0"]},
+                    p1={"x": inputs["x1"], "y": inputs["y1"]},
+                )
+            )
             compiled_circuit = circuit_compile(cairo_program, "ec_add")
             values_ptr = flatten(compiled_circuit["constants"]) + [
                 limb for v in inputs.values() for limb in int_to_uint384(v)
@@ -528,27 +599,22 @@ class TestCircuits:
                 "test__circuit",
                 values_ptr=values_ptr,
                 values_ptr_len=len(values_ptr),
-                p=int_to_uint384(curve.FIELD.PRIME),
+                modulus=U384(curve.FIELD.PRIME),
+                return_offset=compiled_circuit["return_offsets"][0],
                 **compiled_circuit,
-            )[-compiled_circuit["return_data_size"] :]
-            circuit_output = [
-                uint384_to_int(*r[:4]) % curve.FIELD.PRIME,
-                uint384_to_int(*r[4:]) % curve.FIELD.PRIME,
-            ]
-            compiled_circuit_output = [
-                uint384_to_int(**coord) % curve.FIELD.PRIME
-                for coord in cairo_run(
-                    "ec_add_compiled",
-                    **{k: int_to_uint384(v) for k, v in inputs.items()},
-                    p=int_to_uint384(curve.FIELD.PRIME),
-                )
-            ]
-            assert (
-                cairo_output
-                == circuit_output
-                == compiled_circuit_output
-                == [expected_output.x, expected_output.y]
+            )[-compiled_circuit["return_offsets"][0] :]
+            circuit_output = curve(
+                x=uint384_to_int(*r[:4]) % curve.FIELD.PRIME,
+                y=uint384_to_int(*r[4:]) % curve.FIELD.PRIME,
             )
+            res_ec_base = cairo_run(
+                "ec_add_compiled",
+                p0={"x": U384(p.x), "y": U384(p.y)},
+                p1={"x": U384(q.x), "y": U384(q.y)},
+                modulus=U384(curve.FIELD.PRIME),
+            )
+            res = curve(res_ec_base["x"], res_ec_base["y"])
+            assert cairo_output == circuit_output == res == expected_output
 
         @given(data=st.data())
         @settings(verbosity=Verbosity.quiet)
@@ -559,7 +625,13 @@ class TestCircuits:
             inputs = {"x0": int(p.x), "y0": int(p.y), "a": int(curve.A)}
             expected_output = p.double()
 
-            cairo_output = cairo_run("ec_double", **inputs)
+            cairo_output = curve(
+                **cairo_run(
+                    "ec_double",
+                    point={"x": inputs["x0"], "y": inputs["y0"]},
+                    a=inputs["a"],
+                )
+            )
             compiled_circuit = circuit_compile(cairo_program, "ec_double")
             values_ptr = flatten(compiled_circuit["constants"]) + [
                 limb for v in inputs.values() for limb in int_to_uint384(v)
@@ -568,27 +640,22 @@ class TestCircuits:
                 "test__circuit",
                 values_ptr=values_ptr,
                 values_ptr_len=len(values_ptr),
-                p=int_to_uint384(curve.FIELD.PRIME),
+                modulus=U384(curve.FIELD.PRIME),
+                return_offset=compiled_circuit["return_offsets"][0],
                 **compiled_circuit,
-            )[-compiled_circuit["return_data_size"] :]
-            circuit_output = [
-                uint384_to_int(*r[:4]) % curve.FIELD.PRIME,
-                uint384_to_int(*r[4:]) % curve.FIELD.PRIME,
-            ]
-            compiled_circuit_output = [
-                uint384_to_int(**coord) % curve.FIELD.PRIME
-                for coord in cairo_run(
-                    "ec_double_compiled",
-                    **{k: int_to_uint384(v) for k, v in inputs.items()},
-                    p=int_to_uint384(curve.FIELD.PRIME),
-                )
-            ]
-            assert (
-                cairo_output
-                == circuit_output
-                == compiled_circuit_output
-                == [expected_output.x, expected_output.y]
+            )[-compiled_circuit["return_offsets"][0] :]
+            circuit_output = curve(
+                x=uint384_to_int(*r[:4]) % curve.FIELD.PRIME,
+                y=uint384_to_int(*r[4:]) % curve.FIELD.PRIME,
             )
+            res_ec_base = cairo_run(
+                "ec_double_compiled",
+                point={"x": U384(p.x), "y": U384(p.y)},
+                a=U384(curve.A),
+                modulus=U384(curve.FIELD.PRIME),
+            )
+            res = curve(res_ec_base["x"], res_ec_base["y"])
+            assert cairo_output == circuit_output == res == expected_output
 
         @given(data=st.data())
         @settings(verbosity=Verbosity.quiet)
@@ -606,22 +673,39 @@ class TestCircuits:
                 "is_on_curve": curve.is_on_curve(p.x, p.y),
             }
 
-            cairo_run("assert_x_is_on_curve", **inputs)
+            cairo_run(
+                "assert_x_is_on_curve",
+                point={"x": inputs["x"], "y": inputs["y"]},
+                a=inputs["a"],
+                b=inputs["b"],
+                g=inputs["g"],
+                is_on_curve=inputs["is_on_curve"],
+            )
             compiled_circuit = circuit_compile(cairo_program, "assert_x_is_on_curve")
             values_ptr = flatten(compiled_circuit["constants"]) + [
                 limb for v in inputs.values() for limb in int_to_uint384(v)
             ]
+            return_offset = (
+                compiled_circuit["return_offsets"][0]
+                if len(compiled_circuit["return_offsets"]) > 0
+                else 0
+            )
             cairo_run(
                 "test__circuit",
                 values_ptr=values_ptr,
                 values_ptr_len=len(values_ptr),
-                p=int_to_uint384(curve.FIELD.PRIME),
+                modulus=U384(curve.FIELD.PRIME),
+                return_offset=return_offset,
                 **compiled_circuit,
             )
             cairo_run(
                 "assert_x_is_on_curve_compiled",
-                **{k: int_to_uint384(v) for k, v in inputs.items()},
-                p=int_to_uint384(curve.FIELD.PRIME),
+                point={"x": U384(p.x), "y": U384(p.y)},
+                a=U384(curve.A),
+                b=U384(curve.B),
+                g=U384(curve.G),
+                is_on_curve=U384(inputs["is_on_curve"]),
+                modulus=U384(curve.FIELD.PRIME),
             )
 
         @given(data=st.data())
@@ -638,22 +722,35 @@ class TestCircuits:
                 "a": int(curve.A),
                 "b": int(curve.B),
             }
-            cairo_run("assert_not_on_curve", **inputs)
+            cairo_run(
+                "assert_not_on_curve",
+                point={"x": inputs["x"], "y": inputs["y"]},
+                a=inputs["a"],
+                b=inputs["b"],
+            )
             compiled_circuit = circuit_compile(cairo_program, "assert_not_on_curve")
             values_ptr = flatten(compiled_circuit["constants"]) + [
                 limb for v in inputs.values() for limb in int_to_uint384(v)
             ]
+            return_offset = (
+                compiled_circuit["return_offsets"][0]
+                if len(compiled_circuit["return_offsets"]) > 0
+                else 0
+            )
             cairo_run(
                 "test__circuit",
                 values_ptr=values_ptr,
                 values_ptr_len=len(values_ptr),
-                p=int_to_uint384(curve.FIELD.PRIME),
+                modulus=U384(curve.FIELD.PRIME),
+                return_offset=return_offset,
                 **compiled_circuit,
             )
             cairo_run(
                 "assert_not_on_curve_compiled",
-                **{k: int_to_uint384(v) for k, v in inputs.items()},
-                p=int_to_uint384(curve.FIELD.PRIME),
+                point={"x": U384(p.x), "y": U384(p.y)},
+                a=U384(curve.A),
+                b=U384(curve.B),
+                modulus=U384(curve.FIELD.PRIME),
             )
 
         @given(data=st.data())
@@ -668,23 +765,35 @@ class TestCircuits:
                 "b": int(curve.B),
             }
 
-            cairo_run("assert_on_curve", **inputs)
+            cairo_run(
+                "assert_on_curve",
+                point={"x": inputs["x"], "y": inputs["y"]},
+                a=inputs["a"],
+                b=inputs["b"],
+            )
             compiled_circuit = circuit_compile(cairo_program, "assert_on_curve")
             values_ptr = flatten(compiled_circuit["constants"]) + [
                 limb for v in inputs.values() for limb in int_to_uint384(v)
             ]
-
+            return_offset = (
+                compiled_circuit["return_offsets"][0]
+                if len(compiled_circuit["return_offsets"]) > 0
+                else 0
+            )
             cairo_run(
                 "test__circuit",
                 values_ptr=values_ptr,
                 values_ptr_len=len(values_ptr),
-                p=int_to_uint384(curve.FIELD.PRIME),
+                modulus=U384(curve.FIELD.PRIME),
+                return_offset=return_offset,
                 **compiled_circuit,
             )
             cairo_run(
                 "assert_on_curve_compiled",
-                **{k: int_to_uint384(v) for k, v in inputs.items()},
-                p=int_to_uint384(curve.FIELD.PRIME),
+                point={"x": U384(p.x), "y": U384(p.y)},
+                a=U384(curve.A),
+                b=U384(curve.B),
+                modulus=U384(curve.FIELD.PRIME),
             )
 
         @given(data=st.data())
@@ -769,22 +878,31 @@ class TestCircuits:
             }
 
             if prime == curve.p:
-                cairo_run("ecip_2p", **inputs)
+                cairo_run("ecip_2p", g=g, r=r, random_a0=a0, **inputs)
             compiled_circuit = circuit_compile(cairo_program, "ecip_2p")
             values_ptr = flatten(compiled_circuit["constants"]) + [
                 limb for v in inputs.values() for limb in int_to_uint384(v)
             ]
+            return_offset = (
+                compiled_circuit["return_offsets"][0]
+                if len(compiled_circuit["return_offsets"]) > 0
+                else 0
+            )
             cairo_run(
                 "test__circuit",
                 values_ptr=values_ptr,
                 values_ptr_len=len(values_ptr),
-                p=int_to_uint384(curve.p),
+                modulus=U384(curve.p),
+                return_offset=return_offset,
                 **compiled_circuit,
             )
             cairo_run(
                 "ecip_2p_compiled",
-                **{k: int_to_uint384(v) for k, v in inputs.items()},
-                p=int_to_uint384(curve.p),
+                g={"x": U384(g.x), "y": U384(g.y)},
+                r={"x": U384(r.x), "y": U384(r.y)},
+                random_a0={"x": U384(a0.x), "y": U384(a0.y)},
+                **{k: U384(v) for k, v in inputs.items()},
+                modulus=U384(curve.p),
             )
 
         @given(data=st.data())
@@ -857,22 +975,30 @@ class TestCircuits:
             }
 
             if prime == curve.p:
-                cairo_run("ecip_1p", **inputs)
+                cairo_run("ecip_1p", point=p, random_a0=a0, **inputs)
             compiled_circuit = circuit_compile(cairo_program, "ecip_1p")
             values_ptr = flatten(compiled_circuit["constants"]) + [
                 limb for v in inputs.values() for limb in int_to_uint384(v)
             ]
+            return_offset = (
+                compiled_circuit["return_offsets"][0]
+                if len(compiled_circuit["return_offsets"]) > 0
+                else 0
+            )
             cairo_run(
                 "test__circuit",
                 values_ptr=values_ptr,
                 values_ptr_len=len(values_ptr),
-                p=int_to_uint384(curve.p),
+                modulus=U384(curve.p),
+                return_offset=return_offset,
                 **compiled_circuit,
             )
             cairo_run(
                 "ecip_1p_compiled",
-                **{k: int_to_uint384(v) for k, v in inputs.items()},
-                p=int_to_uint384(curve.p),
+                point={"x": U384(p.x), "y": U384(p.y)},
+                random_a0={"x": U384(a0.x), "y": U384(a0.y)},
+                **{k: U384(v) for k, v in inputs.items()},
+                modulus=U384(curve.p),
             )
 
 

@@ -1,3 +1,8 @@
 from starkware.cairo.common.cairo_builtins import UInt384, ModBuiltin
 from starkware.cairo.common.modulo import run_mod_p_circuit
 from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
+from cairo_core.numeric import U384
+
+{% for import in file_imports %}
+from {{ import[0] }} import {{ import[1] }}
+{% endfor %}

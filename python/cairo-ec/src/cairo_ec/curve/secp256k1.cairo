@@ -129,19 +129,21 @@ func try_recover_public_key{
     alloc_locals;
     let (__fp__, _) = get_fp_and_pc();
 
-    local a: UInt384 = UInt384(secp256k1.A0, secp256k1.A1, secp256k1.A2, secp256k1.A3);
-    local b: UInt384 = UInt384(secp256k1.B0, secp256k1.B1, secp256k1.B2, secp256k1.B3);
-    local g: UInt384 = UInt384(secp256k1.G0, secp256k1.G1, secp256k1.G2, secp256k1.G3);
-    local p: UInt384 = UInt384(secp256k1.P0, secp256k1.P1, secp256k1.P2, secp256k1.P3);
+    tempvar a = U384(new UInt384(secp256k1.A0, secp256k1.A1, secp256k1.A2, secp256k1.A3));
+    tempvar b = U384(new UInt384(secp256k1.B0, secp256k1.B1, secp256k1.B2, secp256k1.B3));
+    tempvar g = U384(new UInt384(secp256k1.G0, secp256k1.G1, secp256k1.G2, secp256k1.G3));
+    tempvar modulus = U384(new UInt384(secp256k1.P0, secp256k1.P1, secp256k1.P2, secp256k1.P3));
 
-    let (y, is_on_curve) = try_get_point_from_x(x=&r, v=y_parity, a=&a, b=&b, g=&g, p=&p);
+    let (y, is_on_curve) = try_get_point_from_x(
+        x=U384(&r), v=y_parity, a=a, b=b, g=g, modulus=modulus
+    );
     if (is_on_curve == 0) {
         tempvar public_key_x = Bytes32(new Bytes32Struct(0, 0));
         tempvar public_key_y = Bytes32(new Bytes32Struct(0, 0));
         return (public_key_x=public_key_x, public_key_y=public_key_y, success=0);
     }
 
-    tempvar r_point = G1Point(new G1PointStruct(x=U384(&r), y=U384(y)));
+    tempvar r_point = G1Point(new G1PointStruct(x=U384(&r), y=y));
 
     // The result is given by
     //   -(msg_hash / r) * gen + (s / r) * r_point
@@ -150,13 +152,13 @@ func try_recover_public_key{
     let N = UInt384(secp256k1.N0, secp256k1.N1, secp256k1.N2, secp256k1.N3);
     let N_min_one = Uint256(secp256k1.N_LOW_128 - 1, secp256k1.N_HIGH_128);
 
-    let _u1 = div(new msg_hash, new r, new N);
-    let _u1 = neg(_u1, new N);
-    let _u2 = div(new s, new r, new N);
+    let _u1 = div(U384(&msg_hash), U384(&r), U384(new N));
+    let _u1 = neg(_u1, U384(new N));
+    let _u2 = div(U384(&s), U384(&r), U384(new N));
 
-    let u1 = uint384_to_uint256([_u1]);
+    let u1 = uint384_to_uint256([_u1.value]);
     assert_uint256_le(u1, N_min_one);
-    let u2 = uint384_to_uint256([_u2]);
+    let u2 = uint384_to_uint256([_u2.value]);
     assert_uint256_le(u2, N_min_one);
 
     let (ep1_low, en1_low, sp1_low, sn1_low) = scalar_to_epns(u1.low);
@@ -252,7 +254,7 @@ func try_recover_public_key{
     tempvar range_check96_ptr_init = range_check96_ptr;
     tempvar range_check96_ptr_after_circuit = range_check96_ptr + 1200;
     let random_point = get_random_point{range_check96_ptr=range_check96_ptr_after_circuit}(
-        seed=[cast(poseidon_ptr, felt*) - 3], a=U384(&a), b=U384(&b), g=U384(&g), p=U384(&p)
+        seed=[cast(poseidon_ptr, felt*) - 3], a=a, b=b, g=g, modulus=modulus
     );
     let range_check96_ptr = range_check96_ptr_init;
 
@@ -266,64 +268,61 @@ func try_recover_public_key{
     // q_low, q_high, q_high_shifted (46 - 51)
 
     ecip_2p(
-        &ecip_input[0],
-        &ecip_input[1],
-        &ecip_input[2],
-        &ecip_input[3],
-        &ecip_input[4],
-        &ecip_input[5],
-        &ecip_input[6],
-        &ecip_input[7],
-        &ecip_input[8],
-        &ecip_input[9],
-        &ecip_input[10],
-        &ecip_input[11],
-        &ecip_input[12],
-        &ecip_input[13],
-        &ecip_input[14],
-        &ecip_input[15],
-        &ecip_input[16],
-        &ecip_input[17],
-        &ecip_input[18],
-        &ecip_input[19],
-        &ecip_input[20],
-        &ecip_input[21],
-        &ecip_input[22],
-        &ecip_input[23],
-        &ecip_input[24],
-        &ecip_input[25],
-        generator_point.value.x.value,
-        generator_point.value.y.value,
-        r_point.value.x.value,
-        r_point.value.y.value,
-        &ep1_low_u384,
-        &en1_low_u384,
-        &sp1_low_u384,
-        &sn1_low_u384,
-        &ep2_low_u384,
-        &en2_low_u384,
-        &sp2_low_u384,
-        &sn2_low_u384,
-        &ep1_high_u384,
-        &en1_high_u384,
-        &sp1_high_u384,
-        &sn1_high_u384,
-        &ep2_high_u384,
-        &en2_high_u384,
-        &sp2_high_u384,
-        &sn2_high_u384,
-        &ecip_input[46],
-        &ecip_input[47],
-        &ecip_input[48],
-        &ecip_input[49],
-        &ecip_input[50],
-        &ecip_input[51],
-        random_point.value.x.value,
-        random_point.value.y.value,
-        &a,
-        &b,
-        &rlc_coeff_u384,
-        &p,
+        U384(&ecip_input[0]),
+        U384(&ecip_input[1]),
+        U384(&ecip_input[2]),
+        U384(&ecip_input[3]),
+        U384(&ecip_input[4]),
+        U384(&ecip_input[5]),
+        U384(&ecip_input[6]),
+        U384(&ecip_input[7]),
+        U384(&ecip_input[8]),
+        U384(&ecip_input[9]),
+        U384(&ecip_input[10]),
+        U384(&ecip_input[11]),
+        U384(&ecip_input[12]),
+        U384(&ecip_input[13]),
+        U384(&ecip_input[14]),
+        U384(&ecip_input[15]),
+        U384(&ecip_input[16]),
+        U384(&ecip_input[17]),
+        U384(&ecip_input[18]),
+        U384(&ecip_input[19]),
+        U384(&ecip_input[20]),
+        U384(&ecip_input[21]),
+        U384(&ecip_input[22]),
+        U384(&ecip_input[23]),
+        U384(&ecip_input[24]),
+        U384(&ecip_input[25]),
+        generator_point.value,
+        r_point.value,
+        U384(&ep1_low_u384),
+        U384(&en1_low_u384),
+        U384(&sp1_low_u384),
+        U384(&sn1_low_u384),
+        U384(&ep2_low_u384),
+        U384(&en2_low_u384),
+        U384(&sp2_low_u384),
+        U384(&sn2_low_u384),
+        U384(&ep1_high_u384),
+        U384(&en1_high_u384),
+        U384(&sp1_high_u384),
+        U384(&sn1_high_u384),
+        U384(&ep2_high_u384),
+        U384(&en2_high_u384),
+        U384(&sp2_high_u384),
+        U384(&sn2_high_u384),
+        U384(&ecip_input[46]),
+        U384(&ecip_input[47]),
+        U384(&ecip_input[48]),
+        U384(&ecip_input[49]),
+        U384(&ecip_input[50]),
+        U384(&ecip_input[51]),
+        random_point.value,
+        a,
+        b,
+        U384(&rlc_coeff_u384),
+        modulus=modulus,
     );
 
     let range_check96_ptr = range_check96_ptr_after_circuit;
@@ -331,7 +330,7 @@ func try_recover_public_key{
     tempvar p0 = G1Point(new G1PointStruct(x=U384(&ecip_input[46]), y=U384(&ecip_input[47])));
     tempvar p1 = G1Point(new G1PointStruct(x=U384(&ecip_input[50]), y=U384(&ecip_input[51])));
 
-    let res = ec_add(p0, p1, U384(&a), modulus=U384(&p));
+    let res = ec_add(p0, p1, a, modulus);
 
     let (u384_zero) = get_label_location(U384_ZERO);
     let point_at_infinity_x = U384__eq__(res.value.x, U384(cast(u384_zero, U384Struct*)));
