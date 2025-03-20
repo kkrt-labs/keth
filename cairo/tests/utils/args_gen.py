@@ -805,7 +805,7 @@ def _gen_arg(
             return instances_ptr
         if isinstance(arg, int):
             return arg
-        # Any structured data ->
+        # Any structured data -> sequentially dump the values in the same segment
         if isinstance(arg, dict):
             data = [
                 _gen_arg(dict_manager, segments, type(list(arg.values())[0]), v)
