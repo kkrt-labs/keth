@@ -1,8 +1,9 @@
 import json
 import logging
 from dataclasses import dataclass
+from functools import partial
 from pathlib import Path
-from typing import Any, Dict, Mapping, Optional
+from typing import Any, Callable, Dict, Mapping, Optional
 
 from ethereum.cancun.fork_types import Address
 from ethereum.cancun.state import State, set_account, set_storage
@@ -116,7 +117,10 @@ class EthereumTries:
         )
 
     def traverse_trie_and_process_leaf(
-        self, node: InternalNode, current_path: Bytes, process_leaf: callable, **kwargs
+        self,
+        node: InternalNode,
+        current_path: Bytes,
+        process_leaf: Callable,
     ) -> None:
         """
         Recursive trie traversal function with a callback for each leaf node.
@@ -130,74 +134,80 @@ class EthereumTries:
             The path traversed so far
         process_leaf: callable
             Function to call when a leaf node is found
-        **kwargs:
+        :
             Additional arguments to pass to process_leaf. Typically the mutable state object and optionally the current account address.
         """
-
-        if isinstance(node, BranchNode):
-            logger.debug(
-                f"Traversing branch node with current path 0x{nibble_list_to_bytes(current_path).hex()}"
-            )
-            for i in range(16):
-                nibble = bytes([i])
-                subnode = node.subnodes[i]
-                # We skip empty nodes
-                if not subnode:
-                    continue
-
-                # Handle the next node
-                if len(subnode) > 32:
-                    raise ValueError(f"Invalid subnode length: {len(subnode)}")
-                next_node = (
-                    self.nodes.get(subnode)
-                    if len(subnode) == 32
-                    else decode_node(subnode)
+        match node:
+            case BranchNode():
+                logger.debug(
+                    f"Traversing branch node with current path 0x{nibble_list_to_bytes(current_path).hex()}"
                 )
-                if not next_node:
-                    # If the subnode is not found, we assume this path
-                    # is not needed for block execution
-                    continue
+                for i, subnode in enumerate(node.subnodes):
+                    nibble = bytes([i])
+                    # We skip empty nodes
+                    if not subnode:
+                        continue
 
-                if next_node is not None:
+                    # Handle the next node
+                    if len(subnode) > 32:
+                        raise ValueError(f"Invalid subnode length: {len(subnode)}")
+                    next_node = (
+                        self.nodes.get(subnode)
+                        if len(subnode) == 32
+                        else decode_node(subnode)
+                    )
+                    if not next_node:
+                        # If the subnode is not found, we assume this path
+                        # is not needed for block execution
+                        continue
+
                     logger.debug(
                         f"Traversing branch node with current path 0x{nibble_list_to_bytes(current_path + nibble).hex()}"
                     )
                     self.traverse_trie_and_process_leaf(
-                        next_node, current_path + nibble, process_leaf, **kwargs
+                        next_node,
+                        current_path + nibble,
+                        process_leaf,
                     )
-            return
-
-        if isinstance(node, ExtensionNode):
-            logger.debug(
-                f"Traversing extension node with current path 0x{nibble_list_to_bytes(current_path + node.key_segment).hex()}"
-            )
-            current_path = current_path + node.key_segment
-
-            if len(node.subnode) > 32:
-                raise ValueError(f"Invalid subnode length: {len(node.subnode)}")
-
-            # subnode is a hash, so we need to resolve it
-            next_node = (
-                self.nodes.get(node.subnode)
-                if len(node.subnode) == 32
-                else decode_node(node.subnode)
-            )
-            if not next_node:
-                # If the subnode is not found, we assume this path
-                # is not needed for block execution
                 return
-            return self.traverse_trie_and_process_leaf(
-                next_node, current_path, process_leaf, **kwargs
-            )
 
-        if isinstance(node, LeafNode):
-            logger.debug(
-                f"Traversing leaf node with current path 0x{nibble_list_to_bytes(current_path + node.rest_of_key).hex()}"
-            )
-            full_path = nibble_list_to_bytes(current_path + node.rest_of_key)
-            return process_leaf(node, full_path, **kwargs)
+            case ExtensionNode():
+                logger.debug(
+                    f"Traversing extension node with current path 0x{nibble_list_to_bytes(current_path + node.key_segment).hex()}"
+                )
+                current_path = current_path + node.key_segment
 
-        return
+                if len(node.subnode) > 32:
+                    raise ValueError(f"Invalid subnode length: {len(node.subnode)}")
+
+                # subnode is a hash, so we need to resolve it
+                next_node = (
+                    self.nodes.get(node.subnode)
+                    if len(node.subnode) == 32
+                    else decode_node(node.subnode)
+                )
+                if not next_node:
+                    # If the subnode is not found, we assume this path
+                    # is not needed for block execution
+                    return
+                return self.traverse_trie_and_process_leaf(
+                    next_node,
+                    current_path,
+                    process_leaf,
+                )
+
+            case LeafNode():
+                logger.debug(
+                    f"Traversing leaf node with current path 0x{nibble_list_to_bytes(current_path + node.rest_of_key).hex()}"
+                )
+                full_path = nibble_list_to_bytes(current_path + node.rest_of_key)
+                return process_leaf(
+                    node,
+                    full_path,
+                )
+
+            case _:
+                raise ValueError(f"Invalid node type: {type(node)}")
 
     def set_account_from_leaf(
         self,
@@ -239,9 +249,7 @@ class EthereumTries:
         self.traverse_trie_and_process_leaf(
             storage_root_node,
             b"",
-            self.set_storage_from_leaf,
-            state=state,
-            account_address=address,
+            partial(self.set_storage_from_leaf, state=state, account_address=address),
         )
 
     def set_storage_from_leaf(
@@ -273,7 +281,7 @@ class EthereumTries:
         root_node = self.nodes[self.state_root]
         logger.debug("Starting to derive state from root node")
         self.traverse_trie_and_process_leaf(
-            root_node, b"", self.set_account_from_leaf, state=state
+            root_node, b"", partial(self.set_account_from_leaf, state=state)
         )
         logger.debug("Finished deriving state object")
         return state
