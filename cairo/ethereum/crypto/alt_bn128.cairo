@@ -35,6 +35,48 @@ func bnf2_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: M
     return res;
 }
 
+// BNF2 multiplication
+// Flatten loops from EELS:
+// https://github.com/ethereum/execution-specs/blob/9c58cc8553ec3a59e732e81d5044c35aa480fbbb/src/ethereum/crypto/finite_field.py#L270-L287
+// First nested loop unrolled
+// mul[0] = a[0] * b[0]
+// mul[1] = a[0] * b[1] + a[1] * b[0]
+// mul[2] = a[1] * b[1]
+// mul[3] = 0
+//
+// Second nested loop knowing that modulus[1] = 0
+// When i=3 nothing is changed as mul[3] = 0
+// When i=2:
+// reduction_term = (mul[2] * modulus[0]) % prime
+// mul[0] = mul[0] - reduction_term
+func bnf2_mul{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
+    a: BNF2, b: BNF2
+) -> BNF2 {
+    tempvar modulus = U384(new UInt384(alt_bn128.P0, alt_bn128.P1, alt_bn128.P2, alt_bn128.P3));
+
+    // Step 1: Compute the products for polynomial multiplication
+    // mul[0] = a[0] * b[0]
+    let mul_0 = mul(a.value.c0.value, b.value.c0.value, modulus.value);
+    // mul[1] = a[0] * b[1] + a[1] * b[0]
+    let term_1 = mul(a.value.c0.value, b.value.c1.value, modulus.value);
+    let term_2 = mul(a.value.c1.value, b.value.c0.value, modulus.value);
+    let mul_1 = add(term_1, term_2, modulus.value);
+    // mul[2] = a[1] * b[1]
+    let mul_2 = mul(a.value.c1.value, b.value.c1.value, modulus.value);
+
+    // Step 2: Apply the reduction using the modulus polynomial
+    // mul[2] * modulus[0]
+    tempvar modulus_coeff = new UInt384(1, 0, 0, 0);
+    let reduction_term = mul(mul_2, modulus_coeff, modulus.value);
+    // Compute res[0] = mul[0] - reduction_term
+    let res_c0 = sub(mul_0, reduction_term, modulus.value);
+    // No reduction needed for res[1] = mul[1] in BNF2 with degree 2
+    let res_c1 = mul_1;
+
+    tempvar res = BNF2(new BNF2Struct(U384(res_c0), U384(res_c1)));
+    return res;
+}
+
 // BNF12 represents a field element in the BNF12 extension field
 // This is a 12-degree extension of the base field used in alt_bn128 curve
 struct BNF12Struct {
