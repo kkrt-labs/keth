@@ -136,6 +136,7 @@ class TestEthereumTries:
             parent_beacon_block_root=block.header.parent_beacon_block_root,
             excess_blob_gas=calculate_excess_blob_gas(blockchain.blocks[-1].header),
         )
+        # We recreate the block to apply with the updated state root, which is a partial state root
         block = Block(
             header=Header(
                 parent_hash=block.header.parent_hash,
@@ -163,10 +164,11 @@ class TestEthereumTries:
             ommers=(),
             withdrawals=block.withdrawals,
         )
+        # We recreate the chain with a new pre-state
         chain = BlockChain(
-            blocks=blocks,
+            blocks=blockchain.blocks,
             state=ethereum_tries.to_state(),
-            chain_id=U64(zkpi["chainConfig"]["chainId"]),
+            chain_id=blockchain.chain_id,
         )
         # TODO: end of tmp section
         state_transition(chain, block)
