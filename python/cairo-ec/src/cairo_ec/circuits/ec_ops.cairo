@@ -5,6 +5,7 @@ struct G1PointCircuitInput {
     y: felt,
 }
 
+// @dev Add two distinct EC points, doesn't make any checks on the inputs.
 func ec_add(p0: G1PointCircuitInput, p1: G1PointCircuitInput) -> G1PointCircuitInput {
     tempvar l = (p1.y - p0.y) / (p1.x - p0.x);
 
