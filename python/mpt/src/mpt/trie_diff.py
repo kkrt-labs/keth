@@ -1,45 +1,20 @@
-from dataclasses import dataclass
-from typing import Dict, Optional, Tuple, cast
-
-from eth_typing import Hash32
-from ethereum.cancun.fork_types import Account, Address
-from ethereum_types.numeric import U256
-from ethereum_types.bytes import Bytes32
-
-from ethereum.cancun.trie import InternalNode, LeafNode, BranchNode, ExtensionNode
-from ethereum.crypto.hash import Hash32, keccak256
-from ethereum_types.bytes import Bytes, Bytes20, Bytes32
-from ethereum_types.numeric import Uint
-from ethereum_rlp import rlp
-from mpt.utils import nibble_path_to_bytes
-
 import logging
+from dataclasses import dataclass
+from functools import partial
+from typing import Any, Callable, Dict, Optional, Tuple
+
+from ethereum.cancun.fork_types import Address
+from ethereum.cancun.trie import BranchNode, ExtensionNode, InternalNode, LeafNode
+from ethereum.crypto.hash import Hash32, keccak256
+from ethereum_rlp import rlp
+from ethereum_types.bytes import Bytes, Bytes20, Bytes32
+from ethereum_types.numeric import U256, Uint
+
+from mpt import EthereumTrieTransitionDB
+from mpt.utils import AccountNode, decode_node, nibble_path_to_bytes
 
 logger = logging.getLogger(__name__)
 
-@dataclass
-class AccountNode:
-    nonce: Uint
-    balance: U256
-    code_hash: Hash32
-    storage_root: Hash32
-
-    @staticmethod
-    def from_rlp(bytes: Bytes) -> "AccountNode":
-        decoded = rlp.decode(bytes)
-        return AccountNode(
-            nonce=Uint(int.from_bytes(decoded[0], "big")),
-            balance=U256(int.from_bytes(decoded[1], "big")),
-            storage_root=Hash32(decoded[2]),
-            code_hash=Hash32(decoded[3]),
-        )
-
-    def to_account(self, code: Bytes) -> Account:
-        return Account(
-            nonce=self.nonce,
-            balance=self.balance,
-            code=code,
-        )
 
 @dataclass
 class StateDiff:
@@ -54,148 +29,375 @@ class StateDiff:
     _address_preimages: Dict[Hash32, Address]
     _storage_key_preimages: Dict[Hash32, Bytes32]
 
+    @staticmethod
+    def from_data(data: Dict[str, Any]) -> "StateDiff":
+        pre_nodes = {
+            keccak256(bytes.fromhex(node[2:])): decode_node(bytes.fromhex(node[2:]))
+            for node in data["witness"]["state"]
+        }
+
+        pre_state_root = Hash32.fromhex(
+            data["witness"]["ancestors"][0]["stateRoot"][2:]
+        )
+        if pre_state_root not in pre_nodes:
+            raise ValueError(f"State root not found in nodes: {pre_state_root}")
+
+        post_nodes = {
+            keccak256(bytes.fromhex(node[2:])): decode_node(bytes.fromhex(node[2:]))
+            for node in data["extra"]["committed"]
+        }
+
+        post_state_root = Hash32.fromhex(data["blocks"][0]["header"]["stateRoot"][2:])
+        if post_state_root not in post_nodes:
+            raise ValueError(f"State root not found in nodes: {post_state_root}")
+
+        nodes = {**pre_nodes, **post_nodes}
+
+        # TODO: modify zk-pig to provide directly address preimages
+
+        # We need address & storage key preimages to get an address and storage key given a trie path, which is the hash of address and storage_key for the Ethereum tries
+        # Because State object from `ethereum` package maps Addresses to Accounts, and Storage Keys to Storage Values.
+        # See 👇
+        # class State:
+        #     _main_trie: Trie[Address, Optional[Account]]
+        #     _storage_tries: Dict[Address, Trie[Bytes32, U256]]
+        # ...
+        access_list = (
+            data["accessList"] if "accessList" in data else data["extra"]["accessList"]
+        )
+        address_preimages = {
+            keccak256(Bytes20.fromhex(preimage["address"][2:])): Address.fromhex(
+                preimage["address"][2:]
+            )
+            for preimage in access_list
+        }
+        storage_key_preimages = {
+            keccak256(Bytes32.fromhex(storage_key[2:])): Bytes32.fromhex(
+                storage_key[2:]
+            )
+            for access in access_list
+            for storage_key in access["storageKeys"] or []
+        }
+
+        ## Parse state diff
+        state_diff = StateDiff({}, {}, nodes, address_preimages, storage_key_preimages)
+        for diff in data["extra"]["stateDiffs"]:
+            address = Address.fromhex(diff["address"][2:])
+            if "preAccount" in diff:
+                pre_balance = U256(int(diff["preAccount"]["balance"][2:], 16))
+                pre_nonce = Uint(int(diff["preAccount"]["nonce"][2:], 16))
+                pre_code_hash = Hash32.fromhex(diff["preAccount"]["codeHash"][2:])
+                pre_storage_hash = Hash32.fromhex(diff["preAccount"]["storageHash"][2:])
+                pre_account = AccountNode(
+                    nonce=pre_nonce,
+                    balance=pre_balance,
+                    code_hash=pre_code_hash,
+                    storage_root=pre_storage_hash,
+                )
+            else:
+                pre_account = None
+
+            if "postAccount" in diff:
+                post_balance = U256(int(diff["postAccount"]["balance"][2:], 16))
+                post_nonce = Uint(int(diff["postAccount"]["nonce"][2:], 16))
+                post_code_hash = Hash32.fromhex(diff["postAccount"]["codeHash"][2:])
+                post_storage_hash = Hash32.fromhex(
+                    diff["postAccount"]["storageHash"][2:]
+                )
+                post_account = AccountNode(
+                    nonce=post_nonce,
+                    balance=post_balance,
+                    code_hash=post_code_hash,
+                    storage_root=post_storage_hash,
+                )
+            else:
+                post_account = None
+
+            state_diff._main_trie[address] = tuple((pre_account, post_account))
+        # {
+        #         "address": "0xff311cba8a1444d447676d7a180361b54b8e6f45",
+        #         "preAccount": {
+        #             "balance": "0x3bb651fa5c4d018",
+        #             "codeHash": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
+        #             "nonce": "0xe",
+        #             "storageHash": "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"
+        #         },
+        #         "postAccount": {
+        #             "balance": "0x1af7228882cef08",
+        #             "codeHash": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
+        #             "nonce": "0xf",
+        #             "storageHash": "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"
+        #         }
+        #     }
+        # }
+
+        return state_diff
+
     @classmethod
-    def from_tries(cls, tries: "EthereumTries") -> "StateDiff":
+    def from_tries(cls, tries: EthereumTrieTransitionDB) -> "StateDiff":
         # Merge all mappings of hash -> node to have a single DB to fetch nodes and resolve addresses from
-        diff = StateDiff({}, {}, tries.nodes, tries.address_preimages, tries.storage_key_preimages)
+        diff = StateDiff(
+            {}, {}, tries.nodes, tries.address_preimages, tries.storage_key_preimages
+        )
 
         l_root = tries.pre_state_root
         r_root = tries.post_state_root
 
-        diff._compute_diff(l_root, r_root, Bytes())
+        diff._compute_diff(l_root, r_root, Bytes(), diff._process_account_diff)
         return diff
 
-    def _compute_diff(self, left: Optional[Hash32], right: Optional[Hash32], path: Bytes):
+    def _process_account_diff(
+        self, path: Bytes32, left: Optional[LeafNode], right: Optional[LeafNode]
+    ):
+        address = self._address_preimages[path]
+        left_account = None if left is None else AccountNode.from_rlp(left.value)
+        right_account = None if right is None else AccountNode.from_rlp(right.value)
+
+        self._main_trie[address] = (left_account, right_account)
+
+        left_storage_root = None if left_account is None else left_account.storage_root
+        right_storage_root = (
+            None if right_account is None else right_account.storage_root
+        )
+
+        # self._compute_diff(
+        #     left_storage_root,
+        #     right_storage_root,
+        #     b"",
+        #     partial(self._process_storage_diff, address=address),
+        # )
+
+    def _process_storage_diff(
+        self,
+        path: Bytes32,
+        left: Optional[LeafNode],
+        right: Optional[LeafNode],
+        address: Address,
+    ):
+        key = self._storage_key_preimages[path]
+        left_decoded = (
+            U256(int.from_bytes(rlp.decode(left.value), "big")) if left else None
+        )
+        right_decoded = (
+            U256(int.from_bytes(rlp.decode(right.value), "big")) if right else None
+        )
+        if left is None:
+            if address not in self._storage_tries:
+                self._storage_tries[address] = {}
+            self._storage_tries[address][key] = tuple((None, right_decoded))
+        elif right is None:
+            if address not in self._storage_tries:
+                self._storage_tries[address] = {}
+            self._storage_tries[address][key] = tuple((left_decoded, None))
+        else:
+            if address not in self._storage_tries:
+                self._storage_tries[address] = {}
+            self._storage_tries[address][key] = tuple((left_decoded, right_decoded))
+
+    def _compute_diff(
+        self,
+        left: Optional[Hash32 | Bytes],
+        right: Optional[Hash32 | Bytes],
+        path: Bytes,
+        process_leaf_diff: Callable,
+    ):
         if left == right:
             return
 
         l_node = self._nodes.get(left) if left else None
         r_node = self._nodes.get(right) if right else None
 
-        l_name = l_node.__class__.__name__ if l_node else "None"
-        r_name = r_node.__class__.__name__ if r_node else "None"
-
-        match l_name, r_name:
-            case "None", "None":
+        # Use direct class pattern matching
+        match (l_node, r_node):
+            case (None, None):
                 # No change
                 pass
 
-            case "None", "LeafNode":
+            case (None, LeafNode()):
                 # new leaf
                 preimage = nibble_path_to_bytes(path + r_node.rest_of_key)
-                address = self._address_preimages[preimage]
-                self._main_trie[address] = tuple((None, AccountNode.from_rlp(r_node.value)))
+                process_leaf_diff(preimage, None, r_node)
 
-            case "None", "ExtensionNode":
-                r_node: ExtensionNode = cast(ExtensionNode, r_node)
+            case (None, ExtensionNode()):
                 # Look for diffs in the right sub-tree
-                self._compute_diff(None, r_node.subnode, path + r_node.key_segment)
+                self._compute_diff(
+                    None, r_node.subnode, path + r_node.key_segment, process_leaf_diff
+                )
 
-            case "None", "BranchNode":
+            case (None, BranchNode()):
                 # Look for diffs in all branches of the right sub-tree
-                r_node: BranchNode = cast(BranchNode, r_node)
                 for i in range(0, 16):
-                    self._compute_diff(None, r_node.subnodes[i], path + i.to_bytes(1, "big"))
+                    self._compute_diff(
+                        None,
+                        r_node.subnodes[i],
+                        path + i.to_bytes(1, "big"),
+                        process_leaf_diff,
+                    )
 
-            case "LeafNode", "None":
+            case (LeafNode(), None):
                 # deleted leaf (should not happen post-cancun)
                 preimage = nibble_path_to_bytes(path + l_node.rest_of_key)
-                address = self._address_preimages[preimage]
-                self._main_trie[address] = tuple((AccountNode.from_rlp(l_node.value), None))
+                process_leaf_diff(preimage, l_node, None)
 
-            case "LeafNode", "LeafNode":
+            case (LeafNode(), LeafNode()):
                 if l_node.value != r_node.value:
                     preimage = nibble_path_to_bytes(path + l_node.rest_of_key)
-                    address = self._address_preimages[preimage]
-                    self._main_trie[address] = tuple((AccountNode.from_rlp(l_node.value), AccountNode.from_rlp(r_node.value)))
+                    process_leaf_diff(preimage, l_node, r_node)
 
-            case "LeafNode", "BranchNode":
-                # Left is a valute, right is
-                logger.warning("LeafNode -> BranchNode")
-                breakpoint()
+            case (LeafNode(), BranchNode()):
+                # Look for diffs in all branches of the right sub-tree
                 for i in range(0, 16):
-                    self._compute_diff(None, r_node.subnodes[i], path + i.to_bytes(1, "big"))
+                    if (
+                        i != l_node.rest_of_key[0]
+                        or not self._nodes[r_node.subnodes[i]].value == l_node.value
+                    ):
+                        self._compute_diff(
+                            None,
+                            r_node.subnodes[i],
+                            path + bytes([i]),
+                            process_leaf_diff,
+                        )
 
-            case "LeafNode", "ExtensionNode":
-                raise ValueError("LeafNode -> ExtensionNode should not happen if comparing two valid trie roots")
+            case (LeafNode(), ExtensionNode()):
+                # left is a value, right is an extension
+                # all right nodes are diffs
+                # self._compute_diff(
+                #     None, r_node.subnode, path + r_node.key_segment, process_leaf_diff
+                # )
+                # # process_leaf_diff(
+                # #     nibble_path_to_bytes(path + l_node.rest_of_key),
+                # #     l_node,
+                # #     None,
+                # # )
+                # TODO: fix this
+                raise ValueError(
+                    "LeafNode -> ExtensionNode should not happen if comparing two valid trie roots"
+                )
 
-            case "ExtensionNode", "None":
+            case (ExtensionNode(), None):
                 # Look for diffs in the left sub-tree
-                l_node: ExtensionNode = cast(ExtensionNode, l_node)
-                self._compute_diff(l_node.subnode, None, path + l_node.key_segment)
+                self._compute_diff(
+                    l_node.subnode, None, path + l_node.key_segment, process_leaf_diff
+                )
 
-            case "ExtensionNode", "LeafNode":
-                raise ValueError("ExtensionNode -> LeafNode should not happen if comparing two valid trie roots")
+            case (ExtensionNode(), LeafNode()):
+                raise ValueError(
+                    "ExtensionNode -> LeafNode should not happen if comparing two valid trie roots"
+                )
 
-            case "ExtensionNode", "ExtensionNode":
-                l_node: ExtensionNode = cast(ExtensionNode, l_node)
-                r_node: ExtensionNode = cast(ExtensionNode, r_node)
-
-                # Equal keys -> Look for diffs in childrens
+            case (ExtensionNode(), ExtensionNode()):
+                # Equal keys -> Look for diffs in children
                 if l_node.key_segment == r_node.key_segment:
-                    self._compute_diff(l_node.subnode, r_node.subnode, path + l_node.key_segment)
-
-                # Right is prefix of left -> Look for diffs in left sub-tree
+                    self._compute_diff(
+                        l_node.subnode,
+                        r_node.subnode,
+                        path + l_node.key_segment,
+                        process_leaf_diff,
+                    )
+                # Right is prefix of left
                 elif l_node.key_segment.startswith(r_node.key_segment):
-                    # Remove the prefix from the extension key segment
-                    l_node.key_segment = l_node.key_segment[len(r_node.key_segment):]
-                    self._compute_diff(l_node.subnode, None, path + l_node.key_segment)
-
-                # Left is prefix of right -> Look for diffs in right sub-tree
+                    # Compare the right node's value with the left node shortened by right key
+                    l_node.key_segment = l_node.key_segment[len(r_node.key_segment) :]
+                    self._compute_diff(
+                        l_node,
+                        r_node.subnode,
+                        path + r_node.key_segment,
+                        process_leaf_diff,
+                    )
+                # Left is prefix of right
                 elif r_node.key_segment.startswith(l_node.key_segment):
-                    # Remove the prefix from the extension key segment
-                    r_node.key_segment = r_node.key_segment[len(l_node.key_segment):]
-                    self._compute_diff(None, r_node.subnode, path + r_node.key_segment)
-
+                    # Compare the left node's value with the right node shortened by left key
+                    r_node.key_segment = r_node.key_segment[len(l_node.key_segment) :]
+                    self._compute_diff(
+                        l_node.subnode,
+                        r_node,
+                        path + l_node.key_segment,
+                        process_leaf_diff,
+                    )
                 # Both are different -> Look for diffs in both sub-trees
                 else:
-                    self._compute_diff(l_node.subnode, r_node.subnode, path + l_node.key_segment)
+                    self._compute_diff(
+                        l_node.subnode,
+                        None,
+                        path + l_node.key_segment,
+                        process_leaf_diff,
+                    )
+                    self._compute_diff(
+                        None,
+                        r_node.subnode,
+                        path + r_node.key_segment,
+                        process_leaf_diff,
+                    )
 
-            case "ExtensionNode", "BranchNode":
-                l_node: ExtensionNode = cast(ExtensionNode, l_node)
-                r_node: BranchNode = cast(BranchNode, r_node)
+            case (ExtensionNode(), BranchNode()):
                 # Match on the corresponding nibble of the extension key segment
                 for i in range(0, 16):
                     nibble = i.to_bytes(1, "big")
                     if l_node.key_segment[0] == nibble:
                         # Remove the nibble from the extension key segment
                         l_node.key_segment = l_node.key_segment[1:]
-                        self._compute_diff(l_node.subnode, r_node.subnodes[i], path + nibble)
+                        self._compute_diff(
+                            l_node.subnode,
+                            r_node.subnodes[i],
+                            path + nibble,
+                            process_leaf_diff,
+                        )
                     else:
                         # Look for diffs in other branches
-                        self._compute_diff(l_node.subnode, r_node.subnodes[i], path + nibble)
+                        self._compute_diff(
+                            l_node.subnode,
+                            r_node.subnodes[i],
+                            path + nibble,
+                            process_leaf_diff,
+                        )
 
-            case "BranchNode", "None":
+            case (BranchNode(), None):
                 # Look for diffs in all branches of the left sub-tree
-                l_node: BranchNode = cast(BranchNode, l_node)
                 for i in range(0, 16):
-                    self._compute_diff(l_node.subnodes[i], None, path + i.to_bytes(1, "big"))
+                    self._compute_diff(
+                        l_node.subnodes[i],
+                        None,
+                        path + i.to_bytes(1, "big"),
+                        process_leaf_diff,
+                    )
 
-            case "BranchNode", "LeafNode":
-                raise ValueError("BranchNode -> LeafNode should not happen if comparing two valid trie roots")
+            case (BranchNode(), LeafNode()):
+                raise ValueError(
+                    "BranchNode -> LeafNode should not happen if comparing two valid trie roots"
+                )
 
-            case "BranchNode", "ExtensionNode":
-                l_node: BranchNode = cast(BranchNode, l_node)
-                r_node: ExtensionNode = cast(ExtensionNode, r_node)
+            case (BranchNode(), ExtensionNode()):
                 # Match on the corresponding nibble of the extension key segment
                 for i in range(0, 16):
                     nibble = i.to_bytes(1, "big")
                     if r_node.key_segment[0] == nibble:
                         # Remove the nibble from the extension key segment
                         r_node.key_segment = r_node.key_segment[1:]
-                        self._compute_diff(l_node.subnodes[i], r_node.subnode, path + nibble)
+                        self._compute_diff(
+                            l_node.subnodes[i],
+                            r_node.subnode,
+                            path + nibble,
+                            process_leaf_diff,
+                        )
                     else:
                         # Look for diffs in other branches
-                        self._compute_diff(l_node, None, path + nibble)
+                        self._compute_diff(
+                            l_node, None, path + nibble, process_leaf_diff
+                        )
 
-            case "BranchNode", "BranchNode":
+            case (BranchNode(), BranchNode()):
                 # Look for diffs in all branches of the right sub-tree
-                l_node = cast(BranchNode, l_node)
-                r_node = cast(BranchNode, r_node)
                 for i in range(0, 16):
-                    l_hash = l_node.subnodes[i]
-                    r_hash = r_node.subnodes[i]
-                    self._compute_diff(l_hash, r_hash, path + i.to_bytes(1, "big"))
+                    l_subnode = l_node.subnodes[i]
+                    r_subnode = r_node.subnodes[i]
+                    self._compute_diff(
+                        l_subnode,
+                        r_subnode,
+                        path + i.to_bytes(1, "big"),
+                        process_leaf_diff,
+                    )
 
             case _:
-                raise ValueError(f"Node types do not match: {type(l_node)} != {type(r_node)}")
+                raise ValueError(
+                    f"Node types do not match: {type(l_node)} != {type(r_node)}"
+                )
