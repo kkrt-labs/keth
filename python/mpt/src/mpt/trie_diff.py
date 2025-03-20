@@ -226,21 +226,24 @@ class StateDiff:
                     self._compute_diff(
                         l_node.subnode, r_node.subnode, path + l_node.key_segment
                     )
-                # Right is prefix of left -> Look for diffs in left sub-tree
+                # Right is prefix of left
                 elif l_node.key_segment.startswith(r_node.key_segment):
-                    # Remove the prefix from the extension key segment
+                    # Create a copy of l_node with key_segment shortened by r_node's key_segment
                     l_node.key_segment = l_node.key_segment[len(r_node.key_segment) :]
-                    self._compute_diff(l_node.subnode, None, path + l_node.key_segment)
-                # Left is prefix of right -> Look for diffs in right sub-tree
+                    # Compare the right node's value with the left node shortened by right key
+                    shortened_path = path + r_node.key_segment
+                    self._compute_diff(l_node.subnode, r_node.subnode, shortened_path)
+                # Left is prefix of right
                 elif r_node.key_segment.startswith(l_node.key_segment):
-                    # Remove the prefix from the extension key segment
+                    # Create a copy of r_node with key_segment shortened by l_node's key_segment
                     r_node.key_segment = r_node.key_segment[len(l_node.key_segment) :]
-                    self._compute_diff(None, r_node.subnode, path + r_node.key_segment)
+                    # We'll keep track of the path using the common prefix (left key)
+                    shortened_path = path + l_node.key_segment
+                    self._compute_diff(l_node.subnode, r_node.subnode, shortened_path)
                 # Both are different -> Look for diffs in both sub-trees
                 else:
-                    self._compute_diff(
-                        l_node.subnode, r_node.subnode, path + l_node.key_segment
-                    )
+                    self._compute_diff(l_node.subnode, None, path + l_node.key_segment)
+                    self._compute_diff(None, r_node.subnode, path + r_node.key_segment)
 
             case (ExtensionNode(), BranchNode()):
                 # Match on the corresponding nibble of the extension key segment
