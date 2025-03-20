@@ -49,6 +49,30 @@ func bnf2_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: M
     return res;
 }
 
+func BNF2_ZERO() -> BNF2 {
+    let (u384_zero) = get_label_location(U384_ZERO);
+    let u384_zero_ptr = cast(u384_zero, UInt384*);
+    tempvar res = BNF2(new BNF2Struct(U384(u384_zero_ptr), U384(u384_zero_ptr)));
+    return res;
+}
+
+// BNP2 represents a point on the BNP2 curve
+// BNF2 is the base field of the curve
+struct BNP2Struct {
+    x: BNF2,
+    y: BNF2,
+}
+
+struct BNP2 {
+    value: BNP2Struct*,
+}
+
+func bnp2_point_at_infinity() -> BNP2 {
+    let bnf2_zero = BNF2_ZERO();
+    tempvar res = BNP2(new BNP2Struct(bnf2_zero, bnf2_zero));
+    return res;
+}
+
 // BNF2 multiplication
 // Flatten loops from EELS:
 // https://github.com/ethereum/execution-specs/blob/9c58cc8553ec3a59e732e81d5044c35aa480fbbb/src/ethereum/crypto/finite_field.py#L270-L287
