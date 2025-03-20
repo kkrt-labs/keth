@@ -13,7 +13,7 @@ from cairo_ec.circuits.ec_ops_compiled import (
     assert_x_is_on_curve,
     ecip_1p,
 )
-from cairo_ec.circuits.mod_ops_compiled import add, mul
+from cairo_ec.circuits.mod_ops_compiled import mul
 from cairo_ec.circuit_utils import N_LIMBS, hash_full_transcript
 from cairo_ec.curve.alt_bn128 import alt_bn128, sign_to_uint384_mod_alt_bn128
 from cairo_ec.curve.g1_point import G1Point, G1PointStruct, G1Point__eq__, G1Point_zero
@@ -42,7 +42,7 @@ from cairo_core.numeric import U384, U384Struct
 // @return (y: UInt384*, is_on_curve: felt) The derived y and success flag
 func try_get_point_from_x{
     range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
-}(x: U384, v: felt, a: U384, b: U384, g: U384, p: U384) -> (y: U384, is_on_curve: felt) {
+}(x: U384, v: felt, a: U384, b: U384, g: U384, modulus: U384) -> (y: U384, is_on_curve: felt) {
     alloc_locals;
     let (__fp__, __pc__) = get_fp_and_pc();
     local is_on_curve: UInt384;
@@ -50,7 +50,9 @@ func try_get_point_from_x{
     %{ compute_y_from_x_hint %}
 
     tempvar point = new G1PointStruct(x=x, y=U384(&y_try));
-    assert_x_is_on_curve(point=point, a=a, b=b, g=g, is_on_curve=U384(&is_on_curve), p=p);
+    assert_x_is_on_curve(
+        point=point, a=a, b=b, g=g, is_on_curve=U384(&is_on_curve), modulus=modulus
+    );
     assert is_on_curve.d3 = 0;
     assert is_on_curve.d2 = 0;
     assert is_on_curve.d1 = 0;
@@ -65,12 +67,12 @@ func get_random_point{
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,
-}(seed: felt, a: U384, b: U384, g: U384, p: U384) -> G1Point {
+}(seed: felt, a: U384, b: U384, g: U384, modulus: U384) -> G1Point {
     alloc_locals;
     let (__fp__, __pc__) = get_fp_and_pc();
     let x_384 = felt_to_uint384(seed);
     tempvar x = U384(new x_384);
-    let (y, is_on_curve) = try_get_point_from_x(x=x, v=0, a=a, b=b, g=g, p=p);
+    let (y, is_on_curve) = try_get_point_from_x(x=x, v=0, a=a, b=b, g=g, modulus=modulus);
 
     if (is_on_curve != 0) {
         tempvar point = G1Point(new G1PointStruct(x, y));
@@ -83,7 +85,7 @@ func get_random_point{
     let seed = poseidon_ptr[0].output.s0;
     tempvar poseidon_ptr = poseidon_ptr + PoseidonBuiltin.SIZE;
 
-    return get_random_point(seed=seed, a=a, b=b, g=g, p=p);
+    return get_random_point(seed=seed, a=a, b=b, g=g, modulus=modulus);
 }
 
 // / @notice Adds two EC points on the ALT_BN128 curve.
@@ -150,8 +152,8 @@ func ec_mul{
 
     tempvar one_u384 = U384(new U384Struct(1, 0, 0, 0));
     tempvar n = U384(new U384Struct(alt_bn128.N0, alt_bn128.N1, alt_bn128.N2, alt_bn128.N3));
-    let rem = mul(k.value, one_u384.value, n.value);
-    let scalar = uint384_to_uint256([rem]);
+    let rem = mul(k, one_u384, n);
+    let scalar = uint384_to_uint256([rem.value]);
     let n_min_one = Uint256(alt_bn128.N_LOW_128 - 1, alt_bn128.N_HIGH_128);
     assert_uint256_le(scalar, n_min_one);
 
@@ -250,7 +252,7 @@ func ec_mul{
     tempvar range_check96_ptr_init = range_check96_ptr;
     tempvar range_check96_ptr_after_circuit = range_check96_ptr + 1092;
     let random_point = get_random_point{range_check96_ptr=range_check96_ptr_after_circuit}(
-        seed=[cast(poseidon_ptr, felt*) - 3], a=a, b=b, g=g, p=modulus
+        seed=[cast(poseidon_ptr, felt*) - 3], a=a, b=b, g=g, modulus=modulus
     );
     let range_check96_ptr = range_check96_ptr_init;
 

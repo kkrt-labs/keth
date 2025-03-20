@@ -8,10 +8,10 @@ from cairo_core.numeric import U384
 
 func test__try_get_point_from_x{
     range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
-}(x: U384, v: felt, a: U384, b: U384, g: U384, p: U384) -> (y: U384, is_on_curve: felt) {
+}(x: U384, v: felt, a: U384, b: U384, g: U384, modulus: U384) -> (y: U384, is_on_curve: felt) {
     alloc_locals;
 
-    let (y, is_on_curve) = try_get_point_from_x(x=x, v=v, a=a, b=b, g=g, p=p);
+    let (y, is_on_curve) = try_get_point_from_x(x=x, v=v, a=a, b=b, g=g, modulus=modulus);
     return (y, is_on_curve);
 }
 

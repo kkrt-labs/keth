@@ -57,7 +57,7 @@ from cairo_ec.circuits.ec_ops_compiled import (
 func test__circuit{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
     values_ptr: felt*,
     values_ptr_len: felt,
-    p: UInt384*,
+    modulus: U384,
     add_mod_offsets_ptr: felt*,
     add_mod_n: felt,
     mul_mod_offsets_ptr: felt*,
@@ -71,7 +71,7 @@ func test__circuit{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_p
     local range_check96_ptr_end: felt* = range_check96_ptr + total_offset;
 
     run_mod_p_circuit(
-        p=[p],
+        p=[modulus.value],
         values_ptr=cast(range_check96_ptr, UInt384*),
         add_mod_offsets_ptr=add_mod_offsets_ptr,
         add_mod_n=add_mod_n,

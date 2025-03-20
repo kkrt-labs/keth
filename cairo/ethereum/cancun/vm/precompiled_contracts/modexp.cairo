@@ -215,8 +215,7 @@ func mod_exp_loop_inner{
         tempvar mul_mod_ptr = mul_mod_ptr;
     } else {
         // Bit is set, multiply by base
-        let res_with_base_ptr = mul(res.value, base.value, modulus.value);
-        tempvar new_res = U384(res_with_base_ptr);
+        let new_res = mul(res, base, modulus);
         tempvar range_check96_ptr = range_check96_ptr;
         tempvar add_mod_ptr = add_mod_ptr;
         tempvar mul_mod_ptr = mul_mod_ptr;
@@ -230,13 +229,12 @@ func mod_exp_loop_inner{
     // Use mul(x, 1, p) instead of add(x, 0, p) for modular reduction because:
     // - AddModBuiltin requires inputs < 2p (k_bound=2)
     // - MulModBuiltin allows inputs up to 2^384 (k_bound=2^384)
-    tempvar one_u384 = new UInt384(1, 0, 0, 0);
-    let base_reduced_ptr = mul(base.value, one_u384, modulus.value);
+    tempvar one_u384 = U384(new UInt384(1, 0, 0, 0));
+    let base_reduced = mul(base, one_u384, modulus);
     // Square the base for next iteration
-    let base_squared_ptr = mul(base_reduced_ptr, base_reduced_ptr, modulus.value);
-    let new_base = U384(base_squared_ptr);
+    let base_squared = mul(base_reduced, base_reduced, modulus);
 
-    return (new_res, new_base);
+    return (new_res, base_squared);
 }
 
 func get_u384_bits_little{range_check_ptr}(num: U384) -> (felt*, felt) {

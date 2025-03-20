@@ -1,27 +1,28 @@
 from starkware.cairo.common.cairo_builtins import UInt384, ModBuiltin
 from starkware.cairo.common.modulo import run_mod_p_circuit
 from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
+from cairo_core.numeric import U384
 
 func add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
-    x: UInt384*, y: UInt384*, p: UInt384*
-) -> UInt384* {
+    x: U384, y: U384, modulus: U384
+) -> U384 {
     let (_, pc) = get_fp_and_pc();
 
     pc_label:
     let add_mod_offsets_ptr = pc + (add_offsets - pc_label);
     let mul_mod_offsets_ptr = pc + (mul_offsets - pc_label);
 
-    assert [range_check96_ptr + 0] = x.d0;
-    assert [range_check96_ptr + 1] = x.d1;
-    assert [range_check96_ptr + 2] = x.d2;
-    assert [range_check96_ptr + 3] = x.d3;
-    assert [range_check96_ptr + 4] = y.d0;
-    assert [range_check96_ptr + 5] = y.d1;
-    assert [range_check96_ptr + 6] = y.d2;
-    assert [range_check96_ptr + 7] = y.d3;
+    assert [range_check96_ptr + 0] = x.value.d0;
+    assert [range_check96_ptr + 1] = x.value.d1;
+    assert [range_check96_ptr + 2] = x.value.d2;
+    assert [range_check96_ptr + 3] = x.value.d3;
+    assert [range_check96_ptr + 4] = y.value.d0;
+    assert [range_check96_ptr + 5] = y.value.d1;
+    assert [range_check96_ptr + 6] = y.value.d2;
+    assert [range_check96_ptr + 7] = y.value.d3;
 
     run_mod_p_circuit(
-        p=[p],
+        p=[modulus.value],
         values_ptr=cast(range_check96_ptr, UInt384*),
         add_mod_offsets_ptr=add_mod_offsets_ptr,
         add_mod_n=1,
@@ -31,7 +32,8 @@ func add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBui
 
     let range_check96_ptr = range_check96_ptr + 12;
 
-    return cast(range_check96_ptr - 4, UInt384*);
+    tempvar res = U384(cast(range_check96_ptr - 4, UInt384*));
+    return res;
 
     add_offsets:
     dw 0;
@@ -42,25 +44,25 @@ func add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBui
 }
 
 func sub{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
-    x: UInt384*, y: UInt384*, p: UInt384*
-) -> UInt384* {
+    x: U384, y: U384, modulus: U384
+) -> U384 {
     let (_, pc) = get_fp_and_pc();
 
     pc_label:
     let add_mod_offsets_ptr = pc + (add_offsets - pc_label);
     let mul_mod_offsets_ptr = pc + (mul_offsets - pc_label);
 
-    assert [range_check96_ptr + 0] = x.d0;
-    assert [range_check96_ptr + 1] = x.d1;
-    assert [range_check96_ptr + 2] = x.d2;
-    assert [range_check96_ptr + 3] = x.d3;
-    assert [range_check96_ptr + 4] = y.d0;
-    assert [range_check96_ptr + 5] = y.d1;
-    assert [range_check96_ptr + 6] = y.d2;
-    assert [range_check96_ptr + 7] = y.d3;
+    assert [range_check96_ptr + 0] = x.value.d0;
+    assert [range_check96_ptr + 1] = x.value.d1;
+    assert [range_check96_ptr + 2] = x.value.d2;
+    assert [range_check96_ptr + 3] = x.value.d3;
+    assert [range_check96_ptr + 4] = y.value.d0;
+    assert [range_check96_ptr + 5] = y.value.d1;
+    assert [range_check96_ptr + 6] = y.value.d2;
+    assert [range_check96_ptr + 7] = y.value.d3;
 
     run_mod_p_circuit(
-        p=[p],
+        p=[modulus.value],
         values_ptr=cast(range_check96_ptr, UInt384*),
         add_mod_offsets_ptr=add_mod_offsets_ptr,
         add_mod_n=1,
@@ -70,7 +72,8 @@ func sub{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBui
 
     let range_check96_ptr = range_check96_ptr + 12;
 
-    return cast(range_check96_ptr - 4, UInt384*);
+    tempvar res = U384(cast(range_check96_ptr - 4, UInt384*));
+    return res;
 
     add_offsets:
     dw 8;
@@ -81,25 +84,25 @@ func sub{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBui
 }
 
 func mul{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
-    x: UInt384*, y: UInt384*, p: UInt384*
-) -> UInt384* {
+    x: U384, y: U384, modulus: U384
+) -> U384 {
     let (_, pc) = get_fp_and_pc();
 
     pc_label:
     let add_mod_offsets_ptr = pc + (add_offsets - pc_label);
     let mul_mod_offsets_ptr = pc + (mul_offsets - pc_label);
 
-    assert [range_check96_ptr + 0] = x.d0;
-    assert [range_check96_ptr + 1] = x.d1;
-    assert [range_check96_ptr + 2] = x.d2;
-    assert [range_check96_ptr + 3] = x.d3;
-    assert [range_check96_ptr + 4] = y.d0;
-    assert [range_check96_ptr + 5] = y.d1;
-    assert [range_check96_ptr + 6] = y.d2;
-    assert [range_check96_ptr + 7] = y.d3;
+    assert [range_check96_ptr + 0] = x.value.d0;
+    assert [range_check96_ptr + 1] = x.value.d1;
+    assert [range_check96_ptr + 2] = x.value.d2;
+    assert [range_check96_ptr + 3] = x.value.d3;
+    assert [range_check96_ptr + 4] = y.value.d0;
+    assert [range_check96_ptr + 5] = y.value.d1;
+    assert [range_check96_ptr + 6] = y.value.d2;
+    assert [range_check96_ptr + 7] = y.value.d3;
 
     run_mod_p_circuit(
-        p=[p],
+        p=[modulus.value],
         values_ptr=cast(range_check96_ptr, UInt384*),
         add_mod_offsets_ptr=add_mod_offsets_ptr,
         add_mod_n=0,
@@ -109,7 +112,8 @@ func mul{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBui
 
     let range_check96_ptr = range_check96_ptr + 12;
 
-    return cast(range_check96_ptr - 4, UInt384*);
+    tempvar res = U384(cast(range_check96_ptr - 4, UInt384*));
+    return res;
 
     add_offsets:
 
@@ -120,25 +124,25 @@ func mul{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBui
 }
 
 func div{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
-    x: UInt384*, y: UInt384*, p: UInt384*
-) -> UInt384* {
+    x: U384, y: U384, modulus: U384
+) -> U384 {
     let (_, pc) = get_fp_and_pc();
 
     pc_label:
     let add_mod_offsets_ptr = pc + (add_offsets - pc_label);
     let mul_mod_offsets_ptr = pc + (mul_offsets - pc_label);
 
-    assert [range_check96_ptr + 0] = x.d0;
-    assert [range_check96_ptr + 1] = x.d1;
-    assert [range_check96_ptr + 2] = x.d2;
-    assert [range_check96_ptr + 3] = x.d3;
-    assert [range_check96_ptr + 4] = y.d0;
-    assert [range_check96_ptr + 5] = y.d1;
-    assert [range_check96_ptr + 6] = y.d2;
-    assert [range_check96_ptr + 7] = y.d3;
+    assert [range_check96_ptr + 0] = x.value.d0;
+    assert [range_check96_ptr + 1] = x.value.d1;
+    assert [range_check96_ptr + 2] = x.value.d2;
+    assert [range_check96_ptr + 3] = x.value.d3;
+    assert [range_check96_ptr + 4] = y.value.d0;
+    assert [range_check96_ptr + 5] = y.value.d1;
+    assert [range_check96_ptr + 6] = y.value.d2;
+    assert [range_check96_ptr + 7] = y.value.d3;
 
     run_mod_p_circuit(
-        p=[p],
+        p=[modulus.value],
         values_ptr=cast(range_check96_ptr, UInt384*),
         add_mod_offsets_ptr=add_mod_offsets_ptr,
         add_mod_n=0,
@@ -148,7 +152,8 @@ func div{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBui
 
     let range_check96_ptr = range_check96_ptr + 12;
 
-    return cast(range_check96_ptr - 4, UInt384*);
+    tempvar res = U384(cast(range_check96_ptr - 4, UInt384*));
+    return res;
 
     add_offsets:
 
@@ -159,25 +164,25 @@ func div{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBui
 }
 
 func diff_ratio{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
-    x: UInt384*, y: UInt384*, p: UInt384*
-) -> UInt384* {
+    x: U384, y: U384, modulus: U384
+) -> U384 {
     let (_, pc) = get_fp_and_pc();
 
     pc_label:
     let add_mod_offsets_ptr = pc + (add_offsets - pc_label);
     let mul_mod_offsets_ptr = pc + (mul_offsets - pc_label);
 
-    assert [range_check96_ptr + 0] = x.d0;
-    assert [range_check96_ptr + 1] = x.d1;
-    assert [range_check96_ptr + 2] = x.d2;
-    assert [range_check96_ptr + 3] = x.d3;
-    assert [range_check96_ptr + 4] = y.d0;
-    assert [range_check96_ptr + 5] = y.d1;
-    assert [range_check96_ptr + 6] = y.d2;
-    assert [range_check96_ptr + 7] = y.d3;
+    assert [range_check96_ptr + 0] = x.value.d0;
+    assert [range_check96_ptr + 1] = x.value.d1;
+    assert [range_check96_ptr + 2] = x.value.d2;
+    assert [range_check96_ptr + 3] = x.value.d3;
+    assert [range_check96_ptr + 4] = y.value.d0;
+    assert [range_check96_ptr + 5] = y.value.d1;
+    assert [range_check96_ptr + 6] = y.value.d2;
+    assert [range_check96_ptr + 7] = y.value.d3;
 
     run_mod_p_circuit(
-        p=[p],
+        p=[modulus.value],
         values_ptr=cast(range_check96_ptr, UInt384*),
         add_mod_offsets_ptr=add_mod_offsets_ptr,
         add_mod_n=2,
@@ -187,7 +192,8 @@ func diff_ratio{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr:
 
     let range_check96_ptr = range_check96_ptr + 20;
 
-    return cast(range_check96_ptr - 4, UInt384*);
+    tempvar res = U384(cast(range_check96_ptr - 4, UInt384*));
+    return res;
 
     add_offsets:
     dw 8;
@@ -204,25 +210,25 @@ func diff_ratio{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr:
 }
 
 func sum_ratio{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
-    x: UInt384*, y: UInt384*, p: UInt384*
-) -> UInt384* {
+    x: U384, y: U384, modulus: U384
+) -> U384 {
     let (_, pc) = get_fp_and_pc();
 
     pc_label:
     let add_mod_offsets_ptr = pc + (add_offsets - pc_label);
     let mul_mod_offsets_ptr = pc + (mul_offsets - pc_label);
 
-    assert [range_check96_ptr + 0] = x.d0;
-    assert [range_check96_ptr + 1] = x.d1;
-    assert [range_check96_ptr + 2] = x.d2;
-    assert [range_check96_ptr + 3] = x.d3;
-    assert [range_check96_ptr + 4] = y.d0;
-    assert [range_check96_ptr + 5] = y.d1;
-    assert [range_check96_ptr + 6] = y.d2;
-    assert [range_check96_ptr + 7] = y.d3;
+    assert [range_check96_ptr + 0] = x.value.d0;
+    assert [range_check96_ptr + 1] = x.value.d1;
+    assert [range_check96_ptr + 2] = x.value.d2;
+    assert [range_check96_ptr + 3] = x.value.d3;
+    assert [range_check96_ptr + 4] = y.value.d0;
+    assert [range_check96_ptr + 5] = y.value.d1;
+    assert [range_check96_ptr + 6] = y.value.d2;
+    assert [range_check96_ptr + 7] = y.value.d3;
 
     run_mod_p_circuit(
-        p=[p],
+        p=[modulus.value],
         values_ptr=cast(range_check96_ptr, UInt384*),
         add_mod_offsets_ptr=add_mod_offsets_ptr,
         add_mod_n=2,
@@ -232,7 +238,8 @@ func sum_ratio{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: 
 
     let range_check96_ptr = range_check96_ptr + 20;
 
-    return cast(range_check96_ptr - 4, UInt384*);
+    tempvar res = U384(cast(range_check96_ptr - 4, UInt384*));
+    return res;
 
     add_offsets:
     dw 0;
@@ -249,8 +256,8 @@ func sum_ratio{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: 
 }
 
 func inv{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
-    x: UInt384*, p: UInt384*
-) -> UInt384* {
+    x: U384, modulus: U384
+) -> U384 {
     let (_, pc) = get_fp_and_pc();
 
     pc_label:
@@ -266,13 +273,13 @@ func inv{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBui
     assert [range_check96_ptr + 6] = 0;
     assert [range_check96_ptr + 7] = 0;
 
-    assert [range_check96_ptr + 8] = x.d0;
-    assert [range_check96_ptr + 9] = x.d1;
-    assert [range_check96_ptr + 10] = x.d2;
-    assert [range_check96_ptr + 11] = x.d3;
+    assert [range_check96_ptr + 8] = x.value.d0;
+    assert [range_check96_ptr + 9] = x.value.d1;
+    assert [range_check96_ptr + 10] = x.value.d2;
+    assert [range_check96_ptr + 11] = x.value.d3;
 
     run_mod_p_circuit(
-        p=[p],
+        p=[modulus.value],
         values_ptr=cast(range_check96_ptr, UInt384*),
         add_mod_offsets_ptr=add_mod_offsets_ptr,
         add_mod_n=1,
@@ -282,7 +289,8 @@ func inv{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBui
 
     let range_check96_ptr = range_check96_ptr + 20;
 
-    return cast(range_check96_ptr - 4, UInt384*);
+    tempvar res = U384(cast(range_check96_ptr - 4, UInt384*));
+    return res;
 
     add_offsets:
     dw 4;
@@ -297,7 +305,7 @@ func inv{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBui
 
 func assert_is_quad_residue{
     range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
-}(x: UInt384*, root: UInt384*, g: UInt384*, is_quad_residue: UInt384*, p: UInt384*) {
+}(x: U384, root: U384, g: U384, is_quad_residue: U384, modulus: U384) {
     let (_, pc) = get_fp_and_pc();
 
     pc_label:
@@ -313,25 +321,25 @@ func assert_is_quad_residue{
     assert [range_check96_ptr + 6] = 0;
     assert [range_check96_ptr + 7] = 0;
 
-    assert [range_check96_ptr + 8] = x.d0;
-    assert [range_check96_ptr + 9] = x.d1;
-    assert [range_check96_ptr + 10] = x.d2;
-    assert [range_check96_ptr + 11] = x.d3;
-    assert [range_check96_ptr + 12] = root.d0;
-    assert [range_check96_ptr + 13] = root.d1;
-    assert [range_check96_ptr + 14] = root.d2;
-    assert [range_check96_ptr + 15] = root.d3;
-    assert [range_check96_ptr + 16] = g.d0;
-    assert [range_check96_ptr + 17] = g.d1;
-    assert [range_check96_ptr + 18] = g.d2;
-    assert [range_check96_ptr + 19] = g.d3;
-    assert [range_check96_ptr + 20] = is_quad_residue.d0;
-    assert [range_check96_ptr + 21] = is_quad_residue.d1;
-    assert [range_check96_ptr + 22] = is_quad_residue.d2;
-    assert [range_check96_ptr + 23] = is_quad_residue.d3;
+    assert [range_check96_ptr + 8] = x.value.d0;
+    assert [range_check96_ptr + 9] = x.value.d1;
+    assert [range_check96_ptr + 10] = x.value.d2;
+    assert [range_check96_ptr + 11] = x.value.d3;
+    assert [range_check96_ptr + 12] = root.value.d0;
+    assert [range_check96_ptr + 13] = root.value.d1;
+    assert [range_check96_ptr + 14] = root.value.d2;
+    assert [range_check96_ptr + 15] = root.value.d3;
+    assert [range_check96_ptr + 16] = g.value.d0;
+    assert [range_check96_ptr + 17] = g.value.d1;
+    assert [range_check96_ptr + 18] = g.value.d2;
+    assert [range_check96_ptr + 19] = g.value.d3;
+    assert [range_check96_ptr + 20] = is_quad_residue.value.d0;
+    assert [range_check96_ptr + 21] = is_quad_residue.value.d1;
+    assert [range_check96_ptr + 22] = is_quad_residue.value.d2;
+    assert [range_check96_ptr + 23] = is_quad_residue.value.d3;
 
     run_mod_p_circuit(
-        p=[p],
+        p=[modulus.value],
         values_ptr=cast(range_check96_ptr, UInt384*),
         add_mod_offsets_ptr=add_mod_offsets_ptr,
         add_mod_n=6,
@@ -341,7 +349,8 @@ func assert_is_quad_residue{
 
     let range_check96_ptr = range_check96_ptr + 60;
 
-    return ();
+    tempvar res = ();
+    return res;
 
     add_offsets:
     dw 4;
@@ -382,7 +391,7 @@ func assert_is_quad_residue{
 }
 
 func assert_eq{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
-    x: UInt384*, y: UInt384*, p: UInt384*
+    x: U384, y: U384, modulus: U384
 ) {
     let (_, pc) = get_fp_and_pc();
 
@@ -395,17 +404,17 @@ func assert_eq{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: 
     assert [range_check96_ptr + 2] = 0;
     assert [range_check96_ptr + 3] = 0;
 
-    assert [range_check96_ptr + 4] = x.d0;
-    assert [range_check96_ptr + 5] = x.d1;
-    assert [range_check96_ptr + 6] = x.d2;
-    assert [range_check96_ptr + 7] = x.d3;
-    assert [range_check96_ptr + 8] = y.d0;
-    assert [range_check96_ptr + 9] = y.d1;
-    assert [range_check96_ptr + 10] = y.d2;
-    assert [range_check96_ptr + 11] = y.d3;
+    assert [range_check96_ptr + 4] = x.value.d0;
+    assert [range_check96_ptr + 5] = x.value.d1;
+    assert [range_check96_ptr + 6] = x.value.d2;
+    assert [range_check96_ptr + 7] = x.value.d3;
+    assert [range_check96_ptr + 8] = y.value.d0;
+    assert [range_check96_ptr + 9] = y.value.d1;
+    assert [range_check96_ptr + 10] = y.value.d2;
+    assert [range_check96_ptr + 11] = y.value.d3;
 
     run_mod_p_circuit(
-        p=[p],
+        p=[modulus.value],
         values_ptr=cast(range_check96_ptr, UInt384*),
         add_mod_offsets_ptr=add_mod_offsets_ptr,
         add_mod_n=1,
@@ -415,7 +424,8 @@ func assert_eq{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: 
 
     let range_check96_ptr = range_check96_ptr + 12;
 
-    return ();
+    tempvar res = ();
+    return res;
 
     add_offsets:
     dw 0;
@@ -426,7 +436,7 @@ func assert_eq{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: 
 }
 
 func assert_neq{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
-    x: UInt384*, y: UInt384*, p: UInt384*
+    x: U384, y: U384, modulus: U384
 ) {
     let (_, pc) = get_fp_and_pc();
 
@@ -443,17 +453,17 @@ func assert_neq{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr:
     assert [range_check96_ptr + 6] = 0;
     assert [range_check96_ptr + 7] = 0;
 
-    assert [range_check96_ptr + 8] = x.d0;
-    assert [range_check96_ptr + 9] = x.d1;
-    assert [range_check96_ptr + 10] = x.d2;
-    assert [range_check96_ptr + 11] = x.d3;
-    assert [range_check96_ptr + 12] = y.d0;
-    assert [range_check96_ptr + 13] = y.d1;
-    assert [range_check96_ptr + 14] = y.d2;
-    assert [range_check96_ptr + 15] = y.d3;
+    assert [range_check96_ptr + 8] = x.value.d0;
+    assert [range_check96_ptr + 9] = x.value.d1;
+    assert [range_check96_ptr + 10] = x.value.d2;
+    assert [range_check96_ptr + 11] = x.value.d3;
+    assert [range_check96_ptr + 12] = y.value.d0;
+    assert [range_check96_ptr + 13] = y.value.d1;
+    assert [range_check96_ptr + 14] = y.value.d2;
+    assert [range_check96_ptr + 15] = y.value.d3;
 
     run_mod_p_circuit(
-        p=[p],
+        p=[modulus.value],
         values_ptr=cast(range_check96_ptr, UInt384*),
         add_mod_offsets_ptr=add_mod_offsets_ptr,
         add_mod_n=2,
@@ -463,7 +473,8 @@ func assert_neq{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr:
 
     let range_check96_ptr = range_check96_ptr + 28;
 
-    return ();
+    tempvar res = ();
+    return res;
 
     add_offsets:
     dw 4;
@@ -480,8 +491,8 @@ func assert_neq{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr:
 }
 
 func neg{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
-    y: UInt384*, p: UInt384*
-) -> UInt384* {
+    y: U384, modulus: U384
+) -> U384 {
     let (_, pc) = get_fp_and_pc();
 
     pc_label:
@@ -493,13 +504,13 @@ func neg{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBui
     assert [range_check96_ptr + 2] = 0;
     assert [range_check96_ptr + 3] = 0;
 
-    assert [range_check96_ptr + 4] = y.d0;
-    assert [range_check96_ptr + 5] = y.d1;
-    assert [range_check96_ptr + 6] = y.d2;
-    assert [range_check96_ptr + 7] = y.d3;
+    assert [range_check96_ptr + 4] = y.value.d0;
+    assert [range_check96_ptr + 5] = y.value.d1;
+    assert [range_check96_ptr + 6] = y.value.d2;
+    assert [range_check96_ptr + 7] = y.value.d3;
 
     run_mod_p_circuit(
-        p=[p],
+        p=[modulus.value],
         values_ptr=cast(range_check96_ptr, UInt384*),
         add_mod_offsets_ptr=add_mod_offsets_ptr,
         add_mod_n=2,
@@ -509,7 +520,8 @@ func neg{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBui
 
     let range_check96_ptr = range_check96_ptr + 16;
 
-    return cast(range_check96_ptr - 4, UInt384*);
+    tempvar res = U384(cast(range_check96_ptr - 4, UInt384*));
+    return res;
 
     add_offsets:
     dw 0;
@@ -523,7 +535,7 @@ func neg{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBui
 }
 
 func assert_neg{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
-    x: UInt384*, y: UInt384*, p: UInt384*
+    x: U384, y: U384, modulus: U384
 ) {
     let (_, pc) = get_fp_and_pc();
 
@@ -536,17 +548,17 @@ func assert_neg{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr:
     assert [range_check96_ptr + 2] = 0;
     assert [range_check96_ptr + 3] = 0;
 
-    assert [range_check96_ptr + 4] = x.d0;
-    assert [range_check96_ptr + 5] = x.d1;
-    assert [range_check96_ptr + 6] = x.d2;
-    assert [range_check96_ptr + 7] = x.d3;
-    assert [range_check96_ptr + 8] = y.d0;
-    assert [range_check96_ptr + 9] = y.d1;
-    assert [range_check96_ptr + 10] = y.d2;
-    assert [range_check96_ptr + 11] = y.d3;
+    assert [range_check96_ptr + 4] = x.value.d0;
+    assert [range_check96_ptr + 5] = x.value.d1;
+    assert [range_check96_ptr + 6] = x.value.d2;
+    assert [range_check96_ptr + 7] = x.value.d3;
+    assert [range_check96_ptr + 8] = y.value.d0;
+    assert [range_check96_ptr + 9] = y.value.d1;
+    assert [range_check96_ptr + 10] = y.value.d2;
+    assert [range_check96_ptr + 11] = y.value.d3;
 
     run_mod_p_circuit(
-        p=[p],
+        p=[modulus.value],
         values_ptr=cast(range_check96_ptr, UInt384*),
         add_mod_offsets_ptr=add_mod_offsets_ptr,
         add_mod_n=2,
@@ -556,7 +568,8 @@ func assert_neg{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr:
 
     let range_check96_ptr = range_check96_ptr + 16;
 
-    return ();
+    tempvar res = ();
+    return res;
 
     add_offsets:
     dw 0;
@@ -570,7 +583,7 @@ func assert_neg{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr:
 }
 
 func assert_not_neg{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
-    x: UInt384*, y: UInt384*, p: UInt384*
+    x: U384, y: U384, modulus: U384
 ) {
     let (_, pc) = get_fp_and_pc();
 
@@ -587,17 +600,17 @@ func assert_not_neg{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_
     assert [range_check96_ptr + 6] = 0;
     assert [range_check96_ptr + 7] = 0;
 
-    assert [range_check96_ptr + 8] = x.d0;
-    assert [range_check96_ptr + 9] = x.d1;
-    assert [range_check96_ptr + 10] = x.d2;
-    assert [range_check96_ptr + 11] = x.d3;
-    assert [range_check96_ptr + 12] = y.d0;
-    assert [range_check96_ptr + 13] = y.d1;
-    assert [range_check96_ptr + 14] = y.d2;
-    assert [range_check96_ptr + 15] = y.d3;
+    assert [range_check96_ptr + 8] = x.value.d0;
+    assert [range_check96_ptr + 9] = x.value.d1;
+    assert [range_check96_ptr + 10] = x.value.d2;
+    assert [range_check96_ptr + 11] = x.value.d3;
+    assert [range_check96_ptr + 12] = y.value.d0;
+    assert [range_check96_ptr + 13] = y.value.d1;
+    assert [range_check96_ptr + 14] = y.value.d2;
+    assert [range_check96_ptr + 15] = y.value.d3;
 
     run_mod_p_circuit(
-        p=[p],
+        p=[modulus.value],
         values_ptr=cast(range_check96_ptr, UInt384*),
         add_mod_offsets_ptr=add_mod_offsets_ptr,
         add_mod_n=2,
@@ -607,7 +620,8 @@ func assert_not_neg{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_
 
     let range_check96_ptr = range_check96_ptr + 28;
 
-    return ();
+    tempvar res = ();
+    return res;
 
     add_offsets:
     dw 4;

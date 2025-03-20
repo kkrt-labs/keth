@@ -132,9 +132,11 @@ func try_recover_public_key{
     tempvar a = U384(new UInt384(secp256k1.A0, secp256k1.A1, secp256k1.A2, secp256k1.A3));
     tempvar b = U384(new UInt384(secp256k1.B0, secp256k1.B1, secp256k1.B2, secp256k1.B3));
     tempvar g = U384(new UInt384(secp256k1.G0, secp256k1.G1, secp256k1.G2, secp256k1.G3));
-    tempvar p = U384(new UInt384(secp256k1.P0, secp256k1.P1, secp256k1.P2, secp256k1.P3));
+    tempvar modulus = U384(new UInt384(secp256k1.P0, secp256k1.P1, secp256k1.P2, secp256k1.P3));
 
-    let (y, is_on_curve) = try_get_point_from_x(x=U384(&r), v=y_parity, a=a, b=b, g=g, p=p);
+    let (y, is_on_curve) = try_get_point_from_x(
+        x=U384(&r), v=y_parity, a=a, b=b, g=g, modulus=modulus
+    );
     if (is_on_curve == 0) {
         tempvar public_key_x = Bytes32(new Bytes32Struct(0, 0));
         tempvar public_key_y = Bytes32(new Bytes32Struct(0, 0));
@@ -150,13 +152,13 @@ func try_recover_public_key{
     let N = UInt384(secp256k1.N0, secp256k1.N1, secp256k1.N2, secp256k1.N3);
     let N_min_one = Uint256(secp256k1.N_LOW_128 - 1, secp256k1.N_HIGH_128);
 
-    let _u1 = div(new msg_hash, new r, new N);
-    let _u1 = neg(_u1, new N);
-    let _u2 = div(new s, new r, new N);
+    let _u1 = div(U384(&msg_hash), U384(&r), U384(new N));
+    let _u1 = neg(_u1, U384(new N));
+    let _u2 = div(U384(&s), U384(&r), U384(new N));
 
-    let u1 = uint384_to_uint256([_u1]);
+    let u1 = uint384_to_uint256([_u1.value]);
     assert_uint256_le(u1, N_min_one);
-    let u2 = uint384_to_uint256([_u2]);
+    let u2 = uint384_to_uint256([_u2.value]);
     assert_uint256_le(u2, N_min_one);
 
     let (ep1_low, en1_low, sp1_low, sn1_low) = scalar_to_epns(u1.low);
@@ -252,7 +254,7 @@ func try_recover_public_key{
     tempvar range_check96_ptr_init = range_check96_ptr;
     tempvar range_check96_ptr_after_circuit = range_check96_ptr + 1200;
     let random_point = get_random_point{range_check96_ptr=range_check96_ptr_after_circuit}(
-        seed=[cast(poseidon_ptr, felt*) - 3], a=a, b=b, g=g, p=p
+        seed=[cast(poseidon_ptr, felt*) - 3], a=a, b=b, g=g, modulus=modulus
     );
     let range_check96_ptr = range_check96_ptr_init;
 
@@ -320,7 +322,7 @@ func try_recover_public_key{
         a,
         b,
         U384(&rlc_coeff_u384),
-        p,
+        modulus=modulus,
     );
 
     let range_check96_ptr = range_check96_ptr_after_circuit;
@@ -328,7 +330,7 @@ func try_recover_public_key{
     tempvar p0 = G1Point(new G1PointStruct(x=U384(&ecip_input[46]), y=U384(&ecip_input[47])));
     tempvar p1 = G1Point(new G1PointStruct(x=U384(&ecip_input[50]), y=U384(&ecip_input[51])));
 
-    let res = ec_add(p0, p1, a, p);
+    let res = ec_add(p0, p1, a, modulus);
 
     let (u384_zero) = get_label_location(U384_ZERO);
     let point_at_infinity_x = U384__eq__(res.value.x, U384(cast(u384_zero, U384Struct*)));

@@ -284,12 +284,12 @@ pub fn compute_y_from_x_hint() -> Hint {
          -> Result<(), HintError> {
             let a = Uint384::from_var_name("a", vm, ids_data, ap_tracking)?.pack();
             let b = Uint384::from_var_name("b", vm, ids_data, ap_tracking)?.pack();
-            let p = Uint384::from_var_name("p", vm, ids_data, ap_tracking)?.pack();
+            let modulus = Uint384::from_var_name("modulus", vm, ids_data, ap_tracking)?.pack();
             let g = Uint384::from_var_name("g", vm, ids_data, ap_tracking)?.pack();
             let x = Uint384::from_var_name("x", vm, ids_data, ap_tracking)?.pack();
             let v = get_integer_from_var_name("v", vm, ids_data, ap_tracking)?.to_biguint();
 
-            let rhs = (pow(x.clone(), 3) + a * x + b) % p.clone();
+            let rhs = (pow(x.clone(), 3) + a * x + b) % modulus.clone();
 
             // Currently, only the secp256k1 and bn254 (alt_bn128) fields are supported
             // The logic must be duplicated for both FieldElement::<F> otherwise the compiler
@@ -300,10 +300,10 @@ pub fn compute_y_from_x_hint() -> Hint {
             let secp256k1_prime_field_order = get_modulus_from_curve_id(CurveID::SECP256K1);
             let bn254_prime_field_order = get_modulus_from_curve_id(CurveID::BN254);
 
-            let is_secp256k1_p = p == secp256k1_prime_field_order;
-            let is_bn254_p = p == bn254_prime_field_order;
+            let is_secp256k1_p = modulus == secp256k1_prime_field_order;
+            let is_bn254_p = modulus == bn254_prime_field_order;
             if !is_secp256k1_p && !is_bn254_p {
-                panic!("Unsupported field: {}", p.to_str_radix(16).to_uppercase());
+                panic!("Unsupported field: {}", modulus.to_str_radix(16).to_uppercase());
             }
             if is_secp256k1_p {
                 let rhs_felt =
@@ -311,7 +311,7 @@ pub fn compute_y_from_x_hint() -> Hint {
                 let g_felt =
                     FieldElement::<SECP256K1PrimeField>::from_hex_unchecked(&g.to_str_radix(16));
 
-                let is_on_curve = is_quad_residue(&rhs, &p);
+                let is_on_curve = is_quad_residue(&rhs, &modulus);
                 let square_root = if is_on_curve {
                     let sqrt_felt = rhs_felt.sqrt().unwrap().0;
                     let has_same_parity =
@@ -346,7 +346,7 @@ pub fn compute_y_from_x_hint() -> Hint {
                 let g_felt =
                     FieldElement::<BN254PrimeField>::from_hex_unchecked(&g.to_str_radix(16));
 
-                let is_on_curve = is_quad_residue(&rhs, &p);
+                let is_on_curve = is_quad_residue(&rhs, &modulus);
                 let square_root = if is_on_curve {
                     let sqrt_felt = rhs_felt.sqrt().unwrap().0;
                     let has_same_parity = (v % 2_u32) == (element_to_biguint(&sqrt_felt) % 2_u32);

@@ -1,7 +1,7 @@
 {%- set return_type = "" if not circuit.return_names|length else
     "-> " + (("(" if circuit.return_names|length > 1 else "") +
-    circuit.return_names|join("*, ") +
-    ("*)" if circuit.return_names|length > 1 else "*")) %}
+    circuit.return_names|join("*, ")|replace("U384*", "U384") +
+    ("*)" if circuit.return_names|length > 1 else (("*" if circuit.return_names[0] != "U384" else "")))) %}
 
 {%- set return_data = "()" %}
 {%- if circuit.return_offsets %}
@@ -24,7 +24,7 @@
         {# Fallback if struct not found #}
         {%- set return_exprs = [] %}
         {%- for i in range(circuit.return_offsets|length) %}
-            {%- set _ = return_exprs.append("cast(range_check96_ptr - " ~ circuit.return_offsets[i] ~ ", " ~ circuit.return_names[i] ~ "*)") %}
+            {%- set _ = return_exprs.append("U384(cast(range_check96_ptr - " ~ circuit.return_offsets[i] ~ ", " ~ circuit.return_names[i]|replace("U384", "UInt384") ~ "*))") %}
         {%- endfor %}
         {%- set return_data = ("(" if circuit.return_offsets|length > 1 else "") ~ return_exprs|join(", ") ~ (")" if circuit.return_offsets|length > 1 else "") %}
     {%- endif %}

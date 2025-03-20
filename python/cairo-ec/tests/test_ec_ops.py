@@ -22,7 +22,7 @@ class TestEcOps:
                 a=U384(curve.A),
                 b=U384(curve.B),
                 g=U384(curve.G),
-                p=U384(curve.FIELD.PRIME),
+                modulus=U384(curve.FIELD.PRIME),
             )
 
             square_root = sqrt_mod(
