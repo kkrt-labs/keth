@@ -55,9 +55,10 @@ class EthereumRPC:
     @classmethod
     def from_env(cls) -> "EthereumRPC":
         load_dotenv(override=False)
-        if not os.getenv("CHAIN_RPC_URL"):
+        rpc_url = os.getenv("CHAIN_RPC_URL")
+        if not rpc_url:
             raise ValueError("CHAIN_RPC_URL is not set")
-        return cls(os.getenv("CHAIN_RPC_URL"))
+        return cls(rpc_url)
 
     def get_proof(
         self,
