@@ -1,3 +1,4 @@
+import pytest
 from ethereum.crypto.alt_bn128 import BNF2, BNF12, BNP, BNP12
 from hypothesis import given
 
@@ -6,11 +7,6 @@ from tests.utils.args_gen import U384
 
 
 class TestAltBn128:
-    def test_bnp_init(self, cairo_run):
-        p = AltBn128.random_point()
-        cairo_bnp = cairo_run("bnp_init", U384(p.x), U384(p.y))
-        assert BNP(cairo_bnp.x, cairo_bnp.y) == BNP(p.x, p.y)
-
     def test_FROBENIUS_COEFFICIENTS(self, cairo_run):
         cairo_coeffs = cairo_run("FROBENIUS_COEFFICIENTS")
         assert len(cairo_coeffs) == 12
@@ -74,3 +70,13 @@ class TestAltBn128:
     @given(a=..., b=...)
     def test_bnf2_mul(self, cairo_run, a: BNF2, b: BNF2):
         assert cairo_run("bnf2_mul", a, b) == a * b
+
+    def test_bnp_init_passes(self, cairo_run):
+        p = AltBn128.random_point()
+        cairo_bnp = cairo_run("bnp_init", U384(p.x), U384(p.y))
+        assert BNP(cairo_bnp.x, cairo_bnp.y) == BNP(p.x, p.y)
+
+    @given(x=..., y=...)
+    def test_bnp_init_fails(self, cairo_run, x: U384, y: U384):
+        with pytest.raises(Exception):
+            cairo_run("bnp_init", x, y)
