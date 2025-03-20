@@ -79,7 +79,7 @@ def convert_accounts(
             "storage": {},
         }
         if account_state == empty_account:
-            logger.info(
+            logger.debug(
                 f"empty account for address {account_proof['address']}, skipping"
             )
             continue

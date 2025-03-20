@@ -54,7 +54,6 @@ class EthereumTries:
         if code is not None:
             return code
 
-        # init rpc client if not set
         if self.rpc_client is None:
             self.rpc_client = EthereumRPC.from_env()
 
@@ -146,18 +145,13 @@ class EthereumTries:
                     continue
 
                 # Handle the next node
-                next_node = None
-                if len(subnode) == 32:
-                    next_node = self.nodes.get(subnode)
-                    if next_node is None:
+                if len(subnode) > 32:
+                    raise ValueError(f"Invalid subnode length: {len(subnode)}")
+                    next_node = self.nodes.get(subnode) if len(subnode) == 32 else decode_node(subnode)
+                    if not next_node:
                         # If the subnode is not found, we assume this path
                         # is not needed for block execution
                         continue
-                if len(subnode) < 32:
-                    next_node = decode_node(subnode)
-
-                if len(subnode) > 32:
-                    raise ValueError(f"Invalid subnode length: {len(subnode)}")
 
                 if next_node is not None:
                     logger.debug(
@@ -174,23 +168,16 @@ class EthereumTries:
             )
             current_path = current_path + node.key_segment
 
-            # subnode is a hash, so we need to resolve it
-            if len(node.subnode) == 32:
-                next_node = self.nodes.get(node.subnode)
-                if next_node is None:
-                    # If the subnode is not found, we assume this path
-                    # is not needed for block execution
-                    return
-                self.traverse_trie(next_node, current_path, process_leaf, **kwargs)
-                return
-            # if subnode is less than 32 bytes, it's an embedded (RLP-encoded) node
-            if len(node.subnode) < 32:
-                next_node = decode_node(node.subnode)
-                self.traverse_trie(next_node, current_path, process_leaf, **kwargs)
-                return
-
             if len(node.subnode) > 32:
                 raise ValueError(f"Invalid subnode length: {len(node.subnode)}")
+                
+            # subnode is a hash, so we need to resolve it
+            next_node = self.nodes.get(node.subnode) if len(node.subnode) == 32 else decode_node(node.subnode)
+            if not next_node:
+                # If the subnode is not found, we assume this path
+                # is not needed for block execution
+                return
+            return self.traverse_trie(next_node, current_path, process_leaf, **kwargs)
 
         if isinstance(node, LeafNode):
             logger.debug(
@@ -201,7 +188,7 @@ class EthereumTries:
 
         return
 
-    def process_account_leaf(
+    def set_account_from_leaf(
         self,
         node: LeafNode,
         full_path: Bytes,
@@ -240,7 +227,7 @@ class EthereumTries:
         )
         self.resolve_storage(storage_root_node, b"", state, address)
 
-    def process_storage_leaf(
+    def set_storage_from_leaf(
         self,
         node: LeafNode,
         full_path: Bytes,
