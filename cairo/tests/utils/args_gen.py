@@ -1006,7 +1006,7 @@ def _gen_arg(
         segments.load_data(base, felt_values)
         return base
 
-    if arg_type in (BNF12, BNF2):
+    if arg_type in (BNF2, BNF12):
         base = segments.add()
         # In python, BNF<N> is a tuple of N int but in cairo it's a struct with N U384
         # Cast int to U384 to be able to serialize

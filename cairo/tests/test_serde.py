@@ -105,7 +105,7 @@ def get_type(instance: Any) -> Type:
     if not isinstance(instance, (tuple, list)):
         return type(instance)
 
-    if isinstance(instance, (BNF12, BNF2, BNP12)):
+    if isinstance(instance, (BNF2, BNF12, BNP12)):
         return instance.__class__
 
     # Empty sequence
