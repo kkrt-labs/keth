@@ -49,6 +49,13 @@ def convert_accounts(
         "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"
     )
     EMPTY_CODE_HASH = "0x" + keccak256(b"").hex()
+    EMPTY_ACCOUNT = {
+        "balance": "0x0",
+        "nonce": "0x0",
+        "code": "0x",
+        "storage": {},
+    }
+
     state = {}
     eth = EthereumRPC.from_env()
     for account_proof in zkpi_data["preStateProofs"]:
@@ -71,6 +78,12 @@ def convert_accounts(
             "code": code,
             "storage": {},
         }
+
+        if account_state == EMPTY_ACCOUNT:
+            logger.debug(
+                f"empty account for address {account_proof['address']}, skipping"
+            )
+            continue
 
         if account_proof["storageHash"] != EMPTY_STORAGE_ROOT:
             for storage_proof in account_proof.get("storageProof", []):

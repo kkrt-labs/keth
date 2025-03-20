@@ -4,11 +4,8 @@ version = "0.1.0"
 description = "Ethereum Merkle Patricia"
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = ["ethereum"]
+dependencies = ["ethereum", "eth-rpc"]
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
-
-[tool.uv]
-dev-dependencies = ["pydantic>=2.9.1"]

@@ -17,6 +17,7 @@ jobs:
       HYPOTHESIS_PROFILE: ci
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       CAIRO_PATH: cairo:tests:python/cairo-ec/src:python/cairo-addons/src:python/cairo-core/src
+      CHAIN_RPC_URL: ${{ secrets.CHAIN_RPC_URL }}
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v3

@@ -1,3 +1,4 @@
+import logging
 import os
 from dataclasses import dataclass
 from typing import List, Union
@@ -8,6 +9,8 @@ from ethereum.cancun.fork_types import Address
 from ethereum.crypto.hash import Hash32
 from ethereum_types.bytes import Bytes, Bytes32
 from ethereum_types.numeric import U64, U256
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -48,13 +51,13 @@ class AccountProof:
 @dataclass
 class EthereumRPC:
     url: str
+    FALLBACK_RPC_URL = "https://eth.llamarpc.com"
 
     @classmethod
     def from_env(cls) -> "EthereumRPC":
-        load_dotenv()
-        if not os.getenv("CHAIN_RPC_URL"):
-            raise ValueError("CHAIN_RPC_URL is not set")
-        return cls(os.getenv("CHAIN_RPC_URL"))
+        load_dotenv(override=False)
+        rpc_url = os.getenv("CHAIN_RPC_URL", cls.FALLBACK_RPC_URL)
+        return cls(rpc_url)
 
     def get_proof(
         self,
@@ -62,6 +65,14 @@ class EthereumRPC:
         block_number: Union[U64, str] = "latest",
         storage_keys: List[Bytes32] = [],
     ) -> AccountProof:
+        """
+        Get the proof for an account and a list of storage keys.
+
+        Args:
+            address: The address to get the proof for
+            block_number: The block number to get a proof for
+            storage_keys: The storage keys to get a proof for
+        """
         payload = {
             "jsonrpc": "2.0",
             "method": "eth_getProof",
@@ -101,6 +112,13 @@ class EthereumRPC:
     def get_code(
         self, address: Address, block_number: Union[U64, str] = "latest"
     ) -> Bytes:
+        """
+        Get the code for an address at a given block number.
+
+        Args:
+            address: The address to get the code for
+            block_number: The block number to get the code for
+        """
         payload = {
             "jsonrpc": "2.0",
             "method": "eth_getCode",
@@ -113,7 +131,8 @@ class EthereumRPC:
                 ),
             ],
         }
+
         response = requests.post(self.url, json=payload)
 
-        result = response.json()["result"]
-        return Bytes.fromhex(result[2:])
+        result = Bytes.fromhex(response.json()["result"][2:])
+        return result
