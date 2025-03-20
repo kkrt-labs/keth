@@ -101,7 +101,7 @@ from ethereum.cancun.vm import Evm as EvmBase
 from ethereum.cancun.vm import Message as MessageBase
 from ethereum.cancun.vm.gas import ExtendMemory, MessageCallGas
 from ethereum.cancun.vm.interpreter import MessageCallOutput as MessageCallOutputBase
-from ethereum.crypto.alt_bn128 import BNF12, BNP12
+from ethereum.crypto.alt_bn128 import BNF2, BNF12, BNP12
 from ethereum.crypto.hash import Hash32
 from ethereum.exceptions import EthereumException
 from ethereum_rlp.rlp import Extended, Simple
@@ -733,6 +733,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "crypto", "alt_bn128", "BNF12"): BNF12,
     ("ethereum", "crypto", "alt_bn128", "TupleBNF12"): Tuple[BNF12, ...],
     ("ethereum", "crypto", "alt_bn128", "BNP12"): BNP12,
+    ("ethereum", "crypto", "alt_bn128", "BNF2"): BNF2,
 }
 
 # In the EELS, some functions are annotated with Sequence while it's actually just Bytes.
@@ -1005,12 +1006,13 @@ def _gen_arg(
         segments.load_data(base, felt_values)
         return base
 
-    if arg_type is BNF12:
+    if arg_type in (BNF2, BNF12):
         base = segments.add()
-        # In python, BNF12 is a tuple of 12 int but in cairo it's a struct with 12 U384
+        # In python, BNF<N> is a tuple of N int but in cairo it's a struct with N U384
         # Cast int to U384 to be able to serialize
         coeffs = [
-            _gen_arg(dict_manager, segments, U384, U384(arg[i])) for i in range(12)
+            _gen_arg(dict_manager, segments, U384, U384(arg[i]))
+            for i in range(len(arg))
         ]
         segments.load_data(base, coeffs)
         return base
