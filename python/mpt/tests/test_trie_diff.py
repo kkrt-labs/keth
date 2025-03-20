@@ -35,3 +35,4 @@ class TestTrieDiff:
         state_diff = StateDiff.from_data(zkpi)
         trie_diff = StateDiff.from_tries(ethereum_trie_transition_db)
         assert trie_diff._main_trie == state_diff._main_trie
+        assert trie_diff._storage_tries == state_diff._storage_tries

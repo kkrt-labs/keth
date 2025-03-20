@@ -105,7 +105,7 @@ class EthereumTries:
         pre_state_root = Hash32.fromhex(
             data["witness"]["ancestors"][0]["stateRoot"][2:]
         )
-        if pre_state_root not in pre_nodes:
+        if pre_state_root not in nodes:
             raise ValueError(f"State root not found in nodes: {pre_state_root}")
 
         codes = {
@@ -140,7 +140,7 @@ class EthereumTries:
         }
 
         return EthereumTries(
-            nodes=pre_nodes,
+            nodes=nodes,
             codes=codes,
             address_preimages=address_preimages,
             storage_key_preimages=storage_key_preimages,
