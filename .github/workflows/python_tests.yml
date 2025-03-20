@@ -17,6 +17,7 @@ jobs:
       HYPOTHESIS_PROFILE: ci
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       CAIRO_PATH: cairo:tests:python/cairo-ec/src:python/cairo-addons/src:python/cairo-core/src
+      CHAIN_RPC_URL: ${{ secrets.CHAIN_RPC_URL }}
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v3
@@ -43,10 +44,8 @@ jobs:
       # TODO: remove --no-skip-cached-tests if/when we cache coverage
       # <https://github.com/kkrt-labs/keth/issues/694>
       - name: Run unit tests without caching
-        env:
-          CHAIN_RPC_URL: ${{ secrets.CHAIN_RPC_URL }}
         run: |
-          CHAIN_RPC_URL=$CHAIN_RPC_URL uv run --reinstall pytest -n logical --durations=0 -v -s --log-cli-level=DEBUG --no-skip-cached-tests --ignore-glob=cairo/tests/ef_tests/
+          uv run --reinstall pytest -n logical --durations=0 -v -s --log-cli-level=DEBUG --no-skip-cached-tests --ignore-glob=cairo/tests/ef_tests/
 
       - uses: actions/cache/save@v4
         with:
