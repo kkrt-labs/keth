@@ -8,7 +8,7 @@ from ethereum.crypto.hash import Hash32, keccak256
 from ethereum_types.bytes import Bytes, Bytes20, Bytes32
 from ethereum_types.numeric import U256, Uint
 
-from mpt import EthereumTries
+from mpt import EthereumTrieTransitionDB
 from mpt.utils import AccountNode, decode_node, nibble_path_to_bytes
 
 logger = logging.getLogger(__name__)
@@ -132,7 +132,7 @@ class StateDiff:
         return state_diff
 
     @classmethod
-    def from_tries(cls, tries: EthereumTries) -> "StateDiff":
+    def from_tries(cls, tries: EthereumTrieTransitionDB) -> "StateDiff":
         # Merge all mappings of hash -> node to have a single DB to fetch nodes and resolve addresses from
         diff = StateDiff(
             {}, {}, tries.nodes, tries.address_preimages, tries.storage_key_preimages

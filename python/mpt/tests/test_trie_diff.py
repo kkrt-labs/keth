@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from mpt import EthereumTries
+from mpt import EthereumTries, EthereumTrieTransitionDB
 from mpt.trie_diff import StateDiff
 
 
@@ -19,6 +19,11 @@ def ethereum_tries(zkpi):
     return EthereumTries.from_data(zkpi)
 
 
+@pytest.fixture
+def ethereum_trie_transition_db(zkpi):
+    return EthereumTrieTransitionDB.from_data(zkpi)
+
+
 @pytest.mark.parametrize(
     "path",
     [
@@ -26,7 +31,7 @@ def ethereum_tries(zkpi):
     ],
 )
 class TestTrieDiff:
-    def test_trie_diff(self, zkpi, ethereum_tries):
+    def test_trie_diff(self, zkpi, ethereum_trie_transition_db):
         state_diff = StateDiff.from_data(zkpi)
-        trie_diff = StateDiff.from_tries(ethereum_tries)
+        trie_diff = StateDiff.from_tries(ethereum_trie_transition_db)
         assert trie_diff._main_trie == state_diff._main_trie
