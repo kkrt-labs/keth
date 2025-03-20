@@ -39,6 +39,10 @@ def circuit_compile(cairo_program: Program, circuit: str):
     operations defined over the memory with addresses described as offsets relative to the
     application pointer (ap) or the frame pointer (fp). Given the fact that fp == ap at the
     beginning of a function, we don't need to distinguish between the two here.
+
+    Circuits can take structs as inputs, as long as:
+    - 1. The struct is named `XYZCircuitInput`, matching an imported struct of name `XYZStruct`
+    - 2. The struct has members that are _all_ felt
     """
     start = cairo_program.get_label(circuit)
     stop = cairo_program.get_label(f"{circuit}.end")
