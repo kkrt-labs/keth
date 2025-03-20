@@ -1,5 +1,7 @@
 import logging
+from dataclasses import dataclass
 
+from ethereum.cancun.fork_types import Account
 from ethereum.cancun.trie import (
     BranchNode,
     ExtensionNode,
@@ -7,10 +9,37 @@ from ethereum.cancun.trie import (
     LeafNode,
     bytes_to_nibble_list,
 )
+from ethereum.crypto.hash import Hash32
 from ethereum_rlp import rlp
 from ethereum_types.bytes import Bytes
+from ethereum_types.numeric import U256, Uint
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class AccountNode:
+    nonce: Uint
+    balance: U256
+    code_hash: Hash32
+    storage_root: Hash32
+
+    @staticmethod
+    def from_rlp(bytes: Bytes) -> "AccountNode":
+        decoded = rlp.decode(bytes)
+        return AccountNode(
+            nonce=Uint(int.from_bytes(decoded[0], "big")),
+            balance=U256(int.from_bytes(decoded[1], "big")),
+            storage_root=Hash32(decoded[2]),
+            code_hash=Hash32(decoded[3]),
+        )
+
+    def to_account(self, code: Bytes) -> Account:
+        return Account(
+            nonce=self.nonce,
+            balance=self.balance,
+            code=code,
+        )
 
 
 def decode_node(node: Bytes) -> InternalNode:
@@ -58,10 +87,16 @@ def nibble_path_to_hex(nibble_path: Bytes) -> str:
     )
     return "0x" + result.hex()
 
+
 def nibble_path_to_bytes(nibble_path: Bytes) -> Bytes:
     """
     Convert a nibble path to a bytes object.
     """
     if len(nibble_path) % 2 != 0:
         nibble_path = nibble_path + b"\x00"
-    return bytes([nibble_path[i] * 16 + nibble_path[i + 1] for i in range(0, len(nibble_path), 2)])
+    return bytes(
+        [
+            nibble_path[i] * 16 + nibble_path[i + 1]
+            for i in range(0, len(nibble_path), 2)
+        ]
+    )
