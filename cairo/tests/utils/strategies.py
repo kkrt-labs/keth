@@ -2,6 +2,7 @@
 
 import os
 from collections import ChainMap, defaultdict
+from random import randint
 from typing import (
     ForwardRef,
     Generic,
@@ -25,7 +26,7 @@ from ethereum.cancun.transactions import (
 )
 from ethereum.cancun.trie import BranchNode, ExtensionNode, LeafNode, Trie, copy_trie
 from ethereum.cancun.vm import Environment, Evm, Message
-from ethereum.crypto.alt_bn128 import BNF2, BNF12, BNP12
+from ethereum.crypto.alt_bn128 import BNF2, BNF12, BNP2, BNP12
 from ethereum.crypto.elliptic_curve import SECP256K1N
 from ethereum.crypto.finite_field import GaloisField
 from ethereum.crypto.hash import Hash32
@@ -43,6 +44,7 @@ from ethereum_types.numeric import U64, U256, FixedUnsigned, Uint
 from hypothesis import strategies as st
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 
+from cairo_ec.curve import AltBn128
 from tests.utils.args_gen import (
     U384,
     Memory,
@@ -531,39 +533,10 @@ bnf12_strategy = bnfN_strategy(BNF12, 12)
 bnf2_strategy = bnfN_strategy(BNF2, 2)
 
 
-def compute_sqrt_mod_p(a, p):
-    """
-    Compute the square root of a modulo p using the Tonelli-Shanks algorithm
-    which is simplified for p ≡ 3 (mod 4), case of alt_bn128.
-    For alt_bn128, we can use the formula: sqrt(a) = a^((p+1)/4) mod p
-    Use Euler's criterion to check if a is a quadratic residue.
-    Returns None if a is not one.
-    """
-    if pow(a, (p - 1) // 2, p) != 1:
-        return None
-    return pow(a, (p + 1) // 4, p)
-
-
-def bnp12_generate_valid_point(x_value):
-    """
-    Generate a valid point on the BNP curve extended to BNF12.
-    """
-    p = BNF12.PRIME
-
-    # Calculate the right side of the curve equation: x³ + 3
-    right_side = (pow(x_value, 3, p) + 3) % p
-
-    # Compute the square root if it exists
-    y_value = compute_sqrt_mod_p(right_side, p)
-
-    if y_value is None:
-        return None  # No valid point for this x value
-
-    # Create the point with the computed coordinates
-    # Only populate the first element of the BNF12 tuples
-    x_coords = (x_value,) + (0,) * 11
-    y_coords = (y_value,) + (0,) * 11
-
+def bnp12_generate_valid_point():
+    point = AltBn128.random_point()
+    x_coords = (point.x,) + (0,) * 11
+    y_coords = (point.y,) + (0,) * 11
     return BNP12(BNF12(x_coords), BNF12(y_coords))
 
 
@@ -575,11 +548,32 @@ bnp12_infinity = BNP12(
 
 # Strategy for BNP12 points on the curve
 bnp12_strategy = st.one_of(
-    st.integers(min_value=1, max_value=BNF12.PRIME - 1)
-    .map(lambda x: bnp12_generate_valid_point(x))
-    .filter(lambda x: x is not None),
+    st.just(bnp12_generate_valid_point()),
     st.just(bnp12_infinity),
 )
+
+
+# Use the the generator for BNP2 with scalar multiplication
+# https://eips.ethereum.org/EIPS/eip-197#definition-of-the-groups
+def bnp2_generate_valid_point():
+    g2_x = BNF2(
+        (
+            10857046999023057135944570762232829481370756359578518086990519993285655852781,
+            11559732032986387107991004021392285783925812861821192530917403151452391805634,
+        )
+    )
+    g2_y = BNF2(
+        (
+            8495653923123431417604973247489272438418190587263600148770280649306958101930,
+            4082367875863433681332203403145435568316851327593401208105741076214120093531,
+        )
+    )
+    generator = BNP2(g2_x, g2_y)
+    random_scalar = randint(0, BNF2.PRIME - 1)
+    return generator.mul_by(random_scalar)
+
+
+bnp2_strategy = st.just(bnp2_generate_valid_point())
 
 
 def register_type_strategies():
@@ -675,3 +669,4 @@ def register_type_strategies():
     st.register_type_strategy(BNF12, bnf12_strategy)
     st.register_type_strategy(BNP12, bnp12_strategy)
     st.register_type_strategy(BNF2, bnf2_strategy)
+    st.register_type_strategy(BNP2, bnp2_strategy)
