@@ -30,6 +30,9 @@ logger = logging.getLogger(__name__)
 EMPTY_TRIE_HASH = Hash32.fromhex(
     "56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"
 )
+EMPTY_BYTES_HASH = Hash32.fromhex(
+    "c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
+)
 
 
 @dataclass
@@ -44,6 +47,9 @@ class EthereumTries:
     rpc_client: Optional[EthereumRPC] = None
 
     def get_code(self, code_hash: Hash32, address: Address) -> Bytes:
+        if code_hash == EMPTY_BYTES_HASH:
+            return b""
+
         code = self.codes.get(code_hash)
         if code is not None:
             return code

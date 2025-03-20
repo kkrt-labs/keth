@@ -116,6 +116,7 @@ class EthereumRPC:
                 ),
             ],
         }
+
         response = requests.post(self.url, json=payload)
 
         result = Bytes.fromhex(response.json()["result"][2:])
