@@ -232,14 +232,14 @@ class StateDiff:
                     l_node.key_segment = l_node.key_segment[len(r_node.key_segment) :]
                     # Compare the right node's value with the left node shortened by right key
                     shortened_path = path + r_node.key_segment
-                    self._compute_diff(l_node.subnode, r_node.subnode, shortened_path)
+                    self._compute_diff(l_node, r_node.subnode, shortened_path)
                 # Left is prefix of right
                 elif r_node.key_segment.startswith(l_node.key_segment):
                     # Create a copy of r_node with key_segment shortened by l_node's key_segment
                     r_node.key_segment = r_node.key_segment[len(l_node.key_segment) :]
                     # We'll keep track of the path using the common prefix (left key)
                     shortened_path = path + l_node.key_segment
-                    self._compute_diff(l_node.subnode, r_node.subnode, shortened_path)
+                    self._compute_diff(l_node.subnode, r_node, shortened_path)
                 # Both are different -> Look for diffs in both sub-trees
                 else:
                     self._compute_diff(l_node.subnode, None, path + l_node.key_segment)
