@@ -387,7 +387,7 @@ evm = st.builds(
     env=st.from_type(Environment),
     valid_jump_destinations=st.sets(st.from_type(Uint)),
     logs=st.from_type(Tuple[Log, ...]),
-    refund_counter=st.integers(min_value=0),
+    refund_counter=felt,
     running=st.booleans(),
     message=message,
     output=small_bytes,
