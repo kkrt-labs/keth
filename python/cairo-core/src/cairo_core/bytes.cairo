@@ -66,6 +66,12 @@ struct Bytes {
 // Some parts of the exec spec use bytes, so just easier to copy/paste
 using bytes = Bytes;
 
+// OptionalBytes is the same type as Bytes, but the possibility of value being Null needs to be handled
+// In function business logic
+struct OptionalBytes {
+    value: BytesStruct*,
+}
+
 struct StringStruct {
     data: felt*,
     len: felt,
