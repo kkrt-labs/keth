@@ -127,3 +127,9 @@ class TestAltBn128:
             from ethereum.crypto.alt_bn128 import bnp_to_bnp12
 
             assert cairo_run("bnp_to_bnp12", x) == bnp_to_bnp12(x)
+
+        @given(x=...)
+        def test_twist(self, cairo_run, x: BNP2):
+            from ethereum.crypto.alt_bn128 import twist
+
+            assert cairo_run("twist", x) == twist(x)
