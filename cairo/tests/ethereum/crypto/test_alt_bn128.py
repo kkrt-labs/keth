@@ -96,6 +96,10 @@ class TestAltBn128:
         def test_bnf12_eq(self, cairo_run, a: BNF12, b: BNF12):
             assert cairo_run("BNF12__eq__", a, b) == (a == b)
 
+        @given(a=...)
+        def test_bnf12_frobenius(self, cairo_run, a: BNF12):
+            assert cairo_run("bnf12_frobenius", a) == a.frobenius()
+
     class TestBNP12:
         def test_A(self, cairo_run):
             cairo_a = cairo_run("A")
