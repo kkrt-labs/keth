@@ -14,7 +14,7 @@ from ethereum.trace import (
     TransactionStart,
 )
 
-from tests.utils.args_gen import Evm
+from tests.utils.args_gen import EMPTY_ACCOUNT, Evm
 
 load_dotenv()
 
@@ -79,13 +79,28 @@ def pytest_configure(config):
     import ethereum_rlp
     from ethereum_types.numeric import FixedUnsigned, Uint
 
-    from tests.utils.args_gen import Environment, Evm, Message, MessageCallOutput
+    from tests.utils.args_gen import (
+        Account,
+        Environment,
+        Evm,
+        Message,
+        MessageCallOutput,
+    )
 
     # Apply patches at module level before any tests run
     ethereum.cancun.vm.Evm = Evm
     ethereum.cancun.vm.Message = Message
     ethereum.cancun.vm.Environment = Environment
     ethereum.cancun.vm.interpreter.MessageCallOutput = MessageCallOutput
+    ethereum.cancun.fork_types.Account = Account
+    ethereum.cancun.fork_types.EMPTY_ACCOUNT = EMPTY_ACCOUNT
+
+    # TODO: Find a better way to do this?
+    # See explanation below. This is required for the `encode_node` function in `ethereum.cancun.trie` to work.
+    setattr(ethereum.cancun.trie, "Account", Account)
+    setattr(ethereum.cancun.state, "Account", Account)
+    setattr(ethereum.cancun.state, "EMPTY_ACCOUNT", EMPTY_ACCOUNT)
+    setattr(ethereum.cancun.fork_types, "EMPTY_ACCOUNT", EMPTY_ACCOUNT)
 
     # Mock the Extended type
     ethereum_rlp.rlp.Extended = Union[Sequence["Extended"], bytearray, bytes, Uint, FixedUnsigned, str, bool]  # type: ignore # noqa: F821

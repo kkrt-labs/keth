@@ -65,6 +65,7 @@ from ethereum.cancun.trie import (
 )
 from ethereum.cancun.blocks import Withdrawal
 from ethereum_types.bytes import Bytes, Bytes32, Bytes32Struct
+from ethereum.crypto.hash import EMPTY_ROOT
 from ethereum_types.numeric import U256, U256Struct, Bool, bool, Uint
 from ethereum.utils.numeric import U256_le, U256_sub, U256_add, U256_mul
 from cairo_core.comparison import is_zero
@@ -82,10 +83,6 @@ from legacy.utils.dict import (
     default_dict_finalize,
 )
 from ethereum.utils.hash_dicts import set_address_contains
-
-EMPTY_ROOT:
-dw 0x6ef8c092e64583ffa655cc1b171fe856;  // low
-dw 0x21b463e3b52f6201c0ad6c991be0485b;  // high
 
 U256_ZERO:
 dw 0;
@@ -312,7 +309,9 @@ func increment_nonce{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Addr
     // with a nonce equal to max nonce (u64 as of today)
     let new_nonce = account.value.nonce.value + 1;
     tempvar new_account = OptionalAccount(
-        new AccountStruct(Uint(new_nonce), account.value.balance, account.value.code)
+        new AccountStruct(
+            Uint(new_nonce), account.value.balance, account.value.code, account.value.storage_root
+        ),
     );
     set_account(address, new_account);
     return ();
@@ -541,19 +540,15 @@ func get_storage_keys_for_address{dict_ptr: DictAccess*}(
 func account_has_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Address) -> bool {
     alloc_locals;
 
-    let fp_and_pc = get_fp_and_pc();
-    local __fp__: felt* = fp_and_pc.fp_val;
-
-    let storage_tries = state.value._storage_tries;
-    let prefix_len = 1;
-    let prefix = &address.value;
-    tempvar dict_ptr = cast(storage_tries.value._data.value.dict_ptr, DictAccess*);
-
-    // TODO: this is unsound, see `get_storage_keys_for_address`
-    let keys = get_storage_keys_for_address{dict_ptr=dict_ptr}(prefix_len, prefix);
-    let has_storage = is_not_zero(keys.value.len);
-
-    tempvar res = bool(has_storage);
+    let (empty_root_ptr_) = get_label_location(EMPTY_ROOT);
+    let empty_root_ptr = cast(empty_root_ptr_, Bytes32Struct*);
+    let account = get_account(address);
+    if (empty_root_ptr.low == account.value.storage_root.value.low and
+        empty_root_ptr.high == account.value.storage_root.value.high) {
+        tempvar res = bool(0);
+        return res;
+    }
+    tempvar res = bool(1);
     return res;
 }
 
@@ -896,7 +891,12 @@ func set_code{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Address, co
 
     // Create new account with updated code
     tempvar new_account = OptionalAccount(
-        new AccountStruct(nonce=account.value.nonce, balance=account.value.balance, code=code)
+        new AccountStruct(
+            nonce=account.value.nonce,
+            balance=account.value.balance,
+            code=code,
+            storage_root=account.value.storage_root,
+        ),
     );
 
     // Set the updated account
@@ -910,7 +910,12 @@ func set_account_balance{poseidon_ptr: PoseidonBuiltin*, state: State}(
     let account = get_account(address);
 
     tempvar new_account = OptionalAccount(
-        new AccountStruct(nonce=account.value.nonce, balance=amount, code=account.value.code)
+        new AccountStruct(
+            nonce=account.value.nonce,
+            balance=amount,
+            code=account.value.code,
+            storage_root=account.value.storage_root,
+        ),
     );
 
     set_account(address, new_account);

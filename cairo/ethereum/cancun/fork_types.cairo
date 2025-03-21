@@ -2,10 +2,19 @@ from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.math import split_felt
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.cairo.common.bitwise import BitwiseBuiltin
-from ethereum_types.bytes import Bytes20, Bytes32, Bytes256, Bytes, BytesStruct, HashedBytes32
+from starkware.cairo.common.registers import get_label_location
+from ethereum_types.bytes import (
+    Bytes20,
+    Bytes32,
+    Bytes256,
+    Bytes,
+    BytesStruct,
+    HashedBytes32,
+    Bytes32Struct,
+)
 from ethereum.utils.bytes import Bytes__eq__
 from ethereum_types.numeric import Uint, U256, U256Struct, bool
-from ethereum.crypto.hash import Hash32
+from ethereum.crypto.hash import Hash32, EMPTY_ROOT
 from ethereum.utils.numeric import U256_to_be_bytes20
 from cairo_core.comparison import is_zero
 
@@ -98,6 +107,7 @@ struct AccountStruct {
     nonce: Uint,
     balance: U256,
     code: Bytes,
+    storage_root: Hash32,
 }
 
 struct Account {
@@ -176,10 +186,18 @@ struct MappingTupleAddressBytes32U256 {
 }
 
 func EMPTY_ACCOUNT() -> Account {
+    let (empty_root_ptr) = get_label_location(EMPTY_ROOT);
     tempvar balance = U256(new U256Struct(0, 0));
     let (data) = alloc();
     tempvar code = Bytes(new BytesStruct(data=data, len=0));
-    tempvar account = Account(value=new AccountStruct(nonce=Uint(0), balance=balance, code=code));
+    tempvar account = Account(
+        value=new AccountStruct(
+            nonce=Uint(0),
+            balance=balance,
+            code=code,
+            storage_root=Hash32(cast(empty_root_ptr, Bytes32Struct*)),
+        ),
+    );
     return account;
 }
 
