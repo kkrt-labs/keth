@@ -13,11 +13,15 @@ struct NodeStore {
     value: NodeStoreStruct*,
 }
 struct NodeStoreStruct {
+    dict_ptr_start: NodeStoreDictAccess,
+    dict_ptr: NodeStoreDictAccess
+}
+
+struct NodeStoreDictAccess {
     key: Hash32,
     prev_value: OptionalInternalNode,
     new_value: OptionalInternalNode,
 }
-
 // AddressPreimages is a mapping of keccak(address) to their corresponding preimages
 // As per the specification, MPT state nodes paths are keccak(address)
 // This mapping is used to retrieve the address given a full state path
