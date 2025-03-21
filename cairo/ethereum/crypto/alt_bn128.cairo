@@ -1084,6 +1084,69 @@ func BNF12__eq__{range_check96_ptr: felt*}(a: BNF12, b: BNF12) -> felt {
     return result;
 }
 
+// Frobenius endomorphism for BNF12 elements
+func bnf12_frobenius{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
+    x: BNF12
+) -> BNF12 {
+    alloc_locals;
+
+    // Get the Frobenius coefficients and initialize the result as zero
+    let frob_coeffs = FROBENIUS_COEFFICIENTS();
+    let result = BNF12_ZERO();
+
+    // For each coefficient of x, multiply by the corresponding Frobenius coefficient
+    // and add to the result
+    let frob_coeff_0 = frob_coeffs.value.data[0];
+    let term0 = bnf12_scalar_mul(frob_coeff_0, x.value.c0);
+    let result = bnf12_add(result, term0);
+
+    let frob_coeff_1 = frob_coeffs.value.data[1];
+    let term1 = bnf12_scalar_mul(frob_coeff_1, x.value.c1);
+    let result = bnf12_add(result, term1);
+
+    let frob_coeff_2 = frob_coeffs.value.data[2];
+    let term2 = bnf12_scalar_mul(frob_coeff_2, x.value.c2);
+    let result = bnf12_add(result, term2);
+
+    let frob_coeff_3 = frob_coeffs.value.data[3];
+    let term3 = bnf12_scalar_mul(frob_coeff_3, x.value.c3);
+    let result = bnf12_add(result, term3);
+
+    let frob_coeff_4 = frob_coeffs.value.data[4];
+    let term4 = bnf12_scalar_mul(frob_coeff_4, x.value.c4);
+    let result = bnf12_add(result, term4);
+
+    let frob_coeff_5 = frob_coeffs.value.data[5];
+    let term5 = bnf12_scalar_mul(frob_coeff_5, x.value.c5);
+    let result = bnf12_add(result, term5);
+
+    let frob_coeff_6 = frob_coeffs.value.data[6];
+    let term6 = bnf12_scalar_mul(frob_coeff_6, x.value.c6);
+    let result = bnf12_add(result, term6);
+
+    let frob_coeff_7 = frob_coeffs.value.data[7];
+    let term7 = bnf12_scalar_mul(frob_coeff_7, x.value.c7);
+    let result = bnf12_add(result, term7);
+
+    let frob_coeff_8 = frob_coeffs.value.data[8];
+    let term8 = bnf12_scalar_mul(frob_coeff_8, x.value.c8);
+    let result = bnf12_add(result, term8);
+
+    let frob_coeff_9 = frob_coeffs.value.data[9];
+    let term9 = bnf12_scalar_mul(frob_coeff_9, x.value.c9);
+    let result = bnf12_add(result, term9);
+
+    let frob_coeff_10 = frob_coeffs.value.data[10];
+    let term10 = bnf12_scalar_mul(frob_coeff_10, x.value.c10);
+    let result = bnf12_add(result, term10);
+
+    let frob_coeff_11 = frob_coeffs.value.data[11];
+    let term11 = bnf12_scalar_mul(frob_coeff_11, x.value.c11);
+    let result = bnf12_add(result, term11);
+
+    return result;
+}
+
 // alt_bn128 curve defined over BNF (Fp)
 // BNP represents a point on the curve.
 struct BNPStruct {
