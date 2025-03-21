@@ -539,7 +539,7 @@ func get_u384_bits_little{range_check_ptr}(num: U384) -> (felt*, felt) {
 func extract_limb_bits{range_check_ptr}(limb: felt, bits_ptr: felt*, current_len: felt) -> felt {
     // Check if limb is zero
     let is_limb_zero = is_zero(limb);
-    if (is_limb_zero == 1) {
+    if (is_limb_zero != 0) {
         return current_len;
     }
 
