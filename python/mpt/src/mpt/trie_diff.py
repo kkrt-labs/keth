@@ -254,7 +254,7 @@ class StateDiff:
             case (ExtensionNode(), BranchNode()):
                 # Match on the corresponding nibble of the extension key segment
                 for i in range(0, 16):
-                    nibble = i.to_bytes(1, "big")
+                    nibble = bytes([i])
                     if l_node.key_segment[0] == nibble:
                         # Remove the nibble from the extension key segment
                         l_node.key_segment = l_node.key_segment[1:]
@@ -279,7 +279,7 @@ class StateDiff:
                     self._compute_diff(
                         l_node.subnodes[i],
                         None,
-                        path + bytes([i])
+                        path + bytes([i]),
                         process_leaf_diff,
                     )
 
