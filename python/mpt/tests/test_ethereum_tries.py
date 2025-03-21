@@ -1,4 +1,3 @@
-import json
 import logging
 from pathlib import Path
 
@@ -26,13 +25,6 @@ from mpt import EthereumTries
 from mpt.utils import decode_node
 
 logger = logging.getLogger(__name__)
-
-
-@pytest.fixture
-def zkpi(path: Path):
-    with open(path, "r") as f:
-        zkpi = json.load(f)
-    return zkpi
 
 
 @pytest.fixture

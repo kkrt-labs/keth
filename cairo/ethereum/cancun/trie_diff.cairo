@@ -1,9 +1,16 @@
+from starkware.cairo.common.cairo_builtins import PoseidonBuiltin
+from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
+from starkware.cairo.common.dict import DictAccess
+
 from ethereum.crypto.hash import Hash32
 from ethereum.cancun.fork_types import Address, TupleAddressBytes32U256DictAccess
-from ethereum_types.bytes import Bytes, OptionalBytes, Bytes32, OptionalBytes32
+from ethereum_types.bytes import Bytes, OptionalBytes, Bytes32, OptionalBytes32, HashedBytes32
 from ethereum_types.numeric import U256, Uint
 from ethereum.cancun.trie import LeafNode, OptionalInternalNode, InternalNodeEnum
 from ethereum_rlp.rlp import Extended
+from ethereum.utils.bytes import Bytes_to_Bytes32
+from legacy.utils.dict import hashdict_read
+from starkware.cairo.common.alloc import alloc
 
 // NodeStore is a mapping of node hashes to their corresponding InternalNode
 // In the world state DB given as input to the program
@@ -18,7 +25,7 @@ struct NodeStoreStruct {
 }
 
 struct NodeStoreDictAccess {
-    key: Hash32,
+    key: HashedBytes32,
     prev_value: OptionalInternalNode,
     new_value: OptionalInternalNode,
 }
@@ -33,7 +40,7 @@ struct MappingBytes32AddressStruct {
     dict_ptr: Bytes32OptionalAddressDictAccess*,
 }
 struct Bytes32OptionalAddressDictAccess {
-    key: Bytes32,
+    key: HashedBytes32,
     prev_value: Address,
     new_value: Address,
 }
@@ -49,7 +56,7 @@ struct MappingBytes32Bytes32Struct {
     dict_ptr: Bytes32OptionalBytes32DictAccess*,
 }
 struct Bytes32OptionalBytes32DictAccess {
-    key: Bytes32,
+    key: HashedBytes32,
     prev_value: OptionalBytes32,
     new_value: OptionalBytes32,
 }
@@ -94,11 +101,33 @@ func _process_storage_diff{}(address: Address, path: Bytes32, left: LeafNode, ri
     return ();
 }
 
-func _resolve{}(node: Extended) -> OptionalInternalNode {
-    // Classify Extended that can be found in a BranchNode subnodes or ExtensionNode subnode
-    // Into either a Node hash, or an embedded node
-    // If node hash, then resolve the node hash into an InternalNode using the node store
-    // If embedded node, then return RLP.decode the embedded node
+// Classify Extended that can be found in a BranchNode subnodes or ExtensionNode subnode
+// Into either a Node hash, or an embedded node
+// If node hash, then resolve the node hash into an InternalNode using the node store
+// If embedded node, then return RLP.decode the embedded node
+func _resolve{range_check_ptr, poseidon_ptr: PoseidonBuiltin*}(
+    node: Extended, node_store: NodeStore
+) -> OptionalInternalNode {
+    alloc_locals;
+
+    let enum = node.value;
+    if (cast(enum.bytes.value, felt) != 0) {
+        // Case 1: it is a node hash
+        if (enum.bytes.value.len == 32) {
+            // Get the node hash from the node store
+            let node_hash = Bytes_to_Bytes32(enum.bytes);
+            let result = node_store_get{poseidon_ptr=poseidon_ptr, node_store=node_store}(
+                node_hash
+            );
+            return result;
+        }
+        // Case 2: it is an embedded node, we have to RLP decode it
+        // TODO: handle embedded case
+    }
+
+    // We're not supposed to get anything but bytes in the enum
+    // TODO: raise error in any other case: bytearray, sequence, bool, uint etc.
+
     let result = OptionalInternalNode(cast(0, InternalNodeEnum*));
     return result;
 }
@@ -114,4 +143,29 @@ func _compute_diff{}(
     process_leaf: felt*,
 ) -> () {
     return ();
+}
+
+func node_store_get{poseidon_ptr: PoseidonBuiltin*, node_store: NodeStore}(
+    node_hash: Hash32
+) -> OptionalInternalNode {
+    alloc_locals;
+    let dict_ptr = cast(node_store.value.dict_ptr, DictAccess*);
+
+    let fp_and_pc = get_fp_and_pc();
+    local __fp__: felt* = fp_and_pc.fp_val;
+
+    let (keys) = alloc();
+    assert keys[0] = node_hash.value.low;
+    assert keys[1] = node_hash.value.high;
+
+    // Read from the dictionary using the hash as key
+    let (pointer) = hashdict_read{dict_ptr=dict_ptr}(2, keys);
+
+    let new_dict_ptr = cast(dict_ptr, NodeStoreDictAccess*);
+    tempvar node_store = NodeStore(
+        new NodeStoreStruct(node_store.value.dict_ptr_start, new_dict_ptr)
+    );
+    // Cast the result to an OptionalInternalNode and return
+    tempvar res = OptionalInternalNode(cast(pointer, InternalNodeEnum*));
+    return res;
 }

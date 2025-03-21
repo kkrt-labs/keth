@@ -238,6 +238,7 @@ class TestSerde:
             BranchNode,
             InternalNode,
             Optional[InternalNode],
+            Mapping[Hash32, Optional[InternalNode]],
             Node,
             Mapping[Bytes, Bytes],
             Tuple[Mapping[Bytes, Bytes], ...],
