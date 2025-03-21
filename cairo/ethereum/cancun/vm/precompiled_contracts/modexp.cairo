@@ -34,6 +34,7 @@ from ethereum.utils.numeric import (
     min,
     U256_sub,
     U256_bit_length,
+    get_u384_bits_little,
 )
 from ethereum.cancun.vm.evm_impl import Evm, EvmImpl
 from ethereum.cancun.vm.gas import charge_gas
@@ -235,73 +236,6 @@ func mod_exp_loop_inner{
     let base_squared = mul(base_reduced, base_reduced, modulus);
 
     return (new_res, base_squared);
-}
-
-func get_u384_bits_little{range_check_ptr}(num: U384) -> (felt*, felt) {
-    alloc_locals;
-    let (bits_ptr) = alloc();
-    // Process limb0 (d0)
-    let bits_len = extract_limb_bits(num.value.d0, bits_ptr, 0);
-    // Process limb1 (d1)
-    let limb1_not_zero = is_not_zero(num.value.d1);
-    if (limb1_not_zero != 0) {
-        // Use memset to pad with zeros until we reach 96 bits if needed
-        let bits_len_padded = 96;
-        memset(bits_ptr + bits_len, 0, bits_len_padded - bits_len);
-        let bits_len_updated = extract_limb_bits(num.value.d1, bits_ptr, bits_len_padded);
-        tempvar bits_ptr = bits_ptr;
-        tempvar bits_len = bits_len_updated;
-        tempvar range_check_ptr = range_check_ptr;
-    } else {
-        tempvar bits_ptr = bits_ptr;
-        tempvar bits_len = bits_len;
-        tempvar range_check_ptr = range_check_ptr;
-    }
-    // Process limb2 (d2)
-    let limb2_not_zero = is_not_zero(num.value.d2);
-    tempvar bits_ptr = bits_ptr;
-    tempvar range_check_ptr = range_check_ptr;
-    if (limb2_not_zero != 0) {
-        // Use memset to pad with zeros until we reach 192 bits if needed
-        let bits_len_padded = 192;
-        memset(bits_ptr + bits_len, 0, bits_len_padded - bits_len);
-        let bits_len_updated = extract_limb_bits(num.value.d2, bits_ptr, bits_len_padded);
-        tempvar bits_ptr = bits_ptr;
-        tempvar bits_len = bits_len_updated;
-        tempvar range_check_ptr = range_check_ptr;
-    } else {
-        tempvar bits_ptr = bits_ptr;
-        tempvar bits_len = bits_len;
-        tempvar range_check_ptr = range_check_ptr;
-    }
-    // Process limb3 (d3)
-    let limb3_not_zero = is_not_zero(num.value.d3);
-    tempvar bits_ptr = bits_ptr;
-    tempvar range_check_ptr = range_check_ptr;
-    if (limb3_not_zero != 0) {
-        // Use memset to pad with zeros until we reach 288 bits if needed
-        let bits_len_padded = 288;
-        memset(bits_ptr + bits_len, 0, bits_len_padded - bits_len);
-        let bits_len_updated = extract_limb_bits(num.value.d3, bits_ptr, bits_len_padded);
-        return (bits_ptr, bits_len_updated);
-    } else {
-        return (bits_ptr, bits_len);
-    }
-}
-
-func extract_limb_bits{range_check_ptr}(limb: felt, bits_ptr: felt*, current_len: felt) -> felt {
-    // Check if limb is zero
-    let is_limb_zero = is_zero(limb);
-    if (is_limb_zero == 1) {
-        return current_len;
-    }
-
-    // Extract the least significant bit
-    let (q, r) = divmod(limb, 2);
-    assert bits_ptr[current_len] = r;
-
-    // Continue with the remaining bits
-    return extract_limb_bits(q, bits_ptr, current_len + 1);
 }
 
 // Saturates at 2^128 - 1
