@@ -118,17 +118,8 @@ class StateDiff:
         if left == right:
             return
 
-        def resolve(node: Hash32 | Bytes | None | InternalNode) -> InternalNode | None:
-            if isinstance(node, InternalNode):
-                return node
-            if not node or node == b"":
-                return None
-            if len(node) == 32:
-                return self._nodes.get(node)
-            return rlp.decode(node)
-
-        l_node = resolve(left)
-        r_node = resolve(right)
+        l_node = resolve(left, self._nodes)
+        r_node = resolve(right, self._nodes)
 
         # Use direct class pattern matching
         match (l_node, r_node):
@@ -138,8 +129,8 @@ class StateDiff:
 
             case (None, LeafNode()):
                 # new leaf
-                preimage = nibble_path_to_bytes(path + r_node.rest_of_key)
-                process_leaf_diff(preimage, None, r_node)
+                full_path = nibble_path_to_bytes(path + r_node.rest_of_key)
+                process_leaf_diff(full_path, None, r_node)
 
             case (None, ExtensionNode()):
                 # Look for diffs in the right sub-tree
@@ -153,30 +144,31 @@ class StateDiff:
                     self._compute_diff(
                         None,
                         r_node.subnodes[i],
-                        path + i.to_bytes(1, "big"),
+                        path + bytes([i]),
                         process_leaf_diff,
                     )
 
             case (LeafNode(), None):
                 # deleted leaf (should not happen post-cancun)
-                preimage = nibble_path_to_bytes(path + l_node.rest_of_key)
-                process_leaf_diff(preimage, l_node, None)
+                full_path = nibble_path_to_bytes(path + l_node.rest_of_key)
+                process_leaf_diff(full_path, l_node, None)
 
             case (LeafNode(), LeafNode()):
                 if l_node.value != r_node.value:
-                    preimage = nibble_path_to_bytes(path + l_node.rest_of_key)
-                    process_leaf_diff(preimage, l_node, r_node)
+                    assert (
+                        l_node.rest_of_key == r_node.rest_of_key
+                    ), "Leaf nodes with different keys should not be compared"
+                    full_path = nibble_path_to_bytes(path + l_node.rest_of_key)
+                    process_leaf_diff(full_path, l_node, r_node)
 
             case (LeafNode(), BranchNode()):
                 # Look for diffs in all branches of the right sub-tree
                 for i in range(0, 16):
-                    if (
-                        i != l_node.rest_of_key[0]
-                        or not self._nodes[r_node.subnodes[i]].value == l_node.value
-                    ):
+                    subnode = resolve(r_node.subnodes[i], self._nodes)
+                    if i != l_node.rest_of_key[0] or not subnode.value == l_node.value:
                         self._compute_diff(
                             None,
-                            r_node.subnodes[i],
+                            subnode,
                             path + bytes([i]),
                             process_leaf_diff,
                         )
@@ -292,21 +284,21 @@ class StateDiff:
                         self._compute_diff(
                             l_node.subnodes[i],
                             None,
-                            path + i.to_bytes(1, "big"),
+                            path + bytes([i]),
                             process_leaf_diff,
                         )
                     else:
                         self._compute_diff(
                             l_node.subnodes[i],
                             r_node,
-                            path + i.to_bytes(1, "big"),
+                            path + bytes([i]),
                             process_leaf_diff,
                         )
 
             case (BranchNode(), ExtensionNode()):
                 # Match on the corresponding nibble of the extension key segment
                 for i in range(0, 16):
-                    nibble = i.to_bytes(1, "big")
+                    nibble = bytes([i])
                     if r_node.key_segment[0] == nibble:
                         # Remove the nibble from the extension key segment
                         r_node.key_segment = r_node.key_segment[1:]
@@ -330,7 +322,7 @@ class StateDiff:
                     self._compute_diff(
                         l_subnode,
                         r_subnode,
-                        path + i.to_bytes(1, "big"),
+                        path + bytes([i]),
                         process_leaf_diff,
                     )
 
@@ -386,3 +378,15 @@ class StateDiff:
             if address not in self._storage_tries:
                 self._storage_tries[address] = {}
             self._storage_tries[address][key] = tuple((left_decoded, right_decoded))
+
+
+def resolve(
+    node: Hash32 | Bytes | None | InternalNode, nodes: Dict[Hash32, InternalNode]
+) -> InternalNode | None:
+    if isinstance(node, InternalNode):
+        return node
+    if not node or node == b"":
+        return None
+    if len(node) == 32:
+        return nodes.get(node)
+    return rlp.decode(node)
