@@ -1,6 +1,6 @@
 from ethereum.crypto.hash import Hash32
 from ethereum.cancun.fork_types import Address, TupleAddressBytes32U256DictAccess
-from ethereum_types.bytes import Bytes, OptionalBytes, Bytes32
+from ethereum_types.bytes import Bytes, OptionalBytes, Bytes32, OptionalBytes32
 from ethereum_types.numeric import U256, Uint
 from ethereum.cancun.trie import LeafNode, OptionalInternalNode, InternalNodeEnum
 from ethereum_rlp.rlp import Extended
@@ -13,8 +13,8 @@ struct NodeStore {
     value: NodeStoreStruct*,
 }
 struct NodeStoreStruct {
-    dict_ptr_start: NodeStoreDictAccess,
-    dict_ptr: NodeStoreDictAccess
+    dict_ptr_start: NodeStoreDictAccess*,
+    dict_ptr: NodeStoreDictAccess*,
 }
 
 struct NodeStoreDictAccess {
@@ -25,10 +25,10 @@ struct NodeStoreDictAccess {
 // AddressPreimages is a mapping of keccak(address) to their corresponding preimages
 // As per the specification, MPT state nodes paths are keccak(address)
 // This mapping is used to retrieve the address given a full state path
-struct AddressPreimages {
-    value: AddressPreimagesStruct*,
+struct MappingBytes32Address {
+    value: MappingBytes32AddressStruct*,
 }
-struct AddressPreimagesStruct {
+struct MappingBytes32AddressStruct {
     dict_ptr_start: Hash32OptionalAddressDictAccess*,
     dict_ptr: Hash32OptionalAddressDictAccess*,
 }
@@ -41,17 +41,17 @@ struct Hash32OptionalAddressDictAccess {
 // StorageKeyPreimages is a mapping of keccak(storage_key) to their corresponding preimages
 // As per the specification, MPT storage nodes paths are keccak(storage_key)
 // This mapping is used to retrieve the storage key given a full storage path for a given address
-struct StorageKeyPreimages {
-    value: StorageKeyPreimagesStruct*,
+struct MappingBytes32Bytes32 {
+    value: MappingBytes32Bytes32Struct*,
 }
-struct StorageKeyPreimagesStruct {
-    dict_ptr_start: Hash32OptionalBytes32DictAccess*,
-    dict_ptr: Hash32OptionalBytes32DictAccess*,
+struct MappingBytes32Bytes32Struct {
+    dict_ptr_start: Bytes32OptionalBytes32DictAccess*,
+    dict_ptr: Bytes32OptionalBytes32DictAccess*,
 }
-struct Hash32OptionalBytes32DictAccess {
-    key: Hash32,
-    prev_value: Bytes32,
-    new_value: Bytes32,
+struct Bytes32OptionalBytes32DictAccess {
+    key: Bytes32,
+    prev_value: OptionalBytes32,
+    new_value: OptionalBytes32,
 }
 
 // TrieDiff records the difference between a "pre" world state and a "post" world state
@@ -89,7 +89,7 @@ func _process_account_diff{}(path: Bytes32, left: LeafNode, right: LeafNode) -> 
 }
 
 // Process the difference between two storage leaf nodes
-func _process_storage_diff{}(path: Bytes32, left: LeafNode, right: LeafNode, address: Address) -> (
+func _process_storage_diff{}(address: Address, path: Bytes32, left: LeafNode, right: LeafNode) -> (
     ) {
     return ();
 }
@@ -109,8 +109,8 @@ func _compute_diff{}(
     right: Extended,
     path: Bytes,
     node_store: NodeStore,
-    address_preimages: AddressPreimages,
-    storage_key_preimages: StorageKeyPreimages,
+    address_preimages: MappingBytes32Address,
+    storage_key_preimages: MappingBytes32Bytes32,
     process_leaf: felt*,
 ) -> () {
     return ();

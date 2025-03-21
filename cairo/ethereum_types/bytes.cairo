@@ -49,4 +49,5 @@ from cairo_core.bytes import (
     ListBytes4Struct,
     ListBytes4,
     OptionalBytes,
+    OptionalBytes32,
 )

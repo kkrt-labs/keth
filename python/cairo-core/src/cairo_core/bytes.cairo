@@ -49,6 +49,10 @@ struct Bytes32 {
     value: Bytes32Struct*,
 }
 
+struct OptionalBytes32 {
+    value: Bytes32Struct*,
+}
+
 // 256 individual bytes, unpacked.
 struct Bytes256 {
     value: felt*,
