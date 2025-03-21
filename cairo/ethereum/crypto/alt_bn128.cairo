@@ -16,6 +16,8 @@ from cairo_ec.circuits.ec_ops_compiled import assert_on_curve
 from ethereum.utils.numeric import divmod, U384_ZERO
 from ethereum_types.numeric import U384
 
+// Field over which the alt_bn128 curve is defined.
+// BNF elements are 1-dimensional.
 struct BNFStruct {
     c0: U384,
 }
@@ -24,6 +26,8 @@ struct BNF {
     value: BNFStruct*,
 }
 
+// Quadratic extension field of BNF.
+// BNF elements are 2-dimensional.
 struct BNF2Struct {
     c0: U384,
     c1: U384,
@@ -947,6 +951,8 @@ func create_bnf12_from_dict{range_check_ptr, mul_dict: DictAccess*}() -> BNF12 {
     return bnf12_result;
 }
 
+// alt_bn128 curve defined over BNF (Fp)
+// BNP represents a point on the curve.
 struct BNPStruct {
     x: BNF,
     y: BNF,
