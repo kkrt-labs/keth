@@ -1076,8 +1076,7 @@ func BNF12__eq__{range_check96_ptr: felt*}(a: BNF12, b: BNF12) -> felt {
     let is_c10_equal = U384__eq__(a.value.c10, b.value.c10);
     let is_c11_equal = U384__eq__(a.value.c11, b.value.c11);
 
-    // All components must be equal for the BNF12 elements to be equal
-    // Convert boolean values to felt: 1 if true, 0 if false
+    // All coefficients must be equal for the BNF12 elements to be equal
     let result = is_c0_equal.value * is_c1_equal.value * is_c2_equal.value * is_c3_equal.value *
         is_c4_equal.value * is_c5_equal.value * is_c6_equal.value * is_c7_equal.value *
         is_c8_equal.value * is_c9_equal.value * is_c10_equal.value * is_c11_equal.value;
