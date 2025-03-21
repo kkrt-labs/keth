@@ -148,17 +148,27 @@ class StateDiff:
                     )
 
             case (LeafNode(), None):
-                # deleted leaf (should not happen post-cancun)
+                # deleted leaf
                 full_path = nibble_path_to_bytes(path + l_node.rest_of_key)
                 process_leaf_diff(full_path, l_node, None)
 
             case (LeafNode(), LeafNode()):
-                if l_node.value != r_node.value:
-                    assert (
-                        l_node.rest_of_key == r_node.rest_of_key
-                    ), "Leaf nodes with different keys should not be compared"
-                    full_path = nibble_path_to_bytes(path + l_node.rest_of_key)
-                    process_leaf_diff(full_path, l_node, r_node)
+                if l_node.rest_of_key == r_node.rest_of_key:
+                    if l_node.value != r_node.value:
+                        # Same path -> different values
+                        full_path = nibble_path_to_bytes(path + l_node.rest_of_key)
+                        return process_leaf_diff(full_path, l_node, r_node)
+                    else:
+                        # Same path -> same value -> no diff
+                        return
+
+                # Different paths -> delete old leaf, create new leaf
+                path_left = nibble_path_to_bytes(path + l_node.rest_of_key)
+                process_leaf_diff(path_left, l_node, None)
+
+                path_right = nibble_path_to_bytes(path + r_node.rest_of_key)
+                process_leaf_diff(path_right, None, r_node)
+                return
 
             case (LeafNode(), BranchNode()):
                 # The branch was created and replaced the single leaf.
@@ -172,8 +182,11 @@ class StateDiff:
                             process_leaf_diff,
                         )
                     else:
+                        shortened_l_node = LeafNode(
+                            l_node.rest_of_key[1:], l_node.value
+                        )
                         self._compute_diff(
-                            l_node,
+                            shortened_l_node,
                             r_node.subnodes[i],
                             path + bytes([i]),
                             process_leaf_diff,
@@ -294,9 +307,12 @@ class StateDiff:
                             process_leaf_diff,
                         )
                     else:
+                        shortened_r_node = LeafNode(
+                            r_node.rest_of_key[1:], r_node.value
+                        )
                         self._compute_diff(
                             l_node.subnodes[i],
-                            r_node,
+                            shortened_r_node,
                             path + bytes([i]),
                             process_leaf_diff,
                         )
