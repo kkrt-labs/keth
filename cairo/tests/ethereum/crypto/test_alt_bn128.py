@@ -77,6 +77,5 @@ class TestAltBn128:
 
     @given(x=..., y=...)
     def test_bnp_init_fails(self, cairo_run, x: BNF, y: BNF):
-        _a0 = 0
         with pytest.raises(Exception):
             cairo_run("bnp_init", x, y)
