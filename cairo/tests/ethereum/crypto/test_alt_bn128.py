@@ -1,6 +1,8 @@
-from ethereum.crypto.alt_bn128 import BNF2, BNF12, BNP12
+import pytest
+from ethereum.crypto.alt_bn128 import BNF, BNF2, BNF12, BNP, BNP12
 from hypothesis import given
 
+from cairo_ec.curve import AltBn128
 from tests.utils.args_gen import U384
 
 
@@ -68,3 +70,12 @@ class TestAltBn128:
     @given(a=..., b=...)
     def test_bnf2_mul(self, cairo_run, a: BNF2, b: BNF2):
         assert cairo_run("bnf2_mul", a, b) == a * b
+
+    def test_bnp_init(self, cairo_run):
+        p = AltBn128.random_point()
+        assert cairo_run("bnp_init", BNF(p.x), BNF(p.y)) == BNP(p.x, p.y)
+
+    @given(x=..., y=...)
+    def test_bnp_init_fails(self, cairo_run, x: BNF, y: BNF):
+        with pytest.raises(Exception):
+            cairo_run("bnp_init", x, y)
