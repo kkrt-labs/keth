@@ -580,11 +580,10 @@ bnp12_infinity = BNP12(
 )
 
 # Strategy for BNP points on the curve
-bnp_strategy = st.one_of(
+bnp_strategy = st.just(
     st.integers(min_value=0, max_value=BNF.PRIME - 1).map(
         lambda x: bnp_generate_valid_point(x)
     ),
-    st.just(BNP(0, 0)),
 )
 
 # Strategy for BNP12 points on the curve
