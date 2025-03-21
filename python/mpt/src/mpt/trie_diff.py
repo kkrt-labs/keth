@@ -161,13 +161,20 @@ class StateDiff:
                     process_leaf_diff(full_path, l_node, r_node)
 
             case (LeafNode(), BranchNode()):
-                # Look for diffs in all branches of the right sub-tree
+                # The branch was created and replaced the single leaf.
+                # All branches - except the one whose first nibble matches the leaf's key - are new.
                 for i in range(0, 16):
-                    subnode = resolve(r_node.subnodes[i], self._nodes)
-                    if i != l_node.rest_of_key[0] or not subnode.value == l_node.value:
+                    if i != l_node.rest_of_key[0]:
                         self._compute_diff(
                             None,
-                            subnode,
+                            r_node.subnodes[i],
+                            path + bytes([i]),
+                            process_leaf_diff,
+                        )
+                    else:
+                        self._compute_diff(
+                            l_node,
+                            r_node.subnodes[i],
                             path + bytes([i]),
                             process_leaf_diff,
                         )
