@@ -427,8 +427,7 @@ class Serde:
 
         if python_cls == BNF:
             # The BNF constructor accepts int only, not tuples or U384.
-            c0 = value["c0"]
-            return BNF(int(c0))
+            return BNF(int(value["c0"]))
 
         if python_cls in (BNF2, BNF12):
             # The BNF<N> constructor doesn't accept named tuples
