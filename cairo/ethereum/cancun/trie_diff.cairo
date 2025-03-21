@@ -29,11 +29,11 @@ struct MappingBytes32Address {
     value: MappingBytes32AddressStruct*,
 }
 struct MappingBytes32AddressStruct {
-    dict_ptr_start: Hash32OptionalAddressDictAccess*,
-    dict_ptr: Hash32OptionalAddressDictAccess*,
+    dict_ptr_start: Bytes32OptionalAddressDictAccess*,
+    dict_ptr: Bytes32OptionalAddressDictAccess*,
 }
-struct Hash32OptionalAddressDictAccess {
-    key: Hash32,
+struct Bytes32OptionalAddressDictAccess {
+    key: Bytes32,
     prev_value: Address,
     new_value: Address,
 }
