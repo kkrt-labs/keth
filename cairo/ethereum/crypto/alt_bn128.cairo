@@ -956,7 +956,7 @@ struct BNP {
     value: BNPStruct*,
 }
 
-// Returns a BNP (alias of G1Point, which is verified to be on the alt_bn128 curve).
+// Returns a BNP, a point that is verified to be on the alt_bn128 curve over Fp.
 func bnp_init{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
     x: BNF, y: BNF
 ) -> BNP {
