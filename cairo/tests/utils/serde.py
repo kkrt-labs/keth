@@ -41,7 +41,7 @@ from ethereum.cancun.fork_types import Account, Address
 from ethereum.cancun.state import State, TransientStorage
 from ethereum.cancun.trie import Trie
 from ethereum.cancun.vm.exceptions import InvalidOpcode
-from ethereum.crypto.alt_bn128 import BNF2, BNF12
+from ethereum.crypto.alt_bn128 import BNF, BNF2, BNF12
 from ethereum.crypto.hash import Hash32
 from ethereum_types.bytes import (
     Bytes,
@@ -424,6 +424,10 @@ class Serde:
             return U384(combined_value)
         if python_cls in (Bytes0, Bytes1, Bytes4, Bytes8, Bytes20):
             return python_cls(value.to_bytes(python_cls.LENGTH, "little"))
+
+        if python_cls == BNF:
+            # The BNF constructor accepts int only, not tuples or U384.
+            return BNF(int(value["c0"]))
 
         if python_cls in (BNF2, BNF12):
             # The BNF<N> constructor doesn't accept named tuples

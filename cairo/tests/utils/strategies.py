@@ -25,7 +25,7 @@ from ethereum.cancun.transactions import (
 )
 from ethereum.cancun.trie import BranchNode, ExtensionNode, LeafNode, Trie, copy_trie
 from ethereum.cancun.vm import Environment, Evm, Message
-from ethereum.crypto.alt_bn128 import BNF2, BNF12, BNP12
+from ethereum.crypto.alt_bn128 import BNF, BNF2, BNF12, BNP, BNP12
 from ethereum.crypto.elliptic_curve import SECP256K1N
 from ethereum.crypto.finite_field import GaloisField
 from ethereum.crypto.hash import Hash32
@@ -387,7 +387,7 @@ evm = st.builds(
     env=st.from_type(Environment),
     valid_jump_destinations=st.sets(st.from_type(Uint)),
     logs=st.from_type(Tuple[Log, ...]),
-    refund_counter=st.integers(min_value=0),
+    refund_counter=felt,
     running=st.booleans(),
     message=message,
     output=small_bytes,
@@ -527,8 +527,9 @@ def bnfN_strategy(field: Type[GaloisField], N: int):
     )
 
 
-bnf12_strategy = bnfN_strategy(BNF12, 12)
+bnf_strategy = st.builds(BNF, st.integers(min_value=0, max_value=BNF.PRIME - 1))
 bnf2_strategy = bnfN_strategy(BNF2, 2)
+bnf12_strategy = bnfN_strategy(BNF12, 12)
 
 
 def compute_sqrt_mod_p(a, p):
@@ -542,6 +543,11 @@ def compute_sqrt_mod_p(a, p):
     if pow(a, (p - 1) // 2, p) != 1:
         return None
     return pow(a, (p + 1) // 4, p)
+
+
+def bnp_generate_valid_point(x):
+    g = BNP(1, 2)
+    return g.mul_by(x)
 
 
 def bnp12_generate_valid_point(x_value):
@@ -571,6 +577,11 @@ def bnp12_generate_valid_point(x_value):
 bnp12_infinity = BNP12(
     BNF12((0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)),
     BNF12((0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)),
+)
+
+# Strategy for BNP points on the curve
+bnp_strategy = st.integers(min_value=0, max_value=BNF.PRIME - 1).map(
+    lambda x: bnp_generate_valid_point(x)
 )
 
 # Strategy for BNP12 points on the curve
@@ -674,4 +685,6 @@ def register_type_strategies():
     )
     st.register_type_strategy(BNF12, bnf12_strategy)
     st.register_type_strategy(BNP12, bnp12_strategy)
-    st.register_type_strategy(BNF2, bnf2_strategy)
+    st.register_type_strategy(BNF2, bnf2_strategy),
+    st.register_type_strategy(BNF, bnf_strategy),
+    st.register_type_strategy(BNP, bnp_strategy)
