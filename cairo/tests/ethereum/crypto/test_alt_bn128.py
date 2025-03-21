@@ -1,5 +1,5 @@
 import pytest
-from ethereum.crypto.alt_bn128 import BNF, BNF2, BNF12, BNP, BNP2, BNP12
+from ethereum.crypto.alt_bn128 import BNF, BNF2, BNF12, BNP, BNP2, BNP12, bnf2_to_bnf12
 from hypothesis import given
 
 from cairo_ec.curve import AltBn128
@@ -92,6 +92,10 @@ class TestAltBn128:
         def test_bnf12_pow(self, cairo_run, a: BNF12, b: U384):
             assert cairo_run("bnf12_pow", a, b) == a ** int(b)
 
+        @given(a=..., b=...)
+        def test_bnf12_eq(self, cairo_run, a: BNF12, b: BNF12):
+            assert cairo_run("BNF12__eq__", a, b) == (a == b)
+
     class TestBNP12:
         def test_A(self, cairo_run):
             cairo_a = cairo_run("A")
@@ -100,3 +104,8 @@ class TestAltBn128:
         def test_B(self, cairo_run):
             cairo_b = cairo_run("B")
             assert cairo_b == BNP12.B
+
+    class TestUtils:
+        @given(x=...)
+        def test_bnf2_to_bnf12(self, cairo_run, x: BNF2):
+            assert cairo_run("bnf2_to_bnf12", x) == bnf2_to_bnf12(x)
