@@ -74,3 +74,7 @@ class TestAltBn128:
 
     def test_bnp2_point_at_infinity(self, cairo_run):
         assert cairo_run("bnp2_point_at_infinity") == BNP2.point_at_infinity()
+
+    @given(p=..., n=...)
+    def test_bnp2_mul_by(self, cairo_run, p: BNP2, n: U384):
+        assert cairo_run("bnp2_mul_by", p, n) == p.mul_by(int(n))

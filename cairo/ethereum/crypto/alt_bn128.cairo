@@ -10,8 +10,8 @@ from starkware.cairo.common.math_cmp import is_le
 from cairo_core.control_flow import raise
 from cairo_ec.circuits.mod_ops_compiled import add, sub, mul
 from cairo_ec.curve.alt_bn128 import alt_bn128
-
-from ethereum.utils.numeric import divmod, U384_ZERO
+from cairo_ec.uint384 import get_u384_bits_little
+from ethereum.utils.numeric import divmod, U384_ZERO, U384__eq__
 from ethereum_types.numeric import U384
 
 struct BNF2Struct {
@@ -45,16 +45,6 @@ func BNF2_ZERO() -> BNF2 {
 struct BNP2Struct {
     x: BNF2,
     y: BNF2,
-}
-
-struct BNP2 {
-    value: BNP2Struct*,
-}
-
-func bnp2_point_at_infinity() -> BNP2 {
-    let bnf2_zero = BNF2_ZERO();
-    tempvar res = BNP2(new BNP2Struct(bnf2_zero, bnf2_zero));
-    return res;
 }
 
 // BNF2 multiplication
@@ -97,6 +87,71 @@ func bnf2_mul{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: M
 
     tempvar res = BNF2(new BNF2Struct(U384(res_c0), U384(res_c1)));
     return res;
+}
+
+struct BNP2 {
+    value: BNP2Struct*,
+}
+
+func bnp2_point_at_infinity() -> BNP2 {
+    let bnf2_zero = BNF2_ZERO();
+    tempvar res = BNP2(new BNP2Struct(bnf2_zero, bnf2_zero));
+    return res;
+}
+
+func bnp2_mul_by{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
+    p: BNP2, n: U384
+) -> BNP2 {
+    alloc_locals;
+
+    // Check if n is zero using the provided method
+    let (u384_zero) = get_label_location(U384_ZERO);
+    let is_n_zero = U384__eq__(n, U384(cast(u384_zero, UInt384*)));
+    if (is_n_zero.value != 0) {
+        // If scalar is zero, return point at infinity
+        return bnp2_point_at_infinity();
+    }
+
+    // Extract all bits of the scalar n
+    let (bits_ptr, bits_len) = get_u384_bits_little(n);
+
+    // Initialize result as point at infinity
+    let result = bnp2_point_at_infinity();
+
+    // Call helper function to do the actual scalar multiplication
+    return _bnp2_mul_by_bits(p, bits_ptr, bits_len, 0, result);
+}
+
+// Helper function that processes each bit of the scalar
+func _bnp2_mul_by_bits{
+    range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
+}(p: BNP2, bits_ptr: felt*, bits_len: felt, current_bit: felt, result: BNP2) -> BNP2 {
+    alloc_locals;
+
+    // Base case: if we've processed all bits, return the result
+    if (current_bit == bits_len) {
+        return result;
+    }
+
+    // Get current bit value
+    let bit_value = bits_ptr[current_bit];
+
+    // Double-and-add algorithm step:
+    // 1. If current bit is 1, add point p to the result
+    let new_result = result;
+    if (bit_value != 0) {
+        let new_result = bnp2_add(result, p);
+    }
+
+    // 2. Double the point for next iteration (only if we have more bits to process)
+    let continue = is_le(current_bit, bits_len);
+    if (continue.value != 0) {
+        let p_doubled = bnp2_add(p, p);
+        return _bnp2_mul_by_bits(p_doubled, bits_ptr, bits_len, current_bit + 1, new_result);
+    } else {
+        // Last bit, no need to double
+        return new_result;
+    }
 }
 
 // BNF12 represents a field element in the BNF12 extension field
