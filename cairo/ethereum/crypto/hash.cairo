@@ -7,6 +7,10 @@ from starkware.cairo.common.alloc import alloc
 
 using Hash32 = Bytes32;
 
+EMPTY_ROOT:
+dw 0x6ef8c092e64583ffa655cc1b171fe856;  // low
+dw 0x21b463e3b52f6201c0ad6c991be0485b;  // high
+
 func keccak256{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*}(
     buffer: Bytes
 ) -> Hash32 {
