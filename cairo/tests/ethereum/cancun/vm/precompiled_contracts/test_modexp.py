@@ -15,17 +15,6 @@ from tests.utils.args_gen import U384
 from tests.utils.evm_builder import EvmBuilder
 
 
-def get_u384_bits_little(value: U384):
-    value_int = value._number
-    bits = []
-    while value_int > 0:
-        bit = value_int & 1
-        bits.append(bit)
-        value_int >>= 1
-
-    return bits
-
-
 class TestModexp:
     @given(
         base=st.binary(max_size=48),
@@ -98,14 +87,6 @@ class TestModexp:
             assert cairo_result == Uint(2**128 - 1)
         else:
             assert cairo_result == expected_gas_cost
-
-    @given(value=...)
-    def test_get_u384_bits_little(self, cairo_run, value: U384):
-        (cairo_bits_ptr, cairo_bits_len) = cairo_run("get_u384_bits_little", value)
-
-        python_bits = get_u384_bits_little(value)
-        cairo_bits = [cairo_bits_ptr[i] for i in range(cairo_bits_len)]
-        assert python_bits == cairo_bits, f"Failed for value {value}"
 
     @given(value=...)
     def test_uint384_to_be_bytes(self, cairo_run, value: U384):

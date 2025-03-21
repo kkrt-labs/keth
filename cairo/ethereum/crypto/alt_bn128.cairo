@@ -13,7 +13,7 @@ from cairo_ec.curve.alt_bn128 import alt_bn128
 from cairo_ec.curve.g1_point import G1Point, G1PointStruct
 from cairo_ec.circuits.ec_ops_compiled import assert_on_curve
 
-from ethereum.utils.numeric import divmod, U384_ZERO
+from ethereum.utils.numeric import divmod, U384_ZERO, U384_is_zero, get_u384_bits_little, U384__eq__
 from ethereum_types.numeric import U384
 
 // Field over which the alt_bn128 curve is defined.
@@ -619,6 +619,28 @@ func BNF12_ZERO() -> BNF12 {
     return bnf12_zero;
 }
 
+func bnf12_ONE() -> BNF12 {
+    let (zero) = get_label_location(U384_ZERO);
+    let uint384_zero = cast(zero, UInt384*);
+    tempvar bnf12_one = BNF12(
+        new BNF12Struct(
+            U384(new UInt384(1, 0, 0, 0)),
+            U384(uint384_zero),
+            U384(uint384_zero),
+            U384(uint384_zero),
+            U384(uint384_zero),
+            U384(uint384_zero),
+            U384(uint384_zero),
+            U384(uint384_zero),
+            U384(uint384_zero),
+            U384(uint384_zero),
+            U384(uint384_zero),
+            U384(uint384_zero),
+        ),
+    );
+    return bnf12_one;
+}
+
 // Int limited to 384 bits
 func bnf12_from_int{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
     x: U384
@@ -975,6 +997,93 @@ func create_bnf12_from_dict{range_check_ptr, mul_dict: DictAccess*}() -> BNF12 {
     return bnf12_result;
 }
 
+// Pow function for BNF12 elements using square-and-multiply algorithm
+func bnf12_pow{
+    range_check_ptr, range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
+}(base: BNF12, exponent: U384) -> BNF12 {
+    alloc_locals;
+
+    // Return 1 for exponent = 0
+    let exponent_is_zero = U384_is_zero(exponent);
+    if (exponent_is_zero != 0) {
+        let one = bnf12_ONE();
+        return one;
+    }
+
+    // Extract bits from exponent, initialize result with 1
+    // and perform square-and-multiply algorithm
+    let (bits_ptr, bits_len) = get_u384_bits_little(exponent);
+    let res = bnf12_ONE();
+    return bnf12_pow_recursive(base, bits_ptr, bits_len, 0, res);
+}
+
+func bnf12_pow_recursive{
+    range_check_ptr, range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
+}(base: BNF12, bits_ptr: felt*, bits_len: felt, current_bit: felt, result: BNF12) -> BNF12 {
+    alloc_locals;
+
+    // Base case: if we've processed all bits, return the result
+    if (current_bit == bits_len) {
+        return result;
+    }
+    // Get current bit value
+    let bit_value = bits_ptr[current_bit];
+    // Calculate new result and new base for this iteration
+    let (new_result, new_base) = bnf12_pow_inner_loop(bit_value, base, result);
+    // Continue with next bit
+    return bnf12_pow_recursive(new_base, bits_ptr, bits_len, current_bit + 1, new_result);
+}
+
+func bnf12_pow_inner_loop{
+    range_check_ptr, range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
+}(bit: felt, base: BNF12, res: BNF12) -> (BNF12, BNF12) {
+    alloc_locals;
+
+    // If bit is set, multiply result by base
+    if (bit != 0) {
+        let new_res = bnf12_mul(res, base);
+        tempvar new_res = new_res;
+        tempvar range_check_ptr = range_check_ptr;
+        tempvar range_check96_ptr = range_check96_ptr;
+        tempvar add_mod_ptr = add_mod_ptr;
+        tempvar mul_mod_ptr = mul_mod_ptr;
+    } else {
+        tempvar new_res = res;
+        tempvar range_check_ptr = range_check_ptr;
+        tempvar range_check96_ptr = range_check96_ptr;
+        tempvar add_mod_ptr = add_mod_ptr;
+        tempvar mul_mod_ptr = mul_mod_ptr;
+    }
+    tempvar new_res = new_res;
+    // Square the base for next iteration
+    let base_squared = bnf12_mul(base, base);
+    return (new_res, base_squared);
+}
+
+func BNF12__eq__{range_check96_ptr: felt*}(a: BNF12, b: BNF12) -> felt {
+    alloc_locals;
+    // Check equality for each component
+    let is_c0_equal = U384__eq__(a.value.c0, b.value.c0);
+    let is_c1_equal = U384__eq__(a.value.c1, b.value.c1);
+    let is_c2_equal = U384__eq__(a.value.c2, b.value.c2);
+    let is_c3_equal = U384__eq__(a.value.c3, b.value.c3);
+    let is_c4_equal = U384__eq__(a.value.c4, b.value.c4);
+    let is_c5_equal = U384__eq__(a.value.c5, b.value.c5);
+    let is_c6_equal = U384__eq__(a.value.c6, b.value.c6);
+    let is_c7_equal = U384__eq__(a.value.c7, b.value.c7);
+    let is_c8_equal = U384__eq__(a.value.c8, b.value.c8);
+    let is_c9_equal = U384__eq__(a.value.c9, b.value.c9);
+    let is_c10_equal = U384__eq__(a.value.c10, b.value.c10);
+    let is_c11_equal = U384__eq__(a.value.c11, b.value.c11);
+
+    // All coefficients must be equal for the BNF12 elements to be equal
+    let result = is_c0_equal.value * is_c1_equal.value * is_c2_equal.value * is_c3_equal.value *
+        is_c4_equal.value * is_c5_equal.value * is_c6_equal.value * is_c7_equal.value *
+        is_c8_equal.value * is_c9_equal.value * is_c10_equal.value * is_c11_equal.value;
+
+    return result;
+}
+
 // alt_bn128 curve defined over BNF (Fp)
 // BNP represents a point on the curve.
 struct BNPStruct {
@@ -1040,4 +1149,27 @@ func B() -> BNF12 {
         ),
     );
     return bnf12_three;
+}
+
+func bnf2_to_bnf12{
+    range_check_ptr, range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
+}(x: BNF2) -> BNF12 {
+    alloc_locals;
+    // Convert x[0] to BNF12
+    let x0_bnf12 = bnf12_from_int(x.value.c0);
+
+    // Get (BNF12.i_plus_9 - BNF12.from_int(9))
+    // This is equivalent to the complex number i in the extension field
+    tempvar u384_nine = U384(new UInt384(9, 0, 0, 0));
+    let nine = bnf12_from_int(u384_nine);
+    let i_plus_9 = BNF12_I_PLUS_9();
+    let i_complex = bnf12_sub(i_plus_9, nine);
+
+    // Multiply x[1] by the complex number i
+    let x1_bnf12 = bnf12_from_int(x.value.c1);
+    let x1_mul_i = bnf12_mul(x1_bnf12, i_complex);
+
+    // Return x[0] + x[1] * i
+    let result = bnf12_add(x0_bnf12, x1_mul_i);
+    return result;
 }
