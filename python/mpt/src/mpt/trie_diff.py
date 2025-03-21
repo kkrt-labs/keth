@@ -97,7 +97,6 @@ class StateDiff:
 
     @classmethod
     def from_tries(cls, tries: EthereumTrieTransitionDB) -> "StateDiff":
-        # Merge all mappings of hash -> node to have a single DB to fetch nodes and resolve addresses from
         diff = StateDiff(
             {}, {}, tries.nodes, tries.address_preimages, tries.storage_key_preimages
         )
@@ -385,7 +384,7 @@ def resolve(
 ) -> InternalNode | None:
     if isinstance(node, InternalNode):
         return node
-    if not node or node == b"":
+    if node is None or node == b"":
         return None
     if len(node) == 32:
         return nodes.get(node)
