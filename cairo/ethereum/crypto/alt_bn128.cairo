@@ -16,8 +16,13 @@ from cairo_ec.circuits.ec_ops_compiled import assert_on_curve
 from ethereum.utils.numeric import divmod, U384_ZERO
 from ethereum_types.numeric import U384
 
-using BNPStruct = G1PointStruct;
-using BNP = G1Point;
+struct BNFStruct {
+    c0: U384,
+}
+
+struct BNF {
+    value: BNFStruct*,
+}
 
 struct BNF2Struct {
     c0: U384,
@@ -942,15 +947,25 @@ func create_bnf12_from_dict{range_check_ptr, mul_dict: DictAccess*}() -> BNF12 {
     return bnf12_result;
 }
 
+struct BNPStruct {
+    x: BNF,
+    y: BNF,
+}
+
+struct BNP {
+    value: BNPStruct*,
+}
+
 // Returns a BNP (alias of G1Point, which is verified to be on the alt_bn128 curve).
 func bnp_init{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
-    x: U384, y: U384
+    x: BNF, y: BNF
 ) -> BNP {
-    tempvar a = new UInt384(alt_bn128.A0, alt_bn128.A1, alt_bn128.A2, alt_bn128.A3);
-    tempvar b = new UInt384(alt_bn128.B0, alt_bn128.B1, alt_bn128.B2, alt_bn128.B3);
+    tempvar a = U384(new UInt384(alt_bn128.A0, alt_bn128.A1, alt_bn128.A2, alt_bn128.A3));
+    tempvar b = U384(new UInt384(alt_bn128.B0, alt_bn128.B1, alt_bn128.B2, alt_bn128.B3));
     tempvar modulus = U384(new UInt384(alt_bn128.P0, alt_bn128.P1, alt_bn128.P2, alt_bn128.P3));
 
-    assert_on_curve(x.value, y.value, a, b, modulus.value);
+    tempvar point = G1Point(new G1PointStruct(x.value.c0, y.value.c0));
+    assert_on_curve(point.value, a, b, modulus);
 
     tempvar res = BNP(new BNPStruct(x, y));
     return res;

@@ -101,7 +101,7 @@ from ethereum.cancun.vm import Evm as EvmBase
 from ethereum.cancun.vm import Message as MessageBase
 from ethereum.cancun.vm.gas import ExtendMemory, MessageCallGas
 from ethereum.cancun.vm.interpreter import MessageCallOutput as MessageCallOutputBase
-from ethereum.crypto.alt_bn128 import BNF2, BNF12, BNP12
+from ethereum.crypto.alt_bn128 import BNF, BNF2, BNF12, BNP, BNP12
 from ethereum.crypto.hash import Hash32
 from ethereum.exceptions import EthereumException
 from ethereum_rlp.rlp import Extended, Simple
@@ -734,6 +734,8 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "crypto", "alt_bn128", "TupleBNF12"): Tuple[BNF12, ...],
     ("ethereum", "crypto", "alt_bn128", "BNP12"): BNP12,
     ("ethereum", "crypto", "alt_bn128", "BNF2"): BNF2,
+    ("ethereum", "crypto", "alt_bn128", "BNP"): BNP,
+    ("ethereum", "crypto", "alt_bn128", "BNF"): BNF,
 }
 
 # In the EELS, some functions are annotated with Sequence while it's actually just Bytes.
@@ -1053,6 +1055,12 @@ def _gen_arg(
         segments.load_data(base, felt_values)
         return base
 
+    if arg_type is BNF:
+        base = segments.add()
+        coeff = [_gen_arg(dict_manager, segments, U384, U384(arg))]
+        segments.load_data(base, coeff)
+        return base
+
     if arg_type in (BNF2, BNF12):
         base = segments.add()
         # In python, BNF<N> is a tuple of N int but in cairo it's a struct with N U384
@@ -1064,12 +1072,12 @@ def _gen_arg(
         segments.load_data(base, coeffs)
         return base
 
-    if arg_type is BNP12:
+    if arg_type in (BNP, BNP12):
         struct_ptr = segments.add()
 
         # Handle the x and y coordinates recursively
-        x_ptr = _gen_arg(dict_manager, segments, BNF12, arg.x)
-        y_ptr = _gen_arg(dict_manager, segments, BNF12, arg.y)
+        x_ptr = _gen_arg(dict_manager, segments, arg_type.FIELD, arg.x)
+        y_ptr = _gen_arg(dict_manager, segments, arg_type.FIELD, arg.y)
 
         # Store the coordinates in the struct
         segments.load_data(struct_ptr, [x_ptr])
