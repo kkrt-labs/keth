@@ -142,6 +142,10 @@ struct InternalNode {
     value: InternalNodeEnum*,
 }
 
+struct OptionalInternalNode {
+    value: InternalNodeEnum*,
+}
+
 struct InternalNodeEnum {
     leaf_node: LeafNode,
     extension_node: ExtensionNode,

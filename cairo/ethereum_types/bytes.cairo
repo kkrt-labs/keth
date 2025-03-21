@@ -48,4 +48,6 @@ from cairo_core.bytes import (
     Bytes1DictAccess,
     ListBytes4Struct,
     ListBytes4,
+    OptionalBytes,
+    OptionalBytes32,
 )
