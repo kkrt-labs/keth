@@ -1258,3 +1258,21 @@ func bnf2_to_bnf12{
     let result = bnf12_add(x0_bnf12, x1_mul_i);
     return result;
 }
+
+func twist{
+    range_check_ptr, range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
+}(p: BNP2) -> BNP12 {
+    alloc_locals;
+
+    let x_bnf12 = bnf2_to_bnf12(p.value.x);
+    let y_bnf12 = bnf2_to_bnf12(p.value.y);
+
+    let w_pow_2 = BNF12_W_POW_2();
+    let w_pow_3 = BNF12_W_POW_3();
+
+    let twisted_x = bnf12_mul(x_bnf12, w_pow_2);
+    let twisted_y = bnf12_mul(y_bnf12, w_pow_3);
+
+    tempvar result = BNP12(new BNP12Struct(twisted_x, twisted_y));
+    return result;
+}
