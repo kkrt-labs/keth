@@ -53,7 +53,7 @@ import functools
 import inspect
 import sys
 from collections import ChainMap, abc, defaultdict
-from dataclasses import dataclass, fields, is_dataclass, make_dataclass
+from dataclasses import dataclass, field, fields, is_dataclass, make_dataclass
 from functools import partial
 from typing import (
     Annotated,
@@ -77,7 +77,13 @@ from typing import (
 
 from ethereum.cancun.blocks import Block, Header, Log, Receipt, Withdrawal
 from ethereum.cancun.fork import ApplyBodyOutput, BlockChain
-from ethereum.cancun.fork_types import Account, Address, Bloom, Root, VersionedHash
+from ethereum.cancun.fork_types import Account as AccountBase
+from ethereum.cancun.fork_types import (
+    Address,
+    Bloom,
+    Root,
+    VersionedHash,
+)
 from ethereum.cancun.state import State, TransientStorage
 from ethereum.cancun.transactions import (
     AccessListTransaction,
@@ -115,6 +121,7 @@ from ethereum_types.bytes import (
     Bytes32,
     Bytes256,
 )
+from ethereum_types.frozen import slotted_freezable
 from ethereum_types.numeric import U64, U256, FixedUnsigned, Uint, _max_value
 from starkware.cairo.common.dict import DictManager, DictTracker
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
@@ -216,6 +223,126 @@ class Stack(List[T]):
         if len(self) + len(values) > self.MAX_SIZE:
             del self[self.MAX_SIZE - len(values) :]
         self.extend(values)
+
+
+# All these classes are auto-patched in test imports in cairo/tests/conftests.py
+@dataclass
+class Environment(
+    make_dataclass(
+        "Environment",
+        [(f.name, f.type, f) for f in fields(EnvironmentBase) if f.name != "traces"],
+        namespace={"__doc__": EnvironmentBase.__doc__},
+    )
+):
+    def __eq__(self, other):
+        return all(
+            getattr(self, field.name) == getattr(other, field.name)
+            for field in fields(self)
+        )
+
+    @functools.wraps(EnvironmentBase.__init__)
+    def __init__(self, *args, **kwargs):
+        if "traces" in kwargs:
+            del kwargs["traces"]
+        super().__init__(*args, **kwargs)
+
+    @property
+    def traces(self):
+        return []
+
+
+@dataclass
+class MessageCallOutput(
+    make_dataclass(
+        "MessageCallOutput",
+        [(f.name, f.type, f) for f in fields(MessageCallOutputBase)],
+        namespace={"__doc__": MessageCallOutputBase.__doc__},
+    )
+):
+    def __eq__(self, other):
+        return all(
+            getattr(self, field.name) == getattr(other, field.name)
+            for field in fields(self)
+            if field.name != "error"
+        ) and type(self.error) is type(other.error)
+
+
+@dataclass
+class Message(
+    make_dataclass(
+        "Message",
+        [
+            (f.name, f.type if f.name != "parent_evm" else Optional["Evm"], f)
+            for f in fields(MessageBase)
+        ],
+        namespace={"__doc__": MessageBase.__doc__},
+    )
+):
+    def __eq__(self, other):
+        common_fields = all(
+            getattr(self, field.name) == getattr(other, field.name)
+            for field in fields(self)
+            if field.name != "parent_evm"
+        )
+        return common_fields and self.parent_evm == other.parent_evm
+
+
+EMPTY_STORAGE_ROOT = Bytes32(
+    (0x56E81F171BCC55A6FF8345E692C0F86E5B48E01B996CADC001622FB5E363B421).to_bytes(
+        32, "big"
+    )
+)
+
+# Separate setup & class definition to apply freezable decorator
+AccountDataclass = make_dataclass(
+    "AccountDataclass",
+    [(f.name, f.type, f) for f in fields(AccountBase)]
+    + [("storage_root", Bytes32, field(default=EMPTY_STORAGE_ROOT))],
+    namespace={"__doc__": AccountBase.__doc__},
+)
+
+
+@slotted_freezable
+@dataclass
+class Account(AccountDataclass):
+    def __eq__(self, other):
+        if not isinstance(other, Account):
+            return False
+        return all(
+            getattr(self, field.name) == getattr(other, field.name)
+            for field in fields(self)
+            if field.name != "storage_root"
+        )
+
+
+EMPTY_ACCOUNT = Account(
+    nonce=Uint(0), balance=U256(0), code=b"", storage_root=EMPTY_STORAGE_ROOT
+)
+
+
+_field_mapping = {
+    "stack": Stack[U256],
+    "memory": Memory,
+    "env": Environment,
+    "error": Optional[EthereumException],
+    "message": Message,
+}
+
+
+@dataclass
+class Evm(
+    make_dataclass(
+        "Evm",
+        [(f.name, _field_mapping.get(f.name, f.type), f) for f in fields(EvmBase)],
+        namespace={"__doc__": EvmBase.__doc__},
+    )
+):
+    def __eq__(self, other):
+        return all(
+            getattr(self, field.name) == getattr(other, field.name)
+            for field in fields(self)
+            if field.name != "error"
+        ) and type(self.error) is type(other.error)
 
 
 @dataclass
@@ -380,93 +507,6 @@ class FlatTransientStorage:
             ts._snapshots.append(address_to_storage_trie)
 
         return ts
-
-
-# All these classes are auto-patched in test imports in cairo/tests/conftests.py
-@dataclass
-class Environment(
-    make_dataclass(
-        "Environment",
-        [(f.name, f.type, f) for f in fields(EnvironmentBase) if f.name != "traces"],
-        namespace={"__doc__": EnvironmentBase.__doc__},
-    )
-):
-    def __eq__(self, other):
-        return all(
-            getattr(self, field.name) == getattr(other, field.name)
-            for field in fields(self)
-        )
-
-    @functools.wraps(EnvironmentBase.__init__)
-    def __init__(self, *args, **kwargs):
-        if "traces" in kwargs:
-            del kwargs["traces"]
-        super().__init__(*args, **kwargs)
-
-    @property
-    def traces(self):
-        return []
-
-
-@dataclass
-class Message(
-    make_dataclass(
-        "Message",
-        [
-            (f.name, f.type if f.name != "parent_evm" else Optional["Evm"], f)
-            for f in fields(MessageBase)
-        ],
-        namespace={"__doc__": MessageBase.__doc__},
-    )
-):
-    def __eq__(self, other):
-        common_fields = all(
-            getattr(self, field.name) == getattr(other, field.name)
-            for field in fields(self)
-            if field.name != "parent_evm"
-        )
-        return common_fields and self.parent_evm == other.parent_evm
-
-
-_field_mapping = {
-    "stack": Stack[U256],
-    "memory": Memory,
-    "env": Environment,
-    "error": Optional[EthereumException],
-    "message": Message,
-}
-
-
-@dataclass
-class Evm(
-    make_dataclass(
-        "Evm",
-        [(f.name, _field_mapping.get(f.name, f.type), f) for f in fields(EvmBase)],
-        namespace={"__doc__": EvmBase.__doc__},
-    )
-):
-    def __eq__(self, other):
-        return all(
-            getattr(self, field.name) == getattr(other, field.name)
-            for field in fields(self)
-            if field.name != "error"
-        ) and type(self.error) is type(other.error)
-
-
-@dataclass
-class MessageCallOutput(
-    make_dataclass(
-        "MessageCallOutput",
-        [(f.name, f.type, f) for f in fields(MessageCallOutputBase)],
-        namespace={"__doc__": MessageCallOutputBase.__doc__},
-    )
-):
-    def __eq__(self, other):
-        return all(
-            getattr(self, field.name) == getattr(other, field.name)
-            for field in fields(self)
-            if field.name != "error"
-        ) and type(self.error) is type(other.error)
 
 
 vm_exception_classes = inspect.getmembers(

@@ -16,14 +16,21 @@ from typing import (
 
 from eth_keys.datatypes import PrivateKey
 from ethereum.cancun.blocks import Header, Log, Receipt, Withdrawal
-from ethereum.cancun.fork_types import Account, Address, Bloom, Root
+from ethereum.cancun.fork_types import Address, Bloom, Root
 from ethereum.cancun.transactions import (
     AccessListTransaction,
     BlobTransaction,
     FeeMarketTransaction,
     LegacyTransaction,
 )
-from ethereum.cancun.trie import BranchNode, ExtensionNode, LeafNode, Trie, copy_trie
+from ethereum.cancun.trie import (
+    BranchNode,
+    ExtensionNode,
+    LeafNode,
+    Trie,
+    copy_trie,
+)
+from ethereum.cancun.trie import root as compute_root
 from ethereum.cancun.vm import Environment, Evm, Message
 from ethereum.crypto.alt_bn128 import BNF, BNF2, BNF12, BNP, BNP2, BNP12
 from ethereum.crypto.elliptic_curve import SECP256K1N
@@ -44,9 +51,18 @@ from hypothesis import strategies as st
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 
 from cairo_ec.curve import AltBn128
-from tests.utils.args_gen import (
+
+# Note: I have noticed that even if we path the imports in conftests.py, because hypothesis runs before these patches are applied,
+# this file would still be working with the old types. Thus, we _explicitly_ import our patched types from args_gen.py here.
+from tests.utils.args_gen import (  # noqa
+    EMPTY_STORAGE_ROOT,
     U384,
+    Account,
+    Environment,
+    Evm,
     Memory,
+    Message,
+    MessageCallOutput,
     MutableBloom,
     Stack,
     State,
@@ -401,7 +417,14 @@ evm = st.builds(
 )
 
 
-account_strategy = st.builds(Account, nonce=uint, balance=uint256, code=code)
+# Take the EMPTY_STORAGE_ROOT value by default. This will be built in the state strategy, based on the storage tries.
+account_strategy = st.builds(
+    Account,
+    nonce=uint,
+    balance=uint256,
+    code=code,
+    storage_root=st.just(EMPTY_STORAGE_ROOT),
+)
 
 # Fork
 # A strategy for an empty state - the tries have no data.
@@ -447,49 +470,60 @@ BEACON_ROOTS_CODE = bytes.fromhex(
 SYSTEM_ACCOUNT = Account(balance=U256(0), nonce=Uint(0), code=bytes())
 BEACON_ROOTS_ACCOUNT = Account(balance=U256(0), nonce=Uint(1), code=BEACON_ROOTS_CODE)
 
-state = st.lists(address, max_size=MAX_ADDRESS_SET_SIZE, unique=True).flatmap(
-    lambda addresses: st.builds(
-        State,
-        _main_trie=st.builds(
+
+@st.composite
+def state_strategy(draw):
+    addresses = draw(st.lists(address, max_size=MAX_ADDRESS_SET_SIZE, unique=True))
+
+    _main_trie = draw(
+        st.builds(
             Trie[Address, Optional[Account]],
             secured=st.just(True),
             default=st.none(),
             _data=st.fixed_dictionaries(
                 {address: st.from_type(Account) for address in addresses}
             ).map(lambda x: defaultdict(lambda: None, x)),
-        ),
-        # Storage tries are not always present for existing accounts
-        # Thus we generate a subset of addresses from the existing accounts
-        _storage_tries=st.integers(max_value=len(addresses)).flatmap(
+        )
+    )
+
+    # Storage tries are not always present for existing accounts
+    # Thus we generate a subset of addresses from the existing accounts
+    _storage_tries = draw(
+        st.integers(max_value=len(addresses)).flatmap(
             lambda i: st.fixed_dictionaries(
                 {
                     address: trie_strategy(Trie[Bytes32, U256], min_size=1)
                     for address in addresses[:i]
                 }
             )
-        ),
-        _snapshots=st.builds(list, st.just([])),
-        created_accounts=st.sets(address, max_size=10),
-    ).map(
-        # Create the original state snapshot using copies of the tries
-        lambda state: State(
-            _main_trie=state._main_trie,
-            _storage_tries=state._storage_tries,
-            # Create deep copies of the tries for the snapshot,
-            # because otherwise mutating the main trie will also mutate the snapshot
-            _snapshots=[
-                (
-                    copy_trie(state._main_trie),
-                    {
-                        addr: copy_trie(trie)
-                        for addr, trie in state._storage_tries.items()
-                    },
-                )
-            ],
-            created_accounts=state.created_accounts,
         )
-    ),
-)
+    )
+
+    # Update the accounts in the state_trie with the correct storage_root
+    for account_address, storage_trie in _storage_tries.items():
+        storage_root = compute_root(storage_trie)
+        current_account = _main_trie._data[account_address]
+        _main_trie._data[account_address] = Account(
+            balance=current_account.balance,
+            nonce=current_account.nonce,
+            code=current_account.code,
+            storage_root=storage_root,
+        )
+
+    _snapshots = [
+        (
+            copy_trie(_main_trie),
+            {addr: copy_trie(trie) for addr, trie in _storage_tries.items()},
+        )
+    ]
+
+    return State(
+        _main_trie=_main_trie,
+        _storage_tries=_storage_tries,
+        _snapshots=_snapshots,
+        created_accounts=draw(st.sets(address, max_size=10)),
+    )
+
 
 header = st.builds(
     Header,
@@ -669,7 +703,7 @@ def register_type_strategies():
     st.register_type_strategy(tuple, tuple_strategy)
     st.register_type_strategy(dict, dict_strategy)
     st.register_type_strategy(ChainMap, dict_strategy)
-    st.register_type_strategy(State, state)
+    st.register_type_strategy(State, state_strategy())
     st.register_type_strategy(TransientStorage, transient_storage)
     st.register_type_strategy(MutableBloom, bloom.map(MutableBloom))
     st.register_type_strategy(Environment, environment_lite)
