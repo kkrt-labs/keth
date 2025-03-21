@@ -28,10 +28,10 @@ func bnf2_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: M
 ) -> BNF2 {
     tempvar modulus = U384(new UInt384(alt_bn128.P0, alt_bn128.P1, alt_bn128.P2, alt_bn128.P3));
 
-    let res_c0 = add(a.value.c0.value, b.value.c0.value, modulus.value);
-    let res_c1 = add(a.value.c1.value, b.value.c1.value, modulus.value);
+    let res_c0 = add(a.value.c0, b.value.c0, modulus);
+    let res_c1 = add(a.value.c1, b.value.c1, modulus);
 
-    tempvar res = BNF2(new BNF2Struct(U384(res_c0), U384(res_c1)));
+    tempvar res = BNF2(new BNF2Struct(res_c0, res_c1));
     return res;
 }
 
@@ -56,24 +56,24 @@ func bnf2_mul{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: M
 
     // Step 1: Compute the products for polynomial multiplication
     // mul[0] = a[0] * b[0]
-    let mul_0 = mul(a.value.c0.value, b.value.c0.value, modulus.value);
+    let mul_0 = mul(a.value.c0, b.value.c0, modulus);
     // mul[1] = a[0] * b[1] + a[1] * b[0]
-    let term_1 = mul(a.value.c0.value, b.value.c1.value, modulus.value);
-    let term_2 = mul(a.value.c1.value, b.value.c0.value, modulus.value);
-    let mul_1 = add(term_1, term_2, modulus.value);
+    let term_1 = mul(a.value.c0, b.value.c1, modulus);
+    let term_2 = mul(a.value.c1, b.value.c0, modulus);
+    let mul_1 = add(term_1, term_2, modulus);
     // mul[2] = a[1] * b[1]
-    let mul_2 = mul(a.value.c1.value, b.value.c1.value, modulus.value);
+    let mul_2 = mul(a.value.c1, b.value.c1, modulus);
 
     // Step 2: Apply the reduction using the modulus polynomial
     // mul[2] * modulus[0]
-    tempvar modulus_coeff = new UInt384(1, 0, 0, 0);
-    let reduction_term = mul(mul_2, modulus_coeff, modulus.value);
+    tempvar modulus_coeff = U384(new UInt384(1, 0, 0, 0));
+    let reduction_term = mul(mul_2, modulus_coeff, modulus);
     // Compute res[0] = mul[0] - reduction_term
-    let res_c0 = sub(mul_0, reduction_term, modulus.value);
+    let res_c0 = sub(mul_0, reduction_term, modulus);
     // No reduction needed for res[1] = mul[1] in BNF2 with degree 2
     let res_c1 = mul_1;
 
-    tempvar res = BNF2(new BNF2Struct(U384(res_c0), U384(res_c1)));
+    tempvar res = BNF2(new BNF2Struct(res_c0, res_c1));
     return res;
 }
 
