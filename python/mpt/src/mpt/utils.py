@@ -86,14 +86,14 @@ def decode_node(node: Bytes) -> InternalNode:
             return ExtensionNode(key_segment=nibbles, subnode=value)
 
 
-def nibble_list_to_bytes(nibble_list: Bytes) -> Bytes:
+def nibble_path_to_bytes(nibble_path: Bytes) -> Bytes:
     """
     Convert a list of nibbles to bytes by concatenating pairs of nibbles.
     """
     return bytes(
         [
-            (nibble_list[i] & 0x0F) * 16 + (nibble_list[i + 1] & 0x0F)
-            for i in range(0, len(nibble_list) - 1, 2)
+            (nibble_path[i] & 0x0F) * 16 + (nibble_path[i + 1] & 0x0F)
+            for i in range(0, len(nibble_path) - 1, 2)
         ]
     )
 
@@ -102,4 +102,4 @@ def nibble_path_to_hex(nibble_path: Bytes) -> str:
     """
     Convert a nibble path to a hex string.
     """
-    return "0x" + nibble_list_to_bytes(nibble_path).hex()
+    return "0x" + nibble_path_to_bytes(nibble_path).hex()
