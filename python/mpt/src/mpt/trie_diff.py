@@ -279,7 +279,7 @@ class StateDiff:
                     self._compute_diff(
                         l_node.subnodes[i],
                         None,
-                        path + i.to_bytes(1, "big"),
+                        path + bytes([i])
                         process_leaf_diff,
                     )
 
