@@ -97,7 +97,6 @@ from ethereum.cancun.trie import (
     ExtensionNode,
     InternalNode,
     LeafNode,
-    Node,
     Trie,
     trie_get,
     trie_set,
@@ -319,6 +318,10 @@ EMPTY_ACCOUNT = Account(
     nonce=Uint(0), balance=U256(0), code=b"", storage_root=EMPTY_STORAGE_ROOT
 )
 
+
+# Re-definition of the Node type to be used in the tests.
+# This is required for the `encode_node` function in `ethereum.cancun.trie` to work.
+Node = Union[Account, Bytes, LegacyTransaction, Receipt, Uint, U256, Withdrawal, None]
 
 _field_mapping = {
     "stack": Stack[U256],

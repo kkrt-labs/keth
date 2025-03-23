@@ -79,12 +79,14 @@ def pytest_configure(config):
     import ethereum_rlp
     from ethereum_types.numeric import FixedUnsigned, Uint
 
+    import tests
     from tests.utils.args_gen import (
         Account,
         Environment,
         Evm,
         Message,
         MessageCallOutput,
+        Node,
     )
 
     # Apply patches at module level before any tests run
@@ -101,6 +103,10 @@ def pytest_configure(config):
     setattr(ethereum.cancun.state, "Account", Account)
     setattr(ethereum.cancun.state, "EMPTY_ACCOUNT", EMPTY_ACCOUNT)
     setattr(ethereum.cancun.fork_types, "EMPTY_ACCOUNT", EMPTY_ACCOUNT)
+
+    ethereum.cancun.trie.Node = Node
+    setattr(tests.utils.args_gen, "Node", Node)
+    setattr(ethereum.cancun.trie, "Node", Node)
 
     # Mock the Extended type
     ethereum_rlp.rlp.Extended = Union[Sequence["Extended"], bytearray, bytes, Uint, FixedUnsigned, str, bool]  # type: ignore # noqa: F821
