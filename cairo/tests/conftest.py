@@ -98,11 +98,13 @@ def pytest_configure(config):
     ethereum.cancun.fork_types.EMPTY_ACCOUNT = EMPTY_ACCOUNT
 
     # TODO: Find a better way to do this?
-    # See explanation below. This is required for the `encode_node` function in `ethereum.cancun.trie` to work.
+    # See explanation below. Lots of EELS modules import `Account` and `EMPTY_ACCOUNT` from `ethereum.cancun.fork_types`.
+    # I think these modules get loaded before this patch is applied. Thus we must replace them manually.
     setattr(ethereum.cancun.trie, "Account", Account)
     setattr(ethereum.cancun.state, "Account", Account)
     setattr(ethereum.cancun.state, "EMPTY_ACCOUNT", EMPTY_ACCOUNT)
     setattr(ethereum.cancun.fork_types, "EMPTY_ACCOUNT", EMPTY_ACCOUNT)
+    setattr(ethereum.cancun.vm.instructions.environment, "EMPTY_ACCOUNT", EMPTY_ACCOUNT)
 
     ethereum.cancun.trie.Node = Node
     setattr(tests.utils.args_gen, "Node", Node)
