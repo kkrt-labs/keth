@@ -1214,6 +1214,28 @@ func B() -> BNF12 {
     return bnf12_three;
 }
 
+func bnp12_point_at_infinity() -> BNP12 {
+    let bnf12_zero = BNF12_ZERO();
+    tempvar res = BNP12(new BNP12Struct(bnf12_zero, bnf12_zero));
+    return res;
+}
+
+func BNP12__eq__{range_check96_ptr: felt*}(a: BNP12, b: BNP12) -> felt {
+    alloc_locals;
+    let x_equal = BNF12__eq__(a.value.x, b.value.x);
+    let y_equal = BNF12__eq__(a.value.y, b.value.y);
+    return x_equal * y_equal;
+}
+
+func bnp_to_bnp12{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
+    p: BNP
+) -> BNP12 {
+    let x_bnf12 = bnf12_from_int(p.value.x.value.c0);
+    let y_bnf12 = bnf12_from_int(p.value.y.value.c0);
+    tempvar result = BNP12(new BNP12Struct(x_bnf12, y_bnf12));
+    return result;
+}
+
 func bnf2_to_bnf12{
     range_check_ptr, range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
 }(x: BNF2) -> BNF12 {

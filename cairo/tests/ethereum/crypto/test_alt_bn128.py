@@ -109,7 +109,21 @@ class TestAltBn128:
             cairo_b = cairo_run("B")
             assert cairo_b == BNP12.B
 
+        def test_bnp12_point_at_infinity(self, cairo_run):
+            cairo_infinity = cairo_run("bnp12_point_at_infinity")
+            assert cairo_infinity == BNP12.point_at_infinity()
+
+        @given(a=..., b=...)
+        def test_bnp12_eq(self, cairo_run, a: BNP12, b: BNP12):
+            assert cairo_run("BNP12__eq__", a, b) == (a == b)
+
     class TestUtils:
         @given(x=...)
         def test_bnf2_to_bnf12(self, cairo_run, x: BNF2):
             assert cairo_run("bnf2_to_bnf12", x) == bnf2_to_bnf12(x)
+
+        @given(x=...)
+        def test_bnp_to_bnp12(self, cairo_run, x: BNP):
+            from ethereum.crypto.alt_bn128 import bnp_to_bnp12
+
+            assert cairo_run("bnp_to_bnp12", x) == bnp_to_bnp12(x)
