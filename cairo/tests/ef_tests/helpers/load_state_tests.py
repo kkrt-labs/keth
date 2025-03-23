@@ -8,7 +8,10 @@ from typing import Any, Dict, Generator, Tuple, Union
 import pytest
 from _pytest.mark.structures import ParameterSet
 from ethereum.cancun.fork import state_transition
+from ethereum.cancun.fork_types import Account
 from ethereum.cancun.state import State
+from ethereum.cancun.trie import root as compute_root
+from ethereum.cancun.trie import trie_get, trie_set
 from ethereum.crypto.hash import keccak256
 from ethereum.exceptions import EthereumException
 from ethereum.utils.hexadecimal import hex_to_bytes
@@ -18,11 +21,20 @@ from ethereum_spec_tools.evm_tools.loaders.fixture_loader import Load
 from ethereum_types.numeric import U64, U256
 
 
-def convert_defaultdict(state: State) -> State:
+def prepare_state(state: State) -> State:
     for address in state._storage_tries:
         state._storage_tries[address]._data = defaultdict(
             lambda: defaultdict(lambda: U256(0)), state._storage_tries[address]._data
         )
+        storage_root = compute_root(state._storage_tries[address])
+        account = trie_get(state._main_trie, address)
+        account = Account(
+            balance=account.balance,
+            nonce=account.nonce,
+            code=account.code,
+            storage_root=storage_root,
+        )
+        trie_set(state._main_trie, address, account)
     state._main_trie._data = defaultdict(lambda: None, state._main_trie._data)
 
     for snap in state._snapshots:
@@ -85,7 +97,7 @@ def run_blockchain_st_test(
                 block_exception = value
                 break
 
-        chain.state = convert_defaultdict(chain.state)
+        chain.state = prepare_state(chain.state)
         if block_exception:
             # TODO: Once all the specific exception types are thrown,
             #       only `pytest.raises` the correct exception type instead of
