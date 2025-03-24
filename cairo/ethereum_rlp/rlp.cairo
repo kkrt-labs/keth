@@ -4,6 +4,7 @@ from starkware.cairo.common.math_cmp import is_le, is_not_zero
 from starkware.cairo.common.math import assert_not_zero, split_int
 from starkware.cairo.common.memcpy import memcpy
 
+from ethereum.cancun.trie_types import InternalNode
 from ethereum_types.numeric import Bool, U256, Uint, U64, U256Struct
 from ethereum_types.bytes import (
     Bytes,
@@ -73,47 +74,15 @@ from legacy.utils.bytes import (
     uint256_from_bytes_be,
 )
 from cairo_core.control_flow import raise
-
-struct SequenceSimple {
-    value: SequenceSimpleStruct*,
-}
-
-struct SequenceSimpleStruct {
-    data: Simple*,
-    len: felt,
-}
-
-struct Simple {
-    value: SimpleEnum*,
-}
-
-struct SimpleEnum {
-    sequence: SequenceSimple,
-    bytes: Bytes,
-}
-
-struct SequenceExtended {
-    value: SequenceExtendedStruct*,
-}
-
-struct SequenceExtendedStruct {
-    data: Extended*,
-    len: felt,
-}
-
-struct Extended {
-    value: ExtendedEnum*,
-}
-
-struct ExtendedEnum {
-    sequence: SequenceExtended,
-    bytearray: Bytes,
-    bytes: Bytes,
-    uint: Uint*,
-    fixed_uint: Uint*,
-    str: String,
-    bool: Bool*,
-}
+from ethereum_rlp.rlp_types import (
+    SequenceExtended,
+    Extended,
+    ExtendedEnum,
+    Simple,
+    SequenceSimple,
+    SimpleEnum,
+    SequenceSimpleStruct,
+)
 
 namespace ExtendedImpl {
     func sequence(value: SequenceExtended) -> Extended {
@@ -1428,6 +1397,14 @@ func _decode_storage_keys_inner{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
         storage_keys + Bytes32.SIZE, len - 1, items + Simple.SIZE
     );
     return 1 + remaining_len;
+}
+
+func decode_to_internal_node{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
+    encoded_data: Bytes
+) -> InternalNode {
+    alloc_locals;
+
+    return ();
 }
 
 //
