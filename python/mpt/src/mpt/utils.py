@@ -61,11 +61,9 @@ def decode_node(node: Bytes) -> InternalNode:
         raise ValueError(f"Unknown node structure: {len(decoded)}")
 
     if len(decoded) == 17:
-        logger.debug("Decoding as branch node")
         return BranchNode(subnodes=tuple(decoded[0:16]), value=decoded[16])
 
     if len(decoded) == 2:
-        logger.debug("Decoding as extension or leaf node")
         prefix = decoded[0]
         value = decoded[1]
 
@@ -78,8 +76,7 @@ def decode_node(node: Bytes) -> InternalNode:
         else:
             nibbles = nibbles[2:]
 
-        EVEN_LENGTH_PREFIX = (2, 3)
-        is_leaf = first_nibble in EVEN_LENGTH_PREFIX
+        is_leaf = first_nibble in (2, 3)
         if is_leaf:
             return LeafNode(rest_of_key=nibbles, value=value)
         else:
