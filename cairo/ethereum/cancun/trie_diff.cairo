@@ -114,7 +114,6 @@ func _resolve{range_check_ptr, poseidon_ptr: PoseidonBuiltin*}(
     if (cast(enum.bytes.value, felt) != 0) {
         // Case 1: it is a node hash
         if (enum.bytes.value.len == 32) {
-            // Get the node hash from the node store
             let node_hash = Bytes_to_Bytes32(enum.bytes);
             let result = node_store_get{poseidon_ptr=poseidon_ptr, node_store=node_store}(
                 node_hash

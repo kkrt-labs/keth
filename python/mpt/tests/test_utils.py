@@ -27,7 +27,6 @@ class TestUtils:
                         raise ValueError(
                             f"Embedded node is not an ExtensionNode, BranchNode, or LeafNode: {embedded}"
                         )
-            # if there is a subnode where subnode.len != 32, then print it
             if isinstance(decoded, BranchNode):
                 # find the subnode where len(subnode) != 32
                 for subnode in decoded.subnodes:

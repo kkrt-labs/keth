@@ -1,4 +1,3 @@
-%builtins range_check poseidon
 
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_builtins import PoseidonBuiltin
