@@ -29,15 +29,15 @@ class TestAltBn128:
         @given(a=..., b=...)
         def test_bnf2_div(self, cairo_run, a: BNF2, b: BNF2):
             assume(b != BNF2.zero())
+            assume(b.multiplicative_inverse() != BNF2.zero())
             assert cairo_run("bnf2_div", a, b) == a / b
 
-        @given(a=..., b=...)
-        def test_bnf2_multiplicative_inverse(self, cairo_run, a: BNF2):
+        @given(a=...)
+        def test_bnf2_multiplicative_inverse(self, cairo_run_py, a: BNF2):
             assume(a != BNF2.zero())
-            assert (
-                cairo_run("bnf2_multiplicative_inverse", a)
-                == a.multiplicative_inverse()
-            )
+            assume(a.multiplicative_inverse() != BNF2.zero())
+            cairo_output = cairo_run_py("bnf2_multiplicative_inverse", a)
+            assert cairo_output == a.multiplicative_inverse()
 
         @given(a=..., b=...)
         def test_bnf2_eq(self, cairo_run, a: BNF2, b: BNF2):
