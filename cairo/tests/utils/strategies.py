@@ -82,6 +82,7 @@ uint64 = st.integers(min_value=0, max_value=2**64 - 1).map(U64)
 uint = uint64.map(Uint)
 uint128 = st.integers(min_value=0, max_value=2**128 - 1)
 felt = st.integers(min_value=-DEFAULT_PRIME // 2, max_value=DEFAULT_PRIME // 2)
+positive_felt = st.integers(min_value=0, max_value=DEFAULT_PRIME - 1)
 uint256 = st.integers(min_value=0, max_value=2**256 - 1).map(U256)
 uint384 = st.integers(min_value=0, max_value=2**384 - 1).map(U384)
 nibble = st.lists(uint4, max_size=64).map(bytes)
@@ -475,17 +476,6 @@ BEACON_ROOTS_ACCOUNT = Account(balance=U256(0), nonce=Uint(1), code=BEACON_ROOTS
 def state_strategy(draw):
     addresses = draw(st.lists(address, max_size=MAX_ADDRESS_SET_SIZE, unique=True))
 
-    _main_trie = draw(
-        st.builds(
-            Trie[Address, Optional[Account]],
-            secured=st.just(True),
-            default=st.none(),
-            _data=st.fixed_dictionaries(
-                {address: st.from_type(Account) for address in addresses}
-            ).map(lambda x: defaultdict(lambda: None, x)),
-        )
-    )
-
     # Storage tries are not always present for existing accounts
     # Thus we generate a subset of addresses from the existing accounts
     _storage_tries = draw(
@@ -496,6 +486,28 @@ def state_strategy(draw):
                     for address in addresses[:i]
                 }
             )
+        )
+    )
+
+    # Ensure the storage root of each account is consistent with the storage tries
+    _main_trie = draw(
+        st.builds(
+            Trie[Address, Optional[Account]],
+            secured=st.just(True),
+            default=st.none(),
+            _data=st.fixed_dictionaries(
+                {
+                    address: (
+                        st.builds(
+                            Account,
+                            storage_root=st.just(compute_root(_storage_tries[address])),
+                        )
+                        if address in _storage_tries.keys()
+                        else account_strategy
+                    )
+                    for address in addresses
+                }
+            ).map(lambda x: defaultdict(lambda: None, x)),
         )
     )
 

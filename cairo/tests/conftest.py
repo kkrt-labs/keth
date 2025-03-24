@@ -79,7 +79,6 @@ def pytest_configure(config):
     import ethereum_rlp
     from ethereum_types.numeric import FixedUnsigned, Uint
 
-    import tests
     from tests.utils.args_gen import (
         EMPTY_ACCOUNT,
         Account,
