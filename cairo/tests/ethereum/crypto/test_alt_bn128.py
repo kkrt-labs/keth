@@ -85,6 +85,11 @@ segments.load_data(ids.b_inv.address_, [bnf2_struct_ptr])
         def test_bnp2_double(self, cairo_run, p: BNP2):
             assert cairo_run("bnp2_double", p) == p.double()
 
+        @given(p=..., q=...)
+        def test_bnp2_add(self, cairo_run, p: BNP2, q: BNP2):
+            # Test point addition
+            assert cairo_run("bnp2_add", p, q) == p + q
+
     class TestBNF12:
         def test_FROBENIUS_COEFFICIENTS(self, cairo_run):
             cairo_coeffs = cairo_run("FROBENIUS_COEFFICIENTS")
