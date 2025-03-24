@@ -898,8 +898,16 @@ class Serde:
 
     def serialize(self, cairo_type, base_ptr, shift=None, length=None):
         shift = shift if shift is not None else self.get_offset(cairo_type)
+
+        type_offset = base_ptr - shift
+        pointee = self.memory.get(type_offset)
+        if isinstance(cairo_type, TypePointer) and hasattr(pointee, "segment_index"):
+            # When serializing a pointer to a pointer, use the segment's length
+            length = self.segments.get_segment_size(pointee.segment_index)
+            return self._serialize(cairo_type, type_offset, length)
+
         length = length if length is not None else shift
-        return self._serialize(cairo_type, base_ptr - shift, length)
+        return self._serialize(cairo_type, type_offset, length)
 
     def serialize_list(
         self, segment_ptr, item_path: Optional[Tuple[str, ...]] = None, list_len=None

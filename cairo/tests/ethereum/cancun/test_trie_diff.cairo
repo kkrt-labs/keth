@@ -19,8 +19,6 @@ func test_node_store_get{range_check_ptr, poseidon_ptr: PoseidonBuiltin*}(
     // Loop through keys and get values
     _get_values_recursive{node_store=node_store}(keys, values, keys_len, 0);
 
-    %{ breakpoint() %}
-
     return values;
 }
 
