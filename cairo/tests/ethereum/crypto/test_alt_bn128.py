@@ -25,6 +25,10 @@ class TestAltBn128:
             assert cairo_run("bnf2_add", a, b) == a + b
 
         @given(a=..., b=...)
+        def test_bnf2_sub(self, cairo_run, a: BNF2, b: BNF2):
+            assert cairo_run("bnf2_sub", a, b) == a - b
+
+        @given(a=..., b=...)
         def test_bnf2_mul(self, cairo_run, a: BNF2, b: BNF2):
             assert cairo_run("bnf2_mul", a, b) == a * b
 
@@ -76,6 +80,10 @@ segments.load_data(ids.b_inv.address_, [bnf2_struct_ptr])
     class TestBNP2:
         def test_bnp2_point_at_infinity(self, cairo_run):
             assert cairo_run("bnp2_point_at_infinity") == BNP2.point_at_infinity()
+
+        @given(p=...)
+        def test_bnp2_double(self, cairo_run, p: BNP2):
+            assert cairo_run("bnp2_double", p) == p.double()
 
     class TestBNF12:
         def test_FROBENIUS_COEFFICIENTS(self, cairo_run):

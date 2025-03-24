@@ -74,6 +74,18 @@ func bnf2_div{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: M
     return bnf2_mul(a, b_inv);
 }
 
+func bnf2_sub{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
+    a: BNF2, b: BNF2
+) -> BNF2 {
+    tempvar modulus = U384(new UInt384(alt_bn128.P0, alt_bn128.P1, alt_bn128.P2, alt_bn128.P3));
+
+    let res_c0 = sub(a.value.c0, b.value.c0, modulus);
+    let res_c1 = sub(a.value.c1, b.value.c1, modulus);
+
+    tempvar res = BNF2(new BNF2Struct(res_c0, res_c1));
+    return res;
+}
+
 func BNF2_ZERO() -> BNF2 {
     let (u384_zero) = get_label_location(U384_ZERO);
     let u384_zero_ptr = cast(u384_zero, UInt384*);
@@ -98,23 +110,6 @@ func BNF2__eq__{range_check96_ptr: felt*}(a: BNF2, b: BNF2) -> felt {
     let result = is_c0_equal.value * is_c1_equal.value;
 
     return result;
-}
-
-// BNP2 represents a point on the BNP2 curve
-// BNF2 is the base field of the curve
-struct BNP2Struct {
-    x: BNF2,
-    y: BNF2,
-}
-
-struct BNP2 {
-    value: BNP2Struct*,
-}
-
-func bnp2_point_at_infinity() -> BNP2 {
-    let bnf2_zero = BNF2_ZERO();
-    tempvar res = BNP2(new BNP2Struct(bnf2_zero, bnf2_zero));
-    return res;
 }
 
 // BNF2 multiplication
@@ -157,6 +152,69 @@ func bnf2_mul{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: M
 
     tempvar res = BNF2(new BNF2Struct(res_c0, res_c1));
     return res;
+}
+
+// BNP2 represents a point on the BNP2 curve
+// BNF2 is the base field of the curve
+struct BNP2Struct {
+    x: BNF2,
+    y: BNF2,
+}
+
+struct BNP2 {
+    value: BNP2Struct*,
+}
+
+func bnp2_point_at_infinity() -> BNP2 {
+    let bnf2_zero = BNF2_ZERO();
+    tempvar res = BNP2(new BNP2Struct(bnf2_zero, bnf2_zero));
+    return res;
+}
+
+func bnp2_double{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
+    p: BNP2
+) -> BNP2 {
+    alloc_locals;
+
+    let bnf2_zero = BNF2_ZERO();
+    let is_x_zero = BNF2__eq__(p.value.x, bnf2_zero);
+    let is_y_zero = BNF2__eq__(p.value.y, bnf2_zero);
+    if (is_x_zero != 0 and is_y_zero != 0) {
+        return p;
+    }
+
+    // Point doubling formula:
+    // λ = (3x^2 + a) / (2y)  [a = 0 for alt_bn128]
+    // x' = λ^2 - 2x
+    // y' = λ(x - x') - y
+    // Calculate 3x^2
+    tempvar three = BNF2(
+        new BNF2Struct(U384(new UInt384(3, 0, 0, 0)), U384(new UInt384(0, 0, 0, 0)))
+    );
+    let x_squared = bnf2_mul(p.value.x, p.value.x);
+    let three_x_squared = bnf2_mul(three, x_squared);
+
+    // Calculate 2y
+    tempvar two = BNF2(
+        new BNF2Struct(U384(new UInt384(2, 0, 0, 0)), U384(new UInt384(0, 0, 0, 0)))
+    );
+    let two_y = bnf2_mul(two, p.value.y);
+    // Calculate λ = 3x^2 / 2y
+    let lambda = bnf2_div(three_x_squared, two_y);
+    // Calculate λ^2
+    let lambda_squared = bnf2_mul(lambda, lambda);
+    // Calculate 2x
+    let two_x = bnf2_mul(two, p.value.x);
+    // Calculate x' = λ^2 - 2x
+    let new_x = bnf2_sub(lambda_squared, two_x);
+    // Calculate x - x'
+    let x_minus_new_x = bnf2_sub(p.value.x, new_x);
+    // Calculate λ(x - x')
+    let lambda_times_x_diff = bnf2_mul(lambda, x_minus_new_x);
+    // Calculate y' = λ(x - x') - y
+    let new_y = bnf2_sub(lambda_times_x_diff, p.value.y);
+    tempvar result = BNP2(new BNP2Struct(new_x, new_y));
+    return result;
 }
 
 // BNF12 represents a field element in the BNF12 extension field
