@@ -93,11 +93,9 @@ func BNF2_ONE() -> BNF2 {
 
 func BNF2__eq__{range_check96_ptr: felt*}(a: BNF2, b: BNF2) -> felt {
     alloc_locals;
-    // Check equality for each component
     let is_c0_equal = U384__eq__(a.value.c0, b.value.c0);
     let is_c1_equal = U384__eq__(a.value.c1, b.value.c1);
 
-    // All coefficients must be equal for the BNF2 elements to be equal
     let result = is_c0_equal.value * is_c1_equal.value;
 
     return result;
