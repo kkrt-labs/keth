@@ -48,8 +48,7 @@ def program_hash(program: Program) -> bytes:
 def has_cairo_dir_changed(
     cairo_dirs: List[Path] = [
         Path("cairo"),
-        Path("python/cairo-ec"),
-        Path("python/cairo-core"),
+        Path("python"),
     ],
     timestamp: float = 0,
 ) -> bool:

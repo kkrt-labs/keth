@@ -22,3 +22,6 @@ coverage:
       cairo_core:
         paths:
           - python/cairo-core
+      mpt:
+        paths:
+          - python/mpt

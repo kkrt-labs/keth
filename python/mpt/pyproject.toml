@@ -4,8 +4,46 @@ version = "0.1.0"
 description = "Ethereum Merkle Patricia"
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = ["ethereum", "eth-rpc"]
+dependencies = [
+  "ethereum",
+  "eth-rpc",
+  "cairo-addons",
+  "cairo-core",
+  "cairo-lang>=0.13.3",
+  "maturin>=1.8.1",
+  "click>=8.1.7",
+]
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+include = [
+  "src/**/*.cairo", # Include all .cairo files in src directory
+]
+packages = ["src/mpt", "tests"]
+
+[tool.hatch.build]
+artifacts = [
+  "src/**/*.cairo", # Also include .cairo files as artifacts
+]
+
+[tool.uv]
+dev-dependencies = [
+  "pytest>=7.0",
+  "cairo-lang>=0.13.0",
+  "hypothesis>=6.124.3",
+  "jupyter>=1.1.1",
+  "ethereum",
+]
+
+[tool.isort]
+profile = "black"
+known_third_party = ["ethereum", "ethereum_rlp", "ethereum_types"]
+known_first_party = ["cairo_addons", "cairo_core", "cairo_ec"]
+
+[tool.uv.sources]
+ethereum = { git = "https://github.com/kkrt-labs/execution-specs.git", branch = "kakarot-changes" }
+cairo-addons = { workspace = true }
+cairo-core = { workspace = true }
