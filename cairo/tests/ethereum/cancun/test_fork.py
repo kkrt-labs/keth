@@ -54,7 +54,7 @@ from hypothesis import strategies as st
 from hypothesis.strategies import composite, integers
 
 from cairo_addons.testing.errors import strict_raises
-from tests.ef_tests.helpers.load_state_tests import convert_defaultdict
+from tests.ef_tests.helpers.load_state_tests import prepare_state
 from tests.ethereum.cancun.vm.test_interpreter import unimplemented_precompiles
 from tests.utils.constants import (
     COINBASE,
@@ -542,7 +542,7 @@ def zkpi_fixture(zkpi_path):
     ]
     chain = BlockChain(
         blocks=blocks,
-        state=convert_defaultdict(load.json_to_state(fixture["pre"])),
+        state=prepare_state(load.json_to_state(fixture["pre"])),
         chain_id=U64(fixture["chainId"]),
     )
 
@@ -600,7 +600,7 @@ def zkpi_fixture(zkpi_path):
     )
     chain = BlockChain(
         blocks=blocks,
-        state=convert_defaultdict(load.json_to_state(fixture["pre"])),
+        state=prepare_state(load.json_to_state(fixture["pre"])),
         chain_id=U64(fixture["chainId"]),
     )
     # Safety check
@@ -608,7 +608,7 @@ def zkpi_fixture(zkpi_path):
     # Reset state to the original state
     chain = BlockChain(
         blocks=blocks[:-1],
-        state=convert_defaultdict(load.json_to_state(fixture["pre"])),
+        state=prepare_state(load.json_to_state(fixture["pre"])),
         chain_id=U64(fixture["chainId"]),
     )
     return chain, block

@@ -511,17 +511,6 @@ def state_strategy(draw):
         )
     )
 
-    # Update the accounts in the state_trie with the correct storage_root
-    for account_address, storage_trie in _storage_tries.items():
-        storage_root = compute_root(storage_trie)
-        current_account = _main_trie._data[account_address]
-        _main_trie._data[account_address] = Account(
-            balance=current_account.balance,
-            nonce=current_account.nonce,
-            code=current_account.code,
-            storage_root=storage_root,
-        )
-
     _snapshots = [
         (
             copy_trie(_main_trie),
