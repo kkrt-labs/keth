@@ -1,4 +1,4 @@
-from starkware.cairo.common.cairo_builtins import PoseidonBuiltin
+from starkware.cairo.common.cairo_builtins import PoseidonBuiltin, BitwiseBuiltin
 from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
 from starkware.cairo.common.dict import DictAccess
 from starkware.cairo.common.math_cmp import is_le
@@ -113,9 +113,12 @@ func _process_storage_diff{}(address: Address, path: Bytes32, left: LeafNode, ri
 // Into either a Node hash, or an embedded node
 // If node hash, then resolve the node hash into an InternalNode using the node store
 // If embedded node, then return RLP.decode the embedded node
-func _resolve{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, node_store: NodeStore}(
-    node: Extended
-) -> OptionalInternalNode {
+func _resolve{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    node_store: NodeStore,
+}(node: Extended) -> OptionalInternalNode {
     alloc_locals;
 
     let enum = node.value;
@@ -136,8 +139,13 @@ func _resolve{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, node_store: NodeS
     // Case 2: it is an embedded node, we have to RLP decode it
     let is_embedded = is_le(bytes.value.len, 32);
     if (is_embedded != 0) {
-        let result = decode_to_internal_node(bytes);
-        return OptionalInternalNode(cast(result, InternalNodeEnum*));
+        let res = decode_to_internal_node(bytes);
+        let result = OptionalInternalNode(res.value);
+        return result;
+    }
+
+    with_attr error_message("Invalid node: expected embedded node") {
+        jmp raise.raise_label;
     }
 }
 
