@@ -29,6 +29,9 @@ class TestAltBn128:
         def test_BNF2_ZERO(self, cairo_run):
             assert cairo_run("BNF2_ZERO") == BNF2.zero()
 
+        def test_BNF2_ONE(self, cairo_run):
+            assert cairo_run("BNF2_ONE") == BNF2.from_int(1)
+
     class TestBNP2:
         def test_bnp2_point_at_infinity(self, cairo_run):
             assert cairo_run("bnp2_point_at_infinity") == BNP2.point_at_infinity()

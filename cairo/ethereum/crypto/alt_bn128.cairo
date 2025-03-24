@@ -13,7 +13,7 @@ from cairo_ec.curve.alt_bn128 import alt_bn128
 from cairo_ec.curve.g1_point import G1Point, G1PointStruct
 from cairo_ec.circuits.ec_ops_compiled import assert_on_curve
 
-from ethereum.utils.numeric import divmod, U384_ZERO, U384_is_zero, get_u384_bits_little, U384__eq__
+from ethereum.utils.numeric import divmod, U384_ZERO, U384_is_zero, get_u384_bits_little, U384__eq__, U384_ONE
 from ethereum_types.numeric import U384
 
 // Field over which the alt_bn128 curve is defined.
@@ -53,6 +53,15 @@ func BNF2_ZERO() -> BNF2 {
     let (u384_zero) = get_label_location(U384_ZERO);
     let u384_zero_ptr = cast(u384_zero, UInt384*);
     tempvar res = BNF2(new BNF2Struct(U384(u384_zero_ptr), U384(u384_zero_ptr)));
+    return res;
+}
+
+func BNF2_ONE() -> BNF2 {
+    let (u384_zero) = get_label_location(U384_ZERO);
+    let (u384_one) = get_label_location(U384_ONE);
+    let u384_zero_ptr = cast(u384_zero, UInt384*);
+    let u384_one_ptr = cast(u384_one, UInt384*);
+    tempvar res = BNF2(new BNF2Struct(U384(u384_one_ptr), U384(u384_zero_ptr)));
     return res;
 }
 
