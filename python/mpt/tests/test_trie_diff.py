@@ -14,7 +14,7 @@ def ethereum_trie_transition_db(path):
 @pytest.mark.parametrize(
     "path",
     [
-        (Path("test-data/22081873.json")),
+        (Path("test_data/22081873.json")),
     ],
 )
 class TestTrieDiff:
