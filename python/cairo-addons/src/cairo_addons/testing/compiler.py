@@ -13,6 +13,7 @@ Automatic Test File Resolution is implemented as follows:
 
 import logging
 import pickle
+import re
 from pathlib import Path
 from time import perf_counter
 from typing import List, Optional, Tuple
@@ -108,11 +109,17 @@ def get_main_path(cairo_file: Optional[Path]) -> Optional[Tuple[str, ...]]:
     """
     if not cairo_file:
         return None
-    return tuple(
-        "/".join(cairo_file.relative_to(Path.cwd()).with_suffix("").parts)
-        .replace("cairo/", "")
-        .split("/")
-    )
+
+    # Get the relative path from current working directory
+    rel_path = cairo_file.relative_to(Path.cwd()).with_suffix("")
+
+    # Remove python/package/src/ prefix if present (so as to only work with identifiers relative to `cairo`)
+    rel_path_str = str(rel_path)
+    rel_path_str = re.sub(r"python/.*?/src/", "", rel_path_str)
+
+    # Remove cairo/ prefix if present
+    rel_path_str = rel_path_str.replace("cairo/", "")
+    return tuple(rel_path_str.split("/"))
 
 
 def get_cairo_program(

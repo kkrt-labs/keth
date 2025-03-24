@@ -87,9 +87,9 @@ struct AccountNode {
     value: AccountNodeStruct*,
 }
 struct AccountNodeStruct {
+    nonce: Uint,
     balance: U256,
     code_hash: Hash32,
-    nonce: Uint,
     storage_root: Hash32,
 }
 struct AddressAccountNodeDictAccess {
@@ -122,7 +122,7 @@ func AccountNode_from_rlp{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
 
     tempvar res = AccountNode(
         new AccountNodeStruct(
-            balance=balance, code_hash=codehash, nonce=nonce, storage_root=storage_root
+            nonce=nonce, balance=balance, code_hash=codehash, storage_root=storage_root
         ),
     );
 

@@ -9,14 +9,14 @@ from ethereum_types.bytes import Bytes, Bytes32
 from hypothesis import given
 from hypothesis import strategies as st
 
-from mpt import EthereumTrieTransitionDB
+from mpt.ethereum_tries import EthereumTrieTransitionDB
 from mpt.trie_diff import StateDiff
 from mpt.utils import AccountNode, decode_node
 
 
 @pytest.fixture
-def ethereum_trie_transition_db(path):
-    return EthereumTrieTransitionDB.from_json(path)
+def ethereum_trie_transition_db(data_path):
+    return EthereumTrieTransitionDB.from_json(data_path)
 
 
 @pytest.fixture(scope="session")
@@ -31,13 +31,12 @@ def node_store(zkpi):
     return nodes
 
 
+@pytest.fixture(scope="session")
+def data_path():
+    return Path("test_data/22081873.json")
+
+
 class TestTrieDiff:
-    @pytest.mark.parametrize(
-        "data_path",
-        [
-            (Path("python/mpt/tests/data/22081873.json")),
-        ],
-    )
     def test_trie_diff(self, data_path, ethereum_trie_transition_db):
         # Python
         state_diff = StateDiff.from_json(data_path)
