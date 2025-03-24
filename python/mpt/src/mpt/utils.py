@@ -10,7 +10,7 @@ from ethereum.cancun.trie import (
     bytes_to_nibble_list,
 )
 from ethereum.crypto.hash import Hash32
-from ethereum_rlp import rlp
+from ethereum_rlp import Simple, rlp
 from ethereum_types.bytes import Bytes
 from ethereum_types.numeric import U256, Uint
 
@@ -52,20 +52,18 @@ class AccountNode:
         )
 
 
-def decode_node(node: Bytes) -> InternalNode:
-    decoded = rlp.decode(node)
+def deserialize_to_internal_node(node: Simple) -> InternalNode:
+    if not isinstance(node, list):
+        raise ValueError(f"Unknown node structure: {type(node)}")
+    if len(node) not in (2, 17):
+        raise ValueError(f"Unknown node structure: {len(node)}")
 
-    if not isinstance(decoded, list):
-        raise ValueError(f"Unknown node structure: {type(decoded)}")
-    if len(decoded) not in (2, 17):
-        raise ValueError(f"Unknown node structure: {len(decoded)}")
+    if len(node) == 17:
+        return BranchNode(subnodes=tuple(node[0:16]), value=node[16])
 
-    if len(decoded) == 17:
-        return BranchNode(subnodes=tuple(decoded[0:16]), value=decoded[16])
-
-    if len(decoded) == 2:
-        prefix = decoded[0]
-        value = decoded[1]
+    if len(node) == 2:
+        prefix = node[0]
+        value = node[1]
 
         nibbles = bytes_to_nibble_list(prefix)
         first_nibble = nibbles[0]
@@ -81,6 +79,11 @@ def decode_node(node: Bytes) -> InternalNode:
             return LeafNode(rest_of_key=nibbles, value=value)
         else:
             return ExtensionNode(key_segment=nibbles, subnode=value)
+
+
+def decode_node(node: Bytes) -> InternalNode:
+    decoded = rlp.decode(node)
+    return deserialize_to_internal_node(decoded)
 
 
 def nibble_path_to_bytes(nibble_path: Bytes) -> Bytes:
