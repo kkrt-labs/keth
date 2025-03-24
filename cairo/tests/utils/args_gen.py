@@ -728,6 +728,10 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
         "trie",
         "TrieBytesOptionalUnionBytesWithdrawal",
     ): Trie[Bytes, Optional[Union[Bytes, Withdrawal]]],
+    ("ethereum", "cancun", "trie", "OptionalInternalNode"): Optional[InternalNode],
+    ("ethereum", "cancun", "trie_diff", "NodeStore"): Mapping[
+        Hash32, Optional[InternalNode]
+    ],
     ("ethereum", "cancun", "fork_types", "MappingAddressAccount"): Mapping[
         Address, Account
     ],
