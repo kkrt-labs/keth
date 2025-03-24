@@ -47,7 +47,7 @@ from tests.utils.strategies import (
     address,
     bytes32,
     code,
-    state,
+    state_strategy,
     transient_storage,
     trie_strategy,
 )
@@ -56,7 +56,7 @@ from tests.utils.strategies import (
 @composite
 def state_and_address_and_optional_key(
     draw,
-    state_strategy=state,
+    state_strategy=state_strategy(),
     address_strategy=address,
     key_strategy=None,
 ):
@@ -93,7 +93,7 @@ def state_with_snapshots(draw):
     Generate a State instance with up to 10 different snapshots.
     Each snapshot builds on top of the previous one, with up to 5 new entries per snapshot.
     """
-    base_state = draw(state)
+    base_state = draw(state_strategy())
     num_snapshots = draw(st.integers(min_value=0, max_value=5))
 
     # Start with base state's tries
@@ -211,7 +211,7 @@ def transient_storage_and_address_and_optional_key(
 @composite
 def touched_accounts_strategy(
     draw,
-    state_strategy=state,
+    state_strategy=state_strategy(),
     address_strategy=address,
 ):
     state = draw(state_strategy)
@@ -570,7 +570,7 @@ def state_maybe_snapshot(draw):
     """
     Draw a state that has a 80% chance of not containing snapshots.
     """
-    state_ = draw(state)
+    state_ = draw(state_strategy())
     probability = draw(st.floats(min_value=0, max_value=1))
     if probability < 0.8:
         state_._snapshots = []

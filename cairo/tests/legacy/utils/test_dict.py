@@ -13,7 +13,7 @@ from starkware.cairo.lang.vm.relocatable import RelocatableValue
 from starkware.cairo.lang.vm.vm_consts import VmConsts
 
 from cairo_addons.hints.decorator import register_hint
-from tests.utils.strategies import felt
+from tests.utils.strategies import positive_felt
 
 
 # Hints for tests
@@ -63,7 +63,7 @@ def prev_values_test_hint(
     )
 
 
-@given(dict_entries=st.lists(st.tuples(felt, felt, felt)))
+@given(dict_entries=st.lists(st.tuples(positive_felt, positive_felt, positive_felt)))
 def test_prev_values(cairo_run, dict_entries: List[Tuple[int, int, int]]):
     prev_values = cairo_run("test_prev_values", dict_entries=dict_entries)
 

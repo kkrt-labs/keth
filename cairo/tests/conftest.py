@@ -79,13 +79,35 @@ def pytest_configure(config):
     import ethereum_rlp
     from ethereum_types.numeric import FixedUnsigned, Uint
 
-    from tests.utils.args_gen import Environment, Evm, Message, MessageCallOutput
+    from tests.utils.args_gen import (
+        EMPTY_ACCOUNT,
+        Account,
+        Environment,
+        Evm,
+        Message,
+        MessageCallOutput,
+        Node,
+    )
 
     # Apply patches at module level before any tests run
     ethereum.cancun.vm.Evm = Evm
     ethereum.cancun.vm.Message = Message
     ethereum.cancun.vm.Environment = Environment
     ethereum.cancun.vm.interpreter.MessageCallOutput = MessageCallOutput
+    ethereum.cancun.fork_types.Account = Account
+    ethereum.cancun.fork_types.EMPTY_ACCOUNT = EMPTY_ACCOUNT
+
+    # TODO: Find a better way to do this?
+    # See explanation below. Lots of EELS modules import `Account` and `EMPTY_ACCOUNT` from `ethereum.cancun.fork_types`.
+    # I think these modules get loaded before this patch is applied. Thus we must replace them manually.
+    setattr(ethereum.cancun.trie, "Account", Account)
+    setattr(ethereum.cancun.state, "Account", Account)
+    setattr(ethereum.cancun.state, "EMPTY_ACCOUNT", EMPTY_ACCOUNT)
+    setattr(ethereum.cancun.fork_types, "EMPTY_ACCOUNT", EMPTY_ACCOUNT)
+    setattr(ethereum.cancun.vm.instructions.environment, "EMPTY_ACCOUNT", EMPTY_ACCOUNT)
+
+    ethereum.cancun.trie.Node = Node
+    setattr(ethereum.cancun.trie, "Node", Node)
 
     # Mock the Extended type
     ethereum_rlp.rlp.Extended = Union[Sequence["Extended"], bytearray, bytes, Uint, FixedUnsigned, str, bool]  # type: ignore # noqa: F821

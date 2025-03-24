@@ -20,7 +20,7 @@ from ethereum_types.bytes import Bytes, Bytes0, Bytes32
 from ethereum_types.numeric import U64, U256
 
 from cairo_addons.vm import run_proof_mode
-from tests.ef_tests.helpers.load_state_tests import convert_defaultdict
+from tests.ef_tests.helpers.load_state_tests import prepare_state
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -142,7 +142,7 @@ def load_zkpi_fixture(zkpi_path: Path) -> Dict[str, Any]:
     # Create blockchain
     chain = BlockChain(
         blocks=blocks,
-        state=convert_defaultdict(load.json_to_state(fixture["pre"])),
+        state=prepare_state(load.json_to_state(fixture["pre"])),
         chain_id=U64(fixture["chainId"]),
     )
 
@@ -177,7 +177,7 @@ def load_zkpi_fixture(zkpi_path: Path) -> Dict[str, Any]:
     )
     chain = BlockChain(
         blocks=blocks,
-        state=convert_defaultdict(load.json_to_state(fixture["pre"])),
+        state=prepare_state(load.json_to_state(fixture["pre"])),
         chain_id=U64(fixture["chainId"]),
     )
 
