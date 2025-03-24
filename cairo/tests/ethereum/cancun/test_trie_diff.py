@@ -24,7 +24,7 @@ def node_store(zkpi):
     return nodes
 
 
-@pytest.mark.parametrize("path", [Path("test-data/22081873.json")])
+@pytest.mark.parametrize("path", [Path("test_data/22081873.json")])
 class TestTrieDiff:
     def test_node_store_get(self, cairo_run, node_store):
         # TODO: Investigate why 1 node takes 20s to run
