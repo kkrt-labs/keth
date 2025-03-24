@@ -274,10 +274,15 @@ class TestCircuits:
             values_ptr = [limb for v in inputs.values() for limb in int_to_uint384(v)]
             compiled_circuit = circuit_compile(cairo_program, "sum_ratio")
 
-            expected_output = prime_cls(
-                (inputs["x"] + inputs["y"])
-                * mod_inverse(inputs["x"] + inputs["y"], prime_cls.PRIME)
-            )
+            try:
+                expected_output = prime_cls(
+                    (inputs["x"] + inputs["y"])
+                    * mod_inverse(inputs["x"] + inputs["y"], prime_cls.PRIME)
+                )
+            except ValueError:  # fail on mod_inverse
+                with pytest.raises(Exception):
+                    prime_cls(cairo_run("sum_ratio", **inputs))
+                return
             cairo_output = prime_cls(cairo_run("sum_ratio", **inputs))
             return_offset = (
                 compiled_circuit["return_offsets"][0]
