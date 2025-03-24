@@ -101,36 +101,6 @@ func _process_storage_diff{}(address: Address, path: Bytes32, left: LeafNode, ri
     return ();
 }
 
-// Classify Extended that can be found in a BranchNode subnodes or ExtensionNode subnode
-// Into either a Node hash, or an embedded node
-// If node hash, then resolve the node hash into an InternalNode using the node store
-// If embedded node, then return RLP.decode the embedded node
-func _resolve{range_check_ptr, poseidon_ptr: PoseidonBuiltin*}(
-    node: Extended, node_store: NodeStore
-) -> OptionalInternalNode {
-    alloc_locals;
-
-    let enum = node.value;
-    if (cast(enum.bytes.value, felt) != 0) {
-        // Case 1: it is a node hash
-        if (enum.bytes.value.len == 32) {
-            let node_hash = Bytes_to_Bytes32(enum.bytes);
-            let result = node_store_get{poseidon_ptr=poseidon_ptr, node_store=node_store}(
-                node_hash
-            );
-            return result;
-        }
-        // Case 2: it is an embedded node, we have to RLP decode it
-        // TODO: handle embedded case
-    }
-
-    // We're not supposed to get anything but bytes in the enum
-    // TODO: raise error in any other case: bytearray, sequence, bool, uint etc.
-
-    let result = OptionalInternalNode(cast(0, InternalNodeEnum*));
-    return result;
-}
-
 // Recursively compute the difference between two Ethereum tries starting from left and right
 func _compute_diff{}(
     left: Extended,
