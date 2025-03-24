@@ -13,7 +13,7 @@ from cairo_ec.curve.alt_bn128 import alt_bn128
 from cairo_ec.curve.g1_point import G1Point, G1PointStruct
 from cairo_ec.circuits.ec_ops_compiled import assert_on_curve
 
-from ethereum.utils.numeric import divmod, U384_ZERO, U384_is_zero, get_u384_bits_little, U384__eq__, U384_ONE
+from ethereum.utils.numeric import divmod, U384_ZERO, U384_ONE, U384_is_zero, get_u384_bits_little, U384__eq__
 from ethereum_types.numeric import U384
 
 // Field over which the alt_bn128 curve is defined.
@@ -63,6 +63,18 @@ func BNF2_ONE() -> BNF2 {
     let u384_one_ptr = cast(u384_one, UInt384*);
     tempvar res = BNF2(new BNF2Struct(U384(u384_one_ptr), U384(u384_zero_ptr)));
     return res;
+}
+
+func BNF2__eq__{range_check96_ptr: felt*}(a: BNF2, b: BNF2) -> felt {
+    alloc_locals;
+    // Check equality for each component
+    let is_c0_equal = U384__eq__(a.value.c0, b.value.c0);
+    let is_c1_equal = U384__eq__(a.value.c1, b.value.c1);
+
+    // All coefficients must be equal for the BNF2 elements to be equal
+    let result = is_c0_equal.value * is_c1_equal.value;
+
+    return result;
 }
 
 // BNP2 represents a point on the BNP2 curve

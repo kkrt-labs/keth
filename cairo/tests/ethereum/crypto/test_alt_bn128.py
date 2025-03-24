@@ -26,6 +26,10 @@ class TestAltBn128:
         def test_bnf2_mul(self, cairo_run, a: BNF2, b: BNF2):
             assert cairo_run("bnf2_mul", a, b) == a * b
 
+        @given(a=..., b=...)
+        def test_bnf2_eq(self, cairo_run, a: BNF2, b: BNF2):
+            assert cairo_run("BNF2__eq__", a, b) == (a == b)
+
         def test_BNF2_ZERO(self, cairo_run):
             assert cairo_run("BNF2_ZERO") == BNF2.zero()
 
