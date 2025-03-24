@@ -137,7 +137,7 @@ func _resolve{
         return result;
     }
     // Case 2: it is an embedded node, we have to RLP decode it
-    let is_embedded = is_le(bytes.value.len, 32);
+    let is_embedded = is_le(bytes.value.len, 31);
     if (is_embedded != 0) {
         let res = decode_to_internal_node(bytes);
         let result = OptionalInternalNode(res.value);
