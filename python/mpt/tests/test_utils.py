@@ -7,7 +7,9 @@ from ethereum_types.bytes import Bytes
 from mpt.utils import decode_node
 
 
-@pytest.mark.parametrize("path", [Path("python/mpt/tests/data/22079718.json")])
+@pytest.mark.parametrize(
+    "data_path", [Path("test_data/22081873.json")], scope="session"
+)
 class TestUtils:
     def test_decode_embedded_node(self, zkpi):
         """

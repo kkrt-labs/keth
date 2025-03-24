@@ -6,7 +6,7 @@ import pytest
 from ethereum.cancun.trie import LeafNode
 from ethereum.crypto.hash import keccak256
 from ethereum_types.bytes import Bytes, Bytes32
-from hypothesis import given
+from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
 from mpt.ethereum_tries import EthereumTrieTransitionDB
@@ -31,12 +31,10 @@ def node_store(zkpi):
     return nodes
 
 
-@pytest.fixture(scope="session")
-def data_path():
-    return Path("test_data/22081873.json")
-
-
 class TestTrieDiff:
+    @pytest.mark.parametrize(
+        "data_path", [Path("test_data/22081873.json")], scope="session"
+    )
     def test_trie_diff(self, data_path, ethereum_trie_transition_db):
         # Python
         state_diff = StateDiff.from_json(data_path)
@@ -44,7 +42,11 @@ class TestTrieDiff:
         assert trie_diff._main_trie == state_diff._main_trie
         assert trie_diff._storage_tries == state_diff._storage_tries
 
+    @pytest.mark.parametrize(
+        "data_path", [Path("test_data/22081873.json")], scope="session"
+    )
     @given(data=st.data())
+    @settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_node_store_get(self, cairo_run, node_store, data):
         # take 20 keys from the node_store
         small_store = defaultdict(

@@ -32,7 +32,9 @@ def ethereum_tries(zkpi):
     return EthereumTries.from_data(zkpi)
 
 
-@pytest.mark.parametrize("data_path", [Path("test_data/22079718.json")])
+@pytest.mark.parametrize(
+    "data_path", [Path("test_data/22079718.json")], scope="session"
+)
 class TestEthereumTries:
     def test_preimages(self, ethereum_tries, zkpi):
         access_list = zkpi["accessList"]
