@@ -13,7 +13,14 @@ from cairo_ec.curve.alt_bn128 import alt_bn128
 from cairo_ec.curve.g1_point import G1Point, G1PointStruct
 from cairo_ec.circuits.ec_ops_compiled import assert_on_curve
 
-from ethereum.utils.numeric import divmod, U384_ZERO, U384_ONE, U384_is_zero, get_u384_bits_little, U384__eq__
+from ethereum.utils.numeric import (
+    divmod,
+    U384_ZERO,
+    U384_ONE,
+    U384_is_zero,
+    get_u384_bits_little,
+    U384__eq__,
+)
 from ethereum_types.numeric import U384
 
 // Field over which the alt_bn128 curve is defined.
