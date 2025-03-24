@@ -52,7 +52,7 @@ from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 
 from cairo_ec.curve import AltBn128
 
-# Note: I have noticed that even if we path the imports in conftests.py, because hypothesis runs before these patches are applied,
+# Note: I have noticed that even if we patch the imports in conftests.py, because hypothesis runs before these patches are applied,
 # this file would still be working with the old types. Thus, we _explicitly_ import our patched types from args_gen.py here.
 from tests.utils.args_gen import (  # noqa
     EMPTY_STORAGE_ROOT,
