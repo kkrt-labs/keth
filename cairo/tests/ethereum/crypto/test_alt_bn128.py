@@ -222,6 +222,14 @@ segments.load_data(ids.b_inv.address_, [bnf2_struct_ptr])
         def test_bnp12_eq(self, cairo_run, a: BNP12, b: BNP12):
             assert cairo_run("BNP12__eq__", a, b) == (a == b)
 
+        @given(p=...)
+        def test_bnp12_double(self, cairo_run, p: BNP12):
+            try:
+                expected = p.double()
+            except OverflowError:  # fails for large points
+                return
+            assert cairo_run("bnp12_double", p) == expected
+
         # Garaga final exponentiation match the gnark one which uses a cofactor
         # This does not affect the pairing properties
         # https://github.com/keep-starknet-strange/garaga/blob/704a8c66bf85b965851a117c6b116fc7a11329db/hydra/garaga/definitions.py#L346

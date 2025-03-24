@@ -1560,6 +1560,81 @@ func BNP12__eq__{range_check96_ptr: felt*}(a: BNP12, b: BNP12) -> felt {
     return x_equal * y_equal;
 }
 
+func bnp12_double{
+    range_check_ptr, range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
+}(p: BNP12) -> BNP12 {
+    alloc_locals;
+
+    // Check if p is the point at infinity
+    let bnf12_zero = BNF12_ZERO();
+    let is_x_zero = BNF12__eq__(p.value.x, bnf12_zero);
+    let is_y_zero = BNF12__eq__(p.value.y, bnf12_zero);
+    if (is_x_zero != 0 and is_y_zero != 0) {
+        return p;
+    }
+
+    // Point doubling formula:
+    // λ = (3x^2 + a) / (2y)  [a = 0 for alt_bn128]
+    // x' = λ^2 - 2x
+    // y' = λ(x - x') - y
+    // Calculate 3x^2
+    let (u384_zero) = get_label_location(U384_ZERO);
+    let uint384_zero = cast(u384_zero, UInt384*);
+    tempvar three = BNF12(
+        new BNF12Struct(
+            U384(new UInt384(3, 0, 0, 0)),
+            U384(uint384_zero),
+            U384(uint384_zero),
+            U384(uint384_zero),
+            U384(uint384_zero),
+            U384(uint384_zero),
+            U384(uint384_zero),
+            U384(uint384_zero),
+            U384(uint384_zero),
+            U384(uint384_zero),
+            U384(uint384_zero),
+            U384(uint384_zero),
+        ),
+    );
+    let x_squared = bnf12_mul(p.value.x, p.value.x);
+    let three_x_squared = bnf12_mul(three, x_squared);
+
+    // Calculate 2y
+    tempvar two = BNF12(
+        new BNF12Struct(
+            U384(new UInt384(2, 0, 0, 0)),
+            U384(uint384_zero),
+            U384(uint384_zero),
+            U384(uint384_zero),
+            U384(uint384_zero),
+            U384(uint384_zero),
+            U384(uint384_zero),
+            U384(uint384_zero),
+            U384(uint384_zero),
+            U384(uint384_zero),
+            U384(uint384_zero),
+            U384(uint384_zero),
+        ),
+    );
+    let two_y = bnf12_mul(two, p.value.y);
+    // Calculate λ = 3x^2 / 2y
+    let lambda = bnf12_div(three_x_squared, two_y);
+    // Calculate λ^2
+    let lambda_squared = bnf12_mul(lambda, lambda);
+    // Calculate 2x
+    let two_x = bnf12_mul(two, p.value.x);
+    // Calculate x' = λ^2 - 2x
+    let new_x = bnf12_sub(lambda_squared, two_x);
+    // Calculate x - x'
+    let x_minus_new_x = bnf12_sub(p.value.x, new_x);
+    // Calculate λ(x - x')
+    let lambda_times_x_diff = bnf12_mul(lambda, x_minus_new_x);
+    // Calculate y' = λ(x - x') - y
+    let new_y = bnf12_sub(lambda_times_x_diff, p.value.y);
+    tempvar result = BNP12(new BNP12Struct(new_x, new_y));
+    return result;
+}
+
 func bnp12_final_exponentiation{
     range_check_ptr,
     range_check96_ptr: felt*,
