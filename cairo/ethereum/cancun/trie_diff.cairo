@@ -5,14 +5,35 @@ from starkware.cairo.common.math_cmp import is_le
 
 from ethereum.crypto.hash import Hash32
 from ethereum.cancun.fork_types import Address, TupleAddressBytes32U256DictAccess
-from ethereum_types.bytes import Bytes, OptionalBytes, Bytes32, OptionalBytes32, HashedBytes32
+from ethereum_types.bytes import (
+    Bytes,
+    OptionalBytes,
+    Bytes32,
+    OptionalBytes32,
+    HashedBytes32,
+    BytesStruct,
+)
 from ethereum_types.numeric import U256, Uint
-from ethereum.cancun.trie import LeafNode, OptionalInternalNode, InternalNodeEnum, InternalNode
-from ethereum_rlp.rlp import Extended
+from ethereum.cancun.trie import (
+    LeafNode,
+    LeafNodeStruct,
+    OptionalInternalNode,
+    ExtensionNode,
+    ExtensionNodeStruct,
+    InternalNodeEnum,
+    InternalNode,
+    BranchNode,
+    BranchNodeStruct,
+    Subnodes,
+    SubnodesStruct,
+    bytes_to_nibble_list,
+)
+from ethereum_rlp.rlp import Extended, ExtendedImpl
 from ethereum.utils.bytes import Bytes_to_Bytes32
 from legacy.utils.dict import hashdict_read
 from starkware.cairo.common.alloc import alloc
 from cairo_core.control_flow import raise
+from cairo_core.comparison import is_zero
 
 // NodeStore is a mapping of node hashes to their corresponding InternalNode
 // In the world state DB given as input to the program
@@ -117,25 +138,135 @@ func _resolve{
 
     let enum = node.value;
 
-    if (cast(enum.bytes.value, felt) == 0) {
+    if (cast(enum.bytes.value, felt) == 0 and cast(enum.sequence.value, felt) == 0) {
         raise('ValueError');
     }
 
-    let bytes = enum.bytes;
-
-    // Case 1: it is a node hash
-    if (bytes.value.len == 32) {
+    if (cast(enum.bytes.value, felt) != 0) {
+        let bytes = enum.bytes;
+        if (bytes.value.len != 32) {
+            raise('ValueError');
+        }
+        // Case 1: it is a node hash
         // Get the node hash from the node store
         let node_hash = Bytes_to_Bytes32(bytes);
         let result = node_store_get{poseidon_ptr=poseidon_ptr, node_store=node_store}(node_hash);
         return result;
     }
-    // Case 2: it is an embedded node, we have to RLP decode it
-    let is_embedded = is_le(bytes.value.len, 31);
-    if (is_embedded != 0) {
-        let res = decode_to_internal_node(bytes);
-        let result = OptionalInternalNode(res.value);
-        return result;
+
+    if (cast(enum.sequence.value, felt) != 0) {
+        // Case 2: it is an embedded node, we deserialize it into an InternalNode
+        let items_len = enum.sequence.value.len;
+        let items = enum.sequence.value.data;
+
+        // A node must have either 2 items (leaf/extension) or 17 items (branch)
+        with_attr error_message("DecodingError") {
+            assert (items_len - 2) * (items_len - 17) = 0;
+        }
+
+        // Case 1: Branch node (17 items)
+        if (items_len == 17) {
+            let branch_1 = ExtendedImpl.bytes(items[0].value.bytes);
+            let branch_2 = ExtendedImpl.bytes(items[1].value.bytes);
+            let branch_3 = ExtendedImpl.bytes(items[2].value.bytes);
+            let branch_4 = ExtendedImpl.bytes(items[3].value.bytes);
+            let branch_5 = ExtendedImpl.bytes(items[4].value.bytes);
+            let branch_6 = ExtendedImpl.bytes(items[5].value.bytes);
+            let branch_7 = ExtendedImpl.bytes(items[6].value.bytes);
+            let branch_8 = ExtendedImpl.bytes(items[7].value.bytes);
+            let branch_9 = ExtendedImpl.bytes(items[8].value.bytes);
+            let branch_10 = ExtendedImpl.bytes(items[9].value.bytes);
+            let branch_11 = ExtendedImpl.bytes(items[10].value.bytes);
+            let branch_12 = ExtendedImpl.bytes(items[11].value.bytes);
+            let branch_13 = ExtendedImpl.bytes(items[12].value.bytes);
+            let branch_14 = ExtendedImpl.bytes(items[13].value.bytes);
+            let branch_15 = ExtendedImpl.bytes(items[14].value.bytes);
+            let branch_16 = ExtendedImpl.bytes(items[15].value.bytes);
+            tempvar subnodes = Subnodes(
+                new SubnodesStruct(
+                    branch_1,
+                    branch_2,
+                    branch_3,
+                    branch_4,
+                    branch_5,
+                    branch_6,
+                    branch_7,
+                    branch_8,
+                    branch_9,
+                    branch_10,
+                    branch_11,
+                    branch_12,
+                    branch_13,
+                    branch_14,
+                    branch_15,
+                    branch_16,
+                ),
+            );
+            let value_item = ExtendedImpl.bytes(items[16].value.bytes);
+
+            tempvar branch_node = BranchNode(
+                new BranchNodeStruct(subnodes=subnodes, value=value_item)
+            );
+
+            // Return internal node with branch node variant
+            tempvar result = OptionalInternalNode(
+                new InternalNodeEnum(
+                    leaf_node=LeafNode(cast(0, LeafNodeStruct*)),
+                    extension_node=ExtensionNode(cast(0, ExtensionNodeStruct*)),
+                    branch_node=branch_node,
+                ),
+            );
+
+            return result;
+        }
+
+        // Case 2: Extension node (2 items)
+        if (items_len == 2) {
+            let prefix = items[0].value.bytes;
+            let value = ExtendedImpl.bytes(items[1].value.bytes);
+
+            let nibbles = bytes_to_nibble_list(prefix);
+            let first_nibble = nibbles.value.data[0];
+            // If the first nibble is 1 or 3, this means the real key is odd length and we need to remove the first nibble
+            if ((first_nibble - 1) * (first_nibble - 3) == 0) {
+                tempvar nibbles = Bytes(
+                    new BytesStruct(prefix.value.data + 1, prefix.value.len - 1)
+                );
+            } else {
+                // Else this means the real key is even length and we need to remove the first two nibbles (the flag itself and a padded zero)
+                tempvar nibbles = Bytes(
+                    new BytesStruct(prefix.value.data + 2, prefix.value.len - 2)
+                );
+            }
+            let is_leaf = is_zero((first_nibble - 2) * (first_nibble - 3));
+
+            if (is_leaf != 0) {
+                tempvar leaf_node = LeafNode(new LeafNodeStruct(rest_of_key=nibbles, value=value));
+                let extension_node = ExtensionNode(cast(0, ExtensionNodeStruct*));
+
+                // Without this step, leaf_node reference will be revoked.
+                tempvar leaf_node = leaf_node;
+                tempvar extension_node = extension_node;
+            } else {
+                let leaf_node = LeafNode(cast(0, LeafNodeStruct*));
+                tempvar extension_node = ExtensionNode(
+                    new ExtensionNodeStruct(key_segment=nibbles, subnode=value)
+                );
+
+                // Without this step, leaf_node reference will be revoked.
+                tempvar leaf_node = leaf_node;
+                tempvar extension_node = extension_node;
+            }
+
+            tempvar result = OptionalInternalNode(
+                new InternalNodeEnum(
+                    leaf_node=leaf_node,
+                    extension_node=extension_node,
+                    branch_node=BranchNode(cast(0, BranchNodeStruct*)),
+                ),
+            );
+            return result;
+        }
     }
 
     with_attr error_message("Invalid node: expected embedded node") {
