@@ -1,6 +1,6 @@
 import pytest
 from ethereum.crypto.alt_bn128 import BNF, BNF2, BNF12, BNP, BNP2, BNP12, bnf2_to_bnf12
-from hypothesis import given
+from hypothesis import assume, given
 
 from cairo_ec.curve import AltBn128
 from tests.utils.args_gen import U384
@@ -25,6 +25,19 @@ class TestAltBn128:
         @given(a=..., b=...)
         def test_bnf2_mul(self, cairo_run, a: BNF2, b: BNF2):
             assert cairo_run("bnf2_mul", a, b) == a * b
+
+        @given(a=..., b=...)
+        def test_bnf2_div(self, cairo_run, a: BNF2, b: BNF2):
+            assume(b != BNF2.zero())
+            assert cairo_run("bnf2_div", a, b) == a / b
+
+        @given(a=..., b=...)
+        def test_bnf2_multiplicative_inverse(self, cairo_run, a: BNF2):
+            assume(a != BNF2.zero())
+            assert (
+                cairo_run("bnf2_multiplicative_inverse", a)
+                == a.multiplicative_inverse()
+            )
 
         @given(a=..., b=...)
         def test_bnf2_eq(self, cairo_run, a: BNF2, b: BNF2):
