@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from ethereum.crypto.hash import keccak256
 from ethereum_types.bytes import Bytes
-from hypothesis import given, settings
+from hypothesis import given
 from hypothesis import strategies as st
 
 from mpt.utils import decode_node
@@ -33,11 +33,10 @@ def node_store(zkpi):
 @pytest.mark.parametrize("path", [Path("test_data/22081873.json")], scope="session")
 class TestTrieDiff:
     @given(st.data())
-    @settings(max_examples=1)
-    def test_node_store_get(self, cairo_run_py, node_store, data):
+    def test_node_store_get(self, cairo_run, node_store, data):
         # take 20 keys from the node_store
         small_store = defaultdict(
-            lambda: None, {k: v for k, v in list(node_store.items())[:20]}
+            lambda: None, {k: v for k, v in list(node_store.items())[:6]}
         )
         existing_keys = list(small_store.keys())
         # take sample_size keys from small_store
@@ -55,7 +54,6 @@ class TestTrieDiff:
         # add a non-existing key which should return None
         keys.append(keccak256("non_existing".encode()))
 
-        result = cairo_run_py(
-            "test_node_store_get", small_store, keys=keys, keys_len=len(keys)
-        )
-        assert result == [small_store.get(k) for k in keys]
+        for key in keys:
+            _, result = cairo_run("node_store_get", small_store, key)
+            assert result == small_store.get(key)
