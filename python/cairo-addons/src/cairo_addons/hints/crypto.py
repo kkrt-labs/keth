@@ -8,19 +8,19 @@ from cairo_addons.hints.decorator import register_hint
 def bnf2_multiplicative_inverse(ids: VmConsts, segments: MemorySegmentManager):
     from ethereum.crypto.alt_bn128 import BNF2
 
-    from cairo_addons.utils.uint384 import int_to_uint384
+    from cairo_addons.utils.uint384 import int_to_uint384, uint384_to_int
 
-    b_c0 = (
-        ids.b.value.c0.value.d0
-        + ids.b.value.c0.value.d1 * 2**96
-        + ids.b.value.c0.value.d2 * 2**192
-        + ids.b.value.c0.value.d3 * 2**288
+    b_c0 = uint384_to_int()(
+        ids.b.value.c0.value.d0,
+        ids.b.value.c0.value.d1,
+        ids.b.value.c0.value.d2,
+        ids.b.value.c0.value.d3,
     )
-    b_c1 = (
-        ids.b.value.c1.value.d0
-        + ids.b.value.c1.value.d1 * 2**96
-        + ids.b.value.c1.value.d2 * 2**192
-        + ids.b.value.c1.value.d3 * 2**288
+    b_c1 = uint384_to_int()(
+        ids.b.value.c1.value.d0,
+        ids.b.value.c1.value.d1,
+        ids.b.value.c1.value.d2,
+        ids.b.value.c1.value.d3,
     )
     b = BNF2([b_c0, b_c1])
     b_inv = b.multiplicative_inverse()
