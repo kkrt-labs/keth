@@ -88,8 +88,14 @@ from ethereum.cancun.trie_types import (
     InternalNode,
     InternalNodeEnum,
     LeafNode,
+    LeafNodeStruct,
     ExtensionNode,
+    ExtensionNodeStruct,
     BranchNode,
+    BranchNodeStruct,
+    bytes_to_nibble_list,
+    Subnodes,
+    SubnodesStruct,
 )
 
 namespace InternalNodeImpl {
@@ -895,39 +901,6 @@ func nibble_list_to_compact{range_check_ptr: felt}(x: Bytes, is_leaf: bool) -> B
     let compact = cast([fp], felt*);
     let range_check_ptr = range_check_ptr_end;
     tempvar result = Bytes(new BytesStruct(compact, 1 + len));
-    return result;
-}
-
-func bytes_to_nibble_list{bitwise_ptr: BitwiseBuiltin*}(bytes_: Bytes) -> Bytes {
-    alloc_locals;
-    local result: Bytes;
-
-    %{ bytes_to_nibble_list_hint %}
-
-    assert result.value.len = 2 * bytes_.value.len;
-
-    if (bytes_.value.len == 0) {
-        return bytes_;
-    }
-
-    tempvar bitwise_ptr = bitwise_ptr;
-    tempvar len = bytes_.value.len;
-
-    loop:
-    let bitwise_ptr = bitwise_ptr;
-    let len = [ap - 1];
-    let ptr = cast([fp - 3], BytesStruct*);
-    let dst = cast([fp], BytesStruct*);
-
-    assert bitwise_ptr.x = dst.data[2 * len - 2] * 2 ** 4;
-    assert bitwise_ptr.y = dst.data[2 * len - 1];
-    assert bitwise_ptr.x_xor_y = ptr.data[len - 1];
-
-    tempvar bitwise_ptr = bitwise_ptr + BitwiseBuiltin.SIZE;
-    tempvar len = len - 1;
-
-    jmp loop if len != 0;
-
     return result;
 }
 
