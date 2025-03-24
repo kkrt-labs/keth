@@ -272,6 +272,75 @@ func bnp2_double{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr
     return result;
 }
 
+// Implementation of scalar multiplication for BNP2
+// Uses the double-and-add algorithm
+func bnp2_mul_by{
+    range_check_ptr, range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
+}(p: BNP2, n: U384) -> BNP2 {
+    alloc_locals;
+    let n_is_zero = U384_is_zero(n);
+    if (n_is_zero != 0) {
+        let res = bnp2_point_at_infinity();
+        return res;
+    }
+
+    let bnf2_zero = BNF2_ZERO();
+    let x_is_zero = BNF2__eq__(p.value.x, bnf2_zero);
+    let y_is_zero = BNF2__eq__(p.value.y, bnf2_zero);
+    let p_is_infinity = x_is_zero * y_is_zero;
+    if (p_is_infinity != 0) {
+        return p;
+    }
+
+    // Extract the bits of n
+    let (bits_ptr, bits_len) = get_u384_bits_little(n);
+
+    // Initialize result as the point at infinity
+    let result = bnp2_point_at_infinity();
+
+    // Implement the double-and-add algorithm
+    return bnp2_mul_by_bits(p, bits_ptr, bits_len, 0, result);
+}
+
+func bnp2_mul_by_bits{
+    range_check_ptr, range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
+}(p: BNP2, bits_ptr: felt*, bits_len: felt, current_bit: felt, result: BNP2) -> BNP2 {
+    alloc_locals;
+
+    if (current_bit == bits_len) {
+        return result;
+    }
+    let bit_value = bits_ptr[current_bit];
+    let (new_result, doubled_p) = bnp2_mul_by_inner_loop(bit_value, p, result);
+    return bnp2_mul_by_bits(doubled_p, bits_ptr, bits_len, current_bit + 1, new_result);
+}
+
+func bnp2_mul_by_inner_loop{
+    range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
+}(bit: felt, p: BNP2, result: BNP2) -> (BNP2, BNP2) {
+    alloc_locals;
+
+    // If the bit is 1, add p to the result
+    if (bit != 0) {
+        let new_result = bnp2_add(result, p);
+        tempvar new_result = new_result;
+        tempvar range_check96_ptr = range_check96_ptr;
+        tempvar add_mod_ptr = add_mod_ptr;
+        tempvar mul_mod_ptr = mul_mod_ptr;
+    } else {
+        tempvar new_result = result;
+        tempvar range_check96_ptr = range_check96_ptr;
+        tempvar add_mod_ptr = add_mod_ptr;
+        tempvar mul_mod_ptr = mul_mod_ptr;
+    }
+    let new_result = new_result;
+
+    // Double the point for the next iteration
+    let doubled_p = bnp2_double(p);
+
+    return (new_result, doubled_p);
+}
+
 // BNF12 represents a field element in the BNF12 extension field
 // This is a 12-degree extension of the base field used in alt_bn128 curve
 struct BNF12Struct {
