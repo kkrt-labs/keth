@@ -52,4 +52,4 @@ from ethereum.cancun.vm.interpreter import MessageCallOutput
 from ethereum.cancun.fork import BlockChain
 
 from ethereum.crypto.alt_bn128 import BNF12
-from ethereum.cancun.trie_diff import NodeStore
+from mpt.trie_diff import NodeStore
