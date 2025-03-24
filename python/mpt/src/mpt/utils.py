@@ -1,7 +1,7 @@
 import logging
 from dataclasses import dataclass
+from typing import Any
 
-from ethereum.cancun.fork_types import Account
 from ethereum.cancun.trie import (
     BranchNode,
     ExtensionNode,
@@ -64,14 +64,18 @@ class AccountNode:
         )
         return encoded
 
-    def to_eels_account(self, code: Bytes) -> Account:
+    def to_eels_account(self, code: Bytes) -> Any:
         """
         Converts an "AccountNode" to the "Account" type used in EELS.
+        Note: This used the replacement `Account` type defined in `args_gen`
         """
+        from tests.utils.args_gen import Account
+
         return Account(
             nonce=self.nonce,
             balance=self.balance,
             code=code,
+            storage_root=self.storage_root,
         )
 
 
