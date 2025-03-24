@@ -13,7 +13,7 @@ from ethereum_types.bytes import Bytes, Bytes32
 from ethereum_types.numeric import U256, Uint
 
 from mpt import EthereumTrieTransitionDB
-from mpt.utils import AccountNode, nibble_path_to_bytes
+from mpt.utils import AccountNode, deserialize_to_internal_node, nibble_path_to_bytes
 
 logger = logging.getLogger(__name__)
 
@@ -411,4 +411,4 @@ def resolve(
         return None
     if len(node) == 32:
         return nodes.get(node)
-    return rlp.decode(node)
+    return deserialize_to_internal_node(node)
