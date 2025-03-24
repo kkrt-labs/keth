@@ -10,13 +10,13 @@ def bnf2_multiplicative_inverse(ids: VmConsts, segments: MemorySegmentManager):
 
     from cairo_addons.utils.uint384 import int_to_uint384, uint384_to_int
 
-    b_c0 = uint384_to_int()(
+    b_c0 = uint384_to_int(
         ids.b.value.c0.value.d0,
         ids.b.value.c0.value.d1,
         ids.b.value.c0.value.d2,
         ids.b.value.c0.value.d3,
     )
-    b_c1 = uint384_to_int()(
+    b_c1 = uint384_to_int(
         ids.b.value.c1.value.d0,
         ids.b.value.c1.value.d1,
         ids.b.value.c1.value.d2,
