@@ -108,7 +108,6 @@ def pytest_configure(config):
     setattr(ethereum.cancun.vm.instructions.environment, "EMPTY_ACCOUNT", EMPTY_ACCOUNT)
 
     ethereum.cancun.trie.Node = Node
-    setattr(tests.utils.args_gen, "Node", Node)
     setattr(ethereum.cancun.trie, "Node", Node)
 
     # Mock the Extended type
