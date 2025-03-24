@@ -1421,7 +1421,7 @@ func decode_to_internal_node{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     let decoded = decode(encoded_data);
 
     // Verify it's a sequence
-    with_attr error_message("Invalid node: expected sequence") {
+    with_attr error_message("DecodingError") {
         assert cast(decoded.value.bytes.value, felt) = 0;
     }
 
@@ -1429,7 +1429,7 @@ func decode_to_internal_node{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     let items = decoded.value.sequence.value.data;
 
     // A node must have either 2 items (leaf/extension) or 17 items (branch)
-    with_attr error_message("Invalid node: must have 2 or 17 items") {
+    with_attr error_message("DecodingError") {
         assert (items_len - 2) * (items_len - 17) = 0;
     }
 
@@ -1531,7 +1531,7 @@ func decode_to_internal_node{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
         return result;
     }
 
-    with_attr error_message("Invalid RLP payload: cannot decode to internal node") {
+    with_attr error_message("DecodingError") {
         jmp raise.raise_label;
     }
 }

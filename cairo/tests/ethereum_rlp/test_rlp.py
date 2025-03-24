@@ -11,11 +11,13 @@ from ethereum.cancun.transactions import (
     Transaction,
     encode_transaction,
 )
+from ethereum.cancun.trie import InternalNode, encode_internal_node
 from ethereum_rlp.rlp import (
     Extended,
     decode,
     decode_item_length,
     decode_joined_encodings,
+    decode_to,
     decode_to_bytes,
     decode_to_sequence,
     encode,
@@ -27,7 +29,7 @@ from ethereum_types.bytes import Bytes, Bytes0, Bytes8, Bytes32
 from ethereum_types.numeric import U64, U256, Uint
 from hypothesis import assume, given
 
-from cairo_addons.testing.errors import cairo_error
+from cairo_addons.testing.errors import cairo_error, strict_raises
 
 
 class TestRlp:
@@ -370,3 +372,18 @@ class TestRlp:
             )
 
             assert decoded_tx == tx
+
+        @given(node=...)
+        def test_decode_to_internal_node(self, cairo_run, node: InternalNode):
+            encoded_node = encode_internal_node(node)
+            if len(encoded_node) < 32:
+                decoded_node = cairo_run("decode_to_internal_node", Bytes(encoded_node))
+                assert decoded_node == node
+                return
+
+            # Otherwise, encoded_node is a hash and we expect the decode to fail
+            try:
+                cairo_run("decode_to_internal_node", Bytes(encoded_node))
+            except Exception as cairo_error:
+                with strict_raises(type(cairo_error)):
+                    decode_to(InternalNode, Bytes(encoded_node))

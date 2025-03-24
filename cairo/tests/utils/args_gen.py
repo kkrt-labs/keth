@@ -629,17 +629,20 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
         Address, Tuple[Bytes32, ...]
     ],
     ("ethereum", "cancun", "vm", "gas", "MessageCallGas"): MessageCallGas,
-    ("ethereum_rlp", "rlp", "Simple"): Simple,
-    ("ethereum_rlp", "rlp", "Extended"): Extended,
-    ("ethereum_rlp", "rlp", "SequenceSimple"): Sequence[Simple],
-    ("ethereum_rlp", "rlp", "SequenceExtended"): Sequence[Extended],
+    ("ethereum_rlp", "rlp_types", "Simple"): Simple,
+    ("ethereum_rlp", "rlp_types", "Extended"): Extended,
+    ("ethereum_rlp", "rlp_types", "SequenceSimple"): Sequence[Simple],
+    ("ethereum_rlp", "rlp_types", "SequenceExtended"): Sequence[Extended],
     ("ethereum", "cancun", "trie", "MappingAddressTrieBytes32U256"): Mapping[
         Address, Trie[Bytes32, U256]
     ],
-    ("ethereum", "cancun", "trie", "LeafNode"): LeafNode,
-    ("ethereum", "cancun", "trie", "ExtensionNode"): ExtensionNode,
-    ("ethereum", "cancun", "trie", "BranchNode"): BranchNode,
-    ("ethereum", "cancun", "trie", "InternalNode"): InternalNode,
+    ("ethereum", "cancun", "trie_types", "LeafNode"): LeafNode,
+    ("ethereum", "cancun", "trie_types", "ExtensionNode"): ExtensionNode,
+    ("ethereum", "cancun", "trie_types", "BranchNode"): BranchNode,
+    ("ethereum", "cancun", "trie_types", "InternalNode"): InternalNode,
+    ("ethereum", "cancun", "trie_types", "OptionalInternalNode"): Optional[
+        InternalNode
+    ],
     ("ethereum", "cancun", "trie", "Node"): Node,
     ("ethereum", "cancun", "trie", "MappingBytes32U256"): Mapping[Bytes32, U256],
     ("ethereum", "cancun", "trie", "TrieBytes32U256"): Trie[Bytes32, U256],
@@ -685,7 +688,6 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
         "trie",
         "TrieBytesOptionalUnionBytesWithdrawal",
     ): Trie[Bytes, Optional[Union[Bytes, Withdrawal]]],
-    ("ethereum", "cancun", "trie", "OptionalInternalNode"): Optional[InternalNode],
     ("ethereum", "cancun", "trie_diff", "NodeStore"): Mapping[
         Hash32, Optional[InternalNode]
     ],
