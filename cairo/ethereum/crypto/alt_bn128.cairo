@@ -49,30 +49,22 @@ func bnf2_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: M
     return res;
 }
 
+// Division of a by b is done by computing the modular inverse of b, verify it exists
+// and multiply a by this modular inverse.
 func bnf2_div{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
     a: BNF2, b: BNF2
 ) -> BNF2 {
-    let b_inv = bnf2_multiplicative_inverse(b);
-
-    return bnf2_mul(a, b_inv);
-}
-
-// Compute the multiplicative inverse of a BNF2 element.
-// Computation of a_inv is done through hint, and we verify that a * a_inv == 1.
-func bnf2_multiplicative_inverse{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
-a: BNF2) -> BNF2 {
     alloc_locals;
     let (__fp__, _) = get_fp_and_pc();
-    local a_inv: BNF2;
+    local b_inv: BNF2;
 
     %{ bnf2_multiplicative_inverse %}
-
-    let res = bnf2_mul(a, a_inv);
+    let res = bnf2_mul(b, b_inv);
     let bnf2_one = BNF2_ONE();
     let is_inv = BNF2__eq__(res, bnf2_one);
     assert is_inv = 1;
 
-    return a_inv;
+    return bnf2_mul(a, b_inv);
 }
 
 func BNF2_ZERO() -> BNF2 {
