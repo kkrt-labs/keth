@@ -14,7 +14,7 @@ from ethereum.trace import (
     TransactionStart,
 )
 
-from tests.utils.args_gen import EMPTY_ACCOUNT, Evm
+from tests.utils.args_gen import Evm
 
 load_dotenv()
 
@@ -81,6 +81,7 @@ def pytest_configure(config):
 
     import tests
     from tests.utils.args_gen import (
+        EMPTY_ACCOUNT,
         Account,
         Environment,
         Evm,
