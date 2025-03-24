@@ -737,6 +737,7 @@ dependencies = [
  "starknet-types-core",
  "stwo-cairo-adapter",
  "stwo_cairo_prover",
+ "substrate-bn",
  "thiserror 2.0.11",
  "tracing",
  "tracing-subscriber",
