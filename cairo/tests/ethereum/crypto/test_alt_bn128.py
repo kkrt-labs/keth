@@ -1,6 +1,6 @@
 import pytest
 from ethereum.crypto.alt_bn128 import BNF, BNF2, BNF12, BNP, BNP2, BNP12, bnf2_to_bnf12
-from hypothesis import assume, given
+from hypothesis import assume, example, given
 
 from cairo_addons.testing.errors import strict_raises
 from cairo_addons.testing.hints import patch_hint
@@ -84,6 +84,15 @@ segments.load_data(ids.b_inv.address_, [bnf2_struct_ptr])
         @given(p=...)
         def test_bnp2_double(self, cairo_run, p: BNP2):
             assert cairo_run("bnp2_double", p) == p.double()
+
+        @given(p=...)
+        def test_bnp2_add_negated_y(self, cairo_run, p: BNP2):
+            q = BNP2(p.x, -p.y)
+            assert cairo_run("bnp2_add", p, q) == BNP2.point_at_infinity()
+
+        @given(p=..., q=...)
+        def test_bnp2_add(self, cairo_run, p: BNP2, q: BNP2):
+            assert cairo_run("bnp2_add", p, q) == p + q
 
     class TestBNF12:
         def test_FROBENIUS_COEFFICIENTS(self, cairo_run):
