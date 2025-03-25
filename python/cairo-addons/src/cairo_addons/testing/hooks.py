@@ -32,6 +32,7 @@ from cairo_addons.testing.compiler import (
     get_main_path,
     resolve_cairo_file,
 )
+from cairo_addons.testing.coverage import line_to_pc_df
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -100,6 +101,12 @@ def pytest_addoption(parser):
         default=None,
         type=int,
         help="The seed to set random with.",
+    )
+    parser.addoption(
+        "--no-coverage",
+        action="store_true",
+        default=False,
+        help="Do not collect coverage",
     )
 
 
@@ -209,6 +216,7 @@ def pytest_collection_modifyitems(session, config, items):
     session.cairo_files = {}
     session.cairo_programs = {}
     session.main_paths = {}
+    session.line_to_pc_df = {}
     cairo_items = [
         item
         for item in items
@@ -263,6 +271,7 @@ def pytest_collection_modifyitems(session, config, items):
             for file, main_path, dump_path in zip(files, main_paths, dump_paths)
         ]
         session.cairo_programs[fspath] = cairo_programs
+        session.line_to_pc_df[fspath] = line_to_pc_df(cairo_programs)
 
     # Wait for all workers to finish
     missing = set(fspaths) - set(fspaths[worker_index::worker_count])
@@ -285,7 +294,7 @@ def pytest_collection_modifyitems(session, config, items):
                 if all(path.exists() for path in dump_paths):
                     cairo_files = session.cairo_files[fspath]
                     main_paths = session.main_paths[fspath]
-                    session.cairo_programs[fspath] = [
+                    cairo_programs = [
                         get_cairo_program(
                             cairo_file,
                             main_path,
@@ -296,6 +305,8 @@ def pytest_collection_modifyitems(session, config, items):
                             cairo_files, main_paths, dump_paths
                         )
                     ]
+                    session.cairo_programs[fspath] = cairo_programs
+                    session.line_to_pc_df[fspath] = line_to_pc_df(cairo_programs)
                 else:
                     missing_new.add(fspath)
         missing = missing_new
