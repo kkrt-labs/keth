@@ -4,7 +4,7 @@ from typing import Mapping, Optional
 
 import pytest
 from ethereum.cancun.fork_types import Address
-from ethereum.cancun.trie import InternalNode, LeafNode
+from ethereum.cancun.trie import BranchNode, ExtensionNode, InternalNode, LeafNode
 from ethereum.crypto.hash import Hash32, keccak256
 from ethereum_rlp import rlp
 from ethereum_types.bytes import Bytes, Bytes32

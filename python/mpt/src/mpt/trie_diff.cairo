@@ -15,27 +15,25 @@ from ethereum_types.bytes import (
     HashedBytes32,
     String,
 )
-from ethereum_types.numeric import U256, Uint, U256Struct
+from ethereum_types.numeric import U256, Uint, U256Struct, Bool
 from ethereum.cancun.trie import (
     LeafNode,
+    ExtensionNode,
+    BranchNode,
+    InternalNode,
     OptionalLeafNode,
     OptionalInternalNode,
     InternalNodeEnum,
     Bytes32U256DictAccess,
 )
-from ethereum_rlp.rlp import Extended, decode, U256_from_rlp
-from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.cairo_builtins import PoseidonBuiltin, BitwiseBuiltin
-from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
+from ethereum_rlp.rlp import Extended, decode, U256_from_rlp, SequenceExtended, ExtendedImpl
+
 from starkware.cairo.common.builtin_poseidon.poseidon import poseidon_hash, poseidon_hash_many
 from legacy.utils.dict import hashdict_read, hashdict_write, dict_new_empty, dict_read
 from cairo_core.control_flow import raise
-from starkware.cairo.common.dict import DictAccess
 from ethereum.utils.numeric import ceil32, divmod, U256_from_be_bytes, U256_le, Uint_from_be_bytes
 from ethereum.utils.bytes import Bytes_to_Bytes32
 
-from legacy.utils.dict import hashdict_read, hashdict_write, dict_new_empty, dict_read
-from cairo_core.control_flow import raise
 from mpt.utils import deserialize_to_internal_node
 
 // NodeStore is a mapping of node hashes to their corresponding InternalNode
