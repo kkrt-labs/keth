@@ -2096,7 +2096,6 @@ func U256_from_rlp{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(encoding: Byte
 
     let decoded = decode(encoding);
     let decoded_bytes = decoded.value.bytes;
-    let decoded_len = decoded_bytes.value.len;
 
     let res = U256_from_be_bytes(decoded_bytes);
     return res;
