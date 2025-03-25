@@ -37,6 +37,7 @@ from ethereum.exceptions import (
     InvalidSignatureError,
     InvalidTransaction,
 )
+from ethereum_rlp.rlp import Extended, Simple
 from ethereum_types.bytes import Bytes, Bytes0, Bytes8, Bytes20, Bytes32, Bytes256
 from ethereum_types.numeric import U64, U256, Uint
 from hypothesis import HealthCheck, assume, given, settings
@@ -240,6 +241,8 @@ class TestSerde:
             Optional[InternalNode],
             Mapping[Hash32, Optional[InternalNode]],
             Node,
+            Extended,
+            Simple,
             Mapping[Bytes, Bytes],
             Tuple[Mapping[Bytes, Bytes], ...],
             Set[Uint],
