@@ -40,7 +40,7 @@ from ethereum.exceptions import (
 from ethereum_rlp.rlp import Extended, Simple
 from ethereum_types.bytes import Bytes, Bytes0, Bytes8, Bytes20, Bytes32, Bytes256
 from ethereum_types.numeric import U64, U256, Uint
-from hypothesis import HealthCheck, assume, given, settings
+from hypothesis import HealthCheck, assume, given, reproduce_failure, settings
 from starkware.cairo.common.dict import DictManager
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 from starkware.cairo.lang.vm.memory_dict import MemoryDict
@@ -191,6 +191,7 @@ class TestSerde:
         max_examples=20 * len(_cairo_struct_to_python_type),
         suppress_health_check=[HealthCheck.data_too_large, HealthCheck.filter_too_much],
     )
+    @reproduce_failure("6.128.2", b"AEEoZcxUw8qP")
     def test_type(
         self,
         to_cairo_type,
