@@ -3,7 +3,7 @@ import logging
 from dataclasses import dataclass, field
 from functools import partial
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Optional, Tuple, Union
 
 from ethereum.cancun.fork_types import Address
 from ethereum.cancun.trie import BranchNode, ExtensionNode, InternalNode, LeafNode
@@ -413,6 +413,6 @@ def resolve(
         return node
     if isinstance(node, bytes) and len(node) == 32:
         return nodes.get(node)
-    if isinstance(node, List[bytes]):
+    if isinstance(node, list):
         return deserialize_to_internal_node(node)
     raise ValueError(f"Invalid node type: {type(node)}")

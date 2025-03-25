@@ -1,34 +1,34 @@
-from pathlib import Path
+from ethereum.cancun.trie import BranchNode, ExtensionNode, InternalNode
 
-import pytest
-from ethereum.cancun.trie import BranchNode, ExtensionNode
-from ethereum_types.bytes import Bytes
-
-from mpt.utils import decode_node
+from mpt.trie_diff import resolve
 
 
-@pytest.mark.parametrize(
-    "data_path", [Path("test_data/22081873.json")], scope="session"
-)
-class TestUtils:
-    def test_decode_embedded_node(self, zkpi):
-        """
-        ⚠️ TODO: this test SHOULD fail because embedded nodes are not RLP-encoded ⚠️
-        """
-        found_embedded_nodes = False
-        nodes = zkpi["witness"]["state"]
-        for node in nodes:
-            decoded = decode_node(Bytes.fromhex(node[2:]))
-            if isinstance(decoded, BranchNode):
-                # find the subnode where len(subnode) != 32
-                for subnode in decoded.subnodes:
-                    if subnode and len(subnode) != 32:
-                        found_embedded_nodes = True
-                        decode_node(subnode)
+def test_embedded_nodes_resolve(branch_in_extension_data):
+    """
+    Test that decodes and resolves embedded nodes.
+    """
 
-            if isinstance(decoded, ExtensionNode) and len(decoded.subnode) != 32:
-                found_embedded_nodes = True
-                decode_node(decoded.subnode)
+    def check_node_and_subnodes(node: InternalNode):
+        match node:
+            case BranchNode():
+                for subnode in node.subnodes:
+                    # embedded nodes are a list of decoded bytes that need to be serialized into an InternalNode
+                    if isinstance(subnode, list):
+                        resolved = resolve(subnode, nodes)
+                        assert isinstance(resolved, InternalNode)
+                        # Recursively check the resolved node
+                        check_node_and_subnodes(resolved)
+            case ExtensionNode():
+                # extension nodes are a list of decoded bytes that need to be serialized into an InternalNode
+                if isinstance(node.subnode, list):
+                    resolved = resolve(node.subnode, nodes)
+                    assert isinstance(resolved, InternalNode)
+                    # Recursively check the resolved node
+                    check_node_and_subnodes(resolved)
+            case _:
+                return
 
-        # This test will fail when test data has embedded nodes
-        assert not found_embedded_nodes
+    # Start checking each node in the test data
+    nodes = branch_in_extension_data["nodes"]
+    for node in nodes.values():
+        check_node_and_subnodes(node)

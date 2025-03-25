@@ -1,3 +1,8 @@
+from starkware.cairo.common.alloc import alloc
+from starkware.cairo.common.cairo_builtins import PoseidonBuiltin, BitwiseBuiltin
+from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
+from starkware.cairo.common.dict import DictAccess
+
 from ethereum.crypto.hash import Hash32
 from ethereum.cancun.fork_types import Address, TupleAddressBytes32U256DictAccess
 from ethereum_types.bytes import (
@@ -8,6 +13,7 @@ from ethereum_types.bytes import (
     OptionalBytes32,
     BytesStruct,
     HashedBytes32,
+    String,
 )
 from ethereum_types.numeric import U256, Uint, U256Struct
 from ethereum.cancun.trie import (
@@ -27,6 +33,10 @@ from cairo_core.control_flow import raise
 from starkware.cairo.common.dict import DictAccess
 from ethereum.utils.numeric import ceil32, divmod, U256_from_be_bytes, U256_le, Uint_from_be_bytes
 from ethereum.utils.bytes import Bytes_to_Bytes32
+
+from legacy.utils.dict import hashdict_read, hashdict_write, dict_new_empty, dict_read
+from cairo_core.control_flow import raise
+from mpt.utils import deserialize_to_internal_node
 
 // NodeStore is a mapping of node hashes to their corresponding InternalNode
 // In the world state DB given as input to the program
@@ -106,12 +116,22 @@ struct AddressAccountNodeDictAccess {
     new_value: AccountNode,
 }
 
+// Union of InternalNode (union type) and Extended (union type)
+// Both sub unions must be inlined because of args_gen
 struct OptionalUnionInternalNodeExtended {
     value: OptionalUnionInternalNodeExtendedEnum*,
 }
 struct OptionalUnionInternalNodeExtendedEnum {
-    node: InternalNode,
-    extended: Extended,
+    leaf: LeafNode,
+    extension: ExtensionNode,
+    branch: BranchNode,
+    sequence: SequenceExtended,
+    bytearray: Bytes,
+    bytes: Bytes,
+    uint: Uint*,
+    fixed_uint: Uint*,
+    str: String,
+    bool: Bool*,
 }
 
 // @notice Decode the RLP encoded representation of an account node.
@@ -323,22 +343,20 @@ func resolve{
     }
 
     // Case 1: it is a node
-    if (cast(node.value.node.value, felt) != 0) {
-        let result = OptionalInternalNode(node.value.node.value);
+    let is_node = cast(node.value.leaf.value, felt) + cast(node.value.extension.value, felt) + cast(
+        node.value.branch.value, felt
+    );
+    if (is_node != 0) {
+        tempvar result = OptionalInternalNode(
+            new InternalNodeEnum(node.value.leaf, node.value.extension, node.value.branch)
+        );
         return result;
     }
 
     // Case 2: it is either a node hash or an embedded node
-    let enum = node.value.extended.value;
-    // Case a: empty bytes
-    if (cast(enum.bytes.value, felt) == 0) {
-        let res = OptionalInternalNode(cast(0, InternalNodeEnum*));
-        return res;
-    }
-
-    // Case b: it is a node hash
-    if (cast(enum.bytes.value, felt) != 0) {
-        let bytes = enum.bytes;
+    // Case a: it is a node hash
+    if (cast(node.value.bytes.value, felt) != 0) {
+        let bytes = node.value.bytes;
         if (bytes.value.len != 32) {
             // The bytes MUST be a 32-byte node hash
             raise('ValueError');
@@ -352,9 +370,17 @@ func resolve{
         return result;
     }
 
-    // Case c: it is an embedded node
-    // TODO: support embedded nodes
-    with_attr error_message("Value Error: No support for embedded nodes or other node types") {
+    // Case b: it is an embedded node
+    if (cast(node.value.sequence.value, felt) != 0) {
+        let sequence = ExtendedImpl.sequence(node.value.sequence);
+        let internal_node = deserialize_to_internal_node{
+            range_check_ptr=range_check_ptr, bitwise_ptr=bitwise_ptr
+        }(sequence);
+        let res = OptionalInternalNode(internal_node.value);
+        return res;
+    }
+
+    with_attr error_message("Value Error: No other node types are supported") {
         jmp raise.raise_label;
     }
 }

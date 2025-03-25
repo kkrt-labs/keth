@@ -932,6 +932,20 @@ def _gen_arg(
         segments.load_data(ptr, [value])
         return ptr
 
+    # ⚠️ Union of Unions do not get serialized correctly ⚠️
+    # Example: Union[a, Union[b, c]] will serialize into Union[a, b, c] in Cairo.
+    # Codebase example:
+    ## Cairo struct:
+    #### struct OptionalUnionInternalNodeExtended {
+    ####     value: OptionalUnionInternalNodeExtendedEnum*,
+    #### }
+    #### struct OptionalUnionInternalNodeExtendedEnum {
+    ####     node: InternalNode,
+    ####     extended: Extended,
+    #### }
+    ## Python struct:
+    #### Union[InternalNode, Extended]
+    #### This will get serialized into Union[LeafNode, ExtensionNode, BranchNode, Sequence[Extended], bytearray, bytes...]
     if arg_type_origin is Union:
         # Union are represented as Enum in Cairo, with 0 pointers for all but one variant.
         struct_ptr = segments.add()
