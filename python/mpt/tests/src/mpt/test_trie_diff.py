@@ -208,21 +208,52 @@ class TestTrieDiff:
 
     def test_resolve_embedded_node(self, cairo_run, branch_in_extension_data):
         node_store = branch_in_extension_data["nodes"]
-        for node in node_store.values():
-            if isinstance(node, ExtensionNode):
-                embedded_node = node.subnode
-                _, cairo_result = cairo_run("resolve", node_store, node=embedded_node)
-                result = resolve(embedded_node, node_store)
-                assert result == cairo_result
+        node = list(node_store.values())[0]
+        if isinstance(node, ExtensionNode):
+            embedded_node = node.subnode
+            _, cairo_result = cairo_run("resolve", node_store, node=embedded_node)
+            branch = resolve(embedded_node, node_store)
+            assert branch == cairo_result
+            assert cairo_result == BranchNode(
+                subnodes=(
+                    b"",
+                    b"",
+                    b"",
+                    b"",
+                    b"",
+                    b"",
+                    b"",
+                    b"",
+                    b"",
+                    b"",
+                    [b" \xba", b"\n"],
+                    b"",
+                    b"",
+                    b"",
+                    [b" \xbe", b"\x0e"],
+                    b"",
+                ),
+                value=b"",
+            )
 
-                if isinstance(result, BranchNode):
-                    for subnode in result.subnodes:
-                        if isinstance(subnode, list):
-                            _, cairo_result = cairo_run(
-                                "resolve", node_store, node=subnode
-                            )
-                            result = resolve(subnode, node_store)
-                            assert result == cairo_result
+            if isinstance(branch, BranchNode):
+                subnode = branch.subnodes[10]
+                if isinstance(subnode, list):
+                    _, cairo_result = cairo_run("resolve", node_store, node=subnode)
+                    result = resolve(subnode, node_store)
+                    assert result == cairo_result
+                    assert cairo_result == LeafNode(rest_of_key=b"\x0b\n", value=b"\n")
+                subnode = branch.subnodes[14]
+                if isinstance(subnode, list):
+                    _, cairo_result = cairo_run("resolve", node_store, node=subnode)
+                    result = resolve(subnode, node_store)
+                    assert result == cairo_result
+                    assert cairo_result == LeafNode(
+                        rest_of_key=b"\x0b\x0e", value=b"\x0e"
+                    )
+                for i in range(16):
+                    if i not in [10, 14]:
+                        assert branch.subnodes[i] == b""
 
 
 class TestAccountNode:

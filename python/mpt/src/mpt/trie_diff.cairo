@@ -378,7 +378,7 @@ func resolve{
         return res;
     }
 
-    with_attr error_message("Value Error: No other node types are supported") {
+    with_attr error_message("ValueError") {
         jmp raise.raise_label;
     }
 }
