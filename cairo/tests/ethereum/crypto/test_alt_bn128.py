@@ -2,6 +2,8 @@ import pytest
 from ethereum.crypto.alt_bn128 import BNF, BNF2, BNF12, BNP, BNP2, BNP12, bnf2_to_bnf12
 from hypothesis import assume, given
 
+from cairo_addons.testing.errors import cairo_error
+from cairo_addons.testing.hints import patch_hint
 from cairo_ec.curve import AltBn128
 from tests.utils.args_gen import U384
 
@@ -32,6 +34,32 @@ class TestAltBn128:
             assume(b.multiplicative_inverse() != BNF2.zero())
             cairo_output = cairo_run("bnf2_div", a, b)
             assert cairo_output == a / b
+
+        @given(a=..., b=...)
+        def test_bnf2_div_patch_hint_should_fail(
+            self, cairo_programs, cairo_run_py, a: BNF2, b: BNF2
+        ):
+            assume(b != BNF2.zero())
+            assume(b.multiplicative_inverse() != BNF2.zero())
+            with patch_hint(
+                cairo_programs,
+                "bnf2_multiplicative_inverse",
+                """
+from cairo_addons.utils.uint384 import int_to_uint384
+
+bnf2_struct_ptr = segments.add(2)
+b_inv_c0_ptr = segments.gen_arg(int_to_uint384(0))
+b_inv_c1_ptr = segments.gen_arg(int_to_uint384(0))
+segments.load_data(bnf2_struct_ptr, [b_inv_c0_ptr, b_inv_c1_ptr])
+segments.load_data(ids.b_inv.address_, [bnf2_struct_ptr])
+                """,
+            ), cairo_error(
+                message="""
+An ASSERT_EQ instruction failed: 0 != 1.
+    assert is_inv = 1;
+"""
+            ):
+                cairo_run_py("bnf2_div", a, b)
 
         @given(a=..., b=...)
         def test_bnf2_eq(self, cairo_run, a: BNF2, b: BNF2):
