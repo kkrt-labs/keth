@@ -31,7 +31,8 @@ class TestAltBn128:
         @given(a=..., b=...)
         def test_bnf2_div(self, cairo_run, a: BNF2, b: BNF2):
             assume(b != BNF2.zero())
-            # A bug in the EELS implementations requires this assumption for now.
+            # A bug in the EELS implementation requires this assumption for now.
+            # https://github.com/kkrt-labs/keth/issues/1099#issue-2946095802
             assume(b.multiplicative_inverse != BNF2.zero())
             assert cairo_run("bnf2_div", a, b) == a / b
 
