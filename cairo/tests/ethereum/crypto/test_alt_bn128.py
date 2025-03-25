@@ -31,9 +31,15 @@ class TestAltBn128:
         @given(a=..., b=...)
         def test_bnf2_div(self, cairo_run, a: BNF2, b: BNF2):
             assume(b != BNF2.zero())
-            assume(b.multiplicative_inverse() != BNF2.zero())
-            cairo_output = cairo_run("bnf2_div", a, b)
-            assert cairo_output == a / b
+            # A bug in the EELS implementations requires this assumption for now.
+            assume(b.multiplicative_inverse != BNF2.zero())
+            assert cairo_run("bnf2_div", a, b) == a / b
+
+        @given(a=..., b=...)
+        def test_bnf2_div_by_zero_should_fail(self, cairo_run, a: BNF2, b: BNF2):
+            assume(b == BNF2.zero())
+            with pytest.raises(Exception):
+                cairo_run("bnf2_div", a, b)
 
         @given(a=..., b=...)
         def test_bnf2_div_patch_hint_should_fail(
