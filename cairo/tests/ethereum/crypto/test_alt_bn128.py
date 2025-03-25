@@ -179,13 +179,21 @@ segments.load_data(ids.b_inv.address_, [bnf2_struct_ptr])
             assert cairo_run("bnf12_frobenius", a) == a.frobenius()
 
     class TestBNP12:
-        def test_A(self, cairo_run):
-            cairo_a = cairo_run("A")
-            assert cairo_a == BNP12.A
 
-        def test_B(self, cairo_run):
-            cairo_b = cairo_run("B")
+        def test_BNP12_B(self, cairo_run):
+            cairo_b = cairo_run("BNP12_B")
             assert cairo_b == BNP12.B
+
+        @given(p=...)
+        def test_bnp12_init(self, cairo_run, p: BNP12):
+            x, y = p.x, p.y
+            assert cairo_run("bnp12_init", BNF12(x), BNF12(y)) == BNP12(x, y)
+
+        @given(x=..., y=...)
+        def test_bnp12_init_fails(self, cairo_run, x: BNF12, y: BNF12):
+            assume(x != BNF12.zero() or y != BNF12.zero())
+            with pytest.raises(Exception):
+                cairo_run("bnp12_init", x, y)
 
         def test_bnp12_point_at_infinity(self, cairo_run):
             cairo_infinity = cairo_run("bnp12_point_at_infinity")
