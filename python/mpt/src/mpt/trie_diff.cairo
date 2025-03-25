@@ -117,7 +117,7 @@ struct AddressAccountNodeDictAccess {
 }
 
 // Union of InternalNode (union type) and Extended (union type)
-// Both sub unions must be inlined because of args_gen
+// Both sub unions must be inlined because in Python a Union[A, Union[B,C]] is just Union[A,B,C]
 struct OptionalUnionInternalNodeExtended {
     value: OptionalUnionInternalNodeExtendedEnum*,
 }
@@ -354,7 +354,7 @@ func resolve{
     }
 
     // Case 2: it is either a node hash or an embedded node
-    // Case a: it is a node hash
+    // Case 2.a: it is a node hash
     if (cast(node.value.bytes.value, felt) != 0) {
         let bytes = node.value.bytes;
         if (bytes.value.len != 32) {
@@ -370,7 +370,7 @@ func resolve{
         return result;
     }
 
-    // Case b: it is an embedded node
+    // Case 2.b: it is an embedded node
     if (cast(node.value.sequence.value, felt) != 0) {
         let sequence = ExtendedImpl.sequence(node.value.sequence);
         let internal_node = deserialize_to_internal_node(sequence);
