@@ -370,3 +370,11 @@ class TestRlp:
             )
 
             assert decoded_tx == tx
+
+    class TestU256:
+        @given(value=...)
+        def test_u256_from_rlp(self, cairo_run, value: U256):
+            encoding = encode(value)
+            assert U256(int.from_bytes(decode(encoding), "big")) == cairo_run(
+                "U256_from_rlp", encoding
+            )

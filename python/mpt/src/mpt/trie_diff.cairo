@@ -4,16 +4,24 @@ from ethereum_types.bytes import (
     Bytes,
     OptionalBytes,
     Bytes32,
+    Bytes32Struct,
     OptionalBytes32,
     BytesStruct,
     HashedBytes32,
 )
-from ethereum_types.numeric import U256, Uint
-from ethereum.cancun.trie import LeafNode, OptionalLeafNode, OptionalInternalNode, InternalNodeEnum
-from ethereum_rlp.rlp import Extended, decode
+from ethereum_types.numeric import U256, Uint, U256Struct
+from ethereum.cancun.trie import (
+    LeafNode,
+    OptionalLeafNode,
+    OptionalInternalNode,
+    InternalNodeEnum,
+    Bytes32U256DictAccess,
+)
+from ethereum_rlp.rlp import Extended, decode, U256_from_rlp
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_builtins import PoseidonBuiltin, BitwiseBuiltin
 from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
+from starkware.cairo.common.builtin_poseidon.poseidon import poseidon_hash, poseidon_hash_many
 from legacy.utils.dict import hashdict_read, hashdict_write, dict_new_empty, dict_read
 from cairo_core.control_flow import raise
 from starkware.cairo.common.dict import DictAccess
@@ -192,8 +200,66 @@ func _process_account_diff{
 }
 
 // Process the difference between two storage leaf nodes
-func _process_storage_diff{}(address: Address, path: Bytes32, left: LeafNode, right: LeafNode) -> (
-    ) {
+func _process_storage_diff{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    storage_key_preimages: MappingBytes32Bytes32,
+    storage_trie_end: Bytes32U256DictAccess*,
+}(address: Address, path: Bytes32, left: OptionalLeafNode, right: OptionalLeafNode) -> () {
+    alloc_locals;
+    let dict_ptr = cast(storage_key_preimages.value.dict_ptr, DictAccess*);
+
+    let fp_and_pc = get_fp_and_pc();
+    local __fp__: felt* = fp_and_pc.fp_val;
+
+    let (pointer) = hashdict_read{dict_ptr=dict_ptr}(2, path.value);
+    let new_dict_ptr = cast(dict_ptr, Bytes32OptionalBytes32DictAccess*);
+    tempvar storage_key_preimages = MappingBytes32Bytes32(
+        new MappingBytes32Bytes32Struct(storage_key_preimages.value.dict_ptr_start, new_dict_ptr)
+    );
+    tempvar storage_key = Bytes32(cast(pointer, Bytes32Struct*));
+
+    if (left.value != 0) {
+        let left_decoded = U256_from_rlp(left.value.value.value.bytes);
+        tempvar range_check_ptr = range_check_ptr;
+        tempvar bitwise_ptr = bitwise_ptr;
+        tempvar poseidon_ptr = poseidon_ptr;
+    } else {
+        tempvar left = left;
+        tempvar range_check_ptr = range_check_ptr;
+        tempvar bitwise_ptr = bitwise_ptr;
+        tempvar poseidon_ptr = poseidon_ptr;
+    }
+    let left_u256 = U256(cast([ap - 4], U256Struct*));
+    let range_check_ptr = [ap - 3];
+    let bitwise_ptr = cast([ap - 2], BitwiseBuiltin*);
+    let poseidon_ptr = cast([ap - 1], PoseidonBuiltin*);
+
+    if (right.value != 0) {
+        let right_decoded = U256_from_rlp(right.value.value.value.bytes);
+        tempvar range_check_ptr = range_check_ptr;
+        tempvar bitwise_ptr = bitwise_ptr;
+        tempvar poseidon_ptr = poseidon_ptr;
+    } else {
+        tempvar right = right;
+        tempvar range_check_ptr = range_check_ptr;
+        tempvar bitwise_ptr = bitwise_ptr;
+        tempvar poseidon_ptr = poseidon_ptr;
+    }
+    let right_u256 = U256(cast([ap - 4], U256Struct*));
+    let range_check_ptr = [ap - 3];
+    let bitwise_ptr = cast([ap - 2], BitwiseBuiltin*);
+    let poseidon_ptr = cast([ap - 1], PoseidonBuiltin*);
+
+    let (hashed_storage_key_) = poseidon_hash_many(2, storage_key.value);
+    let hashed_storage_key = HashedBytes32(hashed_storage_key_);
+    tempvar account_diff = Bytes32U256DictAccess(
+        key=hashed_storage_key, prev_value=left_u256, new_value=right_u256
+    );
+
+    assert [storage_trie_end] = account_diff;
+    tempvar storage_trie_end = storage_trie_end + Bytes32U256DictAccess.SIZE;
     return ();
 }
 

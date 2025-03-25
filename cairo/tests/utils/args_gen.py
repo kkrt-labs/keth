@@ -784,8 +784,10 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "crypto", "alt_bn128", "BNF"): BNF,
     ("ethereum", "crypto", "alt_bn128", "BNP2"): BNP2,
     ("mpt", "trie_diff", "MappingBytes32Address"): Mapping[Bytes32, Address],
+    ("mpt", "trie_diff", "MappingBytes32Bytes32"): Mapping[Bytes32, Bytes32],
     ("mpt", "trie_diff", "AccountNode"): AccountNode,
     ("mpt", "trie_diff", "NodeStore"): Mapping[Hash32, Optional[InternalNode]],
+    ("cairo_core", "bytes", "HashedBytes32"): int,
 }
 
 # In the EELS, some functions are annotated with Sequence while it's actually just Bytes.
