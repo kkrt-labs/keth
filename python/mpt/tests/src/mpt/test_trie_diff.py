@@ -35,26 +35,30 @@ def embedded_node_strategy(draw):
 
     # Create leaf node and encode it
     leaf_node = LeafNode(rest_of_key=b"", value=rlp.encode(storage_value))
-    encoded_node = encode_internal_node(leaf_node)
-    assume(not isinstance(encoded_node, bytes))
+    embedded_leaf_node = encode_internal_node(leaf_node)
+    assume(not isinstance(embedded_leaf_node, bytes))
 
-    subnodes[draw(st.integers(min_value=0, max_value=15))] = list(encoded_node)
+    subnodes[draw(st.integers(min_value=0, max_value=15))] = list(embedded_leaf_node)
 
     branch_node = BranchNode(
         subnodes=tuple(subnodes),
         value=b"",
     )
-    branch_node = encode_internal_node(branch_node)
+    embedded_branch_node = encode_internal_node(branch_node)
 
     # Check that we're not constructing a node hash
-    assume(not isinstance(branch_node, bytes))
+    assume(not isinstance(embedded_branch_node, bytes))
 
     extension_node = ExtensionNode(
         key_segment=b"",
-        subnode=branch_node,
+        subnode=embedded_branch_node,
     )
 
-    return extension_node
+    return {
+        "extension": extension_node,
+        "branch": branch_node,
+        "leaf": leaf_node,
+    }
 
 
 @pytest.fixture
@@ -244,25 +248,32 @@ class TestTrieDiff:
             _, node = cairo_run("resolve", small_store, result)
             assert node == resolve(result, small_store)
 
-    @given(embedded_node=embedded_node_strategy())
-    def test_resolve_embedded_node(self, cairo_run, embedded_node: InternalNode):
+    @given(embedded_node_dict=embedded_node_strategy())
+    def test_resolve_embedded_node(self, cairo_run, embedded_node_dict):
         # We don't need a node store for this test
         node_store = defaultdict(
             lambda: None,
         )
-        _, cairo_result = cairo_run("resolve", node_store, node=embedded_node)
-        extension = resolve(embedded_node, node_store)
+        parent_node = embedded_node_dict["extension"]
+        expected_branch_node = embedded_node_dict["branch"]
+        expected_leaf_node = embedded_node_dict["leaf"]
+
+        _, cairo_result = cairo_run("resolve", node_store, node=parent_node)
+        extension = resolve(parent_node, node_store)
         assert cairo_result == extension
 
         subnode = extension.subnode
         _, cairo_subnode = cairo_run("resolve", node_store, node=subnode)
         branch_node = resolve(subnode, node_store)
         assert cairo_subnode == branch_node
+        assert cairo_subnode == expected_branch_node
 
         for subnode in branch_node.subnodes:
             _, cairo_subnode = cairo_run("resolve", node_store, node=subnode)
             subnode = resolve(subnode, node_store)
             assert cairo_subnode == subnode
+            if isinstance(subnode, LeafNode):
+                assert cairo_subnode == expected_leaf_node
 
 
 class TestAccountNode:
