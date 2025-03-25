@@ -106,6 +106,14 @@ struct AddressAccountNodeDictAccess {
     new_value: AccountNode,
 }
 
+struct UnionOptionalInternalNodeExtended {
+    value: UnionOptionalInternalNodeExtendedEnum*,
+}
+struct UnionOptionalInternalNodeExtendedEnum {
+    node: OptionalInternalNode,
+    extended: Extended,
+}
+
 // @notice Decode the RLP encoded representation of an account node.
 func AccountNode_from_rlp{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     encoding: Bytes
@@ -299,4 +307,40 @@ func node_store_get{poseidon_ptr: PoseidonBuiltin*, node_store: NodeStore}(
     // Cast the result to an OptionalInternalNode and return
     tempvar res = OptionalInternalNode(cast(pointer, InternalNodeEnum*));
     return res;
+}
+
+func resolve{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    node_store: NodeStore,
+}(node: UnionOptionalInternalNodeExtended) -> OptionalInternalNode {
+    alloc_locals;
+    // Case 1: it is a node
+    // if (cast(node.value.node.value, felt) != 0) {
+    //     let result = node.value.node;
+    //     return result;
+    // }
+
+    // Case 2: it is either a node hash or an embedded node
+    let enum = node.value.extended.value;
+    // Case a: it is a node hash
+    if (cast(enum.bytes.value, felt) != 0) {
+        let bytes = enum.bytes;
+        if (bytes.value.len != 32) {
+            // The bytes MUST be a 32-byte node hash
+            raise('ValueError');
+        }
+
+        // Get the node hash from the node store
+        let node_hash = Bytes_to_Bytes32(bytes);
+        let result = node_store_get{poseidon_ptr=poseidon_ptr, node_store=node_store}(node_hash);
+        return result;
+    }
+
+    // Case b: it is an embedded node
+    // TODO: support embedded nodes
+    with_attr error_message("Value Error: No support for embedded nodes or other node types") {
+        jmp raise.raise_label;
+    }
 }

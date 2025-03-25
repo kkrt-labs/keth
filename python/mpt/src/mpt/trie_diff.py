@@ -3,17 +3,17 @@ import logging
 from dataclasses import dataclass, field
 from functools import partial
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from ethereum.cancun.fork_types import Address
 from ethereum.cancun.trie import BranchNode, ExtensionNode, InternalNode, LeafNode
 from ethereum.crypto.hash import Hash32
-from ethereum_rlp import rlp
+from ethereum_rlp import Extended, rlp
 from ethereum_types.bytes import Bytes, Bytes32
 from ethereum_types.numeric import U256, Uint
 
 from mpt.ethereum_tries import EthereumTrieTransitionDB
-from mpt.utils import AccountNode, nibble_path_to_bytes
+from mpt.utils import AccountNode, deserialize_to_internal_node, nibble_path_to_bytes
 
 logger = logging.getLogger(__name__)
 
@@ -405,12 +405,14 @@ class StateDiff:
 
 
 def resolve(
-    node: Hash32 | Bytes | None | InternalNode, nodes: Dict[Hash32, InternalNode]
+    node: Union[Optional[InternalNode], Extended], nodes: Dict[Hash32, InternalNode]
 ) -> InternalNode | None:
     if isinstance(node, InternalNode):
         return node
     if node is None or node == b"":
         return None
-    if len(node) == 32:
+    if isinstance(node, bytes) and len(node) == 32:
         return nodes.get(node)
-    return rlp.decode(node)
+    if isinstance(node, List[bytes]):
+        return deserialize_to_internal_node(node)
+    raise ValueError(f"Invalid node type: {type(node)}")

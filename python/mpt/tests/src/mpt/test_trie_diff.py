@@ -1,11 +1,11 @@
 from collections import defaultdict
 from pathlib import Path
-from typing import Optional
+from typing import Mapping, Optional
 
 import pytest
 from ethereum.cancun.fork_types import Address
-from ethereum.cancun.trie import LeafNode
-from ethereum.crypto.hash import keccak256
+from ethereum.cancun.trie import InternalNode, LeafNode
+from ethereum.crypto.hash import Hash32, keccak256
 from ethereum_rlp import rlp
 from ethereum_types.bytes import Bytes, Bytes32
 from ethereum_types.numeric import U256
@@ -15,7 +15,7 @@ from starkware.cairo.lang.vm.crypto import poseidon_hash_many
 
 from cairo_addons.utils.uint256 import int_to_uint256
 from mpt.ethereum_tries import EthereumTrieTransitionDB
-from mpt.trie_diff import StateDiff
+from mpt.trie_diff import StateDiff, resolve
 from mpt.utils import AccountNode, decode_node
 
 
@@ -171,6 +171,40 @@ class TestTrieDiff:
                 int_to_uint256(int.from_bytes(key, "little"))
             )
             assert (prev_value, new_value) == result_lookup[hashed_key]
+
+    @pytest.mark.parametrize(
+        "data_path", [Path("test_data/22081873.json")], scope="session"
+    )
+    @given(data=st.data())
+    def test_resolve(self, cairo_run, node_store: Mapping[Hash32, InternalNode], data):
+        # take 20 keys from the node_store
+        small_store = defaultdict(
+            lambda: None, {k: v for k, v in list(node_store.items())[:6]}
+        )
+        existing_keys = list(small_store.keys())
+        # take sample_size keys from small_store
+        sample_size = data.draw(
+            st.integers(min_value=5, max_value=min(10, len(small_store)))
+        )
+        keys = data.draw(
+            st.lists(
+                st.sampled_from(existing_keys),
+                min_size=sample_size,
+                max_size=sample_size,
+                unique=True,
+            )
+        )
+        # add a non-existing key which should return None
+        keys.append(keccak256("non_existing".encode()))
+
+        for key in keys:
+            _, cairo_result = cairo_run("resolve", small_store, key)
+            result = resolve(key, small_store)
+            assert result == cairo_result
+
+            # check that resolving a node returns the same node
+            # _, node = cairo_run("resolve", small_store, result)
+            # assert node == resolve(result, small_store)
 
 
 class TestAccountNode:
