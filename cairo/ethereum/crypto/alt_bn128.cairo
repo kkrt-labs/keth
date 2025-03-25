@@ -188,16 +188,14 @@ func bnp2_double{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr
     // x' = λ^2 - 2x
     // y' = λ(x - x') - y
     // Calculate 3x^2
-    tempvar three = BNF2(
-        new BNF2Struct(U384(new UInt384(3, 0, 0, 0)), U384(new UInt384(0, 0, 0, 0)))
-    );
+    let (u384_zero) = get_label_location(U384_ZERO);
+    let uint384_zero = cast(u384_zero, UInt384*);
+    tempvar three = BNF2(new BNF2Struct(U384(new UInt384(3, 0, 0, 0)), U384(uint384_zero)));
     let x_squared = bnf2_mul(p.value.x, p.value.x);
     let three_x_squared = bnf2_mul(three, x_squared);
 
     // Calculate 2y
-    tempvar two = BNF2(
-        new BNF2Struct(U384(new UInt384(2, 0, 0, 0)), U384(new UInt384(0, 0, 0, 0)))
-    );
+    tempvar two = BNF2(new BNF2Struct(U384(new UInt384(2, 0, 0, 0)), U384(uint384_zero)));
     let two_y = bnf2_mul(two, p.value.y);
     // Calculate λ = 3x^2 / 2y
     let lambda = bnf2_div(three_x_squared, two_y);
