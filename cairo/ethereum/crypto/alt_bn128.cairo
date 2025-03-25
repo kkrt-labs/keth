@@ -171,6 +171,61 @@ func bnp2_point_at_infinity() -> BNP2 {
     return res;
 }
 
+func bnp2_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
+    p: BNP2, q: BNP2
+) -> BNP2 {
+    alloc_locals;
+
+    let bnf2_zero = BNF2_ZERO();
+    let x_is_zero = BNF2__eq__(p.value.x, bnf2_zero);
+    let y_is_zero = BNF2__eq__(p.value.y, bnf2_zero);
+    let p_is_infinity = x_is_zero * y_is_zero;
+    if (p_is_infinity != 0) {
+        return q;
+    }
+
+    let x_is_zero_q = BNF2__eq__(q.value.x, bnf2_zero);
+    let y_is_zero_q = BNF2__eq__(q.value.y, bnf2_zero);
+    let q_is_infinity = x_is_zero_q * y_is_zero_q;
+    if (q_is_infinity != 0) {
+        return p;
+    }
+
+    let x_equal = BNF2__eq__(p.value.x, q.value.x);
+    if (x_equal != 0) {
+        let y_equal = BNF2__eq__(p.value.y, q.value.y);
+        if (y_equal != 0) {
+            return bnp2_double(p);
+        }
+        let res = bnp2_point_at_infinity();
+        return res;
+    }
+
+    // Standard case: compute point addition using the formula:
+    // λ = (q.y - p.y) / (q.x - p.x)
+    // x_r = λ^2 - p.x - q.x
+    // y_r = λ(p.x - x_r) - p.y
+
+    // Calculate λ = (q.y - p.y) / (q.x - p.x)
+    let y_diff = bnf2_sub(q.value.y, p.value.y);
+    let x_diff = bnf2_sub(q.value.x, p.value.x);
+    let lambda = bnf2_div(y_diff, x_diff);
+
+    // Calculate x_r = λ^2 - p.x - q.x
+    let lambda_squared = bnf2_mul(lambda, lambda);
+    let x_sum = bnf2_add(p.value.x, q.value.x);
+    let x_r = bnf2_sub(lambda_squared, x_sum);
+
+    // Calculate y_r = λ(p.x - x_r) - p.y
+    let x_diff_r = bnf2_sub(p.value.x, x_r);
+    let lambda_times_x_diff = bnf2_mul(lambda, x_diff_r);
+    let y_r = bnf2_sub(lambda_times_x_diff, p.value.y);
+
+    // Return the new point
+    tempvar result = BNP2(new BNP2Struct(x_r, y_r));
+    return result;
+}
+
 func bnp2_double{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
     p: BNP2
 ) -> BNP2 {
@@ -213,6 +268,75 @@ func bnp2_double{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr
     let new_y = bnf2_sub(lambda_times_x_diff, p.value.y);
     tempvar result = BNP2(new BNP2Struct(new_x, new_y));
     return result;
+}
+
+// Implementation of scalar multiplication for BNP2
+// Uses the double-and-add algorithm
+func bnp2_mul_by{
+    range_check_ptr, range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
+}(p: BNP2, n: U384) -> BNP2 {
+    alloc_locals;
+    let n_is_zero = U384_is_zero(n);
+    if (n_is_zero != 0) {
+        let res = bnp2_point_at_infinity();
+        return res;
+    }
+
+    let bnf2_zero = BNF2_ZERO();
+    let x_is_zero = BNF2__eq__(p.value.x, bnf2_zero);
+    let y_is_zero = BNF2__eq__(p.value.y, bnf2_zero);
+    let p_is_infinity = x_is_zero * y_is_zero;
+    if (p_is_infinity != 0) {
+        return p;
+    }
+
+    // Extract the bits of n
+    let (bits_ptr, bits_len) = get_u384_bits_little(n);
+
+    // Initialize result as the point at infinity
+    let result = bnp2_point_at_infinity();
+
+    // Implement the double-and-add algorithm
+    return bnp2_mul_by_bits(p, bits_ptr, bits_len, 0, result);
+}
+
+func bnp2_mul_by_bits{
+    range_check_ptr, range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
+}(p: BNP2, bits_ptr: felt*, bits_len: felt, current_bit: felt, result: BNP2) -> BNP2 {
+    alloc_locals;
+
+    if (current_bit == bits_len) {
+        return result;
+    }
+    let bit_value = bits_ptr[current_bit];
+    let (new_result, doubled_p) = bnp2_mul_by_inner_loop(bit_value, p, result);
+    return bnp2_mul_by_bits(doubled_p, bits_ptr, bits_len, current_bit + 1, new_result);
+}
+
+func bnp2_mul_by_inner_loop{
+    range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
+}(bit: felt, p: BNP2, result: BNP2) -> (BNP2, BNP2) {
+    alloc_locals;
+
+    // If the bit is 1, add p to the result
+    if (bit != 0) {
+        let new_result = bnp2_add(result, p);
+        tempvar new_result = new_result;
+        tempvar range_check96_ptr = range_check96_ptr;
+        tempvar add_mod_ptr = add_mod_ptr;
+        tempvar mul_mod_ptr = mul_mod_ptr;
+    } else {
+        tempvar new_result = result;
+        tempvar range_check96_ptr = range_check96_ptr;
+        tempvar add_mod_ptr = add_mod_ptr;
+        tempvar mul_mod_ptr = mul_mod_ptr;
+    }
+    let new_result = new_result;
+
+    // Double the point for the next iteration
+    let doubled_p = bnp2_double(p);
+
+    return (new_result, doubled_p);
 }
 
 // BNF12 represents a field element in the BNF12 extension field
