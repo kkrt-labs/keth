@@ -6,7 +6,7 @@ import pytest
 from ethereum.cancun.trie import LeafNode
 from ethereum.crypto.hash import keccak256
 from ethereum_types.bytes import Bytes, Bytes32
-from hypothesis import HealthCheck, given, settings
+from hypothesis import given
 from hypothesis import strategies as st
 
 from mpt.ethereum_tries import EthereumTrieTransitionDB
