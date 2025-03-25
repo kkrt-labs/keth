@@ -86,7 +86,7 @@ segments.load_data(ids.b_inv.address_, [bnf2_struct_ptr])
 
         @given(p=...)
         def test_bnp2_init(self, cairo_run, p: BNP2):
-            assert cairo_run("bnp2_init", BNF2(p.x), BNF2(p.y)) == BNP2(p.x, p.y)
+            assert cairo_run("bnp2_init", p.x, p.y) == p
 
         @given(x=..., y=...)
         def test_bnp2_init_fails(self, cairo_run, x: BNF2, y: BNF2):
