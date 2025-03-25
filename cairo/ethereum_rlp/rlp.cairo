@@ -2090,3 +2090,13 @@ func encode_header{range_check_ptr}(header: Header) -> Bytes {
     tempvar result = Bytes(new BytesStruct(body_ptr - prefix_len, prefix_len + body_len));
     return result;
 }
+
+func U256_from_rlp{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(encoding: Bytes) -> U256 {
+    alloc_locals;
+
+    let decoded = decode(encoding);
+    let decoded_bytes = decoded.value.bytes;
+
+    let res = U256_from_be_bytes(decoded_bytes);
+    return res;
+}

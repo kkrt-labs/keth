@@ -129,7 +129,7 @@ class StateDiff:
             case (None, LeafNode()):
                 # new leaf
                 full_path = nibble_path_to_bytes(path + r_node.rest_of_key)
-                process_leaf_diff(full_path, None, r_node)
+                process_leaf_diff(path=full_path, left=None, right=r_node)
 
             case (None, ExtensionNode()):
                 # Look for diffs in the right sub-tree
@@ -150,24 +150,26 @@ class StateDiff:
             case (LeafNode(), None):
                 # deleted leaf
                 full_path = nibble_path_to_bytes(path + l_node.rest_of_key)
-                process_leaf_diff(full_path, l_node, None)
+                process_leaf_diff(path=full_path, left=l_node, right=None)
 
             case (LeafNode(), LeafNode()):
                 if l_node.rest_of_key == r_node.rest_of_key:
                     if l_node.value != r_node.value:
                         # Same path -> different values
                         full_path = nibble_path_to_bytes(path + l_node.rest_of_key)
-                        return process_leaf_diff(full_path, l_node, r_node)
+                        return process_leaf_diff(
+                            path=full_path, left=l_node, right=r_node
+                        )
                     else:
                         # Same path -> same value -> no diff
                         return
 
                 # Different paths -> delete old leaf, create new leaf
                 path_left = nibble_path_to_bytes(path + l_node.rest_of_key)
-                process_leaf_diff(path_left, l_node, None)
+                process_leaf_diff(path=path_left, left=l_node, right=None)
 
                 path_right = nibble_path_to_bytes(path + r_node.rest_of_key)
-                process_leaf_diff(path_right, None, r_node)
+                process_leaf_diff(path=path_right, left=None, right=r_node)
                 return
 
             case (LeafNode(), BranchNode()):
@@ -376,10 +378,10 @@ class StateDiff:
 
     def _process_storage_diff(
         self,
+        address: Address,
         path: Bytes32,
         left: Optional[LeafNode],
         right: Optional[LeafNode],
-        address: Address,
     ):
         key = self._storage_key_preimages[path]
         left_decoded = (

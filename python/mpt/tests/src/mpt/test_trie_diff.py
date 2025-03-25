@@ -3,12 +3,17 @@ from pathlib import Path
 from typing import Optional
 
 import pytest
+from ethereum.cancun.fork_types import Address
 from ethereum.cancun.trie import LeafNode
 from ethereum.crypto.hash import keccak256
+from ethereum_rlp import rlp
 from ethereum_types.bytes import Bytes, Bytes32
+from ethereum_types.numeric import U256
 from hypothesis import given
 from hypothesis import strategies as st
+from starkware.cairo.lang.vm.crypto import poseidon_hash_many
 
+from cairo_addons.utils.uint256 import int_to_uint256
 from mpt.ethereum_tries import EthereumTrieTransitionDB
 from mpt.trie_diff import StateDiff
 from mpt.utils import AccountNode, decode_node
@@ -108,11 +113,64 @@ class TestTrieDiff:
         if not isinstance(result_diffs, list):
             result_diffs = [result_diffs]
 
-        for dict_entry in result_diffs:
-            key = dict_entry["key"]
-            prev_value = dict_entry["prev_value"]
-            new_value = dict_entry["new_value"]
-            assert diff_cls._main_trie[key] == (prev_value, new_value)
+        result_lookup = {
+            dict_entry["key"]: (dict_entry["prev_value"], dict_entry["new_value"])
+            for dict_entry in result_diffs
+        }
+
+        for key, (prev_value, new_value) in diff_cls._main_trie.items():
+            assert (prev_value, new_value) == result_lookup[key]
+
+    @given(path=..., address=..., storage_key_before=..., storage_key_after=...)
+    def test__process_storage_diff(
+        self,
+        cairo_run,
+        path: Bytes32,
+        address: Address,
+        storage_key_before: Optional[U256],
+        storage_key_after: Optional[U256],
+    ):
+        diff_cls = StateDiff()
+        # Fill preimages with arbitrary 32-bytes data
+        diff_cls._storage_key_preimages = {path: keccak256(path)}
+        leaf_before = (
+            None
+            if storage_key_before is None
+            else LeafNode(rest_of_key=b"", value=rlp.encode(storage_key_before))
+        )
+        leaf_after = (
+            None
+            if storage_key_after is None
+            else LeafNode(rest_of_key=b"", value=rlp.encode(storage_key_after))
+        )
+        diff_cls._process_storage_diff(
+            address=address,
+            path=path,
+            left=leaf_before,
+            right=leaf_after,
+        )
+
+        result_diffs = cairo_run(
+            "test__process_storage_diff",
+            storage_key_preimages=diff_cls._storage_key_preimages,
+            path=path,
+            address=address,
+            left=leaf_before,
+            right=leaf_after,
+        )
+        if not isinstance(result_diffs, list):
+            result_diffs = [result_diffs]
+
+        result_lookup = {
+            diff["key"]: (diff["prev_value"], diff["new_value"])
+            for diff in result_diffs
+        }
+
+        for key, (prev_value, new_value) in diff_cls._storage_tries[address].items():
+            hashed_key = poseidon_hash_many(
+                int_to_uint256(int.from_bytes(key, "little"))
+            )
+            assert (prev_value, new_value) == result_lookup[hashed_key]
 
 
 class TestAccountNode:
