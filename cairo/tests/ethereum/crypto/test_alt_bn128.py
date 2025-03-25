@@ -59,12 +59,7 @@ b_inv_c1_ptr = segments.gen_arg(int_to_uint384(0))
 segments.load_data(bnf2_struct_ptr, [b_inv_c0_ptr, b_inv_c1_ptr])
 segments.load_data(ids.b_inv.address_, [bnf2_struct_ptr])
                 """,
-            ), cairo_error(
-                message="""
-An ASSERT_EQ instruction failed: 0 != 1.
-    assert is_inv = 1;
-"""
-            ):
+            ), strict_raises(AssertionError):
                 cairo_run_py("bnf2_div", a, b)
 
         @given(a=..., b=...)
