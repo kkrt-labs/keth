@@ -9,6 +9,7 @@ assertrepr
 asyncio
 autoflake
 autouse
+Barreto
 BASEFEE
 behaviour
 bigend
@@ -160,6 +161,7 @@ mswlen
 mulmod
 MULMOD
 mult
+Naehrig
 natspec
 nbits
 negone

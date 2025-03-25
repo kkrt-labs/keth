@@ -1,6 +1,7 @@
 # ruff: noqa: F403
 from cairo_addons.hints.bytes_hints import *
 from cairo_addons.hints.circuits import *
+from cairo_addons.hints.crypto import *
 from cairo_addons.hints.curve import *
 from cairo_addons.hints.decorator import implementations, register_hint
 from cairo_addons.hints.dict import *

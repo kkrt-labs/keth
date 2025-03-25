@@ -26,6 +26,12 @@ dw 0;
 dw 0;
 dw 0;
 
+U384_ONE:
+dw 1;
+dw 0;
+dw 0;
+dw 0;
+
 func min{range_check_ptr}(a: felt, b: felt) -> felt {
     alloc_locals;
 
