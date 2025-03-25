@@ -81,6 +81,19 @@ segments.load_data(ids.b_inv.address_, [bnf2_struct_ptr])
         def test_bnp2_point_at_infinity(self, cairo_run):
             assert cairo_run("bnp2_point_at_infinity") == BNP2.point_at_infinity()
 
+        def test_BNP2_B(self, cairo_run):
+            assert cairo_run("BNP2_B") == BNP2.B
+
+        @given(p=...)
+        def test_bnp2_init(self, cairo_run, p: BNP2):
+            assert cairo_run("bnp2_init", p.x, p.y) == p
+
+        @given(x=..., y=...)
+        def test_bnp2_init_fails(self, cairo_run, x: BNF2, y: BNF2):
+            assume(x != BNF2.zero() or y != BNF2.zero())
+            with pytest.raises(AssertionError):
+                cairo_run("bnp2_init", x, y)
+
         @given(p=...)
         def test_bnp2_double(self, cairo_run, p: BNP2):
             assert cairo_run("bnp2_double", p) == p.double()

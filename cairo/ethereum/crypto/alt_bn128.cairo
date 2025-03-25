@@ -165,9 +165,67 @@ struct BNP2 {
     value: BNP2Struct*,
 }
 
+func BNP2_B() -> BNF2 {
+    tempvar res = BNF2(
+        new BNF2Struct(
+            U384(
+                new UInt384(
+                    27810052284636130223308486885,
+                    40153378333836448380344387045,
+                    3104278944836790958,
+                    0,
+                ),
+            ),
+            U384(
+                new UInt384(
+                    70926583776874220189091304914,
+                    63498449372070794915149226116,
+                    42524369107353300,
+                    0,
+                ),
+            ),
+        ),
+    );
+    return res;
+}
+
 func bnp2_point_at_infinity() -> BNP2 {
     let bnf2_zero = BNF2_ZERO();
     tempvar res = BNP2(new BNP2Struct(bnf2_zero, bnf2_zero));
+    return res;
+}
+
+func bnp2_init{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
+    x: BNF2, y: BNF2
+) -> BNP2 {
+    alloc_locals;
+
+    // Get curve parameters for alt_bn128 over BNF2
+    // A = 0, B = 3
+    let bnf2_zero = BNF2_ZERO();
+    let bnf2_b = BNP2_B();
+
+    let x_is_zero = BNF2__eq__(x, bnf2_zero);
+    let y_is_zero = BNF2__eq__(y, bnf2_zero);
+    let is_infinity = x_is_zero * y_is_zero;
+    if (is_infinity != 0) {
+        tempvar res = BNP2(new BNP2Struct(x, y));
+        return res;
+    }
+    // If the point not the point at infinity, check if it's on the curve
+    // Compute y^2
+    let y_squared = bnf2_mul(y, y);
+    // Compute x^3
+    let x_squared = bnf2_mul(x, x);
+    let x_cubed = bnf2_mul(x_squared, x);
+    // Compute right side of equation: x^3 + A*x + B
+    // A = 0, so A*x = 0, and we can skip that term
+    let right_side = bnf2_add(x_cubed, bnf2_b);
+    // Check if y^2 = x^3 + A*x + B
+    let is_on_curve = BNF2__eq__(y_squared, right_side);
+    assert is_on_curve = 1;
+
+    tempvar res = BNP2(new BNP2Struct(x, y));
     return res;
 }
 
