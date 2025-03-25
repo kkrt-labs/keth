@@ -71,6 +71,7 @@ ECADD
 ecip
 ECMUL
 ECPAIRING
+elems
 elmt
 elmts
 elts
