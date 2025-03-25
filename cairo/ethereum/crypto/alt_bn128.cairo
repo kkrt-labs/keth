@@ -1466,16 +1466,9 @@ struct BNP12 {
     value: BNP12Struct*,
 }
 
-// @dev: Coefficient A of the short Weierstrass equation: y^2 = x^3 + Ax + B
-// for alt_bn128: A = 0 and B = 3
-func A() -> BNF12 {
-    let bnf12_zero = BNF12_ZERO();
-    return bnf12_zero;
-}
-
 // @dev: Coefficient B of the short Weierstrass equation: y^2 = x^3 + Ax + B
 // for alt_bn128: A = 0 and B = 3
-func B() -> BNF12 {
+func BNP12_B() -> BNF12 {
     let (u384_zero) = get_label_location(U384_ZERO);
     tempvar bnf12_three = BNF12(
         new BNF12Struct(
@@ -1499,6 +1492,39 @@ func B() -> BNF12 {
 func bnp12_point_at_infinity() -> BNP12 {
     let bnf12_zero = BNF12_ZERO();
     tempvar res = BNP12(new BNP12Struct(bnf12_zero, bnf12_zero));
+    return res;
+}
+
+func bnp12_init{
+    range_check_ptr, range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
+}(x: BNF12, y: BNF12) -> BNP12 {
+    alloc_locals;
+
+    let bnf12_zero = BNF12_ZERO();
+    let bnf12_b = BNP12_B();
+
+    // Check if the point is at infinity (0,0)
+    let x_is_zero = BNF12__eq__(x, bnf12_zero);
+    let y_is_zero = BNF12__eq__(y, bnf12_zero);
+    let is_infinity = x_is_zero * y_is_zero;
+    if (is_infinity != 0) {
+        tempvar res = BNP12(new BNP12Struct(x, y));
+        return res;
+    }
+
+    // For non-infinity points, verify the curve equation y² = x³ + B
+    // Compute y²
+    let y_squared = bnf12_mul(y, y);
+    // Compute x³
+    let x_squared = bnf12_mul(x, x);
+    let x_cubed = bnf12_mul(x_squared, x);
+    // Compute right side of equation: x³ + B
+    let right_side = bnf12_add(x_cubed, bnf12_b);
+    // Check if y² = x³ + B
+    let is_on_curve = BNF12__eq__(y_squared, right_side);
+    assert is_on_curve = 1;
+
+    tempvar res = BNP12(new BNP12Struct(x, y));
     return res;
 }
 
