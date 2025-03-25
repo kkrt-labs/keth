@@ -16,6 +16,7 @@ from ethereum.cancun.trie import (
 from ethereum_rlp.rlp import Extended, ExtendedImpl
 from ethereum_types.bytes import Bytes, BytesStruct
 from starkware.cairo.common.alloc import alloc
+from starkware.cairo.common.math import assert_not_zero
 
 from cairo_core.comparison import is_zero
 from cairo_core.control_flow import raise
@@ -90,8 +91,13 @@ func deserialize_to_internal_node{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}
             tempvar nibbles = Bytes(new BytesStruct(nibbles.value.data + 2, nibbles.value.len - 2));
         }
         let is_leaf = is_zero((first_nibble - 2) * (first_nibble - 3));
+        let nibbles = nibbles;
 
         if (is_leaf != 0) {
+            // Invariant check: value in the case of a leaf node must be Extended:bytes
+            if (cast(value.value.bytes.value, felt) == 0) {
+                raise('DecodingError');
+            }
             tempvar leaf_node = LeafNode(new LeafNodeStruct(rest_of_key=nibbles, value=value));
             let extension_node = ExtensionNode(cast(0, ExtensionNodeStruct*));
 
