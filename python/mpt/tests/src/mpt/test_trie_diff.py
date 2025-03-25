@@ -46,7 +46,6 @@ class TestTrieDiff:
         "data_path", [Path("test_data/22081873.json")], scope="session"
     )
     @given(data=st.data())
-    @settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_node_store_get(self, cairo_run, node_store, data):
         # take 20 keys from the node_store
         small_store = defaultdict(
