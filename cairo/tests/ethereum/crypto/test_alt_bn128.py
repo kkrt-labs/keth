@@ -2,7 +2,7 @@ import pytest
 from ethereum.crypto.alt_bn128 import BNF, BNF2, BNF12, BNP, BNP2, BNP12, bnf2_to_bnf12
 from hypothesis import assume, given
 
-from cairo_addons.testing.errors import cairo_error
+from cairo_addons.testing.errors import strict_raises
 from cairo_addons.testing.hints import patch_hint
 from cairo_ec.curve import AltBn128
 from tests.utils.args_gen import U384
