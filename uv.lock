@@ -1090,7 +1090,7 @@ wheels = [
 [[package]]
 name = "ethereum"
 version = "0.1.0"
-source = { git = "https://github.com/kkrt-labs/execution-specs.git?branch=kakarot-changes#01323eba1fba6d8534bfc467b800ceb4cc91dce9" }
+source = { git = "https://github.com/kkrt-labs/execution-specs.git?branch=kakarot-changes#516345727a74f59db8f9c8e2bb0e5199d2ada1f7" }
 dependencies = [
     { name = "coincurve" },
     { name = "ethereum-rlp" },
