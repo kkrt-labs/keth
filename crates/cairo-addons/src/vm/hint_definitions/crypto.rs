@@ -33,8 +33,7 @@ pub fn bnf2_multiplicative_inverse() -> Hint {
             let c1 = Uint384::from_base_addr(c1_addr, "b.c1", vm)?.pack();
 
             let b = Fq2::new(c0.into(), c1.into());
-            let b_inv = b.inverse().unwrap();
-            assert_eq!(b * b_inv, Fq2::ONE);
+            let b_inv = b.inverse().unwrap_or_default();
 
             let c0_u384 = Uint384::split(&b_inv.c0.into());
             let c1_u384 = Uint384::split(&b_inv.c1.into());

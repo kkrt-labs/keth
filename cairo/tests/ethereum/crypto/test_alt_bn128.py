@@ -36,9 +36,9 @@ class TestAltBn128:
             assume(b.multiplicative_inverse != BNF2.zero())
             assert cairo_run("bnf2_div", a, b) == a / b
 
-        @given(a=..., b=...)
-        def test_bnf2_div_by_zero_should_fail(self, cairo_run, a: BNF2, b: BNF2):
-            assume(b == BNF2.zero())
+        @given(a=...)
+        def test_bnf2_div_by_zero_should_fail(self, cairo_run, a: BNF2):
+            b = BNF2.zero()
             with pytest.raises(Exception):
                 cairo_run("bnf2_div", a, b)
 
