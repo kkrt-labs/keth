@@ -77,55 +77,49 @@ func deserialize_to_internal_node{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}
     }
 
     // Case Leaf Node or Extension Node
-    if (items_len == 2) {
-        let prefix = items[0].value.bytes;
-        let value = items[1];
 
-        let nibbles = bytes_to_nibble_list(prefix);
-        let first_nibble = nibbles.value.data[0];
-        // If the first nibble is 1 or 3, this means the real key is odd length and we need to remove the first nibble
-        if ((first_nibble - 1) * (first_nibble - 3) == 0) {
-            tempvar nibbles = Bytes(new BytesStruct(nibbles.value.data + 1, nibbles.value.len - 1));
-        } else {
-            // Else this means the real key is even length and we need to remove the first two nibbles (the flag itself and a padded zero)
-            tempvar nibbles = Bytes(new BytesStruct(nibbles.value.data + 2, nibbles.value.len - 2));
+    let prefix = items[0].value.bytes;
+    let value = items[1];
+
+    let nibbles = bytes_to_nibble_list(prefix);
+    let first_nibble = nibbles.value.data[0];
+    // If the first nibble is 1 or 3, this means the real key is odd length and we need to remove the first nibble
+    if ((first_nibble - 1) * (first_nibble - 3) == 0) {
+        tempvar nibbles = Bytes(new BytesStruct(nibbles.value.data + 1, nibbles.value.len - 1));
+    } else {
+        // Else this means the real key is even length and we need to remove the first two nibbles (the flag itself and a padded zero)
+        tempvar nibbles = Bytes(new BytesStruct(nibbles.value.data + 2, nibbles.value.len - 2));
+    }
+    let is_leaf = is_zero((first_nibble - 2) * (first_nibble - 3));
+    let nibbles = nibbles;
+
+    if (is_leaf != 0) {
+        // Invariant check: value in the case of a leaf node must be Extended:bytes
+        if (cast(value.value.bytes.value, felt) == 0) {
+            raise('DecodingError');
         }
-        let is_leaf = is_zero((first_nibble - 2) * (first_nibble - 3));
-        let nibbles = nibbles;
-
-        if (is_leaf != 0) {
-            // Invariant check: value in the case of a leaf node must be Extended:bytes
-            if (cast(value.value.bytes.value, felt) == 0) {
-                raise('DecodingError');
-            }
-            tempvar leaf_node = LeafNode(new LeafNodeStruct(rest_of_key=nibbles, value=value));
-            let extension_node = ExtensionNode(cast(0, ExtensionNodeStruct*));
-
-            // Without this step, leaf_node reference will be revoked.
-            tempvar leaf_node = leaf_node;
-            tempvar extension_node = extension_node;
-        } else {
-            let leaf_node = LeafNode(cast(0, LeafNodeStruct*));
-            tempvar extension_node = ExtensionNode(
-                new ExtensionNodeStruct(key_segment=nibbles, subnode=value)
-            );
-
-            // Without this step, leaf_node reference will be revoked.
-            tempvar leaf_node = leaf_node;
-            tempvar extension_node = extension_node;
-        }
+        tempvar leaf_node = LeafNode(new LeafNodeStruct(rest_of_key=nibbles, value=value));
 
         tempvar result = InternalNode(
             new InternalNodeEnum(
                 leaf_node=leaf_node,
-                extension_node=extension_node,
+                extension_node=ExtensionNode(cast(0, ExtensionNodeStruct*)),
                 branch_node=BranchNode(cast(0, BranchNodeStruct*)),
             ),
         );
         return result;
     }
 
-    with_attr error_message("DecodingError") {
-        jmp raise.raise_label;
-    }
+    tempvar extension_node = ExtensionNode(
+        new ExtensionNodeStruct(key_segment=nibbles, subnode=value)
+    );
+
+    tempvar result = InternalNode(
+        new InternalNodeEnum(
+            leaf_node=LeafNode(cast(0, LeafNodeStruct*)),
+            extension_node=extension_node,
+            branch_node=BranchNode(cast(0, BranchNodeStruct*)),
+        ),
+    );
+    return result;
 }
