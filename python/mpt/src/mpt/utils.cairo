@@ -15,6 +15,7 @@ from ethereum.cancun.trie import (
 )
 from ethereum_rlp.rlp import Extended, ExtendedImpl
 from ethereum_types.bytes import Bytes, BytesStruct
+from starkware.cairo.common.alloc import alloc
 
 from cairo_core.comparison import is_zero
 from cairo_core.control_flow import raise
@@ -38,43 +39,27 @@ func deserialize_to_internal_node{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}
 
     // Case 1: Branch node (17 items)
     if (items_len == 17) {
-        let branch_1 = ExtendedImpl.bytes(items[0].value.bytes);
-        let branch_2 = ExtendedImpl.bytes(items[1].value.bytes);
-        let branch_3 = ExtendedImpl.bytes(items[2].value.bytes);
-        let branch_4 = ExtendedImpl.bytes(items[3].value.bytes);
-        let branch_5 = ExtendedImpl.bytes(items[4].value.bytes);
-        let branch_6 = ExtendedImpl.bytes(items[5].value.bytes);
-        let branch_7 = ExtendedImpl.bytes(items[6].value.bytes);
-        let branch_8 = ExtendedImpl.bytes(items[7].value.bytes);
-        let branch_9 = ExtendedImpl.bytes(items[8].value.bytes);
-        let branch_10 = ExtendedImpl.bytes(items[9].value.bytes);
-        let branch_11 = ExtendedImpl.bytes(items[10].value.bytes);
-        let branch_12 = ExtendedImpl.bytes(items[11].value.bytes);
-        let branch_13 = ExtendedImpl.bytes(items[12].value.bytes);
-        let branch_14 = ExtendedImpl.bytes(items[13].value.bytes);
-        let branch_15 = ExtendedImpl.bytes(items[14].value.bytes);
-        let branch_16 = ExtendedImpl.bytes(items[15].value.bytes);
         tempvar subnodes = Subnodes(
             new SubnodesStruct(
-                branch_1,
-                branch_2,
-                branch_3,
-                branch_4,
-                branch_5,
-                branch_6,
-                branch_7,
-                branch_8,
-                branch_9,
-                branch_10,
-                branch_11,
-                branch_12,
-                branch_13,
-                branch_14,
-                branch_15,
-                branch_16,
+                Extended(items[0].value),
+                Extended(items[1].value),
+                Extended(items[2].value),
+                Extended(items[3].value),
+                Extended(items[4].value),
+                Extended(items[5].value),
+                Extended(items[6].value),
+                Extended(items[7].value),
+                Extended(items[8].value),
+                Extended(items[9].value),
+                Extended(items[10].value),
+                Extended(items[11].value),
+                Extended(items[12].value),
+                Extended(items[13].value),
+                Extended(items[14].value),
+                Extended(items[15].value),
             ),
         );
-        let value_item = ExtendedImpl.bytes(items[16].value.bytes);
+        let value_item = Extended(items[16].value);
 
         tempvar branch_node = BranchNode(new BranchNodeStruct(subnodes=subnodes, value=value_item));
 

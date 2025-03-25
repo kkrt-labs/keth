@@ -1,6 +1,7 @@
 from ethereum.cancun.trie import BranchNode, ExtensionNode, InternalNode
 
 from mpt.trie_diff import resolve
+from mpt.utils import deserialize_to_internal_node
 
 
 def test_embedded_nodes_resolve(branch_in_extension_data):
@@ -15,14 +16,14 @@ def test_embedded_nodes_resolve(branch_in_extension_data):
                     # embedded nodes are a list of decoded bytes that need to be serialized into an InternalNode
                     if isinstance(subnode, list):
                         resolved = resolve(subnode, nodes)
-                        assert isinstance(resolved, InternalNode)
+                        assert resolved == deserialize_to_internal_node(subnode)
                         # Recursively check the resolved node
                         check_node_and_subnodes(resolved)
             case ExtensionNode():
                 # extension nodes are a list of decoded bytes that need to be serialized into an InternalNode
                 if isinstance(node.subnode, list):
                     resolved = resolve(node.subnode, nodes)
-                    assert isinstance(resolved, InternalNode)
+                    assert resolved == deserialize_to_internal_node(node.subnode)
                     # Recursively check the resolved node
                     check_node_and_subnodes(resolved)
             case _:

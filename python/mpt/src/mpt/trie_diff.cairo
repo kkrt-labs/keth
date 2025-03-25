@@ -373,9 +373,7 @@ func resolve{
     // Case b: it is an embedded node
     if (cast(node.value.sequence.value, felt) != 0) {
         let sequence = ExtendedImpl.sequence(node.value.sequence);
-        let internal_node = deserialize_to_internal_node{
-            range_check_ptr=range_check_ptr, bitwise_ptr=bitwise_ptr
-        }(sequence);
+        let internal_node = deserialize_to_internal_node(sequence);
         let res = OptionalInternalNode(internal_node.value);
         return res;
     }
