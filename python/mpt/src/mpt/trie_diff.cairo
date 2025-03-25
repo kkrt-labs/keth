@@ -352,9 +352,16 @@ func resolve{
     }
 
     // Case 2: it is either a node hash or an embedded node
-    // Case 2.a: it is a node hash
+    // Case 2.a: it is a node hash or null
     if (cast(node.value.bytes.value, felt) != 0) {
         let bytes = node.value.bytes;
+        // Case 2.a.1: it is an empty subnode
+        if (bytes.value.len == 0) {
+            let res = OptionalInternalNode(cast(0, InternalNodeEnum*));
+            return res;
+        }
+
+        // Case 2.a.2: it is a 32-byte node hash
         if (bytes.value.len != 32) {
             // The bytes MUST be a 32-byte node hash
             raise('ValueError');
@@ -372,7 +379,7 @@ func resolve{
     if (cast(node.value.sequence.value, felt) != 0) {
         let sequence = ExtendedImpl.sequence(node.value.sequence);
         let internal_node = deserialize_to_internal_node(sequence);
-        let res = OptionalInternalNode(internal_node.value);
+        tempvar res = OptionalInternalNode(internal_node.value);
         return res;
     }
 

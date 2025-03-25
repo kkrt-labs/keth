@@ -4,19 +4,57 @@ from typing import Mapping, Optional
 
 import pytest
 from ethereum.cancun.fork_types import Address
-from ethereum.cancun.trie import BranchNode, ExtensionNode, InternalNode, LeafNode
+from ethereum.cancun.trie import (
+    BranchNode,
+    ExtensionNode,
+    InternalNode,
+    LeafNode,
+    encode_internal_node,
+)
 from ethereum.crypto.hash import Hash32, keccak256
 from ethereum_rlp import rlp
 from ethereum_types.bytes import Bytes, Bytes32
 from ethereum_types.numeric import U256
-from hypothesis import given
+from hypothesis import assume, given
 from hypothesis import strategies as st
+from hypothesis.strategies import composite
 from starkware.cairo.lang.vm.crypto import poseidon_hash_many
 
 from cairo_addons.utils.uint256 import int_to_uint256
 from mpt.ethereum_tries import EthereumTrieTransitionDB
 from mpt.trie_diff import StateDiff, resolve
 from mpt.utils import AccountNode, decode_node
+
+
+@composite
+def embedded_node_strategy(draw):
+    storage_value = draw(st.from_type(U256))
+    # subnodes is b"" except at index
+    subnodes = [b"" for _ in range(16)]
+    # inject storage_values into subnodes
+
+    # Create leaf node and encode it
+    leaf_node = LeafNode(rest_of_key=b"", value=rlp.encode(storage_value))
+    encoded_node = encode_internal_node(leaf_node)
+    assume(not isinstance(encoded_node, bytes))
+
+    subnodes[draw(st.integers(min_value=0, max_value=15))] = list(encoded_node)
+
+    branch_node = BranchNode(
+        subnodes=tuple(subnodes),
+        value=b"",
+    )
+    branch_node = encode_internal_node(branch_node)
+
+    # Check that we're not constructing a node hash
+    assume(not isinstance(branch_node, bytes))
+
+    extension_node = ExtensionNode(
+        key_segment=b"",
+        subnode=branch_node,
+    )
+
+    return extension_node
 
 
 @pytest.fixture
@@ -206,54 +244,25 @@ class TestTrieDiff:
             _, node = cairo_run("resolve", small_store, result)
             assert node == resolve(result, small_store)
 
-    def test_resolve_embedded_node(self, cairo_run, branch_in_extension_data):
-        node_store = branch_in_extension_data["nodes"]
-        node = list(node_store.values())[0]
-        if isinstance(node, ExtensionNode):
-            embedded_node = node.subnode
-            _, cairo_result = cairo_run("resolve", node_store, node=embedded_node)
-            branch = resolve(embedded_node, node_store)
-            assert branch == cairo_result
-            assert cairo_result == BranchNode(
-                subnodes=(
-                    b"",
-                    b"",
-                    b"",
-                    b"",
-                    b"",
-                    b"",
-                    b"",
-                    b"",
-                    b"",
-                    b"",
-                    [b" \xba", b"\n"],
-                    b"",
-                    b"",
-                    b"",
-                    [b" \xbe", b"\x0e"],
-                    b"",
-                ),
-                value=b"",
-            )
+    @given(embedded_node=embedded_node_strategy())
+    def test_resolve_embedded_node(self, cairo_run, embedded_node: InternalNode):
+        # We don't need a node store for this test
+        node_store = defaultdict(
+            lambda: None,
+        )
+        _, cairo_result = cairo_run("resolve", node_store, node=embedded_node)
+        extension = resolve(embedded_node, node_store)
+        assert cairo_result == extension
 
-            if isinstance(branch, BranchNode):
-                subnode = branch.subnodes[10]
-                if isinstance(subnode, list):
-                    _, cairo_result = cairo_run("resolve", node_store, node=subnode)
-                    result = resolve(subnode, node_store)
-                    assert result == cairo_result
-                    assert cairo_result == LeafNode(rest_of_key=b"\x0b\n", value=b"\n")
-                subnode = branch.subnodes[14]
-                if isinstance(subnode, list):
-                    _, cairo_result = cairo_run("resolve", node_store, node=subnode)
-                    result = resolve(subnode, node_store)
-                    assert result == cairo_result
-                    assert cairo_result == LeafNode(
-                        rest_of_key=b"\x0b\x0e", value=b"\x0e"
-                    )
-                for i in range(16):
-                    if i not in [10, 14]:
-                        assert branch.subnodes[i] == b""
+        subnode = extension.subnode
+        _, cairo_subnode = cairo_run("resolve", node_store, node=subnode)
+        branch_node = resolve(subnode, node_store)
+        assert cairo_subnode == branch_node
+
+        for subnode in branch_node.subnodes:
+            _, cairo_subnode = cairo_run("resolve", node_store, node=subnode)
+            subnode = resolve(subnode, node_store)
+            assert cairo_subnode == subnode
 
 
 class TestAccountNode:
