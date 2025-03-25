@@ -1,4 +1,4 @@
-use ark_bn254::{Fq12, Fq2, Fq6};
+use ark_bn254::{Fq12, Fq2};
 use ark_ff::Field;
 use num_bigint::BigUint;
 use std::collections::HashMap;
@@ -9,7 +9,7 @@ use cairo_vm::{
         hint_processor_definition::HintReference,
     },
     serde::deserialize_program::ApTracking,
-    types::{exec_scope::ExecutionScopes, relocatable::Relocatable},
+    types::exec_scope::ExecutionScopes,
     vm::{errors::hint_errors::HintError, vm_core::VirtualMachine},
     Felt252,
 };
@@ -54,7 +54,6 @@ pub fn bnf2_multiplicative_inverse() -> Hint {
         },
     )
 }
-
 pub fn bnf12_multiplicative_inverse() -> Hint {
     Hint::new(
         String::from("bnf12_multiplicative_inverse"),
@@ -65,57 +64,40 @@ pub fn bnf12_multiplicative_inverse() -> Hint {
          _constants: &HashMap<String, Felt252>|
          -> Result<(), HintError> {
             let b_addr = get_ptr_from_var_name("b", vm, ids_data, ap_tracking)?;
-            let mut coeffs = Vec::<BigUint>::new();
-            for i in 0..12 {
-                let coeff_addr = vm.get_relocatable((b_addr + (i as usize)).unwrap())?;
-                let name = format!("c{}", i);
-                let coeff = Uint384::from_base_addr(coeff_addr, &name, vm)?.pack();
-                coeffs.push(coeff);
-            }
+            let coeffs = (0..12)
+                .map(|i| {
+                    let coeff_addr = vm.get_relocatable((b_addr + (i as usize)).unwrap()).unwrap();
+                    let name = format!("b.c{}", i);
+                    Uint384::from_base_addr(coeff_addr, &name, vm).unwrap().pack()
+                })
+                .map(Into::into);
 
-            let fq2_real_0 = Fq2::new(coeffs[0].clone().into(), coeffs[1].clone().into());
-            let fq2_real_1 = Fq2::new(coeffs[2].clone().into(), coeffs[3].clone().into());
-            let fq2_real_2 = Fq2::new(coeffs[4].clone().into(), coeffs[5].clone().into());
-            let fq2_imaginary_0 = Fq2::new(coeffs[6].clone().into(), coeffs[7].clone().into());
-            let fq2_imaginary_1 = Fq2::new(coeffs[8].clone().into(), coeffs[9].clone().into());
-            let fq2_imaginary_2 = Fq2::new(coeffs[10].clone().into(), coeffs[11].clone().into());
-            let fq6_real = Fq6::new(fq2_real_0, fq2_real_1, fq2_real_2);
-            let fq6_imaginary = Fq6::new(fq2_imaginary_0, fq2_imaginary_1, fq2_imaginary_2);
-            let b = Fq12::new(fq6_real, fq6_imaginary);
+            let b = Fq12::from_base_prime_field_elems(coeffs).unwrap();
             let b_inv = b.inverse().unwrap();
-            let res = dbg!(b * b_inv);
-            dbg!(assert_eq!(res, Fq12::ONE));
+            dbg!(b);
+            dbg!(b_inv);
 
-            let c0_u384 = Uint384::split(&b_inv.c0.c0.c0.into());
-            let c1_u384 = Uint384::split(&b_inv.c0.c0.c1.into());
-            let c2_u384 = Uint384::split(&b_inv.c0.c1.c0.into());
-            let c3_u384 = Uint384::split(&b_inv.c0.c1.c1.into());
-            let c4_u384 = Uint384::split(&b_inv.c0.c2.c0.into());
-            let c5_u384 = Uint384::split(&b_inv.c0.c2.c1.into());
-            let c6_u384 = Uint384::split(&b_inv.c1.c0.c0.into());
-            let c7_u384 = Uint384::split(&b_inv.c1.c0.c1.into());
-            let c8_u384 = Uint384::split(&b_inv.c1.c1.c0.into());
-            let c9_u384 = Uint384::split(&b_inv.c1.c1.c1.into());
-            let c10_u384 = Uint384::split(&b_inv.c1.c2.c0.into());
-            let c11_u384 = Uint384::split(&b_inv.c1.c2.c1.into());
+            let res = b * b_inv;
+            assert_eq!(res, Fq12::ONE);
 
-            let coeffs_u384 = [
-                c0_u384, c1_u384, c2_u384, c3_u384, c4_u384, c5_u384, c6_u384, c7_u384, c8_u384,
-                c9_u384, c10_u384, c11_u384,
-            ];
+            let _b_coeffs: Vec<BigUint> =
+                dbg!(b.to_base_prime_field_elements().map(Into::into).collect());
 
-            let bnf2_struct_ptr = vm.add_memory_segment();
-            for i in 0..12 {
+            let b_inv_coeffs: Vec<BigUint> =
+                b_inv.to_base_prime_field_elements().map(Into::into).collect();
+            let b_inv_coeffs_u384: Vec<Uint384<'_>> =
+                b_inv_coeffs.iter().map(Uint384::split).collect();
+
+            let bnf12_struct_ptr = vm.add_memory_segment();
+            for (i, coeff) in b_inv_coeffs_u384.iter().enumerate() {
                 let coeff_ptr = vm.add_memory_segment();
-                for j in 0..4 {
-                    vm.insert_value(
-                        (coeff_ptr + j)?,
-                        coeffs_u384[i].limbs[j].clone().into_owned(),
-                    )?;
-                }
-                vm.insert_value((bnf2_struct_ptr + i)?, coeff_ptr)?;
+                coeff.limbs.iter().enumerate().try_for_each(|(j, limb)| {
+                    vm.insert_value((coeff_ptr + j)?, limb.clone().into_owned())
+                })?;
+                vm.insert_value((bnf12_struct_ptr + i)?, coeff_ptr)?;
             }
-            insert_value_from_var_name("b_inv", bnf2_struct_ptr, vm, ids_data, ap_tracking)?;
+
+            insert_value_from_var_name("b_inv", bnf12_struct_ptr, vm, ids_data, ap_tracking)?;
             Ok(())
         },
     )
