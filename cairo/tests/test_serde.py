@@ -45,6 +45,7 @@ from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 from starkware.cairo.lang.vm.memory_dict import MemoryDict
 from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 
+from mpt.utils import AccountNode
 from tests.utils.args_gen import U384, Memory, Stack, _cairo_struct_to_python_type
 from tests.utils.args_gen import gen_arg as _gen_arg
 from tests.utils.args_gen import to_cairo_type as _to_cairo_type
@@ -297,6 +298,9 @@ class TestSerde:
             BNF,
             BNP,
             BNP2,
+            AccountNode,
+            Mapping[Bytes32, Address],
+            Mapping[Hash32, Optional[InternalNode]],
         ],
     ):
         assume(no_empty_sequence(b))

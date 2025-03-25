@@ -97,6 +97,10 @@ struct LeafNode {
     value: LeafNodeStruct*,
 }
 
+struct OptionalLeafNode {
+    value: LeafNodeStruct*,
+}
+
 struct ExtensionNodeStruct {
     key_segment: Bytes,
     subnode: Extended,

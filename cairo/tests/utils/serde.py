@@ -76,6 +76,7 @@ from starkware.cairo.lang.vm.crypto import poseidon_hash_many
 from starkware.cairo.lang.vm.memory_dict import UnknownMemoryError
 from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 
+from cairo_addons.testing.compiler import get_main_path
 from cairo_addons.vm import MemorySegmentManager as RustMemorySegmentManager
 from tests.utils.args_gen import (
     U384,
@@ -136,14 +137,6 @@ class Serde:
         self.dict_manager = dict_manager
         self.cairo_file = cairo_file or Path()
 
-    @property
-    def main_part(self):
-        """
-        Resolve the __main__ part of the cairo scope path.
-        """
-        parts = self.cairo_file.relative_to(Path.cwd()).with_suffix("").parts
-        return parts[1:] if parts[0] == "cairo" else parts
-
     def serialize_pointers(self, path: Tuple[str, ...], ptr):
         """
         Serialize a pointer to a struct, e.g. Uint256*.
@@ -176,7 +169,10 @@ class Serde:
 
         full_path = path
         if "__main__" in full_path:
-            full_path = self.main_part + full_path[full_path.index("__main__") + 1 :]
+            full_path = (
+                get_main_path(self.cairo_file)
+                + full_path[full_path.index("__main__") + 1 :]
+            )
         python_cls = to_python_type(full_path)
         origin_cls = get_origin(python_cls)
         annotations = []

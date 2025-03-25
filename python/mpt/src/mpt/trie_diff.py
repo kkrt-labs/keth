@@ -12,7 +12,7 @@ from ethereum_rlp import rlp
 from ethereum_types.bytes import Bytes, Bytes32
 from ethereum_types.numeric import U256, Uint
 
-from mpt import EthereumTrieTransitionDB
+from mpt.ethereum_tries import EthereumTrieTransitionDB
 from mpt.utils import AccountNode, nibble_path_to_bytes
 
 logger = logging.getLogger(__name__)

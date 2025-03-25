@@ -144,6 +144,7 @@ from cairo_addons.vm import DictTracker as RustDictTracker
 from cairo_addons.vm import MemorySegmentManager as RustMemorySegmentManager
 from cairo_addons.vm import Relocatable as RustRelocatable
 from cairo_ec.curve import ECBase
+from mpt.utils import AccountNode
 from tests.utils.helpers import flatten
 
 HASHED_TYPES = [
@@ -680,6 +681,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
         Address, Trie[Bytes32, U256]
     ],
     ("ethereum", "cancun", "trie", "LeafNode"): LeafNode,
+    ("ethereum", "cancun", "trie", "OptionalLeafNode"): Optional[LeafNode],
     ("ethereum", "cancun", "trie", "ExtensionNode"): ExtensionNode,
     ("ethereum", "cancun", "trie", "BranchNode"): BranchNode,
     ("ethereum", "cancun", "trie", "InternalNode"): InternalNode,
@@ -729,9 +731,6 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
         "TrieBytesOptionalUnionBytesWithdrawal",
     ): Trie[Bytes, Optional[Union[Bytes, Withdrawal]]],
     ("ethereum", "cancun", "trie", "OptionalInternalNode"): Optional[InternalNode],
-    ("ethereum", "cancun", "trie_diff", "NodeStore"): Mapping[
-        Hash32, Optional[InternalNode]
-    ],
     ("ethereum", "cancun", "fork_types", "MappingAddressAccount"): Mapping[
         Address, Account
     ],
@@ -784,6 +783,9 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "crypto", "alt_bn128", "BNP"): BNP,
     ("ethereum", "crypto", "alt_bn128", "BNF"): BNF,
     ("ethereum", "crypto", "alt_bn128", "BNP2"): BNP2,
+    ("mpt", "trie_diff", "MappingBytes32Address"): Mapping[Bytes32, Address],
+    ("mpt", "trie_diff", "AccountNode"): AccountNode,
+    ("mpt", "trie_diff", "NodeStore"): Mapping[Hash32, Optional[InternalNode]],
 }
 
 # In the EELS, some functions are annotated with Sequence while it's actually just Bytes.
