@@ -106,11 +106,11 @@ struct AddressAccountNodeDictAccess {
     new_value: AccountNode,
 }
 
-struct UnionOptionalInternalNodeExtended {
-    value: UnionOptionalInternalNodeExtendedEnum*,
+struct OptionalUnionInternalNodeExtended {
+    value: OptionalUnionInternalNodeExtendedEnum*,
 }
-struct UnionOptionalInternalNodeExtendedEnum {
-    node: OptionalInternalNode,
+struct OptionalUnionInternalNodeExtendedEnum {
+    node: InternalNode,
     extended: Extended,
 }
 
@@ -314,17 +314,29 @@ func resolve{
     bitwise_ptr: BitwiseBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
     node_store: NodeStore,
-}(node: UnionOptionalInternalNodeExtended) -> OptionalInternalNode {
+}(node: OptionalUnionInternalNodeExtended) -> OptionalInternalNode {
     alloc_locals;
+
+    if (cast(node.value, felt) == 0) {
+        let res = OptionalInternalNode(cast(0, InternalNodeEnum*));
+        return res;
+    }
+
     // Case 1: it is a node
-    // if (cast(node.value.node.value, felt) != 0) {
-    //     let result = node.value.node;
-    //     return result;
-    // }
+    if (cast(node.value.node.value, felt) != 0) {
+        let result = OptionalInternalNode(node.value.node.value);
+        return result;
+    }
 
     // Case 2: it is either a node hash or an embedded node
     let enum = node.value.extended.value;
-    // Case a: it is a node hash
+    // Case a: empty bytes
+    if (cast(enum.bytes.value, felt) == 0) {
+        let res = OptionalInternalNode(cast(0, InternalNodeEnum*));
+        return res;
+    }
+
+    // Case b: it is a node hash
     if (cast(enum.bytes.value, felt) != 0) {
         let bytes = enum.bytes;
         if (bytes.value.len != 32) {
@@ -334,11 +346,13 @@ func resolve{
 
         // Get the node hash from the node store
         let node_hash = Bytes_to_Bytes32(bytes);
+
         let result = node_store_get{poseidon_ptr=poseidon_ptr, node_store=node_store}(node_hash);
+
         return result;
     }
 
-    // Case b: it is an embedded node
+    // Case c: it is an embedded node
     // TODO: support embedded nodes
     with_attr error_message("Value Error: No support for embedded nodes or other node types") {
         jmp raise.raise_label;

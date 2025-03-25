@@ -788,8 +788,8 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("mpt", "trie_diff", "AccountNode"): AccountNode,
     ("mpt", "trie_diff", "NodeStore"): Mapping[Hash32, Optional[InternalNode]],
     ("cairo_core", "bytes", "HashedBytes32"): int,
-    ("mpt", "trie_diff", "UnionOptionalInternalNodeExtended"): Union[
-        Optional[InternalNode], Extended
+    ("mpt", "trie_diff", "OptionalUnionInternalNodeExtended"): Optional[
+        Union[InternalNode, Extended]
     ],
 }
 

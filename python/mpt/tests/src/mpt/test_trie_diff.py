@@ -175,6 +175,8 @@ class TestTrieDiff:
     @pytest.mark.parametrize(
         "data_path", [Path("test_data/22081873.json")], scope="session"
     )
+    # trunk-ignore(cspell/error)
+    @reproduce_failure("6.128.2", b"AEEFQQBBAEEAQQBBAA==")
     @given(data=st.data())
     def test_resolve(self, cairo_run, node_store: Mapping[Hash32, InternalNode], data):
         # take 20 keys from the node_store
@@ -198,7 +200,7 @@ class TestTrieDiff:
         keys.append(keccak256("non_existing".encode()))
 
         for key in keys:
-            _, cairo_result = cairo_run("resolve", small_store, key)
+            _, cairo_result = cairo_run("resolve", small_store, bytes(key))
             result = resolve(key, small_store)
             assert result == cairo_result
 

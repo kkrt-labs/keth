@@ -405,12 +405,12 @@ class StateDiff:
 
 
 def resolve(
-    node: Union[Optional[InternalNode], Extended], nodes: Dict[Hash32, InternalNode]
+    node: Optional[Union[InternalNode, Extended]], nodes: Dict[Hash32, InternalNode]
 ) -> InternalNode | None:
-    if isinstance(node, InternalNode):
-        return node
     if node is None or node == b"":
         return None
+    if isinstance(node, InternalNode):
+        return node
     if isinstance(node, bytes) and len(node) == 32:
         return nodes.get(node)
     if isinstance(node, List[bytes]):
