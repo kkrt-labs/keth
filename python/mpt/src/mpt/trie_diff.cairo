@@ -129,7 +129,7 @@ func AccountNode_from_rlp{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     return res;
 }
 
-// Process the difference between two account f nodes
+// Process the difference between two account nodes
 func _process_account_diff{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
