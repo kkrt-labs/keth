@@ -78,16 +78,16 @@ func deserialize_to_internal_node{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}
     // Case Leaf Node or Extension Node
     if (items_len == 2) {
         let prefix = items[0].value.bytes;
-        let value = ExtendedImpl.bytes(items[1].value.bytes);
+        let value = items[1];
 
         let nibbles = bytes_to_nibble_list(prefix);
         let first_nibble = nibbles.value.data[0];
         // If the first nibble is 1 or 3, this means the real key is odd length and we need to remove the first nibble
         if ((first_nibble - 1) * (first_nibble - 3) == 0) {
-            tempvar nibbles = Bytes(new BytesStruct(prefix.value.data + 1, prefix.value.len - 1));
+            tempvar nibbles = Bytes(new BytesStruct(nibbles.value.data + 1, nibbles.value.len - 1));
         } else {
             // Else this means the real key is even length and we need to remove the first two nibbles (the flag itself and a padded zero)
-            tempvar nibbles = Bytes(new BytesStruct(prefix.value.data + 2, prefix.value.len - 2));
+            tempvar nibbles = Bytes(new BytesStruct(nibbles.value.data + 2, nibbles.value.len - 2));
         }
         let is_leaf = is_zero((first_nibble - 2) * (first_nibble - 3));
 

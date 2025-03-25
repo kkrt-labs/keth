@@ -16,7 +16,7 @@ from starkware.cairo.lang.vm.crypto import poseidon_hash_many
 from cairo_addons.utils.uint256 import int_to_uint256
 from mpt.ethereum_tries import EthereumTrieTransitionDB
 from mpt.trie_diff import StateDiff, resolve
-from mpt.utils import AccountNode, decode_node, deserialize_to_internal_node
+from mpt.utils import AccountNode, decode_node
 
 
 @pytest.fixture
@@ -208,13 +208,21 @@ class TestTrieDiff:
 
     def test_resolve_embedded_node(self, cairo_run, branch_in_extension_data):
         node_store = branch_in_extension_data["nodes"]
-        node = list(node_store.values())[0]
-        if isinstance(node, ExtensionNode):
-            embedded_node = node.subnode
-            _, cairo_result = cairo_run("resolve", node_store, node=embedded_node)
-            result = resolve(embedded_node, node_store)
-            assert result == deserialize_to_internal_node(embedded_node)
-            assert cairo_result == result
+        for node in node_store.values():
+            if isinstance(node, ExtensionNode):
+                embedded_node = node.subnode
+                _, cairo_result = cairo_run("resolve", node_store, node=embedded_node)
+                result = resolve(embedded_node, node_store)
+                assert result == cairo_result
+
+                if isinstance(result, BranchNode):
+                    for subnode in result.subnodes:
+                        if isinstance(subnode, list):
+                            _, cairo_result = cairo_run(
+                                "resolve", node_store, node=subnode
+                            )
+                            result = resolve(subnode, node_store)
+                            assert result == cairo_result
 
 
 class TestAccountNode:
