@@ -74,13 +74,14 @@ func Bytes__eq__(_self: Bytes, other: Bytes) -> bool {
 
 func Bytes__startswith__{range_check_ptr}(self: Bytes, prefix: Bytes) -> bool {
     alloc_locals;
-    let is_prefix = is_le(prefix.value.len, self.value.len);
-    if (is_prefix == 0) {
+    let len_smaller = is_le(prefix.value.len, self.value.len);
+    if (len_smaller == 0) {
         tempvar res = bool(0);
         return res;
     }
-    tempvar self = Bytes(new BytesStruct(data=self.value.data, len=prefix.value.len));
-    let res = Bytes__eq__(self, prefix);
+    // Check whether self.value.data[0:len(prefix)] == prefix
+    tempvar self_slice = Bytes(new BytesStruct(data=self.value.data, len=prefix.value.len));
+    let res = Bytes__eq__(self_slice, prefix);
     return res;
 }
 
