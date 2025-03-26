@@ -7,6 +7,10 @@ from hypothesis import strategies as st
 
 class TestBytes:
     @given(a=..., b=...)
+    def test_Bytes__add__(self, cairo_run, a: Bytes, b: Bytes):
+        assert cairo_run("Bytes__add__", a, b) == a + b
+
+    @given(a=..., b=...)
     def test_Bytes__eq__(self, cairo_run, a: Bytes, b: Bytes):
         assert (a == b) == cairo_run("Bytes__eq__", a, b)
 
