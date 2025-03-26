@@ -19,7 +19,7 @@ from ethereum_types.bytes import Bytes, Bytes20, Bytes32
 from ethereum_types.numeric import U256
 
 from eth_rpc import EthereumRPC
-from mpt.utils import AccountNode, decode_node, nibble_path_to_bytes
+from mpt.utils import AccountNode, decode_node, nibble_list_to_bytes
 
 logger = logging.getLogger(__name__)
 
@@ -165,9 +165,6 @@ class EthereumTries:
         """
         match node:
             case BranchNode():
-                logger.debug(
-                    f"Traversing branch node with current path 0x{nibble_path_to_bytes(current_path).hex()}"
-                )
                 for i, subnode in enumerate(node.subnodes):
                     # We skip empty nodes
                     if not subnode:
@@ -188,9 +185,6 @@ class EthereumTries:
                         # is not needed for block execution
                         continue
 
-                    logger.debug(
-                        f"Traversing branch node with current path 0x{nibble_path_to_bytes(current_path + nibble).hex()}"
-                    )
                     self.traverse_trie_and_process_leaf(
                         next_node,
                         current_path + nibble,
@@ -199,9 +193,6 @@ class EthereumTries:
                 return
 
             case ExtensionNode():
-                logger.debug(
-                    f"Traversing extension node with current path 0x{nibble_path_to_bytes(current_path + node.key_segment).hex()}"
-                )
                 current_path = current_path + node.key_segment
 
                 if len(node.subnode) > 32:
@@ -225,10 +216,7 @@ class EthereumTries:
                 )
 
             case LeafNode():
-                logger.debug(
-                    f"Traversing leaf node with current path 0x{nibble_path_to_bytes(current_path + node.rest_of_key).hex()}"
-                )
-                full_path = nibble_path_to_bytes(current_path + node.rest_of_key)
+                full_path = nibble_list_to_bytes(current_path + node.rest_of_key)
                 return process_leaf(
                     node,
                     full_path,
