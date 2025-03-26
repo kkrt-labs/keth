@@ -35,6 +35,15 @@ func Bytes__add__(_self: Bytes, other: Bytes) -> Bytes {
     return res;
 }
 
+func Bytes__extend__{self: Bytes}(other: Bytes) {
+    alloc_locals;
+    memcpy(self.value.data + self.value.len, other.value.data, other.value.len);
+    tempvar self = Bytes(
+        new BytesStruct(data=self.value.data, len=self.value.len + other.value.len)
+    );
+    return ();
+}
+
 func Bytes__eq__(_self: Bytes, other: Bytes) -> bool {
     if (_self.value.len != other.value.len) {
         tempvar res = bool(0);
