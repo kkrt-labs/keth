@@ -38,18 +38,13 @@ def is_positive_hint(ids: VmConsts):
 def value_len_mod_two(ids: VmConsts):
     ids.remainder = ids.len % 2
 
+
 @register_hint
 def felt252_to_bits(ids: VmConsts, segments: MemorySegmentManager):
-    limb = ids.limb
-    current_len = ids.current_len
-    bits_ptr = ids.bits_ptr
+    value = ids.value
+    dst = ids.dst
 
-    # Convert the limb to binary representation and remove '0b' prefix
-    binary = bin(limb)[2:]
-
-    # Write each bit to memory
-    for i, bit in enumerate(binary):
-        segments.memory[bits_ptr + current_len + i] = int(bit)
-
-    # Update the current_len with the new length
-    ids.current_len = current_len + len(binary)
+    # Convert to binary representation and strip the leading '0b' prefix
+    # also, pad with leading zeros if necessary (if value has less bits than len)
+    binary = bin(value)[2:].zfill(ids.len)
+    segments.write_arg(dst, [int(bit) for bit in binary][::-1])
