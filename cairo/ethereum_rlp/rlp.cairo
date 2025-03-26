@@ -4,7 +4,7 @@ from starkware.cairo.common.math_cmp import is_le, is_not_zero
 from starkware.cairo.common.math import assert_not_zero, split_int
 from starkware.cairo.common.memcpy import memcpy
 
-from ethereum_types.numeric import Bool, U256, Uint, U64, U256Struct
+from ethereum_types.numeric import Bool, U256, Uint, U64, U256Struct, bool
 from ethereum_types.bytes import (
     Bytes,
     Bytes0,
@@ -59,7 +59,7 @@ from ethereum.utils.numeric import (
     Uint_from_be_bytes,
     U64_from_be_bytes,
 )
-from ethereum.utils.bytes import Bytes8_to_Bytes
+from ethereum.utils.bytes import Bytes8_to_Bytes, Bytes__eq__
 from cairo_core.comparison import is_zero
 from legacy.utils.array import reverse
 from legacy.utils.bytes import (
@@ -220,6 +220,54 @@ namespace ExtendedImpl {
         );
         return extended;
     }
+}
+
+// Partial equality check for Extended, only for bytes and sequence variants
+func Extended__eq__(left: Extended, right: Extended) -> bool {
+    // None case
+    if (cast(left.value, felt) == 0 and cast(right.value, felt) == 0) {
+        let res = bool(1);
+        return res;
+    }
+
+    // Bytes case
+    if (left.value.bytes.value != 0 and right.value.bytes.value != 0) {
+        let res = Bytes__eq__(left.value.bytes, right.value.bytes);
+        return res;
+    }
+
+    // Sequence case
+    if (left.value.sequence.value != 0 and right.value.sequence.value != 0) {
+        let res = SequenceExtended__eq__(left.value.sequence, right.value.sequence);
+        return res;
+    }
+
+    with_attr error_message("Unimplemented for types other than bytes and sequence") {
+        jmp raise.raise_label;
+    }
+}
+
+// @notice Recursively compares two SequenceExtended. Compares each element of the sequence
+// and returns false upon finding two elements that are not equal.
+func SequenceExtended__eq__(left: SequenceExtended, right: SequenceExtended) -> bool {
+    if (left.value.len != right.value.len) {
+        let res = bool(0);
+        return res;
+    }
+    let len = left.value.len;
+    if (len == 0) {
+        let res = bool(1);
+        return res;
+    }
+    let res = Extended__eq__(left.value.data[0], right.value.data[0]);
+    if (res.value == 0) {
+        let res = bool(0);
+        return res;
+    }
+    tempvar left = SequenceExtended(new SequenceExtendedStruct(left.value.data + 1, len - 1));
+    tempvar right = SequenceExtended(new SequenceExtendedStruct(right.value.data + 1, len - 1));
+    let res = SequenceExtended__eq__(left, right);
+    return res;
 }
 
 //
