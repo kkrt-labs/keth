@@ -388,8 +388,7 @@ class TestRlp:
         def test_eq_sequence_bytes(
             self, cairo_run, left: Sequence[Bytes], right: Sequence[Bytes]
         ):
-            left_eq_right = left == right
-            assert left_eq_right == cairo_run("Extended__eq__", left, right)
+            assert (left == right) == cairo_run("Extended__eq__", left, right)
 
         @pytest.mark.xfail(
             reason="Extended__eq__ only supports bytes and sequence types"
@@ -412,5 +411,4 @@ class TestRlp:
                     and all(isinstance(item, Bytes) for item in right)
                 )
             )
-            left_eq_right = left == right
-            assert left_eq_right == cairo_run("Extended__eq__", left, right)
+            assert (left == right) == cairo_run("Extended__eq__", left, right)
