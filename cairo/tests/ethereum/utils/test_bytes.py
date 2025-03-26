@@ -10,6 +10,14 @@ class TestBytes:
     def test_Bytes__eq__(self, cairo_run, a: Bytes, b: Bytes):
         assert (a == b) == cairo_run("Bytes__eq__", a, b)
 
+    @given(a=..., b=...)
+    def test_Bytes__startswith__(self, cairo_run, a: Bytes, b: Bytes):
+        assert (a.startswith(b)) == cairo_run("Bytes__startswith__", a, b)
+        assert (b.startswith(a)) == cairo_run("Bytes__startswith__", b, a)
+        assert (a.startswith(a[0 : len(a) // 2])) == cairo_run(
+            "Bytes__startswith__", a, a[0 : len(a) // 2]
+        )
+
     @given(a=...)
     def test_Bytes20_to_Bytes(self, cairo_run, a: Bytes20):
         assert cairo_run("Bytes20_to_Bytes", a) == Bytes(a)
