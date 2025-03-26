@@ -254,7 +254,7 @@ func Extended__eq__(left: Extended, right: Extended) -> bool {
             return res;
         }
         let len = left.value.sequence.value.len;
-        let res = Extended__eq__inner(left.value.sequence, right.value.sequence, len);
+        let res = SequenceExtended__eq__(left.value.sequence, right.value.sequence, len);
         return res;
     }
 
@@ -263,7 +263,7 @@ func Extended__eq__(left: Extended, right: Extended) -> bool {
     }
 }
 
-func Extended__eq__inner(left: SequenceExtended, right: SequenceExtended, len: felt) -> bool {
+func SequenceExtended__eq__(left: SequenceExtended, right: SequenceExtended, len: felt) -> bool {
     if (len == 0) {
         let res = bool(1);
         return res;
@@ -274,7 +274,7 @@ func Extended__eq__inner(left: SequenceExtended, right: SequenceExtended, len: f
         return res;
     }
     let len = len - 1;
-    let res = Extended__eq__inner(left, right, len);
+    let res = SequenceExtended__eq__(left, right, len);
     return res;
 }
 
