@@ -72,16 +72,11 @@ pub fn bnf12_multiplicative_inverse() -> Hint {
                 })
                 .map(Into::into);
 
-            let b = Fq12::from_base_prime_field_elems(coeffs).unwrap();
-            let b_inv = b.inverse().unwrap();
-            dbg!(b);
-            dbg!(b_inv);
+            let b = dbg!(Fq12::from_base_prime_field_elems(coeffs).unwrap());
+            let b_inv = dbg!(b.inverse().unwrap());
 
             let res = b * b_inv;
             assert_eq!(res, Fq12::ONE);
-
-            let _b_coeffs: Vec<BigUint> =
-                dbg!(b.to_base_prime_field_elements().map(Into::into).collect());
 
             let b_inv_coeffs: Vec<BigUint> =
                 b_inv.to_base_prime_field_elements().map(Into::into).collect();
