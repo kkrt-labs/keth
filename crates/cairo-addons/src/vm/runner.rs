@@ -41,7 +41,7 @@ use std::{
 use stwo_cairo_adapter::ExecutionResources as ProverExecutionResources;
 use stwo_cairo_prover::{
     cairo_air::{
-        prover::{default_prod_prover_parameters, prove_cairo, ProverConfig},
+        prover::{default_prod_prover_parameters, prove_cairo, ProverParameters},
         verifier::verify_cairo,
     },
     stwo_prover::core::vcs::blake2_merkle::Blake2sMerkleChannel,
@@ -718,12 +718,13 @@ except Exception as e:
         let prover_execution_resources = ProverExecutionResources::from_prover_input(&cairo_input);
         tracing::debug!("Prover Execution resources: {:#?}", prover_execution_resources);
 
-        let prover_config = ProverConfig { display_components: false };
-        let pcs_config = default_prod_prover_parameters().pcs_config;
+        let ProverParameters { channel_hash: _, pcs_config, preprocessed_trace } =
+            default_prod_prover_parameters();
 
         // Generate the proof
-        let proof = prove_cairo::<Blake2sMerkleChannel>(cairo_input, prover_config, pcs_config)
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+        let proof =
+            prove_cairo::<Blake2sMerkleChannel>(cairo_input, pcs_config, preprocessed_trace)
+                .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
         drop(_proof_span_guard);
         tracing::info!("Proof generation completed");
 
@@ -740,7 +741,7 @@ except Exception as e:
             let verify_span = tracing::span!(tracing::Level::INFO, "proof_verification");
             let _verify_span_guard = verify_span.enter();
 
-            verify_cairo::<Blake2sMerkleChannel>(proof, pcs_config)
+            verify_cairo::<Blake2sMerkleChannel>(proof, pcs_config, preprocessed_trace)
                 .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
             drop(_verify_span_guard);
             tracing::info!("Proof verified successfully");
