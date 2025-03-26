@@ -1,3 +1,8 @@
+from starkware.cairo.common.alloc import alloc
+from starkware.cairo.common.cairo_builtins import PoseidonBuiltin, BitwiseBuiltin
+from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
+from starkware.cairo.common.dict import DictAccess
+
 from ethereum.crypto.hash import Hash32
 from ethereum.cancun.fork_types import Address, TupleAddressBytes32U256DictAccess
 from ethereum_types.bytes import (
@@ -8,25 +13,28 @@ from ethereum_types.bytes import (
     OptionalBytes32,
     BytesStruct,
     HashedBytes32,
+    String,
 )
-from ethereum_types.numeric import U256, Uint, U256Struct
+from ethereum_types.numeric import U256, Uint, U256Struct, Bool
 from ethereum.cancun.trie import (
     LeafNode,
+    ExtensionNode,
+    BranchNode,
+    InternalNode,
     OptionalLeafNode,
     OptionalInternalNode,
     InternalNodeEnum,
     Bytes32U256DictAccess,
 )
-from ethereum_rlp.rlp import Extended, decode, U256_from_rlp
-from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.cairo_builtins import PoseidonBuiltin, BitwiseBuiltin
-from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
+from ethereum_rlp.rlp import Extended, decode, U256_from_rlp, SequenceExtended, ExtendedImpl
+
 from starkware.cairo.common.builtin_poseidon.poseidon import poseidon_hash, poseidon_hash_many
 from legacy.utils.dict import hashdict_read, hashdict_write, dict_new_empty, dict_read
 from cairo_core.control_flow import raise
-from starkware.cairo.common.dict import DictAccess
 from ethereum.utils.numeric import ceil32, divmod, U256_from_be_bytes, U256_le, Uint_from_be_bytes
 from ethereum.utils.bytes import Bytes_to_Bytes32
+
+from mpt.utils import deserialize_to_internal_node
 
 // NodeStore is a mapping of node hashes to their corresponding InternalNode
 // In the world state DB given as input to the program
@@ -104,6 +112,24 @@ struct AddressAccountNodeDictAccess {
     key: Address,
     prev_value: AccountNode,
     new_value: AccountNode,
+}
+
+// Union of InternalNode (union type) and Extended (union type)
+// Both sub unions must be inlined because in Python a Union[A, Union[B,C]] is just Union[A,B,C]
+struct OptionalUnionInternalNodeExtended {
+    value: OptionalUnionInternalNodeExtendedEnum*,
+}
+struct OptionalUnionInternalNodeExtendedEnum {
+    leaf: LeafNode,
+    extension: ExtensionNode,
+    branch: BranchNode,
+    sequence: SequenceExtended,
+    bytearray: Bytes,
+    bytes: Bytes,
+    uint: Uint*,
+    fixed_uint: Uint*,
+    str: String,
+    bool: Bool*,
 }
 
 // @notice Decode the RLP encoded representation of an account node.
@@ -299,4 +325,65 @@ func node_store_get{poseidon_ptr: PoseidonBuiltin*, node_store: NodeStore}(
     // Cast the result to an OptionalInternalNode and return
     tempvar res = OptionalInternalNode(cast(pointer, InternalNodeEnum*));
     return res;
+}
+
+func resolve{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    node_store: NodeStore,
+}(node: OptionalUnionInternalNodeExtended) -> OptionalInternalNode {
+    alloc_locals;
+
+    if (cast(node.value, felt) == 0) {
+        let res = OptionalInternalNode(cast(0, InternalNodeEnum*));
+        return res;
+    }
+
+    // Case 1: it is a node
+    let is_node = cast(node.value.leaf.value, felt) + cast(node.value.extension.value, felt) + cast(
+        node.value.branch.value, felt
+    );
+    if (is_node != 0) {
+        tempvar result = OptionalInternalNode(
+            new InternalNodeEnum(node.value.leaf, node.value.extension, node.value.branch)
+        );
+        return result;
+    }
+
+    // Case 2: it is either a node hash or an embedded node
+    // Case 2.a: it is a node hash or null
+    if (cast(node.value.bytes.value, felt) != 0) {
+        let bytes = node.value.bytes;
+        // Case 2.a.1: it is an empty subnode
+        if (bytes.value.len == 0) {
+            let res = OptionalInternalNode(cast(0, InternalNodeEnum*));
+            return res;
+        }
+
+        // Case 2.a.2: it is a 32-byte node hash
+        if (bytes.value.len != 32) {
+            // The bytes MUST be a 32-byte node hash
+            raise('ValueError');
+        }
+
+        // Get the node hash from the node store
+        let node_hash = Bytes_to_Bytes32(bytes);
+
+        let result = node_store_get{poseidon_ptr=poseidon_ptr, node_store=node_store}(node_hash);
+
+        return result;
+    }
+
+    // Case 2.b: it is an embedded node
+    if (cast(node.value.sequence.value, felt) != 0) {
+        let sequence = ExtendedImpl.sequence(node.value.sequence);
+        let internal_node = deserialize_to_internal_node(sequence);
+        tempvar res = OptionalInternalNode(internal_node.value);
+        return res;
+    }
+
+    with_attr error_message("ValueError") {
+        jmp raise.raise_label;
+    }
 }

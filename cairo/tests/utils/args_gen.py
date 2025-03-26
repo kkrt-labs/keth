@@ -788,6 +788,9 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("mpt", "trie_diff", "AccountNode"): AccountNode,
     ("mpt", "trie_diff", "NodeStore"): Mapping[Hash32, Optional[InternalNode]],
     ("cairo_core", "bytes", "HashedBytes32"): int,
+    ("mpt", "trie_diff", "OptionalUnionInternalNodeExtended"): Optional[
+        Union[InternalNode, Extended]
+    ],
 }
 
 # In the EELS, some functions are annotated with Sequence while it's actually just Bytes.
@@ -929,6 +932,20 @@ def _gen_arg(
         segments.load_data(ptr, [value])
         return ptr
 
+    # ⚠️ Union of Unions do not get serialized correctly ⚠️
+    # Example: Union[a, Union[b, c]] will serialize into Union[a, b, c] in Cairo.
+    # Codebase example:
+    ## Cairo struct:
+    #### struct OptionalUnionInternalNodeExtended {
+    ####     value: OptionalUnionInternalNodeExtendedEnum*,
+    #### }
+    #### struct OptionalUnionInternalNodeExtendedEnum {
+    ####     node: InternalNode,
+    ####     extended: Extended,
+    #### }
+    ## Python struct:
+    #### Union[InternalNode, Extended]
+    #### This will get serialized into Union[LeafNode, ExtensionNode, BranchNode, Sequence[Extended], bytearray, bytes...]
     if arg_type_origin is Union:
         # Union are represented as Enum in Cairo, with 0 pointers for all but one variant.
         struct_ptr = segments.add()
