@@ -537,56 +537,47 @@ func felt252_bit_length{range_check_ptr}(value: felt) -> felt {
     return bit_length;
 }
 
-func felt252_to_bits{range_check_ptr}(limb: felt, bits_ptr: felt*, current_len: felt) -> felt {
+func felt252_to_bits{range_check_ptr}(value: felt, len: felt, dst: felt*) -> felt {
     alloc_locals;
-    if (limb == 0) {
-        return current_len;
+    if (len == 0) {
+        return len;
     }
-    with_attr error_message("felt252_to_bits: limb must be < 252") {
-        assert [range_check_ptr] = limb;
-        assert [range_check_ptr + 1] = 251 - limb;
+    with_attr error_message("felt252_to_bits: len must be < 252") {
+        assert [range_check_ptr] = len;
+        assert [range_check_ptr + 1] = 251 - len;
         let range_check_ptr = range_check_ptr + 2;
     }
 
-    let output = &bits_ptr[0];
+    let output = &dst[0];
     %{ felt252_to_bits %}
 
-    tempvar range_check_ptr = range_check_ptr;
-    tempvar current_len = current_len;
-    tempvar i = 0;
+    tempvar current_len = 0;
     tempvar acc = 0;
 
     loop:
-    let range_check_ptr = [ap - 3];
     let current_len = [ap - 2];
-    let limb = [ap - 1];
+    let acc = [ap - 1];
+    let len = [fp - 4];
 
-    let is_done = is_zero(limb);
+    // loop stop condition: current_len == len
+    let is_done = is_zero(len - current_len);
     jmp end if is_done != 0;
 
-    // Get the current bit using modulo 2
-    let (_, bit) = unsigned_div_rem(limb, 2);
-    assert bits_ptr[current_len] = bit;
-    
-    // all the generated felt elements should be either 0 or 1
-    let bit_minus_one = bit - 1;
-    let product = bit * bit_minus_one;
-    let is_valid_bit = is_zero(product);
-    
+    // Check if the bit is valid (0 or 1)
+    let bit = output[current_len];
     with_attr error_message("felt252_to_bits: bits must be 0 or 1") {
-        assert is_valid_bit = 1;
+        assert bit * bit = bit;
     }
-    
-    // Compute the next limb value
-    let (limb, _) = unsigned_div_rem(limb, 2);
+
+    let pow = pow2(current_len);
+    tempvar shifted_bit = bit * pow;
     tempvar current_len = current_len + 1;
-    tempvar i = i + 1;
-    tempvar acc = acc + bit * pow2(i);
+    tempvar acc = acc + shifted_bit;
     jmp loop;
 
     end:
     with_attr error_message("felt252_to_bits: bad output") {
-        assert acc = limb;
+        assert acc = value;
     }
     return current_len;
 }
