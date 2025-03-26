@@ -6,6 +6,7 @@ from cairo_core.maths import (
     pow256,
     felt252_to_bytes_le,
     felt252_to_bytes_be,
+    felt252_to_bits,
 )
 from cairo_core.numeric import U256
 from starkware.cairo.common.alloc import alloc
@@ -32,5 +33,12 @@ func test__felt252_to_bytes_be{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     alloc_locals;
     let (dst) = alloc();
     let res = felt252_to_bytes_be(value, len, dst);
+    return dst;
+}
+
+func test__felt252_to_bits{range_check_ptr}(value: felt, len: felt) -> felt* {
+    alloc_locals;
+    let (dst) = alloc();
+    let res = felt252_to_bits(value, dst, len);
     return dst;
 }

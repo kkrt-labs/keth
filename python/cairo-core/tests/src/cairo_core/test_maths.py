@@ -182,3 +182,12 @@ segments.write_arg(ids.output, bad)
     def test_felt252_bit_length(self, cairo_run, value):
         res = cairo_run("felt252_bit_length", value=value)
         assert res == value.bit_length()
+
+
+    @given(
+        value=st.integers(min_value=0, max_value=2**248 - 1),
+        len_=st.integers(min_value=32, max_value=DEFAULT_PRIME - 1),
+    )
+    def test_felt252_to_bits(self, cairo_run, value, len_):
+        res = cairo_run("test__felt252_to_bits", value=value, len=len_)
+        assert res == value.bit_length()
