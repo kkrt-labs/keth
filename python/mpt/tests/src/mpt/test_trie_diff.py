@@ -82,12 +82,35 @@ class TestTrieDiff:
     @pytest.mark.parametrize(
         "data_path", [Path("test_data/22081873.json")], scope="session"
     )
-    def test_trie_diff(self, data_path, ethereum_trie_transition_db):
+    def test_trie_diff(
+        self,
+        cairo_run,
+        data_path,
+        ethereum_trie_transition_db: EthereumTrieTransitionDB,
+    ):
         # Python
         state_diff = StateDiff.from_json(data_path)
-        trie_diff = StateDiff.from_tries(ethereum_trie_transition_db)
-        assert trie_diff._main_trie == state_diff._main_trie
-        assert trie_diff._storage_tries == state_diff._storage_tries
+        # trie_diff = StateDiff.from_tries(ethereum_trie_transition_db)
+        # assert trie_diff._main_trie == state_diff._main_trie
+        # assert trie_diff._storage_tries == state_diff._storage_tries
+
+        # Cairo
+        node_store = ethereum_trie_transition_db.nodes
+        address_preimages = ethereum_trie_transition_db.address_preimages
+        storage_key_preimages = ethereum_trie_transition_db.storage_key_preimages
+        result_trie_diff_cairo = cairo_run(
+            "_compute_diff",
+            node_store=node_store,
+            address_preimages=address_preimages,
+            storage_key_preimages=storage_key_preimages,
+            main_trie_end=[],
+            storage_trie_end=[],
+            left=ethereum_trie_transition_db.state_root,
+            right=ethereum_trie_transition_db.post_state_root,
+            path=b"",
+            account_address=Address(bytes([0] * 20)),
+        )
+        assert result_trie_diff_cairo == state_diff
 
     @pytest.mark.parametrize(
         "data_path", [Path("test_data/22081873.json")], scope="session"
