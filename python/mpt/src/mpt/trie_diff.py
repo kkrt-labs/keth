@@ -280,7 +280,7 @@ class StateDiff:
                     else:
                         # Look for diffs in other branches
                         self._compute_diff(
-                            l_node.subnode,
+                            None,
                             r_node.subnodes[i],
                             path + nibble,
                             process_leaf_diff,

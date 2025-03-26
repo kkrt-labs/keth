@@ -27,6 +27,24 @@ from cairo_core.comparison import is_zero
 from ethereum.utils.numeric import min
 from legacy.utils.bytes import bytes_to_felt_le
 
+func Bytes__add__(_self: Bytes, other: Bytes) -> Bytes {
+    alloc_locals;
+    let (local buffer: felt*) = alloc();
+    memcpy(buffer, _self.value.data, _self.value.len);
+    memcpy(buffer + _self.value.len, other.value.data, other.value.len);
+    tempvar res = Bytes(new BytesStruct(data=buffer, len=_self.value.len + other.value.len));
+    return res;
+}
+
+func Bytes__extend__{self: Bytes}(other: Bytes) {
+    alloc_locals;
+    memcpy(self.value.data + self.value.len, other.value.data, other.value.len);
+    tempvar self = Bytes(
+        new BytesStruct(data=self.value.data, len=self.value.len + other.value.len)
+    );
+    return ();
+}
+
 func Bytes__eq__(_self: Bytes, other: Bytes) -> bool {
     if (_self.value.len != other.value.len) {
         tempvar res = bool(0);
