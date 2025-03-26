@@ -230,17 +230,6 @@ func Extended__eq__(left: Extended, right: Extended) -> bool {
         return res;
     }
 
-    // We only support Bytes and Sequence equality checks
-    let is_supported_left = cast(left.value.bytes.value, felt) + cast(
-        left.value.sequence.value, felt
-    );
-    let is_supported_right = cast(right.value.bytes.value, felt) + cast(
-        right.value.sequence.value, felt
-    );
-    if (is_supported_left == 0 and is_supported_right == 0) {
-        raise('Unimplemented');
-    }
-
     // Bytes case
     if (left.value.bytes.value != 0 and right.value.bytes.value != 0) {
         let res = Bytes__eq__(left.value.bytes, right.value.bytes);
