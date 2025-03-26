@@ -1,5 +1,5 @@
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.cairo_builtins import UInt384, ModBuiltin
+from starkware.cairo.common.cairo_builtins import UInt384, ModBuiltin, PoseidonBuiltin
 from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
 from starkware.cairo.common.default_dict import default_dict_new, default_dict_finalize
 from starkware.cairo.common.dict import dict_read, dict_write
@@ -12,6 +12,8 @@ from cairo_ec.circuits.mod_ops_compiled import add, sub, mul
 from cairo_ec.curve.alt_bn128 import alt_bn128
 from cairo_ec.curve.g1_point import G1Point, G1PointStruct
 from cairo_ec.circuits.ec_ops_compiled import assert_on_curve
+from bn254.final_exp import final_exponentiation
+from definitions import E12D
 
 from ethereum.utils.numeric import (
     divmod,
@@ -1533,6 +1535,49 @@ func BNP12__eq__{range_check96_ptr: felt*}(a: BNP12, b: BNP12) -> felt {
     let x_equal = BNF12__eq__(a.value.x, b.value.x);
     let y_equal = BNF12__eq__(a.value.y, b.value.y);
     return x_equal * y_equal;
+}
+
+func bnp12_final_exponentiation{
+    range_check_ptr,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+}(p: BNF12) -> BNF12 {
+    alloc_locals;
+
+    let p_e12 = E12D(
+        w0=[p.value.c0.value],
+        w1=[p.value.c1.value],
+        w2=[p.value.c2.value],
+        w3=[p.value.c3.value],
+        w4=[p.value.c4.value],
+        w5=[p.value.c5.value],
+        w6=[p.value.c6.value],
+        w7=[p.value.c7.value],
+        w8=[p.value.c8.value],
+        w9=[p.value.c9.value],
+        w10=[p.value.c10.value],
+        w11=[p.value.c11.value],
+    );
+    let (result) = final_exponentiation(new p_e12);
+    tempvar result_bnf12 = BNF12(
+        new BNF12Struct(
+            U384(new result.w0),
+            U384(new result.w1),
+            U384(new result.w2),
+            U384(new result.w3),
+            U384(new result.w4),
+            U384(new result.w5),
+            U384(new result.w6),
+            U384(new result.w7),
+            U384(new result.w8),
+            U384(new result.w9),
+            U384(new result.w10),
+            U384(new result.w11),
+        ),
+    );
+    return result_bnf12;
 }
 
 func bnp_to_bnp12{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
