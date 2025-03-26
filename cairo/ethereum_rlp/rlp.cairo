@@ -249,12 +249,7 @@ func Extended__eq__(left: Extended, right: Extended) -> bool {
 
     // Sequence case
     if (left.value.sequence.value != 0 and right.value.sequence.value != 0) {
-        if (left.value.sequence.value.len != right.value.sequence.value.len) {
-            let res = bool(0);
-            return res;
-        }
-        let len = left.value.sequence.value.len;
-        let res = SequenceExtended__eq__(left.value.sequence, right.value.sequence, len);
+        let res = SequenceExtended__eq__(left.value.sequence, right.value.sequence);
         return res;
     }
 
@@ -264,18 +259,25 @@ func Extended__eq__(left: Extended, right: Extended) -> bool {
 }
 
 // @notice Recursively compares two SequenceExtended. Compares each element of the sequence
-func SequenceExtended__eq__(left: SequenceExtended, right: SequenceExtended, len: felt) -> bool {
+// and returns false upon finding two elements that are not equal.
+func SequenceExtended__eq__(left: SequenceExtended, right: SequenceExtended) -> bool {
+    if (left.value.len != right.value.len) {
+        let res = bool(0);
+        return res;
+    }
+    let len = left.value.len;
     if (len == 0) {
         let res = bool(1);
         return res;
     }
-    let res = Extended__eq__(left.value.data[len - 1], right.value.data[len - 1]);
+    let res = Extended__eq__(left.value.data[0], right.value.data[0]);
     if (res.value == 0) {
         let res = bool(0);
         return res;
     }
-    let len = len - 1;
-    let res = SequenceExtended__eq__(left, right, len);
+    tempvar left = SequenceExtended(new SequenceExtendedStruct(left.value.data + 1, len - 1));
+    tempvar right = SequenceExtended(new SequenceExtendedStruct(right.value.data + 1, len - 1));
+    let res = SequenceExtended__eq__(left, right);
     return res;
 }
 
