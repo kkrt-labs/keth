@@ -24,9 +24,14 @@ func test__process_account_diff{
 
     let (main_trie_start: AddressAccountNodeDictAccess*) = alloc();
     let main_trie_end = main_trie_start;
-    _process_account_diff{address_preimages=address_preimages, main_trie_end=main_trie_end}(
-        path=path, left=left, right=right
-    );
+
+    let (storage_trie_start: Bytes32U256DictAccess*) = alloc();
+    let storage_trie_end = storage_trie_start;
+    _process_account_diff{
+        address_preimages=address_preimages,
+        main_trie_end=main_trie_end,
+        storage_trie_end=storage_trie_end,
+    }(path=path, left=left, right=right);
 
     return main_trie_start;
 }

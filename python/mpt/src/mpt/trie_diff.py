@@ -172,6 +172,16 @@ class StateDiff:
                 process_leaf_diff(path=path_right, left=None, right=r_node)
                 return
 
+            case (LeafNode(), ExtensionNode()):
+                # Explore the extension node's subtree for any new leaves, comparing it to the old
+                # leaf with the same key
+                l_node = LeafNode(
+                    l_node.rest_of_key[len(r_node.key_segment) :], l_node.value
+                )
+                return self._compute_diff(
+                    l_node, r_node.subnode, path + r_node.key_segment, process_leaf_diff
+                )
+
             case (LeafNode(), BranchNode()):
                 # The branch was created and replaced the single leaf.
                 # All branches - except the one whose first nibble matches the leaf's key - are new.
@@ -193,16 +203,6 @@ class StateDiff:
                             path + bytes([i]),
                             process_leaf_diff,
                         )
-
-            case (LeafNode(), ExtensionNode()):
-                # Explore the extension node's subtree for any new leaves, comparing it to the old
-                # leaf with the same key
-                l_node = LeafNode(
-                    l_node.rest_of_key[len(r_node.key_segment) :], l_node.value
-                )
-                self._compute_diff(
-                    l_node, r_node.subnode, path + r_node.key_segment, process_leaf_diff
-                )
 
             case (ExtensionNode(), None):
                 # Look for diffs in the left sub-tree
