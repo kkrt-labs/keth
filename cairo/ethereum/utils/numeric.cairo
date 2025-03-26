@@ -494,14 +494,14 @@ func get_u384_bits_little{range_check_ptr}(num: U384) -> (felt*, felt) {
     alloc_locals;
     let (bits_ptr) = alloc();
     // Process limb0 (d0)
-    let bits_len = extract_limb_bits(num.value.d0, bits_ptr, 0);
+    let bits_len = felt252_to_bits(num.value.d0, bits_ptr, 0);
     // Process limb1 (d1)
     let limb1_not_zero = is_not_zero(num.value.d1);
     if (limb1_not_zero != 0) {
         // Use memset to pad with zeros until we reach 96 bits if needed
         let bits_len_padded = 96;
         memset(bits_ptr + bits_len, 0, bits_len_padded - bits_len);
-        let bits_len_updated = extract_limb_bits(num.value.d1, bits_ptr, bits_len_padded);
+        let bits_len_updated = felt252_to_bits(num.value.d1, bits_ptr, bits_len_padded);
         tempvar bits_ptr = bits_ptr;
         tempvar bits_len = bits_len_updated;
         tempvar range_check_ptr = range_check_ptr;
@@ -518,7 +518,7 @@ func get_u384_bits_little{range_check_ptr}(num: U384) -> (felt*, felt) {
         // Use memset to pad with zeros until we reach 192 bits if needed
         let bits_len_padded = 192;
         memset(bits_ptr + bits_len, 0, bits_len_padded - bits_len);
-        let bits_len_updated = extract_limb_bits(num.value.d2, bits_ptr, bits_len_padded);
+        let bits_len_updated = felt252_to_bits(num.value.d2, bits_ptr, bits_len_padded);
         tempvar bits_ptr = bits_ptr;
         tempvar bits_len = bits_len_updated;
         tempvar range_check_ptr = range_check_ptr;
