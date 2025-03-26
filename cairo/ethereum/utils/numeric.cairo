@@ -535,24 +535,9 @@ func get_u384_bits_little{range_check_ptr}(num: U384) -> (felt*, felt) {
         // Use memset to pad with zeros until we reach 288 bits if needed
         let bits_len_padded = 288;
         memset(bits_ptr + bits_len, 0, bits_len_padded - bits_len);
-        let bits_len_updated = extract_limb_bits(num.value.d3, bits_ptr, bits_len_padded);
+        let bits_len_updated = felt252_to_bits(num.value.d3, bits_ptr, bits_len_padded);
         return (bits_ptr, bits_len_updated);
     } else {
         return (bits_ptr, bits_len);
     }
-}
-
-func extract_limb_bits{range_check_ptr}(limb: felt, bits_ptr: felt*, current_len: felt) -> felt {
-    // Check if limb is zero
-    let is_limb_zero = is_zero(limb);
-    if (is_limb_zero != 0) {
-        return current_len;
-    }
-
-    // Extract the least significant bit
-    let (q, r) = divmod(limb, 2);
-    assert bits_ptr[current_len] = r;
-
-    // Continue with the remaining bits
-    return extract_limb_bits(q, bits_ptr, current_len + 1);
 }
