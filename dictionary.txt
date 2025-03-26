@@ -242,6 +242,7 @@ SSTORE
 starknet
 starkware
 Starkware
+startswith
 Statetest
 staticcall
 staticmethod

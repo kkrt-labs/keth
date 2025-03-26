@@ -13,6 +13,7 @@ from ethereum_types.bytes import (
 from ethereum_types.numeric import bool
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.math import assert_not_equal, split_int
+from starkware.cairo.common.math_cmp import is_le
 from starkware.cairo.common.memcpy import memcpy
 from starkware.cairo.common.memset import memset
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
@@ -68,6 +69,18 @@ func Bytes__eq__(_self: Bytes, other: Bytes) -> bool {
 
     end:
     let res = bool([ap - 1]);
+    return res;
+}
+
+func Bytes__startswith__{range_check_ptr}(self: Bytes, prefix: Bytes) -> bool {
+    alloc_locals;
+    let is_prefix = is_le(prefix.value.len, self.value.len);
+    if (is_prefix == 0) {
+        tempvar res = bool(0);
+        return res;
+    }
+    tempvar self = Bytes(new BytesStruct(data=self.value.data, len=prefix.value.len));
+    let res = Bytes__eq__(self, prefix);
     return res;
 }
 
