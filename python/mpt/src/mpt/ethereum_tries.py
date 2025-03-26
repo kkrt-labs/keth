@@ -5,7 +5,6 @@ from functools import partial
 from pathlib import Path
 from typing import Any, Callable, Dict, Mapping, Optional
 
-
 from ethereum.cancun.fork_types import Address
 from ethereum.cancun.state import State, set_account, set_storage
 from ethereum.cancun.trie import (
