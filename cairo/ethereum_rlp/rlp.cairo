@@ -263,6 +263,7 @@ func Extended__eq__(left: Extended, right: Extended) -> bool {
     }
 }
 
+// @notice Recursively compares two SequenceExtended. Compares each element of the sequence
 func SequenceExtended__eq__(left: SequenceExtended, right: SequenceExtended, len: felt) -> bool {
     if (len == 0) {
         let res = bool(1);
