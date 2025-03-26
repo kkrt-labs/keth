@@ -113,20 +113,25 @@ def decode_node(node: Bytes) -> InternalNode:
     return deserialize_to_internal_node(decoded)
 
 
-def nibble_path_to_bytes(nibble_path: Bytes) -> Bytes:
+def nibble_list_to_bytes(nibble_path: Bytes) -> Bytes:
     """
     Convert a list of nibbles to bytes by concatenating pairs of nibbles.
     """
-    return bytes(
+    is_odd = len(nibble_path) % 2
+    result = bytes(
         [
             (nibble_path[i] & 0x0F) * 16 + (nibble_path[i + 1] & 0x0F)
-            for i in range(0, len(nibble_path) - 1, 2)
+            for i in range(0, len(nibble_path) - is_odd, 2)
         ]
     )
+    # Handle the case where there's an odd number of nibbles
+    if is_odd:
+        result += bytes([(nibble_path[-1] & 0x0F) * 16])
+    return result
 
 
 def nibble_path_to_hex(nibble_path: Bytes) -> str:
     """
     Convert a nibble path to a hex string.
     """
-    return "0x" + nibble_path_to_bytes(nibble_path).hex()
+    return "0x" + nibble_list_to_bytes(nibble_path).hex()

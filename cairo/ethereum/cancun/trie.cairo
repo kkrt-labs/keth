@@ -962,6 +962,61 @@ func nibble_list_to_compact{range_check_ptr: felt}(x: Bytes, is_leaf: bool) -> B
     return result;
 }
 
+func nibble_list_to_bytes{range_check_ptr: felt, bitwise_ptr: BitwiseBuiltin*}(x: Bytes) -> Bytes {
+    alloc_locals;
+    let len = x.value.len;
+
+    // Return empty bytes for empty input
+    if (len == 0) {
+        let (data) = alloc();
+        tempvar result = Bytes(new BytesStruct(data, 0));
+        return result;
+    }
+
+    if (len == 1) {
+        let (data) = alloc();
+        assert [data] = 16 * x.value.data[0];
+        tempvar result = Bytes(new BytesStruct(data, 1));
+        return result;
+    }
+
+    local remainder;
+    %{ value_len_mod_two %}
+    with_attr error_message("nibble_list_to_bytes: invalid remainder") {
+        assert remainder * (1 - remainder) = 0;
+        tempvar underflow_check = (len - remainder) / 2;
+        assert [range_check_ptr] = underflow_check;
+    }
+    let range_check_ptr = range_check_ptr + 1;
+
+    let (local bytes_data) = alloc();
+    tempvar i = 0;
+    tempvar bytes_ptr = bytes_data;
+
+    loop:
+    let i = [ap - 2];
+    let bytes_ptr = cast([ap - 1], felt*);
+    let x_ptr = cast([fp - 3], BytesStruct*);
+
+    // Combine two nibbles into a byte: (high_nibble * 16 + low_nibble)
+    assert [bytes_ptr] = 16 * x_ptr.data[i] + x_ptr.data[i + 1];
+
+    tempvar cond = x_ptr.len - i - 2 - remainder;
+    tempvar i = i + 2;
+    tempvar bytes_ptr = bytes_ptr + 1;
+
+    jmp loop if cond != 0;
+
+    if (remainder != 0) {
+        assert [bytes_ptr] = 16 * x_ptr.data[i];
+    }
+
+    // Return the result
+    let final_len = (len + remainder) / 2;
+    tempvar result = Bytes(new BytesStruct(bytes_data, final_len));
+    return result;
+}
+
 func bytes_to_nibble_list{bitwise_ptr: BitwiseBuiltin*}(bytes_: Bytes) -> Bytes {
     alloc_locals;
     local result: Bytes;

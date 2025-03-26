@@ -13,7 +13,7 @@ from ethereum_types.bytes import Bytes, Bytes32
 from ethereum_types.numeric import U256, Uint
 
 from mpt.ethereum_tries import EthereumTrieTransitionDB
-from mpt.utils import AccountNode, deserialize_to_internal_node, nibble_path_to_bytes
+from mpt.utils import AccountNode, deserialize_to_internal_node, nibble_list_to_bytes
 
 logger = logging.getLogger(__name__)
 
@@ -128,7 +128,7 @@ class StateDiff:
 
             case (None, LeafNode()):
                 # new leaf
-                full_path = nibble_path_to_bytes(path + r_node.rest_of_key)
+                full_path = nibble_list_to_bytes(path + r_node.rest_of_key)
                 process_leaf_diff(path=full_path, left=None, right=r_node)
 
             case (None, ExtensionNode()):
@@ -149,14 +149,14 @@ class StateDiff:
 
             case (LeafNode(), None):
                 # deleted leaf
-                full_path = nibble_path_to_bytes(path + l_node.rest_of_key)
+                full_path = nibble_list_to_bytes(path + l_node.rest_of_key)
                 process_leaf_diff(path=full_path, left=l_node, right=None)
 
             case (LeafNode(), LeafNode()):
                 if l_node.rest_of_key == r_node.rest_of_key:
                     if l_node.value != r_node.value:
                         # Same path -> different values
-                        full_path = nibble_path_to_bytes(path + l_node.rest_of_key)
+                        full_path = nibble_list_to_bytes(path + l_node.rest_of_key)
                         return process_leaf_diff(
                             path=full_path, left=l_node, right=r_node
                         )
@@ -165,10 +165,10 @@ class StateDiff:
                         return
 
                 # Different paths -> delete old leaf, create new leaf
-                path_left = nibble_path_to_bytes(path + l_node.rest_of_key)
+                path_left = nibble_list_to_bytes(path + l_node.rest_of_key)
                 process_leaf_diff(path=path_left, left=l_node, right=None)
 
-                path_right = nibble_path_to_bytes(path + r_node.rest_of_key)
+                path_right = nibble_list_to_bytes(path + r_node.rest_of_key)
                 process_leaf_diff(path=path_right, left=None, right=r_node)
                 return
 

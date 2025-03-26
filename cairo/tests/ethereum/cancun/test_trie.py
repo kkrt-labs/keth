@@ -32,6 +32,7 @@ from hypothesis import strategies as st
 
 from cairo_addons.testing.errors import cairo_error, strict_raises
 from cairo_addons.testing.hints import patch_hint
+from mpt.utils import nibble_list_to_bytes
 from tests.utils.args_gen import EthereumTries
 from tests.utils.assertion import sequence_equal
 from tests.utils.strategies import bytes32, nibble, trie_strategy, uint4
@@ -100,6 +101,10 @@ class TestTrie:
         assert nibble_list_to_compact(x, is_leaf) == cairo_run(
             "nibble_list_to_compact", x, is_leaf
         )
+
+    @given(x=nibble)
+    def test_nibble_list_to_bytes(self, cairo_run, x):
+        assert nibble_list_to_bytes(x) == cairo_run("nibble_list_to_bytes", x)
 
     @given(x=nibble.filter(lambda x: len(x) != 0), is_leaf=...)
     @settings(verbosity=Verbosity.quiet)
