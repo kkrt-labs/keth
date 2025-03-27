@@ -22,7 +22,7 @@ on:
         default: "ci-unit"
 
 env:
-  CAIRO_PATH: cairo:tests:python/cairo-ec/src:python/cairo-addons/src:python/cairo-core/src:python/mpt/src
+  CAIRO_PATH: cairo:tests:python/cairo-ec/src:python/cairo-addons/src:python/cairo-core/src:python/mpt/src:.venv/lib/python3.10/site-packages/src
   CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
   CHAIN_RPC_URL: ${{ secrets.CHAIN_RPC_URL }}
   HYPOTHESIS_PROFILE: ${{ inputs.hypothesis-profile }}

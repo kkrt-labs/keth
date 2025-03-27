@@ -12,6 +12,7 @@ jobs:
     runs-on: ubuntu-latest-64-cores
     timeout-minutes: 1440
     env:
+      CAIRO_PATH: cairo:tests:python/cairo-ec/src:python/cairo-addons/src:python/cairo-core/src:python/mpt/src:.venv/lib/python3.10/site-packages/src
       HYPOTHESIS_PROFILE: nightly
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     steps:
@@ -46,6 +47,7 @@ jobs:
   ef-tests-full:
     runs-on: ubuntu-latest-64-cores
     env:
+      CAIRO_PATH: cairo:tests:python/cairo-ec/src:python/cairo-addons/src:python/cairo-core/src:python/mpt/src:.venv/lib/python3.10/site-packages/src
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     steps:
       - uses: actions/checkout@v4
