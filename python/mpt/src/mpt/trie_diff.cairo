@@ -519,6 +519,10 @@ func _process_storage_diff{
     alloc_locals;
     let dict_ptr = cast(storage_key_preimages.value.dict_ptr, DictAccess*);
 
+    %{ breakpoint() %}
+
+    %{ logger.trace_cairo(f"[_process_storage_diff] Address: {serialize(ids.address)} - Path: {serialize(ids.path)}") %}
+
     let fp_and_pc = get_fp_and_pc();
     local __fp__: felt* = fp_and_pc.fp_val;
 

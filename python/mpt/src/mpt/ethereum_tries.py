@@ -1,6 +1,5 @@
 import json
 import logging
-from collections import defaultdict
 from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
@@ -361,7 +360,7 @@ class EthereumTrieTransitionDB(EthereumTries):
             raise ValueError(f"Post state root not found in nodes: {post_state_root}")
 
         instance = cls(
-            nodes=defaultdict(lambda: None, {**pre_trie.nodes, **post_nodes}),
+            nodes={**pre_trie.nodes, **post_nodes},
             codes=pre_trie.codes,
             address_preimages=pre_trie.address_preimages,
             storage_key_preimages=pre_trie.storage_key_preimages,

@@ -383,6 +383,8 @@ class StateDiff:
         left: Optional[LeafNode],
         right: Optional[LeafNode],
     ):
+        logger.trace_eels(f"[_process_storage_diff] Address: {address} - Path: {path}")
+
         key = self._storage_key_preimages[path]
         left_decoded = (
             U256(int.from_bytes(rlp.decode(left.value), "big")) if left else None
