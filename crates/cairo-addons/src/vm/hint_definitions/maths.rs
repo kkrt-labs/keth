@@ -166,3 +166,39 @@ fn felt252_bit_and(num_x: Felt252, num_y: Felt252) -> Result<Felt252, HintError>
     bytes_xy[24..].copy_from_slice(limbs_xy[3].to_le_bytes().as_slice());
     Ok(Felt252::from_bytes_le_slice(&bytes_xy))
 }
+
+pub fn felt252_to_bits_rev() -> Hint {
+    Hint::new(
+        String::from("felt252_to_bits_rev"),
+        |vm: &mut VirtualMachine,
+         _exec_scopes: &mut ExecutionScopes,
+
+         ids_data: &HashMap<String, HintReference>,
+         ap_tracking: &ApTracking,
+         _constants: &HashMap<String, Felt252>|
+         -> Result<(), HintError> {
+            // Get input values from Cairo
+            let value = get_integer_from_var_name("value", vm, ids_data, ap_tracking)?;
+            let len = get_integer_from_var_name("len", vm, ids_data, ap_tracking)?;
+            let dst_ptr = get_ptr_from_var_name("dst", vm, ids_data, ap_tracking)?;
+
+            let len: usize = len
+                .try_into()
+                .map_err(|_| MathError::Felt252ToUsizeConversion(Box::new(len)))?;
+
+            let value_biguint = value.to_biguint();
+            let mut bits: Vec<MaybeRelocatable> = (0..len)
+                .map(|i| {
+                    let bit = if value_biguint.bit(i as u64) { BigUint::from(1u32) } else { BigUint::from(0u32) };
+                    Felt252::from(bit).into()
+                })
+                .collect();
+            bits.extend(vec![Felt252::from(0u32).into(); len - bits.len()]);
+
+            // Write the bits to memory
+            vm.segments.load_data(dst_ptr, &bits)?;
+            Ok(())
+
+        },
+    )
+}
