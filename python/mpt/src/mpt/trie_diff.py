@@ -114,6 +114,7 @@ class StateDiff:
         path: Bytes,
         process_leaf_diff: Callable,
     ):
+        logger.trace_eels(f"compute_diff: {left} {right} {path}")
         if left == right:
             return
 
