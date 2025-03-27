@@ -136,8 +136,8 @@ def coverage(
             pl.DataFrame(
                 [
                     {
-                        "line_number": i,
                         "filename": instruction.inst.input_file.filename,
+                        "line_number": i,
                     }
                     for instruction in cairo_program.debug_info.instruction_locations.values()
                     # Filter out global scope (e.g., dw instructions)
@@ -153,8 +153,12 @@ def coverage(
                     pl.when(pl.col("filename") == "")
                     .then(pl.lit(str(cairo_file)))
                     .otherwise(pl.col("filename"))
-                )
+                ),
+                count=pl.lit(0, dtype=pl.UInt32),
             )
+            .select(
+                ["count", "filename", "line_number"]
+            )  # Explicitly specify column order
         )
 
         # Concatenate all reports and merge with all statements
@@ -164,18 +168,20 @@ def coverage(
                 ~pl.col("filename").str.contains(".venv")
             )  # Exclude virtual env files
             .filter(~pl.col("filename").str.contains("test_"))  # Exclude test files
+            .group_by(pl.col("filename"), pl.col("line_number"))
+            .agg(pl.col("count").sum())
             .collect()
         )
-
         # Filter for the current Cairo file and prepare missed lines report
         missed = (
             all_coverages.filter(pl.col("filename") == str(cairo_file))
             .with_columns(pl.col("filename").str.replace(str(Path.cwd()) + "/", ""))
+            .filter(pl.col("count") == 0)
             .sort("line_number", descending=False)
             .with_columns(
                 pl.col("filename") + ":" + pl.col("line_number").cast(pl.String)
             )
-            .drop("line_number")
+            .drop("line_number", "count")
         )
 
         # Log coverage results
@@ -185,13 +191,19 @@ def coverage(
             else:
                 logger.info(f"{cairo_file}: 100% coverage ✅")
 
+        all_coverages = (
+            all_coverages.group_by("filename")
+            .agg(pl.col("line_number"), pl.col("count"))
+            .to_dict(as_series=False)
+        )
         # Convert to dictionary for JSON dumping
-        coverage_dict = all_coverages.to_dict(as_series=False)
         coverage_data = {
             "coverage": {
-                f"{filename}:{line_number}": True
-                for filename, line_number in zip(
-                    coverage_dict["filename"], coverage_dict["line_number"]
+                filename: dict(zip(line_number, count))
+                for filename, line_number, count in zip(
+                    all_coverages["filename"],
+                    all_coverages["line_number"],
+                    all_coverages["count"],
                 )
             }
         }

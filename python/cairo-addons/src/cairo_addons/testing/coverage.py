@@ -38,26 +38,23 @@ def line_to_pc_df(
             .explode("line_number")
         ).collect()
 
-        # Only keep the first occurrence of the lines
-        line_to_first_pc = line_to_pc.select(["line_number", "filename", "pc"]).unique(
-            subset=["line_number"], keep="first"
-        )
-        dfs.append(line_to_first_pc)
+        dfs.append(line_to_pc)
 
     return dfs
 
 
 def coverage_from_trace(
     cairo_file_name: str,
-    line_to_first_pc_df: pl.DataFrame,
+    line_to_pc_df: pl.DataFrame,
     trace: pl.DataFrame,
 ):
 
     # Join with the trace to get the coverage
     coverage = (
-        trace.lazy()
-        .select(["pc"])
-        .join(line_to_first_pc_df.lazy(), how="right", on="pc")
+        trace["pc"]
+        .value_counts()
+        .lazy()
+        .join(line_to_pc_df.lazy(), how="right", on="pc")
         .drop("pc")
         .with_columns(
             filename=(
@@ -65,6 +62,7 @@ def coverage_from_trace(
                 .then(pl.lit(str(cairo_file_name)))
                 .otherwise(pl.col("filename"))
             ),
+            count=pl.col("count").fill_nan(0),
         )
         .filter(~pl.col("filename").str.contains(".venv"))
         .filter(~pl.col("filename").str.contains("test_"))
