@@ -1,11 +1,25 @@
 import pytest
-from ethereum.crypto.alt_bn128 import BNF, BNF2, BNF12, BNP, BNP2, BNP12, bnf2_to_bnf12
-from hypothesis import assume, given
+from ethereum.crypto.alt_bn128 import (
+    ALT_BN128_CURVE_ORDER,
+    ALT_BN128_PRIME,
+    BNF,
+    BNF2,
+    BNF12,
+    BNP,
+    BNP2,
+    BNP12,
+    bnf2_to_bnf12,
+)
+from hypothesis import assume, given, settings
 
 from cairo_addons.testing.errors import strict_raises
 from cairo_addons.testing.hints import patch_hint
 from cairo_ec.curve import AltBn128
 from tests.utils.args_gen import U384
+
+# https://github.com/keep-starknet-strange/garaga/blob/704a8c66bf85b965851a117c6b116fc7a11329db/hydra/garaga/definitions.py#L346
+# see test_bnp12_final_exponentiation
+GARAGA_COFACTOR = 0x3BEC47DF15E307C81EA96B02D9D9E38D2E5D4E223DDEDAF4
 
 
 class TestAltBn128:
@@ -207,6 +221,18 @@ segments.load_data(ids.b_inv.address_, [bnf2_struct_ptr])
         @given(a=..., b=...)
         def test_bnp12_eq(self, cairo_run, a: BNP12, b: BNP12):
             assert cairo_run("BNP12__eq__", a, b) == (a == b)
+
+        # Garaga final exponentiation match the gnark one which uses a cofactor
+        # This does not affect the pairing properties
+        # https://github.com/keep-starknet-strange/garaga/blob/704a8c66bf85b965851a117c6b116fc7a11329db/hydra/garaga/definitions.py#L346
+        # https://github.com/Consensys/gnark/blob/bd4a39719a964f0305ee9ec36b6226e4c266584c/std/algebra/emulated/sw_bn254/pairing.go#L129
+        @given(a=...)
+        @settings(max_examples=10)
+        def test_bnp12_final_exponentiation(self, cairo_run_py, a: BNF12):
+            assume(a != BNF12.zero())
+            assert cairo_run_py("bnp12_final_exponentiation", a) == a ** (
+                ((ALT_BN128_PRIME**12 - 1) // ALT_BN128_CURVE_ORDER) * GARAGA_COFACTOR
+            )
 
     class TestUtils:
         @given(x=...)

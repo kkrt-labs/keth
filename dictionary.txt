@@ -41,6 +41,8 @@ cdylib
 CHAINID
 Clément
 clippy
+cofactor
+COFACTOR
 codecopy
 CODECOPY
 codesize
@@ -108,6 +110,7 @@ getcwd
 getfixturedefs
 getitem
 gitpython
+gnark
 gpgsign
 gprof
 GQUADDIVISOR
@@ -266,6 +269,7 @@ Unflatten
 unhashed
 unrequired
 unsendable
+venv
 VERIF
 Weil
 workercount

@@ -23,6 +23,7 @@ dependencies = [
   "pytest-randomly>=3.16.0",
   "pytest-timeout>=2.3.1",
   "ethereum",
+  "garaga-zero",
 ]
 
 [tool.uv]
@@ -52,6 +53,7 @@ cairo-ec = { workspace = true }
 cairo-core = { workspace = true }
 eth-rpc = { workspace = true }
 mpt = { workspace = true }
+garaga-zero = { git = "https://github.com/kkrt-labs/garaga-zero" }
 
 [tool.uv.workspace]
 members = ["python/*"]
