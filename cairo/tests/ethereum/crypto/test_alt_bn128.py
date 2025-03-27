@@ -242,6 +242,17 @@ segments.load_data(ids.b_inv.address_, [bnf2_struct_ptr])
                 return
             assert cairo_run("bnp12_add", p, q) == expected
 
+        @given(p=..., n=...)
+        @settings(max_examples=30)
+        def test_bnp12_mul_by(self, cairo_run, p: BNP12, n: U384):
+            try:
+                expected = p.mul_by(int(n))
+            except OverflowError:  # fails for large points
+                with cairo_error(message="OverflowError"):  # Hint error
+                    cairo_run("bnp12_mul_by", p, U384(n))
+                return
+            assert cairo_run("bnp12_mul_by", p, U384(n)) == expected
+
         # Garaga final exponentiation match the gnark one which uses a cofactor
         # This does not affect the pairing properties
         # https://github.com/keep-starknet-strange/garaga/blob/704a8c66bf85b965851a117c6b116fc7a11329db/hydra/garaga/definitions.py#L346

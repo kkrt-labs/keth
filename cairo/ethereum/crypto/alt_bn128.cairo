@@ -1683,6 +1683,77 @@ func bnp12_add{
     return result;
 }
 
+// Implementation of scalar multiplication for BNP12
+// Uses the double-and-add algorithm
+func bnp12_mul_by{
+    range_check_ptr, range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
+}(p: BNP12, n: U384) -> BNP12 {
+    alloc_locals;
+    let n_is_zero = U384_is_zero(n);
+    if (n_is_zero != 0) {
+        let res = bnp12_point_at_infinity();
+        return res;
+    }
+
+    let bnf12_zero = BNF12_ZERO();
+    let x_is_zero = BNF12__eq__(p.value.x, bnf12_zero);
+    let y_is_zero = BNF12__eq__(p.value.y, bnf12_zero);
+    let p_is_infinity = x_is_zero * y_is_zero;
+    if (p_is_infinity != 0) {
+        return p;
+    }
+
+    // Extract the bits of n
+    let (bits_ptr, bits_len) = get_u384_bits_little(n);
+
+    // Initialize result as the point at infinity
+    let result = bnp12_point_at_infinity();
+
+    // Implement the double-and-add algorithm
+    return bnp12_mul_by_bits(p, bits_ptr, bits_len, 0, result);
+}
+
+func bnp12_mul_by_bits{
+    range_check_ptr, range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
+}(p: BNP12, bits_ptr: felt*, bits_len: felt, current_bit: felt, result: BNP12) -> BNP12 {
+    alloc_locals;
+
+    if (current_bit == bits_len) {
+        return result;
+    }
+    let bit_value = bits_ptr[current_bit];
+    let (new_result, doubled_p) = bnp12_mul_by_inner_loop(bit_value, p, result);
+    return bnp12_mul_by_bits(doubled_p, bits_ptr, bits_len, current_bit + 1, new_result);
+}
+
+func bnp12_mul_by_inner_loop{
+    range_check_ptr, range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
+}(bit: felt, p: BNP12, result: BNP12) -> (BNP12, BNP12) {
+    alloc_locals;
+
+    // If the bit is 1, add p to the result
+    if (bit != 0) {
+        let new_result = bnp12_add(result, p);
+        tempvar new_result = new_result;
+        tempvar range_check_ptr = range_check_ptr;
+        tempvar range_check96_ptr = range_check96_ptr;
+        tempvar add_mod_ptr = add_mod_ptr;
+        tempvar mul_mod_ptr = mul_mod_ptr;
+    } else {
+        tempvar new_result = result;
+        tempvar range_check_ptr = range_check_ptr;
+        tempvar range_check96_ptr = range_check96_ptr;
+        tempvar add_mod_ptr = add_mod_ptr;
+        tempvar mul_mod_ptr = mul_mod_ptr;
+    }
+    let new_result = new_result;
+
+    // Double the point for the next iteration
+    let doubled_p = bnp12_double(p);
+
+    return (new_result, doubled_p);
+}
+
 func bnp12_final_exponentiation{
     range_check_ptr,
     range_check96_ptr: felt*,
