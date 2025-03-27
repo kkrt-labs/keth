@@ -201,7 +201,6 @@ pub fn felt252_to_bits_rev() -> Hint {
             // Write the bits to memory
             vm.segments.load_data(dst_ptr, &bits)?;
             Ok(())
-
-        },
+        }
     )
 }
