@@ -18,6 +18,8 @@ jobs:
     with:
       hypothesis-profile: "ci"
       coverage-flags: "ci-unit"
+      # Ignore ef-test run in this job (handled in the ef-tests job)
+      pytest-add-params: "--ignore-glob=cairo/tests/ef_tests/"
 
   python-ef-tests:
     uses: ./.github/workflows/python_tests.yml

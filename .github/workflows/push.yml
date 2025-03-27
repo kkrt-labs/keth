@@ -18,3 +18,4 @@ jobs:
     with:
       hypothesis-profile: "ci"
       coverage-flags: "ci-unit"
+      pytest-add-params: "--ignore-glob=cairo/tests/ef_tests/"
