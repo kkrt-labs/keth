@@ -21,10 +21,13 @@ from ethereum_types.numeric import U256, Uint, U256Struct, Bool, bool
 from ethereum.cancun.trie import (
     LeafNode,
     LeafNodeStruct,
+    LeafNode__eq__,
     ExtensionNode,
     ExtensionNodeStruct,
+    ExtensionNode__eq__,
     BranchNode,
     BranchNodeStruct,
+    BranchNode__eq__,
     Subnodes,
     SubnodesStruct,
     InternalNode,
@@ -43,6 +46,7 @@ from ethereum_rlp.rlp import (
     SequenceExtendedStruct,
     ExtendedImpl,
     Extended__eq__,
+    SequenceExtended__eq__,
 )
 
 from starkware.cairo.common.builtin_poseidon.poseidon import poseidon_hash, poseidon_hash_many
@@ -278,6 +282,80 @@ namespace OptionalUnionInternalNodeExtendedImpl {
     }
 }
 
+func OptionalUnionInternalNodeExtended__eq__(
+    left: OptionalUnionInternalNodeExtended, right: OptionalUnionInternalNodeExtended
+) -> bool {
+    // Type checks
+
+    // Null checks
+    if (cast(left.value, felt) == 0) {
+        if (cast(right.value, felt) == 0) {
+            let res = bool(1);
+            return res;
+        }
+        let res = bool(0);
+        return res;
+    }
+    // Left is non-null, right is null -> different types
+    if (cast(right.value, felt) == 0) {
+        let res = bool(0);
+        return res;
+    }
+
+    // # InternalNode checks
+
+    // Leaf checks
+    if (cast(left.value.leaf.value, felt) != 0) {
+        if (cast(right.value.leaf.value, felt) != 0) {
+            let leaf_eq = LeafNode__eq__(left.value.leaf, right.value.leaf);
+            return leaf_eq;
+        }
+        let res = bool(0);
+        return res;
+    }
+    if (cast(right.value.leaf.value, felt) != 0) {
+        let res = bool(0);
+        return res;
+    }
+
+    if (cast(left.value.extension.value, felt) != 0) {
+        if (cast(right.value.extension.value, felt) != 0) {
+            let extension_eq = ExtensionNode__eq__(left.value.extension, right.value.extension);
+            return extension_eq;
+        }
+        let res = bool(0);
+        return res;
+    }
+    if (cast(right.value.extension.value, felt) != 0) {
+        let res = bool(0);
+        return res;
+    }
+
+    if (cast(left.value.branch.value, felt) != 0) {
+        if (cast(right.value.branch.value, felt) != 0) {
+            let branch_eq = BranchNode__eq__(left.value.branch, right.value.branch);
+            return branch_eq;
+        }
+        let res = bool(0);
+        return res;
+    }
+    if (cast(right.value.branch.value, felt) != 0) {
+        let res = bool(0);
+        return res;
+    }
+
+    // # Extended checks
+    // # Because we know we're not an InternalNode (nor None, we checked types for left and right),
+    // we can delegate this to Extended__eq__ we can simply cast the sequence pointer (first variant
+    // of the ExtendedEnum) to an ExtendedEnum*
+    let left_extended_ptr = cast(left.value + InternalNodeEnum.SIZE, ExtendedEnum*);
+    let left_extended = Extended(left_extended_ptr);
+    let right_extended_ptr = cast(right.value + InternalNodeEnum.SIZE, ExtendedEnum*);
+    let right_extended = Extended(right_extended_ptr);
+    let res = Extended__eq__(left_extended, right_extended);
+    return res;
+}
+
 // / @notice Decode the RLP encoded representation of an account node.
 func AccountNode_from_rlp{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     encoding: Bytes
@@ -374,6 +452,8 @@ func _process_account_diff{
 
     assert [main_trie_end] = account_diff;
     tempvar main_trie_end = main_trie_end + AddressAccountNodeDictAccess.SIZE;
+
+    // TODO: compute diff on storage
     return ();
 }
 
@@ -447,6 +527,34 @@ func _process_storage_diff{
     return ();
 }
 
+func compute_diff_entrypoint{
+    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, poseidon_ptr: PoseidonBuiltin*
+}(
+    node_store: NodeStore,
+    address_preimages: MappingBytes32Address,
+    storage_key_preimages: MappingBytes32Bytes32,
+    main_trie_end: AddressAccountNodeDictAccess*,
+    storage_trie_end: Bytes32U256DictAccess*,
+    left: OptionalUnionInternalNodeExtended,
+    right: OptionalUnionInternalNodeExtended,
+    path: Bytes,
+    account_address: Address,
+) -> (AddressAccountNodeDictAccess*, Bytes32U256DictAccess*) {
+    alloc_locals;
+    local main_trie_start: AddressAccountNodeDictAccess* = main_trie_end;
+    local storage_trie_start: Bytes32U256DictAccess* = storage_trie_end;
+
+    _compute_diff{
+        node_store=node_store,
+        address_preimages=address_preimages,
+        storage_key_preimages=storage_key_preimages,
+        main_trie_end=main_trie_end,
+        storage_trie_end=storage_trie_end,
+    }(left=left, right=right, path=path, account_address=account_address);
+
+    return (main_trie_start, storage_trie_start);
+}
+
 // / @notice Recursively compute the difference between two Ethereum tries
 // / @dev "Pattern matches" on node types and delegates to specialized handlers functions.
 // / @param left The node from the previous state
@@ -471,16 +579,13 @@ func _compute_diff{
     account_address: Address,
 ) -> () {
     alloc_locals;
-    // TODO: for elias?
-    // we need to check whether left and right are the same, if so, no need to resolve.
-    // OptionalUnionInternalNodeExtended__eq__ will need to be first doing typechecks equalities,
-    // then delegate to the proper equality function of each type.
-    // let is_left_eq_right = Extended__eq__(left, right);
-    // if (is_left_eq_right.value != 0) {
-    //     return ();
-    // }
 
-    %{ logger.debug_cairo("running _compute_diff") %}
+    %{ logger.trace_cairo(f"compute_diff: {serialize(ids.path)}") %}
+
+    let is_left_eq_right = OptionalUnionInternalNodeExtended__eq__(left, right);
+    if (is_left_eq_right.value != 0) {
+        return ();
+    }
 
     let l_resolved = resolve(left);
     let r_resolved = resolve(right);
@@ -489,19 +594,16 @@ func _compute_diff{
 
     // Case 1: left is null
     if (cast(l_resolved.value, felt) == 0) {
-        %{ logger.debug_cairo("left is null") %}
         return _left_is_null(left, r_resolved, path, account_address);
     }
 
     // Case 2: left is a leaf node
     if (cast(l_resolved.value.leaf_node.value, felt) != 0) {
-        %{ logger.debug_cairo("left is a leaf node") %}
         return _left_is_leaf_node(l_resolved.value.leaf_node, r_resolved, path, account_address);
     }
 
     // Case 3: left is an extension node
     if (cast(l_resolved.value.extension_node.value, felt) != 0) {
-        %{ logger.debug_cairo("left is an extension node") %}
         return _left_is_extension_node(
             l_resolved.value.extension_node, r_resolved, path, account_address
         );
@@ -509,7 +611,6 @@ func _compute_diff{
 
     // Case 4: left is a branch node
     if (cast(l_resolved.value.branch_node.value, felt) != 0) {
-        %{ logger.debug_cairo("left is a branch node") %}
         return _left_is_branch_node(
             l_resolved.value.branch_node, r_resolved, path, account_address
         );
@@ -557,7 +658,7 @@ func _left_is_null{
         tempvar right_leaf = OptionalLeafNode(r_leaf.value);
 
         // Current trie is the account trie
-        if (account_address.value != 0) {
+        if (account_address.value == 0) {
             _process_account_diff(path=full_path_b32, left=left_leaf_null, right=right_leaf);
             return ();
         }
@@ -574,7 +675,6 @@ func _left_is_null{
     if (cast(right.value.extension_node.value, felt) != 0) {
         let r_extension = right.value.extension_node;
         let updated_path = Bytes__add__(path, r_extension.value.key_segment);
-        %{ logger.debug_cairo("updated_path: %s", updated_path) %}
         let subnode = OptionalUnionInternalNodeExtendedImpl.from_extended(
             r_extension.value.subnode
         );
@@ -626,7 +726,7 @@ func _left_is_leaf_node{
         let opt_left_leaf = OptionalLeafNode(l_leaf.value);
         let right_leaf_null = OptionalLeafNode(cast(0, LeafNodeStruct*));
 
-        if (account_address.value != 0) {
+        if (account_address.value == 0) {
             _process_account_diff(path=full_path_b32, left=opt_left_leaf, right=right_leaf_null);
             return ();
         }
@@ -660,7 +760,7 @@ func _left_is_leaf_node{
             let opt_left_leaf = OptionalLeafNode(l_leaf.value);
             let opt_right_leaf = OptionalLeafNode(r_leaf.value);
 
-            if (account_address.value != 0) {
+            if (account_address.value == 0) {
                 _process_account_diff(path=full_path_b32, left=opt_left_leaf, right=opt_right_leaf);
                 return ();
             }
@@ -681,14 +781,14 @@ func _left_is_leaf_node{
         let updated_left_path_b32 = Bytes_to_Bytes32(updated_left_path_bytes);
 
         let updated_right_path = Bytes__add__(path, r_leaf.value.rest_of_key);
-        let updated_right_path_nibbles = nibble_list_to_bytes(updated_right_path);
-        let updated_right_path_b32 = Bytes_to_Bytes32(updated_right_path_nibbles);
+        let updated_right_path_bytes = nibble_list_to_bytes(updated_right_path);
+        let updated_right_path_b32 = Bytes_to_Bytes32(updated_right_path_bytes);
 
         let leaf_null = OptionalLeafNode(cast(0, LeafNodeStruct*));
         let opt_right_leaf = OptionalLeafNode(r_leaf.value);
         let opt_left_leaf = OptionalLeafNode(l_leaf.value);
 
-        if (account_address.value != 0) {
+        if (account_address.value == 0) {
             _process_account_diff(path=updated_left_path_b32, left=opt_left_leaf, right=leaf_null);
             _process_account_diff(
                 path=updated_right_path_b32, left=leaf_null, right=opt_right_leaf
@@ -715,7 +815,6 @@ func _left_is_leaf_node{
         // remove the right node's key segment from the left leaf node
         let r_extension = right.value.extension_node;
         let updated_path = Bytes__add__(path, r_extension.value.key_segment);
-        %{ logger.debug_cairo("updated_path: %s", updated_path) %}
         let r_subnode = OptionalUnionInternalNodeExtendedImpl.from_extended(
             r_extension.value.subnode
         );
@@ -824,8 +923,9 @@ func _left_is_extension_node{
             let r_subnode = OptionalUnionInternalNodeExtendedImpl.from_extended(
                 r_extension.value.subnode
             );
+            let updated_path = Bytes__add__(path, left.value.key_segment);
             return _compute_diff(
-                left=l_subnode, right=r_subnode, path=path, account_address=account_address
+                left=l_subnode, right=r_subnode, path=updated_path, account_address=account_address
             );
         }
 
@@ -948,7 +1048,6 @@ func _left_is_branch_node{
     // (BranchNode(), None) -> deleted branch node
     // Look for diffs in all branches of the left sub-tree
     if (cast(right.value, felt) == 0) {
-        %{ logger.debug_cairo("left is a branch node and right is null") %}
         return _compute_left_branch_on_none(
             left=left, right=right, path=path, account_address=account_address, index=0
         );
@@ -958,7 +1057,6 @@ func _left_is_branch_node{
     // All branches - except the one whose first nibble matches the leaf's key - are deleted.
     // The remaining branch is compared to the leaf.
     if (cast(right.value.leaf_node.value, felt) != 0) {
-        %{ logger.debug_cairo("left is a branch node and right is a leaf node") %}
         let right_leaf = right.value.leaf_node;
         return _compute_left_branch_on_right_leaf(
             left=left, right=right_leaf, path=path, account_address=account_address, index=0
@@ -969,7 +1067,6 @@ func _left_is_branch_node{
     // segment. Remove the nibble from the extension key segment and look for diffs in the
     // remaining sub-tree.
     if (cast(right.value.extension_node.value, felt) != 0) {
-        %{ logger.debug_cairo("left is a branch node and right is an extension node") %}
         let right_extension = right.value.extension_node;
         return _compute_left_branch_on_right_extension_node(
             left=left, right=right_extension, path=path, account_address=account_address, index=0
@@ -978,7 +1075,6 @@ func _left_is_branch_node{
 
     // (BranchNode(), BranchNode()) -> Look for diffs in all branches of the right sub-tree
     if (cast(right.value.branch_node.value, felt) != 0) {
-        %{ logger.debug_cairo("left is a branch node and right is a branch node") %}
         let right_branch = right.value.branch_node;
         return _compute_left_branch_on_right_branch_node(
             left=left, right=right_branch, path=path, account_address=account_address, index=0
@@ -1013,7 +1109,6 @@ func _compute_left_branch_on_none{
 
     let subnodes_ptr = cast(left.value.subnodes.value, felt*);
     let subnode_i_extended = Extended(cast(subnodes_ptr[index], ExtendedEnum*));
-    %{ logger.debug_cairo("subnode_i_extended index: %s", index) %}
     let subnode_i = OptionalUnionInternalNodeExtendedImpl.from_extended(subnode_i_extended);
 
     let null_node = OptionalUnionInternalNodeExtended(
@@ -1027,8 +1122,9 @@ func _compute_left_branch_on_none{
         new BytesStruct(data=path_copy.value.data, len=path_copy.value.len + 1)
     );
 
-    return _compute_diff(
-        left=null_node, right=subnode_i, path=sub_path, account_address=account_address
+    _compute_diff(left=null_node, right=subnode_i, path=sub_path, account_address=account_address);
+    return _compute_left_branch_on_none(
+        left=left, right=right, path=path, account_address=account_address, index=index + 1
     );
 }
 
@@ -1050,7 +1146,6 @@ func _compute_left_branch_on_right_leaf{
 
     let subnodes_ptr = cast(left.value.subnodes.value, felt*);
     let subnode_i_extended = Extended(cast(subnodes_ptr[index], ExtendedEnum*));
-    %{ logger.debug_cairo("subnode_i_extended index: %s", index) %}
     let subnode_i = OptionalUnionInternalNodeExtendedImpl.from_extended(subnode_i_extended);
 
     // path = path + bytes([i])
@@ -1076,16 +1171,20 @@ func _compute_left_branch_on_right_leaf{
         );
         let right_ = OptionalUnionInternalNodeExtendedImpl.from_leaf(leaf);
         let left_typed = OptionalUnionInternalNodeExtendedImpl.from_branch(left);
-        return _compute_diff(
+        _compute_diff(
             left=left_typed, right=right_, path=sub_path, account_address=account_address
+        );
+        return _compute_left_branch_on_right_leaf(
+            left=left, right=right, path=path, account_address=account_address, index=index + 1
         );
     }
     // Compare to None
     tempvar null_node = OptionalUnionInternalNodeExtended(
         cast(0, OptionalUnionInternalNodeExtendedEnum*)
     );
-    return _compute_diff(
-        left=null_node, right=subnode_i, path=sub_path, account_address=account_address
+    _compute_diff(left=null_node, right=subnode_i, path=sub_path, account_address=account_address);
+    return _compute_left_branch_on_right_leaf(
+        left=left, right=right, path=path, account_address=account_address, index=index + 1
     );
 }
 
@@ -1108,7 +1207,6 @@ func _compute_left_branch_on_right_extension_node{
 
     let subnodes_ptr = cast(left.value.subnodes.value, felt*);
     let subnode_i_extended = Extended(cast(subnodes_ptr[index], ExtendedEnum*));
-    %{ logger.debug_cairo("subnode_i_extended index: %s", index) %}
     let subnode_i = OptionalUnionInternalNodeExtendedImpl.from_extended(subnode_i_extended);
 
     // path = path + bytes([i])
@@ -1134,16 +1232,20 @@ func _compute_left_branch_on_right_extension_node{
         );
         let right_ = OptionalUnionInternalNodeExtendedImpl.from_extension(extension);
         let left_typed = OptionalUnionInternalNodeExtendedImpl.from_branch(left);
-        return _compute_diff(
+        _compute_diff(
             left=left_typed, right=right_, path=sub_path, account_address=account_address
+        );
+        return _compute_left_branch_on_right_extension_node(
+            left=left, right=right, path=path, account_address=account_address, index=index + 1
         );
     }
     // Compare to None
     let null_node = OptionalUnionInternalNodeExtended(
         cast(0, OptionalUnionInternalNodeExtendedEnum*)
     );
-    return _compute_diff(
-        left=null_node, right=subnode_i, path=sub_path, account_address=account_address
+    _compute_diff(left=null_node, right=subnode_i, path=sub_path, account_address=account_address);
+    return _compute_left_branch_on_right_extension_node(
+        left=left, right=right, path=path, account_address=account_address, index=index + 1
     );
 }
 
@@ -1165,12 +1267,10 @@ func _compute_left_branch_on_right_branch_node{
 
     let subnodes_left_ptr = cast(left.value.subnodes.value, felt*);
     let subnode_left_extended = Extended(cast(subnodes_left_ptr[index], ExtendedEnum*));
-    %{ logger.debug_cairo("subnode_left_extended index: %s", ids.index) %}
     let subnode_left = OptionalUnionInternalNodeExtendedImpl.from_extended(subnode_left_extended);
 
     let subnodes_right_ptr = cast(right.value.subnodes.value, felt*);
     let subnode_right_extended = Extended(cast(subnodes_right_ptr[index], ExtendedEnum*));
-    %{ logger.debug_cairo("subnode_right_extended index: %s", ids.index) %}
     let subnode_right = OptionalUnionInternalNodeExtendedImpl.from_extended(subnode_right_extended);
 
     // path = path + bytes([i])
@@ -1180,8 +1280,12 @@ func _compute_left_branch_on_right_branch_node{
         new BytesStruct(data=path_copy.value.data, len=path_copy.value.len + 1)
     );
 
-    return _compute_diff(
+    _compute_diff(
         left=subnode_left, right=subnode_right, path=sub_path, account_address=account_address
+    );
+
+    return _compute_left_branch_on_right_branch_node(
+        left=left, right=right, path=path, account_address=account_address, index=index + 1
     );
 }
 
@@ -1218,7 +1322,6 @@ func _compute_left_leaf_diff_on_right_branch_node{
     // Use `branch_0` as the base pointer to the list of subnodes and index it as a felt*.
     let subnodes_ptr = cast(subnodes.value, felt*);
     let subnode_i_extended = Extended(cast(subnodes_ptr[index], ExtendedEnum*));
-    %{ logger.debug_cairo("subnode_i_extended index: %s", index) %}
     let subnode_i = OptionalUnionInternalNodeExtendedImpl.from_extended(subnode_i_extended);
 
     // TODO: optimization possible here
@@ -1238,14 +1341,14 @@ func _compute_left_leaf_diff_on_right_branch_node{
 
     if (cast(left.value, felt) == 0) {
         // None leaf
-        tempvar left = left;
+        tempvar left_to_compare_in_iter = left;
     } else {
         // Leaf node
         let l_leaf = left.value.leaf;
         let first_nib = l_leaf.value.rest_of_key.value.data[0];
         if (first_nib == index) {
             // Compare to the shortened leaf node
-            tempvar leaf = LeafNode(
+            tempvar shortened_leaf = LeafNode(
                 new LeafNodeStruct(
                     rest_of_key=Bytes(
                         new BytesStruct(
@@ -1256,27 +1359,28 @@ func _compute_left_leaf_diff_on_right_branch_node{
                     value=l_leaf.value.value,
                 ),
             );
-            let left_ = OptionalUnionInternalNodeExtendedImpl.from_leaf(l_leaf);
-            tempvar left = left_;
+            let left_ = OptionalUnionInternalNodeExtendedImpl.from_leaf(shortened_leaf);
+            tempvar left_to_compare_in_iter = left_;
         } else {
             // Compare to None
-            tempvar left = OptionalUnionInternalNodeExtended(
+            tempvar left_to_compare_in_iter = OptionalUnionInternalNodeExtended(
                 cast(0, OptionalUnionInternalNodeExtendedEnum*)
             );
         }
     }
-    let left = OptionalUnionInternalNodeExtended(
+    let left_to_compare_in_iter = OptionalUnionInternalNodeExtended(
         cast([ap - 1], OptionalUnionInternalNodeExtendedEnum*)
     );
 
-    _compute_diff(left=left, right=subnode_i, path=sub_path, account_address=account_address);
-
-    return _compute_left_leaf_diff_on_right_branch_node(
-        left=left,
-        subnodes=subnodes,
+    _compute_diff(
+        left=left_to_compare_in_iter,
+        right=subnode_i,
         path=sub_path,
         account_address=account_address,
-        index=index + 1,
+    );
+
+    return _compute_left_leaf_diff_on_right_branch_node(
+        left=left, subnodes=subnodes, path=path, account_address=account_address, index=index + 1
     );
 }
 
@@ -1305,7 +1409,6 @@ func _compute_left_extension_node_diff_on_right_branch_node{
     // Use `branch_0` as the base pointer to the list of subnodes and index it as a felt*.
     let subnodes_ptr = cast(subnodes.value, felt*);
     let subnode_i_extended = Extended(cast(subnodes_ptr[index], ExtendedEnum*));
-    %{ logger.debug_cairo("subnode_i_extended index: %s", index) %}
     let subnode_i = OptionalUnionInternalNodeExtendedImpl.from_extended(subnode_i_extended);
 
     // TODO: optimization possible here
@@ -1339,25 +1442,26 @@ func _compute_left_extension_node_diff_on_right_branch_node{
             ),
         );
         let left_ = OptionalUnionInternalNodeExtendedImpl.from_extension(l_extension);
-        tempvar left = left_;
+        tempvar left_to_compare_in_iter = left_;
     } else {
         // Compare to None
-        tempvar left = OptionalUnionInternalNodeExtended(
+        tempvar left_to_compare_in_iter = OptionalUnionInternalNodeExtended(
             cast(0, OptionalUnionInternalNodeExtendedEnum*)
         );
     }
-    let left = OptionalUnionInternalNodeExtended(
+    let left_to_compare_in_iter = OptionalUnionInternalNodeExtended(
         cast([ap - 1], OptionalUnionInternalNodeExtendedEnum*)
     );
 
-    _compute_diff(left=left, right=subnode_i, path=sub_path, account_address=account_address);
-
-    return _compute_left_extension_node_diff_on_right_branch_node(
-        left=left,
-        subnodes=subnodes,
+    _compute_diff(
+        left=left_to_compare_in_iter,
+        right=subnode_i,
         path=sub_path,
         account_address=account_address,
-        index=index + 1,
+    );
+
+    return _compute_left_extension_node_diff_on_right_branch_node(
+        left=left, subnodes=subnodes, path=path, account_address=account_address, index=index + 1
     );
 }
 

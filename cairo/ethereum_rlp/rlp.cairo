@@ -229,10 +229,8 @@ func Extended__eq__(left: Extended, right: Extended) -> bool {
         let res = bool(1);
         return res;
     }
-
-    // Bytes case
-    if (left.value.bytes.value != 0 and right.value.bytes.value != 0) {
-        let res = Bytes__eq__(left.value.bytes, right.value.bytes);
+    if (cast(right.value, felt) == 0) {
+        let res = bool(0);
         return res;
     }
 
@@ -242,9 +240,56 @@ func Extended__eq__(left: Extended, right: Extended) -> bool {
         return res;
     }
 
-    with_attr error_message("Unimplemented for types other than bytes and sequence") {
-        jmp raise.raise_label;
+    // Bytearray case
+    if (left.value.bytearray.value != 0) {
+        if (right.value.bytearray.value != 0) {
+            let res = Bytes__eq__(left.value.bytearray, right.value.bytearray);
+            return res;
+        }
+        let res = bool(0);
+        return res;
     }
+
+    // Bytes case
+    if (left.value.bytes.value != 0) {
+        if (right.value.bytes.value != 0) {
+            let res = Bytes__eq__(left.value.bytes, right.value.bytes);
+            return res;
+        }
+        let res = bool(0);
+        return res;
+    }
+
+    // Uint case
+    if (left.value.uint != 0 and right.value.uint != 0) {
+        let res_ = is_zero(left.value.uint.value - right.value.uint.value);
+        let res = bool(res_);
+        return res;
+    }
+
+    // Fixed uint case
+    if (left.value.fixed_uint != 0 and right.value.fixed_uint != 0) {
+        let res_ = is_zero(left.value.fixed_uint.value - right.value.fixed_uint.value);
+        let res = bool(res_);
+        return res;
+    }
+
+    // String case
+    if (left.value.str.value != 0 and right.value.str.value != 0) {
+        let res = Bytes__eq__(left.value.str, right.value.str);
+        return res;
+    }
+
+    // Bool case
+    if (left.value.bool != 0 and right.value.bool != 0) {
+        let res_ = is_zero(left.value.bool.value - right.value.bool.value);
+        let res = bool(res_);
+        return res;
+    }
+
+    // Reached when left and right are different types.
+    let res = bool(0);
+    return res;
 }
 
 // @notice Recursively compares two SequenceExtended. Compares each element of the sequence

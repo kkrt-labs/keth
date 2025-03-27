@@ -76,13 +76,8 @@ struct OptionalBytes {
     value: BytesStruct*,
 }
 
-struct StringStruct {
-    data: felt*,
-    len: felt,
-}
-struct String {
-    value: StringStruct*,
-}
+using String = Bytes;
+using StringStruct = BytesStruct;
 
 // In Cairo, tuples are not a first-class type, so we need to define a custom
 // struct to represent a tuple of Bytes32.
