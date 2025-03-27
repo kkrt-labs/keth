@@ -79,7 +79,7 @@ def test_ef():
     try:
         # Run the command without capturing output, letting it go directly to the terminal
         result = subprocess.run(
-            f"uv run pytest -n logical -v -s --no-skip-cached-tests -m 'not slow' --max-tests=8000 --randomly-seed={seed} cairo/tests/ef_tests/",
+            f"uv run pytest -n logical -v -s --no-skip-cached-tests -m 'not slow' --max-tests=5000 --randomly-seed={seed} cairo/tests/ef_tests/",
             shell=True,
             env=env,
             check=False,

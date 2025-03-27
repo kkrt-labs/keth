@@ -173,16 +173,17 @@ def coverage(
             .collect()
         )
         # Filter for the current Cairo file and prepare missed lines report
-        missed = (
-            all_coverages.filter(pl.col("filename") == str(cairo_file))
-            .with_columns(pl.col("filename").str.replace(str(Path.cwd()) + "/", ""))
-            .filter(pl.col("count") == 0)
-            .sort("line_number", descending=False)
-            .with_columns(
-                pl.col("filename") + ":" + pl.col("line_number").cast(pl.String)
+        with pl.Config(tbl_rows=100, fmt_str_lengths=90):
+            missed = (
+                all_coverages.filter(pl.col("filename") == str(cairo_file))
+                .with_columns(pl.col("filename").str.replace(str(Path.cwd()) + "/", ""))
+                .filter(pl.col("count") == 0)
+                .sort("line_number", descending=False)
+                .with_columns(
+                    pl.col("filename") + ":" + pl.col("line_number").cast(pl.String)
+                )
+                .drop("line_number", "count")
             )
-            .drop("line_number", "count")
-        )
 
         # Log coverage results
         with pl.Config(tbl_rows=100, fmt_str_lengths=90):
