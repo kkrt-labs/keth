@@ -209,8 +209,7 @@ func bnp2_init{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: 
 
     let x_is_zero = BNF2__eq__(x, bnf2_zero);
     let y_is_zero = BNF2__eq__(y, bnf2_zero);
-    let is_infinity = x_is_zero * y_is_zero;
-    if (is_infinity != 0) {
+    if (x_is_zero != 0 and y_is_zero != 0) {
         tempvar res = BNP2(new BNP2Struct(x, y));
         return res;
     }
@@ -239,15 +238,13 @@ func bnp2_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: M
     let bnf2_zero = BNF2_ZERO();
     let x_is_zero = BNF2__eq__(p.value.x, bnf2_zero);
     let y_is_zero = BNF2__eq__(p.value.y, bnf2_zero);
-    let p_is_infinity = x_is_zero * y_is_zero;
-    if (p_is_infinity != 0) {
+    if (x_is_zero != 0 and y_is_zero != 0) {
         return q;
     }
 
     let x_is_zero_q = BNF2__eq__(q.value.x, bnf2_zero);
     let y_is_zero_q = BNF2__eq__(q.value.y, bnf2_zero);
-    let q_is_infinity = x_is_zero_q * y_is_zero_q;
-    if (q_is_infinity != 0) {
+    if (x_is_zero_q != 0 and y_is_zero_q != 0) {
         return p;
     }
 
@@ -345,8 +342,7 @@ func bnp2_mul_by{
     let bnf2_zero = BNF2_ZERO();
     let x_is_zero = BNF2__eq__(p.value.x, bnf2_zero);
     let y_is_zero = BNF2__eq__(p.value.y, bnf2_zero);
-    let p_is_infinity = x_is_zero * y_is_zero;
-    if (p_is_infinity != 0) {
+    if (x_is_zero != 0 and y_is_zero != 0) {
         return p;
     }
 
@@ -1531,8 +1527,7 @@ func bnp12_init{
     // Check if the point is at infinity (0,0)
     let x_is_zero = BNF12__eq__(x, bnf12_zero);
     let y_is_zero = BNF12__eq__(y, bnf12_zero);
-    let is_infinity = x_is_zero * y_is_zero;
-    if (is_infinity != 0) {
+    if (x_is_zero != 0 and y_is_zero != 0) {
         tempvar res = BNP12(new BNP12Struct(x, y));
         return res;
     }
@@ -1643,15 +1638,13 @@ func bnp12_add{
     let bnf12_zero = BNF12_ZERO();
     let x_is_zero = BNF12__eq__(p.value.x, bnf12_zero);
     let y_is_zero = BNF12__eq__(p.value.y, bnf12_zero);
-    let p_is_infinity = x_is_zero * y_is_zero;
-    if (p_is_infinity != 0) {
+    if (x_is_zero != 0 and y_is_zero != 0) {
         return q;
     }
 
     let x_is_zero_q = BNF12__eq__(q.value.x, bnf12_zero);
     let y_is_zero_q = BNF12__eq__(q.value.y, bnf12_zero);
-    let q_is_infinity = x_is_zero_q * y_is_zero_q;
-    if (q_is_infinity != 0) {
+    if (x_is_zero_q != 0 and y_is_zero_q != 0) {
         return p;
     }
 
