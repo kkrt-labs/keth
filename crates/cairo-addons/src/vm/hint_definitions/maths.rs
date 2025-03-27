@@ -182,14 +182,17 @@ pub fn felt252_to_bits_rev() -> Hint {
             let len = get_integer_from_var_name("len", vm, ids_data, ap_tracking)?;
             let dst_ptr = get_ptr_from_var_name("dst", vm, ids_data, ap_tracking)?;
 
-            let len: usize = len
-                .try_into()
-                .map_err(|_| MathError::Felt252ToUsizeConversion(Box::new(len)))?;
+            let len: usize =
+                len.try_into().map_err(|_| MathError::Felt252ToUsizeConversion(Box::new(len)))?;
 
             let value_biguint = value.to_biguint();
             let mut bits: Vec<MaybeRelocatable> = (0..len)
                 .map(|i| {
-                    let bit = if value_biguint.bit(i as u64) { BigUint::from(1u32) } else { BigUint::from(0u32) };
+                    let bit = if value_biguint.bit(i as u64) {
+                        BigUint::from(1u32)
+                    } else {
+                        BigUint::from(0u32)
+                    };
                     Felt252::from(bit).into()
                 })
                 .collect();
