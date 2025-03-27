@@ -17,5 +17,4 @@ jobs:
     uses: ./.github/workflows/python_tests.yml
     with:
       hypothesis-profile: "ci"
-      pytest-add-params: "--ignore-glob=cairo/tests/ef_tests/"
       coverage-flags: "ci-unit"

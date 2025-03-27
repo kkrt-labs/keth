@@ -48,13 +48,14 @@ jobs:
     env:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     steps:
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-environment
       - name: Run full EF tests
         id: ef-tests
         continue-on-error: true
         # Running on 48 cores to avoid out of memory issues
         run: |
-          uv run pytest -n 48 -m "not slow" --durations=0 -v -s --log-cli-level=DEBUG cairo/tests/ef_tests/ --ignore-glob='cairo/tests/ef_tests/fixtures/*'
+          uv run pytest -n 48 -m "not slow" --durations=0 -v -s --log-cli-level=DEBUG cairo/tests/ef_tests/
       - name: Upload coverage
         uses: codecov/codecov-action@v5
         with:

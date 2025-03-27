@@ -17,7 +17,6 @@ jobs:
     uses: ./.github/workflows/python_tests.yml
     with:
       hypothesis-profile: "ci"
-      pytest-add-params: "--ignore-glob=cairo/tests/ef_tests/"
       coverage-flags: "ci-unit"
 
   python-ef-tests:
@@ -26,5 +25,5 @@ jobs:
       hypothesis-profile: "ci"
       pytest-add-params:
         "-m 'not slow' --max-tests=8000 --randomly-seed=$GITHUB_RUN_ID
-        cairo/tests/ef_tests/ --ignore-glob='cairo/tests/ef_tests/fixtures/*'"
+        cairo/tests/ef_tests/"
       coverage-flags: "ci-ef-tests"
