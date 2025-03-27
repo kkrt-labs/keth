@@ -218,6 +218,16 @@ segments.load_data(ids.b_inv.address_, [bnf2_struct_ptr])
             cairo_infinity = cairo_run("bnp12_point_at_infinity")
             assert cairo_infinity == BNP12.point_at_infinity()
 
+        @given(p=..., q=...)
+        def test_bnp12_add(self, cairo_run, p: BNP12, q: BNP12):
+            try:
+                expected = p + q
+            except OverflowError:  # fails for large points
+                with cairo_error(message="OverflowError"):  # Hint error
+                    cairo_run("bnp12_add", p, q)
+                return
+            assert cairo_run("bnp12_add", p, q) == expected
+
         @given(a=..., b=...)
         def test_bnp12_eq(self, cairo_run, a: BNP12, b: BNP12):
             assert cairo_run("BNP12__eq__", a, b) == (a == b)
