@@ -92,8 +92,8 @@ class TestTrieDiff:
         # Python
         state_diff = StateDiff.from_json(data_path)
         trie_diff = StateDiff.from_tries(ethereum_trie_transition_db)
-        # assert trie_diff._main_trie == state_diff._main_trie
-        # assert trie_diff._storage_tries == state_diff._storage_tries
+        assert trie_diff._main_trie == state_diff._main_trie
+        assert trie_diff._storage_tries == state_diff._storage_tries
 
         # Compare main trie
         for address, (cairo_prev, cairo_new) in trie_diff._main_trie.items():
@@ -121,17 +121,16 @@ class TestTrieDiff:
             path=b"",
             account_address=None,
         )
-        # TODO: why are we missing values :()
-        # for address, (cairo_prev, cairo_new) in main_trie_diff_cairo._main_trie.items():
-        #     python_prev, python_new = state_diff._main_trie.get(address, (None, None))
-        #     assert (
-        #         cairo_prev == python_prev
-        #     ), f"Mismatch in previous account state for {address.hex()}"
-        #     assert (
-        #         cairo_new == python_new
-        #     ), f"Mismatch in new account state for {address.hex()}"
+        result_lookup = {
+            dict_entry["key"]: (dict_entry["prev_value"], dict_entry["new_value"])
+            for dict_entry in main_trie_diff_cairo
+        }
 
-        # # assert result_trie_diff_cairo == state_diff
+        assert len(result_lookup) == len(state_diff._main_trie)
+        for key, (prev_value, new_value) in state_diff._main_trie.items():
+            assert (prev_value, new_value) == result_lookup[key]
+
+        # TODO: storage
 
     @pytest.mark.parametrize(
         "data_path", [Path("test_data/22081873.json")], scope="session"
