@@ -15,6 +15,7 @@ jobs:
       HYPOTHESIS_PROFILE: nightly
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     steps:
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-environment
       - name: Run unit tests
         id: unit-tests
