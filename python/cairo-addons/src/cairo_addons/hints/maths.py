@@ -47,4 +47,4 @@ def felt252_to_bits(ids: VmConsts, segments: MemorySegmentManager):
     # Convert to binary representation and strip the leading '0b' prefix
     # also, pad with leading zeros if necessary (if value has less bits than len)
     binary = bin(value)[2:].zfill(ids.len)
-    segments.write_arg(dst, [int(bit) for bit in binary][::-1])
+    segments.load_data(dst, [int(bit) for bit in binary][::-1])
