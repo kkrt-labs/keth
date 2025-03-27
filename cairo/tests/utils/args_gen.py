@@ -342,11 +342,18 @@ class Evm(
     )
 ):
     def __eq__(self, other):
-        return all(
+        common_fields_ok = all(
             getattr(self, field.name) == getattr(other, field.name)
             for field in fields(self)
-            if field.name != "error"
+            if field.name != "error" and field.name != "refund_counter"
         ) and type(self.error) is type(other.error)
+
+        # The refund_counter is a felt, is serialized as a positive integer `int`, but in this specific case,
+        # we want a felt (that can be either positive or negative)
+        refund_counter_ok = (
+            self.refund_counter % DEFAULT_PRIME == other.refund_counter % DEFAULT_PRIME
+        )
+        return common_fields_ok and refund_counter_ok
 
 
 @dataclass
