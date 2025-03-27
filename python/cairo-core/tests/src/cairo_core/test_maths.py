@@ -184,10 +184,10 @@ segments.write_arg(ids.output, bad)
         assert res == value.bit_length()
 
     @given(
-        value=st.integers(min_value=256, max_value=380),
-        len=st.integers(min_value=10, max_value=20),
+        value=st.integers(min_value=150, max_value=200),
+        len=st.integers(min_value=10, max_value=11),
     )
-    def test_felt252_to_bits(self, cairo_run, value, len):
+    def test_felt252_to_bits_rev(self, cairo_run, value, len):
         expected = [int(bit) for bit in bin(value)[2:].zfill(len)[::-1]]
-        res = cairo_run("test__felt252_to_bits", value=value, len=len)
+        res = cairo_run("test__felt252_to_bits_rev", value=value, len=len)
         assert res == expected

@@ -40,7 +40,7 @@ def value_len_mod_two(ids: VmConsts):
 
 
 @register_hint
-def felt252_to_bits(ids: VmConsts, segments: MemorySegmentManager):
+def felt252_to_bits_rev(ids: VmConsts, segments: MemorySegmentManager):
     value = ids.value
     dst = ids.dst
 

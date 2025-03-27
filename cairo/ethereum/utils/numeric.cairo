@@ -18,7 +18,7 @@ from cairo_core.maths import (
     unsigned_div_rem,
     felt252_to_bytes_be,
     felt252_bit_length,
-    felt252_to_bits,
+    felt252_to_bits_rev,
 )
 from cairo_core.comparison import is_zero
 from cairo_ec.uint384 import uint256_to_uint384
@@ -506,10 +506,10 @@ func get_u384_bits_little{range_check_ptr}(num: U384) -> (felt*, felt) {
     let other_limbs_zero = num.value.d1 + num.value.d2 + num.value.d3;
     if (other_limbs_zero == 0) {
         let bits_len = felt252_bit_length(num.value.d0);
-        let bits_len = felt252_to_bits(num.value.d0, bits_len, bits_ptr);
+        let bits_len = felt252_to_bits_rev(num.value.d0, bits_len, bits_ptr);
         return (bits_ptr, bits_len);
     }
-    let d0_len = felt252_to_bits(num.value.d0, 96, bits_ptr);
+    let d0_len = felt252_to_bits_rev(num.value.d0, 96, bits_ptr);
     tempvar total_bits_len = total_bits_len + d0_len;
 
     // Process limb1 (d1)
@@ -517,10 +517,10 @@ func get_u384_bits_little{range_check_ptr}(num: U384) -> (felt*, felt) {
     let other_limbs_zero = num.value.d2 + num.value.d3;
     if (other_limbs_zero == 0) {
         let bits_len = felt252_bit_length(num.value.d1);
-        let d1_len = felt252_to_bits(num.value.d1, bits_len, bits_ptr + total_bits_len);
+        let d1_len = felt252_to_bits_rev(num.value.d1, bits_len, bits_ptr + total_bits_len);
         return (bits_ptr, total_bits_len + d1_len);
     }
-    let d1_len = felt252_to_bits(num.value.d1, 96, bits_ptr + total_bits_len);
+    let d1_len = felt252_to_bits_rev(num.value.d1, 96, bits_ptr + total_bits_len);
     tempvar total_bits_len = total_bits_len + d1_len;
 
     // Process limb2 (d2)
@@ -528,14 +528,14 @@ func get_u384_bits_little{range_check_ptr}(num: U384) -> (felt*, felt) {
     let last_limb_zero = num.value.d3;
     if (last_limb_zero == 0) {
         let bits_len = felt252_bit_length(num.value.d2);
-        let d2_len = felt252_to_bits(num.value.d2, bits_len, bits_ptr + total_bits_len);
+        let d2_len = felt252_to_bits_rev(num.value.d2, bits_len, bits_ptr + total_bits_len);
         return (bits_ptr, total_bits_len + d2_len);
     }
-    let d2_len = felt252_to_bits(num.value.d2, 96, bits_ptr + total_bits_len);
+    let d2_len = felt252_to_bits_rev(num.value.d2, 96, bits_ptr + total_bits_len);
     tempvar total_bits_len = total_bits_len + d2_len;
 
     // Process limb3 (d3)
     let bits_len = felt252_bit_length(num.value.d3);
-    let d3_len = felt252_to_bits(num.value.d3, bits_len, bits_ptr + total_bits_len);
+    let d3_len = felt252_to_bits_rev(num.value.d3, bits_len, bits_ptr + total_bits_len);
     return (bits_ptr, total_bits_len + d3_len);
 }
