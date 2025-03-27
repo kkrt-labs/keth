@@ -209,8 +209,7 @@ func bnp2_init{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: 
 
     let x_is_zero = BNF2__eq__(x, bnf2_zero);
     let y_is_zero = BNF2__eq__(y, bnf2_zero);
-    let is_infinity = x_is_zero * y_is_zero;
-    if (is_infinity != 0) {
+    if (x_is_zero != 0 and y_is_zero != 0) {
         tempvar res = BNP2(new BNP2Struct(x, y));
         return res;
     }
@@ -239,15 +238,13 @@ func bnp2_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: M
     let bnf2_zero = BNF2_ZERO();
     let x_is_zero = BNF2__eq__(p.value.x, bnf2_zero);
     let y_is_zero = BNF2__eq__(p.value.y, bnf2_zero);
-    let p_is_infinity = x_is_zero * y_is_zero;
-    if (p_is_infinity != 0) {
+    if (x_is_zero != 0 and y_is_zero != 0) {
         return q;
     }
 
     let x_is_zero_q = BNF2__eq__(q.value.x, bnf2_zero);
     let y_is_zero_q = BNF2__eq__(q.value.y, bnf2_zero);
-    let q_is_infinity = x_is_zero_q * y_is_zero_q;
-    if (q_is_infinity != 0) {
+    if (x_is_zero_q != 0 and y_is_zero_q != 0) {
         return p;
     }
 
@@ -345,8 +342,7 @@ func bnp2_mul_by{
     let bnf2_zero = BNF2_ZERO();
     let x_is_zero = BNF2__eq__(p.value.x, bnf2_zero);
     let y_is_zero = BNF2__eq__(p.value.y, bnf2_zero);
-    let p_is_infinity = x_is_zero * y_is_zero;
-    if (p_is_infinity != 0) {
+    if (x_is_zero != 0 and y_is_zero != 0) {
         return p;
     }
 
@@ -1531,8 +1527,7 @@ func bnp12_init{
     // Check if the point is at infinity (0,0)
     let x_is_zero = BNF12__eq__(x, bnf12_zero);
     let y_is_zero = BNF12__eq__(y, bnf12_zero);
-    let is_infinity = x_is_zero * y_is_zero;
-    if (is_infinity != 0) {
+    if (x_is_zero != 0 and y_is_zero != 0) {
         tempvar res = BNP12(new BNP12Struct(x, y));
         return res;
     }
@@ -1632,6 +1627,59 @@ func bnp12_double{
     // Calculate y' = λ(x - x') - y
     let new_y = bnf12_sub(lambda_times_x_diff, p.value.y);
     tempvar result = BNP12(new BNP12Struct(new_x, new_y));
+    return result;
+}
+
+func bnp12_add{
+    range_check_ptr, range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
+}(p: BNP12, q: BNP12) -> BNP12 {
+    alloc_locals;
+
+    let bnf12_zero = BNF12_ZERO();
+    let x_is_zero = BNF12__eq__(p.value.x, bnf12_zero);
+    let y_is_zero = BNF12__eq__(p.value.y, bnf12_zero);
+    if (x_is_zero != 0 and y_is_zero != 0) {
+        return q;
+    }
+
+    let x_is_zero_q = BNF12__eq__(q.value.x, bnf12_zero);
+    let y_is_zero_q = BNF12__eq__(q.value.y, bnf12_zero);
+    if (x_is_zero_q != 0 and y_is_zero_q != 0) {
+        return p;
+    }
+
+    let x_equal = BNF12__eq__(p.value.x, q.value.x);
+    if (x_equal != 0) {
+        let y_equal = BNF12__eq__(p.value.y, q.value.y);
+        if (y_equal != 0) {
+            return bnp12_double(p);
+        }
+        let res = bnp12_point_at_infinity();
+        return res;
+    }
+
+    // Standard case: compute point addition using the formula:
+    // λ = (q.y - p.y) / (q.x - p.x)
+    // x_r = λ^2 - p.x - q.x
+    // y_r = λ(p.x - x_r) - p.y
+
+    // Calculate λ = (q.y - p.y) / (q.x - p.x)
+    let y_diff = bnf12_sub(q.value.y, p.value.y);
+    let x_diff = bnf12_sub(q.value.x, p.value.x);
+    let lambda = bnf12_div(y_diff, x_diff);
+
+    // Calculate x_r = λ^2 - p.x - q.x
+    let lambda_squared = bnf12_mul(lambda, lambda);
+    let x_sum = bnf12_add(p.value.x, q.value.x);
+    let x_r = bnf12_sub(lambda_squared, x_sum);
+
+    // Calculate y_r = λ(p.x - x_r) - p.y
+    let x_diff_r = bnf12_sub(p.value.x, x_r);
+    let lambda_times_x_diff = bnf12_mul(lambda, x_diff_r);
+    let y_r = bnf12_sub(lambda_times_x_diff, p.value.y);
+
+    // Return the new point
+    tempvar result = BNP12(new BNP12Struct(x_r, y_r));
     return result;
 }
 
