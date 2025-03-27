@@ -17,6 +17,8 @@ from cairo_addons.testing.hints import patch_hint
 from cairo_ec.curve import AltBn128
 from tests.utils.args_gen import U384
 
+# https://github.com/keep-starknet-strange/garaga/blob/704a8c66bf85b965851a117c6b116fc7a11329db/hydra/garaga/definitions.py#L346
+# see test_bnp12_final_exponentiation
 GARAGA_COFACTOR = 0x3BEC47DF15E307C81EA96B02D9D9E38D2E5D4E223DDEDAF4
 
 
@@ -215,8 +217,8 @@ segments.load_data(ids.b_inv.address_, [bnf2_struct_ptr])
         def test_bnp12_eq(self, cairo_run, a: BNP12, b: BNP12):
             assert cairo_run("BNP12__eq__", a, b) == (a == b)
 
-        # Garaga final exponentiation match the gnark one which use a cofactor
-        # This do not affect the pairing properties
+        # Garaga final exponentiation match the gnark one which uses a cofactor
+        # This does not affect the pairing properties
         # https://github.com/keep-starknet-strange/garaga/blob/704a8c66bf85b965851a117c6b116fc7a11329db/hydra/garaga/definitions.py#L346
         # https://github.com/Consensys/gnark/blob/bd4a39719a964f0305ee9ec36b6226e4c266584c/std/algebra/emulated/sw_bn254/pairing.go#L129
         @given(a=...)
