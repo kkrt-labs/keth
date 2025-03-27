@@ -227,6 +227,8 @@ segments.load_data(ids.b_inv.address_, [bnf2_struct_ptr])
             try:
                 expected = p.double()
             except OverflowError:  # fails for large points
+                with pytest.raises(Exception):  # Hint error
+                    cairo_run("bnp12_double", p)
                 return
             assert cairo_run("bnp12_double", p) == expected
 

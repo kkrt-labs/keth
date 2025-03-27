@@ -594,7 +594,7 @@ bnp_strategy = st.integers(min_value=0, max_value=BNF.PRIME - 1).map(
 )
 
 
-def bnp12_generate_valid_point():
+def bnp12_from_bnp_random_point():
     point = AltBn128.random_point()
     return bnp_to_bnp12(BNP(point.x, point.y))
 
@@ -604,7 +604,7 @@ bnp12_from_twist_strategy = st.integers(min_value=0, max_value=BNF2.PRIME - 1).m
 )
 # Strategy for BNP12 points on the curve
 bnp12_strategy = st.one_of(
-    st.just(bnp12_generate_valid_point()),
+    st.just(bnp12_from_bnp_random_point()),
     st.just(bnp12_infinity),
     bnp12_from_twist_strategy,
 )
