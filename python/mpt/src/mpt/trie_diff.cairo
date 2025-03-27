@@ -580,8 +580,6 @@ func _compute_diff{
 ) -> () {
     alloc_locals;
 
-    %{ logger.trace_cairo(f"compute_diff: {serialize(ids.path)}") %}
-
     let is_left_eq_right = OptionalUnionInternalNodeExtended__eq__(left, right);
     if (is_left_eq_right.value != 0) {
         return ();
