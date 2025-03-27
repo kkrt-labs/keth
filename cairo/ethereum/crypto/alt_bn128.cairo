@@ -1635,10 +1635,9 @@ func bnp12_double{
     return result;
 }
 
-
-func bnp12_add{range_check_ptr, range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
-    p: BNP12, q: BNP12
-) -> BNP12 {
+func bnp12_add{
+    range_check_ptr, range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
+}(p: BNP12, q: BNP12) -> BNP12 {
     alloc_locals;
 
     let bnf12_zero = BNF12_ZERO();
