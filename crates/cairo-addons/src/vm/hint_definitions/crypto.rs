@@ -1,6 +1,5 @@
-use ark_bn254::{Fq12, Fq2};
+use ark_bn254::Fq2;
 use ark_ff::Field;
-use num_bigint::BigUint;
 use std::collections::HashMap;
 
 use cairo_vm::{
@@ -16,7 +15,7 @@ use cairo_vm::{
 
 use crate::vm::{hint_utils::Uint384, hints::Hint};
 
-pub const HINTS: &[fn() -> Hint] = &[bnf2_multiplicative_inverse, bnf12_multiplicative_inverse];
+pub const HINTS: &[fn() -> Hint] = &[bnf2_multiplicative_inverse];
 
 pub fn bnf2_multiplicative_inverse() -> Hint {
     Hint::new(
@@ -50,49 +49,6 @@ pub fn bnf2_multiplicative_inverse() -> Hint {
             vm.insert_value(bnf2_struct_ptr, c0_ptr)?;
             vm.insert_value((bnf2_struct_ptr + 1_usize).unwrap(), c1_ptr)?;
             insert_value_from_var_name("b_inv", bnf2_struct_ptr, vm, ids_data, ap_tracking)?;
-            Ok(())
-        },
-    )
-}
-pub fn bnf12_multiplicative_inverse() -> Hint {
-    Hint::new(
-        String::from("bnf12_multiplicative_inverse"),
-        |vm: &mut VirtualMachine,
-         _exec_scopes: &mut ExecutionScopes,
-         ids_data: &HashMap<String, HintReference>,
-         ap_tracking: &ApTracking,
-         _constants: &HashMap<String, Felt252>|
-         -> Result<(), HintError> {
-            let b_addr = get_ptr_from_var_name("b", vm, ids_data, ap_tracking)?;
-            let coeffs = (0..12)
-                .map(|i| {
-                    let coeff_addr = vm.get_relocatable((b_addr + (i as usize)).unwrap()).unwrap();
-                    let name = format!("b.c{}", i);
-                    Uint384::from_base_addr(coeff_addr, &name, vm).unwrap().pack()
-                })
-                .map(Into::into);
-
-            let b = dbg!(Fq12::from_base_prime_field_elems(coeffs).unwrap());
-            let b_inv = dbg!(b.inverse().unwrap());
-
-            let res = b * b_inv;
-            assert_eq!(res, Fq12::ONE);
-
-            let b_inv_coeffs: Vec<BigUint> =
-                b_inv.to_base_prime_field_elements().map(Into::into).collect();
-            let b_inv_coeffs_u384: Vec<Uint384<'_>> =
-                b_inv_coeffs.iter().map(Uint384::split).collect();
-
-            let bnf12_struct_ptr = vm.add_memory_segment();
-            for (i, coeff) in b_inv_coeffs_u384.iter().enumerate() {
-                let coeff_ptr = vm.add_memory_segment();
-                coeff.limbs.iter().enumerate().try_for_each(|(j, limb)| {
-                    vm.insert_value((coeff_ptr + j)?, limb.clone().into_owned())
-                })?;
-                vm.insert_value((bnf12_struct_ptr + i)?, coeff_ptr)?;
-            }
-
-            insert_value_from_var_name("b_inv", bnf12_struct_ptr, vm, ids_data, ap_tracking)?;
             Ok(())
         },
     )

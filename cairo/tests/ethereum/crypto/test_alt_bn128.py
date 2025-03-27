@@ -1,6 +1,6 @@
 import pytest
 from ethereum.crypto.alt_bn128 import BNF, BNF2, BNF12, BNP, BNP2, BNP12, bnf2_to_bnf12
-from hypothesis import assume, given, reproduce_failure, settings
+from hypothesis import assume, given
 
 from cairo_addons.testing.errors import strict_raises
 from cairo_addons.testing.hints import patch_hint
@@ -162,32 +162,8 @@ segments.load_data(ids.b_inv.address_, [bnf2_struct_ptr])
             assert cairo_run("bnf12_scalar_mul", a, x) == a.scalar_mul(int(x))
 
         @given(a=..., b=...)
-        # Takes too long if max_examples is not set
-        # TODO: python test to be removed when ready for review.
-        @settings(max_examples=10)
-        def test_bnf12_div_py(self, cairo_run_py, a: BNF12, b: BNF12):
+        def test_bnf12_div(self, cairo_run, a: BNF12, b: BNF12):
             assume(b != BNF12.zero())
-            assert cairo_run_py("bnf12_div", a, b) == a / b
-
-        @given(a=..., b=...)
-        @settings(max_examples=10)
-        @reproduce_failure(
-            "6.128.2",
-            b"AF8gF4K6zBgrx2Pw5OQIkq3fj0B3eaFNu0OLbByADw7FCwlBfkEHQwDMg0FiUQD0gcR69/7/K+GyQKVFZOaoQjqKXyAMCE0LcdgjHow5KLRPnCLETpWGgYHwl1K2A0YSHxJiskE/QwD0p0JDY0MAhw5JALnNB3H1UBJERQCEM8RhQwDqHUMA2xRfIBt4SnUcg9ZCzk7kx3KliMaFIJSR+PN40xoxBeLn+Fa1QSJCQ1FJANhjE5Ppo97aQwDzRUI2mkI0yEIXRg==",
-        )
-        def test_bnf12_div_rust(self, cairo_run, a: BNF12, b: BNF12):
-            import pprint
-
-            assume(b != BNF12.zero())
-            # TODO: remove intermediate value used for debugging
-            b_inv = b.multiplicative_inverse()
-            res = b * b_inv
-            mul_output = cairo_run("bnf12_mul", b, b_inv)
-            assert res == mul_output
-
-            pprint.pprint([f"c{i}: {b[i]}" for i in range(len(b))])
-            pprint.pprint([f"c{i}: {b_inv[i]}" for i in range(len(b_inv))])
-
             assert cairo_run("bnf12_div", a, b) == a / b
 
         @given(a=..., b=...)
