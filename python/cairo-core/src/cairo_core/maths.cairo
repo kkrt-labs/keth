@@ -537,19 +537,19 @@ func felt252_bit_length{range_check_ptr}(value: felt) -> felt {
     return bit_length;
 }
 
-func felt252_to_bits{range_check_ptr}(value: felt, len: felt, dst: felt*) -> felt {
+func felt252_to_bits_rev{range_check_ptr}(value: felt, len: felt, dst: felt*) -> felt {
     alloc_locals;
     if (len == 0) {
         return len;
     }
-    with_attr error_message("felt252_to_bits: len must be < 252") {
+    with_attr error_message("felt252_to_bits_rev: len must be < 252") {
         assert [range_check_ptr] = len;
         assert [range_check_ptr + 1] = 251 - len;
         let range_check_ptr = range_check_ptr + 2;
     }
 
     let output = &dst[0];
-    %{ felt252_to_bits %}
+    %{ felt252_to_bits_rev %}
 
     tempvar current_len = 0;
     tempvar acc = 0;
@@ -565,7 +565,7 @@ func felt252_to_bits{range_check_ptr}(value: felt, len: felt, dst: felt*) -> fel
 
     // Check if the bit is valid (0 or 1)
     let bit = output[current_len];
-    with_attr error_message("felt252_to_bits: bits must be 0 or 1") {
+    with_attr error_message("felt252_to_bits_rev: bits must be 0 or 1") {
         assert bit * bit = bit;
     }
 
@@ -576,7 +576,7 @@ func felt252_to_bits{range_check_ptr}(value: felt, len: felt, dst: felt*) -> fel
     jmp loop;
 
     end:
-    with_attr error_message("felt252_to_bits: bad output") {
+    with_attr error_message("felt252_to_bits_rev: bad output") {
         assert acc = value;
     }
     return current_len;
