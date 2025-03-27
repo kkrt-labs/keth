@@ -32,7 +32,16 @@ from ethereum.cancun.trie import (
 )
 from ethereum.cancun.trie import root as compute_root
 from ethereum.cancun.vm import Environment, Evm, Message
-from ethereum.crypto.alt_bn128 import BNF, BNF2, BNF12, BNP, BNP2, BNP12
+from ethereum.crypto.alt_bn128 import (
+    BNF,
+    BNF2,
+    BNF12,
+    BNP,
+    BNP2,
+    BNP12,
+    bnp_to_bnp12,
+    twist,
+)
 from ethereum.crypto.elliptic_curve import SECP256K1N
 from ethereum.crypto.finite_field import GaloisField
 from ethereum.crypto.hash import Hash32
@@ -585,17 +594,19 @@ bnp_strategy = st.integers(min_value=0, max_value=BNF.PRIME - 1).map(
 )
 
 
-def bnp12_generate_valid_point():
+def bnp12_from_bnp_random_point():
     point = AltBn128.random_point()
-    x_coords = (point.x,) + (0,) * 11
-    y_coords = (point.y,) + (0,) * 11
-    return BNP12(BNF12(x_coords), BNF12(y_coords))
+    return bnp_to_bnp12(BNP(point.x, point.y))
 
 
+bnp12_from_twist_strategy = st.integers(min_value=0, max_value=BNF2.PRIME - 1).map(
+    lambda x: twist(bnp2_generate_valid_point(x))
+)
 # Strategy for BNP12 points on the curve
 bnp12_strategy = st.one_of(
-    st.just(bnp12_generate_valid_point()),
+    st.just(bnp12_from_bnp_random_point()),
     st.just(bnp12_infinity),
+    bnp12_from_twist_strategy,
 )
 
 

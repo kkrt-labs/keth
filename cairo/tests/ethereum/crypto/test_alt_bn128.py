@@ -12,7 +12,7 @@ from ethereum.crypto.alt_bn128 import (
 )
 from hypothesis import assume, given, settings
 
-from cairo_addons.testing.errors import strict_raises
+from cairo_addons.testing.errors import cairo_error, strict_raises
 from cairo_addons.testing.hints import patch_hint
 from cairo_ec.curve import AltBn128
 from tests.utils.args_gen import U384
@@ -221,6 +221,16 @@ segments.load_data(ids.b_inv.address_, [bnf2_struct_ptr])
         @given(a=..., b=...)
         def test_bnp12_eq(self, cairo_run, a: BNP12, b: BNP12):
             assert cairo_run("BNP12__eq__", a, b) == (a == b)
+
+        @given(p=...)
+        def test_bnp12_double(self, cairo_run, p: BNP12):
+            try:
+                expected = p.double()
+            except OverflowError:  # fails for large points
+                with cairo_error(message="OverflowError"):  # Hint error
+                    cairo_run("bnp12_double", p)
+                return
+            assert cairo_run("bnp12_double", p) == expected
 
         # Garaga final exponentiation match the gnark one which uses a cofactor
         # This does not affect the pairing properties
