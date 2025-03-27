@@ -5,7 +5,12 @@ from starkware.cairo.common.dict import DictAccess
 from starkware.cairo.common.memset import memset
 from starkware.cairo.common.memcpy import memcpy
 from ethereum.crypto.hash import Hash32
-from ethereum.cancun.fork_types import OptionalAddress, Address, TupleAddressBytes32U256DictAccess
+from ethereum.cancun.fork_types import (
+    OptionalAddress,
+    Address,
+    TupleAddressBytes32U256DictAccess,
+    HashedTupleAddressBytes32,
+)
 from ethereum_types.bytes import (
     Bytes,
     OptionalBytes,
@@ -121,7 +126,7 @@ struct TrieDiff {
 struct TrieDiffStruct {
     _main_trie_start: AddressAccountNodeDictAccess*,
     _main_trie_end: AddressAccountNodeDictAccess*,
-    storage_trie_end: Bytes32U256DictAccess*,
+    storage_tries_end: TupleAddressBytes32U256DictAccess*,
     _storage_tries_start: TupleAddressBytes32U256DictAccess*,
     _storage_tries_end: TupleAddressBytes32U256DictAccess*,
 }
@@ -356,10 +361,12 @@ func OptionalUnionInternalNodeExtended__eq__(
     return res;
 }
 
-// / @notice Decode the RLP encoded representation of an account node.
-func AccountNode_from_rlp{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
-    encoding: Bytes
-) -> AccountNode {
+// @notice Decode the RLP encoded representation of an account node.
+// @dev Returns the account node and additionally the storage root as bytes as it is needed for the
+//      storage diff computation
+func AccountNode_from_rlp{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(encoding: Bytes) -> (
+    account: AccountNode, storage_root_bytes: Bytes
+) {
     alloc_locals;
 
     let decoded = decode(encoding);
@@ -384,7 +391,7 @@ func AccountNode_from_rlp{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
         ),
     );
 
-    return res;
+    return (res, storage_root_bytes);
 }
 
 // / @notice Process the difference between two account nodes in the state trie
@@ -397,9 +404,11 @@ func _process_account_diff{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    node_store: NodeStore,
     address_preimages: MappingBytes32Address,
+    storage_key_preimages: MappingBytes32Bytes32,
     main_trie_end: AddressAccountNodeDictAccess*,
-    storage_trie_end: Bytes32U256DictAccess*,
+    storage_tries_end: TupleAddressBytes32U256DictAccess*,
 }(path: Bytes32, left: OptionalLeafNode, right: OptionalLeafNode) -> () {
     alloc_locals;
     let dict_ptr = cast(address_preimages.value.dict_ptr, DictAccess*);
@@ -415,32 +424,59 @@ func _process_account_diff{
     tempvar address = Address(pointer);
 
     if (left.value != 0) {
-        let left_decoded = AccountNode_from_rlp(left.value.value.value.bytes);
+        let (left_account, left_storage_root_bytes) = AccountNode_from_rlp(
+            left.value.value.value.bytes
+        );
+        let left_storage_root_extended = ExtendedImpl.bytes(left_storage_root_bytes);
+        let left_storage_root = OptionalUnionInternalNodeExtendedImpl.from_extended(
+            left_storage_root_extended
+        );
+        tempvar left_account = left_account;
         tempvar range_check_ptr = range_check_ptr;
         tempvar bitwise_ptr = bitwise_ptr;
         tempvar poseidon_ptr = poseidon_ptr;
     } else {
+        tempvar left_storage_root = OptionalUnionInternalNodeExtended(
+            cast(0, OptionalUnionInternalNodeExtendedEnum*)
+        );
         tempvar left = left;
         tempvar range_check_ptr = range_check_ptr;
         tempvar bitwise_ptr = bitwise_ptr;
         tempvar poseidon_ptr = poseidon_ptr;
     }
+    let left_storage_root = OptionalUnionInternalNodeExtended(
+        cast([ap - 5], OptionalUnionInternalNodeExtendedEnum*)
+    );
     let left_account = AccountNode(cast([ap - 4], AccountNodeStruct*));
     let range_check_ptr = [ap - 3];
     let bitwise_ptr = cast([ap - 2], BitwiseBuiltin*);
     let poseidon_ptr = cast([ap - 1], PoseidonBuiltin*);
 
     if (right.value != 0) {
-        let right_decoded = AccountNode_from_rlp(right.value.value.value.bytes);
+        let (right_account, right_storage_root_bytes) = AccountNode_from_rlp(
+            right.value.value.value.bytes
+        );
+
+        let right_storage_root_extended = ExtendedImpl.bytes(right_storage_root_bytes);
+        let right_storage_root = OptionalUnionInternalNodeExtendedImpl.from_extended(
+            right_storage_root_extended
+        );
+        tempvar right_account = right_account;
         tempvar range_check_ptr = range_check_ptr;
         tempvar bitwise_ptr = bitwise_ptr;
         tempvar poseidon_ptr = poseidon_ptr;
     } else {
+        tempvar right_storage_root = OptionalUnionInternalNodeExtended(
+            cast(0, OptionalUnionInternalNodeExtendedEnum*)
+        );
         tempvar right = right;
         tempvar range_check_ptr = range_check_ptr;
         tempvar bitwise_ptr = bitwise_ptr;
         tempvar poseidon_ptr = poseidon_ptr;
     }
+    let right_storage_root = OptionalUnionInternalNodeExtended(
+        cast([ap - 5], OptionalUnionInternalNodeExtendedEnum*)
+    );
     let right_account = AccountNode(cast([ap - 4], AccountNodeStruct*));
     let range_check_ptr = [ap - 3];
     let bitwise_ptr = cast([ap - 2], BitwiseBuiltin*);
@@ -453,7 +489,14 @@ func _process_account_diff{
     assert [main_trie_end] = account_diff;
     tempvar main_trie_end = main_trie_end + AddressAccountNodeDictAccess.SIZE;
 
-    // TODO: compute diff on storage
+    let (new_path_buffer) = alloc();
+    tempvar new_path = Bytes(new BytesStruct(new_path_buffer, 0));
+
+    let new_address = OptionalAddress(&address.value);
+
+    _compute_diff(
+        left=left_storage_root, right=right_storage_root, path=new_path, account_address=new_address
+    );
     return ();
 }
 
@@ -469,7 +512,7 @@ func _process_storage_diff{
     bitwise_ptr: BitwiseBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
     storage_key_preimages: MappingBytes32Bytes32,
-    storage_trie_end: Bytes32U256DictAccess*,
+    storage_tries_end: TupleAddressBytes32U256DictAccess*,
 }(address: Address, path: Bytes32, left: OptionalLeafNode, right: OptionalLeafNode) -> () {
     alloc_locals;
     let dict_ptr = cast(storage_key_preimages.value.dict_ptr, DictAccess*);
@@ -516,14 +559,18 @@ func _process_storage_diff{
     let bitwise_ptr = cast([ap - 2], BitwiseBuiltin*);
     let poseidon_ptr = cast([ap - 1], PoseidonBuiltin*);
 
-    let (hashed_storage_key_) = poseidon_hash_many(2, storage_key.value);
-    let hashed_storage_key = HashedBytes32(hashed_storage_key_);
-    tempvar account_diff = Bytes32U256DictAccess(
+    let (tuple_address_bytes32_buffer) = alloc();
+    assert [tuple_address_bytes32_buffer] = address.value;
+    assert [tuple_address_bytes32_buffer + 1] = storage_key.value.low;
+    assert [tuple_address_bytes32_buffer + 2] = storage_key.value.high;
+    let (hashed_storage_key_) = poseidon_hash_many(3, tuple_address_bytes32_buffer);
+    let hashed_storage_key = HashedTupleAddressBytes32(hashed_storage_key_);
+    tempvar account_diff = TupleAddressBytes32U256DictAccess(
         key=hashed_storage_key, prev_value=left_u256, new_value=right_u256
     );
 
-    assert [storage_trie_end] = account_diff;
-    tempvar storage_trie_end = storage_trie_end + Bytes32U256DictAccess.SIZE;
+    assert [storage_tries_end] = account_diff;
+    tempvar storage_tries_end = storage_tries_end + TupleAddressBytes32U256DictAccess.SIZE;
     return ();
 }
 
@@ -533,26 +580,30 @@ func compute_diff_entrypoint{
     node_store: NodeStore,
     address_preimages: MappingBytes32Address,
     storage_key_preimages: MappingBytes32Bytes32,
-    main_trie_end: AddressAccountNodeDictAccess*,
-    storage_trie_end: Bytes32U256DictAccess*,
     left: OptionalUnionInternalNodeExtended,
     right: OptionalUnionInternalNodeExtended,
-    path: Bytes,
-    account_address: OptionalAddress,
-) -> (AddressAccountNodeDictAccess*, Bytes32U256DictAccess*) {
+) -> (AddressAccountNodeDictAccess*, TupleAddressBytes32U256DictAccess*) {
     alloc_locals;
+    let (main_trie_end: AddressAccountNodeDictAccess*) = alloc();
+
     local main_trie_start: AddressAccountNodeDictAccess* = main_trie_end;
-    local storage_trie_start: Bytes32U256DictAccess* = storage_trie_end;
+
+    let (storage_tries_end: TupleAddressBytes32U256DictAccess*) = alloc();
+    let storage_tries_start = storage_tries_end;
+
+    tempvar account_address = OptionalAddress(new 0);
+    let (buffer) = alloc();
+    tempvar path = Bytes(new BytesStruct(buffer, 0));
 
     _compute_diff{
         node_store=node_store,
         address_preimages=address_preimages,
         storage_key_preimages=storage_key_preimages,
         main_trie_end=main_trie_end,
-        storage_trie_end=storage_trie_end,
+        storage_tries_end=storage_tries_end,
     }(left=left, right=right, path=path, account_address=account_address);
 
-    return (main_trie_start, storage_trie_start);
+    return (main_trie_start, storage_tries_start);
 }
 
 // / @notice Recursively compute the difference between two Ethereum tries
@@ -571,7 +622,7 @@ func _compute_diff{
     address_preimages: MappingBytes32Address,
     storage_key_preimages: MappingBytes32Bytes32,
     main_trie_end: AddressAccountNodeDictAccess*,
-    storage_trie_end: Bytes32U256DictAccess*,
+    storage_tries_end: TupleAddressBytes32U256DictAccess*,
 }(
     left: OptionalUnionInternalNodeExtended,
     right: OptionalUnionInternalNodeExtended,
@@ -632,7 +683,7 @@ func _left_is_null{
     address_preimages: MappingBytes32Address,
     storage_key_preimages: MappingBytes32Bytes32,
     main_trie_end: AddressAccountNodeDictAccess*,
-    storage_trie_end: Bytes32U256DictAccess*,
+    storage_tries_end: TupleAddressBytes32U256DictAccess*,
 }(
     left: OptionalUnionInternalNodeExtended,
     right: OptionalInternalNode,
@@ -714,7 +765,7 @@ func _left_is_leaf_node{
     address_preimages: MappingBytes32Address,
     storage_key_preimages: MappingBytes32Bytes32,
     main_trie_end: AddressAccountNodeDictAccess*,
-    storage_trie_end: Bytes32U256DictAccess*,
+    storage_tries_end: TupleAddressBytes32U256DictAccess*,
 }(l_leaf: LeafNode, right: OptionalInternalNode, path: Bytes, account_address: OptionalAddress) -> (
     ) {
     alloc_locals;
@@ -877,7 +928,7 @@ func _left_is_extension_node{
     address_preimages: MappingBytes32Address,
     storage_key_preimages: MappingBytes32Bytes32,
     main_trie_end: AddressAccountNodeDictAccess*,
-    storage_trie_end: Bytes32U256DictAccess*,
+    storage_tries_end: TupleAddressBytes32U256DictAccess*,
 }(
     left: ExtensionNode, right: OptionalInternalNode, path: Bytes, account_address: OptionalAddress
 ) -> () {
@@ -1054,7 +1105,7 @@ func _left_is_branch_node{
     address_preimages: MappingBytes32Address,
     storage_key_preimages: MappingBytes32Bytes32,
     main_trie_end: AddressAccountNodeDictAccess*,
-    storage_trie_end: Bytes32U256DictAccess*,
+    storage_tries_end: TupleAddressBytes32U256DictAccess*,
 }(left: BranchNode, right: OptionalInternalNode, path: Bytes, account_address: OptionalAddress) -> (
     ) {
     alloc_locals;
@@ -1108,7 +1159,7 @@ func _compute_left_branch_on_none{
     address_preimages: MappingBytes32Address,
     storage_key_preimages: MappingBytes32Bytes32,
     main_trie_end: AddressAccountNodeDictAccess*,
-    storage_trie_end: Bytes32U256DictAccess*,
+    storage_tries_end: TupleAddressBytes32U256DictAccess*,
 }(
     left: BranchNode,
     right: OptionalInternalNode,
@@ -1151,7 +1202,7 @@ func _compute_left_branch_on_right_leaf{
     address_preimages: MappingBytes32Address,
     storage_key_preimages: MappingBytes32Bytes32,
     main_trie_end: AddressAccountNodeDictAccess*,
-    storage_trie_end: Bytes32U256DictAccess*,
+    storage_tries_end: TupleAddressBytes32U256DictAccess*,
 }(
     left: BranchNode, right: LeafNode, path: Bytes, account_address: OptionalAddress, index: felt
 ) -> () {
@@ -1213,7 +1264,7 @@ func _compute_left_branch_on_right_extension_node{
     address_preimages: MappingBytes32Address,
     storage_key_preimages: MappingBytes32Bytes32,
     main_trie_end: AddressAccountNodeDictAccess*,
-    storage_trie_end: Bytes32U256DictAccess*,
+    storage_tries_end: TupleAddressBytes32U256DictAccess*,
 }(
     left: BranchNode,
     right: ExtensionNode,
@@ -1279,7 +1330,7 @@ func _compute_left_branch_on_right_branch_node{
     address_preimages: MappingBytes32Address,
     storage_key_preimages: MappingBytes32Bytes32,
     main_trie_end: AddressAccountNodeDictAccess*,
-    storage_trie_end: Bytes32U256DictAccess*,
+    storage_tries_end: TupleAddressBytes32U256DictAccess*,
 }(
     left: BranchNode, right: BranchNode, path: Bytes, account_address: OptionalAddress, index: felt
 ) -> () {
@@ -1329,7 +1380,7 @@ func _compute_left_leaf_diff_on_right_branch_node{
     address_preimages: MappingBytes32Address,
     storage_key_preimages: MappingBytes32Bytes32,
     main_trie_end: AddressAccountNodeDictAccess*,
-    storage_trie_end: Bytes32U256DictAccess*,
+    storage_tries_end: TupleAddressBytes32U256DictAccess*,
 }(
     left: OptionalUnionInternalNodeExtended,
     subnodes: Subnodes,
@@ -1417,7 +1468,7 @@ func _compute_left_extension_node_diff_on_right_branch_node{
     address_preimages: MappingBytes32Address,
     storage_key_preimages: MappingBytes32Bytes32,
     main_trie_end: AddressAccountNodeDictAccess*,
-    storage_trie_end: Bytes32U256DictAccess*,
+    storage_tries_end: TupleAddressBytes32U256DictAccess*,
 }(
     left: OptionalUnionInternalNodeExtended,
     subnodes: Subnodes,
