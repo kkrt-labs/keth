@@ -140,6 +140,15 @@ segments.load_data(ids.b_inv.address_, [bnf2_struct_ptr])
             cairo_zero = cairo_run("BNF12_ZERO")
             assert cairo_zero == BNF12.zero()
 
+        def test_BNF12_ONE(self, cairo_run):
+            cairo_one = cairo_run("BNF12_ONE")
+            assert cairo_one == BNF12.from_int(1)
+
+        @given(x=...)
+        def test_bnf12_from_int(self, cairo_run, x: U384):
+            cairo_result = cairo_run("bnf12_from_int", x)
+            assert cairo_result == BNF12.from_int(int(x))
+
         @given(a=..., b=...)
         def test_bnf12_add(self, cairo_run, a: BNF12, b: BNF12):
             assert cairo_run("bnf12_add", a, b) == a + b
@@ -152,19 +161,15 @@ segments.load_data(ids.b_inv.address_, [bnf2_struct_ptr])
         def test_bnf12_scalar_mul(self, cairo_run, a: BNF12, x: U384):
             assert cairo_run("bnf12_scalar_mul", a, x) == a.scalar_mul(int(x))
 
-        @given(x=...)
-        def test_bnf12_from_int(self, cairo_run, x: U384):
-            cairo_result = cairo_run("bnf12_from_int", x)
-            assert cairo_result == BNF12.from_int(int(x))
+        @given(a=..., b=...)
+        def test_bnf12_div(self, cairo_run, a: BNF12, b: BNF12):
+            assume(b != BNF12.zero())
+            assert cairo_run("bnf12_div", a, b) == a / b
 
         @given(a=..., b=...)
         def test_bnf12_mul(self, cairo_run, a: BNF12, b: BNF12):
             cairo_result = cairo_run("bnf12_mul", a, b)
             assert cairo_result == a * b
-
-        def test_bnf12_ONE(self, cairo_run):
-            cairo_one = cairo_run("bnf12_ONE")
-            assert cairo_one == BNF12.from_int(1)
 
         @given(a=..., b=...)
         def test_bnf12_pow(self, cairo_run, a: BNF12, b: U384):

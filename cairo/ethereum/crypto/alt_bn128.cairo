@@ -901,12 +901,14 @@ func BNF12_ZERO() -> BNF12 {
     return bnf12_zero;
 }
 
-func bnf12_ONE() -> BNF12 {
+func BNF12_ONE() -> BNF12 {
     let (zero) = get_label_location(U384_ZERO);
     let uint384_zero = cast(zero, UInt384*);
+    let (one) = get_label_location(U384_ONE);
+    let uint384_one = cast(one, UInt384*);
     tempvar bnf12_one = BNF12(
         new BNF12Struct(
-            U384(new UInt384(1, 0, 0, 0)),
+            U384(uint384_one),
             U384(uint384_zero),
             U384(uint384_zero),
             U384(uint384_zero),
@@ -1064,6 +1066,27 @@ func bnf12_scalar_mul{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mo
         ),
     );
     return res;
+}
+
+// Division of a by b is done by computing the modular inverse of b, verify it exists
+// and multiply a by this modular inverse.
+func bnf12_div{
+    range_check_ptr: felt,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
+}(a: BNF12, b: BNF12) -> BNF12 {
+    alloc_locals;
+    let (__fp__, _) = get_fp_and_pc();
+    local b_inv: BNF12;
+
+    %{ bnf12_multiplicative_inverse %}
+    let res = bnf12_mul(b, b_inv);
+    let bnf12_one = BNF12_ONE();
+    let is_inv = BNF12__eq__(res, bnf12_one);
+    assert is_inv = 1;
+
+    return bnf12_mul(a, b_inv);
 }
 
 // BNF12_mul implements multiplication for BNF12 elements
@@ -1288,14 +1311,14 @@ func bnf12_pow{
     // Return 1 for exponent = 0
     let exponent_is_zero = U384_is_zero(exponent);
     if (exponent_is_zero != 0) {
-        let one = bnf12_ONE();
+        let one = BNF12_ONE();
         return one;
     }
 
     // Extract bits from exponent, initialize result with 1
     // and perform square-and-multiply algorithm
     let (bits_ptr, bits_len) = get_u384_bits_little(exponent);
-    let res = bnf12_ONE();
+    let res = BNF12_ONE();
     return bnf12_pow_recursive(base, bits_ptr, bits_len, 0, res);
 }
 
