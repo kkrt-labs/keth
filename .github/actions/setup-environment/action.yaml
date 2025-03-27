@@ -32,6 +32,9 @@ runs:
       uses: Swatinem/rust-cache@v2
       with:
         cache-on-failure: ${{ inputs.cache-on-failure }}
+        # Hash of source files in crates/cairo-addons to invalidate
+        # maturin build if the source files change.
+        key: ${{ hashFiles('crates/cairo-addons/**') }}
 
     - name: Setup uv
       uses: astral-sh/setup-uv@v3
