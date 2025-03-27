@@ -114,6 +114,7 @@ class StateDiff:
         path: Bytes,
         process_leaf_diff: Callable,
     ):
+        logger.trace_eels(f"compute_diff: {left} {right} {path}")
         if left == right:
             return
 
@@ -166,9 +167,9 @@ class StateDiff:
 
                 # Different paths -> delete old leaf, create new leaf
                 path_left = nibble_list_to_bytes(path + l_node.rest_of_key)
-                process_leaf_diff(path=path_left, left=l_node, right=None)
-
                 path_right = nibble_list_to_bytes(path + r_node.rest_of_key)
+
+                process_leaf_diff(path=path_left, left=l_node, right=None)
                 process_leaf_diff(path=path_right, left=None, right=r_node)
                 return
 

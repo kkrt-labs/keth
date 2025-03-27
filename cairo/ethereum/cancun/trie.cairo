@@ -14,7 +14,7 @@ from legacy.utils.bytes import uint256_to_bytes32_little
 from legacy.utils.dict import hashdict_read, hashdict_write, dict_new_empty, dict_read
 from ethereum.crypto.hash import keccak256
 from ethereum.utils.numeric import min
-from ethereum_rlp.rlp import encode, _encode_bytes, _encode
+from ethereum_rlp.rlp import encode, _encode_bytes, _encode, Extended__eq__
 from ethereum.utils.numeric import U256__eq__
 from ethereum_types.numeric import U256, Uint, bool, U256Struct
 from ethereum_types.bytes import (
@@ -83,7 +83,7 @@ from ethereum_rlp.rlp import (
     encode_u256,
 )
 from ethereum.utils.numeric import divmod
-from ethereum.utils.bytes import Bytes32_to_Bytes, Bytes20_to_Bytes, Bytes_to_Bytes32
+from ethereum.utils.bytes import Bytes32_to_Bytes, Bytes20_to_Bytes, Bytes_to_Bytes32, Bytes__eq__
 
 from cairo_core.comparison import is_zero
 from cairo_core.control_flow import raise
@@ -97,6 +97,23 @@ struct LeafNode {
     value: LeafNodeStruct*,
 }
 
+func LeafNode__eq__(left: LeafNode, right: LeafNode) -> bool {
+    let key_eq = Bytes__eq__(left.value.rest_of_key, right.value.rest_of_key);
+    if (key_eq.value == 0) {
+        let res = bool(0);
+        return res;
+    }
+
+    let value_eq = Extended__eq__(left.value.value, right.value.value);
+    if (value_eq.value == 0) {
+        let res = bool(0);
+        return res;
+    }
+
+    let res = bool(1);
+    return res;
+}
+
 struct OptionalLeafNode {
     value: LeafNodeStruct*,
 }
@@ -108,6 +125,22 @@ struct ExtensionNodeStruct {
 
 struct ExtensionNode {
     value: ExtensionNodeStruct*,
+}
+
+func ExtensionNode__eq__(left: ExtensionNode, right: ExtensionNode) -> bool {
+    let key_eq = Bytes__eq__(left.value.key_segment, right.value.key_segment);
+    if (key_eq.value == 0) {
+        let res = bool(0);
+        return res;
+    }
+
+    let subnode_eq = Extended__eq__(left.value.subnode, right.value.subnode);
+    if (subnode_eq.value == 0) {
+        let res = bool(0);
+        return res;
+    }
+    let res = bool(1);
+    return res;
 }
 
 struct SubnodesStruct {
@@ -133,6 +166,91 @@ struct Subnodes {
     value: SubnodesStruct*,
 }
 
+func Subnodes__eq__(left: Subnodes, right: Subnodes) -> bool {
+    let branch0_eq = Extended__eq__(left.value.branch_0, right.value.branch_0);
+    if (branch0_eq.value == 0) {
+        let res = bool(0);
+        return res;
+    }
+    let branch1_eq = Extended__eq__(left.value.branch_1, right.value.branch_1);
+    if (branch1_eq.value == 0) {
+        let res = bool(0);
+        return res;
+    }
+    let branch2_eq = Extended__eq__(left.value.branch_2, right.value.branch_2);
+    if (branch2_eq.value == 0) {
+        let res = bool(0);
+        return res;
+    }
+    let branch3_eq = Extended__eq__(left.value.branch_3, right.value.branch_3);
+    if (branch3_eq.value == 0) {
+        let res = bool(0);
+        return res;
+    }
+    let branch4_eq = Extended__eq__(left.value.branch_4, right.value.branch_4);
+    if (branch4_eq.value == 0) {
+        let res = bool(0);
+        return res;
+    }
+    let branch5_eq = Extended__eq__(left.value.branch_5, right.value.branch_5);
+    if (branch5_eq.value == 0) {
+        let res = bool(0);
+        return res;
+    }
+    let branch6_eq = Extended__eq__(left.value.branch_6, right.value.branch_6);
+    if (branch6_eq.value == 0) {
+        let res = bool(0);
+        return res;
+    }
+    let branch7_eq = Extended__eq__(left.value.branch_7, right.value.branch_7);
+    if (branch7_eq.value == 0) {
+        let res = bool(0);
+        return res;
+    }
+    let branch8_eq = Extended__eq__(left.value.branch_8, right.value.branch_8);
+    if (branch8_eq.value == 0) {
+        let res = bool(0);
+        return res;
+    }
+    let branch9_eq = Extended__eq__(left.value.branch_9, right.value.branch_9);
+    if (branch9_eq.value == 0) {
+        let res = bool(0);
+        return res;
+    }
+    let branch10_eq = Extended__eq__(left.value.branch_10, right.value.branch_10);
+    if (branch10_eq.value == 0) {
+        let res = bool(0);
+        return res;
+    }
+    let branch11_eq = Extended__eq__(left.value.branch_11, right.value.branch_11);
+    if (branch11_eq.value == 0) {
+        let res = bool(0);
+        return res;
+    }
+    let branch12_eq = Extended__eq__(left.value.branch_12, right.value.branch_12);
+    if (branch12_eq.value == 0) {
+        let res = bool(0);
+        return res;
+    }
+    let branch13_eq = Extended__eq__(left.value.branch_13, right.value.branch_13);
+    if (branch13_eq.value == 0) {
+        let res = bool(0);
+        return res;
+    }
+    let branch14_eq = Extended__eq__(left.value.branch_14, right.value.branch_14);
+    if (branch14_eq.value == 0) {
+        let res = bool(0);
+        return res;
+    }
+    let branch15_eq = Extended__eq__(left.value.branch_15, right.value.branch_15);
+    if (branch15_eq.value == 0) {
+        let res = bool(0);
+        return res;
+    }
+    let res = bool(1);
+    return res;
+}
+
 struct BranchNodeStruct {
     subnodes: Subnodes,
     value: Extended,
@@ -140,6 +258,21 @@ struct BranchNodeStruct {
 
 struct BranchNode {
     value: BranchNodeStruct*,
+}
+
+func BranchNode__eq__(left: BranchNode, right: BranchNode) -> bool {
+    let subnodes_eq = Subnodes__eq__(left.value.subnodes, right.value.subnodes);
+    if (subnodes_eq.value == 0) {
+        let res = bool(0);
+        return res;
+    }
+    let value_eq = Extended__eq__(left.value.value, right.value.value);
+    if (value_eq.value == 0) {
+        let res = bool(0);
+        return res;
+    }
+    let res = bool(1);
+    return res;
 }
 
 struct InternalNode {

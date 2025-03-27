@@ -454,3 +454,19 @@ class TestTrieOperations:
             copied_trie_py = copy_trie(trie)
             assert original_trie == trie
             assert copied_trie_cairo == copied_trie_py
+
+
+class TestTypes:
+    @given(left=..., right=...)
+    def test_leaf_node_eq(self, cairo_run, left: LeafNode, right: LeafNode):
+        assert (left == right) == cairo_run("LeafNode__eq__", left, right)
+
+    @given(left=..., right=...)
+    def test_extension_node_eq(
+        self, cairo_run, left: ExtensionNode, right: ExtensionNode
+    ):
+        assert (left == right) == cairo_run("ExtensionNode__eq__", left, right)
+
+    @given(left=..., right=...)
+    def test_branch_node_eq(self, cairo_run, left: BranchNode, right: BranchNode):
+        assert (left == right) == cairo_run("BranchNode__eq__", left, right)
