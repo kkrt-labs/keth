@@ -5,7 +5,7 @@ from starkware.cairo.common.dict import DictAccess
 from starkware.cairo.common.memset import memset
 from starkware.cairo.common.memcpy import memcpy
 from ethereum.crypto.hash import Hash32
-from ethereum.cancun.fork_types import Address, TupleAddressBytes32U256DictAccess
+from ethereum.cancun.fork_types import OptionalAddress, Address, TupleAddressBytes32U256DictAccess
 from ethereum_types.bytes import (
     Bytes,
     OptionalBytes,
@@ -538,7 +538,7 @@ func compute_diff_entrypoint{
     left: OptionalUnionInternalNodeExtended,
     right: OptionalUnionInternalNodeExtended,
     path: Bytes,
-    account_address: Address,
+    account_address: OptionalAddress,
 ) -> (AddressAccountNodeDictAccess*, Bytes32U256DictAccess*) {
     alloc_locals;
     local main_trie_start: AddressAccountNodeDictAccess* = main_trie_end;
@@ -576,7 +576,7 @@ func _compute_diff{
     left: OptionalUnionInternalNodeExtended,
     right: OptionalUnionInternalNodeExtended,
     path: Bytes,
-    account_address: Address,
+    account_address: OptionalAddress,
 ) -> () {
     alloc_locals;
 
@@ -616,8 +616,9 @@ func _compute_diff{
         );
     }
 
-    raise('TypeError');
-    return ();
+    with_attr error_message("TypeError") {
+        jmp raise.raise_label;
+    }
 }
 
 // / @notice Handle the case when the left node is null
@@ -638,7 +639,7 @@ func _left_is_null{
     left: OptionalUnionInternalNodeExtended,
     right: OptionalInternalNode,
     path: Bytes,
-    account_address: Address,
+    account_address: OptionalAddress,
 ) -> () {
     alloc_locals;
 
@@ -665,7 +666,10 @@ func _left_is_null{
 
         // Current trie is the storage trie
         _process_storage_diff(
-            address=account_address, path=full_path_b32, left=left_leaf_null, right=right_leaf
+            address=Address([account_address.value]),
+            path=full_path_b32,
+            left=left_leaf_null,
+            right=right_leaf,
         );
 
         return ();
@@ -713,7 +717,8 @@ func _left_is_leaf_node{
     storage_key_preimages: MappingBytes32Bytes32,
     main_trie_end: AddressAccountNodeDictAccess*,
     storage_trie_end: Bytes32U256DictAccess*,
-}(l_leaf: LeafNode, right: OptionalInternalNode, path: Bytes, account_address: Address) -> () {
+}(l_leaf: LeafNode, right: OptionalInternalNode, path: Bytes, account_address: OptionalAddress) -> (
+    ) {
     alloc_locals;
     // Pattern matching on the types of right.
 
@@ -732,7 +737,10 @@ func _left_is_leaf_node{
         }
 
         _process_storage_diff(
-            address=account_address, path=full_path_b32, left=opt_left_leaf, right=right_leaf_null
+            address=Address([account_address.value]),
+            path=full_path_b32,
+            left=opt_left_leaf,
+            right=right_leaf_null,
         );
 
         return ();
@@ -766,7 +774,7 @@ func _left_is_leaf_node{
             }
 
             _process_storage_diff(
-                address=account_address,
+                address=Address([account_address.value]),
                 path=full_path_b32,
                 left=opt_left_leaf,
                 right=opt_right_leaf,
@@ -797,10 +805,13 @@ func _left_is_leaf_node{
         }
 
         _process_storage_diff(
-            address=account_address, path=updated_left_path_b32, left=opt_left_leaf, right=leaf_null
+            address=Address([account_address.value]),
+            path=updated_left_path_b32,
+            left=opt_left_leaf,
+            right=leaf_null,
         );
         _process_storage_diff(
-            address=account_address,
+            address=Address([account_address.value]),
             path=updated_right_path_b32,
             left=leaf_null,
             right=opt_right_leaf,
@@ -855,8 +866,9 @@ func _left_is_leaf_node{
         return ();
     }
 
-    raise('TypeError');
-    return ();
+    with_attr error_message("TypeError") {
+        jmp raise.raise_label;
+    }
 }
 
 func _left_is_extension_node{
@@ -868,7 +880,9 @@ func _left_is_extension_node{
     storage_key_preimages: MappingBytes32Bytes32,
     main_trie_end: AddressAccountNodeDictAccess*,
     storage_trie_end: Bytes32U256DictAccess*,
-}(left: ExtensionNode, right: OptionalInternalNode, path: Bytes, account_address: Address) -> () {
+}(
+    left: ExtensionNode, right: OptionalInternalNode, path: Bytes, account_address: OptionalAddress
+) -> () {
     alloc_locals;
 
     // (ExtensionNode(), None) -> deleted extension node
@@ -1016,7 +1030,7 @@ func _left_is_extension_node{
         return ();
     }
 
-    // (ExtensionNode(), BranchNode()) -> right is prefix of left
+    // (ExtensionNode(), BranchNode())
     if (cast(right.value.branch_node.value, felt) != 0) {
         let left_typed = OptionalUnionInternalNodeExtendedImpl.from_extension(left);
         _compute_left_extension_node_diff_on_right_branch_node(
@@ -1029,8 +1043,9 @@ func _left_is_extension_node{
         return ();
     }
 
-    raise('TypeError');
-    return ();
+    with_attr error_message("TypeError") {
+        jmp raise.raise_label;
+    }
 }
 
 func _left_is_branch_node{
@@ -1042,7 +1057,8 @@ func _left_is_branch_node{
     storage_key_preimages: MappingBytes32Bytes32,
     main_trie_end: AddressAccountNodeDictAccess*,
     storage_trie_end: Bytes32U256DictAccess*,
-}(left: BranchNode, right: OptionalInternalNode, path: Bytes, account_address: Address) -> () {
+}(left: BranchNode, right: OptionalInternalNode, path: Bytes, account_address: OptionalAddress) -> (
+    ) {
     alloc_locals;
 
     // (BranchNode(), None) -> deleted branch node
@@ -1081,8 +1097,9 @@ func _left_is_branch_node{
         );
     }
 
-    raise('TypeError');
-    return ();
+    with_attr error_message("TypeError") {
+        jmp raise.raise_label;
+    }
 }
 
 func _compute_left_branch_on_none{
@@ -1098,7 +1115,7 @@ func _compute_left_branch_on_none{
     left: BranchNode,
     right: OptionalInternalNode,
     path: Bytes,
-    account_address: Address,
+    account_address: OptionalAddress,
     index: felt,
 ) -> () {
     alloc_locals;
@@ -1137,7 +1154,9 @@ func _compute_left_branch_on_right_leaf{
     storage_key_preimages: MappingBytes32Bytes32,
     main_trie_end: AddressAccountNodeDictAccess*,
     storage_trie_end: Bytes32U256DictAccess*,
-}(left: BranchNode, right: LeafNode, path: Bytes, account_address: Address, index: felt) -> () {
+}(
+    left: BranchNode, right: LeafNode, path: Bytes, account_address: OptionalAddress, index: felt
+) -> () {
     alloc_locals;
 
     if (index == 16) {
@@ -1197,8 +1216,13 @@ func _compute_left_branch_on_right_extension_node{
     storage_key_preimages: MappingBytes32Bytes32,
     main_trie_end: AddressAccountNodeDictAccess*,
     storage_trie_end: Bytes32U256DictAccess*,
-}(left: BranchNode, right: ExtensionNode, path: Bytes, account_address: Address, index: felt) -> (
-    ) {
+}(
+    left: BranchNode,
+    right: ExtensionNode,
+    path: Bytes,
+    account_address: OptionalAddress,
+    index: felt,
+) -> () {
     alloc_locals;
 
     if (index == 16) {
@@ -1258,7 +1282,9 @@ func _compute_left_branch_on_right_branch_node{
     storage_key_preimages: MappingBytes32Bytes32,
     main_trie_end: AddressAccountNodeDictAccess*,
     storage_trie_end: Bytes32U256DictAccess*,
-}(left: BranchNode, right: BranchNode, path: Bytes, account_address: Address, index: felt) -> () {
+}(
+    left: BranchNode, right: BranchNode, path: Bytes, account_address: OptionalAddress, index: felt
+) -> () {
     alloc_locals;
 
     if (index == 16) {
@@ -1310,7 +1336,7 @@ func _compute_left_leaf_diff_on_right_branch_node{
     left: OptionalUnionInternalNodeExtended,
     subnodes: Subnodes,
     path: Bytes,
-    account_address: Address,
+    account_address: OptionalAddress,
     index: felt,
 ) -> () {
     alloc_locals;
@@ -1398,7 +1424,7 @@ func _compute_left_extension_node_diff_on_right_branch_node{
     left: OptionalUnionInternalNodeExtended,
     subnodes: Subnodes,
     path: Bytes,
-    account_address: Address,
+    account_address: OptionalAddress,
     index: felt,
 ) -> () {
     alloc_locals;
