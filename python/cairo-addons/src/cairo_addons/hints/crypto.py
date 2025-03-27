@@ -51,7 +51,7 @@ def bnf12_multiplicative_inverse(ids: VmConsts, segments: MemorySegmentManager):
         )
     b = BNF12(bnf12_coeffs)
     b_inv = b.multiplicative_inverse()
-    bnf12_struct_ptr = segments.add(12)
+    bnf12_struct_ptr = segments.add()
     b_inv_coeffs_ptr = [segments.gen_arg(int_to_uint384(b_inv[i])) for i in range(12)]
     segments.load_data(bnf12_struct_ptr, b_inv_coeffs_ptr)
     segments.load_data(ids.b_inv.address_, [bnf12_struct_ptr])
