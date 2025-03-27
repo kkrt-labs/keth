@@ -12,7 +12,7 @@ from ethereum.crypto.alt_bn128 import (
 )
 from hypothesis import assume, given, settings
 
-from cairo_addons.testing.errors import strict_raises
+from cairo_addons.testing.errors import cairo_error, strict_raises
 from cairo_addons.testing.hints import patch_hint
 from cairo_ec.curve import AltBn128
 from tests.utils.args_gen import U384
@@ -227,7 +227,7 @@ segments.load_data(ids.b_inv.address_, [bnf2_struct_ptr])
             try:
                 expected = p.double()
             except OverflowError:  # fails for large points
-                with pytest.raises(Exception):  # Hint error
+                with cairo_error(message="OverflowError"):  # Hint error
                     cairo_run("bnp12_double", p)
                 return
             assert cairo_run("bnp12_double", p) == expected
