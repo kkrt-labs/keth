@@ -89,7 +89,6 @@ def load_zkpi_fixture(zkpi_path: Path) -> Dict[str, Any]:
         FileNotFoundError: If the ZKPI file doesn't exist
         ValueError: If JSON is invalid or data conversion fails
     """
-    logger.debug(f"Loading ZKPI file: {zkpi_path}")
     with open(zkpi_path, "r") as f:
         fixture = json.load(f)
 

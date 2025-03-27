@@ -234,33 +234,22 @@ class EthereumTries:
         """
         Decode the account contained in the leaf node and set the account in the state.
         """
-        logger.debug(f"Processing account leaf node with path 0x{full_path.hex()}")
         address = self.address_preimages.get(full_path)
         if address is None:
-            logger.debug(
-                f"Address not found in address preimages: {full_path}, skipping"
-            )
             return
 
         account_node = AccountNode.from_rlp(node.value)
         account_code = self.get_code(account_node.code_hash, address)
         account = account_node.to_eels_account(account_code)
 
-        logger.debug(
-            f"Setting account 0x{address.hex()} with nonce {account.nonce}, balance {account.balance}, code hash 0x{keccak256(account.code).hex()}"
-        )
         set_account(state, address, account)
 
         if account_node.storage_root == EMPTY_TRIE_HASH:
-            logger.debug(f"Storage root is empty for account {address.hex()}, skipping")
             return
 
         # We need to resolve the storage root of the account
         storage_root_node = self.nodes.get(account_node.storage_root)
         if storage_root_node is None:
-            logger.debug(
-                f"Storage root node not found for account {address.hex()}, skipping"
-            )
             return
 
         self.traverse_trie_and_process_leaf(
@@ -279,12 +268,8 @@ class EthereumTries:
         """
         Decode the storage value contained in the leaf node and set the storage value in the state.
         """
-        logger.debug(f"Processing storage leaf node with path 0x{full_path.hex()}")
         storage_key = self.storage_key_preimages.get(full_path)
         if storage_key is None:
-            logger.debug(
-                f"Storage key not found in storage key preimages: {full_path}, skipping"
-            )
             return
 
         # We need to decode the value of the storage key

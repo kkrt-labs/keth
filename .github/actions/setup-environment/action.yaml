@@ -1,0 +1,64 @@
+name: Setup Environment
+description: Sets up Rust, Python, Foundry, and caching for CI jobs
+inputs:
+  python-version-file:
+    description: Path to the Python version file
+    default: .python-version
+  enable-uv-cache:
+    description: Whether to enable uv caching
+    default: true
+  cache-dependency-glob:
+    description: Glob pattern for dependency caching
+    default: "uv.lock"
+  cache-on-failure:
+    description: Whether to cache on failure
+    default: true
+outputs:
+  python-version:
+    description: The resolved Python version
+    value: ${{ steps.setup-python.outputs.python-version }}
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      run: rustup toolchain install --profile minimal
+      shell: bash
+
+    - name: Rust cache
+      uses: Swatinem/rust-cache@v2
+      with:
+        cache-on-failure: ${{ inputs.cache-on-failure }}
+        # Hash of source files in crates/cairo-addons to invalidate
+        # maturin build if the source files change.
+        key: ${{ hashFiles('crates/cairo-addons/**') }}
+
+    - name: Setup uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        enable-cache: ${{ inputs.enable-uv-cache }}
+        cache-dependency-glob: ${{ inputs.cache-dependency-glob }}
+
+    - name: Setup Python
+      id: setup-python
+      uses: actions/setup-python@v5
+      with:
+        python-version-file: ${{ inputs.python-version-file }}
+
+    - name: Install dependencies
+      shell: bash
+      run: uv sync -v
+
+    - name: Install Foundry
+      uses: foundry-rs/foundry-toolchain@v1
+
+    - name: Install forge deps
+      shell: bash
+      run: forge install
+
+    - name: Build solidity contracts
+      shell: bash
+      run: forge build

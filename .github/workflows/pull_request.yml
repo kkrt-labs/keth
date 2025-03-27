@@ -10,12 +10,22 @@ concurrency:
 permissions: read-all
 
 jobs:
-  rust_tests:
-    name: Tests
+  rust-tests:
     uses: ./.github/workflows/rust_tests.yml
 
-  python_tests:
-    name: Tests
+  python-unit-tests:
     uses: ./.github/workflows/python_tests.yml
     with:
-      max-tests: 8000
+      hypothesis-profile: "ci"
+      coverage-flags: "ci-unit"
+      # Ignore ef-test run in this job (handled in the ef-tests job)
+      pytest-add-params: "--ignore-glob=cairo/tests/ef_tests/"
+
+  python-ef-tests:
+    uses: ./.github/workflows/python_tests.yml
+    with:
+      hypothesis-profile: "ci"
+      pytest-add-params:
+        "-m 'not slow' --max-tests=8000 --randomly-seed=$GITHUB_RUN_ID
+        cairo/tests/ef_tests/"
+      coverage-flags: "ci-ef-tests"

@@ -8,39 +8,21 @@ on:
 permissions: read-all
 
 jobs:
-  tests-unit:
+  unit-tests:
     runs-on: ubuntu-latest-64-cores
     timeout-minutes: 1440
     env:
+      CAIRO_PATH: cairo:tests:python/cairo-ec/src:python/cairo-addons/src:python/cairo-core/src:python/mpt/src:.venv/lib/python3.10/site-packages/src
       HYPOTHESIS_PROFILE: nightly
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Rust toolchain
-        run: rustup show
-
-      - uses: astral-sh/setup-uv@v2
-        with:
-          enable-cache: true
-          cache-dependency-glob: uv.lock
-      - uses: actions/setup-python@v5
-        with:
-          python-version-file: .python-version
-      - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
-        with:
-          version: nightly
-      - name: Install forge deps
-        run: forge install
-      - name: Build solidity contracts
-        run: forge build
+      - uses: ./.github/actions/setup-environment
       - name: Run unit tests
         id: unit-tests
         continue-on-error: true
         run: |
-          uv run --reinstall pytest -n logical --durations=0 -v -s --log-cli-level=DEBUG --no-skip-cached-tests --ignore-glob=cairo/tests/ef_tests/
-
+          uv run pytest -n logical --durations=0 -v -s --log-cli-level=DEBUG --no-skip-cached-tests --ignore-glob=cairo/tests/ef_tests/
       - name: Upload coverage
         uses: codecov/codecov-action@v5
         with:
@@ -65,22 +47,24 @@ jobs:
   ef-tests-full:
     runs-on: ubuntu-latest-64-cores
     env:
+      CAIRO_PATH: cairo:tests:python/cairo-ec/src:python/cairo-addons/src:python/cairo-core/src:python/mpt/src:.venv/lib/python3.10/site-packages/src
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v2
-        with:
-          enable-cache: true
-          cache-dependency-glob: uv.lock
-      - uses: actions/setup-python@v5
-        with:
-          python-version-file: .python-version
+      - uses: ./.github/actions/setup-environment
       - name: Run full EF tests
         id: ef-tests
         continue-on-error: true
         # Running on 48 cores to avoid out of memory issues
         run: |
-          uv run --reinstall pytest -n 48 -m "not slow" --durations=0 -v -s --log-cli-level=DEBUG cairo/tests/ef_tests/ --ignore-glob='cairo/tests/ef_tests/fixtures/*'
+          uv run pytest -n 48 -m "not slow" --durations=0 -v -s --log-cli-level=DEBUG cairo/tests/ef_tests/
+      - name: Upload coverage
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          verbose: true
+          files: ./coverage/**/*.json
+          flags: nightly-ef-tests
       - name: Notify Slack on Failure
         if: steps.ef-tests.outcome == 'failure'
         uses: slackapi/slack-github-action@v1.24.0
@@ -94,10 +78,3 @@ jobs:
       - name: Fail workflow if tests failed
         if: steps.ef-tests.outcome == 'failure'
         run: exit 1
-      - name: Upload coverage
-        uses: codecov/codecov-action@v5
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          verbose: true
-          files: ./coverage/**/*.json
-          flags: nightly-ef-tests
