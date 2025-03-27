@@ -1,6 +1,7 @@
 def test_fast():
     import os
     import subprocess
+    import sys
 
     # Copy the environment and tweak it
     env = os.environ.copy()
@@ -9,17 +10,30 @@ def test_fast():
     if "TERM" not in env:
         env["TERM"] = "xterm-256color"  # Ensure terminal supports colors
 
-    subprocess.run(
-        "uv run pytest -n logical -v -s --no-skip-cached-tests --ignore-glob=cairo/tests/ef_tests/ --no-coverage",
-        shell=True,
-        env=env,
-        check=True,
-    )
+    try:
+        # Run the command without capturing output, letting it go directly to the terminal
+        result = subprocess.run(
+            "uv run pytest -n logical -m 'not slow' -v -s --no-skip-cached-tests --ignore-glob=cairo/tests/ef_tests/ --no-coverage",
+            shell=True,
+            env=env,
+            check=False,  # Don't raise an exception immediately
+        )
+
+        # Check the return code
+        if result.returncode != 0:
+            print(f"Command failed with exit code {result.returncode}", file=sys.stderr)
+            return result.returncode
+
+        return 0
+    except Exception as e:
+        print(f"Error executing test: {e}", file=sys.stderr)
+        return 1
 
 
 def test_unit():
     import os
     import subprocess
+    import sys
 
     # Copy the environment and tweak it
     env = os.environ.copy()
@@ -27,20 +41,34 @@ def test_unit():
     if "TERM" not in env:
         env["TERM"] = "xterm-256color"  # Ensure terminal supports colors
 
-    subprocess.run(
-        "uv run pytest -n logical -v -s --no-skip-cached-tests --ignore-glob=cairo/tests/ef_tests/ --no-coverage",
-        shell=True,
-        env=env,
-        check=True,
-    )
+    try:
+        # Run the command without capturing output, letting it go directly to the terminal
+        result = subprocess.run(
+            "uv run pytest -n logical -v -s --no-skip-cached-tests --ignore-glob=cairo/tests/ef_tests/ --no-coverage",
+            shell=True,
+            env=env,
+            check=False,
+        )
+
+        # Check the return code
+        if result.returncode != 0:
+            print(f"Command failed with exit code {result.returncode}", file=sys.stderr)
+            return result.returncode
+
+        return 0
+    except Exception as e:
+        print(f"Error executing test: {e}", file=sys.stderr)
+        return 1
 
 
 def test_ef():
     import os
     import subprocess
+    import sys
+    import time
 
-    # use current timestamp as seed
-    seed = str(int(os.time.time()))
+    # Use current timestamp as seed
+    seed = str(int(time.time()))
 
     # Copy the environment and tweak it
     env = os.environ.copy()
@@ -48,9 +76,21 @@ def test_ef():
     if "TERM" not in env:
         env["TERM"] = "xterm-256color"  # Ensure terminal supports colors
 
-    subprocess.run(
-        f"uv run pytest -n logical -v -s --no-skip-cached-tests -m 'not slow' --max-tests=8000 --randomly-seed={seed} cairo/tests/ef_tests/ --ignore-glob='cairo/tests/ef_tests/fixtures/*'",
-        shell=True,
-        env=env,
-        check=True,
-    )
+    try:
+        # Run the command without capturing output, letting it go directly to the terminal
+        result = subprocess.run(
+            f"uv run pytest -n logical -v -s --no-skip-cached-tests -m 'not slow' --max-tests=8000 --randomly-seed={seed} cairo/tests/ef_tests/",
+            shell=True,
+            env=env,
+            check=False,
+        )
+
+        # Check the return code
+        if result.returncode != 0:
+            print(f"Command failed with exit code {result.returncode}", file=sys.stderr)
+            return result.returncode
+
+        return 0
+    except Exception as e:
+        print(f"Error executing test: {e}", file=sys.stderr)
+        return 1

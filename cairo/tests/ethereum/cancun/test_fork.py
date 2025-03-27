@@ -824,6 +824,7 @@ class TestFork:
         list(Path("data/1/eels").glob("*.json")),
         ids=[x.stem for x in Path("data/1/eels").glob("*.json")],
     )
+    @pytest.mark.slow
     def test_state_transition_eth_mainnet(self, cairo_run, zkpi_fixture):
         cairo_run("state_transition", *zkpi_fixture)
 
