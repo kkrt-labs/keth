@@ -108,13 +108,13 @@ struct MappingBytes32Bytes32 {
     value: MappingBytes32Bytes32Struct*,
 }
 struct MappingBytes32Bytes32Struct {
-    dict_ptr_start: Bytes32OptionalBytes32DictAccess*,
-    dict_ptr: Bytes32OptionalBytes32DictAccess*,
+    dict_ptr_start: Bytes32Bytes32DictAccess*,
+    dict_ptr: Bytes32Bytes32DictAccess*,
 }
-struct Bytes32OptionalBytes32DictAccess {
+struct Bytes32Bytes32DictAccess {
     key: HashedBytes32,
-    prev_value: OptionalBytes32,
-    new_value: OptionalBytes32,
+    prev_value: Bytes32,
+    new_value: Bytes32,
 }
 
 // TrieDiff records the difference between a "pre" world state and a "post" world state
@@ -431,6 +431,7 @@ func _process_account_diff{
         let left_storage_root = OptionalUnionInternalNodeExtendedImpl.from_extended(
             left_storage_root_extended
         );
+        tempvar left_storage_root = left_storage_root;
         tempvar left_account = left_account;
         tempvar range_check_ptr = range_check_ptr;
         tempvar bitwise_ptr = bitwise_ptr;
@@ -461,6 +462,7 @@ func _process_account_diff{
         let right_storage_root = OptionalUnionInternalNodeExtendedImpl.from_extended(
             right_storage_root_extended
         );
+        tempvar right_storage_root = right_storage_root;
         tempvar right_account = right_account;
         tempvar range_check_ptr = range_check_ptr;
         tempvar bitwise_ptr = bitwise_ptr;
@@ -492,7 +494,7 @@ func _process_account_diff{
     let (new_path_buffer) = alloc();
     tempvar new_path = Bytes(new BytesStruct(new_path_buffer, 0));
 
-    let new_address = OptionalAddress(&address.value);
+    tempvar new_address = OptionalAddress(new address.value);
 
     _compute_diff(
         left=left_storage_root, right=right_storage_root, path=new_path, account_address=new_address
@@ -521,7 +523,7 @@ func _process_storage_diff{
     local __fp__: felt* = fp_and_pc.fp_val;
 
     let (pointer) = hashdict_read{dict_ptr=dict_ptr}(2, path.value);
-    let new_dict_ptr = cast(dict_ptr, Bytes32OptionalBytes32DictAccess*);
+    let new_dict_ptr = cast(dict_ptr, Bytes32Bytes32DictAccess*);
     tempvar storage_key_preimages = MappingBytes32Bytes32(
         new MappingBytes32Bytes32Struct(storage_key_preimages.value.dict_ptr_start, new_dict_ptr)
     );
@@ -591,7 +593,7 @@ func compute_diff_entrypoint{
     let (storage_tries_end: TupleAddressBytes32U256DictAccess*) = alloc();
     let storage_tries_start = storage_tries_end;
 
-    tempvar account_address = OptionalAddress(new 0);
+    tempvar account_address = OptionalAddress(cast(0, felt*));
     let (buffer) = alloc();
     tempvar path = Bytes(new BytesStruct(buffer, 0));
 

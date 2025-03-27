@@ -1,5 +1,6 @@
 import json
 import logging
+from collections import defaultdict
 from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
@@ -30,6 +31,8 @@ EMPTY_TRIE_HASH = Hash32.fromhex(
 EMPTY_BYTES_HASH = Hash32.fromhex(
     "c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
 )
+
+0x56E81F171BCC55A6FF8345E692C0F86E5B48E01B996CADC001622FB5E363B421
 
 
 @dataclass
@@ -358,7 +361,7 @@ class EthereumTrieTransitionDB(EthereumTries):
             raise ValueError(f"Post state root not found in nodes: {post_state_root}")
 
         instance = cls(
-            nodes={**pre_trie.nodes, **post_nodes},
+            nodes=defaultdict(lambda: None, {**pre_trie.nodes, **post_nodes}),
             codes=pre_trie.codes,
             address_preimages=pre_trie.address_preimages,
             storage_key_preimages=pre_trie.storage_key_preimages,
