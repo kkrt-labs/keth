@@ -210,6 +210,14 @@ settings.register_profile(
     derandomize=True,
 )
 settings.register_profile(
+    "fast",
+    deadline=None,
+    max_examples=1,
+    phases=[Phase.explicit, Phase.reuse, Phase.generate, Phase.target],
+    print_blob=True,
+    derandomize=True,
+)
+settings.register_profile(
     "dev",
     deadline=None,
     max_examples=100,

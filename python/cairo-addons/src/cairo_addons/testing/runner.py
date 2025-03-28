@@ -153,9 +153,9 @@ def run_python_vm(
     cairo_files: List[Path],
     main_paths: List[Tuple[str, ...]],
     request: FixtureRequest,
+    coverage: Optional[Callable[[pl.DataFrame, int], pl.DataFrame]],
     hint_locals: Optional[dict] = None,
     static_locals: Optional[dict] = None,
-    coverage: Optional[Callable[[pl.DataFrame, int], pl.DataFrame]] = None,
 ):
     def _run(entrypoint, *args, **kwargs):
         # ============================================================================
@@ -312,8 +312,8 @@ def run_python_vm(
             trace = pl.DataFrame(
                 [{"pc": x.pc, "ap": x.ap, "fp": x.fp} for x in runner.relocated_trace]
             )
-            if coverage is not None:
-                coverage(trace, PROGRAM_BASE)
+            if not request.config.getoption("no_coverage"):
+                coverage(cairo_file, trace)
             map_to_python_exception(e)
 
         # ============================================================================
@@ -356,16 +356,16 @@ def run_python_vm(
         trace = pl.DataFrame(
             [{"pc": x.pc, "ap": x.ap, "fp": x.fp} for x in runner.relocated_trace]
         )
-        if coverage is not None:
-            coverage(trace, PROGRAM_BASE)
+        if not request.config.getoption("no_coverage"):
+            coverage(cairo_file, trace)
 
         # Create a unique output stem for the given test by using the test file name, the entrypoint and the kwargs
         displayed_args = ""
         if kwargs:
             try:
                 displayed_args = json.dumps(kwargs)
-            except TypeError as e:
-                logger.debug(f"Failed to serialize kwargs: {e}")
+            except TypeError:
+                pass
         output_stem = str(
             request.node.path.parent
             / f"{request.node.path.stem}_{entrypoint}_{displayed_args}"
@@ -456,7 +456,7 @@ def run_rust_vm(
     cairo_files: List[Path],
     main_paths: List[Tuple[str, ...]],
     request: FixtureRequest,
-    coverage: Optional[Callable[[pl.DataFrame, int], pl.DataFrame]] = None,
+    coverage: Optional[Callable[[pl.DataFrame, int], pl.DataFrame]],
 ):
     def _run(entrypoint, *args, **kwargs):
         # ============================================================================
@@ -469,6 +469,7 @@ def run_rust_vm(
         rust_program = rust_programs[0]
         cairo_file = cairo_files[0]
         main_path = main_paths[0]
+
         try:
             cairo_program.get_label(entrypoint)
         except Exception:
@@ -585,8 +586,8 @@ def run_rust_vm(
             runner.run_until_pc(end, run_resources)
         except Exception as e:
             runner.relocate()
-            if coverage is not None:
-                coverage(runner.trace_df, PROGRAM_BASE)
+            if not request.config.getoption("no_coverage"):
+                coverage(cairo_file, runner.trace_df)
             map_to_python_exception(e)
 
         # ============================================================================
@@ -616,16 +617,16 @@ def run_rust_vm(
         # - Rationale: Save trace, memory, and profiling data based on config options for
         #   debugging, proof generation, or performance analysis.
         # ============================================================================
-        if coverage is not None:
-            coverage(runner.trace_df, PROGRAM_BASE)
+        if not request.config.getoption("no_coverage"):
+            coverage(cairo_file, runner.trace_df)
 
         # Create a unique output stem for the given test by using the test file name, the entrypoint and the kwargs
         displayed_args = ""
         if kwargs:
             try:
                 displayed_args = json.dumps(kwargs)
-            except TypeError as e:
-                logger.debug(f"Failed to serialize kwargs: {e}")
+            except TypeError:
+                pass
         output_stem = str(
             request.node.path.parent
             / f"{request.node.path.stem}_{entrypoint}_{displayed_args}"
