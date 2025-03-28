@@ -36,7 +36,9 @@ func test__felt252_to_bytes_be{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     return dst;
 }
 
-func test__felt252_to_bits_rev{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(value: felt, len: felt) -> felt* {
+func test__felt252_to_bits_rev{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
+    value: felt, len: felt
+) -> felt* {
     alloc_locals;
     let (dst) = alloc();
     felt252_to_bits_rev(value, len, dst);

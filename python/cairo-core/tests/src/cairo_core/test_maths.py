@@ -188,7 +188,11 @@ segments.write_arg(ids.output, bad)
         len=st.integers(min_value=0, max_value=50),
     )
     def test_felt252_to_bits_rev(self, cairo_run_py, value, len):
-        expected = list() if len == 0 else [int(bit) for bit in bin(value)[2:].zfill(len)[::-1]]
+        expected = (
+            list()
+            if len == 0
+            else [int(bit) for bit in bin(value)[2:].zfill(len)[::-1]]
+        )
         res = cairo_run_py("test__felt252_to_bits_rev", value=value, len=len)
 
         assert res == expected
