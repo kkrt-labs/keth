@@ -1891,17 +1891,15 @@ func miller_loop{
 }(q: BNP12, p: BNP12) -> BNF12 {
     alloc_locals;
 
-    let bnf12_zero = BNF12_ZERO();
-    let x_is_zero = BNF12__eq__(p.value.x, bnf12_zero);
-    let y_is_zero = BNF12__eq__(p.value.y, bnf12_zero);
-    if (x_is_zero != 0 and y_is_zero != 0) {
+    let point_at_infinity = bnp12_point_at_infinity();
+    let is_p_point_at_infinity = BNP12__eq__(p, point_at_infinity);
+    if (is_p_point_at_infinity != 0) {
         let bnf12_one = BNF12_ONE();
         return bnf12_one;
     }
 
-    let x_is_zero_q = BNF12__eq__(q.value.x, bnf12_zero);
-    let y_is_zero_q = BNF12__eq__(q.value.y, bnf12_zero);
-    if (x_is_zero_q != 0 and y_is_zero_q != 0) {
+    let is_q_point_at_infinity = BNP12__eq__(q, point_at_infinity);
+    if (is_q_point_at_infinity != 0) {
         let bnf12_one = BNF12_ONE();
         return bnf12_one;
     }
@@ -1920,8 +1918,6 @@ func miller_loop{
     let (f, r) = miller_loop_inner(f, r, q, p, bits_ptr, ate_pairing_count_bits);
 
     // assert r == q.mul_by(ATE_PAIRING_COUNT - 1)
-    // Is this check necessary ?
-    // Could use non-determinism to compute q.mul_by(ATE_PAIRING_COUNT - 1)
     // let q_by_ate_minus_one = bnp12_mul_by(q, ate_minus_one);
     // assert r = q_by_ate_minus_one;
 
@@ -1929,17 +1925,19 @@ func miller_loop{
     let q_x_frob = bnf12_frobenius(q.value.x);
     let q_y_frob = bnf12_frobenius(q.value.y);
     tempvar q1 = BNP12(new BNP12Struct(q_x_frob, q_y_frob));
-    // nq2 = BNP12(q1.x.frobenius(), -q1.y.frobenius())
-    let q1_x_frob = bnf12_frobenius(q1.value.x);
-    let q1_y_frob = bnf12_frobenius(q1.value.y);
-    let neg_q1_y_frob = bnf12_sub(bnf12_zero, q1_y_frob);
-    tempvar nq2 = BNP12(new BNP12Struct(q1_x_frob, neg_q1_y_frob));
 
     // f = f * linefunc(r, q1, p)
     let line_r_q1_p = linefunc(r, q1, p);
     let f = bnf12_mul(f, line_r_q1_p);
     // r = r + q1
     let r = bnp12_add(r, q1);
+
+    // nq2 = BNP12(q1.x.frobenius(), -q1.y.frobenius())
+    let bnf12_zero = BNF12_ZERO();
+    let q1_x_frob = bnf12_frobenius(q1.value.x);
+    let q1_y_frob = bnf12_frobenius(q1.value.y);
+    let neg_q1_y_frob = bnf12_sub(bnf12_zero, q1_y_frob);
+    tempvar nq2 = BNP12(new BNP12Struct(q1_x_frob, neg_q1_y_frob));
     // f = f * linefunc(r, nq2, p)
     let line_r_nq2_p = linefunc(r, nq2, p);
     let f = bnf12_mul(f, line_r_nq2_p);
