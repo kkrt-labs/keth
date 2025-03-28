@@ -123,7 +123,7 @@ segments.load_data(ids.b_inv.address_, [bnf2_struct_ptr])
 
         @given(p=..., n=...)
         def test_bnp2_mul_by(self, cairo_run, p: BNP2, n: U384):
-            assert cairo_run("bnp2_mul_by", p, U384(n)) == p.mul_by(int(n))
+            assert cairo_run("bnp2_mul_by", p, n) == p.mul_by(int(n))
 
     class TestBNF12:
         def test_FROBENIUS_COEFFICIENTS(self, cairo_run):
@@ -241,6 +241,17 @@ segments.load_data(ids.b_inv.address_, [bnf2_struct_ptr])
                     cairo_run("bnp12_add", p, q)
                 return
             assert cairo_run("bnp12_add", p, q) == expected
+
+        @given(p=..., n=...)
+        @settings(max_examples=30)
+        def test_bnp12_mul_by(self, cairo_run, p: BNP12, n: U384):
+            try:
+                expected = p.mul_by(int(n))
+            except OverflowError:  # fails for large points
+                with cairo_error(message="OverflowError"):  # Hint error
+                    cairo_run("bnp12_mul_by", p, n)
+                return
+            assert cairo_run("bnp12_mul_by", p, n) == expected
 
         # Garaga final exponentiation match the gnark one which uses a cofactor
         # This does not affect the pairing properties
