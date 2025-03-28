@@ -68,6 +68,9 @@ from ethereum.utils.bytes import (
 
 from mpt.utils import deserialize_to_internal_node
 
+const EMPTY_TRIE_HASH_LOW = 0x6ef8c092e64583ffa655cc1b171fe856;
+const EMPTY_TRIE_HASH_HIGH = 0x21b463e3b52f6201c0ad6c991be0485b;
+
 // NodeStore is a mapping of node hashes to their corresponding InternalNode
 // In the world state DB given as input to the program
 // This is used to store state and storage MPT nodes
@@ -416,14 +419,6 @@ func _process_account_diff{
     let fp_and_pc = get_fp_and_pc();
     local __fp__: felt* = fp_and_pc.fp_val;
 
-    %{
-        try:
-            logger.trace_cairo(f"[_process_account_diff] - Path: {serialize(ids.path)}")
-        except Exception as e:
-               breakpoint()
-               raise e
-    %}
-
     let (pointer) = hashdict_read{dict_ptr=dict_ptr}(2, path.value);
     let new_dict_ptr = cast(dict_ptr, Bytes32OptionalAddressDictAccess*);
     tempvar address_preimages = MappingBytes32Address(
@@ -529,14 +524,6 @@ func _process_storage_diff{
 
     let fp_and_pc = get_fp_and_pc();
     local __fp__: felt* = fp_and_pc.fp_val;
-
-    %{
-        try:
-            logger.trace_cairo(f"[_process_storage_diff] Address: {serialize(ids.address)} - Path: {serialize(ids.path)}")
-        except Exception as e:
-               breakpoint()
-               raise e
-    %}
 
     let (pointer) = hashdict_read{dict_ptr=dict_ptr}(2, path.value);
     let new_dict_ptr = cast(dict_ptr, Bytes32Bytes32DictAccess*);
@@ -1206,7 +1193,7 @@ func _compute_left_branch_on_none{
         new BytesStruct(data=path_copy.value.data, len=path_copy.value.len + 1)
     );
 
-    _compute_diff(left=null_node, right=subnode_i, path=sub_path, account_address=account_address);
+    _compute_diff(left=subnode_i, right=null_node, path=sub_path, account_address=account_address);
     return _compute_left_branch_on_none(
         left=left, right=right, path=path, account_address=account_address, index=index + 1
     );
@@ -1244,7 +1231,7 @@ func _compute_left_branch_on_right_leaf{
     let first_nib = right.value.rest_of_key.value.data[0];
     if (first_nib == index) {
         // Compare to the shortened leaf node
-        tempvar leaf = LeafNode(
+        tempvar right_leaf_shortened = LeafNode(
             new LeafNodeStruct(
                 rest_of_key=Bytes(
                     new BytesStruct(
@@ -1255,10 +1242,9 @@ func _compute_left_branch_on_right_leaf{
                 value=right.value.value,
             ),
         );
-        let right_ = OptionalUnionInternalNodeExtendedImpl.from_leaf(leaf);
-        let left_typed = OptionalUnionInternalNodeExtendedImpl.from_branch(left);
+        let right_shortened = OptionalUnionInternalNodeExtendedImpl.from_leaf(right_leaf_shortened);
         _compute_diff(
-            left=left_typed, right=right_, path=sub_path, account_address=account_address
+            left=subnode_i, right=right_shortened, path=sub_path, account_address=account_address
         );
         return _compute_left_branch_on_right_leaf(
             left=left, right=right, path=path, account_address=account_address, index=index + 1
@@ -1268,7 +1254,8 @@ func _compute_left_branch_on_right_leaf{
     tempvar null_node = OptionalUnionInternalNodeExtended(
         cast(0, OptionalUnionInternalNodeExtendedEnum*)
     );
-    _compute_diff(left=null_node, right=subnode_i, path=sub_path, account_address=account_address);
+    _compute_diff(left=subnode_i, right=null_node, path=sub_path, account_address=account_address);
+
     return _compute_left_branch_on_right_leaf(
         left=left, right=right, path=path, account_address=account_address, index=index + 1
     );
@@ -1321,10 +1308,9 @@ func _compute_left_branch_on_right_extension_node{
                 subnode=right.value.subnode,
             ),
         );
-        let right_ = OptionalUnionInternalNodeExtendedImpl.from_extension(extension);
-        let left_typed = OptionalUnionInternalNodeExtendedImpl.from_branch(left);
+        let right_shortened = OptionalUnionInternalNodeExtendedImpl.from_extension(extension);
         _compute_diff(
-            left=left_typed, right=right_, path=sub_path, account_address=account_address
+            left=subnode_i, right=right_shortened, path=sub_path, account_address=account_address
         );
         return _compute_left_branch_on_right_extension_node(
             left=left, right=right, path=path, account_address=account_address, index=index + 1
@@ -1334,7 +1320,7 @@ func _compute_left_branch_on_right_extension_node{
     let null_node = OptionalUnionInternalNodeExtended(
         cast(0, OptionalUnionInternalNodeExtendedEnum*)
     );
-    _compute_diff(left=null_node, right=subnode_i, path=sub_path, account_address=account_address);
+    _compute_diff(left=subnode_i, right=null_node, path=sub_path, account_address=account_address);
     return _compute_left_branch_on_right_extension_node(
         left=left, right=right, path=path, account_address=account_address, index=index + 1
     );
@@ -1567,9 +1553,8 @@ func node_store_get{poseidon_ptr: PoseidonBuiltin*, node_store: NodeStore}(
 ) -> OptionalInternalNode {
     alloc_locals;
 
-    // Compare with empty trie hash
-    let EMPTY_TRIE_HASH_LOW = 0x6ef8c092e64583ffa655cc1b171fe856;
-    let EMPTY_TRIE_HASH_HIGH = 0x21b463e3b52f6201c0ad6c991be0485b;
+    // The empty trie hash has no corresponding node in the node store.
+    // we early return None in this case.
     if (node_hash.value.low == EMPTY_TRIE_HASH_LOW and
         node_hash.value.high == EMPTY_TRIE_HASH_HIGH) {
         let res = OptionalInternalNode(cast(0, InternalNodeEnum*));
@@ -1586,13 +1571,6 @@ func node_store_get{poseidon_ptr: PoseidonBuiltin*, node_store: NodeStore}(
     assert keys[1] = node_hash.value.high;
 
     // Read from the dictionary using the hash as key
-    %{
-        try:
-            logger.trace_cairo(f"[node_store_get] - Node hash: {serialize(ids.node_hash)}")
-        except Exception as e:
-            breakpoint()
-            raise e
-    %}
     let (pointer) = hashdict_read{dict_ptr=dict_ptr}(2, keys);
 
     let new_dict_ptr = cast(dict_ptr, NodeStoreDictAccess*);

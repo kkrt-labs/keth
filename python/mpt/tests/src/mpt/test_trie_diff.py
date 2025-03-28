@@ -142,11 +142,12 @@ class TestTrieDiff:
                 address
             ].items():
                 key = int_to_uint256(int.from_bytes(key, "little"))
-                assert (prev_value, new_value) == storage_lookup[
-                    poseidon_hash_many((int.from_bytes(address, "little"), *key))
-                ]
+                key_hashed = poseidon_hash_many(
+                    (int.from_bytes(address, "little"), *key)
+                )
+                assert (prev_value, new_value) == storage_lookup[key_hashed]
                 count += 1
-            assert count == len(storage_lookup[address])
+            assert count == len(storage_lookup[key_hashed])
 
     @pytest.mark.parametrize(
         "data_path", [Path("test_data/22081873.json")], scope="session"
