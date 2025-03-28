@@ -10,6 +10,7 @@ from ethereum.crypto.alt_bn128 import (
     BNP12,
     bnf2_to_bnf12,
     linefunc,
+    miller_loop,
 )
 from hypothesis import assume, given, settings
 
@@ -297,3 +298,27 @@ segments.load_data(ids.b_inv.address_, [bnf2_struct_ptr])
                     cairo_run("linefunc", p1, p2, t)
                 return
             assert cairo_run("linefunc", p1, p2, t) == expected
+
+        @given(p=..., q=...)
+        @settings(max_examples=1)
+        # Currently, running on the Python CairoVM,
+        # this test takes about 20 minutes per example...
+        def test_miller_loop(self, cairo_run_py, p: BNP12, q: BNP12):
+            assume(p.x != BNF12.zero())
+            assume(q.x != BNF12.zero())
+            try:
+                expected = miller_loop(p, q) ** GARAGA_COFACTOR
+            except OverflowError:  # fails for large points
+                with cairo_error(message="OverflowError"):  # Hint error
+                    cairo_run_py("miller_loop", p, q)
+                return
+
+            expected = miller_loop(q, p) ** GARAGA_COFACTOR
+            assert cairo_run_py("miller_loop", q, p) == expected
+
+        @given(p=...)
+        @settings(max_examples=10)
+        def test_miller_loop_zero(self, cairo_run_py, p: BNP12):
+            q = BNP12(BNF12.zero(), BNF12.zero())
+            assert cairo_run_py("miller_loop", q, p) == BNF12.from_int(1)
+            assert cairo_run_py("miller_loop", p, q) == BNF12.from_int(1)
