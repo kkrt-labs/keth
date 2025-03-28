@@ -26,7 +26,6 @@ from cairo_core.maths import unsigned_div_rem, felt252_to_bytes_le, felt252_to_b
 from cairo_core.comparison import is_zero
 from ethereum.utils.numeric import min
 from legacy.utils.bytes import bytes_to_felt_le
-from cairo_core.control_flow import raise
 
 func Bytes__add__(_self: Bytes, other: Bytes) -> Bytes {
     alloc_locals;
