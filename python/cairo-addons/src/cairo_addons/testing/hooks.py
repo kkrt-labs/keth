@@ -271,7 +271,12 @@ def pytest_collection_modifyitems(session, config, items):
             for file, main_path, dump_path in zip(files, main_paths, dump_paths)
         ]
         session.cairo_programs[fspath] = cairo_programs
-        session.coverage_dataframes[fspath] = coverage_dataframes(cairo_programs, files)
+        if config.getoption("no_coverage"):
+            session.coverage_dataframes[fspath] = [None] * len(files)
+        else:
+            session.coverage_dataframes[fspath] = coverage_dataframes(
+                cairo_programs, files
+            )
 
     # Wait for all workers to finish
     missing = set(fspaths) - set(fspaths[worker_index::worker_count])
@@ -306,9 +311,12 @@ def pytest_collection_modifyitems(session, config, items):
                         )
                     ]
                     session.cairo_programs[fspath] = cairo_programs
-                    session.coverage_dataframes[fspath] = coverage_dataframes(
-                        cairo_programs, cairo_files
-                    )
+                    if config.getoption("no_coverage"):
+                        session.coverage_dataframes[fspath] = [None] * len(cairo_files)
+                    else:
+                        session.coverage_dataframes[fspath] = coverage_dataframes(
+                            cairo_programs, cairo_files
+                        )
                 else:
                     missing_new.add(fspath)
         missing = missing_new
