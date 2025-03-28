@@ -1,3 +1,4 @@
+import os
 import pickle
 from pathlib import Path
 from typing import Any, Dict, List
@@ -11,7 +12,6 @@ from cairo_addons.testing.caching import get_dump_path
 def dump_coverage_dataframes(
     cairo_program: Program,
     cairo_file: List[Any],
-    dump_path: Path,
     program_base: int = 1,
 ) -> List[Dict[str, pl.DataFrame]]:
     """
@@ -95,12 +95,20 @@ def dump_coverage_dataframes(
         "all_statements": all_statements,
     }
 
-    if dump_path is not None:
-        dump_path.parent.mkdir(parents=True, exist_ok=True)
-        dump_path = Path(str(dump_path).replace(".pickle", "_dataframes.pickle"))
-        with dump_path.with_suffix(".lock").open("wb") as f:
+    dump_path_file = get_dump_path(cairo_file)
+    if dump_path_file is not None:
+        dump_path_file.parent.mkdir(parents=True, exist_ok=True)
+        dump_path_df = Path(
+            str(dump_path_file).replace(".pickle", "_dataframes.pickle")
+        )
+        with dump_path_df.with_suffix(".lock").open("wb") as f:
             pickle.dump(dataframes, f)
-        dump_path.with_suffix(".lock").rename(dump_path)
+        try:
+            dump_path_df.with_suffix(".lock").rename(dump_path_df)
+        except Exception as e:
+            print(
+                f"Error renaming {dump_path_df.with_suffix('.lock')} to {dump_path_df}: {e}. Content of directory: {os.listdir(dump_path_file.parent)}"
+            )
 
 
 def coverage_from_trace(

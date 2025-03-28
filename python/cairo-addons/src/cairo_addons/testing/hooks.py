@@ -274,7 +274,10 @@ def pytest_collection_modifyitems(session, config, items):
             )
             cairo_programs.append(cairo_program)
             if not config.getoption("no_coverage"):
-                dump_coverage_dataframes(cairo_program, file, dump_path)
+                dump_coverage_dataframes(
+                    cairo_program,
+                    file,
+                )
         session.cairo_programs[fspath] = cairo_programs
 
     # Wait for all workers to finish
@@ -310,9 +313,7 @@ def pytest_collection_modifyitems(session, config, items):
                         )
                         cairo_programs.append(cairo_program)
                         if not config.getoption("no_coverage"):
-                            dump_coverage_dataframes(
-                                cairo_program, cairo_file, dump_path
-                            )
+                            dump_coverage_dataframes(cairo_program, cairo_file)
                     session.cairo_programs[fspath] = cairo_programs
                 else:
                     missing_new.add(fspath)
