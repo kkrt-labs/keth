@@ -280,6 +280,7 @@ def run_python_vm(
                     segments=runner.segments,
                     program_identifiers=cairo_program.identifiers,
                     dict_manager=dict_manager,
+                    cairo_file=cairo_file,
                 ),
                 "gen_arg": partial(
                     context["_gen_arg"],
@@ -504,6 +505,7 @@ def run_rust_vm(
             allow_missing_builtins=False,
             enable_traces=enable_traces,
             ordered_builtins=_builtins,
+            cairo_file=cairo_file,
         )
         serde = Serde(
             runner.segments, cairo_program.identifiers, runner.dict_manager, cairo_file
@@ -670,21 +672,29 @@ def run_rust_vm(
         # - Rationale: Convert Cairo return values to Python types, handle exceptions,
         #   and format the final output for the caller.
         # ============================================================================
-        unfiltered_output = [
-            serde.serialize(return_data_type, runner.ap, offset)
-            for offset, return_data_type in zip(
-                cumulative_retdata_offsets, return_data_types
+        if len(return_data_types) > 1:
+            unfiltered_output = [
+                serde.serialize(return_data_type, runner.ap, offset)
+                for offset, return_data_type in zip(
+                    cumulative_retdata_offsets, return_data_types
+                )
+            ]
+        else:
+            unfiltered_output = serde.serialize(
+                return_data_types[0], runner.ap, cumulative_retdata_offsets[0]
             )
-        ]
-        function_output = Serde.filter_no_error_flag(unfiltered_output)
+            if not isinstance(unfiltered_output, list):
+                unfiltered_output = [unfiltered_output]
+
         exceptions = [
             val
-            for val in flatten(function_output)
+            for val in flatten(unfiltered_output)
             if hasattr(val, "__class__") and issubclass(val.__class__, Exception)
         ]
         if exceptions:
             raise exceptions[0]
 
+        function_output = Serde.filter_no_error_flag(unfiltered_output)
         final_output = function_output
 
         return final_output[0] if len(final_output) == 1 else final_output

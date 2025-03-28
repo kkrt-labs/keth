@@ -894,6 +894,17 @@ class Serde:
 
     def serialize(self, cairo_type, base_ptr, shift=None, length=None):
         shift = shift if shift is not None else self.get_offset(cairo_type)
+
+        if isinstance(cairo_type, TypeTuple):
+            acc = []
+            for i, member in enumerate(cairo_type.members):
+                acc.append(self.serialize(member.typ, base_ptr, shift - i, None))
+            return acc
+
+        # Returned pointers are always lists
+        if isinstance(cairo_type, TypePointer):
+            return self._serialize(cairo_type, base_ptr - shift, length=None)
+
         length = length if length is not None else shift
         return self._serialize(cairo_type, base_ptr - shift, length)
 
@@ -912,11 +923,15 @@ class Serde:
         )
         item_size = item_identifier.size if item_identifier is not None else 1
         try:
-            list_len = (
-                list_len * item_size
-                if list_len is not None
-                else self.segments.get_segment_size(segment_ptr.segment_index)
-            )
+            if segment_ptr.segment_index == 1:
+                # edge case:
+                # 1. If the segment_index is `1` then it's a pointer on the main segment,
+                # under which case the length is hardcoded to `1` - we're certain it's not a list
+                list_len = 1
+            elif list_len is not None:
+                list_len = list_len * item_size
+            else:
+                list_len = self.segments.get_segment_size(segment_ptr.segment_index)
             if not list_len:
                 # In case we were not able to get the list length, we assume it's an arbitrary high value
                 list_len = 2**32

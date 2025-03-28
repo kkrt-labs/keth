@@ -26,7 +26,7 @@ def prepare_context(context: Callable[[], dict]):
 
     context()["logger"] = logging.getLogger("TRACE")
 
-    def serialize(variable, segments, program_identifiers, dict_manager):
+    def serialize(variable, segments, program_identifiers, dict_manager, cairo_file):
         """Serialize a Cairo variable using the Serde class."""
 
         from starkware.cairo.lang.compiler.identifier_manager import IdentifierError
@@ -43,6 +43,7 @@ def prepare_context(context: Callable[[], dict]):
             segments=segments,
             program_identifiers=program_identifiers,
             dict_manager=dict_manager,
+            cairo_file=cairo_file,
         )
 
         if isinstance(variable, RelocatableValue) or isinstance(
