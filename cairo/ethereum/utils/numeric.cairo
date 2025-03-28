@@ -496,7 +496,9 @@ func U384_to_be_bytes{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     return result;
 }
 
-func get_u384_bits_little{range_check_ptr}(num: U384) -> (felt*, felt) {
+func get_u384_bits_little{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(num: U384) -> (
+    felt*, felt
+) {
     alloc_locals;
     let (bits_ptr) = alloc();
     tempvar total_bits_len = 0;
