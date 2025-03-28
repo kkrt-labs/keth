@@ -1881,3 +1881,17 @@ func linefunc{
     let result = bnf12_sub(t.value.x, p1.value.x);
     return result;
 }
+
+func pairing{
+    range_check_ptr,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+}(q: BNP2, p: BNP) -> BNF12 {
+    alloc_locals;
+    let p_bnp12 = bnp_to_bnp12(p);
+    let q_bnp12 = twist(q);
+    // waiting on implementation
+    return p_bn12;
+}

@@ -27,6 +27,23 @@ from cairo_ec.circuits.ec_ops_compiled import (
 from cairo_ec.uint384 import uint256_to_uint384
 from cairo_core.maths import felt252_to_bytes_be
 from starkware.cairo.common.registers import get_fp_and_pc
+from ethereum.crypto.alt_bn128 import (
+    BNF,
+    BNF2,
+    BNF12,
+    BNF12_ONE,
+    BNP,
+    BNP2,
+    BNP__eq__,
+    BNP2__eq__,
+    bnp_init,
+    bnp2_init,
+    bnp_mul_by,
+    bnp2_mul_by,
+    bnp_point_at_infinity,
+    bnp2_point_at_infinity,
+    pairing,
+)
 
 func alt_bn128_add{
     range_check_ptr,
@@ -267,23 +284,134 @@ func alt_bn128_pairing_check{
     }
 
     // Operation
+    // Check if data length is multiple of 192
     if (rem != 0) {
         tempvar err = new EthereumException(OutOfGasError);
         return err;
     }
 
-    tempvar data = data;
-    tempvar error: EthereumException*;
-    tempvar output: Bytes;
-    %{ alt_bn128_pairing_check_hint %}
+    // Initialize result to 1
+    let result = BNF12_ONE();
 
-    if (cast(error, felt) != 0) {
-        return error;
+    // Process each pair of points
+    let pairs_count = data_factor;
+    let result = process_point_pairs(data, pairs_count, 0, result);
+
+    // Compare result with 1 and set output
+    let one = BNF12_ONE();
+    let is_one = BNF12__eq__(result, one);
+
+    // Prepare output
+    let (buffer: felt*) = alloc();
+    if (is_one != 0) {
+        assert buffer[0] = 1;
+        memset(buffer + 1, 0, 31);
+    } else {
+        memset(buffer, 0, 32);
     }
 
+    let output = Bytes(new BytesStruct(data=buffer, len=32));
     EvmImpl.set_output(output);
+
     tempvar ok = cast(0, EthereumException*);
     return ok;
+}
+
+// Helper function to process pairs of points
+func process_point_pairs{
+    range_check_ptr,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+}(data: Bytes, total_pairs: felt, current_pair: felt, current_result: BNF12) -> BNF12 {
+    alloc_locals;
+    if (current_pair == total_pairs) {
+        return current_result;
+    }
+
+    // Read coordinates for current pair
+    let offset = current_pair * 192;
+    tempvar u256_thirty_two = U256(new U256Struct(32, 0));
+
+    // Read G1 point coordinates
+    let x0_bytes = buffer_read(data, U256(new U256Struct(offset, 0)), u256_thirty_two);
+    let y0_bytes = buffer_read(data, U256(new U256Struct(offset + 32, 0)), u256_thirty_two);
+
+    // Read G2 point coordinates
+    let x1_im_bytes = buffer_read(data, U256(new U256Struct(offset + 64, 0)), u256_thirty_two);
+    let x1_re_bytes = buffer_read(data, U256(new U256Struct(offset + 96, 0)), u256_thirty_two);
+    let y1_im_bytes = buffer_read(data, U256(new U256Struct(offset + 128, 0)), u256_thirty_two);
+    let y1_re_bytes = buffer_read(data, U256(new U256Struct(offset + 160, 0)), u256_thirty_two);
+
+    // Convert bytes to values
+    let x0_value = U256_from_be_bytes(x0_bytes);
+    let y0_value = U256_from_be_bytes(y0_bytes);
+    let x1_im_value = U256_from_be_bytes(x1_im_bytes);
+    let x1_re_value = U256_from_be_bytes(x1_re_bytes);
+    let y1_im_value = U256_from_be_bytes(y1_im_bytes);
+    let y1_re_value = U256_from_be_bytes(y1_re_bytes);
+
+    // Check values are within field
+    tempvar ALT_BN128_PRIME = U256(new U256Struct(alt_bn128.P_LOW_128, alt_bn128.P_HIGH_128));
+    let is_x0_out_of_range = U256_le(ALT_BN128_PRIME, x0_value);
+    let is_y0_out_of_range = U256_le(ALT_BN128_PRIME, y0_value);
+    let is_x1_im_out_of_range = U256_le(ALT_BN128_PRIME, x1_im_value);
+    let is_x1_re_out_of_range = U256_le(ALT_BN128_PRIME, x1_re_value);
+    let is_y1_im_out_of_range = U256_le(ALT_BN128_PRIME, y1_im_value);
+    let is_y1_re_out_of_range = U256_le(ALT_BN128_PRIME, y1_re_value);
+
+    if (is_x0_out_of_range.value + is_y0_out_of_range.value + is_x1_im_out_of_range.value +
+        is_x1_re_out_of_range.value + is_y1_im_out_of_range.value + is_y1_re_out_of_range.value != 0) {
+        raise(new OutOfGasError());
+    }
+
+    // Create points
+    let p = bnp_init(
+        BNF(new BNFStruct(uint256_to_uint384([x0_value.value]))),
+        BNF(new BNFStruct(uint256_to_uint384([y0_value.value]))),
+    );
+
+    let q = bnp2_init(
+        BNF2(
+            new BNF2Struct(
+                uint256_to_uint384([x1_re_value.value]), uint256_to_uint384([x1_im_value.value])
+            ),
+        ),
+        BNF2(
+            new BNF2Struct(
+                uint256_to_uint384([y1_re_value.value]), uint256_to_uint384([y1_im_value.value])
+            ),
+        ),
+    );
+
+    // Check points are on curve and have correct order
+    let curve_order = U384(new UInt384(alt_bn128.N0, alt_bn128.N1, alt_bn128.N2, alt_bn128.N3));
+    let p_mul_order = bnp_mul_by(p, curve_order);
+    let q_mul_order = bnp2_mul_by(q, curve_order);
+
+    let p_inf = bnp_point_at_infinity();
+    let q_inf = bnp2_point_at_infinity();
+
+    let is_p_valid = BNP__eq__(p_mul_order, p_inf);
+    let is_q_valid = BNP2__eq__(q_mul_order, q_inf);
+
+    if (is_p_valid * is_q_valid == 0) {
+        raise(new OutOfGasError());
+    }
+
+    // If either point is infinity, skip this pair
+    let is_p_infinity = BNP__eq__(p, p_inf);
+    let is_q_infinity = BNP2__eq__(q, q_inf);
+
+    if (is_p_infinity * is_q_infinity == 0) {
+        // Compute pairing and multiply with current result
+        let pair_result = pairing(q, p);
+        let new_result = bnf12_mul(current_result, pair_result);
+        return process_point_pairs(data, total_pairs, current_pair + 1, new_result);
+    }
+
+    return process_point_pairs(data, total_pairs, current_pair + 1, current_result);
 }
 
 func alt_bn128_G1Point__to_Bytes_be{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
