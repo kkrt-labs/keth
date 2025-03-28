@@ -10,14 +10,16 @@ The runner works with args_gen.py and serde.py for automatic type conversion.
 
 import json
 import logging
+import pickle
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 import polars as pl
 import pytest
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 from starkware.cairo.lang.compiler.program import Program
 
+from cairo_addons.testing.caching import get_dump_path
 from cairo_addons.testing.coverage import coverage_from_trace
 from cairo_addons.testing.runner import run_python_vm, run_rust_vm
 from cairo_addons.vm import Program as RustProgram
@@ -46,11 +48,6 @@ def cairo_program(request) -> Program:
     Otherwise, returns the test program.
     """
     return request.session.cairo_programs[request.node.fspath][0]
-
-
-@pytest.fixture(scope="module")
-def coverage_dataframes(request) -> List[pl.DataFrame]:
-    return request.session.coverage_dataframes[request.node.fspath]
 
 
 @pytest.fixture(scope="module")
@@ -103,7 +100,6 @@ def coverage(
 
     def _collect_coverage(
         cairo_file: Path,
-        coverage_dataframes: Dict[str, pl.DataFrame],
         trace: pl.DataFrame,
     ) -> Optional[pl.DataFrame]:
         """
@@ -118,9 +114,8 @@ def coverage(
         Returns:
             The coverage DataFrame for this run, or None if debug info is missing.
         """
-        coverage_df = coverage_from_trace(
-            str(cairo_file), coverage_dataframes["line_to_pc"], trace
-        )
+
+        coverage_df = coverage_from_trace(cairo_file, trace)
         reports.append(coverage_df)
         return coverage_df
 
@@ -132,10 +127,14 @@ def coverage(
         return
 
     # Aggregate coverage for each Cairo file
-    coverage_dataframes = request.session.coverage_dataframes[request.node.fspath]
-    for cairo_file, coverage_dataframe in zip(cairo_files, coverage_dataframes):
+    for cairo_file in cairo_files:
         # Get all possible statements (lines) from the program's debug info
-        all_statements = coverage_dataframe["all_statements"]
+        dump_path = get_dump_path(cairo_file)
+        if dump_path.exists():
+            dump_path = Path(str(dump_path).replace(".pickle", "_dataframes.pickle"))
+            with dump_path.open("rb") as f:
+                dataframes = pickle.load(f)
+                all_statements = dataframes["all_statements"]
 
         # Concatenate all reports and merge with all statements
         all_coverages = (
@@ -203,7 +202,6 @@ def cairo_run_py(
     cairo_programs,
     cairo_files,
     main_paths,
-    coverage_dataframes,
     coverage,
 ):
     """Run the cairo program using Python VM."""
@@ -211,7 +209,6 @@ def cairo_run_py(
         cairo_programs,
         cairo_files,
         main_paths,
-        coverage_dataframes,
         request,
         hint_locals={"get_op": get_op},
         coverage=coverage,
@@ -225,7 +222,6 @@ def cairo_run(
     rust_programs,
     cairo_files,
     main_paths,
-    coverage_dataframes,
     coverage,
     python_vm,
 ):
@@ -251,7 +247,6 @@ def cairo_run(
             cairo_programs,
             cairo_files,
             main_paths,
-            coverage_dataframes,
             request,
             coverage=coverage,
             hint_locals={"get_op": get_op},
@@ -262,7 +257,6 @@ def cairo_run(
         rust_programs,
         cairo_files,
         main_paths,
-        coverage_dataframes,
         request,
         coverage=coverage,
     )
