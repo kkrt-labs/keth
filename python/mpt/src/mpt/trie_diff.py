@@ -362,6 +362,8 @@ class StateDiff:
         left_account = None if left is None else AccountNode.from_rlp(left.value)
         right_account = None if right is None else AccountNode.from_rlp(right.value)
 
+        logger.trace_eels(f"[_process_account_diff] Address: {address} - Path: {path}")
+
         self._main_trie[address] = (left_account, right_account)
 
         left_storage_root = None if left_account is None else left_account.storage_root
@@ -414,6 +416,7 @@ def resolve(
     if isinstance(node, InternalNode):
         return node
     if isinstance(node, bytes) and len(node) == 32:
+        logger.trace_eels(f"[resolve] Node hash: {node}")
         return nodes.get(node)
     if isinstance(node, list):
         return deserialize_to_internal_node(node)

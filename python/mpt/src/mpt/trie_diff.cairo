@@ -416,6 +416,14 @@ func _process_account_diff{
     let fp_and_pc = get_fp_and_pc();
     local __fp__: felt* = fp_and_pc.fp_val;
 
+    %{
+        try:
+            logger.trace_cairo(f"[_process_account_diff] - Path: {serialize(ids.path)}")
+        except Exception as e:
+               breakpoint()
+               raise e
+    %}
+
     let (pointer) = hashdict_read{dict_ptr=dict_ptr}(2, path.value);
     let new_dict_ptr = cast(dict_ptr, Bytes32OptionalAddressDictAccess*);
     tempvar address_preimages = MappingBytes32Address(
@@ -519,12 +527,16 @@ func _process_storage_diff{
     alloc_locals;
     let dict_ptr = cast(storage_key_preimages.value.dict_ptr, DictAccess*);
 
-    %{ breakpoint() %}
-
-    %{ logger.trace_cairo(f"[_process_storage_diff] Address: {serialize(ids.address)} - Path: {serialize(ids.path)}") %}
-
     let fp_and_pc = get_fp_and_pc();
     local __fp__: felt* = fp_and_pc.fp_val;
+
+    %{
+        try:
+            logger.trace_cairo(f"[_process_storage_diff] Address: {serialize(ids.address)} - Path: {serialize(ids.path)}")
+        except Exception as e:
+               breakpoint()
+               raise e
+    %}
 
     let (pointer) = hashdict_read{dict_ptr=dict_ptr}(2, path.value);
     let new_dict_ptr = cast(dict_ptr, Bytes32Bytes32DictAccess*);
@@ -1554,6 +1566,16 @@ func node_store_get{poseidon_ptr: PoseidonBuiltin*, node_store: NodeStore}(
     node_hash: Hash32
 ) -> OptionalInternalNode {
     alloc_locals;
+
+    // Compare with empty trie hash
+    let EMPTY_TRIE_HASH_LOW = 0x6ef8c092e64583ffa655cc1b171fe856;
+    let EMPTY_TRIE_HASH_HIGH = 0x21b463e3b52f6201c0ad6c991be0485b;
+    if (node_hash.value.low == EMPTY_TRIE_HASH_LOW and
+        node_hash.value.high == EMPTY_TRIE_HASH_HIGH) {
+        let res = OptionalInternalNode(cast(0, InternalNodeEnum*));
+        return res;
+    }
+
     let dict_ptr = cast(node_store.value.dict_ptr, DictAccess*);
 
     let fp_and_pc = get_fp_and_pc();
@@ -1564,6 +1586,13 @@ func node_store_get{poseidon_ptr: PoseidonBuiltin*, node_store: NodeStore}(
     assert keys[1] = node_hash.value.high;
 
     // Read from the dictionary using the hash as key
+    %{
+        try:
+            logger.trace_cairo(f"[node_store_get] - Node hash: {serialize(ids.node_hash)}")
+        except Exception as e:
+            breakpoint()
+            raise e
+    %}
     let (pointer) = hashdict_read{dict_ptr=dict_ptr}(2, keys);
 
     let new_dict_ptr = cast(dict_ptr, NodeStoreDictAccess*);
