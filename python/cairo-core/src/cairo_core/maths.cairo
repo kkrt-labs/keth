@@ -536,3 +536,61 @@ func felt252_bit_length{range_check_ptr}(value: felt) -> felt {
 
     return bit_length;
 }
+
+// @notice Converts a felt252 to a bit array, little-endian, and outputs to `dst`.
+// @dev Can only convert up to 251 bits included.
+// @returns the length of the bit array.
+func felt252_to_bits_rev{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
+    value: felt, len: felt, dst: felt*
+) -> felt {
+    alloc_locals;
+
+    if (len == 0) {
+        return len;
+    }
+    with_attr error_message("felt252_to_bits_rev: len must be < 252") {
+        assert [range_check_ptr] = len;
+        assert [range_check_ptr + 1] = 251 - len;
+        let range_check_ptr = range_check_ptr + 2;
+    }
+
+    let output = &dst[0];
+    %{ felt252_to_bits_rev %}
+
+    tempvar current_len = 0;
+    tempvar acc = 0;
+
+    loop:
+    let current_len = [ap - 2];
+    let acc = [ap - 1];
+    let len = [fp - 4];
+
+    // loop stop condition: current_len == len
+    let is_done = is_zero(len - current_len);
+    jmp end if is_done != 0;
+
+    // Check if the bit is valid (0 or 1)
+    let bit = output[current_len];
+    with_attr error_message("felt252_to_bits_rev: bits must be 0 or 1") {
+        assert bit * bit = bit;
+    }
+
+    let pow = pow2(current_len);
+    tempvar shifted_bit = bit * pow;
+    tempvar current_len = current_len + 1;
+    tempvar acc = acc + shifted_bit;
+    jmp loop;
+
+    end:
+    // Case not full length of a felt: apply a mask on the value to verify
+    tempvar mask = pow256(len) - 1;
+    assert bitwise_ptr.x = value;
+    assert bitwise_ptr.y = mask;
+    tempvar value_masked = bitwise_ptr.x_and_y;
+    let bitwise_ptr = bitwise_ptr + BitwiseBuiltin.SIZE;
+
+    with_attr error_message("felt252_to_bits_rev: bad output") {
+        assert acc = value_masked;
+    }
+    return current_len;
+}
