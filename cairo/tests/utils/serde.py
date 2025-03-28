@@ -894,17 +894,6 @@ class Serde:
 
     def serialize(self, cairo_type, base_ptr, shift=None, length=None):
         shift = shift if shift is not None else self.get_offset(cairo_type)
-
-        if isinstance(cairo_type, TypeTuple):
-            acc = []
-            for i, member in enumerate(cairo_type.members):
-                acc.append(self.serialize(member.typ, base_ptr, shift - i, None))
-            return acc
-
-        # Returned pointers are always lists
-        if isinstance(cairo_type, TypePointer):
-            return self._serialize(cairo_type, base_ptr - shift, length=None)
-
         length = length if length is not None else shift
         return self._serialize(cairo_type, base_ptr - shift, length)
 

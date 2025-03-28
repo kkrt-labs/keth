@@ -81,7 +81,7 @@ def node_store(zkpi):
 
 class TestTrieDiff:
     @pytest.mark.parametrize(
-        "data_path", [Path("test_data/22081873.json")], scope="session"
+        "data_path", [Path("test_data/21688509.json")], scope="session"
     )
     def test_trie_diff(
         self,
@@ -120,7 +120,7 @@ class TestTrieDiff:
         )
 
         result_lookup = {
-            dict_entry["key"]: (dict_entry["prev_value"], dict_entry["new_value"])
+            dict_entry.key: (dict_entry.prev_value, dict_entry.new_value)
             for dict_entry in main_trie_diff_cairo
         }
 
@@ -130,9 +130,9 @@ class TestTrieDiff:
 
         # TODO: storage
         storage_lookup = {
-            dict_entry["key"]["value"]: (
-                dict_entry["prev_value"],
-                dict_entry["new_value"],
+            dict_entry.key["value"]: (
+                dict_entry.prev_value,
+                dict_entry.new_value,
             )
             for dict_entry in storage_trie_diff_cairo
         }
@@ -223,8 +223,8 @@ class TestTrieDiff:
             result_diffs = [result_diffs]
 
         result_lookup = {
-            dict_entry["key"]: (dict_entry["prev_value"], dict_entry["new_value"])
-            for dict_entry in result_diffs
+            diff_entry.key: (diff_entry.prev_value, diff_entry.new_value)
+            for diff_entry in result_diffs
         }
 
         for key, (prev_value, new_value) in diff_cls._main_trie.items():
@@ -271,7 +271,8 @@ class TestTrieDiff:
             result_diffs = [result_diffs]
 
         result_lookup = {
-            diff["key"]["value"]: (diff["prev_value"], diff["new_value"])
+            # todo: this should be serialize properly, without a "value"
+            diff.key["value"]: (diff.prev_value, diff.new_value)
             for diff in result_diffs
         }
 

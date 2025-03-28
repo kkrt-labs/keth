@@ -4,7 +4,14 @@ from mpt.trie_diff import (
     _process_account_diff,
     _process_storage_diff,
     MappingBytes32Address,
-    AddressAccountNodeDictAccess,
+    AddressAccountNodeDiffEntry,
+    AddressAccountNodeDiffEntryStruct,
+    AccountDiff,
+    AccountDiffStruct,
+    StorageDiff,
+    StorageDiffStruct,
+    StorageDiffEntry,
+    StorageDiffEntryStruct,
     MappingBytes32Bytes32,
     NodeStore,
 )
@@ -22,13 +29,13 @@ func test__process_account_diff{
     path: Bytes32,
     left: OptionalLeafNode,
     right: OptionalLeafNode,
-) -> AddressAccountNodeDictAccess* {
+) -> AccountDiff {
     alloc_locals;
 
-    let (main_trie_start: AddressAccountNodeDictAccess*) = alloc();
+    let (main_trie_start: AddressAccountNodeDiffEntry*) = alloc();
     let main_trie_end = main_trie_start;
 
-    let (storage_trie_start: TupleAddressBytes32U256DictAccess*) = alloc();
+    let (storage_trie_start: StorageDiffEntry*) = alloc();
     let storage_trie_end = storage_trie_start;
 
     _process_account_diff{
@@ -39,7 +46,11 @@ func test__process_account_diff{
         storage_tries_end=storage_trie_end,
     }(path=path, left=left, right=right);
 
-    return main_trie_start;
+    tempvar account_diff = AccountDiff(
+        new AccountDiffStruct(data=main_trie_start, len=main_trie_end - main_trie_start)
+    );
+
+    return account_diff;
 }
 
 func test__process_storage_diff{
@@ -50,14 +61,18 @@ func test__process_storage_diff{
     address: Address,
     left: OptionalLeafNode,
     right: OptionalLeafNode,
-) -> TupleAddressBytes32U256DictAccess* {
+) -> StorageDiff {
     alloc_locals;
 
-    let (storage_tries_start: TupleAddressBytes32U256DictAccess*) = alloc();
+    let (storage_tries_start: StorageDiffEntry*) = alloc();
     let storage_tries_end = storage_tries_start;
     _process_storage_diff{
         storage_key_preimages=storage_key_preimages, storage_tries_end=storage_tries_end
     }(address=address, path=path, left=left, right=right);
 
-    return storage_tries_start;
+    tempvar storage_diff = StorageDiff(
+        new StorageDiffStruct(data=storage_tries_start, len=storage_tries_end - storage_tries_start)
+    );
+
+    return storage_diff;
 }
