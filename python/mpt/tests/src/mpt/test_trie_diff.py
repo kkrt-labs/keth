@@ -206,9 +206,15 @@ class TestTrieDiff:
             right=leaf_after,
         )
 
+        node_store = defaultdict(
+            lambda: None,
+        )
+
         result_diffs = cairo_run(
             "test__process_account_diff",
+            node_store=node_store,
             address_preimages=diff_cls._address_preimages,
+            storage_key_preimages=diff_cls._storage_key_preimages,
             path=path,
             left=leaf_before,
             right=leaf_after,
