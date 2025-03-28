@@ -76,3 +76,11 @@ def has_cairo_dir_changed(
                     return True
 
     return False
+
+
+BUILD_DIR = Path("build") / ".pytest_build"
+HASH_DIR = BUILD_DIR / "hashes"
+
+
+def get_dump_path(cairo_file: Path):
+    return BUILD_DIR / cairo_file.relative_to(Path().cwd()).with_suffix(".pickle")

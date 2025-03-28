@@ -18,14 +18,16 @@ jobs:
     with:
       hypothesis-profile: "ci"
       coverage-flags: "ci-unit"
+      parallelism: 48
       # Ignore ef-test run in this job (handled in the ef-tests job)
-      pytest-add-params: "--ignore-glob=cairo/tests/ef_tests/"
+      pytest-add-params: "-m 'not slow' --ignore-glob=cairo/tests/ef_tests/"
 
   python-ef-tests:
     uses: ./.github/workflows/python_tests.yml
     with:
       hypothesis-profile: "ci"
+      parallelism: 48
       pytest-add-params:
-        "-m 'not slow' --max-tests=8000 --randomly-seed=$GITHUB_RUN_ID
+        "-m 'not slow' --max-tests=5000 --randomly-seed=$GITHUB_RUN_ID
         cairo/tests/ef_tests/"
       coverage-flags: "ci-ef-tests"

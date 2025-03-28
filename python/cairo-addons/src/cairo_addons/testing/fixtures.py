@@ -10,14 +10,16 @@ The runner works with args_gen.py and serde.py for automatic type conversion.
 
 import json
 import logging
+import pickle
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 import polars as pl
 import pytest
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 from starkware.cairo.lang.compiler.program import Program
 
+from cairo_addons.testing.caching import get_dump_path
 from cairo_addons.testing.coverage import coverage_from_trace
 from cairo_addons.testing.runner import run_python_vm, run_rust_vm
 from cairo_addons.vm import Program as RustProgram
@@ -40,7 +42,7 @@ def cairo_programs(request) -> List[Program]:
 
 
 @pytest.fixture(scope="module")
-def cairo_program(request) -> List[Program]:
+def cairo_program(request) -> Program:
     """Returns the first cairo program in the session.
     If there is both a src.cairo and a test_src.cairo program, returns the src program (always compiled first).
     Otherwise, returns the test program.
@@ -77,55 +79,79 @@ def rust_programs(cairo_programs: List[Program], python_vm: bool) -> List[RustPr
 
 
 @pytest.fixture(scope="module")
-def coverage(cairo_programs: List[Program], cairo_files: List[Path], worker_id: str):
+def coverage(
+    request, cairo_files: List[Path], cairo_programs: List[Program], worker_id: str
+):
     """
-    Fixture to collect coverage from all tests, then merge and dump it as a json file for codecov.
-    """
-    reports = []
-    yield coverage_from_trace(cairo_programs, cairo_files, reports)
+    Fixture to collect and aggregate coverage from all test runs for each Cairo file.
 
-    # If no coverage is collected, don't dump anything
-    # This can happen if the all the tests raise Cairo exceptions
+    Args:
+        request: Pytest request object for accessing config and node info.
+        cairo_files: List of Cairo file paths associated with the test session.
+        worker_id: Unique identifier for the worker in parallel test runs.
+
+    Yields:
+        A function that collects coverage for a single test run.
+
+    After yielding, it aggregates all collected reports and dumps them as JSON files.
+    """
+    # Store coverage reports for each run
+    reports: List[pl.DataFrame] = []
+
+    def _collect_coverage(
+        cairo_file: Path,
+        trace: pl.DataFrame,
+    ) -> Optional[pl.DataFrame]:
+        """
+        Collect coverage for a single test run and append it to the reports list.
+
+        Args:
+            cairo_program: Compiled Cairo program.
+            cairo_file: Path to the Cairo source file.
+            trace: DataFrame containing the execution trace.
+            program_base: Base address of the program in memory (default: PROGRAM_BASE).
+
+        Returns:
+            The coverage DataFrame for this run, or None if debug info is missing.
+        """
+
+        coverage_df = coverage_from_trace(cairo_file, trace)
+        reports.append(coverage_df)
+        return coverage_df
+
+    yield _collect_coverage
+
+    # Skip processing if no reports were collected (e.g., all tests failed early)
     if not reports:
+        logger.info("No coverage reports collected, skipping aggregation.")
         return
 
-    for cairo_program, cairo_file in zip(cairo_programs, cairo_files):
-        all_statements = pl.DataFrame(
-            [
-                {
-                    "filename": instruction.inst.input_file.filename,
-                    "line_number": i,
-                }
-                for instruction in cairo_program.debug_info.instruction_locations.values()
-                # No scope other than the global scope means that it's a dw instruction
-                if len(instruction.accessible_scopes) > 1
-                for i in range(
-                    instruction.inst.start_line, instruction.inst.end_line + 1
-                )
-            ]
-        ).with_columns(
-            filename=(
-                pl.when(pl.col("filename") == "")
-                .then(pl.lit(str(cairo_file)))
-                .otherwise(pl.col("filename"))
-            ),
-            count=pl.lit(0, dtype=pl.UInt32),
-        )
+    # Aggregate coverage for each Cairo file
+    for cairo_file in cairo_files:
+        # Get all possible statements (lines) from the program's debug info
+        dump_path = get_dump_path(cairo_file)
+        if dump_path.exists():
+            dump_path = Path(str(dump_path).replace(".pickle", "_dataframes.pickle"))
+            with dump_path.open("rb") as f:
+                dataframes = pickle.load(f)
+                all_statements = dataframes["all_statements"]
+
+        # Concatenate all reports and merge with all statements
         all_coverages = (
-            pl.concat([all_statements, pl.concat(reports)])
-            .filter(~pl.col("filename").str.contains(".venv"))
-            .filter(~pl.col("filename").str.contains("test_"))
+            pl.concat([all_statements.lazy(), pl.concat(reports).lazy()])
+            .filter(
+                ~pl.col("filename").str.contains(".venv")
+            )  # Exclude virtual env files
+            .filter(~pl.col("filename").str.contains("test_"))  # Exclude test files
             .group_by(pl.col("filename"), pl.col("line_number"))
             .agg(pl.col("count").sum())
+            .collect()
         )
-        with pl.Config() as cfg:
-            cfg.set_tbl_rows(100)
-            cfg.set_fmt_str_lengths(90)
+        # Filter for the current Cairo file and prepare missed lines report
+        with pl.Config(tbl_rows=100, fmt_str_lengths=90):
             missed = (
                 all_coverages.filter(pl.col("filename") == str(cairo_file))
-                .with_columns(
-                    pl.col("filename").str.replace(str(Path().cwd()) + "/", "")
-                )
+                .with_columns(pl.col("filename").str.replace(str(Path.cwd()) + "/", ""))
                 .filter(pl.col("count") == 0)
                 .sort("line_number", descending=False)
                 .with_columns(
@@ -133,36 +159,41 @@ def coverage(cairo_programs: List[Program], cairo_files: List[Path], worker_id: 
                 )
                 .drop("line_number", "count")
             )
+
+        # Log coverage results
+        with pl.Config(tbl_rows=100, fmt_str_lengths=90):
             if missed.height > 0:
-                print(missed)
+                print(f"Missed lines in {cairo_file}:\n{missed}")
             else:
-                logger.info(f"{str(cairo_file)}: 100% coverage ✅")
+                logger.info(f"{cairo_file}: 100% coverage ✅")
+
         all_coverages = (
             all_coverages.group_by("filename")
             .agg(pl.col("line_number"), pl.col("count"))
             .to_dict(as_series=False)
         )
+        # Convert to dictionary for JSON dumping
+        coverage_data = {
+            "coverage": {
+                filename: dict(zip(line_number, count))
+                for filename, line_number, count in zip(
+                    all_coverages["filename"],
+                    all_coverages["line_number"],
+                    all_coverages["count"],
+                )
+            }
+        }
+
+        # Dump coverage to a JSON file
         dump_path = (
             Path("coverage")
             / worker_id
-            / cairo_file.relative_to(Path().cwd()).with_suffix(".json")
+            / cairo_file.relative_to(Path.cwd()).with_suffix(".json")
         )
         dump_path.parent.mkdir(parents=True, exist_ok=True)
-        json.dump(
-            {
-                "coverage": {
-                    filename: dict(zip(line_number, count))
-                    for filename, line_number, count in zip(
-                        all_coverages["filename"],
-                        all_coverages["line_number"],
-                        all_coverages["count"],
-                    )
-                }
-            },
-            open(dump_path, "w"),
-        )
-
-    return reports
+        logger.info(f"Dumping coverage to {dump_path}")
+        with open(dump_path, "w") as f:
+            json.dump(coverage_data, f, indent=4)
 
 
 @pytest.fixture(scope="module")
@@ -217,8 +248,8 @@ def cairo_run(
             cairo_files,
             main_paths,
             request,
-            hint_locals={"get_op": get_op},
             coverage=coverage,
+            hint_locals={"get_op": get_op},
         )
 
     return run_rust_vm(

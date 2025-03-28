@@ -8,14 +8,14 @@ on:
       hypothesis-profile:
         required: true
         type: string
-      max-tests:
-        required: false
-        type: number
-        default: 8000
       pytest-add-params:
         required: false
         type: string
         default: ""
+      parallelism:
+        required: false
+        type: number
+        default: 48
       coverage-flags:
         required: false
         type: string
@@ -37,7 +37,7 @@ jobs:
 
       - name: Run Python tests
         run: |
-          uv run pytest -n logical --durations=0 -v -s --log-cli-level=DEBUG --no-skip-cached-tests ${{ inputs.pytest-add-params }}
+          uv run pytest -n ${{ inputs.parallelism }} --durations=0 -v -s --log-cli-level=DEBUG --no-skip-cached-tests ${{ inputs.pytest-add-params }}
 
       - name: Upload coverage
         if: inputs.coverage-flags != ''

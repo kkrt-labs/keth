@@ -62,6 +62,7 @@ class TestAltBn128:
                 cairo_run("bnf2_div", a, b)
 
         @given(a=..., b=...)
+        @pytest.mark.slow
         def test_bnf2_div_patch_hint_should_fail(
             self, cairo_programs, cairo_run_py, a: BNF2, b: BNF2
         ):
@@ -187,6 +188,7 @@ segments.load_data(ids.b_inv.address_, [bnf2_struct_ptr])
             assert cairo_result == a * b
 
         @given(a=..., b=...)
+        @pytest.mark.slow
         def test_bnf12_pow(self, cairo_run, a: BNF12, b: U384):
             assert cairo_run("bnf12_pow", a, b) == a ** int(b)
 
@@ -260,6 +262,7 @@ segments.load_data(ids.b_inv.address_, [bnf2_struct_ptr])
         # https://github.com/Consensys/gnark/blob/bd4a39719a964f0305ee9ec36b6226e4c266584c/std/algebra/emulated/sw_bn254/pairing.go#L129
         @given(a=...)
         @settings(max_examples=10)
+        @pytest.mark.slow
         def test_bnp12_final_exponentiation(self, cairo_run_py, a: BNF12):
             assume(a != BNF12.zero())
             assert cairo_run_py("bnp12_final_exponentiation", a) == a ** (

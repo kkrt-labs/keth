@@ -20,10 +20,13 @@ from _pytest.mark import deselect_by_keyword, deselect_by_mark
 from starkware.cairo.lang.compiler.cairo_compile import DEFAULT_PRIME
 
 from cairo_addons.testing.caching import (
+    BUILD_DIR,
     CACHED_TEST_HASH_FILE,
     CACHED_TESTS_FILE,
     CAIRO_DIR_TIMESTAMP_FILE,
+    HASH_DIR,
     file_hash,
+    get_dump_path,
     has_cairo_dir_changed,
     program_hash,
 )
@@ -32,6 +35,7 @@ from cairo_addons.testing.compiler import (
     get_main_path,
     resolve_cairo_file,
 )
+from cairo_addons.testing.coverage import dump_coverage_dataframes
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -101,6 +105,12 @@ def pytest_addoption(parser):
         type=int,
         help="The seed to set random with.",
     )
+    parser.addoption(
+        "--no-coverage",
+        action="store_true",
+        default=False,
+        help="Do not collect coverage",
+    )
 
 
 @pytest.fixture(autouse=True, scope="session")
@@ -115,8 +125,8 @@ def seed(request):
 
 def pytest_sessionstart(session):
     session.results = dict()
-    session.build_dir = Path("build") / ".pytest_build"
-    session.hash_dir = session.build_dir / "hashes"
+    session.build_dir = BUILD_DIR
+    session.hash_dir = HASH_DIR
 
     # Check if any file in the cairo directory has changed since the last run
     last_timestamp = session.config.cache.get(
@@ -185,9 +195,7 @@ def get_dump_paths(session, fspath):
     files = session.cairo_files[fspath]
     dump_paths = []
     for file in files:
-        dump_path = session.build_dir / file.relative_to(Path().cwd()).with_suffix(
-            ".pickle"
-        )
+        dump_path = get_dump_path(file)
         dump_path.parent.mkdir(parents=True, exist_ok=True)
         dump_paths.append(dump_path)
     return dump_paths
@@ -209,6 +217,7 @@ def pytest_collection_modifyitems(session, config, items):
     session.cairo_files = {}
     session.cairo_programs = {}
     session.main_paths = {}
+    session.coverage_dataframes = {}
     cairo_items = [
         item
         for item in items
@@ -258,16 +267,26 @@ def pytest_collection_modifyitems(session, config, items):
         main_paths = [get_main_path(file) for file in files]
         session.main_paths[fspath] = main_paths
         dump_paths = get_dump_paths(session, fspath)
-        cairo_programs = [
-            get_cairo_program(file, main_path, dump_path, config.getoption("prime"))
-            for file, main_path, dump_path in zip(files, main_paths, dump_paths)
-        ]
+        cairo_programs = []
+        for file, main_path, dump_path in zip(files, main_paths, dump_paths):
+            cairo_program = get_cairo_program(
+                file, main_path, dump_path, config.getoption("prime")
+            )
+            cairo_programs.append(cairo_program)
+            if not config.getoption("no_coverage"):
+                dump_coverage_dataframes(
+                    cairo_program,
+                    file,
+                )
         session.cairo_programs[fspath] = cairo_programs
 
     # Wait for all workers to finish
     missing = set(fspaths) - set(fspaths[worker_index::worker_count])
     while missing:
-        logger.info(f"Waiting for {len(missing)} compilations artifacts to be ready")
+        if int(time.time()) % 5 == 0:
+            logger.info(
+                f"Waiting for {len(missing)} compilations artifacts to be ready"
+            )
         missing_new = set()
         for fspath in missing:
             if fspath not in session.cairo_files:
@@ -285,17 +304,20 @@ def pytest_collection_modifyitems(session, config, items):
                 if all(path.exists() for path in dump_paths):
                     cairo_files = session.cairo_files[fspath]
                     main_paths = session.main_paths[fspath]
-                    session.cairo_programs[fspath] = [
-                        get_cairo_program(
+                    cairo_programs = []
+                    for cairo_file, main_path, dump_path in zip(
+                        cairo_files, main_paths, dump_paths
+                    ):
+                        cairo_program = get_cairo_program(
                             cairo_file,
                             main_path,
                             dump_path,
                             config.getoption("prime"),
                         )
-                        for cairo_file, main_path, dump_path in zip(
-                            cairo_files, main_paths, dump_paths
-                        )
-                    ]
+                        cairo_programs.append(cairo_program)
+                        if not config.getoption("no_coverage"):
+                            dump_coverage_dataframes(cairo_program, cairo_file)
+                    session.cairo_programs[fspath] = cairo_programs
                 else:
                     missing_new.add(fspath)
         missing = missing_new

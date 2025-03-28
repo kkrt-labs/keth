@@ -4,6 +4,8 @@ from ethereum_types.bytes import Bytes, Bytes4, Bytes8, Bytes20, Bytes32, Bytes2
 from hypothesis import given
 from hypothesis import strategies as st
 
+from cairo_addons.testing.errors import strict_raises
+
 
 class TestBytes:
     @given(a=..., b=...)
@@ -56,9 +58,16 @@ class TestBytes:
         # between the reversed bytes and the input.
         assert cairo_run("ListBytes4_be_to_bytes", a) == b"".join([b[::-1] for b in a])
 
-    @given(a=st.binary(min_size=0, max_size=32))
+    @given(a=st.binary(min_size=0, max_size=100))
     def test_Bytes_to_Bytes32(self, cairo_run, a: Bytes):
-        assert cairo_run("Bytes_to_Bytes32", a) == Bytes32(a.ljust(32, b"\x00"))
+        try:
+            res = cairo_run("Bytes_to_Bytes32", a)
+        except Exception:
+            with strict_raises(ValueError):
+                Bytes32(a)
+            return
+
+        assert res == Bytes32(a.ljust(32, b"\x00"))
 
     @given(a=st.binary(min_size=32, max_size=32), b=st.binary(min_size=32, max_size=32))
     def test_Bytes32__eq__(self, cairo_run, a: Bytes32, b: Bytes32):

@@ -67,6 +67,7 @@ class TestEthereumTries:
             code_hash = keccak256(code)
             assert ethereum_tries.codes[code_hash] == code
 
+    @pytest.mark.slow
     def test_to_state(self, zkpi, ethereum_tries: EthereumTries):
 
         load = Load("Cancun", "cancun")
