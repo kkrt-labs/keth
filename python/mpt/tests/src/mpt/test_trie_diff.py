@@ -118,6 +118,7 @@ class TestTrieDiff:
             right=ethereum_trie_transition_db.post_state_root,
             account_address=None,
         )
+
         result_lookup = {
             dict_entry["key"]: (dict_entry["prev_value"], dict_entry["new_value"])
             for dict_entry in main_trie_diff_cairo
@@ -147,7 +148,7 @@ class TestTrieDiff:
                 )
                 assert (prev_value, new_value) == storage_lookup[key_hashed]
                 count += 1
-            assert count == len(storage_lookup[key_hashed])
+            assert count == len(state_diff._storage_tries[address].keys())
 
     @pytest.mark.parametrize(
         "data_path", [Path("test_data/22081873.json")], scope="session"
