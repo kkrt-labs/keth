@@ -200,6 +200,10 @@ class StateDiff:
                 # The branch was created and replaced the single leaf.
                 # All branches - except the one whose first nibble matches the leaf's key - are new.
                 for i in range(0, 16):
+                    # we know that l_node.rest_of_key is not empty
+                    # because it's a leaf node at the same height as a branch node
+                    # leaf nodes with empty rest_of_key are only found at the bottom of the trie
+                    # where branch nodes can't exist
                     if i != l_node.rest_of_key[0]:
                         self._compute_diff(
                             None,
@@ -296,6 +300,8 @@ class StateDiff:
                 # Match on the corresponding nibble of the extension key segment
                 for i in range(0, 16):
                     nibble = bytes([i])
+                    # we know that l_node.key_segment is not empty
+                    # as extension nodes key_segment len is at least 1
                     if l_node.key_segment[0] == nibble:
                         # Remove the nibble from the extension key segment
                         l_node.key_segment = l_node.key_segment[1:]
@@ -329,6 +335,10 @@ class StateDiff:
                 # All branches - except the one whose first nibble matches the leaf's key - are deleted.
                 # The remaining branch is compared to the leaf.
                 for i in range(0, 16):
+                    # we know that r_node.rest_of_key is not empty
+                    # because it's a leaf node at the same height as a branch node
+                    # leaf nodes with empty rest_of_key are only found at the bottom of the trie
+                    # where branch nodes can't exist
                     if i != r_node.rest_of_key[0]:
                         self._compute_diff(
                             l_node.subnodes[i],
@@ -351,6 +361,8 @@ class StateDiff:
                 # Match on the corresponding nibble of the extension key segment
                 for i in range(0, 16):
                     nibble = bytes([i])
+                    # we know that r_node.key_segment is not empty
+                    # as extension nodes key_segment len is at least 1
                     if r_node.key_segment[0] == nibble:
                         # Remove the nibble from the extension key segment
                         r_node.key_segment = r_node.key_segment[1:]
