@@ -1829,3 +1829,55 @@ func twist{
     tempvar result = BNP12(new BNP12Struct(twisted_x, twisted_y));
     return result;
 }
+
+func linefunc{
+    range_check_ptr, range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
+}(p1: BNP12, p2: BNP12, t: BNP12) -> BNF12 {
+    alloc_locals;
+
+    // Check if p1.x != p2.x
+    let p1_x_equal_p2_x = BNF12__eq__(p1.value.x, p2.value.x);
+    if (p1_x_equal_p2_x == 0) {
+        // lam = (p2.y - p1.y) / (p2.x - p1.x)
+        let p2_y_minus_p1_y = bnf12_sub(p2.value.y, p1.value.y);
+        let p2_x_minus_p1_x = bnf12_sub(p2.value.x, p1.value.x);
+        let lam = bnf12_div(p2_y_minus_p1_y, p2_x_minus_p1_x);
+        // (t.x - p1.x)
+        let t_x_minus_p1_x = bnf12_sub(t.value.x, p1.value.x);
+        // lam * (t.x - p1.x)
+        let lam_mul_tx_p1x = bnf12_mul(lam, t_x_minus_p1_x);
+        // (t.y - p1.y)
+        let t_y_minus_p1_y = bnf12_sub(t.value.y, p1.value.y);
+        // lam * (t.x - p1.x) - (t.y - p1.y)
+        let result = bnf12_sub(lam_mul_tx_p1x, t_y_minus_p1_y);
+        return result;
+    }
+
+    // Check if p1.y == p2.y
+    let p1_y_equal_p2_y = BNF12__eq__(p1.value.y, p2.value.y);
+    if (p1_y_equal_p2_y != 0) {
+        // lam = 3 * p1.x^2 / (2 * p1.y)
+        tempvar u384_three = U384(new UInt384(3, 0, 0, 0));
+        let three = bnf12_from_int(u384_three);
+        let p1_x_squared = bnf12_mul(p1.value.x, p1.value.x);
+        let three_mul_p1x2 = bnf12_mul(three, p1_x_squared);
+        tempvar u384_two = U384(new UInt384(2, 0, 0, 0));
+        let two = bnf12_from_int(u384_two);
+        let two_mul_p1y = bnf12_mul(two, p1.value.y);
+        let lam = bnf12_div(three_mul_p1x2, two_mul_p1y);
+
+        // (t.x - p1.x)
+        let t_x_minus_p1_x = bnf12_sub(t.value.x, p1.value.x);
+        // lam * (t.x - p1.x)
+        let lam_mul_tx_p1x = bnf12_mul(lam, t_x_minus_p1_x);
+        // (t.y - p1.y)
+        let t_y_minus_p1_y = bnf12_sub(t.value.y, p1.value.y);
+        // lam * (t.x - p1.x) - (t.y - p1.y)
+        let result = bnf12_sub(lam_mul_tx_p1x, t_y_minus_p1_y);
+        return result;
+    }
+    // Third case: p1.x == p2.x but p1.y != p2.y
+    // t.x - p1.x
+    let result = bnf12_sub(t.value.x, p1.value.x);
+    return result;
+}

@@ -9,6 +9,7 @@ from ethereum.crypto.alt_bn128 import (
     BNP2,
     BNP12,
     bnf2_to_bnf12,
+    linefunc,
 )
 from hypothesis import assume, given, settings
 
@@ -281,3 +282,15 @@ segments.load_data(ids.b_inv.address_, [bnf2_struct_ptr])
             from ethereum.crypto.alt_bn128 import twist
 
             assert cairo_run("twist", x) == twist(x)
+
+        @given(p1=..., p2=..., t=...)
+        def test_linefunc(self, cairo_run, p1: BNP12, p2: BNP12, t: BNP12):
+            if p1.y == p2.y:
+                assume(p1.y != BNF12.zero())
+            try:
+                expected = linefunc(p1, p2, t)
+            except OverflowError:  # fails for large points
+                with cairo_error(message="OverflowError"):  # Hint error
+                    cairo_run("linefunc", p1, p2, t)
+                return
+            assert cairo_run("linefunc", p1, p2, t) == expected
