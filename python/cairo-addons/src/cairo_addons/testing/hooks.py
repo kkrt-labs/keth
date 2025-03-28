@@ -272,11 +272,11 @@ def pytest_collection_modifyitems(session, config, items):
         ]
         session.cairo_programs[fspath] = cairo_programs
         if config.getoption("no_coverage"):
-            session.coverage_dataframes[fspath] = [None] * len(files)
+            session.line_to_pc_df[fspath] = [None] * len(files)
         else:
-            session.coverage_dataframes[fspath] = line_to_pc_df(
-                cairo_programs, files
-            )
+            # TODO: holding these in memory, in each worker, causes high memory usage.
+            # dump them to disk instead.
+            session.line_to_pc_df[fspath] = line_to_pc_df(cairo_programs)
 
     # Wait for all workers to finish
     missing = set(fspaths) - set(fspaths[worker_index::worker_count])
@@ -312,11 +312,9 @@ def pytest_collection_modifyitems(session, config, items):
                     ]
                     session.cairo_programs[fspath] = cairo_programs
                     if config.getoption("no_coverage"):
-                        session.coverage_dataframes[fspath] = [None] * len(cairo_files)
+                        session.line_to_pc_df[fspath] = [None] * len(cairo_files)
                     else:
-                        session.coverage_dataframes[fspath] = line_to_pc_df(
-                            cairo_programs, cairo_files
-                        )
+                        session.line_to_pc_df[fspath] = line_to_pc_df(cairo_programs)
                 else:
                     missing_new.add(fspath)
         missing = missing_new
