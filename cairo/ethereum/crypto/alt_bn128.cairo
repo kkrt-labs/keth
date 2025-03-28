@@ -1737,7 +1737,7 @@ func bnp12_mul_by_bits{
     return bnp12_mul_by_bits(doubled_p, bits_ptr, bits_len, current_bit + 1, new_result);
 }
 
-func bnp12_final_exponentiation{
+func bnf12_final_exponentiation{
     range_check_ptr,
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
@@ -1880,4 +1880,98 @@ func linefunc{
     // t.x - p1.x
     let result = bnf12_sub(t.value.x, p1.value.x);
     return result;
+}
+
+func miller_loop{
+    range_check_ptr,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+}(q: BNP12, p: BNP12) -> BNF12 {
+    alloc_locals;
+
+    let bnf12_zero = BNF12_ZERO();
+    let x_is_zero = BNF12__eq__(p.value.x, bnf12_zero);
+    let y_is_zero = BNF12__eq__(p.value.y, bnf12_zero);
+    if (x_is_zero != 0 and y_is_zero != 0) {
+        let bnf12_one = BNF12_ONE();
+        return bnf12_one;
+    }
+
+    let x_is_zero_q = BNF12__eq__(q.value.x, bnf12_zero);
+    let y_is_zero_q = BNF12__eq__(q.value.y, bnf12_zero);
+    if (x_is_zero_q != 0 and y_is_zero_q != 0) {
+        let bnf12_one = BNF12_ONE();
+        return bnf12_one;
+    }
+
+    // Initialize the results.
+    let r = q;
+    let f = BNF12_ONE();
+
+    // Get bits of ATE_PAIRING_COUNT - 1
+    tempvar ate_minus_one = U384(new UInt384(29793968203157093288, 0, 0, 0));
+    let ate_pairing_count_bits = 63;
+    let (bits_ptr, bits_len) = get_u384_bits_little(ate_minus_one);
+    assert bits_len = 65;
+
+    // Call recursive helper for the main loop
+    let (f, r) = miller_loop_inner(f, r, q, p, bits_ptr, ate_pairing_count_bits);
+
+    // assert r == q.mul_by(ATE_PAIRING_COUNT - 1)
+    // Is this check necessary ?
+    // Could use non-determinism to compute q.mul_by(ATE_PAIRING_COUNT - 1)
+    let q_by_ate_minus_one = bnp12_mul_by(q, ate_minus_one);
+    assert r = q_by_ate_minus_one;
+
+    // q1 = BNP12(q.x.frobenius(), q.y.frobenius())
+    // nq2 = BNP12(q1.x.frobenius(), -q1.y.frobenius())
+    let q_x_frob = bnf12_frobenius(q.value.x);
+    let q_y_frob = bnf12_frobenius(q.value.y);
+    let neg_q_y_frob = bnf12_sub(bnf12_zero, q_y_frob);
+    tempvar q1_frob = BNP12(new BNP12Struct(q_x_frob, q_y_frob));
+    tempvar nq2_frob = BNP12(new BNP12Struct(q_x_frob, neg_q_y_frob));
+
+    // f = f * linefunc(r, q1, p)
+    let line_r_q1_p = linefunc(r, q1_frob, p);
+    let f = bnf12_mul(f, line_r_q1_p);
+    // r = r + q1
+    let r = bnp12_add(r, q1_frob);
+    // f = f * linefunc(r, nq2, p)
+    let line_r_nq2_p = linefunc(r, nq2_frob, p);
+    let f = bnf12_mul(f, line_r_nq2_p);
+
+    let res = bnf12_final_exponentiation(f);
+
+    return res;
+}
+
+func miller_loop_inner{
+    range_check_ptr, range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
+}(f: BNF12, r: BNP12, q: BNP12, p: BNP12, bits_ptr: felt*, current_bit: felt) -> (BNF12, BNP12) {
+    alloc_locals;
+
+    // Base case: we've processed all bits
+    if (current_bit == -1) {
+        return (f, r);
+    }
+
+    // f = f * f linefunc(r, r, p);
+    let f_squared = bnf12_mul(f, f);
+    let line_p = linefunc(r, r, p);
+    let f_2_line_p = bnf12_mul(f_squared, line_p);
+    // r = r.double()
+    let r_double = bnp12_double(r);
+
+    // Check if current bit is set
+    let bit = bits_ptr[current_bit];
+    if (bit != 0) {
+        let line_q = linefunc(r_double, q, p);
+        let f_2_line_p_q = bnf12_mul(f_2_line_p, line_q);
+        let r_2_q = bnp12_add(r_double, q);
+        return miller_loop_inner(f_2_line_p_q, r_2_q, q, p, bits_ptr, current_bit - 1);
+    }
+
+    return miller_loop_inner(f_2_line_p, r_double, q, p, bits_ptr, current_bit - 1);
 }
