@@ -32,9 +32,9 @@ runs:
       uses: Swatinem/rust-cache@v2
       with:
         cache-on-failure: ${{ inputs.cache-on-failure }}
-        # Hash of source files in crates/cairo-addons to invalidate
-        # maturin build if the source files change.
-        key: ${{ hashFiles('crates/cairo-addons/**') }}
+        # note: this doesn't cache the maturin build (which is a workspace artifact), but caches all
+        # Rust dependencies.  thus, in all cases, the maturin build will be re-run with the latest
+        # version of the bindings.
 
     - name: Setup uv
       uses: astral-sh/setup-uv@v3
