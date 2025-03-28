@@ -1698,8 +1698,7 @@ func bnp12_mul_by{
     let bnf12_zero = BNF12_ZERO();
     let x_is_zero = BNF12__eq__(p.value.x, bnf12_zero);
     let y_is_zero = BNF12__eq__(p.value.y, bnf12_zero);
-    let p_is_infinity = x_is_zero * y_is_zero;
-    if (p_is_infinity != 0) {
+    if (x_is_zero != 0 and y_is_zero != 0) {
         return p;
     }
 
