@@ -243,6 +243,12 @@ func Bytes8_to_Bytes{range_check_ptr}(src: Bytes8) -> Bytes {
 
 func Bytes_to_Bytes32{range_check_ptr}(src: Bytes) -> Bytes32 {
     alloc_locals;
+    // Assert that the input is at most 32 bytes
+    with_attr error_message("ValueError: got more than 32 bytes") {
+        assert [range_check_ptr] = src.value.len;
+        assert [range_check_ptr + 1] = 32 - src.value.len;
+        let range_check_ptr = range_check_ptr + 2;
+    }
     let (buffer: felt*) = alloc();
     let low_len = min(src.value.len, 16);
     let low = bytes_to_felt_le(low_len, src.value.data);
