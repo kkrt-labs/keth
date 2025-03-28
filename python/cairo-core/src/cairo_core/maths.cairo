@@ -537,8 +537,14 @@ func felt252_bit_length{range_check_ptr}(value: felt) -> felt {
     return bit_length;
 }
 
-func felt252_to_bits_rev{range_check_ptr}(value: felt, len: felt, dst: felt*) -> felt {
+// @notice Converts a felt252 to a bit array, little-endian, and outputs to `dst`.
+// @dev Can only convert up to 251 bits included.
+// @returns the length of the bit array.
+func felt252_to_bits_rev{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
+    value: felt, len: felt, dst: felt*
+) -> felt {
     alloc_locals;
+
     if (len == 0) {
         return len;
     }
@@ -576,8 +582,15 @@ func felt252_to_bits_rev{range_check_ptr}(value: felt, len: felt, dst: felt*) ->
     jmp loop;
 
     end:
+    // Case not full length of a felt: apply a mask on the value to verify
+    tempvar mask = pow256(len) - 1;
+    assert bitwise_ptr.x = value;
+    assert bitwise_ptr.y = mask;
+    tempvar value_masked = bitwise_ptr.x_and_y;
+    let bitwise_ptr = bitwise_ptr + BitwiseBuiltin.SIZE;
+
     with_attr error_message("felt252_to_bits_rev: bad output") {
-        assert acc = value;
+        assert acc = value_masked;
     }
     return current_len;
 }
