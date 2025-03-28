@@ -188,7 +188,7 @@ def coverage(
         # Log coverage results
         with pl.Config(tbl_rows=100, fmt_str_lengths=90):
             if missed.height > 0:
-                logger.info(f"Missed lines in {cairo_file}:\n{missed}")
+                print(f"Missed lines in {cairo_file}:\n{missed}")
             else:
                 logger.info(f"{cairo_file}: 100% coverage ✅")
 
