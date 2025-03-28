@@ -430,12 +430,21 @@ def run_python_vm(
         # - Rationale: Convert Cairo return values to Python types, handle exceptions,
         #   and format the final output for the caller.
         # ============================================================================
-        unfiltered_output = [
-            serde.serialize(return_data_type, runner.vm.run_context.ap, offset)
-            for offset, return_data_type in zip(
-                cumulative_retdata_offsets, return_data_types
-            )
-        ]
+        unfiltered_output = []
+        if return_data_types:
+            if len(return_data_types) == 1:
+                result = serde.serialize(
+                    return_data_types[0],
+                    runner.vm.run_context.ap,
+                    cumulative_retdata_offsets[0],
+                )
+                unfiltered_output = [result] if not isinstance(result, list) else result
+            else:
+                unfiltered_output = [
+                    serde.serialize(dt, runner.vm.run_context.ap, off)
+                    for dt, off in zip(return_data_types, cumulative_retdata_offsets)
+                ]
+
         function_output = serde.filter_no_error_flag(unfiltered_output)
         exceptions = [
             val
@@ -492,7 +501,7 @@ def run_rust_vm(
         # ============================================================================
         # STEP 2: INITIALIZE RUNNER AND MEMORY ENVIRONMENT
         # - Rationale: Set up the RustCairoRunner with the program, layout, and memory.
-        #   Unlike Python VM, we don’t append "jmp rel 0" here as Rust handles proof mode differently.
+        #   Unlike Python VM, we don't append "jmp rel 0" here as Rust handles proof mode differently.
         # ============================================================================
         proof_mode = request.config.getoption("proof_mode")
         enable_traces = request.config.getoption("--log-cli-level") == "TRACE"
@@ -521,7 +530,7 @@ def run_rust_vm(
         # ============================================================================
         stack = []
         if proof_mode:
-            # In proof mode, Rust initializes all layout builtins; we mimic Python’s behavior
+            # In proof mode, Rust initializes all layout builtins; we mimic Python's behavior
             builtin_runners = runner.builtin_runners
             missing_builtins = [
                 v for k, v in builtin_runners.items() if not v["included"]
@@ -595,7 +604,7 @@ def run_rust_vm(
         # ============================================================================
         # STEP 6: PROCESS RETURN VALUES AND FINALIZE EXECUTION
         # - Rationale: Extract return data using serde, update public memory in proof mode,
-        #   and verify the runner’s security before relocation.
+        #   and verify the runner's security before relocation.
         # ============================================================================
         cumulative_retdata_offsets = serde.get_offsets(return_data_types)
         first_return_data_offset = (
@@ -629,10 +638,6 @@ def run_rust_vm(
                 displayed_args = json.dumps(kwargs)
             except TypeError:
                 pass
-        output_stem = str(
-            request.node.path.parent
-            / f"{request.node.path.stem}_{entrypoint}_{displayed_args}"
-        )
         output_stem = str(
             request.node.path.parent
             / f"{request.node.path.stem}_{entrypoint}_{displayed_args}"
@@ -672,19 +677,18 @@ def run_rust_vm(
         # - Rationale: Convert Cairo return values to Python types, handle exceptions,
         #   and format the final output for the caller.
         # ============================================================================
-        if len(return_data_types) > 1:
-            unfiltered_output = [
-                serde.serialize(return_data_type, runner.ap, offset)
-                for offset, return_data_type in zip(
-                    cumulative_retdata_offsets, return_data_types
+        unfiltered_output = []
+        if return_data_types:
+            if len(return_data_types) == 1:
+                result = serde.serialize(
+                    return_data_types[0], runner.ap, cumulative_retdata_offsets[0]
                 )
-            ]
-        else:
-            unfiltered_output = serde.serialize(
-                return_data_types[0], runner.ap, cumulative_retdata_offsets[0]
-            )
-            if not isinstance(unfiltered_output, list):
-                unfiltered_output = [unfiltered_output]
+                unfiltered_output = [result] if not isinstance(result, list) else result
+            else:
+                unfiltered_output = [
+                    serde.serialize(dt, runner.ap, off)
+                    for dt, off in zip(return_data_types, cumulative_retdata_offsets)
+                ]
 
         exceptions = [
             val
