@@ -1855,7 +1855,7 @@ func linefunc{
 
     // Check if p1.y == p2.y
     let p1_y_equal_p2_y = BNF12__eq__(p1.value.y, p2.value.y);
-    if (p1_y_equal_p2_y == 1) {
+    if (p1_y_equal_p2_y != 0) {
         // lam = 3 * p1.x^2 / (2 * p1.y)
         tempvar u384_three = U384(new UInt384(3, 0, 0, 0));
         let three = bnf12_from_int(u384_three);
