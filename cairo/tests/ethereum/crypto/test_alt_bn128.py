@@ -301,67 +301,24 @@ segments.load_data(ids.b_inv.address_, [bnf2_struct_ptr])
 
         @given(p=..., q=...)
         @settings(max_examples=1)
+        # Currently, running on the Python CairoVM,
+        # this test takes about 20 minutes per example...
         def test_miller_loop(self, cairo_run_py, p: BNP12, q: BNP12):
-            import pprint
+            assume(p.x != BNF12.zero())
+            assume(q.x != BNF12.zero())
+            try:
+                expected = miller_loop(p, q) ** GARAGA_COFACTOR
+            except OverflowError:  # fails for large points
+                with cairo_error(message="OverflowError"):  # Hint error
+                    cairo_run_py("miller_loop", p, q)
+                return
 
-            # TODO: Remove hardcoded value once the miller loop works on this case.
-            p = BNP12(
-                BNF12.from_int(
-                    8085518523542409926439822084193742637411646539203094469921454197470348000647
-                ),
-                BNF12.from_int(
-                    9011965022246451672258968582340219591265482511609365716130034256190810487705
-                ),
-            )
-
-            q = BNP12(
-                BNF12(
-                    (
-                        0,
-                        0,
-                        424058682505384343753022565428214057809956611266521045340074549337500150492,
-                        0,
-                        0,
-                        0,
-                        0,
-                        0,
-                        13551181411255076466706227495991055158820205832363607681726651806640953314333,
-                        0,
-                        0,
-                        0,
-                    )
-                ),
-                BNF12(
-                    (
-                        0,
-                        0,
-                        0,
-                        11166029422161346122830835558294588026993811595680000044865866124906265786081,
-                        0,
-                        0,
-                        0,
-                        0,
-                        0,
-                        14840000005207795150407496875389118288395559368516498825896632409776431544683,
-                        0,
-                        0,
-                    )
-                ),
-            )
-
-            # TODO: uncomment this call once hardcoded test works
-            # try:
-            #     expected = miller_loop(p, q) ** GARAGA_COFACTOR
-            # except OverflowError:  # fails for large points
-            #     # with cairo_error(message="OverflowError"):  # Hint error
-            #     # cairo_run_py("miller_loop", p, q)
-            #     return
-
-            # TODO: remove prints
-            # As miller loop execution is quite long (measured at least 15-20min), in case it terminates and fail,
-            # at least have the expected and computed values printed
             expected = miller_loop(q, p) ** GARAGA_COFACTOR
-            pprint.pprint(expected)
-            cairo_output = cairo_run_py("miller_loop", q, p)
-            pprint.pprint(cairo_output)
-            assert cairo_output == expected
+            assert cairo_run_py("miller_loop", q, p) == expected
+
+        @given(p=...)
+        @settings(max_examples=10)
+        def test_miller_loop_zero(self, cairo_run_py, p: BNP12):
+            q = BNP12(BNF12.zero(), BNF12.zero())
+            assert cairo_run_py("miller_loop", q, p) == BNF12.from_int(1)
+            assert cairo_run_py("miller_loop", p, q) == BNF12.from_int(1)
