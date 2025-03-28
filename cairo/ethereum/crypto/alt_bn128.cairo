@@ -365,17 +365,9 @@ func bnp2_mul_by_bits{
         return result;
     }
     let bit_value = bits_ptr[current_bit];
-    let (new_result, doubled_p) = bnp2_mul_by_inner_loop(bit_value, p, result);
-    return bnp2_mul_by_bits(doubled_p, bits_ptr, bits_len, current_bit + 1, new_result);
-}
-
-func bnp2_mul_by_inner_loop{
-    range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
-}(bit: felt, p: BNP2, result: BNP2) -> (BNP2, BNP2) {
-    alloc_locals;
 
     // If the bit is 1, add p to the result
-    if (bit != 0) {
+    if (bit_value != 0) {
         let new_result = bnp2_add(result, p);
         tempvar new_result = new_result;
         tempvar range_check96_ptr = range_check96_ptr;
@@ -392,7 +384,7 @@ func bnp2_mul_by_inner_loop{
     // Double the point for the next iteration
     let doubled_p = bnp2_double(p);
 
-    return (new_result, doubled_p);
+    return bnp2_mul_by_bits(doubled_p, bits_ptr, bits_len, current_bit + 1, new_result);
 }
 
 // BNF12 represents a field element in the BNF12 extension field
@@ -1721,17 +1713,9 @@ func bnp12_mul_by_bits{
         return result;
     }
     let bit_value = bits_ptr[current_bit];
-    let (new_result, doubled_p) = bnp12_mul_by_inner_loop(bit_value, p, result);
-    return bnp12_mul_by_bits(doubled_p, bits_ptr, bits_len, current_bit + 1, new_result);
-}
-
-func bnp12_mul_by_inner_loop{
-    range_check_ptr, range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
-}(bit: felt, p: BNP12, result: BNP12) -> (BNP12, BNP12) {
-    alloc_locals;
 
     // If the bit is 1, add p to the result
-    if (bit != 0) {
+    if (bit_value != 0) {
         let new_result = bnp12_add(result, p);
         tempvar new_result = new_result;
         tempvar range_check_ptr = range_check_ptr;
@@ -1750,8 +1734,36 @@ func bnp12_mul_by_inner_loop{
     // Double the point for the next iteration
     let doubled_p = bnp12_double(p);
 
-    return (new_result, doubled_p);
+    return bnp12_mul_by_bits(doubled_p, bits_ptr, bits_len, current_bit + 1, new_result);
 }
+
+// func bnp12_mul_by_inner_loop{
+//     range_check_ptr, range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
+// }(bit: felt, p: BNP12, result: BNP12) -> (BNP12, BNP12) {
+//     alloc_locals;
+
+//     // If the bit is 1, add p to the result
+//     if (bit != 0) {
+//         let new_result = bnp12_add(result, p);
+//         tempvar new_result = new_result;
+//         tempvar range_check_ptr = range_check_ptr;
+//         tempvar range_check96_ptr = range_check96_ptr;
+//         tempvar add_mod_ptr = add_mod_ptr;
+//         tempvar mul_mod_ptr = mul_mod_ptr;
+//     } else {
+//         tempvar new_result = result;
+//         tempvar range_check_ptr = range_check_ptr;
+//         tempvar range_check96_ptr = range_check96_ptr;
+//         tempvar add_mod_ptr = add_mod_ptr;
+//         tempvar mul_mod_ptr = mul_mod_ptr;
+//     }
+//     let new_result = new_result;
+
+//     // Double the point for the next iteration
+//     let doubled_p = bnp12_double(p);
+
+//     return (new_result, doubled_p);
+// }
 
 func bnp12_final_exponentiation{
     range_check_ptr,
