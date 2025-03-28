@@ -283,7 +283,10 @@ def pytest_collection_modifyitems(session, config, items):
     # Wait for all workers to finish
     missing = set(fspaths) - set(fspaths[worker_index::worker_count])
     while missing:
-        logger.info(f"Waiting for {len(missing)} compilations artifacts to be ready")
+        if int(time.time()) % 5 == 0:
+            logger.info(
+                f"Waiting for {len(missing)} compilations artifacts to be ready"
+            )
         missing_new = set()
         for fspath in missing:
             if fspath not in session.cairo_files:

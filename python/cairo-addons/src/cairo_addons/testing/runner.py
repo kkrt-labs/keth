@@ -625,8 +625,8 @@ def run_rust_vm(
         if kwargs:
             try:
                 displayed_args = json.dumps(kwargs)
-            except TypeError as e:
-                logger.debug(f"Failed to serialize kwargs: {e}")
+            except TypeError:
+                pass
         output_stem = str(
             request.node.path.parent
             / f"{request.node.path.stem}_{entrypoint}_{displayed_args}"
