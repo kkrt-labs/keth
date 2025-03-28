@@ -9,6 +9,7 @@ from ethereum.crypto.alt_bn128 import (
     BNP2,
     BNP12,
     bnf2_to_bnf12,
+    linefunc,
 )
 from hypothesis import assume, given, settings
 
@@ -123,7 +124,7 @@ segments.load_data(ids.b_inv.address_, [bnf2_struct_ptr])
 
         @given(p=..., n=...)
         def test_bnp2_mul_by(self, cairo_run, p: BNP2, n: U384):
-            assert cairo_run("bnp2_mul_by", p, U384(n)) == p.mul_by(int(n))
+            assert cairo_run("bnp2_mul_by", p, n) == p.mul_by(int(n))
 
     class TestBNF12:
         def test_FROBENIUS_COEFFICIENTS(self, cairo_run):
@@ -232,6 +233,27 @@ segments.load_data(ids.b_inv.address_, [bnf2_struct_ptr])
                 return
             assert cairo_run("bnp12_double", p) == expected
 
+        @given(p=..., q=...)
+        def test_bnp12_add(self, cairo_run, p: BNP12, q: BNP12):
+            try:
+                expected = p + q
+            except OverflowError:  # fails for large points
+                with cairo_error(message="OverflowError"):  # Hint error
+                    cairo_run("bnp12_add", p, q)
+                return
+            assert cairo_run("bnp12_add", p, q) == expected
+
+        @given(p=..., n=...)
+        @settings(max_examples=30)
+        def test_bnp12_mul_by(self, cairo_run, p: BNP12, n: U384):
+            try:
+                expected = p.mul_by(int(n))
+            except OverflowError:  # fails for large points
+                with cairo_error(message="OverflowError"):  # Hint error
+                    cairo_run("bnp12_mul_by", p, n)
+                return
+            assert cairo_run("bnp12_mul_by", p, n) == expected
+
         # Garaga final exponentiation match the gnark one which uses a cofactor
         # This does not affect the pairing properties
         # https://github.com/keep-starknet-strange/garaga/blob/704a8c66bf85b965851a117c6b116fc7a11329db/hydra/garaga/definitions.py#L346
@@ -260,3 +282,15 @@ segments.load_data(ids.b_inv.address_, [bnf2_struct_ptr])
             from ethereum.crypto.alt_bn128 import twist
 
             assert cairo_run("twist", x) == twist(x)
+
+        @given(p1=..., p2=..., t=...)
+        def test_linefunc(self, cairo_run, p1: BNP12, p2: BNP12, t: BNP12):
+            if p1.y == p2.y:
+                assume(p1.y != BNF12.zero())
+            try:
+                expected = linefunc(p1, p2, t)
+            except OverflowError:  # fails for large points
+                with cairo_error(message="OverflowError"):  # Hint error
+                    cairo_run("linefunc", p1, p2, t)
+                return
+            assert cairo_run("linefunc", p1, p2, t) == expected

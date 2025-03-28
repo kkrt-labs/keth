@@ -141,6 +141,7 @@ lambdaclass
 lastblockhash
 levelname
 libpython
+linefunc
 lllcversion
 makereport
 maturin

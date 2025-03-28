@@ -80,9 +80,6 @@ def convert_accounts(
         }
 
         if account_state == EMPTY_ACCOUNT:
-            logger.debug(
-                f"empty account for address {account_proof['address']}, skipping"
-            )
             continue
 
         if account_proof["storageHash"] != EMPTY_STORAGE_ROOT:

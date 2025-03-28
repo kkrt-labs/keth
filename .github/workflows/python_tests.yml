@@ -1,88 +1,49 @@
-name: Python CI
+name: Python Tests
+
+permissions: read-all
 
 on:
   workflow_call:
     inputs:
-      max-tests:
+      hypothesis-profile:
         required: true
+        type: string
+      max-tests:
+        required: false
         type: number
+        default: 8000
+      pytest-add-params:
+        required: false
+        type: string
+        default: ""
+      coverage-flags:
+        required: false
+        type: string
+        default: "ci-unit"
 
-permissions: read-all
+env:
+  CAIRO_PATH: cairo:tests:python/cairo-ec/src:python/cairo-addons/src:python/cairo-core/src:python/mpt/src:.venv/lib/python3.10/site-packages/src
+  CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+  CHAIN_RPC_URL: ${{ secrets.CHAIN_RPC_URL }}
+  HYPOTHESIS_PROFILE: ${{ inputs.hypothesis-profile }}
 
 jobs:
-  test-unit:
-    name: Python Unit Tests
+  python-tests:
     runs-on: ubuntu-latest-64-cores
-    env:
-      HYPOTHESIS_PROFILE: ci
-      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-      CAIRO_PATH: cairo:tests:python/cairo-ec/src:python/cairo-addons/src:python/cairo-core/src:python/mpt/src:.venv/lib/python3.10/site-packages/src
-      CHAIN_RPC_URL: ${{ secrets.CHAIN_RPC_URL }}
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v3
-        with:
-          enable-cache: true
-          cache-dependency-glob: uv.lock
-      - uses: actions/setup-python@v5
-        with:
-          python-version-file: .python-version
-      - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
-      - name: Install forge deps
-        run: forge install
-      - name: Build solidity contracts
-        run: forge build
-      - name: Restore pytest cache
-        id: cache-pytest-restore
-        uses: actions/cache/restore@v4
-        with:
-          path: .pytest_cache
-          key: ${{ runner.os }}-pytest-cache-${{ github.run_id }}
-          restore-keys: ${{ runner.os }}-pytest-cache-
 
-      # TODO: remove --no-skip-cached-tests if/when we cache coverage
-      # <https://github.com/kkrt-labs/keth/issues/694>
-      - name: Run unit tests without caching
+      - uses: ./.github/actions/setup-environment
+
+      - name: Run Python tests
         run: |
-          uv run --reinstall pytest -n logical --durations=0 -v -s --log-cli-level=DEBUG --no-skip-cached-tests --ignore-glob=cairo/tests/ef_tests/
+          uv run pytest -n logical --durations=0 -v -s --log-cli-level=DEBUG --no-skip-cached-tests ${{ inputs.pytest-add-params }}
 
-      - uses: actions/cache/save@v4
-        with:
-          path: .pytest_cache
-          key: ${{ runner.os }}-pytest-cache-${{ github.run_id }}
       - name: Upload coverage
+        if: inputs.coverage-flags != ''
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           verbose: true
           files: ./coverage/**/*.json
-          flags: ci-unit
-
-  ef-tests-sampled:
-    name: EF-Tests Sampled
-    runs-on: ubuntu-latest-64-cores
-    env:
-      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-      CAIRO_PATH: cairo:tests:python/cairo-ec/src:python/cairo-addons/src:python/cairo-core/src:python/mpt/src:.venv/lib/python3.10/site-packages/src
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v3
-        with:
-          enable-cache: true
-          cache-dependency-glob: uv.lock
-      - uses: actions/setup-python@v5
-        with:
-          python-version-file: .python-version
-      - name: Run sampled EF tests
-        run: |
-          # Runs up to ${{ inputs.max-tests }} tests, randomly sampled using the GITHUB_RUN_ID seed
-          # Use only 48 cores to avoid out of memory issues
-          uv run --reinstall pytest -n 48 -m "not slow" --timeout 300 --durations=0 -v -s --log-cli-level=DEBUG --max-tests=${{ inputs.max-tests }} --randomly-seed=$GITHUB_RUN_ID cairo/tests/ef_tests/ --ignore-glob='cairo/tests/ef_tests/fixtures/*'
-      - name: Upload coverage
-        uses: codecov/codecov-action@v5
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          verbose: true
-          files: ./coverage/**/*.json
-          flags: ci-ef-tests
+          flags: ${{ inputs.coverage-flags }}

@@ -209,8 +209,7 @@ func bnp2_init{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: 
 
     let x_is_zero = BNF2__eq__(x, bnf2_zero);
     let y_is_zero = BNF2__eq__(y, bnf2_zero);
-    let is_infinity = x_is_zero * y_is_zero;
-    if (is_infinity != 0) {
+    if (x_is_zero != 0 and y_is_zero != 0) {
         tempvar res = BNP2(new BNP2Struct(x, y));
         return res;
     }
@@ -239,15 +238,13 @@ func bnp2_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: M
     let bnf2_zero = BNF2_ZERO();
     let x_is_zero = BNF2__eq__(p.value.x, bnf2_zero);
     let y_is_zero = BNF2__eq__(p.value.y, bnf2_zero);
-    let p_is_infinity = x_is_zero * y_is_zero;
-    if (p_is_infinity != 0) {
+    if (x_is_zero != 0 and y_is_zero != 0) {
         return q;
     }
 
     let x_is_zero_q = BNF2__eq__(q.value.x, bnf2_zero);
     let y_is_zero_q = BNF2__eq__(q.value.y, bnf2_zero);
-    let q_is_infinity = x_is_zero_q * y_is_zero_q;
-    if (q_is_infinity != 0) {
+    if (x_is_zero_q != 0 and y_is_zero_q != 0) {
         return p;
     }
 
@@ -345,8 +342,7 @@ func bnp2_mul_by{
     let bnf2_zero = BNF2_ZERO();
     let x_is_zero = BNF2__eq__(p.value.x, bnf2_zero);
     let y_is_zero = BNF2__eq__(p.value.y, bnf2_zero);
-    let p_is_infinity = x_is_zero * y_is_zero;
-    if (p_is_infinity != 0) {
+    if (x_is_zero != 0 and y_is_zero != 0) {
         return p;
     }
 
@@ -369,17 +365,9 @@ func bnp2_mul_by_bits{
         return result;
     }
     let bit_value = bits_ptr[current_bit];
-    let (new_result, doubled_p) = bnp2_mul_by_inner_loop(bit_value, p, result);
-    return bnp2_mul_by_bits(doubled_p, bits_ptr, bits_len, current_bit + 1, new_result);
-}
-
-func bnp2_mul_by_inner_loop{
-    range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
-}(bit: felt, p: BNP2, result: BNP2) -> (BNP2, BNP2) {
-    alloc_locals;
 
     // If the bit is 1, add p to the result
-    if (bit != 0) {
+    if (bit_value != 0) {
         let new_result = bnp2_add(result, p);
         tempvar new_result = new_result;
         tempvar range_check96_ptr = range_check96_ptr;
@@ -396,7 +384,7 @@ func bnp2_mul_by_inner_loop{
     // Double the point for the next iteration
     let doubled_p = bnp2_double(p);
 
-    return (new_result, doubled_p);
+    return bnp2_mul_by_bits(doubled_p, bits_ptr, bits_len, current_bit + 1, new_result);
 }
 
 // BNF12 represents a field element in the BNF12 extension field
@@ -1531,8 +1519,7 @@ func bnp12_init{
     // Check if the point is at infinity (0,0)
     let x_is_zero = BNF12__eq__(x, bnf12_zero);
     let y_is_zero = BNF12__eq__(y, bnf12_zero);
-    let is_infinity = x_is_zero * y_is_zero;
-    if (is_infinity != 0) {
+    if (x_is_zero != 0 and y_is_zero != 0) {
         tempvar res = BNP12(new BNP12Struct(x, y));
         return res;
     }
@@ -1635,6 +1622,121 @@ func bnp12_double{
     return result;
 }
 
+func bnp12_add{
+    range_check_ptr, range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
+}(p: BNP12, q: BNP12) -> BNP12 {
+    alloc_locals;
+
+    let bnf12_zero = BNF12_ZERO();
+    let x_is_zero = BNF12__eq__(p.value.x, bnf12_zero);
+    let y_is_zero = BNF12__eq__(p.value.y, bnf12_zero);
+    if (x_is_zero != 0 and y_is_zero != 0) {
+        return q;
+    }
+
+    let x_is_zero_q = BNF12__eq__(q.value.x, bnf12_zero);
+    let y_is_zero_q = BNF12__eq__(q.value.y, bnf12_zero);
+    if (x_is_zero_q != 0 and y_is_zero_q != 0) {
+        return p;
+    }
+
+    let x_equal = BNF12__eq__(p.value.x, q.value.x);
+    if (x_equal != 0) {
+        let y_equal = BNF12__eq__(p.value.y, q.value.y);
+        if (y_equal != 0) {
+            return bnp12_double(p);
+        }
+        let res = bnp12_point_at_infinity();
+        return res;
+    }
+
+    // Standard case: compute point addition using the formula:
+    // λ = (q.y - p.y) / (q.x - p.x)
+    // x_r = λ^2 - p.x - q.x
+    // y_r = λ(p.x - x_r) - p.y
+
+    // Calculate λ = (q.y - p.y) / (q.x - p.x)
+    let y_diff = bnf12_sub(q.value.y, p.value.y);
+    let x_diff = bnf12_sub(q.value.x, p.value.x);
+    let lambda = bnf12_div(y_diff, x_diff);
+
+    // Calculate x_r = λ^2 - p.x - q.x
+    let lambda_squared = bnf12_mul(lambda, lambda);
+    let x_sum = bnf12_add(p.value.x, q.value.x);
+    let x_r = bnf12_sub(lambda_squared, x_sum);
+
+    // Calculate y_r = λ(p.x - x_r) - p.y
+    let x_diff_r = bnf12_sub(p.value.x, x_r);
+    let lambda_times_x_diff = bnf12_mul(lambda, x_diff_r);
+    let y_r = bnf12_sub(lambda_times_x_diff, p.value.y);
+
+    // Return the new point
+    tempvar result = BNP12(new BNP12Struct(x_r, y_r));
+    return result;
+}
+
+// Implementation of scalar multiplication for BNP12
+// Uses the double-and-add algorithm
+func bnp12_mul_by{
+    range_check_ptr, range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
+}(p: BNP12, n: U384) -> BNP12 {
+    alloc_locals;
+    let n_is_zero = U384_is_zero(n);
+    if (n_is_zero != 0) {
+        let res = bnp12_point_at_infinity();
+        return res;
+    }
+
+    let bnf12_zero = BNF12_ZERO();
+    let x_is_zero = BNF12__eq__(p.value.x, bnf12_zero);
+    let y_is_zero = BNF12__eq__(p.value.y, bnf12_zero);
+    if (x_is_zero != 0 and y_is_zero != 0) {
+        return p;
+    }
+
+    // Extract the bits of n
+    let (bits_ptr, bits_len) = get_u384_bits_little(n);
+
+    // Initialize result as the point at infinity
+    let result = bnp12_point_at_infinity();
+
+    // Implement the double-and-add algorithm
+    return bnp12_mul_by_bits(p, bits_ptr, bits_len, 0, result);
+}
+
+func bnp12_mul_by_bits{
+    range_check_ptr, range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
+}(p: BNP12, bits_ptr: felt*, bits_len: felt, current_bit: felt, result: BNP12) -> BNP12 {
+    alloc_locals;
+
+    if (current_bit == bits_len) {
+        return result;
+    }
+    let bit_value = bits_ptr[current_bit];
+
+    // If the bit is 1, add p to the result
+    if (bit_value != 0) {
+        let new_result = bnp12_add(result, p);
+        tempvar new_result = new_result;
+        tempvar range_check_ptr = range_check_ptr;
+        tempvar range_check96_ptr = range_check96_ptr;
+        tempvar add_mod_ptr = add_mod_ptr;
+        tempvar mul_mod_ptr = mul_mod_ptr;
+    } else {
+        tempvar new_result = result;
+        tempvar range_check_ptr = range_check_ptr;
+        tempvar range_check96_ptr = range_check96_ptr;
+        tempvar add_mod_ptr = add_mod_ptr;
+        tempvar mul_mod_ptr = mul_mod_ptr;
+    }
+    let new_result = new_result;
+
+    // Double the point for the next iteration
+    let doubled_p = bnp12_double(p);
+
+    return bnp12_mul_by_bits(doubled_p, bits_ptr, bits_len, current_bit + 1, new_result);
+}
+
 func bnp12_final_exponentiation{
     range_check_ptr,
     range_check96_ptr: felt*,
@@ -1725,5 +1827,57 @@ func twist{
     let twisted_y = bnf12_mul(y_bnf12, w_pow_3);
 
     tempvar result = BNP12(new BNP12Struct(twisted_x, twisted_y));
+    return result;
+}
+
+func linefunc{
+    range_check_ptr, range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
+}(p1: BNP12, p2: BNP12, t: BNP12) -> BNF12 {
+    alloc_locals;
+
+    // Check if p1.x != p2.x
+    let p1_x_equal_p2_x = BNF12__eq__(p1.value.x, p2.value.x);
+    if (p1_x_equal_p2_x == 0) {
+        // lam = (p2.y - p1.y) / (p2.x - p1.x)
+        let p2_y_minus_p1_y = bnf12_sub(p2.value.y, p1.value.y);
+        let p2_x_minus_p1_x = bnf12_sub(p2.value.x, p1.value.x);
+        let lam = bnf12_div(p2_y_minus_p1_y, p2_x_minus_p1_x);
+        // (t.x - p1.x)
+        let t_x_minus_p1_x = bnf12_sub(t.value.x, p1.value.x);
+        // lam * (t.x - p1.x)
+        let lam_mul_tx_p1x = bnf12_mul(lam, t_x_minus_p1_x);
+        // (t.y - p1.y)
+        let t_y_minus_p1_y = bnf12_sub(t.value.y, p1.value.y);
+        // lam * (t.x - p1.x) - (t.y - p1.y)
+        let result = bnf12_sub(lam_mul_tx_p1x, t_y_minus_p1_y);
+        return result;
+    }
+
+    // Check if p1.y == p2.y
+    let p1_y_equal_p2_y = BNF12__eq__(p1.value.y, p2.value.y);
+    if (p1_y_equal_p2_y != 0) {
+        // lam = 3 * p1.x^2 / (2 * p1.y)
+        tempvar u384_three = U384(new UInt384(3, 0, 0, 0));
+        let three = bnf12_from_int(u384_three);
+        let p1_x_squared = bnf12_mul(p1.value.x, p1.value.x);
+        let three_mul_p1x2 = bnf12_mul(three, p1_x_squared);
+        tempvar u384_two = U384(new UInt384(2, 0, 0, 0));
+        let two = bnf12_from_int(u384_two);
+        let two_mul_p1y = bnf12_mul(two, p1.value.y);
+        let lam = bnf12_div(three_mul_p1x2, two_mul_p1y);
+
+        // (t.x - p1.x)
+        let t_x_minus_p1_x = bnf12_sub(t.value.x, p1.value.x);
+        // lam * (t.x - p1.x)
+        let lam_mul_tx_p1x = bnf12_mul(lam, t_x_minus_p1_x);
+        // (t.y - p1.y)
+        let t_y_minus_p1_y = bnf12_sub(t.value.y, p1.value.y);
+        // lam * (t.x - p1.x) - (t.y - p1.y)
+        let result = bnf12_sub(lam_mul_tx_p1x, t_y_minus_p1_y);
+        return result;
+    }
+    // Third case: p1.x == p2.x but p1.y != p2.y
+    // t.x - p1.x
+    let result = bnf12_sub(t.value.x, p1.value.x);
     return result;
 }
