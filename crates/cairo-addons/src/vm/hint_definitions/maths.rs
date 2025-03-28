@@ -18,8 +18,13 @@ use num_bigint::BigUint;
 
 use crate::vm::hints::Hint;
 
-pub const HINTS: &[fn() -> Hint] =
-    &[felt252_to_bytes_le, felt252_to_bytes_be, value_len_mod_two, is_positive_hint];
+pub const HINTS: &[fn() -> Hint] = &[
+    felt252_to_bits_rev,
+    felt252_to_bytes_le,
+    felt252_to_bytes_be,
+    value_len_mod_two,
+    is_positive_hint,
+];
 
 pub fn felt252_to_bytes_le() -> Hint {
     Hint::new(
