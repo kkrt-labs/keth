@@ -381,34 +381,7 @@ class TestRlp:
 
     class TestExtendedImpl:
         @given(left=..., right=...)
-        def test_eq_bytes(self, cairo_run, left: Bytes, right: Bytes):
-            assert (left == right) == cairo_run("Extended__eq__", left, right)
-
-        @given(left=..., right=...)
-        def test_eq_sequence_bytes(
-            self, cairo_run, left: Sequence[Bytes], right: Sequence[Bytes]
-        ):
-            assert (left == right) == cairo_run("Extended__eq__", left, right)
-
-        @pytest.mark.xfail(
-            reason="Extended__eq__ only supports bytes and sequence types"
-        )
-        @given(left=..., right=...)
-        def test_eq_unsupported_types(self, cairo_run, left: Extended, right: Extended):
-            # Skip if either value is a Bytes type
-            assume(not isinstance(left, Bytes) and not isinstance(right, Bytes))
-
-            # Skip if either value is a sequence of bytes
-            assume(
-                not (
-                    isinstance(left, Sequence)
-                    and all(isinstance(item, Bytes) for item in left)
-                )
-            )
-            assume(
-                not (
-                    isinstance(right, Sequence)
-                    and all(isinstance(item, Bytes) for item in right)
-                )
-            )
-            assert (left == right) == cairo_run("Extended__eq__", left, right)
+        def test_eq(self, cairo_run, left: Extended, right: Extended):
+            eq_py = (left == right) and type(left) is type(right)
+            eq_cairo = cairo_run("Extended__eq__", left, right)
+            assert eq_py == eq_cairo
