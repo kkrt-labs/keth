@@ -1918,8 +1918,8 @@ func miller_loop{
     let (f, r) = miller_loop_inner(f, r, q, p, bits_ptr, ate_pairing_count_bits);
 
     // assert r == q.mul_by(ATE_PAIRING_COUNT - 1)
-    // let q_by_ate_minus_one = bnp12_mul_by(q, ate_minus_one);
-    // assert r = q_by_ate_minus_one;
+    let q_by_ate_minus_one = bnp12_mul_by(q, ate_minus_one);
+    assert r = q_by_ate_minus_one;
 
     // q1 = BNP12(q.x.frobenius(), q.y.frobenius())
     let q_x_frob = bnf12_frobenius(q.value.x);
