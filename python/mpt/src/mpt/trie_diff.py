@@ -175,11 +175,25 @@ class StateDiff:
             case (LeafNode(), ExtensionNode()):
                 # Explore the extension node's subtree for any new leaves, comparing it to the old
                 # leaf with the same key
-                l_node = LeafNode(
-                    l_node.rest_of_key[len(r_node.key_segment) :], l_node.value
-                )
-                return self._compute_diff(
-                    l_node, r_node.subnode, path + r_node.key_segment, process_leaf_diff
+                if l_node.rest_of_key.startswith(r_node.key_segment):
+                    l_node = LeafNode(
+                        l_node.rest_of_key[len(r_node.key_segment) :], l_node.value
+                    )
+                    return self._compute_diff(
+                        l_node,
+                        r_node.subnode,
+                        path + r_node.key_segment,
+                        process_leaf_diff,
+                    )
+
+                # Here we compute the deletion of the Leaf and creation of the ExtensionNode's children
+
+                path_left = nibble_list_to_bytes(path + l_node.rest_of_key)
+                process_leaf_diff(path=path_left, left=l_node, right=None)
+
+                # we explore the right sub-tree
+                self._compute_diff(
+                    None, r_node.subnode, path + r_node.key_segment, process_leaf_diff
                 )
 
             case (LeafNode(), BranchNode()):
@@ -213,11 +227,25 @@ class StateDiff:
             case (ExtensionNode(), LeafNode()):
                 # The extension node was deleted and replaced by a leaf - meaning that down the line of the extension node, in a branch, we deleted some nodes.
                 # Explore the extension node's subtree for any deleted nodes, comparing it to the new leaf
-                r_node = LeafNode(
-                    r_node.rest_of_key[len(l_node.key_segment) :], r_node.value
-                )
+                if r_node.rest_of_key.startswith(l_node.key_segment):
+                    r_node = LeafNode(
+                        r_node.rest_of_key[len(l_node.key_segment) :], r_node.value
+                    )
+                    self._compute_diff(
+                        l_node.subnode,
+                        r_node,
+                        path + l_node.key_segment,
+                        process_leaf_diff,
+                    )
+                    return
+
+                # Here we compute the creation of a new leaf node and the deletion of the extension node's children
+                path_right = nibble_list_to_bytes(path + r_node.rest_of_key)
+                process_leaf_diff(path=path_right, left=None, right=r_node)
+
+                # we explore the left sub-tree
                 self._compute_diff(
-                    l_node.subnode, r_node, path + l_node.key_segment, process_leaf_diff
+                    l_node.subnode, None, path + l_node.key_segment, process_leaf_diff
                 )
 
             case (ExtensionNode(), ExtensionNode()):
