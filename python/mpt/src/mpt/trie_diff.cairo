@@ -129,7 +129,6 @@ struct TrieDiff {
 struct TrieDiffStruct {
     _main_trie_start: AddressAccountNodeDictAccess*,
     _main_trie_end: AddressAccountNodeDictAccess*,
-    storage_tries_end: TupleAddressBytes32U256DictAccess*,
     _storage_tries_start: TupleAddressBytes32U256DictAccess*,
     _storage_tries_end: TupleAddressBytes32U256DictAccess*,
 }
@@ -169,54 +168,6 @@ struct OptionalUnionInternalNodeExtendedEnum {
 }
 
 namespace OptionalUnionInternalNodeExtendedImpl {
-    // TODO: purge if unused
-    // func as_leaf(self: LeafNode) -> OptionalUnionInternalNodeExtended {
-    //     return OptionalUnionInternalNodeExtended(
-    //         new OptionalUnionInternalNodeExtendedEnum(
-    //             leaf=self,
-    //             extension=ExtensionNode(cast(0, ExtensionNodeStruct*)),
-    //             branch=BranchNode(cast(0, BranchNodeStruct*)),
-    //             sequence=SequenceExtended(cast(0, SequenceExtendedStruct*)),
-    //             bytearray=Bytes(cast(0, BytesStruct*)),
-    //             bytes=Bytes(cast(0, BytesStruct*)),
-    //             uint=Uint(cast(0, UintStruct*)),
-    //             fixed_uint=Uint(cast(0, UintStruct*)),
-    //             str=String(cast(0, StringStruct*)),
-    //             bool=Bool(cast(0, BoolStruct*)),
-    //         ),
-    //     );
-    // }
-
-    // func as_extension(self: ExtensionNode) -> OptionalUnionInternalNodeExtended {
-    //     return OptionalUnionInternalNodeExtended(
-    //         new OptionalUnionInternalNodeExtendedEnum(
-    //             leaf=LeafNode(cast(0, LeafNodeStruct*)),
-    //             extension=self,
-    //             branch=BranchNode(cast(0, BranchNodeStruct*)),
-    //             sequence=SequenceExtended(cast(0, SequenceExtendedStruct*)),
-    //             bytearray=Bytes(cast(0, BytesStruct*)),
-    //             bytes=Bytes(cast(0, BytesStruct*)),
-    //             uint=Uint(cast(0, UintStruct*)),
-    //         ),
-    //     );
-    // }
-
-    // func as_branch(self: BranchNode) -> OptionalUnionInternalNodeExtended {
-    //     return OptionalUnionInternalNodeExtended(
-    //         new OptionalUnionInternalNodeExtendedEnum(
-    //             leaf=LeafNode(cast(0, LeafNodeStruct*)),
-    //             extension=ExtensionNode(cast(0, ExtensionNodeStruct*)),
-    //             branch=self,
-    //             sequence=SequenceExtended(cast(0, SequenceExtendedStruct*)),
-    //             bytearray=Bytes(cast(0, BytesStruct*)),
-    //             bytes=Bytes(cast(0, BytesStruct*)),
-    //             uint=Uint(cast(0, UintStruct*)),
-    //             fixed_uint=Uint(cast(0, UintStruct*)),
-    //             str=String(cast(0, StringStruct*)),
-    //             bool=Bool(cast(0, BoolStruct*)),
-    //         ),
-    //     );
-    // }
 
     func from_leaf(self: LeafNode) -> OptionalUnionInternalNodeExtended {
         alloc_locals;
