@@ -1004,26 +1004,70 @@ func _left_is_extension_node{
     if (cast(right.value.leaf_node.value, felt) != 0) {
         // Remove the left node's key segment from the right leaf node
         let r_leaf = right.value.leaf_node;
-        let updated_path = Bytes__add__(path, left.value.key_segment);
-        let l_subnode = OptionalUnionInternalNodeExtendedImpl.from_extended(left.value.subnode);
-
-        // Update the right leaf node's rest of key to remove the left node's key segment
-        tempvar r_leaf = LeafNode(
-            new LeafNodeStruct(
-                rest_of_key=Bytes(
-                    new BytesStruct(
-                        data=r_leaf.value.rest_of_key.value.data + left.value.key_segment.value.len,
-                        len=r_leaf.value.rest_of_key.value.len - left.value.key_segment.value.len,
+        let l_prefix_r = Bytes__startswith__(r_leaf.value.rest_of_key, left.value.key_segment);
+        if (l_prefix_r.value != 0) {
+            let updated_path = Bytes__add__(path, left.value.key_segment);
+            let l_subnode = OptionalUnionInternalNodeExtendedImpl.from_extended(left.value.subnode);
+            // Update the right leaf node's rest of key to remove the left node's key segment
+            tempvar r_leaf = LeafNode(
+                new LeafNodeStruct(
+                    rest_of_key=Bytes(
+                        new BytesStruct(
+                            data=r_leaf.value.rest_of_key.value.data +
+                            left.value.key_segment.value.len,
+                            len=r_leaf.value.rest_of_key.value.len -
+                            left.value.key_segment.value.len,
+                        ),
                     ),
+                    value=r_leaf.value.value,
                 ),
-                value=r_leaf.value.value,
-            ),
+            );
+
+            let r_leaf_typed = OptionalUnionInternalNodeExtendedImpl.from_leaf(r_leaf);
+            return _compute_diff(
+                left=l_subnode,
+                right=r_leaf_typed,
+                path=updated_path,
+                account_address=account_address,
+            );
+        }
+
+        // else, the left extension node key segment is not a prefix of the right leaf node rest of key
+        // this means that the left extension node is deleted and the right leaf node is created
+        // we explore the subnode of the left extension node to find all deleted nodes
+        // we log the right leaf node as a new leaf node
+        let null_node = OptionalUnionInternalNodeExtended(
+            cast(0, OptionalUnionInternalNodeExtendedEnum*)
+        );
+        // Compute diffs in the right sub-tree
+        let updated_path_left = Bytes__add__(path, left.value.key_segment);
+        let l_subnode = OptionalUnionInternalNodeExtendedImpl.from_extended(left.value.subnode);
+        _compute_diff(
+            left=l_subnode, right=null_node, path=updated_path_left, account_address=account_address
         );
 
-        let r_leaf_typed = OptionalUnionInternalNodeExtendedImpl.from_leaf(r_leaf);
-        return _compute_diff(
-            left=l_subnode, right=r_leaf_typed, path=updated_path, account_address=account_address
+        // Compute deletions in the left sub-tree
+        let updated_path_right = Bytes__add__(path, r_leaf.value.rest_of_key);
+        let updated_path_right_nibbles = nibble_list_to_bytes(updated_path_right);
+        let updated_path_right_b32 = Bytes_to_Bytes32(updated_path_right_nibbles);
+        let opt_left_leaf = OptionalLeafNode(cast(0, LeafNodeStruct*));
+        let opt_right_leaf = OptionalLeafNode(r_leaf.value);
+
+        if (account_address.value == 0) {
+            _process_account_diff(
+                path=updated_path_right_b32, left=opt_left_leaf, right=opt_right_leaf
+            );
+            return ();
+        }
+
+        _process_storage_diff(
+            address=Address([account_address.value]),
+            path=updated_path_right_b32,
+            left=opt_left_leaf,
+            right=opt_right_leaf,
         );
+
+        return ();
     }
 
     // (ExtensionNode(), ExtensionNode()) ->
