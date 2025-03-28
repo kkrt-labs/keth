@@ -68,7 +68,12 @@ def coverage_dataframes(
 
         # Create all_statements DataFrame
         all_statements = (
-            pl.DataFrame(all_statements_rows)
+            # If no statements are found (file only contains imports), create a dummy row
+            pl.DataFrame(
+                all_statements_rows
+                if all_statements_rows
+                else [{"filename": "", "line_number": 0}]
+            )
             .with_columns(
                 filename=(
                     pl.when(pl.col("filename") == "")
