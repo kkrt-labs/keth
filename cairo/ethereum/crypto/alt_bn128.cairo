@@ -1737,34 +1737,6 @@ func bnp12_mul_by_bits{
     return bnp12_mul_by_bits(doubled_p, bits_ptr, bits_len, current_bit + 1, new_result);
 }
 
-// func bnp12_mul_by_inner_loop{
-//     range_check_ptr, range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
-// }(bit: felt, p: BNP12, result: BNP12) -> (BNP12, BNP12) {
-//     alloc_locals;
-
-//     // If the bit is 1, add p to the result
-//     if (bit != 0) {
-//         let new_result = bnp12_add(result, p);
-//         tempvar new_result = new_result;
-//         tempvar range_check_ptr = range_check_ptr;
-//         tempvar range_check96_ptr = range_check96_ptr;
-//         tempvar add_mod_ptr = add_mod_ptr;
-//         tempvar mul_mod_ptr = mul_mod_ptr;
-//     } else {
-//         tempvar new_result = result;
-//         tempvar range_check_ptr = range_check_ptr;
-//         tempvar range_check96_ptr = range_check96_ptr;
-//         tempvar add_mod_ptr = add_mod_ptr;
-//         tempvar mul_mod_ptr = mul_mod_ptr;
-//     }
-//     let new_result = new_result;
-
-//     // Double the point for the next iteration
-//     let doubled_p = bnp12_double(p);
-
-//     return (new_result, doubled_p);
-// }
-
 func bnp12_final_exponentiation{
     range_check_ptr,
     range_check96_ptr: felt*,
