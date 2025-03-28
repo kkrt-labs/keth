@@ -6,16 +6,19 @@ from mpt.trie_diff import (
     MappingBytes32Address,
     AddressAccountNodeDictAccess,
     MappingBytes32Bytes32,
+    NodeStore,
 )
 from ethereum_types.bytes import Bytes32
 from ethereum.cancun.trie import OptionalLeafNode
-from ethereum.cancun.fork_types import Address
+from ethereum.cancun.fork_types import Address, TupleAddressBytes32U256DictAccess
 from ethereum.cancun.trie import Bytes32U256DictAccess
 
 func test__process_account_diff{
     range_check_ptr, bitwise_ptr: BitwiseBuiltin*, poseidon_ptr: PoseidonBuiltin*
 }(
+    node_store: NodeStore,
     address_preimages: MappingBytes32Address,
+    storage_key_preimages: MappingBytes32Bytes32,
     path: Bytes32,
     left: OptionalLeafNode,
     right: OptionalLeafNode,
@@ -25,12 +28,15 @@ func test__process_account_diff{
     let (main_trie_start: AddressAccountNodeDictAccess*) = alloc();
     let main_trie_end = main_trie_start;
 
-    let (storage_trie_start: Bytes32U256DictAccess*) = alloc();
+    let (storage_trie_start: TupleAddressBytes32U256DictAccess*) = alloc();
     let storage_trie_end = storage_trie_start;
+
     _process_account_diff{
+        node_store=node_store,
         address_preimages=address_preimages,
+        storage_key_preimages=storage_key_preimages,
         main_trie_end=main_trie_end,
-        storage_trie_end=storage_trie_end,
+        storage_tries_end=storage_trie_end,
     }(path=path, left=left, right=right);
 
     return main_trie_start;
@@ -44,14 +50,14 @@ func test__process_storage_diff{
     address: Address,
     left: OptionalLeafNode,
     right: OptionalLeafNode,
-) -> Bytes32U256DictAccess* {
+) -> TupleAddressBytes32U256DictAccess* {
     alloc_locals;
 
-    let (storage_trie_start: Bytes32U256DictAccess*) = alloc();
-    let storage_trie_end = storage_trie_start;
+    let (storage_tries_start: TupleAddressBytes32U256DictAccess*) = alloc();
+    let storage_tries_end = storage_tries_start;
     _process_storage_diff{
-        storage_key_preimages=storage_key_preimages, storage_trie_end=storage_trie_end
+        storage_key_preimages=storage_key_preimages, storage_tries_end=storage_tries_end
     }(address=address, path=path, left=left, right=right);
 
-    return storage_trie_start;
+    return storage_tries_start;
 }

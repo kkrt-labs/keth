@@ -72,7 +72,7 @@ impl PyCairoRunner {
     ///   Python identifiers and program identifiers are not loaded to save memory and
     ///   initialization time.
     #[new]
-    #[pyo3(signature = (program, py_identifiers=None, program_input=None, layout=None, proof_mode=false, allow_missing_builtins=false, enable_traces=false, ordered_builtins=vec![]))]
+    #[pyo3(signature = (program, py_identifiers=None, program_input=None, layout=None, proof_mode=false, allow_missing_builtins=false, enable_traces=false, ordered_builtins=vec![], cairo_file=None))]
     fn new(
         program: &PyProgram,
         py_identifiers: Option<PyObject>,
@@ -82,6 +82,7 @@ impl PyCairoRunner {
         allow_missing_builtins: bool,
         enable_traces: bool,
         ordered_builtins: Vec<String>,
+        cairo_file: Option<PyObject>,
     ) -> PyResult<Self> {
         let layout = layout.unwrap_or_default().into_layout_name()?;
 
@@ -128,6 +129,12 @@ impl PyCairoRunner {
             if let Some(program_input) = program_input {
                 // Store the Python program input directly in the context
                 context.set_item("program_input", program_input).map_err(|e| {
+                    PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string())
+                })?;
+            }
+
+            if let Some(cairo_file) = cairo_file {
+                context.set_item("cairo_file", cairo_file).map_err(|e| {
                     PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string())
                 })?;
             }
@@ -659,7 +666,7 @@ pub fn run_proof_mode(
         // Store empty python identifiers directly in the context
         context
             .set_item("py_identifiers", PyDict::new(py))
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+            .map_err(|e: PyErr| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
 
         // Import and run the initialization code from the injected module
         let setup_code = r#"

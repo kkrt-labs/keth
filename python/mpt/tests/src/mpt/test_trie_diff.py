@@ -114,13 +114,11 @@ class TestTrieDiff:
             node_store=node_store,
             address_preimages=address_preimages,
             storage_key_preimages=storage_key_preimages,
-            main_trie_end=[],
-            storage_trie_end=[],
             left=ethereum_trie_transition_db.state_root,
             right=ethereum_trie_transition_db.post_state_root,
-            path=b"",
             account_address=None,
         )
+
         result_lookup = {
             dict_entry["key"]: (dict_entry["prev_value"], dict_entry["new_value"])
             for dict_entry in main_trie_diff_cairo
@@ -131,6 +129,26 @@ class TestTrieDiff:
             assert (prev_value, new_value) == result_lookup[key]
 
         # TODO: storage
+        storage_lookup = {
+            dict_entry["key"]["value"]: (
+                dict_entry["prev_value"],
+                dict_entry["new_value"],
+            )
+            for dict_entry in storage_trie_diff_cairo
+        }
+        addresses = state_diff._storage_tries.keys()
+        for address in addresses:
+            count = 0
+            for key, (prev_value, new_value) in state_diff._storage_tries[
+                address
+            ].items():
+                key = int_to_uint256(int.from_bytes(key, "little"))
+                key_hashed = poseidon_hash_many(
+                    (int.from_bytes(address, "little"), *key)
+                )
+                assert (prev_value, new_value) == storage_lookup[key_hashed]
+                count += 1
+            assert count == len(state_diff._storage_tries[address].keys())
 
     @pytest.mark.parametrize(
         "data_path", [Path("test_data/22081873.json")], scope="session"
@@ -247,14 +265,13 @@ class TestTrieDiff:
             result_diffs = [result_diffs]
 
         result_lookup = {
-            diff["key"]: (diff["prev_value"], diff["new_value"])
+            diff["key"]["value"]: (diff["prev_value"], diff["new_value"])
             for diff in result_diffs
         }
 
         for key, (prev_value, new_value) in diff_cls._storage_tries[address].items():
-            hashed_key = poseidon_hash_many(
-                int_to_uint256(int.from_bytes(key, "little"))
-            )
+            key = int_to_uint256(int.from_bytes(key, "little"))
+            hashed_key = poseidon_hash_many((int.from_bytes(address, "little"), *key))
             assert (prev_value, new_value) == result_lookup[hashed_key]
 
     @pytest.mark.parametrize(
@@ -328,7 +345,7 @@ class TestAccountNode:
         assert decoded == account_node
 
         # Cairo from rlp
-        cairo_decoded = cairo_run("AccountNode_from_rlp", encoding=rlp_encoded)
+        cairo_decoded, _ = cairo_run("AccountNode_from_rlp", encoding=rlp_encoded)
         assert cairo_decoded == account_node
 
 

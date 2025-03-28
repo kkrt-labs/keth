@@ -301,6 +301,7 @@ class TestSerde:
             AccountNode,
             Mapping[Bytes32, Address],
             Mapping[Hash32, Optional[InternalNode]],
+            Mapping[Bytes32, Bytes32],
         ],
     ):
         assume(no_empty_sequence(b))
