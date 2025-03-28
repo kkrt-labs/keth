@@ -27,6 +27,18 @@ from cairo_core.comparison import is_zero
 from ethereum.utils.numeric import min
 from legacy.utils.bytes import bytes_to_felt_le
 
+// / @notice Creates a deep copy of a Bytes object
+// / @dev Allocates new memory and copies the content of the original Bytes object
+// / @param _self The Bytes object to copy
+// / @return A new Bytes object with the same content but in a different memory location
+func Bytes__copy__(_self: Bytes) -> Bytes {
+    alloc_locals;
+    let (local buffer: felt*) = alloc();
+    memcpy(buffer, _self.value.data, _self.value.len);
+    tempvar copied = Bytes(new BytesStruct(data=buffer, len=_self.value.len));
+    return copied;
+}
+
 func Bytes__add__(_self: Bytes, other: Bytes) -> Bytes {
     alloc_locals;
     let (local buffer: felt*) = alloc();
