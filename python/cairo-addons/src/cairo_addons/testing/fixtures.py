@@ -11,7 +11,7 @@ The runner works with args_gen.py and serde.py for automatic type conversion.
 import json
 import logging
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import polars as pl
 import pytest
@@ -49,8 +49,8 @@ def cairo_program(request) -> Program:
 
 
 @pytest.fixture(scope="module")
-def line_to_pc_dfs(request) -> List[pl.DataFrame]:
-    return request.session.line_to_pc_df[request.node.fspath]
+def coverage_dataframes(request) -> List[pl.DataFrame]:
+    return request.session.coverage_dataframes[request.node.fspath]
 
 
 @pytest.fixture(scope="module")
@@ -103,7 +103,7 @@ def coverage(
 
     def _collect_coverage(
         cairo_file: Path,
-        line_to_pc_df: pl.DataFrame,
+        coverage_dataframes: Dict[str, pl.DataFrame],
         trace: pl.DataFrame,
     ) -> Optional[pl.DataFrame]:
         """
@@ -118,7 +118,9 @@ def coverage(
         Returns:
             The coverage DataFrame for this run, or None if debug info is missing.
         """
-        coverage_df = coverage_from_trace(str(cairo_file), line_to_pc_df, trace)
+        coverage_df = coverage_from_trace(
+            str(cairo_file), coverage_dataframes["line_to_pc"], trace
+        )
         reports.append(coverage_df)
         return coverage_df
 
@@ -130,40 +132,14 @@ def coverage(
         return
 
     # Aggregate coverage for each Cairo file
-    for cairo_file, cairo_program in zip(cairo_files, cairo_programs):
+    coverage_dataframes = request.session.coverage_dataframes[request.node.fspath]
+    for cairo_file, coverage_dataframe in zip(cairo_files, coverage_dataframes):
         # Get all possible statements (lines) from the program's debug info
-        all_statements = (
-            pl.DataFrame(
-                [
-                    {
-                        "filename": instruction.inst.input_file.filename,
-                        "line_number": i,
-                    }
-                    for instruction in cairo_program.debug_info.instruction_locations.values()
-                    # Filter out global scope (e.g., dw instructions)
-                    if len(instruction.accessible_scopes) > 1
-                    for i in range(
-                        instruction.inst.start_line, instruction.inst.end_line + 1
-                    )
-                ]
-            )
-            .lazy()
-            .with_columns(
-                filename=(
-                    pl.when(pl.col("filename") == "")
-                    .then(pl.lit(str(cairo_file)))
-                    .otherwise(pl.col("filename"))
-                ),
-                count=pl.lit(0, dtype=pl.UInt32),
-            )
-            .select(
-                ["count", "filename", "line_number"]
-            )  # Explicitly specify column order
-        )
+        all_statements = coverage_dataframe["all_statements"]
 
         # Concatenate all reports and merge with all statements
         all_coverages = (
-            pl.concat([all_statements, pl.concat(reports).lazy()])
+            pl.concat([all_statements.lazy(), pl.concat(reports).lazy()])
             .filter(
                 ~pl.col("filename").str.contains(".venv")
             )  # Exclude virtual env files
@@ -227,7 +203,7 @@ def cairo_run_py(
     cairo_programs,
     cairo_files,
     main_paths,
-    line_to_pc_dfs,
+    coverage_dataframes,
     coverage,
 ):
     """Run the cairo program using Python VM."""
@@ -235,7 +211,7 @@ def cairo_run_py(
         cairo_programs,
         cairo_files,
         main_paths,
-        line_to_pc_dfs,
+        coverage_dataframes,
         request,
         hint_locals={"get_op": get_op},
         coverage=coverage,
@@ -249,7 +225,7 @@ def cairo_run(
     rust_programs,
     cairo_files,
     main_paths,
-    line_to_pc_dfs,
+    coverage_dataframes,
     coverage,
     python_vm,
 ):
@@ -275,7 +251,7 @@ def cairo_run(
             cairo_programs,
             cairo_files,
             main_paths,
-            line_to_pc_dfs,
+            coverage_dataframes,
             request,
             coverage=coverage,
             hint_locals={"get_op": get_op},
@@ -286,7 +262,7 @@ def cairo_run(
         rust_programs,
         cairo_files,
         main_paths,
-        line_to_pc_dfs,
+        coverage_dataframes,
         request,
         coverage=coverage,
     )

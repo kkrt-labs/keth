@@ -32,7 +32,7 @@ from cairo_addons.testing.compiler import (
     get_main_path,
     resolve_cairo_file,
 )
-from cairo_addons.testing.coverage import line_to_pc_df
+from cairo_addons.testing.coverage import coverage_dataframes
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -216,7 +216,7 @@ def pytest_collection_modifyitems(session, config, items):
     session.cairo_files = {}
     session.cairo_programs = {}
     session.main_paths = {}
-    session.line_to_pc_df = {}
+    session.coverage_dataframes = {}
     cairo_items = [
         item
         for item in items
@@ -271,12 +271,7 @@ def pytest_collection_modifyitems(session, config, items):
             for file, main_path, dump_path in zip(files, main_paths, dump_paths)
         ]
         session.cairo_programs[fspath] = cairo_programs
-        if config.getoption("no_coverage"):
-            session.line_to_pc_df[fspath] = [None] * len(files)
-        else:
-            # TODO: holding these in memory, in each worker, causes high memory usage.
-            # dump them to disk instead.
-            session.line_to_pc_df[fspath] = line_to_pc_df(cairo_programs)
+        session.coverage_dataframes[fspath] = coverage_dataframes(cairo_programs, files)
 
     # Wait for all workers to finish
     missing = set(fspaths) - set(fspaths[worker_index::worker_count])
@@ -311,10 +306,9 @@ def pytest_collection_modifyitems(session, config, items):
                         )
                     ]
                     session.cairo_programs[fspath] = cairo_programs
-                    if config.getoption("no_coverage"):
-                        session.line_to_pc_df[fspath] = [None] * len(cairo_files)
-                    else:
-                        session.line_to_pc_df[fspath] = line_to_pc_df(cairo_programs)
+                    session.coverage_dataframes[fspath] = coverage_dataframes(
+                        cairo_programs, cairo_files
+                    )
                 else:
                     missing_new.add(fspath)
         missing = missing_new

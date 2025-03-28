@@ -16,7 +16,7 @@ from functools import partial
 from hashlib import md5
 from pathlib import Path
 from time import time_ns
-from typing import Callable, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 import polars as pl
 import starkware.cairo.lang.instances as LAYOUTS
@@ -152,7 +152,7 @@ def run_python_vm(
     cairo_programs: List[Program],
     cairo_files: List[Path],
     main_paths: List[Tuple[str, ...]],
-    line_to_pc_dfs: List[pl.DataFrame],
+    coverage_dataframes: List[Dict[str, pl.DataFrame]],
     request: FixtureRequest,
     coverage: Optional[Callable[[pl.DataFrame, int], pl.DataFrame]],
     hint_locals: Optional[dict] = None,
@@ -167,14 +167,14 @@ def run_python_vm(
         cairo_program = cairo_programs[0]
         cairo_file = cairo_files[0]
         main_path = main_paths[0]
-        line_to_pc_df = line_to_pc_dfs[0]
+        coverage_df_for_file = coverage_dataframes[0]
         try:
             cairo_program.get_label(entrypoint)
         except Exception:
             cairo_program = cairo_programs[1]
             cairo_file = cairo_files[1]
             main_path = main_paths[1]
-            line_to_pc_df = line_to_pc_dfs[1]
+            coverage_df_for_file = coverage_dataframes[1]
 
         _builtins, _implicit_args, _args, return_data_types = build_entrypoint(
             cairo_program, entrypoint, main_path, to_python_type
@@ -316,7 +316,7 @@ def run_python_vm(
                 [{"pc": x.pc, "ap": x.ap, "fp": x.fp} for x in runner.relocated_trace]
             )
             if not request.config.getoption("no_coverage"):
-                coverage(str(cairo_file), line_to_pc_df, trace)
+                coverage(str(cairo_file), coverage_df_for_file, trace)
             map_to_python_exception(e)
 
         # ============================================================================
@@ -360,7 +360,7 @@ def run_python_vm(
             [{"pc": x.pc, "ap": x.ap, "fp": x.fp} for x in runner.relocated_trace]
         )
         if not request.config.getoption("no_coverage"):
-            coverage(str(cairo_file), line_to_pc_df, trace)
+            coverage(str(cairo_file), coverage_df_for_file, trace)
 
         # Create a unique output stem for the given test by using the test file name, the entrypoint and the kwargs
         displayed_args = ""
@@ -458,7 +458,7 @@ def run_rust_vm(
     rust_programs: List[RustProgram],
     cairo_files: List[Path],
     main_paths: List[Tuple[str, ...]],
-    line_to_pc_dfs: List[pl.DataFrame],
+    coverage_dataframes: List[Dict[str, pl.DataFrame]],
     request: FixtureRequest,
     coverage: Optional[Callable[[pl.DataFrame, int], pl.DataFrame]],
 ):
@@ -473,7 +473,7 @@ def run_rust_vm(
         rust_program = rust_programs[0]
         cairo_file = cairo_files[0]
         main_path = main_paths[0]
-        line_to_pc_df = line_to_pc_dfs[0]
+        coverage_df_for_file = coverage_dataframes[0]
 
         try:
             cairo_program.get_label(entrypoint)
@@ -482,7 +482,7 @@ def run_rust_vm(
             rust_program = rust_programs[1]
             cairo_file = cairo_files[1]
             main_path = main_paths[1]
-            line_to_pc_df = line_to_pc_dfs[1]
+            coverage_df_for_file = coverage_dataframes[1]
 
         _builtins, _implicit_args, _args, return_data_types = build_entrypoint(
             cairo_program, entrypoint, main_path, to_python_type
@@ -593,7 +593,7 @@ def run_rust_vm(
         except Exception as e:
             runner.relocate()
             if not request.config.getoption("no_coverage"):
-                coverage(str(cairo_file), line_to_pc_df, runner.trace_df)
+                coverage(str(cairo_file), coverage_df_for_file, runner.trace_df)
             map_to_python_exception(e)
 
         # ============================================================================
@@ -624,7 +624,7 @@ def run_rust_vm(
         #   debugging, proof generation, or performance analysis.
         # ============================================================================
         if not request.config.getoption("no_coverage"):
-            coverage(str(cairo_file), line_to_pc_df, runner.trace_df)
+            coverage(str(cairo_file), coverage_df_for_file, runner.trace_df)
 
         # Create a unique output stem for the given test by using the test file name, the entrypoint and the kwargs
         displayed_args = ""
