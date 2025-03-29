@@ -280,6 +280,7 @@ def run_python_vm(
                     segments=runner.segments,
                     program_identifiers=cairo_program.identifiers,
                     dict_manager=dict_manager,
+                    cairo_file=cairo_file,
                 ),
                 "gen_arg": partial(
                     context["_gen_arg"],
@@ -504,6 +505,7 @@ def run_rust_vm(
             allow_missing_builtins=False,
             enable_traces=enable_traces,
             ordered_builtins=_builtins,
+            cairo_file=cairo_file,
         )
         serde = Serde(
             runner.segments, cairo_program.identifiers, runner.dict_manager, cairo_file

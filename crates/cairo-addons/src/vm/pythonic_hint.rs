@@ -321,7 +321,7 @@ impl PythonCodeInjector {
     /// Add serialization code
     fn with_serialize(mut self) -> Self {
         self.code_parts.push(r#"
-    serialize = partial(serialize, segments=segments, program_identifiers=py_identifiers, dict_manager=dict_manager)
+    serialize = partial(serialize, segments=segments, program_identifiers=py_identifiers, dict_manager=dict_manager, cairo_file=cairo_file)
 "#.trim().to_string());
         self
     }
