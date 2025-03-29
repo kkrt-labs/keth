@@ -303,10 +303,17 @@ class StateDiff:
                     # we know that l_node.key_segment is not empty
                     # as extension nodes key_segment len is at least 1
                     if l_node.key_segment[0] == nibble:
+                        if len(l_node.key_segment) == 1:
+                            # Fully consumed by this nibble: compare to the subnode
+                            l_node_to_compare = l_node.subnode
+                        else:
+                            l_node_to_compare = ExtensionNode(
+                                key_segment=Bytes(l_node.key_segment[1:]),
+                                subnode=l_node.subnode,
+                            )
                         # Remove the nibble from the extension key segment
-                        l_node.key_segment = l_node.key_segment[1:]
                         self._compute_diff(
-                            l_node.subnode,
+                            l_node_to_compare,
                             r_node.subnodes[i],
                             path + nibble,
                             process_leaf_diff,
@@ -319,6 +326,7 @@ class StateDiff:
                             path + nibble,
                             process_leaf_diff,
                         )
+                    return
 
             case (BranchNode(), None):
                 # Look for diffs in all branches of the left sub-tree

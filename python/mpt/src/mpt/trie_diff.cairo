@@ -893,11 +893,13 @@ func _left_is_leaf_node{
         let null_node = OptionalUnionInternalNodeExtended(
             cast(0, OptionalUnionInternalNodeExtendedEnum*)
         );
+
         // Compute diffs in the right sub-tree
         let updated_path_right = Bytes__add__(path, r_extension.value.key_segment);
         let r_subnode = OptionalUnionInternalNodeExtendedImpl.from_extended(
             r_extension.value.subnode
         );
+
         _compute_diff(
             left=null_node,
             right=r_subnode,
@@ -1091,10 +1093,12 @@ func _left_is_extension_node{
             let l_ext_typed = OptionalUnionInternalNodeExtendedImpl.from_extension(
                 shortened_left_ext
             );
-            let r_ext_typed = OptionalUnionInternalNodeExtendedImpl.from_extension(r_extension);
+            let r_subnode_typed = OptionalUnionInternalNodeExtendedImpl.from_extended(
+                r_extension.value.subnode
+            );
             return _compute_diff(
                 left=l_ext_typed,
-                right=r_ext_typed,
+                right=r_subnode_typed,
                 path=updated_path,
                 account_address=account_address,
             );
@@ -1122,7 +1126,9 @@ func _left_is_extension_node{
                 ),
             );
 
-            let l_ext_typed = OptionalUnionInternalNodeExtendedImpl.from_extension(left);
+            let l_ext_typed = OptionalUnionInternalNodeExtendedImpl.from_extended(
+                left.value.subnode
+            );
             let r_ext_typed = OptionalUnionInternalNodeExtendedImpl.from_extension(
                 shortened_right_ext
             );
@@ -1139,16 +1145,26 @@ func _left_is_extension_node{
             cast(0, OptionalUnionInternalNodeExtendedEnum*)
         );
 
-        let l_typed = OptionalUnionInternalNodeExtendedImpl.from_extension(left);
+        let l_subnode_typed = OptionalUnionInternalNodeExtendedImpl.from_extended(
+            left.value.subnode
+        );
         let updated_path_left = Bytes__add__(path, left.value.key_segment);
         _compute_diff(
-            left=l_typed, right=null_node, path=updated_path_left, account_address=account_address
+            left=l_subnode_typed,
+            right=null_node,
+            path=updated_path_left,
+            account_address=account_address,
         );
 
-        let r_typed = OptionalUnionInternalNodeExtendedImpl.from_extension(r_extension);
+        let r_subnode_typed = OptionalUnionInternalNodeExtendedImpl.from_extended(
+            r_extension.value.subnode
+        );
         let updated_path_right = Bytes__add__(path, r_extension.value.key_segment);
         _compute_diff(
-            left=null_node, right=r_typed, path=updated_path_right, account_address=account_address
+            left=null_node,
+            right=r_subnode_typed,
+            path=updated_path_right,
+            account_address=account_address,
         );
         return ();
     }
@@ -1366,6 +1382,7 @@ func _compute_left_branch_on_right_extension_node{
     let first_nib = right.value.key_segment.value.data[0];
     if (first_nib == index) {
         // Compare to the shortened extension node
+        // the length of the key segment is always _at least_ one in an extension
         tempvar extension = ExtensionNode(
             new ExtensionNodeStruct(
                 key_segment=Bytes(
@@ -1570,26 +1587,39 @@ func _compute_left_extension_node_diff_on_right_branch_node{
 
     // Two cases:
     // 1. The first nibble of the subnode matches the branch node's key segment, in which
-    // case we compare to the leaf node shortened by the nibble,
+    // case we compare to the extension node shortened by the nibble,
     // 2. It doesn't in which case we compare to None.
 
-    // Leaf node
     let l_extension = left.value.extension;
     let first_nib = l_extension.value.key_segment.value.data[0];
     if (first_nib == index) {
-        // Compare to the shortened extension node
-        tempvar extension = ExtensionNode(
-            new ExtensionNodeStruct(
-                key_segment=Bytes(
-                    new BytesStruct(
-                        data=l_extension.value.key_segment.value.data + 1,
-                        len=l_extension.value.key_segment.value.len - 1,
+        // Fully consumed by this nibble: compare to the subnode
+        if (l_extension.value.key_segment.value.len == 1) {
+            let node_to_compare_ = OptionalUnionInternalNodeExtendedImpl.from_extended(
+                l_extension.value.subnode
+            );
+            tempvar node_to_compare = node_to_compare_;
+        } else {
+            // Compare to the shortened extension node
+            tempvar shortened_extension = ExtensionNode(
+                new ExtensionNodeStruct(
+                    key_segment=Bytes(
+                        new BytesStruct(
+                            data=l_extension.value.key_segment.value.data + 1,
+                            len=l_extension.value.key_segment.value.len - 1,
+                        ),
                     ),
+                    subnode=l_extension.value.subnode,
                 ),
-                subnode=l_extension.value.subnode,
-            ),
+            );
+            let node_to_compare_ = OptionalUnionInternalNodeExtendedImpl.from_extension(
+                shortened_extension
+            );
+            tempvar node_to_compare = node_to_compare_;
+        }
+        let left_ = OptionalUnionInternalNodeExtended(
+            cast([ap - 1], OptionalUnionInternalNodeExtendedEnum*)
         );
-        let left_ = OptionalUnionInternalNodeExtendedImpl.from_extension(l_extension);
         tempvar left_to_compare_in_iter = left_;
     } else {
         // Compare to None
