@@ -166,16 +166,44 @@ class StateDiff:
 
                 # Different paths -> delete old leaf, create new leaf
                 path_left = nibble_list_to_bytes(path + l_node.rest_of_key)
-                process_leaf_diff(path=path_left, left=l_node, right=None)
-
                 path_right = nibble_list_to_bytes(path + r_node.rest_of_key)
+
+                process_leaf_diff(path=path_left, left=l_node, right=None)
                 process_leaf_diff(path=path_right, left=None, right=r_node)
                 return
+
+            case (LeafNode(), ExtensionNode()):
+                # Explore the extension node's subtree for any new leaves, comparing it to the old
+                # leaf with the same key
+                if l_node.rest_of_key.startswith(r_node.key_segment):
+                    l_node = LeafNode(
+                        l_node.rest_of_key[len(r_node.key_segment) :], l_node.value
+                    )
+                    return self._compute_diff(
+                        l_node,
+                        r_node.subnode,
+                        path + r_node.key_segment,
+                        process_leaf_diff,
+                    )
+
+                # Here we compute the deletion of the Leaf and creation of the ExtensionNode's children
+
+                path_left = nibble_list_to_bytes(path + l_node.rest_of_key)
+                process_leaf_diff(path=path_left, left=l_node, right=None)
+
+                # we explore the right sub-tree
+                self._compute_diff(
+                    None, r_node.subnode, path + r_node.key_segment, process_leaf_diff
+                )
 
             case (LeafNode(), BranchNode()):
                 # The branch was created and replaced the single leaf.
                 # All branches - except the one whose first nibble matches the leaf's key - are new.
                 for i in range(0, 16):
+                    # we know that l_node.rest_of_key is not empty
+                    # because it's a leaf node at the same height as a branch node
+                    # leaf nodes with empty rest_of_key are only found at the bottom of the trie
+                    # where branch nodes can't exist
                     if i != l_node.rest_of_key[0]:
                         self._compute_diff(
                             None,
@@ -194,16 +222,6 @@ class StateDiff:
                             process_leaf_diff,
                         )
 
-            case (LeafNode(), ExtensionNode()):
-                # Explore the extension node's subtree for any new leaves, comparing it to the old
-                # leaf with the same key
-                l_node = LeafNode(
-                    l_node.rest_of_key[len(r_node.key_segment) :], l_node.value
-                )
-                self._compute_diff(
-                    l_node, r_node.subnode, path + r_node.key_segment, process_leaf_diff
-                )
-
             case (ExtensionNode(), None):
                 # Look for diffs in the left sub-tree
                 self._compute_diff(
@@ -213,11 +231,25 @@ class StateDiff:
             case (ExtensionNode(), LeafNode()):
                 # The extension node was deleted and replaced by a leaf - meaning that down the line of the extension node, in a branch, we deleted some nodes.
                 # Explore the extension node's subtree for any deleted nodes, comparing it to the new leaf
-                r_node = LeafNode(
-                    r_node.rest_of_key[len(l_node.key_segment) :], r_node.value
-                )
+                if r_node.rest_of_key.startswith(l_node.key_segment):
+                    r_node = LeafNode(
+                        r_node.rest_of_key[len(l_node.key_segment) :], r_node.value
+                    )
+                    self._compute_diff(
+                        l_node.subnode,
+                        r_node,
+                        path + l_node.key_segment,
+                        process_leaf_diff,
+                    )
+                    return
+
+                # Here we compute the creation of a new leaf node and the deletion of the extension node's children
+                path_right = nibble_list_to_bytes(path + r_node.rest_of_key)
+                process_leaf_diff(path=path_right, left=None, right=r_node)
+
+                # we explore the left sub-tree
                 self._compute_diff(
-                    l_node.subnode, r_node, path + l_node.key_segment, process_leaf_diff
+                    l_node.subnode, None, path + l_node.key_segment, process_leaf_diff
                 )
 
             case (ExtensionNode(), ExtensionNode()):
@@ -268,6 +300,8 @@ class StateDiff:
                 # Match on the corresponding nibble of the extension key segment
                 for i in range(0, 16):
                     nibble = bytes([i])
+                    # we know that l_node.key_segment is not empty
+                    # as extension nodes key_segment len is at least 1
                     if l_node.key_segment[0] == nibble:
                         # Remove the nibble from the extension key segment
                         l_node.key_segment = l_node.key_segment[1:]
@@ -301,6 +335,10 @@ class StateDiff:
                 # All branches - except the one whose first nibble matches the leaf's key - are deleted.
                 # The remaining branch is compared to the leaf.
                 for i in range(0, 16):
+                    # we know that r_node.rest_of_key is not empty
+                    # because it's a leaf node at the same height as a branch node
+                    # leaf nodes with empty rest_of_key are only found at the bottom of the trie
+                    # where branch nodes can't exist
                     if i != r_node.rest_of_key[0]:
                         self._compute_diff(
                             l_node.subnodes[i],
@@ -323,6 +361,8 @@ class StateDiff:
                 # Match on the corresponding nibble of the extension key segment
                 for i in range(0, 16):
                     nibble = bytes([i])
+                    # we know that r_node.key_segment is not empty
+                    # as extension nodes key_segment len is at least 1
                     if r_node.key_segment[0] == nibble:
                         # Remove the nibble from the extension key segment
                         r_node.key_segment = r_node.key_segment[1:]
