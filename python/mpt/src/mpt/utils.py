@@ -135,3 +135,17 @@ def nibble_path_to_hex(nibble_path: Bytes) -> str:
     Convert a nibble path to a hex string.
     """
     return "0x" + nibble_list_to_bytes(nibble_path).hex()
+
+
+def check_branch_node(node: BranchNode) -> None:
+    """
+    Check that a branch node is valid.
+    """
+    if len(node.subnodes) < 2:
+        raise ValueError("Invalid branch node, expected at least two non-null subnodes")
+
+    non_null_subnodes = [
+        subnode for subnode in node.subnodes if subnode is not None and subnode != b""
+    ]
+    if len(non_null_subnodes) < 2:
+        raise ValueError("Invalid branch node, expected at least two non-null subnodes")
