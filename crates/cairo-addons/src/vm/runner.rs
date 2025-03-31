@@ -668,6 +668,9 @@ pub fn run_proof_mode(
             .set_item("py_identifiers", PyDict::new(py))
             .map_err(|e: PyErr| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
 
+        // We don't need `serialize` to be available in the context - inject a None value.
+        context.set_item("cairo_file", Option::<String>::None)?;
+
         // Import and run the initialization code from the injected module
         let setup_code = r#"
 try:

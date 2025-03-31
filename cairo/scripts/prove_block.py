@@ -7,20 +7,59 @@ import argparse
 import json
 import logging
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Sequence, Union
 
-from ethereum.cancun.blocks import Block, Withdrawal
-from ethereum.cancun.fork import BlockChain, apply_body, get_last_256_block_hashes
-from ethereum.cancun.fork_types import Address
-from ethereum.cancun.transactions import LegacyTransaction
-from ethereum.cancun.vm.gas import calculate_excess_blob_gas
-from ethereum.utils.hexadecimal import hex_to_bytes, hex_to_u256, hex_to_uint
-from ethereum_spec_tools.evm_tools.loaders.fixture_loader import Load
-from ethereum_types.bytes import Bytes, Bytes0, Bytes32
-from ethereum_types.numeric import U64, U256
+import ethereum
+import ethereum_rlp
+from ethereum_types.numeric import FixedUnsigned, Uint
 
-from cairo_addons.vm import run_proof_mode
-from tests.ef_tests.helpers.load_state_tests import prepare_state
+import mpt
+from tests.utils.args_gen import (
+    EMPTY_ACCOUNT,
+    Account,
+    Environment,
+    Evm,
+    Message,
+    MessageCallOutput,
+    Node,
+)
+
+# Patch EELS with our own types for argument generation
+ethereum.cancun.vm.Evm = Evm
+ethereum.cancun.vm.Message = Message
+ethereum.cancun.vm.Environment = Environment
+ethereum.cancun.vm.interpreter.MessageCallOutput = MessageCallOutput
+ethereum.cancun.fork_types.Account = Account
+ethereum.cancun.fork_types.EMPTY_ACCOUNT = EMPTY_ACCOUNT
+ethereum.cancun.trie.Node = Node
+ethereum_rlp.rlp.Extended = Union[Sequence["Extended"], bytearray, bytes, Uint, FixedUnsigned, str, bool]  # type: ignore # noqa: F821
+
+# See explanation in conftest.py. Lots of EELS modules import `Account` and `EMPTY_ACCOUNT` from `ethereum.cancun.fork_types`.
+# I think these modules get loaded before this patch is applied. Thus we must replace them manually.
+setattr(ethereum.cancun.trie, "Account", Account)
+setattr(ethereum.cancun.state, "Account", Account)
+setattr(ethereum.cancun.state, "EMPTY_ACCOUNT", EMPTY_ACCOUNT)
+setattr(ethereum.cancun.fork_types, "EMPTY_ACCOUNT", EMPTY_ACCOUNT)
+setattr(ethereum.cancun.vm.instructions.environment, "EMPTY_ACCOUNT", EMPTY_ACCOUNT)
+setattr(mpt.utils, "Account", Account)
+setattr(ethereum.cancun.trie, "Node", Node)
+
+from ethereum.cancun.blocks import Block, Withdrawal  # noqa
+from ethereum.cancun.fork import (  # noqa
+    BlockChain,
+    apply_body,
+    get_last_256_block_hashes,
+)
+from ethereum.cancun.fork_types import Address  # noqa
+from ethereum.cancun.transactions import LegacyTransaction  # noqa
+from ethereum.cancun.vm.gas import calculate_excess_blob_gas  # noqa
+from ethereum.utils.hexadecimal import hex_to_bytes, hex_to_u256, hex_to_uint  # noqa
+from ethereum_spec_tools.evm_tools.loaders.fixture_loader import Load  # noqa
+from ethereum_types.bytes import Bytes, Bytes0, Bytes32  # noqa
+from ethereum_types.numeric import U64, U256  # noqa
+
+from cairo_addons.vm import run_proof_mode  # noqa
+from tests.ef_tests.helpers.load_state_tests import prepare_state  # noqa
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
