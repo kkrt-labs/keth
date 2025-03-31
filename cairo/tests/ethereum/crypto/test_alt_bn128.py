@@ -312,8 +312,6 @@ segments.load_data(ids.b_inv.address_, [bnf2_struct_ptr])
                 with cairo_error(message="OverflowError"):  # Hint error
                     cairo_run_py("miller_loop", p, q)
                 return
-
-            expected = miller_loop(q, p) ** GARAGA_COFACTOR
             assert cairo_run_py("miller_loop", q, p) == expected
 
         @given(p=...)
