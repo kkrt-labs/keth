@@ -12,9 +12,9 @@ class TestUtils:
         assert nibble_list_to_bytes(bytes_to_nibble_list(bytes)) == bytes
 
     @given(branch_node=...)
-    def test_check_branch_node(self, cairo_run_py, branch_node: BranchNode):
+    def test_check_branch_node(self, cairo_run, branch_node: BranchNode):
         try:
-            cairo_run_py("check_branch_node", branch_node)
+            cairo_run("check_branch_node", branch_node)
         except ValueError as cairo_error:
             with strict_raises(type(cairo_error)):
                 check_branch_node(branch_node)

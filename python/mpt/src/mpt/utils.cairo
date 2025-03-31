@@ -136,7 +136,7 @@ func check_branch_node(node: BranchNode) {
     local seconds_non_null_branch;
     let subnodes_ptr = cast(node.value.subnodes.value, felt*);
     %{
-        non_null_branches = [memory[ids.subnodes_ptr + idx] for idx in range(16) if (memory[ids.subnodes_ptr + idx] != 0 and memory[memory[ids.subnodes_ptr + idx] + 2] + 1 != 0)]
+        non_null_branches = [memory[ids.subnodes_ptr + idx] for idx in range(16) if (memory[ids.subnodes_ptr + idx] and memory[memory[memory[ids.subnodes_ptr + idx] + 2] + 1] != 0)]
         ids.first_non_null_branch, ids.seconds_non_null_branch = non_null_branches[0:2]
     %}
     // Check that the first subnode is not None and not empty
