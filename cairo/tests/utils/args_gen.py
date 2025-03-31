@@ -445,6 +445,20 @@ class FlatState:
 
 
 @dataclass
+class AddressAccountNodeDiffEntry:
+    key: Address
+    prev_value: AccountNode
+    new_value: AccountNode
+
+
+@dataclass
+class StorageDiffEntry:
+    key: int
+    prev_value: U256
+    new_value: U256
+
+
+@dataclass
 class FlatTransientStorage:
     """A version of the TransientStorage class that has flattened storage tries.
     The keys of the storage tries are of type Tuple[Address, Bytes32]
@@ -795,9 +809,15 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("mpt", "trie_diff", "AccountNode"): AccountNode,
     ("mpt", "trie_diff", "NodeStore"): Mapping[Hash32, Optional[InternalNode]],
     ("cairo_core", "bytes", "HashedBytes32"): int,
+    ("mpt", "trie_diff", "UnionInternalNodeExtended"): Union[InternalNode, Extended],
     ("mpt", "trie_diff", "OptionalUnionInternalNodeExtended"): Optional[
         Union[InternalNode, Extended]
     ],
+    ("mpt", "trie_diff", "AddressAccountNodeDiffEntry"): AddressAccountNodeDiffEntry,
+    ("mpt", "trie_diff", "AccountDiff"): List[AddressAccountNodeDiffEntry],
+    ("mpt", "trie_diff", "StorageDiffEntry"): StorageDiffEntry,
+    ("mpt", "trie_diff", "StorageDiff"): List[StorageDiffEntry],
+    ("ethereum", "cancun", "fork_types", "HashedTupleAddressBytes32"): Uint,
 }
 
 # In the EELS, some functions are annotated with Sequence while it's actually just Bytes.

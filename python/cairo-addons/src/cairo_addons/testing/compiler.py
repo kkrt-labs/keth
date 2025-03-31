@@ -125,6 +125,7 @@ def get_main_path(cairo_file: Optional[Path]) -> Optional[Tuple[str, ...]]:
 
     # Remove cairo/ prefix if present
     rel_path_str = rel_path_str.replace("cairo/", "")
+
     return tuple(rel_path_str.split("/"))
 
 
