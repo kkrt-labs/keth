@@ -35,6 +35,53 @@ struct BNF {
     value: BNFStruct*,
 }
 
+func BNF_ZERO() -> BNF {
+    let (u384_zero) = get_label_location(U384_ZERO);
+    let u384_zero_ptr = cast(u384_zero, UInt384*);
+    tempvar res = BNF(new BNFStruct(U384(u384_zero_ptr)));
+    return res;
+}
+
+func BNF__eq__{range_check96_ptr: felt*}(a: BNF, b: BNF) -> felt {
+    let result = U384__eq__(a.value.c0, b.value.c0);
+    return result.value;
+}
+
+func bnf_mul{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
+    a: BNF, b: BNF
+) -> BNF {
+    tempvar modulus = U384(new UInt384(alt_bn128.P0, alt_bn128.P1, alt_bn128.P2, alt_bn128.P3));
+    let result = mul(a.value.c0, b.value.c0, modulus);
+    tempvar res = BNF(new BNFStruct(result));
+    return res;
+}
+
+func bnf_div{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
+    a: BNF, b: BNF
+) -> BNF {
+    alloc_locals;
+    let (__fp__, _) = get_fp_and_pc();
+    local b_inv: BNF;
+
+    %{ bnf_multiplicative_inverse %}
+
+    let res = bnf_mul(b, b_inv);
+    tempvar bnf_one = BNF(new BNFStruct(U384(new UInt384(1, 0, 0, 0))));
+    let is_inv = BNF__eq__(res, bnf_one);
+    assert is_inv = 1;
+
+    return bnf_mul(a, b_inv);
+}
+
+func bnf_sub{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
+    a: BNF, b: BNF
+) -> BNF {
+    tempvar modulus = U384(new UInt384(alt_bn128.P0, alt_bn128.P1, alt_bn128.P2, alt_bn128.P3));
+    let result = sub(a.value.c0, b.value.c0, modulus);
+    tempvar res = BNF(new BNFStruct(result));
+    return res;
+}
+
 // Quadratic extension field of BNF.
 // BNF elements are 2-dimensional.
 struct BNF2Struct {
@@ -195,6 +242,14 @@ func bnp2_point_at_infinity() -> BNP2 {
     let bnf2_zero = BNF2_ZERO();
     tempvar res = BNP2(new BNP2Struct(bnf2_zero, bnf2_zero));
     return res;
+}
+
+func BNP2__eq__{range_check96_ptr: felt*}(p: BNP2, q: BNP2) -> felt {
+    alloc_locals;
+    let is_x_equal = BNF2__eq__(p.value.x, q.value.x);
+    let is_y_equal = BNF2__eq__(p.value.y, q.value.y);
+    let result = is_x_equal * is_y_equal;
+    return result;
 }
 
 func bnp2_init{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
@@ -1453,6 +1508,22 @@ struct BNP {
     value: BNPStruct*,
 }
 
+func BNP__eq__{range_check96_ptr: felt*}(p: BNP, q: BNP) -> felt {
+    alloc_locals;
+    let is_x_equal = BNF__eq__(p.value.x, q.value.x);
+    let is_y_equal = BNF__eq__(p.value.y, q.value.y);
+    let result = is_x_equal * is_y_equal;
+    return result;
+}
+
+func bnp_point_at_infinity() -> BNP {
+    alloc_locals;
+
+    let bnf_zero = BNF_ZERO();
+    tempvar res = BNP(new BNPStruct(bnf_zero, bnf_zero));
+    return res;
+}
+
 // Returns a BNP, a point that is verified to be on the alt_bn128 curve over Fp.
 func bnp_init{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
     x: BNF, y: BNF
@@ -1466,6 +1537,157 @@ func bnp_init{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: M
 
     tempvar res = BNP(new BNPStruct(x, y));
     return res;
+}
+
+func bnp_double{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
+    p: BNP
+) -> BNP {
+    alloc_locals;
+
+    let infinity = bnp_point_at_infinity();
+    let p_inf = BNP__eq__(p, infinity);
+    if (p_inf == 1) {
+        return infinity;
+    }
+
+    // Point doubling formula for Alt-BN128 (a = 0):
+    // λ = (3x²) / (2y)
+    // x' = λ² - 2x
+    // y' = λ(x - x') - y
+
+    // Calculate λ = (3x²) / (2y)
+    let x_squared = bnf_mul(p.value.x, p.value.x);
+    tempvar three = BNF(new BNFStruct(U384(new UInt384(3, 0, 0, 0))));
+    let three_x_squared = bnf_mul(three, x_squared);
+    tempvar two = BNF(new BNFStruct(U384(new UInt384(2, 0, 0, 0))));
+    let two_y = bnf_mul(two, p.value.y);
+    let lambda = bnf_div(three_x_squared, two_y);
+
+    // Calculate x' = λ² - 2x
+    let lambda_squared = bnf_mul(lambda, lambda);
+    let two_x = bnf_mul(two, p.value.x);
+    let new_x = bnf_sub(lambda_squared, two_x);
+
+    // Calculate y' = λ(x - x') - y
+    let x_diff = bnf_sub(p.value.x, new_x);
+    let lambda_x_diff = bnf_mul(lambda, x_diff);
+    let new_y = bnf_sub(lambda_x_diff, p.value.y);
+
+    // Return the resulting point
+    tempvar res = BNP(new BNPStruct(new_x, new_y));
+    return res;
+}
+
+// Add two points on the base curve
+func bnp_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
+    p: BNP, q: BNP
+) -> BNP {
+    alloc_locals;
+
+    let infinity = bnp_point_at_infinity();
+    let p_inf = BNP__eq__(p, infinity);
+    if (p_inf == 1) {
+        return q;
+    }
+
+    let q_inf = BNP__eq__(q, infinity);
+    if (q_inf == 1) {
+        return p;
+    }
+
+    let x_equal = BNF__eq__(p.value.x, q.value.x);
+    if (x_equal == 1) {
+        let y_equal = BNF__eq__(p.value.y, q.value.y);
+        if (y_equal == 1) {
+            return bnp_double(p);
+        }
+        let res = bnp_point_at_infinity();
+        return res;
+    }
+
+    // Standard case: compute point addition using the formula:
+    // λ = (q.y - p.y) / (q.x - p.x)
+    // x_r = λ^2 - p.x - q.x
+    // y_r = λ(p.x - x_r) - p.y
+
+    // Calculate λ = (q.y - p.y) / (q.x - p.x)
+    let y_diff = bnf_sub(q.value.y, p.value.y);
+    let x_diff = bnf_sub(q.value.x, p.value.x);
+    let lambda = bnf_div(y_diff, x_diff);
+
+    // Calculate x_r = λ^2 - p.x - q.x
+    let lambda_squared = bnf_mul(lambda, lambda);
+    let x_sub = bnf_sub(lambda_squared, p.value.x);
+    let x_r = bnf_sub(x_sub, q.value.x);
+
+    // Calculate y_r = λ(p.x - x_r) - p.y
+    let x_diff_r = bnf_sub(p.value.x, x_r);
+    let lambda_times_x_diff = bnf_mul(lambda, x_diff_r);
+    let y_r = bnf_sub(lambda_times_x_diff, p.value.y);
+
+    // Return the new point
+    tempvar result = BNP(new BNPStruct(x_r, y_r));
+    return result;
+}
+
+// Implementation of scalar multiplication for BNP
+// Uses the double-and-add algorithm
+func bnp_mul_by{
+    range_check_ptr, range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
+}(p: BNP, n: U384) -> BNP {
+    alloc_locals;
+    let n_is_zero = U384_is_zero(n);
+    if (n_is_zero != 0) {
+        let res = bnp_point_at_infinity();
+        return res;
+    }
+
+    let bnf_zero = BNF_ZERO();
+    let x_is_zero = BNF__eq__(p.value.x, bnf_zero);
+    let y_is_zero = BNF__eq__(p.value.y, bnf_zero);
+    if (x_is_zero != 0 and y_is_zero != 0) {
+        return p;
+    }
+
+    // Extract the bits of n
+    let (bits_ptr, bits_len) = get_u384_bits_little(n);
+
+    // Initialize result as the point at infinity
+    let result = bnp_point_at_infinity();
+
+    // Implement the double-and-add algorithm
+    return bnp_mul_by_bits(p, bits_ptr, bits_len, 0, result);
+}
+
+func bnp_mul_by_bits{
+    range_check_ptr, range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
+}(p: BNP, bits_ptr: felt*, bits_len: felt, current_bit: felt, result: BNP) -> BNP {
+    alloc_locals;
+
+    if (current_bit == bits_len) {
+        return result;
+    }
+    let bit_value = bits_ptr[current_bit];
+
+    // If the bit is 1, add p to the result
+    if (bit_value != 0) {
+        let new_result = bnp_add(result, p);
+        tempvar new_result = new_result;
+        tempvar range_check96_ptr = range_check96_ptr;
+        tempvar add_mod_ptr = add_mod_ptr;
+        tempvar mul_mod_ptr = mul_mod_ptr;
+    } else {
+        tempvar new_result = result;
+        tempvar range_check96_ptr = range_check96_ptr;
+        tempvar add_mod_ptr = add_mod_ptr;
+        tempvar mul_mod_ptr = mul_mod_ptr;
+    }
+    let new_result = new_result;
+
+    // Double the point for the next iteration
+    let doubled_p = bnp_double(p);
+
+    return bnp_mul_by_bits(doubled_p, bits_ptr, bits_len, current_bit + 1, new_result);
 }
 
 // alt_bn128 curve defined over BNF12

@@ -5,6 +5,31 @@ from cairo_addons.hints.decorator import register_hint
 
 
 @register_hint
+def bnf_multiplicative_inverse(ids: VmConsts, segments: MemorySegmentManager):
+    from ethereum.crypto.alt_bn128 import BNF
+
+    from cairo_addons.utils.uint384 import int_to_uint384, uint384_to_int
+
+    # Extract the value from the BNF element
+    b_val = uint384_to_int(
+        ids.b.value.c0.value.d0,
+        ids.b.value.c0.value.d1,
+        ids.b.value.c0.value.d2,
+        ids.b.value.c0.value.d3,
+    )
+
+    # Create a BNF element and calculate its inverse
+    b = BNF(b_val)
+    b_inv = b.multiplicative_inverse()
+
+    # Store the result in the b_inv variable
+    bnf_struct_ptr = segments.add()
+    b_inv_ptr = segments.gen_arg(int_to_uint384(int(b_inv)))
+    segments.load_data(bnf_struct_ptr, [b_inv_ptr])
+    segments.load_data(ids.b_inv.address_, [bnf_struct_ptr])
+
+
+@register_hint
 def bnf2_multiplicative_inverse(ids: VmConsts, segments: MemorySegmentManager):
     from ethereum.crypto.alt_bn128 import BNF2
 
