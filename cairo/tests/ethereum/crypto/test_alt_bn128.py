@@ -302,6 +302,7 @@ segments.load_data(ids.b_inv.address_, [bnf2_struct_ptr])
 
         @given(p=..., q=...)
         @settings(max_examples=1)
+        @pytest.mark.slow
         # Currently, running on the Python CairoVM,
         # this test takes about 20 minutes per example...
         def test_miller_loop(self, cairo_run_py, p: BNP12, q: BNP12):
@@ -324,6 +325,7 @@ segments.load_data(ids.b_inv.address_, [bnf2_struct_ptr])
 
         @given(p=..., q=...)
         @settings(max_examples=1)
+        @pytest.mark.slow
         # Currently, running on the Python CairoVM,
         # this test takes about 20 minutes per example...
         def test_pairing(self, cairo_run_py, p: BNP, q: BNP2):
