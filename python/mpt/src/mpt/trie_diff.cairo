@@ -1090,15 +1090,15 @@ func _left_is_extension_node{
                 ),
             );
 
-            let l_ext_typed = OptionalUnionInternalNodeExtendedImpl.from_extension(
+            let l_shortened = OptionalUnionInternalNodeExtendedImpl.from_extension(
                 shortened_left_ext
             );
-            let r_subnode_typed = OptionalUnionInternalNodeExtendedImpl.from_extended(
+            let r_subnode = OptionalUnionInternalNodeExtendedImpl.from_extended(
                 r_extension.value.subnode
             );
             return _compute_diff(
-                left=l_ext_typed,
-                right=r_subnode_typed,
+                left=l_shortened,
+                right=r_subnode,
                 path=updated_path,
                 account_address=account_address,
             );
@@ -1126,15 +1126,13 @@ func _left_is_extension_node{
                 ),
             );
 
-            let l_ext_typed = OptionalUnionInternalNodeExtendedImpl.from_extended(
-                left.value.subnode
-            );
-            let r_ext_typed = OptionalUnionInternalNodeExtendedImpl.from_extension(
+            let l_subnode = OptionalUnionInternalNodeExtendedImpl.from_extended(left.value.subnode);
+            let r_shortened = OptionalUnionInternalNodeExtendedImpl.from_extension(
                 shortened_right_ext
             );
             return _compute_diff(
-                left=l_ext_typed,
-                right=r_ext_typed,
+                left=l_subnode,
+                right=r_shortened,
                 path=updated_path,
                 account_address=account_address,
             );

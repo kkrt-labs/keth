@@ -264,9 +264,14 @@ class StateDiff:
                 # Right is prefix of left
                 elif l_node.key_segment.startswith(r_node.key_segment):
                     # Compare the right node's value with the left node shortened by right key
-                    l_node.key_segment = l_node.key_segment[len(r_node.key_segment) :]
+                    l_node_shortened = ExtensionNode(
+                        key_segment=Bytes(
+                            l_node.key_segment[len(r_node.key_segment) :]
+                        ),
+                        subnode=l_node.subnode,
+                    )
                     self._compute_diff(
-                        l_node,
+                        l_node_shortened,
                         r_node.subnode,
                         path + r_node.key_segment,
                         process_leaf_diff,
@@ -274,10 +279,15 @@ class StateDiff:
                 # Left is prefix of right
                 elif r_node.key_segment.startswith(l_node.key_segment):
                     # Compare the left node's value with the right node shortened by left key
-                    r_node.key_segment = r_node.key_segment[len(l_node.key_segment) :]
+                    r_node_shortened = ExtensionNode(
+                        key_segment=Bytes(
+                            r_node.key_segment[len(l_node.key_segment) :]
+                        ),
+                        subnode=r_node.subnode,
+                    )
                     self._compute_diff(
                         l_node.subnode,
-                        r_node,
+                        r_node_shortened,
                         path + l_node.key_segment,
                         process_leaf_diff,
                     )
@@ -326,7 +336,6 @@ class StateDiff:
                             path + nibble,
                             process_leaf_diff,
                         )
-                    return
 
             case (BranchNode(), None):
                 # Look for diffs in all branches of the left sub-tree
@@ -383,7 +392,7 @@ class StateDiff:
                     else:
                         # Look for diffs in other branches
                         self._compute_diff(
-                            l_node, None, path + nibble, process_leaf_diff
+                            l_node.subnodes[i], None, path + nibble, process_leaf_diff
                         )
 
             case (BranchNode(), BranchNode()):
