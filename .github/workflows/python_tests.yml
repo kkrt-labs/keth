@@ -40,7 +40,10 @@ jobs:
           uv run pytest -n ${{ inputs.parallelism }} --durations=0 -v -s --log-cli-level=DEBUG --no-skip-cached-tests ${{ inputs.pytest-add-params }}
 
       - name: Upload coverage
-        if: inputs.coverage-flags != ''
+        if:
+          inputs.coverage-flags != '' &&
+          (contains(github.event.pull_request.files.*.path, 'cairo/') ||
+          contains(github.event.pull_request.files.*.path, 'python/'))
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}

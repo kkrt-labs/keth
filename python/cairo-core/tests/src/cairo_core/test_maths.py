@@ -194,6 +194,8 @@ segments.write_arg(ids.output, bad)
             if len_ == 0
             else [int(bit) for bit in bin(value)[2:].zfill(len_)[::-1][:len_]]
         )
+        breakpoint()
         res = cairo_run_py("test__felt252_to_bits_rev", value=value, len=len_)
+        print(f"value: {value}, len_: {len_}, expected: {expected}, res: {res}")
 
         assert res == expected
