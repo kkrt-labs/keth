@@ -555,11 +555,15 @@ func felt252_to_bits_rev{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     }
 
     let output = &dst[0];
+    // last non-zero bit
     tempvar last_one: felt;
     %{ felt252_to_bits_rev %}
 
-    tempvar current_len = 0;
-    tempvar acc = 0;
+    // Start at the first non-zero bit
+    tempvar initial_acc = pow2(last_one) - 1;
+    %{ breakpoint() %}
+    tempvar current_len = last_one;
+    tempvar acc = initial_acc;
 
     loop:
     let current_len = [ap - 2];
@@ -584,13 +588,15 @@ func felt252_to_bits_rev{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
 
     end:
     // Case not full length of a felt: apply a mask on the value to verify
-    tempvar mask = pow256(len) - 1;
+    %{ breakpoint() %}
+    tempvar mask = pow2(len) - 1;
     assert bitwise_ptr.x = value;
     assert bitwise_ptr.y = mask;
     tempvar value_masked = bitwise_ptr.x_and_y;
     let bitwise_ptr = bitwise_ptr + BitwiseBuiltin.SIZE;
 
     with_attr error_message("felt252_to_bits_rev: bad output") {
+        %{ breakpoint() %}
         assert acc = value_masked;
     }
     return current_len;

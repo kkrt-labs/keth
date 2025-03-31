@@ -1,6 +1,6 @@
 import pytest
 from ethereum_types.numeric import U256
-from hypothesis import Verbosity, given, settings
+from hypothesis import Verbosity, given, reproduce_failure, settings
 from hypothesis import strategies as st
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 
@@ -185,11 +185,15 @@ segments.write_arg(ids.output, bad)
 
     @given(
         value=st.integers(min_value=2, max_value=2**248 - 1),
-        len=st.integers(min_value=0, max_value=50),
+        len_=st.integers(min_value=0, max_value=50),
     )
-    def test_felt252_to_bits_rev(self, cairo_run_py, value, len):
-        expected = list() if len == 0 else [int(bit) for bit in bin(value)[2:].zfill(len)[::-1]]
-        print("value ", value, "len ", len, "expected ", expected)
-        res = cairo_run_py("test__felt252_to_bits_rev", value=value, len=len)
+    @reproduce_failure("6.128.2", b"AF8fV/TUgX0MfjY/mMegjqiUM4OgUFZfe82itvEUTUnrtkEb")
+    def test_felt252_to_bits_rev(self, cairo_run_py, value, len_):
+        expected = (
+            list()
+            if len_ == 0
+            else [int(bit) for bit in bin(value)[2:].zfill(len_)[::-1][:len_]]
+        )
+        res = cairo_run_py("test__felt252_to_bits_rev", value=value, len=len_)
 
         assert res == expected
