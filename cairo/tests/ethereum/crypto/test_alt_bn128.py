@@ -10,6 +10,8 @@ from ethereum.crypto.alt_bn128 import (
     BNP12,
     bnf2_to_bnf12,
     linefunc,
+    miller_loop,
+    pairing,
 )
 from hypothesis import assume, given, settings
 
@@ -19,7 +21,7 @@ from cairo_ec.curve import AltBn128
 from tests.utils.args_gen import U384
 
 # https://github.com/keep-starknet-strange/garaga/blob/704a8c66bf85b965851a117c6b116fc7a11329db/hydra/garaga/definitions.py#L346
-# see test_bnp12_final_exponentiation
+# see test_bnf12_final_exponentiation
 GARAGA_COFACTOR = 0x3BEC47DF15E307C81EA96B02D9D9E38D2E5D4E223DDEDAF4
 
 
@@ -263,9 +265,9 @@ segments.load_data(ids.b_inv.address_, [bnf2_struct_ptr])
         @given(a=...)
         @settings(max_examples=10)
         @pytest.mark.slow
-        def test_bnp12_final_exponentiation(self, cairo_run_py, a: BNF12):
+        def test_bnf12_final_exponentiation(self, cairo_run_py, a: BNF12):
             assume(a != BNF12.zero())
-            assert cairo_run_py("bnp12_final_exponentiation", a) == a ** (
+            assert cairo_run_py("bnf12_final_exponentiation", a) == a ** (
                 ((ALT_BN128_PRIME**12 - 1) // ALT_BN128_CURVE_ORDER) * GARAGA_COFACTOR
             )
 
@@ -297,3 +299,42 @@ segments.load_data(ids.b_inv.address_, [bnf2_struct_ptr])
                     cairo_run("linefunc", p1, p2, t)
                 return
             assert cairo_run("linefunc", p1, p2, t) == expected
+
+        @given(p=..., q=...)
+        @settings(max_examples=1)
+        @pytest.mark.slow
+        # Currently, running on the Python CairoVM,
+        # this test takes about 20 minutes per example...
+        def test_miller_loop(self, cairo_run_py, p: BNP12, q: BNP12):
+            assume(p.x != BNF12.zero())
+            assume(q.x != BNF12.zero())
+            try:
+                expected = miller_loop(q, p) ** GARAGA_COFACTOR
+            except OverflowError:  # fails for large points
+                with cairo_error(message="OverflowError"):  # Hint error
+                    cairo_run_py("miller_loop", q, p)
+                return
+            assert cairo_run_py("miller_loop", q, p) == expected
+
+        @given(p=...)
+        @settings(max_examples=10)
+        def test_miller_loop_zero(self, cairo_run_py, p: BNP12):
+            q = BNP12(BNF12.zero(), BNF12.zero())
+            assert cairo_run_py("miller_loop", q, p) == BNF12.from_int(1)
+            assert cairo_run_py("miller_loop", p, q) == BNF12.from_int(1)
+
+        @given(p=..., q=...)
+        @settings(max_examples=1)
+        @pytest.mark.slow
+        # Currently, running on the Python CairoVM,
+        # this test takes about 20 minutes per example...
+        def test_pairing(self, cairo_run_py, p: BNP, q: BNP2):
+            assume(p.x != BNF.zero())
+            assume(q.x != BNF2.zero())
+            try:
+                expected = pairing(q, p) ** GARAGA_COFACTOR
+            except OverflowError:  # fails for large points
+                with cairo_error(message="OverflowError"):  # Hint error
+                    cairo_run_py("pairing", q, p)
+                return
+            assert cairo_run_py("pairing", q, p) == expected
