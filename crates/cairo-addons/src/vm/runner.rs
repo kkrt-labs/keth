@@ -6,6 +6,7 @@ use crate::vm::{
     relocatable::PyRelocatable, run_resources::PyRunResources,
 };
 use bincode::enc::write::Writer;
+use cairo_air::verifier::verify_cairo;
 use cairo_vm::{
     cairo_run::{self, write_encoded_memory, write_encoded_trace, CairoRunConfig},
     hint_processor::builtin_hint_processor::dict_manager::DictManager,
@@ -40,10 +41,7 @@ use std::{
 };
 use stwo_cairo_adapter::ExecutionResources as ProverExecutionResources;
 use stwo_cairo_prover::{
-    cairo_air::{
-        prover::{default_prod_prover_parameters, prove_cairo, ProverParameters},
-        verifier::verify_cairo,
-    },
+    prover::{default_prod_prover_parameters, prove_cairo, ProverParameters},
     stwo_prover::core::vcs::blake2_merkle::Blake2sMerkleChannel,
 };
 use tracing_subscriber::{filter::EnvFilter, fmt::format::FmtSpan};

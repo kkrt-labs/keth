@@ -779,6 +779,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "cairo-air"
+version = "0.1.1"
+source = "git+https://github.com/starkware-libs/stwo-cairo?rev=c9a4ea197077c07df218bf0e088a636db052525d#c9a4ea197077c07df218bf0e088a636db052525d"
+dependencies = [
+ "bytemuck",
+ "cairo-lang-casm",
+ "cairo-vm",
+ "hex",
+ "itertools 0.12.1",
+ "num-traits",
+ "paste",
+ "rayon",
+ "serde",
+ "serde_json",
+ "starknet-curve 0.5.1",
+ "starknet-ff",
+ "starknet-types-core",
+ "stwo-air-utils",
+ "stwo-air-utils-derive",
+ "stwo-cairo-adapter",
+ "stwo-cairo-common",
+ "stwo-cairo-serialize",
+ "stwo-prover",
+ "thiserror 2.0.11",
+ "tracing",
+]
+
+[[package]]
 name = "cairo-lang-casm"
 version = "2.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -845,6 +873,7 @@ dependencies = [
  "ark-bn254 0.5.0",
  "ark-ff 0.5.0",
  "bincode",
+ "cairo-air",
  "cairo-vm",
  "chrono",
  "garaga_rs",
@@ -4595,7 +4624,7 @@ dependencies = [
 [[package]]
 name = "stwo-air-utils"
 version = "0.1.1"
-source = "git+https://github.com/starkware-libs/stwo?rev=434c47e#434c47e133e37af896a11d71c6f770df216c43b4"
+source = "git+https://github.com/starkware-libs/stwo?rev=8ab5601#8ab56011c0a6071c26a5539469172c815f814325"
 dependencies = [
  "bytemuck",
  "itertools 0.12.1",
@@ -4607,7 +4636,7 @@ dependencies = [
 [[package]]
 name = "stwo-air-utils-derive"
 version = "0.1.0"
-source = "git+https://github.com/starkware-libs/stwo?rev=434c47e#434c47e133e37af896a11d71c6f770df216c43b4"
+source = "git+https://github.com/starkware-libs/stwo?rev=8ab5601#8ab56011c0a6071c26a5539469172c815f814325"
 dependencies = [
  "itertools 0.13.0",
  "proc-macro2",
@@ -4618,7 +4647,7 @@ dependencies = [
 [[package]]
 name = "stwo-cairo-adapter"
 version = "0.1.0"
-source = "git+https://github.com/starkware-libs/stwo-cairo?rev=d01fb2cfdadf0f7ad9f62f2f5fcf96a3b26b86e3#d01fb2cfdadf0f7ad9f62f2f5fcf96a3b26b86e3"
+source = "git+https://github.com/starkware-libs/stwo-cairo?rev=c9a4ea197077c07df218bf0e088a636db052525d#c9a4ea197077c07df218bf0e088a636db052525d"
 dependencies = [
  "bytemuck",
  "cairo-lang-casm",
@@ -4637,7 +4666,7 @@ dependencies = [
 [[package]]
 name = "stwo-cairo-common"
 version = "0.1.0"
-source = "git+https://github.com/starkware-libs/stwo-cairo?rev=d01fb2cfdadf0f7ad9f62f2f5fcf96a3b26b86e3#d01fb2cfdadf0f7ad9f62f2f5fcf96a3b26b86e3"
+source = "git+https://github.com/starkware-libs/stwo-cairo?rev=c9a4ea197077c07df218bf0e088a636db052525d#c9a4ea197077c07df218bf0e088a636db052525d"
 dependencies = [
  "bytemuck",
  "itertools 0.12.1",
@@ -4654,7 +4683,7 @@ dependencies = [
 [[package]]
 name = "stwo-cairo-serialize"
 version = "0.1.0"
-source = "git+https://github.com/starkware-libs/stwo-cairo?rev=d01fb2cfdadf0f7ad9f62f2f5fcf96a3b26b86e3#d01fb2cfdadf0f7ad9f62f2f5fcf96a3b26b86e3"
+source = "git+https://github.com/starkware-libs/stwo-cairo?rev=c9a4ea197077c07df218bf0e088a636db052525d#c9a4ea197077c07df218bf0e088a636db052525d"
 dependencies = [
  "starknet-ff",
  "stwo-cairo-serialize-derive",
@@ -4664,7 +4693,7 @@ dependencies = [
 [[package]]
 name = "stwo-cairo-serialize-derive"
 version = "0.1.0"
-source = "git+https://github.com/starkware-libs/stwo-cairo?rev=d01fb2cfdadf0f7ad9f62f2f5fcf96a3b26b86e3#d01fb2cfdadf0f7ad9f62f2f5fcf96a3b26b86e3"
+source = "git+https://github.com/starkware-libs/stwo-cairo?rev=c9a4ea197077c07df218bf0e088a636db052525d#c9a4ea197077c07df218bf0e088a636db052525d"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4674,7 +4703,7 @@ dependencies = [
 [[package]]
 name = "stwo-prover"
 version = "0.1.1"
-source = "git+https://github.com/starkware-libs/stwo?rev=434c47e#434c47e133e37af896a11d71c6f770df216c43b4"
+source = "git+https://github.com/starkware-libs/stwo?rev=8ab5601#8ab56011c0a6071c26a5539469172c815f814325"
 dependencies = [
  "blake2",
  "blake3",
@@ -4696,9 +4725,10 @@ dependencies = [
 [[package]]
 name = "stwo_cairo_prover"
 version = "0.1.0"
-source = "git+https://github.com/starkware-libs/stwo-cairo?rev=d01fb2cfdadf0f7ad9f62f2f5fcf96a3b26b86e3#d01fb2cfdadf0f7ad9f62f2f5fcf96a3b26b86e3"
+source = "git+https://github.com/starkware-libs/stwo-cairo?rev=c9a4ea197077c07df218bf0e088a636db052525d#c9a4ea197077c07df218bf0e088a636db052525d"
 dependencies = [
  "bytemuck",
+ "cairo-air",
  "cairo-lang-casm",
  "cairo-vm",
  "hex",
