@@ -132,15 +132,15 @@ func deserialize_to_internal_node{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}
 func check_branch_node(node: BranchNode) {
     alloc_locals;
 
-    local first_non_null_branch;
-    local seconds_non_null_branch;
+    local first_non_null_index;
+    local second_non_null_index;
     let subnodes_ptr = cast(node.value.subnodes.value, felt*);
     %{
-        non_null_branches = [memory[ids.subnodes_ptr + idx] for idx in range(16) if (memory[ids.subnodes_ptr + idx] and memory[memory[memory[ids.subnodes_ptr + idx] + 2] + 1] != 0)]
-        ids.first_non_null_branch, ids.seconds_non_null_branch = non_null_branches[0:2]
+        non_null_branches = [idx for idx in range(16) if (memory[ids.subnodes_ptr + idx] and memory[memory[memory[ids.subnodes_ptr + idx] + 2] + 1] != 0)]
+        ids.first_non_null_index, ids.second_non_null_index = non_null_branches[0:2]
     %}
     // Check that the first subnode is not None and not empty
-    tempvar x = Extended(cast(first_non_null_branch, ExtendedEnum*));
+    tempvar x = Extended(cast(subnodes_ptr[first_non_null_index], ExtendedEnum*));
 
     if (cast(x.value, felt) == 0) {
         raise('ValueError');
@@ -150,7 +150,7 @@ func check_branch_node(node: BranchNode) {
     }
 
     // Check that the second subnode is not None and not empty
-    tempvar y = Extended(cast(seconds_non_null_branch, ExtendedEnum*));
+    tempvar y = Extended(cast(subnodes_ptr[second_non_null_index], ExtendedEnum*));
 
     if (cast(y.value, felt) == 0) {
         raise('ValueError');
