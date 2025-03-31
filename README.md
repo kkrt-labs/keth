@@ -78,7 +78,6 @@ uv run pytest -k get_u384_bits_little --profile-cairo
 ```bash
 # find the generated .prof file corresponding to your test execution
 ls cairo/tests/ethereum/utils/test_numeric*.prof
--rw-r--r--@ 1 kkrt  staff   692B 31 mar 13:20 cairo/tests/ethereum/utils/test_numeric_get_u384_bits_little__1743420052977473000_5593df42.prof
 ...
 -rw-r--r--@ 1 kkrt  staff   854B 31 mar 13:20 cairo/tests/ethereum/utils/test_numeric_get_u384_bits_little__1743420053085600000_5593df42.prof
 ```
