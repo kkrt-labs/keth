@@ -66,6 +66,12 @@ uv run pytest <optional pytest args>
 Some tests require to compile solidity code, which requires `forge` to be
 installed, and `foundry` to be in the path, and to run `forge build`.
 
+#### Profiling
+
+To generate a profiling graph, you can add `--profile-cairo` to your pytest
+command. Upon success, the corresponding profiling graph will be opened in your
+browser using `snakeviz`.
+
 #### Ethereum Foundation Tests
 
 We adapted the testing framework from the
