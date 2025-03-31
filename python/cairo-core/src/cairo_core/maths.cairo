@@ -555,6 +555,7 @@ func felt252_to_bits_rev{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     }
 
     let output = &dst[0];
+    tempvar last_one: felt;
     %{ felt252_to_bits_rev %}
 
     tempvar current_len = 0;

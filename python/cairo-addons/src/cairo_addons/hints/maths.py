@@ -47,4 +47,7 @@ def felt252_to_bits_rev(ids: VmConsts, segments: MemorySegmentManager):
     # Convert to binary representation and strip the leading '0b' prefix
     # also, pad with leading zeros if necessary (if value has less bits than len)
     binary = bin(value)[2:].zfill(ids.len)
+
+    last_one = len(binary) - binary.rfind("1") - 1
+
     segments.load_data(dst, [int(bit) for bit in binary][::-1])
