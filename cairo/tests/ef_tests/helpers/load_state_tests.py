@@ -1,6 +1,7 @@
 import json
 import os.path
 import re
+import traceback
 from collections import defaultdict
 from glob import glob
 from typing import Any, Dict, Generator, Tuple, Union
@@ -137,7 +138,8 @@ def add_block_to_chain(
         chain.blocks = cairo_chain.blocks
         chain.state = cairo_chain.state
     except Exception as e:
-        if "RunResources has no remaining steps" in str(e):
+        err_traceback = traceback.format_exc()
+        if "RunResources has no remaining steps" in str(err_traceback):
             raise pytest.skip("Step limit reached")
         # Run EELS to get its trace, then raise.
         if request.config.getoption("--log-cli-level") == "TRACE":
