@@ -1,6 +1,6 @@
 from collections import defaultdict
 from pathlib import Path
-from typing import Mapping, Optional, Union
+from typing import Dict, Mapping, Optional, Tuple, Union
 
 import pytest
 from ethereum.cancun.fork_types import Address
@@ -97,48 +97,42 @@ class TestTrieDiff:
 
         # Compare main trie
         for address, (cairo_prev, cairo_new) in trie_diff._main_trie.items():
-            python_prev, python_new = state_diff._main_trie.get(address, (None, None))
-            assert (
-                cairo_prev == python_prev
-            ), f"Mismatch in previous account state for {address.hex()}"
-            assert (
-                cairo_new == python_new
-            ), f"Mismatch in new account state for {address.hex()}"
+            python_prev, python_new = state_diff._main_trie.get(address)
+            assert cairo_prev == python_prev and cairo_new == python_new
 
         # Cairo
-        node_store = ethereum_trie_transition_db.nodes
-        address_preimages = ethereum_trie_transition_db.address_preimages
-        storage_key_preimages = ethereum_trie_transition_db.storage_key_preimages
         main_trie_diff_cairo, storage_trie_diff_cairo = cairo_run(
             "compute_diff_entrypoint",
-            node_store=node_store,
-            address_preimages=address_preimages,
-            storage_key_preimages=storage_key_preimages,
+            node_store=ethereum_trie_transition_db.nodes,
+            address_preimages=ethereum_trie_transition_db.address_preimages,
+            storage_key_preimages=ethereum_trie_transition_db.storage_key_preimages,
             left=ethereum_trie_transition_db.state_root,
             right=ethereum_trie_transition_db.post_state_root,
             account_address=None,
         )
 
-        result_lookup = {
+        accounts_lookup: Dict[
+            Address, Tuple[Optional[AccountNode], Optional[AccountNode]]
+        ] = {
             dict_entry.key: (dict_entry.prev_value, dict_entry.new_value)
             for dict_entry in main_trie_diff_cairo
         }
 
-        assert len(result_lookup) == len(state_diff._main_trie)
+        assert len(accounts_lookup) == len(state_diff._main_trie)
         for key, (prev_value, new_value) in state_diff._main_trie.items():
-            assert (prev_value, new_value) == result_lookup[key]
+            assert (prev_value, new_value) == accounts_lookup[key]
 
-        # TODO: storage
-        storage_lookup = {
-            dict_entry.key["value"]: (
+        storage_lookup: Dict[int, Tuple[Optional[U256], Optional[U256]]] = {
+            int(dict_entry.key): (
                 dict_entry.prev_value,
                 dict_entry.new_value,
             )
             for dict_entry in storage_trie_diff_cairo
         }
+
         addresses = state_diff._storage_tries.keys()
         for address in addresses:
-            count = 0
+            keys_in_address = 0
             for key, (prev_value, new_value) in state_diff._storage_tries[
                 address
             ].items():
@@ -147,8 +141,8 @@ class TestTrieDiff:
                     (int.from_bytes(address, "little"), *key)
                 )
                 assert (prev_value, new_value) == storage_lookup[key_hashed]
-                count += 1
-            assert count == len(state_diff._storage_tries[address].keys())
+                keys_in_address += 1
+            assert keys_in_address == len(state_diff._storage_tries[address].keys())
 
     @pytest.mark.parametrize(
         "data_path", [Path("test_data/22081873.json")], scope="session"
@@ -272,7 +266,7 @@ class TestTrieDiff:
 
         result_lookup = {
             # todo: this should be serialize properly, without a "value"
-            diff.key["value"]: (diff.prev_value, diff.new_value)
+            int(diff.key): (diff.prev_value, diff.new_value)
             for diff in result_diffs
         }
 

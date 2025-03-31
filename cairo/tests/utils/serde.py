@@ -443,6 +443,7 @@ class Serde:
             # Adjust int fields if they exceed 2**128 by subtracting DEFAULT_PRIME
             # and filter out the NO_ERROR_FLAG, replacing it with None
 
+            # Note: we skip any `Hashed` types, as they are not represented with negative values
             adjusted_value = {
                 k: (
                     None
