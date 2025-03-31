@@ -1967,11 +1967,28 @@ func miller_loop_inner{
     // Check if current bit is set
     let bit = bits_ptr[current_bit];
     if (bit != 0) {
+        // f = f * linefunc(r, q, p)
         let line_q = linefunc(r_double, q, p);
         let f_2_line_p_q = bnf12_mul(f_2_line_p, line_q);
+        // r = r + q
         let r_2_q = bnp12_add(r_double, q);
         return miller_loop_inner(f_2_line_p_q, r_2_q, q, p, bits_ptr, current_bit - 1);
     }
 
     return miller_loop_inner(f_2_line_p, r_double, q, p, bits_ptr, current_bit - 1);
+}
+
+func pairing{
+    range_check_ptr,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+}(q: BNP2, p: BNP) -> BNF12 {
+    // return miller_loop(twist(q), bnp_to_bnp12(p))
+    let q_twist = twist(q);
+    let p_bnp12 = bnp_to_bnp12(p);
+
+    let res = miller_loop(q_twist, p_bnp12);
+    return res;
 }
