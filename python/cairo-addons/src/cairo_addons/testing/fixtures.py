@@ -199,7 +199,7 @@ def _aggregate_coverage(
     report_files_generated: List[Path],
     temp_report_dir: Path,
     worker_id: str,
-) -> bool:
+):
     logger.info(
         f"[Coverage] Worker {worker_id}, Module {module_stem}: Aggregating {len(report_files_generated)} reports from {temp_report_dir}."
     )
