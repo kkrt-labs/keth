@@ -136,36 +136,26 @@ func check_branch_node(node: BranchNode) {
     local seconds_non_null_branch;
     let subnodes_ptr = cast(node.value.subnodes.value, felt*);
     %{
-        node = serialize(ids.node);
-        non_null_branches = [idx for idx, subnode in enumerate(node.subnodes) if (subnode is not None and subnode != b"")]
+        non_null_branches = [memory[ids.subnodes_ptr + idx] for idx in range(16) if (memory[ids.subnodes_ptr + idx] != 0 and memory[memory[ids.subnodes_ptr + idx] + 2] + 1 != 0)]
         ids.first_non_null_branch, ids.seconds_non_null_branch = non_null_branches[0:2]
     %}
     // Check that the first subnode is not None and not empty
-    tempvar x = Extended(cast(subnodes_ptr[first_non_null_branch], ExtendedEnum*));
+    tempvar x = Extended(cast(first_non_null_branch, ExtendedEnum*));
 
     if (cast(x.value, felt) == 0) {
         raise('ValueError');
     }
-
-    let (buffer) = alloc();
-    tempvar empty_bytes = Bytes(new BytesStruct(data=buffer, len=0));
-
-    let invalid = Bytes__eq__(x.value.bytes, empty_bytes);
-
-    if (invalid.value != 0) {
+    if (x.value.bytes.value.len == 0) {
         raise('ValueError');
     }
 
     // Check that the second subnode is not None and not empty
-    tempvar y = Extended(cast(subnodes_ptr[seconds_non_null_branch], ExtendedEnum*));
+    tempvar y = Extended(cast(seconds_non_null_branch, ExtendedEnum*));
 
     if (cast(y.value, felt) == 0) {
         raise('ValueError');
     }
-
-    let invalid = Bytes__eq__(y.value.bytes, empty_bytes);
-
-    if (invalid.value != 0) {
+    if (y.value.bytes.value.len == 0) {
         raise('ValueError');
     }
 
