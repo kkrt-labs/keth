@@ -66,7 +66,9 @@ func bnf_div{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: Mo
     %{ bnf_multiplicative_inverse %}
 
     let res = bnf_mul(b, b_inv);
-    tempvar bnf_one = BNF(new BNFStruct(U384(new UInt384(1, 0, 0, 0))));
+    let (one) = get_label_location(U384_ONE);
+    let uint384_one = cast(one, UInt384*);
+    tempvar bnf_one = BNF(new BNFStruct(U384(uint384_one)));
     let is_inv = BNF__eq__(res, bnf_one);
     assert is_inv = 1;
 
@@ -1546,7 +1548,7 @@ func bnp_double{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr:
 
     let infinity = bnp_point_at_infinity();
     let p_inf = BNP__eq__(p, infinity);
-    if (p_inf == 1) {
+    if (p_inf != 0) {
         return infinity;
     }
 
@@ -1586,19 +1588,19 @@ func bnp_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: Mo
 
     let infinity = bnp_point_at_infinity();
     let p_inf = BNP__eq__(p, infinity);
-    if (p_inf == 1) {
+    if (p_inf != 0) {
         return q;
     }
 
     let q_inf = BNP__eq__(q, infinity);
-    if (q_inf == 1) {
+    if (q_inf != 0) {
         return p;
     }
 
     let x_equal = BNF__eq__(p.value.x, q.value.x);
-    if (x_equal == 1) {
+    if (x_equal != 0) {
         let y_equal = BNF__eq__(p.value.y, q.value.y);
-        if (y_equal == 1) {
+        if (y_equal != 0) {
             return bnp_double(p);
         }
         let res = bnp_point_at_infinity();

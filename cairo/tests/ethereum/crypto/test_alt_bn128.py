@@ -27,10 +27,10 @@ GARAGA_COFACTOR = 0x3BEC47DF15E307C81EA96B02D9D9E38D2E5D4E223DDEDAF4
 
 class TestAltBn128:
     class TestBNF:
-        @given(a=..., b=...)
         def test_bnf_zero(self, cairo_run):
             assert cairo_run("BNF_ZERO") == BNF.zero()
 
+        @given(a=..., b=...)
         def test_bnf_eq(self, cairo_run, a: BNF, b: BNF):
             assert cairo_run("BNF__eq__", a, b) == (a == b)
 
