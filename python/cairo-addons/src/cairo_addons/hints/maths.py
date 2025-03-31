@@ -41,13 +41,26 @@ def value_len_mod_two(ids: VmConsts):
 
 @register_hint
 def felt252_to_bits_rev(ids: VmConsts, segments: MemorySegmentManager):
-    # Convert to binary representation and strip the leading '0b' prefix
-    # also, pad with leading zeros if necessary (if value has less bits than len)
-    binary_full = bin(ids.value)[2:].zfill(ids.len)
-    binary = binary_full[len(binary_full) - ids.len - 1 :]
+    """
+    Hint to write the `len` least significant bits of `value`
+    to the memory segment starting at `dst` in reversed order.
+    """
+    value = ids.value
+    length = ids.len
+    dst_ptr = ids.dst
 
-    # Index of the last non-zero bit
-    ids.last_one = len(binary) - binary.rfind("1") - 1
-    breakpoint()
+    if length != 0:
+        # Ensure we only work with the bits relevant to the requested length
+        # Python's integers handle large numbers automatically
+        mask = (1 << length) - 1
+        value_masked = value & mask
+        bits_used = value_masked.bit_length()
 
-    segments.load_data(ids.dst, [int(bit) for bit in binary][::-1])
+        # Generate the 'length' bits in reversed order
+        bits = [int(bit) for bit in bin(value_masked)[2:].zfill(length)[::-1]]
+
+        # Load the generated bits into the specified memory segment
+        ids.bits_used = min(bits_used, length)
+        segments.load_data(dst_ptr, bits)
+    else:
+        ids.bits_used = 0

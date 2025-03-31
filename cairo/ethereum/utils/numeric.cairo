@@ -511,8 +511,9 @@ func get_u384_bits_little{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(num: U3
         let bits_len = felt252_to_bits_rev(num.value.d0, bits_len, bits_ptr);
         return (bits_ptr, bits_len);
     }
-    let d0_len = felt252_to_bits_rev(num.value.d0, 96, bits_ptr);
-    tempvar total_bits_len = total_bits_len + d0_len;
+
+    felt252_to_bits_rev(num.value.d0, 96, bits_ptr);
+    tempvar total_bits_len = 96;
 
     // Process limb1 (d1)
     // If other limbs are zero, update bits_ptr and bits_len and return the bits for d1
@@ -522,8 +523,8 @@ func get_u384_bits_little{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(num: U3
         let d1_len = felt252_to_bits_rev(num.value.d1, bits_len, bits_ptr + total_bits_len);
         return (bits_ptr, total_bits_len + d1_len);
     }
-    let d1_len = felt252_to_bits_rev(num.value.d1, 96, bits_ptr + total_bits_len);
-    tempvar total_bits_len = total_bits_len + d1_len;
+    felt252_to_bits_rev(num.value.d1, 96, bits_ptr + total_bits_len);
+    tempvar total_bits_len = 192;
 
     // Process limb2 (d2)
     // If last limb is zero, update bits_ptr and bits_len and return the bits for d2
@@ -533,8 +534,8 @@ func get_u384_bits_little{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(num: U3
         let d2_len = felt252_to_bits_rev(num.value.d2, bits_len, bits_ptr + total_bits_len);
         return (bits_ptr, total_bits_len + d2_len);
     }
-    let d2_len = felt252_to_bits_rev(num.value.d2, 96, bits_ptr + total_bits_len);
-    tempvar total_bits_len = total_bits_len + d2_len;
+    felt252_to_bits_rev(num.value.d2, 96, bits_ptr + total_bits_len);
+    tempvar total_bits_len = 288;
 
     // Process limb3 (d3)
     let bits_len = felt252_bit_length(num.value.d3);
