@@ -70,6 +70,7 @@ installed, and `foundry` to be in the path, and to run `forge build`.
 
 To generate a profiling graph, you need to add `--profile-cairo` to your pytest
 command. For example:
+
 ```bash
 $ uv run pytest -k get_u384_bits_little --profile-cairo
 ...
@@ -79,8 +80,7 @@ $ ls cairo/tests/ethereum/utils/test_numeric*.prof
 -rw-r--r--@ 1 kkrt  staff   854B 31 mar 13:20 cairo/tests/ethereum/utils/test_numeric_get_u384_bits_little__1743420053085600000_5593df42.prof
 # use snakeviz to display the graph in a browser web page
 $ snakeviz cairo/tests/ethereum/utils/test_numeric_get_u384_bits_little__1743420053085600000_5593df42.prof
-
-browser using `snakeviz`.
+```
 
 #### Ethereum Foundation Tests
 
