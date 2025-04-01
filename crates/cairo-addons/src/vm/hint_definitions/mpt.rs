@@ -6,14 +6,31 @@ use cairo_vm::{
         hint_processor_definition::HintReference,
     },
     serde::deserialize_program::ApTracking,
-    types::exec_scope::ExecutionScopes,
+    types::{exec_scope::ExecutionScopes, relocatable::Relocatable},
     vm::{errors::hint_errors::HintError, vm_core::VirtualMachine},
     Felt252,
 };
+use num_traits::Zero;
 
 use crate::vm::hints::Hint;
 
 pub const HINTS: &[fn() -> Hint] = &[find_two_non_null_subnodes];
+
+/// Helper function to check if a pointer to a sequence (like Bytes)
+/// points to a structure with a non-zero length at offset 1.
+fn is_non_empty_sequence(vm: &VirtualMachine, struct_ptr: Relocatable) -> bool {
+    // Length is expected at offset 1
+    let len_addr = match struct_ptr + 1 {
+        Ok(addr) => addr,
+        Err(_) => return false, // Address calculation error
+    };
+    let len_val = match vm.get_integer(len_addr) {
+        Ok(val) => val,
+        Err(..) => return false, // Length value not in memory
+    };
+    // Check if length is an integer and not zero
+    !len_val.into_owned().is_zero()
+}
 
 pub fn find_two_non_null_subnodes() -> Hint {
     Hint::new(
@@ -27,96 +44,75 @@ pub fn find_two_non_null_subnodes() -> Hint {
             // Get `subnodes_ptr` from ids
             let subnodes_ptr = get_ptr_from_var_name("subnodes_ptr", vm, ids_data, ap_tracking)?;
 
-            let mut non_null_indices: Vec<Felt252> = Vec::new();
+            let mut non_null_indices: Vec<Felt252> = Vec::with_capacity(2);
 
             // Check each of the 16 possible indices (0-15)
             for idx in 0..16u32 {
-                // Get the pointer to the subnode at this index
-                let subnode_ptr_addr = (subnodes_ptr + idx)?;
-                let maybe_subnode_ptr_value = vm.get_maybe(&subnode_ptr_addr);
+                // Get the pointer to the subnode structure at this index
+                let subnode_ptr_addr = (subnodes_ptr + idx).map_err(|_| {
+                    HintError::CustomHint(Box::from(format!(
+                        "Invalid pointer: {} + {}",
+                        subnodes_ptr, idx
+                    )))
+                })?;
 
-                if let Some(subnode_ptr) = maybe_subnode_ptr_value {
-                    // Check if this is a non-null subnode by verifying the inner structure
+                // The subnode pointer itself must be a relocatable (pointing to the ExtendedEnum)
+                let inner_ptr_addr = match vm.get_relocatable(subnode_ptr_addr) {
+                    Ok(addr) => addr,
+                    Err(..) => continue, // Subnode pointer is null or not a relocatable
+                };
 
-                    // Subnode pointer MUST be a relocatable, we can unwrap safely
-                    let inner_ptr_addr = subnode_ptr.get_relocatable().unwrap();
+                // Case 1: Check if subnode is a non-null embedded node (Sequence*)
+                // Sequence* is at offset 0 of the ExtendedEnum struct
+                let is_sequence = vm
+                    .get_relocatable(inner_ptr_addr)
+                    .map_or(false, |seq_ptr| is_non_empty_sequence(vm, seq_ptr));
 
-                    // Case 1: subnode is a digest
-                    // Inner pointer is an ExtendedEnum, with 7 fields, we can offset by 2 to get
-                    // the bytes pointer and unwrap safely
-                    if let Some(bytes_ptr) = vm.get_maybe(&(inner_ptr_addr + 2u32).unwrap()) {
-                        // If bytes_ptr is the Zero value instead of a relocatable, then the subnode
-                        // is either null or an embedded node
-                        if let Some(bytes_ptr) = bytes_ptr.get_relocatable() {
-                            // Well formed BytesStruct has 2 fields, we can offset by 1 to get the
-                            // length
-                            let bytes_len = vm.get_maybe(&(bytes_ptr + 1u32).unwrap()).unwrap();
+                // Case 2: Check if subnode is a non-null digest (Bytes*)
+                // Bytes* is at offset 2 of the ExtendedEnum struct
+                let bytes_ptr_addr = (inner_ptr_addr + 2u32).map_err(|_| {
+                    HintError::CustomHint(Box::from(format!(
+                        "Invalid pointer: {} + {}",
+                        inner_ptr_addr, 2u32
+                    )))
+                })?;
+                let is_bytes = vm
+                    .get_relocatable(bytes_ptr_addr)
+                    .map_or(false, |bytes_ptr| is_non_empty_sequence(vm, bytes_ptr));
 
-                            // If the value is not 0, this SHOULD be a non-null subnode
-                            // As we construct non-null bytes with length > 0
-                            if bytes_len.get_int().unwrap() != Felt252::ZERO {
-                                non_null_indices.push(idx.into());
-
-                                // If we found 2 non-null subnodes, we can stop
-                                if non_null_indices.len() >= 2 {
-                                    break;
-                                }
-                            }
-                        }
-                    }
-
-                    // Case 2: subnode is an embedded node
-                    // Inner pointer is an ExtendedEnum, with 7 fields, we can offset by 0 to get
-                    // the sequence pointer and unwrap safely
-                    if let Some(sequence_ptr) = vm.get_maybe(&inner_ptr_addr) {
-                        // If sequence_ptr is the Zero value instead of a relocatable, then the
-                        // subnode is either null or an embedded node
-                        if let Some(sequence_ptr) = sequence_ptr.get_relocatable() {
-                            // Well formed SequenceExtendedStruct has 2 fields, we can offset by 1
-                            // to get the length
-                            let sequence_len =
-                                vm.get_maybe(&(sequence_ptr + 1u32).unwrap()).unwrap();
-
-                            // If the value is not 0, this SHOULD be a non-null subnode
-                            // As we construct non-null sequences with length > 0
-                            if sequence_len.get_int().unwrap() != Felt252::ZERO {
-                                non_null_indices.push(idx.into());
-
-                                // If we found 2 non-null subnodes, we can stop
-                                if non_null_indices.len() >= 2 {
-                                    break;
-                                }
-                            }
-                        }
+                // If it's either a non-null sequence or non-null bytes, record the index
+                if is_sequence || is_bytes {
+                    non_null_indices.push(idx.into());
+                    // If we found 2 non-null subnodes, we can stop
+                    if non_null_indices.len() >= 2 {
+                        break;
                     }
                 }
             }
 
-            // Insert the found indices into the VM
-            if non_null_indices.len() >= 2 {
-                insert_value_from_var_name(
-                    "first_non_null_index",
-                    non_null_indices[0],
-                    vm,
-                    ids_data,
-                    ap_tracking,
-                )?;
-
-                insert_value_from_var_name(
-                    "second_non_null_index",
-                    non_null_indices[1],
-                    vm,
-                    ids_data,
-                    ap_tracking,
-                )?;
-
-                Ok(())
-            } else {
-                Err(HintError::CustomHint(Box::from(format!(
+            if non_null_indices.len() < 2 {
+                return Err(HintError::CustomHint(Box::from(format!(
                     "Could not find two non-null subnodes. Found only {}",
                     non_null_indices.len()
                 ))))
             }
+
+            // Check if we found at least two non-null indices
+            insert_value_from_var_name(
+                "first_non_null_index",
+                non_null_indices[0],
+                vm,
+                ids_data,
+                ap_tracking,
+            )?;
+            insert_value_from_var_name(
+                "second_non_null_index",
+                non_null_indices[1],
+                vm,
+                ids_data,
+                ap_tracking,
+            )?;
+            Ok(())
         },
     )
 }
