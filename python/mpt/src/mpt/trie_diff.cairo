@@ -1,10 +1,10 @@
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.cairo_builtins import PoseidonBuiltin, BitwiseBuiltin
+from starkware.cairo.common.cairo_builtins import PoseidonBuiltin, BitwiseBuiltin, KeccakBuiltin
 from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
 from starkware.cairo.common.dict import DictAccess
 from starkware.cairo.common.memset import memset
 from starkware.cairo.common.memcpy import memcpy
-from ethereum.crypto.hash import Hash32
+from ethereum.crypto.hash import Hash32, keccak256
 from ethereum.cancun.fork_types import (
     OptionalAddress,
     Address,
@@ -22,6 +22,7 @@ from ethereum_types.bytes import (
     String,
     StringStruct,
 )
+from ethereum.utils.bytes import Bytes20_to_Bytes
 from ethereum_types.numeric import U256, Uint, U256Struct, Bool, bool
 from ethereum.cancun.trie import (
     LeafNode,
@@ -55,6 +56,7 @@ from ethereum_rlp.rlp import (
 )
 
 from starkware.cairo.common.builtin_poseidon.poseidon import poseidon_hash, poseidon_hash_many
+from legacy.utils.bytes import felt_to_bytes20_little
 from legacy.utils.dict import hashdict_read, hashdict_write, dict_new_empty, dict_read
 from cairo_core.control_flow import raise
 from ethereum.utils.numeric import ceil32, divmod, U256_from_be_bytes, U256_le, Uint_from_be_bytes
@@ -405,6 +407,7 @@ func _process_account_diff{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
     node_store: NodeStore,
     address_preimages: MappingBytes32Address,
     storage_key_preimages: MappingBytes32Bytes32,
@@ -424,6 +427,14 @@ func _process_account_diff{
     );
     tempvar address = Address(pointer);
 
+    // INVARIANT [Soundness]: check keccak(address) == path
+    let address_bytes = Bytes20_to_Bytes(address);
+    let hashed_address = keccak256(address_bytes);
+    with_attr error_message("INVARIANT - Invalid address preimage: keccak(address) != path") {
+        assert hashed_address.value.low = path.value.low;
+        assert hashed_address.value.high = path.value.high;
+    }
+
     if (left.value != 0) {
         let (left_account, left_storage_root_bytes) = AccountNode_from_rlp(
             left.value.value.value.bytes
@@ -437,6 +448,7 @@ func _process_account_diff{
         tempvar range_check_ptr = range_check_ptr;
         tempvar bitwise_ptr = bitwise_ptr;
         tempvar poseidon_ptr = poseidon_ptr;
+        tempvar keccak_ptr = keccak_ptr;
     } else {
         tempvar left_storage_root = OptionalUnionInternalNodeExtended(
             cast(0, OptionalUnionInternalNodeExtendedEnum*)
@@ -445,14 +457,16 @@ func _process_account_diff{
         tempvar range_check_ptr = range_check_ptr;
         tempvar bitwise_ptr = bitwise_ptr;
         tempvar poseidon_ptr = poseidon_ptr;
+        tempvar keccak_ptr = keccak_ptr;
     }
     let left_storage_root = OptionalUnionInternalNodeExtended(
         cast([ap - 5], OptionalUnionInternalNodeExtendedEnum*)
     );
-    let left_account = AccountNode(cast([ap - 4], AccountNodeStruct*));
-    let range_check_ptr = [ap - 3];
-    let bitwise_ptr = cast([ap - 2], BitwiseBuiltin*);
-    let poseidon_ptr = cast([ap - 1], PoseidonBuiltin*);
+    let left_account = AccountNode(cast([ap - 5], AccountNodeStruct*));
+    let range_check_ptr = [ap - 4];
+    let bitwise_ptr = cast([ap - 3], BitwiseBuiltin*);
+    let poseidon_ptr = cast([ap - 2], PoseidonBuiltin*);
+    let keccak_ptr = cast([ap - 1], KeccakBuiltin*);
 
     if (right.value != 0) {
         let (right_account, right_storage_root_bytes) = AccountNode_from_rlp(
@@ -468,6 +482,7 @@ func _process_account_diff{
         tempvar range_check_ptr = range_check_ptr;
         tempvar bitwise_ptr = bitwise_ptr;
         tempvar poseidon_ptr = poseidon_ptr;
+        tempvar keccak_ptr = keccak_ptr;
     } else {
         tempvar right_storage_root = OptionalUnionInternalNodeExtended(
             cast(0, OptionalUnionInternalNodeExtendedEnum*)
@@ -476,15 +491,16 @@ func _process_account_diff{
         tempvar range_check_ptr = range_check_ptr;
         tempvar bitwise_ptr = bitwise_ptr;
         tempvar poseidon_ptr = poseidon_ptr;
+        tempvar keccak_ptr = keccak_ptr;
     }
     let right_storage_root = OptionalUnionInternalNodeExtended(
         cast([ap - 5], OptionalUnionInternalNodeExtendedEnum*)
     );
-    let right_account = AccountNode(cast([ap - 4], AccountNodeStruct*));
-    let range_check_ptr = [ap - 3];
-    let bitwise_ptr = cast([ap - 2], BitwiseBuiltin*);
-    let poseidon_ptr = cast([ap - 1], PoseidonBuiltin*);
-
+    let right_account = AccountNode(cast([ap - 5], AccountNodeStruct*));
+    let range_check_ptr = [ap - 4];
+    let bitwise_ptr = cast([ap - 3], BitwiseBuiltin*);
+    let poseidon_ptr = cast([ap - 2], PoseidonBuiltin*);
+    let keccak_ptr = cast([ap - 1], KeccakBuiltin*);
     tempvar account_diff = AddressAccountNodeDiffEntry(
         new AddressAccountNodeDiffEntryStruct(
             key=address, prev_value=left_account, new_value=right_account
@@ -596,7 +612,10 @@ func _process_storage_diff{
 // / @return account_diff A list containing differences found in account nodes.
 // / @return storage_diff A list containing differences found in storage nodes across all accounts.
 func compute_diff_entrypoint{
-    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, poseidon_ptr: PoseidonBuiltin*
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
 }(
     node_store: NodeStore,
     address_preimages: MappingBytes32Address,
@@ -653,6 +672,7 @@ func _compute_diff{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
     node_store: NodeStore,
     address_preimages: MappingBytes32Address,
     storage_key_preimages: MappingBytes32Bytes32,
@@ -723,6 +743,7 @@ func _left_is_null{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
     node_store: NodeStore,
     address_preimages: MappingBytes32Address,
     storage_key_preimages: MappingBytes32Bytes32,
@@ -813,6 +834,7 @@ func _left_is_leaf_node{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
     node_store: NodeStore,
     address_preimages: MappingBytes32Address,
     storage_key_preimages: MappingBytes32Bytes32,
@@ -1037,6 +1059,7 @@ func _left_is_extension_node{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
     node_store: NodeStore,
     address_preimages: MappingBytes32Address,
     storage_key_preimages: MappingBytes32Bytes32,
@@ -1283,6 +1306,7 @@ func _left_is_branch_node{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
     node_store: NodeStore,
     address_preimages: MappingBytes32Address,
     storage_key_preimages: MappingBytes32Bytes32,
@@ -1351,6 +1375,7 @@ func _compute_left_branch_on_none{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
     node_store: NodeStore,
     address_preimages: MappingBytes32Address,
     storage_key_preimages: MappingBytes32Bytes32,
@@ -1409,6 +1434,7 @@ func _compute_left_branch_on_right_leaf{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
     node_store: NodeStore,
     address_preimages: MappingBytes32Address,
     storage_key_preimages: MappingBytes32Bytes32,
@@ -1486,6 +1512,7 @@ func _compute_left_branch_on_right_extension_node{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
     node_store: NodeStore,
     address_preimages: MappingBytes32Address,
     storage_key_preimages: MappingBytes32Bytes32,
@@ -1566,6 +1593,7 @@ func _compute_left_branch_on_right_branch_node{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
     node_store: NodeStore,
     address_preimages: MappingBytes32Address,
     storage_key_preimages: MappingBytes32Bytes32,
@@ -1624,6 +1652,7 @@ func _compute_left_leaf_diff_on_right_branch_node{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
     node_store: NodeStore,
     address_preimages: MappingBytes32Address,
     storage_key_preimages: MappingBytes32Bytes32,
@@ -1727,6 +1756,7 @@ func _compute_left_extension_node_diff_on_right_branch_node{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
     node_store: NodeStore,
     address_preimages: MappingBytes32Address,
     storage_key_preimages: MappingBytes32Bytes32,
