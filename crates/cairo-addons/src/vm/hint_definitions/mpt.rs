@@ -91,10 +91,22 @@ pub fn find_two_non_null_subnodes() -> Hint {
             }
 
             if non_null_indices.len() < 2 {
-                return Err(HintError::CustomHint(Box::from(format!(
-                    "Could not find two non-null subnodes. Found only {}",
-                    non_null_indices.len()
-                ))))
+                // Check if we found at least two non-null indices
+                insert_value_from_var_name(
+                    "first_non_null_index",
+                    Felt252::ZERO,
+                    vm,
+                    ids_data,
+                    ap_tracking,
+                )?;
+                insert_value_from_var_name(
+                    "second_non_null_index",
+                    Felt252::ZERO,
+                    vm,
+                    ids_data,
+                    ap_tracking,
+                )?;
+                return Ok(());
             }
 
             // Check if we found at least two non-null indices

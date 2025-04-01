@@ -689,8 +689,13 @@ def register_type_strategies():
                     st.integers(min_value=0, max_value=2**256 - 1).map(
                         lambda x: x.to_bytes(32, "little")
                     ),
-                    st.from_type(LeafNode).map(lambda x: encode_internal_node(x)),
-                    st.from_type(BranchNode).map(lambda x: encode_internal_node(x)),
+                    # Always work with list instead of tuples for consistency
+                    st.from_type(LeafNode)
+                    .map(lambda x: encode_internal_node(x))
+                    .map(lambda x: list(x) if isinstance(x, tuple) else x),
+                    st.from_type(BranchNode)
+                    .map(lambda x: encode_internal_node(x))
+                    .map(lambda x: list(x) if isinstance(x, tuple) else x),
                 ),
             }
         ).map(lambda x: ExtensionNode(**x)),
@@ -705,10 +710,12 @@ def register_type_strategies():
                         st.integers(min_value=0, max_value=2**256 - 1).map(
                             lambda x: x.to_bytes(32, "little")
                         ),
-                        st.from_type(LeafNode).map(lambda x: encode_internal_node(x)),
-                        st.from_type(ExtensionNode).map(
-                            lambda x: encode_internal_node(x)
-                        ),
+                        st.from_type(LeafNode)
+                        .map(lambda x: encode_internal_node(x))
+                        .map(lambda x: list(x) if isinstance(x, tuple) else x),
+                        st.from_type(ExtensionNode)
+                        .map(lambda x: encode_internal_node(x))
+                        .map(lambda x: list(x) if isinstance(x, tuple) else x),
                     ),
                     min_size=16,
                     max_size=16,

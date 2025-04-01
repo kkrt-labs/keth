@@ -37,3 +37,6 @@ def find_two_non_null_subnodes(
     ]
     if len(non_null_branches) >= 2:
         ids.first_non_null_index, ids.second_non_null_index = non_null_branches[0:2]
+    else:
+        ids.first_non_null_index = 0
+        ids.second_non_null_index = 0
