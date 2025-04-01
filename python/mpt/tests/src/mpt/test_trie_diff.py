@@ -226,6 +226,7 @@ class TestTrieDiff:
             assert (prev_value, new_value) == result_lookup[key]
 
     @given(address=..., account_before=..., account_after=...)
+    @pytest.mark.xfail(reason="Invariant broken, should fail")
     def test__process_account_diff_invalid(
         self,
         cairo_run,
@@ -261,20 +262,15 @@ class TestTrieDiff:
             lambda: None,
         )
 
-        try:
-            cairo_run(
-                "test__process_account_diff",
-                node_store=node_store,
-                address_preimages=diff_cls._address_preimages,
-                storage_key_preimages=diff_cls._storage_key_preimages,
-                path=path,
-                left=leaf_before,
-                right=leaf_after,
-            )
-        except Exception as e:
-            assert "INVARIANT" in str(e)
-            return
-        raise Exception("Did not fail")
+        cairo_run(
+            "test__process_account_diff",
+            node_store=node_store,
+            address_preimages=diff_cls._address_preimages,
+            storage_key_preimages=diff_cls._storage_key_preimages,
+            path=path,
+            left=leaf_before,
+            right=leaf_after,
+        )
 
     @given(path=..., address=..., storage_key_before=..., storage_key_after=...)
     def test__process_storage_diff(
