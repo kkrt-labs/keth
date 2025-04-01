@@ -225,6 +225,57 @@ class TestTrieDiff:
         for key, (prev_value, new_value) in diff_cls._main_trie.items():
             assert (prev_value, new_value) == result_lookup[key]
 
+    @given(address=..., account_before=..., account_after=...)
+    def test__process_account_diff_invalid(
+        self,
+        cairo_run,
+        address: Address,
+        account_before: Optional[AccountNode],
+        account_after: Optional[AccountNode],
+    ):
+        # Python
+        path = keccak256(address)
+
+        ## BREAKING THE INVARIANT:
+        wrong_address = keccak256(b"invalid")[0:20]
+
+        diff_cls = StateDiff()
+        diff_cls._address_preimages = {path: wrong_address}
+        leaf_before = (
+            None
+            if account_before is None
+            else LeafNode(rest_of_key=b"", value=account_before.to_rlp())
+        )
+        leaf_after = (
+            None
+            if account_after is None
+            else LeafNode(rest_of_key=b"", value=account_after.to_rlp())
+        )
+        diff_cls._process_account_diff(
+            path=path,
+            left=leaf_before,
+            right=leaf_after,
+        )
+
+        node_store = defaultdict(
+            lambda: None,
+        )
+
+        try:
+            cairo_run(
+                "test__process_account_diff",
+                node_store=node_store,
+                address_preimages=diff_cls._address_preimages,
+                storage_key_preimages=diff_cls._storage_key_preimages,
+                path=path,
+                left=leaf_before,
+                right=leaf_after,
+            )
+        except Exception as e:
+            assert "INVARIANT" in str(e)
+            return
+        raise Exception("Did not fail")
+
     @given(path=..., address=..., storage_key_before=..., storage_key_after=...)
     def test__process_storage_diff(
         self,
