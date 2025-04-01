@@ -11,7 +11,7 @@ from cairo_core.control_flow import raise
 from cairo_ec.circuits.mod_ops_compiled import add, sub, mul
 from cairo_ec.curve.alt_bn128 import alt_bn128
 from cairo_ec.curve.g1_point import G1Point, G1PointStruct
-from cairo_ec.curve.g2_point import Fp2, Fp2Struct
+from cairo_ec.curve.g2_point import Fp2, Fp2Struct, fp2_add
 from cairo_ec.circuits.ec_ops_compiled import assert_on_curve
 from bn254.final_exp import final_exponentiation
 from definitions import E12D
@@ -96,12 +96,12 @@ func bnf2_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: M
 ) -> BNF2 {
     tempvar modulus = U384(new UInt384(alt_bn128.P0, alt_bn128.P1, alt_bn128.P2, alt_bn128.P3));
 
-    let res_c0 = add(a.value.c0, b.value.c0, modulus);
-    let res_c1 = add(a.value.c1, b.value.c1, modulus);
+    let res_fp2 = fp2_add(Fp2(a.value), Fp2(b.value), modulus);
+    tempvar res = BNF2(res_fp2.value);
 
-    tempvar res = BNF2(new Fp2Struct(res_c0, res_c1));
     return res;
 }
+
 
 // Division of a by b is done by computing the modular inverse of b, verify it exists
 // and multiply a by this modular inverse.
