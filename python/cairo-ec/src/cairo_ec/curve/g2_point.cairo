@@ -17,13 +17,11 @@ struct Fp2Struct {
 func fp2_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
     a: Fp2, b: Fp2, modulus: U384
 ) -> Fp2 {
-
     let res_c0 = add(a.value.c0, b.value.c0, modulus);
     let res_c1 = add(a.value.c1, b.value.c1, modulus);
 
     tempvar res = Fp2(new Fp2Struct(res_c0, res_c1));
     return res;
-
 }
 
 // A G2Point is a point on an elliptic curve over a quadratic extension field Fp2.

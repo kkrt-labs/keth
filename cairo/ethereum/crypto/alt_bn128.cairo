@@ -102,7 +102,6 @@ func bnf2_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: M
     return res;
 }
 
-
 // Division of a by b is done by computing the modular inverse of b, verify it exists
 // and multiply a by this modular inverse.
 func bnf2_div{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
