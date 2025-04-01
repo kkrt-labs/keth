@@ -177,7 +177,6 @@ pub fn felt252_to_bits_rev() -> Hint {
         String::from("felt252_to_bits_rev"),
         |vm: &mut VirtualMachine,
          _exec_scopes: &mut ExecutionScopes,
-
          ids_data: &HashMap<String, HintReference>,
          ap_tracking: &ApTracking,
          _constants: &HashMap<String, Felt252>|
@@ -187,23 +186,43 @@ pub fn felt252_to_bits_rev() -> Hint {
             let len = get_integer_from_var_name("len", vm, ids_data, ap_tracking)?;
             let dst_ptr = get_ptr_from_var_name("dst", vm, ids_data, ap_tracking)?;
 
-            let len: usize =
+            let len_usize: usize =
                 len.try_into().map_err(|_| MathError::Felt252ToUsizeConversion(Box::new(len)))?;
 
+            // Handle length == 0 case separately
+            if len_usize == 0 {
+                insert_value_from_var_name("bits_used", Felt252::ZERO, vm, ids_data, ap_tracking)?;
+                // No bits to write for len 0, dst_ptr remains untouched
+                return Ok(());
+            }
+
             let value_biguint = value.to_biguint();
-            let mut bits: Vec<MaybeRelocatable> = (0..len)
+
+            // Ensure we only work with the bits relevant to the requested length
+            // Create mask: (1 << length) - 1
+            let mask = (BigUint::from(1u64) << len_usize) - BigUint::from(1u64);
+            let value_masked = value_biguint & mask;
+
+            // Calculate bits_used based on the masked value's actual bit length
+            let bits_used = value_masked.bits() as usize;
+            let bits_used_to_assign = std::cmp::min(bits_used, len_usize);
+            insert_value_from_var_name(
+                "bits_used",
+                Felt252::from(bits_used_to_assign),
+                vm,
+                ids_data,
+                ap_tracking,
+            )?;
+
+            // Generate the 'bits_used' bits in reversed order (LSB first in the vec)
+            let bits: Vec<MaybeRelocatable> = (0..bits_used)
                 .map(|i| {
-                    let bit = if value_biguint.bit(i as u64) {
-                        BigUint::from(1u32)
-                    } else {
-                        BigUint::from(0u32)
-                    };
-                    Felt252::from(bit).into()
+                    // Check the i-th bit of the masked value
+                    Felt252::from(value_masked.bit(i as u64)).into()
                 })
                 .collect();
-            bits.extend(vec![Felt252::from(0u32).into(); len - bits.len()]);
 
-            // Write the bits to memory
+            // Write the bits to memory starting at dst_ptr
             vm.segments.load_data(dst_ptr, &bits)?;
             Ok(())
         },

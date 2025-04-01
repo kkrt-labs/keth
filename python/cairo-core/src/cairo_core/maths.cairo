@@ -2,6 +2,7 @@ from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 from starkware.cairo.common.math import assert_le_felt, assert_le
 from starkware.cairo.common.registers import get_label_location
 from starkware.cairo.common.uint256 import Uint256
+from starkware.cairo.common.memset import memset
 from cairo_core.comparison import is_zero
 
 // @dev Inlined version of unsigned_div_rem
@@ -554,42 +555,50 @@ func felt252_to_bits_rev{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
         let range_check_ptr = range_check_ptr + 2;
     }
 
+    // Hint populates `bits_used` with the number of bits used to represent the value
+    // and writes the bits to `dst` in reversed order.
     let output = &dst[0];
-    // last non-zero bit
-    tempvar last_one: felt;
+    local bits_used: felt;
     %{ felt252_to_bits_rev %}
 
-    // Start at the first non-zero bit
-    // e.g. if last_one = 3, then initial_acc = 2^3 - 1 = 7,
-    //      if last_one = 0, then initial_acc = 2^0 - 1 = 0
-    tempvar initial_acc = pow2(last_one) - 1;
-    tempvar current_len = last_one;
-    tempvar acc = initial_acc;
+    // We know it takes `bits_used` bits to represent the value
+    // the rest is filled with zeroes.
+    memset(output + bits_used, 0, len - bits_used);
+
+    tempvar pow_i = 1;
+    tempvar current_len = 0;
+    tempvar acc = 0;
 
     loop:
+    let pow_i = [ap - 3];
     let current_len = [ap - 2];
     let acc = [ap - 1];
     let len = [fp - 4];
 
-    // loop stop condition: current_len == len
-    let is_done = is_zero(len - current_len);
+    // loop stop condition: current_len == bits_used (we iterated `bits_used` times)
+    // because then sum{i=0..bits_used-1} 2^i * bit[i] = original value
+    let is_done = is_zero(current_len - bits_used);
     jmp end if is_done != 0;
 
     // Check if the bit is valid (0 or 1)
-    let bit = output[current_len];
+    tempvar bit = output[current_len];
     with_attr error_message("felt252_to_bits_rev: bits must be 0 or 1") {
         assert bit * bit = bit;
     }
 
-    let pow = pow2(current_len);
-    tempvar shifted_bit = bit * pow;
+    // Accumulate value: acc = acc + bit * (2^i)
+    tempvar shifted_bit = bit * pow_i;
+    tempvar next_pow_i = pow_i * 2;
     tempvar current_len = current_len + 1;
     tempvar acc = acc + shifted_bit;
+
+    static_assert next_pow_i == [ap - 3];
+    static_assert current_len == [ap - 2];
+    static_assert acc == [ap - 1];
     jmp loop;
 
     end:
     // Case not full length of a felt: apply a mask on the value to verify
-    // %{ breakpoint() %}
     tempvar mask = pow2(len) - 1;
     assert bitwise_ptr.x = value;
     assert bitwise_ptr.y = mask;
@@ -597,7 +606,6 @@ func felt252_to_bits_rev{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     let bitwise_ptr = bitwise_ptr + BitwiseBuiltin.SIZE;
 
     with_attr error_message("felt252_to_bits_rev: bad output") {
-        %{ breakpoint() %}
         assert acc = value_masked;
     }
     return current_len;
