@@ -311,7 +311,8 @@ def run_python_vm(
             runner.end_run(disable_trace_padding=False)
             runner.relocate()
             trace = pl.DataFrame(
-                [{"pc": x.pc, "ap": x.ap, "fp": x.fp} for x in runner.relocated_trace]
+                [{"pc": x.pc, "ap": x.ap, "fp": x.fp} for x in runner.relocated_trace],
+                schema=[("pc", pl.UInt32), ("ap", pl.UInt32), ("fp", pl.UInt32)],
             )
             if not request.config.getoption("no_coverage"):
                 coverage(cairo_file, trace)
@@ -355,7 +356,8 @@ def run_python_vm(
         # STEP 7: GENERATE OUTPUT FILES AND TRACE (IF REQUESTED)
         # ============================================================================
         trace = pl.DataFrame(
-            [{"pc": x.pc, "ap": x.ap, "fp": x.fp} for x in runner.relocated_trace]
+            [{"pc": x.pc, "ap": x.ap, "fp": x.fp} for x in runner.relocated_trace],
+            schema=[("pc", pl.UInt32), ("ap", pl.UInt32), ("fp", pl.UInt32)],
         )
         if not request.config.getoption("no_coverage"):
             coverage(cairo_file, trace)
