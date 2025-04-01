@@ -387,7 +387,11 @@ func bnp2_double{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr
 // Implementation of scalar multiplication for BNP2
 // Uses the double-and-add algorithm
 func bnp2_mul_by{
-    range_check_ptr, range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
 }(p: BNP2, n: U384) -> BNP2 {
     alloc_locals;
     let n_is_zero = U384_is_zero(n);
@@ -1351,7 +1355,11 @@ func create_bnf12_from_dict{range_check_ptr, mul_dict: DictAccess*}() -> BNF12 {
 
 // Pow function for BNF12 elements using square-and-multiply algorithm
 func bnf12_pow{
-    range_check_ptr, range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
 }(base: BNF12, exponent: U384) -> BNF12 {
     alloc_locals;
 
@@ -1635,7 +1643,11 @@ func bnp_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: Mo
 // Implementation of scalar multiplication for BNP
 // Uses the double-and-add algorithm
 func bnp_mul_by{
-    range_check_ptr, range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
 }(p: BNP, n: U384) -> BNP {
     alloc_locals;
     let n_is_zero = U384_is_zero(n);
@@ -1902,7 +1914,11 @@ func bnp12_add{
 // Implementation of scalar multiplication for BNP12
 // Uses the double-and-add algorithm
 func bnp12_mul_by{
-    range_check_ptr, range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
 }(p: BNP12, n: U384) -> BNP12 {
     alloc_locals;
     let n_is_zero = U384_is_zero(n);
@@ -2108,6 +2124,7 @@ func linefunc{
 
 func miller_loop{
     range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,
