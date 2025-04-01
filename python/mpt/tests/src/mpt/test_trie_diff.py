@@ -173,17 +173,18 @@ class TestTrieDiff:
             _, result = cairo_run("node_store_get", small_store, key)
             assert result == small_store.get(key)
 
-    @given(path=..., account_before=..., account_after=...)
+    @given(address=..., account_before=..., account_after=...)
     def test__process_account_diff(
         self,
         cairo_run,
-        path: Bytes32,
+        address: Address,
         account_before: Optional[AccountNode],
         account_after: Optional[AccountNode],
     ):
         # Python
+        path = keccak256(address)
         diff_cls = StateDiff()
-        diff_cls._address_preimages = {path: keccak256(path)[:20]}
+        diff_cls._address_preimages = {path: address}
         leaf_before = (
             None
             if account_before is None
