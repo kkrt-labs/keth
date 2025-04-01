@@ -11,6 +11,7 @@ from cairo_core.control_flow import raise
 from cairo_ec.circuits.mod_ops_compiled import add, sub, mul
 from cairo_ec.curve.alt_bn128 import alt_bn128
 from cairo_ec.curve.g1_point import G1Point, G1PointStruct
+from cairo_ec.curve.g2_point import Fp2, Fp2Struct
 from cairo_ec.circuits.ec_ops_compiled import assert_on_curve
 from bn254.final_exp import final_exponentiation
 from definitions import E12D
@@ -86,13 +87,8 @@ func bnf_sub{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: Mo
 
 // Quadratic extension field of BNF.
 // BNF elements are 2-dimensional.
-struct BNF2Struct {
-    c0: U384,
-    c1: U384,
-}
-
 struct BNF2 {
-    value: BNF2Struct*,
+    value: Fp2Struct*,
 }
 
 func bnf2_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
@@ -103,7 +99,7 @@ func bnf2_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: M
     let res_c0 = add(a.value.c0, b.value.c0, modulus);
     let res_c1 = add(a.value.c1, b.value.c1, modulus);
 
-    tempvar res = BNF2(new BNF2Struct(res_c0, res_c1));
+    tempvar res = BNF2(new Fp2Struct(res_c0, res_c1));
     return res;
 }
 
@@ -133,14 +129,14 @@ func bnf2_sub{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: M
     let res_c0 = sub(a.value.c0, b.value.c0, modulus);
     let res_c1 = sub(a.value.c1, b.value.c1, modulus);
 
-    tempvar res = BNF2(new BNF2Struct(res_c0, res_c1));
+    tempvar res = BNF2(new Fp2Struct(res_c0, res_c1));
     return res;
 }
 
 func BNF2_ZERO() -> BNF2 {
     let (u384_zero) = get_label_location(U384_ZERO);
     let u384_zero_ptr = cast(u384_zero, UInt384*);
-    tempvar res = BNF2(new BNF2Struct(U384(u384_zero_ptr), U384(u384_zero_ptr)));
+    tempvar res = BNF2(new Fp2Struct(U384(u384_zero_ptr), U384(u384_zero_ptr)));
     return res;
 }
 
@@ -149,7 +145,7 @@ func BNF2_ONE() -> BNF2 {
     let (u384_one) = get_label_location(U384_ONE);
     let u384_zero_ptr = cast(u384_zero, UInt384*);
     let u384_one_ptr = cast(u384_one, UInt384*);
-    tempvar res = BNF2(new BNF2Struct(U384(u384_one_ptr), U384(u384_zero_ptr)));
+    tempvar res = BNF2(new Fp2Struct(U384(u384_one_ptr), U384(u384_zero_ptr)));
     return res;
 }
 
@@ -201,7 +197,7 @@ func bnf2_mul{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: M
     // No reduction needed for res[1] = mul[1] in BNF2 with degree 2
     let res_c1 = mul_1;
 
-    tempvar res = BNF2(new BNF2Struct(res_c0, res_c1));
+    tempvar res = BNF2(new Fp2Struct(res_c0, res_c1));
     return res;
 }
 
@@ -218,7 +214,7 @@ struct BNP2 {
 
 func BNP2_B() -> BNF2 {
     tempvar res = BNF2(
-        new BNF2Struct(
+        new Fp2Struct(
             U384(
                 new UInt384(
                     27810052284636130223308486885,
@@ -359,12 +355,12 @@ func bnp2_double{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr
     // Calculate 3x^2
     let (u384_zero) = get_label_location(U384_ZERO);
     let uint384_zero = cast(u384_zero, UInt384*);
-    tempvar three = BNF2(new BNF2Struct(U384(new UInt384(3, 0, 0, 0)), U384(uint384_zero)));
+    tempvar three = BNF2(new Fp2Struct(U384(new UInt384(3, 0, 0, 0)), U384(uint384_zero)));
     let x_squared = bnf2_mul(p.value.x, p.value.x);
     let three_x_squared = bnf2_mul(three, x_squared);
 
     // Calculate 2y
-    tempvar two = BNF2(new BNF2Struct(U384(new UInt384(2, 0, 0, 0)), U384(uint384_zero)));
+    tempvar two = BNF2(new Fp2Struct(U384(new UInt384(2, 0, 0, 0)), U384(uint384_zero)));
     let two_y = bnf2_mul(two, p.value.y);
     // Calculate λ = 3x^2 / 2y
     let lambda = bnf2_div(three_x_squared, two_y);
