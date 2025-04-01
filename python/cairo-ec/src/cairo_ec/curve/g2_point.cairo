@@ -14,11 +14,21 @@ struct Fq2Struct {
     c1: U384,
 }
 
-func fp2_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
+func fq2_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
     a: Fq2, b: Fq2, modulus: U384
 ) -> Fq2 {
     let res_c0 = add(a.value.c0, b.value.c0, modulus);
     let res_c1 = add(a.value.c1, b.value.c1, modulus);
+
+    tempvar res = Fq2(new Fq2Struct(res_c0, res_c1));
+    return res;
+}
+
+func fq2_sub{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
+    a: Fq2, b: Fq2, modulus: U384
+) -> Fq2 {
+    let res_c0 = sub(a.value.c0, b.value.c0, modulus);
+    let res_c1 = sub(a.value.c1, b.value.c1, modulus);
 
     tempvar res = Fq2(new Fq2Struct(res_c0, res_c1));
     return res;

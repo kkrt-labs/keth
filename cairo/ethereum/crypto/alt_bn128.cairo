@@ -11,7 +11,7 @@ from cairo_core.control_flow import raise
 from cairo_ec.circuits.mod_ops_compiled import add, sub, mul
 from cairo_ec.curve.alt_bn128 import alt_bn128
 from cairo_ec.curve.g1_point import G1Point, G1PointStruct
-from cairo_ec.curve.g2_point import Fq2, Fq2Struct, fp2_add
+from cairo_ec.curve.g2_point import Fq2, Fq2Struct, fq2_add, fq2_sub
 from cairo_ec.circuits.ec_ops_compiled import assert_on_curve
 from bn254.final_exp import final_exponentiation
 from definitions import E12D
@@ -96,8 +96,8 @@ func bnf2_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: M
 ) -> BNF2 {
     tempvar modulus = U384(new UInt384(alt_bn128.P0, alt_bn128.P1, alt_bn128.P2, alt_bn128.P3));
 
-    let res_fp2 = fp2_add(Fq2(a.value), Fq2(b.value), modulus);
-    tempvar res = BNF2(res_fp2.value);
+    let res_fq2 = fq2_add(Fq2(a.value), Fq2(b.value), modulus);
+    tempvar res = BNF2(res_fq2.value);
 
     return res;
 }
@@ -125,10 +125,9 @@ func bnf2_sub{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: M
 ) -> BNF2 {
     tempvar modulus = U384(new UInt384(alt_bn128.P0, alt_bn128.P1, alt_bn128.P2, alt_bn128.P3));
 
-    let res_c0 = sub(a.value.c0, b.value.c0, modulus);
-    let res_c1 = sub(a.value.c1, b.value.c1, modulus);
+    let res_fq2 = fq2_sub(Fq2(a.value), Fq2(b.value), modulus);
+    tempvar res = BNF2(res_fq2.value);
 
-    tempvar res = BNF2(new Fq2Struct(res_c0, res_c1));
     return res;
 }
 
