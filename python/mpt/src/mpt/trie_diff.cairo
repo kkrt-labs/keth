@@ -460,7 +460,7 @@ func _process_account_diff{
         tempvar keccak_ptr = keccak_ptr;
     }
     let left_storage_root = OptionalUnionInternalNodeExtended(
-        cast([ap - 5], OptionalUnionInternalNodeExtendedEnum*)
+        cast([ap - 6], OptionalUnionInternalNodeExtendedEnum*)
     );
     let left_account = AccountNode(cast([ap - 5], AccountNodeStruct*));
     let range_check_ptr = [ap - 4];
@@ -494,7 +494,7 @@ func _process_account_diff{
         tempvar keccak_ptr = keccak_ptr;
     }
     let right_storage_root = OptionalUnionInternalNodeExtended(
-        cast([ap - 5], OptionalUnionInternalNodeExtendedEnum*)
+        cast([ap - 6], OptionalUnionInternalNodeExtendedEnum*)
     );
     let right_account = AccountNode(cast([ap - 5], AccountNodeStruct*));
     let range_check_ptr = [ap - 4];
