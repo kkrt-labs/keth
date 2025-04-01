@@ -9,7 +9,7 @@ from cairo_core.comparison import is_zero
 // Returns q and r such that:
 //  0 <= q < rc_bound, 0 <= r < div and value = q * div + r.
 //
-// Assumption: 0 < div <= ME / rc_bound.
+// Assumption: 0 < div <= PRIME / rc_bound.
 // Prover assumption: value / div < rc_bound.
 //
 // The value of div is restricted to make sure there is no overflow.
