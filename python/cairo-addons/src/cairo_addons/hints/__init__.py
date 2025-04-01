@@ -8,6 +8,7 @@ from cairo_addons.hints.dict import *
 from cairo_addons.hints.ethereum import *
 from cairo_addons.hints.hashdict import *
 from cairo_addons.hints.maths import *
+from cairo_addons.hints.mpt import *
 from cairo_addons.hints.os import *
 from cairo_addons.hints.precompiles import *
 from cairo_addons.hints.utils import *

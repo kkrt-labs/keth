@@ -135,18 +135,26 @@ func check_branch_node(node: BranchNode) {
     local first_non_null_index;
     local second_non_null_index;
     let subnodes_ptr = cast(node.value.subnodes.value, felt*);
-    %{
-        non_null_branches = [idx for idx in range(16) if (memory[ids.subnodes_ptr + idx] and memory[memory[memory[ids.subnodes_ptr + idx] + 2] + 1] != 0)]
-        ids.first_non_null_index, ids.second_non_null_index = non_null_branches[0:2]
-    %}
+
+    %{ find_two_non_null_subnodes %}
+
     // Check that the first subnode is not None and not empty
     tempvar x = Extended(cast(subnodes_ptr[first_non_null_index], ExtendedEnum*));
 
     if (cast(x.value, felt) == 0) {
         raise('ValueError');
     }
-    if (x.value.bytes.value.len == 0) {
-        raise('ValueError');
+    // Case 1: subnode is a digest
+    if (cast(x.value.bytes.value, felt) != 0) {
+        if (x.value.bytes.value.len == 0) {
+            raise('ValueError');
+        }
+    }
+    // Case 2: subnode is an embedded node
+    if (cast(x.value.sequence.value, felt) != 0) {
+        if (x.value.sequence.value.len == 0) {
+            raise('ValueError');
+        }
     }
 
     // Check that the second subnode is not None and not empty
@@ -155,9 +163,15 @@ func check_branch_node(node: BranchNode) {
     if (cast(y.value, felt) == 0) {
         raise('ValueError');
     }
-    if (y.value.bytes.value.len == 0) {
-        raise('ValueError');
+    if (cast(y.value.bytes.value, felt) != 0) {
+        if (y.value.bytes.value.len == 0) {
+            raise('ValueError');
+        }
     }
-
+    if (cast(y.value.sequence.value, felt) != 0) {
+        if (y.value.sequence.value.len == 0) {
+            raise('ValueError');
+        }
+    }
     return ();
 }
