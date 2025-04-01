@@ -1,5 +1,6 @@
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_builtins import PoseidonBuiltin, BitwiseBuiltin, KeccakBuiltin
+from starkware.cairo.common.builtin_keccak.keccak import keccak_uint256s
 from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
 from starkware.cairo.common.dict import DictAccess
 from starkware.cairo.common.memset import memset
@@ -554,12 +555,11 @@ func _process_storage_diff{
     tempvar storage_key = Bytes32(cast(pointer, Bytes32Struct*));
 
     // INVARIANT [Soundness]: check keccak(storage_key) == path
-    let storage_key_bytes = Bytes32_to_Bytes(storage_key);
-    let storage_key_hash = keccak256(storage_key_bytes);
+    let (storage_key_hash) = keccak_uint256s(1, storage_key.value);
     with_attr error_message(
             "INVARIANT - Invalid storage key preimage: keccak(storage_key) != path") {
-        assert storage_key_hash.value.low = path.value.low;
-        assert storage_key_hash.value.high = path.value.high;
+        assert storage_key_hash.low = path.value.low;
+        assert storage_key_hash.high = path.value.high;
     }
 
     if (left.value != 0) {
