@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, ops::Shl};
 
 use cairo_vm::{
     hint_processor::{
@@ -15,6 +15,7 @@ use cairo_vm::{
     Felt252,
 };
 use num_bigint::BigUint;
+use num_traits::One;
 
 use crate::vm::hints::Hint;
 
@@ -199,8 +200,8 @@ pub fn felt252_to_bits_rev() -> Hint {
             let value_biguint = value.to_biguint();
 
             // Ensure we only work with the bits relevant to the requested length
-            // Create mask: (1 << length) - 1
-            let mask = (BigUint::from(1u64) << len_usize) - BigUint::from(1u64);
+            // Create mask: (1 << len_usize) - 1
+            let mask = BigUint::one().shl(len_usize) - BigUint::one();
             let value_masked = value_biguint & mask;
 
             // Calculate bits_used based on the masked value's actual bit length
