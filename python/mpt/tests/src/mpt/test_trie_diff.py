@@ -272,27 +272,29 @@ class TestTrieDiff:
                 right=leaf_after,
             )
 
-    @given(path=..., address=..., storage_key_before=..., storage_key_after=...)
+    @given(
+        storage_key=..., address=..., storage_value_before=..., storage_value_after=...
+    )
     def test__process_storage_diff(
         self,
         cairo_run,
-        path: Bytes32,
+        storage_key: Bytes32,
         address: Address,
-        storage_key_before: Optional[U256],
-        storage_key_after: Optional[U256],
+        storage_value_before: Optional[U256],
+        storage_value_after: Optional[U256],
     ):
         diff_cls = StateDiff()
-        # Fill preimages with arbitrary 32-bytes data
-        diff_cls._storage_key_preimages = {path: keccak256(path)}
+        path = keccak256(storage_key)
+        diff_cls._storage_key_preimages = {path: storage_key}
         leaf_before = (
             None
-            if storage_key_before is None
-            else LeafNode(rest_of_key=b"", value=rlp.encode(storage_key_before))
+            if storage_value_before is None
+            else LeafNode(rest_of_key=b"", value=rlp.encode(storage_value_before))
         )
         leaf_after = (
             None
-            if storage_key_after is None
-            else LeafNode(rest_of_key=b"", value=rlp.encode(storage_key_after))
+            if storage_value_after is None
+            else LeafNode(rest_of_key=b"", value=rlp.encode(storage_value_after))
         )
         diff_cls._process_storage_diff(
             address=address,
@@ -322,6 +324,49 @@ class TestTrieDiff:
             key = int_to_uint256(int.from_bytes(key, "little"))
             hashed_key = poseidon_hash_many((int.from_bytes(address, "little"), *key))
             assert (prev_value, new_value) == result_lookup[hashed_key]
+
+    @given(
+        storage_key=..., address=..., storage_value_before=..., storage_value_after=...
+    )
+    def test__process_storage_diff_invalid(
+        self,
+        cairo_run,
+        storage_key: Bytes32,
+        address: Address,
+        storage_value_before: Optional[U256],
+        storage_value_after: Optional[U256],
+    ):
+        diff_cls = StateDiff()
+        path = keccak256(storage_key)
+
+        fake_storage_key = keccak256(b"invalid")
+        diff_cls._storage_key_preimages = {path: fake_storage_key}
+        leaf_before = (
+            None
+            if storage_value_before is None
+            else LeafNode(rest_of_key=b"", value=rlp.encode(storage_value_before))
+        )
+        leaf_after = (
+            None
+            if storage_value_after is None
+            else LeafNode(rest_of_key=b"", value=rlp.encode(storage_value_after))
+        )
+        diff_cls._process_storage_diff(
+            address=address,
+            path=path,
+            left=leaf_before,
+            right=leaf_after,
+        )
+
+        with pytest.raises(Exception, match="INVARIANT"):
+            cairo_run(
+                "test__process_storage_diff",
+                storage_key_preimages=diff_cls._storage_key_preimages,
+                path=path,
+                address=address,
+                left=leaf_before,
+                right=leaf_after,
+            )
 
     @pytest.mark.parametrize(
         "data_path", [Path("test_data/22081873.json")], scope="session"

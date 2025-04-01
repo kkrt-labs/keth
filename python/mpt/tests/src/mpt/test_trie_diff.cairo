@@ -57,7 +57,10 @@ func test__process_account_diff{
 }
 
 func test__process_storage_diff{
-    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, poseidon_ptr: PoseidonBuiltin*
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
 }(
     storage_key_preimages: MappingBytes32Bytes32,
     path: Bytes32,
