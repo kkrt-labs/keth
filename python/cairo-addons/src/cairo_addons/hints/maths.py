@@ -54,7 +54,7 @@ def felt252_to_bits_rev(ids: VmConsts, segments: MemorySegmentManager):
         # Python's integers handle large numbers automatically
         mask = (1 << length) - 1
         value_masked = value & mask
-        bits_used = value_masked.bit_length()
+        bits_used = value_masked.bit_length() or 1
 
         # Generate the 'length' bits in reversed order
         bits = [int(bit) for bit in bin(value_masked)[2:].zfill(length)[::-1]]
