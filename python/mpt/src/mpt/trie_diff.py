@@ -8,7 +8,8 @@ from typing import Any, Callable, Dict, Optional, Tuple, Union
 from ethereum.cancun.fork_types import Address
 from ethereum.cancun.trie import BranchNode, ExtensionNode, InternalNode, LeafNode
 from ethereum.crypto.hash import Hash32
-from ethereum_rlp import Extended, rlp
+from ethereum_rlp import rlp
+from ethereum_rlp.rlp import Extended
 from ethereum_types.bytes import Bytes, Bytes32
 from ethereum_types.numeric import U256, Uint
 

@@ -43,7 +43,7 @@ dev-dependencies = [
 [tool.isort]
 profile = "black"
 known_third_party = ["ethereum", "ethereum_rlp", "ethereum_types"]
-known_first_party = ["cairo_addons", "cairo_core", "cairo_ec"]
+known_first_party = ["cairo_ec", "cairo_core", "cairo_addons", "eth_rpc", "mpt"]
 
 [tool.uv.sources]
 ethereum = { git = "https://github.com/kkrt-labs/execution-specs.git", branch = "kakarot-changes" }
