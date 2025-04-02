@@ -175,6 +175,8 @@ impl PythonicHintExecutor {
         exec_scopes: &mut ExecutionScopes,
         ids_data: &HashMap<String, HintReference>,
         ap_tracking: &ApTracking,
+        constants: &HashMap<String, Felt252>,
+        hint_accessible_scopes: &Vec<String>,
     ) -> Result<(), HintError> {
         self.ensure_initialized().map_err(|e| DynamicHintError::PythonInit(e.to_string()))?;
 
@@ -239,9 +241,16 @@ impl PythonicHintExecutor {
                     ))))
                 }
             };
-            let py_ids_dict =
-                create_vm_consts_dict(vm, &program_identifiers, ids_data, ap_tracking, py)
-                    .map_err(|e| DynamicHintError::PyObjectCreation(e.to_string()))?;
+            let py_ids_dict = create_vm_consts_dict(
+                vm,
+                &program_identifiers,
+                ids_data,
+                ap_tracking,
+                constants,
+                hint_accessible_scopes,
+                py,
+            )
+            .map_err(|e| DynamicHintError::PyObjectCreation(e.to_string()))?;
             bounded_context
                 .set_item("ids", py_ids_dict)
                 .map_err(|e| DynamicHintError::PyDictSet(e.to_string()))?;
@@ -277,7 +286,7 @@ pub fn generic_python_hint() -> Hint {
               exec_scopes: &mut ExecutionScopes,
               ids_data: &HashMap<String, HintReference>,
               ap_tracking: &ApTracking,
-              _constants: &HashMap<String, Felt252>|
+              constants: &HashMap<String, Felt252>|
               -> Result<(), HintError> {
             // This must match the type of the hint code inserted in the execution scope
             let hint_code = match exec_scopes.get_ref::<String>("__hint_code__") {
@@ -290,13 +299,33 @@ pub fn generic_python_hint() -> Hint {
                 }
             };
 
+            //TODO: PR lambdaclass an make it an `execute_hint` argument?
+            let hint_accessible_scopes =
+                match exec_scopes.get_ref::<Vec<String>>("__hint_accessible_scopes__") {
+                    Ok(scopes) => scopes.clone(),
+                    Err(e) => {
+                        return Err(HintError::CustomHint(Box::from(format!(
+                            "No hint accessible scopes found in execution scope: {:?}",
+                            e
+                        ))))
+                    }
+                };
+
             // Lock the executor to get mutable access
             let mut locked_executor = executor.lock().map_err(|e| {
                 HintError::CustomHint(Box::from(format!("Failed to lock executor: {}", e)))
             })?;
 
             // Execute the Python code
-            locked_executor.execute_hint(&hint_code, vm, exec_scopes, ids_data, ap_tracking)
+            locked_executor.execute_hint(
+                &hint_code,
+                vm,
+                exec_scopes,
+                ids_data,
+                ap_tracking,
+                constants,
+                &hint_accessible_scopes,
+            )
         },
     )
 }

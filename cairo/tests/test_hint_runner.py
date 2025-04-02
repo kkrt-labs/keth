@@ -70,3 +70,17 @@ class TestRunner:
     def test__access_let_relocatable(self, cairo_run, cairo_run_py):
         cairo_run("test__access_let_relocatable")
         cairo_run_py("test__access_let_relocatable")
+
+    def test__access_const(self, cairo_run, cairo_run_py):
+        cairo_run("test__access_local_const")
+        cairo_run_py("test__access_local_const")
+
+    def test__access_non_imported_const_should_fail(self, cairo_run, cairo_run_py):
+        with pytest.raises(Exception):
+            cairo_run("test__access_non_imported_const_should_fail")
+        with pytest.raises(Exception):
+            cairo_run_py("test__access_non_imported_const_should_fail")
+
+    def test__access_imported_const(self, cairo_run, cairo_run_py):
+        cairo_run("test__access_imported_const")
+        cairo_run_py("test__access_imported_const")

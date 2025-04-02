@@ -55,6 +55,7 @@ use cairo_vm::{
     serde::deserialize_program::{ApTracking, Identifier, Member},
     types::relocatable::{MaybeRelocatable, Relocatable},
     vm::vm_core::VirtualMachine,
+    Felt252,
 };
 use pyo3::{
     exceptions::{PyAttributeError, PyRuntimeError, PyTypeError},
@@ -674,10 +675,47 @@ pub fn create_vm_consts_dict(
     identifiers: &HashMap<String, Identifier>,
     ids_data: &HashMap<String, HintReference>,
     ap_tracking: &ApTracking,
+    constants: &HashMap<String, Felt252>,
+    hint_accessible_scopes: &Vec<String>,
     py: Python<'_>,
 ) -> Result<Py<PyVmConstsDict>, DynamicHintError> {
     let ids_dict = PyVmConstsDict { items: HashMap::new(), vm: vm as *mut VirtualMachine };
     let py_ids_dict = Py::new(py, ids_dict)?;
+
+    // Process constants and make them accessible in Python hints
+    // Constants are in the form {"module.name": value} and are accessible if their module
+    // is in the hint_accessible_scopes
+    for (full_name, value) in constants {
+        let parts: Vec<_> = full_name.split('.').collect();
+        let const_name = parts.last().unwrap_or(&"").to_string();
+        let module_path = parts[..parts.len() - 1].join(".");
+
+        // Check if constant is directly accessible from current scope
+        if hint_accessible_scopes.iter().any(|scope| module_path == *scope) {
+            py_ids_dict
+                .borrow_mut(py)
+                .items
+                .insert(const_name.to_string(), value.to_biguint().into_bound_py_any(py)?.into());
+            continue;
+        }
+
+        // Check if constant is accessible through an alias in any accessible scope
+        for scope in hint_accessible_scopes {
+            let alias_path = format!("{}.{}", scope, const_name);
+
+            if let Some(identifier) = identifiers.get(&alias_path) {
+                if let Some(destination) = &identifier.destination {
+                    if let Some(resolved_value) = constants.get(destination) {
+                        py_ids_dict.borrow_mut(py).items.insert(
+                            const_name.to_string(),
+                            resolved_value.to_biguint().into_bound_py_any(py)?.into(),
+                        );
+                        break;
+                    }
+                }
+            }
+        }
+    }
 
     for (name, reference) in ids_data {
         // Some internal variables, prefixed with `__temp`, that we skip.

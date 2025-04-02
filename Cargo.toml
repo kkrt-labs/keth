@@ -59,7 +59,7 @@ cairo-vm = { git = "https://github.com/lambdaclass/cairo-vm.git", tag = "v2.0.0-
 ] }
 
 [patch."https://github.com/lambdaclass/cairo-vm.git"]
-cairo-vm = { git = "https://github.com/kkrt-labs/cairo-vm", rev = "d101ee86d21a80db7b2dd17ffeca12025371cc1e" }
+cairo-vm = { git = "https://github.com/kkrt-labs/cairo-vm", rev = "008360a818ac3cecb51666d89e68abaf4fe8e151" }
 
 [patch.crates-io]
 stwo-cairo-adapter = { git = "https://github.com/starkware-libs/stwo-cairo", rev = "c9a4ea197077c07df218bf0e088a636db052525d" }

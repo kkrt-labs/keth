@@ -1,6 +1,8 @@
 from ethereum_types.numeric import U256, U256Struct
 from starkware.cairo.common.alloc import alloc
 
+from ethereum.exceptions import ValueError
+
 func test__ap_accessible() {
     tempvar x = 100;
     %{ assert memory[ap-1] == 100 %}
@@ -128,5 +130,21 @@ func test__access_let_relocatable() {
         # simple access
         ids.x
     %}
+    ret;
+}
+
+const MY_CONST = 100;
+func test__access_local_const() {
+    %{ assert ids.MY_CONST == 100 %}
+    ret;
+}
+
+func test__access_non_imported_const_should_fail() {
+    %{ ids.HALF_SHIFT %}
+    ret;
+}
+
+func test__access_imported_const() {
+    %{ assert ids.ValueError == int.from_bytes('ValueError'.encode("ascii"), "big") %}
     ret;
 }

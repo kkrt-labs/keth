@@ -167,6 +167,12 @@ impl HintProcessorLogic for HintProcessor {
                     }
                     exec_scopes.assign_or_update_variable("__hint_code__", Box::new(hint_code));
 
+                    // Dump the accessible scopes in an execution scope object to access in the hint
+                    let hint_accessible_scopes = hint_data.accessible_scopes.clone();
+                    exec_scopes.assign_or_update_variable(
+                        "__hint_accessible_scopes__",
+                        Box::new(hint_accessible_scopes),
+                    );
                     // Execute the dynamic hint
                     let pythonic_hint_func = pythonic_hint_func.0.as_ref();
                     let dynamic_result = pythonic_hint_func(
