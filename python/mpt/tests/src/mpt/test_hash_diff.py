@@ -12,11 +12,11 @@ class TestHashDiff:
     ):
         cairo_result = cairo_run(
             "poseidon_account_diff",
-            account_diff=account_diff,
+            account_diff,
         )
         assert cairo_result == poseidon_hash_many(
             [
-                account_diff.key,
+                int.from_bytes(account_diff.key, "big"),
                 *account_diff.prev_value.flatten(),
                 *account_diff.new_value.flatten(),
             ]
@@ -26,7 +26,7 @@ class TestHashDiff:
     def test_poseidon_storage_diff(self, cairo_run, storage_diff: StorageDiffEntry):
         cairo_result = cairo_run(
             "poseidon_storage_diff",
-            diff=storage_diff,
+            storage_diff,
         )
         assert cairo_result == poseidon_hash_many(
             [
