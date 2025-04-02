@@ -16,7 +16,7 @@ class TestHashDiff:
         )
         assert cairo_result == poseidon_hash_many(
             [
-                int.from_bytes(account_diff.key, "big"),
+                int.from_bytes(account_diff.key, "little"),
                 *account_diff.prev_value.flatten(),
                 *account_diff.new_value.flatten(),
             ]

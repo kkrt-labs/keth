@@ -37,8 +37,8 @@ class AccountNode:
         return [
             self.nonce._number,
             *int_to_uint256(self.balance._number),
-            *int_to_uint256(U256.from_be_bytes(self.code_hash)._number),
-            *int_to_uint256(U256.from_be_bytes(self.storage_root)._number),
+            *int_to_uint256(U256.from_le_bytes(self.code_hash)._number),
+            *int_to_uint256(U256.from_le_bytes(self.storage_root)._number),
         ]
 
     @staticmethod
