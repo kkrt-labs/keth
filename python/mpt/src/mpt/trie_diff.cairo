@@ -11,6 +11,7 @@ from ethereum.cancun.fork_types import (
     Address,
     TupleAddressBytes32U256DictAccess,
     HashedTupleAddressBytes32,
+    AddressAccountDictAccess,
 )
 from ethereum_types.bytes import (
     Bytes,
@@ -1933,8 +1934,16 @@ func compare_diffs{state: State, account_diffs: AccountDiff, storage_diffs: Stor
     alloc_locals;
 
     // Accounts
+    let res = _compare_account_inner(0);
+    with_attr error_message("[compare_diffs] AccountDiff Mismatch") {
+        assert res = 1;
+    }
 
     // Storage
+    let res = _compare_storage_inner(0);
+    with_attr error_message("[compare_diffs] StorageDiff Mismatch") {
+        assert res = 1;
+    }
 
     let res = Bool(1);
     return res;
@@ -1961,5 +1970,54 @@ func _compare_account_inner{range_check_ptr, state: State, account_diffs: Accoun
     let account_ptr = find_element{range_check_ptr=range_check_ptr}(accounts_start, len, address);
     let account_ptr = cast(account_ptr, AccountStruct*);
 
-    
+    let (state_account_ptr) = find_element(
+        cast(accounts_start, felt*), AddressAccountDictAccess.SIZE, len, address
+    );
+    let state_account = cast([state_account_ptr], AddressAccountDictAccess);
+
+    with_attr error_message("[compare_diff::_compare_account_inner] AccountDiff Mismatch") {
+        let state_prev_account = AccountNode_from_Account(state_account.prev_value);
+        let account_prev_eq = AccountNode__eq__(state_prev_account, account_before);
+        assert account_prev_eq = 1;
+
+        let state_new_account = AccountNode_from_Account(state_account.new_value);
+        let account_new_eq = AccountNode__eq__(state_new_account, account_after);
+        assert account_new_eq = 1;
+    }
+
+    return _compare_account_inner(index + 1);
+}
+
+func _compare_storage_inner{range_check_ptr, state: State, storage_diffs: StorageDiff}(
+    index: felt
+) -> Bool {
+    alloc_locals;
+    if (index == storage_diffs.value.len) {
+        let res = Bool(1);
+        return res;
+    }
+
+    let storage_diff = storage_diffs.value.data[index];
+    // The hashed Tuple[address, bytes32] is the key
+    let key = storage_diff.key;
+    let storage_value_before = storage_diff.prev_value;
+    let storage_value_after = storage_diff.new_value;
+
+    let state_storage_tries_dict = state.value._storage_tries.value._data.value;
+    let storage_tries_start = state_storage_tries_dict.dict_ptr_start;
+    let storage_tries_end = state_storage_tries_dict.dict_ptr;
+    let len = storage_tries_end - storage_tries_start;
+    let storage_ptr = find_element(
+        storage_tries_start, TupleAddressBytes32U256DictAccess.SIZE, len, key
+    );
+    let storage_access = cast([storage_ptr], TupleAddressBytes32U256DictAccess);
+
+    with_attr error_message("[compare_diff::_compare_storage_inner] StorageDiff Mismatch") {
+        let prev_value_eq = U256__eq__(storage_access.prev_value, storage_value_before);
+        assert prev_eq = 1;
+        let new_value_eq = U256__eq__(storage_access.new_value, storage_value_after);
+        assert new_eq = 1;
+    }
+
+    return _compare_storage_inner(index + 1);
 }
