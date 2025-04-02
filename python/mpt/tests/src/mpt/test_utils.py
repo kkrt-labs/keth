@@ -1,5 +1,6 @@
 from ethereum.cancun.trie import (
     BranchNode,
+    ExtensionNode,
     LeafNode,
     bytes_to_nibble_list,
     encode_internal_node,
@@ -15,16 +16,13 @@ from mpt.utils import check_branch_node, nibble_list_to_bytes
 def invalid_branch_node_strategy():
     return st.builds(
         BranchNode,
-        subnodes=st.lists(
-            st.one_of(
-                st.integers(min_value=0, max_value=2**256 - 1).map(
-                    lambda x: x.to_bytes(32, "little")
-                ),
-                st.from_type(LeafNode).map(lambda x: encode_internal_node(x)),
+        subnodes=st.one_of(
+            st.integers(min_value=0, max_value=2**256 - 1).map(
+                lambda x: x.to_bytes(32, "little")
             ),
-            min_size=16,
-            max_size=16,
-        ).map(lambda nodes: tuple([b""] * 15 + [nodes[0]])),
+            st.from_type(LeafNode).map(lambda x: encode_internal_node(x)),
+            st.from_type(ExtensionNode).map(lambda x: encode_internal_node(x)),
+        ).map(lambda subnode: tuple([b""] * 15 + [subnode])),
         value=st.just(b""),
     )
 

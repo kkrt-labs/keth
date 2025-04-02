@@ -13,7 +13,12 @@ from ethereum_types.bytes import Bytes, Bytes32
 from ethereum_types.numeric import U256, Uint
 
 from mpt.ethereum_tries import EthereumTrieTransitionDB
-from mpt.utils import AccountNode, deserialize_to_internal_node, nibble_list_to_bytes
+from mpt.utils import (
+    AccountNode,
+    check_branch_node,
+    deserialize_to_internal_node,
+    nibble_list_to_bytes,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -138,6 +143,7 @@ class StateDiff:
                 )
 
             case (None, BranchNode()):
+                check_branch_node(r_node)
                 # Look for diffs in all branches of the right sub-tree
                 for i in range(0, 16):
                     self._compute_diff(
@@ -197,6 +203,7 @@ class StateDiff:
                 )
 
             case (LeafNode(), BranchNode()):
+                check_branch_node(r_node)
                 # The branch was created and replaced the single leaf.
                 # All branches - except the one whose first nibble matches the leaf's key - are new.
                 for i in range(0, 16):
@@ -307,6 +314,7 @@ class StateDiff:
                     )
 
             case (ExtensionNode(), BranchNode()):
+                check_branch_node(r_node)
                 # Match on the corresponding nibble of the extension key segment
                 for i in range(0, 16):
                     nibble = bytes([i])
@@ -338,6 +346,7 @@ class StateDiff:
                         )
 
             case (BranchNode(), None):
+                check_branch_node(l_node)
                 # Look for diffs in all branches of the left sub-tree
                 for i in range(0, 16):
                     self._compute_diff(
@@ -348,6 +357,7 @@ class StateDiff:
                     )
 
             case (BranchNode(), LeafNode()):
+                check_branch_node(r_node)
                 # The branch was deleted and replaced by a single leaf.
                 # All branches - except the one whose first nibble matches the leaf's key - are deleted.
                 # The remaining branch is compared to the leaf.
@@ -375,6 +385,7 @@ class StateDiff:
                         )
 
             case (BranchNode(), ExtensionNode()):
+                check_branch_node(r_node)
                 # Match on the corresponding nibble of the extension key segment
                 for i in range(0, 16):
                     nibble = bytes([i])
@@ -396,6 +407,8 @@ class StateDiff:
                         )
 
             case (BranchNode(), BranchNode()):
+                check_branch_node(l_node)
+                check_branch_node(r_node)
                 # Look for diffs in all branches of the right sub-tree
                 for i in range(0, 16):
                     l_subnode = l_node.subnodes[i]
