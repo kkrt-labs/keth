@@ -41,8 +41,7 @@ func sign_to_uint384_mod_bls12_381(sign: felt) -> UInt384 {
             bls12_381.P_MIN_ONE_D3,
         );
         return res;
-    } else {
-        let res = UInt384(1, 0, 0, 0);
-        return res;
     }
+    let res = UInt384(1, 0, 0, 0);
+    return res;
 }

@@ -98,10 +98,9 @@ func sign_to_uint384_mod_secp256k1(sign: felt) -> UInt384 {
             secp256k1.P_MIN_ONE_D3,
         );
         return res;
-    } else {
-        let res = UInt384(1, 0, 0, 0);
-        return res;
     }
+    let res = UInt384(1, 0, 0, 0);
+    return res;
 }
 
 // @notice Similar to `recover_public_key`, but handles the case where 'x' does not correspond to a point on the
