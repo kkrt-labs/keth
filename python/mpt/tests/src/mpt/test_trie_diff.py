@@ -260,7 +260,10 @@ class TestTrieDiff:
             lambda: None,
         )
 
-        with pytest.raises(Exception, match="INVARIANT - Invalid address preimage: keccak(address) != path"):
+        with pytest.raises(
+            Exception,
+            match="INVARIANT - Invalid address preimage: keccak(address) != path",
+        ):
             cairo_run(
                 "test__process_account_diff",
                 node_store=node_store,
