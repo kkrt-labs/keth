@@ -108,6 +108,7 @@ from ethereum.cancun.vm.gas import ExtendMemory, MessageCallGas
 from ethereum.cancun.vm.interpreter import MessageCallOutput as MessageCallOutputBase
 from ethereum.crypto.alt_bn128 import BNF, BNF2, BNF12, BNP, BNP2, BNP12
 from ethereum.crypto.hash import Hash32
+from ethereum.crypto.kzg import BLSFieldElement
 from ethereum.exceptions import EthereumException
 from ethereum_rlp.rlp import Extended, Simple
 from ethereum_types.bytes import (
@@ -818,6 +819,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("mpt", "trie_diff", "StorageDiffEntry"): StorageDiffEntry,
     ("mpt", "trie_diff", "StorageDiff"): List[StorageDiffEntry],
     ("ethereum", "cancun", "fork_types", "HashedTupleAddressBytes32"): Uint,
+    ("ethereum", "crypto", "kzg", "BLSFieldElement"): BLSFieldElement,
 }
 
 # In the EELS, some functions are annotated with Sequence while it's actually just Bytes.
@@ -1126,7 +1128,7 @@ def _gen_arg(
                 )
         return struct_ptr
 
-    if arg_type in (U256, Hash32, Bytes32):
+    if arg_type in (U256, Hash32, Bytes32, BLSFieldElement):
         if isinstance_with_generic(arg, U256):
             arg = arg.to_be_bytes32()[::-1]
 

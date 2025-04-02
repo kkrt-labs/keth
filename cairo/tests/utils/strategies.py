@@ -45,6 +45,7 @@ from ethereum.crypto.alt_bn128 import (
 from ethereum.crypto.elliptic_curve import SECP256K1N
 from ethereum.crypto.finite_field import GaloisField
 from ethereum.crypto.hash import Hash32
+from ethereum.crypto.kzg import BLSFieldElement
 from ethereum.exceptions import EthereumException
 from ethereum_types.bytes import (
     Bytes0,
@@ -71,7 +72,6 @@ from tests.utils.args_gen import (  # noqa
     Evm,
     Memory,
     Message,
-    MessageCallOutput,
     MutableBloom,
     Stack,
     State,
@@ -115,6 +115,7 @@ bytes32 = st.integers(min_value=0, max_value=2**256 - 1).map(
     lambda x: Bytes32(x.to_bytes(32, "little"))
 )
 hash32 = bytes32.map(Hash32)
+bls_field_element = uint256.map(BLSFieldElement)
 root = bytes32.map(Root)
 bytes256 = st.integers(min_value=0, max_value=2**2048 - 1).map(
     lambda x: Bytes256(x.to_bytes(256, "little"))
@@ -648,6 +649,7 @@ def register_type_strategies():
     st.register_type_strategy(Bytes32, bytes32)
     st.register_type_strategy(Bytes64, bytes64)
     st.register_type_strategy(Hash32, hash32)
+    st.register_type_strategy(BLSFieldElement, bls_field_element)
     st.register_type_strategy(Root, root)
     st.register_type_strategy(Bytes256, bytes256)
     st.register_type_strategy(Bloom, bloom)
