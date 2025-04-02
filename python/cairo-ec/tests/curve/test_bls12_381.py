@@ -1,4 +1,5 @@
 import pytest
+from ethereum.crypto.kzg import BLS_MODULUS
 from garaga.definitions import CurveID
 from py_ecc.optimized_bls12_381.optimized_curve import (
     b,
@@ -10,6 +11,10 @@ from py_ecc.optimized_bls12_381.optimized_curve import (
 class TestBls12381:
 
     class TestConstants:
+        # Ensures EELS and py-ecc agree on the scalar modulus
+        def test_scalar_modulus(self):
+            assert curve_order == BLS_MODULUS
+
         def test_get_CURVE_ID(self, cairo_run):
             assert cairo_run("test__get_CURVE_ID") == CurveID.from_str("bls12381").value
 
