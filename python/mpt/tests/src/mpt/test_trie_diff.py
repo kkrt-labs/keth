@@ -1,3 +1,4 @@
+import re
 from collections import defaultdict
 from pathlib import Path
 from typing import Dict, Mapping, Optional, Tuple, Union
@@ -173,17 +174,18 @@ class TestTrieDiff:
             _, result = cairo_run("node_store_get", small_store, key)
             assert result == small_store.get(key)
 
-    @given(path=..., account_before=..., account_after=...)
+    @given(address=..., account_before=..., account_after=...)
     def test__process_account_diff(
         self,
         cairo_run,
-        path: Bytes32,
+        address: Address,
         account_before: Optional[AccountNode],
         account_after: Optional[AccountNode],
     ):
         # Python
+        path = keccak256(address)
         diff_cls = StateDiff()
-        diff_cls._address_preimages = {path: keccak256(path)[:20]}
+        diff_cls._address_preimages = {path: address}
         leaf_before = (
             None
             if account_before is None
@@ -224,27 +226,80 @@ class TestTrieDiff:
         for key, (prev_value, new_value) in diff_cls._main_trie.items():
             assert (prev_value, new_value) == result_lookup[key]
 
-    @given(path=..., address=..., storage_key_before=..., storage_key_after=...)
-    def test__process_storage_diff(
+    @given(address=..., account_before=..., account_after=...)
+    def test__process_account_diff_invalid(
         self,
         cairo_run,
-        path: Bytes32,
         address: Address,
-        storage_key_before: Optional[U256],
-        storage_key_after: Optional[U256],
+        account_before: Optional[AccountNode],
+        account_after: Optional[AccountNode],
     ):
+        path = keccak256(address)
+
+        ## BREAKING THE INVARIANT:
+        wrong_address = keccak256(b"invalid")[0:20]
+
         diff_cls = StateDiff()
-        # Fill preimages with arbitrary 32-bytes data
-        diff_cls._storage_key_preimages = {path: keccak256(path)}
+        diff_cls._address_preimages = {path: wrong_address}
         leaf_before = (
             None
-            if storage_key_before is None
-            else LeafNode(rest_of_key=b"", value=rlp.encode(storage_key_before))
+            if account_before is None
+            else LeafNode(rest_of_key=b"", value=account_before.to_rlp())
         )
         leaf_after = (
             None
-            if storage_key_after is None
-            else LeafNode(rest_of_key=b"", value=rlp.encode(storage_key_after))
+            if account_after is None
+            else LeafNode(rest_of_key=b"", value=account_after.to_rlp())
+        )
+        diff_cls._process_account_diff(
+            path=path,
+            left=leaf_before,
+            right=leaf_after,
+        )
+
+        node_store = defaultdict(
+            lambda: None,
+        )
+
+        with pytest.raises(
+            Exception,
+            match=re.escape(
+                "INVARIANT - Invalid address preimage: keccak(address) != path"
+            ),
+        ):
+            cairo_run(
+                "test__process_account_diff",
+                node_store=node_store,
+                address_preimages=diff_cls._address_preimages,
+                storage_key_preimages=diff_cls._storage_key_preimages,
+                path=path,
+                left=leaf_before,
+                right=leaf_after,
+            )
+
+    @given(
+        storage_key=..., address=..., storage_value_before=..., storage_value_after=...
+    )
+    def test__process_storage_diff(
+        self,
+        cairo_run,
+        storage_key: Bytes32,
+        address: Address,
+        storage_value_before: Optional[U256],
+        storage_value_after: Optional[U256],
+    ):
+        diff_cls = StateDiff()
+        path = keccak256(storage_key)
+        diff_cls._storage_key_preimages = {path: storage_key}
+        leaf_before = (
+            None
+            if storage_value_before is None
+            else LeafNode(rest_of_key=b"", value=rlp.encode(storage_value_before))
+        )
+        leaf_after = (
+            None
+            if storage_value_after is None
+            else LeafNode(rest_of_key=b"", value=rlp.encode(storage_value_after))
         )
         diff_cls._process_storage_diff(
             address=address,
@@ -274,6 +329,54 @@ class TestTrieDiff:
             key = int_to_uint256(int.from_bytes(key, "little"))
             hashed_key = poseidon_hash_many((int.from_bytes(address, "little"), *key))
             assert (prev_value, new_value) == result_lookup[hashed_key]
+
+    @given(
+        storage_key=..., address=..., storage_value_before=..., storage_value_after=...
+    )
+    def test__process_storage_diff_invalid(
+        self,
+        cairo_run,
+        storage_key: Bytes32,
+        address: Address,
+        storage_value_before: Optional[U256],
+        storage_value_after: Optional[U256],
+    ):
+        diff_cls = StateDiff()
+        path = keccak256(storage_key)
+
+        fake_storage_key = keccak256(b"invalid")
+        diff_cls._storage_key_preimages = {path: fake_storage_key}
+        leaf_before = (
+            None
+            if storage_value_before is None
+            else LeafNode(rest_of_key=b"", value=rlp.encode(storage_value_before))
+        )
+        leaf_after = (
+            None
+            if storage_value_after is None
+            else LeafNode(rest_of_key=b"", value=rlp.encode(storage_value_after))
+        )
+        diff_cls._process_storage_diff(
+            address=address,
+            path=path,
+            left=leaf_before,
+            right=leaf_after,
+        )
+
+        with pytest.raises(
+            Exception,
+            match=re.escape(
+                "INVARIANT - Invalid storage key preimage: keccak(storage_key) != path"
+            ),
+        ):
+            cairo_run(
+                "test__process_storage_diff",
+                storage_key_preimages=diff_cls._storage_key_preimages,
+                path=path,
+                address=address,
+                left=leaf_before,
+                right=leaf_after,
+            )
 
     @pytest.mark.parametrize(
         "data_path", [Path("test_data/22081873.json")], scope="session"
