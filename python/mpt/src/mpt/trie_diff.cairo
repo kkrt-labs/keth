@@ -4,6 +4,7 @@ from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
 from starkware.cairo.common.dict import DictAccess
 from starkware.cairo.common.memset import memset
 from starkware.cairo.common.memcpy import memcpy
+from starkware.cairo.common.find_element import find_element
 from ethereum.crypto.hash import Hash32
 from ethereum.cancun.fork_types import (
     OptionalAddress,
@@ -23,6 +24,7 @@ from ethereum_types.bytes import (
     StringStruct,
 )
 from ethereum_types.numeric import U256, Uint, U256Struct, Bool, bool
+from ethereum.cancun.state import State
 from ethereum.cancun.trie import (
     LeafNode,
     LeafNodeStruct,
@@ -1925,4 +1927,39 @@ func resolve{
     with_attr error_message("ValueError") {
         jmp raise.raise_label;
     }
+}
+
+func compare_diffs{state: State, account_diffs: AccountDiff, storage_diffs: StorageDiff}() -> Bool {
+    alloc_locals;
+
+    // Accounts
+
+    // Storage
+
+    let res = Bool(1);
+    return res;
+}
+
+func _compare_account_inner{range_check_ptr, state: State, account_diffs: AccountDiff}(
+    index: felt
+) -> Bool {
+    alloc_locals;
+    if (index == account_diffs.value.len) {
+        let res = Bool(1);
+        return res;
+    }
+
+    let account_diff = account_diffs.value.data[index];
+    let address = account_diff.key;
+    let account_before = account_diff.prev_value;
+    let account_after = account_diff.new_value;
+
+    let state_accounts_dict = state.value._main_trie.value._data.value;
+    let accounts_start = state_accounts_dict.dict_ptr_start;
+    let accounts_end = state_accounts_dict.dict_ptr;
+    let len = accounts_end - accounts_start;
+    let account_ptr = find_element{range_check_ptr=range_check_ptr}(accounts_start, len, address);
+    let account_ptr = cast(account_ptr, AccountStruct*);
+
+    
 }

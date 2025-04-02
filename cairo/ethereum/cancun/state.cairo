@@ -151,17 +151,6 @@ struct State {
     value: StateStruct*,
 }
 
-struct StateDiff {
-    value: StateDiffStruct*,
-}
-
-struct StateDiffStruct {
-    _main_trie_start: AddressAccountDictAccess*,
-    _main_trie_end: AddressAccountDictAccess*,
-    _storage_tries_start: TupleAddressBytes32U256DictAccess*,
-    _storage_tries_end: TupleAddressBytes32U256DictAccess*,
-}
-
 namespace StateImpl {
     func set_created_accounts{state: State}(new_created_accounts: SetAddress) {
         tempvar state = State(
