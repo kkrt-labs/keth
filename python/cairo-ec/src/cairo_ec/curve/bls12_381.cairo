@@ -29,7 +29,6 @@ namespace bls12_381 {
     const P_MIN_ONE_D1 = 0x6730d2a0f6b0f6241eabfffe;
     const P_MIN_ONE_D2 = 0x434bacd764774b84f38512bf;
     const P_MIN_ONE_D3 = 0x1a0111ea397fe69a4b1ba7b6;
-
 }
 
 @known_ap_change
