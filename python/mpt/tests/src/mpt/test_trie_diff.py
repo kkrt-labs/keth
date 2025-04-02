@@ -233,7 +233,6 @@ class TestTrieDiff:
         account_before: Optional[AccountNode],
         account_after: Optional[AccountNode],
     ):
-        # Python
         path = keccak256(address)
 
         ## BREAKING THE INVARIANT:
