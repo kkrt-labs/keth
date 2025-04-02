@@ -2,6 +2,11 @@ from starkware.cairo.common.cairo_builtins import UInt384
 from starkware.cairo.common.uint256 import Uint256
 
 from cairo_ec.curve.secp256k1 import get_generator_point, secp256k1
+from cairo_ec.curve.ids import CurveID
+
+func test__get_CURVE_ID() -> felt {
+    return secp256k1.CURVE_ID;
+}
 
 func test__get_P() -> UInt384* {
     tempvar p_ptr = new UInt384(secp256k1.P0, secp256k1.P1, secp256k1.P2, secp256k1.P3);
