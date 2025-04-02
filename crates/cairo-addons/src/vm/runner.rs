@@ -259,7 +259,7 @@ except Exception as e:
 
     #[getter]
     fn segments(&mut self) -> PyMemorySegmentManager {
-        PyMemorySegmentManager { vm: &mut self.inner.vm }
+        PyMemorySegmentManager { inner: &mut self.inner.vm.segments }
     }
 
     /// Loads data into memory at the specified base address.

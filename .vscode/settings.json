@@ -83,5 +83,14 @@
   "jupyter.notebookFileRoot": "${workspaceFolder}/cairo",
   "githubPullRequests.remotes": ["kakarot", "upstream"],
   "cairols.sourceDir": "cairo",
-  "rust-analyzer.cargo.features": "all"
+  "rust-analyzer.cargo.features": "all",
+  "cairols.venvCommand": ".venv/bin/activate",
+  "cairols.cairoPath": [
+    "cairo",
+    "python/cairo-ec/src",
+    "python/cairo-addons/src",
+    "python/cairo-core/src",
+    "python/mpt/src",
+    ".venv/lib/python3.10/site-packages/src"
+  ]
 }

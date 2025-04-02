@@ -5,7 +5,7 @@ use pyo3::prelude::*;
 
 use super::maybe_relocatable::PyMaybeRelocatable;
 
-#[pyclass(name = "Relocatable")]
+#[pyclass(name = "Relocatable", frozen)]
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct PyRelocatable {
     pub(crate) inner: RustRelocatable,

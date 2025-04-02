@@ -9,6 +9,7 @@ mod hints;
 mod layout;
 mod maybe_relocatable;
 mod memory_segments;
+mod mod_builtin_runner;
 mod program;
 mod pythonic_hint;
 mod relocatable;
@@ -22,6 +23,7 @@ mod vm_consts;
 
 use dict_manager::{PyDictManager, PyDictTracker};
 use memory_segments::PyMemorySegmentManager;
+use mod_builtin_runner::PyModBuiltinRunner;
 use program::PyProgram;
 use relocatable::PyRelocatable;
 use relocated_trace::PyRelocatedTraceEntry;
@@ -44,5 +46,6 @@ fn vm(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(runner::run_proof_mode, module)?).unwrap();
     module.add_class::<PyVmConst>()?;
     module.add_class::<PyVmConstsDict>()?;
+    module.add_class::<PyModBuiltinRunner>()?;
     Ok(())
 }

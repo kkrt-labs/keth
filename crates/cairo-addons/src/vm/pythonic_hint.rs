@@ -56,8 +56,11 @@
 use cairo_vm::{
     hint_processor::hint_processor_definition::HintReference,
     serde::deserialize_program::{ApTracking, Identifier},
-    types::exec_scope::ExecutionScopes,
-    vm::{errors::hint_errors::HintError, vm_core::VirtualMachine},
+    types::{builtin_name::BuiltinName, exec_scope::ExecutionScopes},
+    vm::{
+        errors::hint_errors::HintError, runners::builtin_runner::BuiltinRunner,
+        vm_core::VirtualMachine,
+    },
     Felt252,
 };
 use pyo3::{prelude::*, types::PyDict};
@@ -68,6 +71,7 @@ use super::{
     dict_manager::PyDictManager,
     hints::Hint,
     memory_segments::{PyMemorySegmentManager, PyMemoryWrapper},
+    mod_builtin_runner::PyModBuiltinRunner,
     relocatable::PyRelocatable,
     vm_consts::create_vm_consts_dict,
 };
@@ -188,7 +192,7 @@ impl PythonicHintExecutor {
             let bounded_context = context.bind(py);
 
             // Add the memory wrapper to context
-            let memory_wrapper = PyMemoryWrapper { vm };
+            let memory_wrapper = PyMemoryWrapper { inner: &mut vm.segments.memory };
             let memory = Py::new(py, memory_wrapper)
                 .map_err(|e| DynamicHintError::PyObjectCreation(e.to_string()))?;
             bounded_context
@@ -196,7 +200,7 @@ impl PythonicHintExecutor {
                 .map_err(|e| DynamicHintError::PyDictSet(e.to_string()))?;
 
             // Add the segments wrapper to context
-            let segments_wrapper = PyMemorySegmentManager { vm };
+            let segments_wrapper = PyMemorySegmentManager { inner: &mut vm.segments };
             let segments = Py::new(py, segments_wrapper)
                 .map_err(|e| DynamicHintError::PyObjectCreation(e.to_string()))?;
             bounded_context
@@ -212,6 +216,36 @@ impl PythonicHintExecutor {
                 .map_err(|e| DynamicHintError::PyObjectCreation(e.to_string()))?;
             bounded_context
                 .set_item("dict_manager", &py_dict_manager_wrapper)
+                .map_err(|e| DynamicHintError::PyDictSet(e.to_string()))?;
+
+            // Add the mod builtin runner wrapper to context. Expose it through a builtin_runners
+            // dict in the keys "add_mod_builtin" and "mul_mod_builtin"
+            let add_mod_builtin = vm.builtin_runners.iter().find_map(|b| match b {
+                BuiltinRunner::Mod(b) if b.name() == BuiltinName::add_mod => Some(b),
+                _ => None,
+            });
+            let mul_mod_builtin = vm.builtin_runners.iter().find_map(|b| match b {
+                BuiltinRunner::Mod(b) if b.name() == BuiltinName::mul_mod => Some(b),
+                _ => None,
+            });
+
+            let builtin_runners = PyDict::new(py);
+            if let Some(add_mod) = add_mod_builtin {
+                let add_mod_builtin_runner_wrapper = PyModBuiltinRunner { inner: add_mod.clone() };
+                builtin_runners
+                    .set_item("add_mod_builtin", add_mod_builtin_runner_wrapper)
+                    .map_err(|e| DynamicHintError::PyDictSet(e.to_string()))?;
+            }
+
+            if let Some(mul_mod) = mul_mod_builtin {
+                let mul_mod_builtin_runner_wrapper = PyModBuiltinRunner { inner: mul_mod.clone() };
+                builtin_runners
+                    .set_item("mul_mod_builtin", mul_mod_builtin_runner_wrapper)
+                    .map_err(|e| DynamicHintError::PyDictSet(e.to_string()))?;
+            }
+
+            bounded_context
+                .set_item("builtin_runners", &builtin_runners)
                 .map_err(|e| DynamicHintError::PyDictSet(e.to_string()))?;
 
             // Make ap, pc, fp accessible from the hint
@@ -255,12 +289,18 @@ impl PythonicHintExecutor {
                 .set_item("ids", py_ids_dict)
                 .map_err(|e| DynamicHintError::PyDictSet(e.to_string()))?;
 
-            let injected_py_code = PythonCodeInjector::new()
+            // Explicit imports of the python `ModBuiltinRunner` class in a hint should be replaced
+            // by our binding.
+            let full_hint_code = PythonCodeInjector::new(hint_code)
                 .with_base_imports()
                 .with_serialize()
                 .with_gen_arg()
+                .replace_hint_code_chunk(
+                    "from starkware.cairo.lang.builtins.modulo.mod_builtin_runner import ModBuiltinRunner",
+                    "from cairo_addons.vm import ModBuiltinRunner",
+                )
                 .build();
-            let full_hint_code = format!("{}\n{}", injected_py_code, hint_code);
+
             let hint_code_c_string = CString::new(full_hint_code)
                 .map_err(|e| DynamicHintError::CStringConversion(e.to_string()))?;
 
@@ -333,17 +373,22 @@ pub fn generic_python_hint() -> Hint {
 /// Builder for constructing Python injection code
 struct PythonCodeInjector {
     code_parts: Vec<String>,
+    hint_code: String,
 }
 
 impl PythonCodeInjector {
-    /// Create a new injector instance
-    fn new() -> Self {
-        Self { code_parts: Vec::new() }
+    /// Create a new injector instance from a hint code
+    fn new(hint_code: &str) -> Self {
+        Self { code_parts: Vec::new(), hint_code: hint_code.to_string() }
     }
 
     /// Add the base imports required for all injections
     fn with_base_imports(mut self) -> Self {
         self.code_parts.push("from functools import partial".to_string());
+        self.code_parts
+            .push("from starkware.cairo.lang.vm.relocatable import RelocatableValue".to_string());
+        self.code_parts
+            .push("to_felt_or_relocatable = RelocatableValue.to_felt_or_relocatable".to_string());
         self
     }
 
@@ -361,8 +406,14 @@ impl PythonCodeInjector {
         self
     }
 
+    /// Replace a substring of the hint code by another substring
+    fn replace_hint_code_chunk(mut self, search: &str, replace: &str) -> Self {
+        self.hint_code = self.hint_code.replace(search, replace);
+        self
+    }
+
     /// Build the final injected code string
     fn build(self) -> String {
-        self.code_parts.join("\n")
+        self.code_parts.join("\n") + &self.hint_code
     }
 }
