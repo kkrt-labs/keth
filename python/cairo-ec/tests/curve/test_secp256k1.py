@@ -1,5 +1,6 @@
 from ethereum.crypto.elliptic_curve import SECP256K1N, EllipticCurve
 from ethereum.crypto.finite_field import PrimeField
+from garaga.definitions import CurveID
 
 from cairo_addons.utils.uint256 import uint256_to_int
 from cairo_addons.utils.uint384 import uint384_to_int
@@ -18,6 +19,11 @@ class Secp256k1(EllipticCurve):
 class TestSecp256k1:
 
     class TestConstants:
+        def test_get_CURVE_ID(self, cairo_run):
+            assert (
+                cairo_run("test__get_CURVE_ID") == CurveID.from_str("secp256k1").value
+            )
+
         def test_get_P(self, cairo_run):
             assert (
                 uint384_to_int(*cairo_run("test__get_P").values()) == Secp256k1P.PRIME
