@@ -9,6 +9,7 @@ from cairo_core.numeric import U384, U256
 func test__get_CURVE_ID() -> felt {
     return alt_bn128.CURVE_ID;
 }
+
 func test__get_P() -> U384 {
     tempvar p = U384(new UInt384(alt_bn128.P0, alt_bn128.P1, alt_bn128.P2, alt_bn128.P3));
     return p;
