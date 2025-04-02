@@ -1,3 +1,4 @@
+import re
 from collections import defaultdict
 from pathlib import Path
 from typing import Dict, Mapping, Optional, Tuple, Union
@@ -262,7 +263,9 @@ class TestTrieDiff:
 
         with pytest.raises(
             Exception,
-            match="INVARIANT - Invalid address preimage: keccak(address) != path",
+            match=re.escape(
+                "INVARIANT - Invalid address preimage: keccak(address) != path"
+            ),
         ):
             cairo_run(
                 "test__process_account_diff",
