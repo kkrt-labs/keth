@@ -265,7 +265,7 @@ impl PyVmConst {
             let member_type = create_var_type(member.cairo_type.as_ref(), identifiers)
                 .map_err(|e| PyAttributeError::new_err(format!("Failed to create type: {}", e)))?;
 
-            match member_type {
+            match member_type.clone() {
                 CairoVarType::Felt => match value {
                     MaybeRelocatable::Int(felt) => {
                         Ok(felt.to_biguint().into_bound_py_any(py)?.into())
@@ -289,7 +289,20 @@ impl PyVmConst {
                         value
                     ))),
                 },
-                _ => {
+                CairoVarType::Pointer { .. } => {
+                    // The address of a pointer is the same as its value.
+                    let var = CairoVar {
+                        name: format!("{}.{}", parent_name, member_name),
+                        value: Some(value.clone()),
+                        address: Some(
+                            value.get_relocatable().expect("Pointer value is not relocatable"),
+                        ),
+                        var_type: member_type,
+                    };
+                    let py_pointee = PyVmConst { var, vm: self.vm, identifiers: self.identifiers };
+                    Ok(Py::new(py, py_pointee)?.into_bound_py_any(py)?.into())
+                }
+                CairoVarType::Struct { .. } => {
                     // For structs and pointers, use PyVmConst
                     let var = CairoVar {
                         name: format!("{}.{}", parent_name, member_name),
@@ -306,7 +319,6 @@ impl PyVmConst {
 
     /// Gets the effective address of the variable, dereferencing pointers if applicable.
     pub fn get_address(&self) -> PyResult<Option<Relocatable>> {
-        let vm = unsafe { &mut *self.vm };
         match &self.var.var_type {
             CairoVarType::Pointer { .. } => {
                 let addr = self
@@ -314,17 +326,7 @@ impl PyVmConst {
                     .address
                     .ok_or_else(|| PyAttributeError::new_err("Pointer has no address"))?;
 
-                // Note: when dereferencing a pointer like
-                // ```
-                // tempvar n = new U256Struct(100, 200);
-                // %{
-                //     assert ids.n.low == 100, f"ids.n.low: {ids.n.low}";
-                //     assert ids.n.high == 200, f"ids.n.high: {ids.n.high}";
-                // %}
-                // ```
-                // ids.n.low are located at address `addr`, not `get_relocatable(addr)` - hence the
-                // fallback.
-                Ok(Some(vm.get_relocatable(addr).map_or(addr, |r| r)))
+                Ok(Some(addr))
             }
             _ => Ok(self.var.address),
         }

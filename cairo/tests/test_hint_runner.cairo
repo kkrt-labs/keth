@@ -1,7 +1,8 @@
 from ethereum_types.numeric import U256, U256Struct
-from starkware.cairo.common.alloc import alloc
-
 from ethereum.exceptions import ValueError
+
+from starkware.cairo.common.registers import get_fp_and_pc, get_label_location
+from starkware.cairo.common.alloc import alloc
 
 func test__ap_accessible() {
     tempvar x = 100;
@@ -147,4 +148,33 @@ func test__access_non_imported_const_should_fail() {
 func test__access_imported_const() {
     %{ assert ids.ValueError == int.from_bytes('ValueError'.encode("ascii"), "big") %}
     ret;
+}
+
+struct MyTestStruct {
+    ptr: felt*,
+    value: felt,
+}
+
+func test_hint_access_ptr_struct_with_pointer_member() {
+    let my_test_struct_ = get_struct_from_program_segment();
+    tempvar my_test_struct = my_test_struct_;
+    %{
+        assert memory[ids.my_test_struct.ptr] == 100, f"my_test_struct.ptr: {ids.my_test_struct.ptr}";
+        assert ids.my_test_struct.value == 200, f"my_test_struct.value: {ids.my_test_struct.value}";
+    %}
+    ret;
+}
+
+func get_struct_from_program_segment() -> MyTestStruct* {
+    alloc_locals;
+    let (__fp__, _) = get_fp_and_pc();
+    let (value_ptr: felt*) = get_label_location(value_loc);
+
+    let constant_value = 200;
+
+    local result: MyTestStruct = MyTestStruct(value_ptr, constant_value);
+    return &result;
+
+    value_loc:
+    dw 100;
 }
