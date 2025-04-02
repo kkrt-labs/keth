@@ -1,19 +1,22 @@
 import json
+import logging
 import os
 from pathlib import Path
 from typing import List, Sequence, Tuple, Union
 
 import pytest
-from ethereum.frontier.fork_types import Bytes, Uint
 from ethereum.utils.hexadecimal import hex_to_bytes
-from ethereum_rlp import Extended, rlp
+from ethereum_rlp.exceptions import DecodingError
+from ethereum_rlp.rlp import Extended
+from ethereum_types.bytes import Bytes
+from ethereum_types.numeric import Uint
 
 from tests.ef_tests.helpers import TEST_FIXTURES
 
 ETHEREUM_TESTS_PATH = TEST_FIXTURES["ethereum_tests"]["fixture_path"]
 
 pytestmark = pytest.mark.cairo_file(f"{Path().cwd()}/cairo/ethereum_rlp/rlp.cairo")
-
+logger = logging.getLogger(__name__)
 
 #
 # Running ethereum/tests for rlp
@@ -36,11 +39,15 @@ def ethtest_fixtures_as_pytest_fixtures(
     base_path = f"{ETHEREUM_TESTS_PATH}/RLPTests/"
 
     test_data = dict()
-    for test_file in test_files:
-        with open(os.path.join(base_path, test_file), "r") as fp:
-            test_data.update(json.load(fp))
-
     pytest_fixtures = []
+    for test_file in test_files:
+        try:
+            with open(os.path.join(base_path, test_file), "r") as fp:
+                test_data.update(json.load(fp))
+        except FileNotFoundError:
+            logger.warning(f"File {test_file} not found")
+            continue
+
     for test_details in test_data.values():
         if isinstance(test_details["in"], str) and test_details["in"].startswith("#"):
             test_details["in"] = int(test_details["in"][1:])
@@ -88,5 +95,5 @@ def test_ethtest_fixtures_for_successfully_rlp_decoding(
 def test_ethtest_fixtures_for_fails_in_rlp_decoding(
     raw_data, encoded_data: Bytes, cairo_run  # noqa
 ) -> None:
-    with pytest.raises(rlp.DecodingError):
+    with pytest.raises(DecodingError):
         cairo_run("decode", encoded_data)
