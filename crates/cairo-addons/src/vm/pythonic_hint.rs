@@ -306,7 +306,13 @@ impl PythonicHintExecutor {
 
             // Run the hint code
             py.run(&hint_code_c_string, Some(bounded_context), None).map_err(|e| {
-                DynamicHintError::PythonExecution(e.traceback(py).unwrap().format().unwrap())
+                let traceback = e.traceback(py).unwrap();
+                let error_message = e.to_string();
+                DynamicHintError::PythonExecution(format!(
+                    "{}\nTraceback:\n{}",
+                    error_message,
+                    traceback.format().unwrap()
+                ))
             })?;
 
             Ok(())
