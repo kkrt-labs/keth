@@ -7,8 +7,6 @@ namespace bls12_381 {
     const P1 = 0x6730d2a0f6b0f6241eabfffe;
     const P2 = 0x434bacd764774b84f38512bf;
     const P3 = 0x1a0111ea397fe69a4b1ba7b6;
-    const P_LOW_128 = 0x53bda402fffe5bfeffffffff00000001;
-    const P_HIGH_128 = 0x73eda753299d7d483339d80809a1d805;
     const N0 = 0xfffe5bfeffffffff00000001;
     const N1 = 0x3339d80809a1d80553bda402;
     const N2 = 0x73eda753299d7d48;
