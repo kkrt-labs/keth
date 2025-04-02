@@ -156,6 +156,7 @@ def run_python_vm(
     coverage: Optional[Callable[[pl.DataFrame, int], pl.DataFrame]],
     hint_locals: Optional[dict] = None,
     static_locals: Optional[dict] = None,
+    debug_info: Optional[DebugInfo]
 ):
     def _run(entrypoint, *args, **kwargs):
         # ============================================================================
@@ -290,7 +291,7 @@ def run_python_vm(
                 **(hint_locals or {}),
             },
             static_locals={
-                "debug_info": debug_info(cairo_program),
+                "debug_info": debug_info(debug_infos),
                 "logger": context["logger"],
                 **(static_locals or {}),
             },

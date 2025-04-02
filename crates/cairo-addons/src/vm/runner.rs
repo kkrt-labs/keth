@@ -81,6 +81,7 @@ impl PyCairoRunner {
         enable_traces: bool,
         ordered_builtins: Vec<String>,
         cairo_file: Option<PyObject>,
+        debug_info: Option<PyObject>
     ) -> PyResult<Self> {
         let layout = layout.unwrap_or_default().into_layout_name()?;
 
@@ -133,6 +134,12 @@ impl PyCairoRunner {
 
             if let Some(cairo_file) = cairo_file {
                 context.set_item("cairo_file", cairo_file).map_err(|e| {
+                    PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string())
+                })?;
+            }
+
+            if let Some(debug_info) = debug_info {
+                context.set_item("debug_info", debug_info).map_err(|e| {
                     PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string())
                 })?;
             }
@@ -660,6 +667,8 @@ pub fn run_proof_mode(
         // Insert the _rust_ program_identifiers in the exec_scopes, so that we're able to
         // pull identifier data when executing hints to build VmConsts.
         exec_scopes.insert_value("__program_identifiers__", identifiers);
+
+        exec_scopes.insert_value("debug_info", debug_info);
 
         // Store empty python identifiers directly in the context
         context
