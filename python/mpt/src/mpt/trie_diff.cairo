@@ -1,5 +1,6 @@
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_builtins import PoseidonBuiltin, BitwiseBuiltin, KeccakBuiltin
+from starkware.cairo.common.builtin_keccak.keccak import keccak_uint256s
 from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
 from starkware.cairo.common.dict import DictAccess
 from starkware.cairo.common.memset import memset
@@ -22,7 +23,7 @@ from ethereum_types.bytes import (
     String,
     StringStruct,
 )
-from ethereum.utils.bytes import Bytes20_to_Bytes
+from ethereum.utils.bytes import Bytes20_to_Bytes, Bytes32_to_Bytes
 from ethereum_types.numeric import U256, Uint, U256Struct, Bool, bool
 from ethereum.cancun.trie import (
     LeafNode,
@@ -536,6 +537,7 @@ func _process_storage_diff{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
     storage_key_preimages: MappingBytes32Bytes32,
     storage_tries_end: StorageDiffEntry*,
 }(address: Address, path: Bytes32, left: OptionalLeafNode, right: OptionalLeafNode) -> () {
@@ -552,37 +554,52 @@ func _process_storage_diff{
     );
     tempvar storage_key = Bytes32(cast(pointer, Bytes32Struct*));
 
+    // INVARIANT [Soundness]: check keccak(storage_key) == path
+    let (storage_key_hash) = keccak_uint256s(1, storage_key.value);
+    with_attr error_message(
+            "INVARIANT - Invalid storage key preimage: keccak(storage_key) != path") {
+        assert storage_key_hash.low = path.value.low;
+        assert storage_key_hash.high = path.value.high;
+    }
+
     if (left.value != 0) {
         let left_decoded = U256_from_rlp(left.value.value.value.bytes);
         tempvar range_check_ptr = range_check_ptr;
         tempvar bitwise_ptr = bitwise_ptr;
         tempvar poseidon_ptr = poseidon_ptr;
+        tempvar keccak_ptr = keccak_ptr;
     } else {
         tempvar left = left;
         tempvar range_check_ptr = range_check_ptr;
         tempvar bitwise_ptr = bitwise_ptr;
         tempvar poseidon_ptr = poseidon_ptr;
+        tempvar keccak_ptr = keccak_ptr;
     }
-    let left_u256 = U256(cast([ap - 4], U256Struct*));
-    let range_check_ptr = [ap - 3];
-    let bitwise_ptr = cast([ap - 2], BitwiseBuiltin*);
-    let poseidon_ptr = cast([ap - 1], PoseidonBuiltin*);
+
+    let left_u256 = U256(cast([ap - 5], U256Struct*));
+    let range_check_ptr = [ap - 4];
+    let bitwise_ptr = cast([ap - 3], BitwiseBuiltin*);
+    let poseidon_ptr = cast([ap - 2], PoseidonBuiltin*);
+    let keccak_ptr = cast([ap - 1], KeccakBuiltin*);
 
     if (right.value != 0) {
         let right_decoded = U256_from_rlp(right.value.value.value.bytes);
         tempvar range_check_ptr = range_check_ptr;
         tempvar bitwise_ptr = bitwise_ptr;
         tempvar poseidon_ptr = poseidon_ptr;
+        tempvar keccak_ptr = keccak_ptr;
     } else {
         tempvar right = right;
         tempvar range_check_ptr = range_check_ptr;
         tempvar bitwise_ptr = bitwise_ptr;
         tempvar poseidon_ptr = poseidon_ptr;
+        tempvar keccak_ptr = keccak_ptr;
     }
-    let right_u256 = U256(cast([ap - 4], U256Struct*));
-    let range_check_ptr = [ap - 3];
-    let bitwise_ptr = cast([ap - 2], BitwiseBuiltin*);
-    let poseidon_ptr = cast([ap - 1], PoseidonBuiltin*);
+    let right_u256 = U256(cast([ap - 5], U256Struct*));
+    let range_check_ptr = [ap - 4];
+    let bitwise_ptr = cast([ap - 3], BitwiseBuiltin*);
+    let poseidon_ptr = cast([ap - 2], PoseidonBuiltin*);
+    let keccak_ptr = cast([ap - 1], KeccakBuiltin*);
 
     let (tuple_address_bytes32_buffer) = alloc();
     assert [tuple_address_bytes32_buffer] = address.value;
