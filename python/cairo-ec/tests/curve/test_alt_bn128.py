@@ -2,11 +2,15 @@ import pytest
 from ethereum.crypto.alt_bn128 import ALT_BN128_CURVE_ORDER as AltBn128N
 from ethereum.crypto.alt_bn128 import BNF as AltBn128P
 from ethereum.crypto.alt_bn128 import BNP as AltBn128
+from garaga.definitions import CurveID
 
 
 class TestAltBn128:
 
     class TestConstants:
+        def test_get_CURVE_ID(self, cairo_run):
+            assert cairo_run("test__get_CURVE_ID") == CurveID.from_str("bn128").value
+
         def test_get_P(self, cairo_run):
             assert cairo_run("test__get_P") == AltBn128P.PRIME
 
