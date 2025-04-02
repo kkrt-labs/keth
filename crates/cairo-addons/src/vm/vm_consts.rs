@@ -321,10 +321,14 @@ impl PyVmConst {
     pub fn get_address(&self) -> PyResult<Option<Relocatable>> {
         match &self.var.var_type {
             CairoVarType::Pointer { .. } => {
+                // The address of the pointer is the same as its value.
                 let addr = self
                     .var
-                    .address
-                    .ok_or_else(|| PyAttributeError::new_err("Pointer has no address"))?;
+                    .value
+                    .as_ref()
+                    .ok_or_else(|| PyAttributeError::new_err("Pointer has no address"))?
+                    .get_relocatable()
+                    .expect("Pointer value is not relocatable");
 
                 Ok(Some(addr))
             }
