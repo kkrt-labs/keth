@@ -295,12 +295,18 @@ EMPTY_STORAGE_ROOT = Bytes32(
         32, "big"
     )
 )
+EMPTY_CODE_HASH = Bytes32(
+    b"\xc5\xd2F\x01\x86\xf7#<\x92~}\xb2\xdc\xc7\x03\xc0\xe5\x00\xb6S\xca\x82';{\xfa\xd8\x04]\x85\xa4p"
+)
 
 # Separate setup & class definition to apply freezable decorator
 AccountDataclass = make_dataclass(
     "AccountDataclass",
     [(f.name, f.type, f) for f in fields(AccountBase)]
-    + [("storage_root", Bytes32, field(default=EMPTY_STORAGE_ROOT))],
+    + [
+        ("storage_root", Bytes32, field(default=EMPTY_STORAGE_ROOT)),
+        ("code_hash", Bytes32, field(default=EMPTY_CODE_HASH)),
+    ],
     namespace={"__doc__": AccountBase.__doc__},
 )
 
@@ -314,7 +320,7 @@ class Account(AccountDataclass):
         return all(
             getattr(self, field.name) == getattr(other, field.name)
             for field in fields(self)
-            if field.name != "storage_root"
+            if field.name != "storage_root" and field.name != "code_hash"
         )
 
 

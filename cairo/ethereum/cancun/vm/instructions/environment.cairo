@@ -39,7 +39,7 @@ from ethereum.cancun.vm.gas import (
 )
 from ethereum.cancun.vm.memory import buffer_read, memory_write, expand_by
 from ethereum.cancun.vm.stack import Stack, push, pop
-from ethereum.cancun.state import get_account
+from ethereum.cancun.state import get_account, get_account_code
 from ethereum.cancun.utils.address import to_address
 
 from ethereum.crypto.hash import keccak256
@@ -709,12 +709,13 @@ func extcodesize{
     // Get the account from state
     let state = evm.value.env.value.state;
     let account = get_account{state=state}(address);
+    let account_code = get_account_code{state=state}(address, account);
     let env = evm.value.env;
     EnvImpl.set_state{env=env}(state);
     EvmImpl.set_env(env);
 
     // Get code size and push to stack
-    tempvar code_size_u256 = U256(new U256Struct(account.value.code.value.len, 0));
+    tempvar code_size_u256 = U256(new U256Struct(account_code.value.len, 0));
     with stack {
         let err = push(code_size_u256);
         if (cast(err, felt) != 0) {
@@ -803,6 +804,7 @@ func extcodecopy{
     // Get the account code from state
     let state = evm.value.env.value.state;
     let account = get_account{state=state}(address);
+    let account_code = get_account_code{state=state}(address, account);
     let env = evm.value.env;
     EnvImpl.set_state{env=env}(state);
     EvmImpl.set_env(env);
@@ -810,7 +812,7 @@ func extcodecopy{
     let memory = evm.value.memory;
     with memory {
         expand_by(extend_memory.value.expand_by);
-        let value = buffer_read(account.value.code, code_start_index, size);
+        let value = buffer_read(account_code, code_start_index, size);
         memory_write(memory_start_index, value);
     }
 
@@ -879,9 +881,7 @@ func extcodehash{
         tempvar range_check_ptr = range_check_ptr;
         tempvar bitwise_ptr = bitwise_ptr;
     } else {
-        // Calculate keccak256 hash of code and push to stack
-        let code_hash = keccak256(account.value.code);
-        let code_hash_u256 = U256_from_be_bytes32(code_hash);
+        let code_hash_u256 = U256_from_be_bytes32(account.value.code_hash);
 
         tempvar keccak_ptr = keccak_ptr;
         tempvar poseidon_ptr = poseidon_ptr;

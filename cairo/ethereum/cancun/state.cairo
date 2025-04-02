@@ -33,6 +33,7 @@ from ethereum.cancun.fork_types import (
     ListTupleAddressBytes32,
     ListTupleAddressBytes32Struct,
 )
+from ethereum.crypto.hash import keccak256, EMPTY_HASH
 from ethereum.cancun.trie import (
     get_tuple_address_bytes32_preimage_for_key,
     root,
@@ -64,7 +65,7 @@ from ethereum.cancun.trie import (
     copy_TrieTupleAddressBytes32U256,
 )
 from ethereum.cancun.blocks import Withdrawal
-from ethereum_types.bytes import Bytes, Bytes32, Bytes32Struct
+from ethereum_types.bytes import Bytes, Bytes32, Bytes32Struct, BytesStruct
 from ethereum.crypto.hash import EMPTY_ROOT
 from ethereum_types.numeric import U256, U256Struct, Bool, bool, Uint
 from ethereum.utils.numeric import U256_le, U256_sub, U256_add, U256_mul
@@ -210,6 +211,65 @@ func get_account_optional{poseidon_ptr: PoseidonBuiltin*, state: State}(
     return account;
 }
 
+// @notice Returns the code for the given account.
+// If the code is not cached, it is loaded from the program input. The program
+// input must contain a Dict[Tuple[Low, High], Bytes] where the key is the codehash
+// (in its cairo representation) and the value is the code.
+// @dev: Accesses to the `code` field __MUST__ be done using `get_account_code`.
+func get_account_code{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    state: State,
+}(address: Address, account: Account) -> Bytes {
+    alloc_locals;
+
+    // Account code is already cached - return it
+    if (cast(account.value.code.value, felt) != 0) {
+        return account.value.code;
+    }
+
+    // Account code is not cached - load it and ensure hash(code) == code_hash
+    // TODO: this should not be triggered in tests - only in prod script.
+    // TODO: ensure this works with a test.
+    tempvar code: felt*;
+    tempvar code_len: felt;
+    %{
+        # TODO: do we want to serialize (I fear it might be slow) here?
+        # best would be for the program input to already have the key:Tuple[Low, High] -> code
+        account_code = program_input["codehash_to_code"][serialize(ids.account.value.code_hash)];
+        segment.load_data(code, account_code);
+        code_len = len(account_code);
+    %}
+    tempvar account_code = Bytes(new BytesStruct(data=code, len=code_len));
+
+    // Soundness checks: ensure that hash(account_code) == account.value.code_hash
+    let code_hash = keccak256(account_code);
+    with_attr error_message("AssertionError") {
+        assert code_hash = account.value.code_hash;
+    }
+
+    // Store it in the state for later retrievals
+    tempvar account_with_code = OptionalAccount(
+        new AccountStruct(
+            account.value.nonce,
+            account.value.balance,
+            account_code,
+            account.value.storage_root,
+            account.value.code_hash,
+        ),
+    );
+
+    set_account(address, account_with_code);
+
+    return account_code;
+}
+
+// @notice Returns the account for the given address.
+// If the account does not exist, returns the empty account.
+// @dev: The account returned by this function contains the right `codehash`, but the `code` field is lazily loaded.
+// Accesses to the `code` field __MUST__ be done using `get_account_code`.
 func get_account{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Address) -> Account {
     let account = get_account_optional{state=state}(address);
 
@@ -310,7 +370,11 @@ func increment_nonce{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Addr
     let new_nonce = account.value.nonce.value + 1;
     tempvar new_account = OptionalAccount(
         new AccountStruct(
-            Uint(new_nonce), account.value.balance, account.value.code, account.value.storage_root
+            Uint(new_nonce),
+            account.value.balance,
+            account.value.code,
+            account.value.storage_root,
+            account.value.code_hash,
         ),
     );
     set_account(address, new_account);
@@ -504,19 +568,25 @@ func account_exists{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Addre
 func account_has_code_or_nonce{poseidon_ptr: PoseidonBuiltin*, state: State}(
     address: Address
 ) -> bool {
+    alloc_locals;
+
     let account = get_account(address);
+    let (empty_hash_ptr) = get_label_location(EMPTY_HASH);
+    tempvar empty_hash = Bytes32(cast(empty_hash_ptr, Bytes32Struct*));
 
     if (account.value.nonce.value != 0) {
         tempvar res = bool(1);
         return res;
     }
 
-    if (account.value.code.value.len != 0) {
-        tempvar res = bool(1);
+    // Return 0 if codehash is hash(b"")
+    if (account.value.code_hash.value.low == empty_hash.value.low and
+        account.value.code_hash.value.high == empty_hash.value.high) {
+        tempvar res = bool(0);
         return res;
     }
 
-    tempvar res = bool(0);
+    let res = bool(1);
     return res;
 }
 
@@ -555,6 +625,8 @@ func account_has_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(address: 
 func is_account_empty{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Address) -> bool {
     // Get the account at the address
     let account = get_account(address);
+    let (empty_hash_ptr) = get_label_location(EMPTY_HASH);
+    tempvar empty_hash = Bytes32(cast(empty_hash_ptr, Bytes32Struct*));
 
     // Check if nonce is 0, code is empty, and balance is 0
     if (account.value.nonce.value != 0) {
@@ -562,7 +634,12 @@ func is_account_empty{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Add
         return res;
     }
 
-    if (account.value.code.value.len != 0) {
+    // Check if codehash == hash(b"")
+    if (account.value.code_hash.value.low != empty_hash.value.low) {
+        tempvar res = bool(0);
+        return res;
+    }
+    if (account.value.code_hash.value.high != empty_hash.value.high) {
         tempvar res = bool(0);
         return res;
     }
@@ -885,9 +962,17 @@ func close_transaction{
     return ();
 }
 
-func set_code{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Address, code: Bytes) {
-    // Get the current account
+func set_code{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    state: State,
+}(address: Address, code: Bytes) {
+    alloc_locals;
+
     let account = get_account(address);
+    let code_hash = keccak256(code);
 
     // Create new account with updated code
     tempvar new_account = OptionalAccount(
@@ -896,6 +981,7 @@ func set_code{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Address, co
             balance=account.value.balance,
             code=code,
             storage_root=account.value.storage_root,
+            code_hash=code_hash,
         ),
     );
 
@@ -915,6 +1001,7 @@ func set_account_balance{poseidon_ptr: PoseidonBuiltin*, state: State}(
             balance=amount,
             code=account.value.code,
             storage_root=account.value.storage_root,
+            code_hash=account.value.code_hash,
         ),
     );
 

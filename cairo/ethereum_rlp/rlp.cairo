@@ -443,7 +443,7 @@ func encode_account{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: K
 
     // Encoding the code hash is encoding 32 bytes, so we know the prefix is 0x80 + 32
     // code_hash_len is 33 bytes and we can directly copy the bytes into the buffer
-    let code_hash = keccak256(raw_account_data.value.code);
+    let code_hash = raw_account_data.value.code_hash;
     let code_hash_len = 32;
     assert [body_ptr] = 0x80 + code_hash_len;
     uint256_to_bytes32_little(body_ptr + 1, [code_hash.value]);

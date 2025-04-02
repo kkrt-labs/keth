@@ -45,7 +45,7 @@ from ethereum.crypto.alt_bn128 import (
 )
 from ethereum.crypto.elliptic_curve import SECP256K1N
 from ethereum.crypto.finite_field import GaloisField
-from ethereum.crypto.hash import Hash32
+from ethereum.crypto.hash import Hash32, keccak256
 from ethereum.crypto.kzg import BLSFieldElement
 from ethereum.exceptions import EthereumException
 from ethereum_types.bytes import (
@@ -432,12 +432,15 @@ evm = st.builds(
 
 
 # Take the EMPTY_STORAGE_ROOT value by default. This will be built in the state strategy, based on the storage tries.
-account_strategy = st.builds(
-    Account,
-    nonce=uint,
-    balance=uint256,
-    code=code,
-    storage_root=st.just(EMPTY_STORAGE_ROOT),
+account_strategy = code.flatmap(
+    lambda account_code: st.builds(
+        Account,
+        nonce=uint,
+        balance=uint256,
+        code=st.just(account_code),
+        storage_root=st.just(EMPTY_STORAGE_ROOT),
+        code_hash=st.just(keccak256(account_code)),
+    )
 )
 
 # Fork

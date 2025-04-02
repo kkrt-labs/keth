@@ -19,10 +19,14 @@ from ethereum.utils.hexadecimal import hex_to_bytes
 from ethereum_rlp import rlp
 from ethereum_rlp.exceptions import RLPException
 from ethereum_spec_tools.evm_tools.loaders.fixture_loader import Load
+from ethereum_types.bytes import Bytes
 from ethereum_types.numeric import U64, U256
 
 
-def prepare_state(state: State) -> State:
+def prepare_state_and_code_hashes(
+    state: State,
+) -> Tuple[State, Dict[Tuple[int, int], Bytes]]:
+    code_hashes = {}
     for address in state._storage_tries:
         state._storage_tries[address]._data = defaultdict(
             lambda: defaultdict(lambda: U256(0)), state._storage_tries[address]._data
@@ -34,7 +38,12 @@ def prepare_state(state: State) -> State:
             nonce=account.nonce,
             code=account.code,
             storage_root=storage_root,
+            code_hash=account.code_hash,
         )
+        code_hash_int = int.from_bytes(account.code_hash, "little")
+        code_hash_low = code_hash_int & 2**128 - 1
+        code_hash_high = code_hash_int >> 128
+        code_hashes[(code_hash_low, code_hash_high)] = account.code
         trie_set(state._main_trie, address, account)
     state._main_trie._data = defaultdict(lambda: None, state._main_trie._data)
 
@@ -45,7 +54,7 @@ def prepare_state(state: State) -> State:
             )
         snap._main_trie._data = defaultdict(lambda: None, snap._main_trie._data)
 
-    return state
+    return state, code_hashes
 
 
 class NoTestsFound(Exception):
@@ -98,7 +107,7 @@ def run_blockchain_st_test(
                 block_exception = value
                 break
 
-        chain.state = prepare_state(chain.state)
+        chain.state = prepare_state_and_code_hashes(chain.state)
         if block_exception:
             # TODO: Once all the specific exception types are thrown,
             #       only `pytest.raises` the correct exception type instead of

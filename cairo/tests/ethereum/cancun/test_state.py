@@ -35,6 +35,7 @@ from ethereum.cancun.state import (
     touch_account,
 )
 from ethereum.cancun.trie import Trie, copy_trie
+from ethereum.crypto.hash import keccak256
 from ethereum_types.bytes import Bytes32
 from ethereum_types.numeric import U256
 from hypothesis import given, settings
@@ -310,10 +311,16 @@ class TestStateAccounts:
     ):
         state, address = data
         account = get_account(state, address)
+        codehash = keccak256(code)
         set_account(
             state,
             address,
-            Account(balance=account.balance, code=code, nonce=account.nonce),
+            Account(
+                balance=account.balance,
+                code=code,
+                nonce=account.nonce,
+                code_hash=codehash,
+            ),
         )
         state_cairo, result_cairo = cairo_run(
             "account_has_code_or_nonce", state, address
