@@ -145,7 +145,7 @@ def check_branch_node(node: BranchNode) -> None:
         raise ValueError("Invalid branch node, expected at least two non-null subnodes")
 
     non_null_subnodes = [
-        subnode for subnode in node.subnodes if subnode is not None and subnode != b""
+        subnode for subnode in node.subnodes if subnode not in (None, b"", [])
     ]
     if len(non_null_subnodes) < 2:
         raise ValueError("Invalid branch node, expected at least two non-null subnodes")

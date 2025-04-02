@@ -23,7 +23,14 @@ def invalid_branch_node_strategy():
             st.from_type(LeafNode).map(lambda x: encode_internal_node(x)),
             st.from_type(ExtensionNode).map(lambda x: encode_internal_node(x)),
             st.none(),
-        ).map(lambda subnode: tuple([b""] * 15 + [subnode])),
+            st.just(list()),
+        ).map(
+            lambda subnode: (
+                list([b""] * 13 + [[]] + [[]] + [subnode])
+                if isinstance(subnode, bytes)
+                else list([[]] * 13 + [b""] + [b""] + [subnode])
+            )
+        ),
         value=st.just(b""),
     )
 
