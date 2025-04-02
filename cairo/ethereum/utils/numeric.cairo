@@ -13,7 +13,13 @@ from starkware.cairo.common.memset import memset
 
 from ethereum_types.bytes import Bytes32, Bytes32Struct, Bytes20, Bytes, BytesStruct
 from ethereum_types.numeric import Uint, U256, U256Struct, bool, U64, U384, U384Struct
-from cairo_core.maths import pow2, unsigned_div_rem, felt252_to_bytes_be, felt252_bit_length
+from cairo_core.maths import (
+    pow2,
+    unsigned_div_rem,
+    felt252_to_bytes_be,
+    felt252_bit_length,
+    felt252_to_bits_rev,
+)
 from cairo_core.comparison import is_zero
 from cairo_ec.uint384 import uint256_to_uint384
 from legacy.utils.bytes import bytes_to_felt, uint256_from_bytes_be, felt_to_bytes
@@ -490,69 +496,49 @@ func U384_to_be_bytes{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     return result;
 }
 
-func get_u384_bits_little{range_check_ptr}(num: U384) -> (felt*, felt) {
+func get_u384_bits_little{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(num: U384) -> (
+    felt*, felt
+) {
     alloc_locals;
     let (bits_ptr) = alloc();
+    tempvar total_bits_len = 0;
+
     // Process limb0 (d0)
-    let bits_len = extract_limb_bits(num.value.d0, bits_ptr, 0);
-    // Process limb1 (d1)
-    let limb1_not_zero = is_not_zero(num.value.d1);
-    if (limb1_not_zero != 0) {
-        // Use memset to pad with zeros until we reach 96 bits if needed
-        let bits_len_padded = 96;
-        memset(bits_ptr + bits_len, 0, bits_len_padded - bits_len);
-        let bits_len_updated = extract_limb_bits(num.value.d1, bits_ptr, bits_len_padded);
-        tempvar bits_ptr = bits_ptr;
-        tempvar bits_len = bits_len_updated;
-        tempvar range_check_ptr = range_check_ptr;
-    } else {
-        tempvar bits_ptr = bits_ptr;
-        tempvar bits_len = bits_len;
-        tempvar range_check_ptr = range_check_ptr;
-    }
-    // Process limb2 (d2)
-    let limb2_not_zero = is_not_zero(num.value.d2);
-    tempvar bits_ptr = bits_ptr;
-    tempvar range_check_ptr = range_check_ptr;
-    if (limb2_not_zero != 0) {
-        // Use memset to pad with zeros until we reach 192 bits if needed
-        let bits_len_padded = 192;
-        memset(bits_ptr + bits_len, 0, bits_len_padded - bits_len);
-        let bits_len_updated = extract_limb_bits(num.value.d2, bits_ptr, bits_len_padded);
-        tempvar bits_ptr = bits_ptr;
-        tempvar bits_len = bits_len_updated;
-        tempvar range_check_ptr = range_check_ptr;
-    } else {
-        tempvar bits_ptr = bits_ptr;
-        tempvar bits_len = bits_len;
-        tempvar range_check_ptr = range_check_ptr;
-    }
-    // Process limb3 (d3)
-    let limb3_not_zero = is_not_zero(num.value.d3);
-    tempvar bits_ptr = bits_ptr;
-    tempvar range_check_ptr = range_check_ptr;
-    if (limb3_not_zero != 0) {
-        // Use memset to pad with zeros until we reach 288 bits if needed
-        let bits_len_padded = 288;
-        memset(bits_ptr + bits_len, 0, bits_len_padded - bits_len);
-        let bits_len_updated = extract_limb_bits(num.value.d3, bits_ptr, bits_len_padded);
-        return (bits_ptr, bits_len_updated);
-    } else {
+    // If other limbs are zero, we can directly return the bits for d0
+    let other_limbs_zero = num.value.d1 + num.value.d2 + num.value.d3;
+    if (other_limbs_zero == 0) {
+        let bits_len = felt252_bit_length(num.value.d0);
+        let bits_len = felt252_to_bits_rev(num.value.d0, bits_len, bits_ptr);
         return (bits_ptr, bits_len);
     }
-}
 
-func extract_limb_bits{range_check_ptr}(limb: felt, bits_ptr: felt*, current_len: felt) -> felt {
-    // Check if limb is zero
-    let is_limb_zero = is_zero(limb);
-    if (is_limb_zero != 0) {
-        return current_len;
+    felt252_to_bits_rev(num.value.d0, 96, bits_ptr);
+    tempvar total_bits_len = 96;
+
+    // Process limb1 (d1)
+    // If other limbs are zero, update bits_ptr and bits_len and return the bits for d1
+    let other_limbs_zero = num.value.d2 + num.value.d3;
+    if (other_limbs_zero == 0) {
+        let bits_len = felt252_bit_length(num.value.d1);
+        let d1_len = felt252_to_bits_rev(num.value.d1, bits_len, bits_ptr + total_bits_len);
+        return (bits_ptr, total_bits_len + d1_len);
     }
+    felt252_to_bits_rev(num.value.d1, 96, bits_ptr + total_bits_len);
+    tempvar total_bits_len = 192;
 
-    // Extract the least significant bit
-    let (q, r) = divmod(limb, 2);
-    assert bits_ptr[current_len] = r;
+    // Process limb2 (d2)
+    // If last limb is zero, update bits_ptr and bits_len and return the bits for d2
+    let last_limb_zero = num.value.d3;
+    if (last_limb_zero == 0) {
+        let bits_len = felt252_bit_length(num.value.d2);
+        let d2_len = felt252_to_bits_rev(num.value.d2, bits_len, bits_ptr + total_bits_len);
+        return (bits_ptr, total_bits_len + d2_len);
+    }
+    felt252_to_bits_rev(num.value.d2, 96, bits_ptr + total_bits_len);
+    tempvar total_bits_len = 288;
 
-    // Continue with the remaining bits
-    return extract_limb_bits(q, bits_ptr, current_len + 1);
+    // Process limb3 (d3)
+    let bits_len = felt252_bit_length(num.value.d3);
+    let d3_len = felt252_to_bits_rev(num.value.d3, bits_len, bits_ptr + total_bits_len);
+    return (bits_ptr, total_bits_len + d3_len);
 }

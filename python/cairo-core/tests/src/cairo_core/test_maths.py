@@ -182,3 +182,82 @@ segments.write_arg(ids.output, bad)
     def test_felt252_bit_length(self, cairo_run, value):
         res = cairo_run("felt252_bit_length", value=value)
         assert res == value.bit_length()
+
+    @given(
+        value=st.integers(min_value=0, max_value=2**248 - 1),
+        len_=st.integers(min_value=0, max_value=251),
+    )
+    def test_felt252_to_bits_rev(self, cairo_run, value, len_):
+        expected = [int(bit) for bit in bin(value)[2:].zfill(len_)[::-1][:len_]]
+        res = cairo_run("test__felt252_to_bits_rev", value=value, len=len_)
+
+        assert res == expected
+
+    @given(
+        value=st.integers(min_value=1, max_value=2**248 - 1),
+        len_=st.integers(min_value=1, max_value=31),
+    )
+    @settings(verbosity=Verbosity.quiet)
+    def test_felt252_to_bits_rev_should_panic_on_wrong_output(
+        self, cairo_programs, cairo_run_py, value, len_
+    ):
+        with patch_hint(
+            cairo_programs,
+            "felt252_to_bits_rev",
+            """
+value = ids.value
+length = ids.len
+dst_ptr = ids.dst
+
+mask = (1 << length) - 1
+value_masked = value & mask
+bits_used = value_masked.bit_length() or 1
+bits = [int(bit) for bit in bin(value_masked)[2:].zfill(length)[::-1]]
+
+# --- Introduce corruption ---
+bad_bits = bits[:] # Copy the list
+# Flip the first bit (least significant) to make the output incorrect
+bad_bits[0] = 1 - bad_bits[0]
+
+ids.bits_used = min(bits_used, length)
+segments.load_data(dst_ptr, bad_bits)
+        """,
+            # Assert that the Cairo code panics with the expected message
+        ), cairo_error(message="felt252_to_bits_rev: bad output"):
+            cairo_run_py("test__felt252_to_bits_rev", value=value, len=len_)
+
+    @given(
+        value=st.integers(min_value=0, max_value=2**248 - 1),
+        len_=st.integers(min_value=1, max_value=251),  # Ensure len_ >= 1
+    )
+    @settings(verbosity=Verbosity.quiet)
+    def test_felt252_to_bits_rev_should_panic_on_non_binary_output(
+        self, cairo_programs, cairo_run_py, value, len_
+    ):
+        with patch_hint(
+            cairo_programs,
+            "felt252_to_bits_rev",
+            """
+# Get inputs from ids context
+value = ids.value
+length = ids.len
+dst_ptr = ids.dst
+
+mask = (1 << length) - 1
+value_masked = value & mask
+bits_used = value_masked.bit_length() or 1
+bits = [int(bit) for bit in bin(value_masked)[2:].zfill(length)[::-1]]
+
+# --- Introduce non-binary value ---
+bad_bits = bits[:] # Copy the list
+# Change the first bit (least significant) to an invalid value (e.g., 2)
+bad_bits[0] = 2
+
+ids.bits_used = min(bits_used, length)
+segments.load_data(dst_ptr, bad_bits)
+        """,
+            # Assert that the Cairo code panics, likely checking the bit values
+            # The exact message depends on the assertion inside the Cairo function.
+            # Common patterns might be "bit is not binary" or "bit out of bounds".
+        ), cairo_error(message="felt252_to_bits_rev: bits must be 0 or 1"):
+            cairo_run_py("test__felt252_to_bits_rev", value=value, len=len_)

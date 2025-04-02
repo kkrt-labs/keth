@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, ops::Shl};
 
 use cairo_vm::{
     hint_processor::{
@@ -15,11 +15,17 @@ use cairo_vm::{
     Felt252,
 };
 use num_bigint::BigUint;
+use num_traits::One;
 
 use crate::vm::hints::Hint;
 
-pub const HINTS: &[fn() -> Hint] =
-    &[felt252_to_bytes_le, felt252_to_bytes_be, value_len_mod_two, is_positive_hint];
+pub const HINTS: &[fn() -> Hint] = &[
+    felt252_to_bits_rev,
+    felt252_to_bytes_le,
+    felt252_to_bytes_be,
+    value_len_mod_two,
+    is_positive_hint,
+];
 
 pub fn felt252_to_bytes_le() -> Hint {
     Hint::new(
@@ -165,4 +171,61 @@ fn felt252_bit_and(num_x: Felt252, num_y: Felt252) -> Result<Felt252, HintError>
     bytes_xy[16..24].copy_from_slice(limbs_xy[2].to_le_bytes().as_slice());
     bytes_xy[24..].copy_from_slice(limbs_xy[3].to_le_bytes().as_slice());
     Ok(Felt252::from_bytes_le_slice(&bytes_xy))
+}
+
+pub fn felt252_to_bits_rev() -> Hint {
+    Hint::new(
+        String::from("felt252_to_bits_rev"),
+        |vm: &mut VirtualMachine,
+         _exec_scopes: &mut ExecutionScopes,
+         ids_data: &HashMap<String, HintReference>,
+         ap_tracking: &ApTracking,
+         _constants: &HashMap<String, Felt252>|
+         -> Result<(), HintError> {
+            // Get input values from Cairo
+            let value = get_integer_from_var_name("value", vm, ids_data, ap_tracking)?;
+            let len = get_integer_from_var_name("len", vm, ids_data, ap_tracking)?;
+            let dst_ptr = get_ptr_from_var_name("dst", vm, ids_data, ap_tracking)?;
+
+            let len_usize: usize =
+                len.try_into().map_err(|_| MathError::Felt252ToUsizeConversion(Box::new(len)))?;
+
+            // Handle length == 0 case separately
+            if len_usize == 0 {
+                insert_value_from_var_name("bits_used", Felt252::ZERO, vm, ids_data, ap_tracking)?;
+                // No bits to write for len 0, dst_ptr remains untouched
+                return Ok(());
+            }
+
+            let value_biguint = value.to_biguint();
+
+            // Ensure we only work with the bits relevant to the requested length
+            // Create mask: (1 << len_usize) - 1
+            let mask = BigUint::one().shl(len_usize) - BigUint::one();
+            let value_masked = value_biguint & mask;
+
+            // Calculate bits_used based on the masked value's actual bit length
+            let bits_used = value_masked.bits() as usize;
+            let bits_used_to_assign = std::cmp::min(bits_used, len_usize);
+            insert_value_from_var_name(
+                "bits_used",
+                Felt252::from(bits_used_to_assign),
+                vm,
+                ids_data,
+                ap_tracking,
+            )?;
+
+            // Generate the 'bits_used' bits in reversed order (LSB first in the vec)
+            let bits: Vec<MaybeRelocatable> = (0..bits_used)
+                .map(|i| {
+                    // Check the i-th bit of the masked value
+                    Felt252::from(value_masked.bit(i as u64)).into()
+                })
+                .collect();
+
+            // Write the bits to memory starting at dst_ptr
+            vm.segments.load_data(dst_ptr, &bits)?;
+            Ok(())
+        },
+    )
 }

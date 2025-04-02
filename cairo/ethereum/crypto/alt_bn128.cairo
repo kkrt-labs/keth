@@ -1,5 +1,10 @@
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.cairo_builtins import UInt384, ModBuiltin, PoseidonBuiltin
+from starkware.cairo.common.cairo_builtins import (
+    UInt384,
+    ModBuiltin,
+    PoseidonBuiltin,
+    BitwiseBuiltin,
+)
 from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
 from starkware.cairo.common.default_dict import default_dict_new, default_dict_finalize
 from starkware.cairo.common.dict import dict_read, dict_write
@@ -387,7 +392,11 @@ func bnp2_double{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr
 // Implementation of scalar multiplication for BNP2
 // Uses the double-and-add algorithm
 func bnp2_mul_by{
-    range_check_ptr, range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
 }(p: BNP2, n: U384) -> BNP2 {
     alloc_locals;
     let n_is_zero = U384_is_zero(n);
@@ -410,7 +419,8 @@ func bnp2_mul_by{
     let result = bnp2_point_at_infinity();
 
     // Implement the double-and-add algorithm
-    return bnp2_mul_by_bits(p, bits_ptr, bits_len, 0, result);
+    let res = bnp2_mul_by_bits(p, bits_ptr, bits_len, 0, result);
+    return res;
 }
 
 func bnp2_mul_by_bits{
@@ -1351,7 +1361,11 @@ func create_bnf12_from_dict{range_check_ptr, mul_dict: DictAccess*}() -> BNF12 {
 
 // Pow function for BNF12 elements using square-and-multiply algorithm
 func bnf12_pow{
-    range_check_ptr, range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
 }(base: BNF12, exponent: U384) -> BNF12 {
     alloc_locals;
 
@@ -1365,8 +1379,9 @@ func bnf12_pow{
     // Extract bits from exponent, initialize result with 1
     // and perform square-and-multiply algorithm
     let (bits_ptr, bits_len) = get_u384_bits_little(exponent);
-    let res = BNF12_ONE();
-    return bnf12_pow_recursive(base, bits_ptr, bits_len, 0, res);
+    let bnf_one = BNF12_ONE();
+    let res = bnf12_pow_recursive(base, bits_ptr, bits_len, 0, bnf_one);
+    return res;
 }
 
 func bnf12_pow_recursive{
@@ -1635,7 +1650,11 @@ func bnp_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: Mo
 // Implementation of scalar multiplication for BNP
 // Uses the double-and-add algorithm
 func bnp_mul_by{
-    range_check_ptr, range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
 }(p: BNP, n: U384) -> BNP {
     alloc_locals;
     let n_is_zero = U384_is_zero(n);
@@ -1658,7 +1677,8 @@ func bnp_mul_by{
     let result = bnp_point_at_infinity();
 
     // Implement the double-and-add algorithm
-    return bnp_mul_by_bits(p, bits_ptr, bits_len, 0, result);
+    let res = bnp_mul_by_bits(p, bits_ptr, bits_len, 0, result);
+    return res;
 }
 
 func bnp_mul_by_bits{
@@ -1902,7 +1922,11 @@ func bnp12_add{
 // Implementation of scalar multiplication for BNP12
 // Uses the double-and-add algorithm
 func bnp12_mul_by{
-    range_check_ptr, range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
 }(p: BNP12, n: U384) -> BNP12 {
     alloc_locals;
     let n_is_zero = U384_is_zero(n);
@@ -1925,7 +1949,8 @@ func bnp12_mul_by{
     let result = bnp12_point_at_infinity();
 
     // Implement the double-and-add algorithm
-    return bnp12_mul_by_bits(p, bits_ptr, bits_len, 0, result);
+    let res = bnp12_mul_by_bits(p, bits_ptr, bits_len, 0, result);
+    return res;
 }
 
 func bnp12_mul_by_bits{
@@ -2108,6 +2133,7 @@ func linefunc{
 
 func miller_loop{
     range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,
@@ -2200,6 +2226,7 @@ func miller_loop_inner{
 
 func pairing{
     range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,

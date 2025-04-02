@@ -147,7 +147,11 @@ func modexp{
 }
 
 func mod_pow{
-    range_check_ptr, range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
+    range_check_ptr,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
+    bitwise_ptr: BitwiseBuiltin*,
 }(base: U384, exponent: U384, modulus: U384) -> U384 {
     alloc_locals;
 
@@ -182,7 +186,11 @@ func mod_pow{
 }
 
 func mod_pow_recursive{
-    range_check_ptr, range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
+    range_check_ptr,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
+    bitwise_ptr: BitwiseBuiltin*,
 }(
     base: U384, bits_ptr: felt*, bits_len: felt, current_bit: felt, result: U384, modulus: U384
 ) -> U384 {
