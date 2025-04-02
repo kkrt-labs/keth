@@ -305,8 +305,9 @@ impl PythonicHintExecutor {
                 .map_err(|e| DynamicHintError::CStringConversion(e.to_string()))?;
 
             // Run the hint code
-            py.run(&hint_code_c_string, Some(bounded_context), None)
-                .map_err(|e| DynamicHintError::PythonExecution(e.to_string()))?;
+            py.run(&hint_code_c_string, Some(bounded_context), None).map_err(|e| {
+                DynamicHintError::PythonExecution(e.traceback(py).unwrap().format().unwrap())
+            })?;
 
             Ok(())
         })
@@ -414,6 +415,9 @@ impl PythonCodeInjector {
 
     /// Build the final injected code string
     fn build(self) -> String {
-        self.code_parts.join("\n") + &self.hint_code
+        let hint_lines: Vec<&str> = self.hint_code.lines().collect();
+        let mut all_parts = self.code_parts;
+        all_parts.extend(hint_lines.iter().map(|s| s.to_string()));
+        all_parts.join("\n")
     }
 }
