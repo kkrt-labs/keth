@@ -6,6 +6,7 @@ Fetches zkpi data, converts it to EELS/Keth format, and generates a proof.
 import argparse
 import json
 import logging
+import traceback
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
@@ -31,6 +32,7 @@ from tests.utils.args_gen import (
     MessageCallOutput,
     Node,
 )
+from utils.fixture_loader import LoadKethFixture
 
 # Patch EELS with our own types for argument generation
 ethereum.cancun.vm.Evm = Evm
@@ -67,7 +69,9 @@ from ethereum_types.bytes import Bytes, Bytes0, Bytes32  # noqa
 from ethereum_types.numeric import U64, U256  # noqa
 
 from cairo_addons.vm import run_proof_mode  # noqa
-from tests.ef_tests.helpers.load_state_tests import prepare_state  # noqa
+from tests.ef_tests.helpers.load_state_tests import (  # noqa
+    prepare_state_and_code_hashes,
+)
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -209,7 +213,7 @@ def load_zkpi_fixture(zkpi_path: Path) -> Dict[str, Any]:
         logger.error(f"Error loading ZKPI file from {zkpi_path}: {e}")
         raise e
 
-    load = Load("Cancun", "cancun")
+    load = LoadKethFixture("Cancun", "cancun")
     if len(prover_inputs["blocks"]) > 1:
         raise ValueError("Only one block is supported")
     input_block = prover_inputs["blocks"][0]
@@ -244,9 +248,12 @@ def load_zkpi_fixture(zkpi_path: Path) -> Dict[str, Any]:
     ]
 
     # Create blockchain
+    state, code_hashes = prepare_state_and_code_hashes(
+        prover_inputs
+    )
     chain = BlockChain(
         blocks=blocks,
-        state=prepare_state(load_pre_state(prover_inputs)),
+        state=state,
         chain_id=U64(prover_inputs["chainConfig"]["chainId"]),
     )
 
@@ -279,9 +286,10 @@ def load_zkpi_fixture(zkpi_path: Path) -> Dict[str, Any]:
         ommers=(),
         withdrawals=block.withdrawals,
     )
+    state, _ = prepare_state_and_code_hashes(load_pre_state(prover_inputs)),
     chain = BlockChain(
         blocks=blocks,
-        state=prepare_state(load_pre_state(prover_inputs)),
+        state=state,
         chain_id=U64(prover_inputs["chainConfig"]["chainId"]),
     )
     # Prepare inputs
@@ -291,6 +299,7 @@ def load_zkpi_fixture(zkpi_path: Path) -> Dict[str, Any]:
         "block_hash": Bytes32(
             bytes.fromhex(input_block["header"]["hash"].removeprefix("0x"))
         ),
+        "code_hashes": code_hashes,
     }
 
     return program_inputs
