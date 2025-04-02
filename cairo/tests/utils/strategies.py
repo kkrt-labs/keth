@@ -115,7 +115,7 @@ bytes32 = st.integers(min_value=0, max_value=2**256 - 1).map(
     lambda x: Bytes32(x.to_bytes(32, "little"))
 )
 hash32 = bytes32.map(Hash32)
-bls_field_element = uint256.map(BLSFieldElement)
+bls_scalar = uint256.map(BLSFieldElement)
 root = bytes32.map(Root)
 bytes256 = st.integers(min_value=0, max_value=2**2048 - 1).map(
     lambda x: Bytes256(x.to_bytes(256, "little"))
@@ -649,7 +649,7 @@ def register_type_strategies():
     st.register_type_strategy(Bytes32, bytes32)
     st.register_type_strategy(Bytes64, bytes64)
     st.register_type_strategy(Hash32, hash32)
-    st.register_type_strategy(BLSFieldElement, bls_field_element)
+    st.register_type_strategy(BLSFieldElement, bls_scalar)
     st.register_type_strategy(Root, root)
     st.register_type_strategy(Bytes256, bytes256)
     st.register_type_strategy(Bloom, bloom)

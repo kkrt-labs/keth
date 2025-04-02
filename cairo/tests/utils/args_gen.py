@@ -819,7 +819,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("mpt", "trie_diff", "StorageDiffEntry"): StorageDiffEntry,
     ("mpt", "trie_diff", "StorageDiff"): List[StorageDiffEntry],
     ("ethereum", "cancun", "fork_types", "HashedTupleAddressBytes32"): Uint,
-    ("ethereum", "crypto", "kzg", "BLSFieldElement"): BLSFieldElement,
+    ("ethereum", "crypto", "kzg", "BLSScalar"): BLSFieldElement,
 }
 
 # In the EELS, some functions are annotated with Sequence while it's actually just Bytes.

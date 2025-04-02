@@ -53,4 +53,4 @@ from ethereum.cancun.fork import BlockChain
 
 from ethereum.crypto.alt_bn128 import BNF12
 from mpt.trie_diff import NodeStore, MappingBytes32Address, AccountNode
-from ethereum.crypto.kzg import BLSFieldElement
+from ethereum.crypto.kzg import BLSScalar
