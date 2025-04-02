@@ -32,6 +32,7 @@ from ethereum.cancun.vm.gas import ExtendMemory, MessageCallGas
 from ethereum.cancun.vm.interpreter import MessageCallOutput
 from ethereum.crypto.alt_bn128 import BNF, BNF2, BNF12, BNP, BNP2, BNP12
 from ethereum.crypto.hash import Hash32
+from ethereum.crypto.kzg import BLSFieldElement
 from ethereum.exceptions import (
     EthereumException,
     InvalidSignatureError,
@@ -302,6 +303,7 @@ class TestSerde:
             Mapping[Bytes32, Address],
             Mapping[Hash32, Optional[InternalNode]],
             Mapping[Bytes32, Bytes32],
+            BLSFieldElement,
         ],
     ):
         assume(no_empty_sequence(b))

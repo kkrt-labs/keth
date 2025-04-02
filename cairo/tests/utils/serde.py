@@ -43,6 +43,7 @@ from ethereum.cancun.trie import Trie
 from ethereum.cancun.vm.exceptions import InvalidOpcode
 from ethereum.crypto.alt_bn128 import BNF, BNF2, BNF12
 from ethereum.crypto.hash import Hash32
+from ethereum.crypto.kzg import BLSFieldElement
 from ethereum_types.bytes import (
     Bytes,
     Bytes0,
@@ -401,7 +402,7 @@ class Serde:
             # A None pointer is valid for pointer types, meaning just that the struct is not present.
             return None
 
-        if python_cls in (U256, Hash32, Bytes32):
+        if python_cls in (U256, Hash32, Bytes32, BLSFieldElement):
             value = value["low"] + value["high"] * 2**128
             if python_cls == U256:
                 return U256(value)
