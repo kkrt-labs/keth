@@ -84,3 +84,7 @@ class TestRunner:
     def test__access_imported_const(self, cairo_run, cairo_run_py):
         cairo_run("test__access_imported_const")
         cairo_run_py("test__access_imported_const")
+
+    def test__hint_access_ptr_struct(self, cairo_run, cairo_run_py):
+        cairo_run("test_hint_access_ptr_struct_with_pointer_member")
+        cairo_run_py("test_hint_access_ptr_struct_with_pointer_member")
