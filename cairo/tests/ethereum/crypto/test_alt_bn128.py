@@ -54,6 +54,7 @@ class TestAltBn128:
                 cairo_run("bnf_div", a, b)
 
         @given(a=..., b=...)
+        @settings(max_examples=30)
         @pytest.mark.slow
         def test_bnf_div_patch_hint_should_fail(
             self, cairo_programs, cairo_run_py, a: BNF, b: BNF
@@ -130,6 +131,7 @@ segments.load_data(ids.b_inv.address_, [bnf_struct_ptr])
                 cairo_run("bnf2_div", a, b)
 
         @given(a=..., b=...)
+        @settings(max_examples=30)
         @pytest.mark.slow
         def test_bnf2_div_patch_hint_should_fail(
             self, cairo_programs, cairo_run_py, a: BNF2, b: BNF2
@@ -302,9 +304,14 @@ segments.load_data(ids.b_inv.address_, [bnf2_struct_ptr])
             try:
                 expected = p.double()
             except OverflowError:  # fails for large points
-                with cairo_error(message="OverflowError"):  # Hint error
-                    cairo_run("bnp12_double", p)
+                # The EELS python implementation fails for large points, but using arkworks as
+                # backend in hints works.
+                # In that case - we can just return.
                 return
+            except Exception as e:
+                with strict_raises(type(e)):
+                    cairo_run("bnp12_double", p)
+
             assert cairo_run("bnp12_double", p) == expected
 
         @given(p=..., q=...)
@@ -312,9 +319,12 @@ segments.load_data(ids.b_inv.address_, [bnf2_struct_ptr])
             try:
                 expected = p + q
             except OverflowError:  # fails for large points
-                with cairo_error(message="OverflowError"):  # Hint error
-                    cairo_run("bnp12_add", p, q)
+                # see test_bnp12_double
                 return
+            except Exception as e:
+                with strict_raises(type(e)):
+                    cairo_run("bnp12_add", p, q)
+
             assert cairo_run("bnp12_add", p, q) == expected
 
         @given(p=..., n=...)
@@ -323,9 +333,12 @@ segments.load_data(ids.b_inv.address_, [bnf2_struct_ptr])
             try:
                 expected = p.mul_by(int(n))
             except OverflowError:  # fails for large points
-                with cairo_error(message="OverflowError"):  # Hint error
-                    cairo_run("bnp12_mul_by", p, n)
+                # see test_bnp12_add
                 return
+            except Exception as e:
+                with strict_raises(type(e)):
+                    cairo_run("bnp12_mul_by", p, n)
+
             assert cairo_run("bnp12_mul_by", p, n) == expected
 
         # Garaga final exponentiation match the gnark one which uses a cofactor

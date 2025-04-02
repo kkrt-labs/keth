@@ -301,3 +301,5 @@ modelcontextprotocol
 equalto
 codehash
 PYTHONUNBUFFERED
+arkworks
+ptrs

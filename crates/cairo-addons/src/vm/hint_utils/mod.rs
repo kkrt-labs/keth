@@ -75,6 +75,7 @@ where
     Ok(base)
 }
 
+#[derive(Debug)]
 pub(crate) struct Uint384<'a> {
     pub limbs: [Cow<'a, Felt252>; 4],
 }

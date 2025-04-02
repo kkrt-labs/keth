@@ -1138,10 +1138,14 @@ func bnf12_div{
     local b_inv: BNF12;
 
     %{ bnf12_multiplicative_inverse %}
+    %{ breakpoint() %}
     let res = bnf12_mul(b, b_inv);
     let bnf12_one = BNF12_ONE();
     let is_inv = BNF12__eq__(res, bnf12_one);
-    assert is_inv = 1;
+
+    with_attr error_message("AssertionError: bnf12_div failed") {
+        assert is_inv = 1;
+    }
 
     return bnf12_mul(a, b_inv);
 }
