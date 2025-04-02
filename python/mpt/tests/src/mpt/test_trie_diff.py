@@ -358,7 +358,7 @@ class TestTrieDiff:
             right=leaf_after,
         )
 
-        with pytest.raises(Exception, match="INVARIANT"):
+        with pytest.raises(Exception, match="INVARIANT - Invalid storage key preimage: keccak(storage_key) != path"):
             cairo_run(
                 "test__process_storage_diff",
                 storage_key_preimages=diff_cls._storage_key_preimages,
