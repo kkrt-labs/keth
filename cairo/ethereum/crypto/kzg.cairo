@@ -18,5 +18,6 @@ func bytes_to_bls_field{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     with_attr error_message("AssertionError") {
         assert is_valid.value = 1;
     }
-    return field_element;
+    tempvar result = BLSFieldElement(field_element.value);
+    return result;
 }
