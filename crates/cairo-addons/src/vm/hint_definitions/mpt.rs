@@ -90,40 +90,28 @@ pub fn find_two_non_null_subnodes() -> Hint {
                 }
             }
 
-            if non_null_indices.len() < 2 {
-                // Check if we found at least two non-null indices
-                insert_value_from_var_name(
-                    "first_non_null_index",
-                    Felt252::ZERO,
-                    vm,
-                    ids_data,
-                    ap_tracking,
-                )?;
-                insert_value_from_var_name(
-                    "second_non_null_index",
-                    Felt252::ZERO,
-                    vm,
-                    ids_data,
-                    ap_tracking,
-                )?;
-                return Ok(());
-            }
+            let first_non_null_index =
+                if !non_null_indices.is_empty() { non_null_indices[0] } else { Felt252::ZERO };
 
-            // Check if we found at least two non-null indices
+            let second_non_null_index =
+                if non_null_indices.len() > 1 { non_null_indices[1] } else { Felt252::ZERO };
+
             insert_value_from_var_name(
                 "first_non_null_index",
-                non_null_indices[0],
+                first_non_null_index,
                 vm,
                 ids_data,
                 ap_tracking,
             )?;
+
             insert_value_from_var_name(
                 "second_non_null_index",
-                non_null_indices[1],
+                second_non_null_index,
                 vm,
                 ids_data,
                 ap_tracking,
             )?;
+
             Ok(())
         },
     )
