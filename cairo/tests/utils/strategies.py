@@ -59,6 +59,8 @@ from ethereum_types.bytes import (
 )
 from ethereum_types.numeric import U64, U256, FixedUnsigned, Uint
 from hypothesis import strategies as st
+from py_ecc.fields import optimized_bls12_381_FQ as BLSF
+from py_ecc.fields import optimized_bls12_381_FQ2 as BLSF2
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 
 from cairo_ec.curve import AltBn128
@@ -578,6 +580,18 @@ bnf_strategy = st.builds(BNF, st.integers(min_value=0, max_value=BNF.PRIME - 1))
 bnf2_strategy = bnfN_strategy(BNF2, 2)
 bnf12_strategy = bnfN_strategy(BNF12, 12)
 
+blsf_strategy = st.builds(
+    BLSF, st.integers(min_value=0, max_value=BLSF.field_modulus - 1)
+)
+blsf2_strategy = st.builds(
+    BLSF2,
+    st.lists(
+        st.integers(min_value=0, max_value=BLSF2.field_modulus - 1),
+        min_size=2,
+        max_size=2,
+    ).map(tuple),
+)
+
 # Point at infinity for BNP12
 bnp12_infinity = BNP12(
     BNF12((0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)),
@@ -750,3 +764,5 @@ def register_type_strategies():
     st.register_type_strategy(BNF, bnf_strategy)
     st.register_type_strategy(BNP, bnp_strategy)
     st.register_type_strategy(BNP2, bnp2_strategy)
+    st.register_type_strategy(BLSF, blsf_strategy)
+    st.register_type_strategy(BLSF2, blsf2_strategy)
