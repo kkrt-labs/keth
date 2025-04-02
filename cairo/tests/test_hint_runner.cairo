@@ -1,7 +1,6 @@
 from ethereum_types.numeric import U256, U256Struct
 from starkware.cairo.common.alloc import alloc
 
-from cairo_ec.curve.alt_bn128 import alt_bn128
 from ethereum.exceptions import ValueError
 
 func test__ap_accessible() {
