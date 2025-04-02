@@ -1,3 +1,4 @@
+import re
 from collections import defaultdict
 from pathlib import Path
 from typing import Dict, Mapping, Optional, Tuple, Union
@@ -360,7 +361,9 @@ class TestTrieDiff:
 
         with pytest.raises(
             Exception,
-            match="INVARIANT - Invalid storage key preimage: keccak(storage_key) != path",
+            match=re.escape(
+                "INVARIANT - Invalid storage key preimage: keccak(storage_key) != path"
+            ),
         ):
             cairo_run(
                 "test__process_storage_diff",
