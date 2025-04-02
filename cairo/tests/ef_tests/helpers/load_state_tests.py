@@ -107,7 +107,7 @@ def run_blockchain_st_test(
                 block_exception = value
                 break
 
-        chain.state = prepare_state_and_code_hashes(chain.state)
+        chain.state, _ = prepare_state_and_code_hashes(chain.state)
         if block_exception:
             # TODO: Once all the specific exception types are thrown,
             #       only `pytest.raises` the correct exception type instead of
