@@ -153,9 +153,13 @@ def get_cairo_program(
     else:
         logger.info(f"dump path was not found for: {cairo_file} at path: {dump_path}")
         logger.info(f"Compiling {cairo_file}")
-        program = cairo_compile(
-            str(cairo_file), debug_info=True, proof_mode=False, prime=prime
-        )
+        try:
+            program = cairo_compile(
+                str(cairo_file), debug_info=True, proof_mode=False, prime=prime
+            )
+        except Exception as e:
+            logger.error(f"Error compiling {cairo_file}: {e}")
+            raise e
         if dump_path is not None:
             dump_path.parent.mkdir(parents=True, exist_ok=True)
             logger.info(f"Dumping program to {dump_path}")

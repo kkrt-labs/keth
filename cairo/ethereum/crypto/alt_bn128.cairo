@@ -1,5 +1,10 @@
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.cairo_builtins import UInt384, ModBuiltin, PoseidonBuiltin
+from starkware.cairo.common.cairo_builtins import (
+    UInt384,
+    ModBuiltin,
+    PoseidonBuiltin,
+    BitwiseBuiltin,
+)
 from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
 from starkware.cairo.common.default_dict import default_dict_new, default_dict_finalize
 from starkware.cairo.common.dict import dict_read, dict_write
@@ -414,7 +419,8 @@ func bnp2_mul_by{
     let result = bnp2_point_at_infinity();
 
     // Implement the double-and-add algorithm
-    return bnp2_mul_by_bits(p, bits_ptr, bits_len, 0, result);
+    let res = bnp2_mul_by_bits(p, bits_ptr, bits_len, 0, result);
+    return res;
 }
 
 func bnp2_mul_by_bits{
@@ -1373,8 +1379,9 @@ func bnf12_pow{
     // Extract bits from exponent, initialize result with 1
     // and perform square-and-multiply algorithm
     let (bits_ptr, bits_len) = get_u384_bits_little(exponent);
-    let res = BNF12_ONE();
-    return bnf12_pow_recursive(base, bits_ptr, bits_len, 0, res);
+    let bnf_one = BNF12_ONE();
+    let res = bnf12_pow_recursive(base, bits_ptr, bits_len, 0, bnf_one);
+    return res;
 }
 
 func bnf12_pow_recursive{
@@ -1670,7 +1677,8 @@ func bnp_mul_by{
     let result = bnp_point_at_infinity();
 
     // Implement the double-and-add algorithm
-    return bnp_mul_by_bits(p, bits_ptr, bits_len, 0, result);
+    let res = bnp_mul_by_bits(p, bits_ptr, bits_len, 0, result);
+    return res;
 }
 
 func bnp_mul_by_bits{
@@ -1941,7 +1949,8 @@ func bnp12_mul_by{
     let result = bnp12_point_at_infinity();
 
     // Implement the double-and-add algorithm
-    return bnp12_mul_by_bits(p, bits_ptr, bits_len, 0, result);
+    let res = bnp12_mul_by_bits(p, bits_ptr, bits_len, 0, result);
+    return res;
 }
 
 func bnp12_mul_by_bits{
@@ -2217,6 +2226,7 @@ func miller_loop_inner{
 
 func pairing{
     range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,
