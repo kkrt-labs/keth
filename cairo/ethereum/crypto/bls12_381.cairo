@@ -1,8 +1,5 @@
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.cairo_builtins import (
-    UInt384,
-    ModBuiltin,
-)
+from starkware.cairo.common.cairo_builtins import UInt384, ModBuiltin
 from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
 from starkware.cairo.common.dict import dict_read, dict_write
 from starkware.cairo.common.registers import get_label_location
@@ -10,11 +7,7 @@ from starkware.cairo.common.registers import get_label_location
 from cairo_ec.circuits.mod_ops_compiled import add, sub, mul
 from cairo_ec.curve.bls12_381 import bls12_381
 
-from ethereum.utils.numeric import (
-    U384_ZERO,
-    U384_ONE,
-    U384__eq__,
-)
+from ethereum.utils.numeric import U384_ZERO, U384_ONE, U384__eq__
 from ethereum_types.numeric import U384
 
 // Field over which the bls12_381 curve is defined.
