@@ -13,8 +13,9 @@ from ethereum.cancun.trie import (
     SubnodesStruct,
     bytes_to_nibble_list,
 )
-from ethereum_rlp.rlp import Extended, ExtendedImpl
+from ethereum_rlp.rlp import Extended, ExtendedImpl, ExtendedEnum
 from ethereum_types.bytes import Bytes, BytesStruct
+from ethereum.utils.bytes import Bytes__eq__
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.math import assert_not_zero
 
@@ -122,4 +123,59 @@ func deserialize_to_internal_node{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}
         ),
     );
     return result;
+}
+
+// @notice Checks if a branch node is valid.
+// A branch node is valid if it has at least two non-null subnodes.
+// @dev Raises an error if the branch node is invalid.
+// @param node The branch node to check.
+func check_branch_node(node: BranchNode) {
+    alloc_locals;
+
+    local first_non_null_index;
+    local second_non_null_index;
+    let subnodes_ptr = cast(node.value.subnodes.value, felt*);
+
+    %{ find_two_non_null_subnodes %}
+
+    if (first_non_null_index == second_non_null_index) {
+        raise('ValueError');
+    }
+
+    // Check that the first subnode is not None and not empty
+    tempvar x = Extended(cast(subnodes_ptr[first_non_null_index], ExtendedEnum*));
+
+    if (cast(x.value, felt) == 0) {
+        raise('ValueError');
+    }
+    // Case 1: subnode is a digest
+    if (cast(x.value.bytes.value, felt) != 0) {
+        if (x.value.bytes.value.len == 0) {
+            raise('ValueError');
+        }
+    }
+    // Case 2: subnode is an embedded node
+    if (cast(x.value.sequence.value, felt) != 0) {
+        if (x.value.sequence.value.len == 0) {
+            raise('ValueError');
+        }
+    }
+
+    // Check that the second subnode is not None and not empty
+    tempvar y = Extended(cast(subnodes_ptr[second_non_null_index], ExtendedEnum*));
+
+    if (cast(y.value, felt) == 0) {
+        raise('ValueError');
+    }
+    if (cast(y.value.bytes.value, felt) != 0) {
+        if (y.value.bytes.value.len == 0) {
+            raise('ValueError');
+        }
+    }
+    if (cast(y.value.sequence.value, felt) != 0) {
+        if (y.value.sequence.value.len == 0) {
+            raise('ValueError');
+        }
+    }
+    return ();
 }

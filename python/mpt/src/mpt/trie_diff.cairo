@@ -69,7 +69,7 @@ from ethereum.utils.bytes import (
     Bytes__startswith__,
 )
 
-from mpt.utils import deserialize_to_internal_node
+from mpt.utils import deserialize_to_internal_node, check_branch_node
 
 const EMPTY_TRIE_HASH_LOW = 0x6ef8c092e64583ffa655cc1b171fe856;
 const EMPTY_TRIE_HASH_HIGH = 0x21b463e3b52f6201c0ad6c991be0485b;
@@ -1332,6 +1332,7 @@ func _left_is_branch_node{
 }(left: BranchNode, right: OptionalInternalNode, path: Bytes, account_address: OptionalAddress) -> (
     ) {
     alloc_locals;
+    check_branch_node(left);
 
     // (BranchNode(), None) -> deleted branch node
     // Look for diffs in all branches of the left sub-tree
@@ -1364,6 +1365,7 @@ func _left_is_branch_node{
     // (BranchNode(), BranchNode()) -> Look for diffs in all branches of the right sub-tree
     if (cast(right.value.branch_node.value, felt) != 0) {
         let right_branch = right.value.branch_node;
+        check_branch_node(right_branch);
         return _compute_left_branch_on_right_branch_node(
             left=left, right=right_branch, path=path, account_address=account_address, index=0
         );

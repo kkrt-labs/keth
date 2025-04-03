@@ -29,6 +29,7 @@ from ethereum.cancun.trie import (
     LeafNode,
     Trie,
     copy_trie,
+    encode_internal_node,
 )
 from ethereum.cancun.trie import root as compute_root
 from ethereum.cancun.vm import Environment, Evm, Message
@@ -686,8 +687,17 @@ def register_type_strategies():
         st.fixed_dictionaries(
             {
                 "key_segment": nibble,
-                "subnode": st.integers(min_value=0, max_value=2**256 - 1).map(
-                    lambda x: x.to_bytes(32, "little")
+                "subnode": st.one_of(
+                    st.integers(min_value=0, max_value=2**256 - 1).map(
+                        lambda x: x.to_bytes(32, "little")
+                    ),
+                    # Always work with list instead of tuples for consistency
+                    st.from_type(LeafNode)
+                    .map(lambda x: encode_internal_node(x))
+                    .map(lambda x: list(x) if isinstance(x, tuple) else x),
+                    st.from_type(BranchNode)
+                    .map(lambda x: encode_internal_node(x))
+                    .map(lambda x: list(x) if isinstance(x, tuple) else x),
                 ),
             }
         ).map(lambda x: ExtensionNode(**x)),
@@ -698,8 +708,16 @@ def register_type_strategies():
             {
                 # 16 subnodes of 32 bytes each
                 "subnodes": st.lists(
-                    st.integers(min_value=0, max_value=2**256 - 1).map(
-                        lambda x: x.to_bytes(32, "little")
+                    st.one_of(
+                        st.integers(min_value=0, max_value=2**256 - 1).map(
+                            lambda x: x.to_bytes(32, "little")
+                        ),
+                        st.from_type(LeafNode)
+                        .map(lambda x: encode_internal_node(x))
+                        .map(lambda x: list(x) if isinstance(x, tuple) else x),
+                        st.from_type(ExtensionNode)
+                        .map(lambda x: encode_internal_node(x))
+                        .map(lambda x: list(x) if isinstance(x, tuple) else x),
                     ),
                     min_size=16,
                     max_size=16,
