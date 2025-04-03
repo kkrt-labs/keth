@@ -1,3 +1,5 @@
+from typing import List
+
 from ethereum.cancun.trie import (
     BranchNode,
     LeafNode,
@@ -11,6 +13,7 @@ from hypothesis import strategies as st
 from cairo_addons.testing.errors import strict_raises
 from cairo_addons.testing.hints import patch_hint
 from mpt.utils import check_branch_node, nibble_list_to_bytes
+from tests.utils.args_gen import AddressAccountNodeDiffEntry
 
 
 @st.composite
@@ -74,3 +77,9 @@ ids.second_non_null_index = 1
         ):
             with strict_raises(ValueError):
                 cairo_run_py("check_branch_node", branch_node)
+
+    @given(data=...)
+    def test_sort_account_diff(
+        self, cairo_run, data: List[AddressAccountNodeDiffEntry]
+    ):
+        cairo_run("sort_AccountDiff", data)

@@ -51,6 +51,7 @@ from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 from mpt.utils import AccountNode
 from tests.utils.args_gen import (
     U384,
+    AddressAccountNodeDiffEntry,
     Memory,
     Stack,
     StorageDiffEntry,
@@ -312,6 +313,10 @@ class TestSerde:
             Mapping[Hash32, Optional[InternalNode]],
             Mapping[Bytes32, Bytes32],
             BLSFieldElement,
+            List[AddressAccountNodeDiffEntry],
+            AddressAccountNodeDiffEntry,
+            StorageDiffEntry,
+            List[StorageDiffEntry],
             BLSF,
             BLSF2,
             StorageDiffEntry,

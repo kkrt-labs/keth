@@ -84,7 +84,7 @@
   "githubPullRequests.remotes": ["kakarot", "upstream"],
   "cairols.sourceDir": "cairo",
   "rust-analyzer.cargo.features": "all",
-  "cairols.venvCommand": ".venv/bin/activate",
+  "cairols.venvCommand": "source .venv/bin/activate",
   "cairols.cairoPath": [
     "cairo",
     "python/cairo-ec/src",

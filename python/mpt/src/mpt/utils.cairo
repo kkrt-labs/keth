@@ -22,6 +22,8 @@ from starkware.cairo.common.math import assert_not_zero
 from cairo_core.comparison import is_zero
 from cairo_core.control_flow import raise
 
+from mpt.types import AccountDiff, StorageDiff
+
 func deserialize_to_internal_node{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     decoded: Extended
 ) -> InternalNode {
@@ -177,5 +179,35 @@ func check_branch_node(node: BranchNode) {
             raise('ValueError');
         }
     }
+    return ();
+}
+
+func sort_AccountDiff(diff: AccountDiff) -> () {
+    alloc_locals;
+    if (cast(diff.value, felt) == 0) {
+        return ();
+    }
+    %{ breakpoint() %}
+    // Length of the array
+    let diffs_len = diff.value.len;
+    if (diffs_len == 0) {
+        return ();
+    }
+    // Pointer to the array of AddressAccountNodeDiffEntry
+    let diffs_ptr = diff.value.data;
+    // Buffer to store the sorted entries
+    let (buffer) = alloc();
+    %{
+        breakpoint()
+        data = [memory[ids.diffs_ptr + i * 3] for i in range(ids.diffs_len)]
+        # Sort the entries (you can specify a sorting key/comparison function)
+        # Example: Sort by address
+        data.sort(key=lambda entry: memory[memory[entry].value].key)
+
+        # Write sorted data back to buffer
+        for i, entry in enumerate(data):
+            memory[ids.buffer + i] = entry
+    %}
+
     return ();
 }
