@@ -53,7 +53,7 @@ cairo-ec = { workspace = true }
 cairo-core = { workspace = true }
 eth-rpc = { workspace = true }
 mpt = { workspace = true }
-garaga-zero = { git = "https://github.com/kkrt-labs/garaga-zero" }
+garaga-zero = { git = "https://github.com/kkrt-labs/garaga-zero", rev = "c01503e804c36ab71d5aa46acb676603e79f5204" }
 
 [tool.uv.workspace]
 members = ["python/*"]

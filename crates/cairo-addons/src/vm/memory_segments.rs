@@ -1,5 +1,6 @@
 use cairo_vm::{
-    types::relocatable::MaybeRelocatable, vm::vm_core::VirtualMachine as RustVirtualMachine,
+    types::relocatable::{MaybeRelocatable, Relocatable},
+    vm::vm_memory::{memory::Memory, memory_segments::MemorySegmentManager},
 };
 use pyo3::prelude::*;
 
@@ -9,7 +10,7 @@ use super::vm_consts::PyVmConst;
 
 #[pyclass(name = "MemorySegmentManager", unsendable)]
 pub struct PyMemorySegmentManager {
-    pub(crate) vm: *mut RustVirtualMachine,
+    pub(crate) inner: *mut MemorySegmentManager,
 }
 
 #[derive(FromPyObject)]
@@ -21,19 +22,31 @@ enum GenArgInput {
 /// Enables syntax `segments.memory.<op>`
 #[pyclass(name = "MemoryWrapper", unsendable)]
 pub struct PyMemoryWrapper {
-    pub(crate) vm: *mut RustVirtualMachine,
+    pub(crate) inner: *mut Memory,
+}
+
+//TODO: remove after https://github.com/lambdaclass/cairo-vm/pull/2039
+fn memory_get(memory: &mut Memory, key: Relocatable) -> Option<MaybeRelocatable> {
+    match memory.get_relocatable(key) {
+        Ok(relocatable) => Some(relocatable.into()),
+        Err(_) => {
+            let value = memory.get_integer(key).map(|x| x.into_owned()).ok()?;
+            Some(value.into())
+        }
+    }
 }
 
 #[pymethods]
 impl PyMemoryWrapper {
     fn get(&self, key: PyRelocatable) -> Option<PyMaybeRelocatable> {
-        unsafe { (*self.vm).get_maybe(&key.inner).map(PyMaybeRelocatable::from) }
+        let memory = unsafe { &mut *self.inner };
+        Some(memory_get(memory, key.inner)?.into())
     }
 
     fn __getitem__(&self, key: PyRelocatable) -> PyResult<PyMaybeRelocatable> {
-        let vm = unsafe { &mut *self.vm };
+        let memory = unsafe { &mut *self.inner };
 
-        vm.get_maybe(&key.inner).map(PyMaybeRelocatable::from).ok_or_else(|| {
+        memory_get(memory, key.inner).map(PyMaybeRelocatable::from).ok_or_else(|| {
             PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!(
                 "Memory address not found: {}",
                 key.inner
@@ -42,15 +55,16 @@ impl PyMemoryWrapper {
     }
 
     fn __setitem__(&self, key: PyRelocatable, value: PyMaybeRelocatable) -> PyResult<()> {
-        let vm = unsafe { &mut *self.vm };
+        let memory = unsafe { &mut *self.inner };
 
-        if let Some(value) = vm.get_maybe(&key.inner) {
+        if let Some(value) = memory_get(memory, key.inner) {
             return Err(PyErr::new::<pyo3::exceptions::PyKeyError, _>(format!(
                 "Memory at key {} already has value: {}",
                 key.inner, value
             )));
         }
-        vm.insert_value(key.inner, value)
+        memory
+            .insert_value(key.inner, value)
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
         Ok(())
     }
@@ -59,16 +73,17 @@ impl PyMemoryWrapper {
 #[pymethods]
 impl PyMemorySegmentManager {
     #[getter]
-    fn memory(&self) -> PyMemoryWrapper {
-        PyMemoryWrapper { vm: self.vm }
+    pub fn memory(&self) -> PyMemoryWrapper {
+        let memory = unsafe { &mut (*self.inner).memory };
+        PyMemoryWrapper { inner: memory }
     }
 
     fn add(&mut self) -> PyRelocatable {
-        unsafe { (*self.vm).segments.add().into() }
+        unsafe { (*self.inner).add().into() }
     }
 
     fn add_temporary_segment(&mut self) -> PyRelocatable {
-        unsafe { (*self.vm).segments.add_temporary_segment().into() }
+        unsafe { (*self.inner).add_temporary_segment().into() }
     }
 
     /// * `obj`: Expected to be a PyRelocatable or PyVmConst
@@ -96,8 +111,7 @@ impl PyMemorySegmentManager {
         let data: Vec<MaybeRelocatable> = data.into_iter().map(|x| x.into()).collect();
 
         let result = unsafe {
-            (*self.vm)
-                .segments
+            (*self.inner)
                 .load_data(ptr_addr, &data)
                 .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?
         };
@@ -106,15 +120,15 @@ impl PyMemorySegmentManager {
     }
 
     fn get_segment_used_size(&self, segment_index: usize) -> Option<usize> {
-        unsafe { (*self.vm).segments.get_segment_used_size(segment_index) }
+        unsafe { (*self.inner).get_segment_used_size(segment_index) }
     }
 
     fn get_segment_size(&self, segment_index: usize) -> Option<usize> {
-        unsafe { (*self.vm).segments.get_segment_size(segment_index) }
+        unsafe { (*self.inner).get_segment_size(segment_index) }
     }
 
     fn compute_effective_sizes(&mut self) -> Vec<usize> {
-        unsafe { (*self.vm).segments.compute_effective_sizes().clone() }
+        unsafe { (*self.inner).compute_effective_sizes().clone() }
     }
 
     fn gen_arg(&self, arg: GenArgInput) -> PyResult<PyMaybeRelocatable> {
@@ -124,7 +138,7 @@ impl PyMemorySegmentManager {
                 let result: Result<
                     MaybeRelocatable,
                     cairo_vm::vm::errors::memory_errors::MemoryError,
-                > = unsafe { (*self.vm).segments.gen_arg(&arg) };
+                > = unsafe { (*self.inner).gen_arg(&arg) };
                 result
             }
             GenArgInput::Multiple(arg) => {
@@ -132,7 +146,7 @@ impl PyMemorySegmentManager {
                 let result: Result<
                     MaybeRelocatable,
                     cairo_vm::vm::errors::memory_errors::MemoryError,
-                > = unsafe { (*self.vm).segments.gen_arg(&arg) };
+                > = unsafe { (*self.inner).gen_arg(&arg) };
                 result
             }
         };
