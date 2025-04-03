@@ -39,13 +39,22 @@ def main():
 
 
 def compile_keth():
+    parser = argparse.ArgumentParser(description="Compile Cairo program")
+    parser.add_argument(
+        "--debug-info",
+        action="store_true",
+        default=False,
+        help="Include debug information in the compiled program",
+    )
+    args = parser.parse_args()
     keth_main_path = Path("cairo/ethereum/cancun/main.cairo")
-    debug_info = False
     proof_mode = True
     output_path = Path("build/main_compiled.json")
-    logger.info(f"Compiling Keth with {debug_info=} and {proof_mode=}")
+    logger.info(
+        f"Compiling Keth with debug_info={args.debug_info} and proof_mode={proof_mode}"
+    )
     program = cairo_compile(
-        keth_main_path, debug_info=debug_info, proof_mode=proof_mode
+        keth_main_path, debug_info=args.debug_info, proof_mode=proof_mode
     )
     with open(output_path, "w") as f:
         logger.info(f"Writing compiled program to {output_path}")
