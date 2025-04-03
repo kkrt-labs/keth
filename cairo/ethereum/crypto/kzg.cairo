@@ -9,6 +9,8 @@ from cairo_ec.curve.bls12_381 import bls12_381
 
 using BLSScalar = U256;
 
+const GET_FLAGS_MASK = 2 ** 95 + 2 ** 94 + 2 ** 93;
+
 func bytes_to_bls_field{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(b: Bytes32) -> BLSScalar {
     let field_element = U256_from_be_bytes32(b);
     tempvar bls_modulus = U256(new U256Struct(low=bls12_381.N_LOW_128, high=bls12_381.N_HIGH_128));
@@ -27,9 +29,9 @@ func os2ip{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(b: Bytes) -> U384 {
 }
 
 // Extract all three most significant bits with one bitwise operation
-// Since each component is 96 bits, the MSB is at position 95 in d3
+// Since each limb of z is 96-bit long, the MSB is at position 95 in d3
 func get_flags{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(z: U384) -> (bool, bool, bool) {
-    let (flags_mask) = bitwise_and(z.value.d3, 2 ** 95 + 2 ** 94 + 2 ** 93);
+    let (flags_mask) = bitwise_and(z.value.d3, GET_FLAGS_MASK);
     let (c, remainder1) = unsigned_div_rem(flags_mask, 2 ** 95);
     let (b, remainder2) = unsigned_div_rem(remainder1, 2 ** 94);
     let (a, _) = unsigned_div_rem(remainder2, 2 ** 93);
