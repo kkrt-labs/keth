@@ -1163,9 +1163,13 @@ def _gen_arg(
         segments.load_data(base, coeff)
         return base
 
-    if arg_type in (BNF2, BNF12):
+    if arg_type in (BNF2, BNF12, BLSF2):
         base = segments.add()
-        # In python, BNF<N> is a tuple of N int but in cairo it's a struct with N U384
+        # In python, BNF<N> is a raw tuple of N int.
+        # In python, BLSF<N> stores this tuple in a field "coeffs".
+        if arg_type == BLSF2:
+            arg = arg.coeffs
+        # In Cairo, BNF<N> and BLSF<N> are a struct of N U384.
         # Cast int to U384 to be able to serialize
         coeffs = [
             _gen_arg(dict_manager, segments, U384, U384(arg[i]))
@@ -1232,14 +1236,6 @@ def _gen_arg(
         y_ptr = _gen_arg(dict_manager, segments, U384, U384(arg.y))
         segments.load_data(ptr, [x_ptr, y_ptr])
         return ptr
-
-    if arg_type is BLSF2:
-        base = segments.add()
-        coeffs = [
-            _gen_arg(dict_manager, segments, U384, U384(coeff)) for coeff in arg.coeffs
-        ]
-        segments.load_data(base, coeffs)
-        return base
 
     if isinstance(arg_type, type) and issubclass(arg_type, Exception):
         # For exceptions, we either return 0 (no error) or the ascii representation of the error message
