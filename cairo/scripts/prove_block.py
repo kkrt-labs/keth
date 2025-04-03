@@ -129,19 +129,20 @@ def load_pre_state(data: Dict[str, Any]) -> State:
     return state
 
 
+def normalize_transaction(tx: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Normalize transaction fields to match what TransactionLoad expects.
+    """
+    tx = tx.copy()
+    tx["gasLimit"] = tx.pop("gas")
+    tx["data"] = tx.pop("input")
+    tx["to"] = tx["to"] if tx["to"] is not None else ""
+    return tx
+
+
 def process_block_transactions(
     block_transactions: List[Dict[str, Any]],
 ) -> Tuple[Tuple[LegacyTransaction, ...], Tuple[Dict[str, Any], ...]]:
-
-    def normalize_transaction(tx: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Normalize transaction fields to match what TransactionLoad expects.
-        """
-        tx = tx.copy()
-        tx["gasLimit"] = tx.pop("gas")
-        tx["data"] = tx.pop("input")
-        tx["to"] = tx["to"] if tx["to"] is not None else ""
-        return tx
 
     transactions = tuple(
         TransactionLoad(normalize_transaction(tx), ForkLoad("cancun")).read()
