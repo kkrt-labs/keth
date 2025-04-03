@@ -21,7 +21,7 @@ from ethereum_spec_tools.evm_tools.loaders.transaction_loader import Transaction
 from ethereum_types.numeric import FixedUnsigned, Uint
 
 import mpt
-from mpt.ethereum_tries import EthereumTries, EthereumTrieTransitionDB
+from mpt.ethereum_tries import EthereumTries
 from tests.utils.args_gen import (
     EMPTY_ACCOUNT,
     Account,
@@ -124,12 +124,8 @@ def parse_args() -> argparse.Namespace:
 
 def load_pre_state(data: Dict[str, Any]) -> State:
     """Load a trie fixture from a JSON file."""
-    try:
-        fixture = EthereumTrieTransitionDB.from_data(data)
-        state = fixture.to_pre_state()
-    except Exception:
-        fixture = EthereumTries.from_data(data)
-        state = fixture.to_state()
+    fixture = EthereumTries.from_data(data)
+    state = fixture.to_state()
     return state
 
 
@@ -215,8 +211,6 @@ def load_zkpi_fixture(zkpi_path: Path) -> Dict[str, Any]:
     block_transactions = input_block["transaction"]
     transactions = process_block_transactions(block_transactions)
 
-    logger.info("Converting block data to shared EELS & Keth types")
-
     # Convert block
     block = Block(
         header=load.json_to_header(input_block["header"]),
@@ -251,7 +245,6 @@ def load_zkpi_fixture(zkpi_path: Path) -> Dict[str, Any]:
         chain_id=U64(prover_inputs["chainConfig"]["chainId"]),
     )
 
-    logger.info("Temporary fix: Computing partial state root")
     # TODO: Remove when partial MPT is implemented
     state_root = apply_body(
         chain.state,
@@ -268,8 +261,6 @@ def load_zkpi_fixture(zkpi_path: Path) -> Dict[str, Any]:
         block.header.parent_beacon_block_root,
         calculate_excess_blob_gas(chain.blocks[-1].header),
     ).state_root
-
-    logger.info("Temporary fix: Done - Recreating block with computed state root")
 
     # Recreate block with computed state root
     block = Block(
@@ -296,8 +287,6 @@ def load_zkpi_fixture(zkpi_path: Path) -> Dict[str, Any]:
             bytes.fromhex(input_block["header"]["hash"].removeprefix("0x"))
         ),
     }
-
-    logger.info(f"Program inputs: {program_inputs}")
 
     return program_inputs
 
