@@ -8,8 +8,6 @@ from typing import Union
 from ethereum.crypto.alt_bn128 import BNF as AltBn128P
 from ethereum.crypto.elliptic_curve import EllipticCurve, F
 from ethereum.crypto.finite_field import PrimeField
-from py_ecc.fields import optimized_bls12_381_FQ as Bls12381P
-from py_ecc.optimized_bls12_381.optimized_curve import b
 from sympy import sqrt_mod
 
 
@@ -98,10 +96,3 @@ class AltBn128(ECBase):
     A = AltBn128P(0)
     B = AltBn128P(3)
     G = AltBn128P(3)
-
-
-class Bls12381(ECBase):
-    FIELD = Bls12381P
-    A = Bls12381P(0)
-    B = b
-    G = Bls12381P(3)
