@@ -786,7 +786,7 @@ class TestFork:
 
     @pytest.mark.parametrize(
         "zkpi_path",
-        [Path("test_data/21688509.json")],
+        [Path("test_data/22188088.json")],
     )
     @pytest.mark.slow
     def test_state_transition_eth_mainnet(self, cairo_run, zkpi_fixture):
