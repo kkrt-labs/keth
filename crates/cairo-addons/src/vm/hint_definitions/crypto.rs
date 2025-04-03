@@ -41,15 +41,13 @@ pub fn bnf_multiplicative_inverse() -> Hint {
             let b_inv = b.inverse().unwrap_or_default();
 
             let c0_u384 = Uint384::split(&b_inv.into());
-
-            let bnf_struct_ptr = vm.add_memory_segment();
-            let c0_ptr = vm.add_memory_segment();
-
-            for i in 0..4 {
-                vm.insert_value((c0_ptr + i)?, c0_u384.limbs[i].clone().into_owned())?;
-            }
-            vm.insert_value(bnf_struct_ptr, c0_ptr)?;
-            insert_value_from_var_name("b_inv", bnf_struct_ptr, vm, ids_data, ap_tracking)?;
+            insert_field_element_from_var_name::<1>(
+                "b_inv",
+                &[c0_u384],
+                vm,
+                ids_data,
+                ap_tracking,
+            )?;
             Ok(())
         },
     )
@@ -73,20 +71,21 @@ pub fn bnf2_multiplicative_inverse() -> Hint {
             let c0_u384 = Uint384::split(&b_inv.c0.into());
             let c1_u384 = Uint384::split(&b_inv.c1.into());
 
-            insert_quadratic_field_element_from_var_name(
+            insert_field_element_from_var_name::<2>(
                 "b_inv",
-                (c0_u384, c1_u384),
+                &[c0_u384, c1_u384],
                 vm,
                 ids_data,
                 ap_tracking,
-            )
+            )?;
+            Ok(())
         },
     )
 }
 
 pub fn blsf_multiplicative_inverse() -> Hint {
     Hint::new(
-        String::from("bnf_multiplicative_inverse"),
+        String::from("blsf_multiplicative_inverse"),
         |vm: &mut VirtualMachine,
          _exec_scopes: &mut ExecutionScopes,
          ids_data: &HashMap<String, HintReference>,
@@ -101,15 +100,13 @@ pub fn blsf_multiplicative_inverse() -> Hint {
             let b_inv = b.inverse().unwrap_or_default();
 
             let c0_u384 = Uint384::split(&b_inv.into());
-
-            let bnf_struct_ptr = vm.add_memory_segment();
-            let c0_ptr = vm.add_memory_segment();
-
-            for i in 0..4 {
-                vm.insert_value((c0_ptr + i)?, c0_u384.limbs[i].clone().into_owned())?;
-            }
-            vm.insert_value(bnf_struct_ptr, c0_ptr)?;
-            insert_value_from_var_name("b_inv", bnf_struct_ptr, vm, ids_data, ap_tracking)?;
+            insert_field_element_from_var_name::<1>(
+                "b_inv",
+                &[c0_u384],
+                vm,
+                ids_data,
+                ap_tracking,
+            )?;
             Ok(())
         },
     )
@@ -132,13 +129,14 @@ pub fn blsf2_multiplicative_inverse() -> Hint {
             let c0_u384 = Uint384::split(&b_inv.c0.into());
             let c1_u384 = Uint384::split(&b_inv.c1.into());
 
-            insert_quadratic_field_element_from_var_name(
+            insert_field_element_from_var_name::<2>(
                 "b_inv",
-                (c0_u384, c1_u384),
+                &[c0_u384, c1_u384],
                 vm,
                 ids_data,
                 ap_tracking,
-            )
+            )?;
+            Ok(())
         },
     )
 }
@@ -154,23 +152,25 @@ fn extract_quadratic_field_element_from_base(
     Ok((c0, c1))
 }
 
-fn insert_quadratic_field_element_from_var_name(
+fn insert_field_element_from_var_name<const N: usize>(
     var_name: &str,
-    coeffs: (Uint384, Uint384),
+    coeffs: &[Uint384; N],
     vm: &mut VirtualMachine,
     ids_data: &HashMap<String, HintReference>,
     ap_tracking: &ApTracking,
 ) -> Result<(), HintError> {
-    let blsf2_struct_ptr = vm.add_memory_segment();
-    let c0_ptr = vm.add_memory_segment();
-    let c1_ptr = vm.add_memory_segment();
+    let field_struct_ptr = vm.add_memory_segment();
 
-    for i in 0..4 {
-        vm.insert_value((c0_ptr + i)?, coeffs.0.limbs[i].clone().into_owned())?;
-        vm.insert_value((c1_ptr + i)?, coeffs.1.limbs[i].clone().into_owned())?;
+    // Create a segment and insert values for each coefficient
+    for (i, coeff) in coeffs.iter().enumerate() {
+        let c_ptr = vm.add_memory_segment();
+
+        for j in 0..4 {
+            vm.insert_value((c_ptr + j)?, coeff.limbs[j].clone().into_owned())?;
+        }
+
+        vm.insert_value((field_struct_ptr + i)?, c_ptr)?;
     }
-    vm.insert_value(blsf2_struct_ptr, c0_ptr)?;
-    vm.insert_value((blsf2_struct_ptr + 1_usize).unwrap(), c1_ptr)?;
-    insert_value_from_var_name(var_name, blsf2_struct_ptr, vm, ids_data, ap_tracking)?;
-    Ok(())
+
+    insert_value_from_var_name(var_name, field_struct_ptr, vm, ids_data, ap_tracking)
 }
