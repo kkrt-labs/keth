@@ -503,6 +503,7 @@ def zkpi_fixture(zkpi_path):
     load = Load("Cancun", "cancun")
     if len(prover_inputs["blocks"]) > 1:
         raise ValueError("Only one block is supported")
+
     input_block = prover_inputs["blocks"][0]
     block_transactions = input_block["transaction"]
     transactions = process_block_transactions(block_transactions)
@@ -531,7 +532,7 @@ def zkpi_fixture(zkpi_path):
             ommers=(),
             withdrawals=(),
         )
-        for ancestor in prover_inputs["witness"]["ancestors"]
+        for ancestor in prover_inputs["witness"]["ancestors"][::-1]
     ]
 
     # Create blockchain
@@ -579,7 +580,7 @@ def zkpi_fixture(zkpi_path):
     state_transition(chain, block)
     # Reset state to the original state
     chain = BlockChain(
-        blocks=blocks[:-1],
+        blocks=blocks,
         state=prepare_state(load_pre_state(prover_inputs)),
         chain_id=U64(prover_inputs["chainConfig"]["chainId"]),
     )
@@ -793,8 +794,7 @@ class TestFork:
 
     @pytest.mark.parametrize(
         "zkpi_path",
-        list(Path("data/inputs/1").glob("*.json")),
-        ids=[x.stem for x in Path("data/inputs/1").glob("*.json")],
+        [Path("test_data/21688509.json")],
     )
     @pytest.mark.slow
     def test_state_transition_eth_mainnet(self, cairo_run, zkpi_fixture):

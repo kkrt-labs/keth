@@ -235,7 +235,7 @@ def load_zkpi_fixture(zkpi_path: Path) -> Dict[str, Any]:
             ommers=(),
             withdrawals=(),
         )
-        for ancestor in prover_inputs["witness"]["ancestors"]
+        for ancestor in prover_inputs["witness"]["ancestors"][::-1]
     ]
 
     # Create blockchain
