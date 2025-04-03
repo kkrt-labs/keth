@@ -201,8 +201,12 @@ def load_zkpi_fixture(zkpi_path: Path) -> Dict[str, Any]:
         FileNotFoundError: If the ZKPI file doesn't exist
         ValueError: If JSON is invalid or data conversion fails
     """
-    with open(zkpi_path, "r") as f:
-        prover_inputs = json.load(f)
+    try:
+        with open(zkpi_path, "r") as f:
+            prover_inputs = json.load(f)
+    except Exception as e:
+        logger.error(f"Error loading ZKPI file from {zkpi_path}: {e}")
+        raise e
 
     load = Load("Cancun", "cancun")
     if len(prover_inputs["blocks"]) > 1:
@@ -359,9 +363,6 @@ def main() -> int:
         return 0
     except FileNotFoundError as e:
         logger.error(f"File error: {e}")
-        return 1
-    except json.JSONDecodeError as e:
-        logger.error(f"Invalid JSON in ZKPI file {zkpi_path}: {e}")
         return 1
     except (KeyError, ValueError) as e:
         logger.error(f"Data error: {e}")

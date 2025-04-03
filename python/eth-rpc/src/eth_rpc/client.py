@@ -132,7 +132,11 @@ class EthereumRPC:
             ],
         }
 
-        response = requests.post(self.url, json=payload)
+        try:
+            response = requests.post(self.url, json=payload)
+            result = Bytes.fromhex(response.json()["result"][2:])
+        except Exception as e:
+            logger.error(f"Error getting code: {e} \n {response.text}")
+            raise e
 
-        result = Bytes.fromhex(response.json()["result"][2:])
         return result
