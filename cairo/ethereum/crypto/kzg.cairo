@@ -1,11 +1,20 @@
-from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
+from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, UInt384
+from starkware.cairo.common.registers import get_label_location
 from starkware.cairo.common.bitwise import bitwise_and
 from starkware.cairo.common.math import unsigned_div_rem
 from starkware.cairo.common.math_cmp import is_not_zero
 from ethereum_types.bytes import Bytes32, Bytes
 from ethereum_types.numeric import U256, U256Struct, U384, bool
-from ethereum.utils.numeric import U256_from_be_bytes32, U256_le, U384_from_be_bytes
+from ethereum.utils.numeric import (
+    U256_from_be_bytes32,
+    U256_le,
+    U384_from_be_bytes,
+    U384_ZERO,
+    U384__eq__,
+)
 from cairo_ec.curve.bls12_381 import bls12_381
+from ethereum.crypto.bls12_381 import BLSF2, BLSF2Struct, BLSF2__eq__, BLSF2_ZERO
+from cairo_core.numeric import OptionalU384
 
 using BLSScalar = U256;
 
@@ -40,4 +49,20 @@ func get_flags{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(z: U384) -> (bool,
     let b_flag = is_not_zero(b);
     let a_flag = is_not_zero(a);
     return (bool(c_flag), bool(b_flag), bool(a_flag));
+}
+
+func is_point_at_infinity{range_check96_ptr: felt*}(z1: U384, z2: OptionalU384) -> bool {
+    alloc_locals;
+
+    let (u384_zero_ptr) = get_label_location(U384_ZERO);
+    let u384_zero = U384(cast(u384_zero_ptr, UInt384*));
+    if (z2.value != 0) {
+        let is_z1_zero = U384__eq__(z1, u384_zero);
+        let is_z2_zero = U384__eq__(U384(z2.value), u384_zero);
+        let result = bool(is_z1_zero.value * is_z2_zero.value);
+        return result;
+    }
+    let is_z1_zero = U384__eq__(z1, u384_zero);
+    let result = bool(is_z1_zero.value);
+    return result;
 }
