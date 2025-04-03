@@ -50,3 +50,7 @@ using U384Struct = UInt384;
 struct U384 {
     value: U384Struct*,
 }
+
+struct OptionalU384 {
+    value: U384Struct*,
+}

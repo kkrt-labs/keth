@@ -587,6 +587,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("cairo_core", "numeric", "SetUint"): Set[Uint],
     ("cairo_core", "numeric", "UnionUintU256"): Union[Uint, U256],
     ("cairo_core", "numeric", "U384"): U384,
+    ("cairo_core", "numeric", "OptionalU384"): Optional[U384],
     ("cairo_core", "bytes", "Bytes0"): Bytes0,
     ("cairo_core", "bytes", "Bytes1"): Bytes1,
     ("cairo_core", "bytes", "Bytes4"): Bytes4,

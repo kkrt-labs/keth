@@ -294,6 +294,7 @@ class TestSerde:
             Trie[Bytes, Optional[Union[Bytes, Withdrawal]]],
             ApplyBodyOutput,
             U384,
+            Optional[U384],
             BNF12,
             Tuple[BNF12, ...],
             BNP12,
