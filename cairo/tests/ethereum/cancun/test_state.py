@@ -618,3 +618,110 @@ class TestStorageRoots:
             return
 
         assert storage_roots_cairo == storage_roots(state)
+
+
+class TestGetAccountCode:
+    def _create_account_no_code(self, account: Account) -> Account:
+        """Helper function to create a copy of an account with code set to None."""
+        return Account(
+            balance=account.balance,
+            nonce=account.nonce,
+            code=None,  # Explicitly remove code for testing retrieval
+            code_hash=account.code_hash,
+            storage_root=account.storage_root,
+        )
+
+    def _prepare_codehash_input(self, code_hash: Bytes32, code: bytes) -> dict:
+        """Helper function to prepare the codehash_to_code input dictionary."""
+        # Convert Bytes32 code_hash to the low/high u128 pair expected by Cairo
+        code_hash_int = int.from_bytes(code_hash, "little")
+        code_hash_low = code_hash_int & (2**128 - 1)
+        code_hash_high = code_hash_int >> 128
+        return {"codehash_to_code": {(code_hash_low, code_hash_high): code}}
+
+    @given(state=..., address=..., account=...)
+    def test_get_account_code_cached(
+        self, cairo_run, state: State, address: Address, account: Account
+    ):
+        """
+        Test that get_account_code returns code directly if already present in the account object.
+        """
+        # Set an account that already includes its code.
+        set_account(state, address, account)
+
+        # Call the Cairo function.
+        state_cairo, code_cairo = cairo_run("get_account_code", state, address, account)
+
+        # Assert: Returned code matches, state remains consistent.
+        assert code_cairo == account.code
+        assert get_account(state_cairo, address) == account
+
+    @given(state=..., address=..., account=...)
+    def test_get_account_code_from_input(
+        self, cairo_run, state: State, address: Address, account: Account
+    ):
+        """
+        Test that get_account_code retrieves code from the input map when not cached.
+        """
+        # Create an account without code and prepare input map.
+        account_no_code = self._create_account_no_code(account)
+        set_account(state, address, account_no_code)
+        program_input = self._prepare_codehash_input(account.code_hash, account.code)
+
+        # Call the Cairo function with the input map.
+        state_cairo, code_cairo = cairo_run(
+            "get_account_code",
+            state,
+            address,
+            account_no_code,
+            codehash_to_code=program_input["codehash_to_code"],
+        )
+
+        # Assert: Correct code is returned and inserted into the account in the state.
+        assert code_cairo == account.code
+        # Reconstruct the expected final account state after code retrieval
+        expected_account = Account(
+            balance=account.balance,
+            nonce=account.nonce,
+            code=code_cairo,  # Code should now be filled
+            code_hash=account.code_hash,
+            storage_root=account.storage_root,
+        )
+        assert get_account(state_cairo, address) == expected_account
+
+    @given(state=..., address=..., account=...)
+    def test_get_account_code_raises_on_mismatched_hash(
+        self, cairo_run, state: State, address: Address, account: Account
+    ):
+        """
+        Test that get_account_code raises an error if the provided code's hash
+        doesn't match the requested code_hash.
+        """
+        # Arrange: Create an account without code.
+        account_no_code = self._create_account_no_code(account)
+        set_account(state, address, account_no_code)
+
+        # Arrange: Prepare input map with a deliberately incorrect code (flipped last byte).
+        # We manually create the input here to use the wrong code to the hash
+        code_hash_int = int.from_bytes(account.code_hash, "little")
+        code_hash_low = code_hash_int & (2**128 - 1)
+        code_hash_high = code_hash_int >> 128
+        incorrect_code = (
+            account.code[:-1] + bytes([account.code[-1] ^ 1])
+            if account.code != b""
+            else b"wrong code"
+        )
+        program_input = {
+            "codehash_to_code": {(code_hash_low, code_hash_high): incorrect_code}
+        }
+
+        # Expect an assertion error from the Cairo execution.
+        # The Cairo function should verify keccak256(code) == account.code_hash.
+        with pytest.raises(AssertionError):
+            cairo_run(
+                "get_account_code",
+                state,
+                address,
+                account_no_code,
+                codehash_to_code=program_input["codehash_to_code"],
+            )

@@ -11,6 +11,7 @@ from ethereum_types.bytes import (
     BytesStruct,
     HashedBytes32,
     Bytes32Struct,
+    OptionalBytes,
 )
 from ethereum.utils.bytes import Bytes__eq__
 from ethereum_types.numeric import Uint, U256, U256Struct, bool
@@ -106,7 +107,9 @@ using Bloom = Bytes256;
 struct AccountStruct {
     nonce: Uint,
     balance: U256,
-    code: Bytes,
+    // An account with no code is an account whose code is not cached yet.
+    // An account with empty code would have EMPTY_BYTES as code.
+    code: OptionalBytes,
     storage_root: Hash32,
     code_hash: Bytes32,
 }
@@ -191,7 +194,7 @@ func EMPTY_ACCOUNT() -> Account {
     let (empty_hash_ptr) = get_label_location(EMPTY_HASH);
     tempvar balance = U256(new U256Struct(0, 0));
     let (data) = alloc();
-    tempvar code = Bytes(new BytesStruct(data=data, len=0));
+    tempvar code = OptionalBytes(new BytesStruct(data=data, len=0));
     tempvar account = Account(
         value=new AccountStruct(
             nonce=Uint(0),

@@ -614,6 +614,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("cairo_core", "bytes", "TupleBytes32"): Tuple[Bytes32, ...],
     ("cairo_core", "bytes", "Bytes256"): Bytes256,
     ("cairo_core", "bytes", "Bytes"): Bytes,
+    ("cairo_core", "bytes", "OptionalBytes"): Optional[Bytes],
     ("cairo_core", "bytes", "String"): str,
     ("cairo_core", "bytes", "TupleBytes"): Tuple[Bytes, ...],
     ("cairo_core", "bytes", "MappingBytesBytes"): Mapping[Bytes, Bytes],

@@ -65,7 +65,7 @@ from ethereum.cancun.trie import (
     copy_TrieTupleAddressBytes32U256,
 )
 from ethereum.cancun.blocks import Withdrawal
-from ethereum_types.bytes import Bytes, Bytes32, Bytes32Struct, BytesStruct
+from ethereum_types.bytes import Bytes, Bytes32, Bytes32Struct, BytesStruct, OptionalBytes
 from ethereum.crypto.hash import EMPTY_ROOT
 from ethereum_types.numeric import U256, U256Struct, Bool, bool, Uint
 from ethereum.utils.numeric import U256_le, U256_sub, U256_add, U256_mul
@@ -227,19 +227,21 @@ func get_account_code{
 
     // Account code is already cached - return it
     if (cast(account.value.code.value, felt) != 0) {
-        return account.value.code;
+        let res = Bytes(account.value.code.value);
+        return res;
     }
 
     // Account code is not cached - load it and ensure hash(code) == code_hash
     // TODO: this should not be triggered in tests - only in prod script.
     // TODO: ensure this works with a test.
-    tempvar code: felt*;
+    let (code_) = alloc();
+    tempvar code = code_;
     tempvar code_len: felt;
     %{
         # TODO: do we want to serialize (I fear it might be slow) here?
         # best would be for the program input to already have the key:Tuple[Low, High] -> code
-        account_code = program_input["codehash_to_code"][serialize(ids.account.value.code_hash)];
-        segment.load_data(code, account_code);
+        account_code = program_input["codehash_to_code"][(ids.account.value.code_hash.value.low, ids.account.value.code_hash.value.high)];
+        segments.load_data(ids.code, account_code);
         ids.code_len = len(account_code);
     %}
     tempvar account_code = Bytes(new BytesStruct(data=code, len=code_len));
@@ -247,7 +249,8 @@ func get_account_code{
     // Soundness checks: ensure that hash(account_code) == account.value.code_hash
     let code_hash = keccak256(account_code);
     with_attr error_message("AssertionError") {
-        assert code_hash = account.value.code_hash;
+        assert code_hash.value.low = account.value.code_hash.value.low;
+        assert code_hash.value.high = account.value.code_hash.value.high;
     }
 
     // Store it in the state for later retrievals
@@ -255,7 +258,7 @@ func get_account_code{
         new AccountStruct(
             account.value.nonce,
             account.value.balance,
-            account_code,
+            OptionalBytes(account_code.value),
             account.value.storage_root,
             account.value.code_hash,
         ),
@@ -979,7 +982,7 @@ func set_code{
         new AccountStruct(
             nonce=account.value.nonce,
             balance=account.value.balance,
-            code=code,
+            code=OptionalBytes(code.value),
             storage_root=account.value.storage_root,
             code_hash=code_hash,
         ),

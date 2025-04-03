@@ -53,7 +53,7 @@ from hypothesis.strategies import composite, integers
 from scripts.prove_block import load_pre_state, process_block_transactions
 
 from cairo_addons.testing.errors import strict_raises
-from tests.ef_tests.helpers.load_state_tests import prepare_state
+from tests.ef_tests.helpers.load_state_tests import prepare_state_and_code_hashes
 from tests.ethereum.cancun.vm.test_interpreter import unimplemented_precompiles
 from tests.utils.constants import (
     COINBASE,
@@ -535,9 +535,10 @@ def zkpi_fixture(zkpi_path):
     ]
 
     # Create blockchain
+    state, _code_hashes = prepare_state_and_code_hashes(load_pre_state(prover_inputs))
     chain = BlockChain(
         blocks=blocks,
-        state=prepare_state(load_pre_state(prover_inputs)),
+        state=state,
         chain_id=U64(prover_inputs["chainConfig"]["chainId"]),
     )
 
@@ -570,9 +571,10 @@ def zkpi_fixture(zkpi_path):
         ommers=(),
         withdrawals=block.withdrawals,
     )
+    state, _code_hashes = prepare_state_and_code_hashes(load_pre_state(prover_inputs))
     chain = BlockChain(
         blocks=blocks,
-        state=prepare_state(load_pre_state(prover_inputs)),
+        state=state,
         chain_id=U64(prover_inputs["chainConfig"]["chainId"]),
     )
 
