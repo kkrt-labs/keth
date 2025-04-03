@@ -12,6 +12,8 @@ from ethereum_types.numeric import U384
 
 // Field over which the bls12_381 curve is defined.
 // BLSF elements are 1-dimensional.
+// The type used in EELS is "optimized_bls12_381_FQ as FQ",
+// which has been renamed BLSF for conciseness and coherence with previously introduced BNF.
 struct BLSFStruct {
     c0: U384,
 }
@@ -85,7 +87,9 @@ func blsf_div{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: M
 }
 
 // Quadratic extension field of BLSF.
-// BLSF elements are 2-dimensional.
+// BLSF2 elements are 2-dimensional.
+// The type used in EELS is "optimized_bls12_381_FQ2 as FQ2",
+// which has been renamed BLSF2 for conciseness and coherence with previously introduced BNF2.
 struct BLSF2Struct {
     c0: U384,
     c1: U384,
