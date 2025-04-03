@@ -32,13 +32,21 @@ from ethereum.cancun.vm.gas import ExtendMemory, MessageCallGas
 from ethereum.cancun.vm.interpreter import MessageCallOutput
 from ethereum.crypto.alt_bn128 import BNF, BNF2, BNF12, BNP, BNP2, BNP12
 from ethereum.crypto.hash import Hash32
-from ethereum.crypto.kzg import BLSFieldElement
+from ethereum.crypto.kzg import BLSFieldElement, KZGCommitment
 from ethereum.exceptions import (
     EthereumException,
     InvalidSignatureError,
     InvalidTransaction,
 )
-from ethereum_types.bytes import Bytes, Bytes0, Bytes8, Bytes20, Bytes32, Bytes256
+from ethereum_types.bytes import (
+    Bytes,
+    Bytes0,
+    Bytes8,
+    Bytes20,
+    Bytes32,
+    Bytes48,
+    Bytes256,
+)
 from ethereum_types.numeric import U64, U256, Uint
 from hypothesis import HealthCheck, assume, given, settings
 from py_ecc.fields import optimized_bls12_381_FQ as BLSF
@@ -309,6 +317,8 @@ class TestSerde:
             BLSFieldElement,
             BLSF,
             BLSF2,
+            KZGCommitment,
+            Bytes48,
         ],
     ):
         assume(no_empty_sequence(b))

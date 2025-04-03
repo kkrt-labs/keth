@@ -46,7 +46,7 @@ from ethereum.crypto.alt_bn128 import (
 from ethereum.crypto.elliptic_curve import SECP256K1N
 from ethereum.crypto.finite_field import GaloisField
 from ethereum.crypto.hash import Hash32
-from ethereum.crypto.kzg import BLSFieldElement
+from ethereum.crypto.kzg import BLSFieldElement, KZGCommitment
 from ethereum.exceptions import EthereumException
 from ethereum_types.bytes import (
     Bytes0,
@@ -54,6 +54,7 @@ from ethereum_types.bytes import (
     Bytes8,
     Bytes20,
     Bytes32,
+    Bytes48,
     Bytes64,
     Bytes256,
 )
@@ -649,6 +650,8 @@ bnp2_strategy = st.integers(min_value=0, max_value=BNF2.PRIME - 1).map(
     lambda x: bnp2_generate_valid_point(x)
 )
 
+bytes48 = st.binary(min_size=48, max_size=48).map(Bytes48)
+
 
 def register_type_strategies():
     st.register_type_strategy(U64, uint64)
@@ -766,3 +769,5 @@ def register_type_strategies():
     st.register_type_strategy(BNP2, bnp2_strategy)
     st.register_type_strategy(BLSF, blsf_strategy)
     st.register_type_strategy(BLSF2, blsf2_strategy)
+    st.register_type_strategy(KZGCommitment, bytes48.map(KZGCommitment))
+    st.register_type_strategy(Bytes48, bytes48)
