@@ -6,7 +6,8 @@ edition = "2021"
 [lib]
 name = "vm"
 # "cdylib" is necessary to produce a shared library for Python to import from.
-crate-type = ["cdylib"]
+# "rlib" is needed for Rust crate dependencies
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 # "extension-module" tells pyo3 we want to build an extension module (skips linking against libpython.so)

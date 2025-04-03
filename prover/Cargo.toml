@@ -1,0 +1,28 @@
+[package]
+name = "prover"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description.workspace = true
+homepage.workspace = true
+repository.workspace = true
+readme.workspace = true
+license.workspace = true
+exclude.workspace = true
+
+[dependencies]
+structopt = "0.3"
+serde_json = "1.0"
+cairo_addons = { package = "cairo_addons", path = "../crates/cairo-addons" }
+pyo3 = { version = "0.23.4", features = [ "auto-initialize" ] }
+cairo-vm = { workspace = true }
+stwo-cairo-adapter = { workspace = true }
+stwo_cairo_prover = { workspace = true }
+cairo-air = { workspace = true }
+pyo3-ffi = "^0"
+
+[build-dependencies]
+pyo3-build-config = "0.23.4"
+
+[lints]
+workspace = true
