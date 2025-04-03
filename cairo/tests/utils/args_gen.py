@@ -456,7 +456,7 @@ class AddressAccountNodeDiffEntry:
 
 @dataclass
 class StorageDiffEntry:
-    key: int
+    key: Uint
     prev_value: U256
     new_value: U256
 
