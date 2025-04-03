@@ -1,6 +1,6 @@
 import logging
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, List
 
 from ethereum.cancun.trie import (
     BranchNode,
@@ -13,6 +13,8 @@ from ethereum.crypto.hash import Hash32
 from ethereum_rlp import Extended, rlp
 from ethereum_types.bytes import Bytes
 from ethereum_types.numeric import U256, Uint
+
+from cairo_addons.utils.uint256 import int_to_uint256
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +29,17 @@ class AccountNode:
     balance: U256
     code_hash: Hash32
     storage_root: Hash32
+
+    def flatten(self) -> List[int]:
+        """
+        Flatten the account node into a list of integers (field elements).
+        """
+        return [
+            self.nonce._number,
+            *int_to_uint256(self.balance._number),
+            *int_to_uint256(U256.from_le_bytes(self.code_hash)._number),
+            *int_to_uint256(U256.from_le_bytes(self.storage_root)._number),
+        ]
 
     @staticmethod
     def from_rlp(bytes: Bytes) -> "AccountNode":
