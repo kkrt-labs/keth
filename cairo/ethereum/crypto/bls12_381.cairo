@@ -115,30 +115,6 @@ struct BLSF2 {
     value: BLSF2Struct*,
 }
 
-func blsf2_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
-    a: BLSF2, b: BLSF2
-) -> BLSF2 {
-    tempvar modulus = U384(new UInt384(bls12_381.P0, bls12_381.P1, bls12_381.P2, bls12_381.P3));
-
-    let res_c0 = add(a.value.c0, b.value.c0, modulus);
-    let res_c1 = add(a.value.c1, b.value.c1, modulus);
-
-    tempvar res = BLSF2(new BLSF2Struct(res_c0, res_c1));
-    return res;
-}
-
-func blsf2_sub{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
-    a: BLSF2, b: BLSF2
-) -> BLSF2 {
-    tempvar modulus = U384(new UInt384(bls12_381.P0, bls12_381.P1, bls12_381.P2, bls12_381.P3));
-
-    let res_c0 = sub(a.value.c0, b.value.c0, modulus);
-    let res_c1 = sub(a.value.c1, b.value.c1, modulus);
-
-    tempvar res = BLSF2(new BLSF2Struct(res_c0, res_c1));
-    return res;
-}
-
 func BLSF2_ZERO() -> BLSF2 {
     let (u384_zero) = get_label_location(U384_ZERO);
     let u384_zero_ptr = cast(u384_zero, UInt384*);
@@ -163,6 +139,30 @@ func BLSF2__eq__{range_check96_ptr: felt*}(a: BLSF2, b: BLSF2) -> felt {
     let result = is_c0_equal.value * is_c1_equal.value;
 
     return result;
+}
+
+func blsf2_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
+    a: BLSF2, b: BLSF2
+) -> BLSF2 {
+    tempvar modulus = U384(new UInt384(bls12_381.P0, bls12_381.P1, bls12_381.P2, bls12_381.P3));
+
+    let res_c0 = add(a.value.c0, b.value.c0, modulus);
+    let res_c1 = add(a.value.c1, b.value.c1, modulus);
+
+    tempvar res = BLSF2(new BLSF2Struct(res_c0, res_c1));
+    return res;
+}
+
+func blsf2_sub{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
+    a: BLSF2, b: BLSF2
+) -> BLSF2 {
+    tempvar modulus = U384(new UInt384(bls12_381.P0, bls12_381.P1, bls12_381.P2, bls12_381.P3));
+
+    let res_c0 = sub(a.value.c0, b.value.c0, modulus);
+    let res_c1 = sub(a.value.c1, b.value.c1, modulus);
+
+    tempvar res = BLSF2(new BLSF2Struct(res_c0, res_c1));
+    return res;
 }
 
 // BLSF2 multiplication
@@ -205,4 +205,21 @@ func blsf2_mul{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: 
 
     tempvar res = BLSF2(new BLSF2Struct(res_c0, res_c1));
     return res;
+}
+
+func blsf2_div{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
+    a: BLSF2, b: BLSF2
+) -> BLSF2 {
+    alloc_locals;
+    let (__fp__, _) = get_fp_and_pc();
+    local b_inv: BLSF2;
+
+    %{ blsf2_multiplicative_inverse %}
+
+    let res = blsf2_mul(b, b_inv);
+    let blsf2_one = BLSF2_ONE();
+    let is_inv = BLSF2__eq__(res, blsf2_one);
+    assert is_inv = 1;
+
+    return blsf2_mul(a, b_inv);
 }
