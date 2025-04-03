@@ -19,7 +19,7 @@ from ethereum_spec_tools.evm_tools.loaders.fork_loader import ForkLoad
 from ethereum_spec_tools.evm_tools.loaders.transaction_loader import TransactionLoad
 from ethereum_types.bytes import Bytes, Bytes32
 from ethereum_types.numeric import U64, U256
-from scripts.zkpi_to_eels import normalize_transaction
+from scripts.prove_block import normalize_transaction
 
 from mpt import EthereumTries
 from mpt.utils import decode_node
