@@ -1,13 +1,21 @@
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.cairo_builtins import UInt384, ModBuiltin
+from starkware.cairo.common.cairo_builtins import UInt384, ModBuiltin, BitwiseBuiltin
 from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
 from starkware.cairo.common.dict import dict_read, dict_write
 from starkware.cairo.common.registers import get_label_location
 
+from cairo_ec.circuits.ec_ops_compiled import assert_on_curve
 from cairo_ec.circuits.mod_ops_compiled import add, sub, mul
 from cairo_ec.curve.bls12_381 import bls12_381
+from cairo_ec.curve.g1_point import G1Point, G1PointStruct
 
-from ethereum.utils.numeric import U384_ZERO, U384_ONE, U384__eq__
+from ethereum.utils.numeric import (
+    U384_ZERO,
+    U384_ONE,
+    U384_is_zero,
+    get_u384_bits_little,
+    U384__eq__,
+)
 from ethereum_types.numeric import U384
 
 // Field over which the bls12_381 curve is defined.
@@ -206,4 +214,204 @@ func blsf2_div{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: 
     assert is_inv = 1;
 
     return blsf2_mul(a, b_inv);
+}
+
+
+
+// bls12-381 curve defined over BLSF (Fq)
+// BLSP represents a point on the curve.
+struct BLSPStruct {
+    x: BLSF,
+    y: BLSF,
+}
+
+struct BLSP {
+    value: BLSPStruct*,
+}
+
+func BLSP__eq__{range_check96_ptr: felt*}(p: BLSP, q: BLSP) -> felt {
+    alloc_locals;
+    let is_x_equal = BLSF__eq__(p.value.x, q.value.x);
+    let is_y_equal = BLSF__eq__(p.value.y, q.value.y);
+    let result = is_x_equal * is_y_equal;
+    return result;
+}
+
+func blsp_point_at_infinity() -> BLSP {
+    alloc_locals;
+
+    let blsf_zero = BLSF_ZERO();
+    tempvar res = BLSP(new BLSPStruct(blsf_zero, blsf_zero));
+    return res;
+}
+
+// Returns a BLSP, a point that is verified to be on the bls12-381 curve over Fq.
+func blsp_init{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
+    x: BLSF, y: BLSF
+) -> BLSP {
+    tempvar a = U384(new UInt384(bls12_381.A0, bls12_381.A1, bls12_381.A2, bls12_381.A3));
+    tempvar b = U384(new UInt384(bls12_381.B0, bls12_381.B1, bls12_381.B2, bls12_381.B3));
+    tempvar modulus = U384(new UInt384(bls12_381.P0, bls12_381.P1, bls12_381.P2, bls12_381.P3));
+
+    tempvar point = G1Point(new G1PointStruct(x.value.c0, y.value.c0));
+    assert_on_curve(point.value, a, b, modulus);
+
+    tempvar res = BLSP(new BLSPStruct(x, y));
+    return res;
+}
+
+func blsp_double{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
+    p: BLSP
+) -> BLSP {
+    alloc_locals;
+
+    let infinity = blsp_point_at_infinity();
+    let p_inf = BLSP__eq__(p, infinity);
+    if (p_inf != 0) {
+        return infinity;
+    }
+
+    // Point doubling formula for BLS12-381 (a = 0):
+    // λ = (3x²) / (2y)
+    // x' = λ² - 2x
+    // y' = λ(x - x') - y
+
+    // Calculate λ = (3x²) / (2y)
+    let x_squared = blsf_mul(p.value.x, p.value.x);
+    tempvar three = BLSF(new BLSFStruct(U384(new UInt384(3, 0, 0, 0))));
+    let three_x_squared = blsf_mul(three, x_squared);
+    tempvar two = BLSF(new BLSFStruct(U384(new UInt384(2, 0, 0, 0))));
+    let two_y = blsf_mul(two, p.value.y);
+    let lambda = blsf_div(three_x_squared, two_y);
+
+    // Calculate x' = λ² - 2x
+    let lambda_squared = blsf_mul(lambda, lambda);
+    let two_x = blsf_mul(two, p.value.x);
+    let new_x = blsf_sub(lambda_squared, two_x);
+
+    // Calculate y' = λ(x - x') - y
+    let x_diff = blsf_sub(p.value.x, new_x);
+    let lambda_x_diff = blsf_mul(lambda, x_diff);
+    let new_y = blsf_sub(lambda_x_diff, p.value.y);
+
+    // Return the resulting point
+    tempvar res = BLSP(new BLSPStruct(new_x, new_y));
+    return res;
+}
+
+// Add two points on the base curve
+func blsp_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
+    p: BLSP, q: BLSP
+) -> BLSP {
+    alloc_locals;
+
+    let infinity = blsp_point_at_infinity();
+    let p_inf = BLSP__eq__(p, infinity);
+    if (p_inf != 0) {
+        return q;
+    }
+
+    let q_inf = BLSP__eq__(q, infinity);
+    if (q_inf != 0) {
+        return p;
+    }
+
+    let x_equal = BLSF__eq__(p.value.x, q.value.x);
+    if (x_equal != 0) {
+        let y_equal = BLSF__eq__(p.value.y, q.value.y);
+        if (y_equal != 0) {
+            return blsp_double(p);
+        }
+        let res = blsp_point_at_infinity();
+        return res;
+    }
+
+    // Standard case: compute point addition using the formula:
+    // λ = (q.y - p.y) / (q.x - p.x)
+    // x_r = λ^2 - p.x - q.x
+    // y_r = λ(p.x - x_r) - p.y
+
+    // Calculate λ = (q.y - p.y) / (q.x - p.x)
+    let y_diff = blsf_sub(q.value.y, p.value.y);
+    let x_diff = blsf_sub(q.value.x, p.value.x);
+    let lambda = blsf_div(y_diff, x_diff);
+
+    // Calculate x_r = λ^2 - p.x - q.x
+    let lambda_squared = blsf_mul(lambda, lambda);
+    let x_sub = blsf_sub(lambda_squared, p.value.x);
+    let x_r = blsf_sub(x_sub, q.value.x);
+
+    // Calculate y_r = λ(p.x - x_r) - p.y
+    let x_diff_r = blsf_sub(p.value.x, x_r);
+    let lambda_times_x_diff = blsf_mul(lambda, x_diff_r);
+    let y_r = blsf_sub(lambda_times_x_diff, p.value.y);
+
+    // Return the new point
+    tempvar result = BLSP(new BLSPStruct(x_r, y_r));
+    return result;
+}
+
+// Implementation of scalar multiplication for BLSP
+// Uses the double-and-add algorithm
+func blsp_mul_by{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
+}(p: BLSP, n: U384) -> BLSP {
+    alloc_locals;
+    let n_is_zero = U384_is_zero(n);
+    if (n_is_zero != 0) {
+        let res = blsp_point_at_infinity();
+        return res;
+    }
+
+    let blsf_zero = BLSF_ZERO();
+    let x_is_zero = BLSF__eq__(p.value.x, blsf_zero);
+    let y_is_zero = BLSF__eq__(p.value.y, blsf_zero);
+    if (x_is_zero != 0 and y_is_zero != 0) {
+        return p;
+    }
+
+    // Extract the bits of n
+    let (bits_ptr, bits_len) = get_u384_bits_little(n);
+
+    // Initialize result as the point at infinity
+    let result = blsp_point_at_infinity();
+
+    // Implement the double-and-add algorithm
+    let res = blsp_mul_by_bits(p, bits_ptr, bits_len, 0, result);
+    return res;
+}
+
+func blsp_mul_by_bits{
+    range_check_ptr, range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
+}(p: BLSP, bits_ptr: felt*, bits_len: felt, current_bit: felt, result: BLSP) -> BLSP {
+    alloc_locals;
+
+    if (current_bit == bits_len) {
+        return result;
+    }
+    let bit_value = bits_ptr[current_bit];
+
+    // If the bit is 1, add p to the result
+    if (bit_value != 0) {
+        let new_result = blsp_add(result, p);
+        tempvar new_result = new_result;
+        tempvar range_check96_ptr = range_check96_ptr;
+        tempvar add_mod_ptr = add_mod_ptr;
+        tempvar mul_mod_ptr = mul_mod_ptr;
+    } else {
+        tempvar new_result = result;
+        tempvar range_check96_ptr = range_check96_ptr;
+        tempvar add_mod_ptr = add_mod_ptr;
+        tempvar mul_mod_ptr = mul_mod_ptr;
+    }
+    let new_result = new_result;
+
+    // Double the point for the next iteration
+    let doubled_p = blsp_double(p);
+
+    return blsp_mul_by_bits(doubled_p, bits_ptr, bits_len, current_bit + 1, new_result);
 }
