@@ -105,18 +105,11 @@ you'll need first to generate the Prover Input (ZK-PI) for this block using
 [ZK-PIG](https://github.com/kkrt-labs/zk-pig):
 
 ```bash
-zkpig generate
+zkpig generate --include all
 ```
 
-This will generate the ZK-PI for the given block and save it in the `data/1/`
-directory. Then, you'll need to run
-
-```bash
-uv run zkpi_to_eels data/1/preflight/
-```
-
-to convert the ZK-PI to the EELS format, actually generating data in the
-`data/1/eels` directory.
+This will generate the ZK-PI for the given block and save it in the
+`data/inputs/1` directory.
 
 Then, you can run the tests with:
 
@@ -143,7 +136,7 @@ Requirements:
 - ZKPI data must be available as a JSON file
 - Compiled Cairo program must exist at the specified path (you can run
   `cairo-compile --proof_mode cairo/ethereum/cancun/main.cairo --cairo_path=cairo --no_debug_info --output build/main_compiled.json`
-  for that)
+  for that or alternatively `uv run compile_keth`
 
 The script will load the ZKPI data for the specified block, convert it to the
 format required by Keth, run the proof generation process, and save proof

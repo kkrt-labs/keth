@@ -44,7 +44,7 @@ from ethereum.cancun.vm import Environment
 from ethereum.cancun.vm.gas import TARGET_BLOB_GAS_PER_BLOCK, calculate_excess_blob_gas
 from ethereum.crypto.hash import Hash32, keccak256
 from ethereum.exceptions import EthereumException
-from ethereum.utils.hexadecimal import hex_to_bytes, hex_to_u256, hex_to_uint
+from ethereum.utils.hexadecimal import hex_to_bytes
 from ethereum_rlp import rlp
 from ethereum_spec_tools.evm_tools.loaders.fixture_loader import Load
 from ethereum_types.bytes import Bytes, Bytes0, Bytes8, Bytes20, Bytes32
@@ -52,6 +52,7 @@ from ethereum_types.numeric import U64, U256, Uint
 from hypothesis import assume, given, settings
 from hypothesis import strategies as st
 from hypothesis.strategies import composite, integers
+from scripts.prove_block import load_pre_state, process_block_transactions
 
 from cairo_addons.testing.errors import strict_raises
 from tests.ef_tests.helpers.load_state_tests import prepare_state
@@ -497,29 +498,19 @@ def tx_with_sender_in_state(
 @pytest.fixture
 def zkpi_fixture(zkpi_path):
     with open(zkpi_path, "r") as f:
-        fixture = json.load(f)
+        prover_inputs = json.load(f)
 
     load = Load("Cancun", "cancun")
+    if len(prover_inputs["blocks"]) > 1:
+        raise ValueError("Only one block is supported")
+    input_block = prover_inputs["blocks"][0]
+    block_transactions = input_block["transaction"]
+    transactions = process_block_transactions(block_transactions)
+
+    # Convert block
     block = Block(
-        header=load.json_to_header(fixture["newBlockParameters"]["blockHeader"]),
-        transactions=tuple(
-            (
-                LegacyTransaction(
-                    nonce=hex_to_u256(tx["nonce"]),
-                    gas_price=hex_to_uint(tx["gasPrice"]),
-                    gas=hex_to_uint(tx["gas"]),
-                    to=Address(hex_to_bytes(tx["to"])) if tx["to"] else Bytes0(),
-                    value=hex_to_u256(tx["value"]),
-                    data=Bytes(hex_to_bytes(tx["data"])),
-                    v=hex_to_u256(tx["v"]),
-                    r=hex_to_u256(tx["r"]),
-                    s=hex_to_u256(tx["s"]),
-                )
-                if isinstance(tx, dict)
-                else Bytes(hex_to_bytes(tx))
-            )  # Non-legacy txs are hex strings
-            for tx in fixture["newBlockParameters"]["transactions"]
-        ),
+        header=load.json_to_header(input_block["header"]),
+        transactions=transactions,
         ommers=(),
         withdrawals=tuple(
             Withdrawal(
@@ -528,9 +519,11 @@ def zkpi_fixture(zkpi_path):
                 address=Address(hex_to_bytes(w["address"])),
                 amount=U256(int(w["amount"], 16)),
             )
-            for w in fixture["newBlockParameters"]["withdrawals"]
+            for w in input_block["withdrawals"]
         ),
     )
+
+    # Convert ancestors
     blocks = [
         Block(
             header=load.json_to_header(ancestor),
@@ -538,15 +531,17 @@ def zkpi_fixture(zkpi_path):
             ommers=(),
             withdrawals=(),
         )
-        for ancestor in fixture["ancestors"]
+        for ancestor in prover_inputs["witness"]["ancestors"]
     ]
+
+    # Create blockchain
     chain = BlockChain(
         blocks=blocks,
-        state=prepare_state(load.json_to_state(fixture["pre"])),
-        chain_id=U64(fixture["chainId"]),
+        state=prepare_state(load_pre_state(prover_inputs)),
+        chain_id=U64(prover_inputs["chainConfig"]["chainId"]),
     )
 
-    # TODO: Remove when we have a working partial MPT
+    # TODO: Remove when partial MPT is implemented
     state_root = apply_body(
         chain.state,
         get_last_256_block_hashes(chain),
@@ -562,54 +557,31 @@ def zkpi_fixture(zkpi_path):
         block.header.parent_beacon_block_root,
         calculate_excess_blob_gas(chain.blocks[-1].header),
     ).state_root
+
+    # Recreate block with computed state root
     block = Block(
         header=load.json_to_header(
             {
-                **fixture["newBlockParameters"]["blockHeader"],
+                **input_block["header"],
                 "stateRoot": "0x" + state_root.hex(),
             }
         ),
-        transactions=tuple(
-            (
-                LegacyTransaction(
-                    nonce=hex_to_u256(tx["nonce"]),
-                    gas_price=hex_to_uint(tx["gasPrice"]),
-                    gas=hex_to_uint(tx["gas"]),
-                    to=Address(hex_to_bytes(tx["to"])) if tx["to"] else Bytes0(),
-                    value=hex_to_u256(tx["value"]),
-                    data=Bytes(hex_to_bytes(tx["data"])),
-                    v=hex_to_u256(tx["v"]),
-                    r=hex_to_u256(tx["r"]),
-                    s=hex_to_u256(tx["s"]),
-                )
-                if isinstance(tx, dict)
-                else Bytes(hex_to_bytes(tx))
-            )  # Non-legacy txs are hex strings
-            for tx in fixture["newBlockParameters"]["transactions"]
-        ),
+        transactions=block.transactions,
         ommers=(),
-        withdrawals=tuple(
-            Withdrawal(
-                index=U64(int(w["index"], 16)),
-                validator_index=U64(int(w["validatorIndex"], 16)),
-                address=Address(hex_to_bytes(w["address"])),
-                amount=U256(int(w["amount"], 16)),
-            )
-            for w in fixture["newBlockParameters"]["withdrawals"]
-        ),
+        withdrawals=block.withdrawals,
     )
     chain = BlockChain(
         blocks=blocks,
-        state=prepare_state(load.json_to_state(fixture["pre"])),
-        chain_id=U64(fixture["chainId"]),
+        state=prepare_state(load_pre_state(prover_inputs)),
+        chain_id=U64(prover_inputs["chainConfig"]["chainId"]),
     )
     # Safety check
     state_transition(chain, block)
     # Reset state to the original state
     chain = BlockChain(
         blocks=blocks[:-1],
-        state=prepare_state(load.json_to_state(fixture["pre"])),
-        chain_id=U64(fixture["chainId"]),
+        state=prepare_state(load_pre_state(prover_inputs)),
+        chain_id=U64(prover_inputs["chainConfig"]["chainId"]),
     )
     return chain, block
 
@@ -821,8 +793,8 @@ class TestFork:
 
     @pytest.mark.parametrize(
         "zkpi_path",
-        list(Path("data/1/eels").glob("*.json")),
-        ids=[x.stem for x in Path("data/1/eels").glob("*.json")],
+        list(Path("data/inputs/1").glob("*.json")),
+        ids=[x.stem for x in Path("data/inputs/1").glob("*.json")],
     )
     @pytest.mark.slow
     def test_state_transition_eth_mainnet(self, cairo_run, zkpi_fixture):

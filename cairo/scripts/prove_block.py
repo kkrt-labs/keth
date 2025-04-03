@@ -7,13 +7,21 @@ import argparse
 import json
 import logging
 from pathlib import Path
-from typing import Any, Dict, Optional, Sequence, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import ethereum
 import ethereum_rlp
+from ethereum.cancun.state import State
+from ethereum.cancun.transactions import (
+    LegacyTransaction,
+    encode_transaction,
+)
+from ethereum_spec_tools.evm_tools.loaders.fork_loader import ForkLoad
+from ethereum_spec_tools.evm_tools.loaders.transaction_loader import TransactionLoad
 from ethereum_types.numeric import FixedUnsigned, Uint
 
 import mpt
+from mpt.ethereum_tries import EthereumTries, EthereumTrieTransitionDB
 from tests.utils.args_gen import (
     EMPTY_ACCOUNT,
     Account,
@@ -86,8 +94,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--data-dir",
         type=Path,
-        default=Path("data/1/eels"),
-        help="Directory containing ZKPI JSON files (default: ./data/1/eels)",
+        default=Path("data/inputs/1"),
+        help="Directory containing prover inputs (ZK-PI) (default: ./data/inputs/1)",
     )
     parser.add_argument(
         "--compiled-program",
@@ -114,6 +122,75 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def load_pre_state(data: Dict[str, Any]) -> State:
+    """Load a trie fixture from a JSON file."""
+    try:
+        fixture = EthereumTrieTransitionDB.from_data(data)
+        state = fixture.to_pre_state()
+    except Exception:
+        fixture = EthereumTries.from_data(data)
+        state = fixture.to_state()
+    return state
+
+
+def process_block_transactions(
+    block_transactions: List[Dict[str, Any]],
+) -> Tuple[Tuple[LegacyTransaction, ...], Tuple[Dict[str, Any], ...]]:
+
+    def normalize_transaction(tx: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Normalize transaction fields to match what TransactionLoad expects.
+        """
+        tx = tx.copy()
+        tx["gasLimit"] = tx.pop("gas")
+        tx["data"] = tx.pop("input")
+        tx["to"] = tx["to"] if tx["to"] is not None else ""
+        return tx
+
+    transactions = tuple(
+        TransactionLoad(normalize_transaction(tx), ForkLoad("cancun")).read()
+        for tx in block_transactions
+    )
+    encoded_transactions = tuple(
+        (
+            "0x" + encode_transaction(tx).hex()
+            if not isinstance(tx, LegacyTransaction)
+            else {
+                "nonce": hex(tx.nonce),
+                "gasPrice": hex(tx.gas_price),
+                "gas": hex(tx.gas),
+                "to": "0x" + tx.to.hex() if tx.to else "",
+                "value": hex(tx.value),
+                "data": "0x" + tx.data.hex(),
+                "v": hex(tx.v),
+                "r": hex(tx.r),
+                "s": hex(tx.s),
+            }
+        )
+        for tx in transactions
+    )
+    transactions = tuple(
+        (
+            LegacyTransaction(
+                nonce=hex_to_u256(tx["nonce"]),
+                gas_price=hex_to_uint(tx["gasPrice"]),
+                gas=hex_to_uint(tx["gas"]),
+                to=Address(hex_to_bytes(tx["to"])) if tx["to"] else Bytes0(),
+                value=hex_to_u256(tx["value"]),
+                data=Bytes(hex_to_bytes(tx["data"])),
+                v=hex_to_u256(tx["v"]),
+                r=hex_to_u256(tx["r"]),
+                s=hex_to_u256(tx["s"]),
+            )
+            if isinstance(tx, dict)
+            else Bytes(hex_to_bytes(tx))
+        )
+        for tx in encoded_transactions
+    )
+
+    return transactions
+
+
 def load_zkpi_fixture(zkpi_path: Path) -> Dict[str, Any]:
     """
     Load and convert ZKPI fixture to Keth-compatible public inputs.
@@ -129,31 +206,21 @@ def load_zkpi_fixture(zkpi_path: Path) -> Dict[str, Any]:
         ValueError: If JSON is invalid or data conversion fails
     """
     with open(zkpi_path, "r") as f:
-        fixture = json.load(f)
+        prover_inputs = json.load(f)
 
     load = Load("Cancun", "cancun")
+    if len(prover_inputs["blocks"]) > 1:
+        raise ValueError("Only one block is supported")
+    input_block = prover_inputs["blocks"][0]
+    block_transactions = input_block["transaction"]
+    transactions = process_block_transactions(block_transactions)
+
+    logger.info("Converting block data to shared EELS & Keth types")
 
     # Convert block
     block = Block(
-        header=load.json_to_header(fixture["newBlockParameters"]["blockHeader"]),
-        transactions=tuple(
-            (
-                LegacyTransaction(
-                    nonce=hex_to_u256(tx["nonce"]),
-                    gas_price=hex_to_uint(tx["gasPrice"]),
-                    gas=hex_to_uint(tx["gas"]),
-                    to=Address(hex_to_bytes(tx["to"])) if tx["to"] else Bytes0(),
-                    value=hex_to_u256(tx["value"]),
-                    data=Bytes(hex_to_bytes(tx["data"])),
-                    v=hex_to_u256(tx["v"]),
-                    r=hex_to_u256(tx["r"]),
-                    s=hex_to_u256(tx["s"]),
-                )
-                if isinstance(tx, dict)
-                else Bytes(hex_to_bytes(tx))
-            )
-            for tx in fixture["newBlockParameters"]["transactions"]
-        ),
+        header=load.json_to_header(input_block["header"]),
+        transactions=transactions,
         ommers=(),
         withdrawals=tuple(
             Withdrawal(
@@ -162,7 +229,7 @@ def load_zkpi_fixture(zkpi_path: Path) -> Dict[str, Any]:
                 address=Address(hex_to_bytes(w["address"])),
                 amount=U256(int(w["amount"], 16)),
             )
-            for w in fixture["newBlockParameters"]["withdrawals"]
+            for w in input_block["withdrawals"]
         ),
     )
 
@@ -174,16 +241,17 @@ def load_zkpi_fixture(zkpi_path: Path) -> Dict[str, Any]:
             ommers=(),
             withdrawals=(),
         )
-        for ancestor in fixture["ancestors"]
+        for ancestor in prover_inputs["witness"]["ancestors"]
     ]
 
     # Create blockchain
     chain = BlockChain(
         blocks=blocks,
-        state=prepare_state(load.json_to_state(fixture["pre"])),
-        chain_id=U64(fixture["chainId"]),
+        state=prepare_state(load_pre_state(prover_inputs)),
+        chain_id=U64(prover_inputs["chainConfig"]["chainId"]),
     )
 
+    logger.info("Temporary fix: Computing partial state root")
     # TODO: Remove when partial MPT is implemented
     state_root = apply_body(
         chain.state,
@@ -201,11 +269,13 @@ def load_zkpi_fixture(zkpi_path: Path) -> Dict[str, Any]:
         calculate_excess_blob_gas(chain.blocks[-1].header),
     ).state_root
 
+    logger.info("Temporary fix: Done - Recreating block with computed state root")
+
     # Recreate block with computed state root
     block = Block(
         header=load.json_to_header(
             {
-                **fixture["newBlockParameters"]["blockHeader"],
+                **input_block["header"],
                 "stateRoot": "0x" + state_root.hex(),
             }
         ),
@@ -215,18 +285,19 @@ def load_zkpi_fixture(zkpi_path: Path) -> Dict[str, Any]:
     )
     chain = BlockChain(
         blocks=blocks,
-        state=prepare_state(load.json_to_state(fixture["pre"])),
-        chain_id=U64(fixture["chainId"]),
+        state=prepare_state(load_pre_state(prover_inputs)),
+        chain_id=U64(prover_inputs["chainConfig"]["chainId"]),
     )
-
     # Prepare inputs
     program_inputs = {
         "block": block,
         "blockchain": chain,
         "block_hash": Bytes32(
-            bytes.fromhex(fixture["newBlockHash"].removeprefix("0x"))
+            bytes.fromhex(input_block["header"]["hash"].removeprefix("0x"))
         ),
     }
+
+    logger.info(f"Program inputs: {program_inputs}")
 
     return program_inputs
 
@@ -246,10 +317,12 @@ def prove_block(
 
     # Validate compiled program
     if not compiled_program.is_file():
-        raise FileNotFoundError(f"Compiled program not found: {compiled_program}")
+        raise FileNotFoundError(
+            f"Compiled program not found: {compiled_program} - Consider running `uv run compile_keth`"
+        )
 
     # Load ZKPI data
-    logger.info(f"Fetching ZKPI data for block {block_number}")
+    logger.info(f"Fetching prover inputs for block {block_number}")
     program_inputs = load_zkpi_fixture(zkpi_path)
 
     # Generate proof
