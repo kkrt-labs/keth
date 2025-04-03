@@ -138,6 +138,10 @@ func check_branch_node(node: BranchNode) {
 
     %{ find_two_non_null_subnodes %}
 
+    if (first_non_null_index == second_non_null_index) {
+        raise('ValueError');
+    }
+
     // Check that the first subnode is not None and not empty
     tempvar x = Extended(cast(subnodes_ptr[first_non_null_index], ExtendedEnum*));
 
