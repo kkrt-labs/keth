@@ -6,8 +6,6 @@ from py_ecc.fields import optimized_bls12_381_FQ2 as BLSF2
 from cairo_addons.testing.errors import strict_raises
 from cairo_addons.testing.hints import patch_hint
 
-# from py_ecc.optimized_bls12_381.optimized_curve import curve_order, field_modulus
-
 
 class TestBls12381:
     class TestBLSF:
