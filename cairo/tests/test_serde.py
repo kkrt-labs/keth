@@ -49,7 +49,13 @@ from starkware.cairo.lang.vm.memory_dict import MemoryDict
 from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 
 from mpt.utils import AccountNode
-from tests.utils.args_gen import U384, Memory, Stack, _cairo_struct_to_python_type
+from tests.utils.args_gen import (
+    U384,
+    Memory,
+    Stack,
+    StorageDiffEntry,
+    _cairo_struct_to_python_type,
+)
 from tests.utils.args_gen import gen_arg as _gen_arg
 from tests.utils.args_gen import to_cairo_type as _to_cairo_type
 from tests.utils.serde import Serde
@@ -308,6 +314,7 @@ class TestSerde:
             BLSFieldElement,
             BLSF,
             BLSF2,
+            StorageDiffEntry,
         ],
     ):
         assume(no_empty_sequence(b))
