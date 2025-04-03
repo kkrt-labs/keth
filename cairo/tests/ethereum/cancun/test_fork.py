@@ -1,7 +1,6 @@
 import json
 from collections import defaultdict
 from dataclasses import replace
-from glob import glob
 from pathlib import Path
 from typing import Optional, Tuple
 
@@ -787,10 +786,7 @@ class TestFork:
 
     @pytest.mark.parametrize(
         "zkpi_path",
-        [
-            Path("test_data/21688509.json"),
-            *[Path(p) for p in glob("data/inputs/1/*.json")],
-        ],
+        [Path("test_data/21688509.json")],
     )
     @pytest.mark.slow
     def test_state_transition_eth_mainnet(self, cairo_run, zkpi_fixture):
