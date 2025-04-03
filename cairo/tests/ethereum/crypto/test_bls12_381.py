@@ -100,7 +100,6 @@ segments.load_data(ids.b_inv.address_, [blsf_struct_ptr])
             self, cairo_programs, cairo_run_py, a: BLSF2, b: BLSF2
         ):
             assume(b != BLSF2.zero())
-            assume(b.multiplicative_inverse() != BLSF2.zero())
             with patch_hint(
                 cairo_programs,
                 "blsf2_multiplicative_inverse",
