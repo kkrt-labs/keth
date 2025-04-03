@@ -2,30 +2,17 @@ from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_builtins import (
     UInt384,
     ModBuiltin,
-    PoseidonBuiltin,
-    BitwiseBuiltin,
 )
 from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
-from starkware.cairo.common.default_dict import default_dict_new, default_dict_finalize
 from starkware.cairo.common.dict import dict_read, dict_write
-from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.registers import get_label_location
-from starkware.cairo.common.math_cmp import is_le
 
-from cairo_core.control_flow import raise
 from cairo_ec.circuits.mod_ops_compiled import add, sub, mul
 from cairo_ec.curve.bls12_381 import bls12_381
-from cairo_ec.curve.g1_point import G1Point, G1PointStruct
-from cairo_ec.circuits.ec_ops_compiled import assert_on_curve
-from bn254.final_exp import final_exponentiation
-from definitions import E12D
 
 from ethereum.utils.numeric import (
-    divmod,
     U384_ZERO,
     U384_ONE,
-    U384_is_zero,
-    get_u384_bits_little,
     U384__eq__,
 )
 from ethereum_types.numeric import U384
