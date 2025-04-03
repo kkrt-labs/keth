@@ -24,6 +24,8 @@ BLOBBASEFEE
 BLOBHASH
 blockhash
 BLOCKHASH
+BLSF
+BLSP
 branche
 bytearray
 bytecodelen

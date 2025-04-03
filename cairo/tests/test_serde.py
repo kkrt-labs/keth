@@ -41,6 +41,8 @@ from ethereum.exceptions import (
 from ethereum_types.bytes import Bytes, Bytes0, Bytes8, Bytes20, Bytes32, Bytes256
 from ethereum_types.numeric import U64, U256, Uint
 from hypothesis import HealthCheck, assume, given, settings
+from py_ecc.fields import optimized_bls12_381_FQ as BLSF
+from py_ecc.fields import optimized_bls12_381_FQ2 as BLSF2
 from starkware.cairo.common.dict import DictManager
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 from starkware.cairo.lang.vm.memory_dict import MemoryDict
@@ -107,7 +109,7 @@ def get_type(instance: Any) -> Type:
     if not isinstance(instance, (tuple, list)):
         return type(instance)
 
-    if isinstance(instance, (BNF2, BNF12, BNF, BNP, BNP2, BNP12)):
+    if isinstance(instance, (BNF2, BNF12, BNF, BNP, BNP2, BNP12, BLSF, BLSF2)):
         return instance.__class__
 
     # Empty sequence
@@ -304,6 +306,8 @@ class TestSerde:
             Mapping[Hash32, Optional[InternalNode]],
             Mapping[Bytes32, Bytes32],
             BLSFieldElement,
+            BLSF,
+            BLSF2,
         ],
     ):
         assume(no_empty_sequence(b))

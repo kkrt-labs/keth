@@ -55,6 +55,8 @@ from ethereum_types.bytes import (
     Bytes256,
 )
 from ethereum_types.numeric import U256
+from py_ecc.fields import optimized_bls12_381_FQ as BLSF
+from py_ecc.fields import optimized_bls12_381_FQ2 as BLSF2
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 from starkware.cairo.lang.compiler.ast.cairo_types import (
     CairoType,
@@ -422,12 +424,12 @@ class Serde:
         if python_cls in (Bytes0, Bytes1, Bytes4, Bytes8, Bytes20):
             return python_cls(value.to_bytes(python_cls.LENGTH, "little"))
 
-        if python_cls == BNF:
-            # The BNF constructor accepts int only, not tuples or U384.
-            return BNF(int(value["c0"]))
+        if python_cls in (BNF, BLSF):
+            # The BNF and BLSF constructors accept int only, not tuples or U384.
+            return python_cls(int(value["c0"]))
 
-        if python_cls in (BNF2, BNF12):
-            # The BNF<N> constructor doesn't accept named tuples
+        if python_cls in (BNF2, BNF12, BLSF2):
+            # The BNF<N> and BLSF<N> constructors don't accept named tuples
             # and values are integers, not U384.
             values = [int(v) for v in value.values()]
             return python_cls(tuple(values))

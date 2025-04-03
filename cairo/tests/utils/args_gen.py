@@ -123,6 +123,8 @@ from ethereum_types.bytes import (
 )
 from ethereum_types.frozen import slotted_freezable
 from ethereum_types.numeric import U64, U256, FixedUnsigned, Uint, _max_value
+from py_ecc.fields import optimized_bls12_381_FQ as BLSF
+from py_ecc.fields import optimized_bls12_381_FQ2 as BLSF2
 from starkware.cairo.common.dict import DictManager, DictTracker
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 from starkware.cairo.lang.compiler.ast.cairo_types import (
@@ -820,6 +822,8 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("mpt", "trie_diff", "StorageDiff"): List[StorageDiffEntry],
     ("ethereum", "cancun", "fork_types", "HashedTupleAddressBytes32"): Uint,
     ("ethereum", "crypto", "kzg", "BLSScalar"): BLSFieldElement,
+    ("ethereum", "crypto", "bls12_381", "BLSF"): BLSF,
+    ("ethereum", "crypto", "bls12_381", "BLSF2"): BLSF2,
 }
 
 # In the EELS, some functions are annotated with Sequence while it's actually just Bytes.
@@ -1153,15 +1157,19 @@ def _gen_arg(
         segments.load_data(base, felt_values)
         return base
 
-    if arg_type is BNF:
+    if arg_type in (BNF, BLSF):
         base = segments.add()
         coeff = [_gen_arg(dict_manager, segments, U384, U384(arg))]
         segments.load_data(base, coeff)
         return base
 
-    if arg_type in (BNF2, BNF12):
+    if arg_type in (BNF2, BNF12, BLSF2):
         base = segments.add()
-        # In python, BNF<N> is a tuple of N int but in cairo it's a struct with N U384
+        # In python, BNF<N> is a raw tuple of N int.
+        # In python, BLSF<N> stores this tuple in a field "coeffs".
+        if arg_type == BLSF2:
+            arg = arg.coeffs
+        # In Cairo, BNF<N> and BLSF<N> are a struct of N U384.
         # Cast int to U384 to be able to serialize
         coeffs = [
             _gen_arg(dict_manager, segments, U384, U384(arg[i]))

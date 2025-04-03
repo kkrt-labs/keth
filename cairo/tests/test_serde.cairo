@@ -52,5 +52,7 @@ from ethereum.cancun.vm.interpreter import MessageCallOutput
 from ethereum.cancun.fork import BlockChain
 
 from ethereum.crypto.alt_bn128 import BNF12
+from ethereum.crypto.bls12_381 import BLSF
+
 from mpt.trie_diff import NodeStore, MappingBytes32Address, AccountNode
 from ethereum.crypto.kzg import BLSScalar
