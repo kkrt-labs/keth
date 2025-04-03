@@ -1,6 +1,10 @@
-from hypothesis import given
+import pytest
+from hypothesis import assume, given
 from py_ecc.fields import optimized_bls12_381_FQ as BLSF
 from py_ecc.fields import optimized_bls12_381_FQ2 as BLSF2
+
+from cairo_addons.testing.errors import strict_raises
+from cairo_addons.testing.hints import patch_hint
 
 # from py_ecc.optimized_bls12_381.optimized_curve import curve_order, field_modulus
 
@@ -25,6 +29,37 @@ class TestBls12381:
         @given(a=..., b=...)
         def test_blsf_mul(self, cairo_run, a: BLSF, b: BLSF):
             assert cairo_run("blsf_mul", a, b) == a * b
+
+        @given(a=..., b=...)
+        def test_blsf_div(self, cairo_run, a: BLSF, b: BLSF):
+            assume(b != BLSF.zero())  # Avoid division by zero
+            assert cairo_run("blsf_div", a, b) == a / b
+
+        @given(a=...)
+        def test_blsf_div_by_zero_should_fail(self, cairo_run, a: BLSF):
+            b = BLSF.zero()
+            with strict_raises(AssertionError):
+                cairo_run("blsf_div", a, b)
+
+        @given(a=..., b=...)
+        @pytest.mark.slow
+        def test_blsf_div_patch_hint_should_fail(
+            self, cairo_programs, cairo_run_py, a: BLSF, b: BLSF
+        ):
+            assume(b != BLSF.zero())
+            with patch_hint(
+                cairo_programs,
+                "blsf_multiplicative_inverse",
+                """
+from cairo_addons.utils.uint384 import int_to_uint384
+
+blsf_struct_ptr = segments.add()
+b_inv_u384_ptr = segments.gen_arg(int_to_uint384(0))  # Wrong inverse value
+segments.load_data(blsf_struct_ptr, [b_inv_u384_ptr])
+segments.load_data(ids.b_inv.address_, [blsf_struct_ptr])
+                """,
+            ), strict_raises(AssertionError):
+                cairo_run_py("blsf_div", a, b)
 
     class TestBLSF2:
         @given(a=..., b=...)

@@ -85,6 +85,25 @@ func blsf_mul{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: M
     return res;
 }
 
+func blsf_div{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
+    a: BLSF, b: BLSF
+) -> BLSF {
+    alloc_locals;
+    let (__fp__, _) = get_fp_and_pc();
+    local b_inv: BLSF;
+
+    %{ blsf_multiplicative_inverse %}
+
+    let res = blsf_mul(b, b_inv);
+    let (one) = get_label_location(U384_ONE);
+    let uint384_one = cast(one, UInt384*);
+    tempvar blsf_one = BLSF(new BLSFStruct(U384(uint384_one)));
+    let is_inv = BLSF__eq__(res, blsf_one);
+    assert is_inv = 1;
+
+    return blsf_mul(a, b_inv);
+}
+
 // Quadratic extension field of BLSF.
 // BLSF elements are 2-dimensional.
 struct BLSF2Struct {
