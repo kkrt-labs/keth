@@ -172,6 +172,7 @@ impl PythonicHintExecutor {
     }
 
     /// Execute a Python hint with access to VM state
+    #[allow(clippy::too_many_arguments)]
     pub fn execute_hint(
         &mut self,
         hint_code: &str,

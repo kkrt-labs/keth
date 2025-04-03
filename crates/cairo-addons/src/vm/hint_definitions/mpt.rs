@@ -66,7 +66,7 @@ pub fn find_two_non_null_subnodes() -> Hint {
                 // Sequence* is at offset 0 of the ExtendedEnum struct
                 let is_sequence = vm
                     .get_relocatable(inner_ptr_addr)
-                    .map_or(false, |seq_ptr| is_non_empty_sequence(vm, seq_ptr));
+                    .is_ok_and(|seq_ptr| is_non_empty_sequence(vm, seq_ptr));
 
                 // Case 2: Check if subnode is a non-null digest (Bytes*)
                 // Bytes* is at offset 2 of the ExtendedEnum struct
@@ -78,7 +78,7 @@ pub fn find_two_non_null_subnodes() -> Hint {
                 })?;
                 let is_bytes = vm
                     .get_relocatable(bytes_ptr_addr)
-                    .map_or(false, |bytes_ptr| is_non_empty_sequence(vm, bytes_ptr));
+                    .is_ok_and(|bytes_ptr| is_non_empty_sequence(vm, bytes_ptr));
 
                 // If it's either a non-null sequence or non-null bytes, record the index
                 if is_sequence || is_bytes {
