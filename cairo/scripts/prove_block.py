@@ -6,7 +6,6 @@ Fetches zkpi data, converts it to EELS/Keth format, and generates a proof.
 import argparse
 import json
 import logging
-import traceback
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
@@ -31,6 +30,7 @@ from tests.utils.args_gen import (
     Message,
     MessageCallOutput,
     Node,
+    encode_account,
 )
 from utils.fixture_loader import LoadKethFixture
 
@@ -41,12 +41,14 @@ ethereum.cancun.vm.Environment = Environment
 ethereum.cancun.vm.interpreter.MessageCallOutput = MessageCallOutput
 ethereum.cancun.fork_types.Account = Account
 ethereum.cancun.fork_types.EMPTY_ACCOUNT = EMPTY_ACCOUNT
+ethereum.cancun.fork_types.encode_account = encode_account
 ethereum.cancun.trie.Node = Node
 ethereum_rlp.rlp.Extended = Union[Sequence["Extended"], bytearray, bytes, Uint, FixedUnsigned, str, bool]  # type: ignore # noqa: F821
 
 # See explanation in conftest.py. Lots of EELS modules import `Account` and `EMPTY_ACCOUNT` from `ethereum.cancun.fork_types`.
 # I think these modules get loaded before this patch is applied. Thus we must replace them manually.
 setattr(ethereum.cancun.trie, "Account", Account)
+setattr(ethereum.cancun.trie, "encode_account", encode_account)
 setattr(ethereum.cancun.state, "Account", Account)
 setattr(ethereum.cancun.state, "EMPTY_ACCOUNT", EMPTY_ACCOUNT)
 setattr(ethereum.cancun.fork_types, "EMPTY_ACCOUNT", EMPTY_ACCOUNT)
@@ -248,9 +250,7 @@ def load_zkpi_fixture(zkpi_path: Path) -> Dict[str, Any]:
     ]
 
     # Create blockchain
-    state, code_hashes = prepare_state_and_code_hashes(
-        prover_inputs
-    )
+    state, code_hashes = prepare_state_and_code_hashes(load_pre_state(prover_inputs))
     chain = BlockChain(
         blocks=blocks,
         state=state,
@@ -258,6 +258,8 @@ def load_zkpi_fixture(zkpi_path: Path) -> Dict[str, Any]:
     )
 
     # TODO: Remove when partial MPT is implemented
+    # This is not the _real_ state root, but one we re-construct from the partial state
+    # to prove this block.
     state_root = apply_body(
         chain.state,
         get_last_256_block_hashes(chain),
@@ -286,7 +288,7 @@ def load_zkpi_fixture(zkpi_path: Path) -> Dict[str, Any]:
         ommers=(),
         withdrawals=block.withdrawals,
     )
-    state, _ = prepare_state_and_code_hashes(load_pre_state(prover_inputs)),
+    state, _ = prepare_state_and_code_hashes(load_pre_state(prover_inputs))
     chain = BlockChain(
         blocks=blocks,
         state=state,
@@ -371,15 +373,6 @@ def main() -> int:
             args.verify,
         )
         return 0
-    except FileNotFoundError as e:
-        logger.error(f"File error: {e}")
-        return 1
-    except (KeyError, ValueError) as e:
-        logger.error(f"Data error: {e}")
-        return 1
-    except Exception as e:
-        logger.error(f"Unexpected error: {e}")
-        return 1
     except KeyboardInterrupt:
         logger.info("Operation cancelled by user")
         return 130

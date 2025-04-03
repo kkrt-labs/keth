@@ -14,7 +14,6 @@ from ethereum.cancun.fork_types import Address
 from ethereum.cancun.transactions import LegacyTransaction, encode_transaction
 from ethereum.crypto.hash import Hash32, keccak256
 from ethereum.utils.hexadecimal import hex_to_bytes
-from ethereum_spec_tools.evm_tools.loaders.fixture_loader import Load
 from ethereum_spec_tools.evm_tools.loaders.fork_loader import ForkLoad
 from ethereum_spec_tools.evm_tools.loaders.transaction_loader import TransactionLoad
 from ethereum_types.bytes import Bytes, Bytes32
@@ -23,6 +22,7 @@ from scripts.prove_block import normalize_transaction
 
 from mpt import EthereumTries
 from mpt.utils import decode_node
+from utils.fixture_loader import LoadKethFixture
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +70,7 @@ class TestEthereumTries:
     @pytest.mark.slow
     def test_to_state(self, zkpi, ethereum_tries: EthereumTries):
 
-        load = Load("Cancun", "cancun")
+        load = LoadKethFixture("Cancun", "cancun")
         # Create blockchain from ancestors
         blocks = [
             Block(

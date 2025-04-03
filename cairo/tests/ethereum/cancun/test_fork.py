@@ -45,7 +45,6 @@ from ethereum.crypto.hash import Hash32, keccak256
 from ethereum.exceptions import EthereumException
 from ethereum.utils.hexadecimal import hex_to_bytes
 from ethereum_rlp import rlp
-from ethereum_spec_tools.evm_tools.loaders.fixture_loader import Load
 from ethereum_types.bytes import Bytes, Bytes0, Bytes8, Bytes20, Bytes32
 from ethereum_types.numeric import U64, U256, Uint
 from hypothesis import assume, given, settings
@@ -80,6 +79,7 @@ from tests.utils.strategies import (
     small_bytes,
     uint,
 )
+from utils.fixture_loader import LoadKethFixture
 
 MIN_BASE_FEE = 1_000
 
@@ -499,7 +499,7 @@ def zkpi_fixture(zkpi_path):
     with open(zkpi_path, "r") as f:
         prover_inputs = json.load(f)
 
-    load = Load("Cancun", "cancun")
+    load = LoadKethFixture("Cancun", "cancun")
     if len(prover_inputs["blocks"]) > 1:
         raise ValueError("Only one block is supported")
 

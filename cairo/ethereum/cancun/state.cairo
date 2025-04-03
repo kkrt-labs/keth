@@ -240,7 +240,7 @@ func get_account_code{
         # best would be for the program input to already have the key:Tuple[Low, High] -> code
         account_code = program_input["codehash_to_code"][serialize(ids.account.value.code_hash)];
         segment.load_data(code, account_code);
-        code_len = len(account_code);
+        ids.code_len = len(account_code);
     %}
     tempvar account_code = Bytes(new BytesStruct(data=code, len=code_len));
 

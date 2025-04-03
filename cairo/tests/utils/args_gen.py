@@ -147,6 +147,7 @@ from cairo_addons.vm import DictTracker as RustDictTracker
 from cairo_addons.vm import MemorySegmentManager as RustMemorySegmentManager
 from cairo_addons.vm import Relocatable as RustRelocatable
 from cairo_ec.curve import ECBase
+from mpt.ethereum_tries import EMPTY_BYTES_HASH, EMPTY_TRIE_HASH
 from mpt.utils import AccountNode
 from tests.utils.helpers import flatten
 
@@ -290,22 +291,13 @@ class Message(
         return common_fields and self.parent_evm == other.parent_evm
 
 
-EMPTY_STORAGE_ROOT = Bytes32(
-    (0x56E81F171BCC55A6FF8345E692C0F86E5B48E01B996CADC001622FB5E363B421).to_bytes(
-        32, "big"
-    )
-)
-EMPTY_CODE_HASH = Bytes32(
-    b"\xc5\xd2F\x01\x86\xf7#<\x92~}\xb2\xdc\xc7\x03\xc0\xe5\x00\xb6S\xca\x82';{\xfa\xd8\x04]\x85\xa4p"
-)
-
 # Separate setup & class definition to apply freezable decorator
 AccountDataclass = make_dataclass(
     "AccountDataclass",
     [(f.name, f.type, f) for f in fields(AccountBase)]
     + [
-        ("storage_root", Bytes32, field(default=EMPTY_STORAGE_ROOT)),
-        ("code_hash", Bytes32, field(default=EMPTY_CODE_HASH)),
+        ("storage_root", Bytes32, field(default=EMPTY_TRIE_HASH)),
+        ("code_hash", Bytes32, field(default=EMPTY_BYTES_HASH)),
     ],
     namespace={"__doc__": AccountBase.__doc__},
 )
@@ -324,8 +316,27 @@ class Account(AccountDataclass):
         )
 
 
+def encode_account(raw_account_data: Account, storage_root: Bytes) -> Bytes:
+    """
+    Encode `Account` dataclass.
+
+    Storage is not stored in the `Account` dataclass, so `Accounts` cannot be
+    encoded without providing a storage root.
+    """
+    from ethereum_rlp import rlp
+
+    return rlp.encode(
+        (
+            raw_account_data.nonce,
+            raw_account_data.balance,
+            storage_root,
+            raw_account_data.code_hash,
+        )
+    )
+
+
 EMPTY_ACCOUNT = Account(
-    nonce=Uint(0), balance=U256(0), code=b"", storage_root=EMPTY_STORAGE_ROOT
+    nonce=Uint(0), balance=U256(0), code=b"", storage_root=EMPTY_TRIE_HASH
 )
 
 

@@ -68,7 +68,7 @@ from cairo_ec.curve import AltBn128
 # Note: I have noticed that even if we patch the imports in conftests.py, because hypothesis runs before these patches are applied,
 # this file would still be working with the old types. Thus, we _explicitly_ import our patched types from args_gen.py here.
 from tests.utils.args_gen import (  # noqa
-    EMPTY_STORAGE_ROOT,
+    EMPTY_TRIE_HASH,
     U384,
     Account,
     Environment,
@@ -431,14 +431,14 @@ evm = st.builds(
 )
 
 
-# Take the EMPTY_STORAGE_ROOT value by default. This will be built in the state strategy, based on the storage tries.
+# Take the EMPTY_TRIE_HASH value by default. This will be built in the state strategy, based on the storage tries.
 account_strategy = code.flatmap(
     lambda account_code: st.builds(
         Account,
         nonce=uint,
         balance=uint256,
         code=st.just(account_code),
-        storage_root=st.just(EMPTY_STORAGE_ROOT),
+        storage_root=st.just(EMPTY_TRIE_HASH),
         code_hash=st.just(keccak256(account_code)),
     )
 )

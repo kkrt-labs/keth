@@ -139,6 +139,7 @@ def pytest_configure(config):
         Message,
         MessageCallOutput,
         Node,
+        encode_account,
     )
 
     # Initialize the tracer
@@ -151,11 +152,13 @@ def pytest_configure(config):
     ethereum.cancun.vm.interpreter.MessageCallOutput = MessageCallOutput
     ethereum.cancun.fork_types.Account = Account
     ethereum.cancun.fork_types.EMPTY_ACCOUNT = EMPTY_ACCOUNT
+    ethereum.cancun.fork_types.encode_account = encode_account
 
     # TODO: Find a better way to do this?
     # See explanation below. Lots of EELS modules import `Account` and `EMPTY_ACCOUNT` from `ethereum.cancun.fork_types`.
     # I think these modules get loaded before this patch is applied. Thus we must replace them manually.
     setattr(ethereum.cancun.trie, "Account", Account)
+    setattr(ethereum.cancun.trie, "encode_account", encode_account)
     setattr(ethereum.cancun.state, "Account", Account)
     setattr(ethereum.cancun.state, "EMPTY_ACCOUNT", EMPTY_ACCOUNT)
     setattr(ethereum.cancun.fork_types, "EMPTY_ACCOUNT", EMPTY_ACCOUNT)
