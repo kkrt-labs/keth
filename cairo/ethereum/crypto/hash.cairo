@@ -4,6 +4,7 @@ from starkware.cairo.common.builtin_keccak.keccak import keccak
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin
 from starkware.cairo.common.uint256 import Uint256
 from starkware.cairo.common.alloc import alloc
+from ethereum_types.numeric import bool
 
 using Hash32 = Bytes32;
 
@@ -26,4 +27,17 @@ func keccak256{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: Keccak
     tempvar value = new Uint256(low=result.low, high=result.high);
     tempvar hash = Hash32(value=value);
     return hash;
+}
+
+func Hash32__eq__(a: Hash32, b: Hash32) -> bool {
+    alloc_locals;
+    let false = bool(0);
+    if (a.value.low != b.value.low) {
+        return false;
+    }
+    if (a.value.high != b.value.high) {
+        return false;
+    }
+    let res = bool(1);
+    return res;
 }

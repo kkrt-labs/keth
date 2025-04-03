@@ -15,12 +15,22 @@ from ethereum.cancun.trie import (
 )
 from ethereum_rlp.rlp import Extended, ExtendedImpl, ExtendedEnum
 from ethereum_types.bytes import Bytes, BytesStruct
+from ethereum_types.numeric import bool
 from ethereum.utils.bytes import Bytes__eq__
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.math import assert_not_zero
-
 from cairo_core.comparison import is_zero
 from cairo_core.control_flow import raise
+from ethereum.crypto.hash import Hash32__eq__
+
+from ethereum.utils.numeric import U256__eq__
+from mpt.types import (
+    AccountDiff,
+    StorageDiff,
+    AccountDiffStruct,
+    AddressAccountNodeDiffEntry,
+    AccountNode,
+)
 
 func deserialize_to_internal_node{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     decoded: Extended
@@ -178,4 +188,104 @@ func check_branch_node(node: BranchNode) {
         }
     }
     return ();
+}
+
+func sort_AccountDiff(diff: AccountDiff) -> AccountDiff {
+    alloc_locals;
+    if (cast(diff.value, felt) == 0) {
+        return diff;
+    }
+    // Length of the array
+    let diffs_len = diff.value.len;
+    if (diffs_len == 0) {
+        return diff;
+    }
+    // Pointer to the array of AddressAccountNodeDiffEntry
+    let diffs_ptr = diff.value.data.value;
+    // Buffer to store the sorted entries
+    let (buffer) = alloc();
+    let (sorted_indexes) = alloc();
+    %{
+        data = [[memory[ids.diffs_ptr.address_ + i * 3], memory[ids.diffs_ptr.address_ + i * 3 + 1], memory[ids.diffs_ptr.address_ + i * 3 + 2]] for i in range(ids.diffs_len)]
+        sorted_data = sorted(data, key=lambda x: x[0], reverse=True)
+        flattened_data = [item for entry in sorted_data for item in entry]
+        segments.load_data(
+            ids.buffer,
+            flattened_data
+        )
+
+        sorted_indexes = [data.index(entry) for entry in sorted_data]
+        segments.load_data(
+            ids.sorted_indexes,
+            [int(item) for item in sorted_indexes]
+        )
+    %}
+
+    tempvar sorted_diff = new AccountDiffStruct(
+        data=cast(buffer, AddressAccountNodeDiffEntry*), len=diffs_len
+    );
+    // 👆 Unknown ap change so we reassign it
+    tempvar sorted_diff = sorted_diff;
+    tempvar i = 0;
+    tempvar sorted_indexes = sorted_indexes;
+
+    loop:
+    let sorted_diff = cast([ap - 3], AccountDiffStruct*);
+    let i = [ap - 2];
+    let sorted_indexes = cast([ap - 1], felt*);
+    let prev_diff = cast([fp - 3], AccountDiffStruct*);
+
+    with_attr error_message("ValueError") {
+        let sorted_index = [sorted_indexes + i];
+
+        let prev_key = prev_diff.data[sorted_index].value.key.value;
+        let new_key = sorted_diff.data[i].value.key.value;
+        assert prev_key = new_key;
+
+        let prev_eq = AccountNode__eq__(
+            prev_diff.data[sorted_index].value.prev_value, sorted_diff.data[i].value.prev_value
+        );
+        assert prev_eq.value = 1;
+
+        let new_eq = AccountNode__eq__(
+            sorted_diff.data[sorted_index].value.new_value,
+            prev_diff.data[sorted_index].value.new_value,
+        );
+        assert new_eq.value = 1;
+    }
+
+    let is_end = is_zero(prev_diff.len - i);
+
+    tempvar i = i + 1;
+    tempvar sorted_diff = sorted_diff;
+    tempvar sorted_indexes = sorted_indexes;
+
+    jmp loop if is_end != 0;
+
+    let new_diff = cast([ap - 2], AccountDiffStruct*);
+    let res = AccountDiff(new_diff);
+
+    return res;
+}
+
+func AccountNode__eq__(a: AccountNode, b: AccountNode) -> bool {
+    alloc_locals;
+    let false = bool(0);
+    if (a.value.nonce.value != b.value.nonce.value) {
+        return false;
+    }
+    let balance_eq = U256__eq__(a.value.balance, b.value.balance);
+    if (balance_eq.value == 0) {
+        return false;
+    }
+    let code_hash_eq = Hash32__eq__(a.value.code_hash, b.value.code_hash);
+    if (code_hash_eq.value == 0) {
+        return false;
+    }
+    let storage_root_eq = Hash32__eq__(a.value.storage_root, b.value.storage_root);
+    if (storage_root_eq.value == 0) {
+        return false;
+    }
+    let result = bool(1);
+    return result;
 }

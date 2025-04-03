@@ -57,7 +57,14 @@ from starkware.cairo.lang.vm.memory_dict import MemoryDict
 from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 
 from mpt.utils import AccountNode
-from tests.utils.args_gen import U384, Memory, Stack, _cairo_struct_to_python_type
+from tests.utils.args_gen import (
+    U384,
+    AddressAccountNodeDiffEntry,
+    Memory,
+    Stack,
+    StorageDiffEntry,
+    _cairo_struct_to_python_type,
+)
 from tests.utils.args_gen import gen_arg as _gen_arg
 from tests.utils.args_gen import to_cairo_type as _to_cairo_type
 from tests.utils.serde import Serde
@@ -315,6 +322,10 @@ class TestSerde:
             Mapping[Hash32, Optional[InternalNode]],
             Mapping[Bytes32, Bytes32],
             BLSFieldElement,
+            AddressAccountNodeDiffEntry,
+            List[AddressAccountNodeDiffEntry],
+            StorageDiffEntry,
+            List[StorageDiffEntry],
             BLSF,
             BLSF2,
             KZGCommitment,
