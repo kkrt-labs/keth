@@ -115,6 +115,7 @@ segments.load_data(ids.buffer, sorted_pointers)
 
 indices = list(range(ids.diffs_len))
 sorted_to_original_index_map = sorted(indices, key=lambda i: memory[pointers[i]], reverse=True)
+sorted_to_original_index_map[-2], sorted_to_original_index_map[-1] = sorted_to_original_index_map[-1], sorted_to_original_index_map[-2]
 segments.load_data(ids.sorted_to_original_index_map, sorted_to_original_index_map)
             """,
         ):
@@ -136,7 +137,7 @@ pointers = [memory[ids.diffs_ptr.address_ + i] for i in range(ids.diffs_len)]
 sorted_pointers = sorted(pointers, key=lambda ptr: memory[ptr], reverse=True)
 
 # BAD HINT: not a permutation of the input list
-sorted_pointers[-1] += 1
+sorted_pointers[0] += 1
 
 segments.load_data(ids.buffer, sorted_pointers)
 

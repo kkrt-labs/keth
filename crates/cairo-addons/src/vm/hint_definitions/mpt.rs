@@ -166,10 +166,10 @@ pub fn sort_account_diff() -> Hint {
                 .collect();
 
             // Load sorted indexes into sorted_indexes
-            let sorted_indexes_ptr =
+            let sorted_to_original_index_map_ptr =
                 get_ptr_from_var_name("sorted_to_original_index_map", vm, ids_data, ap_tracking)?;
             for (i, idx) in sorted_indices.iter().enumerate() {
-                vm.insert_value((sorted_indexes_ptr + i)?, Felt252::from(*idx))?;
+                vm.insert_value((sorted_to_original_index_map_ptr + i)?, Felt252::from(*idx))?;
             }
 
             Ok(())
