@@ -203,21 +203,7 @@ func sort_AccountDiff{range_check_ptr}(diff: AccountDiff) -> AccountDiff {
     // Buffer to store the sorted entries
     let (buffer) = alloc();
     let (sorted_indexes) = alloc();
-    %{
-        data = [[memory[memory[ids.diffs_ptr.address_ + i]], ids.diffs_ptr.address_ + i] for i in range(ids.diffs_len)]
-        sorted_data = sorted(data, key=lambda x: x[0], reverse=True)
-        flattened_data = [memory[entry[1]] for entry in sorted_data]
-        segments.load_data(
-            ids.buffer,
-            flattened_data
-        )
-
-        sorted_indexes = [data.index(entry) for entry in sorted_data]
-        segments.load_data(
-            ids.sorted_indexes,
-            [int(item) for item in sorted_indexes]
-        )
-    %}
+    %{ sort_account_diff %}
 
     tempvar sorted_account_diffs = new AccountDiffStruct(
         data=cast(buffer, AddressAccountNodeDiffEntry*), len=diffs_len
