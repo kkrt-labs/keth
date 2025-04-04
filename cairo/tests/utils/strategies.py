@@ -246,11 +246,10 @@ blsf_strategy = st.builds(
 )
 blsf2_strategy = st.builds(
     BLSF2,
-    st.lists(
+    st.tuples(
         st.integers(min_value=0, max_value=BLSF2.field_modulus - 1),
-        min_size=2,
-        max_size=2,
-    ).map(tuple),
+        st.integers(min_value=0, max_value=BLSF2.field_modulus - 1),
+    ),
 )
 blsp_strategy = blsf_strategy.map(lambda x: map_to_curve_G1(x)).map(
     lambda x: normalize1(x)
