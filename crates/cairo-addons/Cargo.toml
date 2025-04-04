@@ -6,7 +6,7 @@ edition = "2021"
 [lib]
 name = "vm"
 # "cdylib" is necessary to produce a shared library for Python to import from.
-crate-type = ["cdylib", "rlib"]
+crate-type = ["cdylib"]
 
 [dependencies]
 # "extension-module" tells pyo3 we want to build an extension module (skips linking against libpython.so)
@@ -52,6 +52,3 @@ pyo3-build-config = { version = "0.23.3", features = ["resolve-config"] }
 [features]
 extension-module = ["pyo3/extension-module"]
 default = ["extension-module", "pyo3/experimental-inspect"]
-
-[[example]]
-name = "prover"
