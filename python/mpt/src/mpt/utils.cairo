@@ -199,15 +199,15 @@ func sort_AccountDiff{range_check_ptr}(diff: AccountDiff) -> AccountDiff {
     if (diffs_len == 0) {
         return diff;
     }
-    // Pointer to the array of AddressAccountNodeDiffEntry
-    let diffs_ptr = diff.value.data.value;
+
+    let diffs_ptr = diff.value.data;
     // Buffer to store the sorted entries
     let (buffer) = alloc();
     let (sorted_indexes) = alloc();
     %{
-        data = [[memory[ids.diffs_ptr.address_ + i * 3], ids.diffs_ptr.address_ + i * 3] for i in range(ids.diffs_len)]
+        data = [[memory[memory[ids.diffs_ptr.address_ + i]], ids.diffs_ptr.address_ + i] for i in range(ids.diffs_len)]
         sorted_data = sorted(data, key=lambda x: x[0], reverse=True)
-        flattened_data = [entry[1] for entry in sorted_data]
+        flattened_data = [memory[entry[1]] for entry in sorted_data]
         segments.load_data(
             ids.buffer,
             flattened_data
@@ -223,14 +223,15 @@ func sort_AccountDiff{range_check_ptr}(diff: AccountDiff) -> AccountDiff {
     tempvar sorted_account_diffs = new AccountDiffStruct(
         data=cast(buffer, AddressAccountNodeDiffEntry*), len=diffs_len
     );
-    tempvar i = 0;
     local sorted_account_diffs: AccountDiffStruct* = sorted_account_diffs;
     local sorted_indexes: felt* = sorted_indexes;
-    local range_check_ptr = range_check_ptr;
 
+    tempvar range_check_ptr = range_check_ptr;
+    tempvar i = 0;
     static_assert i == [ap - 1];
 
     loop:
+    let range_check_ptr = [ap - 2];
     let i = [ap - 1];
     let unsorted = cast([fp - 3], AccountDiffStruct*);
 
@@ -246,29 +247,29 @@ func sort_AccountDiff{range_check_ptr}(diff: AccountDiff) -> AccountDiff {
         assert sorted_account_diffs.data[i].value = unsorted.data[sorted_index].value;
     }
 
+    // Since len is >= 1 and i starts at 0,
+    // This won't underflow
     let is_end = is_zero(unsorted.len - i - 1);
-    let continue_loop = 1 - is_end;
+    tempvar i = i + 1;
+    jmp end if is_end != 0;
 
     // Check that the sorted array is ordered
     with_attr error_message("ValueError") {
-        if (is_end == 0) {
-            // If we are not at the end,
-            // We can access offset i + 1
-            let is_ordered = is_le_felt(
-                sorted_account_diffs.data[i].value.key.value,
-                sorted_account_diffs.data[i + 1].value.key.value,
-            );
-            assert is_ordered = 1;
-            tempvar range_check_ptr = range_check_ptr;
-        } else {
-            tempvar range_check_ptr = range_check_ptr;
-        }
+        // If we are not at the end,
+        // We can access offset i + 1
+        let is_descending_ordered = is_le_felt(
+            sorted_account_diffs.data[i].value.key.value,
+            sorted_account_diffs.data[i - 1].value.key.value,
+        );
+        assert is_descending_ordered = 1;
     }
 
-    tempvar i = i + 1;
+    tempvar range_check_ptr = range_check_ptr;
+    tempvar i = i;
+    static_assert i == [ap - 1];
+    jmp loop;
 
-    jmp loop if continue_loop != 0;
-
+    end:
     // Check that the loop has been executed the correct number of times
     // Such that we know len(sorted) == len(initial_array)
     let i = [ap - 1];
