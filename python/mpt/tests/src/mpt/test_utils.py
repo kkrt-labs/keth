@@ -169,13 +169,13 @@ segments.load_data(ids.sorted_to_original_index_map, sorted_to_original_index_ma
 
     @given(data=list_address_account_node_diff_entry_strategy_with_duplicates())
     def test_sort_account_diff_sorted_list_with_duplicates(
-        self, cairo_run_py, data: List[AddressAccountNodeDiffEntry]
+        self, cairo_run, data: List[AddressAccountNodeDiffEntry]
     ):
 
         with strict_raises(
             Exception, match="ValueError: Array is not sorted in descending order"
         ):
-            cairo_run_py("sort_account_diff", data)
+            cairo_run("sort_account_diff", data)
 
     @given(data=list_address_account_node_diff_entry_strategy_min_size_2)
     def test_sort_account_diff_sorted_list_too_short(
