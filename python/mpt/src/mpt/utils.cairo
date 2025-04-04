@@ -208,12 +208,15 @@ func sort_account_diff{range_check_ptr}(account_diff: AccountDiff) -> AccountDif
         // If the input diff is empty, it's already sorted
         return account_diff;
     }
+
     // Pointer to the original, unsorted data
     tempvar diffs_ptr = account_diff.value.data;
     // A map(sorted_index -> original_index) to store the original index corresponding to each entry in the sorted buffer
     let (buffer) = alloc();
     let (local sorted_to_original_index_map) = alloc();
+
     %{ sort_account_diff %}
+
     tempvar sorted_diff_struct = new AccountDiffStruct(
         data=cast(buffer, AddressAccountNodeDiffEntry*), len=diffs_len
     );
@@ -225,10 +228,12 @@ func sort_account_diff{range_check_ptr}(account_diff: AccountDiff) -> AccountDif
     let range_check_ptr = [ap - 2];
     let loop_counter = [ap - 1];
     let original_diff_struct_ptr = cast([fp - 3], AccountDiffStruct*);
+
     // --- Verification Step 1: Permutation Check ---
     // Ensure that the element at the current sorted position (`loop_counter`)
     // corresponds exactly to an element from the original array, using the
     // `original_index` provided by the hint's `original_index_map`.
+
     with_attr error_message(
             "ValueError: Sorted element does not match original element at hint index") {
         let original_index = [sorted_to_original_index_map + loop_counter];
@@ -242,10 +247,12 @@ func sort_account_diff{range_check_ptr}(account_diff: AccountDiff) -> AccountDif
         assert original_entry.value.key.value = sorted_entry.value.key.value;
         assert sorted_entry.value = original_entry.value;
     }
+
     // `diffs_len - loop_counter - 1` is safe because diffs_len >= 1 and loop_counter starts at 0.
     let is_last_element = is_zero(original_diff_struct_ptr.len - loop_counter - 1);
     tempvar next_loop_counter = loop_counter + 1;
     jmp end if is_last_element != 0;
+
     // --- Verification Step 2: Ordering Check ---
     // Ensure that the sorted array is in strict descending order based on the key.
     // This check is performed for elements from index 1 up to diffs_len - 1.

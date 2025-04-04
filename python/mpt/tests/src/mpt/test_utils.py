@@ -17,10 +17,25 @@ from tests.utils.args_gen import AddressAccountNodeDiffEntry
 
 list_address_account_node_diff_entry_strategy = st.lists(
     st.from_type(AddressAccountNodeDiffEntry),
+    min_size=0,
+    max_size=10,
+    unique_by=lambda x: x.key,
+)
+
+list_address_account_node_diff_entry_strategy_min_size_2 = st.lists(
+    st.from_type(AddressAccountNodeDiffEntry),
     min_size=2,
     max_size=10,
     unique_by=lambda x: x.key,
 )
+
+
+@st.composite
+def list_address_account_node_diff_entry_strategy_with_duplicates(draw):
+    """Creates a list of AddressAccountNodeDiffEntry with duplicates"""
+    data = draw(list_address_account_node_diff_entry_strategy_min_size_2)
+    data[0] = data[1]
+    return data
 
 
 @st.composite
@@ -95,7 +110,7 @@ ids.second_non_null_index = 1
         cairo_data = cairo_run("sort_account_diff", data)
         assert cairo_data == sorted_data
 
-    @given(data=list_address_account_node_diff_entry_strategy)
+    @given(data=list_address_account_node_diff_entry_strategy_min_size_2)
     def test_sort_account_diff_should_fail_if_not_descending_order(
         self, cairo_programs, cairo_run_py, data: List[AddressAccountNodeDiffEntry]
     ):
@@ -103,19 +118,20 @@ ids.second_non_null_index = 1
             cairo_programs,
             "sort_account_diff",
             """
-# Extract the list of pointers directly
 pointers = [memory[ids.diffs_ptr.address_ + i] for i in range(ids.diffs_len)]
-
-# Sort pointers based on the key values they point to, in descending order
 sorted_pointers = sorted(pointers, key=lambda ptr: memory[ptr], reverse=True)
 
-# Invert the order of the last two elements
+# BAD HINT: Invert the order of the last two elements
 sorted_pointers[-2], sorted_pointers[-1] = sorted_pointers[-1], sorted_pointers[-2]
+
 segments.load_data(ids.buffer, sorted_pointers)
 
 indices = list(range(ids.diffs_len))
 sorted_to_original_index_map = sorted(indices, key=lambda i: memory[pointers[i]], reverse=True)
+
+# BAD HINT: Invert the order of the last two elements
 sorted_to_original_index_map[-2], sorted_to_original_index_map[-1] = sorted_to_original_index_map[-1], sorted_to_original_index_map[-2]
+
 segments.load_data(ids.sorted_to_original_index_map, sorted_to_original_index_map)
             """,
         ):
@@ -124,7 +140,7 @@ segments.load_data(ids.sorted_to_original_index_map, sorted_to_original_index_ma
             ):
                 cairo_run_py("sort_account_diff", data)
 
-    @given(data=list_address_account_node_diff_entry_strategy)
+    @given(data=list_address_account_node_diff_entry_strategy_min_size_2)
     def test_sort_account_diff_different_lists(
         self, cairo_programs, cairo_run_py, data: List[AddressAccountNodeDiffEntry]
     ):
@@ -132,7 +148,6 @@ segments.load_data(ids.sorted_to_original_index_map, sorted_to_original_index_ma
             cairo_programs,
             "sort_account_diff",
             """
-# Extract the list of pointers directly
 pointers = [memory[ids.diffs_ptr.address_ + i] for i in range(ids.diffs_len)]
 sorted_pointers = sorted(pointers, key=lambda ptr: memory[ptr], reverse=True)
 
@@ -152,7 +167,7 @@ segments.load_data(ids.sorted_to_original_index_map, sorted_to_original_index_ma
             ):
                 cairo_run_py("sort_account_diff", data)
 
-    @given(data=list_address_account_node_diff_entry_strategy)
+    @given(data=list_address_account_node_diff_entry_strategy_min_size_2)
     def test_sort_account_diff_sorted_list_with_duplicates(
         self, cairo_programs, cairo_run_py, data: List[AddressAccountNodeDiffEntry]
     ):
@@ -160,16 +175,17 @@ segments.load_data(ids.sorted_to_original_index_map, sorted_to_original_index_ma
             cairo_programs,
             "sort_account_diff",
             """
-# Extract the list of pointers directly
 pointers = [memory[ids.diffs_ptr.address_ + i] for i in range(ids.diffs_len)]
+
+# BAD HINT: adding duplicate values to the list
+pointers[0] = pointers[1]
+
 sorted_pointers = sorted(pointers, key=lambda ptr: memory[ptr], reverse=True)
-sorted_pointers[0] = sorted_pointers[1]
 
 segments.load_data(ids.buffer, sorted_pointers)
 
 indices = list(range(ids.diffs_len))
 sorted_to_original_index_map = sorted(indices, key=lambda i: memory[pointers[i]], reverse=True)
-sorted_to_original_index_map[0] = sorted_to_original_index_map[1]
 segments.load_data(ids.sorted_to_original_index_map, sorted_to_original_index_map)
             """,
         ):
@@ -179,27 +195,9 @@ segments.load_data(ids.sorted_to_original_index_map, sorted_to_original_index_ma
             ):
                 cairo_run_py("sort_account_diff", data)
 
-    @given(data=list_address_account_node_diff_entry_strategy)
+    @given(data=list_address_account_node_diff_entry_strategy_with_duplicates())
     def test_sort_account_diff_sorted_list_too_short(
-        self, cairo_programs, cairo_run_py, data: List[AddressAccountNodeDiffEntry]
+        self, cairo_run_py, data: List[AddressAccountNodeDiffEntry]
     ):
-        with patch_hint(
-            cairo_programs,
-            "sort_account_diff",
-            """
-# Extract the list of pointers directly
-pointers = [memory[ids.diffs_ptr.address_ + i] for i in range(ids.diffs_len)]
-sorted_pointers = sorted(pointers, key=lambda ptr: memory[ptr], reverse=True)
-sorted_pointers = sorted_pointers[:-1]
-
-segments.load_data(ids.buffer, sorted_pointers)
-
-indices = list(range(ids.diffs_len))
-sorted_to_original_index_map = sorted(indices, key=lambda i: memory[pointers[i]], reverse=True)
-sorted_to_original_index_map = sorted_to_original_index_map[:-1]
-segments.load_data(ids.sorted_to_original_index_map, sorted_to_original_index_map)
-            """,
-        ):
-
-            with strict_raises(Exception):
-                cairo_run_py("sort_account_diff", data)
+        with strict_raises(Exception):
+            cairo_run_py("sort_account_diff", data)
