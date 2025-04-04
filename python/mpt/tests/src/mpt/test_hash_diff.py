@@ -30,7 +30,7 @@ class TestHashDiff:
         )
         assert cairo_result == poseidon_hash_many(
             [
-                storage_diff.key,
+                storage_diff.key._number,
                 *int_to_uint256(storage_diff.prev_value._number),
                 *int_to_uint256(storage_diff.new_value._number),
             ]
