@@ -13,7 +13,7 @@ from hypothesis import strategies as st
 from cairo_addons.testing.errors import strict_raises
 from cairo_addons.testing.hints import patch_hint
 from mpt.utils import check_branch_node, nibble_list_to_bytes
-from tests.utils.args_gen import AddressAccountNodeDiffEntry
+from tests.utils.args_gen import AddressAccountNodeDiffEntry, StorageDiffEntry
 
 list_address_account_node_diff_entry_strategy = st.lists(
     st.from_type(AddressAccountNodeDiffEntry),
@@ -22,9 +22,16 @@ list_address_account_node_diff_entry_strategy = st.lists(
     unique_by=lambda x: x.key,
 )
 
+
 list_address_account_node_diff_entry_strategy_min_size_2 = st.lists(
     st.from_type(AddressAccountNodeDiffEntry),
     min_size=2,
+    max_size=10,
+    unique_by=lambda x: x.key,
+)
+list_storage_diff_entry_strategy = st.lists(
+    st.from_type(StorageDiffEntry),
+    min_size=0,
     max_size=10,
     unique_by=lambda x: x.key,
 )
@@ -202,3 +209,9 @@ segments.load_data(ids.sorted_to_original_index_map, sorted_to_original_index_ma
 
             with strict_raises(Exception):
                 cairo_run_py("sort_account_diff", data)
+
+    @given(data=list_storage_diff_entry_strategy)
+    def test_sort_storage_diff(self, cairo_run, data: List[StorageDiffEntry]):
+        sorted_data = sorted(data, key=lambda x: x.key._number, reverse=True)
+        cairo_data = cairo_run("sort_storage_diff", data)
+        assert cairo_data == sorted_data
