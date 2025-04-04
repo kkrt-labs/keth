@@ -545,7 +545,7 @@ func blsp2_double{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_pt
     }
 
     // Point doubling formula:
-    // λ = (3x^2 + a) / (2y)  [a = 0 for alt_bn128]
+    // λ = (3x^2 + a) / (2y)  [a = 0 for bls12-381]
     // x' = λ^2 - 2x
     // y' = λ(x - x') - y
     // Calculate 3x^2
