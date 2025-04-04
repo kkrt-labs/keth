@@ -167,8 +167,18 @@ segments.load_data(ids.sorted_to_original_index_map, sorted_to_original_index_ma
             ):
                 cairo_run_py("sort_account_diff", data)
 
-    @given(data=list_address_account_node_diff_entry_strategy_min_size_2)
+    @given(data=list_address_account_node_diff_entry_strategy_with_duplicates())
     def test_sort_account_diff_sorted_list_with_duplicates(
+        self, cairo_run_py, data: List[AddressAccountNodeDiffEntry]
+    ):
+
+        with strict_raises(
+            Exception, match="ValueError: Array is not sorted in descending order"
+        ):
+            cairo_run_py("sort_account_diff", data)
+
+    @given(data=list_address_account_node_diff_entry_strategy_min_size_2)
+    def test_sort_account_diff_sorted_list_too_short(
         self, cairo_programs, cairo_run_py, data: List[AddressAccountNodeDiffEntry]
     ):
         with patch_hint(
@@ -176,28 +186,19 @@ segments.load_data(ids.sorted_to_original_index_map, sorted_to_original_index_ma
             "sort_account_diff",
             """
 pointers = [memory[ids.diffs_ptr.address_ + i] for i in range(ids.diffs_len)]
-
-# BAD HINT: adding duplicate values to the list
-pointers[0] = pointers[1]
-
 sorted_pointers = sorted(pointers, key=lambda ptr: memory[ptr], reverse=True)
+
+# BAD HINT: list shorter than input list
+sorted_pointers = sorted_pointers[:-1]
 
 segments.load_data(ids.buffer, sorted_pointers)
 
 indices = list(range(ids.diffs_len))
 sorted_to_original_index_map = sorted(indices, key=lambda i: memory[pointers[i]], reverse=True)
+sorted_to_original_index_map = sorted_to_original_index_map[:-1]
 segments.load_data(ids.sorted_to_original_index_map, sorted_to_original_index_map)
             """,
         ):
 
-            with strict_raises(
-                Exception, match="ValueError: Array is not sorted in descending order"
-            ):
+            with strict_raises(Exception):
                 cairo_run_py("sort_account_diff", data)
-
-    @given(data=list_address_account_node_diff_entry_strategy_with_duplicates())
-    def test_sort_account_diff_sorted_list_too_short(
-        self, cairo_run_py, data: List[AddressAccountNodeDiffEntry]
-    ):
-        with strict_raises(Exception):
-            cairo_run_py("sort_account_diff", data)
