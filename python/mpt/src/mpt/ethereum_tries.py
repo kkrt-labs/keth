@@ -225,9 +225,15 @@ class EthereumTries:
             return
 
         # RLP-decode the account, then get the code matching the code hash.
-        account = Account.from_rlp(node.value)
-        account_code = self.get_code(account.code_hash)
-        account.code = account_code
+        account_without_code = Account.from_rlp(node.value)
+        account_code = self.get_code(account_without_code.code_hash)
+        account = Account(
+            nonce=account_without_code.nonce,
+            balance=account_without_code.balance,
+            code_hash=account_without_code.code_hash,
+            storage_root=account_without_code.storage_root,
+            code=account_code,
+        )
 
         set_account(state, address, account)
 

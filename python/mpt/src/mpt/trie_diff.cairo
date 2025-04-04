@@ -89,8 +89,6 @@ from mpt.types import (
     StorageDiffStruct,
     StorageDiffEntry,
     StorageDiffEntryStruct,
-    Account,
-    AccountStruct,
     AddressAccountDiffEntryStruct,
     AddressAccountDiffEntry,
     OptionalUnionInternalNodeExtended,

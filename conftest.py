@@ -153,6 +153,8 @@ def pytest_configure(config):
     ethereum.cancun.fork_types.Account = Account
     ethereum.cancun.fork_types.EMPTY_ACCOUNT = EMPTY_ACCOUNT
     ethereum.cancun.fork_types.encode_account = encode_account
+    ethereum.cancun.trie.Node = Node
+    mpt.ethereum_tries.Account = Account
     mpt.trie_diff.Account = Account
 
     # TODO: Find a better way to do this?
@@ -166,7 +168,7 @@ def pytest_configure(config):
     setattr(ethereum.cancun.vm.instructions.environment, "EMPTY_ACCOUNT", EMPTY_ACCOUNT)
     setattr(mpt.utils, "Account", Account)
     setattr(mpt.trie_diff, "Account", Account)
-    ethereum.cancun.trie.Node = Node
+    setattr(mpt.ethereum_tries, "Account", Account)
     setattr(ethereum.cancun.trie, "Node", Node)
 
     # Mock the Extended type

@@ -537,7 +537,7 @@ class StorageDiffEntry:
     def hash_poseidon(self):
         return poseidon_hash_many(
             [
-                self.key,
+                int(self.key),
                 *int_to_uint256(int(self.prev_value)),
                 *int_to_uint256(int(self.new_value)),
             ]
