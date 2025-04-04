@@ -478,7 +478,7 @@ class AddressAccountNodeDiffEntry:
 
 @dataclass
 class StorageDiffEntry:
-    key: int
+    key: Uint
     prev_value: U256
     new_value: U256
 
@@ -832,19 +832,19 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "crypto", "alt_bn128", "BNP"): BNP,
     ("ethereum", "crypto", "alt_bn128", "BNF"): BNF,
     ("ethereum", "crypto", "alt_bn128", "BNP2"): BNP2,
-    ("mpt", "trie_diff", "MappingBytes32Address"): Mapping[Bytes32, Address],
-    ("mpt", "trie_diff", "MappingBytes32Bytes32"): Mapping[Bytes32, Bytes32],
-    ("mpt", "trie_diff", "AccountNode"): AccountNode,
-    ("mpt", "trie_diff", "NodeStore"): Mapping[Hash32, Optional[InternalNode]],
+    ("mpt", "types", "MappingBytes32Address"): Mapping[Bytes32, Address],
+    ("mpt", "types", "MappingBytes32Bytes32"): Mapping[Bytes32, Bytes32],
+    ("mpt", "types", "AccountNode"): AccountNode,
+    ("mpt", "types", "NodeStore"): Mapping[Hash32, Optional[InternalNode]],
     ("cairo_core", "bytes", "HashedBytes32"): int,
-    ("mpt", "trie_diff", "UnionInternalNodeExtended"): Union[InternalNode, Extended],
-    ("mpt", "trie_diff", "OptionalUnionInternalNodeExtended"): Optional[
+    ("mpt", "types", "UnionInternalNodeExtended"): Union[InternalNode, Extended],
+    ("mpt", "types", "OptionalUnionInternalNodeExtended"): Optional[
         Union[InternalNode, Extended]
     ],
-    ("mpt", "trie_diff", "AddressAccountNodeDiffEntry"): AddressAccountNodeDiffEntry,
-    ("mpt", "trie_diff", "AccountDiff"): List[AddressAccountNodeDiffEntry],
-    ("mpt", "trie_diff", "StorageDiffEntry"): StorageDiffEntry,
-    ("mpt", "trie_diff", "StorageDiff"): List[StorageDiffEntry],
+    ("mpt", "types", "AddressAccountNodeDiffEntry"): AddressAccountNodeDiffEntry,
+    ("mpt", "types", "AccountDiff"): List[AddressAccountNodeDiffEntry],
+    ("mpt", "types", "StorageDiffEntry"): StorageDiffEntry,
+    ("mpt", "types", "StorageDiff"): List[StorageDiffEntry],
     ("ethereum", "cancun", "fork_types", "HashedTupleAddressBytes32"): Uint,
     ("ethereum", "crypto", "kzg", "BLSScalar"): BLSFieldElement,
     ("ethereum", "crypto", "bls12_381", "BLSF"): BLSF,

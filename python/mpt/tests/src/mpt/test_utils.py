@@ -1,3 +1,5 @@
+from typing import List
+
 from ethereum.cancun.trie import (
     BranchNode,
     LeafNode,
@@ -11,6 +13,29 @@ from hypothesis import strategies as st
 from cairo_addons.testing.errors import strict_raises
 from cairo_addons.testing.hints import patch_hint
 from mpt.utils import check_branch_node, nibble_list_to_bytes
+from tests.utils.args_gen import AddressAccountNodeDiffEntry
+
+list_address_account_node_diff_entry_strategy = st.lists(
+    st.from_type(AddressAccountNodeDiffEntry),
+    min_size=0,
+    max_size=10,
+    unique_by=lambda x: x.key,
+)
+
+list_address_account_node_diff_entry_strategy_min_size_2 = st.lists(
+    st.from_type(AddressAccountNodeDiffEntry),
+    min_size=2,
+    max_size=10,
+    unique_by=lambda x: x.key,
+)
+
+
+@st.composite
+def list_address_account_node_diff_entry_strategy_with_duplicates(draw):
+    """Creates a list of AddressAccountNodeDiffEntry with duplicates"""
+    data = draw(list_address_account_node_diff_entry_strategy_min_size_2)
+    data[0] = data[1]
+    return data
 
 
 @st.composite
@@ -74,3 +99,106 @@ ids.second_non_null_index = 1
         ):
             with strict_raises(ValueError):
                 cairo_run_py("check_branch_node", branch_node)
+
+    @given(data=list_address_account_node_diff_entry_strategy)
+    def test_sort_account_diff(
+        self, cairo_run, data: List[AddressAccountNodeDiffEntry]
+    ):
+        sorted_data = sorted(
+            data, key=lambda x: int.from_bytes(x.key, "little"), reverse=True
+        )
+        cairo_data = cairo_run("sort_account_diff", data)
+        assert cairo_data == sorted_data
+
+    @given(data=list_address_account_node_diff_entry_strategy_min_size_2)
+    def test_sort_account_diff_should_fail_if_not_descending_order(
+        self, cairo_programs, cairo_run_py, data: List[AddressAccountNodeDiffEntry]
+    ):
+        with patch_hint(
+            cairo_programs,
+            "sort_account_diff",
+            """
+pointers = [memory[ids.diffs_ptr.address_ + i] for i in range(ids.diffs_len)]
+sorted_pointers = sorted(pointers, key=lambda ptr: memory[ptr], reverse=True)
+
+# BAD HINT: Invert the order of the last two elements
+sorted_pointers[-2], sorted_pointers[-1] = sorted_pointers[-1], sorted_pointers[-2]
+
+segments.load_data(ids.buffer, sorted_pointers)
+
+indices = list(range(ids.diffs_len))
+sorted_to_original_index_map = sorted(indices, key=lambda i: memory[pointers[i]], reverse=True)
+
+# BAD HINT: Invert the order of the last two elements
+sorted_to_original_index_map[-2], sorted_to_original_index_map[-1] = sorted_to_original_index_map[-1], sorted_to_original_index_map[-2]
+
+segments.load_data(ids.sorted_to_original_index_map, sorted_to_original_index_map)
+            """,
+        ):
+            with strict_raises(
+                Exception, match="ValueError: Array is not sorted in descending order"
+            ):
+                cairo_run_py("sort_account_diff", data)
+
+    @given(data=list_address_account_node_diff_entry_strategy_min_size_2)
+    def test_sort_account_diff_different_lists(
+        self, cairo_programs, cairo_run_py, data: List[AddressAccountNodeDiffEntry]
+    ):
+        with patch_hint(
+            cairo_programs,
+            "sort_account_diff",
+            """
+pointers = [memory[ids.diffs_ptr.address_ + i] for i in range(ids.diffs_len)]
+sorted_pointers = sorted(pointers, key=lambda ptr: memory[ptr], reverse=True)
+
+# BAD HINT: not a permutation of the input list
+sorted_pointers[0] += 1
+
+segments.load_data(ids.buffer, sorted_pointers)
+
+indices = list(range(ids.diffs_len))
+sorted_to_original_index_map = sorted(indices, key=lambda i: memory[pointers[i]], reverse=True)
+segments.load_data(ids.sorted_to_original_index_map, sorted_to_original_index_map)
+            """,
+        ):
+            with strict_raises(
+                Exception,
+                match="ValueError: Sorted element does not match original element at hint index",
+            ):
+                cairo_run_py("sort_account_diff", data)
+
+    @given(data=list_address_account_node_diff_entry_strategy_with_duplicates())
+    def test_sort_account_diff_sorted_list_with_duplicates(
+        self, cairo_run, data: List[AddressAccountNodeDiffEntry]
+    ):
+
+        with strict_raises(
+            Exception, match="ValueError: Array is not sorted in descending order"
+        ):
+            cairo_run("sort_account_diff", data)
+
+    @given(data=list_address_account_node_diff_entry_strategy_min_size_2)
+    def test_sort_account_diff_sorted_list_too_short(
+        self, cairo_programs, cairo_run_py, data: List[AddressAccountNodeDiffEntry]
+    ):
+        with patch_hint(
+            cairo_programs,
+            "sort_account_diff",
+            """
+pointers = [memory[ids.diffs_ptr.address_ + i] for i in range(ids.diffs_len)]
+sorted_pointers = sorted(pointers, key=lambda ptr: memory[ptr], reverse=True)
+
+# BAD HINT: list shorter than input list
+sorted_pointers = sorted_pointers[:-1]
+
+segments.load_data(ids.buffer, sorted_pointers)
+
+indices = list(range(ids.diffs_len))
+sorted_to_original_index_map = sorted(indices, key=lambda i: memory[pointers[i]], reverse=True)
+sorted_to_original_index_map = sorted_to_original_index_map[:-1]
+segments.load_data(ids.sorted_to_original_index_map, sorted_to_original_index_map)
+            """,
+        ):
+
+            with strict_raises(Exception):
+                cairo_run_py("sort_account_diff", data)
