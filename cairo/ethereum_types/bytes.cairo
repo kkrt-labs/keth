@@ -28,6 +28,8 @@ from cairo_core.bytes import (
     Bytes20,
     Bytes32,
     Bytes32Struct,
+    Bytes48,
+    Bytes48Struct,
     Bytes256,
     BytesStruct,
     Bytes,

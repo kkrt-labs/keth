@@ -108,7 +108,7 @@ from ethereum.cancun.vm.gas import ExtendMemory, MessageCallGas
 from ethereum.cancun.vm.interpreter import MessageCallOutput as MessageCallOutputBase
 from ethereum.crypto.alt_bn128 import BNF, BNF2, BNF12, BNP, BNP2, BNP12
 from ethereum.crypto.hash import Hash32
-from ethereum.crypto.kzg import BLSFieldElement
+from ethereum.crypto.kzg import BLSFieldElement, KZGCommitment
 from ethereum.exceptions import EthereumException
 from ethereum_rlp.rlp import Extended, Simple
 from ethereum_types.bytes import (
@@ -119,6 +119,7 @@ from ethereum_types.bytes import (
     Bytes8,
     Bytes20,
     Bytes32,
+    Bytes48,
     Bytes256,
 )
 from ethereum_types.frozen import slotted_freezable
@@ -594,6 +595,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("cairo_core", "bytes", "Bytes8"): Bytes8,
     ("cairo_core", "bytes", "Bytes20"): Bytes20,
     ("cairo_core", "bytes", "Bytes32"): Bytes32,
+    ("cairo_core", "bytes", "Bytes48"): Bytes48,
     ("cairo_core", "bytes", "TupleBytes32"): Tuple[Bytes32, ...],
     ("cairo_core", "bytes", "Bytes256"): Bytes256,
     ("cairo_core", "bytes", "Bytes"): Bytes,
@@ -825,6 +827,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "crypto", "kzg", "BLSScalar"): BLSFieldElement,
     ("ethereum", "crypto", "bls12_381", "BLSF"): BLSF,
     ("ethereum", "crypto", "bls12_381", "BLSF2"): BLSF2,
+    ("ethereum", "crypto", "kzg", "KZGCommitment"): KZGCommitment,
 }
 
 # In the EELS, some functions are annotated with Sequence while it's actually just Bytes.
@@ -1148,10 +1151,11 @@ def _gen_arg(
         segments.load_data(base, felt_values)
         return base
 
-    if arg_type is U384:
-        bytes_value = arg.to_le_bytes()
+    if arg_type in (U384, Bytes48, KZGCommitment):
+        if isinstance_with_generic(arg, U384):
+            arg = arg.to_le_bytes()
         felt_values = [
-            int.from_bytes(bytes_value[i : i + 12], "little") for i in range(0, 48, 12)
+            int.from_bytes(arg[i : i + 12], "little") for i in range(0, 48, 12)
         ]
 
         base = segments.add()
