@@ -1055,7 +1055,7 @@ def _gen_arg(
             # Handle conversion from Optimized_Point3D to Optimized_Point2D for BLS12-381
 
             if arg_type in (Optimized_Point3D[BLSF], Optimized_Point3D[BLSF2]):
-                # arg = normalize(arg)
+                assert arg[2] == type(arg[2]).one()
                 arg = (arg[0], arg[1])
 
             # Case a tuple with a fixed number of elements, all of different types.

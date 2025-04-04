@@ -301,21 +301,17 @@ class Serde:
                     self._serialize(member.cairo_type, tuple_struct_ptr + member.offset)
                     for member in members.values()
                 )
-                # Convert back from affine space to projective space for BLS12-381 over Fq.
+                # Convert from affine space to projective space for BLS12-381 over Fq.
                 if python_cls == Optimized_Point3D[BLSF]:
-                    # Point at infinity, Z = 0
                     if result == (BLSF.zero(), BLSF.zero()):
                         result = Z1
-                    # Affine to projective coordinates transformation, set Z to 1.
                     else:
                         result = (result[0], result[1], BLSF.one())
 
-                # Convert back from affine space to projective space for BLS12-381 over Fq2.
+                # Convert from affine space to projective space for BLS12-381 over Fq2.
                 if python_cls == Optimized_Point3D[BLSF2]:
-                    # Point at infinity, Z = 0
                     if result == (BLSF2.zero(), BLSF2.zero()):
                         result = Z2
-                    # Affine to projective coordinates transformation, set Z to 1.
                     else:
                         result = (result[0], result[1], BLSF2.one())
 
