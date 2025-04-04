@@ -58,7 +58,6 @@ def sort_account_diff(
     # Load the sorted pointers into ids.buffer
     segments.load_data(ids.buffer, sorted_pointers)
 
-    # Optionally, compute and load the sorted indices if required
     indices = list(range(ids.diffs_len))
     sorted_indices = sorted(indices, key=lambda i: memory[pointers[i]], reverse=True)
     segments.load_data(ids.sorted_indexes, sorted_indices)

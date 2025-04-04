@@ -87,3 +87,29 @@ ids.second_non_null_index = 1
         )
         cairo_data = cairo_run("sort_AccountDiff", data)
         assert cairo_data == sorted_data
+
+    @given(data=...)
+    def test_sort_account_diff_ascending_order(
+        self, cairo_programs, cairo_run_py, data: List[AddressAccountNodeDiffEntry]
+    ):
+        with patch_hint(
+            cairo_programs,
+            "sort_account_diff",
+            """
+# Extract the list of pointers directly
+pointers = [memory[ids.diffs_ptr.address_ + i] for i in range(ids.diffs_len)]
+
+# Sort pointers based on the key values they point to, in ascending order
+sorted_pointers = sorted(pointers, key=lambda ptr: memory[ptr])
+
+# Load the sorted pointers into ids.buffer
+segments.load_data(ids.buffer, sorted_pointers)
+
+# Optionally, compute and load the sorted indices if required
+indices = list(range(ids.diffs_len))
+sorted_indices = sorted(indices, key=lambda i: memory[pointers[i]], reverse=True)
+segments.load_data(ids.sorted_indexes, sorted_indices)
+            """,
+        ):
+            with strict_raises(ValueError):
+                cairo_run_py("sort_AccountDiff", data)
