@@ -415,3 +415,14 @@ func blsp_mul_by_bits{
 
     return blsp_mul_by_bits(doubled_p, bits_ptr, bits_len, current_bit + 1, new_result);
 }
+
+// BLSP2 represents a point on the BLSP2 curve
+// BLSF2 is the base field of the curve
+struct BLSP2Struct {
+    x: BLSF2,
+    y: BLSF2,
+}
+
+struct BLSP2 {
+    value: BLSP2Struct*,
+}
