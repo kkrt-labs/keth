@@ -21,6 +21,7 @@
 //
 // The data layout defined in this file are coherent with the Cairo arg generation process defined in args_gen.py and Cairo serialization process in serde.py
 
+from starkware.cairo.common.cairo_builtins import UInt384
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.math import assert_not_equal
 from starkware.cairo.common.uint256 import Uint256
@@ -32,18 +33,23 @@ from starkware.cairo.common.alloc import alloc
 struct Bytes0 {
     value: felt,
 }
+
 struct Bytes1 {
     value: felt,
 }
+
 struct Bytes4 {
     value: felt,
 }
+
 struct Bytes8 {
     value: felt,
 }
+
 struct Bytes20 {
     value: felt,
 }
+
 using Bytes32Struct = Uint256;
 struct Bytes32 {
     value: Bytes32Struct*,
@@ -51,6 +57,11 @@ struct Bytes32 {
 
 struct OptionalBytes32 {
     value: Bytes32Struct*,
+}
+
+using Bytes48Struct = UInt384;
+struct Bytes48 {
+    value: Bytes48Struct*,
 }
 
 // 256 individual bytes, unpacked.

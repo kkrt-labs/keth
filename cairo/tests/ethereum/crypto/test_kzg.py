@@ -1,7 +1,12 @@
 from typing import Optional
 
 import pytest
-from ethereum.crypto.kzg import BLS_MODULUS, bytes_to_bls_field
+from ethereum.crypto.kzg import (
+    BLS_MODULUS,
+    KZGCommitment,
+    bytes_to_bls_field,
+    kzg_commitment_to_versioned_hash,
+)
 from ethereum_types.bytes import Bytes, Bytes32
 from hypothesis import example, given
 from hypothesis import strategies as st
@@ -45,3 +50,10 @@ def test_is_point_at_infinity(cairo_run, z1: U384, z2: Optional[U384]):
     assert cairo_run("is_point_at_infinity", z1, z2) == is_point_at_infinity(
         int(z1), int(z2) if z2 else None
     )
+
+
+@given(commitment=...)
+def test_kzg_commitment_to_versioned_hash(cairo_run, commitment: KZGCommitment):
+    assert cairo_run(
+        "kzg_commitment_to_versioned_hash", commitment
+    ) == kzg_commitment_to_versioned_hash(commitment)
