@@ -28,16 +28,3 @@ func keccak256{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: Keccak
     tempvar hash = Hash32(value=value);
     return hash;
 }
-
-func Hash32__eq__(a: Hash32, b: Hash32) -> bool {
-    alloc_locals;
-    let false = bool(0);
-    if (a.value.low != b.value.low) {
-        return false;
-    }
-    if (a.value.high != b.value.high) {
-        return false;
-    }
-    let res = bool(1);
-    return res;
-}

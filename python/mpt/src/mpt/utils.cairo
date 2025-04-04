@@ -22,7 +22,6 @@ from starkware.cairo.common.math import assert_not_zero
 from starkware.cairo.common.math_cmp import is_le_felt
 from cairo_core.comparison import is_zero
 from cairo_core.control_flow import raise
-from ethereum.crypto.hash import Hash32__eq__
 
 from ethereum.utils.numeric import U256__eq__
 from mpt.types import (
