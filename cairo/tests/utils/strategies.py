@@ -432,6 +432,19 @@ evm = st.builds(
 )
 
 
+@st.composite
+def account_strategy_callable(draw, *args, **kwargs):
+    account_code = draw(code)
+    return draw(
+        st.builds(
+            Account,
+            code=st.just(account_code),
+            code_hash=st.just(keccak256(account_code)),
+            **kwargs,
+        )
+    )
+
+
 # Take the EMPTY_TRIE_HASH value by default. This will be built in the state strategy, based on the storage tries.
 account_strategy = code.flatmap(
     lambda account_code: st.builds(
@@ -527,9 +540,9 @@ def state_strategy(draw):
             _data=st.fixed_dictionaries(
                 {
                     address: (
-                        st.builds(
-                            Account,
-                            storage_root=st.just(compute_root(_storage_tries[address])),
+                        # Note: calling st.builds(Account) here would generate a wrong codehash - so I explicitly call a callable strategy.
+                        account_strategy_callable(
+                            storage_root=st.just(compute_root(_storage_tries[address]))
                         )
                         if address in _storage_tries.keys()
                         else account_strategy
