@@ -1,8 +1,8 @@
-use std::collections::HashMap;
 use cairo_vm::{
     serde::deserialize_program::{Identifier, Member},
     types::relocatable::{MaybeRelocatable, Relocatable},
 };
+use std::collections::HashMap;
 
 /// Represents the different types of Cairo variables that can be accessed in hints.
 #[derive(Debug, Clone)]
@@ -99,10 +99,7 @@ pub fn create_var_type(
                             size: 2,
                         });
                     }
-                    return Err(format!(
-                        "Could not get struct info for type '{}'",
-                        base_type
-                    ));
+                    return Err(format!("Could not get struct info for type '{}'", base_type));
                 }
             }
         };
@@ -115,4 +112,4 @@ pub fn create_var_type(
     }
 
     Ok(CairoVarType::Struct { name: type_name.to_string(), members: HashMap::new(), size: 1 })
-} 
+}

@@ -44,7 +44,9 @@
 //! ```
 use std::collections::HashMap;
 
-use cairo_addons_lib::vm::vm_consts::{CairoVar, CairoVarType, create_var_type, get_struct_info_from_identifiers};
+use cairo_addons_lib::vm::vm_consts::{
+    create_var_type, get_struct_info_from_identifiers, CairoVar, CairoVarType,
+};
 use cairo_vm::{
     hint_processor::{
         builtin_hint_processor::hint_utils::{

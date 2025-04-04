@@ -53,10 +53,7 @@ impl Hint {
             + Sync
             + 'static,
     ) -> Self {
-        Self {
-            name,
-            func: Rc::new(HintFunc(Box::new(func))),
-        }
+        Self { name, func: Rc::new(HintFunc(Box::new(func))) }
     }
 
     /// Execute the hint with the given parameters
@@ -81,9 +78,7 @@ pub struct HintCollection {
 impl HintCollection {
     /// Create a new empty hint collection
     pub fn new() -> Self {
-        Self {
-            hints: HashMap::new(),
-        }
+        Self { hints: HashMap::new() }
     }
 
     /// Add a hint to the collection
@@ -108,10 +103,7 @@ impl HintCollection {
     ) -> Result<(), HintError> {
         match self.get_hint(name) {
             Some(func) => (func.0)(vm, exec_scopes, ids_data, ap_tracking, constants),
-            None => Err(HintError::CustomHint(Box::from(format!(
-                "Hint not found: {}",
-                name
-            )))),
+            None => Err(HintError::CustomHint(Box::from(format!("Hint not found: {}", name)))),
         }
     }
 }

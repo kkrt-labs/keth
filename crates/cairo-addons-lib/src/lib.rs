@@ -1,27 +1,36 @@
 use crate::vm::hints::HintProcessor;
+use bincode::enc::write::Writer;
+use cairo_air::verifier::verify_cairo;
 use cairo_vm::{
-    cairo_run::{self, write_encoded_memory, write_encoded_trace, CairoRunConfig},
-    types::{program::Program, layout_name::LayoutName, exec_scope::ExecutionScopes},
     air_private_input::{AirPrivateInput, PrivateInput},
-    types::builtin_name::BuiltinName,
+    cairo_run::{self, write_encoded_memory, write_encoded_trace, CairoRunConfig},
     hint_processor::builtin_hint_processor::dict_manager::DictManager,
     serde::deserialize_program::Identifier,
+    types::{
+        builtin_name::BuiltinName, exec_scope::ExecutionScopes, layout_name::LayoutName,
+        program::Program,
+    },
 };
-use pyo3::{prelude::*, types::PyDict, PyErr};
-use std::{io::{self, Write}, fs::File, path::PathBuf, collections::HashMap};
-use tracing_subscriber::fmt::format::FmtSpan;
-use tracing_subscriber::EnvFilter;
+use pyo3::{
+    prelude::*,
+    types::{IntoPyDict, PyDict},
+    PyErr,
+};
+use std::{
+    cell::RefCell,
+    collections::HashMap,
+    ffi::CString,
+    fs::File,
+    io::{self, Write},
+    path::PathBuf,
+    rc::Rc,
+};
 use stwo_cairo_adapter::ExecutionResources as ProverExecutionResources;
 use stwo_cairo_prover::{
     prover::{default_prod_prover_parameters, prove_cairo, ProverParameters},
     stwo_prover::core::vcs::blake2_merkle::Blake2sMerkleChannel,
 };
-use cairo_air::verifier::verify_cairo;
-use bincode::enc::write::Writer;
-use pyo3::types::IntoPyDict;
-use std::ffi::CString;
-use std::rc::Rc;
-use std::cell::RefCell;
+use tracing_subscriber::{fmt::format::FmtSpan, EnvFilter};
 
 pub mod vm;
 
@@ -61,9 +70,7 @@ struct SerializableAirPrivateInput {
 
 impl From<AirPrivateInput> for SerializableAirPrivateInput {
     fn from(input: AirPrivateInput) -> Self {
-        Self {
-            builtins: input.0,
-        }
+        Self { builtins: input.0 }
     }
 }
 
@@ -273,4 +280,4 @@ except Exception as e:
     std::fs::write(&air_private_input, json)?;
 
     Ok(())
-} 
+}

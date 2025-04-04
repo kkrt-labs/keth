@@ -37,7 +37,8 @@ fn main() -> PyResult<()> {
             false,
             None,
             false,
-        ).expect("Failed to run proof mode");
+        )
+        .expect("Failed to run proof mode");
         println!("Rust run_proof_mode done");
 
         Ok(())

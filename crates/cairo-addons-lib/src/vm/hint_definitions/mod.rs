@@ -18,4 +18,4 @@ pub use ethereum::HINTS as ETHEREUM_HINTS;
 pub use hashdict::HINTS as HASHDICT_HINTS;
 pub use maths::HINTS as MATHS_HINTS;
 pub use precompiles::HINTS as PRECOMPILES_HINTS;
-pub use utils::HINTS as UTILS_HINTS; 
+pub use utils::HINTS as UTILS_HINTS;

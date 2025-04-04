@@ -1,6 +1,6 @@
 use cairo_vm::{
     hint_processor::hint_processor_definition::HintReference,
-    serde::deserialize_program::{ApTracking},
+    serde::deserialize_program::ApTracking,
     types::exec_scope::ExecutionScopes,
     vm::{errors::hint_errors::HintError, vm_core::VirtualMachine},
     Felt252,
@@ -187,14 +187,7 @@ pub fn generic_python_hint() -> Hint {
 
             // Execute the Python code
             locked_executor
-                .execute_hint(
-                    &hint_code,
-                    vm,
-                    exec_scopes,
-                    ids_data,
-                    ap_tracking,
-                    constants,
-                )
+                .execute_hint(&hint_code, vm, exec_scopes, ids_data, ap_tracking, constants)
                 .map_err(|e| HintError::CustomHint(Box::from(e.to_string())))
         },
     )
@@ -253,4 +246,4 @@ def gen_arg() -> None:
     pub fn build(self) -> String {
         self.code_parts.join("\n")
     }
-} 
+}
