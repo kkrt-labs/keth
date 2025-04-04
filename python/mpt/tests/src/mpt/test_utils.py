@@ -13,10 +13,10 @@ from hypothesis import strategies as st
 from cairo_addons.testing.errors import strict_raises
 from cairo_addons.testing.hints import patch_hint
 from mpt.utils import check_branch_node, nibble_list_to_bytes
-from tests.utils.args_gen import AddressAccountNodeDiffEntry, StorageDiffEntry
+from tests.utils.args_gen import AddressAccountDiffEntry, StorageDiffEntry
 
 list_address_account_node_diff_entry_strategy = st.lists(
-    st.from_type(AddressAccountNodeDiffEntry),
+    st.from_type(AddressAccountDiffEntry),
     min_size=0,
     max_size=10,
     unique_by=lambda x: x.key,
@@ -24,7 +24,7 @@ list_address_account_node_diff_entry_strategy = st.lists(
 
 
 list_address_account_node_diff_entry_strategy_min_size_2 = st.lists(
-    st.from_type(AddressAccountNodeDiffEntry),
+    st.from_type(AddressAccountDiffEntry),
     min_size=2,
     max_size=10,
     unique_by=lambda x: x.key,
@@ -39,7 +39,7 @@ list_storage_diff_entry_strategy = st.lists(
 
 @st.composite
 def list_address_account_node_diff_entry_strategy_with_duplicates(draw):
-    """Creates a list of AddressAccountNodeDiffEntry with duplicates"""
+    """Creates a list of AddressAccountDiffEntry with duplicates"""
     data = draw(list_address_account_node_diff_entry_strategy_min_size_2)
     data[0] = data[1]
     return data
@@ -108,9 +108,7 @@ ids.second_non_null_index = 1
                 cairo_run_py("check_branch_node", branch_node)
 
     @given(data=list_address_account_node_diff_entry_strategy)
-    def test_sort_account_diff(
-        self, cairo_run, data: List[AddressAccountNodeDiffEntry]
-    ):
+    def test_sort_account_diff(self, cairo_run, data: List[AddressAccountDiffEntry]):
         sorted_data = sorted(
             data, key=lambda x: int.from_bytes(x.key, "little"), reverse=True
         )
@@ -119,7 +117,7 @@ ids.second_non_null_index = 1
 
     @given(data=list_address_account_node_diff_entry_strategy_min_size_2)
     def test_sort_account_diff_should_fail_if_not_descending_order(
-        self, cairo_programs, cairo_run_py, data: List[AddressAccountNodeDiffEntry]
+        self, cairo_programs, cairo_run_py, data: List[AddressAccountDiffEntry]
     ):
         with patch_hint(
             cairo_programs,
@@ -149,7 +147,7 @@ segments.load_data(ids.sorted_to_original_index_map, sorted_to_original_index_ma
 
     @given(data=list_address_account_node_diff_entry_strategy_min_size_2)
     def test_sort_account_diff_different_lists(
-        self, cairo_programs, cairo_run_py, data: List[AddressAccountNodeDiffEntry]
+        self, cairo_programs, cairo_run_py, data: List[AddressAccountDiffEntry]
     ):
         with patch_hint(
             cairo_programs,
@@ -176,7 +174,7 @@ segments.load_data(ids.sorted_to_original_index_map, sorted_to_original_index_ma
 
     @given(data=list_address_account_node_diff_entry_strategy_with_duplicates())
     def test_sort_account_diff_sorted_list_with_duplicates(
-        self, cairo_run, data: List[AddressAccountNodeDiffEntry]
+        self, cairo_run, data: List[AddressAccountDiffEntry]
     ):
 
         with strict_raises(
@@ -186,7 +184,7 @@ segments.load_data(ids.sorted_to_original_index_map, sorted_to_original_index_ma
 
     @given(data=list_address_account_node_diff_entry_strategy_min_size_2)
     def test_sort_account_diff_sorted_list_too_short(
-        self, cairo_programs, cairo_run_py, data: List[AddressAccountNodeDiffEntry]
+        self, cairo_programs, cairo_run_py, data: List[AddressAccountDiffEntry]
     ):
         with patch_hint(
             cairo_programs,

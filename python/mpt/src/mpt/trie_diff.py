@@ -5,7 +5,7 @@ from functools import partial
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional, Tuple, Union
 
-from ethereum.cancun.fork_types import Address
+from ethereum.cancun.fork_types import Account, Address
 from ethereum.cancun.trie import BranchNode, ExtensionNode, InternalNode, LeafNode
 from ethereum.crypto.hash import Hash32
 from ethereum_rlp import rlp
@@ -15,7 +15,6 @@ from ethereum_types.numeric import U256, Uint
 
 from mpt.ethereum_tries import EthereumTrieTransitionDB
 from mpt.utils import (
-    AccountNode,
     check_branch_node,
     deserialize_to_internal_node,
     nibble_list_to_bytes,
@@ -30,8 +29,8 @@ class StateDiff:
     Contains all information that is preserved between transactions.
     """
 
-    _main_trie: Dict[Address, Tuple[Optional[AccountNode], Optional[AccountNode]]] = (
-        field(default_factory=dict)
+    _main_trie: Dict[Address, Tuple[Optional[Account], Optional[Account]]] = field(
+        default_factory=dict
     )
     _storage_tries: Dict[
         Address, Tuple[Dict[Bytes32, Optional[U256]], Dict[Bytes32, Optional[U256]]]
@@ -61,11 +60,14 @@ class StateDiff:
                 pre_nonce = Uint(int(diff["preAccount"]["nonce"][2:], 16))
                 pre_code_hash = Hash32.fromhex(diff["preAccount"]["codeHash"][2:])
                 pre_storage_hash = Hash32.fromhex(diff["preAccount"]["storageHash"][2:])
-                pre_account = AccountNode(
+                # Explicitly instantiate without code, as it's not an interesting data in the
+                # case of state / trie diffs
+                pre_account = Account(
                     nonce=pre_nonce,
                     balance=pre_balance,
                     code_hash=pre_code_hash,
                     storage_root=pre_storage_hash,
+                    code=None,
                 )
             else:
                 pre_account = None
@@ -77,11 +79,12 @@ class StateDiff:
                 post_storage_hash = Hash32.fromhex(
                     diff["postAccount"]["storageHash"][2:]
                 )
-                post_account = AccountNode(
+                post_account = Account(
                     nonce=post_nonce,
                     balance=post_balance,
                     code_hash=post_code_hash,
                     storage_root=post_storage_hash,
+                    code=None,
                 )
             else:
                 post_account = None
@@ -430,8 +433,8 @@ class StateDiff:
         self, path: Bytes32, left: Optional[LeafNode], right: Optional[LeafNode]
     ):
         address = self._address_preimages[path]
-        left_account = None if left is None else AccountNode.from_rlp(left.value)
-        right_account = None if right is None else AccountNode.from_rlp(right.value)
+        left_account = None if left is None else Account.from_rlp(left.value)
+        right_account = None if right is None else Account.from_rlp(right.value)
 
         self._main_trie[address] = (left_account, right_account)
 

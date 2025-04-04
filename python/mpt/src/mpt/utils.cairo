@@ -28,9 +28,9 @@ from mpt.types import (
     AccountDiff,
     StorageDiff,
     AccountDiffStruct,
-    AddressAccountNodeDiffEntry,
-    AddressAccountNodeDiffEntryStruct,
-    AccountNode,
+    AddressAccountDiffEntry,
+    AddressAccountDiffEntryStruct,
+    Account,
     StorageDiffStruct,
 )
 
@@ -219,7 +219,7 @@ func sort_account_diff{range_check_ptr}(account_diff: AccountDiff) -> AccountDif
     %{ sort_account_diff %}
 
     tempvar sorted_diff_struct = new AccountDiffStruct(
-        data=cast(buffer, AddressAccountNodeDiffEntry*), len=diffs_len
+        data=cast(buffer, AddressAccountDiffEntry*), len=diffs_len
     );
     local sorted_diff_struct_ptr: AccountDiffStruct* = sorted_diff_struct;
     tempvar range_check_ptr = range_check_ptr;
@@ -238,12 +238,10 @@ func sort_account_diff{range_check_ptr}(account_diff: AccountDiff) -> AccountDif
     with_attr error_message(
             "ValueError: Sorted element does not match original element at hint index") {
         let original_index = [sorted_to_original_index_map + loop_counter];
-        tempvar original_entry: AddressAccountNodeDiffEntry = original_diff_struct_ptr.data[
+        tempvar original_entry: AddressAccountDiffEntry = original_diff_struct_ptr.data[
             original_index
         ];
-        tempvar sorted_entry: AddressAccountNodeDiffEntry = sorted_diff_struct_ptr.data[
-            loop_counter
-        ];
+        tempvar sorted_entry: AddressAccountDiffEntry = sorted_diff_struct_ptr.data[loop_counter];
         // Identical keys & struct pointers at this index
         assert original_entry.value.key.value = sorted_entry.value.key.value;
         assert sorted_entry.value = original_entry.value;

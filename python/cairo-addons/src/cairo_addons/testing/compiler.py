@@ -111,7 +111,7 @@ def get_main_path(cairo_file: Optional[Path]) -> Optional[Tuple[str, ...]]:
     If in `python`, we want to have a path relative to the cairo source - e.g. `python/package/src/<path>`.
     As such we strip the python/**/src prefix from the main_path, which will be used when filling the program identifiers.
 
-    This enables using for example `mpt.trie_diff.AccountNode` instead of `python.mpt.src.mpt.trie_diff.AccountNode`,
+    This enables using for example `mpt.trie_diff.AccountDiffEntry` instead of `python.mpt.src.mpt.trie_diff.AccountDiffEntry`,
     """
     if not cairo_file:
         return None

@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Dict, Mapping, Optional, Tuple, Union
 
 import pytest
-from ethereum.cancun.fork_types import Address
+from ethereum.cancun.fork_types import Account, Address
 from ethereum.cancun.trie import (
     BranchNode,
     ExtensionNode,
@@ -25,7 +25,7 @@ from starkware.cairo.lang.vm.crypto import poseidon_hash_many
 from cairo_addons.utils.uint256 import int_to_uint256
 from mpt.ethereum_tries import EthereumTrieTransitionDB
 from mpt.trie_diff import StateDiff, resolve
-from mpt.utils import AccountNode, decode_node
+from mpt.utils import decode_node
 
 
 @composite
@@ -112,9 +112,7 @@ class TestTrieDiff:
             account_address=None,
         )
 
-        accounts_lookup: Dict[
-            Address, Tuple[Optional[AccountNode], Optional[AccountNode]]
-        ] = {
+        accounts_lookup: Dict[Address, Tuple[Optional[Account], Optional[Account]]] = {
             dict_entry.key: (dict_entry.prev_value, dict_entry.new_value)
             for dict_entry in main_trie_diff_cairo
         }
@@ -179,8 +177,8 @@ class TestTrieDiff:
         self,
         cairo_run,
         address: Address,
-        account_before: Optional[AccountNode],
-        account_after: Optional[AccountNode],
+        account_before: Optional[Account],
+        account_after: Optional[Account],
     ):
         # Python
         path = keccak256(address)
@@ -231,8 +229,8 @@ class TestTrieDiff:
         self,
         cairo_run,
         address: Address,
-        account_before: Optional[AccountNode],
-        account_after: Optional[AccountNode],
+        account_before: Optional[Account],
+        account_after: Optional[Account],
     ):
         path = keccak256(address)
 
@@ -438,19 +436,6 @@ class TestTrieDiff:
             assert cairo_subnode == subnode
             if isinstance(subnode, LeafNode):
                 assert cairo_subnode == expected_leaf_node
-
-
-class TestAccountNode:
-    @given(account_node=...)
-    def test_account_node_rlp(self, cairo_run, account_node: AccountNode):
-        # Python from / to rlp
-        rlp_encoded = account_node.to_rlp()
-        decoded = AccountNode.from_rlp(rlp_encoded)
-        assert decoded == account_node
-
-        # Cairo from rlp
-        cairo_decoded, _ = cairo_run("AccountNode_from_rlp", encoding=rlp_encoded)
-        assert cairo_decoded == account_node
 
 
 class TestTypes:

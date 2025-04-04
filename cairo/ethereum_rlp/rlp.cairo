@@ -8,6 +8,7 @@ from ethereum_types.numeric import Bool, U256, Uint, U64, U256Struct, bool
 from ethereum_types.bytes import (
     Bytes,
     Bytes0,
+    OptionalBytes,
     BytesStruct,
     Bytes8,
     Bytes32,
@@ -30,6 +31,7 @@ from ethereum.cancun.blocks import (
 from ethereum.cancun.fork_types import (
     Address,
     Account,
+    AccountStruct,
     Bloom,
     Address_from_felt_be,
     TupleVersionedHash,
@@ -59,7 +61,7 @@ from ethereum.utils.numeric import (
     Uint_from_be_bytes,
     U64_from_be_bytes,
 )
-from ethereum.utils.bytes import Bytes8_to_Bytes, Bytes__eq__
+from ethereum.utils.bytes import Bytes8_to_Bytes, Bytes__eq__, Bytes_to_Bytes32
 from cairo_core.comparison import is_zero
 from legacy.utils.array import reverse
 from legacy.utils.bytes import (
@@ -2192,4 +2194,41 @@ func U256_from_rlp{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(encoding: Byte
 
     let res = U256_from_be_bytes(decoded_bytes);
     return res;
+}
+
+// @notice Decodes the RLP encoded representation of an account.
+// @dev Extracts nonce, balance, code hash, and storage root from the RLP sequence.
+// @param encoding The RLP encoded bytes of the account node.
+// @return account The decoded Account - with an empty `code` field.
+// @return storage_root_bytes The storage root as Bytes, needed for storage diff computation.
+func Account_from_rlp{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(encoding: Bytes) -> (
+    account: Account, storage_root_bytes: Bytes
+) {
+    alloc_locals;
+
+    let decoded = decode(encoding);
+
+    let sequence = decoded.value.sequence;
+    let len = sequence.value.len;
+    let data = sequence.value.data;
+
+    let nonce_bytes = data[0].value.bytes;
+    let balance_bytes = data[1].value.bytes;
+    let storage_root_bytes = data[2].value.bytes;
+    let codehash_bytes = data[3].value.bytes;
+
+    let balance = U256_from_be_bytes(balance_bytes);
+    let codehash = Bytes_to_Bytes32(codehash_bytes);
+    let nonce = Uint_from_be_bytes(nonce_bytes);
+    let storage_root = Bytes_to_Bytes32(storage_root_bytes);
+
+    let none = OptionalBytes(cast(0, BytesStruct*));
+
+    tempvar res = Account(
+        new AccountStruct(
+            nonce=nonce, balance=balance, code_hash=codehash, storage_root=storage_root, code=none
+        ),
+    );
+
+    return (res, storage_root_bytes);
 }

@@ -385,3 +385,21 @@ class TestRlp:
             eq_py = (left == right) and type(left) is type(right)
             eq_cairo = cairo_run("Extended__eq__", left, right)
             assert eq_py == eq_cairo
+
+    class TestAccount:
+        @given(account=...)
+        def test_account_rlp(self, cairo_run, account: Account):
+            # Python from / to rlp
+            rlp_encoded = account.to_rlp()
+            decoded = Account.from_rlp(rlp_encoded)
+            # Note: rlp decoding does not include the code, so we don't compare it.
+            assert decoded.nonce == account.nonce
+            assert decoded.balance == account.balance
+            assert decoded.storage_root == account.storage_root
+            assert decoded.code_hash == account.code_hash
+            # RLP decoding should never yield a code, as it's not part of the RLP encoding.
+            assert decoded.code is None
+
+            # Cairo from rlp
+            cairo_decoded, _ = cairo_run("Account_from_rlp", encoding=rlp_encoded)
+            assert cairo_decoded == decoded

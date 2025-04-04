@@ -6,7 +6,7 @@ from ethereum.cancun.trie import (
     BranchNode,
     SequenceExtended,
 )
-from ethereum.cancun.fork_types import Address, HashedTupleAddressBytes32
+from ethereum.cancun.fork_types import Address, HashedTupleAddressBytes32, Account
 from ethereum_types.numeric import U256, Uint, Bool
 from ethereum.crypto.hash import Hash32
 
@@ -63,7 +63,7 @@ struct AccountDiff {
     value: AccountDiffStruct*,
 }
 struct AccountDiffStruct {
-    data: AddressAccountNodeDiffEntry*,
+    data: AddressAccountDiffEntry*,
     len: felt,
 }
 
@@ -85,26 +85,14 @@ struct StorageDiffEntryStruct {
     new_value: U256,
 }
 
-// AccountNode is the format of
-// the account inside the Ethereum state MPT
-struct AccountNode {
-    value: AccountNodeStruct*,
-}
-struct AccountNodeStruct {
-    nonce: Uint,
-    balance: U256,
-    code_hash: Hash32,
-    storage_root: Hash32,
-}
-
-struct AddressAccountNodeDiffEntryStruct {
+struct AddressAccountDiffEntryStruct {
     key: Address,
-    prev_value: AccountNode,
-    new_value: AccountNode,
+    prev_value: Account,
+    new_value: Account,
 }
 
-struct AddressAccountNodeDiffEntry {
-    value: AddressAccountNodeDiffEntryStruct*,
+struct AddressAccountDiffEntry {
+    value: AddressAccountDiffEntryStruct*,
 }
 
 // Union of InternalNode (union type) and Extended (union type)

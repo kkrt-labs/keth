@@ -44,6 +44,8 @@ ethereum.cancun.fork_types.EMPTY_ACCOUNT = EMPTY_ACCOUNT
 ethereum.cancun.fork_types.encode_account = encode_account
 ethereum.cancun.trie.Node = Node
 ethereum_rlp.rlp.Extended = Union[Sequence["Extended"], bytearray, bytes, Uint, FixedUnsigned, str, bool]  # type: ignore # noqa: F821
+mpt.ethereum_tries.Account = Account
+mpt.trie_diff.Account = Account
 
 # See explanation in conftest.py. Lots of EELS modules import `Account` and `EMPTY_ACCOUNT` from `ethereum.cancun.fork_types`.
 # I think these modules get loaded before this patch is applied. Thus we must replace them manually.
@@ -54,6 +56,8 @@ setattr(ethereum.cancun.state, "EMPTY_ACCOUNT", EMPTY_ACCOUNT)
 setattr(ethereum.cancun.fork_types, "EMPTY_ACCOUNT", EMPTY_ACCOUNT)
 setattr(ethereum.cancun.vm.instructions.environment, "EMPTY_ACCOUNT", EMPTY_ACCOUNT)
 setattr(mpt.utils, "Account", Account)
+setattr(mpt.ethereum_tries, "Account", Account)
+setattr(mpt.trie_diff, "Account", Account)
 setattr(ethereum.cancun.trie, "Node", Node)
 
 from ethereum.cancun.blocks import Block, Withdrawal  # noqa
