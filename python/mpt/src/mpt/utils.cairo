@@ -20,7 +20,7 @@ from ethereum.utils.bytes import Bytes__eq__
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.math import assert_not_zero
 from starkware.cairo.common.math_cmp import is_le_felt
-from cairo_core.comparison import is_zero
+from cairo_core.comparison import is_zero, is_not_zero
 from cairo_core.control_flow import raise
 
 from ethereum.utils.numeric import U256__eq__
@@ -190,85 +190,82 @@ func check_branch_node(node: BranchNode) {
     }
     return ();
 }
-
-func sort_account_diff{range_check_ptr}(diff: AccountDiff) -> AccountDiff {
+// @notice Sorts an AccountDiff struct in descending order based on the key.
+// This function implies that the original AccountDiff struct does not contain any duplicate keys.
+// @dev The sorted segment is returned from the hint.
+// Verifications:
+// - The sorted segment is in strict descending order based on the key.
+//    (for all i in [0, diffs_len - 1], sorted_diff_struct.data[i].value.key > sorted_diff_struct.data[i + 1].value.key)
+// - The sorted segment is a permutation of the original segment (
+//    (for all i in [0, diffs_len - 1], exists j in [0, diffs_len - 1] such that sorted_diff_struct.data[i].value.key = original_diff_struct.data[j].value.key)
+//    AND len(sorted_diff_struct) = len(original_diff_struct)
+// @param account_diff The AccountDiff struct to sort.
+// @return The sorted AccountDiff struct.
+func sort_account_diff{range_check_ptr}(account_diff: AccountDiff) -> AccountDiff {
     alloc_locals;
-    // Length of the array
-    let diffs_len = diff.value.len;
+    let diffs_len = account_diff.value.len;
     if (diffs_len == 0) {
-        return diff;
+        // If the input diff is empty, it's already sorted
+        return account_diff;
     }
-
-    let diffs_ptr = diff.value.data;
-    // Buffer to store the sorted entries
+    // Pointer to the original, unsorted data
+    tempvar diffs_ptr = account_diff.value.data;
+    // A map(sorted_index -> original_index) to store the original index corresponding to each entry in the sorted buffer
     let (buffer) = alloc();
-    let (sorted_indexes) = alloc();
+    let (local sorted_to_original_index_map) = alloc();
     %{ sort_account_diff %}
-
-    tempvar sorted_account_diffs = new AccountDiffStruct(
+    tempvar sorted_diff_struct = new AccountDiffStruct(
         data=cast(buffer, AddressAccountNodeDiffEntry*), len=diffs_len
     );
-    local sorted_account_diffs: AccountDiffStruct* = sorted_account_diffs;
-    local sorted_indexes: felt* = sorted_indexes;
-
+    local sorted_diff_struct_ptr: AccountDiffStruct* = sorted_diff_struct;
     tempvar range_check_ptr = range_check_ptr;
-    tempvar i = 0;
-    static_assert i == [ap - 1];
+    tempvar loop_counter = 0;
 
     loop:
     let range_check_ptr = [ap - 2];
-    let i = [ap - 1];
-    let unsorted = cast([fp - 3], AccountDiffStruct*);
-
-    // Check that the sorted array is a permutation of the unsorted array
-    // With corresponding indexes given as oracle
-    with_attr error_message("KeyError") {
-        let sorted_index = [sorted_indexes + i];
-
-        let unsorted_key_at_index = unsorted.data[sorted_index].value.key.value;
-        let sorted_key_at_index = sorted_account_diffs.data[i].value.key.value;
-
-        assert unsorted_key_at_index = sorted_key_at_index;
-        assert sorted_account_diffs.data[i].value = unsorted.data[sorted_index].value;
+    let loop_counter = [ap - 1];
+    let original_diff_struct_ptr = cast([fp - 3], AccountDiffStruct*);
+    // --- Verification Step 1: Permutation Check ---
+    // Ensure that the element at the current sorted position (`loop_counter`)
+    // corresponds exactly to an element from the original array, using the
+    // `original_index` provided by the hint's `original_index_map`.
+    with_attr error_message(
+            "ValueError: Sorted element does not match original element at hint index") {
+        let original_index = [sorted_to_original_index_map + loop_counter];
+        tempvar original_entry: AddressAccountNodeDiffEntry = original_diff_struct_ptr.data[
+            original_index
+        ];
+        tempvar sorted_entry: AddressAccountNodeDiffEntry = sorted_diff_struct_ptr.data[
+            loop_counter
+        ];
+        // Identical keys & struct pointers at this index
+        assert original_entry.value.key.value = sorted_entry.value.key.value;
+        assert sorted_entry.value = original_entry.value;
     }
-
-    // Since len is >= 1 and i starts at 0,
-    // This won't underflow
-    let is_end = is_zero(unsorted.len - i - 1);
-    tempvar i = i + 1;
-    jmp end if is_end != 0;
-
-    // Check that the sorted array is ordered
-
-    // Check that the sorted array is ordered
-    with_attr error_message("ValueError") {
-        // If we are not at the end,
-        // We can access offset i + 1
-        let is_descending_ordered = is_le_felt(
-            sorted_account_diffs.data[i].value.key.value,
-            sorted_account_diffs.data[i - 1].value.key.value,
-        );
-        assert is_descending_ordered = 1;
-        let duplicate_keys = is_zero(
-            sorted_account_diffs.data[i].value.key.value - sorted_account_diffs.data[
-                i - 1
-            ].value.key.value,
-        );
-        assert duplicate_keys = 0;
+    // `diffs_len - loop_counter - 1` is safe because diffs_len >= 1 and loop_counter starts at 0.
+    let is_last_element = is_zero(original_diff_struct_ptr.len - loop_counter - 1);
+    tempvar next_loop_counter = loop_counter + 1;
+    jmp end if is_last_element != 0;
+    // --- Verification Step 2: Ordering Check ---
+    // Ensure that the sorted array is in strict descending order based on the key.
+    // This check is performed for elements from index 1 up to diffs_len - 1.
+    with_attr error_message("ValueError: Array is not sorted in descending order") {
+        let next_key = sorted_diff_struct_ptr.data[next_loop_counter].value.key.value;
+        let previous_key = sorted_diff_struct_ptr.data[loop_counter].value.key.value;
+        let keys_ordered = is_le_felt(next_key, previous_key);
+        let keys_not_equal = is_not_zero(next_key - previous_key);
+        assert keys_ordered * keys_not_equal = 1;
     }
-
     tempvar range_check_ptr = range_check_ptr;
-    tempvar i = i;
-    static_assert i == [ap - 1];
+    tempvar loop_counter = next_loop_counter;
     jmp loop;
 
     end:
-    // Check that the loop has been executed the correct number of times
-    // Such that we know len(sorted) == len(initial_array)
-    let i = [ap - 1];
-    assert i = diffs_len;
-
-    let res = AccountDiff(sorted_account_diffs);
-
-    return res;
+    let final_loop_counter = [ap - 1];
+    // --- Verification Step 3: Loop Count Check ---
+    // Ensure that the loop executed exactly `diffs_len` times, confirming that
+    // all elements were processed and the length of the sorted array matches the original.
+    assert final_loop_counter = diffs_len;
+    let sorted_account_diff = AccountDiff(sorted_diff_struct_ptr);
+    return sorted_account_diff;
 }

@@ -96,7 +96,7 @@ ids.second_non_null_index = 1
         assert cairo_data == sorted_data
 
     @given(data=list_address_account_node_diff_entry_strategy)
-    def test_sort_account_diff_ascending_order(
+    def test_sort_account_diff_should_fail_if_not_descending_order(
         self, cairo_programs, cairo_run_py, data: List[AddressAccountNodeDiffEntry]
     ):
         with patch_hint(
@@ -106,18 +106,21 @@ ids.second_non_null_index = 1
 # Extract the list of pointers directly
 pointers = [memory[ids.diffs_ptr.address_ + i] for i in range(ids.diffs_len)]
 
-# Sort pointers based on the key values they point to, in ascending order
-sorted_pointers = sorted(pointers, key=lambda ptr: memory[ptr])
+# Sort pointers based on the key values they point to, in descending order
+sorted_pointers = sorted(pointers, key=lambda ptr: memory[ptr], reverse=True)
 
-# Load the sorted pointers into ids.buffer
+# Invert the order of the last two elements
+sorted_pointers[-2], sorted_pointers[-1] = sorted_pointers[-1], sorted_pointers[-2]
 segments.load_data(ids.buffer, sorted_pointers)
 
 indices = list(range(ids.diffs_len))
-sorted_indices = sorted(indices, key=lambda i: memory[pointers[i]], reverse=True)
-segments.load_data(ids.sorted_indexes, sorted_indices)
+sorted_to_original_index_map = sorted(indices, key=lambda i: memory[pointers[i]], reverse=True)
+segments.load_data(ids.sorted_to_original_index_map, sorted_to_original_index_map)
             """,
         ):
-            with strict_raises(KeyError):
+            with strict_raises(
+                Exception, match="ValueError: Array is not sorted in descending order"
+            ):
                 cairo_run_py("sort_account_diff", data)
 
     @given(data=list_address_account_node_diff_entry_strategy)
@@ -130,20 +133,20 @@ segments.load_data(ids.sorted_indexes, sorted_indices)
             """
 # Extract the list of pointers directly
 pointers = [memory[ids.diffs_ptr.address_ + i] for i in range(ids.diffs_len)]
+sorted_pointers = sorted(pointers, key=lambda ptr: memory[ptr], reverse=True)
 
-# Sort pointers based on the key values they point to, in ascending order
-sorted_pointers = sorted(pointers, key=lambda ptr: memory[ptr])
+# BAD HINT: not a permutation of the input list
+sorted_pointers[-1] += 1
 
-# Load the sorted pointers into ids.buffer
-# Repeat the first element n times to create a different list
-first_element = sorted_pointers[0]
-repeated_list = [first_element] * ids.diffs_len
-segments.load_data(ids.buffer, repeated_list)
+segments.load_data(ids.buffer, sorted_pointers)
 
 indices = list(range(ids.diffs_len))
-sorted_indices = sorted(indices, key=lambda i: memory[pointers[i]], reverse=True)
-segments.load_data(ids.sorted_indexes, sorted_indices)
+sorted_to_original_index_map = sorted(indices, key=lambda i: memory[pointers[i]], reverse=True)
+segments.load_data(ids.sorted_to_original_index_map, sorted_to_original_index_map)
             """,
         ):
-            with strict_raises(ValueError):
+            with strict_raises(
+                Exception,
+                match="ValueError: Sorted element does not match original element at hint index",
+            ):
                 cairo_run_py("sort_account_diff", data)

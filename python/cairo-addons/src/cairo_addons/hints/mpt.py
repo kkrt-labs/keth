@@ -60,4 +60,4 @@ def sort_account_diff(
 
     indices = list(range(ids.diffs_len))
     sorted_indices = sorted(indices, key=lambda i: memory[pointers[i]], reverse=True)
-    segments.load_data(ids.sorted_indexes, sorted_indices)
+    segments.load_data(ids.sorted_to_original_index_map, sorted_indices)

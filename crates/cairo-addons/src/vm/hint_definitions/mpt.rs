@@ -167,7 +167,7 @@ pub fn sort_account_diff() -> Hint {
 
             // Load sorted indexes into sorted_indexes
             let sorted_indexes_ptr =
-                get_ptr_from_var_name("sorted_indexes", vm, ids_data, ap_tracking)?;
+                get_ptr_from_var_name("sorted_to_original_index_map", vm, ids_data, ap_tracking)?;
             for (i, idx) in sorted_indices.iter().enumerate() {
                 vm.insert_value((sorted_indexes_ptr + i)?, Felt252::from(*idx))?;
             }
