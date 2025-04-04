@@ -847,13 +847,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cairo-run"
-version = "0.1.0"
-dependencies = [
- "pyo3",
-]
-
-[[package]]
 name = "cairo-vm"
 version = "2.0.1"
 source = "git+https://github.com/kkrt-labs/cairo-vm?rev=008360a818ac3cecb51666d89e68abaf4fe8e151#008360a818ac3cecb51666d89e68abaf4fe8e151"
@@ -2195,6 +2188,13 @@ checksum = "505d1856a39b200489082f90d897c3f07c455563880bc5952e38eabf731c83b6"
 dependencies = [
  "digest 0.10.7",
  "sha3-asm",
+]
+
+[[package]]
+name = "keth-run"
+version = "0.1.0"
+dependencies = [
+ "pyo3",
 ]
 
 [[package]]
