@@ -191,7 +191,7 @@ func check_branch_node(node: BranchNode) {
     return ();
 }
 
-func sort_AccountDiff{range_check_ptr}(diff: AccountDiff) -> AccountDiff {
+func sort_account_diff{range_check_ptr}(diff: AccountDiff) -> AccountDiff {
     alloc_locals;
     // Length of the array
     let diffs_len = diff.value.len;

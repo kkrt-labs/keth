@@ -85,7 +85,7 @@ ids.second_non_null_index = 1
         sorted_data = sorted(
             data, key=lambda x: int.from_bytes(x.key, "little"), reverse=True
         )
-        cairo_data = cairo_run("sort_AccountDiff", data)
+        cairo_data = cairo_run("sort_account_diff", data)
         assert cairo_data == sorted_data
 
     @given(data=...)
@@ -105,14 +105,13 @@ sorted_pointers = sorted(pointers, key=lambda ptr: memory[ptr])
 # Load the sorted pointers into ids.buffer
 segments.load_data(ids.buffer, sorted_pointers)
 
-# Optionally, compute and load the sorted indices if required
 indices = list(range(ids.diffs_len))
 sorted_indices = sorted(indices, key=lambda i: memory[pointers[i]], reverse=True)
 segments.load_data(ids.sorted_indexes, sorted_indices)
             """,
         ):
             with strict_raises(ValueError):
-                cairo_run_py("sort_AccountDiff", data)
+                cairo_run_py("sort_account_diff", data)
 
     @given(data=...)
     def test_sort_account_diff_different_lists(
@@ -134,11 +133,10 @@ first_element = sorted_pointers[0]
 repeated_list = [first_element] * ids.diffs_len
 segments.load_data(ids.buffer, repeated_list)
 
-# Optionally, compute and load the sorted indices if required
 indices = list(range(ids.diffs_len))
 sorted_indices = sorted(indices, key=lambda i: memory[pointers[i]], reverse=True)
 segments.load_data(ids.sorted_indexes, sorted_indices)
             """,
         ):
             with strict_raises(KeyError):
-                cairo_run_py("sort_AccountDiff", data)
+                cairo_run_py("sort_account_diff", data)
