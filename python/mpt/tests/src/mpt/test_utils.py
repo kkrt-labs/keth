@@ -151,3 +151,55 @@ segments.load_data(ids.sorted_to_original_index_map, sorted_to_original_index_ma
                 match="ValueError: Sorted element does not match original element at hint index",
             ):
                 cairo_run_py("sort_account_diff", data)
+
+    @given(data=list_address_account_node_diff_entry_strategy)
+    def test_sort_account_diff_sorted_list_with_duplicates(
+        self, cairo_programs, cairo_run_py, data: List[AddressAccountNodeDiffEntry]
+    ):
+        with patch_hint(
+            cairo_programs,
+            "sort_account_diff",
+            """
+# Extract the list of pointers directly
+pointers = [memory[ids.diffs_ptr.address_ + i] for i in range(ids.diffs_len)]
+sorted_pointers = sorted(pointers, key=lambda ptr: memory[ptr], reverse=True)
+sorted_pointers[0] = sorted_pointers[1]
+
+segments.load_data(ids.buffer, sorted_pointers)
+
+indices = list(range(ids.diffs_len))
+sorted_to_original_index_map = sorted(indices, key=lambda i: memory[pointers[i]], reverse=True)
+sorted_to_original_index_map[0] = sorted_to_original_index_map[1]
+segments.load_data(ids.sorted_to_original_index_map, sorted_to_original_index_map)
+            """,
+        ):
+
+            with strict_raises(
+                Exception, match="ValueError: Array is not sorted in descending order"
+            ):
+                cairo_run_py("sort_account_diff", data)
+
+    @given(data=list_address_account_node_diff_entry_strategy)
+    def test_sort_account_diff_sorted_list_too_short(
+        self, cairo_programs, cairo_run_py, data: List[AddressAccountNodeDiffEntry]
+    ):
+        with patch_hint(
+            cairo_programs,
+            "sort_account_diff",
+            """
+# Extract the list of pointers directly
+pointers = [memory[ids.diffs_ptr.address_ + i] for i in range(ids.diffs_len)]
+sorted_pointers = sorted(pointers, key=lambda ptr: memory[ptr], reverse=True)
+sorted_pointers = sorted_pointers[:-1]
+
+segments.load_data(ids.buffer, sorted_pointers)
+
+indices = list(range(ids.diffs_len))
+sorted_to_original_index_map = sorted(indices, key=lambda i: memory[pointers[i]], reverse=True)
+sorted_to_original_index_map = sorted_to_original_index_map[:-1]
+segments.load_data(ids.sorted_to_original_index_map, sorted_to_original_index_map)
+            """,
+        ):
+
+            with strict_raises(Exception):
+                cairo_run_py("sort_account_diff", data)
