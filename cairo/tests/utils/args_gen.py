@@ -308,6 +308,7 @@ class Account:
         return all(
             getattr(self, field.name) == getattr(other, field.name)
             for field in fields(self)
+            if field.name != "storage_root"
         )
 
     def hash_args(self) -> List[int]:
