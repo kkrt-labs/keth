@@ -100,7 +100,15 @@ NO_ERROR_FLAG = object()
 
 
 class DictConsistencyError(Exception):
-    pass
+    def __init__(
+        self, dict_access_path: Tuple[str, ...], dict_ptr: int, dict_ptr_value: int
+    ):
+        self.dict_access_path = dict_access_path
+        self.dict_ptr = dict_ptr
+        self.dict_ptr_value = dict_ptr_value
+
+    def __str__(self):
+        return f"Dict consistency error: {self.dict_access_path}, dict_ptr: {self.dict_ptr}, dict_ptr_value: {self.dict_ptr_value}"
 
 
 def get_struct_definition(
@@ -571,7 +579,11 @@ class Serde:
         # We need to ensure that the last dict_ptr points properly
         # since they might have been updated by reading the `original_storage_trie` field of the state.
         if check_dict_consistency and self.memory.get(pointers["dict_ptr"]) is not None:
-            raise DictConsistencyError()
+            raise DictConsistencyError(
+                dict_access_path,
+                pointers["dict_ptr"],
+                self.memory.get(pointers["dict_ptr"]),
+            )
 
         dict_segment_data = {
             self._serialize(cairo_key_type, dict_ptr + i): self._serialize(
@@ -964,11 +976,10 @@ class Serde:
             except UnknownMemoryError:
                 break
             except DictConsistencyError as e:
-                raise DictConsistencyError(
-                    f"Dict consistency error in {item_path}"
-                ) from e
+                added_info = f"While serializing item {item_path}"
+                raise Exception(f"{e}\n{added_info}")
             except Exception as e2:
-                raise (e2)
+                raise e2
                 # TODO: handle this better as only UnknownMemoryError is expected
                 # when accessing invalid memory
         return output
