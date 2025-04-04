@@ -361,12 +361,6 @@ class Account:
 
 
 def encode_account(raw_account_data: Account, storage_root: Bytes) -> Bytes:
-    """
-    Encode `Account` dataclass.
-
-    Storage is not stored in the `Account` dataclass, so `Accounts` cannot be
-    encoded without providing a storage root.
-    """
     from ethereum_rlp import rlp
 
     return rlp.encode(
@@ -374,9 +368,23 @@ def encode_account(raw_account_data: Account, storage_root: Bytes) -> Bytes:
             raw_account_data.nonce,
             raw_account_data.balance,
             storage_root,
+            # Modified to use code_hash instead of hash(code)
             raw_account_data.code_hash,
         )
     )
+
+
+def set_code(state: State, address: Address, code: Bytes) -> None:
+    from ethereum.cancun.state import modify_state
+
+    def write_code(sender: Account) -> None:
+        from ethereum.crypto.hash import keccak256
+
+        sender.code = code
+        # Modified to set the code hash as well
+        sender.code_hash = keccak256(code)
+
+    modify_state(state, address, write_code)
 
 
 EMPTY_ACCOUNT = Account(

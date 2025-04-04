@@ -140,6 +140,7 @@ def pytest_configure(config):
         MessageCallOutput,
         Node,
         encode_account,
+        set_code,
     )
 
     # Initialize the tracer
@@ -153,6 +154,7 @@ def pytest_configure(config):
     ethereum.cancun.fork_types.Account = Account
     ethereum.cancun.fork_types.EMPTY_ACCOUNT = EMPTY_ACCOUNT
     ethereum.cancun.fork_types.encode_account = encode_account
+    ethereum.cancun.state.set_code = set_code
     ethereum.cancun.trie.Node = Node
     mpt.ethereum_tries.Account = Account
     mpt.trie_diff.Account = Account
