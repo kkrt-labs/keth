@@ -6,8 +6,7 @@ edition = "2021"
 [lib]
 name = "vm"
 # "cdylib" is necessary to produce a shared library for Python to import from.
-# "rlib" is needed for Rust crate dependencies
-crate-type = ["cdylib", "rlib"]
+crate-type = ["cdylib"]
 
 [dependencies]
 # "extension-module" tells pyo3 we want to build an extension module (skips linking against libpython.so)
@@ -53,3 +52,10 @@ pyo3-build-config = "0.23.3" # Should match pyo3 version
 [features]
 extension-module = ["pyo3/extension-module"]
 default = ["extension-module", "pyo3/experimental-inspect"]
+
+# only needed for the prover example
+[dev-dependencies]
+pyo3-ffi = "^0"
+
+[[example]]
+name = "prover"

@@ -15,7 +15,7 @@ mod pythonic_hint;
 mod relocatable;
 mod relocated_trace;
 mod run_resources;
-pub mod runner;
+mod runner;
 mod stripped_program;
 mod vm_consts;
 

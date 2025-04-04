@@ -3,6 +3,7 @@ use pyo3::types::PyModule;
 use pyo3::types::PyTuple;
 use pyo3_ffi::c_str;
 
+// Run: cargo r -p cairo-addons --bin prover
 fn main() -> PyResult<()> {
     /*
     let program_inputs = Python::with_gil(|py| -> PyResult<Py<PyAny>> {
