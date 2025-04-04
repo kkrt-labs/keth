@@ -153,6 +153,7 @@ def pytest_configure(config):
     ethereum.cancun.fork_types.Account = Account
     ethereum.cancun.fork_types.EMPTY_ACCOUNT = EMPTY_ACCOUNT
     ethereum.cancun.fork_types.encode_account = encode_account
+    mpt.trie_diff.Account = Account
 
     # TODO: Find a better way to do this?
     # See explanation below. Lots of EELS modules import `Account` and `EMPTY_ACCOUNT` from `ethereum.cancun.fork_types`.
@@ -164,7 +165,7 @@ def pytest_configure(config):
     setattr(ethereum.cancun.fork_types, "EMPTY_ACCOUNT", EMPTY_ACCOUNT)
     setattr(ethereum.cancun.vm.instructions.environment, "EMPTY_ACCOUNT", EMPTY_ACCOUNT)
     setattr(mpt.utils, "Account", Account)
-
+    setattr(mpt.trie_diff, "Account", Account)
     ethereum.cancun.trie.Node = Node
     setattr(ethereum.cancun.trie, "Node", Node)
 

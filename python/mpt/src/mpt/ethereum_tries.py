@@ -5,7 +5,7 @@ from functools import partial
 from pathlib import Path
 from typing import Any, Callable, Dict, Mapping
 
-from ethereum.cancun.fork_types import Address
+from ethereum.cancun.fork_types import Account, Address
 from ethereum.cancun.state import State, set_account, set_storage
 from ethereum.cancun.trie import (
     BranchNode,
@@ -18,7 +18,7 @@ from ethereum_rlp import rlp
 from ethereum_types.bytes import Bytes, Bytes20, Bytes32
 from ethereum_types.numeric import U256
 
-from mpt.utils import AccountNode, decode_node, nibble_list_to_bytes
+from mpt.utils import decode_node, nibble_list_to_bytes
 
 logger = logging.getLogger(__name__)
 
@@ -224,17 +224,18 @@ class EthereumTries:
         if address is None:
             return
 
-        account_node = AccountNode.from_rlp(node.value)
-        account_code = self.get_code(account_node.code_hash)
-        account = account_node.to_eels_account(account_code)
+        # RLP-decode the account, then get the code matching the code hash.
+        account = Account.from_rlp(node.value)
+        account_code = self.get_code(account.code_hash)
+        account.code = account_code
 
         set_account(state, address, account)
 
-        if account_node.storage_root == EMPTY_TRIE_HASH:
+        if account.storage_root == EMPTY_TRIE_HASH:
             return
 
         # We need to resolve the storage root of the account
-        storage_root_node = self.nodes.get(account_node.storage_root)
+        storage_root_node = self.nodes.get(account.storage_root)
         if storage_root_node is None:
             return
 

@@ -2,22 +2,15 @@ from starkware.cairo.common.builtin_poseidon.poseidon import poseidon_hash, pose
 from starkware.cairo.common.cairo_builtins import PoseidonBuiltin
 from starkware.cairo.common.alloc import alloc
 from ethereum_types.numeric import U256, U256Struct
-from mpt.trie_diff import (
-    AddressAccountNodeDiffEntry,
-    AccountNode,
-    StorageDiffEntryStruct,
-    StorageDiffEntry,
-)
+from mpt.trie_diff import AddressAccountDiffEntry, Account, StorageDiffEntryStruct, StorageDiffEntry
 
-func poseidon_account_diff{poseidon_ptr: PoseidonBuiltin*}(
-    diff: AddressAccountNodeDiffEntry
-) -> felt {
+func poseidon_account_diff{poseidon_ptr: PoseidonBuiltin*}(diff: AddressAccountDiffEntry) -> felt {
     alloc_locals;
     let (buffer) = alloc();
 
     assert buffer[0] = diff.value.key.value;
 
-    // Inline the prev AccountNode struct as we must hash values, not pointers to values
+    // Inline the prev Account struct as we must hash values, not pointers to values
     assert buffer[1] = diff.value.prev_value.value.nonce.value;
     assert buffer[2] = diff.value.prev_value.value.balance.value.low;
     assert buffer[3] = diff.value.prev_value.value.balance.value.high;
@@ -26,7 +19,7 @@ func poseidon_account_diff{poseidon_ptr: PoseidonBuiltin*}(
     assert buffer[6] = diff.value.prev_value.value.storage_root.value.low;
     assert buffer[7] = diff.value.prev_value.value.storage_root.value.high;
 
-    // Inline the new AccountNode
+    // Inline the new Account
     assert buffer[8] = diff.value.new_value.value.nonce.value;
     assert buffer[9] = diff.value.new_value.value.balance.value.low;
     assert buffer[10] = diff.value.new_value.value.balance.value.high;

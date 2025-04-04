@@ -4,8 +4,8 @@ from mpt.trie_diff import (
     _process_account_diff,
     _process_storage_diff,
     MappingBytes32Address,
-    AddressAccountNodeDiffEntry,
-    AddressAccountNodeDiffEntryStruct,
+    AddressAccountDiffEntry,
+    AddressAccountDiffEntryStruct,
     AccountDiff,
     AccountDiffStruct,
     StorageDiff,
@@ -35,7 +35,7 @@ func test__process_account_diff{
 ) -> AccountDiff {
     alloc_locals;
 
-    let (main_trie_start: AddressAccountNodeDiffEntry*) = alloc();
+    let (main_trie_start: AddressAccountDiffEntry*) = alloc();
     let main_trie_end = main_trie_start;
 
     let (storage_trie_start: StorageDiffEntry*) = alloc();

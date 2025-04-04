@@ -107,11 +107,11 @@ using Bloom = Bytes256;
 struct AccountStruct {
     nonce: Uint,
     balance: U256,
+    code_hash: Bytes32,
+    storage_root: Hash32,
     // An account with no code is an account whose code is not cached yet.
     // An account with empty code would have EMPTY_BYTES as code.
     code: OptionalBytes,
-    storage_root: Hash32,
-    code_hash: Bytes32,
 }
 
 struct Account {
@@ -194,14 +194,14 @@ func EMPTY_ACCOUNT() -> Account {
     let (empty_hash_ptr) = get_label_location(EMPTY_HASH);
     tempvar balance = U256(new U256Struct(0, 0));
     let (data) = alloc();
-    tempvar code = OptionalBytes(new BytesStruct(data=data, len=0));
+    tempvar empty_code = OptionalBytes(new BytesStruct(data=data, len=0));
     tempvar account = Account(
         value=new AccountStruct(
             nonce=Uint(0),
             balance=balance,
-            code=code,
-            storage_root=Hash32(cast(empty_root_ptr, Bytes32Struct*)),
             code_hash=Hash32(cast(empty_hash_ptr, Bytes32Struct*)),
+            storage_root=Hash32(cast(empty_root_ptr, Bytes32Struct*)),
+            code=empty_code,
         ),
     );
     return account;
@@ -230,7 +230,6 @@ func Account__eq__(a: OptionalAccount, b: OptionalAccount) -> bool {
         tempvar res = bool(0);
         return res;
     }
-
     if (a.value.code_hash.value.low != b.value.code_hash.value.low) {
         tempvar res = bool(0);
         return res;

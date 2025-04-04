@@ -252,11 +252,11 @@ func get_account_code{
     // Store it in the state for later retrievals
     tempvar account_with_code = OptionalAccount(
         new AccountStruct(
-            account.value.nonce,
-            account.value.balance,
-            OptionalBytes(account_code.value),
-            account.value.storage_root,
-            account.value.code_hash,
+            nonce=account.value.nonce,
+            balance=account.value.balance,
+            code_hash=account.value.code_hash,
+            storage_root=account.value.storage_root,
+            code=OptionalBytes(account_code.value),
         ),
     );
 
@@ -369,11 +369,11 @@ func increment_nonce{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Addr
     let new_nonce = account.value.nonce.value + 1;
     tempvar new_account = OptionalAccount(
         new AccountStruct(
-            Uint(new_nonce),
-            account.value.balance,
-            account.value.code,
-            account.value.storage_root,
-            account.value.code_hash,
+            nonce=Uint(new_nonce),
+            balance=account.value.balance,
+            code_hash=account.value.code_hash,
+            storage_root=account.value.storage_root,
+            code=account.value.code,
         ),
     );
     set_account(address, new_account);
@@ -978,9 +978,9 @@ func set_code{
         new AccountStruct(
             nonce=account.value.nonce,
             balance=account.value.balance,
-            code=OptionalBytes(code.value),
-            storage_root=account.value.storage_root,
             code_hash=code_hash,
+            storage_root=account.value.storage_root,
+            code=OptionalBytes(code.value),
         ),
     );
 
@@ -998,9 +998,9 @@ func set_account_balance{poseidon_ptr: PoseidonBuiltin*, state: State}(
         new AccountStruct(
             nonce=account.value.nonce,
             balance=amount,
-            code=account.value.code,
-            storage_root=account.value.storage_root,
             code_hash=account.value.code_hash,
+            storage_root=account.value.storage_root,
+            code=account.value.code,
         ),
     );
 
