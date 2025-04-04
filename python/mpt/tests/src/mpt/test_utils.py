@@ -80,10 +80,10 @@ ids.second_non_null_index = 1
 
     @given(data=...)
     def test_sort_account_diff(
-        self, cairo_run_py, data: List[AddressAccountNodeDiffEntry]
+        self, cairo_run, data: List[AddressAccountNodeDiffEntry]
     ):
         sorted_data = sorted(
             data, key=lambda x: int.from_bytes(x.key, "little"), reverse=True
         )
-        cairo_data = cairo_run_py("sort_AccountDiff", data)
+        cairo_data = cairo_run("sort_AccountDiff", data)
         assert cairo_data == sorted_data

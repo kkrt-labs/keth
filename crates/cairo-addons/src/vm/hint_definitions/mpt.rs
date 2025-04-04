@@ -2,7 +2,9 @@ use std::collections::HashMap;
 
 use cairo_vm::{
     hint_processor::{
-        builtin_hint_processor::hint_utils::{get_ptr_from_var_name, insert_value_from_var_name},
+        builtin_hint_processor::hint_utils::{
+            get_integer_from_var_name, get_ptr_from_var_name, insert_value_from_var_name,
+        },
         hint_processor_definition::HintReference,
     },
     serde::deserialize_program::ApTracking,
@@ -14,7 +16,7 @@ use num_traits::Zero;
 
 use crate::vm::hints::Hint;
 
-pub const HINTS: &[fn() -> Hint] = &[find_two_non_null_subnodes];
+pub const HINTS: &[fn() -> Hint] = &[find_two_non_null_subnodes, sort_account_diff];
 
 /// Helper function to check if a pointer to a sequence (like Bytes)
 /// points to a structure with a non-zero length at offset 1.
@@ -111,6 +113,64 @@ pub fn find_two_non_null_subnodes() -> Hint {
                 ids_data,
                 ap_tracking,
             )?;
+
+            Ok(())
+        },
+    )
+}
+
+pub fn sort_account_diff() -> Hint {
+    Hint::new(
+        String::from("sort_account_diff"),
+        |vm: &mut VirtualMachine,
+         _exec_scopes: &mut ExecutionScopes,
+         ids_data: &HashMap<String, HintReference>,
+         ap_tracking: &ApTracking,
+         _constants: &HashMap<String, Felt252>|
+         -> Result<(), HintError> {
+            // Retrieve diffs_ptr and diffs_len
+            let diffs_ptr = get_ptr_from_var_name("diffs_ptr", vm, ids_data, ap_tracking)?;
+            let diffs_len: usize =
+                get_integer_from_var_name("diffs_len", vm, ids_data, ap_tracking)?
+                    .try_into()
+                    .unwrap();
+
+            // Extract pointers
+            let mut pointers: Vec<Relocatable> = (0..diffs_len)
+                .map(|i| vm.get_relocatable((diffs_ptr + i)?))
+                .collect::<Result<Vec<_>, _>>()?;
+
+            pointers.sort_by(|a, b| {
+                let val_a = vm.get_integer(*a).unwrap().into_owned();
+                let val_b = vm.get_integer(*b).unwrap().into_owned();
+                val_b.cmp(&val_a) // Sort in descending order
+            });
+
+            // Load sorted pointers into buffer
+            let buffer_ptr = get_ptr_from_var_name("buffer", vm, ids_data, ap_tracking)?;
+            for (i, ptr) in pointers.iter().enumerate() {
+                vm.insert_value((buffer_ptr + i)?, *ptr)?;
+            }
+
+            // Create a mapping from original indices to sorted indices
+            let sorted_indices: Vec<usize> = pointers
+                .iter()
+                .map(|ptr| {
+                    (0..diffs_len)
+                        .position(|i| {
+                            let addr = (diffs_ptr + i).unwrap();
+                            vm.get_relocatable(addr).unwrap() == *ptr
+                        })
+                        .unwrap()
+                })
+                .collect();
+
+            // Load sorted indexes into sorted_indexes
+            let sorted_indexes_ptr =
+                get_ptr_from_var_name("sorted_indexes", vm, ids_data, ap_tracking)?;
+            for (i, idx) in sorted_indices.iter().enumerate() {
+                vm.insert_value((sorted_indexes_ptr + i)?, Felt252::from(*idx))?;
+            }
 
             Ok(())
         },
