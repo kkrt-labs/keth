@@ -319,6 +319,7 @@ class TestStateAccounts:
                 balance=account.balance,
                 code=code,
                 nonce=account.nonce,
+                storage_root=account.storage_root,
                 code_hash=codehash,
             ),
         )
