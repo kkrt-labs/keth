@@ -231,7 +231,6 @@ func Account__eq__(a: OptionalAccount, b: OptionalAccount) -> bool {
         return res;
     }
 
-    // Not equal if the either (low, high) of codehash is different
     if (a.value.code_hash.value.low != b.value.code_hash.value.low) {
         tempvar res = bool(0);
         return res;

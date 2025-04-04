@@ -232,14 +232,10 @@ func get_account_code{
     }
 
     // Account code is not cached - load it and ensure hash(code) == code_hash
-    // TODO: this should not be triggered in tests - only in prod script.
-    // TODO: ensure this works with a test.
     let (code_) = alloc();
     tempvar code = code_;
     tempvar code_len: felt;
     %{
-        # TODO: do we want to serialize (I fear it might be slow) here?
-        # best would be for the program input to already have the key:Tuple[Low, High] -> code
         account_code = program_input["codehash_to_code"][(ids.account.value.code_hash.value.low, ids.account.value.code_hash.value.high)];
         segments.load_data(ids.code, account_code);
         ids.code_len = len(account_code);
