@@ -146,8 +146,6 @@ segments.load_data(ids.b_inv.address_, [blsf2_struct_ptr])
         def test_blsp_eq(
             self, cairo_run, a: Optimized_Point3D[BLSF], b: Optimized_Point3D[BLSF]
         ):
-            # Python to Cairo -> a.normalize(), b.normalize()
-            # Cairo to python ?? -> add a z = 1
             assert cairo_run("BLSP__eq__", a, b) == eq(a, b)
 
         @given(p=..., q=...)
