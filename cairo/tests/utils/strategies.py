@@ -64,6 +64,7 @@ from py_ecc.fields import optimized_bls12_381_FQ2 as BLSF2
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 
 from cairo_ec.curve import AltBn128
+from mpt.ethereum_tries import EMPTY_BYTES_HASH
 
 # Note: I have noticed that even if we patch the imports in conftests.py, because hypothesis runs before these patches are applied,
 # this file would still be working with the old types. Thus, we _explicitly_ import our patched types from args_gen.py here.
@@ -484,8 +485,20 @@ BEACON_ROOTS_CODE = bytes.fromhex(
 )
 
 # Create the special accounts
-SYSTEM_ACCOUNT = Account(balance=U256(0), nonce=Uint(0), code=bytes())
-BEACON_ROOTS_ACCOUNT = Account(balance=U256(0), nonce=Uint(1), code=BEACON_ROOTS_CODE)
+SYSTEM_ACCOUNT = Account(
+    balance=U256(0),
+    nonce=Uint(0),
+    code=bytes(),
+    storage_root=EMPTY_TRIE_HASH,
+    code_hash=EMPTY_BYTES_HASH,
+)
+BEACON_ROOTS_ACCOUNT = Account(
+    balance=U256(0),
+    nonce=Uint(1),
+    code=BEACON_ROOTS_CODE,
+    storage_root=EMPTY_TRIE_HASH,
+    code_hash=keccak256(BEACON_ROOTS_CODE),
+)
 
 
 @st.composite

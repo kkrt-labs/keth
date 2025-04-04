@@ -53,7 +53,7 @@ import functools
 import inspect
 import sys
 from collections import ChainMap, abc, defaultdict
-from dataclasses import dataclass, field, fields, is_dataclass, make_dataclass
+from dataclasses import dataclass, fields, is_dataclass, make_dataclass
 from functools import partial
 from typing import (
     Annotated,
@@ -296,8 +296,8 @@ AccountDataclass = make_dataclass(
     "AccountDataclass",
     [(f.name, f.type, f) for f in fields(AccountBase)]
     + [
-        ("storage_root", Bytes32, field(default=EMPTY_TRIE_HASH)),
-        ("code_hash", Bytes32, field(default=EMPTY_BYTES_HASH)),
+        ("storage_root", Bytes32),
+        ("code_hash", Bytes32),
     ],
     namespace={"__doc__": AccountBase.__doc__},
 )
@@ -336,7 +336,11 @@ def encode_account(raw_account_data: Account, storage_root: Bytes) -> Bytes:
 
 
 EMPTY_ACCOUNT = Account(
-    nonce=Uint(0), balance=U256(0), code=b"", storage_root=EMPTY_TRIE_HASH
+    nonce=Uint(0),
+    balance=U256(0),
+    code=b"",
+    storage_root=EMPTY_TRIE_HASH,
+    code_hash=EMPTY_BYTES_HASH,
 )
 
 

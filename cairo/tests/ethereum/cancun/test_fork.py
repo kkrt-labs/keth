@@ -37,7 +37,7 @@ from ethereum.cancun.transactions import (
     signing_hash_4844,
     signing_hash_pre155,
 )
-from ethereum.cancun.trie import Trie
+from ethereum.cancun.trie import Trie, root
 from ethereum.cancun.utils.address import to_address
 from ethereum.cancun.vm import Environment
 from ethereum.cancun.vm.gas import TARGET_BLOB_GAS_PER_BLOCK, calculate_excess_blob_gas
@@ -53,6 +53,7 @@ from hypothesis.strategies import composite, integers
 from scripts.prove_block import load_pre_state, process_block_transactions
 
 from cairo_addons.testing.errors import strict_raises
+from mpt.ethereum_tries import EMPTY_BYTES_HASH, EMPTY_TRIE_HASH
 from tests.ef_tests.helpers.load_state_tests import prepare_state_and_code_hashes
 from tests.ethereum.cancun.vm.test_interpreter import unimplemented_precompiles
 from tests.utils.constants import (
@@ -213,6 +214,8 @@ def get_blob_tx_with_tx_sender_in_state():
         balance=U256(int("0x1000000000000000000", 16)),
         nonce=U256(int("0x1bfec", 16)),
         code=bytearray(),
+        storage_root=EMPTY_TRIE_HASH,
+        code_hash=EMPTY_BYTES_HASH,
     )
     # Empty state
     state = State(
@@ -440,6 +443,12 @@ def tx_with_sender_in_state(
         if calculate_intrinsic_cost(tx) > tx.gas:
             tx = replace(tx, gas=(calculate_intrinsic_cost(tx) + Uint(10000)))
 
+        account_address = to_address(Uint(expected_address))
+        if account_address in state._storage_tries:
+            account_storage_root = root(state._storage_tries[account_address])
+        else:
+            account_storage_root = EMPTY_TRIE_HASH
+
         set_account(
             state,
             to_address(Uint(expected_address)),
@@ -449,6 +458,8 @@ def tx_with_sender_in_state(
                 + U256(10000),
                 nonce=account.nonce,
                 code=bytes(),
+                code_hash=EMPTY_BYTES_HASH,
+                storage_root=account_storage_root,
             ),
         )
     # 2 * chain_id + 35 + v must be less than 2^64 for the signature of a legacy transaction to be valid
@@ -800,23 +811,6 @@ def _create_erc20_data():
     erc20_contract = get_contract("ERC20", "KethToken")
     erc20_address = Address(bytes.fromhex(erc20_contract.address[2:]))
 
-    accounts = {
-        erc20_address: Account(
-            balance=U256(0),
-            nonce=Uint(0),
-            code=bytes(erc20_contract.bytecode_runtime),
-        ),
-        Address(bytes.fromhex(OTHER[2:])): Account(
-            balance=U256(int(1e18)), nonce=Uint(0), code=bytes()
-        ),
-        Address(bytes.fromhex(OWNER[2:])): Account(
-            balance=U256(int(1e18)), nonce=Uint(0), code=bytes()
-        ),
-        Address(bytes.fromhex(COINBASE[2:])): Account(
-            balance=U256(int(1e18)), nonce=Uint(0), code=bytes()
-        ),
-    }
-
     storage_data = {
         Bytes32(U256(0).to_be_bytes32()): U256.from_be_bytes(
             b"KethToken".ljust(31, b"\x00") + bytes([len(b"KethToken") * 2])
@@ -836,6 +830,39 @@ def _create_erc20_data():
             default=U256(0),
             _data=defaultdict(lambda: U256(0), storage_data),
         )
+    }
+
+    erc20_storage_root = root(storage_tries[erc20_address])
+
+    accounts = {
+        erc20_address: Account(
+            balance=U256(0),
+            nonce=Uint(0),
+            code=bytes(erc20_contract.bytecode_runtime),
+            storage_root=erc20_storage_root,
+            code_hash=keccak256(bytes(erc20_contract.bytecode_runtime)),
+        ),
+        Address(bytes.fromhex(OTHER[2:])): Account(
+            balance=U256(int(1e18)),
+            nonce=Uint(0),
+            code=bytes(),
+            storage_root=EMPTY_TRIE_HASH,
+            code_hash=EMPTY_BYTES_HASH,
+        ),
+        Address(bytes.fromhex(OWNER[2:])): Account(
+            balance=U256(int(1e18)),
+            nonce=Uint(0),
+            code=bytes(),
+            storage_root=EMPTY_TRIE_HASH,
+            code_hash=EMPTY_BYTES_HASH,
+        ),
+        Address(bytes.fromhex(COINBASE[2:])): Account(
+            balance=U256(int(1e18)),
+            nonce=Uint(0),
+            code=bytes(),
+            storage_root=EMPTY_TRIE_HASH,
+            code_hash=EMPTY_BYTES_HASH,
+        ),
     }
 
     return accounts, storage_tries

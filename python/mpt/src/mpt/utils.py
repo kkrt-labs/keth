@@ -89,6 +89,7 @@ class AccountNode:
             balance=self.balance,
             code=code,
             storage_root=self.storage_root,
+            code_hash=self.code_hash,
         )
 
 
