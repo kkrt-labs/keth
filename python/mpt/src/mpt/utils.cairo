@@ -19,6 +19,7 @@ from ethereum_types.numeric import bool
 from ethereum.utils.bytes import Bytes__eq__
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.math import assert_not_zero
+from starkware.cairo.common.math_cmp import is_le_felt
 from cairo_core.comparison import is_zero
 from cairo_core.control_flow import raise
 from ethereum.crypto.hash import Hash32__eq__
@@ -29,6 +30,7 @@ from mpt.types import (
     StorageDiff,
     AccountDiffStruct,
     AddressAccountNodeDiffEntry,
+    AddressAccountNodeDiffEntryStruct,
     AccountNode,
 )
 
@@ -190,11 +192,8 @@ func check_branch_node(node: BranchNode) {
     return ();
 }
 
-func sort_AccountDiff(diff: AccountDiff) -> AccountDiff {
+func sort_AccountDiff{range_check_ptr}(diff: AccountDiff) -> AccountDiff {
     alloc_locals;
-    if (cast(diff.value, felt) == 0) {
-        return diff;
-    }
     // Length of the array
     let diffs_len = diff.value.len;
     if (diffs_len == 0) {
@@ -206,9 +205,9 @@ func sort_AccountDiff(diff: AccountDiff) -> AccountDiff {
     let (buffer) = alloc();
     let (sorted_indexes) = alloc();
     %{
-        data = [[memory[ids.diffs_ptr.address_ + i * 3], memory[ids.diffs_ptr.address_ + i * 3 + 1], memory[ids.diffs_ptr.address_ + i * 3 + 2]] for i in range(ids.diffs_len)]
+        data = [[memory[ids.diffs_ptr.address_ + i * 3], ids.diffs_ptr.address_ + i * 3] for i in range(ids.diffs_len)]
         sorted_data = sorted(data, key=lambda x: x[0], reverse=True)
-        flattened_data = [item for entry in sorted_data for item in entry]
+        flattened_data = [entry[1] for entry in sorted_data]
         segments.load_data(
             ids.buffer,
             flattened_data
@@ -221,48 +220,68 @@ func sort_AccountDiff(diff: AccountDiff) -> AccountDiff {
         )
     %}
 
-    tempvar sorted_diff = new AccountDiffStruct(
+    tempvar sorted_account_diffs = new AccountDiffStruct(
         data=cast(buffer, AddressAccountNodeDiffEntry*), len=diffs_len
     );
-    // 👆 Unknown ap change so we reassign it
-    tempvar sorted_diff = sorted_diff;
     tempvar i = 0;
     tempvar sorted_indexes = sorted_indexes;
+    tempvar range_check_ptr = range_check_ptr;
+
+    static_assert sorted_account_diffs == [ap - 4];
+    static_assert i == [ap - 3];
+    static_assert sorted_indexes == [ap - 2];
+    static_assert range_check_ptr == [ap - 1];
 
     loop:
-    let sorted_diff = cast([ap - 3], AccountDiffStruct*);
-    let i = [ap - 2];
-    let sorted_indexes = cast([ap - 1], felt*);
-    let prev_diff = cast([fp - 3], AccountDiffStruct*);
+    let sorted = cast([ap - 4], AccountDiffStruct*);
+    let i = [ap - 3];
+    let sorted_indexes = cast([ap - 2], felt*);
+    let range_check_ptr = [ap - 1];
+    let unsorted = cast([fp - 3], AccountDiffStruct*);
 
-    with_attr error_message("ValueError") {
+    // Check that the sorted array is a permutation of the unsorted array
+    // With corresponding indexes given as oracle
+    with_attr error_message("KeyError") {
         let sorted_index = [sorted_indexes + i];
 
-        let prev_key = prev_diff.data[sorted_index].value.key.value;
-        let new_key = sorted_diff.data[i].value.key.value;
-        assert prev_key = new_key;
+        let unsorted_key_at_index = unsorted.data[sorted_index].value.key.value;
+        let sorted_key_at_index = sorted.data[i].value.key.value;
 
-        let prev_eq = AccountNode__eq__(
-            prev_diff.data[sorted_index].value.prev_value, sorted_diff.data[i].value.prev_value
-        );
-        assert prev_eq.value = 1;
-
-        let new_eq = AccountNode__eq__(
-            sorted_diff.data[sorted_index].value.new_value,
-            prev_diff.data[sorted_index].value.new_value,
-        );
-        assert new_eq.value = 1;
+        assert unsorted_key_at_index = sorted_key_at_index;
+        assert sorted.data[i].value = unsorted.data[sorted_index].value;
     }
 
-    let is_end = is_zero(prev_diff.len - i);
+    let is_end = is_zero(unsorted.len - i - 1);
+    let continue_loop = 1 - is_end;
 
+    // Check that the sorted array is ordered
+    with_attr error_message("ValueError") {
+        if (is_end == 0) {
+            // If we are not at the end,
+            // We can access offset i + 1
+            let is_ordered = is_le_felt(
+                sorted.data[i].value.key.value, sorted.data[i + 1].value.key.value
+            );
+            assert is_ordered = 1;
+            tempvar range_check_ptr = range_check_ptr;
+        } else {
+            tempvar range_check_ptr = range_check_ptr;
+        }
+    }
+
+    tempvar sorted = sorted;
     tempvar i = i + 1;
-    tempvar sorted_diff = sorted_diff;
     tempvar sorted_indexes = sorted_indexes;
+    tempvar range_check_ptr = range_check_ptr;
 
-    jmp loop if is_end != 0;
+    jmp loop if continue_loop != 0;
 
-    let new_diff = cast([ap - 2], AccountDiffStruct*);
+    // Check that the loop has been executed the correct number of times
+    // Such that we know len(sorted) == len(initial_array)
+    let i = [ap - 3];
+    assert i = diffs_len;
+
+    let new_diff = cast([ap - 4], AccountDiffStruct*);
     let res = AccountDiff(new_diff);
 
     return res;

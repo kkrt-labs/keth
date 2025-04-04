@@ -410,6 +410,7 @@ func _process_account_diff{
     let bitwise_ptr = cast([ap - 3], BitwiseBuiltin*);
     let poseidon_ptr = cast([ap - 2], PoseidonBuiltin*);
     let keccak_ptr = cast([ap - 1], KeccakBuiltin*);
+
     tempvar account_diff = AddressAccountNodeDiffEntry(
         new AddressAccountNodeDiffEntryStruct(
             key=address, prev_value=left_account, new_value=right_account

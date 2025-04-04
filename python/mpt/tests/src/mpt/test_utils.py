@@ -83,4 +83,5 @@ ids.second_non_null_index = 1
         self, cairo_run_py, data: List[AddressAccountNodeDiffEntry]
     ):
         sorted_data = sorted(data, key=lambda x: x.key)
-        cairo_run_py("sort_AccountDiff", sorted_data)
+        cairo_data = cairo_run_py("sort_AccountDiff", data)
+        assert cairo_data == sorted_data
