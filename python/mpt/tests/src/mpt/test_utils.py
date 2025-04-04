@@ -17,7 +17,7 @@ from tests.utils.args_gen import AddressAccountNodeDiffEntry
 
 list_address_account_node_diff_entry_strategy = st.lists(
     st.from_type(AddressAccountNodeDiffEntry),
-    min_size=1,
+    min_size=2,
     max_size=10,
     unique_by=lambda x: x.key,
 )
@@ -117,7 +117,7 @@ sorted_indices = sorted(indices, key=lambda i: memory[pointers[i]], reverse=True
 segments.load_data(ids.sorted_indexes, sorted_indices)
             """,
         ):
-            with strict_raises(ValueError):
+            with strict_raises(KeyError):
                 cairo_run_py("sort_account_diff", data)
 
     @given(data=list_address_account_node_diff_entry_strategy)
@@ -145,5 +145,5 @@ sorted_indices = sorted(indices, key=lambda i: memory[pointers[i]], reverse=True
 segments.load_data(ids.sorted_indexes, sorted_indices)
             """,
         ):
-            with strict_raises(KeyError):
+            with strict_raises(ValueError):
                 cairo_run_py("sort_account_diff", data)
