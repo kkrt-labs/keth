@@ -224,19 +224,14 @@ func sort_AccountDiff{range_check_ptr}(diff: AccountDiff) -> AccountDiff {
         data=cast(buffer, AddressAccountNodeDiffEntry*), len=diffs_len
     );
     tempvar i = 0;
-    tempvar sorted_indexes = sorted_indexes;
-    tempvar range_check_ptr = range_check_ptr;
+    local sorted_account_diffs: AccountDiffStruct* = sorted_account_diffs;
+    local sorted_indexes: felt* = sorted_indexes;
+    local range_check_ptr = range_check_ptr;
 
-    static_assert sorted_account_diffs == [ap - 4];
-    static_assert i == [ap - 3];
-    static_assert sorted_indexes == [ap - 2];
-    static_assert range_check_ptr == [ap - 1];
+    static_assert i == [ap - 1];
 
     loop:
-    let sorted = cast([ap - 4], AccountDiffStruct*);
-    let i = [ap - 3];
-    let sorted_indexes = cast([ap - 2], felt*);
-    let range_check_ptr = [ap - 1];
+    let i = [ap - 1];
     let unsorted = cast([fp - 3], AccountDiffStruct*);
 
     // Check that the sorted array is a permutation of the unsorted array
@@ -245,10 +240,10 @@ func sort_AccountDiff{range_check_ptr}(diff: AccountDiff) -> AccountDiff {
         let sorted_index = [sorted_indexes + i];
 
         let unsorted_key_at_index = unsorted.data[sorted_index].value.key.value;
-        let sorted_key_at_index = sorted.data[i].value.key.value;
+        let sorted_key_at_index = sorted_account_diffs.data[i].value.key.value;
 
         assert unsorted_key_at_index = sorted_key_at_index;
-        assert sorted.data[i].value = unsorted.data[sorted_index].value;
+        assert sorted_account_diffs.data[i].value = unsorted.data[sorted_index].value;
     }
 
     let is_end = is_zero(unsorted.len - i - 1);
@@ -260,7 +255,8 @@ func sort_AccountDiff{range_check_ptr}(diff: AccountDiff) -> AccountDiff {
             // If we are not at the end,
             // We can access offset i + 1
             let is_ordered = is_le_felt(
-                sorted.data[i].value.key.value, sorted.data[i + 1].value.key.value
+                sorted_account_diffs.data[i].value.key.value,
+                sorted_account_diffs.data[i + 1].value.key.value,
             );
             assert is_ordered = 1;
             tempvar range_check_ptr = range_check_ptr;
@@ -269,42 +265,16 @@ func sort_AccountDiff{range_check_ptr}(diff: AccountDiff) -> AccountDiff {
         }
     }
 
-    tempvar sorted = sorted;
     tempvar i = i + 1;
-    tempvar sorted_indexes = sorted_indexes;
-    tempvar range_check_ptr = range_check_ptr;
 
     jmp loop if continue_loop != 0;
 
     // Check that the loop has been executed the correct number of times
     // Such that we know len(sorted) == len(initial_array)
-    let i = [ap - 3];
+    let i = [ap - 1];
     assert i = diffs_len;
 
-    let new_diff = cast([ap - 4], AccountDiffStruct*);
-    let res = AccountDiff(new_diff);
+    let res = AccountDiff(sorted_account_diffs);
 
     return res;
-}
-
-func AccountNode__eq__(a: AccountNode, b: AccountNode) -> bool {
-    alloc_locals;
-    let false = bool(0);
-    if (a.value.nonce.value != b.value.nonce.value) {
-        return false;
-    }
-    let balance_eq = U256__eq__(a.value.balance, b.value.balance);
-    if (balance_eq.value == 0) {
-        return false;
-    }
-    let code_hash_eq = Hash32__eq__(a.value.code_hash, b.value.code_hash);
-    if (code_hash_eq.value == 0) {
-        return false;
-    }
-    let storage_root_eq = Hash32__eq__(a.value.storage_root, b.value.storage_root);
-    if (storage_root_eq.value == 0) {
-        return false;
-    }
-    let result = bool(1);
-    return result;
 }
