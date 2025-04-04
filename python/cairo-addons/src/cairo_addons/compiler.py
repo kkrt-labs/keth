@@ -12,6 +12,8 @@ from starkware.cairo.lang.compiler.program import CairoHint, Program
 
 from cairo_addons.hints import implementations
 
+TEST = "test"
+
 
 def implement_hints(program: Program):
     return {

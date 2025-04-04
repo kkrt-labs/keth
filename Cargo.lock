@@ -847,6 +847,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "cairo-run"
+version = "0.1.0"
+dependencies = [
+ "pyo3",
+]
+
+[[package]]
 name = "cairo-vm"
 version = "2.0.1"
 source = "git+https://github.com/kkrt-labs/cairo-vm?rev=008360a818ac3cecb51666d89e68abaf4fe8e151#008360a818ac3cecb51666d89e68abaf4fe8e151"
@@ -897,7 +904,6 @@ dependencies = [
  "polars",
  "pyo3",
  "pyo3-build-config",
- "pyo3-ffi",
  "pyo3-polars",
  "revm",
  "revm-precompile 17.0.0-alpha.1",

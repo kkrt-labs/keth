@@ -6,12 +6,12 @@ edition = "2021"
 [lib]
 name = "vm"
 # "cdylib" is necessary to produce a shared library for Python to import from.
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 # "extension-module" tells pyo3 we want to build an extension module (skips linking against libpython.so)
 # "abi3-py39" tells pyo3 (and maturin) to build using the stable ABI with minimum Python version 3.9
-pyo3 = { version = "0.23.3", features = [
+pyo3 = { version = "0.23.4", features = [
   "extension-module",
   "abi3-py39",
   "num-bigint",
@@ -47,15 +47,11 @@ ark-ff = "0.5.0"
 ark-bls12-381 = "0.5.0"
 
 [build-dependencies]
-pyo3-build-config = "0.23.3" # Should match pyo3 version
+pyo3-build-config = { version = "0.23.3", features = ["resolve-config"] }
 
 [features]
 extension-module = ["pyo3/extension-module"]
 default = ["extension-module", "pyo3/experimental-inspect"]
-
-# only needed for the prover example
-[dev-dependencies]
-pyo3-ffi = "^0"
 
 [[example]]
 name = "prover"

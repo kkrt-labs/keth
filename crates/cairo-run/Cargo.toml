@@ -1,0 +1,17 @@
+[package]
+name = "cairo-run"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description.workspace = true
+homepage.workspace = true
+repository.workspace = true
+readme.workspace = true
+license.workspace = true
+exclude.workspace = true
+
+[dependencies]
+pyo3 = { version = "0.23.4", features = ["auto-initialize"] }
+
+[lints]
+workspace = true
