@@ -21,6 +21,7 @@ cairo-vm = { workspace = true }
 stwo-cairo-adapter = { workspace = true }
 stwo_cairo_prover = { workspace = true }
 cairo-air = { workspace = true }
+cairo_addons_lib = { path = "../cairo-addons-lib" }
 num-traits = "0.2.18"
 num-bigint = "0.4.6"
 starknet-crypto = "0.7.4"

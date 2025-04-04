@@ -875,6 +875,7 @@ dependencies = [
  "bincode",
  "cairo-air",
  "cairo-vm",
+ "cairo_addons_lib",
  "chrono",
  "garaga_rs",
  "lazy_static",
@@ -893,6 +894,33 @@ dependencies = [
  "stwo-cairo-adapter",
  "stwo_cairo_prover",
  "thiserror 2.0.11",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "cairo_addons_lib"
+version = "0.1.0"
+dependencies = [
+ "ark-bn254 0.5.0",
+ "ark-ff 0.5.0",
+ "bincode",
+ "cairo-air",
+ "cairo-vm",
+ "garaga_rs",
+ "lazy_static",
+ "num-bigint",
+ "num-traits",
+ "nybbles",
+ "pyo3",
+ "revm",
+ "revm-precompile 17.0.0-alpha.1",
+ "serde",
+ "serde_json",
+ "starknet-crypto 0.7.4",
+ "stwo-cairo-adapter",
+ "stwo_cairo_prover",
+ "thiserror 1.0.69",
  "tracing",
  "tracing-subscriber",
 ]
@@ -2181,7 +2209,9 @@ dependencies = [
 name = "keth-run"
 version = "0.1.0"
 dependencies = [
+ "cairo_addons_lib",
  "pyo3",
+ "serde_json",
 ]
 
 [[package]]

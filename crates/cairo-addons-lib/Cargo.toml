@@ -1,0 +1,35 @@
+[package]
+name = "cairo_addons_lib"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "cairo_addons_lib"
+path = "src/lib.rs"
+
+[dependencies]
+cairo-vm = { workspace = true }
+stwo-cairo-adapter = { workspace = true }
+stwo_cairo_prover = { workspace = true }
+cairo-air = { workspace = true }
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
+tracing = "0.1.41"
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+bincode = { version = "2.0.0-rc.3", default-features = false, features = [
+  "serde",
+] }
+pyo3 = { version = "0.23.3", features = ["abi3-py39"] }
+num-bigint = "0.4.6"
+num-traits = "0.2.18"
+ark-bn254 = "0.5.0"
+ark-ff = "0.5.0"
+garaga_rs = { git = "https://github.com/keep-starknet-strange/garaga.git", tag = "v0.15.3", features = [
+  "python",
+] }
+nybbles = "0.3.4"
+starknet-crypto = "0.7.4"
+revm = "19.4.0"
+revm-precompile = "17.0.0-alpha.1"
+lazy_static = "1.5.0"

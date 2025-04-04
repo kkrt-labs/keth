@@ -24,33 +24,101 @@ use super::{
         HASHDICT_HINTS, MATHS_HINTS, PRECOMPILES_HINTS, UTILS_HINTS,
     },
     hint_loader::load_python_hints,
+    pythonic_hint::generic_python_hint,
 };
 
-use super::pythonic_hint::generic_python_hint;
-use cairo_vm::hint_processor::builtin_hint_processor::builtin_hint_processor_definition::HintProcessorData;
+/// A hint function that can be executed by the Cairo VM
+pub type CustomHintFunc = Rc<HintFunc>;
 
-/// A struct representing a hint.
+/// A hint that can be executed by the Cairo VM
 pub struct Hint {
-    /// The hint id, ie the raw string written in the Cairo code in between `%{` and `%}`.
-    id: String,
-    /// The hint function.
+    /// The name of the hint
+    pub name: String,
+    /// The function that implements the hint
     pub func: Rc<HintFunc>,
 }
 
 impl Hint {
-    pub fn new<F>(id: String, logic: F) -> Self
-    where
-        F: Fn(
+    /// Create a new hint with the given name and function
+    pub fn new(
+        name: String,
+        func: impl Fn(
                 &mut VirtualMachine,
                 &mut ExecutionScopes,
                 &HashMap<String, HintReference>,
                 &ApTracking,
                 &HashMap<String, Felt252>,
             ) -> Result<(), HintError>
-            + 'static
-            + Sync,
-    {
-        Self { id, func: Rc::new(HintFunc(Box::new(logic))) }
+            + Send
+            + Sync
+            + 'static,
+    ) -> Self {
+        Self {
+            name,
+            func: Rc::new(HintFunc(Box::new(func))),
+        }
+    }
+
+    /// Execute the hint with the given parameters
+    pub fn execute(
+        &self,
+        vm: &mut VirtualMachine,
+        exec_scopes: &mut ExecutionScopes,
+        ids_data: &HashMap<String, HintReference>,
+        ap_tracking: &ApTracking,
+        constants: &HashMap<String, Felt252>,
+    ) -> Result<(), HintError> {
+        (self.func.0)(vm, exec_scopes, ids_data, ap_tracking, constants)
+    }
+}
+
+/// A collection of hints that can be executed by the Cairo VM
+pub struct HintCollection {
+    /// The hints in the collection
+    hints: HashMap<String, Rc<HintFunc>>,
+}
+
+impl HintCollection {
+    /// Create a new empty hint collection
+    pub fn new() -> Self {
+        Self {
+            hints: HashMap::new(),
+        }
+    }
+
+    /// Add a hint to the collection
+    pub fn add_hint(&mut self, name: String, func: Rc<HintFunc>) {
+        self.hints.insert(name, func);
+    }
+
+    /// Get a hint from the collection by name
+    pub fn get_hint(&self, name: &str) -> Option<&Rc<HintFunc>> {
+        self.hints.get(name)
+    }
+
+    /// Execute a hint from the collection by name
+    pub fn execute_hint(
+        &self,
+        name: &str,
+        vm: &mut VirtualMachine,
+        exec_scopes: &mut ExecutionScopes,
+        ids_data: &HashMap<String, HintReference>,
+        ap_tracking: &ApTracking,
+        constants: &HashMap<String, Felt252>,
+    ) -> Result<(), HintError> {
+        match self.get_hint(name) {
+            Some(func) => (func.0)(vm, exec_scopes, ids_data, ap_tracking, constants),
+            None => Err(HintError::CustomHint(Box::from(format!(
+                "Hint not found: {}",
+                name
+            )))),
+        }
+    }
+}
+
+impl Default for HintCollection {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -90,9 +158,9 @@ impl HintProcessor {
         for fn_hint in hints {
             let hint = fn_hint();
             // map hint_id -> hint_func
-            self.inner.add_hint(hint.id.clone(), hint.func.clone());
+            self.inner.add_hint(hint.name.clone(), hint.func.clone());
             // map pythonic_hint_code -> hint_func
-            if let Some(hint_code) = self.python_hints.get(&hint.id) {
+            if let Some(hint_code) = self.python_hints.get(&hint.name) {
                 self.inner.add_hint(hint_code.clone(), hint.func.clone());
             }
         }
@@ -151,7 +219,7 @@ impl HintProcessorLogic for HintProcessor {
                 // If the hint is unknown and we have a dynamic hint executor, try it
                 if let Some(pythonic_hint_func) = &self.pythonic_hint_executor {
                     // Extract the hint code from the hint_data
-                    let hint_data = match hint_data.downcast_ref::<HintProcessorData>() {
+                    let hint_data = match hint_data.downcast_ref::<cairo_vm::hint_processor::builtin_hint_processor::builtin_hint_processor_definition::HintProcessorData>() {
                         Some(data) => data,
                         None => {
                             return Err(HintError::CustomHint(Box::from(

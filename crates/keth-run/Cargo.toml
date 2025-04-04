@@ -12,6 +12,8 @@ exclude.workspace = true
 
 [dependencies]
 pyo3 = { version = "0.23.4", features = ["auto-initialize"] }
+cairo_addons_lib = { path = "../cairo-addons-lib" }
+serde_json = "1.0"
 
 [lints]
 workspace = true

@@ -14,4 +14,4 @@ pub fn load_python_hints() -> PyResult<HashMap<String, String>> {
 
         Ok(hints)
     })
-}
+} 
