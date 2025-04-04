@@ -45,7 +45,7 @@ from ethereum.crypto.alt_bn128 import (
 )
 from ethereum.crypto.elliptic_curve import SECP256K1N
 from ethereum.crypto.finite_field import GaloisField
-from ethereum.crypto.hash import Hash32
+from ethereum.crypto.hash import Hash32, keccak256
 from ethereum.crypto.kzg import BLSFieldElement, KZGCommitment
 from ethereum.exceptions import EthereumException
 from ethereum_types.bytes import (
@@ -65,11 +65,12 @@ from py_ecc.fields import optimized_bls12_381_FQ2 as BLSF2
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 
 from cairo_ec.curve import AltBn128
+from mpt.ethereum_tries import EMPTY_BYTES_HASH
 
 # Note: I have noticed that even if we patch the imports in conftests.py, because hypothesis runs before these patches are applied,
 # this file would still be working with the old types. Thus, we _explicitly_ import our patched types from args_gen.py here.
 from tests.utils.args_gen import (  # noqa
-    EMPTY_STORAGE_ROOT,
+    EMPTY_TRIE_HASH,
     U384,
     Account,
     Environment,
@@ -432,13 +433,29 @@ evm = st.builds(
 )
 
 
-# Take the EMPTY_STORAGE_ROOT value by default. This will be built in the state strategy, based on the storage tries.
-account_strategy = st.builds(
-    Account,
-    nonce=uint,
-    balance=uint256,
-    code=code,
-    storage_root=st.just(EMPTY_STORAGE_ROOT),
+@st.composite
+def account_strategy_callable(draw, *args, **kwargs):
+    account_code = draw(code)
+    return draw(
+        st.builds(
+            Account,
+            code=st.just(account_code),
+            code_hash=st.just(keccak256(account_code)),
+            **kwargs,
+        )
+    )
+
+
+# Take the EMPTY_TRIE_HASH value by default. This will be built in the state strategy, based on the storage tries.
+account_strategy = code.flatmap(
+    lambda account_code: st.builds(
+        Account,
+        nonce=uint,
+        balance=uint256,
+        code=st.just(account_code),
+        storage_root=st.just(EMPTY_TRIE_HASH),
+        code_hash=st.just(keccak256(account_code)),
+    )
 )
 
 # Fork
@@ -482,8 +499,20 @@ BEACON_ROOTS_CODE = bytes.fromhex(
 )
 
 # Create the special accounts
-SYSTEM_ACCOUNT = Account(balance=U256(0), nonce=Uint(0), code=bytes())
-BEACON_ROOTS_ACCOUNT = Account(balance=U256(0), nonce=Uint(1), code=BEACON_ROOTS_CODE)
+SYSTEM_ACCOUNT = Account(
+    balance=U256(0),
+    nonce=Uint(0),
+    code=bytes(),
+    storage_root=EMPTY_TRIE_HASH,
+    code_hash=EMPTY_BYTES_HASH,
+)
+BEACON_ROOTS_ACCOUNT = Account(
+    balance=U256(0),
+    nonce=Uint(1),
+    code=BEACON_ROOTS_CODE,
+    storage_root=EMPTY_TRIE_HASH,
+    code_hash=keccak256(BEACON_ROOTS_CODE),
+)
 
 
 @st.composite
@@ -512,9 +541,9 @@ def state_strategy(draw):
             _data=st.fixed_dictionaries(
                 {
                     address: (
-                        st.builds(
-                            Account,
-                            storage_root=st.just(compute_root(_storage_tries[address])),
+                        # Note: calling st.builds(Account) here would generate a wrong codehash - so I explicitly call a callable strategy.
+                        account_strategy_callable(
+                            storage_root=st.just(compute_root(_storage_tries[address]))
                         )
                         if address in _storage_tries.keys()
                         else account_strategy

@@ -30,7 +30,9 @@ from tests.utils.args_gen import (
     Message,
     MessageCallOutput,
     Node,
+    encode_account,
 )
+from utils.fixture_loader import LoadKethFixture
 
 # Patch EELS with our own types for argument generation
 ethereum.cancun.vm.Evm = Evm
@@ -39,12 +41,14 @@ ethereum.cancun.vm.Environment = Environment
 ethereum.cancun.vm.interpreter.MessageCallOutput = MessageCallOutput
 ethereum.cancun.fork_types.Account = Account
 ethereum.cancun.fork_types.EMPTY_ACCOUNT = EMPTY_ACCOUNT
+ethereum.cancun.fork_types.encode_account = encode_account
 ethereum.cancun.trie.Node = Node
 ethereum_rlp.rlp.Extended = Union[Sequence["Extended"], bytearray, bytes, Uint, FixedUnsigned, str, bool]  # type: ignore # noqa: F821
 
 # See explanation in conftest.py. Lots of EELS modules import `Account` and `EMPTY_ACCOUNT` from `ethereum.cancun.fork_types`.
 # I think these modules get loaded before this patch is applied. Thus we must replace them manually.
 setattr(ethereum.cancun.trie, "Account", Account)
+setattr(ethereum.cancun.trie, "encode_account", encode_account)
 setattr(ethereum.cancun.state, "Account", Account)
 setattr(ethereum.cancun.state, "EMPTY_ACCOUNT", EMPTY_ACCOUNT)
 setattr(ethereum.cancun.fork_types, "EMPTY_ACCOUNT", EMPTY_ACCOUNT)
@@ -67,7 +71,9 @@ from ethereum_types.bytes import Bytes, Bytes0, Bytes32  # noqa
 from ethereum_types.numeric import U64, U256  # noqa
 
 from cairo_addons.vm import run_proof_mode  # noqa
-from tests.ef_tests.helpers.load_state_tests import prepare_state  # noqa
+from tests.ef_tests.helpers.load_state_tests import (  # noqa
+    prepare_state_and_code_hashes,
+)
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -209,7 +215,7 @@ def load_zkpi_fixture(zkpi_path: Path) -> Dict[str, Any]:
         logger.error(f"Error loading ZKPI file from {zkpi_path}: {e}")
         raise e
 
-    load = Load("Cancun", "cancun")
+    load = LoadKethFixture("Cancun", "cancun")
     if len(prover_inputs["blocks"]) > 1:
         raise ValueError("Only one block is supported")
     input_block = prover_inputs["blocks"][0]
@@ -244,13 +250,16 @@ def load_zkpi_fixture(zkpi_path: Path) -> Dict[str, Any]:
     ]
 
     # Create blockchain
+    state, code_hashes = prepare_state_and_code_hashes(load_pre_state(prover_inputs))
     chain = BlockChain(
         blocks=blocks,
-        state=prepare_state(load_pre_state(prover_inputs)),
+        state=state,
         chain_id=U64(prover_inputs["chainConfig"]["chainId"]),
     )
 
     # TODO: Remove when partial MPT is implemented
+    # This is not the _real_ state root, but one we re-construct from the partial state
+    # to prove this block.
     state_root = apply_body(
         chain.state,
         get_last_256_block_hashes(chain),
@@ -279,9 +288,10 @@ def load_zkpi_fixture(zkpi_path: Path) -> Dict[str, Any]:
         ommers=(),
         withdrawals=block.withdrawals,
     )
+    state, _ = prepare_state_and_code_hashes(load_pre_state(prover_inputs))
     chain = BlockChain(
         blocks=blocks,
-        state=prepare_state(load_pre_state(prover_inputs)),
+        state=state,
         chain_id=U64(prover_inputs["chainConfig"]["chainId"]),
     )
     # Prepare inputs
@@ -291,6 +301,7 @@ def load_zkpi_fixture(zkpi_path: Path) -> Dict[str, Any]:
         "block_hash": Bytes32(
             bytes.fromhex(input_block["header"]["hash"].removeprefix("0x"))
         ),
+        "code_hashes": code_hashes,
     }
 
     return program_inputs
@@ -362,15 +373,6 @@ def main() -> int:
             args.verify,
         )
         return 0
-    except FileNotFoundError as e:
-        logger.error(f"File error: {e}")
-        return 1
-    except (KeyError, ValueError) as e:
-        logger.error(f"Data error: {e}")
-        return 1
-    except Exception as e:
-        logger.error(f"Unexpected error: {e}")
-        return 1
     except KeyboardInterrupt:
         logger.info("Operation cancelled by user")
         return 130

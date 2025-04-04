@@ -7,11 +7,11 @@ import pytest
 
 from tests.ef_tests.helpers import TEST_FIXTURES
 from tests.ef_tests.helpers.load_state_tests import (
-    Load,
     fetch_state_test_files,
     idfn,
     run_blockchain_st_test,
 )
+from utils.fixture_loader import LoadKethFixture
 
 pytestmark = [
     pytest.mark.cairo_file(f"{Path().cwd()}/cairo/ethereum/cancun/fork.cairo"),
@@ -20,7 +20,7 @@ pytestmark = [
 
 fetch_cancun_tests = partial(fetch_state_test_files, network="Cancun")
 
-FIXTURES_LOADER = Load("Cancun", "cancun")
+FIXTURES_LOADER = LoadKethFixture("Cancun", "cancun")
 
 ETHEREUM_TESTS_PATH = TEST_FIXTURES["ethereum_tests"]["fixture_path"]
 ETHEREUM_SPEC_TESTS_PATH = TEST_FIXTURES["execution_spec_tests"]["fixture_path"]

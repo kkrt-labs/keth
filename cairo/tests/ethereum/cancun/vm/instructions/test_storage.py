@@ -2,7 +2,7 @@ from itertools import product
 
 from ethereum.cancun.fork_types import Account, Address
 from ethereum.cancun.state import set_account, set_storage
-from ethereum.cancun.trie import copy_trie
+from ethereum.cancun.trie import copy_trie, root
 from ethereum.cancun.vm import Evm
 from ethereum.cancun.vm.gas import (
     GAS_COLD_SLOAD,
@@ -12,6 +12,7 @@ from ethereum.cancun.vm.gas import (
     GAS_WARM_ACCESS,
 )
 from ethereum.cancun.vm.instructions.storage import sload, sstore, tload, tstore
+from ethereum.crypto.hash import keccak256
 from ethereum_types.bytes import Bytes32
 from ethereum_types.numeric import U256, Uint
 from hypothesis import given
@@ -20,6 +21,8 @@ from hypothesis.strategies import composite
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 
 from cairo_addons.testing.errors import strict_raises
+from mpt.ethereum_tries import EMPTY_BYTES_HASH, EMPTY_TRIE_HASH
+from tests.utils.args_gen import EMPTY_ACCOUNT
 from tests.utils.evm_builder import EvmBuilder
 from tests.utils.message_builder import MessageBuilder
 from tests.utils.strategies import account_strategy, felt
@@ -80,8 +83,27 @@ class TestStorage:
         This test ensures that sload won't be used on an empty storage.
         """
         state = evm.env.state
-        set_account(state, address, Account(balance=U256(1), nonce=U256(2), code=b""))
+
+        # Set an empty account in state
+        set_account(state, address, EMPTY_ACCOUNT)
+        # Set the proper storage value
         set_storage(state, address, key, value)
+        # Set the proper account with the appropriate storage root
+        if address in state._storage_tries:
+            account_storage_root = root(state._storage_tries[address])
+        else:
+            account_storage_root = EMPTY_TRIE_HASH
+        set_account(
+            state,
+            address,
+            Account(
+                balance=U256(1),
+                nonce=U256(2),
+                code=b"",
+                storage_root=account_storage_root,
+                code_hash=EMPTY_BYTES_HASH,
+            ),
+        )
         evm.stack.push_or_replace(U256.from_be_bytes(key))
         try:
             cairo_evm = cairo_run("sload", evm)
@@ -124,20 +146,38 @@ class TestStorage:
         evm.gas_left = Uint(30_000_000)  # avoid OutOfGasError
         new_value, current_value, original_value = data
 
-        # Ensure the account exists and is the current target
-        account = Account(balance=U256(0), nonce=U256(0), code=b"6001600101")
+        # Ensure an account exists in state to fill the storage
+        evm.message.current_target = address
+        set_account(
+            evm.env.state,
+            address,
+            EMPTY_ACCOUNT,
+        )
+        # Set the original value
+        set_storage(
+            evm.env.state,
+            address,
+            key,
+            original_value,
+        )
+        # Fill with the proper account values - ensure it's the current target
+        code = b"6001600101"
+        code_hash = keccak256(code)
+        if address in evm.env.state._storage_tries:
+            storage_root = root(evm.env.state._storage_tries[address])
+        else:
+            storage_root = EMPTY_TRIE_HASH
+        account = Account(
+            balance=U256(0),
+            nonce=U256(0),
+            code=code,
+            code_hash=code_hash,
+            storage_root=storage_root,
+        )
         set_account(
             evm.env.state,
             address,
             account,
-        )
-        evm.message.current_target = address
-        # Set the original value
-        set_storage(
-            evm.env.state,
-            evm.message.current_target,
-            key,
-            original_value,
         )
         # Take a snapshot of the state
         evm.env.state._snapshots.insert(

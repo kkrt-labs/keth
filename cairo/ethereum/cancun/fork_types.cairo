@@ -11,10 +11,11 @@ from ethereum_types.bytes import (
     BytesStruct,
     HashedBytes32,
     Bytes32Struct,
+    OptionalBytes,
 )
 from ethereum.utils.bytes import Bytes__eq__
 from ethereum_types.numeric import Uint, U256, U256Struct, bool
-from ethereum.crypto.hash import Hash32, EMPTY_ROOT
+from ethereum.crypto.hash import Hash32, EMPTY_ROOT, EMPTY_HASH
 from ethereum.utils.numeric import U256_to_be_bytes20
 from cairo_core.comparison import is_zero
 
@@ -106,8 +107,11 @@ using Bloom = Bytes256;
 struct AccountStruct {
     nonce: Uint,
     balance: U256,
-    code: Bytes,
+    // An account with no code is an account whose code is not cached yet.
+    // An account with empty code would have EMPTY_BYTES as code.
+    code: OptionalBytes,
     storage_root: Hash32,
+    code_hash: Bytes32,
 }
 
 struct Account {
@@ -187,15 +191,17 @@ struct MappingTupleAddressBytes32U256 {
 
 func EMPTY_ACCOUNT() -> Account {
     let (empty_root_ptr) = get_label_location(EMPTY_ROOT);
+    let (empty_hash_ptr) = get_label_location(EMPTY_HASH);
     tempvar balance = U256(new U256Struct(0, 0));
     let (data) = alloc();
-    tempvar code = Bytes(new BytesStruct(data=data, len=0));
+    tempvar code = OptionalBytes(new BytesStruct(data=data, len=0));
     tempvar account = Account(
         value=new AccountStruct(
             nonce=Uint(0),
             balance=balance,
             code=code,
             storage_root=Hash32(cast(empty_root_ptr, Bytes32Struct*)),
+            code_hash=Hash32(cast(empty_hash_ptr, Bytes32Struct*)),
         ),
     );
     return account;
@@ -224,14 +230,18 @@ func Account__eq__(a: OptionalAccount, b: OptionalAccount) -> bool {
         tempvar res = bool(0);
         return res;
     }
-    if (a.value.code.value.len != b.value.code.value.len) {
+
+    if (a.value.code_hash.value.low != b.value.code_hash.value.low) {
+        tempvar res = bool(0);
+        return res;
+    }
+    if (a.value.code_hash.value.high != b.value.code_hash.value.high) {
         tempvar res = bool(0);
         return res;
     }
 
-    let code_eq = Bytes__eq__(a.value.code, b.value.code);
-
-    return code_eq;
+    let res = bool(1);
+    return res;
 }
 
 // @notice Converts a 20-byte big-endian value into an Address.

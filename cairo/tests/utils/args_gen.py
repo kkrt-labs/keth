@@ -53,7 +53,7 @@ import functools
 import inspect
 import sys
 from collections import ChainMap, abc, defaultdict
-from dataclasses import dataclass, field, fields, is_dataclass, make_dataclass
+from dataclasses import dataclass, fields, is_dataclass, make_dataclass
 from functools import partial
 from typing import (
     Annotated,
@@ -148,6 +148,7 @@ from cairo_addons.vm import DictTracker as RustDictTracker
 from cairo_addons.vm import MemorySegmentManager as RustMemorySegmentManager
 from cairo_addons.vm import Relocatable as RustRelocatable
 from cairo_ec.curve import ECBase
+from mpt.ethereum_tries import EMPTY_BYTES_HASH, EMPTY_TRIE_HASH
 from mpt.utils import AccountNode
 from tests.utils.helpers import flatten
 
@@ -291,17 +292,14 @@ class Message(
         return common_fields and self.parent_evm == other.parent_evm
 
 
-EMPTY_STORAGE_ROOT = Bytes32(
-    (0x56E81F171BCC55A6FF8345E692C0F86E5B48E01B996CADC001622FB5E363B421).to_bytes(
-        32, "big"
-    )
-)
-
 # Separate setup & class definition to apply freezable decorator
 AccountDataclass = make_dataclass(
     "AccountDataclass",
     [(f.name, f.type, f) for f in fields(AccountBase)]
-    + [("storage_root", Bytes32, field(default=EMPTY_STORAGE_ROOT))],
+    + [
+        ("storage_root", Bytes32),
+        ("code_hash", Bytes32),
+    ],
     namespace={"__doc__": AccountBase.__doc__},
 )
 
@@ -315,12 +313,35 @@ class Account(AccountDataclass):
         return all(
             getattr(self, field.name) == getattr(other, field.name)
             for field in fields(self)
-            if field.name != "storage_root"
+            if field.name != "storage_root" and field.name != "code_hash"
         )
 
 
+def encode_account(raw_account_data: Account, storage_root: Bytes) -> Bytes:
+    """
+    Encode `Account` dataclass.
+
+    Storage is not stored in the `Account` dataclass, so `Accounts` cannot be
+    encoded without providing a storage root.
+    """
+    from ethereum_rlp import rlp
+
+    return rlp.encode(
+        (
+            raw_account_data.nonce,
+            raw_account_data.balance,
+            storage_root,
+            raw_account_data.code_hash,
+        )
+    )
+
+
 EMPTY_ACCOUNT = Account(
-    nonce=Uint(0), balance=U256(0), code=b"", storage_root=EMPTY_STORAGE_ROOT
+    nonce=Uint(0),
+    balance=U256(0),
+    code=b"",
+    storage_root=EMPTY_TRIE_HASH,
+    code_hash=EMPTY_BYTES_HASH,
 )
 
 
@@ -599,6 +620,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("cairo_core", "bytes", "TupleBytes32"): Tuple[Bytes32, ...],
     ("cairo_core", "bytes", "Bytes256"): Bytes256,
     ("cairo_core", "bytes", "Bytes"): Bytes,
+    ("cairo_core", "bytes", "OptionalBytes"): Optional[Bytes],
     ("cairo_core", "bytes", "String"): str,
     ("cairo_core", "bytes", "TupleBytes"): Tuple[Bytes, ...],
     ("cairo_core", "bytes", "MappingBytesBytes"): Mapping[Bytes, Bytes],

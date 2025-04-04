@@ -10,7 +10,7 @@ from ethereum.cancun.fork_types import (
 )
 from ethereum_types.bytes import Bytes, BytesStruct, Bytes20
 from ethereum_types.numeric import U256, Uint, bool
-from ethereum.cancun.state import get_account, State, StateStruct
+from ethereum.cancun.state import get_account, State, StateStruct, get_account_code
 from ethereum.cancun.utils.address import compute_contract_address
 from ethereum.cancun.transactions import To
 from cairo_core.comparison import is_zero
@@ -71,15 +71,17 @@ func prepare_message{
         // Case Address
         tempvar current_target = Address(target.value.address.value);
         let msg_data = data;
-        let code_account = get_account{state=state}(current_target);
+        let target_account = get_account{state=state}(current_target);
         if (cast(code_address.value, felt) == 0) {
             tempvar code_address = OptionalAddress(new Address(current_target.value));
         } else {
             tempvar code_address = code_address;
         }
+        let code_address = OptionalAddress(cast([ap - 1], Address*));
+        let target_code = get_account_code{state=state}(current_target, target_account);
         tempvar state = state;
         tempvar msg_data = msg_data;
-        tempvar code = code_account.value.code;
+        tempvar code = target_code;
         tempvar current_target = current_target;
         tempvar code_address = code_address;
         tempvar range_check_ptr = range_check_ptr;

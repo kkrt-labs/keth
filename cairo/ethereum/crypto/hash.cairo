@@ -11,6 +11,10 @@ EMPTY_ROOT:
 dw 0x6ef8c092e64583ffa655cc1b171fe856;  // low
 dw 0x21b463e3b52f6201c0ad6c991be0485b;  // high
 
+EMPTY_HASH:
+dw 0xc003c7dcb27d7e923c23f7860146d2c5;  // low
+dw 0x70a4855d04d8fa7b3b2782ca53b600e5;  // high
+
 func keccak256{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*}(
     buffer: Bytes
 ) -> Hash32 {
