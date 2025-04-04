@@ -15,6 +15,13 @@ from cairo_addons.testing.hints import patch_hint
 from mpt.utils import check_branch_node, nibble_list_to_bytes
 from tests.utils.args_gen import AddressAccountNodeDiffEntry
 
+list_address_account_node_diff_entry_strategy = st.lists(
+    st.from_type(AddressAccountNodeDiffEntry),
+    min_size=1,
+    max_size=10,
+    unique_by=lambda x: x.key,
+)
+
 
 @st.composite
 def branch_node_could_be_invalid_strategy(draw):
@@ -78,7 +85,7 @@ ids.second_non_null_index = 1
             with strict_raises(ValueError):
                 cairo_run_py("check_branch_node", branch_node)
 
-    @given(data=...)
+    @given(data=list_address_account_node_diff_entry_strategy)
     def test_sort_account_diff(
         self, cairo_run, data: List[AddressAccountNodeDiffEntry]
     ):
@@ -88,7 +95,7 @@ ids.second_non_null_index = 1
         cairo_data = cairo_run("sort_account_diff", data)
         assert cairo_data == sorted_data
 
-    @given(data=...)
+    @given(data=list_address_account_node_diff_entry_strategy)
     def test_sort_account_diff_ascending_order(
         self, cairo_programs, cairo_run_py, data: List[AddressAccountNodeDiffEntry]
     ):
@@ -113,7 +120,7 @@ segments.load_data(ids.sorted_indexes, sorted_indices)
             with strict_raises(ValueError):
                 cairo_run_py("sort_account_diff", data)
 
-    @given(data=...)
+    @given(data=list_address_account_node_diff_entry_strategy)
     def test_sort_account_diff_different_lists(
         self, cairo_programs, cairo_run_py, data: List[AddressAccountNodeDiffEntry]
     ):

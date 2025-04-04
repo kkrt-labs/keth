@@ -239,6 +239,8 @@ func sort_account_diff{range_check_ptr}(diff: AccountDiff) -> AccountDiff {
     jmp end if is_end != 0;
 
     // Check that the sorted array is ordered
+
+    // Check that the sorted array is ordered
     with_attr error_message("ValueError") {
         // If we are not at the end,
         // We can access offset i + 1
@@ -247,6 +249,12 @@ func sort_account_diff{range_check_ptr}(diff: AccountDiff) -> AccountDiff {
             sorted_account_diffs.data[i - 1].value.key.value,
         );
         assert is_descending_ordered = 1;
+        let duplicate_keys = is_zero(
+            sorted_account_diffs.data[i].value.key.value - sorted_account_diffs.data[
+                i - 1
+            ].value.key.value,
+        );
+        assert duplicate_keys = 0;
     }
 
     tempvar range_check_ptr = range_check_ptr;
