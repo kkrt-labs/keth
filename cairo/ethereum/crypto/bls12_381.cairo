@@ -216,8 +216,6 @@ func blsf2_div{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: 
     return blsf2_mul(a, b_inv);
 }
 
-
-
 // bls12-381 curve defined over BLSF (Fq)
 // BLSP represents a point on the curve.
 struct BLSPStruct {
