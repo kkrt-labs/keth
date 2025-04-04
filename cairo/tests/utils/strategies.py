@@ -60,8 +60,13 @@ from ethereum_types.bytes import (
 )
 from ethereum_types.numeric import U64, U256, FixedUnsigned, Uint
 from hypothesis import strategies as st
+from py_ecc.bls.hash_to_curve import (
+    map_to_curve_G1,
+    map_to_curve_G2,
+)
 from py_ecc.fields import optimized_bls12_381_FQ as BLSF
 from py_ecc.fields import optimized_bls12_381_FQ2 as BLSF2
+from py_ecc.optimized_bls12_381.optimized_pairing import normalize1
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 
 from cairo_ec.curve import AltBn128
@@ -236,6 +241,25 @@ class TypedTuple(tuple, Generic[T1, T2]):
         return super(TypedTuple, cls).__new__(cls, values)
 
 
+blsf_strategy = st.builds(
+    BLSF, st.integers(min_value=0, max_value=BLSF.field_modulus - 1)
+)
+blsf2_strategy = st.builds(
+    BLSF2,
+    st.lists(
+        st.integers(min_value=0, max_value=BLSF2.field_modulus - 1),
+        min_size=2,
+        max_size=2,
+    ).map(tuple),
+)
+blsp_strategy = blsf_strategy.map(lambda x: map_to_curve_G1(x)).map(
+    lambda x: normalize1(x)
+)
+blsp2_strategy = blsf2_strategy.map(lambda x: map_to_curve_G2(x)).map(
+    lambda x: normalize1(x)
+)
+
+
 def tuple_strategy(thing):
     types = thing.__args__
 
@@ -246,6 +270,12 @@ def tuple_strategy(thing):
             .map(tuple)
             .map(lambda x: TypedTuple[types](x))
         )
+
+    # Handle py_ecc Optimized_Point3D (tuples of BLSF or BLSF2)
+    if types[0] == BLSF:
+        return blsp_strategy
+    if types[0] == BLSF2:
+        return blsp2_strategy
 
     return st.tuples(*(st.from_type(t) for t in types)).map(
         lambda x: TypedTuple[types](x)
@@ -609,18 +639,6 @@ def bnfN_strategy(field: Type[GaloisField], N: int):
 bnf_strategy = st.builds(BNF, st.integers(min_value=0, max_value=BNF.PRIME - 1))
 bnf2_strategy = bnfN_strategy(BNF2, 2)
 bnf12_strategy = bnfN_strategy(BNF12, 12)
-
-blsf_strategy = st.builds(
-    BLSF, st.integers(min_value=0, max_value=BLSF.field_modulus - 1)
-)
-blsf2_strategy = st.builds(
-    BLSF2,
-    st.lists(
-        st.integers(min_value=0, max_value=BLSF2.field_modulus - 1),
-        min_size=2,
-        max_size=2,
-    ).map(tuple),
-)
 
 # Point at infinity for BNP12
 bnp12_infinity = BNP12(
