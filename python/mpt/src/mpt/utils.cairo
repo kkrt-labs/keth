@@ -31,6 +31,7 @@ from mpt.types import (
     AddressAccountNodeDiffEntry,
     AddressAccountNodeDiffEntryStruct,
     AccountNode,
+    StorageDiffStruct,
 )
 
 func deserialize_to_internal_node{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
@@ -275,4 +276,12 @@ func sort_account_diff{range_check_ptr}(account_diff: AccountDiff) -> AccountDif
     assert final_loop_counter = diffs_len;
     let sorted_account_diff = AccountDiff(sorted_diff_struct_ptr);
     return sorted_account_diff;
+}
+
+func sort_storage_diff{range_check_ptr}(storage_diff: StorageDiff) -> StorageDiff {
+    // Both structs have the same layout (felt, ptr, ptr) thus we can cast one into the other
+    let casted_storage_diff = AccountDiff(cast(storage_diff.value, AccountDiffStruct*));
+    let diff = sort_account_diff(casted_storage_diff);
+    let res = StorageDiff(cast(diff.value, StorageDiffStruct*));
+    return res;
 }
