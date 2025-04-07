@@ -223,6 +223,9 @@ struct BLSPStruct {
     y: BLSF,
 }
 
+using G1Compressed = U384;
+using G1Uncompressed = BLSP;
+
 struct BLSP {
     value: BLSPStruct*,
 }

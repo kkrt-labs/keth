@@ -1,5 +1,5 @@
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, UInt384
+from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, UInt384, ModBuiltin
 from starkware.cairo.common.registers import get_label_location
 from starkware.cairo.common.bitwise import bitwise_and
 from starkware.cairo.common.math import unsigned_div_rem
@@ -24,13 +24,27 @@ from ethereum.utils.numeric import (
     U384_ZERO,
     U384__eq__,
     Bytes32_from_be_bytes,
+    U384Struct,
 )
+from cairo_ec.circuits.ec_ops_compiled import assert_on_curve
 from cairo_ec.curve.bls12_381 import bls12_381
-from ethereum.crypto.bls12_381 import BLSF2, BLSF2Struct, BLSF2__eq__, BLSF2_ZERO
+from ethereum.crypto.bls12_381 import (
+    BLSF,
+    BLSFStruct,
+    BLSP,
+    BLSPStruct,
+    blsp_point_at_infinity,
+    blsp_init,
+    G1Compressed,
+    G1Uncompressed,
+    BLSF_ZERO,
+)
+from cairo_ec.curve.g1_point import G1Point
 from cairo_core.numeric import OptionalU384
 from cairo_core.hash.sha256 import sha256_be_output
 from ethereum.cancun.fork_types import VersionedHash
 from legacy.utils.array import reverse
+from cairo_ec.circuits.mod_ops_compiled import add, sub, mul
 
 using BLSScalar = U256;
 using KZGCommitment = Bytes48;
@@ -109,5 +123,61 @@ func is_point_at_infinity{range_check96_ptr: felt*}(z1: U384, z2: OptionalU384) 
     }
     let is_z1_zero = U384__eq__(z1, u384_zero);
     let result = bool(is_z1_zero.value);
+    return result;
+}
+
+// Recover the uncompressed G1 point from its compressed form
+func decompress_G1{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
+}(z: G1Compressed) -> G1Uncompressed {
+    alloc_locals;
+
+    // Extract flags
+    let (c_flag, b_flag, a_flag) = get_flags(z);
+
+    // Validate c_flag is 1
+    with_attr error_message("ValueError") {
+        assert c_flag.value = 1;
+    }
+
+    // Check if the point is at infinity
+    tempvar zero_u384 = OptionalU384(new U384Struct(0, 0, 0, 0));
+    let is_inf_pt = is_point_at_infinity(z, zero_u384);
+
+    // Validate b_flag
+    with_attr error_message("ValueError") {
+        assert b_flag.value = is_inf_pt.value;
+    }
+
+    // If point is at infinity
+    if (is_inf_pt.value == 1) {
+        // Validate a_flag is 0
+        with_attr error_message("ValueError") {
+            assert a_flag.value = 0;
+        }
+        // Return point at infinity
+        let result = blsp_point_at_infinity();
+        return result;
+    }
+
+    // z % POW_2_381
+    tempvar POW_2_381 = U384(new U384Struct(0, 0, 0, 9903520314283042199192993792));
+    tempvar one = U384(new U384Struct(1, 0, 0, 0));
+    let x = mul(z, one, POW_2_381);
+
+    // Create x as a field element
+    tempvar x_blsf = BLSF(new BLSFStruct(x));
+
+    // compute y = (x^3 + b)^((p+1)/4) mod p
+    // replaced with a hint
+    local y_blsf: BLSF;
+    %{ decompress_G1_hint %}
+
+    // Create point using blsp_init which verifies it's on the curve
+    let result = blsp_init(x_blsf, y_blsf);
     return result;
 }

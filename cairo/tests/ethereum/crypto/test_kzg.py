@@ -10,10 +10,17 @@ from ethereum.crypto.kzg import (
 from ethereum_types.bytes import Bytes, Bytes32
 from hypothesis import example, given
 from hypothesis import strategies as st
+from py_ecc.bls.constants import POW_2_381, POW_2_382, POW_2_383
 from py_ecc.bls.hash import os2ip
-from py_ecc.bls.point_compression import get_flags, is_point_at_infinity
+from py_ecc.bls.point_compression import (
+    decompress_G1,
+    get_flags,
+    is_point_at_infinity,
+)
+from py_ecc.bls.typing import G1Compressed as G1Compressed_py
 
-from tests.utils.args_gen import U384
+from cairo_addons.testing.errors import cairo_error
+from tests.utils.args_gen import U384, G1Compressed
 
 
 @given(a=...)
@@ -57,3 +64,26 @@ def test_kzg_commitment_to_versioned_hash(cairo_run, commitment: KZGCommitment):
     assert cairo_run(
         "kzg_commitment_to_versioned_hash", commitment
     ) == kzg_commitment_to_versioned_hash(commitment)
+
+
+@given(point=...)
+def test_decompress_G1(cairo_run, point: G1Compressed):
+    assert cairo_run("decompress_G1", point) == decompress_G1(G1Compressed_py(point))
+
+
+@given(point=st.builds(G1Compressed, st.integers(min_value=0, max_value=2**383 - 1)))
+@example(point=G1Compressed(0))
+@example(point=G1Compressed(POW_2_383))  # c_flag=1, b_flag=0, point at infinity
+@example(
+    point=G1Compressed(POW_2_383 + POW_2_382 + 1)
+)  # c_flag=1, b_flag=1, non-infinity point
+@example(point=G1Compressed(POW_2_383 + POW_2_382 + POW_2_381))
+def test_decompress_G1_error_cases(cairo_run, point: G1Compressed):
+    with pytest.raises(ValueError):
+        decompress_G1(G1Compressed_py(point))
+    try:
+        with pytest.raises(ValueError):
+            cairo_run("decompress_G1", point)
+    except Exception:
+        with cairo_error("ValueError"):  # Hint error
+            cairo_run("decompress_G1", point)
