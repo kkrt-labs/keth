@@ -11,13 +11,9 @@ It is primarily used for profiling cairo-vm.
 cargo r -p keth-run <BLOCK_NUMBER>
 ```
 
-- If you want to generate a
-  [flamegraph](https://github.com/brendangregg/FlameGraph), (unless you're not
-  using a MacOS) you'll need root privileges. Since the required environment
-  vars are not preserved, you need to redefine them manually for the sudo
-  command.
+- To generate a flamegraph.svg file (requires sudo access) using
+  [flamegraph](https://github.com/brendangregg/FlameGraph):
 
 ```bash
-cargo build -p keth-run --release
-sudo PYTHONPATH=$PYTHONPATH PYTHONHOME=$PYTHONHOME PYO3_PYTHON=$PYO3_PYTHON flamegraph -- target/release/keth-run <BLOCK_NUMBER>
+cargo flamegraph --root -p keth-run -- <BLOCK_NUMBER>
 ```
