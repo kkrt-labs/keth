@@ -16,6 +16,7 @@ from ethereum_types.numeric import U256, Uint
 from mpt.ethereum_tries import EthereumTrieTransitionDB
 from mpt.utils import (
     check_branch_node,
+    check_leaf_node,
     deserialize_to_internal_node,
     nibble_list_to_bytes,
 )
@@ -137,6 +138,7 @@ class StateDiff:
 
             case (None, LeafNode()):
                 # new leaf
+                check_leaf_node(r_node)
                 full_path = nibble_list_to_bytes(path + r_node.rest_of_key)
                 process_leaf_diff(path=full_path, left=None, right=r_node)
 
@@ -159,10 +161,13 @@ class StateDiff:
 
             case (LeafNode(), None):
                 # deleted leaf
+                check_leaf_node(path, l_node)
                 full_path = nibble_list_to_bytes(path + l_node.rest_of_key)
                 process_leaf_diff(path=full_path, left=l_node, right=None)
 
             case (LeafNode(), LeafNode()):
+                check_leaf_node(path, l_node)
+                check_leaf_node(path, r_node)
                 if l_node.rest_of_key == r_node.rest_of_key:
                     if l_node.value != r_node.value:
                         # Same path -> different values
@@ -183,6 +188,7 @@ class StateDiff:
                 return
 
             case (LeafNode(), ExtensionNode()):
+                check_leaf_node(path, l_node)
                 # Explore the extension node's subtree for any new leaves, comparing it to the old
                 # leaf with the same key
                 if l_node.rest_of_key.startswith(r_node.key_segment):
@@ -207,6 +213,7 @@ class StateDiff:
                 )
 
             case (LeafNode(), BranchNode()):
+                check_leaf_node(path, l_node)
                 check_branch_node(r_node)
                 # The branch was created and replaced the single leaf.
                 # All branches - except the one whose first nibble matches the leaf's key - are new.
@@ -361,7 +368,8 @@ class StateDiff:
                     )
 
             case (BranchNode(), LeafNode()):
-                check_branch_node(r_node)
+                check_branch_node(l_node)
+                check_leaf_node(path, r_node)
                 # The branch was deleted and replaced by a single leaf.
                 # All branches - except the one whose first nibble matches the leaf's key - are deleted.
                 # The remaining branch is compared to the leaf.
