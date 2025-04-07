@@ -69,43 +69,47 @@ def branch_node_could_be_invalid_strategy(draw):
 def leaf_node_could_be_invalid_strategy(draw):
     """Creates a leaf node associated to a path that could either be valid or invalid"""
     full_path = draw(st.binary(min_size=32, max_size=32))
-    cases = st.sampled_from(
+    test_cases = st.sampled_from(
         ["rest_of_key_too_short", "rest_of_key_too_long", "invalid_value", "ok"]
     )
-    case = draw(cases)
+    test_case = draw(test_cases)
 
-    if case == "rest_of_key_too_short":
-        # Create a path and rest_of_key that together are too short
-        path_size = draw(st.integers(min_value=0, max_value=31))
-        missing_size = draw(st.integers(min_value=1, max_value=32 - path_size))
-        rest_of_key_size = 32 - path_size - missing_size
-        path = bytes_to_nibble_list(full_path[:path_size])
-        rest_of_key = bytes_to_nibble_list(
-            full_path[path_size : path_size + rest_of_key_size]
-        )
-        return path, LeafNode(rest_of_key=rest_of_key, value=b"")
+    match test_case:
+        case "rest_of_key_too_short":
+            # Create a path and rest_of_key that together are too short
+            path_size = draw(st.integers(min_value=0, max_value=31))
+            missing_size = draw(st.integers(min_value=1, max_value=32 - path_size))
+            rest_of_key_size = 32 - path_size - missing_size
+            path = bytes_to_nibble_list(full_path[:path_size])
+            rest_of_key = bytes_to_nibble_list(
+                full_path[path_size : path_size + rest_of_key_size]
+            )
+            return path, LeafNode(rest_of_key=rest_of_key, value=b"")
 
-    elif case == "rest_of_key_too_long":
-        # Create a path and rest_of_key that together are too long
-        path = bytes_to_nibble_list(full_path[:-5])
-        rest_of_key = bytes_to_nibble_list(full_path[-5:] + b"\x01")  # Add extra byte
-        return path, LeafNode(rest_of_key=rest_of_key, value=b"")
+        case "rest_of_key_too_long":
+            # Create a path and rest_of_key that together are too long
+            path = bytes_to_nibble_list(full_path[:-5])
+            rest_of_key = bytes_to_nibble_list(
+                full_path[-5:] + b"\x01"
+            )  # Add extra byte
+            return path, LeafNode(rest_of_key=rest_of_key, value=b"")
 
-    elif case == "invalid_value":
-        # Create a leaf node with invalid value (0)
-        path = bytes_to_nibble_list(full_path[:16])
-        rest_of_key = bytes_to_nibble_list(full_path[16:])
-        # Assuming we're only working with `bytes` or `Sequence[rlp.Extended]` types.
-        value = draw(st.from_type(Union[Sequence[rlp.Extended], bytes]))
-        assume("__len__" in dir(value))
-        assume(len(value) != 0)
-        return path, LeafNode(rest_of_key=rest_of_key, value=value)
+        case "invalid_value":
+            # Create a leaf node with invalid value (0)
+            path = bytes_to_nibble_list(full_path[:16])
+            rest_of_key = bytes_to_nibble_list(full_path[16:])
+            # Assuming we're only working with `bytes` or `Sequence[rlp.Extended]` types.
+            value = draw(st.from_type(Union[Sequence[rlp.Extended], bytes]))
+            assume(len(value) == 0)
+            return path, LeafNode(rest_of_key=rest_of_key, value=value)
 
-    else:
-        # Create a valid leaf node
-        path = bytes_to_nibble_list(full_path[:16])
-        rest_of_key = bytes_to_nibble_list(full_path[16:])
-        return path, LeafNode(rest_of_key=rest_of_key, value=b"")
+        case "ok":
+            # Create a valid leaf node
+            path = bytes_to_nibble_list(full_path[:16])
+            rest_of_key = bytes_to_nibble_list(full_path[16:])
+            value = draw(st.from_type(Union[Sequence[rlp.Extended], bytes]))
+            assume(len(value) != 0)
+            return path, LeafNode(rest_of_key=rest_of_key, value=value)
 
 
 class TestUtils:
