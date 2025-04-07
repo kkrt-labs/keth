@@ -525,14 +525,14 @@ class FlatState:
 @dataclass
 class AddressAccountDiffEntry:
     key: Address
-    prev_value: Account
+    prev_value: Optional[Account]
     new_value: Account
 
     def hash_poseidon(self):
         return poseidon_hash_many(
             [
                 int.from_bytes(self.key, "little"),
-                *self.prev_value.hash_args(),
+                *(self.prev_value.hash_args() if self.prev_value else []),
                 *self.new_value.hash_args(),
             ]
         )
