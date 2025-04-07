@@ -205,7 +205,7 @@ func check_leaf_node(path: Bytes, node: LeafNode) {
 
     let bytes_variant = node.value.value.value.bytes.value;
     if (cast(bytes_variant, felt) != 0) {
-        if (bytes_variant.len != 0) {
+        if (bytes_variant.len == 0) {
             raise('ValueError');
         }
         return ();

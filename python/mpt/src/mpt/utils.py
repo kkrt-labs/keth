@@ -89,8 +89,8 @@ def check_leaf_node(path: Bytes, node: LeafNode) -> None:
     """
     Check that a leaf node is valid.
     """
-    if len(node.value) != 0:
-        raise ValueError("Invalid leaf node, expected a non-zero value")
+    if len(node.value) == 0:
+        raise ValueError("Invalid leaf node, expected a non-empty value")
 
     nibbles_len = len(node.rest_of_key)
     path_len = len(path)
