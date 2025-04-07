@@ -26,7 +26,7 @@ struct Args {
     stwo_proof: bool,
 
     /// Path to save the Stwo proof (required when --stwo-proof is used)
-    #[arg(long, value_name = "FILE")]
+    #[arg(long, value_name = "FILE", required_if_eq("stwo_proof", "true"))]
     proof_path: Option<PathBuf>,
 
     /// Verify the Stwo proof after generation (only used with --stwo-proof)
