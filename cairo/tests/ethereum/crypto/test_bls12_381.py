@@ -204,7 +204,6 @@ segments.load_data(ids.b_inv.address_, [blsf2_struct_ptr])
             assert cairo_run("blsp2_double", p) == normalize1(double(p))
 
         @given(p=..., n=...)
-        @pytest.mark.slow
         def test_blsp2_mul_by(self, cairo_run, p: Optimized_Point3D[BLSF2], n: U384):
             expected = multiply(p, int(n))
             if not is_inf(expected):
