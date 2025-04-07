@@ -77,7 +77,6 @@ from typing import (
 
 from ethereum.cancun.blocks import Block, Header, Log, Receipt, Withdrawal
 from ethereum.cancun.fork import ApplyBodyOutput, BlockChain
-from ethereum.cancun.fork_types import Account as AccountBase
 from ethereum.cancun.fork_types import (
     Address,
     Bloom,
@@ -110,6 +109,7 @@ from ethereum.crypto.alt_bn128 import BNF, BNF2, BNF12, BNP, BNP2, BNP12
 from ethereum.crypto.hash import Hash32
 from ethereum.crypto.kzg import BLSFieldElement, KZGCommitment
 from ethereum.exceptions import EthereumException
+from ethereum_rlp import rlp
 from ethereum_rlp.rlp import Extended, Simple
 from ethereum_types.bytes import (
     Bytes,
@@ -145,12 +145,12 @@ from starkware.cairo.lang.vm.crypto import poseidon_hash_many
 from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 from starkware.cairo.lang.vm.relocatable import RelocatableValue
 
+from cairo_addons.utils.uint256 import int_to_uint256
 from cairo_addons.vm import DictTracker as RustDictTracker
 from cairo_addons.vm import MemorySegmentManager as RustMemorySegmentManager
 from cairo_addons.vm import Relocatable as RustRelocatable
 from cairo_ec.curve import ECBase
 from mpt.ethereum_tries import EMPTY_BYTES_HASH, EMPTY_TRIE_HASH
-from mpt.utils import AccountNode
 from tests.utils.helpers import flatten
 
 HASHED_TYPES = [
@@ -293,38 +293,76 @@ class Message(
         return common_fields and self.parent_evm == other.parent_evm
 
 
-# Separate setup & class definition to apply freezable decorator
-AccountDataclass = make_dataclass(
-    "AccountDataclass",
-    [(f.name, f.type, f) for f in fields(AccountBase)]
-    + [
-        ("storage_root", Bytes32),
-        ("code_hash", Bytes32),
-    ],
-    namespace={"__doc__": AccountBase.__doc__},
-)
-
-
 @slotted_freezable
 @dataclass
-class Account(AccountDataclass):
+class Account:
+    # Order of fields is important regarding serde logic
+    nonce: Uint
+    balance: U256
+    code_hash: Hash32
+    storage_root: Hash32
+    code: bytes
+
     def __eq__(self, other):
         if not isinstance(other, Account):
             return False
         return all(
             getattr(self, field.name) == getattr(other, field.name)
             for field in fields(self)
-            if field.name != "storage_root" and field.name != "code_hash"
+            if field.name != "storage_root"
         )
+
+    def hash_args(self) -> List[int]:
+        """
+        Returns the list of arguments used when hashing the account.
+        """
+        return [
+            int(self.nonce),
+            *int_to_uint256(int(self.balance)),
+            *int_to_uint256(int.from_bytes(self.code_hash, "little")),
+            *int_to_uint256(int.from_bytes(self.storage_root, "little")),
+        ]
+
+    @staticmethod
+    def from_rlp(bytes: Bytes) -> "Account":
+        """
+        Decode the RLP encoded representation of an account.
+        Because the RLP encoding does not contain the code, it is initially None.
+        """
+        decoded = rlp.decode(bytes)
+        return Account(
+            nonce=Uint(int.from_bytes(decoded[0], "big")),
+            balance=U256(int.from_bytes(decoded[1], "big")),
+            storage_root=Hash32(decoded[2]),
+            code_hash=Hash32(decoded[3]),
+            code=None,
+        )
+
+    def to_rlp(self) -> Bytes:
+        """
+        Encode the account as RLP.
+        """
+        nonce_bytes = (
+            self.nonce._number.to_bytes(
+                (self.nonce._number.bit_length() + 7) // 8, "big"
+            )
+            or b"\x00"
+        )
+        balance_bytes = self.balance._number.to_bytes(32, "big")
+        balance_bytes = balance_bytes.lstrip(b"\x00") or b"\x00"
+
+        encoded = rlp.encode(
+            [
+                nonce_bytes,
+                balance_bytes,
+                self.storage_root,
+                self.code_hash,
+            ]
+        )
+        return encoded
 
 
 def encode_account(raw_account_data: Account, storage_root: Bytes) -> Bytes:
-    """
-    Encode `Account` dataclass.
-
-    Storage is not stored in the `Account` dataclass, so `Accounts` cannot be
-    encoded without providing a storage root.
-    """
     from ethereum_rlp import rlp
 
     return rlp.encode(
@@ -332,9 +370,23 @@ def encode_account(raw_account_data: Account, storage_root: Bytes) -> Bytes:
             raw_account_data.nonce,
             raw_account_data.balance,
             storage_root,
+            # Modified to use code_hash instead of hash(code)
             raw_account_data.code_hash,
         )
     )
+
+
+def set_code(state: State, address: Address, code: Bytes) -> None:
+    from ethereum.cancun.state import modify_state
+
+    def write_code(sender: Account) -> None:
+        from ethereum.crypto.hash import keccak256
+
+        sender.code = code
+        # Modified to set the code hash as well
+        sender.code_hash = keccak256(code)
+
+    modify_state(state, address, write_code)
 
 
 EMPTY_ACCOUNT = Account(
@@ -471,10 +523,19 @@ class FlatState:
 
 
 @dataclass
-class AddressAccountNodeDiffEntry:
+class AddressAccountDiffEntry:
     key: Address
-    prev_value: AccountNode
-    new_value: AccountNode
+    prev_value: Account
+    new_value: Account
+
+    def hash_poseidon(self):
+        return poseidon_hash_many(
+            [
+                int.from_bytes(self.key, "little"),
+                *self.prev_value.hash_args(),
+                *self.new_value.hash_args(),
+            ]
+        )
 
 
 @dataclass
@@ -482,6 +543,15 @@ class StorageDiffEntry:
     key: Uint
     prev_value: U256
     new_value: U256
+
+    def hash_poseidon(self):
+        return poseidon_hash_many(
+            [
+                int(self.key),
+                *int_to_uint256(int(self.prev_value)),
+                *int_to_uint256(int(self.new_value)),
+            ]
+        )
 
 
 @dataclass
@@ -835,15 +905,14 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "crypto", "alt_bn128", "BNP2"): BNP2,
     ("mpt", "types", "MappingBytes32Address"): Mapping[Bytes32, Address],
     ("mpt", "types", "MappingBytes32Bytes32"): Mapping[Bytes32, Bytes32],
-    ("mpt", "types", "AccountNode"): AccountNode,
     ("mpt", "types", "NodeStore"): Mapping[Hash32, Optional[InternalNode]],
     ("cairo_core", "bytes", "HashedBytes32"): int,
     ("mpt", "types", "UnionInternalNodeExtended"): Union[InternalNode, Extended],
     ("mpt", "types", "OptionalUnionInternalNodeExtended"): Optional[
         Union[InternalNode, Extended]
     ],
-    ("mpt", "types", "AddressAccountNodeDiffEntry"): AddressAccountNodeDiffEntry,
-    ("mpt", "types", "AccountDiff"): List[AddressAccountNodeDiffEntry],
+    ("mpt", "types", "AddressAccountDiffEntry"): AddressAccountDiffEntry,
+    ("mpt", "types", "AccountDiff"): List[AddressAccountDiffEntry],
     ("mpt", "types", "StorageDiffEntry"): StorageDiffEntry,
     ("mpt", "types", "StorageDiff"): List[StorageDiffEntry],
     ("ethereum", "cancun", "fork_types", "HashedTupleAddressBytes32"): Uint,

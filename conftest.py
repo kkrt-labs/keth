@@ -140,6 +140,7 @@ def pytest_configure(config):
         MessageCallOutput,
         Node,
         encode_account,
+        set_code,
     )
 
     # Initialize the tracer
@@ -153,6 +154,10 @@ def pytest_configure(config):
     ethereum.cancun.fork_types.Account = Account
     ethereum.cancun.fork_types.EMPTY_ACCOUNT = EMPTY_ACCOUNT
     ethereum.cancun.fork_types.encode_account = encode_account
+    ethereum.cancun.state.set_code = set_code
+    ethereum.cancun.trie.Node = Node
+    mpt.ethereum_tries.Account = Account
+    mpt.trie_diff.Account = Account
 
     # TODO: Find a better way to do this?
     # See explanation below. Lots of EELS modules import `Account` and `EMPTY_ACCOUNT` from `ethereum.cancun.fork_types`.
@@ -164,8 +169,8 @@ def pytest_configure(config):
     setattr(ethereum.cancun.fork_types, "EMPTY_ACCOUNT", EMPTY_ACCOUNT)
     setattr(ethereum.cancun.vm.instructions.environment, "EMPTY_ACCOUNT", EMPTY_ACCOUNT)
     setattr(mpt.utils, "Account", Account)
-
-    ethereum.cancun.trie.Node = Node
+    setattr(mpt.trie_diff, "Account", Account)
+    setattr(mpt.ethereum_tries, "Account", Account)
     setattr(ethereum.cancun.trie, "Node", Node)
 
     # Mock the Extended type

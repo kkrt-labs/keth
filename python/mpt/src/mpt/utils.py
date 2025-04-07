@@ -1,6 +1,4 @@
 import logging
-from dataclasses import dataclass
-from typing import Any, List
 
 from ethereum.cancun.trie import (
     BranchNode,
@@ -9,88 +7,10 @@ from ethereum.cancun.trie import (
     LeafNode,
     bytes_to_nibble_list,
 )
-from ethereum.crypto.hash import Hash32
 from ethereum_rlp import Extended, rlp
 from ethereum_types.bytes import Bytes
-from ethereum_types.numeric import U256, Uint
-
-from cairo_addons.utils.uint256 import int_to_uint256
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class AccountNode:
-    """
-    Represents an account node in an Ethereum MPT.
-    """
-
-    nonce: Uint
-    balance: U256
-    code_hash: Hash32
-    storage_root: Hash32
-
-    def flatten(self) -> List[int]:
-        """
-        Flatten the account node into a list of integers (field elements).
-        """
-        return [
-            self.nonce._number,
-            *int_to_uint256(self.balance._number),
-            *int_to_uint256(U256.from_le_bytes(self.code_hash)._number),
-            *int_to_uint256(U256.from_le_bytes(self.storage_root)._number),
-        ]
-
-    @staticmethod
-    def from_rlp(bytes: Bytes) -> "AccountNode":
-        """
-        Decode the RLP encoded representation of an account node.
-        """
-        decoded = rlp.decode(bytes)
-        return AccountNode(
-            nonce=Uint(int.from_bytes(decoded[0], "big")),
-            balance=U256(int.from_bytes(decoded[1], "big")),
-            storage_root=Hash32(decoded[2]),
-            code_hash=Hash32(decoded[3]),
-        )
-
-    def to_rlp(self) -> Bytes:
-        """
-        Encode the account node as RLP.
-        """
-        nonce_bytes = (
-            self.nonce._number.to_bytes(
-                (self.nonce._number.bit_length() + 7) // 8, "big"
-            )
-            or b"\x00"
-        )
-        balance_bytes = self.balance._number.to_bytes(32, "big")
-        balance_bytes = balance_bytes.lstrip(b"\x00") or b"\x00"
-
-        encoded = rlp.encode(
-            [
-                nonce_bytes,
-                balance_bytes,
-                self.storage_root,
-                self.code_hash,
-            ]
-        )
-        return encoded
-
-    def to_eels_account(self, code: Bytes) -> Any:
-        """
-        Converts an "AccountNode" to the "Account" type used in EELS.
-        Note: This used the replacement `Account` type defined in `args_gen`
-        """
-        from tests.utils.args_gen import Account
-
-        return Account(
-            nonce=self.nonce,
-            balance=self.balance,
-            code=code,
-            storage_root=self.storage_root,
-            code_hash=self.code_hash,
-        )
 
 
 def deserialize_to_internal_node(node: Extended) -> InternalNode:

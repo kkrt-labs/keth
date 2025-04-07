@@ -57,10 +57,9 @@ from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 from starkware.cairo.lang.vm.memory_dict import MemoryDict
 from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 
-from mpt.utils import AccountNode
 from tests.utils.args_gen import (
     U384,
-    AddressAccountNodeDiffEntry,
+    AddressAccountDiffEntry,
     Memory,
     Stack,
     StorageDiffEntry,
@@ -324,13 +323,12 @@ class TestSerde:
             BNF,
             BNP,
             BNP2,
-            AccountNode,
             Mapping[Bytes32, Address],
             Mapping[Hash32, Optional[InternalNode]],
             Mapping[Bytes32, Bytes32],
             BLSFieldElement,
-            AddressAccountNodeDiffEntry,
-            List[AddressAccountNodeDiffEntry],
+            AddressAccountDiffEntry,
+            List[AddressAccountDiffEntry],
             StorageDiffEntry,
             List[StorageDiffEntry],
             BLSF,
