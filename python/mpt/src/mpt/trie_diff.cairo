@@ -656,7 +656,6 @@ func _left_is_null{
     // (None, LeafNode()) -> new leaf
     if (cast(right.value.leaf_node.value, felt) != 0) {
         let r_leaf = right.value.leaf_node;
-        // Ensure the right leaf is well-formed.
         check_leaf_node(path, r_leaf);
         let full_path_nibbles = Bytes__add__(path, r_leaf.value.rest_of_key);
         let full_path = nibble_list_to_bytes(full_path_nibbles);
@@ -738,7 +737,6 @@ func _left_is_leaf_node{
     alloc_locals;
     // Pattern matching on the types of right.
 
-    // Ensure the leaf is well-formed.
     check_leaf_node(path, l_leaf);
 
     // (LeafNode(), None) -> deleted leaf
@@ -768,7 +766,6 @@ func _left_is_leaf_node{
     // (LeafNode(), LeafNode()) -> diffs in the leaf node
     if (cast(right.value.leaf_node.value, felt) != 0) {
         let r_leaf = right.value.leaf_node;
-        // Ensure the right leaf is well-formed.
         check_leaf_node(path, r_leaf);
         let is_rest_equal = Bytes__eq__(l_leaf.value.rest_of_key, r_leaf.value.rest_of_key);
 
@@ -988,7 +985,6 @@ func _left_is_extension_node{
     if (cast(right.value.leaf_node.value, felt) != 0) {
         // Remove the left node's key segment from the right leaf node
         let r_leaf = right.value.leaf_node;
-        // Ensure the right leaf is well-formed.
         check_leaf_node(path, r_leaf);
         let l_prefix_r = Bytes__startswith__(r_leaf.value.rest_of_key, left.value.key_segment);
         if (l_prefix_r.value != 0) {
@@ -1230,7 +1226,6 @@ func _left_is_branch_node{
     // The remaining branch is compared to the leaf.
     if (cast(right.value.leaf_node.value, felt) != 0) {
         let right_leaf = right.value.leaf_node;
-        // Ensure the right leaf is well-formed.
         check_leaf_node(path, right_leaf);
         return _compute_left_branch_on_right_leaf(
             left=left, right=right_leaf, path=path, account_address=account_address, index=0
