@@ -1395,8 +1395,8 @@ func finalize_state{range_check_ptr, state: State}() {
 
     tempvar squashed_main_trie = TrieAddressOptionalAccount(
         new TrieAddressOptionalAccountStruct(
-            secured=bool(1),
-            default=OptionalAccount(cast(0, AccountStruct*)),
+            secured=state.value._main_trie.value.secured,
+            default=state.value._main_trie.value.default,
             _data=MappingAddressAccount(
                 new MappingAddressAccountStruct(
                     dict_ptr_start=cast(squashed_main_trie_start, AddressAccountDictAccess*),
