@@ -1,3 +1,4 @@
+#[cfg(not(test))]
 fn main() {
     dotenv::dotenv().ok();
 
@@ -9,3 +10,7 @@ fn main() {
     println!("cargo:rerun-if-env-changed=PYTHONHOME");
     println!("cargo:rerun-if-env-changed=PYO3_PYTHON");
 }
+
+// Empty stub to allow build to succeed when running `cargo test --all-features`
+#[cfg(test)]
+fn main() {}
