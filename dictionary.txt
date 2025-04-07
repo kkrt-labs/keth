@@ -308,3 +308,4 @@ PYTHONPATH
 PYTHONHOME
 cpython
 flamegraph
+dotenvy
