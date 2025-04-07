@@ -119,6 +119,7 @@ from ethereum.cancun.state import (
     empty_transient_storage,
     process_withdrawal,
     state_root,
+    finalize_state,
 )
 from ethereum.cancun.transactions_types import (
     TX_ACCESS_LIST_ADDRESS_COST,
@@ -1179,6 +1180,9 @@ func apply_body{
         ),
     );
     let withdrawals_root = root(withdrawals_eth_trie, none_storage_roots);
+
+    // Finalize the state, getting unique keys for main and storage tries
+    finalize_state{state=state}();
 
     let state_root_ = state_root(state);
 

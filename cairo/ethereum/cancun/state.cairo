@@ -1080,6 +1080,8 @@ func empty_transient_storage{range_check_ptr}() -> TransientStorage {
     return transient_storage;
 }
 
+// @notice Computes the storage roots of all the addresses in the state
+// @dev The input state must've been squashed for unique keys.
 func storage_roots{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
@@ -1092,15 +1094,6 @@ func storage_roots{
         raise('AssertionError');
     }
 
-    // Get the Trie[Tuple[Address, Bytes32], U256] storage tries, and squash them for unique keys
-    let storage_tries = state.value._storage_tries;
-    let storage_tries_start = cast(storage_tries.value._data.value.dict_ptr_start, DictAccess*);
-    let storage_tries_end = cast(storage_tries.value._data.value.dict_ptr, DictAccess*);
-
-    let (squashed_storage_tries_start, squashed_storage_tries_end) = default_dict_finalize(
-        storage_tries_start, storage_tries_end, cast(storage_tries.value.default.value, felt)
-    );
-
     // Create a Mapping[Address, Trie[Bytes32, U256]] that will contain the "flat" tries, where we
     // will get the storage trie of each address
     let (map_addr_storage_start) = default_dict_new(0);
@@ -1112,6 +1105,12 @@ func storage_roots{
         ),
     );
 
+    let squashed_storage_tries_start = cast(
+        state.value._storage_tries.value._data.value.dict_ptr_start, DictAccess*
+    );
+    let squashed_storage_tries_end = cast(
+        state.value._storage_tries.value._data.value.dict_ptr, DictAccess*
+    );
     build_map_addr_storage_trie{
         map_addr_storage=map_addr_storage, storage_tries_ptr_end=squashed_storage_tries_end
     }(squashed_storage_tries_start);
@@ -1273,6 +1272,8 @@ func build_storage_trie_for_address{
     return ();
 }
 
+// @notice Computes the state root of the state
+// @dev Squashes the main trie for unique keys, and updates the state with the new, squashed segment.
 func state_root{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
@@ -1285,34 +1286,11 @@ func state_root{
         raise('AssertionError');
     }
 
-    // Squash the main trie for unique keys
-    let main_trie = state.value._main_trie;
-    let main_trie_start = cast(main_trie.value._data.value.dict_ptr_start, DictAccess*);
-    let main_trie_end = cast(main_trie.value._data.value.dict_ptr, DictAccess*);
-
-    let (squashed_main_trie_start, squashed_main_trie_end) = default_dict_finalize(
-        main_trie_start, main_trie_end, cast(main_trie.value.default.value, felt)
-    );
-
-    tempvar squashed_main_trie = TrieAddressOptionalAccount(
-        new TrieAddressOptionalAccountStruct(
-            secured=bool(1),
-            default=OptionalAccount(cast(0, AccountStruct*)),
-            _data=MappingAddressAccount(
-                new MappingAddressAccountStruct(
-                    dict_ptr_start=cast(squashed_main_trie_start, AddressAccountDictAccess*),
-                    dict_ptr=cast(squashed_main_trie_end, AddressAccountDictAccess*),
-                    parent_dict=cast(0, MappingAddressAccountStruct*),
-                ),
-            ),
-        ),
-    );
-
     let storage_roots_ = storage_roots(state);
 
     tempvar trie_union = EthereumTries(
         new EthereumTriesEnum(
-            account=squashed_main_trie,
+            account=state.value._main_trie,
             storage=TrieBytes32U256(cast(0, TrieBytes32U256Struct*)),
             transaction=TrieBytesOptionalUnionBytesLegacyTransaction(
                 cast(0, TrieBytesOptionalUnionBytesLegacyTransactionStruct*)
@@ -1401,5 +1379,69 @@ func mapping_address_bytes32_write{range_check_ptr, mapping: MappingAddressBytes
             parent_dict=mapping.value.parent_dict,
         ),
     );
+    return ();
+}
+
+func finalize_state{range_check_ptr, state: State}() {
+    alloc_locals;
+    // Squash the main trie for unique keys
+    let main_trie = state.value._main_trie;
+    let main_trie_start = cast(main_trie.value._data.value.dict_ptr_start, DictAccess*);
+    let main_trie_end = cast(main_trie.value._data.value.dict_ptr, DictAccess*);
+
+    let (squashed_main_trie_start, squashed_main_trie_end) = default_dict_finalize(
+        main_trie_start, main_trie_end, cast(main_trie.value.default.value, felt)
+    );
+
+    tempvar squashed_main_trie = TrieAddressOptionalAccount(
+        new TrieAddressOptionalAccountStruct(
+            secured=state.value._main_trie.value.secured,
+            default=state.value._main_trie.value.default,
+            _data=MappingAddressAccount(
+                new MappingAddressAccountStruct(
+                    dict_ptr_start=cast(squashed_main_trie_start, AddressAccountDictAccess*),
+                    dict_ptr=cast(squashed_main_trie_end, AddressAccountDictAccess*),
+                    parent_dict=cast(0, MappingAddressAccountStruct*),
+                ),
+            ),
+        ),
+    );
+
+    // Get the Trie[Tuple[Address, Bytes32], U256] storage tries, and squash them for unique keys
+    let storage_tries = state.value._storage_tries;
+    let storage_tries_start = cast(storage_tries.value._data.value.dict_ptr_start, DictAccess*);
+    let storage_tries_end = cast(storage_tries.value._data.value.dict_ptr, DictAccess*);
+
+    let (squashed_storage_tries_start, squashed_storage_tries_end) = default_dict_finalize(
+        storage_tries_start, storage_tries_end, cast(storage_tries.value.default.value, felt)
+    );
+
+    // Update the state by rebinding the squashed storage tries
+    tempvar squashed_storage_tries = TrieTupleAddressBytes32U256(
+        new TrieTupleAddressBytes32U256Struct(
+            secured=storage_tries.value.secured,
+            default=storage_tries.value.default,
+            _data=MappingTupleAddressBytes32U256(
+                new MappingTupleAddressBytes32U256Struct(
+                    dict_ptr_start=cast(
+                        squashed_storage_tries_start, TupleAddressBytes32U256DictAccess*
+                    ),
+                    dict_ptr=cast(squashed_storage_tries_end, TupleAddressBytes32U256DictAccess*),
+                    parent_dict=cast(0, MappingTupleAddressBytes32U256Struct*),
+                ),
+            ),
+        ),
+    );
+
+    // Re-bind the state with the squashed storage tries
+    tempvar state = State(
+        new StateStruct(
+            _main_trie=squashed_main_trie,
+            _storage_tries=squashed_storage_tries,
+            created_accounts=state.value.created_accounts,
+            original_storage_tries=state.value.original_storage_tries,
+        ),
+    );
+
     return ();
 }
