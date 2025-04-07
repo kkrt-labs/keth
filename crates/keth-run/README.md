@@ -12,7 +12,7 @@ cargo r -p keth-run <BLOCK_NUMBER>
 ```
 
 - To generate a flamegraph.svg file (requires sudo access) using
-  [flamegraph](https://github.com/brendangregg/FlameGraph):
+  [flamegraph](https://github.com/flamegraph-rs/flamegraph):
 
 ```bash
 cargo flamegraph --root -p keth-run -- <BLOCK_NUMBER>
