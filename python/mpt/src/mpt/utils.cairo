@@ -213,7 +213,7 @@ func check_leaf_node(path: Bytes, node: LeafNode) {
 
     let sequence_variant = node.value.value.value.sequence.value;
     if (cast(sequence_variant, felt) != 0) {
-        if (sequence_variant.len != 0) {
+        if (sequence_variant.len == 0) {
             raise('ValueError');
         }
         return ();
