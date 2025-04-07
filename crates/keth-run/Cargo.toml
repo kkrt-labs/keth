@@ -20,3 +20,6 @@ dotenv = "0.15.0"
 
 [lints]
 workspace = true
+
+[profile.release]
+debug = true
