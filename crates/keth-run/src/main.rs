@@ -4,7 +4,7 @@ use pyo3::prelude::*;
 use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None)]
+#[command()]
 struct Args {
     /// Block number to prove (must be after Cancun fork)
     #[arg(value_name = "BLOCK_NUMBER")]
