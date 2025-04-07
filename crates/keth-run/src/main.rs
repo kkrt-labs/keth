@@ -49,10 +49,12 @@ fn main() -> PyResult<()> {
     }
 
     if !args.output_dir.exists() {
-        std::fs::create_dir_all(&args.output_dir).map_err(|e| {
-            eprintln!("Error creating output directory: {}", e);
-            std::process::exit(1);
-        }).unwrap();
+        std::fs::create_dir_all(&args.output_dir)
+            .map_err(|e| {
+                eprintln!("Error creating output directory: {e}");
+                std::process::exit(1);
+            })
+            .unwrap();
     }
 
     Python::with_gil(|py| -> PyResult<()> {

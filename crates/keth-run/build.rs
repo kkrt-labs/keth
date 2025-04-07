@@ -4,7 +4,7 @@ fn main() {
     // Get UV_ROOT from environment variable, with a fallback path
     let uv_root = std::env::var("UV_ROOT").unwrap_or_else(|_| {
         let home = std::env::var("HOME").expect("HOME environment variable not set");
-        format!("{}/.local/share/uv", home)
+        format!("{home}/.local/share/uv")
     });
-    println!("cargo:rustc-env=PYTHONHOME={}/python/cpython-3.10.16-macos-aarch64-none", uv_root);
+    println!("cargo:rustc-env=PYTHONHOME={uv_root}/python/cpython-3.10.16-macos-aarch64-none");
 }
