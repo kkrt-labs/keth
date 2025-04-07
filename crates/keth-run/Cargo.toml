@@ -15,5 +15,8 @@ exclude.workspace = true
 pyo3 = { version = "0.23.4", features = ["auto-initialize"] }
 clap = { version = "4.5.1", features = ["derive"] }
 
+[build-dependencies]
+dotenv = "0.15.0"
+
 [lints]
 workspace = true
