@@ -35,7 +35,23 @@ struct Args {
     verify: bool,
 }
 
+// Check if the PYTHONPATH, PYTHONHOME, and PYO3_PYTHON variables are set, panics if any one is
+// missing
+fn check_env() {
+    dotenv::dotenv().ok();
+
+    dotenv::var("PYTHONPATH").expect("PYTHONPATH environment variable not set");
+    dotenv::var("PYTHONHOME").expect("PYTHONHOME environment variable not set");
+    dotenv::var("PYO3_PYTHON").expect("PYO3_PYTHON environment variable not set");
+
+    println!("cargo:rerun-if-env-changed=PYTHONPATH");
+    println!("cargo:rerun-if-env-changed=PYTHONHOME");
+    println!("cargo:rerun-if-env-changed=PYO3_PYTHON");
+}
+
 fn main() -> Result<()> {
+    check_env();
+
     let args = Args::parse();
 
     if !args.compiled_program.exists() {
