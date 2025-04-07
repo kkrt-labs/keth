@@ -109,7 +109,6 @@ class TestTrieDiff:
             storage_key_preimages=ethereum_trie_transition_db.storage_key_preimages,
             left=ethereum_trie_transition_db.state_root,
             right=ethereum_trie_transition_db.post_state_root,
-            account_address=None,
         )
 
         accounts_lookup: Dict[Address, Tuple[Optional[Account], Optional[Account]]] = {

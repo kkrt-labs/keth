@@ -59,8 +59,6 @@ class TestHashTrieDiff:
         final_hash = poseidon_hash_many(hashes_buffer)
         assert cairo_result == final_hash
 
-
-class TestHashStateDiff:
     @given(state_diff=...)
     def test_hash_state_diff(
         self, cairo_run, state_diff: List[AddressAccountDiffEntry]

@@ -11,7 +11,6 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import ethereum
 import ethereum_rlp
-from ethereum.cancun.state import State
 from ethereum.cancun.transactions import (
     LegacyTransaction,
     encode_transaction,
@@ -21,7 +20,7 @@ from ethereum_spec_tools.evm_tools.loaders.transaction_loader import Transaction
 from ethereum_types.numeric import FixedUnsigned, Uint
 
 import mpt
-from mpt.ethereum_tries import EthereumTries
+from mpt.ethereum_tries import EthereumTrieTransitionDB
 from tests.utils.args_gen import (
     EMPTY_ACCOUNT,
     Account,
@@ -133,13 +132,6 @@ def parse_args() -> argparse.Namespace:
         help="Verify the Stwo proof after generation (only used with --stwo-proof)",
     )
     return parser.parse_args()
-
-
-def load_pre_state(data: Dict[str, Any]) -> State:
-    """Load a trie fixture from a JSON file."""
-    fixture = EthereumTries.from_data(data)
-    state = fixture.to_state()
-    return state
 
 
 def normalize_transaction(tx: Dict[str, Any]) -> Dict[str, Any]:
@@ -256,51 +248,16 @@ def load_zkpi_fixture(zkpi_path: Union[Path, str]) -> Dict[str, Any]:
         for ancestor in prover_inputs["witness"]["ancestors"][::-1]
     ]
 
+    transition_db = EthereumTrieTransitionDB.from_data(prover_inputs)
+
     # Create blockchain
-    state, code_hashes = prepare_state_and_code_hashes(load_pre_state(prover_inputs))
+    state, code_hashes = prepare_state_and_code_hashes(transition_db.to_pre_state())
     chain = BlockChain(
         blocks=blocks,
         state=state,
         chain_id=U64(prover_inputs["chainConfig"]["chainId"]),
     )
 
-    # TODO: Remove when partial MPT is implemented
-    # This is not the _real_ state root, but one we re-construct from the partial state
-    # to prove this block.
-    state_root = apply_body(
-        chain.state,
-        get_last_256_block_hashes(chain),
-        block.header.coinbase,
-        block.header.number,
-        block.header.base_fee_per_gas,
-        block.header.gas_limit,
-        block.header.timestamp,
-        block.header.prev_randao,
-        block.transactions,
-        chain.chain_id,
-        block.withdrawals,
-        block.header.parent_beacon_block_root,
-        calculate_excess_blob_gas(chain.blocks[-1].header),
-    ).state_root
-
-    # Recreate block with computed state root
-    block = Block(
-        header=load.json_to_header(
-            {
-                **input_block["header"],
-                "stateRoot": "0x" + state_root.hex(),
-            }
-        ),
-        transactions=block.transactions,
-        ommers=(),
-        withdrawals=block.withdrawals,
-    )
-    state, _ = prepare_state_and_code_hashes(load_pre_state(prover_inputs))
-    chain = BlockChain(
-        blocks=blocks,
-        state=state,
-        chain_id=U64(prover_inputs["chainConfig"]["chainId"]),
-    )
     # Prepare inputs
     program_inputs = {
         "block": block,
@@ -309,6 +266,11 @@ def load_zkpi_fixture(zkpi_path: Union[Path, str]) -> Dict[str, Any]:
             bytes.fromhex(input_block["header"]["hash"].removeprefix("0x"))
         ),
         "code_hashes": code_hashes,
+        "node_store": transition_db.nodes,
+        "address_preimages": transition_db.address_preimages,
+        "storage_key_preimages": transition_db.storage_key_preimages,
+        "pre_state_root": transition_db.state_root,
+        "post_state_root": transition_db.post_state_root,
     }
 
     return program_inputs
