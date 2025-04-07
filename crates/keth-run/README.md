@@ -1,7 +1,7 @@
 # keth-run
 
-A Rust binary that mimics the functionality of `cairo/scripts/prove_block.py`. It is
-primarily used for profiling cairo-vm.
+A Rust binary that mimics the functionality of `cairo/scripts/prove_block.py`.
+It is primarily used for profiling cairo-vm.
 
 ## Run
 
