@@ -1,6 +1,7 @@
 use clap::Parser;
 use pyo3::prelude::*;
 use std::path::PathBuf;
+use anyhow::Result;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -34,38 +35,32 @@ struct Args {
     verify: bool,
 }
 
-fn main() -> PyResult<()> {
+fn main() -> Result<()> {
     let args = Args::parse();
 
     if !args.compiled_program.exists() {
-        eprintln!("Error: Compiled program not found: {}", args.compiled_program.display());
-        std::process::exit(1);
+        anyhow::bail!("Compiled program not found: {}", args.compiled_program.display());
     }
 
     let zkpi_path = args.data_dir.join(format!("{}.json", args.block_number));
     if !zkpi_path.exists() {
-        eprintln!("Error: ZKPI data not found: {}", zkpi_path.display());
-        std::process::exit(1);
+        anyhow::bail!("ZKPI data not found: {}", zkpi_path.display());
     }
 
     if !args.output_dir.exists() {
         std::fs::create_dir_all(&args.output_dir)
-            .map_err(|e| {
-                eprintln!("Error creating output directory: {e}");
-                std::process::exit(1);
-            })
-            .unwrap();
+            .map_err(|e| anyhow::anyhow!("Error creating output directory: {e}"))?;
     }
 
-    Python::with_gil(|py| -> PyResult<()> {
+    let _ = Python::with_gil(|py| -> Result<()> {
         // Get the current directory and add it to Python's path
         let current_dir = std::env::current_dir()?;
         // Add the cairo directory to Python's path
-        let sys = PyModule::import(py, "sys")?;
+        let sys = py.import("sys")?;
         let path = sys.getattr("path")?;
         path.call_method1("append", (current_dir.to_str().unwrap(),))?;
 
-        let prove_block_module = PyModule::import(py, "cairo.scripts.prove_block")?;
+        let prove_block_module = py.import("cairo.scripts.prove_block")?;
         let load_zkpi_fixture = prove_block_module.getattr("load_zkpi_fixture")?;
         let program_inputs = load_zkpi_fixture.call1((zkpi_path.to_str().unwrap(),))?;
 
@@ -81,5 +76,7 @@ fn main() -> PyResult<()> {
         ))?;
 
         Ok(())
-    })
+    });
+
+    Ok(())
 }
