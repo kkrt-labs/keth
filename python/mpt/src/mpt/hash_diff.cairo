@@ -10,6 +10,7 @@ func poseidon_account_diff{poseidon_ptr: PoseidonBuiltin*}(diff: AddressAccountD
 
     assert buffer[0] = diff.value.key.value;
 
+    local offset;
     if (cast(diff.value.prev_value.value, felt) != 0) {
         // Inline the prev Account struct as we must hash values, not pointers to values
         assert buffer[1] = diff.value.prev_value.value.nonce.value;
@@ -19,19 +20,19 @@ func poseidon_account_diff{poseidon_ptr: PoseidonBuiltin*}(diff: AddressAccountD
         assert buffer[5] = diff.value.prev_value.value.code_hash.value.high;
         assert buffer[6] = diff.value.prev_value.value.storage_root.value.low;
         assert buffer[7] = diff.value.prev_value.value.storage_root.value.high;
-        tempvar offset = 7;
+        assert offset = 7;
     } else {
-        tempvar offset = 0;
+        assert offset = 0;
     }
 
     // Inline the new Account
-    assert buffer[8] = diff.value.new_value.value.nonce.value;
-    assert buffer[9] = diff.value.new_value.value.balance.value.low;
-    assert buffer[10] = diff.value.new_value.value.balance.value.high;
-    assert buffer[11] = diff.value.new_value.value.code_hash.value.low;
-    assert buffer[12] = diff.value.new_value.value.code_hash.value.high;
-    assert buffer[13] = diff.value.new_value.value.storage_root.value.low;
-    assert buffer[14] = diff.value.new_value.value.storage_root.value.high;
+    assert buffer[1 + offset] = diff.value.new_value.value.nonce.value;
+    assert buffer[2 + offset] = diff.value.new_value.value.balance.value.low;
+    assert buffer[3 + offset] = diff.value.new_value.value.balance.value.high;
+    assert buffer[4 + offset] = diff.value.new_value.value.code_hash.value.low;
+    assert buffer[5 + offset] = diff.value.new_value.value.code_hash.value.high;
+    assert buffer[6 + offset] = diff.value.new_value.value.storage_root.value.low;
+    assert buffer[7 + offset] = diff.value.new_value.value.storage_root.value.high;
 
     let (account_diff_hash) = poseidon_hash_many(8 + offset, buffer);
     return account_diff_hash;
