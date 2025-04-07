@@ -602,6 +602,14 @@ impl PyCairoRunner {
 
 /// Runs the Cairo program in proof mode with public and private inputs.
 /// Mimics the behavior of the `run` function from cairo-vm-cli.
+/// # Arguments
+/// * `entrypoint` - The entrypoint of the cairo program (e.g. "main")
+/// * `program_inputs` - The program inputs
+/// * `compiled_program_path` - The path to the compiled cairo program
+/// * `output_dir` - The output directory
+/// * `stwo_proof` - Whether to use Stwo proof
+/// * `proof_path` - The path to the proof
+/// * `verify` - Whether to verify the proof
 #[allow(clippy::too_many_arguments)]
 #[pyfunction(signature = (entrypoint, program_inputs, compiled_program_path, output_dir, stwo_proof=false, proof_path=None, verify=false))]
 pub fn run_proof_mode(

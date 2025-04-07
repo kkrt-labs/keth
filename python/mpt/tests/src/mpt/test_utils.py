@@ -2,6 +2,7 @@ from typing import List, Sequence, Tuple, Union
 
 from ethereum.cancun.trie import (
     BranchNode,
+    ExtensionNode,
     LeafNode,
     bytes_to_nibble_list,
     encode_internal_node,
@@ -13,7 +14,12 @@ from hypothesis import strategies as st
 
 from cairo_addons.testing.errors import strict_raises
 from cairo_addons.testing.hints import patch_hint
-from mpt.utils import check_branch_node, check_leaf_node, nibble_list_to_bytes
+from mpt.utils import (
+    check_branch_node,
+    check_extension_node,
+    check_leaf_node,
+    nibble_list_to_bytes,
+)
 from tests.utils.args_gen import AddressAccountDiffEntry, StorageDiffEntry
 
 list_address_account_node_diff_entry_strategy = st.lists(
@@ -112,6 +118,30 @@ def leaf_node_could_be_invalid_strategy(draw):
             return path, LeafNode(rest_of_key=rest_of_key, value=value)
 
 
+@st.composite
+def extension_node_could_be_invalid_strategy(draw):
+    """Creates an extension node that could either be valid or invalid"""
+    test_cases = st.sampled_from(["key_segment_zero", "subnode_zero", "ok"])
+    test_case = draw(test_cases)
+
+    match test_case:
+        case "key_segment_zero":
+            key_segment = b""
+            subnode = draw(st.from_type(rlp.Extended))
+            return ExtensionNode(key_segment=key_segment, subnode=subnode)
+
+        case "subnode_zero":
+            key_segment = draw(st.binary(min_size=1, max_size=32))
+            subnode = draw(st.one_of(st.just(b""), st.just([])))
+            return ExtensionNode(key_segment=key_segment, subnode=subnode)
+
+        case "ok":
+            key_segment = draw(st.binary(min_size=1, max_size=32))
+            subnode = draw(st.from_type(Union[Sequence[rlp.Extended], bytes]))
+            assume(len(subnode) != 0)
+            return ExtensionNode(key_segment=key_segment, subnode=subnode)
+
+
 class TestUtils:
     @given(bytes=...)
     def test_nibble_list_to_bytes(self, bytes: Bytes):
@@ -160,6 +190,15 @@ ids.second_non_null_index = 1
             return
 
         check_leaf_node(path, leaf_node)
+
+    @given(extension_node=extension_node_could_be_invalid_strategy())
+    def test_check_extension_node(self, cairo_run, extension_node: ExtensionNode):
+        try:
+            cairo_run("check_extension_node", extension_node)
+        except Exception as cairo_error:
+            with strict_raises(type(cairo_error)):
+                check_extension_node(extension_node)
+            return
 
     @given(data=list_address_account_node_diff_entry_strategy)
     def test_sort_account_diff(self, cairo_run, data: List[AddressAccountDiffEntry]):

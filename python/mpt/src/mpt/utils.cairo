@@ -224,6 +224,37 @@ func check_leaf_node(path: Bytes, node: LeafNode) {
     }
 }
 
+func check_extension_node(node: ExtensionNode) {
+    alloc_locals;
+
+    let key_segment = node.value.key_segment;
+    let subnode = node.value.subnode;
+
+    if (key_segment.value.len == 0) {
+        raise('ValueError');
+    }
+
+    let bytes_variant = subnode.value.bytes.value;
+    if (cast(bytes_variant, felt) != 0) {
+        if (bytes_variant.len == 0) {
+            raise('ValueError');
+        }
+        return ();
+    }
+
+    let sequence_variant = subnode.value.sequence.value;
+    if (cast(sequence_variant, felt) != 0) {
+        if (sequence_variant.len == 0) {
+            raise('ValueError');
+        }
+        return ();
+    }
+
+    with_attr error_message("ValueError: Unsupported extension node value variant") {
+        jmp raise.raise_label;
+    }
+}
+
 // @notice Sorts an AccountDiff struct in descending order based on the key.
 // This function implies that the original AccountDiff struct does not contain any duplicate keys.
 // @dev The sorted segment is returned from the hint.
