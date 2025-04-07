@@ -17,7 +17,6 @@ from hypothesis import assume, given, settings
 
 from cairo_addons.testing.errors import cairo_error, strict_raises
 from cairo_addons.testing.hints import patch_hint
-from cairo_ec.curve import AltBn128
 from tests.utils.args_gen import U384
 
 # https://github.com/keep-starknet-strange/garaga/blob/704a8c66bf85b965851a117c6b116fc7a11329db/hydra/garaga/definitions.py#L346
@@ -74,13 +73,14 @@ segments.load_data(ids.b_inv.address_, [bnf_struct_ptr])
                 cairo_run_py("bnf_div", a, b)
 
     class TestBNP:
-        def test_bnp_init(self, cairo_run):
-            p = AltBn128.random_point()
+        @given(p=...)
+        def test_bnp_init(self, cairo_run, p: BNP):
             assert cairo_run("bnp_init", BNF(p.x), BNF(p.y)) == BNP(p.x, p.y)
 
         @given(x=..., y=...)
         def test_bnp_init_fails(self, cairo_run, x: BNF, y: BNF):
-            with strict_raises(RuntimeError):
+            assume(x != BNF.zero() or y != BNF.zero())
+            with pytest.raises(RuntimeError):
                 cairo_run("bnp_init", x, y)
 
         def test_bnp_point_at_infinity(self, cairo_run):

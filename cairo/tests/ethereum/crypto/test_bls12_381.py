@@ -136,7 +136,8 @@ segments.load_data(ids.b_inv.address_, [blsf2_struct_ptr])
 
         @given(x=..., y=...)
         def test_blsp_init_fails(self, cairo_run, x: BLSF, y: BLSF):
-            with strict_raises(RuntimeError):
+            assume(x != BLSF.zero() or y != BLSF.zero())
+            with pytest.raises(RuntimeError):
                 cairo_run("blsp_init", x, y)
 
         def test_blsp_point_at_infinity(self, cairo_run):
