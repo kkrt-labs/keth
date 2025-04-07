@@ -138,7 +138,7 @@ class StateDiff:
 
             case (None, LeafNode()):
                 # new leaf
-                check_leaf_node(r_node)
+                check_leaf_node(path, r_node)
                 full_path = nibble_list_to_bytes(path + r_node.rest_of_key)
                 process_leaf_diff(path=full_path, left=None, right=r_node)
 
