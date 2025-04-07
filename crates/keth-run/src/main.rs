@@ -1,7 +1,7 @@
+use anyhow::Result;
 use clap::Parser;
 use pyo3::prelude::*;
 use std::path::PathBuf;
-use anyhow::Result;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
