@@ -19,5 +19,3 @@ dotenvy = "0.15.7"
 [lints]
 workspace = true
 
-[profile.release]
-debug = true
