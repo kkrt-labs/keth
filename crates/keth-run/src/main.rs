@@ -1,4 +1,3 @@
-use anyhow::Result;
 use clap::Parser;
 use pyo3::prelude::*;
 use std::path::PathBuf;
@@ -43,32 +42,27 @@ fn check_env() {
     dotenvy::var("PYTHONPATH").expect("PYTHONPATH environment variable not set");
     dotenvy::var("PYTHONHOME").expect("PYTHONHOME environment variable not set");
     dotenvy::var("PYO3_PYTHON").expect("PYO3_PYTHON environment variable not set");
-
-    println!("cargo:rerun-if-env-changed=PYTHONPATH");
-    println!("cargo:rerun-if-env-changed=PYTHONHOME");
-    println!("cargo:rerun-if-env-changed=PYO3_PYTHON");
 }
 
-fn main() -> Result<()> {
+fn main() {
     check_env();
 
     let args = Args::parse();
 
     if !args.compiled_program.exists() {
-        anyhow::bail!("Compiled program not found: {}", args.compiled_program.display());
+        panic!("Compiled program not found: {}", args.compiled_program.display());
     }
 
     let zkpi_path = args.data_dir.join(format!("{}.json", args.block_number));
     if !zkpi_path.exists() {
-        anyhow::bail!("ZKPI data not found: {}", zkpi_path.display());
+        panic!("ZKPI data not found: {}", zkpi_path.display());
     }
 
     if !args.output_dir.exists() {
-        std::fs::create_dir_all(&args.output_dir)
-            .map_err(|e| anyhow::anyhow!("Error creating output directory: {e}"))?;
+        std::fs::create_dir_all(&args.output_dir).expect("Error creating output directory");
     }
 
-    let _ = Python::with_gil(|py| -> Result<()> {
+    let _ = Python::with_gil(|py| -> PyResult<()> {
         // Get the current directory and add it to Python's path
         let current_dir = std::env::current_dir()?;
         // Add the cairo directory to Python's path
@@ -93,6 +87,4 @@ fn main() -> Result<()> {
 
         Ok(())
     });
-
-    Ok(())
 }
