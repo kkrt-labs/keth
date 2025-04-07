@@ -2,8 +2,16 @@ from starkware.cairo.common.builtin_poseidon.poseidon import poseidon_hash, pose
 from starkware.cairo.common.cairo_builtins import PoseidonBuiltin
 from starkware.cairo.common.alloc import alloc
 from ethereum_types.numeric import U256, U256Struct
-
-from mpt.types import AccountDiff, AddressAccountDiffEntry, StorageDiffEntry, StorageDiff
+from ethereum.cancun.fork_types import AddressAccountDictAccess, TupleAddressBytes32U256DictAccess
+from ethereum.cancun.state import State
+from mpt.types import (
+    AccountDiff,
+    AddressAccountDiffEntry,
+    StorageDiffEntry,
+    StorageDiff,
+    StorageDiffEntryStruct,
+    AddressAccountDiffEntryStruct,
+)
 
 from cairo_core.control_flow import raise
 
@@ -78,11 +86,30 @@ func _hash_account_diff_inner{poseidon_ptr: PoseidonBuiltin*}(
         return accumulator;
     }
     let next_hash = poseidon_account_diff(start_ptr[i]);
+
     let (buffer) = alloc();
     assert buffer[0] = accumulator;
     assert buffer[1] = next_hash;
     let (accumulator) = poseidon_hash_many(2, buffer);
+
     return _hash_account_diff_inner(accumulator, start_ptr, i + 1, len);
+}
+
+func hash_state_account_diff{poseidon_ptr: PoseidonBuiltin*}(state: State) -> felt {
+    alloc_locals;
+    let dict_ptr_start = state.value._main_trie.value._data.value.dict_ptr_start;
+    let dict_ptr_end = state.value._main_trie.value._data.value.dict_ptr;
+    let len = dict_ptr_end - dict_ptr_start;
+    if (len == 0) {
+        return 0;
+    }
+
+    // We cast the state dict pointer to an AddressAccountDiffEntry pointer as the two underlying types are identical.
+    let casted_dict_ptr_start = cast(dict_ptr_start, AddressAccountDiffEntryStruct*);
+    let accumulator = poseidon_account_diff(AddressAccountDiffEntry(casted_dict_ptr_start));
+    tempvar start_ptr = new AddressAccountDiffEntry(casted_dict_ptr_start);
+    let final_hash = _hash_account_diff_inner(accumulator, start_ptr, 1, len);
+    return final_hash;
 }
 
 func hash_storage_diff_segment{poseidon_ptr: PoseidonBuiltin*}(storage_diff: StorageDiff) -> felt {
@@ -103,9 +130,32 @@ func _hash_storage_diff_inner{poseidon_ptr: PoseidonBuiltin*}(
         return accumulator;
     }
     let next_hash = poseidon_storage_diff(start_ptr[i]);
+
     let (buffer) = alloc();
     assert buffer[0] = accumulator;
     assert buffer[1] = next_hash;
     let (accumulator) = poseidon_hash_many(2, buffer);
+
     return _hash_storage_diff_inner(accumulator, start_ptr, i + 1, len);
+}
+
+func hash_state_storage_diff{poseidon_ptr: PoseidonBuiltin*}(state: State) -> felt {
+    alloc_locals;
+
+    let dict_ptr_start = state.value._storage_tries.value._data.value.dict_ptr_start;
+    let dict_ptr_end = state.value._storage_tries.value._data.value.dict_ptr;
+
+    let len = dict_ptr_end - dict_ptr_start;
+    if (len == 0) {
+        return 0;
+    }
+
+    // We cast the state dict pointer to a StorageDiffEntry pointer as the two underlying types are identical.
+    let casted_dict_ptr_start = cast(dict_ptr_start, StorageDiffEntryStruct*);
+
+    let accumulator = poseidon_storage_diff(StorageDiffEntry(casted_dict_ptr_start));
+    tempvar start_ptr = new StorageDiffEntry(casted_dict_ptr_start);
+    let final_hash = _hash_storage_diff_inner(accumulator, start_ptr, 1, len);
+
+    return final_hash;
 }
