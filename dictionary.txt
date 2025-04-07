@@ -304,3 +304,7 @@ modelcontextprotocol
 equalto
 codehash
 PYTHONUNBUFFERED
+PYTHONPATH
+PYTHONHOME
+cpython
+flamegraph
