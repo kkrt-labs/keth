@@ -1,8 +1,6 @@
 # keth-run
 
-A Rust binary that mimics the functionality of `cairo/scripts/prove_block.py`
-for generating STARK proofs for Ethereum blocks using Cairo. This crate serves
-as a bridge between the Rust and Python components of the Keth project, it is
+A Rust binary that mimics the functionality of `cairo/scripts/prove_block.py`. It is
 primarily used for profiling cairo-vm.
 
 ## Run
