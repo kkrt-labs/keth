@@ -51,6 +51,7 @@ from ethereum_types.numeric import U64, U256, Uint
 from hypothesis import HealthCheck, assume, given, settings
 from py_ecc.fields import optimized_bls12_381_FQ as BLSF
 from py_ecc.fields import optimized_bls12_381_FQ2 as BLSF2
+from py_ecc.typing import Optimized_Point3D
 from starkware.cairo.common.dict import DictManager
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 from starkware.cairo.lang.vm.memory_dict import MemoryDict
@@ -133,6 +134,12 @@ def get_type(instance: Any) -> Type:
 
     # Get all element types
     elem_types = [get_type(x) for x in instance]
+
+    if all(t == BLSF for t in elem_types):
+        return Optimized_Point3D[BLSF]
+
+    if all(t == BLSF2 for t in elem_types):
+        return Optimized_Point3D[BLSF2]
 
     type_mapping = {
         tuple: lambda types: (
@@ -330,6 +337,8 @@ class TestSerde:
             BLSF2,
             KZGCommitment,
             Bytes48,
+            Optimized_Point3D[BLSF],
+            Optimized_Point3D[BLSF2],
         ],
     ):
         assume(no_empty_sequence(b))

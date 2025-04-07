@@ -58,6 +58,7 @@ from ethereum_types.bytes import (
 from ethereum_types.numeric import U256
 from py_ecc.fields import optimized_bls12_381_FQ as BLSF
 from py_ecc.fields import optimized_bls12_381_FQ2 as BLSF2
+from py_ecc.optimized_bls12_381.optimized_curve import Z1, Z2, Optimized_Point3D
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 from starkware.cairo.lang.compiler.ast.cairo_types import (
     CairoType,
@@ -300,6 +301,20 @@ class Serde:
                     self._serialize(member.cairo_type, tuple_struct_ptr + member.offset)
                     for member in members.values()
                 )
+                # Convert from affine space to projective space for BLS12-381 over Fq.
+                if python_cls == Optimized_Point3D[BLSF]:
+                    if result == (BLSF.zero(), BLSF.zero()):
+                        result = Z1
+                    else:
+                        result = (result[0], result[1], BLSF.one())
+
+                # Convert from affine space to projective space for BLS12-381 over Fq2.
+                if python_cls == Optimized_Point3D[BLSF2]:
+                    if result == (BLSF2.zero(), BLSF2.zero()):
+                        result = Z2
+                    else:
+                        result = (result[0], result[1], BLSF2.one())
+
                 if (
                     annotations
                     and len(annotations) == 1

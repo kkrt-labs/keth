@@ -126,6 +126,7 @@ from ethereum_types.frozen import slotted_freezable
 from ethereum_types.numeric import U64, U256, FixedUnsigned, Uint, _max_value
 from py_ecc.fields import optimized_bls12_381_FQ as BLSF
 from py_ecc.fields import optimized_bls12_381_FQ2 as BLSF2
+from py_ecc.typing import Optimized_Point3D
 from starkware.cairo.common.dict import DictManager, DictTracker
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 from starkware.cairo.lang.compiler.ast.cairo_types import (
@@ -850,6 +851,8 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "crypto", "bls12_381", "BLSF"): BLSF,
     ("ethereum", "crypto", "bls12_381", "BLSF2"): BLSF2,
     ("ethereum", "crypto", "kzg", "KZGCommitment"): KZGCommitment,
+    ("ethereum", "crypto", "bls12_381", "BLSP"): Optimized_Point3D[BLSF],
+    ("ethereum", "crypto", "bls12_381", "BLSP2"): Optimized_Point3D[BLSF2],
 }
 
 # In the EELS, some functions are annotated with Sequence while it's actually just Bytes.
@@ -1049,6 +1052,12 @@ def _gen_arg(
         if arg_type_origin is tuple and (
             Ellipsis not in get_args(arg_type) or annotations
         ):
+            # Handle conversion from Optimized_Point3D to Optimized_Point2D for BLS12-381
+
+            if arg_type in (Optimized_Point3D[BLSF], Optimized_Point3D[BLSF2]):
+                assert arg[2] == type(arg[2]).one()
+                arg = (arg[0], arg[1])
+
             # Case a tuple with a fixed number of elements, all of different types.
             # These are represented as a pointer to a struct with a pointer to each element.
             element_types = get_args(arg_type)
