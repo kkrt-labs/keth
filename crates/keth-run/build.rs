@@ -1,10 +1,5 @@
 fn main() {
-    println!("cargo:rustc-env=PYTHONPATH=.venv/lib/python3.10/site-packages:python/eth-rpc/src:python/mpt/src:python/cairo-addons/src:python/cairo-core/src:python/cairo-ec/src:cairo");
-    println!("cargo:rustc-env=PYO3_PYTHON=.venv/bin/python");
-    // Get UV_ROOT from environment variable, with a fallback path
-    let uv_root = std::env::var("UV_ROOT").unwrap_or_else(|_| {
-        let home = std::env::var("HOME").expect("HOME environment variable not set");
-        format!("{home}/.local/share/uv")
-    });
-    println!("cargo:rustc-env=PYTHONHOME={uv_root}/python/cpython-3.10.16-macos-aarch64-none");
+    std::env::var("PYTHONPATH").expect("PYTHONPATH environment variable not set");
+    std::env::var("PYTHONHOME").expect("PYTHONHOME environment variable not set");
+    std::env::var("PYO3_PYTHON").expect("PYO3_PYTHON environment variable not set");
 }
