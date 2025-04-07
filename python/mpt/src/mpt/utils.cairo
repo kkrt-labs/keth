@@ -144,6 +144,11 @@ func deserialize_to_internal_node{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}
 func check_branch_node(node: BranchNode) {
     alloc_locals;
 
+    // Values in Ethereum MPTs are always empty bytes
+    if (node.value.value.value.bytes.value.len != 0) {
+        raise('ValueError');
+    }
+
     local first_non_null_index;
     local second_non_null_index;
     let subnodes_ptr = cast(node.value.subnodes.value, felt*);
