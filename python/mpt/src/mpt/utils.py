@@ -95,5 +95,5 @@ def check_leaf_node(path: Bytes, node: LeafNode) -> None:
     nibbles_len = len(node.rest_of_key)
     path_len = len(path)
 
-    if nibbles_len + path_len != 64:
+    if nibbles_len + path_len * 2 != 64:
         raise ValueError("Invalid leaf node, expected a 32-byte path")
