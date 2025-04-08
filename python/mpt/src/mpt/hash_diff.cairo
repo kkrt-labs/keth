@@ -86,7 +86,6 @@ func hash_account_diff_segment{poseidon_ptr: PoseidonBuiltin*}(account_diff: Acc
     alloc_locals;
     let len = account_diff.value.len;
     if (len == 0) {
-        // TODO: Do we return 0 as the hash of an empty segment?
         // We don't want to raise here as a block could have 0 account diffs.
         return 0;
     }
