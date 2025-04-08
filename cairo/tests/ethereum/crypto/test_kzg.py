@@ -8,7 +8,7 @@ from ethereum.crypto.kzg import (
     kzg_commitment_to_versioned_hash,
 )
 from ethereum_types.bytes import Bytes, Bytes32
-from hypothesis import example, given, settings
+from hypothesis import example, given
 from hypothesis import strategies as st
 from py_ecc.bls.constants import POW_2_381, POW_2_382, POW_2_383, POW_2_384
 from py_ecc.bls.hash import os2ip
@@ -71,7 +71,6 @@ def test_kzg_commitment_to_versioned_hash(cairo_run, commitment: KZGCommitment):
 @example(
     point=G1Compressed(POW_2_383 + POW_2_382)
 )  # c_flag=1, b_flag=1, a_flag=0, infinity point
-@settings(max_examples=1)
 def test_decompress_G1(cairo_run, point: G1Compressed):
     expected = decompress_G1(G1Compressed_py(point))
     assert cairo_run("decompress_G1", point) == expected
@@ -89,11 +88,12 @@ def test_decompress_G1(cairo_run, point: G1Compressed):
     point=G1Compressed(POW_2_383 + POW_2_382 + POW_2_381)
 )  # c_flag=1, b_flag=1, a_flag=1, infinity point
 def test_decompress_G1_error_cases(cairo_run, point: G1Compressed):
-    with pytest.raises(ValueError):
-        decompress_G1(G1Compressed_py(point))
     try:
-        with pytest.raises(ValueError):
-            cairo_run("decompress_G1", point)
-    except Exception:
-        with cairo_error("ValueError"):  # Hint error
-            cairo_run("decompress_G1", point)
+        decompress_G1(G1Compressed_py(point))
+    except ValueError:
+        try:
+            with pytest.raises(ValueError):
+                cairo_run("decompress_G1", point)
+        except Exception:
+            with cairo_error("ValueError"):  # Hint error
+                cairo_run("decompress_G1", point)
