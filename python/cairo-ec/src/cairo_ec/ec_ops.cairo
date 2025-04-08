@@ -326,3 +326,31 @@ func ec_mul{
 
     return res;
 }
+// @notice Checks if a certain point is at infinity.
+// @param pt The point to check.
+// @return 1 if the point is at infinity, 0 otherwise.
+// @dev A point is at infinity if both its x and y coordinates are zero.
+// @dev This function is used to determine if a point is the identity element in the elliptic curve group.
+// @dev The point at infinity is represented by (0, 0) in affine coordinates.
+func is_inf(pt: G1Point) -> bool {
+    return (
+        pt.x.value.d0 == 0 and pt.x.value.d1 == 0 and pt.x.value.d2 == 0 and pt.x.value.d3 == 0
+        and pt.y.value.d0 == 0 and pt.y.value.d1 == 0 and pt.y.value.d2 == 0 and pt.y.value.d3 == 0
+    );
+}
+
+// @notice Checks if a point produces a subgroup of the elliptic curve.
+// @param p The point to check.
+// @param curve_order The order of the curve.
+// @return 1 if the point produces a subgroup, 0 otherwise.
+// @dev This function multiplies the point by the curve's order and checks if the result is the point at infinity.
+// @dev The point is considered to produce a subgroup if the multiplication results in the identity element of the group.
+func subgroup_check{
+    range_check_ptr,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+}(p: G1Point, curve_order: U384, modulus: U384) -> bool {
+    return is_inf(ec_mul(p, curve_order, modulus));
+}
