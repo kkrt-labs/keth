@@ -42,6 +42,8 @@ struct Args {
 fn main() {
     let args = Args::parse();
 
+    dotenvy::dotenv().expect("Failed to load .env file");
+
     assert!(
         args.compiled_program.exists(),
         "Compiled program not found: {}",
