@@ -340,7 +340,8 @@ def prove_block(
     program_inputs = load_zkpi_fixture(zkpi_path)
 
     # Generate proof
-    proof_path = Path(proof_path)
+    if proof_path is not None:
+        proof_path = Path(proof_path)
     logger.info(f"Running Keth for block {block_number}")
     run_proof_mode(
         entrypoint="main",
