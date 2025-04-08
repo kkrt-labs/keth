@@ -158,8 +158,7 @@ segments.load_data(ids.b_inv.address_, [blsf2_struct_ptr])
             expected = add(p, q)
             if not is_inf(expected):
                 expected = normalize1(expected)
-            cairo_output = cairo_run("blsp_add", p, q)
-            assert cairo_output == expected
+            assert cairo_run("blsp_add", p, q) == expected
 
         @given(p=...)
         def test_blsp_double(self, cairo_run, p: Optimized_Point3D[BLSF]):
