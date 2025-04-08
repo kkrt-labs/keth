@@ -1,12 +1,17 @@
 use clap::Parser;
 use pyo3::prelude::*;
 use std::path::PathBuf;
+const CANCUN_FORK: u64 = 19_426_588;
 
 #[derive(Parser, Debug)]
 #[command()]
 struct Args {
     /// Block number to prove (must be after Cancun fork)
-    #[arg(value_name = "BLOCK_NUMBER")]
+    #[arg(
+        value_name = "BLOCK_NUMBER",
+        value_parser = clap::value_parser!(u64).range(CANCUN_FORK..),
+        help = "Block number (should be higher than Cancun fork (19426588))"
+    )]
     block_number: u64,
 
     /// Directory to save proof artifacts
