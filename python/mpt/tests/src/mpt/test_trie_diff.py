@@ -71,9 +71,9 @@ def ethereum_trie_transition_db(data_path):
 @pytest.fixture(scope="session")
 def node_store(zkpi):
     nodes = defaultdict(
-        lambda: None,
+        lambda: b"",
         {
-            keccak256(Bytes.fromhex(node[2:])): decode_node(Bytes.fromhex(node[2:]))
+            keccak256(Bytes.fromhex(node[2:])): Bytes.fromhex(node[2:])
             for node in zkpi["witness"]["state"]
         },
     )
@@ -150,7 +150,7 @@ class TestTrieDiff:
     def test_node_store_get(self, cairo_run, node_store, data):
         # take 20 keys from the node_store
         small_store = defaultdict(
-            lambda: None, {k: v for k, v in list(node_store.items())[:6]}
+            lambda: b"", {k: v for k, v in list(node_store.items())[:6]}
         )
         existing_keys = list(small_store.keys())
         # take sample_size keys from small_store
@@ -170,7 +170,9 @@ class TestTrieDiff:
 
         for key in keys:
             _, result = cairo_run("node_store_get", small_store, key)
-            assert result == small_store.get(key)
+            assert result == (
+                decode_node(small_store[key]) if key in small_store else None
+            )
 
     @given(address=..., account_before=..., account_after=...)
     def test__process_account_diff(
@@ -201,7 +203,7 @@ class TestTrieDiff:
         )
 
         node_store = defaultdict(
-            lambda: None,
+            lambda: b"",
         )
 
         result_diffs = cairo_run(
@@ -256,7 +258,7 @@ class TestTrieDiff:
         )
 
         node_store = defaultdict(
-            lambda: None,
+            lambda: b"",
         )
 
         with pytest.raises(
@@ -380,10 +382,10 @@ class TestTrieDiff:
         "data_path", [Path("test_data/22081873.json")], scope="session"
     )
     @given(data=st.data())
-    def test_resolve(self, cairo_run, node_store: Mapping[Hash32, InternalNode], data):
+    def test_resolve(self, cairo_run, node_store: Mapping[Hash32, Bytes], data):
         # take 20 keys from the node_store
         small_store = defaultdict(
-            lambda: None, {k: v for k, v in list(node_store.items())[:3]}
+            lambda: b"", {k: v for k, v in list(node_store.items())[:3]}
         )
         existing_keys = list(small_store.keys())
         # take sample_size keys from small_store
@@ -414,7 +416,7 @@ class TestTrieDiff:
     def test_resolve_embedded_node(self, cairo_run, embedded_node_dict):
         # We don't need a node store for this test
         node_store = defaultdict(
-            lambda: None,
+            lambda: b"",
         )
         parent_node = embedded_node_dict["extension"]
         expected_branch_node = embedded_node_dict["branch"]

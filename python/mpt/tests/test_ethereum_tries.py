@@ -23,6 +23,9 @@ from utils.fixture_loader import LoadKethFixture
 
 from mpt import EthereumTries
 from mpt.utils import decode_node
+from utils.fixture_loader import LoadKethFixture
+
+from mpt import EthereumTries
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +61,7 @@ class TestEthereumTries:
         for node in nodes:
             node = Bytes.fromhex(node[2:])
             node_hash = keccak256(node)
-            assert ethereum_tries.nodes[node_hash] == decode_node(node)
+            assert ethereum_tries.nodes[node_hash] == node
 
     def test_codes(self, ethereum_tries, zkpi):
         codes = zkpi["witness"]["codes"]

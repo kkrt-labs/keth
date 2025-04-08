@@ -922,7 +922,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "crypto", "alt_bn128", "BNP2"): BNP2,
     ("mpt", "types", "MappingBytes32Address"): Mapping[Bytes32, Address],
     ("mpt", "types", "MappingBytes32Bytes32"): Mapping[Bytes32, Bytes32],
-    ("mpt", "types", "NodeStore"): Mapping[Hash32, Optional[InternalNode]],
+    ("mpt", "types", "NodeStore"): Mapping[Hash32, Bytes],
     ("cairo_core", "bytes", "HashedBytes32"): int,
     ("mpt", "types", "UnionInternalNodeExtended"): Union[InternalNode, Extended],
     ("mpt", "types", "OptionalUnionInternalNodeExtended"): Optional[

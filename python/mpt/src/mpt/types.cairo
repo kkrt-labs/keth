@@ -24,8 +24,8 @@ struct NodeStoreStruct {
 
 struct NodeStoreDictAccess {
     key: HashedBytes32,
-    prev_value: OptionalInternalNode,
-    new_value: OptionalInternalNode,
+    prev_value: Bytes,
+    new_value: Bytes,
 }
 // AddressPreimages is a mapping of keccak(address) to their corresponding preimages
 // As per the specification, MPT state nodes paths are keccak(address)

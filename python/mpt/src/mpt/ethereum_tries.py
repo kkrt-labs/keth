@@ -18,7 +18,7 @@ from ethereum_rlp import rlp
 from ethereum_types.bytes import Bytes, Bytes20, Bytes32
 from ethereum_types.numeric import U256
 
-from mpt.utils import decode_node, nibble_list_to_bytes
+from mpt.utils import decode_node, deserialize_to_internal_node, nibble_list_to_bytes
 
 logger = logging.getLogger(__name__)
 
@@ -37,14 +37,14 @@ class EthereumTries:
     Represents an Ethereum MPT.
 
     Attributes:
-        nodes: A mapping of node hashes to the corresponding internal nodes.
+        nodes: A mapping of node hashes to the corresponding RLP encoded internal nodes.
         codes: A mapping of code hashes to the corresponding code.
         address_preimages: A mapping of MPT path to the corresponding addresses.
         storage_key_preimages: A mapping of MPT path to the corresponding storage keys.
         state_root: The root hash of the MPT.
     """
 
-    nodes: Mapping[Hash32, InternalNode]
+    nodes: Mapping[Hash32, Bytes]
     codes: Mapping[Hash32, Bytes]
     address_preimages: Mapping[Hash32, Address]
     storage_key_preimages: Mapping[Hash32, Bytes32]
@@ -79,7 +79,7 @@ class EthereumTries:
             An EthereumTries object.
         """
         nodes = {
-            keccak256(bytes.fromhex(node[2:])): decode_node(bytes.fromhex(node[2:]))
+            keccak256(bytes.fromhex(node[2:])): bytes.fromhex(node[2:])
             for node in data["witness"]["state"]
         }
 
@@ -157,15 +157,17 @@ class EthereumTries:
                         continue
                     nibble = bytes([i])
 
-                    # Handle the next node
-                    if len(subnode) > 32:
-                        raise ValueError(f"Invalid subnode length: {len(subnode)}")
+                    if isinstance(subnode, bytes) and len(subnode) == 32:
+                        next_node = (
+                            decode_node(self.nodes[subnode])
+                            if subnode in self.nodes
+                            else None
+                        )
+                    elif isinstance(subnode, list):
+                        next_node = deserialize_to_internal_node(subnode)
+                    else:
+                        raise ValueError(f"Invalid subnode type: {type(subnode)}")
 
-                    next_node = (
-                        self.nodes.get(subnode)
-                        if len(subnode) == 32
-                        else decode_node(subnode)
-                    )
                     if not next_node:
                         # If the subnode is not found, we assume this path
                         # is not needed for block execution
@@ -181,15 +183,18 @@ class EthereumTries:
             case ExtensionNode():
                 current_path = current_path + node.key_segment
 
-                if len(node.subnode) > 32:
-                    raise ValueError(f"Invalid subnode length: {len(node.subnode)}")
-
                 # subnode is a hash, so we need to resolve it
-                next_node = (
-                    self.nodes.get(node.subnode)
-                    if len(node.subnode) == 32
-                    else decode_node(node.subnode)
-                )
+                if isinstance(node.subnode, bytes) and len(node.subnode) == 32:
+                    next_node = (
+                        decode_node(self.nodes[node.subnode])
+                        if node.subnode in self.nodes
+                        else None
+                    )
+                elif isinstance(node.subnode, list):
+                    next_node = deserialize_to_internal_node(node.subnode)
+                else:
+                    raise ValueError(f"Invalid subnode type: {type(node.subnode)}")
+
                 if not next_node:
                     # If the subnode is not found, we assume this path
                     # is not needed for block execution
@@ -241,9 +246,9 @@ class EthereumTries:
             return
 
         # We need to resolve the storage root of the account
-        storage_root_node = self.nodes.get(account.storage_root)
-        if storage_root_node is None:
+        if account.storage_root not in self.nodes:
             return
+        storage_root_node = decode_node(self.nodes[account.storage_root])
 
         self.traverse_trie_and_process_leaf(
             storage_root_node,
@@ -276,7 +281,9 @@ class EthereumTries:
         Convert the Ethereum tries to a State object from the `ethereum` package.
         """
         state = State()
-        root_node = self.nodes[self.state_root]
+        if self.state_root not in self.nodes:
+            raise ValueError(f"State root not found in nodes: {self.state_root}")
+        root_node = decode_node(self.nodes[self.state_root])
         self.traverse_trie_and_process_leaf(
             root_node, b"", partial(self.set_account_from_leaf, state=state)
         )
@@ -328,7 +335,7 @@ class EthereumTrieTransitionDB(EthereumTries):
         pre_trie = EthereumTries.from_data(data)
 
         post_nodes = {
-            keccak256(bytes.fromhex(node[2:])): decode_node(bytes.fromhex(node[2:]))
+            keccak256(bytes.fromhex(node[2:])): bytes.fromhex(node[2:])
             for node in data["extra"]["committed"]
         }
         post_state_root = Hash32.fromhex(data["blocks"][0]["header"]["stateRoot"][2:])
@@ -352,7 +359,11 @@ class EthereumTrieTransitionDB(EthereumTries):
     def to_post_state(self) -> State:
         """Convert the post-state trie to a State object."""
         state = State()
-        root_node = self.nodes[self.post_state_root]
+        if self.post_state_root not in self.nodes:
+            raise ValueError(
+                f"Post state root not found in nodes: {self.post_state_root}"
+            )
+        root_node = decode_node(self.nodes[self.post_state_root])
         self.traverse_trie_and_process_leaf(
             root_node, b"", partial(self.set_account_from_leaf, state=state)
         )

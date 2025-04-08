@@ -17,6 +17,7 @@ from mpt.ethereum_tries import EthereumTrieTransitionDB
 from mpt.utils import (
     check_branch_node,
     check_leaf_node,
+    decode_node,
     deserialize_to_internal_node,
     nibble_list_to_bytes,
 )
@@ -119,8 +120,8 @@ class StateDiff:
 
     def _compute_diff(
         self,
-        left: Optional[Hash32 | Bytes],
-        right: Optional[Hash32 | Bytes],
+        left: Optional[Union[InternalNode, Extended]],
+        right: Optional[Union[InternalNode, Extended]],
         path: Bytes,
         process_leaf_diff: Callable,
     ):
@@ -487,14 +488,14 @@ class StateDiff:
 
 
 def resolve(
-    node: Optional[Union[InternalNode, Extended]], nodes: Dict[Hash32, InternalNode]
+    node: Optional[Union[InternalNode, Extended]], nodes: Dict[Hash32, Bytes]
 ) -> InternalNode | None:
     if node is None or node == b"":
         return None
     if isinstance(node, InternalNode):
         return node
     if isinstance(node, bytes) and len(node) == 32:
-        return nodes.get(node)
+        return decode_node(nodes[node]) if node in nodes else None
     if isinstance(node, list):
         return deserialize_to_internal_node(node)
     raise ValueError(f"Invalid node type: {type(node)}")
