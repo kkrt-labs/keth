@@ -11,7 +11,7 @@ dependencies = [
   "cairo-core",
   "eth-rpc",
   "mpt",
-  "cairo-lang>=0.13.2",
+  "cairo-lang>=0.13.3",
   "marshmallow-dataclass>=8.6.1",
   "python-dotenv>=1.0.1",
   "toml>=0.10.2",

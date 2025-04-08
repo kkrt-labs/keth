@@ -126,6 +126,7 @@ from ethereum_types.frozen import slotted_freezable
 from ethereum_types.numeric import U64, U256, FixedUnsigned, Uint, _max_value
 from py_ecc.fields import optimized_bls12_381_FQ as BLSF
 from py_ecc.fields import optimized_bls12_381_FQ2 as BLSF2
+from py_ecc.optimized_bls12_381.optimized_curve import is_inf
 from py_ecc.typing import Optimized_Point3D
 from starkware.cairo.common.dict import DictManager, DictTracker
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
@@ -1124,8 +1125,11 @@ def _gen_arg(
             # Handle conversion from Optimized_Point3D to Optimized_Point2D for BLS12-381
 
             if arg_type in (Optimized_Point3D[BLSF], Optimized_Point3D[BLSF2]):
-                assert arg[2] == type(arg[2]).one()
-                arg = (arg[0], arg[1])
+                if is_inf(arg):
+                    arg = (arg[0].zero(), arg[1].zero())
+                else:
+                    assert arg[2] == arg[2].one()
+                    arg = (arg[0], arg[1])
 
             # Case a tuple with a fixed number of elements, all of different types.
             # These are represented as a pointer to a struct with a pointer to each element.

@@ -66,6 +66,7 @@ from py_ecc.bls.hash_to_curve import (
 )
 from py_ecc.fields import optimized_bls12_381_FQ as BLSF
 from py_ecc.fields import optimized_bls12_381_FQ2 as BLSF2
+from py_ecc.optimized_bls12_381.optimized_curve import Z1, Z2
 from py_ecc.optimized_bls12_381.optimized_pairing import normalize1
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 
@@ -251,11 +252,14 @@ blsf2_strategy = st.builds(
         st.integers(min_value=0, max_value=BLSF2.field_modulus - 1),
     ),
 )
-blsp_strategy = blsf_strategy.map(lambda x: map_to_curve_G1(x)).map(
-    lambda x: normalize1(x)
+blsp_strategy = st.one_of(
+    blsf_strategy.map(lambda x: map_to_curve_G1(x)).map(lambda x: normalize1(x)),
+    st.just(Z1),
 )
-blsp2_strategy = blsf2_strategy.map(lambda x: map_to_curve_G2(x)).map(
-    lambda x: normalize1(x)
+
+blsp2_strategy = st.one_of(
+    blsf2_strategy.map(lambda x: map_to_curve_G2(x)).map(lambda x: normalize1(x)),
+    st.just(Z2),
 )
 
 

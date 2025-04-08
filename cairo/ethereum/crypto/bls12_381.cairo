@@ -247,6 +247,16 @@ func blsp_point_at_infinity() -> BLSP {
 func blsp_init{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
     x: BLSF, y: BLSF
 ) -> BLSP {
+    alloc_locals;
+
+    let blsf_zero = BLSF_ZERO();
+    let y_is_zero = BLSF__eq__(y, blsf_zero);
+    let x_is_zero = BLSF__eq__(x, blsf_zero);
+    if (x_is_zero != 0 and y_is_zero != 0) {
+        tempvar res = BLSP(new BLSPStruct(x, y));
+        return res;
+    }
+
     tempvar a = U384(new UInt384(bls12_381.A0, bls12_381.A1, bls12_381.A2, bls12_381.A3));
     tempvar b = U384(new UInt384(bls12_381.B0, bls12_381.B1, bls12_381.B2, bls12_381.B3));
     tempvar modulus = U384(new UInt384(bls12_381.P0, bls12_381.P1, bls12_381.P2, bls12_381.P3));

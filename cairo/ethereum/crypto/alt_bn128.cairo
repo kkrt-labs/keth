@@ -1545,6 +1545,16 @@ func bnp_point_at_infinity() -> BNP {
 func bnp_init{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
     x: BNF, y: BNF
 ) -> BNP {
+    alloc_locals;
+
+    let bnf_zero = BNF_ZERO();
+    let y_is_zero = BNF__eq__(y, bnf_zero);
+    let x_is_zero = BNF__eq__(x, bnf_zero);
+    if (x_is_zero != 0 and y_is_zero != 0) {
+        tempvar res = BNP(new BNPStruct(x, y));
+        return res;
+    }
+
     tempvar a = U384(new UInt384(alt_bn128.A0, alt_bn128.A1, alt_bn128.A2, alt_bn128.A3));
     tempvar b = U384(new UInt384(alt_bn128.B0, alt_bn128.B1, alt_bn128.B2, alt_bn128.B3));
     tempvar modulus = U384(new UInt384(alt_bn128.P0, alt_bn128.P1, alt_bn128.P2, alt_bn128.P3));

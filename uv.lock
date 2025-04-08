@@ -1,5 +1,4 @@
 version = 1
-revision = 1
 requires-python = ">=3.10"
 resolution-markers = [
     "python_full_version == '3.11.*'",
@@ -1961,7 +1960,7 @@ requires-dist = [
     { name = "cairo-addons", editable = "python/cairo-addons" },
     { name = "cairo-core", editable = "python/cairo-core" },
     { name = "cairo-ec", editable = "python/cairo-ec" },
-    { name = "cairo-lang", specifier = ">=0.13.2" },
+    { name = "cairo-lang", specifier = ">=0.13.3" },
     { name = "colorama", specifier = ">=0.4.6" },
     { name = "eth-rpc", editable = "python/eth-rpc" },
     { name = "ethereum" },

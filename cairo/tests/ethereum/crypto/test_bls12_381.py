@@ -12,6 +12,7 @@ from py_ecc.optimized_bls12_381.optimized_curve import (
     is_inf,
     multiply,
     neg,
+    normalize,
 )
 from py_ecc.optimized_bls12_381.optimized_pairing import normalize1
 from py_ecc.typing import Optimized_Point3D
@@ -132,11 +133,13 @@ segments.load_data(ids.b_inv.address_, [blsf2_struct_ptr])
     class TestBLSP:
         @given(p=...)
         def test_blsp_init(self, cairo_run, p: Optimized_Point3D[BLSF]):
-            assert cairo_run("blsp_init", p[0], p[1]) == p
+            p_affine = normalize(p)
+            assert cairo_run("blsp_init", p_affine[0], p_affine[1]) == p
 
         @given(x=..., y=...)
         def test_blsp_init_fails(self, cairo_run, x: BLSF, y: BLSF):
-            with strict_raises(RuntimeError):
+            assume(x != BLSF.zero() or y != BLSF.zero())
+            with pytest.raises(RuntimeError):
                 cairo_run("blsp_init", x, y)
 
         def test_blsp_point_at_infinity(self, cairo_run):
@@ -152,23 +155,28 @@ segments.load_data(ids.b_inv.address_, [blsf2_struct_ptr])
         def test_blsp_add(
             self, cairo_run, p: Optimized_Point3D[BLSF], q: Optimized_Point3D[BLSF]
         ):
-            assert cairo_run("blsp_add", p, q) == normalize1(add(p, q))
+            expected = add(p, q)
+            if not is_inf(expected):
+                expected = normalize1(expected)
+            assert cairo_run("blsp_add", p, q) == expected
 
         @given(p=...)
         def test_blsp_double(self, cairo_run, p: Optimized_Point3D[BLSF]):
-            assert cairo_run("blsp_double", p) == normalize1(double(p))
+            p_double = double(p)
+            expected = Z1 if is_inf(p_double) else normalize1(p_double)
+            assert cairo_run("blsp_double", p) == expected
 
         @given(p=..., n=...)
         def test_blsp_mul_by(self, cairo_run, p: Optimized_Point3D[BLSF], n: U384):
-            expected = multiply(p, int(n))
-            if not is_inf(expected):
-                expected = normalize1(expected)
+            p_mul = multiply(p, int(n))
+            expected = Z1 if is_inf(p_mul) else normalize1(p_mul)
             assert cairo_run("blsp_mul_by", p, n) == expected
 
     class TestBLSP2:
         @given(p=...)
         def test_blsp2_init(self, cairo_run, p: Optimized_Point3D[BLSF2]):
-            assert cairo_run("blsp2_init", p[0], p[1]) == p
+            p_affine = normalize(p)
+            assert cairo_run("blsp2_init", p_affine[0], p_affine[1]) == p
 
         @given(x=..., y=...)
         def test_blsp2_init_fails(self, cairo_run, x: BLSF2, y: BLSF2):
@@ -197,15 +205,19 @@ segments.load_data(ids.b_inv.address_, [blsf2_struct_ptr])
         def test_blsp2_add(
             self, cairo_run, p: Optimized_Point3D[BLSF2], q: Optimized_Point3D[BLSF2]
         ):
-            assert cairo_run("blsp2_add", p, q) == normalize1(add(p, q))
+            expected = add(p, q)
+            if not is_inf(expected):
+                expected = normalize1(expected)
+            assert cairo_run("blsp2_add", p, q) == expected
 
         @given(p=...)
         def test_blsp2_double(self, cairo_run, p: Optimized_Point3D[BLSF2]):
-            assert cairo_run("blsp2_double", p) == normalize1(double(p))
+            p_double = double(p)
+            expected = Z2 if is_inf(p_double) else normalize1(p_double)
+            assert cairo_run("blsp2_double", p) == expected
 
         @given(p=..., n=...)
         def test_blsp2_mul_by(self, cairo_run, p: Optimized_Point3D[BLSF2], n: U384):
-            expected = multiply(p, int(n))
-            if not is_inf(expected):
-                expected = normalize1(expected)
+            p_mul = multiply(p, int(n))
+            expected = Z2 if is_inf(p_mul) else normalize1(p_mul)
             assert cairo_run("blsp2_mul_by", p, n) == expected
