@@ -143,7 +143,7 @@ pub fn sort_account_diff() -> Hint {
             pointers.sort_by(|a, b| {
                 let val_a = vm.get_integer(*a).unwrap().into_owned();
                 let val_b = vm.get_integer(*b).unwrap().into_owned();
-                val_b.cmp(&val_a) // Sort in descending order
+                val_a.cmp(&val_b) // Sort in ascending order
             });
 
             // Load sorted pointers into buffer
