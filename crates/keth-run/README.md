@@ -5,6 +5,8 @@ It is primarily used for profiling cairo-vm.
 
 ## Run
 
+/!\ Before running, make sure the virtual environment is activated.
+
 - From the workspace root:
 
 ```bash

@@ -39,14 +39,12 @@ struct Args {
     verify: bool,
 }
 
-// Check if the PYTHONPATH, PYTHONHOME, and PYO3_PYTHON variables are set, panics if any one is
-// missing
+// Check if the PYTHONPATH, and PYTHONHOME variables are set
 fn check_env() {
     dotenvy::dotenv().expect("Failed to load .env file");
 
     dotenvy::var("PYTHONPATH").expect("PYTHONPATH environment variable not set");
     dotenvy::var("PYTHONHOME").expect("PYTHONHOME environment variable not set");
-    dotenvy::var("PYO3_PYTHON").expect("PYO3_PYTHON environment variable not set");
 }
 
 fn main() {
