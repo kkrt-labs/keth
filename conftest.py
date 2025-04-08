@@ -168,6 +168,7 @@ def pytest_configure(config):
     setattr(ethereum.cancun.state, "EMPTY_ACCOUNT", EMPTY_ACCOUNT)
     setattr(ethereum.cancun.fork_types, "EMPTY_ACCOUNT", EMPTY_ACCOUNT)
     setattr(ethereum.cancun.vm.instructions.environment, "EMPTY_ACCOUNT", EMPTY_ACCOUNT)
+    setattr(ethereum.cancun.vm.interpreter, "set_code", set_code)
     setattr(mpt.utils, "Account", Account)
     setattr(mpt.trie_diff, "Account", Account)
     setattr(mpt.ethereum_tries, "Account", Account)
