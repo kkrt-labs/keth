@@ -19,7 +19,7 @@ struct Args {
     output_dir: PathBuf,
 
     /// Directory containing ZKPI JSON files
-    #[arg(long, value_name = "DIR", default_value = "data/1/eels")]
+    #[arg(long, value_name = "DIR", default_value = "data/inputs/1")]
     data_dir: PathBuf,
 
     /// Path to compiled Cairo program
