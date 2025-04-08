@@ -63,13 +63,6 @@ fn main() {
     }
 
     let _ = Python::with_gil(|py| -> PyResult<()> {
-        // Get the current directory and add it to Python's path
-        let current_dir = std::env::current_dir()?;
-        // Add the cairo directory to Python's path
-        let sys = py.import("sys")?;
-        let path = sys.getattr("path")?;
-        path.call_method1("append", (current_dir.to_str().unwrap(),))?;
-
         let prove_block_module = py.import("cairo.scripts.prove_block")?;
         let load_zkpi_fixture = prove_block_module.getattr("load_zkpi_fixture")?;
         let program_inputs = load_zkpi_fixture.call1((zkpi_path.to_str().unwrap(),))?;
