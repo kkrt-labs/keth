@@ -68,7 +68,7 @@ fn main() {
     }
 
     let _ = Python::with_gil(|py| -> PyResult<()> {
-        let prove_block_module = py.import("cairo.scripts.prove_block")?;
+        let prove_block_module = py.import("scripts.prove_block")?;
         let load_zkpi_fixture = prove_block_module.getattr("load_zkpi_fixture")?;
         let program_inputs = load_zkpi_fixture.call1((zkpi_path.to_str().unwrap(),))?;
 
