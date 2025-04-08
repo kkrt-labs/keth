@@ -75,6 +75,7 @@ from typing import (
     get_origin,
 )
 
+from eth_typing import BLSPubkey
 from ethereum.cancun.blocks import Block, Header, Log, Receipt, Withdrawal
 from ethereum.cancun.fork import ApplyBodyOutput, BlockChain
 from ethereum.cancun.fork_types import (
@@ -937,6 +938,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "crypto", "bls12_381", "BLSP2"): Optimized_Point3D[BLSF2],
     ("ethereum", "crypto", "bls12_381", "G1Compressed"): G1Compressed,
     ("ethereum", "crypto", "bls12_381", "G1Uncompressed"): G1Uncompressed,
+    ("ethereum", "crypto", "bls12_381", "BLSPubkey"): BLSPubkey,
 }
 
 # In the EELS, some functions are annotated with Sequence while it's actually just Bytes.

@@ -1,6 +1,7 @@
 from typing import Optional
 
 import pytest
+from eth_typing import BLSPubkey
 from ethereum.crypto.kzg import (
     BLS_MODULUS,
     KZGCommitment,
@@ -11,6 +12,7 @@ from ethereum_types.bytes import Bytes, Bytes32
 from hypothesis import example, given
 from hypothesis import strategies as st
 from py_ecc.bls.constants import POW_2_381, POW_2_382, POW_2_383, POW_2_384
+from py_ecc.bls.g2_primitives import pubkey_to_G1
 from py_ecc.bls.hash import os2ip
 from py_ecc.bls.point_compression import (
     decompress_G1,
@@ -21,6 +23,7 @@ from py_ecc.bls.typing import G1Compressed as G1Compressed_py
 
 from cairo_addons.testing.errors import cairo_error
 from tests.utils.args_gen import U384, G1Compressed
+from tests.utils.strategies import bytes48
 
 
 @given(a=...)
@@ -97,3 +100,19 @@ def test_decompress_G1_error_cases(cairo_run, point: G1Compressed):
         except Exception:
             with cairo_error("ValueError"):  # Hint error
                 cairo_run("decompress_G1", point)
+
+
+@given(pubkey=bytes48.map(BLSPubkey))
+def test_pubkey_to_G1(cairo_run, pubkey: BLSPubkey):
+    try:
+        expected = pubkey_to_G1(pubkey)
+    except ValueError:
+        try:
+            with pytest.raises(ValueError):
+                cairo_run("pubkey_to_G1", pubkey)
+        except Exception:
+            with cairo_error("ValueError"):  # Hint error
+                cairo_run("pubkey_to_G1", pubkey)
+        return
+
+    assert cairo_run("pubkey_to_G1", pubkey) == expected

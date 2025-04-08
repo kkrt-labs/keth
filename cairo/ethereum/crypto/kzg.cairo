@@ -49,6 +49,7 @@ from cairo_ec.circuits.mod_ops_compiled import add, sub, mul
 
 using BLSScalar = U256;
 using KZGCommitment = Bytes48;
+using BLSPubkey = Bytes48;
 const VERSIONED_HASH_VERSION_KZG = 0x01;
 
 const GET_FLAGS_MASK = 2 ** 95 + 2 ** 94 + 2 ** 93;
@@ -188,4 +189,24 @@ func decompress_G1{
     // Create point using blsp_init which verifies it's on the curve
     let result = blsp_init(x_blsf, y_blsf);
     return result;
+}
+
+func pubkey_to_G1{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
+}(pubkey: BLSPubkey) -> G1Uncompressed {
+    alloc_locals;
+
+    let bytes_pubkey = U384_to_be_bytes(U384(pubkey.value), 48);
+    let (local bytes_input: felt*) = alloc();
+    reverse(bytes_input, 48, bytes_pubkey.value.data);
+    tempvar bytes_input_bytes = Bytes(new BytesStruct(data=bytes_input, len=48));
+    let z = os2ip(bytes_input_bytes);
+
+    tempvar compressed_point = G1Compressed(z.value);
+    let uncompressed_point = decompress_G1(compressed_point);
+    return uncompressed_point;
 }
