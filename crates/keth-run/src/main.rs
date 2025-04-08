@@ -44,32 +44,17 @@ fn main() {
 
     dotenvy::dotenv().expect("Failed to load .env file");
 
-    assert!(
-        args.compiled_program.exists(),
-        "Compiled program not found: {}",
-        args.compiled_program.display()
-    );
-
     let zkpi_path = args.data_dir.join(format!("{}.json", args.block_number));
-    assert!(zkpi_path.exists(), "ZKPI data not found: {}", zkpi_path.display());
-
-    if !args.output_dir.exists() {
-        std::fs::create_dir_all(&args.output_dir).expect("Error creating output directory");
-    }
 
     let _ = Python::with_gil(|py| -> PyResult<()> {
-        let prove_block_module = py.import("scripts.prove_block")?;
-        let load_zkpi_fixture = prove_block_module.getattr("load_zkpi_fixture")?;
-        let program_inputs = load_zkpi_fixture.call1((zkpi_path.to_str().unwrap(),))?;
-
-        let run_proof_mode = prove_block_module.getattr("run_proof_mode")?;
-        run_proof_mode.call1((
-            "main",
-            program_inputs,
-            args.compiled_program.to_str().unwrap(),
-            args.output_dir.to_str().unwrap(),
+        let prove_block_fn = py.import("scripts.prove_block")?.getattr("prove_block")?;
+        prove_block_fn.call1((
+            args.block_number,
+            args.output_dir,
+            zkpi_path,
+            args.compiled_program,
             args.stwo_proof,
-            args.proof_path.as_ref().map(|p| p.to_str().unwrap()),
+            args.proof_path,
             args.verify,
         ))?;
 
