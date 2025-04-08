@@ -60,6 +60,8 @@ from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 from tests.utils.args_gen import (
     U384,
     AddressAccountDiffEntry,
+    G1Compressed,
+    G1Uncompressed,
     Memory,
     Stack,
     StorageDiffEntry,
@@ -124,7 +126,10 @@ def get_type(instance: Any) -> Type:
     if not isinstance(instance, (tuple, list)):
         return type(instance)
 
-    if isinstance(instance, (BNF2, BNF12, BNF, BNP, BNP2, BNP12, BLSF, BLSF2)):
+    if isinstance(
+        instance,
+        (BNF2, BNF12, BNF, BNP, BNP2, BNP12, BLSF, BLSF2, G1Compressed),
+    ):
         return instance.__class__
 
     # Empty sequence
@@ -337,6 +342,8 @@ class TestSerde:
             Bytes48,
             Optimized_Point3D[BLSF],
             Optimized_Point3D[BLSF2],
+            G1Compressed,
+            G1Uncompressed,
         ],
     ):
         assume(no_empty_sequence(b))

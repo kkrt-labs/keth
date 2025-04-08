@@ -87,6 +87,7 @@ from tests.utils.args_gen import (
     U384,
     FlatState,
     FlatTransientStorage,
+    G1Compressed,
     Memory,
     MutableBloom,
     Stack,
@@ -434,7 +435,7 @@ class Serde:
                 return U256(value)
             return python_cls(value.to_bytes(32, "little"))
 
-        if python_cls in (U384, Bytes48, KZGCommitment):
+        if python_cls in (U384, Bytes48, KZGCommitment, G1Compressed):
             # U384 is represented as a struct with 4 fields: d0, d1, d2, d3
             # Each field is a felt representing 96 bits
             d0 = value["d0"]
