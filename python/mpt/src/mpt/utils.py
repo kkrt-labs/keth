@@ -75,7 +75,10 @@ def check_branch_node(node: BranchNode) -> None:
     """
     Check that a branch node is valid.
     """
-    if not isinstance(node.value, bytes) and len(node.value) == 0:
+    if not isinstance(node.value, bytes):
+        raise ValueError("Invalid branch node, expected a bytes value")
+
+    if isinstance(node.value, bytes) and len(node.value) != 0:
         raise ValueError("Invalid branch node, expected an empty bytes value")
 
     if len(node.subnodes) < 2:

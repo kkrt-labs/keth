@@ -145,7 +145,11 @@ func check_branch_node(node: BranchNode) {
     alloc_locals;
 
     // Values in Ethereum MPTs are always empty bytes
-    if (node.value.value.value.bytes.value.len != 0) {
+    let bytes_variant = node.value.value.value.bytes.value;
+    if (cast(bytes_variant, felt) == 0) {
+        raise('ValueError');
+    }
+    if (bytes_variant.len != 0) {
         raise('ValueError');
     }
 
