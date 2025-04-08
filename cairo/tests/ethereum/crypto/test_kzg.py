@@ -53,7 +53,7 @@ def test_get_flags(cairo_run, z: U384):
 
 
 @given(z1=..., z2=...)
-@example(z1=U384(2**383 + 2**382), z2=None)
+@example(z1=U384(POW_2_383 + POW_2_382), z2=None)
 def test_is_point_at_infinity(cairo_run, z1: U384, z2: Optional[U384]):
     assert cairo_run("is_point_at_infinity", z1, z2) == is_point_at_infinity(
         int(z1), int(z2) if z2 else None

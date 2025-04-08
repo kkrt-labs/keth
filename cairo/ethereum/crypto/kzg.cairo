@@ -22,6 +22,7 @@ from ethereum.utils.numeric import (
     U384_from_be_bytes,
     U384_to_be_bytes,
     U384_ZERO,
+    U384_ONE,
     U384__eq__,
     Bytes32_from_be_bytes,
     U384Struct,
@@ -118,9 +119,10 @@ func is_point_at_infinity{
 
     let (u384_zero_ptr) = get_label_location(U384_ZERO);
     let u384_zero = U384(cast(u384_zero_ptr, UInt384*));
+    let (u384_one_ptr) = get_label_location(U384_ONE);
+    let u384_one = U384(cast(u384_one_ptr, UInt384*));
     tempvar POW_2_381 = U384(new U384Struct(0, 0, 0, POW_2_381_D3));
-    tempvar one = U384(new U384Struct(1, 0, 0, 0));
-    let z1_mod_2_381 = mul(z1, one, POW_2_381);
+    let z1_mod_2_381 = mul(z1, u384_one, POW_2_381);
     let is_z1_zero = U384__eq__(z1_mod_2_381, u384_zero);
     if (z2.value != 0) {
         let is_z2_zero = U384__eq__(U384(z2.value), u384_zero);
@@ -170,9 +172,10 @@ func decompress_G1{
     }
 
     // z % POW_2_381
+    let (u384_one_ptr) = get_label_location(U384_ONE);
+    let u384_one = U384(cast(u384_one_ptr, UInt384*));
     tempvar POW_2_381 = U384(new U384Struct(0, 0, 0, POW_2_381_D3));
-    tempvar one = U384(new U384Struct(1, 0, 0, 0));
-    let x = mul(z, one, POW_2_381);
+    let x = mul(z, u384_one, POW_2_381);
 
     // Create x as a field element
     tempvar x_blsf = BLSF(new BLSFStruct(x));
