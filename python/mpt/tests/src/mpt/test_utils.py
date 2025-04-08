@@ -48,27 +48,54 @@ def list_address_account_node_diff_entry_strategy_with_duplicates(draw):
 
 @st.composite
 def branch_node_could_be_invalid_strategy(draw):
-    """Creates a branch node that could either be valid or invalid"""
-    n_leaves = draw(st.integers(min_value=0, max_value=5))
+    """
+    Creates a branch node that could either be valid or invalid.
+    Invalid cases:
+    1. Non-empty value.
+    2. Less than two non-null subnodes.
+    """
+    test_cases = st.sampled_from(["non_empty_value", "less_than_two_subnodes", "ok"])
+    test_case = draw(test_cases)
 
-    # Create list of n_leaves LeafNodes and fill rest with empty values
-    leaf_nodes = draw(
-        st.lists(st.from_type(LeafNode), min_size=n_leaves, max_size=n_leaves).map(
-            lambda nodes: [encode_internal_node(node) for node in nodes]
-        )
+    match test_case:
+        case "non_empty_value":
+            # Value must be non-empty bytes
+            value = draw(st.binary(min_size=1, max_size=10))
+            # Subnodes can be anything >= 2 non-null for this case
+            n_non_null = draw(st.integers(min_value=2, max_value=16))
+            n_null = 16 - n_non_null
+        case "less_than_two_subnodes":
+            # Value must be empty bytes
+            value = b""
+            # Must have 0 or 1 non-null subnodes
+            n_non_null = draw(st.integers(min_value=0, max_value=1))
+            n_null = 16 - n_non_null
+        case "ok":
+            # Value must be empty bytes
+            value = b""
+            # Must have >= 2 non-null subnodes
+            n_non_null = draw(st.integers(min_value=2, max_value=16))
+            n_null = 16 - n_non_null
+        case _:
+            raise ValueError(f"Invalid strategy: {test_case}")
+
+    # Strategy for null subnodes (empty bytes or empty list)
+    null_subnode_strategy = st.one_of(st.just(b""), st.just([]))
+    # Strategy for valid subnodes (any non-empty bytes)
+    valid_subnode_strategy = st.from_type(LeafNode).map(encode_internal_node)
+
+    # Generate the required number of null and non-null subnodes
+    non_null_subnodes = draw(
+        st.lists(valid_subnode_strategy, min_size=n_non_null, max_size=n_non_null)
     )
-    empty_nodes = draw(
-        st.lists(
-            st.one_of(st.just(b""), st.just([])),
-            min_size=16 - n_leaves,
-            max_size=16 - n_leaves,
-        )
+    null_subnodes = draw(
+        st.lists(null_subnode_strategy, min_size=n_null, max_size=n_null)
     )
 
-    return BranchNode(
-        subnodes=draw(st.permutations(leaf_nodes + empty_nodes)),
-        value=b"",
-    )
+    # Combine and shuffle subnodes
+    subnodes = draw(st.permutations(non_null_subnodes + null_subnodes))
+
+    return BranchNode(subnodes=tuple(subnodes), value=value)
 
 
 @st.composite
