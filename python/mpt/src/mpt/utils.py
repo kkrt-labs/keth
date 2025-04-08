@@ -97,3 +97,16 @@ def check_leaf_node(path: Bytes, node: LeafNode) -> None:
 
     if nibbles_len + path_len != 64:
         raise ValueError("Invalid leaf node, expected a 32-byte path")
+
+
+def check_extension_node(node: ExtensionNode) -> None:
+    """
+    Check that an extension node is valid
+     - Extension nodes must have a non-zero key segment
+     - Extension nodes must have a non-zero subnode
+    """
+    if len(node.key_segment) == 0:
+        raise ValueError("Invalid extension node, expected a non-zero key segment")
+
+    if len(node.subnode) == 0:
+        raise ValueError("Invalid extension node, expected a non-empty subnode")

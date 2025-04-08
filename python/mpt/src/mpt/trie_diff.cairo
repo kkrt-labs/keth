@@ -73,7 +73,12 @@ from ethereum.utils.bytes import (
     Bytes__startswith__,
 )
 
-from mpt.utils import deserialize_to_internal_node, check_branch_node, check_leaf_node
+from mpt.utils import (
+    deserialize_to_internal_node,
+    check_branch_node,
+    check_leaf_node,
+    check_extension_node,
+)
 from mpt.types import (
     NodeStore,
     NodeStoreStruct,
@@ -685,6 +690,7 @@ func _left_is_null{
     // (None, ExtensionNode()) -> look for diffs in the right sub-tree
     if (cast(right.value.extension_node.value, felt) != 0) {
         let r_extension = right.value.extension_node;
+        check_extension_node(r_extension);
         let updated_path = Bytes__add__(path, r_extension.value.key_segment);
         let subnode = OptionalUnionInternalNodeExtendedImpl.from_extended(
             r_extension.value.subnode
@@ -843,6 +849,7 @@ func _left_is_leaf_node{
     // comparing it to the old leaf with the same key
     if (cast(right.value.extension_node.value, felt) != 0) {
         let r_extension = right.value.extension_node;
+        check_extension_node(r_extension);
         let r_prefix_l = Bytes__startswith__(
             l_leaf.value.rest_of_key, r_extension.value.key_segment
         );
@@ -965,6 +972,7 @@ func _left_is_extension_node{
     left: ExtensionNode, right: OptionalInternalNode, path: Bytes, account_address: OptionalAddress
 ) -> () {
     alloc_locals;
+    check_extension_node(left);
 
     // (ExtensionNode(), None) -> deleted extension node
     if (cast(right.value, felt) == 0) {
@@ -1056,6 +1064,7 @@ func _left_is_extension_node{
     // (ExtensionNode(), ExtensionNode()) ->
     if (cast(right.value.extension_node.value, felt) != 0) {
         let r_extension = right.value.extension_node;
+        check_extension_node(r_extension);
         let keys_equal = Bytes__eq__(left.value.key_segment, r_extension.value.key_segment);
         if (keys_equal.value != 0) {
             // equal keys -> look for diffs in children
@@ -1238,6 +1247,7 @@ func _left_is_branch_node{
     // remaining sub-tree.
     if (cast(right.value.extension_node.value, felt) != 0) {
         let right_extension = right.value.extension_node;
+        check_extension_node(right_extension);
         return _compute_left_branch_on_right_extension_node(
             left=left, right=right_extension, path=path, account_address=account_address, index=0
         );
