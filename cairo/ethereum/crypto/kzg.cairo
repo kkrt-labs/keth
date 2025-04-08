@@ -51,6 +51,7 @@ using KZGCommitment = Bytes48;
 const VERSIONED_HASH_VERSION_KZG = 0x01;
 
 const GET_FLAGS_MASK = 2 ** 95 + 2 ** 94 + 2 ** 93;
+const POW_2_381_D3 = 0x200000000000000000000000;
 
 func kzg_commitment_to_versioned_hash{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     kzg_commitment: KZGCommitment
@@ -110,18 +111,22 @@ func get_flags{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(z: U384) -> (bool,
     return (bool(c_flag), bool(b_flag), bool(a_flag));
 }
 
-func is_point_at_infinity{range_check96_ptr: felt*}(z1: U384, z2: OptionalU384) -> bool {
+func is_point_at_infinity{
+    range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
+}(z1: U384, z2: OptionalU384) -> bool {
     alloc_locals;
 
     let (u384_zero_ptr) = get_label_location(U384_ZERO);
     let u384_zero = U384(cast(u384_zero_ptr, UInt384*));
+    tempvar POW_2_381 = U384(new U384Struct(0, 0, 0, POW_2_381_D3));
+    tempvar one = U384(new U384Struct(1, 0, 0, 0));
+    let z1_mod_2_381 = mul(z1, one, POW_2_381);
+    let is_z1_zero = U384__eq__(z1_mod_2_381, u384_zero);
     if (z2.value != 0) {
-        let is_z1_zero = U384__eq__(z1, u384_zero);
         let is_z2_zero = U384__eq__(U384(z2.value), u384_zero);
         let result = bool(is_z1_zero.value * is_z2_zero.value);
         return result;
     }
-    let is_z1_zero = U384__eq__(z1, u384_zero);
     let result = bool(is_z1_zero.value);
     return result;
 }
@@ -165,7 +170,7 @@ func decompress_G1{
     }
 
     // z % POW_2_381
-    tempvar POW_2_381 = U384(new U384Struct(0, 0, 0, 9903520314283042199192993792));
+    tempvar POW_2_381 = U384(new U384Struct(0, 0, 0, POW_2_381_D3));
     tempvar one = U384(new U384Struct(1, 0, 0, 0));
     let x = mul(z, one, POW_2_381);
 

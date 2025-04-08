@@ -8,9 +8,9 @@ from ethereum.crypto.kzg import (
     kzg_commitment_to_versioned_hash,
 )
 from ethereum_types.bytes import Bytes, Bytes32
-from hypothesis import example, given
+from hypothesis import example, given, settings
 from hypothesis import strategies as st
-from py_ecc.bls.constants import POW_2_381, POW_2_382, POW_2_383
+from py_ecc.bls.constants import POW_2_381, POW_2_382, POW_2_383, POW_2_384
 from py_ecc.bls.hash import os2ip
 from py_ecc.bls.point_compression import (
     decompress_G1,
@@ -53,6 +53,7 @@ def test_get_flags(cairo_run, z: U384):
 
 
 @given(z1=..., z2=...)
+@example(z1=U384(2**383 + 2**382), z2=None)
 def test_is_point_at_infinity(cairo_run, z1: U384, z2: Optional[U384]):
     assert cairo_run("is_point_at_infinity", z1, z2) == is_point_at_infinity(
         int(z1), int(z2) if z2 else None
@@ -67,17 +68,26 @@ def test_kzg_commitment_to_versioned_hash(cairo_run, commitment: KZGCommitment):
 
 
 @given(point=...)
+@example(
+    point=G1Compressed(POW_2_383 + POW_2_382)
+)  # c_flag=1, b_flag=1, a_flag=0, infinity point
+@settings(max_examples=1)
 def test_decompress_G1(cairo_run, point: G1Compressed):
-    assert cairo_run("decompress_G1", point) == decompress_G1(G1Compressed_py(point))
+    expected = decompress_G1(G1Compressed_py(point))
+    assert cairo_run("decompress_G1", point) == expected
 
 
-@given(point=st.builds(G1Compressed, st.integers(min_value=0, max_value=2**383 - 1)))
+@given(point=st.builds(G1Compressed, st.integers(min_value=0, max_value=POW_2_384 - 1)))
 @example(point=G1Compressed(0))
-@example(point=G1Compressed(POW_2_383))  # c_flag=1, b_flag=0, point at infinity
+@example(
+    point=G1Compressed(POW_2_383)
+)  # c_flag=1, b_flag=0, a_flag=0, point at infinity
 @example(
     point=G1Compressed(POW_2_383 + POW_2_382 + 1)
-)  # c_flag=1, b_flag=1, non-infinity point
-@example(point=G1Compressed(POW_2_383 + POW_2_382 + POW_2_381))
+)  # c_flag=1, b_flag=1, a_flag=0, non-infinity point
+@example(
+    point=G1Compressed(POW_2_383 + POW_2_382 + POW_2_381)
+)  # c_flag=1, b_flag=1, a_flag=1, infinity point
 def test_decompress_G1_error_cases(cairo_run, point: G1Compressed):
     with pytest.raises(ValueError):
         decompress_G1(G1Compressed_py(point))
