@@ -49,14 +49,14 @@ fn main() {
 
     let args = Args::parse();
 
-    if !args.compiled_program.exists() {
-        panic!("Compiled program not found: {}", args.compiled_program.display());
-    }
+    assert!(
+        args.compiled_program.exists(),
+        "Compiled program not found: {}",
+        args.compiled_program.display()
+    );
 
     let zkpi_path = args.data_dir.join(format!("{}.json", args.block_number));
-    if !zkpi_path.exists() {
-        panic!("ZKPI data not found: {}", zkpi_path.display());
-    }
+    assert!(zkpi_path.exists(), "ZKPI data not found: {}", zkpi_path.display());
 
     if !args.output_dir.exists() {
         std::fs::create_dir_all(&args.output_dir).expect("Error creating output directory");
