@@ -31,6 +31,7 @@ from tests.utils.args_gen import (
     MessageCallOutput,
     Node,
     encode_account,
+    set_code,
 )
 from utils.fixture_loader import LoadKethFixture
 
@@ -42,6 +43,7 @@ ethereum.cancun.vm.interpreter.MessageCallOutput = MessageCallOutput
 ethereum.cancun.fork_types.Account = Account
 ethereum.cancun.fork_types.EMPTY_ACCOUNT = EMPTY_ACCOUNT
 ethereum.cancun.fork_types.encode_account = encode_account
+ethereum.cancun.state.set_code = set_code
 ethereum.cancun.trie.Node = Node
 ethereum_rlp.rlp.Extended = Union[Sequence["Extended"], bytearray, bytes, Uint, FixedUnsigned, str, bool]  # type: ignore # noqa: F821
 mpt.ethereum_tries.Account = Account
@@ -55,6 +57,7 @@ setattr(ethereum.cancun.state, "Account", Account)
 setattr(ethereum.cancun.state, "EMPTY_ACCOUNT", EMPTY_ACCOUNT)
 setattr(ethereum.cancun.fork_types, "EMPTY_ACCOUNT", EMPTY_ACCOUNT)
 setattr(ethereum.cancun.vm.instructions.environment, "EMPTY_ACCOUNT", EMPTY_ACCOUNT)
+setattr(ethereum.cancun.vm.interpreter, "set_code", set_code)
 setattr(mpt.utils, "Account", Account)
 setattr(mpt.ethereum_tries, "Account", Account)
 setattr(mpt.trie_diff, "Account", Account)
