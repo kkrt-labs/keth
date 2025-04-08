@@ -68,8 +68,15 @@ func poseidon_storage_diff{poseidon_ptr: PoseidonBuiltin*}(diff: StorageDiffEntr
     assert buffer[1] = diff.value.prev_value.value.low;
     assert buffer[2] = diff.value.prev_value.value.high;
     // Inline the new storage value (U256)
-    assert buffer[3] = diff.value.new_value.value.low;
-    assert buffer[4] = diff.value.new_value.value.high;
+    if (cast(diff.value.new_value.value, felt) == 0) {
+        // Note: in case of State Diffs, writing the default U256(0) value deletes the key, writing a null pointer instead.
+        // In that case, we hash (0, 0) as the value.
+        assert buffer[3] = 0;
+        assert buffer[4] = 0;
+    } else {
+        assert buffer[3] = diff.value.new_value.value.low;
+        assert buffer[4] = diff.value.new_value.value.high;
+    }
 
     let (storage_diff_hash) = poseidon_hash_many(5, buffer);
     return storage_diff_hash;
