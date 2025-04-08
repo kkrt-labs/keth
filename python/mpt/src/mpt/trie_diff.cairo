@@ -11,6 +11,7 @@ from ethereum.cancun.fork_types import (
     Address,
     Account,
     AccountStruct,
+    OptionalAccount,
     TupleAddressBytes32U256DictAccess,
     HashedTupleAddressBytes32,
 )
@@ -319,7 +320,7 @@ func _process_account_diff{
             left_storage_root_extended
         );
         tempvar left_storage_root = left_storage_root;
-        tempvar left_account = left_account;
+        tempvar left_optional_account = OptionalAccount(left_account.value);
         tempvar range_check_ptr = range_check_ptr;
         tempvar bitwise_ptr = bitwise_ptr;
         tempvar poseidon_ptr = poseidon_ptr;
@@ -337,7 +338,7 @@ func _process_account_diff{
     let left_storage_root = OptionalUnionInternalNodeExtended(
         cast([ap - 6], OptionalUnionInternalNodeExtendedEnum*)
     );
-    let left_account = Account(cast([ap - 5], AccountStruct*));
+    let left_optional_account = OptionalAccount(cast([ap - 5], AccountStruct*));
     let range_check_ptr = [ap - 4];
     let bitwise_ptr = cast([ap - 3], BitwiseBuiltin*);
     let poseidon_ptr = cast([ap - 2], PoseidonBuiltin*);
@@ -378,7 +379,7 @@ func _process_account_diff{
     let keccak_ptr = cast([ap - 1], KeccakBuiltin*);
     tempvar account_diff = AddressAccountDiffEntry(
         new AddressAccountDiffEntryStruct(
-            key=address, prev_value=left_account, new_value=right_account
+            key=address, prev_value=left_optional_account, new_value=right_account
         ),
     );
 

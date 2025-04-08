@@ -6,7 +6,7 @@ from ethereum.cancun.trie import (
     BranchNode,
     SequenceExtended,
 )
-from ethereum.cancun.fork_types import Address, HashedTupleAddressBytes32, Account
+from ethereum.cancun.fork_types import Address, HashedTupleAddressBytes32, Account, OptionalAccount
 from ethereum_types.numeric import U256, Uint, Bool
 from ethereum.crypto.hash import Hash32
 
@@ -87,7 +87,7 @@ struct StorageDiffEntryStruct {
 
 struct AddressAccountDiffEntryStruct {
     key: Address,
-    prev_value: Account,
+    prev_value: OptionalAccount,
     new_value: Account,
 }
 
