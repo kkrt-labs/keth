@@ -6,10 +6,12 @@ from py_ecc.optimized_bls12_381.optimized_curve import (
     Z1,
     Z2,
     add,
+    b,
     b2,
     double,
     eq,
     is_inf,
+    is_on_curve,
     multiply,
     neg,
     normalize,
@@ -139,17 +141,18 @@ segments.load_data(ids.b_inv.address_, [blsf2_struct_ptr])
         @given(x=..., y=...)
         def test_blsp_init_fails(self, cairo_run, x: BLSF, y: BLSF):
             assume(x != BLSF.zero() or y != BLSF.zero())
+            assume(not is_on_curve((x, y, BLSF.one()), b))
             with pytest.raises(RuntimeError):
                 cairo_run("blsp_init", x, y)
 
         def test_blsp_point_at_infinity(self, cairo_run):
             assert cairo_run("blsp_point_at_infinity") == Z1
 
-        @given(a=..., b=...)
+        @given(p=..., q=...)
         def test_blsp_eq(
-            self, cairo_run, a: Optimized_Point3D[BLSF], b: Optimized_Point3D[BLSF]
+            self, cairo_run, p: Optimized_Point3D[BLSF], q: Optimized_Point3D[BLSF]
         ):
-            assert cairo_run("BLSP__eq__", a, b) == eq(a, b)
+            assert cairo_run("BLSP__eq__", p, q) == eq(p, q)
 
         @given(p=..., q=...)
         def test_blsp_add(
@@ -190,11 +193,11 @@ segments.load_data(ids.b_inv.address_, [blsf2_struct_ptr])
         def test_BLSP2_B(self, cairo_run):
             assert cairo_run("BLSP2_B") == b2
 
-        @given(a=..., b=...)
+        @given(p=..., q=...)
         def test_blsp2_eq(
-            self, cairo_run, a: Optimized_Point3D[BLSF2], b: Optimized_Point3D[BLSF2]
+            self, cairo_run, p: Optimized_Point3D[BLSF2], q: Optimized_Point3D[BLSF2]
         ):
-            assert cairo_run("BLSP2__eq__", a, b) == eq(a, b)
+            assert cairo_run("BLSP2__eq__", p, q) == eq(p, q)
 
         @given(p=...)
         def test_blsp2_add_negated_y(self, cairo_run, p: Optimized_Point3D[BLSF2]):
