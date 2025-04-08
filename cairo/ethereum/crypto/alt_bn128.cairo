@@ -20,6 +20,8 @@ from cairo_ec.circuits.ec_ops_compiled import assert_on_curve
 from bn254.final_exp import final_exponentiation
 from definitions import E12D
 
+from ethereum.exceptions import Exception, ValueError
+
 from ethereum.utils.numeric import (
     divmod,
     U384_ZERO,
@@ -85,6 +87,15 @@ func bnf_sub{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: Mo
 ) -> BNF {
     tempvar modulus = U384(new UInt384(alt_bn128.P0, alt_bn128.P1, alt_bn128.P2, alt_bn128.P3));
     let result = sub(a.value.c0, b.value.c0, modulus);
+    tempvar res = BNF(new BNFStruct(result));
+    return res;
+}
+
+func bnf_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
+    a: BNF, b: BNF
+) -> BNF {
+    tempvar modulus = U384(new UInt384(alt_bn128.P0, alt_bn128.P1, alt_bn128.P2, alt_bn128.P3));
+    let result = add(a.value.c0, b.value.c0, modulus);
     tempvar res = BNF(new BNFStruct(result));
     return res;
 }
@@ -261,7 +272,7 @@ func BNP2__eq__{range_check96_ptr: felt*}(p: BNP2, q: BNP2) -> felt {
 
 func bnp2_init{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
     x: BNF2, y: BNF2
-) -> BNP2 {
+) -> (BNP2, Exception*) {
     alloc_locals;
 
     // Get curve parameters for alt_bn128 over BNF2
@@ -273,7 +284,8 @@ func bnp2_init{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: 
     let y_is_zero = BNF2__eq__(y, bnf2_zero);
     if (x_is_zero != 0 and y_is_zero != 0) {
         tempvar res = BNP2(new BNP2Struct(x, y));
-        return res;
+        let ok = cast(0, Exception*);
+        return (res, ok);
     }
     // If the point not the point at infinity, check if it's on the curve
     // Compute y^2
@@ -286,10 +298,14 @@ func bnp2_init{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: 
     let right_side = bnf2_add(x_cubed, bnf2_b);
     // Check if y^2 = x^3 + A*x + B
     let is_on_curve = BNF2__eq__(y_squared, right_side);
-    assert is_on_curve = 1;
 
     tempvar res = BNP2(new BNP2Struct(x, y));
-    return res;
+    if (is_on_curve != 0) {
+        let ok = cast(0, Exception*);
+        return (res, ok);
+    }
+    tempvar err = new Exception(ValueError);
+    return (res, err);
 }
 
 func bnp2_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
@@ -1544,26 +1560,33 @@ func bnp_point_at_infinity() -> BNP {
 // Returns a BNP, a point that is verified to be on the alt_bn128 curve over Fp.
 func bnp_init{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
     x: BNF, y: BNF
-) -> BNP {
+) -> (BNP, Exception*) {
     alloc_locals;
 
-    let bnf_zero = BNF_ZERO();
-    let y_is_zero = BNF__eq__(y, bnf_zero);
-    let x_is_zero = BNF__eq__(x, bnf_zero);
-    if (x_is_zero != 0 and y_is_zero != 0) {
-        tempvar res = BNP(new BNPStruct(x, y));
-        return res;
+    let infinity = bnp_point_at_infinity();
+    let is_infinity = BNP__eq__(BNP(new BNPStruct(x, y)), infinity);
+    if (is_infinity != 0) {
+        let ok = cast(0, Exception*);
+        return (infinity, ok);
     }
 
-    tempvar a = U384(new UInt384(alt_bn128.A0, alt_bn128.A1, alt_bn128.A2, alt_bn128.A3));
     tempvar b = U384(new UInt384(alt_bn128.B0, alt_bn128.B1, alt_bn128.B2, alt_bn128.B3));
-    tempvar modulus = U384(new UInt384(alt_bn128.P0, alt_bn128.P1, alt_bn128.P2, alt_bn128.P3));
+    tempvar b_bnf = BNF(new BNFStruct(b));
 
-    tempvar point = G1Point(new G1PointStruct(x.value.c0, y.value.c0));
-    assert_on_curve(point.value, a, b, modulus);
+    // Check if y^2 = x^3 + B
+    let y_squared = bnf_mul(y, y);
+    let x_squared = bnf_mul(x, x);
+    let x_cubed = bnf_mul(x_squared, x);
+    let right_side = bnf_add(x_cubed, b_bnf);
+    let is_on_curve = BNF__eq__(y_squared, right_side);
 
     tempvar res = BNP(new BNPStruct(x, y));
-    return res;
+    if (is_on_curve != 0) {
+        let ok = cast(0, Exception*);
+        return (res, ok);
+    }
+    tempvar err = new Exception(ValueError);
+    return (res, err);
 }
 
 func bnp_double{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(

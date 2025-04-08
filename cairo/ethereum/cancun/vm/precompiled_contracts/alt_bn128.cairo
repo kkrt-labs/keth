@@ -51,6 +51,8 @@ from ethereum.crypto.alt_bn128 import (
 )
 from cairo_core.control_flow import raise
 
+const PAIRING_CHECK_DATA_LEN = 192;
+
 func alt_bn128_add{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
@@ -282,7 +284,7 @@ func alt_bn128_pairing_check{
     let data = evm.value.message.value.data;
 
     // Gas
-    let (data_factor, rem) = divmod(data.value.len, 192);
+    let (data_factor, rem) = divmod(data.value.len, PAIRING_CHECK_DATA_LEN);
     let gas_cost = Uint(34000 * data_factor + 45000);
     let err = charge_gas(gas_cost);
     if (cast(err, felt) != 0) {
@@ -290,7 +292,7 @@ func alt_bn128_pairing_check{
     }
 
     // Operation
-    // Check if data length is multiple of 192
+    // Check if data length is a multiple of 192
     if (rem != 0) {
         tempvar err = new EthereumException(OutOfGasError);
         return err;
@@ -306,7 +308,7 @@ func alt_bn128_pairing_check{
         return err;
     }
 
-    // Compare result with 1 and set output
+    // Check pairing and set output accordingly
     let one = BNF12_ONE();
     let is_one = BNF12__eq__(result, one);
 
@@ -343,7 +345,7 @@ func process_point_pairs{
     }
 
     // Read coordinates for current pair
-    let offset = current_pair * 192;
+    let offset = current_pair * PAIRING_CHECK_DATA_LEN;
     tempvar u256_thirty_two = U256(new U256Struct(32, 0));
 
     // Read G1 point coordinates
@@ -384,17 +386,24 @@ func process_point_pairs{
     let y0_uint384 = uint256_to_uint384([y0_value.value]);
     tempvar x_bnf = BNF(new BNFStruct(U384(new x0_uint384)));
     tempvar y_bnf = BNF(new BNFStruct(U384(new y0_uint384)));
-    let p = bnp_init(x_bnf, y_bnf);
-
+    let (p, err) = bnp_init(x_bnf, y_bnf);
+    if (cast(err, felt) != 0) {
+        tempvar err = new EthereumException(OutOfGasError);
+        return (current_result, err);
+    }
     let x1_re_uint384 = uint256_to_uint384([x1_re_value.value]);
     let x1_im_uint384 = uint256_to_uint384([x1_im_value.value]);
     let y1_re_uint384 = uint256_to_uint384([y1_re_value.value]);
     let y1_im_uint384 = uint256_to_uint384([y1_im_value.value]);
     tempvar x_bnf2 = BNF2(new BNF2Struct(U384(new x1_re_uint384), U384(new x1_im_uint384)));
     tempvar y_bnf2 = BNF2(new BNF2Struct(U384(new y1_re_uint384), U384(new y1_im_uint384)));
-    let q = bnp2_init(x_bnf2, y_bnf2);
+    let (q, err) = bnp2_init(x_bnf2, y_bnf2);
+    if (cast(err, felt) != 0) {
+        tempvar err = new EthereumException(OutOfGasError);
+        return (current_result, err);
+    }
 
-    // Check points are on curve and have correct order
+    // Subgroup checks
     tempvar curve_order = U384(new UInt384(alt_bn128.N0, alt_bn128.N1, alt_bn128.N2, alt_bn128.N3));
     let p_mul_order = bnp_mul_by(p, curve_order);
     let q_mul_order = bnp2_mul_by(q, curve_order);
@@ -410,7 +419,6 @@ func process_point_pairs{
         return (current_result, err);
     }
 
-    // If either point is infinity, skip this pair
     let is_p_infinity = BNP__eq__(p, p_inf);
     let is_q_infinity = BNP2__eq__(q, q_inf);
 
