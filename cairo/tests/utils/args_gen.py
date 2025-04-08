@@ -1566,15 +1566,15 @@ def generate_dict_arg(
                 (
                     dict_manager.get_tracker(parent_dict_end_ptr).data.get(k, v)
                     if parent_dict_end_ptr
-                    else (
-                        data.default_factory() if isinstance(data, defaultdict) else v
-                    )
+                    else v
                 ),
                 v,
             )
             for k, v in data.items()
         ]
     )
+
+    print(f"initial_data for arg_type {arg_type_origin}: {initial_data}")
 
     all_preimages = {
         poseidon_hash_many(k) if len(k) != 1 else k[0]: k for k in data.keys()

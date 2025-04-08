@@ -259,7 +259,7 @@ def load_zkpi_fixture(zkpi_path: Union[Path, str]) -> Dict[str, Any]:
     )
 
     # Prepare inputs
-    program_inputs = {
+    program_input = {
         "block": block,
         "blockchain": chain,
         "block_hash": Bytes32(
@@ -273,7 +273,7 @@ def load_zkpi_fixture(zkpi_path: Union[Path, str]) -> Dict[str, Any]:
         "post_state_root": transition_db.post_state_root,
     }
 
-    return program_inputs
+    return program_input
 
 
 def prove_block(
@@ -299,7 +299,7 @@ def prove_block(
 
     # Load ZKPI data
     logger.info(f"Fetching prover inputs for block {block_number}")
-    program_inputs = load_zkpi_fixture(zkpi_path)
+    program_input = load_zkpi_fixture(zkpi_path)
 
     # Generate proof
     if proof_path:
@@ -307,7 +307,7 @@ def prove_block(
     logger.info(f"Running Keth for block {block_number}")
     run_proof_mode(
         entrypoint="main",
-        program_inputs=program_inputs,
+        program_input=program_input,
         compiled_program_path=str(compiled_program.absolute()),
         output_dir=str(output_dir.absolute()),
         stwo_proof=stwo_proof,

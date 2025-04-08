@@ -41,17 +41,24 @@ func poseidon_account_diff{poseidon_ptr: PoseidonBuiltin*}(diff: AddressAccountD
         assert buffer[7] = diff.value.prev_value.value.storage_root.value.high;
         assert offset = 8;
     } else {
+        // If previously, the account did not exist
         assert offset = 1;
     }
 
     // Inline the new Account
-    assert buffer[offset] = diff.value.new_value.value.nonce.value;
-    assert buffer[offset + 1] = diff.value.new_value.value.balance.value.low;
-    assert buffer[offset + 2] = diff.value.new_value.value.balance.value.high;
-    assert buffer[offset + 3] = diff.value.new_value.value.code_hash.value.low;
-    assert buffer[offset + 4] = diff.value.new_value.value.code_hash.value.high;
-
-    let (account_diff_hash) = poseidon_hash_many(offset + 5, buffer);
+    local total_size;
+    if (cast(diff.value.new_value.value, felt) != 0) {
+        assert buffer[offset] = diff.value.new_value.value.nonce.value;
+        assert buffer[offset + 1] = diff.value.new_value.value.balance.value.low;
+        assert buffer[offset + 2] = diff.value.new_value.value.balance.value.high;
+        assert buffer[offset + 3] = diff.value.new_value.value.code_hash.value.low;
+        assert buffer[offset + 4] = diff.value.new_value.value.code_hash.value.high;
+        assert total_size = offset + 5;
+    } else {
+        // If the account still does not exist
+        assert total_size = offset;
+    }
+    let (account_diff_hash) = poseidon_hash_many(total_size, buffer);
     return account_diff_hash;
 }
 

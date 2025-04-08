@@ -84,10 +84,7 @@ from legacy.utils.dict import (
     default_dict_finalize,
 )
 from ethereum.utils.hash_dicts import set_address_contains
-
-U256_ZERO:
-dw 0;
-dw 0;
+from ethereum.cancun.utils.constants import U256_ZERO
 
 struct AddressTrieBytes32U256DictAccess {
     key: Address,

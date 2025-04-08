@@ -52,12 +52,12 @@ def sort_account_diff(
     # Extract the list of pointers directly
     pointers = [memory[ids.diffs_ptr.address_ + i] for i in range(ids.diffs_len)]
 
-    # Sort pointers based on the key values they point to, in descending order
-    sorted_pointers = sorted(pointers, key=lambda ptr: memory[ptr], reverse=True)
+    # Sort pointers based on the key values they point to, in ascending order
+    sorted_pointers = sorted(pointers, key=lambda ptr: memory[ptr])
 
     # Load the sorted pointers into ids.buffer
     segments.load_data(ids.buffer, sorted_pointers)
 
     indices = list(range(ids.diffs_len))
-    sorted_indices = sorted(indices, key=lambda i: memory[pointers[i]], reverse=True)
+    sorted_indices = sorted(indices, key=lambda i: memory[pointers[i]])
     segments.load_data(ids.sorted_to_original_index_map, sorted_indices)

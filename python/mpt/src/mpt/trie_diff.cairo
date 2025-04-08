@@ -5,6 +5,7 @@ from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
 from starkware.cairo.common.dict import DictAccess
 from starkware.cairo.common.memset import memset
 from starkware.cairo.common.memcpy import memcpy
+from starkware.cairo.common.registers import get_label_location
 from ethereum.crypto.hash import Hash32, keccak256
 from ethereum.cancun.fork_types import (
     OptionalAddress,
@@ -26,6 +27,7 @@ from ethereum_types.bytes import (
     String,
     StringStruct,
 )
+from ethereum.cancun.utils.constants import U256_ZERO
 from ethereum.utils.bytes import Bytes20_to_Bytes, Bytes32_to_Bytes
 from ethereum_types.numeric import U256, Uint, U256Struct, Bool, bool
 from ethereum.cancun.trie import (
@@ -424,8 +426,13 @@ func _process_storage_diff{
     alloc_locals;
     let dict_ptr = cast(storage_key_preimages.value.dict_ptr, DictAccess*);
 
+    // DEBUG
+    local left: OptionalLeafNode = left;
+    local right: OptionalLeafNode = right;
+
     let fp_and_pc = get_fp_and_pc();
     local __fp__: felt* = fp_and_pc.fp_val;
+    let (u256_zero) = get_label_location(U256_ZERO);
 
     let (pointer) = hashdict_read{dict_ptr=dict_ptr}(2, path.value);
     let new_dict_ptr = cast(dict_ptr, Bytes32Bytes32DictAccess*);
@@ -443,19 +450,19 @@ func _process_storage_diff{
     }
 
     if (left.value != 0) {
-        let left_decoded = U256_from_rlp(left.value.value.value.bytes);
+        let left_u256 = U256_from_rlp(left.value.value.value.bytes);
         tempvar range_check_ptr = range_check_ptr;
         tempvar bitwise_ptr = bitwise_ptr;
         tempvar poseidon_ptr = poseidon_ptr;
         tempvar keccak_ptr = keccak_ptr;
     } else {
-        tempvar left = left;
+        // If the left doesn't have a value, it means the storage key was deleted, the new value is 0.
+        tempvar left_u256 = U256(cast(u256_zero, U256Struct*));
         tempvar range_check_ptr = range_check_ptr;
         tempvar bitwise_ptr = bitwise_ptr;
         tempvar poseidon_ptr = poseidon_ptr;
         tempvar keccak_ptr = keccak_ptr;
     }
-
     let left_u256 = U256(cast([ap - 5], U256Struct*));
     let range_check_ptr = [ap - 4];
     let bitwise_ptr = cast([ap - 3], BitwiseBuiltin*);
@@ -463,13 +470,14 @@ func _process_storage_diff{
     let keccak_ptr = cast([ap - 1], KeccakBuiltin*);
 
     if (right.value != 0) {
-        let right_decoded = U256_from_rlp(right.value.value.value.bytes);
+        let right_u256 = U256_from_rlp(right.value.value.value.bytes);
         tempvar range_check_ptr = range_check_ptr;
         tempvar bitwise_ptr = bitwise_ptr;
         tempvar poseidon_ptr = poseidon_ptr;
         tempvar keccak_ptr = keccak_ptr;
     } else {
-        tempvar right = right;
+        // If the right doesn't have a value, it means the storage key was deleted, the new value is 0.
+        tempvar right_u256 = U256(cast(u256_zero, U256Struct*));
         tempvar range_check_ptr = range_check_ptr;
         tempvar bitwise_ptr = bitwise_ptr;
         tempvar poseidon_ptr = poseidon_ptr;

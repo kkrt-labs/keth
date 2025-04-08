@@ -50,10 +50,14 @@ from ethereum_types.numeric import U64, U256, Uint
 from hypothesis import assume, given, settings
 from hypothesis import strategies as st
 from hypothesis.strategies import composite, integers
-from scripts.prove_block import load_pre_state, process_block_transactions
+from scripts.prove_block import process_block_transactions
 
 from cairo_addons.testing.errors import strict_raises
-from mpt.ethereum_tries import EMPTY_BYTES_HASH, EMPTY_TRIE_HASH
+from mpt.ethereum_tries import (
+    EMPTY_BYTES_HASH,
+    EMPTY_TRIE_HASH,
+    EthereumTrieTransitionDB,
+)
 from tests.ef_tests.helpers.load_state_tests import prepare_state_and_code_hashes
 from tests.ethereum.cancun.vm.test_interpreter import unimplemented_precompiles
 from tests.utils.constants import (
@@ -546,7 +550,8 @@ def zkpi_fixture(zkpi_path):
     ]
 
     # Create blockchain
-    state, _code_hashes = prepare_state_and_code_hashes(load_pre_state(prover_inputs))
+    transition_db = EthereumTrieTransitionDB.from_data(prover_inputs)
+    state, _code_hashes = prepare_state_and_code_hashes(transition_db.to_pre_state())
     chain = BlockChain(
         blocks=blocks,
         state=state,
