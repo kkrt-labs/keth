@@ -189,8 +189,41 @@ func check_branch_node(node: BranchNode) {
             raise('ValueError');
         }
     }
+
     return ();
 }
+
+func check_leaf_node(path: Bytes, node: LeafNode) {
+    alloc_locals;
+
+    let nibbles_len = node.value.rest_of_key.value.len;
+    let path_len = path.value.len;
+
+    if (nibbles_len + path_len != 64) {
+        raise('ValueError');
+    }
+
+    let bytes_variant = node.value.value.value.bytes.value;
+    if (cast(bytes_variant, felt) != 0) {
+        if (bytes_variant.len == 0) {
+            raise('ValueError');
+        }
+        return ();
+    }
+
+    let sequence_variant = node.value.value.value.sequence.value;
+    if (cast(sequence_variant, felt) != 0) {
+        if (sequence_variant.len == 0) {
+            raise('ValueError');
+        }
+        return ();
+    }
+
+    with_attr error_message("ValueError: Unsupported leaf value variant") {
+        jmp raise.raise_label;
+    }
+}
+
 // @notice Sorts an AccountDiff struct in descending order based on the key.
 // This function implies that the original AccountDiff struct does not contain any duplicate keys.
 // @dev The sorted segment is returned from the hint.

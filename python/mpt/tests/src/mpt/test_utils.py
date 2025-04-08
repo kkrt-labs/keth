@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Sequence, Tuple, Union
 
 from ethereum.cancun.trie import (
     BranchNode,
@@ -6,13 +6,14 @@ from ethereum.cancun.trie import (
     bytes_to_nibble_list,
     encode_internal_node,
 )
+from ethereum_rlp import rlp
 from ethereum_types.bytes import Bytes
-from hypothesis import given
+from hypothesis import assume, given
 from hypothesis import strategies as st
 
 from cairo_addons.testing.errors import strict_raises
 from cairo_addons.testing.hints import patch_hint
-from mpt.utils import check_branch_node, nibble_list_to_bytes
+from mpt.utils import check_branch_node, check_leaf_node, nibble_list_to_bytes
 from tests.utils.args_gen import AddressAccountDiffEntry, StorageDiffEntry
 
 list_address_account_node_diff_entry_strategy = st.lists(
@@ -26,12 +27,6 @@ list_address_account_node_diff_entry_strategy = st.lists(
 list_address_account_node_diff_entry_strategy_min_size_2 = st.lists(
     st.from_type(AddressAccountDiffEntry),
     min_size=2,
-    max_size=10,
-    unique_by=lambda x: x.key,
-)
-list_storage_diff_entry_strategy = st.lists(
-    st.from_type(StorageDiffEntry),
-    min_size=0,
     max_size=10,
     unique_by=lambda x: x.key,
 )
@@ -70,6 +65,53 @@ def branch_node_could_be_invalid_strategy(draw):
     )
 
 
+@st.composite
+def leaf_node_could_be_invalid_strategy(draw):
+    """Creates a leaf node associated to a path that could either be valid or invalid"""
+    full_path = draw(st.binary(min_size=32, max_size=32))
+    test_cases = st.sampled_from(
+        ["rest_of_key_too_short", "rest_of_key_too_long", "invalid_value", "ok"]
+    )
+    test_case = draw(test_cases)
+
+    match test_case:
+        case "rest_of_key_too_short":
+            # Create a path and rest_of_key that together are too short
+            path_size = draw(st.integers(min_value=0, max_value=31))
+            missing_size = draw(st.integers(min_value=1, max_value=32 - path_size))
+            rest_of_key_size = 32 - path_size - missing_size
+            path = bytes_to_nibble_list(full_path[:path_size])
+            rest_of_key = bytes_to_nibble_list(
+                full_path[path_size : path_size + rest_of_key_size]
+            )
+            return path, LeafNode(rest_of_key=rest_of_key, value=b"")
+
+        case "rest_of_key_too_long":
+            # Create a path and rest_of_key that together are too long
+            path = bytes_to_nibble_list(full_path[:-5])
+            rest_of_key = bytes_to_nibble_list(
+                full_path[-5:] + b"\x01"
+            )  # Add extra byte
+            return path, LeafNode(rest_of_key=rest_of_key, value=b"")
+
+        case "invalid_value":
+            # Create a leaf node with invalid value (0)
+            path = bytes_to_nibble_list(full_path[:16])
+            rest_of_key = bytes_to_nibble_list(full_path[16:])
+            # Assuming we're only working with `bytes` or `Sequence[rlp.Extended]` types.
+            value = draw(st.from_type(Union[Sequence[rlp.Extended], bytes]))
+            assume(len(value) == 0)
+            return path, LeafNode(rest_of_key=rest_of_key, value=value)
+
+        case "ok":
+            # Create a valid leaf node
+            path = bytes_to_nibble_list(full_path[:16])
+            rest_of_key = bytes_to_nibble_list(full_path[16:])
+            value = draw(st.from_type(Union[Sequence[rlp.Extended], bytes]))
+            assume(len(value) != 0)
+            return path, LeafNode(rest_of_key=rest_of_key, value=value)
+
+
 class TestUtils:
     @given(bytes=...)
     def test_nibble_list_to_bytes(self, bytes: Bytes):
@@ -79,7 +121,7 @@ class TestUtils:
     def test_check_branch_node(self, cairo_run, branch_node: BranchNode):
         try:
             cairo_run("check_branch_node", branch_node)
-        except ValueError as cairo_error:
+        except Exception as cairo_error:
             with strict_raises(type(cairo_error)):
                 check_branch_node(branch_node)
             return
@@ -106,6 +148,18 @@ ids.second_non_null_index = 1
         ):
             with strict_raises(ValueError):
                 cairo_run_py("check_branch_node", branch_node)
+
+    @given(data=leaf_node_could_be_invalid_strategy())
+    def test_check_leaf_node(self, cairo_run, data: Tuple[Bytes, LeafNode]):
+        path, leaf_node = data
+        try:
+            cairo_run("check_leaf_node", path, leaf_node)
+        except Exception as cairo_error:
+            with strict_raises(type(cairo_error)):
+                check_leaf_node(path, leaf_node)
+            return
+
+        check_leaf_node(path, leaf_node)
 
     @given(data=list_address_account_node_diff_entry_strategy)
     def test_sort_account_diff(self, cairo_run, data: List[AddressAccountDiffEntry]):
@@ -208,7 +262,14 @@ segments.load_data(ids.sorted_to_original_index_map, sorted_to_original_index_ma
             with strict_raises(Exception):
                 cairo_run_py("sort_account_diff", data)
 
-    @given(data=list_storage_diff_entry_strategy)
+    @given(
+        data=st.lists(
+            st.from_type(StorageDiffEntry),
+            min_size=0,
+            max_size=10,
+            unique_by=lambda x: x.key,
+        )
+    )
     def test_sort_storage_diff(self, cairo_run, data: List[StorageDiffEntry]):
         sorted_data = sorted(data, key=lambda x: x.key._number, reverse=True)
         cairo_data = cairo_run("sort_storage_diff", data)

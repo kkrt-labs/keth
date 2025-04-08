@@ -83,3 +83,17 @@ def check_branch_node(node: BranchNode) -> None:
     ]
     if len(non_null_subnodes) < 2:
         raise ValueError("Invalid branch node, expected at least two non-null subnodes")
+
+
+def check_leaf_node(path: Bytes, node: LeafNode) -> None:
+    """
+    Check that a leaf node is valid.
+    """
+    if len(node.value) == 0:
+        raise ValueError("Invalid leaf node, expected a non-empty value")
+
+    nibbles_len = len(node.rest_of_key)
+    path_len = len(path)
+
+    if nibbles_len + path_len != 64:
+        raise ValueError("Invalid leaf node, expected a 32-byte path")

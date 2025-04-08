@@ -73,7 +73,7 @@ from ethereum.utils.bytes import (
     Bytes__startswith__,
 )
 
-from mpt.utils import deserialize_to_internal_node, check_branch_node
+from mpt.utils import deserialize_to_internal_node, check_branch_node, check_leaf_node
 from mpt.types import (
     NodeStore,
     NodeStoreStruct,
@@ -657,6 +657,7 @@ func _left_is_null{
     // (None, LeafNode()) -> new leaf
     if (cast(right.value.leaf_node.value, felt) != 0) {
         let r_leaf = right.value.leaf_node;
+        check_leaf_node(path, r_leaf);
         let full_path_nibbles = Bytes__add__(path, r_leaf.value.rest_of_key);
         let full_path = nibble_list_to_bytes(full_path_nibbles);
         let full_path_b32 = Bytes_to_Bytes32(full_path);
@@ -737,6 +738,8 @@ func _left_is_leaf_node{
     alloc_locals;
     // Pattern matching on the types of right.
 
+    check_leaf_node(path, l_leaf);
+
     // (LeafNode(), None) -> deleted leaf
     if (cast(right.value, felt) == 0) {
         let updated_path = Bytes__add__(path, l_leaf.value.rest_of_key);
@@ -764,6 +767,7 @@ func _left_is_leaf_node{
     // (LeafNode(), LeafNode()) -> diffs in the leaf node
     if (cast(right.value.leaf_node.value, felt) != 0) {
         let r_leaf = right.value.leaf_node;
+        check_leaf_node(path, r_leaf);
         let is_rest_equal = Bytes__eq__(l_leaf.value.rest_of_key, r_leaf.value.rest_of_key);
 
         // Same path
@@ -982,6 +986,7 @@ func _left_is_extension_node{
     if (cast(right.value.leaf_node.value, felt) != 0) {
         // Remove the left node's key segment from the right leaf node
         let r_leaf = right.value.leaf_node;
+        check_leaf_node(path, r_leaf);
         let l_prefix_r = Bytes__startswith__(r_leaf.value.rest_of_key, left.value.key_segment);
         if (l_prefix_r.value != 0) {
             let updated_path = Bytes__add__(path, left.value.key_segment);
@@ -1222,6 +1227,7 @@ func _left_is_branch_node{
     // The remaining branch is compared to the leaf.
     if (cast(right.value.leaf_node.value, felt) != 0) {
         let right_leaf = right.value.leaf_node;
+        check_leaf_node(path, right_leaf);
         return _compute_left_branch_on_right_leaf(
             left=left, right=right_leaf, path=path, account_address=account_address, index=0
         );
