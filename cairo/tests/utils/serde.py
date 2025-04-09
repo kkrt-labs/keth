@@ -85,6 +85,7 @@ from cairo_addons.testing.compiler import get_main_path
 from cairo_addons.vm import MemorySegmentManager as RustMemorySegmentManager
 from tests.utils.args_gen import (
     U384,
+    BLSPubkey,
     FlatState,
     FlatTransientStorage,
     G1Compressed,
@@ -435,7 +436,7 @@ class Serde:
                 return U256(value)
             return python_cls(value.to_bytes(32, "little"))
 
-        if python_cls in (U384, Bytes48, KZGCommitment, G1Compressed):
+        if python_cls in (U384, Bytes48, KZGCommitment, G1Compressed, BLSPubkey):
             # U384 is represented as a struct with 4 fields: d0, d1, d2, d3
             # Each field is a felt representing 96 bits
             d0 = value["d0"]

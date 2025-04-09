@@ -60,6 +60,7 @@ from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 from tests.utils.args_gen import (
     U384,
     AddressAccountDiffEntry,
+    BLSPubkey,
     G1Compressed,
     G1Uncompressed,
     Memory,
@@ -128,7 +129,7 @@ def get_type(instance: Any) -> Type:
 
     if isinstance(
         instance,
-        (BNF2, BNF12, BNF, BNP, BNP2, BNP12, BLSF, BLSF2, G1Compressed),
+        (BNF2, BNF12, BNF, BNP, BNP2, BNP12, BLSF, BLSF2, G1Compressed, BLSPubkey),
     ):
         return instance.__class__
 
@@ -344,6 +345,7 @@ class TestSerde:
             Optimized_Point3D[BLSF2],
             G1Compressed,
             G1Uncompressed,
+            BLSPubkey,
         ],
     ):
         assume(no_empty_sequence(b))

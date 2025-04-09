@@ -191,7 +191,7 @@ func decompress_G1{
     return result;
 }
 
-func pubkey_to_G1{
+func pubkey_to_g1{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
     range_check96_ptr: felt*,
