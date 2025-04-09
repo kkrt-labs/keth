@@ -169,7 +169,7 @@ func decompress_G1{
     }
 
     // If point is at infinity
-    if (is_inf_pt.value == 1) {
+    if (is_inf_pt.value != 0) {
         // Validate a_flag is 0
         if (a_flag.value != 0) {
             let dummy = blsp_point_at_infinity();
@@ -258,7 +258,7 @@ func is_on_curve{
     alloc_locals;
 
     let is_infinity = is_inf(p);
-    if (is_infinity.value == 1) {
+    if (is_infinity.value != 0) {
         let result = bool(1);
         return result;
     }
@@ -268,9 +268,8 @@ func is_on_curve{
     let x_3 = blsf_mul(p.value.x, x_2);
     tempvar b = U384(new U384Struct(bls12_381.B0, bls12_381.B1, bls12_381.B2, bls12_381.B3));
     tempvar modulus = U384(new U384Struct(bls12_381.P0, bls12_381.P1, bls12_381.P2, bls12_381.P3));
-    let lhs = y_2;
     let rhs = add(x_3.value.c0, b, modulus);
-    let result = U384__eq__(lhs.value.c0, rhs);
+    let result = U384__eq__(y_2.value.c0, rhs);
 
     return result;
 }
@@ -285,13 +284,13 @@ func key_validate{
     alloc_locals;
 
     let (point, error) = pubkey_to_g1(pk);
-    if (error.value == 1) {
+    if (error.value != 0) {
         let result = bool(0);
         return result;
     }
 
     let is_infinity = is_inf(point);
-    if (is_infinity.value == 1) {
+    if (is_infinity.value != 0) {
         let result = bool(0);
         return result;
     }
