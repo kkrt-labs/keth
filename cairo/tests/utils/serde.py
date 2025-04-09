@@ -88,6 +88,7 @@ from tests.utils.args_gen import (
     FlatState,
     FlatTransientStorage,
     G1Compressed,
+    G2Compressed,
     Memory,
     MutableBloom,
     Stack,
@@ -456,7 +457,7 @@ class Serde:
             # The BNF and BLSF constructors accept int only, not tuples or U384.
             return python_cls(int(value["c0"]))
 
-        if python_cls in (BNF2, BNF12, BLSF2):
+        if python_cls in (BNF2, BNF12, BLSF2, G2Compressed):
             # The BNF<N> and BLSF<N> constructors don't accept named tuples
             # and values are integers, not U384.
             values = [int(v) for v in value.values()]

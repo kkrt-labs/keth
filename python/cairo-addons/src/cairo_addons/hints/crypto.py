@@ -154,3 +154,33 @@ def decompress_G1_hint(ids: VmConsts, segments: MemorySegmentManager):
     blsf_y_struct_ptr = segments.add()
     segments.load_data(blsf_y_struct_ptr, [y_ptr])
     segments.load_data(ids.y_blsf.address_, [blsf_y_struct_ptr])
+
+
+@register_hint
+def decompress_g2_hint(ids: VmConsts, segments: MemorySegmentManager):
+    from py_ecc.bls.point_compression import decompress_G2
+    from py_ecc.bls.typing import G2Compressed
+    from py_ecc.optimized_bls12_381.optimized_curve import normalize
+
+    from cairo_addons.utils.uint384 import int_to_uint384, uint384_to_int
+
+    z1 = uint384_to_int(
+        ids.z.value.c0.value.d0,
+        ids.z.value.c0.value.d1,
+        ids.z.value.c0.value.d2,
+        ids.z.value.c0.value.d3,
+    )
+    z2 = uint384_to_int(
+        ids.z.value.c1.value.d0,
+        ids.z.value.c1.value.d1,
+        ids.z.value.c1.value.d2,
+        ids.z.value.c1.value.d3,
+    )
+    point = normalize(decompress_G2(G2Compressed((z1, z2))))
+    y = point[1]
+    y_c0_ptr = segments.gen_arg(int_to_uint384(y.coeffs[0]))
+    y_c1_ptr = segments.gen_arg(int_to_uint384(y.coeffs[1]))
+    # breakpoint()
+    blsf2_y_struct_ptr = segments.add()
+    segments.load_data(blsf2_y_struct_ptr, [y_c0_ptr, y_c1_ptr])
+    segments.load_data(ids.y_blsf2.address_, [blsf2_y_struct_ptr])

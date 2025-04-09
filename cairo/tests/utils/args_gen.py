@@ -124,7 +124,7 @@ from ethereum_types.bytes import (
 )
 from ethereum_types.frozen import slotted_freezable
 from ethereum_types.numeric import U64, U256, FixedUnsigned, Uint, _max_value
-from py_ecc.bls.typing import G1Uncompressed
+from py_ecc.bls.typing import G1Uncompressed, G2Uncompressed
 from py_ecc.fields import optimized_bls12_381_FQ as BLSF
 from py_ecc.fields import optimized_bls12_381_FQ2 as BLSF2
 from py_ecc.optimized_bls12_381.optimized_curve import is_inf
@@ -211,6 +211,12 @@ U384.MAX_VALUE = _max_value(U384, 384)
 # In EELS, this is a NewType of int.
 # Which cannot be found by isinstance(instance, G1Compressed)
 class G1Compressed(int):
+    pass
+
+
+# In EELS, this is a NewType of Tuple[int, int].
+# Which cannot be found by isinstance(instance, G2Compressed)
+class G2Compressed(Tuple[int, int]):
     pass
 
 
@@ -937,6 +943,8 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "crypto", "bls12_381", "BLSP2"): Optimized_Point3D[BLSF2],
     ("ethereum", "crypto", "bls12_381", "G1Compressed"): G1Compressed,
     ("ethereum", "crypto", "bls12_381", "G1Uncompressed"): G1Uncompressed,
+    ("ethereum", "crypto", "bls12_381", "G2Compressed"): G2Compressed,
+    ("ethereum", "crypto", "bls12_381", "G2Uncompressed"): G2Uncompressed,
 }
 
 # In the EELS, some functions are annotated with Sequence while it's actually just Bytes.
@@ -1137,7 +1145,6 @@ def _gen_arg(
             Ellipsis not in get_args(arg_type) or annotations
         ):
             # Handle conversion from Optimized_Point3D to Optimized_Point2D for BLS12-381
-
             if arg_type in (Optimized_Point3D[BLSF], Optimized_Point3D[BLSF2]):
                 if is_inf(arg):
                     arg = (arg[0].zero(), arg[1].zero())
@@ -1283,13 +1290,16 @@ def _gen_arg(
         segments.load_data(base, felt_values)
         return base
 
+    # if arg_type == G2Compressed:
+    #     arg = (U384(arg[0]), U384(arg[1]))
+
     if arg_type in (BNF, BLSF):
         base = segments.add()
         coeff = [_gen_arg(dict_manager, segments, U384, U384(arg))]
         segments.load_data(base, coeff)
         return base
 
-    if arg_type in (BNF2, BNF12, BLSF2):
+    if arg_type in (BNF2, BNF12, BLSF2, G2Compressed):
         base = segments.add()
         # In python, BNF<N> is a raw tuple of N int.
         # In python, BLSF<N> stores this tuple in a field "coeffs".

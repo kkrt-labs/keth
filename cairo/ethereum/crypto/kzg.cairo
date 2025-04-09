@@ -39,13 +39,21 @@ from ethereum.crypto.bls12_381 import (
     G1Compressed,
     G1Uncompressed,
     BLSF_ZERO,
+    BLSF2,
+    BLSF2Struct,
+    BLSP2,
+    BLSP2Struct,
+    blsp2_point_at_infinity,
+    blsp2_init,
+    G2Compressed,
+    G2Uncompressed,
 )
 from cairo_ec.curve.g1_point import G1Point
 from cairo_core.numeric import OptionalU384
 from cairo_core.hash.sha256 import sha256_be_output
 from ethereum.cancun.fork_types import VersionedHash
 from legacy.utils.array import reverse
-from cairo_ec.circuits.mod_ops_compiled import add, sub, mul
+from cairo_ec.circuits.mod_ops_compiled import add, sub, mul, assert_eq
 
 using BLSScalar = U256;
 using KZGCommitment = Bytes48;
@@ -187,5 +195,80 @@ func decompress_G1{
 
     // Create point using blsp_init which verifies it's on the curve
     let result = blsp_init(x_blsf, y_blsf);
+    return result;
+}
+
+// Recover the uncompressed G2 point from its compressed form
+func decompress_g2{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
+}(z: G2Compressed) -> G2Uncompressed {
+    alloc_locals;
+
+    let z1 = z.value.c0;
+    let z2 = z.value.c1;
+    // Extract flags
+    let (c_flag1, b_flag1, a_flag1) = get_flags(z1);
+
+    // Validate c_flag1 is 1
+    with_attr error_message("ValueError") {
+        assert c_flag1.value = 1;
+    }
+
+    // Check if the point is at infinity
+    let is_inf_pt = is_point_at_infinity(z1, OptionalU384(z2.value));
+
+    // Validate b_flag1
+    with_attr error_message("ValueError") {
+        assert b_flag1.value = is_inf_pt.value;
+    }
+
+    // If point is at infinity
+    if (is_inf_pt.value != 0) {
+        // Validate a_flag1 is 0
+        with_attr error_message("ValueError") {
+            assert a_flag1.value = 0;
+        }
+        // Return point at infinity
+        let result = blsp2_point_at_infinity();
+        return result;
+    }
+
+    // z1 % POW_2_381
+    let (u384_one_ptr) = get_label_location(U384_ONE);
+    let u384_one = U384(cast(u384_one_ptr, UInt384*));
+    tempvar POW_2_381 = U384(new U384Struct(0, 0, 0, POW_2_381_D3));
+    let x1 = mul(z1, u384_one, POW_2_381);
+
+    // Ensure that x1 is less than field modulus
+    tempvar modulus = U384(new UInt384(bls12_381.P0, bls12_381.P1, bls12_381.P2, bls12_381.P3));
+    // if x1 >= modulus: raise
+    with_attr error_message("ValueError") {
+        // If x1 % modulus != modulus, then z2 >= modulus
+        let x1_mod_p = mul(x1, u384_one, modulus);
+        assert_eq(x1, x1_mod_p, modulus);
+    }
+
+    // if z2 > modulus: raise
+    with_attr error_message("ValueError") {
+        // If z2 % modulus != modulus, then z2 >= modulus
+        let z2_mod_p = mul(z2, u384_one, modulus);
+        assert_eq(z2, z2_mod_p, modulus);
+    }
+
+    // Create x as an element of the quadratic extension field
+    // x1 is the imaginary part, z2 is the real part.
+    tempvar x_blsf2 = BLSF2(new BLSF2Struct(z2, x1));
+
+    // compute y as the quadratic residue of x^3 + b over BLSF2.
+    // replaced with a hint
+    local y_blsf2: BLSF2;
+    %{ decompress_g2_hint %}
+
+    // Create point using blsp2_init which verifies it's on the curve
+    let result = blsp2_init(x_blsf2, y_blsf2);
     return result;
 }

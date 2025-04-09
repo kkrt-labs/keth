@@ -62,6 +62,8 @@ from tests.utils.args_gen import (
     AddressAccountDiffEntry,
     G1Compressed,
     G1Uncompressed,
+    G2Compressed,
+    G2Uncompressed,
     Memory,
     Stack,
     StorageDiffEntry,
@@ -128,7 +130,7 @@ def get_type(instance: Any) -> Type:
 
     if isinstance(
         instance,
-        (BNF2, BNF12, BNF, BNP, BNP2, BNP12, BLSF, BLSF2, G1Compressed),
+        (BNF2, BNF12, BNF, BNP, BNP2, BNP12, BLSF, BLSF2, G1Compressed, G2Compressed),
     ):
         return instance.__class__
 
@@ -344,6 +346,8 @@ class TestSerde:
             Optimized_Point3D[BLSF2],
             G1Compressed,
             G1Uncompressed,
+            G2Compressed,
+            G2Uncompressed,
         ],
     ):
         assume(no_empty_sequence(b))

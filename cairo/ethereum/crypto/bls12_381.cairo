@@ -427,6 +427,19 @@ func blsp_mul_by_bits{
     return blsp_mul_by_bits(doubled_p, bits_ptr, bits_len, current_bit + 1, new_result);
 }
 
+// G2Compressed is the Cairo equivalent of Tuple[int, int] from py_ecc.
+// Where each int is 48 bytes long.
+struct G2CompressedStruct {
+    c0: U384,
+    c1: U384,
+}
+
+struct G2Compressed {
+    value: G2CompressedStruct*,
+}
+
+using G2Uncompressed = BLSP2;
+
 // BLSP2 represents a point on the BLSP2 curve
 // BLSF2 is the base field of the curve
 struct BLSP2Struct {

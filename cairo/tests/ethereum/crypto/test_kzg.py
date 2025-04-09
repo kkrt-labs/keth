@@ -14,13 +14,15 @@ from py_ecc.bls.constants import POW_2_381, POW_2_382, POW_2_383, POW_2_384
 from py_ecc.bls.hash import os2ip
 from py_ecc.bls.point_compression import (
     decompress_G1,
+    decompress_G2,
     get_flags,
     is_point_at_infinity,
 )
 from py_ecc.bls.typing import G1Compressed as G1Compressed_py
+from py_ecc.bls.typing import G2Compressed as G2Compressed_py
 
 from cairo_addons.testing.errors import cairo_error
-from tests.utils.args_gen import U384, G1Compressed
+from tests.utils.args_gen import U384, G1Compressed, G2Compressed
 
 
 @given(a=...)
@@ -97,3 +99,43 @@ def test_decompress_G1_error_cases(cairo_run, point: G1Compressed):
         except Exception:
             with cairo_error("ValueError"):  # Hint error
                 cairo_run("decompress_G1", point)
+
+
+@given(point=...)
+@example(
+    point=G2Compressed((POW_2_383 + POW_2_382, 0))
+)  # c_flag=1, b_flag=1, a_flag=0, infinity point
+def test_decompress_g2(cairo_run, point: G2Compressed):
+    expected = decompress_G2(G2Compressed_py(point))
+    assert cairo_run("decompress_g2", point) == expected
+
+
+@given(
+    point=st.builds(
+        G2Compressed,
+        st.tuples(
+            st.integers(min_value=0, max_value=POW_2_384 - 1),
+            st.integers(min_value=0, max_value=POW_2_384 - 1),
+        ),
+    )
+)
+@example(point=G2Compressed((0, 0)))
+@example(
+    point=G2Compressed((POW_2_383, 0))
+)  # c_flag=1, b_flag=0, a_flag=0, point at infinity
+@example(
+    point=G2Compressed((POW_2_383 + POW_2_382 + 1, 0))
+)  # c_flag=1, b_flag=1, a_flag=0, non-infinity point
+@example(
+    point=G2Compressed((POW_2_383 + POW_2_382 + POW_2_381, 0))
+)  # c_flag=1, b_flag=1, a_flag=1, infinity point
+def test_decompress_g2_error_cases(cairo_run, point: G2Compressed):
+    try:
+        decompress_G2(G2Compressed_py(point))
+    except ValueError:
+        try:
+            with pytest.raises(ValueError):
+                cairo_run("decompress_g2", point)
+        except Exception:
+            with cairo_error("ValueError"):  # Hint error
+                cairo_run("decompress_g2", point)
