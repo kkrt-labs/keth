@@ -323,13 +323,12 @@ pub fn jumpdest_check_push_last_32_bytes() -> Hint {
             // Build a vector of bytes from the range [bytecode_data_addr + valid_jumpdest_key - i -
             // 1] for i belonging to [0, max_len - 1]
             let bytecode_start_addr = (bytecode_data_addr + valid_jumpdest_key)?;
-            let last_32_bytes: Vec<u8> = (0..max_len)
+            let last_32_bytes = (0..max_len)
                 .map(|i| {
                     let value_addr = ((bytecode_start_addr - i).unwrap() - 1).unwrap();
-                    vm.get_integer(value_addr).map(|b| b.into_owned()).unwrap()
+                    vm.get_integer(value_addr).unwrap().into_owned().try_into().unwrap()
                 })
-                .map(|b| b.try_into().unwrap())
-                .collect::<Vec<_>>();
+                .collect::<Vec<u8>>();
 
             // Check if any PUSH may prevent this to be a JUMPDEST
             let is_no_push_case = !last_32_bytes.iter().enumerate().any(|(i, &byte)| {
