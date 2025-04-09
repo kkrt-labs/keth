@@ -88,3 +88,7 @@ class TestRunner:
     def test__hint_access_ptr_struct(self, cairo_run, cairo_run_py):
         cairo_run("test_hint_access_ptr_struct_with_pointer_member")
         cairo_run_py("test_hint_access_ptr_struct_with_pointer_member")
+
+    def test__hint_access_pointer_null_value(self, cairo_run, cairo_run_py):
+        cairo_run("test_hint_access_pointer_null_value")
+        cairo_run_py("test_hint_access_pointer_null_value")

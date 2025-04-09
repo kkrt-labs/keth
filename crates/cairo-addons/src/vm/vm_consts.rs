@@ -294,9 +294,7 @@ impl PyVmConst {
                     let var = CairoVar {
                         name: format!("{}.{}", parent_name, member_name),
                         value: Some(value.clone()),
-                        address: Some(
-                            value.get_relocatable().expect("Pointer value is not relocatable"),
-                        ),
+                        address: self.get_address()?,
                         var_type: member_type,
                     };
                     let py_pointee = PyVmConst { var, vm: self.vm, identifiers: self.identifiers };
@@ -322,15 +320,16 @@ impl PyVmConst {
         match &self.var.var_type {
             CairoVarType::Pointer { .. } => {
                 // The address of the pointer is the same as its value.
-                let addr = self
-                    .var
-                    .value
-                    .as_ref()
-                    .ok_or_else(|| PyAttributeError::new_err("Pointer has no address"))?
-                    .get_relocatable()
-                    .expect("Pointer value is not relocatable");
+                // Note: if the variable is NOT a pointer (e.g. we cast something to a pointer),
+                // like tempvar my_pointer_struct = MyPointerStruct(cast(0, felt*));
+                // then the value is 0 and we should return `self.var.address`
+                let pointer_value = self.var.value.as_ref();
 
-                Ok(Some(addr))
+                match pointer_value {
+                    Some(MaybeRelocatable::RelocatableValue(rel)) => Ok(Some(*rel)),
+                    Some(MaybeRelocatable::Int(_)) => Ok(self.var.address),
+                    _ => Ok(None),
+                }
             }
             _ => Ok(self.var.address),
         }
@@ -401,11 +400,18 @@ impl PyVmConst {
 
                 // Check if the member is a felt* and return a PyRelocatable directly
                 if member.cairo_type.as_str() == "felt*" {
-                    if let Some(MaybeRelocatable::RelocatableValue(rel)) =
-                        vm.get_maybe(&member_addr)
-                    {
-                        let py_rel = PyRelocatable { inner: rel };
-                        return Ok(Py::new(py, py_rel)?.into_bound_py_any(py)?.into());
+                    match vm.get_maybe(&member_addr) {
+                        Some(MaybeRelocatable::RelocatableValue(rel)) => {
+                            let py_rel = PyRelocatable { inner: rel };
+                            return Ok(Py::new(py, py_rel)?.into_bound_py_any(py)?.into());
+                        }
+                        Some(MaybeRelocatable::Int(value)) => {
+                            return Ok(value.to_biguint().into_bound_py_any(py)?.into());
+                        }
+                        _ => panic!(
+                            "Expected relocatable or felt value, got {:?}",
+                            vm.get_maybe(&member_addr)
+                        ),
                     }
                 }
                 self.create_member_var(&self.var.name, name, member, member_addr)
@@ -431,11 +437,18 @@ impl PyVmConst {
 
                     // Check if the member is a felt* and return a PyRelocatable directly
                     if member.cairo_type.as_str() == "felt*" {
-                        if let Some(MaybeRelocatable::RelocatableValue(rel)) =
-                            vm.get_maybe(&member_addr)
-                        {
-                            let py_rel = PyRelocatable { inner: rel };
-                            return Ok(Py::new(py, py_rel)?.into_bound_py_any(py)?.into());
+                        match vm.get_maybe(&member_addr) {
+                            Some(MaybeRelocatable::RelocatableValue(rel)) => {
+                                let py_rel = PyRelocatable { inner: rel };
+                                return Ok(Py::new(py, py_rel)?.into_bound_py_any(py)?.into());
+                            }
+                            Some(MaybeRelocatable::Int(value)) => {
+                                return Ok(value.to_biguint().into_bound_py_any(py)?.into());
+                            }
+                            _ => panic!(
+                                "Expected relocatable or felt value, got {:?}",
+                                vm.get_maybe(&member_addr)
+                            ),
                         }
                     }
                     // 3. Create a member variable at that address
