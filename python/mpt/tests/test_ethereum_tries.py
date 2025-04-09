@@ -22,10 +22,6 @@ from scripts.prove_block import normalize_transaction
 from utils.fixture_loader import LoadKethFixture
 
 from mpt import EthereumTries
-from mpt.utils import decode_node
-from utils.fixture_loader import LoadKethFixture
-
-from mpt import EthereumTries
 
 logger = logging.getLogger(__name__)
 
