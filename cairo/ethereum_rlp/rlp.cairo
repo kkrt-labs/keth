@@ -226,7 +226,6 @@ namespace ExtendedImpl {
     // @notice Converts a Simple to an Extended. This is needed because `decode` returns a Simple but `trie.cairo` types are Extended.
     // @dev in Python, this conversion is trivial since Simple is included in Extended.
     //      in Cairo, we need to check the type of the Simple and convert it to the correct Extended variant.
-    //      Perhaps we should use either only Extended or only Simple in the RLP encoding library.
     func from_simple(simple: Simple) -> Extended {
         alloc_locals;
 
