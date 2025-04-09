@@ -33,9 +33,11 @@ from ethereum.crypto.bls12_381 import (
     BLSF,
     BLSFStruct,
     BLSP,
+    BLSP__eq__,
     BLSPStruct,
     blsp_point_at_infinity,
     blsp_init,
+    blsp_mul_by,
     G1Compressed,
     G1Uncompressed,
     BLSF_ZERO,
@@ -113,6 +115,7 @@ func get_flags{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(z: U384) -> (bool,
     return (bool(c_flag), bool(b_flag), bool(a_flag));
 }
 
+// Utils for G1 point decompression
 func is_point_at_infinity{
     range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*
 }(z1: U384, z2: OptionalU384) -> bool {
@@ -209,4 +212,28 @@ func pubkey_to_g1{
     tempvar compressed_point = G1Compressed(z.value);
     let uncompressed_point = decompress_G1(compressed_point);
     return uncompressed_point;
+}
+
+func is_inf{range_check96_ptr: felt*}(pt: BLSP) -> bool {
+    alloc_locals;
+    let infinity = blsp_point_at_infinity();
+    let p_inf = BLSP__eq__(pt, infinity);
+    let res = bool(p_inf);
+    return res;
+}
+
+func subgroup_check{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
+}(p: BLSP) -> bool {
+    alloc_locals;
+    tempvar curve_order = U384(
+        new U384Struct(bls12_381.N0, bls12_381.N1, bls12_381.N2, bls12_381.N3)
+    );
+    let p_mul = blsp_mul_by(p, curve_order);
+    let result = is_inf(p_mul);
+    return result;
 }
