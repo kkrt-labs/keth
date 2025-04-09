@@ -160,7 +160,9 @@ func decompress_G1{
     }
 
     // Check if the point is at infinity
-    tempvar zero_u384 = OptionalU384(new U384Struct(0, 0, 0, 0));
+    let (u384_zero) = get_label_location(U384_ZERO);
+    let u384_zero_ptr = cast(u384_zero, UInt384*);
+    tempvar zero_u384 = OptionalU384(u384_zero_ptr);
     let is_inf_pt = is_point_at_infinity(z, zero_u384);
 
     // Validate b_flag
@@ -169,7 +171,7 @@ func decompress_G1{
     }
 
     // If point is at infinity
-    if (is_inf_pt.value == 1) {
+    if (is_inf_pt.value != 0) {
         // Validate a_flag is 0
         with_attr error_message("ValueError") {
             assert a_flag.value = 0;
