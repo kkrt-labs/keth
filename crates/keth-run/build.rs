@@ -1,4 +1,5 @@
 fn main() {
-    std::env::var("VIRTUAL_ENV")
-        .expect("VIRTUAL_ENV environment variable not set, activate your venv");
+    if std::env::var("VIRTUAL_ENV").is_err() {
+        println!("VIRTUAL_ENV not set, using default python");
+    }
 }
