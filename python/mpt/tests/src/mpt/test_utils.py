@@ -202,14 +202,12 @@ ids.second_non_null_index = 1
 
     @given(data=list_address_account_node_diff_entry_strategy)
     def test_sort_account_diff(self, cairo_run, data: List[AddressAccountDiffEntry]):
-        sorted_data = sorted(
-            data, key=lambda x: int.from_bytes(x.key, "little"), reverse=True
-        )
+        sorted_data = sorted(data, key=lambda x: int.from_bytes(x.key, "little"))
         cairo_data = cairo_run("sort_account_diff", data)
         assert cairo_data == sorted_data
 
     @given(data=list_address_account_node_diff_entry_strategy_min_size_2)
-    def test_sort_account_diff_should_fail_if_not_descending_order(
+    def test_sort_account_diff_should_fail_if_not_ascending_order(
         self, cairo_programs, cairo_run_py, data: List[AddressAccountDiffEntry]
     ):
         with patch_hint(
@@ -217,7 +215,7 @@ ids.second_non_null_index = 1
             "sort_account_diff",
             """
 pointers = [memory[ids.diffs_ptr.address_ + i] for i in range(ids.diffs_len)]
-sorted_pointers = sorted(pointers, key=lambda ptr: memory[ptr], reverse=True)
+sorted_pointers = sorted(pointers, key=lambda ptr: memory[ptr])
 
 # BAD HINT: Invert the order of the last two elements
 sorted_pointers[-2], sorted_pointers[-1] = sorted_pointers[-1], sorted_pointers[-2]
@@ -225,7 +223,7 @@ sorted_pointers[-2], sorted_pointers[-1] = sorted_pointers[-1], sorted_pointers[
 segments.load_data(ids.buffer, sorted_pointers)
 
 indices = list(range(ids.diffs_len))
-sorted_to_original_index_map = sorted(indices, key=lambda i: memory[pointers[i]], reverse=True)
+sorted_to_original_index_map = sorted(indices, key=lambda i: memory[pointers[i]])
 
 # BAD HINT: Invert the order of the last two elements
 sorted_to_original_index_map[-2], sorted_to_original_index_map[-1] = sorted_to_original_index_map[-1], sorted_to_original_index_map[-2]
@@ -234,7 +232,7 @@ segments.load_data(ids.sorted_to_original_index_map, sorted_to_original_index_ma
             """,
         ):
             with strict_raises(
-                Exception, match="ValueError: Array is not sorted in descending order"
+                Exception, match="ValueError: Array is not sorted in ascending order"
             ):
                 cairo_run_py("sort_account_diff", data)
 
@@ -247,7 +245,7 @@ segments.load_data(ids.sorted_to_original_index_map, sorted_to_original_index_ma
             "sort_account_diff",
             """
 pointers = [memory[ids.diffs_ptr.address_ + i] for i in range(ids.diffs_len)]
-sorted_pointers = sorted(pointers, key=lambda ptr: memory[ptr], reverse=True)
+sorted_pointers = sorted(pointers, key=lambda ptr: memory[ptr])
 
 # BAD HINT: not a permutation of the input list
 sorted_pointers[0] += 1
@@ -255,7 +253,7 @@ sorted_pointers[0] += 1
 segments.load_data(ids.buffer, sorted_pointers)
 
 indices = list(range(ids.diffs_len))
-sorted_to_original_index_map = sorted(indices, key=lambda i: memory[pointers[i]], reverse=True)
+sorted_to_original_index_map = sorted(indices, key=lambda i: memory[pointers[i]])
 segments.load_data(ids.sorted_to_original_index_map, sorted_to_original_index_map)
             """,
         ):
@@ -271,7 +269,7 @@ segments.load_data(ids.sorted_to_original_index_map, sorted_to_original_index_ma
     ):
 
         with strict_raises(
-            Exception, match="ValueError: Array is not sorted in descending order"
+            Exception, match="ValueError: Array is not sorted in ascending order"
         ):
             cairo_run("sort_account_diff", data)
 
@@ -284,7 +282,7 @@ segments.load_data(ids.sorted_to_original_index_map, sorted_to_original_index_ma
             "sort_account_diff",
             """
 pointers = [memory[ids.diffs_ptr.address_ + i] for i in range(ids.diffs_len)]
-sorted_pointers = sorted(pointers, key=lambda ptr: memory[ptr], reverse=True)
+sorted_pointers = sorted(pointers, key=lambda ptr: memory[ptr])
 
 # BAD HINT: list shorter than input list
 sorted_pointers = sorted_pointers[:-1]
@@ -292,7 +290,7 @@ sorted_pointers = sorted_pointers[:-1]
 segments.load_data(ids.buffer, sorted_pointers)
 
 indices = list(range(ids.diffs_len))
-sorted_to_original_index_map = sorted(indices, key=lambda i: memory[pointers[i]], reverse=True)
+sorted_to_original_index_map = sorted(indices, key=lambda i: memory[pointers[i]])
 sorted_to_original_index_map = sorted_to_original_index_map[:-1]
 segments.load_data(ids.sorted_to_original_index_map, sorted_to_original_index_map)
             """,
@@ -310,6 +308,6 @@ segments.load_data(ids.sorted_to_original_index_map, sorted_to_original_index_ma
         )
     )
     def test_sort_storage_diff(self, cairo_run, data: List[StorageDiffEntry]):
-        sorted_data = sorted(data, key=lambda x: x.key._number, reverse=True)
+        sorted_data = sorted(data, key=lambda x: x.key._number)
         cairo_data = cairo_run("sort_storage_diff", data)
         assert cairo_data == sorted_data

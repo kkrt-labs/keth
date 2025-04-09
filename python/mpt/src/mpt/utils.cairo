@@ -255,12 +255,12 @@ func check_extension_node(node: ExtensionNode) {
     }
 }
 
-// @notice Sorts an AccountDiff struct in descending order based on the key.
+// @notice Sorts an AccountDiff struct in ascending order based on the key.
 // This function implies that the original AccountDiff struct does not contain any duplicate keys.
 // @dev The sorted segment is returned from the hint.
 // Verifications:
-// - The sorted segment is in strict descending order based on the key.
-//    (for all i in [0, diffs_len - 1], sorted_diff_struct.data[i].value.key > sorted_diff_struct.data[i + 1].value.key)
+// - The sorted segment is in strict ascending order based on the key.
+//    (for all i in [0, diffs_len - 1], sorted_diff_struct.data[i].value.key < sorted_diff_struct.data[i + 1].value.key)
 // - The sorted segment is a permutation of the original segment (
 //    (for all i in [0, diffs_len - 1], exists j in [0, diffs_len - 1] such that sorted_diff_struct.data[i].value.key = original_diff_struct.data[j].value.key)
 //    AND len(sorted_diff_struct) = len(original_diff_struct)
@@ -317,12 +317,12 @@ func sort_account_diff{range_check_ptr}(account_diff: AccountDiff) -> AccountDif
     jmp end if is_last_element != 0;
 
     // --- Verification Step 2: Ordering Check ---
-    // Ensure that the sorted array is in strict descending order based on the key.
+    // Ensure that the sorted array is in strict ascending order based on the key.
     // This check is performed for elements from index 1 up to diffs_len - 1.
-    with_attr error_message("ValueError: Array is not sorted in descending order") {
-        let next_key = sorted_diff_struct_ptr.data[next_loop_counter].value.key.value;
+    with_attr error_message("ValueError: Array is not sorted in ascending order") {
         let previous_key = sorted_diff_struct_ptr.data[loop_counter].value.key.value;
-        let keys_ordered = is_le_felt(next_key, previous_key);
+        let next_key = sorted_diff_struct_ptr.data[next_loop_counter].value.key.value;
+        let keys_ordered = is_le_felt(previous_key, next_key);
         let keys_not_equal = is_not_zero(next_key - previous_key);
         assert keys_ordered * keys_not_equal = 1;
     }
