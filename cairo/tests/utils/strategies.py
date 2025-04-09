@@ -80,6 +80,7 @@ from tests.utils.args_gen import (  # noqa
     EMPTY_TRIE_HASH,
     U384,
     Account,
+    BLSPubkey,
     Environment,
     Evm,
     G1Compressed,
@@ -826,3 +827,4 @@ def register_type_strategies():
     st.register_type_strategy(KZGCommitment, bytes48.map(KZGCommitment))
     st.register_type_strategy(Bytes48, bytes48)
     st.register_type_strategy(G1Compressed, blsG1_compressed)
+    st.register_type_strategy(BLSPubkey, bytes48.map(BLSPubkey))

@@ -214,6 +214,10 @@ class G1Compressed(int):
     pass
 
 
+class BLSPubkey(bytes):
+    pass
+
+
 class Memory(bytearray):
     pass
 
@@ -937,6 +941,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "crypto", "bls12_381", "BLSP2"): Optimized_Point3D[BLSF2],
     ("ethereum", "crypto", "bls12_381", "G1Compressed"): G1Compressed,
     ("ethereum", "crypto", "bls12_381", "G1Uncompressed"): G1Uncompressed,
+    ("ethereum", "crypto", "kzg", "BLSPubkey"): BLSPubkey,
 }
 
 # In the EELS, some functions are annotated with Sequence while it's actually just Bytes.
@@ -1269,7 +1274,7 @@ def _gen_arg(
         segments.load_data(base, felt_values)
         return base
 
-    if arg_type in (U384, G1Compressed, Bytes48, KZGCommitment):
+    if arg_type in (U384, G1Compressed, Bytes48, KZGCommitment, BLSPubkey):
         if isinstance_with_generic(arg, U384):
             arg = arg.to_le_bytes()
         elif isinstance_with_generic(arg, G1Compressed):
