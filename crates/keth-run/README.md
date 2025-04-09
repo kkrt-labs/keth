@@ -19,3 +19,12 @@ cargo r -p keth-run <BLOCK_NUMBER>
 ```bash
 cargo flamegraph --root -p keth-run -- <BLOCK_NUMBER>
 ```
+
+- To visualize Rust symbol names from cairo-addons (and its dependencies) in the
+  flamegraph instead of just having addresses, you can build the vm.abi3.so file
+  using `maturin`:
+
+```bash
+cd python/cairo-addons
+maturin develop --uv
+```
