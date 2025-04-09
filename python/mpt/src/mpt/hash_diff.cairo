@@ -24,8 +24,6 @@ from ethereum.utils.numeric import divmod
 func poseidon_account_diff{poseidon_ptr: PoseidonBuiltin*}(diff: AddressAccountDiffEntry) -> felt {
     alloc_locals;
 
-    %{logger.debug_cairo(f"hashing account diff: {serialize(ids.diff)}")%}
-
     let (buffer) = alloc();
 
     assert buffer[0] = diff.value.key.value;
@@ -108,6 +106,7 @@ func hash_account_diff_segment{poseidon_ptr: PoseidonBuiltin*}(account_diff: Acc
     }
     let (hashes_buffer) = alloc();
     let buffer_len = _accumulate_diff_hashes(hashes_buffer, account_diff, 0);
+    %{ breakpoint() %}
     let (final_hash) = poseidon_hash_many(buffer_len, hashes_buffer);
     return final_hash;
 }
@@ -185,6 +184,12 @@ func hash_state_account_diff{range_check_ptr, poseidon_ptr: PoseidonBuiltin*}(
     let (hashes_buffer) = alloc();
     let buffer_end = _accumulate_state_diff_hashes(hashes_buffer, dict_ptr_start, 0, len);
     let buffer_len = buffer_end - hashes_buffer;
+    local dict_ptr_start: AddressAccountDictAccess* = dict_ptr_start;
+    local dict_ptr_end: AddressAccountDictAccess* = dict_ptr_end;
+    local buffer_len: felt = buffer_len;
+    local buffer_end: felt* = buffer_end;
+    local hashes_buffer: felt* = hashes_buffer;
+    %{ breakpoint() %}
     let (final_hash) = poseidon_hash_many(buffer_len, hashes_buffer);
     return final_hash;
 }
@@ -214,6 +219,9 @@ func _accumulate_state_diff_hashes{poseidon_ptr: PoseidonBuiltin*}(
 
     if (prev_eq_new.value != 0) {
         // If the pointers are equal, then this is not a diff - skip it
+        %{
+            logger.debug_cairo(f"Skipping diff {ids.i} as prev_eq_new=true for {ids.prev_value_ptr} == {ids.new_value_ptr}");
+        %}
         return _accumulate_state_diff_hashes(buffer, state_account_diff, i + 1, len);
     }
 

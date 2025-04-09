@@ -55,6 +55,8 @@ func is_le_unchecked{range_check_ptr}(lhs: felt, rhs: felt) -> felt {
 // @param rhs The second pointer to compare
 // @return 1 if pointers are equal. If we cannot attest their equality, we return 0.
 func is_ptr_equal(lhs: felt*, rhs: felt*) -> bool {
+    alloc_locals;
+
     if (cast(lhs, felt) == 0) {
         if (cast(rhs, felt) == 0) {
             let res = bool(1);
@@ -64,16 +66,21 @@ func is_ptr_equal(lhs: felt*, rhs: felt*) -> bool {
         return res;
     }
 
-    tempvar segment_equal;
-    %{ ids.segment_equal = (ids.lhs.segment_index == ids.rhs.segment_index) %}
-    jmp segments_are_equal if segment_equal != 0, ap++;
+    // Temporary
+    tempvar result_unproven: bool;
+    %{ ids.result_unproven = (ids.lhs == ids.rhs) %}
+    return result_unproven;
 
-    // We can prove the equality, but not the inequality on different segments.
-    let res = bool(0);
-    return res;
+    // tempvar segment_equal;
+    // %{ ids.segment_equal = (ids.lhs.segment_index == ids.rhs.segment_index) %}
+    // jmp segments_are_equal if segment_equal != 0, ap++;
 
-    segments_are_equal:
-    let res_ = is_zero(lhs - rhs);
-    let res = bool(res_);
-    return res;
+    // // We can prove the equality, but not the inequality on different segments.
+    // let res = bool(0);
+    // return res;
+
+    // segments_are_equal:
+    // let res_ = is_zero(lhs - rhs);
+    // let res = bool(res_);
+    // return res;
 }
