@@ -1799,8 +1799,7 @@ func node_store_get{
     );
 
     // Cast the result to a Bytes, hash it to check invariant and RLP-decode it.
-    tempvar encoded_node = Bytes(cast(pointer, BytesStruct*));
-    if (encoded_node.value.len == 0) {
+    if (pointer == 0) {
         let res = OptionalInternalNode(cast(0, InternalNodeEnum*));
         return res;
     }
