@@ -123,6 +123,8 @@ class StateDiff:
         right: Optional[Hash32 | Bytes],
         path: Bytes,
         process_leaf_diff: Callable,
+        left_parent_is_extension: bool = False,
+        right_parent_is_extension: bool = False,
     ):
         if left == right:
             return
@@ -144,8 +146,16 @@ class StateDiff:
 
             case (None, ExtensionNode()):
                 # Look for diffs in the right sub-tree
+                if right_parent_is_extension:
+                    raise ValueError(
+                        "Extension node cannot have an extension node as child"
+                    )
                 self._compute_diff(
-                    None, r_node.subnode, path + r_node.key_segment, process_leaf_diff
+                    None,
+                    r_node.subnode,
+                    path + r_node.key_segment,
+                    process_leaf_diff,
+                    right_parent_is_extension=True,
                 )
 
             case (None, BranchNode()):
@@ -189,6 +199,10 @@ class StateDiff:
 
             case (LeafNode(), ExtensionNode()):
                 check_leaf_node(path, l_node)
+                if right_parent_is_extension:
+                    raise ValueError(
+                        "Extension node cannot have a extension node as child"
+                    )
                 # Explore the extension node's subtree for any new leaves, comparing it to the old
                 # leaf with the same key
                 if l_node.rest_of_key.startswith(r_node.key_segment):
@@ -200,6 +214,7 @@ class StateDiff:
                         r_node.subnode,
                         path + r_node.key_segment,
                         process_leaf_diff,
+                        right_parent_is_extension=True,
                     )
 
                 # Here we compute the deletion of the Leaf and creation of the ExtensionNode's children
@@ -209,7 +224,11 @@ class StateDiff:
 
                 # we explore the right sub-tree
                 self._compute_diff(
-                    None, r_node.subnode, path + r_node.key_segment, process_leaf_diff
+                    None,
+                    r_node.subnode,
+                    path + r_node.key_segment,
+                    process_leaf_diff,
+                    right_parent_is_extension=True,
                 )
 
             case (LeafNode(), BranchNode()):
@@ -241,12 +260,22 @@ class StateDiff:
                         )
 
             case (ExtensionNode(), None):
+                if left_parent_is_extension:
+                    raise ValueError(
+                        "Extension node cannot have an extension node as child"
+                    )
                 # Look for diffs in the left sub-tree
                 self._compute_diff(
-                    l_node.subnode, None, path + l_node.key_segment, process_leaf_diff
+                    l_node.subnode,
+                    None,
+                    path + l_node.key_segment,
+                    process_leaf_diff,
+                    left_parent_is_extension=True,
                 )
 
             case (ExtensionNode(), LeafNode()):
+                if left_parent_is_extension:
+                    raise ValueError("Extension node cannot have a leaf node as child")
                 # The extension node was deleted and replaced by a leaf - meaning that down the line of the extension node, in a branch, we deleted some nodes.
                 # Explore the extension node's subtree for any deleted nodes, comparing it to the new leaf
                 if r_node.rest_of_key.startswith(l_node.key_segment):
@@ -258,6 +287,7 @@ class StateDiff:
                         r_node,
                         path + l_node.key_segment,
                         process_leaf_diff,
+                        left_parent_is_extension=True,
                     )
                     return
 
@@ -267,10 +297,18 @@ class StateDiff:
 
                 # we explore the left sub-tree
                 self._compute_diff(
-                    l_node.subnode, None, path + l_node.key_segment, process_leaf_diff
+                    l_node.subnode,
+                    None,
+                    path + l_node.key_segment,
+                    process_leaf_diff,
+                    left_parent_is_extension=True,
                 )
 
             case (ExtensionNode(), ExtensionNode()):
+                if left_parent_is_extension or right_parent_is_extension:
+                    raise ValueError(
+                        "Extension node cannot have an extension node as child"
+                    )
                 # Equal keys -> Look for diffs in children
                 if l_node.key_segment == r_node.key_segment:
                     self._compute_diff(
@@ -278,6 +316,8 @@ class StateDiff:
                         r_node.subnode,
                         path + l_node.key_segment,
                         process_leaf_diff,
+                        left_parent_is_extension=True,
+                        right_parent_is_extension=True,
                     )
                 # Right is prefix of left
                 elif l_node.key_segment.startswith(r_node.key_segment):
@@ -293,6 +333,7 @@ class StateDiff:
                         r_node.subnode,
                         path + r_node.key_segment,
                         process_leaf_diff,
+                        right_parent_is_extension=True,
                     )
                 # Left is prefix of right
                 elif r_node.key_segment.startswith(l_node.key_segment):
@@ -308,6 +349,7 @@ class StateDiff:
                         r_node_shortened,
                         path + l_node.key_segment,
                         process_leaf_diff,
+                        left_parent_is_extension=True,
                     )
                 # Both are different -> Look for diffs in both sub-trees
                 else:
@@ -316,12 +358,14 @@ class StateDiff:
                         None,
                         path + l_node.key_segment,
                         process_leaf_diff,
+                        left_parent_is_extension=True,
                     )
                     self._compute_diff(
                         None,
                         r_node.subnode,
                         path + r_node.key_segment,
                         process_leaf_diff,
+                        right_parent_is_extension=True,
                     )
 
             case (ExtensionNode(), BranchNode()):
@@ -333,19 +377,26 @@ class StateDiff:
                     # as extension nodes key_segment len is at least 1
                     if l_node.key_segment[0] == nibble:
                         if len(l_node.key_segment) == 1:
+                            if left_parent_is_extension:
+                                raise ValueError(
+                                    "Extension node cannot have an extension node as child"
+                                )
                             # Fully consumed by this nibble: compare to the subnode
                             l_node_to_compare = l_node.subnode
+                            l_node_parent_is_extension = True
                         else:
                             l_node_to_compare = ExtensionNode(
                                 key_segment=Bytes(l_node.key_segment[1:]),
                                 subnode=l_node.subnode,
                             )
+                            l_node_parent_is_extension = False
                         # Remove the nibble from the extension key segment
                         self._compute_diff(
                             l_node_to_compare,
                             r_node.subnodes[i],
                             path + nibble,
                             process_leaf_diff,
+                            left_parent_is_extension=l_node_parent_is_extension,
                         )
                     else:
                         # Look for diffs in other branches
@@ -404,13 +455,27 @@ class StateDiff:
                     # we know that r_node.key_segment is not empty
                     # as extension nodes key_segment len is at least 1
                     if r_node.key_segment[0] == nibble:
+                        if len(r_node.key_segment) == 1:
+                            if right_parent_is_extension:
+                                raise ValueError(
+                                    "Extension node cannot have an extension node as child"
+                                )
+                            # Fully consumed by this nibble: compare to the subnode
+                            r_node_to_compare = r_node.subnode
+                            r_node_parent_is_extension = True
+                        else:
+                            r_node_to_compare = ExtensionNode(
+                                key_segment=Bytes(r_node.key_segment[1:]),
+                                subnode=r_node.subnode,
+                            )
+                            r_node_parent_is_extension = False
                         # Remove the nibble from the extension key segment
-                        r_node.key_segment = r_node.key_segment[1:]
                         self._compute_diff(
                             l_node.subnodes[i],
-                            r_node.subnode,
+                            r_node_to_compare,
                             path + nibble,
                             process_leaf_diff,
+                            right_parent_is_extension=r_node_parent_is_extension,
                         )
                     else:
                         # Look for diffs in other branches
