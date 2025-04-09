@@ -139,7 +139,12 @@ def blsf2_multiplicative_inverse(ids: VmConsts, segments: MemorySegmentManager):
 def decompress_G1_hint(ids: VmConsts, segments: MemorySegmentManager):
     from py_ecc.bls.point_compression import decompress_G1
     from py_ecc.bls.typing import G1Compressed
-    from py_ecc.optimized_bls12_381.optimized_curve import normalize
+    from py_ecc.fields import optimized_bls12_381_FQ as FQ
+    from py_ecc.optimized_bls12_381.optimized_curve import (
+        b,
+        is_on_curve,
+        normalize,
+    )
 
     from cairo_addons.utils.uint384 import int_to_uint384, uint384_to_int
 
@@ -149,7 +154,12 @@ def decompress_G1_hint(ids: VmConsts, segments: MemorySegmentManager):
         ids.z.value.d2,
         ids.z.value.d3,
     )
-    point = normalize(decompress_G1(G1Compressed(z_int)))
+    try:
+        point = normalize(decompress_G1(G1Compressed(z_int)))
+    except ValueError:
+        # return a point that is not on the curve
+        point = (FQ.zero(), FQ.one(), FQ.one())
+        assert not is_on_curve(point, b)
     y_ptr = segments.gen_arg(int_to_uint384(int(point[1])))
     blsf_y_struct_ptr = segments.add()
     segments.load_data(blsf_y_struct_ptr, [y_ptr])

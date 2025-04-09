@@ -32,6 +32,8 @@ from cairo_ec.curve.bls12_381 import bls12_381
 from ethereum.crypto.bls12_381 import (
     BLSF,
     BLSFStruct,
+    blsf_mul,
+    blsf_add,
     BLSP,
     BLSP__eq__,
     BLSPStruct,
@@ -41,6 +43,7 @@ from ethereum.crypto.bls12_381 import (
     G1Compressed,
     G1Uncompressed,
     BLSF_ZERO,
+    BLSF_ONE,
 )
 from cairo_ec.curve.g1_point import G1Point
 from cairo_core.numeric import OptionalU384
@@ -144,15 +147,18 @@ func decompress_G1{
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,
-}(z: G1Compressed) -> G1Uncompressed {
+}(z: G1Compressed) -> (G1Uncompressed, bool) {
     alloc_locals;
 
     // Extract flags
     let (c_flag, b_flag, a_flag) = get_flags(z);
 
     // Validate c_flag is 1
-    with_attr error_message("ValueError") {
-        assert c_flag.value = 1;
+    if (c_flag.value != 1) {
+        let one = BLSF_ONE();
+        let zero = BLSF_ZERO();
+        tempvar dummy = BLSP(new BLSPStruct(zero, one));
+        return (dummy, bool(1));
     }
 
     // Check if the point is at infinity
@@ -160,19 +166,25 @@ func decompress_G1{
     let is_inf_pt = is_point_at_infinity(z, zero_u384);
 
     // Validate b_flag
-    with_attr error_message("ValueError") {
-        assert b_flag.value = is_inf_pt.value;
+    if (b_flag.value != is_inf_pt.value) {
+        let one = BLSF_ONE();
+        let zero = BLSF_ZERO();
+        tempvar dummy = BLSP(new BLSPStruct(zero, one));
+        return (dummy, bool(1));
     }
 
     // If point is at infinity
-    if (is_inf_pt.value == 1) {
+    if (is_inf_pt.value != 0) {
         // Validate a_flag is 0
-        with_attr error_message("ValueError") {
-            assert a_flag.value = 0;
+        if (a_flag.value != 0) {
+            let one = BLSF_ONE();
+            let zero = BLSF_ZERO();
+            tempvar dummy = BLSP(new BLSPStruct(zero, one));
+            return (dummy, bool(1));
         }
         // Return point at infinity
         let result = blsp_point_at_infinity();
-        return result;
+        return (result, bool(0));
     }
 
     // z % POW_2_381
@@ -189,9 +201,16 @@ func decompress_G1{
     local y_blsf: BLSF;
     %{ decompress_G1_hint %}
 
-    // Create point using blsp_init which verifies it's on the curve
-    let result = blsp_init(x_blsf, y_blsf);
-    return result;
+    // Check if the point is on the curve
+    tempvar point = BLSP(new BLSPStruct(x_blsf, y_blsf));
+    let on_curve = is_on_curve(point);
+    if (on_curve.value != 0) {
+        return (point, bool(0));
+    }
+    let one = BLSF_ONE();
+    let zero = BLSF_ZERO();
+    tempvar dummy = BLSP(new BLSPStruct(zero, one));
+    return (dummy, bool(1));
 }
 
 func pubkey_to_g1{
@@ -200,7 +219,7 @@ func pubkey_to_g1{
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,
-}(pubkey: BLSPubkey) -> G1Uncompressed {
+}(pubkey: BLSPubkey) -> (G1Uncompressed, bool) {
     alloc_locals;
 
     let bytes_pubkey = U384_to_be_bytes(U384(pubkey.value), 48);
@@ -210,8 +229,8 @@ func pubkey_to_g1{
     let z = os2ip(bytes_input_bytes);
 
     tempvar compressed_point = G1Compressed(z.value);
-    let uncompressed_point = decompress_G1(compressed_point);
-    return uncompressed_point;
+    let (uncompressed_point, error) = decompress_G1(compressed_point);
+    return (uncompressed_point, error);
 }
 
 func is_inf{range_check96_ptr: felt*}(pt: BLSP) -> bool {
@@ -235,5 +254,62 @@ func subgroup_check{
     );
     let p_mul = blsp_mul_by(p, curve_order);
     let result = is_inf(p_mul);
+    return result;
+}
+
+func is_on_curve{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
+}(p: BLSP) -> bool {
+    alloc_locals;
+
+    let is_infinity = is_inf(p);
+    if (is_infinity.value != 0) {
+        let result = bool(1);
+        return result;
+    }
+
+    let y_2 = blsf_mul(p.value.y, p.value.y);
+    let x_2 = blsf_mul(p.value.x, p.value.x);
+    let x_3 = blsf_mul(p.value.x, x_2);
+    tempvar b = U384(new U384Struct(bls12_381.B0, bls12_381.B1, bls12_381.B2, bls12_381.B3));
+    tempvar modulus = U384(new U384Struct(bls12_381.P0, bls12_381.P1, bls12_381.P2, bls12_381.P3));
+    let rhs = add(x_3.value.c0, b, modulus);
+    let result = U384__eq__(y_2.value.c0, rhs);
+
+    return result;
+}
+
+func key_validate{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
+}(pk: BLSPubkey) -> bool {
+    alloc_locals;
+
+    let (point, error) = pubkey_to_g1(pk);
+    if (error.value != 0) {
+        let result = bool(0);
+        return result;
+    }
+
+    let is_infinity = is_inf(point);
+    if (is_infinity.value != 0) {
+        let result = bool(0);
+        return result;
+    }
+
+    let in_subgroup = subgroup_check(point);
+    if (in_subgroup.value != 0) {
+        let result = bool(1);
+        return result;
+    }
+
+    let result = bool(0);
     return result;
 }

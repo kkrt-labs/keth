@@ -37,6 +37,13 @@ func BLSF_ZERO() -> BLSF {
     return res;
 }
 
+func BLSF_ONE() -> BLSF {
+    let (u384_one) = get_label_location(U384_ONE);
+    let u384_one_ptr = cast(u384_one, UInt384*);
+    tempvar res = BLSF(new BLSFStruct(U384(u384_one_ptr)));
+    return res;
+}
+
 func BLSF__eq__{range_check96_ptr: felt*}(a: BLSF, b: BLSF) -> felt {
     let result = U384__eq__(a.value.c0, b.value.c0);
     return result.value;

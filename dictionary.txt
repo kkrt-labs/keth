@@ -39,6 +39,7 @@ CALLDATASIZE
 callvalue
 CALLVALUE
 CASM
+ciphersuites
 cdylib
 CHAINID
 Clément
