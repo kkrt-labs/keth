@@ -201,7 +201,7 @@ def process_block_transactions(
     return transactions
 
 
-def load_zkpi_fixture(zkpi_path: Path) -> Dict[str, Any]:
+def load_zkpi_fixture(zkpi_path: Union[Path, str]) -> Dict[str, Any]:
     """
     Load and convert ZKPI fixture to Keth-compatible public inputs.
 
@@ -316,18 +316,20 @@ def load_zkpi_fixture(zkpi_path: Path) -> Dict[str, Any]:
 
 def prove_block(
     block_number: int,
-    output_dir: Path,
-    zkpi_path: Path,
-    compiled_program: Path,
+    output_dir: Union[Path, str],
+    zkpi_path: Union[Path, str],
+    compiled_program: Union[Path, str],
     stwo_proof: bool = False,
-    proof_path: Optional[Path] = None,
+    proof_path: Optional[Union[Path, str]] = None,
     verify: bool = False,
 ) -> None:
     """Run the proof generation process for the given block."""
+    output_dir = Path(output_dir)
     # Ensure output directory exists
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Validate compiled program
+    compiled_program = Path(compiled_program)
     if not compiled_program.is_file():
         raise FileNotFoundError(
             f"Compiled program not found: {compiled_program} - Consider running `uv run compile_keth`"
@@ -338,6 +340,8 @@ def prove_block(
     program_inputs = load_zkpi_fixture(zkpi_path)
 
     # Generate proof
+    if proof_path:
+        proof_path = Path(proof_path)
     logger.info(f"Running Keth for block {block_number}")
     run_proof_mode(
         entrypoint="main",
