@@ -10,6 +10,7 @@ coverage:
       ethereum_rlp:
         paths:
           - cairo/ethereum_rlp
+        threshold: 1.5%
       ethereum_types:
         paths:
           - cairo/ethereum_types
