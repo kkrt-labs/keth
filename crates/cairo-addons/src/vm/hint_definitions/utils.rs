@@ -320,17 +320,15 @@ pub fn jumpdest_check_push_last_32_bytes() -> Hint {
             let bytecode_addr = get_ptr_from_var_name("bytecode", vm, ids_data, ap_tracking)?;
             let bytecode_data_addr = vm.get_relocatable(bytecode_addr)?;
 
-            // For each byte at address (bytecode_start_addr + i, i = 0..max_len),
+            // For each byte at address (bytecode_start_addr - i, i = 0..max_len),
             // get the value and convert it to a u8, then collect the bytes into a vector
-            let bytecode_start_addr =
-                (((bytecode_data_addr + valid_jumpdest_key)? - max_len)? - 1)?;
+            let bytecode_start_addr = (bytecode_data_addr + valid_jumpdest_key)?;
             let last_32_bytes: Vec<u8> = (0..max_len)
                 .map(|i| {
-                    let value_addr = (bytecode_start_addr + i).unwrap();
+                    let value_addr = ((bytecode_start_addr - i).unwrap() - 1).unwrap();
                     vm.get_integer(value_addr).map(|b| b.into_owned()).unwrap()
                 })
                 .map(|b| b.try_into().unwrap())
-                .rev()
                 .collect::<Vec<_>>();
 
             let is_no_push_case = !last_32_bytes.iter().enumerate().any(|(i, &byte)| {
