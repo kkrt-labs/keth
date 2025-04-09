@@ -54,13 +54,19 @@ def branch_node_could_be_invalid_strategy(draw):
     1. Non-empty value.
     2. Less than two non-null subnodes.
     """
-    test_cases = st.sampled_from(["non_empty_value", "less_than_two_subnodes", "ok"])
+    test_cases = st.sampled_from(["invalid_value", "less_than_two_subnodes", "ok"])
     test_case = draw(test_cases)
 
     match test_case:
-        case "non_empty_value":
-            # Value must be non-empty bytes
-            value = draw(st.binary(min_size=1, max_size=10))
+        case "invalid_value":
+            # Value must be either non-empty bytes or not bytes
+            value = draw(
+                st.one_of(
+                    st.binary(min_size=1, max_size=10),
+                    st.integers(),
+                    st.lists(st.integers()),
+                )
+            )
             # Subnodes can be anything >= 2 non-null for this case
             n_non_null = draw(st.integers(min_value=2, max_value=16))
             n_null = 16 - n_non_null
