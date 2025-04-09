@@ -12,7 +12,7 @@ from ethereum_types.bytes import Bytes, Bytes32
 from hypothesis import example, given
 from hypothesis import strategies as st
 from py_ecc.bls.constants import POW_2_381, POW_2_382, POW_2_383, POW_2_384
-from py_ecc.bls.g2_primitives import pubkey_to_G1
+from py_ecc.bls.g2_primitives import pubkey_to_G1, subgroup_check
 from py_ecc.bls.hash import os2ip
 from py_ecc.bls.point_compression import (
     decompress_G1,
@@ -20,6 +20,9 @@ from py_ecc.bls.point_compression import (
     is_point_at_infinity,
 )
 from py_ecc.bls.typing import G1Compressed as G1Compressed_py
+from py_ecc.fields import optimized_bls12_381_FQ as BLSF
+from py_ecc.optimized_bls12_381.optimized_curve import is_inf
+from py_ecc.typing import Optimized_Point3D
 
 from cairo_addons.testing.errors import cairo_error
 from tests.utils.args_gen import U384, BLSPubkey, G1Compressed
@@ -116,3 +119,13 @@ def test_pubkey_to_G1(cairo_run, pubkey: BLSPubkey):
         return
 
     assert cairo_run("pubkey_to_g1", pubkey) == expected
+
+
+@given(pt=...)
+def test_is_inf(cairo_run, pt: Optimized_Point3D[BLSF]):
+    assert cairo_run("is_inf", pt) == is_inf(pt)
+
+
+@given(pt=...)
+def test_subgroup_check(cairo_run, pt: Optimized_Point3D[BLSF]):
+    assert cairo_run("subgroup_check", pt) == subgroup_check(pt)
