@@ -43,6 +43,7 @@ from ethereum.crypto.bls12_381 import (
     G1Compressed,
     G1Uncompressed,
     BLSF_ZERO,
+    BLSF_ONE,
 )
 from cairo_ec.curve.g1_point import G1Point
 from cairo_core.numeric import OptionalU384
@@ -154,7 +155,9 @@ func decompress_G1{
 
     // Validate c_flag is 1
     if (c_flag.value != 1) {
-        let dummy = blsp_point_at_infinity();
+        let one = BLSF_ONE();
+        let zero = BLSF_ZERO();
+        tempvar dummy = BLSP(new BLSPStruct(zero, one));
         return (dummy, bool(1));
     }
 
@@ -164,7 +167,9 @@ func decompress_G1{
 
     // Validate b_flag
     if (b_flag.value != is_inf_pt.value) {
-        let dummy = blsp_point_at_infinity();
+        let one = BLSF_ONE();
+        let zero = BLSF_ZERO();
+        tempvar dummy = BLSP(new BLSPStruct(zero, one));
         return (dummy, bool(1));
     }
 
@@ -172,7 +177,9 @@ func decompress_G1{
     if (is_inf_pt.value != 0) {
         // Validate a_flag is 0
         if (a_flag.value != 0) {
-            let dummy = blsp_point_at_infinity();
+            let one = BLSF_ONE();
+            let zero = BLSF_ZERO();
+            tempvar dummy = BLSP(new BLSPStruct(zero, one));
             return (dummy, bool(1));
         }
         // Return point at infinity
@@ -200,7 +207,9 @@ func decompress_G1{
     if (on_curve.value != 0) {
         return (point, bool(0));
     }
-    let dummy = blsp_point_at_infinity();
+    let one = BLSF_ONE();
+    let zero = BLSF_ZERO();
+    tempvar dummy = BLSP(new BLSPStruct(zero, one));
     return (dummy, bool(1));
 }
 

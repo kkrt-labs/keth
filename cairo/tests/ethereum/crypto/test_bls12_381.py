@@ -29,6 +29,9 @@ class TestBls12381:
         def test_blsf_zero(self, cairo_run):
             assert cairo_run("BLSF_ZERO") == BLSF.zero()
 
+        def test_blsf_one(self, cairo_run):
+            assert cairo_run("BLSF_ONE") == BLSF.one()
+
         @given(a=..., b=...)
         def test_blsf_add(self, cairo_run, a: BLSF, b: BLSF):
             assert cairo_run("blsf_add", a, b) == a + b
