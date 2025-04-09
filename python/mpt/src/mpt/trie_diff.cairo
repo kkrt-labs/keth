@@ -1803,6 +1803,7 @@ func node_store_get{
         let res = OptionalInternalNode(cast(0, InternalNodeEnum*));
         return res;
     }
+    tempvar encoded_node = Bytes(cast(pointer, BytesStruct*));
     let hash = keccak256(encoded_node);
     // Invariant
     with_attr error_message("INVARIANT: NodeStore preimage hash mismatch") {

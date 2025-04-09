@@ -240,9 +240,8 @@ namespace ExtendedImpl {
         }
 
         if (simple.value.sequence.value.len == 0) {
-            let (empty_buffer: Extended*) = alloc();
             tempvar sequence_extended = SequenceExtended(
-                new SequenceExtendedStruct(empty_buffer, 0)
+                new SequenceExtendedStruct(cast(simple.value.sequence.value.data, Extended*), 0)
             );
             let res = ExtendedImpl.sequence(sequence_extended);
             return res;
