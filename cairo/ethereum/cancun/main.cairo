@@ -111,8 +111,6 @@ func main{
     tempvar storage_diff = storage_diff;
     tempvar state = state;
 
-    %{ breakpoint() %}
-
     assert state_account_diff_commitment = trie_account_diff_commitment;
     assert state_storage_diff_commitment = trie_storage_diff_commitment;
 

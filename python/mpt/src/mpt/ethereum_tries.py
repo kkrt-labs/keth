@@ -1,22 +1,24 @@
 import json
 import logging
+from collections import defaultdict
 from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
 from typing import Any, Callable, Dict, Mapping
 
-from ethereum.cancun.fork_types import Account, Address
+from ethereum.cancun.fork_types import EMPTY_ACCOUNT, Account, Address
 from ethereum.cancun.state import State, set_account, set_storage
 from ethereum.cancun.trie import (
     BranchNode,
     ExtensionNode,
     InternalNode,
     LeafNode,
+    Trie,
 )
 from ethereum.crypto.hash import Hash32, keccak256
 from ethereum_rlp import rlp
 from ethereum_types.bytes import Bytes, Bytes20, Bytes32
-from ethereum_types.numeric import U256
+from ethereum_types.numeric import U256, Uint
 
 from mpt.utils import decode_node, nibble_list_to_bytes
 
@@ -357,3 +359,111 @@ class EthereumTrieTransitionDB(EthereumTries):
             root_node, b"", partial(self.set_account_from_leaf, state=state)
         )
         return state
+
+    def to_prepared_state(self) -> State:
+        pre_state = self.to_pre_state()
+        post_state = self.to_post_state()
+
+        for address, _ in post_state._main_trie._data.items():
+            if address not in pre_state._main_trie._data:
+                print(f"Setting account {address} to {EMPTY_ACCOUNT}")
+                set_account(pre_state, address, EMPTY_ACCOUNT)
+
+        for address, storage_trie in post_state._storage_tries.items():
+            if address not in pre_state._storage_tries:
+                pre_state._storage_tries[address] = Trie(
+                    secured=storage_trie.secured,
+                    default=storage_trie.default,
+                    _data=defaultdict(lambda: U256(0)),
+                )
+            for storage_key, _ in storage_trie._data.items():
+                if storage_key not in pre_state._storage_tries[address]._data:
+                    print(f"Setting storage {storage_key} to {U256(0)}")
+                    pre_state._storage_tries[address]._data[storage_key] = U256(0)
+
+        return pre_state
+
+
+@dataclass
+class PreState:
+    @staticmethod
+    def from_data(data: Dict[str, Any]) -> State:
+        pre_state = State()
+        for address_hex, account in data["extra"]["preState"].items():
+            address = Address.fromhex(address_hex[2:])
+            # Create an empty storage trie for the account
+            storage_trie = Trie(
+                secured=True,
+                default=U256(0),
+                _data=defaultdict(lambda: U256(0)),
+            )
+            pre_state._storage_tries[address] = storage_trie
+            if account is None:
+                # If the account is not present in the preState data, we set it to EMPTY_ACCOUNT
+                set_account(pre_state, address, None)
+                continue
+
+            # Initialize the account
+            pre_balance = U256(int(account["balance"][2:], 16))
+            pre_nonce = Uint(int(account["nonce"][2:], 16))
+            pre_code_hash = Hash32.fromhex(account["codeHash"][2:])
+            pre_storage_hash = Hash32.fromhex(account["storageHash"][2:])
+            pre_code = Bytes.fromhex(account["code"][2:]) if "code" in account else None
+            # Explicitly instantiate without code, as it's not an interesting data in the
+            # case of state / trie diffs
+            pre_account = Account(
+                nonce=pre_nonce,
+                balance=pre_balance,
+                code_hash=pre_code_hash,
+                storage_root=pre_storage_hash,
+                code=pre_code,
+            )
+            set_account(pre_state, address, pre_account)
+
+            if "storage" not in account:
+                continue
+
+            # Fill the storage trie
+            for storage_key_hex, value in account["storage"].items():
+                storage_key = Bytes32.fromhex(storage_key_hex[2:])
+                pre_state._storage_tries[address]._data[storage_key] = U256(
+                    int(value[2:], 16)
+                )
+
+        return pre_state
+
+
+@dataclass
+class ZkPi:
+    """
+    A class that extends EthereumTrieTransitionDB to include additional information from ZKPI.
+
+    Attributes:
+        zkpi_data: A dictionary containing ZKPI-specific data.
+    """
+
+    from mpt.trie_diff import StateDiff
+
+    transition_db: EthereumTrieTransitionDB
+    state_diff: StateDiff
+    pre_state: State
+
+    @classmethod
+    def from_data(cls, data: Dict[str, Any]) -> "ZkPi":
+        """
+        Create a ZkPi object from the ZKPI-provided data.
+
+        An account that is not present in the preState data but is present in the postState data is
+        set in the pre-state to EMPTY_ACCOUNT.
+
+        A storage key that is not present in the preState
+        data but is present in the postState data is set in the pre-state to U256(0).
+        """
+        from mpt.trie_diff import StateDiff
+
+        transition_tries = EthereumTrieTransitionDB.from_data(data)
+        state_diff = StateDiff.from_data(data)
+        pre_state = PreState.from_data(data)
+        return cls(
+            transition_db=transition_tries, state_diff=state_diff, pre_state=pre_state
+        )

@@ -14,6 +14,7 @@ from mpt.types import (
     AddressAccountDiffEntryStruct,
 )
 
+from cairo_core.comparison import is_ptr_equal, is_zero
 from ethereum.utils.numeric import divmod
 
 // @notice Computes the Poseidon hash of an account diff entry
@@ -22,6 +23,9 @@ from ethereum.utils.numeric import divmod
 // @return The Poseidon hash of the account diff entry
 func poseidon_account_diff{poseidon_ptr: PoseidonBuiltin*}(diff: AddressAccountDiffEntry) -> felt {
     alloc_locals;
+
+    %{logger.debug_cairo(f"hashing account diff: {serialize(ids.diff)}")%}
+
     let (buffer) = alloc();
 
     assert buffer[0] = diff.value.key.value;
@@ -179,13 +183,15 @@ func hash_state_account_diff{range_check_ptr, poseidon_ptr: PoseidonBuiltin*}(
     }
 
     let (hashes_buffer) = alloc();
-    let buffer_len = _accumulate_state_diff_hashes(hashes_buffer, dict_ptr_start, 0, len);
+    let buffer_end = _accumulate_state_diff_hashes(hashes_buffer, dict_ptr_start, 0, len);
+    let buffer_len = buffer_end - hashes_buffer;
     let (final_hash) = poseidon_hash_many(buffer_len, hashes_buffer);
     return final_hash;
 }
 
 // @notice Helper function to accumulate state account diff hashes
 // @dev Processes a segment of state account diffs and accumulates their hashes
+//      If a prev_value is equal to a new_value, then this is not a diff - skip it
 // @param buffer The buffer to store the accumulated hashes
 // @param state_account_diff Pointer to the first state account diff
 // @param i The current index being processed
@@ -193,18 +199,31 @@ func hash_state_account_diff{range_check_ptr, poseidon_ptr: PoseidonBuiltin*}(
 // @return The number of hashes accumulated (buffer length)
 func _accumulate_state_diff_hashes{poseidon_ptr: PoseidonBuiltin*}(
     buffer: felt*, state_account_diff: AddressAccountDictAccess*, i: felt, len: felt
-) -> felt {
+) -> felt* {
     if (i == len) {
-        return i;
+        return buffer;
     }
     let current_diff_ptr = state_account_diff + i * AddressAccountDictAccess.SIZE;
+
+    let prev_value_ptr = current_diff_ptr.prev_value.value;
+    let new_value_ptr = current_diff_ptr.new_value.value;
+
+    // Note: this can only be trusted if the pointers are equal.
+    // Otherwise, we cannot trust the result.
+    let prev_eq_new = is_ptr_equal(prev_value_ptr, new_value_ptr);
+
+    if (prev_eq_new.value != 0) {
+        // If the pointers are equal, then this is not a diff - skip it
+        return _accumulate_state_diff_hashes(buffer, state_account_diff, i + 1, len);
+    }
+
     // We can cast the AddressAccountDictAccess to an AddressAccountDiffEntryStruct as the two underlying types are identical.
     // TODO: maybe delete AddressAccountDiffEntryStruct altogether ?
     let current_hash = poseidon_account_diff(
         AddressAccountDiffEntry(cast(current_diff_ptr, AddressAccountDiffEntryStruct*))
     );
-    assert buffer[i] = current_hash;
-    return _accumulate_state_diff_hashes(buffer, state_account_diff, i + 1, len);
+    assert [buffer] = current_hash;
+    return _accumulate_state_diff_hashes(buffer + 1, state_account_diff, i + 1, len);
 }
 
 // @notice Computes a hash commitment for all storage diffs in a state

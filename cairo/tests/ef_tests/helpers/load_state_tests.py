@@ -22,17 +22,33 @@ from ethereum_spec_tools.evm_tools.loaders.fixture_loader import Load
 from ethereum_types.bytes import Bytes
 from ethereum_types.numeric import U64, U256
 
+from mpt.ethereum_tries import EMPTY_BYTES_HASH
+
 
 def prepare_state_and_code_hashes(
     state: State,
 ) -> Tuple[State, Dict[Tuple[int, int], Bytes]]:
     code_hashes = {}
     for address in state._storage_tries:
+        # Map codehash to code
+        account = trie_get(state._main_trie, address)
+        account_code_hash = account.code_hash if account else EMPTY_BYTES_HASH
+        account_code = account.code if account else b""
+        code_hash_int = int.from_bytes(account_code_hash, "little")
+        code_hash_low = code_hash_int & 2**128 - 1
+        code_hash_high = code_hash_int >> 128
+        code_hashes[(code_hash_low, code_hash_high)] = account_code
+
+        # Instantiate an empty storage trie
         state._storage_tries[address]._data = defaultdict(
             lambda: defaultdict(lambda: U256(0)), state._storage_tries[address]._data
         )
         storage_root = compute_root(state._storage_tries[address])
-        account = trie_get(state._main_trie, address)
+
+        # An account might be missing in the pre-state if it's created in the transaction, or is empty.
+        if not account:
+            continue
+
         account = Account(
             balance=account.balance,
             nonce=account.nonce,
@@ -40,10 +56,6 @@ def prepare_state_and_code_hashes(
             storage_root=storage_root,
             code_hash=account.code_hash,
         )
-        code_hash_int = int.from_bytes(account.code_hash, "little")
-        code_hash_low = code_hash_int & 2**128 - 1
-        code_hash_high = code_hash_int >> 128
-        code_hashes[(code_hash_low, code_hash_high)] = account.code
         trie_set(state._main_trie, address, account)
     state._main_trie._data = defaultdict(lambda: None, state._main_trie._data)
 

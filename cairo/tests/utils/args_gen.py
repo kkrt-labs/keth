@@ -1574,8 +1574,6 @@ def generate_dict_arg(
         ]
     )
 
-    print(f"initial_data for arg_type {arg_type_origin}: {initial_data}")
-
     all_preimages = {
         poseidon_hash_many(k) if len(k) != 1 else k[0]: k for k in data.keys()
     }

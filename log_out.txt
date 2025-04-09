@@ -1,0 +1,347 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.10.16, pytest-8.3.5, pluggy-1.5.0 -- /Users/msaug/kkrt-labs/keth/.venv/bin/python3
+cachedir: .pytest_cache
+Using --randomly-seed=3241807582
+hypothesis profile 'dev' -> database=None, deadline=None, print_blob=True, derandomize=True, verbosity=Verbosity.quiet, phases=(Phase.explicit, Phase.reuse, Phase.generate, Phase.target)
+rootdir: /Users/msaug/kkrt-labs/keth
+configfile: pyproject.toml
+plugins: randomly-3.16.0, asyncio-0.25.3, anyio-4.8.0, typeguard-2.13.3, hypothesis-6.128.2, timeout-2.3.1, profiling-1.8.1, xdist-3.6.1, cairo-addons-0.1.0
+asyncio: mode=strict, asyncio_default_fixture_loop_scope=session
+collecting ... 
+----------------------------- live log collection ------------------------------
+DEBUG    git.cmd:cmd.py:1253 Popen(['git', 'version'], cwd=/Users/msaug/kkrt-labs/keth, stdin=None, shell=False, universal_newlines=False)
+DEBUG    git.cmd:cmd.py:1253 Popen(['git', 'version'], cwd=/Users/msaug/kkrt-labs/keth, stdin=None, shell=False, universal_newlines=False)
+INFO     root:hooks.py:244 Shuffling tests with seed 3241807582
+INFO     root:hooks.py:255 Using prime: 0x800000000000011000000000000000000000000000000000000000000000001
+INFO     root:compiler.py:150 Loading program from build/.pytest_build/cairo/ethereum/cancun/main.pickle
+INFO     root:compiler.py:183 /Users/msaug/kkrt-labs/keth/cairo/ethereum/cancun/main.cairo loaded in 1.97s
+INFO     root:hooks.py:337 master: Computing 1 test hashes
+DEBUG    filelock:_api.py:331 Attempting to acquire lock 5964378896 on build/.pytest_build/hashes/all_hashes.json.lock
+DEBUG    filelock:_api.py:334 Lock 5964378896 acquired on build/.pytest_build/hashes/all_hashes.json.lock
+INFO     root:hooks.py:370 master: Added 1 hashes, total now 1/1
+DEBUG    filelock:_api.py:364 Attempting to release lock 5964378896 on build/.pytest_build/hashes/all_hashes.json.lock
+DEBUG    filelock:_api.py:367 Lock 5964378896 released on build/.pytest_build/hashes/all_hashes.json.lock
+DEBUG    filelock:_api.py:331 Attempting to acquire lock 5964378896 on build/.pytest_build/hashes/all_hashes.json.lock
+DEBUG    filelock:_api.py:334 Lock 5964378896 acquired on build/.pytest_build/hashes/all_hashes.json.lock
+INFO     root:hooks.py:384 master: All 1 hashes collected, continuing
+DEBUG    filelock:_api.py:364 Attempting to release lock 5964378896 on build/.pytest_build/hashes/all_hashes.json.lock
+DEBUG    filelock:_api.py:367 Lock 5964378896 released on build/.pytest_build/hashes/all_hashes.json.lock
+DEBUG    filelock:_api.py:331 Attempting to acquire lock 5964378896 on build/.pytest_build/hashes/all_hashes.json.lock
+DEBUG    filelock:_api.py:334 Lock 5964378896 acquired on build/.pytest_build/hashes/all_hashes.json.lock
+DEBUG    filelock:_api.py:364 Attempting to release lock 5964378896 on build/.pytest_build/hashes/all_hashes.json.lock
+DEBUG    filelock:_api.py:367 Lock 5964378896 released on build/.pytest_build/hashes/all_hashes.json.lock
+collected 23532 items / 23531 deselected / 1 selected
+
+cairo/tests/ethereum/cancun/test_main.py::TestMain::test_main[zkpi_path0] TRACE [CAIRO] OpStart: 0x33
+TRACE [CAIRO] GasAndRefund: 2
+FAILED
+------------------------------ live log teardown -------------------------------
+INFO     root:fixtures.py:203 [Coverage] Worker master, Module test_main: Aggregating 1 reports from coverage/master/test_main_temp_reports.
+Missed lines in /Users/msaug/kkrt-labs/keth/cairo/ethereum/cancun/main.cairo:
+shape: (42, 1)
+┌──────────────────────────────────────┐
+│ missed_line                          │
+│ ---                                  │
+│ str                                  │
+╞══════════════════════════════════════╡
+│ cairo/ethereum/cancun/main.cairo:100 │
+│ cairo/ethereum/cancun/main.cairo:101 │
+│ cairo/ethereum/cancun/main.cairo:103 │
+│ cairo/ethereum/cancun/main.cairo:104 │
+│ cairo/ethereum/cancun/main.cairo:105 │
+│ cairo/ethereum/cancun/main.cairo:106 │
+│ cairo/ethereum/cancun/main.cairo:107 │
+│ cairo/ethereum/cancun/main.cairo:114 │
+│ cairo/ethereum/cancun/main.cairo:115 │
+│ cairo/ethereum/cancun/main.cairo:117 │
+│ cairo/ethereum/cancun/main.cairo:118 │
+│ cairo/ethereum/cancun/main.cairo:119 │
+│ cairo/ethereum/cancun/main.cairo:120 │
+│ cairo/ethereum/cancun/main.cairo:121 │
+│ cairo/ethereum/cancun/main.cairo:122 │
+│ cairo/ethereum/cancun/main.cairo:126 │
+│ cairo/ethereum/cancun/main.cairo:127 │
+│ cairo/ethereum/cancun/main.cairo:128 │
+│ cairo/ethereum/cancun/main.cairo:129 │
+│ cairo/ethereum/cancun/main.cairo:131 │
+│ cairo/ethereum/cancun/main.cairo:132 │
+│ cairo/ethereum/cancun/main.cairo:34  │
+│ cairo/ethereum/cancun/main.cairo:36  │
+│ cairo/ethereum/cancun/main.cairo:38  │
+│ cairo/ethereum/cancun/main.cairo:57  │
+│ cairo/ethereum/cancun/main.cairo:58  │
+│ cairo/ethereum/cancun/main.cairo:59  │
+│ cairo/ethereum/cancun/main.cairo:60  │
+│ cairo/ethereum/cancun/main.cairo:61  │
+│ cairo/ethereum/cancun/main.cairo:65  │
+│ cairo/ethereum/cancun/main.cairo:68  │
+│ cairo/ethereum/cancun/main.cairo:69  │
+│ cairo/ethereum/cancun/main.cairo:70  │
+│ cairo/ethereum/cancun/main.cairo:71  │
+│ cairo/ethereum/cancun/main.cairo:72  │
+│ cairo/ethereum/cancun/main.cairo:91  │
+│ cairo/ethereum/cancun/main.cairo:92  │
+│ cairo/ethereum/cancun/main.cairo:93  │
+│ cairo/ethereum/cancun/main.cairo:94  │
+│ cairo/ethereum/cancun/main.cairo:95  │
+│ cairo/ethereum/cancun/main.cairo:96  │
+│ cairo/ethereum/cancun/main.cairo:97  │
+└──────────────────────────────────────┘
+
+INFO     root:fixtures.py:303 Dumping final coverage JSON to coverage/master/cairo/ethereum/cancun/main.json
+---------------------------- live log sessionfinish ----------------------------
+INFO     root:hooks.py:174 Sequential worker: collecting tests to skip
+
+
+=================================== FAILURES ===================================
+________________________ TestMain.test_main[zkpi_path0] ________________________
+
+entrypoint = 'main', args = ()
+kwargs = {'address_preimages': {b'\x02Z1>2}\x18QH\xcb\xb3\xbe=\x93\xbel\x14K\x84\x17o\xa9\x7f\x935\x08\x04\xa4vL\xdd\xe0': b'vz...nd_code_hashes.<locals>.<lambda> at 0x166258a60>, {}))}, _snapshots=[], created_accounts=set()), chain_id=U64(1)), ...}
+cairo_program = <starkware.cairo.lang.compiler.program.Program object at 0x1638139d0>
+rust_program = <builtins.Program object at 0x10e583600>
+cairo_file = PosixPath('/Users/msaug/kkrt-labs/keth/cairo/ethereum/cancun/main.cairo')
+main_path = ('ethereum', 'cancun', 'main'), _implicit_args = {}, _args = {}
+return_data_types = [], proof_mode = False, enable_traces = True
+stack = [Relocatable(segment_index=1, offset=2), Relocatable(segment_index=0, offset=53726), Relocatable(segment_index=2, offs...atable(segment_index=3, offset=0), Relocatable(segment_index=4, offset=0), Relocatable(segment_index=5, offset=0), ...]
+
+    def _run(entrypoint, *args, **kwargs):
+        # ============================================================================
+        # STEP 1: SELECT PROGRAM AND PREPARE ENTRYPOINT METADATA
+        # - Rationale: Determine which program contains the entrypoint (main or test)
+        #   and extract its argument/return type metadata for type conversion and execution.
+        #   Set the program's builtins based on the entrypoint's implicit args.
+        # ============================================================================
+        cairo_program = cairo_programs[0]
+        rust_program = rust_programs[0]
+        cairo_file = cairo_files[0]
+        main_path = main_paths[0]
+    
+        try:
+            cairo_program.get_label(entrypoint)
+        except Exception:
+            cairo_program = cairo_programs[1]
+            rust_program = rust_programs[1]
+            cairo_file = cairo_files[1]
+            main_path = main_paths[1]
+    
+        _builtins, _implicit_args, _args, return_data_types = build_entrypoint(
+            cairo_program, entrypoint, main_path, to_python_type
+        )
+        cairo_program.data = cairo_program.data + [0x10780017FFF7FFF, 0]  # jmp rel 0
+        rust_program.builtins = [
+            builtin
+            for builtin in ALL_BUILTINS
+            if builtin in [arg.replace("_ptr", "") for arg in _builtins]
+        ]
+    
+        # ============================================================================
+        # STEP 2: INITIALIZE RUNNER AND MEMORY ENVIRONMENT
+        # - Rationale: Set up the RustCairoRunner with the program, layout, and memory.
+        #   Unlike Python VM, we don’t append "jmp rel 0" here as Rust handles proof mode differently.
+        # ============================================================================
+        proof_mode = request.config.getoption("proof_mode")
+        enable_traces = request.config.getoption("--log-cli-level") == "TRACE"
+        runner = RustCairoRunner(
+            program=rust_program,
+            py_identifiers=cairo_program.identifiers,
+            program_input=kwargs,
+            layout=getattr(LAYOUTS, request.config.getoption("layout")).layout_name,
+            proof_mode=proof_mode,
+            allow_missing_builtins=False,
+            enable_traces=enable_traces,
+            ordered_builtins=_builtins,
+            cairo_file=cairo_file,
+        )
+        serde = Serde(
+            runner.segments, cairo_program.identifiers, runner.dict_manager, cairo_file
+        )
+        # Must be done right after runner creation to make sure the execution base is 1
+        # See https://github.com/lambdaclass/cairo-vm/issues/1908
+        runner.initialize_segments()  # Sets program_base and execution_base
+    
+        # ============================================================================
+        # STEP 3: BUILD INITIAL STACK WITH BUILTINS AND ARGUMENTS
+        # - Rationale: Construct the stack with unused builtins (in proof mode) and all input
+        #   arguments (implicit and explicit). This prepares the VM's execution context.
+        # ============================================================================
+        stack = []
+        if proof_mode:
+            # In proof mode, Rust initializes all layout builtins; we mimic Python’s behavior
+            builtin_runners = runner.builtin_runners
+            missing_builtins = [
+                v for k, v in builtin_runners.items() if not v["included"]
+            ]
+            for builtin_runner in missing_builtins:
+                stack.extend(
+                    builtin_runner["final_stack"]
+                )  # Base pointer for unused builtins
+    
+        for builtin_arg in _builtins:
+            builtin_name = builtin_arg.replace("_ptr", "_builtin")
+            builtin_runner = runner.builtin_runners.get(builtin_name)
+            if builtin_runner is None:
+                raise ValueError(f"Builtin runner {builtin_arg} not found")
+            stack.extend(builtin_runner["initial_stack"])
+    
+        gen_arg = (
+            gen_arg_builder(runner.dict_manager, runner.segments)
+            if gen_arg_builder is not None
+            else lambda _python_type, _value: runner.segments.gen_arg(_value)
+        )
+        for i, (arg_name, python_type) in enumerate(
+            [(k, v["python_type"]) for k, v in {**_implicit_args, **_args}.items()]
+        ):
+            arg_value = kwargs[arg_name] if arg_name in kwargs else args[i]
+            stack.extend(flatten(gen_arg(python_type, arg_value)))
+    
+        # ============================================================================
+        # STEP 4: SET UP EXECUTION CONTEXT AND LOAD MEMORY
+        # - Rationale: Finalize the stack with return pointers, set initial VM registers,
+        #   and load program/data into memory to start execution.
+        # - Add the dummy last fp and pc to the public memory, so that the verifier can enforce
+        #   [fp - 2] = fp.
+        # ============================================================================
+        return_fp = runner.execution_base + 2
+        end = runner.program_base + runner.program_len - 2  # Points to jmp rel 0
+        stack = [return_fp, end] + stack + [return_fp, end]
+        runner.execution_public_memory = list(
+            range(len(stack))
+        )  # All elements of the input stack are added to the execution public memory - required for proof mode
+        runner.initial_pc = runner.program_base + cairo_program.get_label(
+            entrypoint
+        )  # Start the run at the offset of the entrypoint
+        runner.load_program_data(runner.program_base)  # Load the program into memory
+        runner.load_data(runner.execution_base, stack)  # Load the stack into memory
+        runner.initial_fp = runner.initial_ap = runner.execution_base + len(
+            stack
+        )  # Set the initial frame pointer and argument pointer to the end of the stack
+    
+        runner.initialize_vm()
+    
+        # ============================================================================
+        # STEP 5: CONFIGURE VM AND EXECUTE PROGRAM
+        # - Rationale: Execute the program until the end address, catching exceptions
+        #   for debugging or coverage analysis. Rust handles hint initialization internally.
+        # ============================================================================
+        max_steps = 1_000_000_000
+        if hasattr(
+            request.node, "get_closest_marker"
+        ) and request.node.get_closest_marker("max_steps"):
+            max_steps = request.node.get_closest_marker("max_steps").args[0]
+        run_resources = RustRunResources(max_steps)
+        try:
+>           runner.run_until_pc(end, run_resources)
+E           RuntimeError: /Users/msaug/kkrt-labs/keth/cairo/ethereum/cancun/vm/interpreter.cairo:423:9: Error at pc=0:47819:
+E           Got an exception while executing a hint: Hint Error: Dynamic hint execution failed for hint: 'if ids.err.value == 0:
+E               logger.trace_cairo(f"OpEnd")'. Error: Hint Error: Python execution error: AttributeError: Pointer value is not relocatable: Int(0)
+E           Traceback:
+E           Traceback (most recent call last):
+E             File "<string>", line 6, in <module>
+E           
+E                   %{
+E                   ^^
+E           Cairo traceback (most recent call last):
+E           :63:5: (pc=0:53606)
+E           /Users/msaug/kkrt-labs/keth/cairo/ethereum/cancun/fork.cairo:1381:18: (pc=0:50195)
+E               let output = apply_body{state=state}(
+E                            ^**********************^
+E           /Users/msaug/kkrt-labs/keth/cairo/ethereum/cancun/fork.cairo:1107:28: (pc=0:49705)
+E               let system_tx_output = process_message_call{env=system_tx_env}(system_tx_message);
+E                                      ^********************************************************^
+E           /Users/msaug/kkrt-labs/keth/cairo/ethereum/cancun/vm/interpreter.cairo:492:19: (pc=0:47966)
+E                   let evm = process_message(message, env);
+E                             ^***************************^
+E           /Users/msaug/kkrt-labs/keth/cairo/ethereum/cancun/vm/interpreter.cairo:226:15: (pc=0:47528)
+E               let evm = execute_code(message, env);
+E                         ^************************^
+E           /Users/msaug/kkrt-labs/keth/cairo/ethereum/cancun/vm/interpreter.cairo:381:15: (pc=0:47759)
+E               let res = _execute_code{
+E                         ^************^
+
+python/cairo-addons/src/cairo_addons/testing/runner.py:590: RuntimeError
+
+The above exception was the direct cause of the following exception:
+
+self = <tests.ethereum.cancun.test_main.TestMain object at 0x16113e1a0>
+cairo_run = <function run_rust_vm.<locals>._run at 0x3000c7f40>
+program_input = {'address_preimages': {b'\x02Z1>2}\x18QH\xcb\xb3\xbe=\x93\xbel\x14K\x84\x17o\xa9\x7f\x935\x08\x04\xa4vL\xdd\xe0': b'vz...nd_code_hashes.<locals>.<lambda> at 0x166258a60>, {}))}, _snapshots=[], created_accounts=set()), chain_id=U64(1)), ...}
+
+    @pytest.mark.parametrize(
+        "zkpi_path",
+        [Path("test_data/22188088.json")],
+    )
+    @pytest.mark.slow
+    def test_main(self, cairo_run, program_input):
+>       cairo_run("main", **program_input)
+
+cairo/tests/ethereum/cancun/test_main.py:19: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+python/cairo-addons/src/cairo_addons/testing/runner.py:595: in _run
+    map_to_python_exception(e)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+e = RuntimeError('/Users/msaug/kkrt-labs/keth/cairo/ethereum/cancun/vm/interpreter.cairo:423:9: Error at pc=0:47819:\nGot ...hereum/cancun/vm/interpreter.cairo:381:15: (pc=0:47759)\n    let res = _execute_code{\n              ^************^\n')
+
+    def map_to_python_exception(e: Exception):
+        import ethereum.exceptions as eth_exceptions
+        import ethereum_rlp.exceptions as rlp_exceptions
+    
+        error_str = str(e)
+    
+        # Throw a specialized python exception from the error message, if possible
+        error = re.search(r"Error message: (.*)", error_str)
+        error_type = error.group(1) if error else error_str
+        try:
+            error_type = int(error_type).to_bytes(31, "big").lstrip(b"\x00").decode()
+        except Exception:
+            pass
+    
+        if "An ASSERT_EQ instruction failed" in error_type:
+            raise AssertionError(error_str) from e
+    
+        # Get the exception class from python's builtins or ethereum's exceptions
+        exception_class = __builtins__.get(
+            error_type,
+            getattr(eth_exceptions, error_type, None)
+            or getattr(rlp_exceptions, error_type, None),
+        )
+        if isinstance(exception_class, type) and issubclass(exception_class, Exception):
+            raise exception_class() from e
+    
+        # Fallback to generic exception
+>       raise Exception(error_type) from e
+E       Exception: /Users/msaug/kkrt-labs/keth/cairo/ethereum/cancun/vm/interpreter.cairo:423:9: Error at pc=0:47819:
+E       Got an exception while executing a hint: Hint Error: Dynamic hint execution failed for hint: 'if ids.err.value == 0:
+E           logger.trace_cairo(f"OpEnd")'. Error: Hint Error: Python execution error: AttributeError: Pointer value is not relocatable: Int(0)
+E       Traceback:
+E       Traceback (most recent call last):
+E         File "<string>", line 6, in <module>
+E       
+E               %{
+E               ^^
+E       Cairo traceback (most recent call last):
+E       :63:5: (pc=0:53606)
+E       /Users/msaug/kkrt-labs/keth/cairo/ethereum/cancun/fork.cairo:1381:18: (pc=0:50195)
+E           let output = apply_body{state=state}(
+E                        ^**********************^
+E       /Users/msaug/kkrt-labs/keth/cairo/ethereum/cancun/fork.cairo:1107:28: (pc=0:49705)
+E           let system_tx_output = process_message_call{env=system_tx_env}(system_tx_message);
+E                                  ^********************************************************^
+E       /Users/msaug/kkrt-labs/keth/cairo/ethereum/cancun/vm/interpreter.cairo:492:19: (pc=0:47966)
+E               let evm = process_message(message, env);
+E                         ^***************************^
+E       /Users/msaug/kkrt-labs/keth/cairo/ethereum/cancun/vm/interpreter.cairo:226:15: (pc=0:47528)
+E           let evm = execute_code(message, env);
+E                     ^************************^
+E       /Users/msaug/kkrt-labs/keth/cairo/ethereum/cancun/vm/interpreter.cairo:381:15: (pc=0:47759)
+E           let res = _execute_code{
+E                     ^************^
+
+python/cairo-addons/src/cairo_addons/testing/errors.py:86: Exception
+---------------------------- Captured log teardown -----------------------------
+INFO     root:fixtures.py:203 [Coverage] Worker master, Module test_main: Aggregating 1 reports from coverage/master/test_main_temp_reports.
+INFO     root:fixtures.py:303 Dumping final coverage JSON to coverage/master/cairo/ethereum/cancun/main.json
+=========================== short test summary info ============================
+FAILED cairo/tests/ethereum/cancun/test_main.py::TestMain::test_main[zkpi_path0]
+===================== 1 failed, 23531 deselected in 13.32s =====================

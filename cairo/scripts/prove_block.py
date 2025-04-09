@@ -20,7 +20,7 @@ from ethereum_spec_tools.evm_tools.loaders.transaction_loader import Transaction
 from ethereum_types.numeric import FixedUnsigned, Uint
 
 import mpt
-from mpt.ethereum_tries import EthereumTrieTransitionDB
+from mpt.ethereum_tries import ZkPi
 from tests.utils.args_gen import (
     EMPTY_ACCOUNT,
     Account,
@@ -59,6 +59,7 @@ setattr(ethereum.cancun.vm.instructions.environment, "EMPTY_ACCOUNT", EMPTY_ACCO
 setattr(ethereum.cancun.vm.interpreter, "set_code", set_code)
 setattr(mpt.utils, "Account", Account)
 setattr(mpt.ethereum_tries, "Account", Account)
+setattr(mpt.ethereum_tries, "EMPTY_ACCOUNT", EMPTY_ACCOUNT)
 setattr(mpt.trie_diff, "Account", Account)
 setattr(ethereum.cancun.trie, "Node", Node)
 
@@ -248,10 +249,12 @@ def load_zkpi_fixture(zkpi_path: Union[Path, str]) -> Dict[str, Any]:
         for ancestor in prover_inputs["witness"]["ancestors"][::-1]
     ]
 
-    transition_db = EthereumTrieTransitionDB.from_data(prover_inputs)
+    zkpi = ZkPi.from_data(prover_inputs)
+    transition_db = zkpi.transition_db
+    pre_state = zkpi.pre_state
 
     # Create blockchain
-    state, code_hashes = prepare_state_and_code_hashes(transition_db.to_pre_state())
+    state, code_hashes = prepare_state_and_code_hashes(pre_state)
     chain = BlockChain(
         blocks=blocks,
         state=state,
@@ -265,7 +268,7 @@ def load_zkpi_fixture(zkpi_path: Union[Path, str]) -> Dict[str, Any]:
         "block_hash": Bytes32(
             bytes.fromhex(input_block["header"]["hash"].removeprefix("0x"))
         ),
-        "code_hashes": code_hashes,
+        "codehash_to_code": code_hashes,
         "node_store": transition_db.nodes,
         "address_preimages": transition_db.address_preimages,
         "storage_key_preimages": transition_db.storage_key_preimages,

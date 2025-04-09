@@ -52,6 +52,7 @@ class StateDiff:
     def from_data(cls, data: Dict[str, Any]) -> "StateDiff":
         """
         Parse state diff from ZKPI data.
+
         """
         state_diff = cls()
         for diff in data["extra"]["stateDiffs"]:
