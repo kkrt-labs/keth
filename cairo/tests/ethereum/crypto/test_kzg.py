@@ -11,6 +11,7 @@ from ethereum.crypto.kzg import (
 from ethereum_types.bytes import Bytes, Bytes32
 from hypothesis import example, given
 from hypothesis import strategies as st
+from py_ecc.bls.ciphersuites import G2ProofOfPossession
 from py_ecc.bls.constants import POW_2_381, POW_2_382, POW_2_383, POW_2_384
 from py_ecc.bls.g2_primitives import pubkey_to_G1, subgroup_check
 from py_ecc.bls.hash import os2ip
@@ -21,12 +22,10 @@ from py_ecc.bls.point_compression import (
 )
 from py_ecc.bls.typing import G1Compressed as G1Compressed_py
 from py_ecc.fields import optimized_bls12_381_FQ as BLSF
-from py_ecc.optimized_bls12_381.optimized_curve import is_inf
+from py_ecc.optimized_bls12_381.optimized_curve import b, is_inf, is_on_curve
 from py_ecc.typing import Optimized_Point3D
 
-from cairo_addons.testing.errors import cairo_error
 from tests.utils.args_gen import U384, BLSPubkey, G1Compressed
-from tests.utils.strategies import bytes48
 
 
 @given(a=...)
@@ -78,8 +77,9 @@ def test_kzg_commitment_to_versioned_hash(cairo_run, commitment: KZGCommitment):
     point=G1Compressed(POW_2_383 + POW_2_382)
 )  # c_flag=1, b_flag=1, a_flag=0, infinity point
 def test_decompress_G1(cairo_run, point: G1Compressed):
-    expected = decompress_G1(G1Compressed_py(point))
-    assert cairo_run("decompress_G1", point) == expected
+    res, error = cairo_run("decompress_G1", point)
+    assert not error
+    assert res == decompress_G1(G1Compressed_py(point))
 
 
 @given(point=st.builds(G1Compressed, st.integers(min_value=0, max_value=POW_2_384 - 1)))
@@ -97,28 +97,18 @@ def test_decompress_G1_error_cases(cairo_run, point: G1Compressed):
     try:
         decompress_G1(G1Compressed_py(point))
     except ValueError:
-        try:
-            with pytest.raises(ValueError):
-                cairo_run("decompress_G1", point)
-        except Exception:
-            with cairo_error("ValueError"):  # Hint error
-                cairo_run("decompress_G1", point)
+        _, error = cairo_run("decompress_G1", point)
+        assert error
 
 
-@given(pubkey=bytes48.map(BLSPubkey))
+@given(pubkey=...)
 def test_pubkey_to_G1(cairo_run, pubkey: BLSPubkey):
-    try:
-        expected = pubkey_to_G1(BLSPubkey_py(pubkey))
-    except ValueError:
-        try:
-            with pytest.raises(ValueError):
-                cairo_run("pubkey_to_g1", pubkey)
-        except Exception:
-            with cairo_error("ValueError"):  # Hint error
-                cairo_run("pubkey_to_g1", pubkey)
+    res, error = cairo_run("pubkey_to_g1", pubkey)
+    if error:
+        with pytest.raises(ValueError):
+            pubkey_to_G1(BLSPubkey_py(pubkey))
         return
-
-    assert cairo_run("pubkey_to_g1", pubkey) == expected
+    assert res == pubkey_to_G1(BLSPubkey_py(pubkey))
 
 
 @given(pt=...)
@@ -129,3 +119,15 @@ def test_is_inf(cairo_run, pt: Optimized_Point3D[BLSF]):
 @given(pt=...)
 def test_subgroup_check(cairo_run, pt: Optimized_Point3D[BLSF]):
     assert cairo_run("subgroup_check", pt) == subgroup_check(pt)
+
+
+@given(pubkey=...)
+def test_key_validate(cairo_run, pubkey: BLSPubkey):
+    assert cairo_run("key_validate", pubkey) == G2ProofOfPossession.KeyValidate(
+        BLSPubkey_py(pubkey)
+    )
+
+
+@given(pt=...)
+def test_is_on_curve(cairo_run, pt: Optimized_Point3D[BLSF]):
+    assert cairo_run("is_on_curve", pt) == is_on_curve(pt, b)
