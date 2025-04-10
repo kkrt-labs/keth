@@ -81,6 +81,7 @@ const VERSIONED_HASH_VERSION_KZG = 0x01;
 const GET_FLAGS_MASK = 2 ** 95 + 2 ** 94 + 2 ** 93;
 const POW_2_381_D3 = 0x200000000000000000000000;
 const G1_POINT_AT_INFINITY_FIRST_BYTE = 0xc0;
+const G1_G2_PAIR_SIZE = 4 * 2 + 4 * 4;
 
 func kzg_commitment_to_versioned_hash{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     kzg_commitment: KZGCommitment
@@ -139,17 +140,18 @@ func verify_kzg_proof_impl{
     tempvar n = U384(new UInt384(bls12_381.N0, bls12_381.N1, bls12_381.N2, bls12_381.N3));
     let z_uint384 = uint256_to_uint384([z.value]);
     tempvar z_u384 = U384(new z_uint384);
-    let g2 = BLSP2_G();
     let neg_z = sub(n, z_u384, n);
+    let g2 = BLSP2_G();
     let neg_z_g2 = blsp2_mul_by(g2, neg_z);
     let signature_g2 = SIGNATURE_G2();
+    // x_minus_z values differ between EELS and Cairo implementation (debugging, to be confirmed).
     let x_minus_z = blsp2_add(signature_g2, neg_z_g2);
 
     // Compute P - y
-    let g1 = BLSP_G();
     let y_uint384 = uint256_to_uint384([y.value]);
     tempvar y_u384 = U384(new y_uint384);
     let neg_y = sub(n, y_u384, n);
+    let g1 = BLSP_G();
     let neg_y_g1 = blsp_mul_by(g1, neg_y);
     let (pubkey_from_commitment, error) = pubkey_to_g1(commitment);
     assert error.value = 0;
@@ -163,10 +165,9 @@ func verify_kzg_proof_impl{
     let (pubkey_from_proof, error) = pubkey_to_g1(proof);
     assert error.value = 0;
 
+
     // Pairing check
     let pairing_ptr: G1G2Pair* = alloc();
-    let g1_g2_pair_size = 4 * 2 + 4 * 4;
-    // let pairing_ptr = cast(pairing_ptr, G1G2Pair*);
     // 1st pairing: (p_minus_y, -g2)
     // Convert to g1, g2 and G1G2Pair
     let p_minus_y_garaga = G1PointGaraga(
@@ -190,14 +191,28 @@ func verify_kzg_proof_impl{
         [x_minus_z.value.y.value.c0.value],
         [x_minus_z.value.y.value.c1.value],
     );
-    assert [pairing_ptr + g1_g2_pair_size] = G1G2Pair(pubkey_proof_garaga, x_minus_z_garaga);
+    assert [pairing_ptr + G1_G2_PAIR_SIZE] = G1G2Pair(pubkey_proof_garaga, x_minus_z_garaga);
 
     let (pairing_check) = multi_pairing_2P(pairing_ptr);
+
+    // TODO:
+    // - Replace multi_pairing_2P by multi_miller_loop_1P + point at infinity + final exp
+    // - Why ? Ethereum KZG allows point at infinity, which is not handled in BLS standards, then not in Garaga
+    // - For each pairing
+    //     If one point of the pairing is point at infinity, return one (E12D_ONE)
+    //     Else apply miller loop on the pairing
+    // - Multiply both results of the pairing
+    // - Apply final exponentiation
+    // Pairing check
+    // In other words, reimplement `pairing` from EELS with a miller loop circuit from garaga.
 
     // Check if pairing_check is one (E12D)
     let (u384_one_ptr) = get_label_location(U384_ONE);
     let u384_one = cast(u384_one_ptr, UInt384*);
     tempvar modulus = UInt384(bls12_381.P0, bls12_381.P1, bls12_381.P2, bls12_381.P3);
+
+    // NO `is_zero_E12D` in garaga-zero, I've inlined the check
+    // Refactor into a function.
 
     let (is_c0_one) = is_eq_mod_p(pairing_check.w0, [u384_one], modulus);
     if (is_c0_one == 0) {
