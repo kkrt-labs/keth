@@ -12,11 +12,12 @@ from ethereum.cancun.trie import (
     ExtensionNode,
     InternalNode,
     LeafNode,
+    Trie,
 )
 from ethereum.crypto.hash import Hash32, keccak256
 from ethereum_rlp import rlp
 from ethereum_types.bytes import Bytes, Bytes20, Bytes32
-from ethereum_types.numeric import U256
+from ethereum_types.numeric import U256, Uint
 
 from mpt.utils import decode_node, nibble_list_to_bytes
 
@@ -345,15 +346,94 @@ class EthereumTrieTransitionDB(EthereumTries):
         instance.post_state_root = post_state_root
         return instance
 
-    def to_pre_state(self) -> State:
-        """Convert the pre-state trie to a State object."""
-        return self.to_state()
 
-    def to_post_state(self) -> State:
-        """Convert the post-state trie to a State object."""
-        state = State()
-        root_node = self.nodes[self.post_state_root]
-        self.traverse_trie_and_process_leaf(
-            root_node, b"", partial(self.set_account_from_leaf, state=state)
+@dataclass
+class PreState:
+    @staticmethod
+    def from_data(data: Dict[str, Any]) -> State:
+        """
+        Create a PreState object from the ZKPI-provided data.
+        """
+        pre_state = State()
+        for address_hex, account in data["extra"]["preState"].items():
+            address = Address.fromhex(address_hex[2:])
+            # Create an empty storage trie for the account
+            storage_trie = Trie(secured=True, default=U256(0), _data={})
+            pre_state._storage_tries[address] = storage_trie
+            if account is None:
+                # If the account is not present in the preState data, we set it to EMPTY_ACCOUNT
+                set_account(pre_state, address, None)
+                continue
+
+            # Initialize the account
+            pre_balance = U256(int(account["balance"][2:], 16))
+            pre_nonce = Uint(int(account["nonce"][2:], 16))
+            pre_code_hash = Hash32.fromhex(account["codeHash"][2:])
+            pre_storage_hash = Hash32.fromhex(account["storageHash"][2:])
+            pre_code = Bytes.fromhex(account["code"][2:]) if "code" in account else None
+            # TODO: this is a temporary workaround to EELS doing checking senders of transactions based on code==bytearray() instead of codehash
+            # Remove once the e2e flow does not need to call EELS
+            if pre_code is None:
+                if pre_code_hash == EMPTY_BYTES_HASH:
+                    pre_code = b""
+
+            # Explicitly instantiate without code, as it's not an interesting data in the
+            # case of state / trie diffs
+            pre_account = Account(
+                nonce=pre_nonce,
+                balance=pre_balance,
+                code_hash=pre_code_hash,
+                storage_root=pre_storage_hash,
+                code=pre_code,
+            )
+            set_account(pre_state, address, pre_account)
+
+            if "storage" not in account:
+                continue
+
+            # Fill the storage trie
+            for storage_key_hex, value in account["storage"].items():
+                storage_key = Bytes32.fromhex(storage_key_hex[2:])
+                pre_state._storage_tries[address]._data[storage_key] = U256(
+                    int(value[2:], 16)
+                )
+
+        return pre_state
+
+
+@dataclass
+class ZkPi:
+    """
+    Contains the pre-state, state diff, and transition DB, extracted from the ZKPI-provided JSON data.
+
+    Attributes:
+        transition_db: A DB containing nodes and information about the pre and post-block MPTs.
+        state_diff: The state diff produced by the STF.
+        pre_state: The pre-state of the block.
+    """
+
+    from mpt.trie_diff import StateDiff
+
+    transition_db: EthereumTrieTransitionDB
+    state_diff: StateDiff
+    pre_state: State
+
+    @classmethod
+    def from_data(cls, data: Dict[str, Any]) -> "ZkPi":
+        """
+        Create a ZkPi object from the ZKPI-provided data.
+
+        An account that is not present in the preState data but is present in the postState data is
+        set in the pre-state to EMPTY_ACCOUNT.
+
+        A storage key that is not present in the preState
+        data but is present in the postState data is set in the pre-state to U256(0).
+        """
+        from mpt.trie_diff import StateDiff
+
+        transition_tries = EthereumTrieTransitionDB.from_data(data)
+        state_diff = StateDiff.from_data(data)
+        pre_state = PreState.from_data(data)
+        return cls(
+            transition_db=transition_tries, state_diff=state_diff, pre_state=pre_state
         )
-        return state

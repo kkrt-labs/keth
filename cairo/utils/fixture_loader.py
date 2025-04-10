@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Dict, List, Optional
 
 from ethereum.cancun.trie import root
 from ethereum.crypto.hash import keccak256
@@ -20,16 +20,40 @@ class LoadKethFixture(Load):
     A superclass of the `Load` class that loads EELS-format fixtures for Keth
     """
 
-    def json_to_state(self, raw: Any) -> Any:
+    def json_to_state(
+        self, raw_state: Dict[str, Any], post_state_keys: Optional[List[str]] = []
+    ) -> Any:
         """
-        Converts json state data to a state object
-        Note: this function also loads the code hashes and storage roots from the input json
+        Converts json state data to a state object.
+
+        Args:
+            raw_state: Dictionary containing the raw state data for accounts, where keys are
+                      hex-encoded addresses and values are account state dictionaries
+            post_state_keys: Optional list of addresses that are part of the state after executing the STF against the Raw state. Used to ensure all
+                       accounts that will be touched during transaction execution are present
+                       in the initial state. Defaults to empty list.
+
+        Note:
+            - This function loads and computes both code hashes and storage roots from the input json
+            - We use both raw_state and post_state_keys to ensure all accounts touched in the transaction
+              are present in the initial state, even if they start as empty accounts. In our Cairo
+              execution flow, for soundness purposes, all accounts must be present in the initial
+              state dict, even if empty.
+            - For EELS inputs (unlike ZKPI inputs):
+                * If storage_root is not provided, it's computed from the account's storage (as this is not a partial storage)
+                * If code_hash is not provided, it's computed from the account's code
+
+        Returns:
+            State: A State object initialized with all accounts required in the pre-state.
         """
         state = self.fork.State()
         set_storage = self.fork.set_storage
 
-        for address_hex, account_state in raw.items():
+        all_accounts_touched = set(raw_state.keys()) | set(post_state_keys)
+
+        for address_hex in all_accounts_touched:
             address = self.fork.hex_to_address(address_hex)
+            account_state = raw_state.get(address_hex, {})
 
             # Create an entry for an EMPTY_ACCOUNT to ensure that the account exists in state.
             self.fork.set_account(state, address, EMPTY_ACCOUNT)

@@ -604,17 +604,17 @@ impl PyCairoRunner {
 /// Mimics the behavior of the `run` function from cairo-vm-cli.
 /// # Arguments
 /// * `entrypoint` - The entrypoint of the cairo program (e.g. "main")
-/// * `program_inputs` - The program inputs
+/// * `program_input` - The program inputs
 /// * `compiled_program_path` - The path to the compiled cairo program
 /// * `output_dir` - The output directory
 /// * `stwo_proof` - Whether to use Stwo proof
 /// * `proof_path` - The path to the proof
 /// * `verify` - Whether to verify the proof
 #[allow(clippy::too_many_arguments)]
-#[pyfunction(signature = (entrypoint, program_inputs, compiled_program_path, output_dir, stwo_proof=false, proof_path=None, verify=false))]
+#[pyfunction(signature = (entrypoint, program_input, compiled_program_path, output_dir, stwo_proof=false, proof_path=None, verify=false))]
 pub fn run_proof_mode(
     entrypoint: String,
-    program_inputs: PyObject,
+    program_input: PyObject,
     compiled_program_path: String,
     output_dir: PathBuf,
     stwo_proof: bool,
@@ -658,7 +658,7 @@ pub fn run_proof_mode(
     Python::with_gil(|py| {
         let context = PyDict::new(py);
 
-        context.set_item("program_inputs", program_inputs)?;
+        context.set_item("program_input", program_input)?;
 
         let identifiers = program
             .iter_identifiers()

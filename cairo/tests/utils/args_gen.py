@@ -408,9 +408,9 @@ def set_code(state: State, address: Address, code: Bytes) -> None:
 EMPTY_ACCOUNT = Account(
     nonce=Uint(0),
     balance=U256(0),
-    code=b"",
     storage_root=EMPTY_TRIE_HASH,
     code_hash=EMPTY_BYTES_HASH,
+    code=b"",
 )
 
 
@@ -1400,12 +1400,15 @@ def generate_trie_arg(
     # In case of a Trie, we need the trie.default to be the default value of the dict.
     dict_ptr = segments.memory.get(data)
 
-    if isinstance(dict_manager, DictManager):
-        default_value = dict_manager.trackers[
-            dict_ptr.segment_index
-        ].data.default_factory()
+    if isinstance(arg._data, defaultdict):
+        if isinstance(dict_manager, DictManager):
+            default_value = dict_manager.trackers[
+                dict_ptr.segment_index
+            ].data.default_factory()
+        else:
+            default_value = dict_manager.get_default_value(dict_ptr.segment_index)
     else:
-        default_value = dict_manager.get_default_value(dict_ptr.segment_index)
+        default_value = _gen_arg(dict_manager, segments, type(arg.default), arg.default)
     segments.load_data(base, [secured, default_value, data])
 
     return base

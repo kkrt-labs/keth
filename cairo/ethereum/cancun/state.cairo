@@ -82,6 +82,7 @@ from legacy.utils.dict import (
     dict_update,
     dict_copy,
     default_dict_finalize,
+    dict_squash,
 )
 from ethereum.utils.hash_dicts import set_address_contains
 
@@ -1389,8 +1390,8 @@ func finalize_state{range_check_ptr, state: State}() {
     let main_trie_start = cast(main_trie.value._data.value.dict_ptr_start, DictAccess*);
     let main_trie_end = cast(main_trie.value._data.value.dict_ptr, DictAccess*);
 
-    let (squashed_main_trie_start, squashed_main_trie_end) = default_dict_finalize(
-        main_trie_start, main_trie_end, cast(main_trie.value.default.value, felt)
+    let (squashed_main_trie_start, squashed_main_trie_end) = dict_squash(
+        main_trie_start, main_trie_end
     );
 
     tempvar squashed_main_trie = TrieAddressOptionalAccount(
@@ -1412,8 +1413,8 @@ func finalize_state{range_check_ptr, state: State}() {
     let storage_tries_start = cast(storage_tries.value._data.value.dict_ptr_start, DictAccess*);
     let storage_tries_end = cast(storage_tries.value._data.value.dict_ptr, DictAccess*);
 
-    let (squashed_storage_tries_start, squashed_storage_tries_end) = default_dict_finalize(
-        storage_tries_start, storage_tries_end, cast(storage_tries.value.default.value, felt)
+    let (squashed_storage_tries_start, squashed_storage_tries_end) = dict_squash(
+        storage_tries_start, storage_tries_end
     );
 
     // Update the state by rebinding the squashed storage tries
