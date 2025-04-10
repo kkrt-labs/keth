@@ -517,6 +517,39 @@ struct BLSP {
     value: BLSPStruct*,
 }
 
+// https://github.com/ethereum/py_ecc/blob/36f5ef87ef0d8f5647af66ad8273fb059656fc8a/py_ecc/bls12_381/bls12_381_curve.py#L36
+func BLSP_G() -> BLSP {
+    tempvar g1 = BLSP(
+        new BLSPStruct(
+            BLSF(
+                new BLSFStruct(
+                    U384(
+                        new UInt384(
+                            0xf97a1aeffb3af00adb22c6bb,
+                            0xa14e3a3f171bac586c55e83f,
+                            0x4fa9ac0fc3688c4f9774b905,
+                            0x17f1d3a73197d7942695638c,
+                        ),
+                    ),
+                ),
+            ),
+            BLSF(
+                new BLSFStruct(
+                    U384(
+                        new UInt384(
+                            0xa2888ae40caa232946c5e7e1,
+                            0xdb18cb2c04b3edd03cc744,
+                            0x741d8ae4fcf5e095d5d00af6,
+                            0x8b3f481e3aaa0f1a09e30ed,
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    );
+    return g1;
+}
+
 func BLSP__eq__{range_check96_ptr: felt*}(p: BLSP, q: BLSP) -> felt {
     alloc_locals;
     let is_x_equal = BLSF__eq__(p.value.x, q.value.x);
@@ -723,6 +756,56 @@ struct BLSP2Struct {
 
 struct BLSP2 {
     value: BLSP2Struct*,
+}
+
+// https://github.com/ethereum/py_ecc/blob/36f5ef87ef0d8f5647af66ad8273fb059656fc8a/py_ecc/bls12_381/bls12_381_curve.py#L45
+func BLSP2_G() -> BLSP2 {
+    tempvar g2 = BLSP2(
+        new BLSP2Struct(
+            BLSF2(
+                new BLSF2Struct(
+                    U384(
+                        new UInt384(
+                            0xa805bbefd48056c8c121bdb8,
+                            0xb4510b647ae3d1770bac0326,
+                            0x2dc51051c6e47ad4fa403b02,
+                            0x24aa2b2f08f0a9126080527,
+                        ),
+                    ),
+                    U384(
+                        new UInt384(
+                            0x13945d57e5ac7d055d042b7e,
+                            0xb5da61bbdc7f5049334cf112,
+                            0x88274f65596bd0d09920b61a,
+                            0x13e02b6052719f607dacd3a0,
+                        ),
+                    ),
+                ),
+            ),
+            BLSF2(
+                new BLSF2Struct(
+                    U384(
+                        new UInt384(
+                            0x3baca289e193548608b82801,
+                            0x6d429a695160d12c923ac9cc,
+                            0xda2e351aadfd9baa8cbdd3a7,
+                            0xce5d527727d6e118cc9cdc6,
+                        ),
+                    ),
+                    U384(
+                        new UInt384(
+                            0x5cec1da1aaa9075ff05f79be,
+                            0x267492ab572e99ab3f370d27,
+                            0x2bc28b99cb3e287e85a763af,
+                            0x606c4a02ea734cc32acd2b0,
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    );
+
+    return g2;
 }
 
 func BLSP2_B() -> BLSF2 {

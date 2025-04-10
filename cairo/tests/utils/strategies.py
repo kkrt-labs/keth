@@ -46,7 +46,7 @@ from ethereum.crypto.alt_bn128 import (
 from ethereum.crypto.elliptic_curve import SECP256K1N
 from ethereum.crypto.finite_field import GaloisField
 from ethereum.crypto.hash import Hash32, keccak256
-from ethereum.crypto.kzg import BLSFieldElement, KZGCommitment, KZGProof
+from ethereum.crypto.kzg import BLS_MODULUS, BLSFieldElement, KZGCommitment, KZGProof
 from ethereum.exceptions import EthereumException
 from ethereum_types.bytes import (
     Bytes0,
@@ -130,7 +130,6 @@ bytes32 = st.integers(min_value=0, max_value=2**256 - 1).map(
     lambda x: Bytes32(x.to_bytes(32, "little"))
 )
 hash32 = bytes32.map(Hash32)
-bls_scalar = uint256.map(BLSFieldElement)
 root = bytes32.map(Root)
 bytes256 = st.integers(min_value=0, max_value=2**2048 - 1).map(
     lambda x: Bytes256(x.to_bytes(256, "little"))
@@ -245,6 +244,10 @@ class TypedTuple(tuple, Generic[T1, T2]):
     def __new__(cls, values):
         return super(TypedTuple, cls).__new__(cls, values)
 
+
+bls_scalar = st.integers(min_value=0, max_value=int(BLS_MODULUS) - 1).map(
+    BLSFieldElement
+)
 
 blsf_strategy = st.builds(
     BLSF, st.integers(min_value=0, max_value=BLSF.field_modulus - 1)

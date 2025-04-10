@@ -33,46 +33,55 @@ from ethereum.utils.numeric import (
     U384Struct,
 )
 from ethereum.crypto.bls12_381 import (
-    BLSF,
-    BLSFStruct,
     blsf_mul,
-    blsf_add,
-    BLSP,
+    BLSF_ONE,
+    BLSF_ZERO,
+    BLSF,
+    BLSF12__eq__,
+    blsf12_mul,
+    BLSF12_ONE,
+    BLSF12,
+    BLSF12Struct,
+    blsf2_sub,
+    BLSF2_ZERO,
+    BLSF2,
+    BLSF2Struct,
+    BLSFStruct,
     BLSP__eq__,
-    BLSPStruct,
-    blsp_point_at_infinity,
+    blsp_add,
+    BLSP_G,
     blsp_init,
     blsp_mul_by,
-    G1Compressed,
-    G1Uncompressed,
-    BLSF_ZERO,
-    BLSF_ONE,
+    blsp_point_at_infinity,
+    BLSP,
+    BLSP2__eq__,
+    blsp2_add,
+    BLSP2_G,
+    blsp2_mul_by,
+    blsp2_point_at_infinity,
     BLSP2,
     BLSP2Struct,
+    BLSPStruct,
+    G1Compressed,
+    G1Uncompressed,
     TupleBLSPBLSP2,
     TupleBLSPBLSP2Struct,
     TupleTupleBLSPBLSP2,
     TupleTupleBLSPBLSP2Struct,
-    BLSF12,
-    BLSF12Struct,
-    BLSF12_ONE,
-    blsp2_point_at_infinity,
-    BLSP2__eq__,
-    BLSF12__eq__,
-    blsf12_mul,
 )
-from ethereum.cancun.fork_types import VersionedHash
-from ethereum.exceptions import Exception, ValueError, AssertionError
+
+from bls12_381.multi_pairing_1 import multi_pairing_1P
+from cairo_core.hash.sha256 import sha256_be_output
+from cairo_core.numeric import OptionalU384
 from cairo_ec.circuits.ec_ops_compiled import assert_on_curve
 from cairo_ec.circuits.mod_ops_compiled import add, sub, mul
 from cairo_ec.curve.bls12_381 import bls12_381
 from cairo_ec.curve.g1_point import G1Point
-from cairo_core.hash.sha256 import sha256_be_output
-from cairo_core.numeric import OptionalU384
-from legacy.utils.array import reverse
-
-from bls12_381.multi_pairing_1 import multi_pairing_1P
+from cairo_ec.uint384 import uint256_to_uint384
 from definitions import G1G2Pair, G1Point as G1PointGaraga, G2Point as G2PointGaraga
+from ethereum.cancun.fork_types import VersionedHash
+from ethereum.exceptions import Exception, ValueError, AssertionError
+from legacy.utils.array import reverse
 
 using BLSScalar = U256;
 using KZGCommitment = Bytes48;
@@ -551,4 +560,152 @@ func pairing_check{
     }
     tempvar res = bool(0);
     return res;
+}
+
+// https://github.com/ethereum/execution-specs/blob/2926c00c1d130e5d0641d278012d42267f3feaf3/src/ethereum/crypto/kzg.py#L173C1
+func SIGNATURE_G2() -> BLSP2 {
+    tempvar signature_g2 = BLSP2(
+        new BLSP2Struct(
+            BLSF2(
+                new BLSF2Struct(
+                    U384(
+                        new U384Struct(
+                            0x621000edc98edada20c1def2,
+                            0xa36851477ba4c60b087041de,
+                            0xb38608e23926c911cceceac9,
+                            0x185cbfee53492714734429b7,
+                        ),
+                    ),
+                    U384(
+                        new U384Struct(
+                            0xcb452d2afaaab24f3499f72,
+                            0x1009a2ce615ac53d2914e587,
+                            0x230af38926187075cbfbefa8,
+                            0x15bfd7dd8cdeb128843bc287,
+                        ),
+                    ),
+                ),
+            ),
+            BLSF2(
+                new BLSF2Struct(
+                    U384(
+                        new U384Struct(
+                            0x5941f383ee689bfbbb832a99,
+                            0xe82451a496a9c9794ce26d10,
+                            0x99d1fca2131569490e28de18,
+                            0x14353bdb96b626dd7d5ee85,
+                        ),
+                    ),
+                    U384(
+                        new U384Struct(
+                            0x3d7ac9cd23048ef30d0a154f,
+                            0xda5ed1ba9bfa07899495346f,
+                            0xe0181b4bef79de09fc63671f,
+                            0x1666c54b0a32529503432fca,
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    );
+
+    return signature_g2;
+}
+
+// Compute Q * (X - z)
+// https://github.com/ethereum/execution-specs/blob/2926c00c1d130e5d0641d278012d42267f3feaf3/src/ethereum/crypto/kzg.py#L172
+func compute_x_minus_z{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
+}(z: BLSScalar) -> BLSP2 {
+    alloc_locals;
+
+    tempvar n = U384(new UInt384(bls12_381.N0, bls12_381.N1, bls12_381.N2, bls12_381.N3));
+    let z_uint384 = uint256_to_uint384([z.value]);
+    tempvar z_u384 = U384(new z_uint384);
+    let neg_z = sub(n, z_u384, n);
+    let g2 = BLSP2_G();
+    let neg_z_g2 = blsp2_mul_by(g2, neg_z);
+
+    let signature_g2 = SIGNATURE_G2();
+    let res = blsp2_add(signature_g2, neg_z_g2);
+    return res;
+}
+
+// Compute P - y
+// https://github.com/ethereum/execution-specs/blob/2926c00c1d130e5d0641d278012d42267f3feaf3/src/ethereum/crypto/kzg.py#L176
+func compute_p_minus_y{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
+}(commitment: KZGCommitment, y: BLSScalar) -> (BLSP, Exception*) {
+    alloc_locals;
+
+    tempvar n = U384(new UInt384(bls12_381.N0, bls12_381.N1, bls12_381.N2, bls12_381.N3));
+    let y_uint384 = uint256_to_uint384([y.value]);
+    tempvar y_u384 = U384(new y_uint384);
+    let neg_y = sub(n, y_u384, n);
+    let g1 = BLSP_G();
+    let neg_y_g1 = blsp_mul_by(g1, neg_y);
+
+    let (pubkey_from_commitment, error) = pubkey_to_g1(commitment);
+    if (cast(error, felt) != 0) {
+        tempvar err = new Exception(ValueError);
+        return (pubkey_from_commitment, err);
+    }
+
+    let p_minus_y = blsp_add(pubkey_from_commitment, neg_y_g1);
+    let ok = cast(0, Exception*);
+    return (p_minus_y, ok);
+}
+
+// Verify KZG proof that `p(z) == y` where `p(z)`
+// is the polynomial represented by `polynomial_kzg`.
+// @dev Verify: P - y = Q * (X - z)
+func verify_kzg_proof_impl{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+}(commitment: KZGCommitment, z: BLSScalar, y: BLSScalar, proof: KZGProof) -> (bool, Exception*) {
+    alloc_locals;
+
+    // Compute Q * (X - z)
+    let x_minus_z = compute_x_minus_z(z);
+    // Compute P - y
+    let (p_minus_y, error) = compute_p_minus_y(commitment, y);
+    if (cast(error, felt) != 0) {
+        tempvar err = new Exception(ValueError);
+        tempvar res = bool(0);
+        return (res, err);
+    }
+    // Compute -g2
+    let g2 = BLSP2_G();
+    let blsf2_zero = BLSF2_ZERO();
+    let neg_y_g2 = blsf2_sub(blsf2_zero, g2.value.y);
+    tempvar neg_g2 = BLSP2(new BLSP2Struct(g2.value.x, neg_y_g2));
+
+    // Compute pubkey_from_proof
+    let (pubkey_from_proof, error) = pubkey_to_g1(proof);
+    if (cast(error, felt) != 0) {
+        tempvar err = new Exception(ValueError);
+        tempvar res = bool(0);
+        return (res, err);
+    }
+
+    // Pairing check
+    tempvar pair1 = TupleBLSPBLSP2(new TupleBLSPBLSP2Struct(p_minus_y, neg_g2));
+    tempvar pair2 = TupleBLSPBLSP2(new TupleBLSPBLSP2Struct(pubkey_from_proof, x_minus_z));
+    tempvar pairs = TupleTupleBLSPBLSP2(new TupleTupleBLSPBLSP2Struct(pair1, pair2));
+    let res = pairing_check(pairs);
+
+    let ok = cast(0, Exception*);
+    return (res, ok);
 }

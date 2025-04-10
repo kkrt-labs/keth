@@ -2,10 +2,13 @@ from typing import Optional, Tuple
 
 import pytest
 from eth_typing import BLSPubkey as BLSPubkey_py
+from eth_typing.bls import BLSSignature
 from ethereum.crypto.kzg import (
     BLS_MODULUS,
     FQ,
     FQ2,
+    G1_POINT_AT_INFINITY,
+    KZG_SETUP_G2_MONOMIAL_1,
     BLSFieldElement,
     KZGCommitment,
     KZGProof,
@@ -17,12 +20,13 @@ from ethereum.crypto.kzg import (
     validate_kzg_g1,
     verify_kzg_proof_impl,
 )
+from ethereum.utils.hexadecimal import hex_to_bytes
 from ethereum_types.bytes import Bytes, Bytes32, Bytes48
 from hypothesis import example, given, settings
 from hypothesis import strategies as st
 from py_ecc.bls.ciphersuites import G2ProofOfPossession
 from py_ecc.bls.constants import POW_2_381, POW_2_382, POW_2_383, POW_2_384
-from py_ecc.bls.g2_primitives import pubkey_to_G1, subgroup_check
+from py_ecc.bls.g2_primitives import pubkey_to_G1, signature_to_G2, subgroup_check
 from py_ecc.bls.hash import os2ip
 from py_ecc.bls.point_compression import (
     decompress_G1,
@@ -32,7 +36,16 @@ from py_ecc.bls.point_compression import (
 from py_ecc.bls.typing import G1Compressed as G1Compressed_py
 from py_ecc.fields import optimized_bls12_381_FQ as BLSF
 from py_ecc.fields import optimized_bls12_381_FQ2 as BLSF2
-from py_ecc.optimized_bls12_381.optimized_curve import b, is_inf, is_on_curve
+from py_ecc.optimized_bls12_381.optimized_curve import (
+    G1,
+    G2,
+    add,
+    b,
+    is_inf,
+    is_on_curve,
+    multiply,
+)
+from py_ecc.optimized_bls12_381.optimized_pairing import normalize1
 from py_ecc.typing import Optimized_Point3D
 
 from tests.utils.args_gen import U384, BLSPubkey, G1Compressed
@@ -50,6 +63,20 @@ def test_bytes_to_bls_fail(cairo_run, a: int):
         bytes_to_bls_field(a_bytes32)
     with pytest.raises(AssertionError):
         cairo_run("bytes_to_bls_field", a_bytes32)
+
+
+def test_BLSP_G(cairo_run):
+    assert cairo_run("BLSP_G") == G1
+
+
+def test_BLSP2_G(cairo_run):
+    assert cairo_run("BLSP2_G") == G2
+
+
+def test_SIGNATURE_G2(cairo_run):
+    assert cairo_run("SIGNATURE_G2") == signature_to_G2(
+        BLSSignature(hex_to_bytes(KZG_SETUP_G2_MONOMIAL_1))
+    )
 
 
 @given(a=st.binary(max_size=48).map(Bytes))
@@ -264,3 +291,84 @@ def test_retrieve_values_for_pairing_check():
     )
     verify_kzg_proof_impl(commitment, z, y, proof)
     # debug and retrieve values of the input of pairing_check function then apply normalize1 to each element
+
+
+@given(z=...)
+def test_compute_x_minus_z(cairo_run, z: BLSFieldElement):
+    assert cairo_run("compute_x_minus_z", z) == normalize1(
+        add(
+            signature_to_G2(BLSSignature(hex_to_bytes(KZG_SETUP_G2_MONOMIAL_1))),
+            multiply(G2, int((BLS_MODULUS - z) % BLS_MODULUS)),
+        )
+    )
+
+
+@given(commitment=..., y=...)
+def test_compute_p_minus_y(cairo_run, commitment: KZGCommitment, y: BLSFieldElement):
+    try:
+        expected = normalize1(
+            add(
+                pubkey_to_G1(BLSPubkey_py(commitment)),
+                multiply(G1, int((BLS_MODULUS - y) % BLS_MODULUS)),
+            )
+        )
+    except ValueError:
+        with pytest.raises(ValueError):
+            cairo_run("compute_p_minus_y", commitment, y)
+        return
+    assert cairo_run("compute_p_minus_y", commitment, y) == expected
+
+
+@given(commitment=..., z=..., y=..., proof=...)
+@example(
+    commitment=KZGCommitment(
+        0xA421E229565952CFFF4EF3517100A97DA1D4FE57956FA50A442F92AF03B1BF37ADACC8AD4ED209B31287EA5BB94D9D06.to_bytes(
+            48, "big"
+        )
+    ),
+    z=BLSFieldElement(
+        0x73EDA753299D7D483339D80809A1D80553BDA402FFFE5BFEFFFFFFFF00000000
+    ),
+    y=BLSFieldElement(
+        0x304962B3598A0ADF33189FDFD9789FEAB1096FF40006900400000003FFFFFFFC
+    ),
+    proof=KZGProof(
+        0xAA86C458B3065E7EC244033A2ADE91A7499561F482419A3A372C42A636DAD98262A2CE926D142FD7CFE26CA148EFE8B4.to_bytes(
+            48, "big"
+        )
+    ),
+)
+@example(
+    commitment=G1_POINT_AT_INFINITY,
+    z=BLS_MODULUS - BLSFieldElement(1),
+    y=BLSFieldElement(0),
+    proof=KZGProof(G1_POINT_AT_INFINITY),
+)
+@example(
+    commitment=KZGCommitment(
+        0xB7F1D3A73197D7942695638C4FA9AC0FC3688C4F9774B905A14E3A3F171BAC586C55E83FF97A1AEFFB3AF00ADB22C6BB.to_bytes(
+            48, "big"
+        )
+    ),
+    z=BLSFieldElement(
+        0x73EDA753299D7D483339D80809A1D80553BDA402FFFE5BFEFFFFFFFF00000000
+    ),
+    y=BLSFieldElement(
+        0x73EDA753299D7D483339D80809A1D80553BDA402FFFE5BFEFFFFFFFF00000000
+    ),
+    proof=KZGProof(G1_POINT_AT_INFINITY),
+)
+def test_verify_kzg_proof_impl(
+    cairo_run,
+    commitment: KZGCommitment,
+    z: BLSFieldElement,
+    y: BLSFieldElement,
+    proof: KZGProof,
+):
+    try:
+        expected = verify_kzg_proof_impl(commitment, z, y, proof)
+    except ValueError:
+        with pytest.raises(ValueError):
+            cairo_run("verify_kzg_proof_impl", commitment, z, y, proof)
+        return
+    assert cairo_run("verify_kzg_proof_impl", commitment, z, y, proof) == expected
