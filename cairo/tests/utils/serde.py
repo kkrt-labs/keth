@@ -92,6 +92,7 @@ from tests.utils.args_gen import (
     Memory,
     MutableBloom,
     Stack,
+    builtins_exception_classes,
     ethereum_exception_classes,
     to_python_type,
     vm_exception_classes,
@@ -385,7 +386,9 @@ class Serde:
             actual_error_cls = next(
                 (
                     cls
-                    for name, cls in vm_exception_classes + ethereum_exception_classes
+                    for name, cls in vm_exception_classes
+                    + ethereum_exception_classes
+                    + builtins_exception_classes
                     if name == ascii_value
                 ),
                 None,

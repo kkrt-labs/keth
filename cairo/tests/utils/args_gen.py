@@ -647,6 +647,20 @@ class FlatTransientStorage:
         return ts
 
 
+builtins_exception_classes = inspect.getmembers(
+    sys.modules["builtins"],
+    lambda x: inspect.isclass(x) and issubclass(x, Exception),
+)
+
+builtins_exception_mappings = {
+    (
+        "ethereum",
+        "exceptions",
+        f"{name}",
+    ): cls
+    for name, cls in builtins_exception_classes
+}
+
 vm_exception_classes = inspect.getmembers(
     sys.modules["ethereum.cancun.vm.exceptions"],
     lambda x: inspect.isclass(x) and issubclass(x, EthereumException),
@@ -911,6 +925,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "cancun", "fork", "ApplyBodyOutput"): ApplyBodyOutput,
     **vm_exception_mappings,
     **ethereum_exception_mappings,
+    **builtins_exception_mappings,
     # For tests only
     ("tests", "legacy", "utils", "test_dict", "MappingUintUint"): Mapping[Uint, Uint],
     ("ethereum", "crypto", "alt_bn128", "BNF12"): BNF12,

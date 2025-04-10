@@ -80,9 +80,7 @@ def test_kzg_commitment_to_versioned_hash(cairo_run, commitment: KZGCommitment):
     point=G1Compressed(POW_2_383 + POW_2_382)
 )  # c_flag=1, b_flag=1, a_flag=0, infinity point
 def test_decompress_G1(cairo_run, point: G1Compressed):
-    res, error = cairo_run("decompress_G1", point)
-    assert not error
-    assert res == decompress_G1(G1Compressed_py(point))
+    assert cairo_run("decompress_g1", point) == decompress_G1(G1Compressed_py(point))
 
 
 @given(point=st.builds(G1Compressed, st.integers(min_value=0, max_value=POW_2_384 - 1)))
@@ -100,18 +98,19 @@ def test_decompress_G1_error_cases(cairo_run, point: G1Compressed):
     try:
         decompress_G1(G1Compressed_py(point))
     except ValueError:
-        _, error = cairo_run("decompress_G1", point)
-        assert error
+        with pytest.raises(ValueError):
+            cairo_run("decompress_g1", point)
 
 
 @given(pubkey=...)
 def test_pubkey_to_G1(cairo_run, pubkey: BLSPubkey):
-    res, error = cairo_run("pubkey_to_g1", pubkey)
-    if error:
+    try:
+        pubkey_to_G1(BLSPubkey_py(pubkey))
+    except ValueError:
         with pytest.raises(ValueError):
-            pubkey_to_G1(BLSPubkey_py(pubkey))
+            cairo_run("pubkey_to_g1", pubkey)
         return
-    assert res == pubkey_to_G1(BLSPubkey_py(pubkey))
+    assert cairo_run("pubkey_to_g1", pubkey) == pubkey_to_G1(BLSPubkey_py(pubkey))
 
 
 @given(pt=...)
@@ -141,34 +140,32 @@ def test_is_on_curve(cairo_run, pt: Optimized_Point3D[BLSF]):
 def test_validate_kzg_g1(cairo_run, b: Bytes48):
     try:
         validate_kzg_g1(b)
-        is_valid = True
     except AssertionError:
-        is_valid = False
-
-    assert cairo_run("validate_kzg_g1", b) == is_valid
+        with pytest.raises(AssertionError):
+            cairo_run("validate_kzg_g1", b)
+        return
+    cairo_run("validate_kzg_g1", b)
 
 
 @given(b=...)
 @example(Bytes48(b"\xc0" + b"\x00" * 47))
 def test_bytes_to_kzg_commitment(cairo_run, b: Bytes48):
-    (cairo_result, error) = cairo_run("bytes_to_kzg_commitment", b)
-
     try:
         expected = bytes_to_kzg_commitment(b)
-        assert not error
-        assert cairo_result == expected
     except AssertionError:
-        assert error
+        with pytest.raises(AssertionError):
+            cairo_run("bytes_to_kzg_commitment", b)
+        return
+    assert cairo_run("bytes_to_kzg_commitment", b) == expected
 
 
 @given(b=...)
 @example(Bytes48(b"\xc0" + b"\x00" * 47))
 def test_bytes_to_kzg_proof(cairo_run, b: Bytes48):
-    (cairo_result, error) = cairo_run("bytes_to_kzg_proof", b)
-
     try:
         expected = bytes_to_kzg_proof(b)
-        assert not error
-        assert cairo_result == expected
     except AssertionError:
-        assert error
+        with pytest.raises(AssertionError):
+            cairo_run("bytes_to_kzg_proof", b)
+        return
+    assert cairo_run("bytes_to_kzg_proof", b) == expected

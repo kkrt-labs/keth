@@ -372,6 +372,8 @@ class TestSerde:
             InvalidOpcode,
             InvalidSignatureError,
             InvalidTransaction,
+            ValueError,
+            AssertionError,
         ],
     ):
         base = segments.gen_arg([gen_arg(type(err), err)])

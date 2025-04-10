@@ -29,3 +29,7 @@ struct OptionalEthereumException {
 }
 
 const ValueError = 'ValueError';
+const AssertionError = 'AssertionError';
+
+// Generic exception type.
+using Exception = EthereumException;

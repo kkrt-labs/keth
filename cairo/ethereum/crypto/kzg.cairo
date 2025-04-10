@@ -27,8 +27,6 @@ from ethereum.utils.numeric import (
     Bytes32_from_be_bytes,
     U384Struct,
 )
-from cairo_ec.circuits.ec_ops_compiled import assert_on_curve
-from cairo_ec.curve.bls12_381 import bls12_381
 from ethereum.crypto.bls12_381 import (
     BLSF,
     BLSFStruct,
@@ -45,12 +43,15 @@ from ethereum.crypto.bls12_381 import (
     BLSF_ZERO,
     BLSF_ONE,
 )
-from cairo_ec.curve.g1_point import G1Point
-from cairo_core.numeric import OptionalU384
-from cairo_core.hash.sha256 import sha256_be_output
 from ethereum.cancun.fork_types import VersionedHash
-from legacy.utils.array import reverse
+from ethereum.exceptions import Exception, ValueError, AssertionError
+from cairo_ec.circuits.ec_ops_compiled import assert_on_curve
 from cairo_ec.circuits.mod_ops_compiled import add, sub, mul
+from cairo_ec.curve.bls12_381 import bls12_381
+from cairo_ec.curve.g1_point import G1Point
+from cairo_core.hash.sha256 import sha256_be_output
+from cairo_core.numeric import OptionalU384
+from legacy.utils.array import reverse
 
 using BLSScalar = U256;
 using KZGCommitment = Bytes48;
@@ -89,15 +90,19 @@ func kzg_commitment_to_versioned_hash{range_check_ptr, bitwise_ptr: BitwiseBuilt
     return res;
 }
 
-func bytes_to_bls_field{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(b: Bytes32) -> BLSScalar {
+func bytes_to_bls_field{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(b: Bytes32) -> (
+    BLSScalar, Exception*
+) {
     let field_element = U256_from_be_bytes32(b);
     tempvar bls_modulus = U256(new U256Struct(low=bls12_381.N_LOW_128, high=bls12_381.N_HIGH_128));
     let is_valid = U256_le(field_element, bls_modulus);
-    with_attr error_message("AssertionError") {
-        assert is_valid.value = 1;
-    }
     tempvar result = BLSScalar(field_element.value);
-    return result;
+    if (is_valid.value != 0) {
+        let ok = cast(0, Exception*);
+        return (result, ok);
+    }
+    tempvar err = new Exception(AssertionError);
+    return (result, err);
 }
 
 // Diverge from specs: limited to 48 bytes
@@ -142,14 +147,14 @@ func is_point_at_infinity{
     return result;
 }
 
-// Recover the uncompressed G1 point from its compressed form
-func decompress_G1{
+// Recover the uncompressed g1 point from its compressed form
+func decompress_g1{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,
-}(z: G1Compressed) -> (G1Uncompressed, bool) {
+}(z: G1Compressed) -> (G1Uncompressed, Exception*) {
     alloc_locals;
 
     // Extract flags
@@ -160,7 +165,8 @@ func decompress_G1{
         let one = BLSF_ONE();
         let zero = BLSF_ZERO();
         tempvar dummy = BLSP(new BLSPStruct(zero, one));
-        return (dummy, bool(1));
+        tempvar err = new Exception(ValueError);
+        return (dummy, err);
     }
 
     // Check if the point is at infinity
@@ -172,7 +178,8 @@ func decompress_G1{
         let one = BLSF_ONE();
         let zero = BLSF_ZERO();
         tempvar dummy = BLSP(new BLSPStruct(zero, one));
-        return (dummy, bool(1));
+        tempvar err = new Exception(ValueError);
+        return (dummy, err);
     }
 
     // If point is at infinity
@@ -182,11 +189,13 @@ func decompress_G1{
             let one = BLSF_ONE();
             let zero = BLSF_ZERO();
             tempvar dummy = BLSP(new BLSPStruct(zero, one));
-            return (dummy, bool(1));
+            tempvar err = new Exception(ValueError);
+            return (dummy, err);
         }
         // Return point at infinity
         let result = blsp_point_at_infinity();
-        return (result, bool(0));
+        let ok = cast(0, Exception*);
+        return (result, ok);
     }
 
     // z % POW_2_381
@@ -207,12 +216,14 @@ func decompress_G1{
     tempvar point = BLSP(new BLSPStruct(x_blsf, y_blsf));
     let on_curve = is_on_curve(point);
     if (on_curve.value != 0) {
-        return (point, bool(0));
+        let ok = cast(0, Exception*);
+        return (point, ok);
     }
     let one = BLSF_ONE();
     let zero = BLSF_ZERO();
     tempvar dummy = BLSP(new BLSPStruct(zero, one));
-    return (dummy, bool(1));
+    tempvar err = new Exception(ValueError);
+    return (dummy, err);
 }
 
 func pubkey_to_g1{
@@ -221,7 +232,7 @@ func pubkey_to_g1{
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,
-}(pubkey: BLSPubkey) -> (G1Uncompressed, bool) {
+}(pubkey: BLSPubkey) -> (G1Uncompressed, Exception*) {
     alloc_locals;
 
     let bytes_pubkey = U384_to_be_bytes(U384(pubkey.value), 48);
@@ -231,7 +242,7 @@ func pubkey_to_g1{
     let z = os2ip(bytes_input_bytes);
 
     tempvar compressed_point = G1Compressed(z.value);
-    let (uncompressed_point, error) = decompress_G1(compressed_point);
+    let (uncompressed_point, error) = decompress_g1(compressed_point);
     return (uncompressed_point, error);
 }
 
@@ -295,7 +306,7 @@ func key_validate{
     alloc_locals;
 
     let (point, error) = pubkey_to_g1(pk);
-    if (error.value != 0) {
+    if (cast(error, felt) != 0) {
         let result = bool(0);
         return result;
     }
@@ -322,18 +333,23 @@ func validate_kzg_g1{
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,
-}(b: Bytes48) -> bool {
+}(b: Bytes48) -> Exception* {
     alloc_locals;
 
     tempvar infinity_point = U384(new UInt384(G1_POINT_AT_INFINITY_FIRST_BYTE, 0, 0, 0));
     let is_infinity = U384__eq__(U384(b.value), infinity_point);
     if (is_infinity.value != 0) {
-        let res = bool(1);
-        return res;
+        let ok = cast(0, Exception*);
+        return ok;
     }
 
     let is_valid = key_validate(b);
-    return is_valid;
+    if (is_valid.value != 0) {
+        let ok = cast(0, Exception*);
+        return ok;
+    }
+    tempvar err = new Exception(AssertionError);
+    return err;
 }
 
 func bytes_to_kzg_commitment{
@@ -342,12 +358,14 @@ func bytes_to_kzg_commitment{
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,
-}(b: Bytes48) -> (KZGCommitment, bool) {
-    let is_valid = validate_kzg_g1(b);
-    if (is_valid.value != 0) {
-        return (KZGCommitment(b.value), bool(0));
+}(b: Bytes48) -> (KZGCommitment, Exception*) {
+    let err = validate_kzg_g1(b);
+    if (cast(err, felt) != 0) {
+        tempvar err = new Exception(AssertionError);
+        return (KZGCommitment(b.value), err);
     }
-    return (KZGCommitment(b.value), bool(1));
+    let ok = cast(0, Exception*);
+    return (KZGCommitment(b.value), ok);
 }
 
 func bytes_to_kzg_proof{
@@ -356,10 +374,12 @@ func bytes_to_kzg_proof{
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,
-}(b: Bytes48) -> (KZGProof, bool) {
-    let is_valid = validate_kzg_g1(b);
-    if (is_valid.value != 0) {
-        return (KZGProof(b.value), bool(0));
+}(b: Bytes48) -> (KZGProof, Exception*) {
+    let err = validate_kzg_g1(b);
+    if (cast(err, felt) != 0) {
+        tempvar err = new Exception(AssertionError);
+        return (KZGProof(b.value), err);
     }
-    return (KZGProof(b.value), bool(1));
+    let ok = cast(0, Exception*);
+    return (KZGProof(b.value), ok);
 }

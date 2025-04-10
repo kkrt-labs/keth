@@ -707,6 +707,9 @@ bnp2_strategy = st.integers(min_value=0, max_value=BNF2.PRIME - 1).map(
 
 bytes48 = st.binary(min_size=48, max_size=48).map(Bytes48)
 
+value_error = st.builds(ValueError, st.text())
+assertion_error = st.builds(AssertionError, st.text())
+
 
 def register_type_strategies():
     st.register_type_strategy(U64, uint64)
@@ -829,3 +832,5 @@ def register_type_strategies():
     st.register_type_strategy(G1Compressed, blsG1_compressed)
     st.register_type_strategy(BLSPubkey, bytes48.map(BLSPubkey))
     st.register_type_strategy(KZGProof, bytes48.map(KZGProof))
+    st.register_type_strategy(ValueError, value_error)
+    st.register_type_strategy(AssertionError, assertion_error)
