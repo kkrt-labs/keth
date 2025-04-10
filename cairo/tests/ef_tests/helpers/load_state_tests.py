@@ -31,9 +31,11 @@ def prepare_state_and_code_hashes(
     for address in state._main_trie._data:
         account = trie_get(state._main_trie, address)
         if not account:
-            raise ValueError("Account is None")
-        account_code_hash = account.code_hash if account else EMPTY_BYTES_HASH
-        account_code = account.code if account else b""
+            account_code_hash = EMPTY_BYTES_HASH
+            account_code = b""
+        else:
+            account_code_hash = account.code_hash
+            account_code = account.code
         code_hash_int = int.from_bytes(account_code_hash, "little")
         code_hash_low = code_hash_int & 2**128 - 1
         code_hash_high = code_hash_int >> 128
