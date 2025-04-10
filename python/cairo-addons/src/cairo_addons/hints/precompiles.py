@@ -257,6 +257,7 @@ def point_evaluation_hint(
     from ethereum.cancun.vm.exceptions import KZGProofError
     from ethereum.crypto.kzg import (
         KZGCommitment,
+        KZGProof,
         kzg_commitment_to_versioned_hash,
         verify_kzg_proof,
     )
@@ -272,7 +273,7 @@ def point_evaluation_hint(
         z = Bytes32(Bytes(bytes(data[32:64])))
         y = Bytes32(Bytes(bytes(data[64:96])))
         commitment = KZGCommitment(Bytes48(Bytes(bytes(data[96:144]))))
-        proof = Bytes48(Bytes(bytes(data[144:192])))
+        proof = KZGProof(Bytes48(Bytes(bytes(data[144:192]))))
 
         try:
             if kzg_commitment_to_versioned_hash(commitment) != versioned_hash:

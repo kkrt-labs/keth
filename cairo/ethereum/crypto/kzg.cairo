@@ -1,5 +1,10 @@
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, UInt384, ModBuiltin
+from starkware.cairo.common.cairo_builtins import (
+    PoseidonBuiltin,
+    BitwiseBuiltin,
+    UInt384,
+    ModBuiltin,
+)
 from starkware.cairo.common.registers import get_label_location
 from starkware.cairo.common.bitwise import bitwise_and
 from starkware.cairo.common.math import unsigned_div_rem
@@ -27,6 +32,7 @@ from ethereum.utils.numeric import (
     Bytes32_from_be_bytes,
     U384Struct,
 )
+from cairo_ec.uint384 import uint256_to_uint384
 from cairo_ec.circuits.ec_ops_compiled import assert_on_curve
 from cairo_ec.curve.bls12_381 import bls12_381
 from ethereum.crypto.bls12_381 import (
@@ -39,27 +45,43 @@ from ethereum.crypto.bls12_381 import (
     BLSPStruct,
     blsp_point_at_infinity,
     blsp_init,
+    blsp_add,
     blsp_mul_by,
     G1Compressed,
     G1Uncompressed,
     BLSF_ZERO,
     BLSF_ONE,
+    BLSF2,
+    BLSF2Struct,
+    BLSP2,
+    BLSP2Struct,
+    blsp2_mul_by,
+    blsp2_add,
+    blsf2_sub,
+    BLSF2_ZERO,
+    BLSP_G,
+    BLSP2_G,
 )
+from cairo_ec.circuits.mod_ops_compiled import add, sub, mul
 from cairo_ec.curve.g1_point import G1Point
 from cairo_core.numeric import OptionalU384
 from cairo_core.hash.sha256 import sha256_be_output
 from ethereum.cancun.fork_types import VersionedHash
 from legacy.utils.array import reverse
-from cairo_ec.circuits.mod_ops_compiled import add, sub, mul
+from bls12_381.multi_pairing_2 import multi_pairing_2P
+from definitions import E12D, E6D, G1G2Pair, G1Point as G1PointGaraga, G2Point
+from basic_field_ops import is_eq_mod_p, is_zero_mod_p
 
 using BLSScalar = U256;
 using KZGCommitment = Bytes48;
+using KZGProof = Bytes48;
 using BLSPubkey = Bytes48;
 const VERSIONED_HASH_VERSION_KZG = 0x01;
 
 const GET_FLAGS_MASK = 2 ** 95 + 2 ** 94 + 2 ** 93;
 const POW_2_381_D3 = 0x200000000000000000000000;
 const G1_POINT_AT_INFINITY_FIRST_BYTE = 0xc0;
+const G1_G2_PAIR_SIZE = 4 * 2 + 4 * 4;
 
 func kzg_commitment_to_versioned_hash{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     kzg_commitment: KZGCommitment
@@ -97,6 +119,184 @@ func bytes_to_bls_field{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(b: Bytes3
     }
     tempvar result = BLSScalar(field_element.value);
     return result;
+}
+
+// Implementation of the KZG Proof verification.
+//
+// Verify KZG proof that `p(z) == y` where `p(z)`
+// is the polynomial represented by `polynomial_kzg`.
+// @dev Verify: P - y = Q * (X - z)
+func verify_kzg_proof_impl{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+}(commitment: KZGCommitment, z: BLSScalar, y: BLSScalar, proof: KZGProof) -> bool {
+    alloc_locals;
+
+    // Compute Q * (X - z)
+    tempvar n = U384(new UInt384(bls12_381.N0, bls12_381.N1, bls12_381.N2, bls12_381.N3));
+    let z_uint384 = uint256_to_uint384([z.value]);
+    tempvar z_u384 = U384(new z_uint384);
+    let neg_z = sub(n, z_u384, n);
+    let g2 = BLSP2_G();
+    let neg_z_g2 = blsp2_mul_by(g2, neg_z);
+    let signature_g2 = SIGNATURE_G2();
+    // x_minus_z values differ between EELS and Cairo implementation (debugging, to be confirmed).
+    let x_minus_z = blsp2_add(signature_g2, neg_z_g2);
+
+    // Compute P - y
+    let y_uint384 = uint256_to_uint384([y.value]);
+    tempvar y_u384 = U384(new y_uint384);
+    let neg_y = sub(n, y_u384, n);
+    let g1 = BLSP_G();
+    let neg_y_g1 = blsp_mul_by(g1, neg_y);
+    let (pubkey_from_commitment, error) = pubkey_to_g1(commitment);
+    assert error.value = 0;
+    let p_minus_y = blsp_add(pubkey_from_commitment, neg_y_g1);
+
+    // Compute -g2
+    let blsf2_zero = BLSF2_ZERO();
+    let neg_y_g2 = blsf2_sub(blsf2_zero, g2.value.y);
+    tempvar neg_g2 = BLSP2(new BLSP2Struct(g2.value.x, neg_y_g2));
+    // Compute pubkey_from_proof
+    let (pubkey_from_proof, error) = pubkey_to_g1(proof);
+    assert error.value = 0;
+
+
+    // Pairing check
+    let pairing_ptr: G1G2Pair* = alloc();
+    // 1st pairing: (p_minus_y, -g2)
+    // Convert to g1, g2 and G1G2Pair
+    let p_minus_y_garaga = G1PointGaraga(
+        [p_minus_y.value.x.value.c0.value], [p_minus_y.value.y.value.c0.value]
+    );
+    let neg_g2_garaga = G2Point(
+        [neg_g2.value.x.value.c0.value],
+        [neg_g2.value.x.value.c1.value],
+        [neg_g2.value.y.value.c0.value],
+        [neg_g2.value.y.value.c1.value],
+    );
+    assert [pairing_ptr] = G1G2Pair(p_minus_y_garaga, neg_g2_garaga);
+
+    // 2nd pairing: (pubkey_from_proof, x_minus_z)
+    let pubkey_proof_garaga = G1PointGaraga(
+        [pubkey_from_proof.value.x.value.c0.value], [pubkey_from_proof.value.y.value.c0.value]
+    );
+    let x_minus_z_garaga = G2Point(
+        [x_minus_z.value.x.value.c0.value],
+        [x_minus_z.value.x.value.c1.value],
+        [x_minus_z.value.y.value.c0.value],
+        [x_minus_z.value.y.value.c1.value],
+    );
+    assert [pairing_ptr + G1_G2_PAIR_SIZE] = G1G2Pair(pubkey_proof_garaga, x_minus_z_garaga);
+
+    let (pairing_check) = multi_pairing_2P(pairing_ptr);
+
+    // TODO:
+    // - Replace multi_pairing_2P by multi_miller_loop_1P + point at infinity + final exp
+    // - Why ? Ethereum KZG allows point at infinity, which is not handled in BLS standards, then not in Garaga
+    // - For each pairing
+    //     If one point of the pairing is point at infinity, return one (E12D_ONE)
+    //     Else apply miller loop on the pairing
+    // - Multiply both results of the pairing
+    // - Apply final exponentiation
+    // Pairing check
+    // In other words, reimplement `pairing` from EELS with a miller loop circuit from garaga.
+
+    // Check if pairing_check is one (E12D)
+    let (u384_one_ptr) = get_label_location(U384_ONE);
+    let u384_one = cast(u384_one_ptr, UInt384*);
+    tempvar modulus = UInt384(bls12_381.P0, bls12_381.P1, bls12_381.P2, bls12_381.P3);
+
+    // NO `is_zero_E12D` in garaga-zero, I've inlined the check
+    // Refactor into a function.
+
+    let (is_c0_one) = is_eq_mod_p(pairing_check.w0, [u384_one], modulus);
+    if (is_c0_one == 0) {
+        let is_valid = bool(0);
+        return is_valid;
+    }
+    let (is_c1_zero) = is_zero_mod_p(pairing_check.w1, modulus);
+    let (is_c2_zero) = is_zero_mod_p(pairing_check.w2, modulus);
+    let (is_c3_zero) = is_zero_mod_p(pairing_check.w3, modulus);
+    let (is_c4_zero) = is_zero_mod_p(pairing_check.w4, modulus);
+    let (is_c5_zero) = is_zero_mod_p(pairing_check.w5, modulus);
+    let (is_c6_zero) = is_zero_mod_p(pairing_check.w6, modulus);
+    let (is_c7_zero) = is_zero_mod_p(pairing_check.w7, modulus);
+    let (is_c8_zero) = is_zero_mod_p(pairing_check.w8, modulus);
+    let (is_c9_zero) = is_zero_mod_p(pairing_check.w9, modulus);
+    let (is_c10_zero) = is_zero_mod_p(pairing_check.w10, modulus);
+    let (is_c11_zero) = is_zero_mod_p(pairing_check.w11, modulus);
+
+    if (is_c1_zero *
+        is_c2_zero *
+        is_c3_zero *
+        is_c4_zero *
+        is_c5_zero *
+        is_c6_zero *
+        is_c7_zero *
+        is_c8_zero *
+        is_c9_zero *
+        is_c10_zero *
+        is_c11_zero == 0) {
+        let is_valid = bool(0);
+        return is_valid;
+    }
+
+    let is_valid = bool(1);
+    return is_valid;
+}
+
+func SIGNATURE_G2() -> BLSP2 {
+    tempvar signature_g2 = BLSP2(
+        new BLSP2Struct(
+            BLSF2(
+                new BLSF2Struct(
+                    U384(
+                        new U384Struct(
+                            0x621000edc98edada20c1def2,
+                            0xa36851477ba4c60b087041de,
+                            0xb38608e23926c911cceceac9,
+                            0x185cbfee53492714734429b7,
+                        ),
+                    ),
+                    U384(
+                        new U384Struct(
+                            0xcb452d2afaaab24f3499f72,
+                            0x1009a2ce615ac53d2914e587,
+                            0x230af38926187075cbfbefa8,
+                            0x15bfd7dd8cdeb128843bc287,
+                        ),
+                    ),
+                ),
+            ),
+            BLSF2(
+                new BLSF2Struct(
+                    U384(
+                        new U384Struct(
+                            0x5941f383ee689bfbbb832a99,
+                            0xe82451a496a9c9794ce26d10,
+                            0x99d1fca2131569490e28de18,
+                            0x14353bdb96b626dd7d5ee85,
+                        ),
+                    ),
+                    U384(
+                        new U384Struct(
+                            0x3d7ac9cd23048ef30d0a154f,
+                            0xda5ed1ba9bfa07899495346f,
+                            0xe0181b4bef79de09fc63671f,
+                            0x1666c54b0a32529503432fca,
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    );
+
+    return signature_g2;
 }
 
 // Diverge from specs: limited to 48 bytes
@@ -141,7 +341,7 @@ func is_point_at_infinity{
     return result;
 }
 
-// Recover the uncompressed G1 point from its compressed form
+// Recover the uncompressed g1 point from its compressed form
 func decompress_G1{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
