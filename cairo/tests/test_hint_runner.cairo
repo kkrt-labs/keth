@@ -178,3 +178,13 @@ func get_struct_from_program_segment() -> MyTestStruct* {
     value_loc:
     dw 100;
 }
+
+struct MyPointerStruct {
+    ptr: felt*,
+}
+
+func test_hint_access_pointer_null_value() {
+    tempvar my_pointer_struct = MyPointerStruct(cast(0, felt*));
+    %{ assert ids.my_pointer_struct.ptr == 0 %}
+    ret;
+}
