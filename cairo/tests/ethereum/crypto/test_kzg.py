@@ -6,9 +6,11 @@ from ethereum.crypto.kzg import (
     BLS_MODULUS,
     KZGCommitment,
     bytes_to_bls_field,
+    bytes_to_kzg_commitment,
     kzg_commitment_to_versioned_hash,
+    validate_kzg_g1,
 )
-from ethereum_types.bytes import Bytes, Bytes32
+from ethereum_types.bytes import Bytes, Bytes32, Bytes48
 from hypothesis import example, given
 from hypothesis import strategies as st
 from py_ecc.bls.ciphersuites import G2ProofOfPossession
@@ -131,3 +133,28 @@ def test_key_validate(cairo_run, pubkey: BLSPubkey):
 @given(pt=...)
 def test_is_on_curve(cairo_run, pt: Optimized_Point3D[BLSF]):
     assert cairo_run("is_on_curve", pt) == is_on_curve(pt, b)
+
+
+@given(b=...)
+@example(Bytes48(b"\xc0" + b"\x00" * 47))
+def test_validate_kzg_g1(cairo_run, b: Bytes48):
+    try:
+        validate_kzg_g1(b)
+        is_valid = True
+    except AssertionError:
+        is_valid = False
+
+    assert cairo_run("validate_kzg_g1", b) == is_valid
+
+
+@given(b=...)
+@example(Bytes48(b"\xc0" + b"\x00" * 47))
+def test_bytes_to_kzg_commitment(cairo_run, b: Bytes48):
+    (cairo_result, error) = cairo_run("bytes_to_kzg_commitment", b)
+
+    try:
+        expected = bytes_to_kzg_commitment(b)
+        assert not error
+        assert cairo_result == expected
+    except AssertionError:
+        assert error
