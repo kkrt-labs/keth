@@ -46,7 +46,7 @@ from ethereum.crypto.alt_bn128 import (
 from ethereum.crypto.elliptic_curve import SECP256K1N
 from ethereum.crypto.finite_field import GaloisField
 from ethereum.crypto.hash import Hash32, keccak256
-from ethereum.crypto.kzg import BLSFieldElement, KZGCommitment
+from ethereum.crypto.kzg import BLSFieldElement, KZGCommitment, KZGProof
 from ethereum.exceptions import EthereumException
 from ethereum_types.bytes import (
     Bytes0,
@@ -828,3 +828,4 @@ def register_type_strategies():
     st.register_type_strategy(Bytes48, bytes48)
     st.register_type_strategy(G1Compressed, blsG1_compressed)
     st.register_type_strategy(BLSPubkey, bytes48.map(BLSPubkey))
+    st.register_type_strategy(KZGProof, bytes48.map(KZGProof))

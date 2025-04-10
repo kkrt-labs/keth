@@ -43,7 +43,7 @@ from ethereum.cancun.trie import Trie
 from ethereum.cancun.vm.exceptions import InvalidOpcode
 from ethereum.crypto.alt_bn128 import BNF, BNF2, BNF12
 from ethereum.crypto.hash import Hash32
-from ethereum.crypto.kzg import BLSFieldElement, KZGCommitment
+from ethereum.crypto.kzg import BLSFieldElement, KZGCommitment, KZGProof
 from ethereum_types.bytes import (
     Bytes,
     Bytes0,
@@ -436,7 +436,14 @@ class Serde:
                 return U256(value)
             return python_cls(value.to_bytes(32, "little"))
 
-        if python_cls in (U384, Bytes48, KZGCommitment, G1Compressed, BLSPubkey):
+        if python_cls in (
+            U384,
+            Bytes48,
+            KZGCommitment,
+            G1Compressed,
+            BLSPubkey,
+            KZGProof,
+        ):
             # U384 is represented as a struct with 4 fields: d0, d1, d2, d3
             # Each field is a felt representing 96 bits
             d0 = value["d0"]

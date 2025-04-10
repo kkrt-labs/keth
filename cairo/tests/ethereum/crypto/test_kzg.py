@@ -7,6 +7,7 @@ from ethereum.crypto.kzg import (
     KZGCommitment,
     bytes_to_bls_field,
     bytes_to_kzg_commitment,
+    bytes_to_kzg_proof,
     kzg_commitment_to_versioned_hash,
     validate_kzg_g1,
 )
@@ -154,6 +155,19 @@ def test_bytes_to_kzg_commitment(cairo_run, b: Bytes48):
 
     try:
         expected = bytes_to_kzg_commitment(b)
+        assert not error
+        assert cairo_result == expected
+    except AssertionError:
+        assert error
+
+
+@given(b=...)
+@example(Bytes48(b"\xc0" + b"\x00" * 47))
+def test_bytes_to_kzg_proof(cairo_run, b: Bytes48):
+    (cairo_result, error) = cairo_run("bytes_to_kzg_proof", b)
+
+    try:
+        expected = bytes_to_kzg_proof(b)
         assert not error
         assert cairo_result == expected
     except AssertionError:

@@ -107,7 +107,7 @@ from ethereum.cancun.vm.gas import ExtendMemory, MessageCallGas
 from ethereum.cancun.vm.interpreter import MessageCallOutput as MessageCallOutputBase
 from ethereum.crypto.alt_bn128 import BNF, BNF2, BNF12, BNP, BNP2, BNP12
 from ethereum.crypto.hash import Hash32
-from ethereum.crypto.kzg import BLSFieldElement, KZGCommitment
+from ethereum.crypto.kzg import BLSFieldElement, KZGCommitment, KZGProof
 from ethereum.exceptions import EthereumException
 from ethereum_rlp import rlp
 from ethereum_rlp.rlp import Extended, Simple
@@ -942,6 +942,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "crypto", "bls12_381", "G1Compressed"): G1Compressed,
     ("ethereum", "crypto", "bls12_381", "G1Uncompressed"): G1Uncompressed,
     ("ethereum", "crypto", "kzg", "BLSPubkey"): BLSPubkey,
+    ("ethereum", "crypto", "kzg", "KZGProof"): KZGProof,
 }
 
 # In the EELS, some functions are annotated with Sequence while it's actually just Bytes.
@@ -1274,7 +1275,7 @@ def _gen_arg(
         segments.load_data(base, felt_values)
         return base
 
-    if arg_type in (U384, G1Compressed, Bytes48, KZGCommitment, BLSPubkey):
+    if arg_type in (U384, G1Compressed, Bytes48, KZGCommitment, BLSPubkey, KZGProof):
         if isinstance_with_generic(arg, U384):
             arg = arg.to_le_bytes()
         elif isinstance_with_generic(arg, G1Compressed):

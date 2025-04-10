@@ -54,6 +54,7 @@ from cairo_ec.circuits.mod_ops_compiled import add, sub, mul
 
 using BLSScalar = U256;
 using KZGCommitment = Bytes48;
+using KZGProof = Bytes48;
 using BLSPubkey = Bytes48;
 const VERSIONED_HASH_VERSION_KZG = 0x01;
 
@@ -347,4 +348,18 @@ func bytes_to_kzg_commitment{
         return (KZGCommitment(b.value), bool(0));
     }
     return (KZGCommitment(b.value), bool(1));
+}
+
+func bytes_to_kzg_proof{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
+}(b: Bytes48) -> (KZGProof, bool) {
+    let is_valid = validate_kzg_g1(b);
+    if (is_valid.value != 0) {
+        return (KZGProof(b.value), bool(0));
+    }
+    return (KZGProof(b.value), bool(1));
 }
