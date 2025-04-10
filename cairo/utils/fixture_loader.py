@@ -1,4 +1,5 @@
-from typing import Any, Dict, List, Optional
+from collections import defaultdict
+from typing import Any, Dict
 
 from ethereum.cancun.trie import root
 from ethereum.crypto.hash import keccak256
@@ -20,25 +21,18 @@ class LoadKethFixture(Load):
     A superclass of the `Load` class that loads EELS-format fixtures for Keth
     """
 
-    def json_to_state(
-        self, raw_state: Dict[str, Any], post_state_keys: Optional[List[str]] = []
-    ) -> Any:
+    def json_to_state(self, raw: Dict[str, Any]) -> Any:
         """
         Converts json state data to a state object.
 
         Args:
-            raw_state: Dictionary containing the raw state data for accounts, where keys are
-                      hex-encoded addresses and values are account state dictionaries
-            post_state_keys: Optional list of addresses that are part of the state after executing the STF against the Raw state. Used to ensure all
-                       accounts that will be touched during transaction execution are present
-                       in the initial state. Defaults to empty list.
-
+            raw: Dictionary containing the raw state data for accounts, where keys are
+                hex-encoded addresses and values are account state dictionaries
         Note:
             - This function loads and computes both code hashes and storage roots from the input json
-            - We use both raw_state and post_state_keys to ensure all accounts touched in the transaction
-              are present in the initial state, even if they start as empty accounts. In our Cairo
-              execution flow, for soundness purposes, all accounts must be present in the initial
-              state dict, even if empty.
+            - Not all accounts touched during a transaction are present in the input json. As such, we made the State tries `defaultdict`, so that the
+                execution would not fail in case of missing accounts. However, in the e2e proving flow, these tries are not defaultdict - and when we finalize them,
+                we don't check that it's consistent with the default value.
             - For EELS inputs (unlike ZKPI inputs):
                 * If storage_root is not provided, it's computed from the account's storage (as this is not a partial storage)
                 * If code_hash is not provided, it's computed from the account's code
@@ -47,13 +41,13 @@ class LoadKethFixture(Load):
             State: A State object initialized with all accounts required in the pre-state.
         """
         state = self.fork.State()
+        # Explicitly set the main trie as a defaultdict
+        state._main_trie._data = defaultdict(lambda: None, {})
+
         set_storage = self.fork.set_storage
 
-        all_accounts_touched = set(raw_state.keys()) | set(post_state_keys)
-
-        for address_hex in all_accounts_touched:
+        for address_hex, account_state in raw.items():
             address = self.fork.hex_to_address(address_hex)
-            account_state = raw_state.get(address_hex, {})
 
             # Create an entry for an EMPTY_ACCOUNT to ensure that the account exists in state.
             self.fork.set_account(state, address, EMPTY_ACCOUNT)
@@ -65,6 +59,12 @@ class LoadKethFixture(Load):
                     address,
                     hex_to_bytes32(k),
                     U256.from_be_bytes(hex_to_bytes32(v)),
+                )
+
+            # Explicitly set the storage trie as a defaultdict
+            if address in state._storage_tries:
+                state._storage_tries[address]._data = defaultdict(
+                    lambda: U256(0), state._storage_tries[address]._data
                 )
 
             # If the storage root is not provided, compute it from the account's storage.

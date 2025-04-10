@@ -5,7 +5,7 @@ from functools import partial
 from pathlib import Path
 from typing import Any, Callable, Dict, Mapping
 
-from ethereum.cancun.fork_types import Account, Address
+from ethereum.cancun.fork_types import EMPTY_ACCOUNT, Account, Address
 from ethereum.cancun.state import State, set_account, set_storage
 from ethereum.cancun.trie import (
     BranchNode,
@@ -347,7 +347,6 @@ class EthereumTrieTransitionDB(EthereumTries):
         return instance
 
 
-@dataclass
 class PreState:
     @staticmethod
     def from_data(data: Dict[str, Any]) -> State:
@@ -361,8 +360,9 @@ class PreState:
             storage_trie = Trie(secured=True, default=U256(0), _data={})
             pre_state._storage_tries[address] = storage_trie
             if account is None:
-                # If the account is not present in the preState data, we set it to EMPTY_ACCOUNT
-                set_account(pre_state, address, None)
+                # If the account is not present in the preState data, we want it explicitly set EMPTY_ACCOUNT
+                # so it's an existing entry in the state.
+                set_account(pre_state, address, EMPTY_ACCOUNT)
                 continue
 
             # Initialize the account

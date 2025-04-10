@@ -2,17 +2,14 @@ import json
 import os.path
 import re
 import traceback
-from collections import defaultdict
 from glob import glob
 from typing import Any, Dict, Generator, Tuple, Union
 
 import pytest
 from _pytest.mark.structures import ParameterSet
 from ethereum.cancun.fork import state_transition
-from ethereum.cancun.fork_types import EMPTY_ACCOUNT, Account
 from ethereum.cancun.state import State
-from ethereum.cancun.trie import root as compute_root
-from ethereum.cancun.trie import trie_get, trie_set
+from ethereum.cancun.trie import trie_get
 from ethereum.crypto.hash import keccak256
 from ethereum.exceptions import EthereumException
 from ethereum.utils.hexadecimal import hex_to_bytes
@@ -30,39 +27,17 @@ def prepare_state_and_code_hashes(
     state: State,
 ) -> Tuple[State, Dict[Tuple[int, int], Bytes]]:
     code_hashes = {}
-    for address in state._storage_tries:
-        # Map codehash to code
+
+    for address in state._main_trie._data:
         account = trie_get(state._main_trie, address)
+        if not account:
+            raise ValueError("Account is None")
         account_code_hash = account.code_hash if account else EMPTY_BYTES_HASH
         account_code = account.code if account else b""
         code_hash_int = int.from_bytes(account_code_hash, "little")
         code_hash_low = code_hash_int & 2**128 - 1
         code_hash_high = code_hash_int >> 128
         code_hashes[(code_hash_low, code_hash_high)] = account_code
-
-        # Compute the storage root of the account
-        storage_root = compute_root(state._storage_tries[address])
-
-        # An account might be missing in the pre-state if it's created in the transaction, or is empty.
-        updated_account = (
-            EMPTY_ACCOUNT
-            if not account
-            else Account(
-                balance=account.balance,
-                nonce=account.nonce,
-                code=account.code,
-                storage_root=storage_root,
-                code_hash=account.code_hash,
-            )
-        )
-
-        trie_set(state._main_trie, address, updated_account)
-
-    for snap in state._snapshots:
-        for address in snap._storage_tries:
-            snap._storage_tries[address]._data = defaultdict(
-                lambda: snap._storage_tries[address]._data
-            )
 
     return state, code_hashes
 
@@ -106,7 +81,7 @@ def run_blockchain_st_test(
 
     chain = load.fork.BlockChain(
         blocks=[genesis_block],
-        state=load.json_to_state(json_data["pre"], json_data["postState"].keys()),
+        state=load.json_to_state(json_data["pre"]),
         chain_id=U64(json_data["genesisBlockHeader"].get("chainId", 1)),
     )
 
