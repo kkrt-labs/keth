@@ -322,10 +322,10 @@ pub fn jumpdest_check_push_last_32_bytes() -> Hint {
 
             // Build a vector of bytes from the range [bytecode_data_addr + valid_jumpdest_key - i -
             // 1] for i belonging to [0, max_len - 1]
-            let bytecode_start_addr = (bytecode_data_addr + valid_jumpdest_key)?;
+            let bytecode_start_addr = ((bytecode_data_addr + valid_jumpdest_key)? - 1)?;
             let last_32_bytes = (0..max_len)
                 .map(|i| {
-                    let value_addr = ((bytecode_start_addr - i).unwrap() - 1).unwrap();
+                    let value_addr = (bytecode_start_addr - i).unwrap();
                     vm.get_integer(value_addr).unwrap().into_owned().try_into().unwrap()
                 })
                 .collect::<Vec<u8>>();
