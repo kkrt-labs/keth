@@ -1,9 +1,13 @@
+codecov:
+  notify:
+    wait_for_ci: true
+
 coverage:
   status:
     project: #add everything under here, more options at https://docs.codecov.com/docs/commit-status
       default:
         target: auto
-        threshold: 0%
+        threshold: 2%
       ethereum:
         paths:
           - cairo/ethereum
@@ -25,3 +29,7 @@ coverage:
       mpt:
         paths:
           - python/mpt
+    patch:
+      default:
+        target: 90%
+        threshold: 0%
