@@ -59,6 +59,7 @@ const VERSIONED_HASH_VERSION_KZG = 0x01;
 
 const GET_FLAGS_MASK = 2 ** 95 + 2 ** 94 + 2 ** 93;
 const POW_2_381_D3 = 0x200000000000000000000000;
+const G1_POINT_AT_INFINITY_FIRST_BYTE = 0xc0;
 
 func kzg_commitment_to_versioned_hash{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     kzg_commitment: KZGCommitment
@@ -312,4 +313,24 @@ func key_validate{
 
     let result = bool(0);
     return result;
+}
+
+func validate_kzg_g1{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
+}(b: Bytes48) -> bool {
+    alloc_locals;
+
+    tempvar infinity_point = U384(new UInt384(G1_POINT_AT_INFINITY_FIRST_BYTE, 0, 0, 0));
+    let is_infinity = U384__eq__(U384(b.value), infinity_point);
+    if (is_infinity.value != 0) {
+        let res = bool(1);
+        return res;
+    }
+
+    let is_valid = key_validate(b);
+    return is_valid;
 }
