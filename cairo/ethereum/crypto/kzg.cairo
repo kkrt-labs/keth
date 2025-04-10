@@ -334,3 +334,17 @@ func validate_kzg_g1{
     let is_valid = key_validate(b);
     return is_valid;
 }
+
+func bytes_to_kzg_commitment{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
+}(b: Bytes48) -> (KZGCommitment, bool) {
+    let is_valid = validate_kzg_g1(b);
+    if (is_valid.value != 0) {
+        return (KZGCommitment(b.value), bool(0));
+    }
+    return (KZGCommitment(b.value), bool(1));
+}
