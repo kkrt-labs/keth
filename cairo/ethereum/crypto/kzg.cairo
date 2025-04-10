@@ -151,7 +151,8 @@ func verify_kzg_proof_impl{
     tempvar y_u384 = U384(new y_uint384);
     let neg_y = sub(n, y_u384, n);
     let neg_y_g1 = blsp_mul_by(g1, neg_y);
-    let pubkey_from_commitment = pubkey_to_g1(commitment);
+    let (pubkey_from_commitment, error) = pubkey_to_g1(commitment);
+    assert error.value = 0;
     let p_minus_y = blsp_add(pubkey_from_commitment, neg_y_g1);
 
     // Compute -g2
@@ -159,7 +160,8 @@ func verify_kzg_proof_impl{
     let neg_y_g2 = blsf2_sub(blsf2_zero, g2.value.y);
     tempvar neg_g2 = BLSP2(new BLSP2Struct(g2.value.x, neg_y_g2));
     // Compute pubkey_from_proof
-    let pubkey_from_proof = pubkey_to_g1(proof);
+    let (pubkey_from_proof, error) = pubkey_to_g1(proof);
+    assert error.value = 0;
 
     // Pairing check
     let pairing_ptr: G1G2Pair* = alloc();
