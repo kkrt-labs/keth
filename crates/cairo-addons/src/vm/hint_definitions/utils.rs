@@ -312,20 +312,23 @@ pub fn jumpdest_check_push_last_32_bytes() -> Hint {
          ap_tracking: &ApTracking,
          _constants: &HashMap<String, Felt252>|
          -> Result<(), HintError> {
-            let bytecode = serialize_sequence("bytecode", vm, ids_data, ap_tracking)?
-                .into_iter()
-                .map(|b| b.try_into().unwrap())
-                .collect::<Vec<u8>>();
             let valid_jumpdest_addr =
                 get_ptr_from_var_name("valid_jumpdest", vm, ids_data, ap_tracking)?;
             let valid_jumpdest_key: usize =
                 vm.get_integer(valid_jumpdest_addr)?.into_owned().try_into().unwrap();
             let max_len = std::cmp::min(valid_jumpdest_key, 32);
+            let bytecode_addr = get_ptr_from_var_name("bytecode", vm, ids_data, ap_tracking)?;
+            let bytecode_data_addr = vm.get_relocatable(bytecode_addr)?;
 
-            // Get the previous 32 bytes (or less) before the potential jumpdest
-            let mut last_32_bytes =
-                bytecode.as_slice()[valid_jumpdest_key - max_len..valid_jumpdest_key].to_vec();
-            last_32_bytes.reverse();
+            // Build a vector of bytes from the range [bytecode_data_addr + valid_jumpdest_key - i -
+            // 1] for i belonging to [0, max_len - 1]
+            let bytecode_start_addr = ((bytecode_data_addr + valid_jumpdest_key)? - 1)?;
+            let last_32_bytes = (0..max_len)
+                .map(|i| {
+                    let value_addr = (bytecode_start_addr - i).unwrap();
+                    vm.get_integer(value_addr).unwrap().into_owned().try_into().unwrap()
+                })
+                .collect::<Vec<u8>>();
 
             // Check if any PUSH may prevent this to be a JUMPDEST
             let is_no_push_case = !last_32_bytes.iter().enumerate().any(|(i, &byte)| {
