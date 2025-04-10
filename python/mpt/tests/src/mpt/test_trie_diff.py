@@ -1,5 +1,4 @@
 import re
-from collections import defaultdict
 from pathlib import Path
 from typing import Dict, Mapping, Optional, Tuple, Union
 
@@ -70,13 +69,10 @@ def ethereum_trie_transition_db(data_path):
 
 @pytest.fixture(scope="session")
 def node_store(zkpi):
-    nodes = defaultdict(
-        lambda: None,
-        {
-            keccak256(Bytes.fromhex(node[2:])): decode_node(Bytes.fromhex(node[2:]))
-            for node in zkpi["witness"]["state"]
-        },
-    )
+    nodes = {
+        keccak256(Bytes.fromhex(node[2:])): Bytes.fromhex(node[2:])
+        for node in zkpi["witness"]["state"]
+    }
     return nodes
 
 
@@ -149,9 +145,7 @@ class TestTrieDiff:
     @given(data=st.data())
     def test_node_store_get(self, cairo_run, node_store, data):
         # take 20 keys from the node_store
-        small_store = defaultdict(
-            lambda: None, {k: v for k, v in list(node_store.items())[:6]}
-        )
+        small_store = {k: v for k, v in list(node_store.items())[:6]}
         existing_keys = list(small_store.keys())
         # take sample_size keys from small_store
         sample_size = data.draw(
@@ -169,8 +163,14 @@ class TestTrieDiff:
         keys.append(keccak256("non_existing".encode()))
 
         for key in keys:
-            _, result = cairo_run("node_store_get", small_store, key)
-            assert result == small_store.get(key)
+            try:
+                _, result = cairo_run("node_store_get", small_store, key)
+            except Exception as cairo_error:
+                assert "Dict Error: No value found for key" in str(cairo_error)
+                with pytest.raises(KeyError):
+                    decode_node(small_store[key])
+                continue
+            assert result == decode_node(small_store[key])
 
     @given(address=..., account_before=..., account_after=...)
     def test__process_account_diff(
@@ -200,9 +200,7 @@ class TestTrieDiff:
             right=leaf_after,
         )
 
-        node_store = defaultdict(
-            lambda: None,
-        )
+        node_store = {}
 
         result_diffs = cairo_run(
             "test__process_account_diff",
@@ -255,9 +253,7 @@ class TestTrieDiff:
             right=leaf_after,
         )
 
-        node_store = defaultdict(
-            lambda: None,
-        )
+        node_store = {}
 
         with pytest.raises(
             Exception,
@@ -380,11 +376,9 @@ class TestTrieDiff:
         "data_path", [Path("test_data/22081873.json")], scope="session"
     )
     @given(data=st.data())
-    def test_resolve(self, cairo_run, node_store: Mapping[Hash32, InternalNode], data):
+    def test_resolve(self, cairo_run, node_store: Mapping[Hash32, Bytes], data):
         # take 20 keys from the node_store
-        small_store = defaultdict(
-            lambda: None, {k: v for k, v in list(node_store.items())[:3]}
-        )
+        small_store = {k: v for k, v in list(node_store.items())[:3]}
         existing_keys = list(small_store.keys())
         # take sample_size keys from small_store
         sample_size = data.draw(
@@ -402,7 +396,14 @@ class TestTrieDiff:
         keys.append(keccak256("non_existing".encode()))
 
         for key in keys:
-            _, cairo_result = cairo_run("resolve", small_store, node=bytes(key))
+            try:
+                _, cairo_result = cairo_run("resolve", small_store, node=bytes(key))
+            except Exception as cairo_error:
+                assert "Dict Error: No value found for key" in str(cairo_error)
+                # We can't use strict_raises here because the error is a RuntimeError in Cairo
+                with pytest.raises(KeyError):
+                    resolve(key, small_store)
+                continue
             result = resolve(key, small_store)
             assert result == cairo_result
 
@@ -413,9 +414,7 @@ class TestTrieDiff:
     @given(embedded_node_dict=embedded_node_strategy())
     def test_resolve_embedded_node(self, cairo_run, embedded_node_dict):
         # We don't need a node store for this test
-        node_store = defaultdict(
-            lambda: None,
-        )
+        node_store = {}
         parent_node = embedded_node_dict["extension"]
         expected_branch_node = embedded_node_dict["branch"]
         expected_leaf_node = embedded_node_dict["leaf"]

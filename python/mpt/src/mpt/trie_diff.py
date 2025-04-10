@@ -13,10 +13,11 @@ from ethereum_rlp.rlp import Extended
 from ethereum_types.bytes import Bytes, Bytes32
 from ethereum_types.numeric import U256, Uint
 
-from mpt.ethereum_tries import EthereumTrieTransitionDB
+from mpt.ethereum_tries import EMPTY_TRIE_HASH, EthereumTrieTransitionDB
 from mpt.utils import (
     check_branch_node,
     check_leaf_node,
+    decode_node,
     deserialize_to_internal_node,
     nibble_list_to_bytes,
 )
@@ -119,8 +120,8 @@ class StateDiff:
 
     def _compute_diff(
         self,
-        left: Optional[Hash32 | Bytes],
-        right: Optional[Hash32 | Bytes],
+        left: Optional[Union[InternalNode, Extended]],
+        right: Optional[Union[InternalNode, Extended]],
         path: Bytes,
         process_leaf_diff: Callable,
     ):
@@ -446,10 +447,17 @@ class StateDiff:
 
         self._main_trie[address] = (left_account, right_account)
 
-        left_storage_root = None if left_account is None else left_account.storage_root
-        right_storage_root = (
-            None if right_account is None else right_account.storage_root
+        left_storage_root = (
+            EMPTY_TRIE_HASH if left_account is None else left_account.storage_root
         )
+        right_storage_root = (
+            EMPTY_TRIE_HASH if right_account is None else right_account.storage_root
+        )
+        if (
+            left_storage_root == EMPTY_TRIE_HASH
+            and right_storage_root == EMPTY_TRIE_HASH
+        ):
+            return
 
         self._compute_diff(
             left_storage_root,
@@ -487,14 +495,16 @@ class StateDiff:
 
 
 def resolve(
-    node: Optional[Union[InternalNode, Extended]], nodes: Dict[Hash32, InternalNode]
+    node: Optional[Union[InternalNode, Extended]], nodes: Dict[Hash32, Bytes]
 ) -> InternalNode | None:
     if node is None or node == b"":
         return None
     if isinstance(node, InternalNode):
         return node
     if isinstance(node, bytes) and len(node) == 32:
-        return nodes.get(node)
+        if node not in nodes:
+            raise KeyError(f"Node not found: {node}")
+        return decode_node(nodes[node])
     if isinstance(node, list):
         return deserialize_to_internal_node(node)
     raise ValueError(f"Invalid node type: {type(node)}")

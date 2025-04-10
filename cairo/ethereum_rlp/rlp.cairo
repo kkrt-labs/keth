@@ -222,6 +222,50 @@ namespace ExtendedImpl {
         );
         return extended;
     }
+
+    // @notice Converts a Simple to an Extended. This is needed because `decode` returns a Simple but `trie.cairo` types are Extended.
+    // @dev in Python, this conversion is trivial since Simple is included in Extended.
+    //      in Cairo, we need to check the type of the Simple and convert it to the correct Extended variant.
+    func from_simple(simple: Simple) -> Extended {
+        alloc_locals;
+
+        if (cast(simple.value, felt) == 0) {
+            let res = Extended(cast(0, ExtendedEnum*));
+            return res;
+        }
+
+        if (simple.value.bytes.value != 0) {
+            let res = ExtendedImpl.bytes(simple.value.bytes);
+            return res;
+        }
+
+        if (simple.value.sequence.value.len == 0) {
+            tempvar sequence_extended = SequenceExtended(
+                new SequenceExtendedStruct(cast(simple.value.sequence.value.data, Extended*), 0)
+            );
+            let res = ExtendedImpl.sequence(sequence_extended);
+            return res;
+        }
+
+        let (buffer: Extended*) = alloc();
+        _from_simple_inner(buffer, simple.value.sequence, 0);
+        tempvar sequence_extended = SequenceExtended(
+            new SequenceExtendedStruct(buffer, simple.value.sequence.value.len)
+        );
+        let res = ExtendedImpl.sequence(sequence_extended);
+        return res;
+    }
+
+    func _from_simple_inner(dst: Extended*, src: SequenceSimple, index: felt) {
+        if (index == src.value.len) {
+            return ();
+        }
+
+        let current = src.value.data[index];
+        let current_extended = ExtendedImpl.from_simple(current);
+        assert dst[index] = current_extended;
+        return _from_simple_inner(dst, src, index + 1);
+    }
 }
 
 // Partial equality check for Extended, only for bytes and sequence variants

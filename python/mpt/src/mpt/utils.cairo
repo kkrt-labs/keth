@@ -13,7 +13,7 @@ from ethereum.cancun.trie import (
     SubnodesStruct,
     bytes_to_nibble_list,
 )
-from ethereum_rlp.rlp import Extended, ExtendedImpl, ExtendedEnum
+from ethereum_rlp.rlp import Extended, ExtendedImpl, ExtendedEnum, decode, Simple
 from ethereum_types.bytes import Bytes, BytesStruct
 from ethereum_types.numeric import bool
 from ethereum.utils.bytes import Bytes__eq__
@@ -33,6 +33,15 @@ from mpt.types import (
     Account,
     StorageDiffStruct,
 )
+
+func decode_to_internal_node{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
+    node: Bytes
+) -> InternalNode {
+    alloc_locals;
+    let decoded = decode(node);
+    let extended = ExtendedImpl.from_simple(decoded);
+    return deserialize_to_internal_node(extended);
+}
 
 func deserialize_to_internal_node{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     decoded: Extended

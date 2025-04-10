@@ -78,6 +78,7 @@ from mpt.utils import (
     check_branch_node,
     check_leaf_node,
     check_extension_node,
+    decode_to_internal_node,
 )
 from mpt.types import (
     NodeStore,
@@ -1763,9 +1764,13 @@ func _compute_left_extension_node_diff_on_right_branch_node{
 // @implicit node_store The NodeStore containing the hash-to-node mapping.
 // @param node_hash The Hash32 of the node to retrieve.
 // @return The retrieved OptionalInternalNode (pointer to the node's enum or 0 if not found/empty hash).
-func node_store_get{poseidon_ptr: PoseidonBuiltin*, node_store: NodeStore}(
-    node_hash: Hash32
-) -> OptionalInternalNode {
+func node_store_get{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    node_store: NodeStore,
+}(node_hash: Hash32) -> OptionalInternalNode {
     alloc_locals;
 
     // The empty trie hash has no corresponding node in the node store.
@@ -1792,9 +1797,18 @@ func node_store_get{poseidon_ptr: PoseidonBuiltin*, node_store: NodeStore}(
     tempvar node_store = NodeStore(
         new NodeStoreStruct(node_store.value.dict_ptr_start, new_dict_ptr)
     );
-    // Cast the result to an OptionalInternalNode and return
-    tempvar res = OptionalInternalNode(cast(pointer, InternalNodeEnum*));
-    return res;
+
+    // Cast the result to a Bytes, hash it to check invariant and RLP-decode it.
+    tempvar encoded_node = Bytes(cast(pointer, BytesStruct*));
+    let hash = keccak256(encoded_node);
+    // Invariant
+    with_attr error_message("INVARIANT: NodeStore preimage hash mismatch") {
+        assert hash.value.low = node_hash.value.low;
+        assert hash.value.high = node_hash.value.high;
+    }
+    let decoded_node = decode_to_internal_node(encoded_node);
+    let result = OptionalInternalNode(decoded_node.value);
+    return result;
 }
 
 // @notice Resolves an OptionalUnionInternalNodeExtended to an OptionalInternalNode.
@@ -1809,6 +1823,7 @@ func node_store_get{poseidon_ptr: PoseidonBuiltin*, node_store: NodeStore}(
 func resolve{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
     node_store: NodeStore,
 }(node: OptionalUnionInternalNodeExtended) -> OptionalInternalNode {
@@ -1849,7 +1864,7 @@ func resolve{
         // Get the node hash from the node store
         let node_hash = Bytes_to_Bytes32(bytes);
 
-        let result = node_store_get{poseidon_ptr=poseidon_ptr, node_store=node_store}(node_hash);
+        let result = node_store_get(node_hash);
 
         return result;
     }
