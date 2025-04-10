@@ -165,7 +165,8 @@ class TestTrieDiff:
         for key in keys:
             try:
                 _, result = cairo_run("node_store_get", small_store, key)
-            except Exception:
+            except Exception as cairo_error:
+                assert "Dict Error: No value found for key" in str(cairo_error)
                 with pytest.raises(KeyError):
                     decode_node(small_store[key])
                 continue
