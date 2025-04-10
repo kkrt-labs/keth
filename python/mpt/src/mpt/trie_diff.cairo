@@ -1800,10 +1800,6 @@ func node_store_get{
 
     // Cast the result to a Bytes, hash it to check invariant and RLP-decode it.
     tempvar encoded_node = Bytes(cast(pointer, BytesStruct*));
-    if (encoded_node.value.len == 0) {
-        let res = OptionalInternalNode(cast(0, InternalNodeEnum*));
-        return res;
-    }
     let hash = keccak256(encoded_node);
     // Invariant
     with_attr error_message("INVARIANT: NodeStore preimage hash mismatch") {

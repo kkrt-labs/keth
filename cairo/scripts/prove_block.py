@@ -19,6 +19,7 @@ from ethereum.cancun.transactions import (
 from ethereum_spec_tools.evm_tools.loaders.fork_loader import ForkLoad
 from ethereum_spec_tools.evm_tools.loaders.transaction_loader import TransactionLoad
 from ethereum_types.numeric import FixedUnsigned, Uint
+from utils.fixture_loader import LoadKethFixture
 
 import mpt
 from mpt.ethereum_tries import EthereumTries
@@ -33,7 +34,6 @@ from tests.utils.args_gen import (
     encode_account,
     set_code,
 )
-from utils.fixture_loader import LoadKethFixture
 
 # Patch EELS with our own types for argument generation
 ethereum.cancun.vm.Evm = Evm

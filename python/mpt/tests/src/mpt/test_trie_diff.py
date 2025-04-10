@@ -397,7 +397,8 @@ class TestTrieDiff:
         for key in keys:
             try:
                 _, cairo_result = cairo_run("resolve", small_store, node=bytes(key))
-            except Exception:
+            except Exception as cairo_error:
+                assert "Dict Error: No value found for key" in str(cairo_error)
                 # We can't use strict_raises here because the error is a RuntimeError in Cairo
                 with pytest.raises(KeyError):
                     resolve(key, small_store)

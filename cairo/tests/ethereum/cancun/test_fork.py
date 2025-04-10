@@ -51,6 +51,7 @@ from hypothesis import assume, given, settings
 from hypothesis import strategies as st
 from hypothesis.strategies import composite, integers
 from scripts.prove_block import load_pre_state, process_block_transactions
+from utils.fixture_loader import LoadKethFixture
 
 from cairo_addons.testing.errors import strict_raises
 from mpt.ethereum_tries import EMPTY_BYTES_HASH, EMPTY_TRIE_HASH
@@ -80,7 +81,6 @@ from tests.utils.strategies import (
     small_bytes,
     uint,
 )
-from utils.fixture_loader import LoadKethFixture
 
 MIN_BASE_FEE = 1_000
 
