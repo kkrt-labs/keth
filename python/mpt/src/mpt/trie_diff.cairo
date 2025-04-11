@@ -575,6 +575,8 @@ func compute_diff_entrypoint{
 // @implicit storage_tries_end Passed down to record storage diffs.
 // @param left The node (or reference) from the previous state's trie.
 // @param right The node (or reference) from the current state's trie.
+// @param parent_left The parent of the left node.
+// @param parent_right The parent of the right node.
 // @param path The path (sequence of nibbles) traversed so far in the trie.
 // @param account_address The account address if processing a storage trie, otherwise 0.
 // @return Recursively updates diff lists via helper functions.
@@ -660,6 +662,8 @@ func _compute_diff{
 // @implicit storage_tries_end Passed down.
 // @param left The null node from the previous state (represented as OptionalUnionInternalNodeExtended).
 // @param right The resolved node from the current state (OptionalInternalNode).
+// @param parent_left The parent of the left node.
+// @param parent_right The parent of the right node.
 // @param path The path traversed so far.
 // @param account_address The current account address (0 for state trie).
 // @return Updates diff lists based on the type of the right node.
@@ -760,6 +764,8 @@ func _left_is_null{
 // @implicit storage_tries_end Passed down.
 // @param l_leaf The LeafNode from the previous state.
 // @param right The resolved node from the current state (OptionalInternalNode).
+// @param parent_left The parent of the left node.
+// @param parent_right The parent of the right node.
 // @param path The path traversed so far.
 // @param account_address The current account address (0 for state trie).
 // @return Updates diff lists based on the comparison results.
@@ -999,6 +1005,8 @@ func _left_is_leaf_node{
 // @implicit storage_tries_end Passed down.
 // @param left The ExtensionNode from the previous state.
 // @param right The resolved node from the current state (OptionalInternalNode).
+// @param parent_left The parent of the left node.
+// @param parent_right The parent of the right node.
 // @param path The path traversed so far.
 // @param account_address The current account address (0 for state trie).
 // @return Updates diff lists based on the comparison results.
@@ -1288,6 +1296,8 @@ func _left_is_extension_node{
 // @implicit storage_tries_end Passed down.
 // @param left The BranchNode from the previous state.
 // @param right The resolved node from the current state (OptionalInternalNode).
+// @param parent_left The parent of the left node.
+// @param parent_right The parent of the right node.
 // @param path The path traversed so far.
 // @param account_address The current account address (0 for state trie).
 // @return Updates diff lists via helper functions.
@@ -1862,6 +1872,8 @@ func _compute_left_leaf_diff_on_right_branch_node{
 // @implicit storage_tries_end Passed down.
 // @param left The Optional Extension Node from the previous state.
 // @param subnodes The subnodes structure of the right BranchNode.
+// @param parent_left The parent of the left node.
+// @param parent_right The parent of the right node.
 // @param path The path traversed so far.
 // @param account_address The current account address.
 // @param index The current branch index being processed (0-15).
