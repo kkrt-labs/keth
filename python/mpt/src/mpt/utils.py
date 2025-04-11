@@ -1,4 +1,5 @@
 import logging
+from typing import Optional
 
 from ethereum.cancun.trie import (
     BranchNode,
@@ -105,14 +106,18 @@ def check_leaf_node(path: Bytes, node: LeafNode) -> None:
         raise ValueError("Invalid leaf node, expected a 32-byte path")
 
 
-def check_extension_node(node: ExtensionNode) -> None:
+def check_extension_node(node: ExtensionNode, parent: Optional[InternalNode]) -> None:
     """
     Check that an extension node is valid
      - Extension nodes must have a non-zero key segment
      - Extension nodes must have a non-zero subnode
+     - Extension nodes must have a parent that is not an extension node
     """
     if len(node.key_segment) == 0:
         raise ValueError("Invalid extension node, expected a non-zero key segment")
 
     if len(node.subnode) == 0:
         raise ValueError("Invalid extension node, expected a non-empty subnode")
+
+    if parent is not None and isinstance(parent, ExtensionNode):
+        raise ValueError("Invalid extension node, expected a non-extension parent")

@@ -2,6 +2,7 @@ from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 
 from ethereum.cancun.trie import (
     InternalNode,
+    OptionalInternalNode,
     LeafNode,
     LeafNodeStruct,
     BranchNode,
@@ -242,8 +243,21 @@ func check_leaf_node(path: Bytes, node: LeafNode) {
     }
 }
 
-func check_extension_node(node: ExtensionNode) {
+// @notice Checks if an extension node is valid.
+// @param node The extension node to check.
+// @param parent_node The parent of the extension node
+// @dev Raises an error if:
+// - The key segment is empty
+// - The subnode is not a valid node
+// - The parent is an extension node
+func check_extension_node(node: ExtensionNode, parent_node: OptionalInternalNode) {
     alloc_locals;
+
+    if (cast(parent_node.value, felt) != 0) {
+        if (cast(parent_node.value.extension_node.value, felt) != 0) {
+            raise('ValueError');
+        }
+    }
 
     let key_segment = node.value.key_segment;
     let subnode = node.value.subnode;
