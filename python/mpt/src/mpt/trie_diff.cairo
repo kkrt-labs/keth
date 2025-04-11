@@ -11,6 +11,7 @@ from ethereum.cancun.fork_types import (
     Address,
     Account,
     AccountStruct,
+    Account__eq__,
     OptionalAccount,
     TupleAddressBytes32U256DictAccess,
     HashedTupleAddressBytes32,
@@ -64,7 +65,14 @@ from starkware.cairo.common.builtin_poseidon.poseidon import poseidon_hash, pose
 from legacy.utils.bytes import felt_to_bytes20_little
 from legacy.utils.dict import hashdict_read, hashdict_write, dict_new_empty, dict_read
 from cairo_core.control_flow import raise
-from ethereum.utils.numeric import ceil32, divmod, U256_from_be_bytes, U256_le, Uint_from_be_bytes
+from ethereum.utils.numeric import (
+    ceil32,
+    divmod,
+    U256_from_be_bytes,
+    U256_le,
+    Uint_from_be_bytes,
+    U256__eq__,
+)
 from ethereum.utils.bytes import (
     Bytes_to_Bytes32,
     Bytes__add__,
@@ -187,6 +195,25 @@ namespace OptionalUnionInternalNodeExtendedImpl {
         memcpy(enum_segment + InternalNodeEnum.SIZE, self_ptr, ExtendedEnum.SIZE);
         let res = OptionalUnionInternalNodeExtended(
             cast(enum_segment, OptionalUnionInternalNodeExtendedEnum*)
+        );
+        return res;
+    }
+
+    func from_bytes(self: Bytes) -> OptionalUnionInternalNodeExtended {
+        alloc_locals;
+        tempvar res = OptionalUnionInternalNodeExtended(
+            new OptionalUnionInternalNodeExtendedEnum(
+                leaf=LeafNode(cast(0, LeafNodeStruct*)),
+                extension=ExtensionNode(cast(0, ExtensionNodeStruct*)),
+                branch=BranchNode(cast(0, BranchNodeStruct*)),
+                sequence=SequenceExtended(cast(0, SequenceExtendedStruct*)),
+                bytearray=Bytes(cast(0, BytesStruct*)),
+                bytes=self,
+                uint=cast(0, Uint*),
+                fixed_uint=cast(0, Uint*),
+                str=String(cast(0, StringStruct*)),
+                bool=cast(0, Bool*),
+            ),
         );
         return res;
     }
@@ -378,19 +405,28 @@ func _process_account_diff{
     let right_storage_root = OptionalUnionInternalNodeExtended(
         cast([ap - 6], OptionalUnionInternalNodeExtendedEnum*)
     );
-    let right_account = Account(cast([ap - 5], AccountStruct*));
+    let right_account_value = cast([ap - 5], AccountStruct*);
     let range_check_ptr = [ap - 4];
     let bitwise_ptr = cast([ap - 3], BitwiseBuiltin*);
     let poseidon_ptr = cast([ap - 2], PoseidonBuiltin*);
     let keccak_ptr = cast([ap - 1], KeccakBuiltin*);
-    tempvar account_diff = AddressAccountDiffEntry(
-        new AddressAccountDiffEntryStruct(
-            key=address, prev_value=left_optional_account, new_value=right_account
-        ),
-    );
 
-    assert [main_trie_end] = account_diff;
-    tempvar main_trie_end = main_trie_end + AddressAccountDiffEntry.SIZE;
+    // This is an account diff only if the ACCOUNT is different - not taking into account its storage.
+    // We don't log any diff in the main_trie_end if only the storage root is different.
+    let is_prev_eq_new = Account__eq__(left_optional_account, OptionalAccount(right_account_value));
+    if (is_prev_eq_new.value != 0) {
+        tempvar main_trie_end = main_trie_end;
+    } else {
+        tempvar account_diff = AddressAccountDiffEntry(
+            new AddressAccountDiffEntryStruct(
+                key=address,
+                prev_value=left_optional_account,
+                new_value=Account(right_account_value),
+            ),
+        );
+        assert [main_trie_end] = account_diff;
+        tempvar main_trie_end = main_trie_end + AddressAccountDiffEntry.SIZE;
+    }
 
     let (new_path_buffer) = alloc();
     tempvar new_path = Bytes(new BytesStruct(new_path_buffer, 0));
@@ -444,13 +480,13 @@ func _process_storage_diff{
     }
 
     if (left.value != 0) {
-        let left_decoded = U256_from_rlp(left.value.value.value.bytes);
+        let left_u256 = U256_from_rlp(left.value.value.value.bytes);
         tempvar range_check_ptr = range_check_ptr;
         tempvar bitwise_ptr = bitwise_ptr;
         tempvar poseidon_ptr = poseidon_ptr;
         tempvar keccak_ptr = keccak_ptr;
     } else {
-        tempvar left = left;
+        tempvar left_u256 = U256(new U256Struct(0, 0));
         tempvar range_check_ptr = range_check_ptr;
         tempvar bitwise_ptr = bitwise_ptr;
         tempvar poseidon_ptr = poseidon_ptr;
@@ -464,13 +500,13 @@ func _process_storage_diff{
     let keccak_ptr = cast([ap - 1], KeccakBuiltin*);
 
     if (right.value != 0) {
-        let right_decoded = U256_from_rlp(right.value.value.value.bytes);
+        let right_u256 = U256_from_rlp(right.value.value.value.bytes);
         tempvar range_check_ptr = range_check_ptr;
         tempvar bitwise_ptr = bitwise_ptr;
         tempvar poseidon_ptr = poseidon_ptr;
         tempvar keccak_ptr = keccak_ptr;
     } else {
-        tempvar right = right;
+        tempvar right_u256 = U256(new U256Struct(0, 0));
         tempvar range_check_ptr = range_check_ptr;
         tempvar bitwise_ptr = bitwise_ptr;
         tempvar poseidon_ptr = poseidon_ptr;
@@ -481,6 +517,11 @@ func _process_storage_diff{
     let bitwise_ptr = cast([ap - 3], BitwiseBuiltin*);
     let poseidon_ptr = cast([ap - 2], PoseidonBuiltin*);
     let keccak_ptr = cast([ap - 1], KeccakBuiltin*);
+
+    let is_prev_eq_new = U256__eq__(left_u256, right_u256);
+    if (is_prev_eq_new.value != 0) {
+        return ();
+    }
 
     let (tuple_address_bytes32_buffer) = alloc();
     assert [tuple_address_bytes32_buffer] = address.value;
@@ -496,6 +537,7 @@ func _process_storage_diff{
 
     assert [storage_tries_end] = storage_diff_entry;
     tempvar storage_tries_end = storage_tries_end + StorageDiffEntry.SIZE;
+
     return ();
 }
 

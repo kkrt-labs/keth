@@ -363,7 +363,7 @@ class PreState:
         pre_state = State()
         for address_hex, account in data["extra"]["preState"].items():
             address = Address.fromhex(address_hex[2:])
-            # Create an empty storage trie for the account
+            # Create an empty, non-defaultdict, storage trie for the account
             storage_trie = Trie(secured=True, default=U256(0), _data={})
             pre_state._storage_tries[address] = storage_trie
             if account is None:

@@ -207,6 +207,10 @@ func EMPTY_ACCOUNT() -> Account {
     return account;
 }
 
+// @notice Compares two OptionalAccount instances.
+// @dev Does not compare the `storage_root` field
+// TODO: investigate whether there are any gains comparing pointers first as a short-circuit.
+// TODO: should we compare the storage root?
 func Account__eq__(a: OptionalAccount, b: OptionalAccount) -> bool {
     if (cast(a.value, felt) == 0) {
         let b_is_none = is_zero(cast(b.value, felt));

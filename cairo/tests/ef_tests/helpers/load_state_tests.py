@@ -23,7 +23,7 @@ from mpt.ethereum_tries import EMPTY_BYTES_HASH
 from utils.fixture_loader import LoadKethFixture
 
 
-def prepare_state_and_code_hashes(
+def map_code_hashes_to_code(
     state: State,
 ) -> Tuple[State, Dict[Tuple[int, int], Bytes]]:
     code_hashes = {}
@@ -94,7 +94,6 @@ def run_blockchain_st_test(
                 block_exception = value
                 break
 
-        chain.state, _ = prepare_state_and_code_hashes(chain.state)
         if block_exception:
             # TODO: Once all the specific exception types are thrown,
             #       only `pytest.raises` the correct exception type instead of
