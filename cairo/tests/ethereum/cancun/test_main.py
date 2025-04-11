@@ -18,7 +18,7 @@ def program_input(zkpi_path):
 class TestMain:
     @pytest.mark.parametrize(
         "zkpi_path",
-        [Path("test_data/22223896.json")],
+        [Path("test_data/22188088.json")],
     )
     @pytest.mark.slow
     def test_main(self, cairo_run, zkpi_path, program_input):
