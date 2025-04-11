@@ -2,6 +2,7 @@ import json
 import os.path
 import re
 import traceback
+from collections import defaultdict
 from glob import glob
 from typing import Any, Dict, Generator, Tuple, Union
 
@@ -9,7 +10,7 @@ import pytest
 from _pytest.mark.structures import ParameterSet
 from ethereum.cancun.fork import state_transition
 from ethereum.cancun.state import State
-from ethereum.cancun.trie import trie_get
+from ethereum.cancun.trie import Trie, trie_get
 from ethereum.crypto.hash import keccak256
 from ethereum.exceptions import EthereumException
 from ethereum.utils.hexadecimal import hex_to_bytes
@@ -17,13 +18,13 @@ from ethereum_rlp import rlp
 from ethereum_rlp.exceptions import RLPException
 from ethereum_spec_tools.evm_tools.loaders.fixture_loader import Load
 from ethereum_types.bytes import Bytes
-from ethereum_types.numeric import U64
+from ethereum_types.numeric import U64, U256
 
 from mpt.ethereum_tries import EMPTY_BYTES_HASH
 from utils.fixture_loader import LoadKethFixture
 
 
-def prepare_state_and_code_hashes(
+def map_code_hashes_to_code(
     state: State,
 ) -> Tuple[State, Dict[Tuple[int, int], Bytes]]:
     code_hashes = {}
@@ -41,7 +42,7 @@ def prepare_state_and_code_hashes(
         code_hash_high = code_hash_int >> 128
         code_hashes[(code_hash_low, code_hash_high)] = account_code
 
-    return state, code_hashes
+    return code_hashes
 
 
 class NoTestsFound(Exception):
@@ -94,7 +95,6 @@ def run_blockchain_st_test(
                 block_exception = value
                 break
 
-        chain.state, _ = prepare_state_and_code_hashes(chain.state)
         if block_exception:
             # TODO: Once all the specific exception types are thrown,
             #       only `pytest.raises` the correct exception type instead of
@@ -132,6 +132,17 @@ def add_block_to_chain(
             # In trace mode, run EELS as well to get a side-by-side comparison
             state_transition(chain, block)
         chain.blocks = cairo_chain.blocks
+        # Serializing the state back to a dict loses the `defaultdict` property - we must inject it back.
+        # because for EF-Tests, we don't know all touched keys beforehand.
+        cairo_chain.state._main_trie._data = defaultdict(
+            lambda: None, cairo_chain.state._main_trie._data
+        )
+        cairo_chain.state._storage_tries = defaultdict(
+            lambda: Trie(
+                secured=True, default=U256(0), _data=defaultdict(lambda: U256(0))
+            ),
+            cairo_chain.state._storage_tries,
+        )
         chain.state = cairo_chain.state
     except Exception as e:
         err_traceback = traceback.format_exc()

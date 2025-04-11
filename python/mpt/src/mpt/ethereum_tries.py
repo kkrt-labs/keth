@@ -363,7 +363,7 @@ class PreState:
         pre_state = State()
         for address_hex, account in data["extra"]["preState"].items():
             address = Address.fromhex(address_hex[2:])
-            # Create an empty storage trie for the account
+            # Create an empty, non-defaultdict, storage trie for the account
             storage_trie = Trie(secured=True, default=U256(0), _data={})
             pre_state._storage_tries[address] = storage_trie
             if account is None:
@@ -378,11 +378,9 @@ class PreState:
             pre_code_hash = Hash32.fromhex(account["codeHash"][2:])
             pre_storage_hash = Hash32.fromhex(account["storageHash"][2:])
             pre_code = Bytes.fromhex(account["code"][2:]) if "code" in account else None
-            # TODO: this is a temporary workaround to EELS doing checking senders of transactions based on code==bytearray() instead of codehash
-            # Remove once the e2e flow does not need to call EELS
-            if pre_code is None:
-                if pre_code_hash == EMPTY_BYTES_HASH:
-                    pre_code = b""
+
+            # Note: If you want to use EELS with the ZKPi-pre-state, you need to explicitly set the code to an empty bytearray if the codehash is none,
+            # because EELS will check code==bytearray() for EOA checks.
 
             # Explicitly instantiate without code, as it's not an interesting data in the
             # case of state / trie diffs

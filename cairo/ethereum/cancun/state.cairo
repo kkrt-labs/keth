@@ -236,11 +236,7 @@ func get_account_code{
     let (code_) = alloc();
     tempvar code = code_;
     tempvar code_len: felt;
-    %{
-        account_code = program_input["codehash_to_code"][(ids.account.value.code_hash.value.low, ids.account.value.code_hash.value.high)];
-        segments.load_data(ids.code, account_code);
-        ids.code_len = len(account_code);
-    %}
+    %{ get_code_from_hash %}
     tempvar account_code = Bytes(new BytesStruct(data=code, len=code_len));
 
     // Soundness checks: ensure that hash(account_code) == account.value.code_hash
