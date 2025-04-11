@@ -208,10 +208,29 @@ func EMPTY_ACCOUNT() -> Account {
 }
 
 // @notice Compares two OptionalAccount instances.
-// @dev Does not compare the `storage_root` field
-// TODO: investigate whether there are any gains comparing pointers first as a short-circuit.
-// TODO: should we compare the storage root?
 func Account__eq__(a: OptionalAccount, b: OptionalAccount) -> bool {
+    let other_fields_eq = account_eq_without_storage_root(a, b);
+    if (other_fields_eq.value == 0) {
+        return other_fields_eq;
+    }
+
+    if (a.value.storage_root.value.low != b.value.storage_root.value.low) {
+        tempvar res = bool(0);
+        return res;
+    }
+    if (a.value.storage_root.value.high != b.value.storage_root.value.high) {
+        tempvar res = bool(0);
+        return res;
+    }
+
+    let res = bool(1);
+    return res;
+}
+
+// @notice Compares two OptionalAccount instances, ignoring their storage_root fields
+// @dev When comparing account diffs, we ignore storage_root since storage changes are tracked separately via storage diffs.
+//      This allows us to detect account changes independently from storage changes.
+func account_eq_without_storage_root(a: OptionalAccount, b: OptionalAccount) -> bool {
     if (cast(a.value, felt) == 0) {
         let b_is_none = is_zero(cast(b.value, felt));
         let res = bool(b_is_none);
@@ -242,7 +261,6 @@ func Account__eq__(a: OptionalAccount, b: OptionalAccount) -> bool {
         tempvar res = bool(0);
         return res;
     }
-
     let res = bool(1);
     return res;
 }

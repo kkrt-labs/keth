@@ -47,7 +47,7 @@ func is_le_unchecked{range_check_ptr}(lhs: felt, rhs: felt) -> felt {
 // TODO: this is not the best approach, considering that the non-equal case is hard to prove,
 // and thus, we should think of a better approach.
 // @notice Tries to check if two pointers are equal. This can be trusted if the pointers are equal, but
-// cannot be trusted if they are not equal. Thus, use carefully.
+// cannot be trusted if they cannot be compared equal. Thus, use carefully.
 // @dev Returns 1 if lhs and rhs point to the same memory location, 0 otherwise
 //      A typical `lhs == rhs` comparison will fail if both pointers don't have the same segment index.
 //      We can ask the prover to provide whether they are equal, and simply verify this result.
@@ -67,7 +67,7 @@ func is_ptr_equal(lhs: felt*, rhs: felt*) -> (bool, bool) {
     }
 
     tempvar segment_equal;
-    %{ ids.segment_equal = (ids.lhs.segment_index == ids.rhs.segment_index) %}
+    %{ compare_relocatable_segment_index %}
     jmp segments_are_equal if segment_equal != 0, ap++;
 
     // We can prove the equality, but not the inequality on different segments.

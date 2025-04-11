@@ -8,9 +8,10 @@ from ethereum.cancun.fork_types import (
     OptionalAccount,
     AddressAccountDictAccess,
     TupleAddressBytes32U256DictAccess,
-    Account__eq__,
+    account_eq_without_storage_root,
 )
 from ethereum.cancun.state import State
+from cairo_core.comparison import is_ptr_equal
 from mpt.types import (
     AccountDiff,
     AccountDiffStruct,
@@ -206,9 +207,18 @@ func _accumulate_state_diff_hashes{poseidon_ptr: PoseidonBuiltin*}(
     }
     let current_diff_ptr = state_account_diff + i * AddressAccountDictAccess.SIZE;
 
-    // TODO: can we do better than value comparison?
-    // The logic is that we don't want to compare the prev / new storage root.
-    let prev_eq_new = Account__eq__(
+    let (ptr_eq, comparison_ok) = is_ptr_equal(
+        cast(current_diff_ptr.prev_value.value, felt*),
+        cast(current_diff_ptr.new_value.value, felt*),
+    );
+    if (ptr_eq.value != 0 and comparison_ok.value != 0) {
+        return _accumulate_state_diff_hashes(buffer, state_account_diff, i + 1, len);
+    }
+
+    // If the pointers are not equal, or we cannot compare them, we still need to do value comparison.
+
+    // Storage diffs are handled separately, so we can compare the account diffs without the storage root.
+    let prev_eq_new = account_eq_without_storage_root(
         OptionalAccount(current_diff_ptr.prev_value.value),
         OptionalAccount(current_diff_ptr.new_value.value),
     );
@@ -270,9 +280,19 @@ func _accumulate_state_storage_diff_hashes{poseidon_ptr: PoseidonBuiltin*}(
     }
     let current_diff_ptr = state_storage_diff + i * TupleAddressBytes32U256DictAccess.SIZE;
 
+    // Check if pointers are equal, meaning that there is no storage diff.
+    let (ptr_eq, comparison_ok) = is_ptr_equal(
+        cast(current_diff_ptr.new_value.value, felt*),
+        cast(current_diff_ptr.prev_value.value, felt*),
+    );
+    if (ptr_eq.value != 0 and comparison_ok.value != 0) {
+        return _accumulate_state_storage_diff_hashes(buffer, state_storage_diff, i + 1, len);
+    }
+
+    // If the pointers are not equal, or we cannot compare them, we still need to do value comparison.
+
     // Due to the behavior of storage_tries, a value set to U256(0) will be "deleted" by writing a null pointer instead.
     // If that's the case, we set the value to an explicit U256(0) to be able to hash the entry.
-    // On the other hand - all initial values are valid U256, so no need to check for prev_value.
     local new_value: U256;
     if (current_diff_ptr.new_value.value == 0) {
         assert new_value = U256(new U256Struct(0, 0));

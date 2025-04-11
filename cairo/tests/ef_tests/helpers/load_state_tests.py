@@ -41,7 +41,7 @@ def map_code_hashes_to_code(
         code_hash_high = code_hash_int >> 128
         code_hashes[(code_hash_low, code_hash_high)] = account_code
 
-    return state, code_hashes
+    return code_hashes
 
 
 class NoTestsFound(Exception):

@@ -11,7 +11,7 @@ from ethereum.cancun.fork_types import (
     Address,
     Account,
     AccountStruct,
-    Account__eq__,
+    account_eq_without_storage_root,
     OptionalAccount,
     TupleAddressBytes32U256DictAccess,
     HashedTupleAddressBytes32,
@@ -413,7 +413,9 @@ func _process_account_diff{
 
     // This is an account diff only if the ACCOUNT is different - not taking into account its storage.
     // We don't log any diff in the main_trie_end if only the storage root is different.
-    let is_prev_eq_new = Account__eq__(left_optional_account, OptionalAccount(right_account_value));
+    let is_prev_eq_new = account_eq_without_storage_root(
+        left_optional_account, OptionalAccount(right_account_value)
+    );
     if (is_prev_eq_new.value != 0) {
         tempvar main_trie_end = main_trie_end;
     } else {
