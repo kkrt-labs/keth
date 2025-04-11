@@ -1,8 +1,9 @@
-from typing import List, Sequence, Tuple, Union
+from typing import List, Optional, Sequence, Tuple, Union
 
 from ethereum.cancun.trie import (
     BranchNode,
     ExtensionNode,
+    InternalNode,
     LeafNode,
     bytes_to_nibble_list,
     encode_internal_node,
@@ -224,13 +225,18 @@ ids.second_non_null_index = 1
 
         check_leaf_node(path, leaf_node)
 
-    @given(extension_node=extension_node_could_be_invalid_strategy())
-    def test_check_extension_node(self, cairo_run, extension_node: ExtensionNode):
+    @given(
+        extension_node=extension_node_could_be_invalid_strategy(),
+        parent=st.one_of(st.just(None), st.from_type(InternalNode)),
+    )
+    def test_check_extension_node(
+        self, cairo_run, extension_node: ExtensionNode, parent: Optional[InternalNode]
+    ):
         try:
-            cairo_run("check_extension_node", extension_node)
+            cairo_run("check_extension_node", extension_node, parent)
         except Exception as cairo_error:
             with strict_raises(type(cairo_error)):
-                check_extension_node(extension_node)
+                check_extension_node(extension_node, parent)
             return
 
     @given(data=list_address_account_node_diff_entry_strategy)
