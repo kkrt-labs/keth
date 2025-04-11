@@ -575,8 +575,8 @@ func compute_diff_entrypoint{
 // @implicit storage_tries_end Passed down to record storage diffs.
 // @param left The node (or reference) from the previous state's trie.
 // @param right The node (or reference) from the current state's trie.
-// @param parent_left The parent of the left node.
-// @param parent_right The parent of the right node.
+// @param parent_left The parent of the left node. Used to ensure the trie traversed is well-formed.
+// @param parent_right The parent of the right node. Used to ensure the trie traversed is well-formed.
 // @param path The path (sequence of nibbles) traversed so far in the trie.
 // @param account_address The account address if processing a storage trie, otherwise 0.
 // @return Recursively updates diff lists via helper functions.
