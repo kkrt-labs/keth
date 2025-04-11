@@ -1,3 +1,5 @@
+import contextlib
+import re
 from contextlib import contextmanager
 from importlib import import_module
 from typing import List, Optional, Union
@@ -64,82 +66,95 @@ def patch_hint(
         with patch_hint(program, 'ids.x = 5', 'ids.x = 10', scope='my_function'):
             ...
     """
-    import contextlib
-    import re
 
     if isinstance(programs[0], Program):
-
-        def get_nondet_arg(hint_code: str) -> Optional[str]:
-            if match := re.match(r"nondet %{(.+)%};", hint_code.strip()):
-                return match.group(1).strip()
-            return None
-
-        def parse_fp_assignment_hint(
-            hint_code: str,
-        ) -> tuple[Optional[str], Optional[str]]:
-            if match := re.match(
-                r"memory\[(.+)\] = to_felt_or_relocatable\((.+)\)", hint_code
-            ):
-                return match.group(1), match.group(2).strip()
-            return None, None
-
-        orig_nondet_arg = get_nondet_arg(hint)
-        new_nondet_arg = get_nondet_arg(new_hint)
-        patched_programs_hints = [{} for _ in programs]
-
-        for i, program in enumerate(programs):
-            patched_hints = {}
-            for k, hint_list in program.hints.items():
-                new_hints = []
-                for hint_ in hint_list:
-                    if scope is not None and scope not in str(
-                        hint_.accessible_scopes[-1]
-                    ):
-                        new_hints.append(hint_)
-                        continue
-
-                    if orig_nondet_arg:
-                        mem_loc, arg = parse_fp_assignment_hint(hint_.code)
-                        if arg == orig_nondet_arg:
-                            new_hints.append(
-                                CairoHint(
-                                    accessible_scopes=hint_.accessible_scopes,
-                                    flow_tracking_data=hint_.flow_tracking_data,
-                                    code=f"memory[{mem_loc}] = to_felt_or_relocatable({new_nondet_arg})",
-                                )
-                            )
-                        else:
-                            new_hints.append(hint_)
-                    else:
-                        if hint_.code.strip() == implementations.get(
-                            hint.strip(), hint.strip()
-                        ):
-                            new_hints.append(
-                                CairoHint(
-                                    accessible_scopes=hint_.accessible_scopes,
-                                    flow_tracking_data=hint_.flow_tracking_data,
-                                    code=new_hint,
-                                )
-                            )
-                        else:
-                            new_hints.append(hint_)
-                patched_hints[k] = new_hints
-            patched_programs_hints[i] = patched_hints
+        patched_programs_hints = py_program_with_patch_hints(
+            programs, hint, new_hint, scope
+        )
 
         with contextlib.ExitStack() as stack:
             for program, patched_hints in zip(programs, patched_programs_hints):
                 stack.enter_context(patch.object(program, "hints", new=patched_hints))
             yield programs
 
-    elif isinstance(programs[0], RustProgram):
+    if isinstance(programs[0], RustProgram):
         # Create a new list of patched RustProgram objects
         patched_programs = [
             program.program_with_patched_hint(hint, new_hint) for program in programs
         ]
         yield patched_programs
 
-    else:
-        raise TypeError("Unsupported program type")
+    raise TypeError("Unsupported program type")
+
+
+def py_program_with_patch_hints(
+    programs: List[Program], hint: str, new_hint: str, scope: Optional[str] = None
+):
+    """
+    Patch hints in a list of Python `Program` objects.
+
+    Args:
+        programs: A list of Python `Program` objects.
+        hint: The original hint code to replace.
+        new_hint: The new hint code to use.
+    """
+
+    def get_nondet_arg(hint_code: str) -> Optional[str]:
+        if match := re.match(r"nondet %{(.+)%};", hint_code.strip()):
+            return match.group(1).strip()
+        return None
+
+    def parse_fp_assignment_hint(
+        hint_code: str,
+    ) -> tuple[Optional[str], Optional[str]]:
+        if match := re.match(
+            r"memory\[(.+)\] = to_felt_or_relocatable\((.+)\)", hint_code
+        ):
+            return match.group(1), match.group(2).strip()
+        return None, None
+
+    orig_nondet_arg = get_nondet_arg(hint)
+    new_nondet_arg = get_nondet_arg(new_hint)
+    patched_programs_hints = [{} for _ in programs]
+
+    for i, program in enumerate(programs):
+        patched_hints = {}
+        for k, hint_list in program.hints.items():
+            new_hints = []
+            for hint_ in hint_list:
+                if scope is not None and scope not in str(hint_.accessible_scopes[-1]):
+                    new_hints.append(hint_)
+                    continue
+
+                if orig_nondet_arg:
+                    mem_loc, arg = parse_fp_assignment_hint(hint_.code)
+                    if arg == orig_nondet_arg:
+                        new_hints.append(
+                            CairoHint(
+                                accessible_scopes=hint_.accessible_scopes,
+                                flow_tracking_data=hint_.flow_tracking_data,
+                                code=f"memory[{mem_loc}] = to_felt_or_relocatable({new_nondet_arg})",
+                            )
+                        )
+                    else:
+                        new_hints.append(hint_)
+                else:
+                    if hint_.code.strip() == implementations.get(
+                        hint.strip(), hint.strip()
+                    ):
+                        new_hints.append(
+                            CairoHint(
+                                accessible_scopes=hint_.accessible_scopes,
+                                flow_tracking_data=hint_.flow_tracking_data,
+                                code=new_hint,
+                            )
+                        )
+                    else:
+                        new_hints.append(hint_)
+            patched_hints[k] = new_hints
+        patched_programs_hints[i] = patched_hints
+
+    return patched_programs_hints
 
 
 @contextmanager
