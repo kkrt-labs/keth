@@ -315,6 +315,8 @@ class Account:
     storage_root: Hash32
     code: bytes
 
+    # Important note: As our cairo computations does not update the storage root, we do not want to use it in the equality checks,
+    # as it will always be different from the EELS ones.
     def __eq__(self, other):
         if not isinstance(other, Account):
             return False
@@ -508,9 +510,20 @@ class FlatState:
     def to_state(self) -> State:
         """Convert a FlatState object back to a State object."""
         # Initialize state with main trie and created accounts
+        use_defaultdict = isinstance(self._storage_tries, defaultdict)
         state = State(
             _main_trie=self._main_trie,
-            _storage_tries={},
+            _storage_tries=(
+                defaultdict(
+                    lambda: Trie(
+                        secured=True,
+                        default=U256(0),
+                        _data=defaultdict(lambda: U256(0)),
+                    )
+                )
+                if use_defaultdict
+                else {}
+            ),
             _snapshots=[],
             created_accounts=self.created_accounts,
         )
@@ -519,7 +532,9 @@ class FlatState:
         for (address, key), value in self._storage_tries._data.items():
             if address not in state._storage_tries:
                 state._storage_tries[address] = Trie(
-                    secured=self._storage_tries.secured, default=U256(0), _data={}
+                    secured=self._storage_tries.secured,
+                    default=U256(0),
+                    _data=defaultdict(lambda: U256(0)) if use_defaultdict else {},
                 )
             trie = state._storage_tries[address]
             trie_set(trie, key, value)
@@ -534,7 +549,7 @@ class FlatState:
                     address_to_storage_trie[address] = Trie(
                         secured=snapshot_storage_tries.secured,
                         default=U256(0),
-                        _data={},
+                        _data=defaultdict(lambda: U256(0)) if use_defaultdict else {},
                     )
                 trie = address_to_storage_trie[address]
                 trie_set(trie, key, value)
