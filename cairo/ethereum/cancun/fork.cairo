@@ -1406,11 +1406,10 @@ func state_transition{
         );
         assert transactions_root_equal.value = 1;
 
-        // TODO: properly remove this check once transitioned to state-diffs only
-        // let state_root_equal = Bytes32__eq__(
-        //     output.value.state_root, block.value.header.value.state_root
-        // );
-        // assert state_root_equal.value = 1;
+        // Diff with EELS: Because our approach is based on state-diffs instead of re-computation of the
+        // state root, we don't check that the state root is equal to the one in the block.
+        // Instead, we assert that the State Transition is correct by ensuring the diffs it produces
+        // are the same as the one of the expected post-MPT.
 
         let receipt_root_equal = Bytes32__eq__(
             output.value.receipt_root, block.value.header.value.receipt_root
