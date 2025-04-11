@@ -394,6 +394,22 @@ def encode_account(raw_account_data: Account, storage_root: Bytes) -> Bytes:
     )
 
 
+# TODO PR in EELS?
+def is_account_alive(state: State, address: Address) -> bool:
+    from ethereum.cancun.state import get_account_optional
+
+    account = get_account_optional(state, address)
+    if account is None:
+        return False
+    else:
+        # Modified to use EMPTY_ACCOUNT - we want to make sure the storage root and code_hash are
+        # empty.
+        # Remember: Account__eq__ does not take into account the storage root.
+        return (
+            not account == EMPTY_ACCOUNT or not account.storage_root == EMPTY_TRIE_HASH
+        )
+
+
 def set_code(state: State, address: Address, code: Bytes) -> None:
     from ethereum.cancun.state import modify_state
 
