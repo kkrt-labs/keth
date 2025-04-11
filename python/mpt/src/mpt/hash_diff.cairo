@@ -44,14 +44,21 @@ func poseidon_account_diff{poseidon_ptr: PoseidonBuiltin*}(diff: AddressAccountD
         assert offset = 1;
     }
 
-    // Inline the new Account
-    assert buffer[offset] = diff.value.new_value.value.nonce.value;
-    assert buffer[offset + 1] = diff.value.new_value.value.balance.value.low;
-    assert buffer[offset + 2] = diff.value.new_value.value.balance.value.high;
-    assert buffer[offset + 3] = diff.value.new_value.value.code_hash.value.low;
-    assert buffer[offset + 4] = diff.value.new_value.value.code_hash.value.high;
+    // TODO: This technically only happens in cases where the account was deleted,
+    // which can only happen in case of a same-transaction selfdestruct, meaning the account was
+    // originally Null. As such: once we skip computing hashes when there's no diff, this should be removed
+    if (cast(diff.value.new_value.value, felt) != 0) {
+        // Inline the new Account
+        assert buffer[offset] = diff.value.new_value.value.nonce.value;
+        assert buffer[offset + 1] = diff.value.new_value.value.balance.value.low;
+        assert buffer[offset + 2] = diff.value.new_value.value.balance.value.high;
+        assert buffer[offset + 3] = diff.value.new_value.value.code_hash.value.low;
+        assert buffer[offset + 4] = diff.value.new_value.value.code_hash.value.high;
+        let (account_diff_hash) = poseidon_hash_many(offset + 5, buffer);
+        return account_diff_hash;
+    }
 
-    let (account_diff_hash) = poseidon_hash_many(offset + 5, buffer);
+    let (account_diff_hash) = poseidon_hash_many(offset, buffer);
     return account_diff_hash;
 }
 

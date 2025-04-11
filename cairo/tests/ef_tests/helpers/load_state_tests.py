@@ -2,17 +2,14 @@ import json
 import os.path
 import re
 import traceback
-from collections import defaultdict
 from glob import glob
 from typing import Any, Dict, Generator, Tuple, Union
 
 import pytest
 from _pytest.mark.structures import ParameterSet
 from ethereum.cancun.fork import state_transition
-from ethereum.cancun.fork_types import Account
 from ethereum.cancun.state import State
-from ethereum.cancun.trie import root as compute_root
-from ethereum.cancun.trie import trie_get, trie_set
+from ethereum.cancun.trie import trie_get
 from ethereum.crypto.hash import keccak256
 from ethereum.exceptions import EthereumException
 from ethereum.utils.hexadecimal import hex_to_bytes
@@ -20,39 +17,29 @@ from ethereum_rlp import rlp
 from ethereum_rlp.exceptions import RLPException
 from ethereum_spec_tools.evm_tools.loaders.fixture_loader import Load
 from ethereum_types.bytes import Bytes
-from ethereum_types.numeric import U64, U256
+from ethereum_types.numeric import U64
+
+from mpt.ethereum_tries import EMPTY_BYTES_HASH
+from utils.fixture_loader import LoadKethFixture
 
 
 def prepare_state_and_code_hashes(
     state: State,
 ) -> Tuple[State, Dict[Tuple[int, int], Bytes]]:
     code_hashes = {}
-    for address in state._storage_tries:
-        state._storage_tries[address]._data = defaultdict(
-            lambda: defaultdict(lambda: U256(0)), state._storage_tries[address]._data
-        )
-        storage_root = compute_root(state._storage_tries[address])
+
+    for address in state._main_trie._data:
         account = trie_get(state._main_trie, address)
-        account = Account(
-            balance=account.balance,
-            nonce=account.nonce,
-            code=account.code,
-            storage_root=storage_root,
-            code_hash=account.code_hash,
-        )
-        code_hash_int = int.from_bytes(account.code_hash, "little")
+        if not account:
+            account_code_hash = EMPTY_BYTES_HASH
+            account_code = b""
+        else:
+            account_code_hash = account.code_hash
+            account_code = account.code
+        code_hash_int = int.from_bytes(account_code_hash, "little")
         code_hash_low = code_hash_int & 2**128 - 1
         code_hash_high = code_hash_int >> 128
-        code_hashes[(code_hash_low, code_hash_high)] = account.code
-        trie_set(state._main_trie, address, account)
-    state._main_trie._data = defaultdict(lambda: None, state._main_trie._data)
-
-    for snap in state._snapshots:
-        for address in snap._storage_tries:
-            snap._storage_tries[address]._data = defaultdict(
-                lambda: defaultdict(lambda: U256(0)), snap._storage_tries[address]._data
-            )
-        snap._main_trie._data = defaultdict(lambda: None, snap._main_trie._data)
+        code_hashes[(code_hash_low, code_hash_high)] = account_code
 
     return state, code_hashes
 
@@ -65,7 +52,7 @@ class NoTestsFound(Exception):
 
 
 def run_blockchain_st_test(
-    test_case: Dict, load: Load, cairo_run, request: pytest.FixtureRequest
+    test_case: Dict, load: LoadKethFixture, cairo_run, request: pytest.FixtureRequest
 ) -> None:
     test_file = test_case["test_file"]
     test_key = test_case["test_key"]
