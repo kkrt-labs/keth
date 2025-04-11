@@ -1,8 +1,9 @@
+from collections import defaultdict
 from itertools import product
 
 from ethereum.cancun.fork_types import Account, Address
 from ethereum.cancun.state import set_account, set_storage
-from ethereum.cancun.trie import copy_trie, root
+from ethereum.cancun.trie import Trie, copy_trie, root
 from ethereum.cancun.vm import Evm
 from ethereum.cancun.vm.gas import (
     GAS_COLD_SLOAD,
@@ -184,10 +185,17 @@ class TestStorage:
             0,
             (
                 copy_trie(evm.env.state._main_trie),
-                {
-                    addr: copy_trie(trie)
-                    for addr, trie in evm.env.state._storage_tries.items()
-                },
+                defaultdict(
+                    lambda: Trie(
+                        secured=True,
+                        default=U256(0),
+                        _data=defaultdict(lambda: U256(0)),
+                    ),
+                    {
+                        addr: copy_trie(trie)
+                        for addr, trie in evm.env.state._storage_tries.items()
+                    },
+                ),
             ),
         )
         # Set the current value

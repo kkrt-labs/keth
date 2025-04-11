@@ -35,6 +35,8 @@ class TestForkTypes:
     def test_account_eq(
         self, cairo_run, account_a: Optional[Account], account_b: Optional[Account]
     ):
-        assert (account_a == account_b) == cairo_run(
-            "Account__eq__", account_a, account_b
-        )
+        # Our Python Account__eq__ does not take into account the storage root.
+
+        assert (
+            account_a == account_b and account_a.storage_root == account_b.storage_root
+        ) == cairo_run("Account__eq__", account_a, account_b)

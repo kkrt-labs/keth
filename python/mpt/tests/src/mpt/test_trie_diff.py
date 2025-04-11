@@ -319,6 +319,11 @@ class TestTrieDiff:
             for diff in result_diffs
         }
 
+        # Cases where the prev == new, so no diffs are generated.
+        if address not in diff_cls._storage_tries:
+            assert address not in result_lookup
+            return
+
         for key, (prev_value, new_value) in diff_cls._storage_tries[address].items():
             key = int_to_uint256(int.from_bytes(key, "little"))
             hashed_key = poseidon_hash_many((int.from_bytes(address, "little"), *key))
