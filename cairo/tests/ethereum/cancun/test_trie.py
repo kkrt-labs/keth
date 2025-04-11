@@ -82,7 +82,7 @@ class TestTrie:
     @given(a=..., b=...)
     @settings(verbosity=Verbosity.quiet)
     def test_common_prefix_length_should_fail(
-        self, cairo_programs, cairo_run_py, a: Bytes, b: Bytes
+        self, cairo_programs, cairo_run, a: Bytes, b: Bytes
     ):
         with (
             patch_hint(
@@ -92,9 +92,7 @@ class TestTrie:
             ),
             cairo_error(message="common_prefix_length"),
         ):
-            assert common_prefix_length(a, b) == cairo_run_py(
-                "common_prefix_length", a, b
-            )
+            assert common_prefix_length(a, b) == cairo_run("common_prefix_length", a, b)
 
     @given(x=nibble, is_leaf=...)
     def test_nibble_list_to_compact(self, cairo_run, x, is_leaf: bool):

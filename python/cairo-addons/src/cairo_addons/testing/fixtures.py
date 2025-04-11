@@ -44,12 +44,16 @@ def cairo_programs(request) -> List[Program]:
 
 
 @pytest.fixture(scope="module")
-def cairo_program(request) -> Program:
+def cairo_program(request, python_vm: bool) -> Program:
     """Returns the first cairo program in the session.
     If there is both a src.cairo and a test_src.cairo program, returns the src program (always compiled first).
     Otherwise, returns the test program.
     """
-    return request.session.cairo_programs[request.node.fspath][0]
+    programs = request.session.cairo_programs[request.node.fspath]
+    if python_vm:
+        return programs[0]
+    else:
+        return rust_programs(programs, python_vm)
 
 
 @pytest.fixture(scope="module")
