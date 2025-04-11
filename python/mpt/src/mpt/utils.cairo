@@ -243,6 +243,13 @@ func check_leaf_node(path: Bytes, node: LeafNode) {
     }
 }
 
+// @notice Checks if an extension node is valid.
+// @param node The extension node to check.
+// @param parent_node The parent of the extension node
+// @dev Raises an error if:
+// - The key segment is empty
+// - The subnode is not a valid node
+// - The parent is an extension node
 func check_extension_node(node: ExtensionNode, parent_node: OptionalInternalNode) {
     alloc_locals;
 
