@@ -169,6 +169,7 @@ func _accumulate_storage_diff_hashes{poseidon_ptr: PoseidonBuiltin*}(
 
 // @notice Computes a hash commitment for all account diffs in a state
 // @dev Processes the account diffs stored in the main trie of the state
+//      Any entry where prev_value == new_value is skipped in the computation of the hash.
 // @param state The state containing account diffs in its main trie
 // @return The hash commitment of all state account diffs, or 0 if empty
 func hash_state_account_diff{range_check_ptr, poseidon_ptr: PoseidonBuiltin*}(
@@ -237,6 +238,7 @@ func _accumulate_state_diff_hashes{poseidon_ptr: PoseidonBuiltin*}(
 
 // @notice Computes a hash commitment for all storage diffs in a state
 // @dev Processes the storage diffs stored in the storage tries of the state
+//      Any entry where prev_value == new_value is skipped in the computation of the hash.
 // @param state The state containing storage diffs in its storage tries
 // @return The hash commitment of all state storage diffs, or 0 if empty
 func hash_state_storage_diff{range_check_ptr, poseidon_ptr: PoseidonBuiltin*}(
