@@ -16,7 +16,7 @@ The execution does not support the execution of trace hints
 ```rust
 pub fn run_proof_mode(
     entrypoint: String,
-    program_inputs: PyObject,
+    program_input: PyObject,
     compiled_program_path: String,
     output_dir: PathBuf,
 ) -> PyResult<()>
@@ -25,7 +25,7 @@ pub fn run_proof_mode(
 ### Parameters
 
 - `entrypoint`: Function name in the Cairo program to execute
-- `program_inputs`: Python dictionary containing public inputs
+- `program_input`: Python dictionary containing public inputs
 - `compiled_program_path`: Path to the compiled Cairo program JSON
 - `output_dir`: Directory where proof artifacts will be saved
 
@@ -36,7 +36,7 @@ from cairo_addons.vm import run_proof_mode
 
 run_proof_mode(
     entrypoint="main",
-    program_inputs=program_inputs_dict,
+    program_input=program_input_dict,
     compiled_program_path="./build/main_compiled.json",
     output_dir="./output"
 )
