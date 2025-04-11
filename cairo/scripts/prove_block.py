@@ -313,7 +313,7 @@ def prove_block(
         proof_path = Path(proof_path)
     logger.info(f"Running Keth for block {block_number}")
     run_proof_mode(
-        entrypoint="main",
+        entrypoint="main_entrypoint",
         program_input=program_input,
         compiled_program_path=str(compiled_program.absolute()),
         output_dir=str(output_dir.absolute()),
