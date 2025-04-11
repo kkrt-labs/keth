@@ -1406,10 +1406,11 @@ func state_transition{
         );
         assert transactions_root_equal.value = 1;
 
-        let state_root_equal = Bytes32__eq__(
-            output.value.state_root, block.value.header.value.state_root
-        );
-        assert state_root_equal.value = 1;
+        // TODO: properly remove this check once transitioned to state-diffs only
+        // let state_root_equal = Bytes32__eq__(
+        //     output.value.state_root, block.value.header.value.state_root
+        // );
+        // assert state_root_equal.value = 1;
 
         let receipt_root_equal = Bytes32__eq__(
             output.value.receipt_root, block.value.header.value.receipt_root
