@@ -102,7 +102,7 @@ recalculation.
    - **Change**: Skips account diffs if only `storage_root` differs
      (`account_eq_without_storage_root`). Skips storage diffs if values are
      equal (`U256__eq__`).
-   - **Rationale**: We dont recompute the storage root in the STF. We ensure we
+   - **Rationale**: We don't recompute the storage root in the STF. We ensure we
      have the correct result by emitting full storage diffs.
 
 9. **Python and Test Updates**
@@ -132,6 +132,12 @@ recalculation.
   back to field-by-field if inconclusive.
 - **Python Patching**: Consistent `setattr` in `prove_block.py` aligns Python
   and Cairo behaviors.
+
+The most important pattern to keep in mind is that **default_dicts get
+serialized as default_dict** meaning that we can query absent keys, while
+**non-default_dicts** in args_gen generate regular dicts. As such one must be
+very careful when writing tests: if you don't know all keys queried during the
+test, you **must** use default_dicts.
 
 ## Side Effects and Risks
 
