@@ -1613,14 +1613,16 @@ func _compute_left_branch_node_diff_on_right_extension_node{
 
     let right_extension = right.value.extension_node;
     let first_nib = right_extension.value.key_segment.value.data[0];
+    local node_to_compare: OptionalUnionInternalNodeExtended;
+    local current_parent_right: OptionalInternalNode;
     if (first_nib == index) {
         // Fully consumed by this nibble: compare to the subnode
         if (right_extension.value.key_segment.value.len == 1) {
             let node_to_compare_ = OptionalUnionInternalNodeExtendedImpl.from_extended(
                 right_extension.value.subnode
             );
-            tempvar current_parent_right = right;
-            tempvar node_to_compare = node_to_compare_;
+            assert current_parent_right = right;
+            assert node_to_compare = node_to_compare_;
         } else {
             // Compare to the shortened extension node
             tempvar shortened_extension = ExtensionNode(
@@ -1637,30 +1639,20 @@ func _compute_left_branch_node_diff_on_right_extension_node{
             let node_to_compare_ = OptionalUnionInternalNodeExtendedImpl.from_extension(
                 shortened_extension
             );
-            tempvar current_parent_right = parent_right;
-            tempvar node_to_compare = node_to_compare_;
+            assert current_parent_right = parent_right;
+            assert node_to_compare = node_to_compare_;
         }
-        let current_parent_right_ = OptionalInternalNode(cast([ap - 2], InternalNodeEnum*));
-        let right_ = OptionalUnionInternalNodeExtended(
-            cast([ap - 1], OptionalUnionInternalNodeExtendedEnum*)
-        );
-        tempvar current_parent_left = current_parent_right_;
-        tempvar right_to_compare_in_iter = right_;
     } else {
         // Compare to None
-        tempvar current_parent_right = parent_right;
-        tempvar right_to_compare_in_iter = OptionalUnionInternalNodeExtended(
+        assert current_parent_right = parent_right;
+        assert node_to_compare = OptionalUnionInternalNodeExtended(
             cast(0, OptionalUnionInternalNodeExtendedEnum*)
         );
     }
-    let current_parent_right = OptionalInternalNode(cast([ap - 2], InternalNodeEnum*));
-    let right_to_compare_in_iter = OptionalUnionInternalNodeExtended(
-        cast([ap - 1], OptionalUnionInternalNodeExtendedEnum*)
-    );
 
     _compute_diff(
         left=subnode_i,
-        right=right_to_compare_in_iter,
+        right=node_to_compare,
         parent_left=parent_left,
         parent_right=current_parent_right,
         path=sub_path,
@@ -1924,14 +1916,16 @@ func _compute_left_extension_node_diff_on_right_branch_node{
 
     let l_extension = left.value.extension_node;
     let first_nib = l_extension.value.key_segment.value.data[0];
+    local node_to_compare: OptionalUnionInternalNodeExtended;
+    local current_parent_left: OptionalInternalNode;
     if (first_nib == index) {
         // Fully consumed by this nibble: compare to the subnode
         if (l_extension.value.key_segment.value.len == 1) {
             let node_to_compare_ = OptionalUnionInternalNodeExtendedImpl.from_extended(
                 l_extension.value.subnode
             );
-            tempvar current_parent_left = left;
-            tempvar node_to_compare = node_to_compare_;
+            assert current_parent_left = left;
+            assert node_to_compare = node_to_compare_;
         } else {
             // Compare to the shortened extension node
             tempvar shortened_extension = ExtensionNode(
@@ -1948,29 +1942,19 @@ func _compute_left_extension_node_diff_on_right_branch_node{
             let node_to_compare_ = OptionalUnionInternalNodeExtendedImpl.from_extension(
                 shortened_extension
             );
-            tempvar current_parent_left = parent_left;
-            tempvar node_to_compare = node_to_compare_;
+            assert current_parent_left = parent_left;
+            assert node_to_compare = node_to_compare_;
         }
-        let current_parent_left_ = OptionalInternalNode(cast([ap - 2], InternalNodeEnum*));
-        let left_ = OptionalUnionInternalNodeExtended(
-            cast([ap - 1], OptionalUnionInternalNodeExtendedEnum*)
-        );
-        tempvar current_parent_left = current_parent_left_;
-        tempvar left_to_compare_in_iter = left_;
     } else {
         // Compare to None
-        tempvar current_parent_left = parent_left;
-        tempvar left_to_compare_in_iter = OptionalUnionInternalNodeExtended(
+        assert current_parent_left = parent_left;
+        assert node_to_compare = OptionalUnionInternalNodeExtended(
             cast(0, OptionalUnionInternalNodeExtendedEnum*)
         );
     }
-    let current_parent_left = OptionalInternalNode(cast([ap - 2], InternalNodeEnum*));
-    let left_to_compare_in_iter = OptionalUnionInternalNodeExtended(
-        cast([ap - 1], OptionalUnionInternalNodeExtendedEnum*)
-    );
 
     _compute_diff(
-        left=left_to_compare_in_iter,
+        left=node_to_compare,
         right=subnode_i,
         parent_left=current_parent_left,
         parent_right=parent_right,
