@@ -138,3 +138,8 @@ def jumpdest_continue_no_push_case(
     ids: VmConsts,
 ):
     ids.cond = 0 if ids.offset > 32 or ids.valid_jumpdest.key < ids.offset else 1
+
+
+@register_hint
+def compare_relocatable_segment_index(ids: VmConsts):
+    ids.segment_equal = 1 if ids.lhs.segment_index == ids.rhs.segment_index else 0

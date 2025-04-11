@@ -1,7 +1,7 @@
 from collections import defaultdict
 from typing import Any, Dict
 
-from ethereum.cancun.trie import root
+from ethereum.cancun.trie import Trie, root
 from ethereum.crypto.hash import keccak256
 from ethereum.utils.hexadecimal import (
     hex_to_bytes,
@@ -31,7 +31,7 @@ class LoadKethFixture(Load):
         Note:
             - This function loads and computes both code hashes and storage roots from the input json
             - Not all accounts touched during a transaction are present in the input json. As such, we made the State tries `defaultdict`, so that the
-                execution would not fail in case of missing accounts. However, in the e2e proving flow, these tries are not defaultdict - and when we finalize them,
+                execution would not fail in case of missing accounts. However, in the e2e proving flow, these tries are not defaultdict - and when we finalize (`finalize_state`) them,
                 we don't check that it's consistent with the default value.
             - For EELS inputs (unlike ZKPI inputs):
                 * If storage_root is not provided, it's computed from the account's storage (as this is not a partial storage)
@@ -43,7 +43,14 @@ class LoadKethFixture(Load):
         state = self.fork.State()
         # Explicitly set the main trie as a defaultdict
         state._main_trie._data = defaultdict(lambda: None, {})
-
+        # Explicitly set the storage tries as a defaultdict
+        state._storage_tries = defaultdict(
+            lambda: Trie(
+                secured=True,
+                default=U256(0),
+                _data=defaultdict(lambda: U256(0), {}),
+            ),
+        )
         set_storage = self.fork.set_storage
 
         for address_hex, account_state in raw.items():

@@ -19,7 +19,6 @@ from ethereum.cancun.transactions import (
 from ethereum_spec_tools.evm_tools.loaders.fork_loader import ForkLoad
 from ethereum_spec_tools.evm_tools.loaders.transaction_loader import TransactionLoad
 from ethereum_types.numeric import FixedUnsigned, Uint
-from utils.fixture_loader import LoadKethFixture
 
 import mpt
 from mpt.ethereum_tries import ZkPi
@@ -34,6 +33,7 @@ from tests.utils.args_gen import (
     encode_account,
     set_code,
 )
+from utils.fixture_loader import LoadKethFixture
 
 # Patch EELS with our own types for argument generation
 ethereum.cancun.vm.Evm = Evm
@@ -80,7 +80,7 @@ from ethereum_types.numeric import U64, U256  # noqa
 
 from cairo_addons.vm import run_proof_mode  # noqa
 from tests.ef_tests.helpers.load_state_tests import (  # noqa
-    prepare_state_and_code_hashes,
+    map_code_hashes_to_code,
 )
 
 logging.basicConfig(
@@ -257,59 +257,27 @@ def load_zkpi_fixture(zkpi_path: Union[Path, str]) -> Dict[str, Any]:
         for ancestor in prover_inputs["witness"]["ancestors"][::-1]
     ]
 
+    zkpi = ZkPi.from_data(prover_inputs)
+    transition_db = zkpi.transition_db
+    pre_state = zkpi.pre_state
+
     # Create blockchain
-    state, code_hashes = prepare_state_and_code_hashes(load_pre_state(prover_inputs))
+    code_hashes = map_code_hashes_to_code(pre_state)
     chain = BlockChain(
         blocks=blocks,
-        state=state,
+        state=pre_state,
         chain_id=U64(prover_inputs["chainConfig"]["chainId"]),
     )
 
-    # TODO: Remove when partial MPT is implemented
-    # This is not the _real_ state root, but one we re-construct from the partial state
-    # to prove this block.
-    state_root = apply_body(
-        chain.state,
-        get_last_256_block_hashes(chain),
-        block.header.coinbase,
-        block.header.number,
-        block.header.base_fee_per_gas,
-        block.header.gas_limit,
-        block.header.timestamp,
-        block.header.prev_randao,
-        block.transactions,
-        chain.chain_id,
-        block.withdrawals,
-        block.header.parent_beacon_block_root,
-        calculate_excess_blob_gas(chain.blocks[-1].header),
-    ).state_root
-
-    # Recreate block with computed state root
-    block = Block(
-        header=load.json_to_header(
-            {
-                **input_block["header"],
-                "stateRoot": "0x" + state_root.hex(),
-            }
-        ),
-        transactions=block.transactions,
-        ommers=(),
-        withdrawals=block.withdrawals,
-    )
-    state, _ = prepare_state_and_code_hashes(load_pre_state(prover_inputs))
-    chain = BlockChain(
-        blocks=blocks,
-        state=state,
-        chain_id=U64(prover_inputs["chainConfig"]["chainId"]),
-    )
     # Prepare inputs
     program_input = {
         "block": block,
         "blockchain": chain,
-        "block_hash": Bytes32(
-            bytes.fromhex(input_block["header"]["hash"].removeprefix("0x"))
-        ),
         "codehash_to_code": code_hashes,
+        "node_store": transition_db.nodes,
+        "address_preimages": transition_db.address_preimages,
+        "storage_key_preimages": transition_db.storage_key_preimages,
+        "post_state_root": transition_db.post_state_root,
     }
 
     return program_input
