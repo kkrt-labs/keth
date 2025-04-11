@@ -566,6 +566,15 @@ def state_strategy(draw):
                     address: trie_strategy(Trie[Bytes32, U256], min_size=1)
                     for address in addresses[:i]
                 }
+            ).map(
+                lambda x: defaultdict(
+                    lambda: Trie(
+                        secured=True,
+                        default=U256(0),
+                        _data=defaultdict(lambda: U256(0)),
+                    ),
+                    x,
+                )
             )
         )
     )

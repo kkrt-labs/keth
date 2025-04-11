@@ -764,7 +764,7 @@ class TestFork:
                 default=None,
                 _data=defaultdict(lambda: None, accounts),
             ),
-            _storage_tries=dict(storage_tries),
+            _storage_tries=storage_tries,
             _snapshots=[],
             created_accounts=set(),
         )
@@ -823,13 +823,16 @@ def _create_erc20_data():
         ),
     }
 
-    storage_tries = {
-        erc20_address: Trie(
-            secured=True,
-            default=U256(0),
-            _data=defaultdict(lambda: U256(0), storage_data),
-        )
-    }
+    storage_tries = defaultdict(
+        lambda: Trie(secured=True, default=U256(0), _data=defaultdict(lambda: U256(0))),
+        {
+            erc20_address: Trie(
+                secured=True,
+                default=U256(0),
+                _data=defaultdict(lambda: U256(0), storage_data),
+            )
+        },
+    )
 
     erc20_storage_root = root(storage_tries[erc20_address])
 
