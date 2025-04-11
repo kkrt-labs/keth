@@ -32,7 +32,7 @@ from ethereum.cancun.vm.gas import ExtendMemory, MessageCallGas
 from ethereum.cancun.vm.interpreter import MessageCallOutput
 from ethereum.crypto.alt_bn128 import BNF, BNF2, BNF12, BNP, BNP2, BNP12
 from ethereum.crypto.hash import Hash32
-from ethereum.crypto.kzg import BLSFieldElement, KZGCommitment, KZGProof
+from ethereum.crypto.kzg import FQ, FQ2, BLSFieldElement, KZGCommitment, KZGProof
 from ethereum.exceptions import (
     EthereumException,
     InvalidSignatureError,
@@ -51,6 +51,7 @@ from ethereum_types.numeric import U64, U256, Uint
 from hypothesis import HealthCheck, assume, given, settings
 from py_ecc.fields import optimized_bls12_381_FQ as BLSF
 from py_ecc.fields import optimized_bls12_381_FQ2 as BLSF2
+from py_ecc.fields import optimized_bls12_381_FQ12 as BLSF12
 from py_ecc.typing import Optimized_Point3D
 from starkware.cairo.common.dict import DictManager
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
@@ -346,6 +347,9 @@ class TestSerde:
             G1Uncompressed,
             BLSPubkey,
             KZGProof,
+            BLSF12,
+            Tuple[FQ, FQ2],
+            Tuple[Tuple[FQ, FQ2], Tuple[FQ, FQ2]],
         ],
     ):
         assume(no_empty_sequence(b))

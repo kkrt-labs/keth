@@ -107,7 +107,7 @@ from ethereum.cancun.vm.gas import ExtendMemory, MessageCallGas
 from ethereum.cancun.vm.interpreter import MessageCallOutput as MessageCallOutputBase
 from ethereum.crypto.alt_bn128 import BNF, BNF2, BNF12, BNP, BNP2, BNP12
 from ethereum.crypto.hash import Hash32
-from ethereum.crypto.kzg import BLSFieldElement, KZGCommitment, KZGProof
+from ethereum.crypto.kzg import FQ, FQ2, BLSFieldElement, KZGCommitment, KZGProof
 from ethereum.exceptions import EthereumException
 from ethereum_rlp import rlp
 from ethereum_rlp.rlp import Extended, Simple
@@ -127,6 +127,7 @@ from ethereum_types.numeric import U64, U256, FixedUnsigned, Uint, _max_value
 from py_ecc.bls.typing import G1Uncompressed
 from py_ecc.fields import optimized_bls12_381_FQ as BLSF
 from py_ecc.fields import optimized_bls12_381_FQ2 as BLSF2
+from py_ecc.fields import optimized_bls12_381_FQ12 as BLSF12
 from py_ecc.optimized_bls12_381.optimized_curve import is_inf
 from py_ecc.typing import Optimized_Point3D
 from starkware.cairo.common.dict import DictManager, DictTracker
@@ -988,6 +989,7 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "crypto", "kzg", "BLSScalar"): BLSFieldElement,
     ("ethereum", "crypto", "bls12_381", "BLSF"): BLSF,
     ("ethereum", "crypto", "bls12_381", "BLSF2"): BLSF2,
+    ("ethereum", "crypto", "bls12_381", "BLSF12"): BLSF12,
     ("ethereum", "crypto", "kzg", "KZGCommitment"): KZGCommitment,
     ("ethereum", "crypto", "bls12_381", "BLSP"): Optimized_Point3D[BLSF],
     ("ethereum", "crypto", "bls12_381", "BLSP2"): Optimized_Point3D[BLSF2],
@@ -995,6 +997,10 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "crypto", "bls12_381", "G1Uncompressed"): G1Uncompressed,
     ("ethereum", "crypto", "kzg", "BLSPubkey"): BLSPubkey,
     ("ethereum", "crypto", "kzg", "KZGProof"): KZGProof,
+    ("ethereum", "crypto", "bls12_381", "TupleBLSPBLSP2"): Tuple[FQ, FQ2],
+    ("ethereum", "crypto", "bls12_381", "TupleTupleBLSPBLSP2"): Tuple[
+        Tuple[FQ, FQ2], Tuple[FQ, FQ2]
+    ],
 }
 
 # In the EELS, some functions are annotated with Sequence while it's actually just Bytes.
@@ -1195,7 +1201,6 @@ def _gen_arg(
             Ellipsis not in get_args(arg_type) or annotations
         ):
             # Handle conversion from Optimized_Point3D to Optimized_Point2D for BLS12-381
-
             if arg_type in (Optimized_Point3D[BLSF], Optimized_Point3D[BLSF2]):
                 if is_inf(arg):
                     arg = (arg[0].zero(), arg[1].zero())
@@ -1335,11 +1340,11 @@ def _gen_arg(
         segments.load_data(base, coeff)
         return base
 
-    if arg_type in (BNF2, BNF12, BLSF2):
+    if arg_type in (BNF2, BNF12, BLSF2, BLSF12):
         base = segments.add()
         # In python, BNF<N> is a raw tuple of N int.
         # In python, BLSF<N> stores this tuple in a field "coeffs".
-        if arg_type == BLSF2:
+        if arg_type in (BLSF2, BLSF12):
             arg = arg.coeffs
         # In Cairo, BNF<N> and BLSF<N> are a struct of N U384.
         # Cast int to U384 to be able to serialize

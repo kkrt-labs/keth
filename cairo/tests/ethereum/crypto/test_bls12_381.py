@@ -2,6 +2,7 @@ import pytest
 from hypothesis import assume, given
 from py_ecc.fields import optimized_bls12_381_FQ as BLSF
 from py_ecc.fields import optimized_bls12_381_FQ2 as BLSF2
+from py_ecc.fields import optimized_bls12_381_FQ12 as BLSF12
 from py_ecc.optimized_bls12_381.optimized_curve import (
     Z1,
     Z2,
@@ -134,6 +135,18 @@ segments.load_data(ids.b_inv.address_, [blsf2_struct_ptr])
                 """,
             ), strict_raises(AssertionError):
                 cairo_run_py("blsf2_div", a, b)
+
+    class TestBLSF12:
+        def test_blsf12_one(self, cairo_run):
+            assert cairo_run("BLSF12_ONE") == BLSF12.one()
+
+        @given(a=..., b=...)
+        def test_blsf12_eq(self, cairo_run, a: BLSF12, b: BLSF12):
+            assert cairo_run("BLSF12__eq__", a, b) == (a == b)
+
+        @given(a=..., b=...)
+        def test_blsf12_mul(self, cairo_run, a: BLSF12, b: BLSF12):
+            assert cairo_run("blsf12_mul", a, b) == a * b
 
     class TestBLSP:
         @given(p=...)

@@ -26,6 +26,7 @@ blockhash
 BLOCKHASH
 BLSF
 BLSP
+BLSPBLSP2
 branche
 bytearray
 bytecodelen

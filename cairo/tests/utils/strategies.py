@@ -67,6 +67,7 @@ from py_ecc.bls.hash_to_curve import (
 from py_ecc.bls.point_compression import compress_G1
 from py_ecc.fields import optimized_bls12_381_FQ as BLSF
 from py_ecc.fields import optimized_bls12_381_FQ2 as BLSF2
+from py_ecc.fields import optimized_bls12_381_FQ12 as BLSF12
 from py_ecc.optimized_bls12_381.optimized_curve import Z1, Z2
 from py_ecc.optimized_bls12_381.optimized_pairing import normalize1
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
@@ -248,6 +249,7 @@ class TypedTuple(tuple, Generic[T1, T2]):
 blsf_strategy = st.builds(
     BLSF, st.integers(min_value=0, max_value=BLSF.field_modulus - 1)
 )
+
 blsf2_strategy = st.builds(
     BLSF2,
     st.tuples(
@@ -255,6 +257,16 @@ blsf2_strategy = st.builds(
         st.integers(min_value=0, max_value=BLSF2.field_modulus - 1),
     ),
 )
+
+blsf12_strategy = st.builds(
+    BLSF12,
+    st.lists(
+        st.integers(min_value=0, max_value=BLSF12.field_modulus - 1),
+        min_size=12,
+        max_size=12,
+    ).map(tuple),
+)
+
 blsp_strategy = st.one_of(
     blsf_strategy.map(lambda x: map_to_curve_G1(x)).map(lambda x: normalize1(x)),
     st.just(Z1),
@@ -843,6 +855,7 @@ def register_type_strategies():
     st.register_type_strategy(BNP2, bnp2_strategy)
     st.register_type_strategy(BLSF, blsf_strategy)
     st.register_type_strategy(BLSF2, blsf2_strategy)
+    st.register_type_strategy(BLSF12, blsf12_strategy)
     st.register_type_strategy(KZGCommitment, bytes48.map(KZGCommitment))
     st.register_type_strategy(Bytes48, bytes48)
     st.register_type_strategy(G1Compressed, blsG1_compressed)
