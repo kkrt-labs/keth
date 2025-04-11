@@ -1,4 +1,5 @@
-from typing import Any
+from collections import defaultdict
+from typing import Any, Dict
 
 from ethereum.cancun.trie import root
 from ethereum.crypto.hash import keccak256
@@ -20,12 +21,29 @@ class LoadKethFixture(Load):
     A superclass of the `Load` class that loads EELS-format fixtures for Keth
     """
 
-    def json_to_state(self, raw: Any) -> Any:
+    def json_to_state(self, raw: Dict[str, Any]) -> Any:
         """
-        Converts json state data to a state object
-        Note: this function also loads the code hashes and storage roots from the input json
+        Converts json state data to a state object.
+
+        Args:
+            raw: Dictionary containing the raw state data for accounts, where keys are
+                hex-encoded addresses and values are account state dictionaries
+        Note:
+            - This function loads and computes both code hashes and storage roots from the input json
+            - Not all accounts touched during a transaction are present in the input json. As such, we made the State tries `defaultdict`, so that the
+                execution would not fail in case of missing accounts. However, in the e2e proving flow, these tries are not defaultdict - and when we finalize them,
+                we don't check that it's consistent with the default value.
+            - For EELS inputs (unlike ZKPI inputs):
+                * If storage_root is not provided, it's computed from the account's storage (as this is not a partial storage)
+                * If code_hash is not provided, it's computed from the account's code
+
+        Returns:
+            State: A State object initialized with all accounts required in the pre-state.
         """
         state = self.fork.State()
+        # Explicitly set the main trie as a defaultdict
+        state._main_trie._data = defaultdict(lambda: None, {})
+
         set_storage = self.fork.set_storage
 
         for address_hex, account_state in raw.items():
@@ -41,6 +59,12 @@ class LoadKethFixture(Load):
                     address,
                     hex_to_bytes32(k),
                     U256.from_be_bytes(hex_to_bytes32(v)),
+                )
+
+            # Explicitly set the storage trie as a defaultdict
+            if address in state._storage_tries:
+                state._storage_tries[address]._data = defaultdict(
+                    lambda: U256(0), state._storage_tries[address]._data
                 )
 
             # If the storage root is not provided, compute it from the account's storage.

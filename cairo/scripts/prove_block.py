@@ -22,7 +22,7 @@ from ethereum_types.numeric import FixedUnsigned, Uint
 from utils.fixture_loader import LoadKethFixture
 
 import mpt
-from mpt.ethereum_tries import EthereumTries
+from mpt.ethereum_tries import ZkPi
 from tests.utils.args_gen import (
     EMPTY_ACCOUNT,
     Account,
@@ -60,6 +60,7 @@ setattr(ethereum.cancun.vm.instructions.environment, "EMPTY_ACCOUNT", EMPTY_ACCO
 setattr(ethereum.cancun.vm.interpreter, "set_code", set_code)
 setattr(mpt.utils, "Account", Account)
 setattr(mpt.ethereum_tries, "Account", Account)
+setattr(mpt.ethereum_tries, "EMPTY_ACCOUNT", EMPTY_ACCOUNT)
 setattr(mpt.trie_diff, "Account", Account)
 setattr(ethereum.cancun.trie, "Node", Node)
 
@@ -136,10 +137,10 @@ def parse_args() -> argparse.Namespace:
 
 
 def load_pre_state(data: Dict[str, Any]) -> State:
-    """Load a trie fixture from a JSON file."""
-    fixture = EthereumTries.from_data(data)
-    state = fixture.to_state()
-    return state
+    """Load the pre-state from the fixture."""
+    zkpi = ZkPi.from_data(data)
+    pre_state = zkpi.pre_state
+    return pre_state
 
 
 def normalize_transaction(tx: Dict[str, Any]) -> Dict[str, Any]:
@@ -302,16 +303,16 @@ def load_zkpi_fixture(zkpi_path: Union[Path, str]) -> Dict[str, Any]:
         chain_id=U64(prover_inputs["chainConfig"]["chainId"]),
     )
     # Prepare inputs
-    program_inputs = {
+    program_input = {
         "block": block,
         "blockchain": chain,
         "block_hash": Bytes32(
             bytes.fromhex(input_block["header"]["hash"].removeprefix("0x"))
         ),
-        "code_hashes": code_hashes,
+        "codehash_to_code": code_hashes,
     }
 
-    return program_inputs
+    return program_input
 
 
 def prove_block(
@@ -337,7 +338,7 @@ def prove_block(
 
     # Load ZKPI data
     logger.info(f"Fetching prover inputs for block {block_number}")
-    program_inputs = load_zkpi_fixture(zkpi_path)
+    program_input = load_zkpi_fixture(zkpi_path)
 
     # Generate proof
     if proof_path:
@@ -345,7 +346,7 @@ def prove_block(
     logger.info(f"Running Keth for block {block_number}")
     run_proof_mode(
         entrypoint="main",
-        program_inputs=program_inputs,
+        program_input=program_input,
         compiled_program_path=str(compiled_program.absolute()),
         output_dir=str(output_dir.absolute()),
         stwo_proof=stwo_proof,

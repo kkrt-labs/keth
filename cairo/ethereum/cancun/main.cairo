@@ -37,8 +37,8 @@ func main{
         from ethereum.cancun.fork import BlockChain, Block
         from ethereum_types.bytes import Bytes32
 
-        ids.chain = gen_arg(BlockChain, program_inputs["blockchain"])
-        ids.block = gen_arg(Block, program_inputs["block"])
+        ids.chain = gen_arg(BlockChain, program_input["blockchain"])
+        ids.block = gen_arg(Block, program_input["block"])
     %}
 
     let parent_header = chain.value.blocks.value.data[
