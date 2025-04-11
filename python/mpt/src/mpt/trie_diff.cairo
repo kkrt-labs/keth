@@ -398,7 +398,12 @@ func _process_account_diff{
     tempvar new_address = OptionalAddress(new address.value);
 
     _compute_diff(
-        left=left_storage_root, right=right_storage_root, path=new_path, account_address=new_address
+        left=left_storage_root,
+        right=right_storage_root,
+        parent_left=OptionalInternalNode(cast(0, InternalNodeEnum*)),
+        parent_right=OptionalInternalNode(cast(0, InternalNodeEnum*)),
+        path=new_path,
+        account_address=new_address,
     );
     return ();
 }
@@ -539,7 +544,14 @@ func compute_diff_entrypoint{
         storage_key_preimages=storage_key_preimages,
         main_trie_end=main_trie_end,
         storage_tries_end=storage_tries_end,
-    }(left=left, right=right, path=path, account_address=account_address);
+    }(
+        left=left,
+        right=right,
+        parent_left=OptionalInternalNode(cast(0, InternalNodeEnum*)),
+        parent_right=OptionalInternalNode(cast(0, InternalNodeEnum*)),
+        path=path,
+        account_address=account_address,
+    );
 
     tempvar account_diff = AccountDiff(
         new AccountDiffStruct(data=main_trie_start, len=main_trie_end - main_trie_start)
@@ -579,6 +591,8 @@ func _compute_diff{
 }(
     left: OptionalUnionInternalNodeExtended,
     right: OptionalUnionInternalNodeExtended,
+    parent_left: OptionalInternalNode,
+    parent_right: OptionalInternalNode,
     path: Bytes,
     account_address: OptionalAddress,
 ) -> () {
@@ -596,25 +610,37 @@ func _compute_diff{
 
     // Case 1: left is null
     if (cast(l_resolved.value, felt) == 0) {
-        return _left_is_null(left, r_resolved, path, account_address);
+        return _left_is_null(left, r_resolved, parent_left, parent_right, path, account_address);
     }
 
     // Case 2: left is a leaf node
     if (cast(l_resolved.value.leaf_node.value, felt) != 0) {
-        return _left_is_leaf_node(l_resolved.value.leaf_node, r_resolved, path, account_address);
+        return _left_is_leaf_node(
+            l_resolved.value.leaf_node, r_resolved, parent_left, parent_right, path, account_address
+        );
     }
 
     // Case 3: left is an extension node
     if (cast(l_resolved.value.extension_node.value, felt) != 0) {
         return _left_is_extension_node(
-            l_resolved.value.extension_node, r_resolved, path, account_address
+            l_resolved.value.extension_node,
+            r_resolved,
+            parent_left,
+            parent_right,
+            path,
+            account_address,
         );
     }
 
     // Case 4: left is a branch node
     if (cast(l_resolved.value.branch_node.value, felt) != 0) {
         return _left_is_branch_node(
-            l_resolved.value.branch_node, r_resolved, path, account_address
+            l_resolved.value.branch_node,
+            r_resolved,
+            parent_left,
+            parent_right,
+            path,
+            account_address,
         );
     }
 
@@ -650,6 +676,8 @@ func _left_is_null{
 }(
     left: OptionalUnionInternalNodeExtended,
     right: OptionalInternalNode,
+    parent_left: OptionalInternalNode,
+    parent_right: OptionalInternalNode,
     path: Bytes,
     account_address: OptionalAddress,
 ) -> () {
@@ -691,13 +719,18 @@ func _left_is_null{
     // (None, ExtensionNode()) -> look for diffs in the right sub-tree
     if (cast(right.value.extension_node.value, felt) != 0) {
         let r_extension = right.value.extension_node;
-        check_extension_node(r_extension);
+        check_extension_node(r_extension, parent_right);
         let updated_path = Bytes__add__(path, r_extension.value.key_segment);
         let subnode = OptionalUnionInternalNodeExtendedImpl.from_extended(
             r_extension.value.subnode
         );
         return _compute_diff(
-            left=left, right=subnode, path=updated_path, account_address=account_address
+            left=left,
+            right=subnode,
+            parent_left=OptionalInternalNode(cast(0, InternalNodeEnum*)),
+            parent_right=right,
+            path=updated_path,
+            account_address=account_address,
         );
     }
 
@@ -740,8 +773,14 @@ func _left_is_leaf_node{
     storage_key_preimages: MappingBytes32Bytes32,
     main_trie_end: AddressAccountDiffEntry*,
     storage_tries_end: StorageDiffEntry*,
-}(l_leaf: LeafNode, right: OptionalInternalNode, path: Bytes, account_address: OptionalAddress) -> (
-    ) {
+}(
+    l_leaf: LeafNode,
+    right: OptionalInternalNode,
+    parent_left: OptionalInternalNode,
+    parent_right: OptionalInternalNode,
+    path: Bytes,
+    account_address: OptionalAddress,
+) -> () {
     alloc_locals;
     // Pattern matching on the types of right.
 
@@ -850,7 +889,7 @@ func _left_is_leaf_node{
     // comparing it to the old leaf with the same key
     if (cast(right.value.extension_node.value, felt) != 0) {
         let r_extension = right.value.extension_node;
-        check_extension_node(r_extension);
+        check_extension_node(r_extension, parent_right);
         let r_prefix_l = Bytes__startswith__(
             l_leaf.value.rest_of_key, r_extension.value.key_segment
         );
@@ -877,6 +916,8 @@ func _left_is_leaf_node{
             return _compute_diff(
                 left=l_leaf_typed,
                 right=r_subnode,
+                parent_left=parent_left,
+                parent_right=right,
                 path=updated_path,
                 account_address=account_address,
             );
@@ -896,6 +937,8 @@ func _left_is_leaf_node{
         _compute_diff(
             left=null_node,
             right=r_subnode,
+            parent_left=OptionalInternalNode(cast(0, InternalNodeEnum*)),
+            parent_right=right,
             path=updated_path_right,
             account_address=account_address,
         );
@@ -970,10 +1013,22 @@ func _left_is_extension_node{
     main_trie_end: AddressAccountDiffEntry*,
     storage_tries_end: StorageDiffEntry*,
 }(
-    left: ExtensionNode, right: OptionalInternalNode, path: Bytes, account_address: OptionalAddress
+    left: ExtensionNode,
+    right: OptionalInternalNode,
+    parent_left: OptionalInternalNode,
+    parent_right: OptionalInternalNode,
+    path: Bytes,
+    account_address: OptionalAddress,
 ) -> () {
     alloc_locals;
-    check_extension_node(left);
+    check_extension_node(left, parent_left);
+    tempvar left_as_optional = OptionalInternalNode(
+        new InternalNodeEnum(
+            leaf_node=LeafNode(cast(0, LeafNodeStruct*)),
+            extension_node=left,
+            branch_node=BranchNode(cast(0, BranchNodeStruct*)),
+        ),
+    );
 
     // (ExtensionNode(), None) -> deleted extension node
     if (cast(right.value, felt) == 0) {
@@ -984,8 +1039,14 @@ func _left_is_extension_node{
         let right_null = OptionalUnionInternalNodeExtended(
             cast(0, OptionalUnionInternalNodeExtendedEnum*)
         );
+
         return _compute_diff(
-            left=l_subnode, right=right_null, path=updated_path, account_address=account_address
+            left=l_subnode,
+            right=right_null,
+            parent_left=left_as_optional,
+            parent_right=OptionalInternalNode(cast(0, InternalNodeEnum*)),
+            path=updated_path,
+            account_address=account_address,
         );
     }
 
@@ -1019,6 +1080,8 @@ func _left_is_extension_node{
             return _compute_diff(
                 left=l_subnode,
                 right=r_leaf_typed,
+                parent_left=left_as_optional,
+                parent_right=parent_right,
                 path=updated_path,
                 account_address=account_address,
             );
@@ -1035,7 +1098,12 @@ func _left_is_extension_node{
         let updated_path_left = Bytes__add__(path, left.value.key_segment);
         let l_subnode = OptionalUnionInternalNodeExtendedImpl.from_extended(left.value.subnode);
         _compute_diff(
-            left=l_subnode, right=null_node, path=updated_path_left, account_address=account_address
+            left=l_subnode,
+            right=null_node,
+            parent_left=left_as_optional,
+            parent_right=OptionalInternalNode(cast(0, InternalNodeEnum*)),
+            path=updated_path_left,
+            account_address=account_address,
         );
 
         // Compute deletions in the left sub-tree
@@ -1065,7 +1133,7 @@ func _left_is_extension_node{
     // (ExtensionNode(), ExtensionNode()) ->
     if (cast(right.value.extension_node.value, felt) != 0) {
         let r_extension = right.value.extension_node;
-        check_extension_node(r_extension);
+        check_extension_node(r_extension, parent_right);
         let keys_equal = Bytes__eq__(left.value.key_segment, r_extension.value.key_segment);
         if (keys_equal.value != 0) {
             // equal keys -> look for diffs in children
@@ -1075,7 +1143,12 @@ func _left_is_extension_node{
             );
             let updated_path = Bytes__add__(path, left.value.key_segment);
             return _compute_diff(
-                left=l_subnode, right=r_subnode, path=updated_path, account_address=account_address
+                left=l_subnode,
+                right=r_subnode,
+                parent_left=left_as_optional,
+                parent_right=right,
+                path=updated_path,
+                account_address=account_address,
             );
         }
 
@@ -1110,6 +1183,8 @@ func _left_is_extension_node{
             return _compute_diff(
                 left=l_shortened,
                 right=r_subnode,
+                parent_left=parent_left,
+                parent_right=right,
                 path=updated_path,
                 account_address=account_address,
             );
@@ -1144,6 +1219,8 @@ func _left_is_extension_node{
             return _compute_diff(
                 left=l_subnode,
                 right=r_shortened,
+                parent_left=left_as_optional,
+                parent_right=parent_right,
                 path=updated_path,
                 account_address=account_address,
             );
@@ -1161,6 +1238,8 @@ func _left_is_extension_node{
         _compute_diff(
             left=l_subnode_typed,
             right=null_node,
+            parent_left=left_as_optional,
+            parent_right=OptionalInternalNode(cast(0, InternalNodeEnum*)),
             path=updated_path_left,
             account_address=account_address,
         );
@@ -1172,6 +1251,8 @@ func _left_is_extension_node{
         _compute_diff(
             left=null_node,
             right=r_subnode_typed,
+            parent_left=OptionalInternalNode(cast(0, InternalNodeEnum*)),
+            parent_right=right,
             path=updated_path_right,
             account_address=account_address,
         );
@@ -1180,10 +1261,11 @@ func _left_is_extension_node{
 
     // (ExtensionNode(), BranchNode())
     if (cast(right.value.branch_node.value, felt) != 0) {
-        let left_typed = OptionalUnionInternalNodeExtendedImpl.from_extension(left);
         _compute_left_extension_node_diff_on_right_branch_node(
-            left=left_typed,
+            left=left_as_optional,
             subnodes=right.value.branch_node.value.subnodes,
+            parent_left=parent_left,
+            parent_right=right,
             path=path,
             account_address=account_address,
             index=0,
@@ -1219,8 +1301,14 @@ func _left_is_branch_node{
     storage_key_preimages: MappingBytes32Bytes32,
     main_trie_end: AddressAccountDiffEntry*,
     storage_tries_end: StorageDiffEntry*,
-}(left: BranchNode, right: OptionalInternalNode, path: Bytes, account_address: OptionalAddress) -> (
-    ) {
+}(
+    left: BranchNode,
+    right: OptionalInternalNode,
+    parent_left: OptionalInternalNode,
+    parent_right: OptionalInternalNode,
+    path: Bytes,
+    account_address: OptionalAddress,
+) -> () {
     alloc_locals;
     check_branch_node(left);
 
@@ -1248,9 +1336,23 @@ func _left_is_branch_node{
     // remaining sub-tree.
     if (cast(right.value.extension_node.value, felt) != 0) {
         let right_extension = right.value.extension_node;
-        check_extension_node(right_extension);
-        return _compute_left_branch_on_right_extension_node(
-            left=left, right=right_extension, path=path, account_address=account_address, index=0
+        check_extension_node(right_extension, parent_right);
+
+        tempvar left_as_optional = OptionalInternalNode(
+            new InternalNodeEnum(
+                leaf_node=LeafNode(cast(0, LeafNodeStruct*)),
+                extension_node=ExtensionNode(cast(0, ExtensionNodeStruct*)),
+                branch_node=left,
+            ),
+        );
+        return _compute_left_branch_node_diff_on_right_extension_node(
+            subnodes=left.value.subnodes,
+            right=right,
+            parent_left=left_as_optional,
+            parent_right=parent_right,
+            path=path,
+            account_address=account_address,
+            index=0,
         );
     }
 
@@ -1320,7 +1422,22 @@ func _compute_left_branch_on_none{
         new BytesStruct(data=path_copy.value.data, len=path_copy.value.len + 1)
     );
 
-    _compute_diff(left=subnode_i, right=null_node, path=sub_path, account_address=account_address);
+    tempvar left_as_optional = OptionalInternalNode(
+        new InternalNodeEnum(
+            leaf_node=LeafNode(cast(0, LeafNodeStruct*)),
+            extension_node=ExtensionNode(cast(0, ExtensionNodeStruct*)),
+            branch_node=left,
+        ),
+    );
+
+    _compute_diff(
+        left=subnode_i,
+        right=null_node,
+        parent_left=left_as_optional,
+        parent_right=OptionalInternalNode(cast(0, InternalNodeEnum*)),
+        path=sub_path,
+        account_address=account_address,
+    );
     return _compute_left_branch_on_none(
         left=left, right=right, path=path, account_address=account_address, index=index + 1
     );
@@ -1360,6 +1477,14 @@ func _compute_left_branch_on_right_leaf{
         return ();
     }
 
+    tempvar left_as_optional = OptionalInternalNode(
+        new InternalNodeEnum(
+            leaf_node=LeafNode(cast(0, LeafNodeStruct*)),
+            extension_node=ExtensionNode(cast(0, ExtensionNodeStruct*)),
+            branch_node=left,
+        ),
+    );
+
     let subnodes_ptr = cast(left.value.subnodes.value, felt*);
     let subnode_i_extended = Extended(cast(subnodes_ptr[index], ExtendedEnum*));
     let subnode_i = OptionalUnionInternalNodeExtendedImpl.from_extended(subnode_i_extended);
@@ -1387,7 +1512,12 @@ func _compute_left_branch_on_right_leaf{
         );
         let right_shortened = OptionalUnionInternalNodeExtendedImpl.from_leaf(right_leaf_shortened);
         _compute_diff(
-            left=subnode_i, right=right_shortened, path=sub_path, account_address=account_address
+            left=subnode_i,
+            right=right_shortened,
+            parent_left=left_as_optional,
+            parent_right=OptionalInternalNode(cast(0, InternalNodeEnum*)),
+            path=sub_path,
+            account_address=account_address,
         );
         return _compute_left_branch_on_right_leaf(
             left=left, right=right, path=path, account_address=account_address, index=index + 1
@@ -1397,29 +1527,38 @@ func _compute_left_branch_on_right_leaf{
     tempvar null_node = OptionalUnionInternalNodeExtended(
         cast(0, OptionalUnionInternalNodeExtendedEnum*)
     );
-    _compute_diff(left=subnode_i, right=null_node, path=sub_path, account_address=account_address);
-
+    _compute_diff(
+        left=subnode_i,
+        right=null_node,
+        parent_left=left_as_optional,
+        parent_right=OptionalInternalNode(cast(0, InternalNodeEnum*)),
+        path=sub_path,
+        account_address=account_address,
+    );
     return _compute_left_branch_on_right_leaf(
         left=left, right=right, path=path, account_address=account_address, index=index + 1
     );
 }
 
-// @notice Helper function for `_left_is_branch_node`: computes diff when right node is ExtensionNode.
-// @dev Recursively calls `_compute_diff` for each subnode of the left BranchNode. Compares
-//      against the (potentially shortened) right ExtensionNode if the index matches the
-//      extension's first nibble, otherwise compares against a null node.
+// @notice Processes differences when the left node is a BranchNode and the right node is an ExtensionNode.
+// @dev Recursively processes each subnode (index 0-15) of the left branch.
+//      Compares the left subnode against the (potentially shortened or resolved) right ExtensionNode
+//      if the index matches the extension's first nibble, otherwise compares against null.
 // @implicit node_store Passed down.
 // @implicit address_preimages Passed down.
 // @implicit storage_key_preimages Passed down.
 // @implicit main_trie_end Passed down.
 // @implicit storage_tries_end Passed down.
-// @param left The BranchNode from the previous state.
-// @param right The ExtensionNode from the current state.
-// @param path The path up to the branch node.
+// @param subnodes The subnodes structure of the right BranchNode.
+// @param right The Optional Extension Node from the previous state.
+// @param parent_left The parent of the left node.
+// @param parent_right The parent of the right node.
+// @param path The path traversed so far.
 // @param account_address The current account address.
-// @param index The current subnode index being processed (0-15).
-// @return Updates diff lists via recursive calls.
-func _compute_left_branch_on_right_extension_node{
+// @param index The current branch index being processed (0-15).
+// @return Updates diff lists via recursive calls to `_compute_diff`.
+// TODO: left should not be optional
+func _compute_left_branch_node_diff_on_right_extension_node{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
@@ -1430,21 +1569,25 @@ func _compute_left_branch_on_right_extension_node{
     main_trie_end: AddressAccountDiffEntry*,
     storage_tries_end: StorageDiffEntry*,
 }(
-    left: BranchNode,
-    right: ExtensionNode,
+    subnodes: Subnodes,
+    right: OptionalInternalNode,
+    parent_left: OptionalInternalNode,
+    parent_right: OptionalInternalNode,
     path: Bytes,
     account_address: OptionalAddress,
     index: felt,
 ) -> () {
     alloc_locals;
-
     if (index == 16) {
         return ();
     }
 
-    let subnodes_ptr = cast(left.value.subnodes.value, felt*);
+    // Use `branch_0` as the base pointer to the list of subnodes and index it as a felt*.
+    let subnodes_ptr = cast(subnodes.value, felt*);
     let subnode_i_extended = Extended(cast(subnodes_ptr[index], ExtendedEnum*));
     let subnode_i = OptionalUnionInternalNodeExtendedImpl.from_extended(subnode_i_extended);
+
+    // TODO: optimization possible here
 
     // path = path + bytes([i])
     let path_copy = Bytes__copy__(path);
@@ -1453,36 +1596,75 @@ func _compute_left_branch_on_right_extension_node{
         new BytesStruct(data=path_copy.value.data, len=path_copy.value.len + 1)
     );
 
-    let first_nib = right.value.key_segment.value.data[0];
+    // Two cases:
+    // 1. The first nibble of the subnode matches the branch node's key segment, in which
+    // case we compare to the subnode
+    // 2. It doesn't in which case we compare to null.
+
+    let right_extension = right.value.extension_node;
+    let first_nib = right_extension.value.key_segment.value.data[0];
     if (first_nib == index) {
-        // Compare to the shortened extension node
-        // the length of the key segment is always _at least_ one in an extension
-        tempvar extension = ExtensionNode(
-            new ExtensionNodeStruct(
-                key_segment=Bytes(
-                    new BytesStruct(
-                        data=right.value.key_segment.value.data + 1,
-                        len=right.value.key_segment.value.len - 1,
+        // Fully consumed by this nibble: compare to the subnode
+        if (right_extension.value.key_segment.value.len == 1) {
+            let node_to_compare_ = OptionalUnionInternalNodeExtendedImpl.from_extended(
+                right_extension.value.subnode
+            );
+            tempvar current_parent_right = right;
+            tempvar node_to_compare = node_to_compare_;
+        } else {
+            // Compare to the shortened extension node
+            tempvar shortened_extension = ExtensionNode(
+                new ExtensionNodeStruct(
+                    key_segment=Bytes(
+                        new BytesStruct(
+                            data=right_extension.value.key_segment.value.data + 1,
+                            len=right_extension.value.key_segment.value.len - 1,
+                        ),
                     ),
+                    subnode=right_extension.value.subnode,
                 ),
-                subnode=right.value.subnode,
-            ),
+            );
+            let node_to_compare_ = OptionalUnionInternalNodeExtendedImpl.from_extension(
+                shortened_extension
+            );
+            tempvar current_parent_right = parent_right;
+            tempvar node_to_compare = node_to_compare_;
+        }
+        let current_parent_right_ = OptionalInternalNode(cast([ap - 2], InternalNodeEnum*));
+        let right_ = OptionalUnionInternalNodeExtended(
+            cast([ap - 1], OptionalUnionInternalNodeExtendedEnum*)
         );
-        let right_shortened = OptionalUnionInternalNodeExtendedImpl.from_extension(extension);
-        _compute_diff(
-            left=subnode_i, right=right_shortened, path=sub_path, account_address=account_address
-        );
-        return _compute_left_branch_on_right_extension_node(
-            left=left, right=right, path=path, account_address=account_address, index=index + 1
+        tempvar current_parent_left = current_parent_right_;
+        tempvar right_to_compare_in_iter = right_;
+    } else {
+        // Compare to None
+        tempvar current_parent_right = parent_right;
+        tempvar right_to_compare_in_iter = OptionalUnionInternalNodeExtended(
+            cast(0, OptionalUnionInternalNodeExtendedEnum*)
         );
     }
-    // Compare to None
-    let null_node = OptionalUnionInternalNodeExtended(
-        cast(0, OptionalUnionInternalNodeExtendedEnum*)
+    let current_parent_right = OptionalInternalNode(cast([ap - 2], InternalNodeEnum*));
+    let right_to_compare_in_iter = OptionalUnionInternalNodeExtended(
+        cast([ap - 1], OptionalUnionInternalNodeExtendedEnum*)
     );
-    _compute_diff(left=subnode_i, right=null_node, path=sub_path, account_address=account_address);
-    return _compute_left_branch_on_right_extension_node(
-        left=left, right=right, path=path, account_address=account_address, index=index + 1
+
+    _compute_diff(
+        left=subnode_i,
+        right=right_to_compare_in_iter,
+        parent_left=parent_left,
+        parent_right=current_parent_right,
+        path=sub_path,
+        account_address=account_address,
+    );
+
+    return _compute_left_branch_node_diff_on_right_extension_node(
+        subnodes=subnodes,
+        right=right,
+        parent_left=parent_left,
+        parent_right=parent_right,
+        path=path,
+        account_address=account_address,
+        index=index + 1,
     );
 }
 
@@ -1534,8 +1716,28 @@ func _compute_left_branch_on_right_branch_node{
         new BytesStruct(data=path_copy.value.data, len=path_copy.value.len + 1)
     );
 
+    tempvar left_as_optional = OptionalInternalNode(
+        new InternalNodeEnum(
+            leaf_node=LeafNode(cast(0, LeafNodeStruct*)),
+            extension_node=ExtensionNode(cast(0, ExtensionNodeStruct*)),
+            branch_node=left,
+        ),
+    );
+    tempvar right_as_optional = OptionalInternalNode(
+        new InternalNodeEnum(
+            leaf_node=LeafNode(cast(0, LeafNodeStruct*)),
+            extension_node=ExtensionNode(cast(0, ExtensionNodeStruct*)),
+            branch_node=right,
+        ),
+    );
+
     _compute_diff(
-        left=subnode_left, right=subnode_right, path=sub_path, account_address=account_address
+        left=subnode_left,
+        right=subnode_right,
+        parent_left=left_as_optional,
+        parent_right=right_as_optional,
+        path=sub_path,
+        account_address=account_address,
     );
 
     return _compute_left_branch_on_right_branch_node(
@@ -1638,6 +1840,8 @@ func _compute_left_leaf_diff_on_right_branch_node{
     _compute_diff(
         left=left_to_compare_in_iter,
         right=subnode_i,
+        parent_left=OptionalInternalNode(cast(0, InternalNodeEnum*)),
+        parent_right=OptionalInternalNode(cast(0, InternalNodeEnum*)),
         path=sub_path,
         account_address=account_address,
     );
@@ -1674,8 +1878,10 @@ func _compute_left_extension_node_diff_on_right_branch_node{
     main_trie_end: AddressAccountDiffEntry*,
     storage_tries_end: StorageDiffEntry*,
 }(
-    left: OptionalUnionInternalNodeExtended,
+    left: OptionalInternalNode,
     subnodes: Subnodes,
+    parent_left: OptionalInternalNode,
+    parent_right: OptionalInternalNode,
     path: Bytes,
     account_address: OptionalAddress,
     index: felt,
@@ -1704,7 +1910,7 @@ func _compute_left_extension_node_diff_on_right_branch_node{
     // case we compare to the subnode
     // 2. It doesn't in which case we compare to null.
 
-    let l_extension = left.value.extension;
+    let l_extension = left.value.extension_node;
     let first_nib = l_extension.value.key_segment.value.data[0];
     if (first_nib == index) {
         // Fully consumed by this nibble: compare to the subnode
@@ -1712,6 +1918,7 @@ func _compute_left_extension_node_diff_on_right_branch_node{
             let node_to_compare_ = OptionalUnionInternalNodeExtendedImpl.from_extended(
                 l_extension.value.subnode
             );
+            tempvar current_parent_left = left;
             tempvar node_to_compare = node_to_compare_;
         } else {
             // Compare to the shortened extension node
@@ -1729,18 +1936,23 @@ func _compute_left_extension_node_diff_on_right_branch_node{
             let node_to_compare_ = OptionalUnionInternalNodeExtendedImpl.from_extension(
                 shortened_extension
             );
+            tempvar current_parent_left = parent_left;
             tempvar node_to_compare = node_to_compare_;
         }
+        let current_parent_left_ = OptionalInternalNode(cast([ap - 2], InternalNodeEnum*));
         let left_ = OptionalUnionInternalNodeExtended(
             cast([ap - 1], OptionalUnionInternalNodeExtendedEnum*)
         );
+        tempvar current_parent_left = current_parent_left_;
         tempvar left_to_compare_in_iter = left_;
     } else {
         // Compare to None
+        tempvar current_parent_left = parent_left;
         tempvar left_to_compare_in_iter = OptionalUnionInternalNodeExtended(
             cast(0, OptionalUnionInternalNodeExtendedEnum*)
         );
     }
+    let current_parent_left = OptionalInternalNode(cast([ap - 2], InternalNodeEnum*));
     let left_to_compare_in_iter = OptionalUnionInternalNodeExtended(
         cast([ap - 1], OptionalUnionInternalNodeExtendedEnum*)
     );
@@ -1748,12 +1960,20 @@ func _compute_left_extension_node_diff_on_right_branch_node{
     _compute_diff(
         left=left_to_compare_in_iter,
         right=subnode_i,
+        parent_left=current_parent_left,
+        parent_right=parent_right,
         path=sub_path,
         account_address=account_address,
     );
 
     return _compute_left_extension_node_diff_on_right_branch_node(
-        left=left, subnodes=subnodes, path=path, account_address=account_address, index=index + 1
+        left=left,
+        subnodes=subnodes,
+        parent_left=parent_left,
+        parent_right=parent_right,
+        path=path,
+        account_address=account_address,
+        index=index + 1,
     );
 }
 
