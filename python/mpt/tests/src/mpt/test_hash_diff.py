@@ -76,7 +76,12 @@ class TestHashStateDiff:
             assert cairo_result == 0
             return
 
-        hashes_buffer = [diff.hash_poseidon() for diff in state_diff]
+        # Eliminate non-diff entries from the python expected result
+        state_diff_filtered = [
+            diff for diff in state_diff if diff.prev_value != diff.new_value
+        ]
+
+        hashes_buffer = [diff.hash_poseidon() for diff in state_diff_filtered]
         final_hash = poseidon_hash_many(hashes_buffer)
         assert cairo_result == final_hash
 
@@ -94,6 +99,11 @@ class TestHashStateDiff:
             assert cairo_result == 0
             return
 
-        hashes_buffer = [diff.hash_poseidon() for diff in storage_diff]
+        # Eliminate non-diff entries from the python expected result
+        storage_diff_filtered = [
+            diff for diff in storage_diff if diff.prev_value != diff.new_value
+        ]
+
+        hashes_buffer = [diff.hash_poseidon() for diff in storage_diff_filtered]
         final_hash = poseidon_hash_many(hashes_buffer)
         assert cairo_result == final_hash
