@@ -42,6 +42,10 @@ class TestAltBn128:
             assert cairo_run("bnf_sub", a, b) == a - b
 
         @given(a=..., b=...)
+        def test_bnf_add(self, cairo_run, a: BNF, b: BNF):
+            assert cairo_run("bnf_add", a, b) == a + b
+
+        @given(a=..., b=...)
         def test_bnf_div(self, cairo_run, a: BNF, b: BNF):
             assume(b != BNF.zero())  # Avoid division by zero
             assert cairo_run("bnf_div", a, b) == a / b
@@ -80,8 +84,10 @@ segments.load_data(ids.b_inv.address_, [bnf_struct_ptr])
         @given(x=..., y=...)
         def test_bnp_init_fails(self, cairo_run, x: BNF, y: BNF):
             assume(x != BNF.zero() or y != BNF.zero())
-            with pytest.raises(RuntimeError):
+            with strict_raises(ValueError):
                 cairo_run("bnp_init", x, y)
+            with pytest.raises(ValueError):
+                BNP(x, y)
 
         def test_bnp_point_at_infinity(self, cairo_run):
             assert cairo_run("bnp_point_at_infinity") == BNP.point_at_infinity()
@@ -175,8 +181,10 @@ segments.load_data(ids.b_inv.address_, [bnf2_struct_ptr])
         @given(x=..., y=...)
         def test_bnp2_init_fails(self, cairo_run, x: BNF2, y: BNF2):
             assume(x != BNF2.zero() or y != BNF2.zero())
-            with pytest.raises(AssertionError):
+            with strict_raises(ValueError):
                 cairo_run("bnp2_init", x, y)
+            with pytest.raises(ValueError):
+                BNP2(x, y)
 
         @given(a=..., b=...)
         def test_bnp2_eq(self, cairo_run, a: BNP2, b: BNP2):
