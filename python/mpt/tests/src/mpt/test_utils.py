@@ -227,7 +227,7 @@ ids.second_non_null_index = 1
 
     @given(
         extension_node=extension_node_could_be_invalid_strategy(),
-        parent=st.one_of(st.just(None), st.from_type(InternalNode)),
+        parent=st.one_of(st.none(), st.from_type(InternalNode)),
     )
     def test_check_extension_node(
         self, cairo_run, extension_node: ExtensionNode, parent: Optional[InternalNode]

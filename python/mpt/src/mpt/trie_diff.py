@@ -470,7 +470,7 @@ class StateDiff:
                 # Match on the corresponding nibble of the extension key segment
                 for i in range(0, 16):
                     nibble = bytes([i])
-                    # we know that l_node.key_segment is not empty
+                    # we know that r_node.key_segment is not empty
                     # as extension nodes key_segment len is at least 1
                     if r_node.key_segment[0] == nibble:
                         if len(r_node.key_segment) == 1:
@@ -479,7 +479,7 @@ class StateDiff:
                             right_parent = r_node
                         else:
                             r_node_to_compare = ExtensionNode(
-                                key_segment=Bytes(r_node.key_segment[1:]),
+                                key_segment=r_node.key_segment[1:],
                                 subnode=r_node.subnode,
                             )
                             right_parent = right_parent
