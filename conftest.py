@@ -140,6 +140,7 @@ def pytest_configure(config):
         MessageCallOutput,
         Node,
         encode_account,
+        is_account_alive,
         set_code,
     )
 
@@ -154,6 +155,7 @@ def pytest_configure(config):
     ethereum.cancun.fork_types.Account = Account
     ethereum.cancun.fork_types.EMPTY_ACCOUNT = EMPTY_ACCOUNT
     ethereum.cancun.fork_types.encode_account = encode_account
+    ethereum.cancun.state.is_account_alive = is_account_alive
     ethereum.cancun.state.set_code = set_code
     ethereum.cancun.trie.Node = Node
     mpt.ethereum_tries.Account = Account
@@ -166,6 +168,7 @@ def pytest_configure(config):
     setattr(ethereum.cancun.trie, "encode_account", encode_account)
     setattr(ethereum.cancun.state, "Account", Account)
     setattr(ethereum.cancun.state, "EMPTY_ACCOUNT", EMPTY_ACCOUNT)
+    setattr(ethereum.cancun.state, "is_account_alive", is_account_alive)
     setattr(ethereum.cancun.fork_types, "EMPTY_ACCOUNT", EMPTY_ACCOUNT)
     setattr(ethereum.cancun.vm.instructions.environment, "EMPTY_ACCOUNT", EMPTY_ACCOUNT)
     setattr(ethereum.cancun.vm.interpreter, "set_code", set_code)

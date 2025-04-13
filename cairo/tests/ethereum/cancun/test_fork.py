@@ -51,11 +51,9 @@ from hypothesis import assume, given, settings
 from hypothesis import strategies as st
 from hypothesis.strategies import composite, integers
 from scripts.prove_block import load_pre_state, process_block_transactions
-from utils.fixture_loader import LoadKethFixture
 
 from cairo_addons.testing.errors import strict_raises
 from mpt.ethereum_tries import EMPTY_BYTES_HASH, EMPTY_TRIE_HASH
-from tests.ef_tests.helpers.load_state_tests import prepare_state_and_code_hashes
 from tests.ethereum.cancun.vm.test_interpreter import unimplemented_precompiles
 from tests.utils.constants import (
     COINBASE,
@@ -81,6 +79,7 @@ from tests.utils.strategies import (
     small_bytes,
     uint,
 )
+from utils.fixture_loader import LoadKethFixture
 
 MIN_BASE_FEE = 1_000
 
@@ -546,7 +545,7 @@ def zkpi_fixture(zkpi_path):
     ]
 
     # Create blockchain
-    state, _code_hashes = prepare_state_and_code_hashes(load_pre_state(prover_inputs))
+    state = load_pre_state(prover_inputs)
     chain = BlockChain(
         blocks=blocks,
         state=state,
@@ -582,7 +581,7 @@ def zkpi_fixture(zkpi_path):
         ommers=(),
         withdrawals=block.withdrawals,
     )
-    state, _code_hashes = prepare_state_and_code_hashes(load_pre_state(prover_inputs))
+    state = load_pre_state(prover_inputs)
     chain = BlockChain(
         blocks=blocks,
         state=state,
@@ -765,7 +764,7 @@ class TestFork:
                 default=None,
                 _data=defaultdict(lambda: None, accounts),
             ),
-            _storage_tries=dict(storage_tries),
+            _storage_tries=storage_tries,
             _snapshots=[],
             created_accounts=set(),
         )
@@ -824,13 +823,16 @@ def _create_erc20_data():
         ),
     }
 
-    storage_tries = {
-        erc20_address: Trie(
-            secured=True,
-            default=U256(0),
-            _data=defaultdict(lambda: U256(0), storage_data),
-        )
-    }
+    storage_tries = defaultdict(
+        lambda: Trie(secured=True, default=U256(0), _data=defaultdict(lambda: U256(0))),
+        {
+            erc20_address: Trie(
+                secured=True,
+                default=U256(0),
+                _data=defaultdict(lambda: U256(0), storage_data),
+            )
+        },
+    )
 
     erc20_storage_root = root(storage_tries[erc20_address])
 

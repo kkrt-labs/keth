@@ -5,13 +5,15 @@ from ethereum_types.numeric import U256, Uint
 from hypothesis import example, given
 
 from mpt.ethereum_tries import EMPTY_BYTES_HASH, EMPTY_TRIE_HASH
+from tests.utils.strategies import account_strategy
 
 
 class TestForkTypes:
     def test_account_default(self, cairo_run):
         assert EMPTY_ACCOUNT == cairo_run("EMPTY_ACCOUNT")
 
-    @given(account_a=..., account_b=...)
+    # Not using ellipsis, as hypothesis loads the strategies before loading the EELS patches.
+    @given(account_a=account_strategy, account_b=account_strategy)
     @example(
         account_a=Account(
             nonce=Uint(1),
@@ -35,6 +37,8 @@ class TestForkTypes:
     def test_account_eq(
         self, cairo_run, account_a: Optional[Account], account_b: Optional[Account]
     ):
-        assert (account_a == account_b) == cairo_run(
-            "Account__eq__", account_a, account_b
-        )
+        # Our Python Account__eq__ does not take into account the storage root.
+
+        assert (
+            account_a == account_b and account_a.storage_root == account_b.storage_root
+        ) == cairo_run("Account__eq__", account_a, account_b)

@@ -59,6 +59,7 @@ from ethereum_types.numeric import U256
 from py_ecc.fields import optimized_bls12_381_FQ as BLSF
 from py_ecc.fields import optimized_bls12_381_FQ2 as BLSF2
 from py_ecc.optimized_bls12_381.optimized_curve import Z1, Z2, Optimized_Point3D
+from starkware.cairo.common.dict import DictManager
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 from starkware.cairo.lang.compiler.ast.cairo_types import (
     CairoType,
@@ -82,6 +83,7 @@ from starkware.cairo.lang.vm.memory_dict import UnknownMemoryError
 from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 
 from cairo_addons.testing.compiler import get_main_path
+from cairo_addons.vm import DictManager as RustDictManager
 from cairo_addons.vm import MemorySegmentManager as RustMemorySegmentManager
 from tests.utils.args_gen import (
     U384,
@@ -144,7 +146,7 @@ class Serde:
         self,
         segments: Union[MemorySegmentManager, RustMemorySegmentManager],
         program_identifiers: IdentifierManager,
-        dict_manager,
+        dict_manager: Union[DictManager, RustDictManager],
         cairo_file=None,
     ):
         self.segments = segments

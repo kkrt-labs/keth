@@ -41,3 +41,14 @@ def block_hashes(segments: MemorySegmentManager, ids: VmConsts):
     ids.block_hashes = segments.gen_arg(
         [random.randint(0, 2**128 - 1) for _ in range(256 * 2)]
     )
+
+
+@register_hint
+def get_code_from_hash(
+    ids: VmConsts, program_input: dict, segments: MemorySegmentManager
+):
+    account_code = program_input["codehash_to_code"][
+        (ids.account.value.code_hash.value.low, ids.account.value.code_hash.value.high)
+    ]
+    segments.load_data(ids.code, account_code)
+    ids.code_len = len(account_code)

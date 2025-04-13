@@ -12,7 +12,9 @@ from ethereum_rlp import rlp
 from ethereum_rlp.rlp import Extended
 from ethereum_types.bytes import Bytes, Bytes32
 from ethereum_types.numeric import U256, Uint
+from starkware.cairo.lang.vm.crypto import poseidon_hash_many
 
+from cairo_addons.utils.uint256 import int_to_uint256
 from mpt.ethereum_tries import EMPTY_TRIE_HASH, EthereumTrieTransitionDB
 from mpt.utils import (
     check_branch_node,
@@ -97,15 +99,52 @@ class StateDiff:
                     key = Bytes32.fromhex(storage_diff["storageKey"][2:])
                     pre_int = int(storage_diff["preValue"][2:], 16)
                     post_int = int(storage_diff["postValue"][2:], 16)
-                    pre = None if pre_int == 0 else U256(pre_int)
-                    post = None if post_int == 0 else U256(post_int)
+                    pre = U256(pre_int)
+                    post = U256(post_int)
                     if address not in state_diff._storage_tries:
                         state_diff._storage_tries[address] = {}
                     state_diff._storage_tries[address][key] = tuple((pre, post))
 
-            state_diff._main_trie[address] = tuple((pre_account, post_account))
+            # Important consideration: the `stateDiffs` provided in the JSON contain a `storage_root` field;
+            # however, our approach uses diffs on the storage tries instead of re-computing the storage root.
+            # As such, if all fields are equal _except_ for the storage root, we consider that there is no _account diff_,
+            # only a _storage diff_.
+
+            # reminder: __eq__ operator does not take into account the `storage_root` field.
+            if pre_account != post_account:
+                state_diff._main_trie[address] = tuple((pre_account, post_account))
 
         return state_diff
+
+    def compute_commitments(self) -> Tuple[int, int]:
+        from tests.utils.args_gen import AddressAccountDiffEntry, StorageDiffEntry
+
+        account_diffs = []
+        for address, (pre_account, post_account) in self._main_trie.items():
+            account_diffs.append(
+                AddressAccountDiffEntry(address, pre_account, post_account)
+            )
+        account_diffs = sorted(
+            account_diffs, key=lambda x: int.from_bytes(x.key, "little")
+        )
+
+        storage_diffs = []
+        for address, (storage_trie) in self._storage_tries.items():
+            for key, (pre, post) in storage_trie.items():
+                key = int_to_uint256(int.from_bytes(key, "little"))
+                key_hashed = poseidon_hash_many(
+                    (int.from_bytes(address, "little"), *key)
+                )
+                storage_diffs.append(StorageDiffEntry(key_hashed, pre, post))
+        storage_diffs = sorted(storage_diffs, key=lambda x: x.key)
+
+        account_diff_hashes = [diff.hash_poseidon() for diff in account_diffs]
+        storage_diff_hashes = [diff.hash_poseidon() for diff in storage_diffs]
+
+        account_diff_commitment = poseidon_hash_many(account_diff_hashes)
+        storage_diff_commitment = poseidon_hash_many(storage_diff_hashes)
+
+        return account_diff_commitment, storage_diff_commitment
 
     @classmethod
     def from_tries(cls, tries: EthereumTrieTransitionDB) -> "StateDiff":
@@ -531,7 +570,9 @@ class StateDiff:
         left_account = None if left is None else Account.from_rlp(left.value)
         right_account = None if right is None else Account.from_rlp(right.value)
 
-        self._main_trie[address] = (left_account, right_account)
+        # If both accounts are the same, it's not a diff.
+        if left_account != right_account:
+            self._main_trie[address] = (left_account, right_account)
 
         left_storage_root = (
             EMPTY_TRIE_HASH if left_account is None else left_account.storage_root
@@ -563,23 +604,19 @@ class StateDiff:
     ):
         key = self._storage_key_preimages[path]
         left_decoded = (
-            U256(int.from_bytes(rlp.decode(left.value), "big")) if left else None
+            U256(int.from_bytes(rlp.decode(left.value), "big")) if left else U256(0)
         )
         right_decoded = (
-            U256(int.from_bytes(rlp.decode(right.value), "big")) if right else None
+            U256(int.from_bytes(rlp.decode(right.value), "big")) if right else U256(0)
         )
-        if left is None:
-            if address not in self._storage_tries:
-                self._storage_tries[address] = {}
-            self._storage_tries[address][key] = tuple((None, right_decoded))
-        elif right is None:
-            if address not in self._storage_tries:
-                self._storage_tries[address] = {}
-            self._storage_tries[address][key] = tuple((left_decoded, None))
-        else:
-            if address not in self._storage_tries:
-                self._storage_tries[address] = {}
-            self._storage_tries[address][key] = tuple((left_decoded, right_decoded))
+        # If both values are the same, it's not a diff.
+        if left_decoded == right_decoded:
+            return
+
+        # Values erased from the trie are considered being 0, not None.
+        if address not in self._storage_tries:
+            self._storage_tries[address] = {}
+        self._storage_tries[address][key] = tuple((left_decoded, right_decoded))
 
 
 def resolve(

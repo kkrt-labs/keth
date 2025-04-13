@@ -4,7 +4,6 @@ from pathlib import Path
 from typing import Dict
 
 import pytest
-from utils.fixture_loader import LoadKethFixture
 
 from tests.ef_tests.helpers import TEST_FIXTURES
 from tests.ef_tests.helpers.load_state_tests import (
@@ -12,6 +11,7 @@ from tests.ef_tests.helpers.load_state_tests import (
     idfn,
     run_blockchain_st_test,
 )
+from utils.fixture_loader import LoadKethFixture
 
 pytestmark = [
     pytest.mark.cairo_file(f"{Path().cwd()}/cairo/ethereum/cancun/fork.cairo"),
@@ -68,6 +68,9 @@ IGNORE_TESTS = (
     "bcForgedTest",
     "bcMultiChainTest",
     "GasLimitHigherThan2p63m1_Cancun",
+    # Tests on state root - we don't implement state root computations in our approach
+    "wrongCoinbase_Cancun",
+    "wrongStateRoot_Cancun",
 )
 
 # All tests that recursively create a large number of frames (50000)

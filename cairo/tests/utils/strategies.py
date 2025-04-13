@@ -506,7 +506,14 @@ empty_state = st.builds(
         default=st.none(),
         _data=st.builds(dict, st.just({})).map(lambda x: defaultdict(lambda: None, x)),
     ),
-    _storage_tries=st.builds(dict, st.just({})),
+    _storage_tries=st.builds(dict, st.just({})).map(
+        lambda x: defaultdict(
+            lambda: Trie(
+                secured=True, default=U256(0), _data=defaultdict(lambda: U256(0))
+            ),
+            x,
+        )
+    ),
     _snapshots=st.lists(
         st.tuples(
             st.builds(
@@ -566,6 +573,15 @@ def state_strategy(draw):
                     address: trie_strategy(Trie[Bytes32, U256], min_size=1)
                     for address in addresses[:i]
                 }
+            ).map(
+                lambda x: defaultdict(
+                    lambda: Trie(
+                        secured=True,
+                        default=U256(0),
+                        _data=defaultdict(lambda: U256(0)),
+                    ),
+                    x,
+                )
             )
         )
     )

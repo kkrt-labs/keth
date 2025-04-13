@@ -19,10 +19,9 @@ from ethereum.cancun.transactions import (
 from ethereum_spec_tools.evm_tools.loaders.fork_loader import ForkLoad
 from ethereum_spec_tools.evm_tools.loaders.transaction_loader import TransactionLoad
 from ethereum_types.numeric import FixedUnsigned, Uint
-from utils.fixture_loader import LoadKethFixture
 
 import mpt
-from mpt.ethereum_tries import EthereumTries
+from mpt.ethereum_tries import ZkPi
 from tests.utils.args_gen import (
     EMPTY_ACCOUNT,
     Account,
@@ -32,8 +31,10 @@ from tests.utils.args_gen import (
     MessageCallOutput,
     Node,
     encode_account,
+    is_account_alive,
     set_code,
 )
+from utils.fixture_loader import LoadKethFixture
 
 # Patch EELS with our own types for argument generation
 ethereum.cancun.vm.Evm = Evm
@@ -43,6 +44,7 @@ ethereum.cancun.vm.interpreter.MessageCallOutput = MessageCallOutput
 ethereum.cancun.fork_types.Account = Account
 ethereum.cancun.fork_types.EMPTY_ACCOUNT = EMPTY_ACCOUNT
 ethereum.cancun.fork_types.encode_account = encode_account
+ethereum.cancun.state.is_account_alive = is_account_alive
 ethereum.cancun.state.set_code = set_code
 ethereum.cancun.trie.Node = Node
 ethereum_rlp.rlp.Extended = Union[Sequence["Extended"], bytearray, bytes, Uint, FixedUnsigned, str, bool]  # type: ignore # noqa: F821
@@ -55,11 +57,13 @@ setattr(ethereum.cancun.trie, "Account", Account)
 setattr(ethereum.cancun.trie, "encode_account", encode_account)
 setattr(ethereum.cancun.state, "Account", Account)
 setattr(ethereum.cancun.state, "EMPTY_ACCOUNT", EMPTY_ACCOUNT)
+setattr(ethereum.cancun.state, "is_account_alive", is_account_alive)
 setattr(ethereum.cancun.fork_types, "EMPTY_ACCOUNT", EMPTY_ACCOUNT)
 setattr(ethereum.cancun.vm.instructions.environment, "EMPTY_ACCOUNT", EMPTY_ACCOUNT)
 setattr(ethereum.cancun.vm.interpreter, "set_code", set_code)
 setattr(mpt.utils, "Account", Account)
 setattr(mpt.ethereum_tries, "Account", Account)
+setattr(mpt.ethereum_tries, "EMPTY_ACCOUNT", EMPTY_ACCOUNT)
 setattr(mpt.trie_diff, "Account", Account)
 setattr(ethereum.cancun.trie, "Node", Node)
 
@@ -79,7 +83,7 @@ from ethereum_types.numeric import U64, U256  # noqa
 
 from cairo_addons.vm import run_proof_mode  # noqa
 from tests.ef_tests.helpers.load_state_tests import (  # noqa
-    prepare_state_and_code_hashes,
+    map_code_hashes_to_code,
 )
 
 logging.basicConfig(
@@ -136,10 +140,10 @@ def parse_args() -> argparse.Namespace:
 
 
 def load_pre_state(data: Dict[str, Any]) -> State:
-    """Load a trie fixture from a JSON file."""
-    fixture = EthereumTries.from_data(data)
-    state = fixture.to_state()
-    return state
+    """Load the pre-state from the fixture."""
+    zkpi = ZkPi.from_data(data)
+    pre_state = zkpi.pre_state
+    return pre_state
 
 
 def normalize_transaction(tx: Dict[str, Any]) -> Dict[str, Any]:
@@ -256,62 +260,30 @@ def load_zkpi_fixture(zkpi_path: Union[Path, str]) -> Dict[str, Any]:
         for ancestor in prover_inputs["witness"]["ancestors"][::-1]
     ]
 
+    zkpi = ZkPi.from_data(prover_inputs)
+    transition_db = zkpi.transition_db
+    pre_state = zkpi.pre_state
+
     # Create blockchain
-    state, code_hashes = prepare_state_and_code_hashes(load_pre_state(prover_inputs))
+    code_hashes = map_code_hashes_to_code(pre_state)
     chain = BlockChain(
         blocks=blocks,
-        state=state,
+        state=pre_state,
         chain_id=U64(prover_inputs["chainConfig"]["chainId"]),
     )
 
-    # TODO: Remove when partial MPT is implemented
-    # This is not the _real_ state root, but one we re-construct from the partial state
-    # to prove this block.
-    state_root = apply_body(
-        chain.state,
-        get_last_256_block_hashes(chain),
-        block.header.coinbase,
-        block.header.number,
-        block.header.base_fee_per_gas,
-        block.header.gas_limit,
-        block.header.timestamp,
-        block.header.prev_randao,
-        block.transactions,
-        chain.chain_id,
-        block.withdrawals,
-        block.header.parent_beacon_block_root,
-        calculate_excess_blob_gas(chain.blocks[-1].header),
-    ).state_root
-
-    # Recreate block with computed state root
-    block = Block(
-        header=load.json_to_header(
-            {
-                **input_block["header"],
-                "stateRoot": "0x" + state_root.hex(),
-            }
-        ),
-        transactions=block.transactions,
-        ommers=(),
-        withdrawals=block.withdrawals,
-    )
-    state, _ = prepare_state_and_code_hashes(load_pre_state(prover_inputs))
-    chain = BlockChain(
-        blocks=blocks,
-        state=state,
-        chain_id=U64(prover_inputs["chainConfig"]["chainId"]),
-    )
     # Prepare inputs
-    program_inputs = {
+    program_input = {
         "block": block,
         "blockchain": chain,
-        "block_hash": Bytes32(
-            bytes.fromhex(input_block["header"]["hash"].removeprefix("0x"))
-        ),
-        "code_hashes": code_hashes,
+        "codehash_to_code": code_hashes,
+        "node_store": transition_db.nodes,
+        "address_preimages": transition_db.address_preimages,
+        "storage_key_preimages": transition_db.storage_key_preimages,
+        "post_state_root": transition_db.post_state_root,
     }
 
-    return program_inputs
+    return program_input
 
 
 def prove_block(
@@ -337,7 +309,7 @@ def prove_block(
 
     # Load ZKPI data
     logger.info(f"Fetching prover inputs for block {block_number}")
-    program_inputs = load_zkpi_fixture(zkpi_path)
+    program_input = load_zkpi_fixture(zkpi_path)
 
     # Generate proof
     if proof_path:
@@ -345,7 +317,7 @@ def prove_block(
     logger.info(f"Running Keth for block {block_number}")
     run_proof_mode(
         entrypoint="main",
-        program_inputs=program_inputs,
+        program_input=program_input,
         compiled_program_path=str(compiled_program.absolute()),
         output_dir=str(output_dir.absolute()),
         stwo_proof=stwo_proof,
