@@ -12,7 +12,7 @@ class TestForkTypes:
     def test_account_default(self, cairo_run):
         assert EMPTY_ACCOUNT == cairo_run("EMPTY_ACCOUNT")
 
-    # Note using ellipsis, as hypothesis loads the strategies before loading the EELS patches.
+    # Not using ellipsis, as hypothesis loads the strategies before loading the EELS patches.
     @given(account_a=account_strategy, account_b=account_strategy)
     @example(
         account_a=Account(

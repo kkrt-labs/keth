@@ -116,7 +116,7 @@ class StateDiff:
 
         return state_diff
 
-    def compute_commitments(self) -> Tuple[Bytes32, Bytes32, Bytes32, Bytes32]:
+    def compute_commitments(self) -> Tuple[int, int]:
         from tests.utils.args_gen import AddressAccountDiffEntry, StorageDiffEntry
 
         account_diffs = []
