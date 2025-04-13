@@ -69,6 +69,7 @@ IGNORE_TESTS = (
     "bcMultiChainTest",
     "GasLimitHigherThan2p63m1_Cancun",
     # Tests on state root - we don't implement state root computations in our approach
+    "wrongCoinbase_Cancun",
     "wrongStateRoot_Cancun",
 )
 
