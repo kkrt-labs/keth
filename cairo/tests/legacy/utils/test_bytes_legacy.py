@@ -31,7 +31,7 @@ class TestBytes:
         @given(n=integers(min_value=256, max_value=2**248 - 1))
         @settings(verbosity=Verbosity.quiet)
         def test_should_raise_when_byte_value_not_modulo_base(
-            self, cairo_programs, rust_programs, cairo_run_py, n
+            self, cairo_programs, rust_programs, cairo_run, n
         ):
             with (
                 patch_hint(
@@ -42,7 +42,7 @@ class TestBytes:
                 ),
                 cairo_error(message="felt_to_bytes_little: byte value is too big"),
             ):
-                cairo_run_py("test__felt_to_bytes_little", n=n)
+                cairo_run("test__felt_to_bytes_little", n=n)
 
         # This test checks the function fails if the first bytes is replaced by 0
         # All values that have 0 as first bytes will not raise an error
@@ -57,7 +57,7 @@ class TestBytes:
         )
         @settings(verbosity=Verbosity.quiet)
         def test_should_raise_when_bytes_len_is_not_minimal(
-            self, cairo_programs, rust_programs, cairo_run_py, n
+            self, cairo_programs, rust_programs, cairo_run, n
         ):
             with (
                 patch_hint(
@@ -68,10 +68,10 @@ class TestBytes:
                 ),
                 cairo_error(message="bytes_len is not the minimal possible"),
             ):
-                cairo_run_py("test__felt_to_bytes_little", n=n)
+                cairo_run("test__felt_to_bytes_little", n=n)
 
         def test_should_raise_when_bytes_len_is_greater_than_31(
-            self, cairo_programs, rust_programs, cairo_run_py
+            self, cairo_programs, rust_programs, cairo_run
         ):
             with (
                 patch_hint(
@@ -82,7 +82,7 @@ class TestBytes:
                 ),
                 cairo_error(message="bytes_len is not the minimal possible"),
             ):
-                cairo_run_py("test__felt_to_bytes_little", n=3)
+                cairo_run("test__felt_to_bytes_little", n=3)
 
     class TestFeltToBytes:
         @given(n=integers(min_value=0, max_value=2**248 - 1))

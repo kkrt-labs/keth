@@ -30,7 +30,7 @@ class TestPrecompileMapping:
     @given(address=st.sampled_from(list(PRE_COMPILED_CONTRACTS.keys())))
     @settings(verbosity=Verbosity.quiet)
     def test_precompile_table_lookup_hint_index_out_of_bounds(
-        self, cairo_programs, rust_programs, cairo_run_py, address
+        self, cairo_programs, rust_programs, cairo_run, address
     ):
         address_int = int.from_bytes(address, "little")
         with (
@@ -42,12 +42,12 @@ class TestPrecompileMapping:
             ),
             cairo_error(message="precompile_table_lookup: index out of bounds"),
         ):
-            cairo_run_py("precompile_table_lookup", address_int)
+            cairo_run("precompile_table_lookup", address_int)
 
     @given(address=st.sampled_from(list(PRE_COMPILED_CONTRACTS.keys())))
     @settings(verbosity=Verbosity.quiet)
     def test_precompile_table_lookup_hint_index_different_address(
-        self, cairo_programs, rust_programs, cairo_run_py, address
+        self, cairo_programs, rust_programs, cairo_run, address
     ):
         address_int = int.from_bytes(address, "little")
         with (
@@ -59,4 +59,4 @@ class TestPrecompileMapping:
             ),
             cairo_error(message="precompile_table_lookup: address mismatch"),
         ):
-            cairo_run_py("precompile_table_lookup", address_int)
+            cairo_run("precompile_table_lookup", address_int)

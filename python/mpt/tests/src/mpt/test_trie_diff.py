@@ -446,10 +446,10 @@ class TestTypes:
     @given(left=..., right=...)
     def test_OptionalUnionInternalNodeExtended__eq__(
         self,
-        cairo_run_py,
+        cairo_run,
         left: Optional[Union[InternalNode, Extended]],
         right: Optional[Union[InternalNode, Extended]],
     ):
         eq_py = (left == right) and type(left) is type(right)
-        eq_cairo = cairo_run_py("OptionalUnionInternalNodeExtended__eq__", left, right)
+        eq_cairo = cairo_run("OptionalUnionInternalNodeExtended__eq__", left, right)
         assert eq_py == eq_cairo

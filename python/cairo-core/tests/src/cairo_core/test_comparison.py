@@ -1,10 +1,10 @@
 import pytest
 from hypothesis import given
 from starkware.cairo.lang.vm.relocatable import RelocatableValue
-from tests.utils.strategies import felt
 
 from cairo_addons.testing.hints import patch_hint
 from cairo_addons.vm import Relocatable as RustRelocatable
+from tests.utils.strategies import felt
 
 
 class TestComparison:
@@ -31,7 +31,7 @@ class TestComparison:
         assert not is_eq and not comparison_ok
 
     def test_bad_hint_should_fail_on_unequal_segments(
-        self, cairo_run_py, cairo_programs, rust_programs
+        self, cairo_run, cairo_programs, rust_programs
     ):
         lhs_ptr = RelocatableValue(0, 0)
         rhs_ptr = RelocatableValue(1, 0)
@@ -42,7 +42,7 @@ class TestComparison:
             "ids.segment_equal = 1",
         ):
             with pytest.raises(Exception) as e:
-                cairo_run_py("is_ptr_equal", lhs_ptr, rhs_ptr)
+                cairo_run("is_ptr_equal", lhs_ptr, rhs_ptr)
             assert (
                 "Can only subtract two relocatable values of the same segment"
                 in str(e.value)

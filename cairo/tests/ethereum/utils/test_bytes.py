@@ -24,7 +24,7 @@ class TestBytes:
         assert (a == b) == cairo_run("Bytes__eq__", a, b)
 
     def test_Bytes__eq__should_fail_when_not_equal_and_bad_prover_hint(
-        self, cairo_run_py, cairo_programs, rust_programs
+        self, cairo_run, cairo_programs, rust_programs
     ):
         a = Bytes(b"a")
         b = Bytes(b"b")
@@ -38,10 +38,10 @@ ids.diff_index = 0
 """,
         ):
             with strict_raises(AssertionError):
-                cairo_run_py("Bytes__eq__", a, b)
+                cairo_run("Bytes__eq__", a, b)
 
     def test_Bytes__eq__should_fail_when_equal_and_bad_prover_hint(
-        self, cairo_run_py, cairo_programs, rust_programs
+        self, cairo_run, cairo_programs, rust_programs
     ):
         a = Bytes(b"a")
         b = Bytes(b"a")
@@ -55,7 +55,7 @@ ids.diff_index = 0
 """,
         ):
             with strict_raises(AssertionError):
-                cairo_run_py("Bytes__eq__", a, b)
+                cairo_run("Bytes__eq__", a, b)
 
     @given(a=..., b=...)
     def test_Bytes__startswith__(self, cairo_run, a: Bytes, b: Bytes):

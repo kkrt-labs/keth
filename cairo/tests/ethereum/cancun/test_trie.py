@@ -82,7 +82,7 @@ class TestTrie:
     @given(a=..., b=...)
     @settings(verbosity=Verbosity.quiet)
     def test_common_prefix_length_should_fail(
-        self, cairo_programs, rust_programs, cairo_run_py, a: Bytes, b: Bytes
+        self, cairo_programs, rust_programs, cairo_run, a: Bytes, b: Bytes
     ):
         with (
             patch_hint(
@@ -93,9 +93,7 @@ class TestTrie:
             ),
             cairo_error(message="common_prefix_length"),
         ):
-            assert common_prefix_length(a, b) == cairo_run_py(
-                "common_prefix_length", a, b
-            )
+            assert common_prefix_length(a, b) == cairo_run("common_prefix_length", a, b)
 
     @given(x=nibble, is_leaf=...)
     def test_nibble_list_to_compact(self, cairo_run, x, is_leaf: bool):
@@ -110,7 +108,7 @@ class TestTrie:
     @given(x=nibble.filter(lambda x: len(x) != 0), is_leaf=...)
     @settings(verbosity=Verbosity.quiet)
     def test_nibble_list_to_compact_should_raise_when_wrong_remainder(
-        self, cairo_programs, rust_programs, cairo_run_py, x, is_leaf: bool
+        self, cairo_programs, rust_programs, cairo_run, x, is_leaf: bool
     ):
         with (
             patch_hint(
@@ -122,7 +120,7 @@ class TestTrie:
             cairo_error(message="nibble_list_to_compact: invalid remainder"),
         ):
             # Always run patch_hint tests with the python VM
-            cairo_run_py("nibble_list_to_compact", x, is_leaf)
+            cairo_run("nibble_list_to_compact", x, is_leaf)
 
     @given(bytes_=...)
     def test_bytes_to_nibble_list(self, cairo_run, bytes_: Bytes):

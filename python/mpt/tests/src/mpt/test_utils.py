@@ -194,7 +194,7 @@ class TestUtils:
 
     @given(data=st.data())
     def test_check_branch_node_invalid_x_branch(
-        self, cairo_programs, rust_programs, cairo_run_py, data
+        self, cairo_programs, rust_programs, cairo_run, data
     ):
         node_0 = data.draw(st.one_of(st.just([]), st.just(b"")))
         node_1 = data.draw(st.one_of(st.just([]), st.just(b"")))
@@ -212,7 +212,7 @@ ids.second_non_null_index = 1
     """,
         ):
             with strict_raises(ValueError):
-                cairo_run_py("check_branch_node", branch_node)
+                cairo_run("check_branch_node", branch_node)
 
     @given(data=leaf_node_could_be_invalid_strategy())
     def test_check_leaf_node(self, cairo_run, data: Tuple[Bytes, LeafNode]):
@@ -251,7 +251,7 @@ ids.second_non_null_index = 1
         self,
         cairo_programs,
         rust_programs,
-        cairo_run_py,
+        cairo_run,
         data: List[AddressAccountDiffEntry],
     ):
         with patch_hint(
@@ -279,14 +279,14 @@ segments.load_data(ids.sorted_to_original_index_map, sorted_to_original_index_ma
             with strict_raises(
                 Exception, match="ValueError: Array is not sorted in ascending order"
             ):
-                cairo_run_py("sort_account_diff", data)
+                cairo_run("sort_account_diff", data)
 
     @given(data=list_address_account_node_diff_entry_strategy_min_size_2)
     def test_sort_account_diff_different_lists(
         self,
         cairo_programs,
         rust_programs,
-        cairo_run_py,
+        cairo_run,
         data: List[AddressAccountDiffEntry],
     ):
         with patch_hint(
@@ -311,7 +311,7 @@ segments.load_data(ids.sorted_to_original_index_map, sorted_to_original_index_ma
                 Exception,
                 match="ValueError: Sorted element does not match original element at hint index",
             ):
-                cairo_run_py("sort_account_diff", data)
+                cairo_run("sort_account_diff", data)
 
     @given(data=list_address_account_node_diff_entry_strategy_with_duplicates())
     def test_sort_account_diff_sorted_list_with_duplicates(
@@ -328,7 +328,7 @@ segments.load_data(ids.sorted_to_original_index_map, sorted_to_original_index_ma
         self,
         cairo_programs,
         rust_programs,
-        cairo_run_py,
+        cairo_run,
         data: List[AddressAccountDiffEntry],
     ):
         with patch_hint(
@@ -352,7 +352,7 @@ segments.load_data(ids.sorted_to_original_index_map, sorted_to_original_index_ma
         ):
 
             with strict_raises(Exception):
-                cairo_run_py("sort_account_diff", data)
+                cairo_run("sort_account_diff", data)
 
     @given(
         data=st.lists(
