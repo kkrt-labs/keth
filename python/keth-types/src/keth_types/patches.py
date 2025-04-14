@@ -11,6 +11,28 @@ Patches are applied when this module is imported, ensuring they take effect befo
 other code runs. Each patch targets the original definition in its source module to avoid
 redundant hot-patching of imported references.
 
+**Why Patching is Necessary**:
+Keth uses Cairo, which requires specific data structures and serialization and has some behaviors
+not natively supported by the EELS library. Custom types adjust fields comparisons (e.g., adding
+`code_hash`, `storage_root` in Account) and encoding to match Cairo's expectations. Patching ensures
+consistency between Python logic (for input prep and testing) and Cairo logic (for proving),
+preventing validation errors or incorrect proofs.
+
+**Key Challenge - Module Loading Order**:
+Python caches imported modules in `sys.modules`. If EELS modules are loaded before this
+module, patches won't apply to cached modules, leading to inconsistencies. This is common
+with pytest plugins that initialize early. To mitigate this, a check raises a RuntimeError
+if EELS modules are already loaded, enforcing early import of this module.
+
+**Best Practices for Maintainers**:
+- **Early Import**: Import this module at the start of every entry point (scripts like
+  `prove_block.py`, test configs like `conftest.py`, before the `hypothesis` entrypoint, etc) before
+  any EELS imports.
+- **Extend Patches**: Add new modules or attributes to the `PATCHES` dictionary below as
+  needed for new EELS versions or custom types.
+- **Custom Pytest Plugin**: Because pytest plugins load EELS modules early, we created a plugin
+  (see `pyproject.toml`) to apply patches during plugin init.
+
 Usage:
     Import this module at the start of any entry point (e.g., scripts, tests) to apply patches.
     Example: `import keth_types.patches`
@@ -68,6 +90,14 @@ PATCHES: Dict[Any, Dict[str, Any]] = {
     ethereum_rlp.rlp: {
         "Extended": Union[Sequence["Extended"], bytearray, bytes, Uint, FixedUnsigned, str, bool]  # type: ignore # noqa: F821,  # Simplified for brevity; refine as needed
     },
+    # Patches for mpt modules
+    mpt.utils: {
+        "Account": Account,
+    },
+    mpt.ethereum_tries: {
+        "Account": Account,
+        "EMPTY_ACCOUNT": EMPTY_ACCOUNT,
+    },
     mpt.trie_diff: {
         "Account": Account,
     },
@@ -80,13 +110,17 @@ def apply_patches() -> None:
 
     This function sets attributes on the target modules to override their original
     definitions with custom types. It is called automatically when this module is imported.
-    """
-    # Remove all ethereum modules from sys.modules
 
+    **Note for Maintainers**:
+    - If a new EELS module or type needs patching, update the `PATCHES` dictionary above.
+    - If a module was already loaded (such as, in our example, the MPT modules), you need
+      to ensure that the patch is also applied specifically to that module, and not only to
+      the base ethereum modules.
+    """
     # Apply patches
     for module, attributes in PATCHES.items():
         for attr_name, attr_value in attributes.items():
-            logger.info(f"Patching {module.__name__} with {attr_name}")
+            logger.info(f"Patching {module.__name__}'s {attr_name}")
             setattr(module, attr_name, attr_value)
 
 

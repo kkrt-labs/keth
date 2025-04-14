@@ -3,6 +3,11 @@ Prove an Ethereum block using Keth given a block number.
 Fetches zkpi data, converts it to EELS/Keth format, and generates a proof.
 """
 
+# Apply EELS types patches before importing any other modules
+from keth_types.patches import apply_patches
+
+apply_patches()
+
 import argparse
 import json
 import logging
@@ -25,16 +30,12 @@ from ethereum_spec_tools.evm_tools.loaders.transaction_loader import Transaction
 from ethereum_types.bytes import Bytes, Bytes0
 from ethereum_types.numeric import U64, U256
 
-# Apply EELS types patches before importing any other modules
 from cairo_addons.vm import run_proof_mode
 from mpt.ethereum_tries import ZkPi
 from tests.ef_tests.helpers.load_state_tests import (
     map_code_hashes_to_code,
 )
 from utils.fixture_loader import LoadKethFixture
-
-# Patch EELS types before importing any other modules
-
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
