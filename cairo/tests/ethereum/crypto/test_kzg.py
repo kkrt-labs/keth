@@ -1,18 +1,24 @@
-from typing import Optional
+from typing import Optional, Tuple
 
 import pytest
 from eth_typing import BLSPubkey as BLSPubkey_py
 from ethereum.crypto.kzg import (
     BLS_MODULUS,
+    FQ,
+    FQ2,
+    BLSFieldElement,
     KZGCommitment,
+    KZGProof,
     bytes_to_bls_field,
     bytes_to_kzg_commitment,
     bytes_to_kzg_proof,
     kzg_commitment_to_versioned_hash,
+    pairing_check,
     validate_kzg_g1,
+    verify_kzg_proof_impl,
 )
 from ethereum_types.bytes import Bytes, Bytes32, Bytes48
-from hypothesis import example, given
+from hypothesis import example, given, settings
 from hypothesis import strategies as st
 from py_ecc.bls.ciphersuites import G2ProofOfPossession
 from py_ecc.bls.constants import POW_2_381, POW_2_382, POW_2_383, POW_2_384
@@ -25,6 +31,7 @@ from py_ecc.bls.point_compression import (
 )
 from py_ecc.bls.typing import G1Compressed as G1Compressed_py
 from py_ecc.fields import optimized_bls12_381_FQ as BLSF
+from py_ecc.fields import optimized_bls12_381_FQ2 as BLSF2
 from py_ecc.optimized_bls12_381.optimized_curve import b, is_inf, is_on_curve
 from py_ecc.typing import Optimized_Point3D
 
@@ -169,3 +176,91 @@ def test_bytes_to_kzg_proof(cairo_run, b: Bytes48):
             cairo_run("bytes_to_kzg_proof", b)
         return
     assert cairo_run("bytes_to_kzg_proof", b) == expected
+
+
+@given(b=...)
+# Example from https://github.com/crate-crypto/go-kzg-4844/blob/master/tests/verify_kzg_proof/kzg-mainnet/verify_kzg_proof_case_correct_proof_392169c16a2e5ef6/data.yaml
+# Value were taken from the python implementation by debugging verify_kzg_proof_impl(commitment, z, y, proof) and normalized by using normalize1
+@example(
+    b=(
+        (
+            (
+                BLSF(
+                    3033089233236390153580784002387749973398519931436392556804430824745663885980591341916949538742661765507761577318725
+                ),
+                BLSF(
+                    1684661300497586024314492375612828779971749284691517756593117745514751654531311468370079927887112854533694448853805
+                ),
+                BLSF(1),
+            ),
+            (
+                BLSF2(
+                    (
+                        352701069587466618187139116011060144890029952792775240219908644239793785735715026873347600343865175952761926303160,
+                        3059144344244213709971259814753781636986470325476647558659373206291635324768958432433509563104347017837885763365758,
+                    )
+                ),
+                BLSF2(
+                    (
+                        2017258952934375457849735304558732518256013841723352154472679471057686924117014146018818524865681679396399932211882,
+                        3074855889729334937670587859959866275799142626485414915307030157330054773488162299461738339401058098462460928340205,
+                    )
+                ),
+                BLSF2((1, 0)),
+            ),
+        ),
+        (
+            (
+                BLSF(
+                    1620166399879389936119850415613754992405277006589305144301468170849050104387344393734170673840325138234069912381620
+                ),
+                BLSF(
+                    3007297582548210138175653692093564998020771023214829988712167287424386585196076033759114927048825258893439448062492
+                ),
+                BLSF(1),
+            ),
+            (
+                BLSF2(
+                    (
+                        2361737525864587121144448160306710977536250284102478515689025532495347985697380558754265254861332443208350014666760,
+                        2996122343636714238141262560978394822929902213982512378305369469034694945785613132457694516009925027796537743027516,
+                    )
+                ),
+                BLSF2(
+                    (
+                        3986422958346626201868818983556384810121772727871500879638238950763353393093723176841556715747752946780355737124790,
+                        700792046467811452761458186359099178318372779802175427673275647624598413602723772013116941894289756371290346004973,
+                    )
+                ),
+                BLSF2((1, 0)),
+            ),
+        ),
+    )
+)
+@settings(max_examples=50)
+@pytest.mark.slow
+def test_pairing_check(cairo_run, b: Tuple[Tuple[FQ, FQ2], Tuple[FQ, FQ2]]):
+    res = pairing_check(b)
+    assert cairo_run("pairing_check", b) == res
+
+
+def test_retrieve_values_for_pairing_check():
+    # https://github.com/crate-crypto/go-kzg-4844/blob/master/tests/verify_kzg_proof/kzg-mainnet/verify_kzg_proof_case_correct_proof_392169c16a2e5ef6/data.yaml
+    z = BLSFieldElement(
+        0x73EDA753299D7D483339D80809A1D80553BDA402FFFE5BFEFFFFFFFF00000000
+    )
+    y = BLSFieldElement(
+        0x304962B3598A0ADF33189FDFD9789FEAB1096FF40006900400000003FFFFFFFC
+    )
+    commitment = KZGCommitment(
+        0xA421E229565952CFFF4EF3517100A97DA1D4FE57956FA50A442F92AF03B1BF37ADACC8AD4ED209B31287EA5BB94D9D06.to_bytes(
+            48, "big"
+        )
+    )
+    proof = KZGProof(
+        0xAA86C458B3065E7EC244033A2ADE91A7499561F482419A3A372C42A636DAD98262A2CE926D142FD7CFE26CA148EFE8B4.to_bytes(
+            48, "big"
+        )
+    )
+    verify_kzg_proof_impl(commitment, z, y, proof)
+    # debug and retrieve values of the input of pairing_check function then apply normalize1 to each element

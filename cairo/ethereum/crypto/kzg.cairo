@@ -1,5 +1,10 @@
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, UInt384, ModBuiltin
+from starkware.cairo.common.cairo_builtins import (
+    BitwiseBuiltin,
+    UInt384,
+    ModBuiltin,
+    PoseidonBuiltin,
+)
 from starkware.cairo.common.registers import get_label_location
 from starkware.cairo.common.bitwise import bitwise_and
 from starkware.cairo.common.math import unsigned_div_rem
@@ -42,6 +47,19 @@ from ethereum.crypto.bls12_381 import (
     G1Uncompressed,
     BLSF_ZERO,
     BLSF_ONE,
+    BLSP2,
+    BLSP2Struct,
+    TupleBLSPBLSP2,
+    TupleBLSPBLSP2Struct,
+    TupleTupleBLSPBLSP2,
+    TupleTupleBLSPBLSP2Struct,
+    BLSF12,
+    BLSF12Struct,
+    BLSF12_ONE,
+    blsp2_point_at_infinity,
+    BLSP2__eq__,
+    BLSF12__eq__,
+    blsf12_mul,
 )
 from ethereum.cancun.fork_types import VersionedHash
 from ethereum.exceptions import Exception, ValueError, AssertionError
@@ -52,6 +70,9 @@ from cairo_ec.curve.g1_point import G1Point
 from cairo_core.hash.sha256 import sha256_be_output
 from cairo_core.numeric import OptionalU384
 from legacy.utils.array import reverse
+
+from bls12_381.multi_pairing_1 import multi_pairing_1P
+from definitions import G1G2Pair, G1Point as G1PointGaraga, G2Point as G2PointGaraga
 
 using BLSScalar = U256;
 using KZGCommitment = Bytes48;
@@ -382,4 +403,152 @@ func bytes_to_kzg_proof{
     }
     let ok = cast(0, Exception*);
     return (KZGProof(b.value), ok);
+}
+
+// Pairing check for BLS12-381
+// For each pairing, if one of the points is at infinity, the result is 1
+func pairing_check{
+    range_check_ptr,
+    range_check96_ptr: felt*,
+    bitwise_ptr: BitwiseBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
+}(pairs: TupleTupleBLSPBLSP2) -> bool {
+    alloc_locals;
+
+    // First pair
+    let pair1 = pairs.value.pair1;
+    let p = pair1.value.blsp;
+    let q = pair1.value.blsp2;
+
+    let infinity_p = blsp_point_at_infinity();
+    let is_infinity_p = BLSP__eq__(p, infinity_p);
+    let infinity_q = blsp2_point_at_infinity();
+    let is_infinity_q = BLSP2__eq__(q, infinity_q);
+    let is_infinity = is_infinity_p + is_infinity_q;
+
+    if (is_infinity != 0) {
+        let res1_temp = BLSF12_ONE();
+        tempvar range_check_ptr = range_check_ptr;
+        tempvar poseidon_ptr = poseidon_ptr;
+        tempvar range_check96_ptr = range_check96_ptr;
+        tempvar add_mod_ptr = add_mod_ptr;
+        tempvar mul_mod_ptr = mul_mod_ptr;
+    } else {
+        let p_garaga = G1PointGaraga([p.value.x.value.c0.value], [p.value.y.value.c0.value]);
+        let q_garaga = G2PointGaraga(
+            [q.value.x.value.c0.value],
+            [q.value.x.value.c1.value],
+            [q.value.y.value.c0.value],
+            [q.value.y.value.c1.value],
+        );
+        tempvar pair = new G1G2Pair(p_garaga, q_garaga);
+        let (res_garaga) = multi_pairing_1P(pair);
+        tempvar res1_temp = BLSF12(
+            new BLSF12Struct(
+                U384(new res_garaga.w0),
+                U384(new res_garaga.w1),
+                U384(new res_garaga.w2),
+                U384(new res_garaga.w3),
+                U384(new res_garaga.w4),
+                U384(new res_garaga.w5),
+                U384(new res_garaga.w6),
+                U384(new res_garaga.w7),
+                U384(new res_garaga.w8),
+                U384(new res_garaga.w9),
+                U384(new res_garaga.w10),
+                U384(new res_garaga.w11),
+            ),
+        );
+        tempvar range_check_ptr = range_check_ptr;
+        tempvar poseidon_ptr = poseidon_ptr;
+        tempvar range_check96_ptr = range_check96_ptr;
+        tempvar add_mod_ptr = add_mod_ptr;
+        tempvar mul_mod_ptr = mul_mod_ptr;
+    }
+    let res1_temp = BLSF12(cast([ap - 6], BLSF12Struct*));
+    let range_check_ptr = [ap - 5];
+    let poseidon_ptr = cast([ap - 4], PoseidonBuiltin*);
+    let range_check96_ptr = cast([ap - 3], felt*);
+    let add_mod_ptr = cast([ap - 2], ModBuiltin*);
+    let mul_mod_ptr = cast([ap - 1], ModBuiltin*);
+
+    tempvar res1_temp = res1_temp;
+
+    // Second pair
+    let pair2 = pairs.value.pair2;
+    let p = pair2.value.blsp;
+    let q = pair2.value.blsp2;
+
+    let infinity_p = blsp_point_at_infinity();
+    let is_infinity = BLSP__eq__(p, infinity_p);
+    let infinity_q = blsp2_point_at_infinity();
+    let is_infinity_q = BLSP2__eq__(q, infinity_q);
+    let is_infinity = is_infinity + is_infinity_q;
+
+    if (is_infinity != 0) {
+        let res2_temp = BLSF12_ONE();
+        tempvar res2_temp = res2_temp;
+
+        tempvar res1_temp = res1_temp;
+        tempvar res2_temp = res2_temp;
+        tempvar range_check_ptr = range_check_ptr;
+        tempvar poseidon_ptr = poseidon_ptr;
+        tempvar range_check96_ptr = range_check96_ptr;
+        tempvar add_mod_ptr = add_mod_ptr;
+        tempvar mul_mod_ptr = mul_mod_ptr;
+    } else {
+        let p_garaga = G1PointGaraga([p.value.x.value.c0.value], [p.value.y.value.c0.value]);
+        let q_garaga = G2PointGaraga(
+            [q.value.x.value.c0.value],
+            [q.value.x.value.c1.value],
+            [q.value.y.value.c0.value],
+            [q.value.y.value.c1.value],
+        );
+        tempvar input = new G1G2Pair(p_garaga, q_garaga);
+        let (res_garaga) = multi_pairing_1P(input);
+        tempvar res2_temp = BLSF12(
+            new BLSF12Struct(
+                U384(new res_garaga.w0),
+                U384(new res_garaga.w1),
+                U384(new res_garaga.w2),
+                U384(new res_garaga.w3),
+                U384(new res_garaga.w4),
+                U384(new res_garaga.w5),
+                U384(new res_garaga.w6),
+                U384(new res_garaga.w7),
+                U384(new res_garaga.w8),
+                U384(new res_garaga.w9),
+                U384(new res_garaga.w10),
+                U384(new res_garaga.w11),
+            ),
+        );
+
+        tempvar res1_temp = res1_temp;
+        tempvar res2_temp = res2_temp;
+        tempvar range_check_ptr = range_check_ptr;
+        tempvar poseidon_ptr = poseidon_ptr;
+        tempvar range_check96_ptr = range_check96_ptr;
+        tempvar add_mod_ptr = add_mod_ptr;
+        tempvar mul_mod_ptr = mul_mod_ptr;
+    }
+    let res1_temp = BLSF12(cast([ap - 7], BLSF12Struct*));
+    let res2_temp = BLSF12(cast([ap - 6], BLSF12Struct*));
+    let range_check_ptr = [ap - 5];
+    let poseidon_ptr = cast([ap - 4], PoseidonBuiltin*);
+    let range_check96_ptr = cast([ap - 3], felt*);
+    let add_mod_ptr = cast([ap - 2], ModBuiltin*);
+    let mul_mod_ptr = cast([ap - 1], ModBuiltin*);
+
+    let one = BLSF12_ONE();
+    let check = blsf12_mul(res1_temp, res2_temp);
+    let pairing_check_res = BLSF12__eq__(check, one);
+
+    if (pairing_check_res != 0) {
+        tempvar res = bool(1);
+        return res;
+    }
+    tempvar res = bool(0);
+    return res;
 }
