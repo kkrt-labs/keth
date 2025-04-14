@@ -133,11 +133,10 @@ func generic_call{
     let env = evm.value.env;
     let state = env.value.state;
     let account = get_account{state=state}(code_address);
+    let account_code = get_account_code{state=state}(code_address, account);
 
     EnvImpl.set_state{env=env}(state);
     EvmImpl.set_env(env);
-
-    let account_code = get_account_code{state=state}(code_address, account);
 
     let is_static = bool(is_staticcall.value + evm.value.message.value.is_static.value);
 
