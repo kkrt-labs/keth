@@ -148,6 +148,7 @@ segments.write_arg(ids.output, bad)
     ):
         with patch_hint(
             cairo_programs,
+            rust_programs,
             "felt252_to_bytes_be",
             """
 mask = (1 << (ids.len * 8)) - 1

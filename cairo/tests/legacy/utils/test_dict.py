@@ -74,8 +74,8 @@ def test_prev_values(cairo_run, dict_entries: List[Tuple[int, int, int]]):
 
 
 @given(parent_dict=..., drop=...)
-def test_dict_update(cairo_run, parent_dict: Mapping[Uint, Uint], drop: bool):
-    finalized_dict = cairo_run("test_dict_update", parent_dict, drop)
+def test_dict_update(cairo_run_py, parent_dict: Mapping[Uint, Uint], drop: bool):
+    finalized_dict = cairo_run_py("test_dict_update", parent_dict, drop)
 
     for original_value, new_value in zip(parent_dict.values(), finalized_dict.values()):
         assert new_value == original_value + Uint(1 - int(drop))

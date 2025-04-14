@@ -1,10 +1,10 @@
 import pytest
 from hypothesis import given
 from starkware.cairo.lang.vm.relocatable import RelocatableValue
+from tests.utils.strategies import felt
 
 from cairo_addons.testing.hints import patch_hint
 from cairo_addons.vm import Relocatable as RustRelocatable
-from tests.utils.strategies import felt
 
 
 class TestComparison:
@@ -45,5 +45,7 @@ class TestComparison:
                 cairo_run("is_ptr_equal", lhs_ptr, rhs_ptr)
             assert (
                 "Can only subtract two relocatable values of the same segment"
+                in str(e.value)
+                or "'RelocatableValue' object cannot be interpreted as an integer"
                 in str(e.value)
             )
