@@ -74,10 +74,11 @@ class TestMaths:
     )
     @settings(verbosity=Verbosity.quiet)
     def test_felt252_to_bytes_le_should_panic_on_wrong_output(
-        self, cairo_programs, cairo_run_py, value, len_
+        self, cairo_programs, rust_programs, cairo_run_py, value, len_
     ):
         with patch_hint(
             cairo_programs,
+            rust_programs,
             "felt252_to_bytes_le",
             """
 mask = (1 << (ids.len * 8)) - 1
@@ -88,12 +89,13 @@ segments.write_arg(ids.output, [int(b)+1 if b < 255 else 0 for b in truncated_va
             cairo_run_py("test__felt252_to_bytes_le", value=value, len=len_)
 
     def test_felt252_to_bytes_le_should_panic_on_wrong_output_noncanonical(
-        self, cairo_programs, cairo_run_py
+        self, cairo_programs, rust_programs, cairo_run_py
     ):
         value = 0xAABB
         len_ = 2
         with patch_hint(
             cairo_programs,
+            rust_programs,
             "felt252_to_bytes_le",
             """
 mask = (1 << (ids.len * 8)) - 1
@@ -142,7 +144,7 @@ segments.write_arg(ids.output, bad)
     )
     @settings(verbosity=Verbosity.quiet)
     def test_felt252_to_bytes_be_should_panic_on_wrong_output(
-        self, cairo_programs, cairo_run_py, value, len_
+        self, cairo_programs, rust_programs, cairo_run_py, value, len_
     ):
         with patch_hint(
             cairo_programs,
@@ -156,12 +158,13 @@ segments.write_arg(ids.output, [int(b) + 1 if b < 255 else 0 for b in truncated_
             cairo_run_py("test__felt252_to_bytes_be", value=value, len=len_)
 
     def test_felt252_to_bytes_be_should_panic_on_wrong_output_noncanonical(
-        self, cairo_programs, cairo_run_py
+        self, cairo_programs, rust_programs, cairo_run_py
     ):
         value = 0xAABB
         len_ = 2
         with patch_hint(
             cairo_programs,
+            rust_programs,
             "felt252_to_bytes_be",
             """
 mask = (1 << (ids.len * 8)) - 1
@@ -199,10 +202,11 @@ segments.write_arg(ids.output, bad)
     )
     @settings(verbosity=Verbosity.quiet)
     def test_felt252_to_bits_rev_should_panic_on_wrong_output(
-        self, cairo_programs, cairo_run_py, value, len_
+        self, cairo_programs, rust_programs, cairo_run_py, value, len_
     ):
         with patch_hint(
             cairo_programs,
+            rust_programs,
             "felt252_to_bits_rev",
             """
 value = ids.value
@@ -232,10 +236,11 @@ segments.load_data(dst_ptr, bad_bits)
     )
     @settings(verbosity=Verbosity.quiet)
     def test_felt252_to_bits_rev_should_panic_on_non_binary_output(
-        self, cairo_programs, cairo_run_py, value, len_
+        self, cairo_programs, rust_programs, cairo_run_py, value, len_
     ):
         with patch_hint(
             cairo_programs,
+            rust_programs,
             "felt252_to_bits_rev",
             """
 # Get inputs from ids context

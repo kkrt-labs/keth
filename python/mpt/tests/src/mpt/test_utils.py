@@ -194,7 +194,7 @@ class TestUtils:
 
     @given(data=st.data())
     def test_check_branch_node_invalid_x_branch(
-        self, cairo_programs, cairo_run_py, data
+        self, cairo_programs, rust_programs, cairo_run_py, data
     ):
         node_0 = data.draw(st.one_of(st.just([]), st.just(b"")))
         node_1 = data.draw(st.one_of(st.just([]), st.just(b"")))
@@ -204,6 +204,7 @@ class TestUtils:
         )
         with patch_hint(
             cairo_programs,
+            rust_programs,
             "find_two_non_null_subnodes",
             """
 ids.first_non_null_index = 0
@@ -247,10 +248,15 @@ ids.second_non_null_index = 1
 
     @given(data=list_address_account_node_diff_entry_strategy_min_size_2)
     def test_sort_account_diff_should_fail_if_not_ascending_order(
-        self, cairo_programs, cairo_run_py, data: List[AddressAccountDiffEntry]
+        self,
+        cairo_programs,
+        rust_programs,
+        cairo_run_py,
+        data: List[AddressAccountDiffEntry],
     ):
         with patch_hint(
             cairo_programs,
+            rust_programs,
             "sort_account_diff",
             """
 pointers = [memory[ids.diffs_ptr.address_ + i] for i in range(ids.diffs_len)]
@@ -277,10 +283,15 @@ segments.load_data(ids.sorted_to_original_index_map, sorted_to_original_index_ma
 
     @given(data=list_address_account_node_diff_entry_strategy_min_size_2)
     def test_sort_account_diff_different_lists(
-        self, cairo_programs, cairo_run_py, data: List[AddressAccountDiffEntry]
+        self,
+        cairo_programs,
+        rust_programs,
+        cairo_run_py,
+        data: List[AddressAccountDiffEntry],
     ):
         with patch_hint(
             cairo_programs,
+            rust_programs,
             "sort_account_diff",
             """
 pointers = [memory[ids.diffs_ptr.address_ + i] for i in range(ids.diffs_len)]
@@ -314,10 +325,15 @@ segments.load_data(ids.sorted_to_original_index_map, sorted_to_original_index_ma
 
     @given(data=list_address_account_node_diff_entry_strategy_min_size_2)
     def test_sort_account_diff_sorted_list_too_short(
-        self, cairo_programs, cairo_run_py, data: List[AddressAccountDiffEntry]
+        self,
+        cairo_programs,
+        rust_programs,
+        cairo_run_py,
+        data: List[AddressAccountDiffEntry],
     ):
         with patch_hint(
             cairo_programs,
+            rust_programs,
             "sort_account_diff",
             """
 pointers = [memory[ids.diffs_ptr.address_ + i] for i in range(ids.diffs_len)]

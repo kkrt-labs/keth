@@ -82,11 +82,12 @@ class TestTrie:
     @given(a=..., b=...)
     @settings(verbosity=Verbosity.quiet)
     def test_common_prefix_length_should_fail(
-        self, cairo_programs, cairo_run_py, a: Bytes, b: Bytes
+        self, cairo_programs, rust_programs, cairo_run_py, a: Bytes, b: Bytes
     ):
         with (
             patch_hint(
                 cairo_programs,
+                rust_programs,
                 "common_prefix_length_hint",
                 "import random; memory[fp] = random.randint(0, 100)",
             ),
@@ -109,11 +110,12 @@ class TestTrie:
     @given(x=nibble.filter(lambda x: len(x) != 0), is_leaf=...)
     @settings(verbosity=Verbosity.quiet)
     def test_nibble_list_to_compact_should_raise_when_wrong_remainder(
-        self, cairo_programs, cairo_run_py, x, is_leaf: bool
+        self, cairo_programs, rust_programs, cairo_run_py, x, is_leaf: bool
     ):
         with (
             patch_hint(
                 cairo_programs,
+                rust_programs,
                 "value_len_mod_two",
                 "ids.remainder = not (ids.len % 2)",
             ),

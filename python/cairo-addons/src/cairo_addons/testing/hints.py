@@ -1,4 +1,6 @@
 import contextlib
+import json
+import re
 from contextlib import contextmanager
 from importlib import import_module
 from typing import List, Optional
@@ -7,6 +9,7 @@ from unittest.mock import patch
 from starkware.cairo.lang.compiler.program import CairoHint, Program
 
 from cairo_addons.hints import implementations
+from cairo_addons.vm import Program as RustProgram
 
 
 def debug_info(program: Program):
@@ -28,10 +31,14 @@ def debug_info(program: Program):
 
 @contextmanager
 def patch_hint(
-    programs: List[Program], hint: str, new_hint: str, scope: Optional[str] = None
+    cairo_programs: List[Program],
+    rust_programs: List[RustProgram],
+    hint: str,
+    new_hint: str,
+    scope: Optional[str] = None,
 ):
     """
-    Temporarily patches a Cairo hint in a program with a new hint code.
+    Temporarily patches a Cairo hint in a list of Python and Rust programs with a new hint code.
 
     This function can handle two types of hints:
     1. Nondet hints in the format: 'nondet %{arg%};'
@@ -41,29 +48,71 @@ def patch_hint(
     pattern 'memory[fp + <i>] = to_felt_or_relocatable(arg)' and replace the argument.
 
     Args:
-        program: The Cairo program containing the hints to patch
-        hint: The original hint code to replace. Can be either a regular hint or a nondet hint.
-        new_hint: The new hint code to use. For nondet hints, this should be a new nondet hint.
-        scope: Optional scope name to restrict which hints are patched. If provided,
-               only hints within matching scopes will be modified
+        cairo_programs: A list of Cairo `Program` objects (Python-based).
+        rust_programs: A list of `RustProgram` objects (Rust-based).
+        hint: The original hint code to replace.
+        new_hint: The new hint code to use.
+        scope: Optional scope name to restrict which hints are patched.
 
+    Yields:
+        None (modifications are made in place to `cairo_programs` and `rust_programs`).
     Raises:
         ValueError: If the specified hint is not found in the program
 
+
     Example:
         # Replace a nondet hint
-        with patch_hint(program, 'nondet %{x%};', 'nondet %{y%};'):
+        with patch_hint(cairo_programs, rust_programs, 'nondet %{x%};', 'nondet %{y%};'):
             ...
 
         # Replace a regular hint
-        with patch_hint(program, 'ids.x = 5', 'ids.x = 10'):
+        with patch_hint(cairo_programs, rust_programs, 'ids.x = 5', 'ids.x = 10'):
             ...
 
         # Replace hint only in specific scope
-        with patch_hint(program, 'ids.x = 5', 'ids.x = 10', scope='my_function'):
+        with patch_hint(cairo_programs, rust_programs, 'ids.x = 5', 'ids.x = 10', scope='my_function'):
             ...
     """
-    import re
+    with contextlib.ExitStack() as stack:
+        # Patch Python Program hints
+        patched_hints = py_program_with_patch_hints(
+            cairo_programs, hint, new_hint, scope
+        )
+        for program, new_hints in zip(cairo_programs, patched_hints):
+            stack.enter_context(patch.object(program, "hints", new=new_hints))
+
+        if rust_programs:
+            original = rust_programs.copy()
+            # Create new RustProgram objects from patched cairo_programs
+            patched_programs = [
+                RustProgram.from_bytes(
+                    json.dumps(cairo_program.Schema().dump(cairo_program)).encode()
+                )
+                for cairo_program in cairo_programs
+            ]
+            rust_programs[:] = patched_programs
+
+            # Register cleanup to restore rust_programs
+            def restore_rust_programs():
+                rust_programs.clear()
+                rust_programs.extend(original)
+
+            stack.callback(restore_rust_programs)
+
+        yield
+
+
+def py_program_with_patch_hints(
+    programs: List[Program], hint: str, new_hint: str, scope: Optional[str] = None
+):
+    """
+    Patch hints in a list of Python `Program` objects.
+
+    Args:
+        programs: A list of Python `Program` objects.
+        hint: The original hint code to replace.
+        new_hint: The new hint code to use.
+    """
 
     def get_nondet_arg(hint_code: str) -> Optional[str]:
         """Extract argument from nondet hint if it is one, otherwise return None."""
@@ -128,11 +177,7 @@ def patch_hint(
 
             patched_programs_hints[i] = patched_hints
 
-    # Create context managers for all programs
-    with contextlib.ExitStack() as stack:
-        for program, patched_hints in zip(programs, patched_programs_hints):
-            stack.enter_context(patch.object(program, "hints", new=patched_hints))
-        yield
+    return patched_programs_hints
 
 
 @contextmanager

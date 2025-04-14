@@ -30,12 +30,13 @@ class TestPrecompileMapping:
     @given(address=st.sampled_from(list(PRE_COMPILED_CONTRACTS.keys())))
     @settings(verbosity=Verbosity.quiet)
     def test_precompile_table_lookup_hint_index_out_of_bounds(
-        self, cairo_programs, cairo_run_py, address
+        self, cairo_programs, rust_programs, cairo_run_py, address
     ):
         address_int = int.from_bytes(address, "little")
         with (
             patch_hint(
                 cairo_programs,
+                rust_programs,
                 "precompile_index_from_address",
                 f"ids.index = {len(PRE_COMPILED_CONTRACTS)*3 + 1}",
             ),
@@ -46,12 +47,13 @@ class TestPrecompileMapping:
     @given(address=st.sampled_from(list(PRE_COMPILED_CONTRACTS.keys())))
     @settings(verbosity=Verbosity.quiet)
     def test_precompile_table_lookup_hint_index_different_address(
-        self, cairo_programs, cairo_run_py, address
+        self, cairo_programs, rust_programs, cairo_run_py, address
     ):
         address_int = int.from_bytes(address, "little")
         with (
             patch_hint(
                 cairo_programs,
+                rust_programs,
                 "precompile_index_from_address",
                 f"ids.index = {0 if address != ECRECOVER_ADDRESS else 1}",
             ),

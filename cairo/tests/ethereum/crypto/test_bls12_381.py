@@ -63,11 +63,12 @@ class TestBls12381:
         @given(a=..., b=...)
         @pytest.mark.slow
         def test_blsf_div_patch_hint_should_fail(
-            self, cairo_programs, cairo_run_py, a: BLSF, b: BLSF
+            self, cairo_programs, rust_programs, cairo_run_py, a: BLSF, b: BLSF
         ):
             assume(b != BLSF.zero())
             with patch_hint(
                 cairo_programs,
+                rust_programs,
                 "blsf_multiplicative_inverse",
                 """
 from cairo_addons.utils.uint384 import int_to_uint384
@@ -118,11 +119,12 @@ segments.load_data(ids.b_inv.address_, [blsf_struct_ptr])
         @given(a=..., b=...)
         @pytest.mark.slow
         def test_blsf2_div_patch_hint_should_fail(
-            self, cairo_programs, cairo_run_py, a: BLSF2, b: BLSF2
+            self, cairo_programs, rust_programs, cairo_run_py, a: BLSF2, b: BLSF2
         ):
             assume(b != BLSF2.zero())
             with patch_hint(
                 cairo_programs,
+                rust_programs,
                 "blsf2_multiplicative_inverse",
                 """
 from cairo_addons.utils.uint384 import int_to_uint384
