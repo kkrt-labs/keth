@@ -1,6 +1,55 @@
-# AI-REPORT: Ethereum State Diff Comparison Logic PR (April 11, 2025)
+# AI-Reports
 
-## Overview
+## AI-REPORT: Custom Types and Patching EELS Imports (April 14, 2025)
+
+### Why Custom Types and Patching?
+
+Keth's Cairo-based prover requires custom types to ensure compatibility with the
+Ethereum EELS library. EELS types are incompatible with Cairo's data structures
+and serialization needs for zero-knowledge proof generation. Keth's custom types
+(e.g., `Account`, `Evm`, `Message`) override EELS defaults, adjusting equality
+comparisons (e.g., ignoring `storage_root` in `Account`) and serialization to
+match Cairo's expectations.
+
+Patching replaces EELS's original types with Keth's custom types across the
+Python codebase. This prevents inconsistencies between Python logic (for input
+prep and testing) and Cairo logic (for proving).
+
+### How Patching Works
+
+Patching is centralized in `keth_types.patches`, which maps EELS and MPT modules
+to Keth's custom types in a `PATCHES` dictionary. Importing `keth_types.patches`
+triggers `apply_patches()`, using `setattr` to override original definitions in
+modules like `ethereum.cancun.fork_types`. This avoids scattered `setattr`
+calls, enhancing maintainability.
+
+### Challenges with Python Module Loading
+
+Python's module loading order poses a challenge. Modules are cached in
+`sys.modules`, and if EELS modules (e.g., `ethereum.cancun.vm`) load before
+patches, original types are used instead of Keth's. This is common with pytest
+plugins that initialize early, before `conftest.py` hooks.
+
+### Proper Patching Methodology
+
+To ensure consistent patch application, follow these guidelines:
+
+- **Early Import**: Import `keth_types.patches` at the start of every entry
+  point (e.g., `prove_block.py`, `conftest.py`) before EELS modules to avoid
+  unpatched cached modules.
+- **Custom Pytest Plugin (if needed)**: Because pytest plugins load EELS modules
+  early, we created a plugin (see `pyproject.toml`) to apply patches during
+  plugin init.
+- **Centralized Type Definitions**: Define all custom types in
+  `keth_types.types` as a single source of truth for imports.
+
+These practices ensure consistent use of custom types, preventing discrepancies
+between Python and Cairo logic. Maintainers should audit entry points for patch
+imports and extend `PATCHES` in `keth_types.patches` for new modules or types.
+
+## AI-REPORT: Ethereum State Diff Comparison Logic PR (April 11, 2025)
+
+### Overview
 
 This PR refactors the Ethereum state transition prover in Cairo, replacing final
 `state_root` validation with a diff-based approach. It verifies state
@@ -8,7 +57,7 @@ modifications (account/storage diffs) from the State Transition Function (STF)
 against Merkle Patricia Trie (MPT) diffs, enhancing modularity and altering the
 prover's input/output contract.
 
-## Context
+### Context
 
 The system proves Ethereum block state transitions. Previously, it validated by
 recomputing the post-state root and comparing it to the block header's
@@ -17,7 +66,7 @@ diffs (account/storage changes) against MPT diffs computed from provided
 `pre_state_root` and `post_state_root`, avoiding costly full state root
 recalculation.
 
-## Changes
+### Changes
 
 1. **cairo/ethereum/cancun/main.cairo (Entrypoint)**
 
@@ -115,54 +164,7 @@ recalculation.
    - **Rationale**: Enhances test coverage for diff-based logic, aligns Python
      logic with Cairo.
 
-## Custom Types and Patching EELS Imports (April 14, 2025)
-
-### Why Custom Types and Patching?
-
-Keth's Cairo-based prover requires custom types to ensure compatibility with the
-Ethereum EELS library. EELS types are incompatible with Cairo's data structures
-and serialization needs for zero-knowledge proof generation. Keth's custom types
-(e.g., `Account`, `Evm`, `Message`) override EELS defaults, adjusting equality
-comparisons (e.g., ignoring `storage_root` in `Account`) and serialization to
-match Cairo's expectations.
-
-Patching replaces EELS's original types with Keth's custom types across the
-Python codebase. This prevents inconsistencies between Python logic (for input
-prep and testing) and Cairo logic (for proving).
-
-### How Patching Works
-
-Patching is centralized in `keth_types.patches`, which maps EELS and MPT modules
-to Keth's custom types in a `PATCHES` dictionary. Importing `keth_types.patches`
-triggers `apply_patches()`, using `setattr` to override original definitions in
-modules like `ethereum.cancun.fork_types`. This avoids scattered `setattr`
-calls, enhancing maintainability.
-
-### Challenges with Python Module Loading
-
-Python's module loading order poses a challenge. Modules are cached in
-`sys.modules`, and if EELS modules (e.g., `ethereum.cancun.vm`) load before
-patches, original types are used instead of Keth's. This is common with pytest
-plugins that initialize early, before `conftest.py` hooks.
-
-### Proper Patching Methodology
-
-To ensure consistent patch application, follow these guidelines:
-
-- **Early Import**: Import `keth_types.patches` at the start of every entry
-  point (e.g., `prove_block.py`, `conftest.py`) before EELS modules to avoid
-  unpatched cached modules.
-- **Custom Pytest Plugin (if needed)**: Because pytest plugins load EELS modules
-  early, we created a plugin (see `pyproject.toml`) to apply patches during
-  plugin init.
-- **Centralized Type Definitions**: Define all custom types in
-  `keth_types.types` as a single source of truth for imports.
-
-These practices ensure consistent use of custom types, preventing discrepancies
-between Python and Cairo logic. Maintainers should audit entry points for patch
-imports and extend `PATCHES` in `keth_types.patches` for new modules or types.
-
-## Patterns
+### Patterns
 
 - **Diff-Based Validation**: Verifies correctness via STF vs. MPT diff
   comparison, not final state root.
@@ -186,7 +188,7 @@ serialized as default_dict** meaning that we can query absent keys, while
 very careful when writing tests: if you don't know all keys queried during the
 test, you **must** use default_dicts.
 
-## Side Effects and Risks
+### Side Effects and Risks
 
 - **API Change**: `main` requires MPT context inputs, outputs diff commitments.
 - **Input Dependency**: Relies on external `node_store`, preimages,
@@ -198,7 +200,7 @@ test, you **must** use default_dicts.
 - **Complexity**: MPT diff generation adds complexity, though STF logic is
   simplified.
 
-## Decisions
+### Decisions
 
 - **Why Diff Comparison?**
   - **Modularity**: Decouples STF from MPT root calculation.
