@@ -1379,6 +1379,10 @@ func mapping_address_bytes32_write{range_check_ptr, mapping: MappingAddressBytes
     return ();
 }
 
+// @notice Finalizes a `State` struct by squashing all of its field.
+// @dev Squashing the main_trie and storage_tries not only de-duplicates the keys, but also
+//      sorts them in ascending order of tuple (key, prev_value, new_value), which is important
+//      in the logic of producing state diffs.
 func finalize_state{range_check_ptr, state: State}() {
     alloc_locals;
     // Squash the main trie for unique keys
@@ -1430,14 +1434,101 @@ func finalize_state{range_check_ptr, state: State}() {
         ),
     );
 
-    // Re-bind the state with the squashed storage tries
+    // Squash the created_accounts mapping for soundness
+    let created_accounts = state.value.created_accounts;
+    let created_accounts_start = cast(created_accounts.value.dict_ptr_start, DictAccess*);
+    let created_accounts_end = cast(created_accounts.value.dict_ptr, DictAccess*);
+
+    let (squashed_created_accounts_start, squashed_created_accounts_end) = dict_squash(
+        created_accounts_start, created_accounts_end
+    );
+
+    tempvar squashed_created_accounts = SetAddress(
+        new SetAddressStruct(
+            dict_ptr_start=cast(squashed_created_accounts_start, SetAddressDictAccess*),
+            dict_ptr=cast(squashed_created_accounts_end, SetAddressDictAccess*),
+        ),
+    );
+
+    // Squash the original_storage_tries mapping for soundness
+    let original_storage_tries = state.value.original_storage_tries;
+    let original_storage_tries_start = cast(
+        original_storage_tries.value._data.value.dict_ptr_start, DictAccess*
+    );
+    let original_storage_tries_end = cast(
+        original_storage_tries.value._data.value.dict_ptr, DictAccess*
+    );
+
+    let (squashed_original_storage_tries_start, squashed_original_storage_tries_end) = dict_squash(
+        original_storage_tries_start, original_storage_tries_end
+    );
+    tempvar squashed_original_storage_tries = TrieTupleAddressBytes32U256(
+        new TrieTupleAddressBytes32U256Struct(
+            secured=original_storage_tries.value.secured,
+            default=original_storage_tries.value.default,
+            _data=MappingTupleAddressBytes32U256(
+                new MappingTupleAddressBytes32U256Struct(
+                    dict_ptr_start=cast(
+                        squashed_original_storage_tries_start, TupleAddressBytes32U256DictAccess*
+                    ),
+                    dict_ptr=cast(
+                        squashed_original_storage_tries_end, TupleAddressBytes32U256DictAccess*
+                    ),
+                    parent_dict=cast(0, MappingTupleAddressBytes32U256Struct*),
+                ),
+            ),
+        ),
+    );
+
+    // Re-bind the state with the squashed dicts
     tempvar state = State(
         new StateStruct(
             _main_trie=squashed_main_trie,
             _storage_tries=squashed_storage_tries,
-            created_accounts=state.value.created_accounts,
-            original_storage_tries=state.value.original_storage_tries,
+            created_accounts=squashed_created_accounts,
+            original_storage_tries=squashed_original_storage_tries,
         ),
+    );
+
+    return ();
+}
+
+// @notice Finalizes a `TransientStorage` struct by squashing all of its field.
+func finalize_transient_storage{range_check_ptr, transient_storage: TransientStorage}() {
+    alloc_locals;
+
+    let transient_storage_tries = transient_storage.value._tries;
+    let transient_storage_tries_start = cast(
+        transient_storage_tries.value._data.value.dict_ptr_start, DictAccess*
+    );
+    let transient_storage_tries_end = cast(
+        transient_storage_tries.value._data.value.dict_ptr, DictAccess*
+    );
+
+    let (
+        squashed_transient_storage_tries_start, squashed_transient_storage_tries_end
+    ) = dict_squash(transient_storage_tries_start, transient_storage_tries_end);
+
+    tempvar squashed_transient_storage_tries = TrieTupleAddressBytes32U256(
+        new TrieTupleAddressBytes32U256Struct(
+            secured=transient_storage_tries.value.secured,
+            default=transient_storage_tries.value.default,
+            _data=MappingTupleAddressBytes32U256(
+                new MappingTupleAddressBytes32U256Struct(
+                    dict_ptr_start=cast(
+                        squashed_transient_storage_tries_start, TupleAddressBytes32U256DictAccess*
+                    ),
+                    dict_ptr=cast(
+                        squashed_transient_storage_tries_end, TupleAddressBytes32U256DictAccess*
+                    ),
+                    parent_dict=cast(0, MappingTupleAddressBytes32U256Struct*),
+                ),
+            ),
+        ),
+    );
+
+    tempvar transient_storage = TransientStorage(
+        new TransientStorageStruct(_tries=squashed_transient_storage_tries)
     );
 
     return ();
