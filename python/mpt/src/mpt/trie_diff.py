@@ -15,7 +15,8 @@ from ethereum_types.numeric import U256, Uint
 
 from cairo_addons.utils.uint256 import int_to_uint256
 from cairo_addons.vm import poseidon_hash_many
-from mpt.ethereum_tries import EMPTY_TRIE_HASH, EthereumTrieTransitionDB
+from keth_types.types import EMPTY_TRIE_HASH
+from mpt.ethereum_tries import EthereumTrieTransitionDB
 from mpt.utils import (
     check_branch_node,
     check_extension_node,

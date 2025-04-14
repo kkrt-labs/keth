@@ -48,7 +48,7 @@ from hypothesis import strategies as st
 from hypothesis.strategies import composite, integers
 
 from cairo_addons.testing.errors import strict_raises
-from mpt.ethereum_tries import EMPTY_BYTES_HASH, EMPTY_TRIE_HASH
+from keth_types.types import EMPTY_BYTES_HASH, EMPTY_TRIE_HASH
 from tests.ethereum.cancun.vm.test_interpreter import unimplemented_precompiles
 from tests.utils.constants import (
     COINBASE,

@@ -14,6 +14,7 @@ members = [
     "cairo-ec",
     "eth-rpc",
     "keth",
+    "keth-types",
     "mpt",
 ]
 
@@ -1927,6 +1928,7 @@ dependencies = [
     { name = "ethereum" },
     { name = "garaga" },
     { name = "garaga-zero" },
+    { name = "keth-types" },
     { name = "marshmallow-dataclass" },
     { name = "mpt" },
     { name = "pytest-randomly" },
@@ -1968,6 +1970,7 @@ requires-dist = [
     { name = "ethereum" },
     { name = "garaga", git = "https://github.com/keep-starknet-strange/garaga.git?rev=hydra_upd" },
     { name = "garaga-zero", git = "https://github.com/kkrt-labs/garaga-zero?rev=f294b46c9fed3f2d430a21d4c8db1699a14cab42" },
+    { name = "keth-types", editable = "python/keth-types" },
     { name = "marshmallow-dataclass", specifier = ">=8.6.1" },
     { name = "mpt", editable = "python/mpt" },
     { name = "pytest-randomly", specifier = ">=3.16.0" },
@@ -1997,6 +2000,17 @@ dev = [
     { name = "pytest-xdist", specifier = ">=3.6.1" },
     { name = "snakeviz", specifier = ">=2.2.2" },
 ]
+
+[[package]]
+name = "keth-types"
+version = "0.1.0"
+source = { editable = "python/keth-types" }
+dependencies = [
+    { name = "ethereum" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "ethereum", git = "https://github.com/kkrt-labs/execution-specs.git?branch=kakarot-changes" }]
 
 [[package]]
 name = "lark"

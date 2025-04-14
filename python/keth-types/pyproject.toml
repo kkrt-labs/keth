@@ -1,0 +1,27 @@
+[project]
+name = "keth-types"
+version = "0.1.0"
+description = "Custom Types for Keth and patches for Ethereum EELS library"
+readme = "README.md"
+authors = [{ name = "Clément Walter", email = "clement0walter@gmail.com" }]
+requires-python = ">=3.10"
+dependencies = ["ethereum"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/keth_types"]
+
+[tool.isort]
+profile = "black"
+known_third_party = ["ethereum", "ethereum_rlp", "ethereum_types"]
+known_first_party = ["cairo_ec", "cairo_core", "cairo_addons", "eth_rpc", "mpt"]
+
+
+[tool.uv.sources]
+ethereum = { git = "https://github.com/kkrt-labs/execution-specs.git", branch = "kakarot-changes" }
+
+[project.entry-points."pytest11"]
+keth_types_patches = "keth_types.patches"

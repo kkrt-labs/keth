@@ -1,6 +1,7 @@
 from collections import defaultdict
 from typing import Any, Dict
 
+from ethereum.cancun.fork_types import EMPTY_ACCOUNT
 from ethereum.cancun.trie import Trie, root
 from ethereum.crypto.hash import keccak256
 from ethereum.utils.hexadecimal import (
@@ -13,7 +14,6 @@ from ethereum_spec_tools.evm_tools.loaders.fixture_loader import Load
 from ethereum_types.numeric import U256
 
 from mpt.ethereum_tries import EMPTY_TRIE_HASH
-from tests.utils.args_gen import EMPTY_ACCOUNT
 
 
 class LoadKethFixture(Load):

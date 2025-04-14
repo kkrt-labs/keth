@@ -19,17 +19,10 @@ from ethereum_rlp import rlp
 from ethereum_types.bytes import Bytes, Bytes20, Bytes32
 from ethereum_types.numeric import U256, Uint
 
+from keth_types.types import EMPTY_BYTES_HASH, EMPTY_TRIE_HASH
 from mpt.utils import decode_node, deserialize_to_internal_node, nibble_list_to_bytes
 
 logger = logging.getLogger(__name__)
-
-
-EMPTY_TRIE_HASH = Hash32.fromhex(
-    "56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"
-)
-EMPTY_BYTES_HASH = Hash32.fromhex(
-    "c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
-)
 
 
 @dataclass

@@ -1,7 +1,7 @@
 from collections import defaultdict
 from itertools import product
 
-from ethereum.cancun.fork_types import Account, Address
+from ethereum.cancun.fork_types import EMPTY_ACCOUNT, Account, Address
 from ethereum.cancun.state import set_account, set_storage
 from ethereum.cancun.trie import Trie, copy_trie, root
 from ethereum.cancun.vm import Evm
@@ -22,11 +22,10 @@ from hypothesis.strategies import composite
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 
 from cairo_addons.testing.errors import strict_raises
-from mpt.ethereum_tries import EMPTY_BYTES_HASH, EMPTY_TRIE_HASH
-from tests.utils.args_gen import EMPTY_ACCOUNT
+from keth_types.types import EMPTY_BYTES_HASH, EMPTY_TRIE_HASH
 from tests.utils.evm_builder import EvmBuilder
 from tests.utils.message_builder import MessageBuilder
-from tests.utils.strategies import account_strategy, felt
+from tests.utils.strategies import felt
 
 evm_storage_strategy = (
     EvmBuilder()
@@ -44,7 +43,7 @@ def sstore_strategy(draw):
     evm = draw(evm_storage_strategy)
     is_key_accessed = draw(st.booleans())
     if is_key_accessed and evm.stack:
-        account = draw(account_strategy)
+        account = draw(st.from_type(Account))
         # Ensure the account exists and the key is accessed
         set_account(
             evm.env.state,
