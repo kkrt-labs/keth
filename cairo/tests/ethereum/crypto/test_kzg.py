@@ -238,6 +238,7 @@ def test_bytes_to_kzg_proof(cairo_run, b: Bytes48):
     )
 )
 @settings(max_examples=50)
+@pytest.mark.slow
 def test_pairing_check(cairo_run, b: Tuple[Tuple[FQ, FQ2], Tuple[FQ, FQ2]]):
     res = pairing_check(b)
     assert cairo_run("pairing_check", b) == res
