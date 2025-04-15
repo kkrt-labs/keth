@@ -1,5 +1,22 @@
 # AI-Reports
 
+## AI-REPORT: Typing Module Union Order Issue (April 15, 2025)
+
+### Issue with Typing Module
+
+**Issue**: The Python `typing` module caches the order of types in a `Union`
+when first encountered, causing all permutations to follow the same order,
+leading to inconsistencies in type handling.
+
+**Cause**: This occurs due to internal caching in the `typing` module, notably
+affecting Keth's type system where EELS uses both
+`Union[Bytes, LegacyTransaction]` and `Union[LegacyTransaction, Bytes]`, while
+Keth standardizes on the former.
+
+**Solution**: Clearing the `typing` module's cache by invoking functions in
+`typing._cleanups` resets the order, ensuring consistent type handling. This
+workaround is implemented in `args_gen.py`.
+
 ## AI-REPORT: Custom Types and Patching EELS Imports (April 14, 2025)
 
 ### Why Custom Types and Patching?

@@ -51,6 +51,7 @@ When adding new types, you must:
 
 import inspect
 import sys
+import typing
 from collections import ChainMap, abc, defaultdict
 from dataclasses import fields, is_dataclass
 from functools import partial
@@ -216,6 +217,14 @@ ethereum_exception_mappings = {
     ): cls
     for name, cls in ethereum_exception_classes
 }
+
+# Surprising side-effect of the `typing` module: If a type is first encountered in a specific order in a Union,
+# then all permutations of the types in the Union will be considered in the same order as the first encounter.
+# to overcome that, we can cleanup the cache of the `typing` module. Notably this happens because in
+# EELS both Union[Bytes, LegacyTransaction] and Union[LegacyTransaction, Bytes] are used - on our
+# side we only use the former.
+for cleanup_fn in typing._cleanups:
+    cleanup_fn()
 
 # Union of all possible trie types as defined in the ethereum spec.
 # Does not take into account our internal trie where we merged accounts and storage.
