@@ -618,6 +618,18 @@ impl PyVmConstsDict {
             .items
             .get_mut(name)
             .ok_or_else(|| PyAttributeError::new_err(format!("No variable '{}' to set", name)))?;
+        let maybe_relocatable_value = value.extract::<PyMaybeRelocatable>(py)?.into();
+
+        // Handle case where the variable is a simple un-assigned pointer
+        if let Ok(py_rel) = var.extract::<PyRelocatable>(py) {
+            let relocatable = py_rel.inner;
+            let vm = unsafe { &mut *self.vm };
+            vm.insert_value::<MaybeRelocatable>(relocatable, maybe_relocatable_value)
+                .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
+            return Ok(());
+        }
+
+        // Handle case where we're setting the value of a vm_const
         let mut vm_const = var
             .downcast_bound::<PyVmConst>(py)
             .map_err(|_| {
@@ -633,15 +645,14 @@ impl PyVmConstsDict {
             )));
         }
 
-        let maybe_relocatable = value.extract::<PyMaybeRelocatable>(py)?;
-        vm_const.var.value = Some(maybe_relocatable.clone().into());
+        vm_const.var.value = Some(maybe_relocatable_value.clone());
         let vm = unsafe { &mut *self.vm };
         vm.insert_value::<MaybeRelocatable>(
             vm_const
                 .var
                 .address
                 .ok_or_else(|| PyRuntimeError::new_err(format!("No address for '{}'", name)))?,
-            maybe_relocatable.into(),
+            maybe_relocatable_value,
         )
         .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
         Ok(())
@@ -784,7 +795,6 @@ pub fn create_vm_consts_dict(
         // %{ my_hint }
         // ```
         let value = vm.get_maybe(&var_addr);
-
         // Based on the cairo_type and value, return different Python objects
         // to match the original Python VmConsts behavior.
         match cairo_type.as_str() {
@@ -805,22 +815,14 @@ pub fn create_vm_consts_dict(
                         .insert(name.clone(), Py::new(py, py_rel)?.into_bound_py_any(py)?.into());
                 }
                 None => {
-                    // Create a CairoVar with no value
-                    let var = CairoVar {
-                        name: name.clone(),
-                        value: None,
-                        address: Some(var_addr),
-                        var_type: CairoVarType::Felt,
-                    };
-                    let py_var = PyVmConst {
-                        var,
-                        vm: vm as *mut VirtualMachine,
-                        identifiers: Some(identifiers as *const HashMap<String, Identifier>),
-                    };
+                    // Assume the a felt type with no associated value yet is simply an un-filled
+                    // memory
+                    // - return the associated relocatable
+                    let py_rel = PyRelocatable { inner: var_addr };
                     py_ids_dict
                         .borrow_mut(py)
                         .items
-                        .insert(name.clone(), Py::new(py, py_var)?.into_bound_py_any(py)?.into());
+                        .insert(name.clone(), Py::new(py, py_rel)?.into_bound_py_any(py)?.into());
                 }
             },
             t if t.ends_with('*') => {
