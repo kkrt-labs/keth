@@ -10,6 +10,7 @@ mod layout;
 mod maybe_relocatable;
 mod memory_segments;
 mod mod_builtin_runner;
+mod poseidon_hash;
 mod program;
 mod pythonic_hint;
 mod relocatable;
@@ -47,5 +48,6 @@ fn vm(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<PyVmConst>()?;
     module.add_class::<PyVmConstsDict>()?;
     module.add_class::<PyModBuiltinRunner>()?;
+    module.add_function(wrap_pyfunction!(poseidon_hash::poseidon_hash_many, module)?).unwrap();
     Ok(())
 }

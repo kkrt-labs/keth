@@ -19,9 +19,9 @@ from ethereum_types.numeric import U256
 from hypothesis import assume, given
 from hypothesis import strategies as st
 from hypothesis.strategies import composite
-from starkware.cairo.lang.vm.crypto import poseidon_hash_many
 
 from cairo_addons.utils.uint256 import int_to_uint256
+from cairo_addons.vm import poseidon_hash_many
 from mpt.ethereum_tries import EthereumTrieTransitionDB
 from mpt.trie_diff import StateDiff, resolve
 from mpt.utils import decode_node

@@ -144,7 +144,6 @@ from starkware.cairo.lang.compiler.identifier_definition import (
 )
 from starkware.cairo.lang.compiler.program import Program
 from starkware.cairo.lang.compiler.scoped_name import ScopedName
-from starkware.cairo.lang.vm.crypto import poseidon_hash_many
 from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 from starkware.cairo.lang.vm.relocatable import RelocatableValue
 
@@ -152,6 +151,7 @@ from cairo_addons.utils.uint256 import int_to_uint256
 from cairo_addons.vm import DictTracker as RustDictTracker
 from cairo_addons.vm import MemorySegmentManager as RustMemorySegmentManager
 from cairo_addons.vm import Relocatable as RustRelocatable
+from cairo_addons.vm import poseidon_hash_many
 from cairo_ec.curve import ECBase
 from mpt.ethereum_tries import EMPTY_BYTES_HASH, EMPTY_TRIE_HASH
 from tests.utils.helpers import flatten
