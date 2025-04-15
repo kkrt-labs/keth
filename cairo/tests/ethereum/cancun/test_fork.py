@@ -700,6 +700,8 @@ class TestFork:
 
         output = apply_body(**kwargs)
 
+        # We compare all but not the state root - which is not computed in Cairo
+        cairo_result.state_root = output.state_root
         assert cairo_result == output
         assert cairo_state == state
 
