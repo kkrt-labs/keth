@@ -413,6 +413,31 @@ def test_verify_kzg_proof_impl(
     ),
     proof_bytes=G1_POINT_AT_INFINITY,
 )
+# Test cases for invalid inputs
+@example(
+    commitment_bytes=G1_POINT_AT_INFINITY,
+    z_bytes=int(BLS_MODULUS + BLSFieldElement(1)).to_bytes(32, "big"),
+    y_bytes=(0).to_bytes(32, "big"),
+    proof_bytes=G1_POINT_AT_INFINITY,
+)
+@example(
+    commitment_bytes=G1_POINT_AT_INFINITY,
+    z_bytes=int(BLS_MODULUS - BLSFieldElement(1)).to_bytes(32, "big"),
+    y_bytes=int(BLS_MODULUS + BLSFieldElement(1)).to_bytes(32, "big"),
+    proof_bytes=G1_POINT_AT_INFINITY,
+)
+@example(
+    commitment_bytes=int(BLS_MODULUS + BLSFieldElement(1)).to_bytes(32, "big"),
+    z_bytes=int(BLS_MODULUS - BLSFieldElement(1)).to_bytes(32, "big"),
+    y_bytes=(0).to_bytes(32, "big"),
+    proof_bytes=G1_POINT_AT_INFINITY,
+)
+@example(
+    commitment_bytes=G1_POINT_AT_INFINITY,
+    z_bytes=int(BLS_MODULUS - BLSFieldElement(1)).to_bytes(32, "big"),
+    y_bytes=(0).to_bytes(32, "big"),
+    proof_bytes=int(BLS_MODULUS + BLSFieldElement(1)).to_bytes(32, "big"),
+)
 def test_verify_kzg_proof(
     cairo_run,
     commitment_bytes: Bytes48,
