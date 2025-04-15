@@ -2,7 +2,7 @@ from typing import Optional
 
 from ethereum.cancun.fork_types import EMPTY_ACCOUNT, Account
 from ethereum_types.numeric import U256, Uint
-from hypothesis import example, given
+from hypothesis import example, given, reproduce_failure
 
 from keth_types.types import EMPTY_BYTES_HASH, EMPTY_TRIE_HASH
 
@@ -36,7 +36,9 @@ class TestForkTypes:
         self, cairo_run, account_a: Optional[Account], account_b: Optional[Account]
     ):
         # Our Python Account__eq__ does not take into account the storage root.
-
+        # Handle cases where account_a or account_b might be None or lack a storage root.
+        a_storage_root = getattr(account_a, 'storage_root', None)
+        b_storage_root = getattr(account_b, 'storage_root', None)
         assert (
-            account_a == account_b and account_a.storage_root == account_b.storage_root
+            account_a == account_b and a_storage_root == b_storage_root
         ) == cairo_run("Account__eq__", account_a, account_b)
