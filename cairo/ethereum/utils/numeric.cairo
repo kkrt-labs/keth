@@ -22,6 +22,7 @@ from cairo_core.maths import (
 )
 from cairo_core.comparison import is_zero
 from cairo_ec.uint384 import uint256_to_uint384
+from legacy.utils.array import reverse
 from legacy.utils.bytes import bytes_to_felt, bytes_to_felt_le, uint256_from_bytes_be, felt_to_bytes
 from legacy.utils.uint256 import uint256_add, uint256_sub
 from legacy.utils.utils import Helpers
@@ -533,6 +534,17 @@ func U384_to_be_bytes{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
 
     tempvar result = Bytes(new BytesStruct(bytes_ptr, length));
     return result;
+}
+
+func U384_to_le_bytes{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
+    value: U384, length: felt
+) -> Bytes {
+    alloc_locals;
+    let bytes_be = U384_to_be_bytes(value, length);
+    let (local bytes_result: felt*) = alloc();
+    reverse(bytes_result, length, bytes_be.value.data);
+    tempvar bytes_le = Bytes(new BytesStruct(data=bytes_result, len=length));
+    return bytes_le;
 }
 
 func get_u384_bits_little{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(num: U384) -> (

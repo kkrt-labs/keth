@@ -100,78 +100,6 @@ class TestNumeric:
             "taylor_exponential", factor, numerator, denominator
         )
 
-    @given(bytes=...)
-    def test_U256_from_be_bytes32(self, cairo_run, bytes: Bytes32):
-        expected = U256.from_be_bytes(bytes)
-        result = cairo_run("U256_from_be_bytes32", bytes)
-        assert result == expected
-
-    @given(bytes=...)
-    def test_U256_from_le_bytes(self, cairo_run, bytes: Bytes32):
-        expected = U256.from_le_bytes(bytes)
-        result = cairo_run("U256_from_le_bytes", bytes)
-        assert result == expected
-
-    @given(value=...)
-    def test_U256_to_be_bytes(self, cairo_run, value: U256):
-        expected = value.to_be_bytes32()
-        result = cairo_run("U256_to_be_bytes", value)
-        assert result == expected
-
-    @given(value=...)
-    def test_U256_to_le_bytes(self, cairo_run, value: U256):
-        expected = value.to_le_bytes32()
-        result = cairo_run("U256_to_le_bytes", value)
-        assert result == expected
-
-    @given(a=..., b=...)
-    def test_U256__eq__(self, cairo_run, a: U256, b: U256):
-        assert (a == b) == cairo_run("U256__eq__", a, b)
-
-    @given(address=...)
-    def test_U256_from_be_bytes20(self, cairo_run, address: Address):
-        assert U256.from_be_bytes(address) == cairo_run("U256_from_be_bytes20", address)
-
-    @given(value=st.integers(min_value=0, max_value=2**160 - 1).map(U256))
-    def test_U256_to_be_bytes20(self, cairo_run, value: U256):
-        cairo_result = cairo_run("U256_to_be_bytes20", value)
-        assert U256.to_bytes(value, length=20, byteorder="big") == cairo_result
-
-    @given(a=..., b=...)
-    def test_U256_le(self, cairo_run, a: U256, b: U256):
-        assert (a <= b) == cairo_run("U256_le", a, b)
-
-    @given(a=..., b=...)
-    def test_U256_add(self, cairo_run, a: U256, b: U256):
-        try:
-            cairo_result = cairo_run("U256_add", a, b)
-        except Exception as e:
-            with strict_raises(type(e)):
-                a + b
-            return
-        assert cairo_result == a + b
-
-    @given(a=..., b=...)
-    def test_U256_sub(self, cairo_run, a: U256, b: U256):
-        try:
-            cairo_result = cairo_run("U256_sub", a, b)
-        except Exception as e:
-            with strict_raises(type(e)):
-                a - b
-            return
-
-        assert cairo_result == a - b
-
-    @given(a=..., b=...)
-    def test_U256_mul(self, cairo_run, a: U256, b: U256):
-        try:
-            cairo_result = cairo_run("U256_mul", a, b)
-        except Exception as cairo_error:
-            with strict_raises(type(cairo_error)):
-                a * b
-            return
-        assert cairo_result == a * b
-
     @given(bytes=small_bytes)
     def test_U64_from_be_bytes(self, cairo_run, bytes: Bytes):
         try:
@@ -192,39 +120,6 @@ class TestNumeric:
         except Exception:
             assert len(bytes) > 31
 
-    @given(
-        a=uint256,
-        b=st.integers(min_value=2**256 - 1000, max_value=2**256 - 1).map(U256),
-    )
-    def test_U256_add_with_carry(self, cairo_run, a: U256, b: U256):
-        result, carry = cairo_run("U256_add_with_carry", a, b)
-        total = int(a) + int(b)
-        cairo_total = int(result) + int(carry) * 2**256
-        assert total == cairo_total
-
-    # @dev Note Uint type from EELS is unbounded.
-    # But U256_to_Uint panics if value > STONE_PRIME - 1
-    @given(value=...)
-    @example(
-        value=U256(0x80000000000001100000000000000000000000000000000000000000000FFFF)
-    )
-    def test_U256_to_Uint(self, cairo_run, value: U256):
-        if int(value) > PRIME - 1:
-            with pytest.raises(Exception):
-                cairo_run("U256_to_Uint", value)
-        else:
-            assert Uint(value) == cairo_run("U256_to_Uint", value)
-
-    @given(bytes=small_bytes)
-    def test_U256_from_be_bytes(self, cairo_run, bytes: Bytes):
-        try:
-            result = cairo_run("U256_from_be_bytes", bytes)
-        except Exception as e:
-            with strict_raises(type(e)):
-                U256.from_be_bytes(bytes)
-            return
-        assert result == U256.from_be_bytes(bytes)
-
     @given(bytes=small_bytes)
     def test_Bytes32_from_be_bytes(self, cairo_run, bytes: Bytes):
         try:
@@ -240,70 +135,210 @@ class TestNumeric:
         )
         assert result == Bytes32(bytes)
 
-    @given(value=st.integers(min_value=0, max_value=PRIME - 1).map(Uint))
-    def test_U256_from_felt(self, cairo_run, value: Uint):
-        result = cairo_run("U256_from_Uint", value)
-        assert result == U256(value)
+    class TestU256:
 
-    @given(a=uint256, b=uint256)
-    def test_u256_min(self, cairo_run, a: U256, b: U256):
-        result = cairo_run("U256_min", a, b)
-        expected = min(a, b)
-        assert result == expected
+        @given(bytes=...)
+        def test_U256_from_be_bytes32(self, cairo_run, bytes: Bytes32):
+            expected = U256.from_be_bytes(bytes)
+            result = cairo_run("U256_from_be_bytes32", bytes)
+            assert result == expected
 
-    @given(value=...)
-    def test_U256_bit_length(self, cairo_run, value: U256):
-        expected = value.bit_length()
-        result = cairo_run("U256_bit_length", value)
-        assert result == expected
+        @given(bytes=...)
+        def test_U256_from_le_bytes(self, cairo_run, bytes: Bytes32):
+            expected = U256.from_le_bytes(bytes)
+            result = cairo_run("U256_from_le_bytes", bytes)
+            assert result == expected
 
-    @given(bytes=st.binary(max_size=512))
-    def test_U384_from_be_bytes(self, cairo_run, bytes: Bytes):
-        try:
-            result = cairo_run("U384_from_be_bytes", bytes)
-        except ValueError:
-            assert len(bytes) > 48
-            return
+        @given(value=...)
+        def test_U256_to_be_bytes(self, cairo_run, value: U256):
+            expected = value.to_be_bytes32()
+            result = cairo_run("U256_to_be_bytes", value)
+            assert result == expected
 
-        expected = U384(int.from_bytes(bytes, "big"))
+        @given(value=...)
+        def test_U256_to_le_bytes(self, cairo_run, value: U256):
+            expected = value.to_le_bytes32()
+            result = cairo_run("U256_to_le_bytes", value)
+            assert result == expected
 
-        assert result == expected
+        @given(a=..., b=...)
+        def test_U256__eq__(self, cairo_run, a: U256, b: U256):
+            assert (a == b) == cairo_run("U256__eq__", a, b)
 
-    @given(a=..., b=...)
-    def test_U384__eq__(self, cairo_run, a: U384, b: U384):
-        assert (a == b) == cairo_run("U384__eq__", a, b)
+        @given(address=...)
+        def test_U256_from_be_bytes20(self, cairo_run, address: Address):
+            assert U256.from_be_bytes(address) == cairo_run(
+                "U256_from_be_bytes20", address
+            )
 
-    @given(value=...)
-    def test_U384_is_zero(self, cairo_run, value: U384):
-        cairo_result = cairo_run("U384_is_zero", value)
-        assert cairo_result == 1 if value == U384(0) else cairo_result == 0
+        @given(value=st.integers(min_value=0, max_value=2**160 - 1).map(U256))
+        def test_U256_to_be_bytes20(self, cairo_run, value: U256):
+            cairo_result = cairo_run("U256_to_be_bytes20", value)
+            assert U256.to_bytes(value, length=20, byteorder="big") == cairo_result
 
-    @given(value=...)
-    def test_U384_is_one(self, cairo_run, value: U384):
-        cairo_result = cairo_run("U384_is_one", value)
-        assert cairo_result == 1 if value == U384(1) else cairo_result == 0
+        @given(a=..., b=...)
+        def test_U256_le(self, cairo_run, a: U256, b: U256):
+            assert (a <= b) == cairo_run("U256_le", a, b)
 
-    @given(a=..., b=...)
-    def test_U256_max(self, cairo_run, a: U256, b: U256):
-        result = cairo_run("U256_max", a, b)
-        expected = max(a, b)
-        assert result == expected
+        @given(a=..., b=...)
+        def test_U256_add(self, cairo_run, a: U256, b: U256):
+            try:
+                cairo_result = cairo_run("U256_add", a, b)
+            except Exception as e:
+                with strict_raises(type(e)):
+                    a + b
+                return
+            assert cairo_result == a + b
 
-    @given(value=...)
-    def test_get_u384_bits_little(self, cairo_run, value: U384):
-        (cairo_bits_ptr, cairo_bits_len) = cairo_run("get_u384_bits_little", value)
+        @given(a=..., b=...)
+        def test_U256_sub(self, cairo_run, a: U256, b: U256):
+            try:
+                cairo_result = cairo_run("U256_sub", a, b)
+            except Exception as e:
+                with strict_raises(type(e)):
+                    a - b
+                return
 
-        python_bits = get_u384_bits_little(value)
-        cairo_bits = [cairo_bits_ptr[i] for i in range(cairo_bits_len)]
-        assert python_bits == cairo_bits, f"Failed for value {value}"
+            assert cairo_result == a - b
 
-    @given(bytes=st.binary(max_size=512))
-    def test_U384_from_le_bytes(self, cairo_run, bytes: Bytes):
-        try:
-            result = cairo_run("U384_from_le_bytes", bytes)
-        except ValueError:
-            assert len(bytes) > 48
-            return
+        @given(a=..., b=...)
+        def test_U256_mul(self, cairo_run, a: U256, b: U256):
+            try:
+                cairo_result = cairo_run("U256_mul", a, b)
+            except Exception as cairo_error:
+                with strict_raises(type(cairo_error)):
+                    a * b
+                return
+            assert cairo_result == a * b
 
-        expected = U384(int.from_bytes(bytes, "little"))
-        assert result == expected
+        @given(
+            a=uint256,
+            b=st.integers(min_value=2**256 - 1000, max_value=2**256 - 1).map(U256),
+        )
+        def test_U256_add_with_carry(self, cairo_run, a: U256, b: U256):
+            result, carry = cairo_run("U256_add_with_carry", a, b)
+            total = int(a) + int(b)
+            cairo_total = int(result) + int(carry) * 2**256
+            assert total == cairo_total
+
+        # @dev Note Uint type from EELS is unbounded.
+        # But U256_to_Uint panics if value > STONE_PRIME - 1
+        @given(value=...)
+        @example(
+            value=U256(
+                0x80000000000001100000000000000000000000000000000000000000000FFFF
+            )
+        )
+        def test_U256_to_Uint(self, cairo_run, value: U256):
+            if int(value) > PRIME - 1:
+                with pytest.raises(Exception):
+                    cairo_run("U256_to_Uint", value)
+            else:
+                assert Uint(value) == cairo_run("U256_to_Uint", value)
+
+        @given(bytes=small_bytes)
+        def test_U256_from_be_bytes(self, cairo_run, bytes: Bytes):
+            try:
+                result = cairo_run("U256_from_be_bytes", bytes)
+            except Exception as e:
+                with strict_raises(type(e)):
+                    U256.from_be_bytes(bytes)
+                return
+            assert result == U256.from_be_bytes(bytes)
+
+        @given(value=st.integers(min_value=0, max_value=PRIME - 1).map(Uint))
+        def test_U256_from_felt(self, cairo_run, value: Uint):
+            result = cairo_run("U256_from_Uint", value)
+            assert result == U256(value)
+
+        @given(a=uint256, b=uint256)
+        def test_U256_min(self, cairo_run, a: U256, b: U256):
+            result = cairo_run("U256_min", a, b)
+            expected = min(a, b)
+            assert result == expected
+
+        @given(value=...)
+        def test_U256_bit_length(self, cairo_run, value: U256):
+            expected = value.bit_length()
+            result = cairo_run("U256_bit_length", value)
+            assert result == expected
+
+        @given(a=..., b=...)
+        def test_U256_max(self, cairo_run, a: U256, b: U256):
+            result = cairo_run("U256_max", a, b)
+            expected = max(a, b)
+            assert result == expected
+
+    class TestU384:
+        @given(value=...)
+        def test_U384_is_one(self, cairo_run, value: U384):
+            cairo_result = cairo_run("U384_is_one", value)
+            assert cairo_result == 1 if value == U384(1) else cairo_result == 0
+
+        @given(bytes=st.binary(max_size=512))
+        def test_U384_from_be_bytes(self, cairo_run, bytes: Bytes):
+            try:
+                result = cairo_run("U384_from_be_bytes", bytes)
+            except ValueError:
+                assert len(bytes) > 48
+                return
+
+            expected = U384(int.from_bytes(bytes, "big"))
+
+            assert result == expected
+
+        @given(bytes=st.binary(max_size=512))
+        def test_U384_from_le_bytes(self, cairo_run, bytes: Bytes):
+            try:
+                result = cairo_run("U384_from_le_bytes", bytes)
+            except ValueError:
+                assert len(bytes) > 48
+                return
+
+            expected = U384(int.from_bytes(bytes, "little"))
+            assert result == expected
+
+        @given(a=..., b=...)
+        def test_U384__eq__(self, cairo_run, a: U384, b: U384):
+            assert (a == b) == cairo_run("U384__eq__", a, b)
+
+        @given(value=...)
+        def test_U384_is_zero(self, cairo_run, value: U384):
+            cairo_result = cairo_run("U384_is_zero", value)
+            assert cairo_result == 1 if value == U384(0) else cairo_result == 0
+
+        @given(value=...)
+        def test_get_u384_bits_little(self, cairo_run, value: U384):
+            (cairo_bits_ptr, cairo_bits_len) = cairo_run("get_u384_bits_little", value)
+
+            python_bits = get_u384_bits_little(value)
+            cairo_bits = [cairo_bits_ptr[i] for i in range(cairo_bits_len)]
+            assert python_bits == cairo_bits, f"Failed for value {value}"
+
+        @given(value=...)
+        def test_U384_to_be_bytes(self, cairo_run, value: U384):
+            int_value = value._number
+            if int_value == 0:
+                length = 1  # At least one byte for zero
+            else:
+                length = (int_value.bit_length() + 7) // 8
+
+            cairo_result = cairo_run("U384_to_be_bytes", value, length)
+
+            expected_bytes = int_value.to_bytes(length, "big")
+            assert len(cairo_result) == length
+            assert bytes(cairo_result) == expected_bytes
+
+        @given(value=...)
+        def test_U384_to_le_bytes(self, cairo_run, value: U384):
+            int_value = value._number
+            if int_value == 0:
+                length = 1  # At least one byte for zero
+            else:
+                length = (int_value.bit_length() + 7) // 8
+
+            cairo_result = cairo_run("U384_to_le_bytes", value, length)
+
+            expected_bytes = int_value.to_bytes(length, "little")
+            assert len(cairo_result) == length
+            assert bytes(cairo_result) == expected_bytes
