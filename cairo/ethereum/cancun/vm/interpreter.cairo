@@ -25,7 +25,12 @@ from ethereum.cancun.fork_types import (
 )
 
 from ethereum.cancun.vm.evm_impl import Evm, EvmStruct, Message
-from ethereum.cancun.vm.env_impl import Environment, EnvironmentStruct, EnvImpl
+from ethereum.cancun.vm.env_impl import (
+    Environment,
+    EnvironmentStruct,
+    EnvImpl,
+    finalize_transient_storage,
+)
 
 from ethereum.cancun.utils.constants import STACK_DEPTH_LIMIT, MAX_CODE_SIZE
 from ethereum.cancun.vm.exceptions import (
@@ -490,12 +495,16 @@ func process_message_call{
     } else {
         // Regular message call path
         let evm = process_message(message, env);
+        // Re-bind the evm's mutated `env` object to the original `env` object.
+        let env = evm.value.env;
 
-        // Check if account exists and is empty
-        let state = evm.value.env.value.state;
+        // Check if account exists and is empty - and rebind the `evm` object with the mutated env.state.
+        let state = env.value.state;
         let is_empty = account_exists_and_is_empty{state=state}(
             [message.value.target.value.address]
         );
+        EnvImpl.set_state{env=env}(state);
+        EvmImpl.set_env{evm=evm}(env);
 
         if (is_empty.value != FALSE) {
             // Add to touched accounts
@@ -530,8 +539,6 @@ func process_message_call{
             tempvar mul_mod_ptr = mul_mod_ptr;
             tempvar evm = evm;
         }
-        EnvImpl.set_state{env=env}(state);
-        EvmImpl.set_env{evm=evm}(env);
         tempvar range_check_ptr = range_check_ptr;
         tempvar bitwise_ptr = bitwise_ptr;
         tempvar keccak_ptr = keccak_ptr;
@@ -554,7 +561,7 @@ func process_message_call{
 
     // Prepare return values based on error state
     if (cast(evm.value.error, felt) != 0) {
-        squash_evm{evm=evm}();
+        finalize_evm{evm=evm}();
         let msg = create_empty_message_call_output(evm.value.gas_left, evm.value.error);
         return msg;
     }
@@ -562,7 +569,7 @@ func process_message_call{
     assert [range_check_ptr] = evm.value.refund_counter;
     let range_check_ptr = range_check_ptr + 1;
 
-    squash_evm{evm=evm}();
+    finalize_evm{evm=evm}();
 
     let squashed_evm = evm;
     %{
@@ -632,8 +639,9 @@ func create_empty_message_call_output(
     return msg;
 }
 
-// @dev Finalizes an `Evm` struct by squashing all of its fields except for Environment.
-func squash_evm{range_check_ptr, evm: Evm}() {
+// @dev Finalizes an `Evm` struct by squashing all of its fields except for the `state` inside the Environment - which is only finalized
+//      after processing full blocks.
+func finalize_evm{range_check_ptr, evm: Evm}() {
     alloc_locals;
 
     // Squash stack
@@ -746,6 +754,11 @@ func squash_evm{range_check_ptr, evm: Evm}() {
         ),
     );
 
+    let env = evm.value.env;
+    let transient_storage = env.value.transient_storage;
+    finalize_transient_storage{transient_storage=transient_storage}();
+    EnvImpl.set_transient_storage{env=env}(transient_storage);
+
     // Rebind all dicts to the evm struct
     tempvar evm = Evm(
         new EvmStruct(
@@ -754,7 +767,7 @@ func squash_evm{range_check_ptr, evm: Evm}() {
             memory=new_memory,
             code=evm.value.code,
             gas_left=evm.value.gas_left,
-            env=evm.value.env,
+            env=env,
             valid_jump_destinations=new_valid_jump_destinations,
             logs=evm.value.logs,
             refund_counter=evm.value.refund_counter,
