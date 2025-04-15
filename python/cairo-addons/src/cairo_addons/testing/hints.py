@@ -1,5 +1,4 @@
 import contextlib
-import json
 import re
 from contextlib import contextmanager
 from importlib import import_module
@@ -58,53 +57,73 @@ def patch_hint(
         None (modifications are made in place to `cairo_programs` and `rust_programs`).
     Raises:
         ValueError: If the specified hint is not found in the program
-
-
-    Example:
-        # Replace a nondet hint
-        with patch_hint(cairo_programs, rust_programs, 'nondet %{x%};', 'nondet %{y%};'):
-            ...
-
-        # Replace a regular hint
-        with patch_hint(cairo_programs, rust_programs, 'ids.x = 5', 'ids.x = 10'):
-            ...
-
-        # Replace hint only in specific scope
-        with patch_hint(cairo_programs, rust_programs, 'ids.x = 5', 'ids.x = 10', scope='my_function'):
-            ...
     """
     with contextlib.ExitStack() as stack:
+        # Determine if we're dealing with nondet hints
+        orig_nondet_arg = get_nondet_arg(hint)
+        new_nondet_arg = get_nondet_arg(new_hint)
+
         # Patch Python Program hints
-        patched_hints = py_program_with_patch_hints(
-            cairo_programs, hint, new_hint, scope
+        patched_hints = patch_program_hints(
+            cairo_programs, hint, new_hint, scope, orig_nondet_arg, new_nondet_arg
         )
         for program, new_hints in zip(cairo_programs, patched_hints):
             stack.enter_context(patch.object(program, "hints", new=new_hints))
 
+        # Patch Rust Program hints
         if rust_programs:
-            original = rust_programs.copy()
-            # Create new RustProgram objects from patched cairo_programs
-            patched_programs = [
-                RustProgram.from_bytes(
-                    json.dumps(cairo_program.Schema().dump(cairo_program)).encode()
+            original_hint_code = implementations.get(hint.strip(), hint.strip())
+            final_hint_code = new_hint
+
+            # If it's a nondet hint, we need to transform the memory assignment pattern
+            if orig_nondet_arg and new_nondet_arg:
+                final_hint_code = transform_nondet_hint(
+                    original_hint_code, orig_nondet_arg, new_nondet_arg
                 )
-                for cairo_program in cairo_programs
-            ]
-            rust_programs[:] = patched_programs
+
+            for rust_program in rust_programs:
+                rust_program.replace_hints(original_hint_code, final_hint_code)
 
             # Register cleanup to restore rust_programs
             def restore_rust_programs():
-                rust_programs.clear()
-                rust_programs.extend(original)
+                for rust_program in rust_programs:
+                    rust_program.replace_hints(final_hint_code, original_hint_code)
 
             stack.callback(restore_rust_programs)
 
         yield
 
 
-def py_program_with_patch_hints(
-    programs: List[Program], hint: str, new_hint: str, scope: Optional[str] = None
-):
+def get_nondet_arg(hint_code: str) -> Optional[str]:
+    """Extract argument from nondet hint if it is one, otherwise return None."""
+    if match := re.match(r"nondet %{(.+)%};", hint_code.strip()):
+        return match.group(1).strip()
+    return None
+
+
+def parse_fp_assignment_hint(hint_code: str) -> tuple[Optional[str], Optional[str]]:
+    """Extract memory location and argument from an fp assignment hint."""
+    if match := re.match(r"memory\[(.+)\] = to_felt_or_relocatable\((.+)\)", hint_code):
+        return match.group(1), match.group(2).strip()
+    return None, None
+
+
+def transform_nondet_hint(hint_code: str, orig_arg: str, new_arg: str) -> str:
+    """Transform a nondet hint by replacing the original argument with the new one in memory assignments."""
+    mem_loc, arg = parse_fp_assignment_hint(hint_code)
+    if arg == orig_arg:
+        return f"memory[{mem_loc}] = to_felt_or_relocatable({new_arg})"
+    return hint_code
+
+
+def patch_program_hints(
+    programs: List[Program],
+    hint: str,
+    new_hint: str,
+    scope: Optional[str],
+    orig_nondet_arg: Optional[str],
+    new_nondet_arg: Optional[str],
+) -> List[dict]:
     """
     Patch hints in a list of Python `Program` objects.
 
@@ -112,25 +131,13 @@ def py_program_with_patch_hints(
         programs: A list of Python `Program` objects.
         hint: The original hint code to replace.
         new_hint: The new hint code to use.
+        scope: Optional scope name to restrict which hints are patched.
+        orig_nondet_arg: Original nondet argument if it's a nondet hint.
+        new_nondet_arg: New nondet argument if it's a nondet hint.
+
+    Returns:
+        List of patched hints dictionaries for each program.
     """
-
-    def get_nondet_arg(hint_code: str) -> Optional[str]:
-        """Extract argument from nondet hint if it is one, otherwise return None."""
-        if match := re.match(r"nondet %{(.+)%};", hint_code.strip()):
-            return match.group(1).strip()
-        return None
-
-    def parse_fp_assignment_hint(hint_code: str) -> tuple[Optional[str], Optional[str]]:
-        """Extract memory location and argument from an fp assignment hint."""
-        if match := re.match(
-            r"memory\[(.+)\] = to_felt_or_relocatable\((.+)\)", hint_code
-        ):
-            return match.group(1), match.group(2).strip()
-        return None, None
-
-    orig_nondet_arg = get_nondet_arg(hint)
-    new_nondet_arg = get_nondet_arg(new_hint)
-
     patched_programs_hints = [{} for _ in programs]
 
     for i, program in enumerate(programs):
@@ -143,19 +150,17 @@ def py_program_with_patch_hints(
                     new_hints.append(hint_)
                     continue
 
-                if orig_nondet_arg:
+                if orig_nondet_arg and new_nondet_arg:
                     # Handle nondet hint patching
-                    mem_loc, arg = parse_fp_assignment_hint(hint_.code)
-                    if arg == orig_nondet_arg:
-                        new_hints.append(
-                            CairoHint(
-                                accessible_scopes=hint_.accessible_scopes,
-                                flow_tracking_data=hint_.flow_tracking_data,
-                                code=f"memory[{mem_loc}] = to_felt_or_relocatable({new_nondet_arg})",
-                            )
+                    new_hints.append(
+                        CairoHint(
+                            accessible_scopes=hint_.accessible_scopes,
+                            flow_tracking_data=hint_.flow_tracking_data,
+                            code=transform_nondet_hint(
+                                hint_.code, orig_nondet_arg, new_nondet_arg
+                            ),
                         )
-                    else:
-                        new_hints.append(hint_)
+                    )
                 else:
                     # Handle regular hint patching
                     if hint_.code.strip() == implementations.get(
@@ -172,10 +177,10 @@ def py_program_with_patch_hints(
                         new_hints.append(hint_)
             patched_hints[k] = new_hints
 
-            if patched_hints == program.hints:
-                raise ValueError(f"Hint\n\n{hint}\n\nnot found in program hints.")
+        if patched_hints == program.hints:
+            raise ValueError(f"Hint\n\n{hint}\n\nnot found in program hints.")
 
-            patched_programs_hints[i] = patched_hints
+        patched_programs_hints[i] = patched_hints
 
     return patched_programs_hints
 
