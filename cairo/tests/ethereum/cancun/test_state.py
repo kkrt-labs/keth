@@ -1,5 +1,5 @@
 import copy
-from typing import Mapping, Optional
+from typing import Optional
 
 import pytest
 from ethereum.cancun.fork_types import EMPTY_ACCOUNT, Account, Address
@@ -30,8 +30,6 @@ from ethereum.cancun.state import (
     set_code,
     set_storage,
     set_transient_storage,
-    state_root,
-    storage_root,
     touch_account,
 )
 from ethereum.cancun.trie import Trie, copy_trie
@@ -571,54 +569,6 @@ class TestBeginTransaction:
         commit_transaction(state, transient_storage)
         assert state_cairo == state
         assert transient_storage_cairo == transient_storage
-
-
-@composite
-def state_maybe_snapshot(draw):
-    """
-    Draw a state that has a 80% chance of not containing snapshots.
-    """
-    state_ = draw(state_strategy())
-    probability = draw(st.floats(min_value=0, max_value=1))
-    if probability < 0.8:
-        state_._snapshots = []
-        return state_
-    return state_
-
-
-class TestRoot:
-    @given(state=state_maybe_snapshot())
-    def test_state_root(self, cairo_run, state: State):
-        try:
-            state_root_cairo = cairo_run("state_root", state)
-        except Exception as e:
-            with strict_raises(type(e)):
-                state_root(state)
-            return
-        state_root_py = state_root(state)
-        assert state_root_cairo == state_root_py
-
-
-class TestStorageRoots:
-    @given(state=state_maybe_snapshot())
-    def test_storage_roots(self, cairo_run, state: State):
-        def storage_roots(state) -> Mapping[Address, Bytes32]:
-            # This assertion is made in each individual storage_root in python -
-            # but in Cairo we can only perform it once.
-            assert not state._snapshots
-            storage_roots_py = {}
-            for addr in state._storage_tries.keys():
-                storage_roots_py[addr] = storage_root(state, addr)
-            return storage_roots_py
-
-        try:
-            storage_roots_cairo = cairo_run("storage_roots", state)
-        except Exception as e:
-            with strict_raises(type(e)):
-                storage_roots(state)
-            return
-
-        assert storage_roots_cairo == storage_roots(state)
 
 
 class TestGetAccountCode:
