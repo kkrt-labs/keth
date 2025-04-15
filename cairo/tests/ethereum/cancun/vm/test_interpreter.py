@@ -65,6 +65,7 @@ class TestInterpreter:
         message=message_without_precompile,
         env=environment_lite,
     )
+    @pytest.mark.slow
     def test_process_message(self, cairo_run, message: Message, env: Environment):
         try:
             evm_cairo = cairo_run("process_message", message, env)
@@ -97,6 +98,7 @@ class TestInterpreter:
         env=environment_lite,
         message=message_without_precompile,
     )
+    @pytest.mark.slow
     def test_process_message_call(self, cairo_run, env: Environment, message: Message):
         try:
             _, messageCallOutput = cairo_run("process_message_call", env, message)

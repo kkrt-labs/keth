@@ -154,6 +154,7 @@ def test_is_inf(cairo_run, pt: Optimized_Point3D[BLSF]):
 
 
 @given(pt=...)
+@pytest.mark.slow
 def test_subgroup_check(cairo_run, pt: Optimized_Point3D[BLSF]):
     assert cairo_run("subgroup_check", pt) == subgroup_check(pt)
 

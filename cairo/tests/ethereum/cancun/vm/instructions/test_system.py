@@ -327,6 +327,7 @@ class TestSystemCairoFile:
         assert evm == cairo_result
 
     @given(evm=evm_call)
+    @pytest.mark.slow
     def test_callcode(self, cairo_run, evm: Evm):
         # Set depth to 1024 to avoid entering into generic_call, but only testing callcode logic
         evm.message.depth = Uint(1024)
