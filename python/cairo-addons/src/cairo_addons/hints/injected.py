@@ -75,6 +75,10 @@ def prepare_context(context: Callable[[], dict]):
 
     context()["_gen_arg"] = _gen_arg
 
+    from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
+
+    context()["PRIME"] = DEFAULT_PRIME
+
 
 def initialize_hint_environment(context: Callable[[], dict]):
     """Initialize the hint environment with all necessary components.

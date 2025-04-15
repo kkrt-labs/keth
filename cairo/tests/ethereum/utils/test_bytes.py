@@ -54,7 +54,7 @@ ids.is_diff = 1
 ids.diff_index = 0
 """,
         ):
-            with strict_raises(AssertionError):
+            with strict_raises(Exception, "assert_not_equal failed"):
                 cairo_run("Bytes__eq__", a, b)
 
     @given(a=..., b=...)

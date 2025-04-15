@@ -37,7 +37,7 @@ def bytes_to_nibble_list_hint(
     )
     nibble_list = bytes_to_nibble_list(bytes_)
     data_ptr = segments.add()
-    segments.write_arg(data_ptr, nibble_list)
+    segments.load_data(data_ptr, nibble_list)
     bytes_ptr = segments.add()
-    segments.write_arg(bytes_ptr, [data_ptr, len(nibble_list)])
+    segments.load_data(bytes_ptr, [data_ptr, len(nibble_list)])
     memory[ap - 1] = bytes_ptr

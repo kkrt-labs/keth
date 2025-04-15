@@ -78,7 +78,7 @@ class TestBytes:
                     cairo_programs,
                     rust_programs,
                     "memory[ids.output] = res = (int(ids.value) % PRIME) % ids.base\nassert res < ids.bound, f'split_int(): Limb {res} is out of range.'",
-                    "memory[ids.output] = 2 if ids.bytes_len < 3 else (int(ids.value) % PRIME) % ids.base\nprint(f'[DEBUG] Byte value: {memory[ids.output]}')",
+                    "memory[ids.output] = 2 if ids.bytes_len < 3 else (int(ids.value) % PRIME) % ids.base",
                 ),
                 cairo_error(message="bytes_len is not the minimal possible"),
             ):

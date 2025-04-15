@@ -83,7 +83,7 @@ class TestMaths:
             """
 mask = (1 << (ids.len * 8)) - 1
 truncated_value = ids.value & mask
-segments.write_arg(ids.output, [int(b)+1 if b < 255 else 0 for b in truncated_value.to_bytes(length=ids.len, byteorder='little')])
+segments.load_data(ids.output, [int(b)+1 if b < 255 else 0 for b in truncated_value.to_bytes(length=ids.len, byteorder='little')])
             """,
         ), cairo_error(message="felt252_to_bytes_le: bad output"):
             cairo_run("test__felt252_to_bytes_le", value=value, len=len_)
@@ -107,7 +107,7 @@ if ids.len > 1 and canonical[1] > 0:
     # but the output is non-canonical (first byte is >= 256).
     bad[0] = canonical[0] + 256
     bad[1] = canonical[1] - 1
-segments.write_arg(ids.output, bad)
+segments.load_data(ids.output, bad)
             """,
         ), cairo_error(message="felt252_to_bytes_le: byte not in bounds"):
             cairo_run("test__felt252_to_bytes_le", value=value, len=len_)
@@ -153,7 +153,7 @@ segments.write_arg(ids.output, bad)
             """
 mask = (1 << (ids.len * 8)) - 1
 truncated_value = ids.value & mask
-segments.write_arg(ids.output, [int(b) + 1 if b < 255 else 0 for b in truncated_value.to_bytes(length=ids.len, byteorder='big')])
+segments.load_data(ids.output, [int(b) + 1 if b < 255 else 0 for b in truncated_value.to_bytes(length=ids.len, byteorder='big')])
             """,
         ), cairo_error(message="felt252_to_bytes_be: bad output"):
             cairo_run("test__felt252_to_bytes_be", value=value, len=len_)
@@ -177,7 +177,7 @@ if ids.len > 1 and canonical[-2] > 0:
     # but the output is non-canonical (one byte ends up >= 256).
     bad[-1] = canonical[-1] + 256
     bad[-2] = canonical[-2] - 1
-segments.write_arg(ids.output, bad)
+segments.load_data(ids.output, bad)
             """,
         ), cairo_error(message="felt252_to_bytes_be: byte not in bounds"):
             cairo_run("test__felt252_to_bytes_be", value=value, len=len_)
