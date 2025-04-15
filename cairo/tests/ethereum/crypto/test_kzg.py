@@ -18,6 +18,7 @@ from ethereum.crypto.kzg import (
     kzg_commitment_to_versioned_hash,
     pairing_check,
     validate_kzg_g1,
+    verify_kzg_proof,
     verify_kzg_proof_impl,
 )
 from ethereum.utils.hexadecimal import hex_to_bytes
@@ -372,3 +373,88 @@ def test_verify_kzg_proof_impl(
             cairo_run("verify_kzg_proof_impl", commitment, z, y, proof)
         return
     assert cairo_run("verify_kzg_proof_impl", commitment, z, y, proof) == expected
+
+
+@given(
+    commitment_bytes=...,
+    z_bytes=...,
+    y_bytes=...,
+    proof_bytes=...,
+)
+@example(
+    commitment_bytes=0xA421E229565952CFFF4EF3517100A97DA1D4FE57956FA50A442F92AF03B1BF37ADACC8AD4ED209B31287EA5BB94D9D06.to_bytes(
+        48, "big"
+    ),
+    z_bytes=0x73EDA753299D7D483339D80809A1D80553BDA402FFFE5BFEFFFFFFFF00000000.to_bytes(
+        32, "big"
+    ),
+    y_bytes=0x304962B3598A0ADF33189FDFD9789FEAB1096FF40006900400000003FFFFFFFC.to_bytes(
+        32, "big"
+    ),
+    proof_bytes=0xAA86C458B3065E7EC244033A2ADE91A7499561F482419A3A372C42A636DAD98262A2CE926D142FD7CFE26CA148EFE8B4.to_bytes(
+        48, "big"
+    ),
+)
+@example(
+    commitment_bytes=G1_POINT_AT_INFINITY,
+    z_bytes=int(BLS_MODULUS - BLSFieldElement(1)).to_bytes(32, "big"),
+    y_bytes=(0).to_bytes(32, "big"),
+    proof_bytes=G1_POINT_AT_INFINITY,
+)
+@example(
+    commitment_bytes=0xB7F1D3A73197D7942695638C4FA9AC0FC3688C4F9774B905A14E3A3F171BAC586C55E83FF97A1AEFFB3AF00ADB22C6BB.to_bytes(
+        48, "big"
+    ),
+    z_bytes=0x73EDA753299D7D483339D80809A1D80553BDA402FFFE5BFEFFFFFFFF00000000.to_bytes(
+        32, "big"
+    ),
+    y_bytes=0x73EDA753299D7D483339D80809A1D80553BDA402FFFE5BFEFFFFFFFF00000000.to_bytes(
+        32, "big"
+    ),
+    proof_bytes=G1_POINT_AT_INFINITY,
+)
+# Test cases for invalid inputs
+@example(
+    commitment_bytes=G1_POINT_AT_INFINITY,
+    z_bytes=int(BLS_MODULUS + BLSFieldElement(1)).to_bytes(32, "big"),
+    y_bytes=(0).to_bytes(32, "big"),
+    proof_bytes=G1_POINT_AT_INFINITY,
+)
+@example(
+    commitment_bytes=G1_POINT_AT_INFINITY,
+    z_bytes=int(BLS_MODULUS - BLSFieldElement(1)).to_bytes(32, "big"),
+    y_bytes=int(BLS_MODULUS + BLSFieldElement(1)).to_bytes(32, "big"),
+    proof_bytes=G1_POINT_AT_INFINITY,
+)
+@example(
+    commitment_bytes=int(BLS_MODULUS + BLSFieldElement(1)).to_bytes(32, "big"),
+    z_bytes=int(BLS_MODULUS - BLSFieldElement(1)).to_bytes(32, "big"),
+    y_bytes=(0).to_bytes(32, "big"),
+    proof_bytes=G1_POINT_AT_INFINITY,
+)
+@example(
+    commitment_bytes=G1_POINT_AT_INFINITY,
+    z_bytes=int(BLS_MODULUS - BLSFieldElement(1)).to_bytes(32, "big"),
+    y_bytes=(0).to_bytes(32, "big"),
+    proof_bytes=int(BLS_MODULUS + BLSFieldElement(1)).to_bytes(32, "big"),
+)
+def test_verify_kzg_proof(
+    cairo_run,
+    commitment_bytes: Bytes48,
+    z_bytes: Bytes32,
+    y_bytes: Bytes32,
+    proof_bytes: Bytes48,
+):
+    try:
+        expected = verify_kzg_proof(commitment_bytes, z_bytes, y_bytes, proof_bytes)
+    except (AssertionError, ValueError):
+        with pytest.raises((AssertionError, ValueError)):
+            cairo_run(
+                "verify_kzg_proof", commitment_bytes, z_bytes, y_bytes, proof_bytes
+            )
+        return
+
+    result = cairo_run(
+        "verify_kzg_proof", commitment_bytes, z_bytes, y_bytes, proof_bytes
+    )
+    assert result == expected
