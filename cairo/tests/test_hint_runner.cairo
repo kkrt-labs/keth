@@ -188,3 +188,18 @@ func test_hint_access_pointer_null_value() {
     %{ assert ids.my_pointer_struct.ptr == 0 %}
     ret;
 }
+
+func test_hint_access_pointer_unassigned_value() {
+    alloc_locals;
+    let (local bytes_ptr: felt*) = alloc();
+    tempvar bytes_len = 0;
+
+    loop:
+    let bytes_ptr = cast([fp], felt*);
+    let bytes_len = [ap - 1];
+    // This will cause the VM to assign a `felt` type to `output_index`, with no associated value
+    let output_index = bytes_ptr + bytes_len;
+    %{ memory[ids.output_index] = 1 %}
+    assert [output_index] = 1;
+    ret;
+}

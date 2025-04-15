@@ -20,7 +20,7 @@ def decompose_scalar_to_neg3_base(
     digits = digits + [0] * (82 - len(digits))
     # ruff: noqa: F821
     # ruff: noqa: F841
-    segments.write_arg(ids.digits, digits)
+    segments.load_data(ids.digits, digits)
     ids.d0 = digits[0]
     i = memory[ap] = 1  # Loop init
 

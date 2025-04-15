@@ -69,6 +69,7 @@ impl PyCairoRunner {
     /// * `enable_traces` - Whether to enable execution of hints containing log traces. When false,
     ///   Python identifiers and program identifiers are not loaded to save memory and
     ///   initialization time.
+    #[allow(clippy::too_many_arguments)]
     #[new]
     #[pyo3(signature = (program, py_identifiers=None, program_input=None, layout=None, proof_mode=false, allow_missing_builtins=false, enable_traces=false, ordered_builtins=vec![], cairo_file=None))]
     fn new(

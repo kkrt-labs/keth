@@ -68,8 +68,8 @@ lint:
     - actionlint@1.7.7
     - black@25.1.0
     - cairo@SYSTEM
-    - rustfmt@1.65.0
-    - clippy@1.65.0
+    - rustfmt@SYSTEM
+    - clippy@SYSTEM
     - checkov@3.2.379
     - git-diff-check
     - hadolint@2.12.1-beta

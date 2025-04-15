@@ -1,9 +1,10 @@
 use cairo_vm::{
     serde::deserialize_program::{deserialize_program_json, parse_program_json, ProgramJson},
-    types::program::Program as RustProgram,
+    types::program::{Program as RustProgram, SharedProgramData},
     Felt252,
 };
 use pyo3::prelude::*;
+use std::sync::Arc;
 
 use crate::vm::builtins::PyBuiltinList;
 
@@ -42,6 +43,26 @@ impl PyProgram {
         self.inner.builtins = builtins
             .into_builtin_names()
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+        Ok(())
+    }
+
+    /// Replaces the `hint` with the `new_hint` in the program.
+    /// Returns the original hint that can be restored later upon cleanup.
+    ///
+    /// Args:
+    ///     hint_code: The hint code to replace.
+    ///     new_hint_code: The new hint code to use.
+    fn replace_hints(&mut self, hint_code: &str, new_hint_code: &str) -> PyResult<()> {
+        let shared_data_ptr =
+            Arc::as_ptr(&self.inner.shared_program_data) as *mut SharedProgramData;
+        unsafe {
+            let shared_data = &mut *shared_data_ptr;
+            shared_data.hints_collection.hints.iter_mut().for_each(|hint| {
+                if hint.code == hint_code {
+                    hint.code = new_hint_code.to_string();
+                }
+            });
+        }
         Ok(())
     }
 }

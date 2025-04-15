@@ -74,26 +74,28 @@ class TestMaths:
     )
     @settings(verbosity=Verbosity.quiet)
     def test_felt252_to_bytes_le_should_panic_on_wrong_output(
-        self, cairo_programs, cairo_run_py, value, len_
+        self, cairo_programs, rust_programs, cairo_run, value, len_
     ):
         with patch_hint(
             cairo_programs,
+            rust_programs,
             "felt252_to_bytes_le",
             """
 mask = (1 << (ids.len * 8)) - 1
 truncated_value = ids.value & mask
-segments.write_arg(ids.output, [int(b)+1 if b < 255 else 0 for b in truncated_value.to_bytes(length=ids.len, byteorder='little')])
+segments.load_data(ids.output, [int(b)+1 if b < 255 else 0 for b in truncated_value.to_bytes(length=ids.len, byteorder='little')])
             """,
         ), cairo_error(message="felt252_to_bytes_le: bad output"):
-            cairo_run_py("test__felt252_to_bytes_le", value=value, len=len_)
+            cairo_run("test__felt252_to_bytes_le", value=value, len=len_)
 
     def test_felt252_to_bytes_le_should_panic_on_wrong_output_noncanonical(
-        self, cairo_programs, cairo_run_py
+        self, cairo_programs, rust_programs, cairo_run
     ):
         value = 0xAABB
         len_ = 2
         with patch_hint(
             cairo_programs,
+            rust_programs,
             "felt252_to_bytes_le",
             """
 mask = (1 << (ids.len * 8)) - 1
@@ -105,10 +107,10 @@ if ids.len > 1 and canonical[1] > 0:
     # but the output is non-canonical (first byte is >= 256).
     bad[0] = canonical[0] + 256
     bad[1] = canonical[1] - 1
-segments.write_arg(ids.output, bad)
+segments.load_data(ids.output, bad)
             """,
         ), cairo_error(message="felt252_to_bytes_le: byte not in bounds"):
-            cairo_run_py("test__felt252_to_bytes_le", value=value, len=len_)
+            cairo_run("test__felt252_to_bytes_le", value=value, len=len_)
 
     @given(
         value=st.integers(min_value=256, max_value=2**248 - 1),
@@ -142,26 +144,28 @@ segments.write_arg(ids.output, bad)
     )
     @settings(verbosity=Verbosity.quiet)
     def test_felt252_to_bytes_be_should_panic_on_wrong_output(
-        self, cairo_programs, cairo_run_py, value, len_
+        self, cairo_programs, rust_programs, cairo_run, value, len_
     ):
         with patch_hint(
             cairo_programs,
+            rust_programs,
             "felt252_to_bytes_be",
             """
 mask = (1 << (ids.len * 8)) - 1
 truncated_value = ids.value & mask
-segments.write_arg(ids.output, [int(b) + 1 if b < 255 else 0 for b in truncated_value.to_bytes(length=ids.len, byteorder='big')])
+segments.load_data(ids.output, [int(b) + 1 if b < 255 else 0 for b in truncated_value.to_bytes(length=ids.len, byteorder='big')])
             """,
         ), cairo_error(message="felt252_to_bytes_be: bad output"):
-            cairo_run_py("test__felt252_to_bytes_be", value=value, len=len_)
+            cairo_run("test__felt252_to_bytes_be", value=value, len=len_)
 
     def test_felt252_to_bytes_be_should_panic_on_wrong_output_noncanonical(
-        self, cairo_programs, cairo_run_py
+        self, cairo_programs, rust_programs, cairo_run
     ):
         value = 0xAABB
         len_ = 2
         with patch_hint(
             cairo_programs,
+            rust_programs,
             "felt252_to_bytes_be",
             """
 mask = (1 << (ids.len * 8)) - 1
@@ -173,10 +177,10 @@ if ids.len > 1 and canonical[-2] > 0:
     # but the output is non-canonical (one byte ends up >= 256).
     bad[-1] = canonical[-1] + 256
     bad[-2] = canonical[-2] - 1
-segments.write_arg(ids.output, bad)
+segments.load_data(ids.output, bad)
             """,
         ), cairo_error(message="felt252_to_bytes_be: byte not in bounds"):
-            cairo_run_py("test__felt252_to_bytes_be", value=value, len=len_)
+            cairo_run("test__felt252_to_bytes_be", value=value, len=len_)
 
     @given(value=st.integers(min_value=0, max_value=DEFAULT_PRIME - 1))
     def test_felt252_bit_length(self, cairo_run, value):
@@ -199,10 +203,11 @@ segments.write_arg(ids.output, bad)
     )
     @settings(verbosity=Verbosity.quiet)
     def test_felt252_to_bits_rev_should_panic_on_wrong_output(
-        self, cairo_programs, cairo_run_py, value, len_
+        self, cairo_programs, rust_programs, cairo_run, value, len_
     ):
         with patch_hint(
             cairo_programs,
+            rust_programs,
             "felt252_to_bits_rev",
             """
 value = ids.value
@@ -224,7 +229,7 @@ segments.load_data(dst_ptr, bad_bits)
         """,
             # Assert that the Cairo code panics with the expected message
         ), cairo_error(message="felt252_to_bits_rev: bad output"):
-            cairo_run_py("test__felt252_to_bits_rev", value=value, len=len_)
+            cairo_run("test__felt252_to_bits_rev", value=value, len=len_)
 
     @given(
         value=st.integers(min_value=0, max_value=2**248 - 1),
@@ -232,10 +237,11 @@ segments.load_data(dst_ptr, bad_bits)
     )
     @settings(verbosity=Verbosity.quiet)
     def test_felt252_to_bits_rev_should_panic_on_non_binary_output(
-        self, cairo_programs, cairo_run_py, value, len_
+        self, cairo_programs, rust_programs, cairo_run, value, len_
     ):
         with patch_hint(
             cairo_programs,
+            rust_programs,
             "felt252_to_bits_rev",
             """
 # Get inputs from ids context
@@ -260,4 +266,4 @@ segments.load_data(dst_ptr, bad_bits)
             # The exact message depends on the assertion inside the Cairo function.
             # Common patterns might be "bit is not binary" or "bit out of bounds".
         ), cairo_error(message="felt252_to_bits_rev: bits must be 0 or 1"):
-            cairo_run_py("test__felt252_to_bits_rev", value=value, len=len_)
+            cairo_run("test__felt252_to_bits_rev", value=value, len=len_)

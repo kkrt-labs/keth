@@ -172,6 +172,7 @@ impl PythonicHintExecutor {
     }
 
     /// Execute a Python hint with access to VM state
+    #[allow(clippy::too_many_arguments)]
     pub fn execute_hint(
         &mut self,
         hint_code: &str,
@@ -306,12 +307,12 @@ impl PythonicHintExecutor {
 
             // Run the hint code
             py.run(&hint_code_c_string, Some(bounded_context), None).map_err(|e| {
-                let traceback = e.traceback(py).unwrap();
+                let traceback =
+                    e.traceback(py).map_or_else(|| "".to_string(), |tb| tb.format().unwrap());
                 let error_message = e.to_string();
                 DynamicHintError::PythonExecution(format!(
                     "{}\nTraceback:\n{}",
-                    error_message,
-                    traceback.format().unwrap()
+                    error_message, traceback
                 ))
             })?;
 

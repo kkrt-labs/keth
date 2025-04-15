@@ -31,18 +31,21 @@ class TestComparison:
         assert not is_eq and not comparison_ok
 
     def test_bad_hint_should_fail_on_unequal_segments(
-        self, cairo_run_py, cairo_programs
+        self, cairo_run, cairo_programs, rust_programs
     ):
         lhs_ptr = RelocatableValue(0, 0)
         rhs_ptr = RelocatableValue(1, 0)
         with patch_hint(
             cairo_programs,
+            rust_programs,
             "compare_relocatable_segment_index",
             "ids.segment_equal = 1",
         ):
             with pytest.raises(Exception) as e:
-                cairo_run_py("is_ptr_equal", lhs_ptr, rhs_ptr)
+                cairo_run("is_ptr_equal", lhs_ptr, rhs_ptr)
             assert (
                 "Can only subtract two relocatable values of the same segment"
+                in str(e.value)
+                or "'RelocatableValue' object cannot be interpreted as an integer"
                 in str(e.value)
             )

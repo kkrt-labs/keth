@@ -92,3 +92,7 @@ class TestRunner:
     def test__hint_access_pointer_null_value(self, cairo_run, cairo_run_py):
         cairo_run("test_hint_access_pointer_null_value")
         cairo_run_py("test_hint_access_pointer_null_value")
+
+    def test__hint_access_pointer_unassigned_value(self, cairo_run, cairo_run_py):
+        cairo_run("test_hint_access_pointer_unassigned_value")
+        cairo_run_py("test_hint_access_pointer_unassigned_value")

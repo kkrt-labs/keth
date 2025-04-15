@@ -9,7 +9,7 @@ def felt252_to_bytes_le(ids: VmConsts, segments: MemorySegmentManager):
     # If value doesn't fit in ids.len bytes, truncate it
     mask = (1 << (ids.len * 8)) - 1
     truncated_value = ids.value & mask
-    segments.write_arg(
+    segments.load_data(
         ids.output,
         [b for b in truncated_value.to_bytes(length=ids.len, byteorder="little")],
     )
@@ -20,7 +20,7 @@ def felt252_to_bytes_be(ids: VmConsts, segments: MemorySegmentManager):
     # If value doesn't fit in ids.len bytes, truncate it
     mask = (1 << (ids.len * 8)) - 1
     truncated_value = ids.value & mask
-    segments.write_arg(
+    segments.load_data(
         ids.output,
         [b for b in truncated_value.to_bytes(length=ids.len, byteorder="big")],
     )

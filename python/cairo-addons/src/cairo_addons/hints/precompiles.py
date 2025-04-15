@@ -229,7 +229,7 @@ def write_error(
 ):
     error_int = int.from_bytes(error.__name__.encode("ascii"), "big")
     data_ptr = segments.add()
-    segments.write_arg(data_ptr, [error_int])
+    segments.load_data(data_ptr, [error_int])
     memory[ap - 2] = data_ptr
     return
 
@@ -241,9 +241,9 @@ def write_output(
     output: bytes,
 ):
     data_ptr = segments.add()
-    segments.write_arg(data_ptr, output)
+    segments.load_data(data_ptr, output)
     bytes_ptr = segments.add()
-    segments.write_arg(bytes_ptr, [data_ptr, len(output)])
+    segments.load_data(bytes_ptr, [data_ptr, len(output)])
     memory[ap - 1] = bytes_ptr
 
 
