@@ -709,3 +709,41 @@ func verify_kzg_proof_impl{
     let ok = cast(0, Exception*);
     return (res, ok);
 }
+
+// Convert input bytes to their respective types
+// and call the verify_kzg_proof_impl function
+func verify_kzg_proof{
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+}(commitment_bytes: Bytes48, z_bytes: Bytes32, y_bytes: Bytes32, proof_bytes: Bytes48) -> (
+    bool, Exception*
+) {
+    alloc_locals;
+
+    let (commitment, err_commitment) = bytes_to_kzg_commitment(commitment_bytes);
+    if (cast(err_commitment, felt) != 0) {
+        return (bool(0), err_commitment);
+    }
+
+    let (z, err_z) = bytes_to_bls_field(z_bytes);
+    if (cast(err_z, felt) != 0) {
+        return (bool(0), err_z);
+    }
+
+    let (y, err_y) = bytes_to_bls_field(y_bytes);
+    if (cast(err_y, felt) != 0) {
+        return (bool(0), err_y);
+    }
+
+    let (proof, err_proof) = bytes_to_kzg_proof(proof_bytes);
+    if (cast(err_proof, felt) != 0) {
+        return (bool(0), err_proof);
+    }
+
+    let (result, err) = verify_kzg_proof_impl(commitment, z, y, proof);
+    return (result, err);
+}
