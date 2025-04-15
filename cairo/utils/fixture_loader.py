@@ -1,8 +1,9 @@
 from collections import defaultdict
-from typing import Any, Dict
+from typing import Any, Dict, Tuple
 
 from ethereum.cancun.fork_types import EMPTY_ACCOUNT
-from ethereum.cancun.trie import Trie, root
+from ethereum.cancun.state import State
+from ethereum.cancun.trie import Trie, root, trie_get
 from ethereum.crypto.hash import keccak256
 from ethereum.utils.hexadecimal import (
     hex_to_bytes,
@@ -11,9 +12,10 @@ from ethereum.utils.hexadecimal import (
     hex_to_uint,
 )
 from ethereum_spec_tools.evm_tools.loaders.fixture_loader import Load
+from ethereum_types.bytes import Bytes
 from ethereum_types.numeric import U256
 
-from mpt.ethereum_tries import EMPTY_TRIE_HASH
+from keth_types.types import EMPTY_BYTES_HASH, EMPTY_TRIE_HASH
 
 
 class LoadKethFixture(Load):
@@ -101,3 +103,24 @@ class LoadKethFixture(Load):
             self.fork.set_account(state, address, account)
 
         return state
+
+
+def map_code_hashes_to_code(
+    state: State,
+) -> Tuple[State, Dict[Tuple[int, int], Bytes]]:
+    code_hashes = {}
+
+    for address in state._main_trie._data:
+        account = trie_get(state._main_trie, address)
+        if not account:
+            account_code_hash = EMPTY_BYTES_HASH
+            account_code = b""
+        else:
+            account_code_hash = account.code_hash
+            account_code = account.code
+        code_hash_int = int.from_bytes(account_code_hash, "little")
+        code_hash_low = code_hash_int & 2**128 - 1
+        code_hash_high = code_hash_int >> 128
+        code_hashes[(code_hash_low, code_hash_high)] = account_code
+
+    return code_hashes

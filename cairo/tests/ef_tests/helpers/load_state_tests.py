@@ -9,40 +9,16 @@ from typing import Any, Dict, Generator, Tuple, Union
 import pytest
 from _pytest.mark.structures import ParameterSet
 from ethereum.cancun.fork import state_transition
-from ethereum.cancun.state import State
-from ethereum.cancun.trie import Trie, trie_get
+from ethereum.cancun.trie import Trie
 from ethereum.crypto.hash import keccak256
 from ethereum.exceptions import EthereumException
 from ethereum.utils.hexadecimal import hex_to_bytes
 from ethereum_rlp import rlp
 from ethereum_rlp.exceptions import RLPException
 from ethereum_spec_tools.evm_tools.loaders.fixture_loader import Load
-from ethereum_types.bytes import Bytes
 from ethereum_types.numeric import U64, U256
 
-from mpt.ethereum_tries import EMPTY_BYTES_HASH
 from utils.fixture_loader import LoadKethFixture
-
-
-def map_code_hashes_to_code(
-    state: State,
-) -> Tuple[State, Dict[Tuple[int, int], Bytes]]:
-    code_hashes = {}
-
-    for address in state._main_trie._data:
-        account = trie_get(state._main_trie, address)
-        if not account:
-            account_code_hash = EMPTY_BYTES_HASH
-            account_code = b""
-        else:
-            account_code_hash = account.code_hash
-            account_code = account.code
-        code_hash_int = int.from_bytes(account_code_hash, "little")
-        code_hash_low = code_hash_int & 2**128 - 1
-        code_hash_high = code_hash_int >> 128
-        code_hashes[(code_hash_low, code_hash_high)] = account_code
-
-    return code_hashes
 
 
 class NoTestsFound(Exception):
