@@ -520,6 +520,7 @@ class TestTransientStorage:
 
 class TestBeginTransaction:
     @given(state=..., transient_storage=...)
+    @pytest.mark.slow
     def test_begin_transaction(
         self, cairo_run, state: State, transient_storage: TransientStorage
     ):
@@ -536,6 +537,7 @@ class TestBeginTransaction:
         state=state_with_snapshots(),
         transient_storage=transient_storage_with_snapshots(),
     )
+    @pytest.mark.slow
     def test_rollback_transaction(
         self, cairo_run, state: State, transient_storage: TransientStorage
     ):
@@ -555,6 +557,7 @@ class TestBeginTransaction:
         state=state_with_snapshots(),
         transient_storage=transient_storage_with_snapshots(),
     )
+    @pytest.mark.slow
     def test_commit_transaction(
         self, cairo_run, state: State, transient_storage: TransientStorage
     ):

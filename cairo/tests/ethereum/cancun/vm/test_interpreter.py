@@ -1,3 +1,4 @@
+import pytest
 from ethereum.cancun.fork_types import Address
 from ethereum.cancun.vm import Environment, Message
 from ethereum.cancun.vm.interpreter import (
@@ -48,6 +49,7 @@ class TestInterpreter:
         message=message_without_precompile,
         env=environment_lite,
     )
+    @pytest.mark.slow
     def test_execute_code(self, cairo_run, message: Message, env: Environment):
         try:
             evm_cairo = cairo_run("execute_code", message, env)

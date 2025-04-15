@@ -61,7 +61,6 @@ class TestBls12381:
                 cairo_run("blsf_div", a, b)
 
         @given(a=..., b=...)
-        @pytest.mark.slow
         def test_blsf_div_patch_hint_should_fail(
             self, cairo_programs, rust_programs, cairo_run, a: BLSF, b: BLSF
         ):
@@ -117,7 +116,6 @@ segments.load_data(ids.b_inv.address_, [blsf_struct_ptr])
                 cairo_run("blsf2_div", a, b)
 
         @given(a=..., b=...)
-        @pytest.mark.slow
         def test_blsf2_div_patch_hint_should_fail(
             self, cairo_programs, rust_programs, cairo_run, a: BLSF2, b: BLSF2
         ):
@@ -129,7 +127,7 @@ segments.load_data(ids.b_inv.address_, [blsf_struct_ptr])
                 """
 from cairo_addons.utils.uint384 import int_to_uint384
 
-blsf2_struct_ptr = segments.add(2)
+blsf2_struct_ptr = segments.add()
 b_inv_c0_ptr = segments.gen_arg(int_to_uint384(0))
 b_inv_c1_ptr = segments.gen_arg(int_to_uint384(0))
 segments.load_data(blsf2_struct_ptr, [b_inv_c0_ptr, b_inv_c1_ptr])

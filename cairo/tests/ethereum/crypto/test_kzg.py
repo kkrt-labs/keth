@@ -295,6 +295,7 @@ def test_retrieve_values_for_pairing_check():
 
 
 @given(z=...)
+@pytest.mark.slow
 def test_compute_x_minus_z(cairo_run, z: BLSFieldElement):
     assert cairo_run("compute_x_minus_z", z) == normalize1(
         add(
@@ -359,6 +360,7 @@ def test_compute_p_minus_y(cairo_run, commitment: KZGCommitment, y: BLSFieldElem
     ),
     proof=KZGProof(G1_POINT_AT_INFINITY),
 )
+@pytest.mark.slow
 def test_verify_kzg_proof_impl(
     cairo_run,
     commitment: KZGCommitment,

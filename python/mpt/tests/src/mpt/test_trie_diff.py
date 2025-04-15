@@ -143,6 +143,7 @@ class TestTrieDiff:
         "data_path", [Path("test_data/22081873.json")], scope="session"
     )
     @given(data=st.data())
+    @pytest.mark.slow
     def test_node_store_get(self, cairo_run, node_store, data):
         # take 20 keys from the node_store
         small_store = {k: v for k, v in list(node_store.items())[:6]}
@@ -417,6 +418,7 @@ class TestTrieDiff:
             assert node == resolve(result, small_store)
 
     @given(embedded_node_dict=embedded_node_strategy())
+    @pytest.mark.slow
     def test_resolve_embedded_node(self, cairo_run, embedded_node_dict):
         # We don't need a node store for this test
         node_store = {}
