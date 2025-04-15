@@ -31,7 +31,6 @@ from mpt.types import (
 from mpt.trie_diff import compute_diff_entrypoint
 from mpt.utils import sort_account_diff, sort_storage_diff
 
-// Not naming this `main` otherwise we can't return any values
 func main{
     output_ptr: felt*,
     pedersen_ptr: HashBuiltin*,

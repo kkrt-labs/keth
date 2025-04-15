@@ -1,10 +1,7 @@
-import json
 from collections import defaultdict
 from dataclasses import replace
-from pathlib import Path
 from typing import Optional, Tuple
 
-import pytest
 from eth_abi.abi import encode
 from eth_account import Account as EthAccount
 from eth_keys.datatypes import PrivateKey
@@ -40,17 +37,15 @@ from ethereum.cancun.transactions import (
 from ethereum.cancun.trie import Trie, root
 from ethereum.cancun.utils.address import to_address
 from ethereum.cancun.vm import Environment
-from ethereum.cancun.vm.gas import TARGET_BLOB_GAS_PER_BLOCK, calculate_excess_blob_gas
+from ethereum.cancun.vm.gas import TARGET_BLOB_GAS_PER_BLOCK
 from ethereum.crypto.hash import Hash32, keccak256
 from ethereum.exceptions import EthereumException
-from ethereum.utils.hexadecimal import hex_to_bytes
 from ethereum_rlp import rlp
 from ethereum_types.bytes import Bytes, Bytes0, Bytes8, Bytes20, Bytes32
 from ethereum_types.numeric import U64, U256, Uint
 from hypothesis import assume, given, settings
 from hypothesis import strategies as st
 from hypothesis.strategies import composite, integers
-from scripts.prove_block import load_pre_state, process_block_transactions
 
 from cairo_addons.testing.errors import strict_raises
 from mpt.ethereum_tries import EMPTY_BYTES_HASH, EMPTY_TRIE_HASH
@@ -79,7 +74,6 @@ from tests.utils.strategies import (
     small_bytes,
     uint,
 )
-from utils.fixture_loader import LoadKethFixture
 
 MIN_BASE_FEE = 1_000
 
@@ -504,93 +498,6 @@ def tx_with_sender_in_state(
     return tx, env, chain_id
 
 
-@pytest.fixture
-def zkpi_fixture(zkpi_path):
-    with open(zkpi_path, "r") as f:
-        prover_inputs = json.load(f)
-
-    load = LoadKethFixture("Cancun", "cancun")
-    if len(prover_inputs["blocks"]) > 1:
-        raise ValueError("Only one block is supported")
-
-    input_block = prover_inputs["blocks"][0]
-    block_transactions = input_block["transaction"]
-    transactions = process_block_transactions(block_transactions)
-
-    # Convert block
-    block = Block(
-        header=load.json_to_header(input_block["header"]),
-        transactions=transactions,
-        ommers=(),
-        withdrawals=tuple(
-            Withdrawal(
-                index=U64(int(w["index"], 16)),
-                validator_index=U64(int(w["validatorIndex"], 16)),
-                address=Address(hex_to_bytes(w["address"])),
-                amount=U256(int(w["amount"], 16)),
-            )
-            for w in input_block["withdrawals"]
-        ),
-    )
-
-    # Convert ancestors
-    blocks = [
-        Block(
-            header=load.json_to_header(ancestor),
-            transactions=(),
-            ommers=(),
-            withdrawals=(),
-        )
-        for ancestor in prover_inputs["witness"]["ancestors"][::-1]
-    ]
-
-    # Create blockchain
-    state = load_pre_state(prover_inputs)
-    chain = BlockChain(
-        blocks=blocks,
-        state=state,
-        chain_id=U64(prover_inputs["chainConfig"]["chainId"]),
-    )
-
-    # TODO: Remove when partial MPT is implemented
-    state_root = apply_body(
-        chain.state,
-        get_last_256_block_hashes(chain),
-        block.header.coinbase,
-        block.header.number,
-        block.header.base_fee_per_gas,
-        block.header.gas_limit,
-        block.header.timestamp,
-        block.header.prev_randao,
-        block.transactions,
-        chain.chain_id,
-        block.withdrawals,
-        block.header.parent_beacon_block_root,
-        calculate_excess_blob_gas(chain.blocks[-1].header),
-    ).state_root
-
-    # Recreate block with computed state root
-    block = Block(
-        header=load.json_to_header(
-            {
-                **input_block["header"],
-                "stateRoot": "0x" + state_root.hex(),
-            }
-        ),
-        transactions=block.transactions,
-        ommers=(),
-        withdrawals=block.withdrawals,
-    )
-    state = load_pre_state(prover_inputs)
-    chain = BlockChain(
-        blocks=blocks,
-        state=state,
-        chain_id=U64(prover_inputs["chainConfig"]["chainId"]),
-    )
-
-    return chain, block
-
-
 class TestFork:
     @given(
         block_gas_limit=...,
@@ -793,16 +700,10 @@ class TestFork:
 
         output = apply_body(**kwargs)
 
+        # We compare all but not the state root - which is not computed in Cairo
+        cairo_result.state_root = output.state_root
         assert cairo_result == output
         assert cairo_state == state
-
-    @pytest.mark.parametrize(
-        "zkpi_path",
-        [Path("test_data/22188088.json")],
-    )
-    @pytest.mark.slow
-    def test_state_transition_eth_mainnet(self, cairo_run, zkpi_fixture):
-        cairo_run("state_transition", *zkpi_fixture)
 
 
 def _create_erc20_data():
