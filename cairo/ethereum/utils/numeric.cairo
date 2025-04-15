@@ -22,7 +22,7 @@ from cairo_core.maths import (
 )
 from cairo_core.comparison import is_zero
 from cairo_ec.uint384 import uint256_to_uint384
-from legacy.utils.bytes import bytes_to_felt, uint256_from_bytes_be, felt_to_bytes
+from legacy.utils.bytes import bytes_to_felt, bytes_to_felt_le, uint256_from_bytes_be, felt_to_bytes
 from legacy.utils.uint256 import uint256_add, uint256_sub
 from legacy.utils.utils import Helpers
 
@@ -434,6 +434,45 @@ func U384_from_be_bytes{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(bytes: By
     let d3 = bytes_to_felt(d3_len, bytes.value.data + d3_start);
 
     // Create the U384 value
+    tempvar res = U384(new UInt384(d0=d0, d1=d1, d2=d2, d3=d3));
+    return res;
+}
+
+func U384_from_le_bytes{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(bytes: Bytes) -> U384 {
+    alloc_locals;
+
+    with_attr error_message("ValueError") {
+        assert [range_check_ptr] = 48 - bytes.value.len;
+        let range_check_ptr = range_check_ptr + 1;
+    }
+
+    if (bytes.value.len == 0) {
+        tempvar res = U384(new UInt384(d0=0, d1=0, d2=0, d3=0));
+        return res;
+    }
+
+    // Calculate how many bytes go into each 96-bit limb
+    // Each limb can hold up to 12 bytes (96 bits)
+    let d0_len = min(12, bytes.value.len);
+    let max_d1_len = max(0, bytes.value.len - 12);
+    let d1_len = min(12, max_d1_len);
+    let max_d2_len = max(0, bytes.value.len - 24);
+    let d2_len = min(12, max_d2_len);
+    let max_d3_len = max(0, bytes.value.len - 36);
+    let d3_len = min(12, max_d3_len);
+
+    // Extract bytes for each limb
+    // For little-endian, d0 is the least significant limb and starts at index 0
+    let d0_start = 0;
+    let d1_start = d0_len;
+    let d2_start = d0_len + d1_len;
+    let d3_start = d0_len + d1_len + d2_len;
+
+    let d0 = bytes_to_felt_le(d0_len, bytes.value.data + d0_start);
+    let d1 = bytes_to_felt_le(d1_len, bytes.value.data + d1_start);
+    let d2 = bytes_to_felt_le(d2_len, bytes.value.data + d2_start);
+    let d3 = bytes_to_felt_le(d3_len, bytes.value.data + d3_start);
+
     tempvar res = U384(new UInt384(d0=d0, d1=d1, d2=d2, d3=d3));
     return res;
 }
