@@ -721,7 +721,7 @@ pub fn create_vm_consts_dict(
         let module_path = parts[..parts.len() - 1].join(".");
 
         // Check if constant is directly accessible from current scope
-        if hint_accessible_scopes.iter().any(|scope| module_path == *scope) {
+        if hint_accessible_scopes.contains(&module_path) {
             py_ids_dict
                 .borrow_mut(py)
                 .items

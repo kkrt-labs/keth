@@ -1,7 +1,5 @@
 use cairo_vm::{
-    serde::deserialize_program::{
-        deserialize_program_json, parse_program_json, HintParams, ProgramJson,
-    },
+    serde::deserialize_program::{deserialize_program_json, parse_program_json, ProgramJson},
     types::program::{Program as RustProgram, SharedProgramData},
     Felt252,
 };
