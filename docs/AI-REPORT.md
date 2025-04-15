@@ -17,18 +17,22 @@ prep and testing) and Cairo logic (for proving).
 
 ### How Patching Works
 
-Patching is centralized in `keth_types.patches`, which maps EELS and MPT modules
-to Keth's custom types in a `PATCHES` dictionary. Importing `keth_types.patches`
-triggers `apply_patches()`, using `setattr` to override original definitions in
-modules like `ethereum.cancun.fork_types`. This avoids scattered `setattr`
-calls, enhancing maintainability.
+Patching is centralized in `keth_types.patches`, which defines a `PATCHES`
+dictionary mapping attribute names to Keth's custom types. Importing
+`keth_types.patches` triggers `apply_patches()`, which iterates through all
+sub-modules of the `ethereum` package and `mpt` modules in `sys.modules`, using
+`setattr` to override original definitions with custom types. This approach
+ensures that patches are applied automatically to all relevant modules,
+regardless of loading order. If we had only patched in the module where items
+are defined, we'd get some errors, as these modules were already loaded in
+python's module system, and the patches would not be effective everywhere.
 
 ### Challenges with Python Module Loading
 
 Python's module loading order poses a challenge. Modules are cached in
 `sys.modules`, and if EELS modules (e.g., `ethereum.cancun.vm`) load before
-patches, original types are used instead of Keth's. This is common with pytest
-plugins that initialize early, before `conftest.py` hooks.
+patches, original types are used instead of Keth's. This did happen because of
+pytest plugins that initialized earlier than `conftest.py` hooks.
 
 ### Proper Patching Methodology
 
@@ -39,13 +43,14 @@ To ensure consistent patch application, follow these guidelines:
   unpatched cached modules.
 - **Custom Pytest Plugin (if needed)**: Because pytest plugins load EELS modules
   early, we created a plugin (see `pyproject.toml`) to apply patches during
-  plugin init.
+  plugin init, ensuring it runs before, for example, hypothesis strategies.
 - **Centralized Type Definitions**: Define all custom types in
   `keth_types.types` as a single source of truth for imports.
 
 These practices ensure consistent use of custom types, preventing discrepancies
 between Python and Cairo logic. Maintainers should audit entry points for patch
-imports and extend `PATCHES` in `keth_types.patches` for new modules or types.
+imports and extend `PATCHES` in `keth_types.patches` for new attributes or
+types.
 
 ## AI-REPORT: Ethereum State Diff Comparison Logic PR (April 11, 2025)
 
