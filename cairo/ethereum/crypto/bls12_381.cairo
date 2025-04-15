@@ -5,6 +5,9 @@ from starkware.cairo.common.dict import dict_read, dict_write
 from starkware.cairo.common.registers import get_label_location
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.default_dict import default_dict_new, default_dict_finalize
+from starkware.cairo.common.cairo_builtins import ModBuiltin
+from ethereum_types.numeric import U384
+from ethereum.crypto.fq_ops import Fq, FqStruct, Fq2, Fq2Struct, fq_add, fq_sub, fq_mul, fq_inv, fq2_add, fq2_sub, fq2_mul
 
 from cairo_ec.circuits.ec_ops_compiled import assert_on_curve
 from cairo_ec.circuits.mod_ops_compiled import add, sub, mul
@@ -958,3 +961,156 @@ struct TupleTupleBLSPBLSP2Struct {
 struct TupleTupleBLSPBLSP2 {
     value: TupleTupleBLSPBLSP2Struct*,
 }
+
+// AltBN128 constants
+const ALT_BN128_MODULUS = 21888242871839275222246405745257275088696311157297823662689037894645226208583;
+
+// Define curve-specific types
+struct BNF {
+    ptr: FqStruct*,  // Reuse the generic FqStruct
+}
+
+struct BNF2 {
+    ptr: Fq2Struct*,  // Reuse the generic Fq2Struct
+}
+
+// --- Conversion functions ---
+func bnf_from_fq{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
+    a: Fq
+) -> BNF {
+    return BNF(a.ptr);
+}
+
+func bnf_to_fq{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
+    a: BNF
+) -> Fq {
+    return Fq(a.ptr);
+}
+
+func bnf2_from_fq2{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
+    a: Fq2
+) -> BNF2 {
+    return BNF2(a.ptr);
+}
+
+func bnf2_to_fq2{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
+    a: BNF2
+) -> Fq2 {
+    return Fq2(a.ptr);
+}
+
+// --- BNF operations using generic functions ---
+func bnf_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
+    a: BNF, b: BNF
+) -> BNF {
+    let modulus = U384(
+        d0=ALT_BN128_MODULUS,
+        d1=0,
+        d2=0
+    );
+    
+    // Convert to generic types, perform operation, then convert back
+    let a_fq = bnf_to_fq(a);
+    let b_fq = bnf_to_fq(b);
+    let result_fq = fq_add(a_fq, b_fq, modulus);
+    return bnf_from_fq(result_fq);
+}
+
+func bnf_sub{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
+    a: BNF, b: BNF
+) -> BNF {
+    let modulus = U384(
+        d0=ALT_BN128_MODULUS,
+        d1=0,
+        d2=0
+    );
+    
+    // Convert to generic types, perform operation, then convert back
+    let a_fq = bnf_to_fq(a);
+    let b_fq = bnf_to_fq(b);
+    let result_fq = fq_sub(a_fq, b_fq, modulus);
+    return bnf_from_fq(result_fq);
+}
+
+func bnf_mul{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
+    a: BNF, b: BNF
+) -> BNF {
+    let modulus = U384(
+        d0=ALT_BN128_MODULUS,
+        d1=0,
+        d2=0
+    );
+    
+    // Convert to generic types, perform operation, then convert back
+    let a_fq = bnf_to_fq(a);
+    let b_fq = bnf_to_fq(b);
+    let result_fq = fq_mul(a_fq, b_fq, modulus);
+    return bnf_from_fq(result_fq);
+}
+
+func bnf_inv{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
+    a: BNF
+) -> BNF {
+    let modulus = U384(
+        d0=ALT_BN128_MODULUS,
+        d1=0,
+        d2=0
+    );
+    
+    // Convert to generic types, perform operation, then convert back
+    let a_fq = bnf_to_fq(a);
+    let result_fq = fq_inv(a_fq, modulus);
+    return bnf_from_fq(result_fq);
+}
+
+// --- BNF2 operations using generic functions ---
+func bnf2_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
+    a: BNF2, b: BNF2
+) -> BNF2 {
+    let modulus = U384(
+        d0=ALT_BN128_MODULUS,
+        d1=0,
+        d2=0
+    );
+    
+    // Convert to generic types, perform operation, then convert back
+    let a_fq2 = bnf2_to_fq2(a);
+    let b_fq2 = bnf2_to_fq2(b);
+    let result_fq2 = fq2_add(a_fq2, b_fq2, modulus);
+    return bnf2_from_fq2(result_fq2);
+}
+
+func bnf2_sub{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
+    a: BNF2, b: BNF2
+) -> BNF2 {
+    let modulus = U384(
+        d0=ALT_BN128_MODULUS,
+        d1=0,
+        d2=0
+    );
+    
+    // Convert to generic types, perform operation, then convert back
+    let a_fq2 = bnf2_to_fq2(a);
+    let b_fq2 = bnf2_to_fq2(b);
+    let result_fq2 = fq2_sub(a_fq2, b_fq2, modulus);
+    return bnf2_from_fq2(result_fq2);
+}
+
+func bnf2_mul{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
+    a: BNF2, b: BNF2
+) -> BNF2 {
+    let modulus = U384(
+        d0=ALT_BN128_MODULUS,
+        d1=0,
+        d2=0
+    );
+    
+    // Convert to generic types, perform operation, then convert back
+    let a_fq2 = bnf2_to_fq2(a);
+    let b_fq2 = bnf2_to_fq2(b);
+    let result_fq2 = fq2_mul(a_fq2, b_fq2, modulus);
+    return bnf2_from_fq2(result_fq2);
+}
+
+// Additional operations for the AltBN128 curve...
+// Continue with the remaining operations specific to this curve
