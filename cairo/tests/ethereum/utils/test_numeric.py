@@ -296,3 +296,14 @@ class TestNumeric:
         python_bits = get_u384_bits_little(value)
         cairo_bits = [cairo_bits_ptr[i] for i in range(cairo_bits_len)]
         assert python_bits == cairo_bits, f"Failed for value {value}"
+
+    @given(bytes=st.binary(max_size=512))
+    def test_U384_from_le_bytes(self, cairo_run, bytes: Bytes):
+        try:
+            result = cairo_run("U384_from_le_bytes", bytes)
+        except ValueError:
+            assert len(bytes) > 48
+            return
+
+        expected = U384(int.from_bytes(bytes, "little"))
+        assert result == expected

@@ -124,8 +124,10 @@ func bytes_to_bls_field{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(b: Bytes3
     BLSScalar, Exception*
 ) {
     let field_element = U256_from_be_bytes32(b);
-    tempvar bls_modulus = U256(new U256Struct(low=bls12_381.N_LOW_128, high=bls12_381.N_HIGH_128));
-    let is_valid = U256_le(field_element, bls_modulus);
+    tempvar bls_modulus_minus_one = U256(
+        new U256Struct(low=bls12_381.N_LOW_128 - 1, high=bls12_381.N_HIGH_128)
+    );
+    let is_valid = U256_le(field_element, bls_modulus_minus_one);
     tempvar result = BLSScalar(field_element.value);
     if (is_valid.value != 0) {
         let ok = cast(0, Exception*);

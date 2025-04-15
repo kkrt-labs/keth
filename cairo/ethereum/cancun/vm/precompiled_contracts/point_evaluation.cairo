@@ -5,17 +5,21 @@ from starkware.cairo.common.cairo_builtins import (
     PoseidonBuiltin,
 )
 from starkware.cairo.common.math_cmp import is_le_felt
+from ethereum_types.bytes import Bytes, Bytes32, BytesStruct, Bytes48
+from ethereum_types.numeric import Uint, U256, U256Struct
 from ethereum.cancun.vm.evm_impl import Evm, EvmImpl
-from ethereum.exceptions import EthereumException
 from ethereum.cancun.vm.exceptions import KZGProofError
 from ethereum.cancun.vm.gas import charge_gas, GasConstants
-from ethereum_types.numeric import Uint, U256, U256Struct
-from ethereum_types.bytes import Bytes, Bytes32, BytesStruct
 from ethereum.cancun.vm.memory import buffer_read
+from ethereum.crypto.kzg import verify_kzg_proof, kzg_commitment_to_versioned_hash
+from ethereum.exceptions import EthereumException
+from ethereum.utils.bytes import Bytes32__eq__, Bytes__extend__, Bytes_to_Bytes32, Bytes32_to_Bytes
+from ethereum.utils.numeric import U256_to_be_bytes, U384_from_le_bytes
 
 // Constants for the point evaluation precompile
-const FIELD_ELEMENTS_PER_BLOB = 4096;
-const BLS_MODULUS = 52435875175126190479447740508185965837690552500527637822603658699938581184513;
+const FIELD_ELEMENTS_PER_BLOB_LOW = 0x1000;
+const BLS_MODULUS_LOW = 0x53bda402fffe5bfeffffffff00000001;
+const BLS_MODULUS_HIGH = 0x73eda753299d7d483339d80809a1d805;
 
 func point_evaluation{
     range_check_ptr,
@@ -36,15 +40,10 @@ func point_evaluation{
         return err;
     }
 
-    // Charge gas
-    let err = charge_gas(Uint(GasConstants.GAS_POINT_EVALUATION));
-    if (cast(err, felt) != 0) {
-        return err;
-    }
-
     // Extract components from data
     tempvar u256_zero = U256(new U256Struct(0, 0));
     tempvar u256_thirty_two = U256(new U256Struct(32, 0));
+    tempvar u256_forty_eight = U256(new U256Struct(48, 0));
     tempvar u256_sixty_four = U256(new U256Struct(64, 0));
     tempvar u256_ninety_six = U256(new U256Struct(96, 0));
     tempvar u256_one_forty_four = U256(new U256Struct(144, 0));
@@ -52,25 +51,47 @@ func point_evaluation{
     let versioned_hash_bytes = buffer_read(data, u256_zero, u256_thirty_two);
     let z_bytes = buffer_read(data, u256_thirty_two, u256_thirty_two);
     let y_bytes = buffer_read(data, u256_sixty_four, u256_thirty_two);
-    let commitment_bytes = buffer_read(data, u256_ninety_six, u256_thirty_two);
-    let proof_bytes = buffer_read(data, u256_one_forty_four, u256_thirty_two);
+    let commitment_bytes = buffer_read(data, u256_ninety_six, u256_forty_eight);
+    let proof_bytes = buffer_read(data, u256_one_forty_four, u256_forty_eight);
 
-    // Prepare for hint execution
-    tempvar versioned_hash_bytes = versioned_hash_bytes;
-    tempvar z_bytes = z_bytes;
-    tempvar y_bytes = y_bytes;
-    tempvar commitment_bytes = commitment_bytes;
-    tempvar proof_bytes = proof_bytes;
-    tempvar data = data;
+    let versioned_hash_bytes32 = Bytes_to_Bytes32(versioned_hash_bytes);
+    let z_bytes32 = Bytes_to_Bytes32(z_bytes);
+    let y_bytes32 = Bytes_to_Bytes32(y_bytes);
 
-    tempvar error: EthereumException*;
-    tempvar output: Bytes;
+    let commitment_u384 = U384_from_le_bytes(commitment_bytes);
+    let commitment_bytes48 = Bytes48(commitment_u384.value);
+    let proof_u384 = U384_from_le_bytes(proof_bytes);
+    let proof_bytes48 = Bytes48(proof_u384.value);
 
-    %{ point_evaluation_hint %}
-
-    if (cast(error, felt) != 0) {
-        return error;
+    // GAS
+    let err = charge_gas(Uint(GasConstants.GAS_POINT_EVALUATION));
+    if (cast(err, felt) != 0) {
+        return err;
     }
+    let versioned_hash = kzg_commitment_to_versioned_hash(commitment_bytes48);
+    let is_versioned_hash_equal = Bytes32__eq__(versioned_hash, versioned_hash_bytes32);
+    if (is_versioned_hash_equal.value == 0) {
+        tempvar err = new EthereumException(KZGProofError);
+        return err;
+    }
+    let (result, err) = verify_kzg_proof(commitment_bytes48, z_bytes32, y_bytes32, proof_bytes48);
+    if (cast(err, felt) != 0) {
+        tempvar err = new EthereumException(KZGProofError);
+        return err;
+    }
+    if (result.value == 0) {
+        tempvar err = new EthereumException(KZGProofError);
+        return err;
+    }
+
+    tempvar field_element_per_blob = U256(new U256Struct(FIELD_ELEMENTS_PER_BLOB_LOW, 0));
+    tempvar bls_modulus = U256(new U256Struct(BLS_MODULUS_LOW, BLS_MODULUS_HIGH));
+
+    let bls_modulus_bytes_bytes_32 = U256_to_be_bytes(bls_modulus);
+    let bls_modulus_bytes = Bytes32_to_Bytes(bls_modulus_bytes_bytes_32);
+    let output_bytes_32 = U256_to_be_bytes(field_element_per_blob);
+    let output = Bytes32_to_Bytes(output_bytes_32);
+    Bytes__extend__{self=output}(bls_modulus_bytes);
 
     EvmImpl.set_output(output);
     tempvar ok = cast(0, EthereumException*);
