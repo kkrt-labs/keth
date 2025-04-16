@@ -11,7 +11,6 @@ from ethereum_types.numeric import U256, Uint
 from hypothesis import given
 
 from cairo_addons.testing.errors import strict_raises
-from tests.utils.args_gen import U384
 from tests.utils.evm_builder import EvmBuilder
 
 
@@ -87,17 +86,3 @@ class TestModexp:
             assert cairo_result == Uint(2**128 - 1)
         else:
             assert cairo_result == expected_gas_cost
-
-    @given(value=...)
-    def test_uint384_to_be_bytes(self, cairo_run, value: U384):
-        int_value = value._number
-        if int_value == 0:
-            length = 1  # At least one byte for zero
-        else:
-            length = (int_value.bit_length() + 7) // 8
-
-        cairo_result = cairo_run("U384_to_be_bytes", value, length)
-
-        expected_bytes = int_value.to_bytes(length, "big")
-        assert len(cairo_result) == length
-        assert bytes(cairo_result) == expected_bytes

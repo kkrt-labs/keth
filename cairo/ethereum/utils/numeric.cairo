@@ -19,6 +19,7 @@ from cairo_core.maths import (
     felt252_to_bytes_be,
     felt252_bit_length,
     felt252_to_bits_rev,
+    felt252_to_bytes_le,
 )
 from cairo_core.comparison import is_zero
 from cairo_ec.uint384 import uint256_to_uint384
@@ -532,6 +533,22 @@ func U384_to_be_bytes{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     felt252_to_bytes_be(value.value.d0, remaining_len, bytes_ptr);
 
     tempvar result = Bytes(new BytesStruct(bytes_ptr, length));
+    return result;
+}
+
+func U384_to_le_48_bytes{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(value: U384) -> Bytes {
+    alloc_locals;
+
+    let (bytes_ptr) = alloc();
+
+    // Process each limb in little-endian order (d0 to d3)
+    // Each limb is 96 bits (12 bytes), total 48 bytes
+    felt252_to_bytes_le(value.value.d0, 12, bytes_ptr);
+    felt252_to_bytes_le(value.value.d1, 12, bytes_ptr + 12);
+    felt252_to_bytes_le(value.value.d2, 12, bytes_ptr + 24);
+    felt252_to_bytes_le(value.value.d3, 12, bytes_ptr + 36);
+
+    tempvar result = Bytes(new BytesStruct(bytes_ptr, 48));
     return result;
 }
 
