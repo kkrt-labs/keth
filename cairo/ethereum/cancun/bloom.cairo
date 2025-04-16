@@ -98,9 +98,6 @@ func logs_bloom{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: Kecca
 ) -> Bloom {
     alloc_locals;
     let (local mutable_bloom_start) = default_dict_new(0);
-    tempvar dict_ptr = mutable_bloom_start;
-    tempvar name = 'logs_bloom';
-    %{ attach_name %}
     let mutable_bloom_end = mutable_bloom_start;
 
     tempvar mutable_bloom = MutableBloom(
