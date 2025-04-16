@@ -487,6 +487,7 @@ func process_message_call{
         if (has_collision.value + has_storage.value != FALSE) {
             // Return early with collision error
             tempvar collision_error = new EthereumException(AddressCollision);
+            finalize_message(message);
             let msg = create_empty_message_call_output(Uint(0), collision_error);
             return msg;
         }
@@ -655,8 +656,32 @@ func create_empty_message_call_output(
     return msg;
 }
 
-// @dev Finalizes an `Evm` struct by squashing all of its fields except for the `state`'s main_trie
+// @notice Finalizes a `Message` struct by squashing its inner dicts
+func finalize_message{range_check_ptr}(message: Message) {
+    alloc_locals;
+
+    // INVARIANT: this should always be 0 as finalize_message can only be called on a create_tx that has a collision.
+    assert cast(message.value.parent_evm.value, felt) = 0;
+
+    let accessed_addresses = message.value.accessed_addresses;
+    let accessed_addresses_start = accessed_addresses.value.dict_ptr_start;
+    let accessed_addresses_end = cast(accessed_addresses.value.dict_ptr, DictAccess*);
+    default_dict_finalize(cast(accessed_addresses_start, DictAccess*), accessed_addresses_end, 0);
+
+    let accessed_storage_keys = message.value.accessed_storage_keys;
+    let accessed_storage_keys_start = accessed_storage_keys.value.dict_ptr_start;
+    let accessed_storage_keys_end = cast(accessed_storage_keys.value.dict_ptr, DictAccess*);
+    default_dict_finalize(
+        cast(accessed_storage_keys_start, DictAccess*), accessed_storage_keys_end, 0
+    );
+
+    return ();
+}
+
+// @notice Finalizes an `Evm` struct by squashing all of its fields except for the `state`'s main_trie
 // and storage_tries inside the Environment - which is only finalized after processing full blocks.
+// There's no need to finalize the inner `message` as well - as its dicts (accessed_addresses, accessed_storage_keys, etc)
+// are inlined in the `Evm` struct already - and the message is not consumed again after the `Evm` is finalized.
 func finalize_evm{range_check_ptr, evm: Evm}() {
     alloc_locals;
 
@@ -780,7 +805,7 @@ func finalize_evm{range_check_ptr, evm: Evm}() {
     // Consequently, we must also set back the `parent_dict` of the `main_trie` to `0`
     let state = env.value.state;
     let original_storage_tries = state.value.original_storage_tries;
-    let (new_original_storage_tries_start, new_original_storage_tries_end) = dict_squash(
+    dict_squash(
         cast(original_storage_tries.value._data.value.dict_ptr_start, DictAccess*),
         cast(original_storage_tries.value._data.value.dict_ptr, DictAccess*),
     );

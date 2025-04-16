@@ -104,7 +104,7 @@ def add_block_to_chain(
 
     try:
         cairo_chain = cairo_run(
-            "state_transition", check_squashed_dicts=True, chain=chain, block=block
+            "state_transition", verify_squashed_dicts=True, chain=chain, block=block
         )
         if request.config.getoption("--log-cli-level") == "TRACE":
             # In trace mode, run EELS as well to get a side-by-side comparison

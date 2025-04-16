@@ -403,21 +403,18 @@ except Exception as e:
             .get_dict_manager()
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
         let dict_manager = dict_manager_ref.borrow();
-        let all_trackers = dict_manager.trackers.values().collect::<Vec<_>>();
-        let mut unsquashed_trackers = Vec::new();
-        for tracker in all_trackers {
-            if !tracker.is_squashed {
-                unsquashed_trackers.push(tracker);
-            }
-        }
+
+        let unsquashed_trackers: Vec<String> = dict_manager
+            .trackers
+            .values()
+            .filter(|tracker| !tracker.is_squashed)
+            .map(|t| t.name.clone().unwrap_or_else(|| t.current_ptr.to_string()))
+            .collect();
+
         if !unsquashed_trackers.is_empty() {
-            let tracker_ptrs = unsquashed_trackers
-                .iter()
-                .map(|t| t.name.clone().unwrap_or(t.current_ptr.clone().to_string()))
-                .collect::<Vec<_>>();
             return Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
                 "unsquashed trackers: {:?}",
-                tracker_ptrs
+                unsquashed_trackers
             )));
         }
 

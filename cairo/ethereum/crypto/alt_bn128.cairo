@@ -13,7 +13,6 @@ from starkware.cairo.common.registers import get_label_location
 
 from legacy.utils.dict import default_dict_finalize
 
-from cairo_core.control_flow import raise
 from cairo_ec.circuits.mod_ops_compiled import add, sub, mul
 from cairo_ec.curve.alt_bn128 import alt_bn128
 from definitions import G1G2Pair, G1Point as G1PointGaraga, G2Point as G2PointGaraga
