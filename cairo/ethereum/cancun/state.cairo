@@ -738,6 +738,9 @@ func begin_transaction{
             cast(storage_tries.value._data.value.dict_ptr_start, DictAccess*),
             cast(storage_tries.value._data.value.dict_ptr, DictAccess*),
         );
+        tempvar dict_ptr = new_dict_ptr_end;
+        tempvar name = 'original_storage_tries';
+        %{ attach_name %}
         tempvar original_storage_tries_data = MappingTupleAddressBytes32U256(
             new MappingTupleAddressBytes32U256Struct(
                 dict_ptr_start=cast(new_dict_ptr_start, TupleAddressBytes32U256DictAccess*),
@@ -890,6 +893,9 @@ func close_transaction{
     if (is_root_state != 0) {
         // Clear created accounts
         let (new_created_accounts_ptr) = default_dict_new(0);
+        tempvar dict_ptr = new_created_accounts_ptr;
+        tempvar name = 'created_accounts';
+        %{ attach_name %}
         tempvar new_created_accounts = SetAddress(
             new SetAddressStruct(
                 dict_ptr_start=cast(new_created_accounts_ptr, SetAddressDictAccess*),
@@ -1056,6 +1062,9 @@ func destroy_touched_empty_accounts{poseidon_ptr: PoseidonBuiltin*, state: State
 func empty_transient_storage{range_check_ptr}() -> TransientStorage {
     let (default_value) = get_label_location(U256_ZERO);
     let (dict_ptr) = default_dict_new(cast(default_value, felt));
+    tempvar dict_ptr = dict_ptr;
+    tempvar name = 'transient_storage';
+    %{ attach_name %}
     let dict_start = cast(dict_ptr, TupleAddressBytes32U256DictAccess*);
 
     tempvar mapping = MappingTupleAddressBytes32U256(

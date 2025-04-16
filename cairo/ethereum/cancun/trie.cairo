@@ -638,6 +638,9 @@ func copy_TrieAddressOptionalAccount{range_check_ptr, trie: TrieAddressOptionalA
     local new_dict_ptr: AddressAccountDictAccess*;
     tempvar parent_dict_end = trie.value._data.value.dict_ptr;
     %{ copy_tracker_to_new_ptr %}
+    tempvar dict_ptr = new_dict_ptr;
+    tempvar name = 'TrieAddressOptionalAccount';
+    %{ attach_name %}
 
     tempvar res = TrieAddressOptionalAccount(
         new TrieAddressOptionalAccountStruct(
@@ -659,6 +662,9 @@ func copy_TrieTupleAddressBytes32U256{range_check_ptr, trie: TrieTupleAddressByt
     local new_dict_ptr: TupleAddressBytes32U256DictAccess*;
     tempvar parent_dict_end = trie.value._data.value.dict_ptr;
     %{ copy_tracker_to_new_ptr %}
+    tempvar dict_ptr = new_dict_ptr;
+    tempvar name = 'TrieTupleAddressBytes32U256';
+    %{ attach_name %}
 
     tempvar res = TrieTupleAddressBytes32U256(
         new TrieTupleAddressBytes32U256Struct(
@@ -1185,6 +1191,9 @@ func _prepare_trie{
     alloc_locals;
 
     let (local mapping_ptr_start: BytesBytesDictAccess*) = default_dict_new(0);
+    tempvar dict_ptr = mapping_ptr_start;
+    tempvar name = 'mapping_ptr_start';
+    %{ attach_name %}
 
     tempvar is_account = cast(trie_union.value.account.value, felt);
     jmp account if is_account != 0;
@@ -1852,6 +1861,9 @@ func _get_branch_for_nibble_at_level{poseidon_ptr: PoseidonBuiltin*}(
     let (branch_start_: DictAccess*) = dict_new_empty();
     let branch_start = cast(branch_start_, BytesBytesDictAccess*);
     let dict_ptr_stop = obj.value.dict_ptr;
+    tempvar dict_ptr = branch_start_;
+    tempvar name = 'branch_start';
+    %{ attach_name %}
 
     tempvar empty_value = Bytes(new BytesStruct(cast(0, felt*), 0));
 

@@ -80,6 +80,9 @@ func dict_squash{range_check_ptr}(
     %{ dict_squash %}
     ap += 1;
     let squashed_dict_start = cast([ap - 1], DictAccess*);
+    tempvar dict_ptr = squashed_dict_start;
+    tempvar name = 'squashed_dict_start';
+    %{ attach_name %}
 
     let (squashed_dict_end) = squash_dict(
         dict_accesses=dict_accesses_start,
@@ -184,8 +187,11 @@ func dict_update{range_check_ptr}(
 
     if (drop != FALSE) {
         // No need to merge a dict tracker, because we revert to the previous dict.
-        let (squashed_dict_start: DictAccess*) = alloc();
+        let (squashed_dict_start: DictAccess*) = dict_new_empty();
         let (squashed_dict_end) = squash_dict(dict_ptr_start, dict_ptr, squashed_dict_start);
+        tempvar dict_ptr = squashed_dict_start;
+        tempvar name = 'from_dict_update';
+        %{ attach_name %}
         let (prev_values_start, prev_values_end) = prev_values(
             squashed_dict_start, squashed_dict_end
         );
@@ -225,7 +231,10 @@ func prev_values{range_check_ptr}(dict_ptr_start: DictAccess*, dict_ptr_stop: Di
 ) {
     alloc_locals;
 
-    let (local prev_values_start: DictAccess*) = alloc();
+    let (local prev_values_start: DictAccess*) = dict_new_empty();
+    tempvar dict_ptr = prev_values_start;
+    tempvar name = 'prev_values';
+    %{ attach_name %}
     if (dict_ptr_start == dict_ptr_stop) {
         return (prev_values_start, prev_values_start);
     }
@@ -255,6 +264,10 @@ func prev_values{range_check_ptr}(dict_ptr_start: DictAccess*, dict_ptr_stop: Di
     static_assert prev_values == [ap - 6];
     static_assert dict_ptr == [ap - 5];
     jmp loop if is_not_done != 0;
+
+    let current_tracker_ptr = prev_values_start;
+    let new_tracker_ptr = prev_values;
+    %{ update_dict_tracker %}
 
     return (prev_values_start=prev_values_start, prev_values_end=prev_values);
 }
@@ -329,6 +342,10 @@ func squash_and_update{range_check_ptr}(
     let current_tracker_ptr = dst;
     let new_tracker_ptr = cast([ap - 5], DictAccess*);
     %{ update_dict_tracker %}
+
+    tempvar dict_ptr = new_tracker_ptr;
+    tempvar name = 'squashed_dict_end';
+    %{ attach_name %}
 
     return new_tracker_ptr;
 }

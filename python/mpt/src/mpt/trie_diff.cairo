@@ -63,7 +63,7 @@ from ethereum_rlp.rlp import (
 
 from starkware.cairo.common.builtin_poseidon.poseidon import poseidon_hash, poseidon_hash_many
 from legacy.utils.bytes import felt_to_bytes20_little
-from legacy.utils.dict import hashdict_read, hashdict_write, dict_new_empty, dict_read
+from legacy.utils.dict import hashdict_read, hashdict_write, dict_read
 from cairo_core.control_flow import raise
 from ethereum.utils.numeric import (
     ceil32,

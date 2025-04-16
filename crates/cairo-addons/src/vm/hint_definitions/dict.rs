@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use cairo_vm::{
     hint_processor::{
         builtin_hint_processor::hint_utils::{
-            get_ptr_from_var_name, insert_value_from_var_name, insert_value_into_ap,
+            get_integer_from_var_name, get_ptr_from_var_name, insert_value_from_var_name, insert_value_into_ap
         },
         hint_processor_definition::HintReference,
     },
@@ -16,6 +16,7 @@ use cairo_vm::{
 use crate::vm::hints::Hint;
 
 pub const HINTS: &[fn() -> Hint] = &[
+    attach_name,
     dict_new_empty,
     dict_squash,
     copy_tracker_to_new_ptr,
@@ -23,6 +24,25 @@ pub const HINTS: &[fn() -> Hint] = &[
     update_dict_tracker,
 ];
 
+pub fn attach_name() -> Hint {
+    Hint::new(
+        String::from("attach_name"),
+        |vm: &mut VirtualMachine, exec_scopes: &mut ExecutionScopes, ids_data: &HashMap<String, HintReference>, ap_tracking: &ApTracking, _constants: &HashMap<String, Felt252>| -> Result<(), HintError> {
+            let name_felt = get_integer_from_var_name("name", vm, ids_data, ap_tracking)?;
+            let name_bytes = name_felt.to_bytes_be().to_vec();
+            let name = String::from_utf8(name_bytes)
+                .unwrap_or_else(|_| "invalid_name".to_string())
+                .trim_matches(char::from(0))
+                .to_string();
+            let dict_ptr = get_ptr_from_var_name("dict_ptr", vm, ids_data, ap_tracking)?;
+            let binding = exec_scopes.get_dict_manager()?;
+            let mut binding = binding.borrow_mut();
+            let mut tracker = binding.get_tracker_mut(dict_ptr)?;
+            tracker.name = Some(name.clone());
+            Ok(())
+        },
+    )
+}
 pub fn dict_new_empty() -> Hint {
     Hint::new(
         String::from("dict_new_empty"),
