@@ -294,6 +294,9 @@ func blsf12_mul{
     let (zero) = get_label_location(U384_ZERO);
     let zero_u384 = cast(zero, UInt384*);
     let (mul_dict) = default_dict_new(cast(zero_u384, felt));
+    tempvar dict_ptr = mul_dict;
+    tempvar name = 'blsf12_mul';
+    %{ attach_name %}
     let mul_dict_start = mul_dict;
 
     // Step 2: Perform polynomial multiplication

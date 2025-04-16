@@ -71,6 +71,9 @@ func ripemd160{
 
     // 2. Compress data
     let (x) = default_dict_new(0);
+    tempvar dict_ptr = x;
+    tempvar name = 'ripemd_x';
+    %{ attach_name %}
     let start = x;
     let (res, rsize, new_msg) = compress_data{dict_ptr=x, bitwise_ptr=bitwise_ptr}(
         buf, 5, input_len, input.value.data
@@ -82,6 +85,9 @@ func ripemd160{
 
     // 4. Convert words to bytes
     let (hash) = default_dict_new(0);
+    tempvar dict_ptr = hash;
+    tempvar name = 'ripemd_hash';
+    %{ attach_name %}
     let h0 = hash;
     buf2hash{dict_ptr=hash, bitwise_ptr=bitwise_ptr}(res, 0);
     dict_to_array{dict_ptr=hash}(arr_x, 20);
@@ -447,6 +453,9 @@ func finish{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
 ) -> (res: felt*, rsize: felt) {
     alloc_locals;
     let (x) = default_dict_new(0);
+    tempvar dict_ptr = x;
+    tempvar name = 'ripemd_finish';
+    %{ attach_name %}
     tempvar start = x;
 
     // put data into x.
@@ -488,6 +497,9 @@ func finish{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     default_dict_finalize(start, x, 0);
     let (x) = default_dict_new(0);
     tempvar start = x;
+    tempvar dict_ptr = x;
+    tempvar name = 'ripemd_finish';
+    %{ attach_name %}
 
     dict_write{dict_ptr=x}(14, val);
     dict_write{dict_ptr=x}(15, val_15);

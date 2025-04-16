@@ -264,7 +264,9 @@ func execute_code{
 
     // Create empty stack
     let (dict_start: DictAccess*) = default_dict_new(0);
-    let dict_ptr = dict_start;
+    tempvar dict_ptr = dict_start;
+    tempvar name = 'stack';
+    %{ attach_name %}
     tempvar empty_stack = Stack(
         new StackStruct(
             dict_ptr_start=cast(dict_start, StackDictAccess*),
@@ -274,7 +276,9 @@ func execute_code{
     );
     // Create empty memory
     let (dict_start: DictAccess*) = default_dict_new(0);
-    let dict_ptr = dict_start;
+    tempvar dict_ptr = dict_start;
+    tempvar name = 'memory';
+    %{ attach_name %}
     tempvar empty_memory = Memory(
         new MemoryStruct(
             dict_ptr_start=cast(dict_start, Bytes1DictAccess*),
@@ -287,7 +291,9 @@ func execute_code{
     tempvar tuple_log_struct = TupleLog(new TupleLogStruct(data=empty_logs, len=0));
     // Create empty accounts_to_delete and touched_accounts
     let (dict_start: DictAccess*) = default_dict_new(0);
-    let dict_ptr = dict_start;
+    tempvar dict_ptr = dict_start;
+    tempvar name = 'accounts_to_delete';
+    %{ attach_name %}
     tempvar empty_accounts_to_delete = SetAddress(
         new SetAddressStruct(
             dict_ptr_start=cast(dict_start, SetAddressDictAccess*),
@@ -295,7 +301,9 @@ func execute_code{
         ),
     );
     let (dict_start: DictAccess*) = default_dict_new(0);
-    let dict_ptr = dict_start;
+    tempvar dict_ptr = dict_start;
+    tempvar name = 'touched_accounts';
+    %{ attach_name %}
     tempvar empty_touched_accounts = SetAddress(
         new SetAddressStruct(
             dict_ptr_start=cast(dict_start, SetAddressDictAccess*),
@@ -610,7 +618,10 @@ func create_empty_message_call_output(
 
     // Create first empty set for accounts_to_delete
     let (dict_start1: DictAccess*) = default_dict_new(0);
-    let dict_ptr1 = dict_start1;
+    tempvar dict_ptr = dict_start1;
+    tempvar name = 'accounts_to_delete_empty';
+    %{ attach_name %}
+    let dict_ptr1 = dict_ptr;
     tempvar empty_set1 = SetAddress(
         new SetAddressStruct(
             dict_ptr_start=cast(dict_start1, SetAddressDictAccess*),
@@ -620,7 +631,10 @@ func create_empty_message_call_output(
 
     // Create second empty set for touched_accounts
     let (dict_start2: DictAccess*) = default_dict_new(0);
-    let dict_ptr2 = dict_start2;
+    tempvar dict_ptr = dict_start2;
+    tempvar name = 'touched_accounts_empty';
+    %{ attach_name %}
+    let dict_ptr2 = dict_ptr;
     tempvar empty_set2 = SetAddress(
         new SetAddressStruct(
             dict_ptr_start=cast(dict_start2, SetAddressDictAccess*),
