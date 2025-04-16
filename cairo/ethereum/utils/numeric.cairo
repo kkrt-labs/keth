@@ -23,7 +23,6 @@ from cairo_core.maths import (
 )
 from cairo_core.comparison import is_zero
 from cairo_ec.uint384 import uint256_to_uint384
-from legacy.utils.array import reverse
 from legacy.utils.bytes import bytes_to_felt, bytes_to_felt_le, uint256_from_bytes_be, felt_to_bytes
 from legacy.utils.uint256 import uint256_add, uint256_sub
 from legacy.utils.utils import Helpers
