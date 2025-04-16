@@ -5,13 +5,13 @@ from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.math_cmp import is_le
 from starkware.cairo.common.math import assert_not_zero
 from starkware.cairo.common.bitwise import BitwiseBuiltin
-from starkware.cairo.common.dict import DictAccess, dict_new
+from starkware.cairo.common.dict import DictAccess
 from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
 from starkware.cairo.common.cairo_builtins import KeccakBuiltin
 from starkware.cairo.common.memcpy import memcpy
 
 from legacy.utils.bytes import uint256_to_bytes32_little
-from legacy.utils.dict import hashdict_read, hashdict_write, dict_new_empty, dict_read
+from legacy.utils.dict import hashdict_read, hashdict_write, dict_new_empty, dict_read, dict_squash
 from ethereum.crypto.hash import keccak256
 from ethereum.utils.numeric import min
 from ethereum_rlp.rlp import encode, _encode_bytes, _encode, Extended__eq__
@@ -84,6 +84,8 @@ from ethereum_rlp.rlp import (
 )
 from ethereum.utils.numeric import divmod
 from ethereum.utils.bytes import Bytes32_to_Bytes, Bytes20_to_Bytes, Bytes_to_Bytes32, Bytes__eq__
+
+from legacy.utils.dict import default_dict_finalize
 
 from cairo_core.comparison import is_zero
 from cairo_core.control_flow import raise
@@ -1251,13 +1253,19 @@ func _prepare_trie{
     let poseidon_ptr = cast([ap - 2], PoseidonBuiltin*);
     let mapping_ptr_end = cast([ap - 1], BytesBytesDictAccess*);
 
+    // The mapping will no longer be mutated (read or write) - as we'll only be iterating over the segment.
+    let (squashed_ptr_start, squashed_ptr_end) = default_dict_finalize(
+        cast(mapping_ptr_start, DictAccess*), cast(mapping_ptr_end, DictAccess*), 0
+    );
+
     tempvar result = MappingBytesBytes(
         new MappingBytesBytesStruct(
-            cast(mapping_ptr_start, BytesBytesDictAccess*),
-            cast(mapping_ptr_end, BytesBytesDictAccess*),
+            cast(squashed_ptr_start, BytesBytesDictAccess*),
+            cast(squashed_ptr_end, BytesBytesDictAccess*),
             cast(0, MappingBytesBytesStruct*),
         ),
     );
+
     return result;
 }
 
@@ -2000,6 +2008,44 @@ func _get_branches{poseidon_ptr: PoseidonBuiltin*}(obj: MappingBytesBytes, level
     return (branches_tuple, value);
 }
 
+func _squash_branches{range_check_ptr}(branches: TupleMappingBytesBytes) {
+    alloc_locals;
+
+    let branch_0 = branches.value.data[0].value;
+    dict_squash(cast(branch_0.dict_ptr_start, DictAccess*), cast(branch_0.dict_ptr, DictAccess*));
+    let branch_1 = branches.value.data[1].value;
+    dict_squash(cast(branch_1.dict_ptr_start, DictAccess*), cast(branch_1.dict_ptr, DictAccess*));
+    let branch_2 = branches.value.data[2].value;
+    dict_squash(cast(branch_2.dict_ptr_start, DictAccess*), cast(branch_2.dict_ptr, DictAccess*));
+    let branch_3 = branches.value.data[3].value;
+    dict_squash(cast(branch_3.dict_ptr_start, DictAccess*), cast(branch_3.dict_ptr, DictAccess*));
+    let branch_4 = branches.value.data[4].value;
+    dict_squash(cast(branch_4.dict_ptr_start, DictAccess*), cast(branch_4.dict_ptr, DictAccess*));
+    let branch_5 = branches.value.data[5].value;
+    dict_squash(cast(branch_5.dict_ptr_start, DictAccess*), cast(branch_5.dict_ptr, DictAccess*));
+    let branch_6 = branches.value.data[6].value;
+    dict_squash(cast(branch_6.dict_ptr_start, DictAccess*), cast(branch_6.dict_ptr, DictAccess*));
+    let branch_7 = branches.value.data[7].value;
+    dict_squash(cast(branch_7.dict_ptr_start, DictAccess*), cast(branch_7.dict_ptr, DictAccess*));
+    let branch_8 = branches.value.data[8].value;
+    dict_squash(cast(branch_8.dict_ptr_start, DictAccess*), cast(branch_8.dict_ptr, DictAccess*));
+    let branch_9 = branches.value.data[9].value;
+    dict_squash(cast(branch_9.dict_ptr_start, DictAccess*), cast(branch_9.dict_ptr, DictAccess*));
+    let branch_10 = branches.value.data[10].value;
+    dict_squash(cast(branch_10.dict_ptr_start, DictAccess*), cast(branch_10.dict_ptr, DictAccess*));
+    let branch_11 = branches.value.data[11].value;
+    dict_squash(cast(branch_11.dict_ptr_start, DictAccess*), cast(branch_11.dict_ptr, DictAccess*));
+    let branch_12 = branches.value.data[12].value;
+    dict_squash(cast(branch_12.dict_ptr_start, DictAccess*), cast(branch_12.dict_ptr, DictAccess*));
+    let branch_13 = branches.value.data[13].value;
+    dict_squash(cast(branch_13.dict_ptr_start, DictAccess*), cast(branch_13.dict_ptr, DictAccess*));
+    let branch_14 = branches.value.data[14].value;
+    dict_squash(cast(branch_14.dict_ptr_start, DictAccess*), cast(branch_14.dict_ptr, DictAccess*));
+    let branch_15 = branches.value.data[15].value;
+    dict_squash(cast(branch_15.dict_ptr_start, DictAccess*), cast(branch_15.dict_ptr, DictAccess*));
+    return ();
+}
+
 // @notice Given a key (inside `dict_ptr`), returns the preimage of the key registered in the tracker.
 // The preimage is validated to be correctly provided by the prover by hashing it and comparing it to the key.
 // @param key - The key to get the preimage for. Either a hashed or non-hashed key - but it must be a felt.
@@ -2165,6 +2211,9 @@ func patricialize{
     let encoded_14 = encode_internal_node(patricialized_14);
     let patricialized_15 = patricialize(branches.value.data[15], next_level);
     let encoded_15 = encode_internal_node(patricialized_15);
+
+    // Squash the dicts for all the branches
+    _squash_branches(branches);
 
     tempvar subnodes = Subnodes(
         new SubnodesStruct(

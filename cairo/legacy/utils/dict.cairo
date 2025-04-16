@@ -72,6 +72,8 @@ func dict_copy{range_check_ptr}(dict_start: DictAccess*, dict_end: DictAccess*) 
 }
 
 // @dev Copied from the standard library with an updated dict_new() implementation.
+//      and updates the `squashed` attribute of the DictTracker to mark this dict as properly squashed.
+// `squash_dict` should never be called directly, but only through `dict_squash`.
 func dict_squash{range_check_ptr}(
     dict_accesses_start: DictAccess*, dict_accesses_end: DictAccess*
 ) -> (squashed_dict_start: DictAccess*, squashed_dict_end: DictAccess*) {
@@ -80,7 +82,6 @@ func dict_squash{range_check_ptr}(
     %{ dict_squash %}
     ap += 1;
     let squashed_dict_start = cast([ap - 1], DictAccess*);
-
     let (squashed_dict_end) = squash_dict(
         dict_accesses=dict_accesses_start,
         dict_accesses_end=dict_accesses_end,
@@ -184,8 +185,7 @@ func dict_update{range_check_ptr}(
 
     if (drop != FALSE) {
         // No need to merge a dict tracker, because we revert to the previous dict.
-        let (squashed_dict_start: DictAccess*) = alloc();
-        let (squashed_dict_end) = squash_dict(dict_ptr_start, dict_ptr, squashed_dict_start);
+        let (squashed_dict_start, squashed_dict_end) = dict_squash(dict_ptr_start, dict_ptr);
         let (prev_values_start, prev_values_end) = prev_values(
             squashed_dict_start, squashed_dict_end
         );

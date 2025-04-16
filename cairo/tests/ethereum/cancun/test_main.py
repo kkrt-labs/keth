@@ -38,7 +38,7 @@ class TestMain:
             state_storage_diff_commitment,
             trie_account_diff_commitment,
             trie_storage_diff_commitment,
-        ] = cairo_run("test_main", **program_input)
+        ] = cairo_run("test_main", verify_squashed_dicts=True, **program_input)
 
         # Program input
         actual_pre_state_root = pre_state_root_low.to_bytes(

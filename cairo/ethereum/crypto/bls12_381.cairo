@@ -4,7 +4,9 @@ from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
 from starkware.cairo.common.dict import dict_read, dict_write
 from starkware.cairo.common.registers import get_label_location
 from starkware.cairo.common.dict_access import DictAccess
-from starkware.cairo.common.default_dict import default_dict_new, default_dict_finalize
+from starkware.cairo.common.default_dict import default_dict_new
+
+from legacy.utils.dict import default_dict_finalize
 
 from cairo_ec.circuits.mod_ops_compiled import add, sub, mul
 from cairo_ec.curve.bls12_381 import bls12_381

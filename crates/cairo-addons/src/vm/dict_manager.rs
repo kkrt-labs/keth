@@ -309,4 +309,17 @@ impl PyDictTracker {
             data_str, self.inner.current_ptr.segment_index, self.inner.current_ptr.offset
         ))
     }
+
+    // Note: no setters are implemented for these because they would require the inner tracker to be
+    // a mutable borrow, which is not implemented yet and would require more refactoring.
+
+    #[getter]
+    fn name(&self) -> String {
+        self.inner.name.clone().unwrap_or_default()
+    }
+
+    #[getter]
+    fn is_squashed(&self) -> bool {
+        self.inner.is_squashed
+    }
 }

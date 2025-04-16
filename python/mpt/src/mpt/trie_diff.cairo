@@ -109,6 +109,7 @@ from mpt.types import (
     OptionalUnionInternalNodeExtended,
     OptionalUnionInternalNodeExtendedEnum,
 )
+from legacy.utils.dict import dict_squash
 
 const EMPTY_TRIE_HASH_LOW = 0x6ef8c092e64583ffa655cc1b171fe856;
 const EMPTY_TRIE_HASH_HIGH = 0x21b463e3b52f6201c0ad6c991be0485b;
@@ -595,6 +596,20 @@ func compute_diff_entrypoint{
         parent_right=OptionalInternalNode(cast(0, InternalNodeEnum*)),
         path=path,
         account_address=account_address,
+    );
+
+    // Squash the dicts once used
+    dict_squash(
+        cast(node_store.value.dict_ptr_start, DictAccess*),
+        cast(node_store.value.dict_ptr, DictAccess*),
+    );
+    dict_squash(
+        cast(address_preimages.value.dict_ptr_start, DictAccess*),
+        cast(address_preimages.value.dict_ptr, DictAccess*),
+    );
+    dict_squash(
+        cast(storage_key_preimages.value.dict_ptr_start, DictAccess*),
+        cast(storage_key_preimages.value.dict_ptr, DictAccess*),
     );
 
     tempvar account_diff = AccountDiff(

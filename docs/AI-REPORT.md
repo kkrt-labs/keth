@@ -1,5 +1,36 @@
 # AI-Reports
 
+## AI-REPORT: Dict Squashing Verification Mechanism (April 20, 2025)
+
+**Dict Squashing Soundness**: To ensure all dictionaries are properly squashed
+during block proving, we've implemented a verification mechanism in our CairoVM
+runner.
+
+- **Debugging Process**: Added `attach_name` hints in Cairo code to label
+  dictionaries, aiding in tracking and debugging squashing status. e.g:
+  attaching the name 'transactions' to the dict for the transactions trie:
+
+```cairo
+    let (transaction_ptr) = default_dict_new(0);
+    tempvar dict_ptr = transaction_ptr;
+    tempvar name = 'transactions';
+    %{ attach_name %}
+```
+
+- **Verification Logic**: In the CairoVM repo, `DictTracker` now includes
+  `is_squashed` (initialized `True`) and `name` fields (to make debugging
+  easier). Mutations (`get_value`, `insert_value`) set `is_squashed` to `False`,
+  and we modified our `dict_squash` function hint to explicitly set it to
+  `True`. As such ALL dict squash / finalizing must be done through our
+  `dict_squash` function (or our own default_dict_finalize) - in
+  `legacy.utils.dict`.
+- **End-to-End Check**: Tests in `test_main.py` use `cairo_run` with
+  `check_squashed_dicts=True` to verify all dicts are squashed post-execution,
+  ensuring soundness during proving.
+
+This mechanism helps catching unsquashed dicts are caught during testing,
+ensuring our usage of dicts is sound.
+
 ## AI-REPORT: Typing Module Union Order Issue (April 15, 2025)
 
 ### Issue with Typing Module

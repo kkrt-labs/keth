@@ -396,6 +396,31 @@ except Exception as e:
         Ok(())
     }
 
+    fn verify_squashed_dicts(&mut self) -> PyResult<()> {
+        let dict_manager_ref = self
+            .inner
+            .exec_scopes
+            .get_dict_manager()
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+        let dict_manager = dict_manager_ref.borrow();
+
+        let unsquashed_trackers: Vec<String> = dict_manager
+            .trackers
+            .values()
+            .filter(|tracker| !tracker.is_squashed)
+            .map(|t| t.name.clone().unwrap_or_else(|| t.current_ptr.to_string()))
+            .collect();
+
+        if !unsquashed_trackers.is_empty() {
+            return Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+                "unsquashed trackers: {:?}",
+                unsquashed_trackers
+            )));
+        }
+
+        Ok(())
+    }
+
     /// Relocates all memory segments to their final positions.
     /// This is required after execution to get the final memory layout.
     fn relocate(&mut self) -> PyResult<()> {

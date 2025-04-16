@@ -24,6 +24,7 @@ from ethereum.cancun.fork_types import (
     SetTupleAddressBytes32DictAccess,
 )
 
+from ethereum.cancun.trie import TrieTupleAddressBytes32U256, TrieTupleAddressBytes32U256Struct
 from ethereum.cancun.vm.evm_impl import Evm, EvmStruct, Message
 from ethereum.cancun.vm.env_impl import (
     Environment,
@@ -49,6 +50,7 @@ from ethereum.cancun.vm.runtime import get_valid_jump_destinations, finalize_jum
 from ethereum.cancun.vm.stack import Stack, StackStruct, StackDictAccess
 from ethereum.utils.numeric import U256, U256Struct, U256__eq__
 from ethereum.cancun.state import (
+    StateImpl,
     account_exists_and_is_empty,
     account_has_code_or_nonce,
     account_has_storage,
@@ -477,6 +479,7 @@ func process_message_call{
         if (has_collision.value + has_storage.value != FALSE) {
             // Return early with collision error
             tempvar collision_error = new EthereumException(AddressCollision);
+            finalize_message(message);
             let msg = create_empty_message_call_output(Uint(0), collision_error);
             return msg;
         }
@@ -639,8 +642,32 @@ func create_empty_message_call_output(
     return msg;
 }
 
-// @dev Finalizes an `Evm` struct by squashing all of its fields except for the `state` inside the Environment - which is only finalized
-//      after processing full blocks.
+// @notice Finalizes a `Message` struct by squashing its inner dicts
+func finalize_message{range_check_ptr}(message: Message) {
+    alloc_locals;
+
+    // INVARIANT: this should always be 0 as finalize_message can only be called on a create_tx that has a collision.
+    assert cast(message.value.parent_evm.value, felt) = 0;
+
+    let accessed_addresses = message.value.accessed_addresses;
+    let accessed_addresses_start = accessed_addresses.value.dict_ptr_start;
+    let accessed_addresses_end = cast(accessed_addresses.value.dict_ptr, DictAccess*);
+    default_dict_finalize(cast(accessed_addresses_start, DictAccess*), accessed_addresses_end, 0);
+
+    let accessed_storage_keys = message.value.accessed_storage_keys;
+    let accessed_storage_keys_start = accessed_storage_keys.value.dict_ptr_start;
+    let accessed_storage_keys_end = cast(accessed_storage_keys.value.dict_ptr, DictAccess*);
+    default_dict_finalize(
+        cast(accessed_storage_keys_start, DictAccess*), accessed_storage_keys_end, 0
+    );
+
+    return ();
+}
+
+// @notice Finalizes an `Evm` struct by squashing all of its fields except for the `state`'s main_trie
+// and storage_tries inside the Environment - which is only finalized after processing full blocks.
+// There's no need to finalize the inner `message` as well - as its dicts (accessed_addresses, accessed_storage_keys, etc)
+// are inlined in the `Evm` struct already - and the message is not consumed again after the `Evm` is finalized.
 func finalize_evm{range_check_ptr, evm: Evm}() {
     alloc_locals;
 
@@ -758,6 +785,22 @@ func finalize_evm{range_check_ptr, evm: Evm}() {
     let transient_storage = env.value.transient_storage;
     finalize_transient_storage{transient_storage=transient_storage}();
     EnvImpl.set_transient_storage{env=env}(transient_storage);
+
+    // The `original_storage_tries` are specific to each transaction in the block - and as such MUST be squashed and reset
+    // at the end of each execution.
+    // Consequently, we must also set back the `parent_dict` of the `main_trie` to `0`
+    let state = env.value.state;
+    let original_storage_tries = state.value.original_storage_tries;
+    dict_squash(
+        cast(original_storage_tries.value._data.value.dict_ptr_start, DictAccess*),
+        cast(original_storage_tries.value._data.value.dict_ptr, DictAccess*),
+    );
+    StateImpl.set_original_storage_tries{state=state}(
+        TrieTupleAddressBytes32U256(cast(0, TrieTupleAddressBytes32U256Struct*))
+    );
+    // INVARIANT: there should not be a parent_dict to the main_trie at this point.
+    assert cast(state.value._main_trie.value._data.value.parent_dict, felt) = 0;
+    EnvImpl.set_state{env=env}(state);
 
     // Rebind all dicts to the evm struct
     tempvar evm = Evm(
