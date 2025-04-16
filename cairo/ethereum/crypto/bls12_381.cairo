@@ -44,7 +44,7 @@ func BLSF_ONE() -> BLSF {
     return res;
 }
 
-func BLSF__eq__{range_check96_ptr: felt*}(a: BLSF, b: BLSF) -> bool {
+func BLSF__eq__(a: BLSF, b: BLSF) -> bool {
     let result = U384__eq__(a.value.c0, b.value.c0);
     let res = bool(result.value);
     return res;
@@ -120,7 +120,7 @@ func BLSF2_ONE() -> BLSF2 {
     return res;
 }
 
-func BLSF2__eq__{range_check96_ptr: felt*}(a: BLSF2, b: BLSF2) -> bool {
+func BLSF2__eq__(a: BLSF2, b: BLSF2) -> bool {
     alloc_locals;
     let is_c0_equal = U384__eq__(a.value.c0, b.value.c0);
     let is_c1_equal = U384__eq__(a.value.c1, b.value.c1);
@@ -256,7 +256,7 @@ func BLSF12_ONE() -> BLSF12 {
     return res;
 }
 
-func BLSF12__eq__{range_check96_ptr: felt*}(a: BLSF12, b: BLSF12) -> bool {
+func BLSF12__eq__(a: BLSF12, b: BLSF12) -> bool {
     alloc_locals;
     let is_c0_equal = U384__eq__(a.value.c0, b.value.c0);
     let is_c1_equal = U384__eq__(a.value.c1, b.value.c1);
@@ -539,7 +539,7 @@ func BLSP_G() -> BLSP {
     return g1;
 }
 
-func BLSP__eq__{range_check96_ptr: felt*}(p: BLSP, q: BLSP) -> bool {
+func BLSP__eq__(p: BLSP, q: BLSP) -> bool {
     alloc_locals;
     let is_x_equal = BLSF__eq__(p.value.x, q.value.x);
     let is_y_equal = BLSF__eq__(p.value.y, q.value.y);
@@ -786,7 +786,7 @@ func blsp2_point_at_infinity() -> BLSP2 {
     return res;
 }
 
-func BLSP2__eq__{range_check96_ptr: felt*}(p: BLSP2, q: BLSP2) -> bool {
+func BLSP2__eq__(p: BLSP2, q: BLSP2) -> bool {
     alloc_locals;
     let is_x_equal = BLSF2__eq__(p.value.x, q.value.x);
     let is_y_equal = BLSF2__eq__(p.value.y, q.value.y);

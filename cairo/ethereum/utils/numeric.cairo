@@ -478,7 +478,7 @@ func U384_from_le_bytes{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(bytes: By
     return res;
 }
 
-func U384__eq__{range_check96_ptr: felt*}(lhs: U384, rhs: U384) -> bool {
+func U384__eq__(lhs: U384, rhs: U384) -> bool {
     if (lhs.value.d0 == rhs.value.d0 and lhs.value.d1 == rhs.value.d1 and
         lhs.value.d2 == rhs.value.d2 and lhs.value.d3 == rhs.value.d3) {
         tempvar res = bool(1);
