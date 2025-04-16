@@ -352,6 +352,7 @@ def run_python_vm(
         verify_secure_runner(runner)
         runner.relocate()
 
+
         # ============================================================================
         # STEP 7: GENERATE OUTPUT FILES AND TRACE (IF REQUESTED)
         # ============================================================================
@@ -615,6 +616,10 @@ def run_rust_vm(
 
         runner.verify_secure_runner()
         runner.relocate()
+        
+        # Ensure all dicts are squashed properly
+        # (not implemented in python vm)
+        runner.verify_squashed_dicts()
 
         # ============================================================================
         # STEP 7: GENERATE OUTPUT FILES AND TRACE (IF REQUESTED)

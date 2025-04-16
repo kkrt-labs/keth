@@ -309,4 +309,14 @@ impl PyDictTracker {
             data_str, self.inner.current_ptr.segment_index, self.inner.current_ptr.offset
         ))
     }
+
+    #[getter]
+    fn is_squashed(&self) -> bool {
+        self.inner.is_squashed
+    }
+
+    #[setter]
+    fn set_is_squashed(&mut self, is_squashed: bool) {
+        self.inner.is_squashed = is_squashed;
+    }
 }
