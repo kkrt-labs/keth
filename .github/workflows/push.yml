@@ -17,5 +17,6 @@ jobs:
     uses: ./.github/workflows/python_tests.yml
     with:
       hypothesis-profile: "ci"
+      parallelism: "48"
       coverage-flags: "ci-unit"
       pytest-add-params: "--ignore-glob=cairo/tests/ef_tests/"
