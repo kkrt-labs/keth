@@ -13,12 +13,14 @@ from starkware.cairo.common.math import assert_nn_le, unsigned_div_rem
 from starkware.cairo.common.math_cmp import is_nn_le, is_nn
 from starkware.cairo.common.bitwise import bitwise_and, bitwise_xor, bitwise_or
 from starkware.cairo.common.dict_access import DictAccess
-from starkware.cairo.common.default_dict import default_dict_new, default_dict_finalize
+from starkware.cairo.common.default_dict import default_dict_new
 from starkware.cairo.common.dict import dict_read, dict_write
 from starkware.cairo.common.registers import get_label_location
 from starkware.cairo.common.bool import FALSE
 from starkware.cairo.common.memset import memset
 from starkware.cairo.common.memcpy import memcpy
+
+from legacy.utils.dict import default_dict_finalize
 
 from legacy.utils.utils import Helpers
 

@@ -103,7 +103,9 @@ def add_block_to_chain(
     assert rlp.encode(block) == block_rlp
 
     try:
-        cairo_chain = cairo_run("state_transition", chain, block)
+        cairo_chain = cairo_run(
+            "state_transition", check_squashed_dicts=True, chain=chain, block=block
+        )
         if request.config.getoption("--log-cli-level") == "TRACE":
             # In trace mode, run EELS as well to get a side-by-side comparison
             state_transition(chain, block)

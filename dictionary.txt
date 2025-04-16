@@ -311,3 +311,5 @@ cpython
 flamegraph
 dotenvy
 pyproject
+unsquashed
+ptrs

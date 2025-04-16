@@ -405,6 +405,11 @@ pub fn copy_hashdict_tracker_entry() -> Hint {
             // Find matching preimage from source tracker data
             let key_hash = get_integer_from_var_name("source_key", vm, ids_data, ap_tracking)?;
             let preimage = _get_preimage_for_hashed_key(key_hash.into(), preimages)?.clone();
+
+            // The default behavior of `get_value` is to mark the tracker as unsquashed, as we're
+            // accessing an internal value. However, in this specific case, we're not
+            // mutating the dict access segment - so we want to retain the squashed state.
+            let currently_squashed = source_tracker.is_squashed;
             let value = source_tracker
                 .get_value(&preimage)
                 .map_err(|_| {
@@ -413,6 +418,7 @@ pub fn copy_hashdict_tracker_entry() -> Hint {
                     )
                 })?
                 .clone();
+            source_tracker.is_squashed = currently_squashed;
 
             // Update destination tracker
             let dest_tracker = dict_manager.get_tracker_mut(dest_ptr)?;

@@ -180,7 +180,7 @@ from ethereum.utils.bytes import Bytes32_to_Bytes, Bytes32__eq__, Bytes256__eq__
 from cairo_core.comparison import is_zero
 
 from legacy.utils.array import count_not_zero
-from legacy.utils.dict import hashdict_write
+from legacy.utils.dict import hashdict_write, default_dict_finalize
 
 const ELASTICITY_MULTIPLIER = 2;
 const BASE_FEE_MAX_CHANGE_DENOMINATOR = 8;
@@ -1153,6 +1153,23 @@ func apply_body{
     let block_logs_bloom = logs_bloom(block_logs);
 
     _process_withdrawals_inner{state=state, trie=withdrawals_trie}(0, withdrawals);
+
+    // Squash the receipts, transactions, and withdrawals dicts once they're no longer being modified.
+    default_dict_finalize(
+        cast(transactions_trie.value._data.value.dict_ptr_start, DictAccess*),
+        cast(transactions_trie.value._data.value.dict_ptr, DictAccess*),
+        0,
+    );
+    default_dict_finalize(
+        cast(receipts_trie.value._data.value.dict_ptr_start, DictAccess*),
+        cast(receipts_trie.value._data.value.dict_ptr, DictAccess*),
+        0,
+    );
+    default_dict_finalize(
+        cast(withdrawals_trie.value._data.value.dict_ptr_start, DictAccess*),
+        cast(withdrawals_trie.value._data.value.dict_ptr, DictAccess*),
+        0,
+    );
 
     // Compute all roots
     tempvar transaction_eth_trie = EthereumTries(

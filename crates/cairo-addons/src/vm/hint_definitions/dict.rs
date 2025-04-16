@@ -3,7 +3,8 @@ use std::collections::HashMap;
 use cairo_vm::{
     hint_processor::{
         builtin_hint_processor::hint_utils::{
-            get_integer_from_var_name, get_ptr_from_var_name, insert_value_from_var_name, insert_value_into_ap
+            get_integer_from_var_name, get_ptr_from_var_name, insert_value_from_var_name,
+            insert_value_into_ap,
         },
         hint_processor_definition::HintReference,
     },
@@ -27,7 +28,12 @@ pub const HINTS: &[fn() -> Hint] = &[
 pub fn attach_name() -> Hint {
     Hint::new(
         String::from("attach_name"),
-        |vm: &mut VirtualMachine, exec_scopes: &mut ExecutionScopes, ids_data: &HashMap<String, HintReference>, ap_tracking: &ApTracking, _constants: &HashMap<String, Felt252>| -> Result<(), HintError> {
+        |vm: &mut VirtualMachine,
+         exec_scopes: &mut ExecutionScopes,
+         ids_data: &HashMap<String, HintReference>,
+         ap_tracking: &ApTracking,
+         _constants: &HashMap<String, Felt252>|
+         -> Result<(), HintError> {
             let name_felt = get_integer_from_var_name("name", vm, ids_data, ap_tracking)?;
             let name_bytes = name_felt.to_bytes_be().to_vec();
             let name = String::from_utf8(name_bytes)
@@ -37,7 +43,7 @@ pub fn attach_name() -> Hint {
             let dict_ptr = get_ptr_from_var_name("dict_ptr", vm, ids_data, ap_tracking)?;
             let binding = exec_scopes.get_dict_manager()?;
             let mut binding = binding.borrow_mut();
-            let mut tracker = binding.get_tracker_mut(dict_ptr)?;
+            let tracker = binding.get_tracker_mut(dict_ptr)?;
             tracker.name = Some(name.clone());
             Ok(())
         },
@@ -75,7 +81,10 @@ pub fn dict_squash() -> Hint {
             // Get dict manager and copy data from the source dictionary
             let dict_manager_ref = exec_scopes.get_dict_manager()?;
             let mut dict_manager = dict_manager_ref.borrow_mut();
-            let tracker = dict_manager.get_tracker(dict_accesses_end)?;
+            let tracker = dict_manager.get_tracker_mut(dict_accesses_end)?;
+            // Marks the tracker as squashed - so that after the end of a run, we can assert that
+            // all dicts were properly squashed.
+            tracker.is_squashed = true;
             let copied_data = tracker.get_dictionary_copy();
 
             // Create new dict with copied data
@@ -104,6 +113,7 @@ pub fn copy_tracker_to_new_ptr() -> Hint {
             let dict_manager_ref = exec_scopes.get_dict_manager()?;
             let mut dict_manager = dict_manager_ref.borrow_mut();
             let tracker = dict_manager.get_tracker(original_dict_ptr)?;
+            let tracker_name = tracker.name.clone().unwrap_or_default();
             let copied_data = tracker.get_dictionary_copy();
             let default_value = tracker.get_default_value().cloned();
 
@@ -112,6 +122,9 @@ pub fn copy_tracker_to_new_ptr() -> Hint {
                 Some(default_value) => {
                     let new_dict_ptr =
                         dict_manager.new_default_dict(vm, &default_value, Some(copied_data))?;
+                    let new_dict_tracker =
+                        dict_manager.get_tracker_mut(new_dict_ptr.get_relocatable().unwrap())?;
+                    new_dict_tracker.name = Some(format!("{}_copy", tracker_name));
                     insert_value_from_var_name(
                         "new_dict_ptr",
                         new_dict_ptr,
@@ -122,6 +135,9 @@ pub fn copy_tracker_to_new_ptr() -> Hint {
                 }
                 None => {
                     let new_dict_ptr = dict_manager.new_dict(vm, copied_data)?;
+                    let new_dict_tracker =
+                        dict_manager.get_tracker_mut(new_dict_ptr.get_relocatable().unwrap())?;
+                    new_dict_tracker.name = Some(format!("{}_copy", tracker_name));
                     insert_value_from_var_name(
                         "new_dict_ptr",
                         new_dict_ptr,
@@ -151,8 +167,13 @@ pub fn merge_dict_tracker_with_parent() -> Hint {
             let dict_manager_ref = exec_scopes.get_dict_manager()?;
             let mut dict_manager = dict_manager_ref.borrow_mut();
 
-            let current_data = dict_manager.get_tracker(dict_ptr)?.get_dictionary_copy();
+            // If we're merging with the parent, it becomes the responsibility of the parent to
+            // finalize the dict. We can thus consider it squashed.
+            let current_tracker = dict_manager.get_tracker_mut(dict_ptr)?;
+            current_tracker.is_squashed = true;
+            let current_data = current_tracker.get_dictionary_copy();
             let parent_tracker = dict_manager.get_tracker_mut(parent_dict_end)?;
+            parent_tracker.is_squashed = false;
             for (key, value) in current_data {
                 parent_tracker.insert_value(&key, &value);
             }

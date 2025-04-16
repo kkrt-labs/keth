@@ -24,6 +24,7 @@ from ethereum.cancun.fork_types import (
     SetTupleAddressBytes32DictAccess,
 )
 
+from ethereum.cancun.trie import TrieTupleAddressBytes32U256, TrieTupleAddressBytes32U256Struct
 from ethereum.cancun.vm.evm_impl import Evm, EvmStruct, Message
 from ethereum.cancun.vm.env_impl import (
     Environment,
@@ -49,6 +50,7 @@ from ethereum.cancun.vm.runtime import get_valid_jump_destinations, finalize_jum
 from ethereum.cancun.vm.stack import Stack, StackStruct, StackDictAccess
 from ethereum.utils.numeric import U256, U256Struct, U256__eq__
 from ethereum.cancun.state import (
+    StateImpl,
     account_exists_and_is_empty,
     account_has_code_or_nonce,
     account_has_storage,
@@ -653,8 +655,8 @@ func create_empty_message_call_output(
     return msg;
 }
 
-// @dev Finalizes an `Evm` struct by squashing all of its fields except for the `state` inside the Environment - which is only finalized
-//      after processing full blocks.
+// @dev Finalizes an `Evm` struct by squashing all of its fields except for the `state`'s main_trie
+// and storage_tries inside the Environment - which is only finalized after processing full blocks.
 func finalize_evm{range_check_ptr, evm: Evm}() {
     alloc_locals;
 
@@ -772,6 +774,22 @@ func finalize_evm{range_check_ptr, evm: Evm}() {
     let transient_storage = env.value.transient_storage;
     finalize_transient_storage{transient_storage=transient_storage}();
     EnvImpl.set_transient_storage{env=env}(transient_storage);
+
+    // The `original_storage_tries` are specific to each transaction in the block - and as such MUST be squashed and reset
+    // at the end of each execution.
+    // Consequently, we must also set back the `parent_dict` of the `main_trie` to `0`
+    let state = env.value.state;
+    let original_storage_tries = state.value.original_storage_tries;
+    let (new_original_storage_tries_start, new_original_storage_tries_end) = dict_squash(
+        cast(original_storage_tries.value._data.value.dict_ptr_start, DictAccess*),
+        cast(original_storage_tries.value._data.value.dict_ptr, DictAccess*),
+    );
+    StateImpl.set_original_storage_tries{state=state}(
+        TrieTupleAddressBytes32U256(cast(0, TrieTupleAddressBytes32U256Struct*))
+    );
+    // INVARIANT: there should not be a parent_dict to the main_trie at this point.
+    assert cast(state.value._main_trie.value._data.value.parent_dict, felt) = 0;
+    EnvImpl.set_state{env=env}(state);
 
     // Rebind all dicts to the evm struct
     tempvar evm = Evm(

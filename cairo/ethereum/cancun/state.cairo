@@ -891,20 +891,32 @@ func close_transaction{
     // If we're in the root state, we need to clear the created accounts
     let is_root_state = is_zero(cast(new_main_trie.value._data.value.parent_dict, felt));
     if (is_root_state != 0) {
-        // Clear created accounts
+        // Clear created accounts. Don't forget to squash the existing ones!
+        default_dict_finalize(
+            cast(state.value.created_accounts.value.dict_ptr_start, DictAccess*),
+            cast(state.value.created_accounts.value.dict_ptr, DictAccess*),
+            0,
+        );
         let (new_created_accounts_ptr) = default_dict_new(0);
         tempvar dict_ptr = new_created_accounts_ptr;
         tempvar name = 'created_accounts';
         %{ attach_name %}
+
         tempvar new_created_accounts = SetAddress(
             new SetAddressStruct(
                 dict_ptr_start=cast(new_created_accounts_ptr, SetAddressDictAccess*),
                 dict_ptr=cast(new_created_accounts_ptr, SetAddressDictAccess*),
             ),
         );
+        [ap] = range_check_ptr, ap++;
+        [ap] = new_created_accounts.value, ap++;
     } else {
-        tempvar new_created_accounts = state.value.created_accounts;
+        [ap] = range_check_ptr, ap++;
+        [ap] = state.value.created_accounts.value, ap++;
     }
+
+    let range_check_ptr = [ap - 2];
+    let new_created_accounts = SetAddress(cast([ap - 1], SetAddressStruct*));
 
     tempvar state = State(
         new StateStruct(

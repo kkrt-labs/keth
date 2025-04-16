@@ -352,7 +352,6 @@ def run_python_vm(
         verify_secure_runner(runner)
         runner.relocate()
 
-
         # ============================================================================
         # STEP 7: GENERATE OUTPUT FILES AND TRACE (IF REQUESTED)
         # ============================================================================
@@ -462,7 +461,7 @@ def run_rust_vm(
     request: FixtureRequest,
     coverage: Optional[Callable[[pl.DataFrame, int], pl.DataFrame]],
 ):
-    def _run(entrypoint, *args, **kwargs):
+    def _run(entrypoint, check_squashed_dicts: bool = False, *args, **kwargs):
         # ============================================================================
         # STEP 1: SELECT PROGRAM AND PREPARE ENTRYPOINT METADATA
         # - Rationale: Determine which program contains the entrypoint (main or test)
@@ -616,10 +615,11 @@ def run_rust_vm(
 
         runner.verify_secure_runner()
         runner.relocate()
-        
-        # Ensure all dicts are squashed properly
-        # (not implemented in python vm)
-        runner.verify_squashed_dicts()
+
+        if check_squashed_dicts:
+            # Ensure all dicts are squashed properly
+            # (not implemented in python vm)
+            runner.verify_squashed_dicts()
 
         # ============================================================================
         # STEP 7: GENERATE OUTPUT FILES AND TRACE (IF REQUESTED)
