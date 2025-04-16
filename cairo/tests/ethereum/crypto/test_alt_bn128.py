@@ -9,7 +9,7 @@ from ethereum.crypto.alt_bn128 import (
 )
 from hypothesis import assume, given, settings
 
-from cairo_addons.testing.errors import cairo_error, strict_raises
+from cairo_addons.testing.errors import strict_raises
 from cairo_addons.testing.hints import patch_hint
 from tests.utils.args_gen import U384
 
@@ -221,7 +221,7 @@ segments.load_data(ids.b_inv.address_, [bnf2_struct_ptr])
         def test_bnf12_eq(self, cairo_run, a: BNF12, b: BNF12):
             assert cairo_run("BNF12__eq__", a, b) == (a == b)
 
-    class TestUtils:
+    class TestPairing:
         @given(p=..., q=...)
         @settings(max_examples=10)
         @pytest.mark.slow
@@ -230,12 +230,4 @@ segments.load_data(ids.b_inv.address_, [bnf2_struct_ptr])
         # https://github.com/keep-starknet-strange/garaga/blob/704a8c66bf85b965851a117c6b116fc7a11329db/hydra/garaga/definitions.py#L346
         # https://github.com/Consensys/gnark/blob/bd4a39719a964f0305ee9ec36b6226e4c266584c/std/algebra/emulated/sw_bn254/pairing.go#L129
         def test_pairing(self, cairo_run, p: BNP, q: BNP2):
-            assume(p.x != BNF.zero())
-            assume(q.x != BNF2.zero())
-            try:
-                expected = pairing(q, p) ** GARAGA_COFACTOR
-            except OverflowError:  # fails for large points
-                with cairo_error(message="OverflowError"):  # Hint error
-                    cairo_run("pairing", q, p)
-                return
-            assert cairo_run("pairing", q, p) == expected
+            assert cairo_run("pairing", q, p) == pairing(q, p) ** GARAGA_COFACTOR
