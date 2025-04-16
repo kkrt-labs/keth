@@ -30,7 +30,7 @@ from ethereum.cancun.vm.exceptions import (
 )
 from ethereum.cancun.vm.gas import ExtendMemory, MessageCallGas
 from ethereum.cancun.vm.interpreter import MessageCallOutput
-from ethereum.crypto.alt_bn128 import BNF, BNF2, BNF12, BNP, BNP2, BNP12
+from ethereum.crypto.alt_bn128 import BNF, BNF2, BNF12, BNP, BNP2
 from ethereum.crypto.hash import Hash32
 from ethereum.crypto.kzg import FQ, FQ2, BLSFieldElement, KZGCommitment, KZGProof
 from ethereum.exceptions import (
@@ -130,7 +130,7 @@ def get_type(instance: Any) -> Type:
 
     if isinstance(
         instance,
-        (BNF2, BNF12, BNF, BNP, BNP2, BNP12, BLSF, BLSF2, G1Compressed, BLSPubkey),
+        (BNF2, BNF12, BNF, BNP, BNP2, BLSF, BLSF2, G1Compressed, BLSPubkey),
     ):
         return instance.__class__
 
@@ -323,8 +323,6 @@ class TestSerde:
             U384,
             Optional[U384],
             BNF12,
-            Tuple[BNF12, ...],
-            BNP12,
             BNF2,
             BNF,
             BNP,

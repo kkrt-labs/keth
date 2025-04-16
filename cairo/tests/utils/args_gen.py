@@ -100,7 +100,7 @@ from ethereum.cancun.trie import (
 from ethereum.cancun.vm import Environment, Evm, Message
 from ethereum.cancun.vm.gas import ExtendMemory, MessageCallGas
 from ethereum.cancun.vm.interpreter import MessageCallOutput
-from ethereum.crypto.alt_bn128 import BNF, BNF2, BNF12, BNP, BNP2, BNP12
+from ethereum.crypto.alt_bn128 import BNF, BNF2, BNF12, BNP, BNP2
 from ethereum.crypto.hash import Hash32
 from ethereum.crypto.kzg import FQ, FQ2, BLSFieldElement, KZGCommitment, KZGProof
 from ethereum.exceptions import EthereumException
@@ -464,8 +464,6 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     # For tests only
     ("tests", "legacy", "utils", "test_dict", "MappingUintUint"): Mapping[Uint, Uint],
     ("ethereum", "crypto", "alt_bn128", "BNF12"): BNF12,
-    ("ethereum", "crypto", "alt_bn128", "TupleBNF12"): Tuple[BNF12, ...],
-    ("ethereum", "crypto", "alt_bn128", "BNP12"): BNP12,
     ("ethereum", "crypto", "alt_bn128", "BNF2"): BNF2,
     ("ethereum", "crypto", "alt_bn128", "BNP"): BNP,
     ("ethereum", "crypto", "alt_bn128", "BNF"): BNF,
@@ -852,7 +850,7 @@ def _gen_arg(
         segments.load_data(base, coeffs)
         return base
 
-    if arg_type in (BNP, BNP2, BNP12):
+    if arg_type in (BNP, BNP2):
         struct_ptr = segments.add()
 
         # Handle the x and y coordinates recursively
