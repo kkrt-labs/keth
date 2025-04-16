@@ -311,3 +311,4 @@ PYTHONHOME
 cpython
 flamegraph
 dotenvy
+pyproject

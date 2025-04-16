@@ -16,7 +16,14 @@ from typing import (
 
 from eth_keys.datatypes import PrivateKey
 from ethereum.cancun.blocks import Header, Log, Receipt, Withdrawal
-from ethereum.cancun.fork_types import Address, Bloom, Root
+from ethereum.cancun.fork_types import (
+    Account,
+    Address,
+    Bloom,
+    Root,
+    VersionedHash,
+)
+from ethereum.cancun.state import State, TransientStorage
 from ethereum.cancun.transactions import (
     AccessListTransaction,
     BlobTransaction,
@@ -73,25 +80,15 @@ from py_ecc.optimized_bls12_381.optimized_pairing import normalize1
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 
 from cairo_ec.curve import AltBn128
-from mpt.ethereum_tries import EMPTY_BYTES_HASH
-
-# Note: I have noticed that even if we patch the imports in conftests.py, because hypothesis runs before these patches are applied,
-# this file would still be working with the old types. Thus, we _explicitly_ import our patched types from args_gen.py here.
-from tests.utils.args_gen import (  # noqa
+from keth_types.types import (
+    EMPTY_BYTES_HASH,
     EMPTY_TRIE_HASH,
     U384,
-    Account,
     BLSPubkey,
-    Environment,
-    Evm,
     G1Compressed,
     Memory,
-    Message,
     MutableBloom,
     Stack,
-    State,
-    TransientStorage,
-    VersionedHash,
 )
 from tests.utils.constants import BLOCK_GAS_LIMIT, MAX_BLOB_GAS_PER_BLOCK
 

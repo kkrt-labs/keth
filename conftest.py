@@ -3,6 +3,7 @@ import os
 
 import pytest
 from dotenv import load_dotenv
+from ethereum.cancun.vm import Evm
 from ethereum.trace import (
     EvmStop,
     GasAndRefund,
@@ -16,8 +17,6 @@ from ethereum.trace import (
     TransactionStart,
 )
 from hypothesis import HealthCheck, Phase, Verbosity, settings
-
-from tests.utils.args_gen import Evm
 
 load_dotenv()
 logging.basicConfig(
@@ -111,74 +110,9 @@ collect_ignore_glob = ["cairo/tests/ef_tests/fixtures/*"]
 def pytest_configure(config):
     """
     Global test configuration for patching core classes.
-
-    How it works:
-    1. pytest runs this hook during test collection, before any tests execute
-    2. We directly replace the class definitions in the original modules
-    3. All subsequent imports of these modules will see our patched versions
-
-    This effectively "rewrites" the module contents at the source, so whether code does:
-    from ethereum.cancun.vm import Evm
-    or:
-        import ethereum.cancun.vm
-        evm = ethereum.cancun.vm.Evm
-    They both get our mock version, because the module itself has been modified.
     """
-    from typing import Sequence, Union
-
-    import ethereum
-    import ethereum_rlp
-    from ethereum_types.numeric import FixedUnsigned, Uint
-
-    import mpt
-    from tests.utils.args_gen import (
-        EMPTY_ACCOUNT,
-        Account,
-        Environment,
-        Evm,
-        Message,
-        MessageCallOutput,
-        Node,
-        encode_account,
-        is_account_alive,
-        set_code,
-    )
-
     # Initialize the tracer
     init_tracer()
-
-    # Apply patches at module level before any tests run
-    ethereum.cancun.vm.Evm = Evm
-    ethereum.cancun.vm.Message = Message
-    ethereum.cancun.vm.Environment = Environment
-    ethereum.cancun.vm.interpreter.MessageCallOutput = MessageCallOutput
-    ethereum.cancun.fork_types.Account = Account
-    ethereum.cancun.fork_types.EMPTY_ACCOUNT = EMPTY_ACCOUNT
-    ethereum.cancun.fork_types.encode_account = encode_account
-    ethereum.cancun.state.is_account_alive = is_account_alive
-    ethereum.cancun.state.set_code = set_code
-    ethereum.cancun.trie.Node = Node
-    mpt.ethereum_tries.Account = Account
-    mpt.trie_diff.Account = Account
-
-    # TODO: Find a better way to do this?
-    # See explanation below. Lots of EELS modules import `Account` and `EMPTY_ACCOUNT` from `ethereum.cancun.fork_types`.
-    # I think these modules get loaded before this patch is applied. Thus we must replace them manually.
-    setattr(ethereum.cancun.trie, "Account", Account)
-    setattr(ethereum.cancun.trie, "encode_account", encode_account)
-    setattr(ethereum.cancun.state, "Account", Account)
-    setattr(ethereum.cancun.state, "EMPTY_ACCOUNT", EMPTY_ACCOUNT)
-    setattr(ethereum.cancun.state, "is_account_alive", is_account_alive)
-    setattr(ethereum.cancun.fork_types, "EMPTY_ACCOUNT", EMPTY_ACCOUNT)
-    setattr(ethereum.cancun.vm.instructions.environment, "EMPTY_ACCOUNT", EMPTY_ACCOUNT)
-    setattr(ethereum.cancun.vm.interpreter, "set_code", set_code)
-    setattr(mpt.utils, "Account", Account)
-    setattr(mpt.trie_diff, "Account", Account)
-    setattr(mpt.ethereum_tries, "Account", Account)
-    setattr(ethereum.cancun.trie, "Node", Node)
-
-    # Mock the Extended type
-    ethereum_rlp.rlp.Extended = Union[Sequence["Extended"], bytearray, bytes, Uint, FixedUnsigned, str, bool]  # type: ignore # noqa: F821
 
     # Patching evm_trace:
     # - Problem: Global patches of `ethereum.trace.evm_trace` are not reflected in places where `evm_trace` is imported in EELS.

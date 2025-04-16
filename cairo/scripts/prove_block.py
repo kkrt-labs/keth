@@ -7,84 +7,27 @@ import argparse
 import json
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
-import ethereum
-import ethereum_rlp
+from ethereum.cancun.blocks import Block, Withdrawal
+from ethereum.cancun.fork import (
+    BlockChain,
+)
+from ethereum.cancun.fork_types import Address
 from ethereum.cancun.state import State
 from ethereum.cancun.transactions import (
     LegacyTransaction,
     encode_transaction,
 )
+from ethereum.utils.hexadecimal import hex_to_bytes, hex_to_u256, hex_to_uint
 from ethereum_spec_tools.evm_tools.loaders.fork_loader import ForkLoad
 from ethereum_spec_tools.evm_tools.loaders.transaction_loader import TransactionLoad
-from ethereum_types.numeric import FixedUnsigned, Uint
+from ethereum_types.bytes import Bytes, Bytes0
+from ethereum_types.numeric import U64, U256
 
-import mpt
+from cairo_addons.vm import run_proof_mode
 from mpt.ethereum_tries import ZkPi
-from tests.utils.args_gen import (
-    EMPTY_ACCOUNT,
-    Account,
-    Environment,
-    Evm,
-    Message,
-    MessageCallOutput,
-    Node,
-    encode_account,
-    is_account_alive,
-    set_code,
-)
-from utils.fixture_loader import LoadKethFixture
-
-# Patch EELS with our own types for argument generation
-ethereum.cancun.vm.Evm = Evm
-ethereum.cancun.vm.Message = Message
-ethereum.cancun.vm.Environment = Environment
-ethereum.cancun.vm.interpreter.MessageCallOutput = MessageCallOutput
-ethereum.cancun.fork_types.Account = Account
-ethereum.cancun.fork_types.EMPTY_ACCOUNT = EMPTY_ACCOUNT
-ethereum.cancun.fork_types.encode_account = encode_account
-ethereum.cancun.state.is_account_alive = is_account_alive
-ethereum.cancun.state.set_code = set_code
-ethereum.cancun.trie.Node = Node
-ethereum_rlp.rlp.Extended = Union[Sequence["Extended"], bytearray, bytes, Uint, FixedUnsigned, str, bool]  # type: ignore # noqa: F821
-mpt.ethereum_tries.Account = Account
-mpt.trie_diff.Account = Account
-
-# See explanation in conftest.py. Lots of EELS modules import `Account` and `EMPTY_ACCOUNT` from `ethereum.cancun.fork_types`.
-# I think these modules get loaded before this patch is applied. Thus we must replace them manually.
-setattr(ethereum.cancun.trie, "Account", Account)
-setattr(ethereum.cancun.trie, "encode_account", encode_account)
-setattr(ethereum.cancun.state, "Account", Account)
-setattr(ethereum.cancun.state, "EMPTY_ACCOUNT", EMPTY_ACCOUNT)
-setattr(ethereum.cancun.state, "is_account_alive", is_account_alive)
-setattr(ethereum.cancun.fork_types, "EMPTY_ACCOUNT", EMPTY_ACCOUNT)
-setattr(ethereum.cancun.vm.instructions.environment, "EMPTY_ACCOUNT", EMPTY_ACCOUNT)
-setattr(ethereum.cancun.vm.interpreter, "set_code", set_code)
-setattr(mpt.utils, "Account", Account)
-setattr(mpt.ethereum_tries, "Account", Account)
-setattr(mpt.ethereum_tries, "EMPTY_ACCOUNT", EMPTY_ACCOUNT)
-setattr(mpt.trie_diff, "Account", Account)
-setattr(ethereum.cancun.trie, "Node", Node)
-
-from ethereum.cancun.blocks import Block, Withdrawal  # noqa
-from ethereum.cancun.fork import (  # noqa
-    BlockChain,
-    apply_body,
-    get_last_256_block_hashes,
-)
-from ethereum.cancun.fork_types import Address  # noqa
-from ethereum.cancun.transactions import LegacyTransaction  # noqa
-from ethereum.cancun.vm.gas import calculate_excess_blob_gas  # noqa
-from ethereum.utils.hexadecimal import hex_to_bytes, hex_to_u256, hex_to_uint  # noqa
-from ethereum_spec_tools.evm_tools.loaders.fixture_loader import Load  # noqa
-from ethereum_types.bytes import Bytes, Bytes0, Bytes32  # noqa
-from ethereum_types.numeric import U64, U256  # noqa
-
-from cairo_addons.vm import run_proof_mode  # noqa
-from tests.ef_tests.helpers.load_state_tests import (  # noqa
-    map_code_hashes_to_code,
-)
+from utils.fixture_loader import LoadKethFixture, map_code_hashes_to_code
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"

@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 
 dependencies = [
+  "keth-types",
   "cairo-addons",
   "cairo-ec",
   "cairo-core",
@@ -52,6 +53,7 @@ cairo-addons = { workspace = true }
 cairo-ec = { workspace = true }
 cairo-core = { workspace = true }
 eth-rpc = { workspace = true }
+keth-types = { workspace = true }
 mpt = { workspace = true }
 garaga-zero = { git = "https://github.com/kkrt-labs/garaga-zero", rev = "f294b46c9fed3f2d430a21d4c8db1699a14cab42" }
 
@@ -182,6 +184,9 @@ addopts = [
   "--import-mode=importlib",
 ]
 
+[tool.ruff.lint.per-file-ignores]
+# Ignore `E402` (import violations) in `prove_block.py` to apply patches before anything else.
+"prove_block.py" = ["E402"]
 
 [tool.isort]
 profile = "black"
@@ -194,6 +199,7 @@ known_first_party = [
   "eth_rpc",
   "mpt",
   "tests",
+  "keth_types",
 ]
 
 [tool.autoflake]

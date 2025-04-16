@@ -213,7 +213,12 @@ func Account__eq__(a: OptionalAccount, b: OptionalAccount) -> bool {
     if (other_fields_eq.value == 0) {
         return other_fields_eq;
     }
-
+    if (cast(a.value, felt) == 0) {
+        return other_fields_eq;
+    }
+    if (cast(b.value, felt) == 0) {
+        return other_fields_eq;
+    }
     if (a.value.storage_root.value.low != b.value.storage_root.value.low) {
         tempvar res = bool(0);
         return res;
