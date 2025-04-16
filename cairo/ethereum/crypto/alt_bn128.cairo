@@ -26,7 +26,7 @@ from ethereum.utils.numeric import (
     get_u384_bits_little,
     U384__eq__,
 )
-from ethereum_types.numeric import U384
+from ethereum_types.numeric import U384, bool
 
 // Field over which the alt_bn128 curve is defined.
 // BNF elements are 1-dimensional.
@@ -45,9 +45,10 @@ func BNF_ZERO() -> BNF {
     return res;
 }
 
-func BNF__eq__{range_check96_ptr: felt*}(a: BNF, b: BNF) -> felt {
+func BNF__eq__{range_check96_ptr: felt*}(a: BNF, b: BNF) -> bool {
     let result = U384__eq__(a.value.c0, b.value.c0);
-    return result.value;
+    let res = bool(result.value);
+    return res;
 }
 
 func bnf_mul{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
@@ -73,7 +74,7 @@ func bnf_div{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: Mo
     let uint384_one = cast(one, UInt384*);
     tempvar bnf_one = BNF(new BNFStruct(U384(uint384_one)));
     let is_inv = BNF__eq__(res, bnf_one);
-    assert is_inv = 1;
+    assert is_inv.value = 1;
 
     return bnf_mul(a, b_inv);
 }
@@ -132,7 +133,7 @@ func bnf2_div{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: M
     let res = bnf2_mul(b, b_inv);
     let bnf2_one = BNF2_ONE();
     let is_inv = BNF2__eq__(res, bnf2_one);
-    assert is_inv = 1;
+    assert is_inv.value = 1;
 
     return bnf2_mul(a, b_inv);
 }
@@ -165,14 +166,14 @@ func BNF2_ONE() -> BNF2 {
     return res;
 }
 
-func BNF2__eq__{range_check96_ptr: felt*}(a: BNF2, b: BNF2) -> felt {
+func BNF2__eq__{range_check96_ptr: felt*}(a: BNF2, b: BNF2) -> bool {
     alloc_locals;
     let is_c0_equal = U384__eq__(a.value.c0, b.value.c0);
     let is_c1_equal = U384__eq__(a.value.c1, b.value.c1);
 
     let result = is_c0_equal.value * is_c1_equal.value;
-
-    return result;
+    let res = bool(result);
+    return res;
 }
 
 // BNF2 multiplication
@@ -258,12 +259,13 @@ func bnp2_point_at_infinity() -> BNP2 {
     return res;
 }
 
-func BNP2__eq__{range_check96_ptr: felt*}(p: BNP2, q: BNP2) -> felt {
+func BNP2__eq__{range_check96_ptr: felt*}(p: BNP2, q: BNP2) -> bool {
     alloc_locals;
     let is_x_equal = BNF2__eq__(p.value.x, q.value.x);
     let is_y_equal = BNF2__eq__(p.value.y, q.value.y);
-    let result = is_x_equal * is_y_equal;
-    return result;
+    let result = is_x_equal.value * is_y_equal.value;
+    let res = bool(result);
+    return res;
 }
 
 func bnp2_init{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
@@ -278,7 +280,7 @@ func bnp2_init{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: 
 
     let x_is_zero = BNF2__eq__(x, bnf2_zero);
     let y_is_zero = BNF2__eq__(y, bnf2_zero);
-    if (x_is_zero != 0 and y_is_zero != 0) {
+    if (x_is_zero.value != 0 and y_is_zero.value != 0) {
         tempvar res = BNP2(new BNP2Struct(x, y));
         let ok = cast(0, Exception*);
         return (res, ok);
@@ -296,7 +298,7 @@ func bnp2_init{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: 
     let is_on_curve = BNF2__eq__(y_squared, right_side);
 
     tempvar res = BNP2(new BNP2Struct(x, y));
-    if (is_on_curve != 0) {
+    if (is_on_curve.value != 0) {
         let ok = cast(0, Exception*);
         return (res, ok);
     }
@@ -312,20 +314,20 @@ func bnp2_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: M
     let bnf2_zero = BNF2_ZERO();
     let x_is_zero = BNF2__eq__(p.value.x, bnf2_zero);
     let y_is_zero = BNF2__eq__(p.value.y, bnf2_zero);
-    if (x_is_zero != 0 and y_is_zero != 0) {
+    if (x_is_zero.value != 0 and y_is_zero.value != 0) {
         return q;
     }
 
     let x_is_zero_q = BNF2__eq__(q.value.x, bnf2_zero);
     let y_is_zero_q = BNF2__eq__(q.value.y, bnf2_zero);
-    if (x_is_zero_q != 0 and y_is_zero_q != 0) {
+    if (x_is_zero_q.value != 0 and y_is_zero_q.value != 0) {
         return p;
     }
 
     let x_equal = BNF2__eq__(p.value.x, q.value.x);
-    if (x_equal != 0) {
+    if (x_equal.value != 0) {
         let y_equal = BNF2__eq__(p.value.y, q.value.y);
-        if (y_equal != 0) {
+        if (y_equal.value != 0) {
             return bnp2_double(p);
         }
         let res = bnp2_point_at_infinity();
@@ -365,7 +367,7 @@ func bnp2_double{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr
     let bnf2_zero = BNF2_ZERO();
     let is_x_zero = BNF2__eq__(p.value.x, bnf2_zero);
     let is_y_zero = BNF2__eq__(p.value.y, bnf2_zero);
-    if (is_x_zero != 0 and is_y_zero != 0) {
+    if (is_x_zero.value != 0 and is_y_zero.value != 0) {
         return p;
     }
 
@@ -420,7 +422,7 @@ func bnp2_mul_by{
     let bnf2_zero = BNF2_ZERO();
     let x_is_zero = BNF2__eq__(p.value.x, bnf2_zero);
     let y_is_zero = BNF2__eq__(p.value.y, bnf2_zero);
-    if (x_is_zero != 0 and y_is_zero != 0) {
+    if (x_is_zero.value != 0 and y_is_zero.value != 0) {
         return p;
     }
 
@@ -745,7 +747,7 @@ func create_bnf12_from_dict{range_check_ptr, mul_dict: DictAccess*}() -> BNF12 {
     return bnf12_result;
 }
 
-func BNF12__eq__{range_check96_ptr: felt*}(a: BNF12, b: BNF12) -> felt {
+func BNF12__eq__{range_check96_ptr: felt*}(a: BNF12, b: BNF12) -> bool {
     alloc_locals;
     // Check equality for each component
     let is_c0_equal = U384__eq__(a.value.c0, b.value.c0);
@@ -766,7 +768,8 @@ func BNF12__eq__{range_check96_ptr: felt*}(a: BNF12, b: BNF12) -> felt {
         is_c4_equal.value * is_c5_equal.value * is_c6_equal.value * is_c7_equal.value *
         is_c8_equal.value * is_c9_equal.value * is_c10_equal.value * is_c11_equal.value;
 
-    return result;
+    let res = bool(result);
+    return res;
 }
 
 // alt_bn128 curve defined over BNF (Fp)
@@ -780,12 +783,13 @@ struct BNP {
     value: BNPStruct*,
 }
 
-func BNP__eq__{range_check96_ptr: felt*}(p: BNP, q: BNP) -> felt {
+func BNP__eq__{range_check96_ptr: felt*}(p: BNP, q: BNP) -> bool {
     alloc_locals;
     let is_x_equal = BNF__eq__(p.value.x, q.value.x);
     let is_y_equal = BNF__eq__(p.value.y, q.value.y);
-    let result = is_x_equal * is_y_equal;
-    return result;
+    let result = is_x_equal.value * is_y_equal.value;
+    let res = bool(result);
+    return res;
 }
 
 func bnp_point_at_infinity() -> BNP {
@@ -804,7 +808,7 @@ func bnp_init{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: M
 
     let infinity = bnp_point_at_infinity();
     let is_infinity = BNP__eq__(BNP(new BNPStruct(x, y)), infinity);
-    if (is_infinity != 0) {
+    if (is_infinity.value != 0) {
         let ok = cast(0, Exception*);
         return (infinity, ok);
     }
@@ -820,7 +824,7 @@ func bnp_init{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: M
     let is_on_curve = BNF__eq__(y_squared, right_side);
 
     tempvar res = BNP(new BNPStruct(x, y));
-    if (is_on_curve != 0) {
+    if (is_on_curve.value != 0) {
         let ok = cast(0, Exception*);
         return (res, ok);
     }
@@ -835,7 +839,7 @@ func bnp_double{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr:
 
     let infinity = bnp_point_at_infinity();
     let p_inf = BNP__eq__(p, infinity);
-    if (p_inf != 0) {
+    if (p_inf.value != 0) {
         return infinity;
     }
 
@@ -875,19 +879,19 @@ func bnp_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: Mo
 
     let infinity = bnp_point_at_infinity();
     let p_inf = BNP__eq__(p, infinity);
-    if (p_inf != 0) {
+    if (p_inf.value != 0) {
         return q;
     }
 
     let q_inf = BNP__eq__(q, infinity);
-    if (q_inf != 0) {
+    if (q_inf.value != 0) {
         return p;
     }
 
     let x_equal = BNF__eq__(p.value.x, q.value.x);
-    if (x_equal != 0) {
+    if (x_equal.value != 0) {
         let y_equal = BNF__eq__(p.value.y, q.value.y);
-        if (y_equal != 0) {
+        if (y_equal.value != 0) {
             return bnp_double(p);
         }
         let res = bnp_point_at_infinity();
@@ -938,7 +942,7 @@ func bnp_mul_by{
     let bnf_zero = BNF_ZERO();
     let x_is_zero = BNF__eq__(p.value.x, bnf_zero);
     let y_is_zero = BNF__eq__(p.value.y, bnf_zero);
-    if (x_is_zero != 0 and y_is_zero != 0) {
+    if (x_is_zero.value != 0 and y_is_zero.value != 0) {
         return p;
     }
 
@@ -997,7 +1001,7 @@ func pairing{
     let is_infinity_p = BNP__eq__(p, infinity_p);
     let infinity_q = bnp2_point_at_infinity();
     let is_infinity_q = BNP2__eq__(q, infinity_q);
-    let is_infinity = is_infinity_p + is_infinity_q;
+    let is_infinity = is_infinity_p.value + is_infinity_q.value;
 
     if (is_infinity != 0) {
         let res = BNF12_ONE();

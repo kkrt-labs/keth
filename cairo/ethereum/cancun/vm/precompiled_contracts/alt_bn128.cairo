@@ -314,7 +314,7 @@ func alt_bn128_pairing_check{
 
     // Prepare output
     let (buffer: felt*) = alloc();
-    if (is_one != 0) {
+    if (is_one.value != 0) {
         memset(buffer, 0, 31);
         assert buffer[31] = 1;
     } else {
@@ -414,7 +414,7 @@ func process_point_pairs{
     let is_p_valid = BNP__eq__(p_mul_order, p_inf);
     let is_q_valid = BNP2__eq__(q_mul_order, q_inf);
 
-    if (is_p_valid * is_q_valid == 0) {
+    if (is_p_valid.value * is_q_valid.value == 0) {
         tempvar err = new EthereumException(OutOfGasError);
         return (current_result, err);
     }
@@ -422,7 +422,7 @@ func process_point_pairs{
     let is_p_infinity = BNP__eq__(p, p_inf);
     let is_q_infinity = BNP2__eq__(q, q_inf);
 
-    if (is_p_infinity * is_q_infinity == 0) {
+    if (is_p_infinity.value * is_q_infinity.value == 0) {
         // Compute pairing and multiply with current result
         let pair_result = pairing(q, p);
         let new_result = bnf12_mul(current_result, pair_result);
