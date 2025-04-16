@@ -45,7 +45,7 @@ func BNF_ZERO() -> BNF {
     return res;
 }
 
-func BNF__eq__{range_check96_ptr: felt*}(a: BNF, b: BNF) -> bool {
+func BNF__eq__(a: BNF, b: BNF) -> bool {
     let result = U384__eq__(a.value.c0, b.value.c0);
     let res = bool(result.value);
     return res;
@@ -166,7 +166,7 @@ func BNF2_ONE() -> BNF2 {
     return res;
 }
 
-func BNF2__eq__{range_check96_ptr: felt*}(a: BNF2, b: BNF2) -> bool {
+func BNF2__eq__(a: BNF2, b: BNF2) -> bool {
     alloc_locals;
     let is_c0_equal = U384__eq__(a.value.c0, b.value.c0);
     let is_c1_equal = U384__eq__(a.value.c1, b.value.c1);
@@ -259,7 +259,7 @@ func bnp2_point_at_infinity() -> BNP2 {
     return res;
 }
 
-func BNP2__eq__{range_check96_ptr: felt*}(p: BNP2, q: BNP2) -> bool {
+func BNP2__eq__(p: BNP2, q: BNP2) -> bool {
     alloc_locals;
     let is_x_equal = BNF2__eq__(p.value.x, q.value.x);
     let is_y_equal = BNF2__eq__(p.value.y, q.value.y);
@@ -747,7 +747,7 @@ func create_bnf12_from_dict{range_check_ptr, mul_dict: DictAccess*}() -> BNF12 {
     return bnf12_result;
 }
 
-func BNF12__eq__{range_check96_ptr: felt*}(a: BNF12, b: BNF12) -> bool {
+func BNF12__eq__(a: BNF12, b: BNF12) -> bool {
     alloc_locals;
     // Check equality for each component
     let is_c0_equal = U384__eq__(a.value.c0, b.value.c0);
@@ -783,7 +783,7 @@ struct BNP {
     value: BNPStruct*,
 }
 
-func BNP__eq__{range_check96_ptr: felt*}(p: BNP, q: BNP) -> bool {
+func BNP__eq__(p: BNP, q: BNP) -> bool {
     alloc_locals;
     let is_x_equal = BNF__eq__(p.value.x, q.value.x);
     let is_y_equal = BNF__eq__(p.value.y, q.value.y);
