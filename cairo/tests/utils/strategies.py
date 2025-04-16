@@ -46,9 +46,6 @@ from ethereum.crypto.alt_bn128 import (
     BNF12,
     BNP,
     BNP2,
-    BNP12,
-    bnp_to_bnp12,
-    twist,
 )
 from ethereum.crypto.elliptic_curve import SECP256K1N
 from ethereum.crypto.finite_field import GaloisField
@@ -79,7 +76,6 @@ from py_ecc.optimized_bls12_381.optimized_curve import Z1, Z2
 from py_ecc.optimized_bls12_381.optimized_pairing import normalize1
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 
-from cairo_ec.curve import AltBn128
 from keth_types.types import (
     EMPTY_BYTES_HASH,
     EMPTY_TRIE_HASH,
@@ -676,12 +672,6 @@ bnf_strategy = st.builds(BNF, st.integers(min_value=0, max_value=BNF.PRIME - 1))
 bnf2_strategy = bnfN_strategy(BNF2, 2)
 bnf12_strategy = bnfN_strategy(BNF12, 12)
 
-# Point at infinity for BNP12
-bnp12_infinity = BNP12(
-    BNF12((0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)),
-    BNF12((0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)),
-)
-
 
 def bnp_generate_valid_point(x):
     g = BNP(1, 2)
@@ -691,22 +681,6 @@ def bnp_generate_valid_point(x):
 # Strategy for BNP points on the curve
 bnp_strategy = st.integers(min_value=0, max_value=BNF.PRIME - 1).map(
     lambda x: bnp_generate_valid_point(x)
-)
-
-
-def bnp12_from_bnp_random_point():
-    point = AltBn128.random_point()
-    return bnp_to_bnp12(BNP(point.x, point.y))
-
-
-bnp12_from_twist_strategy = st.integers(min_value=0, max_value=BNF2.PRIME - 1).map(
-    lambda x: twist(bnp2_generate_valid_point(x))
-)
-# Strategy for BNP12 points on the curve
-bnp12_strategy = st.one_of(
-    st.just(bnp12_from_bnp_random_point()),
-    st.just(bnp12_infinity),
-    bnp12_from_twist_strategy,
 )
 
 
@@ -848,7 +822,6 @@ def register_type_strategies():
         st.binary(min_size=31, max_size=31).map(lambda x: VersionedHash(b"\x01" + x)),
     )
     st.register_type_strategy(BNF12, bnf12_strategy)
-    st.register_type_strategy(BNP12, bnp12_strategy)
     st.register_type_strategy(BNF2, bnf2_strategy)
     st.register_type_strategy(BNF, bnf_strategy)
     st.register_type_strategy(BNP, bnp_strategy)
