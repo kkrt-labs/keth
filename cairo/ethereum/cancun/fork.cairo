@@ -484,9 +484,6 @@ func process_transaction{
 
     // Create preaccessed addresses and write coinbase
     let (preaccessed_addresses_ptr) = default_dict_new(0);
-    tempvar dict_ptr = preaccessed_addresses_ptr;
-    tempvar name = 'preaccessed_addresses';
-    %{ attach_name %}
     tempvar preaccessed_addresses_ptr_start = preaccessed_addresses_ptr;
     let address = env.value.coinbase;
     hashdict_write{dict_ptr=preaccessed_addresses_ptr}(1, &address.value, 1);
@@ -498,9 +495,6 @@ func process_transaction{
     );
     // Create preaccessed storage keys
     let (preaccessed_storage_keys_ptr) = default_dict_new(0);
-    tempvar dict_ptr = preaccessed_storage_keys_ptr;
-    tempvar name = 'preaccessed_storage_keys';
-    %{ attach_name %}
     tempvar preaccessed_storage_keys = SetTupleAddressBytes32(
         new SetTupleAddressBytes32Struct(
             dict_ptr_start=cast(preaccessed_storage_keys_ptr, SetTupleAddressBytes32DictAccess*),
@@ -989,9 +983,6 @@ func apply_body{
     let gas_available = block_gas_limit;
 
     let (transaction_ptr) = default_dict_new(0);
-    tempvar dict_ptr = transaction_ptr;
-    tempvar name = 'transactions';
-    %{ attach_name %}
     tempvar transactions_trie_data = MappingBytesOptionalUnionBytesLegacyTransaction(
         new MappingBytesOptionalUnionBytesLegacyTransactionStruct(
             dict_ptr_start=cast(
@@ -1010,9 +1001,6 @@ func apply_body{
     );
 
     let (receipt_ptr) = default_dict_new(0);
-    tempvar dict_ptr = receipt_ptr;
-    tempvar name = 'receipts';
-    %{ attach_name %}
     tempvar receipts_trie_data = MappingBytesOptionalUnionBytesReceipt(
         new MappingBytesOptionalUnionBytesReceiptStruct(
             dict_ptr_start=cast(receipt_ptr, BytesOptionalUnionBytesReceiptDictAccess*),
@@ -1029,9 +1017,6 @@ func apply_body{
     );
 
     let (withdrawals_ptr) = default_dict_new(0);
-    tempvar dict_ptr = withdrawals_ptr;
-    tempvar name = 'withdrawals';
-    %{ attach_name %}
     tempvar withdrawals_trie_data = MappingBytesOptionalUnionBytesWithdrawal(
         new MappingBytesOptionalUnionBytesWithdrawalStruct(
             dict_ptr_start=cast(withdrawals_ptr, BytesOptionalUnionBytesWithdrawalDictAccess*),
@@ -1060,9 +1045,6 @@ func apply_body{
     let code_address = OptionalAddress(&beacon_roots_address);
 
     let (empty_data_ptr) = default_dict_new(0);
-    tempvar dict_ptr = empty_data_ptr;
-    tempvar name = 'accessed_addresses';
-    %{ attach_name %}
     tempvar accessed_addresses = SetAddress(
         new SetAddressStruct(
             dict_ptr_start=cast(empty_data_ptr, SetAddressDictAccess*),
@@ -1071,9 +1053,6 @@ func apply_body{
     );
 
     let (empty_data_ptr) = default_dict_new(0);
-    tempvar dict_ptr = empty_data_ptr;
-    tempvar name = 'accessed_storage_keys';
-    %{ attach_name %}
     tempvar accessed_storage_keys = SetTupleAddressBytes32(
         new SetTupleAddressBytes32Struct(
             dict_ptr_start=cast(empty_data_ptr, SetTupleAddressBytes32DictAccess*),
