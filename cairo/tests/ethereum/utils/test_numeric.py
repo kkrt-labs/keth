@@ -330,15 +330,8 @@ class TestNumeric:
             assert bytes(cairo_result) == expected_bytes
 
         @given(value=...)
-        def test_U384_to_le_bytes(self, cairo_run, value: U384):
+        def test_U384_to_le_48_bytes(self, cairo_run, value: U384):
+            cairo_result = cairo_run("U384_to_le_48_bytes", value)
             int_value = value._number
-            if int_value == 0:
-                length = 1  # At least one byte for zero
-            else:
-                length = (int_value.bit_length() + 7) // 8
-
-            cairo_result = cairo_run("U384_to_le_bytes", value, length)
-
-            expected_bytes = int_value.to_bytes(length, "little")
-            assert len(cairo_result) == length
+            expected_bytes = int_value.to_bytes(48, "little")
             assert bytes(cairo_result) == expected_bytes

@@ -536,51 +536,19 @@ func U384_to_be_bytes{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     return result;
 }
 
-func U384_to_le_bytes{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
-    value: U384, length: felt
-) -> Bytes {
+func U384_to_le_48_bytes{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(value: U384) -> Bytes {
     alloc_locals;
-
-    if (length == 0) {
-        tempvar result = Bytes(new BytesStruct(cast(0, felt*), 0));
-        return result;
-    }
 
     let (bytes_ptr) = alloc();
 
     // Process each limb in little-endian order (d0 to d3)
-    // Each limb is 96 bits (12 bytes)
-    let remaining_len = length;
-    let is_sup_36 = is_le(36, remaining_len);
-    if (is_sup_36 != 0) {
-        felt252_to_bytes_le(value.value.d0, 12, bytes_ptr);
-        felt252_to_bytes_le(value.value.d1, 12, bytes_ptr + 12);
-        felt252_to_bytes_le(value.value.d2, 12, bytes_ptr + 24);
-        let d3_len = remaining_len - 36;
-        felt252_to_bytes_le(value.value.d3, d3_len, bytes_ptr + 36);
-        tempvar result = Bytes(new BytesStruct(bytes_ptr, length));
-        return result;
-    }
-    let is_sup_24 = is_le(24, remaining_len);
-    if (is_sup_24 != 0) {
-        felt252_to_bytes_le(value.value.d0, 12, bytes_ptr);
-        felt252_to_bytes_le(value.value.d1, 12, bytes_ptr + 12);
-        let d2_len = remaining_len - 24;
-        felt252_to_bytes_le(value.value.d2, d2_len, bytes_ptr + 24);
-        tempvar result = Bytes(new BytesStruct(bytes_ptr, length));
-        return result;
-    }
-    let is_sup_12 = is_le(12, remaining_len);
-    if (is_sup_12 != 0) {
-        felt252_to_bytes_le(value.value.d0, 12, bytes_ptr);
-        let d1_len = remaining_len - 12;
-        felt252_to_bytes_le(value.value.d1, d1_len, bytes_ptr + 12);
-        tempvar result = Bytes(new BytesStruct(bytes_ptr, length));
-        return result;
-    }
-    felt252_to_bytes_le(value.value.d0, remaining_len, bytes_ptr);
+    // Each limb is 96 bits (12 bytes), total 48 bytes
+    felt252_to_bytes_le(value.value.d0, 12, bytes_ptr);
+    felt252_to_bytes_le(value.value.d1, 12, bytes_ptr + 12);
+    felt252_to_bytes_le(value.value.d2, 12, bytes_ptr + 24);
+    felt252_to_bytes_le(value.value.d3, 12, bytes_ptr + 36);
 
-    tempvar result = Bytes(new BytesStruct(bytes_ptr, length));
+    tempvar result = Bytes(new BytesStruct(bytes_ptr, 48));
     return result;
 }
 

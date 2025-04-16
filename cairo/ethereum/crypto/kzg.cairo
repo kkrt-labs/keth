@@ -25,7 +25,7 @@ from ethereum.utils.numeric import (
     U256_from_be_bytes32,
     U256_le,
     U384_from_be_bytes,
-    U384_to_le_bytes,
+    U384_to_le_48_bytes,
     U384_ZERO,
     U384_ONE,
     U384__eq__,
@@ -99,7 +99,7 @@ func kzg_commitment_to_versioned_hash{range_check_ptr, bitwise_ptr: BitwiseBuilt
     alloc_locals;
 
     // Convert KZG commitment to bytes array
-    let bytes_input = U384_to_le_bytes(U384(kzg_commitment.value), 48);
+    let bytes_input = U384_to_le_48_bytes(U384(kzg_commitment.value));
 
     // Convert the bytes array to a list of bytes4 to hash
     let list_bytes4_be_reverse = Bytes_to_be_ListBytes4(bytes_input);
@@ -264,7 +264,7 @@ func pubkey_to_g1{
 }(pubkey: BLSPubkey) -> (G1Uncompressed, Exception*) {
     alloc_locals;
 
-    let bytes_pubkey = U384_to_le_bytes(U384(pubkey.value), 48);
+    let bytes_pubkey = U384_to_le_48_bytes(U384(pubkey.value));
     let z = os2ip(bytes_pubkey);
 
     tempvar compressed_point = G1Compressed(z.value);
