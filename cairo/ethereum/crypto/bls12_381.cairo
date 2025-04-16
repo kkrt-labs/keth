@@ -16,7 +16,7 @@ from ethereum.utils.numeric import (
     get_u384_bits_little,
     U384__eq__,
 )
-from ethereum_types.numeric import U384
+from ethereum_types.numeric import U384, bool
 
 // Field over which the bls12_381 curve is defined.
 // BLSF elements are 1-dimensional.
@@ -44,9 +44,10 @@ func BLSF_ONE() -> BLSF {
     return res;
 }
 
-func BLSF__eq__{range_check96_ptr: felt*}(a: BLSF, b: BLSF) -> felt {
+func BLSF__eq__{range_check96_ptr: felt*}(a: BLSF, b: BLSF) -> bool {
     let result = U384__eq__(a.value.c0, b.value.c0);
-    return result.value;
+    let res = bool(result.value);
+    return res;
 }
 
 func blsf_sub{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
@@ -85,7 +86,7 @@ func blsf_div{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: M
     let uint384_one = cast(one, UInt384*);
     tempvar blsf_one = BLSF(new BLSFStruct(U384(uint384_one)));
     let is_inv = BLSF__eq__(res, blsf_one);
-    assert is_inv = 1;
+    assert is_inv.value = 1;
 
     return blsf_mul(a, b_inv);
 }
@@ -119,14 +120,14 @@ func BLSF2_ONE() -> BLSF2 {
     return res;
 }
 
-func BLSF2__eq__{range_check96_ptr: felt*}(a: BLSF2, b: BLSF2) -> felt {
+func BLSF2__eq__{range_check96_ptr: felt*}(a: BLSF2, b: BLSF2) -> bool {
     alloc_locals;
     let is_c0_equal = U384__eq__(a.value.c0, b.value.c0);
     let is_c1_equal = U384__eq__(a.value.c1, b.value.c1);
 
     let result = is_c0_equal.value * is_c1_equal.value;
-
-    return result;
+    let res = bool(result);
+    return res;
 }
 
 func blsf2_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
@@ -207,7 +208,7 @@ func blsf2_div{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: 
     let res = blsf2_mul(b, b_inv);
     let blsf2_one = BLSF2_ONE();
     let is_inv = BLSF2__eq__(res, blsf2_one);
-    assert is_inv = 1;
+    assert is_inv.value = 1;
 
     return blsf2_mul(a, b_inv);
 }
@@ -255,7 +256,7 @@ func BLSF12_ONE() -> BLSF12 {
     return res;
 }
 
-func BLSF12__eq__{range_check96_ptr: felt*}(a: BLSF12, b: BLSF12) -> felt {
+func BLSF12__eq__{range_check96_ptr: felt*}(a: BLSF12, b: BLSF12) -> bool {
     alloc_locals;
     let is_c0_equal = U384__eq__(a.value.c0, b.value.c0);
     let is_c1_equal = U384__eq__(a.value.c1, b.value.c1);
@@ -274,7 +275,8 @@ func BLSF12__eq__{range_check96_ptr: felt*}(a: BLSF12, b: BLSF12) -> felt {
         is_c4_equal.value * is_c5_equal.value * is_c6_equal.value * is_c7_equal.value *
         is_c8_equal.value * is_c9_equal.value * is_c10_equal.value * is_c11_equal.value;
 
-    return result;
+    let res = bool(result);
+    return res;
 }
 
 // BLSF12_mul implements multiplication for BLSF12 elements
@@ -537,12 +539,13 @@ func BLSP_G() -> BLSP {
     return g1;
 }
 
-func BLSP__eq__{range_check96_ptr: felt*}(p: BLSP, q: BLSP) -> felt {
+func BLSP__eq__{range_check96_ptr: felt*}(p: BLSP, q: BLSP) -> bool {
     alloc_locals;
     let is_x_equal = BLSF__eq__(p.value.x, q.value.x);
     let is_y_equal = BLSF__eq__(p.value.y, q.value.y);
-    let result = is_x_equal * is_y_equal;
-    return result;
+    let result = is_x_equal.value * is_y_equal.value;
+    let res = bool(result);
+    return res;
 }
 
 func blsp_point_at_infinity() -> BLSP {
@@ -559,8 +562,8 @@ func blsp_double{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr
     alloc_locals;
 
     let infinity = blsp_point_at_infinity();
-    let p_inf = BLSP__eq__(p, infinity);
-    if (p_inf != 0) {
+    let is_infinity = BLSP__eq__(p, infinity);
+    if (is_infinity.value != 0) {
         return infinity;
     }
 
@@ -599,20 +602,20 @@ func blsp_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: M
     alloc_locals;
 
     let infinity = blsp_point_at_infinity();
-    let p_inf = BLSP__eq__(p, infinity);
-    if (p_inf != 0) {
+    let is_p_infinity = BLSP__eq__(p, infinity);
+    if (is_p_infinity.value != 0) {
         return q;
     }
 
-    let q_inf = BLSP__eq__(q, infinity);
-    if (q_inf != 0) {
+    let is_q_infinity = BLSP__eq__(q, infinity);
+    if (is_q_infinity.value != 0) {
         return p;
     }
 
     let x_equal = BLSF__eq__(p.value.x, q.value.x);
-    if (x_equal != 0) {
+    if (x_equal.value != 0) {
         let y_equal = BLSF__eq__(p.value.y, q.value.y);
-        if (y_equal != 0) {
+        if (y_equal.value != 0) {
             return blsp_double(p);
         }
         let res = blsp_point_at_infinity();
@@ -663,7 +666,7 @@ func blsp_mul_by{
     let blsf_zero = BLSF_ZERO();
     let x_is_zero = BLSF__eq__(p.value.x, blsf_zero);
     let y_is_zero = BLSF__eq__(p.value.y, blsf_zero);
-    if (x_is_zero != 0 and y_is_zero != 0) {
+    if (x_is_zero.value != 0 and y_is_zero.value != 0) {
         return p;
     }
 
@@ -783,12 +786,13 @@ func blsp2_point_at_infinity() -> BLSP2 {
     return res;
 }
 
-func BLSP2__eq__{range_check96_ptr: felt*}(p: BLSP2, q: BLSP2) -> felt {
+func BLSP2__eq__{range_check96_ptr: felt*}(p: BLSP2, q: BLSP2) -> bool {
     alloc_locals;
     let is_x_equal = BLSF2__eq__(p.value.x, q.value.x);
     let is_y_equal = BLSF2__eq__(p.value.y, q.value.y);
-    let result = is_x_equal * is_y_equal;
-    return result;
+    let result = is_x_equal.value * is_y_equal.value;
+    let res = bool(result);
+    return res;
 }
 
 func blsp2_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
@@ -799,20 +803,20 @@ func blsp2_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: 
     let blsf2_zero = BLSF2_ZERO();
     let x_is_zero = BLSF2__eq__(p.value.x, blsf2_zero);
     let y_is_zero = BLSF2__eq__(p.value.y, blsf2_zero);
-    if (x_is_zero != 0 and y_is_zero != 0) {
+    if (x_is_zero.value != 0 and y_is_zero.value != 0) {
         return q;
     }
 
     let x_is_zero_q = BLSF2__eq__(q.value.x, blsf2_zero);
     let y_is_zero_q = BLSF2__eq__(q.value.y, blsf2_zero);
-    if (x_is_zero_q != 0 and y_is_zero_q != 0) {
+    if (x_is_zero_q.value != 0 and y_is_zero_q.value != 0) {
         return p;
     }
 
     let x_equal = BLSF2__eq__(p.value.x, q.value.x);
-    if (x_equal != 0) {
+    if (x_equal.value != 0) {
         let y_equal = BLSF2__eq__(p.value.y, q.value.y);
-        if (y_equal != 0) {
+        if (y_equal.value != 0) {
             return blsp2_double(p);
         }
         let res = blsp2_point_at_infinity();
@@ -852,7 +856,7 @@ func blsp2_double{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_pt
     let blsf2_zero = BLSF2_ZERO();
     let is_x_zero = BLSF2__eq__(p.value.x, blsf2_zero);
     let is_y_zero = BLSF2__eq__(p.value.y, blsf2_zero);
-    if (is_x_zero != 0 and is_y_zero != 0) {
+    if (is_x_zero.value != 0 and is_y_zero.value != 0) {
         return p;
     }
 
@@ -907,7 +911,7 @@ func blsp2_mul_by{
     let blsf2_zero = BLSF2_ZERO();
     let x_is_zero = BLSF2__eq__(p.value.x, blsf2_zero);
     let y_is_zero = BLSF2__eq__(p.value.y, blsf2_zero);
-    if (x_is_zero != 0 and y_is_zero != 0) {
+    if (x_is_zero.value != 0 and y_is_zero.value != 0) {
         return p;
     }
 

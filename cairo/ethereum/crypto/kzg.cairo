@@ -271,9 +271,8 @@ func pubkey_to_g1{
 func is_inf{range_check96_ptr: felt*}(pt: BLSP) -> bool {
     alloc_locals;
     let infinity = blsp_point_at_infinity();
-    let p_inf = BLSP__eq__(pt, infinity);
-    let res = bool(p_inf);
-    return res;
+    let is_infinity = BLSP__eq__(pt, infinity);
+    return is_infinity;
 }
 
 func subgroup_check{
@@ -427,7 +426,7 @@ func pairing_check{
     let is_infinity_p = BLSP__eq__(p, infinity_p);
     let infinity_q = blsp2_point_at_infinity();
     let is_infinity_q = BLSP2__eq__(q, infinity_q);
-    let is_infinity = is_infinity_p + is_infinity_q;
+    let is_infinity = is_infinity_p.value + is_infinity_q.value;
 
     if (is_infinity != 0) {
         let res1_temp = BLSF12_ONE();
@@ -483,10 +482,10 @@ func pairing_check{
     let q = pair2.value.blsp2;
 
     let infinity_p = blsp_point_at_infinity();
-    let is_infinity = BLSP__eq__(p, infinity_p);
+    let is_infinity_p = BLSP__eq__(p, infinity_p);
     let infinity_q = blsp2_point_at_infinity();
     let is_infinity_q = BLSP2__eq__(q, infinity_q);
-    let is_infinity = is_infinity + is_infinity_q;
+    let is_infinity = is_infinity_p.value + is_infinity_q.value;
 
     if (is_infinity != 0) {
         let res2_temp = BLSF12_ONE();
@@ -546,7 +545,7 @@ func pairing_check{
     let check = blsf12_mul(res1_temp, res2_temp);
     let pairing_check_res = BLSF12__eq__(check, one);
 
-    if (pairing_check_res != 0) {
+    if (pairing_check_res.value != 0) {
         tempvar res = bool(1);
         return res;
     }
