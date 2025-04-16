@@ -425,6 +425,8 @@ def tx_with_sender_in_state(
         st.integers(0, 10 * int(TARGET_BLOB_GAS_PER_BLOCK)).map(U64)
     )
     state = env.state
+    # Explicitly clean any snapshot in the state - as in the initial state of a tx, there are no snapshots.
+    state._snapshots = []
     tx = draw(tx_strategy)
     account = draw(account_strategy)
     private_key = draw(st.from_type(PrivateKey))
