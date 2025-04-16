@@ -1,4 +1,3 @@
-import pytest
 from hypothesis import assume, given
 from py_ecc.fields import optimized_bls12_381_FQ as BLSF
 from py_ecc.fields import optimized_bls12_381_FQ2 as BLSF2
@@ -7,15 +6,12 @@ from py_ecc.optimized_bls12_381.optimized_curve import (
     Z1,
     Z2,
     add,
-    b,
     b2,
     double,
     eq,
     is_inf,
-    is_on_curve,
     multiply,
     neg,
-    normalize,
 )
 from py_ecc.optimized_bls12_381.optimized_pairing import normalize1
 from py_ecc.typing import Optimized_Point3D
@@ -32,10 +28,6 @@ class TestBls12381:
 
         def test_blsf_one(self, cairo_run):
             assert cairo_run("BLSF_ONE") == BLSF.one()
-
-        @given(a=..., b=...)
-        def test_blsf_add(self, cairo_run, a: BLSF, b: BLSF):
-            assert cairo_run("blsf_add", a, b) == a + b
 
         @given(a=..., b=...)
         def test_blsf_sub(self, cairo_run, a: BLSF, b: BLSF):
@@ -149,18 +141,6 @@ segments.load_data(ids.b_inv.address_, [blsf2_struct_ptr])
             assert cairo_run("blsf12_mul", a, b) == a * b
 
     class TestBLSP:
-        @given(p=...)
-        def test_blsp_init(self, cairo_run, p: Optimized_Point3D[BLSF]):
-            p_affine = normalize(p)
-            assert cairo_run("blsp_init", p_affine[0], p_affine[1]) == p
-
-        @given(x=..., y=...)
-        def test_blsp_init_fails(self, cairo_run, x: BLSF, y: BLSF):
-            assume(x != BLSF.zero() or y != BLSF.zero())
-            assume(not is_on_curve((x, y, BLSF.one()), b))
-            with pytest.raises(RuntimeError):
-                cairo_run("blsp_init", x, y)
-
         def test_blsp_point_at_infinity(self, cairo_run):
             assert cairo_run("blsp_point_at_infinity") == Z1
 
@@ -192,16 +172,6 @@ segments.load_data(ids.b_inv.address_, [blsf2_struct_ptr])
             assert cairo_run("blsp_mul_by", p, n) == expected
 
     class TestBLSP2:
-        @given(p=...)
-        def test_blsp2_init(self, cairo_run, p: Optimized_Point3D[BLSF2]):
-            p_affine = normalize(p)
-            assert cairo_run("blsp2_init", p_affine[0], p_affine[1]) == p
-
-        @given(x=..., y=...)
-        def test_blsp2_init_fails(self, cairo_run, x: BLSF2, y: BLSF2):
-            assume(x != BLSF2.zero() or y != BLSF2.zero())
-            with pytest.raises(AssertionError):
-                cairo_run("blsp2_init", x, y)
 
         def test_blsp2_point_at_infinity(self, cairo_run):
             assert cairo_run("blsp2_point_at_infinity") == Z2

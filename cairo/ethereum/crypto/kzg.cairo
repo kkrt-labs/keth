@@ -50,7 +50,6 @@ from ethereum.crypto.bls12_381 import (
     BLSP__eq__,
     blsp_add,
     BLSP_G,
-    blsp_init,
     blsp_mul_by,
     blsp_point_at_infinity,
     BLSP,
@@ -73,15 +72,12 @@ from ethereum.crypto.bls12_381 import (
 from bls12_381.multi_pairing_1 import multi_pairing_1P
 from cairo_core.hash.sha256 import sha256_be_output
 from cairo_core.numeric import OptionalU384
-from cairo_ec.circuits.ec_ops_compiled import assert_on_curve
 from cairo_ec.circuits.mod_ops_compiled import add, sub, mul
 from cairo_ec.curve.bls12_381 import bls12_381
-from cairo_ec.curve.g1_point import G1Point
 from cairo_ec.uint384 import uint256_to_uint384
 from definitions import G1G2Pair, G1Point as G1PointGaraga, G2Point as G2PointGaraga
 from ethereum.cancun.fork_types import VersionedHash
 from ethereum.exceptions import Exception, ValueError, AssertionError
-from legacy.utils.array import reverse
 
 using BLSScalar = U256;
 using KZGCommitment = Bytes48;

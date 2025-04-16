@@ -6,10 +6,8 @@ from starkware.cairo.common.registers import get_label_location
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.default_dict import default_dict_new, default_dict_finalize
 
-from cairo_ec.circuits.ec_ops_compiled import assert_on_curve
 from cairo_ec.circuits.mod_ops_compiled import add, sub, mul
 from cairo_ec.curve.bls12_381 import bls12_381
-from cairo_ec.curve.g1_point import G1Point, G1PointStruct
 
 from ethereum.utils.numeric import (
     U384_ZERO,
@@ -49,17 +47,6 @@ func BLSF_ONE() -> BLSF {
 func BLSF__eq__{range_check96_ptr: felt*}(a: BLSF, b: BLSF) -> felt {
     let result = U384__eq__(a.value.c0, b.value.c0);
     return result.value;
-}
-
-func blsf_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
-    a: BLSF, b: BLSF
-) -> BLSF {
-    tempvar modulus = U384(new UInt384(bls12_381.P0, bls12_381.P1, bls12_381.P2, bls12_381.P3));
-
-    let result = add(a.value.c0, b.value.c0, modulus);
-    tempvar res = BLSF(new BLSFStruct(result));
-
-    return res;
 }
 
 func blsf_sub{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
@@ -566,31 +553,6 @@ func blsp_point_at_infinity() -> BLSP {
     return res;
 }
 
-// Returns a BLSP, a point that is verified to be on the bls12-381 curve over Fq.
-func blsp_init{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
-    x: BLSF, y: BLSF
-) -> BLSP {
-    alloc_locals;
-
-    let blsf_zero = BLSF_ZERO();
-    let y_is_zero = BLSF__eq__(y, blsf_zero);
-    let x_is_zero = BLSF__eq__(x, blsf_zero);
-    if (x_is_zero != 0 and y_is_zero != 0) {
-        tempvar res = BLSP(new BLSPStruct(x, y));
-        return res;
-    }
-
-    tempvar a = U384(new UInt384(bls12_381.A0, bls12_381.A1, bls12_381.A2, bls12_381.A3));
-    tempvar b = U384(new UInt384(bls12_381.B0, bls12_381.B1, bls12_381.B2, bls12_381.B3));
-    tempvar modulus = U384(new UInt384(bls12_381.P0, bls12_381.P1, bls12_381.P2, bls12_381.P3));
-
-    tempvar point = G1Point(new G1PointStruct(x.value.c0, y.value.c0));
-    assert_on_curve(point.value, a, b, modulus);
-
-    tempvar res = BLSP(new BLSPStruct(x, y));
-    return res;
-}
-
 func blsp_double{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
     p: BLSP
 ) -> BLSP {
@@ -827,39 +789,6 @@ func BLSP2__eq__{range_check96_ptr: felt*}(p: BLSP2, q: BLSP2) -> felt {
     let is_y_equal = BLSF2__eq__(p.value.y, q.value.y);
     let result = is_x_equal * is_y_equal;
     return result;
-}
-
-func blsp2_init{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
-    x: BLSF2, y: BLSF2
-) -> BLSP2 {
-    alloc_locals;
-
-    // Get curve parameters for bls12_381 over BLSF2
-    // A = 0, B = 4
-    let blsf2_zero = BLSF2_ZERO();
-    let blsf2_b = BLSP2_B();
-
-    let x_is_zero = BLSF2__eq__(x, blsf2_zero);
-    let y_is_zero = BLSF2__eq__(y, blsf2_zero);
-    if (x_is_zero != 0 and y_is_zero != 0) {
-        tempvar res = BLSP2(new BLSP2Struct(x, y));
-        return res;
-    }
-    // If the point not the point at infinity, check if it's on the curve
-    // Compute y^2
-    let y_squared = blsf2_mul(y, y);
-    // Compute x^3
-    let x_squared = blsf2_mul(x, x);
-    let x_cubed = blsf2_mul(x_squared, x);
-    // Compute right side of equation: x^3 + A*x + B
-    // A = 0, so A*x = 0, and we can skip that term
-    let right_side = blsf2_add(x_cubed, blsf2_b);
-    // Check if y^2 = x^3 + A*x + B
-    let is_on_curve = BLSF2__eq__(y_squared, right_side);
-    assert is_on_curve = 1;
-
-    tempvar res = BLSP2(new BLSP2Struct(x, y));
-    return res;
 }
 
 func blsp2_add{range_check96_ptr: felt*, add_mod_ptr: ModBuiltin*, mul_mod_ptr: ModBuiltin*}(
