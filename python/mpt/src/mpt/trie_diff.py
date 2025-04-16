@@ -12,9 +12,9 @@ from ethereum_rlp import rlp
 from ethereum_rlp.rlp import Extended
 from ethereum_types.bytes import Bytes, Bytes32
 from ethereum_types.numeric import U256, Uint
-from starkware.cairo.lang.vm.crypto import poseidon_hash_many
 
 from cairo_addons.utils.uint256 import int_to_uint256
+from cairo_addons.vm import poseidon_hash_many
 from mpt.ethereum_tries import EMPTY_TRIE_HASH, EthereumTrieTransitionDB
 from mpt.utils import (
     check_branch_node,

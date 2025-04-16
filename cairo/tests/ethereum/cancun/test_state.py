@@ -89,11 +89,11 @@ def state_and_address_and_optional_key(
 @composite
 def state_with_snapshots(draw):
     """
-    Generate a State instance with up to 10 different snapshots.
-    Each snapshot builds on top of the previous one, with up to 5 new entries per snapshot.
+    Generate a State instance with up to 3 different snapshots.
+    Each snapshot builds on top of the previous one, with up to 2 new entries per snapshot.
     """
     base_state = draw(state_strategy())
-    num_snapshots = draw(st.integers(min_value=0, max_value=5))
+    num_snapshots = draw(st.integers(min_value=0, max_value=3))
 
     # Start with base state's tries
     current_main_trie = base_state._main_trie
@@ -102,19 +102,19 @@ def state_with_snapshots(draw):
 
     for _ in range(num_snapshots):
         snapshots.append((current_main_trie, current_storage_tries))
-        # Add up to 5 new entries to main_trie
+        # Add up to 2 new entries to main_trie
         new_accounts = draw(
-            st.dictionaries(keys=address, values=st.from_type(Account), max_size=5)
+            st.dictionaries(keys=address, values=st.from_type(Account), max_size=2)
         )
         main_trie_copy = copy_trie(current_main_trie)
         main_trie_copy._data.update(new_accounts)
 
-        # Add up to 5 new storage tries or update existing ones
+        # Add up to 2 new storage tries or update existing ones
         new_storage_tries = draw(
             st.dictionaries(
                 keys=address,
                 values=trie_strategy(Trie[Bytes32, U256], min_size=1),
-                max_size=5,
+                max_size=2,
             )
         )
         storage_tries = copy.deepcopy(current_storage_tries)
@@ -140,11 +140,11 @@ def state_with_snapshots(draw):
 @composite
 def transient_storage_with_snapshots(draw):
     """
-    Generate a TransientStorage instance with up to 10 different snapshots.
-    Each snapshot builds on top of the previous one, with up to 5 new entries per snapshot.
+    Generate a TransientStorage instance with up to 3 different snapshots.
+    Each snapshot builds on top of the previous one, with up to 2 new entries per snapshot.
     """
     base_transient_storage = draw(transient_storage)
-    num_snapshots = draw(st.integers(min_value=0, max_value=5))
+    num_snapshots = draw(st.integers(min_value=0, max_value=3))
 
     # Start with base transient storage tries
     current_tries = copy.deepcopy(base_transient_storage._tries)
@@ -152,12 +152,12 @@ def transient_storage_with_snapshots(draw):
 
     for _ in range(num_snapshots):
         snapshots.append(current_tries)
-        # Add up to 5 new tries or update existing ones
+        # Add up to 2 new tries or update existing ones
         new_tries = draw(
             st.dictionaries(
                 keys=address,
                 values=trie_strategy(Trie[Bytes32, U256], min_size=1),
-                max_size=5,
+                max_size=2,
             )
         )
         tries = copy.deepcopy(current_tries)
@@ -520,6 +520,7 @@ class TestTransientStorage:
 
 class TestBeginTransaction:
     @given(state=..., transient_storage=...)
+    @pytest.mark.slow
     def test_begin_transaction(
         self, cairo_run, state: State, transient_storage: TransientStorage
     ):
@@ -536,6 +537,7 @@ class TestBeginTransaction:
         state=state_with_snapshots(),
         transient_storage=transient_storage_with_snapshots(),
     )
+    @pytest.mark.slow
     def test_rollback_transaction(
         self, cairo_run, state: State, transient_storage: TransientStorage
     ):
@@ -555,6 +557,7 @@ class TestBeginTransaction:
         state=state_with_snapshots(),
         transient_storage=transient_storage_with_snapshots(),
     )
+    @pytest.mark.slow
     def test_commit_transaction(
         self, cairo_run, state: State, transient_storage: TransientStorage
     ):

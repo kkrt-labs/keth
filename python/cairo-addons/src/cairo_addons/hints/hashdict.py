@@ -8,7 +8,7 @@ from cairo_addons.hints.decorator import register_hint
 
 @register_hint
 def hashdict_read(dict_manager: DictManager, ids: VmConsts, memory: MemoryDict):
-    from starkware.cairo.lang.vm.crypto import poseidon_hash_many
+    from cairo_addons.vm import poseidon_hash_many
 
     dict_tracker = dict_manager.get_tracker(ids.dict_ptr)
     dict_tracker.current_ptr += ids.DictAccess.SIZE
@@ -42,7 +42,7 @@ def hashdict_read_from_key(
 
 @register_hint
 def hashdict_write(dict_manager: DictManager, ids: VmConsts, memory: MemoryDict):
-    from starkware.cairo.lang.vm.crypto import poseidon_hash_many
+    from cairo_addons.vm import poseidon_hash_many
 
     dict_tracker = dict_manager.get_tracker(ids.dict_ptr)
     dict_tracker.current_ptr += ids.DictAccess.SIZE

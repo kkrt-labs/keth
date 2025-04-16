@@ -1,8 +1,8 @@
 from typing import List
 
 from hypothesis import given
-from starkware.cairo.lang.vm.crypto import poseidon_hash_many
 
+from cairo_addons.vm import poseidon_hash_many
 from tests.utils.args_gen import AddressAccountDiffEntry, StorageDiffEntry
 
 

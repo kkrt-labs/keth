@@ -57,7 +57,6 @@ class TestAltBn128:
                 cairo_run("bnf_div", a, b)
 
         @given(a=..., b=...)
-        @pytest.mark.slow
         def test_bnf_div_patch_hint_should_fail(
             self, cairo_programs, rust_programs, cairo_run, a: BNF, b: BNF
         ):
@@ -137,7 +136,6 @@ segments.load_data(ids.b_inv.address_, [bnf_struct_ptr])
                 cairo_run("bnf2_div", a, b)
 
         @given(a=..., b=...)
-        @pytest.mark.slow
         def test_bnf2_div_patch_hint_should_fail(
             self, cairo_programs, rust_programs, cairo_run, a: BNF2, b: BNF2
         ):
@@ -150,7 +148,7 @@ segments.load_data(ids.b_inv.address_, [bnf_struct_ptr])
                 """
 from cairo_addons.utils.uint384 import int_to_uint384
 
-bnf2_struct_ptr = segments.add(2)
+bnf2_struct_ptr = segments.add()
 b_inv_c0_ptr = segments.gen_arg(int_to_uint384(0))
 b_inv_c1_ptr = segments.gen_arg(int_to_uint384(0))
 segments.load_data(bnf2_struct_ptr, [b_inv_c0_ptr, b_inv_c1_ptr])

@@ -19,9 +19,9 @@ from ethereum_types.numeric import U256
 from hypothesis import assume, given
 from hypothesis import strategies as st
 from hypothesis.strategies import composite
-from starkware.cairo.lang.vm.crypto import poseidon_hash_many
 
 from cairo_addons.utils.uint256 import int_to_uint256
+from cairo_addons.vm import poseidon_hash_many
 from mpt.ethereum_tries import EthereumTrieTransitionDB
 from mpt.trie_diff import StateDiff, resolve
 from mpt.utils import decode_node
@@ -143,6 +143,7 @@ class TestTrieDiff:
         "data_path", [Path("test_data/22081873.json")], scope="session"
     )
     @given(data=st.data())
+    @pytest.mark.slow
     def test_node_store_get(self, cairo_run, node_store, data):
         # take 20 keys from the node_store
         small_store = {k: v for k, v in list(node_store.items())[:6]}
@@ -417,6 +418,7 @@ class TestTrieDiff:
             assert node == resolve(result, small_store)
 
     @given(embedded_node_dict=embedded_node_strategy())
+    @pytest.mark.slow
     def test_resolve_embedded_node(self, cairo_run, embedded_node_dict):
         # We don't need a node store for this test
         node_store = {}

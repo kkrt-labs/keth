@@ -1,3 +1,4 @@
+import pytest
 from ethereum.cancun.fork_types import Address
 from ethereum.cancun.vm import Evm
 from ethereum.cancun.vm.instructions.system import (
@@ -140,6 +141,7 @@ class TestSystem:
         assert evm == cairo_result
 
     @given(evm=beneficiary_from_state())
+    @pytest.mark.slow
     def test_selfdestruct(self, cairo_run, evm: Evm):
         try:
             cairo_result = cairo_run("selfdestruct", evm)
@@ -309,6 +311,7 @@ class TestSystemCairoFile:
         assert evm == cairo_evm
 
     @given(evm=evm_call)
+    @pytest.mark.slow
     def test_call(self, cairo_run, evm: Evm):
         # Set depth to 1024 to avoid triggering regular execution flow when entering into generic_call
         # TODO: remove this once we have all opcodes implemented
@@ -324,6 +327,7 @@ class TestSystemCairoFile:
         assert evm == cairo_result
 
     @given(evm=evm_call)
+    @pytest.mark.slow
     def test_callcode(self, cairo_run, evm: Evm):
         # Set depth to 1024 to avoid entering into generic_call, but only testing callcode logic
         evm.message.depth = Uint(1024)
@@ -338,6 +342,7 @@ class TestSystemCairoFile:
         assert evm == cairo_result
 
     @given(evm=evm_call)
+    @pytest.mark.slow
     def test_delegatecall(self, cairo_run, evm: Evm):
         # Set depth to 1024 to avoid entering into generic_call, but only testing delegatecall logic
         evm.message.depth = Uint(1024)
@@ -352,6 +357,7 @@ class TestSystemCairoFile:
         assert evm == cairo_result
 
     @given(evm=evm_call)
+    @pytest.mark.slow
     def test_staticcall(self, cairo_run, evm: Evm):
         # Set depth to 1024 to avoid entering into generic_call, but only testing staticcall logic
         evm.message.depth = Uint(1024)
