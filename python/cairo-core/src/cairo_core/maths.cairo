@@ -538,6 +538,29 @@ func felt252_bit_length{range_check_ptr}(value: felt) -> felt {
     return bit_length;
 }
 
+// @notice Returns the number of bytes needed to represent a felt252 value.
+func felt252_bytes_length{range_check_ptr}(value: felt) -> felt {
+    alloc_locals;
+
+    if (value == 0) {
+        return 0;
+    }
+
+    tempvar bytes_length;
+    %{ bytes_length_hint %}
+
+    assert_le(bytes_length, 32);
+    let lower_bound = pow256(bytes_length - 1);
+    assert_le_felt(lower_bound, value);
+    if (bytes_length == 32) {
+        return bytes_length;
+    }
+    let upper_bound = pow256(bytes_length);
+    assert_le_felt(value + 1, upper_bound);
+
+    return bytes_length;
+}
+
 // @notice Converts a felt252 to a bit array, little-endian, and outputs to `dst`.
 // @dev Can only convert up to 251 bits included.
 // @returns the length of the bit array.

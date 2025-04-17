@@ -250,3 +250,8 @@ def write_output(
 @register_hint
 def bit_length_hint(ids: VmConsts, memory: MemoryDict, ap: RelocatableValue):
     memory[ap - 1] = ids.value.bit_length()
+
+
+@register_hint
+def bytes_length_hint(ids: VmConsts, memory: MemoryDict, ap: RelocatableValue):
+    memory[ap - 1] = (ids.value.bit_length() + 7) // 8

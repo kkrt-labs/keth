@@ -315,23 +315,41 @@ class TestNumeric:
             cairo_bits = [cairo_bits_ptr[i] for i in range(cairo_bits_len)]
             assert python_bits == cairo_bits, f"Failed for value {value}"
 
-        @given(value=...)
-        def test_U384_to_be_bytes(self, cairo_run, value: U384):
-            int_value = value._number
-            if int_value == 0:
-                length = 1  # At least one byte for zero
-            else:
-                length = (int_value.bit_length() + 7) // 8
+        @given(value=..., length=st.integers(min_value=0, max_value=48))
+        def test_U384_to_be_bytes(self, cairo_run, value: U384, length: int):
+            try:
+                expected = value.to_bytes(U384(length), "big")
+            except OverflowError:
+                with pytest.raises(OverflowError):
+                    cairo_result = cairo_run("U384_to_be_bytes", value, length)
+                return
 
             cairo_result = cairo_run("U384_to_be_bytes", value, length)
-
-            expected_bytes = int_value.to_bytes(length, "big")
             assert len(cairo_result) == length
-            assert bytes(cairo_result) == expected_bytes
+            assert bytes(cairo_result) == expected
+
+        @given(value=..., length=st.integers(min_value=49, max_value=2**256 - 1))
+        def test_U384_to_be_bytes_raise_if_length_too_big(
+            self, cairo_run, value: U384, length: int
+        ):
+            with pytest.raises(OverflowError):
+                cairo_run("U384_to_be_bytes", value, length)
 
         @given(value=...)
         def test_U384_to_le_48_bytes(self, cairo_run, value: U384):
-            cairo_result = cairo_run("U384_to_le_48_bytes", value)
-            int_value = value._number
-            expected_bytes = int_value.to_bytes(48, "little")
-            assert bytes(cairo_result) == expected_bytes
+            cairo_bytes = bytes(cairo_run("U384_to_le_48_bytes", value))
+            expected_bytes = (value._number).to_bytes(48, "little")
+            assert cairo_bytes == expected_bytes
+
+        @given(value=...)
+        @example(value=U384(2**384 - 1))
+        @example(value=U384(2**288 - 1))
+        @example(value=U384(2**192 - 1))
+        @example(value=U384(2**96 - 1))
+        def test_calc_minimal_bytes_for_u384(self, cairo_run, value: U384):
+            assert (
+                cairo_run("calc_minimal_bytes_for_u384", value)
+                == (int(value).bit_length() + 7) // 8
+                if int(value) != 0
+                else 1
+            )

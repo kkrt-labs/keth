@@ -23,6 +23,8 @@ from ethereum.exceptions import EthereumException
 from ethereum_types.numeric import U256, U256Struct, Uint
 from ethereum.cancun.vm.gas import charge_gas, GasConstants
 
+from cairo_core.maths import felt252_bytes_length
+
 // @title Arithmetic operations for the EVM
 // @notice Implements arithmetic operations like add, sub, mul, div, etc.
 
@@ -550,11 +552,11 @@ func exp{
     // Calculate bytes used for gas cost
     local bytes_used: felt;
     if (exponent.value.high == 0) {
-        let bytes_used_low = Helpers.bytes_used_128(exponent.value.low);
+        let bytes_used_low = felt252_bytes_length(exponent.value.low);
         assert bytes_used = bytes_used_low;
         tempvar range_check_ptr = range_check_ptr;
     } else {
-        let bytes_used_high = Helpers.bytes_used_128(exponent.value.high);
+        let bytes_used_high = felt252_bytes_length(exponent.value.high);
         assert bytes_used = bytes_used_high + 16;
         tempvar range_check_ptr = range_check_ptr;
     }

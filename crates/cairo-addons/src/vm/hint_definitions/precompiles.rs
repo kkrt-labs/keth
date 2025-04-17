@@ -29,6 +29,7 @@ pub const HINTS: &[fn() -> Hint] = &[
     alt_bn128_add_hint,
     alt_bn128_mul_hint,
     bit_length_hint,
+    bytes_length_hint,
 ];
 
 const WORD_SIZE: u32 = 8;
@@ -254,6 +255,29 @@ pub fn bit_length_hint() -> Hint {
             let bit_length = value.bits();
 
             insert_value_from_var_name("bit_length", bit_length, vm, ids_data, ap_tracking)
+        },
+    )
+}
+
+pub fn bytes_length_hint() -> Hint {
+    Hint::new(
+        String::from("bytes_length_hint"),
+        |vm: &mut VirtualMachine,
+         _exec_scopes: &mut ExecutionScopes,
+         ids_data: &HashMap<String, HintReference>,
+         ap_tracking: &ApTracking,
+         _constants: &HashMap<String, Felt252>|
+         -> Result<(), HintError> {
+            let value = get_integer_from_var_name("value", vm, ids_data, ap_tracking)?;
+            let bytes_length = value.bits().div_ceil(8);
+
+            insert_value_from_var_name(
+                "bytes_length",
+                Felt252::from(bytes_length),
+                vm,
+                ids_data,
+                ap_tracking,
+            )
         },
     )
 }

@@ -1,6 +1,6 @@
 import pytest
 from ethereum_types.numeric import U256
-from hypothesis import Verbosity, given, settings
+from hypothesis import Verbosity, example, given, settings
 from hypothesis import strategies as st
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 
@@ -182,10 +182,16 @@ segments.load_data(ids.output, bad)
         ), cairo_error(message="felt252_to_bytes_be: byte not in bounds"):
             cairo_run("test__felt252_to_bytes_be", value=value, len=len_)
 
-    @given(value=st.integers(min_value=0, max_value=DEFAULT_PRIME - 1))
+    @given(value=felt)
     def test_felt252_bit_length(self, cairo_run, value):
-        res = cairo_run("felt252_bit_length", value=value)
+        res = cairo_run("felt252_bit_length", value)
         assert res == value.bit_length()
+
+    @given(value=felt)
+    @example(value=DEFAULT_PRIME - 1)
+    def test_felt252_bytes_length(self, cairo_run, value):
+        res = cairo_run("felt252_bytes_length", value)
+        assert res == (value.bit_length() + 7) // 8
 
     @given(
         value=st.integers(min_value=0, max_value=2**248 - 1),
