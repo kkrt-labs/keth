@@ -9,6 +9,7 @@ This CLI provides four main commands:
 """
 
 import logging
+import traceback
 from pathlib import Path
 
 import typer
@@ -97,7 +98,6 @@ def trace(
             )
             console.print(f"[green]✓[/] Trace generated successfully in {output_dir}")
         except Exception:
-            import traceback
 
             console.print(
                 f"[red]Error generating trace:[/] {str(traceback.format_exc())}"
@@ -166,8 +166,6 @@ def verify(
             run_verify(proof_path=proof_path)
             console.print("[green]✓[/] Proof verified successfully")
         except Exception:
-            import traceback
-
             console.print(
                 f"[red]Error verifying proof:[/] {str(traceback.format_exc())}"
             )
@@ -231,8 +229,6 @@ def e2e(
             if verify_proof:
                 console.print("[green]✓[/] Proof verified successfully")
         except Exception:
-            import traceback
-
             console.print(f"[red]Error in pipeline:[/] {str(traceback.format_exc())}")
             raise typer.Exit(1)
 
