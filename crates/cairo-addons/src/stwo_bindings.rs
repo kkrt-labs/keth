@@ -77,6 +77,9 @@ pub fn prove_with_stwo(
         default_prod_prover_parameters();
     let proof = prove_cairo::<Blake2sMerkleChannel>(prover_input, pcs_config, preprocessed_trace)?;
     if let Some(proof_path) = proof_path {
+        if let Some(parent) = proof_path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
         std::fs::write(proof_path, serde_json::to_string(&proof)?)?;
     }
     if verify {

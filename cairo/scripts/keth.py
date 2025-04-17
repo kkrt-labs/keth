@@ -20,7 +20,7 @@ from cairo_addons.rust_bindings.stwo_bindings import prove as run_prove
 from cairo_addons.rust_bindings.stwo_bindings import verify as run_verify
 from cairo_addons.rust_bindings.vm import generate_trace as run_generate_trace
 from cairo_addons.rust_bindings.vm import run_end_to_end
-from utils.fixture_loader import load_zkpi_fixture
+from utils.fixture_loader import CANCUN_FORK_BLOCK, load_zkpi_fixture
 
 logging.basicConfig(
     level=logging.INFO,
@@ -35,8 +35,6 @@ app = typer.Typer(
     help="Keth - Generate execution traces and proofs for Ethereum blocks",
     no_args_is_help=True,
 )
-
-CANCUN_FORK_BLOCK = 19426587  # First Cancun block
 
 
 def validate_block_number(block_number: int) -> None:
@@ -55,7 +53,7 @@ def trace(
     ),
     output_dir: Path = typer.Option(
         Path("output"),
-        help="Directory to save trace artifacts",
+        help="Directory to save trace artifacts (prover inputs)",
         dir_okay=True,
         file_okay=False,
     ),
@@ -84,7 +82,7 @@ def trace(
         compiled_program: The path to the compiled KETH Cairo program.
     """
     validate_block_number(block_number)
-    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = output_dir / f"prover_input_info_{block_number}.json"
 
     with console.status(f"[bold green]Generating trace for block {block_number}..."):
         try:
@@ -94,11 +92,10 @@ def trace(
                 entrypoint="main",
                 program_input=program_input,
                 compiled_program_path=str(compiled_program),
-                output_dir=output_dir,
+                output_path=output_path,
             )
-            console.print(f"[green]✓[/] Trace generated successfully in {output_dir}")
+            console.print(f"[green]✓[/] Trace generated successfully in {output_path}")
         except Exception:
-
             console.print(
                 f"[red]Error generating trace:[/] {str(traceback.format_exc())}"
             )
@@ -109,16 +106,16 @@ def trace(
 def prove(
     prover_inputs_path: Path = typer.Option(
         ...,
-        help="Path to prover inputs (prover_input_infos.json)",
+        help="Path to prover inputs (prover_input_info.json)",
         exists=True,
         dir_okay=False,
         file_okay=True,
     ),
     proof_path: Path = typer.Option(
         Path("output/proof.json"),
-        help="Path to save proof",
-        dir_okay=False,
-        file_okay=True,
+        help="Directory to save proof to",
+        dir_okay=True,
+        file_okay=False,
     ),
 ):
     """

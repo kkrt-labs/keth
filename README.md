@@ -66,7 +66,7 @@ uv run pytest <optional pytest args>
 Some tests require to compile solidity code, which requires `forge` to be
 installed, and `foundry` to be in the path, and to run `forge build`.
 
-#### Profiling tests
+#### Profiling Cairo Tests
 
 To generate a profiling graph, you need to add `--profile-cairo` to your pytest
 command. For example:
@@ -84,6 +84,15 @@ ls cairo/tests/ethereum/utils/test_numeric*.prof
 ```bash
 # use snakeviz to display the graph in a browser web page
 snakeviz cairo/tests/ethereum/utils/test_numeric_get_u384_bits_little__1743420053085600000_5593df42.prof
+```
+
+#### Profiling runs of blocks
+
+To profile the non-cairo part, we can use
+[samply](https://github.com/mstange/samply/). Example:
+
+```bash
+samply record uv run keth trace -b 21688509
 ```
 
 #### Ethereum Foundation Tests

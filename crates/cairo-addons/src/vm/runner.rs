@@ -710,7 +710,7 @@ pub fn generate_trace(
     entrypoint: String,
     program_input: PyObject,
     compiled_program_path: String,
-    output_dir: PathBuf,
+    output_path: PathBuf,
 ) -> PyResult<()> {
     // Limit tracing to the current module
     let filter = EnvFilter::new("vm::vm::runner=info,warn");
@@ -743,15 +743,13 @@ pub fn generate_trace(
     let execution_resources = cairo_runner.get_execution_resources().unwrap();
     tracing::info!("Execution resources: {:?}", execution_resources);
 
+    // Write prover input infos
     let prover_input_info =
         cairo_runner.get_prover_input_info().expect("Unable to get prover input info");
-
-    // Write prover input infos
-    std::fs::write(
-        output_dir.join("prover_input_infos.json"),
-        serde_json::to_string(&prover_input_info)
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?,
-    )?;
+    if let Some(parent) = output_path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::write(output_path, serde_json::to_string(&prover_input_info).map_err(to_pyerr)?)?;
 
     Ok(())
 }
