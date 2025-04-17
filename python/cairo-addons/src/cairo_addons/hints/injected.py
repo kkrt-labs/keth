@@ -79,6 +79,10 @@ def prepare_context(context: Callable[[], dict]):
 
     context()["PRIME"] = DEFAULT_PRIME
 
+    from cairo_addons.testing.hints import debug_info
+
+    context()["debug_info"] = debug_info(context()["py_debug_info"])
+
 
 def initialize_hint_environment(context: Callable[[], dict]):
     """Initialize the hint environment with all necessary components.

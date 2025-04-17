@@ -290,7 +290,7 @@ def run_python_vm(
                 **(hint_locals or {}),
             },
             static_locals={
-                "debug_info": debug_info(cairo_program),
+                "debug_info": debug_info(cairo_program.debug_info),
                 "logger": context["logger"],
                 **(static_locals or {}),
             },
@@ -508,6 +508,7 @@ def run_rust_vm(
             enable_traces=enable_traces,
             ordered_builtins=_builtins,
             cairo_file=cairo_file,
+            py_debug_info=cairo_program.debug_info,
         )
         serde = Serde(
             runner.segments, cairo_program.identifiers, runner.dict_manager, cairo_file

@@ -5,21 +5,20 @@ from importlib import import_module
 from typing import List, Optional
 from unittest.mock import patch
 
+from starkware.cairo.lang.compiler.debug_info import DebugInfo
 from starkware.cairo.lang.compiler.program import CairoHint, Program
 
 from cairo_addons.hints import implementations
 from cairo_addons.vm import Program as RustProgram
 
 
-def debug_info(program: Program):
+def debug_info(debug_info: Optional[DebugInfo]):
     def _debug_info(pc):
-        if program.debug_info is None:
+        if debug_info is None:
             raise ValueError("Program debug info is not set")
 
         if (
-            instruction_location := program.debug_info.instruction_locations.get(
-                pc.offset
-            )
+            instruction_location := debug_info.instruction_locations.get(pc.offset)
         ) is None:
             raise ValueError("Instruction location not found")
 

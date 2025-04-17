@@ -71,7 +71,7 @@ impl PyCairoRunner {
     ///   initialization time.
     #[allow(clippy::too_many_arguments)]
     #[new]
-    #[pyo3(signature = (program, py_identifiers=None, program_input=None, layout=None, proof_mode=false, allow_missing_builtins=false, enable_traces=false, ordered_builtins=vec![], cairo_file=None))]
+    #[pyo3(signature = (program, py_identifiers=None, program_input=None, layout=None, proof_mode=false, allow_missing_builtins=false, enable_traces=false, ordered_builtins=vec![], cairo_file=None, py_debug_info=None))]
     fn new(
         program: &PyProgram,
         py_identifiers: Option<PyObject>,
@@ -82,6 +82,7 @@ impl PyCairoRunner {
         enable_traces: bool,
         ordered_builtins: Vec<String>,
         cairo_file: Option<PyObject>,
+        py_debug_info: Option<PyObject>,
     ) -> PyResult<Self> {
         let layout = layout.unwrap_or_default().into_layout_name()?;
 
@@ -134,6 +135,12 @@ impl PyCairoRunner {
 
             if let Some(cairo_file) = cairo_file {
                 context.set_item("cairo_file", cairo_file).map_err(|e| {
+                    PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string())
+                })?;
+            }
+
+            if let Some(py_debug_info) = py_debug_info {
+                context.set_item("py_debug_info", py_debug_info).map_err(|e| {
                     PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string())
                 })?;
             }
