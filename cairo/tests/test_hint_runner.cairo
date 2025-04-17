@@ -203,3 +203,11 @@ func test_hint_access_pointer_unassigned_value() {
     assert [output_index] = 1;
     ret;
 }
+
+func test_hint_can_access_debug_info() {
+    alloc_locals;
+    local debug_info;
+    %{ ids.debug_info = int(not debug_info(pc)) %}
+    assert debug_info = 1;
+    ret;
+}

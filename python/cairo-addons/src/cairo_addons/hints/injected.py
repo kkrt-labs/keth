@@ -81,7 +81,8 @@ def prepare_context(context: Callable[[], dict]):
 
     from cairo_addons.testing.hints import debug_info
 
-    context()["debug_info"] = debug_info(context()["py_debug_info"])
+    if context().get("py_debug_info") is not None:
+        context()["debug_info"] = debug_info(context()["py_debug_info"])
 
 
 def initialize_hint_environment(context: Callable[[], dict]):

@@ -1,5 +1,33 @@
 # AI-Reports
 
+## AI-REPORT: Passing Objects in our Python Cairo Runner and the Rust CairoVM
+
+**Runner Strategy**: Keth uses a dual approach to executing Cairo: a backend in
+Rust - i.e. the Rust CairoVM to run Cairo programs, 10x faster than the Python
+CairoVM - and a frontend in Python (test framework, serialization tools, type
+system equivalent to EELS).
+
+- **Exposing Rust functionality in Python frontend**: PyO3 bindings expose Rust
+  functionality to Python in `runner.rs`
+- **Passing Python objects in Rust**: The system uses execution scopes
+  (exec_scopes) as a persistent store where Python objects (like program
+  identifiers and input data) are accessible during hint execution in
+  `runner.py`, `injected.py` and `hints.py`.
+
+The file `runner.py` serves as the orchestration layer for Cairo program
+execution, implementing two parallel execution paths: `run_python_vm` (for Cairo
+runs using the CairoVM Python) and `run_rust_vm` (uses the faster CairoVM Rust).
+It handles the complete execution lifecycle including:
+
+1. Program selection and entrypoint metadata preparation
+1. Memory segment initialization and builtin runner configuration
+1. Argument serialization from Python types to Cairo memory representation
+1. Stack construction with builtin pointers and program arguments
+1. VM configuration, program loading, and execution with resource constraints
+1. Post-execution operations (verification, relocation, trace collection)
+1. Return value deserialization from Cairo memory back to Python objects
+1. Diagnostic output generation (traces, memory dumps, profiling data)
+
 ## AI-REPORT: Dict Squashing Verification Mechanism (April 20, 2025)
 
 **Dict Squashing Soundness**: To ensure all dictionaries are properly squashed
