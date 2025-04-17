@@ -409,7 +409,10 @@ environment_lite = st.integers(
         gas_price=uint,
         time=uint256,
         prev_randao=bytes32,
-        state=st.from_type(State),
+        # Explicitly clean any snapshot in the state - as in the initial state of a tx, there are no snapshots.
+        state=st.from_type(State).map(
+            lambda state: setattr(state, "_snapshots", []) or state
+        ),
         chain_id=uint64,
         excess_blob_gas=excess_blob_gas,
         blob_versioned_hashes=st.lists(
