@@ -100,6 +100,9 @@ class TestInterpreter:
     )
     @pytest.mark.slow
     def test_process_message_call(self, cairo_run, env: Environment, message: Message):
+        # Explicitly clean any snapshot in the state - as in the initial state of a tx, there are no snapshots.
+        # This only applies to the entrypoint of a transaction.
+        env.state._snapshots = []
         try:
             _, messageCallOutput = cairo_run("process_message_call", env, message)
         except Exception as e:
