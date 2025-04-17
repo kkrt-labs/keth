@@ -342,6 +342,10 @@ class TestNumeric:
             assert cairo_bytes == expected_bytes
 
         @given(value=...)
+        @example(value=U384(2**384 - 1))
+        @example(value=U384(2**288 - 1))
+        @example(value=U384(2**192 - 1))
+        @example(value=U384(2**96 - 1))
         def test_calc_minimal_bytes_for_u384(self, cairo_run, value: U384):
             assert (
                 cairo_run("calc_minimal_bytes_for_u384", value)
