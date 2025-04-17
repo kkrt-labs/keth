@@ -100,3 +100,10 @@ class TestRunner:
     def test__hint_can_access_debug_info(self, cairo_run, cairo_run_py):
         cairo_run("test_hint_can_access_debug_info")
         cairo_run_py("test_hint_can_access_debug_info")
+
+    def test__hint_can_access_index_in_pointer_type(self, cairo_run, cairo_run_py):
+        cairo_run("test_hint_can_access_index_in_pointer_type")
+        cairo_run_py("test_hint_can_access_index_in_pointer_type")
+
+    def test__hint_can_access_index_in_felt_pointer(self, cairo_run, cairo_run_py):
+        cairo_run("test_hint_can_access_index_in_felt_pointer")
