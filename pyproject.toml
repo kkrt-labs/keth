@@ -195,6 +195,7 @@ known_first_party = [
   "eth_rpc",
   "mpt",
   "tests",
+  "utils",
   "keth_types",
 ]
 
