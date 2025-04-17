@@ -1,4 +1,4 @@
-from cairo_addons.vm import CairoRunner
+from cairo_addons.rust_bindings.vm import CairoRunner
 
 
 class TestRunner:

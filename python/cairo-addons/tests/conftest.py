@@ -10,7 +10,7 @@ from starkware.cairo.lang.compiler.preprocessor.default_pass_manager import (
 from starkware.cairo.lang.compiler.program import Program as SWProgram
 from starkware.cairo.lang.vm.relocatable import RelocatableValue
 
-from cairo_addons.vm import Program as RustProgram
+from cairo_addons.rust_bindings.vm import Program as RustProgram
 
 st.register_type_strategy(
     RelocatableValue,

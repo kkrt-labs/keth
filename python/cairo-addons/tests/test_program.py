@@ -1,6 +1,6 @@
 import pytest
 
-from cairo_addons.vm import Program as RustProgram
+from cairo_addons.rust_bindings.vm import Program as RustProgram
 
 
 class TestProgram:

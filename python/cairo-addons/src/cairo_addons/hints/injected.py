@@ -32,7 +32,7 @@ def prepare_context(context: Callable[[], dict]):
         from starkware.cairo.lang.compiler.identifier_manager import IdentifierError
         from starkware.cairo.lang.vm.relocatable import RelocatableValue
 
-        from cairo_addons.vm import Relocatable as RustRelocatable
+        from cairo_addons.rust_bindings.vm import Relocatable as RustRelocatable
         from tests.utils.serde import Serde
 
         if isinstance(variable, int):

@@ -2,8 +2,8 @@ import pytest
 from hypothesis import given
 from starkware.cairo.lang.vm.relocatable import RelocatableValue
 
+from cairo_addons.rust_bindings.vm import Relocatable as RustRelocatable
 from cairo_addons.testing.hints import patch_hint
-from cairo_addons.vm import Relocatable as RustRelocatable
 from tests.utils.strategies import felt
 
 

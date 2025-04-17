@@ -161,6 +161,21 @@ consequentially not use any changes to the rust code.
 
 Keth is a work in progress (WIP ⚠️) and as such is not suitable for production.
 
+## Generating a proof
+
+To generate a proof for an Ethereum block, you'll need:
+
+- Prover inputs (ZK-PI) for the given block, generated with Kakarot's
+  [ZK-PIG](https://github.com/kkrt-labs/zk-pig)
+- The compiled Keth program (`uv run compile_keth`)
+- Then, you can generate the proof with:
+
+```bash
+uv run keth e2e -b <BLOCK_NUMBER>
+```
+
+Run `uv run keth --help` for more information.
+
 ## Architecture Diagram
 
 Coming soon 🏗️.

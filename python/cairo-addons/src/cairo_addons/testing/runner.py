@@ -48,12 +48,12 @@ from starkware.cairo.lang.vm.vm import VirtualMachine
 
 from cairo_addons.hints.injected import prepare_context
 from cairo_addons.profiler import profile_from_trace
+from cairo_addons.rust_bindings.vm import CairoRunner as RustCairoRunner
+from cairo_addons.rust_bindings.vm import Program as RustProgram
+from cairo_addons.rust_bindings.vm import RunResources as RustRunResources
 from cairo_addons.testing.errors import map_to_python_exception
 from cairo_addons.testing.hints import debug_info, oracle
 from cairo_addons.testing.utils import flatten
-from cairo_addons.vm import CairoRunner as RustCairoRunner
-from cairo_addons.vm import Program as RustProgram
-from cairo_addons.vm import RunResources as RustRunResources
 from tests.utils.args_gen import gen_arg as gen_arg_builder
 from tests.utils.args_gen import to_cairo_type, to_python_type
 from tests.utils.serde import Serde

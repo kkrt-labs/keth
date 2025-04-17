@@ -34,7 +34,8 @@ use stripped_program::PyStrippedProgram;
 use vm_consts::{PyVmConst, PyVmConstsDict};
 
 #[pymodule]
-fn vm(module: &Bound<'_, PyModule>) -> PyResult<()> {
+#[pyo3(submodule)]
+pub fn vm(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<PyProgram>()?;
     module.add_class::<PyCairoRunner>()?;
     module.add_class::<PyRelocatable>()?;
@@ -44,10 +45,23 @@ fn vm(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<PyStrippedProgram>()?;
     module.add_class::<PyDictManager>()?;
     module.add_class::<PyDictTracker>()?;
-    module.add_function(wrap_pyfunction!(runner::run_proof_mode, module)?).unwrap();
     module.add_class::<PyVmConst>()?;
     module.add_class::<PyVmConstsDict>()?;
     module.add_class::<PyModBuiltinRunner>()?;
     module.add_function(wrap_pyfunction!(poseidon_hash::poseidon_hash_many, module)?).unwrap();
-    Ok(())
+    module.add_function(wrap_pyfunction!(runner::generate_trace, module)?)?;
+    module.add_function(wrap_pyfunction!(runner::run_end_to_end, module)?).unwrap();
+
+    init(module)
+}
+
+/// Workaround for https://github.com/PyO3/pyo3/issues/759
+fn init(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    Python::with_gil(|py| {
+        py.import("sys")?.getattr("modules")?.set_item("cairo_addons.rust_bindings.vm", m)
+    })
+}
+
+pub fn to_pyerr<E: std::fmt::Display>(e: E) -> PyErr {
+    PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string())
 }

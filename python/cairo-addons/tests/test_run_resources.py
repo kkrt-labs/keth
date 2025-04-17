@@ -1,4 +1,4 @@
-from cairo_addons.vm import RunResources
+from cairo_addons.rust_bindings.vm import RunResources
 
 
 class TestRunResources:

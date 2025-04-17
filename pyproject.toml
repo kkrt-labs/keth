@@ -184,10 +184,6 @@ addopts = [
   "--import-mode=importlib",
 ]
 
-[tool.ruff.lint.per-file-ignores]
-# Ignore `E402` (import violations) in `prove_block.py` to apply patches before anything else.
-"prove_block.py" = ["E402"]
-
 [tool.isort]
 profile = "black"
 src_paths = ["cairo/src", "cairo/tests"]
@@ -226,7 +222,7 @@ packages = ["cairo/src", "cairo/tests", "cairo/scripts"]
 [project.scripts]
 compile = "scripts.compile_cairo:main"
 compile_keth = "scripts.compile_cairo:compile_keth"
-prove-block = "scripts.prove_block:main"
+keth = "scripts.keth:app"
 test-fast = "scripts.test:test_fast"
 test-unit = "scripts.test:test_unit"
 test-ef = "scripts.test:test_ef"

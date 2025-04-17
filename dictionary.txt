@@ -313,3 +313,4 @@ dotenvy
 pyproject
 unsquashed
 ptrs
+pyerr

@@ -14,7 +14,7 @@ dependencies = [
 
 [tool.maturin]
 features = ["pyo3/extension-module"]
-module-name = "cairo_addons.vm"
+module-name = "cairo_addons.rust_bindings"
 python-packages = ["cairo_addons"]
 python-source = "src"
 manifest-path = "../../crates/cairo-addons/Cargo.toml"

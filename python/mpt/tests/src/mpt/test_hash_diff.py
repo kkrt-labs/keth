@@ -2,7 +2,7 @@ from typing import List
 
 from hypothesis import given
 
-from cairo_addons.vm import poseidon_hash_many
+from cairo_addons.rust_bindings.vm import poseidon_hash_many
 from tests.utils.args_gen import AddressAccountDiffEntry, StorageDiffEntry
 
 
