@@ -20,6 +20,7 @@ from cairo_core.maths import (
     felt252_bit_length,
     felt252_to_bits_rev,
     felt252_to_bytes_le,
+    felt252_bytes_length,
 )
 from cairo_core.comparison import is_zero
 from cairo_ec.uint384 import uint256_to_uint384
@@ -488,14 +489,20 @@ func U384__eq__(lhs: U384, rhs: U384) -> bool {
     return res;
 }
 
+// Convert a U384 to a big-endian bytes array
+// Panics if length is > 48
+// Pads to length bytes if length is inferior to 48
 func U384_to_be_bytes{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     value: U384, length: felt
 ) -> Bytes {
     alloc_locals;
 
     let minimal_length = calc_minimal_bytes_for_u384(value);
-    with_attr error_message("ValueError") {
-        assert length = minimal_length;
+    let is_valid_length = is_le(minimal_length, length);
+    let is_inferior_to_48 = is_le(length, 48);
+    with_attr error_message("OverflowError") {
+        assert is_inferior_to_48 = 1;
+        assert is_valid_length = 1;
     }
 
     let (bytes_ptr) = alloc();
@@ -540,72 +547,22 @@ func U384_to_be_bytes{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
 // U384 is 384 bits (48 bytes) so 4 limbs of 96 bits (12 bytes each)
 func calc_minimal_bytes_for_u384{range_check_ptr}(value: U384) -> felt {
     if (value.value.d3 != 0) {
-        let d3_bytes = calc_limb_bytes(value.value.d3);
+        let d3_bytes = felt252_bytes_length(value.value.d3);
         return 36 + d3_bytes;
     }
 
     if (value.value.d2 != 0) {
-        let d2_bytes = calc_limb_bytes(value.value.d2);
+        let d2_bytes = felt252_bytes_length(value.value.d2);
         return 24 + d2_bytes;
     }
 
     if (value.value.d1 != 0) {
-        let d1_bytes = calc_limb_bytes(value.value.d1);
+        let d1_bytes = felt252_bytes_length(value.value.d1);
         return 12 + d1_bytes;
     }
 
-    let d0_bytes = calc_limb_bytes(value.value.d0);
+    let d0_bytes = felt252_bytes_length(value.value.d0);
     return d0_bytes;
-}
-
-// Each limb is 96 bits (12 bytes)
-// Use binary search
-func calc_limb_bytes{range_check_ptr}(limb: felt) -> felt {
-    if (limb == 0) {
-        return 1;
-    }
-
-    if (is_le(2 ** 48, limb) != 0) {
-        if (is_le(2 ** 72, limb) != 0) {
-            if (is_le(2 ** 88, limb) != 0) {
-                return 12;
-            }
-            if (is_le(2 ** 80, limb) != 0) {
-                return 11;
-            } else {
-                return 10;
-            }
-        } else {
-            if (is_le(2 ** 64, limb) != 0) {
-                return 9;
-            }
-            if (is_le(2 ** 56, limb) != 0) {
-                return 8;
-            } else {
-                return 7;
-            }
-        }
-    } else {
-        if (is_le(2 ** 24, limb) != 0) {
-            if (is_le(2 ** 40, limb) != 0) {
-                return 6;
-            }
-            if (is_le(2 ** 32, limb) != 0) {
-                return 5;
-            } else {
-                return 4;
-            }
-        } else {
-            if (is_le(2 ** 16, limb) != 0) {
-                return 3;
-            }
-            if (is_le(2 ** 8, limb) != 0) {
-                return 2;
-            } else {
-                return 1;
-            }
-        }
-    }
 }
 
 func U384_to_le_48_bytes{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(value: U384) -> Bytes {

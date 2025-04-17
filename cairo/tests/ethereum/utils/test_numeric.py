@@ -315,17 +315,25 @@ class TestNumeric:
             cairo_bits = [cairo_bits_ptr[i] for i in range(cairo_bits_len)]
             assert python_bits == cairo_bits, f"Failed for value {value}"
 
-        @given(value=..., length=st.integers(min_value=0, max_value=512))
+        @given(value=..., length=st.integers(min_value=0, max_value=48))
         def test_U384_to_be_bytes(self, cairo_run, value: U384, length: int):
             try:
-                cairo_result = cairo_run("U384_to_be_bytes", value, length)
-            except ValueError:
-                expected = (int(value).bit_length() + 7) // 8 if int(value) != 0 else 1
-                assert length != expected
+                expected = value.to_bytes(U384(length), "big")
+            except OverflowError:
+                with pytest.raises(OverflowError):
+                    cairo_result = cairo_run("U384_to_be_bytes", value, length)
                 return
 
+            cairo_result = cairo_run("U384_to_be_bytes", value, length)
             assert len(cairo_result) == length
-            assert bytes(cairo_result) == value.to_bytes(U384(length), "big")
+            assert bytes(cairo_result) == expected
+
+        @given(value=..., length=st.integers(min_value=49, max_value=2**256 - 1))
+        def test_U384_to_be_bytes_raise_if_length_too_big(
+            self, cairo_run, value: U384, length: int
+        ):
+            with pytest.raises(OverflowError):
+                cairo_run("U384_to_be_bytes", value, length)
 
         @given(value=...)
         def test_U384_to_le_48_bytes(self, cairo_run, value: U384):
