@@ -494,7 +494,7 @@ func destroy_storage{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, state: Sta
                         squashed_storage_tries_start, TupleAddressBytes32U256DictAccess*
                     ),
                     dict_ptr=cast(squashed_storage_tries_end, TupleAddressBytes32U256DictAccess*),
-                    parent_dict=cast(0, MappingTupleAddressBytes32U256Struct*),
+                    parent_dict=storage_tries.value._data.value.parent_dict,
                 ),
             ),
         ),
@@ -517,15 +517,17 @@ func destroy_storage{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, state: Sta
 
     tempvar new_storage_tries_data = MappingTupleAddressBytes32U256(
         new MappingTupleAddressBytes32U256Struct(
-            dict_ptr_start=storage_tries.value._data.value.dict_ptr_start,
+            dict_ptr_start=squashed_storage_tries.value._data.value.dict_ptr_start,
             dict_ptr=new_dict_ptr,
-            parent_dict=storage_tries.value._data.value.parent_dict,
+            parent_dict=squashed_storage_tries.value._data.value.parent_dict,
         ),
     );
 
     tempvar new_storage_tries = TrieTupleAddressBytes32U256(
         new TrieTupleAddressBytes32U256Struct(
-            storage_tries.value.secured, storage_tries.value.default, new_storage_tries_data
+            squashed_storage_tries.value.secured,
+            squashed_storage_tries.value.default,
+            new_storage_tries_data,
         ),
     );
     tempvar state = State(
