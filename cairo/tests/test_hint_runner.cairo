@@ -232,17 +232,3 @@ func test_hint_can_access_index_in_pointer_type() {
     %}
     ret;
 }
-
-func test_hint_can_access_index_in_felt_pointer() {
-    alloc_locals;
-    let (local bytes_ptr: felt*) = alloc();
-    assert bytes_ptr[0] = 1;
-    assert bytes_ptr[1] = 2;
-    assert bytes_ptr[2] = 3;
-    %{
-        assert ids.bytes_ptr[0] == 1
-        assert ids.bytes_ptr[1] == 2
-        assert ids.bytes_ptr[2] == 3
-    %}
-    ret;
-}

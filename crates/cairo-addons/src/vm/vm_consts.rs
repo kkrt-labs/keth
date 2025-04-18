@@ -476,12 +476,6 @@ impl PyVmConst {
 
         // Check if this is a pointer type
         match var_type {
-            // case: felt*
-            CairoVarType::Relocatable => {
-                let py_rel =
-                    PyRelocatable { inner: (self.var.address.unwrap() + index as usize).unwrap() };
-                Ok(Py::new(py, py_rel)?.into_bound_py_any(py)?.into())
-            }
             CairoVarType::Pointer { pointee, .. } => {
                 // Get the base address that the pointer points to
                 let ptr_addr = self
