@@ -9,6 +9,7 @@ from ethereum.cancun.trie import (
     ExtensionNode,
     InternalNode,
     LeafNode,
+    bytes_to_nibble_list,
     encode_internal_node,
 )
 from ethereum.crypto.hash import Hash32, keccak256
@@ -21,13 +22,13 @@ from hypothesis import strategies as st
 from hypothesis.strategies import composite
 
 from cairo_addons.rust_bindings.vm import poseidon_hash_many
-from cairo_addons.testing.errors import strict_raises
 from cairo_addons.utils.uint256 import int_to_uint256
 from keth_types.types import EMPTY_TRIE_HASH, encode_account
 from mpt.ethereum_tries import EthereumTrieTransitionDB
 from mpt.trie_builder import TrieTestBuilder
 from mpt.trie_diff import StateDiff, resolve
 from mpt.utils import decode_node
+from tests.utils.strategies import uint4
 
 
 @composite
@@ -82,30 +83,33 @@ def invalid_mpt_strategy(draw):
     """
     test_cases = st.sampled_from(
         [
-            "branch_value",
-            "branch_less_than_two_subnodes",
-            "extension_empty_key_segment",
-            "extension_none_subnode",
-            "leaf_empty_value",
-            "leaf_rest_of_key_plus_path_greater_than_64",
+            "expected an empty bytes value",
+            "expected at least two non-null subnodes",
+            "expected a non-zero key segment",
+            "expected a non-empty subnode",
+            "expected a non-empty value",
+            "expected a 32-byte combined path and rest of key",
         ]
     )
     test_case = draw(test_cases)
     builder = TrieTestBuilder()
-    key = draw(st.binary(min_size=0, max_size=64))
+    key_from_top_minus_1 = draw(st.lists(uint4, min_size=63, max_size=63).map(bytes))
+    key_from_top_minus_2 = draw(st.lists(uint4, min_size=62, max_size=62).map(bytes))
+    key_from_top_minus_3 = draw(st.lists(uint4, min_size=61, max_size=61).map(bytes))
+    key_one_nibble = draw(st.lists(uint4, min_size=1, max_size=1).map(bytes))
     leaf_value = encode_account(draw(st.from_type(Account)), EMPTY_TRIE_HASH)
 
     match test_case:
-        case "branch_value":
+        case "expected an empty bytes value":
             branch = builder.branch()
             branch.with_value(b"invalid")
             for i in range(16):
-                branch.with_leaf(i, key, leaf_value)
+                branch.with_leaf(i, key_from_top_minus_1, leaf_value)
             branch.build()
-        case "branch_less_than_two_subnodes":
+        case "expected at least two non-null subnodes":
             parent = builder.branch()
             for i in range(1, 16):
-                parent.with_leaf(i, key, leaf_value)
+                parent.with_leaf(i, key_from_top_minus_1, leaf_value)
             branch = parent.with_branch(0)
             length = draw(st.integers(min_value=0, max_value=1))
             indexes = draw(
@@ -119,38 +123,41 @@ def invalid_mpt_strategy(draw):
             subnode_is_leaf = draw(st.booleans())
             for i in indexes:
                 if subnode_is_leaf:
-                    branch.with_leaf(i, key, leaf_value)
+                    branch.with_leaf(i, key_from_top_minus_2, leaf_value)
                 elif i % 2 == 0:
-                    branch.with_extension(i, key).with_leaf(key, leaf_value)
+                    branch.with_extension(i, key_from_top_minus_2).with_leaf(
+                        key_from_top_minus_2, leaf_value
+                    )
                 else:
-                    branch.with_branch(i).with_leaf(0, key, leaf_value)
+                    branch.with_branch(i).with_leaf(0, key_from_top_minus_3, leaf_value)
             parent.build()
-        case "extension_empty_key_segment":
-            extension = builder.extension(key)
+        case "expected a non-zero key segment":
+            extension = builder.extension(key_one_nibble)
             branch = extension.with_branch()
-            ext = branch.with_extension(0, b"")
-            ext.with_leaf(key, leaf_value)
+            branch.with_leaf(0, key_from_top_minus_2, leaf_value)
+            branch.with_leaf(1, key_from_top_minus_2, leaf_value)
+            ext = branch.with_extension(2, b"")
+            ext.with_leaf(key_from_top_minus_3, leaf_value)
             extension.build()
-        case "extension_none_subnode":
-            extension = builder.extension(key)
-            branch = extension.with_branch()
-            branch.with_extension(0, key)
-            for i in range(1, 16):
-                branch.with_leaf(i, key, leaf_value)
-            extension.build()
-        case "leaf_empty_value":
+        case "expected a non-empty subnode":
             branch = builder.branch()
-            branch.with_leaf(0, key, b"")
+            branch.with_extension(0, key_one_nibble)
             for i in range(1, 16):
-                branch.with_leaf(i, key, leaf_value)
+                branch.with_leaf(i, key_from_top_minus_1, leaf_value)
             branch.build()
-        case "leaf_rest_of_key_plus_path_greater_than_64":
+        case "expected a non-empty value":
             branch = builder.branch()
-            branch.with_leaf(0, key, b"")
+            branch.with_leaf(0, key_from_top_minus_1, b"")
             for i in range(1, 16):
-                branch.with_leaf(i, key, leaf_value)
+                branch.with_leaf(i, key_from_top_minus_1, leaf_value)
             branch.build()
-    return builder.to_ethereum_tries()
+        case "expected a 32-byte combined path and rest of key":
+            branch = builder.branch()
+            branch.with_leaf(0, bytes_to_nibble_list(b"a" * 33), leaf_value)
+            for i in range(1, 16):
+                branch.with_leaf(i, key_from_top_minus_1, leaf_value)
+            branch.build()
+    return builder.to_ethereum_tries(), test_case
 
 
 @pytest.fixture
@@ -230,10 +237,17 @@ class TestTrieDiff:
             assert keys_in_address == len(state_diff._storage_tries[address].keys())
 
     @given(
-        invalid_pre_trie=invalid_mpt_strategy(),
-        invalid_post_trie=invalid_mpt_strategy(),
+        invalid_pre_trie_and_info=invalid_mpt_strategy(),
+        invalid_post_trie_and_info=invalid_mpt_strategy(),
     )
-    def test_invalid_trie_diff(self, cairo_run, invalid_pre_trie, invalid_post_trie):
+    def test_invalid_trie_diff(
+        self,
+        cairo_run,
+        invalid_pre_trie_and_info,
+        invalid_post_trie_and_info,
+    ):
+        invalid_pre_trie, invalid_pre_trie_info = invalid_pre_trie_and_info
+        invalid_post_trie, invalid_post_trie_info = invalid_post_trie_and_info
         trie = EthereumTrieTransitionDB.from_pre_and_post_tries(
             invalid_pre_trie, invalid_post_trie
         )
@@ -247,8 +261,22 @@ class TestTrieDiff:
                 right=trie.post_state_root,
             )
         except Exception as cairo_error:
-            with strict_raises(type(cairo_error)):
+            try:
                 StateDiff.from_tries(trie)
+                pytest.fail("Expected StateDiff.from_tries to raise an exception")
+            except Exception as python_error:
+                # Check that the error message matches one of the expected error messages
+                error_message = str(python_error)
+                expected_errors = [
+                    invalid_pre_trie_info,
+                    invalid_post_trie_info,
+                ]
+                assert any(
+                    expected in error_message
+                    for expected in expected_errors
+                    if expected
+                )
+                assert type(python_error) is type(cairo_error)
 
     @pytest.mark.parametrize(
         "data_path", [Path("test_data/22081873.json")], scope="session"

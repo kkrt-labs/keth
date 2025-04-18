@@ -7,7 +7,6 @@ from ethereum.cancun.trie import (
     ExtensionNode,
     InternalNode,
     LeafNode,
-    bytes_to_nibble_list,
     encode_internal_node,
     nibble_list_to_compact,
 )
@@ -64,8 +63,7 @@ class LeafNodeBuilder:
 
     def build(self) -> InternalNode:
         """Build the leaf node."""
-        key_nibbles = bytes_to_nibble_list(self.key)
-        node = LeafNode(key_nibbles, self.value)
+        node = LeafNode(self.key, self.value)
         self.builder.root_node = node
         # Store the node in the node store if it's not an embedded node
         encoded_node = rlp_encode_internal_node(node)
@@ -101,13 +99,12 @@ class ExtensionNodeBuilder:
 
     def build(self) -> InternalNode:
         """Build the extension node."""
-        key_nibbles = bytes_to_nibble_list(self.key_segment)
         if self._child_builder is not None:
             subnode = self._child_builder.build()
             encoded_subnode = encode_internal_node(subnode)
         else:
             encoded_subnode = b""
-        node = ExtensionNode(key_nibbles, encoded_subnode)
+        node = ExtensionNode(self.key_segment, encoded_subnode)
         self.builder.root_node = node
         # Store the node in the node store if it's not an embedded node
         encoded_node = rlp_encode_internal_node(node)

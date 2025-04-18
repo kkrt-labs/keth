@@ -4,7 +4,6 @@ from ethereum.cancun.trie import (
     bytes_to_nibble_list,
     encode_internal_node,
 )
-from ethereum_types.bytes import Bytes
 
 from keth_types.types import EMPTY_TRIE_HASH
 from mpt.trie_builder import TrieTestBuilder, rlp_encode_internal_node
@@ -20,18 +19,18 @@ class TestTrieBuilder:
     def test_single_leaf(self):
 
         # Create a leaf node
-        key = b"test_key"
+        key = bytes_to_nibble_list(b"test_key")
         value = b"test_value"
         trie = TrieTestBuilder().leaf(key, value).build()
         assert isinstance(trie, LeafNode)
-        assert trie.value == value and trie.rest_of_key == bytes_to_nibble_list(key)
+        assert trie.value == value and trie.rest_of_key == key
 
     def test_extension_with_leaf(self):
         builder = TrieTestBuilder()
 
         # Create an extension node pointing to a leaf
-        ext = builder.extension(b"ext_segment")
-        ext.with_leaf(b"leaf_key", b"leaf_value")
+        ext = builder.extension(bytes_to_nibble_list(b"ext_segment"))
+        ext.with_leaf(bytes_to_nibble_list(b"leaf_key"), b"leaf_value")
         extension_node = ext.build()
 
         # The extension node should be in the node store
@@ -48,10 +47,10 @@ class TestTrieBuilder:
         branch = builder.branch()
         branch.with_leaf(
             0,
-            b"some_long_key_equal_to_32_bytes_",
+            bytes_to_nibble_list(b"some_long_key_equal_to_32_bytes_"),
             b"some_value_rlp_length_greater_than_32_bytes",
         )
-        branch.with_leaf(15, b"a", b"b")
+        branch.with_leaf(15, bytes_to_nibble_list(b"a"), b"b")
         branch.with_value(b"branch_value")
         branch_node = branch.build()
 
@@ -91,24 +90,26 @@ class TestTrieBuilder:
         branch = builder.branch()
 
         # Add a leaf at index 0
-        branch.with_leaf(0, Bytes(b"key1"), Bytes(b"value1"))
+        branch.with_leaf(0, bytes_to_nibble_list(b"key1"), b"value1")
 
         # Add an extension node at index 1 that points to a leaf
-        ext1 = branch.with_extension(1, Bytes(b"ext_key1"))
-        ext1.with_leaf(Bytes(b"leaf_key2"), Bytes(b"value2"))
+        ext1 = branch.with_extension(1, bytes_to_nibble_list(b"ext_key1"))
+        ext1.with_leaf(bytes_to_nibble_list(b"leaf_key2"), b"value2")
 
         # Add an extension node at index 2 that points to another extension
-        ext2 = branch.with_extension(2, Bytes(b"ext_key2"))
-        ext3 = ext2.with_extension(Bytes(b"ext_key3"))
-        ext3.with_leaf(Bytes(b"leaf_key3"), Bytes(b"value3"))
+        ext2 = branch.with_extension(2, bytes_to_nibble_list(b"ext_key2"))
+        ext3 = ext2.with_extension(bytes_to_nibble_list(b"ext_key3"))
+        ext3.with_leaf(bytes_to_nibble_list(b"leaf_key3"), b"value3")
 
         # Add a branch node at index 3
         sub_branch = branch.with_branch(3)
-        sub_branch.with_leaf(5, Bytes(b"subbranch_key"), Bytes(b"subbranch_value"))
-        sub_branch.with_value(Bytes(b"branch_value"))
+        sub_branch.with_leaf(
+            5, bytes_to_nibble_list(b"subbranch_key"), b"subbranch_value"
+        )
+        sub_branch.with_value(b"branch_value")
 
         # Add a value to the root branch
-        branch.with_value(Bytes(b"root_value"))
+        branch.with_value(b"root_value")
 
         # Build the trie
         branch_node = branch.build()
