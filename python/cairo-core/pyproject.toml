@@ -22,7 +22,6 @@ artifacts = [
 
 [tool.uv.sources]
 cairo-addons = { workspace = true }
-garaga = { git = "https://github.com/keep-starknet-strange/garaga.git", rev = "hydra_upd" }
 
 [tool.isort]
 profile = "black"

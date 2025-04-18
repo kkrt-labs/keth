@@ -29,9 +29,9 @@ revm-precompile = "17.0.0-alpha.1"
 lazy_static = "1.5.0"
 starknet-types-core = "0.1.7"
 nybbles = "0.3.4"
-garaga_rs = { git = "https://github.com/keep-starknet-strange/garaga.git", tag = "v0.15.3", features = [
+garaga_rs = { git = "https://github.com/keep-starknet-strange/garaga.git", tag = "v0.16.0", features = [
   "python",
-] }
+], default-features = false }
 polars = { version = "0.46" }
 pyo3-polars = "0.20.0"
 thiserror = "2.0"
