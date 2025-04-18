@@ -108,18 +108,17 @@ class ExtensionNodeBuilder:
         else:
             encoded_subnode = b""
         node = ExtensionNode(key_nibbles, encoded_subnode)
+        self.builder.root_node = node
         # Store the node in the node store if it's not an embedded node
         encoded_node = rlp_encode_internal_node(node)
         if len(encoded_node) >= 32:
             self.builder.node_store[keccak256(encoded_node)] = encoded_node
-        self.builder.root_node = node
         return node
 
 
 class BranchNodeBuilder:
     def __init__(self, builder: TrieTestBuilder):
         self.builder = builder
-        self.subnodes: List[Optional[InternalNode]] = [b""] * 16
         self.value: Bytes = b""
         self._child_builders: List[Optional[NodeBuilder]] = [None] * 16
 
@@ -144,20 +143,17 @@ class BranchNodeBuilder:
     def with_leaf(self, index: int, key: Bytes, value: Bytes) -> "LeafNodeBuilder":
         """Add a leaf node at the specified index."""
         leaf_builder = LeafNodeBuilder(self.builder, key, value)
-        self._child_builders[index] = leaf_builder
-        return leaf_builder
+        return self.with_child(index, leaf_builder)
 
     def with_extension(self, index: int, key_segment: Bytes) -> "ExtensionNodeBuilder":
         """Add an extension node at the specified index and return it for further building."""
         ext_builder = ExtensionNodeBuilder(self.builder, key_segment)
-        self._child_builders[index] = ext_builder
-        return ext_builder
+        return self.with_child(index, ext_builder)
 
     def with_branch(self, index: int) -> "BranchNodeBuilder":
         """Add a branch node at the specified index and return it for further building."""
         branch_builder = BranchNodeBuilder(self.builder)
-        self._child_builders[index] = branch_builder
-        return branch_builder
+        return self.with_child(index, branch_builder)
 
     def build(self) -> InternalNode:
         """Build the branch node."""

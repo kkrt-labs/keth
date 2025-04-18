@@ -21,8 +21,11 @@ from hypothesis import strategies as st
 from hypothesis.strategies import composite
 
 from cairo_addons.rust_bindings.vm import poseidon_hash_many
+from cairo_addons.testing.errors import strict_raises
 from cairo_addons.utils.uint256 import int_to_uint256
+from keth_types.types import EMPTY_TRIE_HASH, encode_account
 from mpt.ethereum_tries import EthereumTrieTransitionDB
+from mpt.trie_builder import TrieTestBuilder
 from mpt.trie_diff import StateDiff, resolve
 from mpt.utils import decode_node
 
@@ -60,6 +63,94 @@ def embedded_node_strategy(draw):
         "branch": branch_node,
         "leaf": leaf_node,
     }
+
+
+@composite
+def invalid_mpt_strategy(draw):
+    """
+    Creates a EthereumTries that is invalid.
+    Invalid cases:
+    1. Branch Node:
+        - Non-empty value.
+        - Less than two non-null subnodes.
+    2. Extension Node:
+        - Empty key segment.
+        - None subnode.
+    3. Leaf Node:
+        - Empty value.
+        - Length of rest_of_key plus path > 64.
+    """
+    test_cases = st.sampled_from(
+        [
+            "branch_value",
+            "branch_less_than_two_subnodes",
+            "extension_empty_key_segment",
+            "extension_none_subnode",
+            "leaf_empty_value",
+            "leaf_rest_of_key_plus_path_greater_than_64",
+        ]
+    )
+    test_case = draw(test_cases)
+    builder = TrieTestBuilder()
+    key = draw(st.binary(min_size=0, max_size=64))
+    leaf_value = encode_account(draw(st.from_type(Account)), EMPTY_TRIE_HASH)
+
+    match test_case:
+        case "branch_value":
+            branch = builder.branch()
+            branch.with_value(b"invalid")
+            for i in range(16):
+                branch.with_leaf(i, key, leaf_value)
+            branch.build()
+        case "branch_less_than_two_subnodes":
+            parent = builder.branch()
+            for i in range(1, 16):
+                parent.with_leaf(i, key, leaf_value)
+            branch = parent.with_branch(0)
+            length = draw(st.integers(min_value=0, max_value=1))
+            indexes = draw(
+                st.lists(
+                    st.integers(min_value=0, max_value=15),
+                    min_size=length,
+                    max_size=length,
+                    unique=True,
+                )
+            )
+            subnode_is_leaf = draw(st.booleans())
+            for i in indexes:
+                if subnode_is_leaf:
+                    branch.with_leaf(i, key, leaf_value)
+                elif i % 2 == 0:
+                    branch.with_extension(i, key).with_leaf(key, leaf_value)
+                else:
+                    branch.with_branch(i).with_leaf(0, key, leaf_value)
+            parent.build()
+        case "extension_empty_key_segment":
+            extension = builder.extension(key)
+            branch = extension.with_branch()
+            ext = branch.with_extension(0, b"")
+            ext.with_leaf(key, leaf_value)
+            extension.build()
+        case "extension_none_subnode":
+            extension = builder.extension(key)
+            branch = extension.with_branch()
+            branch.with_extension(0, key)
+            for i in range(1, 16):
+                branch.with_leaf(i, key, leaf_value)
+            extension.build()
+        case "leaf_empty_value":
+            branch = builder.branch()
+            branch.with_leaf(0, key, b"")
+            for i in range(1, 16):
+                branch.with_leaf(i, key, leaf_value)
+            branch.build()
+        case "leaf_rest_of_key_plus_path_greater_than_64":
+            branch = builder.branch()
+            branch.with_leaf(0, key, b"")
+            for i in range(1, 16):
+                branch.with_leaf(i, key, leaf_value)
+            branch.build()
+    return builder.to_ethereum_tries()
 
 
 @pytest.fixture
@@ -105,7 +196,6 @@ class TestTrieDiff:
             storage_key_preimages=ethereum_trie_transition_db.storage_key_preimages,
             left=ethereum_trie_transition_db.state_root,
             right=ethereum_trie_transition_db.post_state_root,
-            account_address=None,
         )
 
         accounts_lookup: Dict[Address, Tuple[Optional[Account], Optional[Account]]] = {
@@ -138,6 +228,27 @@ class TestTrieDiff:
                 assert (prev_value, new_value) == storage_lookup[key_hashed]
                 keys_in_address += 1
             assert keys_in_address == len(state_diff._storage_tries[address].keys())
+
+    @given(
+        invalid_pre_trie=invalid_mpt_strategy(),
+        invalid_post_trie=invalid_mpt_strategy(),
+    )
+    def test_invalid_trie_diff(self, cairo_run, invalid_pre_trie, invalid_post_trie):
+        trie = EthereumTrieTransitionDB.from_pre_and_post_tries(
+            invalid_pre_trie, invalid_post_trie
+        )
+        try:
+            cairo_run(
+                "compute_diff_entrypoint",
+                node_store=trie.nodes,
+                address_preimages=trie.address_preimages,
+                storage_key_preimages=trie.storage_key_preimages,
+                left=trie.state_root,
+                right=trie.post_state_root,
+            )
+        except Exception as cairo_error:
+            with strict_raises(type(cairo_error)):
+                StateDiff.from_tries(trie)
 
     @pytest.mark.parametrize(
         "data_path", [Path("test_data/22081873.json")], scope="session"

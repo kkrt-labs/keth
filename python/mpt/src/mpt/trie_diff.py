@@ -507,6 +507,8 @@ class StateDiff:
                         )
 
             case (BranchNode(), ExtensionNode()):
+                check_branch_node(l_node)
+                check_extension_node(r_node, parent=right_parent)
                 # Match on the corresponding nibble of the extension key segment
                 for i in range(0, 16):
                     nibble = bytes([i])
