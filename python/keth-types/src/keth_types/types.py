@@ -1,6 +1,6 @@
 import functools
 from collections import defaultdict
-from dataclasses import dataclass, fields, make_dataclass
+from dataclasses import dataclass, field, fields, make_dataclass
 from typing import (
     ClassVar,
     List,
@@ -158,11 +158,14 @@ class MessageCallOutput(
         namespace={"__doc__": MessageCallOutputBase.__doc__},
     )
 ):
+
+    accessed_storage_keys: Set[Tuple[Address, Bytes32]] = field(default_factory=set)
+
     def __eq__(self, other):
         return all(
             getattr(self, field.name) == getattr(other, field.name)
             for field in fields(self)
-            if field.name != "error"
+            if field.name != "error" and field.name != "accessed_storage_keys"
         ) and type(self.error) is type(other.error)
 
 

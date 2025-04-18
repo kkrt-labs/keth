@@ -50,6 +50,7 @@ from ethereum.cancun.blocks import (
 )
 from ethereum.cancun.bloom import logs_bloom
 from ethereum.cancun.trie import (
+    get_tuple_address_bytes32_preimage_for_key,
     trie_set_TrieBytesOptionalUnionBytesLegacyTransaction,
     TrieAddressOptionalAccountStruct,
     root,
@@ -86,6 +87,8 @@ from ethereum.cancun.trie import (
     TrieBytes32U256Struct,
 )
 from ethereum.cancun.fork_types import (
+    OptionalAccount,
+    AccountStruct,
     Address,
     ListHash32,
     ListHash32Struct,
@@ -106,14 +109,17 @@ from ethereum.cancun.fork_types import (
     MappingAddressBytes32Struct,
 )
 from ethereum.cancun.state import (
+    set_storage,
     account_exists_and_is_empty,
     destroy_account,
     destroy_touched_empty_accounts,
     get_account,
     get_account_code,
     increment_nonce,
+    set_account,
     set_account_balance,
     State,
+    StateStruct,
     TransientStorage,
     TransientStorageStruct,
     empty_transient_storage,
@@ -176,6 +182,7 @@ from ethereum.utils.numeric import (
 )
 from ethereum.cancun.transactions import recover_sender
 from ethereum.cancun.vm.instructions.block import _append_logs
+from ethereum.utils.hash_dicts import set_address_contains
 from ethereum.utils.bytes import Bytes32_to_Bytes, Bytes32__eq__, Bytes256__eq__
 from cairo_core.comparison import is_zero
 
@@ -587,23 +594,33 @@ func process_transaction{
     );
     if (coinbase_balance_after_mining_fee_is_zero.value == FALSE) {
         set_account_balance{state=state}(env.value.coinbase, coinbase_balance_after_mining_fee);
+        tempvar range_check_ptr = range_check_ptr;
         tempvar poseidon_ptr = poseidon_ptr;
         tempvar state = state;
     } else {
         let is_empty = account_exists_and_is_empty{state=state}(env.value.coinbase);
         if (is_empty.value != FALSE) {
             destroy_account{state=state}(env.value.coinbase);
+            tempvar range_check_ptr = range_check_ptr;
             tempvar poseidon_ptr = poseidon_ptr;
             tempvar state = state;
         } else {
+            tempvar range_check_ptr = range_check_ptr;
             tempvar poseidon_ptr = poseidon_ptr;
             tempvar state = state;
         }
+        tempvar range_check_ptr = range_check_ptr;
         tempvar poseidon_ptr = poseidon_ptr;
         tempvar state = state;
     }
 
+    // The objects passed here are already squashed for efficiency - see `finalize_evm`.
+    // We separate the deletion of storage from the deletion of accounts for efficiency.
+    process_storage_deletions{state=state}(
+        output.value.accessed_storage_keys, output.value.accounts_to_delete
+    );
     process_account_deletions{state=state}(output.value.accounts_to_delete);
+
     destroy_touched_empty_accounts{state=state}(output.value.touched_accounts);
     EnvImpl.set_state{env=env}(state);
 
@@ -611,6 +628,9 @@ func process_transaction{
     return (Uint(total_gas_used), output.value.logs, optional_err);
 }
 
+// @notice Deletes an account from the state.
+// @dev This function does not delete the associated storage.
+// @param accounts_to_delete - The set of accounts to delete. For performance reasons, this should be squashed before calling this function.
 func process_account_deletions{poseidon_ptr: PoseidonBuiltin*, state: State}(
     accounts_to_delete: SetAddress
 ) {
@@ -624,7 +644,8 @@ func process_account_deletions{poseidon_ptr: PoseidonBuiltin*, state: State}(
 
     // Get current address and destroy account
     let address = [current].key;
-    destroy_account(address);
+    let none_account = OptionalAccount(cast(0, AccountStruct*));
+    set_account(address, none_account);
 
     // Recursively process remaining accounts
     return process_account_deletions(
@@ -635,6 +656,57 @@ func process_account_deletions{poseidon_ptr: PoseidonBuiltin*, state: State}(
             ),
         ),
     );
+}
+// @notice Sets to 0 the storage keys present in `accessed_storage_keys` for the accounts present in `accounts_to_delete`.
+// @dev Accounts are only deleted in the case of a SELFDESTRUCT execution.
+//      1. Because the account was created in the same transaction, we can assume that all storage keys to delete are present in `accessed_storage_keys`.
+//      2. Iterate over these keys, identify whether it belongs to an account to delete, if so, set it to 0.
+// @param accessed_storage_keys - The set of unique storage keys accessed in the transaction. For performance reasons, this should be squashed before calling this function.
+// @param accounts_to_delete - The set of accounts to delete. For performance reasons, this should be squashed before calling this function.
+func process_storage_deletions{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, state: State}(
+    accessed_storage_keys: SetTupleAddressBytes32, accounts_to_delete: SetAddress
+) {
+    alloc_locals;
+
+    let current = accessed_storage_keys.value.dict_ptr_start;
+    let dict_ptr_stop = accessed_storage_keys.value.dict_ptr;
+    if (current == dict_ptr_stop) {
+        return ();
+    }
+
+    let storage_key_hash = [current].key;
+    let tuple_address_bytes32 = get_tuple_address_bytes32_preimage_for_key(
+        storage_key_hash.value, cast(dict_ptr_stop, DictAccess*)
+    );
+    let is_account_to_delete = set_address_contains{set=accounts_to_delete}(
+        tuple_address_bytes32.value.address
+    );
+    if (is_account_to_delete != 0) {
+        let new_storage_value = state.value._storage_tries.value.default;
+        set_storage(
+            tuple_address_bytes32.value.address,
+            tuple_address_bytes32.value.bytes32,
+            new_storage_value,
+        );
+        tempvar state = state;
+        tempvar poseidon_ptr = poseidon_ptr;
+    } else {
+        tempvar state = state;
+        tempvar poseidon_ptr = poseidon_ptr;
+    }
+    let state = State(cast([ap - 2], StateStruct*));
+    let poseidon_ptr = cast([ap - 1], PoseidonBuiltin*);
+
+    tempvar next_iter = SetTupleAddressBytes32(
+        new SetTupleAddressBytes32Struct(
+            dict_ptr_start=cast(
+                current + SetTupleAddressBytes32DictAccess.SIZE, SetTupleAddressBytes32DictAccess*
+            ),
+            dict_ptr=cast(dict_ptr_stop, SetTupleAddressBytes32DictAccess*),
+        ),
+    );
+
+    return process_storage_deletions(next_iter, accounts_to_delete);
 }
 
 // Recursive function to process access list entries
@@ -1353,11 +1425,13 @@ func _process_withdrawals_inner{
     let cond = account_exists_and_is_empty(withdrawal.value.address);
     if (cond.value != 0) {
         destroy_account{poseidon_ptr=poseidon_ptr, state=state}(withdrawal.value.address);
-        tempvar state = state;
+        tempvar range_check_ptr = range_check_ptr;
         tempvar poseidon_ptr = poseidon_ptr;
+        tempvar state = state;
     } else {
-        tempvar state = state;
+        tempvar range_check_ptr = range_check_ptr;
         tempvar poseidon_ptr = poseidon_ptr;
+        tempvar state = state;
     }
 
     return _process_withdrawals_inner{state=state, trie=trie}(index + 1, withdrawals);

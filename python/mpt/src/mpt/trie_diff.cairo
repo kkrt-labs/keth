@@ -108,11 +108,10 @@ from mpt.types import (
     AddressAccountDiffEntry,
     OptionalUnionInternalNodeExtended,
     OptionalUnionInternalNodeExtendedEnum,
+    EMPTY_TRIE_HASH_LOW,
+    EMPTY_TRIE_HASH_HIGH,
 )
 from legacy.utils.dict import dict_squash
-
-const EMPTY_TRIE_HASH_LOW = 0x6ef8c092e64583ffa655cc1b171fe856;
-const EMPTY_TRIE_HASH_HIGH = 0x21b463e3b52f6201c0ad6c991be0485b;
 
 // / @notice Implementation details for OptionalUnionInternalNodeExtended.
 namespace OptionalUnionInternalNodeExtendedImpl {

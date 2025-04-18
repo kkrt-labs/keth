@@ -50,6 +50,7 @@ from ethereum.cancun.vm.runtime import get_valid_jump_destinations, finalize_jum
 from ethereum.cancun.vm.stack import Stack, StackStruct, StackDictAccess
 from ethereum.utils.numeric import U256, U256Struct, U256__eq__
 from ethereum.cancun.state import (
+    destroy_account,
     StateImpl,
     account_exists_and_is_empty,
     account_has_code_or_nonce,
@@ -63,10 +64,12 @@ from ethereum.cancun.state import (
     rollback_transaction,
     set_code,
     State,
+    StateStruct,
     touch_account,
 )
 
 from ethereum.cancun.vm.evm_impl import EvmImpl
+from mpt.types import EMPTY_TRIE_HASH_LOW, EMPTY_TRIE_HASH_HIGH
 
 from legacy.utils.dict import hashdict_write, default_dict_finalize, dict_squash
 
@@ -81,6 +84,7 @@ struct MessageCallOutputStruct {
     accounts_to_delete: SetAddress,
     touched_accounts: SetAddress,
     error: EthereumException*,
+    accessed_storage_keys: SetTupleAddressBytes32,
 }
 
 func process_create_message{
@@ -107,7 +111,26 @@ func process_create_message{
     //   `CREATE` or `CREATE2` call.
     // * The first `CREATE` happened before Spurious Dragon and left empty
     //   code.
-    destroy_storage{state=state}(message.value.current_target);
+
+    // Note: diff with EELS here:
+    // 1. We consider the CREATE call collision unlikely enough to happen in the same block,
+    //    so if a created account has no storage before that block, we consider it not to have any storage _at all_.
+    // 2. We can know whether the account has storage or not by checking the storage root.
+    // 3. We can skip the storage destruction if the storage root is the empty root.
+    let is_empty = account_exists_and_is_empty{state=state}(message.value.current_target);
+    if (is_empty.value != FALSE) {
+        destroy_account{state=state}(message.value.current_target);
+        tempvar range_check_ptr = range_check_ptr;
+        tempvar poseidon_ptr = poseidon_ptr;
+        tempvar state = state;
+    } else {
+        tempvar range_check_ptr = range_check_ptr;
+        tempvar poseidon_ptr = poseidon_ptr;
+        tempvar state = state;
+    }
+    let range_check_ptr = [ap - 3];
+    let poseidon_ptr = cast([ap - 2], PoseidonBuiltin*);
+    let state = State(cast([ap - 1], StateStruct*));
 
     // In the previously mentioned edge case the preexisting storage is ignored
     // for gas refund purposes. In order to do this we must track created
@@ -597,6 +620,7 @@ func process_message_call{
             accounts_to_delete=squashed_evm.value.accounts_to_delete,
             touched_accounts=squashed_evm.value.touched_accounts,
             error=squashed_evm.value.error,
+            accessed_storage_keys=squashed_evm.value.accessed_storage_keys,
         ),
     );
     return msg;
@@ -629,6 +653,15 @@ func create_empty_message_call_output(
         ),
     );
 
+    let (dict_start3: DictAccess*) = default_dict_new(0);
+    let dict_ptr3 = dict_start3;
+    tempvar empty_set3 = SetTupleAddressBytes32(
+        new SetTupleAddressBytes32Struct(
+            dict_ptr_start=cast(dict_start3, SetTupleAddressBytes32DictAccess*),
+            dict_ptr=cast(dict_ptr3, SetTupleAddressBytes32DictAccess*),
+        ),
+    );
+
     tempvar msg = MessageCallOutput(
         new MessageCallOutputStruct(
             gas_left=gas_left,
@@ -637,6 +670,7 @@ func create_empty_message_call_output(
             accounts_to_delete=empty_set1,
             touched_accounts=empty_set2,
             error=error,
+            accessed_storage_keys=empty_set3,
         ),
     );
     return msg;
