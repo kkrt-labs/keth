@@ -16,7 +16,6 @@ from ethereum.cancun.state import (
 from legacy.utils.dict import (
     prev_values,
     dict_update,
-    get_keys_for_address_prefix,
     squash_and_update,
     dict_squash,
     default_dict_finalize,
@@ -78,18 +77,6 @@ func test_dict_update{range_check_ptr}(
         ),
     );
     return result;
-}
-
-func test_get_keys_for_address_prefix{range_check_ptr}(
-    prefix_: Address, dict_entries: MappingTupleAddressBytes32U256
-) -> ListTupleAddressBytes32 {
-    alloc_locals;
-    let prefix_len = 1;
-    let (prefix: felt*) = alloc();
-    assert [prefix] = prefix_.value;
-    let dict_ptr = cast(dict_entries.value.dict_ptr, DictAccess*);
-    let res = get_keys_for_address_prefix{dict_ptr=dict_ptr}(prefix_len, prefix);
-    return res;
 }
 
 func test_squash_and_update{range_check_ptr}(

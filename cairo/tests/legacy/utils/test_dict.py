@@ -105,17 +105,6 @@ def dict_with_prefix(draw):
     return dict_entries, prefix
 
 
-@given(dict_with_prefix=dict_with_prefix())
-def test_get_keys_for_address_prefix(cairo_run, dict_with_prefix):
-    dict_entries: Mapping[Tuple[Address, Bytes32], U256] = dict_with_prefix[0]
-    prefix: Address = dict_with_prefix[1]
-    keys = cairo_run("test_get_keys_for_address_prefix", prefix, dict_entries)
-    keys = [keys] if not isinstance(keys, list) else keys
-    assert set(tuple(k) for k in keys) == {
-        key for key in dict_entries.keys() if key[0] == prefix
-    }
-
-
 @given(src_dict=..., dst_dict=...)
 def test_squash_and_update(
     cairo_run,

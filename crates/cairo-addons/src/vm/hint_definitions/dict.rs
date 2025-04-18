@@ -86,10 +86,18 @@ pub fn dict_squash() -> Hint {
             // all dicts were properly squashed.
             tracker.is_squashed = true;
             let copied_data = tracker.get_dictionary_copy();
+            let copied_default_value = tracker.get_default_value().cloned();
 
-            // Create new dict with copied data
-            let base = dict_manager.new_dict(vm, copied_data)?;
-
+            let base = match copied_default_value {
+                Some(default_value) => {
+                    // Create a new default dict with the copied data
+                    dict_manager.new_default_dict(vm, &default_value, Some(copied_data))?
+                }
+                None => {
+                    // Create a new regular dict with the copied data
+                    dict_manager.new_dict(vm, copied_data)?
+                }
+            };
             // Insert the new dictionary's base pointer into ap
             insert_value_into_ap(vm, base)
         },
