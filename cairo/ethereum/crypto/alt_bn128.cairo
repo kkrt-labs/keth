@@ -15,8 +15,8 @@ from legacy.utils.dict import default_dict_finalize
 
 from cairo_ec.circuits.mod_ops_compiled import add, sub, mul
 from cairo_ec.curve.alt_bn128 import alt_bn128
-from definitions import G1G2Pair, G1Point as G1PointGaraga, G2Point as G2PointGaraga
-from bn254.multi_pairing_1 import multi_pairing_1P
+from garaga_zero.definitions import G1G2Pair, G1Point as G1PointGaraga, G2Point as G2PointGaraga
+from garaga_zero.bn254.multi_pairing_1 import multi_pairing_1P
 
 from ethereum.exceptions import Exception, ValueError
 
