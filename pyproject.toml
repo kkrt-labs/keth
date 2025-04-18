@@ -48,14 +48,13 @@ dev-dependencies = [
 ]
 
 [tool.uv.sources]
-garaga = { git = "https://github.com/keep-starknet-strange/garaga.git", rev = "hydra_upd" }
 cairo-addons = { workspace = true }
 cairo-ec = { workspace = true }
 cairo-core = { workspace = true }
 eth-rpc = { workspace = true }
 keth-types = { workspace = true }
 mpt = { workspace = true }
-garaga-zero = { git = "https://github.com/kkrt-labs/garaga-zero", rev = "f294b46c9fed3f2d430a21d4c8db1699a14cab42" }
+garaga-zero = { git = "https://github.com/kkrt-labs/garaga-zero", rev = "1238df3b914252ff04f1d1c44c0ab0b2a4aba1f4" }
 
 [tool.uv.workspace]
 members = ["python/*"]
