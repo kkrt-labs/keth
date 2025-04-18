@@ -671,6 +671,14 @@ func process_storage_deletions{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, 
     let current = accessed_storage_keys.value.dict_ptr_start;
     let dict_ptr_stop = accessed_storage_keys.value.dict_ptr;
     if (current == dict_ptr_stop) {
+        // Squash the `accounts_to_delete` dict that was read
+        let (
+            squashed_accounts_to_delete_start, squashed_accounts_to_delete_end
+        ) = default_dict_finalize(
+            cast(accounts_to_delete.value.dict_ptr_start, DictAccess*),
+            cast(accounts_to_delete.value.dict_ptr, DictAccess*),
+            0,
+        );
         return ();
     }
 
