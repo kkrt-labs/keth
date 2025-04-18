@@ -9,6 +9,7 @@ from ethereum.cancun.trie import (
     ExtensionNode,
     InternalNode,
     LeafNode,
+    bytes_to_nibble_list,
     encode_internal_node,
 )
 from ethereum.crypto.hash import Hash32, keccak256
@@ -22,9 +23,12 @@ from hypothesis.strategies import composite
 
 from cairo_addons.rust_bindings.vm import poseidon_hash_many
 from cairo_addons.utils.uint256 import int_to_uint256
+from keth_types.types import EMPTY_TRIE_HASH, encode_account
 from mpt.ethereum_tries import EthereumTrieTransitionDB
+from mpt.trie_builder import TrieTestBuilder
 from mpt.trie_diff import StateDiff, resolve
 from mpt.utils import decode_node
+from tests.utils.strategies import uint4
 
 
 @composite
@@ -60,6 +64,100 @@ def embedded_node_strategy(draw):
         "branch": branch_node,
         "leaf": leaf_node,
     }
+
+
+@composite
+def invalid_mpt_strategy(draw):
+    """
+    Creates a EthereumTries that is invalid.
+    Invalid cases:
+    1. Branch Node:
+        - Non-empty value.
+        - Less than two non-null subnodes.
+    2. Extension Node:
+        - Empty key segment.
+        - None subnode.
+    3. Leaf Node:
+        - Empty value.
+        - Length of rest_of_key plus path > 64.
+    """
+    test_cases = st.sampled_from(
+        [
+            "expected an empty bytes value",
+            "expected at least two non-null subnodes",
+            "expected a non-zero key segment",
+            "expected a non-empty subnode",
+            "expected a non-empty value",
+            "expected a 32-byte combined path and rest of key",
+        ]
+    )
+    test_case = draw(test_cases)
+    builder = TrieTestBuilder()
+    key_from_top_minus_1 = draw(st.lists(uint4, min_size=63, max_size=63).map(bytes))
+    key_from_top_minus_2 = draw(st.lists(uint4, min_size=62, max_size=62).map(bytes))
+    key_from_top_minus_3 = draw(st.lists(uint4, min_size=61, max_size=61).map(bytes))
+    key_one_nibble = draw(st.lists(uint4, min_size=1, max_size=1).map(bytes))
+    leaf_value = encode_account(draw(st.from_type(Account)), EMPTY_TRIE_HASH)
+
+    match test_case:
+        case "expected an empty bytes value":
+            branch = builder.branch()
+            branch.with_value(b"invalid")
+            for i in range(16):
+                branch.with_leaf(i, key_from_top_minus_1, leaf_value)
+            branch.build()
+        case "expected at least two non-null subnodes":
+            parent = builder.branch()
+            for i in range(1, 16):
+                parent.with_leaf(i, key_from_top_minus_1, leaf_value)
+            branch = parent.with_branch(0)
+            length = draw(st.integers(min_value=0, max_value=1))
+            indexes = draw(
+                st.lists(
+                    st.integers(min_value=0, max_value=15),
+                    min_size=length,
+                    max_size=length,
+                    unique=True,
+                )
+            )
+            subnode_is_leaf = draw(st.booleans())
+            for i in indexes:
+                if subnode_is_leaf:
+                    branch.with_leaf(i, key_from_top_minus_2, leaf_value)
+                elif i % 2 == 0:
+                    branch.with_extension(i, key_from_top_minus_2).with_leaf(
+                        key_from_top_minus_2, leaf_value
+                    )
+                else:
+                    branch.with_branch(i).with_leaf(0, key_from_top_minus_3, leaf_value)
+            parent.build()
+        case "expected a non-zero key segment":
+            extension = builder.extension(key_one_nibble)
+            branch = extension.with_branch()
+            branch.with_leaf(0, key_from_top_minus_2, leaf_value)
+            branch.with_leaf(1, key_from_top_minus_2, leaf_value)
+            ext = branch.with_extension(2, b"")
+            ext.with_leaf(key_from_top_minus_3, leaf_value)
+            extension.build()
+        case "expected a non-empty subnode":
+            branch = builder.branch()
+            branch.with_extension(0, key_one_nibble)
+            for i in range(1, 16):
+                branch.with_leaf(i, key_from_top_minus_1, leaf_value)
+            branch.build()
+        case "expected a non-empty value":
+            branch = builder.branch()
+            branch.with_leaf(0, key_from_top_minus_1, b"")
+            for i in range(1, 16):
+                branch.with_leaf(i, key_from_top_minus_1, leaf_value)
+            branch.build()
+        case "expected a 32-byte combined path and rest of key":
+            branch = builder.branch()
+            branch.with_leaf(0, bytes_to_nibble_list(b"a" * 33), leaf_value)
+            for i in range(1, 16):
+                branch.with_leaf(i, key_from_top_minus_1, leaf_value)
+            branch.build()
+    return builder.to_ethereum_tries(), test_case
 
 
 @pytest.fixture
@@ -105,7 +203,6 @@ class TestTrieDiff:
             storage_key_preimages=ethereum_trie_transition_db.storage_key_preimages,
             left=ethereum_trie_transition_db.state_root,
             right=ethereum_trie_transition_db.post_state_root,
-            account_address=None,
         )
 
         accounts_lookup: Dict[Address, Tuple[Optional[Account], Optional[Account]]] = {
@@ -138,6 +235,48 @@ class TestTrieDiff:
                 assert (prev_value, new_value) == storage_lookup[key_hashed]
                 keys_in_address += 1
             assert keys_in_address == len(state_diff._storage_tries[address].keys())
+
+    @given(
+        invalid_pre_trie_and_info=invalid_mpt_strategy(),
+        invalid_post_trie_and_info=invalid_mpt_strategy(),
+    )
+    def test_invalid_trie_diff(
+        self,
+        cairo_run,
+        invalid_pre_trie_and_info,
+        invalid_post_trie_and_info,
+    ):
+        invalid_pre_trie, invalid_pre_trie_info = invalid_pre_trie_and_info
+        invalid_post_trie, invalid_post_trie_info = invalid_post_trie_and_info
+        trie = EthereumTrieTransitionDB.from_pre_and_post_tries(
+            invalid_pre_trie, invalid_post_trie
+        )
+        try:
+            cairo_run(
+                "compute_diff_entrypoint",
+                node_store=trie.nodes,
+                address_preimages=trie.address_preimages,
+                storage_key_preimages=trie.storage_key_preimages,
+                left=trie.state_root,
+                right=trie.post_state_root,
+            )
+        except Exception as cairo_error:
+            try:
+                StateDiff.from_tries(trie)
+                pytest.fail("Expected StateDiff.from_tries to raise an exception")
+            except Exception as python_error:
+                # Check that the error message matches one of the expected error messages
+                error_message = str(python_error)
+                expected_errors = [
+                    invalid_pre_trie_info,
+                    invalid_post_trie_info,
+                ]
+                assert any(
+                    expected in error_message
+                    for expected in expected_errors
+                    if expected
+                )
+                assert type(python_error) is type(cairo_error)
 
     @pytest.mark.parametrize(
         "data_path", [Path("test_data/22081873.json")], scope="session"
