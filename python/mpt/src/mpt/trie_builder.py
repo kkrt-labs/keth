@@ -15,6 +15,8 @@ from ethereum.crypto.hash import Hash32, keccak256
 from ethereum_types.bytes import Bytes
 from keth_types.types import EMPTY_TRIE_HASH
 
+from mpt.ethereum_tries import EthereumTries
+
 NodeBuilder = Union["LeafNodeBuilder", "ExtensionNodeBuilder", "BranchNodeBuilder"]
 
 
@@ -47,6 +49,10 @@ class TrieTestBuilder:
             return EMPTY_TRIE_HASH
 
         return keccak256(rlp_encode_internal_node(self.root_node))
+
+    def to_ethereum_tries(self) -> EthereumTries:
+        """Convert the trie to an Ethereum Trie."""
+        return EthereumTries(self.node_store, {}, {}, {}, self.root())
 
 
 class LeafNodeBuilder:
