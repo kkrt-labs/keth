@@ -325,6 +325,7 @@ class StateDiff:
 
             case (ExtensionNode(), LeafNode()):
                 check_extension_node(l_node, parent=left_parent)
+                check_leaf_node(path, r_node)
                 # The extension node was deleted and replaced by a leaf - meaning that down the line of the extension node, in a branch, we deleted some nodes.
                 # Explore the extension node's subtree for any deleted nodes, comparing it to the new leaf
                 if r_node.rest_of_key.startswith(l_node.key_segment):
