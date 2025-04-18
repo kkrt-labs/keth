@@ -211,3 +211,24 @@ func test_hint_can_access_debug_info() {
     assert debug_info = 1;
     ret;
 }
+
+func test_hint_can_access_index_in_pointer_type() {
+    alloc_locals;
+    let (local u256_ptr: U256*) = alloc();
+    tempvar U256_ONE = U256(new U256Struct(1, 1));
+    tempvar U256_TWO = U256(new U256Struct(2, 2));
+    tempvar U256_THREE = U256(new U256Struct(3, 3));
+
+    assert u256_ptr[0] = U256_ONE;
+    assert u256_ptr[1] = U256_TWO;
+    assert u256_ptr[2] = U256_THREE;
+    %{
+        assert ids.u256_ptr[0].value.low == ids.U256_ONE.value.low
+        assert ids.u256_ptr[0].value.high == ids.U256_ONE.value.high
+        assert ids.u256_ptr[1].value.low == ids.U256_TWO.value.low
+        assert ids.u256_ptr[1].value.high == ids.U256_TWO.value.high
+        assert ids.u256_ptr[2].value.low == ids.U256_THREE.value.low
+        assert ids.u256_ptr[2].value.high == ids.U256_THREE.value.high
+    %}
+    ret;
+}

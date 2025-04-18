@@ -468,6 +468,61 @@ impl PyVmConst {
         }
     }
 
+    /// Implements subscript access for pointer types
+    pub fn __getitem__(&self, index: isize, py: Python<'_>) -> PyResult<PyObject> {
+        // Create a possibly updated var_type with lazily loaded members
+        let var_type = self.load_struct_members(&self.var.var_type);
+        let vm = unsafe { &mut *self.vm };
+
+        // Check if this is a pointer type
+        match var_type {
+            CairoVarType::Pointer { pointee, .. } => {
+                // Get the base address that the pointer points to
+                let ptr_addr = self
+                    .get_address()?
+                    .ok_or_else(|| PyAttributeError::new_err("Pointer has no address"))?;
+
+                // Calculate the offset based on pointee size and index
+                let element_size = match *pointee {
+                    CairoVarType::Felt => 1,
+                    CairoVarType::Relocatable => 1,
+                    CairoVarType::Struct { size, .. } => size,
+                    CairoVarType::Pointer { .. } => 1,
+                };
+
+                // Calculate the address of the indexed element
+                let element_addr = (ptr_addr + (index as usize) * element_size).map_err(|e| {
+                    PyRuntimeError::new_err(format!("Address calculation failed: {}", e))
+                })?;
+
+                // Get the value at that address
+                let element_value = vm.get_maybe(&element_addr).ok_or_else(|| {
+                    PyAttributeError::new_err(format!(
+                        "Could not access element at index {} (address {})",
+                        index, element_addr
+                    ))
+                })?;
+
+                // Create a new PyVmConst for the element
+                let element_var = CairoVar {
+                    name: format!("{}[{}]", self.var.name, index),
+                    value: Some(element_value.clone()),
+                    address: Some(element_addr),
+                    var_type: (*pointee).clone(),
+                };
+
+                let py_element =
+                    PyVmConst { var: element_var, vm: self.vm, identifiers: self.identifiers };
+
+                Ok(Py::new(py, py_element)?.into_bound_py_any(py)?.into())
+            }
+            _ => Err(PyTypeError::new_err(format!(
+                "Cannot index '{}': not a pointer type",
+                self.var.name
+            ))),
+        }
+    }
+
     /// Gets the type path as a list of strings (for structs only).
     #[getter]
     pub fn type_path(&self) -> Option<Vec<String>> {
