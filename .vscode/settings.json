@@ -91,6 +91,5 @@
     "python/cairo-addons/src",
     "python/cairo-core/src",
     "python/mpt/src",
-    ".venv/lib/python3.10/site-packages/src"
   ]
 }
