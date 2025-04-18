@@ -5,8 +5,8 @@ from ethereum.cancun.trie import (
     encode_internal_node,
 )
 from ethereum_types.bytes import Bytes
-from keth_types.types import EMPTY_TRIE_HASH
 
+from keth_types.types import EMPTY_TRIE_HASH
 from mpt.trie_builder import TrieTestBuilder, rlp_encode_internal_node
 
 
