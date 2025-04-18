@@ -32,7 +32,7 @@ pub fn run_proof_mode(
 ### Python Usage
 
 ```python
-from cairo_addons.vm import run_proof_mode
+from cairo_addons.rust_bindings.vm import run_proof_mode
 
 run_proof_mode(
     entrypoint="main",
@@ -60,7 +60,7 @@ testing:
 are executed. If enabled, this will considerably slow down the execution.
 
 ```python
-from cairo_addons.vm import CairoRunner
+from cairo_addons.rust_bindings.vm import CairoRunner
 
 runner = CairoRunner(
     program=program,

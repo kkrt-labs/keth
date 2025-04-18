@@ -82,10 +82,14 @@ from starkware.cairo.lang.compiler.scoped_name import ScopedName
 from starkware.cairo.lang.vm.memory_dict import UnknownMemoryError
 from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 
+from cairo_addons.rust_bindings.vm import DictManager as RustDictManager
+from cairo_addons.rust_bindings.vm import (
+    MemorySegmentManager as RustMemorySegmentManager,
+)
+from cairo_addons.rust_bindings.vm import (
+    poseidon_hash_many,
+)
 from cairo_addons.testing.compiler import get_main_path
-from cairo_addons.vm import DictManager as RustDictManager
-from cairo_addons.vm import MemorySegmentManager as RustMemorySegmentManager
-from cairo_addons.vm import poseidon_hash_many
 from tests.utils.args_gen import (
     U384,
     BLSPubkey,

@@ -298,7 +298,7 @@ impl PythonicHintExecutor {
                 .with_gen_arg()
                 .replace_hint_code_chunk(
                     "from starkware.cairo.lang.builtins.modulo.mod_builtin_runner import ModBuiltinRunner",
-                    "from cairo_addons.vm import ModBuiltinRunner",
+                    "from cairo_addons.rust_bindings.vm import ModBuiltinRunner",
                 )
                 .build();
 

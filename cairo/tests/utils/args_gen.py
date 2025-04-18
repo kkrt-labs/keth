@@ -140,10 +140,14 @@ from starkware.cairo.lang.compiler.scoped_name import ScopedName
 from starkware.cairo.lang.vm.memory_segments import MemorySegmentManager
 from starkware.cairo.lang.vm.relocatable import RelocatableValue
 
-from cairo_addons.vm import DictTracker as RustDictTracker
-from cairo_addons.vm import MemorySegmentManager as RustMemorySegmentManager
-from cairo_addons.vm import Relocatable as RustRelocatable
-from cairo_addons.vm import poseidon_hash_many
+from cairo_addons.rust_bindings.vm import DictTracker as RustDictTracker
+from cairo_addons.rust_bindings.vm import (
+    MemorySegmentManager as RustMemorySegmentManager,
+)
+from cairo_addons.rust_bindings.vm import Relocatable as RustRelocatable
+from cairo_addons.rust_bindings.vm import (
+    poseidon_hash_many,
+)
 from cairo_ec.curve import ECBase
 from keth_types.types import (
     U384,

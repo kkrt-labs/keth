@@ -1,7 +1,7 @@
 import pytest
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 
-from cairo_addons.vm import CairoRunner, Relocatable
+from cairo_addons.rust_bindings.vm import CairoRunner, Relocatable
 
 
 @pytest.fixture

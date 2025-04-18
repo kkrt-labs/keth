@@ -38,8 +38,8 @@ from ethereum_types.bytes import (
 from ethereum_types.frozen import slotted_freezable
 from ethereum_types.numeric import U256, FixedUnsigned, Uint, _max_value
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
-from starkware.cairo.lang.vm.crypto import poseidon_hash_many
 
+from cairo_addons.rust_bindings.vm import poseidon_hash_many
 from cairo_addons.utils.uint256 import int_to_uint256
 
 EMPTY_TRIE_HASH = Hash32.fromhex(

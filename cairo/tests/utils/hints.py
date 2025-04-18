@@ -5,7 +5,7 @@ from typing import Dict, Iterable, Tuple, Union
 from ethereum.cancun.vm.instructions import Ops
 from starkware.cairo.common.dict import DictTracker
 
-from cairo_addons.vm import Relocatable
+from cairo_addons.rust_bindings.vm import Relocatable
 from tests.utils.helpers import flatten
 
 MaybeRelocatable = Union[int, Relocatable]

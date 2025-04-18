@@ -21,10 +21,10 @@ import pytest
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 from starkware.cairo.lang.compiler.program import Program
 
+from cairo_addons.rust_bindings.vm import Program as RustProgram
 from cairo_addons.testing.caching import get_dump_path
 from cairo_addons.testing.coverage import coverage_from_trace
 from cairo_addons.testing.runner import run_python_vm, run_rust_vm
-from cairo_addons.vm import Program as RustProgram
 from tests.utils.hints import get_op
 
 logging.basicConfig(

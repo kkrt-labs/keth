@@ -1,4 +1,4 @@
-from cairo_addons.vm import StrippedProgram
+from cairo_addons.rust_bindings.vm import StrippedProgram
 
 
 class TestStrippedProgram:

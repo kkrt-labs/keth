@@ -10,7 +10,7 @@ license = "MIT"
 exclude = [".github/"]
 
 [workspace]
-members = ["crates/atlantic", "crates/cairo-addons", "crates/keth-run"]
+members = ["crates/atlantic", "crates/cairo-addons"]
 default-members = ["crates/atlantic", "crates/cairo-addons"]
 
 # Explicitly set the resolver to version 2, which is the default for packages with edition >= 2021

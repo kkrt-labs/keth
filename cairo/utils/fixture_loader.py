@@ -1,21 +1,43 @@
+import json
+import logging
 from collections import defaultdict
-from typing import Any, Dict, Tuple
+from pathlib import Path
+from typing import Any, Dict, List, Tuple, Union
 
-from ethereum.cancun.fork_types import EMPTY_ACCOUNT
+from ethereum.cancun.blocks import Block, Withdrawal
+from ethereum.cancun.fork import (
+    BlockChain,
+)
+from ethereum.cancun.fork_types import EMPTY_ACCOUNT, Address
 from ethereum.cancun.state import State
+from ethereum.cancun.transactions import (
+    LegacyTransaction,
+    encode_transaction,
+)
 from ethereum.cancun.trie import Trie, root, trie_get
 from ethereum.crypto.hash import keccak256
 from ethereum.utils.hexadecimal import (
     hex_to_bytes,
     hex_to_bytes32,
     hex_to_hash,
+    hex_to_u256,
     hex_to_uint,
 )
 from ethereum_spec_tools.evm_tools.loaders.fixture_loader import Load
-from ethereum_types.bytes import Bytes
-from ethereum_types.numeric import U256
+from ethereum_spec_tools.evm_tools.loaders.fork_loader import ForkLoad
+from ethereum_spec_tools.evm_tools.loaders.transaction_loader import TransactionLoad
+from ethereum_types.bytes import Bytes, Bytes0
+from ethereum_types.numeric import U64, U256
 
 from keth_types.types import EMPTY_BYTES_HASH, EMPTY_TRIE_HASH
+from mpt.ethereum_tries import ZkPi
+
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
+
+CANCUN_FORK_BLOCK = 19426587  # First Cancun block
 
 
 class LoadKethFixture(Load):
@@ -124,3 +146,143 @@ def map_code_hashes_to_code(
         code_hashes[(code_hash_low, code_hash_high)] = account_code
 
     return code_hashes
+
+
+def load_zkpi_fixture(zkpi_path: Union[Path, str]) -> Dict[str, Any]:
+    """
+    Load and convert ZKPI fixture to Keth-compatible public inputs.
+
+    Args:
+        zkpi_path: Path to the ZKPI JSON file
+
+    Returns:
+        Dictionary of public inputs
+
+    Raises:
+        FileNotFoundError: If the ZKPI file doesn't exist
+        ValueError: If JSON is invalid or data conversion fails
+    """
+    try:
+        with open(zkpi_path, "r") as f:
+            prover_inputs = json.load(f)
+    except Exception as e:
+        logger.error(f"Error loading ZKPI file from {zkpi_path}: {e}")
+        raise e
+
+    load = LoadKethFixture("Cancun", "cancun")
+    if len(prover_inputs["blocks"]) > 1:
+        raise ValueError("Only one block is supported")
+    input_block = prover_inputs["blocks"][0]
+    block_transactions = input_block["transaction"]
+    transactions = process_block_transactions(block_transactions)
+
+    # Convert block
+    block = Block(
+        header=load.json_to_header(input_block["header"]),
+        transactions=transactions,
+        ommers=(),
+        withdrawals=tuple(
+            Withdrawal(
+                index=U64(int(w["index"], 16)),
+                validator_index=U64(int(w["validatorIndex"], 16)),
+                address=Address(hex_to_bytes(w["address"])),
+                amount=U256(int(w["amount"], 16)),
+            )
+            for w in input_block["withdrawals"]
+        ),
+    )
+
+    # Convert ancestors
+    blocks = [
+        Block(
+            header=load.json_to_header(ancestor),
+            transactions=(),
+            ommers=(),
+            withdrawals=(),
+        )
+        for ancestor in prover_inputs["witness"]["ancestors"][::-1]
+    ]
+
+    zkpi = ZkPi.from_data(prover_inputs)
+    transition_db = zkpi.transition_db
+    pre_state = zkpi.pre_state
+
+    # Create blockchain
+    code_hashes = map_code_hashes_to_code(pre_state)
+    chain = BlockChain(
+        blocks=blocks,
+        state=pre_state,
+        chain_id=U64(prover_inputs["chainConfig"]["chainId"]),
+    )
+
+    # Prepare inputs
+    program_input = {
+        "block": block,
+        "blockchain": chain,
+        "codehash_to_code": code_hashes,
+        "node_store": transition_db.nodes,
+        "address_preimages": transition_db.address_preimages,
+        "storage_key_preimages": transition_db.storage_key_preimages,
+        "post_state_root": transition_db.post_state_root,
+    }
+
+    return program_input
+
+
+def normalize_transaction(tx: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Normalize transaction fields to match what TransactionLoad expects.
+    """
+    tx = tx.copy()
+    tx["gasLimit"] = tx.pop("gas")
+    tx["data"] = tx.pop("input")
+    tx["to"] = tx["to"] if tx["to"] is not None else ""
+    return tx
+
+
+def process_block_transactions(
+    block_transactions: List[Dict[str, Any]],
+) -> Tuple[Tuple[LegacyTransaction, ...], Tuple[Dict[str, Any], ...]]:
+
+    transactions = tuple(
+        TransactionLoad(normalize_transaction(tx), ForkLoad("cancun")).read()
+        for tx in block_transactions
+    )
+    encoded_transactions = tuple(
+        (
+            "0x" + encode_transaction(tx).hex()
+            if not isinstance(tx, LegacyTransaction)
+            else {
+                "nonce": hex(tx.nonce),
+                "gasPrice": hex(tx.gas_price),
+                "gas": hex(tx.gas),
+                "to": "0x" + tx.to.hex() if tx.to else "",
+                "value": hex(tx.value),
+                "data": "0x" + tx.data.hex(),
+                "v": hex(tx.v),
+                "r": hex(tx.r),
+                "s": hex(tx.s),
+            }
+        )
+        for tx in transactions
+    )
+    transactions = tuple(
+        (
+            LegacyTransaction(
+                nonce=hex_to_u256(tx["nonce"]),
+                gas_price=hex_to_uint(tx["gasPrice"]),
+                gas=hex_to_uint(tx["gas"]),
+                to=Address(hex_to_bytes(tx["to"])) if tx["to"] else Bytes0(),
+                value=hex_to_u256(tx["value"]),
+                data=Bytes(hex_to_bytes(tx["data"])),
+                v=hex_to_u256(tx["v"]),
+                r=hex_to_u256(tx["r"]),
+                s=hex_to_u256(tx["s"]),
+            )
+            if isinstance(tx, dict)
+            else Bytes(hex_to_bytes(tx))
+        )
+        for tx in encoded_transactions
+    )
+
+    return transactions

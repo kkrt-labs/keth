@@ -2,7 +2,7 @@ from hypothesis import assume, given
 from hypothesis import strategies as st
 from starkware.cairo.lang.vm.relocatable import RelocatableValue as SWRelocatable
 
-from cairo_addons.vm import Relocatable as RustRelocatable
+from cairo_addons.rust_bindings.vm import Relocatable as RustRelocatable
 
 
 # Strategy for generating valid relocatable values

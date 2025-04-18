@@ -9,7 +9,7 @@ from starkware.cairo.lang.compiler.debug_info import DebugInfo
 from starkware.cairo.lang.compiler.program import CairoHint, Program
 
 from cairo_addons.hints import implementations
-from cairo_addons.vm import Program as RustProgram
+from cairo_addons.rust_bindings.vm import Program as RustProgram
 
 
 def debug_info(debug_info: Optional[DebugInfo]):

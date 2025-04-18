@@ -1,9 +1,9 @@
 from pathlib import Path
 
 import pytest
-from scripts.prove_block import load_zkpi_fixture
 
 from mpt.trie_diff import StateDiff
+from utils.fixture_loader import load_zkpi_fixture
 
 pytestmark = pytest.mark.cairo_file(
     f"{Path().cwd()}/cairo/tests/ethereum/cancun/test_main.cairo"

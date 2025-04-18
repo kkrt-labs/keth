@@ -18,10 +18,9 @@ from ethereum_spec_tools.evm_tools.loaders.fork_loader import ForkLoad
 from ethereum_spec_tools.evm_tools.loaders.transaction_loader import TransactionLoad
 from ethereum_types.bytes import Bytes, Bytes32
 from ethereum_types.numeric import U64, U256
-from scripts.prove_block import normalize_transaction
-from utils.fixture_loader import LoadKethFixture
 
 from mpt import EthereumTries
+from utils.fixture_loader import LoadKethFixture, normalize_transaction
 
 logger = logging.getLogger(__name__)
 

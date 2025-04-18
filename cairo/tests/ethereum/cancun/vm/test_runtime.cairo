@@ -29,7 +29,7 @@ func test__finalize_jumpdests{range_check_ptr}(bytecode: Bytes) {
     tempvar valid_jumpdests: DictAccess*;
     %{
         from starkware.cairo.common.dict import DictTracker
-        from cairo_addons.vm import DictTracker as RustDictTracker, DictManager as RustDictManager
+        from cairo_addons.rust_bindings.vm import DictTracker as RustDictTracker, DictManager as RustDictManager
         from tests.utils.helpers import flatten
         from ethereum.cancun.vm.runtime import get_valid_jump_destinations
 
