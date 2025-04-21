@@ -30,6 +30,7 @@ from ethereum.cancun.fork_types import (
     MappingTupleAddressBytes32U256,
     MappingTupleAddressBytes32U256Struct,
     Account__eq__,
+    account_eq_without_storage_root,
     TupleAddressBytes32U256DictAccess,
     HashedTupleAddressBytes32,
     TupleAddressBytes32,
@@ -775,6 +776,9 @@ func mark_account_created{poseidon_ptr: PoseidonBuiltin*, state: State}(address:
     return ();
 }
 
+// @notice Returns whether the account exists and is empty.
+// @dev Emptiness is defined by balance(acct) == 0, code(acct) == "" and nonce(acct) == 0;
+//      emptiness of storage does not matter here. See eip-158.
 func account_exists_and_is_empty{poseidon_ptr: PoseidonBuiltin*, state: State}(
     address: Address
 ) -> bool {
@@ -784,11 +788,14 @@ func account_exists_and_is_empty{poseidon_ptr: PoseidonBuiltin*, state: State}(
 
     let _empty_account = EMPTY_ACCOUNT();
     let empty_account = OptionalAccount(_empty_account.value);
-    let is_empty_account = Account__eq__(account, empty_account);
+    let is_empty_account = account_eq_without_storage_root(account, empty_account);
 
     return is_empty_account;
 }
 
+// @notice Returns whether the account is alive.
+// @dev Emptiness is defined by balance(acct) == 0, code(acct) == "" and nonce(acct) == 0;
+//      emptiness of storage does not matter here. See eip-158.
 func is_account_alive{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Address) -> bool {
     alloc_locals;
     let account = get_account_optional(address);
@@ -799,7 +806,7 @@ func is_account_alive{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Add
 
     let _empty_account = EMPTY_ACCOUNT();
     let empty_account = OptionalAccount(_empty_account.value);
-    let is_empty_account = Account__eq__(account, empty_account);
+    let is_empty_account = account_eq_without_storage_root(account, empty_account);
 
     if (is_empty_account.value == 0) {
         tempvar res = bool(1);

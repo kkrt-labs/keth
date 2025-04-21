@@ -278,6 +278,14 @@ def encode_account(raw_account_data: Account, storage_root: Bytes) -> Bytes:
     )
 
 
+def account_exists_and_is_empty(state: State, address: Address) -> bool:
+    from ethereum.cancun.state import get_account_optional
+
+    account = get_account_optional(state, address)
+    # The storage root is intended not to be taken into account here.
+    return account is not None and account == EMPTY_ACCOUNT
+
+
 # TODO PR in EELS?
 def is_account_alive(state: State, address: Address) -> bool:
     from ethereum.cancun.state import get_account_optional
