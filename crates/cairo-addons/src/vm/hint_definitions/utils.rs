@@ -1,4 +1,5 @@
 use lazy_static::lazy_static;
+use revm::primitives::Address;
 use std::collections::HashMap;
 
 use cairo_vm::{
@@ -21,9 +22,7 @@ use cairo_vm::{
 };
 
 use crate::vm::{hint_utils::serialize_sequence, hints::Hint};
-use revm_precompile::{
-    blake2, bn128, hash, identity, kzg_point_evaluation, modexp, secp256k1, Address,
-};
+use revm_precompile::{blake2, bn128, hash, identity, kzg_point_evaluation, modexp, secp256k1};
 
 pub const HINTS: &[fn() -> Hint] = &[
     bytes__eq__,
