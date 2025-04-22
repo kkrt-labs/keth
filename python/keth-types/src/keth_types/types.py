@@ -491,8 +491,16 @@ class StorageDiffEntry:
         return poseidon_hash_many(
             [
                 int(self.key),
-                *(int_to_uint256(int(self.prev_value)) if self.prev_value else []),
-                *(int_to_uint256(int(self.new_value)) if self.new_value else []),
+                *(
+                    int_to_uint256(int(self.prev_value))
+                    if self.prev_value is not None
+                    else []
+                ),
+                *(
+                    int_to_uint256(int(self.new_value))
+                    if self.new_value is not None
+                    else []
+                ),
             ]
         )
 

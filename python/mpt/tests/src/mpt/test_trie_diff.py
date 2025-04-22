@@ -288,12 +288,12 @@ class TestTrieDiff:
         diff_cls._storage_key_preimages = {path: storage_key}
         leaf_before = (
             None
-            if storage_value_before is None
+            if storage_value_before is None or int(storage_value_before) == 0
             else LeafNode(rest_of_key=b"", value=rlp.encode(storage_value_before))
         )
         leaf_after = (
             None
-            if storage_value_after is None
+            if storage_value_after is None or int(storage_value_after) == 0
             else LeafNode(rest_of_key=b"", value=rlp.encode(storage_value_after))
         )
         diff_cls._process_storage_diff(
@@ -329,6 +329,48 @@ class TestTrieDiff:
             key = int_to_uint256(int.from_bytes(key, "little"))
             hashed_key = poseidon_hash_many((int.from_bytes(address, "little"), *key))
             assert (prev_value, new_value) == result_lookup[hashed_key]
+
+    @given(storage_key=..., address=..., data=st.data())
+    def test__process_storage_diff_raise_if_zero(
+        self,
+        cairo_run,
+        storage_key: Bytes32,
+        address: Address,
+        data: st.DataObject,
+    ):
+        diff_cls = StateDiff()
+        path = keccak256(storage_key)
+        diff_cls._storage_key_preimages = {path: storage_key}
+
+        is_before_zero = data.draw(st.booleans())
+        if is_before_zero:
+            storage_value_before = U256(0)
+            storage_value_after = data.draw(
+                st.integers(min_value=1, max_value=2**256 - 1)
+            )
+            storage_value_after = U256(storage_value_after)
+        else:
+            storage_value_before = data.draw(
+                st.integers(min_value=1, max_value=2**256 - 1)
+            )
+            storage_value_before = U256(storage_value_before)
+            storage_value_after = U256(0)
+
+        leaf_before = LeafNode(rest_of_key=b"", value=rlp.encode(storage_value_before))
+        leaf_after = LeafNode(rest_of_key=b"", value=rlp.encode(storage_value_after))
+
+        with pytest.raises(
+            Exception,
+            match=re.compile("InvariantLeftNodeZero|InvariantRightNodeZero"),
+        ):
+            cairo_run(
+                "test__process_storage_diff",
+                storage_key_preimages=diff_cls._storage_key_preimages,
+                path=path,
+                address=address,
+                left=leaf_before,
+                right=leaf_after,
+            )
 
     @given(
         storage_key=..., address=..., storage_value_before=..., storage_value_after=...

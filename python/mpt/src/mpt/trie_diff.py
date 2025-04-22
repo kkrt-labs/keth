@@ -607,10 +607,10 @@ class StateDiff:
     ):
         key = self._storage_key_preimages[path]
         left_decoded = (
-            U256(int.from_bytes(rlp.decode(left.value), "big")) if left else U256(0)
+            U256(int.from_bytes(rlp.decode(left.value), "big")) if left else None
         )
         right_decoded = (
-            U256(int.from_bytes(rlp.decode(right.value), "big")) if right else U256(0)
+            U256(int.from_bytes(rlp.decode(right.value), "big")) if right else None
         )
         # If both values are the same, it's not a diff.
         if left_decoded == right_decoded:
