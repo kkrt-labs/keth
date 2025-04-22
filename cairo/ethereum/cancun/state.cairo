@@ -1192,6 +1192,7 @@ func empty_transient_storage{range_check_ptr}() -> TransientStorage {
 func storage_roots{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
     blake2s_ptr: felt*,
     hash_function_name: felt,
@@ -1261,7 +1262,7 @@ func storage_roots{
     build_map_addr_storage_root{
         map_addr_storage_root=map_addr_storage_root,
         map_addr_storage_ptr_end=map_addr_storage_ptr_end,
-    }(map_addr_storage_ptr);
+    }(map_addr_storage_ptr, hash_function_name);
 
     return map_addr_storage_root;
 }
@@ -1278,7 +1279,7 @@ func build_map_addr_storage_root{
     poseidon_ptr: PoseidonBuiltin*,
     map_addr_storage_root: MappingAddressBytes32,
     map_addr_storage_ptr_end: AddressTrieBytes32U256DictAccess*,
-}(map_addr_storage_ptr: AddressTrieBytes32U256DictAccess*) {
+}(map_addr_storage_ptr: AddressTrieBytes32U256DictAccess*, hash_function_name: felt) {
     alloc_locals;
 
     if (map_addr_storage_ptr == map_addr_storage_ptr_end) {
@@ -1305,7 +1306,9 @@ func build_map_addr_storage_root{
     );
 
     let storage_root = root(
-        union_trie, OptionalMappingAddressBytes32(cast(0, MappingAddressBytes32Struct*))
+        union_trie,
+        OptionalMappingAddressBytes32(cast(0, MappingAddressBytes32Struct*)),
+        hash_function_name,
     );
 
     mapping_address_bytes32_write{mapping=map_addr_storage_root}(address, storage_root);
@@ -1319,7 +1322,7 @@ func build_map_addr_storage_root{
         cast(storage_trie.value.default.value, felt),
     );
 
-    return build_map_addr_storage_root(map_addr_storage_ptr + DictAccess.SIZE);
+    return build_map_addr_storage_root(map_addr_storage_ptr + DictAccess.SIZE, hash_function_name);
 }
 
 // @notice Builds a Mapping[Address, Trie[Bytes32, U256]] that contains the storage trie of each
@@ -1386,8 +1389,10 @@ func build_storage_trie_for_address{
 func state_root{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
     blake2s_ptr: felt*,
+    hash_function_name: felt,
 }(state: State) -> Bytes32 {
     alloc_locals;
 

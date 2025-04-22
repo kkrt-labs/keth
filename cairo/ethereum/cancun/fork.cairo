@@ -1040,6 +1040,7 @@ func apply_body{
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,
+    blake2s_ptr: felt*,
     state: State,
 }(
     block_hashes: ListHash32,
@@ -1246,7 +1247,7 @@ func apply_body{
         ),
     );
     let none_storage_roots = OptionalMappingAddressBytes32(cast(0, MappingAddressBytes32Struct*));
-    let transactions_root = root(transaction_eth_trie, none_storage_roots);
+    let transactions_root = root(transaction_eth_trie, none_storage_roots, 'keccak256');
 
     tempvar receipt_eth_trie = EthereumTries(
         new EthereumTriesEnum(
@@ -1261,7 +1262,7 @@ func apply_body{
             ),
         ),
     );
-    let receipts_root = root(receipt_eth_trie, none_storage_roots);
+    let receipts_root = root(receipt_eth_trie, none_storage_roots, 'keccak256');
 
     tempvar withdrawals_eth_trie = EthereumTries(
         new EthereumTriesEnum(
@@ -1276,12 +1277,10 @@ func apply_body{
             withdrawal=withdrawals_trie,
         ),
     );
-    let withdrawals_root = root(withdrawals_eth_trie, none_storage_roots);
+    let withdrawals_root = root(withdrawals_eth_trie, none_storage_roots, 'keccak256');
 
     // Finalize the state, getting unique keys for main and storage tries
     finalize_state{state=state}();
-
-    let state_root_ = state_root(state);
 
     tempvar output = ApplyBodyOutput(
         new ApplyBodyOutputStruct(
@@ -1289,7 +1288,7 @@ func apply_body{
             transactions_root=transactions_root,
             receipt_root=receipts_root,
             block_logs_bloom=block_logs_bloom,
-            state_root=state_root_,
+            state_root=Bytes32(cast(0, Bytes32Struct*)),
             withdrawals_root=withdrawals_root,
             blob_gas_used=blob_gas_used,
         ),
@@ -1308,6 +1307,7 @@ func _apply_body_inner{
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,
+    blake2s_ptr: felt*,
 }(
     index: felt,
     len: felt,
@@ -1457,6 +1457,7 @@ func state_transition{
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,
     chain: BlockChain,
+    blake2s_ptr: felt*,
 }(block: Block) {
     alloc_locals;
 

@@ -61,6 +61,71 @@ This enhances the correctness of the state transition verification based on diff
 commitments. Tests were added/updated to cover the new optional types and
 comparison logic.
 
+## AI-REPORT: State Root Restoration and Hash Function Abstraction (April 23, 2025)
+
+### Context & Goal
+
+Following the previous refactor (see AI-REPORT April 11, 2025) that moved to a
+diff-based state validation aligned with EELS, this change restores the
+capability to compute the full `state_root` and `storage_root` directly within
+Keth. The primary goal is for the MPT `root` function to support multiple
+cryptographic hash functions (Keccak for final roots, Blake2s for intermediate
+in our applicative-recursion commitments, and eventually Poseidon later) for
+these computations, bringing better flexibility.
+
+### Implementation: Hash Function Abstraction
+
+The core challenge is abstracting the hash function used within the `root`
+computation (for the main state trie) and the `storage_roots` computation (for
+individual account storage tries). Cairo's language design makes traditional
+dynamic dispatch or passing function closures complex (functions take different
+arguments, we can only `call abs` on the function label, etc.)
+
+**Pattern Chosen**: We use implicit arguments to manage hash function selection
+and execution:
+
+1.  **Builtin Pointers**: Functions supporting multiple hashing function now
+    include implicit arguments for all potentially needed hash builtins (e.g.,
+    `keccak_ptr`, `blake2s_ptr`, `poseidon_ptr`). This ensures that regardless
+    of the function chosen at runtime, we have the right segments available.
+2.  **Hash Function Identifier & Dispatch**: The actual hash computation is
+    delegated to a central `hash_with` function (located in
+    `cairo/ethereum/crypto/hash.cairo`). This function takes an explicit
+    `hash_function_name: felt` argument (e.g., `'keccak256'`, `'blake2s'`) which
+    identifies the desired hash algorithm. Inside `hash_with`, conditional logic
+    uses this name to select the appropriate hash implementation (e.g., `keccak`
+    or `blake2s`) and use the corresponding implicit builtin pointers
+    (`keccak_ptr` or `blake2s_ptr`). This approach avoids the complexity of
+    using `call abs` with function labels, which would require branching to
+    manage the differing implicit arguments required by each hash function.
+    Functions like `root`, `state_root` or `storage_roots` propagate the
+    necessary builtins and the `hash_function_name` down to where `hash_with` is
+    called.
+3.  **Hash-Specific Constants**: Constants like `EMPTY_ROOT` and `EMPTY_HASH`
+    were renamed to `EMPTY_ROOT_KECCAK` and `EMPTY_HASH_KECCAK` to distinguish
+    them, as different hash functions have different default empty values.
+
+### Changes
+
+- **`state.cairo`**: Re-implemented `state_root` and introduced `storage_roots`
+  and helper functions. These functions now include implicit arguments for
+  various hash builtins (`blake2s_ptr`, `poseidon_ptr`, `keccak_ptr` where
+  relevant). They will be used to compute intermediate state roots (with
+  blake2s) when splitting our state transition into chunks.
+- **`fork_types.cairo`, `state.cairo`**: Renamed `EMPTY_ROOT`/`EMPTY_HASH` to
+  `EMPTY_ROOT_KECCAK`/`EMPTY_HASH_KECCAK`.
+
+### Implications
+
+The hash abstraction pattern prepares the codebase for using alternative hash
+functions like Blake2s, more efficient than Poseidon-F252, for future features
+like intermediate state commitments.
+
+Things to look out for in the future:
+
+- Ensure `finalize_blake2s` is called once per program, once we integrate it
+  into the computation flow.
+
 ## AI-REPORT: Passing Objects in our Python Cairo Runner and the Rust CairoVM
 
 **Runner Strategy**: Keth uses a dual approach to executing Cairo: a backend in
