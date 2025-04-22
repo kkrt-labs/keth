@@ -1195,8 +1195,7 @@ func storage_roots{
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
     blake2s_ptr: felt*,
-    hash_function_name: felt,
-}(state: State) -> MappingAddressBytes32 {
+}(state: State, hash_function_name: felt) -> MappingAddressBytes32 {
     alloc_locals;
 
     if (cast(state.value._main_trie.value._data.value.parent_dict, felt) != 0) {
@@ -1277,6 +1276,7 @@ func build_map_addr_storage_root{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    blake2s_ptr: felt*,
     map_addr_storage_root: MappingAddressBytes32,
     map_addr_storage_ptr_end: AddressTrieBytes32U256DictAccess*,
 }(map_addr_storage_ptr: AddressTrieBytes32U256DictAccess*, hash_function_name: felt) {
@@ -1392,15 +1392,14 @@ func state_root{
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
     blake2s_ptr: felt*,
-    hash_function_name: felt,
-}(state: State) -> Bytes32 {
+}(state: State, hash_function_name: felt) -> Bytes32 {
     alloc_locals;
 
     if (cast(state.value._main_trie.value._data.value.parent_dict, felt) != 0) {
         raise('AssertionError');
     }
 
-    let storage_roots_ = storage_roots(state);
+    let storage_roots_ = storage_roots(state, hash_function_name);
 
     tempvar trie_union = EthereumTries(
         new EthereumTriesEnum(
@@ -1418,7 +1417,9 @@ func state_root{
         ),
     );
 
-    let state_root = root(trie_union, OptionalMappingAddressBytes32(storage_roots_.value));
+    let state_root = root(
+        trie_union, OptionalMappingAddressBytes32(storage_roots_.value), hash_function_name
+    );
     return state_root;
 }
 

@@ -605,7 +605,9 @@ class TestRoot:
     @given(state=state_maybe_snapshot())
     def test_state_root(self, cairo_run, state: State):
         try:
-            state_root_cairo = cairo_run("state_root", state)
+            state_root_cairo = cairo_run(
+                "state_root", state=state, hash_function_name="keccak256"
+            )
         except Exception as e:
             with strict_raises(type(e)):
                 state_root(state)
@@ -627,7 +629,9 @@ class TestStorageRoots:
             return storage_roots_py
 
         try:
-            storage_roots_cairo = cairo_run("storage_roots", state)
+            storage_roots_cairo = cairo_run(
+                "storage_roots", state=state, hash_function_name="keccak256"
+            )
         except Exception as e:
             with strict_raises(type(e)):
                 storage_roots(state)
