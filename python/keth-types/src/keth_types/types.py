@@ -1,6 +1,6 @@
 import functools
 from collections import defaultdict
-from dataclasses import dataclass, fields, make_dataclass
+from dataclasses import dataclass, field, fields, make_dataclass
 from typing import (
     ClassVar,
     List,
@@ -158,11 +158,14 @@ class MessageCallOutput(
         namespace={"__doc__": MessageCallOutputBase.__doc__},
     )
 ):
+
+    accessed_storage_keys: Set[Tuple[Address, Bytes32]] = field(default_factory=set)
+
     def __eq__(self, other):
         return all(
             getattr(self, field.name) == getattr(other, field.name)
             for field in fields(self)
-            if field.name != "error"
+            if field.name != "error" and field.name != "accessed_storage_keys"
         ) and type(self.error) is type(other.error)
 
 
@@ -275,6 +278,14 @@ def encode_account(raw_account_data: Account, storage_root: Bytes) -> Bytes:
     )
 
 
+def account_exists_and_is_empty(state: State, address: Address) -> bool:
+    from ethereum.cancun.state import get_account_optional
+
+    account = get_account_optional(state, address)
+    # The storage root is intended not to be taken into account here.
+    return account is not None and account == EMPTY_ACCOUNT
+
+
 # TODO PR in EELS?
 def is_account_alive(state: State, address: Address) -> bool:
     from ethereum.cancun.state import get_account_optional
@@ -283,12 +294,9 @@ def is_account_alive(state: State, address: Address) -> bool:
     if account is None:
         return False
     else:
-        # Modified to use EMPTY_ACCOUNT - we want to make sure the storage root and code_hash are
-        # empty.
-        # Remember: Account__eq__ does not take into account the storage root.
-        return (
-            not account == EMPTY_ACCOUNT or not account.storage_root == EMPTY_TRIE_HASH
-        )
+        # Modified to use EMPTY_ACCOUNT - we want to make sure the code_hash is empty instead.
+        # Remember: Account__eq__ does not take into account the storage root. (intended, see eip-158)
+        return not account == EMPTY_ACCOUNT
 
 
 def set_code(state: State, address: Address, code: Bytes) -> None:

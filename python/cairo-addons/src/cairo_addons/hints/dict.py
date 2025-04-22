@@ -26,9 +26,13 @@ def dict_squash(
     memory: MemoryDict,
     ap: RelocatableValue,
 ):
+    from collections import defaultdict
+
     from starkware.cairo.common.dict import DictTracker
 
     data = dict_manager.get_dict(ids.dict_accesses_end).copy()
+    if isinstance(data, defaultdict):
+        data = defaultdict(data.default_factory, data)
     base = segments.add()
     assert base.segment_index not in dict_manager.trackers
     dict_manager.trackers[base.segment_index] = DictTracker(data=data, current_ptr=base)

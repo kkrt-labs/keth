@@ -32,15 +32,16 @@ from ethereum.cancun.state import (
     set_transient_storage,
     touch_account,
 )
-from ethereum.cancun.trie import Trie, copy_trie
+from ethereum.cancun.trie import Trie, copy_trie, root
 from ethereum.crypto.hash import keccak256
 from ethereum_types.bytes import Bytes32
-from ethereum_types.numeric import U256
+from ethereum_types.numeric import U256, Uint
 from hypothesis import given, settings
 from hypothesis import strategies as st
 from hypothesis.strategies import composite
 
 from cairo_addons.testing.errors import strict_raises
+from keth_types.types import EMPTY_BYTES_HASH
 from tests.utils.args_gen import State, TransientStorage, Withdrawal
 from tests.utils.strategies import (
     address,
@@ -429,6 +430,17 @@ class TestStateAccounts:
         state, touched_accounts = data
         touched_accounts.add(address)
         set_account(state, address, EMPTY_ACCOUNT)
+        # Make that empty account have storage to cover for eip158 and eip161 cases.
+        set_storage(state, address, U256(0).to_bytes(32, "big"), U256(0))
+        storage_root = root(state._storage_tries[address])
+        empty_account_with_storage = Account(
+            balance=U256(0),
+            code=b"",
+            nonce=Uint(0),
+            storage_root=storage_root,
+            code_hash=EMPTY_BYTES_HASH,
+        )
+        set_account(state, address, empty_account_with_storage)
         state_cairo = cairo_run(
             "destroy_touched_empty_accounts", state, touched_accounts
         )

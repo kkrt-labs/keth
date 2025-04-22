@@ -259,23 +259,6 @@ func prev_values{range_check_ptr}(dict_ptr_start: DictAccess*, dict_ptr_stop: Di
     return (prev_values_start=prev_values_start, prev_values_end=prev_values);
 }
 
-// @notice Returns all keys that have a prefix matching the given prefix.
-// TODO: this is unsound and soundness should be ensured at squash time.
-func get_keys_for_address_prefix{dict_ptr: DictAccess*}(
-    prefix_len: felt, prefix: felt*
-) -> ListTupleAddressBytes32 {
-    alloc_locals;
-
-    local keys_len: felt;
-    local keys: TupleAddressBytes32*;
-    %{ get_keys_for_address_prefix %}
-
-    // warning: this is unsound as the prover can return any list of keys.
-
-    tempvar res = ListTupleAddressBytes32(new ListTupleAddressBytes32Struct(keys, keys_len));
-    return res;
-}
-
 // @notice squashes the `src` dict and writes all its values to the `dst` dict.
 // @dev If the `dst` dict is not empty, the values are added to the existing values.
 // @param src: The source dict to squash.

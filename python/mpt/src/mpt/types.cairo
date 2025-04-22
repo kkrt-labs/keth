@@ -10,6 +10,9 @@ from ethereum.cancun.fork_types import Address, HashedTupleAddressBytes32, Accou
 from ethereum_types.numeric import U256, Uint, Bool
 from ethereum.crypto.hash import Hash32
 
+const EMPTY_TRIE_HASH_LOW = 0x6ef8c092e64583ffa655cc1b171fe856;
+const EMPTY_TRIE_HASH_HIGH = 0x21b463e3b52f6201c0ad6c991be0485b;
+
 // NodeStore is a mapping of node hashes to their corresponding InternalNode
 // In the world state DB given as input to the program
 // This is used to store state and storage MPT nodes

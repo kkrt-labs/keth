@@ -57,6 +57,7 @@ from keth_types.types import (
     Message,
     MessageCallOutput,
     Node,
+    account_exists_and_is_empty,
     encode_account,
     is_account_alive,
     set_code,
@@ -75,6 +76,7 @@ PATCHES: Dict[str, Dict[str, Any]] = {
         "encode_account": encode_account,
     },
     ethereum.cancun.state: {
+        "account_exists_and_is_empty": account_exists_and_is_empty,
         "is_account_alive": is_account_alive,
         "set_code": set_code,
     },

@@ -23,10 +23,14 @@ from ethereum.cancun.fork_types import (
     SetAddress,
     SetAddressStruct,
     SetAddressDictAccess,
+    SetTupleAddressBytes32,
+    SetTupleAddressBytes32Struct,
+    SetTupleAddressBytes32DictAccess,
     EMPTY_ACCOUNT,
     MappingTupleAddressBytes32U256,
     MappingTupleAddressBytes32U256Struct,
     Account__eq__,
+    account_eq_without_storage_root,
     TupleAddressBytes32U256DictAccess,
     HashedTupleAddressBytes32,
     TupleAddressBytes32,
@@ -78,7 +82,6 @@ from legacy.utils.dict import (
     dict_write,
     hashdict_write,
     dict_new_empty,
-    get_keys_for_address_prefix,
     dict_update,
     dict_copy,
     default_dict_finalize,
@@ -349,11 +352,26 @@ func get_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(
 
     return value;
 }
+from mpt.types import EMPTY_TRIE_HASH_LOW, EMPTY_TRIE_HASH_HIGH
 
-func destroy_account{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Address) {
-    destroy_storage(address);
+// @notice Destroys an account
+// @dev This function should only be called to destroy accounts whose storage has not been mutated in the current transaction.
+//      We rely on checks on the pre-block storage root to check whether we need to do the expensive operation of iterating over all storage keys to delete them.
+func destroy_account{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, state: State}(
+    address: Address
+) {
+    alloc_locals;
+    let account = get_account(address);
     let none_account = OptionalAccount(cast(0, AccountStruct*));
     set_account(address, none_account);
+    let storage_root = account.value.storage_root;
+    if (storage_root.value.low == EMPTY_TRIE_HASH_LOW and
+        storage_root.value.high == EMPTY_TRIE_HASH_HIGH) {
+        return ();
+    }
+    // If the account had storage prior to this block, we need to destroy it
+    // see eip-158, eip-161.
+    destroy_storage(address);
     return ();
 }
 
@@ -448,32 +466,69 @@ func get_storage_original{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, state
     return value;
 }
 
-func destroy_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Address) {
+// @notice Destroys the storage of the given address.
+// @dev The implementation of this function requires iterating over all storage keys present in the state,
+// which is quite inefficient. This function should not be called outside of the unlikely case explained in
+// `process_create_message`.
+func destroy_storage{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, state: State}(
+    address: Address
+) {
     alloc_locals;
 
-    let storage_tries = state.value._storage_tries;
     let fp_and_pc = get_fp_and_pc();
     local __fp__: felt* = fp_and_pc.fp_val;
 
-    let prefix_len = 1;
-    let prefix = &address.value;
-    tempvar dict_ptr = cast(storage_tries.value._data.value.dict_ptr, DictAccess*);
-    let keys = get_keys_for_address_prefix{dict_ptr=dict_ptr}(prefix_len, prefix);
+    // Squash the storage tries for more efficient iteration
+    let storage_tries = state.value._storage_tries;
+    let storage_tries_start = cast(storage_tries.value._data.value.dict_ptr_start, DictAccess*);
+    let storage_tries_end = cast(storage_tries.value._data.value.dict_ptr, DictAccess*);
+    let (squashed_storage_tries_start, squashed_storage_tries_end) = dict_squash(
+        storage_tries_start, storage_tries_end
+    );
+    tempvar squashed_storage_tries = TrieTupleAddressBytes32U256(
+        new TrieTupleAddressBytes32U256Struct(
+            secured=storage_tries.value.secured,
+            default=storage_tries.value.default,
+            _data=MappingTupleAddressBytes32U256(
+                new MappingTupleAddressBytes32U256Struct(
+                    dict_ptr_start=cast(
+                        squashed_storage_tries_start, TupleAddressBytes32U256DictAccess*
+                    ),
+                    dict_ptr=cast(squashed_storage_tries_end, TupleAddressBytes32U256DictAccess*),
+                    parent_dict=storage_tries.value._data.value.parent_dict,
+                ),
+            ),
+        ),
+    );
 
-    _destroy_storage_keys{poseidon_ptr=poseidon_ptr, storage_tries_ptr=dict_ptr}(keys, 0);
+    // Gather the list of all storage keys belonging to this account and destroy them
+    let dict_ptr_start = cast(squashed_storage_tries.value._data.value.dict_ptr_start, DictAccess*);
+    let dict_ptr = cast(squashed_storage_tries.value._data.value.dict_ptr, DictAccess*);
+
+    let (storage_keys_buffer: TupleAddressBytes32*) = alloc();
+    tempvar storage_keys = ListTupleAddressBytes32(
+        new ListTupleAddressBytes32Struct(storage_keys_buffer, 0)
+    );
+    _get_storage_keys_for_address{
+        dict_ptr_start=dict_ptr_start, dict_ptr=dict_ptr, storage_keys=storage_keys
+    }(address);
+
+    _destroy_storage_keys{poseidon_ptr=poseidon_ptr, storage_tries_ptr=dict_ptr}(storage_keys, 0);
     let new_dict_ptr = cast(dict_ptr, TupleAddressBytes32U256DictAccess*);
 
     tempvar new_storage_tries_data = MappingTupleAddressBytes32U256(
         new MappingTupleAddressBytes32U256Struct(
-            dict_ptr_start=storage_tries.value._data.value.dict_ptr_start,
+            dict_ptr_start=squashed_storage_tries.value._data.value.dict_ptr_start,
             dict_ptr=new_dict_ptr,
-            parent_dict=storage_tries.value._data.value.parent_dict,
+            parent_dict=squashed_storage_tries.value._data.value.parent_dict,
         ),
     );
 
     tempvar new_storage_tries = TrieTupleAddressBytes32U256(
         new TrieTupleAddressBytes32U256Struct(
-            storage_tries.value.secured, storage_tries.value.default, new_storage_tries_data
+            squashed_storage_tries.value.secured,
+            squashed_storage_tries.value.default,
+            new_storage_tries_data,
         ),
     );
     tempvar state = State(
@@ -486,6 +541,43 @@ func destroy_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Addr
     );
 
     return ();
+}
+
+// @notice Gathers all storage keys belonging to the given address.
+// @dev This is expensive as it requires iterating over all storage keys present in the state.
+//      However, this is only called when an empty account has storage, which is an unlikely event
+//      see eip-158, eip-161.
+func _get_storage_keys_for_address{
+    poseidon_ptr: PoseidonBuiltin*,
+    dict_ptr_start: DictAccess*,
+    dict_ptr: DictAccess*,
+    storage_keys: ListTupleAddressBytes32,
+}(address: Address) {
+    alloc_locals;
+
+    let current = dict_ptr_start;
+    let end = dict_ptr;
+
+    if (current == end) {
+        return ();
+    }
+
+    let key = [dict_ptr_start].key;
+    let preimage = get_tuple_address_bytes32_preimage_for_key(key, end);
+
+    if (preimage.value.address.value == address.value) {
+        assert storage_keys.value.data[storage_keys.value.len] = preimage;
+        tempvar storage_keys = ListTupleAddressBytes32(
+            new ListTupleAddressBytes32Struct(storage_keys.value.data, storage_keys.value.len + 1)
+        );
+    } else {
+        tempvar storage_keys = storage_keys;
+    }
+
+    let next = current + DictAccess.SIZE;
+    return _get_storage_keys_for_address{
+        dict_ptr_start=next, dict_ptr=end, storage_keys=storage_keys
+    }(address);
 }
 
 func _destroy_storage_keys{poseidon_ptr: PoseidonBuiltin*, storage_tries_ptr: DictAccess*}(
@@ -684,6 +776,9 @@ func mark_account_created{poseidon_ptr: PoseidonBuiltin*, state: State}(address:
     return ();
 }
 
+// @notice Returns whether the account exists and is empty.
+// @dev Emptiness is defined by balance(acct) == 0, code(acct) == "" and nonce(acct) == 0;
+//      emptiness of storage does not matter here. See eip-158.
 func account_exists_and_is_empty{poseidon_ptr: PoseidonBuiltin*, state: State}(
     address: Address
 ) -> bool {
@@ -693,11 +788,14 @@ func account_exists_and_is_empty{poseidon_ptr: PoseidonBuiltin*, state: State}(
 
     let _empty_account = EMPTY_ACCOUNT();
     let empty_account = OptionalAccount(_empty_account.value);
-    let is_empty_account = Account__eq__(account, empty_account);
+    let is_empty_account = account_eq_without_storage_root(account, empty_account);
 
     return is_empty_account;
 }
 
+// @notice Returns whether the account is alive.
+// @dev Emptiness is defined by balance(acct) == 0, code(acct) == "" and nonce(acct) == 0;
+//      emptiness of storage does not matter here. See eip-158.
 func is_account_alive{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Address) -> bool {
     alloc_locals;
     let account = get_account_optional(address);
@@ -708,7 +806,7 @@ func is_account_alive{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Add
 
     let _empty_account = EMPTY_ACCOUNT();
     let empty_account = OptionalAccount(_empty_account.value);
-    let is_empty_account = Account__eq__(account, empty_account);
+    let is_empty_account = account_eq_without_storage_root(account, empty_account);
 
     if (is_empty_account.value == 0) {
         tempvar res = bool(1);
@@ -1028,7 +1126,10 @@ func touch_account{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Addres
     return ();
 }
 
-func destroy_touched_empty_accounts{poseidon_ptr: PoseidonBuiltin*, state: State}(
+// @notice Destroys all empty accounts in the touched_accounts set.
+// @dev This typically only applies to accounts that were created pre eip-158, eip-161,
+// in which the storage is set (account exists in state) but is empty.
+func destroy_touched_empty_accounts{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, state: State}(
     touched_accounts: SetAddress
 ) -> () {
     alloc_locals;
@@ -1046,22 +1147,23 @@ func destroy_touched_empty_accounts{poseidon_ptr: PoseidonBuiltin*, state: State
     let is_empty = account_exists_and_is_empty(address);
     if (is_empty.value != 0) {
         destroy_account(address);
+        tempvar range_check_ptr = range_check_ptr;
         tempvar poseidon_ptr = poseidon_ptr;
         tempvar state = state;
     } else {
+        tempvar range_check_ptr = range_check_ptr;
         tempvar poseidon_ptr = poseidon_ptr;
         tempvar state = state;
     }
 
     // Recurse with updated touched_accounts
-    return destroy_touched_empty_accounts(
-        SetAddress(
-            new SetAddressStruct(
-                dict_ptr_start=cast(current + DictAccess.SIZE, SetAddressDictAccess*),
-                dict_ptr=cast(end, SetAddressDictAccess*),
-            ),
+    tempvar next_iter = SetAddress(
+        new SetAddressStruct(
+            dict_ptr_start=cast(current + DictAccess.SIZE, SetAddressDictAccess*),
+            dict_ptr=cast(end, SetAddressDictAccess*),
         ),
     );
+    return destroy_touched_empty_accounts(next_iter);
 }
 
 func empty_transient_storage{range_check_ptr}() -> TransientStorage {
