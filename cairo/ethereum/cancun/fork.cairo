@@ -124,6 +124,7 @@ from ethereum.cancun.state import (
     TransientStorageStruct,
     empty_transient_storage,
     process_withdrawal,
+    state_root,
     finalize_state,
 )
 from ethereum.cancun.transactions_types import (
@@ -1280,13 +1281,15 @@ func apply_body{
     // Finalize the state, getting unique keys for main and storage tries
     finalize_state{state=state}();
 
+    let state_root_ = state_root(state);
+
     tempvar output = ApplyBodyOutput(
         new ApplyBodyOutputStruct(
             block_gas_used=block_gas_used,
             transactions_root=transactions_root,
             receipt_root=receipts_root,
             block_logs_bloom=block_logs_bloom,
-            state_root=Bytes32(cast(0, Bytes32Struct*)),
+            state_root=state_root_,
             withdrawals_root=withdrawals_root,
             blob_gas_used=blob_gas_used,
         ),
@@ -1445,9 +1448,6 @@ func _process_withdrawals_inner{
     return _process_withdrawals_inner{state=state, trie=trie}(index + 1, withdrawals);
 }
 
-// @notice Given the historical blockchain and a block to execute, computes the STF on the initial state and updates the blockchain.
-// @dev: Note that the state_root of the new block is not computed in this `state_transition` function, and is replaced with a `0` instead.
-//       see `main.cairo`, the entrypoint of `Keth`.
 func state_transition{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
