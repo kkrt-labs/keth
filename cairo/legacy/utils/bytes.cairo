@@ -251,6 +251,103 @@ func uint256_to_bytes32{range_check_ptr}(dst: felt*, n: Uint256) {
     return ();
 }
 
+// @notice Converts an array of bytes to an array of bytes4, little endian
+// @dev The function is sound because the number of steps is limited to 2^50 by the verifier.
+//      Consequently, `bytes4` cannot wrap around P. No range_check is needed in the main loop.
+//      Only in the final step, depending on the size of the remainder, is the total length of the
+//      output array checked.
+// @param dst The destination array.
+// @param bytes_len The number of bytes in the input array.
+// @param bytes The input array.
+func bytes_to_bytes4_little_endian{range_check_ptr}(dst: felt*, bytes_len: felt, bytes: felt*) -> (
+    ) {
+    alloc_locals;
+
+    if (bytes_len == 0) {
+        return ();
+    }
+
+    tempvar less_than_4;
+    %{ bytes_len_less_than_4 %}
+    tempvar bytes4 = dst;
+    tempvar bytes = bytes;
+
+    static_assert bytes4 == [ap - 2];
+    static_assert bytes == [ap - 1];
+
+    jmp skip_full_word_loop if less_than_4 != 0;
+
+    // Main loop done a random number of times
+    full_word_loop:
+    let bytes4 = cast([ap - 2], felt*);
+    let bytes = cast([ap - 1], felt*);
+
+    assert [bytes4] = bytes[0] + bytes[1] * 256 + bytes[2] * 256 ** 2 + bytes[3] * 256 ** 3;
+    tempvar continue_loop;
+    tempvar bytes4 = bytes4 + 1;
+    tempvar bytes = bytes + 4;
+    %{ remaining_bytes_greater_than_4 %}
+
+    jmp full_word_loop if continue_loop != 0;
+
+    skip_full_word_loop:
+    let bytes4 = cast([ap - 2], felt*);
+    let bytes = cast([ap - 1], felt*);
+
+    tempvar remaining_offset;
+    %{ remaining_bytes_jmp_offset_4 %}
+    static_assert bytes4 == [ap - 3];
+    static_assert bytes == [ap - 2];
+    jmp rel remaining_offset;
+    jmp remaining_0;
+    jmp remaining_1;
+    jmp remaining_2;
+    jmp remaining_3;
+
+    // Remaining bytes, one case per possible number of bytes
+    // Each case assert the number of bytes written to the destination array
+    // and the value of the bytes
+
+    remaining_3:
+    let dst = cast([fp - 5], felt*);
+    let bytes_len = cast([fp - 4], felt);
+    let bytes4 = cast([ap - 3], felt*);
+    let bytes = cast([ap - 2], felt*);
+    assert (bytes4 - dst) * 4 = bytes_len - 3;
+    assert [bytes4] = bytes[0] + bytes[1] * 256 + bytes[2] * 256 ** 2;
+    let range_check_ptr = [fp - 6];
+    return ();
+
+    remaining_2:
+    let dst = cast([fp - 5], felt*);
+    let bytes_len = cast([fp - 4], felt);
+    let bytes4 = cast([ap - 3], felt*);
+    let bytes = cast([ap - 2], felt*);
+    assert (bytes4 - dst) * 4 = bytes_len - 2;
+    assert [bytes4] = bytes[0] + bytes[1] * 256;
+    let range_check_ptr = [fp - 6];
+    return ();
+
+    remaining_1:
+    let dst = cast([fp - 5], felt*);
+    let bytes_len = cast([fp - 4], felt);
+    let bytes4 = cast([ap - 3], felt*);
+    let bytes = cast([ap - 2], felt*);
+    assert (bytes4 - dst) * 4 = bytes_len - 1;
+    assert [bytes4] = bytes[0];
+    let range_check_ptr = [fp - 6];
+    return ();
+
+    remaining_0:
+    let dst = cast([fp - 5], felt*);
+    let bytes_len = cast([fp - 4], felt);
+    let bytes4 = cast([ap - 3], felt*);
+    let bytes = cast([ap - 2], felt*);
+    assert (bytes4 - dst) * 4 = bytes_len;
+    let range_check_ptr = [fp - 6];
+    return ();
+}
+
 // @notice Converts an array of bytes to an array of bytes8, little endian
 // @dev The function is sound because the number of steps is limited to 2^50 by the verifier.
 //      Consequently, `bytes8` cannot wrap around P. No range_check is needed in the main loop.

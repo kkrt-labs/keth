@@ -15,7 +15,7 @@ from ethereum_types.bytes import (
 )
 from ethereum.utils.bytes import Bytes__eq__
 from ethereum_types.numeric import Uint, U256, U256Struct, bool
-from ethereum.crypto.hash import Hash32, EMPTY_ROOT, EMPTY_HASH
+from ethereum.crypto.hash import Hash32, EMPTY_ROOT_KECCAK, EMPTY_HASH_KECCAK
 from ethereum.utils.numeric import U256_to_be_bytes20
 from cairo_core.comparison import is_zero
 
@@ -190,8 +190,8 @@ struct MappingTupleAddressBytes32U256 {
 }
 
 func EMPTY_ACCOUNT() -> Account {
-    let (empty_root_ptr) = get_label_location(EMPTY_ROOT);
-    let (empty_hash_ptr) = get_label_location(EMPTY_HASH);
+    let (empty_root_ptr) = get_label_location(EMPTY_ROOT_KECCAK);
+    let (empty_hash_ptr) = get_label_location(EMPTY_HASH_KECCAK);
     tempvar balance = U256(new U256Struct(0, 0));
     let (data) = alloc();
     tempvar empty_code = OptionalBytes(new BytesStruct(data=data, len=0));

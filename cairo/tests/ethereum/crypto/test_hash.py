@@ -1,3 +1,5 @@
+import hashlib
+
 from ethereum.crypto.hash import keccak256
 from ethereum_types.bytes import Bytes
 from hypothesis import given
@@ -10,3 +12,10 @@ class TestHash:
         @given(buffer=st.binary(max_size=1000).map(Bytes))
         def test_keccak256(self, cairo_run, buffer: Bytes):
             assert keccak256(buffer) == cairo_run("keccak256", buffer)
+
+    class TestBlake2s:
+        @given(buffer=st.binary(max_size=1000).map(Bytes))
+        def test_blake2s_bytes(self, cairo_run, buffer: Bytes):
+            assert hashlib.blake2s(buffer).digest() == cairo_run(
+                "blake2s_bytes", buffer
+            )

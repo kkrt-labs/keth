@@ -37,7 +37,7 @@ from ethereum.cancun.fork_types import (
     ListTupleAddressBytes32,
     ListTupleAddressBytes32Struct,
 )
-from ethereum.crypto.hash import keccak256, EMPTY_HASH
+from ethereum.crypto.hash import keccak256, EMPTY_HASH_KECCAK
 from ethereum.cancun.trie import (
     get_tuple_address_bytes32_preimage_for_key,
     root,
@@ -70,7 +70,7 @@ from ethereum.cancun.trie import (
 )
 from ethereum.cancun.blocks import Withdrawal
 from ethereum_types.bytes import Bytes, Bytes32, Bytes32Struct, BytesStruct, OptionalBytes
-from ethereum.crypto.hash import EMPTY_ROOT
+from ethereum.crypto.hash import EMPTY_ROOT_KECCAK
 from ethereum_types.numeric import U256, U256Struct, Bool, bool, Uint
 from ethereum.utils.numeric import U256_le, U256_sub, U256_add, U256_mul
 from ethereum.cancun.utils.constants import U256_ZERO
@@ -656,7 +656,7 @@ func account_has_code_or_nonce{poseidon_ptr: PoseidonBuiltin*, state: State}(
     alloc_locals;
 
     let account = get_account(address);
-    let (empty_hash_ptr) = get_label_location(EMPTY_HASH);
+    let (empty_hash_ptr) = get_label_location(EMPTY_HASH_KECCAK);
     tempvar empty_hash = Bytes32(cast(empty_hash_ptr, Bytes32Struct*));
 
     if (account.value.nonce.value != 0) {
@@ -695,7 +695,7 @@ func get_storage_keys_for_address{dict_ptr: DictAccess*}(
 func account_has_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Address) -> bool {
     alloc_locals;
 
-    let (empty_root_ptr_) = get_label_location(EMPTY_ROOT);
+    let (empty_root_ptr_) = get_label_location(EMPTY_ROOT_KECCAK);
     let empty_root_ptr = cast(empty_root_ptr_, Bytes32Struct*);
     let account = get_account(address);
     if (empty_root_ptr.low == account.value.storage_root.value.low and
@@ -710,7 +710,7 @@ func account_has_storage{poseidon_ptr: PoseidonBuiltin*, state: State}(address: 
 func is_account_empty{poseidon_ptr: PoseidonBuiltin*, state: State}(address: Address) -> bool {
     // Get the account at the address
     let account = get_account(address);
-    let (empty_hash_ptr) = get_label_location(EMPTY_HASH);
+    let (empty_hash_ptr) = get_label_location(EMPTY_HASH_KECCAK);
     tempvar empty_hash = Bytes32(cast(empty_hash_ptr, Bytes32Struct*));
 
     // Check if nonce is 0, code is empty, and balance is 0
@@ -1192,8 +1192,9 @@ func empty_transient_storage{range_check_ptr}() -> TransientStorage {
 func storage_roots{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    blake2s_ptr: felt*,
+    hash_function: felt*,
 }(state: State) -> MappingAddressBytes32 {
     alloc_locals;
 
@@ -1239,7 +1240,8 @@ func storage_roots{
 
     // Create a Mapping[Address, Bytes32] that will contain the storage root of each address's
     // storage trie
-    let (empty_root_ptr) = get_label_location(EMPTY_ROOT);
+    // TODO: the EMPTY_ROOT should be relative to the hash function used!
+    let (empty_root_ptr) = get_label_location(EMPTY_ROOT_KECCAK);
     let (map_addr_storage_root_start) = default_dict_new(cast(empty_root_ptr, felt));
     tempvar map_addr_storage_root = MappingAddressBytes32(
         new MappingAddressBytes32Struct(
@@ -1384,8 +1386,8 @@ func build_storage_trie_for_address{
 func state_root{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    blake2s_ptr: felt*,
 }(state: State) -> Bytes32 {
     alloc_locals;
 
