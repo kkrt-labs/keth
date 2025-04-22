@@ -54,15 +54,15 @@ reqwest = { version = "0.12", features = ["json", "multipart"] }
 stwo-cairo-adapter = { version = "*", features = ["std"] }
 stwo_cairo_prover = "*"
 cairo-air = "*"
-cairo-vm = { git = "https://github.com/lambdaclass/cairo-vm.git", tag = "v2.0.0-rc5", features = [
+cairo-vm = { git = "https://github.com/lambdaclass/cairo-vm.git", tag = "v2.0.1", features = [
   "test_utils",
   "mod_builtin",
 ] }
 
 [patch."https://github.com/lambdaclass/cairo-vm.git"]
-cairo-vm = { git = "https://github.com/kkrt-labs/cairo-vm", rev = "96cdc1c60d894701b9fca4231208e69c7dce383a" }
+cairo-vm = { git = "https://github.com/kkrt-labs/cairo-vm", rev = "0e6a272b5c6153437bd3b40150dde93d1294e565" }
 
 [patch.crates-io]
-stwo-cairo-adapter = { git = "https://github.com/starkware-libs/stwo-cairo", rev = "b84e25feb38f89757eeceee005b1a1f14bdac0b5" }
-stwo_cairo_prover = { git = "https://github.com/starkware-libs/stwo-cairo", rev = "b84e25feb38f89757eeceee005b1a1f14bdac0b5" }
-cairo-air = { git = "https://github.com/starkware-libs/stwo-cairo", rev = "b84e25feb38f89757eeceee005b1a1f14bdac0b5" }
+stwo-cairo-adapter = { git = "https://github.com/starkware-libs/stwo-cairo", rev = "2753bfe28bcf5d8a02975a18f9775ff7e43a236c" }
+stwo_cairo_prover = { git = "https://github.com/starkware-libs/stwo-cairo", rev = "2753bfe28bcf5d8a02975a18f9775ff7e43a236c" }
+cairo-air = { git = "https://github.com/starkware-libs/stwo-cairo", rev = "2753bfe28bcf5d8a02975a18f9775ff7e43a236c" }
