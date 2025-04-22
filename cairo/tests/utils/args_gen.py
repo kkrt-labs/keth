@@ -892,6 +892,10 @@ def _gen_arg(
         return struct_ptr
 
     if arg_type in (int, bool, U64, Uint, Bytes0, Bytes4, Bytes8, Bytes20):
+        # Case short string: arg type is int but actual type is str
+        if type(arg) is str:
+            arg = int.from_bytes(arg.encode(), "big")
+
         if arg_type is int and arg < 0:
             ret_value = arg + DEFAULT_PRIME
             return tuple([ret_value]) if for_dict_key else ret_value

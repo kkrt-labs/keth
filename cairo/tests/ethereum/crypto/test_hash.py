@@ -19,3 +19,18 @@ class TestHash:
             assert hashlib.blake2s(buffer).digest() == cairo_run(
                 "blake2s_bytes", buffer
             )
+
+    class TestHashWith:
+        @given(
+            buffer=st.binary(max_size=1000).map(Bytes),
+            hash_function_name=st.sampled_from(["keccak256", "blake2s"]),
+        )
+        def test_hash_with(self, cairo_run, buffer: Bytes, hash_function_name: str):
+            if hash_function_name == "keccak256":
+                assert keccak256(buffer) == cairo_run(
+                    "hash_with", buffer, hash_function_name
+                )
+            elif hash_function_name == "blake2s":
+                assert hashlib.blake2s(buffer).digest() == cairo_run(
+                    "hash_with", buffer, hash_function_name
+                )
