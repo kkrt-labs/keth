@@ -294,12 +294,9 @@ def is_account_alive(state: State, address: Address) -> bool:
     if account is None:
         return False
     else:
-        # Modified to use EMPTY_ACCOUNT - we want to make sure the storage root and code_hash are
-        # empty.
-        # Remember: Account__eq__ does not take into account the storage root.
-        return (
-            not account == EMPTY_ACCOUNT or not account.storage_root == EMPTY_TRIE_HASH
-        )
+        # Modified to use EMPTY_ACCOUNT - we want to make sure the code_hash is empty instead.
+        # Remember: Account__eq__ does not take into account the storage root. (intended, see eip-158)
+        return not account == EMPTY_ACCOUNT
 
 
 def set_code(state: State, address: Address, code: Bytes) -> None:
