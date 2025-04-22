@@ -354,7 +354,7 @@ func _process_account_diff{
             left.value.value.value.bytes
         );
         // Invariant check: there should never be a leaf for an EMPTY_ACCOUNT
-        with_attr error_message("INVARIANT - Left leaf for an EMPTY_ACCOUNT") {
+        with_attr error_message("InvariantLeftLeafEmptyAccount") {
             let is_empty_account = Account__eq__(
                 OptionalAccount(left_account.value), OptionalAccount(empty_account.value)
             );
@@ -394,7 +394,7 @@ func _process_account_diff{
             right.value.value.value.bytes
         );
         // Invariant check: there should never be a leaf for an EMPTY_ACCOUNT
-        with_attr error_message("INVARIANT - Right leaf for an EMPTY_ACCOUNT") {
+        with_attr error_message("InvariantRightLeafEmptyAccount") {
             let is_empty_account = Account__eq__(
                 OptionalAccount(right_account.value), OptionalAccount(empty_account.value)
             );

@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Dict, Mapping, Optional, Tuple, Union
 
 import pytest
-from ethereum.cancun.fork_types import Account, Address
+from ethereum.cancun.fork_types import EMPTY_ACCOUNT, Account, Address
 from ethereum.cancun.trie import (
     BranchNode,
     ExtensionNode,
@@ -187,12 +187,12 @@ class TestTrieDiff:
         diff_cls._address_preimages = {path: address}
         leaf_before = (
             None
-            if account_before is None
+            if account_before is None or account_before == EMPTY_ACCOUNT
             else LeafNode(rest_of_key=b"", value=account_before.to_rlp())
         )
         leaf_after = (
             None
-            if account_after is None
+            if account_after is None or account_after == EMPTY_ACCOUNT
             else LeafNode(rest_of_key=b"", value=account_after.to_rlp())
         )
         diff_cls._process_account_diff(
@@ -222,6 +222,56 @@ class TestTrieDiff:
 
         for key, (prev_value, new_value) in diff_cls._main_trie.items():
             assert (prev_value, new_value) == result_lookup[key]
+
+    @given(address=..., data=st.data())
+    def test__process_account_diff_raise_on_empty_account(
+        self,
+        cairo_run,
+        address: Address,
+        data: st.DataObject,
+    ):
+        # Setup
+        is_before_empty = data.draw(st.booleans())
+        if is_before_empty:
+            account_before = EMPTY_ACCOUNT
+            account_after = data.draw(st.builds(Account))
+        else:
+            account_before = data.draw(st.builds(Account))
+            account_after = EMPTY_ACCOUNT
+        assume(account_before != account_after)
+
+        leaf_before = (
+            None
+            if account_before is None
+            else LeafNode(rest_of_key=b"", value=account_before.to_rlp())
+        )
+        leaf_after = (
+            None
+            if account_after is None
+            else LeafNode(rest_of_key=b"", value=account_after.to_rlp())
+        )
+        path = keccak256(address)
+
+        # These are required for the call
+        diff_cls = StateDiff()
+        diff_cls._address_preimages = {path: address}
+        node_store = {}
+
+        with pytest.raises(
+            Exception,
+            match=re.compile(
+                "InvariantLeftLeafEmptyAccount|InvariantRightLeafEmptyAccount"
+            ),
+        ):
+            cairo_run(
+                "test__process_account_diff",
+                node_store=node_store,
+                address_preimages=diff_cls._address_preimages,
+                storage_key_preimages=diff_cls._storage_key_preimages,
+                path=path,
+                left=leaf_before,
+                right=leaf_after,
+            )
 
     @given(address=..., account_before=..., account_after=...)
     def test__process_account_diff_invalid(
