@@ -1194,7 +1194,7 @@ func storage_roots{
     bitwise_ptr: BitwiseBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
     blake2s_ptr: felt*,
-    hash_function: felt*,
+    hash_function_name: felt,
 }(state: State) -> MappingAddressBytes32 {
     alloc_locals;
 

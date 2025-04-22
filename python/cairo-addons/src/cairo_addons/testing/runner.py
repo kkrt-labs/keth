@@ -170,14 +170,7 @@ def build_entrypoint(
         isinstance(explicit_return_data, TypeTuple)
         and len(explicit_return_data.members) == 0
     ):
-        if isinstance(explicit_return_data, TypeTuple):
-            # If the return type is a tuple, add indices for all its members
-            output_indices.extend(
-                range(offset, offset + len(explicit_return_data.members))
-            )
-        else:
-            # Otherwise, it's a single return value
-            output_indices.append(offset)
+        output_indices.append(offset)
 
     # Fix builtins runner based on the implicit args since the compiler doesn't find them
     cairo_program.builtins = [

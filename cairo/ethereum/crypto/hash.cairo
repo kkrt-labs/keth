@@ -45,16 +45,16 @@ func blake2s_bytes{range_check_ptr, blake2s_ptr: felt*}(buffer: Bytes) -> Hash32
 }
 
 // @notice Computes the hash of a bytes object using the given hash function.
-// @dev To avoid re-binding the arguments in the correct order, the `hash_function_label` must be the
+// @dev To avoid re-binding the arguments in the correct order, the `hash_function_name` must be the
 // first implicit argument.
-// @dev This function takes as implicit arguments all possible arguments for the hash_function_labels used.
+// @dev This function takes as implicit arguments all possible arguments for the hash_function_names used.
 func hash_with{
     range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*, blake2s_ptr: felt*
-}(buffer: Bytes, hash_function_label: felt) -> Hash32 {
+}(buffer: Bytes, hash_function_name: felt) -> Hash32 {
     alloc_locals;
     let n_bytes = buffer.value.len;
 
-    if (hash_function_label == 'blake2s') {
+    if (hash_function_name == 'blake2s') {
         let (dst: felt*) = alloc();
         bytes_to_bytes4_little_endian(dst, n_bytes, buffer.value.data);
         let (result) = blake2s(dst, n_bytes);
