@@ -21,6 +21,10 @@ struct U256 {
     value: U256Struct*,
 }
 
+struct OptionalU256 {
+    value: U256Struct*,
+}
+
 struct UnionUintU256Enum {
     uint: Uint*,
     u256: U256,

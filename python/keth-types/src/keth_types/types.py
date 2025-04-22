@@ -364,9 +364,13 @@ class FlatState:
     """
 
     _main_trie: Trie[Address, Optional[Account]]
-    _storage_tries: Trie[Tuple[Address, Bytes32], U256]
+    # Note: Explicit Optional[U256] to allow args_gen to generate entries for 0 values.
+    _storage_tries: Trie[Tuple[Address, Bytes32], Optional[U256]]
     _snapshots: List[
-        Tuple[Trie[Address, Optional[Account]], Trie[Tuple[Address, Bytes32], U256]]
+        Tuple[
+            Trie[Address, Optional[Account]],
+            Trie[Tuple[Address, Bytes32], Optional[U256]],
+        ]
     ]
     created_accounts: Set[Address]
 
@@ -476,7 +480,11 @@ class AddressAccountDiffEntry:
                 int.from_bytes(self.key, "little"),
                 *(self.prev_value.hash_args() if self.prev_value else []),
                 # We don't hash the new storage_root, as we can't compute it from the partial state changes
-                *self.new_value.hash_args(with_storage_root=False),
+                *(
+                    self.new_value.hash_args(with_storage_root=False)
+                    if self.new_value
+                    else []
+                ),
             ]
         )
 
@@ -484,15 +492,23 @@ class AddressAccountDiffEntry:
 @dataclass
 class StorageDiffEntry:
     key: Uint
-    prev_value: U256
-    new_value: U256
+    prev_value: Optional[U256]
+    new_value: Optional[U256]
 
     def hash_poseidon(self):
         return poseidon_hash_many(
             [
                 int(self.key),
-                *int_to_uint256(int(self.prev_value)),
-                *int_to_uint256(int(self.new_value)),
+                *(
+                    int_to_uint256(int(self.prev_value))
+                    if self.prev_value is not None
+                    else []
+                ),
+                *(
+                    int_to_uint256(int(self.new_value))
+                    if self.new_value is not None
+                    else []
+                ),
             ]
         )
 

@@ -1,5 +1,66 @@
 # AI-Reports
 
+## AI-REPORT: Differentiating Null and Zero in State/Storage Diffs (April 22, 2025)
+
+### Problem
+
+Previously, the system did not consistently differentiate between a storage slot
+holding the value `U256(0)` and a storage slot that was genuinely empty (absent
+from the state, represented as `null`). This ambiguity stemmed from:
+
+1.  The ZK Proven Input (ZKPI) format providing `0` for storage slots that were
+    touched but ultimately empty post-transaction, rather than indicating
+    absence.
+2.  The Cairo hashing logic for state/storage diffs (`hash_state_storage_diff`,
+    `poseidon_storage_diff`) implicitly treated null pointers (representing
+    absence in `args_gen` output) as `U256(0)` during hashing.
+3.  The Python type system and `args_gen.py` did not explicitly model
+    optionality for storage values, leading to potential inconsistencies during
+    serialization.
+
+This could lead to having two identical state diff commitments for different
+tries, as the storage diffs would be the same, and the account diffs would be
+the same, but the nodes could be present / absent in the tries.
+
+### Solution
+
+This update introduces changes to correctly distinguish between null/absent
+values and the zero value (`U256(0)`) throughout the diffing and hashing
+process:
+
+1.  **Explicit Optional Type**: Introduced `OptionalU256` struct in
+    `cairo-core/numeric.cairo` and corresponding `Optional[U256]` type hint in
+    Python (`keth_types`, `args_gen`). This allows explicit representation of
+    potentially absent storage values.
+2.  **ZKPI Interpretation**: Modified `mpt.ethereum_tries.PreState.from_zkpi` to
+    interpret storage values of `0` from the ZKPI data as `None` (representing
+    absence) when populating the initial Python `Trie` structure. This correctly
+    reflects the intended state before serialization.
+3.  **Serialization (`args_gen.py`)**: Updated `generate_state_arg` and
+    `generate_transient_storage_arg` to handle `Trie[..., Optional[U256]]`. Now,
+    Python `None` values in the storage trie are serialized to Cairo's
+    `OptionalU256` type, likely resulting in null pointers for absent values,
+    distinct from a pointer to `U256(0)`.
+4.  **Hashing Logic (`hash_diff.cairo`)**:
+    - Refactored `poseidon_storage_diff` and
+      `_accumulate_state_storage_diff_hashes` to work with `OptionalU256`. They
+      now conditionally include value components in the hash based on whether
+      the pointer is null, correctly hashing absence differently from `U256(0)`.
+      The implicit conversion of null to `U256(0)` was removed.
+    - Updated `poseidon_account_diff` to handle cases where the `new_value`
+      account might be null.
+5.  **Comparison**: Added `OptionalU256__eq__` in Cairo and corresponding tests
+    to compare these optional values correctly. Added null pointer checks to
+    `is_ptr_equal`.
+
+### Impact
+
+These changes ensure that the Poseidon hashes generated for state and storage
+diffs accurately reflect the distinction between zero values and absent entries.
+This enhances the correctness of the state transition verification based on diff
+commitments. Tests were added/updated to cover the new optional types and
+comparison logic.
+
 ## AI-REPORT: Passing Objects in our Python Cairo Runner and the Rust CairoVM
 
 **Runner Strategy**: Keth uses a dual approach to executing Cairo: a backend in

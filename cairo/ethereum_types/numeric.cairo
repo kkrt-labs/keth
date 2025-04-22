@@ -13,4 +13,5 @@ from cairo_core.numeric import (
     UnionUintU256Enum,
     U384,
     U384Struct,
+    OptionalU256,
 )

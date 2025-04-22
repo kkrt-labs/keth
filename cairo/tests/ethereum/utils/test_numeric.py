@@ -1,3 +1,5 @@
+from typing import Optional
+
 import pytest
 from ethereum.cancun.fork_types import Address
 from ethereum.cancun.vm.gas import (
@@ -164,6 +166,12 @@ class TestNumeric:
         @given(a=..., b=...)
         def test_U256__eq__(self, cairo_run, a: U256, b: U256):
             assert (a == b) == cairo_run("U256__eq__", a, b)
+
+        @given(a=..., b=...)
+        def test_OptionalU256__eq__(
+            self, cairo_run, a: Optional[U256], b: Optional[U256]
+        ):
+            assert (a == b) == cairo_run("OptionalU256__eq__", a, b)
 
         @given(address=...)
         def test_U256_from_be_bytes20(self, cairo_run, address: Address):

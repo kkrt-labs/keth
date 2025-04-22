@@ -100,8 +100,10 @@ class StateDiff:
                     key = Bytes32.fromhex(storage_diff["storageKey"][2:])
                     pre_int = int(storage_diff["preValue"][2:], 16)
                     post_int = int(storage_diff["postValue"][2:], 16)
-                    pre = U256(pre_int)
-                    post = U256(post_int)
+                    # ZKPI provides sets empty storage values to 0, but they're actually deleted from the Trie,
+                    # so their value should be 0.
+                    pre = U256(pre_int) if pre_int != 0 else None
+                    post = U256(post_int) if post_int != 0 else None
                     if address not in state_diff._storage_tries:
                         state_diff._storage_tries[address] = {}
                     state_diff._storage_tries[address][key] = tuple((pre, post))
@@ -605,10 +607,10 @@ class StateDiff:
     ):
         key = self._storage_key_preimages[path]
         left_decoded = (
-            U256(int.from_bytes(rlp.decode(left.value), "big")) if left else U256(0)
+            U256(int.from_bytes(rlp.decode(left.value), "big")) if left else None
         )
         right_decoded = (
-            U256(int.from_bytes(rlp.decode(right.value), "big")) if right else U256(0)
+            U256(int.from_bytes(rlp.decode(right.value), "big")) if right else None
         )
         # If both values are the same, it's not a diff.
         if left_decoded == right_decoded:

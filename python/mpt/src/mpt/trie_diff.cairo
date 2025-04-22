@@ -7,6 +7,8 @@ from starkware.cairo.common.memset import memset
 from starkware.cairo.common.memcpy import memcpy
 from ethereum.crypto.hash import Hash32, keccak256
 from ethereum.cancun.fork_types import (
+    EMPTY_ACCOUNT,
+    Account__eq__,
     OptionalAddress,
     Address,
     Account,
@@ -28,7 +30,7 @@ from ethereum_types.bytes import (
     StringStruct,
 )
 from ethereum.utils.bytes import Bytes20_to_Bytes, Bytes32_to_Bytes
-from ethereum_types.numeric import U256, Uint, U256Struct, Bool, bool
+from cairo_core.numeric import U256, Uint, U256Struct, Bool, bool, OptionalU256
 from ethereum.cancun.trie import (
     LeafNode,
     LeafNodeStruct,
@@ -72,6 +74,7 @@ from ethereum.utils.numeric import (
     U256_le,
     Uint_from_be_bytes,
     U256__eq__,
+    OptionalU256__eq__,
 )
 from ethereum.utils.bytes import (
     Bytes_to_Bytes32,
@@ -344,10 +347,18 @@ func _process_account_diff{
         assert hashed_address.value.high = path.value.high;
     }
 
+    let empty_account = EMPTY_ACCOUNT();
     if (left.value != 0) {
         let (left_account, left_storage_root_bytes) = Account_from_rlp(
             left.value.value.value.bytes
         );
+        // Invariant check: there should never be a leaf for an EMPTY_ACCOUNT
+        with_attr error_message("InvariantLeftLeafEmptyAccount") {
+            let is_empty_account = Account__eq__(
+                OptionalAccount(left_account.value), OptionalAccount(empty_account.value)
+            );
+            assert is_empty_account.value = 0;
+        }
         let left_storage_root_extended = ExtendedImpl.bytes(left_storage_root_bytes);
         let left_storage_root = OptionalUnionInternalNodeExtendedImpl.from_extended(
             left_storage_root_extended
@@ -381,6 +392,13 @@ func _process_account_diff{
         let (right_account, right_storage_root_bytes) = Account_from_rlp(
             right.value.value.value.bytes
         );
+        // Invariant check: there should never be a leaf for an EMPTY_ACCOUNT
+        with_attr error_message("InvariantRightLeafEmptyAccount") {
+            let is_empty_account = Account__eq__(
+                OptionalAccount(right_account.value), OptionalAccount(empty_account.value)
+            );
+            assert is_empty_account.value = 0;
+        }
 
         let right_storage_root_extended = ExtendedImpl.bytes(right_storage_root_bytes);
         let right_storage_root = OptionalUnionInternalNodeExtendedImpl.from_extended(
@@ -405,7 +423,7 @@ func _process_account_diff{
     let right_storage_root = OptionalUnionInternalNodeExtended(
         cast([ap - 6], OptionalUnionInternalNodeExtendedEnum*)
     );
-    let right_account_value = cast([ap - 5], AccountStruct*);
+    let right_optional_account = OptionalAccount(cast([ap - 5], AccountStruct*));
     let range_check_ptr = [ap - 4];
     let bitwise_ptr = cast([ap - 3], BitwiseBuiltin*);
     let poseidon_ptr = cast([ap - 2], PoseidonBuiltin*);
@@ -414,16 +432,14 @@ func _process_account_diff{
     // This is an account diff only if the ACCOUNT is different - not taking into account its storage.
     // We don't log any diff in the main_trie_end if only the storage root is different.
     let is_prev_eq_new = account_eq_without_storage_root(
-        left_optional_account, OptionalAccount(right_account_value)
+        left_optional_account, right_optional_account
     );
     if (is_prev_eq_new.value != 0) {
         tempvar main_trie_end = main_trie_end;
     } else {
         tempvar account_diff = AddressAccountDiffEntry(
             new AddressAccountDiffEntryStruct(
-                key=address,
-                prev_value=left_optional_account,
-                new_value=Account(right_account_value),
+                key=address, prev_value=left_optional_account, new_value=right_optional_account
             ),
         );
         assert [main_trie_end] = account_diff;
@@ -487,45 +503,57 @@ func _process_storage_diff{
     }
 
     if (left.value != 0) {
-        let left_u256 = U256_from_rlp(left.value.value.value.bytes);
+        let left_u256_ = U256_from_rlp(left.value.value.value.bytes);
+
+        // Invariant check: there should never be a leaf node with a U256(0) as value.
+        if (left_u256_.value.low == 0 and left_u256_.value.high == 0) {
+            raise('InvariantLeftNodeZero');
+        }
+
+        tempvar left_u256 = OptionalU256(left_u256_.value);
         tempvar range_check_ptr = range_check_ptr;
         tempvar bitwise_ptr = bitwise_ptr;
         tempvar poseidon_ptr = poseidon_ptr;
         tempvar keccak_ptr = keccak_ptr;
     } else {
-        tempvar left_u256 = U256(new U256Struct(0, 0));
+        tempvar left_u256 = OptionalU256(cast(0, U256Struct*));
         tempvar range_check_ptr = range_check_ptr;
         tempvar bitwise_ptr = bitwise_ptr;
         tempvar poseidon_ptr = poseidon_ptr;
         tempvar keccak_ptr = keccak_ptr;
     }
 
-    let left_u256 = U256(cast([ap - 5], U256Struct*));
+    let left_u256 = OptionalU256(cast([ap - 5], U256Struct*));
     let range_check_ptr = [ap - 4];
     let bitwise_ptr = cast([ap - 3], BitwiseBuiltin*);
     let poseidon_ptr = cast([ap - 2], PoseidonBuiltin*);
     let keccak_ptr = cast([ap - 1], KeccakBuiltin*);
 
     if (right.value != 0) {
-        let right_u256 = U256_from_rlp(right.value.value.value.bytes);
+        let right_u256_ = U256_from_rlp(right.value.value.value.bytes);
+        // Invariant check: there should never be a leaf node with a U256(0) as value.
+        if (right_u256_.value.low == 0 and right_u256_.value.high == 0) {
+            raise('InvariantRightNodeZero');
+        }
+        tempvar right_u256 = OptionalU256(right_u256_.value);
         tempvar range_check_ptr = range_check_ptr;
         tempvar bitwise_ptr = bitwise_ptr;
         tempvar poseidon_ptr = poseidon_ptr;
         tempvar keccak_ptr = keccak_ptr;
     } else {
-        tempvar right_u256 = U256(new U256Struct(0, 0));
+        tempvar right_u256 = OptionalU256(cast(0, U256Struct*));
         tempvar range_check_ptr = range_check_ptr;
         tempvar bitwise_ptr = bitwise_ptr;
         tempvar poseidon_ptr = poseidon_ptr;
         tempvar keccak_ptr = keccak_ptr;
     }
-    let right_u256 = U256(cast([ap - 5], U256Struct*));
+    let right_u256 = OptionalU256(cast([ap - 5], U256Struct*));
     let range_check_ptr = [ap - 4];
     let bitwise_ptr = cast([ap - 3], BitwiseBuiltin*);
     let poseidon_ptr = cast([ap - 2], PoseidonBuiltin*);
     let keccak_ptr = cast([ap - 1], KeccakBuiltin*);
 
-    let is_prev_eq_new = U256__eq__(left_u256, right_u256);
+    let is_prev_eq_new = OptionalU256__eq__(left_u256, right_u256);
     if (is_prev_eq_new.value != 0) {
         return ();
     }

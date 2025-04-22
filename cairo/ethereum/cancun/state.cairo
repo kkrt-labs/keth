@@ -73,6 +73,7 @@ from ethereum_types.bytes import Bytes, Bytes32, Bytes32Struct, BytesStruct, Opt
 from ethereum.crypto.hash import EMPTY_ROOT
 from ethereum_types.numeric import U256, U256Struct, Bool, bool, Uint
 from ethereum.utils.numeric import U256_le, U256_sub, U256_add, U256_mul
+from ethereum.cancun.utils.constants import U256_ZERO
 from cairo_core.comparison import is_zero
 from cairo_core.control_flow import raise
 
@@ -88,10 +89,6 @@ from legacy.utils.dict import (
     dict_squash,
 )
 from ethereum.utils.hash_dicts import set_address_contains
-
-U256_ZERO:
-dw 0;
-dw 0;
 
 struct AddressTrieBytes32U256DictAccess {
     key: Address,

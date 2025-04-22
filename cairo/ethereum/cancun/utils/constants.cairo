@@ -1,2 +1,6 @@
 const STACK_DEPTH_LIMIT = 1024;
 const MAX_CODE_SIZE = 0x6000;
+
+U256_ZERO:
+dw 0;
+dw 0;
