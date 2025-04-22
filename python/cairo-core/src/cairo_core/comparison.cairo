@@ -65,6 +65,10 @@ func is_ptr_equal(lhs: felt*, rhs: felt*) -> (bool, bool) {
         let res = (bool(0), bool(1));
         return res;
     }
+    if (cast(rhs, felt) == 0) {
+        let res = (bool(0), bool(1));
+        return res;
+    }
 
     tempvar segment_equal;
     %{ compare_relocatable_segment_index %}

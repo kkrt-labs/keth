@@ -2,8 +2,8 @@ from starkware.cairo.common.builtin_poseidon.poseidon import poseidon_hash, pose
 from starkware.cairo.common.cairo_builtins import PoseidonBuiltin
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.registers import get_label_location
-from ethereum_types.numeric import U256, U256Struct
-from ethereum.utils.numeric import U256__eq__
+from ethereum_types.numeric import U256, U256Struct, OptionalU256
+from ethereum.utils.numeric import U256__eq__, OptionalU256__eq__
 from ethereum.cancun.fork_types import (
     OptionalAccount,
     AddressAccountDictAccess,
@@ -54,19 +54,24 @@ func poseidon_account_diff{poseidon_ptr: PoseidonBuiltin*}(diff: AddressAccountD
         assert offset = 1;
     }
 
+    // A new account can be null if the account still does not exist in the post-state.
+    // e.g. account touched, but no balance / nonce changes
     // Inline the new Account
-    assert buffer[offset] = diff.value.new_value.value.nonce.value;
-    assert buffer[offset + 1] = diff.value.new_value.value.balance.value.low;
-    assert buffer[offset + 2] = diff.value.new_value.value.balance.value.high;
-    assert buffer[offset + 3] = diff.value.new_value.value.code_hash.value.low;
-    assert buffer[offset + 4] = diff.value.new_value.value.code_hash.value.high;
-    let (account_diff_hash) = poseidon_hash_many(offset + 5, buffer);
+    if (cast(diff.value.new_value.value, felt) != 0) {
+        assert buffer[offset] = diff.value.new_value.value.nonce.value;
+        assert buffer[offset + 1] = diff.value.new_value.value.balance.value.low;
+        assert buffer[offset + 2] = diff.value.new_value.value.balance.value.high;
+        assert buffer[offset + 3] = diff.value.new_value.value.code_hash.value.low;
+        assert buffer[offset + 4] = diff.value.new_value.value.code_hash.value.high;
+        let (account_diff_hash) = poseidon_hash_many(offset + 5, buffer);
+        return account_diff_hash;
+    }
+    let (account_diff_hash) = poseidon_hash_many(offset, buffer);
     return account_diff_hash;
 }
 
 // @notice Computes the Poseidon hash of a storage diff entry
 // @dev Hashes the storage key, previous value, and new value.
-//      The prev and new value must not be set to null pointers.
 // @param diff The storage diff entry containing the key and storage values
 // @return The Poseidon hash of the storage diff entry
 func poseidon_storage_diff{poseidon_ptr: PoseidonBuiltin*}(diff: StorageDiffEntry) -> felt {
@@ -74,12 +79,22 @@ func poseidon_storage_diff{poseidon_ptr: PoseidonBuiltin*}(diff: StorageDiffEntr
     let (buffer) = alloc();
 
     assert buffer[0] = diff.value.key.value;
-    assert buffer[1] = diff.value.prev_value.value.low;
-    assert buffer[2] = diff.value.prev_value.value.high;
-    assert buffer[3] = diff.value.new_value.value.low;
-    assert buffer[4] = diff.value.new_value.value.high;
+    local offset;
+    if (cast(diff.value.prev_value.value, felt) != 0) {
+        assert buffer[1] = diff.value.prev_value.value.low;
+        assert buffer[2] = diff.value.prev_value.value.high;
+        assert offset = 3;
+    } else {
+        assert offset = 1;
+    }
 
-    let (storage_diff_hash) = poseidon_hash_many(5, buffer);
+    if (cast(diff.value.new_value.value, felt) != 0) {
+        assert buffer[offset] = diff.value.new_value.value.low;
+        assert buffer[offset + 1] = diff.value.new_value.value.high;
+        let (storage_diff_hash) = poseidon_hash_many(offset + 2, buffer);
+        return storage_diff_hash;
+    }
+    let (storage_diff_hash) = poseidon_hash_many(offset, buffer);
     return storage_diff_hash;
 }
 
@@ -254,7 +269,6 @@ func hash_state_storage_diff{range_check_ptr, poseidon_ptr: PoseidonBuiltin*}(
     );
     let buffer_len = buffer_end - hashes_buffer;
     let (final_hash) = poseidon_hash_many(buffer_len, hashes_buffer);
-
     return final_hash;
 }
 
@@ -284,19 +298,11 @@ func _accumulate_state_storage_diff_hashes{poseidon_ptr: PoseidonBuiltin*}(
     }
 
     // If the pointers are not equal, or we cannot compare them, we still need to do value comparison.
-
-    // Due to the behavior of storage_tries, a value set to U256(0) will be "deleted" by writing a null pointer instead.
-    // If that's the case, we set the value to an explicit U256(0) to be able to hash the entry.
-    local new_value: U256;
-    if (current_diff_ptr.new_value.value == 0) {
-        assert new_value = U256(new U256Struct(0, 0));
-    } else {
-        assert new_value = current_diff_ptr.new_value;
-    }
-
     // Check whether the pre and post storage values are the same, creating no diff.
-    let prev_value = current_diff_ptr.prev_value;
-    let prev_eq_new = U256__eq__(prev_value, new_value);
+    // TODO: refactor the type to use OptionalU256 instead of U256.
+    let new_value = OptionalU256(current_diff_ptr.new_value.value);
+    let prev_value = OptionalU256(current_diff_ptr.prev_value.value);
+    let prev_eq_new = OptionalU256__eq__(prev_value, new_value);
     if (prev_eq_new.value != 0) {
         return _accumulate_state_storage_diff_hashes(buffer, state_storage_diff, i + 1, len);
     }

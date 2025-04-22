@@ -10,9 +10,10 @@ from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.cairo.common.uint256 import uint256_reverse_endian, uint256_to_felt
 from starkware.cairo.common.uint256 import word_reverse_endian, Uint256, uint256_le, uint256_mul
 from starkware.cairo.common.memset import memset
+from starkware.cairo.common.registers import get_label_location
 
 from ethereum_types.bytes import Bytes32, Bytes32Struct, Bytes20, Bytes, BytesStruct
-from ethereum_types.numeric import Uint, U256, U256Struct, bool, U64, U384, U384Struct
+from cairo_core.numeric import Uint, U256, U256Struct, bool, U64, U384, U384Struct, OptionalU256
 from cairo_core.maths import (
     pow2,
     unsigned_div_rem,
@@ -173,6 +174,22 @@ func U256_to_be_bytes{bitwise_ptr: BitwiseBuiltin*}(value: U256) -> Bytes32 {
 
 func U256_to_le_bytes(value: U256) -> Bytes32 {
     tempvar res = Bytes32(value.value);
+    return res;
+}
+
+func OptionalU256__eq__(a: OptionalU256, b: OptionalU256) -> bool {
+    if (cast(a.value, felt) != 0) {
+        if (cast(b.value, felt) != 0) {
+            return U256__eq__(U256(a.value), U256(b.value));
+        }
+        let res = bool(0);
+        return res;
+    }
+    if (cast(b.value, felt) != 0) {
+        let res = bool(0);
+        return res;
+    }
+    let res = bool(1);
     return res;
 }
 

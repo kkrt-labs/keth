@@ -7,7 +7,7 @@ from ethereum.cancun.trie import (
     SequenceExtended,
 )
 from ethereum.cancun.fork_types import Address, HashedTupleAddressBytes32, Account, OptionalAccount
-from ethereum_types.numeric import U256, Uint, Bool
+from cairo_core.numeric import U256, Uint, Bool, OptionalU256
 from ethereum.crypto.hash import Hash32
 
 // NodeStore is a mapping of node hashes to their corresponding InternalNode
@@ -81,14 +81,14 @@ struct StorageDiffEntry {
 
 struct StorageDiffEntryStruct {
     key: HashedTupleAddressBytes32,
-    prev_value: U256,
-    new_value: U256,
+    prev_value: OptionalU256,
+    new_value: OptionalU256,
 }
 
 struct AddressAccountDiffEntryStruct {
     key: Address,
     prev_value: OptionalAccount,
-    new_value: Account,
+    new_value: OptionalAccount,
 }
 
 struct AddressAccountDiffEntry {
