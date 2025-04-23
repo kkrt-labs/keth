@@ -43,7 +43,7 @@ and execution:
     were renamed to `EMPTY_ROOT_KECCAK` and `EMPTY_HASH_KECCAK` to distinguish
     them, as different hash functions have different default empty values.
 4.  We use the newly introduced opcode in the VM and proven by STWO to compute
-    Blake2s hashes (see cairo_core.hash.blakes2s)
+    Blake2s hashes (see cairo_core.hash.blake2s)
 
 ### Changes
 

@@ -61,9 +61,7 @@ func main{
         chain.value.blocks.value.len - 1
     ].value.header;
     let pre_state_root = parent_header.value.state_root;
-    let (local blake2s_ptr_start: felt*) = alloc();
-    let blake2s_ptr = blake2s_ptr_start;
-    state_transition{chain=chain, blake2s_ptr=blake2s_ptr}(block);
+    state_transition{chain=chain}(block);
 
     // # Compute the diff between the pre and post STF MPTs to produce trie diffs.
     let pre_state_root_bytes = Bytes32_to_Bytes(pre_state_root);

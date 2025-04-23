@@ -1262,11 +1262,10 @@ func _prepare_trie{
     jmp end;
 
     end:
-    let range_check_ptr = [ap - 6];
-    let bitwise_ptr = cast([ap - 5], BitwiseBuiltin*);
-    let keccak_ptr = cast([ap - 4], KeccakBuiltin*);
-    let poseidon_ptr = cast([ap - 3], PoseidonBuiltin*);
-    let blake2s_ptr = cast([ap - 2], felt*);
+    let range_check_ptr = [ap - 5];
+    let bitwise_ptr = cast([ap - 4], BitwiseBuiltin*);
+    let keccak_ptr = cast([ap - 3], KeccakBuiltin*);
+    let poseidon_ptr = cast([ap - 2], PoseidonBuiltin*);
     let mapping_ptr_end = cast([ap - 1], BytesBytesDictAccess*);
 
     // The mapping will no longer be mutated (read or write) - as we'll only be iterating over the segment.
@@ -1345,19 +1344,16 @@ func _prepare_trie_inner_account{
         tempvar range_check_ptr = range_check_ptr;
         tempvar bitwise_ptr = bitwise_ptr;
         tempvar keccak_ptr = keccak_ptr;
-        tempvar blake2s_ptr = blake2s_ptr;
     } else {
         tempvar key_bytes = preimage;
         tempvar range_check_ptr = range_check_ptr;
         tempvar bitwise_ptr = bitwise_ptr;
         tempvar keccak_ptr = keccak_ptr;
-        tempvar blake2s_ptr = blake2s_ptr;
     }
-    let key_bytes = Bytes(cast([ap - 5], BytesStruct*));
-    let range_check_ptr = [ap - 4];
-    let bitwise_ptr = cast([ap - 3], BitwiseBuiltin*);
-    let keccak_ptr = cast([ap - 2], KeccakBuiltin*);
-    let blake2s_ptr = cast([ap - 1], felt*);
+    let key_bytes = Bytes(cast([ap - 4], BytesStruct*));
+    let range_check_ptr = [ap - 3];
+    let bitwise_ptr = cast([ap - 2], BitwiseBuiltin*);
+    let keccak_ptr = cast([ap - 1], KeccakBuiltin*);
 
     let nibbles_list = bytes_to_nibble_list(key_bytes);
     let mapping_dict_ptr = cast(mapping_ptr_end, DictAccess*);
@@ -1430,19 +1426,16 @@ func _prepare_trie_inner_storage{
         tempvar range_check_ptr = range_check_ptr;
         tempvar bitwise_ptr = bitwise_ptr;
         tempvar keccak_ptr = keccak_ptr;
-        tempvar blake2s_ptr = blake2s_ptr;
     } else {
         tempvar key_bytes = preimage;
         tempvar range_check_ptr = range_check_ptr;
         tempvar bitwise_ptr = bitwise_ptr;
         tempvar keccak_ptr = keccak_ptr;
-        tempvar blake2s_ptr = blake2s_ptr;
     }
-    let key_bytes = Bytes(cast([ap - 5], BytesStruct*));
-    let range_check_ptr = [ap - 4];
-    let bitwise_ptr = cast([ap - 3], BitwiseBuiltin*);
-    let keccak_ptr = cast([ap - 2], KeccakBuiltin*);
-    let blake2s_ptr = cast([ap - 1], felt*);
+    let key_bytes = Bytes(cast([ap - 4], BytesStruct*));
+    let range_check_ptr = [ap - 3];
+    let bitwise_ptr = cast([ap - 2], BitwiseBuiltin*);
+    let keccak_ptr = cast([ap - 1], KeccakBuiltin*);
 
     let nibbles_list = bytes_to_nibble_list(key_bytes);
     let mapping_dict_ptr = cast(mapping_ptr_end, DictAccess*);
@@ -1530,19 +1523,16 @@ func _prepare_trie_inner_transaction{
         tempvar range_check_ptr = range_check_ptr;
         tempvar bitwise_ptr = bitwise_ptr;
         tempvar keccak_ptr = keccak_ptr;
-        tempvar blake2s_ptr = blake2s_ptr;
     } else {
         tempvar key_bytes = preimage;
         tempvar range_check_ptr = range_check_ptr;
         tempvar bitwise_ptr = bitwise_ptr;
         tempvar keccak_ptr = keccak_ptr;
-        tempvar blake2s_ptr = blake2s_ptr;
     }
-    let key_bytes = Bytes(cast([ap - 5], BytesStruct*));
-    let range_check_ptr = [ap - 4];
-    let bitwise_ptr = cast([ap - 3], BitwiseBuiltin*);
-    let keccak_ptr = cast([ap - 2], KeccakBuiltin*);
-    let blake2s_ptr = cast([ap - 1], felt*);
+    let key_bytes = Bytes(cast([ap - 4], BytesStruct*));
+    let range_check_ptr = [ap - 3];
+    let bitwise_ptr = cast([ap - 2], BitwiseBuiltin*);
+    let keccak_ptr = cast([ap - 1], KeccakBuiltin*);
 
     let nibbles_list = bytes_to_nibble_list(key_bytes);
     let mapping_dict_ptr = cast(mapping_ptr_end, DictAccess*);
@@ -1630,19 +1620,16 @@ func _prepare_trie_inner_receipt{
         tempvar range_check_ptr = range_check_ptr;
         tempvar bitwise_ptr = bitwise_ptr;
         tempvar keccak_ptr = keccak_ptr;
-        tempvar blake2s_ptr = blake2s_ptr;
     } else {
         tempvar key_bytes = preimage;
         tempvar range_check_ptr = range_check_ptr;
         tempvar bitwise_ptr = bitwise_ptr;
         tempvar keccak_ptr = keccak_ptr;
-        tempvar blake2s_ptr = blake2s_ptr;
     }
-    let key_bytes = Bytes(cast([ap - 5], BytesStruct*));
-    let range_check_ptr = [ap - 4];
-    let bitwise_ptr = cast([ap - 3], BitwiseBuiltin*);
-    let keccak_ptr = cast([ap - 2], KeccakBuiltin*);
-    let blake2s_ptr = cast([ap - 1], felt*);
+    let key_bytes = Bytes(cast([ap - 4], BytesStruct*));
+    let range_check_ptr = [ap - 3];
+    let bitwise_ptr = cast([ap - 2], BitwiseBuiltin*);
+    let keccak_ptr = cast([ap - 1], KeccakBuiltin*);
 
     let nibbles_list = bytes_to_nibble_list(key_bytes);
     let mapping_dict_ptr = cast(mapping_ptr_end, DictAccess*);
@@ -1729,19 +1716,16 @@ func _prepare_trie_inner_withdrawal{
         tempvar range_check_ptr = range_check_ptr;
         tempvar bitwise_ptr = bitwise_ptr;
         tempvar keccak_ptr = keccak_ptr;
-        tempvar blake2s_ptr = blake2s_ptr;
     } else {
         tempvar key_bytes = preimage;
         tempvar range_check_ptr = range_check_ptr;
         tempvar bitwise_ptr = bitwise_ptr;
         tempvar keccak_ptr = keccak_ptr;
-        tempvar blake2s_ptr = blake2s_ptr;
     }
-    let key_bytes = Bytes(cast([ap - 5], BytesStruct*));
-    let range_check_ptr = [ap - 4];
-    let bitwise_ptr = cast([ap - 3], BitwiseBuiltin*);
-    let keccak_ptr = cast([ap - 2], KeccakBuiltin*);
-    let blake2s_ptr = cast([ap - 1], felt*);
+    let key_bytes = Bytes(cast([ap - 4], BytesStruct*));
+    let range_check_ptr = [ap - 3];
+    let bitwise_ptr = cast([ap - 2], BitwiseBuiltin*);
+    let keccak_ptr = cast([ap - 1], KeccakBuiltin*);
 
     let nibbles_list = bytes_to_nibble_list(key_bytes);
     let mapping_dict_ptr = cast(mapping_ptr_end, DictAccess*);

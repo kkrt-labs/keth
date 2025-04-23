@@ -19,10 +19,6 @@ from starkware.cairo.common.uint256 import Uint256
 const INPUT_BLOCK_FELTS = 16;
 const INPUT_BLOCK_BYTES = 64;
 const STATE_SIZE_FELTS = 8;
-const INPUT_SIZE_FELTS = INPUT_BLOCK_FELTS + STATE_SIZE_FELTS;
-// Each instance consists of 8 words for the input state, 16 words of message,
-// 2 words for t0 and f0, and 8 words for the output state.
-const INSTANCE_SIZE = STATE_SIZE_FELTS + INPUT_BLOCK_FELTS + 2 + STATE_SIZE_FELTS;
 
 // Computes blake2s of 'input'.
 // To use this function, split the input into words of 32 bits (little endian).
@@ -35,10 +31,8 @@ const INSTANCE_SIZE = STATE_SIZE_FELTS + INPUT_BLOCK_FELTS + 2 + STATE_SIZE_FELT
 //
 // Returns the hash as a Uint256.
 //
-// Note: Unlike the blake2s implementation from starkware, this one does not require calling
-// any finalize function, as it's using a specific opcode proven by STWO.
 // Note: the interface of this function may change in the future.
-// Note: Each input word is verified to be in the range [0, 2 ** 32) by this function.
+// Note: Each input word is verified to be in the range [0, 2 ** 32) by the opcode runner.
 func blake2s{range_check_ptr}(data: felt*, n_bytes: felt) -> (res: Uint256) {
     let (blake2s_ptr) = alloc();
     let (output) = blake2s_as_words{blake2s_ptr=blake2s_ptr}(data=data, n_bytes=n_bytes);
@@ -111,8 +105,7 @@ func blake2s_as_words{range_check_ptr, blake2s_ptr: felt*}(data: felt*, n_bytes:
     return (output=output);
 }
 
-// Inner loop for blake2s. blake2s_ptr points to the middle of an instance: after the initial state,
-// before the message.
+// Inner loop for blake2s. blake2s_ptr points to after the initial state of the previous instance.
 func blake2s_inner{range_check_ptr, blake2s_ptr: felt*}(
     data: felt*, n_bytes: felt, counter: felt
 ) -> (output: felt*) {
@@ -123,17 +116,10 @@ func blake2s_inner{range_check_ptr, blake2s_ptr: felt*}(
     }
 
     let state_ptr = blake2s_ptr - STATE_SIZE_FELTS;
-    let message_ptr = blake2s_ptr;
-    memcpy(blake2s_ptr, data, INPUT_BLOCK_FELTS);
 
-    // Run the blake2s opcode runner on the same inputs and store its output.
-    let vm_output = run_blake2s_opcode(
-        is_last_block=0, dst=counter, op0=state_ptr, op1=message_ptr
-    );
+    // Run the blake2s opcode runner, store its output in blake2s_ptr;
+    run_blake2s_opcode(is_last_block=0, dst=counter, op0=state_ptr, op1=data);
 
-    // Write the current output to the input state for the next instance.
-    memcpy(blake2s_ptr, vm_output, STATE_SIZE_FELTS);
-    let blake2s_ptr = blake2s_ptr + STATE_SIZE_FELTS;
     return blake2s_inner(
         data=data + INPUT_BLOCK_FELTS,
         n_bytes=n_bytes - INPUT_BLOCK_BYTES,
@@ -146,19 +132,13 @@ func blake2s_last_block{range_check_ptr, blake2s_ptr: felt*}(
 ) -> (output: felt*) {
     alloc_locals;
     let state_ptr = blake2s_ptr - STATE_SIZE_FELTS;
-    let message_ptr = blake2s_ptr;
     let (n_felts, _) = unsigned_div_rem(n_bytes + 3, 4);
-    memcpy(blake2s_ptr, data, n_felts);
-    memset(blake2s_ptr + n_felts, 0, INPUT_BLOCK_FELTS - n_felts);
+    memset(data + n_felts, 0, INPUT_BLOCK_FELTS - n_felts);
     let blake2s_ptr = blake2s_ptr + INPUT_BLOCK_FELTS;
 
     // Run the blake2s opcode runner on the same inputs and store its output.
-    let vm_output = run_blake2s_opcode(
-        is_last_block=1, dst=counter + n_bytes, op0=state_ptr, op1=message_ptr
-    );
-    let blake2s_ptr = blake2s_ptr + STATE_SIZE_FELTS;
-
-    return (output=vm_output);
+    run_blake2s_opcode(is_last_block=1, dst=counter + n_bytes, op0=state_ptr, op1=data);
+    return (output=cast(blake2s_ptr - STATE_SIZE_FELTS, felt*));
 }
 
 // These functions serialize data to a data array to be used with blake2s().
@@ -267,7 +247,10 @@ func blake2s_felts{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, blake2s_ptr: f
 // An instruction encoding is built from offsets -5, -4, -3 and flags which are all 0 except for
 // those denoting uses of fp as the base for operand addresses and flag_opcode_blake (16th flag).
 // The instruction is then written to [pc] and the runner is forced to execute Blake2s.
-func run_blake2s_opcode(is_last_block: felt, dst: felt, op0: felt*, op1: felt*) -> felt* {
+// Writes the output to the pointer in blake2s_ptr.
+func run_blake2s_opcode{blake2s_ptr: felt*}(
+    is_last_block: felt, dst: felt, op0: felt*, op1: felt*
+) {
     alloc_locals;
 
     // Set the offsets for the operands.
@@ -308,14 +291,17 @@ func run_blake2s_opcode(is_last_block: felt, dst: felt, op0: felt*, op1: felt*) 
     static_assert blake2s_last_block_instruction_num == 18449981025204076539;
 
     // Write the instruction to [pc] and point [ap] to the designated output.
-    let (local vm_output) = alloc();
-    assert [ap] = cast(vm_output, felt);
+    assert [ap] = cast(blake2s_ptr, felt);
 
     jmp last_block if is_last_block != 0;
     dw 9226608988349300731;
-    return cast([ap], felt*);
+    ap += 1;
+    let blake2s_ptr = cast([fp - 7], felt*) + STATE_SIZE_FELTS;
+    return ();
 
     last_block:
     dw 18449981025204076539;
-    return cast([ap], felt*);
+    ap += 1;
+    let blake2s_ptr = cast([fp - 7], felt*) + STATE_SIZE_FELTS;
+    return ();
 }
