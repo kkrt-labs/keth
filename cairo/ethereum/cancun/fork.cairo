@@ -1446,12 +1446,12 @@ func _process_withdrawals_inner{
 func state_transition{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
-    keccak_ptr: felt*,
     poseidon_ptr: PoseidonBuiltin*,
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,
     chain: BlockChain,
+    keccak_ptr: felt*,
 }(block: Block) {
     alloc_locals;
 
