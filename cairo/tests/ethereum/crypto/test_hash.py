@@ -5,16 +5,18 @@ from ethereum_types.bytes import Bytes
 from hypothesis import given
 from hypothesis import strategies as st
 
+from tests.utils.strategies import small_bytes
+
 
 class TestHash:
 
     class TestKeccak256:
-        @given(buffer=st.binary(max_size=1000).map(Bytes))
+        @given(buffer=small_bytes)
         def test_keccak256(self, cairo_run, buffer: Bytes):
             assert keccak256(buffer) == cairo_run("keccak256", buffer)
 
     class TestBlake2s:
-        @given(buffer=st.binary(max_size=1000).map(Bytes))
+        @given(buffer=small_bytes)
         def test_blake2s_bytes(self, cairo_run, buffer: Bytes):
             assert hashlib.blake2s(buffer).digest() == cairo_run(
                 "blake2s_bytes", buffer
@@ -22,7 +24,7 @@ class TestHash:
 
     class TestHashWith:
         @given(
-            buffer=st.binary(max_size=1000).map(Bytes),
+            buffer=small_bytes,
             hash_function_name=st.sampled_from(["keccak256", "blake2s"]),
         )
         def test_hash_with(self, cairo_run, buffer: Bytes, hash_function_name: str):

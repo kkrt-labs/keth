@@ -115,10 +115,9 @@ func blake2s_inner{range_check_ptr, blake2s_ptr: felt*}(
         return blake2s_last_block(data=data, n_bytes=n_bytes, counter=counter);
     }
 
-    let state_ptr = blake2s_ptr - STATE_SIZE_FELTS;
-
     // Run the blake2s opcode runner, store its output in blake2s_ptr;
-    run_blake2s_opcode(is_last_block=0, dst=counter, op0=state_ptr, op1=data);
+    let state_ptr = blake2s_ptr - STATE_SIZE_FELTS;
+    run_blake2s_opcode(is_last_block=0, dst=counter + INPUT_BLOCK_BYTES, op0=state_ptr, op1=data);
 
     return blake2s_inner(
         data=data + INPUT_BLOCK_FELTS,

@@ -157,7 +157,11 @@ MAX_TOUCHED_ACCOUNTS_SIZE = int(os.getenv("HYPOTHESIS_MAX_TOUCHED_ACCOUNTS_SIZE"
 MAX_TUPLE_SIZE = int(os.getenv("HYPOTHESIS_MAX_TUPLE_SIZE", 10))
 
 
-small_bytes = st.binary(max_size=256)
+# Hypothesis generates examples that shrink towards 0, creating very few large examples.
+# By converting an integer instead, we maximize the amount of large examples created, while being faster.
+small_bytes = st.integers(min_value=0, max_value=2 ** (256 * 8) - 1).map(
+    lambda x: Uint(x).to_le_bytes()
+)
 code = st.binary(max_size=MAX_CODE_SIZE)
 pc = st.integers(min_value=0, max_value=MAX_CODE_SIZE * 2).map(Uint)
 
