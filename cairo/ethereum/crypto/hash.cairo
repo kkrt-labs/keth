@@ -45,9 +45,8 @@ func blake2s_bytes{range_check_ptr, blake2s_ptr: felt*}(buffer: Bytes) -> Hash32
 }
 
 // @notice Computes the hash of a bytes object using the given hash function.
-// @dev To avoid re-binding the arguments in the correct order, the `hash_function_name` must be the
-// first implicit argument.
-// @dev This function takes as implicit arguments all possible arguments for the hash_function_names used.
+// @dev This function takes as implicit arguments all possible arguments for the hash functions
+// used.
 func hash_with{
     range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*, blake2s_ptr: felt*
 }(buffer: Bytes, hash_function_name: felt) -> Hash32 {

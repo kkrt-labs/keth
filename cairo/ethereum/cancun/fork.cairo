@@ -124,7 +124,6 @@ from ethereum.cancun.state import (
     TransientStorageStruct,
     empty_transient_storage,
     process_withdrawal,
-    state_root,
     finalize_state,
 )
 from ethereum.cancun.transactions_types import (

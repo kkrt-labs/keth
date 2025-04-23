@@ -895,6 +895,8 @@ def _gen_arg(
         # Case short string: arg type is int but actual type is str
         if type(arg) is str:
             arg = int.from_bytes(arg.encode(), "big")
+            if arg > DEFAULT_PRIME:
+                raise ValueError("String does not fit in a felt")
 
         if arg_type is int and arg < 0:
             ret_value = arg + DEFAULT_PRIME
