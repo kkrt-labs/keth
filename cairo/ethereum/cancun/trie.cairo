@@ -7,7 +7,6 @@ from starkware.cairo.common.math import assert_not_zero
 from starkware.cairo.common.bitwise import BitwiseBuiltin
 from starkware.cairo.common.dict import DictAccess
 from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
-from starkware.cairo.common.cairo_builtins import KeccakBuiltin
 from starkware.cairo.common.memcpy import memcpy
 
 from legacy.utils.bytes import uint256_to_bytes32_little
@@ -474,9 +473,9 @@ struct Node {
     value: NodeEnum*,
 }
 
-func encode_internal_node{
-    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*
-}(node: InternalNode) -> Extended {
+func encode_internal_node{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: felt*}(
+    node: InternalNode
+) -> Extended {
     alloc_locals;
     local unencoded: Extended;
     local range_check_ptr_end;
@@ -551,7 +550,7 @@ func encode_internal_node{
     return hashed;
 }
 
-func encode_node{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*}(
+func encode_node{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: felt*}(
     node: Node, storage_root: Bytes
 ) -> Bytes {
     alloc_locals;
@@ -1179,10 +1178,7 @@ func bytes_to_nibble_list{bitwise_ptr: BitwiseBuiltin*}(bytes_: Bytes) -> Bytes 
 }
 
 func _prepare_trie{
-    range_check_ptr,
-    bitwise_ptr: BitwiseBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
-    poseidon_ptr: PoseidonBuiltin*,
+    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: felt*, poseidon_ptr: PoseidonBuiltin*
 }(trie_union: EthereumTries, storage_roots_: OptionalMappingAddressBytes32) -> MappingBytesBytes {
     alloc_locals;
 
@@ -1249,7 +1245,7 @@ func _prepare_trie{
     end:
     let range_check_ptr = [ap - 5];
     let bitwise_ptr = cast([ap - 4], BitwiseBuiltin*);
-    let keccak_ptr = cast([ap - 3], KeccakBuiltin*);
+    let keccak_ptr = cast([ap - 3], felt*);
     let poseidon_ptr = cast([ap - 2], PoseidonBuiltin*);
     let mapping_ptr_end = cast([ap - 1], BytesBytesDictAccess*);
 
@@ -1270,10 +1266,7 @@ func _prepare_trie{
 }
 
 func _prepare_trie_inner_account{
-    range_check_ptr,
-    bitwise_ptr: BitwiseBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
-    poseidon_ptr: PoseidonBuiltin*,
+    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: felt*, poseidon_ptr: PoseidonBuiltin*
 }(
     trie: TrieAddressOptionalAccount,
     dict_ptr: AddressAccountDictAccess*,
@@ -1333,7 +1326,7 @@ func _prepare_trie_inner_account{
     let key_bytes = Bytes(cast([ap - 4], BytesStruct*));
     let range_check_ptr = [ap - 3];
     let bitwise_ptr = cast([ap - 2], BitwiseBuiltin*);
-    let keccak_ptr = cast([ap - 1], KeccakBuiltin*);
+    let keccak_ptr = cast([ap - 1], felt*);
 
     let nibbles_list = bytes_to_nibble_list(key_bytes);
     let mapping_dict_ptr = cast(mapping_ptr_end, DictAccess*);
@@ -1350,10 +1343,7 @@ func _prepare_trie_inner_account{
 }
 
 func _prepare_trie_inner_storage{
-    range_check_ptr,
-    bitwise_ptr: BitwiseBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
-    poseidon_ptr: PoseidonBuiltin*,
+    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: felt*, poseidon_ptr: PoseidonBuiltin*
 }(
     trie: TrieBytes32U256, dict_ptr: Bytes32U256DictAccess*, mapping_ptr_end: BytesBytesDictAccess*
 ) -> BytesBytesDictAccess* {
@@ -1411,7 +1401,7 @@ func _prepare_trie_inner_storage{
     let key_bytes = Bytes(cast([ap - 4], BytesStruct*));
     let range_check_ptr = [ap - 3];
     let bitwise_ptr = cast([ap - 2], BitwiseBuiltin*);
-    let keccak_ptr = cast([ap - 1], KeccakBuiltin*);
+    let keccak_ptr = cast([ap - 1], felt*);
 
     let nibbles_list = bytes_to_nibble_list(key_bytes);
     let mapping_dict_ptr = cast(mapping_ptr_end, DictAccess*);
@@ -1425,10 +1415,7 @@ func _prepare_trie_inner_storage{
 }
 
 func _prepare_trie_inner_transaction{
-    range_check_ptr,
-    bitwise_ptr: BitwiseBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
-    poseidon_ptr: PoseidonBuiltin*,
+    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: felt*, poseidon_ptr: PoseidonBuiltin*
 }(
     trie: TrieBytesOptionalUnionBytesLegacyTransaction,
     dict_ptr: BytesOptionalUnionBytesLegacyTransactionDictAccess*,
@@ -1503,7 +1490,7 @@ func _prepare_trie_inner_transaction{
     let key_bytes = Bytes(cast([ap - 4], BytesStruct*));
     let range_check_ptr = [ap - 3];
     let bitwise_ptr = cast([ap - 2], BitwiseBuiltin*);
-    let keccak_ptr = cast([ap - 1], KeccakBuiltin*);
+    let keccak_ptr = cast([ap - 1], felt*);
 
     let nibbles_list = bytes_to_nibble_list(key_bytes);
     let mapping_dict_ptr = cast(mapping_ptr_end, DictAccess*);
@@ -1519,10 +1506,7 @@ func _prepare_trie_inner_transaction{
 }
 
 func _prepare_trie_inner_receipt{
-    range_check_ptr,
-    bitwise_ptr: BitwiseBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
-    poseidon_ptr: PoseidonBuiltin*,
+    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: felt*, poseidon_ptr: PoseidonBuiltin*
 }(
     trie: TrieBytesOptionalUnionBytesReceipt,
     dict_ptr: BytesOptionalUnionBytesReceiptDictAccess*,
@@ -1595,7 +1579,7 @@ func _prepare_trie_inner_receipt{
     let key_bytes = Bytes(cast([ap - 4], BytesStruct*));
     let range_check_ptr = [ap - 3];
     let bitwise_ptr = cast([ap - 2], BitwiseBuiltin*);
-    let keccak_ptr = cast([ap - 1], KeccakBuiltin*);
+    let keccak_ptr = cast([ap - 1], felt*);
 
     let nibbles_list = bytes_to_nibble_list(key_bytes);
     let mapping_dict_ptr = cast(mapping_ptr_end, DictAccess*);
@@ -1611,10 +1595,7 @@ func _prepare_trie_inner_receipt{
 }
 
 func _prepare_trie_inner_withdrawal{
-    range_check_ptr,
-    bitwise_ptr: BitwiseBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
-    poseidon_ptr: PoseidonBuiltin*,
+    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: felt*, poseidon_ptr: PoseidonBuiltin*
 }(
     trie: TrieBytesOptionalUnionBytesWithdrawal,
     dict_ptr: BytesOptionalUnionBytesWithdrawalDictAccess*,
@@ -1686,7 +1667,7 @@ func _prepare_trie_inner_withdrawal{
     let key_bytes = Bytes(cast([ap - 4], BytesStruct*));
     let range_check_ptr = [ap - 3];
     let bitwise_ptr = cast([ap - 2], BitwiseBuiltin*);
-    let keccak_ptr = cast([ap - 1], KeccakBuiltin*);
+    let keccak_ptr = cast([ap - 1], felt*);
 
     let nibbles_list = bytes_to_nibble_list(key_bytes);
     let mapping_dict_ptr = cast(mapping_ptr_end, DictAccess*);
@@ -1702,10 +1683,7 @@ func _prepare_trie_inner_withdrawal{
 }
 
 func root{
-    range_check_ptr,
-    bitwise_ptr: BitwiseBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
-    poseidon_ptr: PoseidonBuiltin*,
+    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: felt*, poseidon_ptr: PoseidonBuiltin*
 }(trie_union: EthereumTries, storage_roots_: OptionalMappingAddressBytes32) -> Root {
     alloc_locals;
 
@@ -2130,10 +2108,7 @@ func get_tuple_address_bytes32_preimage_for_key{poseidon_ptr: PoseidonBuiltin*}(
 // @dev No other squashing is required after this function returns as it only reads from the DictAccess segment.
 // @dev This function could be made faster by sorting the DictAccess segment by key before processing it.
 func patricialize{
-    range_check_ptr,
-    bitwise_ptr: BitwiseBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
-    poseidon_ptr: PoseidonBuiltin*,
+    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: felt*, poseidon_ptr: PoseidonBuiltin*
 }(obj: MappingBytesBytes, level: Uint) -> InternalNode {
     alloc_locals;
 

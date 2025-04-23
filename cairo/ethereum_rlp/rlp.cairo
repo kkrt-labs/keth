@@ -1,5 +1,5 @@
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin
+from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 from starkware.cairo.common.math_cmp import is_le, is_not_zero
 from starkware.cairo.common.math import assert_not_zero, split_int
 from starkware.cairo.common.memcpy import memcpy
@@ -473,7 +473,7 @@ func encode_bytes8{range_check_ptr}(raw_bytes8: Bytes8) -> Bytes {
     return result;
 }
 
-func encode_account{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*}(
+func encode_account{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: felt*}(
     raw_account_data: Account, storage_root: Bytes
 ) -> Bytes {
     alloc_locals;

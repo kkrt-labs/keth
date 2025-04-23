@@ -1,12 +1,7 @@
 from starkware.cairo.common.math_cmp import is_le_felt, is_not_zero
 from starkware.cairo.common.bool import FALSE, TRUE
 from starkware.cairo.common.math import assert_not_zero
-from starkware.cairo.common.cairo_builtins import (
-    BitwiseBuiltin,
-    KeccakBuiltin,
-    ModBuiltin,
-    PoseidonBuiltin,
-)
+from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, ModBuiltin, PoseidonBuiltin
 from ethereum.crypto.elliptic_curve import secp256k1_recover, public_key_point_to_eth_address
 from ethereum.utils.numeric import U256_le, U256__eq__
 from ethereum_types.bytes import Bytes, Bytes0, BytesStruct
@@ -192,7 +187,7 @@ func validate_transaction{range_check_ptr}(tx: Transaction) -> bool {
     return res;
 }
 
-func signing_hash_pre155{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*}(
+func signing_hash_pre155{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: felt*}(
     tx: LegacyTransaction
 ) -> Hash32 {
     let encoded_tx = encode_legacy_transaction_for_signing(tx);
@@ -200,7 +195,7 @@ func signing_hash_pre155{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_p
     return hash;
 }
 
-func signing_hash_155{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*}(
+func signing_hash_155{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: felt*}(
     tx: LegacyTransaction, chain_id: U64
 ) -> Hash32 {
     let encoded_tx = encode_eip155_transaction_for_signing(tx, chain_id);
@@ -208,7 +203,7 @@ func signing_hash_155{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr:
     return hash;
 }
 
-func signing_hash_2930{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*}(
+func signing_hash_2930{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: felt*}(
     tx: AccessListTransaction
 ) -> Hash32 {
     let encoded_tx = encode_access_list_transaction_for_signing(tx);
@@ -216,7 +211,7 @@ func signing_hash_2930{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr
     return hash;
 }
 
-func signing_hash_1559{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*}(
+func signing_hash_1559{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: felt*}(
     tx: FeeMarketTransaction
 ) -> Hash32 {
     let encoded_tx = encode_fee_market_transaction_for_signing(tx);
@@ -224,7 +219,7 @@ func signing_hash_1559{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr
     return hash;
 }
 
-func signing_hash_4844{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*}(
+func signing_hash_4844{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: felt*}(
     tx: BlobTransaction
 ) -> Hash32 {
     let encoded_tx = encode_blob_transaction_for_signing(tx);
@@ -238,7 +233,7 @@ func recover_sender{
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,
     bitwise_ptr: BitwiseBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
+    keccak_ptr: felt*,
     poseidon_ptr: PoseidonBuiltin*,
 }(chain_id: U64, tx: Transaction) -> Address {
     alloc_locals;

@@ -1,7 +1,6 @@
 from starkware.cairo.common.cairo_builtins import (
     BitwiseBuiltin,
     HashBuiltin,
-    KeccakBuiltin,
     ModBuiltin,
     PoseidonBuiltin,
 )
@@ -15,7 +14,7 @@ from ethereum_types.numeric import U256, U256Struct
 from ethereum.crypto.hash import Hash32
 from starkware.cairo.common.alloc import alloc
 from ethereum.utils.numeric import U256_to_le_bytes
-from starkware.cairo.common.builtin_keccak.keccak import keccak_uint256s
+from starkware.cairo.common.cairo_keccak.keccak import cairo_keccak_uint256s
 from cairo_core.maths import unsigned_div_rem
 from starkware.cairo.common.math_cmp import RC_BOUND
 from ethereum.exceptions import EthereumException, ValueError
@@ -29,7 +28,7 @@ from ethereum.exceptions import EthereumException, ValueError
 func secp256k1_recover{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
+    keccak_ptr: felt*,
     poseidon_ptr: PoseidonBuiltin*,
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
@@ -67,13 +66,13 @@ func secp256k1_recover{
 // @param y The y coordinate of the public key point.
 // @return The Ethereum address, interpreted as a 20-byte little-endian value.
 func public_key_point_to_eth_address{
-    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*
+    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: felt*
 }(public_key_x: Bytes32, public_key_y: Bytes32) -> Address {
     alloc_locals;
     let (local elements: Uint256*) = alloc();
     assert elements[0] = [public_key_x.value];
     assert elements[1] = [public_key_y.value];
-    let (point_hash: Uint256) = keccak_uint256s(n_elements=2, elements=elements);
+    let (point_hash: Uint256) = cairo_keccak_uint256s(n_elements=2, elements=elements);
 
     // The point_hash is a 32-byte value, in little endian, we want the 20 most significant bytes.
     let (low_high, _) = unsigned_div_rem(point_hash.low, 2 ** 96);

@@ -1,6 +1,5 @@
 from starkware.cairo.common.cairo_builtins import (
     BitwiseBuiltin,
-    KeccakBuiltin,
     ModBuiltin,
     PoseidonBuiltin,
     UInt384,
@@ -56,7 +55,7 @@ const PAIRING_CHECK_DATA_LEN = 192;
 func alt_bn128_add{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
+    keccak_ptr: felt*,
     poseidon_ptr: PoseidonBuiltin*,
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
@@ -186,7 +185,7 @@ func alt_bn128_add{
 func alt_bn128_mul{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
+    keccak_ptr: felt*,
     poseidon_ptr: PoseidonBuiltin*,
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
@@ -273,7 +272,7 @@ func alt_bn128_mul{
 func alt_bn128_pairing_check{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
+    keccak_ptr: felt*,
     poseidon_ptr: PoseidonBuiltin*,
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,

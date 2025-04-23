@@ -1,4 +1,4 @@
-from starkware.cairo.common.cairo_builtins import KeccakBuiltin, BitwiseBuiltin
+from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 from starkware.cairo.common.builtin_keccak.keccak import keccak_bigend
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.math import split_int, split_felt, assert_le_felt, assert_nn_le

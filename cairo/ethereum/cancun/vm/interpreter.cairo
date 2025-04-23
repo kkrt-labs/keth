@@ -1,11 +1,6 @@
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bool import TRUE, FALSE
-from starkware.cairo.common.cairo_builtins import (
-    BitwiseBuiltin,
-    KeccakBuiltin,
-    PoseidonBuiltin,
-    ModBuiltin,
-)
+from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, PoseidonBuiltin, ModBuiltin
 from starkware.cairo.common.default_dict import default_dict_new
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.math_cmp import is_nn
@@ -90,7 +85,7 @@ struct MessageCallOutputStruct {
 func process_create_message{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
+    keccak_ptr: felt*,
     poseidon_ptr: PoseidonBuiltin*,
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
@@ -192,7 +187,7 @@ func process_create_message{
 func _process_create_message_error{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
+    keccak_ptr: felt*,
     poseidon_ptr: PoseidonBuiltin*,
     evm: Evm,
 }(error: EthereumException*) {
@@ -214,7 +209,7 @@ func _process_create_message_error{
 func process_message{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
+    keccak_ptr: felt*,
     poseidon_ptr: PoseidonBuiltin*,
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
@@ -274,7 +269,7 @@ func process_message{
 func execute_code{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
+    keccak_ptr: felt*,
     poseidon_ptr: PoseidonBuiltin*,
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
@@ -376,7 +371,7 @@ func execute_code{
 
             let range_check_ptr = [ap - 9];
             let bitwise_ptr = cast([ap - 8], BitwiseBuiltin*);
-            let keccak_ptr = cast([ap - 7], KeccakBuiltin*);
+            let keccak_ptr = cast([ap - 7], felt*);
             let poseidon_ptr = cast([ap - 6], PoseidonBuiltin*);
             let range_check96_ptr = cast([ap - 5], felt*);
             let add_mod_ptr = cast([ap - 4], ModBuiltin*);
@@ -420,7 +415,7 @@ func _execute_code{
     process_message_label: felt*,
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
+    keccak_ptr: felt*,
     poseidon_ptr: PoseidonBuiltin*,
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
@@ -482,7 +477,7 @@ func _execute_code{
 func process_message_call{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
+    keccak_ptr: felt*,
     poseidon_ptr: PoseidonBuiltin*,
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
@@ -576,7 +571,7 @@ func process_message_call{
     }
     let range_check_ptr = [ap - 8];
     let bitwise_ptr = cast([ap - 7], BitwiseBuiltin*);
-    let keccak_ptr = cast([ap - 6], KeccakBuiltin*);
+    let keccak_ptr = cast([ap - 6], felt*);
     let poseidon_ptr = cast([ap - 5], PoseidonBuiltin*);
     let range_check96_ptr = cast([ap - 4], felt*);
     let add_mod_ptr = cast([ap - 3], ModBuiltin*);

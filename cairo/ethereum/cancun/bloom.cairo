@@ -7,7 +7,7 @@ from starkware.cairo.common.memcpy import memcpy
 from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
 from starkware.cairo.common.math import assert_le, assert_lt
 from starkware.cairo.common.math_cmp import is_le, is_not_zero
-from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin
+from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 
 from ethereum_types.bytes import Bytes, BytesStruct, Bytes1DictAccess, Bytes32, TupleBytes32
 from ethereum_types.numeric import U256, Uint, U128
@@ -34,7 +34,7 @@ struct MutableBloom {
 }
 
 func add_to_bloom{
-    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*, bloom: MutableBloom
+    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: felt*, bloom: MutableBloom
 }(bloom_entry: Bytes) {
     alloc_locals;
     let hash = keccak256(bloom_entry);
@@ -93,7 +93,7 @@ func _add_bloom_index{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, bloom: Muta
     return ();
 }
 
-func logs_bloom{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*}(
+func logs_bloom{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: felt*}(
     logs: TupleLog
 ) -> Bloom {
     alloc_locals;
@@ -113,7 +113,7 @@ func logs_bloom{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: Kecca
     let (local bloom_buffer: felt*) = alloc();
     local range_check_ptr = range_check_ptr;
     local bitwise_ptr: BitwiseBuiltin* = bitwise_ptr;
-    local keccak_ptr: KeccakBuiltin* = keccak_ptr;
+    local keccak_ptr: felt* = keccak_ptr;
 
     tempvar index = 255;
     tempvar bloom_end = cast(mutable_bloom.value.dict_ptr, DictAccess*);
@@ -142,7 +142,7 @@ func logs_bloom{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: Kecca
 }
 
 func _iter_logs{
-    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*, bloom: MutableBloom
+    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: felt*, bloom: MutableBloom
 }(logs: TupleLog, index) {
     if (index == logs.value.len) {
         return ();
@@ -156,7 +156,7 @@ func _iter_logs{
 }
 
 func _iter_topics{
-    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*, bloom: MutableBloom
+    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: felt*, bloom: MutableBloom
 }(topics: TupleBytes32, index) {
     if (index == topics.value.len) {
         return ();

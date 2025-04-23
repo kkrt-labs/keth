@@ -1,4 +1,4 @@
-from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin, PoseidonBuiltin
+from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, PoseidonBuiltin
 from starkware.cairo.common.registers import get_label_location
 from starkware.cairo.common.math_cmp import is_le_felt
 from starkware.cairo.common.math import split_felt
