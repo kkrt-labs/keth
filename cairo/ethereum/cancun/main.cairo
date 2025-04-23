@@ -12,7 +12,6 @@ from starkware.cairo.common.cairo_builtins import (
     EcOpBuiltin,
 )
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.cairo_blake2s.blake2s import finalize_blake2s
 from ethereum.cancun.fork import state_transition, BlockChain, Block, keccak256_header
 from ethereum_types.bytes import Bytes32
 from ethereum.utils.bytes import Bytes32_to_Bytes
@@ -65,7 +64,6 @@ func main{
     let (local blake2s_ptr_start: felt*) = alloc();
     let blake2s_ptr = blake2s_ptr_start;
     state_transition{chain=chain, blake2s_ptr=blake2s_ptr}(block);
-    finalize_blake2s(blake2s_ptr_start, blake2s_ptr);
 
     // # Compute the diff between the pre and post STF MPTs to produce trie diffs.
     let pre_state_root_bytes = Bytes32_to_Bytes(pre_state_root);

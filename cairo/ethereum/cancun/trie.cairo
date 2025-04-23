@@ -475,7 +475,7 @@ struct Node {
 }
 
 func encode_internal_node{
-    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*, blake2s_ptr: felt*
+    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*
 }(node: InternalNode, hash_function_name: felt) -> Extended {
     alloc_locals;
     local unencoded: Extended;
@@ -1181,7 +1181,6 @@ func _prepare_trie{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
-    blake2s_ptr: felt*,
 }(
     trie_union: EthereumTries,
     storage_roots_: OptionalMappingAddressBytes32,
@@ -1291,7 +1290,6 @@ func _prepare_trie_inner_account{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
-    blake2s_ptr: felt*,
 }(
     trie: TrieAddressOptionalAccount,
     dict_ptr: AddressAccountDictAccess*,
@@ -1381,7 +1379,6 @@ func _prepare_trie_inner_storage{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
-    blake2s_ptr: felt*,
 }(
     trie: TrieBytes32U256,
     dict_ptr: Bytes32U256DictAccess*,
@@ -1466,7 +1463,6 @@ func _prepare_trie_inner_transaction{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
-    blake2s_ptr: felt*,
 }(
     trie: TrieBytesOptionalUnionBytesLegacyTransaction,
     dict_ptr: BytesOptionalUnionBytesLegacyTransactionDictAccess*,
@@ -1567,7 +1563,6 @@ func _prepare_trie_inner_receipt{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
-    blake2s_ptr: felt*,
 }(
     trie: TrieBytesOptionalUnionBytesReceipt,
     dict_ptr: BytesOptionalUnionBytesReceiptDictAccess*,
@@ -1668,7 +1663,6 @@ func _prepare_trie_inner_withdrawal{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
-    blake2s_ptr: felt*,
 }(
     trie: TrieBytesOptionalUnionBytesWithdrawal,
     dict_ptr: BytesOptionalUnionBytesWithdrawalDictAccess*,
@@ -1768,7 +1762,6 @@ func root{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
-    blake2s_ptr: felt*,
 }(
     trie_union: EthereumTries,
     storage_roots_: OptionalMappingAddressBytes32,
@@ -2201,7 +2194,6 @@ func patricialize{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
-    blake2s_ptr: felt*,
 }(obj: MappingBytesBytes, level: Uint, hash_function_name: felt) -> InternalNode {
     alloc_locals;
 

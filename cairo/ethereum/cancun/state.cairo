@@ -1194,7 +1194,6 @@ func storage_roots{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
-    blake2s_ptr: felt*,
 }(state: State, hash_function_name: felt) -> MappingAddressBytes32 {
     alloc_locals;
 
@@ -1276,7 +1275,6 @@ func build_map_addr_storage_root{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
-    blake2s_ptr: felt*,
     map_addr_storage_root: MappingAddressBytes32,
     map_addr_storage_ptr_end: AddressTrieBytes32U256DictAccess*,
 }(map_addr_storage_ptr: AddressTrieBytes32U256DictAccess*, hash_function_name: felt) {
@@ -1391,7 +1389,6 @@ func state_root{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
-    blake2s_ptr: felt*,
 }(state: State, hash_function_name: felt) -> Bytes32 {
     alloc_locals;
 

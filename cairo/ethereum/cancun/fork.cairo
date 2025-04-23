@@ -1039,7 +1039,6 @@ func apply_body{
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,
-    blake2s_ptr: felt*,
     state: State,
 }(
     block_hashes: ListHash32,
@@ -1306,7 +1305,6 @@ func _apply_body_inner{
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,
-    blake2s_ptr: felt*,
 }(
     index: felt,
     len: felt,
@@ -1456,7 +1454,6 @@ func state_transition{
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,
     chain: BlockChain,
-    blake2s_ptr: felt*,
 }(block: Block) {
     alloc_locals;
 
