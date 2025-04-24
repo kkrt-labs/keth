@@ -1190,10 +1190,7 @@ func empty_transient_storage{range_check_ptr}() -> TransientStorage {
 // @notice Computes the storage roots of all the addresses in the state
 // @dev The input state must've been squashed for unique keys.
 func storage_roots{
-    range_check_ptr,
-    bitwise_ptr: BitwiseBuiltin*,
-    keccak_ptr: felt*,
-    poseidon_ptr: PoseidonBuiltin*,
+    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: felt*, poseidon_ptr: PoseidonBuiltin*
 }(state: State, hash_function_name: felt) -> MappingAddressBytes32 {
     alloc_locals;
 
@@ -1385,10 +1382,7 @@ func build_storage_trie_for_address{
 // @notice Computes the state root of the state
 // @dev Squashes the main trie for unique keys, and updates the state with the new, squashed segment.
 func state_root{
-    range_check_ptr,
-    bitwise_ptr: BitwiseBuiltin*,
-    keccak_ptr: felt*,
-    poseidon_ptr: PoseidonBuiltin*,
+    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: felt*, poseidon_ptr: PoseidonBuiltin*
 }(state: State, hash_function_name: felt) -> Bytes32 {
     alloc_locals;
 

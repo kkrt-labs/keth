@@ -4,6 +4,7 @@
   // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
   "version": "0.2.0",
   "configurations": [
+
     {
       "name": "Python Debugger: Current File",
       "type": "debugpy",
@@ -21,6 +22,15 @@
       "justMyCode": false,
       "cwd": "${workspaceFolder}",
       "args": ["python/cairo-ec/src/cairo_ec/circuits/ec_ops.cairo"]
+    },
+    {
+      "name": "Python: Debug Tests",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${file}",
+      "purpose": ["debug-test"],
+      "console": "integratedTerminal",
+      "justMyCode": false
     }
   ]
 }

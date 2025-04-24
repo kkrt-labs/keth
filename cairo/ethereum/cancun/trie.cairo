@@ -473,9 +473,9 @@ struct Node {
     value: NodeEnum*,
 }
 
-func encode_internal_node{
-    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: felt*
-}(node: InternalNode, hash_function_name: felt) -> Extended {
+func encode_internal_node{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: felt*}(
+    node: InternalNode, hash_function_name: felt
+) -> Extended {
     alloc_locals;
     local unencoded: Extended;
     local range_check_ptr_end;
@@ -1176,10 +1176,7 @@ func bytes_to_nibble_list{bitwise_ptr: BitwiseBuiltin*}(bytes_: Bytes) -> Bytes 
 }
 
 func _prepare_trie{
-    range_check_ptr,
-    bitwise_ptr: BitwiseBuiltin*,
-    keccak_ptr: felt*,
-    poseidon_ptr: PoseidonBuiltin*,
+    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: felt*, poseidon_ptr: PoseidonBuiltin*
 }(
     trie_union: EthereumTries,
     storage_roots_: OptionalMappingAddressBytes32,
@@ -1726,10 +1723,7 @@ func _prepare_trie_inner_withdrawal{
 }
 
 func root{
-    range_check_ptr,
-    bitwise_ptr: BitwiseBuiltin*,
-    keccak_ptr: felt*,
-    poseidon_ptr: PoseidonBuiltin*,
+    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: felt*, poseidon_ptr: PoseidonBuiltin*
 }(
     trie_union: EthereumTries,
     storage_roots_: OptionalMappingAddressBytes32,
@@ -2158,10 +2152,7 @@ func get_tuple_address_bytes32_preimage_for_key{poseidon_ptr: PoseidonBuiltin*}(
 // @dev No other squashing is required after this function returns as it only reads from the DictAccess segment.
 // @dev This function could be made faster by sorting the DictAccess segment by key before processing it.
 func patricialize{
-    range_check_ptr,
-    bitwise_ptr: BitwiseBuiltin*,
-    keccak_ptr: felt*,
-    poseidon_ptr: PoseidonBuiltin*,
+    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: felt*, poseidon_ptr: PoseidonBuiltin*
 }(obj: MappingBytesBytes, level: Uint, hash_function_name: felt) -> InternalNode {
     alloc_locals;
 

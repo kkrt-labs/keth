@@ -155,7 +155,7 @@ class Serde:
         cairo_file=None,
     ):
         self.segments = segments
-        self.memory = segments.memory
+        self.memory = segments.memory if segments else None
         self.program_identifiers = program_identifiers
         self.dict_manager = dict_manager
         self.cairo_file = cairo_file or Path()
