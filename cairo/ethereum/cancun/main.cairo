@@ -11,7 +11,6 @@ from starkware.cairo.common.cairo_builtins import (
     SignatureBuiltin,
     EcOpBuiltin,
 )
-from starkware.cairo.common.alloc import alloc
 from ethereum.cancun.fork import state_transition, BlockChain, Block, keccak256_header
 from ethereum_types.bytes import Bytes32
 from ethereum.utils.bytes import Bytes32_to_Bytes
