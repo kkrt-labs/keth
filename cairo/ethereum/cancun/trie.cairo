@@ -12,7 +12,7 @@ from starkware.cairo.common.memcpy import memcpy
 
 from legacy.utils.bytes import uint256_to_bytes32_little
 from legacy.utils.dict import hashdict_read, hashdict_write, dict_new_empty, dict_read, dict_squash
-from ethereum.crypto.hash import keccak256
+from ethereum.crypto.hash import hash_with
 from ethereum.utils.numeric import min
 from ethereum_rlp.rlp import encode, _encode_bytes, _encode, Extended__eq__
 from ethereum.utils.numeric import U256__eq__
@@ -476,7 +476,7 @@ struct Node {
 
 func encode_internal_node{
     range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*
-}(node: InternalNode) -> Extended {
+}(node: InternalNode, hash_function_name: felt) -> Extended {
     alloc_locals;
     local unencoded: Extended;
     local range_check_ptr_end;
@@ -544,16 +544,14 @@ func encode_internal_node{
         return unencoded;
     }
 
-    let hash = keccak256(encoded);
+    let hash = hash_with(encoded, hash_function_name);
     let (data) = alloc();
     uint256_to_bytes32_little(data, [hash.value]);
     let hashed = ExtendedImpl.bytes(Bytes(new BytesStruct(data, 32)));
     return hashed;
 }
 
-func encode_node{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*}(
-    node: Node, storage_root: Bytes
-) -> Bytes {
+func encode_node{range_check_ptr}(node: Node, storage_root: Bytes) -> Bytes {
     alloc_locals;
 
     tempvar is_none = is_zero(cast(node.value, felt));
@@ -1183,7 +1181,11 @@ func _prepare_trie{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
-}(trie_union: EthereumTries, storage_roots_: OptionalMappingAddressBytes32) -> MappingBytesBytes {
+}(
+    trie_union: EthereumTries,
+    storage_roots_: OptionalMappingAddressBytes32,
+    hash_function_name: felt,
+) -> MappingBytesBytes {
     alloc_locals;
 
     let (local mapping_ptr_start: BytesBytesDictAccess*) = default_dict_new(0);
@@ -1215,34 +1217,47 @@ func _prepare_trie{
         account_trie.value._data.value.dict_ptr_start,
         mapping_ptr_start,
         MappingAddressBytes32(storage_roots_.value),
+        hash_function_name,
     );
     jmp end;
 
     storage:
     let storage_trie = trie_union.value.storage;
     _prepare_trie_inner_storage(
-        storage_trie, storage_trie.value._data.value.dict_ptr_start, mapping_ptr_start
+        storage_trie,
+        storage_trie.value._data.value.dict_ptr_start,
+        mapping_ptr_start,
+        hash_function_name,
     );
     jmp end;
 
     transaction:
     let transaction_trie = trie_union.value.transaction;
     _prepare_trie_inner_transaction(
-        transaction_trie, transaction_trie.value._data.value.dict_ptr_start, mapping_ptr_start
+        transaction_trie,
+        transaction_trie.value._data.value.dict_ptr_start,
+        mapping_ptr_start,
+        hash_function_name,
     );
     jmp end;
 
     receipt:
     let receipt_trie = trie_union.value.receipt;
     _prepare_trie_inner_receipt(
-        receipt_trie, receipt_trie.value._data.value.dict_ptr_start, mapping_ptr_start
+        receipt_trie,
+        receipt_trie.value._data.value.dict_ptr_start,
+        mapping_ptr_start,
+        hash_function_name,
     );
     jmp end;
 
     withdrawal:
     let withdrawal_trie = trie_union.value.withdrawal;
     _prepare_trie_inner_withdrawal(
-        withdrawal_trie, withdrawal_trie.value._data.value.dict_ptr_start, mapping_ptr_start
+        withdrawal_trie,
+        withdrawal_trie.value._data.value.dict_ptr_start,
+        mapping_ptr_start,
+        hash_function_name,
     );
     jmp end;
 
@@ -1279,6 +1294,7 @@ func _prepare_trie_inner_account{
     dict_ptr: AddressAccountDictAccess*,
     mapping_ptr_end: BytesBytesDictAccess*,
     storage_roots_: MappingAddressBytes32,
+    hash_function_name: felt,
 ) -> BytesBytesDictAccess* {
     alloc_locals;
 
@@ -1289,7 +1305,11 @@ func _prepare_trie_inner_account{
     // Skip all None values, which are deleted trie entries
     if (cast(dict_ptr.new_value.value, felt) == 0) {
         return _prepare_trie_inner_account(
-            trie, dict_ptr + AddressAccountDictAccess.SIZE, mapping_ptr_end, storage_roots_
+            trie,
+            dict_ptr + AddressAccountDictAccess.SIZE,
+            mapping_ptr_end,
+            storage_roots_,
+            hash_function_name,
         );
     }
 
@@ -1319,7 +1339,7 @@ func _prepare_trie_inner_account{
     // TODO: Common part, factorise.
 
     if (trie.value.secured.value != 0) {
-        let key_bytes32 = keccak256(preimage);
+        let key_bytes32 = hash_with(preimage, hash_function_name);
         let key_bytes = Bytes32_to_Bytes(key_bytes32);
         tempvar range_check_ptr = range_check_ptr;
         tempvar bitwise_ptr = bitwise_ptr;
@@ -1346,6 +1366,7 @@ func _prepare_trie_inner_account{
         dict_ptr + AddressAccountDictAccess.SIZE,
         cast(mapping_dict_ptr, BytesBytesDictAccess*),
         storage_roots_,
+        hash_function_name,
     );
 }
 
@@ -1355,7 +1376,10 @@ func _prepare_trie_inner_storage{
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
 }(
-    trie: TrieBytes32U256, dict_ptr: Bytes32U256DictAccess*, mapping_ptr_end: BytesBytesDictAccess*
+    trie: TrieBytes32U256,
+    dict_ptr: Bytes32U256DictAccess*,
+    mapping_ptr_end: BytesBytesDictAccess*,
+    hash_function_name: felt,
 ) -> BytesBytesDictAccess* {
     alloc_locals;
 
@@ -1368,7 +1392,7 @@ func _prepare_trie_inner_storage{
     // Trie[Tuple[Address, Bytes32], U256], there should not be any None values remaining.
     if (dict_ptr.new_value.value == 0) {
         return _prepare_trie_inner_storage(
-            trie, dict_ptr + Bytes32U256DictAccess.SIZE, mapping_ptr_end
+            trie, dict_ptr + Bytes32U256DictAccess.SIZE, mapping_ptr_end, hash_function_name
         );
     }
 
@@ -1397,7 +1421,7 @@ func _prepare_trie_inner_storage{
     }
 
     if (trie.value.secured.value != 0) {
-        let key_bytes32 = keccak256(preimage);
+        let key_bytes32 = hash_with(preimage, hash_function_name);
         let key_bytes = Bytes32_to_Bytes(key_bytes32);
         tempvar range_check_ptr = range_check_ptr;
         tempvar bitwise_ptr = bitwise_ptr;
@@ -1420,7 +1444,10 @@ func _prepare_trie_inner_storage{
     );
 
     return _prepare_trie_inner_storage(
-        trie, dict_ptr + Bytes32U256DictAccess.SIZE, cast(mapping_dict_ptr, BytesBytesDictAccess*)
+        trie,
+        dict_ptr + Bytes32U256DictAccess.SIZE,
+        cast(mapping_dict_ptr, BytesBytesDictAccess*),
+        hash_function_name,
     );
 }
 
@@ -1433,6 +1460,7 @@ func _prepare_trie_inner_transaction{
     trie: TrieBytesOptionalUnionBytesLegacyTransaction,
     dict_ptr: BytesOptionalUnionBytesLegacyTransactionDictAccess*,
     mapping_ptr_end: BytesBytesDictAccess*,
+    hash_function_name: felt,
 ) -> BytesBytesDictAccess* {
     alloc_locals;
 
@@ -1451,6 +1479,7 @@ func _prepare_trie_inner_transaction{
             trie,
             dict_ptr + BytesOptionalUnionBytesLegacyTransactionDictAccess.SIZE,
             mapping_ptr_end,
+            hash_function_name,
         );
     }
 
@@ -1489,7 +1518,7 @@ func _prepare_trie_inner_transaction{
     }
 
     if (trie.value.secured.value != 0) {
-        let key_bytes32 = keccak256(preimage);
+        let key_bytes32 = hash_with(preimage, hash_function_name);
         let key_bytes = Bytes32_to_Bytes(key_bytes32);
         tempvar range_check_ptr = range_check_ptr;
         tempvar bitwise_ptr = bitwise_ptr;
@@ -1515,6 +1544,7 @@ func _prepare_trie_inner_transaction{
         trie,
         dict_ptr + BytesOptionalUnionBytesLegacyTransactionDictAccess.SIZE,
         cast(mapping_dict_ptr, BytesBytesDictAccess*),
+        hash_function_name,
     );
 }
 
@@ -1527,6 +1557,7 @@ func _prepare_trie_inner_receipt{
     trie: TrieBytesOptionalUnionBytesReceipt,
     dict_ptr: BytesOptionalUnionBytesReceiptDictAccess*,
     mapping_ptr_end: BytesBytesDictAccess*,
+    hash_function_name: felt,
 ) -> BytesBytesDictAccess* {
     alloc_locals;
 
@@ -1542,7 +1573,10 @@ func _prepare_trie_inner_receipt{
     // Skip all None values, which are deleted trie entries
     if (cast(dict_ptr.new_value.value, felt) == 0) {
         return _prepare_trie_inner_receipt(
-            trie, dict_ptr + BytesOptionalUnionBytesReceiptDictAccess.SIZE, mapping_ptr_end
+            trie,
+            dict_ptr + BytesOptionalUnionBytesReceiptDictAccess.SIZE,
+            mapping_ptr_end,
+            hash_function_name,
         );
     }
 
@@ -1581,7 +1615,7 @@ func _prepare_trie_inner_receipt{
     }
 
     if (trie.value.secured.value != 0) {
-        let key_bytes32 = keccak256(preimage);
+        let key_bytes32 = hash_with(preimage, hash_function_name);
         let key_bytes = Bytes32_to_Bytes(key_bytes32);
         tempvar range_check_ptr = range_check_ptr;
         tempvar bitwise_ptr = bitwise_ptr;
@@ -1607,6 +1641,7 @@ func _prepare_trie_inner_receipt{
         trie,
         dict_ptr + BytesOptionalUnionBytesReceiptDictAccess.SIZE,
         cast(mapping_dict_ptr, BytesBytesDictAccess*),
+        hash_function_name,
     );
 }
 
@@ -1619,6 +1654,7 @@ func _prepare_trie_inner_withdrawal{
     trie: TrieBytesOptionalUnionBytesWithdrawal,
     dict_ptr: BytesOptionalUnionBytesWithdrawalDictAccess*,
     mapping_ptr_end: BytesBytesDictAccess*,
+    hash_function_name: felt,
 ) -> BytesBytesDictAccess* {
     alloc_locals;
 
@@ -1634,7 +1670,10 @@ func _prepare_trie_inner_withdrawal{
     // Skip all None values, which are deleted trie entries
     if (cast(dict_ptr.new_value.value, felt) == 0) {
         return _prepare_trie_inner_withdrawal(
-            trie, dict_ptr + BytesOptionalUnionBytesWithdrawalDictAccess.SIZE, mapping_ptr_end
+            trie,
+            dict_ptr + BytesOptionalUnionBytesWithdrawalDictAccess.SIZE,
+            mapping_ptr_end,
+            hash_function_name,
         );
     }
 
@@ -1672,7 +1711,7 @@ func _prepare_trie_inner_withdrawal{
     }
 
     if (trie.value.secured.value != 0) {
-        let key_bytes32 = keccak256(preimage);
+        let key_bytes32 = hash_with(preimage, hash_function_name);
         let key_bytes = Bytes32_to_Bytes(key_bytes32);
         tempvar range_check_ptr = range_check_ptr;
         tempvar bitwise_ptr = bitwise_ptr;
@@ -1698,6 +1737,7 @@ func _prepare_trie_inner_withdrawal{
         trie,
         dict_ptr + BytesOptionalUnionBytesWithdrawalDictAccess.SIZE,
         cast(mapping_dict_ptr, BytesBytesDictAccess*),
+        hash_function_name,
     );
 }
 
@@ -1706,17 +1746,21 @@ func root{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
-}(trie_union: EthereumTries, storage_roots_: OptionalMappingAddressBytes32) -> Root {
+}(
+    trie_union: EthereumTries,
+    storage_roots_: OptionalMappingAddressBytes32,
+    hash_function_name: felt,
+) -> Root {
     alloc_locals;
 
-    let obj = _prepare_trie(trie_union, storage_roots_);
-    let patricialized = patricialize(obj, Uint(0));
-    let root_node = encode_internal_node(patricialized);
+    let obj = _prepare_trie(trie_union, storage_roots_, hash_function_name);
+    let patricialized = patricialize(obj, Uint(0), hash_function_name);
+    let root_node = encode_internal_node(patricialized, hash_function_name);
     let rlp_encoded_root_node = encode(root_node);
 
     let is_encoding_lt_32 = is_le(rlp_encoded_root_node.value.len, 31);
     if (is_encoding_lt_32 != 0) {
-        let root_hash = keccak256(rlp_encoded_root_node);
+        let root_hash = hash_with(rlp_encoded_root_node, hash_function_name);
         return root_hash;
     }
 
@@ -2134,7 +2178,7 @@ func patricialize{
     bitwise_ptr: BitwiseBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
-}(obj: MappingBytesBytes, level: Uint) -> InternalNode {
+}(obj: MappingBytesBytes, level: Uint, hash_function_name: felt) -> InternalNode {
     alloc_locals;
 
     let len = (obj.value.dict_ptr - obj.value.dict_ptr_start) / BytesBytesDictAccess.SIZE;
@@ -2169,8 +2213,10 @@ func patricialize{
 
     if (prefix_length != 0) {
         tempvar prefix = Bytes(new BytesStruct(preimage.value.data + level.value, prefix_length));
-        let patricialized_subnode = patricialize(obj, Uint(level.value + prefix_length));
-        let encoded_subnode = encode_internal_node(patricialized_subnode);
+        let patricialized_subnode = patricialize(
+            obj, Uint(level.value + prefix_length), hash_function_name
+        );
+        let encoded_subnode = encode_internal_node(patricialized_subnode, hash_function_name);
         tempvar extension_node = ExtensionNode(new ExtensionNodeStruct(prefix, encoded_subnode));
         let internal_node = InternalNodeImpl.extension_node(extension_node);
         return internal_node;
@@ -2179,38 +2225,38 @@ func patricialize{
     let (branches, value) = _get_branches(obj, level);
     tempvar next_level = Uint(level.value + 1);
 
-    let patricialized_0 = patricialize(branches.value.data[0], next_level);
-    let encoded_0 = encode_internal_node(patricialized_0);
-    let patricialized_1 = patricialize(branches.value.data[1], next_level);
-    let encoded_1 = encode_internal_node(patricialized_1);
-    let patricialized_2 = patricialize(branches.value.data[2], next_level);
-    let encoded_2 = encode_internal_node(patricialized_2);
-    let patricialized_3 = patricialize(branches.value.data[3], next_level);
-    let encoded_3 = encode_internal_node(patricialized_3);
-    let patricialized_4 = patricialize(branches.value.data[4], next_level);
-    let encoded_4 = encode_internal_node(patricialized_4);
-    let patricialized_5 = patricialize(branches.value.data[5], next_level);
-    let encoded_5 = encode_internal_node(patricialized_5);
-    let patricialized_6 = patricialize(branches.value.data[6], next_level);
-    let encoded_6 = encode_internal_node(patricialized_6);
-    let patricialized_7 = patricialize(branches.value.data[7], next_level);
-    let encoded_7 = encode_internal_node(patricialized_7);
-    let patricialized_8 = patricialize(branches.value.data[8], next_level);
-    let encoded_8 = encode_internal_node(patricialized_8);
-    let patricialized_9 = patricialize(branches.value.data[9], next_level);
-    let encoded_9 = encode_internal_node(patricialized_9);
-    let patricialized_10 = patricialize(branches.value.data[10], next_level);
-    let encoded_10 = encode_internal_node(patricialized_10);
-    let patricialized_11 = patricialize(branches.value.data[11], next_level);
-    let encoded_11 = encode_internal_node(patricialized_11);
-    let patricialized_12 = patricialize(branches.value.data[12], next_level);
-    let encoded_12 = encode_internal_node(patricialized_12);
-    let patricialized_13 = patricialize(branches.value.data[13], next_level);
-    let encoded_13 = encode_internal_node(patricialized_13);
-    let patricialized_14 = patricialize(branches.value.data[14], next_level);
-    let encoded_14 = encode_internal_node(patricialized_14);
-    let patricialized_15 = patricialize(branches.value.data[15], next_level);
-    let encoded_15 = encode_internal_node(patricialized_15);
+    let patricialized_0 = patricialize(branches.value.data[0], next_level, hash_function_name);
+    let encoded_0 = encode_internal_node(patricialized_0, hash_function_name);
+    let patricialized_1 = patricialize(branches.value.data[1], next_level, hash_function_name);
+    let encoded_1 = encode_internal_node(patricialized_1, hash_function_name);
+    let patricialized_2 = patricialize(branches.value.data[2], next_level, hash_function_name);
+    let encoded_2 = encode_internal_node(patricialized_2, hash_function_name);
+    let patricialized_3 = patricialize(branches.value.data[3], next_level, hash_function_name);
+    let encoded_3 = encode_internal_node(patricialized_3, hash_function_name);
+    let patricialized_4 = patricialize(branches.value.data[4], next_level, hash_function_name);
+    let encoded_4 = encode_internal_node(patricialized_4, hash_function_name);
+    let patricialized_5 = patricialize(branches.value.data[5], next_level, hash_function_name);
+    let encoded_5 = encode_internal_node(patricialized_5, hash_function_name);
+    let patricialized_6 = patricialize(branches.value.data[6], next_level, hash_function_name);
+    let encoded_6 = encode_internal_node(patricialized_6, hash_function_name);
+    let patricialized_7 = patricialize(branches.value.data[7], next_level, hash_function_name);
+    let encoded_7 = encode_internal_node(patricialized_7, hash_function_name);
+    let patricialized_8 = patricialize(branches.value.data[8], next_level, hash_function_name);
+    let encoded_8 = encode_internal_node(patricialized_8, hash_function_name);
+    let patricialized_9 = patricialize(branches.value.data[9], next_level, hash_function_name);
+    let encoded_9 = encode_internal_node(patricialized_9, hash_function_name);
+    let patricialized_10 = patricialize(branches.value.data[10], next_level, hash_function_name);
+    let encoded_10 = encode_internal_node(patricialized_10, hash_function_name);
+    let patricialized_11 = patricialize(branches.value.data[11], next_level, hash_function_name);
+    let encoded_11 = encode_internal_node(patricialized_11, hash_function_name);
+    let patricialized_12 = patricialize(branches.value.data[12], next_level, hash_function_name);
+    let encoded_12 = encode_internal_node(patricialized_12, hash_function_name);
+    let patricialized_13 = patricialize(branches.value.data[13], next_level, hash_function_name);
+    let encoded_13 = encode_internal_node(patricialized_13, hash_function_name);
+    let patricialized_14 = patricialize(branches.value.data[14], next_level, hash_function_name);
+    let encoded_14 = encode_internal_node(patricialized_14, hash_function_name);
+    let patricialized_15 = patricialize(branches.value.data[15], next_level, hash_function_name);
+    let encoded_15 = encode_internal_node(patricialized_15, hash_function_name);
 
     // Squash the dicts for all the branches
     _squash_branches(branches);

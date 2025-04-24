@@ -473,9 +473,7 @@ func encode_bytes8{range_check_ptr}(raw_bytes8: Bytes8) -> Bytes {
     return result;
 }
 
-func encode_account{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*}(
-    raw_account_data: Account, storage_root: Bytes
-) -> Bytes {
+func encode_account{range_check_ptr}(raw_account_data: Account, storage_root: Bytes) -> Bytes {
     alloc_locals;
     let (local dst) = alloc();
     let body_ptr = dst + PREFIX_LEN_MAX;
