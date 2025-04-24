@@ -50,6 +50,7 @@ from cairo_addons.hints.injected import prepare_context
 from cairo_addons.profiler import profile_from_trace
 from cairo_addons.rust_bindings.vm import CairoRunner as RustCairoRunner
 from cairo_addons.rust_bindings.vm import Program as RustProgram
+from cairo_addons.rust_bindings.vm import Relocatable as RustRelocatable
 from cairo_addons.rust_bindings.vm import RunResources as RustRunResources
 from cairo_addons.testing.errors import map_to_python_exception
 from cairo_addons.testing.hints import debug_info, oracle
@@ -62,6 +63,8 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger()
+
+SEGMENT_PTR_NAMES = {"keccak_ptr", "blake2s_ptr"}
 
 
 def resolve_main_path(main_path: Tuple[str, ...]):
@@ -125,18 +128,31 @@ def build_entrypoint(
         f"{entrypoint}.Return", TypeDefinition
     ).cairo_type
 
-    return_data_types = [
-        *(arg["cairo_type"] for arg in _implicit_args.values()),
-        # Filter for the empty tuple return type
-        *(
-            [explicit_return_data]
-            if not (
-                isinstance(explicit_return_data, TypeTuple)
-                and len(explicit_return_data.members) == 0
-            )
-            else []
-        ),
-    ]
+    # Construct the full list of return data types with their names and includes flags
+    return_data_types = []
+
+    # Add implicit args with their names
+    for arg_name, arg_info in _implicit_args.items():
+        return_data_types.append(
+            {
+                "name": arg_name,
+                "type": arg_info["cairo_type"],
+                "include": arg_name not in SEGMENT_PTR_NAMES,
+            }
+        )
+
+    # Add explicit return type without a name (if not empty)
+    if not (
+        isinstance(explicit_return_data, TypeTuple)
+        and len(explicit_return_data.members) == 0
+    ):
+        return_data_types.append(
+            {
+                "name": None,  # Explicit return doesn't have a name
+                "type": explicit_return_data,
+                "include": True,  # Always include explicit return
+            }
+        )
 
     # Fix builtins runner based on the implicit args since the compiler doesn't find them
     cairo_program.builtins = [
@@ -325,7 +341,8 @@ def run_python_vm(
         #   and performs security checks
         # ============================================================================
         runner.end_run(disable_trace_padding=False)
-        cumulative_retdata_offsets = serde.get_offsets(return_data_types)
+        cairo_types = [item["type"] for item in return_data_types]
+        cumulative_retdata_offsets = serde.get_offsets(cairo_types)
         first_return_data_offset = (
             cumulative_retdata_offsets[0] if cumulative_retdata_offsets else 0
         )
@@ -432,13 +449,21 @@ def run_python_vm(
         # - Rationale: Convert Cairo return values to Python types, handle exceptions,
         #   and format the final output for the caller.
         # ============================================================================
-        unfiltered_output = [
-            serde.serialize(return_data_type, runner.vm.run_context.ap, offset)
-            for offset, return_data_type in zip(
-                cumulative_retdata_offsets, return_data_types
-            )
-        ]
-        function_output = serde.filter_no_error_flag(unfiltered_output)
+        function_output = []
+
+        # Simplified filtering based on the include flag
+        for i, (return_item, offset) in enumerate(
+            zip(return_data_types, cumulative_retdata_offsets)
+        ):
+            if return_item["include"]:
+                serialized_value = serde.serialize(
+                    return_item["type"], runner.vm.run_context.ap, offset
+                )
+                function_output.append(serialized_value)
+
+        # Filter any error flags or None values if needed
+        function_output = Serde.filter_no_error_flag(function_output)
+
         exceptions = [
             val
             for val in flatten(function_output)
@@ -447,8 +472,7 @@ def run_python_vm(
         if exceptions:
             raise exceptions[0]
 
-        final_output = function_output
-        return final_output[0] if len(final_output) == 1 else final_output
+        return function_output[0] if len(function_output) == 1 else function_output
 
     return _run
 
@@ -494,7 +518,7 @@ def run_rust_vm(
         # ============================================================================
         # STEP 2: INITIALIZE RUNNER AND MEMORY ENVIRONMENT
         # - Rationale: Set up the RustCairoRunner with the program, layout, and memory.
-        #   Unlike Python VM, we don’t append "jmp rel 0" here as Rust handles proof mode differently.
+        #   Unlike Python VM, we don't append "jmp rel 0" here as Rust handles proof mode differently.
         # ============================================================================
         proof_mode = request.config.getoption("proof_mode")
         enable_traces = request.config.getoption("--log-cli-level") == "TRACE"
@@ -524,7 +548,7 @@ def run_rust_vm(
         # ============================================================================
         stack = []
         if proof_mode:
-            # In proof mode, Rust initializes all layout builtins; we mimic Python’s behavior
+            # In proof mode, Rust initializes all layout builtins; we mimic Python's behavior
             builtin_runners = runner.builtin_runners
             missing_builtins = [
                 v for k, v in builtin_runners.items() if not v["included"]
@@ -546,11 +570,19 @@ def run_rust_vm(
             if gen_arg_builder is not None
             else lambda _python_type, _value: runner.segments.gen_arg(_value)
         )
-        for i, (arg_name, python_type) in enumerate(
-            [(k, v["python_type"]) for k, v in {**_implicit_args, **_args}.items()]
-        ):
+
+        i = 0
+        for arg_name, python_type in [
+            (k, v["python_type"]) for k, v in {**_implicit_args, **_args}.items()
+        ]:
+            if python_type is RustRelocatable:
+                arg_value = runner.segments.add()
+                stack.append(arg_value)
+                continue
+
             arg_value = kwargs[arg_name] if arg_name in kwargs else args[i]
             stack.extend(flatten(gen_arg(python_type, arg_value)))
+            i += 1
 
         # ============================================================================
         # STEP 4: SET UP EXECUTION CONTEXT AND LOAD MEMORY
@@ -598,9 +630,10 @@ def run_rust_vm(
         # ============================================================================
         # STEP 6: PROCESS RETURN VALUES AND FINALIZE EXECUTION
         # - Rationale: Extract return data using serde, update public memory in proof mode,
-        #   and verify the runner’s security before relocation.
+        #   and verify the runner's security before relocation.
         # ============================================================================
-        cumulative_retdata_offsets = serde.get_offsets(return_data_types)
+        cairo_types = [item["type"] for item in return_data_types]
+        cumulative_retdata_offsets = serde.get_offsets(cairo_types)
         first_return_data_offset = (
             cumulative_retdata_offsets[0] if cumulative_retdata_offsets else 0
         )
@@ -641,10 +674,6 @@ def run_rust_vm(
             request.node.path.parent
             / f"{request.node.path.stem}_{entrypoint}_{displayed_args}"
         )
-        output_stem = str(
-            request.node.path.parent
-            / f"{request.node.path.stem}_{entrypoint}_{displayed_args}"
-        )
         output_stem = Path(
             f"{output_stem[:160]}_{int(time_ns())}_{md5(output_stem.encode()).digest().hex()[:8]}"
         )
@@ -680,13 +709,19 @@ def run_rust_vm(
         # - Rationale: Convert Cairo return values to Python types, handle exceptions,
         #   and format the final output for the caller.
         # ============================================================================
-        unfiltered_output = [
-            serde.serialize(return_data_type, runner.ap, offset)
-            for offset, return_data_type in zip(
-                cumulative_retdata_offsets, return_data_types
-            )
-        ]
-        function_output = Serde.filter_no_error_flag(unfiltered_output)
+        function_output = []
+
+        # Simplified filtering based on the include flag
+        for return_item, offset in zip(return_data_types, cumulative_retdata_offsets):
+            if return_item["include"]:
+                serialized_value = serde.serialize(
+                    return_item["type"], runner.ap, offset
+                )
+                function_output.append(serialized_value)
+
+        # Filter any error flags or None values if needed
+        function_output = Serde.filter_no_error_flag(function_output)
+
         exceptions = [
             val
             for val in flatten(function_output)
@@ -695,8 +730,6 @@ def run_rust_vm(
         if exceptions:
             raise exceptions[0]
 
-        final_output = function_output
-
-        return final_output[0] if len(final_output) == 1 else final_output
+        return function_output[0] if len(function_output) == 1 else function_output
 
     return _run
