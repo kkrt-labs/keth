@@ -97,13 +97,11 @@ def build_entrypoint(
         f"{entrypoint}.ImplicitArgs", StructDefinition
     ).members
 
-    builtin_list = ALL_BUILTINS.except_for(["keccak_ptr"])
-
     # Split implicit args into builtins and other implicit args
     _builtins = [
         k
         for k in implicit_args.keys()
-        if any(builtin in k.replace("_ptr", "") for builtin in builtin_list)
+        if any(builtin in k.replace("_ptr", "") for builtin in ALL_BUILTINS)
     ]
 
     _implicit_args = {
@@ -112,7 +110,7 @@ def build_entrypoint(
             "cairo_type": v.cairo_type,
         }
         for k, v in implicit_args.items()
-        if not any(builtin in k.replace("_ptr", "") for builtin in builtin_list)
+        if not any(builtin in k.replace("_ptr", "") for builtin in ALL_BUILTINS)
     }
 
     entrypoint_args = cairo_program.get_identifier(
