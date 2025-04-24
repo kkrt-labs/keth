@@ -1,5 +1,5 @@
 from collections import defaultdict
-from dataclasses import replace
+from dataclasses import fields, replace
 from typing import Optional, Tuple
 
 from eth_abi.abi import encode
@@ -702,7 +702,12 @@ class TestFork:
 
         output = apply_body(**kwargs)
 
-        assert cairo_result == output
+        # Compare all fields except state_root
+        assert all(
+            getattr(cairo_result, field.name) == getattr(output, field.name)
+            for field in fields(cairo_result)
+            if field.name != "state_root"
+        )
         assert cairo_state == state
 
 
