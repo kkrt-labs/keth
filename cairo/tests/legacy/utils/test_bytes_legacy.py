@@ -125,6 +125,17 @@ class TestBytes:
 
             assert bytes8_little_endian == output
 
+    class TestBytesToBytes4LittleEndian:
+        @given(data=binary(max_size=1000).map(Bytes))
+        def test_should_return_bytes4(self, cairo_run, data: Bytes):
+            bytes4_little_endian = [
+                int.from_bytes(bytes(data[i : i + 4]), "little")
+                for i in range(0, len(data), 4)
+            ]
+            assert bytes4_little_endian == cairo_run(
+                "test__bytes_to_bytes4_little_endian", bytes=data
+            )
+
     class TestBytesToFelt:
 
         @given(data=binary(min_size=0, max_size=35).map(Bytes))

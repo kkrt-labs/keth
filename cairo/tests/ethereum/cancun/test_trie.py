@@ -50,7 +50,8 @@ class TestTrie:
     @given(node=...)
     def test_encode_internal_node(self, cairo_run, node: Optional[InternalNode]):
         assert sequence_equal(
-            encode_internal_node(node), cairo_run("encode_internal_node", node)
+            encode_internal_node(node),
+            cairo_run("encode_internal_node", node, hash_function_name="keccak256"),
         )
 
     @given(node=..., storage_root=...)
@@ -161,7 +162,9 @@ class TestTrie:
     @pytest.mark.slow
     @given(obj=st.dictionaries(nibble, bytes32, max_size=100))
     def test_patricialize(self, cairo_run, obj: Mapping[Bytes, Bytes]):
-        assert patricialize(obj, Uint(0)) == cairo_run("patricialize", obj, Uint(0))
+        assert patricialize(obj, Uint(0)) == cairo_run(
+            "patricialize", hash_function_name="keccak256", obj=obj, level=Uint(0)
+        )
 
     @given(leaf_node=...)
     def test_internal_node_leaf_node(self, cairo_run, leaf_node: LeafNode):
@@ -219,7 +222,12 @@ class TestTrie:
             get_storage_root = None
 
         try:
-            result_cairo = cairo_run("_prepare_trie", trie_with_none, storage_roots)
+            result_cairo = cairo_run(
+                "_prepare_trie",
+                trie_with_none,
+                storage_roots,
+                hash_function_name="keccak256",
+            )
         except Exception as e:
             with strict_raises(type(e)):
                 _prepare_trie(trie, get_storage_root)
@@ -263,7 +271,12 @@ class TestTrie:
             get_storage_root = None
 
         try:
-            result_cairo = cairo_run("root", trie_with_none, storage_roots)
+            result_cairo = cairo_run(
+                "root",
+                hash_function_name="keccak256",
+                trie_union=trie_with_none,
+                storage_roots_=storage_roots,
+            )
         except Exception as e:
             with strict_raises(type(e)):
                 root(trie, get_storage_root)

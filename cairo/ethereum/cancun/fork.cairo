@@ -1240,7 +1240,7 @@ func apply_body{
         ),
     );
     let none_storage_roots = OptionalMappingAddressBytes32(cast(0, MappingAddressBytes32Struct*));
-    let transactions_root = root(transaction_eth_trie, none_storage_roots);
+    let transactions_root = root(transaction_eth_trie, none_storage_roots, 'keccak256');
 
     tempvar receipt_eth_trie = EthereumTries(
         new EthereumTriesEnum(
@@ -1255,7 +1255,7 @@ func apply_body{
             ),
         ),
     );
-    let receipts_root = root(receipt_eth_trie, none_storage_roots);
+    let receipts_root = root(receipt_eth_trie, none_storage_roots, 'keccak256');
 
     tempvar withdrawals_eth_trie = EthereumTries(
         new EthereumTriesEnum(
@@ -1270,7 +1270,7 @@ func apply_body{
             withdrawal=withdrawals_trie,
         ),
     );
-    let withdrawals_root = root(withdrawals_eth_trie, none_storage_roots);
+    let withdrawals_root = root(withdrawals_eth_trie, none_storage_roots, 'keccak256');
 
     // Finalize the state, getting unique keys for main and storage tries
     finalize_state{state=state}();
@@ -1440,9 +1440,6 @@ func _process_withdrawals_inner{
     return _process_withdrawals_inner{state=state, trie=trie}(index + 1, withdrawals);
 }
 
-// @notice Given the historical blockchain and a block to execute, computes the STF on the initial state and updates the blockchain.
-// @dev: Note that the state_root of the new block is not computed in this `state_transition` function, and is replaced with a `0` instead.
-//       see `main.cairo`, the entrypoint of `Keth`.
 func state_transition{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
