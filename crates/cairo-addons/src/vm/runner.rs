@@ -44,7 +44,7 @@ use std::{
 use tracing_subscriber::{filter::EnvFilter, fmt::format::FmtSpan};
 
 // Names of implicit arguments that are pointers but not standard builtins handled by BuiltinRunner
-const NON_BUILTIN_SEGMENT_PTR_NAMES: [&str; 2] = ["keccak_ptr", "blake2s_ptr"];
+const NON_BUILTIN_SEGMENT_PTR_NAMES: [&str; 1] = ["blake2s_ptr"];
 
 // Helper function to check if an argument name corresponds to a standard Cairo builtin
 fn is_actual_builtin(arg_name: &str) -> bool {

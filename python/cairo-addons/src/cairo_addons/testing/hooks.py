@@ -42,8 +42,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger()
 
-# Require the `keth_types_patches` plugin to apply patches before anything else
-pytest_plugins = ["keth_types_patches", "cairo_addons.testing.fixtures"]
+# Require the `keth_types.patches` plugin to apply patches before anything else
+pytest_plugins = ["keth_types.patches", "cairo_addons.testing.fixtures"]
 
 
 def parse_int(value):
