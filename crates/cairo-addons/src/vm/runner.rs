@@ -27,7 +27,6 @@ use cairo_vm::{
         security::verify_secure_runner,
     },
 };
-use num_traits::Zero;
 use polars::prelude::*;
 use pyo3::{
     prelude::*,
@@ -44,12 +43,26 @@ use std::{
 };
 use tracing_subscriber::{filter::EnvFilter, fmt::format::FmtSpan};
 
+// Names of implicit arguments that are pointers but not standard builtins handled by BuiltinRunner
+const NON_BUILTIN_SEGMENT_PTR_NAMES: [&str; 1] = ["blake2s_ptr"];
+
+// Helper function to check if an argument name corresponds to a standard Cairo builtin
+fn is_actual_builtin(arg_name: &str) -> bool {
+    let name_without_ptr = arg_name.strip_suffix("_ptr").unwrap_or(arg_name);
+    BuiltinName::from_str(name_without_ptr).is_some() &&
+        !NON_BUILTIN_SEGMENT_PTR_NAMES.contains(&arg_name)
+}
+
+/// Represents the Cairo Virtual Machine runner, exposing its functionality to Python.
+///
+/// This struct wraps the Rust `CairoRunner` and provides Python bindings for its methods.
 #[pyclass(name = "CairoRunner", unsendable)]
 pub struct PyCairoRunner {
     inner: RustCairoRunner,
     allow_missing_builtins: bool,
-    /// The builtins, ordered as they're defined in the program entrypoint.
-    ordered_builtins: Vec<BuiltinName>,
+    /// The return_data information (name, size) ordered as defined in the Cairo function
+    /// signature.
+    return_data_info: Vec<(String, Option<usize>)>,
     /// Whether to enable execution of hints containing logger.
     enable_traces: bool,
 }
@@ -69,7 +82,7 @@ impl PyCairoRunner {
     ///   initialization time.
     #[allow(clippy::too_many_arguments)]
     #[new]
-    #[pyo3(signature = (program, py_identifiers=None, program_input=None, layout=None, proof_mode=false, allow_missing_builtins=false, enable_traces=false, ordered_builtins=vec![], cairo_file=None, py_debug_info=None))]
+    #[pyo3(signature = (program, py_identifiers=None, program_input=None, layout=None, proof_mode=false, allow_missing_builtins=false, enable_traces=false, return_data_info=vec![], cairo_file=None, py_debug_info=None))]
     fn new(
         program: &PyProgram,
         py_identifiers: Option<PyObject>,
@@ -78,16 +91,11 @@ impl PyCairoRunner {
         proof_mode: bool,
         allow_missing_builtins: bool,
         enable_traces: bool,
-        ordered_builtins: Vec<String>,
+        return_data_info: Vec<(String, Option<usize>)>,
         cairo_file: Option<PyObject>,
         py_debug_info: Option<PyObject>,
     ) -> PyResult<Self> {
         let layout = layout.unwrap_or_default().into_layout_name()?;
-
-        let ordered_builtin_names = ordered_builtins
-            .iter()
-            .map(|name| BuiltinName::from_str(name.strip_suffix("_ptr").unwrap()).unwrap())
-            .collect();
 
         let mut inner = RustCairoRunner::new(
             &program.inner,
@@ -167,12 +175,7 @@ except Exception as e:
             Ok::<(), PyErr>(())
         })?;
 
-        Ok(Self {
-            inner,
-            allow_missing_builtins,
-            ordered_builtins: ordered_builtin_names,
-            enable_traces,
-        })
+        Ok(Self { inner, allow_missing_builtins, return_data_info, enable_traces })
     }
 
     /// Initializes the runner's segments, including program_base, execution_base, and all builtins.
@@ -390,8 +393,8 @@ except Exception as e:
 
     /// Reads return values from the stack, starting at the specified offset from ap.
     /// Processes builtin pointers in reverse order to construct the final return value.
-    fn read_return_values(&mut self, offset: usize) -> PyResult<PyRelocatable> {
-        let pointer = self._read_return_values(offset)?;
+    fn read_return_values(&mut self) -> PyResult<PyRelocatable> {
+        let pointer = self._read_return_values()?;
         Ok(PyRelocatable { inner: pointer })
     }
 
@@ -595,36 +598,51 @@ except Exception as e:
 
 impl PyCairoRunner {
     /// Internal implementation of read_return_values with additional checks.
-    /// Processes builtin pointers in reverse order and handles missing builtins.
-    fn _read_return_values(&mut self, offset: usize) -> PyResult<Relocatable> {
-        let mut pointer = (self.inner.vm.get_ap() - offset).unwrap();
-        for builtin_name in self.ordered_builtins.iter().rev() {
-            if let Some(builtin_runner) =
-                self.inner.vm.builtin_runners.iter_mut().find(|b| b.name() == *builtin_name)
-            {
-                pointer =
-                    builtin_runner.final_stack(&self.inner.vm.segments, pointer).map_err(|e| {
-                        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string())
-                    })?;
-            } else if !self.allow_missing_builtins {
-                return Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-                    "Missing builtin: {}",
-                    builtin_name
-                )));
-            } else {
-                pointer.offset = pointer.offset.saturating_sub(1);
-                if !self
-                    .inner
-                    .vm
-                    .get_integer(pointer)
-                    .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?
-                    .is_zero()
+    /// Processes builtin pointers and other implicit arguments in reverse order as they appear
+    /// on the stack relative to the final `ap` register to calculate the starting pointer
+    /// of the explicit return values.
+    ///
+    /// This method iterates through the `return_data_info` (which mirrors the function's
+    /// implicit arguments and explicit return types) in reverse. For each argument, it determines
+    /// its type (builtin, non-builtin segment pointer, or value) and adjusts the `pointer`
+    /// accordingly based on the size consumed by that argument on the stack.
+    ///
+    /// Builtins have specific handling via `final_stack`. Non-builtin segment pointers
+    /// (like `keccak_ptr`) are assumed to consume one felt (the pointer itself). Other implicit
+    /// arguments passed by value consume their specified size (defaulting to 1 felt).
+    ///
+    ///
+    /// # Returns
+    /// The calculated `Relocatable` pointer pointing to the start of the explicit return values
+    /// on the stack.
+    ///
+    /// # Errors
+    /// Returns a `PyErr` if:
+    /// - A required builtin is missing and `allow_missing_builtins` is false.
+    /// - A missing builtin's stop pointer is non-zero when `allow_missing_builtins` is true.
+    /// - An error occurs during memory access (e.g., getting the stop pointer value).
+    fn _read_return_values(&mut self) -> PyResult<Relocatable> {
+        let mut pointer = self.inner.vm.get_ap();
+        // Iterate over all implicit arguments in reverse order as they appear on the stack
+        for (arg_name, size) in self.return_data_info.iter().rev() {
+            if is_actual_builtin(arg_name) {
+                // Handle actual builtins
+                let builtin_name_enum =
+                    BuiltinName::from_str(arg_name.strip_suffix("_ptr").unwrap()).unwrap();
+                if let Some(builtin_runner) =
+                    self.inner.vm.builtin_runners.iter_mut().find(|b| b.name() == builtin_name_enum)
                 {
-                    return Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-                        "Missing builtin stop ptr not zero: {}",
-                        builtin_name
-                    )));
+                    pointer =
+                        builtin_runner.final_stack(&self.inner.vm.segments, pointer).map_err(
+                            |e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()),
+                        )?;
+                } else {
+                    // Builtin is missing but allowed, check if its stop ptr is 0
+                    // Assume it consumes 1 felt
+                    pointer.offset = pointer.offset.saturating_sub(1);
                 }
+            } else {
+                pointer.offset = pointer.offset.saturating_sub(size.unwrap_or(1));
             }
         }
         Ok(pointer)
