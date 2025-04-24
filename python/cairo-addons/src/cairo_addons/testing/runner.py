@@ -42,6 +42,7 @@ from starkware.cairo.lang.vm.cairo_run import (
 from starkware.cairo.lang.vm.cairo_runner import CairoRunner
 from starkware.cairo.lang.vm.memory_dict import MemoryDict
 from starkware.cairo.lang.vm.memory_segments import FIRST_MEMORY_ADDR as PROGRAM_BASE
+from starkware.cairo.lang.vm.relocatable import RelocatableValue
 from starkware.cairo.lang.vm.security import verify_secure_runner
 from starkware.cairo.lang.vm.utils import RunResources
 from starkware.cairo.lang.vm.vm import VirtualMachine
@@ -129,11 +130,11 @@ def build_entrypoint(
     ).cairo_type
 
     # Construct the full list of return data types with their names and includes flags
-    return_data_types = []
+    return_data_info = []
 
     # Add implicit args with their names
     for arg_name, arg_info in _implicit_args.items():
-        return_data_types.append(
+        return_data_info.append(
             {
                 "name": arg_name,
                 "type": arg_info["cairo_type"],
@@ -146,7 +147,7 @@ def build_entrypoint(
         isinstance(explicit_return_data, TypeTuple)
         and len(explicit_return_data.members) == 0
     ):
-        return_data_types.append(
+        return_data_info.append(
             {
                 "name": None,  # Explicit return doesn't have a name
                 "type": explicit_return_data,
@@ -161,7 +162,7 @@ def build_entrypoint(
         if builtin in [arg.replace("_ptr", "") for arg in _builtins]
     ]
 
-    return _builtins, _implicit_args, _args, return_data_types
+    return _builtins, _implicit_args, _args, return_data_info
 
 
 def run_python_vm(
@@ -189,7 +190,7 @@ def run_python_vm(
             cairo_file = cairo_files[1]
             main_path = main_paths[1]
 
-        _builtins, _implicit_args, _args, return_data_types = build_entrypoint(
+        _builtins, _implicit_args, _args, return_data_info = build_entrypoint(
             cairo_program, entrypoint, main_path, to_python_type
         )
 
@@ -247,11 +248,18 @@ def run_python_vm(
             if gen_arg_builder is not None
             else lambda _python_type, _value: runner.segments.gen_arg(_value)
         )
-        for i, (arg_name, python_type) in enumerate(
-            [(k, v["python_type"]) for k, v in {**_implicit_args, **_args}.items()]
-        ):
+        i = 0
+        for arg_name, python_type in [
+            (k, v["python_type"]) for k, v in {**_implicit_args, **_args}.items()
+        ]:
+            if python_type is RelocatableValue and arg_name in SEGMENT_PTR_NAMES:
+                arg_value = runner.segments.add()
+                stack.append(arg_value)
+                continue
+
             arg_value = kwargs[arg_name] if arg_name in kwargs else args[i]
             stack.append(gen_arg(python_type, arg_value))
+            i += 1
 
         # ============================================================================
         # STEP 4: SET UP EXECUTION CONTEXT AND LOAD MEMORY
@@ -341,7 +349,7 @@ def run_python_vm(
         #   and performs security checks
         # ============================================================================
         runner.end_run(disable_trace_padding=False)
-        cairo_types = [item["type"] for item in return_data_types]
+        cairo_types = [item["type"] for item in return_data_info]
         cumulative_retdata_offsets = serde.get_offsets(cairo_types)
         first_return_data_offset = (
             cumulative_retdata_offsets[0] if cumulative_retdata_offsets else 0
@@ -452,7 +460,7 @@ def run_python_vm(
         function_output = []
 
         # Simplified filtering based on the include flag
-        for return_item, offset in zip(return_data_types, cumulative_retdata_offsets):
+        for return_item, offset in zip(return_data_info, cumulative_retdata_offsets):
             if return_item["include"]:
                 serialized_value = serde.serialize(
                     return_item["type"], runner.vm.run_context.ap, offset
@@ -503,7 +511,7 @@ def run_rust_vm(
             cairo_file = cairo_files[1]
             main_path = main_paths[1]
 
-        _builtins, _implicit_args, _args, return_data_types = build_entrypoint(
+        _builtins, _implicit_args, _args, return_data_info = build_entrypoint(
             cairo_program, entrypoint, main_path, to_python_type
         )
         cairo_program.data = cairo_program.data + [0x10780017FFF7FFF, 0]  # jmp rel 0
@@ -573,7 +581,7 @@ def run_rust_vm(
         for arg_name, python_type in [
             (k, v["python_type"]) for k, v in {**_implicit_args, **_args}.items()
         ]:
-            if python_type is RustRelocatable:
+            if python_type is RustRelocatable and arg_name in SEGMENT_PTR_NAMES:
                 arg_value = runner.segments.add()
                 stack.append(arg_value)
                 continue
@@ -630,7 +638,7 @@ def run_rust_vm(
         # - Rationale: Extract return data using serde, update public memory in proof mode,
         #   and verify the runner's security before relocation.
         # ============================================================================
-        cairo_types = [item["type"] for item in return_data_types]
+        cairo_types = [item["type"] for item in return_data_info]
         cumulative_retdata_offsets = serde.get_offsets(cairo_types)
         first_return_data_offset = (
             cumulative_retdata_offsets[0] if cumulative_retdata_offsets else 0
@@ -710,7 +718,7 @@ def run_rust_vm(
         function_output = []
 
         # Simplified filtering based on the include flag
-        for return_item, offset in zip(return_data_types, cumulative_retdata_offsets):
+        for return_item, offset in zip(return_data_info, cumulative_retdata_offsets):
             if return_item["include"]:
                 serialized_value = serde.serialize(
                     return_item["type"], runner.ap, offset
