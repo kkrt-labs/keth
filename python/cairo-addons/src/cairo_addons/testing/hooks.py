@@ -42,7 +42,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger()
 
-# Require the `keth_types.patches` plugin to apply patches before anything else
+# Require the `keth_types_patches` plugin to apply patches before anything else
 pytest_plugins = ["keth_types.patches", "cairo_addons.testing.fixtures"]
 
 
