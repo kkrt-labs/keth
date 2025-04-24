@@ -77,19 +77,19 @@ def check_branch_node(node: BranchNode) -> None:
     Check that a branch node is valid.
     """
     if not isinstance(node.value, bytes):
-        raise ValueError("Invalid branch node, expected a bytes value")
+        raise ValueError("NonEmptyBytesValue")
 
     if isinstance(node.value, bytes) and len(node.value) != 0:
-        raise ValueError("Invalid branch node, expected an empty bytes value")
+        raise ValueError("NonEmptyBytesValue")
 
     if len(node.subnodes) < 2:
-        raise ValueError("Invalid branch node, expected at least two non-null subnodes")
+        raise ValueError("LTTwoNonNullSubnodes")
 
     non_null_subnodes = [
         subnode for subnode in node.subnodes if subnode not in (None, b"", [])
     ]
     if len(non_null_subnodes) < 2:
-        raise ValueError("Invalid branch node, expected at least two non-null subnodes")
+        raise ValueError("LTTwoNonNullSubnodes")
 
 
 def check_leaf_node(path: Bytes, node: LeafNode) -> None:
@@ -97,13 +97,13 @@ def check_leaf_node(path: Bytes, node: LeafNode) -> None:
     Check that a leaf node is valid.
     """
     if len(node.value) == 0:
-        raise ValueError("Invalid leaf node, expected a non-empty value")
+        raise ValueError("EmptyValue")
 
     nibbles_len = len(node.rest_of_key)
     path_len = len(path)
 
     if nibbles_len + path_len != 64:
-        raise ValueError("Invalid leaf node, expected a 32-byte path")
+        raise ValueError("InvalidFullPath")
 
 
 def check_extension_node(node: ExtensionNode, parent: Optional[InternalNode]) -> None:
@@ -114,10 +114,10 @@ def check_extension_node(node: ExtensionNode, parent: Optional[InternalNode]) ->
      - Extension nodes must have a parent that is not an extension node
     """
     if len(node.key_segment) == 0:
-        raise ValueError("Invalid extension node, expected a non-zero key segment")
+        raise ValueError("EmptyKeySegment")
 
     if len(node.subnode) == 0:
-        raise ValueError("Invalid extension node, expected a non-empty subnode")
+        raise ValueError("EmptySubnode")
 
     if parent is not None and isinstance(parent, ExtensionNode):
-        raise ValueError("Invalid extension node, expected a non-extension parent")
+        raise ValueError("InvalidParent")

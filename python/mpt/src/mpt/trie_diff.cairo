@@ -698,7 +698,12 @@ func _compute_diff{
 
     // Case 1: left is null
     if (cast(l_resolved.value, felt) == 0) {
-        return _left_is_null(left, r_resolved, parent_left, parent_right, path, account_address);
+        let left_typed = OptionalUnionInternalNodeExtended(
+            cast(0, OptionalUnionInternalNodeExtendedEnum*)
+        );
+        return _left_is_null(
+            left_typed, r_resolved, parent_left, parent_right, path, account_address
+        );
     }
 
     // Case 2: left is a leaf node
@@ -826,9 +831,11 @@ func _left_is_null{
 
     // (None, BranchNode()) -> look for diffs in all branches of the right sub-tree
     if (cast(right.value.branch_node.value, felt) != 0) {
+        let r_branch = right.value.branch_node;
+        check_branch_node(r_branch);
         _compute_left_leaf_diff_on_right_branch_node(
             left=left,
-            subnodes=right.value.branch_node.value.subnodes,
+            subnodes=r_branch.value.subnodes,
             path=path,
             account_address=account_address,
             index=0,

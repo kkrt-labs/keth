@@ -10,3 +10,12 @@ func raise(message: felt) {
         dw 0x40127ffe7fff7fff;
     }
 }
+
+func raise_ValueError(message: felt) {
+    with_attr error_message("ValueError: {message}") {
+        raise_label:
+        [ap] = 0, ap++;
+        [ap] = 1, ap++;
+        dw 0x40127ffe7fff7fff;
+    }
+}
