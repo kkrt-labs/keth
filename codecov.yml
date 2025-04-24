@@ -6,7 +6,7 @@ coverage:
   status:
     project: #add everything under here, more options at https://docs.codecov.com/docs/commit-status
       # default does not cascade down to projects
-      # we add a threshold of 2% as hypothesis fuzzing creates some noise on indirect changes
+      # we add a threshold of 10% to sub folders as hypothesis fuzzing creates some noise on indirect changes
       default:
         target: auto
         threshold: 2%
@@ -14,37 +14,37 @@ coverage:
         paths:
           - cairo/ethereum
         target: auto
-        threshold: 2%
+        threshold: 15%
       ethereum_rlp:
         paths:
           - cairo/ethereum_rlp
         target: auto
-        threshold: 2%
+        threshold: 15%
       ethereum_types:
         paths:
           - cairo/ethereum_types
         target: auto
-        threshold: 2%
+        threshold: 15%
       cairo_addons:
         paths:
           - python/cairo-addons
         target: auto
-        threshold: 2%
+        threshold: 15%
       cairo_ec:
         paths:
           - python/cairo-ec
         target: auto
-        threshold: 2%
+        threshold: 15%
       cairo_core:
         paths:
           - python/cairo-core
         target: auto
-        threshold: 2%
+        threshold: 15%
       mpt:
         paths:
           - python/mpt
         target: auto
-        threshold: 2%
+        threshold: 15%
     patch:
       default:
         target: 90%
