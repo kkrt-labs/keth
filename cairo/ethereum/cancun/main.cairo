@@ -64,6 +64,7 @@ func main{
 
     // STWO does not prove the keccak builtin, so we need to use a non-builtin keccak
     // implementation.
+    let builtin_keccak_ptr = keccak_ptr;
     let (keccak_ptr) = alloc();
     let keccak_ptr_start = keccak_ptr;
     state_transition{chain=chain, keccak_ptr=keccak_ptr}(block);
@@ -107,5 +108,6 @@ func main{
     assert [output_ptr + 5] = trie_storage_diff_commitment;
 
     let output_ptr = output_ptr + 6;
+    let keccak_ptr = builtin_keccak_ptr;
     return ();
 }
