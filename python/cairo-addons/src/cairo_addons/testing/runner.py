@@ -452,9 +452,7 @@ def run_python_vm(
         function_output = []
 
         # Simplified filtering based on the include flag
-        for i, (return_item, offset) in enumerate(
-            zip(return_data_types, cumulative_retdata_offsets)
-        ):
+        for return_item, offset in zip(return_data_types, cumulative_retdata_offsets):
             if return_item["include"]:
                 serialized_value = serde.serialize(
                     return_item["type"], runner.vm.run_context.ap, offset
