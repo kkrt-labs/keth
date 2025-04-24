@@ -611,8 +611,6 @@ impl PyCairoRunner {
     /// (like `keccak_ptr`) are assumed to consume one felt (the pointer itself). Other implicit
     /// arguments passed by value consume their specified size (defaulting to 1 felt).
     ///
-    /// Handles cases where builtins might be missing but allowed (`allow_missing_builtins`),
-    /// ensuring their stop pointers are zero in such scenarios.
     ///
     /// # Returns
     /// The calculated `Relocatable` pointer pointing to the start of the explicit return values
