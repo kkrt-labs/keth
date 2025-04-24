@@ -18,7 +18,7 @@ jobs:
     with:
       hypothesis-profile: "ci"
       coverage-flags: "ci-unit"
-      parallelism: "48"
+      parallelism: "logical"
       # Ignore ef-test run in this job (handled in the ef-tests job)
       pytest-add-params: "-m 'not slow' --ignore-glob=cairo/tests/ef_tests/"
 

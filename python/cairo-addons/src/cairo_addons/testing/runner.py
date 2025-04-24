@@ -155,19 +155,6 @@ def build_entrypoint(
             }
         )
 
-    # Add explicit return type without a name (if not empty)
-    if not (
-        isinstance(explicit_return_data, TypeTuple)
-        and len(explicit_return_data.members) == 0
-    ):
-        return_data_types.append(
-            {
-                "name": None,  # Explicit return doesn't have a name
-                "type": explicit_return_data,
-                "include": True,  # Always include explicit return
-            }
-        )
-
     # Fix builtins runner based on the implicit args since the compiler doesn't find them
     cairo_program.builtins = [
         builtin
@@ -190,6 +177,8 @@ def run_python_vm(
     def _run(entrypoint, *args, **kwargs):
         # ============================================================================
         # STEP 1: SELECT PROGRAM AND PREPARE ENTRYPOINT METADATA
+        # - Rationale: We need to determine which program contains the entrypoint (main or test)
+        #   and extract its argument/return type metadata for type conversion and execution.
         # ============================================================================
         cairo_program = cairo_programs[0]
         cairo_file = cairo_files[0]
