@@ -65,6 +65,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger()
 
+# function arguments that are not builtins, but we want to generate a
+# segment for.
 SEGMENT_PTR_NAMES = {"keccak_ptr", "blake2s_ptr"}
 
 
@@ -102,6 +104,7 @@ def build_entrypoint(
         k
         for k in implicit_args.keys()
         if any(builtin in k.replace("_ptr", "") for builtin in ALL_BUILTINS)
+        and k not in SEGMENT_PTR_NAMES
     ]
 
     _implicit_args = {
@@ -110,7 +113,10 @@ def build_entrypoint(
             "cairo_type": v.cairo_type,
         }
         for k, v in implicit_args.items()
-        if not any(builtin in k.replace("_ptr", "") for builtin in ALL_BUILTINS)
+        if not (
+            any(builtin in k.replace("_ptr", "") for builtin in ALL_BUILTINS)
+            and k not in SEGMENT_PTR_NAMES
+        )
     }
 
     entrypoint_args = cairo_program.get_identifier(
