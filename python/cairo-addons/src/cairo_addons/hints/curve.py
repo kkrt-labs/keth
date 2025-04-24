@@ -61,13 +61,16 @@ def compute_y_from_x_hint(ids: VmConsts, segments: MemorySegmentManager):
 
     from cairo_addons.utils.uint384 import int_to_uint384, uint384_to_int
 
-    a = uint384_to_int(ids.a.d0, ids.a.d1, ids.a.d2, ids.a.d3)
-    b = uint384_to_int(ids.b.d0, ids.b.d1, ids.b.d2, ids.b.d3)
+    a = uint384_to_int(ids.a.value.d0, ids.a.value.d1, ids.a.value.d2, ids.a.value.d3)
+    b = uint384_to_int(ids.b.value.d0, ids.b.value.d1, ids.b.value.d2, ids.b.value.d3)
     modulus = uint384_to_int(
-        ids.modulus.d0, ids.modulus.d1, ids.modulus.d2, ids.modulus.d3
+        ids.modulus.value.d0,
+        ids.modulus.value.d1,
+        ids.modulus.value.d2,
+        ids.modulus.value.d3,
     )
-    g = uint384_to_int(ids.g.d0, ids.g.d1, ids.g.d2, ids.g.d3)
-    x = uint384_to_int(ids.x.d0, ids.x.d1, ids.x.d2, ids.x.d3)
+    g = uint384_to_int(ids.g.value.d0, ids.g.value.d1, ids.g.value.d2, ids.g.value.d3)
+    x = uint384_to_int(ids.x.value.d0, ids.x.value.d1, ids.x.value.d2, ids.x.value.d3)
 
     rhs = (x**3 + a * x + b) % modulus
 
