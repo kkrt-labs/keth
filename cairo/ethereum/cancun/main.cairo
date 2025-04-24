@@ -40,7 +40,7 @@ func main{
     ecdsa_ptr: SignatureBuiltin*,
     bitwise_ptr: BitwiseBuiltin*,
     ec_op_ptr: EcOpBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
+    keccak_ptr: felt*,
     poseidon_ptr: PoseidonBuiltin*,
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
@@ -61,9 +61,12 @@ func main{
     let parent_header = chain.value.blocks.value.data[
         chain.value.blocks.value.len - 1
     ].value.header;
-    let (override_keccak_ptr_start) = alloc();
-    let override_keccak_ptr = override_keccak_ptr_start;
-    state_transition{chain=chain, keccak_ptr=override_keccak_ptr}(block);
+
+    // STWO does not prove the keccak builtin, so we need to use a non-builtin keccak
+    // implementation.
+    let (keccak_ptr) = alloc();
+    let keccak_ptr_start = keccak_ptr;
+    state_transition{chain=chain, keccak_ptr=keccak_ptr}(block);
 
     // # Compute the diff between the pre and post STF MPTs to produce trie diffs.
     let pre_state_root = parent_header.value.state_root;
@@ -71,7 +74,7 @@ func main{
     let pre_state_root_node = OptionalUnionInternalNodeExtendedImpl.from_bytes(
         pre_state_root_bytes
     );
-    let (account_diff, storage_diff) = compute_diff_entrypoint{keccak_ptr=override_keccak_ptr}(
+    let (account_diff, storage_diff) = compute_diff_entrypoint{keccak_ptr=keccak_ptr}(
         node_store=node_store,
         address_preimages=address_preimages,
         storage_key_preimages=storage_key_preimages,
@@ -79,9 +82,7 @@ func main{
         right=post_state_root,
     );
 
-    // Finalize the keccak hash after all the
-    // keccak calculations are completed (state_transition and compute_diff_entrypoint)
-    finalize_keccak(override_keccak_ptr_start, override_keccak_ptr);
+    finalize_keccak(keccak_ptr_start, keccak_ptr);
 
     // # Compute commitments for the state diffs and the trie diffs.
     let account_diff = sort_account_diff(account_diff);
