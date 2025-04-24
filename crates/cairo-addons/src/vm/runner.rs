@@ -60,7 +60,8 @@ fn is_actual_builtin(arg_name: &str) -> bool {
 pub struct PyCairoRunner {
     inner: RustCairoRunner,
     allow_missing_builtins: bool,
-    /// The names of implicit arguments, ordered as defined in the Cairo function signature.
+    /// The return_data information (name, size) ordered as defined in the Cairo function
+    /// signature.
     return_data_info: Vec<(String, Option<usize>)>,
     /// Whether to enable execution of hints containing logger.
     enable_traces: bool,
