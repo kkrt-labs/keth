@@ -110,13 +110,16 @@ def map_to_python_exception(e: Exception) -> None:
         else:
             raise exception_class() from e
 
+    error_content_decoded = (
+        int(error_content).to_bytes(31, "big").lstrip(b"\x00").decode()
+    )
     if (
         "An ASSERT_EQ instruction failed" in original_error_str
-        or "AssertionError" in error_content
+        or "AssertionError" in error_content_decoded
     ):
-        raise AssertionError(error_content) from e
+        raise AssertionError(error_content_decoded) from e
 
-    raise Exception(error_content) from e
+    raise Exception(error_content_decoded) from e
 
 
 def _find_exception_class(name: str) -> Optional[Type[Exception]]:
