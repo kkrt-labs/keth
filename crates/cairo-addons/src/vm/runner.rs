@@ -659,7 +659,7 @@ fn prepare_cairo_execution<'a>(
         entrypoint: &entrypoint,
         trace_enabled: true,
         relocate_mem: true,
-        layout: LayoutName::all_cairo,
+        layout: LayoutName::all_cairo_stwo,
         proof_mode: true,
         secure_run: Some(true),
         allow_missing_builtins: Some(false),
@@ -806,6 +806,9 @@ pub fn run_end_to_end(
     )
     .map_err(to_pyerr)?;
     drop(_run_span_guard);
+
+    let execution_resources = cairo_runner.get_execution_resources().unwrap();
+    tracing::info!("Execution resources: {:?}", execution_resources);
 
     let cairo_input =
         stwo_cairo_adapter::plain::adapt_finished_runner(cairo_runner).map_err(to_pyerr)?;

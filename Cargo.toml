@@ -65,8 +65,8 @@ cairo-vm = { git = "https://github.com/lambdaclass/cairo-vm.git", tag = "v2.0.1"
 cairo-vm = { git = "https://github.com/kkrt-labs/cairo-vm", rev = "0e6a272b5c6153437bd3b40150dde93d1294e565" }
 
 [patch.crates-io]
-stwo-cairo-adapter = { git = "https://github.com/starkware-libs/stwo-cairo", rev = "2753bfe28bcf5d8a02975a18f9775ff7e43a236c" }
-stwo_cairo_prover = { git = "https://github.com/starkware-libs/stwo-cairo", rev = "2753bfe28bcf5d8a02975a18f9775ff7e43a236c" }
-cairo-air = { git = "https://github.com/starkware-libs/stwo-cairo", rev = "2753bfe28bcf5d8a02975a18f9775ff7e43a236c" }
-stwo_cairo_utils = { git = "https://github.com/starkware-libs/stwo-cairo", rev = "2753bfe28bcf5d8a02975a18f9775ff7e43a236c" }
-stwo-cairo-serialize = { git = "https://github.com/starkware-libs/stwo-cairo", rev = "2753bfe28bcf5d8a02975a18f9775ff7e43a236c" }
+stwo-cairo-adapter = { git = "https://github.com/starkware-libs/stwo-cairo", rev = "5e43d5e211a2fc7d6b0cde7a5d9a0c9e74c7e0b4" }
+stwo_cairo_prover = { git = "https://github.com/starkware-libs/stwo-cairo", rev = "5e43d5e211a2fc7d6b0cde7a5d9a0c9e74c7e0b4" }
+cairo-air = { git = "https://github.com/starkware-libs/stwo-cairo", rev = "5e43d5e211a2fc7d6b0cde7a5d9a0c9e74c7e0b4" }
+stwo_cairo_utils = { git = "https://github.com/starkware-libs/stwo-cairo", rev = "5e43d5e211a2fc7d6b0cde7a5d9a0c9e74c7e0b4" }
+stwo-cairo-serialize = { git = "https://github.com/starkware-libs/stwo-cairo", rev = "5e43d5e211a2fc7d6b0cde7a5d9a0c9e74c7e0b4" }
