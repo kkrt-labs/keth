@@ -20,10 +20,10 @@ from ethereum_types.numeric import U256
 from hypothesis import assume, given
 from hypothesis import strategies as st
 from hypothesis.strategies import composite
+from keth_types.types import EMPTY_TRIE_HASH, encode_account
 
 from cairo_addons.rust_bindings.vm import poseidon_hash_many
 from cairo_addons.utils.uint256 import int_to_uint256
-from keth_types.types import EMPTY_TRIE_HASH, encode_account
 from mpt.ethereum_tries import EthereumTries, EthereumTrieTransitionDB
 from mpt.trie_builder import TrieTestBuilder
 from mpt.trie_diff import StateDiff, resolve

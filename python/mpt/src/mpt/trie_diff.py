@@ -12,10 +12,10 @@ from ethereum_rlp import rlp
 from ethereum_rlp.rlp import Extended
 from ethereum_types.bytes import Bytes, Bytes32
 from ethereum_types.numeric import U256, Uint
+from keth_types.types import EMPTY_TRIE_HASH
 
 from cairo_addons.rust_bindings.vm import poseidon_hash_many
 from cairo_addons.utils.uint256 import int_to_uint256
-from keth_types.types import EMPTY_TRIE_HASH
 from mpt.ethereum_tries import EthereumTrieTransitionDB
 from mpt.utils import (
     check_branch_node,

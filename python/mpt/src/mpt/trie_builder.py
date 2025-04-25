@@ -13,8 +13,8 @@ from ethereum.cancun.trie import (
 )
 from ethereum.crypto.hash import Hash32, keccak256
 from ethereum_types.bytes import Bytes, Bytes32
-
 from keth_types.types import EMPTY_TRIE_HASH
+
 from mpt.ethereum_tries import EthereumTries
 
 NodeBuilder = Union["LeafNodeBuilder", "ExtensionNodeBuilder", "BranchNodeBuilder"]

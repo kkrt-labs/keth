@@ -56,54 +56,81 @@ def strict_raises(expected_exception: Type[Exception], match: Optional[str] = No
         assert match in error_msg, f"Expected '{match}' in '{error_msg}'"
 
 
-def map_to_python_exception(e: Exception):
+def map_to_python_exception(e: Exception) -> None:
+    """
+    Maps a generic Exception (potentially from Cairo) to a specific Python exception
+    based on its string representation.
+
+    The error string is expected to follow one of these patterns:
+    1. An arbitrary error string.
+    2. The name of a Python exception class (e.g., "ValueError").
+    3. The name of a Python exception class followed by a message (e.g., "ValueError: error message").
+
+    Args:
+        e: The exception instance caught.
+
+    Raises:
+        A specific Python exception (if mapped and is an Exception subclass),
+        AssertionError for specific Cairo assertion messages, or a generic Exception,
+        preserving the original exception as the cause.
+    """
+    original_error_str = str(e)
+
+    # Extract the core message, handling the "Error message: " prefix if present
+    match = re.search(r"Error message: (.*)", original_error_str)
+    error_content = match.group(1) if match else original_error_str
+
+    parts = error_content.split(": ", 1)
+    potential_type_name = parts[0]
+    try:
+        potential_type_name_int = int(potential_type_name)
+        potential_type_name = (
+            potential_type_name_int.to_bytes(31, "big").lstrip(b"\x00").decode()
+        )
+    except (ValueError, UnicodeDecodeError):
+        pass
+
+    message = parts[1] if len(parts) > 1 else None
+    if message is not None:
+        try:
+            message_int = int(message)
+            message = message_int.to_bytes(31, "big").lstrip(b"\x00").decode()
+        except (ValueError, UnicodeDecodeError):
+            pass
+
+    exception_class = _find_exception_class(potential_type_name)
+
+    if (
+        exception_class
+        and isinstance(exception_class, type)
+        and issubclass(exception_class, Exception)
+    ):
+        if message:
+            raise exception_class(message) from e
+        else:
+            raise exception_class() from e
+
+    if (
+        "An ASSERT_EQ instruction failed" in original_error_str
+        or "AssertionError" in error_content
+    ):
+        raise AssertionError(error_content) from e
+
+    raise Exception(error_content) from e
+
+
+def _find_exception_class(name: str) -> Optional[Type[Exception]]:
+    """Looks up an exception class by name in predefined modules."""
     import ethereum.exceptions as eth_exceptions
     import ethereum_rlp.exceptions as rlp_exceptions
 
-    error_str = str(e)
+    builtin_exc = __builtins__.get(name)
+    if isinstance(builtin_exc, type) and issubclass(builtin_exc, BaseException):
+        return builtin_exc
 
-    # Throw a specialized python exception from the error message, if possible
-    error = re.search(r"Error message: (.*)", error_str)
-    error_type = error.group(1) if error else error_str
-    error_msg = None
-    exception_class = None
-    try:
-        # Case 1: error_type is a short string, e.g. raise('ValueError')
-        error_type = int(error_type).to_bytes(31, "big").lstrip(b"\x00").decode()
-        # Raise in case we have raise_ValueError('ShortStr'), i.e. len(ValueError) + len(ShortStr) < 31
-        if " " in error_type:
-            raise Exception(f"Unexpected space in short string: {error_type}")
-    except Exception:
-        try:
-            # Case 2: error_type comes with a message, e.g. raise_ValueError('NonEmptyBytesValue')
-            new_error_type, error_msg_encoded = error_type.split(": ", 1)
-            error_msg = (
-                (int(error_msg_encoded).to_bytes(31, "big").lstrip(b"\x00").decode())
-                if error_msg_encoded.isdigit()
-                else error_msg_encoded
-            )
-            # Get the exception class from python's builtins or ethereum's exceptions
-            exception_class = __builtins__.get(
-                new_error_type,
-                getattr(eth_exceptions, new_error_type, None)
-                or getattr(rlp_exceptions, new_error_type, None),
-            )
-        except Exception:
-            # Get the exception class from python's builtins or ethereum's exceptions
-            exception_class = __builtins__.get(
-                error_type,
-                getattr(eth_exceptions, error_type, None)
-                or getattr(rlp_exceptions, error_type, None),
-            )
+    for module in [eth_exceptions, rlp_exceptions]:
+        custom_exc = getattr(module, name, None)
+        if isinstance(custom_exc, type) and issubclass(custom_exc, Exception):
+            return custom_exc
 
-    if (
-        "An ASSERT_EQ instruction failed" in error_type
-        or "AssertionError" in error_type
-    ):
-        raise AssertionError(error_str) from e
-
-    if isinstance(exception_class, type) and issubclass(exception_class, Exception):
-        raise exception_class(error_msg) from e
-
-    # Fallback to generic exception
-    raise Exception(error_type) from e
+    return None

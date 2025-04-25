@@ -18,8 +18,8 @@ from ethereum.crypto.hash import Hash32, keccak256
 from ethereum_rlp import rlp
 from ethereum_types.bytes import Bytes, Bytes20, Bytes32
 from ethereum_types.numeric import U256, Uint
-
 from keth_types.types import EMPTY_BYTES_HASH, EMPTY_TRIE_HASH
+
 from mpt.utils import decode_node, deserialize_to_internal_node, nibble_list_to_bytes
 
 logger = logging.getLogger(__name__)
