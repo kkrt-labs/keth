@@ -18,8 +18,8 @@ from ethereum.crypto.hash import Hash32, keccak256
 from ethereum_rlp import rlp
 from ethereum_types.bytes import Bytes, Bytes20, Bytes32
 from ethereum_types.numeric import U256, Uint
-
 from keth_types.types import EMPTY_BYTES_HASH, EMPTY_TRIE_HASH
+
 from mpt.utils import decode_node, deserialize_to_internal_node, nibble_list_to_bytes
 
 logger = logging.getLogger(__name__)
@@ -298,22 +298,29 @@ class EthereumTrieTransitionDB(EthereumTries):
 
     post_state_root: Hash32
 
-    @staticmethod
-    def from_pre_and_post_tries(pre_trie: EthereumTries, post_trie: EthereumTries):
-        return EthereumTrieTransitionDB(
-            nodes={**pre_trie.nodes, **post_trie.nodes},
-            codes={**pre_trie.codes, **post_trie.codes},
-            address_preimages={
-                **pre_trie.address_preimages,
-                **post_trie.address_preimages,
-            },
-            storage_key_preimages={
-                **pre_trie.storage_key_preimages,
-                **post_trie.storage_key_preimages,
-            },
-            pre_state_root=pre_trie.state_root,
-            post_state_root=post_trie.state_root,
+    @classmethod
+    def from_pre_and_post_tries(
+        cls, pre_trie: EthereumTries, post_trie: EthereumTries
+    ) -> "EthereumTrieTransitionDB":
+        nodes = {**pre_trie.nodes, **post_trie.nodes}
+        codes = {**pre_trie.codes, **post_trie.codes}
+        address_preimages = {
+            **pre_trie.address_preimages,
+            **post_trie.address_preimages,
+        }
+        storage_key_preimages = {
+            **pre_trie.storage_key_preimages,
+            **post_trie.storage_key_preimages,
+        }
+        instance = cls(
+            nodes=nodes,
+            codes=codes,
+            address_preimages=address_preimages,
+            storage_key_preimages=storage_key_preimages,
+            state_root=pre_trie.state_root,
         )
+        instance.post_state_root = post_trie.state_root
+        return instance
 
     @classmethod
     def from_json(cls, path: Path) -> "EthereumTrieTransitionDB":

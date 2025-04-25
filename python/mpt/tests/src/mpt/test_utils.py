@@ -276,9 +276,7 @@ sorted_to_original_index_map[-2], sorted_to_original_index_map[-1] = sorted_to_o
 segments.load_data(ids.sorted_to_original_index_map, sorted_to_original_index_map)
             """,
         ):
-            with strict_raises(
-                Exception, match="ValueError: Array is not sorted in ascending order"
-            ):
+            with strict_raises(ValueError, match="NotAscendingOrder"):
                 cairo_run("sort_account_diff", data)
 
     @given(data=list_address_account_node_diff_entry_strategy_min_size_2)
@@ -308,8 +306,8 @@ segments.load_data(ids.sorted_to_original_index_map, sorted_to_original_index_ma
             """,
         ):
             with strict_raises(
-                Exception,
-                match="ValueError: Sorted element does not match original element at hint index",
+                ValueError,
+                match="MismatchAtIndex",
             ):
                 cairo_run("sort_account_diff", data)
 
@@ -318,9 +316,7 @@ segments.load_data(ids.sorted_to_original_index_map, sorted_to_original_index_ma
         self, cairo_run, data: List[AddressAccountDiffEntry]
     ):
 
-        with strict_raises(
-            Exception, match="ValueError: Array is not sorted in ascending order"
-        ):
+        with strict_raises(ValueError, match="NotAscendingOrder"):
             cairo_run("sort_account_diff", data)
 
     @given(data=list_address_account_node_diff_entry_strategy_min_size_2)
@@ -351,7 +347,7 @@ segments.load_data(ids.sorted_to_original_index_map, sorted_to_original_index_ma
             """,
         ):
 
-            with strict_raises(Exception):
+            with strict_raises(ValueError):
                 cairo_run("sort_account_diff", data)
 
     @given(

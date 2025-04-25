@@ -22,7 +22,7 @@ from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.math import assert_not_zero
 from starkware.cairo.common.math_cmp import is_le_felt
 from cairo_core.comparison import is_zero, is_not_zero
-from cairo_core.control_flow import raise
+from cairo_core.control_flow import raise, raise_ValueError
 
 from ethereum.utils.numeric import U256__eq__
 from mpt.types import (
@@ -157,10 +157,10 @@ func check_branch_node(node: BranchNode) {
     // Values in Ethereum MPTs are always empty bytes
     let bytes_variant = node.value.value.value.bytes.value;
     if (cast(bytes_variant, felt) == 0) {
-        raise('ValueError');
+        raise_ValueError('NonEmptyBytesValue');
     }
     if (bytes_variant.len != 0) {
-        raise('ValueError');
+        raise_ValueError('NonEmptyBytesValue');
     }
 
     local first_non_null_index;
@@ -170,25 +170,25 @@ func check_branch_node(node: BranchNode) {
     %{ find_two_non_null_subnodes %}
 
     if (first_non_null_index == second_non_null_index) {
-        raise('ValueError');
+        raise_ValueError('LTTwoNonNullSubnodes');
     }
 
     // Check that the first subnode is not None and not empty
     tempvar x = Extended(cast(subnodes_ptr[first_non_null_index], ExtendedEnum*));
 
     if (cast(x.value, felt) == 0) {
-        raise('ValueError');
+        raise_ValueError('LTTwoNonNullSubnodes');
     }
     // Case 1: subnode is a digest
     if (cast(x.value.bytes.value, felt) != 0) {
         if (x.value.bytes.value.len == 0) {
-            raise('ValueError');
+            raise_ValueError('LTTwoNonNullSubnodes');
         }
     }
     // Case 2: subnode is an embedded node
     if (cast(x.value.sequence.value, felt) != 0) {
         if (x.value.sequence.value.len == 0) {
-            raise('ValueError');
+            raise_ValueError('LTTwoNonNullSubnodes');
         }
     }
 
@@ -196,16 +196,16 @@ func check_branch_node(node: BranchNode) {
     tempvar y = Extended(cast(subnodes_ptr[second_non_null_index], ExtendedEnum*));
 
     if (cast(y.value, felt) == 0) {
-        raise('ValueError');
+        raise_ValueError('LTTwoNonNullSubnodes');
     }
     if (cast(y.value.bytes.value, felt) != 0) {
         if (y.value.bytes.value.len == 0) {
-            raise('ValueError');
+            raise_ValueError('LTTwoNonNullSubnodes');
         }
     }
     if (cast(y.value.sequence.value, felt) != 0) {
         if (y.value.sequence.value.len == 0) {
-            raise('ValueError');
+            raise_ValueError('LTTwoNonNullSubnodes');
         }
     }
 
@@ -219,13 +219,13 @@ func check_leaf_node(path: Bytes, node: LeafNode) {
     let path_len = path.value.len;
 
     if (nibbles_len + path_len != 64) {
-        raise('ValueError');
+        raise_ValueError('InvalidFullPath');
     }
 
     let bytes_variant = node.value.value.value.bytes.value;
     if (cast(bytes_variant, felt) != 0) {
         if (bytes_variant.len == 0) {
-            raise('ValueError');
+            raise_ValueError('EmptyValue');
         }
         return ();
     }
@@ -233,12 +233,12 @@ func check_leaf_node(path: Bytes, node: LeafNode) {
     let sequence_variant = node.value.value.value.sequence.value;
     if (cast(sequence_variant, felt) != 0) {
         if (sequence_variant.len == 0) {
-            raise('ValueError');
+            raise_ValueError('EmptyValue');
         }
         return ();
     }
 
-    with_attr error_message("ValueError: Unsupported leaf value variant") {
+    with_attr error_message("ValueError: UnsupportedVariant") {
         jmp raise.raise_label;
     }
 }
@@ -255,7 +255,7 @@ func check_extension_node(node: ExtensionNode, parent_node: OptionalInternalNode
 
     if (cast(parent_node.value, felt) != 0) {
         if (cast(parent_node.value.extension_node.value, felt) != 0) {
-            raise('ValueError');
+            raise_ValueError('InvalidParent');
         }
     }
 
@@ -263,13 +263,13 @@ func check_extension_node(node: ExtensionNode, parent_node: OptionalInternalNode
     let subnode = node.value.subnode;
 
     if (key_segment.value.len == 0) {
-        raise('ValueError');
+        raise_ValueError('EmptyKeySegment');
     }
 
     let bytes_variant = subnode.value.bytes.value;
     if (cast(bytes_variant, felt) != 0) {
         if (bytes_variant.len == 0) {
-            raise('ValueError');
+            raise_ValueError('EmptySubnode');
         }
         return ();
     }
@@ -277,12 +277,12 @@ func check_extension_node(node: ExtensionNode, parent_node: OptionalInternalNode
     let sequence_variant = subnode.value.sequence.value;
     if (cast(sequence_variant, felt) != 0) {
         if (sequence_variant.len == 0) {
-            raise('ValueError');
+            raise_ValueError('EmptySubnode');
         }
         return ();
     }
 
-    with_attr error_message("ValueError: Unsupported extension node value variant") {
+    with_attr error_message("ValueError: UnsupportedVariant") {
         jmp raise.raise_label;
     }
 }
@@ -331,8 +331,7 @@ func sort_account_diff{range_check_ptr}(account_diff: AccountDiff) -> AccountDif
     // corresponds exactly to an element from the original array, using the
     // `original_index` provided by the hint's `original_index_map`.
 
-    with_attr error_message(
-            "ValueError: Sorted element does not match original element at hint index") {
+    with_attr error_message("ValueError: MismatchAtIndex") {
         let original_index = [sorted_to_original_index_map + loop_counter];
         tempvar original_entry: AddressAccountDiffEntry = original_diff_struct_ptr.data[
             original_index
@@ -351,7 +350,7 @@ func sort_account_diff{range_check_ptr}(account_diff: AccountDiff) -> AccountDif
     // --- Verification Step 2: Ordering Check ---
     // Ensure that the sorted array is in strict ascending order based on the key.
     // This check is performed for elements from index 1 up to diffs_len - 1.
-    with_attr error_message("ValueError: Array is not sorted in ascending order") {
+    with_attr error_message("ValueError: NotAscendingOrder") {
         let previous_key = sorted_diff_struct_ptr.data[loop_counter].value.key.value;
         let next_key = sorted_diff_struct_ptr.data[next_loop_counter].value.key.value;
         let keys_ordered = is_le_felt(previous_key, next_key);

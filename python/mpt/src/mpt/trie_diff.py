@@ -12,10 +12,10 @@ from ethereum_rlp import rlp
 from ethereum_rlp.rlp import Extended
 from ethereum_types.bytes import Bytes, Bytes32
 from ethereum_types.numeric import U256, Uint
+from keth_types.types import EMPTY_TRIE_HASH
 
 from cairo_addons.rust_bindings.vm import poseidon_hash_many
 from cairo_addons.utils.uint256 import int_to_uint256
-from keth_types.types import EMPTY_TRIE_HASH
 from mpt.ethereum_tries import EthereumTrieTransitionDB
 from mpt.utils import (
     check_branch_node,
@@ -327,6 +327,7 @@ class StateDiff:
 
             case (ExtensionNode(), LeafNode()):
                 check_extension_node(l_node, parent=left_parent)
+                check_leaf_node(path, r_node)
                 # The extension node was deleted and replaced by a leaf - meaning that down the line of the extension node, in a branch, we deleted some nodes.
                 # Explore the extension node's subtree for any deleted nodes, comparing it to the new leaf
                 if r_node.rest_of_key.startswith(l_node.key_segment):
@@ -509,6 +510,8 @@ class StateDiff:
                         )
 
             case (BranchNode(), ExtensionNode()):
+                check_branch_node(l_node)
+                check_extension_node(r_node, parent=right_parent)
                 # Match on the corresponding nibble of the extension key segment
                 for i in range(0, 16):
                     nibble = bytes([i])
@@ -630,6 +633,8 @@ def resolve(
     if isinstance(node, InternalNode):
         return node
     if isinstance(node, bytes) and len(node) == 32:
+        if node == EMPTY_TRIE_HASH:
+            return None
         if node not in nodes:
             raise KeyError(f"Node not found: {node}")
         return decode_node(nodes[node])
