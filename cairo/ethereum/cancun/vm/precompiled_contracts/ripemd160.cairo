@@ -4,7 +4,6 @@
 from starkware.cairo.common.cairo_builtins import (
     BitwiseBuiltin,
     HashBuiltin,
-    KeccakBuiltin,
     PoseidonBuiltin,
     ModBuiltin,
 )
@@ -39,7 +38,7 @@ from ethereum_types.numeric import Uint
 func ripemd160{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
+    keccak_ptr: felt*,
     poseidon_ptr: PoseidonBuiltin*,
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,

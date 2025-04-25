@@ -1,6 +1,5 @@
 from starkware.cairo.common.cairo_builtins import (
     BitwiseBuiltin,
-    KeccakBuiltin,
     PoseidonBuiltin,
     ModBuiltin,
     UInt384,
@@ -56,7 +55,7 @@ const GQUADDIVISOR = 3;
 func modexp{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
+    keccak_ptr: felt*,
     poseidon_ptr: PoseidonBuiltin*,
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,

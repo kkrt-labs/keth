@@ -1,6 +1,6 @@
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.cairo_builtins import PoseidonBuiltin, BitwiseBuiltin, KeccakBuiltin
-from starkware.cairo.common.builtin_keccak.keccak import keccak_uint256s
+from starkware.cairo.common.cairo_builtins import PoseidonBuiltin, BitwiseBuiltin
+from starkware.cairo.common.cairo_keccak.keccak import cairo_keccak_uint256s
 from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
 from starkware.cairo.common.dict import DictAccess
 from starkware.cairo.common.memset import memset
@@ -319,7 +319,7 @@ func _process_account_diff{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
+    keccak_ptr: felt*,
     node_store: NodeStore,
     address_preimages: MappingBytes32Address,
     storage_key_preimages: MappingBytes32Bytes32,
@@ -386,7 +386,7 @@ func _process_account_diff{
     let range_check_ptr = [ap - 4];
     let bitwise_ptr = cast([ap - 3], BitwiseBuiltin*);
     let poseidon_ptr = cast([ap - 2], PoseidonBuiltin*);
-    let keccak_ptr = cast([ap - 1], KeccakBuiltin*);
+    let keccak_ptr = cast([ap - 1], felt*);
 
     if (right.value != 0) {
         let (right_account, right_storage_root_bytes) = Account_from_rlp(
@@ -427,7 +427,7 @@ func _process_account_diff{
     let range_check_ptr = [ap - 4];
     let bitwise_ptr = cast([ap - 3], BitwiseBuiltin*);
     let poseidon_ptr = cast([ap - 2], PoseidonBuiltin*);
-    let keccak_ptr = cast([ap - 1], KeccakBuiltin*);
+    let keccak_ptr = cast([ap - 1], felt*);
 
     // This is an account diff only if the ACCOUNT is different - not taking into account its storage.
     // We don't log any diff in the main_trie_end if only the storage root is different.
@@ -477,7 +477,7 @@ func _process_storage_diff{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
+    keccak_ptr: felt*,
     storage_key_preimages: MappingBytes32Bytes32,
     storage_tries_end: StorageDiffEntry*,
 }(address: Address, path: Bytes32, left: OptionalLeafNode, right: OptionalLeafNode) -> () {
@@ -495,7 +495,7 @@ func _process_storage_diff{
     tempvar storage_key = Bytes32(cast(pointer, Bytes32Struct*));
 
     // INVARIANT [Soundness]: check keccak(storage_key) == path
-    let (storage_key_hash) = keccak_uint256s(1, storage_key.value);
+    let (storage_key_hash) = cairo_keccak_uint256s(1, storage_key.value);
     with_attr error_message(
             "INVARIANT - Invalid storage key preimage: keccak(storage_key) != path") {
         assert storage_key_hash.low = path.value.low;
@@ -527,7 +527,7 @@ func _process_storage_diff{
     let range_check_ptr = [ap - 4];
     let bitwise_ptr = cast([ap - 3], BitwiseBuiltin*);
     let poseidon_ptr = cast([ap - 2], PoseidonBuiltin*);
-    let keccak_ptr = cast([ap - 1], KeccakBuiltin*);
+    let keccak_ptr = cast([ap - 1], felt*);
 
     if (right.value != 0) {
         let right_u256_ = U256_from_rlp(right.value.value.value.bytes);
@@ -551,7 +551,7 @@ func _process_storage_diff{
     let range_check_ptr = [ap - 4];
     let bitwise_ptr = cast([ap - 3], BitwiseBuiltin*);
     let poseidon_ptr = cast([ap - 2], PoseidonBuiltin*);
-    let keccak_ptr = cast([ap - 1], KeccakBuiltin*);
+    let keccak_ptr = cast([ap - 1], felt*);
 
     let is_prev_eq_new = OptionalU256__eq__(left_u256, right_u256);
     if (is_prev_eq_new.value != 0) {
@@ -587,10 +587,7 @@ func _process_storage_diff{
 // @return account_diff A list containing differences found in account nodes.
 // @return storage_diff A list containing differences found in storage nodes across all accounts.
 func compute_diff_entrypoint{
-    range_check_ptr,
-    bitwise_ptr: BitwiseBuiltin*,
-    poseidon_ptr: PoseidonBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
+    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, poseidon_ptr: PoseidonBuiltin*, keccak_ptr: felt*
 }(
     node_store: NodeStore,
     address_preimages: MappingBytes32Address,
@@ -670,7 +667,7 @@ func _compute_diff{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
+    keccak_ptr: felt*,
     node_store: NodeStore,
     address_preimages: MappingBytes32Address,
     storage_key_preimages: MappingBytes32Bytes32,
@@ -757,7 +754,7 @@ func _left_is_null{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
+    keccak_ptr: felt*,
     node_store: NodeStore,
     address_preimages: MappingBytes32Address,
     storage_key_preimages: MappingBytes32Bytes32,
@@ -859,7 +856,7 @@ func _left_is_leaf_node{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
+    keccak_ptr: felt*,
     node_store: NodeStore,
     address_preimages: MappingBytes32Address,
     storage_key_preimages: MappingBytes32Bytes32,
@@ -1100,7 +1097,7 @@ func _left_is_extension_node{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
+    keccak_ptr: felt*,
     node_store: NodeStore,
     address_preimages: MappingBytes32Address,
     storage_key_preimages: MappingBytes32Bytes32,
@@ -1391,7 +1388,7 @@ func _left_is_branch_node{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
+    keccak_ptr: felt*,
     node_store: NodeStore,
     address_preimages: MappingBytes32Address,
     storage_key_preimages: MappingBytes32Bytes32,
@@ -1484,7 +1481,7 @@ func _compute_left_branch_on_none{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
+    keccak_ptr: felt*,
     node_store: NodeStore,
     address_preimages: MappingBytes32Address,
     storage_key_preimages: MappingBytes32Bytes32,
@@ -1558,7 +1555,7 @@ func _compute_left_branch_on_right_leaf{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
+    keccak_ptr: felt*,
     node_store: NodeStore,
     address_preimages: MappingBytes32Address,
     storage_key_preimages: MappingBytes32Bytes32,
@@ -1658,7 +1655,7 @@ func _compute_left_branch_node_diff_on_right_extension_node{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
+    keccak_ptr: felt*,
     node_store: NodeStore,
     address_preimages: MappingBytes32Address,
     storage_key_preimages: MappingBytes32Bytes32,
@@ -1774,7 +1771,7 @@ func _compute_left_branch_on_right_branch_node{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
+    keccak_ptr: felt*,
     node_store: NodeStore,
     address_preimages: MappingBytes32Address,
     storage_key_preimages: MappingBytes32Bytes32,
@@ -1853,7 +1850,7 @@ func _compute_left_leaf_diff_on_right_branch_node{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
+    keccak_ptr: felt*,
     node_store: NodeStore,
     address_preimages: MappingBytes32Address,
     storage_key_preimages: MappingBytes32Bytes32,
@@ -1961,7 +1958,7 @@ func _compute_left_extension_node_diff_on_right_branch_node{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
+    keccak_ptr: felt*,
     node_store: NodeStore,
     address_preimages: MappingBytes32Address,
     storage_key_preimages: MappingBytes32Bytes32,
@@ -2069,7 +2066,7 @@ func _compute_left_extension_node_diff_on_right_branch_node{
 func node_store_get{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
+    keccak_ptr: felt*,
     poseidon_ptr: PoseidonBuiltin*,
     node_store: NodeStore,
 }(node_hash: Hash32) -> OptionalInternalNode {
@@ -2125,7 +2122,7 @@ func node_store_get{
 func resolve{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
+    keccak_ptr: felt*,
     poseidon_ptr: PoseidonBuiltin*,
     node_store: NodeStore,
 }(node: OptionalUnionInternalNodeExtended) -> OptionalInternalNode {

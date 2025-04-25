@@ -1,4 +1,4 @@
-from starkware.cairo.common.cairo_builtins import PoseidonBuiltin, BitwiseBuiltin, KeccakBuiltin
+from starkware.cairo.common.cairo_builtins import PoseidonBuiltin, BitwiseBuiltin
 from starkware.cairo.common.alloc import alloc
 from mpt.trie_diff import (
     _process_account_diff,
@@ -21,10 +21,7 @@ from ethereum.cancun.fork_types import Address, TupleAddressBytes32U256DictAcces
 from ethereum.cancun.trie import Bytes32U256DictAccess
 
 func test__process_account_diff{
-    range_check_ptr,
-    bitwise_ptr: BitwiseBuiltin*,
-    poseidon_ptr: PoseidonBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
+    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, poseidon_ptr: PoseidonBuiltin*, keccak_ptr: felt*
 }(
     node_store: NodeStore,
     address_preimages: MappingBytes32Address,
@@ -57,10 +54,7 @@ func test__process_account_diff{
 }
 
 func test__process_storage_diff{
-    range_check_ptr,
-    bitwise_ptr: BitwiseBuiltin*,
-    poseidon_ptr: PoseidonBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
+    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, poseidon_ptr: PoseidonBuiltin*, keccak_ptr: felt*
 }(
     storage_key_preimages: MappingBytes32Bytes32,
     path: Bytes32,

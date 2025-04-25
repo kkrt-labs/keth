@@ -1,6 +1,6 @@
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bool import FALSE
-from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin
+from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 from starkware.cairo.common.math_cmp import is_nn, is_not_zero
 
 from ethereum_types.bytes import Bytes32, Bytes, BytesStruct
@@ -40,9 +40,9 @@ func to_address{range_check_ptr}(data: UnionUintU256) -> Address {
     }
 }
 
-func compute_contract_address{
-    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*
-}(address: Address, nonce: Uint) -> Address {
+func compute_contract_address{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: felt*}(
+    address: Address, nonce: Uint
+) -> Address {
     alloc_locals;
     local message_len;
     let (message: felt*) = alloc();
@@ -76,7 +76,7 @@ func compute_contract_address{
 }
 
 func compute_create2_contract_address{
-    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*
+    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: felt*
 }(address: Address, salt: Bytes32, call_data: Bytes) -> Address {
     alloc_locals;
     let (preimage: felt*) = alloc();

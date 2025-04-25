@@ -1,11 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-from starkware.cairo.common.cairo_builtins import (
-    BitwiseBuiltin,
-    KeccakBuiltin,
-    PoseidonBuiltin,
-    ModBuiltin,
-)
+from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, PoseidonBuiltin, ModBuiltin
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.cairo.common.math_cmp import is_le
 from ethereum.cancun.vm.stack import pop, push
@@ -84,7 +79,7 @@ func generic_call{
     process_message_label: felt*,
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
+    keccak_ptr: felt*,
     poseidon_ptr: PoseidonBuiltin*,
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
@@ -200,7 +195,7 @@ func generic_call{
 
     let range_check_ptr = [ap - 8];
     let bitwise_ptr = cast([ap - 7], BitwiseBuiltin*);
-    let keccak_ptr = cast([ap - 6], KeccakBuiltin*);
+    let keccak_ptr = cast([ap - 6], felt*);
     let poseidon_ptr = cast([ap - 5], PoseidonBuiltin*);
     let range_check96_ptr = cast([ap - 4], felt*);
     let add_mod_ptr = cast([ap - 3], ModBuiltin*);
@@ -283,7 +278,7 @@ func call_{
     process_message_label: felt*,
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
+    keccak_ptr: felt*,
     poseidon_ptr: PoseidonBuiltin*,
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
@@ -454,7 +449,7 @@ func callcode{
     process_message_label: felt*,
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
+    keccak_ptr: felt*,
     poseidon_ptr: PoseidonBuiltin*,
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
@@ -609,7 +604,7 @@ func delegatecall{
     process_message_label: felt*,
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
+    keccak_ptr: felt*,
     poseidon_ptr: PoseidonBuiltin*,
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
@@ -731,7 +726,7 @@ func staticcall{
     process_message_label: felt*,
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
+    keccak_ptr: felt*,
     poseidon_ptr: PoseidonBuiltin*,
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
@@ -853,7 +848,7 @@ func staticcall{
 func revert{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
+    keccak_ptr: felt*,
     poseidon_ptr: PoseidonBuiltin*,
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
@@ -913,7 +908,7 @@ func revert{
 func return_{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
+    keccak_ptr: felt*,
     poseidon_ptr: PoseidonBuiltin*,
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
@@ -977,7 +972,7 @@ func generic_create{
     process_create_message_label: felt*,
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
+    keccak_ptr: felt*,
     poseidon_ptr: PoseidonBuiltin*,
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
@@ -1137,7 +1132,7 @@ func generic_create{
 
     let range_check_ptr = [ap - 8];
     let bitwise_ptr = cast([ap - 7], BitwiseBuiltin*);
-    let keccak_ptr = cast([ap - 6], KeccakBuiltin*);
+    let keccak_ptr = cast([ap - 6], felt*);
     let poseidon_ptr = cast([ap - 5], PoseidonBuiltin*);
     let range_check96_ptr = cast([ap - 4], felt*);
     let add_mod_ptr = cast([ap - 3], ModBuiltin*);
@@ -1187,7 +1182,7 @@ func create{
     process_message_label: felt*,
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
+    keccak_ptr: felt*,
     poseidon_ptr: PoseidonBuiltin*,
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
@@ -1279,7 +1274,7 @@ func create2{
     process_message_label: felt*,
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
+    keccak_ptr: felt*,
     poseidon_ptr: PoseidonBuiltin*,
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
@@ -1382,7 +1377,7 @@ func create2{
 func selfdestruct{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
+    keccak_ptr: felt*,
     poseidon_ptr: PoseidonBuiltin*,
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,

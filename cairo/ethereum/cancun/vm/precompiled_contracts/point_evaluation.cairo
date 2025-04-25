@@ -1,9 +1,4 @@
-from starkware.cairo.common.cairo_builtins import (
-    BitwiseBuiltin,
-    KeccakBuiltin,
-    ModBuiltin,
-    PoseidonBuiltin,
-)
+from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, ModBuiltin, PoseidonBuiltin
 from starkware.cairo.common.math_cmp import is_le_felt
 from ethereum_types.bytes import Bytes, Bytes32, BytesStruct, Bytes48
 from ethereum_types.numeric import Uint, U256, U256Struct
@@ -24,7 +19,7 @@ const BLS_MODULUS_HIGH = 0x73eda753299d7d483339d80809a1d805;
 func point_evaluation{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
+    keccak_ptr: felt*,
     poseidon_ptr: PoseidonBuiltin*,
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,

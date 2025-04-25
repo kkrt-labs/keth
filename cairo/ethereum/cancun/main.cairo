@@ -4,13 +4,15 @@
 
 from starkware.cairo.common.cairo_builtins import (
     BitwiseBuiltin,
-    KeccakBuiltin,
     PoseidonBuiltin,
     ModBuiltin,
     HashBuiltin,
+    KeccakBuiltin,
     SignatureBuiltin,
     EcOpBuiltin,
 )
+from starkware.cairo.common.cairo_keccak.keccak import finalize_keccak
+from starkware.cairo.common.alloc import alloc
 from ethereum.cancun.fork import state_transition, BlockChain, Block, keccak256_header
 from ethereum_types.bytes import Bytes32
 from ethereum.utils.bytes import Bytes32_to_Bytes
@@ -38,7 +40,7 @@ func main{
     ecdsa_ptr: SignatureBuiltin*,
     bitwise_ptr: BitwiseBuiltin*,
     ec_op_ptr: EcOpBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
+    keccak_ptr: felt*,
     poseidon_ptr: PoseidonBuiltin*,
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
@@ -59,21 +61,29 @@ func main{
     let parent_header = chain.value.blocks.value.data[
         chain.value.blocks.value.len - 1
     ].value.header;
-    let pre_state_root = parent_header.value.state_root;
-    state_transition{chain=chain}(block);
+
+    // STWO does not prove the keccak builtin, so we need to use a non-builtin keccak
+    // implementation.
+    let builtin_keccak_ptr = keccak_ptr;
+    let (keccak_ptr) = alloc();
+    let keccak_ptr_start = keccak_ptr;
+    state_transition{chain=chain, keccak_ptr=keccak_ptr}(block);
 
     // # Compute the diff between the pre and post STF MPTs to produce trie diffs.
+    let pre_state_root = parent_header.value.state_root;
     let pre_state_root_bytes = Bytes32_to_Bytes(pre_state_root);
     let pre_state_root_node = OptionalUnionInternalNodeExtendedImpl.from_bytes(
         pre_state_root_bytes
     );
-    let (account_diff, storage_diff) = compute_diff_entrypoint(
+    let (account_diff, storage_diff) = compute_diff_entrypoint{keccak_ptr=keccak_ptr}(
         node_store=node_store,
         address_preimages=address_preimages,
         storage_key_preimages=storage_key_preimages,
         left=pre_state_root_node,
         right=post_state_root,
     );
+
+    finalize_keccak(keccak_ptr_start, keccak_ptr);
 
     // # Compute commitments for the state diffs and the trie diffs.
     let account_diff = sort_account_diff(account_diff);
@@ -98,5 +108,6 @@ func main{
     assert [output_ptr + 5] = trie_storage_diff_commitment;
 
     let output_ptr = output_ptr + 6;
+    let keccak_ptr = builtin_keccak_ptr;
     return ();
 }

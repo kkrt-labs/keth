@@ -63,9 +63,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger()
 
-# function arguments that are not builtins, but we want to auto-generate a
+# function arguments that are not builtins, but we want to generate a
 # segment for.
-SEGMENT_PTR_NAMES = {"blake2s_ptr"}
+SEGMENT_PTR_NAMES = {"keccak_ptr", "blake2s_ptr"}
 
 
 def resolve_main_path(main_path: Tuple[str, ...]):

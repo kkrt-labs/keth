@@ -1,6 +1,5 @@
 from starkware.cairo.common.cairo_builtins import (
     BitwiseBuiltin,
-    KeccakBuiltin,
     PoseidonBuiltin,
     ModBuiltin,
     HashBuiltin,
@@ -21,7 +20,7 @@ func test_main{
     ecdsa_ptr: SignatureBuiltin*,
     bitwise_ptr: BitwiseBuiltin*,
     ec_op_ptr: EcOpBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
+    keccak_ptr: felt*,
     poseidon_ptr: PoseidonBuiltin*,
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,

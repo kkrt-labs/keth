@@ -16,7 +16,7 @@ from ethereum.cancun.transactions import To
 from cairo_core.comparison import is_zero
 
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin, PoseidonBuiltin
+from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, PoseidonBuiltin
 from starkware.cairo.common.registers import get_fp_and_pc, get_label_location
 from starkware.cairo.common.memcpy import memcpy
 from starkware.cairo.common.dict_access import DictAccess
@@ -28,7 +28,7 @@ const PRECOMPILED_ADDRESSES_SIZE = 10;
 func prepare_message{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
+    keccak_ptr: felt*,
     poseidon_ptr: PoseidonBuiltin*,
     env: Environment,
 }(
@@ -96,7 +96,7 @@ func prepare_message{
     let code_address_ = cast([ap - 5], Address*);
     let range_check_ptr = [ap - 4];
     let bitwise_ptr = cast([ap - 3], BitwiseBuiltin*);
-    let keccak_ptr = cast([ap - 2], KeccakBuiltin*);
+    let keccak_ptr = cast([ap - 2], felt*);
     let poseidon_ptr = cast([ap - 1], PoseidonBuiltin*);
 
     let state = State(state_);

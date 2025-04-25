@@ -1,11 +1,6 @@
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bool import TRUE, FALSE
-from starkware.cairo.common.cairo_builtins import (
-    BitwiseBuiltin,
-    KeccakBuiltin,
-    PoseidonBuiltin,
-    ModBuiltin,
-)
+from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, PoseidonBuiltin, ModBuiltin
 from starkware.cairo.common.default_dict import default_dict_new
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.math import assert_not_zero, split_felt, assert_le_felt
@@ -272,7 +267,7 @@ func calculate_base_fee_per_gas{range_check_ptr}(
     return base_fee_per_gas;
 }
 
-func validate_header{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*}(
+func validate_header{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: felt*}(
     header: Header, parent_header: Header
 ) {
     alloc_locals;
@@ -337,7 +332,7 @@ func check_gas_limit{range_check_ptr}(gas_limit: Uint, parent_gas_limit: Uint) -
     return value;
 }
 
-func make_receipt{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*}(
+func make_receipt{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: felt*}(
     tx: Transaction, error: OptionalEthereumException, cumulative_gas_used: Uint, logs: TupleLog
 ) -> UnionBytesReceipt {
     alloc_locals;
@@ -395,7 +390,7 @@ func process_transaction{
     range_check_ptr,
     poseidon_ptr: PoseidonBuiltin*,
     bitwise_ptr: BitwiseBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
+    keccak_ptr: felt*,
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,
@@ -527,7 +522,7 @@ func process_transaction{
         tempvar preaccessed_storage_keys = preaccessed_storage_keys;
     }
 
-    let keccak_ptr = cast([ap - 5], KeccakBuiltin*);
+    let keccak_ptr = cast([ap - 5], felt*);
     let bitwise_ptr = cast([ap - 4], BitwiseBuiltin*);
     let poseidon_ptr = cast([ap - 3], PoseidonBuiltin*);
     let preaccessed_addresses = SetAddress(cast([ap - 2], SetAddressStruct*));
@@ -796,7 +791,7 @@ func check_transaction{
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,
     bitwise_ptr: BitwiseBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
+    keccak_ptr: felt*,
     poseidon_ptr: PoseidonBuiltin*,
     state: State,
 }(
@@ -960,9 +955,9 @@ func _check_versioned_hashes_version{range_check_ptr}(
     return ();
 }
 
-func get_last_256_block_hashes{
-    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*
-}(chain: BlockChain) -> ListHash32 {
+func get_last_256_block_hashes{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: felt*}(
+    chain: BlockChain
+) -> ListHash32 {
     alloc_locals;
 
     // If no blocks, return empty array
@@ -1021,7 +1016,7 @@ func _get_parent_hashes{hashes: Hash32*}(blocks: Block*, len: felt, idx: felt) {
 }
 
 // Helper to compute header hash
-func keccak256_header{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: KeccakBuiltin*}(
+func keccak256_header{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: felt*}(
     header: Header
 ) -> Hash32 {
     // First RLP encode the header
@@ -1034,7 +1029,7 @@ func keccak256_header{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr:
 func apply_body{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
+    keccak_ptr: felt*,
     poseidon_ptr: PoseidonBuiltin*,
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
@@ -1300,7 +1295,7 @@ func _apply_body_inner{
     receipts_trie: TrieBytesOptionalUnionBytesReceipt,
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
+    keccak_ptr: felt*,
     poseidon_ptr: PoseidonBuiltin*,
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
@@ -1448,12 +1443,12 @@ func _process_withdrawals_inner{
 func state_transition{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,
     chain: BlockChain,
+    keccak_ptr: felt*,
 }(block: Block) {
     alloc_locals;
 

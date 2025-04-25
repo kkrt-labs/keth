@@ -3,7 +3,6 @@
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_builtins import (
     HashBuiltin,
-    KeccakBuiltin,
     BitwiseBuiltin,
     PoseidonBuiltin,
     ModBuiltin,
@@ -25,7 +24,7 @@ from legacy.utils.bytes import felt_to_bytes_little, bytes_to_felt
 func blake2f{
     range_check_ptr,
     bitwise_ptr: BitwiseBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
+    keccak_ptr: felt*,
     poseidon_ptr: PoseidonBuiltin*,
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
