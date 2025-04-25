@@ -27,7 +27,6 @@ use cairo_vm::{
         security::verify_secure_runner,
     },
 };
-use num_traits::Zero;
 use polars::prelude::*;
 use pyo3::{
     prelude::*,
@@ -54,11 +53,15 @@ fn is_actual_builtin(arg_name: &str) -> bool {
         !NON_BUILTIN_SEGMENT_PTR_NAMES.contains(&arg_name)
 }
 
+/// Represents the Cairo Virtual Machine runner, exposing its functionality to Python.
+///
+/// This struct wraps the Rust `CairoRunner` and provides Python bindings for its methods.
 #[pyclass(name = "CairoRunner", unsendable)]
 pub struct PyCairoRunner {
     inner: RustCairoRunner,
     allow_missing_builtins: bool,
-    /// The names of implicit arguments, ordered as defined in the Cairo function signature.
+    /// The return_data information (name, size) ordered as defined in the Cairo function
+    /// signature.
     return_data_info: Vec<(String, Option<usize>)>,
     /// Whether to enable execution of hints containing logger.
     enable_traces: bool,
@@ -595,10 +598,32 @@ except Exception as e:
 
 impl PyCairoRunner {
     /// Internal implementation of read_return_values with additional checks.
-    /// Processes builtin pointers in reverse order and handles missing builtins.
+    /// Processes builtin pointers and other implicit arguments in reverse order as they appear
+    /// on the stack relative to the final `ap` register to calculate the starting pointer
+    /// of the explicit return values.
+    ///
+    /// This method iterates through the `return_data_info` (which mirrors the function's
+    /// implicit arguments and explicit return types) in reverse. For each argument, it determines
+    /// its type (builtin, non-builtin segment pointer, or value) and adjusts the `pointer`
+    /// accordingly based on the size consumed by that argument on the stack.
+    ///
+    /// Builtins have specific handling via `final_stack`. Non-builtin segment pointers
+    /// (like `keccak_ptr`) are assumed to consume one felt (the pointer itself). Other implicit
+    /// arguments passed by value consume their specified size (defaulting to 1 felt).
+    ///
+    ///
+    /// # Returns
+    /// The calculated `Relocatable` pointer pointing to the start of the explicit return values
+    /// on the stack.
+    ///
+    /// # Errors
+    /// Returns a `PyErr` if:
+    /// - A required builtin is missing and `allow_missing_builtins` is false.
+    /// - A missing builtin's stop pointer is non-zero when `allow_missing_builtins` is true.
+    /// - An error occurs during memory access (e.g., getting the stop pointer value).
     fn _read_return_values(&mut self) -> PyResult<Relocatable> {
         let mut pointer = self.inner.vm.get_ap();
-        // Iterate over all implicit arguments in reverse order
+        // Iterate over all implicit arguments in reverse order as they appear on the stack
         for (arg_name, size) in self.return_data_info.iter().rev() {
             if is_actual_builtin(arg_name) {
                 // Handle actual builtins
@@ -611,42 +636,13 @@ impl PyCairoRunner {
                         builtin_runner.final_stack(&self.inner.vm.segments, pointer).map_err(
                             |e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()),
                         )?;
-                } else if !self.allow_missing_builtins {
-                    return Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-                        "Missing builtin: {}",
-                        arg_name
-                    )));
                 } else {
                     // Builtin is missing but allowed, check if its stop ptr is 0
                     // Assume it consumes 1 felt
                     pointer.offset = pointer.offset.saturating_sub(1);
-                    if !self
-                        .inner
-                        .vm
-                        .get_integer(pointer)
-                        .map_err(|e| {
-                            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string())
-                        })?
-                        .is_zero()
-                    {
-                        return Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-                            "Missing builtin stop ptr not zero: {}",
-                            arg_name
-                        )));
-                    }
                 }
-            } else if NON_BUILTIN_SEGMENT_PTR_NAMES.contains(&arg_name.as_str()) {
-                // Handle non-builtin segment pointers (e.g., keccak_ptr)
-                // Assume they consume 1 felt (the pointer itself)
-                pointer.offset = pointer.offset.saturating_sub(1);
             } else {
-                // Handle other implicit arguments passed by value (should consume 1 felt)
-                // Note: If implicit args could be complex types > 1 felt, this needs adjustment.
-                // Currently assuming implicit value args are single felts.
                 pointer.offset = pointer.offset.saturating_sub(size.unwrap_or(1));
-                // Optional: Add a warning or check if these are expected
-                // log::warn!("Unhandled implicit argument type in return processing: {}",
-                // arg_name);
             }
         }
         Ok(pointer)

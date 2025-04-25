@@ -133,44 +133,49 @@ def build_entrypoint(
     ).cairo_type
 
     # Construct the full list of return data types with their names and includes flags
-    return_data_info = []
+    # This list must maintain the order of arguments as defined in the Cairo function signature
+    # (implicit args first, then explicit return type)
 
-    # Add non-builtin implicit args with their names
+    # used to get the size of the types.
     serde = Serde(None, cairo_program.identifiers, None, None)
-    for arg_name, arg_info in _implicit_args.items():
-        if is_actual_builtin(arg_name):
-            return_data_info.append(
-                {
-                    "name": arg_name,
-                    "type": {},
-                    "include": False,
-                    "size": None,
-                }
-            )
-            continue
 
-        return_data_info.append(
+    # Process implicit arguments using a list comprehension
+    implicit_arg_info = [
+        (
             {
+                "name": arg_name,
+                "type": {},
+                "include": False,
+                "size": None,  # Size is handled internally by builtin runner
+            }
+            if is_actual_builtin(arg_name)
+            else {
                 "name": arg_name,
                 "type": arg_info["cairo_type"],
                 "include": arg_name not in SEGMENT_PTR_NAMES,
                 "size": serde.get_offset(arg_info["cairo_type"]),
             }
         )
+        for arg_name, arg_info in _implicit_args.items()
+    ]
 
-    # Add explicit return type without a name (if not empty)
+    # Prepare explicit return type info (if it exists and is not an empty tuple)
+    explicit_return_item = []
     if not (
         isinstance(explicit_return_data, TypeTuple)
         and len(explicit_return_data.members) == 0
     ):
-        return_data_info.append(
+        explicit_return_item = [
             {
                 "name": None,  # Explicit return doesn't have a name
                 "type": explicit_return_data,
                 "include": True,  # Always include explicit return
                 "size": serde.get_offset(explicit_return_data),
             }
-        )
+        ]
+
+    # Combine implicit and explicit return info
+    return_data_info = implicit_arg_info + explicit_return_item
 
     # Fix builtins runner based on the implicit args since the compiler doesn't find them
     cairo_program.builtins = [
@@ -186,7 +191,7 @@ def build_entrypoint(
 def is_actual_builtin(arg_name: str) -> bool:
     """Checks if an argument name corresponds to a Cairo builtin, excluding special segment pointers."""
     return (
-        any(builtin in arg_name.replace("_ptr", "") for builtin in ALL_BUILTINS)
+        any(f"{builtin}_ptr" == arg_name for builtin in ALL_BUILTINS)
         and arg_name not in SEGMENT_PTR_NAMES
     )
 
@@ -250,6 +255,7 @@ def run_python_vm(
         # - Rationale: Generate stack components for all arguments (implicit args, explicit args)
         #   respecting the order defined in the Cairo function signature.
         #   Handle builtins and special segment pointers accordingly.
+        #   Ensure consistency with Rust VM stack building logic.
         # ============================================================================
         stack_prefix = []
         if proof_mode:
@@ -336,6 +342,7 @@ def run_python_vm(
         return_fp = runner.execution_base + 2
         end = runner.program_base + len(runner.program.data) - 2  # Points to jmp rel 0
         # Assemble final stack: [ret_fp, ret_pc] + proof_mode_prefix + ordered_components + [ret_fp, ret_pc]
+        # Note: The order of stack elements is crucial for the VM.
         stack = stack_prefix + ordered_components
         stack = [return_fp, end] + stack + [return_fp, end]
         # All elements of the input stack are added to the execution public memory - required for proof mode
@@ -414,6 +421,7 @@ def run_python_vm(
         # - `end_run`: relocates all memory segments and ensures that in proof mode, the number of executed steps is a power of two
         # - Once the run is over, we extract return data using serde, update the public memory in proof mode by adding the return data offsets to the public memory
         #   and performs security checks
+        # - Note: Return value processing logic should align with Rust VM's _read_return_values.
         # ============================================================================
         runner.end_run(disable_trace_padding=False)
         cairo_types = [item["type"] for item in return_data_info]
@@ -424,7 +432,6 @@ def run_python_vm(
         if not isinstance(first_return_data_offset, int):
             raise ValueError("First return data offset is not an int")
 
-        # Pointer to the first "builtin" - which are not considered as part of the return data
         pointer = runner.vm.run_context.ap
         for arg in return_data_info[::-1]:
             arg_name = arg["name"] or ""
@@ -627,15 +634,14 @@ def run_rust_vm(
         # STEP 3: BUILD INITIAL STACK WITH BUILTINS AND ARGUMENTS
         # - Rationale: Construct the stack respecting the Cairo function signature order,
         #   including builtins, special segment pointers, and other arguments.
+        #   Ensure consistency with Python VM stack building logic.
         # ============================================================================
         stack_prefix = []
         if proof_mode:
             # Add base pointers for builtins *not* used by the function but required by the layout
-            # Assuming Rust runner's builtin_runners dict has necessary info ('included', 'base'/'final_stack')
-            builtin_runners = runner.builtin_runners
             missing_builtins = [
                 v
-                for k, v in builtin_runners.items()
+                for k, v in runner.builtin_runners.items()
                 if not v["included"]  # Check 'included' flag safely
                 # Add condition to check if it's part of the expected layout if needed
             ]
@@ -660,11 +666,11 @@ def run_rust_vm(
         )
 
         ordered_components = []
-        arg_idx = 0  # Index for consuming positional args from *args
+        arg_idx = 0
         all_args = {
             **_implicit_args,
             **_args,
-        }  # Combined args maintain definition order
+        }
 
         for arg_name, arg_info in all_args.items():
             python_type = arg_info.get("python_type")
@@ -712,6 +718,7 @@ def run_rust_vm(
         return_fp = runner.execution_base + 2
         end = runner.program_base + runner.program_len - 2  # Points to jmp rel 0
         # Assemble final stack: [ret_fp, ret_pc] + proof_mode_prefix + ordered_components + [ret_fp, ret_pc]
+        # Note: The order of stack elements is crucial for the VM.
         stack = stack_prefix + ordered_components
         stack = [return_fp, end] + stack + [return_fp, end]
         runner.execution_public_memory = list(
@@ -751,6 +758,7 @@ def run_rust_vm(
         # STEP 6: PROCESS RETURN VALUES AND FINALIZE EXECUTION
         # - Rationale: Extract return data using serde, update public memory in proof mode,
         #   and verify the runner's security before relocation.
+        #   Ensure consistency with Python VM return value processing.
         # ============================================================================
         cairo_types = [item["type"] for item in return_data_info]
         cumulative_retdata_offsets = serde.get_offsets(cairo_types)

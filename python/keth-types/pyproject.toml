@@ -22,6 +22,3 @@ known_first_party = ["cairo_ec", "cairo_core", "cairo_addons", "eth_rpc", "mpt"]
 
 [tool.uv.sources]
 ethereum = { git = "https://github.com/kkrt-labs/execution-specs.git", branch = "kakarot-changes" }
-
-[project.entry-points."pytest11"]
-keth_types_patches = "keth_types.patches"
