@@ -11,7 +11,7 @@ from starkware.cairo.common.cairo_builtins import (
     SignatureBuiltin,
     EcOpBuiltin,
 )
-
+from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.default_dict import default_dict_new
 from starkware.cairo.common.registers import get_fp_and_pc, get_label_location
 from starkware.cairo.common.cairo_keccak.keccak import finalize_keccak
@@ -150,11 +150,6 @@ func init{
     local storage_key_preimages: MappingBytes32Bytes32;
     local post_state_root: OptionalUnionInternalNodeExtended;
     %{ main_inputs %}
-
-    // # Execute STF on the initial state, to produce state diffs.
-    let parent_header = chain.value.blocks.value.data[
-        chain.value.blocks.value.len - 1
-    ].value.header;
 
     // STWO does not prove the keccak builtin, so we need to use a non-builtin keccak
     // implementation.
@@ -299,7 +294,7 @@ func init{
             gas_price=block.value.header.value.base_fee_per_gas,
             time=block.value.header.value.timestamp,
             prev_randao=block.value.header.value.prev_randao,
-            state=chain.value.state,
+            state=state,
             chain_id=chain.value.chain_id,
             excess_blob_gas=excess_blob_gas,
             blob_versioned_hashes=blob_versioned_hashes_ptr,
@@ -414,7 +409,7 @@ func init{
         block.value.header.value.gas_used.value, bigend=0
     );
 
-    let (res) = blake2s(data=start, n_bytes=18 * 32);
+    let (res) = blake2s(data=start, n_bytes=17 * 32);
 
     assert [output_ptr] = res.low;
     assert [output_ptr + 1] = res.high;
