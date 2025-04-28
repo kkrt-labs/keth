@@ -13,6 +13,7 @@ from starkware.cairo.common.memset import memset
 from starkware.cairo.common.registers import get_label_location
 
 from ethereum_types.bytes import Bytes32, Bytes32Struct, Bytes20, Bytes, BytesStruct
+from ethereum.crypto.hash import Hash32
 from cairo_core.numeric import Uint, U256, U256Struct, bool, U64, U384, U384Struct, OptionalU256
 from cairo_core.maths import (
     pow2,
@@ -23,6 +24,7 @@ from cairo_core.maths import (
     felt252_to_bytes_le,
     felt252_bytes_length,
 )
+from cairo_core.hash.blake2s import blake2s_add_uint256, blake2s, blake2s_add_felt
 from cairo_core.comparison import is_zero
 from cairo_ec.uint384 import uint256_to_uint384
 from legacy.utils.bytes import bytes_to_felt, bytes_to_felt_le, uint256_from_bytes_be, felt_to_bytes
@@ -200,6 +202,25 @@ func U256__eq__(a: U256, b: U256) -> bool {
     }
     tempvar res = bool(0);
     return res;
+}
+
+func U256__hash__{range_check_ptr}(self: U256) -> Hash32 {
+    let (data) = alloc();
+    let data_start = data;
+    blake2s_add_uint256{data=data}([self.value]);
+    let (res_u256) = blake2s(data_start, 32);
+    tempvar hash = Hash32(value=new res_u256);
+    return hash;
+}
+
+func Uint__hash__{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(self: Uint) -> Hash32 {
+    alloc_locals;
+    let (data) = alloc();
+    let data_start = data;
+    blake2s_add_felt{data=data}(self.value, bigend=0);
+    let (res_u256) = blake2s(data_start, 32);
+    tempvar hash = Hash32(value=new res_u256);
+    return hash;
 }
 
 // / Converts a 20-byte big-endian value into a U256 in little-endian representation.

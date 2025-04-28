@@ -1,3 +1,7 @@
+import hashlib
+from typing import Union
+
+from ethereum.cancun.fork_types import Address
 from ethereum.cancun.transactions import (
     AccessListTransaction,
     BlobTransaction,
@@ -5,7 +9,10 @@ from ethereum.cancun.transactions import (
     LegacyTransaction,
     Transaction,
 )
+from ethereum_types.bytes import Bytes0
 from hypothesis import assume, given
+
+from tests.utils.hash_utils import LegacyTransaction__hash__
 
 
 def _transaction_type(tx: Transaction) -> int:
@@ -17,6 +24,20 @@ def _transaction_type(tx: Transaction) -> int:
         return 2
     elif isinstance(tx, BlobTransaction):
         return 3
+
+
+class TestUnionBytes0Address:
+    @given(to=...)
+    def test_To__hash__(self, cairo_run, to: Union[Bytes0, Address]):
+        assert hashlib.blake2s(to).digest() == cairo_run("To__hash__", to)
+
+
+class TestLegacyTransaction:
+    @given(tx=...)
+    def test_LegacyTransaction__hash__(self, cairo_run, tx: LegacyTransaction):
+        assert LegacyTransaction__hash__(tx) == cairo_run(
+            "LegacyTransaction__hash__", tx
+        )
 
 
 class TestTransactionImpl:

@@ -18,6 +18,7 @@ from ethereum_types.numeric import Uint, U256, U256Struct, bool
 from ethereum.crypto.hash import Hash32, EMPTY_ROOT_KECCAK, EMPTY_HASH_KECCAK
 from ethereum.utils.numeric import U256_to_be_bytes20
 from cairo_core.comparison import is_zero
+from cairo_core.hash.blake2s import blake2s_add_uint256, blake2s
 
 using Address = Bytes20;
 
@@ -49,6 +50,31 @@ struct ListHash32Struct {
 
 struct ListHash32 {
     value: ListHash32Struct*,
+}
+
+func ListHash32__hash__{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(self: ListHash32) -> Hash32 {
+    alloc_locals;
+    let (acc) = alloc();
+    let acc_start = acc;
+    let index = 0;
+    _innerListHash32__hash__{acc=acc, index=index}(self);
+
+    let n_bytes = 32 * self.value.len;
+    let (res) = blake2s(data=acc_start, n_bytes=n_bytes);
+    tempvar hash = Hash32(value=new res);
+    return hash;
+}
+
+func _innerListHash32__hash__{
+    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, acc: felt*, index: felt
+}(self: ListHash32) {
+    if (index == self.value.len) {
+        return ();
+    }
+    let item_hash = self.value.data[index];
+    blake2s_add_uint256{data=acc}([item_hash.value]);
+    let index = index + 1;
+    return _innerListHash32__hash__(self);
 }
 
 using Root = Hash32;
