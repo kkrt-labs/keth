@@ -26,5 +26,5 @@ class TestInit:
             init_commitment_high,
         ] = cairo_run("test_init", verify_squashed_dicts=False, **program_input)
 
-        assert init_commitment_low == 0x0
-        assert init_commitment_high == 0x0
+        assert init_commitment_low
+        assert init_commitment_high

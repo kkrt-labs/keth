@@ -2335,3 +2335,67 @@ func mapping_address_bytes32_read{range_check_ptr, mapping: MappingAddressBytes3
     );
     return value;
 }
+
+func init_tries() -> (
+    transactions_trie: TrieBytesOptionalUnionBytesLegacyTransaction,
+    receipts_trie: TrieBytesOptionalUnionBytesReceipt,
+    withdrawals_trie: TrieBytesOptionalUnionBytesWithdrawal,
+) {
+    alloc_locals;
+
+    let (transaction_ptr) = default_dict_new(0);
+    tempvar transactions_trie_data = MappingBytesOptionalUnionBytesLegacyTransaction(
+        new MappingBytesOptionalUnionBytesLegacyTransactionStruct(
+            dict_ptr_start=cast(
+                transaction_ptr, BytesOptionalUnionBytesLegacyTransactionDictAccess*
+            ),
+            dict_ptr=cast(transaction_ptr, BytesOptionalUnionBytesLegacyTransactionDictAccess*),
+            parent_dict=cast(0, MappingBytesOptionalUnionBytesLegacyTransactionStruct*),
+        ),
+    );
+    tempvar transactions_trie = TrieBytesOptionalUnionBytesLegacyTransaction(
+        new TrieBytesOptionalUnionBytesLegacyTransactionStruct(
+            secured=bool(0),
+            default=OptionalUnionBytesLegacyTransaction(cast(0, UnionBytesLegacyTransactionEnum*)),
+            _data=transactions_trie_data,
+        ),
+    );
+
+    let (receipt_ptr) = default_dict_new(0);
+    tempvar receipts_trie_data = MappingBytesOptionalUnionBytesReceipt(
+        new MappingBytesOptionalUnionBytesReceiptStruct(
+            dict_ptr_start=cast(receipt_ptr, BytesOptionalUnionBytesReceiptDictAccess*),
+            dict_ptr=cast(receipt_ptr, BytesOptionalUnionBytesReceiptDictAccess*),
+            parent_dict=cast(0, MappingBytesOptionalUnionBytesReceiptStruct*),
+        ),
+    );
+    tempvar receipts_trie = TrieBytesOptionalUnionBytesReceipt(
+        new TrieBytesOptionalUnionBytesReceiptStruct(
+            secured=bool(0),
+            default=OptionalUnionBytesReceipt(cast(0, UnionBytesReceiptEnum*)),
+            _data=receipts_trie_data,
+        ),
+    );
+
+    let (withdrawals_ptr) = default_dict_new(0);
+    tempvar withdrawals_trie_data = MappingBytesOptionalUnionBytesWithdrawal(
+        new MappingBytesOptionalUnionBytesWithdrawalStruct(
+            dict_ptr_start=cast(withdrawals_ptr, BytesOptionalUnionBytesWithdrawalDictAccess*),
+            dict_ptr=cast(withdrawals_ptr, BytesOptionalUnionBytesWithdrawalDictAccess*),
+            parent_dict=cast(0, MappingBytesOptionalUnionBytesWithdrawalStruct*),
+        ),
+    );
+    tempvar withdrawals_trie = TrieBytesOptionalUnionBytesWithdrawal(
+        new TrieBytesOptionalUnionBytesWithdrawalStruct(
+            secured=bool(0),
+            default=OptionalUnionBytesWithdrawal(cast(0, UnionBytesWithdrawalEnum*)),
+            _data=withdrawals_trie_data,
+        ),
+    );
+
+    return (
+        transactions_trie=transactions_trie,
+        receipts_trie=receipts_trie,
+        withdrawals_trie=withdrawals_trie,
+    );
+}
