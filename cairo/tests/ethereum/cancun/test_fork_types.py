@@ -1,10 +1,12 @@
-from typing import Optional
+from typing import List, Optional
 
 from ethereum.cancun.fork_types import EMPTY_ACCOUNT, Account
+from ethereum.crypto.hash import Hash32
 from ethereum_types.numeric import U256, Uint
 from hypothesis import example, given
 
 from keth_types.types import EMPTY_BYTES_HASH, EMPTY_TRIE_HASH
+from tests.utils.hash_utils import ListHash32__hash__
 
 
 class TestForkTypes:
@@ -42,3 +44,11 @@ class TestForkTypes:
         assert (
             account_a == account_b and a_storage_root == b_storage_root
         ) == cairo_run("Account__eq__", account_a, account_b)
+
+
+class TestListHash32:
+    @given(list_hash32=...)
+    def test_ListHash32__hash__(self, cairo_run, list_hash32: List[Hash32]):
+        assert ListHash32__hash__(list_hash32) == cairo_run(
+            "ListHash32__hash__", list_hash32
+        )

@@ -1,3 +1,4 @@
+import hashlib
 from typing import Optional
 
 import pytest
@@ -113,14 +114,25 @@ class TestNumeric:
         expected = U64.from_be_bytes(bytes)
         assert result == expected
 
-    # @dev Note Uint type from EELS is unbounded.
-    # But Uint_from_be_bytes panics if len(bytes) > 31
-    @given(bytes=small_bytes)
-    def test_Uint_from_be_bytes(self, cairo_run, bytes: Bytes):
-        try:
-            assert Uint.from_be_bytes(bytes) == cairo_run("Uint_from_be_bytes", bytes)
-        except Exception:
-            assert len(bytes) > 31
+    class TestUint:
+        # @dev Note Uint type from EELS is unbounded.
+        # But Uint_from_be_bytes panics if len(bytes) > 31
+        @given(bytes=small_bytes)
+        def test_Uint_from_be_bytes(self, cairo_run, bytes: Bytes):
+            try:
+                assert Uint.from_be_bytes(bytes) == cairo_run(
+                    "Uint_from_be_bytes", bytes
+                )
+            except Exception:
+                assert len(bytes) > 31
+
+        @given(value=...)
+        def test_Uint__hash__(self, cairo_run, value: Uint):
+            # blake2s takes 32 bytes as input
+            value_bytes = value.to_bytes(32, "little")
+            assert hashlib.blake2s(value_bytes).digest() == cairo_run(
+                "Uint__hash__", value
+            )
 
     @given(bytes=small_bytes)
     def test_Bytes32_from_be_bytes(self, cairo_run, bytes: Bytes):
@@ -276,6 +288,13 @@ class TestNumeric:
             result = cairo_run("U256_max", a, b)
             expected = max(a, b)
             assert result == expected
+
+        @given(value=...)
+        def test_U256__hash__(self, cairo_run, value: U256):
+            value_bytes = U256.to_le_bytes32(value)
+            assert hashlib.blake2s(value_bytes).digest() == cairo_run(
+                "U256__hash__", value
+            )
 
     class TestU384:
         @given(value=...)

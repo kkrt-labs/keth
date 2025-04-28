@@ -1,7 +1,14 @@
-from ethereum_types.bytes import Bytes, Bytes0, TupleBytes32
+from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
+from starkware.cairo.common.alloc import alloc
+
+from ethereum_types.bytes import Bytes, Bytes0, TupleBytes32, BytesStruct
 from ethereum_types.numeric import Uint, U256, U64, bool, U256Struct
 from ethereum.cancun.fork_types import Address, TupleVersionedHash
+from ethereum.crypto.hash import Hash32
+from ethereum.utils.numeric import U256__hash__, Uint__hash__
 from cairo_core.control_flow import raise
+from cairo_core.bytes_impl import Bytes__hash__, Bytes20__hash__
+from cairo_core.hash.blake2s import blake2s_add_uint256, blake2s
 
 const TX_BASE_COST = 21000;
 const TX_DATA_COST_PER_NON_ZERO = 16;
@@ -19,6 +26,18 @@ struct To {
     value: ToStruct*,
 }
 
+func To__hash__{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(self: To) -> Hash32 {
+    if (cast(self.value.bytes0, felt) != 0) {
+        // hash of empty bytes
+        // TODO: return a constant here instead
+        tempvar bytes_input = Bytes(new BytesStruct(data=cast(0, felt*), len=0));
+        let res = Bytes__hash__(bytes_input);
+        return res;
+    }
+
+    return Bytes20__hash__([self.value.address]);
+}
+
 struct LegacyTransactionStruct {
     nonce: U256,
     gas_price: Uint,
@@ -33,6 +52,38 @@ struct LegacyTransactionStruct {
 
 struct LegacyTransaction {
     value: LegacyTransactionStruct*,
+}
+
+func LegacyTransaction__hash__{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
+    self: LegacyTransaction
+) -> Hash32 {
+    alloc_locals;
+    let nonce_hash = U256__hash__(self.value.nonce);
+    let gas_price_hash = Uint__hash__(self.value.gas_price);
+    let gas_hash = Uint__hash__(self.value.gas);
+    let to_hash = To__hash__(self.value.to);
+    let value_hash = U256__hash__(self.value.value);
+    let data_hash = Bytes__hash__(self.value.data);
+    let v_hash = U256__hash__(self.value.v);
+    let r_hash = U256__hash__(self.value.r);
+    let s_hash = U256__hash__(self.value.s);
+
+    let (local buffer) = alloc();
+    let buffer_start = buffer;
+    blake2s_add_uint256{data=buffer}([nonce_hash.value]);
+    blake2s_add_uint256{data=buffer}([gas_price_hash.value]);
+    blake2s_add_uint256{data=buffer}([gas_hash.value]);
+    blake2s_add_uint256{data=buffer}([to_hash.value]);
+    blake2s_add_uint256{data=buffer}([value_hash.value]);
+    blake2s_add_uint256{data=buffer}([data_hash.value]);
+    blake2s_add_uint256{data=buffer}([v_hash.value]);
+    blake2s_add_uint256{data=buffer}([r_hash.value]);
+    blake2s_add_uint256{data=buffer}([s_hash.value]);
+    let n_bytes = 32 * LegacyTransactionStruct.SIZE;
+
+    let (res_u256) = blake2s(data=buffer_start, n_bytes=n_bytes);
+    tempvar hash = Hash32(value=new res_u256);
+    return hash;
 }
 
 struct AccessListStruct {
