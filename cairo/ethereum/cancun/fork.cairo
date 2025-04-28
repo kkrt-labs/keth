@@ -103,6 +103,7 @@ from ethereum.cancun.fork_types import (
     OptionalMappingAddressBytes32,
     MappingAddressBytes32Struct,
 )
+
 from ethereum.cancun.state import (
     set_storage,
     account_exists_and_is_empty,

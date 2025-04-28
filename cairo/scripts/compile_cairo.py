@@ -85,6 +85,13 @@ def main():
 def compile_keth():
     args = parser.parse_args()
     compile_cairo(
+        Path("cairo/ethereum/cancun/init.cairo"),
+        debug_info=args.debug_info,
+        proof_mode=True,
+        should_implement_hints=args.implement_hints,
+        output_path=Path("build/init_compiled.json"),
+    )
+    compile_cairo(
         Path("cairo/ethereum/cancun/main.cairo"),
         debug_info=args.debug_info,
         proof_mode=True,

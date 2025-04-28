@@ -473,6 +473,61 @@ struct Node {
     value: NodeEnum*,
 }
 
+namespace EthereumTriesImpl {
+    func from_transaction_trie(
+        trie: TrieBytesOptionalUnionBytesLegacyTransaction
+    ) -> EthereumTries {
+        tempvar result = EthereumTries(
+            new EthereumTriesEnum(
+                account=TrieAddressOptionalAccount(cast(0, TrieAddressOptionalAccountStruct*)),
+                storage=TrieBytes32U256(cast(0, TrieBytes32U256Struct*)),
+                transaction=trie,
+                receipt=TrieBytesOptionalUnionBytesReceipt(
+                    cast(0, TrieBytesOptionalUnionBytesReceiptStruct*)
+                ),
+                withdrawal=TrieBytesOptionalUnionBytesWithdrawal(
+                    cast(0, TrieBytesOptionalUnionBytesWithdrawalStruct*)
+                ),
+            ),
+        );
+        return result;
+    }
+
+    func from_receipt_trie(trie: TrieBytesOptionalUnionBytesReceipt) -> EthereumTries {
+        tempvar result = EthereumTries(
+            new EthereumTriesEnum(
+                account=TrieAddressOptionalAccount(cast(0, TrieAddressOptionalAccountStruct*)),
+                storage=TrieBytes32U256(cast(0, TrieBytes32U256Struct*)),
+                transaction=TrieBytesOptionalUnionBytesLegacyTransaction(
+                    cast(0, TrieBytesOptionalUnionBytesLegacyTransactionStruct*)
+                ),
+                receipt=trie,
+                withdrawal=TrieBytesOptionalUnionBytesWithdrawal(
+                    cast(0, TrieBytesOptionalUnionBytesWithdrawalStruct*)
+                ),
+            ),
+        );
+        return result;
+    }
+
+    func from_withdrawal_trie(trie: TrieBytesOptionalUnionBytesWithdrawal) -> EthereumTries {
+        tempvar result = EthereumTries(
+            new EthereumTriesEnum(
+                account=TrieAddressOptionalAccount(cast(0, TrieAddressOptionalAccountStruct*)),
+                storage=TrieBytes32U256(cast(0, TrieBytes32U256Struct*)),
+                transaction=TrieBytesOptionalUnionBytesLegacyTransaction(
+                    cast(0, TrieBytesOptionalUnionBytesLegacyTransactionStruct*)
+                ),
+                receipt=TrieBytesOptionalUnionBytesReceipt(
+                    cast(0, TrieBytesOptionalUnionBytesReceiptStruct*)
+                ),
+                withdrawal=trie,
+            ),
+        );
+        return result;
+    }
+}
+
 func encode_internal_node{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: felt*}(
     node: InternalNode, hash_function_name: felt
 ) -> Extended {
