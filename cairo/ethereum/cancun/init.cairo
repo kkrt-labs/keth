@@ -259,8 +259,8 @@ func body_commitments{
     // Commit to the state
     let state_commitment = state_root(state, 'blake2s');
 
-    // Commit to the transaction, withdrawal and receipt tries
-    // Squash the receipts, transactions, and withdrawals dicts once they're no longer being modified.
+    // Commit to the transaction and receipt tries
+    // Squash the receipts and transactions dicts once they're no longer being modified.
     default_dict_finalize(
         cast(transactions_trie.value._data.value.dict_ptr_start, DictAccess*),
         cast(transactions_trie.value._data.value.dict_ptr, DictAccess*),
