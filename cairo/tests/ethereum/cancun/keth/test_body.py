@@ -34,7 +34,7 @@ from ethereum_types.numeric import U64, U256, Uint
 from utils.fixture_loader import load_zkpi_fixture
 
 pytestmark = pytest.mark.cairo_file(
-    f"{Path().cwd()}/cairo/tests/ethereum/cancun/test_body.cairo"
+    f"{Path().cwd()}/cairo/tests/ethereum/cancun/keth/test_body.cairo"
 )
 
 
@@ -72,7 +72,12 @@ class TestMain:
             excess_blob_gas,
         )
 
-        program_input = {**body_program_input, **program_input}
+        program_input = {
+            **body_program_input,
+            **program_input,
+            "start_index": 0,
+            "len": len(block.transactions),
+        }
 
         cairo_run("test_body", verify_squashed_dicts=True, **program_input)
 
@@ -149,7 +154,8 @@ def init_apply_body(
     )
 
     program_input = {
-        "block": block,
+        "block_header": block.header,
+        "block_transactions": block.transactions,
         "state": state,
         "transactions_trie": transactions_trie,
         "receipts_trie": receipts_trie,

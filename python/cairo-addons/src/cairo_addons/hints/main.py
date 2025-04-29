@@ -37,7 +37,7 @@ def main_inputs(ids: VmConsts, program_input: dict, gen_arg: Callable):
 def body_inputs(ids: VmConsts, program_input: dict, gen_arg: Callable):
     from typing import List, Optional, Tuple, Union
 
-    from ethereum.cancun.blocks import Block, Log, Receipt
+    from ethereum.cancun.blocks import Header, Log, Receipt
     from ethereum.cancun.state import State
     from ethereum.cancun.transactions import LegacyTransaction
     from ethereum.cancun.trie import Trie
@@ -45,7 +45,11 @@ def body_inputs(ids: VmConsts, program_input: dict, gen_arg: Callable):
     from ethereum_types.bytes import Bytes
     from ethereum_types.numeric import U64, Uint
 
-    ids.block = gen_arg(Block, program_input["block"])
+    ids.block_header = gen_arg(Header, program_input["block_header"])
+    ids.block_transactions = gen_arg(
+        Tuple[Union[LegacyTransaction, Bytes], ...],
+        program_input["block_transactions"],
+    )
     ids.state = gen_arg(State, program_input["state"])
     ids.transactions_trie = gen_arg(
         Trie[Bytes, Optional[Union[Bytes, LegacyTransaction]]],
@@ -60,4 +64,3 @@ def body_inputs(ids: VmConsts, program_input: dict, gen_arg: Callable):
     ids.chain_id = gen_arg(U64, program_input["chain_id"])
     ids.blob_gas_used = gen_arg(Uint, program_input["blob_gas_used"])
     ids.excess_blob_gas = gen_arg(U64, program_input["excess_blob_gas"])
-    ids.base_fee_per_gas = gen_arg(Uint, program_input["base_fee_per_gas"])

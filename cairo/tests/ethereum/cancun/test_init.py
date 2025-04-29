@@ -5,7 +5,7 @@ import pytest
 from utils.fixture_loader import load_zkpi_fixture
 
 pytestmark = pytest.mark.cairo_file(
-    f"{Path().cwd()}/cairo/tests/ethereum/cancun/test_init.cairo"
+    f"{Path().cwd()}/cairo/tests/ethereum/cancun/keth/test_init.cairo"
 )
 
 
