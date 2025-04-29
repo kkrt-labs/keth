@@ -481,9 +481,48 @@ def load_body_input(
     return program_input
 
 
+def load_teardown_input(zkpi_path: Union[Path, str]) -> Dict[str, Any]:
+    """
+    Load and convert ZKPI fixture to Keth-compatible public inputs for the teardown step.
+    """
+    zkpi_program_input = load_zkpi_fixture(zkpi_path=zkpi_path)
+    chain = zkpi_program_input["blockchain"]
+    block = zkpi_program_input["block"]
+    withdrawals_trie: Trie[Bytes, Optional[Union[Bytes, Withdrawal]]] = Trie(
+        secured=False, default=None
+    )
+
+    parent_header = chain.blocks[-1].header
+    excess_blob_gas = calculate_excess_blob_gas(parent_header)
+    body_input = prepare_body_input(
+        chain.state,
+        get_last_256_block_hashes(chain),
+        block.header.coinbase,
+        block.header.number,
+        block.header.base_fee_per_gas,
+        block.header.gas_limit,
+        block.header.timestamp,
+        block.header.prev_randao,
+        block.transactions,
+        chain.chain_id,
+        block.withdrawals,
+        block.header.parent_beacon_block_root,
+        excess_blob_gas,
+    )
+
+    program_input = {
+        # Glue with init.cairo
+        **zkpi_program_input,
+        "withdrawals_trie": withdrawals_trie,
+        # Glue with body.cairo
+        **body_input,
+        "block_transactions": block.transactions,
+    }
+    return program_input
+
+
 def normalize_transaction(tx: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Normalize transaction fields to match what TransactionLoad expects.
     """
     tx = tx.copy()
     tx["gasLimit"] = tx.pop("gas")
