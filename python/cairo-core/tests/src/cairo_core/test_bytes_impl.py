@@ -1,7 +1,7 @@
 import hashlib
 from typing import Tuple
 
-from ethereum_types.bytes import Bytes, Bytes20, Bytes32
+from ethereum_types.bytes import Bytes, Bytes20, Bytes32, Bytes256
 from hypothesis import given
 from hypothesis import strategies as st
 
@@ -32,3 +32,9 @@ class TestTupleBytes32:
     @given(buffer=...)
     def test_TupleBytes32__hash__(self, cairo_run, buffer: Tuple[Bytes32, ...]):
         assert TupleBytes32__hash__(buffer) == cairo_run("TupleBytes32__hash__", buffer)
+
+
+class TestBytes256:
+    @given(buffer=...)
+    def test_Bytes256__hash__(self, cairo_run, buffer: Bytes256):
+        assert hashlib.blake2s(buffer).digest() == cairo_run("Bytes256__hash__", buffer)

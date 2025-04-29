@@ -1,10 +1,11 @@
 from typing import Tuple, Union
 
-from ethereum.cancun.blocks import LegacyTransaction, Log
+from ethereum.cancun.blocks import Header, LegacyTransaction, Log, Withdrawal
 from ethereum_types.bytes import Bytes
 from hypothesis import given
 
 from tests.utils.hash_utils import (
+    Header__hash__,
     Log__hash__,
     TupleLog__hash__,
     TupleUnionBytesLegacyTransaction__hash__,
@@ -46,3 +47,17 @@ class TestTupleLog:
         cairo_result = cairo_run("TupleLog__hash__", log)
 
         assert TupleLog__hash__(log) == cairo_result
+
+
+class TestHeader:
+    @given(header=...)
+    def test_Header__hash__(self, cairo_run, header: Header):
+        cairo_result = cairo_run("Header__hash__", header)
+
+        assert Header__hash__(header) == cairo_result
+
+
+class TestWithdrawal:
+    @given(withdrawal=...)
+    def test_Withdrawal__hash__(self, cairo_run, withdrawal: Withdrawal):
+        cairo_run("Withdrawal__hash__", withdrawal)
