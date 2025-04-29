@@ -78,6 +78,9 @@ from ethereum.cancun.state import (
 )
 
 from ethereum.cancun.blocks import (
+    TupleWithdrawal,
+    TupleWithdrawal__hash__,
+    Header__hash__,
     TupleUnionBytesLegacyTransaction__hash__,
     TupleLog__hash__,
     UnionBytesLegacyTransactionEnum,
@@ -194,51 +197,62 @@ func main{
         block, chain.value.chain_id, excess_blob_gas, block_hashes
     );
 
-
     // Finalize the state, getting unique keys for main and storage tries
     finalize_state{state=state}();
-    let init_commitment = init_commitments{
+
+    // Commit to the header
+    let header_commitment = Header__hash__(block.value.header);
+
+    // Commit to the following body.cairo program
+    let body_commitment = body_commitments{
         range_check_ptr=range_check_ptr,
         bitwise_ptr=bitwise_ptr,
         keccak_ptr=keccak_ptr,
         poseidon_ptr=poseidon_ptr,
     }(
-        block,
+        header_commitment,
+        block.value.transactions,
         state,
         transactions_trie,
         receipts_trie,
-        withdrawals_trie,
         block_logs,
         block_hashes,
         gas_available,
         chain.value.chain_id,
-        block.value.header.value.base_fee_per_gas,
         excess_blob_gas,
     );
 
-    assert [output_ptr] = init_commitment.value.low;
-    assert [output_ptr + 1] = init_commitment.value.high;
+    // Commit to the teardown program
+    let teardown_commitment = teardown_commitments{
+        range_check_ptr=range_check_ptr,
+        bitwise_ptr=bitwise_ptr,
+        keccak_ptr=keccak_ptr,
+        poseidon_ptr=poseidon_ptr,
+    }(header_commitment, withdrawals_trie, block.value.withdrawals);
 
-    // TODO: Teardown commitments
-    // https://github.com/kkrt-labs/keth/issues/1367
-    let output_ptr = output_ptr + 2;
+    assert [output_ptr] = body_commitment.value.low;
+    assert [output_ptr + 1] = body_commitment.value.high;
+
+    assert [output_ptr + 2] = teardown_commitment.value.low;
+    assert [output_ptr + 3] = teardown_commitment.value.high;
+
+    let output_ptr = output_ptr + 4;
     let keccak_ptr = builtin_keccak_ptr;
     return ();
 }
 
-func init_commitments{
+func body_commitments{
     range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: felt*, poseidon_ptr: PoseidonBuiltin*
 }(
-    block: Block,
+    header_commitment: Hash32,
+    transactions: TupleUnionBytesLegacyTransaction,
     state: State,
     transactions_trie: TrieBytesOptionalUnionBytesLegacyTransaction,
     receipts_trie: TrieBytesOptionalUnionBytesReceipt,
-    withdrawals_trie: TrieBytesOptionalUnionBytesWithdrawal,
     block_logs: TupleLog,
     block_hashes: ListHash32,
     gas_available: Uint,
     chain_id: U64,
-    base_fee_per_gas: Uint,
     excess_blob_gas: U64,
 ) -> Hash32 {
     alloc_locals;
@@ -257,11 +271,7 @@ func init_commitments{
         cast(receipts_trie.value._data.value.dict_ptr, DictAccess*),
         0,
     );
-    default_dict_finalize(
-        cast(withdrawals_trie.value._data.value.dict_ptr_start, DictAccess*),
-        cast(withdrawals_trie.value._data.value.dict_ptr, DictAccess*),
-        0,
-    );
+
     let null_account_roots = OptionalMappingAddressBytes32(cast(0, MappingAddressBytes32Struct*));
     let tx_trie_typed = EthereumTriesImpl.from_transaction_trie(transactions_trie);
     let tx_trie_commitment = root(tx_trie_typed, null_account_roots, 'blake2s');
@@ -269,23 +279,14 @@ func init_commitments{
     let receipt_trie_typed = EthereumTriesImpl.from_receipt_trie(receipts_trie);
     let receipt_trie_commitment = root(receipt_trie_typed, null_account_roots, 'blake2s');
 
-    let withdrawal_trie_typed = EthereumTriesImpl.from_withdrawal_trie(withdrawals_trie);
-    let withdrawal_trie_commitment = root(withdrawal_trie_typed, null_account_roots, 'blake2s');
-
     // Commit to transactions
-    let transactions_commitment = TupleUnionBytesLegacyTransaction__hash__(
-        block.value.transactions
-    );
+    let transactions_commitment = TupleUnionBytesLegacyTransaction__hash__(transactions);
 
     // Commit to logs
     let logs_commitment = TupleLog__hash__(block_logs);
 
     // Commit to block hashes
     let block_hashes_commitment = ListHash32__hash__(block_hashes);
-
-    // Commit to block time and prev_randao
-    let block_time_commitment = U256__hash__(block.value.header.value.timestamp);
-    let prev_randao_commitment = Bytes32__hash__(block.value.header.value.prev_randao);
 
     // Commit in the order they appear in the function signature
     // Fields that are a single felt are not hashed,
@@ -295,28 +296,47 @@ func init_commitments{
     blake2s_add_uint256{data=init_commitment_buffer}([state_commitment.value]);
     blake2s_add_uint256{data=init_commitment_buffer}([tx_trie_commitment.value]);
     blake2s_add_uint256{data=init_commitment_buffer}([receipt_trie_commitment.value]);
-    blake2s_add_uint256{data=init_commitment_buffer}([withdrawal_trie_commitment.value]);
     blake2s_add_uint256{data=init_commitment_buffer}([transactions_commitment.value]);
     blake2s_add_felt{data=init_commitment_buffer}(gas_available.value, bigend=0);
     blake2s_add_felt{data=init_commitment_buffer}(chain_id.value, bigend=0);
-    blake2s_add_felt{data=init_commitment_buffer}(base_fee_per_gas.value, bigend=0);
     blake2s_add_felt{data=init_commitment_buffer}(excess_blob_gas.value, bigend=0);
     blake2s_add_uint256{data=init_commitment_buffer}([logs_commitment.value]);
     blake2s_add_uint256{data=init_commitment_buffer}([block_hashes_commitment.value]);
-    blake2s_add_felt{data=init_commitment_buffer}(
-        block.value.header.value.coinbase.value, bigend=0
-    );
-    blake2s_add_felt{data=init_commitment_buffer}(block.value.header.value.number.value, bigend=0);
-    blake2s_add_felt{data=init_commitment_buffer}(
-        block.value.header.value.gas_limit.value, bigend=0
-    );
-    blake2s_add_uint256{data=init_commitment_buffer}([block_time_commitment.value]);
-    blake2s_add_uint256{data=init_commitment_buffer}([prev_randao_commitment.value]);
-    blake2s_add_felt{data=init_commitment_buffer}(
-        block.value.header.value.gas_used.value, bigend=0
-    );
+    blake2s_add_uint256{data=init_commitment_buffer}([header_commitment.value]);
+    let (res) = blake2s(data=start, n_bytes=10 * 32);
+    tempvar res_hash = Hash32(value=new res);
+    return res_hash;
+}
 
-    let (res) = blake2s(data=start, n_bytes=17 * 32);
+func teardown_commitments{
+    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: felt*, poseidon_ptr: PoseidonBuiltin*
+}(
+    header_commitment: Hash32,
+    withdrawals_trie: TrieBytesOptionalUnionBytesWithdrawal,
+    withdrawals: TupleWithdrawal,
+) -> Hash32 {
+    alloc_locals;
+
+    let (init_commitment_buffer) = alloc();
+    let start = init_commitment_buffer;
+    blake2s_add_uint256{data=init_commitment_buffer}([header_commitment.value]);
+
+    // Commit to the withdrawals trie
+    default_dict_finalize(
+        cast(withdrawals_trie.value._data.value.dict_ptr_start, DictAccess*),
+        cast(withdrawals_trie.value._data.value.dict_ptr, DictAccess*),
+        0,
+    );
+    let null_account_roots = OptionalMappingAddressBytes32(cast(0, MappingAddressBytes32Struct*));
+    let withdrawal_trie_typed = EthereumTriesImpl.from_withdrawal_trie(withdrawals_trie);
+    let withdrawal_trie_commitment = root(withdrawal_trie_typed, null_account_roots, 'blake2s');
+    blake2s_add_uint256{data=init_commitment_buffer}([withdrawal_trie_commitment.value]);
+
+    // Commit to the withdrawals
+    let withdrawals_commitment = TupleWithdrawal__hash__(withdrawals);
+    blake2s_add_uint256{data=init_commitment_buffer}([withdrawals_commitment.value]);
+
+    let (res) = blake2s(data=start, n_bytes=3 * 32);
     tempvar res_hash = Hash32(value=new res);
     return res_hash;
 }
