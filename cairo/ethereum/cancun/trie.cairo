@@ -8,7 +8,9 @@ from starkware.cairo.common.bitwise import BitwiseBuiltin
 from starkware.cairo.common.dict import DictAccess
 from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
 from starkware.cairo.common.memcpy import memcpy
+from starkware.cairo.common.registers import get_label_location
 
+from ethereum.crypto.hash import EMPTY_ROOT_KECCAK
 from legacy.utils.bytes import uint256_to_bytes32_little
 from legacy.utils.dict import hashdict_read, hashdict_write, dict_new_empty, dict_read, dict_squash
 from ethereum.crypto.hash import hash_with
@@ -1263,13 +1265,27 @@ func _prepare_trie{
         raise('Missing Storage Roots');
     }
     let account_trie = trie_union.value.account;
-    _prepare_trie_inner_account(
+    let storage_roots = MappingAddressBytes32(storage_roots_.value);
+    let mapping_ptr_end = _prepare_trie_inner_account{storage_roots=storage_roots}(
         account_trie,
         account_trie.value._data.value.dict_ptr_start,
         mapping_ptr_start,
-        MappingAddressBytes32(storage_roots_.value),
         hash_function_name,
     );
+    let (empty_root_ptr) = get_label_location(EMPTY_ROOT_KECCAK);
+    // Finalize the storage roots mapping for soundness
+    default_dict_finalize(
+        cast(storage_roots.value.dict_ptr_start, DictAccess*),
+        cast(storage_roots.value.dict_ptr, DictAccess*),
+        cast(empty_root_ptr, felt),
+    );
+
+    // Rearrange the stack to match the expected order
+    tempvar range_check_ptr = range_check_ptr;
+    tempvar bitwise_ptr = bitwise_ptr;
+    tempvar keccak_ptr = keccak_ptr;
+    tempvar poseidon_ptr = poseidon_ptr;
+    tempvar mapping_ptr_end = mapping_ptr_end;
     jmp end;
 
     storage:
@@ -1336,12 +1352,15 @@ func _prepare_trie{
 }
 
 func _prepare_trie_inner_account{
-    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: felt*, poseidon_ptr: PoseidonBuiltin*
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: felt*,
+    poseidon_ptr: PoseidonBuiltin*,
+    storage_roots: MappingAddressBytes32,
 }(
     trie: TrieAddressOptionalAccount,
     dict_ptr: AddressAccountDictAccess*,
     mapping_ptr_end: BytesBytesDictAccess*,
-    storage_roots_: MappingAddressBytes32,
     hash_function_name: felt,
 ) -> BytesBytesDictAccess* {
     alloc_locals;
@@ -1352,16 +1371,12 @@ func _prepare_trie_inner_account{
 
     // Skip all None values, which are deleted trie entries
     if (cast(dict_ptr.new_value.value, felt) == 0) {
-        return _prepare_trie_inner_account(
-            trie,
-            dict_ptr + AddressAccountDictAccess.SIZE,
-            mapping_ptr_end,
-            storage_roots_,
-            hash_function_name,
+        return _prepare_trie_inner_account{storage_roots=storage_roots}(
+            trie, dict_ptr + AddressAccountDictAccess.SIZE, mapping_ptr_end, hash_function_name
         );
     }
 
-    let storage_root = mapping_address_bytes32_read{mapping=storage_roots_}(dict_ptr.key);
+    let storage_root = mapping_address_bytes32_read{mapping=storage_roots}(dict_ptr.key);
     let preimage = Bytes20_to_Bytes(dict_ptr.key);
     let value = dict_ptr.new_value;
 
@@ -1409,11 +1424,10 @@ func _prepare_trie_inner_account{
         nibbles_list.value.len, nibbles_list.value.data, cast(encoded_value.value, felt)
     );
 
-    return _prepare_trie_inner_account(
+    return _prepare_trie_inner_account{storage_roots=storage_roots}(
         trie,
         dict_ptr + AddressAccountDictAccess.SIZE,
         cast(mapping_dict_ptr, BytesBytesDictAccess*),
-        storage_roots_,
         hash_function_name,
     );
 }
