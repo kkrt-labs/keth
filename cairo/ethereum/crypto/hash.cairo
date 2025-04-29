@@ -19,6 +19,10 @@ EMPTY_HASH_KECCAK:
 dw 0xc003c7dcb27d7e923c23f7860146d2c5;  // low
 dw 0x70a4855d04d8fa7b3b2782ca53b600e5;  // high
 
+EMPTY_ROOT_BLAKE2S:
+dw 0x9a53d8e885d3650ceebe4156d54784fc;  // low
+dw 0x27c691d691291fefea0a2a3bc21395be;  // high
+
 // @notice Computes the keccak256 hash of a bytes object.
 func keccak256{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: felt*}(
     buffer: Bytes

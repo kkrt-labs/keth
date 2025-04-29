@@ -10,10 +10,9 @@ from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
 from starkware.cairo.common.memcpy import memcpy
 from starkware.cairo.common.registers import get_label_location
 
-from ethereum.crypto.hash import EMPTY_ROOT_KECCAK
 from legacy.utils.bytes import uint256_to_bytes32_little
 from legacy.utils.dict import hashdict_read, hashdict_write, dict_new_empty, dict_read, dict_squash
-from ethereum.crypto.hash import hash_with
+from ethereum.crypto.hash import hash_with, EMPTY_ROOT_BLAKE2S, EMPTY_ROOT_KECCAK
 from ethereum.utils.numeric import min
 from ethereum_rlp.rlp import encode, _encode_bytes, _encode, Extended__eq__
 from ethereum.utils.numeric import U256__eq__
@@ -1272,12 +1271,27 @@ func _prepare_trie{
         mapping_ptr_start,
         hash_function_name,
     );
-    let (empty_root_ptr) = get_label_location(EMPTY_ROOT_KECCAK);
+    local empty_root_ptr: felt*;
+    if (hash_function_name == 'keccak256') {
+        let (ptr) = get_label_location(EMPTY_ROOT_KECCAK);
+        assert empty_root_ptr = ptr;
+    } else {
+        let (ptr) = get_label_location(EMPTY_ROOT_BLAKE2S);
+        assert empty_root_ptr = ptr;
+    }
+    // We must finalize with the default_value from the default dict itself
+    // Otherwise we'll try and compare the empty_root_ptr with the default_value ptr
+    // Which point to the same value but are different pointers
+    local default_value: felt*;
+    tempvar dict_ptr = storage_roots.value.dict_ptr;
+    %{ get_default_value %}
+    assert [default_value] = [empty_root_ptr];
+    assert [default_value + 1] = [empty_root_ptr + 1];
     // Finalize the storage roots mapping for soundness
     default_dict_finalize(
         cast(storage_roots.value.dict_ptr_start, DictAccess*),
         cast(storage_roots.value.dict_ptr, DictAccess*),
-        cast(empty_root_ptr, felt),
+        cast(default_value, felt),
     );
 
     // Rearrange the stack to match the expected order

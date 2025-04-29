@@ -70,7 +70,7 @@ from ethereum.cancun.trie import (
 )
 from ethereum.cancun.blocks import Withdrawal
 from ethereum_types.bytes import Bytes, Bytes32, Bytes32Struct, BytesStruct, OptionalBytes
-from ethereum.crypto.hash import EMPTY_ROOT_KECCAK
+from ethereum.crypto.hash import EMPTY_ROOT_KECCAK, EMPTY_ROOT_BLAKE2S
 from ethereum_types.numeric import U256, U256Struct, Bool, bool, Uint
 from ethereum.utils.numeric import U256_le, U256_sub, U256_add, U256_mul
 from ethereum.cancun.utils.constants import U256_ZERO
@@ -1237,7 +1237,15 @@ func storage_roots{
     // Create a Mapping[Address, Bytes32] that will contain the storage root of each address's
     // storage trie
     // TODO: the EMPTY_ROOT should be relative to the hash function used!
-    let (empty_root_ptr) = get_label_location(EMPTY_ROOT_KECCAK);
+    local empty_root_ptr: felt*;
+    if (hash_function_name == 'keccak256') {
+        let (ptr) = get_label_location(EMPTY_ROOT_KECCAK);
+        assert empty_root_ptr = ptr;
+    } else {
+        // TODO: extend this if-else if we add other hash functions
+        let (ptr) = get_label_location(EMPTY_ROOT_BLAKE2S);
+        assert empty_root_ptr = ptr;
+    }
     let (map_addr_storage_root_start) = default_dict_new(cast(empty_root_ptr, felt));
     tempvar map_addr_storage_root = MappingAddressBytes32(
         new MappingAddressBytes32Struct(

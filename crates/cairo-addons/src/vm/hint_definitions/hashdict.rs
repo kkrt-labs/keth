@@ -4,7 +4,7 @@ use cairo_vm::{
     hint_processor::{
         builtin_hint_processor::{
             dict_hint_utils::DICT_ACCESS_SIZE,
-            dict_manager::DictKey,
+            dict_manager::{DictKey, Dictionary},
             hint_utils::{
                 get_integer_from_var_name, get_maybe_relocatable_from_var_name,
                 get_ptr_from_var_name, insert_value_from_var_name,
@@ -34,6 +34,7 @@ pub const HINTS: &[fn() -> Hint] = &[
     get_preimage_for_key,
     copy_hashdict_tracker_entry,
     get_storage_keys_for_address,
+    get_default_value,
 ];
 
 pub fn hashdict_read() -> Hint {
@@ -335,6 +336,35 @@ pub fn copy_hashdict_tracker_entry() -> Hint {
             dest_tracker.insert_value(&preimage, &value.clone());
 
             Ok(())
+        },
+    )
+}
+
+pub fn get_default_value() -> Hint {
+    Hint::new(
+        String::from("get_default_value"),
+        |vm: &mut VirtualMachine,
+         exec_scopes: &mut ExecutionScopes,
+         ids_data: &HashMap<String, HintReference>,
+         ap_tracking: &ApTracking,
+         _constants: &HashMap<String, Felt252>|
+         -> Result<(), HintError> {
+            let dict_ptr = get_ptr_from_var_name("dict_ptr", vm, ids_data, ap_tracking)?;
+            let dict_manager_ref = exec_scopes.get_dict_manager()?;
+            let dict_manager = dict_manager_ref.borrow();
+            let tracker = dict_manager.get_tracker(dict_ptr)?;
+            match &tracker.data {
+                Dictionary::DefaultDictionary { default_value, .. } => insert_value_from_var_name(
+                    "default_value",
+                    default_value,
+                    vm,
+                    ids_data,
+                    ap_tracking,
+                ),
+                _ => Err(HintError::CustomHint(
+                    "Tracker is not a default dictionary".to_string().into(),
+                )),
+            }
         },
     )
 }

@@ -59,6 +59,11 @@ def hashdict_write(dict_manager: DictManager, ids: VmConsts, memory: MemoryDict)
 
 
 @register_hint
+def get_default_value(dict_manager: DictManager, ids: VmConsts):
+    ids.default_value = dict_manager.get_tracker(ids.dict_ptr).data.default_factory()
+
+
+@register_hint
 def get_storage_keys_for_address(
     dict_manager: DictManager,
     ids: VmConsts,
