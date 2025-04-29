@@ -10,7 +10,9 @@ This CLI provides four main commands:
 
 import logging
 import traceback
+from enum import Enum
 from pathlib import Path
+from typing import Optional
 
 import typer
 from rich.console import Console
@@ -37,6 +39,13 @@ app = typer.Typer(
 )
 
 
+# Typer does not support Literal["main", "init"] in its type enforcement, so we use an Enum instead.
+# See <https://typer.tiangolo.com/tutorial/parameter-types/enum/?h=enum>
+class Step(str, Enum):
+    MAIN = "main"
+    INIT = "init"
+
+
 def validate_block_number(block_number: int) -> None:
     """Validate that the block number is after Cancun fork."""
     if block_number < CANCUN_FORK_BLOCK:
@@ -44,6 +53,25 @@ def validate_block_number(block_number: int) -> None:
             f"Error: Block {block_number} is before Cancun fork ({CANCUN_FORK_BLOCK})"
         )
         raise typer.Exit(1)
+
+
+def get_default_program(step: Step) -> Path:
+    """Returns the default compiled program path based on step"""
+    step_to_program = {
+        Step.MAIN: "build/main_compiled.json",
+        Step.INIT: "build/init_compiled.json",
+    }
+    return Path(step_to_program[step])
+
+
+def program_path_callback(program: Optional[Path], ctx: typer.Context) -> Path:
+    """
+    Callback to determine the compiled program path
+    If the program path is not provided, the default program path will be used.
+    """
+    if program:
+        return program
+    return get_default_program(ctx.params.get("step", Step.MAIN))
 
 
 @app.command()
@@ -63,12 +91,19 @@ def trace(
         dir_okay=True,
         file_okay=False,
     ),
+    step: Step = typer.Option(
+        Step.MAIN,
+        "-s",
+        "--step",
+        help="Step to run: 'main' or 'init'",
+    ),
     compiled_program: Path = typer.Option(
-        Path("build/main_compiled.json"),
+        None,
         help="Path to compiled Cairo program",
         exists=True,
         dir_okay=False,
         file_okay=True,
+        callback=program_path_callback,
     ),
 ):
     """
@@ -79,12 +114,15 @@ def trace(
         block_number: The Ethereum block number to generate a trace for.
         output_dir: The directory to save the trace artifacts to.
         data_dir: The directory containing the ZK-PI fixture for that block.
+        step: The step to run: 'main' or 'init'.
         compiled_program: The path to the compiled KETH Cairo program.
     """
     validate_block_number(block_number)
     output_path = output_dir / f"prover_input_info_{block_number}.json"
 
-    with console.status(f"[bold green]Generating trace for block {block_number}..."):
+    with console.status(
+        f"[bold green]Generating trace for {step} step of block {block_number}..."
+    ):
         try:
             zkpi_path = data_dir / f"{block_number}.json"
             program_input = load_zkpi_fixture(zkpi_path)
@@ -174,13 +212,6 @@ def e2e(
     block_number: int = typer.Option(
         ..., "-b", "--block", help="Ethereum block number"
     ),
-    compiled_program: Path = typer.Option(
-        Path("build/main_compiled.json"),
-        help="Path to compiled Cairo program",
-        exists=True,
-        dir_okay=False,
-        file_okay=True,
-    ),
     proof_path: Path = typer.Option(
         Path("output/proof.json"),
         help="Path to save proof",
@@ -192,6 +223,20 @@ def e2e(
         help="Directory containing prover inputs (ZK-PI)",
         dir_okay=True,
         file_okay=False,
+    ),
+    step: Step = typer.Option(
+        Step.MAIN,
+        "-s",
+        "--step",
+        help="Step to run: 'main' or 'init'",
+    ),
+    compiled_program: Path = typer.Option(
+        None,
+        help="Path to compiled Cairo program",
+        exists=True,
+        dir_okay=False,
+        file_okay=True,
+        callback=program_path_callback,
     ),
     verify_proof: bool = typer.Option(
         False,
@@ -206,11 +251,15 @@ def e2e(
     without writing intermediate trace files to disk. It reads the ZK-PI fixture,
     runs the Cairo VM, generates the prover input, creates the STWO proof, and
     optionally verifies it. The final proof is saved to the specified path.
+
+    If the step is 'init', the init.cairo program will be used instead of the main.cairo program.
     """
     validate_block_number(block_number)
     proof_path.parent.mkdir(parents=True, exist_ok=True)
 
-    with console.status(f"[bold green]Running pipeline for block {block_number}..."):
+    with console.status(
+        f"[bold green]Running pipeline for {step} step of block {block_number}..."
+    ):
         try:
             zkpi_path = data_dir / f"{block_number}.json"
             program_input = load_zkpi_fixture(zkpi_path)
