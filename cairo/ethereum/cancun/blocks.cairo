@@ -5,8 +5,13 @@ from ethereum_types.bytes import Bytes, Bytes8, Bytes32, TupleBytes, TupleBytes3
 from ethereum.cancun.fork_types import Address, Bloom, Root
 from ethereum.crypto.hash import Hash32
 from ethereum.cancun.transactions_types import LegacyTransaction, LegacyTransaction__hash__
-from cairo_core.bytes_impl import Bytes__hash__, Bytes20__hash__, TupleBytes32__hash__
-from cairo_core.hash.blake2s import blake2s, blake2s_add_uint256
+from cairo_core.bytes_impl import (
+    Bytes__hash__,
+    Bytes20__hash__,
+    TupleBytes32__hash__,
+    Bytes256__hash__,
+)
+from cairo_core.hash.blake2s import blake2s, blake2s_add_uint256, blake2s_add_felt
 
 struct WithdrawalStruct {
     index: U64,
@@ -19,6 +24,23 @@ struct Withdrawal {
     value: WithdrawalStruct*,
 }
 
+func Withdrawal__hash__{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(self: Withdrawal) -> Hash32 {
+    alloc_locals;
+    let (local data) = alloc();
+    let data_start = data;
+    with data {
+        blake2s_add_felt(self.value.index.value, 0);
+        blake2s_add_felt(self.value.validator_index.value, 0);
+        blake2s_add_felt(self.value.address.value, 0);
+        blake2s_add_uint256([self.value.amount.value]);
+    }
+
+    let n_bytes = 32 * WithdrawalStruct.SIZE;
+    let (res) = blake2s(data=data_start, n_bytes=n_bytes);
+    tempvar hash = Hash32(value=new res);
+    return hash;
+}
+
 struct TupleWithdrawalStruct {
     data: Withdrawal*,
     len: felt,
@@ -26,6 +48,34 @@ struct TupleWithdrawalStruct {
 
 struct TupleWithdrawal {
     value: TupleWithdrawalStruct*,
+}
+
+func TupleWithdrawal__hash__{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
+    self: TupleWithdrawal
+) -> Hash32 {
+    alloc_locals;
+    let (acc) = alloc();
+    let acc_start = acc;
+    let index = 0;
+    _innerTupleWithdrawal__hash__{acc=acc, index=index}(self);
+    let n_bytes = 32 * self.value.len;
+    let (res) = blake2s(data=acc_start, n_bytes=n_bytes);
+    tempvar hash = Hash32(value=new res);
+    return hash;
+}
+
+func _innerTupleWithdrawal__hash__{
+    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, acc: felt*, index: felt
+}(self: TupleWithdrawal) {
+    if (index == self.value.len) {
+        return ();
+    }
+
+    let item = self.value.data[index];
+    let item_hash = Withdrawal__hash__(item);
+    blake2s_add_uint256{data=acc}([item_hash.value]);
+    let index = index + 1;
+    return _innerTupleWithdrawal__hash__(self);
 }
 
 struct HeaderStruct {
@@ -53,6 +103,43 @@ struct HeaderStruct {
 
 struct Header {
     value: HeaderStruct*,
+}
+
+func Header__hash__{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(self: Header) -> Hash32 {
+    alloc_locals;
+
+    let bloom_hash = Bytes256__hash__(self.value.bloom);
+    let extra_data_hash = Bytes__hash__(self.value.extra_data);
+
+    let (local data) = alloc();
+    let data_start = data;
+    with data {
+        blake2s_add_uint256([self.value.parent_hash.value]);
+        blake2s_add_uint256([self.value.ommers_hash.value]);
+        blake2s_add_felt(self.value.coinbase.value, 0);
+        blake2s_add_uint256([self.value.state_root.value]);
+        blake2s_add_uint256([self.value.transactions_root.value]);
+        blake2s_add_uint256([self.value.receipt_root.value]);
+        blake2s_add_uint256([bloom_hash.value]);
+        blake2s_add_felt(self.value.difficulty.value, 0);
+        blake2s_add_felt(self.value.number.value, 0);
+        blake2s_add_felt(self.value.gas_limit.value, 0);
+        blake2s_add_felt(self.value.gas_used.value, 0);
+        blake2s_add_uint256([self.value.timestamp.value]);
+        blake2s_add_uint256([extra_data_hash.value]);
+        blake2s_add_uint256([self.value.prev_randao.value]);
+        blake2s_add_felt(self.value.nonce.value, 0);
+        blake2s_add_felt(self.value.base_fee_per_gas.value, 0);
+        blake2s_add_uint256([self.value.withdrawals_root.value]);
+        blake2s_add_felt(self.value.blob_gas_used.value, 0);
+        blake2s_add_felt(self.value.excess_blob_gas.value, 0);
+        blake2s_add_uint256([self.value.parent_beacon_block_root.value]);
+    }
+
+    let n_bytes = 32 * HeaderStruct.SIZE;
+    let (res) = blake2s(data=data_start, n_bytes=n_bytes);
+    tempvar hash = Hash32(value=new res);
+    return hash;
 }
 
 struct TupleHeaderStruct {

@@ -1,7 +1,7 @@
 import hashlib
 from typing import List, Tuple, Union
 
-from ethereum.cancun.blocks import Log
+from ethereum.cancun.blocks import Header, Log, Withdrawal
 from ethereum.cancun.transactions import LegacyTransaction
 from ethereum.crypto.hash import Hash32
 from ethereum_types.bytes import Bytes, Bytes32
@@ -74,4 +74,45 @@ def TupleLog__hash__(tuple_log: Tuple[Log, ...]) -> Hash32:
     acc = []
     for item in tuple_log:
         acc.append(Log__hash__(item))
+    return hashlib.blake2s(b"".join(acc)).digest()
+
+
+def Header__hash__(header: Header) -> Hash32:
+    acc = []
+    acc.append(header.parent_hash)
+    acc.append(header.ommers_hash)
+    acc.append(header.coinbase + b"\x00" * 12)  # Pad 20-byte address to 32 bytes
+    acc.append(header.state_root)
+    acc.append(header.transactions_root)
+    acc.append(header.receipt_root)
+    acc.append(hashlib.blake2s(header.bloom).digest())
+    acc.append(header.difficulty.to_bytes(32, "little"))
+    acc.append(header.number.to_bytes(32, "little"))
+    acc.append(header.gas_limit.to_bytes(32, "little"))
+    acc.append(header.gas_used.to_bytes(32, "little"))
+    acc.append(header.timestamp.to_bytes(32, "little"))
+    acc.append(hashlib.blake2s(header.extra_data).digest())
+    acc.append(header.prev_randao)
+    acc.append(header.nonce + b"\x00" * 24)
+    acc.append(header.base_fee_per_gas.to_bytes(32, "little"))
+    acc.append(header.withdrawals_root)
+    acc.append(header.blob_gas_used.to_bytes(32, "little"))
+    acc.append(header.excess_blob_gas.to_bytes(32, "little"))
+    acc.append(header.parent_beacon_block_root)
+    return hashlib.blake2s(b"".join(acc)).digest()
+
+
+def Withdrawal__hash__(withdrawal: Withdrawal) -> Hash32:
+    acc = []
+    acc.append(withdrawal.index.to_bytes(32, "little"))
+    acc.append(withdrawal.validator_index.to_bytes(32, "little"))
+    acc.append(withdrawal.address + b"\x00" * 12)
+    acc.append(withdrawal.amount.to_bytes(32, "little"))
+    return hashlib.blake2s(b"".join(acc)).digest()
+
+
+def TupleWithdrawal__hash__(tuple_withdrawal: Tuple[Withdrawal, ...]) -> Hash32:
+    acc = []
+    for item in tuple_withdrawal:
+        acc.append(Withdrawal__hash__(item))
     return hashlib.blake2s(b"".join(acc)).digest()
