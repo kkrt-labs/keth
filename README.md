@@ -118,7 +118,7 @@ zkpig generate --include all
 ```
 
 This will generate the ZK-PI for the given block and save it in the
-`data/inputs/1` directory.
+`data/1/inputs` directory.
 
 Then, you can run the tests with:
 

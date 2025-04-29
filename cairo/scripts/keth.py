@@ -58,7 +58,7 @@ def trace(
         file_okay=False,
     ),
     data_dir: Path = typer.Option(
-        Path("data/inputs/1"),
+        Path("data/1/inputs"),
         help="Directory containing prover inputs (ZK-PI)",
         dir_okay=True,
         file_okay=False,
@@ -188,7 +188,7 @@ def e2e(
         file_okay=True,
     ),
     data_dir: Path = typer.Option(
-        Path("data/inputs/1"),
+        Path("data/1/inputs"),
         help="Directory containing prover inputs (ZK-PI)",
         dir_okay=True,
         file_okay=False,
