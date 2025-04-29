@@ -238,8 +238,9 @@ func main{
     assert [output_ptr + 2] = teardown_commitment.value.low;
     assert [output_ptr + 3] = teardown_commitment.value.high;
 
-    let output_ptr = output_ptr + 4;
+    finalize_keccak(keccak_ptr_start, keccak_ptr);
     let keccak_ptr = builtin_keccak_ptr;
+    let output_ptr = output_ptr + 4;
     return ();
 }
 

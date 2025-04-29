@@ -64,3 +64,5 @@ def body_inputs(ids: VmConsts, program_input: dict, gen_arg: Callable):
     ids.chain_id = gen_arg(U64, program_input["chain_id"])
     ids.blob_gas_used = gen_arg(Uint, program_input["blob_gas_used"])
     ids.excess_blob_gas = gen_arg(U64, program_input["excess_blob_gas"])
+    ids.start_index = program_input["start_index"]
+    ids.len = program_input["len"]

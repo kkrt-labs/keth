@@ -146,8 +146,14 @@ func main{
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,
-}(start_index: felt, len: felt) {
+}() {
     alloc_locals;
+
+    // STWO does not prove the keccak builtin, so we need to use a non-builtin keccak
+    // implementation.
+    let builtin_keccak_ptr = keccak_ptr;
+    let (keccak_ptr) = alloc();
+    let keccak_ptr_start = keccak_ptr;
 
     // Program inputs
     local block_header: Header;
@@ -161,6 +167,8 @@ func main{
     local chain_id: U64;
     local blob_gas_used: Uint;
     local excess_blob_gas: U64;
+    local start_index: felt;
+    local len: felt;
     %{ body_inputs %}
 
     // Input Commitments
@@ -221,6 +229,8 @@ func main{
     assert [output_ptr + 4] = start_index;
     assert [output_ptr + 5] = len;
 
+    finalize_keccak(keccak_ptr_start, keccak_ptr);
+    let keccak_ptr = builtin_keccak_ptr;
     let output_ptr = output_ptr + 6;
     return ();
 }

@@ -83,8 +83,6 @@ func main{
         right=post_state_root,
     );
 
-    finalize_keccak(keccak_ptr_start, keccak_ptr);
-
     // # Compute commitments for the state diffs and the trie diffs.
     let account_diff = sort_account_diff(account_diff);
     let storage_diff = sort_storage_diff(storage_diff);
@@ -107,7 +105,8 @@ func main{
     assert [output_ptr + 4] = trie_account_diff_commitment;
     assert [output_ptr + 5] = trie_storage_diff_commitment;
 
-    let output_ptr = output_ptr + 6;
+    finalize_keccak(keccak_ptr_start, keccak_ptr);
     let keccak_ptr = builtin_keccak_ptr;
+    let output_ptr = output_ptr + 6;
     return ();
 }

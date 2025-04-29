@@ -88,9 +88,18 @@ def compile_keth():
     from concurrent.futures import ThreadPoolExecutor
 
     programs = [
-        (Path("cairo/ethereum/cancun/keth/init.cairo"), Path("build/init_compiled.json")),
-        (Path("cairo/ethereum/cancun/keth/main.cairo"), Path("build/main_compiled.json")),
-        (Path("cairo/ethereum/cancun/keth/body.cairo"), Path("build/body_compiled.json"))
+        (
+            Path("cairo/ethereum/cancun/keth/init.cairo"),
+            Path("build/init_compiled.json"),
+        ),
+        (
+            Path("cairo/ethereum/cancun/keth/main.cairo"),
+            Path("build/main_compiled.json"),
+        ),
+        (
+            Path("cairo/ethereum/cancun/keth/body.cairo"),
+            Path("build/body_compiled.json"),
+        ),
     ]
 
     for _, output_path in programs:
@@ -105,7 +114,7 @@ def compile_keth():
                 debug_info=args.debug_info,
                 proof_mode=True,
                 should_implement_hints=args.implement_hints,
-                output_path=output_path
+                output_path=output_path,
             )
             for program_path, output_path in programs
         ]

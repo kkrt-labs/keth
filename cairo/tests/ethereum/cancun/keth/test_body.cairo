@@ -11,7 +11,7 @@ from ethereum_types.bytes import Bytes32
 from ethereum.utils.bytes import Bytes32_to_Bytes
 from mpt.trie_diff import OptionalUnionInternalNodeExtendedImpl
 
-from ethereum.cancun.keth.body import main
+from ethereum.cancun.keth.body import main as body_main
 
 func test_body{
     output_ptr: felt*,
@@ -27,11 +27,7 @@ func test_body{
     mul_mod_ptr: ModBuiltin*,
 }() -> (output_start: felt*) {
     alloc_locals;
-    local start_index;
-    local len;
-    %{ ids.start_index = program_input["start_index"] %}
-    %{ ids.len = program_input["len"] %}
     local output_start: felt* = output_ptr;
-    main(start_index=start_index, len=len);
+    body_main();
     return (output_start=output_start);
 }

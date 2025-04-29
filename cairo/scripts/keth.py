@@ -22,7 +22,7 @@ from cairo_addons.rust_bindings.stwo_bindings import prove as run_prove
 from cairo_addons.rust_bindings.stwo_bindings import verify as run_verify
 from cairo_addons.rust_bindings.vm import generate_trace as run_generate_trace
 from cairo_addons.rust_bindings.vm import run_end_to_end
-from utils.fixture_loader import CANCUN_FORK_BLOCK, load_zkpi_fixture
+from utils.fixture_loader import CANCUN_FORK_BLOCK, load_body_input, load_zkpi_fixture
 
 logging.basicConfig(
     level=logging.INFO,
@@ -76,7 +76,9 @@ def program_path_callback(program: Optional[Path], ctx: typer.Context) -> Path:
     return get_default_program(ctx.params.get("step", Step.MAIN))
 
 
-def validate_body_params(step: Step, start_index: Optional[int], chunk_size: Optional[int]) -> None:
+def validate_body_params(
+    step: Step, start_index: Optional[int], chunk_size: Optional[int]
+) -> None:
     """Validate that body step parameters are provided correctly."""
     if step == Step.BODY:
         if start_index is None or chunk_size is None:
@@ -150,7 +152,10 @@ def trace(
     validate_block_number(block_number)
     # For body step, include chunk info in the proof filename
     if step == Step.BODY:
-        output_path = output_dir / f"prover_input_info_{block_number}_{start_index}_{chunk_size}.json"
+        output_path = (
+            output_dir
+            / f"prover_input_info_{block_number}_{start_index}_{chunk_size}.json"
+        )
     else:
         output_path = output_dir / f"prover_input_info_{block_number}.json"
 
@@ -159,11 +164,15 @@ def trace(
     ):
         try:
             zkpi_path = data_dir / f"{block_number}.json"
-            program_input = load_zkpi_fixture(zkpi_path)
-
+            # Add chunk parameters for body step
             if step == Step.BODY:
-                program_input["start_index"] = start_index
-                program_input["chunk_size"] = chunk_size
+                program_input = load_body_input(
+                    zkpi_path=zkpi_path,
+                    start_index=start_index,
+                    chunk_size=chunk_size,
+                )
+            else:
+                program_input = load_zkpi_fixture(zkpi_path)
 
             run_generate_trace(
                 entrypoint="main",
@@ -314,19 +323,22 @@ def e2e(
 
     # For body step, include chunk info in the proof filename
     if step == Step.BODY:
-        proof_path = proof_path.parent / f"proof_body_{block_number}_{start_index}_{chunk_size}.json"
+        proof_path = (
+            proof_path.parent
+            / f"proof_body_{block_number}_{start_index}_{chunk_size}.json"
+        )
 
     with console.status(
         f"[bold green]Running pipeline for {step} step of block {block_number}..."
     ):
         try:
             zkpi_path = data_dir / f"{block_number}.json"
-            program_input = load_zkpi_fixture(zkpi_path)
 
             # Add chunk parameters for body step
             if step == Step.BODY:
-                program_input["start_index"] = start_index
-                program_input["chunk_size"] = chunk_size
+                program_input = load_body_input(zkpi_path, start_index, chunk_size)
+            else:
+                program_input = load_zkpi_fixture(zkpi_path)
 
             run_end_to_end(
                 "main",
