@@ -194,29 +194,6 @@ func main{
         block, chain.value.chain_id, excess_blob_gas, block_hashes
     );
 
-    // Commit to _apply_body_inner arguments instead of calling it
-    //
-    // func _apply_body_inner{
-    //     state: State,
-    //     transactions_trie: TrieBytesOptionalUnionBytesLegacyTransaction,
-    //     receipts_trie: TrieBytesOptionalUnionBytesReceipt,
-    // }(
-    //     index: felt, <- we don't commit to index
-    //     len: felt, <- we don't commit to len
-    //     transactions: TupleUnionBytesLegacyTransaction,
-    //     gas_available: Uint,
-    //     chain_id: U64,
-    //     base_fee_per_gas: Uint,
-    //     excess_blob_gas: U64,
-    //     block_logs: TupleLog,
-    //     block_hashes: ListHash32,
-    //     coinbase: Address,
-    //     block_number: Uint,
-    //     block_gas_limit: Uint,
-    //     block_time: U256,
-    //     prev_randao: Bytes32,
-    //     blob_gas_used: Uint,
-    // )
 
     // Finalize the state, getting unique keys for main and storage tries
     finalize_state{state=state}();
