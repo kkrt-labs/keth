@@ -9,7 +9,9 @@ from tests.utils.hash_utils import (
     Log__hash__,
     TupleLog__hash__,
     TupleUnionBytesLegacyTransaction__hash__,
+    TupleWithdrawal__hash__,
     UnionBytesLegacyTransaction__hash__,
+    Withdrawal__hash__,
 )
 
 
@@ -60,4 +62,16 @@ class TestHeader:
 class TestWithdrawal:
     @given(withdrawal=...)
     def test_Withdrawal__hash__(self, cairo_run, withdrawal: Withdrawal):
-        cairo_run("Withdrawal__hash__", withdrawal)
+        assert Withdrawal__hash__(withdrawal) == cairo_run(
+            "Withdrawal__hash__", withdrawal
+        )
+
+
+class TestTupleWithdrawal:
+    @given(withdrawal=...)
+    def test_TupleWithdrawal__hash__(
+        self, cairo_run, withdrawal: Tuple[Withdrawal, ...]
+    ):
+        assert TupleWithdrawal__hash__(withdrawal) == cairo_run(
+            "TupleWithdrawal__hash__", withdrawal
+        )

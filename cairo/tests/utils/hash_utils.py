@@ -109,3 +109,10 @@ def Withdrawal__hash__(withdrawal: Withdrawal) -> Hash32:
     acc.append(withdrawal.address + b"\x00" * 12)
     acc.append(withdrawal.amount.to_bytes(32, "little"))
     return hashlib.blake2s(b"".join(acc)).digest()
+
+
+def TupleWithdrawal__hash__(tuple_withdrawal: Tuple[Withdrawal, ...]) -> Hash32:
+    acc = []
+    for item in tuple_withdrawal:
+        acc.append(Withdrawal__hash__(item))
+    return hashlib.blake2s(b"".join(acc)).digest()

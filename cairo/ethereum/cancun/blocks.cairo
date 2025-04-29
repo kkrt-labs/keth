@@ -50,6 +50,34 @@ struct TupleWithdrawal {
     value: TupleWithdrawalStruct*,
 }
 
+func TupleWithdrawal__hash__{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
+    self: TupleWithdrawal
+) -> Hash32 {
+    alloc_locals;
+    let (acc) = alloc();
+    let acc_start = acc;
+    let index = 0;
+    _innerTupleWithdrawal__hash__{acc=acc, index=index}(self);
+    let n_bytes = 32 * self.value.len;
+    let (res) = blake2s(data=acc_start, n_bytes=n_bytes);
+    tempvar hash = Hash32(value=new res);
+    return hash;
+}
+
+func _innerTupleWithdrawal__hash__{
+    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, acc: felt*, index: felt
+}(self: TupleWithdrawal) {
+    if (index == self.value.len) {
+        return ();
+    }
+
+    let item = self.value.data[index];
+    let item_hash = Withdrawal__hash__(item);
+    blake2s_add_uint256{data=acc}([item_hash.value]);
+    let index = index + 1;
+    return _innerTupleWithdrawal__hash__(self);
+}
+
 struct HeaderStruct {
     parent_hash: Hash32,
     ommers_hash: Hash32,
