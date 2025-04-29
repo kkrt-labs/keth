@@ -8,10 +8,11 @@ from starkware.cairo.common.bitwise import BitwiseBuiltin
 from starkware.cairo.common.dict import DictAccess
 from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
 from starkware.cairo.common.memcpy import memcpy
+from starkware.cairo.common.registers import get_label_location
 
 from legacy.utils.bytes import uint256_to_bytes32_little
 from legacy.utils.dict import hashdict_read, hashdict_write, dict_new_empty, dict_read, dict_squash
-from ethereum.crypto.hash import hash_with
+from ethereum.crypto.hash import hash_with, EMPTY_ROOT_BLAKE2S, EMPTY_ROOT_KECCAK
 from ethereum.utils.numeric import min
 from ethereum_rlp.rlp import encode, _encode_bytes, _encode, Extended__eq__
 from ethereum.utils.numeric import U256__eq__
@@ -471,6 +472,61 @@ struct NodeEnum {
 
 struct Node {
     value: NodeEnum*,
+}
+
+namespace EthereumTriesImpl {
+    func from_transaction_trie(
+        trie: TrieBytesOptionalUnionBytesLegacyTransaction
+    ) -> EthereumTries {
+        tempvar result = EthereumTries(
+            new EthereumTriesEnum(
+                account=TrieAddressOptionalAccount(cast(0, TrieAddressOptionalAccountStruct*)),
+                storage=TrieBytes32U256(cast(0, TrieBytes32U256Struct*)),
+                transaction=trie,
+                receipt=TrieBytesOptionalUnionBytesReceipt(
+                    cast(0, TrieBytesOptionalUnionBytesReceiptStruct*)
+                ),
+                withdrawal=TrieBytesOptionalUnionBytesWithdrawal(
+                    cast(0, TrieBytesOptionalUnionBytesWithdrawalStruct*)
+                ),
+            ),
+        );
+        return result;
+    }
+
+    func from_receipt_trie(trie: TrieBytesOptionalUnionBytesReceipt) -> EthereumTries {
+        tempvar result = EthereumTries(
+            new EthereumTriesEnum(
+                account=TrieAddressOptionalAccount(cast(0, TrieAddressOptionalAccountStruct*)),
+                storage=TrieBytes32U256(cast(0, TrieBytes32U256Struct*)),
+                transaction=TrieBytesOptionalUnionBytesLegacyTransaction(
+                    cast(0, TrieBytesOptionalUnionBytesLegacyTransactionStruct*)
+                ),
+                receipt=trie,
+                withdrawal=TrieBytesOptionalUnionBytesWithdrawal(
+                    cast(0, TrieBytesOptionalUnionBytesWithdrawalStruct*)
+                ),
+            ),
+        );
+        return result;
+    }
+
+    func from_withdrawal_trie(trie: TrieBytesOptionalUnionBytesWithdrawal) -> EthereumTries {
+        tempvar result = EthereumTries(
+            new EthereumTriesEnum(
+                account=TrieAddressOptionalAccount(cast(0, TrieAddressOptionalAccountStruct*)),
+                storage=TrieBytes32U256(cast(0, TrieBytes32U256Struct*)),
+                transaction=TrieBytesOptionalUnionBytesLegacyTransaction(
+                    cast(0, TrieBytesOptionalUnionBytesLegacyTransactionStruct*)
+                ),
+                receipt=TrieBytesOptionalUnionBytesReceipt(
+                    cast(0, TrieBytesOptionalUnionBytesReceiptStruct*)
+                ),
+                withdrawal=trie,
+            ),
+        );
+        return result;
+    }
 }
 
 func encode_internal_node{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: felt*}(
@@ -1208,13 +1264,42 @@ func _prepare_trie{
         raise('Missing Storage Roots');
     }
     let account_trie = trie_union.value.account;
-    _prepare_trie_inner_account(
+    let storage_roots = MappingAddressBytes32(storage_roots_.value);
+    let mapping_ptr_end = _prepare_trie_inner_account{storage_roots=storage_roots}(
         account_trie,
         account_trie.value._data.value.dict_ptr_start,
         mapping_ptr_start,
-        MappingAddressBytes32(storage_roots_.value),
         hash_function_name,
     );
+    local empty_root_ptr: felt*;
+    if (hash_function_name == 'keccak256') {
+        let (ptr) = get_label_location(EMPTY_ROOT_KECCAK);
+        assert empty_root_ptr = ptr;
+    } else {
+        let (ptr) = get_label_location(EMPTY_ROOT_BLAKE2S);
+        assert empty_root_ptr = ptr;
+    }
+    // We must finalize with the default_value from the default dict itself
+    // Otherwise we'll try and compare the empty_root_ptr with the default_value ptr
+    // Which point to the same value but are different pointers
+    local default_value: felt*;
+    tempvar dict_ptr = storage_roots.value.dict_ptr;
+    %{ get_default_value %}
+    assert [default_value] = [empty_root_ptr];
+    assert [default_value + 1] = [empty_root_ptr + 1];
+    // Finalize the storage roots mapping for soundness
+    default_dict_finalize(
+        cast(storage_roots.value.dict_ptr_start, DictAccess*),
+        cast(storage_roots.value.dict_ptr, DictAccess*),
+        cast(default_value, felt),
+    );
+
+    // Rearrange the stack to match the expected order
+    tempvar range_check_ptr = range_check_ptr;
+    tempvar bitwise_ptr = bitwise_ptr;
+    tempvar keccak_ptr = keccak_ptr;
+    tempvar poseidon_ptr = poseidon_ptr;
+    tempvar mapping_ptr_end = mapping_ptr_end;
     jmp end;
 
     storage:
@@ -1281,12 +1366,15 @@ func _prepare_trie{
 }
 
 func _prepare_trie_inner_account{
-    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: felt*, poseidon_ptr: PoseidonBuiltin*
+    range_check_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    keccak_ptr: felt*,
+    poseidon_ptr: PoseidonBuiltin*,
+    storage_roots: MappingAddressBytes32,
 }(
     trie: TrieAddressOptionalAccount,
     dict_ptr: AddressAccountDictAccess*,
     mapping_ptr_end: BytesBytesDictAccess*,
-    storage_roots_: MappingAddressBytes32,
     hash_function_name: felt,
 ) -> BytesBytesDictAccess* {
     alloc_locals;
@@ -1297,16 +1385,12 @@ func _prepare_trie_inner_account{
 
     // Skip all None values, which are deleted trie entries
     if (cast(dict_ptr.new_value.value, felt) == 0) {
-        return _prepare_trie_inner_account(
-            trie,
-            dict_ptr + AddressAccountDictAccess.SIZE,
-            mapping_ptr_end,
-            storage_roots_,
-            hash_function_name,
+        return _prepare_trie_inner_account{storage_roots=storage_roots}(
+            trie, dict_ptr + AddressAccountDictAccess.SIZE, mapping_ptr_end, hash_function_name
         );
     }
 
-    let storage_root = mapping_address_bytes32_read{mapping=storage_roots_}(dict_ptr.key);
+    let storage_root = mapping_address_bytes32_read{mapping=storage_roots}(dict_ptr.key);
     let preimage = Bytes20_to_Bytes(dict_ptr.key);
     let value = dict_ptr.new_value;
 
@@ -1354,11 +1438,10 @@ func _prepare_trie_inner_account{
         nibbles_list.value.len, nibbles_list.value.data, cast(encoded_value.value, felt)
     );
 
-    return _prepare_trie_inner_account(
+    return _prepare_trie_inner_account{storage_roots=storage_roots}(
         trie,
         dict_ptr + AddressAccountDictAccess.SIZE,
         cast(mapping_dict_ptr, BytesBytesDictAccess*),
-        storage_roots_,
         hash_function_name,
     );
 }
@@ -2279,4 +2362,68 @@ func mapping_address_bytes32_read{range_check_ptr, mapping: MappingAddressBytes3
         ),
     );
     return value;
+}
+
+func init_tries() -> (
+    transactions_trie: TrieBytesOptionalUnionBytesLegacyTransaction,
+    receipts_trie: TrieBytesOptionalUnionBytesReceipt,
+    withdrawals_trie: TrieBytesOptionalUnionBytesWithdrawal,
+) {
+    alloc_locals;
+
+    let (transaction_ptr) = default_dict_new(0);
+    tempvar transactions_trie_data = MappingBytesOptionalUnionBytesLegacyTransaction(
+        new MappingBytesOptionalUnionBytesLegacyTransactionStruct(
+            dict_ptr_start=cast(
+                transaction_ptr, BytesOptionalUnionBytesLegacyTransactionDictAccess*
+            ),
+            dict_ptr=cast(transaction_ptr, BytesOptionalUnionBytesLegacyTransactionDictAccess*),
+            parent_dict=cast(0, MappingBytesOptionalUnionBytesLegacyTransactionStruct*),
+        ),
+    );
+    tempvar transactions_trie = TrieBytesOptionalUnionBytesLegacyTransaction(
+        new TrieBytesOptionalUnionBytesLegacyTransactionStruct(
+            secured=bool(0),
+            default=OptionalUnionBytesLegacyTransaction(cast(0, UnionBytesLegacyTransactionEnum*)),
+            _data=transactions_trie_data,
+        ),
+    );
+
+    let (receipt_ptr) = default_dict_new(0);
+    tempvar receipts_trie_data = MappingBytesOptionalUnionBytesReceipt(
+        new MappingBytesOptionalUnionBytesReceiptStruct(
+            dict_ptr_start=cast(receipt_ptr, BytesOptionalUnionBytesReceiptDictAccess*),
+            dict_ptr=cast(receipt_ptr, BytesOptionalUnionBytesReceiptDictAccess*),
+            parent_dict=cast(0, MappingBytesOptionalUnionBytesReceiptStruct*),
+        ),
+    );
+    tempvar receipts_trie = TrieBytesOptionalUnionBytesReceipt(
+        new TrieBytesOptionalUnionBytesReceiptStruct(
+            secured=bool(0),
+            default=OptionalUnionBytesReceipt(cast(0, UnionBytesReceiptEnum*)),
+            _data=receipts_trie_data,
+        ),
+    );
+
+    let (withdrawals_ptr) = default_dict_new(0);
+    tempvar withdrawals_trie_data = MappingBytesOptionalUnionBytesWithdrawal(
+        new MappingBytesOptionalUnionBytesWithdrawalStruct(
+            dict_ptr_start=cast(withdrawals_ptr, BytesOptionalUnionBytesWithdrawalDictAccess*),
+            dict_ptr=cast(withdrawals_ptr, BytesOptionalUnionBytesWithdrawalDictAccess*),
+            parent_dict=cast(0, MappingBytesOptionalUnionBytesWithdrawalStruct*),
+        ),
+    );
+    tempvar withdrawals_trie = TrieBytesOptionalUnionBytesWithdrawal(
+        new TrieBytesOptionalUnionBytesWithdrawalStruct(
+            secured=bool(0),
+            default=OptionalUnionBytesWithdrawal(cast(0, UnionBytesWithdrawalEnum*)),
+            _data=withdrawals_trie_data,
+        ),
+    );
+
+    return (
+        transactions_trie=transactions_trie,
+        receipts_trie=receipts_trie,
+        withdrawals_trie=withdrawals_trie,
+    );
 }
