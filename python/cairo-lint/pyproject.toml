@@ -18,6 +18,9 @@ dev = ["pytest>=7.0.0"]
 [project.scripts]
 cairo-lint = "cairo_lint.main:app"
 
+[tool.cairo-lint]
+exclude_dirs = ["tests/test_data"]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

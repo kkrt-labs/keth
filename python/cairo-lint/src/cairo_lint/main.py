@@ -3,6 +3,7 @@ import re
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
 
+import toml
 import typer
 from rich.console import Console
 
@@ -445,6 +446,37 @@ def find_identifier_usages(identifier: str, code_body: str) -> int:
 def find_cairo_files(paths: List[Path]) -> List[Path]:
     """Recursively find all .cairo files in the given paths."""
     cairo_files = []
+
+    # Load exclude directories from pyproject.toml if it exists
+    exclude_dirs = []
+    try:
+        # Find pyproject.toml by searching up from the current directory
+        root_dir = Path.cwd()
+        pyproject_path = None
+
+        # Try to find pyproject.toml by walking up directories
+        current = root_dir
+        while current != current.parent:
+            candidate = current / "pyproject.toml"
+            if candidate.exists():
+                pyproject_path = candidate
+                break
+            current = current.parent
+
+        if pyproject_path:
+            pyproject = toml.load(pyproject_path)
+            if "tool" in pyproject and "cairo-lint" in pyproject["tool"]:
+                if "exclude_dirs" in pyproject["tool"]["cairo-lint"]:
+                    exclude_dirs = [
+                        os.path.normpath(os.path.join(pyproject_path.parent, d))
+                        for d in pyproject["tool"]["cairo-lint"]["exclude_dirs"]
+                    ]
+                    console.print(f"[blue]Excluding directories: {exclude_dirs}[/]")
+    except Exception as e:
+        console.print(
+            f"[yellow]Warning: Failed to load exclude_dirs from pyproject.toml: {e}[/]"
+        )
+
     for path in paths:
         if path.is_file():
             if path.suffix == ".cairo":
@@ -452,10 +484,20 @@ def find_cairo_files(paths: List[Path]) -> List[Path]:
             else:
                 console.print(f"[yellow]Warning: Skipping non-Cairo file: {path}[/]")
         elif path.is_dir():
-            for root, _, files in os.walk(path):
+            for root, dirs, files in os.walk(path):
+                root_path = Path(root)
+
+                # Skip excluded directories
+                if any(
+                    os.path.normpath(str(root_path)).startswith(excluded)
+                    for excluded in exclude_dirs
+                ):
+                    dirs[:] = []  # Skip all subdirectories
+                    continue
+
                 for file in files:
                     if file.endswith(".cairo"):
-                        cairo_files.append(Path(root) / file)
+                        cairo_files.append(root_path / file)
         else:
             console.print(f"[yellow]Warning: Path not found: {path}[/]")
     return cairo_files
