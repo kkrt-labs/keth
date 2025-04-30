@@ -288,6 +288,7 @@ def prepare_body_input(
     Trie(secured=False, default=None, _data=defaultdict(lambda: None))
     block_logs: Tuple[Log, ...] = ()
 
+    # EELS expects code of accounts without code to be an empty bytearray.
     for address, account in state._main_trie._data.items():
         if account and not account.code:
             state._main_trie._data[address] = Account(
@@ -409,6 +410,8 @@ def prepare_body_input(
     #     if account_exists_and_is_empty(state, wd.address):
     #         destroy_account(state, wd.address)
 
+    # Cairo expects code of accounts to be initially None, as they're lazily loaded
+    # during execution.
     for address, account in state._main_trie._data.items():
         if account and account.code_hash == EMPTY_BYTES_HASH:
             state._main_trie._data[address] = Account(
