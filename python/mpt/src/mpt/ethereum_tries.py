@@ -18,8 +18,8 @@ from ethereum.crypto.hash import Hash32, keccak256
 from ethereum_rlp import rlp
 from ethereum_types.bytes import Bytes, Bytes20, Bytes32
 from ethereum_types.numeric import U256, Uint
-from keth_types.types import EMPTY_BYTES_HASH, EMPTY_TRIE_HASH
 
+from keth_types.types import EMPTY_BYTES_HASH, EMPTY_TRIE_HASH
 from mpt.utils import decode_node, deserialize_to_internal_node, nibble_list_to_bytes
 
 logger = logging.getLogger(__name__)
@@ -370,6 +370,23 @@ class PreState:
                 # If the account is not present in the preState data, we want it explicitly set to NONE instead of being a non-existent entry.
                 # This is very important for the args_gen purpose, as we need all touched accounts to be present in the initial state dict.
                 pre_state._main_trie._data[address] = None
+
+                # If this account has storage that will be accessed or initialized, we need to add it to the storage tries.
+                # Find the access list entry for this address if it exists
+                access_entry = next(
+                    (
+                        entry
+                        for entry in data["extra"]["accessList"]
+                        if entry["address"] == address_hex
+                    ),
+                    None,
+                )
+                if access_entry:
+                    for storage_key in access_entry["storageKeys"]:
+                        storage_key_bytes = Bytes32.fromhex(storage_key[2:])
+                        pre_state._storage_tries[address]._data[
+                            storage_key_bytes
+                        ] = None
                 continue
 
             # Initialize the account
