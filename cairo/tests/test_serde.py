@@ -379,7 +379,9 @@ class TestSerde:
     ):
         base = segments.gen_arg([gen_arg(type(err), err)])
         result = serde.serialize(to_cairo_type(type(err)), base, shift=0)
-        assert issubclass(result.__class__, Exception)
+        assert type(result) is type(err)
+        if hasattr(err, "message"):
+            assert result.message == err.message
 
     @pytest.mark.parametrize(
         "error_type",

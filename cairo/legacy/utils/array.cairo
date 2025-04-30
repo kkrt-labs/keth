@@ -1,4 +1,3 @@
-from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.math_cmp import is_not_zero
 
 func reverse(dst: felt*, arr_len: felt, arr: felt*) {

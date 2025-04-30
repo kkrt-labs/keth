@@ -1,6 +1,5 @@
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, ModBuiltin, PoseidonBuiltin
-from starkware.cairo.common.math_cmp import is_le_felt
-from ethereum_types.bytes import Bytes, Bytes32, BytesStruct, Bytes48
+from ethereum_types.bytes import Bytes48
 from ethereum_types.numeric import Uint, U256, U256Struct
 from ethereum.cancun.vm.evm_impl import Evm, EvmImpl
 from ethereum.cancun.vm.exceptions import KZGProofError

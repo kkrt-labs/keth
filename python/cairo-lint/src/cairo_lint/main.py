@@ -23,8 +23,9 @@ DISABLE_FILE_COMMENT = "// cairo-lint: disable-file"
 # --- Regex Patterns ---
 # Matches: from path.to.module import identifier
 # Matches: from path.to.module import identifier1, identifier2, identifier3
+# Matches: from path.to.module import identifier1 as alias1, identifier2 as alias2
 # Captures: 1=module path, 2=identifiers string
-SINGLE_IMPORT_RE = re.compile(r"^\s*from\s+([\w.]+)\s+import\s+([\w\s,]+)\s*")
+SINGLE_IMPORT_RE = re.compile(r"^\s*from\s+([\w.]+)\s+import\s+([\w\s,]+(?:\s+as\s+\w+\s*,?\s*)*)\s*")
 
 # Matches: from path.to.module import (
 # Captures: 1=module path

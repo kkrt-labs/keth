@@ -1,6 +1,4 @@
-from starkware.cairo.common.cairo_builtins import HashBuiltin, UInt384, ModBuiltin
-from starkware.cairo.common.uint256 import Uint256
-from starkware.cairo.common.alloc import alloc
+from starkware.cairo.common.cairo_builtins import ModBuiltin
 
 from cairo_ec.uint384 import (
     uint384_assert_le,

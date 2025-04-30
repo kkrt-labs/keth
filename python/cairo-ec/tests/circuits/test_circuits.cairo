@@ -1,8 +1,7 @@
+// cairo-lint: disable-file
 from starkware.cairo.common.cairo_builtins import ModBuiltin, UInt384
-from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.memcpy import memcpy
 from starkware.cairo.common.modulo import run_mod_p_circuit
-from cairo_ec.curve.g1_point import G1Point
 from cairo_core.numeric import U384
 
 from cairo_ec.circuits.mod_ops import (

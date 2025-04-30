@@ -30,8 +30,8 @@ from ethereum.utils.numeric import (
     U384_ONE,
     U384__eq__,
     Bytes32_from_be_bytes,
-    U384Struct,
 )
+from ethereum_types.numeric import U384Struct
 from ethereum.crypto.bls12_381 import (
     blsf_mul,
     BLSF_ONE,

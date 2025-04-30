@@ -1,7 +1,6 @@
 %builtins range_check
 
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.uint256 import Uint256
 
 from cairo_core.numeric import U256
 from cairo_core.bytes import Bytes

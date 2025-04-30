@@ -1,12 +1,7 @@
 // SPDX-License-Identifier: MIT
 
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.cairo_builtins import (
-    HashBuiltin,
-    BitwiseBuiltin,
-    PoseidonBuiltin,
-    ModBuiltin,
-)
+from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, PoseidonBuiltin, ModBuiltin
 from starkware.cairo.common.registers import get_fp_and_pc, get_label_location
 from starkware.cairo.common.bool import FALSE
 from ethereum.exceptions import EthereumException
@@ -19,7 +14,7 @@ from ethereum.utils.numeric import divmod
 from ethereum_types.numeric import Uint
 
 from legacy.utils.utils import Helpers
-from legacy.utils.bytes import felt_to_bytes_little, bytes_to_felt
+from legacy.utils.bytes import bytes_to_felt
 
 func blake2f{
     range_check_ptr,

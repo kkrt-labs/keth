@@ -1,5 +1,5 @@
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.bool import TRUE, FALSE
+from starkware.cairo.common.bool import FALSE
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, PoseidonBuiltin, ModBuiltin
 from starkware.cairo.common.default_dict import default_dict_new
 from starkware.cairo.common.dict_access import DictAccess
@@ -21,19 +21,13 @@ from ethereum.cancun.fork_types import (
 
 from ethereum.cancun.trie import TrieTupleAddressBytes32U256, TrieTupleAddressBytes32U256Struct
 from ethereum.cancun.vm.evm_impl import Evm, EvmStruct, Message
-from ethereum.cancun.vm.env_impl import (
-    Environment,
-    EnvironmentStruct,
-    EnvImpl,
-    finalize_transient_storage,
-)
+from ethereum.cancun.vm.env_impl import Environment, EnvImpl
 
-from ethereum.cancun.utils.constants import STACK_DEPTH_LIMIT, MAX_CODE_SIZE
+from ethereum.cancun.utils.constants import MAX_CODE_SIZE
+from ethereum.exceptions import EthereumException
 from ethereum.cancun.vm.exceptions import (
-    EthereumException,
     InvalidContractPrefix,
     OutOfGasError,
-    StackDepthLimitError,
     Revert,
     AddressCollision,
 )
@@ -45,6 +39,7 @@ from ethereum.cancun.vm.runtime import get_valid_jump_destinations, finalize_jum
 from ethereum.cancun.vm.stack import Stack, StackStruct, StackDictAccess
 from ethereum.utils.numeric import U256, U256Struct, U256__eq__
 from ethereum.cancun.state import (
+    finalize_transient_storage,
     destroy_account,
     StateImpl,
     account_exists_and_is_empty,
@@ -52,7 +47,6 @@ from ethereum.cancun.state import (
     account_has_storage,
     begin_transaction,
     commit_transaction,
-    destroy_storage,
     increment_nonce,
     mark_account_created,
     move_ether,
@@ -64,7 +58,6 @@ from ethereum.cancun.state import (
 )
 
 from ethereum.cancun.vm.evm_impl import EvmImpl
-from mpt.types import EMPTY_TRIE_HASH_LOW, EMPTY_TRIE_HASH_HIGH
 
 from legacy.utils.dict import hashdict_write, default_dict_finalize, dict_squash
 

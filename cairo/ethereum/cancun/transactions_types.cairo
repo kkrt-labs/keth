@@ -2,7 +2,7 @@ from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 from starkware.cairo.common.alloc import alloc
 
 from ethereum_types.bytes import Bytes, Bytes0, TupleBytes32, BytesStruct
-from ethereum_types.numeric import Uint, U256, U64, bool, U256Struct
+from ethereum_types.numeric import U256, U64, Uint
 from ethereum.cancun.fork_types import Address, TupleVersionedHash
 from ethereum.crypto.hash import Hash32
 from ethereum.utils.numeric import U256__hash__, Uint__hash__

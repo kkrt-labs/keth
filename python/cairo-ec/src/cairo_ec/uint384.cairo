@@ -1,10 +1,9 @@
 from starkware.cairo.common.cairo_builtins import UInt384, ModBuiltin
-from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
 from starkware.cairo.common.uint256 import Uint256
 
 from cairo_core.maths import unsigned_div_rem
 from cairo_ec.circuits.mod_ops_compiled import assert_eq, assert_neg, assert_neq, assert_not_neg
-from cairo_core.numeric import U384, U384Struct
+from cairo_core.numeric import U384
 
 const STARK_MIN_ONE_D2 = 0x800000000000011;
 

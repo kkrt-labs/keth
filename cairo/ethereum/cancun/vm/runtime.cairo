@@ -5,8 +5,6 @@ from starkware.cairo.common.math_cmp import is_in_range, is_nn
 from ethereum_types.bytes import Bytes, BytesStruct
 from ethereum_types.numeric import SetUint, SetUintStruct, SetUintDictAccess
 
-from cairo_core.maths import unsigned_div_rem
-
 // @notice Initializes a dictionary of valid jump destinations in EVM bytecode.
 // @dev This function is an oracle and doesn't enforce anything. During the EVM execution, the prover
 // commits to the valid or invalid jumpdest responses, and the verifier checks the response in the

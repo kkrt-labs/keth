@@ -6,10 +6,6 @@ from starkware.cairo.common.cairo_builtins import (
     SignatureBuiltin,
     EcOpBuiltin,
 )
-from ethereum.cancun.fork import state_transition, BlockChain, Block, keccak256_header
-from ethereum_types.bytes import Bytes32
-from ethereum.utils.bytes import Bytes32_to_Bytes
-from mpt.trie_diff import OptionalUnionInternalNodeExtendedImpl
 
 from ethereum.cancun.keth.main import main
 

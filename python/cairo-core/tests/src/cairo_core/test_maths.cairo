@@ -1,9 +1,6 @@
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 from cairo_core.maths import (
-    sign,
     assert_uint256_le,
-    pow2,
-    pow256,
     felt252_to_bytes_le,
     felt252_to_bytes_be,
     felt252_to_bits_rev,

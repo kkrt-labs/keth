@@ -1,3 +1,4 @@
+// cairo-lint: disable-file
 from cairo_core.numeric import (
     U256,
     U256Struct,

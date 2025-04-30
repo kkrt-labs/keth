@@ -98,7 +98,7 @@ def map_to_python_exception(e: Exception) -> None:
         except (ValueError, UnicodeDecodeError):
             pass
 
-    exception_class = _find_exception_class(potential_type_name)
+    exception_class = find_exception_class(potential_type_name)
 
     if (
         exception_class
@@ -126,7 +126,7 @@ def map_to_python_exception(e: Exception) -> None:
     raise Exception(error_content_decoded) from e
 
 
-def _find_exception_class(name: str) -> Optional[Type[Exception]]:
+def find_exception_class(name: str) -> Optional[Type[Exception]]:
     """Looks up an exception class by name in predefined modules."""
     import ethereum.exceptions as eth_exceptions
     import ethereum_rlp.exceptions as rlp_exceptions

@@ -3,12 +3,7 @@ from starkware.cairo.common.registers import get_label_location
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.default_dict import default_dict_new
 from starkware.cairo.common.registers import get_fp_and_pc
-from starkware.cairo.common.math import assert_not_zero
-from starkware.cairo.common.uint256 import Uint256
-from legacy.utils.uint256 import uint256_add, uint256_sub
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.memcpy import memcpy
-from starkware.cairo.common.math_cmp import is_not_zero
 from ethereum.cancun.fork_types import (
     Address,
     Account,
@@ -23,16 +18,11 @@ from ethereum.cancun.fork_types import (
     SetAddress,
     SetAddressStruct,
     SetAddressDictAccess,
-    SetTupleAddressBytes32,
-    SetTupleAddressBytes32Struct,
-    SetTupleAddressBytes32DictAccess,
     EMPTY_ACCOUNT,
     MappingTupleAddressBytes32U256,
     MappingTupleAddressBytes32U256Struct,
-    Account__eq__,
     account_eq_without_storage_root,
     TupleAddressBytes32U256DictAccess,
-    HashedTupleAddressBytes32,
     TupleAddressBytes32,
     ListTupleAddressBytes32,
     ListTupleAddressBytes32Struct,
@@ -58,7 +48,6 @@ from ethereum.cancun.trie import (
     Bytes32U256DictAccess,
     MappingBytes32U256,
     MappingBytes32U256Struct,
-    trie_get_TrieBytes32U256,
     trie_set_TrieBytes32U256,
     trie_get_TrieAddressOptionalAccount,
     trie_set_TrieAddressOptionalAccount,
@@ -71,7 +60,7 @@ from ethereum.cancun.trie import (
 from ethereum.cancun.blocks import Withdrawal
 from ethereum_types.bytes import Bytes, Bytes32, Bytes32Struct, BytesStruct, OptionalBytes
 from ethereum.crypto.hash import EMPTY_ROOT_KECCAK, EMPTY_ROOT_BLAKE2S
-from ethereum_types.numeric import U256, U256Struct, Bool, bool, Uint
+from ethereum_types.numeric import U256, U256Struct, Uint, bool
 from ethereum.utils.numeric import U256_le, U256_sub, U256_add, U256_mul
 from ethereum.cancun.utils.constants import U256_ZERO
 from cairo_core.comparison import is_zero
@@ -79,10 +68,8 @@ from cairo_core.control_flow import raise
 
 from legacy.utils.dict import (
     dict_read,
-    hashdict_read,
     dict_write,
     hashdict_write,
-    dict_new_empty,
     dict_update,
     dict_copy,
     default_dict_finalize,

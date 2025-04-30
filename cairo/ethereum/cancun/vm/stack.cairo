@@ -1,5 +1,4 @@
 from ethereum_types.numeric import U256, U256Struct
-from ethereum_types.bytes import BytesStruct, Bytes
 from starkware.cairo.common.dict import DictAccess
 from ethereum.exceptions import EthereumException
 from ethereum.cancun.vm.exceptions import StackOverflowError, StackUnderflowError

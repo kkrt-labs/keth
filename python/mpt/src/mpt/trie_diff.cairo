@@ -11,25 +11,13 @@ from ethereum.cancun.fork_types import (
     Account__eq__,
     OptionalAddress,
     Address,
-    Account,
     AccountStruct,
     account_eq_without_storage_root,
     OptionalAccount,
-    TupleAddressBytes32U256DictAccess,
     HashedTupleAddressBytes32,
 )
-from ethereum_types.bytes import (
-    Bytes,
-    OptionalBytes,
-    Bytes32,
-    Bytes32Struct,
-    OptionalBytes32,
-    BytesStruct,
-    HashedBytes32,
-    String,
-    StringStruct,
-)
-from ethereum.utils.bytes import Bytes20_to_Bytes, Bytes32_to_Bytes
+from ethereum_types.bytes import Bytes, Bytes32, Bytes32Struct, BytesStruct, String, StringStruct
+from ethereum.utils.bytes import Bytes20_to_Bytes
 from cairo_core.numeric import U256, Uint, U256Struct, Bool, bool, OptionalU256
 from ethereum.cancun.trie import (
     LeafNode,
@@ -42,12 +30,10 @@ from ethereum.cancun.trie import (
     BranchNodeStruct,
     BranchNode__eq__,
     Subnodes,
-    SubnodesStruct,
     InternalNode,
     OptionalLeafNode,
     OptionalInternalNode,
     InternalNodeEnum,
-    Bytes32U256DictAccess,
     nibble_list_to_bytes,
 )
 from ethereum_rlp.rlp import (
@@ -60,22 +46,12 @@ from ethereum_rlp.rlp import (
     SequenceExtendedStruct,
     ExtendedImpl,
     Extended__eq__,
-    SequenceExtended__eq__,
 )
 
-from starkware.cairo.common.builtin_poseidon.poseidon import poseidon_hash, poseidon_hash_many
-from legacy.utils.bytes import felt_to_bytes20_little
-from legacy.utils.dict import hashdict_read, hashdict_write, dict_new_empty, dict_read
+from starkware.cairo.common.builtin_poseidon.poseidon import poseidon_hash_many
+from legacy.utils.dict import hashdict_read
 from cairo_core.control_flow import raise
-from ethereum.utils.numeric import (
-    ceil32,
-    divmod,
-    U256_from_be_bytes,
-    U256_le,
-    Uint_from_be_bytes,
-    U256__eq__,
-    OptionalU256__eq__,
-)
+from ethereum.utils.numeric import OptionalU256__eq__
 from ethereum.utils.bytes import (
     Bytes_to_Bytes32,
     Bytes__add__,

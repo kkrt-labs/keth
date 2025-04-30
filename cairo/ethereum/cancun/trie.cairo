@@ -1,6 +1,6 @@
 from starkware.cairo.common.cairo_builtins import PoseidonBuiltin
 from starkware.cairo.common.default_dict import default_dict_new
-from starkware.cairo.common.builtin_poseidon.poseidon import poseidon_hash, poseidon_hash_many
+from starkware.cairo.common.builtin_poseidon.poseidon import poseidon_hash_many
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.math_cmp import is_le
 from starkware.cairo.common.math import assert_not_zero
@@ -14,19 +14,16 @@ from legacy.utils.bytes import uint256_to_bytes32_little
 from legacy.utils.dict import hashdict_read, hashdict_write, dict_new_empty, dict_read, dict_squash
 from ethereum.crypto.hash import hash_with, EMPTY_ROOT_BLAKE2S, EMPTY_ROOT_KECCAK
 from ethereum.utils.numeric import min
-from ethereum_rlp.rlp import encode, _encode_bytes, _encode, Extended__eq__
+from ethereum_rlp.rlp import Extended__eq__, encode
 from ethereum.utils.numeric import U256__eq__
 from ethereum_types.numeric import U256, Uint, bool, U256Struct
 from ethereum_types.bytes import (
     HashedBytes,
     HashedBytes32,
     Bytes,
-    Bytes20,
     BytesStruct,
     Bytes32,
     Bytes32Struct,
-    StringStruct,
-    String,
     MappingBytesBytes,
     MappingBytesBytesStruct,
     BytesBytesDictAccess,
@@ -38,19 +35,15 @@ from ethereum.cancun.blocks import (
     ReceiptStruct,
     Withdrawal,
     WithdrawalStruct,
-    UnionBytesLegacyTransaction,
     UnionBytesLegacyTransactionEnum,
     OptionalUnionBytesLegacyTransaction,
-    UnionBytesReceipt,
     UnionBytesReceiptEnum,
     OptionalUnionBytesReceipt,
-    UnionBytesWithdrawal,
     UnionBytesWithdrawalEnum,
     OptionalUnionBytesWithdrawal,
 )
 from ethereum.cancun.fork_types import (
     Account,
-    Account__eq__,
     AccountStruct,
     Address,
     OptionalAccount,
@@ -73,7 +66,6 @@ from ethereum_rlp.rlp import (
     Extended,
     SequenceExtended,
     SequenceExtendedStruct,
-    ExtendedEnum,
     ExtendedImpl,
     encode_account,
     encode_legacy_transaction,
@@ -82,7 +74,6 @@ from ethereum_rlp.rlp import (
     encode_uint,
     encode_u256,
 )
-from ethereum.utils.numeric import divmod
 from ethereum.utils.bytes import Bytes32_to_Bytes, Bytes20_to_Bytes, Bytes_to_Bytes32, Bytes__eq__
 
 from legacy.utils.dict import default_dict_finalize

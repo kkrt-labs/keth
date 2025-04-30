@@ -1,7 +1,5 @@
-from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, PoseidonBuiltin, ModBuiltin
 from starkware.cairo.common.math_cmp import is_le_felt
-from starkware.cairo.common.memset import memset
 from ethereum.cancun.vm.evm_impl import Evm, EvmImpl
 from ethereum.exceptions import EthereumException
 from ethereum.cancun.vm.exceptions import OutOfGasError
@@ -9,11 +7,9 @@ from ethereum.utils.numeric import ceil32
 from ethereum.utils.bytes import Bytes4, Bytes_to_be_ListBytes4, ListBytes4_be_to_bytes
 from ethereum.cancun.vm.gas import GasConstants, charge_gas
 from ethereum_types.numeric import Uint
-from ethereum_types.bytes import Bytes, BytesStruct, ListBytes4, ListBytes4Struct
+from ethereum_types.bytes import ListBytes4, ListBytes4Struct
 
-from legacy.utils.utils import Helpers
 from cairo_core.hash.sha256 import sha256_be_output
-from cairo_core.maths import unsigned_div_rem
 
 // @notice Writes the sha256 hash to output.
 func sha256{

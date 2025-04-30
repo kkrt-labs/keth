@@ -1,6 +1,7 @@
 ---
 description: Cairo Imports
 globs: *.cairo
+alwaysApply: false
 ---
 # Imports
 
@@ -34,7 +35,7 @@ This file is a non-exhaustive list of some common imports and their usage.
   - Import: `from ethereum.cancun.vm.memory import Memory`
 - `ethereum/cancun/vm/exceptions`: EVM error types
   - Used in: Error handling across the codebase
-  - Import: `from ethereum.cancun.vm.exceptions import EthereumException, OutOfGasError`
+  - Import: `from ethereum.cancun.vm.exceptions import OutOfGasError`
 
 ## Import Patterns
 - Only use absolute imports

@@ -1,5 +1,4 @@
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, PoseidonBuiltin, ModBuiltin
-from starkware.cairo.common.uint256 import uint256_reverse_endian
 
 from ethereum.cancun.vm.stack import pop, push
 from ethereum.cancun.vm.evm_impl import Evm, EvmImpl
@@ -7,9 +6,9 @@ from ethereum.exceptions import EthereumException
 from ethereum.cancun.vm.exceptions import OutOfGasError
 from ethereum.cancun.vm.memory import memory_read_bytes, expand_by
 from ethereum.cancun.vm.gas import calculate_gas_extend_memory, charge_gas, GasConstants
-from ethereum_types.numeric import U256, U256Struct, Uint
+from ethereum_types.numeric import Uint
 from ethereum.crypto.hash import keccak256
-from ethereum.utils.numeric import ceil32, divmod, U256_from_be_bytes32
+from ethereum.utils.numeric import U256_from_be_bytes32, ceil32
 from ethereum_types.others import (
     ListTupleU256U256,
     ListTupleU256U256Struct,

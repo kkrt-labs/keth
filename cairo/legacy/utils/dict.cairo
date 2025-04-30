@@ -1,19 +1,13 @@
 from starkware.cairo.common.cairo_builtins import PoseidonBuiltin
 from starkware.cairo.common.default_dict import default_dict_finalize_inner
-from starkware.cairo.common.builtin_poseidon.poseidon import poseidon_hash, poseidon_hash_many
+from starkware.cairo.common.builtin_poseidon.poseidon import poseidon_hash_many
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.bool import FALSE
 from starkware.cairo.common.memcpy import memcpy
 from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
 from starkware.cairo.common.squash_dict import squash_dict
-from starkware.cairo.common.uint256 import Uint256
 from cairo_core.comparison import is_zero, is_not_zero
-from ethereum.cancun.fork_types import (
-    ListTupleAddressBytes32,
-    ListTupleAddressBytes32Struct,
-    TupleAddressBytes32,
-)
 
 // @ notice: Creates a new, empty dict, does not require an `initial_dict` argument.
 func dict_new_empty() -> (res: DictAccess*) {

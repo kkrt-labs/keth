@@ -1,22 +1,14 @@
-from starkware.cairo.common.cairo_builtins import (
-    BitwiseBuiltin,
-    HashBuiltin,
-    ModBuiltin,
-    PoseidonBuiltin,
-)
+from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, ModBuiltin, PoseidonBuiltin
 from starkware.cairo.common.uint256 import Uint256, uint256_reverse_endian
-from ethereum_types.bytes import Bytes, Bytes32, BytesStruct
-from ethereum.cancun.fork_types import Address, Address_from_felt_be
-from cairo_ec.curve.secp256k1 import try_recover_public_key, secp256k1
-from cairo_ec.uint384 import uint256_to_uint384, uint384_to_uint256
-from cairo_core.maths import assert_uint256_le
-from ethereum_types.numeric import U256, U256Struct
+from ethereum_types.bytes import Bytes32
+from ethereum.cancun.fork_types import Address
+from cairo_ec.curve.secp256k1 import try_recover_public_key
+from cairo_ec.uint384 import uint256_to_uint384
+from ethereum_types.numeric import U256
 from ethereum.crypto.hash import Hash32
 from starkware.cairo.common.alloc import alloc
-from ethereum.utils.numeric import U256_to_le_bytes
 from starkware.cairo.common.cairo_keccak.keccak import cairo_keccak_uint256s
 from cairo_core.maths import unsigned_div_rem
-from starkware.cairo.common.math_cmp import RC_BOUND
 from ethereum.exceptions import EthereumException, ValueError
 
 // @notice Recovers the public key from a given signature.

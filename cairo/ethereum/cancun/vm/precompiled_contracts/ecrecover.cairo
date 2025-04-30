@@ -1,15 +1,12 @@
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, ModBuiltin, PoseidonBuiltin
-from starkware.cairo.common.math_cmp import is_le_felt
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.memset import memset
 from ethereum.cancun.vm.evm_impl import Evm, EvmImpl
 from ethereum.exceptions import EthereumException
-from ethereum.cancun.vm.exceptions import OutOfGasError
-from ethereum.utils.numeric import ceil32
 from ethereum.cancun.vm.gas import GasConstants, charge_gas
 from ethereum_types.numeric import Uint, U256, U256Struct
 from ethereum.cancun.vm.memory import buffer_read
-from ethereum.utils.bytes import Bytes_to_Bytes32, Bytes20_to_Bytes, Bytes, BytesStruct
+from ethereum.utils.bytes import Bytes, BytesStruct, Bytes_to_Bytes32
 from ethereum.utils.numeric import U256_from_be_bytes, U256__eq__, U256_le
 from cairo_ec.curve.secp256k1 import secp256k1
 from ethereum.crypto.elliptic_curve import secp256k1_recover, public_key_point_to_eth_address

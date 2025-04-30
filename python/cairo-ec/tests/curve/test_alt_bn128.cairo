@@ -1,9 +1,7 @@
-from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_builtins import UInt384
 from starkware.cairo.common.uint256 import Uint256
 
 from cairo_ec.curve.alt_bn128 import alt_bn128, sign_to_uint384_mod_alt_bn128
-from cairo_ec.curve.ids import CurveID
 from cairo_core.numeric import U384, U256
 
 func test__get_CURVE_ID() -> felt {

@@ -1,4 +1,3 @@
-from starkware.cairo.common.cairo_builtins import UInt384
 from cairo_core.numeric import bool, U384, U384Struct
 
 // A G1Point is a point on an elliptic curve over a field Fp.
