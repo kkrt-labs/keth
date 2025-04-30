@@ -22,42 +22,31 @@ from ethereum.cancun.fork import (
     process_system_tx,
 )
 from legacy.utils.dict import default_dict_finalize
-from ethereum_types.numeric import U64, Uint
+from ethereum_types.numeric import Uint
 from ethereum.crypto.hash import Hash32
 from ethereum.cancun.trie import (
     EthereumTriesImpl,
     root,
-    TrieBytesOptionalUnionBytesLegacyTransaction,
-    TrieBytesOptionalUnionBytesReceipt,
     TrieBytesOptionalUnionBytesWithdrawal,
     init_tries,
 )
 
-from ethereum.cancun.state import State, state_root, finalize_state
+from ethereum.cancun.state import finalize_state
 
 from ethereum.cancun.blocks import (
     TupleWithdrawal,
     TupleWithdrawal__hash__,
     Header__hash__,
-    TupleUnionBytesLegacyTransaction__hash__,
-    TupleLog__hash__,
-    TupleUnionBytesLegacyTransaction,
     TupleLog,
     TupleLogStruct,
     Log,
 )
-from ethereum.cancun.fork_types import (
-    ListHash32__hash__,
-    ListHash32,
-    OptionalMappingAddressBytes32,
-    MappingAddressBytes32Struct,
-)
+from ethereum.cancun.fork_types import OptionalMappingAddressBytes32, MappingAddressBytes32Struct
 from ethereum.cancun.vm.gas import calculate_excess_blob_gas
 
 from ethereum.cancun.keth.commitments import body_commitments, teardown_commitments
 
-from cairo_core.bytes_impl import Bytes32__hash__
-from cairo_core.hash.blake2s import blake2s_add_uint256, blake2s, blake2s_add_felt
+from cairo_core.hash.blake2s import blake2s, blake2s_add_uint256
 
 from mpt.types import (
     NodeStore,
