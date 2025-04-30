@@ -275,7 +275,7 @@ def prepare_body_input(
     """
     Prepare the input for the body step.
     Runs the STF on the subset of transactions passed as argument.
-    Outputs the state post-transactions.
+    Outputs the state post-transactions (new state, remaining gas, etc.)
     """
     blob_gas_used = Uint(0)
     gas_available = block_gas_limit
@@ -424,9 +424,7 @@ def prepare_body_input(
             if storage_value == U256(0):
                 storage_trie._data[storage_key] = None
 
-    code_hashes = map_code_hashes_to_code(state)
     return {
-        "codehash_to_code": code_hashes,
         "block_transactions": transactions,
         "state": state,
         "transactions_trie": transactions_trie,
@@ -446,10 +444,11 @@ def load_body_input(
 ) -> Dict[str, Any]:
     """
     Load and convert ZKPI fixture to Keth-compatible public inputs for the body step.
+    Advances the state by the number of transactions specified by `start_index` and `chunk_size`.
     """
-    base_program_input = load_zkpi_fixture(zkpi_path=zkpi_path)
-    chain = base_program_input["blockchain"]
-    block = base_program_input["block"]
+    zkpi_program_input = load_zkpi_fixture(zkpi_path=zkpi_path)
+    chain = zkpi_program_input["blockchain"]
+    block = zkpi_program_input["block"]
     parent_header = chain.blocks[-1].header
     excess_blob_gas = calculate_excess_blob_gas(parent_header)
     body_input = prepare_body_input(
@@ -467,9 +466,10 @@ def load_body_input(
         block.header.parent_beacon_block_root,
         excess_blob_gas,
     )
+    code_hashes = map_code_hashes_to_code(body_input["state"])
     program_input = {
-        **base_program_input,
         **body_input,
+        "codehash_to_code": code_hashes,
         "block_header": block.header,
         "block_transactions": block.transactions,
         "start_index": start_index,
