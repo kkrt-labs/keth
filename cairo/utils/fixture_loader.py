@@ -1,3 +1,4 @@
+import copy
 import json
 import logging
 from collections import defaultdict
@@ -34,7 +35,7 @@ from ethereum.cancun.transactions import (
     decode_transaction,
     encode_transaction,
 )
-from ethereum.cancun.trie import Trie, root, trie_get, trie_set
+from ethereum.cancun.trie import Trie, copy_trie, root, trie_get, trie_set
 from ethereum.cancun.vm import Message
 from ethereum.cancun.vm.gas import (
     calculate_excess_blob_gas,
@@ -484,6 +485,8 @@ def load_body_input(
 def load_teardown_input(zkpi_path: Union[Path, str]) -> Dict[str, Any]:
     """
     Load and convert ZKPI fixture to Keth-compatible public inputs for the teardown step.
+    Because we need the state input of the cairo program to be filled in memory with (key, prev_value, new_value) tuples,
+    we format the state object so that there's one single snapshot object, corresponding to the initial state of the block.
     """
     zkpi_program_input = load_zkpi_fixture(zkpi_path=zkpi_path)
     chain = zkpi_program_input["blockchain"]
@@ -491,6 +494,8 @@ def load_teardown_input(zkpi_path: Union[Path, str]) -> Dict[str, Any]:
     withdrawals_trie: Trie[Bytes, Optional[Union[Bytes, Withdrawal]]] = Trie(
         secured=False, default=None, _data=defaultdict(lambda: None)
     )
+    main_trie_snapshot = copy_trie(chain.state._main_trie)
+    storage_tries_snapshot = copy.deepcopy(chain.state._storage_tries)
 
     parent_header = chain.blocks[-1].header
     excess_blob_gas = calculate_excess_blob_gas(parent_header)
@@ -510,6 +515,32 @@ def load_teardown_input(zkpi_path: Union[Path, str]) -> Dict[str, Any]:
         excess_blob_gas,
     )
 
+    # One thing to keep in mind here is that running EELS will delete any value from the account /
+    # storage trie that's set to the default value (EMPTY_ACCOUNT / U256(0)).  This means that we
+    # must _manually_ put back an entry for each value that was deleted from the tries.
+    updated_state = body_input["state"]
+    for address, account in main_trie_snapshot._data.items():
+        if address not in updated_state._main_trie._data:
+            updated_state._main_trie._data[address] = None
+
+        if address not in updated_state._storage_tries:
+            updated_state._storage_tries[address] = Trie(
+                secured=True, default=U256(0), _data={}
+            )
+
+    for address in storage_tries_snapshot:
+        for storage_key, storage_value in storage_tries_snapshot[address]._data.items():
+            if storage_key not in updated_state._storage_tries[address]._data:
+                updated_state._storage_tries[address]._data[storage_key] = None
+
+    body_input["state"] = updated_state
+    body_input["state"]._snapshots = [
+        (
+            main_trie_snapshot,
+            storage_tries_snapshot,
+        )
+    ]
+
     program_input = {
         # Glue with init.cairo
         **zkpi_program_input,
@@ -522,7 +553,9 @@ def load_teardown_input(zkpi_path: Union[Path, str]) -> Dict[str, Any]:
 
 
 def normalize_transaction(tx: Dict[str, Any]) -> Dict[str, Any]:
-    """ """
+    """
+    Normalize transaction fields to match what TransactionLoad expects.
+    """
     tx = tx.copy()
     tx["gasLimit"] = tx.pop("gas")
     tx["data"] = tx.pop("input")

@@ -1116,25 +1116,31 @@ def generate_dict_arg(
     # In case of a dict update, we need to get the prev_value from the dict_tracker of the parent_ptr.
     # For consistency purposes when we drop the dict and put its prev values back in the parent_ptr.
     parent_dict_end_ptr = segments.memory.get(parent_ptr + 1) if parent_ptr else None
+    # The initial dict segment should be sorted by key - as if it was squashed.
     initial_data = flatten(
-        [
-            (
+        sorted(
+            [
                 (
-                    poseidon_hash_many(k)
-                    if (get_args(arg_type)[0] in HASHED_TYPES and len(k) != 1)
-                    else k
-                ),
-                (
-                    dict_manager.get_tracker(parent_dict_end_ptr).data.get(k, v)
-                    if parent_dict_end_ptr
-                    else (
-                        data.default_factory() if isinstance(data, defaultdict) else v
-                    )
-                ),
-                v,
-            )
-            for k, v in data.items()
-        ]
+                    (
+                        poseidon_hash_many(k)
+                        if (get_args(arg_type)[0] in HASHED_TYPES and len(k) != 1)
+                        else k
+                    ),
+                    (
+                        dict_manager.get_tracker(parent_dict_end_ptr).data.get(k, v)
+                        if parent_dict_end_ptr
+                        else (
+                            data.default_factory()
+                            if isinstance(data, defaultdict)
+                            else v
+                        )
+                    ),
+                    v,
+                )
+                for k, v in data.items()
+            ],
+            key=lambda x: x[0],
+        )
     )
 
     all_preimages = {
