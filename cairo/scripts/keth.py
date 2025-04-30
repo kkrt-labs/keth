@@ -72,6 +72,7 @@ def get_default_program(step: Step) -> Path:
     }
     return Path(step_to_program[step])
 
+
 def program_path_callback(program: Optional[Path], ctx: typer.Context) -> Path:
     """
     Callback to determine the compiled program path

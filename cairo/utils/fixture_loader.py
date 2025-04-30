@@ -489,7 +489,7 @@ def load_teardown_input(zkpi_path: Union[Path, str]) -> Dict[str, Any]:
     chain = zkpi_program_input["blockchain"]
     block = zkpi_program_input["block"]
     withdrawals_trie: Trie[Bytes, Optional[Union[Bytes, Withdrawal]]] = Trie(
-        secured=False, default=None
+        secured=False, default=None, _data=defaultdict(lambda: None)
     )
 
     parent_header = chain.blocks[-1].header
@@ -522,8 +522,7 @@ def load_teardown_input(zkpi_path: Union[Path, str]) -> Dict[str, Any]:
 
 
 def normalize_transaction(tx: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    """
+    """ """
     tx = tx.copy()
     tx["gasLimit"] = tx.pop("gas")
     tx["data"] = tx.pop("input")

@@ -93,7 +93,6 @@ from ethereum.cancun.blocks import (
     Log,
     LogStruct,
 )
-from ethereum.cancun.keth.commitments import teardown_commitments
 from ethereum.utils.numeric import U256__hash__
 from ethereum.cancun.fork_types import (
     ListHash32__hash__,
@@ -115,7 +114,7 @@ from ethereum.cancun.fork_types import (
 from ethereum.cancun.vm.gas import calculate_excess_blob_gas
 from ethereum.cancun.transactions_types import To, ToStruct
 
-from ethereum.cancun.keth.commitments import body_commitments
+from ethereum.cancun.keth.commitments import body_commitments, teardown_commitments
 
 from cairo_core.bytes_impl import Bytes32__hash__
 from cairo_core.hash.blake2s import blake2s_add_uint256, blake2s, blake2s_add_felt
