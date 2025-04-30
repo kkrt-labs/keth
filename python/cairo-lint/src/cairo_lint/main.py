@@ -25,7 +25,9 @@ DISABLE_FILE_COMMENT = "// cairo-lint: disable-file"
 # Matches: from path.to.module import identifier1, identifier2, identifier3
 # Matches: from path.to.module import identifier1 as alias1, identifier2 as alias2
 # Captures: 1=module path, 2=identifiers string
-SINGLE_IMPORT_RE = re.compile(r"^\s*from\s+([\w.]+)\s+import\s+([\w\s,]+(?:\s+as\s+\w+\s*,?\s*)*)\s*")
+SINGLE_IMPORT_RE = re.compile(
+    r"^\s*from\s+([\w.]+)\s+import\s+([\w\s,]+(?:\s+as\s+\w+\s*,?\s*)*)\s*"
+)
 
 # Matches: from path.to.module import (
 # Captures: 1=module path
@@ -329,10 +331,14 @@ def process_file(file_path: Path) -> Optional[str]:
         # Get all ImportInfo objects for this line
         infos_on_line = imports_by_line.get(line_idx, [])
         if not infos_on_line:
-            continue # Should not happen if single_line_unused is populated correctly
+            continue  # Should not happen if single_line_unused is populated correctly
 
-        module = infos_on_line[0].module # All imports on the line share the same module
-        is_disabled_line = infos_on_line[0].is_disabled # Check based on the first item (all items on a disabled single line inherit it)
+        module = infos_on_line[
+            0
+        ].module  # All imports on the line share the same module
+        is_disabled_line = infos_on_line[
+            0
+        ].is_disabled  # Check based on the first item (all items on a disabled single line inherit it)
 
         if is_disabled_line:  # If the line was disabled, don't touch it
             continue
@@ -353,18 +359,22 @@ def process_file(file_path: Path) -> Optional[str]:
                     for info in infos_on_line
                     if not info.is_disabled and info.identifier not in unused_set
                 ],
-                key=lambda x: x.original_identifier # Sort by original name for consistent output
+                key=lambda x: x.original_identifier,  # Sort by original name for consistent output
             )
 
             if kept_infos:
                 import_parts = []
                 for info in kept_infos:
                     if info.identifier != info.original_identifier:
-                        import_parts.append(f"{info.original_identifier} as {info.identifier}")
+                        import_parts.append(
+                            f"{info.original_identifier} as {info.identifier}"
+                        )
                     else:
                         import_parts.append(info.original_identifier)
 
-                leading_whitespace = lines[line_idx][: len(lines[line_idx]) - len(lines[line_idx].lstrip())]
+                leading_whitespace = lines[line_idx][
+                    : len(lines[line_idx]) - len(lines[line_idx].lstrip())
+                ]
                 lines_to_rewrite[line_idx] = (
                     f"{leading_whitespace}from {module} import {', '.join(import_parts)}"
                 )
@@ -513,9 +523,6 @@ def find_cairo_files(paths: List[Path]) -> List[Path]:
                         for d in pyproject["tool"]["cairo-lint"]["exclude_dirs"]
                     ]
                     exclude_dirs.extend(custom_exclude_dirs)
-
-        if exclude_dirs:
-            console.print(f"[blue]Excluding directories: {exclude_dirs}[/]")
     except Exception as e:
         console.print(
             f"[yellow]Warning: Failed to load exclude_dirs from pyproject.toml: {e}[/]"

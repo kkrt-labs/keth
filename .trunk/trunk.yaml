@@ -29,6 +29,10 @@ lint:
   disabled:
     - bandit
     - codespell
+  ignore:
+    - linters: [cairo-lint]
+      paths:
+        - python/cairo-lint/tests/test_data
   files:
     - name: cairo
       extensions:

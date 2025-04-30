@@ -163,7 +163,6 @@ from keth_types.types import (
     StorageDiffEntry,
 )
 from tests.utils.helpers import flatten
-from cairo_addons.testing.errors import find_exception_class
 
 HASHED_TYPES = [
     Bytes,
