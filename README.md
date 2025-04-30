@@ -114,7 +114,7 @@ you'll need first to generate the Prover Input (ZK-PI) for this block using
 [ZK-PIG](https://github.com/kkrt-labs/zk-pig):
 
 ```bash
-zkpig generate --include all
+zkpig generate
 ```
 
 This will generate the ZK-PI for the given block and save it in the
