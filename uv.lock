@@ -12,6 +12,7 @@ members = [
     "cairo-addons",
     "cairo-core",
     "cairo-ec",
+    "cairo-lint",
     "eth-rpc",
     "keth",
     "keth-types",
@@ -538,6 +539,30 @@ dependencies = [
     { name = "web3" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/00/ba/213003b107bec47151b58c88cef1a7cbb57785e70400d7c216b91e52e38b/cairo-lang-0.13.3.zip", hash = "sha256:fcb01d5cc6f2409f593e2a40249b1f903346785ce7916faaf6f95f120ee3c52d", size = 11008548 }
+
+[[package]]
+name = "cairo-lint"
+version = "0.1.0"
+source = { editable = "python/cairo-lint" }
+dependencies = [
+    { name = "cairo-lang" },
+    { name = "rich" },
+    { name = "typer" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "pytest" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "cairo-lang", specifier = ">=0.13.0" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0.0" },
+    { name = "rich", specifier = ">=13.0.0" },
+    { name = "typer", extras = ["all"], specifier = ">=0.9.0" },
+]
+provides-extras = ["dev"]
 
 [[package]]
 name = "certifi"
@@ -1941,6 +1966,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "cairo-lint" },
     { name = "eth-abi" },
     { name = "eth-account" },
     { name = "eth-keys" },
@@ -1983,6 +2009,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "cairo-lint", editable = "python/cairo-lint" },
     { name = "eth-abi", specifier = ">=5.1.0" },
     { name = "eth-account", specifier = ">=0.13.3" },
     { name = "eth-keys", specifier = ">=0.5.1" },

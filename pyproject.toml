@@ -29,6 +29,7 @@ dependencies = [
 
 [tool.uv]
 dev-dependencies = [
+  "cairo-lint",
   "gprof2dot>=2024.6.6",
   "jupyter>=1.1.1",
   "snakeviz>=2.2.2",
@@ -54,6 +55,7 @@ cairo-core = { workspace = true }
 eth-rpc = { workspace = true }
 keth-types = { workspace = true }
 mpt = { workspace = true }
+cairo-lint = { workspace = true }
 garaga-zero = { git = "https://github.com/kkrt-labs/garaga-zero", rev = "08e80a99c60a11adc5715c329a4390937d12d77d" }
 
 [tool.uv.workspace]
