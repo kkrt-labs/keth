@@ -2,20 +2,47 @@ import json
 import logging
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
-from ethereum.cancun.blocks import Block, Withdrawal
+from ethereum.cancun import vm
+from ethereum.cancun.blocks import Block, Log, Receipt, Withdrawal
 from ethereum.cancun.fork import (
+    BEACON_ROOTS_ADDRESS,
+    MAX_BLOB_GAS_PER_BLOCK,
+    SYSTEM_ADDRESS,
+    SYSTEM_TRANSACTION_GAS,
     BlockChain,
+    check_transaction,
+    get_last_256_block_hashes,
+    make_receipt,
+    process_transaction,
 )
-from ethereum.cancun.fork_types import EMPTY_ACCOUNT, Address
-from ethereum.cancun.state import State
+from ethereum.cancun.fork_types import (
+    EMPTY_ACCOUNT,
+    Account,
+    Address,
+    Root,
+)
+from ethereum.cancun.state import (
+    State,
+    TransientStorage,
+    destroy_touched_empty_accounts,
+    get_account,
+)
 from ethereum.cancun.transactions import (
     LegacyTransaction,
+    decode_transaction,
     encode_transaction,
 )
-from ethereum.cancun.trie import Trie, root, trie_get
-from ethereum.crypto.hash import keccak256
+from ethereum.cancun.trie import Trie, root, trie_get, trie_set
+from ethereum.cancun.vm import Message
+from ethereum.cancun.vm.gas import (
+    calculate_excess_blob_gas,
+    calculate_total_blob_gas,
+)
+from ethereum.cancun.vm.interpreter import process_message_call
+from ethereum.crypto.hash import Hash32, keccak256
+from ethereum.exceptions import InvalidBlock
 from ethereum.utils.hexadecimal import (
     hex_to_bytes,
     hex_to_bytes32,
@@ -23,11 +50,12 @@ from ethereum.utils.hexadecimal import (
     hex_to_u256,
     hex_to_uint,
 )
+from ethereum_rlp import rlp
 from ethereum_spec_tools.evm_tools.loaders.fixture_loader import Load
 from ethereum_spec_tools.evm_tools.loaders.fork_loader import ForkLoad
 from ethereum_spec_tools.evm_tools.loaders.transaction_loader import TransactionLoad
-from ethereum_types.bytes import Bytes, Bytes0
-from ethereum_types.numeric import U64, U256
+from ethereum_types.bytes import Bytes, Bytes0, Bytes32
+from ethereum_types.numeric import U64, U256, Uint
 
 from keth_types.types import EMPTY_BYTES_HASH, EMPTY_TRIE_HASH
 from mpt.ethereum_tries import ZkPi
@@ -226,6 +254,230 @@ def load_zkpi_fixture(zkpi_path: Union[Path, str]) -> Dict[str, Any]:
         "post_state_root": transition_db.post_state_root,
     }
 
+    return program_input
+
+
+def prepare_body_input(
+    state: State,
+    block_hashes: List[Hash32],
+    coinbase: Address,
+    block_number: Uint,
+    base_fee_per_gas: Uint,
+    block_gas_limit: Uint,
+    block_time: U256,
+    prev_randao: Bytes32,
+    transactions: Tuple[Union[LegacyTransaction, Bytes], ...],
+    chain_id: U64,
+    withdrawals: Tuple[Withdrawal, ...],
+    parent_beacon_block_root: Root,
+    excess_blob_gas: U64,
+) -> Dict[str, Any]:
+    """
+    Prepare the input for the body step.
+    Runs the STF on the subset of transactions passed as argument.
+    Outputs the state post-transactions (new state, remaining gas, etc.)
+    """
+    blob_gas_used = Uint(0)
+    gas_available = block_gas_limit
+    transactions_trie: Trie[Bytes, Optional[Union[Bytes, LegacyTransaction]]] = Trie(
+        secured=False, default=None, _data=defaultdict(lambda: None)
+    )
+    receipts_trie: Trie[Bytes, Optional[Union[Bytes, Receipt]]] = Trie(
+        secured=False, default=None, _data=defaultdict(lambda: None)
+    )
+    Trie(secured=False, default=None, _data=defaultdict(lambda: None))
+    block_logs: Tuple[Log, ...] = ()
+
+    # EELS expects code of accounts without code to be an empty bytearray.
+    for address, account in state._main_trie._data.items():
+        if account and not account.code:
+            state._main_trie._data[address] = Account(
+                nonce=account.nonce,
+                balance=account.balance,
+                code_hash=account.code_hash,
+                storage_root=account.storage_root,
+                code=b"",
+            )
+
+        storage_trie = state._storage_tries[address]
+        for storage_key, storage_value in storage_trie._data.items():
+            if storage_value is None:
+                storage_trie._data[storage_key] = U256(0)
+
+    beacon_block_roots_contract_code = get_account(state, BEACON_ROOTS_ADDRESS).code
+
+    system_tx_message = Message(
+        caller=SYSTEM_ADDRESS,
+        target=BEACON_ROOTS_ADDRESS,
+        gas=SYSTEM_TRANSACTION_GAS,
+        value=U256(0),
+        data=parent_beacon_block_root,
+        code=beacon_block_roots_contract_code,
+        depth=Uint(0),
+        current_target=BEACON_ROOTS_ADDRESS,
+        code_address=BEACON_ROOTS_ADDRESS,
+        should_transfer_value=False,
+        is_static=False,
+        accessed_addresses=set(),
+        accessed_storage_keys=set(),
+        parent_evm=None,
+    )
+
+    system_tx_env = vm.Environment(
+        caller=SYSTEM_ADDRESS,
+        origin=SYSTEM_ADDRESS,
+        block_hashes=block_hashes,
+        coinbase=coinbase,
+        number=block_number,
+        gas_limit=block_gas_limit,
+        base_fee_per_gas=base_fee_per_gas,
+        gas_price=base_fee_per_gas,
+        time=block_time,
+        prev_randao=prev_randao,
+        state=state,
+        chain_id=chain_id,
+        traces=[],
+        excess_blob_gas=excess_blob_gas,
+        blob_versioned_hashes=(),
+        transient_storage=TransientStorage(),
+    )
+
+    system_tx_output = process_message_call(system_tx_message, system_tx_env)
+
+    destroy_touched_empty_accounts(
+        system_tx_env.state, system_tx_output.touched_accounts
+    )
+
+    for i, tx in enumerate(map(decode_transaction, transactions)):
+        trie_set(transactions_trie, rlp.encode(Uint(i)), encode_transaction(tx))
+
+        (
+            sender_address,
+            effective_gas_price,
+            blob_versioned_hashes,
+        ) = check_transaction(
+            state,
+            tx,
+            gas_available,
+            chain_id,
+            base_fee_per_gas,
+            excess_blob_gas,
+        )
+
+        env = vm.Environment(
+            caller=sender_address,
+            origin=sender_address,
+            block_hashes=block_hashes,
+            coinbase=coinbase,
+            number=block_number,
+            gas_limit=block_gas_limit,
+            base_fee_per_gas=base_fee_per_gas,
+            gas_price=effective_gas_price,
+            time=block_time,
+            prev_randao=prev_randao,
+            state=state,
+            chain_id=chain_id,
+            traces=[],
+            excess_blob_gas=excess_blob_gas,
+            blob_versioned_hashes=blob_versioned_hashes,
+            transient_storage=TransientStorage(),
+        )
+
+        gas_used, logs, error = process_transaction(env, tx)
+        gas_available -= gas_used
+
+        receipt = make_receipt(tx, error, (block_gas_limit - gas_available), logs)
+
+        trie_set(
+            receipts_trie,
+            rlp.encode(Uint(i)),
+            receipt,
+        )
+
+        block_logs += logs
+        blob_gas_used += calculate_total_blob_gas(tx)
+    if blob_gas_used > MAX_BLOB_GAS_PER_BLOCK:
+        raise InvalidBlock
+    block_gas_used = block_gas_limit - gas_available
+
+    # block_logs_bloom = logs_bloom(block_logs)
+
+    # for i, wd in enumerate(withdrawals):
+    #     trie_set(withdrawals_trie, rlp.encode(Uint(i)), rlp.encode(wd))
+
+    #     process_withdrawal(state, wd)
+
+    #     if account_exists_and_is_empty(state, wd.address):
+    #         destroy_account(state, wd.address)
+
+    # Cairo expects code of accounts to be initially None, as they're lazily loaded
+    # during execution.
+    for address, account in state._main_trie._data.items():
+        if account and account.code_hash == EMPTY_BYTES_HASH:
+            state._main_trie._data[address] = Account(
+                nonce=account.nonce,
+                balance=account.balance,
+                code_hash=account.code_hash,
+                storage_root=account.storage_root,
+                code=None,
+            )
+
+    for address, storage_trie in state._storage_tries.items():
+        for storage_key, storage_value in storage_trie._data.items():
+            if storage_value == U256(0):
+                storage_trie._data[storage_key] = None
+
+    return {
+        "block_transactions": transactions,
+        "state": state,
+        "transactions_trie": transactions_trie,
+        "receipts_trie": receipts_trie,
+        "block_logs": block_logs,
+        "block_hashes": block_hashes,
+        "block_gas_used": block_gas_used,
+        "gas_available": gas_available,
+        "chain_id": chain_id,
+        "blob_gas_used": blob_gas_used,
+        "excess_blob_gas": excess_blob_gas,
+    }
+
+
+def load_body_input(
+    zkpi_path: Union[Path, str], start_index: int, chunk_size: int
+) -> Dict[str, Any]:
+    """
+    Load and convert ZKPI fixture to Keth-compatible public inputs for the body step.
+    Advances the state by the number of transactions specified by `start_index` and `chunk_size`.
+    """
+    zkpi_program_input = load_zkpi_fixture(zkpi_path=zkpi_path)
+    chain = zkpi_program_input["blockchain"]
+    block = zkpi_program_input["block"]
+    parent_header = chain.blocks[-1].header
+    excess_blob_gas = calculate_excess_blob_gas(parent_header)
+    body_input = prepare_body_input(
+        chain.state,
+        get_last_256_block_hashes(chain),
+        block.header.coinbase,
+        block.header.number,
+        block.header.base_fee_per_gas,
+        block.header.gas_limit,
+        block.header.timestamp,
+        block.header.prev_randao,
+        block.transactions[:start_index],
+        chain.chain_id,
+        block.withdrawals,
+        block.header.parent_beacon_block_root,
+        excess_blob_gas,
+    )
+    code_hashes = map_code_hashes_to_code(body_input["state"])
+    program_input = {
+        **body_input,
+        "codehash_to_code": code_hashes,
+        "block_header": block.header,
+        "block_transactions": block.transactions,
+        "start_index": start_index,
+        "len": min(chunk_size, len(block.transactions) - start_index),
+    }
     return program_input
 
 

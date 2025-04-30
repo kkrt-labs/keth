@@ -34,6 +34,7 @@ def compile_cairo(
         program.hints = implement_hints(program)
 
     with open(output_path, "w") as f:
+        logger.info(f"Writing compiled program to {output_path}")
         json.dump(program.Schema().dump(program), f, indent=4, sort_keys=True)
 
 
@@ -57,7 +58,7 @@ parser.add_argument(
 def main():
     parser.add_argument(
         "path",
-        default="cairo/ethereum/cancun/main.cairo",
+        default="cairo/ethereum/cancun/keth/main.cairo",
         help="The Cairo file to compile",
     )
     parser.add_argument(
@@ -84,20 +85,42 @@ def main():
 
 def compile_keth():
     args = parser.parse_args()
-    compile_cairo(
-        Path("cairo/ethereum/cancun/init.cairo"),
-        debug_info=args.debug_info,
-        proof_mode=True,
-        should_implement_hints=args.implement_hints,
-        output_path=Path("build/init_compiled.json"),
-    )
-    compile_cairo(
-        Path("cairo/ethereum/cancun/main.cairo"),
-        debug_info=args.debug_info,
-        proof_mode=True,
-        should_implement_hints=args.implement_hints,
-        output_path=Path("build/main_compiled.json"),
-    )
+    from concurrent.futures import ThreadPoolExecutor
+
+    programs = [
+        (
+            Path("cairo/ethereum/cancun/keth/init.cairo"),
+            Path("build/init_compiled.json"),
+        ),
+        (
+            Path("cairo/ethereum/cancun/keth/main.cairo"),
+            Path("build/main_compiled.json"),
+        ),
+        (
+            Path("cairo/ethereum/cancun/keth/body.cairo"),
+            Path("build/body_compiled.json"),
+        ),
+    ]
+
+    for _, output_path in programs:
+        if not output_path.exists():
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with ThreadPoolExecutor() as executor:
+        futures = [
+            executor.submit(
+                compile_cairo,
+                program_path,
+                debug_info=args.debug_info,
+                proof_mode=True,
+                should_implement_hints=args.implement_hints,
+                output_path=output_path,
+            )
+            for program_path, output_path in programs
+        ]
+
+        for future in futures:
+            future.result()
 
 
 if __name__ == "__main__":

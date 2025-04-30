@@ -11,9 +11,9 @@ from ethereum_types.bytes import Bytes32
 from ethereum.utils.bytes import Bytes32_to_Bytes
 from mpt.trie_diff import OptionalUnionInternalNodeExtendedImpl
 
-from ethereum.cancun.main import main
+from ethereum.cancun.keth.body import main as body_main
 
-func test_main{
+func test_body{
     output_ptr: felt*,
     pedersen_ptr: HashBuiltin*,
     range_check_ptr,
@@ -28,6 +28,6 @@ func test_main{
 }() -> (output_start: felt*) {
     alloc_locals;
     local output_start: felt* = output_ptr;
-    main();
+    body_main();
     return (output_start=output_start);
 }

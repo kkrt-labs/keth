@@ -22,7 +22,7 @@ from cairo_addons.rust_bindings.stwo_bindings import prove as run_prove
 from cairo_addons.rust_bindings.stwo_bindings import verify as run_verify
 from cairo_addons.rust_bindings.vm import generate_trace as run_generate_trace
 from cairo_addons.rust_bindings.vm import run_end_to_end
-from utils.fixture_loader import CANCUN_FORK_BLOCK, load_zkpi_fixture
+from utils.fixture_loader import CANCUN_FORK_BLOCK, load_body_input, load_zkpi_fixture
 
 logging.basicConfig(
     level=logging.INFO,
@@ -44,6 +44,7 @@ app = typer.Typer(
 class Step(str, Enum):
     MAIN = "main"
     INIT = "init"
+    BODY = "body"
 
 
 def validate_block_number(block_number: int) -> None:
@@ -60,6 +61,7 @@ def get_default_program(step: Step) -> Path:
     step_to_program = {
         Step.MAIN: "build/main_compiled.json",
         Step.INIT: "build/init_compiled.json",
+        Step.BODY: "build/body_compiled.json",
     }
     return Path(step_to_program[step])
 
@@ -72,6 +74,24 @@ def program_path_callback(program: Optional[Path], ctx: typer.Context) -> Path:
     if program:
         return program
     return get_default_program(ctx.params.get("step", Step.MAIN))
+
+
+def validate_body_params(
+    step: Step, start_index: Optional[int], chunk_size: Optional[int]
+) -> None:
+    """Validate that body step parameters are provided correctly."""
+    if step == Step.BODY:
+        if start_index is None or chunk_size is None:
+            typer.echo(
+                "Error: --start-index and --len parameters are required for body step"
+            )
+            raise typer.Exit(1)
+        if start_index < 0:
+            typer.echo("Error: start-index must be non-negative")
+            raise typer.Exit(1)
+        if chunk_size <= 0:
+            typer.echo("Error: len must be positive")
+            raise typer.Exit(1)
 
 
 @app.command()
@@ -105,6 +125,16 @@ def trace(
         file_okay=True,
         callback=program_path_callback,
     ),
+    start_index: Optional[int] = typer.Option(
+        None,
+        "--start-index",
+        help="Starting transaction index for body step",
+    ),
+    chunk_size: Optional[int] = typer.Option(
+        None,
+        "--len",
+        help="Number of transactions to process in this chunk for body step",
+    ),
 ):
     """
     Runs the KETH trace-generation step for a given Ethereum block.
@@ -116,16 +146,34 @@ def trace(
         data_dir: The directory containing the ZK-PI fixture for that block.
         step: The step to run: 'main' or 'init'.
         compiled_program: The path to the compiled KETH Cairo program.
+        start_index: The starting transaction index for the body step.
+        chunk_size: The number of transactions to process in this chunk for the body step.
     """
     validate_block_number(block_number)
-    output_path = output_dir / f"prover_input_info_{block_number}.json"
+    # For body step, include chunk info in the proof filename
+    if step == Step.BODY:
+        output_path = (
+            output_dir
+            / f"prover_input_info_{block_number}_{start_index}_{chunk_size}.json"
+        )
+    else:
+        output_path = output_dir / f"prover_input_info_{block_number}.json"
 
     with console.status(
         f"[bold green]Generating trace for {step} step of block {block_number}..."
     ):
         try:
             zkpi_path = data_dir / f"{block_number}.json"
-            program_input = load_zkpi_fixture(zkpi_path)
+            # Add chunk parameters for body step
+            if step == Step.BODY:
+                program_input = load_body_input(
+                    zkpi_path=zkpi_path,
+                    start_index=start_index,
+                    chunk_size=chunk_size,
+                )
+            else:
+                program_input = load_zkpi_fixture(zkpi_path)
+
             run_generate_trace(
                 entrypoint="main",
                 program_input=program_input,
@@ -228,7 +276,7 @@ def e2e(
         Step.MAIN,
         "-s",
         "--step",
-        help="Step to run: 'main' or 'init'",
+        help="Step to run: 'main', 'init', or 'body'",
     ),
     compiled_program: Path = typer.Option(
         None,
@@ -243,6 +291,16 @@ def e2e(
         "--verify",
         help="Verify proof after generation",
     ),
+    start_index: Optional[int] = typer.Option(
+        None,
+        "--start-index",
+        help="Starting transaction index for body step",
+    ),
+    chunk_size: Optional[int] = typer.Option(
+        None,
+        "--len",
+        help="Number of transactions to process in this chunk for body step",
+    ),
 ):
     """
     Run the full end-to-end trace generation, proving and verification flow
@@ -252,17 +310,36 @@ def e2e(
     runs the Cairo VM, generates the prover input, creates the STWO proof, and
     optionally verifies it. The final proof is saved to the specified path.
 
-    If the step is 'init', the init.cairo program will be used instead of the main.cairo program.
+    For the body step, you must specify:
+    - start-index: The starting transaction index
+    - len: Number of transactions to process in this chunk
+
+    The proof will include a commitment hash of the state transition that can be
+    verified in the aggregator.
     """
     validate_block_number(block_number)
+    validate_body_params(step, start_index, chunk_size)
     proof_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # For body step, include chunk info in the proof filename
+    if step == Step.BODY:
+        proof_path = (
+            proof_path.parent
+            / f"proof_body_{block_number}_{start_index}_{chunk_size}.json"
+        )
 
     with console.status(
         f"[bold green]Running pipeline for {step} step of block {block_number}..."
     ):
         try:
             zkpi_path = data_dir / f"{block_number}.json"
-            program_input = load_zkpi_fixture(zkpi_path)
+
+            # Add chunk parameters for body step
+            if step == Step.BODY:
+                program_input = load_body_input(zkpi_path, start_index, chunk_size)
+            else:
+                program_input = load_zkpi_fixture(zkpi_path)
+
             run_end_to_end(
                 "main",
                 program_input,
