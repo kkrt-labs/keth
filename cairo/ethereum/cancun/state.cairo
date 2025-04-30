@@ -1569,55 +1569,41 @@ func finalize_state{range_check_ptr, state: State}() {
 
     // Squash the original_storage_tries mapping for soundness - if that mapping is defined.
     let original_storage_tries = state.value.original_storage_tries;
-    if (cast(original_storage_tries.value, felt) != 0) {
-        let original_storage_tries_start = cast(
-            original_storage_tries.value._data.value.dict_ptr_start, DictAccess*
-        );
-        let original_storage_tries_end = cast(
-            original_storage_tries.value._data.value.dict_ptr, DictAccess*
-        );
+    let original_storage_tries_start = cast(
+        original_storage_tries.value._data.value.dict_ptr_start, DictAccess*
+    );
+    let original_storage_tries_end = cast(
+        original_storage_tries.value._data.value.dict_ptr, DictAccess*
+    );
 
-        let (
-            squashed_original_storage_tries_start, squashed_original_storage_tries_end
-        ) = dict_squash(original_storage_tries_start, original_storage_tries_end);
+    let (squashed_original_storage_tries_start, squashed_original_storage_tries_end) = dict_squash(
+        original_storage_tries_start, original_storage_tries_end
+    );
 
-        tempvar squashed_original_storage_tries = TrieTupleAddressBytes32U256(
-            new TrieTupleAddressBytes32U256Struct(
-                secured=original_storage_tries.value.secured,
-                default=original_storage_tries.value.default,
-                _data=MappingTupleAddressBytes32U256(
-                    new MappingTupleAddressBytes32U256Struct(
-                        dict_ptr_start=cast(
-                            squashed_original_storage_tries_start,
-                            TupleAddressBytes32U256DictAccess*,
-                        ),
-                        dict_ptr=cast(
-                            squashed_original_storage_tries_end, TupleAddressBytes32U256DictAccess*
-                        ),
-                        parent_dict=cast(0, MappingTupleAddressBytes32U256Struct*),
+    tempvar squashed_original_storage_tries = TrieTupleAddressBytes32U256(
+        new TrieTupleAddressBytes32U256Struct(
+            secured=original_storage_tries.value.secured,
+            default=original_storage_tries.value.default,
+            _data=MappingTupleAddressBytes32U256(
+                new MappingTupleAddressBytes32U256Struct(
+                    dict_ptr_start=cast(
+                        squashed_original_storage_tries_start, TupleAddressBytes32U256DictAccess*
                     ),
+                    dict_ptr=cast(
+                        squashed_original_storage_tries_end, TupleAddressBytes32U256DictAccess*
+                    ),
+                    parent_dict=cast(0, MappingTupleAddressBytes32U256Struct*),
                 ),
             ),
-        );
-        // Re-bind the state with the squashed dicts
-        tempvar state = State(
-            new StateStruct(
-                _main_trie=squashed_main_trie,
-                _storage_tries=squashed_storage_tries,
-                created_accounts=squashed_created_accounts,
-                original_storage_tries=squashed_original_storage_tries,
-            ),
-        );
-
-        return ();
-    }
-
+        ),
+    );
+    // Re-bind the state with the squashed dicts
     tempvar state = State(
         new StateStruct(
             _main_trie=squashed_main_trie,
             _storage_tries=squashed_storage_tries,
             created_accounts=squashed_created_accounts,
-            original_storage_tries=original_storage_tries,
+            original_storage_tries=squashed_original_storage_tries,
         ),
     );
 
