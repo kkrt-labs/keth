@@ -44,13 +44,13 @@ lint:
             cargo clippy --message-format json --locked --all-targets
             --all-features -- --cap-lints=warn --no-deps
             --allow=unstable_features
-    - name: cairo
+    - name: cairo-lint
       files: [cairo]
       commands:
         - output: rewrite
-          success_codes: [0]
+          success_codes: [0, 1]
           formatter: true
-          run: cairo-format ${target}
+          run: cairo-lint -e ${target}
           read_output_from: stdout
           run_linter_from: workspace
     - name: solidity
@@ -67,7 +67,7 @@ lint:
     - dotenv-linter@3.3.0
     - actionlint@1.7.7
     - black@25.1.0
-    - cairo@SYSTEM
+    - cairo-lint@SYSTEM
     - rustfmt@SYSTEM
     - clippy@SYSTEM
     - checkov@3.2.379

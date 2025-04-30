@@ -176,7 +176,10 @@ def process_file(file_path: Path) -> Optional[str]:
     """
     try:
         original_content = file_path.read_text()
-        lines = original_content.splitlines()
+        ast = parse_file(original_content, str(file_path))
+        # Start by formatting the file
+        formatted_content = ast.format()
+        lines = formatted_content.splitlines()
     except Exception as e:
         console.print(f"[red]Error reading file {file_path}: {e}[/]")
         return None
@@ -418,6 +421,7 @@ def process_file(file_path: Path) -> Optional[str]:
             return None  # No effective change
         # --- Cairo-format step ---
         try:
+            # Re-format the file after modifications
             ast = parse_file(new_content, str(file_path))
             formatted_content = ast.format()
             return formatted_content
@@ -457,6 +461,68 @@ def find_cairo_files(paths: List[Path]) -> List[Path]:
     return cairo_files
 
 
+def _check_formatting(cairo_files: List[Path]) -> bool:
+    """Check Cairo files for formatting issues without writing changes.
+    Returns True if all files are correctly formatted, False otherwise.
+    """
+    checked_files = 0
+    needs_formatting = []
+
+    with console.status(f"[bold green]Checking {len(cairo_files)} files..."):
+        for file_path in cairo_files:
+            checked_files += 1
+            new_content = process_file(file_path)
+
+            if new_content is not None:
+                needs_formatting.append(file_path)
+                console.print(f"[yellow]Would reformat: {file_path}[/]")
+
+    # --- Summary ---
+    console.print("\n--- Summary ---")
+    console.print(f"Checked {checked_files} files.")
+    if needs_formatting:
+        console.print(f"[bold yellow]{len(needs_formatting)} files need formatting.[/]")
+        return False
+    else:
+        console.print("[bold green]All files are correctly formatted.[/]")
+        return True
+
+
+def _emit_formatting(cairo_files: List[Path]) -> None:
+    """Process Cairo files and emit the formatted content to stdout."""
+    for file_path in cairo_files:
+        new_content = process_file(file_path)
+        emitted_output = new_content if new_content else file_path.read_text().strip()
+        print(emitted_output)
+
+
+def _format_normal(cairo_files: List[Path]) -> None:
+    """Format Cairo files and write changes to disk."""
+    checked_files = 0
+    changed_files = 0
+
+    with console.status(f"[bold green]Formatting {len(cairo_files)} files..."):
+        for file_path in cairo_files:
+            checked_files += 1
+            new_content = process_file(file_path)
+
+            if new_content is not None:
+                try:
+                    file_path.write_text(new_content)
+                    changed_files += 1
+                    console.print(f"[blue]Reformatted: {file_path}[/]")
+                except Exception as e:
+                    console.print(f"[red]Error writing file {file_path}: {e}[/]")
+
+    # --- Summary ---
+    console.print("\n--- Summary ---")
+    console.print(f"Checked {checked_files} files.")
+    if changed_files > 0:
+        console.print(f"[bold blue]{changed_files} files reformatted.[/]")
+    else:
+        console.print("[bold green]No files needed formatting.[/]")
+
+
 @app.command()
 def format(
     paths: List[Path] = typer.Argument(
@@ -470,6 +536,12 @@ def format(
         "--check",
         help="Check for formatting issues without writing changes.",
     ),
+    emit: bool = typer.Option(
+        None,
+        "--emit",
+        "-e",
+        help="Emit the formatted file to stdout",
+    ),
 ):
     """
     Formats Cairo files by removing unused imports.
@@ -480,46 +552,14 @@ def format(
         console.print("[yellow]No Cairo files found in the specified paths.[/]")
         raise typer.Exit()
 
-    changed_files = 0
-    checked_files = 0
-    needs_formatting = []
-
-    mode_str = "Checking" if check else "Formatting"
-
-    with console.status(f"[bold green]{mode_str} {len(cairo_files)} files..."):
-        for file_path in cairo_files:
-            checked_files += 1
-            new_content = process_file(file_path)
-
-            if new_content is not None:
-                if check:
-                    needs_formatting.append(file_path)
-                    console.print(f"[yellow]Would reformat: {file_path}[/]")
-                else:
-                    try:
-                        file_path.write_text(new_content)
-                        changed_files += 1
-                        console.print(f"[blue]Reformatted: {file_path}[/]")
-                    except Exception as e:
-                        console.print(f"[red]Error writing file {file_path}: {e}[/]")
-
-    # --- Summary ---
-    console.print("\n--- Summary ---")
     if check:
-        console.print(f"Checked {checked_files} files.")
-        if needs_formatting:
-            console.print(
-                f"[bold yellow]{len(needs_formatting)} files need formatting.[/]"
-            )
+        all_formatted = _check_formatting(cairo_files)
+        if not all_formatted:
             raise typer.Exit(code=1)
-        else:
-            console.print("[bold green]All files are correctly formatted.[/]")
+    elif emit:
+        _emit_formatting(cairo_files)
     else:
-        console.print(f"Checked {checked_files} files.")
-        if changed_files > 0:
-            console.print(f"[bold blue]{changed_files} files reformatted.[/]")
-        else:
-            console.print("[bold green]No files needed formatting.[/]")
+        _format_normal(cairo_files)
 
 
 if __name__ == "__main__":
