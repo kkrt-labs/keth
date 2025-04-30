@@ -41,7 +41,7 @@ use std::{
     path::PathBuf,
     rc::Rc,
 };
-use tracing_subscriber::{filter::EnvFilter, fmt::format::FmtSpan};
+use tracing_subscriber::fmt::format::FmtSpan;
 
 // Names of implicit arguments that are pointers but not standard builtins handled by BuiltinRunner
 const NON_BUILTIN_SEGMENT_PTR_NAMES: [&str; 2] = ["keccak_ptr", "blake2s_ptr"];
@@ -663,6 +663,7 @@ fn prepare_cairo_execution<'a>(
         proof_mode: true,
         secure_run: Some(true),
         allow_missing_builtins: Some(false),
+        disable_trace_padding: true,
         ..Default::default()
     };
 
@@ -737,12 +738,9 @@ pub fn generate_trace(
     compiled_program_path: String,
     output_path: PathBuf,
 ) -> PyResult<()> {
-    // Limit tracing to the current module
-    let filter = EnvFilter::new("vm::vm::runner=info,warn");
     tracing_subscriber::fmt()
         .with_max_level(tracing::Level::INFO)
         .with_span_events(FmtSpan::ENTER | FmtSpan::CLOSE)
-        .with_env_filter(filter)
         .init();
 
     let (program, exec_scopes, cairo_run_config) =
@@ -788,12 +786,9 @@ pub fn run_end_to_end(
     proof_path: PathBuf,
     verify: bool,
 ) -> PyResult<()> {
-    // Limit tracing to the current module
-    let filter = EnvFilter::new("vm::vm::runner=info,warn");
     tracing_subscriber::fmt()
         .with_max_level(tracing::Level::INFO)
         .with_span_events(FmtSpan::ENTER | FmtSpan::CLOSE)
-        .with_env_filter(filter)
         .init();
 
     let run_span = tracing::span!(tracing::Level::INFO, "cairo_run_program");
