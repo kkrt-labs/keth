@@ -9,11 +9,11 @@ license = { text = "MIT" }
 dependencies = [
   "typer>=0.15.3",
   "rich>=14.0.0",
-  "cairo-lang>=0.13.0", # Assuming a recent version
+  "cairo-lang>=0.13.3", # Assuming a recent version
 ]
 
-[project.optional-dependencies]
-dev = ["pytest>=7.0.0"]
+[tool.uv]
+dev-dependencies = ["pytest>=8.3.3"]
 
 [project.scripts]
 cairo-lint = "cairo_lint.main:app"
