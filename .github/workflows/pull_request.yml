@@ -31,6 +31,3 @@ jobs:
         "-m 'not slow' --max-tests=5000 --randomly-seed=$GITHUB_RUN_ID
         cairo/tests/ef_tests/"
       coverage-flags: "ci-ef-tests"
-
-  trunk-check:
-    uses: ./.github/workflows/trunk_check.yml

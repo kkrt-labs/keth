@@ -1,12 +1,18 @@
 name: Trunk Check
 
-on: workflow_call
+on:
+  push:
+    branches:
+      - main
+  pull_request:
 
 concurrency:
   group: ${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
 
-permissions: read-all
+permissions:
+  checks: write # For trunk to post annotations
+  contents: read # For repo checkout
 
 jobs:
   trunk_check:
@@ -26,8 +32,13 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
 
+      - name: Create venv
+        run: |
+          uv venv
+          echo "$PWD/.venv/bin" >> $GITHUB_PATH
+
       - name: Install dependencies
-        run: uv pip install cairo-lint
+        run: uv pip install python/cairo-lint
 
       - name: Trunk Code Quality
         uses: trunk-io/trunk-action@v1
