@@ -10,7 +10,6 @@ from starkware.cairo.common.cairo_builtins import (
     SignatureBuiltin,
     EcOpBuiltin,
 )
-from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.cairo.common.alloc import alloc
 
@@ -21,39 +20,15 @@ from ethereum.cancun.fork import (
     get_last_256_block_hashes,
     process_system_tx,
 )
-from legacy.utils.dict import default_dict_finalize
 from ethereum_types.numeric import Uint
-from ethereum.crypto.hash import Hash32
-from ethereum.cancun.trie import (
-    EthereumTriesImpl,
-    root,
-    TrieBytesOptionalUnionBytesWithdrawal,
-    init_tries,
-)
+from ethereum.cancun.trie import init_tries
 
 from ethereum.cancun.state import finalize_state
 
-from ethereum.cancun.blocks import (
-    TupleWithdrawal,
-    TupleWithdrawal__hash__,
-    Header__hash__,
-    TupleLog,
-    TupleLogStruct,
-    Log,
-)
-from ethereum.cancun.fork_types import OptionalMappingAddressBytes32, MappingAddressBytes32Struct
+from ethereum.cancun.blocks import Header__hash__, TupleLog, TupleLogStruct, Log
 from ethereum.cancun.vm.gas import calculate_excess_blob_gas
 
 from ethereum.cancun.keth.commitments import body_commitments, teardown_commitments
-
-from cairo_core.hash.blake2s import blake2s, blake2s_add_uint256
-
-from mpt.types import (
-    NodeStore,
-    OptionalUnionInternalNodeExtended,
-    MappingBytes32Bytes32,
-    MappingBytes32Address,
-)
 
 func main{
     output_ptr: felt*,
