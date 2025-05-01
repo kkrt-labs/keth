@@ -1116,26 +1116,27 @@ def generate_dict_arg(
     # In case of a dict update, we need to get the prev_value from the dict_tracker of the parent_ptr.
     # For consistency purposes when we drop the dict and put its prev values back in the parent_ptr.
     parent_dict_end_ptr = segments.memory.get(parent_ptr + 1) if parent_ptr else None
-    initial_data = flatten(
-        [
-            (
-                (
-                    poseidon_hash_many(k)
-                    if (get_args(arg_type)[0] in HASHED_TYPES and len(k) != 1)
-                    else k
-                ),
-                (
-                    dict_manager.get_tracker(parent_dict_end_ptr).data.get(k, v)
-                    if parent_dict_end_ptr
-                    else (
-                        data.default_factory() if isinstance(data, defaultdict) else v
-                    )
-                ),
-                v,
-            )
-            for k, v in data.items()
-        ]
-    )
+    # The initial dict segment should be sorted by key - as if it was squashed.
+    processed_items = []
+    key_type = get_args(arg_type)[0]
+    is_hashed_key = key_type in HASHED_TYPES
+
+    for k, v in data.items():
+        if is_hashed_key:
+            cairo_key = k[0] if len(k) == 1 else poseidon_hash_many(k)
+        else:
+            cairo_key = k
+
+        prev_value = (
+            dict_manager.get_tracker(parent_dict_end_ptr).data.get(k, v)
+            if parent_dict_end_ptr
+            else (data.default_factory() if isinstance(data, defaultdict) else v)
+        )
+
+        processed_items.append((cairo_key, prev_value, v))
+
+    # Sort by Cairo key and flatten the inner tuples
+    initial_data = flatten(sorted(processed_items, key=lambda item: item[0]))
 
     all_preimages = {
         poseidon_hash_many(k) if len(k) != 1 else k[0]: k for k in data.keys()

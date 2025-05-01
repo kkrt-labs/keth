@@ -73,6 +73,8 @@ from ethereum.cancun.state import (
 )
 
 from ethereum.cancun.blocks import (
+    TupleWithdrawal,
+    TupleWithdrawal__hash__,
     Header,
     Header__hash__,
     TupleUnionBytesLegacyTransaction__hash__,
@@ -191,6 +193,39 @@ func body_commitments{
     blake2s_add_uint256{data=init_commitment_buffer}([block_hashes_commitment.value]);
     blake2s_add_uint256{data=init_commitment_buffer}([header_commitment.value]);
     let (res) = blake2s(data=start, n_bytes=10 * 32);
+    tempvar res_hash = Hash32(value=new res);
+    return res_hash;
+}
+
+func teardown_commitments{
+    range_check_ptr, bitwise_ptr: BitwiseBuiltin*, keccak_ptr: felt*, poseidon_ptr: PoseidonBuiltin*
+}(
+    header_commitment: Hash32,
+    withdrawals_trie: TrieBytesOptionalUnionBytesWithdrawal,
+    withdrawals: TupleWithdrawal,
+) -> Hash32 {
+    alloc_locals;
+
+    let (init_commitment_buffer) = alloc();
+    let start = init_commitment_buffer;
+    blake2s_add_uint256{data=init_commitment_buffer}([header_commitment.value]);
+
+    // Commit to the withdrawals trie
+    default_dict_finalize(
+        cast(withdrawals_trie.value._data.value.dict_ptr_start, DictAccess*),
+        cast(withdrawals_trie.value._data.value.dict_ptr, DictAccess*),
+        0,
+    );
+    let null_account_roots = OptionalMappingAddressBytes32(cast(0, MappingAddressBytes32Struct*));
+    let withdrawal_trie_typed = EthereumTriesImpl.from_withdrawal_trie(withdrawals_trie);
+    let withdrawal_trie_commitment = root(withdrawal_trie_typed, null_account_roots, 'blake2s');
+    blake2s_add_uint256{data=init_commitment_buffer}([withdrawal_trie_commitment.value]);
+
+    // Commit to the withdrawals
+    let withdrawals_commitment = TupleWithdrawal__hash__(withdrawals);
+    blake2s_add_uint256{data=init_commitment_buffer}([withdrawals_commitment.value]);
+
+    let (res) = blake2s(data=start, n_bytes=3 * 32);
     tempvar res_hash = Hash32(value=new res);
     return res_hash;
 }

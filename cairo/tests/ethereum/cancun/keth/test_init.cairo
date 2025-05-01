@@ -11,7 +11,7 @@ from ethereum_types.bytes import Bytes32
 from ethereum.utils.bytes import Bytes32_to_Bytes
 from mpt.trie_diff import OptionalUnionInternalNodeExtendedImpl
 
-from ethereum.cancun.init import main
+from ethereum.cancun.keth.init import main as init_main
 
 func test_init{
     output_ptr: felt*,
@@ -28,6 +28,6 @@ func test_init{
 }() -> (output_start: felt*) {
     alloc_locals;
     local output_start: felt* = output_ptr;
-    main();
+    init_main();
     return (output_start=output_start);
 }

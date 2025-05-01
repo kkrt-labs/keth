@@ -1567,7 +1567,7 @@ func finalize_state{range_check_ptr, state: State}() {
         ),
     );
 
-    // Squash the original_storage_tries mapping for soundness
+    // Squash the original_storage_tries mapping for soundness - if that mapping is defined.
     let original_storage_tries = state.value.original_storage_tries;
     let original_storage_tries_start = cast(
         original_storage_tries.value._data.value.dict_ptr_start, DictAccess*
@@ -1579,6 +1579,7 @@ func finalize_state{range_check_ptr, state: State}() {
     let (squashed_original_storage_tries_start, squashed_original_storage_tries_end) = dict_squash(
         original_storage_tries_start, original_storage_tries_end
     );
+
     tempvar squashed_original_storage_tries = TrieTupleAddressBytes32U256(
         new TrieTupleAddressBytes32U256Struct(
             secured=original_storage_tries.value.secured,
@@ -1596,7 +1597,6 @@ func finalize_state{range_check_ptr, state: State}() {
             ),
         ),
     );
-
     // Re-bind the state with the squashed dicts
     tempvar state = State(
         new StateStruct(

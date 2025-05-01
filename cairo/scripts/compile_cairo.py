@@ -100,6 +100,10 @@ def compile_keth():
             Path("cairo/ethereum/cancun/keth/body.cairo"),
             Path("build/body_compiled.json"),
         ),
+        (
+            Path("cairo/ethereum/cancun/keth/teardown.cairo"),
+            Path("build/teardown_compiled.json"),
+        ),
     ]
 
     for _, output_path in programs:
