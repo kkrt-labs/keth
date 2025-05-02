@@ -455,6 +455,11 @@ def load_body_input(
     block = zkpi_program_input["block"]
     parent_header = chain.blocks[-1].header
     excess_blob_gas = calculate_excess_blob_gas(parent_header)
+
+    # We need to save the pre-state of the state to be able to inject it as original snapshot
+    main_trie_snapshot = copy_trie(chain.state._main_trie)
+    storage_tries_snapshot = copy.deepcopy(chain.state._storage_tries)
+
     body_input = prepare_body_input(
         chain.state,
         get_last_256_block_hashes(chain),
@@ -470,6 +475,30 @@ def load_body_input(
         block.header.parent_beacon_block_root,
         excess_blob_gas,
     )
+    # One thing to keep in mind here is that running EELS will delete any value from the account /
+    # storage trie that's set to the default value (EMPTY_ACCOUNT / U256(0)).  This means that we
+    # must _manually_ put back an entry for each value that was deleted from the tries.
+    updated_state = body_input["state"]
+    for address, account in main_trie_snapshot._data.items():
+        if address not in updated_state._main_trie._data:
+            updated_state._main_trie._data[address] = None
+
+        if address not in updated_state._storage_tries:
+            updated_state._storage_tries[address] = Trie(
+                secured=True, default=U256(0), _data={}
+            )
+
+    for address in storage_tries_snapshot:
+        for storage_key, storage_value in storage_tries_snapshot[address]._data.items():
+            if storage_key not in updated_state._storage_tries[address]._data:
+                updated_state._storage_tries[address]._data[storage_key] = None
+    # Inject the original state as the first snapshot
+    body_input["state"]._snapshots = [
+        (
+            main_trie_snapshot,
+            storage_tries_snapshot,
+        )
+    ]
     code_hashes = map_code_hashes_to_code(body_input["state"])
     program_input = {
         **body_input,
