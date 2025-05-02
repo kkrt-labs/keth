@@ -7,124 +7,39 @@ from starkware.cairo.common.cairo_builtins import (
     PoseidonBuiltin,
     ModBuiltin,
     HashBuiltin,
-    KeccakBuiltin,
     SignatureBuiltin,
     EcOpBuiltin,
 )
 from starkware.cairo.common.dict_access import DictAccess
-from starkware.cairo.common.default_dict import default_dict_new
-from starkware.cairo.common.registers import get_fp_and_pc, get_label_location
 from starkware.cairo.common.cairo_keccak.keccak import finalize_keccak
 from starkware.cairo.common.alloc import alloc
 
 from ethereum.cancun.bloom import logs_bloom
-from ethereum.cancun.fork import (
-    BlockChainStruct,
-    _process_withdrawals_inner,
-    state_transition,
-    BlockChain,
-    Block,
-    keccak256_header,
-    validate_header,
-    get_last_256_block_hashes,
-    BEACON_ROOTS_ADDRESS,
-    SYSTEM_ADDRESS,
-    SYSTEM_TRANSACTION_GAS,
-    process_system_tx,
-)
+from ethereum.cancun.fork import BlockChainStruct, _process_withdrawals_inner, BlockChain, Block
 from legacy.utils.dict import default_dict_finalize
-from ethereum_types.bytes import Bytes32, Bytes0
-from ethereum_types.numeric import Uint, bool, U256, U256Struct, U64
+from ethereum_types.numeric import U64, Uint
 from ethereum.utils.bytes import Bytes32_to_Bytes, Bytes32__eq__, Bytes256__eq__
-from ethereum.cancun.vm.evm_impl import (
-    EvmStruct,
-    Message,
-    MessageStruct,
-    Environment,
-    EnvironmentStruct,
-    OptionalEvm,
-)
-from ethereum.crypto.hash import Hash32
-from ethereum.cancun.vm.interpreter import process_message_call
 from ethereum.cancun.trie import (
     EthereumTriesImpl,
     root,
-    MappingBytesOptionalUnionBytesLegacyTransaction,
-    MappingBytesOptionalUnionBytesLegacyTransactionStruct,
-    BytesOptionalUnionBytesLegacyTransactionDictAccess,
-    TrieBytesOptionalUnionBytesLegacyTransactionStruct,
     TrieBytesOptionalUnionBytesLegacyTransaction,
-    MappingBytesOptionalUnionBytesReceipt,
-    MappingBytesOptionalUnionBytesReceiptStruct,
-    BytesOptionalUnionBytesReceiptDictAccess,
-    TrieBytesOptionalUnionBytesReceiptStruct,
     TrieBytesOptionalUnionBytesReceipt,
-    MappingBytesOptionalUnionBytesWithdrawal,
-    MappingBytesOptionalUnionBytesWithdrawalStruct,
-    BytesOptionalUnionBytesWithdrawalDictAccess,
-    TrieBytesOptionalUnionBytesWithdrawalStruct,
     TrieBytesOptionalUnionBytesWithdrawal,
-    OptionalUnionBytesWithdrawal,
-    UnionBytesWithdrawalEnum,
-    init_tries,
     TrieAddressOptionalAccount,
     TrieAddressOptionalAccountStruct,
 )
 
-from ethereum.cancun.state import (
-    destroy_account,
-    destroy_touched_empty_accounts,
-    get_account,
-    get_account_code,
-    State,
-    StateStruct,
-    state_root,
-    empty_transient_storage,
-    finalize_state,
-)
+from ethereum.cancun.state import State, StateStruct, state_root, finalize_state
 from ethereum.cancun.keth.commitments import teardown_commitments, body_commitments
 
-from ethereum.cancun.blocks import (
-    Header,
-    TupleWithdrawal,
-    TupleWithdrawal__hash__,
-    Header__hash__,
-    TupleUnionBytesLegacyTransaction__hash__,
-    TupleLog__hash__,
-    UnionBytesLegacyTransactionEnum,
-    OptionalUnionBytesLegacyTransaction,
-    TupleUnionBytesLegacyTransaction,
-    TupleLog,
-    TupleLogStruct,
-    OptionalUnionBytesReceipt,
-    UnionBytesReceiptEnum,
-    Log,
-    LogStruct,
-)
-from ethereum.utils.numeric import U256__hash__
+from ethereum.cancun.blocks import Header__hash__, TupleUnionBytesLegacyTransaction, TupleLog
 from ethereum.cancun.fork_types import (
     MappingAddressAccount,
     MappingAddressAccountStruct,
-    ListHash32__hash__,
     ListHash32,
-    Address,
-    OptionalAddress,
-    SetAddress,
-    SetAddressDictAccess,
-    SetAddressStruct,
-    SetTupleAddressBytes32,
-    SetTupleAddressBytes32DictAccess,
-    SetTupleAddressBytes32Struct,
     OptionalMappingAddressBytes32,
     MappingAddressBytes32Struct,
-    TupleVersionedHash,
-    TupleVersionedHashStruct,
-    VersionedHash,
 )
-from ethereum.cancun.transactions_types import To, ToStruct
-
-from cairo_core.bytes_impl import Bytes32__hash__
-from cairo_core.hash.blake2s import blake2s_add_uint256, blake2s, blake2s_add_felt
 
 from mpt.trie_diff import OptionalUnionInternalNodeExtendedImpl
 
