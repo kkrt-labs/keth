@@ -8,6 +8,7 @@ from starkware.cairo.common.cairo_builtins import (
     HashBuiltin,
     SignatureBuiltin,
     EcOpBuiltin,
+    ModBuiltin,
 )
 from ethereum.cancun.keth.init import init
 
@@ -21,6 +22,8 @@ func main{
     keccak_ptr: felt*,
     poseidon_ptr: PoseidonBuiltin*,
     range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
 }() {
     init();
     return ();
