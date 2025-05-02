@@ -114,7 +114,7 @@ func body{
         state=state, transactions_trie=transactions_trie, receipts_trie=receipts_trie
     }(
         index=start_index,
-        len=len,
+        len=start_index + len,
         transactions=block_transactions,
         gas_available=gas_available,
         chain_id=chain_id,
