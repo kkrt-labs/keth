@@ -1,7 +1,3 @@
-%builtins output pedersen range_check ecdsa bitwise ec_op keccak poseidon range_check96 add_mod mul_mod
-// In proof mode running with RustVM requires declaring all builtins of the layout and taking them as entrypoint
-// see: <https://github.com/lambdaclass/cairo-vm/issues/2004>
-
 from starkware.cairo.common.cairo_builtins import (
     BitwiseBuiltin,
     PoseidonBuiltin,
@@ -58,7 +54,7 @@ from mpt.types import (
 from mpt.trie_diff import compute_diff_entrypoint
 from mpt.utils import sort_account_diff, sort_storage_diff
 
-func main{
+func teardown{
     output_ptr: felt*,
     pedersen_ptr: HashBuiltin*,
     range_check_ptr,

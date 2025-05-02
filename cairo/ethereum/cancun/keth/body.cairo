@@ -1,7 +1,3 @@
-%builtins output pedersen range_check ecdsa bitwise ec_op keccak poseidon range_check96 add_mod mul_mod
-// In proof mode running with RustVM requires declaring all builtins of the layout and taking them as entrypoint
-// see: <https://github.com/lambdaclass/cairo-vm/issues/2004>
-
 from starkware.cairo.common.cairo_builtins import (
     BitwiseBuiltin,
     PoseidonBuiltin,
@@ -32,7 +28,7 @@ from ethereum.cancun.fork_types import ListHash32
 
 from ethereum.cancun.keth.commitments import body_commitments
 
-func main{
+func body{
     output_ptr: felt*,
     pedersen_ptr: HashBuiltin*,
     range_check_ptr,

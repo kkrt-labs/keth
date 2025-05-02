@@ -7,7 +7,7 @@ from starkware.cairo.common.cairo_builtins import (
     EcOpBuiltin,
 )
 
-from ethereum.cancun.keth.teardown import main as teardown_main
+from ethereum.cancun.keth.teardown import teardown
 
 func test_teardown{
     output_ptr: felt*,
@@ -24,6 +24,6 @@ func test_teardown{
 }() -> (output_start: felt*) {
     alloc_locals;
     local output_start: felt* = output_ptr;
-    teardown_main();
+    teardown();
     return (output_start=output_start);
 }
