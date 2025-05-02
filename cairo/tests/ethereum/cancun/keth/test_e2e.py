@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import pytest
-from ethereum_types.numeric import U64
 
 from utils.fixture_loader import load_body_input, load_teardown_input, load_zkpi_fixture
 
@@ -29,15 +28,30 @@ class TestE2E:
             init_teardown_commitment_high,
         ] = cairo_run("test_init", verify_squashed_dicts=True, **program_input)
 
-        body_input = load_body_input(zkpi_path, 0, int(U64.MAX_VALUE))
+        transactions_len = len(program_input["block"].transactions)
+        first_half_body_input = load_body_input(zkpi_path, 0, transactions_len // 2)
         [
-            body_init_commitment_low,
-            body_init_commitment_high,
-            body_teardown_commitment_low,
-            body_teardown_commitment_high,
-            body_start_index,
-            body_len,
-        ] = cairo_run("test_body", verify_squashed_dicts=True, **body_input)
+            first_half_body_pre_exec_commitment_low,
+            first_half_body_pre_exec_commitment_high,
+            first_half_body_post_exec_commitment_low,
+            first_half_body_post_exec_commitment_high,
+            first_half_body_start_index,
+            first_half_body_len,
+        ] = cairo_run("test_body", verify_squashed_dicts=True, **first_half_body_input)
+
+        second_half_body_input = load_body_input(
+            zkpi_path,
+            transactions_len // 2,
+            transactions_len - transactions_len // 2,
+        )
+        [
+            second_half_body_pre_exec_commitment_low,
+            second_half_body_pre_exec_commitment_high,
+            second_half_body_post_exec_commitment_low,
+            second_half_body_post_exec_commitment_high,
+            second_half_body_start_index,
+            second_half_body_len,
+        ] = cairo_run("test_body", verify_squashed_dicts=True, **second_half_body_input)
 
         teardown_input = load_teardown_input(zkpi_path)
         [
@@ -47,11 +61,31 @@ class TestE2E:
             teardown_body_commitment_high,
         ] = cairo_run("test_teardown", verify_squashed_dicts=True, **teardown_input)
 
-        assert body_start_index == 0
-        assert body_len == len(body_input["block_transactions"])
-        assert init_body_commitment_low == body_init_commitment_low
-        assert init_body_commitment_high == body_init_commitment_high
-        assert body_teardown_commitment_low == teardown_body_commitment_low
-        assert body_teardown_commitment_high == teardown_body_commitment_high
+        # glue init to the first half of the body
+        assert init_body_commitment_low == first_half_body_pre_exec_commitment_low
+        assert init_body_commitment_high == first_half_body_pre_exec_commitment_high
+
+        # glue the first half of the body to the second half of the body
+        assert (
+            first_half_body_post_exec_commitment_low
+            == second_half_body_pre_exec_commitment_low
+        )
+        assert (
+            first_half_body_post_exec_commitment_high
+            == second_half_body_pre_exec_commitment_high
+        )
+        assert first_half_body_start_index == 0
+        assert first_half_body_len == transactions_len // 2
+
+        # glue the second half of the body to the teardown
+        assert second_half_body_post_exec_commitment_low == teardown_body_commitment_low
+        assert (
+            second_half_body_post_exec_commitment_high == teardown_body_commitment_high
+        )
+
+        assert second_half_body_start_index == transactions_len // 2
+        assert second_half_body_len == transactions_len - transactions_len // 2
+
+        # glue init to the teardown
         assert init_teardown_commitment_low == teardown_init_commitment_low
         assert init_teardown_commitment_high == teardown_init_commitment_high
