@@ -7,7 +7,7 @@ from starkware.cairo.common.cairo_builtins import (
     EcOpBuiltin,
 )
 
-from ethereum.cancun.keth.init import main as init_main
+from ethereum.cancun.keth.init import init
 
 func test_init{
     output_ptr: felt*,
@@ -24,6 +24,6 @@ func test_init{
 }() -> (output_start: felt*) {
     alloc_locals;
     local output_start: felt* = output_ptr;
-    init_main();
+    init();
     return (output_start=output_start);
 }

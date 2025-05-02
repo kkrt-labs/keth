@@ -1,3 +1,7 @@
+%builtins output pedersen range_check ecdsa bitwise ec_op keccak poseidon range_check96 add_mod mul_mod
+// In proof mode running with RustVM requires declaring all builtins of the layout and taking them as entrypoint
+// see: <https://github.com/lambdaclass/cairo-vm/issues/2004>
+
 from starkware.cairo.common.cairo_builtins import (
     BitwiseBuiltin,
     PoseidonBuiltin,
@@ -6,10 +10,9 @@ from starkware.cairo.common.cairo_builtins import (
     SignatureBuiltin,
     EcOpBuiltin,
 )
-
 from ethereum.cancun.keth.body import body
 
-func test_body{
+func main{
     output_ptr: felt*,
     pedersen_ptr: HashBuiltin*,
     range_check_ptr,
@@ -21,9 +24,7 @@ func test_body{
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,
-}() -> (output_start: felt*) {
-    alloc_locals;
-    local output_start: felt* = output_ptr;
+}() {
     body();
-    return (output_start=output_start);
+    return ();
 }

@@ -89,7 +89,7 @@ def compile_keth():
 
     programs = [
         (
-            Path("cairo/ethereum/cancun/keth/init.cairo"),
+            Path("cairo/ethereum/cancun/keth/init_main.cairo"),
             Path("build/init_compiled.json"),
         ),
         (
@@ -97,11 +97,11 @@ def compile_keth():
             Path("build/main_compiled.json"),
         ),
         (
-            Path("cairo/ethereum/cancun/keth/body.cairo"),
+            Path("cairo/ethereum/cancun/keth/body_main.cairo"),
             Path("build/body_compiled.json"),
         ),
         (
-            Path("cairo/ethereum/cancun/keth/teardown.cairo"),
+            Path("cairo/ethereum/cancun/keth/teardown_main.cairo"),
             Path("build/teardown_compiled.json"),
         ),
     ]
