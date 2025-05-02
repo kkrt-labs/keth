@@ -12,14 +12,25 @@ runs:
       with:
         cache-on-failure: "true"
 
-    - name: Set up Python 3.10.14
-      uses: actions/setup-python@v5
+    - name: Setup uv
+      uses: astral-sh/setup-uv@v6
       with:
-        python-version: 3.10.14
-        cache: pip
+        enable-cache: true
+        cache-dependency-glob: "uv.lock"
 
-    - run: pip install cairo-lang==0.13.2 sympy==1.11.1
+    - name: Create venv
       shell: bash
+      run: |
+        uv venv
+        echo "$PWD/.venv/bin" >> $GITHUB_PATH
+
+    - name: Install cairo-lint
+      shell: bash
+      run: uv sync --package cairo-lint
+
+    - name: Install dependencies
+      shell: bash
+      run: uv pip install cairo-lang sympy
 
     - name: Install Foundry
       uses: foundry-rs/foundry-toolchain@v1
