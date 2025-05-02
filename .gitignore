@@ -58,3 +58,5 @@ data
 *.trace.bin
 *.memory.bin
 output/
+
+*.profile.json.gz

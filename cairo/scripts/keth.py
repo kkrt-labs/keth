@@ -213,6 +213,11 @@ def prove(
         dir_okay=True,
         file_okay=False,
     ),
+    serde_cairo: bool = typer.Option(
+        False,
+        "--serde-cairo",
+        help="Serialize the proof to a cairo-compatible format",
+    ),
 ):
     """
     Generate a STWO proof from the prover input information file.
@@ -227,6 +232,7 @@ def prove(
             run_prove(
                 prover_input_path=prover_inputs_path,
                 proof_path=proof_path,
+                serde_cairo=serde_cairo,
             )
             console.print(f"[green]✓[/] Proof generated successfully at {proof_path}")
         except Exception:
@@ -311,6 +317,11 @@ def e2e(
         "--len",
         help="Number of transactions to process in this chunk for body step",
     ),
+    serde_cairo: bool = typer.Option(
+        False,
+        "--serde-cairo",
+        help="Serialize the proof to a cairo-compatible format",
+    ),
 ):
     """
     Run the full end-to-end trace generation, proving and verification flow
@@ -355,6 +366,7 @@ def e2e(
                 program_input,
                 str(compiled_program),
                 proof_path,
+                serde_cairo,
                 verify_proof,
             )
             console.print("[green]✓[/] Pipeline completed successfully")

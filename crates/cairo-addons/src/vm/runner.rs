@@ -784,6 +784,7 @@ pub fn run_end_to_end(
     program_input: PyObject,
     compiled_program_path: String,
     proof_path: PathBuf,
+    serde_cairo: bool,
     verify: bool,
 ) -> PyResult<()> {
     tracing_subscriber::fmt()
@@ -809,7 +810,7 @@ pub fn run_end_to_end(
     let cairo_input =
         stwo_cairo_adapter::plain::adapt_finished_runner(cairo_runner).map_err(to_pyerr)?;
 
-    prove_with_stwo(cairo_input, Some(proof_path), verify).map_err(to_pyerr)
+    prove_with_stwo(cairo_input, proof_path, serde_cairo, verify).map_err(to_pyerr)
 }
 
 // From <https://github.com/lambdaclass/cairo-vm/blob/5d7c20880785e1f9edbd73d0d46aeb58d8bced4e/cairo-vm-cli/src/main.rs#L109-L140>
