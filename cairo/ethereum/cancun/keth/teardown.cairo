@@ -128,10 +128,8 @@ func teardown{
     let keccak_ptr_start = keccak_ptr;
 
     // Commit to the same inputs as the init.cairo's outputs.
-    let parent_header = chain.value.blocks.value.data[
-        chain.value.blocks.value.len - 1
-    ].value.header;
-    let header_commitment = Header__hash__(parent_header);
+    let header = block.value.header;
+    let header_commitment = Header__hash__(header);
     let teardown_commitment = teardown_commitments{
         range_check_ptr=range_check_ptr,
         bitwise_ptr=bitwise_ptr,
@@ -237,6 +235,9 @@ func teardown{
     }
 
     // # Compute the diff between the pre and post STF MPTs to produce trie diffs.
+    let parent_header = chain.value.blocks.value.data[
+        chain.value.blocks.value.len - 1
+    ].value.header;
     let pre_state_root = parent_header.value.state_root;
     let pre_state_root_bytes = Bytes32_to_Bytes(pre_state_root);
     let pre_state_root_node = OptionalUnionInternalNodeExtendedImpl.from_bytes(
