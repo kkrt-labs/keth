@@ -7,132 +7,30 @@ from starkware.cairo.common.cairo_builtins import (
     PoseidonBuiltin,
     ModBuiltin,
     HashBuiltin,
-    KeccakBuiltin,
     SignatureBuiltin,
     EcOpBuiltin,
 )
-from starkware.cairo.common.dict_access import DictAccess
-from starkware.cairo.common.default_dict import default_dict_new
-from starkware.cairo.common.registers import get_fp_and_pc, get_label_location
 from starkware.cairo.common.cairo_keccak.keccak import finalize_keccak
 from starkware.cairo.common.alloc import alloc
 
-from ethereum.cancun.fork import (
-    _apply_body_inner,
-    state_transition,
-    BlockChain,
-    Block,
-    keccak256_header,
-    validate_header,
-    get_last_256_block_hashes,
-    BEACON_ROOTS_ADDRESS,
-    SYSTEM_ADDRESS,
-    SYSTEM_TRANSACTION_GAS,
-)
-from legacy.utils.dict import default_dict_finalize
-from ethereum_types.bytes import Bytes32, Bytes0
-from ethereum_types.numeric import Uint, bool, U256, U256Struct, U64
-from ethereum.utils.bytes import Bytes32_to_Bytes
-from ethereum.cancun.vm.evm_impl import (
-    EvmStruct,
-    Message,
-    MessageStruct,
-    Environment,
-    EnvironmentStruct,
-    OptionalEvm,
-)
-from ethereum.crypto.hash import Hash32
-from ethereum.cancun.vm.interpreter import process_message_call
+from ethereum.cancun.fork import _apply_body_inner
+from ethereum_types.numeric import U64, Uint
 from ethereum.cancun.trie import (
-    EthereumTriesImpl,
-    root,
-    MappingBytesOptionalUnionBytesLegacyTransaction,
-    MappingBytesOptionalUnionBytesLegacyTransactionStruct,
-    BytesOptionalUnionBytesLegacyTransactionDictAccess,
-    TrieBytesOptionalUnionBytesLegacyTransactionStruct,
     TrieBytesOptionalUnionBytesLegacyTransaction,
-    MappingBytesOptionalUnionBytesReceipt,
-    MappingBytesOptionalUnionBytesReceiptStruct,
-    BytesOptionalUnionBytesReceiptDictAccess,
-    TrieBytesOptionalUnionBytesReceiptStruct,
     TrieBytesOptionalUnionBytesReceipt,
-    MappingBytesOptionalUnionBytesWithdrawal,
-    MappingBytesOptionalUnionBytesWithdrawalStruct,
-    BytesOptionalUnionBytesWithdrawalDictAccess,
-    TrieBytesOptionalUnionBytesWithdrawalStruct,
-    TrieBytesOptionalUnionBytesWithdrawal,
-    OptionalUnionBytesWithdrawal,
-    UnionBytesWithdrawalEnum,
 )
 
-from ethereum.cancun.state import (
-    destroy_account,
-    destroy_touched_empty_accounts,
-    get_account,
-    get_account_code,
-    State,
-    state_root,
-    empty_transient_storage,
-    finalize_state,
-)
+from ethereum.cancun.state import State, finalize_state
 
 from ethereum.cancun.blocks import (
     Header,
     Header__hash__,
-    TupleUnionBytesLegacyTransaction__hash__,
-    TupleLog__hash__,
-    UnionBytesLegacyTransactionEnum,
-    OptionalUnionBytesLegacyTransaction,
     TupleUnionBytesLegacyTransaction,
     TupleLog,
-    TupleLogStruct,
-    OptionalUnionBytesReceipt,
-    UnionBytesReceiptEnum,
-    Log,
-    LogStruct,
 )
-from ethereum.utils.numeric import U256__hash__
-from ethereum.cancun.fork_types import (
-    ListHash32__hash__,
-    ListHash32,
-    Address,
-    OptionalAddress,
-    SetAddress,
-    SetAddressDictAccess,
-    SetAddressStruct,
-    SetTupleAddressBytes32,
-    SetTupleAddressBytes32DictAccess,
-    SetTupleAddressBytes32Struct,
-    OptionalMappingAddressBytes32,
-    MappingAddressBytes32Struct,
-    TupleVersionedHash,
-    TupleVersionedHashStruct,
-    VersionedHash,
-)
-from ethereum.cancun.vm.gas import calculate_excess_blob_gas
-from ethereum.cancun.transactions_types import To, ToStruct
-
-from cairo_core.bytes_impl import Bytes32__hash__
-from cairo_core.hash.blake2s import blake2s_add_uint256, blake2s, blake2s_add_felt
+from ethereum.cancun.fork_types import ListHash32
 
 from ethereum.cancun.keth.commitments import body_commitments
-
-from mpt.trie_diff import OptionalUnionInternalNodeExtendedImpl
-
-from mpt.hash_diff import (
-    hash_state_storage_diff,
-    hash_state_account_diff,
-    hash_account_diff_segment,
-    hash_storage_diff_segment,
-)
-from mpt.types import (
-    NodeStore,
-    OptionalUnionInternalNodeExtended,
-    MappingBytes32Bytes32,
-    MappingBytes32Address,
-)
-from mpt.trie_diff import compute_diff_entrypoint
-from mpt.utils import sort_account_diff, sort_storage_diff
 
 func main{
     output_ptr: felt*,
