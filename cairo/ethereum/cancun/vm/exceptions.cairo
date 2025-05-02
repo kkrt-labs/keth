@@ -1,5 +1,3 @@
-from ethereum.exceptions import EthereumException
-
 // Revert
 const Revert = 'Revert';
 

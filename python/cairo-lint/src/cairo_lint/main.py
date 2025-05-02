@@ -3,6 +3,7 @@ import re
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
 
+import toml
 import typer
 from rich.console import Console
 
@@ -22,17 +23,20 @@ DISABLE_FILE_COMMENT = "// cairo-lint: disable-file"
 # --- Regex Patterns ---
 # Matches: from path.to.module import identifier
 # Matches: from path.to.module import identifier1, identifier2, identifier3
+# Matches: from path.to.module import identifier1 as alias1, identifier2 as alias2
 # Captures: 1=module path, 2=identifiers string
-SINGLE_IMPORT_RE = re.compile(r"^\s*from\s+([\w.]+)\s+import\s+([\w\s,]+)\s*")
+SINGLE_IMPORT_RE = re.compile(
+    r"^\s*from\s+([\w.]+)\s+import\s+([\w\s,]+(?:\s+as\s+\w+\s*,?\s*)*)\s*"
+)
 
 # Matches: from path.to.module import (
 # Captures: 1=module path
 MULTI_IMPORT_START_RE = re.compile(r"^\s*from\s+([\w.]+)\s+import\s+\(\s*")
 
-# Matches:     identifier,
 # Matches:     identifier
-# Captures: 1=identifier
-MULTI_IMPORT_ITEM_RE = re.compile(r"^\s*(\w+)\s*,?\s*$")
+# Matches:     identifier as alias
+# Captures: 1=identifier, 2=alias (optional)
+MULTI_IMPORT_ITEM_RE = re.compile(r"^\s*(\w+)(?:\s+as\s+(\w+))?\s*,?\s*$")
 
 # Matches: )
 MULTI_IMPORT_END_RE = re.compile(r"^\s*\)\s*$")
@@ -45,6 +49,7 @@ class ImportInfo:
     def __init__(
         self,
         identifier: str,
+        original_identifier: str,
         module: str,
         line_index: int,
         is_multiline: bool,
@@ -53,6 +58,7 @@ class ImportInfo:
         is_disabled: bool,
     ):
         self.identifier = identifier
+        self.original_identifier = original_identifier
         self.module = module
         self.line_index = line_index  # The specific line the identifier is on
         self.is_multiline = is_multiline
@@ -61,10 +67,10 @@ class ImportInfo:
         self.is_disabled = is_disabled  # If true, this import won't be removed
 
 
-# Change: Modify parser to check for disable comment on the preceding line.
+# Change: Modify parser to check for disable comment on the preceding line and handle aliases.
 def parse_cairo_imports(lines: List[str]) -> Tuple[List[ImportInfo], Set[int]]:
     """
-    Parses import statements from Cairo code lines.
+    Parses import statements from Cairo code lines, handling aliases.
 
     Checks for a `// cairo-lint: disable` comment on the line immediately
     preceding an import statement or item to mark it as disabled.
@@ -83,6 +89,11 @@ def parse_cairo_imports(lines: List[str]) -> Tuple[List[ImportInfo], Set[int]]:
         False  # Tracks disable comment before 'from ... import ('
     )
 
+    # Regex to parse individual import items (with optional alias) from single-line imports
+    # Matches: identifier
+    # Matches: identifier as alias
+    SINGLE_ITEM_RE = re.compile(r"(\w+)(?:\s+as\s+(\w+))?")
+
     for i, line in enumerate(lines):
         # Check for disable comment on the previous line
         preceding_line_is_disable_comment = (
@@ -93,7 +104,10 @@ def parse_cairo_imports(lines: List[str]) -> Tuple[List[ImportInfo], Set[int]]:
             import_lines.add(i)
             multi_item_match = MULTI_IMPORT_ITEM_RE.match(line)
             if multi_item_match:
-                identifier = multi_item_match.group(1)
+                original_identifier = multi_item_match.group(1)
+                alias = multi_item_match.group(2)
+                effective_identifier = alias if alias else original_identifier
+
                 # End line will be updated when ')' is found
                 # Item is disabled if comment precedes *this specific line* OR the block start
                 item_is_disabled = (
@@ -101,13 +115,14 @@ def parse_cairo_imports(lines: List[str]) -> Tuple[List[ImportInfo], Set[int]]:
                 )
                 imports.append(
                     ImportInfo(
-                        identifier,
-                        current_module,
-                        i,
-                        True,
-                        current_block_start,
-                        -1,
-                        item_is_disabled,  # Pass disable status
+                        identifier=effective_identifier,
+                        original_identifier=original_identifier,
+                        module=current_module,
+                        line_index=i,
+                        is_multiline=True,
+                        block_start_line=current_block_start,
+                        block_end_line=-1,
+                        is_disabled=item_is_disabled,
                     )
                 )
             elif MULTI_IMPORT_END_RE.match(line):
@@ -143,24 +158,29 @@ def parse_cairo_imports(lines: List[str]) -> Tuple[List[ImportInfo], Set[int]]:
                 import_lines.add(i)
                 module = single_match.group(1)
                 identifiers_str = single_match.group(2)
-                identifiers = [
-                    ident.strip()
-                    for ident in identifiers_str.split(",")
-                    if ident.strip()
-                ]
-                for identifier in identifiers:
-                    # Import is disabled if comment precedes this line
-                    imports.append(
-                        ImportInfo(
-                            identifier,
-                            module,
-                            i,
-                            False,
-                            i,
-                            i,
-                            preceding_line_is_disable_comment,  # Pass disable status
+                # Split by comma and parse each part for identifier [as alias]
+                parts = [p.strip() for p in identifiers_str.split(",") if p.strip()]
+                for part in parts:
+                    item_match = SINGLE_ITEM_RE.match(part)
+                    if item_match:
+                        original_identifier = item_match.group(1)
+                        alias = item_match.group(2)
+                        effective_identifier = alias if alias else original_identifier
+
+                        # Import is disabled if comment precedes this line
+                        imports.append(
+                            ImportInfo(
+                                identifier=effective_identifier,
+                                original_identifier=original_identifier,
+                                module=module,
+                                line_index=i,
+                                is_multiline=False,
+                                block_start_line=i,
+                                block_end_line=i,
+                                is_disabled=preceding_line_is_disable_comment,
+                            )
                         )
-                    )
+                    # else: # Malformed part in single-line import, ignore for now
 
     return imports, import_lines
 
@@ -176,7 +196,10 @@ def process_file(file_path: Path) -> Optional[str]:
     """
     try:
         original_content = file_path.read_text()
-        lines = original_content.splitlines()
+        ast = parse_file(original_content, str(file_path))
+        # Start by formatting the file
+        formatted_content = ast.format()
+        lines = formatted_content.splitlines()
     except Exception as e:
         console.print(f"[red]Error reading file {file_path}: {e}[/]")
         return None
@@ -296,43 +319,67 @@ def process_file(file_path: Path) -> Optional[str]:
 
     # Process single-line imports
     lines_to_rewrite: Dict[int, str] = {}
+    # Group all ImportInfo objects by their line index for easier access
+    imports_by_line: Dict[int, List[ImportInfo]] = {}
+    for imp in imports:
+        if not imp.is_multiline:
+            if imp.line_index not in imports_by_line:
+                imports_by_line[imp.line_index] = []
+            imports_by_line[imp.line_index].append(imp)
+
     for line_idx, unused_set in single_line_unused.items():
-        original_identifiers_on_line = []
-        module = ""
-        is_disabled_line = False  # Check if the whole line was disabled
-        for imp in imports:
-            if imp.line_index == line_idx:
-                original_identifiers_on_line.append(imp.identifier)
-                module = imp.module
-                is_disabled_line = (
-                    imp.is_disabled
-                )  # The whole line inherits disabled status
+        # Get all ImportInfo objects for this line
+        infos_on_line = imports_by_line.get(line_idx, [])
+        if not infos_on_line:
+            continue  # Should not happen if single_line_unused is populated correctly
+
+        module = infos_on_line[
+            0
+        ].module  # All imports on the line share the same module
+        is_disabled_line = infos_on_line[
+            0
+        ].is_disabled  # Check based on the first item (all items on a disabled single line inherit it)
 
         if is_disabled_line:  # If the line was disabled, don't touch it
             continue
 
-        original_non_disabled_set = set(
-            original_identifiers_on_line
-        )  # Since is_disabled_line is False
+        # Determine original non-disabled identifiers on the line
+        original_non_disabled_effective_ids = set(
+            info.identifier for info in infos_on_line if not info.is_disabled
+        )
 
-        if original_non_disabled_set == unused_set:
+        # If all non-disabled effective identifiers are unused, delete the line
+        if original_non_disabled_effective_ids == unused_set:
             lines_to_delete.add(line_idx)
         else:
-            kept_identifiers = sorted(
+            # Filter kept ImportInfo objects (non-disabled and not in the unused set)
+            kept_infos = sorted(
                 [
-                    ident
-                    for ident in original_identifiers_on_line
-                    if ident not in unused_set
-                ]
+                    info
+                    for info in infos_on_line
+                    if not info.is_disabled and info.identifier not in unused_set
+                ],
+                key=lambda x: x.original_identifier,  # Sort by original name for consistent output
             )
-            if kept_identifiers:
+
+            if kept_infos:
+                import_parts = []
+                for info in kept_infos:
+                    if info.identifier != info.original_identifier:
+                        import_parts.append(
+                            f"{info.original_identifier} as {info.identifier}"
+                        )
+                    else:
+                        import_parts.append(info.original_identifier)
+
                 leading_whitespace = lines[line_idx][
                     : len(lines[line_idx]) - len(lines[line_idx].lstrip())
                 ]
                 lines_to_rewrite[line_idx] = (
-                    f"{leading_whitespace}from {module} import {', '.join(kept_identifiers)}"
+                    f"{leading_whitespace}from {module} import {', '.join(import_parts)}"
                 )
             else:
+                # All non-disabled items were unused
                 lines_to_delete.add(line_idx)
 
     # --- Reconstruct the file ---
@@ -418,6 +465,7 @@ def process_file(file_path: Path) -> Optional[str]:
             return None  # No effective change
         # --- Cairo-format step ---
         try:
+            # Re-format the file after modifications
             ast = parse_file(new_content, str(file_path))
             formatted_content = ast.format()
             return formatted_content
@@ -441,6 +489,45 @@ def find_identifier_usages(identifier: str, code_body: str) -> int:
 def find_cairo_files(paths: List[Path]) -> List[Path]:
     """Recursively find all .cairo files in the given paths."""
     cairo_files = []
+
+    # Load exclude directories from pyproject.toml if it exists
+    exclude_dirs = []
+
+    # Default directories to exclude
+    default_exclude = [".venv", "venv", "__pycache__"]
+    default_exclude_paths = [
+        os.path.normpath(os.path.join(Path.cwd(), d)) for d in default_exclude
+    ]
+    exclude_dirs.extend(default_exclude_paths)
+
+    try:
+        # Find pyproject.toml by searching up from the current directory
+        root_dir = Path.cwd()
+        pyproject_path = None
+
+        # Try to find pyproject.toml by walking up directories
+        current = root_dir
+        while current != current.parent:
+            candidate = current / "pyproject.toml"
+            if candidate.exists():
+                pyproject_path = candidate
+                break
+            current = current.parent
+
+        if pyproject_path:
+            pyproject = toml.load(pyproject_path)
+            if "tool" in pyproject and "cairo-lint" in pyproject["tool"]:
+                if "exclude_dirs" in pyproject["tool"]["cairo-lint"]:
+                    custom_exclude_dirs = [
+                        os.path.normpath(os.path.join(pyproject_path.parent, d))
+                        for d in pyproject["tool"]["cairo-lint"]["exclude_dirs"]
+                    ]
+                    exclude_dirs.extend(custom_exclude_dirs)
+    except Exception as e:
+        console.print(
+            f"[yellow]Warning: Failed to load exclude_dirs from pyproject.toml: {e}[/]"
+        )
+
     for path in paths:
         if path.is_file():
             if path.suffix == ".cairo":
@@ -448,13 +535,95 @@ def find_cairo_files(paths: List[Path]) -> List[Path]:
             else:
                 console.print(f"[yellow]Warning: Skipping non-Cairo file: {path}[/]")
         elif path.is_dir():
-            for root, _, files in os.walk(path):
+            for root, dirs, files in os.walk(path):
+                root_path = Path(root)
+
+                # Check if the current directory should be excluded
+                should_exclude = False
+                for excluded in exclude_dirs:
+                    if os.path.normpath(str(root_path)).startswith(excluded):
+                        should_exclude = True
+                        break
+
+                    # Also check if the directory name itself matches a default exclude pattern
+                    # This handles .venv directories at any location in the path
+                    dir_name = os.path.basename(os.path.normpath(str(root_path)))
+                    if dir_name in default_exclude:
+                        should_exclude = True
+                        break
+
+                if should_exclude:
+                    dirs[:] = []  # Skip all subdirectories
+                    continue
+
                 for file in files:
                     if file.endswith(".cairo"):
-                        cairo_files.append(Path(root) / file)
+                        cairo_files.append(root_path / file)
         else:
             console.print(f"[yellow]Warning: Path not found: {path}[/]")
     return cairo_files
+
+
+def _check_formatting(cairo_files: List[Path]) -> bool:
+    """Check Cairo files for formatting issues without writing changes.
+    Returns True if all files are correctly formatted, False otherwise.
+    """
+    checked_files = 0
+    needs_formatting = []
+
+    with console.status(f"[bold green]Checking {len(cairo_files)} files..."):
+        for file_path in cairo_files:
+            checked_files += 1
+            new_content = process_file(file_path)
+
+            if new_content is not None:
+                needs_formatting.append(file_path)
+                console.print(f"[yellow]Would reformat: {file_path}[/]")
+
+    # --- Summary ---
+    console.print("\n--- Summary ---")
+    console.print(f"Checked {checked_files} files.")
+    if needs_formatting:
+        console.print(f"[bold yellow]{len(needs_formatting)} files need formatting.[/]")
+        return False
+    else:
+        console.print("[bold green]All files are correctly formatted.[/]")
+        return True
+
+
+def _emit_formatting(cairo_files: List[Path]) -> None:
+    """Process Cairo files and emit the formatted content to stdout."""
+    for file_path in cairo_files:
+        new_content = process_file(file_path)
+        emitted_output = new_content if new_content else file_path.read_text().strip()
+        print(emitted_output)
+
+
+def _format_normal(cairo_files: List[Path]) -> None:
+    """Format Cairo files and write changes to disk."""
+    checked_files = 0
+    changed_files = 0
+
+    with console.status(f"[bold green]Formatting {len(cairo_files)} files..."):
+        for file_path in cairo_files:
+            checked_files += 1
+            new_content = process_file(file_path)
+
+            if new_content is not None:
+                try:
+                    file_path.write_text(new_content)
+                    changed_files += 1
+                    console.print(f"[blue]Reformatted: {file_path}[/]")
+                except Exception as e:
+                    console.print(f"[red]Error writing file {file_path}: {e}[/]")
+
+    # --- Summary ---
+    console.print("\n--- Summary ---")
+    console.print(f"Checked {checked_files} files.")
+    if changed_files > 0:
+        console.print(f"[bold blue]{changed_files} files reformatted.[/]")
+    else:
+        console.print("[bold green]No files needed formatting.[/]")
 
 
 @app.command()
@@ -470,6 +639,12 @@ def format(
         "--check",
         help="Check for formatting issues without writing changes.",
     ),
+    emit: bool = typer.Option(
+        None,
+        "--emit",
+        "-e",
+        help="Emit the formatted file to stdout",
+    ),
 ):
     """
     Formats Cairo files by removing unused imports.
@@ -480,46 +655,14 @@ def format(
         console.print("[yellow]No Cairo files found in the specified paths.[/]")
         raise typer.Exit()
 
-    changed_files = 0
-    checked_files = 0
-    needs_formatting = []
-
-    mode_str = "Checking" if check else "Formatting"
-
-    with console.status(f"[bold green]{mode_str} {len(cairo_files)} files..."):
-        for file_path in cairo_files:
-            checked_files += 1
-            new_content = process_file(file_path)
-
-            if new_content is not None:
-                if check:
-                    needs_formatting.append(file_path)
-                    console.print(f"[yellow]Would reformat: {file_path}[/]")
-                else:
-                    try:
-                        file_path.write_text(new_content)
-                        changed_files += 1
-                        console.print(f"[blue]Reformatted: {file_path}[/]")
-                    except Exception as e:
-                        console.print(f"[red]Error writing file {file_path}: {e}[/]")
-
-    # --- Summary ---
-    console.print("\n--- Summary ---")
     if check:
-        console.print(f"Checked {checked_files} files.")
-        if needs_formatting:
-            console.print(
-                f"[bold yellow]{len(needs_formatting)} files need formatting.[/]"
-            )
+        all_formatted = _check_formatting(cairo_files)
+        if not all_formatted:
             raise typer.Exit(code=1)
-        else:
-            console.print("[bold green]All files are correctly formatted.[/]")
+    elif emit:
+        _emit_formatting(cairo_files)
     else:
-        console.print(f"Checked {checked_files} files.")
-        if changed_files > 0:
-            console.print(f"[bold blue]{changed_files} files reformatted.[/]")
-        else:
-            console.print("[bold green]No files needed formatting.[/]")
+        _format_normal(cairo_files)
 
 
 if __name__ == "__main__":

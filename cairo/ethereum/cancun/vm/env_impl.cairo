@@ -1,9 +1,4 @@
-from ethereum.cancun.state import (
-    State,
-    TransientStorage,
-    finalize_state,
-    finalize_transient_storage,
-)
+from ethereum.cancun.state import State, TransientStorage
 from ethereum.cancun.fork_types import Address, ListHash32, TupleVersionedHash
 from ethereum_types.numeric import Uint, U256, U64
 from ethereum_types.bytes import Bytes32

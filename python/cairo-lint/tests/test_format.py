@@ -33,6 +33,7 @@ def read_expected(base_name: str) -> str:
         ("unused_single", True),
         ("unused_single_partial", True),
         ("multi_comma_last", True),
+        ("alias_imports", True),
     ],
 )
 def test_formatting_scenarios(test_file_base: str, should_change: bool):

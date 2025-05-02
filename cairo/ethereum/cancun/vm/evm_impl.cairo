@@ -1,12 +1,11 @@
 from ethereum_types.numeric import Uint, bool, SetUint, U256
-from ethereum.cancun.state import State, TransientStorage
-from ethereum.cancun.blocks import Log, TupleLog, TupleLogStruct
+from ethereum.cancun.blocks import TupleLog
 from ethereum.cancun.fork_types import SetAddress, SetTupleAddressBytes32
 from ethereum.exceptions import EthereumException
 from ethereum_types.bytes import Bytes, OptionalBytes
 from ethereum.cancun.vm.stack import Stack
 from ethereum.cancun.vm.memory import Memory
-from ethereum.cancun.vm.env_impl import Environment, EnvironmentStruct
+from ethereum.cancun.vm.env_impl import Environment
 from ethereum.cancun.fork_types import Address, OptionalAddress
 from ethereum.cancun.transactions_types import To
 

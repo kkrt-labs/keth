@@ -1,5 +1,3 @@
-from cairo_ec.curve.g1_point import G1PointStruct
-
 struct G1PointCircuitInput {
     x: felt,
     y: felt,

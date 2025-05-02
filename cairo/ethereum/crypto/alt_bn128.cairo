@@ -21,7 +21,6 @@ from garaga_zero.bn254.multi_pairing_1 import multi_pairing_1P
 from ethereum.exceptions import Exception, ValueError
 
 from ethereum.utils.numeric import (
-    divmod,
     U384_ZERO,
     U384_ONE,
     U384_is_zero,

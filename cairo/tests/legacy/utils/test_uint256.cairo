@@ -1,8 +1,6 @@
 %builtins range_check
 
-from starkware.cairo.common.cairo_builtins import HashBuiltin
 from starkware.cairo.common.uint256 import Uint256
-from starkware.cairo.common.alloc import alloc
 from cairo_core.numeric import U256
 
 from legacy.utils.uint256 import uint256_add, uint256_sub

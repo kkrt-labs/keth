@@ -1,15 +1,7 @@
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, PoseidonBuiltin, ModBuiltin
 from starkware.cairo.common.math_cmp import is_le
-from starkware.cairo.common.dict import DictAccess
 
-from ethereum.cancun.vm.stack import (
-    StackImpl,
-    push,
-    StackDictAccess,
-    Stack,
-    StackStruct,
-    pop as stack_pop,
-)
+from ethereum.cancun.vm.stack import StackImpl, push, pop as stack_pop
 from ethereum.cancun.vm.evm_impl import Evm, EvmImpl
 from ethereum.exceptions import EthereumException
 from ethereum.cancun.vm.exceptions import StackUnderflowError
@@ -19,7 +11,6 @@ from ethereum.cancun.vm.memory import buffer_read
 
 from cairo_core.comparison import is_zero
 from legacy.utils.utils import Helpers
-from legacy.utils.dict import dict_read, dict_write
 
 // @notice Pushes a value to the stack
 func push_n{range_check_ptr, evm: Evm}(num_bytes: Uint) -> EthereumException* {

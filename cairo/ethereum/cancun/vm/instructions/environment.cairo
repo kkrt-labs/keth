@@ -1,11 +1,9 @@
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, PoseidonBuiltin, ModBuiltin
-from starkware.cairo.common.registers import get_fp_and_pc
-from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.math import split_felt
 from starkware.cairo.common.uint256 import uint256_lt
 from starkware.cairo.common.math_cmp import is_le
 
-from ethereum_types.bytes import Bytes32, Bytes32Struct, Bytes20
+from ethereum_types.bytes import Bytes32, Bytes32Struct
 from ethereum_types.others import (
     ListTupleU256U256,
     ListTupleU256U256Struct,
@@ -13,15 +11,7 @@ from ethereum_types.others import (
     TupleU256U256Struct,
 )
 from ethereum_types.numeric import U256, U256Struct, Uint, UnionUintU256, UnionUintU256Enum
-from ethereum.cancun.fork_types import (
-    Address,
-    Account__eq__,
-    EMPTY_ACCOUNT,
-    OptionalAccount,
-    SetAddress,
-    SetAddressStruct,
-    SetAddressDictAccess,
-)
+from ethereum.cancun.fork_types import Account__eq__, EMPTY_ACCOUNT, OptionalAccount
 from ethereum.cancun.vm.evm_impl import Evm, EvmImpl
 from ethereum.cancun.vm.env_impl import EnvImpl
 from ethereum.exceptions import EthereumException
@@ -33,22 +23,14 @@ from ethereum.cancun.vm.gas import (
     calculate_blob_gas_price,
 )
 from ethereum.cancun.vm.memory import buffer_read, memory_write, expand_by
-from ethereum.cancun.vm.stack import Stack, push, pop
+from ethereum.cancun.vm.stack import pop, push
 from ethereum.cancun.state import get_account, get_account_code
 from ethereum.cancun.utils.address import to_address
 
 from ethereum.crypto.hash import keccak256
 
-from ethereum.utils.numeric import (
-    U256_from_be_bytes32,
-    ceil32,
-    divmod,
-    U256_to_be_bytes,
-    U256_from_be_bytes20,
-)
+from ethereum.utils.numeric import U256_from_be_bytes32, ceil32, U256_from_be_bytes20
 
-from legacy.utils.bytes import felt_to_bytes20_little
-from legacy.utils.dict import hashdict_read, hashdict_write
 from legacy.utils.utils import Helpers
 from ethereum.utils.hash_dicts import set_address_contains_or_add
 // @notice Pushes the address of the current executing account to the stack.

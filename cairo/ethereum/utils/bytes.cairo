@@ -17,12 +17,8 @@ from starkware.cairo.common.math_cmp import is_le
 from starkware.cairo.common.memcpy import memcpy
 from starkware.cairo.common.memset import memset
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
-from legacy.utils.bytes import (
-    felt_to_bytes20_little,
-    uint256_to_bytes_little,
-    uint256_to_bytes32_little,
-)
-from cairo_core.maths import unsigned_div_rem, felt252_to_bytes_le, felt252_to_bytes_be, pow2
+from legacy.utils.bytes import felt_to_bytes20_little, uint256_to_bytes32_little
+from cairo_core.maths import felt252_to_bytes_be, unsigned_div_rem
 from cairo_core.comparison import is_zero
 from ethereum.utils.numeric import min
 from legacy.utils.bytes import bytes_to_felt_le

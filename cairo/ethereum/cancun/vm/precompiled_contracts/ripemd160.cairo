@@ -1,12 +1,7 @@
 // SPDX-License-Identifier: MIT
 // https://github.com/kkrt-labs/kakarot/blob/563af42d5fe9888f8f49cf22003d2085612bf42c/cairo_zero/kakarot/precompiles/ripemd160.cairo
 
-from starkware.cairo.common.cairo_builtins import (
-    BitwiseBuiltin,
-    HashBuiltin,
-    PoseidonBuiltin,
-    ModBuiltin,
-)
+from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, PoseidonBuiltin, ModBuiltin
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.math import assert_nn_le, unsigned_div_rem
 from starkware.cairo.common.math_cmp import is_nn_le, is_nn
@@ -21,10 +16,7 @@ from starkware.cairo.common.memcpy import memcpy
 
 from legacy.utils.dict import default_dict_finalize
 
-from legacy.utils.utils import Helpers
-
 from ethereum.exceptions import EthereumException
-from ethereum.cancun.vm.exceptions import InvalidParameter
 from ethereum.cancun.vm.gas import charge_gas
 from ethereum.cancun.vm.evm_impl import Evm, EvmImpl
 from ethereum_types.bytes import Bytes, BytesStruct

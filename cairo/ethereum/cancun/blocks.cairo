@@ -1,7 +1,7 @@
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 from starkware.cairo.common.alloc import alloc
 from ethereum_types.numeric import U64, U256, Uint, bool
-from ethereum_types.bytes import Bytes, Bytes8, Bytes32, TupleBytes, TupleBytes32
+from ethereum_types.bytes import Bytes, Bytes32, Bytes8, TupleBytes32
 from ethereum.cancun.fork_types import Address, Bloom, Root
 from ethereum.crypto.hash import Hash32
 from ethereum.cancun.transactions_types import LegacyTransaction, LegacyTransaction__hash__

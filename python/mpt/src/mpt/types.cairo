@@ -1,14 +1,7 @@
 from ethereum_types.bytes import HashedBytes32, Bytes32, Bytes, String
-from ethereum.cancun.trie import (
-    LeafNode,
-    OptionalInternalNode,
-    ExtensionNode,
-    BranchNode,
-    SequenceExtended,
-)
-from ethereum.cancun.fork_types import Address, HashedTupleAddressBytes32, Account, OptionalAccount
-from cairo_core.numeric import U256, Uint, Bool, OptionalU256
-from ethereum.crypto.hash import Hash32
+from ethereum.cancun.trie import LeafNode, ExtensionNode, BranchNode, SequenceExtended
+from ethereum.cancun.fork_types import Address, HashedTupleAddressBytes32, OptionalAccount
+from cairo_core.numeric import Bool, OptionalU256, Uint
 
 const EMPTY_TRIE_HASH_LOW = 0x6ef8c092e64583ffa655cc1b171fe856;
 const EMPTY_TRIE_HASH_HIGH = 0x21b463e3b52f6201c0ad6c991be0485b;

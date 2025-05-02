@@ -242,6 +242,9 @@ EthereumTries = Union[
 ]
 
 _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
+    **vm_exception_mappings,
+    **ethereum_exception_mappings,
+    **builtins_exception_mappings,
     ("ethereum_types", "others", "None"): type(None),
     ("cairo_core", "numeric", "bool"): bool,
     ("cairo_core", "numeric", "U64"): U64,
@@ -463,9 +466,6 @@ _cairo_struct_to_python_type: Dict[Tuple[str, ...], Any] = {
     ("ethereum", "cancun", "vm", "interpreter", "MessageCallOutput"): MessageCallOutput,
     ("ethereum", "cancun", "trie", "EthereumTries"): EthereumTries,
     ("ethereum", "cancun", "fork", "ApplyBodyOutput"): ApplyBodyOutput,
-    **vm_exception_mappings,
-    **ethereum_exception_mappings,
-    **builtins_exception_mappings,
     # For tests only
     ("tests", "legacy", "utils", "test_dict", "MappingUintUint"): Mapping[Uint, Uint],
     ("ethereum", "crypto", "alt_bn128", "BNF12"): BNF12,

@@ -5,20 +5,17 @@ from mpt.trie_diff import (
     _process_storage_diff,
     MappingBytes32Address,
     AddressAccountDiffEntry,
-    AddressAccountDiffEntryStruct,
     AccountDiff,
     AccountDiffStruct,
     StorageDiff,
     StorageDiffStruct,
     StorageDiffEntry,
-    StorageDiffEntryStruct,
     MappingBytes32Bytes32,
     NodeStore,
 )
 from ethereum_types.bytes import Bytes32
 from ethereum.cancun.trie import OptionalLeafNode
-from ethereum.cancun.fork_types import Address, TupleAddressBytes32U256DictAccess
-from ethereum.cancun.trie import Bytes32U256DictAccess
+from ethereum.cancun.fork_types import Address
 
 func test__process_account_diff{
     range_check_ptr, bitwise_ptr: BitwiseBuiltin*, poseidon_ptr: PoseidonBuiltin*, keccak_ptr: felt*

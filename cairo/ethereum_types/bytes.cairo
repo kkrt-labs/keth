@@ -1,3 +1,4 @@
+// cairo-lint: disable-file
 // The Cairo type system implementation that mirrors Python types for VM interaction.
 //
 // This module implements a "soft type system" that allows seamless conversion between Python

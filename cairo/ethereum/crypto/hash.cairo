@@ -5,7 +5,6 @@ from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 from starkware.cairo.common.uint256 import Uint256
 from starkware.cairo.common.alloc import alloc
 
-from ethereum_types.numeric import bool
 from starkware.cairo.common.registers import get_label_location
 from cairo_core.hash.blake2s import blake2s
 

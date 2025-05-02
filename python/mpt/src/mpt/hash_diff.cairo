@@ -1,9 +1,8 @@
-from starkware.cairo.common.builtin_poseidon.poseidon import poseidon_hash, poseidon_hash_many
+from starkware.cairo.common.builtin_poseidon.poseidon import poseidon_hash_many
 from starkware.cairo.common.cairo_builtins import PoseidonBuiltin
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.registers import get_label_location
-from ethereum_types.numeric import U256, U256Struct, OptionalU256
-from ethereum.utils.numeric import U256__eq__, OptionalU256__eq__
+from ethereum_types.numeric import OptionalU256, U256
+from ethereum.utils.numeric import OptionalU256__eq__
 from ethereum.cancun.fork_types import (
     OptionalAccount,
     AddressAccountDictAccess,
@@ -14,7 +13,6 @@ from ethereum.cancun.state import State
 from cairo_core.comparison import is_ptr_equal
 from mpt.types import (
     AccountDiff,
-    AccountDiffStruct,
     AddressAccountDiffEntry,
     StorageDiffEntry,
     StorageDiff,

@@ -13,12 +13,10 @@ from ethereum_types.numeric import U256, Uint, bool
 from ethereum.cancun.state import get_account, State, StateStruct, get_account_code
 from ethereum.cancun.utils.address import compute_contract_address
 from ethereum.cancun.transactions import To
-from cairo_core.comparison import is_zero
 
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, PoseidonBuiltin
-from starkware.cairo.common.registers import get_fp_and_pc, get_label_location
-from starkware.cairo.common.memcpy import memcpy
+from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.cairo.common.dict_access import DictAccess
 
 from legacy.utils.dict import hashdict_write, dict_write

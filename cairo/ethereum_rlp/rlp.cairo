@@ -1,10 +1,10 @@
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
-from starkware.cairo.common.math_cmp import is_le, is_not_zero
-from starkware.cairo.common.math import assert_not_zero, split_int
+from starkware.cairo.common.math_cmp import is_le
+from starkware.cairo.common.math import assert_not_zero
 from starkware.cairo.common.memcpy import memcpy
 
-from ethereum_types.numeric import Bool, U256, Uint, U64, U256Struct, bool
+from ethereum_types.numeric import Bool, U256, U64, Uint, bool
 from ethereum_types.bytes import (
     Bytes,
     Bytes0,
@@ -12,8 +12,6 @@ from ethereum_types.bytes import (
     BytesStruct,
     Bytes8,
     Bytes32,
-    Bytes32Struct,
-    TupleBytes,
     String,
     StringStruct,
     TupleBytes32,
@@ -54,7 +52,7 @@ from ethereum.cancun.transactions_types import (
     FeeMarketTransactionStruct,
     BlobTransactionStruct,
 )
-from ethereum.crypto.hash import keccak256, Hash32
+from ethereum.crypto.hash import Hash32
 from ethereum.utils.numeric import (
     U256_from_be_bytes,
     Bytes32_from_be_bytes,
@@ -63,7 +61,6 @@ from ethereum.utils.numeric import (
 )
 from ethereum.utils.bytes import Bytes8_to_Bytes, Bytes__eq__, Bytes_to_Bytes32
 from cairo_core.comparison import is_zero
-from legacy.utils.array import reverse
 from legacy.utils.bytes import (
     felt_to_bytes,
     bytes_to_felt,
@@ -71,8 +68,6 @@ from legacy.utils.bytes import (
     felt_to_bytes20_little,
     uint256_to_bytes_little,
     uint256_to_bytes,
-    felt_to_bytes16_little,
-    uint256_from_bytes_be,
 )
 from cairo_core.control_flow import raise
 

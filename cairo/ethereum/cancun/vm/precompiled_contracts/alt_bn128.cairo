@@ -4,25 +4,20 @@ from starkware.cairo.common.cairo_builtins import (
     PoseidonBuiltin,
     UInt384,
 )
-from starkware.cairo.common.math_cmp import is_le_felt
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.memset import memset
 from ethereum.cancun.vm import Evm, EvmImpl
 from ethereum.exceptions import EthereumException
 from ethereum.cancun.vm.exceptions import OutOfGasError
-from ethereum.utils.numeric import ceil32, divmod, U256_from_be_bytes, U256_le
-from ethereum.cancun.vm.gas import GasConstants, charge_gas
-from cairo_core.numeric import Uint, U256, U256Struct, U384, U384Struct
+from ethereum.utils.numeric import U256_from_be_bytes, U256_le, divmod
+from ethereum.cancun.vm.gas import charge_gas
+from cairo_core.numeric import U256, U256Struct, U384, Uint
 from ethereum_types.bytes import Bytes, BytesStruct
 from ethereum.cancun.vm.memory import buffer_read
 from cairo_ec.curve.alt_bn128 import alt_bn128
 from cairo_ec.ec_ops import ec_add, ec_mul
 from cairo_ec.curve.g1_point import G1Point, G1PointStruct, G1Point__eq__, G1Point_zero
-from cairo_ec.circuits.ec_ops_compiled import (
-    assert_x_is_on_curve,
-    assert_not_on_curve,
-    assert_on_curve,
-)
+from cairo_ec.circuits.ec_ops_compiled import assert_not_on_curve, assert_on_curve
 from cairo_ec.uint384 import uint256_to_uint384
 from cairo_core.maths import felt252_to_bytes_be
 from starkware.cairo.common.registers import get_fp_and_pc
@@ -32,10 +27,7 @@ from ethereum.crypto.alt_bn128 import (
     BNF2,
     BNF2Struct,
     BNF12,
-    BNF12Struct,
     BNF12_ONE,
-    BNP,
-    BNP2,
     BNP__eq__,
     BNP2__eq__,
     BNF12__eq__,
@@ -48,7 +40,6 @@ from ethereum.crypto.alt_bn128 import (
     bnp2_point_at_infinity,
     pairing,
 )
-from cairo_core.control_flow import raise
 
 const PAIRING_CHECK_DATA_LEN = 192;
 

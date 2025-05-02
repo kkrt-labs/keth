@@ -2,7 +2,7 @@
 
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.dict_access import DictAccess
-from ethereum_types.bytes import Bytes, BytesStruct
+from ethereum_types.bytes import Bytes
 from ethereum.cancun.vm.runtime import (
     get_valid_jump_destinations,
     finalize_jumpdests,

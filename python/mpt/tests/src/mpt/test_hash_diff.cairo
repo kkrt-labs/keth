@@ -8,7 +8,6 @@ from ethereum.cancun.fork_types import (
     MappingAddressAccountStruct,
     SetAddress,
     SetAddressStruct,
-    Account,
     OptionalAccount,
     AccountStruct,
     MappingTupleAddressBytes32U256,
@@ -21,15 +20,7 @@ from ethereum.cancun.trie import (
     TrieTupleAddressBytes32U256,
     TrieTupleAddressBytes32U256Struct,
 )
-from mpt.types import (
-    AccountDiff,
-    AccountDiffStruct,
-    AddressAccountDiffEntry,
-    StorageDiffEntry,
-    StorageDiff,
-    StorageDiffEntryStruct,
-    AddressAccountDiffEntryStruct,
-)
+from mpt.types import AccountDiff, StorageDiffEntry, StorageDiff
 from cairo_core.numeric import bool
 from mpt.hash_diff import hash_state_account_diff, hash_state_storage_diff
 

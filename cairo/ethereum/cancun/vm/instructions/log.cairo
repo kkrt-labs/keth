@@ -8,8 +8,8 @@ from ethereum.cancun.vm.exceptions import WriteInStaticContext, OutOfGasError
 from ethereum.cancun.vm.memory import memory_read_bytes, expand_by
 from ethereum.cancun.vm.gas import calculate_gas_extend_memory, charge_gas, GasConstants
 from ethereum.utils.numeric import U256_to_be_bytes
-from ethereum_types.numeric import U256, U256Struct, Uint
-from ethereum_types.bytes import Bytes, Bytes32, Bytes32Struct, TupleBytes32, TupleBytes32Struct
+from ethereum_types.numeric import Uint
+from ethereum_types.bytes import Bytes32, TupleBytes32, TupleBytes32Struct
 from ethereum_types.others import (
     ListTupleU256U256,
     ListTupleU256U256Struct,

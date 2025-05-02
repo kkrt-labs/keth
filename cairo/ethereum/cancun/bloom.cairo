@@ -1,23 +1,17 @@
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.bool import FALSE, TRUE
 from starkware.cairo.common.dict import DictAccess
 from starkware.cairo.common.default_dict import default_dict_new
-from starkware.cairo.common.memset import memset
-from starkware.cairo.common.memcpy import memcpy
-from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
-from starkware.cairo.common.math import assert_le, assert_lt
-from starkware.cairo.common.math_cmp import is_le, is_not_zero
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 
-from ethereum_types.bytes import Bytes, BytesStruct, Bytes1DictAccess, Bytes32, TupleBytes32
-from ethereum_types.numeric import U256, Uint, U128
-from ethereum.utils.numeric import max, U64_from_be_bytes, divmod
+from ethereum_types.bytes import Bytes, Bytes1DictAccess, BytesStruct, TupleBytes32
+from ethereum_types.numeric import U128
+from ethereum.utils.numeric import U64_from_be_bytes, divmod
 from ethereum.utils.bytes import Bytes20_to_Bytes, Bytes32_to_Bytes
 from ethereum.crypto.hash import keccak256
 from ethereum.cancun.blocks import TupleLog
 from ethereum.cancun.fork_types import Bloom
 
-from legacy.utils.bytes import uint256_to_bytes32, felt_to_bytes16_little
+from legacy.utils.bytes import felt_to_bytes16_little
 from legacy.utils.dict import dict_read, dict_write, default_dict_finalize
 from cairo_core.maths import pow2
 from cairo_core.comparison import is_zero

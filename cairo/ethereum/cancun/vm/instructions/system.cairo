@@ -6,7 +6,7 @@ from starkware.cairo.common.math_cmp import is_le
 from ethereum.cancun.vm.stack import pop, push
 from ethereum.cancun.vm import incorporate_child_on_error, incorporate_child_on_success
 from ethereum.cancun.vm.evm_impl import Evm, EvmStruct, EvmImpl, Message, MessageStruct
-from ethereum.cancun.vm.env_impl import Environment, EnvironmentStruct, EnvImpl
+from ethereum.cancun.vm.env_impl import EnvImpl
 from ethereum.cancun.utils.address import to_address
 from starkware.cairo.common.dict_access import DictAccess
 from ethereum.cancun.vm.exceptions import Revert, OutOfGasError, WriteInStaticContext
@@ -58,15 +58,13 @@ from ethereum.utils.numeric import (
     U256_from_be_bytes20,
     is_not_zero,
     ceil32,
-    divmod,
     U256_to_be_bytes,
     U256_le,
     U256__eq__,
 )
-from legacy.utils.dict import hashdict_write, dict_copy
+from legacy.utils.dict import hashdict_write
 from starkware.cairo.common.uint256 import uint256_lt
 from starkware.cairo.common.alloc import alloc
-from legacy.utils.dict import hashdict_read
 from cairo_core.comparison import is_zero
 
 from ethereum.utils.hash_dicts import (

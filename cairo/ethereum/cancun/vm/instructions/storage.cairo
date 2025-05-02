@@ -1,6 +1,6 @@
 from ethereum.cancun.vm.stack import pop, push
 from ethereum.cancun.vm.evm_impl import Evm, EvmImpl
-from ethereum.cancun.vm.env_impl import Environment, EnvImpl
+from ethereum.cancun.vm.env_impl import EnvImpl
 from ethereum.exceptions import EthereumException
 from ethereum.cancun.vm.exceptions import WriteInStaticContext, OutOfGasError
 from ethereum.cancun.vm.gas import charge_gas, GasConstants
@@ -18,16 +18,12 @@ from ethereum.cancun.fork_types import (
     SetTupleAddressBytes32Struct,
     TupleAddressBytes32,
     TupleAddressBytes32Struct,
-    Address,
 )
-from ethereum_types.bytes import Bytes32
-from ethereum_types.numeric import Uint, U256, U256Struct, bool
+from ethereum_types.numeric import U256, U256Struct, Uint
 from ethereum.utils.numeric import U256_to_be_bytes
 from legacy.utils.dict import hashdict_read, hashdict_write
-from legacy.utils.utils import Helpers
 
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, PoseidonBuiltin, ModBuiltin
-from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.math_cmp import is_le

@@ -1,30 +1,20 @@
 from starkware.cairo.common.cairo_builtins import PoseidonBuiltin
 from starkware.cairo.common.dict import DictAccess
 from starkware.cairo.common.registers import get_fp_and_pc
-from ethereum.cancun.blocks import Log, TupleLog, TupleLogStruct
+from ethereum.cancun.blocks import TupleLog, TupleLogStruct
 from ethereum.cancun.fork_types import (
-    Address,
-    OptionalAddress,
-    ListHash32,
     SetAddress,
     SetAddressStruct,
     SetAddressDictAccess,
-    TupleAddressBytes32,
     SetTupleAddressBytes32,
     SetTupleAddressBytes32Struct,
     SetTupleAddressBytes32DictAccess,
-    TupleVersionedHash,
-    VersionedHash,
 )
-from ethereum.exceptions import EthereumException
-from ethereum_types.bytes import Bytes, Bytes0, Bytes32
 from ethereum_types.numeric import Uint
-from ethereum.cancun.state import State, TransientStorage
 from ethereum.cancun.vm.runtime import finalize_jumpdests
-from ethereum.cancun.transactions_types import To
-from ethereum.cancun.vm.stack import Stack
 from ethereum.cancun.state import account_exists_and_is_empty
-from ethereum.cancun.vm.memory import Memory
+// cairo-lint: disable
+from ethereum.cancun.vm.stack import Stack
 from cairo_core.comparison import is_zero
 from starkware.cairo.common.memcpy import memcpy
 from legacy.utils.dict import (

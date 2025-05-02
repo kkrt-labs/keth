@@ -7,14 +7,12 @@ from starkware.cairo.common.cairo_builtins import (
     PoseidonBuiltin,
     ModBuiltin,
     HashBuiltin,
-    KeccakBuiltin,
     SignatureBuiltin,
     EcOpBuiltin,
 )
 from starkware.cairo.common.cairo_keccak.keccak import finalize_keccak
 from starkware.cairo.common.alloc import alloc
-from ethereum.cancun.fork import state_transition, BlockChain, Block, keccak256_header
-from ethereum_types.bytes import Bytes32
+from ethereum.cancun.fork import Block, BlockChain, state_transition
 from ethereum.utils.bytes import Bytes32_to_Bytes
 from mpt.trie_diff import OptionalUnionInternalNodeExtendedImpl
 

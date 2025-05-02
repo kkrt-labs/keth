@@ -1,6 +1,4 @@
-from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.cairo_builtins import ModBuiltin, PoseidonBuiltin, UInt384
-from starkware.cairo.common.uint256 import Uint256
+from starkware.cairo.common.cairo_builtins import ModBuiltin, PoseidonBuiltin
 
 from cairo_ec.ec_ops import ec_add, ec_mul, try_get_point_from_x, get_random_point
 from cairo_ec.curve.g1_point import G1Point

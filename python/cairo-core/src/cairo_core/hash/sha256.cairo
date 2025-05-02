@@ -1,5 +1,4 @@
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 from starkware.cairo.common.math import assert_nn_le, unsigned_div_rem
 from starkware.cairo.common.math_cmp import is_le_felt
@@ -9,9 +8,6 @@ from starkware.cairo.common.pow import pow
 from starkware.cairo.common.cairo_sha256.sha256_utils import (
     compute_message_schedule,
     BATCH_SIZE,
-    ALL_ONES,
-    sha2_compress,
-    get_round_constants,
     finalize_sha256,
 )
 

@@ -14,24 +14,18 @@ from ethereum.cancun.trie import (
     SubnodesStruct,
     bytes_to_nibble_list,
 )
-from ethereum_rlp.rlp import Extended, ExtendedImpl, ExtendedEnum, decode, Simple
+from ethereum_rlp.rlp import Extended, ExtendedEnum, ExtendedImpl, decode
 from ethereum_types.bytes import Bytes, BytesStruct
-from ethereum_types.numeric import bool
-from ethereum.utils.bytes import Bytes__eq__
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.math import assert_not_zero
 from starkware.cairo.common.math_cmp import is_le_felt
 from cairo_core.comparison import is_zero, is_not_zero
 from cairo_core.control_flow import raise, raise_ValueError
 
-from ethereum.utils.numeric import U256__eq__
 from mpt.types import (
     AccountDiff,
     StorageDiff,
     AccountDiffStruct,
     AddressAccountDiffEntry,
-    AddressAccountDiffEntryStruct,
-    Account,
     StorageDiffStruct,
 )
 

@@ -6,17 +6,18 @@ description = "A CLI tool to format Cairo files and remove unused imports."
 readme = "README.md"
 requires-python = ">=3.8"
 license = { text = "MIT" }
-dependencies = [
-  "typer[all]>=0.9.0",
-  "rich>=13.0.0",
-  "cairo-lang>=0.13.0", # Assuming a recent version
-]
+dependencies = ["typer>=0.15.3", "rich>=14.0.0", "cairo-lang>=0.13.3", "toml"]
 
-[project.optional-dependencies]
-dev = ["pytest>=7.0.0"]
+[tool.uv]
+dev-dependencies = ["pytest>=8.3.3"]
+package = true
+
 
 [project.scripts]
 cairo-lint = "cairo_lint.main:app"
+
+[tool.cairo-lint]
+exclude_dirs = ["tests/test_data"]
 
 [build-system]
 requires = ["hatchling"]

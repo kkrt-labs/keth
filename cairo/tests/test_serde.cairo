@@ -1,3 +1,4 @@
+// cairo-lint: disable-file
 from ethereum_types.numeric import bool, U64, U128, U256, Uint
 from ethereum_types.others import None
 from ethereum_types.bytes import (

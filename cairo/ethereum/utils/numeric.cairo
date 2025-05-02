@@ -1,22 +1,17 @@
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 from starkware.cairo.common.cairo_builtins import UInt384
-from starkware.cairo.common.math import assert_le_felt, assert_le
-from starkware.cairo.common.math import safe_mult
+from starkware.cairo.common.math import assert_le
 from starkware.cairo.common.math import split_felt
 from starkware.cairo.common.math_cmp import is_le, is_not_zero, is_le_felt
-from starkware.cairo.common.memcpy import memcpy
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.cairo.common.uint256 import uint256_reverse_endian, uint256_to_felt
-from starkware.cairo.common.uint256 import word_reverse_endian, Uint256, uint256_le, uint256_mul
-from starkware.cairo.common.memset import memset
-from starkware.cairo.common.registers import get_label_location
+from starkware.cairo.common.uint256 import uint256_le, uint256_mul, word_reverse_endian
 
 from ethereum_types.bytes import Bytes32, Bytes32Struct, Bytes20, Bytes, BytesStruct
 from ethereum.crypto.hash import Hash32
-from cairo_core.numeric import Uint, U256, U256Struct, bool, U64, U384, U384Struct, OptionalU256
+from cairo_core.numeric import OptionalU256, U256, U256Struct, U384, U64, Uint, bool
 from cairo_core.maths import (
-    pow2,
     unsigned_div_rem,
     felt252_to_bytes_be,
     felt252_bit_length,
@@ -25,11 +20,8 @@ from cairo_core.maths import (
     felt252_bytes_length,
 )
 from cairo_core.hash.blake2s import blake2s_add_uint256, blake2s, blake2s_add_felt
-from cairo_core.comparison import is_zero
-from cairo_ec.uint384 import uint256_to_uint384
-from legacy.utils.bytes import bytes_to_felt, bytes_to_felt_le, uint256_from_bytes_be, felt_to_bytes
+from legacy.utils.bytes import bytes_to_felt, bytes_to_felt_le, uint256_from_bytes_be
 from legacy.utils.uint256 import uint256_add, uint256_sub
-from legacy.utils.utils import Helpers
 
 U384_ZERO:
 dw 0;

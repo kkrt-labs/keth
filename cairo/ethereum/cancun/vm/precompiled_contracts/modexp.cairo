@@ -6,10 +6,9 @@ from starkware.cairo.common.cairo_builtins import (
 )
 from starkware.cairo.common.memset import memset
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.uint256 import uint256_mul, uint256_eq, uint256_le
+from starkware.cairo.common.uint256 import uint256_le, uint256_mul
 from starkware.cairo.common.uint256 import uint256_to_felt, Uint256
-from starkware.cairo.common.math_cmp import is_le, is_le_felt, is_not_zero
-from cairo_core.comparison import is_zero
+from starkware.cairo.common.math_cmp import is_le_felt
 from ethereum_types.bytes import Bytes, BytesStruct
 from ethereum_types.numeric import U256, U256Struct, Uint, U384
 from ethereum.utils.numeric import (
@@ -17,7 +16,6 @@ from ethereum.utils.numeric import (
     U384_is_zero,
     U384_is_one,
     U256_from_be_bytes,
-    Uint_from_be_bytes,
     U256__eq__,
     U256_add,
     U256_le,
@@ -30,7 +28,6 @@ from ethereum.utils.numeric import (
     U384_to_be_bytes,
     U384__eq__,
     max,
-    min,
     U256_sub,
     U256_bit_length,
     get_u384_bits_little,
@@ -40,13 +37,8 @@ from ethereum.cancun.vm.gas import charge_gas
 from ethereum.cancun.vm.memory import buffer_read
 from ethereum.exceptions import EthereumException
 from cairo_core.control_flow import raise
-from cairo_core.maths import felt252_bit_length
 from cairo_ec.circuits.mod_ops_compiled import mul
-from legacy.utils.bytes import felt_to_bytes
 from legacy.utils.uint256 import uint256_unsigned_div_rem
-from starkware.cairo.common.memcpy import memcpy
-
-from ethereum.cancun.vm.exceptions import OutOfGasError
 
 const GQUADDIVISOR = 3;
 

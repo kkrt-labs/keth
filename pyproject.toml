@@ -214,6 +214,9 @@ check-hidden = ''
 [tool.bandit]
 exclude_dirs = ["tests"]
 
+[tool.cairo-lint]
+exclude_dirs = ["python/cairo-lint/tests/test_data"]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

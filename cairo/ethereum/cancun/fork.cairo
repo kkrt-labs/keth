@@ -7,27 +7,15 @@ from starkware.cairo.common.math import assert_not_zero, split_felt, assert_le_f
 from starkware.cairo.common.math_cmp import is_le, is_le_felt
 from starkware.cairo.common.registers import get_fp_and_pc
 
-from ethereum_rlp.rlp import (
-    Extended,
-    ExtendedImpl,
-    encode_receipt_to_buffer,
-    encode_receipt,
-    encode_header,
-    encode_uint,
-    encode_withdrawal,
-    encode_transaction,
-)
-from ethereum_types.bytes import (
-    Bytes,
-    Bytes0,
-    Bytes20,
-    BytesStruct,
-    TupleBytes32,
-    Bytes32,
-    Bytes32Struct,
-)
+from ethereum_rlp.rlp import encode_receipt_to_buffer, encode_header, encode_uint, encode_withdrawal
+from ethereum_types.bytes import Bytes, Bytes0, BytesStruct, TupleBytes32, Bytes32, Bytes32Struct
 from ethereum_types.numeric import Uint, bool, U256, U256Struct, U64
 from ethereum.cancun.blocks import (
+    UnionBytesReceipt,
+    OptionalUnionBytesReceipt,
+    OptionalUnionBytesLegacyTransaction,
+    OptionalUnionBytesWithdrawal,
+    UnionBytesReceiptEnum,
     Header,
     Receipt,
     ReceiptStruct,
@@ -37,7 +25,6 @@ from ethereum.cancun.blocks import (
     Block,
     ListBlock,
     ListBlockStruct,
-    TupleHeader,
     TupleUnionBytesLegacyTransaction,
     TupleWithdrawal,
     Withdrawal,
@@ -54,32 +41,15 @@ from ethereum.cancun.trie import (
     EthereumTriesEnum,
     TrieAddressOptionalAccount,
     TrieBytes32U256,
-    TrieTupleAddressBytes32U256Struct,
     trie_set_TrieBytesOptionalUnionBytesReceipt,
-    TrieTupleAddressBytes32U256,
-    BytesOptionalUnionBytesLegacyTransactionDictAccess,
-    MappingBytesOptionalUnionBytesLegacyTransaction,
-    MappingBytesOptionalUnionBytesLegacyTransactionStruct,
     TrieBytesOptionalUnionBytesLegacyTransaction,
     TrieBytesOptionalUnionBytesLegacyTransactionStruct,
-    BytesOptionalUnionBytesReceiptDictAccess,
-    MappingBytesOptionalUnionBytesReceipt,
-    MappingBytesOptionalUnionBytesReceiptStruct,
     TrieBytesOptionalUnionBytesReceipt,
     TrieBytesOptionalUnionBytesReceiptStruct,
-    BytesOptionalUnionBytesWithdrawalDictAccess,
-    MappingBytesOptionalUnionBytesWithdrawal,
-    MappingBytesOptionalUnionBytesWithdrawalStruct,
     TrieBytesOptionalUnionBytesWithdrawal,
     TrieBytesOptionalUnionBytesWithdrawalStruct,
-    OptionalUnionBytesLegacyTransaction,
-    OptionalUnionBytesWithdrawal,
     UnionBytesWithdrawalEnum,
-    UnionBytesLegacyTransactionEnum,
-    OptionalUnionBytesReceipt,
     trie_set_TrieBytesOptionalUnionBytesWithdrawal,
-    UnionBytesReceiptEnum,
-    UnionBytesReceipt,
     TrieBytes32U256Struct,
 )
 from ethereum.cancun.fork_types import (
@@ -117,24 +87,14 @@ from ethereum.cancun.state import (
     set_account_balance,
     State,
     StateStruct,
-    TransientStorage,
-    TransientStorageStruct,
     empty_transient_storage,
     process_withdrawal,
     finalize_state,
 )
 from ethereum.cancun.transactions_types import (
-    TX_ACCESS_LIST_ADDRESS_COST,
-    TX_ACCESS_LIST_STORAGE_KEY_COST,
-    TX_BASE_COST,
-    TX_CREATE_COST,
-    TX_DATA_COST_PER_NON_ZERO,
-    TX_DATA_COST_PER_ZERO,
     Transaction,
     get_transaction_type,
     get_gas,
-    get_r,
-    get_s,
     get_max_fee_per_gas,
     get_max_priority_fee_per_gas,
     get_gas_price,
@@ -152,17 +112,16 @@ from ethereum.cancun.transactions import (
     decode_transaction,
 )
 from ethereum.cancun.utils.message import prepare_message
-from ethereum.cancun.vm.evm_impl import Evm, EvmStruct, Message, MessageStruct, OptionalEvm
+from ethereum.cancun.vm.evm_impl import EvmStruct, Message, MessageStruct, OptionalEvm
 from ethereum.cancun.vm.env_impl import Environment, EnvironmentStruct, EnvImpl
-from ethereum.cancun.vm.exceptions import EthereumException, InvalidBlock
+from ethereum.cancun.vm.exceptions import InvalidBlock
 from ethereum.cancun.vm.gas import (
     calculate_data_fee,
-    init_code_cost,
     calculate_total_blob_gas,
     calculate_blob_gas_price,
     calculate_excess_blob_gas,
 )
-from ethereum.cancun.vm.interpreter import process_message_call, MessageCallOutput
+from ethereum.cancun.vm.interpreter import process_message_call
 from ethereum.crypto.hash import keccak256, Hash32
 from ethereum.exceptions import OptionalEthereumException
 from ethereum.utils.numeric import (
@@ -183,7 +142,6 @@ from ethereum.utils.hash_dicts import set_address_contains
 from ethereum.utils.bytes import Bytes32_to_Bytes, Bytes32__eq__, Bytes256__eq__
 from cairo_core.comparison import is_zero
 
-from legacy.utils.array import count_not_zero
 from legacy.utils.dict import hashdict_write, default_dict_finalize
 
 const ELASTICITY_MULTIPLIER = 2;

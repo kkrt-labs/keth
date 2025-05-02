@@ -11,8 +11,7 @@ from legacy.utils.uint256 import (
     uint256_signed_div_rem,
     uint256_mul_div_mod,
 )
-from legacy.utils.utils import Helpers
-from ethereum.cancun.vm.stack import Stack, pop, push
+from ethereum.cancun.vm.stack import pop, push
 from ethereum.cancun.vm.evm_impl import Evm, EvmImpl
 from ethereum.exceptions import EthereumException
 from ethereum_types.numeric import U256, U256Struct, Uint

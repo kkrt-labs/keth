@@ -1,5 +1,4 @@
 from starkware.cairo.common.cairo_builtins import UInt384, ModBuiltin, PoseidonBuiltin
-from starkware.cairo.common.registers import get_label_location
 from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
 from starkware.cairo.common.uint256 import Uint256
 from starkware.cairo.common.poseidon_state import PoseidonBuiltinState
@@ -19,7 +18,6 @@ from cairo_ec.curve.alt_bn128 import alt_bn128, sign_to_uint384_mod_alt_bn128
 from cairo_ec.curve.g1_point import G1Point, G1PointStruct, G1Point__eq__, G1Point_zero
 from cairo_ec.uint384 import (
     felt_to_uint384,
-    uint256_to_uint384,
     uint384_eq_mod_p,
     uint384_is_neg_mod_p,
     uint384_to_uint256,

@@ -1,25 +1,12 @@
-from starkware.cairo.common.cairo_builtins import HashBuiltin
-from starkware.cairo.common.default_dict import default_dict_new
-from starkware.cairo.common.dict import dict_write, dict_read
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.uint256 import Uint256
 from ethereum_types.numeric import Uint
-from ethereum.cancun.fork_types import Address, TupleAddressBytes32
 from ethereum.cancun.state import (
     MappingTupleAddressBytes32U256,
     MappingTupleAddressBytes32U256Struct,
     TupleAddressBytes32U256DictAccess,
-    ListTupleAddressBytes32,
-    ListTupleAddressBytes32Struct,
 )
-from legacy.utils.dict import (
-    prev_values,
-    dict_update,
-    squash_and_update,
-    dict_squash,
-    default_dict_finalize,
-)
+from legacy.utils.dict import prev_values, dict_update, squash_and_update, dict_squash
 
 func test_prev_values{range_check_ptr}() -> (prev_values_start_ptr: felt*) {
     alloc_locals;

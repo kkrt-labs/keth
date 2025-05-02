@@ -1,19 +1,15 @@
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.math import split_felt
-from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.cairo.common.bitwise import BitwiseBuiltin
 from starkware.cairo.common.registers import get_label_location
 from ethereum_types.bytes import (
     Bytes20,
     Bytes32,
     Bytes256,
-    Bytes,
     BytesStruct,
-    HashedBytes32,
     Bytes32Struct,
     OptionalBytes,
 )
-from ethereum.utils.bytes import Bytes__eq__
 from ethereum_types.numeric import Uint, U256, U256Struct, bool
 from ethereum.crypto.hash import Hash32, EMPTY_ROOT_KECCAK, EMPTY_HASH_KECCAK
 from ethereum.utils.numeric import U256_to_be_bytes20
