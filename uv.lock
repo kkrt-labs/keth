@@ -547,6 +547,7 @@ source = { editable = "python/cairo-lint" }
 dependencies = [
     { name = "cairo-lang" },
     { name = "rich" },
+    { name = "toml" },
     { name = "typer" },
 ]
 
@@ -559,6 +560,7 @@ dev = [
 requires-dist = [
     { name = "cairo-lang", specifier = ">=0.13.3" },
     { name = "rich", specifier = ">=14.0.0" },
+    { name = "toml" },
     { name = "typer", specifier = ">=0.15.3" },
 ]
 
