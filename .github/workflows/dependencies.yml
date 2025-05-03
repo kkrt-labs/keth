@@ -73,7 +73,7 @@ jobs:
           echo "$BODY" | envsubst >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      - uses: actions/create-github-app-token@v1
+      - uses: actions/create-github-app-token@v2
         id: github_token
         with:
           app-id: ${{ secrets.KAKAROT_BOT_APP_ID }}
@@ -166,7 +166,7 @@ jobs:
           </details>" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      - uses: actions/create-github-app-token@v1
+      - uses: actions/create-github-app-token@v2
         id: github_token
         with:
           app-id: ${{ secrets.KAKAROT_BOT_APP_ID }}
