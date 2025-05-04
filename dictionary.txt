@@ -27,7 +27,7 @@ BLOCKHASH
 BLSF
 BLSP
 BLSPBLSP2
-branche
+branch
 bytearray
 bytecodelen
 callcode
