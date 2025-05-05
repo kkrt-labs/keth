@@ -317,3 +317,4 @@ pyerr
 samply
 typer
 syscall
+scarb

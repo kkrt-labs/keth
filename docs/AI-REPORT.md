@@ -1,5 +1,72 @@
 # AI-Reports
 
+## AI-REPORT: New Cairo Program Proving Script (May 2, 2025)
+
+### Overview
+
+A new script, `prove_cairo.py`, has been added to the Keth project under
+`cairo/scripts/`. This script is designed to be an unopinionated tool focused on
+a single feature: running and proving any compiled Cairo program, independent of
+Keth-specific logic. This addition enhances the flexibility of the proving
+toolchain by allowing users to work with arbitrary Cairo programs, which might
+be useful for testing and development purposes.
+
+### What Was Done
+
+- **New Script Creation**: Created `prove_cairo.py` as a standalone CLI tool
+  using the Typer framework for command-line interface development.
+- **Integration with Existing Bindings**: Utilized existing Rust bindings from
+  `cairo_addons.rust_bindings` for trace generation (`run_generate_trace`),
+  proof generation (`run_prove`), and verification (`run_verify`).
+- **Feature Implementation**: Implemented a single command `run_and_prove` that
+  handles running a compiled Cairo program, generating a proof with STWO, and
+  optionally verifying the proof.
+- **Support for Cairo-Compatible Serialization**: Added support for serializing
+  proofs to a Cairo-compatible format using the `--serde-cairo` flag, aligning
+  with features in `keth.py`.
+- **Performance Improvements**: Used a CanonicalWithoutPedersen preprocessed
+  trace variant when using `prove_cairo`, which is faster to setup. We don't
+  need proving of pedersen hashes.
+
+### Why It Was Done
+
+- **Flexibility**: To provide a tool that can run and prove any Cairo program,
+  not just those related to Ethereum block processing as in `keth.py`. This
+  allows developers to use the STWO proving system for a broader range of
+  applications.
+- **Simplification**: To offer a focused, unopinionated interface that avoids
+  the complexity and specific assumptions baked into the Keth workflow, making
+  it easier for users to integrate with custom Cairo projects.
+
+### How to Use the New Script
+
+The `prove_cairo.py` script can be invoked from the command line with the
+following options:
+
+- **Command**: `run_and_prove`
+- **Options**:
+  - `--compiled-program <PROGRAM_PATH>`: (Required) Path to the compiled Cairo
+    program to run and prove.
+  - `--entrypoint <ENTRYPOINT>`: (Default: "main") The entrypoint function name
+    to execute in the program.
+  - `--arguments <ARGUMENTS>`: (Default: "") Serialized arguments as
+    comma-separated felts for the program.
+  - `--output-dir <OUTPUT_DIR>`: (Default: "output") Directory to save trace
+    artifacts and the generated proof.
+  - `--serde-cairo`: (Default: False) Serialize the proof to a Cairo-compatible
+    format.
+  - `--verify`: (Default: False) Verify the proof after generation.
+
+**Example Usage**:
+
+```bash
+uv run prove_cairo --compiled-program build/my_program_compiled.json --entrypoint main --arguments "1,2,3" --output-dir output --serde-cairo --verify
+```
+
+This command runs the specified Cairo program, generates a proof, saves
+artifacts to the `output` directory, serializes the proof in Cairo-compatible
+format, and verifies the proof.
+
 ## AI-REPORT: State Root Restoration and Hash Function Abstraction (April 23, 2025)
 
 ### Context & Goal

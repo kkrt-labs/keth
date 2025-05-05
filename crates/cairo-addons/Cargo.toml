@@ -20,7 +20,10 @@ pyo3 = { version = "0.23.3", features = [
 cairo-vm = { workspace = true }
 stwo-cairo-adapter = { workspace = true }
 stwo_cairo_prover = { workspace = true }
+stwo_cairo_utils = { workspace = true }
+stwo-cairo-serialize = { workspace = true }
 cairo-air = { workspace = true }
+starknet-ff = "0.3.7"
 num-traits = "0.2.18"
 num-bigint = "0.4.6"
 starknet-crypto = "0.7.4"
@@ -45,6 +48,7 @@ tracing = "0.1.41"
 ark-bn254 = "0.5.0"
 ark-ff = "0.5.0"
 ark-bls12-381 = "0.5.0"
+sonic-rs = "0.5.1"
 
 [build-dependencies]
 pyo3-build-config = "0.23.3" # Should match pyo3 version
