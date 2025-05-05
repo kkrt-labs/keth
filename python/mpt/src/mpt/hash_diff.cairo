@@ -164,9 +164,6 @@ func _accumulate_storage_diff_hashes{poseidon_ptr: PoseidonBuiltin*}(
     }
     let current_diff = storage_diff.value.data[i];
     tempvar key = current_diff.value.key;
-    tempvar new_value = current_diff.value.new_value;
-    tempvar prev_value = current_diff.value.prev_value;
-    %{print(f"[TRIE STORAGE DIFF] At index {ids.i}, key={serialize(ids.key)}, new_value={serialize(ids.new_value)}, prev_value={serialize(ids.prev_value)}")%}
 
     let current_hash = poseidon_storage_diff(current_diff);
     assert buffer[i] = current_hash;
@@ -308,10 +305,6 @@ func _accumulate_state_storage_diff_hashes{poseidon_ptr: PoseidonBuiltin*}(
         return _accumulate_state_storage_diff_hashes(buffer, state_storage_diff, i + 1, len);
     }
 
-    tempvar _key = current_diff_ptr.key;
-    tempvar _prev_value = current_diff_ptr.prev_value;
-    tempvar _new_value = current_diff_ptr.new_value;
-    %{print(f"[STATE STORAGE DIFF] At index {ids.i}, key={serialize(ids._key)}, new_value={serialize(ids._new_value)}, prev_value={serialize(ids._prev_value)}")%}
     tempvar storage_diff_entry = StorageDiffEntry(
         new StorageDiffEntryStruct(
             key=current_diff_ptr.key, prev_value=prev_value, new_value=new_value
