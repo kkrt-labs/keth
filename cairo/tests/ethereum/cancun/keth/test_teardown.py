@@ -12,7 +12,10 @@ pytestmark = pytest.mark.cairo_file(
 class TestTeardown:
     @pytest.mark.parametrize(
         "zkpi_path",
-        [Path("test_data/22188088.json")],
+        [
+            Path("test_data/22188088.json"),
+            Path("test_data/22188102.json"),
+        ],
     )
     @pytest.mark.slow
     def test_teardown(self, cairo_run, zkpi_path):

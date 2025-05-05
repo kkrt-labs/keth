@@ -417,9 +417,11 @@ class PreState:
             # Note: the ZKPI provides `0` values for empty storage slots instead of null values.
             for storage_key_hex, value in account["storage"].items():
                 storage_key_bytes = Bytes32.fromhex(storage_key_hex[2:])
-                storage_key_int = U256(int(value[2:], 16))
-                storage_key = None if int(storage_key_int) == 0 else storage_key_int
-                pre_state._storage_tries[address]._data[storage_key_bytes] = storage_key
+                storage_value_int = U256(int(value[2:], 16))
+                storage_value = storage_value_int if storage_value_int != 0 else None
+                pre_state._storage_tries[address]._data[
+                    storage_key_bytes
+                ] = storage_value
 
         return pre_state
 

@@ -12,9 +12,7 @@ from typing import (
 )
 
 from ethereum.cancun.blocks import Receipt, Withdrawal
-from ethereum.cancun.fork_types import (
-    Address,
-)
+from ethereum.cancun.fork_types import Address
 from ethereum.cancun.state import State, TransientStorage
 from ethereum.cancun.transactions import (
     LegacyTransaction,

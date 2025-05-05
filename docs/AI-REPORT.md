@@ -1,5 +1,62 @@
 # AI-Reports
 
+## AI-REPORT: Fix State Compatibility for EELS in Teardown Tests (May 3, 2025)
+
+### Problem
+
+A test failure occurred, particularly noticeable with the
+`test_data/22188102.json` fixture, during the execution of the EELS `apply_body`
+function within the Python `load_teardown_input` utility
+(`cairo/utils/fixture_loader.py`). The issue stemmed from a mismatch between
+Keth's internal `State` representation and the format expected by EELS:
+
+1.  Keth's ZKPI loading and internal Python `State` object use `None` to
+    represent accounts or storage slots that are absent or empty after being
+    touched in a transaction - the reason being that any key accessed during the
+    Cairo execution **must** appear in the python object.
+2.  The EELS `apply_body` function expects such absent entries to be entirely
+    missing from the state trie data structures, not represented as `None`. It
+    also expects specific representations for zero/empty values (e.g., `b""` for
+    code). Passing a `State` object containing `None` values directly to EELS
+    `apply_body` led to incorrect execution or errors (like gas inconsistencies
+    or `InvalidBlock` exceptions in direct EELS calls).
+
+### Solution
+
+The fix involved ensuring the `State` object is formatted correctly before being
+passed to EELS `apply_body` and handling the ZKPI representation consistently:
+
+1.  **Consistent ZKPI Loading**: Updated `mpt.ethereum_tries.PreState.from_data`
+    to correctly interpret storage values of `0` from the ZKPI data as `None` in
+    the Python `Trie` structure, representing absence/nullity in the pre-state,
+    aligning with the April 22 changes.
+2.  **EELS State Formatting**: Introduced a new utility function
+    `format_state_for_eels` in `cairo/utils/fixture_loader.py`. This function
+    cleans the `State` object by:
+    - Removing account entries where the value is `None`.
+    - Setting `code` to `b""` for accounts where it's `None`.
+    - Removing storage entries where the value is `None`.
+    - Removing entire storage tries if they become empty after cleaning.
+3.  **Applying Formatting**: Modified `prepare_body_input` and
+    `load_teardown_input` to call `format_state_for_eels` on the `State` object
+    _before_ passing it to EELS functions like `apply_body`.
+4.  **State Restoration**: Ensured that `load_teardown_input` correctly restores
+    the `None` representations back into the `State` object _after_ the
+    `apply_body` call, maintaining consistency with Keth's internal logic for
+    subsequent steps (like teardown).
+5.  **Testing**: Added `test_data/22188102.json` to `test_teardown.py` and
+    introduced `test_e2e_eels` in `test_e2e.py` to specifically test EELS
+    compatibility and verify gas calculations even when full state root
+    verification fails due to partial ZKPI state.
+
+### Impact
+
+This change ensures that the `State` object passed to EELS functions conforms to
+its expected format, resolving errors previously encountered during the Python
+execution phase of teardown tests. It correctly handles the distinction between
+absent/null values (`None` in Keth Python) and zero values (`U256(0)`, empty
+accounts) when interacting with EELS.
+
 ## AI-REPORT: New Cairo Program Proving Script (May 2, 2025)
 
 ### Overview
