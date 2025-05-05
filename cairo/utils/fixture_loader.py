@@ -258,6 +258,60 @@ def load_zkpi_fixture(zkpi_path: Union[Path, str]) -> Dict[str, Any]:
     return program_input
 
 
+def zkpi_fixture_eels_compatible(zkpi_path: Union[Path, str]) -> Dict[str, Any]:
+    """
+    Load and convert ZKPI fixture to EELS-compatible public inputs.
+    """
+    zkpi_program_input = load_zkpi_fixture(zkpi_path=zkpi_path)
+
+    blockchain = zkpi_program_input["blockchain"]
+    format_state_for_eels(blockchain.state)
+    return zkpi_program_input
+
+
+def format_state_for_eels(state: State) -> State:
+    """
+    Format the state to run with EELS.
+    """
+    # EELS expects "None" accounts to not be in the state.
+    accounts_to_delete = [
+        address
+        for address, account in state._main_trie._data.items()
+        if account is None
+    ]
+    for address in accounts_to_delete:
+        del state._main_trie._data[address]
+
+    # EELS expects code of accounts without code to be an empty bytearray.
+    for address, account in state._main_trie._data.items():
+        if account and not account.code:
+            state._main_trie._data[address] = Account(
+                nonce=account.nonce,
+                balance=account.balance,
+                code_hash=account.code_hash,
+                storage_root=account.storage_root,
+                code=b"",
+            )
+
+    for address in state._storage_tries:
+        # EELS expects empty storage values to be deleted.
+        # If a trie has no remaining value, then it's entirely deleted.
+        storage_trie = state._storage_tries[address]
+        keys_to_delete = [k for k, v in storage_trie._data.items() if v is None]
+        for key in keys_to_delete:
+            del storage_trie._data[key]
+
+    tries_to_delete = [
+        address
+        for address in state._storage_tries
+        if not state._storage_tries[address]._data
+    ]
+    for address in tries_to_delete:
+        del state._storage_tries[address]
+
+    return
+
+
 def prepare_body_input(
     state: State,
     block_hashes: List[Hash32],
@@ -289,21 +343,7 @@ def prepare_body_input(
     Trie(secured=False, default=None, _data=defaultdict(lambda: None))
     block_logs: Tuple[Log, ...] = ()
 
-    # EELS expects code of accounts without code to be an empty bytearray.
-    for address, account in state._main_trie._data.items():
-        if account and not account.code:
-            state._main_trie._data[address] = Account(
-                nonce=account.nonce,
-                balance=account.balance,
-                code_hash=account.code_hash,
-                storage_root=account.storage_root,
-                code=b"",
-            )
-
-        storage_trie = state._storage_tries[address]
-        for storage_key, storage_value in storage_trie._data.items():
-            if storage_value is None:
-                storage_trie._data[storage_key] = U256(0)
+    format_state_for_eels(state)
 
     beacon_block_roots_contract_code = get_account(state, BEACON_ROOTS_ADDRESS).code
 
@@ -544,11 +584,16 @@ def load_teardown_input(zkpi_path: Union[Path, str]) -> Dict[str, Any]:
         excess_blob_gas,
     )
 
+    if body_input["block_gas_used"] != block.header.gas_used:
+        raise ValueError(
+            f"Block gas used mismatch: {body_input['block_gas_used']} != {block.header.gas_used}"
+        )
+
     # One thing to keep in mind here is that running EELS will delete any value from the account /
     # storage trie that's set to the default value (EMPTY_ACCOUNT / U256(0)).  This means that we
     # must _manually_ put back an entry for each value that was deleted from the tries.
     updated_state = body_input["state"]
-    for address, account in main_trie_snapshot._data.items():
+    for address in main_trie_snapshot._data.keys():
         if address not in updated_state._main_trie._data:
             updated_state._main_trie._data[address] = None
 
@@ -558,7 +603,7 @@ def load_teardown_input(zkpi_path: Union[Path, str]) -> Dict[str, Any]:
             )
 
     for address in storage_tries_snapshot:
-        for storage_key, storage_value in storage_tries_snapshot[address]._data.items():
+        for storage_key in storage_tries_snapshot[address]._data.keys():
             if storage_key not in updated_state._storage_tries[address]._data:
                 updated_state._storage_tries[address]._data[storage_key] = None
 

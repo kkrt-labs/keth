@@ -1,8 +1,15 @@
 from pathlib import Path
 
 import pytest
+from ethereum.cancun.fork import state_transition
+from ethereum.exceptions import InvalidBlock
 
-from utils.fixture_loader import load_body_input, load_teardown_input, load_zkpi_fixture
+from utils.fixture_loader import (
+    load_body_input,
+    load_teardown_input,
+    load_zkpi_fixture,
+    zkpi_fixture_eels_compatible,
+)
 
 pytestmark = pytest.mark.cairo_file(
     f"{Path().cwd()}/cairo/tests/ethereum/cancun/keth/test_e2e.cairo",
@@ -15,6 +22,23 @@ def program_input(zkpi_path):
 
 
 class TestE2E:
+    @pytest.mark.parametrize(
+        "zkpi_path",
+        [Path("test_data/22188102.json")],
+    )
+    def test_e2e_eels(self, zkpi_path):
+        """
+        This test should fail with InvalidBlock exception,
+        because we only compute the partial state root.
+        This is still useful to test that we have e.g. same gas consumptions.
+        """
+        eels_program_input = zkpi_fixture_eels_compatible(zkpi_path)
+        block = eels_program_input["block"]
+        blockchain = eels_program_input["blockchain"]
+
+        with pytest.raises(InvalidBlock):
+            state_transition(blockchain, block)
+
     @pytest.mark.parametrize(
         "zkpi_path",
         [Path("test_data/22188088.json")],
