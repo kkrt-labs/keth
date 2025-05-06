@@ -603,9 +603,9 @@ fn prepare_cairo_execution<'a>(
         layout: LayoutName::all_cairo_stwo,
         proof_mode: true,
         secure_run: Some(true),
-        allow_missing_builtins: Some(false),
         disable_trace_padding: true,
-        ..Default::default()
+        allow_missing_builtins: Default::default(),
+        dynamic_layout_params: Default::default(),
     };
 
     //this entrypoint tells which function to run in the cairo program
