@@ -146,7 +146,7 @@ from cairo_addons.rust_bindings.vm import (
 )
 from cairo_addons.rust_bindings.vm import Relocatable as RustRelocatable
 from cairo_addons.rust_bindings.vm import (
-    poseidon_hash_many,
+    blake2s_hash_many,
 )
 from cairo_ec.curve import ECBase
 from keth_types.types import (
@@ -1123,7 +1123,7 @@ def generate_dict_arg(
 
     for k, v in data.items():
         if is_hashed_key:
-            cairo_key = k[0] if len(k) == 1 else poseidon_hash_many(k)
+            cairo_key = k[0] if len(k) == 1 else blake2s_hash_many(k)
         else:
             cairo_key = k
 
@@ -1139,7 +1139,7 @@ def generate_dict_arg(
     initial_data = flatten(sorted(processed_items, key=lambda item: item[0]))
 
     all_preimages = {
-        poseidon_hash_many(k) if len(k) != 1 else k[0]: k for k in data.keys()
+        blake2s_hash_many(k) if len(k) != 1 else k[0]: k for k in data.keys()
     }
 
     segments.load_data(dict_ptr, initial_data)
