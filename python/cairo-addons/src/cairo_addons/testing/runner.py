@@ -609,6 +609,21 @@ def run_rust_vm(
         # ============================================================================
         proof_mode = request.config.getoption("proof_mode")
         enable_traces = request.config.getoption("--log-cli-level") == "TRACE"
+
+        # Create a unique output stem for the given test by using the test file name, the entrypoint and the kwargs
+        displayed_args = ""
+        if kwargs:
+            try:
+                displayed_args = json.dumps(kwargs)
+            except TypeError:
+                pass
+        output_stem = str(
+            request.node.path.parent
+            / f"{request.node.path.stem}_{entrypoint}_{displayed_args}"
+        )
+        output_stem = Path(
+            f"{output_stem[:160]}_{int(time_ns())}_{md5(output_stem.encode()).digest().hex()[:8]}"
+        )
         runner = RustCairoRunner(
             program=rust_program,
             py_identifiers=cairo_program.identifiers,
@@ -622,6 +637,7 @@ def run_rust_vm(
             ],
             cairo_file=cairo_file,
             py_debug_info=cairo_program.debug_info,
+            output_path=output_stem,
         )
         serde = Serde(
             runner.segments, cairo_program.identifiers, runner.dict_manager, cairo_file
@@ -791,21 +807,6 @@ def run_rust_vm(
         if not request.config.getoption("no_coverage"):
             coverage(cairo_file, runner.trace_df)
 
-        # Create a unique output stem for the given test by using the test file name, the entrypoint and the kwargs
-        displayed_args = ""
-        if kwargs:
-            try:
-                displayed_args = json.dumps(kwargs)
-            except TypeError:
-                pass
-        output_stem = str(
-            request.node.path.parent
-            / f"{request.node.path.stem}_{entrypoint}_{displayed_args}"
-        )
-        output_stem = Path(
-            f"{output_stem[:160]}_{int(time_ns())}_{md5(output_stem.encode()).digest().hex()[:8]}"
-        )
-
         if request.config.getoption("profile_cairo"):
             stats, prof_dict = profile_from_trace(
                 program=cairo_program, trace=runner.trace_df, program_base=PROGRAM_BASE
@@ -816,21 +817,6 @@ def run_rust_vm(
             logger.info(stats)
             stats.write_csv(output_stem.with_suffix(".csv"))
             marshal.dump(prof_dict, open(output_stem.with_suffix(".prof"), "wb"))
-
-        if proof_mode:
-            runner.write_binary_trace(str(output_stem.with_suffix(".trace")))
-            runner.write_binary_memory(
-                str(output_stem.with_suffix(".memory")),
-                math.ceil(cairo_program.prime.bit_length() / 8),
-            )
-            runner.write_binary_air_public_input(
-                str(output_stem.with_suffix(".air_public_input.json"))
-            )
-            runner.write_binary_air_private_input(
-                str(output_stem.with_suffix(".trace")),
-                str(output_stem.with_suffix(".memory")),
-                str(output_stem.with_suffix(".air_private_input.json")),
-            )
 
         # ============================================================================
         # STEP 8: SERIALIZE AND RETURN OUTPUT

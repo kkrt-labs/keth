@@ -38,9 +38,10 @@ use std::{
     collections::HashMap,
     ffi::CString,
     io::{self, Write},
-    path::PathBuf,
+    path::{Path, PathBuf},
     rc::Rc,
 };
+use stwo_cairo_adapter::adapter::adapt_finished_runner;
 use tracing_subscriber::fmt::format::FmtSpan;
 
 // Names of implicit arguments that are pointers but not standard builtins handled by BuiltinRunner
@@ -65,6 +66,7 @@ pub struct PyCairoRunner {
     return_data_info: Vec<(String, Option<usize>)>,
     /// Whether to enable execution of hints containing logger.
     enable_traces: bool,
+    output_path: Option<PathBuf>,
 }
 
 #[pymethods]
@@ -82,7 +84,7 @@ impl PyCairoRunner {
     ///   initialization time.
     #[allow(clippy::too_many_arguments)]
     #[new]
-    #[pyo3(signature = (program, py_identifiers=None, program_input=None, layout=None, proof_mode=false, allow_missing_builtins=false, enable_traces=false, return_data_info=vec![], cairo_file=None, py_debug_info=None))]
+    #[pyo3(signature = (program, py_identifiers=None, program_input=None, layout=None, proof_mode=false, allow_missing_builtins=false, enable_traces=false, return_data_info=vec![], cairo_file=None, py_debug_info=None, output_path=None))]
     fn new(
         program: &PyProgram,
         py_identifiers: Option<PyObject>,
@@ -94,6 +96,7 @@ impl PyCairoRunner {
         return_data_info: Vec<(String, Option<usize>)>,
         cairo_file: Option<PyObject>,
         py_debug_info: Option<PyObject>,
+        output_path: Option<PathBuf>,
     ) -> PyResult<Self> {
         let layout = layout.unwrap_or_default().into_layout_name()?;
 
@@ -175,7 +178,7 @@ except Exception as e:
             Ok::<(), PyErr>(())
         })?;
 
-        Ok(Self { inner, allow_missing_builtins, return_data_info, enable_traces })
+        Ok(Self { inner, allow_missing_builtins, return_data_info, enable_traces, output_path })
     }
 
     /// Initializes the runner's segments, including program_base, execution_base, and all builtins.
@@ -380,6 +383,27 @@ except Exception as e:
         self.inner
             .end_run(false, false, &mut hint_processor)
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+
+        if self.inner.is_proof_mode() {
+            if let Some(output_path) = &self.output_path {
+                let trace_path = output_path.with_extension("trace");
+                let memory_path = output_path.with_extension("memory");
+                let air_public_input_path = output_path.with_extension("air_public_input");
+                let air_private_input_path = output_path.with_extension("air_private_input");
+                write_binary_trace(&self.inner, &trace_path).map_err(to_pyerr)?;
+                write_binary_memory(&self.inner, &memory_path, 3 * 1024 * 1024)
+                    .map_err(to_pyerr)?;
+                write_binary_air_public_input(&self.inner, &air_public_input_path)
+                    .map_err(to_pyerr)?;
+                write_binary_air_private_input(
+                    &self.inner,
+                    trace_path.as_path(),
+                    memory_path.as_path(),
+                    air_private_input_path.as_path(),
+                )
+                .map_err(to_pyerr)?;
+            }
+        }
         Ok(())
     }
 
@@ -511,89 +535,6 @@ except Exception as e:
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
         Ok(())
     }
-
-    /// Writes the execution trace to a binary file.
-    /// Used in proof mode to generate input for the prover.
-    fn write_binary_trace(&self, file_path: String) -> PyResult<()> {
-        if let Some(trace_entries) = &self.inner.relocated_trace {
-            let trace_file = std::fs::File::create(file_path)?;
-            let mut trace_writer =
-                FileWriter::new(io::BufWriter::with_capacity(3 * 1024 * 1024, trace_file));
-
-            write_encoded_trace(trace_entries, &mut trace_writer)
-                .map_err(|e| PyErr::new::<pyo3::exceptions::PyIOError, _>(e.to_string()))?;
-            Ok(())
-        } else {
-            Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>("No relocated trace available"))
-        }
-    }
-
-    /// Writes the memory contents to a binary file.
-    /// Used in proof mode to generate input for the prover.
-    fn write_binary_memory(&self, file_path: String, capacity: usize) -> PyResult<()> {
-        let memory_file = std::fs::File::create(file_path)?;
-        let mut memory_writer =
-            FileWriter::new(io::BufWriter::with_capacity(capacity, memory_file));
-
-        write_encoded_memory(&self.inner.relocated_memory, &mut memory_writer)
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyIOError, _>(e.to_string()))?;
-        memory_writer
-            .flush()
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyIOError, _>(e.to_string()))?;
-        Ok(())
-    }
-
-    /// Writes the AIR public input to a JSON file.
-    /// Contains public information needed for proof verification.
-    fn write_binary_air_public_input(&self, file_path: String) -> PyResult<()> {
-        let json = self
-            .inner
-            .get_air_public_input()
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?
-            .serialize_json()
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
-        std::fs::write(file_path, json)
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyIOError, _>(e.to_string()))?;
-        Ok(())
-    }
-
-    /// Writes the AIR private input to a JSON file.
-    ///
-    /// # Arguments
-    /// * `trace_path` - Path to the trace file
-    /// * `memory_path` - Path to the memory file
-    /// * `file_path` - Path where the AIR private input will be written
-    ///
-    /// Contains private information needed for proof generation.
-    fn write_binary_air_private_input(
-        &self,
-        trace_path: PathBuf,
-        memory_path: PathBuf,
-        file_path: String,
-    ) -> PyResult<()> {
-        let trace_path = trace_path
-            .as_path()
-            .canonicalize()
-            .unwrap_or(trace_path.clone())
-            .to_string_lossy()
-            .to_string();
-        let memory_path = memory_path
-            .as_path()
-            .canonicalize()
-            .unwrap_or(memory_path.clone())
-            .to_string_lossy()
-            .to_string();
-
-        let json = self
-            .inner
-            .get_air_private_input()
-            .to_serializable(trace_path, memory_path)
-            .serialize_json()
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
-        std::fs::write(file_path, json)
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyIOError, _>(e.to_string()))?;
-        Ok(())
-    }
 }
 
 impl PyCairoRunner {
@@ -659,12 +600,12 @@ fn prepare_cairo_execution<'a>(
         entrypoint: &entrypoint,
         trace_enabled: true,
         relocate_mem: true,
-        layout: LayoutName::all_cairo,
+        layout: LayoutName::all_cairo_stwo,
         proof_mode: true,
         secure_run: Some(true),
-        allow_missing_builtins: Some(false),
         disable_trace_padding: true,
-        ..Default::default()
+        allow_missing_builtins: Default::default(),
+        dynamic_layout_params: Default::default(),
     };
 
     //this entrypoint tells which function to run in the cairo program
@@ -737,6 +678,8 @@ pub fn generate_trace(
     program_input: PyObject,
     compiled_program_path: String,
     output_path: PathBuf,
+    output_trace_components: bool,
+    pi_json: bool,
 ) -> PyResult<()> {
     tracing_subscriber::fmt()
         .with_max_level(tracing::Level::INFO)
@@ -772,8 +715,32 @@ pub fn generate_trace(
     if let Some(parent) = output_path.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    std::fs::write(output_path, serde_json::to_string(&prover_input_info).map_err(to_pyerr)?)?;
+    if pi_json {
+        std::fs::write(&output_path, &prover_input_info.serialize_json().map_err(to_pyerr)?)?;
+    } else {
+        // Uses bincode for faster serialization - can switch to sonic_rs if JSON is required
+        let bytes = prover_input_info.serialize().map_err(to_pyerr)?;
+        std::fs::write(&output_path, bytes)?;
+    }
 
+    if output_trace_components {
+        write_binary_trace(&cairo_runner, &output_path.with_extension("trace"))
+            .map_err(to_pyerr)?;
+        write_binary_memory(&cairo_runner, &output_path.with_extension("memory"), 3 * 1024 * 1024)
+            .map_err(to_pyerr)?;
+        write_binary_air_public_input(
+            &cairo_runner,
+            &output_path.with_extension("air_public_input"),
+        )
+        .map_err(to_pyerr)?;
+        write_binary_air_private_input(
+            &cairo_runner,
+            &output_path.with_extension("trace"),
+            &output_path.with_extension("memory"),
+            &output_path.with_extension("air_private_input"),
+        )
+        .map_err(to_pyerr)?;
+    }
     Ok(())
 }
 
@@ -807,10 +774,95 @@ pub fn run_end_to_end(
     .map_err(to_pyerr)?;
     drop(_run_span_guard);
 
-    let cairo_input =
-        stwo_cairo_adapter::plain::adapt_finished_runner(cairo_runner).map_err(to_pyerr)?;
+    let execution_resources = cairo_runner.get_execution_resources().unwrap();
+    tracing::info!("Execution resources: {:?}", execution_resources);
+
+    let cairo_input = adapt_finished_runner(cairo_runner).map_err(to_pyerr)?;
 
     prove_with_stwo(cairo_input, proof_path, serde_cairo, verify).map_err(to_pyerr)
+}
+
+/// Writes the execution trace to a binary file.
+/// Used in proof mode to generate input for the prover.
+fn write_binary_trace(cairo_runner: &RustCairoRunner, file_path: &PathBuf) -> anyhow::Result<()> {
+    if let Some(trace_entries) = &cairo_runner.relocated_trace {
+        let trace_file = std::fs::File::create(file_path)?;
+        let mut trace_writer =
+            FileWriter::new(io::BufWriter::with_capacity(3 * 1024 * 1024, trace_file));
+
+        write_encoded_trace(trace_entries, &mut trace_writer)
+            .map_err(|e| anyhow::anyhow!("Failed to write encoded trace: {}", e))?;
+        Ok(())
+    } else {
+        Err(anyhow::anyhow!("No relocated trace available"))
+    }
+}
+
+/// Writes the memory contents to a binary file.
+/// Used in proof mode to generate input for the prover.
+fn write_binary_memory(
+    cairo_runner: &RustCairoRunner,
+    file_path: &PathBuf,
+    capacity: usize,
+) -> anyhow::Result<()> {
+    let memory_file = std::fs::File::create(file_path)
+        .map_err(|e| anyhow::anyhow!("Failed to create memory file {:?}: {}", file_path, e))?;
+    let mut memory_writer = FileWriter::new(io::BufWriter::with_capacity(capacity, memory_file));
+
+    write_encoded_memory(&cairo_runner.relocated_memory, &mut memory_writer)
+        .map_err(|e| anyhow::anyhow!("Failed to write encoded memory: {}", e))?;
+    memory_writer.flush().map_err(|e| anyhow::anyhow!("Failed to flush memory writer: {}", e))?;
+    Ok(())
+}
+
+/// Writes the AIR public input to a JSON file.
+/// Contains public information needed for proof verification.
+fn write_binary_air_public_input(
+    cairo_runner: &RustCairoRunner,
+    file_path: &PathBuf,
+) -> anyhow::Result<()> {
+    let json = cairo_runner
+        .get_air_public_input()
+        .map_err(|e| anyhow::anyhow!("Failed to get AIR public input: {}", e))?
+        .serialize_json()
+        .map_err(|e| anyhow::anyhow!("Failed to serialize AIR public input: {}", e))?;
+    std::fs::write(file_path, json).map_err(|e| {
+        anyhow::anyhow!("Failed to write AIR public input file {:?}: {}", file_path, e)
+    })?;
+    Ok(())
+}
+
+/// Writes the AIR private input to a JSON file.
+///
+/// # Arguments
+/// * `trace_path` - Path to the trace file
+/// * `memory_path` - Path to the memory file
+/// * `file_path` - Path where the AIR private input will be written
+///
+/// Contains private information needed for proof generation.
+fn write_binary_air_private_input(
+    cairo_runner: &RustCairoRunner,
+    trace_path: &Path,
+    memory_path: &Path,
+    file_path: &Path,
+) -> anyhow::Result<()> {
+    let trace_path =
+        trace_path.canonicalize().unwrap_or(trace_path.to_path_buf()).to_string_lossy().to_string();
+    let memory_path = memory_path
+        .canonicalize()
+        .unwrap_or(memory_path.to_path_buf())
+        .to_string_lossy()
+        .to_string();
+
+    let json = cairo_runner
+        .get_air_private_input()
+        .to_serializable(trace_path, memory_path)
+        .serialize_json()
+        .map_err(|e| anyhow::anyhow!("Failed to serialize AIR private input: {}", e))?;
+    std::fs::write(file_path, json).map_err(|e| {
+        anyhow::anyhow!("Failed to write AIR private input file {:?}: {}", file_path, e)
+    })?;
+    Ok(())
 }
 
 // From <https://github.com/lambdaclass/cairo-vm/blob/5d7c20880785e1f9edbd73d0d46aeb58d8bced4e/cairo-vm-cli/src/main.rs#L109-L140>

@@ -65,6 +65,16 @@ def run_and_prove(
         "--verify",
         help="Verify proof after generation",
     ),
+    output_trace_components: bool = typer.Option(
+        False,
+        "--output-trace-components",
+        help="Output trace components",
+    ),
+    pi_json: bool = typer.Option(
+        False,
+        "--pi-json",
+        help="Serialize the prover inputs to a JSON format",
+    ),
 ):
     """
     Run a compiled Cairo program, generate a proof, and optionally verify it.
@@ -93,6 +103,8 @@ def run_and_prove(
                 program_input=program_input,
                 compiled_program_path=str(compiled_program),
                 output_path=trace_output_path,
+                output_trace_components=output_trace_components,
+                pi_json=pi_json,
             )
             console.print(
                 f"[green]✓[/] Trace generated successfully in {trace_output_path}"

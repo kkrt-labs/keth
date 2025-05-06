@@ -608,8 +608,18 @@ version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "36eaf5d7b090263e8150820482d5d93cd964a81e4019913c972f4edcc6edb740"
 dependencies = [
+ "bincode_derive",
  "serde",
  "unty",
+]
+
+[[package]]
+name = "bincode_derive"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bf95709a440f45e986983918d0e8a1f30a9b1df04918fc828670606804ac3c09"
+dependencies = [
+ "virtue",
 ]
 
 [[package]]
@@ -778,7 +788,7 @@ dependencies = [
 [[package]]
 name = "cairo-air"
 version = "0.1.1"
-source = "git+https://github.com/starkware-libs/stwo-cairo?rev=2753bfe28bcf5d8a02975a18f9775ff7e43a236c#2753bfe28bcf5d8a02975a18f9775ff7e43a236c"
+source = "git+https://github.com/starkware-libs/stwo-cairo?rev=08098e391f7f87278c92a90657802420ad8a1a65#08098e391f7f87278c92a90657802420ad8a1a65"
 dependencies = [
  "itertools 0.12.1",
  "num-traits",
@@ -826,7 +836,7 @@ dependencies = [
 [[package]]
 name = "cairo-vm"
 version = "2.0.1"
-source = "git+https://github.com/kkrt-labs/cairo-vm?rev=0e6a272b5c6153437bd3b40150dde93d1294e565#0e6a272b5c6153437bd3b40150dde93d1294e565"
+source = "git+https://github.com/kkrt-labs/cairo-vm?rev=5f97264eac172331e64030d5f1cc97c3ca94a429#5f97264eac172331e64030d5f1cc97c3ca94a429"
 dependencies = [
  "anyhow",
  "arbitrary",
@@ -859,6 +869,7 @@ dependencies = [
 name = "cairo_addons"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "ark-bls12-381",
  "ark-bn254",
  "ark-ff 0.5.0",
@@ -1184,6 +1195,20 @@ checksum = "1bfb12502f3fc46cca1bb51ac28df9d618d813cdc3d2f25b9fe775a34af26bb3"
 dependencies = [
  "generic-array",
  "typenum",
+]
+
+[[package]]
+name = "dashmap"
+version = "6.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5041cc499144891f3790297212f32a74fb938e5136a14943f338ef9e0ae276cf"
+dependencies = [
+ "cfg-if",
+ "crossbeam-utils",
+ "hashbrown 0.14.5",
+ "lock_api",
+ "once_cell",
+ "parking_lot_core",
 ]
 
 [[package]]
@@ -4194,7 +4219,7 @@ dependencies = [
 [[package]]
 name = "stwo-air-utils"
 version = "0.1.1"
-source = "git+https://github.com/starkware-libs/stwo?rev=045963c#045963c3814e605e18d3edafadc79f52de8f21bb"
+source = "git+https://github.com/starkware-libs/stwo?rev=61d1f6b#61d1f6bf6d2913e6951b837526c2ce1f7f661414"
 dependencies = [
  "bytemuck",
  "itertools 0.12.1",
@@ -4206,7 +4231,7 @@ dependencies = [
 [[package]]
 name = "stwo-air-utils-derive"
 version = "0.1.0"
-source = "git+https://github.com/starkware-libs/stwo?rev=045963c#045963c3814e605e18d3edafadc79f52de8f21bb"
+source = "git+https://github.com/starkware-libs/stwo?rev=61d1f6b#61d1f6bf6d2913e6951b837526c2ce1f7f661414"
 dependencies = [
  "itertools 0.13.0",
  "proc-macro2",
@@ -4217,13 +4242,16 @@ dependencies = [
 [[package]]
 name = "stwo-cairo-adapter"
 version = "0.1.0"
-source = "git+https://github.com/starkware-libs/stwo-cairo?rev=2753bfe28bcf5d8a02975a18f9775ff7e43a236c#2753bfe28bcf5d8a02975a18f9775ff7e43a236c"
+source = "git+https://github.com/starkware-libs/stwo-cairo?rev=08098e391f7f87278c92a90657802420ad8a1a65#08098e391f7f87278c92a90657802420ad8a1a65"
 dependencies = [
+ "bincode",
  "bytemuck",
  "cairo-lang-casm",
  "cairo-vm",
+ "dashmap",
  "itertools 0.12.1",
  "log",
+ "memmap2",
  "serde",
  "serde_json",
  "sonic-rs 0.3.17",
@@ -4236,7 +4264,7 @@ dependencies = [
 [[package]]
 name = "stwo-cairo-common"
 version = "0.1.0"
-source = "git+https://github.com/starkware-libs/stwo-cairo?rev=2753bfe28bcf5d8a02975a18f9775ff7e43a236c#2753bfe28bcf5d8a02975a18f9775ff7e43a236c"
+source = "git+https://github.com/starkware-libs/stwo-cairo?rev=08098e391f7f87278c92a90657802420ad8a1a65#08098e391f7f87278c92a90657802420ad8a1a65"
 dependencies = [
  "bytemuck",
  "itertools 0.12.1",
@@ -4252,7 +4280,7 @@ dependencies = [
 [[package]]
 name = "stwo-cairo-serialize"
 version = "0.1.0"
-source = "git+https://github.com/starkware-libs/stwo-cairo?rev=2753bfe28bcf5d8a02975a18f9775ff7e43a236c#2753bfe28bcf5d8a02975a18f9775ff7e43a236c"
+source = "git+https://github.com/starkware-libs/stwo-cairo?rev=08098e391f7f87278c92a90657802420ad8a1a65#08098e391f7f87278c92a90657802420ad8a1a65"
 dependencies = [
  "starknet-ff",
  "stwo-cairo-serialize-derive",
@@ -4262,7 +4290,7 @@ dependencies = [
 [[package]]
 name = "stwo-cairo-serialize-derive"
 version = "0.1.0"
-source = "git+https://github.com/starkware-libs/stwo-cairo?rev=2753bfe28bcf5d8a02975a18f9775ff7e43a236c#2753bfe28bcf5d8a02975a18f9775ff7e43a236c"
+source = "git+https://github.com/starkware-libs/stwo-cairo?rev=08098e391f7f87278c92a90657802420ad8a1a65#08098e391f7f87278c92a90657802420ad8a1a65"
 dependencies = [
  "quote",
  "syn 2.0.101",
@@ -4271,7 +4299,7 @@ dependencies = [
 [[package]]
 name = "stwo-prover"
 version = "0.1.1"
-source = "git+https://github.com/starkware-libs/stwo?rev=045963c#045963c3814e605e18d3edafadc79f52de8f21bb"
+source = "git+https://github.com/starkware-libs/stwo?rev=61d1f6b#61d1f6bf6d2913e6951b837526c2ce1f7f661414"
 dependencies = [
  "blake2",
  "blake3",
@@ -4293,7 +4321,7 @@ dependencies = [
 [[package]]
 name = "stwo_cairo_prover"
 version = "0.1.0"
-source = "git+https://github.com/starkware-libs/stwo-cairo?rev=2753bfe28bcf5d8a02975a18f9775ff7e43a236c#2753bfe28bcf5d8a02975a18f9775ff7e43a236c"
+source = "git+https://github.com/starkware-libs/stwo-cairo?rev=08098e391f7f87278c92a90657802420ad8a1a65#08098e391f7f87278c92a90657802420ad8a1a65"
 dependencies = [
  "cairo-air",
  "hex",
@@ -4318,7 +4346,7 @@ dependencies = [
 [[package]]
 name = "stwo_cairo_utils"
 version = "0.1.0"
-source = "git+https://github.com/starkware-libs/stwo-cairo?rev=2753bfe28bcf5d8a02975a18f9775ff7e43a236c#2753bfe28bcf5d8a02975a18f9775ff7e43a236c"
+source = "git+https://github.com/starkware-libs/stwo-cairo?rev=08098e391f7f87278c92a90657802420ad8a1a65#08098e391f7f87278c92a90657802420ad8a1a65"
 dependencies = [
  "cairo-vm",
  "clap",
@@ -4708,6 +4736,12 @@ name = "version_check"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
+
+[[package]]
+name = "virtue"
+version = "0.0.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "051eb1abcf10076295e815102942cc58f9d5e3b4560e46e53c21e8ff6f3af7b1"
 
 [[package]]
 name = "wait-timeout"
