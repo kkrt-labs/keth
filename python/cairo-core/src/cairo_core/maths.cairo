@@ -727,6 +727,7 @@ func felt252_to_bytes4_le{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
 func felt252_to_bytes4_full{range_check_ptr}(value: felt, dst: felt*) -> felt* {
     alloc_locals;
     tempvar num_words = 8;
+    let output = dst;
     %{ felt252_to_bytes4_le %}
 
     tempvar actual = dst[0] + dst[1] * 2**32 + dst[2] * 2**64 + dst[3] * 2**96 + dst[4] * 2**128 + dst[5] * 2**160 + dst[6] * 2**192 + dst[7] * 2**224;
