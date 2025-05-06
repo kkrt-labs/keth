@@ -58,12 +58,13 @@ func blake2s_truncated{range_check_ptr}(data: felt*, n_bytes: felt) -> felt {
 // Computes the blake2s hash of multiple field elements.
 // The output is the blake2s hash truncated to 251 bits.
 // The input is a pointer to an array of felts.
-func blake2s_hash_many{range_check_ptr}(felt_input_len: felt, felt_input: felt*) -> felt {
+func blake2s_hash_many{range_check_ptr}(felt_input_len: felt, felt_input: felt*) -> (res: felt) {
     alloc_locals;
     let n_bytes = felt_input_len * BLAKE2S_BYTES_IN_FELTS;
     let (blake2s_ptr) = alloc();
     let (data_len, data) = felt252_array_to_bytes4_array(felt_input_len, felt_input);
-    return blake2s_truncated(data=data, n_bytes=n_bytes);
+    let res = blake2s_truncated(data=data, n_bytes=n_bytes);
+    return (res=res);
 }
 
 // Computes blake2s of 'input', and returns the hash in big endian representation.

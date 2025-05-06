@@ -1,6 +1,4 @@
-from starkware.cairo.common.cairo_builtins import PoseidonBuiltin
 from starkware.cairo.common.default_dict import default_dict_finalize_inner
-from starkware.cairo.common.builtin_poseidon.poseidon import poseidon_hash_many
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.bool import FALSE
@@ -8,6 +6,8 @@ from starkware.cairo.common.memcpy import memcpy
 from starkware.cairo.lang.compiler.lib.registers import get_fp_and_pc
 from starkware.cairo.common.squash_dict import squash_dict
 from cairo_core.comparison import is_zero, is_not_zero
+
+from cairo_core.hash.blake2s import blake2s_hash_many
 
 // @ notice: Creates a new, empty dict, does not require an `initial_dict` argument.
 func dict_new_empty() -> (res: DictAccess*) {
@@ -113,18 +113,18 @@ func default_dict_finalize{range_check_ptr}(
 // @param key_len: The number of felt values used to represent the key.
 // @param key: The key to access the dictionary.
 // TODO: write the associated squash function.
-func hashdict_read{poseidon_ptr: PoseidonBuiltin*, dict_ptr: DictAccess*}(
+func hashdict_read{range_check_ptr, dict_ptr: DictAccess*}(
     key_len: felt, key: felt*
 ) -> (value: felt) {
     alloc_locals;
     local felt_key;
     if (key_len == 1) {
         assert felt_key = key[0];
-        tempvar poseidon_ptr = poseidon_ptr;
+        tempvar range_check_ptr = range_check_ptr;
     } else {
-        let (felt_key_) = poseidon_hash_many(key_len, key);
+        let (felt_key_) = blake2s_hash_many(key_len, key);
         assert felt_key = felt_key_;
-        tempvar poseidon_ptr = poseidon_ptr;
+        tempvar range_check_ptr = range_check_ptr;
     }
 
     local value;
@@ -141,18 +141,18 @@ func hashdict_read{poseidon_ptr: PoseidonBuiltin*, dict_ptr: DictAccess*}(
 // @param key_len: The number of felt values used to represent the key.
 // @param key: The key to access the dictionary.
 // @param new_value: The value to write to the dictionary.
-func hashdict_write{poseidon_ptr: PoseidonBuiltin*, dict_ptr: DictAccess*}(
+func hashdict_write{range_check_ptr, dict_ptr: DictAccess*}(
     key_len: felt, key: felt*, new_value: felt
 ) {
     alloc_locals;
     local felt_key;
     if (key_len == 1) {
         assert felt_key = key[0];
-        tempvar poseidon_ptr = poseidon_ptr;
+        tempvar range_check_ptr = range_check_ptr;
     } else {
-        let (felt_key_) = poseidon_hash_many(key_len, key);
+        let (felt_key_) = blake2s_hash_many(key_len, key);
         assert felt_key = felt_key_;
-        tempvar poseidon_ptr = poseidon_ptr;
+        tempvar range_check_ptr = range_check_ptr;
     }
     %{ hashdict_write %}
     dict_ptr.key = felt_key;
