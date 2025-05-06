@@ -76,10 +76,10 @@ func incorporate_child_on_success{range_check_ptr, poseidon_ptr: PoseidonBuiltin
             1, &child_evm.value.message.value.current_target.value, 1
         );
     } else {
-        tempvar poseidon_ptr = poseidon_ptr;
+        tempvar range_check_ptr = range_check_ptr;
         tempvar new_touched_accounts_end = new_touched_accounts_end;
     }
-    let poseidon_ptr = cast([ap - 2], PoseidonBuiltin*);
+    let range_check_ptr = [ap-2];
     let new_touched_accounts_end = cast([ap - 1], DictAccess*);
     EnvImpl.set_state{env=env}(state);
 
@@ -324,15 +324,15 @@ func incorporate_child_on_error{range_check_ptr, poseidon_ptr: PoseidonBuiltin*,
         EnvImpl.set_state{env=env}(state);
         EvmImpl.set_env(env);
         tempvar evm = evm;
-        tempvar poseidon_ptr = poseidon_ptr;
+        tempvar range_check_ptr = range_check_ptr;
         tempvar write_ripemd = exists_and_is_empty.value + ripemd_touched;
     } else {
         tempvar evm = evm;
-        tempvar poseidon_ptr = poseidon_ptr;
+        tempvar range_check_ptr = range_check_ptr;
         tempvar write_ripemd = ripemd_touched;
     }
     let evm_ = cast([ap - 3], EvmStruct*);
-    let poseidon_ptr = cast([ap - 2], PoseidonBuiltin*);
+    let range_check_ptr = [ap - 2];
     let write_ripemd = [ap - 1];
     tempvar evm = Evm(evm_);
 
@@ -342,10 +342,10 @@ func incorporate_child_on_error{range_check_ptr, poseidon_ptr: PoseidonBuiltin*,
     if (write_ripemd != 0) {
         hashdict_write{dict_ptr=touched_accounts_end}(1, new RIPEMD160_ADDRESS, 1);
     } else {
-        tempvar poseidon_ptr = poseidon_ptr;
+        tempvar range_check_ptr = range_check_ptr;
         tempvar touched_accounts_end = touched_accounts_end;
     }
-    let poseidon_ptr = cast([ap - 2], PoseidonBuiltin*);
+    let range_check_ptr = [ap - 2];
     let new_touched_accounts_end = cast([ap - 1], DictAccess*);
 
     tempvar new_touched_accounts = SetAddress(
