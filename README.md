@@ -59,6 +59,7 @@ directory.
 
 Additionally, you can set the `LOG_FORMAT` environment variable to control the
 output format of logs from the Rust components. Supported values are:
+
 - `plain` (default): Human-readable, colored log output.
 - `json`: Structured JSON logging, useful to be stored.
 
