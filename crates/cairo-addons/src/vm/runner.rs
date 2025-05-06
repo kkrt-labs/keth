@@ -38,7 +38,7 @@ use std::{
     collections::HashMap,
     ffi::CString,
     io::{self, Write},
-    path::PathBuf,
+    path::{Path, PathBuf},
     rc::Rc,
 };
 use stwo_cairo_adapter::adapter::adapt_finished_runner;
@@ -391,9 +391,17 @@ except Exception as e:
                 let air_public_input_path = output_path.with_extension("air_public_input");
                 let air_private_input_path = output_path.with_extension("air_private_input");
                 write_binary_trace(&self.inner, &trace_path).map_err(to_pyerr)?;
-                write_binary_memory(&self.inner, &memory_path, 3 * 1024 * 1024).map_err(to_pyerr)?;
-                write_binary_air_public_input(&self.inner, &air_public_input_path).map_err(to_pyerr)?;
-                write_binary_air_private_input(&self.inner, &trace_path, &memory_path, &air_private_input_path).map_err(to_pyerr)?;
+                write_binary_memory(&self.inner, &memory_path, 3 * 1024 * 1024)
+                    .map_err(to_pyerr)?;
+                write_binary_air_public_input(&self.inner, &air_public_input_path)
+                    .map_err(to_pyerr)?;
+                write_binary_air_private_input(
+                    &self.inner,
+                    trace_path.as_path(),
+                    memory_path.as_path(),
+                    air_private_input_path.as_path(),
+                )
+                .map_err(to_pyerr)?;
             }
         }
         Ok(())
@@ -592,7 +600,7 @@ fn prepare_cairo_execution<'a>(
         entrypoint: &entrypoint,
         trace_enabled: true,
         relocate_mem: true,
-        layout: LayoutName::all_cairo,
+        layout: LayoutName::all_cairo_stwo,
         proof_mode: true,
         secure_run: Some(true),
         allow_missing_builtins: Some(false),
@@ -671,6 +679,7 @@ pub fn generate_trace(
     compiled_program_path: String,
     output_path: PathBuf,
     output_trace_components: bool,
+    pi_json: bool,
 ) -> PyResult<()> {
     tracing_subscriber::fmt()
         .with_max_level(tracing::Level::INFO)
@@ -706,15 +715,31 @@ pub fn generate_trace(
     if let Some(parent) = output_path.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    // Uses bincode for faster serialization - can switch to sonic_rs if JSON is required
-    let bytes = prover_input_info.serialize().map_err(to_pyerr)?;
-    std::fs::write(&output_path, bytes)?;
+    if pi_json {
+        std::fs::write(&output_path, &prover_input_info.serialize_json().map_err(to_pyerr)?)?;
+    } else {
+        // Uses bincode for faster serialization - can switch to sonic_rs if JSON is required
+        let bytes = prover_input_info.serialize().map_err(to_pyerr)?;
+        std::fs::write(&output_path, bytes)?;
+    }
 
     if output_trace_components {
-        write_binary_trace(&cairo_runner, &output_path.with_extension("trace")).map_err(to_pyerr)?;
-        write_binary_memory(&cairo_runner, &output_path.with_extension("memory"), 3 * 1024 * 1024).map_err(to_pyerr)?;
-        write_binary_air_public_input(&cairo_runner, &output_path.with_extension("air_public_input")).map_err(to_pyerr)?;
-        write_binary_air_private_input(&cairo_runner, &output_path.with_extension("trace"), &output_path.with_extension("memory"), &output_path.with_extension("air_private_input")).map_err(to_pyerr)?;
+        write_binary_trace(&cairo_runner, &output_path.with_extension("trace"))
+            .map_err(to_pyerr)?;
+        write_binary_memory(&cairo_runner, &output_path.with_extension("memory"), 3 * 1024 * 1024)
+            .map_err(to_pyerr)?;
+        write_binary_air_public_input(
+            &cairo_runner,
+            &output_path.with_extension("air_public_input"),
+        )
+        .map_err(to_pyerr)?;
+        write_binary_air_private_input(
+            &cairo_runner,
+            &output_path.with_extension("trace"),
+            &output_path.with_extension("memory"),
+            &output_path.with_extension("air_private_input"),
+        )
+        .map_err(to_pyerr)?;
     }
     Ok(())
 }
@@ -775,30 +800,35 @@ fn write_binary_trace(cairo_runner: &RustCairoRunner, file_path: &PathBuf) -> an
 
 /// Writes the memory contents to a binary file.
 /// Used in proof mode to generate input for the prover.
-fn write_binary_memory(cairo_runner: &RustCairoRunner, file_path: &PathBuf, capacity: usize) -> anyhow::Result<()> {
-    let memory_file = std::fs::File::create(&file_path)
+fn write_binary_memory(
+    cairo_runner: &RustCairoRunner,
+    file_path: &PathBuf,
+    capacity: usize,
+) -> anyhow::Result<()> {
+    let memory_file = std::fs::File::create(file_path)
         .map_err(|e| anyhow::anyhow!("Failed to create memory file {:?}: {}", file_path, e))?;
-    let mut memory_writer =
-        FileWriter::new(io::BufWriter::with_capacity(capacity, memory_file));
+    let mut memory_writer = FileWriter::new(io::BufWriter::with_capacity(capacity, memory_file));
 
     write_encoded_memory(&cairo_runner.relocated_memory, &mut memory_writer)
         .map_err(|e| anyhow::anyhow!("Failed to write encoded memory: {}", e))?;
-    memory_writer
-        .flush()
-        .map_err(|e| anyhow::anyhow!("Failed to flush memory writer: {}", e))?;
+    memory_writer.flush().map_err(|e| anyhow::anyhow!("Failed to flush memory writer: {}", e))?;
     Ok(())
 }
 
 /// Writes the AIR public input to a JSON file.
 /// Contains public information needed for proof verification.
-fn write_binary_air_public_input(cairo_runner: &RustCairoRunner, file_path: &PathBuf) -> anyhow::Result<()> {
+fn write_binary_air_public_input(
+    cairo_runner: &RustCairoRunner,
+    file_path: &PathBuf,
+) -> anyhow::Result<()> {
     let json = cairo_runner
         .get_air_public_input()
         .map_err(|e| anyhow::anyhow!("Failed to get AIR public input: {}", e))?
         .serialize_json()
         .map_err(|e| anyhow::anyhow!("Failed to serialize AIR public input: {}", e))?;
-    std::fs::write(&file_path, json)
-        .map_err(|e| anyhow::anyhow!("Failed to write AIR public input file {:?}: {}", file_path, e))?;
+    std::fs::write(file_path, json).map_err(|e| {
+        anyhow::anyhow!("Failed to write AIR public input file {:?}: {}", file_path, e)
+    })?;
     Ok(())
 }
 
@@ -812,20 +842,15 @@ fn write_binary_air_public_input(cairo_runner: &RustCairoRunner, file_path: &Pat
 /// Contains private information needed for proof generation.
 fn write_binary_air_private_input(
     cairo_runner: &RustCairoRunner,
-    trace_path: &PathBuf,
-    memory_path: &PathBuf,
-    file_path: &PathBuf,
+    trace_path: &Path,
+    memory_path: &Path,
+    file_path: &Path,
 ) -> anyhow::Result<()> {
-    let trace_path = trace_path
-        .as_path()
-        .canonicalize()
-        .unwrap_or(trace_path.clone())
-        .to_string_lossy()
-        .to_string();
+    let trace_path =
+        trace_path.canonicalize().unwrap_or(trace_path.to_path_buf()).to_string_lossy().to_string();
     let memory_path = memory_path
-        .as_path()
         .canonicalize()
-        .unwrap_or(memory_path.clone())
+        .unwrap_or(memory_path.to_path_buf())
         .to_string_lossy()
         .to_string();
 
@@ -834,8 +859,9 @@ fn write_binary_air_private_input(
         .to_serializable(trace_path, memory_path)
         .serialize_json()
         .map_err(|e| anyhow::anyhow!("Failed to serialize AIR private input: {}", e))?;
-    std::fs::write(&file_path, json)
-        .map_err(|e| anyhow::anyhow!("Failed to write AIR private input file {:?}: {}", file_path, e))?;
+    std::fs::write(file_path, json).map_err(|e| {
+        anyhow::anyhow!("Failed to write AIR private input file {:?}: {}", file_path, e)
+    })?;
     Ok(())
 }
 

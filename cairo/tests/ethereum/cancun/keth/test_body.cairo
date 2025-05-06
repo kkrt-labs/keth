@@ -3,8 +3,6 @@ from starkware.cairo.common.cairo_builtins import (
     PoseidonBuiltin,
     ModBuiltin,
     HashBuiltin,
-    SignatureBuiltin,
-    EcOpBuiltin,
 )
 
 from ethereum.cancun.keth.body import body

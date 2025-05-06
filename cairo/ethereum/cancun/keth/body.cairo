@@ -3,8 +3,6 @@ from starkware.cairo.common.cairo_builtins import (
     PoseidonBuiltin,
     ModBuiltin,
     HashBuiltin,
-    SignatureBuiltin,
-    EcOpBuiltin,
 )
 from starkware.cairo.common.cairo_keccak.keccak import finalize_keccak
 from starkware.cairo.common.alloc import alloc

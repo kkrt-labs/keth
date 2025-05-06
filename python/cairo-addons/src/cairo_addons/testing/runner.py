@@ -609,6 +609,14 @@ def run_rust_vm(
         # ============================================================================
         proof_mode = request.config.getoption("proof_mode")
         enable_traces = request.config.getoption("--log-cli-level") == "TRACE"
+
+        # Create a unique output stem for the given test by using the test file name, the entrypoint and the kwargs
+        displayed_args = ""
+        if kwargs:
+            try:
+                displayed_args = json.dumps(kwargs)
+            except TypeError:
+                pass
         output_stem = str(
             request.node.path.parent
             / f"{request.node.path.stem}_{entrypoint}_{displayed_args}"
@@ -799,13 +807,6 @@ def run_rust_vm(
         if not request.config.getoption("no_coverage"):
             coverage(cairo_file, runner.trace_df)
 
-        # Create a unique output stem for the given test by using the test file name, the entrypoint and the kwargs
-        displayed_args = ""
-        if kwargs:
-            try:
-                displayed_args = json.dumps(kwargs)
-            except TypeError:
-                pass
         if request.config.getoption("profile_cairo"):
             stats, prof_dict = profile_from_trace(
                 program=cairo_program, trace=runner.trace_df, program_base=PROGRAM_BASE
