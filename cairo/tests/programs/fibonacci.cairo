@@ -5,8 +5,6 @@ from starkware.cairo.common.cairo_builtins import (
     PoseidonBuiltin,
     ModBuiltin,
     HashBuiltin,
-    SignatureBuiltin,
-    EcOpBuiltin,
 )
 
 func main{
@@ -24,15 +22,13 @@ func main{
     tempvar a;
     tempvar b;
     tempvar n;
-    %{
-        ids.a, ids.b, ids.n = program_input;
-    %}
+    %{ ids.a, ids.b, ids.n = program_input; %}
     let result: felt = fib(a, b, n);
 
     // Make sure the 10th Fibonacci number is 144.
     assert [output_ptr] = result;
     let output_ptr = output_ptr + 1;
-    return();
+    return ();
 }
 
 func fib(a, b, n) -> (res: felt) {

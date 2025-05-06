@@ -41,6 +41,7 @@ use std::{
     path::PathBuf,
     rc::Rc,
 };
+use stwo_cairo_adapter::adapter::adapt_finished_runner;
 use tracing_subscriber::fmt::format::FmtSpan;
 
 // Names of implicit arguments that are pointers but not standard builtins handled by BuiltinRunner
@@ -810,8 +811,7 @@ pub fn run_end_to_end(
     let execution_resources = cairo_runner.get_execution_resources().unwrap();
     tracing::info!("Execution resources: {:?}", execution_resources);
 
-    let cairo_input =
-        stwo_cairo_adapter::plain::adapt_finished_runner(cairo_runner).map_err(to_pyerr)?;
+    let cairo_input = adapt_finished_runner(cairo_runner).map_err(to_pyerr)?;
 
     prove_with_stwo(cairo_input, proof_path, serde_cairo, verify).map_err(to_pyerr)
 }

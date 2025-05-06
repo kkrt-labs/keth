@@ -8,7 +8,7 @@ use pyo3::{
     types::{PyModule, PyModuleMethods},
     wrap_pyfunction, Bound, PyResult,
 };
-use stwo_cairo_adapter::{plain::prover_input_from_vm_output, ProverInput};
+use stwo_cairo_adapter::{adapter::prover_input_from_vm_output, ProverInput};
 use stwo_cairo_prover::{
     prover::{default_prod_prover_parameters, prove_cairo, ProverParameters},
     stwo_prover::core::vcs::blake2_merkle::{Blake2sMerkleChannel, Blake2sMerkleHasher},
