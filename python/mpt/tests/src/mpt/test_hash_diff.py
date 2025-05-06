@@ -2,28 +2,26 @@ from typing import List
 
 from hypothesis import given
 
-from cairo_addons.rust_bindings.vm import poseidon_hash_many
+from cairo_addons.rust_bindings.vm import blake2s_hash_many
 from tests.utils.args_gen import AddressAccountDiffEntry, StorageDiffEntry
 
 
 class TestHashEntry:
     @given(account_diff=...)
-    def test_poseidon_account_diff(
-        self, cairo_run, account_diff: AddressAccountDiffEntry
-    ):
+    def test_hash_account_diff(self, cairo_run, account_diff: AddressAccountDiffEntry):
         cairo_result = cairo_run(
-            "poseidon_account_diff",
+            "hash_account_diff",
             account_diff,
         )
-        assert cairo_result == account_diff.hash_poseidon()
+        assert cairo_result == account_diff.hash_cairo()
 
     @given(storage_diff=...)
-    def test_poseidon_storage_diff(self, cairo_run, storage_diff: StorageDiffEntry):
+    def test_hash_storage_diff(self, cairo_run, storage_diff: StorageDiffEntry):
         cairo_result = cairo_run(
-            "poseidon_storage_diff",
+            "hash_storage_diff",
             storage_diff,
         )
-        assert cairo_result == storage_diff.hash_poseidon()
+        assert cairo_result == storage_diff.hash_cairo()
 
 
 class TestHashTrieDiff:
@@ -39,8 +37,8 @@ class TestHashTrieDiff:
             assert cairo_result == 0
             return
 
-        hashes_buffer = [diff.hash_poseidon() for diff in account_diff]
-        final_hash = poseidon_hash_many(hashes_buffer)
+        hashes_buffer = [diff.hash_cairo() for diff in account_diff]
+        final_hash = blake2s_hash_many(hashes_buffer)
         assert cairo_result == final_hash
 
     @given(storage_diff=...)
@@ -55,8 +53,8 @@ class TestHashTrieDiff:
             assert cairo_result == 0
             return
 
-        hashes_buffer = [diff.hash_poseidon() for diff in storage_diff]
-        final_hash = poseidon_hash_many(hashes_buffer)
+        hashes_buffer = [diff.hash_cairo() for diff in storage_diff]
+        final_hash = blake2s_hash_many(hashes_buffer)
         assert cairo_result == final_hash
 
 
@@ -81,8 +79,8 @@ class TestHashStateDiff:
             diff for diff in state_diff if diff.prev_value != diff.new_value
         ]
 
-        hashes_buffer = [diff.hash_poseidon() for diff in state_diff_filtered]
-        final_hash = poseidon_hash_many(hashes_buffer)
+        hashes_buffer = [diff.hash_cairo() for diff in state_diff_filtered]
+        final_hash = blake2s_hash_many(hashes_buffer)
         assert cairo_result == final_hash
 
     @given(storage_diff=...)
@@ -104,6 +102,6 @@ class TestHashStateDiff:
             diff for diff in storage_diff if diff.prev_value != diff.new_value
         ]
 
-        hashes_buffer = [diff.hash_poseidon() for diff in storage_diff_filtered]
-        final_hash = poseidon_hash_many(hashes_buffer)
+        hashes_buffer = [diff.hash_cairo() for diff in storage_diff_filtered]
+        final_hash = blake2s_hash_many(hashes_buffer)
         assert cairo_result == final_hash

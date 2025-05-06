@@ -1,5 +1,3 @@
-from starkware.cairo.common.builtin_poseidon.poseidon import poseidon_hash_many
-from starkware.cairo.common.cairo_builtins import PoseidonBuiltin
 from starkware.cairo.common.alloc import alloc
 from ethereum_types.numeric import OptionalU256, U256
 from ethereum.utils.numeric import OptionalU256__eq__
@@ -22,11 +20,13 @@ from mpt.types import (
 
 from ethereum.utils.numeric import divmod
 
-// @notice Computes the Poseidon hash of an account diff entry
+from cairo_core.hash.blake2s import blake2s_hash_many
+
+// @notice Computes the hash of an account diff entry
 // @dev Hashes the address, previous account state (if exists), and new account state
 // @param diff The account diff entry containing the address and account states
-// @return The Poseidon hash of the account diff entry
-func poseidon_account_diff{poseidon_ptr: PoseidonBuiltin*}(diff: AddressAccountDiffEntry) -> felt {
+// @return The hash of the account diff entry
+func hash_account_diff{range_check_ptr}(diff: AddressAccountDiffEntry) -> felt {
     alloc_locals;
     let (buffer) = alloc();
 
@@ -61,18 +61,18 @@ func poseidon_account_diff{poseidon_ptr: PoseidonBuiltin*}(diff: AddressAccountD
         assert buffer[offset + 2] = diff.value.new_value.value.balance.value.high;
         assert buffer[offset + 3] = diff.value.new_value.value.code_hash.value.low;
         assert buffer[offset + 4] = diff.value.new_value.value.code_hash.value.high;
-        let (account_diff_hash) = poseidon_hash_many(offset + 5, buffer);
+        let (account_diff_hash) = blake2s_hash_many(offset + 5, buffer);
         return account_diff_hash;
     }
-    let (account_diff_hash) = poseidon_hash_many(offset, buffer);
+    let (account_diff_hash) = blake2s_hash_many(offset, buffer);
     return account_diff_hash;
 }
 
-// @notice Computes the Poseidon hash of a storage diff entry
+// @notice Computes the hash of a storage diff entry
 // @dev Hashes the storage key, previous value, and new value.
 // @param diff The storage diff entry containing the key and storage values
-// @return The Poseidon hash of the storage diff entry
-func poseidon_storage_diff{poseidon_ptr: PoseidonBuiltin*}(diff: StorageDiffEntry) -> felt {
+// @return The hash of the storage diff entry
+func hash_storage_diff{range_check_ptr}(diff: StorageDiffEntry) -> felt {
     alloc_locals;
     let (buffer) = alloc();
 
@@ -89,10 +89,10 @@ func poseidon_storage_diff{poseidon_ptr: PoseidonBuiltin*}(diff: StorageDiffEntr
     if (cast(diff.value.new_value.value, felt) != 0) {
         assert buffer[offset] = diff.value.new_value.value.low;
         assert buffer[offset + 1] = diff.value.new_value.value.high;
-        let (storage_diff_hash) = poseidon_hash_many(offset + 2, buffer);
+        let (storage_diff_hash) = blake2s_hash_many(offset + 2, buffer);
         return storage_diff_hash;
     }
-    let (storage_diff_hash) = poseidon_hash_many(offset, buffer);
+    let (storage_diff_hash) = blake2s_hash_many(offset, buffer);
     return storage_diff_hash;
 }
 
@@ -103,7 +103,7 @@ func poseidon_storage_diff{poseidon_ptr: PoseidonBuiltin*}(diff: StorageDiffEntr
 //      The buffer is then hashed to produce the final commitment
 // @param account_diff The account diff struct containing all diff entries
 // @return The hash commitment of all account diffs, or 0 if empty
-func hash_account_diff_segment{poseidon_ptr: PoseidonBuiltin*}(account_diff: AccountDiff) -> felt {
+func hash_account_diff_segment{range_check_ptr}(account_diff: AccountDiff) -> felt {
     alloc_locals;
     let len = account_diff.value.len;
     if (len == 0) {
@@ -111,7 +111,7 @@ func hash_account_diff_segment{poseidon_ptr: PoseidonBuiltin*}(account_diff: Acc
     }
     let (hashes_buffer) = alloc();
     let buffer_len = _accumulate_diff_hashes(hashes_buffer, account_diff, 0);
-    let (final_hash) = poseidon_hash_many(buffer_len, hashes_buffer);
+    let (final_hash) = blake2s_hash_many(buffer_len, hashes_buffer);
     return final_hash;
 }
 
@@ -121,14 +121,14 @@ func hash_account_diff_segment{poseidon_ptr: PoseidonBuiltin*}(account_diff: Acc
 // @param account_diff The account diff struct containing all entries
 // @param i The current index being processed
 // @return The number of hashes accumulated (buffer length)
-func _accumulate_diff_hashes{poseidon_ptr: PoseidonBuiltin*}(
+func _accumulate_diff_hashes{range_check_ptr}(
     buffer: felt*, account_diff: AccountDiff, i: felt
 ) -> felt {
     if (i == account_diff.value.len) {
         return i;
     }
     let current_diff = account_diff.value.data[i];
-    let current_hash = poseidon_account_diff(current_diff);
+    let current_hash = hash_account_diff(current_diff);
     assert buffer[i] = current_hash;
     return _accumulate_diff_hashes(buffer, account_diff, i + 1);
 }
@@ -138,7 +138,7 @@ func _accumulate_diff_hashes{poseidon_ptr: PoseidonBuiltin*}(
 //      The buffer is then hashed to produce the final commitment
 // @param storage_diff The storage diff struct containing all diff entries
 // @return The hash commitment of all storage diffs, or 0 if empty
-func hash_storage_diff_segment{poseidon_ptr: PoseidonBuiltin*}(storage_diff: StorageDiff) -> felt {
+func hash_storage_diff_segment{range_check_ptr}(storage_diff: StorageDiff) -> felt {
     alloc_locals;
     let len = storage_diff.value.len;
     if (len == 0) {
@@ -146,7 +146,7 @@ func hash_storage_diff_segment{poseidon_ptr: PoseidonBuiltin*}(storage_diff: Sto
     }
     let (hashes_buffer) = alloc();
     let buffer_len = _accumulate_storage_diff_hashes(hashes_buffer, storage_diff, 0);
-    let (final_hash) = poseidon_hash_many(buffer_len, hashes_buffer);
+    let (final_hash) = blake2s_hash_many(buffer_len, hashes_buffer);
     return final_hash;
 }
 
@@ -156,7 +156,7 @@ func hash_storage_diff_segment{poseidon_ptr: PoseidonBuiltin*}(storage_diff: Sto
 // @param storage_diff The storage diff struct containing all entries
 // @param i The current index being processed
 // @return The number of hashes accumulated (buffer length)
-func _accumulate_storage_diff_hashes{poseidon_ptr: PoseidonBuiltin*}(
+func _accumulate_storage_diff_hashes{range_check_ptr}(
     buffer: felt*, storage_diff: StorageDiff, i: felt
 ) -> felt {
     if (i == storage_diff.value.len) {
@@ -165,7 +165,7 @@ func _accumulate_storage_diff_hashes{poseidon_ptr: PoseidonBuiltin*}(
     let current_diff = storage_diff.value.data[i];
     tempvar key = current_diff.value.key;
 
-    let current_hash = poseidon_storage_diff(current_diff);
+    let current_hash = hash_storage_diff(current_diff);
     assert buffer[i] = current_hash;
     return _accumulate_storage_diff_hashes(buffer, storage_diff, i + 1);
 }
@@ -177,7 +177,7 @@ func _accumulate_storage_diff_hashes{poseidon_ptr: PoseidonBuiltin*}(
 //      Any entry where prev_value == new_value is skipped in the computation of the hash.
 // @param state The state containing account diffs in its main trie
 // @return The hash commitment of all state account diffs, or 0 if empty
-func hash_state_account_diff{range_check_ptr, poseidon_ptr: PoseidonBuiltin*}(
+func hash_state_account_diff{range_check_ptr}(
     state: State
 ) -> felt {
     alloc_locals;
@@ -191,7 +191,7 @@ func hash_state_account_diff{range_check_ptr, poseidon_ptr: PoseidonBuiltin*}(
     let (hashes_buffer) = alloc();
     let buffer_end = _accumulate_state_diff_hashes(hashes_buffer, dict_ptr_start, 0, len);
     let buffer_len = buffer_end - hashes_buffer;
-    let (final_hash) = poseidon_hash_many(buffer_len, hashes_buffer);
+    let (final_hash) = blake2s_hash_many(buffer_len, hashes_buffer);
     return final_hash;
 }
 
@@ -204,7 +204,7 @@ func hash_state_account_diff{range_check_ptr, poseidon_ptr: PoseidonBuiltin*}(
 // @param i The current index being processed
 // @param len Total number of entries to process
 // @return The number of hashes accumulated (buffer length)
-func _accumulate_state_diff_hashes{poseidon_ptr: PoseidonBuiltin*}(
+func _accumulate_state_diff_hashes{range_check_ptr}(
     buffer: felt*, state_account_diff: AddressAccountDictAccess*, i: felt, len: felt
 ) -> felt* {
     alloc_locals;
@@ -234,7 +234,7 @@ func _accumulate_state_diff_hashes{poseidon_ptr: PoseidonBuiltin*}(
 
     // We can cast the AddressAccountDictAccess to an AddressAccountDiffEntryStruct as the two underlying types are identical.
     // TODO: maybe delete AddressAccountDiffEntryStruct altogether ?
-    let current_hash = poseidon_account_diff(
+    let current_hash = hash_account_diff(
         AddressAccountDiffEntry(cast(current_diff_ptr, AddressAccountDiffEntryStruct*))
     );
     assert [buffer] = current_hash;
@@ -246,7 +246,7 @@ func _accumulate_state_diff_hashes{poseidon_ptr: PoseidonBuiltin*}(
 //      Any entry where prev_value == new_value is skipped in the computation of the hash.
 // @param state The state containing storage diffs in its storage tries
 // @return The hash commitment of all state storage diffs, or 0 if empty
-func hash_state_storage_diff{range_check_ptr, poseidon_ptr: PoseidonBuiltin*}(
+func hash_state_storage_diff{range_check_ptr}(
     state: State
 ) -> felt {
     alloc_locals;
@@ -266,7 +266,7 @@ func hash_state_storage_diff{range_check_ptr, poseidon_ptr: PoseidonBuiltin*}(
         hashes_buffer, casted_dict_ptr_start, 0, len
     );
     let buffer_len = buffer_end - hashes_buffer;
-    let (final_hash) = poseidon_hash_many(buffer_len, hashes_buffer);
+    let (final_hash) = blake2s_hash_many(buffer_len, hashes_buffer);
     return final_hash;
 }
 
@@ -277,7 +277,7 @@ func hash_state_storage_diff{range_check_ptr, poseidon_ptr: PoseidonBuiltin*}(
 // @param i The current index being processed
 // @param len Total number of entries to process
 // @return The number of hashes accumulated (buffer length)
-func _accumulate_state_storage_diff_hashes{poseidon_ptr: PoseidonBuiltin*}(
+func _accumulate_state_storage_diff_hashes{range_check_ptr}(
     buffer: felt*, state_storage_diff: TupleAddressBytes32U256DictAccess*, i: felt, len: felt
 ) -> felt* {
     alloc_locals;
@@ -310,7 +310,7 @@ func _accumulate_state_storage_diff_hashes{poseidon_ptr: PoseidonBuiltin*}(
             key=current_diff_ptr.key, prev_value=prev_value, new_value=new_value
         ),
     );
-    let current_hash = poseidon_storage_diff(storage_diff_entry);
+    let current_hash = hash_storage_diff(storage_diff_entry);
     assert [buffer] = current_hash;
     return _accumulate_state_storage_diff_hashes(buffer + 1, state_storage_diff, i + 1, len);
 }

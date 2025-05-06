@@ -37,7 +37,7 @@ from ethereum_types.frozen import slotted_freezable
 from ethereum_types.numeric import U256, FixedUnsigned, Uint, _max_value
 from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
 
-from cairo_addons.rust_bindings.vm import poseidon_hash_many
+from cairo_addons.rust_bindings.vm import blake2s_hash_many
 from cairo_addons.utils.uint256 import int_to_uint256
 
 EMPTY_TRIE_HASH = Hash32.fromhex(
@@ -472,8 +472,8 @@ class AddressAccountDiffEntry:
     prev_value: Optional[Account]
     new_value: Account
 
-    def hash_poseidon(self):
-        return poseidon_hash_many(
+    def hash_cairo(self):
+        return blake2s_hash_many(
             [
                 int.from_bytes(self.key, "little"),
                 *(self.prev_value.hash_args() if self.prev_value else []),
@@ -493,8 +493,8 @@ class StorageDiffEntry:
     prev_value: Optional[U256]
     new_value: Optional[U256]
 
-    def hash_poseidon(self):
-        return poseidon_hash_many(
+    def hash_cairo(self):
+        return blake2s_hash_many(
             [
                 int(self.key),
                 *(
