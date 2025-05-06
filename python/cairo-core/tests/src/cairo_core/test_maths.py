@@ -273,3 +273,91 @@ segments.load_data(dst_ptr, bad_bits)
             # Common patterns might be "bit is not binary" or "bit out of bounds".
         ), cairo_error(message="felt252_to_bits_rev: bits must be 0 or 1"):
             cairo_run("test__felt252_to_bits_rev", value=value, len=len_)
+
+    @given(
+        value=st.integers(min_value=0, max_value=2**248 - 1),
+        num_words=st.integers(min_value=1, max_value=8),
+    )
+    def test_felt252_to_bytes4_le(self, cairo_run, value, num_words):
+        res = cairo_run("test__felt252_to_bytes4_le", value=value, num_words=num_words)
+        truncated_value = value & ((1 << (num_words * 32)) - 1)
+        expected_bytes = truncated_value.to_bytes(num_words * 4, "little")
+        expected = [
+            int.from_bytes(expected_bytes[i : i + 4], "little")
+            for i in range(0, len(expected_bytes), 4)
+        ]
+        assert res == expected
+
+    @given(
+        value=st.integers(min_value=0, max_value=2**248 - 1),
+        num_words=st.integers(min_value=1, max_value=8),
+    )
+    @settings(verbosity=Verbosity.quiet, deadline=None)
+    def test_felt252_to_bytes4_le_should_panic_on_wrong_output_sum(
+        self, cairo_programs, rust_programs, cairo_run, value, num_words
+    ):
+        # This hint produces individually valid words (each < 2**32),
+        # but their reconstructed sum will be incorrect.
+        hint_code = """
+value_int = ids.value
+num_words = ids.num_words
+dst_ptr = ids.dst
+
+words = []
+for i in range(num_words):
+    # Extract 4 bytes (32 bits) for the i-th word, little-endian style
+    # word_i = (value >> (i * 32)) & 0xFFFFFFFF
+    chunk = (value_int >> (i * 32)) & 0xFFFFFFFF
+    words.append(chunk)
+
+# BAD HINT: make the first different that the value it should have, but stay in bounds
+words[0] = (words[0] + 1) & 0xFFFFFFFF
+
+segments.load_data(dst_ptr, words)
+"""
+        if num_words == 8:
+            expected_error_msg = "felt252_to_bytes4_le: bad output (num_words == 8)"
+        else:
+            expected_error_msg = "felt252_to_bytes4_le: bad output (num_words < 8)"
+
+        with patch_hint(
+            cairo_programs,
+            rust_programs,
+            "felt252_to_bytes4_le",  # This is the name used in %{ felt252_to_bytes4_le %}
+            hint_code,
+        ), cairo_error(message=expected_error_msg):
+            cairo_run("test__felt252_to_bytes4_le", value=value, num_words=num_words)
+
+    @given(
+        value=st.integers(min_value=0, max_value=2**248 - 1),
+        num_words=st.integers(
+            min_value=1, max_value=8
+        ),  # Must be >= 1 to have a word to modify
+    )
+    @settings(verbosity=Verbosity.quiet, deadline=None)
+    def test_felt252_to_bytes4_le_should_panic_on_word_out_of_bounds(
+        self, cairo_programs, rust_programs, cairo_run, value, num_words
+    ):
+        # This hint produces an output array where at least one word is >= 2**32.
+        hint_code = """
+value_int = ids.value
+num_words = ids.num_words
+dst_ptr = ids.dst
+
+words = []
+for i in range(num_words):
+    chunk = (value_int >> (i * 32)) & 0xFFFFFFFF
+    words.append(chunk)
+
+# BAD HINT: make the first word out of bounds
+words[0] = 2**32
+segments.load_data(dst_ptr, words)
+"""
+        expected_error_msg = "felt252_to_bytes4_le: word not in bounds (< 2^32)"
+        with patch_hint(
+            cairo_programs,
+            rust_programs,
+            "felt252_to_bytes4_le",
+            hint_code,
+        ), cairo_error(message=expected_error_msg):
+            cairo_run("test__felt252_to_bytes4_le", value=value, num_words=num_words)

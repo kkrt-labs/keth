@@ -633,3 +633,91 @@ func felt252_to_bits_rev{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
     }
     return current_len;
 }
+
+// @notice Splits a felt252 into `num_words` 4-byte words (felts), little-endian, and outputs to `dst`.
+// @dev `num_words` can be from 1 to 8. Each word in `dst` will be < 2^32.
+// @dev Panics if num_words is 0 or > 8 implicitly via range checks.
+func felt252_to_bytes4_le{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
+    value: felt, num_words: felt, dst: felt*
+) {
+    alloc_locals;
+
+    // Assert 1 <= num_words <= 8
+    // num_words - 1 >= 0  => num_words >= 1
+    // 8 - num_words >= 0  => num_words <= 8
+    with_attr error_message("felt252_to_bytes4_le: num_words must be between 1 and 8") {
+        assert [range_check_ptr] = num_words - 1;
+        assert [range_check_ptr + 1] = 8 - num_words;
+        let range_check_ptr = range_check_ptr + 2;
+    }
+
+    let output = &dst[0];
+    %{ felt252_to_bytes4_le %} // Hint expects: value, num_words, dst (aliased as output)
+
+    tempvar current_range_check_ptr = range_check_ptr;
+    tempvar current_word_idx = 0;
+    tempvar current_acc = 0;
+
+    loop_felt252_to_bytes4_le:
+        let current_range_check_ptr = [ap - 3];
+        let current_word_idx = [ap - 2];
+        let current_acc = [ap - 1];
+        // Loop variables are: current_word_idx, current_acc, current_range_check_ptr
+        // These are implicitly passed iteration to iteration by being tempvars.
+
+        let is_done = is_zero(num_words - current_word_idx);
+
+        static_assert current_range_check_ptr == [ap - 7];
+        static_assert current_word_idx == [ap - 6];
+        static_assert current_acc == [ap - 5];
+        jmp end_felt252_to_bytes4_le if is_done != 0;
+
+        let word = output[current_word_idx];
+
+        with_attr error_message("felt252_to_bytes4_le: word not in bounds (< 2^32)") {
+            assert [current_range_check_ptr] = word;
+            assert [current_range_check_ptr + 1] = 2**32 - 1 - word;
+            let current_range_check_ptr = current_range_check_ptr + 2;
+        }
+
+        // Multiplier for current word: (2^32)^idx = (256^4)^idx = pow256(idx * 4)
+        let multiplier_exponent = current_word_idx * 4;
+        let multiplier = pow256(multiplier_exponent);
+        tempvar term = word * multiplier;
+
+        // Update loop variables
+        tempvar current_range_check_ptr = current_range_check_ptr;
+        tempvar current_word_idx = current_word_idx + 1;
+        tempvar current_acc = current_acc + term;
+        jmp loop_felt252_to_bytes4_le;
+
+    end_felt252_to_bytes4_le:
+        // current_acc holds the final accumulated value.
+        // current_range_check_ptr holds the ptr after all loop checks.
+        let range_check_ptr = [ap - 7]; // Update main range_check_ptr
+        let current_acc = [ap - 5];
+        let current_word_idx = [ap - 6];
+
+        // Final check of current_acc against value
+        if (num_words == 8) {
+            with_attr error_message("felt252_to_bytes4_le: bad output (num_words == 8)") {
+                assert current_acc = value;
+            }
+            return();
+        }
+
+        // num_words < 8 (i.e., 1 to 7)
+        tempvar num_total_bytes_for_mask = num_words * 4;
+        tempvar mask_upper_bound = pow256(num_total_bytes_for_mask);
+        tempvar mask = mask_upper_bound - 1;
+
+        assert bitwise_ptr.x = value;
+        assert bitwise_ptr.y = mask;
+        tempvar value_masked = bitwise_ptr.x_and_y;
+        let bitwise_ptr = bitwise_ptr + BitwiseBuiltin.SIZE;
+
+        with_attr error_message("felt252_to_bytes4_le: bad output (num_words < 8)") {
+            assert current_acc = value_masked;
+        }
+    return ();
+}

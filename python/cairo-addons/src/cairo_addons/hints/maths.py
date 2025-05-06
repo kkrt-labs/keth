@@ -64,3 +64,19 @@ def felt252_to_bits_rev(ids: VmConsts, segments: MemorySegmentManager):
         segments.load_data(dst_ptr, bits)
     else:
         ids.bits_used = 0
+
+
+@register_hint
+def felt252_to_bytes4_le(ids: VmConsts, segments: MemorySegmentManager):
+    value_int = ids.value
+    num_words = ids.num_words
+    dst_ptr = ids.dst
+
+    words = []
+    for i in range(num_words):
+        # Extract 4 bytes (32 bits) for the i-th word, little-endian style
+        # word_i = (value >> (i * 32)) & 0xFFFFFFFF
+        chunk = (value_int >> (i * 32)) & 0xFFFFFFFF
+        words.append(chunk)
+
+    segments.load_data(dst_ptr, words)
