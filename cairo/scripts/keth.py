@@ -39,7 +39,7 @@ logger = logging.getLogger("keth")
 console = Console()
 
 app = typer.Typer(
-    help="Keth - Generate execution traces and proofs for Ethereum blocks",
+    help="Keth - Generate execution traces and proofs for Ethereum blocks. Set LOG_FORMAT=[plain|json] to control Rust log output.",
     no_args_is_help=True,
 )
 

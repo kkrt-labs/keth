@@ -57,6 +57,11 @@ This will automatically source the `.env` file when you `cd` into a directory
 containing it. You can also update this to load only when you enter the keth
 directory.
 
+Additionally, you can set the `LOG_FORMAT` environment variable to control the
+output format of logs from the Rust components. Supported values are:
+- `plain` (default): Human-readable, colored log output.
+- `json`: Structured JSON logging, useful to be stored.
+
 ### Running tests
 
 ```bash
