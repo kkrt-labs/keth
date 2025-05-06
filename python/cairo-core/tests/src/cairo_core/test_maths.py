@@ -361,3 +361,28 @@ segments.load_data(dst_ptr, words)
             hint_code,
         ), cairo_error(message=expected_error_msg):
             cairo_run("test__felt252_to_bytes4_le", value=value, num_words=num_words)
+
+    @given(
+        data=st.lists(
+            st.integers(min_value=0, max_value=2**248 - 1), min_size=0, max_size=31
+        ),
+    )
+    def test_felt252_array_to_bytes4_array(self, cairo_run, data):
+        res_len, res = cairo_run(
+            "felt252_array_to_bytes4_array", data_len=len(data), data=data
+        )
+
+        expected = []
+
+        num_words = 8  # always 8 words per felt252
+        for value in data:
+            truncated_value = value & ((1 << (num_words * 32)) - 1)
+            expected_bytes = truncated_value.to_bytes(num_words * 4, "little")
+            expected_words = [
+                int.from_bytes(expected_bytes[i : i + 4], "little")
+                for i in range(0, len(expected_bytes), 4)
+            ]
+            expected.extend(expected_words)
+
+        assert res_len == len(expected)
+        assert res == expected

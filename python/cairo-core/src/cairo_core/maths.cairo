@@ -3,6 +3,8 @@ from starkware.cairo.common.math import assert_le_felt, assert_le
 from starkware.cairo.common.registers import get_label_location
 from starkware.cairo.common.uint256 import Uint256
 from starkware.cairo.common.memset import memset
+from starkware.cairo.common.alloc import alloc
+
 from cairo_core.comparison import is_zero
 
 // @dev Inlined version of unsigned_div_rem
@@ -662,8 +664,6 @@ func felt252_to_bytes4_le{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
         let current_range_check_ptr = [ap - 3];
         let current_word_idx = [ap - 2];
         let current_acc = [ap - 1];
-        // Loop variables are: current_word_idx, current_acc, current_range_check_ptr
-        // These are implicitly passed iteration to iteration by being tempvars.
 
         let is_done = is_zero(num_words - current_word_idx);
 
@@ -720,4 +720,38 @@ func felt252_to_bytes4_le{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(
             assert current_acc = value_masked;
         }
     return ();
+}
+
+
+// @notice A simplified version of felt252_to_bytes4_le that always outputs 8 full bytes4 words given an input felt252.
+func felt252_to_bytes4_full{range_check_ptr}(value: felt, dst: felt*) -> felt* {
+    alloc_locals;
+    tempvar num_words = 8;
+    %{ felt252_to_bytes4_le %}
+
+    tempvar actual = dst[0] + dst[1] * 2**32 + dst[2] * 2**64 + dst[3] * 2**96 + dst[4] * 2**128 + dst[5] * 2**160 + dst[6] * 2**192 + dst[7] * 2**224;
+    with_attr error_message("felt252_to_bytes4_full: bad output, expected {value}, got {actual}") {
+        assert actual = value;
+    }
+    return dst;
+}
+
+func felt252_array_to_bytes4_array{range_check_ptr}(data_len: felt, data: felt*) -> (res_len: felt, res: felt*) {
+    alloc_locals;
+    let (acc) = alloc();
+    let acc_len = data_len * 8;
+    let data_end = data + data_len;
+    _felt252_array_to_bytes4_array{data_end=data_end}(data, acc);
+    return (res_len=acc_len, res=acc);
+}
+
+func _felt252_array_to_bytes4_array{range_check_ptr, data_end: felt*}(data: felt*, acc: felt*) {
+    alloc_locals;
+    if (data == data_end) {
+        return();
+    }
+    let word = [data];
+    let bytes4_word = felt252_to_bytes4_full(word, acc);
+    return _felt252_array_to_bytes4_array(data + 1, acc + 8);
+
 }
