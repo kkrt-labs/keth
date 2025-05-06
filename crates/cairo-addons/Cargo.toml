@@ -50,6 +50,7 @@ ark-bn254 = "0.5.0"
 ark-ff = "0.5.0"
 ark-bls12-381 = "0.5.0"
 sonic-rs = "0.5.1"
+blake2 = "0.10.6"
 
 [build-dependencies]
 pyo3-build-config = "0.23.3" # Should match pyo3 version

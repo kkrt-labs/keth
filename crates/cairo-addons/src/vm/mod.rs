@@ -2,6 +2,7 @@ use pyo3::prelude::*;
 
 mod builtins;
 mod dict_manager;
+mod hash;
 mod hint_definitions;
 mod hint_loader;
 mod hint_utils;
@@ -10,7 +11,6 @@ mod layout;
 mod maybe_relocatable;
 mod memory_segments;
 mod mod_builtin_runner;
-mod poseidon_hash;
 mod program;
 mod pythonic_hint;
 mod relocatable;
@@ -48,7 +48,8 @@ pub fn vm(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<PyVmConst>()?;
     module.add_class::<PyVmConstsDict>()?;
     module.add_class::<PyModBuiltinRunner>()?;
-    module.add_function(wrap_pyfunction!(poseidon_hash::poseidon_hash_many, module)?).unwrap();
+    module.add_function(wrap_pyfunction!(hash::poseidon_hash_many, module)?).unwrap();
+    module.add_function(wrap_pyfunction!(hash::blake2s_hash_many, module)?).unwrap();
     module.add_function(wrap_pyfunction!(runner::generate_trace, module)?)?;
     module.add_function(wrap_pyfunction!(runner::run_end_to_end, module)?).unwrap();
 
