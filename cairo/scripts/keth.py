@@ -142,6 +142,11 @@ def trace(
         "--len",
         help="Number of transactions to process in this chunk for body step",
     ),
+    output_trace_components: bool = typer.Option(
+        False,
+        "--output-trace-components",
+        help="Output trace components",
+    ),
 ):
     """
     Runs the KETH trace-generation step for a given Ethereum block.
@@ -189,6 +194,7 @@ def trace(
                 program_input=program_input,
                 compiled_program_path=str(compiled_program),
                 output_path=output_path,
+                output_trace_components=output_trace_components,
             )
             console.print(f"[green]✓[/] Trace generated successfully in {output_path}")
         except Exception:

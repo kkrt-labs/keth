@@ -10,12 +10,23 @@ use pyo3::{
 };
 use stwo_cairo_adapter::{adapter::prover_input_from_vm_output, ProverInput};
 use stwo_cairo_prover::{
-    prover::{default_prod_prover_parameters, prove_cairo, ProverParameters},
+    prover::{default_prod_prover_parameters, prove_cairo, ChannelHash, ProverParameters},
     stwo_prover::core::vcs::blake2_merkle::{Blake2sMerkleChannel, Blake2sMerkleHasher},
 };
 use stwo_cairo_serialize::CairoSerialize;
 use stwo_cairo_utils::file_utils::create_file;
 use tracing_subscriber::fmt::format::FmtSpan;
+
+/// Returns the proof config for the Keth proof
+/// Because none of our programs use pedersen, we can use the CanonicalWithoutPedersen variant
+/// preprocessed trace, which is faster to setup.
+fn get_keth_proof_config() -> ProverParameters {
+    ProverParameters {
+        channel_hash: ChannelHash::Blake2s,
+        pcs_config: Default::default(),
+        preprocessed_trace: PreProcessedTraceVariant::CanonicalWithoutPedersen,
+    }
+}
 
 /// Python binding to generate a proof from prover inputs
 #[pyfunction]
@@ -38,8 +49,11 @@ pub fn verify(proof_path: PathBuf) -> PyResult<()> {
     let proof_str = std::fs::read_to_string(&proof_path)?;
     let proof: CairoProof<Blake2sMerkleHasher> =
         sonic_rs::from_str(&proof_str).map_err(to_pyerr)?;
-    let ProverParameters { channel_hash: _, pcs_config, preprocessed_trace } =
-        default_prod_prover_parameters();
+    let ProverParameters {
+        channel_hash,
+        pcs_config,
+        preprocessed_trace,
+    } = get_keth_proof_config();
     verify_cairo::<Blake2sMerkleChannel>(proof, pcs_config, preprocessed_trace)
         .map_err(to_pyerr)?;
     Ok(())
@@ -82,8 +96,11 @@ pub fn prove_with_stwo(
     serde_cairo: bool,
     verify: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let pcs_config = Default::default();
-    let preprocessed_trace = PreProcessedTraceVariant::CanonicalWithoutPedersen;
+    let ProverParameters {
+        channel_hash,
+        pcs_config,
+        preprocessed_trace,
+    } = get_keth_proof_config();
     let proof = prove_cairo::<Blake2sMerkleChannel>(prover_input, pcs_config, preprocessed_trace)?;
     let mut proof_file = create_file(&proof_path)?;
     if serde_cairo {

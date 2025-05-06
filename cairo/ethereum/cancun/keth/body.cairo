@@ -35,10 +35,7 @@ func body{
     output_ptr: felt*,
     pedersen_ptr: HashBuiltin*,
     range_check_ptr,
-    ecdsa_ptr: SignatureBuiltin*,
     bitwise_ptr: BitwiseBuiltin*,
-    ec_op_ptr: EcOpBuiltin*,
-    keccak_ptr: felt*,
     poseidon_ptr: PoseidonBuiltin*,
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
@@ -48,7 +45,6 @@ func body{
 
     // STWO does not prove the keccak builtin, so we need to use a non-builtin keccak
     // implementation.
-    let builtin_keccak_ptr = keccak_ptr;
     let (keccak_ptr) = alloc();
     let keccak_ptr_start = keccak_ptr;
 
@@ -153,7 +149,6 @@ func body{
     assert [output_ptr + 5] = len;
 
     finalize_keccak(keccak_ptr_start, keccak_ptr);
-    let keccak_ptr = builtin_keccak_ptr;
     let output_ptr = output_ptr + 6;
     return ();
 }
