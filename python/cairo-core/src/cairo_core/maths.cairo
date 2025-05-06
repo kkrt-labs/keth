@@ -736,12 +736,12 @@ func felt252_to_bytes4_full{range_check_ptr}(value: felt, dst: felt*) -> felt* {
     return dst;
 }
 
-func felt252_array_to_bytes4_array{range_check_ptr}(data_len: felt, data: felt*) -> (res_len: felt, res: felt*) {
+func felt252_array_to_bytes4_array{range_check_ptr}(input_felt_len: felt, input_felt: felt*) -> (res_len: felt, res: felt*) {
     alloc_locals;
     let (acc) = alloc();
-    let acc_len = data_len * 8;
-    let data_end = data + data_len;
-    _felt252_array_to_bytes4_array{data_end=data_end}(data, acc);
+    let acc_len = input_felt_len * 8;
+    let input_felt_end = input_felt + input_felt_len;
+    _felt252_array_to_bytes4_array{data_end=input_felt_end}(input_felt, acc);
     return (res_len=acc_len, res=acc);
 }
 

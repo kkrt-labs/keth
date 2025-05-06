@@ -12,9 +12,12 @@ from starkware.cairo.common.math_cmp import is_le
 from starkware.cairo.common.memset import memset
 from starkware.cairo.common.uint256 import Uint256
 
+from cairo_core.maths import felt252_array_to_bytes4_array
+
 const INPUT_BLOCK_FELTS = 16;
 const INPUT_BLOCK_BYTES = 64;
 const STATE_SIZE_FELTS = 8;
+const BLAKE2S_BYTES_IN_FELTS = 32;
 
 // Computes blake2s of 'input'.
 // To use this function, split the input into words of 32 bits (little endian).
@@ -35,6 +38,32 @@ func blake2s{range_check_ptr}(data: felt*, n_bytes: felt) -> (res: Uint256) {
     let res_low = output[3] * 2 ** 96 + output[2] * 2 ** 64 + output[1] * 2 ** 32 + output[0];
     let res_high = output[7] * 2 ** 96 + output[6] * 2 ** 64 + output[5] * 2 ** 32 + output[4];
     return (res=Uint256(low=res_low, high=res_high));
+}
+
+// A truncated version of blake2s that returns a 251-bit hash.
+// Expects the same input as the function above.
+func blake2s_truncated{range_check_ptr}(data: felt*, n_bytes: felt) -> felt {
+    let (blake2s_ptr) = alloc();
+    let (output) = blake2s_as_words{blake2s_ptr=blake2s_ptr}(data=data, n_bytes=n_bytes);
+    // Truncate hash - convert value to felt, by taking the 248 least significant bits.
+    // Meaning we only take the lower 3 bytes of the final word.
+    let (high_h, high_l) = unsigned_div_rem(output[7], 2 ** 24);
+    // final_world_l is the lower 27 bits of the final word
+    tempvar res_felt = 2 ** 224 * high_l + output[6] * 2 ** 192 + output[5] * 2 ** 160 + output[
+        4
+    ] * 2 ** 128 + output[3] * 2 ** 96 + output[2] * 2 ** 64 + output[1] * 2 ** 32 + output[0];
+    return res_felt;
+}
+
+// Computes the blake2s hash of multiple field elements.
+// The output is the blake2s hash truncated to 251 bits.
+// The input is a pointer to an array of felts.
+func blake2s_hash_many{range_check_ptr}(felt_input_len: felt, felt_input: felt*) -> felt {
+    alloc_locals;
+    let n_bytes = felt_input_len * BLAKE2S_BYTES_IN_FELTS;
+    let (blake2s_ptr) = alloc();
+    let (data_len, data) = felt252_array_to_bytes4_array(felt_input_len, felt_input);
+    return blake2s_truncated(data=data, n_bytes=n_bytes);
 }
 
 // Computes blake2s of 'input', and returns the hash in big endian representation.
