@@ -89,6 +89,7 @@ pub fn prove_with_stwo(
     if serde_cairo {
         let mut serialized: Vec<starknet_ff::FieldElement> = Vec::new();
         CairoSerialize::serialize(&proof, &mut serialized);
+
         let hex_strings: Vec<String> =
             serialized.into_iter().map(|felt| format!("0x{:x}", felt)).collect();
 

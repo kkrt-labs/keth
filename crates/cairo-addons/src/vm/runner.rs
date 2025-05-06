@@ -773,7 +773,9 @@ pub fn generate_trace(
     if let Some(parent) = output_path.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    std::fs::write(output_path, serde_json::to_string(&prover_input_info).map_err(to_pyerr)?)?;
+    // Uses bincode for faster serialization - can switch to sonic_rs if JSON is required
+    let bytes = prover_input_info.serialize().map_err(to_pyerr)?;
+    std::fs::write(output_path, bytes)?;
 
     Ok(())
 }

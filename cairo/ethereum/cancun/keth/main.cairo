@@ -98,7 +98,6 @@ func main{
     assert [output_ptr + 5] = trie_storage_diff_commitment;
 
     finalize_keccak(keccak_ptr_start, keccak_ptr);
-    let keccak_ptr = builtin_keccak_ptr;
     let output_ptr = output_ptr + 6;
     return ();
 }

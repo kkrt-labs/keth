@@ -836,7 +836,7 @@ dependencies = [
 [[package]]
 name = "cairo-vm"
 version = "2.0.1"
-source = "git+https://github.com/kkrt-labs/cairo-vm?rev=0e6a272b5c6153437bd3b40150dde93d1294e565#0e6a272b5c6153437bd3b40150dde93d1294e565"
+source = "git+https://github.com/kkrt-labs/cairo-vm?rev=5f97264eac172331e64030d5f1cc97c3ca94a429#5f97264eac172331e64030d5f1cc97c3ca94a429"
 dependencies = [
  "anyhow",
  "arbitrary",
