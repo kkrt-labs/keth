@@ -20,10 +20,10 @@ from ethereum_types.numeric import U256
 from hypothesis import assume, given
 from hypothesis import strategies as st
 from hypothesis.strategies import composite
-from keth_types.types import EMPTY_TRIE_HASH, encode_account
 
-from cairo_addons.rust_bindings.vm import poseidon_hash_many
+from cairo_addons.rust_bindings.vm import blake2s_hash_many
 from cairo_addons.utils.uint256 import int_to_uint256
+from keth_types.types import EMPTY_TRIE_HASH, encode_account
 from mpt.ethereum_tries import EthereumTries, EthereumTrieTransitionDB
 from mpt.trie_builder import TrieTestBuilder
 from mpt.trie_diff import StateDiff, resolve
@@ -226,7 +226,7 @@ class TestTrieDiff:
                 address
             ].items():
                 key = int_to_uint256(int.from_bytes(key, "little"))
-                key_hashed = poseidon_hash_many(
+                key_hashed = blake2s_hash_many(
                     (int.from_bytes(address, "little"), *key)
                 )
                 assert (prev_value, new_value) == storage_lookup[key_hashed]
@@ -508,7 +508,7 @@ class TestTrieDiff:
 
         for key, (prev_value, new_value) in diff_cls._storage_tries[address].items():
             key = int_to_uint256(int.from_bytes(key, "little"))
-            hashed_key = poseidon_hash_many((int.from_bytes(address, "little"), *key))
+            hashed_key = blake2s_hash_many((int.from_bytes(address, "little"), *key))
             assert (prev_value, new_value) == result_lookup[hashed_key]
 
     @given(storage_key=..., address=..., data=st.data())

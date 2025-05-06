@@ -48,7 +48,6 @@ from ethereum_rlp.rlp import (
     Extended__eq__,
 )
 
-from starkware.cairo.common.builtin_poseidon.poseidon import poseidon_hash_many
 from legacy.utils.dict import hashdict_read
 from cairo_core.control_flow import raise
 from ethereum.utils.numeric import OptionalU256__eq__
@@ -91,6 +90,8 @@ from mpt.types import (
     EMPTY_TRIE_HASH_HIGH,
 )
 from legacy.utils.dict import dict_squash
+
+from cairo_core.hash.blake2s import blake2s_hash_many
 
 // / @notice Implementation details for OptionalUnionInternalNodeExtended.
 namespace OptionalUnionInternalNodeExtendedImpl {
@@ -538,7 +539,7 @@ func _process_storage_diff{
     assert [tuple_address_bytes32_buffer] = address.value;
     assert [tuple_address_bytes32_buffer + 1] = storage_key.value.low;
     assert [tuple_address_bytes32_buffer + 2] = storage_key.value.high;
-    let (hashed_storage_key_) = poseidon_hash_many(3, tuple_address_bytes32_buffer);
+    let (hashed_storage_key_) = blake2s_hash_many(3, tuple_address_bytes32_buffer);
     let hashed_storage_key = HashedTupleAddressBytes32(hashed_storage_key_);
     tempvar storage_diff_entry = StorageDiffEntry(
         new StorageDiffEntryStruct(
