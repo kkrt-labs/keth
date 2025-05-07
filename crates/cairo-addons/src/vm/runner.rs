@@ -765,13 +765,18 @@ pub fn run_end_to_end(
         prepare_cairo_execution(&entrypoint, program_input, &compiled_program_path)?;
 
     let mut hint_processor = HintProcessor::default().with_dynamic_python_hints(false).build();
-    let cairo_runner = cairo_run::cairo_run_program_with_initial_scope(
+    let cairo_runner = match cairo_run::cairo_run_program_with_initial_scope(
         &program,
         &run_config,
         &mut hint_processor,
         exec_scopes,
-    )
-    .map_err(to_pyerr)?;
+    ) {
+        Ok(runner) => runner,
+        Err(error) => {
+            tracing::error!("Failed to run program: {}", error);
+            panic!("Failed to run block, exiting");
+        }
+    };
     drop(_run_span_guard);
 
     let execution_resources = cairo_runner.get_execution_resources().unwrap();
